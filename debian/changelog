@@ -1,0 +1,6 @@
+ec2-init (0.1) intrepid; urgency=low
+
+  * Initial release.
+
+ -- Soren Hansen <soren@ubuntu.com>  Fri, 12 Sep 2008 15:30:32 +0200
+
