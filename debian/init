@@ -1,0 +1,61 @@
+#!/bin/sh
+### BEGIN INIT INFO
+# Provides:          ec2-init
+# Required-Start:    $network $local_fs
+# Required-Stop:
+# Should-Start:      $named
+# Should-Stop:
+# Default-Start:     S
+# Default-Stop:      1
+# Short-Description: Initialises system for use on Amazon EC2
+# Description:       Fetches login credentials and handles various quirks
+### END INIT INFO
+
+PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
+NAME=ec2-init
+
+. /lib/lsb/init-functions
+
+case "$1" in
+  start)
+	log_daemon_msg "Running EC2 user data"
+	if ec2-run-user-data 2> /dev/null
+	then
+		log_end_msg 0
+	else
+		log_end_msg 1
+	fi
+
+	log_daemon_msg "Fetching EC2 login credentials"
+	if ec2-fetch-credentials 2> /dev/null
+	then
+		log_end_msg 0
+	else
+		log_end_msg 1
+	fi
+
+	if pgrep nash-hotplug > /dev/null
+	then
+		log_daemon_msg "Killing nash-hotplug"
+		if pkill nash-hotplug;
+		then 
+			log_end_msg 0
+		else
+			log_end_msg 1
+		fi
+	fi
+	;;
+  stop)
+        exit 0
+        ;;
+  restart|force-reload)
+  		exec $0 start
+	;;
+  *)
+	N=/etc/init.d/$NAME
+	echo "Usage: $N {start|stop|force-stop|restart|force-reload|status}" >&2
+	exit 1
+	;;
+esac
+
+exit 0
