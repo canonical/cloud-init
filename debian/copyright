@@ -1,0 +1,27 @@
+This package was debianized by Soren Hansen <soren@ubuntu.com> on
+Thu, 04 Sep 2008 12:49:15 +0200.
+
+Upstream Author:
+
+    Soren Hansen <soren@canonical.com>
+
+Copyright:
+
+    Copyright 2008 Canonical Ltd. 
+
+License:
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+The complete text of the GPL version 3 can be seen in /usr/share/common-licenses/GPL.

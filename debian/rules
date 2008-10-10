@@ -1,0 +1,10 @@
+#!/usr/bin/make -f
+
+include /usr/share/cdbs/1/rules/debhelper.mk
+
+DEB_UPDATE_RCD_PARAMS:=start 90 S .
+
+build/ec2-init::
+	install -d debian/tmp/usr/sbin
+	install -m 775 ec2-fetch-credentials.py debian/tmp/usr/sbin/ec2-fetch-credentials
+	install -m 775 ec2-run-user-data.py debian/tmp/usr/sbin/ec2-run-user-data
