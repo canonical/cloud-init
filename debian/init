@@ -18,16 +18,16 @@ NAME=ec2-init
 
 case "$1" in
   start)
-	log_daemon_msg "Running EC2 user data"
-	if ec2-run-user-data 2> /dev/null
+	log_daemon_msg "Fetching EC2 login credentials"
+	if ec2-fetch-credentials 2> /dev/null
 	then
 		log_end_msg 0
 	else
 		log_end_msg 1
 	fi
 
-	log_daemon_msg "Fetching EC2 login credentials"
-	if ec2-fetch-credentials 2> /dev/null
+	log_daemon_msg "Running EC2 user data"
+	if ec2-run-user-data 2> /dev/null
 	then
 		log_end_msg 0
 	else
@@ -44,6 +44,14 @@ case "$1" in
 			log_end_msg 1
 		fi
 	fi
+	log_daemon_msg "Setting hostname to EC2 public_hostname"
+	if ec2-set-hostname 2> /dev/null
+	then
+		log_end_msg 0
+	else
+		log_end_msg 1
+	fi
+
 	;;
   stop)
         exit 0
