@@ -8,3 +8,4 @@ build/ec2-init::
 	install -d debian/tmp/usr/sbin
 	install -m 775 ec2-fetch-credentials.py debian/tmp/usr/sbin/ec2-fetch-credentials
 	install -m 775 ec2-run-user-data.py debian/tmp/usr/sbin/ec2-run-user-data
+	install -m 755 ec2-set-hostname.py debian/tmp/usr/sbin/ec2-set-hostname
