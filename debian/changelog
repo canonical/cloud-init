@@ -1,3 +1,12 @@
+ec2-init (0.2) jaunty; urgency=low
+
+  * debian/init: Run fetch-credentials before anything else.
+    (LP: #308533)
+  * Add ec2-set-hostname.py: Queries ec2 metdada for public-hostname
+    and then sets it (LP: #316201)
+
+ -- Chuck Short <zulcss@ubuntu.com>  Tue, 13 Jan 2009 15:20:21 -0500
+
 ec2-init (0.1) intrepid; urgency=low
 
   * Initial release (LP: #269434).

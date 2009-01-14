@@ -6,7 +6,7 @@ Build-Depends: cdbs, debhelper (>= 5)
 Standards-Version: 3.8.0
 
 Package: ec2-init
-Architecture: all
+Architecture: i386 amd64
 Depends: python, procps
 Description: Init scripts for EC2 instances
  EC2 instances need special scripts to run during initialisation
