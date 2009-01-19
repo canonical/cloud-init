@@ -3,7 +3,7 @@
 #    Fetch and run user-data from EC2
 #    Copyright 2008 Canonical Ltd.
 #
-#    Author: Soren Hansen <soren@canonical.com>
+#    Original-Author: Soren Hansen <soren@canonical.com>
 #
 #    This program is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -23,6 +23,7 @@ import os
 import sys
 import tempfile
 import urllib
+from time import gmtime, strftime
 
 api_ver = '2008-02-01'
 metadata = None
@@ -37,12 +38,13 @@ def get_user_data():
 user_data = get_user_data()
 
 if user_data.startswith('#!'):
+    # run it 
     (fp, path) = tempfile.mkstemp()
-    fp.write(data)
-    fp.close()
+    os.write(fp,user_data)
+    os.close(fp);
     os.chmod(path, 0700)
+    os.system('cp %s /var/ec2/user-data.%s' %(path, strftime("%Y%m%d%H%I", gmtime())))
     status = os.system('%s' % path)
     os.unlink(path)
-    sys.exit(os.WIFEXITSTATUS(status))
 
 sys.exit(0)
