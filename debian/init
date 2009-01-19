@@ -27,11 +27,17 @@ case "$1" in
 	fi
 
 	log_daemon_msg "Running EC2 user data"
-	if ec2-run-user-data 2> /dev/null
+	if [ -f /var/ec2/.already_ran ] 
 	then
-		log_end_msg 0
+		echo "Already ran";
 	else
-		log_end_msg 1
+		if ec2-run-user-data 2> /dev/null
+		then
+			log_end_msg 0
+			touch /var/ec2/.already_ran
+		else
+			log_end_msg 1
+		fi
 	fi
 
 	if pgrep nash-hotplug > /dev/null
