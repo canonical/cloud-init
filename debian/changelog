@@ -1,3 +1,9 @@
+ec2-init (0.3) jaunty; urgency=low
+
+  * ec2-run-user-data: Fix python error when writing a file to the disk. 
+
+ -- Chuck Short <zulcss@ubuntu.com>  Thu, 15 Jan 2009 11:49:08 -0500
+
 ec2-init (0.2) jaunty; urgency=low
 
   * debian/init: Run fetch-credentials before anything else.
