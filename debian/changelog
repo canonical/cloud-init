@@ -1,3 +1,11 @@
+ec2-init (0.3.1) jaunty; urgency=low
+
+  * debian/dir: Install /var/ec2 to save user-data scripts.
+  * debian/rules: Start ec2-init after ssh.
+  * ec2-run-user-data.py: Save run-user-data script with ami-id.
+
+ -- Chuck Short <zulcss@ubuntu.com>  Mon, 26 Jan 2009 10:40:52 -0500
+
 ec2-init (0.3) jaunty; urgency=low
 
   * ec2-run-user-data: Fix python error when writing a file to the disk. 
