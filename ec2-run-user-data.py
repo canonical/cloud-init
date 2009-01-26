@@ -35,7 +35,13 @@ def get_user_data():
     fp.close()
     return data
 
+def get_ami_id():
+    url = 'http://169.254.169.254/%s/meta-data', % api_ver
+    ami_id = urllib.urlopen('%s/ami-id/' %url).read()
+    return ami_id
+
 user_data = get_user_data()
+amiId = get_ami_id()
 
 if user_data.startswith('#!'):
     # run it 
@@ -43,7 +49,7 @@ if user_data.startswith('#!'):
     os.write(fp,user_data)
     os.close(fp);
     os.chmod(path, 0700)
-    os.system('cp %s /var/ec2/user-data.%s' %(path, strftime("%Y%m%d%H%I", gmtime())))
+    os.system('cp %s /var/ec2/user-data.%s' %(path, amiId))
     status = os.system('%s' % path)
     os.unlink(path)
 
