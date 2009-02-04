@@ -1,3 +1,23 @@
+ec2-init (0.3.2) jaunty; urgency=low
+
+  * debian/init:
+    - Remove already ran detection
+    - Log the running of ec2-run-user-data to /var/log/ec2-user-data.log
+  * ec2-set-hostname.py:
+    - set hostname to the Ec2 local-hostname
+    - Update the /etc/hosts to change the ubuntu hostname to the
+      public hostname.
+  * ec2-fetch-credentials:
+    - Copy the ssh keys to the ubuntu user.
+    - Setup authorized keys for root to tell the user to login as the 
+      ubuntu user when they try to connect.
+  * ec2-run-user-data:
+    - Create an .already-ran file to check to see if ec2-run-user-data
+      already ran.
+    - Save the ec2-run-user-data script in /var/ec2.
+
+ -- Chuck Short <zulcss@ubuntu.com>  Wed, 04 Feb 2009 09:32:08 -0500
+
 ec2-init (0.3.1) jaunty; urgency=low
 
   * debian/dir: Install /var/ec2 to save user-data scripts.
