@@ -36,21 +36,27 @@ def get_user_data():
     return data
 
 def get_ami_id():
-    url = 'http://169.254.169.254/%s/meta-data', % api_ver
+    url = 'http://169.254.169.254/%s/meta-data' % api_ver
     ami_id = urllib.urlopen('%s/ami-id/' %url).read()
     return ami_id
 
 user_data = get_user_data()
 amiId = get_ami_id()
+filename = '/var/ec2/.already-ran.%s' % amiId
 
-if user_data.startswith('#!'):
-    # run it 
-    (fp, path) = tempfile.mkstemp()
-    os.write(fp,user_data)
-    os.close(fp);
-    os.chmod(path, 0700)
-    os.system('cp %s /var/ec2/user-data.%s' %(path, amiId))
-    status = os.system('%s' % path)
-    os.unlink(path)
+if os.path.exists(filename):
+   print "ec2-run-user-data already ran for this instance."
+   sys.exit(0)
+else:
+    if user_data.startswith('#!'):
+       # run it 
+       (fp, path) = tempfile.mkstemp()
+       os.write(fp,user_data)
+       os.close(fp);
+       os.chmod(path, 0700)
+       os.system('cp %s /var/ec2/user-data' %(path))
+       status = os.system('%s' % path)
+       os.unlink(path)
+       os.system('touch /var/ec2/$s' %(filename))
 
 sys.exit(0)
