@@ -25,5 +25,15 @@ api_ver = '2008-02-01'
 metadata = None
 
 base_url = 'http://169.254.169.254/%s/meta-data' % api_ver
-my_hostname = urllib.urlopen('%s/public-hostname/' % base_url).read()
+my_hostname = urllib.urlopen('%s/local-hostname/' % base_url).read()
 os.system('hostname %s' % my_hostname)
+
+# replace the ubuntu hostname in /etc/hosts
+my_public_hostname = urllib.urlopen('%s/public-hostname/' % base_url).read()
+
+f = open("/etc/hosts", "r")
+lines = f.read()
+f.close()
+file = open("/etc/hosts", "w")
+file.write(lines.replace("127.0.1.1 ubuntu. ubuntu", "127.0.1.1 "+  my_public_hostname +" "+ my_hostname))
+file.close()
