@@ -7,6 +7,8 @@ DEB_UPDATE_RCD_PARAMS:= start 90 2 3 4 5 . stop 20 1 .
 build/ec2-init::
 	install -d debian/tmp/usr/sbin
 	mkdir -p debian/tmp/var/ec2
+	mkdir -p debian/tmp/etc/ec2-init
 	install -m 775 ec2-fetch-credentials.py debian/tmp/usr/sbin/ec2-fetch-credentials
 	install -m 775 ec2-run-user-data.py debian/tmp/usr/sbin/ec2-run-user-data
 	install -m 755 ec2-set-hostname.py debian/tmp/usr/sbin/ec2-set-hostname
+	install -m 755 ec2-set-apt-sources.py debian/tmp/usr/sbin/ec2-set-apt-sources
