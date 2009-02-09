@@ -16,6 +16,10 @@ NAME=ec2-init
 
 . /lib/lsb/init-functions
 
+if [ ! -d /var/run/ec2 ]; then
+	mkdir /var/run/ec2
+fi
+
 case "$1" in
   start)
 	log_daemon_msg "Fetching EC2 login credentials"
@@ -48,6 +52,13 @@ case "$1" in
 	if ec2-set-hostname 2> /dev/null
 	then
 		log_end_msg 0
+	else
+		log_end_msg 1
+	fi
+	log_daemon_msg "Determining EC2 availability zone"
+	if ec2-set-apt-sources.py 2> /dev/null
+	then
+		log_end_msg 0 
 	else
 		log_end_msg 1
 	fi
