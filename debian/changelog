@@ -1,3 +1,21 @@
+ec2-init (0.3.3) jaunty; urgency=low
+
+  * ec2-set-apt-sources.py
+    - Determine the zone that the user is in and generate
+      a /etc/apt/sources.list.d/ based on that.
+  * debian/init:
+    - Check to see if there is an /var/run/ec2 and create
+      it if it doesnt exist.
+    - Start ec2-set-apt-sources at first bootup.
+  * debian/rules:
+    - Install ec2-set-apt-sources.
+  * debian/control:
+    - Add python-configobj as a dependency.
+  * debian/{install,dirs}
+    - Create an /etc/ec2-init to read the configuration file and install it.
+  
+ -- Chuck Short <zulcss@ubuntu.com>  Mon, 09 Feb 2009 10:35:56 -0500
+
 ec2-init (0.3.2) jaunty; urgency=low
 
   * debian/init:
