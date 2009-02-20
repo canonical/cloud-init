@@ -1,3 +1,9 @@
+ec2-init (0.3.3ubuntu1) jaunty; urgency=low
+
+  * debian/init: Fix init script. 
+
+ -- Chuck Short <zulcss@ubuntu.com>  Fri, 20 Feb 2009 09:22:54 -0500
+
 ec2-init (0.3.3) jaunty; urgency=low
 
   * ec2-set-apt-sources.py
