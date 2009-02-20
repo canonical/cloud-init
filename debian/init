@@ -56,7 +56,7 @@ case "$1" in
 		log_end_msg 1
 	fi
 	log_daemon_msg "Determining EC2 availability zone"
-	if ec2-set-apt-sources.py 2> /dev/null
+	if ec2-set-apt-sources 2> /dev/null
 	then
 		log_end_msg 0 
 	else
