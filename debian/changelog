@@ -1,3 +1,13 @@
+ec2-init (0.3.3ubuntu2) jaunty; urgency=low
+
+  * debian/ec2-set-apt-sources.py:
+    - Use the ec2 mirrors. (LP: #317065, #333897)
+    - Update the /etc/apt/sources.list (LP: #333904)
+  * debian/ec2-fetch-credentials.py:
+    - Better error checking (LP: #325067)
+
+ -- Chuck Short <zulcss@ubuntu.com>  Tue, 24 Feb 2009 14:02:37 -0500
+
 ec2-init (0.3.3ubuntu1) jaunty; urgency=low
 
   * debian/init: Fix init script. 

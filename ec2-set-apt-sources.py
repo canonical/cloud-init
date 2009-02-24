@@ -25,7 +25,7 @@ from configobj import ConfigObj
 
 api_ver = '2008-02-01'
 metadata = None
-filename='/etc/ec2/ec2-init.cfg'
+filename='/etc/ec2-init/ec2-config.cfg'
 
 base_url = 'http://169.254.169.254/%s/meta-data' % api_ver
 zone = urllib.urlopen('%s/placement/availability-zone' % base_url).read()
@@ -39,7 +39,11 @@ config = ConfigObj(filename)
 distro = config['distro']
 
 f = open("/var/run/ec2/sources.list", "w")
-f.write('deb %s %s main universe\n' % (archive,distro))
-f.write('deb %s %s-updates main restricted universe\n' % (archive,distro))
+f.write('deb %s %s main universe\n'  % (archive,distro))
+f.write('deb-src %s %s main universe\n' % (archive,distro))
+f.write('deb %s %s-updates main universe\n' % (archive,distro))
+f.write('deb http://security.ubuntu.com/ubuntu intrepid-security main universe\n')
+f.write('deb-src http://security.ubuntu.com/ubuntu intrepid-security main universe\n')
 f.close()
-os.system("ln -s /var/run/ec2/sources.list /etc/apt/sources.list.d/amazon.list")
+os.system("mv /etc/apt/sources.list /etc/apt/sources.list-ec2-init")
+os.system("ln -s /var/run/ec2/sources.list /etc/apt/sources.list")

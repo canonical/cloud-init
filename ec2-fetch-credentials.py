@@ -37,6 +37,9 @@ os.umask(077)
 if not os.path.exists('/home/ubuntu/.ssh'):
     os.mkdir('/home/ubuntu/.ssh')
 
+if not os.path.exists('/root/.ssh'):
+    os.mkdir('/root/.ssh')
+
 fp = open('/home/ubuntu/.ssh/authorized_keys', 'a')
 fp.write(''.join(['%s\n' % key for key in keys]))
 fp.close()
@@ -44,6 +47,6 @@ fp.close()
 os.system('chown -R ubuntu:ubuntu /home/ubuntu/.ssh')
 
 fp = open('/root/.ssh/authorized_keys', 'a')
-fp.write("command=\"echo;echo \'Please use the \"ubuntu\" user to login on this host instead of \"root\".\'echo;sleep 10\"") 
-fp.write('',join(['%s\n' % key for key in keys]))
+fp.write("command=\"echo \'Please ssh to the ubuntu user on this host instead of root\';echo;sleep 10\" ") 
+fp.write(''.join(['%s\n' % key for key in keys]))
 fp.close()
