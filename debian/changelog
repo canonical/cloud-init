@@ -1,9 +1,37 @@
+ec2-init (0.3.3ubuntu4) jaunty; urgency=low
+
+  * ec2-fetch-credentials.py:
+    - Allow user to choose which user they wish to configure for.
+    - Allow user to disable root user if they wish to.
+  * ec2-set-defaults.py:
+    - Set default timezone to UTC.
+    - Set locale depending on zone.
+  * debian/init:
+    - Removed nash plugin.
+    - Add ec2-set-defaults.
+
+ -- Chuck Short <zulcss@ubuntu.com>  Wed, 04 Mar 2009 08:33:01 -0500
+
+ec2-init (0.3.3ubuntu3~intrepid4) intrepid; urgency=low
+
+  * set distro to intrepid.
+
+ -- Chuck Short <zulcss@ubuntu.com>  Thu, 26 Feb 2009 10:28:06 -0500
+
+ec2-init (0.3.3ubuntu3) jaunty; urgency=low
+
+  * debian/ec2-init: Log results of ec2-run-user-data to syslog.
+  * ec2-run-user-data.py :Dont leave files around and log the 
+    output to syslog. 
+
+ -- Chuck Short <zulcss@ubuntu.com>  Thu, 26 Feb 2009 10:24:35 -0500
+
 ec2-init (0.3.3ubuntu2) jaunty; urgency=low
 
-  * debian/ec2-set-apt-sources.py:
+  * ec2-set-apt-sources.py:
     - Use the ec2 mirrors. (LP: #317065, #333897)
     - Update the /etc/apt/sources.list (LP: #333904)
-  * debian/ec2-fetch-credentials.py:
+  * ec2-fetch-credentials.py:
     - Better error checking (LP: #325067)
 
  -- Chuck Short <zulcss@ubuntu.com>  Tue, 24 Feb 2009 14:02:37 -0500
