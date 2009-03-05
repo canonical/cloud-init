@@ -20,9 +20,15 @@
 #
 import urllib
 import os
+from configobj import ConfigObj
 
 api_ver = '2008-02-01'
 metadata = None
+filename='/etc/ec2-init/ec2-config.cfg'
+
+config = ConfigObj(filename)
+user = config['user']
+config_root = config['DISABLE_ROOT']
 
 def get_ssh_keys():
     base_url = 'http://169.254.169.254/%s/meta-data' % api_ver
@@ -30,23 +36,32 @@ def get_ssh_keys():
     keyids = [line.split('=')[0] for line in data.split('\n')]
     return [urllib.urlopen('%s/public-keys/%d/openssh-key' % (base_url, int(keyid))).read().rstrip() for keyid in keyids]
 
-keys = get_ssh_keys()
+def setup_user_keys(k,user):
+    if not os.path.exists('/home/%s/.ssh' %(user)):
+	os.mkdir('/home/%s/.ssh' %(user))
+
+    authorized_keys = '/home/%s/.ssh/authorized_keys' % user
+    fp = open(authorized_keys, 'a')
+    fp.write(''.join(['%s\n' % key for key in keys]))
+    fp.close()
+    os.system('chown -R %s:%s /home/%s/.ssh' %(user,user,user))
+
+def setup_root_user(k,root_config):
+    if root_config == "1":
+        fp = open('/root/.ssh/authorized_keys', 'a')
+	fp.write("command=\"echo \'Please ssh to the ubuntu user on this host instead of root\';echo;sleep 10\" ")
+	fp.write(''.join(['%s\n' % key for key in keys]))
+	fp.close()
+    elif root_config == "0":
+	print "You choose to disable the root user, god help you."
+    else:
+	print "%s - I dont understand that opion."
 
 os.umask(077)
+if user == "":
+	print "User must exist in %s" %(filename)
+	sys.exit(0)
 
-if not os.path.exists('/home/ubuntu/.ssh'):
-    os.mkdir('/home/ubuntu/.ssh')
-
-if not os.path.exists('/root/.ssh'):
-    os.mkdir('/root/.ssh')
-
-fp = open('/home/ubuntu/.ssh/authorized_keys', 'a')
-fp.write(''.join(['%s\n' % key for key in keys]))
-fp.close()
-
-os.system('chown -R ubuntu:ubuntu /home/ubuntu/.ssh')
-
-fp = open('/root/.ssh/authorized_keys', 'a')
-fp.write("command=\"echo \'Please ssh to the ubuntu user on this host instead of root\';echo;sleep 10\" ") 
-fp.write(''.join(['%s\n' % key for key in keys]))
-fp.close()
+keys = get_ssh_keys()
+setup_user_keys(keys,user)
+setup_root_user(keys,config_root)
