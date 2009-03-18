@@ -12,3 +12,5 @@ build/ec2-init::
 	install -m 775 ec2-run-user-data.py debian/tmp/usr/sbin/ec2-run-user-data
 	install -m 755 ec2-set-hostname.py debian/tmp/usr/sbin/ec2-set-hostname
 	install -m 755 ec2-set-apt-sources.py debian/tmp/usr/sbin/ec2-set-apt-sources
+	install -m755 ec2-get-info.py debian/tmp/usr/sbin/ec2-get-info
+	dh_installinit -p ec2-init --name rightscale-init -- defaults 20 21
