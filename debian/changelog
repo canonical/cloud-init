@@ -1,3 +1,17 @@
+ec2-init (0.3.3ubuntu6) jaunty; urgency=low
+
+  * Set the configuration file to jaunty.
+  * ec2-fetch-credentials: Fix typo.
+  * ec2-set-defaults.py: 
+    - Remove timezone change when booting the instance.
+    - Redirect output to /dev/null.
+  * ec2-set-apt-sources.py:
+    - Run apt-get update after the /etc/apt/sources.list and
+      redirect the output to /dev/null.
+  * rightscale-init: Updated rightscale-init
+
+ -- Chuck Short <zulcss@ubuntu.com>  Thu, 19 Mar 2009 20:52:59 -0400
+
 ec2-init (0.3.3ubuntu5) jaunty; urgency=low
 
   * debian/ec2-config.cfg:

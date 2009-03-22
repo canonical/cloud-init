@@ -48,8 +48,11 @@ def setup_user_keys(k,user):
 
 def setup_root_user(k,root_config):
     if root_config == "1":
+	if not os.path.exists('/root/.ssh'):
+            os.mkdir('/root/.ssh/')
+
         fp = open('/root/.ssh/authorized_keys', 'a')
-	fp.write("command=\"echo \'Please ssh to the ubuntu user on this host instead of root\';echo;sleep 10\" ")
+	fp.write("command=\"echo \'Please login as the ubuntu user rather than root user.\';echo;sleep 10\" ") 
 	fp.write(''.join(['%s\n' % key for key in keys]))
 	fp.close()
     elif root_config == "0":

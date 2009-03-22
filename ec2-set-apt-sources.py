@@ -47,3 +47,4 @@ f.write('deb-src http://security.ubuntu.com/ubuntu intrepid-security main univer
 f.close()
 os.system("mv /etc/apt/sources.list /etc/apt/sources.list-ec2-init")
 os.system("ln -s /var/run/ec2/sources.list /etc/apt/sources.list")
+os.system("apt-get update 2>&1 > /dev/null")
