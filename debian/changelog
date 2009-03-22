@@ -1,3 +1,9 @@
+ec2-init (0.3.3ubuntu7) jaunty; urgency=low
+
+  * debian/rules: Fix typo. 
+
+ -- Chuck Short <zulcss@ubuntu.com>  Sun, 22 Mar 2009 17:14:16 -0400
+
 ec2-init (0.3.3ubuntu6) jaunty; urgency=low
 
   * Set the configuration file to jaunty.
