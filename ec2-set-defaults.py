@@ -34,18 +34,14 @@ if zone.startswith("us"):
 elif zone.startswith("eu"):
 	archive = "http://eu.ec2.archive.ubuntu.com/ubuntu"
 
-def set_utc_clock():
-	os.system('ln -s -f /usr/share/zoneinfo/UTC /etc/localime')
-
 def set_language(location):
 	if location.startswith("us"):
 	   lang='en_US.UTF-8'
-	   os.system('locale-gen %s' %(lang))
-	   os.system('update-locale %s' %(lang))
+	   os.system('locale-gen %s 2>&1 > /dev/null' %(lang))
+	   os.system('update-locale %s 2>&1 > /dev/null' %(lang))
 	elif location.startswith("eu"):
 	   lang='en_GB.UTF-8'
-	   os.system('locale-gen %s' %(lang))
-	   os.system('update-locale %s' %(lang))
+	   os.system('locale-gen %s 2>&1 > /dev/null' %(lang))
+	   os.system('update-locale %s 2>&1 > /dev/null' %(lang))
 
-set_utc_clock()
 set_language(zone)
