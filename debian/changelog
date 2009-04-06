@@ -1,3 +1,18 @@
+ec2-init (0.3.3ubuntu10) jaunty; urgency=low
+
+  * ec2-set-hostname.py:
+    - Use template for /etc/hosts creation.
+    - Dont use public_hostname in /etc/hosts. (LP: #352745)
+  * debian/control:
+    - Add python-cheetah as a depends.
+  * templates/sources.list.tmpl: 
+    - Update template.
+  * debian/init:
+    - Run the ec2-user-data script last so that the users
+      get a stable system  before running the user scripts.
+
+ -- Chuck Short <zulcss@ubuntu.com>  Wed, 01 Apr 2009 08:48:05 -0400
+
 ec2-init (0.3.3ubuntu9) jaunty; urgency=low
 
   * ec2-set-apt-sources.py:
