@@ -1,2 +1,2 @@
 debian/tmp/usr/sbin/*
-debian/ec2-config.cfg etc/ec2-init
+debian/tmp/etc/ec2-init/*

@@ -38,14 +38,6 @@ case "$1" in
 		log_end_msg 1
 	fi
 
-	log_daemon_msg "Running EC2 user data"
-	if ec2-run-user-data 2>&1 | logger -t "user-data"
-	then
-		log_end_msg 0
-	else
-		log_end_msg 1
-	fi
-
 	log_daemon_msg "Setting hostname to EC2 public_hostname"
 	if ec2-set-hostname 2> /dev/null
 	then
@@ -57,6 +49,14 @@ case "$1" in
 	if ec2-set-apt-sources 2> /dev/null
 	then
 		log_end_msg 0 
+	else
+		log_end_msg 1
+	fi
+
+	log_daemon_msg "Running EC2 user data"
+	if ec2-run-user-data 2>&1 | logger -t "user-data"
+	then
+		log_end_msg 0
 	else
 		log_end_msg 1
 	fi
