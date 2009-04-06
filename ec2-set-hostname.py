@@ -20,6 +20,7 @@
 #
 import urllib
 import os
+from Cheetah.Template import Template
 
 api_ver = '2008-02-01'
 metadata = None
@@ -29,11 +30,10 @@ my_hostname = urllib.urlopen('%s/local-hostname/' % base_url).read()
 os.system('hostname %s' % my_hostname)
 
 # replace the ubuntu hostname in /etc/hosts
-my_public_hostname = urllib.urlopen('%s/public-hostname/' % base_url).read()
+mp = {'hostname': my_hostname}
+t = Template(file="/etc/ec2-init/templates/hosts.tmpl", searchList=[mp])
 
-f = open("/etc/hosts", "r")
-lines = f.read()
+os.system("rm  /etc/hosts")
+f = open("/etc/hosts", "w")
+f.write('%s' %(t))
 f.close()
-file = open("/etc/hosts", "w")
-file.write(lines.replace("127.0.1.1 ubuntu. ubuntu", "127.0.1.1 "+  my_public_hostname +" "+ my_hostname))
-file.close()
