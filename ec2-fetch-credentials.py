@@ -20,6 +20,8 @@
 #
 import urllib
 import os
+import socket
+import sys
 from configobj import ConfigObj
 
 api_ver = '2008-02-01'
@@ -59,6 +61,16 @@ def setup_root_user(k,root_config):
 	print "You choose to disable the root user, god help you."
     else:
 	print "%s - I dont understand that opion."
+
+def checkServer():
+    s = socket.socket()
+    try:
+      address = '169.254.169.254'
+      port = 80
+      s.connect((address,port))
+    except socket.error, e:
+      print "!!! Unable to connect to %s" % address
+      sys.exit(0)
 
 os.umask(077)
 if user == "":

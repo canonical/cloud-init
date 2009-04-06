@@ -21,7 +21,20 @@
 import os
 import sys
 import urllib
+import socket
+import apt
+import apt_pkg
 from Cheetah.Template import Template
+
+def checkServer():
+	s = socket.socket()
+	try:
+	  address = '169.254.169.254'
+          port = 80
+	  s.connect((address,port))
+	except socket.error, e:
+	  print "!!! Unable to connect to %s." % address
+	  sys.exit(0)
 
 def detectZone():
 	api_ver = '2008-02-01'
@@ -36,18 +49,25 @@ def detectZone():
 
 	return(archive)
 
-t = os.popen("lsb_release -c").read()
-codename = t.split()
-mirror = detectZone()
-distro = codename[1]
+def updateList():
+	mirror = detectZone()
+	if not os.path.exists("/var/run/ec2/sources.lists"):
+		t = os.popen("lsb_release -c").read()
+		codename = t.split()
+		distro = codename[1]
 
-mp = {'mirror' : mirror, 'codename' : distro}
-t = Template(file="/etc/ec2-init/templates/sources.list.tmpl", searchList=[mp])
+		mp = {'mirror' : mirror, 'codename' : distro}
+		t = Template(file="/etc/ec2-init/templates/sources.list.tmpl", searchList=[mp])
+		f = open("/var/run/ec2/sources.list", "w")
+		f.write('%s' %(t))
+		f.close()
 
-f = open("/var/run/ec2/sources.list", "w")
-f.write('%s' %(t))
-f.close()
+	if not os.path.exists("/etc/apt/sources.list-ec2-init"):
+		os.system("mv /etc/apt/sources.list /etc/apt/sources.list-ec2-init")
+		os.symlink("/var/run/ec2/sources.list", "/etc/apt/sources.list")
+		cache = apt.Cache(apt.progress.OpProgress())
+		prog = apt.progress.FetchProgress()
+		cache.update(prog)
 
-os.system("mv /etc/apt/sources.list /etc/apt/sources.list-ec2-init")
-os.system("ln -s /var/run/ec2/sources.list /etc/apt/sources.list")
-os.system("apt-get update 2>&1 > /dev/null")
+checkServer()
+updateList()

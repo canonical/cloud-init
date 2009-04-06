@@ -1,15 +1,21 @@
+ec2-init (0.3.3ubuntu11) jaunty; urgency=low
+
+  * debian/control:
+    - Add python-cheetah and python-apt as a dependency.
+  * debian/ec2-config.cfg:
+    - Remove distro due to the change in ec2-set-apt-sources.py
+  * debian/inistall
+    - Install the templates in the right place.
+  * ec2-set-apt-sources.py:
+    - Use python-apt to update the sources.list.
+
+ -- Chuck Short <zulcss@ubuntu.com>  Wed, 01 Apr 2009 13:58:43 -0400
+
 ec2-init (0.3.3ubuntu10) jaunty; urgency=low
 
   * ec2-set-hostname.py:
     - Use template for /etc/hosts creation.
-    - Dont use public_hostname in /etc/hosts. (LP: #352745)
-  * debian/control:
-    - Add python-cheetah as a depends.
-  * templates/sources.list.tmpl: 
-    - Update template.
-  * debian/init:
-    - Run the ec2-user-data script last so that the users
-      get a stable system  before running the user scripts.
+    - Dont use public_hostname in /etc/hosts. (LP: #352745) 
 
  -- Chuck Short <zulcss@ubuntu.com>  Wed, 01 Apr 2009 08:48:05 -0400
 

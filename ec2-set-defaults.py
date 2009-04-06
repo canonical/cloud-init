@@ -24,7 +24,6 @@ import os
 
 api_ver = '2008-02-01'
 metadata = None
-filename='/etc/ec2-init/ec2-config.cfg'
 
 base_url = 'http://169.254.169.254/%s/meta-data' % api_ver
 zone = urllib.urlopen('%s/placement/availability-zone' % base_url).read()
