@@ -23,10 +23,21 @@ import os
 import sys
 import tempfile
 import urllib
+import socket
 from time import gmtime, strftime
 
 api_ver = '2008-02-01'
 metadata = None
+
+def checkServer():
+    s = socket.socket()
+    try:
+       address = '169.254.169.254'
+       port = 80
+       s.connect((address,port))
+    except socket.error, 0:
+       print "!!!! Unable to connect to %s" % address
+       sys.exit(0)
 
 def get_user_data():
     url = 'http://169.254.169.254/%s/user-data' % api_ver
@@ -40,6 +51,7 @@ def get_ami_id():
     ami_id = urllib.urlopen('%s/ami-id/' %url).read()
     return ami_id
 
+checkServer()
 user_data = get_user_data()
 amiId = get_ami_id()
 filename = '/var/ec2/.already-ran.%s' % amiId
