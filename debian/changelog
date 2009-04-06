@@ -1,3 +1,10 @@
+ec2-init (0.3.3ubuntu8) jaunty; urgency=low
+
+  * ec2-set-apt-sources.py:
+    - Add the ubuntu-on-ec2 ppa. 
+
+ -- Chuck Short <zulcss@ubuntu.com>  Tue, 31 Mar 2009 09:37:13 -0400
+
 ec2-init (0.3.3ubuntu7) jaunty; urgency=low
 
   * debian/rules: Fix typo. 
