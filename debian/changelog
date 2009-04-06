@@ -1,3 +1,10 @@
+ec2-init (0.3.3ubuntu9) jaunty; urgency=low
+
+  * ec2-set-apt-sources.py:
+    - Use a template to generate the sources.list and generate it based on the lsb_release. 
+
+ -- Chuck Short <zulcss@ubuntu.com>  Tue, 31 Mar 2009 15:15:55 -0400
+
 ec2-init (0.3.3ubuntu8) jaunty; urgency=low
 
   * ec2-set-apt-sources.py:

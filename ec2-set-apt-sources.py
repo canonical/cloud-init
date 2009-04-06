@@ -18,35 +18,36 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
-
-import urllib
 import os
-from configobj import ConfigObj
+import sys
+import urllib
+from Cheetah.Template import Template
 
-api_ver = '2008-02-01'
-metadata = None
-filename='/etc/ec2-init/ec2-config.cfg'
+def detectZone():
+	api_ver = '2008-02-01'
+	metadat = None
 
-base_url = 'http://169.254.169.254/%s/meta-data' % api_ver
-zone = urllib.urlopen('%s/placement/availability-zone' % base_url).read()
+	base_url = 'http://169.254.169.254/%s/meta-data' % api_ver
+	zone = urllib.urlopen('%s/placement/availability-zone' % base_url).read()
+	if zone.startswith("us"):
+		archive = "http://us.ec2.archive.ubuntu.com/ubuntu/"
+	elif zone.startswith("eu"):
+		archive = "http://eu.ec2.archive.ubuntu.com/ubuntu/"
 
-if zone.startswith("us"):
-	archive = "http://us.ec2.archive.ubuntu.com/ubuntu"
-elif zone.startswith("eu"):
-	archive = "http://eu.ec2.archive.ubuntu.com/ubuntu"
+	return(archive)
 
-config = ConfigObj(filename)
-distro = config['distro']
+t = os.popen("lsb_release -c").read()
+codename = t.split()
+mirror = detectZone()
+distro = codename[1]
+
+mp = {'mirror' : mirror, 'codename' : distro}
+t = Template(file="/etc/ec2-init/templates/sources.list.tmpl", searchList=[mp])
 
 f = open("/var/run/ec2/sources.list", "w")
-f.write('deb %s %s main universe\n'  % (archive,distro))
-f.write('deb-src %s %s main universe\n' % (archive,distro))
-f.write('deb %s %s-updates main universe\n' % (archive,distro))
-f.write('deb http://security.ubuntu.com/ubuntu %s-security main universe\n' %(distro))
-f.write('deb-src http://security.ubuntu.com/ubuntu %s-security main universe\n', %(distro))
-f.write('deb http://ppa.launchpad.net/ubuntu-on-ec2/ppa/ubuntu %s main\n' %(distro))
-f.write('deb-src http://ppa.launchpad.net/ubuntu-on-ec2/ppa/ubuntu %s main\n' %(distro))
+f.write('%s' %(t))
 f.close()
+
 os.system("mv /etc/apt/sources.list /etc/apt/sources.list-ec2-init")
 os.system("ln -s /var/run/ec2/sources.list /etc/apt/sources.list")
 os.system("apt-get update 2>&1 > /dev/null")
