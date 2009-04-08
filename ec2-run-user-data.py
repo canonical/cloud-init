@@ -35,7 +35,7 @@ def checkServer():
        address = '169.254.169.254'
        port = 80
        s.connect((address,port))
-    except socket.error, 0:
+    except socket.error, e:
        print "!!!! Unable to connect to %s" % address
        sys.exit(0)
 
