@@ -1,3 +1,9 @@
+ec2-init (0.3.3ubuntu12) jaunty; urgency=low
+
+  * ec2-run-user-data.py: Fix error. 
+
+ -- Chuck Short <zulcss@ubuntu.com>  Tue, 07 Apr 2009 08:14:07 -0400
+
 ec2-init (0.3.3ubuntu11) jaunty; urgency=low
 
   * debian/control:
