@@ -1,3 +1,9 @@
+ec2-init (0.3.4ubuntu1) karmic; urgency=low
+
+  * Add more smarts to ec2 instance bring up. (LP: #371936)
+
+ -- Chuck Short <zulcss@ubuntu.com>  Tue, 05 May 2009 08:59:54 -0400
+
 ec2-init (0.3.3ubuntu12) jaunty; urgency=low
 
   * ec2-run-user-data.py: Fix error. 

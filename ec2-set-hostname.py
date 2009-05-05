@@ -25,15 +25,35 @@ from Cheetah.Template import Template
 api_ver = '2008-02-01'
 metadata = None
 
-base_url = 'http://169.254.169.254/%s/meta-data' % api_ver
-my_hostname = urllib.urlopen('%s/local-hostname/' % base_url).read()
-os.system('hostname %s' % my_hostname)
+def get_ami_id():
+    api_ver = '2008-02-01'
+    metadata = None
 
-# replace the ubuntu hostname in /etc/hosts
-mp = {'hostname': my_hostname}
-t = Template(file="/etc/ec2-init/templates/hosts.tmpl", searchList=[mp])
+    url = 'http://169.254.169.254/%s/meta-data' % api_ver
+    ami_id = urllib.urlopen('%s/ami-id/' %url).read()
+    return ami_id
 
-os.system("rm  /etc/hosts")
-f = open("/etc/hosts", "w")
-f.write('%s' %(t))
-f.close()
+def set_hostname(filename):
+    api_ver = '2008-02-01'
+    metadata = None
+
+    base_url = 'http://169.254.169.254/%s/meta-data' % api_ver
+    my_hostname = urllib.urlopen('%s/local-hostname/' % base_url).read()
+    os.system('hostname %s' % my_hostname)
+
+    # replace the ubuntu hostname in /etc/hosts
+    mp = {'hostname': my_hostname}
+    t = Template(file="/etc/ec2-init/templates/hosts.tmpl", searchList=[mp])
+
+    os.system("rm  /etc/hosts")
+    f = open("/etc/hosts", "w")
+    f.write('%s' %(t))
+    f.close()
+    os.system('touch %s' %(filename))
+
+id = get_ami_id()
+filename = '/var/ec2/.hostname-already-ran.%s' %id
+if os.path.exists(filename):
+   print "hostname already set previously"
+else:
+   set_hostname(filename)

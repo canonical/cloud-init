@@ -33,7 +33,7 @@ if zone.startswith("us"):
 elif zone.startswith("eu"):
 	archive = "http://eu.ec2.archive.ubuntu.com/ubuntu"
 
-def set_language(location):
+def set_language(location,filename):
 	if location.startswith("us"):
 	   lang='en_US.UTF-8'
 	   os.system('locale-gen %s 2>&1 > /dev/null' %(lang))
@@ -42,5 +42,17 @@ def set_language(location):
 	   lang='en_GB.UTF-8'
 	   os.system('locale-gen %s 2>&1 > /dev/null' %(lang))
 	   os.system('update-locale %s 2>&1 > /dev/null' %(lang))
+	os.system('touch %s' %(filename))
 
-set_language(zone)
+def get_amid():
+	url = 'http://169.254.169.254/%s/meta-data' % api_ver
+	ami_id = urllib.urlopen('%s/ami-id/' %url).read()
+	return ami_id
+
+ami = get_amid()
+filename = '/var/ec2/.defaults-already-ran.%s' %ami
+
+if os.path.exists(filename):
+   print "ec2-set-defaults already ran...skipping"
+else:
+   set_language(zone,filename)
