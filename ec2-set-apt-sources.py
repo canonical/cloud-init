@@ -37,8 +37,7 @@ def checkServer():
 	  sys.exit(0)
 
 def detectZone():
-	api_ver = '2008-02-01'
-	metadat = None
+        api_ver = '2008-02-01'
 
 	base_url = 'http://169.254.169.254/%s/meta-data' % api_ver
 	zone = urllib.urlopen('%s/placement/availability-zone' % base_url).read()
@@ -49,7 +48,7 @@ def detectZone():
 
 	return(archive)
 
-def updateList():
+def updateList(filename):
 	mirror = detectZone()
 	if not os.path.exists("/var/run/ec2/sources.lists"):
 		t = os.popen("lsb_release -c").read()
@@ -69,5 +68,22 @@ def updateList():
 		prog = apt.progress.FetchProgress()
 		cache.update(prog)
 
+	os.system('touch %s' %(filename))
+
+def get_ami_id():
+    api_ver = '2008-02-01'
+
+    url = 'http://169.254.169.254/%s/meta-data' % api_ver
+    ami_id = urllib.urlopen('%s/ami-id/' %url).read()
+    return ami_id
+
+
 checkServer()
-updateList()
+
+ami_id = get_ami_id()
+filename = '/var/ec2/.apt-already-ran.%s' %ami_id
+
+if os.path.exists(filename):
+   print "ec2-set-apt-sources already ran....skipping."
+else:
+   updateList(filename)

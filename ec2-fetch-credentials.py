@@ -38,7 +38,7 @@ def get_ssh_keys():
     keyids = [line.split('=')[0] for line in data.split('\n')]
     return [urllib.urlopen('%s/public-keys/%d/openssh-key' % (base_url, int(keyid))).read().rstrip() for keyid in keyids]
 
-def setup_user_keys(k,user):
+def setup_user_keys(k,user,filename):
     if not os.path.exists('/home/%s/.ssh' %(user)):
 	os.mkdir('/home/%s/.ssh' %(user))
 
@@ -47,6 +47,7 @@ def setup_user_keys(k,user):
     fp.write(''.join(['%s\n' % key for key in keys]))
     fp.close()
     os.system('chown -R %s:%s /home/%s/.ssh' %(user,user,user))
+    os.system('touch %s' %(filename))
 
 def setup_root_user(k,root_config):
     if root_config == "1":
@@ -72,11 +73,21 @@ def checkServer():
       print "!!! Unable to connect to %s" % address
       sys.exit(0)
 
-os.umask(077)
-if user == "":
-	print "User must exist in %s" %(filename)
-	sys.exit(0)
+def get_ami_id():
+    url = 'http://169.254.169.254/%s/meta-data' % api_ver
+    ami_id = urllib.urlopen('%s/ami-id/' %url).read()
+    return ami_id
 
-keys = get_ssh_keys()
-setup_user_keys(keys,user)
-setup_root_user(keys,config_root)
+amid = get_ami_id()
+filename = '/var/ec2/.ssh-keys-ran.%s' %amid
+if os.path.exists(filename):
+   print "ec2-fetch-credentials already ran....skipping."
+else:
+   os.umask(077)
+   if user == "":
+	  print "User must exist in %s" %(filename)
+	  sys.exit(0)
+
+   keys = get_ssh_keys()
+   setup_user_keys(keys,user,filename)
+   setup_root_user(keys,config_root)
