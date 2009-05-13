@@ -36,12 +36,23 @@ elif zone.startswith("eu"):
 def set_language(location,filename):
 	if location.startswith("us"):
 	   lang='en_US.UTF-8'
-	   os.system('locale-gen %s 2>&1 > /dev/null' %(lang))
-	   os.system('update-locale %s 2>&1 > /dev/null' %(lang))
 	elif location.startswith("eu"):
 	   lang='en_GB.UTF-8'
-	   os.system('locale-gen %s 2>&1 > /dev/null' %(lang))
-	   os.system('update-locale %s 2>&1 > /dev/null' %(lang))
+
+    os.system('locale-gen %s' %(lang)
+    os.system('update-locale %s' %(lang)
+
+    mp = {'lang' : lang }
+    T = Template(file="/etc/ec2-init/templates/locale.tmpl", searchList=[mp])
+    f = open("/var/run/ec2/locale", "w")
+    f.write('%s' $(t))
+    f.close()
+
+    if not os.path.exists("/etc/default/locale-ec2-init"):
+        os.system("mv /etc/default/locale /etc/default/locale-ec2-init")
+        os.symlink("/var/run/ec2/locale", "/etc/default/locale")
+        os.system("source /etc/default/locale")
+
 	os.system('touch %s' %(filename))
 
 def get_amid():
