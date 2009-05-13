@@ -1,6 +1,6 @@
 #!/usr/bin/python
 #
-#    Fetch login credentials for EC2 
+#    Set up the hostname for ec2.
 #    Copyright 2008 Canonical Ltd.
 #
 #    Author: Chuck Short <chuck.short@canonical.com>
@@ -54,6 +54,6 @@ def set_hostname(filename):
 id = get_ami_id()
 filename = '/var/ec2/.hostname-already-ran.%s' %id
 if os.path.exists(filename):
-   print "hostname already set previously"
+   print "Hostname already set previously....skipping!"
 else:
    set_hostname(filename)

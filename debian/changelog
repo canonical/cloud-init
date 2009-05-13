@@ -1,3 +1,11 @@
+ec2-init (0.3.4ubuntu2) karmic; urgency=low
+
+  * Really change the locale when setting up an instance. (LP: #341066) 
+  * Run ec2-run-user-data script last. (LP: #373055)
+  * Minor comment tweaks. (LP:373057)
+
+ -- Chuck Short <zulcss@ubuntu.com>  Wed, 13 May 2009 13:41:35 -0400
+
 ec2-init (0.3.4ubuntu1) karmic; urgency=low
 
   * Add more smarts to ec2 instance bring up. (LP: #371936)
