@@ -30,7 +30,7 @@ case "$1" in
 		log_end_msg 1
 	fi
 
-	log_daemon_msg "Fetching EC2 login credentials"
+	log_daemon_msg "Fetching EC2 SSH keys"
 	if ec2-fetch-credentials 2> /dev/null
 	then
 		log_end_msg 0
@@ -38,28 +38,27 @@ case "$1" in
 		log_end_msg 1
 	fi
 
-	log_daemon_msg "Running EC2 user data"
-	if ec2-run-user-data 2>&1 | logger -t "user-data"
-	then
-		log_end_msg 0
-	else
-		log_end_msg 1
-	fi
-
-	log_daemon_msg "Setting hostname to EC2 public_hostname"
+	log_daemon_msg "Setting hostname to EC2 localhostname"
 	if ec2-set-hostname 2> /dev/null
 	then
 		log_end_msg 0
 	else
 		log_end_msg 1
 	fi
-	log_daemon_msg "Determining EC2 availability zone"
+	log_daemon_msg "Creating /etc/apt/sources.list"
 	if ec2-set-apt-sources 2> /dev/null
 	then
 		log_end_msg 0 
 	else
 		log_end_msg 1
 	fi
+    log_daemon_msg "Running EC2 user data"
+    if ec2-run-user-data 2>&1 | logger -t "user-data"
+    then
+        log_end_msg 0
+    else
+        log_end_msg 1
+    fi
 
 	;;
   stop)
