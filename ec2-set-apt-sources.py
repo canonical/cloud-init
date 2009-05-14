@@ -50,20 +50,20 @@ def detectZone():
 
 def updateList(filename):
 	mirror = detectZone()
-	if not os.path.exists("/var/run/ec2/sources.lists"):
+	if not os.path.exists("/var/ec2/sources.lists"):
 		t = os.popen("lsb_release -c").read()
 		codename = t.split()
 		distro = codename[1]
 
 		mp = {'mirror' : mirror, 'codename' : distro}
 		t = Template(file="/etc/ec2-init/templates/sources.list.tmpl", searchList=[mp])
-		f = open("/var/run/ec2/sources.list", "w")
+		f = open("/var/ec2/sources.list", "w")
 		f.write('%s' %(t))
 		f.close()
 
 	if not os.path.exists("/etc/apt/sources.list-ec2-init"):
 		os.system("mv /etc/apt/sources.list /etc/apt/sources.list-ec2-init")
-		os.symlink("/var/run/ec2/sources.list", "/etc/apt/sources.list")
+		os.symlink("/var/ec2/sources.list", "/etc/apt/sources.list")
 		cache = apt.Cache(apt.progress.OpProgress())
 		prog = apt.progress.FetchProgress()
 		cache.update(prog)
