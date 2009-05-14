@@ -21,6 +21,7 @@
 
 import urllib
 import os
+from Cheetah.Template import Template
 
 api_ver = '2008-02-01'
 metadata = None
@@ -34,26 +35,26 @@ elif zone.startswith("eu"):
 	archive = "http://eu.ec2.archive.ubuntu.com/ubuntu"
 
 def set_language(location,filename):
-	if location.startswith("us"):
-	   lang='en_US.UTF-8'
-	elif location.startswith("eu"):
-	   lang='en_GB.UTF-8'
+    if location.startswith("us"):
+        lang='en_US.UTF-8'
+    elif location.startswith("eu"):
+        lang='en_GB.UTF-8'
 
-    os.system('locale-gen %s' %(lang)
-    os.system('update-locale %s' %(lang)
+    os.system('locale-gen %s' %(lang))
+    os.system('update-locale %s' %(lang))
 
     mp = {'lang' : lang }
     T = Template(file="/etc/ec2-init/templates/locale.tmpl", searchList=[mp])
-    f = open("/var/run/ec2/locale", "w")
-    f.write('%s' $(t))
+    f = open("/var/ec2/locale", "w")
+    f.write('%s' %(T))
     f.close()
 
     if not os.path.exists("/etc/default/locale-ec2-init"):
         os.system("mv /etc/default/locale /etc/default/locale-ec2-init")
         os.symlink("/var/run/ec2/locale", "/etc/default/locale")
-        os.system("source /etc/default/locale")
+        os.system(". /etc/default/locale")
 
-	os.system('touch %s' %(filename))
+    os.system('touch %s' %(filename))
 
 def get_amid():
 	url = 'http://169.254.169.254/%s/meta-data' % api_ver

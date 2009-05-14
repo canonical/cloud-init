@@ -49,6 +49,12 @@ def set_hostname(filename):
     f = open("/etc/hosts", "w")
     f.write('%s' %(t))
     f.close()
+
+    os.system("rm  /etc/hostname")
+    f = open("/etc/hostname", "w")
+    f.write('%s' %(t))
+    f.close()
+
     os.system('touch %s' %(filename))
 
 id = get_ami_id()
