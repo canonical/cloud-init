@@ -17,11 +17,34 @@ NAME=ec2-init
 . /lib/lsb/init-functions
 
 if [ ! -d /var/run/ec2 ]; then
-	mkdir /var/run/ec2
+	mkdir /var/ec2
 fi
+
+first_boot() {
+    # check to see if we are booting for the first time
+    if [ ! -f /var/ec2/.first-boot ]; then
+        log_daemon_msg "Running EC2 first boot"
+        rm  -f /etc/ssh/ssh_host_*_key*
+        ssh-keygen -f /etc/ssh/ssh_host_rsa_key -t rsa -N '' | logger -s -t "ec2"
+        ssh-keygen -f /etc/ssh/ssh_host_dsa_key -t dsa -N '' | logger -s -t "ec2"
+
+        # This allows user to get host keys securely through console log
+        echo | logger -s -t "ec2"
+        echo | logger -s -t "ec2"
+        echo "#############################################################" | logger -s -t "ec2"
+        echo "-----BEGIN SSH HOST KEY FINGERPRINTS-----" | logger -s -t "ec2"
+        ssh-keygen -l -f /etc/ssh/ssh_host_rsa_key.pub | logger -s -t "ec2"
+        ssh-keygen -l -f /etc/ssh/ssh_host_dsa_key.pub | logger -s -t "ec2"
+        echo "-----END SSH HOST KEY FINGERPRINTS-----" | logger -s -t "ec2"
+        echo "#############################################################" | logger -s -t "ec2"
+        update-motd
+        touch /var/ec2/.first-boot
+    fi
+}
 
 case "$1" in
   start)
+    first_boot
 	log_daemon_msg "Setting EC2 defaults"
 	if ec2-set-defaults 2> /dev/null
 	then
