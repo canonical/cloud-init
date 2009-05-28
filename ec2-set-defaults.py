@@ -21,10 +21,26 @@
 
 import urllib
 import os
+import socket
+import time
 from Cheetah.Template import Template
 
 api_ver = '2008-02-01'
 metadata = None
+
+def checkServer():
+    for x in range(30*60):
+        s = socket.socket()
+        try:
+            address = '169.254.169.254'
+            port = 80
+            s.connect((address,port))
+            s.close()
+            return
+        except socket.error, e:
+            time.sleep(1)
+
+checkServer()
 
 base_url = 'http://169.254.169.254/%s/meta-data' % api_ver
 zone = urllib.urlopen('%s/placement/availability-zone' % base_url).read()
@@ -41,7 +57,6 @@ def set_language(location,filename):
         lang='en_GB.UTF-8'
 
     os.system('locale-gen %s' %(lang))
-    os.system('update-locale %s' %(lang))
 
     mp = {'lang' : lang }
     T = Template(file="/etc/ec2-init/templates/locale.tmpl", searchList=[mp])
@@ -49,10 +64,9 @@ def set_language(location,filename):
     f.write('%s' %(T))
     f.close()
 
-    if not os.path.exists("/etc/default/locale-ec2-init"):
-        os.system("mv /etc/default/locale /etc/default/locale-ec2-init")
-        os.symlink("/var/run/ec2/locale", "/etc/default/locale")
-        os.system(". /etc/default/locale")
+    os.system("mv /etc/default/locale /etc/default/locale-ec2-init")
+    os.system("ln -s /var/ec2/locale /etc/default/locale")
+    os.system(". /etc/default/locale")
 
     os.system('touch %s' %(filename))
 

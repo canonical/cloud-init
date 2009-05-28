@@ -16,7 +16,7 @@ NAME=ec2-init
 
 . /lib/lsb/init-functions
 
-if [ ! -d /var/run/ec2 ]; then
+if [ ! -d /var/ec2 ]; then
 	mkdir /var/ec2
 fi
 
@@ -37,8 +37,11 @@ first_boot() {
         ssh-keygen -l -f /etc/ssh/ssh_host_dsa_key.pub | logger -s -t "ec2"
         echo "-----END SSH HOST KEY FINGERPRINTS-----" | logger -s -t "ec2"
         echo "#############################################################" | logger -s -t "ec2"
-        update-motd
+	/usr/sbin/update-motd
         touch /var/ec2/.first-boot
+    else
+	log_daemon_msg "Running update-motd"
+	/usr/sbin/update-motd
     fi
 }
 

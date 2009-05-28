@@ -1,3 +1,12 @@
+ec2-init (0.3.4ubuntu4) karmic; urgency=low
+
+  * debian/init: Run update-motd regardless whether its a firstboot or not.
+  * debian/init: Fix comments (LP: #373057)
+  * debian/control: Add update-motd as a depends.
+  * ec2-set-defaults.py: Wait for network to become available. (LP: #308530)
+
+ -- Chuck Short <zulcss@ubuntu.com>  Thu, 28 May 2009 05:04:31 -0400
+
 ec2-init (0.3.4ubuntu3) karmic; urgency=low
 
   * debian/init: Move init script to run before ssh and regenerate the ssh

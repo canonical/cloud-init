@@ -61,7 +61,6 @@ def updateList(filename):
 		f.write('%s' %(t))
 		f.close()
 
-	if not os.path.exists("/etc/apt/sources.list-ec2-init"):
 		os.system("mv /etc/apt/sources.list /etc/apt/sources.list-ec2-init")
 		os.symlink("/var/ec2/sources.list", "/etc/apt/sources.list")
 		cache = apt.Cache(apt.progress.OpProgress())
