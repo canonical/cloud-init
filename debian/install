@@ -1,3 +1,3 @@
-debian/tmp/usr/sbin/*
-debian/tmp/etc/ec2-init/templates/*
-debian/ec2-config.cfg etc/ec2-init
+#debian/ec2-init/usr/bin/*
+#debian/ec2-init/etc/ec2-init/templates/*
+#debian/ec2-config.cfg etc/ec2-init
