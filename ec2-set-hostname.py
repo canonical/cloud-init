@@ -1,6 +1,6 @@
 #!/usr/bin/python
 #
-#    Set up the hostname for ec2.
+#    Fetch login credentials for EC2 
 #    Copyright 2008 Canonical Ltd.
 #
 #    Author: Chuck Short <chuck.short@canonical.com>
@@ -22,44 +22,22 @@ import urllib
 import os
 from Cheetah.Template import Template
 
-api_ver = '2008-02-01'
-metadata = None
+import ec2init
 
-def get_ami_id():
-    api_ver = '2008-02-01'
-    metadata = None
+def main():
+    ec2 = ec2init.EC2Init()
 
-    url = 'http://169.254.169.254/%s/meta-data' % api_ver
-    ami_id = urllib.urlopen('%s/ami-id/' %url).read()
-    return ami_id
+    hostname = ec2.get_hostname()
 
-def set_hostname(filename):
-    api_ver = '2008-02-01'
-    metadata = None
-
-    base_url = 'http://169.254.169.254/%s/meta-data' % api_ver
-    my_hostname = urllib.urlopen('%s/local-hostname/' % base_url).read()
-    os.system('hostname %s' % my_hostname)
+    subprocess.Popen(['hostname', hostname']).communicate()
 
     # replace the ubuntu hostname in /etc/hosts
-    mp = {'hostname': my_hostname}
+    mp = {'hostname': hostname}
     t = Template(file="/etc/ec2-init/templates/hosts.tmpl", searchList=[mp])
 
-    os.system("rm  /etc/hosts")
     f = open("/etc/hosts", "w")
-    f.write('%s' %(t))
+    f.write(t.respond())
     f.close()
 
-    os.system("rm  /etc/hostname")
-    f = open("/etc/hostname", "w")
-    f.write('%s' %(my_hostname))
-    f.close()
-
-    os.system('touch %s' %(filename))
-
-id = get_ami_id()
-filename = '/var/ec2/.hostname-already-ran.%s' %id
-if os.path.exists(filename):
-   print "Hostname already set previously....skipping!"
-else:
-   set_hostname(filename)
+if __name__ == '__main__':
+    main()

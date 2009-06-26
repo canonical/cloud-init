@@ -18,76 +18,42 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
-import urllib
 import os
-import socket
-import sys
-from configobj import ConfigObj
+import pwd
 
-api_ver = '2008-02-01'
-metadata = None
-filename='/etc/ec2-init/ec2-config.cfg'
+import ec2init
 
-config = ConfigObj(filename)
-user = config['user']
-config_root = config['DISABLE_ROOT']
+def setup_user_keys(keys, user, key_prefix):
+    pwent = pwd.getpwnam(user)
 
-def get_ssh_keys():
-    base_url = 'http://169.254.169.254/%s/meta-data' % api_ver
-    data = urllib.urlopen('%s/public-keys/' % base_url).read()
-    keyids = [line.split('=')[0] for line in data.split('\n')]
-    return [urllib.urlopen('%s/public-keys/%d/openssh-key' % (base_url, int(keyid))).read().rstrip() for keyid in keyids]
+    os.umask(077)
+    if not os.path.exists('%s/.ssh' % pwent.pw_dir):
+        os.mkdir('%s/.ssh' % pwent.pw_dir)
 
-def setup_user_keys(k,user,filename):
-    if not os.path.exists('/home/%s/.ssh' %(user)):
-	os.mkdir('/home/%s/.ssh' %(user))
-
-    authorized_keys = '/home/%s/.ssh/authorized_keys' % user
+    authorized_keys = '%s/.ssh/authorized_keys' % pwent.pw_dir
     fp = open(authorized_keys, 'a')
-    fp.write(''.join(['%s\n' % key for key in keys]))
+    fp.write(''.join(['%s%s\n' % (key_prefix, key) for key in keys]))
     fp.close()
-    os.system('chown -R %s:%s /home/%s/.ssh' %(user,user,user))
-    os.system('touch %s' %(filename))
 
-def setup_root_user(k,root_config):
-    if root_config == "1":
-	if not os.path.exists('/root/.ssh'):
-            os.mkdir('/root/.ssh/')
+    os.chown(authorized_keys, pwent.pw_uid, pwent.pw_gid)
 
-        fp = open('/root/.ssh/authorized_keys', 'a')
-	fp.write("command=\"echo \'Please login as the ubuntu user rather than root user.\';echo;sleep 10\" ") 
-	fp.write(''.join(['%s\n' % key for key in keys]))
-	fp.close()
-    elif root_config == "0":
-	print "You choose to disable the root user, god help you."
+def main():
+    ec2 = ec2init.EC2Init()
+
+    user = ec2.get_cfg_option_str('user')
+    disable_root = ec2.get_cfg_option_bool('disable_root')
+
+    keys = ec2.get_ssh_keys()
+
+    if user:
+        setup_user_keys(keys, user, '')
+     
+    if disable_root:
+        key_prefix = 'command="echo \'Please login as the ubuntu user rather than root user.\';echo;sleep 10" ' 
     else:
-	print "%s - I dont understand that opion."
+        key_prefix = ''
 
-def checkServer():
-    s = socket.socket()
-    try:
-      address = '169.254.169.254'
-      port = 80
-      s.connect((address,port))
-    except socket.error, e:
-      print "!!! Unable to connect to %s" % address
-      sys.exit(0)
+    setup_root_user(keys, 'root', key_prefix)
 
-def get_ami_id():
-    url = 'http://169.254.169.254/%s/meta-data' % api_ver
-    ami_id = urllib.urlopen('%s/ami-id/' %url).read()
-    return ami_id
-
-amid = get_ami_id()
-filename = '/var/ec2/.ssh-keys-ran.%s' %amid
-if os.path.exists(filename):
-   print "ec2-fetch-credentials already ran....skipping."
-else:
-   os.umask(077)
-   if user == "":
-	  print "User must exist in %s" %(filename)
-	  sys.exit(0)
-
-   keys = get_ssh_keys()
-   setup_user_keys(keys,user,filename)
-   setup_root_user(keys,config_root)
+if __name__ == '__main__':
+    main()

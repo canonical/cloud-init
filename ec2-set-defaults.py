@@ -19,66 +19,35 @@
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-import urllib
-import os
-import socket
-import time
-from Cheetah.Template import Template
+import subprocess
 
-api_ver = '2008-02-01'
-metadata = None
+import ec2init
 
-def checkServer():
-    for x in range(30*60):
-        s = socket.socket()
-        try:
-            address = '169.254.169.254'
-            port = 80
-            s.connect((address,port))
-            s.close()
-            return
-        except socket.error, e:
-            time.sleep(1)
+def get_location_from_availability_zone(availability_zone):
+    if availability.startswith('us-'):
+        return 'us'
+    elif availability.startswith('eu-'):
+        return 'eu'
+    raise Exception('Could not determine location')
+    
+location_archive_map = { 
+    'us' : 'http://us.ec2.archive.ubuntu.com/ubuntu',
+    'eu' : 'http://eu.ec2.archive.ubuntu.com/ubuntu'
+}
 
-checkServer()
+location_locale_map = { 
+    'us' : 'en_US.UTF-8',
+    'eu' : 'en_GB.UTF-8'
+}
 
-base_url = 'http://169.254.169.254/%s/meta-data' % api_ver
-zone = urllib.urlopen('%s/placement/availability-zone' % base_url).read()
+def main():
+    ec2 = ec2init.EC2Init()
 
-if zone.startswith("us"):
-	archive = "http://us.ec2.archive.ubuntu.com/ubuntu"
-elif zone.startswith("eu"):
-	archive = "http://eu.ec2.archive.ubuntu.com/ubuntu"
+    location = get_location_from_availability_zone(ec2.get_availability_zone())
 
-def set_language(location,filename):
-    if location.startswith("us"):
-        lang='en_US.UTF-8'
-    elif location.startswith("eu"):
-        lang='en_GB.UTF-8'
+    locale = location_locale_map[location]
+	subprocess.Popen(['locale-gen', locale]).communicate()
+	subprocess.Popen(['update-locale', locale]).communicate()
 
-    os.system('locale-gen %s' %(lang))
-
-    mp = {'lang' : lang }
-    T = Template(file="/etc/ec2-init/templates/locale.tmpl", searchList=[mp])
-    f = open("/var/ec2/locale", "w")
-    f.write('%s' %(T))
-    f.close()
-
-    os.system("mv /etc/default/locale /etc/default/locale-ec2-init")
-    os.system("ln -s /var/ec2/locale /etc/default/locale")
-    os.system(". /etc/default/locale")
-
-    os.system('touch %s' %(filename))
-
-def get_amid():
-	url = 'http://169.254.169.254/%s/meta-data' % api_ver
-	ami_id = urllib.urlopen('%s/ami-id/' %url).read()
-	return ami_id
-
-ami = get_amid()
-filename = '/var/ec2/.defaults-already-ran.%s' %ami
-
-if os.path.exists(filename):
-   print "ec2-set-defaults already ran...skipping"
-else:
-   set_language(zone,filename)
+if __name__ == '__main__':
+    main()

@@ -1,9 +1,9 @@
 #!/usr/bin/python
 #
 #    Fetch and run user-data from EC2
-#    Copyright 2008 Canonical Ltd.
+#    Copyright 2009 Canonical Ltd.
 #
-#    Original-Author: Soren Hansen <soren@canonical.com>
+#    Author: Soren Hansen <soren@canonical.com>
 #
 #    This program is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -19,54 +19,80 @@
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
+import email
 import os
+import subprocess
 import sys
 import tempfile
-import urllib
-import socket
-from time import gmtime, strftime
 
-api_ver = '2008-02-01'
-metadata = None
+import ec2init
 
-def checkServer():
-    s = socket.socket()
-    try:
-       address = '169.254.169.254'
-       port = 80
-       s.connect((address,port))
-    except socket.error, e:
-       print "!!!! Unable to connect to %s" % address
-       sys.exit(0)
+content_type_handlers = { 'text/x-shellscript' : handle_shell_script,
+                          'text/x-ebs-mount-description' : handle_ebs_mount_description }
 
-def get_user_data():
-    url = 'http://169.254.169.254/%s/user-data' % api_ver
-    fp = urllib.urlopen(url)
-    data = fp.read()
+def main():
+    ec2 = ec2init.EC2Init()
+
+    semaphore = '/var/lib/ec2/already-ran.%s' % amiId
+    amiId = ec2.get_ami_id()
+
+    if os.path.exists(semaphore):
+        print "ec2-run-user-data already ran for this instance."
+        return 0
+
+    user_data = ec2.get_user_data()
+
+    msg = email.message_from_string(user_data)
+    if msg.is_multipart():
+        handle_part(msg)
+    else:
+        handle_payload(user_data)
+
+    # Touch the semaphore file
+    file(semaphore, 'a').close()
+
+def handle_part(part):
+    if part.is_multipart():
+        for p in part.get_payload():
+            handle_part(p)
+    else:
+        if part.get_content_type() in content_type_handlers:
+            content_type_handlers[part.get_content_type](part.get_payload())
+            return
+
+        handle_unknown_payload(part.get_payload())
+
+def handle_unknown_payload(payload):
+    # Try to detect magic
+    if payload.startswith('#!'):
+        content_type_handlers['text/x-shellscript'](payload)
+
+def handle_ebs_mount_description(payload):
+    (volume_description, path) = payload.split(':')
+    (identifier_type, identifier) = volume_description.split('=')
+
+    if identifier_type == 'device':
+        device = identifier
+#    Perhaps some day the volume id -> device path mapping
+#    will be exposed through meta-data.
+#    elif identifier_type == 'volume':
+#        device = extract_device_name_from_meta_data
+    else:
+        return
+
+def handle_shell_script(payload):
+    (fd, path) = tempfile.mkstemp()
+    fp = os.fdopen(fd, 'a')
+    fp.write(payload)
     fp.close()
-    return data
+    os.chmod(path, 0700)
 
-def get_ami_id():
-    url = 'http://169.254.169.254/%s/meta-data' % api_ver
-    ami_id = urllib.urlopen('%s/ami-id/' %url).read()
-    return ami_id
+    # Run the user data script and pipe its output to logger
+    user_data_process = subprocess.Popen([path], stdout=subprocess.PIPE)
+    logger_process = subprocess.Popen(['logger', '-t', 'user-data'], stdin=user_data_process.stdout)
+    logger_process.communicate()
+    
+    os.unlink(path)
 
-checkServer()
-user_data = get_user_data()
-amiId = get_ami_id()
-filename = '/var/ec2/.already-ran.%s' % amiId
-
-if os.path.exists(filename):
-   print "ec2-run-user-data already ran for this instance."
-   sys.exit(0)
-elif user_data.startswith('#!'):
-       # run it 
-       (fp, path) = tempfile.mkstemp()
-       os.write(fp,user_data)
-       os.close(fp);
-       os.chmod(path, 0700)
-       status = os.system('%s | logger -t "user-data" ' % path)
-       os.unlink(path)
-       os.system('touch %s' %(filename))
-
-sys.exit(0)
+if __name__ == '__main__':
+    main()
