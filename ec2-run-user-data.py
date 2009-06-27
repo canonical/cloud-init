@@ -31,23 +31,10 @@ content_type_handlers = { 'text/x-shellscript' : handle_shell_script,
 def main():
     ec2 = ec2init.EC2Init()
 
-    semaphore = '/var/lib/ec2/already-ran.%s' % amiId
-    amiId = ec2.get_ami_id()
-
-    if os.path.exists(semaphore):
-        print "ec2-run-user-data already ran for this instance."
-        return 0
-
     user_data = ec2.get_user_data()
 
     msg = email.message_from_string(user_data)
-    if msg.is_multipart():
-        handle_part(msg)
-    else:
-        handle_payload(user_data)
-
-    # Touch the semaphore file
-    file(semaphore, 'a').close()
+    handle_part(msg)
 
 def handle_part(part):
     if part.is_multipart():
