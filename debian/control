@@ -7,7 +7,7 @@ XS-Python-Version: all
 Standards-Version: 3.8.0
 
 Package: ec2-init
-Architecture: i386 amd64
+Architecture: all
 Depends: python, procps, python-configobj, python-cheetah, update-motd, ${python:Depends}
 XB-Python-Version: ${python:Versions}
 Description: Init scripts for EC2 instances
