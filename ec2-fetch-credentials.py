@@ -23,9 +23,10 @@ import pwd
 import ec2init
 
 def setup_user_keys(keys, user, key_prefix):
+    saved_umask = os.umask(077)
+
     pwent = pwd.getpwnam(user)
 
-    os.umask(077)
     if not os.path.exists('%s/.ssh' % pwent.pw_dir):
         os.mkdir('%s/.ssh' % pwent.pw_dir)
 
@@ -35,6 +36,8 @@ def setup_user_keys(keys, user, key_prefix):
     fp.close()
 
     os.chown(authorized_keys, pwent.pw_uid, pwent.pw_gid)
+
+    os.umask(saved_umask)
 
 def main():
     ec2 = ec2init.EC2Init()
