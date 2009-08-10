@@ -36,13 +36,13 @@ run_once() {
 
 run_once_per_instance() {
     action_id=$1
-    instance=`ec2-get-data --instance-id | cut -f2 -d\ `
+    instance=`ec2-get-info --instance-id | cut -f2 -d\ `
     run_once $instance $action_id
 }
 
 run_once_per_ami() {
     action_id=$1
-    ami=`ec2-get-data --ami-id | cut -f2 -d\ `
+    ami=`ec2-get-info --ami-id | cut -f2 -d\ `
     run_once $ami $action_id
 }
 
