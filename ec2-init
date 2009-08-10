@@ -91,7 +91,7 @@ case "$1" in
             fi
         fi
 
-        if run_once_ever ssh_authorized_keys
+        if run_once_per_ami ssh_authorized_keys
         then
             log_daemon_msg "Fetching EC2 SSH keys"
             if ec2-fetch-credentials 2> /dev/null
