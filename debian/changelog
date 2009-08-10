@@ -1,3 +1,44 @@
+ec2-init (0.3.4ubuntu9) karmic; urgency=low
+
+  * Really include the action id in the semaphore filename.
+
+ -- Soren Hansen <soren@ubuntu.com>  Sat, 11 Jul 2009 09:50:31 +0200
+
+ec2-init (0.3.4ubuntu8) karmic; urgency=low
+
+  * Add Vcs-Bzr header to debian/control.
+  * Include the action id in the semaphore filename.
+
+ -- Soren Hansen <soren@ubuntu.com>  Sat, 11 Jul 2009 02:35:43 +0200
+
+ec2-init (0.3.4ubuntu7) karmic; urgency=low
+
+  * Re-add accidentally removed locale template.
+  * Fix indentation in init script.
+
+ -- Soren Hansen <soren@ubuntu.com>  Fri, 10 Jul 2009 23:47:27 +0200
+
+ec2-init (0.3.4ubuntu6) karmic; urgency=low
+
+  * Replace calls to ec2-get-data with calls to ec2-get-info.
+  * Make this package arch: all.
+
+ -- Soren Hansen <soren@ubuntu.com>  Fri, 10 Jul 2009 23:16:35 +0200
+
+ec2-init (0.3.4ubuntu5) karmic; urgency=low
+
+  * debian/init: Move instance reboot detection out of python 
+    scripts and move them to the init script.
+  * debian/ec2-set-defaults.py: 
+    - Point to the right location for locate (LP: #387611)
+    - Default to UTC (LP: #341060)
+  * debian/ec2-set-apt-sources.py: If you cant contact EC2 then use the
+    regular archive (LP: #387027)
+  * debian/ec2-setup-hostname.py: Use the local hostname in /etc/hosts
+    and dont change once rebooted. (LP: #352745)
+
+ -- Chuck Short <zulcss@ubuntu.com>  Wed, 08 Jul 2009 09:48:49 -0400
+
 ec2-init (0.3.4ubuntu4) karmic; urgency=low
 
   * debian/init: Run update-motd regardless whether its a firstboot or not.
