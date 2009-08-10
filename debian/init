@@ -70,10 +70,20 @@ regenerate_ssh_host_keys() {
 
 case "$1" in
     start)
+        log_daemon_msg "Waiting for EC2 meta-data service"
+        if ec2-wait-for-meta-data-service
+        then
+            log_end_msg 0
+        else
+            log_end_msg 1
+            exit 1
+        fi
+
         if run_once_per_ami ssh_host_key_regeneration
         then
             regenerate_ssh_host_keys
         fi
+
         update-motd
 
         if run_once_ever ec2-defaults
