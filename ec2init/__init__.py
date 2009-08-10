@@ -17,24 +17,30 @@
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-from   configobj import ConfigObj
 import os
 import socket
+import urllib2
+from   configobj import ConfigObj
 
 import boto.utils
 
 class EC2Init():
     api_ver  = '2008-02-01'
-    filename = '/etc/ec2-init/ec2-config.cfg'
+    conffile = '/etc/ec2-init/ec2-config.cfg'
 
     def __init__(self):
         self.meta_data_base_url = 'http://169.254.169.254/%s/meta-data' % self.api_ver
         self.user_data_base_url = 'http://169.254.169.254/%s/user-data' % self.api_ver
-        self.config = ConfigObj(filename)
-        self.wait_for_metadata_service()
-        bailout_command = self.get_cfg_option_str('bailout_command')
-        if bailout_command:
-            os.system(bailout_command)
+        self.config = ConfigObj(self.conffile)
+
+    def wait_or_bail(self):
+        if self.wait_for_metadata_service():
+            return True
+        else:
+            bailout_command = self.get_cfg_option_str('bailout_command')
+            if bailout_command:
+                os.system(bailout_command)
+            return False
 
     def get_cfg_option_bool(self, key):
         val = self.config[key]
@@ -46,7 +52,8 @@ class EC2Init():
         return config[key]
 
     def get_ssh_keys(self):
-        data = urllib.urlopen('%s/public-keys/' % self.meta_data_base_url).read()
+        conn = urllib2.urlopen('%s/public-keys/' % self.meta_data_base_url)
+        data = conn.read()
         keyids = [line.split('=')[0] for line in data.split('\n')]
         return [urllib.urlopen('%s/public-keys/%d/openssh-key' % (self.meta_data_base_url, int(keyid))).read().rstrip() for keyid in keyids]
 
