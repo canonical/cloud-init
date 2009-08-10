@@ -71,7 +71,9 @@ class EC2Init():
         return self.get_instance_metadata()['availability-zone']
 
     def get_hostname(self):
-        return self.get_instance_metadata()['local-hostname']
+        hostname = self.get_instance_metadata()['local-hostname']
+        hostname = hostname.split('.')[0]
+        return hostname
 
     def get_mirror_from_availability_zone(self, availability_zone):
         if zone.startswith("us"):
