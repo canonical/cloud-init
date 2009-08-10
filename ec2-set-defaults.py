@@ -3,8 +3,8 @@
 #    Fetch the availabity zone and create the sources.list
 #    Copyright (C) 2008-2009 Canonical Ltd.
 #
-#    Author: Chuck Short <chuck.short@canonical.com>
-#            Soren Hansen <soren@canonical.com>
+#    Authors: Chuck Short <chuck.short@canonical.com>
+#             Soren Hansen <soren@canonical.com>
 #
 #    This program is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License version 3, as
@@ -23,31 +23,31 @@ import subprocess
 
 import ec2init
 
-def get_location_from_availability_zone(availability_zone):
-    if availability.startswith('us-'):
-        return 'us'
-    elif availability.startswith('eu-'):
-        return 'eu'
-    raise Exception('Could not determine location')
-    
-location_archive_map = { 
-    'us' : 'http://us.ec2.archive.ubuntu.com/ubuntu',
-    'eu' : 'http://eu.ec2.archive.ubuntu.com/ubuntu'
-}
-
-location_locale_map = { 
-    'us' : 'en_US.UTF-8',
-    'eu' : 'en_GB.UTF-8'
-}
-
 def main():
     ec2 = ec2init.EC2Init()
 
-    location = get_location_from_availability_zone(ec2.get_availability_zone())
+    availability_zone = ec2.get_availability_zone()
+    location          = ec2.get_location_from_availability_zone(availability_zone)
+    mirror            = ec2.get_mirror_from_availability_zone(availability_zone)
 
-    locale = location_locale_map[location]
-	subprocess.Popen(['locale-gen', locale]).communicate()
-	subprocess.Popen(['update-locale', locale]).communicate()
+    locale = ec2.location_locale_map[location]
+    apply_locale(locale)
+
+    generate_sources_list(mirror)
+
+def apply_locale(locale):
+    subprocess.Popen(['locale-gen', locale]).communicate()
+    subprocess.Popen(['update-locale', locale]).communicate()
+
+def generate_sources_list(self, mirror)
+    stdout, stderr = subprocess.Popen(['lsb_release', '-cs'], stdout=subprocess.PIPE).communicate()
+    codename = stdout.strip()
+
+    mp = { 'mirror' : mirror, 'codename' : codename }
+    t = Template(file='/etc/ec2-init/templates/sources.list.tmpl', searchList=[mp])
+    f = open(SOURCES_LIST, 'w')
+    f.write(t.respond())
+    f.close()
 
 if __name__ == '__main__':
     main()

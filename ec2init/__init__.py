@@ -73,8 +73,7 @@ class EC2Init():
     def get_hostname(self):
         return self.get_instance_metadata()['local-hostname']
 
-    def get_mirror_for_availability_zone(self):
-        availability_zone = self.get_availability_zone()
+    def get_mirror_from_availability_zone(self, availability_zone):
         if zone.startswith("us"):
             return 'http://us.ec2.archive.ubuntu.com/ubuntu/'
         elif zone.startswith("eu"):
@@ -97,3 +96,21 @@ class EC2Init():
                 time.sleep(timeout)
                 timeout = timeout * 2
         return False
+
+    def get_location_from_availability_zone(availability_zone):
+        if availability.startswith('us-'):
+            return 'us'
+        elif availability.startswith('eu-'):
+            return 'eu'
+        raise Exception('Could not determine location')
+ 
+location_locale_map = { 
+    'us' : 'en_US.UTF-8',
+    'eu' : 'en_GB.UTF-8'
+}
+
+location_archive_map = { 
+    'us' : 'http://us.ec2.archive.ubuntu.com/ubuntu',
+    'eu' : 'http://eu.ec2.archive.ubuntu.com/ubuntu'
+}
+

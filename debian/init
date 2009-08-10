@@ -116,17 +116,6 @@ case "$1" in
             log_end_msg 1
         fi
 
-        if run_once_ever apt_source_list
-        then
-            log_daemon_msg "Creating /etc/apt/sources.list"
-            if ec2-set-apt-sources 2> /dev/null
-            then
-                log_end_msg 0 
-            else
-                log_end_msg 1
-            fi
-        fi
-
         if run_once_per_instance user-data
         then
             log_daemon_msg "Running EC2 user data"
