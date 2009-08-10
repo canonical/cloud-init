@@ -7,4 +7,5 @@ include /usr/share/cdbs/1/class/python-distutils.mk
 DEB_UPDATE_RCD_PARAMS:= start 15 2 3 4 5 . stop 20 1 .
 
 binary-install/ec2-init::
+	for x in $(DEB_DESTDIR)/usr/bin/*.py; do mv "$$x" "$${x%.py}"; done
 	dh_installinit -p ec2-init --name rightscale-init -- defaults 99 09
