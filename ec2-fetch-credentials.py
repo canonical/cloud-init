@@ -19,6 +19,7 @@
 #
 import os
 import pwd
+import sys
 
 import ec2init
 
@@ -27,8 +28,10 @@ def setup_user_keys(keys, user, key_prefix):
 
     pwent = pwd.getpwnam(user)
 
-    if not os.path.exists('%s/.ssh' % pwent.pw_dir):
-        os.mkdir('%s/.ssh' % pwent.pw_dir)
+    ssh_dir = '%s/.ssh' % pwent.pw_dir
+    if not os.path.exists(ssh_dir):
+        os.mkdir(ssh_dir)
+        os.chown(ssh_dir, pwent.pw_uid, pwent.pw_gid)
 
     authorized_keys = '%s/.ssh/authorized_keys' % pwent.pw_dir
     fp = open(authorized_keys, 'a')
@@ -43,9 +46,12 @@ def main():
     ec2 = ec2init.EC2Init()
 
     user = ec2.get_cfg_option_str('user')
-    disable_root = ec2.get_cfg_option_bool('disable_root')
+    disable_root = ec2.get_cfg_option_bool('disable_root', True)
 
-    keys = ec2.get_ssh_keys()
+    try:
+        keys = ec2.get_ssh_keys()
+    except Exception, e:
+        sys.exit(1)
 
     if user:
         setup_user_keys(keys, user, '')
@@ -55,7 +61,7 @@ def main():
     else:
         key_prefix = ''
 
-    setup_root_user(keys, 'root', key_prefix)
+    setup_user_keys(keys, 'root', key_prefix)
 
 if __name__ == '__main__':
     main()
