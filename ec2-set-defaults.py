@@ -36,19 +36,23 @@ def main():
 
     generate_sources_list(mirror)
 
+def render_to_file(template, outfile, searchList):
+    t = Template(file='/etc/ec2-init/templates/%s.tmpl' % template, searchList=[searchList])
+    f = open(outfile, 'w')
+    f.write(t.respond())
+    f.close()
+    
 def apply_locale(locale):
     subprocess.Popen(['locale-gen', locale]).communicate()
     subprocess.Popen(['update-locale', locale]).communicate()
+
+    render_to_file('default-locale', '/etc/default/locale', { 'locale' : locale })
 
 def generate_sources_list(mirror):
     stdout, stderr = subprocess.Popen(['lsb_release', '-cs'], stdout=subprocess.PIPE).communicate()
     codename = stdout.strip()
 
-    mp = { 'mirror' : mirror, 'codename' : codename }
-    t = Template(file='/etc/ec2-init/templates/sources.list.tmpl', searchList=[mp])
-    f = open('/etc/apt/sources.list', 'w')
-    f.write(t.respond())
-    f.close()
+    render_to_file('sources.list', '/etc/apt/sources.list', { 'mirror' : mirror, 'codename' : codename })
 
 if __name__ == '__main__':
     main()
