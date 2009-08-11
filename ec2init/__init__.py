@@ -66,7 +66,7 @@ class EC2Init():
         conn = urllib2.urlopen('%s/public-keys/' % self.meta_data_base_url)
         data = conn.read()
         keyids = [line.split('=')[0] for line in data.split('\n')]
-        return [urllib.urlopen('%s/public-keys/%d/openssh-key' % (self.meta_data_base_url, int(keyid))).read().rstrip() for keyid in keyids]
+        return [urllib2.urlopen('%s/public-keys/%d/openssh-key' % (self.meta_data_base_url, int(keyid))).read().rstrip() for keyid in keyids]
 
     def get_user_data(self):
         return boto.utils.get_instance_userdata()
