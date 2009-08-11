@@ -23,7 +23,7 @@ import os.path
 import subprocess
 
 setup(name='EC2-init',
-      version='0.4.9',
+      version='0.4.99',
       description='EC2 initialisation magic',
       author='Soren Hansen',
       author_email='soren@canonical.com',
