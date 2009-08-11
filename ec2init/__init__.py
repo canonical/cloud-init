@@ -19,6 +19,7 @@
 
 import os
 import socket
+import time
 import urllib2
 from   configobj import ConfigObj
 
@@ -27,6 +28,16 @@ import boto.utils
 class EC2Init():
     api_ver  = '2008-02-01'
     conffile = '/etc/ec2-init/ec2-config.cfg'
+
+    location_locale_map = { 
+        'us' : 'en_US.UTF-8',
+        'eu' : 'en_GB.UTF-8'
+    }
+
+    location_archive_map = { 
+        'us' : 'http://us.ec2.archive.ubuntu.com/ubuntu',
+        'eu' : 'http://eu.ec2.archive.ubuntu.com/ubuntu'
+    }
 
     def __init__(self):
         self.meta_data_base_url = 'http://169.254.169.254/%s/meta-data' % self.api_ver
@@ -68,7 +79,8 @@ class EC2Init():
         return self.get_instance_metadata()['ami-id']
     
     def get_availability_zone(self):
-        return self.get_instance_metadata()['availability-zone']
+        conn = urllib2.urlopen('%s/placement/availability-zone' % self.meta_data_base_url)
+        return conn.read()
 
     def get_hostname(self):
         hostname = self.get_instance_metadata()['local-hostname']
@@ -76,9 +88,9 @@ class EC2Init():
         return hostname
 
     def get_mirror_from_availability_zone(self, availability_zone):
-        if zone.startswith("us"):
+        if availability_zone.startswith("us"):
             return 'http://us.ec2.archive.ubuntu.com/ubuntu/'
-        elif zone.startswith("eu"):
+        elif availability_zone.startswith("eu"):
             return 'http://eu.ec2.archive.ubuntu.com/ubuntu/'
 
         return 'http://archive.ubuntu.com/ubuntu/'
@@ -99,20 +111,11 @@ class EC2Init():
                 timeout = timeout * 2
         return False
 
-    def get_location_from_availability_zone(availability_zone):
-        if availability.startswith('us-'):
+    def get_location_from_availability_zone(self, availability_zone):
+        if availability_zone.startswith('us-'):
             return 'us'
-        elif availability.startswith('eu-'):
+        elif availability_zone.startswith('eu-'):
             return 'eu'
         raise Exception('Could not determine location')
  
-location_locale_map = { 
-    'us' : 'en_US.UTF-8',
-    'eu' : 'en_GB.UTF-8'
-}
-
-location_archive_map = { 
-    'us' : 'http://us.ec2.archive.ubuntu.com/ubuntu',
-    'eu' : 'http://eu.ec2.archive.ubuntu.com/ubuntu'
-}
 

@@ -78,8 +78,6 @@ case "$1" in
             regenerate_ssh_host_keys
         fi
 
-        update-motd
-
         if run_once_ever ec2-defaults
         then
             log_daemon_msg "Setting EC2 defaults"

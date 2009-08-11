@@ -20,6 +20,7 @@
 #
 
 import subprocess
+from Cheetah.Template import Template
 
 import ec2init
 
@@ -39,13 +40,13 @@ def apply_locale(locale):
     subprocess.Popen(['locale-gen', locale]).communicate()
     subprocess.Popen(['update-locale', locale]).communicate()
 
-def generate_sources_list(self, mirror)
+def generate_sources_list(mirror):
     stdout, stderr = subprocess.Popen(['lsb_release', '-cs'], stdout=subprocess.PIPE).communicate()
     codename = stdout.strip()
 
     mp = { 'mirror' : mirror, 'codename' : codename }
     t = Template(file='/etc/ec2-init/templates/sources.list.tmpl', searchList=[mp])
-    f = open(SOURCES_LIST, 'w')
+    f = open('/etc/apt/sources.list', 'w')
     f.write(t.respond())
     f.close()
 
