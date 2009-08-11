@@ -45,7 +45,7 @@ def getData(ec2data):
 	api_ver = '2008-02-01'
 	metadata = None
 	base_url = 'http://169.254.169.254/%s/meta-data' % api_ver
-	data = urllib.urlopen('%s/%s/' %(base_url,ec2data)).read()
+	data = urllib.urlopen('%s/%s' %(base_url,ec2data)).read()
 	print "%s: %s" %(ec2data,data)
 
 def showAllData(ec2Data):
@@ -53,7 +53,7 @@ def showAllData(ec2Data):
 	metadata = None
 	base_url = 'http://169.254.169.254/%s/meta-data' % api_ver
 	for x in ec2Data:
-	    data = urllib.urlopen('%s/%s/' %(base_url,x)).read()
+	    data = urllib.urlopen('%s/%s' %(base_url,x)).read()
 	    print "%s: %s" %(ec2data,data)
 
 def main():
