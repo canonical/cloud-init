@@ -53,14 +53,14 @@ class EC2Init():
                 os.system(bailout_command)
             return False
 
-    def get_cfg_option_bool(self, key):
-        val = self.config[key]
+    def get_cfg_option_bool(self, key, default=None):
+        val = self.config.get(key, default)
         if val.lower() in ['1', 'on', 'yes']:
             return True
         return False
 
-    def get_cfg_option_str(self, key):
-        return config[key]
+    def get_cfg_option_str(self, key, default=None):
+        return self.config.get(key, default)
 
     def get_ssh_keys(self):
         conn = urllib2.urlopen('%s/public-keys/' % self.meta_data_base_url)
