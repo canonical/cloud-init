@@ -18,9 +18,42 @@
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
+import re
+import os
 import unittest
 
-class RunUserDataApplianceConfigScript(unittest.TestCase):
+class RunUserDataApplianceTestCase(unittest.TestCase):
+    def handle_xml(self, xml):
+        msg = self.ec2_run_user_data.parse_user_data(xml)
+        self.ec2_run_user_data.handle_part(msg)
+
+class RunUserDataApplianceConfigEBS(RunUserDataApplianceTestCase):
+    def setUp(self):
+        self.ec2_run_user_data = __import__('ec2-run-user-data')
+        reload(self.ec2_run_user_data) 
+        self.real_mount_ebs_volume = self.ec2_run_user_data.mount_ebs_volume
+        self.ec2_run_user_data.mount_ebs_volume  = self.fake_mount_ebs_volume
+    
+    def fake_mount_ebs_volume(self, device, paths):
+        self.assertEqual(device, '/dev/sdc')
+        self.assertEqual(paths, ['/etc/alfresco', '/var/lib/mysql'])
+
+    def testApplianceConfigEBS(self):
+        os.environ['EBSMOUNT_DEBUG'] = 'yes, please'
+        xml = '<appliance><storage device="/dev/sdc"><path>/etc/alfresco</path><path>/var/lib/mysql</path></storage></appliance>'
+        self.handle_xml(xml)
+
+    def testMountEBSVolume(self):
+        output = self.real_mount_ebs_volume('/dev/sdh', ['/foo', '/bar'])
+        lines = output.strip().split('\n')
+        self.assertEqual(len(lines), 11)
+        match = re.match('mount /dev/sdh (/var/run/ec2-init/tmp.[a-zA-Z0-9]+)', lines[0])
+        self.assertNotEqual(match, None)
+        tmpdir = match.group(1)
+        for (i, s) in zip(range(10), ['mkdir %s/_foo', 'cp -a /foo %s/_foo', 'chown --reference /foo %s/_foo', 'chmod --reference /foo %s/_foo', 'mount --bind %s/_foo /foo', 'mkdir %s/_bar', 'cp -a /bar %s/_bar', 'chown --reference /bar %s/_bar', 'chmod --reference /bar %s/_bar', 'mount --bind %s/_bar /bar']):
+            self.assertEqual(s % tmpdir, lines[i+1])
+
+class RunUserDataApplianceConfigScript(RunUserDataApplianceTestCase):
     def setUp(self):
         self.ec2_run_user_data = __import__('ec2-run-user-data')
         self.fake_handle_shell_script_counter = 0
@@ -62,7 +95,7 @@ echo hey'''
         self.handle_xml(xml)
         self.assertEqual(self.fake_handle_shell_script_counter, 1) 
 
-class RunUserDataApplianceConfigPackageHandling(unittest.TestCase):
+class RunUserDataApplianceConfigPackageHandling(RunUserDataApplianceTestCase):
     def setUp(self):
         self.fake_install_remove_package_counter = 0
 
