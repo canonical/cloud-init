@@ -107,6 +107,21 @@ class ApplianceConfig(object):
                     remove_package(pkg)
                 else:
                     install_package(pkg)
+            elif node.tagName == 'script':
+                script = ''
+                for subnode in node.childNodes:
+                    # If someone went through the trouble of wrapping it in CDATA, 
+                    # it's probably the script we want to run..
+                    if subnode.nodeType == root.CDATA_SECTION_NODE:
+                        script = subnode.nodeValue
+                    # ..however, fall back to whatever TEXT_NODE stuff is between
+                    # the <script> tags.
+                    if subnode.nodeType == root.TEXT_NODE and not script:
+                        script = subnode.nodeValue
+                if not script:
+                    # An empty script?
+                    continue
+                content_type_handlers['text/x-shellscript'](script)
 
 def main():
     ec2 = ec2init.EC2Init()
