@@ -61,7 +61,7 @@ def handle_appliance_config(payload):
 
 @handler('text/x-ebs-mount-description')
 def handle_ebs_mount_description(payload):
-    (volume_description, path) = payload.split(':')
+    (volume_description, paths) = payload.split(':')
     (identifier_type, identifier) = volume_description.split('=')
 
     if identifier_type == 'device':
@@ -72,6 +72,17 @@ def handle_ebs_mount_description(payload):
 #        device = extract_device_name_from_meta_data
     else:
         return
+
+    mount_ebs_volume(device, paths.split(','))
+
+def mount_ebs_volume(device, paths):
+    if os.path.exists('ec2-init-appliance-ebs-volume-mount.sh'):
+        helper = './ec2-init-appliance-ebs-volume-mount.sh'
+    else:
+        helper = '/usr/share/ec2-init/ec2-init-appliance-ebs-volume-mount.sh'
+    helper = subprocess.Popen([helper, device] + paths, stdout=subprocess.PIPE)
+    stdout, stderr = helper.communicate()
+    return stdout
 
 @handler('text/x-shellscript')
 def handle_shell_script(payload):
@@ -129,6 +140,16 @@ class ApplianceConfig(object):
                     # An empty script?
                     continue
                 content_type_handlers['text/x-shellscript'](script)
+            elif node.tagName == 'storage':
+                paths = []
+                device = node.getAttribute('device')
+                for subnode in node.childNodes:
+                    if subnode.tagName == 'path':
+                        for subsubnode in subnode.childNodes:
+                            if subsubnode.nodeType == root.TEXT_NODE:
+                                paths += [subsubnode.nodeValue.strip()]
+                                break
+                mount_ebs_volume(device, paths)
 
 def main():
     ec2 = ec2init.EC2Init()
