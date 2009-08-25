@@ -29,7 +29,7 @@ then
     $do mkfs.ext3 "${ebs_volume_device}"
 fi
 
-tmpdir="$(mktemp -d $mktemp_args --tmpdir=/var/run/ec2-init)"
+tmpdir="$(mktemp -d $mktemp_args --tmpdir=/var/run/ec2)"
 $do mount ${ebs_volume_device} ${tmpdir}
 
 for dir in "$@"
