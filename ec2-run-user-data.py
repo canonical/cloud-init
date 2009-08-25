@@ -25,8 +25,14 @@ import tempfile
 
 import ec2init
 
-content_type_handlers = { 'text/x-shellscript' : handle_shell_script,
-                          'text/x-ebs-mount-description' : handle_ebs_mount_description }
+content_type_handlers = {}
+
+def handler(mimetype):
+    return lambda f: register_handler(mimetype, f)
+
+def register_handler(mimetype, func):
+    content_type_handlers[mimetype] = func
+    return func
 
 def main():
     ec2 = ec2init.EC2Init()
@@ -52,6 +58,7 @@ def handle_unknown_payload(payload):
     if payload.startswith('#!'):
         content_type_handlers['text/x-shellscript'](payload)
 
+@handler('text/x-ebs-mount-description')
 def handle_ebs_mount_description(payload):
     (volume_description, path) = payload.split(':')
     (identifier_type, identifier) = volume_description.split('=')
@@ -65,6 +72,7 @@ def handle_ebs_mount_description(payload):
     else:
         return
 
+@handler('text/x-shellscript')
 def handle_shell_script(payload):
     (fd, path) = tempfile.mkstemp()
     fp = os.fdopen(fd, 'a')
