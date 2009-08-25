@@ -26,6 +26,15 @@ from xml.dom.minidom import parse, parseString
 
 import ec2init
 
+content_type_handlers = {}
+
+def handler(mimetype):
+    return lambda f: register_handler(mimetype, f)
+
+def register_handler(mimetype, func):
+    content_type_handlers[mimetype] = func
+    return func
+
 def handle_part(part):
     if part.is_multipart():
         for p in part.get_payload():
@@ -45,11 +54,12 @@ def handle_unknown_payload(payload):
     if payload.startswith('<appliance>'):
         content_type_handlers['text/x-appliance-config'](payload)
 
-
+@handler('text/x-appliance-config')
 def handle_appliance_config(payload):
     app = ApplianceConfig(payload)
     app.handle()
 
+@handler('text/x-ebs-mount-description')
 def handle_ebs_mount_description(payload):
     (volume_description, path) = payload.split(':')
     (identifier_type, identifier) = volume_description.split('=')
@@ -63,6 +73,7 @@ def handle_ebs_mount_description(payload):
     else:
         return
 
+@handler('text/x-shellscript')
 def handle_shell_script(payload):
     (fd, path) = tempfile.mkstemp()
     fp = os.fdopen(fd, 'a')
@@ -76,10 +87,6 @@ def handle_shell_script(payload):
     logger_process.communicate()
     
     os.unlink(path)
-
-content_type_handlers = { 'text/x-shellscript' : handle_shell_script,
-                          'text/x-ebs-mount-description' : handle_ebs_mount_description,
-                          'text/x-appliance-config': handle_appliance_config }
 
 class ApplianceConfig(object):
     def __init__(self, data):
