@@ -16,8 +16,8 @@ NAME=ec2-init
 
 . /lib/lsb/init-functions
 
-if [ ! -d /var/ec2 ]; then
-    mkdir /var/ec2
+if [ ! -d /var/run/ec2 ]; then
+    mkdir /var/run/ec2
 fi
 
 run_once() {

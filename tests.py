@@ -47,7 +47,7 @@ class RunUserDataApplianceConfigEBS(RunUserDataApplianceTestCase):
         output = self.real_mount_ebs_volume('/dev/sdh', ['/foo', '/bar'])
         lines = output.strip().split('\n')
         self.assertEqual(len(lines), 11)
-        match = re.match('mount /dev/sdh (/var/run/ec2-init/tmp.[a-zA-Z0-9]+)', lines[0])
+        match = re.match('mount /dev/sdh (/var/run/ec2/tmp.[a-zA-Z0-9]+)', lines[0])
         self.assertNotEqual(match, None)
         tmpdir = match.group(1)
         for (i, s) in zip(range(10), ['mkdir %s/_foo', 'cp -a /foo %s/_foo', 'chown --reference /foo %s/_foo', 'chmod --reference /foo %s/_foo', 'mount --bind %s/_foo /foo', 'mkdir %s/_bar', 'cp -a /bar %s/_bar', 'chown --reference /bar %s/_bar', 'chmod --reference /bar %s/_bar', 'mount --bind %s/_bar /bar']):
