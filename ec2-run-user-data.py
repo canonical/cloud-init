@@ -22,6 +22,7 @@ import email
 import os
 import subprocess
 import tempfile
+from xml.dom.minidom import parse, parseString
 
 import ec2init
 
@@ -33,14 +34,6 @@ def handler(mimetype):
 def register_handler(mimetype, func):
     content_type_handlers[mimetype] = func
     return func
-
-def main():
-    ec2 = ec2init.EC2Init()
-
-    user_data = ec2.get_user_data()
-
-    msg = email.message_from_string(user_data)
-    handle_part(msg)
 
 def handle_part(part):
     if part.is_multipart():
@@ -57,10 +50,18 @@ def handle_unknown_payload(payload):
     # Try to detect magic
     if payload.startswith('#!'):
         content_type_handlers['text/x-shellscript'](payload)
+        return
+    if payload.startswith('<appliance>'):
+        content_type_handlers['text/x-appliance-config'](payload)
+
+@handler('text/x-appliance-config')
+def handle_appliance_config(payload):
+    app = ApplianceConfig(payload)
+    app.handle()
 
 @handler('text/x-ebs-mount-description')
 def handle_ebs_mount_description(payload):
-    (volume_description, path) = payload.split(':')
+    (volume_description, paths) = payload.split(':')
     (identifier_type, identifier) = volume_description.split('=')
 
     if identifier_type == 'device':
@@ -71,6 +72,17 @@ def handle_ebs_mount_description(payload):
 #        device = extract_device_name_from_meta_data
     else:
         return
+
+    mount_ebs_volume(device, paths.split(','))
+
+def mount_ebs_volume(device, paths):
+    if os.path.exists('ec2-init-appliance-ebs-volume-mount.sh'):
+        helper = './ec2-init-appliance-ebs-volume-mount.sh'
+    else:
+        helper = '/usr/share/ec2-init/ec2-init-appliance-ebs-volume-mount.sh'
+    helper = subprocess.Popen([helper, device] + paths, stdout=subprocess.PIPE)
+    stdout, stderr = helper.communicate()
+    return stdout
 
 @handler('text/x-shellscript')
 def handle_shell_script(payload):
@@ -86,6 +98,79 @@ def handle_shell_script(payload):
     logger_process.communicate()
     
     os.unlink(path)
+
+class ApplianceConfig(object):
+    def __init__(self, data):
+        self.data = data
+
+    def handle(self):
+        self.dom = parseString(self.data)
+
+        if self.dom.childNodes[0].tagName == 'appliance':
+            root = self.dom.childNodes[0]
+        else:
+            return
+
+        for node in root.childNodes:
+            if node.tagName == 'package':
+                pkg = None
+                for subnode in node.childNodes:
+                    if subnode.nodeType == root.TEXT_NODE:
+                        pkg = subnode.nodeValue
+                if not pkg:
+                    # Something's fishy. We should have been passed the name of
+                    # a package.
+                    return
+                if node.getAttribute('action') == 'remove':
+                    remove_package(pkg)
+                else:
+                    install_package(pkg)
+            elif node.tagName == 'script':
+                script = ''
+                for subnode in node.childNodes:
+                    # If someone went through the trouble of wrapping it in CDATA, 
+                    # it's probably the script we want to run..
+                    if subnode.nodeType == root.CDATA_SECTION_NODE:
+                        script = subnode.nodeValue
+                    # ..however, fall back to whatever TEXT_NODE stuff is between
+                    # the <script> tags.
+                    if subnode.nodeType == root.TEXT_NODE and not script:
+                        script = subnode.nodeValue
+                if not script:
+                    # An empty script?
+                    continue
+                content_type_handlers['text/x-shellscript'](script)
+            elif node.tagName == 'storage':
+                paths = []
+                device = node.getAttribute('device')
+                for subnode in node.childNodes:
+                    if subnode.tagName == 'path':
+                        for subsubnode in subnode.childNodes:
+                            if subsubnode.nodeType == root.TEXT_NODE:
+                                paths += [subsubnode.nodeValue.strip()]
+                                break
+                mount_ebs_volume(device, paths)
+
+def main():
+    ec2 = ec2init.EC2Init()
+
+    user_data = ec2.get_user_data()
+    msg = parse_user_data(user_data)
+    handle_part(msg)
+
+def parse_user_data(user_data):
+    return email.message_from_string(user_data)
+
+def install_remove_package(pkg, action):
+    apt_get = subprocess.Popen(['apt-get', action, pkg], stdout=subprocess.PIPE)
+    logger_process = subprocess.Popen(['logger', '-t', 'user-data'], stdin=apt_get.stdout)
+    logger_process.communicate()
+
+def install_package(pkg):
+    return install_remove_package(pkg, 'install')
+
+def remove_package(pkg):
+    return install_remove_package(pkg, 'remove')
 
 if __name__ == '__main__':
     main()

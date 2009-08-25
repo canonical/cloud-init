@@ -37,5 +37,7 @@ setup(name='EC2-init',
                'ec2-wait-for-meta-data-service.py'],
       data_files=[('/etc/ec2-init', ['ec2-config.cfg']),
                   ('/etc/ec2-init/templates', glob('templates/*')),
-                  ('/etc/init.d', ['ec2-init'])],
+                  ('/etc/init.d', ['ec2-init']),
+                  ('/usr/share/ec2-init', ['ec2-init-appliance-ebs-volume-mount.sh']),
+                  ],
       )
