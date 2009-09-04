@@ -154,9 +154,12 @@ class ApplianceConfig(object):
 def main():
     ec2 = ec2init.EC2Init()
 
-    user_data = ec2.get_user_data()
+    user_data = get_user_data()
     msg = parse_user_data(user_data)
     handle_part(msg)
+
+def get_user_data():
+    return ec2.get_user_data()
 
 def parse_user_data(user_data):
     return email.message_from_string(user_data)
