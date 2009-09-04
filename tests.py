@@ -56,6 +56,7 @@ class RunUserDataApplianceConfigEBS(RunUserDataApplianceTestCase):
 class RunUserDataApplianceConfigScript(RunUserDataApplianceTestCase):
     def setUp(self):
         self.ec2_run_user_data = __import__('ec2-run-user-data')
+        reload(self.ec2_run_user_data)
         self.fake_handle_shell_script_counter = 0
         self.expected_scripts = []
         # Override install_remove_package 
@@ -95,11 +96,25 @@ echo hey'''
         self.handle_xml(xml)
         self.assertEqual(self.fake_handle_shell_script_counter, 1) 
 
+class RunUserDataScript(unittest.Testcase):
+    def setUp(self):
+        self.ec2_run_user_data = __import__('ec2-run-user-data')
+        reload(self.ec2_run_user_data)
+
+    def testHandleDetectedScript(self):
+        self.ec2_run_user_data.get_user_data = lambda : '''#!/bin/sh
+touch /tmp/ec2-run-user-data-test
+'''
+        self.ec2_run_user_data.main()
+        self.assertTrue(os.path.exists('/tmp/ec2-run-user-data-test'))
+        os.unlink('/tmp/ec2-run-user-data-test')
+
 class RunUserDataApplianceConfigPackageHandling(RunUserDataApplianceTestCase):
     def setUp(self):
         self.fake_install_remove_package_counter = 0
 
         self.ec2_run_user_data = __import__('ec2-run-user-data')
+        reload(self.ec2_run_user_data)
 
         # Override install_remove_package 
         self.ec2_run_user_data.install_remove_package = self.fake_install_remove_package
