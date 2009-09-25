@@ -48,18 +48,18 @@ run_once_ever() {
 regenerate_ssh_host_keys() {
     rm -f /etc/ssh/ssh_host_*_key*
 
-    ssh-keygen -f /etc/ssh/ssh_host_rsa_key -t rsa -N '' | logger -s -t "ec2"
-    ssh-keygen -f /etc/ssh/ssh_host_dsa_key -t dsa -N '' | logger -s -t "ec2"
+    ssh-keygen -f /etc/ssh/ssh_host_rsa_key -t rsa -N ''
+    ssh-keygen -f /etc/ssh/ssh_host_dsa_key -t dsa -N ''
 
     # This allows user to get host keys securely through console log
-    echo | logger -s -t "ec2"
-    echo | logger -s -t "ec2"
-    echo "#############################################################" | logger -s -t "ec2"
-    echo "-----BEGIN SSH HOST KEY FINGERPRINTS-----" | logger -s -t "ec2"
-    ssh-keygen -l -f /etc/ssh/ssh_host_rsa_key.pub | logger -s -t "ec2"
-    ssh-keygen -l -f /etc/ssh/ssh_host_dsa_key.pub | logger -s -t "ec2"
-    echo "-----END SSH HOST KEY FINGERPRINTS-----" | logger -s -t "ec2"
-    echo "#############################################################" | logger -s -t "ec2"
+    echo
+    echo
+    echo "#############################################################"
+    echo "-----BEGIN SSH HOST KEY FINGERPRINTS-----"
+    ssh-keygen -l -f /etc/ssh/ssh_host_rsa_key.pub
+    ssh-keygen -l -f /etc/ssh/ssh_host_dsa_key.pub
+    echo "-----END SSH HOST KEY FINGERPRINTS-----"
+    echo "#############################################################"
 }
 
 case "$1" in
@@ -75,7 +75,7 @@ case "$1" in
 
         if run_once_per_ami ssh_host_key_regeneration
         then
-            regenerate_ssh_host_keys
+            regenerate_ssh_host_keys 2>&1 | logger -s -t "ec2"
         fi
 
         if run_once_ever ec2-defaults
