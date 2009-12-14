@@ -28,10 +28,16 @@ def main():
     ec2 = ec2init.EC2Init()
 
     availability_zone = ec2.get_availability_zone()
-    location          = ec2.get_location_from_availability_zone(availability_zone)
-    mirror            = ec2.get_mirror_from_availability_zone(availability_zone)
 
-    locale = ec2.location_locale_map[location]
+    try:
+        location = ec2.get_location_from_availability_zone(availability_zone)
+        locale = ec2.location_locale_map[location]
+    except Exception, e:
+        locale = "en_US.UTF-8"
+
+    # get_mirror_from_availability_zone returns default on no match
+    mirror = ec2.get_mirror_from_availability_zone(availability_zone)
+
     apply_locale(locale)
 
     generate_sources_list(mirror)

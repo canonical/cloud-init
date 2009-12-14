@@ -16,10 +16,6 @@ NAME=ec2-init
 
 . /lib/lsb/init-functions
 
-if [ ! -d /var/run/ec2 ]; then
-    mkdir /var/run/ec2
-fi
-
 run_once() {
     per_id=$1
     action_id=$2
@@ -62,8 +58,63 @@ regenerate_ssh_host_keys() {
     echo "#############################################################"
 }
 
+# fix LP bug 458850
+# the ephemeral mounts provided in eucalyptus instances differ from
+# those found in ec2 in 2 ways:
+#   1. independent of arch type, the filesystem is on /dev/sda2
+#   2. the filesystem is ext2, not ext3
+fix_euca_fstab() {
+    
+    local edev="/dev/sda2" eedev='\/dev\/sda2' 
+
+    [ -e "${edev}" ] || return 0
+
+    local sops=""; # sed operations
+    local mntinfo="" file_out="" sops="" umdev=${edev}
+
+    # if /dev/sdb is set to mount to /mnt, then we
+    # want to rewrite that to be /dev/sda2
+    mntinfo=$(awk '$2 == "/mnt" { printf("dev=%s fs=%s\n",$1,$3); }' /etc/fstab)
+    case "${mntinfo}" in
+        dev=/dev/sdb\ *)
+            umdev=/dev/sdb;
+            sops="${sops:+${sops};}s,^/dev/sdb,${edev},";;
+    esac
+
+    # if fstab says ext3, but fs on edev is ext2, switch fstab
+    case "${mntinfo}" in
+        *\ fs=ext3)
+            file_out=$(file --special-files "${edev}")
+            case "${file_out}" in
+                *ext2*) sops="${sops:+${sops};}/^${eedev}/s/ext3/ext2/;";;
+            esac
+            ;;
+    esac
+
+    # if there were no sed operations to preform, then nothing to do
+    [ -n "${sops}" ] || return 0
+
+    log_daemon_msg "Fixing fstab for eucalyptus"
+    sed -i "${sops}" /etc/fstab
+    # subsequent boots, /etc/fstab will be updated, and the mount
+    # here isn't needed, but if modifications were made, it is
+    umount "${edev}" >/dev/null 2>&1
+    [ "${edev}" = "${umdev}" ] || umount "${umdev}" >/dev/null 2>&1
+    mount "${edev}"
+    log_end_msg $?
+}
+
 case "$1" in
     start)
+        if ! ec2-is-compat-env --quiet; then
+           log_daemon_msg "ec2-init disabled"
+           log_end_msg 0
+           exit 0
+        fi
+        if [ ! -d /var/run/ec2 ]; then
+            mkdir /var/run/ec2
+        fi
+
         log_daemon_msg "Waiting for EC2 meta-data service"
         if ec2-wait-for-meta-data-service
         then
@@ -73,9 +124,22 @@ case "$1" in
             exit 1
         fi
 
+        # fix euca_fstab for ephemeral mounts one time ever
+        # on rebundle, it should collect the fixed /etc/fstab
+        if run_once_ever euca-fix-fstab-for-ephemeral; then
+            fix_euca_fstab
+        fi
+
         if run_once_per_ami ssh_host_key_regeneration
         then
-            regenerate_ssh_host_keys 2>&1 | logger -s -t "ec2"
+            # we can't be certain that rsyslog is up (or configured to send
+            # messages to console), but we want to make sure this goes to
+            # console. So write to /dev/console directly through tee.
+            # Change priority of message, so if user.notice (logger's default)
+            # also goes to /dev/console , we could avoid dup messages
+            regenerate_ssh_host_keys 2>&1 | 
+                logger -p user.info -s -t "ec2" 2>&1 |
+                tee /dev/console
         fi
 
         if run_once_ever ec2-defaults
@@ -104,20 +168,11 @@ case "$1" in
         if ec2-set-hostname 2> /dev/null
         then
             log_end_msg 0
+            invoke-rc.d rsyslog reload
         else
             log_end_msg 1
         fi
 
-        if run_once_per_ami user-data
-        then
-            log_daemon_msg "Running EC2 user data"
-            if ec2-run-user-data 2>&1 | logger -t "user-data"
-            then
-                log_end_msg 0
-            else
-                log_end_msg 1
-            fi
-        fi
         ;;
     stop)
         exit 0
