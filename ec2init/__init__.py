@@ -88,12 +88,13 @@ class EC2Init():
         return hostname
 
     def get_mirror_from_availability_zone(self, availability_zone):
-        if availability_zone.startswith("us"):
-            return 'http://us.ec2.archive.ubuntu.com/ubuntu/'
-        elif availability_zone.startswith("eu"):
-            return 'http://eu.ec2.archive.ubuntu.com/ubuntu/'
-
-        return 'http://archive.ubuntu.com/ubuntu/'
+        # availability is like 'us-west-1b' or 'eu-west-1a'
+        try:
+            host="%s.ec2.archive.ubuntu.com" % availability_zone[:-1]
+            socket.getaddrinfo(host, None, 0, socket.SOCK_STREAM)
+            return 'http://%s/ubuntu/' % host
+        except:
+            return 'http://archive.ubuntu.com/ubuntu/'
 
     def wait_for_metadata_service(self):
         timeout = 2
