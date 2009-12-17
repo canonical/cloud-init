@@ -1,0 +1,78 @@
+#!/bin/sh
+# vi: ts=4 noexpandtab syntax=sh
+
+ETC_CONFIG=/etc/ec2-init/is-compat-env
+CONFIG_ACTIVE_VAR="compat"
+CMDLINE_EC2_COMPAT=ec2init
+CR="
+"
+VERBOSE=1
+META_DATA_URL=http://169.254.169.254/2009-04-04
+check_md=0
+
+Usage() {
+	cat <<EOF
+Usage: ${0##*/} [options]
+   indicate whether or not this appears to be an ec2 environment
+   a exit value:
+     0 indicates this is ec2
+     1 indicates this is not ec2
+
+options:
+	-h | --help       display usage
+	-m | --meta-data  check metadata service
+	-q | --quiet      do not output 'yes' or 'no', only exit properly
+EOF
+}
+
+xit() {
+	ret=${1:-1}
+	if [ "${VERBOSE}" != "0" ]; then
+		[ "$ret" = "0" ] && echo yes || echo no
+	fi
+	exit "$ret";
+}
+
+while [ $# -ne 0 ]; do
+	case "$1" in
+		-q|--quiet) VERBOSE=0;;
+		-h|--help) Usage; exit 0;;
+		-m|--use-meta-data) check_md=1;;
+		*) Usage 1>&2; exit 2;;
+	esac
+	shift;
+done
+
+if [ ${check_md} -ne 0 ]; then
+	# if we are to check for meta data service
+	# then check first that there was something there.
+	index=$(wget --connect-timeout=2 --tries 2 -O - -q "${META_DATA_URL}") ||
+		xit 1
+
+	# exit true if content of url a line with 'meta-data' at start
+	[ "${index#*${CR}meta-data}" = "${index}" ] || xit 0
+	xit 1
+fi
+
+# if /proc/cmdline exists and has certain tokens, trust them
+# even before looking at config file
+if [ -e /proc/cmdline ] && read cmdline < /proc/cmdline; then
+	# if cmdline has certain tokens in it, trust them
+	case " ${cmdline} " in
+		*\ ${CMDLINE_EC2_COMPAT}=1\ ) xit 0;;
+		*\ ${CMDLINE_EC2_COMPAT}=0\ ) xit 1;;
+	esac
+fi
+
+# if the config file exists and has a non-empty value set for
+# CONFIG_ACTIVE_VAR trust it as definitive source. If no value is set
+# fall through
+if [ -e "${ETC_CONFIG}" ] &&
+    active=$(sh -c "unset ${CONFIG_ACTIVE_VAR};
+             . '${ETC_CONFIG}'; echo \${${CONFIG_ACTIVE_VAR}}") && 
+    [ -n "${active}" ]; then
+    [ "$active" = "1" ] && xit 0
+    xit 1
+fi
+
+xit 1
