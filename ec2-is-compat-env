@@ -59,8 +59,8 @@ fi
 if [ -e /proc/cmdline ] && read cmdline < /proc/cmdline; then
 	# if cmdline has certain tokens in it, trust them
 	case " ${cmdline} " in
-		*\ ${CMDLINE_EC2_COMPAT}=1\ ) xit 0;;
-		*\ ${CMDLINE_EC2_COMPAT}=0\ ) xit 1;;
+		*\ ${CMDLINE_EC2_COMPAT}=1\ *) xit 0;;
+		*\ ${CMDLINE_EC2_COMPAT}=0\ *) xit 1;;
 	esac
 fi
 
