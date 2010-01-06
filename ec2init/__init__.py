@@ -21,6 +21,7 @@ import os
 from   configobj import ConfigObj
 
 import boto.utils
+import cPickle
 
 datadir = '/var/lib/cloud/data'
 cachedir = datadir + '/cache'
@@ -36,7 +37,7 @@ class EC2Init:
     def restore_from_cache(self):
         try:
             f=open(cachedir + "/obj.pkl", "rb")
-            data = pickle.load(f)
+            data = cPickle.load(f)
             self.datasource = data
             return True
         except:
@@ -45,7 +46,7 @@ class EC2Init:
     def write_to_cache(self):
         try:
             f=open(cachedir + "/obj.pkl", "wb")
-            data = pickle.dump(self.datasource,f)
+            data = cPickle.dump(self.datasource,f)
             return True
         except:
             return False
@@ -60,7 +61,8 @@ class EC2Init:
                 if s.get_data():
                     self.datasource = s
                     return
-            except:
+            except Exception as e:
+                print e
                 pass
         raise Exception("Could not find data source")
 
@@ -77,3 +79,18 @@ class EC2Init:
         import subprocess
         subprocess.Popen(['initctl', 'CFG_FILE=%s' % user_config]).communicate()
 
+
+# if 'str' is compressed return decompressed otherwise return it
+def decomp_str(str):
+    import StringIO
+    import gzip
+    try:
+        uncomp = gzip.GzipFile(None,"rb",1,StringIO.StringIO(str)).read()
+        return(uncomp)
+    except:
+        return(str)
+
+
+# preprocess the user data (include / uncompress)
+def preprocess_user_data(ud):
+   return(decomp_str(ud))
