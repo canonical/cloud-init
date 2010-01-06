@@ -24,3 +24,6 @@ class DataSource:
             self.userdata = ec2init.preprocess_user_data(self.userdata_raw)
 
         return self.userdata
+
+    def get_user_data_raw(self):
+        return(self.userdata_raw)

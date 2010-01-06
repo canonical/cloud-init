@@ -32,6 +32,8 @@ cachedir = datadir + '/cache'
 user_data = datadir + '/user-data.txt'
 user_data_raw = datadir + '/user-data.raw'
 user_config = datadir + '/user-config.txt'
+data_source_cache = cachedir + '/obj.pkl'
+cfg_env_name = "CLOUD_CFG"
 
 import DataSourceEc2
 
@@ -40,7 +42,7 @@ class EC2Init:
 
     def restore_from_cache(self):
         try:
-            f=open(cachedir + "/obj.pkl", "rb")
+            f=open(data_source_cache, "rb")
             data = cPickle.load(f)
             self.datasource = data
             return True
@@ -49,7 +51,7 @@ class EC2Init:
 
     def write_to_cache(self):
         try:
-            f=open(cachedir + "/obj.pkl", "wb")
+            f=open(data_source_cache, "wb")
             data = cPickle.dump(self.datasource,f)
             return True
         except:
@@ -73,6 +75,19 @@ class EC2Init:
     def get_user_data(self):
         return(self.datasource.get_user_data())
 
+    def update_cache(self):
+        self.write_to_cache()
+        self.store_user_data()
+
+    def store_user_data(self):
+        f = open(user_data_raw,"wb")
+        f.write(self.datasource.get_user_data_raw())
+        f.close()
+
+        f = open(user_data,"wb")
+        f.write(self.get_user_data())
+        f.close()
+
     def get_cfg_option_bool(self, key, default=None):
         val = self.config.get(key, default)
         if val.lower() in ['1', 'on', 'yes']:
@@ -81,7 +96,8 @@ class EC2Init:
 
     def initctl_emit(self):
         import subprocess
-        subprocess.Popen(['initctl', 'CFG_FILE=%s' % user_config]).communicate()
+        subprocess.Popen(['initctl', 'emit', 'cloud-config',
+            '%s=%s' % (cfg_env_name,user_config)]).communicate()
 
 
 # if 'str' is compressed return decompressed otherwise return it
