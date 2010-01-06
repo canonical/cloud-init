@@ -20,7 +20,7 @@ def main():
     print "user data is:" + cloud.get_user_data()
 
     # store the metadata
-    # TODO: cloud.update_cache()
+    cloud.update_cache()
 
     # parse the user data (ec2-run-userdata.py)
     # TODO: cloud.consume_user_data()

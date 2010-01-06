@@ -4,7 +4,7 @@ import sys
 import ec2init
 
 def Usage(out = sys.stdout):
-    out.write("Usage: cloud-init-run-module freq sem-name mod-name [args]")
+    out.write("Usage: cloud-init-run-module freq sem-name mod-name [args]\n")
     
 def main():
     # expect to be called with
@@ -30,7 +30,7 @@ def main():
     import os
 
     cfg_path = None
-    cfg_env_name = "CLOUD_CFG"
+    cfg_env_name = ec2init.cfg_env_name
     if os.environ.has_key(cfg_env_name):
         cfg_path = os.environ[cfg_env_name]
 

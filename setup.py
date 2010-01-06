@@ -41,7 +41,7 @@ setup(name='EC2-init',
                ],
       data_files=[('/etc/ec2-init', ['ec2-config.cfg']),
                   ('/etc/ec2-init/templates', glob('templates/*')),
-                  ('/etc/init', ['ec2init.conf']),
+                  ('/etc/init', glob('upstart/*.conf')),
                   ('/usr/share/ec2-init', ['ec2-init-appliance-ebs-volume-mount.sh']),
                   ],
       )
