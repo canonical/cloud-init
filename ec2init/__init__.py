@@ -22,7 +22,11 @@ from   configobj import ConfigObj
 
 import boto.utils
 
-cachedir = '/var/lib/cloud/data/cache'
+datadir = '/var/lib/cloud/data'
+cachedir = datadir + '/cache'
+user_data = datadir + '/user-data.txt'
+user_data_raw = datadir + '/user-data.raw'
+user_config = datadir + '/user-config.txt'
 
 import DataSourceEc2
 
@@ -52,7 +56,6 @@ class EC2Init:
 
         for source in self.datasource_list:
             try:
-                print "trying + %s" % source
                 s = source()
                 if s.get_data():
                     self.datasource = s
@@ -69,4 +72,8 @@ class EC2Init:
         if val.lower() in ['1', 'on', 'yes']:
             return True
         return False
+
+    def initctl_emit(self):
+        import subprocess
+        subprocess.Popen(['initctl', 'CFG_FILE=%s' % user_config]).communicate()
 
