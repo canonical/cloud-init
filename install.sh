@@ -16,14 +16,14 @@ destdir=$(readlink -f ${1})
 cd $(dirname ${0})
 ./setup.py install --root=${destdir} ${DEB_PYTHON_INSTALL_ARGS_ALL}
 
-mkdir -p ${destdir}/usr/lib/pyshared
-for x in ${destdir}/usr/lib/python2.6/dist-packages/*; do
-   [ -d "$x" ] || continue
-   [ ! -d "${destdir}/usr/lib/pyshared/${x##*/}" ] ||
-      rm -Rf "${destdir}/usr/lib/pyshared/${x##*/}"
-   mv $x ${destdir}/usr/lib/pyshared
-done
-rm -Rf ${destdir}/usr/lib/python2.6
+#mkdir -p ${destdir}/usr/share/pyshared
+#for x in ${destdir}/usr/lib/python2.6/dist-packages/*; do
+#   [ -d "$x" ] || continue
+#   [ ! -d "${destdir}/usr/share/pyshared/${x##*/}" ] ||
+#      rm -Rf "${destdir}/usr/share/pyshared/${x##*/}"
+#   mv $x ${destdir}/usr/share/pyshared
+#done
+#rm -Rf ${destdir}/usr/lib/python2.6
 
 for x in "${destdir}/usr/bin/"*.py; do
    [ -f "${x}" ] && mv "${x}" "${x%.py}"
