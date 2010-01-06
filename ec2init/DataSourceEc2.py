@@ -5,7 +5,7 @@ import boto.utils
 import socket
 import urllib2
 import time
-import pickle
+import cPickle
 
 class DataSourceEc2(DataSource.DataSource):
     api_ver  = '2009-04-04'
@@ -26,26 +26,25 @@ class DataSourceEc2(DataSource.DataSource):
         self.meta_data_base_url = 'http://169.254.169.254/%s/meta-data' % self.api_ver
         self.user_data_base_url = 'http://169.254.169.254/%s/user-data' % self.api_ver
 
-    def get_user_data(self):
-        return("hello")
-
     def get_data(self):
-        print "checking %s" % self.cachedir + "/user-data.pkl"
-        udf = open(self.cachedir + "/user-data.pkl")
-        self.userdata = pickle.load(udf)
-        udf.close()
+        try:
+            udf = open(self.cachedir + "/user-data.pkl")
+            self.userdata_raw = cPickle.load(udf)
+            udf.close()
 
-        mdf = open(self.cachedir + "/meta-data.pkl")
-        self.metadata = pickle.load(mdf)
-        mdf.close()
+            mdf = open(self.cachedir + "/meta-data.pkl")
+            self.metadata = cPickle.load(mdf)
+            mdf.close()
 
-        return True
+            return True
+        except:
+            pass
 
         try:
             if not self.wait_for_metadata_service():
                 return False
             self.metadata = boto.utils.get_instance_userdata(api_ver)
-            self.userdata = boto.utils.get_instance_metadata(api_ver)
+            self.userdata_raw = boto.utils.get_instance_metadata(api_ver)
         except Exception as e:
             print e
             return False
