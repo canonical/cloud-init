@@ -22,8 +22,12 @@ from   configobj import ConfigObj
 
 import boto.utils
 import cPickle
+import sys
+import os.path
+import errno
 
 datadir = '/var/lib/cloud/data'
+semdir = '/var/lib/cloud/sem'
 cachedir = datadir + '/cache'
 user_data = datadir + '/user-data.txt'
 user_data_raw = datadir + '/user-data.raw'
@@ -93,4 +97,47 @@ def decomp_str(str):
 
 # preprocess the user data (include / uncompress)
 def preprocess_user_data(ud):
-   return(decomp_str(ud))
+    return(decomp_str(ud))
+
+def sem_getpath(name,freq):
+    # TODO: freqtok must represent "once-per-instance" somehow
+    freqtok = freq
+    return("%s/%s.%s" % (semdir,name,freqtok))
+
+def sem_has_run(name,freq):
+    semfile = sem_getpath(name,freq)
+    if os.path.exists(semfile):
+        return True
+    return False
+
+def sem_acquire(name,freq):
+    from time import time
+    semfile = sem_getpath(name,freq)
+
+    try:
+        os.makedirs(os.path.dirname(semfile))
+    except OSError as e:
+        if e.errno != errno.EEXIST:
+            raise e
+
+    if os.path.exists(semfile):
+        return False
+
+    # race condition
+    try:
+        f = open(semfile,"w")
+        f.write(str(time()))
+        f.close()
+    except:
+        return(False)
+    return(True)
+
+def sem_clear(name,freq):
+    semfile = sem_getpath(name,freq)
+    try:
+        os.unlink(semfile)
+    except OSError as e:
+        if e.errno != errno.ENOENT:
+            return False
+        
+    return True
