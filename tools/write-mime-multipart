@@ -1,0 +1,67 @@
+#!/usr/bin/python
+
+"""Send the contents of a directory as a MIME message."""
+
+import os
+import sys
+import smtplib
+# For guessing MIME type based on file name extension
+import mimetypes
+
+from optparse import OptionParser
+
+from email import encoders
+from email.message import Message
+from email.mime.base import MIMEBase
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+
+COMMASPACE = ', '
+
+
+def main():
+    outer = MIMEMultipart()
+    #outer['Subject'] = 'Contents of directory %s' % os.path.abspath(directory)
+    #outer['To'] = COMMASPACE.join(opts.recipients)
+    #outer['From'] = opts.sender
+    #outer.preamble = 'You will not see this in a MIME-aware mail reader.\n'
+
+    if len(sys.argv) % 2 != 1 or len(sys.argv) == 1:
+        print "Usage: prog content-type file1 [ content-type2 file2 [ ... ] ]"
+        sys.exit(1)
+
+    pos = 1
+    while pos < len(sys.argv):
+        ctype = sys.argv[pos]
+        path = sys.argv[pos+1]
+        pos=pos+2
+
+        maintype, subtype = ctype.split('/', 1)
+        if maintype == 'text':
+            fp = open(path)
+            # Note: we should handle calculating the charset
+            msg = MIMEText(fp.read(), _subtype=subtype)
+            fp.close()
+        else:
+            fp = open(path, 'rb')
+            msg = MIMEBase(maintype, subtype)
+            msg.set_payload(fp.read())
+            fp.close()
+            # Encode the payload using Base64
+            encoders.encode_base64(msg)
+
+        # Set the filename parameter
+        msg.add_header('Content-Disposition', 'attachment',
+            filename=os.path.basename(path))
+
+        if ctype is None:
+            # No guess could be made, or the file is encoded (compressed), so
+            # use a generic bag-of-bits type.
+            ctype = 'application/octet-stream'
+        outer.attach(msg)
+    # Now send or store the message
+    #composed = outer.as_string()
+    sys.stdout.write(outer.as_string())
+
+if __name__ == '__main__':
+    main()
