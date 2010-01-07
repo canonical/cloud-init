@@ -24,7 +24,7 @@ class DataSourceEc2(DataSource.DataSource):
 
     def __init__(self):
         self.meta_data_base_url = 'http://169.254.169.254/%s/meta-data' % self.api_ver
-        self.user_data_base_url = 'http://169.254.169.254/%s/user-data' % self.api_ver
+        self.userdata_base_url = 'http://169.254.169.254/%s/user-data' % self.api_ver
 
     def get_data(self):
         try:
@@ -49,6 +49,9 @@ class DataSourceEc2(DataSource.DataSource):
             print e
             return False
 
+    def get_instance_id(self):
+        return(self.metadata['instance-id'])
+
     def wait_or_bail(self):
         if self.wait_for_metadata_service():
             return True
@@ -67,7 +70,7 @@ class DataSourceEc2(DataSource.DataSource):
         keyids = [line.split('=')[0] for line in data.split('\n')]
         return [urllib2.urlopen('%s/public-keys/%d/openssh-key' % (self.meta_data_base_url, int(keyid))).read().rstrip() for keyid in keyids]
 
-#    def get_user_data(self):
+#    def get_userdata(self):
 #        return boto.utils.get_instance_userdata()
 #
 #    def get_instance_metadata(self):

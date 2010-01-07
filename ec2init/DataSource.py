@@ -1,5 +1,6 @@
 
 import ec2init
+import UserDataHandler as ud
 
 class DataSource:
     userdata = None
@@ -9,21 +10,10 @@ class DataSource:
     def __init__(self):
        pass
 
-    def store_user_data_raw(self):
-        fp=fopen(user_data_raw,"wb")
-        fp.write(self.userdata_raw)
-        fp.close()
-    
-    def store_user_data(self):
-        fp=fopen(user_data,"wb")
-        fp.write(self.userdata)
-        fp.close()
-
-    def get_user_data(self):
+    def get_userdata(self):
         if self.userdata == None:
-            self.userdata = ec2init.preprocess_user_data(self.userdata_raw)
-
+            self.userdata = ud.preprocess_userdata(self.userdata_raw)
         return self.userdata
 
-    def get_user_data_raw(self):
+    def get_userdata_raw(self):
         return(self.userdata_raw)

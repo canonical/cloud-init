@@ -16,7 +16,15 @@ def main():
     (freq,semname,modname)=sys.argv[1:4]
     run_args=sys.argv[4:]
 
-    if ec2init.sem_has_run(semname,freq):
+    cloud = ec2init.EC2Init()
+    try:
+        cloud.get_data_source()
+    except Exception as e:
+        print e
+        sys.stderr.write("Failed to get instance data")
+        sys.exit(1)
+
+    if cloud.sem_has_run(semname,freq):
         sys.stderr.write("%s already ran %s\n" % (semname,freq))
         sys.exit(0)
 
@@ -34,15 +42,7 @@ def main():
     if os.environ.has_key(cfg_env_name):
         cfg_path = os.environ[cfg_env_name]
 
-    try:
-        if not ec2init.sem_acquire(semname,freq):
-            sys.stderr.write("Failed to acquire lock on %s\n" % semname)
-            sys.exit(1)
-
-        inst.run(run_args,cfg_path)
-    except:
-        ec2init.sem_clear(semname,freq)
-        raise
+    cloud.sem_and_run(semname, freq, inst.run, [run_args,cfg_path], False)
 
     sys.exit(0)
 

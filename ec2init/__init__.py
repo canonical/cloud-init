@@ -20,7 +20,6 @@
 import os
 from   configobj import ConfigObj
 
-import boto.utils
 import cPickle
 import sys
 import os.path
@@ -29,16 +28,28 @@ import errno
 datadir = '/var/lib/cloud/data'
 semdir = '/var/lib/cloud/sem'
 cachedir = datadir + '/cache'
-user_data = datadir + '/user-data.txt'
-user_data_raw = datadir + '/user-data.raw'
-user_config = datadir + '/user-config.txt'
+userdata_raw = datadir + '/user-data.txt'
+userdata = datadir + '/user-data.txt.i'
+user_scripts_dir = datadir + "/scripts"
+cloud_config = datadir + '/cloud-config.txt'
 data_source_cache = cachedir + '/obj.pkl'
 cfg_env_name = "CLOUD_CFG"
 
 import DataSourceEc2
+import UserDataHandler
 
 class EC2Init:
     datasource_list = [ DataSourceEc2.DataSourceEc2 ]
+    part_handlers = { }
+
+    def __init__(self):
+        self.part_handlers = {
+            'text/x-shellscript' : self.handle_user_script,
+            'text/cloud-config' : self.handle_cloud_config,
+            'text/upstart-job' : self.handle_upstart_job,
+            'text/part-handler' : self.handle_handler
+        }
+
 
     def restore_from_cache(self):
         try:
@@ -72,20 +83,20 @@ class EC2Init:
                 pass
         raise Exception("Could not find data source")
 
-    def get_user_data(self):
-        return(self.datasource.get_user_data())
+    def get_userdata(self):
+        return(self.datasource.get_userdata())
 
     def update_cache(self):
         self.write_to_cache()
-        self.store_user_data()
+        self.store_userdata()
 
-    def store_user_data(self):
-        f = open(user_data_raw,"wb")
-        f.write(self.datasource.get_user_data_raw())
+    def store_userdata(self):
+        f = open(userdata_raw,"wb")
+        f.write(self.datasource.get_userdata_raw())
         f.close()
 
-        f = open(user_data,"wb")
-        f.write(self.get_user_data())
+        f = open(userdata,"wb")
+        f.write(self.get_userdata())
         f.close()
 
     def get_cfg_option_bool(self, key, default=None):
@@ -97,63 +108,127 @@ class EC2Init:
     def initctl_emit(self):
         import subprocess
         subprocess.Popen(['initctl', 'emit', 'cloud-config',
-            '%s=%s' % (cfg_env_name,user_config)]).communicate()
+            '%s=%s' % (cfg_env_name,cloud_config)]).communicate()
 
+    def sem_getpath(self,name,freq):
+        freqtok = freq
+        if freq == 'once-per-instance':
+            freqtok = self.datasource.get_instance_id()
 
-# if 'str' is compressed return decompressed otherwise return it
-def decomp_str(str):
-    import StringIO
-    import gzip
-    try:
-        uncomp = gzip.GzipFile(None,"rb",1,StringIO.StringIO(str)).read()
-        return(uncomp)
-    except:
-        return(str)
-
-
-# preprocess the user data (include / uncompress)
-def preprocess_user_data(ud):
-    return(decomp_str(ud))
-
-def sem_getpath(name,freq):
-    # TODO: freqtok must represent "once-per-instance" somehow
-    freqtok = freq
-    return("%s/%s.%s" % (semdir,name,freqtok))
-
-def sem_has_run(name,freq):
-    semfile = sem_getpath(name,freq)
-    if os.path.exists(semfile):
-        return True
-    return False
-
-def sem_acquire(name,freq):
-    from time import time
-    semfile = sem_getpath(name,freq)
-
-    try:
-        os.makedirs(os.path.dirname(semfile))
-    except OSError as e:
-        if e.errno != errno.EEXIST:
-            raise e
-
-    if os.path.exists(semfile):
+        return("%s/%s.%s" % (semdir,name,freqtok))
+    
+    def sem_has_run(self,name,freq):
+        semfile = self.sem_getpath(name,freq)
+        if os.path.exists(semfile):
+            return True
         return False
-
-    # race condition
-    try:
-        f = open(semfile,"w")
-        f.write(str(time()))
-        f.close()
-    except:
-        return(False)
-    return(True)
-
-def sem_clear(name,freq):
-    semfile = sem_getpath(name,freq)
-    try:
-        os.unlink(semfile)
-    except OSError as e:
-        if e.errno != errno.ENOENT:
+    
+    def sem_acquire(self,name,freq):
+        from time import time
+        semfile = self.sem_getpath(name,freq)
+    
+        try:
+            os.makedirs(os.path.dirname(semfile))
+        except OSError as e:
+            if e.errno != errno.EEXIST:
+                raise e
+    
+        if os.path.exists(semfile):
             return False
-        
-    return True
+    
+        # race condition
+        try:
+            f = open(semfile,"w")
+            f.write("%s\n" % str(time()))
+            f.close()
+        except:
+            return(False)
+        return(True)
+    
+    def sem_clear(self,name,freq):
+        semfile = self.sem_getpath(name,freq)
+        try:
+            os.unlink(semfile)
+        except OSError as e:
+            if e.errno != errno.ENOENT:
+                return False
+            
+        return True
+
+    # acquire lock on 'name' for given 'freq'
+    # if that does not exist, then call 'func' with given 'args'
+    # if 'clear_on_fail' is True and func throws an exception
+    #  then remove the lock (so it would run again)
+    def sem_and_run(self,semname,freq,func,args=[],clear_on_fail=False):
+        if self.sem_has_run(semname,freq): return
+        try:
+            if not self.sem_acquire(semname,freq):
+                raise Exception("Failed to acquire lock on %s\n" % semname)
+
+            func(*args)
+        except:
+            if clear_on_fail:
+                self.sem_clear(semname,freq)
+            raise
+
+    def consume_userdata(self):
+        self.get_userdata()
+        data = self
+        # give callbacks opportunity to initialize
+        for ctype, func in self.part_handlers.items():
+            func(data, "__begin__",None,None)
+        UserDataHandler.walk_userdata(self.get_userdata(),
+            self.part_handlers, data)
+
+        # give callbacks opportunity to finalize
+        for ctype, func in self.part_handlers.items():
+            func(data,"__end__",None,None)
+
+    def handle_handler(self,data,ctype,filename,payload):
+        if ctype == "__begin__" or ctype == "__end__": return
+
+        # - do something to include the handler, ie, eval it or something
+        # - call it with '__begin__'
+        # - add it self.part_handlers
+        # self.part_handlers['new_type']=handler
+        print "Do not know what to do with a handler yet, sorry"
+
+    def handle_user_script(self,data,ctype,filename,payload):
+        if ctype == "__end__": return
+        if ctype == "__begin__":
+            # maybe delete existing things here
+            return
+
+        filename=filename.replace(os.sep,'_')
+        write_file("%s/%s" % (user_scripts_dir,filename), payload, 0700)
+
+    def handle_upstart_job(self,data,ctype,filename,payload):
+        if ctype == "__end__" or ctype == "__begin__": return
+        if not filename.endswith(".conf"):
+            filename=filename+".conf"
+
+        write_file("%s/%s" % ("/etc/init",filename), payload, 0644)
+
+    def handle_cloud_config(self,data,ctype,filename,payload):
+        if ctype == "__begin__":
+            self.cloud_config_str=""
+            return
+        if ctype == "__end__":
+            f=open(cloud_config, "wb")
+            f.write(self.cloud_config_str)
+            f.close()
+            return
+
+        self.cloud_config_str+="\n#%s\n%s" % (filename,payload)
+
+def write_file(file,content,mode=0644):
+        try:
+            os.makedirs(os.path.dirname(file))
+        except OSError as e:
+            if e.errno != errno.EEXIST:
+                raise e
+
+        f=open(file,"wb")
+        f.write(content)
+        f.close()
+        os.chmod(file,mode)
