@@ -1,4 +1,6 @@
 #!/usr/bin/python
+# largely taken from python examples
+# http://docs.python.org/library/email-examples.html
 
 """Send the contents of a directory as a MIME message."""
 
@@ -7,8 +9,6 @@ import sys
 import smtplib
 # For guessing MIME type based on file name extension
 import mimetypes
-
-from optparse import OptionParser
 
 from email import encoders
 from email.message import Message
