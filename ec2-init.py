@@ -6,6 +6,9 @@ import sys
 
 import ec2init
 
+def warn(str):
+    sys.stderr.write(str)
+
 def main():
     cloud = ec2init.EC2Init()
 
@@ -17,13 +20,18 @@ def main():
         sys.stderr.write("Failed to get instance data")
         sys.exit(1)
 
-    print "user data is:" + cloud.get_user_data()
+    #print "user data is:" + cloud.get_user_data()
 
     # store the metadata
     cloud.update_cache()
 
     # parse the user data (ec2-run-userdata.py)
-    # TODO: cloud.consume_user_data()
+    try:
+        cloud.sem_and_run("consume_userdata", "once-per-instance",
+            cloud.consume_userdata,[],False)
+    except:
+        warn("consuming user data failed!")
+        raise
 
     # set the defaults (like what ec2-set-defaults.py did)
     # TODO: cloud.set_defaults()

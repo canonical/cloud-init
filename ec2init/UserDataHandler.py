@@ -3,13 +3,30 @@ import email
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
+
+starts_with_mappings={
+    '#include' : 'text/x-include-url',
+    '#!' : 'text/x-shellscript',
+    '#cloud-config' : 'text/cloud-config'
+}
+
+# if 'str' is compressed return decompressed otherwise return it
+def decomp_str(str):
+    import StringIO
+    import gzip
+    try:
+        uncomp = gzip.GzipFile(None,"rb",1,StringIO.StringIO(str)).read()
+        return(uncomp)
+    except:
+        return(str)
+
 def do_include(str,parts):
     import urllib
     # is just a list of urls, one per line
     for line in str.splitlines():
         if line == "#include": continue
         content = urllib.urlopen(line).read()
-        process_includes(email.message_from_string(content),parts)
+        process_includes(email.message_from_string(decomp_str(content)),parts)
 
 def process_includes(msg,parts):
     # parts is a dictionary of arrays
@@ -24,20 +41,24 @@ def process_includes(msg,parts):
         if part.get_content_maintype() == 'multipart':
             continue
         ctype = part.get_content_type()
-        if ctype is None:
-            # No guess could be made, or the file is encoded (compressed), so
-            # use a generic bag-of-bits type.
-            ctype = 'application/octet-stream'
 
-        if ctype == 'text/x-include-url' or \
-           part.get_payload().startswith("#include"):
-            do_include(part.get_payload(),parts)
+        payload = part.get_payload()
+
+        if ctype is None:
+            ctype = 'application/octet-stream'
+            for str, gtype in starts_with_mappings.items():
+                if payload.startswith(str):
+                    ctype = gtype
+
+        if ctype == 'text/x-include-url':
+            do_include(payload,parts)
             continue
+
         filename = part.get_filename()
         if not filename:
             filename = 'part-%03d' % len(parts['content'])
 
-        parts['content'].append(part.get_payload())
+        parts['content'].append(payload)
         parts['types'].append(ctype)
         parts['names'].append(filename)
 
@@ -68,10 +89,33 @@ def parts2mime(parts):
     return(outer.as_string())
 
 # this is heavily wasteful, reads through userdata string input
-def preprocess_userdata(str):
+def preprocess_userdata(data):
     parts = { }
-    process_includes(email.message_from_string(data),parts)
+    process_includes(email.message_from_string(decomp_str(data)),parts)
     return(parts2mime(parts))
+
+# callbacks is a dictionary with:
+#  { 'content-type': handler(data,content_type,filename,payload) }
+def walk_userdata(str, callbacks, data = None):
+    partnum = 0
+    for part in email.message_from_string(str).walk():
+        # multipart/* are just containers
+        if part.get_content_maintype() == 'multipart':
+            continue
+
+        ctype = part.get_content_type()
+        if ctype is None:
+            ctype = 'application/octet-stream'
+
+        filename = part.get_filename()
+        if not filename:
+            filename = 'part-%03d' % partnum
+
+        print ":::::::: %s,%s :::::::" % (ctype,filename)
+        if callbacks.has_key(ctype):
+            callbacks[ctype](data,ctype,filename,part.get_payload())
+
+        partnum = partnum+1
 
 if __name__ == "__main__":
     import sys

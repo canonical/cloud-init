@@ -1,6 +1,5 @@
 def run(list,cfg):
     import subprocess
-    subprocess.Popen(list).communicate()
     retcode = subprocess.call(list)
 
     if retcode == 0:
