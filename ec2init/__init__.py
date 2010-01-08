@@ -236,6 +236,9 @@ class EC2Init:
     def get_mirror(self):
         return(self.datasource.get_local_mirror())
 
+    def get_hostname(self):
+        return(self.datasource.get_hostname())
+
     def apply_credentials(self):
         user = self.get_cfg_option_str('user')
         disable_root = self.get_cfg_option_bool('disable_root', True)
