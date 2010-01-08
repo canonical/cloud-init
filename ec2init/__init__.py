@@ -80,7 +80,7 @@ class EC2Init:
                 s = source()
                 if s.get_data():
                     self.datasource = s
-                    return
+                    return True
             except Exception as e:
                 pass
         raise Exception("Could not find data source")
@@ -93,13 +93,8 @@ class EC2Init:
         self.store_userdata()
 
     def store_userdata(self):
-        f = open(userdata_raw,"wb")
-        f.write(self.datasource.get_userdata_raw())
-        f.close()
-
-        f = open(userdata,"wb")
-        f.write(self.get_userdata())
-        f.close()
+        write_file(userdata_raw, self.datasource.get_userdata_raw(), 0644)
+        write_file(userdata, self.datasource.get_userdata(), 0644)
 
     def get_cfg_option_bool(self, key, default=None):
         val = self.config.get(key, default)
