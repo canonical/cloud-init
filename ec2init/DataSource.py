@@ -17,3 +17,6 @@ class DataSource:
 
     def get_userdata_raw(self):
         return(self.userdata_raw)
+
+    def get_public_ssh_keys(self):
+        return([])

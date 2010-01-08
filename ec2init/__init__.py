@@ -24,6 +24,7 @@ import cPickle
 import sys
 import os.path
 import errno
+import pwd
 
 datadir = '/var/lib/cloud/data'
 semdir = '/var/lib/cloud/sem'
@@ -41,6 +42,7 @@ import UserDataHandler
 class EC2Init:
     datasource_list = [ DataSourceEc2.DataSourceEc2 ]
     part_handlers = { }
+    conffile = '/etc/ec2-init/ec2-config.cfg'
 
     def __init__(self):
         self.part_handlers = {
@@ -49,7 +51,8 @@ class EC2Init:
             'text/upstart-job' : self.handle_upstart_job,
             'text/part-handler' : self.handle_handler
         }
-
+        
+        self.config = ConfigObj(self.conffile)
 
     def restore_from_cache(self):
         try:
@@ -104,6 +107,9 @@ class EC2Init:
         if val.lower() in ['1', 'on', 'yes']:
             return True
         return False
+
+    def get_cfg_option_str(self, key, default=None):
+            return self.config.get(key, default)
 
     def initctl_emit(self):
         import subprocess
@@ -221,6 +227,26 @@ class EC2Init:
 
         self.cloud_config_str+="\n#%s\n%s" % (filename,payload)
 
+    def get_public_ssh_keys(self):
+        return(self.datasource.get_public_ssh_keys())
+
+    def apply_credentials(self):
+        user = self.get_cfg_option_str('user')
+        disable_root = self.get_cfg_option_bool('disable_root', True)
+        
+        keys = self.get_public_ssh_keys()
+
+        if user:
+            setup_user_keys(keys, user, '')
+     
+        if disable_root:
+            key_prefix = 'command="echo \'Please login as the ubuntu user rather than root user.\';echo;sleep 10" ' 
+        else:
+            key_prefix = ''
+
+        setup_user_keys(keys, 'root', key_prefix)
+
+
 def write_file(file,content,mode=0644):
         try:
             os.makedirs(os.path.dirname(file))
@@ -232,3 +258,23 @@ def write_file(file,content,mode=0644):
         f.write(content)
         f.close()
         os.chmod(file,mode)
+
+def setup_user_keys(keys, user, key_prefix):
+    saved_umask = os.umask(077)
+
+    pwent = pwd.getpwnam(user)
+
+    ssh_dir = '%s/.ssh' % pwent.pw_dir
+    if not os.path.exists(ssh_dir):
+        os.mkdir(ssh_dir)
+        os.chown(ssh_dir, pwent.pw_uid, pwent.pw_gid)
+
+    authorized_keys = '%s/.ssh/authorized_keys' % pwent.pw_dir
+    fp = open(authorized_keys, 'a')
+    fp.write(''.join(['%s%s\n' % (key_prefix, key) for key in keys]))
+    fp.close()
+
+    os.chown(authorized_keys, pwent.pw_uid, pwent.pw_gid)
+
+    os.umask(saved_umask)
+

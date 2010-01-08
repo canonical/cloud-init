@@ -37,7 +37,7 @@ def main():
     # TODO: cloud.set_defaults()
 
     # set the ssh keys up
-    # TODO: cloud.enable_authorized_keys()
+    cloud.apply_credentials()
 
     # finish, send the cloud-config event
     cloud.initctl_emit()
