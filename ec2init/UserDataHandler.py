@@ -111,7 +111,6 @@ def walk_userdata(str, callbacks, data = None):
         if not filename:
             filename = 'part-%03d' % partnum
 
-        print ":::::::: %s,%s :::::::" % (ctype,filename)
         if callbacks.has_key(ctype):
             callbacks[ctype](data,ctype,filename,part.get_payload())
 

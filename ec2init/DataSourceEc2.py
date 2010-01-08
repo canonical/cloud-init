@@ -120,5 +120,14 @@ class DataSourceEc2(DataSource.DataSource):
         elif availability_zone.startswith('eu-'):
             return 'eu'
         raise Exception('Could not determine location')
- 
 
+    def get_public_ssh_keys(self):
+        keys = []
+        if not self.metadata.has_key('public-keys'): return([])
+        for keyname, klist in self.metadata['public-keys'].items():
+            for pkey in klist:
+                # there is an empty string at the end of the keylist, trim it
+                if pkey:
+                    keys.append(pkey)
+
+        return(keys)
