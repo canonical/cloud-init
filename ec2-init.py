@@ -32,7 +32,7 @@ def main():
         cloud.sem_and_run("consume_userdata", "once-per-instance",
             cloud.consume_userdata,[],False)
     except:
-        warn("consuming user data failed!")
+        warn("consuming user data failed!\n")
         raise
 
     # set the defaults (like what ec2-set-defaults.py did)
@@ -40,7 +40,7 @@ def main():
         generate_sources_list(cloud.get_mirror())
         apply_locale(cloud.get_locale())
     except:
-        warn("failed to set defaults")
+        warn("failed to set defaults\n")
 
     # set the ssh keys up
     cloud.apply_credentials()

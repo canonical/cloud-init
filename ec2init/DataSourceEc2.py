@@ -37,8 +37,9 @@ class DataSourceEc2(DataSource.DataSource):
         try:
             if not self.wait_for_metadata_service():
                 return False
-            self.metadata = boto.utils.get_instance_userdata(api_ver)
-            self.userdata_raw = boto.utils.get_instance_metadata(api_ver)
+            self.userdata_raw = boto.utils.get_instance_userdata(self.api_ver)
+            self.metadata = boto.utils.get_instance_metadata(self.api_ver)
+            return True
         except Exception as e:
             print e
             return False
@@ -54,8 +55,8 @@ class DataSourceEc2(DataSource.DataSource):
 
     def get_locale(self):
         az = self.metadata['placement']['availability-zone']
-        if self.location_locale_map.has_key[az[0:2]]:
-            return(self.location_locale_map[az])
+        if self.location_locale_map.has_key(az[0:2]):
+            return(self.location_locale_map[az[0:2]])
         else:
             return(self.location_locale_map["default"])
 
