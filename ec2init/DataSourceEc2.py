@@ -22,8 +22,8 @@ class DataSourceEc2(DataSource.DataSource):
 
     def get_data(self):
         try:
-            udf = open(self.cachedir + "/user-data.pkl")
-            self.userdata_raw = cPickle.load(udf)
+            udf = open(self.cachedir + "/user-data.raw")
+            self.userdata_raw = udf.read()
             udf.close()
 
             mdf = open(self.cachedir + "/meta-data.pkl")
