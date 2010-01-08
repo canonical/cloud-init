@@ -20,6 +20,8 @@ def main():
         sys.stderr.write("Failed to get instance data")
         sys.exit(1)
 
+    hostname = cloud.get_hostname()
+    subprocess.Popen(['hostname', hostname]).communicate()
     #print "user data is:" + cloud.get_user_data()
 
     # store the metadata
