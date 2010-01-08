@@ -230,6 +230,12 @@ class EC2Init:
     def get_public_ssh_keys(self):
         return(self.datasource.get_public_ssh_keys())
 
+    def get_locale(self):
+        return(self.datasource.get_locale())
+
+    def get_mirror(self):
+        return(self.datasource.get_local_mirror())
+
     def apply_credentials(self):
         user = self.get_cfg_option_str('user')
         disable_root = self.get_cfg_option_bool('disable_root', True)

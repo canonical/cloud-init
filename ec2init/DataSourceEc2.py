@@ -14,17 +14,12 @@ class DataSourceEc2(DataSource.DataSource):
 
     location_locale_map = { 
         'us' : 'en_US.UTF-8',
-        'eu' : 'en_GB.UTF-8'
-    }
-
-    location_archive_map = { 
-        'us' : 'http://us.ec2.archive.ubuntu.com/ubuntu',
-        'eu' : 'http://eu.ec2.archive.ubuntu.com/ubuntu'
+        'eu' : 'en_GB.UTF-8',
+        'default' : 'en_US.UTF-8',
     }
 
     def __init__(self):
-        self.meta_data_base_url = 'http://169.254.169.254/%s/meta-data' % self.api_ver
-        self.userdata_base_url = 'http://169.254.169.254/%s/user-data' % self.api_ver
+        pass
 
     def get_data(self):
         try:
@@ -77,20 +72,29 @@ class DataSourceEc2(DataSource.DataSource):
 #        self.instance_metadata = getattr(self, 'instance_metadata', boto.utils.get_instance_metadata())
 #        return self.instance_metadata 
 
-    def get_ami_id(self):
-        return self.get_instance_metadata()['ami-id']
-    
     def get_availability_zone(self):
-        conn = urllib2.urlopen('%s/placement/availability-zone' % self.meta_data_base_url)
-        return conn.read()
+        return(self.metadata['placement']['availability-zone'])
+
+    def get_local_mirror(self):
+        return(self.get_mirror_from_availability_zone())
+
+    def get_locale(self):
+        az = self.metadata['placement']['availability-zone']
+        if self.location_locale_map.has_key[az[0:2]]:
+            return(self.location_locale_map[az])
+        else:
+            return(self.location_locale_map["default"])
 
     def get_hostname(self):
-        hostname = self.get_instance_metadata()['local-hostname']
+        hostname = self.metadata['local-hostname']
         hostname = hostname.split('.')[0]
         return hostname
 
-    def get_mirror_from_availability_zone(self, availability_zone):
+    def get_mirror_from_availability_zone(self, availability_zone = None):
         # availability is like 'us-west-1b' or 'eu-west-1a'
+        if availability_zone == None:
+            availability_zone = self.get_availability_zone()
+
         try:
             host="%s.ec2.archive.ubuntu.com" % availability_zone[:-1]
             socket.getaddrinfo(host, None, 0, socket.SOCK_STREAM)
