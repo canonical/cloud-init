@@ -9,7 +9,6 @@ import cPickle
 
 class DataSourceEc2(DataSource.DataSource):
     api_ver  = '2009-04-04'
-    conffile = '/etc/ec2-init/ec2-config.cfg'
     cachedir = ec2init.cachedir + '/ec2'
 
     location_locale_map = { 
@@ -46,31 +45,6 @@ class DataSourceEc2(DataSource.DataSource):
 
     def get_instance_id(self):
         return(self.metadata['instance-id'])
-
-    def wait_or_bail(self):
-        if self.wait_for_metadata_service():
-            return True
-        else:
-            bailout_command = self.get_cfg_option_str('bailout_command')
-            if bailout_command:
-                os.system(bailout_command)
-            return False
-
-    def get_cfg_option_str(self, key, default=None):
-        return self.config.get(key, default)
-
-    def get_ssh_keys(self):
-        conn = urllib2.urlopen('%s/public-keys/' % self.meta_data_base_url)
-        data = conn.read()
-        keyids = [line.split('=')[0] for line in data.split('\n')]
-        return [urllib2.urlopen('%s/public-keys/%d/openssh-key' % (self.meta_data_base_url, int(keyid))).read().rstrip() for keyid in keyids]
-
-#    def get_userdata(self):
-#        return boto.utils.get_instance_userdata()
-#
-#    def get_instance_metadata(self):
-#        self.instance_metadata = getattr(self, 'instance_metadata', boto.utils.get_instance_metadata())
-#        return self.instance_metadata 
 
     def get_availability_zone(self):
         return(self.metadata['placement']['availability-zone'])
@@ -117,13 +91,6 @@ class DataSourceEc2(DataSource.DataSource):
                 time.sleep(sleeptime)
                 #timeout = timeout * 2
         return False
-
-    def get_location_from_availability_zone(self, availability_zone):
-        if availability_zone.startswith('us-'):
-            return 'us'
-        elif availability_zone.startswith('eu-'):
-            return 'eu'
-        raise Exception('Could not determine location')
 
     def get_public_ssh_keys(self):
         keys = []

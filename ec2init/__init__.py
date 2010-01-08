@@ -82,7 +82,6 @@ class EC2Init:
                     self.datasource = s
                     return
             except Exception as e:
-                print e
                 pass
         raise Exception("Could not find data source")
 
