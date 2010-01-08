@@ -23,25 +23,19 @@ import os.path
 import subprocess
 
 setup(name='EC2-init',
-      version='0.4.999',
+      version='0.5.0',
       description='EC2 initialisation magic',
       author='Soren Hansen',
       author_email='soren@canonical.com',
       url='http://launchpad.net/ec2-init/',
       packages=['ec2init'],
-      scripts=['ec2-fetch-credentials.py',
-               'ec2-get-info.py',
-               'ec2-run-user-data.py',
-               'ec2-set-defaults.py',
-               'ec2-set-hostname.py',
-               'ec2-wait-for-meta-data-service.py',
-               'ec2-init.py',
+      scripts=['ec2-init.py',
                'ec2-is-compat-env',
                'cloud-init-run-module.py'
                ],
       data_files=[('/etc/ec2-init', ['ec2-config.cfg']),
                   ('/etc/ec2-init/templates', glob('templates/*')),
                   ('/etc/init', glob('upstart/*.conf')),
-                  ('/usr/share/ec2-init', ['ec2-init-appliance-ebs-volume-mount.sh']),
+                  ('/usr/share/ec2-init', []),
                   ],
       )
