@@ -1,11 +1,11 @@
 import DataSource
 
 import ec2init
-import boto.utils
 import socket
 import urllib2
 import time
 import cPickle
+import boto_utils
 
 class DataSourceEc2(DataSource.DataSource):
     api_ver  = '2009-04-04'
@@ -37,8 +37,8 @@ class DataSourceEc2(DataSource.DataSource):
         try:
             if not self.wait_for_metadata_service():
                 return False
-            self.userdata_raw = boto.utils.get_instance_userdata(self.api_ver)
-            self.metadata = boto.utils.get_instance_metadata(self.api_ver)
+            self.userdata_raw = boto_utils.get_instance_userdata(self.api_ver)
+            self.metadata = boto_utils.get_instance_metadata(self.api_ver)
             return True
         except Exception as e:
             print e
