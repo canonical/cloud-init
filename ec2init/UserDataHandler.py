@@ -40,15 +40,17 @@ def process_includes(msg,parts):
         # multipart/* are just containers
         if part.get_content_maintype() == 'multipart':
             continue
-        ctype = part.get_content_type()
 
         payload = part.get_payload()
 
+        ctype = None
+        for str, gtype in starts_with_mappings.items():
+            if payload.startswith(str):
+                ctype = gtype
+                break
+
         if ctype is None:
-            ctype = 'application/octet-stream'
-            for str, gtype in starts_with_mappings.items():
-                if payload.startswith(str):
-                    ctype = gtype
+            ctype = part.get_content_type()
 
         if ctype == 'text/x-include-url':
             do_include(payload,parts)
@@ -118,7 +120,7 @@ def walk_userdata(str, callbacks, data = None):
 
 if __name__ == "__main__":
     import sys
-    data = file(sys.argv[1]).read()
+    data = decomp_str(file(sys.argv[1]).read())
     parts = { }
     process_includes(email.message_from_string(data),parts)
     print "#found %s parts" % len(parts['content'])
