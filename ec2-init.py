@@ -43,7 +43,21 @@ def main():
         warn("failed to set defaults\n")
 
     # set the ssh keys up
-    cloud.apply_credentials()
+    try:
+        cloud.sem_and_run("apply_credentials", "once-per-instance",
+            cloud.apply_credentials,[],False)
+    except:
+        warn("applying credentials failed!\n")
+
+    # enable swap
+    try:
+        cloud.sem_and_run("enable_swap", "once-per-instance",
+            cloud.enable_swap,[],False)
+    except:
+        import traceback
+        traceback.print_exc(file=sys.stderr)
+        warn("enabling swap failed!\n")
+
 
     # finish, send the cloud-config event
     cloud.initctl_emit()
