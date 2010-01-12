@@ -5,7 +5,7 @@
 description "Download preconfigured ssh keys"
 
 start on (cloud-config
-	and local-filesystem
+	and local-filesystems
 	and net-device-ifup IFACE=eth0 and starting ssh)
 console output
 task
