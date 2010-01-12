@@ -20,3 +20,6 @@ class DataSource:
 
     def get_public_ssh_keys(self):
         return([])
+
+    def getswap_devs(self):
+        raise Exception("do not know how to generate swap list")

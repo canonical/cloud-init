@@ -108,3 +108,14 @@ class DataSourceEc2(DataSource.DataSource):
                     keys.append(pkey)
 
         return(keys)
+
+    def getswap_devs(self):
+        if not self.metadata.has_key('block-device-mapping'):
+            raise Exception("no block-device-mapping")
+        list = []
+        for use_t, device in self.metadata['block-device-mapping'].items():
+            if not device.startswith("/dev"):
+                device="/dev/%s" % device
+            if use_t == "swap":
+                list.append(device)
+        return(list)

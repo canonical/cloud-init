@@ -25,6 +25,7 @@ import sys
 import os.path
 import errno
 import pwd
+import subprocess
 
 datadir = '/var/lib/cloud/data'
 semdir = '/var/lib/cloud/sem'
@@ -106,7 +107,6 @@ class EC2Init:
             return self.config.get(key, default)
 
     def initctl_emit(self):
-        import subprocess
         subprocess.Popen(['initctl', 'emit', 'cloud-config',
             '%s=%s' % (cfg_env_name,cloud_config)]).communicate()
 
@@ -249,6 +249,46 @@ class EC2Init:
 
         setup_user_keys(keys, 'root', key_prefix)
 
+    def enable_swap(self):
+        swaps=[]
+        try:
+            swaps=self.datasource.getswap_devs()
+        except:
+            print "using fstab"
+            process = subprocess.Popen(
+                ['blkid', '-t', 'TYPE=swap', '-o', 'device'],
+                stdout=subprocess.PIPE)
+            (out,err)=process.communicate()
+            swaps=out.strip().split('\n')
+
+        if len(swaps) == 0: return
+
+        fstab="/etc/fstab"
+        f=file(fstab,"rb")
+        lines=f.read().split('\n')
+        f.close()
+        existing=[]
+        for line in lines:
+            try:
+                (dev,mp,type,opts,dump,pss)=line.split()
+                if dev.startswith("#"): continue
+            except:
+                continue
+            existing.append(dev)
+
+        to_add=[]
+        for dev in swaps:
+            if not dev in existing:
+                to_add.append(dev)
+
+        if len(to_add) == 0 : return
+
+        f=file(fstab,"ab")
+        for dev in to_add:
+            f.write("%s\tnone\tswap\tsw\t0\t0\n" % dev)
+        f.close()
+
+        subprocess.Popen(['swapon', '-a']).communicate()
 
 def write_file(file,content,mode=0644):
         try:
