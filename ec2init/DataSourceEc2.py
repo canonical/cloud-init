@@ -97,6 +97,11 @@ class DataSourceEc2(DataSource.DataSource):
         keys = []
         if not self.metadata.has_key('public-keys'): return([])
         for keyname, klist in self.metadata['public-keys'].items():
+            # lp:506332 uec metadata service responds with
+            # data that makes boto populate a string for 'klist' rather
+            # than a list.
+            if isinstance(klist,str):
+                klist = [ klist ]
             for pkey in klist:
                 # there is an empty string at the end of the keylist, trim it
                 if pkey:
