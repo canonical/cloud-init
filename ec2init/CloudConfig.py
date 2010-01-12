@@ -30,9 +30,8 @@ class CloudConfig():
     cfg = None
 
     def __init__(self,cfgfile):
-        print "reading %s" % cfgfile
-        self.cfg=read_conf(cfgfile)
         import pprint; pprint.pprint(self.cfg)
+        self.cfg=read_conf(cfgfile)
         self.cloud = ec2init.EC2Init()
         self.cloud.get_data_source()
         self.add_handler('apt-update-upgrade', self.h_apt_update_upgrade)
@@ -103,7 +102,7 @@ class CloudConfig():
         try:
             (handler, freq) = self.get_handler_info(name)
         except:
-            raise Exception("Unknown config key %s\n", name)
+            raise Exception("Unknown config key %s\n" % name)
 
         self.cloud.sem_and_run(name, freq, handler, [ name, args ])
 
@@ -126,7 +125,7 @@ class CloudConfig():
     def h_config_ssh(self,name,args):
         print "Warning, not doing anything for config %s" % name
 
-    def h_config_ec2_ebs_mounts(self,name,args):
+    def h_ec2_ebs_mounts(self,name,args):
         print "Warning, not doing anything for config %s" % name
 
     def h_config_setup_raid(self,name,args):
