@@ -31,7 +31,8 @@ setup(name='EC2-init',
       packages=['ec2init'],
       scripts=['ec2-init.py',
                'ec2-is-compat-env',
-               'cloud-init-run-module.py'
+               'cloud-init-run-module.py',
+               'cloud-init-cfg.py'
                ],
       data_files=[('/etc/ec2-init', ['ec2-config.cfg']),
                   ('/etc/ec2-init/templates', glob('templates/*')),
