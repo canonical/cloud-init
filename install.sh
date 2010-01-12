@@ -9,7 +9,8 @@
 #                      rm -rf $$ddir; \
 #                    done
 
-DEB_PYTHON_INSTALL_ARGS_ALL="--no-compile -O0 --install-layout=deb"
+DEB_PYTHON_INSTALL_ARGS_ALL="-O0 --install-layout=deb"
+rm -Rf build
 
 destdir=$(readlink -f ${1})
 [ -z "${destdir}" ] && { echo "give destdir"; exit 1; }
