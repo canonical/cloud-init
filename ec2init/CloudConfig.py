@@ -28,14 +28,41 @@ class CloudConfig():
     cfgfile = None
     handlers = { }
     cfg = None
+    old_conffile = '/etc/ec2-init/ec2-config.cfg'
 
     def __init__(self,cfgfile):
-        import pprint; pprint.pprint(self.cfg)
-        self.cfg=read_conf(cfgfile)
+        self.cfg = self.get_config_obj(cfgfile)
         self.cloud = ec2init.EC2Init()
         self.cloud.get_data_source()
         self.add_handler('apt-update-upgrade', self.h_apt_update_upgrade)
         self.add_handler('config-ssh')
+
+    def get_config_obj(self,cfgfile):
+        str=""
+        # support reading the old ConfigObj format file and turning it
+        # into a yaml string
+        try:
+            f = file(self.old_conffile)
+            str+=file.read().replace('=',': ')
+            f.close()
+        except:
+            pass
+
+        f = file(cfgfile)
+        cfg=yaml.load(str + f.read())
+        f.close()
+        return(cfg)
+
+    def convert_old_config(self):
+        # support reading the old ConfigObj format file and turning it
+        # into a yaml string
+        try:
+            f = file(self.conffile)
+            str=file.read().replace('=',': ')
+            f.close()
+            return str
+        except:
+            return("")
 
     def add_handler(self, name, handler=None, freq=None):
         if handler is None:
@@ -124,6 +151,29 @@ class CloudConfig():
 
     def h_config_ssh(self,name,args):
         print "Warning, not doing anything for config %s" % name
+        if False:
+            # if there are keys in cloud-config, use them
+            # TODO: need to get keys from cloud-config if present
+            # and replace those in /etc/ssh
+            pass
+        else:
+            # if not, generate them
+            clean_and_gen='rm -f /etc/ssh/ssh_host_*_key*; ' + \
+                'ssh-keygen -f /etc/ssh/ssh_host_rsa_key -t rsa -N ""; ' + \
+                'ssh-keygen -f /etc/ssh/ssh_host_dsa_key -t rsa -N ""; '
+            subprocess.call(('sh', '-c', clean_and_gen))
+
+        try:
+            user = get_cfg_option_str(self.cfg,'user')
+            disable_root = get_cfg_option_bool(self.cfg, "disable_root", True)
+            keys = self.cloud.get_public_ssh_keys()
+            apply_credentials(keys,user,disable_root)
+        except:
+            warn("applying credentials failed!\n")
+
+        send_ssh_keys_to_console()
+
+        subprocess.call(('restart', 'ssh'))
 
     def h_ec2_ebs_mounts(self,name,args):
         print "Warning, not doing anything for config %s" % name
@@ -136,7 +186,6 @@ class CloudConfig():
 
 
 def get_cfg_option_bool(yobj, key, default=False):
-    print "searching for %s" % key
     if not yobj.has_key(key): return default
     val = yobj[key]
     if yobj[key] in [ True, '1', 'on', 'yes', 'true']:
@@ -152,3 +201,53 @@ def read_conf(fname):
 	conf = yaml.load(stream)
 	stream.close()
 	return conf
+
+def apply_credentials(keys, user, disable_root):
+    if user:
+        setup_user_keys(keys, user, '')
+ 
+    if disable_root:
+        key_prefix = 'command="echo \'Please login as the %s user rather than root user.\';echo;sleep 10" ' % user
+    else:
+        key_prefix = ''
+
+    setup_user_keys(keys, 'root', key_prefix)
+
+def setup_user_keys(keys, user, key_prefix):
+    import pwd
+    saved_umask = os.umask(077)
+
+    pwent = pwd.getpwnam(user)
+
+    ssh_dir = '%s/.ssh' % pwent.pw_dir
+    if not os.path.exists(ssh_dir):
+        os.mkdir(ssh_dir)
+        os.chown(ssh_dir, pwent.pw_uid, pwent.pw_gid)
+
+    authorized_keys = '%s/.ssh/authorized_keys' % pwent.pw_dir
+    fp = open(authorized_keys, 'a')
+    fp.write(''.join(['%s%s\n' % (key_prefix, key) for key in keys]))
+    fp.close()
+
+    os.chown(authorized_keys, pwent.pw_uid, pwent.pw_gid)
+
+    os.umask(saved_umask)
+
+def send_ssh_keys_to_console():
+    send_keys_sh = """
+    {
+    echo
+    echo "#############################################################"
+    echo "-----BEGIN SSH HOST KEY FINGERPRINTS-----"
+    ssh-keygen -l -f /etc/ssh/ssh_host_rsa_key.pub
+    ssh-keygen -l -f /etc/ssh/ssh_host_dsa_key.pub
+    echo "-----END SSH HOST KEY FINGERPRINTS-----"
+    echo "#############################################################"
+    } | logger -p user.info -s -t "ec2"
+    """
+    subprocess.call(('sh', '-c', send_keys_sh))
+
+
+def warn(str):
+   sys.stderr.write("Warning:%s\n" % str)
+
