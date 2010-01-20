@@ -69,14 +69,6 @@ class CloudConfig():
     def get_handler_info(self, name):
         return(self.handlers[name]['handler'], self.handlers[name]['freq'])
 
-	def check_for_updates(self):
-		value = self.cfg['apt_update']
-		return value
-
-	def check_for_upgrade(self):
-		value = self.cfg['apt_upgrade']
-		return value
-	
 	def parse_ssh_keys(self):
 		disableRoot = self.cfg['disable_root']
 		if disableRoot == 'true':
@@ -127,15 +119,27 @@ class CloudConfig():
     def h_apt_update_upgrade(self,name,args):
         update = util.get_cfg_option_bool(self.cfg, 'apt_update', False)
         upgrade = util.get_cfg_option_bool(self.cfg, 'apt_upgrade', False)
+
+        pkglist = []
+        if 'packages' in self.cfg:
+            if isinstance(self.cfg['packages'],list):
+                pkglist = self.cfg['packages']
+            else: pkglist.append(self.cfg['packages'])
            
-        if update or upgrade:
+        if update or upgrade or pkglist:
             #retcode = subprocess.call(list)
 		    subprocess.Popen(['apt-get', 'update']).communicate()
 
+        e=os.environ.copy()
+        e['DEBIAN_FRONTEND']='noninteractive'
+
         if upgrade:
-            e=os.environ.copy()
-            e['DEBIAN_FRONTEND']='noninteractive'
             subprocess.Popen(['apt-get', 'upgrade', '--assume-yes'], env=e).communicate()
+
+        if pkglist:
+            cmd=['apt-get', 'install', '--assume-yes']
+            cmd.extend(pkglist)
+            subprocess.Popen(cmd, env=e).communicate()
 
         return(True)
 
