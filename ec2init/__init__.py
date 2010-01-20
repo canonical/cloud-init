@@ -62,9 +62,6 @@ class EC2Init:
         }
         self.cfg=self.read_cfg()
 
-        import pprint
-        pprint.pprint(self.cfg)
-
     def read_cfg(self):
         if self.cfg:
             return(self.cfg)
@@ -278,7 +275,6 @@ class EC2Init:
         try:
             swaps=self.datasource.getswap_devs()
         except:
-            print "using blkid"
             process = subprocess.Popen(
                 ['blkid', '-t', 'TYPE=swap', '-o', 'device'],
                 stdout=subprocess.PIPE)
