@@ -26,6 +26,7 @@ import os.path
 import errno
 import pwd
 import subprocess
+import yaml
 
 datadir = '/var/lib/cloud/data'
 semdir = '/var/lib/cloud/sem'
@@ -35,14 +36,22 @@ userdata = datadir + '/user-data.txt.i'
 user_scripts_dir = datadir + "/scripts"
 cloud_config = datadir + '/cloud-config.txt'
 data_source_cache = cachedir + '/obj.pkl'
+system_config = '/etc/cloud/cloud.cfg'
 cfg_env_name = "CLOUD_CFG"
 
 import DataSourceEc2
 import UserDataHandler
+import util
 
 class EC2Init:
-    datasource_list = [ DataSourceEc2.DataSourceEc2 ]
+    datasource_map = {
+        "ec2" : DataSourceEc2.DataSourceEc2,
+    }
+    auto_order = [ 'ec2' ]
+
+    cfg = None
     part_handlers = { }
+    old_conffile = '/etc/ec2-init/ec2-config.cfg'
 
     def __init__(self):
         self.part_handlers = {
@@ -51,7 +60,37 @@ class EC2Init:
             'text/upstart-job' : self.handle_upstart_job,
             'text/part-handler' : self.handle_handler
         }
-        
+        self.cfg=self.read_cfg()
+
+        import pprint
+        pprint.pprint(self.cfg)
+
+    def read_cfg(self):
+        if self.cfg:
+            return(self.cfg)
+
+        conf = { }
+        try:
+	        stream = file(system_config)
+	        conf = yaml.load(stream)
+	        stream.close()
+        except:
+            pass
+
+        # support reading the old ConfigObj format file and merging
+        # it into the yaml dictionary
+        try:
+            from configobj import ConfigObj
+            oldcfg = ConfigObj(self.old_conffile)
+            conf = util.mergedict(conf,oldcfg)
+        except:
+            pass
+
+        if not conf.has_key("cloud_type"):
+            conf["cloud_type"]=None
+
+        return(conf)
+
     def restore_from_cache(self):
         try:
             f=open(data_source_cache, "rb")
@@ -69,15 +108,28 @@ class EC2Init:
         except:
             return False
         
+    def get_cloud_type(self):
+        pass
+
     def get_data_source(self):
         if self.restore_from_cache():
             return True
 
-        for source in self.datasource_list:
+        dslist=[ ]
+        cfglist=self.cfg['cloud_type']
+        if cfglist == "auto":
+            dslist = self.auto_order
+        elif cfglist:
+            for ds in cfglist.split(','):
+                dslist.append(strip(ds).tolower())
+            
+        for ds in dslist:
+            if ds not in self.datasource_map: continue
             try:
-                s = source()
+                s = self.datasource_map[ds]()
                 if s.get_data():
                     self.datasource = s
+                    self.datasource_name = ds
                     return True
             except Exception as e:
                 pass
@@ -226,7 +278,7 @@ class EC2Init:
         try:
             swaps=self.datasource.getswap_devs()
         except:
-            print "using fstab"
+            print "using blkid"
             process = subprocess.Popen(
                 ['blkid', '-t', 'TYPE=swap', '-o', 'device'],
                 stdout=subprocess.PIPE)
