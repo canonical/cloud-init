@@ -12,7 +12,6 @@ def warn(str):
 def main():
     cloud = ec2init.EC2Init()
 
-    data = None
     try:
         cloud.get_data_source()
     except Exception as e:
@@ -41,13 +40,6 @@ def main():
         apply_locale(cloud.get_locale())
     except:
         warn("failed to set defaults\n")
-
-    # set the ssh keys up
-    try:
-        cloud.sem_and_run("apply_credentials", "once-per-instance",
-            cloud.apply_credentials,[],False)
-    except:
-        warn("applying credentials failed!\n")
 
     # enable swap
     try:
