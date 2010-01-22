@@ -143,8 +143,8 @@ class EC2Init:
         self.store_userdata()
 
     def store_userdata(self):
-        write_file(userdata_raw, self.datasource.get_userdata_raw(), 0644)
-        write_file(userdata, self.datasource.get_userdata(), 0644)
+        util.write_file(userdata_raw, self.datasource.get_userdata_raw(), 0644)
+        util.write_file(userdata, self.datasource.get_userdata(), 0644)
 
     def initctl_emit(self):
         subprocess.Popen(['initctl', 'emit', 'cloud-config',
@@ -240,14 +240,14 @@ class EC2Init:
             return
 
         filename=filename.replace(os.sep,'_')
-        write_file("%s/%s" % (user_scripts_dir,filename), payload, 0700)
+        util.write_file("%s/%s" % (user_scripts_dir,filename), payload, 0700)
 
     def handle_upstart_job(self,data,ctype,filename,payload):
         if ctype == "__end__" or ctype == "__begin__": return
         if not filename.endswith(".conf"):
             filename=filename+".conf"
 
-        write_file("%s/%s" % ("/etc/init",filename), payload, 0644)
+        util.write_file("%s/%s" % ("/etc/init",filename), payload, 0644)
 
     def handle_cloud_config(self,data,ctype,filename,payload):
         if ctype == "__begin__":
@@ -312,16 +312,4 @@ class EC2Init:
         f.close()
 
         subprocess.Popen(['swapon', '-a']).communicate()
-
-def write_file(file,content,mode=0644):
-        try:
-            os.makedirs(os.path.dirname(file))
-        except OSError as e:
-            if e.errno != errno.EEXIST:
-                raise e
-
-        f=open(file,"wb")
-        f.write(content)
-        f.close()
-        os.chmod(file,mode)
 

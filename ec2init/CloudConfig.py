@@ -158,11 +158,18 @@ class CloudConfig():
             try: os.unlink(f)
             except: pass
 
-        if False:
+        if self.cfg.has_key("ssh_keys"):
             # if there are keys in cloud-config, use them
-            # TODO: need to get keys from cloud-config if present
-            # and replace those in /etc/ssh
-            pass
+            key2file = {
+                "rsa_private" : ("/etc/ssh/ssh_host_rsa_key", 0600),
+                "rsa_public"  : ("/etc/ssh/ssh_host_rsa_key.pub", 0644),
+                "dsa_private" : ("/etc/ssh/ssh_host_dsa_key", 0600),
+                "dsa_public"  : ("/etc/ssh/ssh_host_dsa_key.pub", 0644)
+            }
+
+            for key,val in self.cfg["ssh_keys"].items():
+                if key2file.has_key(key):
+                    util.write_file(key2file[key][0],val,key2file[key][1])
         else:
             # if not, generate them
             genkeys ='ssh-keygen -f /etc/ssh/ssh_host_rsa_key -t rsa -N ""; '
