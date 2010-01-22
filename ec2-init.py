@@ -36,8 +36,8 @@ def main():
 
     # set the defaults (like what ec2-set-defaults.py did)
     try:
-        generate_sources_list(cloud.get_mirror())
-        apply_locale(cloud.get_locale())
+        cloud.sem_and_run("set_defaults", "once-per-instance",
+            set_defaults,cloud,False)
     except:
         warn("failed to set defaults\n")
 
@@ -61,6 +61,10 @@ def render_to_file(template, outfile, searchList):
     f = open(outfile, 'w')
     f.write(t.respond())
     f.close()
+
+def set_defaults(cloud):
+    generate_sources_list(cloud.get_mirror())
+    apply_locale(cloud.get_locale())
     
 def apply_locale(locale):
     subprocess.Popen(['locale-gen', locale]).communicate()
