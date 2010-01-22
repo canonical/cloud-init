@@ -73,12 +73,15 @@ class EC2Init:
 	        stream.close()
         except:
             pass
+            
+        if conf is None: conf = { }
 
         # support reading the old ConfigObj format file and merging
         # it into the yaml dictionary
         try:
             from configobj import ConfigObj
             oldcfg = ConfigObj(self.old_conffile)
+            if oldcfg is None: oldcfg = { }
             conf = util.mergedict(conf,oldcfg)
         except:
             pass

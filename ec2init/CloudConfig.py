@@ -23,6 +23,7 @@ import ec2init.util as util
 import subprocess
 import os
 import glob
+import sys
 
 per_instance="once-per-instance"
 
@@ -37,11 +38,13 @@ class CloudConfig():
         self.cloud.get_data_source()
         self.add_handler('apt-update-upgrade', self.h_apt_update_upgrade)
         self.add_handler('config-ssh')
+        self.add_handler('disable-ec2-metadata')
 
     def get_config_obj(self,cfgfile):
         f=file(cfgfile)
         cfg=yaml.load(f.read())
         f.close()
+        if cfg is None: cfg = { }
         return(util.mergedict(cfg,self.cloud.cfg))
 
     def convert_old_config(self):
@@ -142,6 +145,12 @@ class CloudConfig():
             subprocess.Popen(cmd, env=e).communicate()
 
         return(True)
+
+    def h_disable_ec2_metadata(self,name,args):
+        if util.get_cfg_option_bool(self.cfg, "disable_ec2_metadata", False):
+            #fwall="iptables -A OUTPUT -p tcp --dport 80 --destination 169.254.169.254 -j REJECT"
+            fwall="route add -host 169.254.169.254 reject"
+            subprocess.call(fwall.split(' '))
 
     def h_config_ssh(self,name,args):
         # remove the static keys from the pristine image
