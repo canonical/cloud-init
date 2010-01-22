@@ -22,6 +22,7 @@ import ec2init
 import ec2init.util as util
 import subprocess
 import os
+import glob
 
 per_instance="once-per-instance"
 
@@ -144,6 +145,11 @@ class CloudConfig():
         return(True)
 
     def h_config_ssh(self,name,args):
+        # remove the static keys from the pristine image
+        for f in glob.glob("/etc/ssh/ssh_host_*_key*"):
+            try: os.unlink(f)
+            except: pass
+
         if False:
             # if there are keys in cloud-config, use them
             # TODO: need to get keys from cloud-config if present
@@ -151,10 +157,15 @@ class CloudConfig():
             pass
         else:
             # if not, generate them
-            clean_and_gen='rm -f /etc/ssh/ssh_host_*_key*; ' + \
-                'ssh-keygen -f /etc/ssh/ssh_host_rsa_key -t rsa -N ""; ' + \
-                'ssh-keygen -f /etc/ssh/ssh_host_dsa_key -t rsa -N ""; '
-            subprocess.call(('sh', '-c', clean_and_gen))
+            genkeys ='ssh-keygen -f /etc/ssh/ssh_host_rsa_key -t rsa -N ""; '
+            genkeys+='ssh-keygen -f /etc/ssh/ssh_host_dsa_key -t dsa -N ""; '
+            subprocess.call(('sh', '-c', "{ %s } </dev/null" % (genkeys)))
+
+        # it is possible that an ssh job started either
+        # before the files above were unlinked, or while only one of
+        # our generated keys were written.  In either case, stop that job
+        # if anything started from here out it would be ok.
+        subprocess.call(('stop', 'ssh'))
 
         try:
             user = util.get_cfg_option_str(self.cfg,'user')
@@ -166,7 +177,7 @@ class CloudConfig():
 
         send_ssh_keys_to_console()
 
-        subprocess.call(('restart', 'ssh'))
+        subprocess.call(('start', 'ssh'))
 
     def h_ec2_ebs_mounts(self,name,args):
         print "Warning, not doing anything for config %s" % name
