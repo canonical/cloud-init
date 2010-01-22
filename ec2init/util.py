@@ -1,4 +1,6 @@
 import yaml
+import os
+import errno
 
 def read_conf(fname):
 	stream = file(fname)
@@ -27,3 +29,16 @@ def mergedict(src,cand):
             else:
                 src[k] = mergedict(src[k],v)
     return src
+
+def write_file(file,content,mode=0644):
+        try:
+            os.makedirs(os.path.dirname(file))
+        except OSError as e:
+            if e.errno != errno.EEXIST:
+                raise e
+
+        f=open(file,"wb")
+        f.write(content)
+        f.close()
+        os.chmod(file,mode)
+
