@@ -42,8 +42,7 @@ class CloudConfig():
         f=file(cfgfile)
         cfg=yaml.load(f.read())
         f.close()
-        util.mergedict(cfg,self.cloud.read_cfg)
-        return(cfg)
+        return(util.mergedict(cfg,self.cloud.cfg))
 
     def convert_old_config(self):
         # support reading the old ConfigObj format file and turning it
