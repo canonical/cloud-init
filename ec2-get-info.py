@@ -35,26 +35,20 @@ ec2Data = ['ami-id',
            'public-hostname',
            'public-ipv4',
            'ramdisk-id',
-           'reserveration-id',
+           'reservation-id',
            'security-groups']
 
 def ec2Version():
-	os.system("cat /etc/ec2_version")
+	print file("/etc/ec2_version").read()
 
 def getData(ec2data):
 	api_ver = '2008-02-01'
-	metadata = None
 	base_url = 'http://169.254.169.254/%s/meta-data' % api_ver
-	data = urllib.urlopen('%s/%s' %(base_url,ec2data)).read()
-	print "%s: %s" %(ec2data,data)
+	print "%s: %s" %(ec2data,urllib.urlopen('%s/%s' %(base_url,ec2data)).read())
 
-def showAllData(ec2Data):
-	api_ver = '2008-02-01'
-	metadata = None
-	base_url = 'http://169.254.169.254/%s/meta-data' % api_ver
+def getAllData(ec2Data):
 	for x in ec2Data:
-	    data = urllib.urlopen('%s/%s' %(base_url,x)).read()
-	    print "%s: %s" %(ec2data,data)
+	    getData(x)
 
 def main():
 	usage = "usage: %prog [options]"
@@ -116,8 +110,7 @@ def main():
 	if options.ec2:
 	   ec2Version()
         if options.all:
-	    for i in range(0,15):
-		getData(ec2Data[i])
+	   getAllData(ec2Data)
 
 if __name__ == "__main__":
    main()
