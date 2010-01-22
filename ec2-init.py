@@ -37,7 +37,7 @@ def main():
     # set the defaults (like what ec2-set-defaults.py did)
     try:
         cloud.sem_and_run("set_defaults", "once-per-instance",
-            set_defaults,cloud,False)
+            set_defaults,[ cloud ],False)
     except:
         warn("failed to set defaults\n")
 
