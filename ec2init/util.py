@@ -25,5 +25,5 @@ def mergedict(src,cand):
             if k not in src:
                 src[k] = v
             else:
-                src[k] = merge(src[k],v)
+                src[k] = mergedict(src[k],v)
     return src
