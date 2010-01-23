@@ -52,7 +52,7 @@ def retry_url(url, retry_on_404=True):
                 return ''
         except:
             pass
-        boto.log.exception('Caught exception reading instance data')
+        #boto.log.exception('Caught exception reading instance data')
         sys.stderr.write('Caught exception reading instance data')
         time.sleep(2**i)
     #boto.log.error('Unable to read instance data, giving up')
