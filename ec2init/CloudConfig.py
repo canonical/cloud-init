@@ -176,12 +176,6 @@ class CloudConfig():
             genkeys+='ssh-keygen -f /etc/ssh/ssh_host_dsa_key -t dsa -N ""; '
             subprocess.call(('sh', '-c', "{ %s } </dev/null" % (genkeys)))
 
-        # it is possible that an ssh job started either
-        # before the files above were unlinked, or while only one of
-        # our generated keys were written.  In either case, stop that job
-        # if anything started from here out it would be ok.
-        subprocess.call(('stop', 'ssh'))
-
         try:
             user = util.get_cfg_option_str(self.cfg,'user')
             disable_root = util.get_cfg_option_bool(self.cfg, "disable_root", True)
@@ -191,8 +185,6 @@ class CloudConfig():
             warn("applying credentials failed!\n")
 
         send_ssh_keys_to_console()
-
-        subprocess.call(('start', 'ssh'))
 
     def h_ec2_ebs_mounts(self,name,args):
         print "Warning, not doing anything for config %s" % name
