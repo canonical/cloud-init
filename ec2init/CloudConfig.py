@@ -162,6 +162,11 @@ class CloudConfig():
             user = util.get_cfg_option_str(self.cfg,'user')
             disable_root = util.get_cfg_option_bool(self.cfg, "disable_root", True)
             keys = self.cloud.get_public_ssh_keys()
+
+            if self.cfg.has_key("ssh_authorized_keys"):
+                cfgkeys = self.cfg["ssh_authorized_keys"]
+                keys.extend(cfgkeys)
+
             apply_credentials(keys,user,disable_root)
         except:
             warn("applying credentials failed!\n")
@@ -179,6 +184,7 @@ class CloudConfig():
 
 
 def apply_credentials(keys, user, disable_root):
+    keys = set(keys)
     if user:
         setup_user_keys(keys, user, '')
  
