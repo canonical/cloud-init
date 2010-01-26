@@ -1,6 +1,7 @@
 import yaml
 import os
 import errno
+import subprocess
 
 def read_conf(fname):
 	stream = file(fname)
@@ -42,3 +43,29 @@ def write_file(file,content,mode=0644):
         f.close()
         os.chmod(file,mode)
 
+# get keyid from keyserver
+def getkeybyid(keyid,keyserver):
+   shcmd="""
+   k=${1} ks=${2};
+   exec 2>/dev/null
+   [ -n "$k" ] || exit 1;
+   armour=$(gpg --list-keys --armour "${k}")
+   if [ -z "${armour}" ]; then
+      gpg --keyserver ${ks} --recv $k >/dev/null &&
+         armour=$(gpg --export --armour "${k}") &&
+         gpg --batch --yes --delete-keys "${k}"
+   fi
+   [ -n "${armour}" ] && echo "${armour}"
+   """
+   args=['sh', '-c', shcmd, "export-gpg-keyid", keyid, keyserver]
+   return(subp(args)[0])
+
+def subp(args, input=None):
+    s_in = None
+    if input is not None:
+        s_in = subprocess.PIPE
+    sp = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=s_in)
+    out,err = sp.communicate(input)
+    if sp.returncode is not 0:
+        raise subprocess.CalledProcessError(sp.returncode,args)
+    return(out,err)
