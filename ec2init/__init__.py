@@ -47,6 +47,7 @@ class EC2Init:
     datasource_map = {
         "ec2" : DataSourceEc2.DataSourceEc2,
     }
+    datasource = None
     auto_order = [ 'ec2' ]
 
     cfg = None
@@ -112,6 +113,8 @@ class EC2Init:
         pass
 
     def get_data_source(self):
+        if self.datasource is not None: return True
+
         if self.restore_from_cache():
             return True
 
