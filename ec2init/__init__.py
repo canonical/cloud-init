@@ -260,6 +260,15 @@ class EC2Init:
             f=open(cloud_config, "wb")
             f.write(self.cloud_config_str)
             f.close()
+
+            ## this could merge the cloud config with the system config
+            ## for now, not doing this as it seems somewhat circular
+            ## as CloudConfig does that also, merging it with this cfg
+            ##
+            # ccfg = yaml.load(self.cloud_config_str)
+            # if ccfg is None: ccfg = { }
+            # self.cfg = util.mergedict(ccfg, self.cfg)
+
             return
 
         self.cloud_config_str+="\n#%s\n%s" % (filename,payload)

@@ -2,6 +2,7 @@ import yaml
 import os
 import errno
 import subprocess
+from Cheetah.Template import Template
 
 def read_conf(fname):
 	stream = file(fname)
@@ -69,3 +70,10 @@ def subp(args, input=None):
     if sp.returncode is not 0:
         raise subprocess.CalledProcessError(sp.returncode,args)
     return(out,err)
+
+def render_to_file(template, outfile, searchList):
+    t = Template(file='/etc/ec2-init/templates/%s.tmpl' % template, searchList=[searchList])
+    f = open(outfile, 'w')
+    f.write(t.respond())
+    f.close()
+

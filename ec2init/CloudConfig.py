@@ -99,6 +99,13 @@ class CloudConfig():
         update = util.get_cfg_option_bool(self.cfg, 'apt_update', False)
         upgrade = util.get_cfg_option_bool(self.cfg, 'apt_upgrade', False)
 
+        if not util.get_cfg_option_bool(self.cfg, \
+            'apt_preserve_sources_list', False):
+            if self.cfg.has_key("apt_mirror"):
+                mirror = self.cfg["apt_mirror"]
+            else:
+                mirror = self.cloud.get_mirror()
+            generate_sources_list(mirror)
 
         # process 'apt_sources'
         if self.cfg.has_key('apt_sources'):
@@ -277,3 +284,11 @@ def add_sources(srclist):
             elst.append([source, "failed write to file %s" % ent['filename']])
 
     return(elst)
+
+
+def generate_sources_list(mirror):
+    stdout, stderr = subprocess.Popen(['lsb_release', '-cs'], stdout=subprocess.PIPE).communicate()
+    codename = stdout.strip()
+
+    util.render_to_file('sources.list', '/etc/apt/sources.list', \
+        { 'mirror' : mirror, 'codename' : codename })
