@@ -7,7 +7,8 @@ from email.mime.text import MIMEText
 starts_with_mappings={
     '#include' : 'text/x-include-url',
     '#!' : 'text/x-shellscript',
-    '#cloud-config' : 'text/cloud-config'
+    '#cloud-config' : 'text/cloud-config',
+    '#upstart-job'  : 'text/upstart-job'
 }
 
 # if 'str' is compressed return decompressed otherwise return it
