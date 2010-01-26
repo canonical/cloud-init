@@ -85,30 +85,6 @@ class CloudConfig():
 			else:
 				return ec2Key
 
-	def add_ppa(self):
-		#value = self.cfg['apt_sources']
-		for ent in self.cfg['apt_sources']:
-			ppa = ent['source']
-			where = ppa.find('ppa:')
-			if where != -1:
-			  return ppa
-
-	def add_custom_repo(self):
-		sources = []
-		value = self.cfg['apt_sources']
-		for ent in self.cfg['apt_sources']:
-			if ent.has_key('keyserver'):
-				keyserver = ent['keyserver']
-			if ent.has_key('keyid'):
-				keyid = ent['keyid']
-			if ent.has_key('filename'):
-				filename = ent['filename']
-			source = ent['source']
-			if source.startswith("deb"):
-				sources.append(source)
-
-		return (keyserver,sources,keyid,filename)
-
     def handle(self, name, args):
         handler = None
         freq = None
@@ -123,12 +99,19 @@ class CloudConfig():
         update = util.get_cfg_option_bool(self.cfg, 'apt_update', False)
         upgrade = util.get_cfg_option_bool(self.cfg, 'apt_upgrade', False)
 
+
+        # process 'apt_sources'
+        if self.cfg.has_key('apt_sources'):
+            errors = add_sources(self.cfg['apt_sources'])
+            for e in errors:
+                warn("Source Error: %s\n" % ':'.join(e))
+
         pkglist = []
         if 'packages' in self.cfg:
             if isinstance(self.cfg['packages'],list):
                 pkglist = self.cfg['packages']
             else: pkglist.append(self.cfg['packages'])
-           
+
         if update or upgrade or pkglist:
             #retcode = subprocess.call(list)
 		    subprocess.Popen(['apt-get', 'update']).communicate()
@@ -148,7 +131,6 @@ class CloudConfig():
 
     def h_disable_ec2_metadata(self,name,args):
         if util.get_cfg_option_bool(self.cfg, "disable_ec2_metadata", False):
-            #fwall="iptables -A OUTPUT -p tcp --dport 80 --destination 169.254.169.254 -j REJECT"
             fwall="route add -host 169.254.169.254 reject"
             subprocess.call(fwall.split(' '))
 
@@ -245,3 +227,47 @@ def send_ssh_keys_to_console():
 def warn(str):
    sys.stderr.write("Warning:%s\n" % str)
 
+# srclist is a list of dictionaries, 
+# each entry must have: 'source'
+# may have: key, ( keyid and keyserver)
+def add_sources(srclist):
+    elst = []
+
+    for ent in srclist:
+        if not ent.has_key('source'):
+            elst.append([ "", "missing source" ])
+            continue
+
+        source=ent['source']
+        if source.startswith("ppa:"):
+            try: util.subp(["add-apt-repository",source])
+            except:
+                elst.append([source, "add-apt-repository failed"])
+                continue
+
+        if not ent.has_key('filename'):
+            ent['filename']='cloud_config_sources.list'
+
+        if not ent['filename'].startswith("/"):
+            ent['filename'] = "%s/%s" % \
+                ("/etc/apt/sources.list.d/", ent['filename'])
+
+        if ( ent.has_key('keyid') and not ent.has_key('key') ):
+            ks = "keyserver.ubuntu.com"
+            if ent.has_key('keyserver'): ks = ent['keyserver']
+            try:
+                ent['key'] = util.getkeybyid(ent['keyid'], ks)
+            except:
+                elst.append([source,"failed to get key from %s" % ks])
+                continue
+
+        if ent.has_key('key'):
+            try: util.subp(('apt-key', 'add', '-'), ent['key'])
+            except:
+                elst.append([source, "failed add key"])
+
+        try: util.write_file(ent['filename'], source + "\n")
+        except:
+            elst.append([source, "failed write to file %s" % ent['filename']])
+
+    return(elst)
