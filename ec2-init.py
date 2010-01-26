@@ -1,10 +1,10 @@
 #!/usr/bin/python
 
 import subprocess
-from Cheetah.Template import Template
 import sys
 
 import ec2init
+import ec2init.util as util
 
 def warn(str):
     sys.stderr.write(str)
@@ -56,27 +56,15 @@ def main():
 
     sys.exit(0)
 
-def render_to_file(template, outfile, searchList):
-    t = Template(file='/etc/ec2-init/templates/%s.tmpl' % template, searchList=[searchList])
-    f = open(outfile, 'w')
-    f.write(t.respond())
-    f.close()
-
 def set_defaults(cloud):
-    generate_sources_list(cloud.get_mirror())
     apply_locale(cloud.get_locale())
     
 def apply_locale(locale):
     subprocess.Popen(['locale-gen', locale]).communicate()
     subprocess.Popen(['update-locale', locale]).communicate()
 
-    render_to_file('default-locale', '/etc/default/locale', { 'locale' : locale })
-
-def generate_sources_list(mirror):
-    stdout, stderr = subprocess.Popen(['lsb_release', '-cs'], stdout=subprocess.PIPE).communicate()
-    codename = stdout.strip()
-
-    render_to_file('sources.list', '/etc/apt/sources.list', { 'mirror' : mirror, 'codename' : codename })
+    util.render_to_file('default-locale', '/etc/default/locale', \
+        { 'locale' : locale })
 
 if __name__ == '__main__':
     main()
