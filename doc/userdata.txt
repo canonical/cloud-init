@@ -1,0 +1,57 @@
+=== Overview ===
+Userdata is data provided by the entity that launches an instance.
+The cloud provider makes this data available to the instance via in one
+way or anohter.  
+
+In EC2, the data is provided by the user via the '--user-data' or
+'user-data-file' argument to ec2-run-instances.  The EC2 cloud makes the
+data available to the instance via its meta-data service at 
+http://169.254.169.254/latest/user-data
+
+ec2-init can read this input and act on it in different ways.
+
+=== Input Formats ===
+ec2-init will download and cache to filesystem any user-data that it
+finds.  However, certain types of user-data are handled specially.
+
+ * Gzip Compressed Content
+   content found to be gzip compressed will be uncompressed, and 
+   these rules applied to the uncompressed data
+
+ * Mime Multi Part archive
+   This list of rules is applied to each part of this multi-part file
+   Using a mime-multi part file, the user can specify more than one
+   type of data.  For example, both a user data script and a
+   cloud-config type could be specified.
+
+ * User-Data Script
+   begins with: #!            or Content-Type: text/x-shellscript
+   script will be executed at "rc.local-like" level during first boot.
+   rc.local-like means "very late in the boot sequence"
+
+ * Include File
+   begins with  #include      or Content-Type: text/x-include-url
+   This content is a "include" file.  The file contains a list of
+   urls, one per line.  Each of the URLs will be read, and their content
+   will be passed through this same set of rules.  Ie, the content
+   read from the URL can be gzipped, mime-multi-part, or plain text
+
+ * Cloud Config Data
+   begins with  #cloud-config or Content-Type: text/cloud-config
+
+   This content is "cloud-config" data.  See the examples for a
+   commented example of supported config formats.
+
+ * Upstart Job
+   begins with  #upstart-job  or Content-Type: text/upstart-job
+   
+   Content is placed into a file in /etc/init, and will be consumed
+   by upstart as any other upstart job.
+
+=== Examples ===
+There are examples in the examples subdirectory.
+Additionally, the 'tools' directory contains 'write-mime-multipart',
+which can be used to easily generate mime-multi-part files from a list
+of input files.  That data can then be given to an instance.
+
+See 'write-mime-multipart --help' for usage.
