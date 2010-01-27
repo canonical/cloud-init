@@ -1,0 +1,12 @@
+#upstart-job
+description "a test upstart job"
+
+start on stopped rc RUNLEVEL=[2345]
+console output
+task
+
+script
+echo "====BEGIN======="
+echo "HELLO RC.LOCAL LIKE WORLD: $UPSTART_JOB"
+echo "=====END========"
+end script
