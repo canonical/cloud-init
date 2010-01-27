@@ -15,9 +15,28 @@ from email.message import Message
 from email.mime.base import MIMEBase
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
+from optparse import OptionParser
+import gzip
 
 COMMASPACE = ', '
 
+starts_with_mappings={
+    '#include' : 'text/x-include-url',
+    '#!' : 'text/x-shellscript',
+    '#cloud-config' : 'text/cloud-config',
+    '#upstart-job'  : 'text/upstart-job'
+}
+
+def get_type(fname,deftype):
+    f = file(fname,"rb")
+    line = f.readline()
+    f.close()
+    rtype = deftype
+    for str,mtype in starts_with_mappings.items():
+        if line.startswith(str):
+            rtype = mtype
+            break
+    return(rtype)
 
 def main():
     outer = MIMEMultipart()
@@ -26,17 +45,32 @@ def main():
     #outer['From'] = opts.sender
     #outer.preamble = 'You will not see this in a MIME-aware mail reader.\n'
 
-    if len(sys.argv) % 2 != 1 or len(sys.argv) == 1:
-        print "Usage: prog content-type file1 [ content-type2 file2 [ ... ] ]"
-        sys.exit(1)
+    parser = OptionParser()
+    
+    parser.add_option("-o", "--output", dest="output",
+        help="write output to FILE [default %default]", metavar="FILE", 
+        default="-")
+    parser.add_option("-z", "--gzip", dest="compress", action="store_true",
+        help="compress output", default=False)
+    parser.add_option("-d", "--default", dest="deftype",
+        help="default mime type [default %default]", default="text/plain")
+    parser.add_option("--delim", dest="delim",
+        help="delimiter [default %default]", default=":")
 
-    pos = 1
-    while pos < len(sys.argv):
-        ctype = sys.argv[pos]
-        path = sys.argv[pos+1]
-        pos=pos+2
+    (options, args) = parser.parse_args()
 
-        maintype, subtype = ctype.split('/', 1)
+    if (len(args)) < 1:
+        parser.error("Must give file list see '--help'")
+
+    for arg in args:
+        t = arg.split(options.delim, 1)
+        path=t[0]
+        if len(t) > 1:
+            mtype = t[1]
+        else:
+            mtype = get_type(path,options.deftype)
+
+        maintype, subtype = mtype.split('/', 1)
         if maintype == 'text':
             fp = open(path)
             # Note: we should handle calculating the charset
@@ -54,14 +88,21 @@ def main():
         msg.add_header('Content-Disposition', 'attachment',
             filename=os.path.basename(path))
 
-        if ctype is None:
-            # No guess could be made, or the file is encoded (compressed), so
-            # use a generic bag-of-bits type.
-            ctype = 'application/octet-stream'
         outer.attach(msg)
-    # Now send or store the message
-    #composed = outer.as_string()
-    sys.stdout.write(outer.as_string())
+
+    if options.output is "-":
+        ofile = sys.stdout
+    else:
+        ofile = file(options.output,"wb")
+        
+    if options.compress:
+        gfile = gzip.GzipFile(fileobj=ofile)
+        gfile.write(outer.as_string())
+        gfile.close()
+    else:
+        ofile.write(outer.as_string())
+
+    ofile.close()
 
 if __name__ == '__main__':
     main()
