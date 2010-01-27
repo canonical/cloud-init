@@ -26,6 +26,7 @@ def do_include(str,parts):
     # is just a list of urls, one per line
     for line in str.splitlines():
         if line == "#include": continue
+        if line.startswith("#"): continue
         content = urllib.urlopen(line).read()
         process_includes(email.message_from_string(decomp_str(content)),parts)
 
