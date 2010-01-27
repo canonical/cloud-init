@@ -96,7 +96,7 @@ def main():
         ofile = file(options.output,"wb")
         
     if options.compress:
-        gfile = gzip.GzipFile(fileobj=ofile)
+        gfile = gzip.GzipFile(fileobj=ofile, filename = options.output )
         gfile.write(outer.as_string())
         gfile.close()
     else:
