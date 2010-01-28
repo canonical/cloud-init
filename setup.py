@@ -38,5 +38,7 @@ setup(name='EC2-init',
                   ('/etc/ec2-init/templates', glob('templates/*')),
                   ('/etc/init', glob('upstart/*.conf')),
                   ('/usr/share/ec2-init', []),
+                  ('/usr/share/doc/ec2-init', glob('doc/*.txt')),
+                  ('/usr/share/doc/ec2-init/examples', glob('doc/examples/*')),
                   ],
       )
