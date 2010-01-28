@@ -81,6 +81,33 @@ packages:
  - pwgen
  - pastebinit
 
+# set up mount points
+# 'mounts' contains a list of lists
+#  the inner list are entries for an /etc/fstab line
+#  ie : [ fs_spec, fs_file, fs_vfstype, fs_mntops, fs-freq, fs_passno ]
+#
+# default:
+# mounts:
+#  - [ ephemeral0, /mnt ]
+#  - [ swap, none, swap, sw, 0, 0 ]
+#
+# in order to remove a previously listed mount (ie, one from defaults)
+# list only the fs_spec.  For example, to override the default, of
+# mounting swap:
+# - [ swap ]
+# or
+# - [ swap, null ]
+#
+# - if a device does not exist at the time, an entry will still be
+#   written to /etc/fstab.
+# - '/dev' can be ommitted for device names that begin with: xvd, sd, hd, vd
+# - if an entry does not have all 6 fields, they will be filled in
+#   from the following: [ None, None, "auto", "defaults", "0", "0" ]
+#
+mounts:
+ - [ ephemeral0, /mnt, auto, "defaults,noexec" ]
+ - [ sdc, /opt/data ]
+ - [ dd, /dev/zero ]
 
 # add each entry to ~/.ssh/authorized_keys for the configured user
 ssh_authorized_keys:

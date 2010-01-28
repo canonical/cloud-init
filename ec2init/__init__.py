@@ -285,43 +285,5 @@ class EC2Init:
     def get_hostname(self):
         return(self.datasource.get_hostname())
 
-    def enable_swap(self):
-        swaps=[]
-        try:
-            swaps=self.datasource.getswap_devs()
-        except:
-            process = subprocess.Popen(
-                ['blkid', '-t', 'TYPE=swap', '-o', 'device'],
-                stdout=subprocess.PIPE)
-            (out,err)=process.communicate()
-            swaps=out.strip().split('\n')
-
-        if len(swaps) == 0: return
-
-        fstab="/etc/fstab"
-        f=file(fstab,"rb")
-        lines=f.read().split('\n')
-        f.close()
-        existing=[]
-        for line in lines:
-            try:
-                (dev,mp,type,opts,dump,pss)=line.split()
-                if dev.startswith("#"): continue
-            except:
-                continue
-            existing.append(dev)
-
-        to_add=[]
-        for dev in swaps:
-            if not dev in existing:
-                to_add.append(dev)
-
-        if len(to_add) == 0 : return
-
-        f=file(fstab,"ab")
-        for dev in to_add:
-            f.write("%s\tnone\tswap\tsw\t0\t0\n" % dev)
-        f.close()
-
-        subprocess.Popen(['swapon', '-a']).communicate()
-
+    def device_name_to_device(self,name):
+        return(self.datasource.device_name_to_device(name))

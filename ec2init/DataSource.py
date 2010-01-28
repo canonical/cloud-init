@@ -21,5 +21,10 @@ class DataSource:
     def get_public_ssh_keys(self):
         return([])
 
-    def getswap_devs(self):
-        raise Exception("do not know how to generate swap list")
+    def device_name_to_device(self, name):
+        # translate a 'name' to a device
+        # the primary function at this point is on ec2
+        # to consult metadata service, that has
+        #  ephemeral0: sdb
+        # and return 'sdb' for input 'ephemeral0'
+        return(None)
