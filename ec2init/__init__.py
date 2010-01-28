@@ -30,6 +30,7 @@ import yaml
 
 datadir = '/var/lib/cloud/data'
 semdir = '/var/lib/cloud/sem'
+pluginsdir = datadir + '/plugins'
 cachedir = datadir + '/cache'
 userdata_raw = datadir + '/user-data.txt'
 userdata = datadir + '/user-data.txt.i'
@@ -228,13 +229,37 @@ class EC2Init:
             func(data,"__end__",None,None)
 
     def handle_handler(self,data,ctype,filename,payload):
-        if ctype == "__begin__" or ctype == "__end__": return
+        if ctype == "__end__": return
+        if ctype == "__begin__" :
+            self.handlercount = 0
+            return
 
-        # - do something to include the handler, ie, eval it or something
+        # add the path to the plugins dir to the top of our list for import
+        if self.handlercount == 0:
+            sys.path.insert(0,pluginsdir)
+
+        self.handlercount=self.handlercount+1
+
+        # write content to pluginsdir
+        modname  = 'part-handler-%03d' % self.handlercount
+        modfname = modname + ".py"
+        util.write_file("%s/%s" % (pluginsdir,modfname), payload, 0600)
+
+        try:
+            mod = __import__(modname)
+            lister = getattr(mod, "list_types")
+            handler = getattr(mod, "handle_part")
+        except:
+            import traceback
+            traceback.print_exc(file=sys.stderr)
+            return
+
         # - call it with '__begin__'
+        handler(data, "__begin__", None, None)
+
         # - add it self.part_handlers
-        # self.part_handlers['new_type']=handler
-        print "Do not know what to do with a handler yet, sorry"
+        for mtype in lister():
+            self.part_handlers[mtype]=handler
 
     def handle_user_script(self,data,ctype,filename,payload):
         if ctype == "__end__": return
