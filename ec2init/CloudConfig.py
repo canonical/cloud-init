@@ -39,6 +39,7 @@ class CloudConfig():
         self.add_handler('apt-update-upgrade', self.h_apt_update_upgrade)
         self.add_handler('config-ssh')
         self.add_handler('disable-ec2-metadata')
+        self.add_handler('config-mounts')
 
     def get_config_obj(self,cfgfile):
         f=file(cfgfile)
@@ -189,7 +190,118 @@ class CloudConfig():
     def h_config_runurl(self,name,args):
         print "Warning, not doing anything for config %s" % name
 
+    def h_config_mounts(self,name,args):
+        # handle 'mounts'
 
+        # these are our default set of mounts
+        defmnts = [ [ "ephemeral0", "/mnt", "auto", "defaults", "0", "0" ],
+                    [ "swap", "none", "swap", "sw", "0", "0" ] ]
+
+        # fs_spec, fs_file, fs_vfstype, fs_mntops, fs-freq, fs_passno
+        defvals = [ None, None, "auto", "defaults", "0", "0" ]
+
+        cfgmnt = [ ]
+        if self.cfg.has_key("mounts"):
+            cfgmnt = self.cfg["mounts"]
+    
+        for i in range(len(cfgmnt)):
+            # skip something that wasn't a list
+            if not isinstance(cfgmnt[i],list): continue
+
+            # workaround, allow user to specify 'ephemeral'
+            # rather than more ec2 correct 'ephemeral0'
+            if cfgmnt[i] == "ephemeral":
+                cfgmnt[i] = "ephemeral0"
+
+            newname = cfgmnt[i][0]
+            if not newname.startswith("/"):
+                newname = self.cloud.device_name_to_device(cfgmnt[i][0])
+            if newname is not None:
+                cfgmnt[i][0] = newname
+            else:
+                # there is no good way of differenciating between
+                # a name that *couldn't* exist in the md service and
+                # one that merely didnt
+                # in order to allow user to specify 'sda3' rather
+                # than '/dev/sda3', go through some hoops
+                ok = False
+                for f in [ "/", "sd", "hd", "vd", "xvd" ]:
+                    if cfgmnt[i][0].startswith(f):
+                        ok = True
+                        break
+                if not ok:
+                    cfgmnt[i][1] = None
+    
+        for i in range(len(cfgmnt)):
+            # fill in values with 
+            for j in range(len(defvals)):
+                if len(cfgmnt[i]) <= j:
+                    cfgmnt[i].append(defvals[j])
+                elif cfgmnt[i][j] is None:
+                    cfgmnt[i][j] = defvals[j]
+    
+            if not cfgmnt[i][0].startswith("/"):
+                cfgmnt[i][0]="/dev/%s" % cfgmnt[i][0]
+    
+            # if the second entry in the list is 'None' this
+            # clears all previous entries of that same 'fs_spec'
+            # (fs_spec is the first field in /etc/fstab, ie, that device)
+            if cfgmnt[i][1] is None:
+                for j in range(i):
+                    if cfgmnt[j][0] == cfgmnt[i][0]:
+                        cfgmnt[j][1] = None
+    
+
+        # for each of the "default" mounts, add them only if no other
+        # entry has the same device name
+        for defmnt in defmnts:
+            devname = self.cloud.device_name_to_device(defmnt[0])
+            if devname is None: continue
+            if not devname.startswith("/"):
+                defmnt[0] = "/dev/%s" % devname
+
+            cfgmnt_has = False
+            for cfgm in cfgmnt:
+                if cfgm[0] == defmnt[0]:
+                    cfgmnt_has = True
+                    break
+            
+            if cfgmnt_has: continue
+            cfgmnt.append(defmnt)
+
+    
+        # now, each entry in the cfgmnt list has all fstab values
+        # if the second field is None (not the string, the value) we skip it
+        actlist = filter(lambda x: x[1] is not None, cfgmnt)
+    
+        if len(actlist) == 0: return
+    
+        needswap = False
+        dirs = [ ]
+
+        fstab=file("/etc/fstab","ab")
+        fstab.write("# cloud-config mounts\n")
+        for line in actlist:
+            fstab.write('\t'.join(line) + "\n")
+            if line[2] == "swap": needswap = True
+            if line[1].startswith("/"): dirs.append(line[1])
+        fstab.close()
+    
+        if needswap:
+            try: util.subp(("swapon", "-a"))
+            except: warn("Failed to enable swap")
+
+        for d in dirs:
+            if os.path.exists(d): continue
+            try: os.makedirs(d)
+            except: warn("Failed to make '%s' config-mount\n",d)
+
+        try: util.subp(("mount","-a"))
+        except: pass
+    
+
+
+    
 def apply_credentials(keys, user, disable_root):
     keys = set(keys)
     if user:

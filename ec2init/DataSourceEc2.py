@@ -4,7 +4,6 @@ import ec2init
 import socket
 import urllib2
 import time
-import cPickle
 import boto_utils
 
 class DataSourceEc2(DataSource.DataSource):
@@ -26,8 +25,9 @@ class DataSourceEc2(DataSource.DataSource):
             self.userdata_raw = udf.read()
             udf.close()
 
-            mdf = open(self.cachedir + "/meta-data.pkl")
-            self.metadata = cPickle.load(mdf)
+            mdf = open(self.cachedir + "/meta-data.raw")
+            data = mdf.read()
+            self.metadata = eval(data)
             mdf.close()
 
             return True
@@ -109,13 +109,17 @@ class DataSourceEc2(DataSource.DataSource):
 
         return(keys)
 
-    def getswap_devs(self):
+    def device_name_to_device(self, name):
+        # consult metadata service, that has
+        #  ephemeral0: sdb
+        # and return 'sdb' for input 'ephemeral0'
         if not self.metadata.has_key('block-device-mapping'):
-            raise Exception("no block-device-mapping")
-        list = []
-        for use_t, device in self.metadata['block-device-mapping'].items():
-            if not device.startswith("/dev"):
-                device="/dev/%s" % device
-            if use_t == "swap":
-                list.append(device)
-        return(list)
+            return(None)
+
+        for entname, device in self.metadata['block-device-mapping'].items():
+            if entname == name:
+                return(device)
+            # LP: #513842 mapping in Euca has 'ephemeral' not 'ephemeral0'
+            if entname == "ephemeral" and name == "ephemeral0":
+                return(device)
+        return None

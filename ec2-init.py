@@ -41,16 +41,6 @@ def main():
     except:
         warn("failed to set defaults\n")
 
-    # enable swap
-    try:
-        cloud.sem_and_run("enable_swap", "once-per-instance",
-            cloud.enable_swap,[],False)
-    except:
-        import traceback
-        traceback.print_exc(file=sys.stderr)
-        warn("enabling swap failed!\n")
-
-
     # finish, send the cloud-config event
     cloud.initctl_emit()
 
