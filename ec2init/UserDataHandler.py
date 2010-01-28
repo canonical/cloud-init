@@ -8,7 +8,8 @@ starts_with_mappings={
     '#include' : 'text/x-include-url',
     '#!' : 'text/x-shellscript',
     '#cloud-config' : 'text/cloud-config',
-    '#upstart-job'  : 'text/upstart-job'
+    '#upstart-job'  : 'text/upstart-job',
+    '#part-handler' : 'text/part-handler'
 }
 
 # if 'str' is compressed return decompressed otherwise return it
