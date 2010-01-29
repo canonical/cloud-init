@@ -162,6 +162,7 @@ class EC2Init:
         return("%s/%s.%s" % (semdir,name,freqtok))
     
     def sem_has_run(self,name,freq):
+        if freq is "always": return False
         semfile = self.sem_getpath(name,freq)
         if os.path.exists(semfile):
             return True
@@ -177,7 +178,7 @@ class EC2Init:
             if e.errno != errno.EEXIST:
                 raise e
     
-        if os.path.exists(semfile):
+        if os.path.exists(semfile) and freq is not "always":
             return False
     
         # race condition
