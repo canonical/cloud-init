@@ -35,7 +35,7 @@ setup(name='EC2-init',
                'cloud-init-cfg.py'
                ],
       data_files=[('/etc/cloud', ['cloud.cfg']),
-                  ('/etc/ec2-init/templates', glob('templates/*')),
+                  ('/etc/cloud/templates', glob('templates/*')),
                   ('/etc/init', glob('upstart/*.conf')),
                   ('/usr/share/ec2-init', []),
                   ('/usr/share/doc/ec2-init', glob('doc/*.txt')),
