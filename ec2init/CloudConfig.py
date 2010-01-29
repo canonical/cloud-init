@@ -38,7 +38,8 @@ class CloudConfig():
         self.cloud.get_data_source()
         self.add_handler('apt-update-upgrade', self.h_apt_update_upgrade)
         self.add_handler('config-ssh')
-        self.add_handler('disable-ec2-metadata')
+        self.add_handler('disable-ec2-metadata',
+            self.h_disable_ec2_metadata, "always")
         self.add_handler('config-mounts')
 
     def get_config_obj(self,cfgfile):
