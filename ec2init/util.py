@@ -72,7 +72,7 @@ def subp(args, input=None):
     return(out,err)
 
 def render_to_file(template, outfile, searchList):
-    t = Template(file='/etc/ec2-init/templates/%s.tmpl' % template, searchList=[searchList])
+    t = Template(file='/etc/cloud/templates/%s.tmpl' % template, searchList=[searchList])
     f = open(outfile, 'w')
     f.write(t.respond())
     f.close()
