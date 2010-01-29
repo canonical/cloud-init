@@ -147,8 +147,8 @@ class EC2Init:
         self.store_userdata()
 
     def store_userdata(self):
-        util.write_file(userdata_raw, self.datasource.get_userdata_raw(), 0644)
-        util.write_file(userdata, self.datasource.get_userdata(), 0644)
+        util.write_file(userdata_raw, self.datasource.get_userdata_raw(), 0600)
+        util.write_file(userdata, self.datasource.get_userdata(), 0600)
 
     def initctl_emit(self):
         subprocess.Popen(['initctl', 'emit', 'cloud-config',
@@ -283,9 +283,7 @@ class EC2Init:
             self.cloud_config_str=""
             return
         if ctype == "__end__":
-            f=open(cloud_config, "wb")
-            f.write(self.cloud_config_str)
-            f.close()
+            util.write_file(cloud_config, self.cloud_config_str, 0600)
 
             ## this could merge the cloud config with the system config
             ## for now, not doing this as it seems somewhat circular

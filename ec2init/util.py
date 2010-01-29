@@ -40,9 +40,9 @@ def write_file(file,content,mode=0644):
                 raise e
 
         f=open(file,"wb")
+        os.chmod(file,mode)
         f.write(content)
         f.close()
-        os.chmod(file,mode)
 
 # get keyid from keyserver
 def getkeybyid(keyid,keyserver):
