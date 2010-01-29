@@ -1,0 +1,25 @@
+#!/bin/sh
+
+Usage() {
+   cat <<EOF
+Usage: ${0##*/} version
+   make a tarball of 'version'
+   must be in a bzr directory, and 'version' must be a tag
+
+EOF
+}
+
+topdir=$PWD
+tag=${1}
+
+[ -n "$tag" ] || { Usage 1>&2 ; exit 1; }
+
+tmpd=$(mktemp -d ); 
+trap "rm -Rf '${tmpd}'" 0
+
+out=${topdir}/ec2-init_${tag}.orig.tar.gz
+
+cd ${tmpd} && 
+   bzr branch "${topdir}" ./ec2-init-${tag} &&
+   tar czf "${out}" ec2-init-${tag}/ --exclude ec2-init-${tag}/.bzr &&
+   echo "wrote ${out}"
