@@ -23,14 +23,13 @@ import os.path
 import subprocess
 
 setup(name='EC2-init',
-      version='0.5.0',
+      version='0.5.2',
       description='EC2 initialisation magic',
-      author='Soren Hansen',
-      author_email='soren@canonical.com',
+      author='Scott Moser',
+      author_email='scott.moser@canonical.com',
       url='http://launchpad.net/ec2-init/',
       packages=['ec2init'],
       scripts=['ec2-init.py',
-               'ec2-is-compat-env',
                'cloud-init-run-module.py',
                'cloud-init-cfg.py'
                ],
