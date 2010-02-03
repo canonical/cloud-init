@@ -61,9 +61,16 @@ class DataSourceEc2(DataSource.DataSource):
             return(self.location_locale_map["default"])
 
     def get_hostname(self):
-        hostname = self.metadata['local-hostname']
-        hostname = hostname.split('.')[0]
-        return hostname
+        toks = self.metadata['local-hostname'].split('.')
+        # if there is an ipv4 address in 'local-hostname', then
+        # make up a hostname (LP: #475354)
+        if len(toks) == 4:
+            try:
+                r = filter(lambda x: int(x) < 256 and x > 0, toks)
+                if len(r) == 4:
+                    return("ip-%s" % '-'.join(r))
+            except: pass
+        return toks[0]
 
     def get_mirror_from_availability_zone(self, availability_zone = None):
         # availability is like 'us-west-1b' or 'eu-west-1a'
