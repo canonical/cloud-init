@@ -1,7 +1,7 @@
 #!/usr/bin/python
 
 import sys
-import ec2init
+import cloudinit
 
 def Usage(out = sys.stdout):
     out.write("Usage: cloud-init-run-module freq sem-name mod-name [args]\n")
@@ -16,7 +16,7 @@ def main():
     (freq,semname,modname)=sys.argv[1:4]
     run_args=sys.argv[4:]
 
-    cloud = ec2init.EC2Init()
+    cloud = cloudinit.EC2Init()
     try:
         cloud.get_data_source()
     except Exception as e:
@@ -29,16 +29,16 @@ def main():
         sys.exit(0)
 
     try:
-        mod = __import__('ec2init.' + modname)
+        mod = __import__('cloudinit.' + modname)
         inst = getattr(mod,modname)
     except:
-        sys.stderr.write("Failed to load module ec2init.%s\n" % modname)
+        sys.stderr.write("Failed to load module cloudinit.%s\n" % modname)
         sys.exit(1)
 
     import os
 
     cfg_path = None
-    cfg_env_name = ec2init.cfg_env_name
+    cfg_env_name = cloudinit.cfg_env_name
     if os.environ.has_key(cfg_env_name):
         cfg_path = os.environ[cfg_env_name]
 

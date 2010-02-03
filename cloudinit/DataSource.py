@@ -1,5 +1,5 @@
 
-import ec2init
+import cloudinit
 import UserDataHandler as ud
 
 class DataSource:
