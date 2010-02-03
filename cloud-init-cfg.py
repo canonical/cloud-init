@@ -1,7 +1,7 @@
 #!/usr/bin/python
 
 import sys
-import ec2init
+import cloudinit
 
 def Usage(out = sys.stdout):
     out.write("Usage: %s name\n" % sys.argv[0])
@@ -16,15 +16,15 @@ def main():
     name=sys.argv[1]
     run_args=sys.argv[2:]
 
-    import ec2init.CloudConfig
+    import cloudinit.CloudConfig
     import os
 
-    cfg_path = ec2init.cloud_config
-    cfg_env_name = ec2init.cfg_env_name
+    cfg_path = cloudinit.cloud_config
+    cfg_env_name = cloudinit.cfg_env_name
     if os.environ.has_key(cfg_env_name):
         cfg_path = os.environ[cfg_env_name]
 
-    cc = ec2init.CloudConfig.CloudConfig(cfg_path)
+    cc = cloudinit.CloudConfig.CloudConfig(cfg_path)
 
     try:
         cc.handle(name,run_args)

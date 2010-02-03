@@ -3,14 +3,14 @@
 import subprocess
 import sys
 
-import ec2init
-import ec2init.util as util
+import cloudinit
+import cloudinit.util as util
 
 def warn(str):
     sys.stderr.write(str)
 
 def main():
-    cloud = ec2init.EC2Init()
+    cloud = cloudinit.EC2Init()
 
     try:
         cloud.get_data_source()

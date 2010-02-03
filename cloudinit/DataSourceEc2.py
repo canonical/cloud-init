@@ -1,6 +1,6 @@
 import DataSource
 
-import ec2init
+import cloudinit
 import socket
 import urllib2
 import time
@@ -8,7 +8,7 @@ import boto_utils
 
 class DataSourceEc2(DataSource.DataSource):
     api_ver  = '2009-04-04'
-    cachedir = ec2init.cachedir + '/ec2'
+    cachedir = cloudinit.cachedir + '/ec2'
 
     location_locale_map = { 
         'us' : 'en_US.UTF-8',

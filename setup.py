@@ -28,7 +28,7 @@ setup(name='EC2-init',
       author='Scott Moser',
       author_email='scott.moser@canonical.com',
       url='http://launchpad.net/ec2-init/',
-      packages=['ec2init'],
+      packages=['cloudinit'],
       scripts=['ec2-init.py',
                'cloud-init-run-module.py',
                'cloud-init-cfg.py'

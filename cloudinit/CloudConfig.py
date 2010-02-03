@@ -18,8 +18,8 @@
 #
 import yaml
 import re
-import ec2init
-import ec2init.util as util
+import cloudinit
+import cloudinit.util as util
 import subprocess
 import os
 import glob
@@ -33,7 +33,7 @@ class CloudConfig():
     cfg = None
 
     def __init__(self,cfgfile):
-        self.cloud = ec2init.EC2Init()
+        self.cloud = cloudinit.EC2Init()
         self.cfg = self.get_config_obj(cfgfile)
         self.cloud.get_data_source()
         self.add_handler('apt-update-upgrade', self.h_apt_update_upgrade)
