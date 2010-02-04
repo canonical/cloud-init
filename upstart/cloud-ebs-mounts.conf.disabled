@@ -1,0 +1,12 @@
+# ec2-ebs-mounts
+#
+# Mount EC2 EBS mount points
+
+description	"Populate EBS mountpoints"
+
+start on cloud-config
+
+console output
+task
+
+exec cloud-init-cfg ec2-ebs-mounts

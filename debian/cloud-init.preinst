@@ -1,0 +1,34 @@
+#!/bin/sh
+
+# Remove a no-longer used conffile
+rm_conffile() {
+	local PKGNAME="$1"
+	local CONFFILE="$2"
+
+	[ -e "$CONFFILE" ] || return 0
+
+	local md5sum="$(md5sum $CONFFILE | sed -e 's/ .*//')"
+	local old_md5sum="$(dpkg-query -W -f='${Conffiles}' $PKGNAME | \
+			sed -n -e "\' $CONFFILE ' { s/ obsolete$//; s/.* //; p }")"
+	if [ "$md5sum" != "$old_md5sum" ]; then
+		echo "Obsolete conffile $CONFFILE has been modified by you."
+		echo "Saving as $CONFFILE.dpkg-bak ..."
+		mv -f "$CONFFILE" "$CONFFILE".dpkg-bak
+	else
+		echo "Removing obsolete conffile $CONFFILE ..."
+		rm -f "$CONFFILE"
+	fi
+}
+
+
+case "$1" in
+	install|upgrade)
+		# removing obsolete conffiles from the 'ec2-init' package
+		if dpkg --compare-versions "$2" le "0.5.1"; then
+			rm_conffile ec2-init "/etc/init/cloud-ssh-keygen.conf"
+		fi
+		if dpkg --compare-versions "$2" lt "0.5.3"; then
+			rm_conffile ec2-init "/etc/init/ec2init.conf"
+		fi
+esac
+

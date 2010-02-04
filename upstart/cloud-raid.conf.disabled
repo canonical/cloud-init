@@ -1,0 +1,12 @@
+# ec2-raid - Setup ephemeral storage RAID and mount points
+#
+# Setup ephemeral storage RAID and mount points
+
+description "Setup RAID storage and moint points"
+
+start on (cloud-config
+	and local-filesystems)
+console output
+task
+
+exec cloud-init-cfg setup-raid

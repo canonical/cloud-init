@@ -1,0 +1,7 @@
+description "Cat the Config"
+
+start on cloud-config
+console output
+task
+
+exec cloud-init-run-module once-per-instance catconfig execute cat $CLOUD_CFG
