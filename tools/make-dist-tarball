@@ -17,9 +17,9 @@ tag=${1}
 tmpd=$(mktemp -d ); 
 trap "rm -Rf '${tmpd}'" 0
 
-out=${topdir}/ec2-init_${tag}.orig.tar.gz
+out=${topdir}/cloud-init_${tag}.orig.tar.gz
 
 cd ${tmpd} && 
-   bzr branch "${topdir}" ./ec2-init-${tag} &&
-   tar czf "${out}" ec2-init-${tag}/ --exclude ec2-init-${tag}/.bzr &&
+   bzr branch "${topdir}" ./cloud-init-${tag} &&
+   tar czf "${out}" cloud-init-${tag}/ --exclude cloud-init-${tag}/.bzr &&
    echo "wrote ${out}"
