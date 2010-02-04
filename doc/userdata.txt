@@ -8,10 +8,10 @@ In EC2, the data is provided by the user via the '--user-data' or
 data available to the instance via its meta-data service at 
 http://169.254.169.254/latest/user-data
 
-ec2-init can read this input and act on it in different ways.
+cloud-init can read this input and act on it in different ways.
 
 === Input Formats ===
-ec2-init will download and cache to filesystem any user-data that it
+cloud-init will download and cache to filesystem any user-data that it
 finds.  However, certain types of user-data are handled specially.
 
  * Gzip Compressed Content
