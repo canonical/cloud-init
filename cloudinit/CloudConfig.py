@@ -1,5 +1,4 @@
 #
-#    Common code for the EC2 configuration files in Ubuntu
 #    Copyright (C) 2008-2010 Canonical Ltd.
 #
 #    Author: Chuck Short <chuck.short@canonical.com>
