@@ -1,3 +1,10 @@
+cloud-init (0.5.3-0ubuntu2) lucid; urgency=low
+
+  * divert ureadahead.conf in postinst (LP: #499520)
+  * lintian cleanups
+
+ -- Scott Moser <smoser@ubuntu.com>  Fri, 05 Feb 2010 15:48:21 -0500
+
 cloud-init (0.5.3-0ubuntu1) lucid; urgency=low
 
   * Rename ec2-init to cloud-init.  New upstream release.

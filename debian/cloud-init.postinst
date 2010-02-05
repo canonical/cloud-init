@@ -1,0 +1,11 @@
+#!/bin/sh
+
+set -e
+
+if [ "$1" = "configure" ]; then
+   # disable ureadahead (LP: #499520)
+   dpkg-divert --package cloud-init --rename --divert \
+      /etc/init/ureadahead.conf.disabled --add /etc/init/ureadahead.conf
+fi
+
+#DEBHELPER#
