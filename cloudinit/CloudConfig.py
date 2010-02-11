@@ -32,7 +32,7 @@ class CloudConfig():
     cfg = None
 
     def __init__(self,cfgfile):
-        self.cloud = cloudinit.EC2Init()
+        self.cloud = cloudinit.CloudInit()
         self.cfg = self.get_config_obj(cfgfile)
         self.cloud.get_data_source()
         self.add_handler('apt-update-upgrade', self.h_apt_update_upgrade)

@@ -26,7 +26,7 @@ def warn(str):
     sys.stderr.write(str)
 
 def main():
-    cloud = cloudinit.EC2Init()
+    cloud = cloudinit.CloudInit()
 
     try:
         cloud.get_data_source()
