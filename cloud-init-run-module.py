@@ -32,7 +32,7 @@ def main():
     (freq,semname,modname)=sys.argv[1:4]
     run_args=sys.argv[4:]
 
-    cloud = cloudinit.EC2Init()
+    cloud = cloudinit.CloudInit()
     try:
         cloud.get_data_source()
     except Exception as e:

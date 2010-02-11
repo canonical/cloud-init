@@ -44,7 +44,7 @@ import DataSourceEc2
 import UserDataHandler
 import util
 
-class EC2Init:
+class CloudInit:
     datasource_map = {
         "ec2" : DataSourceEc2.DataSourceEc2,
     }
