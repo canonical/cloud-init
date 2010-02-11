@@ -35,10 +35,6 @@ def main():
         sys.stderr.write("Failed to get instance data")
         sys.exit(1)
 
-    hostname = cloud.get_hostname()
-    subprocess.Popen(['hostname', hostname]).communicate()
-    #print "user data is:" + cloud.get_user_data()
-
     # store the metadata
     cloud.update_cache()
 
@@ -49,6 +45,15 @@ def main():
     except:
         warn("consuming user data failed!\n")
         raise
+
+    try:
+        hostname = cloud.get_hostname()
+        cloud.sem_and_run("set_hostname", "once-per-instance",
+            set_hostname, [ hostname ], False)
+    except:
+        warn("failed to set hostname\n")
+
+    #print "user data is:" + cloud.get_user_data()
 
     # set the defaults (like what ec2-set-defaults.py did)
     try:
@@ -71,6 +76,12 @@ def apply_locale(locale):
 
     util.render_to_file('default-locale', '/etc/default/locale', \
         { 'locale' : locale })
+
+def set_hostname(hostname):
+    subprocess.Popen(['hostname', hostname]).communicate()
+    f=open("/etc/hostname","wb")
+    f.write("%s\n" % hostname)
+    f.close()
 
 if __name__ == '__main__':
     main()
