@@ -368,7 +368,7 @@ def add_sources(srclist):
             try: util.subp(["add-apt-repository",source])
             except:
                 elst.append([source, "add-apt-repository failed"])
-                continue
+            continue
 
         if not ent.has_key('filename'):
             ent['filename']='cloud_config_sources.list'
