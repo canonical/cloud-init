@@ -185,60 +185,60 @@ class CloudConfig():
         send_ssh_keys_to_console()
 
     def h_config_puppet(self,name,args):
-        # Check if there is a puppet key in the configuration
-        if self.cfg.has_key('puppet'):
-            puppet_cfg = self.cfg['puppet']
-            # Start by installing the puppet package ...
-            e=os.environ.copy()
-            e['DEBIAN_FRONTEND']='noninteractive'
-            # Make sure that the apt database is updated since it's not run by
-            # default
-            # Note: we should have a helper to check if apt-get update 
-            # has already been run on this instance to speed the boot time.
-            subprocess.check_call(['apt-get', 'update'], env=e)
-            subprocess.check_call(['apt-get', 'install', '--assume-yes',
-                                   'puppet'], env=e)
-            # ... and then update the puppet configuration
-            if puppet_cfg.has_key('conf'):
-                # Add all sections from the conf object to puppet.conf
-                puppet_conf_fh = open('/etc/puppet/puppet.conf', 'a')
-                for cfg_name, cfg in puppet_cfg['conf'].iteritems():
-                    # ca_cert configuration is a special case
-                    # Dump the puppetmaster ca certificate in the correct place
-                    if cfg_name == 'ca_cert':
-                        # Puppet ssl sub-directory isn't created yet
-                        # Create it with the proper permissions and ownership
-                        os.makedirs('/var/lib/puppet/ssl')
-                        os.chmod('/var/lib/puppet/ssl', 0771)
-                        os.chown('/var/lib/puppet/ssl',
-                                 pwd.getpwnam('puppet').pw_uid, 0)
-                        os.makedirs('/var/lib/puppet/ssl/certs/')
-                        os.chown('/var/lib/puppet/ssl/certs/',
-                                 pwd.getpwnam('puppet').pw_uid, 0)
-                        ca_fh = open('/var/lib/puppet/ssl/certs/ca.pem', 'w')
-                        ca_fh.write(cfg)
-                        ca_fh.close()
-                        os.chown('/var/lib/puppet/ssl/certs/ca.pem',
-                                 pwd.getpwnam('puppet').pw_uid, 0)
-                    else:
-                        puppet_conf_fh.write("\n[%s]\n" % (cfg_name))
-                        for o, v in cfg.iteritems():
-                            if o == 'certname':
-                                # Expand %f as the fqdn
-                                v = v.replace("%f", socket.getfqdn())
-                                # Expand %i as the instance id
-                                v = v.replace("%i",
-                                      self.cloud.datasource.get_instance_id())
-                                # certname needs to be downcase
-                                v = v.lower()
-                            puppet_conf_fh.write("%s=\"%s\"\n" % (o, v))
-                puppet_conf_fh.close()
-            # Set puppet default file to automatically start
-            subprocess.check_call(['sed', '-i',
-                                   '-e', 's/^START=.*/START=yes/',
-                                   '/etc/default/puppet'])
-            # Start puppetd
-            subprocess.check_call(['service', 'puppet', 'start'])
+        # If there isn't a puppet key in the configuration don't do anything
+        if not self.cfg.has_key('puppet'): return
+        puppet_cfg = self.cfg['puppet']
+        # Start by installing the puppet package ...
+        e=os.environ.copy()
+        e['DEBIAN_FRONTEND']='noninteractive'
+        # Make sure that the apt database is updated since it's not run by
+        # default
+        # Note: we should have a helper to check if apt-get update 
+        # has already been run on this instance to speed the boot time.
+        subprocess.check_call(['apt-get', 'update'], env=e)
+        subprocess.check_call(['apt-get', 'install', '--assume-yes',
+                               'puppet'], env=e)
+        # ... and then update the puppet configuration
+        if puppet_cfg.has_key('conf'):
+            # Add all sections from the conf object to puppet.conf
+            puppet_conf_fh = open('/etc/puppet/puppet.conf', 'a')
+            for cfg_name, cfg in puppet_cfg['conf'].iteritems():
+                # ca_cert configuration is a special case
+                # Dump the puppetmaster ca certificate in the correct place
+                if cfg_name == 'ca_cert':
+                    # Puppet ssl sub-directory isn't created yet
+                    # Create it with the proper permissions and ownership
+                    os.makedirs('/var/lib/puppet/ssl')
+                    os.chmod('/var/lib/puppet/ssl', 0771)
+                    os.chown('/var/lib/puppet/ssl',
+                             pwd.getpwnam('puppet').pw_uid, 0)
+                    os.makedirs('/var/lib/puppet/ssl/certs/')
+                    os.chown('/var/lib/puppet/ssl/certs/',
+                             pwd.getpwnam('puppet').pw_uid, 0)
+                    ca_fh = open('/var/lib/puppet/ssl/certs/ca.pem', 'w')
+                    ca_fh.write(cfg)
+                    ca_fh.close()
+                    os.chown('/var/lib/puppet/ssl/certs/ca.pem',
+                             pwd.getpwnam('puppet').pw_uid, 0)
+                else:
+                    puppet_conf_fh.write("\n[%s]\n" % (cfg_name))
+                    for o, v in cfg.iteritems():
+                        if o == 'certname':
+                            # Expand %f as the fqdn
+                            v = v.replace("%f", socket.getfqdn())
+                            # Expand %i as the instance id
+                            v = v.replace("%i",
+                                  self.cloud.datasource.get_instance_id())
+                            # certname needs to be downcase
+                            v = v.lower()
+                        puppet_conf_fh.write("%s=\"%s\"\n" % (o, v))
+            puppet_conf_fh.close()
+        # Set puppet default file to automatically start
+        subprocess.check_call(['sed', '-i',
+                               '-e', 's/^START=.*/START=yes/',
+                               '/etc/default/puppet'])
+        # Start puppetd
+        subprocess.check_call(['service', 'puppet', 'start'])
 
     def h_ec2_ebs_mounts(self,name,args):
         print "Warning, not doing anything for config %s" % name
