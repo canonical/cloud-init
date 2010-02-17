@@ -1,3 +1,14 @@
+cloud-init (0.5.4-0ubuntu1) lucid; urgency=low
+
+  * New upstream release.
+  * fix broken user-data scripts
+  * merge mathiaz work for cloud-config-puppet
+  * fix bug causing apt update to fail
+  * rename EC2Init class to CloudInit
+  * only set hostname once per instance. (LP: #514492)
+
+ -- Scott Moser <smoser@ubuntu.com>  Wed, 17 Feb 2010 09:40:30 -0500
+
 cloud-init (0.5.3-0ubuntu2) lucid; urgency=low
 
   * divert ureadahead.conf in postinst (LP: #499520)
