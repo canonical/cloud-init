@@ -35,6 +35,7 @@
 #  affiliates.
 import urllib2
 import sys
+import time
 
 def retry_url(url, retry_on_404=True):
     for i in range(0, 10):
@@ -56,7 +57,7 @@ def retry_url(url, retry_on_404=True):
         sys.stderr.write('Caught exception reading instance data')
         time.sleep(2**i)
     #boto.log.error('Unable to read instance data, giving up')
-    sys.stderr.write('Caught exception reading instance data')
+    sys.stderr.write('Caught exception reading instance data, giving up')
     return ''
 
 def get_instance_metadata(version='latest'):
