@@ -516,4 +516,4 @@ def handle_runcmd(cfg):
 
         util.write_file(outfile,content,0700)
     except:
-        warn("failed to open %s for runcmd", outfile)
+        warn("failed to open %s for runcmd" % outfile)
