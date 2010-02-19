@@ -2,13 +2,13 @@ Source: cloud-init
 Section: admin
 Priority: extra
 Maintainer: Scott Moser <smoser@ubuntu.com>
-Build-Depends: cdbs, debhelper (>= 5.0.38), python-all-dev (>= 2.3.5-11), python-central (>= 0.5.6), quilt
+Build-Depends: cdbs, debhelper (>= 5.0.38), python, python-central (>= 0.5.6)
 XS-Python-Version: all
-Standards-Version: 3.8.3
+Standards-Version: 3.8.4
 
 Package: cloud-init
 Architecture: all
-Depends: python, procps, python-configobj, python-cheetah, update-motd, python-yaml, python-software-properties, ${python:Depends}, ${misc:Depends}
+Depends: python, procps, python-configobj, python-cheetah, update-motd, python-yaml, python-software-properties, cloud-utils, ${python:Depends}, ${misc:Depends}
 Provides: ec2-init
 Replaces: ec2-init (<<0.5.3)
 Conflicts: ec2-init (<<0.5.3)

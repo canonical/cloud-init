@@ -1,4 +1,5 @@
 #!/bin/sh
+set -e
 
 #DEBHELPER#
 # Remove a no-longer used conffile

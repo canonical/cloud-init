@@ -25,8 +25,10 @@ import subprocess
 import os
 import glob
 import sys
+import time
 
 per_instance="once-per-instance"
+cronpre = "/etc/cron.d/cloudinit"
 
 class CloudConfig():
     cfgfile = None
@@ -43,6 +45,7 @@ class CloudConfig():
             self.h_disable_ec2_metadata, "always")
         self.add_handler('config-mounts')
         self.add_handler('config-puppet')
+        self.add_handler('config-misc')
 
     def get_config_obj(self,cfgfile):
         f=file(cfgfile)
@@ -183,6 +186,10 @@ class CloudConfig():
             warn("applying credentials failed!\n")
 
         send_ssh_keys_to_console()
+
+    def h_config_misc(self,name,args):
+        handle_updates_check(self.cfg)
+        handle_runcmd(self.cfg)
 
     def h_config_puppet(self,name,args):
         # If there isn't a puppet key in the configuration don't do anything
@@ -463,3 +470,50 @@ def generate_sources_list(mirror):
 
     util.render_to_file('sources.list', '/etc/apt/sources.list', \
         { 'mirror' : mirror, 'codename' : codename })
+
+def handle_updates_check(cfg):
+    if not util.get_cfg_option_bool(cfg, 'updates-check', True):
+        return
+    build_info = "/etc/cloud/build.info"
+    if not os.path.isfile(build_info):
+        warn("no %s file" % build_info)
+
+    avail="%s/%s" % ( cloudinit.datadir, "available.build" )
+    cmd=( "uec-query-builds", "--system-suite", "--config", "%s" % build_info,
+          "--output", "%s" % avail, "is-update-available" )
+    try:
+        util.subp(cmd)
+    except:
+        warn("failed to execute uec-query-build for updates check")
+
+    # add a cron entry for this hour and this minute every day
+    try:
+        cron=open("%s-%s" % (cronpre, "updates") ,"w")
+        cron.write("%s root %s\n" % \
+            (time.strftime("%M %H * * * *"),' '.join(cmd)))
+        cron.close()
+    except:
+        warn("failed to enable cron update system check")
+
+def handle_runcmd(cfg):
+    if not cfg.has_key("runcmd"):
+        return
+    outfile="%s/runcmd" % cloudinit.user_scripts_dir
+
+    content="#!/bin/sh\n"
+    escaped="%s%s%s%s" % ( "'", '\\', "'", "'" )
+    try:
+        for args in cfg["runcmd"]:
+            # if the item is a list, wrap all items in single tick
+            # if its not, then just write it directly
+            if isinstance(args,list):
+                fixed = [ ]
+                for f in args:
+                    fixed.append("'%s'" % str(f).replace("'",escaped))
+                content="%s%s\n" % ( content, ' '.join(fixed) )
+            else:
+                content="%s%s\n" % ( content, str(args) )
+
+        util.write_file(outfile,content,0700)
+    except:
+        warn("failed to open %s for runcmd" % outfile)

@@ -3,7 +3,6 @@
 DEB_PYTHON_SYSTEM=pycentral
 include /usr/share/cdbs/1/class/python-distutils.mk
 include /usr/share/cdbs/1/rules/debhelper.mk
-include /usr/share/cdbs/1/rules/patchsys-quilt.mk
 
 binary-install/cloud-init::
 	for x in $(DEB_DESTDIR)/usr/bin/*.py; do mv "$$x" "$${x%.py}"; done

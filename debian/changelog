@@ -1,3 +1,23 @@
+cloud-init (0.5.7-0ubuntu1) lucid; urgency=low
+
+  * New upstream release.
+  * run cloud-init early in boot process (LP: #504883, #524516)
+
+ -- Scott Moser <smoser@ubuntu.com>  Fri, 19 Feb 2010 18:27:45 -0500
+
+cloud-init (0.5.6-0ubuntu1) lucid; urgency=low
+
+  * New upstream release.
+  * supports 'runcmd' in cloud-config
+  * enable the update check code (LP: #524258)
+  * fix retry_url in boto_utils.py when metadata service not around
+    (LP: #523832)
+  * run cloud-config-puppet.conf later (LP: #523625)
+  [ Scott Moser 0.5.5 ]
+  * New upstream release, supports checking for updates
+
+ -- Scott Moser <smoser@ubuntu.com>  Fri, 19 Feb 2010 03:13:22 -0500
+
 cloud-init (0.5.4-0ubuntu1) lucid; urgency=low
 
   * New upstream release.
