@@ -509,10 +509,10 @@ def handle_runcmd(cfg):
             if isinstance(args,list):
                 fixed = [ ]
                 for f in args:
-                    fixed.append("'%s'" % f.replace("'",escaped))
+                    fixed.append("'%s'" % str(f).replace("'",escaped))
                 content="%s%s\n" % ( content, ' '.join(fixed) )
             else:
-                content="%s%s\n" % ( content, args )
+                content="%s%s\n" % ( content, str(args) )
 
         util.write_file(outfile,content,0700)
     except:
