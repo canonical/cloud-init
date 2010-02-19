@@ -189,6 +189,7 @@ class CloudConfig():
 
     def h_config_misc(self,name,args):
         handle_updates_check(self.cfg)
+        handle_runcmd(self.cfg)
 
     def h_config_puppet(self,name,args):
         # If there isn't a puppet key in the configuration don't do anything
@@ -494,3 +495,25 @@ def handle_updates_check(cfg):
     except:
         warn("failed to enable cron update system check")
 
+def handle_runcmd(cfg):
+    if not cfg.has_key("runcmd"):
+        return
+    outfile="%s/runcmd" % cloudinit.user_scripts_dir
+
+    content="#!/bin/sh\n"
+    escaped="%s%s%s%s" % ( "'", '\\', "'", "'" )
+    try:
+        for args in cfg["runcmd"]:
+            # if the item is a list, wrap all items in single tick
+            # if its not, then just write it directly
+            if isinstance(args,list):
+                fixed = [ ]
+                for f in args:
+                    fixed.append("'%s'" % f.replace("'",escaped))
+                content="%s%s\n" % ( content, ' '.join(fixed) )
+            else:
+                content="%s%s\n" % ( content, args )
+
+        util.write_file(outfile,content,0700)
+    except:
+        warn("failed to open %s for runcmd", outfile)
