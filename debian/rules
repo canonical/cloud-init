@@ -6,3 +6,5 @@ include /usr/share/cdbs/1/rules/debhelper.mk
 
 binary-install/cloud-init::
 	for x in $(DEB_DESTDIR)/usr/bin/*.py; do mv "$$x" "$${x%.py}"; done
+	mkdir -p $(DEB_DESTDIR)/etc/update-motd.d
+	cp tools/motd-hook $(DEB_DESTDIR)/etc/update-motd.d/92-uec-upgrade-available

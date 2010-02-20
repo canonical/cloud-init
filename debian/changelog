@@ -1,3 +1,10 @@
+cloud-init (0.5.7-0ubuntu2) lucid; urgency=low
+
+  * fix packaging but that put the message-of-the-day hook file
+    into a subdir of etc/update-motd.d, remove old file (LP: #524999)
+
+ -- Scott Moser <smoser@ubuntu.com>  Fri, 19 Feb 2010 21:02:10 -0500
+
 cloud-init (0.5.7-0ubuntu1) lucid; urgency=low
 
   * New upstream release.
