@@ -152,6 +152,8 @@ ssh_keys:
 
 
 # remove access to the ec2 metadata service early in boot via null route
+#  the null route can be removed (by root) with:
+#    route del -host 169.254.169.254 reject
 # default: false (service available)
 disable_ec2_metadata: true
 
