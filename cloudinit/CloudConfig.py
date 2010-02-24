@@ -490,7 +490,7 @@ def handle_updates_check(cfg):
     try:
         cron=open("%s-%s" % (cronpre, "updates") ,"w")
         cron.write("%s root %s\n" % \
-            (time.strftime("%M %H * * * *"),' '.join(cmd)))
+            (time.strftime("%M %H * * *"),' '.join(cmd)))
         cron.close()
     except:
         warn("failed to enable cron update system check")
