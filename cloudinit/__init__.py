@@ -104,8 +104,15 @@ class CloudInit:
 
     def write_to_cache(self):
         try:
+            os.makedirs(os.path.dirname(data_source_cache))
+        except OSError as e:
+            if e.errno != errno.EEXIST:
+                return False
+                
+        try:
             f=open(data_source_cache, "wb")
             data = cPickle.dump(self.datasource,f)
+            os.chmod(data_source_cache,0400)
             return True
         except:
             return False
