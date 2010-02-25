@@ -1,3 +1,14 @@
+cloud-init (0.5.7-0ubuntu3) lucid; urgency=low
+
+  * debian/control:
+    - recommend ssh-import, such that the ssh-import-lp-id
+      utility is available in UEC images for convenient importing of
+      ssh public keys stored in Launchpad, LP: #524101
+    - build a transitional ec2-init package to handle the rename
+      gracefully on upgrades, LP: #527187
+
+ -- Dustin Kirkland <kirkland@ubuntu.com>  Thu, 25 Feb 2010 16:22:10 -0600
+
 cloud-init (0.5.7-0ubuntu2) lucid; urgency=low
 
   * fix packaging but that put the message-of-the-day hook file
