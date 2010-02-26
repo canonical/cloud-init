@@ -1,3 +1,10 @@
+cloud-init (0.5.7-0ubuntu4) lucid; urgency=low
+
+  * fix empty package previous package was emptpy for cloud-init
+    due to adding the ec2-init package
+
+ -- Scott Moser <smoser@ubuntu.com>  Fri, 26 Feb 2010 17:06:05 -0500
+
 cloud-init (0.5.7-0ubuntu3) lucid; urgency=low
 
   * debian/control:

@@ -1,10 +1,16 @@
 #!/usr/bin/make -f
 
-DEB_PYTHON_SYSTEM=pycentral
-include /usr/share/cdbs/1/class/python-distutils.mk
-include /usr/share/cdbs/1/rules/debhelper.mk
+DEB_PYTHON_SYSTEM := pycentral
+export DH_PYCENTRAL=include-links
 
-binary-install/cloud-init::
+binary-install/cloud-init::cloud-init-fixups
+
+include /usr/share/cdbs/1/rules/debhelper.mk
+include /usr/share/cdbs/1/class/python-distutils.mk
+
+DEB_DH_INSTALL_SOURCEDIR := debian/tmp
+
+cloud-init-fixups:
 	for x in $(DEB_DESTDIR)/usr/bin/*.py; do mv "$$x" "$${x%.py}"; done
-	mkdir -p $(DEB_DESTDIR)/etc/update-motd.d
+	install -d $(DEB_DESTDIR)/etc/update-motd.d
 	cp tools/motd-hook $(DEB_DESTDIR)/etc/update-motd.d/92-uec-upgrade-available
