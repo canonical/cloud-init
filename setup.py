@@ -22,7 +22,7 @@ from glob import glob
 import os.path
 import subprocess
 
-setup(name='EC2-init',
+setup(name='cloud-init',
       version='0.5.5',
       description='EC2 initialisation magic',
       author='Scott Moser',
