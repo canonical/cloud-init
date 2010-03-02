@@ -318,3 +318,13 @@ class CloudInit:
 
     def device_name_to_device(self,name):
         return(self.datasource.device_name_to_device(name))
+
+
+def purge_cache():
+    try:
+        os.unlink(data_source_cache)
+    except OSError as e:
+        if e.errno != errno.ENOENT: return(False)
+    except:
+        return(False)
+    return(True)
