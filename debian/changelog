@@ -1,3 +1,12 @@
+cloud-init (0.5.8-0ubuntu1) lucid; urgency=low
+
+  * New upstream release.
+  * cache data from metadata service, LP: #527364
+  * fix format of cron entry in cron.d/cloudinit-updates
+  * package egg-info file
+
+ -- Scott Moser <smoser@ubuntu.com>  Tue, 02 Mar 2010 15:48:04 -0500
+
 cloud-init (0.5.7-0ubuntu4) lucid; urgency=low
 
   * fix empty package previous package was emptpy for cloud-init

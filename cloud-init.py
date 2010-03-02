@@ -26,6 +26,9 @@ def warn(str):
     sys.stderr.write(str)
 
 def main():
+    # cache is not instance specific, so it has to be purged
+    cloudinit.purge_cache()
+
     cloud = cloudinit.CloudInit()
 
     try:

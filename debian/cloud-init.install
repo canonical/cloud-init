@@ -3,4 +3,5 @@ etc/init/*.conf
 etc/update-motd.d/*
 usr/bin
 usr/lib/python*/*-packages/cloudinit
+usr/lib/python*/*-packages/*egg-info
 usr/share/doc/cloud-init

@@ -22,8 +22,8 @@ from glob import glob
 import os.path
 import subprocess
 
-setup(name='EC2-init',
-      version='0.5.6',
+setup(name='cloud-init',
+      version='0.5.8',
       description='EC2 initialisation magic',
       author='Scott Moser',
       author_email='scott.moser@canonical.com',

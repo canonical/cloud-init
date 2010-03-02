@@ -104,8 +104,15 @@ class CloudInit:
 
     def write_to_cache(self):
         try:
+            os.makedirs(os.path.dirname(data_source_cache))
+        except OSError as e:
+            if e.errno != errno.EEXIST:
+                return False
+                
+        try:
             f=open(data_source_cache, "wb")
             data = cPickle.dump(self.datasource,f)
+            os.chmod(data_source_cache,0400)
             return True
         except:
             return False
@@ -311,3 +318,13 @@ class CloudInit:
 
     def device_name_to_device(self,name):
         return(self.datasource.device_name_to_device(name))
+
+
+def purge_cache():
+    try:
+        os.unlink(data_source_cache)
+    except OSError as e:
+        if e.errno != errno.ENOENT: return(False)
+    except:
+        return(False)
+    return(True)
