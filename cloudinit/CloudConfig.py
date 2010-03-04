@@ -79,18 +79,18 @@ class CloudConfig():
     def get_handler_info(self, name):
         return(self.handlers[name]['handler'], self.handlers[name]['freq'])
 
-	def parse_ssh_keys(self):
-		disableRoot = self.cfg['disable_root']
-		if disableRoot == 'true':
-			value = 'disabled_root'
-			return value
-		else:
-			ec2Key = self.cfg['ec2_fetch_key']
-			if ec2Key != 'none':
-				value = 'default_key'
-				return value
-			else:
-				return ec2Key
+    def parse_ssh_keys(self):
+        disableRoot = self.cfg['disable_root']
+        if disableRoot == 'true':
+            value = 'disabled_root'
+            return value
+        else:
+            ec2Key = self.cfg['ec2_fetch_key']
+            if ec2Key != 'none':
+                value = 'default_key'
+                return value
+            else:
+                return ec2Key
 
     def handle(self, name, args):
         handler = None
@@ -128,7 +128,7 @@ class CloudConfig():
 
         if update or upgrade or pkglist:
             #retcode = subprocess.call(list)
-		    subprocess.Popen(['apt-get', 'update']).communicate()
+            subprocess.Popen(['apt-get', 'update']).communicate()
 
         e=os.environ.copy()
         e['DEBIAN_FRONTEND']='noninteractive'
