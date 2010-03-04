@@ -323,7 +323,9 @@ class CloudConfig():
         for defmnt in defmnts:
             devname = self.cloud.device_name_to_device(defmnt[0])
             if devname is None: continue
-            if not devname.startswith("/"):
+            if devname.startswith("/"):
+                defmnt[0] = devname
+            else:
                 defmnt[0] = "/dev/%s" % devname
 
             cfgmnt_has = False
