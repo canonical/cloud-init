@@ -26,6 +26,8 @@ import os
 import glob
 import sys
 import time
+import re
+import string
 
 per_instance="once-per-instance"
 cronpre = "/etc/cron.d/cloudinit"
@@ -344,15 +346,33 @@ class CloudConfig():
     
         if len(actlist) == 0: return
     
+        comment="comment=cloudconfig"
+        cc_lines = [ ]
         needswap = False
         dirs = [ ]
-
-        fstab=file("/etc/fstab","ab")
-        fstab.write("# cloud-config mounts\n")
         for line in actlist:
-            fstab.write('\t'.join(line) + "\n")
+            # write 'comment' in the fs_mntops, entry,  claiming this
+            line[3]="%s,comment=cloudconfig" % line[3]
             if line[2] == "swap": needswap = True
             if line[1].startswith("/"): dirs.append(line[1])
+            cc_lines.append('\t'.join(line))
+
+        fstab_lines = [ ]
+        fstab=open("/etc/fstab","r+")
+        ws = re.compile("[%s]+" % string.whitespace)
+        for line in fstab.read().splitlines():
+            try:
+                toks = ws.split(line)
+                if toks[3].find(comment) != -1: continue
+            except:
+                pass
+            fstab_lines.append(line)
+
+        fstab_lines.extend(cc_lines)
+            
+        fstab.seek(0)
+        fstab.write("%s\n" % '\n'.join(fstab_lines))
+        fstab.truncate()
         fstab.close()
     
         if needswap:
