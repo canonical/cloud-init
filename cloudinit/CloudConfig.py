@@ -276,8 +276,8 @@ class CloudConfig():
 
             # workaround, allow user to specify 'ephemeral'
             # rather than more ec2 correct 'ephemeral0'
-            if cfgmnt[i] == "ephemeral":
-                cfgmnt[i] = "ephemeral0"
+            if cfgmnt[i][0] == "ephemeral":
+                cfgmnt[i][0] = "ephemeral0"
 
             newname = cfgmnt[i][0]
             if not newname.startswith("/"):
