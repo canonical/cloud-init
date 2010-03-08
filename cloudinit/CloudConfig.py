@@ -26,6 +26,8 @@ import os
 import glob
 import sys
 import time
+import re
+import string
 
 per_instance="once-per-instance"
 cronpre = "/etc/cron.d/cloudinit"
@@ -79,18 +81,18 @@ class CloudConfig():
     def get_handler_info(self, name):
         return(self.handlers[name]['handler'], self.handlers[name]['freq'])
 
-	def parse_ssh_keys(self):
-		disableRoot = self.cfg['disable_root']
-		if disableRoot == 'true':
-			value = 'disabled_root'
-			return value
-		else:
-			ec2Key = self.cfg['ec2_fetch_key']
-			if ec2Key != 'none':
-				value = 'default_key'
-				return value
-			else:
-				return ec2Key
+    def parse_ssh_keys(self):
+        disableRoot = self.cfg['disable_root']
+        if disableRoot == 'true':
+            value = 'disabled_root'
+            return value
+        else:
+            ec2Key = self.cfg['ec2_fetch_key']
+            if ec2Key != 'none':
+                value = 'default_key'
+                return value
+            else:
+                return ec2Key
 
     def handle(self, name, args):
         handler = None
@@ -113,6 +115,9 @@ class CloudConfig():
             else:
                 mirror = self.cloud.get_mirror()
             generate_sources_list(mirror)
+            old_mir = util.get_cfg_option_str(self.cfg,'apt_old_mirror', \
+                "archive.ubuntu.com/ubuntu")
+            rename_apt_lists(old_mir, mirror)
 
         # process 'apt_sources'
         if self.cfg.has_key('apt_sources'):
@@ -128,7 +133,7 @@ class CloudConfig():
 
         if update or upgrade or pkglist:
             #retcode = subprocess.call(list)
-		    subprocess.Popen(['apt-get', 'update']).communicate()
+            subprocess.Popen(['apt-get', 'update']).communicate()
 
         e=os.environ.copy()
         e['DEBIAN_FRONTEND']='noninteractive'
@@ -276,8 +281,8 @@ class CloudConfig():
 
             # workaround, allow user to specify 'ephemeral'
             # rather than more ec2 correct 'ephemeral0'
-            if cfgmnt[i] == "ephemeral":
-                cfgmnt[i] = "ephemeral0"
+            if cfgmnt[i][0] == "ephemeral":
+                cfgmnt[i][0] = "ephemeral0"
 
             newname = cfgmnt[i][0]
             if not newname.startswith("/"):
@@ -323,7 +328,9 @@ class CloudConfig():
         for defmnt in defmnts:
             devname = self.cloud.device_name_to_device(defmnt[0])
             if devname is None: continue
-            if not devname.startswith("/"):
+            if devname.startswith("/"):
+                defmnt[0] = devname
+            else:
                 defmnt[0] = "/dev/%s" % devname
 
             cfgmnt_has = False
@@ -342,15 +349,33 @@ class CloudConfig():
     
         if len(actlist) == 0: return
     
+        comment="comment=cloudconfig"
+        cc_lines = [ ]
         needswap = False
         dirs = [ ]
-
-        fstab=file("/etc/fstab","ab")
-        fstab.write("# cloud-config mounts\n")
         for line in actlist:
-            fstab.write('\t'.join(line) + "\n")
+            # write 'comment' in the fs_mntops, entry,  claiming this
+            line[3]="%s,comment=cloudconfig" % line[3]
             if line[2] == "swap": needswap = True
             if line[1].startswith("/"): dirs.append(line[1])
+            cc_lines.append('\t'.join(line))
+
+        fstab_lines = [ ]
+        fstab=open("/etc/fstab","r+")
+        ws = re.compile("[%s]+" % string.whitespace)
+        for line in fstab.read().splitlines():
+            try:
+                toks = ws.split(line)
+                if toks[3].find(comment) != -1: continue
+            except:
+                pass
+            fstab_lines.append(line)
+
+        fstab_lines.extend(cc_lines)
+            
+        fstab.seek(0)
+        fstab.write("%s\n" % '\n'.join(fstab_lines))
+        fstab.truncate()
         fstab.close()
     
         if needswap:
@@ -517,3 +542,22 @@ def handle_runcmd(cfg):
         util.write_file(outfile,content,0700)
     except:
         warn("failed to open %s for runcmd" % outfile)
+
+def mirror2lists_fileprefix(mirror):
+    file=mirror
+    # take of http:// or ftp://
+    if file.endswith("/"): file=file[0:-1]
+    pos=file.find("://")
+    if pos >= 0:
+        file=file[pos+3:]
+    file=file.replace("/","_")
+    return file
+
+def rename_apt_lists(omirror,new_mirror,lists_d="/var/lib/apt/lists"):
+    
+    oprefix="%s/%s" % (lists_d,mirror2lists_fileprefix(omirror))
+    nprefix="%s/%s" % (lists_d,mirror2lists_fileprefix(new_mirror))
+    if(oprefix==nprefix): return
+    olen=len(oprefix)
+    for file in glob.glob("%s_*" % oprefix):
+        os.rename(file,"%s%s" % (nprefix, file[olen:]))

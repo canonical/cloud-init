@@ -1,3 +1,12 @@
+cloud-init (0.5.9-0ubuntu1) lucid; urgency=low
+
+  * New upstream release.
+  * rename apt list files. 'ubuntu-bug' now works without update (LP: #513060)
+  * replace 'cloudconfig' entries in fstab rather than appending (LP: #524562)
+  * fix to fstab writing on ebs-root instances
+
+ -- Scott Moser <smoser@ubuntu.com>  Mon, 08 Mar 2010 13:07:02 -0500
+
 cloud-init (0.5.8-0ubuntu1) lucid; urgency=low
 
   * New upstream release.
