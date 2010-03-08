@@ -23,7 +23,7 @@ import os.path
 import subprocess
 
 setup(name='cloud-init',
-      version='0.5.8',
+      version='0.5.9',
       description='EC2 initialisation magic',
       author='Scott Moser',
       author_email='scott.moser@canonical.com',
