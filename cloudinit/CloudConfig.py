@@ -115,6 +115,9 @@ class CloudConfig():
             else:
                 mirror = self.cloud.get_mirror()
             generate_sources_list(mirror)
+            old_mir = util.get_cfg_option_str(self.cfg,'apt_old_mirror', \
+                "archive.ubuntu.com/ubuntu")
+            rename_apt_lists(old_mir, mirror)
 
         # process 'apt_sources'
         if self.cfg.has_key('apt_sources'):
@@ -539,3 +542,22 @@ def handle_runcmd(cfg):
         util.write_file(outfile,content,0700)
     except:
         warn("failed to open %s for runcmd" % outfile)
+
+def mirror2lists_fileprefix(mirror):
+    file=mirror
+    # take of http:// or ftp://
+    if file.endswith("/"): file=file[0:-1]
+    pos=file.find("://")
+    if pos >= 0:
+        file=file[pos+3:]
+    file=file.replace("/","_")
+    return file
+
+def rename_apt_lists(omirror,new_mirror,lists_d="/var/lib/apt/lists"):
+    
+    oprefix="%s/%s" % (lists_d,mirror2lists_fileprefix(omirror))
+    nprefix="%s/%s" % (lists_d,mirror2lists_fileprefix(new_mirror))
+    if(oprefix==nprefix): return
+    olen=len(oprefix)
+    for file in glob.glob("%s_*" % oprefix):
+        os.rename(file,"%s%s" % (nprefix, file[olen:]))
