@@ -61,7 +61,7 @@ def main():
     parser.add_option('--block-device', dest='block', action='store_true', help='Display the block device id.')
     parser.add_option('--instance-id', dest='id', action='store_true', help='Display the instance id.')
     parser.add_option('--instance-type', dest='type', action='store_true', help='Display the instance type.')
-        parser.add_option('--local-hostname', dest='lhostname', action='store_true', help='Display the local hostname.')
+    parser.add_option('--local-hostname', dest='lhostname', action='store_true', help='Display the local hostname.')
     parser.add_option('--local-ipv4', dest='lipv4', action='store_true', help='Display the local ipv4 IP address.')
     parser.add_option('--kernel-id', dest='aki', action='store_true', help='List the AKI.')
     parser.add_option('--product-codes', dest='code', action='store_true', help='List the product codes associated with thsi AMI.')
