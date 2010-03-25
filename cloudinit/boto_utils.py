@@ -54,10 +54,10 @@ def retry_url(url, retry_on_404=True):
         except:
             pass
         #boto.log.exception('Caught exception reading instance data')
-        sys.stderr.write('Caught exception reading instance data')
+        sys.stderr.write('Caught exception reading instance data: %s\n' % url)
         time.sleep(2**i)
     #boto.log.error('Unable to read instance data, giving up')
-    sys.stderr.write('Caught exception reading instance data, giving up')
+    sys.stderr.write('Caught exception reading instance data, giving up\n')
     return ''
 
 def get_instance_metadata(version='latest'):
