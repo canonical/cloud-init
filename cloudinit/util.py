@@ -28,7 +28,8 @@ def read_conf(fname):
 def get_cfg_option_bool(yobj, key, default=False):
     if not yobj.has_key(key): return default
     val = yobj[key]
-    if yobj[key] in [ True, '1', 'on', 'yes', 'true']:
+    if val is True: return True
+    if str(val).lower() in [ 'true', '1', 'on', 'yes']:
         return True
     return False
 
