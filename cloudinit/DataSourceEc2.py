@@ -20,6 +20,7 @@ import cloudinit
 import socket
 import urllib2
 import time
+import sys
 import boto_utils
 
 class DataSourceEc2(DataSource.DataSource):
@@ -100,20 +101,37 @@ class DataSourceEc2(DataSource.DataSource):
         except:
             return 'http://archive.ubuntu.com/ubuntu/'
 
-    def wait_for_metadata_service(self, sleeps = 10):
+
+    def wait_for_metadata_service(self, sleeps = 100):
         sleeptime = 1
+        address = '169.254.169.254'
+        starttime = time.time()
+    
+        url="http://%s/%s/meta-data/instance-id" % (address,self.api_ver)
         for x in range(sleeps):
-            s = socket.socket()
+            # given 100 sleeps, this ends up total sleep time of 1050 sec
+            sleeptime=int(x/5)+1
+
+            reason = ""
             try:
-                address = '169.254.169.254'
-                port = 80
-                s.connect((address,port))
-                s.close()
-                return True
-            except socket.error, e:
-                print "sleeping %s" % sleeptime
-                time.sleep(sleeptime)
-                #timeout = timeout * 2
+                req = urllib2.Request(url)
+                resp = urllib2.urlopen(req, timeout=2)
+                if resp.read() != "": return True
+                reason = "empty data [%s]" % resp.getcode()
+            except urllib2.HTTPError, e:
+                reason = "http error [%s]" % e.code
+            except urllib2.URLError, e:
+                reason = "url error [%s]" % e.reason
+    
+            if x == 0:
+               sys.stderr.write("waiting for metadata service at %s\n" % url)
+
+            sys.stderr.write("  %s [%02s/%s]: %s\n" %
+                             (time.strftime("%H:%M:%S"), x+1, sleeps, reason))
+            time.sleep(sleeptime)
+
+        sys.stderr.write("giving up on md after %i seconds\n" %
+                         int(time.time()-starttime))
         return False
 
     def get_public_ssh_keys(self):
