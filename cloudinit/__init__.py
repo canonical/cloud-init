@@ -1,3 +1,4 @@
+# vi: ts=4 expandtab
 #
 #    Common code for the EC2 initialisation scripts in Ubuntu
 #    Copyright (C) 2008-2009 Canonical Ltd

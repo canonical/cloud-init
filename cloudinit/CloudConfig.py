@@ -1,3 +1,4 @@
+# vi: ts=4 expandtab
 #
 #    Copyright (C) 2008-2010 Canonical Ltd.
 #
