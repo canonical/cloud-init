@@ -1,4 +1,5 @@
 #!/usr/bin/python
+# vi: ts=4 expandtab
 #
 #    Distutils magic for ec2-init
 #    Copyright (C) 2009 Canonical Ltd.

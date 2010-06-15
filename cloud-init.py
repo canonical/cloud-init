@@ -1,4 +1,5 @@
 #!/usr/bin/python
+# vi: ts=4 expandtab
 #
 #    Copyright (C) 2009-2010 Canonical Ltd.
 #
