@@ -33,9 +33,12 @@ def read_conf(fname):
             return { }
         raise
 
-def get_base_cfg(cfgfile=cloudinit.system_config):
+def get_base_cfg(cfgfile,cfg_builtin=""):
     syscfg = read_conf(cfgfile)
-    builtin = yaml.load(cloudinit.cfg_builtin)
+    if cfg_builtin:
+        builtin = yaml.load(cfg_builtin)
+    else:
+        return(syscfg)
     return(mergedict(syscfg,builtin))
 
 def get_cfg_option_bool(yobj, key, default=False):
