@@ -123,7 +123,7 @@ log = logging.getLogger(logger_name)
 log.addHandler(NullHandler())
 
 def logging_set_from_cfg_file(cfg_file=system_config):
-    logging_set_from_cfg(util.get_base_cfg(cfg_file))
+    logging_set_from_cfg(util.get_base_cfg(cfg_file,cfg_builtin))
 
 def logging_set_from_cfg(cfg, logfile=None):
     if logfile is None:
@@ -181,15 +181,7 @@ class CloudInit:
         if self.cfg:
             return(self.cfg)
 
-        conf = { }
-        try:
-	        stream = file(self.sysconfig)
-	        conf = yaml.load(stream)
-	        stream.close()
-        except:
-            pass
-            
-        if conf is None: conf = { }
+        conf = util.get_base_cfg(system_config,cfg_builtin)
 
         # support reading the old ConfigObj format file and merging
         # it into the yaml dictionary
@@ -200,9 +192,6 @@ class CloudInit:
             conf = util.mergedict(conf,oldcfg)
         except:
             pass
-
-        if not conf.has_key("cloud_type"):
-            conf["cloud_type"]=None
 
         return(conf)
 
