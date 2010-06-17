@@ -19,6 +19,9 @@
 
 import sys
 import cloudinit
+import cloudinit.CloudConfig
+import logging
+import os
 
 def Usage(out = sys.stdout):
     out.write("Usage: %s name\n" % sys.argv[0])
@@ -33,8 +36,11 @@ def main():
     name=sys.argv[1]
     run_args=sys.argv[2:]
 
-    import cloudinit.CloudConfig
-    import os
+    cloudinit.logging_set_from_cfg_file()
+    log = logging.getLogger()
+    log.info("cloud-init-cfg %s" % sys.argv[1:])
+
+    cloud = cloudinit.CloudInit()
 
     cfg_path = cloudinit.cloud_config
     cfg_env_name = cloudinit.cfg_env_name

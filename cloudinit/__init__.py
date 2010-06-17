@@ -18,17 +18,6 @@
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-import os
-from   configobj import ConfigObj
-
-import cPickle
-import sys
-import os.path
-import errno
-import pwd
-import subprocess
-import yaml
-
 datadir = '/var/lib/cloud/data'
 semdir = '/var/lib/cloud/sem'
 pluginsdir = datadir + '/plugins'
@@ -41,9 +30,133 @@ data_source_cache = cachedir + '/obj.pkl'
 system_config = '/etc/cloud/cloud.cfg'
 cfg_env_name = "CLOUD_CFG"
 
+cfg_builtin = """
+cloud_type: auto
+user: ubuntu
+disable_root: 1
+
+cloud_config_modules:
+ - apt-update-upgrade
+ - config-misc
+ - config-mounts
+ - config-puppet
+ - config-ssh
+ - disable-ec2-metadata
+
+log_cfg: built_in
+"""
+
+def_log_file = '/var/log/cloud-init.log'
+logger_name = "cloudinit"
+
+built_in_log_base = """
+[loggers]
+keys=root,cloudinit
+
+[handlers]
+keys=consoleHandler,cloudLogHandler
+
+[formatters]
+keys=simpleFormatter,arg0Formatter
+
+[logger_root]
+level=DEBUG
+handlers=consoleHandler,cloudLogHandler
+
+[logger_cloudinit]
+level=DEBUG
+qualname=cloudinit
+handlers=
+propagate=1
+
+[handler_consoleHandler]
+class=StreamHandler
+level=WARNING
+formatter=arg0Formatter
+args=(sys.stderr,)
+
+[formatter_arg0Formatter]
+format=%(asctime)s - %(filename)s[%(levelname)s]: %(message)s
+
+[formatter_simpleFormatter]
+format=[CLOUDINIT] %(asctime)s - %(filename)s[%(levelname)s]: %(message)s
+datefmt=
+
+"""
+
+built_in_log_clougLogHandlerLog="""
+[handler_cloudLogHandler]
+class=FileHandler
+level=DEBUG
+formatter=simpleFormatter
+args=('__CLOUDINIT_LOGGER_FILE__',)
+"""
+
+built_in_log_cloudLogHandlerSyslog= """
+[handler_cloudLogHandler]
+class=handlers.SysLogHandler
+level=DEBUG
+formatter=simpleFormatter
+args=("/dev/log", handlers.SysLogHandler.LOG_USER)
+"""
+
+
+import os
+from   configobj import ConfigObj
+
+import cPickle
+import sys
+import os.path
+import errno
+import pwd
+import subprocess
+import yaml
+import util
+import logging
+import logging.config
+import StringIO
+
+class NullHandler(logging.Handler):
+	def emit(self,record): pass
+
+log = logging.getLogger(logger_name)
+log.addHandler(NullHandler())
+
+def logging_set_from_cfg_file(cfg_file=system_config):
+    logging_set_from_cfg(util.get_base_cfg(cfg_file))
+
+def logging_set_from_cfg(cfg, logfile=None):
+    if logfile is None:
+        try:
+            open(def_log_file,"a").close()
+            logfile = def_log_file
+        except IOError as e:
+            if e.errno == errno.EACCES:
+                logfile = "/dev/null"
+            else: raise
+    
+    logcfg=util.get_cfg_option_str(cfg, "log_cfg", "built_in")
+    failsafe = "%s\n%s" % (built_in_log_base, built_in_log_clougLogHandlerLog)
+    builtin = False
+    if logcfg.lower() == "built_in":
+        logcfg = "%s\n%s" % (built_in_log_base, built_in_log_cloudLogHandlerSyslog)
+        builtin = True
+
+    logcfg=logcfg.replace("__CLOUDINIT_LOGGER_FILE__",logfile)
+    try:
+        logging.config.fileConfig(StringIO.StringIO(logcfg))
+        print "using logfile = %s" % logcfg
+        return
+    except:
+        if not builtin:
+            sys.stderr.write("Warning, setting config.fileConfig failed\n")
+
+    print "trying with failsafe"
+    failsafe=failsafe.replace("__CLOUDINIT_LOGGER_FILE__",logfile)
+    logging.config.fileConfig(StringIO.StringIO(failsafe))
+
 import DataSourceEc2
 import UserDataHandler
-import util
 
 class CloudInit:
     datasource_map = {
@@ -56,13 +169,14 @@ class CloudInit:
     part_handlers = { }
     old_conffile = '/etc/ec2-init/ec2-config.cfg'
 
-    def __init__(self):
+    def __init__(self, sysconfig=system_config):
         self.part_handlers = {
             'text/x-shellscript' : self.handle_user_script,
             'text/cloud-config' : self.handle_cloud_config,
             'text/upstart-job' : self.handle_upstart_job,
             'text/part-handler' : self.handle_handler
         }
+        self.sysconfig=sysconfig
         self.cfg=self.read_cfg()
 
     def read_cfg(self):
@@ -71,7 +185,7 @@ class CloudInit:
 
         conf = { }
         try:
-	        stream = file(system_config)
+	        stream = file(self.sysconfig)
 	        conf = yaml.load(stream)
 	        stream.close()
         except:
@@ -142,9 +256,11 @@ class CloudInit:
                 if s.get_data():
                     self.datasource = s
                     self.datasource_name = ds
+                    log.debug("found data source %s" % ds)
                     return True
             except Exception as e:
                 pass
+        log.critical("Could not find data source")
         raise Exception("Could not find data source")
 
     def get_userdata(self):

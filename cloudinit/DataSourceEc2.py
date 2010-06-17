@@ -126,14 +126,14 @@ class DataSourceEc2(DataSource.DataSource):
                 reason = "url error [%s]" % e.reason
     
             if x == 0:
-               sys.stderr.write("waiting for metadata service at %s\n" % url)
+                cloudinit.log.warning("waiting for metadata service at %s\n" % url)
 
-            sys.stderr.write("  %s [%02s/%s]: %s\n" %
-                             (time.strftime("%H:%M:%S"), x+1, sleeps, reason))
+            cloudinit.log.warning("  %s [%02s/%s]: %s\n" %
+                (time.strftime("%H:%M:%S"), x+1, sleeps, reason))
             time.sleep(sleeptime)
 
-        sys.stderr.write("giving up on md after %i seconds\n" %
-                         int(time.time()-starttime))
+        log.critical("giving up on md after %i seconds\n" %
+                  int(time.time()-starttime))
         return False
 
     def get_public_ssh_keys(self):
