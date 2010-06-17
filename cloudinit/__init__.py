@@ -145,13 +145,11 @@ def logging_set_from_cfg(cfg, logfile=None):
     logcfg=logcfg.replace("__CLOUDINIT_LOGGER_FILE__",logfile)
     try:
         logging.config.fileConfig(StringIO.StringIO(logcfg))
-        print "using logfile = %s" % logcfg
         return
     except:
         if not builtin:
             sys.stderr.write("Warning, setting config.fileConfig failed\n")
 
-    print "trying with failsafe"
     failsafe=failsafe.replace("__CLOUDINIT_LOGGER_FILE__",logfile)
     logging.config.fileConfig(StringIO.StringIO(failsafe))
 
