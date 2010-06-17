@@ -20,12 +20,23 @@ import os
 import errno
 import subprocess
 from Cheetah.Template import Template
+import cloudinit
 
 def read_conf(fname):
-	stream = file(fname)
-	conf = yaml.load(stream)
-	stream.close()
-	return conf
+    try:
+	    stream = open(fname,"r")
+	    conf = yaml.load(stream)
+	    stream.close()
+	    return conf
+    except IOError as e:
+        if e.errno == errno.ENOENT:
+            return { }
+        raise
+
+def get_base_cfg(cfgfile=cloudinit.system_config):
+    syscfg = read_conf(cfgfile)
+    builtin = yaml.load(cloudinit.cfg_builtin)
+    return(mergedict(syscfg,builtin))
 
 def get_cfg_option_bool(yobj, key, default=False):
     if not yobj.has_key(key): return default

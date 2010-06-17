@@ -23,6 +23,7 @@ import sys
 import cloudinit
 import cloudinit.util as util
 import time
+import logging
 
 def warn(str):
     sys.stderr.write(str)
@@ -37,8 +38,13 @@ def main():
        warn("unable to open /proc/uptime\n")
        uptime = "na"
 
-    sys.stderr.write("cloud-init running: %s. up %s seconds\n" % (now, uptime))
+    msg = "cloud-init running: %s. up %s seconds\n" % (now, uptime)
+    sys.stderr.write(msg)
     sys.stderr.flush()
+
+    cloudinit.logging_set_from_cfg_file()
+    log = logging.getLogger()
+    log.info(msg)
 
     # cache is not instance specific, so it has to be purged
     cloudinit.purge_cache()
