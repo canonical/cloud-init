@@ -1,5 +1,6 @@
 import cloudinit.util as util
 import subprocess
+import traceback
 import os
 
 def handle(name,cfg,cloud,log,args):
@@ -22,6 +23,15 @@ def handle(name,cfg,cloud,log,args):
         errors = add_sources(cfg['apt_sources'])
         for e in errors:
             log.warn("Source Error: %s\n" % ':'.join(e))
+
+    dconf_sel = util.get_cfg_option_str(cfg, 'debconf_selections', False)
+    if dconf_sel:
+        log.debug("setting debconf selections per cloud config")
+        try:
+            util.subp(('debconf-set-selections', '-'), dconf_sel)
+        except:
+            log.error("Failed to run debconf-set-selections")
+            log.debug(traceback.format_exc())
 
     pkglist = []
     if 'packages' in cfg:

@@ -212,3 +212,17 @@ cloud_config_modules:
 #  can easily be imported into the configured user
 # This can be a single string ('smoser') or a list ([smoser, kirkland])
 ssh_import_id: [smoser]
+
+# Provide debconf answers
+#
+# See debconf-set-selections man page.
+#
+# Default: none
+# 
+debconf_selections: |     # Need to perserve newlines
+        # Force debconf priority to critical.
+        debconf debconf/priority select critical
+
+        # Override default frontend to readline, but allow user to select.
+        debconf debconf/frontend select readline
+        debconf debconf/frontend seen false
