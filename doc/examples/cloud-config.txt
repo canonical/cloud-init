@@ -205,3 +205,10 @@ cloud_config_modules:
  - config-puppet
  - config-ssh
  - disable-ec2-metadata
+
+# ssh_import_id: [ user1, user2 ]
+# ssh_import_id will feed the list in that variable to
+#  ssh-import-lp-id, so that public keys stored in launchpad
+#  can easily be imported into the configured user
+# This can be a single string ('smoser') or a list ([smoser, kirkland])
+ssh_import_id: [smoser]

@@ -39,6 +39,7 @@ disable_root: 1
 
 cloud_config_modules:
  - mounts
+ - ssh-import-id
  - ssh
  - apt-update-upgrade
  - puppet
