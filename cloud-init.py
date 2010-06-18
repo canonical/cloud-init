@@ -38,8 +38,8 @@ def main():
        warn("unable to open /proc/uptime\n")
        uptime = "na"
 
-    msg = "cloud-init running: %s. up %s seconds\n" % (now, uptime)
-    sys.stderr.write(msg)
+    msg = "cloud-init running: %s. up %s seconds" % (now, uptime)
+    sys.stderr.write(msg + "\n")
     sys.stderr.flush()
 
     cloudinit.logging_set_from_cfg_file()
