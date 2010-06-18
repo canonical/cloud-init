@@ -18,18 +18,3 @@ apt_conf:
  - content: |
     DPkg::Pre-Install-Pkgs:: "/usr/sbin/dpkg-preconfigure --apt -p critical|| true";
 
-# Provide debconf answers
-#
-# See debconf-set-selections man page.
-#
-# Default: none
-# 
-debconf_selections: |     # Need to perserve newlines
-        # Force debconf priority to critical.
-        debconf debconf/priority select critical
-
-        # Override default frontend to readline, but allow user to select.
-        debconf debconf/frontend select readline
-        debconf debconf/frontend seen false
- 
-
