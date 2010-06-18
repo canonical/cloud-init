@@ -25,6 +25,7 @@ cachedir = datadir + '/cache'
 userdata_raw = datadir + '/user-data.txt'
 userdata = datadir + '/user-data.txt.i'
 user_scripts_dir = datadir + "/scripts"
+boothooks_dir = datadir + "/boothooks"
 cloud_config = datadir + '/cloud-config.txt'
 #cloud_config = '/tmp/cloud-config.txt'
 data_source_cache = cachedir + '/obj.pkl'
@@ -174,7 +175,8 @@ class CloudInit:
             'text/x-shellscript' : self.handle_user_script,
             'text/cloud-config' : self.handle_cloud_config,
             'text/upstart-job' : self.handle_upstart_job,
-            'text/part-handler' : self.handle_handler
+            'text/part-handler' : self.handle_handler,
+            'text/cloud-boothook' : self.handle_cloud_boothook
         }
         self.sysconfig=sysconfig
         self.cfg=self.read_cfg()
@@ -411,6 +413,39 @@ class CloudInit:
             return
 
         self.cloud_config_str+="\n#%s\n%s" % (filename,payload)
+
+    def handle_cloud_boothook(self,data,ctype,filename,payload):
+        if ctype == "__end__": return
+        if ctype == "__begin__": return
+
+        filename=filename.replace(os.sep,'_')
+        prefix="#cloud-boothooks"
+        dos=False
+        start = 0
+        if payload.startswith(prefix):
+            start = len(prefix)+1
+            if payload[start] == '\r':
+                start=start+1
+                dos = True
+        else:
+            if payload.find('\r\n',0,100) >= 0:
+                dos = True
+    
+        if dos:
+            payload=payload[start:].replace('\r\n','\n')
+        elif start != 0:
+            payload=payload[start:]
+    
+        filepath = "%s/%s" % (boothooks_dir,filename)
+        util.write_file(filepath, payload, 0700)
+        try:
+            ret = subprocess.check_call([filepath])
+        except subprocess.CalledProcessError as e:
+            log.error("boothooks script %s returned %i" %
+                (filepath,e.returncode))
+        except Exception as e:
+            log.error("boothooks unknown exception %s when running %s" %
+                (e,filepath))
 
     def get_public_ssh_keys(self):
         return(self.datasource.get_public_ssh_keys())

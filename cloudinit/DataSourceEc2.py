@@ -40,6 +40,7 @@ class DataSourceEc2(DataSource.DataSource):
 
     def get_data(self):
         try:
+            cloudinit.log.info("looking at %s/user-data.raw" % self.cachedir)
             udf = open(self.cachedir + "/user-data.raw")
             self.userdata_raw = udf.read()
             udf.close()
@@ -132,7 +133,7 @@ class DataSourceEc2(DataSource.DataSource):
                 (time.strftime("%H:%M:%S"), x+1, sleeps, reason))
             time.sleep(sleeptime)
 
-        log.critical("giving up on md after %i seconds\n" %
+        cloudinit.log.critical("giving up on md after %i seconds\n" %
                   int(time.time()-starttime))
         return False
 
