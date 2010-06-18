@@ -26,6 +26,7 @@ userdata_raw = datadir + '/user-data.txt'
 userdata = datadir + '/user-data.txt.i'
 user_scripts_dir = datadir + "/scripts"
 cloud_config = datadir + '/cloud-config.txt'
+#cloud_config = '/tmp/cloud-config.txt'
 data_source_cache = cachedir + '/obj.pkl'
 system_config = '/etc/cloud/cloud.cfg'
 cfg_env_name = "CLOUD_CFG"
@@ -36,12 +37,13 @@ user: ubuntu
 disable_root: 1
 
 cloud_config_modules:
+ - mounts
+ - ssh
  - apt-update-upgrade
- - config-misc
- - config-mounts
- - config-puppet
- - config-ssh
+ - puppet
+ - updates-check
  - disable-ec2-metadata
+ - runcmd
 
 log_cfg: built_in
 """
@@ -316,7 +318,9 @@ class CloudInit:
     # if 'clear_on_fail' is True and func throws an exception
     #  then remove the lock (so it would run again)
     def sem_and_run(self,semname,freq,func,args=[],clear_on_fail=False):
-        if self.sem_has_run(semname,freq): return
+        if self.sem_has_run(semname,freq):
+            log.debug("%s already ran %s", semname, freq)
+            return
         try:
             if not self.sem_acquire(semname,freq):
                 raise Exception("Failed to acquire lock on %s\n" % semname)
