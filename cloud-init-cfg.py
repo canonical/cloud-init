@@ -28,7 +28,7 @@ def Usage(out = sys.stdout):
     
 def main():
     # expect to be called with
-    #   name [ args ]
+    #   name [ freq [ args ]
     #   run the cloud-config job 'name' at with given args
     # or
     #   read cloud config jobs from config (builtin -> system)
@@ -37,9 +37,18 @@ def main():
     if len(sys.argv) < 2:
         Usage(sys.stderr)
         sys.exit(1)
-
-    name=sys.argv[1]
-    run_args=sys.argv[2:]
+    if sys.argv[1] == "all":
+        name = "all"
+    else:
+        freq = None
+        run_args = []
+        name=sys.argv[1]
+        if len(sys.argv) > 2:
+            freq = sys.argv[2]
+            if freq == "None":
+                freq = None
+        if len(sys.argv) > 3:
+            run_args=sys.argv[3:]
 
     cloudinit.logging_set_from_cfg_file()
     log = logging.getLogger()
@@ -69,8 +78,7 @@ def main():
         else:
             fail("No cloud_config_modules found in config",log)
     else:
-        args = [ name, None ] + run_args
-        module_list.append = ( args )
+        module_list.append( [ name, freq ] + run_args )
 
     failures = []
     for cfg_mod in module_list:
@@ -84,14 +92,12 @@ def main():
 
         try:
             log.debug("handling %s with freq=%s and args=%s" %
-                (name, run_args, freq))
+                (name, freq, run_args ))
             cc.handle(name, run_args, freq=freq)
         except:
-            import traceback
-            traceback.print_exc(file=sys.stderr)
-            err("config handling of %s failed\n" % name,log)
+            err("config handling of %s, %s, %s failed\n" %
+                (name,freq,run_args), log)
             failures.append(name)
-            sys.exit(len(failures))
 
     sys.exit(len(failures))
 
