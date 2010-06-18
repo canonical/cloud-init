@@ -439,7 +439,9 @@ class CloudInit:
         filepath = "%s/%s" % (boothooks_dir,filename)
         util.write_file(filepath, payload, 0700)
         try:
-            ret = subprocess.check_call([filepath])
+            env=os.environ.copy()
+            env['INSTANCE_ID']= self.datasource.get_instance_id()
+            ret = subprocess.check_call([filepath], env=env)
         except subprocess.CalledProcessError as e:
             log.error("boothooks script %s returned %i" %
                 (filepath,e.returncode))
