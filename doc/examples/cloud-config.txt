@@ -175,3 +175,33 @@ runcmd:
  - [ sh, -c, echo "=========hello world'=========" ]
  - ls -l /root
  - [ wget, "http://slashdot.org", -O, /tmp/index.html ]
+
+
+# cloud_config_modules:
+# default:
+# cloud_config_modules:
+# - mounts
+# - ssh
+# - apt-update-upgrade
+# - puppet
+# - updates-check
+# - disable-ec2-metadata
+# - runcmd
+#
+# This is an array of arrays or strings.
+# if item is a string, then it is read as a module name
+# if the item is an array it is of the form:
+#   name, frequency, arguments
+# where 'frequency' is one of:
+#   once-per-instance
+#   always
+# a python file in the CloudConfig/ module directory named 
+# cloud_config_name.py
+# example:
+cloud_config_modules:
+ - [apt-update-upgrade, always]
+ - config-misc
+ - config-mounts
+ - config-puppet
+ - config-ssh
+ - disable-ec2-metadata
