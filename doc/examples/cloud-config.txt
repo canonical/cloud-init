@@ -226,3 +226,10 @@ debconf_selections: |     # Need to perserve newlines
         # Override default frontend to readline, but allow user to select.
         debconf debconf/frontend select readline
         debconf debconf/frontend seen false
+
+# manage byobu defaults
+# byobu_by_default: ('user'|'system')
+#   'user' will set byobu 'launch-by-default' for the default user
+#   'system' will enable launch-by-default for for all users
+byobu_by_default: system
+
