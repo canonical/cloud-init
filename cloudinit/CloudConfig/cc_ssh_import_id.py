@@ -29,7 +29,6 @@ def handle(name,cfg,cloud,log,args):
         user = util.get_cfg_option_str(cfg,"user","ubuntu")
         ids = util.get_cfg_option_list_or_str(cfg,"ssh_import_id",[])
 
-    log.warn("here, args = %s.  user = %s ids = %s" % ( args, user, ids ))
     if len(ids) == 0: return
 
     cmd = [ "sudo", "-Hu", user, "ssh-import-lp-id" ] + ids
