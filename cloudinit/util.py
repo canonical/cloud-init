@@ -1,3 +1,5 @@
+# vi: ts=4 expandtab
+#
 #    Copyright (C) 2009-2010 Canonical Ltd.
 #
 #    Author: Scott Moser <scott.moser@canonical.com>
@@ -18,17 +20,32 @@ import os
 import errno
 import subprocess
 from Cheetah.Template import Template
+import cloudinit
 
 def read_conf(fname):
-	stream = file(fname)
-	conf = yaml.load(stream)
-	stream.close()
-	return conf
+    try:
+	    stream = open(fname,"r")
+	    conf = yaml.load(stream)
+	    stream.close()
+	    return conf
+    except IOError as e:
+        if e.errno == errno.ENOENT:
+            return { }
+        raise
+
+def get_base_cfg(cfgfile,cfg_builtin=""):
+    syscfg = read_conf(cfgfile)
+    if cfg_builtin:
+        builtin = yaml.load(cfg_builtin)
+    else:
+        return(syscfg)
+    return(mergedict(syscfg,builtin))
 
 def get_cfg_option_bool(yobj, key, default=False):
     if not yobj.has_key(key): return default
     val = yobj[key]
-    if yobj[key] in [ True, '1', 'on', 'yes', 'true']:
+    if val is True: return True
+    if str(val).lower() in [ 'true', '1', 'on', 'yes']:
         return True
     return False
 

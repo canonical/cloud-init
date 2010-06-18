@@ -1,4 +1,5 @@
 #!/usr/bin/python
+# vi: ts=4 expandtab
 #
 #    Copyright (C) 2009-2010 Canonical Ltd.
 #
@@ -18,6 +19,7 @@
 
 import sys
 import cloudinit
+import logging
 
 def Usage(out = sys.stdout):
     out.write("Usage: cloud-init-run-module freq sem-name mod-name [args]\n")
@@ -32,6 +34,9 @@ def main():
     (freq,semname,modname)=sys.argv[1:4]
     run_args=sys.argv[4:]
 
+    cloudinit.logging_set_from_cfg_file()
+    log = logging.getLogger()
+    log.info("cloud-init-run-module %s" % sys.argv[1:])
     cloud = cloudinit.CloudInit()
     try:
         cloud.get_data_source()

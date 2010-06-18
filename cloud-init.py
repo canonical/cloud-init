@@ -1,4 +1,5 @@
 #!/usr/bin/python
+# vi: ts=4 expandtab
 #
 #    Copyright (C) 2009-2010 Canonical Ltd.
 #
@@ -21,11 +22,30 @@ import sys
 
 import cloudinit
 import cloudinit.util as util
+import time
+import logging
 
 def warn(str):
     sys.stderr.write(str)
 
 def main():
+    now = time.strftime("%a, %d %b %Y %H:%M:%S %z")
+    try:
+       uptimef=open("/proc/uptime")
+       uptime=uptimef.read().split(" ")[0]
+       uptimef.close()
+    except IOError as e:
+       warn("unable to open /proc/uptime\n")
+       uptime = "na"
+
+    msg = "cloud-init running: %s. up %s seconds" % (now, uptime)
+    sys.stderr.write(msg + "\n")
+    sys.stderr.flush()
+
+    cloudinit.logging_set_from_cfg_file()
+    log = logging.getLogger()
+    log.info(msg)
+
     # cache is not instance specific, so it has to be purged
     cloudinit.purge_cache()
 
@@ -35,7 +55,7 @@ def main():
         cloud.get_data_source()
     except Exception as e:
         print e
-        sys.stderr.write("Failed to get instance data")
+        sys.stderr.write("Failed to get instance data\n")
         sys.exit(1)
 
     # store the metadata

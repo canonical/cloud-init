@@ -1,4 +1,5 @@
 #!/usr/bin/python
+# vi: ts=4 expandtab
 #
 #    Distutils magic for ec2-init
 #    Copyright (C) 2009 Canonical Ltd.
@@ -23,12 +24,12 @@ import os.path
 import subprocess
 
 setup(name='cloud-init',
-      version='0.5.10',
+      version='0.5.11',
       description='EC2 initialisation magic',
       author='Scott Moser',
       author_email='scott.moser@canonical.com',
       url='http://launchpad.net/cloud-init/',
-      packages=['cloudinit'],
+      packages=['cloudinit', 'cloudinit.CloudConfig' ],
       scripts=['cloud-init.py',
                'cloud-init-run-module.py',
                'cloud-init-cfg.py'

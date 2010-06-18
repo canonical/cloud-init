@@ -1,3 +1,5 @@
+# vi: ts=4 expandtab
+#
 #    Copyright (C) 2009-2010 Canonical Ltd.
 #
 #    Author: Scott Moser <scott.moser@canonical.com>
@@ -24,7 +26,8 @@ starts_with_mappings={
     '#!' : 'text/x-shellscript',
     '#cloud-config' : 'text/cloud-config',
     '#upstart-job'  : 'text/upstart-job',
-    '#part-handler' : 'text/part-handler'
+    '#part-handler' : 'text/part-handler',
+    '#cloud-boothook' : 'text/cloud-boothook'
 }
 
 # if 'str' is compressed return decompressed otherwise return it

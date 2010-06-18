@@ -1,3 +1,14 @@
+cloud-init (0.5.11-0ubuntu1) maverick; urgency=low
+
+  * New upstream release.
+  * remove ec2-get-info.  It is replaced by cloudutils ec2metadata
+  * use python logging
+  * reduce number of upstart jobs
+  * add "boothook" user data type
+  * Switch to dpkg-source 3.0 (quilt) format
+
+ -- Scott Moser <smoser@ubuntu.com>  Fri, 18 Jun 2010 01:04:58 -0400
+
 cloud-init (0.5.10-0ubuntu1) lucid; urgency=low
 
   * New upstream release.
