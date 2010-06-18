@@ -49,7 +49,7 @@ class CloudConfig():
             if not freq:
                 freq = def_freq
 
-            self.cloud.sem_and_run(name, freq, handler, 
+            self.cloud.sem_and_run("config-" + name, freq, handler, 
                 [ name, self.cfg, self.cloud, cloudinit.log, args ])
         except:
             cloudinit.log.error(traceback.format_exc())
