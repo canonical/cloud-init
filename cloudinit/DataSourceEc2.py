@@ -40,7 +40,6 @@ class DataSourceEc2(DataSource.DataSource):
 
     def get_data(self):
         try:
-            cloudinit.log.info("looking at %s/user-data.raw" % self.cachedir)
             udf = open(self.cachedir + "/user-data.raw")
             self.userdata_raw = udf.read()
             udf.close()
@@ -50,6 +49,7 @@ class DataSourceEc2(DataSource.DataSource):
             self.metadata = eval(data)
             mdf.close()
 
+            cloudinit.log.debug("using seeded ec2 cache data" % self.cachedir)
             return True
         except:
             pass
