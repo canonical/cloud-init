@@ -46,6 +46,7 @@ cloud_config_modules:
  - updates-check
  - disable-ec2-metadata
  - runcmd
+ - byobu
 
 log_cfg: built_in
 """
