@@ -20,6 +20,7 @@ import yaml
 import cloudinit
 import cloudinit.util as util
 import sys
+import traceback
 
 per_instance="once-per-instance"
 per_always="always"
@@ -52,6 +53,6 @@ class CloudConfig():
             self.cloud.sem_and_run("config-" + name, freq, handler,
                 [ name, self.cfg, self.cloud, cloudinit.log, args ])
         except:
-            cloudinit.log.error(traceback.format_exc())
+            cloudinit.log.debug(traceback.format_exc())
             raise
 
