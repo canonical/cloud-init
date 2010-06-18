@@ -83,6 +83,8 @@ def main():
             run_args = cfg_mod[2:]
 
         try:
+            log.debug("handling %s with freq=%s and args=%s" %
+                (name, run_args, freq))
             cc.handle(name, run_args, freq=freq)
         except:
             import traceback
