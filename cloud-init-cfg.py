@@ -28,7 +28,12 @@ def Usage(out = sys.stdout):
     
 def main():
     # expect to be called with
-    #   name freq [ args ]
+    #   name [ args ]
+    #   run the cloud-config job 'name' at with given args
+    # or
+    #   read cloud config jobs from config (builtin -> system)
+    #   and run all in order
+
     if len(sys.argv) < 2:
         Usage(sys.stderr)
         sys.exit(1)
@@ -40,8 +45,6 @@ def main():
     log = logging.getLogger()
     log.info("cloud-init-cfg %s" % sys.argv[1:])
 
-    cloud = cloudinit.CloudInit()
-
     cfg_path = cloudinit.cloud_config
     cfg_env_name = cloudinit.cfg_env_name
     if os.environ.has_key(cfg_env_name):
@@ -49,15 +52,55 @@ def main():
 
     cc = cloudinit.CloudConfig.CloudConfig(cfg_path)
 
-    try:
-        cc.handle(name,run_args)
-    except:
-        import traceback
-        traceback.print_exc(file=sys.stderr)
-        sys.stderr.write("config handling of %s failed\n" % name)
-        sys.exit(1)
+    module_list = [ ]
+    if name == "all":
+        # create 'module_list', an array of arrays
+        # where array[0] = config
+        #       array[1] = freq
+        #       array[2:] = arguemnts
+        if "cloud_config_modules" in cc.cfg:
+            for item in cc.cfg["cloud_config_modules"]:
+                if isinstance(item,str):
+                    module_list.append((item,))
+                elif isinstance(item,list):
+                    module_list.append(item)
+                else:
+                    fail("Failed to parse cloud_config_modules",log)
+        else:
+            fail("No cloud_config_modules found in config",log)
+    else:
+        args = [ name, None ] + run_args
+        module_list.append = ( args )
 
-    sys.exit(0)
+    failures = []
+    for cfg_mod in module_list:
+        name = cfg_mod[0]
+        freq = None
+        run_args = [ ]
+        if len(cfg_mod) > 1:
+            freq = cfg_mod[1]
+        if len(cfg_mod) > 2:
+            run_args = cfg_mod[2:]
+
+        try:
+            cc.handle(name, run_args, freq=freq)
+        except:
+            import traceback
+            traceback.print_exc(file=sys.stderr)
+            err("config handling of %s failed\n" % name,log)
+            failures.append(name)
+            sys.exit(len(failures))
+
+    sys.exit(len(failures))
+
+def err(msg,log=None):
+    if log:
+        log.error(msg)
+    sys.stderr.write(msg + "\n")
+
+def fail(msg,log=None):
+    err(msg,log)
+    sys.exit(1)
 
 if __name__ == '__main__':
     main()

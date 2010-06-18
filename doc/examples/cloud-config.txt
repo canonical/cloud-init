@@ -196,7 +196,7 @@ runcmd:
 #   once-per-instance
 #   always
 # a python file in the CloudConfig/ module directory named 
-# cloud_config_name.py
+# cc_<name>.py
 # example:
 cloud_config_modules:
  - [apt-update-upgrade, always]
