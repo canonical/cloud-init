@@ -53,6 +53,11 @@ def get_cfg_option_str(yobj, key, default=None):
     if not yobj.has_key(key): return default
     return yobj[key]
 
+def get_cfg_option_list_or_str(yobj, key, default=None):
+    if not yobj.has_key(key): return default
+    if isinstance(yobj[key],list): return yobj[key]
+    return([yobj[key]])
+
 # merge values from src into cand.
 # if src has a key, cand will not override
 def mergedict(src,cand):
