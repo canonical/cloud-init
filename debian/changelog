@@ -1,3 +1,12 @@
+cloud-init (0.5.11-0ubuntu2) maverick; urgency=low
+
+  * handle renaming sem/markers for config items to avoid
+    running per-instance again after package upgrade
+  * pull 'config-' prefix on sem/ items for cloud-config modules from
+    0.5.12
+
+ -- Scott Moser <smoser@ubuntu.com>  Fri, 18 Jun 2010 12:52:10 -0400
+
 cloud-init (0.5.11-0ubuntu1) maverick; urgency=low
 
   * New upstream release.

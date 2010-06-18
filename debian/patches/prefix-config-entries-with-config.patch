@@ -1,0 +1,17 @@
+Description: pull 0.5.12 prefixing of config sem/ entries 
+ 0.5.11 left 'sem' entries for config items in /var/lib/cloud/sem
+ without a prefix (just named 'name.<frequency_id>').  This pulls
+ back the commit that names them prefixed with 'config-'
+ .
+ This should be removed with 0.5.12
+--- a/cloudinit/CloudConfig/__init__.py
++++ b/cloudinit/CloudConfig/__init__.py
+@@ -49,7 +49,7 @@
+             if not freq:
+                 freq = def_freq
+ 
+-            self.cloud.sem_and_run(name, freq, handler, 
++            self.cloud.sem_and_run("config-" + name, freq, handler,
+                 [ name, self.cfg, self.cloud, cloudinit.log, args ])
+         except:
+             cloudinit.log.error(traceback.format_exc())
