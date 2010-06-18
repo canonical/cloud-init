@@ -15,16 +15,15 @@
 #
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
-def run(list,cfg):
+def run(args,cfg,log):
     import subprocess
-    retcode = subprocess.call(list)
-
-    if retcode == 0:
+    import traceback
+    try:
+        subprocess.check_call(args)
         return
-
-    if retcode < 0:
-        str="Cmd terminated by signal %s\n" % -retcode
-    else:
-        str="Cmd returned %s\n" % retcode
-    str+=' '.join(list)
-    raise Exception(str)
+    except subprocess.CalledProcessError as e:
+        log.debug(traceback.format_exc(e))
+        raise Exception("Cmd returned %s: %s" % ( e.returncode, args ))
+    except OSError as e:
+        log.debug(traceback.format_exc(e))
+        raise Exception("Cmd failed to execute: %s" % ( args ))
