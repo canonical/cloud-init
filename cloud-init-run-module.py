@@ -41,20 +41,17 @@ def main():
     try:
         cloud.get_data_source()
     except Exception as e:
-        print e
-        sys.stderr.write("Failed to get instance data")
-        sys.exit(1)
+        fail("Failed to get instance data\n\t%s" % traceback.format_exc(),log)
 
     if cloud.sem_has_run(semname,freq):
-        sys.stderr.write("%s already ran %s\n" % (semname,freq))
+        err("%s already ran %s" % (semname,freq),log)
         sys.exit(0)
 
     try:
         mod = __import__('cloudinit.' + modname)
         inst = getattr(mod,modname)
     except:
-        sys.stderr.write("Failed to load module cloudinit.%s\n" % modname)
-        sys.exit(1)
+        fail("Failed to load module cloudinit.%s\n" % modname)
 
     import os
 
@@ -63,9 +60,21 @@ def main():
     if os.environ.has_key(cfg_env_name):
         cfg_path = os.environ[cfg_env_name]
 
-    cloud.sem_and_run(semname, freq, inst.run, [run_args,cfg_path], False)
+    try:
+        cloud.sem_and_run(semname, freq, inst.run, [run_args,cfg_path,log], False)
+    except Exception as e:
+        fail("Execution of %s failed:%s" % (semname,e), log)
 
     sys.exit(0)
+
+def err(msg,log=None):
+    if log:
+        log.error(msg)
+    sys.stderr.write(msg + "\n")
+
+def fail(msg,log=None):
+    err(msg,log)
+    sys.exit(1)
 
 if __name__ == '__main__':
     main()

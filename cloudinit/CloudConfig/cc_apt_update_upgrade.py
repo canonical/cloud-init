@@ -1,5 +1,23 @@
+# vi: ts=4 expandtab
+#
+#    Copyright (C) 2009-2010 Canonical Ltd.
+#
+#    Author: Scott Moser <scott.moser@canonical.com>
+#
+#    This program is free software: you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License version 3, as
+#    published by the Free Software Foundation.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License
+#    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 import cloudinit.util as util
 import subprocess
+import traceback
 import os
 
 def handle(name,cfg,cloud,log,args):
@@ -22,6 +40,15 @@ def handle(name,cfg,cloud,log,args):
         errors = add_sources(cfg['apt_sources'])
         for e in errors:
             log.warn("Source Error: %s\n" % ':'.join(e))
+
+    dconf_sel = util.get_cfg_option_str(cfg, 'debconf_selections', False)
+    if dconf_sel:
+        log.debug("setting debconf selections per cloud config")
+        try:
+            util.subp(('debconf-set-selections', '-'), dconf_sel)
+        except:
+            log.error("Failed to run debconf-set-selections")
+            log.debug(traceback.format_exc())
 
     pkglist = []
     if 'packages' in cfg:

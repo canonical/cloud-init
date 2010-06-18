@@ -39,12 +39,14 @@ disable_root: 1
 
 cloud_config_modules:
  - mounts
+ - ssh-import-id
  - ssh
  - apt-update-upgrade
  - puppet
  - updates-check
  - disable-ec2-metadata
  - runcmd
+ - byobu
 
 log_cfg: built_in
 """
@@ -277,7 +279,7 @@ class CloudInit:
         return("%s/%s.%s" % (semdir,name,freqtok))
     
     def sem_has_run(self,name,freq):
-        if freq is "always": return False
+        if freq == "always": return False
         semfile = self.sem_getpath(name,freq)
         if os.path.exists(semfile):
             return True
@@ -293,7 +295,7 @@ class CloudInit:
             if e.errno != errno.EEXIST:
                 raise e
     
-        if os.path.exists(semfile) and freq is not "always":
+        if os.path.exists(semfile) and freq != "always":
             return False
     
         # race condition
@@ -325,7 +327,7 @@ class CloudInit:
             return
         try:
             if not self.sem_acquire(semname,freq):
-                raise Exception("Failed to acquire lock on %s\n" % semname)
+                raise Exception("Failed to acquire lock on %s" % semname)
 
             func(*args)
         except:

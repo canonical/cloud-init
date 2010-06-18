@@ -1,3 +1,13 @@
+cloud-init (0.5.12-0ubuntu1) maverick; urgency=low
+
+  * New upstream release.
+  * fix cloud-init-run-module to allow 'always' (LP: #568139)
+  * add support for setting debconf selections 
+  * add cloud-config support for debconf selections (LP: #582667),
+    byobu enablement, and ssh-import-lp-id
+
+ -- Scott Moser <smoser@ubuntu.com>  Fri, 18 Jun 2010 15:48:14 -0400
+
 cloud-init (0.5.11-0ubuntu2) maverick; urgency=low
 
   * handle renaming sem/markers for config items to avoid
