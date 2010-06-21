@@ -19,6 +19,7 @@ import cloudinit.util as util
 import subprocess
 import traceback
 import os
+import glob
 
 def handle(name,cfg,cloud,log,args):
     update = util.get_cfg_option_bool(cfg, 'apt_update', False)
