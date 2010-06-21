@@ -1,3 +1,9 @@
+cloud-init (0.5.12-0ubuntu2) maverick; urgency=low
+
+  * fix cloud config 'apt-update-upgrade' failure due to missing import
+
+ -- Scott Moser <smoser@ubuntu.com>  Mon, 21 Jun 2010 15:08:32 -0400
+
 cloud-init (0.5.12-0ubuntu1) maverick; urgency=low
 
   * New upstream release.
