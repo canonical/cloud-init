@@ -35,9 +35,12 @@ class CloudConfig():
         self.cloud.get_data_source()
 
     def get_config_obj(self,cfgfile):
-        f=file(cfgfile)
-        cfg=yaml.load(f.read())
-        f.close()
+        try:
+            cfg = util.read_conf(cfgfile)
+        except:
+            cloudinit.log.critical("Failed loading of cloud config '%s'. Continuing with empty config %s\n" % cfgfile)
+            cloudinit.log.debug(traceback.format_exc() + "\n")
+            cfg = None
         if cfg is None: cfg = { }
         return(util.mergedict(cfg,self.cloud.cfg))
 
