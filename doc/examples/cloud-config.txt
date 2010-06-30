@@ -104,9 +104,13 @@ packages:
 # - if an entry does not have all 6 fields, they will be filled in
 #   from the following: [ None, None, "auto", "defaults", "0", "0" ]
 #
+# Note, that you should set 'nobootwait' (see man fstab) for volumes that may
+# not be attached at instance boot (or reboot)
+#
 mounts:
  - [ ephemeral0, /mnt, auto, "defaults,noexec" ]
  - [ sdc, /opt/data ]
+ - [ xvdh, /opt/data, "auto", "defaults,nobootwait", "0", "0" ]
  - [ dd, /dev/zero ]
 
 # add each entry to ~/.ssh/authorized_keys for the configured user
