@@ -65,13 +65,15 @@ def process_includes(msg,parts):
         payload = part.get_payload()
 
         ctype = None
-        for str, gtype in starts_with_mappings.items():
-            if payload.startswith(str):
-                ctype = gtype
-                break
+        ctype_orig = part.get_content_type()
+        if ctype_orig == "text/plain":
+            for str, gtype in starts_with_mappings.items():
+                if payload.startswith(str):
+                    ctype = gtype
+                    break
 
         if ctype is None:
-            ctype = part.get_content_type()
+            ctype = ctype_orig
 
         if ctype == 'text/x-include-url':
             do_include(payload,parts)
