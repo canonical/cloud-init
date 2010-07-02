@@ -1,0 +1,121 @@
+This patch catches this up to upstream at revision 220.
+
+=== modified file 'cloudinit/CloudConfig/__init__.py'
+--- a/cloudinit/CloudConfig/__init__.py	2010-06-18 18:14:15 +0000
++++ b/cloudinit/CloudConfig/__init__.py	2010-06-30 02:16:50 +0000
+@@ -35,9 +35,12 @@
+         self.cloud.get_data_source()
+ 
+     def get_config_obj(self,cfgfile):
+-        f=file(cfgfile)
+-        cfg=yaml.load(f.read())
+-        f.close()
++        try:
++            cfg = util.read_conf(cfgfile)
++        except:
++            cloudinit.log.critical("Failed loading of cloud config '%s'. Continuing with empty config %s\n" % cfgfile)
++            cloudinit.log.debug(traceback.format_exc() + "\n")
++            cfg = None
+         if cfg is None: cfg = { }
+         return(util.mergedict(cfg,self.cloud.cfg))
+ 
+
+=== modified file 'cloudinit/CloudConfig/cc_apt_update_upgrade.py'
+--- a/cloudinit/CloudConfig/cc_apt_update_upgrade.py	2010-06-18 19:04:55 +0000
++++ b/cloudinit/CloudConfig/cc_apt_update_upgrade.py	2010-06-21 18:34:59 +0000
+@@ -19,6 +19,7 @@
+ import subprocess
+ import traceback
+ import os
++import glob
+ 
+ def handle(name,cfg,cloud,log,args):
+     update = util.get_cfg_option_bool(cfg, 'apt_update', False)
+
+=== modified file 'cloudinit/DataSourceEc2.py'
+--- a/cloudinit/DataSourceEc2.py	2010-06-18 04:42:10 +0000
++++ b/cloudinit/DataSourceEc2.py	2010-07-02 00:26:24 +0000
+@@ -49,7 +49,7 @@
+             self.metadata = eval(data)
+             mdf.close()
+ 
+-            cloudinit.log.debug("using seeded ec2 cache data" % self.cachedir)
++            cloudinit.log.debug("using seeded ec2 cache data in %s" % self.cachedir)
+             return True
+         except:
+             pass
+
+=== modified file 'cloudinit/UserDataHandler.py'
+--- a/cloudinit/UserDataHandler.py	2010-06-18 04:23:25 +0000
++++ b/cloudinit/UserDataHandler.py	2010-07-01 21:05:25 +0000
+@@ -65,13 +65,15 @@
+         payload = part.get_payload()
+ 
+         ctype = None
+-        for str, gtype in starts_with_mappings.items():
+-            if payload.startswith(str):
+-                ctype = gtype
+-                break
++        ctype_orig = part.get_content_type()
++        if ctype_orig == "text/plain":
++            for str, gtype in starts_with_mappings.items():
++                if payload.startswith(str):
++                    ctype = gtype
++                    break
+ 
+         if ctype is None:
+-            ctype = part.get_content_type()
++            ctype = ctype_orig
+ 
+         if ctype == 'text/x-include-url':
+             do_include(payload,parts)
+
+=== modified file 'cloudinit/__init__.py'
+--- a/cloudinit/__init__.py	2010-06-18 19:41:59 +0000
++++ b/cloudinit/__init__.py	2010-07-02 00:43:15 +0000
+@@ -421,11 +421,11 @@
+         if ctype == "__begin__": return
+ 
+         filename=filename.replace(os.sep,'_')
+-        prefix="#cloud-boothooks"
++        prefix="#cloud-boothook"
+         dos=False
+         start = 0
+         if payload.startswith(prefix):
+-            start = len(prefix)+1
++            start = len(prefix)
+             if payload[start] == '\r':
+                 start=start+1
+                 dos = True
+
+=== modified file 'doc/examples/cloud-config.txt'
+--- a/doc/examples/cloud-config.txt	2010-06-18 19:41:59 +0000
++++ b/doc/examples/cloud-config.txt	2010-06-30 02:11:44 +0000
+@@ -104,9 +104,13 @@
+ # - if an entry does not have all 6 fields, they will be filled in
+ #   from the following: [ None, None, "auto", "defaults", "0", "0" ]
+ #
++# Note, that you should set 'nobootwait' (see man fstab) for volumes that may
++# not be attached at instance boot (or reboot)
++#
+ mounts:
+  - [ ephemeral0, /mnt, auto, "defaults,noexec" ]
+  - [ sdc, /opt/data ]
++ - [ xvdh, /opt/data, "auto", "defaults,nobootwait", "0", "0" ]
+  - [ dd, /dev/zero ]
+ 
+ # add each entry to ~/.ssh/authorized_keys for the configured user
+
+=== modified file 'tools/write-mime-multipart'
+--- a/tools/write-mime-multipart	2010-06-18 04:23:25 +0000
++++ b/tools/write-mime-multipart	2010-07-01 14:45:36 +0000
+@@ -2,8 +2,6 @@
+ # largely taken from python examples
+ # http://docs.python.org/library/email-examples.html
+ 
+-"""Send the contents of a directory as a MIME message."""
+-
+ import os
+ import sys
+ import smtplib
+
