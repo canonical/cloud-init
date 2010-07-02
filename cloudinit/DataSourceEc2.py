@@ -49,7 +49,7 @@ class DataSourceEc2(DataSource.DataSource):
             self.metadata = eval(data)
             mdf.close()
 
-            cloudinit.log.debug("using seeded ec2 cache data" % self.cachedir)
+            cloudinit.log.debug("using seeded ec2 cache data in %s" % self.cachedir)
             return True
         except:
             pass
