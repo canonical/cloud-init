@@ -145,4 +145,4 @@ def handle(name,cfg,cloud,log,args):
         except: log.warn("Failed to make '%s' config-mount\n",d)
 
     try: util.subp(("mount","-a"))
-    except: pass
+    except: log.warn("'mount -a' failed")
