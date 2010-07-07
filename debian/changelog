@@ -1,3 +1,9 @@
+cloud-init (0.5.12-0ubuntu4) maverick; urgency=low
+
+  * handle hostname managing better with ebs root. (LP: #596993)
+
+ -- Scott Moser <smoser@ubuntu.com>  Wed, 07 Jul 2010 11:54:10 -0400
+
 cloud-init (0.5.12-0ubuntu3) maverick; urgency=low
 
   * fix cloud-boothook input type (LP: #600799)

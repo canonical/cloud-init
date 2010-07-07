@@ -1,0 +1,138 @@
+------------------------------------------------------------
+revno: 221
+fixes bug(s): https://launchpad.net/bugs/596993
+committer: Scott Moser <smoser@ubuntu.com>
+branch nick: trunk
+timestamp: Wed 2010-07-07 11:26:37 -0400
+message:
+  manage hostname setting better (LP: #596993)
+  
+  On EBS instances, a shutdown and later start would end up with a
+  different IP address.  
+  
+  In the case where the user has not modified /etc/hostname from its
+  original value (seeded by metadata's 'local-hostname'), then cloud-init
+  will again set the hostname and update /etc/hostname.
+  
+  In the case where the user *has* modified /etc/hostname, it will remain
+  user managed.
+  
+  Additionally, if /etc/cloud/cloud.cfg contains 'preserve_hostname' value
+  set to a True value, then /etc/hostname will not ever be touched.
+=== modified file 'cloud-init.py'
+--- old/cloud-init.py	2010-06-18 01:51:13 +0000
++++ new/cloud-init.py	2010-07-07 15:25:37 +0000
+@@ -24,6 +24,7 @@
+ import cloudinit.util as util
+ import time
+ import logging
++import errno
+ 
+ def warn(str):
+     sys.stderr.write(str)
+@@ -70,9 +71,14 @@
+         raise
+ 
+     try:
+-        hostname = cloud.get_hostname()
+-        cloud.sem_and_run("set_hostname", "once-per-instance",
+-            set_hostname, [ hostname ], False)
++        if util.get_cfg_option_bool(cloud.cfg,"preserve_hostname",False):
++            log.debug("preserve_hostname is set. not managing hostname")
++        else:
++            hostname = cloud.get_hostname()
++            cloud.sem_and_run("set_hostname", "once-per-instance",
++                set_hostname, [ hostname, log ], False)
++            cloud.sem_and_run("update_hostname", "always",
++                update_hostname, [ hostname, log ], False)
+     except:
+         warn("failed to set hostname\n")
+ 
+@@ -100,11 +106,72 @@
+     util.render_to_file('default-locale', '/etc/default/locale', \
+         { 'locale' : locale })
+ 
+-def set_hostname(hostname):
+-    subprocess.Popen(['hostname', hostname]).communicate()
+-    f=open("/etc/hostname","wb")
+-    f.write("%s\n" % hostname)
+-    f.close()
++# read hostname from a 'hostname' file
++# allow for comments and stripping line endings.
++# if file doesn't exist, or no contents, return default
++def read_hostname(filename, default=None):
++    try:
++        fp = open(filename,"r")
++        lines = fp.readlines()
++        fp.close()
++        for line in lines:
++            hpos = line.find("#")
++            if hpos != -1:
++                line = line[0:hpos]
++            line = line.rstrip()
++            if line:
++                return line
++    except IOError, e:
++        if e.errno == errno.ENOENT: pass
++    return default
++    
++def set_hostname(hostname, log):
++    try:
++        subprocess.Popen(['hostname', hostname]).communicate()
++        util.write_file("/etc/hostname","%s\n" % hostname, 0644)
++        log.debug("populated /etc/hostname with %s on first boot", hostname)
++    except:
++        log.error("failed to set_hostname")
++
++def update_hostname(hostname, log):
++    prev_file="%s/%s" % (cloudinit.datadir,"previous-hostname")
++    etc_file = "/etc/hostname"
++
++    hostname_prev = None
++    hostname_in_etc = None
++
++    try:
++        hostname_prev = read_hostname(prev_file)
++    except:
++        log.warn("Failed to open %s" % prev_file)
++    
++    try:
++        hostname_in_etc = read_hostname(etc_file)
++    except:
++        log.warn("Failed to open %s" % etc_file)
++
++    update_files = []
++    if not hostname_prev or hostname_prev != hostname:
++        update_files.append(prev_file)
++
++    if (not hostname_in_etc or 
++        (hostname_in_etc == hostname_prev and hostname_in_etc != hostname)):
++        update_files.append(etc_file)
++
++    try:
++        for fname in update_files:
++            util.write_file(fname,"%s\n" % hostname, 0644)
++            log.debug("wrote %s to %s" % (hostname,fname))
++    except:
++        log.warn("failed to write hostname to %s" % fname)
++
++    if hostname_in_etc and hostname_prev and hostname_in_etc != hostname_prev:
++        log.debug("%s differs from %s. assuming user maintained" %
++                  (prev_file,etc_file))
++
++    if etc_file in update_files:
++        log.debug("setting hostname to %s" % hostname)
++        subprocess.Popen(['hostname', hostname]).communicate()
+ 
+ if __name__ == '__main__':
+     main()
+
+=== modified file 'cloud.cfg'
+--- old/cloud.cfg	2010-06-18 02:06:24 +0000
++++ new/cloud.cfg	2010-07-07 15:15:10 +0000
+@@ -1,3 +1,4 @@
+ cloud_type: auto
+ user: ubuntu
+ disable_root: 1
++preserve_hostname: False
+
