@@ -24,8 +24,12 @@ def is_mdname(name):
     # return true if this is a metadata service name
     if name in [ "ami", "root", "swap" ]:
         return True
+    # names 'ephemeral0' or 'ephemeral1'
+    # 'ebs[0-9]' appears when '--block-device-mapping sdf=snap-d4d90bbc'
+    for enumname in ( "ephemeral", "ebs" ):
+        if name.startswith(enumname) and name.find(":") == -1:
+            return True
     if name.startswith("ephemeral") and name.find(":") == -1:
-        return True
     return False
 
 def handle(name,cfg,cloud,log,args):
