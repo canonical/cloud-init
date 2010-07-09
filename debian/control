@@ -2,7 +2,7 @@ Source: cloud-init
 Section: admin
 Priority: extra
 Maintainer: Scott Moser <smoser@ubuntu.com>
-Build-Depends: cdbs, debhelper (>= 5.0.38), python, python-central (>= 0.5.6)
+Build-Depends: cdbs, debhelper (>= 5.0.38), python, python-central (>= 0.5.6), po-debconf
 XS-Python-Version: all
 Standards-Version: 3.8.4
 
@@ -17,6 +17,16 @@ XB-Python-Version: ${python:Versions}
 Description: Init scripts for cloud instances
  Cloud instances need special scripts to run during initialisation
  to retrieve and install ssh keys and to let the user run various scripts.
+
+Package: grub-legacy-ec2
+Depends: ${misc:Depends}, debconf (>= 1.5.19) | cdebconf, util-linux (>= 2.15-1)
+Conflicts: grub
+Suggests: grub-legacy-doc
+Architecture: all
+Description: Handles update-grub for ec2 instances
+ EC2 instances that use grub-legacy as a bootloader need a way to keep
+ /boot/grub/menu.lst up to date while not conflicting with grub-pc.
+ This package provides that.
 
 Package: ec2-init
 Depends: ${misc:Depends}, cloud-init

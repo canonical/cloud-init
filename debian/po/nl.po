@@ -1,0 +1,95 @@
+# translation of ucf_2.007_templates.po to dutch
+# This file is distributed under the same license as the ucf package.
+#
+#    Translators, if you are not familiar with the PO format, gettext
+#    documentation is worth reading, especially sections dedicated to
+#    this format, e.g. by running:
+#         info -n '(gettext)PO Files'
+#         info -n '(gettext)Header Entry'
+#    Some information specific to po-debconf are available at
+#            /usr/share/doc/po-debconf/README-trans
+#         or http://www.debian.org/intl/l10n/po-debconf/README-trans#
+#    Developers do not need to manually edit POT or PO files.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: ucf_2.007_nl\n"
+"Report-Msgid-Bugs-To: Source: grub@packages.debian.org\n"
+"POT-Creation-Date: 2008-01-28 08:38-0800\n"
+"PO-Revision-Date: 2007-09-19 01:09-0500\n"
+"Last-Translator: Kurt De Bree <kdebree(AT)telenet(DOT)be>\n"
+"Language-Team: Nederlands <debian-l10n-dutch@lists.debian.org>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-Generator: KBabel 1.10.2\n"
+"Plural-Forms:  nplurals=2; plural=(n != 1);\n"
+
+#. Type: select
+#. Choices
+#. Translators, please keep translations *short* (less than 65 columns)
+#: ../grub.templates:1001
+msgid "install the package maintainer's version"
+msgstr "installeer de versie van de pakketbeheerder"
+
+#. Type: select
+#. Choices
+#. Translators, please keep translations *short* (less than 65 columns)
+#: ../grub.templates:1001
+msgid "keep the local version currently installed"
+msgstr "behoud de reeds geïnstalleerde versie"
+
+#. Type: select
+#. Choices
+#. Translators, please keep translations *short* (less than 65 columns)
+#: ../grub.templates:1001
+msgid "show the differences between the versions"
+msgstr "toon de verschillen tussen de versies"
+
+#. Type: select
+#. Choices
+#. Translators, please keep translations *short* (less than 65 columns)
+#: ../grub.templates:1001
+msgid "show a side-by-side difference between the versions"
+msgstr "toon de verschillende versies zij-aan-zij"
+
+#. Type: select
+#. Choices
+#. Translators, please keep translations *short* (less than 65 columns)
+#: ../grub.templates:1001
+msgid "show a 3-way difference between available versions"
+msgstr ""
+"toon een drievoudig verschil tussen de beschikbare versies van het bestand"
+
+#. Type: select
+#. Choices
+#. Translators, please keep translations *short* (less than 65 columns)
+#: ../grub.templates:1001
+msgid "do a 3-way merge between available versions (experimental)"
+msgstr ""
+"doe een drievoudige samenvoeging tussen de beschikbare versies van het "
+"bestand (Zeer Experimenteel)"
+
+#. Type: select
+#. Choices
+#. Translators, please keep translations *short* (less than 65 columns)
+#: ../grub.templates:1001
+msgid "start a new shell to examine the situation"
+msgstr "start een nieuwe shell om de situatie te onderzoeken"
+
+#. Type: select
+#. Description
+#: ../grub.templates:1002
+msgid "What would you like to do about ${BASENAME}?"
+msgstr "Wat wilt u met ${BASENAME} doen?"
+
+#. Type: select
+#. Description
+#: ../grub.templates:1002
+#, fuzzy
+msgid ""
+"A new version of /boot/grub/menu.lst is available, but the version installed "
+"currently has been locally modified."
+msgstr ""
+"Een nieuwe versie van het bestand /boot/grub/menu.lst is beschikbaar, maar "
+"uw versie werd handmatig gewijzigd."

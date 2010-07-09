@@ -1,3 +1,12 @@
+cloud-init (0.5.12-0ubuntu5) maverick; urgency=low
+
+  * sync with upstream r226.
+  * fix bug where nfs/network mounts could not be specified (LP: #603329)
+  * manage hostname setting better (LP: #596993)
+  * add legacy-grub-ec2 package.
+
+ -- Scott Moser <smoser@ubuntu.com>  Thu, 08 Jul 2010 22:24:59 -0400
+
 cloud-init (0.5.12-0ubuntu4) maverick; urgency=low
 
   * handle hostname managing better with ebs root. (LP: #596993)

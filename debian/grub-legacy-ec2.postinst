@@ -1,0 +1,9 @@
+#!/bin/sh
+
+set -e
+
+if [ "$1" = "configure" ]; then
+   update-grub-legacy-ec2 -y
+fi
+
+#DEBHELPER#

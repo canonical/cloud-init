@@ -1,0 +1,78 @@
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: fr\n"
+"Report-Msgid-Bugs-To: Source: grub@packages.debian.org\n"
+"POT-Creation-Date: 2008-01-28 08:38-0800\n"
+"PO-Revision-Date: 2007-06-19 09:36+0200\n"
+"Last-Translator: Eric Madesclair <eric-m@wanadoo.fr>\n"
+"Language-Team: French <debian-l10n-french@lists.debian.org>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-Generator: KBabel 1.11.4\n"
+
+#. Type: select
+#. Choices
+#. Translators, please keep translations *short* (less than 65 columns)
+#: ../grub.templates:1001
+msgid "install the package maintainer's version"
+msgstr "Installer la version du responsable du paquet"
+
+#. Type: select
+#. Choices
+#. Translators, please keep translations *short* (less than 65 columns)
+#: ../grub.templates:1001
+msgid "keep the local version currently installed"
+msgstr "Garder la version actuellement installée"
+
+#. Type: select
+#. Choices
+#. Translators, please keep translations *short* (less than 65 columns)
+#: ../grub.templates:1001
+msgid "show the differences between the versions"
+msgstr "Montrer les différences entre les versions"
+
+#. Type: select
+#. Choices
+#. Translators, please keep translations *short* (less than 65 columns)
+#: ../grub.templates:1001
+msgid "show a side-by-side difference between the versions"
+msgstr "Montrer côte à côte les différences entre les versions"
+
+#. Type: select
+#. Choices
+#. Translators, please keep translations *short* (less than 65 columns)
+#: ../grub.templates:1001
+msgid "show a 3-way difference between available versions"
+msgstr "Montrer les différences entre les trois versions du fichier"
+
+#. Type: select
+#. Choices
+#. Translators, please keep translations *short* (less than 65 columns)
+#: ../grub.templates:1001
+msgid "do a 3-way merge between available versions (experimental)"
+msgstr "Fusionner les trois versions disponibles du fichier (expérimental)"
+
+#. Type: select
+#. Choices
+#. Translators, please keep translations *short* (less than 65 columns)
+#: ../grub.templates:1001
+msgid "start a new shell to examine the situation"
+msgstr "Lancer un shell pour examiner la situation"
+
+#. Type: select
+#. Description
+#: ../grub.templates:1002
+msgid "What would you like to do about ${BASENAME}?"
+msgstr "Action souhaitée pour ${BASENAME} :"
+
+#. Type: select
+#. Description
+#: ../grub.templates:1002
+msgid ""
+"A new version of /boot/grub/menu.lst is available, but the version installed "
+"currently has been locally modified."
+msgstr ""
+"Une nouvelle version du fichier /boot/grub/menu.lst est disponible mais la "
+"version actuellement utilisée a été modifiée localement."
