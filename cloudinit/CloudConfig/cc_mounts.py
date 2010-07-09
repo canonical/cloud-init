@@ -34,7 +34,7 @@ def handle(name,cfg,cloud,log,args):
                 [ "swap", "none", "swap", "sw", "0", "0" ] ]
 
     # fs_spec, fs_file, fs_vfstype, fs_mntops, fs-freq, fs_passno
-    defvals = [ None, None, "auto", "defaults", "0", "0" ]
+    defvals = [ None, None, "auto", "defaults,nobootwait", "0", "0" ]
 
     cfgmnt = [ ]
     if cfg.has_key("mounts"):
