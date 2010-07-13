@@ -1,3 +1,13 @@
+cloud-init (0.5.12-0ubuntu7) maverick; urgency=low
+
+  * update-grub-legacy-ec2:                                                     
+    - force setting of indomU so output of build process has
+      a menu.lst with -ec2 kernels listed.
+    - remove 'quite splash' from kernel options
+    - make sure grub_root_device is set to hd0 in image build
+
+ -- Scott Moser <smoser@ubuntu.com>  Tue, 13 Jul 2010 16:33:51 -0400
+
 cloud-init (0.5.12-0ubuntu6) maverick; urgency=low
 
   * fix installation error

@@ -403,13 +403,13 @@ else
 	uuid=$(convert_to_uuid "$boot_device")
 fi
 
+if [ -n "$uuid" ]; then
+	grub_root_device="$uuid"
+fi
 # The ec2 provide pv-grub do not support 'uuid' so we have to use a grub name
 # when presented to grub, the root filesystem is on what grub sees
 # as a bare disk (hd0), rather than what we see it as in user space (sda1).
 grub_root_device="(hd0)"
-if [ -n "$uuid" ]; then
-	grub_root_device="$uuid"
-fi
 
 check_removable=""
 if test -z "$uuid"; then
@@ -442,7 +442,7 @@ fi
 
 # additional options to use with the default boot option, but not with the
 # alternatives
-	defoptions="quiet splash"
+	defoptions=""
 
 # should grub lock the old kernels
 	lockold="false"
@@ -467,7 +467,7 @@ fi
 	savedefault="false"
 
 # is grub running in a domU?
-	indomU="detect"
+	indomU="true"
 
 # stores the command line arguments
 	command_line_arguments=$1
