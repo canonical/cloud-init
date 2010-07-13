@@ -1,3 +1,16 @@
+catch up to trunk revision 227
+
+This patch is just to catch up with trunk for cloud-init.
+It is generated from trunk cloud init with:
+  TAG=0.5.12
+  bzr diff -p1 -r tag:${TAG} > /tmp/catchup.patch
+To integrate pull in a new "catchup" patch:
+  rm -Rf .pc
+  ./debian/rules quilt-setup
+  quilt pop -a
+  cp /tmp/catchup.patch debian/patches/catchup-trunk.patch
+  quilt push -a
+
 === modified file 'cloud-init.py'
 --- old/cloud-init.py	2010-06-18 01:51:13 +0000
 +++ new/cloud-init.py	2010-07-07 15:25:37 +0000
@@ -149,8 +162,8 @@
 
 === modified file 'cloudinit/CloudConfig/cc_mounts.py'
 --- old/cloudinit/CloudConfig/cc_mounts.py	2010-06-18 19:04:55 +0000
-+++ new/cloudinit/CloudConfig/cc_mounts.py	2010-07-09 13:35:41 +0000
-@@ -20,18 +20,34 @@
++++ new/cloudinit/CloudConfig/cc_mounts.py	2010-07-13 15:01:09 +0000
+@@ -20,18 +20,33 @@
  import re
  import string
  
@@ -163,7 +176,6 @@
 +    for enumname in ( "ephemeral", "ebs" ):
 +        if name.startswith(enumname) and name.find(":") == -1:
 +            return True
-+    if name.startswith("ephemeral") and name.find(":") == -1:
 +    return False
 +
  def handle(name,cfg,cloud,log,args):
@@ -187,7 +199,7 @@
      for i in range(len(cfgmnt)):
          # skip something that wasn't a list
          if not isinstance(cfgmnt[i],list): continue
-@@ -41,24 +57,19 @@
+@@ -41,24 +56,19 @@
          if cfgmnt[i][0] == "ephemeral":
              cfgmnt[i][0] = "ephemeral0"
  
@@ -223,7 +235,7 @@
  
      for i in range(len(cfgmnt)):
          # fill in values with 
-@@ -68,9 +79,6 @@
+@@ -68,9 +78,6 @@
              elif cfgmnt[i][j] is None:
                  cfgmnt[i][j] = defvals[j]
  
@@ -233,7 +245,7 @@
          # if the second entry in the list is 'None' this
          # clears all previous entries of that same 'fs_spec'
          # (fs_spec is the first field in /etc/fstab, ie, that device)
-@@ -145,4 +153,4 @@
+@@ -145,4 +152,4 @@
          except: log.warn("Failed to make '%s' config-mount\n",d)
  
      try: util.subp(("mount","-a"))

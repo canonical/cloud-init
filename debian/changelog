@@ -1,3 +1,10 @@
+cloud-init (0.5.12-0ubuntu6) maverick; urgency=low
+
+  * fix installation error
+  * add quilt-setup rule for package development 
+
+ -- Scott Moser <smoser@ubuntu.com>  Tue, 13 Jul 2010 12:04:21 -0400
+
 cloud-init (0.5.12-0ubuntu5) maverick; urgency=low
 
   * sync with upstream r226.

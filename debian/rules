@@ -29,3 +29,16 @@ grub-legacy-ec2-install:
 		d=$(DEB_DESTDIR)/etc/kernel/$${khook}.d; \
 		install -d "$${d}" && \
 		install -m 0755 "debian/grub-legacy-ec2.kernel-$${khook}" "$${d}/x-grub-legacy-ec2" || exit 1; done
+
+# You only need to run this immediately after checking out the package from
+# revision control.
+# http://bugs.debian.org/cgi-bin/bugreport.cgi?bug=572204
+quilt-setup:
+	[ ! -d .pc ]
+	set -e; for patch in $$(quilt series | tac); do \
+		patch -p1 -R --no-backup-if-mismatch <"debian/patches/$$patch"; \
+	done
+	quilt push -a
+
+.PHONY: quilt-setup
+
