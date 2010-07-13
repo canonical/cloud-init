@@ -29,7 +29,6 @@ def is_mdname(name):
     for enumname in ( "ephemeral", "ebs" ):
         if name.startswith(enumname) and name.find(":") == -1:
             return True
-    if name.startswith("ephemeral") and name.find(":") == -1:
     return False
 
 def handle(name,cfg,cloud,log,args):
