@@ -1,0 +1,7 @@
+#!/bin/sh
+set -e
+
+dpkg-divert --package grub-legacy-ec2 --rename --divert \
+   /usr/sbin/grub-set-default.real --add /usr/sbin/grub-set-default
+
+#DEBHELPER#

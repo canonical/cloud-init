@@ -1,3 +1,20 @@
+cloud-init (0.5.13-0ubuntu1) maverick; urgency=low
+
+  * New upstream release.
+  * invoke dpkg with --force-confold (LP: #607642)
+
+ -- Scott Moser <smoser@ubuntu.com>  Wed, 21 Jul 2010 11:58:53 -0400
+
+cloud-init (0.5.12-0ubuntu8) maverick; urgency=low
+
+  * update-grub-legacy-ec2:
+    - add code to stop use of 'uuid' grub syntax
+    - change fallback grub device from (hd0,0) to (hd0)
+    - change timeout in menu.lst to 0
+  * grub-legacy-ec2: add grub-set-default functionality (LP: #605961)
+
+ -- Scott Moser <smoser@ubuntu.com>  Thu, 15 Jul 2010 13:07:01 -0400
+
 cloud-init (0.5.12-0ubuntu7) maverick; urgency=low
 
   * update-grub-legacy-ec2:                                                     

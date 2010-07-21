@@ -421,11 +421,11 @@ class CloudInit:
         if ctype == "__begin__": return
 
         filename=filename.replace(os.sep,'_')
-        prefix="#cloud-boothooks"
+        prefix="#cloud-boothook"
         dos=False
         start = 0
         if payload.startswith(prefix):
-            start = len(prefix)+1
+            start = len(prefix)
             if payload[start] == '\r':
                 start=start+1
                 dos = True

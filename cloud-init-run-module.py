@@ -44,7 +44,9 @@ def main():
         fail("Failed to get instance data\n\t%s" % traceback.format_exc(),log)
 
     if cloud.sem_has_run(semname,freq):
-        err("%s already ran %s" % (semname,freq),log)
+        msg="%s already ran %s" % (semname,freq)
+        sys.stderr.write("%\n" % msg)
+        log.debug(msg)
         sys.exit(0)
 
     try:

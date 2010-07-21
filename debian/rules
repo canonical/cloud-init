@@ -29,6 +29,8 @@ grub-legacy-ec2-install:
 		d=$(DEB_DESTDIR)/etc/kernel/$${khook}.d; \
 		install -d "$${d}" && \
 		install -m 0755 "debian/grub-legacy-ec2.kernel-$${khook}" "$${d}/x-grub-legacy-ec2" || exit 1; done
+	install -m 0755 debian/grub-set-default-legacy-ec2 $(DEB_DESTDIR)/usr/sbin
+	install -m 0755 debian/grub-set-default $(DEB_DESTDIR)/usr/sbin
 
 # You only need to run this immediately after checking out the package from
 # revision control.

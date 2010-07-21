@@ -20,17 +20,32 @@ import os
 import re
 import string
 
+def is_mdname(name):
+    # return true if this is a metadata service name
+    if name in [ "ami", "root", "swap" ]:
+        return True
+    # names 'ephemeral0' or 'ephemeral1'
+    # 'ebs[0-9]' appears when '--block-device-mapping sdf=snap-d4d90bbc'
+    for enumname in ( "ephemeral", "ebs" ):
+        if name.startswith(enumname) and name.find(":") == -1:
+            return True
+    return False
+
 def handle(name,cfg,cloud,log,args):
     # these are our default set of mounts
-    defmnts = [ [ "ephemeral0", "/mnt", "auto", "defaults", "0", "0" ],
+    defmnts = [ [ "ephemeral0", "/mnt", "auto", "defaults", "0", "2" ],
                 [ "swap", "none", "swap", "sw", "0", "0" ] ]
 
     # fs_spec, fs_file, fs_vfstype, fs_mntops, fs-freq, fs_passno
-    defvals = [ None, None, "auto", "defaults", "0", "0" ]
+    defvals = [ None, None, "auto", "defaults,nobootwait", "0", "2" ]
 
     cfgmnt = [ ]
     if cfg.has_key("mounts"):
         cfgmnt = cfg["mounts"]
+
+    # shortname matches 'sda', 'sda1', 'xvda', 'hda'
+    shortname_filter = r"^[x]{0,1}[shv]d[a-z][0-9]*$"
+    shortname = re.compile(shortname_filter)
 
     for i in range(len(cfgmnt)):
         # skip something that wasn't a list
@@ -41,24 +56,19 @@ def handle(name,cfg,cloud,log,args):
         if cfgmnt[i][0] == "ephemeral":
             cfgmnt[i][0] = "ephemeral0"
 
-        newname = cfgmnt[i][0]
-        if not newname.startswith("/"):
+        if is_mdname(cfgmnt[i][0]):
             newname = cloud.device_name_to_device(cfgmnt[i][0])
-        if newname is not None:
-            cfgmnt[i][0] = newname
-        else:
-            # there is no good way of differenciating between
-            # a name that *couldn't* exist in the md service and
-            # one that merely didnt
-            # in order to allow user to specify 'sda3' rather
-            # than '/dev/sda3', go through some hoops
-            ok = False
-            for f in [ "/", "sd", "hd", "vd", "xvd" ]:
-                if cfgmnt[i][0].startswith(f):
-                    ok = True
-                    break
-            if not ok:
+            if not newname:
+                log.debug("ignoring nonexistant named mount %s" % cfgmnt[i][0])
                 cfgmnt[i][1] = None
+            else:
+                if newname.startswith("/"):
+                    cfgmnt[i][0] = newname
+                else:
+                    cfgmnt[i][0] = "/dev/%s" % newname
+        else:
+            if shortname.match(cfgmnt[i][0]):
+                cfgmnt[i][0] = "/dev/%s" % cfgmnt[i][0]
 
     for i in range(len(cfgmnt)):
         # fill in values with 
@@ -67,9 +77,6 @@ def handle(name,cfg,cloud,log,args):
                 cfgmnt[i].append(defvals[j])
             elif cfgmnt[i][j] is None:
                 cfgmnt[i][j] = defvals[j]
-
-        if not cfgmnt[i][0].startswith("/"):
-            cfgmnt[i][0]="/dev/%s" % cfgmnt[i][0]
 
         # if the second entry in the list is 'None' this
         # clears all previous entries of that same 'fs_spec'
@@ -145,4 +152,4 @@ def handle(name,cfg,cloud,log,args):
         except: log.warn("Failed to make '%s' config-mount\n",d)
 
     try: util.subp(("mount","-a"))
-    except: pass
+    except: log.warn("'mount -a' failed")

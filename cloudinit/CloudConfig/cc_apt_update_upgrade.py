@@ -19,6 +19,7 @@ import cloudinit.util as util
 import subprocess
 import traceback
 import os
+import glob
 
 def handle(name,cfg,cloud,log,args):
     update = util.get_cfg_option_bool(cfg, 'apt_update', False)
@@ -64,7 +65,10 @@ def handle(name,cfg,cloud,log,args):
     e['DEBIAN_FRONTEND']='noninteractive'
 
     if upgrade:
-        subprocess.Popen(['apt-get', 'upgrade', '--assume-yes'], env=e).communicate()
+        cmd=[ 'apt-get', '--option', 'Dpkg::Options::=--force-confold',
+              'upgrade', '--assume-yes' ]
+
+        subprocess.Popen(cmd, env=e).communicate()
 
     if pkglist:
         cmd=['apt-get', 'install', '--assume-yes']

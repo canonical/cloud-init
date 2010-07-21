@@ -257,7 +257,7 @@ convert_default () {
 	if tmp=$(convert $tmp_dev 2>/dev/null) ; then
 		echo $tmp
 	else
-		echo "(hd0,0)"
+		echo "${grub_root_device_fallback}"
 	fi
 }
 
@@ -403,16 +403,17 @@ else
 	uuid=$(convert_to_uuid "$boot_device")
 fi
 
-if [ -n "$uuid" ]; then
-	grub_root_device="$uuid"
-fi
-# The ec2 provide pv-grub do not support 'uuid' so we have to use a grub name
-# when presented to grub, the root filesystem is on what grub sees
-# as a bare disk (hd0), rather than what we see it as in user space (sda1).
-grub_root_device="(hd0)"
+#if [ -n "$uuid" ]; then
+#	grub_root_device="$uuid"
+#fi
+## The ec2 provide pv-grub do not support 'uuid' so we have to use a grub name
+## when presented to grub, the root filesystem is on what grub sees
+## as a bare disk (hd0), rather than what we see it as in user space (sda1).
+grub_root_device_fallback="(hd0)"
+grub_root_device="${grub_root_device_fallback}"
 
 check_removable=""
-if test -z "$uuid"; then
+if true; then
 	if test -f "$device_map"; then
 		if test -z "$boot_device" ; then
 			grub_root_device=$(convert_default "$root_device")
@@ -422,7 +423,7 @@ if test -z "$uuid"; then
 			check_removable="$(is_removable "$boot_device")"
 		fi
 	else
-		grub_root_device="(hd0,0)"
+		grub_root_device="${grub_root_device_fallback}"
 	fi
 fi
 
@@ -507,7 +508,8 @@ default		0
 ## timeout sec
 # Set a timeout, in SEC seconds, before automatically booting the default entry
 # (normally the first entry defined).
-timeout		3
+# on ec2, with no console access, there is no reason for a timeout.  set to 0.
+timeout		0
 
 ## hiddenmenu
 # Hides the menu by default (press ESC to see the menu)
@@ -1121,6 +1123,13 @@ test -z "$kopt_2_6" && test -z "$(GetMenuOpt "kopt" "")" && \
 
 # Extract the grub root
 grub_root_device=$(GetMenuOpt "groot" "$grub_root_device")
+groot_cfg=$(GetMenuOpt groot "${grub_root_device_fallback}")
+case "${groot_cfg}" in
+	[^A-Za-z0-9]*) :;;
+	*) 
+		echo "uuid not supported. update 'groot' in ${menu_file}" >&2;
+		abort "groot must be grub root device (ie '(hd0)'). not '${groot_cfg}'" >&2;
+esac
 
 # Extract the old recovery value
 alternative=$(GetMenuOpt "recovery" "$alternative")
@@ -1189,7 +1198,7 @@ fi
 echo >> $buffer
 
 echo "## default grub root device" >> $buffer
-echo "## e.g. groot=(hd0,0)" >> $buffer
+echo "## e.g. groot=${grub_root_device_fallback}" >> $buffer
 echo "# groot=$grub_root_device" >> $buffer
 echo >> $buffer
 

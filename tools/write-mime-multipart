@@ -2,8 +2,6 @@
 # largely taken from python examples
 # http://docs.python.org/library/email-examples.html
 
-"""Send the contents of a directory as a MIME message."""
-
 import os
 import sys
 import smtplib
