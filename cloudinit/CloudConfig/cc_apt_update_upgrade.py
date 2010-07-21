@@ -65,7 +65,10 @@ def handle(name,cfg,cloud,log,args):
     e['DEBIAN_FRONTEND']='noninteractive'
 
     if upgrade:
-        subprocess.Popen(['apt-get', 'upgrade', '--assume-yes'], env=e).communicate()
+        cmd=[ 'apt-get', '--option', 'Dpkg::Options::=--force-confold',
+              'upgrade', '--assume-yes' ]
+
+        subprocess.Popen(cmd, env=e).communicate()
 
     if pkglist:
         cmd=['apt-get', 'install', '--assume-yes']
