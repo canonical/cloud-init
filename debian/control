@@ -9,7 +9,6 @@ Standards-Version: 3.8.4
 Package: cloud-init
 Architecture: all
 Depends: python, procps, python-configobj, python-cheetah, update-motd, python-yaml, python-software-properties, cloud-utils, ${python:Depends}, ${misc:Depends}
-Recommends: ssh-import
 Provides: ec2-init
 Replaces: ec2-init (<<0.5.3)
 Conflicts: ec2-init (<<0.5.3)

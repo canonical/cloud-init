@@ -1,3 +1,10 @@
+cloud-init (0.5.13-0ubuntu2) maverick; urgency=low
+
+  * debian/control: drop ssh-import as a recommends, as this has been
+    subsumed by openssh-server
+
+ -- Dustin Kirkland <kirkland@ubuntu.com>  Sat, 24 Jul 2010 21:02:40 +0200
+
 cloud-init (0.5.13-0ubuntu1) maverick; urgency=low
 
   * New upstream release.
