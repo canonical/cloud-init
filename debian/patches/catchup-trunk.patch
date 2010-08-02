@@ -1,0 +1,13 @@
+Index: maverick/cloud-init-run-module.py
+===================================================================
+--- maverick.orig/cloud-init-run-module.py	2010-07-29 17:02:19.638870002 -0400
++++ maverick/cloud-init-run-module.py	2010-07-29 17:02:28.648870002 -0400
+@@ -45,7 +45,7 @@
+ 
+     if cloud.sem_has_run(semname,freq):
+         msg="%s already ran %s" % (semname,freq)
+-        sys.stderr.write("%\n" % msg)
++        sys.stderr.write("%s\n" % msg)
+         log.debug(msg)
+         sys.exit(0)
+ 
