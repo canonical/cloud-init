@@ -43,7 +43,7 @@ def handle(name,cfg,cloud,log,args):
     if cfg.has_key("mounts"):
         cfgmnt = cfg["mounts"]
 
-    # shortname matches 'sda', 'sda1', 'xvda', 'hda'
+    # shortname matches 'sda', 'sda1', 'xvda', 'hda', 'sdb', xvdb, vda, vdd1
     shortname_filter = r"^[x]{0,1}[shv]d[a-z][0-9]*$"
     shortname = re.compile(shortname_filter)
 
@@ -71,7 +71,7 @@ def handle(name,cfg,cloud,log,args):
                 cfgmnt[i][0] = "/dev/%s" % cfgmnt[i][0]
 
     for i in range(len(cfgmnt)):
-        # fill in values with 
+        # fill in values with defaults from defvals above
         for j in range(len(defvals)):
             if len(cfgmnt[i]) <= j:
                 cfgmnt[i].append(defvals[j])
