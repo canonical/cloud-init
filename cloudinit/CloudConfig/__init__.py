@@ -56,6 +56,5 @@ class CloudConfig():
             self.cloud.sem_and_run("config-" + name, freq, handler,
                 [ name, self.cfg, self.cloud, cloudinit.log, args ])
         except:
-            cloudinit.log.debug(traceback.format_exc())
             raise
 
