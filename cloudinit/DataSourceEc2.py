@@ -24,6 +24,7 @@ import urllib2
 import time
 import sys
 import boto_utils
+import os.path
 
 class DataSourceEc2(DataSource.DataSource):
     api_ver  = '2009-04-04'
@@ -160,10 +161,38 @@ class DataSourceEc2(DataSource.DataSource):
         if not self.metadata.has_key('block-device-mapping'):
             return(None)
 
+        found = None
         for entname, device in self.metadata['block-device-mapping'].items():
             if entname == name:
-                return(device)
+                found = device
+                break
             # LP: #513842 mapping in Euca has 'ephemeral' not 'ephemeral0'
             if entname == "ephemeral" and name == "ephemeral0":
-                return(device)
+                found = device
+        if found == None:
+            cloudinit.log.warn("returning None")
+            return None
+
+        # LP: #611137
+        # the metadata service may believe that devices are named 'sda'
+        # when the kernel named them 'vda' or 'xvda'
+        # we want to return the correct value for what will actually
+        # exist in this instance
+        mappings = { "sd": ("vd", "xvd") }
+        ofound = found
+        short = os.path.basename(found)
+        
+        if not found.startswith("/"):
+            found="/dev/%s" % found
+
+        if os.path.exists(found):
+            return(found)
+
+        for nfrom, tlist in mappings.items():
+            if not short.startswith(nfrom): continue
+            for nto in tlist:
+                cand = "/dev/%s%s" % (nto, short[len(nfrom):])
+                if os.path.exists(cand):
+                    cloudinit.log.debug("remapped device name %s => %s" % (found,cand))
+                    return(cand)
         return None
