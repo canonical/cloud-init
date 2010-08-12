@@ -1,3 +1,11 @@
+cloud-init (0.5.14-0ubuntu1) maverick; urgency=low
+
+  * New upstream release.
+   - support for reading metadata and userdata from filesystem
+   - support for boot without metadata at all
+
+ -- Scott Moser <smoser@ubuntu.com>  Thu, 12 Aug 2010 14:45:28 -0400
+
 cloud-init (0.5.13-0ubuntu3) maverick; urgency=low
 
   * grub-legacy-ec2: fix 'apt-get --reinstall' and dpkg-divert (LP: #611812)

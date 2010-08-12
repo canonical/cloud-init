@@ -24,7 +24,7 @@ import os.path
 import subprocess
 
 setup(name='cloud-init',
-      version='0.5.13',
+      version='0.5.14',
       description='EC2 initialisation magic',
       author='Scott Moser',
       author_email='scott.moser@canonical.com',
@@ -38,6 +38,8 @@ setup(name='cloud-init',
                   ('/etc/cloud/templates', glob('templates/*')),
                   ('/etc/init', glob('upstart/*.conf')),
                   ('/usr/share/cloud-init', []),
+                  ('/usr/lib/cloud-init',
+                      ['tools/uncloud-init','tools/write-mime-multipart']),
                   ('/usr/share/doc/cloud-init', glob('doc/*.txt')),
                   ('/usr/share/doc/cloud-init/examples', glob('doc/examples/*')),
                   ],

@@ -203,12 +203,15 @@ runcmd:
 # cc_<name>.py
 # example:
 cloud_config_modules:
- - [apt-update-upgrade, always]
- - config-misc
- - config-mounts
- - config-puppet
- - config-ssh
+ - mounts
+ - ssh-import-id
+ - ssh
+ - [ apt-update-upgrade, always ]
+ - puppet
+ - updates-check
  - disable-ec2-metadata
+ - runcmd
+ - byobu
 
 # ssh_import_id: [ user1, user2 ]
 # ssh_import_id will feed the list in that variable to
@@ -237,3 +240,8 @@ debconf_selections: |     # Need to perserve newlines
 #   'system' will enable launch-by-default for for all users
 byobu_by_default: system
 
+# disable ssh access as root.
+# if you want to be able to ssh in to the system as the root user
+# rather than as the 'ubuntu' user, then you must set this to false
+# default: true
+disable_root: false

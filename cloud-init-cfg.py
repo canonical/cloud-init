@@ -22,6 +22,7 @@ import cloudinit
 import cloudinit.CloudConfig
 import logging
 import os
+import traceback
 
 def Usage(out = sys.stdout):
     out.write("Usage: %s name\n" % sys.argv[0])
@@ -95,6 +96,7 @@ def main():
                 (name, freq, run_args ))
             cc.handle(name, run_args, freq=freq)
         except:
+            log.warn(traceback.format_exc())
             err("config handling of %s, %s, %s failed\n" %
                 (name,freq,run_args), log)
             failures.append(name)

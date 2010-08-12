@@ -45,7 +45,7 @@ def main():
 
     if cloud.sem_has_run(semname,freq):
         msg="%s already ran %s" % (semname,freq)
-        sys.stderr.write("%\n" % msg)
+        sys.stderr.write("%s\n" % msg)
         log.debug(msg)
         sys.exit(0)
 

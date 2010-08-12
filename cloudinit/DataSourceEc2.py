@@ -19,11 +19,14 @@
 import DataSource
 
 import cloudinit
+import cloudinit.util as util
 import socket
 import urllib2
 import time
 import sys
 import boto_utils
+import os.path
+import errno
 
 class DataSourceEc2(DataSource.DataSource):
     api_ver  = '2009-04-04'
@@ -38,22 +41,17 @@ class DataSourceEc2(DataSource.DataSource):
     def __init__(self):
         pass
 
+    def __str__(self):
+        return("DataSourceEc2")
+
     def get_data(self):
-        try:
-            udf = open(self.cachedir + "/user-data.raw")
-            self.userdata_raw = udf.read()
-            udf.close()
-
-            mdf = open(self.cachedir + "/meta-data.raw")
-            data = mdf.read()
-            self.metadata = eval(data)
-            mdf.close()
-
-            cloudinit.log.debug("using seeded ec2 cache data in %s" % self.cachedir)
+        seedret={ }
+        if util.read_optional_seed(seedret,base=self.cachedir + "/"):
+            self.userdata_raw = seedret['user-data']
+            self.metadata = seedret['meta-data']
+            cloudinit.log.debug("using seeded ec2 data in %s" % self.cachedir)
             return True
-        except:
-            pass
-
+        
         try:
             if not self.wait_for_metadata_service():
                 return False
@@ -79,18 +77,6 @@ class DataSourceEc2(DataSource.DataSource):
             return(self.location_locale_map[az[0:2]])
         else:
             return(self.location_locale_map["default"])
-
-    def get_hostname(self):
-        toks = self.metadata['local-hostname'].split('.')
-        # if there is an ipv4 address in 'local-hostname', then
-        # make up a hostname (LP: #475354)
-        if len(toks) == 4:
-            try:
-                r = filter(lambda x: int(x) < 256 and x > 0, toks)
-                if len(r) == 4:
-                    return("ip-%s" % '-'.join(r))
-            except: pass
-        return toks[0]
 
     def get_mirror_from_availability_zone(self, availability_zone = None):
         # availability is like 'us-west-1b' or 'eu-west-1a'
@@ -137,22 +123,6 @@ class DataSourceEc2(DataSource.DataSource):
                   int(time.time()-starttime))
         return False
 
-    def get_public_ssh_keys(self):
-        keys = []
-        if not self.metadata.has_key('public-keys'): return([])
-        for keyname, klist in self.metadata['public-keys'].items():
-            # lp:506332 uec metadata service responds with
-            # data that makes boto populate a string for 'klist' rather
-            # than a list.
-            if isinstance(klist,str):
-                klist = [ klist ]
-            for pkey in klist:
-                # there is an empty string at the end of the keylist, trim it
-                if pkey:
-                    keys.append(pkey)
-
-        return(keys)
-
     def device_name_to_device(self, name):
         # consult metadata service, that has
         #  ephemeral0: sdb
@@ -160,10 +130,38 @@ class DataSourceEc2(DataSource.DataSource):
         if not self.metadata.has_key('block-device-mapping'):
             return(None)
 
+        found = None
         for entname, device in self.metadata['block-device-mapping'].items():
             if entname == name:
-                return(device)
+                found = device
+                break
             # LP: #513842 mapping in Euca has 'ephemeral' not 'ephemeral0'
             if entname == "ephemeral" and name == "ephemeral0":
-                return(device)
+                found = device
+        if found == None:
+            cloudinit.log.warn("returning None")
+            return None
+
+        # LP: #611137
+        # the metadata service may believe that devices are named 'sda'
+        # when the kernel named them 'vda' or 'xvda'
+        # we want to return the correct value for what will actually
+        # exist in this instance
+        mappings = { "sd": ("vd", "xvd") }
+        ofound = found
+        short = os.path.basename(found)
+        
+        if not found.startswith("/"):
+            found="/dev/%s" % found
+
+        if os.path.exists(found):
+            return(found)
+
+        for nfrom, tlist in mappings.items():
+            if not short.startswith(nfrom): continue
+            for nto in tlist:
+                cand = "/dev/%s%s" % (nto, short[len(nfrom):])
+                if os.path.exists(cand):
+                    cloudinit.log.debug("remapped device name %s => %s" % (found,cand))
+                    return(cand)
         return None
