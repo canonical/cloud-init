@@ -121,8 +121,24 @@ def render_to_file(template, outfile, searchList):
     f.write(t.respond())
     f.close()
 
+# read_optional_seed
+# returns boolean indicating success or failure (presense of files)
+# if files are present, populates 'fill' dictionary with 'user-data' and
+# 'meta-data' entries
+def read_optional_seed(fill,base="",ext="", timeout=2):
+    try:
+        (md,ud) = read_seeded(base,ext,timeout)
+        fill['user-data']= ud
+        fill['meta-data']= md
+        return True
+    except OSError, e:
+        if e.errno == errno.ENOENT:
+            return False
+        raise
+    
+
 # raise OSError with enoent if not found
-def read_seeded(base="", ext=".raw", timeout=2):
+def read_seeded(base="", ext="", timeout=2):
     if base.startswith("/"):
         base="file://%s" % base
 
