@@ -45,17 +45,13 @@ class DataSourceEc2(DataSource.DataSource):
         return("DataSourceEc2")
 
     def get_data(self):
-        try:
-            (md,ud) = util.read_seeded(self.cachedir + "/")
-            self.userdata_raw = ud
-            self.metadata = md
-            cloudinit.log.debug("using seeded ec2 cache data in %s" % self.cachedir)
+        seedret={ }
+        if util.read_optional_seed(seedret,base=self.cachedir + "/"):
+            self.userdata_raw = seedret['user-data']
+            self.metadata = seedret['meta-data']
+            cloudinit.log.debug("using seeded ec2 data in %s" % self.cachedir)
             return True
-        except OSError, e:
-            if e.errno != errno.ENOENT:
-                cloudinit.log.warn("unexpected error from preseeded data")
-                raise
-
+        
         try:
             if not self.wait_for_metadata_service():
                 return False

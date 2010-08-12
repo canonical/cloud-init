@@ -48,30 +48,30 @@ class DataSourceNoCloud(DataSource.DataSource):
             "instance-id" : "nocloud"
         }
 
+        found = False
         md = { }
         ud = ""
 
         try:
             # parse the kernel command line, getting data passed in
-            md = parse_cmdline_data(self.cmdline_id)
+            if parse_cmdline_data(self.cmdline_id, md):
+                found = True
         except:
             util.logexc(cloudinit.log,util.WARN)
             return False
 
         # check to see if the seeddir has data.
-        try:
-            (seeddir_md,ud) = util.read_seeded(self.seeddir + "/")
-            self.metadata = md
-            md = util.mergedict(md,seeddir_md)
+        seedret={ }
+        if util.read_optional_seed(seedret,base=self.seeddir + "/"):
+            md = util.mergedict(md,seedret['meta-data'])
+            ud = seedret['user-data']
+            found = True
             cloudinit.log.debug("using seeded cache data in %s" % self.seeddir)
-        except OSError, e:
-            if e.errno != errno.ENOENT:
-                util.logexc(cloudinit.log,util.WARN)
-                raise
+            return True
 
         # there was no indication on kernel cmdline or data
         # in the seeddir suggesting this handler should be used.
-        if md is None:
+        if not found:
             return False
 
         # the special argument "seedfrom" indicates we should
@@ -102,10 +102,11 @@ class DataSourceNoCloud(DataSource.DataSource):
         self.userdata_raw = ud
         return True
 
-# returns a dictionary of key/val or None if cmdline did not have data
+# returns true or false indicating if cmdline indicated
+# that this module should be used
 # example cmdline:
 #  root=LABEL=uec-rootfs ro ds=nocloud
-def parse_cmdline_data(ds_id,cmdline=None):
+def parse_cmdline_data(ds_id,fill,cmdline=None):
     if cmdline is None:
         if 'DEBUG_PROC_CMDLINE' in os.environ:
             cmdline = os.environ["DEBUG_PROC_CMDLINE"]
@@ -116,7 +117,7 @@ def parse_cmdline_data(ds_id,cmdline=None):
         cmdline = " %s " % cmdline.lower()
 
         if not ( " %s " % ds_id in cmdline or " %s;" % ds_id in cmdline ):
-            return None
+            return False
 
     argline=""
     # cmdline can contain:
@@ -134,7 +135,6 @@ def parse_cmdline_data(ds_id,cmdline=None):
 
     # short2long mapping to save cmdline typing
     s2l = {  "h" : "local-hostname", "i" : "instance-id", "s" : "seedfrom" }
-    cfg = { }
     for item in kvpairs:
         try:
             (k,v) = item.split("=",1)
@@ -142,9 +142,9 @@ def parse_cmdline_data(ds_id,cmdline=None):
             k=item
             v=None
         if k in s2l: k=s2l[k]
-        cfg[k]=v
+        fill[k]=v
 
-    return(cfg)
+    return(True)
 
 class DataSourceNoCloudNet(DataSourceNoCloud):
     cmdline_id = "ds=nocloud-net"
