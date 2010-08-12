@@ -237,3 +237,8 @@ debconf_selections: |     # Need to perserve newlines
 #   'system' will enable launch-by-default for for all users
 byobu_by_default: system
 
+# disable ssh access as root.
+# if you want to be able to ssh in to the system as the root user
+# rather than as the 'ubuntu' user, then you must set this to false
+# default: true
+disable_root: false
