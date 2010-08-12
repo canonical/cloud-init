@@ -22,3 +22,9 @@ public-keys:
 reservation-id: r-e2225889
 security-groups: default
 
+# of the fields above:
+# required:
+#  instance-id
+# suggested:
+#  local-hostname
+#  public-keys
