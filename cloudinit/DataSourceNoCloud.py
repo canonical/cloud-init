@@ -48,14 +48,14 @@ class DataSourceNoCloud(DataSource.DataSource):
             "instance-id" : "nocloud"
         }
 
-        found = False
+        found = [ ]
         md = { }
         ud = ""
 
         try:
             # parse the kernel command line, getting data passed in
             if parse_cmdline_data(self.cmdline_id, md):
-                found = True
+                found.append("cmdline")
         except:
             util.logexc(cloudinit.log,util.WARN)
             return False
@@ -65,12 +65,12 @@ class DataSourceNoCloud(DataSource.DataSource):
         if util.read_optional_seed(seedret,base=self.seeddir + "/"):
             md = util.mergedict(md,seedret['meta-data'])
             ud = seedret['user-data']
-            found = True
+            found.append(self.seeddir)
             cloudinit.log.debug("using seeded cache data in %s" % self.seeddir)
 
         # there was no indication on kernel cmdline or data
         # in the seeddir suggesting this handler should be used.
-        if not found:
+        if len(found) == 0:
             return False
 
         # the special argument "seedfrom" indicates we should
@@ -94,9 +94,10 @@ class DataSourceNoCloud(DataSource.DataSource):
 
             # values in the command line override those from the seed
             md = util.mergedict(md,md_seed)
-            self.seed = seedfrom
+            found.append(seedfrom)
 
         md = util.mergedict(md,defaults)
+        self.seed = ",".join(found)
         self.metadata = md;
         self.userdata_raw = ud
         return True
