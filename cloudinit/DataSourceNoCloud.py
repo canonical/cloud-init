@@ -67,7 +67,6 @@ class DataSourceNoCloud(DataSource.DataSource):
             ud = seedret['user-data']
             found = True
             cloudinit.log.debug("using seeded cache data in %s" % self.seeddir)
-            return True
 
         # there was no indication on kernel cmdline or data
         # in the seeddir suggesting this handler should be used.
