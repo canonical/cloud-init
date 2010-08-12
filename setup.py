@@ -23,6 +23,9 @@ from glob import glob
 import os.path
 import subprocess
 
+def is_f(p):
+    return(os.path.isfile(p))
+
 setup(name='cloud-init',
       version='0.5.14',
       description='EC2 initialisation magic',
@@ -40,7 +43,8 @@ setup(name='cloud-init',
                   ('/usr/share/cloud-init', []),
                   ('/usr/lib/cloud-init',
                       ['tools/uncloud-init','tools/write-mime-multipart']),
-                  ('/usr/share/doc/cloud-init', glob('doc/*.txt')),
-                  ('/usr/share/doc/cloud-init/examples', glob('doc/examples/*')),
+                  ('/usr/share/doc/cloud-init', filter(is_f,glob('doc/*'))),
+                  ('/usr/share/doc/cloud-init/examples', filter(is_f,glob('doc/examples/*'))),
+                  ('/usr/share/doc/cloud-init/examples/seed', filter(is_f,glob('doc/examples/seed/*'))),
                   ],
       )
