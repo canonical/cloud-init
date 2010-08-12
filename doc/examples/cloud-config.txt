@@ -203,12 +203,15 @@ runcmd:
 # cc_<name>.py
 # example:
 cloud_config_modules:
- - [apt-update-upgrade, always]
- - config-misc
- - config-mounts
- - config-puppet
- - config-ssh
+ - mounts
+ - ssh-import-id
+ - ssh
+ - [ apt-update-upgrade, always ]
+ - puppet
+ - updates-check
  - disable-ec2-metadata
+ - runcmd
+ - byobu
 
 # ssh_import_id: [ user1, user2 ]
 # ssh_import_id will feed the list in that variable to
