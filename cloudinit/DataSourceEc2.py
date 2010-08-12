@@ -19,12 +19,14 @@
 import DataSource
 
 import cloudinit
+import cloudinit.util as util
 import socket
 import urllib2
 import time
 import sys
 import boto_utils
 import os.path
+import errno
 
 class DataSourceEc2(DataSource.DataSource):
     api_ver  = '2009-04-04'
@@ -39,21 +41,20 @@ class DataSourceEc2(DataSource.DataSource):
     def __init__(self):
         pass
 
+    def __str__(self):
+        return("DataSourceEc2")
+
     def get_data(self):
         try:
-            udf = open(self.cachedir + "/user-data.raw")
-            self.userdata_raw = udf.read()
-            udf.close()
-
-            mdf = open(self.cachedir + "/meta-data.raw")
-            data = mdf.read()
-            self.metadata = eval(data)
-            mdf.close()
-
+            (md,ud) = util.read_seeded(self.cachedir + "/")
+            self.userdata_raw = ud
+            self.metadata = md
             cloudinit.log.debug("using seeded ec2 cache data in %s" % self.cachedir)
             return True
-        except:
-            pass
+        except OSError, e:
+            if e.errno != errno.ENOENT:
+                cloudinit.log.warn("unexpected error from preseeded data")
+                raise
 
         try:
             if not self.wait_for_metadata_service():
@@ -80,18 +81,6 @@ class DataSourceEc2(DataSource.DataSource):
             return(self.location_locale_map[az[0:2]])
         else:
             return(self.location_locale_map["default"])
-
-    def get_hostname(self):
-        toks = self.metadata['local-hostname'].split('.')
-        # if there is an ipv4 address in 'local-hostname', then
-        # make up a hostname (LP: #475354)
-        if len(toks) == 4:
-            try:
-                r = filter(lambda x: int(x) < 256 and x > 0, toks)
-                if len(r) == 4:
-                    return("ip-%s" % '-'.join(r))
-            except: pass
-        return toks[0]
 
     def get_mirror_from_availability_zone(self, availability_zone = None):
         # availability is like 'us-west-1b' or 'eu-west-1a'
@@ -137,22 +126,6 @@ class DataSourceEc2(DataSource.DataSource):
         cloudinit.log.critical("giving up on md after %i seconds\n" %
                   int(time.time()-starttime))
         return False
-
-    def get_public_ssh_keys(self):
-        keys = []
-        if not self.metadata.has_key('public-keys'): return([])
-        for keyname, klist in self.metadata['public-keys'].items():
-            # lp:506332 uec metadata service responds with
-            # data that makes boto populate a string for 'klist' rather
-            # than a list.
-            if isinstance(klist,str):
-                klist = [ klist ]
-            for pkey in klist:
-                # there is an empty string at the end of the keylist, trim it
-                if pkey:
-                    keys.append(pkey)
-
-        return(keys)
 
     def device_name_to_device(self, name):
         # consult metadata service, that has

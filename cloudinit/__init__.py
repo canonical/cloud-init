@@ -159,20 +159,27 @@ def logging_set_from_cfg(cfg, logfile=None):
     logging.config.fileConfig(StringIO.StringIO(failsafe))
 
 import DataSourceEc2
+import DataSourceNoCloud
 import UserDataHandler
 
 class CloudInit:
     datasource_map = {
         "ec2" : DataSourceEc2.DataSourceEc2,
+        "nocloud" : DataSourceNoCloud.DataSourceNoCloud,
+        "nocloud-net" : DataSourceNoCloud.DataSourceNoCloudNet
     }
     datasource = None
-    auto_order = [ 'ec2' ]
+    auto_orders = {
+        "all": ( "nocloud-net", "ec2" ),
+        "local" : ( "nocloud", ),
+    }
 
     cfg = None
     part_handlers = { }
     old_conffile = '/etc/ec2-init/ec2-config.cfg'
+    source_type = "all"
 
-    def __init__(self, sysconfig=system_config):
+    def __init__(self, source_type = "all", sysconfig=system_config):
         self.part_handlers = {
             'text/x-shellscript' : self.handle_user_script,
             'text/cloud-config' : self.handle_cloud_config,
@@ -182,6 +189,7 @@ class CloudInit:
         }
         self.sysconfig=sysconfig
         self.cfg=self.read_cfg()
+        self.source_type = source_type
 
     def read_cfg(self):
         if self.cfg:
@@ -232,18 +240,21 @@ class CloudInit:
         if self.datasource is not None: return True
 
         if self.restore_from_cache():
+            log.debug("restored from cache type %s" % self.datasource)
             return True
 
         dslist=[ ]
         cfglist=self.cfg['cloud_type']
         if cfglist == "auto":
-            dslist = self.auto_order
+            dslist = self.auto_orders[self.source_type]
         elif cfglist:
             for ds in cfglist.split(','):
                 dslist.append(strip(ds).tolower())
             
         for ds in dslist:
-            if ds not in self.datasource_map: continue
+            if ds not in self.datasource_map:
+                log.warn("data source %s not found in map" % ds)
+                continue
             try:
                 s = self.datasource_map[ds]()
                 if s.get_data():
@@ -252,9 +263,11 @@ class CloudInit:
                     log.debug("found data source %s" % ds)
                     return True
             except Exception as e:
+                log.warn("get_data of %s raised %s" % (ds,e))
+                util.logexc(log)
                 pass
-        log.critical("Could not find data source")
-        raise Exception("Could not find data source")
+        log.debug("did not find data source from %s" % dslist)
+        raise DataSourceNotFoundException("Could not find data source")
 
     def get_userdata(self):
         return(self.datasource.get_userdata())
@@ -475,3 +488,6 @@ def purge_cache():
     except:
         return(False)
     return(True)
+
+class DataSourceNotFoundException(Exception):
+    pass

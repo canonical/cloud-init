@@ -30,6 +30,15 @@ def warn(str):
     sys.stderr.write(str)
 
 def main():
+    cmds = ( "start", "start-local" )
+    cmd = ""
+    if len(sys.argv) > 1:
+        cmd = sys.argv[1]
+
+    if not cmd in cmds:
+        sys.stderr.write("bad command %s. use one of %s\n" % (cmd, cmds))
+        sys.exit(1)
+
     now = time.strftime("%a, %d %b %Y %H:%M:%S %z")
     try:
        uptimef=open("/proc/uptime")
@@ -39,28 +48,38 @@ def main():
        warn("unable to open /proc/uptime\n")
        uptime = "na"
 
-    msg = "cloud-init running: %s. up %s seconds" % (now, uptime)
+    msg = "cloud-init %s running: %s. up %s seconds" % (cmd, now, uptime)
     sys.stderr.write(msg + "\n")
     sys.stderr.flush()
+
+    source_type = "all"
+    if cmd == "start-local":
+        source_type = "local"
 
     cloudinit.logging_set_from_cfg_file()
     log = logging.getLogger()
     log.info(msg)
 
     # cache is not instance specific, so it has to be purged
-    cloudinit.purge_cache()
+    # but we want 'start' to benefit from a cache if
+    # a previous start-local populated one
+    if cmd == "start-local":
+        cloudinit.purge_cache()
 
-    cloud = cloudinit.CloudInit()
+    cloud = cloudinit.CloudInit(source_type=source_type)
 
     try:
         cloud.get_data_source()
-    except Exception as e:
-        print e
-        sys.stderr.write("Failed to get instance data\n")
+    except cloudinit.DataSourceNotFoundException as e:
+        sys.stderr.write("no instance data found in %s\n" % cmd)
         sys.exit(1)
 
     # store the metadata
     cloud.update_cache()
+
+    msg = "found data source: %s" % cloud.datasource
+    sys.stderr.write(msg + "\n")
+    log.debug(msg)
 
     # parse the user data (ec2-run-userdata.py)
     try:

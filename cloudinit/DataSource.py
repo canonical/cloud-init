@@ -36,7 +36,20 @@ class DataSource:
         return(self.userdata_raw)
 
     def get_public_ssh_keys(self):
-        return([])
+        keys = []
+        if not self.metadata.has_key('public-keys'): return([])
+        for keyname, klist in self.metadata['public-keys'].items():
+            # lp:506332 uec metadata service responds with
+            # data that makes boto populate a string for 'klist' rather
+            # than a list.
+            if isinstance(klist,str):
+                klist = [ klist ]
+            for pkey in klist:
+                # there is an empty string at the end of the keylist, trim it
+                if pkey:
+                    keys.append(pkey)
+
+        return(keys)
 
     def device_name_to_device(self, name):
         # translate a 'name' to a device
@@ -45,3 +58,29 @@ class DataSource:
         #  ephemeral0: sdb
         # and return 'sdb' for input 'ephemeral0'
         return(None)
+
+    def get_locale(self):
+        return('en_US.UTF-8')
+
+    def get_local_mirror(self):
+        return('http://archive.ubuntu.com/ubuntu/')
+
+    def get_instance_id(self):
+        if 'instance-id' not in self.metadata:
+            return "ubuntuhost"
+        return(self.metadata['instance-id'])
+
+    def get_hostname(self):
+        if not 'local-hostname' in self.metadata:
+            return None
+
+        toks = self.metadata['local-hostname'].split('.')
+        # if there is an ipv4 address in 'local-hostname', then
+        # make up a hostname (LP: #475354)
+        if len(toks) == 4:
+            try:
+                r = filter(lambda x: int(x) < 256 and x > 0, toks)
+                if len(r) == 4:
+                    return("ip-%s" % '-'.join(r))
+            except: pass
+        return toks[0]
