@@ -21,6 +21,13 @@ import errno
 import subprocess
 from Cheetah.Template import Template
 import cloudinit
+import urllib2
+import logging
+import traceback
+
+WARN = logging.WARN
+DEBUG = logging.DEBUG
+INFO = logging.INFO
 
 def read_conf(fname):
     try:
@@ -114,3 +121,29 @@ def render_to_file(template, outfile, searchList):
     f.write(t.respond())
     f.close()
 
+# raise OSError with enoent if not found
+def read_seeded(base="", ext=".raw", timeout=2):
+    if base.startswith("/"):
+        base="file://%s" % base
+
+    ud_url = "%s%s%s" % (base, "user-data", ext)
+    md_url = "%s%s%s" % (base, "meta-data", ext)
+
+    try:
+        md_resp = urllib2.urlopen(urllib2.Request(md_url), timeout=timeout)
+        ud_resp = urllib2.urlopen(urllib2.Request(ud_url), timeout=timeout)
+
+        md_str = md_resp.read()
+        ud = ud_resp.read()
+        md = yaml.load(md_str)
+
+        return(md,ud)
+    except urllib2.HTTPError:
+        raise
+    except urllib2.URLError, e:
+        if isinstance(e.reason,OSError) and e.reason.errno == errno.ENOENT:
+           raise e.reason 
+        raise e
+
+def logexc(log,lvl=logging.DEBUG):
+    log.log(lvl,traceback.format_exc())
