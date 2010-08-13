@@ -77,12 +77,12 @@ class DataSourceNoCloud(DataSource.DataSource):
         # attempt to seed the userdata / metadata from its value
         if "seedfrom" in md:
             seedfrom = md["seedfrom"]
-            found = False
+            seedfound = False
             for proto in self.supported_seed_starts:
                 if seedfrom.startswith(proto):
-                    found=proto
+                    seedfound=proto
                     break
-            if not found:
+            if not seedfound:
                 cloudinit.log.debug("seed from %s not supported by %s" %
                     (seedfrom, self.__class__))
                 return False
