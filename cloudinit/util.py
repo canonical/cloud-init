@@ -142,8 +142,12 @@ def read_seeded(base="", ext="", timeout=2):
     if base.startswith("/"):
         base="file://%s" % base
 
-    ud_url = "%s%s%s" % (base, "user-data", ext)
-    md_url = "%s%s%s" % (base, "meta-data", ext)
+    if base.find("%s") >= 0:
+        ud_url = base % ("user-data" + ext)
+        md_url = base % ("meta-data" + ext)
+    else
+        ud_url = "%s%s%s" % (base, "user-data", ext)
+        md_url = "%s%s%s" % (base, "meta-data", ext)
 
     try:
         md_resp = urllib2.urlopen(urllib2.Request(md_url), timeout=timeout)
