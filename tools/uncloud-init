@@ -10,11 +10,14 @@
 KEY="xupdate"
 UMOUNT=""
 RMDIR=""
-MARK=/root/uncloud-init-ran
+MARK=/var/lib/cloud/sem/uncloud-init.once
 ROOT_RW=""
 
 doexec() {
-	[ -z "$ROOT_RW" ] || date > "${MARK}";
+	if [ -n "$ROOT_RW" ]; then
+		mkdir -p "${MARK%/*}";
+		date > "${MARK}";
+	fi
 	cleanup;
 	log "invoking /sbin/init $*"
 	exec /sbin/init "$@";
