@@ -1,1 +1,4 @@
-debian-changes-0.5.14-0ubuntu1
+249-fix-setup-py.patch
+250-lp-617400-fix-seedfrom.patch
+251-move-marker-file-to-var-lib.patch
+252-printf-format-of-seed.patch

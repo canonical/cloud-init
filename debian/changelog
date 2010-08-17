@@ -1,3 +1,9 @@
+cloud-init (0.5.14-0ubuntu2) maverick; urgency=low
+
+  * fix bug preventing 'seedfrom' from working (LP:617400)
+
+ -- Scott Moser <smoser@ubuntu.com>  Tue, 17 Aug 2010 15:49:13 -0400
+
 cloud-init (0.5.14-0ubuntu1) maverick; urgency=low
 
   * New upstream release.
