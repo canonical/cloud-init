@@ -145,7 +145,7 @@ def read_seeded(base="", ext="", timeout=2):
     if base.find("%s") >= 0:
         ud_url = base % ("user-data" + ext)
         md_url = base % ("meta-data" + ext)
-    else
+    else:
         ud_url = "%s%s%s" % (base, "user-data", ext)
         md_url = "%s%s%s" % (base, "meta-data", ext)
 
