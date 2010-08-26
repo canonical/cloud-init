@@ -36,7 +36,7 @@ grub-legacy-ec2-install:
 # revision control.
 # http://bugs.debian.org/cgi-bin/bugreport.cgi?bug=572204
 quilt-setup:
-	[ ! -d .pc ]
+	@[ ! -d .pc ] || { echo ".pc exists. remove it and re-run to start fresh"; exit 1; }
 	set -e; for patch in $$(quilt series | tac); do \
 		patch -p1 -R --no-backup-if-mismatch <"debian/patches/$$patch"; \
 	done

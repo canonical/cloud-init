@@ -1,3 +1,10 @@
+cloud-init (0.5.14-0ubuntu4) maverick; urgency=low
+
+  * add commented out entries for partner, backports, and multiverse
+    (LP: #620572)
+
+ -- Scott Moser <smoser@ubuntu.com>  Thu, 26 Aug 2010 16:44:48 -0400
+
 cloud-init (0.5.14-0ubuntu3) maverick; urgency=low
 
   * fix syntax error in cloudinit/util.py (failed installation)

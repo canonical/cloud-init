@@ -3,3 +3,4 @@
 251-move-marker-file-to-var-lib.patch
 252-printf-format-of-seed.patch
 253-fix-util-py-syntax-error.patch
+254-apt-sources-addl-commented-entries.patch
