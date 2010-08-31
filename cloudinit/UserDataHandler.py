@@ -46,7 +46,9 @@ def do_include(str,parts):
     for line in str.splitlines():
         if line == "#include": continue
         if line.startswith("#"): continue
-        content = urllib.urlopen(line).read()
+        try:
+            content = urllib.urlopen(line).read()
+        except Exception e:
         process_includes(email.message_from_string(decomp_str(content)),parts)
 
 def process_includes(msg,parts):
