@@ -76,15 +76,16 @@ def mergedict(src,cand):
                 src[k] = mergedict(src[k],v)
     return src
 
-def write_file(file,content,mode=0644):
+def write_file(file,content,mode=0644,omode="wb"):
         try:
             os.makedirs(os.path.dirname(file))
         except OSError as e:
             if e.errno != errno.EEXIST:
                 raise e
 
-        f=open(file,"wb")
-        os.chmod(file,mode)
+        f=open(file,omode)
+        if mode != None:
+            os.chmod(file,mode)
         f.write(content)
         f.close()
 
