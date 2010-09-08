@@ -1,3 +1,11 @@
+cloud-init (0.5.14-0ubuntu5) maverick; urgency=low
+
+  * add missing imports for cc_puppet (LP: #632744)
+  * append to apt_sources files rather than truncating (LP: #627597)
+  * get double commented lines into sources.list (LP: #627439)
+
+ -- Scott Moser <smoser@ubuntu.com>  Wed, 08 Sep 2010 10:31:58 -0400
+
 cloud-init (0.5.14-0ubuntu4) maverick; urgency=low
 
   * add commented out entries for partner, backports, and multiverse

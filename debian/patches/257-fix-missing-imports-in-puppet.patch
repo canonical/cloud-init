@@ -1,0 +1,33 @@
+------------------------------------------------------------
+revno: 257 [merge]
+fixes bug(s): https://launchpad.net/bugs/632744
+committer: Scott Moser <smoser@ubuntu.com>
+branch nick: trunk
+timestamp: Tue 2010-09-07 21:06:29 -0400
+message:
+  fix cc_puppet.py missing imports
+------------------------------------------------------------
+Use --include-merges or -n0 to see merged revisions.
+=== modified file 'cloudinit/CloudConfig/cc_puppet.py'
+--- a/cloudinit/CloudConfig/cc_puppet.py
++++ b/cloudinit/CloudConfig/cc_puppet.py
+@@ -16,6 +16,8 @@
+ #    You should have received a copy of the GNU General Public License
+ #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ import os
++import pwd
++import socket
+ import subprocess
+ 
+ def handle(name,cfg,cloud,log,args):
+--- a/doc/examples/cloud-config-puppet.txt
++++ b/doc/examples/cloud-config-puppet.txt
+@@ -18,7 +18,7 @@
+  # The puppmaster ca certificate will be available in 
+  # /var/lib/puppet/ssl/certs/ca.pem
+  conf:
+-   puppetd:
++   agent:
+      server: "puppetmaster.example.org"
+      # certname supports substitutions at runtime:
+      #   %i: instanceid 

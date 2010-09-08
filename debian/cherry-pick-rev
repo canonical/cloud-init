@@ -8,7 +8,7 @@ Usage: ${0##*/} repo revno name
   directory.
 
   End result is modified:
-    debian/patches/${revno}-${name}
+    debian/patches/\${revno}-\${name}
     debian/patches/series
 EOF
 }

@@ -1,0 +1,55 @@
+------------------------------------------------------------
+revno: 256
+fixes bug(s): https://launchpad.net/bugs/627597
+committer: Scott Moser <smoser@ubuntu.com>
+branch nick: trunk
+timestamp: Tue 2010-08-31 14:35:36 -0400
+message:
+  append to apt_sources filenames rather than truncating.
+  
+  Previously, 
+  apt_sources:
+    - source: source1
+    - source: source2
+  
+  resulted in source1 being written to
+  /etc/apt/sources.list.d/cloud_config_sources.list , and then
+  that being overwritten by source2.
+  
+  This definitely is not expected.
+  
+  Instead, in all cases now, (including 'filename:' cases), just append.
+=== modified file 'cloudinit/CloudConfig/cc_apt_update_upgrade.py'
+--- a/cloudinit/CloudConfig/cc_apt_update_upgrade.py
++++ b/cloudinit/CloudConfig/cc_apt_update_upgrade.py
+@@ -142,7 +142,7 @@
+             except:
+                 elst.append([source, "failed add key"])
+ 
+-        try: util.write_file(ent['filename'], source + "\n")
++        try: util.write_file(ent['filename'], source + "\n", omode="ab")
+         except:
+             elst.append([source, "failed write to file %s" % ent['filename']])
+ 
+--- a/cloudinit/util.py
++++ b/cloudinit/util.py
+@@ -76,15 +76,16 @@
+                 src[k] = mergedict(src[k],v)
+     return src
+ 
+-def write_file(file,content,mode=0644):
++def write_file(file,content,mode=0644,omode="wb"):
+         try:
+             os.makedirs(os.path.dirname(file))
+         except OSError as e:
+             if e.errno != errno.EEXIST:
+                 raise e
+ 
+-        f=open(file,"wb")
+-        os.chmod(file,mode)
++        f=open(file,omode)
++        if mode != None:
++            os.chmod(file,mode)
+         f.write(content)
+         f.close()
+ 
