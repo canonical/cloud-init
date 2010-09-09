@@ -33,7 +33,7 @@ def is_mdname(name):
 
 def handle(name,cfg,cloud,log,args):
     # these are our default set of mounts
-    defmnts = [ [ "ephemeral0", "/mnt", "auto", "defaults", "0", "2" ],
+    defmnts = [ [ "ephemeral0", "/mnt", "auto", "defaults,nobootwait", "0", "2" ],
                 [ "swap", "none", "swap", "sw", "0", "0" ] ]
 
     # fs_spec, fs_file, fs_vfstype, fs_mntops, fs-freq, fs_passno
