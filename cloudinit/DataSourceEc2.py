@@ -164,4 +164,4 @@ class DataSourceEc2(DataSource.DataSource):
                 if os.path.exists(cand):
                     cloudinit.log.debug("remapped device name %s => %s" % (found,cand))
                     return(cand)
-        return None
+        return ofound
