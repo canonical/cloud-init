@@ -70,6 +70,10 @@ def handle(name,cfg,cloud,log,args):
             if shortname.match(cfgmnt[i][0]):
                 cfgmnt[i][0] = "/dev/%s" % cfgmnt[i][0]
 
+        # in case the user did not quote a field (likely fs-freq, fs_passno)
+        for j in range(len(cfgmnt[i])):
+            cfgmnt[i][j]=str(cfgmnt[i][j])
+
     for i in range(len(cfgmnt)):
         # fill in values with defaults from defvals above
         for j in range(len(defvals)):
