@@ -139,7 +139,7 @@ class DataSourceEc2(DataSource.DataSource):
             if entname == "ephemeral" and name == "ephemeral0":
                 found = device
         if found == None:
-            cloudinit.log.warn("returning None")
+            cloudinit.log.warn("unable to convert %s to a device" % name)
             return None
 
         # LP: #611137
