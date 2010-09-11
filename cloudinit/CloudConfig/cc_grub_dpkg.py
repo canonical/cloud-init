@@ -18,60 +18,41 @@
 import cloudinit.util as util
 import subprocess
 import traceback
-
-shcmd="""
-unset idevs idevs_empty
-if [ -n "${1}" ]; then
-    idevs=${1}
-    [ "$1" = "None" ] && idevs=""
-fi
-if [ -n "${2}" ]; then
-    idevs_empty=${2}
-    [ "$2" = "None" ] && idevs_empty=""
-fi
-
-f_idevs=""
-f_idevs_empty=""
-if [ -b /dev/sda1 -a ! -e /dev/sda ]; then
-  f_idevs=""
-  f_idevs_empty=true
-else
-  f_idevs=/dev/sda
-  for dev in /dev/sda /dev/vda /dev/sda1 /dev/vda1; do
-      [ -b "${dev}" ] && f_idevs=${dev} && break;
-  done
-  f_idevs_empty=false
-fi
-
-idevs=${idevs-${f_idevs}}
-idevs_empty=${idevs_empty-${f_idevs_empty}}
-
-printf "%s\t%s\t%s\t%s\n%s\t%s\t%s\t%s\n" \
-  grub-pc grub-pc/install_devices string "${idevs}" \
-  grub-pc grub-pc/install_devices_empty boolean "${idevs_empty}" |
-  debconf-set-selections
-"""
+import os
 
 def handle(name,cfg,cloud,log,args):
     
-    idevs=""
-    idevs_empty=""
+    idevs=None
+    idevs_empty=None
 
     if "grub-dpkg" in cfg:
         idevs=util.get_cfg_option_str(cfg["grub-dpkg"],
-            "grub-pc/install_devices","")
+            "grub-pc/install_devices",None)
         idevs_empty=util.get_cfg_option_str(cfg["grub-dpkg"],
-            "grub-pc/install_devices_empty","")
+            "grub-pc/install_devices_empty",None)
 
-    cmd = [ "/bin/sh", "-c", shcmd, 'grub-dpkg', idevs, idevs_empty ]
+    if os.path.exists("/dev/sda1") and not os.path.exists("/dev/sda"):
+        if idevs == None: idevs=""
+        if idevs_empty == None: idevs_empty="true"
+    else:
+        if idevs_empty == None: idevs_empty="false"
+        if idevs == None:
+            idevs = "/dev/sda"
+            for dev in ( "/dev/sda", "/dev/vda", "/dev/sda1", "/dev/vda1"):
+                if os.path.exists(dev):
+                    idevs = dev
+                    break
+                
+    # now idevs and idevs_empty are set to determined values
+    # or, those set by user
 
-    log.debug("invoking grub-dpkg with '%s','%s'" % (idevs,idevs_empty))
+    dconf_sel = "grub-pc grub-pc/install_devices string %s\n" % idevs + \
+        "grub-pc grub-pc/install_devices_empty boolean %s\n" % idevs_empty
+    log.debug("setting grub debconf-set-selections with '%s','%s'" %
+        (idevs,idevs_empty))
 
     try:
-        subprocess.check_call(cmd)
-    except subprocess.CalledProcessError as e:
-        log.debug(traceback.format_exc(e))
-        raise Exception("Cmd returned %s: %s" % ( e.returncode, cmd))
-    except OSError as e:
-        log.debug(traceback.format_exc(e))
-        raise Exception("Cmd failed to execute: %s" % ( cmd ))
+        util.subp(('debconf-set-selections'), dconf_sel)
+    except:
+        log.error("Failed to run debconf-set-selections for grub-dpkg")
+        log.debug(traceback.format_exc())
