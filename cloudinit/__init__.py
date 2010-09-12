@@ -41,6 +41,7 @@ cloud_config_modules:
  - mounts
  - ssh-import-id
  - ssh
+ - grub-dpkg
  - apt-update-upgrade
  - puppet
  - updates-check

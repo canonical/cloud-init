@@ -33,7 +33,7 @@ def is_mdname(name):
 
 def handle(name,cfg,cloud,log,args):
     # these are our default set of mounts
-    defmnts = [ [ "ephemeral0", "/mnt", "auto", "defaults", "0", "2" ],
+    defmnts = [ [ "ephemeral0", "/mnt", "auto", "defaults,nobootwait", "0", "2" ],
                 [ "swap", "none", "swap", "sw", "0", "0" ] ]
 
     # fs_spec, fs_file, fs_vfstype, fs_mntops, fs-freq, fs_passno
@@ -69,6 +69,10 @@ def handle(name,cfg,cloud,log,args):
         else:
             if shortname.match(cfgmnt[i][0]):
                 cfgmnt[i][0] = "/dev/%s" % cfgmnt[i][0]
+
+        # in case the user did not quote a field (likely fs-freq, fs_passno)
+        for j in range(len(cfgmnt[i])):
+            cfgmnt[i][j]=str(cfgmnt[i][j])
 
     for i in range(len(cfgmnt)):
         # fill in values with defaults from defvals above

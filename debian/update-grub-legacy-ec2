@@ -1005,18 +1005,21 @@ output_kernel_list() {
 		fi
 	done
 
-	if test -f $grub2name ; then
-		echo "Found GRUB 2: $grub2name" >&2
-		cat >> $buffer << EOF
-title		Chainload into GRUB 2
-root		$grub_root_device
-kernel		$grub2name
-EOF
-		if test x"$savedefault" = x"true" ; then
-			echo "savedefault" >> $buffer
-		fi
-		echo >> $buffer
-	fi
+## Adding the chainload stanza is simply confusing, and for
+## legacy ec2 grub, it will never be used. LP: #627451
+##
+#	if test -f $grub2name ; then
+#		echo "Found GRUB 2: $grub2name" >&2
+#		cat >> $buffer << EOF
+#title		Chainload into GRUB 2
+#root		$grub_root_device
+#kernel		$grub2name
+#EOF
+#		if test x"$savedefault" = x"true" ; then
+#			echo "savedefault" >> $buffer
+#		fi
+#		echo >> $buffer
+#	fi
     
 	memtest86names="memtest86 memtest86+"
 

@@ -142,7 +142,7 @@ def add_sources(srclist):
             except:
                 elst.append([source, "failed add key"])
 
-        try: util.write_file(ent['filename'], source + "\n")
+        try: util.write_file(ent['filename'], source + "\n", omode="ab")
         except:
             elst.append([source, "failed write to file %s" % ent['filename']])
 

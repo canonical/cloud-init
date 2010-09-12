@@ -42,6 +42,22 @@ move_sem() {
    return 0
 }
 
+fix_ephemeral0_micro() {
+   # make ephemeral0 entries in /etc/fstab written by cloudconfig
+   # 'nobootwait', so they do not block subsequent boots (LP: #634102)
+   local out="" oldver=$1 dev="" adop="nobootwait"
+   local s="[[:space:]]" ns="[^[:space:]]" # space and "not space"
+   local remain="${s}\+.*" first4=""
+   for dev in /dev/sda2 /dev/sdb; do
+      first4="${dev}$s\+$ns\+$s\+$ns\+$s\+$ns\+"
+      out=$(awk '$1 == dev && $4 ~ /cloudconfig/ &&  $4 !~ op { print $1 ; }' \
+         dev="${dev}" "op=${adop}" /etc/fstab) || return 0
+      [ -n "${out}" ] || continue
+      echo "making ephemeral ${dev} in /etc/fstab ${adop} (LP: #634102)" 1>&2
+      sed -i "s|^\(${first4}\)\(${remain}\)|\1,${adop}\2|" /etc/fstab
+   done
+}
+
 case "$1" in
 	install|upgrade)
 		# removing obsolete conffiles from the 'ec2-init' package
@@ -82,5 +98,9 @@ case "$1" in
 			# 0.5.11 split 'config-misc' into 'updates-check' and 'runcmd'
 			move_sem config-misc config-updates-check config-runcmd
 		fi
+
+      if dpkg --compare-versions "$2" le "0.5.14-0ubuntu5"; then
+         fix_ephemeral0_micro
+      fi
 esac
 

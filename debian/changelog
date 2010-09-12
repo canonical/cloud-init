@@ -1,3 +1,14 @@
+cloud-init (0.5.15-0ubuntu1) maverick; urgency=low
+
+  * New upstream release.
+  * fix /etc/fstab cloudconfig entries for t1.micro and
+    change default fstab values for ephemeral0 to nobootwait (LP: #634102)
+  * grub-legacy-ec2: do not write chainload for grub2 to menu.lst
+    (LP: #627451)
+  * seed grub-pc correctly so update-grub runs on ec2 or uec(LP: #623609)
+
+ -- Scott Moser <smoser@ubuntu.com>  Sun, 12 Sep 2010 15:23:39 -0400
+
 cloud-init (0.5.14-0ubuntu5) maverick; urgency=low
 
   * add missing imports for cc_puppet (LP: #632744)

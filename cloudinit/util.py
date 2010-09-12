@@ -76,15 +76,16 @@ def mergedict(src,cand):
                 src[k] = mergedict(src[k],v)
     return src
 
-def write_file(file,content,mode=0644):
+def write_file(file,content,mode=0644,omode="wb"):
         try:
             os.makedirs(os.path.dirname(file))
         except OSError as e:
             if e.errno != errno.EEXIST:
                 raise e
 
-        f=open(file,"wb")
-        os.chmod(file,mode)
+        f=open(file,omode)
+        if mode != None:
+            os.chmod(file,mode)
         f.write(content)
         f.close()
 
@@ -142,8 +143,12 @@ def read_seeded(base="", ext="", timeout=2):
     if base.startswith("/"):
         base="file://%s" % base
 
-    ud_url = "%s%s%s" % (base, "user-data", ext)
-    md_url = "%s%s%s" % (base, "meta-data", ext)
+    if base.find("%s") >= 0:
+        ud_url = base % ("user-data" + ext)
+        md_url = base % ("meta-data" + ext)
+    else:
+        ud_url = "%s%s%s" % (base, "user-data", ext)
+        md_url = "%s%s%s" % (base, "meta-data", ext)
 
     try:
         md_resp = urllib2.urlopen(urllib2.Request(md_url), timeout=timeout)
