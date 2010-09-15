@@ -1,3 +1,9 @@
+cloud-init (0.5.15-0ubuntu2) maverick; urgency=low
+
+  * grub-legacy-ec2: boot with console=hvc0 (LP: #606373)
+
+ -- Scott Moser <smoser@ubuntu.com>  Wed, 15 Sep 2010 16:41:48 -0400
+
 cloud-init (0.5.15-0ubuntu1) maverick; urgency=low
 
   * New upstream release.

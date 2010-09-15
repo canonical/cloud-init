@@ -443,7 +443,7 @@ fi
 
 # additional options to use with the default boot option, but not with the
 # alternatives
-	defoptions=""
+	defoptions="console=hvc0"
 
 # should grub lock the old kernels
 	lockold="false"
