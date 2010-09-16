@@ -1,3 +1,9 @@
+cloud-init (0.5.15-0ubuntu3) maverick; urgency=low
+
+  * do not use ec2 ubuntu archive if instance is VPC (LP: #615545)
+
+ -- Scott Moser <smoser@ubuntu.com>  Thu, 16 Sep 2010 04:28:55 -0400
+
 cloud-init (0.5.15-0ubuntu2) maverick; urgency=low
 
   * grub-legacy-ec2: boot with console=hvc0 (LP: #606373)
