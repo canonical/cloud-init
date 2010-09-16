@@ -83,12 +83,17 @@ class DataSourceEc2(DataSource.DataSource):
         if availability_zone == None:
             availability_zone = self.get_availability_zone()
 
+        fallback = 'http://archive.ubuntu.com/ubuntu/'
+
+        if self.is_vpc():
+            return fallback
+
         try:
             host="%s.ec2.archive.ubuntu.com" % availability_zone[:-1]
             socket.getaddrinfo(host, None, 0, socket.SOCK_STREAM)
             return 'http://%s/ubuntu/' % host
         except:
-            return 'http://archive.ubuntu.com/ubuntu/'
+            return fallback
 
 
     def wait_for_metadata_service(self, sleeps = 100):
@@ -165,3 +170,11 @@ class DataSourceEc2(DataSource.DataSource):
                     cloudinit.log.debug("remapped device name %s => %s" % (found,cand))
                     return(cand)
         return ofound
+
+    def is_vpc(self):
+        # per comment in LP: #615545
+        ph="public-hostname"; p4="public-ipv4"
+        if ((ph not in self.metadata or self.metadata[ph] == "") and
+            (p4 not in self.metadata or self.metadata[p4] == "")):
+            return True
+        return False
