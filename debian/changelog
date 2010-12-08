@@ -1,3 +1,9 @@
+cloud-init (0.5.15-0ubuntu4) natty; urgency=low
+
+  * Rebuild with python 2.7 as the python default.
+
+ -- Matthias Klose <doko@ubuntu.com>  Wed, 08 Dec 2010 15:01:36 +0000
+
 cloud-init (0.5.15-0ubuntu3) maverick; urgency=low
 
   * do not use ec2 ubuntu archive if instance is VPC (LP: #615545)
