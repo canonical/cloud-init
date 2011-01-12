@@ -31,7 +31,7 @@ def handle(name,cfg,cloud,log,args):
 
     if len(ids) == 0: return
 
-    cmd = [ "sudo", "-Hu", user, "ssh-import-lp-id" ] + ids
+    cmd = [ "sudo", "-Hu", user, "ssh-import-id" ] + ids
 
     log.debug("importing ssh ids. cmd = %s" % cmd)
 
