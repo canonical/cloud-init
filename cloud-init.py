@@ -115,16 +115,6 @@ def main():
 
     sys.exit(0)
 
-def set_defaults(cloud):
-    apply_locale(cloud.get_locale())
-    
-def apply_locale(locale):
-    subprocess.Popen(['locale-gen', locale]).communicate()
-    subprocess.Popen(['update-locale', locale]).communicate()
-
-    util.render_to_file('default-locale', '/etc/default/locale', \
-        { 'locale' : locale })
-
 # read hostname from a 'hostname' file
 # allow for comments and stripping line endings.
 # if file doesn't exist, or no contents, return default
