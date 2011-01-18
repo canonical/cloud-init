@@ -246,3 +246,6 @@ byobu_by_default: system
 # rather than as the 'ubuntu' user, then you must set this to false
 # default: true
 disable_root: false
+
+# set the locale to a given locale
+# default: en_US.UTF-8
