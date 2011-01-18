@@ -32,12 +32,6 @@ class DataSourceEc2(DataSource.DataSource):
     api_ver  = '2009-04-04'
     cachedir = cloudinit.cachedir + '/ec2'
 
-    location_locale_map = { 
-        'us' : 'en_US.UTF-8',
-        'eu' : 'en_GB.UTF-8',
-        'default' : 'en_US.UTF-8',
-    }
-
     def __init__(self):
         pass
 
@@ -70,13 +64,6 @@ class DataSourceEc2(DataSource.DataSource):
 
     def get_local_mirror(self):
         return(self.get_mirror_from_availability_zone())
-
-    def get_locale(self):
-        az = self.metadata['placement']['availability-zone']
-        if self.location_locale_map.has_key(az[0:2]):
-            return(self.location_locale_map[az[0:2]])
-        else:
-            return(self.location_locale_map["default"])
 
     def get_mirror_from_availability_zone(self, availability_zone = None):
         # availability is like 'us-west-1b' or 'eu-west-1a'
