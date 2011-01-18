@@ -17,6 +17,7 @@
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 import yaml
 import os
+import os.path
 import errno
 import subprocess
 from Cheetah.Template import Template
@@ -24,6 +25,7 @@ import cloudinit
 import urllib2
 import logging
 import traceback
+import re
 
 WARN = logging.WARN
 DEBUG = logging.DEBUG
@@ -41,7 +43,8 @@ def read_conf(fname):
         raise
 
 def get_base_cfg(cfgfile,cfg_builtin=""):
-    syscfg = read_conf(cfgfile)
+    contents = read_file_with_includes(cfgfile)
+    syscfg = yaml.load(contents)
     if cfg_builtin:
         builtin = yaml.load(cfg_builtin)
     else:
@@ -168,3 +171,55 @@ def read_seeded(base="", ext="", timeout=2):
 
 def logexc(log,lvl=logging.DEBUG):
     log.log(lvl,traceback.format_exc())
+
+class RecursiveInclude(Exception):
+    pass
+
+def read_file_with_includes(fname, rel = ".", stack=[], patt = None):
+    if not fname.startswith("/"):
+        fname = os.sep.join((rel, fname))
+
+    fname = os.path.realpath(fname)
+
+    if fname in stack:
+        raise(RecursiveInclude("%s recursively included" % fname))
+    if len(stack) > 10:
+        raise(RecursiveInclude("%s included, stack size = %i" %
+                               (fname, len(stack))))
+
+    if patt == None:
+        patt = re.compile("^#(opt_include|include)[ \t].*$",re.MULTILINE)
+
+    try:
+        fp = open(fname)
+        contents = fp.read()
+        fp.close()
+    except:
+        raise
+
+    rel = os.path.dirname(fname)
+    stack.append(fname)
+
+    cur = 0
+    clen = len(contents)
+    while True:
+        match = patt.search(contents[cur:])
+        if not match: break
+        loc = match.start() + cur
+        endl = match.end() + cur
+
+        (key, cur_fname) = contents[loc:endl].split(None,2)
+        cur_fname = cur_fname.strip()
+
+        try:
+            inc_contents = read_file_with_includes(cur_fname, rel, stack, patt)
+        except IOError, e:
+            if e.errno == errno.ENOENT and key == "#opt_include":
+                inc_contents = ""
+            else:
+                raise
+        contents = contents[0:loc] + inc_contents + contents[endl+1:]
+	cur = loc + len(inc_contents)
+    stack.pop()
+    return(contents)
+

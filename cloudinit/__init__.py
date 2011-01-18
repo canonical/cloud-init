@@ -27,85 +27,16 @@ userdata = datadir + '/user-data.txt.i'
 user_scripts_dir = datadir + "/scripts"
 boothooks_dir = datadir + "/boothooks"
 cloud_config = datadir + '/cloud-config.txt'
-#cloud_config = '/tmp/cloud-config.txt'
 data_source_cache = cachedir + '/obj.pkl'
 system_config = '/etc/cloud/cloud.cfg'
 cfg_env_name = "CLOUD_CFG"
 
-cfg_builtin = """
-cloud_type: auto
-user: ubuntu
-disable_root: 1
-
-cloud_config_modules:
- - mounts
- - ssh-import-id
- - ssh
- - grub-dpkg
- - apt-update-upgrade
- - puppet
- - updates-check
- - disable-ec2-metadata
- - runcmd
- - byobu
-
-log_cfg: built_in
-"""
-
 def_log_file = '/var/log/cloud-init.log'
+cfg_builtin = """
+log_cfgs: [ ]
+cloud_type: auto
+"""
 logger_name = "cloudinit"
-
-built_in_log_base = """
-[loggers]
-keys=root,cloudinit
-
-[handlers]
-keys=consoleHandler,cloudLogHandler
-
-[formatters]
-keys=simpleFormatter,arg0Formatter
-
-[logger_root]
-level=DEBUG
-handlers=consoleHandler,cloudLogHandler
-
-[logger_cloudinit]
-level=DEBUG
-qualname=cloudinit
-handlers=
-propagate=1
-
-[handler_consoleHandler]
-class=StreamHandler
-level=WARNING
-formatter=arg0Formatter
-args=(sys.stderr,)
-
-[formatter_arg0Formatter]
-format=%(asctime)s - %(filename)s[%(levelname)s]: %(message)s
-
-[formatter_simpleFormatter]
-format=[CLOUDINIT] %(asctime)s - %(filename)s[%(levelname)s]: %(message)s
-datefmt=
-
-"""
-
-built_in_log_clougLogHandlerLog="""
-[handler_cloudLogHandler]
-class=FileHandler
-level=DEBUG
-formatter=simpleFormatter
-args=('__CLOUDINIT_LOGGER_FILE__',)
-"""
-
-built_in_log_cloudLogHandlerSyslog= """
-[handler_cloudLogHandler]
-class=handlers.SysLogHandler
-level=DEBUG
-formatter=simpleFormatter
-args=("/dev/log", handlers.SysLogHandler.LOG_USER)
-"""
-
 
 import os
 from   configobj import ConfigObj
@@ -132,32 +63,31 @@ def logging_set_from_cfg_file(cfg_file=system_config):
     logging_set_from_cfg(util.get_base_cfg(cfg_file,cfg_builtin))
 
 def logging_set_from_cfg(cfg, logfile=None):
-    if logfile is None:
+    log_cfgs = []
+    logcfg=util.get_cfg_option_str(cfg, "log_cfg", False)
+    if logcfg:
+        # if there is a 'logcfg' entry in the config, respect
+        # it, it is the old keyname
+        log_cfgs = [ logcfg ]
+    elif "log_cfgs" in cfg:
+        for cfg in cfg['log_cfgs']:
+            if isinstance(cfg,list):
+                log_cfgs.append('\n'.join(cfg))
+            else:
+                log_cfgs.append()
+
+    if not len(log_cfgs):
+        sys.stderr.write("Warning, no logging configured\n")
+
+    for logcfg in log_cfgs:
         try:
-            open(def_log_file,"a").close()
-            logfile = def_log_file
-        except IOError as e:
-            if e.errno == errno.EACCES:
-                logfile = "/dev/null"
-            else: raise
-    
-    logcfg=util.get_cfg_option_str(cfg, "log_cfg", "built_in")
-    failsafe = "%s\n%s" % (built_in_log_base, built_in_log_clougLogHandlerLog)
-    builtin = False
-    if logcfg.lower() == "built_in":
-        logcfg = "%s\n%s" % (built_in_log_base, built_in_log_cloudLogHandlerSyslog)
-        builtin = True
+            logging.config.fileConfig(StringIO.StringIO(logcfg))
+            return
+        except:
+            pass
 
-    logcfg=logcfg.replace("__CLOUDINIT_LOGGER_FILE__",logfile)
-    try:
-        logging.config.fileConfig(StringIO.StringIO(logcfg))
-        return
-    except:
-        if not builtin:
-            sys.stderr.write("Warning, setting config.fileConfig failed\n")
+    raise Exception("no valid logging found\n")
 
-    failsafe=failsafe.replace("__CLOUDINIT_LOGGER_FILE__",logfile)
-    logging.config.fileConfig(StringIO.StringIO(failsafe))
 
 import DataSourceEc2
 import DataSourceNoCloud
@@ -196,7 +126,7 @@ class CloudInit:
         if self.cfg:
             return(self.cfg)
 
-        conf = util.get_base_cfg(system_config,cfg_builtin)
+        conf = util.get_base_cfg(self.sysconfig,cfg_builtin)
 
         # support reading the old ConfigObj format file and merging
         # it into the yaml dictionary
