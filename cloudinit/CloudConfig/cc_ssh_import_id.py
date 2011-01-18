@@ -20,29 +20,14 @@ import subprocess
 import traceback
 
 def handle(name,cfg,cloud,log,args):
-    ids = [ ]
     if len(args) != 0:
         user = args[0]
+        ids = [ ]
         if len(args) > 1:
             ids = args[1:]
     else:
         user = util.get_cfg_option_str(cfg,"user","ubuntu")
         ids = util.get_cfg_option_list_or_str(cfg,"ssh_import_id",[])
-
-    try:
-        fp = open("/proc/cmdline")
-        cmdline = fp.read()
-        fp.close()
-        names = [ "ssh_import_id", "ssh_import" ]
-        cmd_ids = [ ]
-        for i in cmdline.strip().split():
-            for n in names:
-                if i.startswith(n + "="):
-                    print i
-                    cmd_ids=i[len(n)+1:].split(",")
-        ids.extend(cmd_ids)
-    except:
-        log.warn("failed to read /proc/cmdline for import_id")
 
     if len(ids) == 0: return
 
