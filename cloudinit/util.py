@@ -43,13 +43,25 @@ def read_conf(fname):
         raise
 
 def get_base_cfg(cfgfile,cfg_builtin=""):
+    kerncfg = { }
+    syscfg = { }
     contents = read_file_with_includes(cfgfile)
-    syscfg = yaml.load(contents)
+    if contents:
+        syscfg = yaml.load(contents)
+
+    kern_contents = read_cc_from_cmdline()
+    if kern_contents:
+        kerncfg = yaml.load(kern_contents)
+
+    # kernel parameters override system config
+    combined = mergedict(kerncfg, syscfg)
+    import pprint; pprint.pprint(combined)
+
     if cfg_builtin:
         builtin = yaml.load(cfg_builtin)
     else:
-        return(syscfg)
-    return(mergedict(syscfg,builtin))
+        return(combined)
+    return(mergedict(combined,builtin))
 
 def get_cfg_option_bool(yobj, key, default=False):
     if not yobj.has_key(key): return default
@@ -223,3 +235,43 @@ def read_file_with_includes(fname, rel = ".", stack=[], patt = None):
     stack.pop()
     return(contents)
 
+def get_cmdline():
+    if 'DEBUG_PROC_CMDLINE' in os.environ:
+        cmdline = os.environ["DEBUG_PROC_CMDLINE"]
+    else:
+        try:
+            cmdfp = open("/proc/cmdline")
+            cmdline = cmdfp.read().strip()
+            cmdfp.close()
+        except:
+            cmdline = ""
+    return(cmdline)
+	
+def read_cc_from_cmdline(cmdline=None):
+    # this should support reading cloud-config information from
+    # the kernel command line.  It is intended to support content of the
+    # format:
+    #  cc: <yaml content here> [end_cc]
+    # this would include:
+    # cc: ssh_import_id: [smoser, kirkland]\\n
+    # cc: ssh_import_id: [smoser, bob]\\nruncmd: [ [ ls, -l ], echo hi ] end_cc
+    # cc:ssh_import_id: [smoser] end_cc cc:runcmd: [ [ ls, -l ] ] end_cc
+    if cmdline is None:
+        cmdline = get_cmdline()
+
+    tag_begin="cc:"
+    tag_end="end_cc"
+    begin_l = len(tag_begin)
+    end_l = len(tag_end)
+    clen = len(cmdline)
+    tokens = [ ]
+    begin = cmdline.find(tag_begin)
+    while begin >= 0:
+        end = cmdline.find(tag_end, begin + begin_l)
+        if end < 0:
+            end = clen
+        tokens.append(cmdline[begin+begin_l:end].lstrip().replace("\\n","\n"))
+        
+        begin = cmdline.find(tag_begin, end + end_l)
+
+    return('\n'.join(tokens))
