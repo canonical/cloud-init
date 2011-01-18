@@ -37,7 +37,7 @@ setup(name='cloud-init',
                'cloud-init-run-module.py',
                'cloud-init-cfg.py'
                ],
-      data_files=[('/etc/cloud', ['cloud.cfg']),
+      data_files=[('/etc/cloud', glob('config/*.cfg')),
                   ('/etc/cloud/templates', glob('templates/*')),
                   ('/etc/init', glob('upstart/*.conf')),
                   ('/usr/share/cloud-init', []),
