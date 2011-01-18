@@ -108,16 +108,10 @@ class DataSourceNoCloud(DataSource.DataSource):
 #  root=LABEL=uec-rootfs ro ds=nocloud
 def parse_cmdline_data(ds_id,fill,cmdline=None):
     if cmdline is None:
-        if 'DEBUG_PROC_CMDLINE' in os.environ:
-            cmdline = os.environ["DEBUG_PROC_CMDLINE"]
-        else:
-            cmdfp = open("/proc/cmdline")
-            cmdline = cmdfp.read().strip()
-            cmdfp.close()
-        cmdline = " %s " % cmdline.lower()
+        cmdline = util.get_cmdline()
 
-        if not ( " %s " % ds_id in cmdline or " %s;" % ds_id in cmdline ):
-            return False
+    if not ( " %s " % ds_id in cmdline or " %s;" % ds_id in cmdline ):
+        return False
 
     argline=""
     # cmdline can contain:
