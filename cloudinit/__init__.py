@@ -21,15 +21,8 @@
 varlibdir = '/var/lib/cloud'
 cur_instance_link = varlibdir + "/instance"
 datadir = '/var/lib/cloud/data'
-semdir = '/var/lib/cloud/sem'
-cachedir = datadir + '/cache'
-userdata_raw = datadir + '/user-data.txt'
-userdata = datadir + '/user-data.txt.i'
-user_scripts_dir = datadir + "/scripts"
-boothooks_dir = datadir + "/boothooks"
-cloud_config = datadir + '/cloud-config.txt'
-data_source_cache = cachedir + '/obj.pkl'
 system_config = '/etc/cloud/cloud.cfg'
+seeddir = varlibdir + "/seed"
 cfg_env_name = "CLOUD_CFG"
 
 def_log_file = '/var/log/cloud-init.log'
@@ -41,6 +34,18 @@ log_cfgs: [ ]
 cloud_type: auto
 """
 logger_name = "cloudinit"
+
+pathmap = {
+   "handlers" : "/handlers",
+   "scripts" : "/scripts",
+   "sem" : "/sem",
+   "boothooks" : "/boothooks",
+   "userdata_raw" : "/user-data.txt",
+   "userdata" : "/user-data-raw.txt.i",
+   "obj_pkl" : "/obj.pkl",
+   "cloud_config" : "/cloud-config.txt",
+   None : "",
+}
 
 import os
 from   configobj import ConfigObj
@@ -109,17 +114,6 @@ class CloudInit:
         "all": ( "nocloud-net", "ec2" ),
         "local" : ( "nocloud", ),
     }
-    pathmap = {
-       "handlers" : "/handlers",
-       "scripts" : "/scripts",
-       "sem" : "/sem",
-       "boothooks" : "/boothooks",
-       "userdata_raw" : "/user-data.txt",
-       "userdata" : "/user-data-raw.txt.i",
-       "obj_pkl" : "/obj.pkl",
-       None : "",
-    }
-
     cfg = None
     part_handlers = { }
     old_conffile = '/etc/ec2-init/ec2-config.cfg'
@@ -160,7 +154,7 @@ class CloudInit:
             # we try to restore from a current link and static path
             # by using the instance link, if purge_cache was called
             # the file wont exist
-            cache = "%s/%s" % (cur_instance_link, self.pathmap['obj_pkl'])
+            cache = get_ipath_cur('obj_pkl')
             f=open(cache, "rb")
             data = cPickle.load(f)
             self.datasource = data
@@ -255,8 +249,9 @@ class CloudInit:
             self.datasource.get_userdata(), 0600)
 
     def initctl_emit(self):
+        cc_path = get_ipath_cur('cloud_config')
         subprocess.Popen(['initctl', 'emit', 'cloud-config',
-            '%s=%s' % (cfg_env_name,cloud_config)]).communicate()
+            '%s=%s' % (cfg_env_name,cc_path)]).communicate()
 
     def sem_getpath(self,name,freq):
         if freq == 'once-per-instance':
@@ -324,12 +319,12 @@ class CloudInit:
     # (/var/lib/cloud/instances/<instance>/name)<name>)
     def get_ipath(self, name=None):
         return("%s/instances/%s%s" 
-               % (varlibdir,self.get_instance_id(), self.pathmap[name]))
+               % (varlibdir,self.get_instance_id(), pathmap[name]))
 
     # get_cpath : get the "clouddir" (/var/lib/cloud/<name>)
     # for a name in dirmap
     def get_cpath(self, name=None):
-        return("%s%s" % (varlibdir, self.pathmap[name]))
+        return("%s%s" % (varlibdir, pathmap[name]))
 
     def consume_userdata(self):
         self.get_userdata()
@@ -406,8 +401,9 @@ class CloudInit:
             return
 
         filename=filename.replace(os.sep,'_')
+        scriptsdir = get_ipath_cur('scripts')
         util.write_file("%s/%s/%s" % 
-            (user_scripts_dir,self.get_instance_id(),filename), payload, 0700)
+            (scriptsdir,self.get_instance_id(),filename), payload, 0700)
 
     def handle_upstart_job(self,data,ctype,filename,payload):
         if ctype == "__end__" or ctype == "__begin__": return
@@ -421,6 +417,7 @@ class CloudInit:
             self.cloud_config_str=""
             return
         if ctype == "__end__":
+            cloud_config = self.get_ipath("cloud_config")
             util.write_file(cloud_config, self.cloud_config_str, 0600)
 
             ## this could merge the cloud config with the system config
@@ -508,6 +505,10 @@ def purge_cache():
     except:
         return(False)
     return(True)
+
+def get_ipath_cur(name=None):
+    return("%s/instance/%s" % (varlibdir, pathmap[name]))
+
 
 class DataSourceNotFoundException(Exception):
     pass
