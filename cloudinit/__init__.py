@@ -18,25 +18,34 @@
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-datadir = '/var/lib/cloud/data'
-semdir = '/var/lib/cloud/sem'
-pluginsdir = datadir + '/plugins'
-cachedir = datadir + '/cache'
-userdata_raw = datadir + '/user-data.txt'
-userdata = datadir + '/user-data.txt.i'
-user_scripts_dir = datadir + "/scripts"
-boothooks_dir = datadir + "/boothooks"
-cloud_config = datadir + '/cloud-config.txt'
-data_source_cache = cachedir + '/obj.pkl'
+varlibdir = '/var/lib/cloud'
+cur_instance_link = varlibdir + "/instance"
 system_config = '/etc/cloud/cloud.cfg'
+seeddir = varlibdir + "/seed"
 cfg_env_name = "CLOUD_CFG"
 
 def_log_file = '/var/log/cloud-init.log'
+def_log_user = "syslog"
+def_log_group = "adm"
+
 cfg_builtin = """
 log_cfgs: [ ]
 cloud_type: auto
 """
 logger_name = "cloudinit"
+
+pathmap = {
+   "handlers" : "/handlers",
+   "scripts" : "/scripts",
+   "sem" : "/sem",
+   "boothooks" : "/boothooks",
+   "userdata_raw" : "/user-data.txt",
+   "userdata" : "/user-data-raw.txt.i",
+   "obj_pkl" : "/obj.pkl",
+   "cloud_config" : "/cloud-config.txt",
+   "datadir" : "/data",
+   None : "",
+}
 
 import os
 from   configobj import ConfigObj
@@ -52,9 +61,10 @@ import util
 import logging
 import logging.config
 import StringIO
+import glob
 
 class NullHandler(logging.Handler):
-	def emit(self,record): pass
+    def emit(self,record): pass
 
 log = logging.getLogger(logger_name)
 log.addHandler(NullHandler())
@@ -104,7 +114,6 @@ class CloudInit:
         "all": ( "nocloud-net", "ec2" ),
         "local" : ( "nocloud", ),
     }
-
     cfg = None
     part_handlers = { }
     old_conffile = '/etc/ec2-init/ec2-config.cfg'
@@ -142,7 +151,11 @@ class CloudInit:
 
     def restore_from_cache(self):
         try:
-            f=open(data_source_cache, "rb")
+            # we try to restore from a current link and static path
+            # by using the instance link, if purge_cache was called
+            # the file wont exist
+            cache = get_ipath_cur('obj_pkl')
+            f=open(cache, "rb")
             data = cPickle.load(f)
             self.datasource = data
             return True
@@ -150,16 +163,17 @@ class CloudInit:
             return False
 
     def write_to_cache(self):
+        cache = self.get_ipath("obj_pkl")
         try:
-            os.makedirs(os.path.dirname(data_source_cache))
+            os.makedirs(os.path.dirname(cache))
         except OSError as e:
             if e.errno != errno.EEXIST:
                 return False
                 
         try:
-            f=open(data_source_cache, "wb")
+            f=open(cache, "wb")
             data = cPickle.dump(self.datasource,f)
-            os.chmod(data_source_cache,0400)
+            os.chmod(cache,0400)
             return True
         except:
             return False
@@ -182,6 +196,7 @@ class CloudInit:
             for ds in cfglist.split(','):
                 dslist.append(strip(ds).tolower())
             
+        log.debug("searching for data source in [%s]" % str(dslist))
         for ds in dslist:
             if ds not in self.datasource_map:
                 log.warn("data source %s not found in map" % ds)
@@ -200,6 +215,20 @@ class CloudInit:
         log.debug("did not find data source from %s" % dslist)
         raise DataSourceNotFoundException("Could not find data source")
 
+    def set_cur_instance(self):
+        try:
+            os.unlink(cur_instance_link)
+        except OSError, e:
+            if e.errno != errno.ENOENT: raise
+
+        os.symlink("./instances/%s" % self.get_instance_id(), cur_instance_link)
+        idir = self.get_ipath()
+        dlist = []
+        for d in [ "handlers", "scripts", "sem" ]:
+            dlist.append("%s/%s" % (idir, d))
+            
+        util.ensure_dirs(dlist)
+
     def get_userdata(self):
         return(self.datasource.get_userdata())
 
@@ -214,19 +243,20 @@ class CloudInit:
         self.store_userdata()
 
     def store_userdata(self):
-        util.write_file(userdata_raw, self.datasource.get_userdata_raw(), 0600)
-        util.write_file(userdata, self.datasource.get_userdata(), 0600)
+        util.write_file(self.get_ipath('userdata_raw'),
+            self.datasource.get_userdata_raw(), 0600)
+        util.write_file(self.get_ipath('userdata'),
+            self.datasource.get_userdata(), 0600)
 
     def initctl_emit(self):
+        cc_path = get_ipath_cur('cloud_config')
         subprocess.Popen(['initctl', 'emit', 'cloud-config',
-            '%s=%s' % (cfg_env_name,cloud_config)]).communicate()
+            '%s=%s' % (cfg_env_name,cc_path)]).communicate()
 
     def sem_getpath(self,name,freq):
-        freqtok = freq
         if freq == 'once-per-instance':
-            freqtok = self.datasource.get_instance_id()
-
-        return("%s/%s.%s" % (semdir,name,freqtok))
+            return("%s/%s" % (self.get_ipath("sem"),name))
+        return("%s/%s.%s" % (get_cpath("sem"), name, freq))
     
     def sem_has_run(self,name,freq):
         if freq == "always": return False
@@ -285,9 +315,40 @@ class CloudInit:
                 self.sem_clear(semname,freq)
             raise
 
+    # get_ipath : get the instance path for a name in pathmap
+    # (/var/lib/cloud/instances/<instance>/name)<name>)
+    def get_ipath(self, name=None):
+        return("%s/instances/%s%s" 
+               % (varlibdir,self.get_instance_id(), pathmap[name]))
+
     def consume_userdata(self):
         self.get_userdata()
         data = self
+
+        cdir = get_cpath("handlers")
+        idir = self.get_ipath("handlers")
+
+        # add the path to the plugins dir to the top of our list for import
+        # instance dir should be read before cloud-dir
+        sys.path.insert(0,cdir)
+        sys.path.insert(0,idir)
+
+        # add handlers in cdir
+        for fname in glob.glob("%s/*.py" % cdir):
+            if not os.path.isfile(fname): continue
+            modname = os.path.basename(fname)[0:-3]
+            try:
+                mod = __import__(modname)
+                lister = getattr(mod, "list_types")
+                handler = getattr(mod, "handle_part")
+                mtypes = lister()
+                for mtype in mtypes:
+                    self.part_handlers[mtype]=handler
+                log.debug("added handler for [%s] from %s" % (mtypes,fname))
+            except:
+                log.warn("failed to initialize handler in %s" % fname)
+                util.logexc(log)
+       
         # give callbacks opportunity to initialize
         for ctype, func in self.part_handlers.items():
             func(data, "__begin__",None,None)
@@ -304,16 +365,13 @@ class CloudInit:
             self.handlercount = 0
             return
 
-        # add the path to the plugins dir to the top of our list for import
-        if self.handlercount == 0:
-            sys.path.insert(0,pluginsdir)
-
         self.handlercount=self.handlercount+1
 
-        # write content to pluginsdir
+        # write content to instance's handlerdir
+        handlerdir = self.get_ipath("handler")
         modname  = 'part-handler-%03d' % self.handlercount
         modfname = modname + ".py"
-        util.write_file("%s/%s" % (pluginsdir,modfname), payload, 0600)
+        util.write_file("%s/%s" % (handlerdir,modfname), payload, 0600)
 
         try:
             mod = __import__(modname)
@@ -338,8 +396,9 @@ class CloudInit:
             return
 
         filename=filename.replace(os.sep,'_')
+        scriptsdir = get_ipath_cur('scripts')
         util.write_file("%s/%s/%s" % 
-            (user_scripts_dir,self.get_instance_id(),filename), payload, 0700)
+            (scriptsdir,self.get_instance_id(),filename), payload, 0700)
 
     def handle_upstart_job(self,data,ctype,filename,payload):
         if ctype == "__end__" or ctype == "__begin__": return
@@ -353,6 +412,7 @@ class CloudInit:
             self.cloud_config_str=""
             return
         if ctype == "__end__":
+            cloud_config = self.get_ipath("cloud_config")
             util.write_file(cloud_config, self.cloud_config_str, 0600)
 
             ## this could merge the cloud config with the system config
@@ -389,6 +449,7 @@ class CloudInit:
         elif start != 0:
             payload=payload[start:]
     
+        boothooks_dir = self.get_ipath("boothooks")
         filepath = "%s/%s" % (boothooks_dir,filename)
         util.write_file(filepath, payload, 0700)
         try:
@@ -418,14 +479,36 @@ class CloudInit:
         return(self.datasource.device_name_to_device(name))
 
 
+def initfs():
+    subds = [ 'scripts/per-instance', 'scripts/per-once', 'scripts/per-boot',
+              'seed', 'instances', 'handlers', 'sem', 'data' ]
+    dlist = [ ]
+    for subd in subds:
+        dlist.append("%s/%s" % (varlibdir, subd))
+    util.ensure_dirs(dlist)
+
+    fp = open(def_log_file,"ab")
+    fp.close()
+    util.chownbyname(def_log_file,def_log_user, def_log_group)
+        
+    
+
 def purge_cache():
     try:
-        os.unlink(data_source_cache)
+        os.unlink(cur_instance_link)
     except OSError as e:
         if e.errno != errno.ENOENT: return(False)
     except:
         return(False)
     return(True)
+
+def get_ipath_cur(name=None):
+    return("%s/instance/%s" % (varlibdir, pathmap[name]))
+
+# get_cpath : get the "clouddir" (/var/lib/cloud/<name>)
+# for a name in dirmap
+def get_cpath(name=None):
+    return("%s%s" % (varlibdir, pathmap[name]))
 
 class DataSourceNotFoundException(Exception):
     pass

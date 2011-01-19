@@ -55,7 +55,7 @@ def main():
     log = logging.getLogger()
     log.info("cloud-init-cfg %s" % sys.argv[1:])
 
-    cfg_path = cloudinit.cloud_config
+    cfg_path = cloudinit.get_ipath_cur("cloud_config")
     cfg_env_name = cloudinit.cfg_env_name
     if os.environ.has_key(cfg_env_name):
         cfg_path = os.environ[cfg_env_name]

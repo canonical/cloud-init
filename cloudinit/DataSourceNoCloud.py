@@ -32,7 +32,7 @@ class DataSourceNoCloud(DataSource.DataSource):
     supported_seed_starts = ( "/" , "file://" )
     seed = None
     cmdline_id = "ds=nocloud"
-    seeddir = cloudinit.cachedir + '/nocloud'
+    seeddir = cloudinit.seeddir + '/nocloud'
 
     def __init__(self):
         pass
@@ -143,4 +143,4 @@ def parse_cmdline_data(ds_id,fill,cmdline=None):
 class DataSourceNoCloudNet(DataSourceNoCloud):
     cmdline_id = "ds=nocloud-net"
     supported_seed_starts = ( "http://", "https://", "ftp://" )
-    seeddir = cloudinit.cachedir + '/nocloud-net'
+    seeddir = cloudinit.seeddir + '/nocloud-net'

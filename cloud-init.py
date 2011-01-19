@@ -56,6 +56,12 @@ def main():
     if cmd == "start-local":
         source_type = "local"
 
+    try:
+        cloudinit.initfs()
+    except Exception, e:
+        warn("failed to initfs, likely bad things to come: %s" % str(e))
+        
+
     cloudinit.logging_set_from_cfg_file()
     log = logging.getLogger()
     log.info(msg)
@@ -73,6 +79,9 @@ def main():
     except cloudinit.DataSourceNotFoundException as e:
         sys.stderr.write("no instance data found in %s\n" % cmd)
         sys.exit(1)
+
+    # set this as the current instance
+    cloud.set_cur_instance()
 
     # store the metadata
     cloud.update_cache()
@@ -98,17 +107,11 @@ def main():
                 set_hostname, [ hostname, log ], False)
             cloud.sem_and_run("update_hostname", "always",
                 update_hostname, [ hostname, log ], False)
-    except:
+    except Exception, e:
+        util.logexc(log)
         warn("failed to set hostname\n")
 
     #print "user data is:" + cloud.get_user_data()
-
-    # set the defaults (like what ec2-set-defaults.py did)
-    try:
-        cloud.sem_and_run("set_defaults", "once-per-instance",
-            set_defaults,[ cloud ],False)
-    except:
-        warn("failed to set defaults\n")
 
     # finish, send the cloud-config event
     cloud.initctl_emit()
@@ -143,7 +146,7 @@ def set_hostname(hostname, log):
         log.error("failed to set_hostname")
 
 def update_hostname(hostname, log):
-    prev_file="%s/%s" % (cloudinit.datadir,"previous-hostname")
+    prev_file="%s/%s" % (cloudinit.get_cpath('datadir'),"previous-hostname")
     etc_file = "/etc/hostname"
 
     hostname_prev = None
