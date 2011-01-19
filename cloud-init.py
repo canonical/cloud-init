@@ -108,7 +108,8 @@ def main():
                 set_hostname, [ hostname, log ], False)
             cloud.sem_and_run("update_hostname", "always",
                 update_hostname, [ hostname, log ], False)
-    except:
+    except Exception, e:
+        util.logexc(log)
         warn("failed to set hostname\n")
 
     #print "user data is:" + cloud.get_user_data()
