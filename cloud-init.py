@@ -56,11 +56,10 @@ def main():
     if cmd == "start-local":
         source_type = "local"
 
-    if cmd == "start-local":
-        try:
-            cloudinit.initfs()
-        except:
-            warn("failed to initfs, likely bad things to come")
+    try:
+        cloudinit.initfs()
+    except Exception, e:
+        warn("failed to initfs, likely bad things to come: %s" % str(e))
         
 
     cloudinit.logging_set_from_cfg_file()
