@@ -48,6 +48,12 @@ apt_sources:
  #    See sources.list man page for more information about the format
  - source: deb http://archive.ubuntu.com/ubuntu karmic-backports main universe multiverse restricted
 
+ # sources can use $MIRROR and $RELEASE and they will be replaced
+ # with the local mirror for this cloud, and the running release
+ # the entry below would be possibly turned into:
+ # - source: deb http://us-east-1.ec2.archive.ubuntu.com/ubuntu natty multiverse
+ - source: deb $MIRROR $RELEASE multiverse
+
  # this would have the same end effect as 'ppa:byobu/ppa'
  - source: "deb http://ppa.launchpad.net/byobu/ppa/ubuntu karmic main"
    keyid: F430BBA5 # GPG key ID published on a key server

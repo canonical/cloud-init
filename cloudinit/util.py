@@ -136,6 +136,10 @@ def render_to_file(template, outfile, searchList):
     f.write(t.respond())
     f.close()
 
+def render_string(template, searchList):
+    return(Template(template, searchList=[searchList]).respond())
+
+
 # read_optional_seed
 # returns boolean indicating success or failure (presense of files)
 # if files are present, populates 'fill' dictionary with 'user-data' and
