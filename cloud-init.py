@@ -146,7 +146,7 @@ def set_hostname(hostname, log):
         log.error("failed to set_hostname")
 
 def update_hostname(hostname, log):
-    prev_file="%s/%s" % (cloudinit.datadir,"previous-hostname")
+    prev_file="%s/%s" % (cloudinit.get_cpath('datadir'),"previous-hostname")
     etc_file = "/etc/hostname"
 
     hostname_prev = None
