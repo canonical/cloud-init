@@ -56,6 +56,13 @@ def main():
     if cmd == "start-local":
         source_type = "local"
 
+    if cmd == "start-local":
+        try:
+            cloudinit.initfs()
+        except:
+            warn("failed to initfs, likely bad things to come")
+        
+
     cloudinit.logging_set_from_cfg_file()
     log = logging.getLogger()
     log.info(msg)
@@ -73,6 +80,9 @@ def main():
     except cloudinit.DataSourceNotFoundException as e:
         sys.stderr.write("no instance data found in %s\n" % cmd)
         sys.exit(1)
+
+    # set this as the current instance
+    cloud.set_cur_instance()
 
     # store the metadata
     cloud.update_cache()
@@ -102,13 +112,6 @@ def main():
         warn("failed to set hostname\n")
 
     #print "user data is:" + cloud.get_user_data()
-
-    # set the defaults (like what ec2-set-defaults.py did)
-    try:
-        cloud.sem_and_run("set_defaults", "once-per-instance",
-            set_defaults,[ cloud ],False)
-    except:
-        warn("failed to set defaults\n")
 
     # finish, send the cloud-config event
     cloud.initctl_emit()
