@@ -30,7 +30,7 @@ import errno
 
 class DataSourceEc2(DataSource.DataSource):
     api_ver  = '2009-04-04'
-    cachedir = cloudinit.cachedir + '/ec2'
+    seeddir = cloudinit.seeddir + '/ec2'
 
     def __init__(self):
         pass
@@ -40,10 +40,10 @@ class DataSourceEc2(DataSource.DataSource):
 
     def get_data(self):
         seedret={ }
-        if util.read_optional_seed(seedret,base=self.cachedir + "/"):
+        if util.read_optional_seed(seedret,base=self.seeddir+ "/"):
             self.userdata_raw = seedret['user-data']
             self.metadata = seedret['meta-data']
-            cloudinit.log.debug("using seeded ec2 data in %s" % self.cachedir)
+            cloudinit.log.debug("using seeded ec2 data in %s" % self.seeddir)
             return True
         
         try:

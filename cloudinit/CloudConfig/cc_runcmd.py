@@ -21,8 +21,7 @@ import cloudinit.util as util
 def handle(name,cfg,cloud,log,args):
     if not cfg.has_key("runcmd"):
         return
-    outfile="%s/%s/runcmd" % \
-        (cloudinit.user_scripts_dir, cloud.get_instance_id())
+    outfile="%s/runcmd" % cloud.get_ipath('scripts')
 
     content="#!/bin/sh\n"
     escaped="%s%s%s%s" % ( "'", '\\', "'", "'" )
