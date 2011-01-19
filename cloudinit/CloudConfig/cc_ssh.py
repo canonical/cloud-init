@@ -60,18 +60,7 @@ def handle(name,cfg,cloud,log,args):
     send_ssh_keys_to_console()
 
 def send_ssh_keys_to_console():
-    send_keys_sh = """
-    {
-    echo
-    echo "#############################################################"
-    echo "-----BEGIN SSH HOST KEY FINGERPRINTS-----"
-    ssh-keygen -l -f /etc/ssh/ssh_host_rsa_key.pub
-    ssh-keygen -l -f /etc/ssh/ssh_host_dsa_key.pub
-    echo "-----END SSH HOST KEY FINGERPRINTS-----"
-    echo "#############################################################"
-    } | logger -p user.info -s -t "ec2"
-    """
-    subprocess.call(('sh', '-c', send_keys_sh))
+    subprocess.call(('/usr/lib/cloud-init/write-ssh-key-fingerprints',))
 
 def apply_credentials(keys, user, disable_root):
     keys = set(keys)
