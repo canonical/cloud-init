@@ -507,10 +507,8 @@ def get_ipath_cur(name=None):
 
 # get_cpath : get the "clouddir" (/var/lib/cloud/<name>)
 # for a name in dirmap
-def get_cpath(self, name=None):
+def get_cpath(name=None):
     return("%s%s" % (varlibdir, pathmap[name]))
-
-
 
 class DataSourceNotFoundException(Exception):
     pass
