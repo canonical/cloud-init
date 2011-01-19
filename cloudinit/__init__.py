@@ -20,7 +20,6 @@
 
 varlibdir = '/var/lib/cloud'
 cur_instance_link = varlibdir + "/instance"
-datadir = '/var/lib/cloud/data'
 system_config = '/etc/cloud/cloud.cfg'
 seeddir = varlibdir + "/seed"
 cfg_env_name = "CLOUD_CFG"
@@ -44,6 +43,7 @@ pathmap = {
    "userdata" : "/user-data-raw.txt.i",
    "obj_pkl" : "/obj.pkl",
    "cloud_config" : "/cloud-config.txt",
+   "datadir" : "/data",
    None : "",
 }
 
@@ -256,7 +256,7 @@ class CloudInit:
     def sem_getpath(self,name,freq):
         if freq == 'once-per-instance':
             return("%s/%s" % (self.get_ipath("sem"),name))
-        return("%s/%s.%s" % (self.get_cpath("sem"), name, freq))
+        return("%s/%s.%s" % (get_cpath("sem"), name, freq))
     
     def sem_has_run(self,name,freq):
         if freq == "always": return False
@@ -321,16 +321,11 @@ class CloudInit:
         return("%s/instances/%s%s" 
                % (varlibdir,self.get_instance_id(), pathmap[name]))
 
-    # get_cpath : get the "clouddir" (/var/lib/cloud/<name>)
-    # for a name in dirmap
-    def get_cpath(self, name=None):
-        return("%s%s" % (varlibdir, pathmap[name]))
-
     def consume_userdata(self):
         self.get_userdata()
         data = self
 
-        cdir = self.get_cpath("handlers")
+        cdir = get_cpath("handlers")
         idir = self.get_ipath("handlers")
 
         # add the path to the plugins dir to the top of our list for import
@@ -486,7 +481,7 @@ class CloudInit:
 
 def initfs():
     subds = [ 'scripts/per-instance', 'scripts/per-once', 'scripts/per-boot',
-              'seed', 'instances', 'handlers', 'sem' ]
+              'seed', 'instances', 'handlers', 'sem', 'data' ]
     dlist = [ ]
     for subd in subds:
         dlist.append("%s/%s" % (varlibdir, subd))
@@ -509,6 +504,12 @@ def purge_cache():
 
 def get_ipath_cur(name=None):
     return("%s/instance/%s" % (varlibdir, pathmap[name]))
+
+# get_cpath : get the "clouddir" (/var/lib/cloud/<name>)
+# for a name in dirmap
+def get_cpath(self, name=None):
+    return("%s%s" % (varlibdir, pathmap[name]))
+
 
 
 class DataSourceNotFoundException(Exception):
