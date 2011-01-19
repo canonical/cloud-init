@@ -67,8 +67,8 @@ def process_includes(msg,parts):
         ctype = None
         ctype_orig = part.get_content_type()
         if ctype_orig == "text/plain":
-            for str, gtype in starts_with_mappings.items():
-                if payload.startswith(str):
+            for sstr, gtype in starts_with_mappings.items():
+                if payload.startswith(sstr):
                     ctype = gtype
                     break
 
