@@ -203,6 +203,12 @@ class CloudInit:
     def get_userdata(self):
         return(self.datasource.get_userdata())
 
+    def get_userdata_raw(self):
+        return(self.datasource.get_userdata_raw())
+
+    def get_instance_id(self):
+        return(self.datasource.get_instance_id())
+
     def update_cache(self):
         self.write_to_cache()
         self.store_userdata()
