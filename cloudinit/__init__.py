@@ -19,6 +19,7 @@
 #
 
 varlibdir = '/var/lib/cloud'
+cur_instance_link = varlibdir + "/instance"
 datadir = '/var/lib/cloud/data'
 semdir = '/var/lib/cloud/sem'
 cachedir = datadir + '/cache'
@@ -115,6 +116,7 @@ class CloudInit:
        "boothooks" : "/boothooks",
        "userdata_raw" : "/user-data.txt",
        "userdata" : "/user-data-raw.txt.i",
+       "obj_pkl" : "/obj.pkl",
        None : "",
     }
 
@@ -155,7 +157,11 @@ class CloudInit:
 
     def restore_from_cache(self):
         try:
-            f=open(data_source_cache, "rb")
+            # we try to restore from a current link and static path
+            # by using the instance link, if purge_cache was called
+            # the file wont exist
+            cache = "%s/%s" % (cur_instance_link, self.pathmap['obj_pkl'])
+            f=open(cache, "rb")
             data = cPickle.load(f)
             self.datasource = data
             return True
@@ -163,16 +169,17 @@ class CloudInit:
             return False
 
     def write_to_cache(self):
+        cache = self.get_ipath("obj_pkl")
         try:
-            os.makedirs(os.path.dirname(data_source_cache))
+            os.makedirs(os.path.dirname(cache))
         except OSError as e:
             if e.errno != errno.EEXIST:
                 return False
                 
         try:
-            f=open(data_source_cache, "wb")
+            f=open(cache, "wb")
             data = cPickle.dump(self.datasource,f)
-            os.chmod(data_source_cache,0400)
+            os.chmod(cache,0400)
             return True
         except:
             return False
@@ -195,6 +202,7 @@ class CloudInit:
             for ds in cfglist.split(','):
                 dslist.append(strip(ds).tolower())
             
+        log.debug("searching for data source in [%s]" % str(dslist))
         for ds in dslist:
             if ds not in self.datasource_map:
                 log.warn("data source %s not found in map" % ds)
@@ -214,13 +222,12 @@ class CloudInit:
         raise DataSourceNotFoundException("Could not find data source")
 
     def set_cur_instance(self):
-        lname = "%s/instance" % varlibdir
         try:
-            os.unlink(lname)
+            os.unlink(cur_instance_link)
         except OSError, e:
             if e.errno != errno.ENOENT: raise
 
-        os.symlink("./instances/%s" % self.get_instance_id(), lname)
+        os.symlink("./instances/%s" % self.get_instance_id(), cur_instance_link)
         idir = self.get_ipath()
         dlist = []
         for d in [ "handlers", "scripts", "sem" ]:
@@ -495,7 +502,7 @@ def initfs():
 
 def purge_cache():
     try:
-        os.unlink(data_source_cache)
+        os.unlink(cur_instance_link)
     except OSError as e:
         if e.errno != errno.ENOENT: return(False)
     except:
