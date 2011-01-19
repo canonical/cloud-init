@@ -25,6 +25,9 @@ apt_mirror: http://us.archive.ubuntu.com/ubuntu/
 apt_preserve_sources_list: true
 
 apt_sources:
+ - source: "deb http://ppa.launchpad.net/byobu/ppa/ubuntu karmic main"
+   keyid: F430BBA5 # GPG key ID published on a key server
+   filename: byobu-ppa.list
 
  # PPA shortcut:
  #  * Setup correct apt sources.list line
@@ -249,3 +252,20 @@ disable_root: false
 
 # set the locale to a given locale
 # default: en_US.UTF-8
+locale: en_US.UTF-8
+
+# add entries to rsyslog configuration
+# The first occurance of a given filename will truncate. 
+# subsequent entries will append.
+# if value is a scalar, its content is assumed to be 'content', and the
+# default filename is used.
+# if filename is not provided, it will default to 'rsylog_filename'
+# if filename does not start with a '/', it will be put in 'rsyslog_dir'
+# rsyslog_dir default: /etc/rsyslog.d
+# rsyslog_filename default: 20-cloud-config.conf
+rsyslog:
+ - ':syslogtag, isequal, "[CLOUDINIT]" /var/log/cloud-foo.log'
+ - content: "*.*   @@192.0.2.1:10514"
+ - filename: 01-examplecom.conf
+   content: |
+   *.*   @@syslogd.example.com
