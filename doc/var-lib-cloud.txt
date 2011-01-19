@@ -34,6 +34,8 @@
          user-data.txt.i
          obj.pkl
          handlers/
+         data/  # just a per-instance data location to be used
+          
   - sem/
       scripts.once
     These are the cloud-specific semaphores.  The only thing that
@@ -44,6 +46,9 @@
       "persistent" handlers (not per-instance).  Same as handlers
       from user-data, just will be cross-instance id
 
+  - data/
+      this is a persistent data location.  cloud-init won't really
+      use it, but something else (a handler or script could)
 
 to clear out the current instance's data as if to force a "new run" on reboot
 do:
