@@ -25,20 +25,23 @@ def handle(name,cfg,cloud,log,args):
     update = util.get_cfg_option_bool(cfg, 'apt_update', False)
     upgrade = util.get_cfg_option_bool(cfg, 'apt_upgrade', False)
 
+    release = get_release()
+    if cfg.has_key("apt_mirror"):
+        mirror = cfg["apt_mirror"]
+    else:
+        mirror = cloud.get_mirror()
+
     if not util.get_cfg_option_bool(cfg, \
         'apt_preserve_sources_list', False):
-        if cfg.has_key("apt_mirror"):
-            mirror = cfg["apt_mirror"]
-        else:
-            mirror = cloud.get_mirror()
-        generate_sources_list(mirror)
+        generate_sources_list(release, mirror)
         old_mir = util.get_cfg_option_str(cfg,'apt_old_mirror', \
             "archive.ubuntu.com/ubuntu")
         rename_apt_lists(old_mir, mirror)
 
     # process 'apt_sources'
     if cfg.has_key('apt_sources'):
-        errors = add_sources(cfg['apt_sources'])
+        errors = add_sources(cfg['apt_sources'],
+                             { 'MIRROR' : mirror, 'RELEASE' : release } )
         for e in errors:
             log.warn("Source Error: %s\n" % ':'.join(e))
 
@@ -96,17 +99,18 @@ def rename_apt_lists(omirror,new_mirror,lists_d="/var/lib/apt/lists"):
     for file in glob.glob("%s_*" % oprefix):
         os.rename(file,"%s%s" % (nprefix, file[olen:]))
 
-def generate_sources_list(mirror):
+def get_release():
     stdout, stderr = subprocess.Popen(['lsb_release', '-cs'], stdout=subprocess.PIPE).communicate()
-    codename = stdout.strip()
+    return(stdout.strip())
 
+def generate_sources_list(codename, mirror):
     util.render_to_file('sources.list', '/etc/apt/sources.list', \
         { 'mirror' : mirror, 'codename' : codename })
 
 # srclist is a list of dictionaries, 
 # each entry must have: 'source'
 # may have: key, ( keyid and keyserver)
-def add_sources(srclist):
+def add_sources(srclist, searchList={ }):
     elst = []
 
     for ent in srclist:
@@ -120,6 +124,8 @@ def add_sources(srclist):
             except:
                 elst.append([source, "add-apt-repository failed"])
             continue
+
+        source = util.render_string(source, searchList)
 
         if not ent.has_key('filename'):
             ent['filename']='cloud_config_sources.list'
