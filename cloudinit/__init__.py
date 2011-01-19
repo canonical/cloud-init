@@ -108,10 +108,13 @@ class CloudInit:
         "all": ( "nocloud-net", "ec2" ),
         "local" : ( "nocloud", ),
     }
-    dirmap = {
+    pathmap = {
        "handlers" : "/handlers",
        "scripts" : "/scripts",
        "sem" : "/sem",
+       "boothooks" : "/boothooks",
+       "userdata_raw" : "/user-data.txt",
+       "userdata" : "/user-data-raw.txt.i",
        None : "",
     }
 
@@ -218,7 +221,7 @@ class CloudInit:
             if e.errno != errno.ENOENT: raise
 
         os.symlink("./instances/%s" % self.get_instance_id(), lname)
-        idir = self.get_idir()
+        idir = self.get_ipath()
         dlist = []
         for d in [ "handlers", "scripts", "sem" ]:
             dlist.append("%s/%s" % (idir, d))
@@ -239,8 +242,10 @@ class CloudInit:
         self.store_userdata()
 
     def store_userdata(self):
-        util.write_file(userdata_raw, self.datasource.get_userdata_raw(), 0600)
-        util.write_file(userdata, self.datasource.get_userdata(), 0600)
+        util.write_file(self.get_ipath('userdata_raw'),
+            self.datasource.get_userdata_raw(), 0600)
+        util.write_file(self.get_ipath('userdata'),
+            self.datasource.get_userdata(), 0600)
 
     def initctl_emit(self):
         subprocess.Popen(['initctl', 'emit', 'cloud-config',
@@ -248,8 +253,8 @@ class CloudInit:
 
     def sem_getpath(self,name,freq):
         if freq == 'once-per-instance':
-            return("%s/%s" % (self.get_idir("sem"),name))
-        return("%s/%s.%s" % (self.get_cdir("sem"), name, freq))
+            return("%s/%s" % (self.get_ipath("sem"),name))
+        return("%s/%s.%s" % (self.get_cpath("sem"), name, freq))
     
     def sem_has_run(self,name,freq):
         if freq == "always": return False
@@ -308,23 +313,23 @@ class CloudInit:
                 self.sem_clear(semname,freq)
             raise
 
-    # get_cdir : get the "clouddir" (/var/lib/cloud/<name>)
-    # for a name in dirmap
-    def get_idir(self, name=None):
+    # get_ipath : get the instance path for a name in pathmap
+    # (/var/lib/cloud/instances/<instance>/name)<name>)
+    def get_ipath(self, name=None):
         return("%s/instances/%s%s" 
-               % (varlibdir,self.get_instance_id(), self.dirmap[name]))
+               % (varlibdir,self.get_instance_id(), self.pathmap[name]))
 
-    # get_cdir : get the "clouddir" (/var/lib/cloud/<name>)
+    # get_cpath : get the "clouddir" (/var/lib/cloud/<name>)
     # for a name in dirmap
-    def get_cdir(self, name=None):
-        return("%s%s" % (varlibdir, self.dirmap[name]))
+    def get_cpath(self, name=None):
+        return("%s%s" % (varlibdir, self.pathmap[name]))
 
     def consume_userdata(self):
         self.get_userdata()
         data = self
 
-        cdir = self.get_cdir("handlers")
-        idir = self.get_idir("handlers")
+        cdir = self.get_cpath("handlers")
+        idir = self.get_ipath("handlers")
 
         # add the path to the plugins dir to the top of our list for import
         # instance dir should be read before cloud-dir
@@ -366,7 +371,7 @@ class CloudInit:
         self.handlercount=self.handlercount+1
 
         # write content to instance's handlerdir
-        handlerdir = self.get_idir("handler")
+        handlerdir = self.get_ipath("handler")
         modname  = 'part-handler-%03d' % self.handlercount
         modfname = modname + ".py"
         util.write_file("%s/%s" % (handlerdir,modfname), payload, 0600)
@@ -445,6 +450,7 @@ class CloudInit:
         elif start != 0:
             payload=payload[start:]
     
+        boothooks_dir = self.get_ipath("boothooks")
         filepath = "%s/%s" % (boothooks_dir,filename)
         util.write_file(filepath, payload, 0700)
         try:
