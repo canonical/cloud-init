@@ -278,3 +278,31 @@ def read_cc_from_cmdline(cmdline=None):
         begin = cmdline.find(tag_begin, end + end_l)
 
     return('\n'.join(tokens))
+
+def ensure_dirs(dirlist, mode=0755):
+    fixmodes = []
+    for d in dirlist:
+        try:
+            if mode != None:
+                os.makedirs(d)
+            else:
+                os.makedirs(d, mode)
+        except OSError as e:
+            if e.errno != errno.EEXIST: raise
+            if mode != None: fixmodes.append(d)
+
+    for d in fixmodes:
+        os.chmod(d, mode)
+
+def chownbyname(fname,user=None,group=None):
+   uid = -1
+   gid = -1
+   if user == None and group == None: return
+   if user:
+      import pwd
+      uid = pwd.getpwnam(user).pw_uid
+   if group:
+      import grp
+      gid = grp.getgrnam(group).gr_gid
+
+   os.chown(fname,uid,gid)

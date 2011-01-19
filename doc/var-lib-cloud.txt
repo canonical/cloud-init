@@ -33,12 +33,17 @@
          user-data.txt
          user-data.txt.i
          obj.pkl
+         handlers/
   - sem/
       scripts.once
     These are the cloud-specific semaphores.  The only thing that
     would go here are files to mark that a "per-once" script
     has run.
-    
+
+  - handlers/
+      "persistent" handlers (not per-instance).  Same as handlers
+      from user-data, just will be cross-instance id
+
 
 to clear out the current instance's data as if to force a "new run" on reboot
 do:
