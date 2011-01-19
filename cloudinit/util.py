@@ -55,7 +55,6 @@ def get_base_cfg(cfgfile,cfg_builtin=""):
 
     # kernel parameters override system config
     combined = mergedict(kerncfg, syscfg)
-    import pprint; pprint.pprint(combined)
 
     if cfg_builtin:
         builtin = yaml.load(cfg_builtin)
