@@ -35,7 +35,8 @@ setup(name='cloud-init',
       packages=['cloudinit', 'cloudinit.CloudConfig' ],
       scripts=['cloud-init.py',
                'cloud-init-run-module.py',
-               'cloud-init-cfg.py'
+               'cloud-init-cfg.py',
+               'cloud-init-query.py'
                ],
       data_files=[('/etc/cloud', glob('config/*.cfg')),
                   ('/etc/cloud/templates', glob('templates/*')),
