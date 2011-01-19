@@ -68,7 +68,7 @@ def apply_credentials(keys, user, disable_root):
         setup_user_keys(keys, user, '')
  
     if disable_root:
-        key_prefix = 'command="echo \'Please login as the %s user rather than root user.\';echo;sleep 10" ' % user
+        key_prefix = 'command="echo \'Please login as the user \\\"%s\\\" rather than the user \\\"root\\\".\';echo;sleep 10" ' % user
     else:
         key_prefix = ''
 
