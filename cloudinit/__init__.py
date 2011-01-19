@@ -485,7 +485,8 @@ class CloudInit:
 
 
 def initfs():
-    subds = [ 'scripts', 'seed', 'instances', 'handlers', 'sem' ]
+    subds = [ 'scripts/per-instance', 'scripts/per-once', 'scripts/per-boot',
+              'seed', 'instances', 'handlers', 'sem' ]
     dlist = [ ]
     for subd in subds:
         dlist.append("%s/%s" % (varlibdir, subd))
