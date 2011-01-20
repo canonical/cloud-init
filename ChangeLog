@@ -3,3 +3,4 @@
    syslog writing to it (LP: #704509)
  - rework of /var/lib/cloud layout
  - remove updates-check (LP: #653220)
+ - support resizing / on first boot (enabled by default)
