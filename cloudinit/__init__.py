@@ -24,13 +24,11 @@ system_config = '/etc/cloud/cloud.cfg'
 seeddir = varlibdir + "/seed"
 cfg_env_name = "CLOUD_CFG"
 
-def_log_file = '/var/log/cloud-init.log'
-def_log_user = "syslog"
-def_log_group = "adm"
-
 cfg_builtin = """
 log_cfgs: [ ]
 cloud_type: auto
+def_log_file: /var/log/cloud-init.log
+syslog_fix_perms: syslog:adm
 """
 logger_name = "cloudinit"
 
@@ -46,6 +44,8 @@ pathmap = {
    "datadir" : "/data",
    None : "",
 }
+
+parsed_cfgs = { }
 
 import os
 from   configobj import ConfigObj
@@ -70,7 +70,7 @@ log = logging.getLogger(logger_name)
 log.addHandler(NullHandler())
 
 def logging_set_from_cfg_file(cfg_file=system_config):
-    logging_set_from_cfg(util.get_base_cfg(cfg_file,cfg_builtin))
+    logging_set_from_cfg(util.get_base_cfg(cfg_file,cfg_builtin,parsed_cfgs))
 
 def logging_set_from_cfg(cfg, logfile=None):
     log_cfgs = []
@@ -135,7 +135,7 @@ class CloudInit:
         if self.cfg:
             return(self.cfg)
 
-        conf = util.get_base_cfg(self.sysconfig,cfg_builtin)
+        conf = util.get_base_cfg(self.sysconfig,cfg_builtin, parsed_cfgs)
 
         # support reading the old ConfigObj format file and merging
         # it into the yaml dictionary
@@ -487,11 +487,16 @@ def initfs():
         dlist.append("%s/%s" % (varlibdir, subd))
     util.ensure_dirs(dlist)
 
-    fp = open(def_log_file,"ab")
-    fp.close()
-    util.chownbyname(def_log_file,def_log_user, def_log_group)
-        
-    
+    cfg = util.get_base_cfg(system_config,cfg_builtin,parsed_cfgs)
+    if 'def_log_file' in cfg:
+        fp = open(def_log_file,"ab")
+        fp.close()
+    if 'syslog_fix_perms' in cfg:
+        perms = cfg['syslog']
+        (u,g) = perms.split(':',1)
+        if u == "-1" or u == "None": u = None
+        if g == "-1" or g == "None": g = None
+        util.chownbyname(def_log_file, u, g)
 
 def purge_cache():
     try:
