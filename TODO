@@ -14,3 +14,10 @@
    - ssh keys
    - password (if set above)
  - post system info home
+- rewrite "cloud-init-query"
+  have DataSource and cloudinit expose explicit fields
+   - instance-id
+   - hostname
+   - mirror
+   - release
+   - ssh public keys
