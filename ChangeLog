@@ -2,3 +2,4 @@
  - change permissions of /var/log/cloud-init.log to accomodate
    syslog writing to it (LP: #704509)
  - rework of /var/lib/cloud layout
+ - remove updates-check (LP: #653220)
