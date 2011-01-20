@@ -42,9 +42,12 @@ def read_conf(fname):
             return { }
         raise
 
-def get_base_cfg(cfgfile,cfg_builtin=""):
+def get_base_cfg(cfgfile,cfg_builtin="", parsed_cfgs=None):
     kerncfg = { }
     syscfg = { }
+    if parsed_cfgs and cfgfile in parsed_cfgs:
+        return(parsed_cfgs[cfgfile])
+
     contents = read_file_with_includes(cfgfile)
     if contents:
         syscfg = yaml.load(contents)
@@ -58,9 +61,13 @@ def get_base_cfg(cfgfile,cfg_builtin=""):
 
     if cfg_builtin:
         builtin = yaml.load(cfg_builtin)
+        fin = mergedict(combined,builtin)
     else:
-        return(combined)
-    return(mergedict(combined,builtin))
+        fin = combined
+
+    if parsed_cfgs != None:
+        parsed_cfgs[cfgfile] = fin
+    return(fin)
 
 def get_cfg_option_bool(yobj, key, default=False):
     if not yobj.has_key(key): return default
