@@ -28,7 +28,7 @@ def apply_locale(locale):
 
 def handle(name,cfg,cloud,log,args):
     if len(args) != 0:
-        value = args[0]
+        locale = args[0]
     else:
         locale = util.get_cfg_option_str(cfg,"locale",cloud.get_locale())
 
