@@ -19,7 +19,7 @@
 
 import sys
 import cloudinit
-import cloudinit.CloudConfig
+import cloudinit.CloudConfig as CC
 import logging
 import os
 import traceback
@@ -60,47 +60,20 @@ def main():
     if os.environ.has_key(cfg_env_name):
         cfg_path = os.environ[cfg_env_name]
 
-    cc = cloudinit.CloudConfig.CloudConfig(cfg_path)
+    cc = CC.CloudConfig(cfg_path)
 
     module_list = [ ]
     if name == "all":
-        # create 'module_list', an array of arrays
-        # where array[0] = config
-        #       array[1] = freq
-        #       array[2:] = arguemnts
-        if "cloud_config_modules" in cc.cfg:
-            for item in cc.cfg["cloud_config_modules"]:
-                if isinstance(item,str):
-                    module_list.append((item,))
-                elif isinstance(item,list):
-                    module_list.append(item)
-                else:
-                    fail("Failed to parse cloud_config_modules",log)
-        else:
-            fail("No cloud_config_modules found in config",log)
+        modules_list = CC.read_cc_modules(cc.cfg,"cloud_config_modules")
+        if not len(modules_list):
+            err("no modules to run in cloud_config",log)
+            sys.exit(0)
     else:
         module_list.append( [ name, freq ] + run_args )
 
-    failures = []
-    for cfg_mod in module_list:
-        name = cfg_mod[0]
-        freq = None
-        run_args = [ ]
-        if len(cfg_mod) > 1:
-            freq = cfg_mod[1]
-        if len(cfg_mod) > 2:
-            run_args = cfg_mod[2:]
-
-        try:
-            log.debug("handling %s with freq=%s and args=%s" %
-                (name, freq, run_args ))
-            cc.handle(name, run_args, freq=freq)
-        except:
-            log.warn(traceback.format_exc())
-            err("config handling of %s, %s, %s failed\n" %
-                (name,freq,run_args), log)
-            failures.append(name)
-
+    failures = CC.run_cc_modules(cc,module_list,log)
+    if len(failures):
+        err("errors running cloud_config modules: %s" % failures)
     sys.exit(len(failures))
 
 def err(msg,log=None):

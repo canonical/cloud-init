@@ -4,3 +4,15 @@
  - rework of /var/lib/cloud layout
  - remove updates-check (LP: #653220)
  - support resizing / on first boot (enabled by default)
+ - added support for running CloudConfig modules at cloud-init time
+   rather than cloud-config time, and the new 'cloud_init_modules'
+   entry in cloud.cfg to indicate which should run then.
+   The driving force behind this was to have the rsyslog module
+   able to run before rsyslog even runs so that a restart would
+   not be needed (rsyslog on ubuntu runs on 'filesystem')
+ - moved setting and updating of hostname to cloud_init_modules
+   this allows the user to easily disable these from running.
+   This also means:
+   - the semaphore name for 'set_hostname' and 'update_hostname'
+     changes to 'config_set_hostname' and 'config_update_hostname'
+ - added cloud-config option 'hostname' for setting hostname

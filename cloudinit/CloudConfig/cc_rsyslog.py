@@ -33,7 +33,7 @@ def handle(name,cfg,cloud,log,args):
     #      *.*   @@syslogd.example.com
 
     # process 'rsyslog'
-    if not 'rsyslog' in cfg: return True
+    if not 'rsyslog' in cfg: return
 
     def_dir = cfg.get('rsyslog_dir', DEF_DIR)
     def_fname = cfg.get('rsyslog_filename', DEF_FILENAME)
@@ -69,18 +69,31 @@ def handle(name,cfg,cloud,log,args):
             elst.append((content, "failed to write to %s" % filename))
 
     # need to restart syslogd
+    restarted = False
     try:
+        # if this config module is running at cloud-init time 
+        # (before rsyslog is running) we don't actually have to
+        # restart syslog.
+        #
+        # upstart actually does what we want here, in that it doesn't
+        # start a service that wasn't running already on 'restart'
+        # it will also return failure on the attempt, so 'restarted'
+        # won't get set
         log.debug("restarting rsyslog")
         p = util.subp(['service', 'rsyslog', 'restart'])
+        restarted = True
+
     except Exception, e:
         elst.append(("restart", str(e)))
     
+    if restarted:
+        # this only needs to run if we *actually* restarted
+        # syslog above.
+        cloudinit.logging_set_from_cfg_file()
+        log = logging.getLogger()
+        log.debug("rsyslog configured %s" % files)
+
     for e in elst:
         log.warn("rsyslog error: %s\n" % ':'.join(e))
-        return False
 
-    cloudinit.logging_set_from_cfg_file()
-    log = logging.getLogger()
-    log.debug("rsyslog configured %s" % files)
-
-    return True
+    return

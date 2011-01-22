@@ -478,6 +478,13 @@ class CloudInit:
     def device_name_to_device(self,name):
         return(self.datasource.device_name_to_device(name))
 
+    # I really don't know if this should be here or not, but
+    # I needed it in cc_update_hostname, where that code had a valid 'cloud'
+    # reference, but did not have a cloudinit handle
+    # (ie, no cloudinit.get_cpath())
+    def get_cpath(self,name=None):
+        return(get_cpath,name)
+
 
 def initfs():
     subds = [ 'scripts/per-instance', 'scripts/per-once', 'scripts/per-boot',
@@ -507,6 +514,7 @@ def purge_cache():
         return(False)
     return(True)
 
+# get_ipath_cur: get the current instance path for an item
 def get_ipath_cur(name=None):
     return("%s/instance/%s" % (varlibdir, pathmap[name]))
 
