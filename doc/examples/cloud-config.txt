@@ -281,3 +281,8 @@ rsyslog:
 # and have the instance automatically grow / to accomoddate it
 # set to 'False' to disable
 resize_rootfs: True
+
+# if hostname is set, cloud-init will set the system hostname 
+# appropriately to its value
+# if not set, it will set hostname from the cloud metadata
+# default: None

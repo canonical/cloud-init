@@ -22,6 +22,7 @@ import sys
 
 import cloudinit
 import cloudinit.util as util
+import cloudinit.CloudConfig as CC
 import time
 import logging
 import errno
@@ -98,92 +99,23 @@ def main():
         warn("consuming user data failed!\n")
         raise
 
-    try:
-        if util.get_cfg_option_bool(cloud.cfg,"preserve_hostname",False):
-            log.debug("preserve_hostname is set. not managing hostname")
-        else:
-            hostname = cloud.get_hostname()
-            cloud.sem_and_run("set_hostname", "once-per-instance",
-                set_hostname, [ hostname, log ], False)
-            cloud.sem_and_run("update_hostname", "always",
-                update_hostname, [ hostname, log ], False)
-    except Exception, e:
-        util.logexc(log)
-        warn("failed to set hostname\n")
-
-    #print "user data is:" + cloud.get_user_data()
-
     # finish, send the cloud-config event
     cloud.initctl_emit()
 
-    sys.exit(0)
+    cfg_path = cloudinit.get_ipath_cur("cloud_config")
+    cc = CC.CloudConfig(cfg_path, cloud)
+    modules_list = CC.read_cc_modules(cc.cfg,"cloud_init_modules")
 
-# read hostname from a 'hostname' file
-# allow for comments and stripping line endings.
-# if file doesn't exist, or no contents, return default
-def read_hostname(filename, default=None):
-    try:
-        fp = open(filename,"r")
-        lines = fp.readlines()
-        fp.close()
-        for line in lines:
-            hpos = line.find("#")
-            if hpos != -1:
-                line = line[0:hpos]
-            line = line.rstrip()
-            if line:
-                return line
-    except IOError, e:
-        if e.errno == errno.ENOENT: pass
-    return default
-    
-def set_hostname(hostname, log):
-    try:
-        subprocess.Popen(['hostname', hostname]).communicate()
-        util.write_file("/etc/hostname","%s\n" % hostname, 0644)
-        log.debug("populated /etc/hostname with %s on first boot", hostname)
-    except:
-        log.error("failed to set_hostname")
+    failures = []
+    if len(modules_list):
+        failures = CC.run_cc_modules(cc,module_list,log)
+    else:
+        msg = "no cloud_init_modules to run"
+        sys.stderr.write(msg + "\n")
+        log.debug(msg)
+        sys.exit(0)
 
-def update_hostname(hostname, log):
-    prev_file="%s/%s" % (cloudinit.get_cpath('datadir'),"previous-hostname")
-    etc_file = "/etc/hostname"
-
-    hostname_prev = None
-    hostname_in_etc = None
-
-    try:
-        hostname_prev = read_hostname(prev_file)
-    except:
-        log.warn("Failed to open %s" % prev_file)
-    
-    try:
-        hostname_in_etc = read_hostname(etc_file)
-    except:
-        log.warn("Failed to open %s" % etc_file)
-
-    update_files = []
-    if not hostname_prev or hostname_prev != hostname:
-        update_files.append(prev_file)
-
-    if (not hostname_in_etc or 
-        (hostname_in_etc == hostname_prev and hostname_in_etc != hostname)):
-        update_files.append(etc_file)
-
-    try:
-        for fname in update_files:
-            util.write_file(fname,"%s\n" % hostname, 0644)
-            log.debug("wrote %s to %s" % (hostname,fname))
-    except:
-        log.warn("failed to write hostname to %s" % fname)
-
-    if hostname_in_etc and hostname_prev and hostname_in_etc != hostname_prev:
-        log.debug("%s differs from %s. assuming user maintained" %
-                  (prev_file,etc_file))
-
-    if etc_file in update_files:
-        log.debug("setting hostname to %s" % hostname)
-        subprocess.Popen(['hostname', hostname]).communicate()
+    sys.exit(len(failures))
 
 if __name__ == '__main__':
     main()
