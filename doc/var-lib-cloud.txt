@@ -35,6 +35,9 @@
          obj.pkl
          handlers/
          data/  # just a per-instance data location to be used
+         boot-finished
+            # this file indicates when "boot" is finished
+            # it is created by the 'final_message' cloud-config
           
   - sem/
       scripts.once

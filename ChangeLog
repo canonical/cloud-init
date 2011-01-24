@@ -16,3 +16,14 @@
    - the semaphore name for 'set_hostname' and 'update_hostname'
      changes to 'config_set_hostname' and 'config_update_hostname'
  - added cloud-config option 'hostname' for setting hostname
+ - moved upstart/cloud-run-user-script.conf to upstart/cloud-final.conf
+ - cloud-final.conf now runs runs cloud-config modules similar
+   to cloud-config and cloud-init.
+ - LP: #653271 
+   - added writing of "boot-finished" to /var/lib/cloud/instance/boot-finished
+     this is the last thing done, indicating cloud-init is finished booting
+   - writes message to console with timestamp and uptime
+ - write ssh keys to console as one of the last things done
+   this is to ensure they don't get run off the 'get-console-ouptut' buffer
+ - user_scripts run via cloud-final and thus semaphore renamed from
+   user_scripts to config_user_scripts
