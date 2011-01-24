@@ -484,7 +484,7 @@ class CloudInit:
     # reference, but did not have a cloudinit handle
     # (ie, no cloudinit.get_cpath())
     def get_cpath(self,name=None):
-        return(get_cpath,name)
+        return(get_cpath(name))
 
 
 def initfs():
