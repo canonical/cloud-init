@@ -35,11 +35,14 @@ def main():
     #   read cloud config jobs from config (builtin -> system)
     #   and run all in order
 
+    modlist = "cloud_config"
     if len(sys.argv) < 2:
         Usage(sys.stderr)
         sys.exit(1)
     if sys.argv[1] == "all":
         name = "all"
+        if len(sys.argv) > 2:
+            modlist = sys.argv[2]
     else:
         freq = None
         run_args = []
@@ -64,16 +67,17 @@ def main():
 
     module_list = [ ]
     if name == "all":
-        modules_list = CC.read_cc_modules(cc.cfg,"cloud_config_modules")
+        modlist_cfg_name = "%s_modules" % modlist
+        modules_list = CC.read_cc_modules(cc.cfg,modlist_cfg_name)
         if not len(modules_list):
-            err("no modules to run in cloud_config",log)
+            err("no modules to run in cloud_config [%s]" % modlist,log)
             sys.exit(0)
     else:
         module_list.append( [ name, freq ] + run_args )
 
     failures = CC.run_cc_modules(cc,module_list,log)
     if len(failures):
-        err("errors running cloud_config modules: %s" % failures)
+        err("errors running cloud_config [%s]: %s" % (modlist,failures), log)
     sys.exit(len(failures))
 
 def err(msg,log=None):
