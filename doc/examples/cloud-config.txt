@@ -286,3 +286,9 @@ resize_rootfs: True
 # appropriately to its value
 # if not set, it will set hostname from the cloud metadata
 # default: None
+
+# final_message
+# default: cloud-init boot finished at $TIMESTAMP. Up $UPTIME seconds
+# this message is written by cloud-final when the system is finished
+# its first boot
+final_message: "The system is finally up, after $UPTIME seconds"

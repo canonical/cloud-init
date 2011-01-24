@@ -98,7 +98,7 @@ def run_cc_modules(cc,module_list,log):
             cc.handle(name, run_args, freq=freq)
         except:
             log.warn(traceback.format_exc())
-            log.err("config handling of %s, %s, %s failed\n" %
+            log.error("config handling of %s, %s, %s failed\n" %
                 (name,freq,run_args))
             failures.append(name)
 
