@@ -104,10 +104,10 @@ def main():
 
     cfg_path = cloudinit.get_ipath_cur("cloud_config")
     cc = CC.CloudConfig(cfg_path, cloud)
-    modules_list = CC.read_cc_modules(cc.cfg,"cloud_init_modules")
+    module_list = CC.read_cc_modules(cc.cfg,"cloud_init_modules")
 
     failures = []
-    if len(modules_list):
+    if len(module_list):
         failures = CC.run_cc_modules(cc,module_list,log)
     else:
         msg = "no cloud_init_modules to run"
