@@ -88,6 +88,7 @@ def logging_set_from_cfg(cfg, logfile=None):
 
     if not len(log_cfgs):
         sys.stderr.write("Warning, no logging configured\n")
+        return
 
     for logcfg in log_cfgs:
         try:
@@ -483,7 +484,7 @@ class CloudInit:
     # reference, but did not have a cloudinit handle
     # (ie, no cloudinit.get_cpath())
     def get_cpath(self,name=None):
-        return(get_cpath,name)
+        return(get_cpath(name))
 
 
 def initfs():
@@ -495,15 +496,17 @@ def initfs():
     util.ensure_dirs(dlist)
 
     cfg = util.get_base_cfg(system_config,cfg_builtin,parsed_cfgs)
+    log_file = None
     if 'def_log_file' in cfg:
-        fp = open(def_log_file,"ab")
+        log_file = cfg['def_log_file']
+        fp = open(log_file,"ab")
         fp.close()
-    if 'syslog_fix_perms' in cfg:
+    if log_file and 'syslog' in cfg:
         perms = cfg['syslog']
         (u,g) = perms.split(':',1)
         if u == "-1" or u == "None": u = None
         if g == "-1" or g == "None": g = None
-        util.chownbyname(def_log_file, u, g)
+        util.chownbyname(log_file, u, g)
 
 def purge_cache():
     try:
