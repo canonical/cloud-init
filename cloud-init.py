@@ -60,7 +60,7 @@ def main():
     try:
         cloudinit.initfs()
     except Exception, e:
-        warn("failed to initfs, likely bad things to come: %s" % str(e))
+        warn("failed to initfs, likely bad things to come: %s\n" % str(e))
         
 
     cloudinit.logging_set_from_cfg_file()
