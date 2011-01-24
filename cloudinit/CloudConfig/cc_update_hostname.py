@@ -17,6 +17,7 @@
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 import cloudinit.util as util
 import subprocess
+import errno
 from cloudinit.CloudConfig import per_always
 
 frequency = per_always
@@ -50,7 +51,7 @@ def read_hostname(filename, default=None):
             if line:
                 return line
     except IOError, e:
-        if e.errno == errno.ENOENT: pass
+        if e.errno != errno.ENOENT: raise
     return default
     
 def update_hostname(hostname, prev_file, log):
@@ -61,9 +62,9 @@ def update_hostname(hostname, prev_file, log):
 
     try:
         hostname_prev = read_hostname(prev_file)
-    except:
-        log.warn("Failed to open %s" % prev_file)
-    
+    except Exception, e:
+        log.warn("Failed to open %s: %s" % (prev_file, e))
+
     try:
         hostname_in_etc = read_hostname(etc_file)
     except:
