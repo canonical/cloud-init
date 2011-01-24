@@ -53,7 +53,7 @@ def read_hostname(filename, default=None):
         if e.errno == errno.ENOENT: pass
     return default
     
-def update_hostname(hostname, previous, log):
+def update_hostname(hostname, prev_file, log):
     etc_file = "/etc/hostname"
 
     hostname_prev = None
