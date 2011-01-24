@@ -127,6 +127,16 @@ def getkeybyid(keyid,keyserver):
    args=['sh', '-c', shcmd, "export-gpg-keyid", keyid, keyserver]
    return(subp(args)[0])
 
+def runparts(dirp, skip_no_exist=True):
+    if skip_no_exist and not os.path.isdir(dirp): return
+        
+    cmd = [ 'run-parts', '--regex', '.*', dirp ]
+    sp = subprocess.Popen(cmd)
+    sp.communicate()
+    if sp.returncode is not 0:
+        raise subprocess.CalledProcessError(sp.returncode,cmd)
+    return
+
 def subp(args, input=None):
     s_in = None
     if input is not None:

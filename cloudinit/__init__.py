@@ -20,6 +20,7 @@
 
 varlibdir = '/var/lib/cloud'
 cur_instance_link = varlibdir + "/instance"
+boot_finished = cur_instance_link + "/boot-finished"
 system_config = '/etc/cloud/cloud.cfg'
 seeddir = varlibdir + "/seed"
 cfg_env_name = "CLOUD_CFG"
@@ -509,12 +510,15 @@ def initfs():
         util.chownbyname(log_file, u, g)
 
 def purge_cache():
-    try:
-        os.unlink(cur_instance_link)
-    except OSError as e:
-        if e.errno != errno.ENOENT: return(False)
-    except:
-        return(False)
+    rmlist = ( boot_finished , cur_instance_link )
+    for f in rmlist:
+        try:
+            os.unlink(f)
+        except OSError as e:
+            if e.errno == errno.ENOENT: continue
+            return(False)
+        except:
+            return(False)
     return(True)
 
 # get_ipath_cur: get the current instance path for an item
