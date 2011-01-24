@@ -24,6 +24,7 @@ import traceback
 
 per_instance="once-per-instance"
 per_always="always"
+per_once="once"
 
 class CloudConfig():
     cfgfile = None
