@@ -323,3 +323,13 @@ def chownbyname(fname,user=None,group=None):
       gid = grp.getgrnam(group).gr_gid
 
    os.chown(fname,uid,gid)
+
+def readurl(url, data=None):
+   if data is None:
+      req = urllib2.Request(url)
+   else:
+      encoded = urllib.urlencode(values)
+      req = urllib2.Request(url, encoded)
+
+   response = urllib2.urlopen(req)
+   return(response.read())
