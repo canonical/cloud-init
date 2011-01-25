@@ -35,6 +35,13 @@ class DataSource:
     def get_userdata_raw(self):
         return(self.userdata_raw)
 
+
+    # the data sources' config_obj is a cloud-config formated
+    # object that came to it from ways other than cloud-config
+    # because cloud-config content would be handled elsewhere
+    def get_config_obj(self):
+        return({ })
+
     def get_public_ssh_keys(self):
         keys = []
         if not self.metadata.has_key('public-keys'): return([])
