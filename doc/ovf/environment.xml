@@ -34,7 +34,7 @@
         <!-- hostname: the hostname to set -->
         <Property oe:key="hostname" oe:value="ubuntuhost"/>
         <!--
-        The value for user-data can be either base64 encoded or url encoded.
+        The value for user-data is to be base64 encoded.
         it will be decoded, and then processed normally as user-data.
         The following represents '#!/bin/sh\necho "hi world"'
 

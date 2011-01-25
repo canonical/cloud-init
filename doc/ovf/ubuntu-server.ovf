@@ -39,10 +39,9 @@
       </Property>
       <Property ovf:key="user-data" ovf:type="string" ovf:userConfigurable="true" ovf:value="">
           <Label>Encoded user-data</Label>
-          <Description>This value can be either base64 encoded or url encoded.  It will be decoded, and then processed normally as user-data.</Description>
+          <Description>In order to fit into a xml attribute, this value is base64 encoded . It will be decoded, and then processed normally as user-data.</Description>
           <!--  The following represents '#!/bin/sh\necho "hi world"'
           ovf:value="IyEvYmluL3NoDQplY2hvICJoaSB3b3JsZCI="
-          ovf:value="%23!%2Fbin%2Fsh%0Aecho%20%22hi%20world%22"/>
         -->
       </Property>
       <Property ovf:key="password" ovf:type="string" ovf:userConfigurable="true" ovf:value="">
