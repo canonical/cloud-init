@@ -28,8 +28,48 @@ from xml.dom import minidom
 from xml.dom import Node
 
 class DataSourceOVF(DataSource.DataSource):
-    pass
+    seed = None
+    seeddir = cloudinit.seeddir + '/ovf'
 
+    def __init__(self):
+        pass
+
+    def __str__(self):
+        mstr="DataSourceOVF"
+        mstr = mstr + " [seed=%s]" % self.seed
+        return(mstr)
+
+    def get_data(self):
+        (seedfile, contents) = get_ovf_env(seeddir)
+        if seedfile:
+            # found a seed dir
+            self.seed = "%s/%s" % (dirname,seedfile)
+            ret = read_ovf_environment(contents)
+            # self.user_data=ret['user-data']
+            # self.meta_data=ret['meta-data']
+            return(True)
+
+        (dev, fname, contents) = find_ovf_env()
+        if not dev:
+            return(False)
+
+        ret = read_ovf_environment(contents)
+        # self.user_data=ret['user-data']
+        # self.meta_data=ret['meta-data']
+        return(True)
+
+
+# this will return a dict with some content
+#  meta-data, user-data
+def read_ovf_environment(contents):
+    # this should basically shove into python objects
+    # the values we read from ovf environment
+    self.metadata = md;
+    self.userdata_raw = ud
+        
+
+# returns tuple of filename (in 'dirname', and the contents of the file)
+# on "not found", returns 'None' for filename and False for contents
 def get_ovf_env(dirname):
     env_names = ("ovf-env.xml", "ovf_env.xml", "OVF_ENV.XML", "OVF-ENV.XML" )
     for fname in env_names:
@@ -142,11 +182,17 @@ def getProperties(environString):
     propElems = findChild(propSections[0], lambda n: n.localName == "Property")
 
     for elem in propElems:
-        key, val = ( None, None )
-        for attr in elem.attributes.values():
-            if attr.namespaceURI == envNsURI:
-                if attr.localName == "key"  : key = attr.value
-                if attr.localName == "value": val = attr.value
+        key = elem.attributes.getNamedItemNS(envNsURI,"key").value
+        val = elem.attributes.getNamedItemNS(envNsURI,"value").value
         props[key] = val
 
     return(props)
+
+if __name__ == "__main__":
+    import sys
+    envStr = open(sys.argv[1]).read()
+    props = getProperties(envStr)
+    import pprint
+    pprint.pprint(props)
+    
+    read_ovf_environment
