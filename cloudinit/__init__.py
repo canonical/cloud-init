@@ -73,7 +73,7 @@ log.addHandler(NullHandler())
 def logging_set_from_cfg_file(cfg_file=system_config):
     logging_set_from_cfg(util.get_base_cfg(cfg_file,cfg_builtin,parsed_cfgs))
 
-def logging_set_from_cfg(cfg, logfile=None):
+def logging_set_from_cfg(cfg):
     log_cfgs = []
     logcfg=util.get_cfg_option_str(cfg, "log_cfg", False)
     if logcfg:
@@ -529,6 +529,9 @@ def get_ipath_cur(name=None):
 # for a name in dirmap
 def get_cpath(name=None):
     return("%s%s" % (varlibdir, pathmap[name]))
+
+def get_base_cfg():
+    return(util.get_base_cfg(system_config,cfg_builtin,parsed_cfgs))
 
 class DataSourceNotFoundException(Exception):
     pass
