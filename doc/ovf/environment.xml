@@ -19,20 +19,20 @@
 
     <!--- Properties defined for this virtual machine -->
     <PropertySection>
-        <!-- md.instance-id is required, a unique instance-id -->
-        <Property oe:key="md.instance-id" oe:value="i-abcdefg"/>
+        <!-- instance-id is required, a unique instance-id -->
+        <Property oe:key="instance-id" oe:value="i-abcdefg"/>
         <!-- 
-        md.seedfrom is optional, but indicates to 'seed' user-data
+        seedfrom is optional, but indicates to 'seed' user-data
         and meta-data the given url.  In this example, pull
         http://tinyurl.com/sm-meta-data and http://tinyurl.com/sm-user-data
         -->
-        <Property oe:key="md.seedfrom" oe:value="http://tinyurl.com/sm-"/>
+        <Property oe:key="seedfrom" oe:value="http://tinyurl.com/sm-"/>
         <!--
-        md.public-keys is a public key to add to users authorized keys
+        public-keys is a public key to add to users authorized keys
         -->
-        <Property oe:key="md.public-keys" oe:value="ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEA3I7VUf2l5gSn5uavROsc5HRDpZdQueUq5ozemNSj8T7enqKHOEaFoU2VoPgGEWC9RyzSQVeyD6s7APMcE82EtmW4skVEgEGSbDc1pvxzxtchBj78hJP6Cf5TCMFSXw+Fz5rF1dR23QDbN1mkHs7adr8GW4kSWqU7Q7NDwfIrJJtO7Hi42GyXtvEONHbiRPOe8stqUly7MvUoN+5kfjBM8Qqpfl2+FNhTYWpMfYdPUnE7u536WqzFmsaqJctz3gBxH9Ex7dFtrxR4qiqEr9Qtlu3xGn7Bw07/+i1D+ey3ONkZLN+LQ714cgj8fRS4Hj29SCmXp5Kt5/82cD/VN3NtHw== smoser@brickies"/>
-        <!-- md.local-hostname: the hostname to set -->
-        <Property oe:key="md.local-hostname" oe:value="ubuntuhost"/>
+        <Property oe:key="public-keys" oe:value="ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEA3I7VUf2l5gSn5uavROsc5HRDpZdQueUq5ozemNSj8T7enqKHOEaFoU2VoPgGEWC9RyzSQVeyD6s7APMcE82EtmW4skVEgEGSbDc1pvxzxtchBj78hJP6Cf5TCMFSXw+Fz5rF1dR23QDbN1mkHs7adr8GW4kSWqU7Q7NDwfIrJJtO7Hi42GyXtvEONHbiRPOe8stqUly7MvUoN+5kfjBM8Qqpfl2+FNhTYWpMfYdPUnE7u536WqzFmsaqJctz3gBxH9Ex7dFtrxR4qiqEr9Qtlu3xGn7Bw07/+i1D+ey3ONkZLN+LQ714cgj8fRS4Hj29SCmXp5Kt5/82cD/VN3NtHw== smoser@brickies"/>
+        <!-- hostname: the hostname to set -->
+        <Property oe:key="hostname" oe:value="ubuntuhost"/>
         <!--
         The value for user-data can be either base64 encoded or url encoded.
         it will be decoded, and then processed normally as user-data.
@@ -41,6 +41,7 @@
         <Property oe:key="user-data" oe:value="IyEvYmluL3NoDQplY2hvICJoaSB3b3JsZCI="/>
         -->
         <Property oe:key="user-data" oe:value="%23!%2Fbin%2Fsh%0Aecho%20%22hi%20world%22"/>
+        <Property oe:key="password" oe:value="passw0rd">
     </PropertySection>
 
 </Environment>
