@@ -23,6 +23,7 @@ import subprocess
 from Cheetah.Template import Template
 import cloudinit
 import urllib2
+import urllib
 import logging
 import traceback
 import re
