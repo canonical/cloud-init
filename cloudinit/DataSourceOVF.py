@@ -49,9 +49,12 @@ class DataSourceOVF(DataSource.DataSource):
             # self.meta_data=ret['meta-data']
             return(True)
 
-        (dev, fname, contents) = find_ovf_env()
+        for tranfunc in [ transport_iso9660, transport_vmware_guestd ]:
+            (contents, dev, fname) = tranfunc()
+            if contents: break
+
         if not dev:
-            return(False)
+            return False
 
         ret = read_ovf_environment(contents)
         # self.user_data=ret['user-data']
@@ -80,7 +83,9 @@ def get_ovf_env(dirname):
             return(fname,contents)
     return(None,False)
 
-def find_ovf_env(require_iso=False):
+# transport functions take no input and return
+# a 3 tuple of content, path, filename
+def transport_iso9660(require_iso=False):
 
     # default_regex matches values in 
     # /lib/udev/rules.d/60-cdrom_id.rules
@@ -108,7 +113,7 @@ def find_ovf_env(require_iso=False):
         
         (fname,contents) = get_ovf_env(mp)
         if contents is not False:
-            return (dev,fname,contents)
+            return(contents,dev,fname)
 
     tmpd = None
     dvnull = None
@@ -143,7 +148,7 @@ def find_ovf_env(require_iso=False):
 
         if contents is not False:
             os.rmdir(tmpd)
-            return (fullp,fname,contents)
+            return(contents,fullp,fname)
 
     if tmpd:
         os.rmdir(tmpd)
@@ -151,7 +156,21 @@ def find_ovf_env(require_iso=False):
     if dvnull:
         dvnull.close()
 
-    return (None,None,False)
+    return(False, None, None)
+
+def transport_vmware_guestd():
+    # http://blogs.vmware.com/vapp/2009/07/selfconfiguration-and-the-ovf-environment.html
+    # sub
+    # try:
+    #     cmd = ['vmware-guestd', '--cmd', 'info-get guestinfo.ovfEnv']
+    #     (out,err) = subp(cmd)
+    #     return(out, 'guestinfo.ovfEnv', 'vmware-guestd')
+    # except:
+    #     # would need to error check here and see why this failed
+    #     # to know if log/error should be raised
+    #     return(False, None, None)
+    return(False, None, None)
+
 
 def findChild(node,filter_func):
     ret = []
