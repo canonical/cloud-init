@@ -15,12 +15,12 @@
 #
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
-from cloudinit.CloudConfig import per_instance
+from cloudinit.CloudConfig import per_always
 import sys
 from cloudinit import util, boot_finished
 import time
 
-frequency = per_instance
+frequency = per_always
 
 final_message = "cloud-init boot finished at $TIMESTAMP. Up $UPTIME seconds"
 
