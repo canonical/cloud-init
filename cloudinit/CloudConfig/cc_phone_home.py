@@ -17,23 +17,83 @@
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 from cloudinit.CloudConfig import per_instance
 import cloudinit.util as util
-frequency = per_instance
+from time import sleep
 
+frequency = per_instance
+post_list_all = [ 'pub_key_dsa', 'pub_key_rsa', 'instance_id', 'hostname' ]
+
+# phone_home:
+#  url: http://my.foo.bar/$INSTANCE/
+#  post: all
+#  tries: 10
+#
+# phone_home:
+#  url: http://my.foo.bar/$INSTANCE_ID/
+#  post: [ pub_key_dsa, pub_key_rsa, instance_id
+#   
 def handle(name,cfg,cloud,log,args):
     if len(args) != 0:
-        value = args[0]
+        ph_cfg = util.readconf(args[0])
     else:
-        value = util.get_cfg_option_str(cfg,"phone_home_url",False)
+        if not 'phone_home' in cfg: return
+        ph_cfg = cfg['phone_home']
 
-    if not value:
+    if 'url' not in ph_cfg:
+        log.warn("no 'url' token in phone_home")
         return
 
-    # TODO:
-    # implement phone_home
-    # pass to it
-    #  - ssh key fingerprints
-    #  - mac addr ?
-    #  - ip address
-    #  
-    log.warn("TODO: write cc_phone_home")
+    url = ph_cfg['url']
+    post_list = ph_cfg.get('post', 'all')
+    tries = ph_cfg.get('tries',10)
+    try:
+        tries = int(tries)
+    except:
+        log.warn("tries is not an integer. using 10")
+        tries = 10
+
+    if post_list == "all":
+        post_list = post_list_all
+
+    all_keys = { }
+    all_keys['instance_id'] = cloud.get_instance_id()
+    all_keys['hostname'] = cloud.get_hostname()
+
+    pubkeys = {
+        'pub_key_dsa': '/etc/ssh/ssh_host_dsa_key.pub',
+        'pub_key_rsa': '/etc/ssh/ssh_host_rsa_key.pub',
+    }
+
+    for n, path in pubkeys.iteritems():
+        try:
+            fp = open(path, "rb")
+            all_keys[n] = fp.read()
+            all_keys[n]
+            fp.close()
+        except:
+            log.warn("%s: failed to open in phone_home" % path)
+
+    submit_keys = { }
+    for k in post_list:
+        if k in all_keys:
+            submit_keys[k] = all_keys[k]
+        else:
+            submit_keys[k] = "N/A"
+            log.warn("requested key %s from 'post' list not available")
+
+    url = util.render_string(url, { 'INSTANCE_ID' : all_keys['instance_id'] })
+
+    last_e = None
+    for i in range(0,tries):
+        try:
+            util.readurl(url, submit_keys)
+            log.debug("succeeded submit to %s on try %i" % (url, i+1))
+            return
+        except Exception, e:
+            log.debug("failed to post to %s on try %i" % (url, i+1))
+            last_e = e
+        sleep(3)
+
+    log.warn("failed to post to %s in %i tries" % (url, tries))
+    if last_e: raise(last_e)
+    
     return
