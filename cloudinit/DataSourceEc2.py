@@ -108,7 +108,7 @@ class DataSourceEc2(DataSource.DataSource):
                 cloudinit.log.warning("waiting for metadata service at %s\n" % url)
 
             cloudinit.log.warning("  %s [%02s/%s]: %s\n" %
-                (time.strftime("%H:%M:%S"), x+1, sleeps, reason))
+                (time.strftime("%H:%M:%S",time.gmtime()), x+1, sleeps, reason))
             time.sleep(sleeptime)
 
         cloudinit.log.critical("giving up on md after %i seconds\n" %
