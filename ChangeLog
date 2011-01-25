@@ -27,3 +27,5 @@
    this is to ensure they don't get run off the 'get-console-ouptut' buffer
  - user_scripts run via cloud-final and thus semaphore renamed from
    user_scripts to config_user_scripts
+ - add support for redirecting output of cloud-init, cloud-config, cloud-final
+   via the config file, or user data config file
