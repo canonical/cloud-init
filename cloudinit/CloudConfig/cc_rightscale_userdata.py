@@ -37,7 +37,7 @@ from cloudinit.CloudConfig import per_once, per_always, per_instance
 from cloudinit import get_ipath_cur
 from urlparse import parse_qs
 
-frequency = per_once
+frequency = per_instance
 my_name = "cc_rightscale_userdata"
 my_hookname = 'CLOUD_INIT_REMOTE_HOOK'
 
