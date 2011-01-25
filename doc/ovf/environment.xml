@@ -38,10 +38,9 @@
         it will be decoded, and then processed normally as user-data.
         The following represents '#!/bin/sh\necho "hi world"'
 
-        <Property oe:key="user-data" oe:value="IyEvYmluL3NoDQplY2hvICJoaSB3b3JsZCI="/>
         -->
-        <Property oe:key="user-data" oe:value="%23!%2Fbin%2Fsh%0Aecho%20%22hi%20world%22"/>
-        <Property oe:key="password" oe:value="passw0rd">
+        <Property oe:key="user-data" oe:value="IyEvYmluL3NoDQplY2hvICJoaSB3b3JsZCI="/>
+        <Property oe:key="password" oe:value="passw0rd"/>
     </PropertySection>
 
 </Environment>
