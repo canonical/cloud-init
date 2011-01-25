@@ -27,8 +27,8 @@ import time
 import logging
 import errno
 
-def warn(str):
-    sys.stderr.write(str)
+def warn(wstr):
+    sys.stderr.write(wstr)
 
 def main():
     cmds = ( "start", "start-local" )
@@ -40,7 +40,7 @@ def main():
         sys.stderr.write("bad command %s. use one of %s\n" % (cmd, cmds))
         sys.exit(1)
 
-    now = time.strftime("%a, %d %b %Y %H:%M:%S %z")
+    now = time.strftime("%a, %d %b %Y %H:%M:%S %z",time.gmtime())
     try:
        uptimef=open("/proc/uptime")
        uptime=uptimef.read().split(" ")[0]
@@ -49,23 +49,30 @@ def main():
        warn("unable to open /proc/uptime\n")
        uptime = "na"
 
+    source_type = "all"
+    if cmd == "start-local":
+        source_type = "local"
+
+    try:
+        cfg = cloudinit.get_base_cfg()
+        (outfmt, errfmt) = CC.get_output_cfg(cfg,"init")
+        CC.redirect_output(outfmt, errfmt)
+    except Exception, e:
+        warn("Failed to get and set output config: %s\n" % e)
+
     msg = "cloud-init %s running: %s. up %s seconds" % (cmd, now, uptime)
     sys.stderr.write(msg + "\n")
     sys.stderr.flush()
 
-    source_type = "all"
-    if cmd == "start-local":
-        source_type = "local"
+    cloudinit.logging_set_from_cfg(cfg)
+    log = logging.getLogger()
+    log.info(msg)
 
     try:
         cloudinit.initfs()
     except Exception, e:
         warn("failed to initfs, likely bad things to come: %s\n" % str(e))
         
-
-    cloudinit.logging_set_from_cfg_file()
-    log = logging.getLogger()
-    log.info(msg)
 
     # cache is not instance specific, so it has to be purged
     # but we want 'start' to benefit from a cache if
@@ -104,6 +111,18 @@ def main():
 
     cfg_path = cloudinit.get_ipath_cur("cloud_config")
     cc = CC.CloudConfig(cfg_path, cloud)
+
+    # if the output config changed, update output and err
+    try:
+        outfmt_orig = outfmt
+        errfmt_orig = errfmt
+        (outfmt, errfmt) = CC.get_output_cfg(cc.cfg,"init")
+        if outfmt_orig != outfmt or errfmt_orig != errfmt:
+            warn("stdout, stderr changing to (%s,%s)" % (outfmt,errfmt))
+            CC.redirect_output(outfmt, errfmt)
+    except Exception, e:
+        warn("Failed to get and set output config: %s\n" % e)
+
     module_list = CC.read_cc_modules(cc.cfg,"cloud_init_modules")
 
     failures = []

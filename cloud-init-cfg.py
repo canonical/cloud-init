@@ -35,14 +35,15 @@ def main():
     #   read cloud config jobs from config (builtin -> system)
     #   and run all in order
 
-    modlist = "cloud_config"
+    modename = "config"
+    
     if len(sys.argv) < 2:
         Usage(sys.stderr)
         sys.exit(1)
     if sys.argv[1] == "all":
         name = "all"
         if len(sys.argv) > 2:
-            modlist = sys.argv[2]
+            modename = sys.argv[2]
     else:
         freq = None
         run_args = []
@@ -54,10 +55,6 @@ def main():
         if len(sys.argv) > 3:
             run_args=sys.argv[3:]
 
-    cloudinit.logging_set_from_cfg_file()
-    log = logging.getLogger()
-    log.info("cloud-init-cfg %s" % sys.argv[1:])
-
     cfg_path = cloudinit.get_ipath_cur("cloud_config")
     cfg_env_name = cloudinit.cfg_env_name
     if os.environ.has_key(cfg_env_name):
@@ -65,19 +62,30 @@ def main():
 
     cc = CC.CloudConfig(cfg_path)
 
+    try:
+        (outfmt, errfmt) = CC.get_output_cfg(cc.cfg,modename)
+        CC.redirect_output(outfmt, errfmt)
+    except Exception, e:
+        err("Failed to get and set output config: %s\n" % e)
+
+    cloudinit.logging_set_from_cfg(cc.cfg)
+    log = logging.getLogger()
+    log.info("cloud-init-cfg %s" % sys.argv[1:])
+
     module_list = [ ]
     if name == "all":
-        modlist_cfg_name = "%s_modules" % modlist
+        modlist_cfg_name = "cloud_%s_modules" % modename
+        print modlist_cfg_name
         module_list = CC.read_cc_modules(cc.cfg,modlist_cfg_name)
         if not len(module_list):
-            err("no modules to run in cloud_config [%s]" % modlist,log)
+            err("no modules to run in cloud_config [%s]" % modename,log)
             sys.exit(0)
     else:
         module_list.append( [ name, freq ] + run_args )
 
     failures = CC.run_cc_modules(cc,module_list,log)
     if len(failures):
-        err("errors running cloud_config [%s]: %s" % (modlist,failures), log)
+        err("errors running cloud_config [%s]: %s" % (modename,failures), log)
     sys.exit(len(failures))
 
 def err(msg,log=None):

@@ -18,6 +18,7 @@
 from cloudinit.CloudConfig import per_instance
 import sys
 from cloudinit import util, boot_finished
+import time
 
 frequency = per_instance
 
@@ -39,8 +40,7 @@ def handle(name,cfg,cloud,log,args):
 
 
     try:
-        from datetime import datetime
-        ts = datetime.utcnow().strftime('%a, %d %b %Y %H:%M:%S +0000')
+        ts = time.strftime("%a, %d %b %Y %H:%M:%S %z",time.gmtime())
     except:
         ts = "na"
 
