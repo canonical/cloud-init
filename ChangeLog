@@ -29,3 +29,4 @@
    user_scripts to config_user_scripts
  - add support for redirecting output of cloud-init, cloud-config, cloud-final
    via the config file, or user data config file
+ - add support for posting data about the instance to a url (phone_home)
