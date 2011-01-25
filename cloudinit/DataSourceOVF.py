@@ -26,10 +26,16 @@ import os
 import errno
 from xml.dom import minidom
 from xml.dom import Node
+import base64
 
 class DataSourceOVF(DataSource.DataSource):
     seed = None
     seeddir = cloudinit.seeddir + '/ovf'
+    environment = None
+    cfg = { }
+    userdata_raw = None
+    metadata = None
+    supported_seed_starts = ( "/" , "file://" )
 
     def __init__(self):
         pass
@@ -40,35 +46,96 @@ class DataSourceOVF(DataSource.DataSource):
         return(mstr)
 
     def get_data(self):
+        found = [ ]
+        md = { }
+        ud = ""
+
+        defaults = { 
+            "local-hostname" : "ubuntuhost",
+            "instance-id" : "nocloud"
+        }
+
         (seedfile, contents) = get_ovf_env(seeddir)
         if seedfile:
             # found a seed dir
-            self.seed = "%s/%s" % (dirname,seedfile)
-            ret = read_ovf_environment(contents)
-            # self.user_data=ret['user-data']
-            # self.meta_data=ret['meta-data']
-            return(True)
+            seed = "%s/%s" % (seeddir,seedfile)
+            (md, ud, cfg) = read_ovf_environment(contents)
+            self.environment = contents
 
-        for tranfunc in [ transport_iso9660, transport_vmware_guestd ]:
-            (contents, dev, fname) = tranfunc()
-            if contents: break
+            found.append(seed)
+        else:
+            np = { 'iso' : transport_iso9660, 
+                   'vmware-guestd' : transport_vmware_guestd, }
+            for name, transfunc in np.iteritems():
+                (contents, dev, fname) = transfunc()
+                if contents: break
 
-        if not dev:
+            if contents:
+                (md, ud, cfg) = read_ovf_environment(contents)
+                self.environment = contents
+                found.append(name)
+
+        # There was no OVF transports found
+        if len(found) == 0:
             return False
 
-        ret = read_ovf_environment(contents)
-        # self.user_data=ret['user-data']
-        # self.meta_data=ret['meta-data']
-        return(True)
+        if 'seedfrom' in md:
+            seedfrom = md['seedfrom']
+            seedfound = False
+            for proto in self.supported_seed_starts:
+                if seedfrom.startswith(proto):
+                    seedfound = proto
+                    break
+            if not seedfound:
+                cloudinit.log.debug("seed from %s not supported by %s" %
+                    (seedfrom, self.__class__))
+                return False
 
+            (md_seed,ud) = util.read_seeded(seedfrom)
+            cloudinit.log.debug("using seeded cache data from %s" % seedfrom)
+
+            md = util.mergedict(md,md_seed)
+            found.append(seedfrom)
+                    
+
+        md = util.mergedict(md,defaults)
+        self.seed = ",".join(found)
+        self.metadata = md;
+        self.userdata_raw = ud
+        self.cfg = cfg
+        return True
+
+    # the data sources' config_obj is a cloud-config formated
+    # object that came to it from ways other than cloud-config
+    # because cloud-config content would be handled elsewhere
+    def get_config_obj(self):
+        return(self.cfg)
+
+class DataSourceOVFNet(DataSourceOVF):
+    seeddir = cloudinit.seeddir + '/ovf-net'
+    supported_seed_starts = ( "http://", "https://", "ftp://" )
 
 # this will return a dict with some content
 #  meta-data, user-data
 def read_ovf_environment(contents):
-    # this should basically shove into python objects
-    # the values we read from ovf environment
-    self.metadata = md;
-    self.userdata_raw = ud
+    props = getProperties(contents)
+    md = { }
+    cfg = { }
+    ud = ""
+    cfg_props = [ 'password', ]
+    md_props = [ 'seedfrom', 'local-hostname', 'public-keys', 'instance-id' ]
+    for prop, val in props.iteritems():
+        if prop == 'hostname': prop = "local-hostname"
+        if prop in md_props:
+            md[prop] = val
+        elif prop in cfg_props:
+            cfg[prop] = val
+        elif prop == "user-data":
+            try:
+                ud = base64.decodestring(val)
+            except:
+                ud = val
+    return(md, ud, cfg)
         
 
 # returns tuple of filename (in 'dirname', and the contents of the file)
@@ -160,7 +227,6 @@ def transport_iso9660(require_iso=False):
 
 def transport_vmware_guestd():
     # http://blogs.vmware.com/vapp/2009/07/selfconfiguration-and-the-ovf-environment.html
-    # sub
     # try:
     #     cmd = ['vmware-guestd', '--cmd', 'info-get guestinfo.ovfEnv']
     #     (out,err) = subp(cmd)
@@ -214,4 +280,10 @@ if __name__ == "__main__":
     import pprint
     pprint.pprint(props)
     
-    read_ovf_environment
+    md, ud, cfg = read_ovf_environment(envStr)
+    print "=== md ==="
+    pprint.pprint(md)
+    print "=== ud ==="
+    pprint.pprint(ud)
+    print "=== cfg ==="
+    pprint.pprint(cfg)
