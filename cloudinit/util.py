@@ -329,7 +329,7 @@ def readurl(url, data=None):
    if data is None:
       req = urllib2.Request(url)
    else:
-      encoded = urllib.urlencode(values)
+      encoded = urllib.urlencode(data)
       req = urllib2.Request(url, encoded)
 
    response = urllib2.urlopen(req)
