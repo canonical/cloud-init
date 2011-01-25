@@ -49,6 +49,13 @@ class CloudConfig():
             cloudinit.log.debug(traceback.format_exc() + "\n")
             cfg = None
         if cfg is None: cfg = { }
+
+        try:
+            ds_cfg = self.cloud.datasource.get_config_obj()
+        except:
+            ds_cfg = { }
+
+        cfg = util.mergedict(cfg, ds_cfg)
         return(util.mergedict(cfg,self.cloud.cfg))
 
     def handle(self, name, args, freq=None):
