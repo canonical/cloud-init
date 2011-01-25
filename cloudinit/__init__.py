@@ -103,18 +103,20 @@ def logging_set_from_cfg(cfg):
 
 import DataSourceEc2
 import DataSourceNoCloud
+import DataSourceOVF
 import UserDataHandler
 
 class CloudInit:
     datasource_map = {
         "ec2" : DataSourceEc2.DataSourceEc2,
         "nocloud" : DataSourceNoCloud.DataSourceNoCloud,
-        "nocloud-net" : DataSourceNoCloud.DataSourceNoCloudNet
+        "nocloud-net" : DataSourceNoCloud.DataSourceNoCloudNet,
+        "ovf" : DataSourceOVF.DataSourceOVF,
     }
     datasource = None
     auto_orders = {
         "all": ( "nocloud-net", "ec2" ),
-        "local" : ( "nocloud", ),
+        "local" : ( "nocloud", "ovf" ),
     }
     cfg = None
     part_handlers = { }
