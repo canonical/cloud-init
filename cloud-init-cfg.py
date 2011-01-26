@@ -19,7 +19,7 @@
 
 import sys
 import cloudinit
-import cloudinit.CloudConfig
+import cloudinit.CloudConfig as CC
 import logging
 import os
 import traceback
@@ -35,11 +35,15 @@ def main():
     #   read cloud config jobs from config (builtin -> system)
     #   and run all in order
 
+    modename = "config"
+    
     if len(sys.argv) < 2:
         Usage(sys.stderr)
         sys.exit(1)
     if sys.argv[1] == "all":
         name = "all"
+        if len(sys.argv) > 2:
+            modename = sys.argv[2]
     else:
         freq = None
         run_args = []
@@ -51,56 +55,36 @@ def main():
         if len(sys.argv) > 3:
             run_args=sys.argv[3:]
 
-    cloudinit.logging_set_from_cfg_file()
-    log = logging.getLogger()
-    log.info("cloud-init-cfg %s" % sys.argv[1:])
-
-    cfg_path = cloudinit.cloud_config
+    cfg_path = cloudinit.get_ipath_cur("cloud_config")
     cfg_env_name = cloudinit.cfg_env_name
     if os.environ.has_key(cfg_env_name):
         cfg_path = os.environ[cfg_env_name]
 
-    cc = cloudinit.CloudConfig.CloudConfig(cfg_path)
+    cc = CC.CloudConfig(cfg_path)
+
+    try:
+        (outfmt, errfmt) = CC.get_output_cfg(cc.cfg,modename)
+        CC.redirect_output(outfmt, errfmt)
+    except Exception as e:
+        err("Failed to get and set output config: %s\n" % e)
+
+    cloudinit.logging_set_from_cfg(cc.cfg)
+    log = logging.getLogger()
+    log.info("cloud-init-cfg %s" % sys.argv[1:])
 
     module_list = [ ]
     if name == "all":
-        # create 'module_list', an array of arrays
-        # where array[0] = config
-        #       array[1] = freq
-        #       array[2:] = arguemnts
-        if "cloud_config_modules" in cc.cfg:
-            for item in cc.cfg["cloud_config_modules"]:
-                if isinstance(item,str):
-                    module_list.append((item,))
-                elif isinstance(item,list):
-                    module_list.append(item)
-                else:
-                    fail("Failed to parse cloud_config_modules",log)
-        else:
-            fail("No cloud_config_modules found in config",log)
+        modlist_cfg_name = "cloud_%s_modules" % modename
+        module_list = CC.read_cc_modules(cc.cfg,modlist_cfg_name)
+        if not len(module_list):
+            err("no modules to run in cloud_config [%s]" % modename,log)
+            sys.exit(0)
     else:
         module_list.append( [ name, freq ] + run_args )
 
-    failures = []
-    for cfg_mod in module_list:
-        name = cfg_mod[0]
-        freq = None
-        run_args = [ ]
-        if len(cfg_mod) > 1:
-            freq = cfg_mod[1]
-        if len(cfg_mod) > 2:
-            run_args = cfg_mod[2:]
-
-        try:
-            log.debug("handling %s with freq=%s and args=%s" %
-                (name, freq, run_args ))
-            cc.handle(name, run_args, freq=freq)
-        except:
-            log.warn(traceback.format_exc())
-            err("config handling of %s, %s, %s failed\n" %
-                (name,freq,run_args), log)
-            failures.append(name)
-
+    failures = CC.run_cc_modules(cc,module_list,log)
+    if len(failures):
+        err("errors running cloud_config [%s]: %s" % (modename,failures), log)
     sys.exit(len(failures))
 
 def err(msg,log=None):

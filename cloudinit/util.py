@@ -17,17 +17,15 @@
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 import yaml
 import os
+import os.path
 import errno
 import subprocess
 from Cheetah.Template import Template
-import cloudinit
 import urllib2
+import urllib
 import logging
 import traceback
-
-WARN = logging.WARN
-DEBUG = logging.DEBUG
-INFO = logging.INFO
+import re
 
 def read_conf(fname):
     try:
@@ -40,13 +38,32 @@ def read_conf(fname):
             return { }
         raise
 
-def get_base_cfg(cfgfile,cfg_builtin=""):
-    syscfg = read_conf(cfgfile)
+def get_base_cfg(cfgfile,cfg_builtin="", parsed_cfgs=None):
+    kerncfg = { }
+    syscfg = { }
+    if parsed_cfgs and cfgfile in parsed_cfgs:
+        return(parsed_cfgs[cfgfile])
+
+    contents = read_file_with_includes(cfgfile)
+    if contents:
+        syscfg = yaml.load(contents)
+
+    kern_contents = read_cc_from_cmdline()
+    if kern_contents:
+        kerncfg = yaml.load(kern_contents)
+
+    # kernel parameters override system config
+    combined = mergedict(kerncfg, syscfg)
+
     if cfg_builtin:
         builtin = yaml.load(cfg_builtin)
+        fin = mergedict(combined,builtin)
     else:
-        return(syscfg)
-    return(mergedict(syscfg,builtin))
+        fin = combined
+
+    if parsed_cfgs != None:
+        parsed_cfgs[cfgfile] = fin
+    return(fin)
 
 def get_cfg_option_bool(yobj, key, default=False):
     if not yobj.has_key(key): return default
@@ -106,6 +123,16 @@ def getkeybyid(keyid,keyserver):
    args=['sh', '-c', shcmd, "export-gpg-keyid", keyid, keyserver]
    return(subp(args)[0])
 
+def runparts(dirp, skip_no_exist=True):
+    if skip_no_exist and not os.path.isdir(dirp): return
+        
+    cmd = [ 'run-parts', '--regex', '.*', dirp ]
+    sp = subprocess.Popen(cmd)
+    sp.communicate()
+    if sp.returncode is not 0:
+        raise subprocess.CalledProcessError(sp.returncode,cmd)
+    return
+
 def subp(args, input=None):
     s_in = None
     if input is not None:
@@ -121,6 +148,10 @@ def render_to_file(template, outfile, searchList):
     f = open(outfile, 'w')
     f.write(t.respond())
     f.close()
+
+def render_string(template, searchList):
+    return(Template(template, searchList=[searchList]).respond())
+
 
 # read_optional_seed
 # returns boolean indicating success or failure (presense of files)
@@ -168,3 +199,133 @@ def read_seeded(base="", ext="", timeout=2):
 
 def logexc(log,lvl=logging.DEBUG):
     log.log(lvl,traceback.format_exc())
+
+class RecursiveInclude(Exception):
+    pass
+
+def read_file_with_includes(fname, rel = ".", stack=[], patt = None):
+    if not fname.startswith("/"):
+        fname = os.sep.join((rel, fname))
+
+    fname = os.path.realpath(fname)
+
+    if fname in stack:
+        raise(RecursiveInclude("%s recursively included" % fname))
+    if len(stack) > 10:
+        raise(RecursiveInclude("%s included, stack size = %i" %
+                               (fname, len(stack))))
+
+    if patt == None:
+        patt = re.compile("^#(opt_include|include)[ \t].*$",re.MULTILINE)
+
+    try:
+        fp = open(fname)
+        contents = fp.read()
+        fp.close()
+    except:
+        raise
+
+    rel = os.path.dirname(fname)
+    stack.append(fname)
+
+    cur = 0
+    clen = len(contents)
+    while True:
+        match = patt.search(contents[cur:])
+        if not match: break
+        loc = match.start() + cur
+        endl = match.end() + cur
+
+        (key, cur_fname) = contents[loc:endl].split(None,2)
+        cur_fname = cur_fname.strip()
+
+        try:
+            inc_contents = read_file_with_includes(cur_fname, rel, stack, patt)
+        except IOError, e:
+            if e.errno == errno.ENOENT and key == "#opt_include":
+                inc_contents = ""
+            else:
+                raise
+        contents = contents[0:loc] + inc_contents + contents[endl+1:]
+	cur = loc + len(inc_contents)
+    stack.pop()
+    return(contents)
+
+def get_cmdline():
+    if 'DEBUG_PROC_CMDLINE' in os.environ:
+        cmdline = os.environ["DEBUG_PROC_CMDLINE"]
+    else:
+        try:
+            cmdfp = open("/proc/cmdline")
+            cmdline = cmdfp.read().strip()
+            cmdfp.close()
+        except:
+            cmdline = ""
+    return(cmdline)
+	
+def read_cc_from_cmdline(cmdline=None):
+    # this should support reading cloud-config information from
+    # the kernel command line.  It is intended to support content of the
+    # format:
+    #  cc: <yaml content here> [end_cc]
+    # this would include:
+    # cc: ssh_import_id: [smoser, kirkland]\\n
+    # cc: ssh_import_id: [smoser, bob]\\nruncmd: [ [ ls, -l ], echo hi ] end_cc
+    # cc:ssh_import_id: [smoser] end_cc cc:runcmd: [ [ ls, -l ] ] end_cc
+    if cmdline is None:
+        cmdline = get_cmdline()
+
+    tag_begin="cc:"
+    tag_end="end_cc"
+    begin_l = len(tag_begin)
+    end_l = len(tag_end)
+    clen = len(cmdline)
+    tokens = [ ]
+    begin = cmdline.find(tag_begin)
+    while begin >= 0:
+        end = cmdline.find(tag_end, begin + begin_l)
+        if end < 0:
+            end = clen
+        tokens.append(cmdline[begin+begin_l:end].lstrip().replace("\\n","\n"))
+        
+        begin = cmdline.find(tag_begin, end + end_l)
+
+    return('\n'.join(tokens))
+
+def ensure_dirs(dirlist, mode=0755):
+    fixmodes = []
+    for d in dirlist:
+        try:
+            if mode != None:
+                os.makedirs(d)
+            else:
+                os.makedirs(d, mode)
+        except OSError as e:
+            if e.errno != errno.EEXIST: raise
+            if mode != None: fixmodes.append(d)
+
+    for d in fixmodes:
+        os.chmod(d, mode)
+
+def chownbyname(fname,user=None,group=None):
+   uid = -1
+   gid = -1
+   if user == None and group == None: return
+   if user:
+      import pwd
+      uid = pwd.getpwnam(user).pw_uid
+   if group:
+      import grp
+      gid = grp.getgrnam(group).gr_gid
+
+   os.chown(fname,uid,gid)
+
+def readurl(url, data=None):
+   if data is None:
+      req = urllib2.Request(url)
+   else:
+      encoded = urllib.urlencode(data)
+      req = urllib2.Request(url, encoded)
+
+   response = urllib2.urlopen(req)
+   return(response.read())

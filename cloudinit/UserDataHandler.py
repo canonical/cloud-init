@@ -19,7 +19,9 @@ import email
 
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
-
+from email.mime.base import MIMEBase
+from email import encoders
+import yaml
 
 starts_with_mappings={
     '#include' : 'text/x-include-url',
@@ -27,7 +29,8 @@ starts_with_mappings={
     '#cloud-config' : 'text/cloud-config',
     '#upstart-job'  : 'text/upstart-job',
     '#part-handler' : 'text/part-handler',
-    '#cloud-boothook' : 'text/cloud-boothook'
+    '#cloud-boothook' : 'text/cloud-boothook',
+    '#cloud-config-archive' : 'text/cloud-config-archive',
 }
 
 # if 'str' is compressed return decompressed otherwise return it
@@ -43,11 +46,46 @@ def decomp_str(str):
 def do_include(str,parts):
     import urllib
     # is just a list of urls, one per line
+    # also support '#include <url here>'
     for line in str.splitlines():
         if line == "#include": continue
+        if line.startswith("#include"):
+            line = line[len("#include"):].lstrip()
         if line.startswith("#"): continue
         content = urllib.urlopen(line).read()
         process_includes(email.message_from_string(decomp_str(content)),parts)
+
+def explode_cc_archive(archive,parts):
+    for ent in yaml.load(archive):
+        # ent can be one of:
+        #  dict { 'filename' : 'value' , 'content' : 'value', 'type' : 'value' }
+        #    filename and type not be present
+        # or
+        #  scalar(payload)
+        filename = 'part-%03d' % len(parts['content'])
+        def_type = "text/cloud-config"
+        if isinstance(ent,str):
+            content = ent
+            mtype = type_from_startswith(content,def_type)
+        else:
+            content = ent.get('content', '')
+            filename = ent.get('filename', filename)
+            mtype = ent.get('type', None)
+            if mtype == None:
+                mtype = type_from_startswith(payload,def_type)
+
+        print "adding %s,%s" % (filename, mtype)
+        parts['content'].append(content)
+        parts['names'].append(filename)
+        parts['types'].append(mtype)
+    
+def type_from_startswith(payload, default=None):
+    # slist is sorted longest first
+    slist = sorted(starts_with_mappings.keys(), key=lambda e: 0-len(e))
+    for sstr in slist:
+        if payload.startswith(sstr):
+            return(starts_with_mappings[sstr])
+    return default
 
 def process_includes(msg,parts):
     # parts is a dictionary of arrays
@@ -67,16 +105,17 @@ def process_includes(msg,parts):
         ctype = None
         ctype_orig = part.get_content_type()
         if ctype_orig == "text/plain":
-            for str, gtype in starts_with_mappings.items():
-                if payload.startswith(str):
-                    ctype = gtype
-                    break
+            ctype = type_from_startswith(payload)
 
         if ctype is None:
             ctype = ctype_orig
 
         if ctype == 'text/x-include-url':
             do_include(payload,parts)
+            continue
+
+        if ctype == "text/cloud-config-archive":
+            explode_cc_archive(payload,parts)
             continue
 
         filename = part.get_filename()

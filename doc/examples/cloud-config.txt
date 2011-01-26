@@ -25,6 +25,9 @@ apt_mirror: http://us.archive.ubuntu.com/ubuntu/
 apt_preserve_sources_list: true
 
 apt_sources:
+ - source: "deb http://ppa.launchpad.net/byobu/ppa/ubuntu karmic main"
+   keyid: F430BBA5 # GPG key ID published on a key server
+   filename: byobu-ppa.list
 
  # PPA shortcut:
  #  * Setup correct apt sources.list line
@@ -44,6 +47,12 @@ apt_sources:
  #
  #    See sources.list man page for more information about the format
  - source: deb http://archive.ubuntu.com/ubuntu karmic-backports main universe multiverse restricted
+
+ # sources can use $MIRROR and $RELEASE and they will be replaced
+ # with the local mirror for this cloud, and the running release
+ # the entry below would be possibly turned into:
+ # - source: deb http://us-east-1.ec2.archive.ubuntu.com/ubuntu natty multiverse
+ - source: deb $MIRROR $RELEASE multiverse
 
  # this would have the same end effect as 'ppa:byobu/ppa'
  - source: "deb http://ppa.launchpad.net/byobu/ppa/ubuntu karmic main"
@@ -216,7 +225,7 @@ cloud_config_modules:
 
 # ssh_import_id: [ user1, user2 ]
 # ssh_import_id will feed the list in that variable to
-#  ssh-import-lp-id, so that public keys stored in launchpad
+#  ssh-import-id, so that public keys stored in launchpad
 #  can easily be imported into the configured user
 # This can be a single string ('smoser') or a list ([smoser, kirkland])
 ssh_import_id: [smoser]
@@ -246,3 +255,76 @@ byobu_by_default: system
 # rather than as the 'ubuntu' user, then you must set this to false
 # default: true
 disable_root: false
+
+# set the locale to a given locale
+# default: en_US.UTF-8
+locale: en_US.UTF-8
+
+# add entries to rsyslog configuration
+# The first occurance of a given filename will truncate. 
+# subsequent entries will append.
+# if value is a scalar, its content is assumed to be 'content', and the
+# default filename is used.
+# if filename is not provided, it will default to 'rsylog_filename'
+# if filename does not start with a '/', it will be put in 'rsyslog_dir'
+# rsyslog_dir default: /etc/rsyslog.d
+# rsyslog_filename default: 20-cloud-config.conf
+rsyslog:
+ - ':syslogtag, isequal, "[CLOUDINIT]" /var/log/cloud-foo.log'
+ - content: "*.*   @@192.0.2.1:10514"
+ - filename: 01-examplecom.conf
+   content: |
+   *.*   @@syslogd.example.com
+
+# resize_rootfs should the / filesytem be resized on first boot
+# this allows you to launch an instance with a larger disk / partition
+# and have the instance automatically grow / to accomoddate it
+# set to 'False' to disable
+resize_rootfs: True
+
+# if hostname is set, cloud-init will set the system hostname 
+# appropriately to its value
+# if not set, it will set hostname from the cloud metadata
+# default: None
+
+# final_message
+# default: cloud-init boot finished at $TIMESTAMP. Up $UPTIME seconds
+# this message is written by cloud-final when the system is finished
+# its first boot
+final_message: "The system is finally up, after $UPTIME seconds"
+
+# configure where output will go
+# 'output' entry is a dict with 'init', 'config', 'final' or 'all'
+# entries.  Each one defines where 
+#  cloud-init, cloud-config, cloud-config-final or all output will go
+# each entry in the dict can be a string, list or dict.
+#  if it is a string, it refers to stdout and stderr
+#  if it is a list, entry 0 is stdout, entry 1 is stderr
+#  if it is a dict, it is expected to have 'output' and 'error' fields
+# default is to write to console only
+# the special entry "&1" for an error means "same location as stdout"
+#  (Note, that '&1' has meaning in yaml, so it must be quoted)
+output:
+ init: "> /var/log/my-cloud-init.log"
+ config: [ ">> /tmp/foo.out", "> /tmp/foo.err" ]
+ final:
+   output: "| tee /tmp/final.stdout | tee /tmp/bar.stdout"
+   error: "&1"
+
+
+# phone_home: if this dictionary is present, then the phone_home
+# cloud-config module will post specified data back to the given
+# url
+# default: none
+# phone_home:
+#  url: http://my.foo.bar/$INSTANCE/
+#  post: all
+#  tries: 10
+#
+phone_home:
+ url: http://my.example.com/$INSTANCE_ID/
+ post: [ pub_key_dsa, pub_key_rsa, instance_id ]
+
+# timezone: set the timezone for this instance
+# the value of 'timezone' must exist in /usr/share/zoneinfo
+timezone: US/Eastern

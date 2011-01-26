@@ -38,6 +38,14 @@ def handle(name,cfg,cloud,log,args):
         for key,val in cfg["ssh_keys"].items():
             if key2file.has_key(key):
                 util.write_file(key2file[key][0],val,key2file[key][1])
+
+        priv2pub = { 'rsa_private':'rsa_public', 'dsa_private':'dsa_public' }
+        cmd = 'o=$(ssh-keygen -yf "%s") && echo "$o" root@localhost > "%s"'
+        for priv,pub in priv2pub.iteritems():
+            if pub in cfg['ssh_keys'] or not priv in cfg['ssh_keys']: continue
+            pair=(key2file[priv][0], key2file[pub][0])
+            subprocess.call(('sh', '-xc', cmd % pair))
+            log.debug("generated %s from %s" % pair)
     else:
         # if not, generate them
         genkeys ='ssh-keygen -f /etc/ssh/ssh_host_rsa_key -t rsa -N ""; '
@@ -60,18 +68,7 @@ def handle(name,cfg,cloud,log,args):
     send_ssh_keys_to_console()
 
 def send_ssh_keys_to_console():
-    send_keys_sh = """
-    {
-    echo
-    echo "#############################################################"
-    echo "-----BEGIN SSH HOST KEY FINGERPRINTS-----"
-    ssh-keygen -l -f /etc/ssh/ssh_host_rsa_key.pub
-    ssh-keygen -l -f /etc/ssh/ssh_host_dsa_key.pub
-    echo "-----END SSH HOST KEY FINGERPRINTS-----"
-    echo "#############################################################"
-    } | logger -p user.info -s -t "ec2"
-    """
-    subprocess.call(('sh', '-c', send_keys_sh))
+    subprocess.call(('/usr/lib/cloud-init/write-ssh-key-fingerprints',))
 
 def apply_credentials(keys, user, disable_root):
     keys = set(keys)
@@ -79,7 +76,7 @@ def apply_credentials(keys, user, disable_root):
         setup_user_keys(keys, user, '')
  
     if disable_root:
-        key_prefix = 'command="echo \'Please login as the %s user rather than root user.\';echo;sleep 10" ' % user
+        key_prefix = 'command="echo \'Please login as the user \\\"%s\\\" rather than the user \\\"root\\\".\';echo;sleep 10" ' % user
     else:
         key_prefix = ''
 

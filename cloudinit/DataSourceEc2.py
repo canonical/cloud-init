@@ -18,7 +18,7 @@
 
 import DataSource
 
-import cloudinit
+from cloudinit import seeddir
 import cloudinit.util as util
 import socket
 import urllib2
@@ -30,26 +30,17 @@ import errno
 
 class DataSourceEc2(DataSource.DataSource):
     api_ver  = '2009-04-04'
-    cachedir = cloudinit.cachedir + '/ec2'
-
-    location_locale_map = { 
-        'us' : 'en_US.UTF-8',
-        'eu' : 'en_GB.UTF-8',
-        'default' : 'en_US.UTF-8',
-    }
-
-    def __init__(self):
-        pass
+    seeddir = seeddir + '/ec2'
 
     def __str__(self):
         return("DataSourceEc2")
 
     def get_data(self):
         seedret={ }
-        if util.read_optional_seed(seedret,base=self.cachedir + "/"):
+        if util.read_optional_seed(seedret,base=self.seeddir+ "/"):
             self.userdata_raw = seedret['user-data']
             self.metadata = seedret['meta-data']
-            cloudinit.log.debug("using seeded ec2 data in %s" % self.cachedir)
+            self.log.debug("using seeded ec2 data in %s" % self.seeddir)
             return True
         
         try:
@@ -71,24 +62,22 @@ class DataSourceEc2(DataSource.DataSource):
     def get_local_mirror(self):
         return(self.get_mirror_from_availability_zone())
 
-    def get_locale(self):
-        az = self.metadata['placement']['availability-zone']
-        if self.location_locale_map.has_key(az[0:2]):
-            return(self.location_locale_map[az[0:2]])
-        else:
-            return(self.location_locale_map["default"])
-
     def get_mirror_from_availability_zone(self, availability_zone = None):
         # availability is like 'us-west-1b' or 'eu-west-1a'
         if availability_zone == None:
             availability_zone = self.get_availability_zone()
+
+        fallback = 'http://archive.ubuntu.com/ubuntu/'
+
+        if self.is_vpc():
+            return fallback
 
         try:
             host="%s.ec2.archive.ubuntu.com" % availability_zone[:-1]
             socket.getaddrinfo(host, None, 0, socket.SOCK_STREAM)
             return 'http://%s/ubuntu/' % host
         except:
-            return 'http://archive.ubuntu.com/ubuntu/'
+            return fallback
 
 
     def wait_for_metadata_service(self, sleeps = 100):
@@ -107,19 +96,19 @@ class DataSourceEc2(DataSource.DataSource):
                 resp = urllib2.urlopen(req, timeout=2)
                 if resp.read() != "": return True
                 reason = "empty data [%s]" % resp.getcode()
-            except urllib2.HTTPError, e:
+            except urllib2.HTTPError as e:
                 reason = "http error [%s]" % e.code
-            except urllib2.URLError, e:
+            except urllib2.URLError as e:
                 reason = "url error [%s]" % e.reason
     
             if x == 0:
-                cloudinit.log.warning("waiting for metadata service at %s\n" % url)
+                self.log.warning("waiting for metadata service at %s\n" % url)
 
-            cloudinit.log.warning("  %s [%02s/%s]: %s\n" %
-                (time.strftime("%H:%M:%S"), x+1, sleeps, reason))
+            self.log.warning("  %s [%02s/%s]: %s\n" %
+                (time.strftime("%H:%M:%S",time.gmtime()), x+1, sleeps, reason))
             time.sleep(sleeptime)
 
-        cloudinit.log.critical("giving up on md after %i seconds\n" %
+        self.log.critical("giving up on md after %i seconds\n" %
                   int(time.time()-starttime))
         return False
 
@@ -139,7 +128,7 @@ class DataSourceEc2(DataSource.DataSource):
             if entname == "ephemeral" and name == "ephemeral0":
                 found = device
         if found == None:
-            cloudinit.log.warn("unable to convert %s to a device" % name)
+            self.log.warn("unable to convert %s to a device" % name)
             return None
 
         # LP: #611137
@@ -162,6 +151,22 @@ class DataSourceEc2(DataSource.DataSource):
             for nto in tlist:
                 cand = "/dev/%s%s" % (nto, short[len(nfrom):])
                 if os.path.exists(cand):
-                    cloudinit.log.debug("remapped device name %s => %s" % (found,cand))
+                    self.log.debug("remapped device name %s => %s" % (found,cand))
                     return(cand)
         return ofound
+
+    def is_vpc(self):
+        # per comment in LP: #615545
+        ph="public-hostname"; p4="public-ipv4"
+        if ((ph not in self.metadata or self.metadata[ph] == "") and
+            (p4 not in self.metadata or self.metadata[p4] == "")):
+            return True
+        return False
+
+datasources = [ 
+  ( DataSourceEc2, ( DataSource.DEP_FILESYSTEM , DataSource.DEP_NETWORK ) ),
+]
+
+# return a list of data sources that match this set of dependencies
+def get_datasource_list(depends):
+    return(DataSource.list_from_depends(depends, datasources))

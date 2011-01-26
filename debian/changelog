@@ -1,3 +1,31 @@
+cloud-init (0.6.0-0ubuntu1) natty; urgency=low
+
+  * New upstream release.
+  * fix permissions on cloud-init.log so syslog can write to it (LP: ##704509)
+  * rework of /var/lib/cloud layout
+  * remove updates-check (LP: #653220)
+  * support resizing root partition on first boot (enabled by default)
+  * added cloud-config options for setting hostname, phone_home
+  * indicate "all the way up" with message to console and file creation
+    in /var/lib/cloud/instance/ (LP: #653271)
+  * write ssh keys to console late in boot to ensure they're in console buffer
+  * add support for redirecting output of cloud-init, cloud-config, 
+    cloud-final via the config file, or user data config file
+  * add support for posting data about the instance to a url (phone_home)
+  * add minimal OVF transport (iso) support
+  * make DataSources that are attempted dynamic and configurable from
+    config. config option 'cloud_type' replaced by 'datasource_list'
+  * add 'timezone' option to cloud-config (LP: #645458)
+  * Added an additional archive format, that can be used for multi-part
+    input to cloud-init.  This may be more user friendly then mime-multipart
+    (LP: #641504)
+  * add support for reading Rightscale style user data (LP: #668400)
+  * make the message on 'disable_root' more clear (LP: #672417)
+  * do not require public key if private is given in ssh cloud-config 
+    (LP: #648905)
+
+ -- Scott Moser <smoser@ubuntu.com>  Wed, 26 Jan 2011 17:28:36 -0500
+
 cloud-init (0.5.15-0ubuntu4) natty; urgency=low
 
   * Rebuild with python 2.7 as the python default.

@@ -22,24 +22,35 @@ import sys
 
 import cloudinit
 import cloudinit.util as util
+import cloudinit.CloudConfig as CC
+import cloudinit.DataSource as ds
 import time
 import logging
 import errno
 
-def warn(str):
-    sys.stderr.write(str)
+def warn(wstr):
+    sys.stderr.write("WARN:%s" % wstr)
 
 def main():
     cmds = ( "start", "start-local" )
+    deps = { "start" : ( ds.DEP_FILESYSTEM, ds.DEP_NETWORK ),
+             "start-local" : ( ds.DEP_FILESYSTEM, ) }
+
     cmd = ""
     if len(sys.argv) > 1:
         cmd = sys.argv[1]
+
+    cfg_path = None
+    if len(sys.argv) > 2:
+        # this is really for debugging only
+        # but you can invoke on development system with ./config/cloud.cfg
+        cfg_path = sys.argv[2]
 
     if not cmd in cmds:
         sys.stderr.write("bad command %s. use one of %s\n" % (cmd, cmds))
         sys.exit(1)
 
-    now = time.strftime("%a, %d %b %Y %H:%M:%S %z")
+    now = time.strftime("%a, %d %b %Y %H:%M:%S %z",time.gmtime())
     try:
        uptimef=open("/proc/uptime")
        uptime=uptimef.read().split(" ")[0]
@@ -48,17 +59,35 @@ def main():
        warn("unable to open /proc/uptime\n")
        uptime = "na"
 
+    try:
+        cfg = cloudinit.get_base_cfg(cfg_path)
+    except Exception as e:
+        warn("Failed to get base config. falling back to builtin: %s\n" % e)
+        try:
+            cfg = cloudinit.get_builtin_cfg()
+        except Exception as e:
+            warn("Unable to load builtin config\n")
+            raise
+
+    try:
+        (outfmt, errfmt) = CC.get_output_cfg(cfg,"init")
+        CC.redirect_output(outfmt, errfmt)
+    except Exception as e:
+        warn("Failed to get and set output config: %s\n" % e)
+
     msg = "cloud-init %s running: %s. up %s seconds" % (cmd, now, uptime)
     sys.stderr.write(msg + "\n")
     sys.stderr.flush()
 
-    source_type = "all"
-    if cmd == "start-local":
-        source_type = "local"
-
-    cloudinit.logging_set_from_cfg_file()
+    cloudinit.logging_set_from_cfg(cfg)
     log = logging.getLogger()
     log.info(msg)
+
+    try:
+        cloudinit.initfs()
+    except Exception as e:
+        warn("failed to initfs, likely bad things to come: %s\n" % str(e))
+        
 
     # cache is not instance specific, so it has to be purged
     # but we want 'start' to benefit from a cache if
@@ -66,13 +95,16 @@ def main():
     if cmd == "start-local":
         cloudinit.purge_cache()
 
-    cloud = cloudinit.CloudInit(source_type=source_type)
+    cloud = cloudinit.CloudInit(ds_deps=deps[cmd])
 
     try:
         cloud.get_data_source()
     except cloudinit.DataSourceNotFoundException as e:
         sys.stderr.write("no instance data found in %s\n" % cmd)
         sys.exit(1)
+
+    # set this as the current instance
+    cloud.set_cur_instance()
 
     # store the metadata
     cloud.update_cache()
@@ -89,108 +121,35 @@ def main():
         warn("consuming user data failed!\n")
         raise
 
-    try:
-        if util.get_cfg_option_bool(cloud.cfg,"preserve_hostname",False):
-            log.debug("preserve_hostname is set. not managing hostname")
-        else:
-            hostname = cloud.get_hostname()
-            cloud.sem_and_run("set_hostname", "once-per-instance",
-                set_hostname, [ hostname, log ], False)
-            cloud.sem_and_run("update_hostname", "always",
-                update_hostname, [ hostname, log ], False)
-    except:
-        warn("failed to set hostname\n")
-
-    #print "user data is:" + cloud.get_user_data()
-
-    # set the defaults (like what ec2-set-defaults.py did)
-    try:
-        cloud.sem_and_run("set_defaults", "once-per-instance",
-            set_defaults,[ cloud ],False)
-    except:
-        warn("failed to set defaults\n")
-
     # finish, send the cloud-config event
     cloud.initctl_emit()
 
-    sys.exit(0)
+    cfg_path = cloudinit.get_ipath_cur("cloud_config")
+    cc = CC.CloudConfig(cfg_path, cloud)
 
-def set_defaults(cloud):
-    apply_locale(cloud.get_locale())
-    
-def apply_locale(locale):
-    subprocess.Popen(['locale-gen', locale]).communicate()
-    subprocess.Popen(['update-locale', locale]).communicate()
-
-    util.render_to_file('default-locale', '/etc/default/locale', \
-        { 'locale' : locale })
-
-# read hostname from a 'hostname' file
-# allow for comments and stripping line endings.
-# if file doesn't exist, or no contents, return default
-def read_hostname(filename, default=None):
+    # if the output config changed, update output and err
     try:
-        fp = open(filename,"r")
-        lines = fp.readlines()
-        fp.close()
-        for line in lines:
-            hpos = line.find("#")
-            if hpos != -1:
-                line = line[0:hpos]
-            line = line.rstrip()
-            if line:
-                return line
-    except IOError, e:
-        if e.errno == errno.ENOENT: pass
-    return default
-    
-def set_hostname(hostname, log):
-    try:
-        subprocess.Popen(['hostname', hostname]).communicate()
-        util.write_file("/etc/hostname","%s\n" % hostname, 0644)
-        log.debug("populated /etc/hostname with %s on first boot", hostname)
-    except:
-        log.error("failed to set_hostname")
+        outfmt_orig = outfmt
+        errfmt_orig = errfmt
+        (outfmt, errfmt) = CC.get_output_cfg(cc.cfg,"init")
+        if outfmt_orig != outfmt or errfmt_orig != errfmt:
+            warn("stdout, stderr changing to (%s,%s)" % (outfmt,errfmt))
+            CC.redirect_output(outfmt, errfmt)
+    except Exception as e:
+        warn("Failed to get and set output config: %s\n" % e)
 
-def update_hostname(hostname, log):
-    prev_file="%s/%s" % (cloudinit.datadir,"previous-hostname")
-    etc_file = "/etc/hostname"
+    module_list = CC.read_cc_modules(cc.cfg,"cloud_init_modules")
 
-    hostname_prev = None
-    hostname_in_etc = None
+    failures = []
+    if len(module_list):
+        failures = CC.run_cc_modules(cc,module_list,log)
+    else:
+        msg = "no cloud_init_modules to run"
+        sys.stderr.write(msg + "\n")
+        log.debug(msg)
+        sys.exit(0)
 
-    try:
-        hostname_prev = read_hostname(prev_file)
-    except:
-        log.warn("Failed to open %s" % prev_file)
-    
-    try:
-        hostname_in_etc = read_hostname(etc_file)
-    except:
-        log.warn("Failed to open %s" % etc_file)
-
-    update_files = []
-    if not hostname_prev or hostname_prev != hostname:
-        update_files.append(prev_file)
-
-    if (not hostname_in_etc or 
-        (hostname_in_etc == hostname_prev and hostname_in_etc != hostname)):
-        update_files.append(etc_file)
-
-    try:
-        for fname in update_files:
-            util.write_file(fname,"%s\n" % hostname, 0644)
-            log.debug("wrote %s to %s" % (hostname,fname))
-    except:
-        log.warn("failed to write hostname to %s" % fname)
-
-    if hostname_in_etc and hostname_prev and hostname_in_etc != hostname_prev:
-        log.debug("%s differs from %s. assuming user maintained" %
-                  (prev_file,etc_file))
-
-    if etc_file in update_files:
-        log.debug("setting hostname to %s" % hostname)
-        subprocess.Popen(['hostname', hostname]).communicate()
+    sys.exit(len(failures))
 
 if __name__ == '__main__':
     main()

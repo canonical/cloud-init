@@ -1,0 +1,46 @@
+0.6.0:
+ - change permissions of /var/log/cloud-init.log to accomodate
+   syslog writing to it (LP: #704509)
+ - rework of /var/lib/cloud layout
+ - remove updates-check (LP: #653220)
+ - support resizing / on first boot (enabled by default)
+ - added support for running CloudConfig modules at cloud-init time
+   rather than cloud-config time, and the new 'cloud_init_modules'
+   entry in cloud.cfg to indicate which should run then.
+   The driving force behind this was to have the rsyslog module
+   able to run before rsyslog even runs so that a restart would
+   not be needed (rsyslog on ubuntu runs on 'filesystem')
+ - moved setting and updating of hostname to cloud_init_modules
+   this allows the user to easily disable these from running.
+   This also means:
+   - the semaphore name for 'set_hostname' and 'update_hostname'
+     changes to 'config_set_hostname' and 'config_update_hostname'
+ - added cloud-config option 'hostname' for setting hostname
+ - moved upstart/cloud-run-user-script.conf to upstart/cloud-final.conf
+ - cloud-final.conf now runs runs cloud-config modules similar
+   to cloud-config and cloud-init.
+ - LP: #653271 
+   - added writing of "boot-finished" to /var/lib/cloud/instance/boot-finished
+     this is the last thing done, indicating cloud-init is finished booting
+   - writes message to console with timestamp and uptime
+ - write ssh keys to console as one of the last things done
+   this is to ensure they don't get run off the 'get-console-ouptut' buffer
+ - user_scripts run via cloud-final and thus semaphore renamed from
+   user_scripts to config_user_scripts
+ - add support for redirecting output of cloud-init, cloud-config, cloud-final
+   via the config file, or user data config file
+ - add support for posting data about the instance to a url (phone_home)
+ - add minimal OVF transport (iso) support
+ - make DataSources that are attempted dynamic and configurable from
+   system config. changen "cloud_type: auto" as configuration for this
+   to 'datasource_list: [ "Ec2" ]'.  Each of the items in that list
+   must be modules that can be loaded by "DataSource<item>"
+ - add 'timezone' option to cloud-config (LP: #645458)
+ - Added an additional archive format, that can be used for multi-part
+   input to cloud-init.  This may be more user friendly then mime-multipart
+   See example in doc/examples/cloud-config-archive.txt (LP: #641504)
+ - add support for reading Rightscale style user data (LP: #668400)
+   and acting on it in cloud-config (cc_rightscale_userdata.py)
+ - make the message on 'disable_root' more clear (LP: #672417)
+ - do not require public key if private is given in ssh cloud-config 
+   (LP: #648905)

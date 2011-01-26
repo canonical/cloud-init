@@ -18,7 +18,7 @@
 
 import DataSource
 
-import cloudinit
+from cloudinit import seeddir
 import cloudinit.util as util
 import sys
 import os.path
@@ -32,10 +32,7 @@ class DataSourceNoCloud(DataSource.DataSource):
     supported_seed_starts = ( "/" , "file://" )
     seed = None
     cmdline_id = "ds=nocloud"
-    seeddir = cloudinit.cachedir + '/nocloud'
-
-    def __init__(self):
-        pass
+    seeddir = seeddir + '/nocloud'
 
     def __str__(self):
         mstr="DataSourceNoCloud"
@@ -57,7 +54,7 @@ class DataSourceNoCloud(DataSource.DataSource):
             if parse_cmdline_data(self.cmdline_id, md):
                 found.append("cmdline")
         except:
-            util.logexc(cloudinit.log,util.WARN)
+            util.logexc(self.log,util.WARN)
             return False
 
         # check to see if the seeddir has data.
@@ -66,7 +63,7 @@ class DataSourceNoCloud(DataSource.DataSource):
             md = util.mergedict(md,seedret['meta-data'])
             ud = seedret['user-data']
             found.append(self.seeddir)
-            cloudinit.log.debug("using seeded cache data in %s" % self.seeddir)
+            self.log.debug("using seeded cache data in %s" % self.seeddir)
 
         # there was no indication on kernel cmdline or data
         # in the seeddir suggesting this handler should be used.
@@ -83,14 +80,14 @@ class DataSourceNoCloud(DataSource.DataSource):
                     seedfound=proto
                     break
             if not seedfound:
-                cloudinit.log.debug("seed from %s not supported by %s" %
+                self.log.debug("seed from %s not supported by %s" %
                     (seedfrom, self.__class__))
                 return False
 
             # this could throw errors, but the user told us to do it
             # so if errors are raised, let them raise
             (md_seed,ud) = util.read_seeded(seedfrom)
-            cloudinit.log.debug("using seeded cache data from %s" % seedfrom)
+            self.log.debug("using seeded cache data from %s" % seedfrom)
 
             # values in the command line override those from the seed
             md = util.mergedict(md,md_seed)
@@ -108,16 +105,10 @@ class DataSourceNoCloud(DataSource.DataSource):
 #  root=LABEL=uec-rootfs ro ds=nocloud
 def parse_cmdline_data(ds_id,fill,cmdline=None):
     if cmdline is None:
-        if 'DEBUG_PROC_CMDLINE' in os.environ:
-            cmdline = os.environ["DEBUG_PROC_CMDLINE"]
-        else:
-            cmdfp = open("/proc/cmdline")
-            cmdline = cmdfp.read().strip()
-            cmdfp.close()
-        cmdline = " %s " % cmdline.lower()
+        cmdline = util.get_cmdline()
 
-        if not ( " %s " % ds_id in cmdline or " %s;" % ds_id in cmdline ):
-            return False
+    if not ( " %s " % ds_id in cmdline or " %s;" % ds_id in cmdline ):
+        return False
 
     argline=""
     # cmdline can contain:
@@ -149,4 +140,14 @@ def parse_cmdline_data(ds_id,fill,cmdline=None):
 class DataSourceNoCloudNet(DataSourceNoCloud):
     cmdline_id = "ds=nocloud-net"
     supported_seed_starts = ( "http://", "https://", "ftp://" )
-    seeddir = cloudinit.cachedir + '/nocloud-net'
+    seeddir = seeddir + '/nocloud-net'
+
+datasources = (
+  ( DataSourceNoCloud, ( DataSource.DEP_FILESYSTEM, ) ),
+  ( DataSourceNoCloudNet, 
+    ( DataSource.DEP_FILESYSTEM, DataSource.DEP_NETWORK ) ),
+)
+
+# return a list of data sources that match this set of dependencies
+def get_datasource_list(depends):
+    return(DataSource.list_from_depends(depends, datasources))

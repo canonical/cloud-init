@@ -1,6 +1,6 @@
 # vi: ts=4 expandtab
 #
-#    Copyright (C) 2009-2010 Canonical Ltd.
+#    Copyright (C) 2011 Canonical Ltd.
 #
 #    Author: Scott Moser <scott.moser@canonical.com>
 #
@@ -19,27 +19,25 @@ import cloudinit.util as util
 import subprocess
 import traceback
 
+def apply_locale(locale):
+    subprocess.Popen(['locale-gen', locale]).communicate()
+    subprocess.Popen(['update-locale', locale]).communicate()
+
+    util.render_to_file('default-locale', '/etc/default/locale', \
+        { 'locale' : locale })
+
 def handle(name,cfg,cloud,log,args):
     if len(args) != 0:
-        user = args[0]
-        ids = [ ]
-        if len(args) > 1:
-            ids = args[1:]
+        locale = args[0]
     else:
-        user = util.get_cfg_option_str(cfg,"user","ubuntu")
-        ids = util.get_cfg_option_list_or_str(cfg,"ssh_import_id",[])
+        locale = util.get_cfg_option_str(cfg,"locale",cloud.get_locale())
 
-    if len(ids) == 0: return
+    if not locale: return
 
-    cmd = [ "sudo", "-Hu", user, "ssh-import-id" ] + ids
-
-    log.debug("importing ssh ids. cmd = %s" % cmd)
+    log.debug("setting locale to %s" % locale)
 
     try:
-        subprocess.check_call(cmd)
-    except subprocess.CalledProcessError as e:
+        apply_locale(locale)
+    except Exception as e:
         log.debug(traceback.format_exc(e))
-        raise Exception("Cmd returned %s: %s" % ( e.returncode, cmd))
-    except OSError as e:
-        log.debug(traceback.format_exc(e))
-        raise Exception("Cmd failed to execute: %s" % ( cmd ))
+        raise Exception("failed to apply locale %s" % locale)
