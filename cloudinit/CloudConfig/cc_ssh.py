@@ -38,6 +38,14 @@ def handle(name,cfg,cloud,log,args):
         for key,val in cfg["ssh_keys"].items():
             if key2file.has_key(key):
                 util.write_file(key2file[key][0],val,key2file[key][1])
+
+        priv2pub = { 'rsa_private':'rsa_public', 'dsa_private':'dsa_public' }
+        cmd = 'o=$(ssh-keygen -yf "%s") && echo "$o" root@localhost > "%s"'
+        for priv,pub in priv2pub.iteritems():
+            if pub in cfg['ssh_keys'] or not priv in cfg['ssh_keys']: continue
+            pair=(key2file[priv][0], key2file[pub][0])
+            subprocess.call(('sh', '-xc', cmd % pair))
+            log.debug("generated %s from %s" % pair)
     else:
         # if not, generate them
         genkeys ='ssh-keygen -f /etc/ssh/ssh_host_rsa_key -t rsa -N ""; '
