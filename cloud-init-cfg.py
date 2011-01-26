@@ -75,7 +75,6 @@ def main():
     module_list = [ ]
     if name == "all":
         modlist_cfg_name = "cloud_%s_modules" % modename
-        print modlist_cfg_name
         module_list = CC.read_cc_modules(cc.cfg,modlist_cfg_name)
         if not len(module_list):
             err("no modules to run in cloud_config [%s]" % modename,log)
