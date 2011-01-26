@@ -29,7 +29,7 @@ import logging
 import errno
 
 def warn(wstr):
-    sys.stderr.write(wstr)
+    sys.stderr.write("WARN:%s" % wstr)
 
 def main():
     cmds = ( "start", "start-local" )
