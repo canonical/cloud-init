@@ -36,3 +36,11 @@
    to 'datasource_list: [ "Ec2" ]'.  Each of the items in that list
    must be modules that can be loaded by "DataSource<item>"
  - add 'timezone' option to cloud-config (LP: #645458)
+ - Added an additional archive format, that can be used for multi-part
+   input to cloud-init.  This may be more user friendly then mime-multipart
+   See example in doc/examples/cloud-config-archive.txt (LP: #641504)
+ - add support for reading Rightscale style user data (LP: #668400)
+   and acting on it in cloud-config (cc_rightscale_userdata.py)
+ - make the message on 'disable_root' more clear (LP: #672417)
+ - do not require public key if private is given in ssh cloud-config 
+   (LP: #648905)
