@@ -57,7 +57,7 @@ def main():
         cfg = cloudinit.get_base_cfg()
         (outfmt, errfmt) = CC.get_output_cfg(cfg,"init")
         CC.redirect_output(outfmt, errfmt)
-    except Exception, e:
+    except Exception as e:
         warn("Failed to get and set output config: %s\n" % e)
 
     msg = "cloud-init %s running: %s. up %s seconds" % (cmd, now, uptime)
@@ -70,7 +70,7 @@ def main():
 
     try:
         cloudinit.initfs()
-    except Exception, e:
+    except Exception as e:
         warn("failed to initfs, likely bad things to come: %s\n" % str(e))
         
 
@@ -120,7 +120,7 @@ def main():
         if outfmt_orig != outfmt or errfmt_orig != errfmt:
             warn("stdout, stderr changing to (%s,%s)" % (outfmt,errfmt))
             CC.redirect_output(outfmt, errfmt)
-    except Exception, e:
+    except Exception as e:
         warn("Failed to get and set output config: %s\n" % e)
 
     module_list = CC.read_cc_modules(cc.cfg,"cloud_init_modules")

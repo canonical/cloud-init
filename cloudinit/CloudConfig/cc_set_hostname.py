@@ -26,7 +26,7 @@ def handle(name,cfg,cloud,log,args):
     try:
         hostname = util.get_cfg_option_str(cfg,"hostname",cloud.get_hostname())
         set_hostname(hostname, log)
-    except Exception, e:
+    except Exception as e:
         util.logexc(log)
         log.warn("failed to set hostname\n")
 

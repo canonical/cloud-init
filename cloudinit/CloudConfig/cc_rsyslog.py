@@ -64,7 +64,7 @@ def handle(name,cfg,cloud,log,args):
 
         try:
             util.write_file(filename, content + "\n", omode=omode)
-        except Exception, e:
+        except Exception as e:
             log.debug(traceback.format_exc(e))
             elst.append((content, "failed to write to %s" % filename))
 
@@ -83,7 +83,7 @@ def handle(name,cfg,cloud,log,args):
         p = util.subp(['service', 'rsyslog', 'restart'])
         restarted = True
 
-    except Exception, e:
+    except Exception as e:
         elst.append(("restart", str(e)))
     
     if restarted:

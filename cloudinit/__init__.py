@@ -222,7 +222,7 @@ class CloudInit:
     def set_cur_instance(self):
         try:
             os.unlink(cur_instance_link)
-        except OSError, e:
+        except OSError as e:
             if e.errno != errno.ENOENT: raise
 
         os.symlink("./instances/%s" % self.get_instance_id(), cur_instance_link)

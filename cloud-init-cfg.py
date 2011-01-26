@@ -65,7 +65,7 @@ def main():
     try:
         (outfmt, errfmt) = CC.get_output_cfg(cc.cfg,modename)
         CC.redirect_output(outfmt, errfmt)
-    except Exception, e:
+    except Exception as e:
         err("Failed to get and set output config: %s\n" % e)
 
     cloudinit.logging_set_from_cfg(cc.cfg)

@@ -88,7 +88,7 @@ def handle(name,cfg,cloud,log,args):
             util.readurl(url, submit_keys)
             log.debug("succeeded submit to %s on try %i" % (url, i+1))
             return
-        except Exception, e:
+        except Exception as e:
             log.debug("failed to post to %s on try %i" % (url, i+1))
             last_e = e
         sleep(3)
