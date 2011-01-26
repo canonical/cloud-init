@@ -35,3 +35,4 @@
    system config. changen "cloud_type: auto" as configuration for this
    to 'datasource_list: [ "Ec2" ]'.  Each of the items in that list
    must be modules that can be loaded by "DataSource<item>"
+ - add 'timezone' option to cloud-config (LP: #645458)

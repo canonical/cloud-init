@@ -324,3 +324,7 @@ output:
 phone_home:
  url: http://my.example.com/$INSTANCE_ID/
  post: [ pub_key_dsa, pub_key_rsa, instance_id ]
+
+# timezone: set the timezone for this instance
+# the value of 'timezone' must exist in /usr/share/zoneinfo
+timezone: US/Eastern
