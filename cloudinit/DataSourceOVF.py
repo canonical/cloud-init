@@ -18,7 +18,7 @@
 
 import DataSource
 
-import cloudinit
+from cloudinit import seeddir
 import cloudinit.util as util
 import sys
 import os.path
@@ -27,18 +27,18 @@ import errno
 from xml.dom import minidom
 from xml.dom import Node
 import base64
+import re
+import tempfile
+import subprocess
 
 class DataSourceOVF(DataSource.DataSource):
     seed = None
-    seeddir = cloudinit.seeddir + '/ovf'
+    seeddir = seeddir + '/ovf'
     environment = None
     cfg = { }
     userdata_raw = None
     metadata = None
     supported_seed_starts = ( "/" , "file://" )
-
-    def __init__(self):
-        pass
 
     def __str__(self):
         mstr="DataSourceOVF"
@@ -87,12 +87,12 @@ class DataSourceOVF(DataSource.DataSource):
                     seedfound = proto
                     break
             if not seedfound:
-                cloudinit.log.debug("seed from %s not supported by %s" %
+                self.log.debug("seed from %s not supported by %s" %
                     (seedfrom, self.__class__))
                 return False
 
             (md_seed,ud) = util.read_seeded(seedfrom)
-            cloudinit.log.debug("using seeded cache data from %s" % seedfrom)
+            self.log.debug("using seeded cache data from %s" % seedfrom)
 
             md = util.mergedict(md,md_seed)
             found.append(seedfrom)
@@ -119,7 +119,7 @@ class DataSourceOVF(DataSource.DataSource):
         return(self.cfg)
 
 class DataSourceOVFNet(DataSourceOVF):
-    seeddir = cloudinit.seeddir + '/ovf-net'
+    seeddir = seeddir + '/ovf-net'
     supported_seed_starts = ( "http://", "https://", "ftp://" )
 
 # this will return a dict with some content
@@ -279,6 +279,16 @@ def getProperties(environString):
         props[key] = val
 
     return(props)
+
+datasources = (
+  ( DataSourceOVF, ( DataSource.DEP_FILESYSTEM, ) ),
+  ( DataSourceOVFNet, 
+    ( DataSource.DEP_FILESYSTEM, DataSource.DEP_NETWORK ) ),
+)
+
+# return a list of data sources that match this set of dependencies
+def get_datasource_list(depends):
+    return(DataSource.list_from_depends(depends, datasources))
 
 if __name__ == "__main__":
     import sys
