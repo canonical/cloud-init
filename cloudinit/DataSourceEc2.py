@@ -99,9 +99,9 @@ class DataSourceEc2(DataSource.DataSource):
                 resp = urllib2.urlopen(req, timeout=2)
                 if resp.read() != "": return True
                 reason = "empty data [%s]" % resp.getcode()
-            except urllib2.HTTPError, e:
+            except urllib2.HTTPError as e:
                 reason = "http error [%s]" % e.code
-            except urllib2.URLError, e:
+            except urllib2.URLError as e:
                 reason = "url error [%s]" % e.reason
     
             if x == 0:

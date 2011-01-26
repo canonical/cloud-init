@@ -31,7 +31,7 @@ def handle(name,cfg,cloud,log,args):
         hostname = util.get_cfg_option_str(cfg,"hostname",cloud.get_hostname())
         prev ="%s/%s" % (cloud.get_cpath('datadir'),"previous-hostname")
         update_hostname(hostname, prev, log)
-    except Exception, e:
+    except Exception as e:
         log.warn("failed to set hostname\n")
         raise
 
@@ -50,7 +50,7 @@ def read_hostname(filename, default=None):
             line = line.rstrip()
             if line:
                 return line
-    except IOError, e:
+    except IOError as e:
         if e.errno != errno.ENOENT: raise
     return default
     
@@ -62,7 +62,7 @@ def update_hostname(hostname, prev_file, log):
 
     try:
         hostname_prev = read_hostname(prev_file)
-    except Exception, e:
+    except Exception as e:
         log.warn("Failed to open %s: %s" % (prev_file, e))
 
     try:

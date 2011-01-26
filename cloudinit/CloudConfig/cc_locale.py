@@ -38,6 +38,6 @@ def handle(name,cfg,cloud,log,args):
 
     try:
         apply_locale(locale)
-    except Exception, e:
+    except Exception as e:
         log.debug(traceback.format_exc(e))
         raise Exception("failed to apply locale %s" % locale)

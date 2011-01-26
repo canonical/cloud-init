@@ -65,7 +65,7 @@ def handle(name,cfg,cloud,log,args):
         try:
             content = util.readurl(url)
             util.write_file(fname, content, mode=0700)
-        except Exception, e:
+        except Exception as e:
             if not first_e: first_e = None
             log.warn("%s failed to read %s: %s" % (my_name, url, e))
             

@@ -34,7 +34,7 @@ def handle(name,cfg,cloud,log,args):
     cmd = ['blkid', '-sTYPE', '-ovalue', '/dev/root']
     try:
         (fstype,err) = util.subp(cmd)
-    except Exception, e:
+    except Exception as e:
         log.warn("Failed to get filesystem type via %s" % cmd)
         raise
 
@@ -48,7 +48,7 @@ def handle(name,cfg,cloud,log,args):
 
     try:
         (out,err) = util.subp(resize_cmd)
-    except Exception, e:
+    except Exception as e:
         log.warn("Failed to resize filesystem (%s,%s)" % cmd)
         raise
         
