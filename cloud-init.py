@@ -23,6 +23,7 @@ import sys
 import cloudinit
 import cloudinit.util as util
 import cloudinit.CloudConfig as CC
+import cloudinit.DataSource as ds
 import time
 import logging
 import errno
@@ -32,9 +33,18 @@ def warn(wstr):
 
 def main():
     cmds = ( "start", "start-local" )
+    deps = { "start" : ( ds.DEP_FILESYSTEM, ds.DEP_NETWORK ),
+             "start-local" : ( ds.DEP_FILESYSTEM, ) }
+
     cmd = ""
     if len(sys.argv) > 1:
         cmd = sys.argv[1]
+
+    cfg_path = None
+    if len(sys.argv) > 2:
+        # this is really for debugging only
+        # but you can invoke on development system with ./config/cloud.cfg
+        cfg_path = sys.argv[2]
 
     if not cmd in cmds:
         sys.stderr.write("bad command %s. use one of %s\n" % (cmd, cmds))
@@ -49,12 +59,17 @@ def main():
        warn("unable to open /proc/uptime\n")
        uptime = "na"
 
-    source_type = "all"
-    if cmd == "start-local":
-        source_type = "local"
+    try:
+        cfg = cloudinit.get_base_cfg(cfg_path)
+    except Exception as e:
+        warn("Failed to get base config. falling back to builtin: %s\n" % e)
+        try:
+            cfg = cloudinit.get_builtin_cfg()
+        except Exception as e:
+            warn("Unable to load builtin config\n")
+            raise
 
     try:
-        cfg = cloudinit.get_base_cfg()
         (outfmt, errfmt) = CC.get_output_cfg(cfg,"init")
         CC.redirect_output(outfmt, errfmt)
     except Exception as e:
@@ -80,7 +95,7 @@ def main():
     if cmd == "start-local":
         cloudinit.purge_cache()
 
-    cloud = cloudinit.CloudInit(source_type=source_type)
+    cloud = cloudinit.CloudInit(ds_deps=deps[cmd])
 
     try:
         cloud.get_data_source()
