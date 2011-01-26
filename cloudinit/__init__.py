@@ -27,7 +27,7 @@ cfg_env_name = "CLOUD_CFG"
 
 cfg_builtin = """
 log_cfgs: [ ]
-cloud_type: auto
+datasource_list: [ "NoCloud", "OVF", "Ec2" ]
 def_log_file: /var/log/cloud-init.log
 syslog_fix_perms: syslog:adm
 """
@@ -101,29 +101,17 @@ def logging_set_from_cfg(cfg):
     raise Exception("no valid logging found\n")
 
 
-import DataSourceEc2
-import DataSourceNoCloud
-import DataSourceOVF
+import DataSource
 import UserDataHandler
 
 class CloudInit:
-    datasource_map = {
-        "ec2" : DataSourceEc2.DataSourceEc2,
-        "nocloud" : DataSourceNoCloud.DataSourceNoCloud,
-        "nocloud-net" : DataSourceNoCloud.DataSourceNoCloudNet,
-        "ovf" : DataSourceOVF.DataSourceOVF,
-    }
-    datasource = None
-    auto_orders = {
-        "all": ( "nocloud-net", "ec2" ),
-        "local" : ( "nocloud", "ovf" ),
-    }
     cfg = None
     part_handlers = { }
     old_conffile = '/etc/ec2-init/ec2-config.cfg'
-    source_type = "all"
+    ds_deps = [ DataSource.DEP_FILESYSTEM, DataSource.DEP_NETWORK ]
+    datasource = None
 
-    def __init__(self, source_type = "all", sysconfig=system_config):
+    def __init__(self, ds_deps = None, sysconfig=system_config):
         self.part_handlers = {
             'text/x-shellscript' : self.handle_user_script,
             'text/cloud-config' : self.handle_cloud_config,
@@ -131,15 +119,19 @@ class CloudInit:
             'text/part-handler' : self.handle_handler,
             'text/cloud-boothook' : self.handle_cloud_boothook
         }
+        if ds_deps != None:
+            self.ds_deps = ds_deps
         self.sysconfig=sysconfig
         self.cfg=self.read_cfg()
-        self.source_type = source_type
 
     def read_cfg(self):
         if self.cfg:
             return(self.cfg)
 
-        conf = util.get_base_cfg(self.sysconfig,cfg_builtin, parsed_cfgs)
+        try:
+            conf = util.get_base_cfg(self.sysconfig,cfg_builtin, parsed_cfgs)
+        except Exception as e:
+            conf = get_builtin_cfg()
 
         # support reading the old ConfigObj format file and merging
         # it into the yaml dictionary
@@ -182,9 +174,6 @@ class CloudInit:
         except:
             return False
         
-    def get_cloud_type(self):
-        pass
-
     def get_data_source(self):
         if self.datasource is not None: return True
 
@@ -192,21 +181,14 @@ class CloudInit:
             log.debug("restored from cache type %s" % self.datasource)
             return True
 
-        dslist=[ ]
-        cfglist=self.cfg['cloud_type']
-        if cfglist == "auto":
-            dslist = self.auto_orders[self.source_type]
-        elif cfglist:
-            for ds in cfglist.split(','):
-                dslist.append(strip(ds).tolower())
-            
-        log.debug("searching for data source in [%s]" % str(dslist))
-        for ds in dslist:
-            if ds not in self.datasource_map:
-                log.warn("data source %s not found in map" % ds)
-                continue
+        cfglist=self.cfg['datasource_list']
+        dslist = list_sources(cfglist, self.ds_deps)
+        dsnames = map(lambda f: f.__name__, dslist)
+        log.debug("searching for data source in %s" % dsnames)
+        for cls in dslist:
+            ds = cls.__name__
             try:
-                s = self.datasource_map[ds]()
+                s = cls(log)
                 if s.get_data():
                     self.datasource = s
                     self.datasource_name = ds
@@ -216,8 +198,9 @@ class CloudInit:
                 log.warn("get_data of %s raised %s" % (ds,e))
                 util.logexc(log)
                 pass
-        log.debug("did not find data source from %s" % dslist)
-        raise DataSourceNotFoundException("Could not find data source")
+        msg = "Did not find data source. searched classes: %s" % dsnames
+        log.debug(msg)
+        raise DataSourceNotFoundException(msg)
 
     def set_cur_instance(self):
         try:
@@ -532,8 +515,15 @@ def get_ipath_cur(name=None):
 def get_cpath(name=None):
     return("%s%s" % (varlibdir, pathmap[name]))
 
-def get_base_cfg():
-    return(util.get_base_cfg(system_config,cfg_builtin,parsed_cfgs))
+def get_base_cfg(cfg_path=None):
+    if cfg_path is None: cfg_path = system_config
+    return(util.get_base_cfg(cfg_path,cfg_builtin,parsed_cfgs))
+
+def get_builtin_cfg():
+    return(yaml.load(cfg_builtin))
 
 class DataSourceNotFoundException(Exception):
     pass
+
+def list_sources(cfg_list, depends):
+    return(DataSource.list_sources(cfg_list,depends, ["cloudinit", "" ]))

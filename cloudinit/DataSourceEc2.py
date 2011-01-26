@@ -18,7 +18,7 @@
 
 import DataSource
 
-import cloudinit
+from cloudinit import seeddir
 import cloudinit.util as util
 import socket
 import urllib2
@@ -30,10 +30,7 @@ import errno
 
 class DataSourceEc2(DataSource.DataSource):
     api_ver  = '2009-04-04'
-    seeddir = cloudinit.seeddir + '/ec2'
-
-    def __init__(self):
-        pass
+    seeddir = seeddir + '/ec2'
 
     def __str__(self):
         return("DataSourceEc2")
@@ -43,7 +40,7 @@ class DataSourceEc2(DataSource.DataSource):
         if util.read_optional_seed(seedret,base=self.seeddir+ "/"):
             self.userdata_raw = seedret['user-data']
             self.metadata = seedret['meta-data']
-            cloudinit.log.debug("using seeded ec2 data in %s" % self.seeddir)
+            self.log.debug("using seeded ec2 data in %s" % self.seeddir)
             return True
         
         try:
@@ -105,13 +102,13 @@ class DataSourceEc2(DataSource.DataSource):
                 reason = "url error [%s]" % e.reason
     
             if x == 0:
-                cloudinit.log.warning("waiting for metadata service at %s\n" % url)
+                self.log.warning("waiting for metadata service at %s\n" % url)
 
-            cloudinit.log.warning("  %s [%02s/%s]: %s\n" %
+            self.log.warning("  %s [%02s/%s]: %s\n" %
                 (time.strftime("%H:%M:%S",time.gmtime()), x+1, sleeps, reason))
             time.sleep(sleeptime)
 
-        cloudinit.log.critical("giving up on md after %i seconds\n" %
+        self.log.critical("giving up on md after %i seconds\n" %
                   int(time.time()-starttime))
         return False
 
@@ -131,7 +128,7 @@ class DataSourceEc2(DataSource.DataSource):
             if entname == "ephemeral" and name == "ephemeral0":
                 found = device
         if found == None:
-            cloudinit.log.warn("unable to convert %s to a device" % name)
+            self.log.warn("unable to convert %s to a device" % name)
             return None
 
         # LP: #611137
@@ -154,7 +151,7 @@ class DataSourceEc2(DataSource.DataSource):
             for nto in tlist:
                 cand = "/dev/%s%s" % (nto, short[len(nfrom):])
                 if os.path.exists(cand):
-                    cloudinit.log.debug("remapped device name %s => %s" % (found,cand))
+                    self.log.debug("remapped device name %s => %s" % (found,cand))
                     return(cand)
         return ofound
 
@@ -165,3 +162,11 @@ class DataSourceEc2(DataSource.DataSource):
             (p4 not in self.metadata or self.metadata[p4] == "")):
             return True
         return False
+
+datasources = [ 
+  ( DataSourceEc2, ( DataSource.DEP_FILESYSTEM , DataSource.DEP_NETWORK ) ),
+]
+
+# return a list of data sources that match this set of dependencies
+def get_datasource_list(depends):
+    return(DataSource.list_from_depends(depends, datasources))

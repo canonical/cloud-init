@@ -16,16 +16,23 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import cloudinit
+
+DEP_FILESYSTEM = "FILESYSTEM"
+DEP_NETWORK = "NETWORK"
+
 import UserDataHandler as ud
 
 class DataSource:
     userdata = None
     metadata = None
     userdata_raw = None
+    log = None
 
-    def __init__(self):
-       pass
+    def __init__(self, log=None):
+        if not log:
+            import logging
+            log = logging.log
+        self.log = log
 
     def get_userdata(self):
         if self.userdata == None:
@@ -91,3 +98,46 @@ class DataSource:
                     return("ip-%s" % '-'.join(r))
             except: pass
         return toks[0]
+
+# return a list of classes that have the same depends as 'depends'
+# iterate through cfg_list, loading "DataSourceCollections" modules
+# and calling their "get_datasource_list".
+# return an ordered list of classes that match
+#
+# - modules must be named "DataSource<item>", where 'item' is an entry
+#   in cfg_list
+# - if pkglist is given, it will iterate try loading from that package
+#   ie, pkglist=[ "foo", "" ]
+#     will first try to load foo.DataSource<item>
+#     then DataSource<item>
+def list_sources(cfg_list, depends, pkglist=[]):
+    retlist = []
+    for ds_coll in cfg_list:
+        for pkg in pkglist:
+            if pkg: pkg="%s." % pkg
+            try:
+                mod = __import__("%sDataSource%s" % (pkg, ds_coll))
+                if pkg:
+                    mod = getattr(mod, "DataSource%s" % ds_coll)
+                lister = getattr(mod, "get_datasource_list")
+                retlist.extend(lister(depends))
+                break
+            except:
+                raise
+    return(retlist)
+
+# depends is a list of dependencies (DEP_FILESYSTEM)
+# dslist is a list of 2 item lists
+# dslist = [ 
+#   ( class, ( depends-that-this-class-needs ) )
+# }
+# it returns a list of 'class' that matched these deps exactly
+# it is a helper function for DataSourceCollections
+def list_from_depends(depends, dslist):
+    retlist = [ ]
+    depset = set(depends)
+    for elem in dslist:
+        (cls, deps) = elem
+        if depset == set(deps):
+            retlist.append(cls)
+    return(retlist)

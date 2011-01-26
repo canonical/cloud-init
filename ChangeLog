@@ -31,3 +31,7 @@
    via the config file, or user data config file
  - add support for posting data about the instance to a url (phone_home)
  - add minimal OVF transport (iso) support
+ - make DataSources that are attempted dynamic and configurable from
+   system config. changen "cloud_type: auto" as configuration for this
+   to 'datasource_list: [ "Ec2" ]'.  Each of the items in that list
+   must be modules that can be loaded by "DataSource<item>"
