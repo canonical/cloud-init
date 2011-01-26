@@ -27,6 +27,9 @@ import errno
 from xml.dom import minidom
 from xml.dom import Node
 import base64
+import re
+import tempfile
+import subprocess
 
 class DataSourceOVF(DataSource.DataSource):
     seed = None
