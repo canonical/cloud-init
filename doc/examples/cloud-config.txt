@@ -298,7 +298,7 @@ final_message: "The system is finally up, after $UPTIME seconds"
 # entries.  Each one defines where 
 #  cloud-init, cloud-config, cloud-config-final or all output will go
 # each entry in the dict can be a string, list or dict.
-#  if it is a string, it refers to stdout
+#  if it is a string, it refers to stdout and stderr
 #  if it is a list, entry 0 is stdout, entry 1 is stderr
 #  if it is a dict, it is expected to have 'output' and 'error' fields
 # default is to write to console only

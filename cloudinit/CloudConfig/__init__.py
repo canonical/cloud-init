@@ -136,9 +136,9 @@ def get_output_cfg(cfg, mode="init"):
         # then it applies to all users of this (init, config, final)
         modecfg = outcfg['all']
 
-    # if value is a string, it specifies stdout
+    # if value is a string, it specifies stdout and stderr
     if isinstance(modecfg,str):
-        ret = [ modecfg, None ]
+        ret = [ modecfg, modecfg ]
 
     # if its a list, then we expect (stdout, stderr)
     if isinstance(modecfg,list):
