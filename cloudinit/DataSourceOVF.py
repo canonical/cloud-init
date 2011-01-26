@@ -105,6 +105,13 @@ class DataSourceOVF(DataSource.DataSource):
         self.cfg = cfg
         return True
 
+    def get_public_ssh_keys(self):
+        if not 'public-keys' in self.metadata: return([])
+        return([self.metadata['public-keys'],])
+        
+    def get_hostname(self):
+        return(self.metadata['local-hostname'])
+
     # the data sources' config_obj is a cloud-config formated
     # object that came to it from ways other than cloud-config
     # because cloud-config content would be handled elsewhere
