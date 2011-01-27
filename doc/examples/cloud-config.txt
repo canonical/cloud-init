@@ -328,3 +328,21 @@ phone_home:
 # timezone: set the timezone for this instance
 # the value of 'timezone' must exist in /usr/share/zoneinfo
 timezone: US/Eastern
+
+# def_log_file and syslog_fix_perms work together
+# if 
+# - logging is set to go to a log file 'L' both with and without syslog
+# - and 'L' does not exist
+# - and syslog is configured to write to 'L'
+# then 'L' will be initially created with root:root ownership (during
+# cloud-init), and then at cloud-config time (when syslog is available)
+# the syslog daemon will be unable to write to the file.
+# 
+# to remedy this situation, 'def_log_file' can be set to a filename
+# and syslog_fix_perms to a string containing "<user>:<group>"
+#
+# the default values are '/var/log/cloud-init.log' and 'syslog:adm'
+# the value of 'def_log_file' should match what is configured in logging
+# if either is empty, then no change of ownership will be done
+def_log_file: /var/log/my-logging-file.log
+syslog_fix_perms: syslog:root
