@@ -58,6 +58,53 @@ fix_ephemeral0_micro() {
    done
 }
 
+convert_varlib_05x_06x() {
+   local url="http://169.254.169.254/2009-04-04/meta-data/instance-id"
+   local tout="--connect-timeout .5 --read-timeout .5" 
+   local iid="" f="" uptime="" bn=""
+   iid=$(wget "${url}" ${tout} --tries 1 -O - 2>/dev/null) || iid=""
+
+   [ -n "${iid}" -a -d /var/lib/cloud ] || return 0
+   cd /var/lib/cloud
+   mkdir -p "instances/${iid}" "instances/${iid}/sem"
+   [ -e instance ] || ln -sf "instances/${iid}" instance
+   for f in data/*; do
+      [ -f "$f" ] || continue
+      case "${f#*/}" in
+         user-data.txt.i|user-data.txt|cloud-config.txt)
+            mv "${f}" instance/
+            ;;
+      esac
+   done
+   [ -f data/cache/obj.pkl ] && mv data/cache/obj.pkl instance/
+   for f in sem/*.${iid}; do
+      [ -f "${f}" ] || continue
+      bn=${f#*/}; bn=${bn%.${iid}}
+      case "${bn}" in
+         set_defaults) mv "${f}" "instance/sem/config-locale";;
+         set_hostname) mv "${f}" "instance/sem/config-set_hostname";;
+         *) mv "${f}" "instance/sem/${bn}";;
+      esac
+   done
+   [ ! -f sem/update_hostname.always ] ||
+      mv sem/update_hostname.always sem/config-update_hostname.always
+   rmdir data/cache 2>/dev/null || :
+   rm -f data/available.build
+
+   mkdir -p instance/scripts
+   if [ -d data/scripts ]; then
+      mv data/scripts/* instance/scripts || :
+      rmdir data/scripts || :
+   fi
+   [ -d data/scripts/* ] && mv data/scripts instance/
+
+   [ ! -e instance/boot-finished ] &&
+      [ -f /proc/uptime ] && read uptime other </proc/uptime &&
+      echo "${uptime}" > instance/boot-finished || :
+
+   return 0
+}
+
 case "$1" in
 	install|upgrade)
 		# removing obsolete conffiles from the 'ec2-init' package
@@ -102,5 +149,9 @@ case "$1" in
       if dpkg --compare-versions "$2" le "0.5.14-0ubuntu5"; then
          fix_ephemeral0_micro
       fi
-esac
 
+      if dpkg --compare-versions "$2" le 0.6.0-0ubuntu1; then
+         # convert /var/lib/cloud from 0.5.x layout to 0.6.x
+         convert_varlib_05x_06x
+      fi
+esac

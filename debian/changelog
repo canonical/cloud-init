@@ -1,3 +1,16 @@
+cloud-init (0.6.0-0ubuntu2) natty; urgency=low
+
+  * add a debian/README.source file
+  * fix bug in fixing permission on /var/log/cloud-init.log (cherry pick)
+  * remove dependency on update-motd as updates-check was removed
+  * fix failure on cloud-init package purge
+  * add configuration of DataSources via debconf. Default to not searching
+    Ec2. (LP: #635188)
+  * fix naming of pre-processed (now user-data.txt.i) (cherry pick)
+  * upgrade existing content in /var/lib/cloud to 0.6.x format
+
+ -- Scott Moser <smoser@ubuntu.com>  Thu, 27 Jan 2011 16:32:44 -0500
+
 cloud-init (0.6.0-0ubuntu1) natty; urgency=low
 
   * New upstream release.

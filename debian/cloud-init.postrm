@@ -2,6 +2,14 @@
 
 set -e
 
-dpkg-divert --package cloud-init --remove --rename --divert \
-      /etc/init/ureadahead.conf.disabled /etc/init/ureadahead.conf
+case "$1" in
+   purge)
+      rm -f /etc/cloud/distro.cfg
+      ;;
+   remove)
+      dpkg-divert --package cloud-init --remove --rename --divert \
+            /etc/init/ureadahead.conf.disabled /etc/init/ureadahead.conf
+      ;;
+esac
+
 #DEBHELPER#

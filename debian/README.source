@@ -1,0 +1,11 @@
+=== General Info ===
+Development packaging branch is at
+   lp:ubuntu/<suite>/cloud-init
+alternatively, if you're on the development release:
+   lp:ubuntu/cloud-init
+
+Patches in debian/patches are also stored applied in bzr.
+However, the .pc directory is not version controlled.
+
+When you've done a fresh checkout of above, you will need to run:
+   debian/rules quilt-setup
