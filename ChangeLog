@@ -1,3 +1,5 @@
+0.6.1:
+ - fix bug in fixing permission on /var/log/cloud-init.log (LP: #704509)
 0.6.0:
  - change permissions of /var/log/cloud-init.log to accomodate
    syslog writing to it (LP: #704509)
