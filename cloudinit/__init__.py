@@ -487,8 +487,8 @@ def initfs():
         log_file = cfg['def_log_file']
         fp = open(log_file,"ab")
         fp.close()
-    if log_file and 'syslog' in cfg:
-        perms = cfg['syslog']
+    if log_file and 'syslog_fix_perms' in cfg:
+        perms = cfg['syslog_fix_perms']
         (u,g) = perms.split(':',1)
         if u == "-1" or u == "None": u = None
         if g == "-1" or g == "None": g = None
