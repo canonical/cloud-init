@@ -39,7 +39,7 @@ pathmap = {
    "sem" : "/sem",
    "boothooks" : "/boothooks",
    "userdata_raw" : "/user-data.txt",
-   "userdata" : "/user-data-raw.txt.i",
+   "userdata" : "/user-data.txt.i",
    "obj_pkl" : "/obj.pkl",
    "cloud_config" : "/cloud-config.txt",
    "datadir" : "/data",
