@@ -482,13 +482,12 @@ def initfs():
     util.ensure_dirs(dlist)
 
     cfg = util.get_base_cfg(system_config,cfg_builtin,parsed_cfgs)
-    log_file = None
-    if 'def_log_file' in cfg:
-        log_file = cfg['def_log_file']
+    log_file = util.get_cfg_option_str(cfg, 'def_log_file', None)
+    perms = util.get_cfg_option_str(cfg, 'syslog_fix_perms', None)
+    if log_file:
         fp = open(log_file,"ab")
         fp.close()
-    if log_file and 'syslog_fix_perms' in cfg:
-        perms = cfg['syslog_fix_perms']
+    if log_file and perms:
         (u,g) = perms.split(':',1)
         if u == "-1" or u == "None": u = None
         if g == "-1" or g == "None": g = None
