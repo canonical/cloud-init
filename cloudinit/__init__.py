@@ -208,13 +208,20 @@ class CloudInit:
         except OSError as e:
             if e.errno != errno.ENOENT: raise
 
-        os.symlink("./instances/%s" % self.get_instance_id(), cur_instance_link)
+        iid = self.get_instance_id()
+        os.symlink("./instances/%s" % iid, cur_instance_link)
         idir = self.get_ipath()
         dlist = []
         for d in [ "handlers", "scripts", "sem" ]:
             dlist.append("%s/%s" % (idir, d))
             
         util.ensure_dirs(dlist)
+
+        ds = "%s: %s\n" % ( self.datasource.__class__, str(self.datasource) )
+        dp = self.get_cpath('datadir')
+        util.write_file("%s/%s" % (idir, 'datasource'), ds)
+        util.write_file("%s/%s" % (dp, 'previous-datasource'), ds)
+        util.write_file("%s/%s" % (dp, 'previous-instance-id'), "%s\n" % iid)
 
     def get_userdata(self):
         return(self.datasource.get_userdata())
