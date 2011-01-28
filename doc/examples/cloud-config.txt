@@ -346,3 +346,40 @@ timezone: US/Eastern
 # if either is empty, then no change of ownership will be done
 def_log_file: /var/log/my-logging-file.log
 syslog_fix_perms: syslog:root
+
+# you can set passwords for a user or multiple users
+# this is off by default.
+# to set the default user's password, use the 'password' option.
+# if set, to 'R' or 'RANDOM', then a random password will be
+# generated and written to stdout (the console)
+# password: passw0rd
+#
+# also note, that this will expire the password, forcing a change
+# on first login. If you do not want to expire, see 'chpasswd' below.
+#
+# By default in the UEC images password authentication is disabled
+# Thus, simply setting 'password' as above will only allow you to login
+# via the console.
+#
+# in order to enable password login via ssh you must set
+# 'ssh_pwauth'.
+# If it is set, to 'True' or 'False', then sshd_config will be updated
+# to ensure the desired function.  If not set, or set to '' or 'unchanged'
+# then sshd_config will not be updated.
+# ssh_pwauth: True
+#
+# there is also an option to set multiple users passwords, using 'chpasswd'
+# That looks like the following, with 'expire' set to 'True' by default.
+# to not expire users passwords, set 'expire' to 'False':
+# chpasswd:
+#  list: |
+#    user1:password1
+#    user2:RANDOM
+#  expire: True
+# ssh_pwauth: [ True, False, "" or "unchanged" ]
+#
+# So, a simple working example to allow login via ssh, and not expire
+# for the default user would look like:
+password: passw0rd
+chpasswd: { expire: False }
+ssh_pwauth: True
