@@ -87,12 +87,12 @@ class DataSourceOVF(DataSource.DataSource):
                     seedfound = proto
                     break
             if not seedfound:
-                self.log.debug("seed from %s not supported by %s" %
+                log.debug("seed from %s not supported by %s" %
                     (seedfrom, self.__class__))
                 return False
 
             (md_seed,ud) = util.read_seeded(seedfrom)
-            self.log.debug("using seeded cache data from %s" % seedfrom)
+            log.debug("using seeded cache data from %s" % seedfrom)
 
             md = util.mergedict(md,md_seed)
             found.append(seedfrom)

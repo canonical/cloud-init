@@ -102,6 +102,7 @@ def logging_set_from_cfg(cfg):
 
 
 import DataSource
+DataSource.setlog(log)
 import UserDataHandler
 
 class CloudInit:
@@ -190,7 +191,7 @@ class CloudInit:
         for cls in dslist:
             ds = cls.__name__
             try:
-                s = cls(log)
+                s = cls()
                 if s.get_data():
                     self.datasource = s
                     self.datasource_name = ds
