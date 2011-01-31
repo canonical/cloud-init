@@ -153,6 +153,7 @@ class CloudInit:
             cache = get_ipath_cur('obj_pkl')
             f=open(cache, "rb")
             data = cPickle.load(f)
+            f.close()
             self.datasource = data
             return True
         except:
@@ -169,6 +170,7 @@ class CloudInit:
         try:
             f=open(cache, "wb")
             data = cPickle.dump(self.datasource,f)
+            f.close()
             os.chmod(cache,0400)
             return True
         except:
