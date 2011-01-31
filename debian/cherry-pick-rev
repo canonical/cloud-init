@@ -35,6 +35,8 @@ cat <<EOF
 now,
   quilt push
   quilt refresh
-  bzr add debian/patches/series debian/patches/${fname}
-  bzr commit debian/patches/series debian/patches/${fname}
+  bzr add \$(quilt files ${fname}) debian/patches/series debian/patches/${fname}
+  dch --append "${name} (cherry pick $revno)"
+  dch --edit # improve the entry
+  debcommit \$(quilt files ${fname}) debian/patches/series debian/patches/${fname}
 EOF

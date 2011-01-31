@@ -1,0 +1,67 @@
+------------------------------------------------------------
+revno: 337
+committer: Scott Moser <smoser@ubuntu.com>
+branch nick: trunk
+timestamp: Fri 2011-01-28 10:48:56 -0500
+message:
+  add previous-instance-id and previous-datasource files to cloud/data
+  add 'datasource' file to instance dir
+=== modified file 'ChangeLog'
+--- a/ChangeLog
++++ b/ChangeLog
+@@ -1,6 +1,8 @@
+ 0.6.1:
+  - fix bug in fixing permission on /var/log/cloud-init.log (LP: #704509)
+  - improve comment strings in rsyslog file tools/21-cloudinit.conf
++ - add previous-instance-id and previous-datasource files to datadir
++ - add 'datasource' file to instance dir
+ 0.6.0:
+  - change permissions of /var/log/cloud-init.log to accomodate
+    syslog writing to it (LP: #704509)
+--- a/cloudinit/__init__.py
++++ b/cloudinit/__init__.py
+@@ -208,7 +208,8 @@
+         except OSError as e:
+             if e.errno != errno.ENOENT: raise
+ 
+-        os.symlink("./instances/%s" % self.get_instance_id(), cur_instance_link)
++        iid = self.get_instance_id()
++        os.symlink("./instances/%s" % iid, cur_instance_link)
+         idir = self.get_ipath()
+         dlist = []
+         for d in [ "handlers", "scripts", "sem" ]:
+@@ -216,6 +217,12 @@
+             
+         util.ensure_dirs(dlist)
+ 
++        ds = "%s: %s\n" % ( self.datasource.__class__, str(self.datasource) )
++        dp = self.get_cpath('datadir')
++        util.write_file("%s/%s" % (idir, 'datasource'), ds)
++        util.write_file("%s/%s" % (dp, 'previous-datasource'), ds)
++        util.write_file("%s/%s" % (dp, 'previous-instance-id'), "%s\n" % iid)
++
+     def get_userdata(self):
+         return(self.datasource.get_userdata())
+ 
+--- a/doc/var-lib-cloud.txt
++++ b/doc/var-lib-cloud.txt
+@@ -38,7 +38,8 @@
+          boot-finished
+             # this file indicates when "boot" is finished
+             # it is created by the 'final_message' cloud-config
+-          
++         datasource # a file containing the class and string of datasource
++
+   - sem/
+       scripts.once
+     These are the cloud-specific semaphores.  The only thing that
+@@ -52,6 +53,9 @@
+   - data/
+       this is a persistent data location.  cloud-init won't really
+       use it, but something else (a handler or script could)
++      previous-datasource
++      previous-instance-id
++      previous-hostname
+ 
+ to clear out the current instance's data as if to force a "new run" on reboot
+ do:

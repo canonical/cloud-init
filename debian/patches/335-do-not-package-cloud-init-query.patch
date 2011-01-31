@@ -1,0 +1,18 @@
+------------------------------------------------------------
+revno: 335
+committer: Scott Moser <smoser@ubuntu.com>
+branch nick: trunk
+timestamp: Thu 2011-01-27 14:06:21 -0500
+message:
+  do not install cloud-init-query, it isn't really functional
+=== modified file 'setup.py'
+--- a/setup.py
++++ b/setup.py
+@@ -36,7 +36,6 @@
+       scripts=['cloud-init.py',
+                'cloud-init-run-module.py',
+                'cloud-init-cfg.py',
+-               'cloud-init-query.py'
+                ],
+       data_files=[('/etc/cloud', glob('config/*.cfg')),
+                   ('/etc/cloud/templates', glob('templates/*')),

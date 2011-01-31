@@ -1,2 +1,7 @@
 332-fix-perms-on-cloud-init-log.patch
+333-fix-action-on-emty-def_log_file.patch
+334-fix-comment-string-in-rsyslog-config.patch
+335-do-not-package-cloud-init-query.patch
 336-rename-process-user-data-file.txt.patch
+337-add-datasource-info-in-cloud-data.patch
+338-allow-setting-passwords-and-ssh-pwauth.patch

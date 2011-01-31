@@ -1,3 +1,17 @@
+cloud-init (0.6.0-0ubuntu3) natty; urgency=low
+
+  * make a better attempt at deciding if DataSourceEc2 should be used
+    on first install or upgrade
+  * fix behavior if def_log_file is empty in cloud-config (cherry pick 333)
+  * improve comment strings in rsyslog config (cherry pick 334)
+  * do not package cloud-init query (cherry pick 335)
+  * add previous-instance-id and previous-datasource to cloud/data
+    and cloud/instance/datasource files (cherry pick 337)
+  * allow setting of passwords and enabling/disabling ssh password auth
+    via cloud-config (cherry pick 338)
+
+ -- Scott Moser <smoser@ubuntu.com>  Mon, 31 Jan 2011 12:48:39 -0500
+
 cloud-init (0.6.0-0ubuntu2) natty; urgency=low
 
   * add a debian/README.source file

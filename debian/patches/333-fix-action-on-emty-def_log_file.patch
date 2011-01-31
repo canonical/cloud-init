@@ -1,0 +1,55 @@
+------------------------------------------------------------
+revno: 333
+committer: Scott Moser <smoser@ubuntu.com>
+branch nick: trunk
+timestamp: Thu 2011-01-27 10:27:54 -0500
+message:
+  take correct action if def_log_file and syslog_fix_perms are empty
+=== modified file 'cloudinit/__init__.py'
+--- old/cloudinit/__init__.py	2011-01-27 14:30:37 +0000
++++ new/cloudinit/__init__.py	2011-01-27 15:27:54 +0000
+@@ -482,13 +482,12 @@
+     util.ensure_dirs(dlist)
+ 
+     cfg = util.get_base_cfg(system_config,cfg_builtin,parsed_cfgs)
+-    log_file = None
+-    if 'def_log_file' in cfg:
+-        log_file = cfg['def_log_file']
++    log_file = util.get_cfg_option_str(cfg, 'def_log_file', None)
++    perms = util.get_cfg_option_str(cfg, 'syslog_fix_perms', None)
++    if log_file:
+         fp = open(log_file,"ab")
+         fp.close()
+-    if log_file and 'syslog_fix_perms' in cfg:
+-        perms = cfg['syslog_fix_perms']
++    if log_file and perms:
+         (u,g) = perms.split(':',1)
+         if u == "-1" or u == "None": u = None
+         if g == "-1" or g == "None": g = None
+
+=== modified file 'doc/examples/cloud-config.txt'
+--- old/doc/examples/cloud-config.txt	2011-01-26 22:09:52 +0000
++++ new/doc/examples/cloud-config.txt	2011-01-27 15:27:54 +0000
+@@ -328,3 +328,21 @@
+ # timezone: set the timezone for this instance
+ # the value of 'timezone' must exist in /usr/share/zoneinfo
+ timezone: US/Eastern
++
++# def_log_file and syslog_fix_perms work together
++# if 
++# - logging is set to go to a log file 'L' both with and without syslog
++# - and 'L' does not exist
++# - and syslog is configured to write to 'L'
++# then 'L' will be initially created with root:root ownership (during
++# cloud-init), and then at cloud-config time (when syslog is available)
++# the syslog daemon will be unable to write to the file.
++# 
++# to remedy this situation, 'def_log_file' can be set to a filename
++# and syslog_fix_perms to a string containing "<user>:<group>"
++#
++# the default values are '/var/log/cloud-init.log' and 'syslog:adm'
++# the value of 'def_log_file' should match what is configured in logging
++# if either is empty, then no change of ownership will be done
++def_log_file: /var/log/my-logging-file.log
++syslog_fix_perms: syslog:root
+
