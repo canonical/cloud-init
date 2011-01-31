@@ -106,6 +106,7 @@ class DataSourceNoCloud(DataSource.DataSource):
 def parse_cmdline_data(ds_id,fill,cmdline=None):
     if cmdline is None:
         cmdline = util.get_cmdline()
+    cmdline = " %s " % cmdline
 
     if not ( " %s " % ds_id in cmdline or " %s;" % ds_id in cmdline ):
         return False
