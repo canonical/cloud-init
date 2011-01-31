@@ -173,9 +173,8 @@ class CloudInit:
             data = cPickle.dump(self.datasource,f)
             f.close()
             os.chmod(cache,0400)
-            return True
         except:
-            return False
+            raise
         
     def get_data_source(self):
         if self.datasource is not None: return True
