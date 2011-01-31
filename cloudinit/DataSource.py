@@ -22,17 +22,22 @@ DEP_NETWORK = "NETWORK"
 
 import UserDataHandler as ud
 
+log = None
+def setlog(log_in=None, name="DataSource"):
+    log = log_in
+    if log is None:
+        class NullHandler(logging.Handler):
+            def emit(self,record): pass
+        log = logging.getLogger(name)
+        log.addHandler(NullHandler())
+
 class DataSource:
     userdata = None
     metadata = None
     userdata_raw = None
-    log = None
 
-    def __init__(self, log=None):
-        if not log:
-            import logging
-            log = logging.log
-        self.log = log
+    def __init__(self):
+        pass
 
     def get_userdata(self):
         if self.userdata == None:

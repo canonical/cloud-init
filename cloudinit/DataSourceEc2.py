@@ -17,6 +17,7 @@
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import DataSource
+log = DataSource.log
 
 from cloudinit import seeddir
 import cloudinit.util as util
@@ -40,7 +41,7 @@ class DataSourceEc2(DataSource.DataSource):
         if util.read_optional_seed(seedret,base=self.seeddir+ "/"):
             self.userdata_raw = seedret['user-data']
             self.metadata = seedret['meta-data']
-            self.log.debug("using seeded ec2 data in %s" % self.seeddir)
+            log.debug("using seeded ec2 data in %s" % self.seeddir)
             return True
         
         try:
@@ -102,13 +103,13 @@ class DataSourceEc2(DataSource.DataSource):
                 reason = "url error [%s]" % e.reason
     
             if x == 0:
-                self.log.warning("waiting for metadata service at %s\n" % url)
+                log.warning("waiting for metadata service at %s\n" % url)
 
-            self.log.warning("  %s [%02s/%s]: %s\n" %
+            log.warning("  %s [%02s/%s]: %s\n" %
                 (time.strftime("%H:%M:%S",time.gmtime()), x+1, sleeps, reason))
             time.sleep(sleeptime)
 
-        self.log.critical("giving up on md after %i seconds\n" %
+        log.critical("giving up on md after %i seconds\n" %
                   int(time.time()-starttime))
         return False
 
@@ -128,7 +129,7 @@ class DataSourceEc2(DataSource.DataSource):
             if entname == "ephemeral" and name == "ephemeral0":
                 found = device
         if found == None:
-            self.log.warn("unable to convert %s to a device" % name)
+            log.warn("unable to convert %s to a device" % name)
             return None
 
         # LP: #611137
@@ -151,7 +152,7 @@ class DataSourceEc2(DataSource.DataSource):
             for nto in tlist:
                 cand = "/dev/%s%s" % (nto, short[len(nfrom):])
                 if os.path.exists(cand):
-                    self.log.debug("remapped device name %s => %s" % (found,cand))
+                    log.debug("remapped device name %s => %s" % (found,cand))
                     return(cand)
         return ofound
 

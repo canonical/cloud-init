@@ -17,6 +17,7 @@
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import DataSource
+log = DataSource.log
 
 from cloudinit import seeddir
 import cloudinit.util as util
@@ -54,7 +55,7 @@ class DataSourceNoCloud(DataSource.DataSource):
             if parse_cmdline_data(self.cmdline_id, md):
                 found.append("cmdline")
         except:
-            util.logexc(self.log,util.WARN)
+            util.logexc(log)
             return False
 
         # check to see if the seeddir has data.
@@ -63,7 +64,7 @@ class DataSourceNoCloud(DataSource.DataSource):
             md = util.mergedict(md,seedret['meta-data'])
             ud = seedret['user-data']
             found.append(self.seeddir)
-            self.log.debug("using seeded cache data in %s" % self.seeddir)
+            log.debug("using seeded cache data in %s" % self.seeddir)
 
         # there was no indication on kernel cmdline or data
         # in the seeddir suggesting this handler should be used.
@@ -80,14 +81,14 @@ class DataSourceNoCloud(DataSource.DataSource):
                     seedfound=proto
                     break
             if not seedfound:
-                self.log.debug("seed from %s not supported by %s" %
+                log.debug("seed from %s not supported by %s" %
                     (seedfrom, self.__class__))
                 return False
 
             # this could throw errors, but the user told us to do it
             # so if errors are raised, let them raise
             (md_seed,ud) = util.read_seeded(seedfrom)
-            self.log.debug("using seeded cache data from %s" % seedfrom)
+            log.debug("using seeded cache data from %s" % seedfrom)
 
             # values in the command line override those from the seed
             md = util.mergedict(md,md_seed)
