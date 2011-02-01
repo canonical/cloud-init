@@ -516,7 +516,7 @@ def purge_cache():
 
 # get_ipath_cur: get the current instance path for an item
 def get_ipath_cur(name=None):
-    return("%s/instance/%s" % (varlibdir, pathmap[name]))
+    return("%s/%s%s" % (varlibdir, "instance", pathmap[name]))
 
 # get_cpath : get the "clouddir" (/var/lib/cloud/<name>)
 # for a name in dirmap
