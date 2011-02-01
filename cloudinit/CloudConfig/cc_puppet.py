@@ -67,7 +67,7 @@ def handle(name,cfg,cloud,log,args):
                               cloud.datasource.get_instance_id())
                         # certname needs to be downcase
                         v = v.lower()
-                    puppet_conf_fh.write("%s=\"%s\"\n" % (o, v))
+                    puppet_conf_fh.write("%s=%s\n" % (o, v))
         puppet_conf_fh.close()
     # Set puppet default file to automatically start
     subprocess.check_call(['sed', '-i',
