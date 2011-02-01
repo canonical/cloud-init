@@ -1,3 +1,10 @@
+cloud-init (0.6.0-0ubuntu4) natty; urgency=low
+
+  * fix running of user scripts (LP: #711480) (cherry pick 344) 
+  * fix 2 lintian warnings
+
+ -- Scott Moser <smoser@ubuntu.com>  Tue, 01 Feb 2011 16:15:30 -0500
+
 cloud-init (0.6.0-0ubuntu3) natty; urgency=low
 
   * make a better attempt at deciding if DataSourceEc2 should be used

@@ -1,0 +1,27 @@
+------------------------------------------------------------
+revno: 344
+fixes bug(s): https://launchpad.net/bugs/711480
+committer: Scott Moser <smoser@ubuntu.com>
+branch nick: trunk
+timestamp: Tue 2011-02-01 15:46:10 -0500
+message:
+  fix the path for user scripts.
+  
+  A bug caused user scripts to get stored in
+  /var/lib/cloud/instance/scripts/<instance-id>/
+  
+  which meant they would not get run by 'run-user-scripts'.
+=== modified file 'cloudinit/__init__.py'
+--- a/cloudinit/__init__.py
++++ b/cloudinit/__init__.py
+@@ -391,8 +391,8 @@
+ 
+         filename=filename.replace(os.sep,'_')
+         scriptsdir = get_ipath_cur('scripts')
+-        util.write_file("%s/%s/%s" % 
+-            (scriptsdir,self.get_instance_id(),filename), payload, 0700)
++        util.write_file("%s/%s" % 
++            (scriptsdir,filename), payload, 0700)
+ 
+     def handle_upstart_job(self,data,ctype,filename,payload):
+         if ctype == "__end__" or ctype == "__begin__": return

@@ -5,3 +5,4 @@
 336-rename-process-user-data-file.txt.patch
 337-add-datasource-info-in-cloud-data.patch
 338-allow-setting-passwords-and-ssh-pwauth.patch
+344-fix-user-scripts.patch
