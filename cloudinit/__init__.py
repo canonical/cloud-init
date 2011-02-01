@@ -393,8 +393,8 @@ class CloudInit:
 
         filename=filename.replace(os.sep,'_')
         scriptsdir = get_ipath_cur('scripts')
-        util.write_file("%s/%s/%s" % 
-            (scriptsdir,self.get_instance_id(),filename), payload, 0700)
+        util.write_file("%s/%s" % 
+            (scriptsdir,filename), payload, 0700)
 
     def handle_upstart_job(self,data,ctype,filename,payload):
         if ctype == "__end__" or ctype == "__begin__": return
