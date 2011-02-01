@@ -5,6 +5,7 @@
  - add 'datasource' file to instance dir
  - add setting of passwords and enabling/disabling of PasswordAuthentication
    for sshd.  By default no changes are done to sshd.
+ - fix for puppet configuration options (LP: #709946) [Ryan Lane]
 0.6.0:
  - change permissions of /var/log/cloud-init.log to accomodate
    syslog writing to it (LP: #704509)
