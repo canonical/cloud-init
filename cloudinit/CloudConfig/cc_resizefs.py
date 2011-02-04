@@ -31,7 +31,7 @@ def handle(name,cfg,cloud,log,args):
 
     log.debug("resizing root filesystem on first boot")
 
-    cmd = ['blkid', '-sTYPE', '-ovalue', '/dev/root']
+    cmd = ['blkid', '-c', '/dev/null', '-sTYPE', '-ovalue', '/dev/root']
     try:
         (fstype,err) = util.subp(cmd)
     except Exception as e:
@@ -49,6 +49,6 @@ def handle(name,cfg,cloud,log,args):
     try:
         (out,err) = util.subp(resize_cmd)
     except Exception as e:
-        log.warn("Failed to resize filesystem (%s,%s)" % cmd)
+        log.warn("Failed to resize filesystem (%s)" % resize_cmd)
         raise
         
