@@ -6,6 +6,8 @@
  - add setting of passwords and enabling/disabling of PasswordAuthentication
    for sshd.  By default no changes are done to sshd.
  - fix for puppet configuration options (LP: #709946) [Ryan Lane]
+ - fix pickling of DataSource, which broke seeding.
+ - turn resize_rootfs default to True
 0.6.0:
  - change permissions of /var/log/cloud-init.log to accomodate
    syslog writing to it (LP: #704509)
