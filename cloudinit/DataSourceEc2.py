@@ -17,9 +17,8 @@
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import DataSource
-log = DataSource.log
 
-from cloudinit import seeddir
+from cloudinit import seeddir, log
 import cloudinit.util as util
 import socket
 import urllib2

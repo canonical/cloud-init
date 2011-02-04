@@ -18,7 +18,7 @@
 
 import DataSource
 
-from cloudinit import seeddir
+from cloudinit import seeddir, log
 import cloudinit.util as util
 import sys
 import os.path

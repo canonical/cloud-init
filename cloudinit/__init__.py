@@ -102,7 +102,6 @@ def logging_set_from_cfg(cfg):
 
 
 import DataSource
-DataSource.setlog(log)
 import UserDataHandler
 
 class CloudInit:
