@@ -1,0 +1,5 @@
+cloud-init (0.6.0) UNRELEASED; urgency=low
+
+  * build
+
+ -- Scott Moser <smoser@ubuntu.com>  Tue, 01 Feb 2011 16:15:30 -0500
