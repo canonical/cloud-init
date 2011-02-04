@@ -201,6 +201,15 @@ def transport_iso9660(require_iso=False):
         if fullp in mounted or not cdmatch.match(dev) or os.path.isdir(fullp):
             continue
 
+        fp = None
+        try:
+            fp = open(fullp, "rb")
+            fp.read(512)
+            fp.close()
+        except:
+            if fp: fp.close()
+            continue
+
         if tmpd is None:
             tmpd = tempfile.mkdtemp()
         if dvnull is None:
