@@ -1,0 +1,20 @@
+#!/bin/sh
+
+TEMP_D=$(mktemp -d "${TMPDIR:-/tmp}/${0##*/}.XXXXXXX")
+#TEMP_D=/tmp/my.d
+start=${PWD}
+rm -Rf "${TEMP_D}"; mkdir "${TEMP_D}"
+set -e
+trap "rm -Rf '${TEMP_D}'" exit
+files=$(bzr ls --versioned)
+mkdir "${TEMP_D}/cloud-init"
+tar -cf - ${files} | tar -C "${TEMP_D}/cloud-init" -xf -
+if [ ! -d "${TEMP_D}/cloud-init/debian" ]; then
+   rsync -a debian.trunk/ "${TEMP_D}/cloud-init/debian"
+fi
+cd "${TEMP_D}/cloud-init"
+debuild "$@"
+for x in ../*.deb; do
+   echo wrote ${x##*/}
+done
+mv ../*.deb "${start}"
