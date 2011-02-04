@@ -25,7 +25,7 @@ def handle(name,cfg,cloud,log,args):
         if str(value).lower() in [ 'true', '1', 'on', 'yes']:
             resize_root = True
     else:
-        resize_root = util.get_cfg_option_bool(cfg,"resize_rootfs",False)
+        resize_root = util.get_cfg_option_bool(cfg,"resize_rootfs",True)
 
     if not resize_root: return
 
