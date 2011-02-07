@@ -20,6 +20,7 @@ import subprocess
 import traceback
 import os
 import glob
+import cloudinit.CloudConfig as cc
 
 def handle(name,cfg,cloud,log,args):
     update = util.get_cfg_option_bool(cfg, 'apt_update', False)
@@ -54,29 +55,15 @@ def handle(name,cfg,cloud,log,args):
             log.error("Failed to run debconf-set-selections")
             log.debug(traceback.format_exc())
 
-    pkglist = []
-    if 'packages' in cfg:
-        if isinstance(cfg['packages'],list):
-            pkglist = cfg['packages']
-        else: pkglist.append(cfg['packages'])
-
-    if update or upgrade or pkglist:
-        #retcode = subprocess.call(list)
-        subprocess.Popen(['apt-get', 'update']).communicate()
-
-    e=os.environ.copy()
-    e['DEBIAN_FRONTEND']='noninteractive'
+    if update:
+        cc.update_package_sources()
 
     if upgrade:
-        cmd=[ 'apt-get', '--option', 'Dpkg::Options::=--force-confold',
-              'upgrade', '--assume-yes' ]
+        cc.apt_get("upgrade")
 
-        subprocess.Popen(cmd, env=e).communicate()
-
-    if pkglist:
-        cmd=['apt-get', 'install', '--assume-yes']
-        cmd.extend(pkglist)
-        subprocess.Popen(cmd, env=e).communicate()
+    pkglist = util.get_cfg_option_list_or_str(cfg,'packages',[])
+    if len(pkglist):
+        cc.install_packages(pkglist)
 
     return(True)
 

@@ -231,3 +231,20 @@ def run_per_instance(name, func, args, clear_on_fail=False):
     except:
         if clear_on_fail: os.unlink(semfile)
         raise
+
+# apt_get top level command (install, update...), and args to pass it
+def apt_get(tlc,args=[]):
+    e=os.environ.copy()
+    e['DEBIAN_FRONTEND']='noninteractive'
+    cmd=[ 'apt-get',
+          '--option', 'Dpkg::Options::=--force-confold', '--assume-yes',
+          tlc ]
+    cmd.extend(args)
+    subprocess.check_call(cmd,env=e)
+
+def update_package_sources():
+    run_per_instance("update-sources", apt_get, ("update",))
+
+def install_packages(pkglist):
+    update_package_sources()
+    apt_get("install",pkglist)
