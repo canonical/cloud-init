@@ -21,14 +21,30 @@ DEP_FILESYSTEM = "FILESYSTEM"
 DEP_NETWORK = "NETWORK"
 
 import UserDataHandler as ud
+import cloudinit.util as util
 
 class DataSource:
     userdata = None
     metadata = None
     userdata_raw = None
+    cfgname = ""
+    # system config (passed in from cloudinit, 
+    # cloud-config before input from the DataSource)
+    sys_cfg = { }
+    # datasource config, the cloud-config['datasource']['__name__']
+    ds_cfg = { }  # datasource config
 
-    def __init__(self):
-        pass
+    def __init__(self,sys_cfg=None):
+        if not self.cfgname:
+            name = str(self.__class__).split(".")[-1]
+            if name.startswith("DataSource"):
+                name = name[len("DataSource"):]
+            self.cfgname = name
+        if sys_cfg:
+            self.sys_cfg = sys_cfg
+
+        self.ds_cfg = util.get_cfg_by_path(self.sys_cfg,
+                          ("datasource",self.cfgname),self.ds_cfg)
 
     def get_userdata(self):
         if self.userdata == None:
