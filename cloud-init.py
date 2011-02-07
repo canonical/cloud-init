@@ -93,7 +93,10 @@ def main():
     # but we want 'start' to benefit from a cache if
     # a previous start-local populated one
     if cmd == "start-local":
-        cloudinit.purge_cache()
+        manclean = util.get_cfg_option_bool(cfg, 'manual_cache_clean',False)
+        if manclean:
+            log.debug("not purging cache, manual_cache_clean = True")
+        cloudinit.purge_cache(not manclean)
 
     cloud = cloudinit.CloudInit(ds_deps=deps[cmd])
 

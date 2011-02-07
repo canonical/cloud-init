@@ -501,8 +501,9 @@ def initfs():
         if g == "-1" or g == "None": g = None
         util.chownbyname(log_file, u, g)
 
-def purge_cache():
-    rmlist = ( boot_finished , cur_instance_link )
+def purge_cache(rmcur=True):
+    rmlist = [ boot_finished ]
+    if rmcur: rmlist.append(cur_instance_link)
     for f in rmlist:
         try:
             os.unlink(f)

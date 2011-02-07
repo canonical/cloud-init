@@ -10,6 +10,9 @@
  - turn resize_rootfs default to True
  - avoid mounts in DataSourceOVF if 'read' on device fails
    'mount /dev/sr0' for an empty virtual cdrom device was taking 18 seconds
+ - add 'manual_cache_clean' option to select manual cleaning of
+   the /var/lib/cloud/instance/ link, for a data source that might
+   not be present on every boot
 0.6.0:
  - change permissions of /var/log/cloud-init.log to accomodate
    syslog writing to it (LP: #704509)

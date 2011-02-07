@@ -383,3 +383,13 @@ syslog_fix_perms: syslog:root
 password: passw0rd
 chpasswd: { expire: False }
 ssh_pwauth: True
+
+# manual cache clean.
+#  By default, the link from /var/lib/cloud/instance to
+#  the specific instance in /var/lib/cloud/instances/ is removed on every
+#  boot.  The cloud-init code then searches for a DataSource on every boot
+#  if your DataSource will not be present on every boot, then you can set
+#  this option to 'True', and maintain (remove) that link before the image
+#  will be booted as a new instance.
+# default is False
+manual_cache_clean = False
