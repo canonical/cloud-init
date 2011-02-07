@@ -190,6 +190,16 @@ runcmd:
  - [ wget, "http://slashdot.org", -O, /tmp/index.html ]
 
 
+# boot commands
+# default: none
+# this is very similar to runcmd above, but commands run very early
+# in the boot process, only slightly after a 'boothook' would run.
+# bootcmd should really only be used for things that could not be
+# done later in the boot process.  bootcmd is very much like
+# boothook, but possibly with more friendly
+bootcmd:
+ - echo 192.168.1.130 us.archive.ubuntu.com > /etc/hosts
+
 # cloud_config_modules:
 # default:
 # cloud_config_modules:
