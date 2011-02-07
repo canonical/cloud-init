@@ -1,5 +1,3 @@
-- configurable timeouts of ec2 md
-- manual management of cache (so as to allow eject of ovf cdrom)
 - conf.d rather than 'opt_include' (or #include)
 - consider 'failsafe' DataSource
   If all others fail, setting a default that
