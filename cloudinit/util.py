@@ -82,6 +82,15 @@ def get_cfg_option_list_or_str(yobj, key, default=None):
     if isinstance(yobj[key],list): return yobj[key]
     return([yobj[key]])
 
+# get a cfg entry by its path array
+# for f['a']['b']: get_cfg_by_path(mycfg,('a','b'))
+def get_cfg_by_path(yobj,keyp,default=None):
+    cur = yobj
+    for tok in keyp:
+        if tok not in cur: return(default)
+        cur = cur[tok]
+    return(cur)
+
 # merge values from src into cand.
 # if src has a key, cand will not override
 def mergedict(src,cand):
