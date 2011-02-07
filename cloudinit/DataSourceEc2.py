@@ -80,7 +80,25 @@ class DataSourceEc2(DataSource.DataSource):
             return fallback
 
 
-    def wait_for_metadata_service(self, sleeps = 100):
+    def wait_for_metadata_service(self, sleeps = None):
+        mcfg = self.ds_cfg
+        if sleeps is None:
+            sleeps = 30
+            try:
+                sleeps = int(mcfg.get("retries",sleeps))
+            except Exception as e:
+                util.logexc(log)
+                log.warn("Failed to get number of sleeps, using %s" % sleeps)
+
+        if sleeps == 0: return False
+
+        timeout=2
+        try:
+            timeout = int(mcfg.get("timeout",timeout))
+        except Exception as e:
+            util.logexc(log)
+            log.warn("Failed to get timeout, using %s" % timeout)
+
         sleeptime = 1
         address = '169.254.169.254'
         starttime = time.time()
@@ -93,7 +111,7 @@ class DataSourceEc2(DataSource.DataSource):
             reason = ""
             try:
                 req = urllib2.Request(url)
-                resp = urllib2.urlopen(req, timeout=2)
+                resp = urllib2.urlopen(req, timeout=timeout)
                 if resp.read() != "": return True
                 reason = "empty data [%s]" % resp.getcode()
             except urllib2.HTTPError as e:
