@@ -14,6 +14,8 @@
    the /var/lib/cloud/instance/ link, for a data source that might
    not be present on every boot
  - make DataSourceEc2 retries and timeout configurable
+ - add helper routines for apt-get update and install
+ - add 'bootcmd' like 'runcmd' to cloud-config syntax for running things early
 0.6.0:
  - change permissions of /var/log/cloud-init.log to accomodate
    syslog writing to it (LP: #704509)

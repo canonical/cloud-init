@@ -338,3 +338,22 @@ def readurl(url, data=None):
 
    response = urllib2.urlopen(req)
    return(response.read())
+
+# shellify, takes a list of commands
+#  for each entry in the list
+#    if it is an array, shell protect it (with single ticks)
+#    if it is a string, do nothing
+def shellify(cmdlist):
+    content="#!/bin/sh\n"
+    escaped="%s%s%s%s" % ( "'", '\\', "'", "'" )
+    for args in cmdlist:
+        # if the item is a list, wrap all items in single tick
+        # if its not, then just write it directly
+        if isinstance(args,list):
+            fixed = [ ]
+            for f in args:
+                fixed.append("'%s'" % str(f).replace("'",escaped))
+            content="%s%s\n" % ( content, ' '.join(fixed) )
+        else:
+            content="%s%s\n" % ( content, str(args) )
+    return content
