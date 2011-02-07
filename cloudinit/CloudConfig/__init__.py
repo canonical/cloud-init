@@ -23,6 +23,7 @@ import sys
 import traceback
 import os
 import subprocess
+import time
 
 per_instance="once-per-instance"
 per_always="always"
@@ -219,3 +220,14 @@ def redirect_output(outfmt,errfmt, o_out=sys.stdout, o_err=sys.stderr):
         if o_err:
             os.dup2(new_fp.fileno(), o_err.fileno())
     return
+
+def run_per_instance(name, func, args, clear_on_fail=False):
+    semfile = "%s/%s" % (cloudinit.get_ipath_cur("data"),name)
+    if os.path.exists(semfile): return
+
+    util.write_file(semfile,str(time.time()))
+    try:
+        func(*args)
+    except:
+        if clear_on_fail: os.unlink(semfile)
+        raise
