@@ -42,7 +42,7 @@ pathmap = {
    "userdata" : "/user-data.txt.i",
    "obj_pkl" : "/obj.pkl",
    "cloud_config" : "/cloud-config.txt",
-   "datadir" : "/data",
+   "data" : "/data",
    None : "",
 }
 
@@ -219,7 +219,7 @@ class CloudInit:
         util.ensure_dirs(dlist)
 
         ds = "%s: %s\n" % ( self.datasource.__class__, str(self.datasource) )
-        dp = self.get_cpath('datadir')
+        dp = self.get_cpath('data')
         util.write_file("%s/%s" % (idir, 'datasource'), ds)
         util.write_file("%s/%s" % (dp, 'previous-datasource'), ds)
         util.write_file("%s/%s" % (dp, 'previous-instance-id'), "%s\n" % iid)
