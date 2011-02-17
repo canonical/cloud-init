@@ -16,6 +16,9 @@
  - make DataSourceEc2 retries and timeout configurable
  - add helper routines for apt-get update and install
  - add 'bootcmd' like 'runcmd' to cloud-config syntax for running things early
+ - move from '#opt_include' in config file format to conf_d.
+   ie, now files in /etc/cloud.cfg.d/ is read rather than reading
+   '#opt_include <filename>' or '#include <filename>' in cloud.cfg
 0.6.0:
  - change permissions of /var/log/cloud-init.log to accomodate
    syslog writing to it (LP: #704509)
