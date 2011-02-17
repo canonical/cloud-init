@@ -1,4 +1,3 @@
-- conf.d rather than 'opt_include' (or #include)
 - consider 'failsafe' DataSource
   If all others fail, setting a default that
    - sets the user password, writing it to console

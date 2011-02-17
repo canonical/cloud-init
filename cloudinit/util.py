@@ -44,9 +44,7 @@ def get_base_cfg(cfgfile,cfg_builtin="", parsed_cfgs=None):
     if parsed_cfgs and cfgfile in parsed_cfgs:
         return(parsed_cfgs[cfgfile])
 
-    contents = read_file_with_includes(cfgfile)
-    if contents:
-        syscfg = yaml.load(contents)
+    syscfg = read_conf_with_confd(cfgfile)
 
     kern_contents = read_cc_from_cmdline()
     if kern_contents:
@@ -259,6 +257,40 @@ def read_file_with_includes(fname, rel = ".", stack=[], patt = None):
 	cur = loc + len(inc_contents)
     stack.pop()
     return(contents)
+
+def read_conf_d(confd):
+    # get reverse sorted list (later trumps newer)
+    confs = sorted(os.listdir(confd),reverse=True)
+    
+    # remove anything not ending in '.cfg'
+    confs = filter(lambda f: f.endswith(".cfg"), confs)
+
+    # remove anything not a file
+    confs = filter(lambda f: os.path.isfile("%s/%s" % (confd,f)),confs)
+
+    cfg = { }
+    for conf in confs:
+        cfg = mergedict(cfg,read_conf("%s/%s" % (confd,conf)))
+
+    return(cfg)
+
+def read_conf_with_confd(cfgfile):
+    cfg = read_conf(cfgfile)
+    confd = False
+    if "conf_d" in cfg:
+        if cfg['conf_d'] is not None:
+            confd = cfg['conf_d']
+            if not isinstance(confd,str):
+                raise Exception("cfgfile %s contains 'conf_d' with non-string" % cfgfile)
+    elif os.path.isdir("%s.d" % cfgfile):
+        confd = "%s.d" % cfgfile
+
+    if not confd: return(cfg)
+
+    confd_cfg = read_conf_d(confd)
+
+    return(mergedict(confd_cfg,cfg))
+
 
 def get_cmdline():
     if 'DEBUG_PROC_CMDLINE' in os.environ:
