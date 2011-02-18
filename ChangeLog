@@ -22,6 +22,8 @@
  - allow /etc/hosts to be written from hosts.tmpl. which allows
    getting local-hostname into /etc/hosts (LP: #720440)
  - better handle startup if there is no eth0 (LP: #714807)
+ - update rather than append in puppet config [Marc Cluet]
+ - add cloud-config for mcollective [Marc Cluet]
 0.6.0:
  - change permissions of /var/log/cloud-init.log to accomodate
    syslog writing to it (LP: #704509)
