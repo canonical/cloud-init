@@ -61,7 +61,7 @@ def handle(name,cfg,cloud,log,args):
             else:
                 #puppet_conf_fh.write("\n[%s]\n" % (cfg_name))
                 # If puppet.conf already has this section we don't want to write it again
-                if puppet_config.has_section(cfg_name) == False
+                if puppet_config.has_section(cfg_name) == False:
                     puppet_config.add_section(cfg_name)
                 # Iterate throug the config items, we'll use ConfigParser.set
                 # to overwrite or create new items as needed
