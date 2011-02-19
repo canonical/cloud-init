@@ -31,7 +31,7 @@
       </Property>
       <Property ovf:key="seedfrom" ovf:type="string" ovf:userConfigurable="true"> 
           <Label>Url to seed instance data from</Label>
-          <Description>This field is optional, but indicates that the instance should 'seed' user-data and meta-data from the given url.  If set to 'http://tinyurl.com/sm-' is given, meta-data will be pulled from http://tinyurl.com/sm-meta-data and user-data from http://tinyurl.com/sm-user-data</Description>
+          <Description>This field is optional, but indicates that the instance should 'seed' user-data and meta-data from the given url.  If set to 'http://tinyurl.com/sm-' is given, meta-data will be pulled from http://tinyurl.com/sm-meta-data and user-data from http://tinyurl.com/sm-user-data.  Leave this empty if you do not want to seed from a url.</Description>
       </Property>
       <Property ovf:key="public-keys" ovf:type="string" ovf:userConfigurable="true" ovf:value="">
           <Label>ssh public keys</Label>
@@ -41,7 +41,7 @@
           <Label>Encoded user-data</Label>
           <Description>In order to fit into a xml attribute, this value is base64 encoded . It will be decoded, and then processed normally as user-data.</Description>
           <!--  The following represents '#!/bin/sh\necho "hi world"'
-          ovf:value="IyEvYmluL3NoDQplY2hvICJoaSB3b3JsZCI="
+          ovf:value="IyEvYmluL3NoCmVjaG8gImhpIHdvcmxkIgo="
         -->
       </Property>
       <Property ovf:key="password" ovf:type="string" ovf:userConfigurable="true" ovf:value="">
