@@ -44,9 +44,7 @@ def get_base_cfg(cfgfile,cfg_builtin="", parsed_cfgs=None):
     if parsed_cfgs and cfgfile in parsed_cfgs:
         return(parsed_cfgs[cfgfile])
 
-    contents = read_file_with_includes(cfgfile)
-    if contents:
-        syscfg = yaml.load(contents)
+    syscfg = read_conf_with_confd(cfgfile)
 
     kern_contents = read_cc_from_cmdline()
     if kern_contents:
@@ -81,6 +79,15 @@ def get_cfg_option_list_or_str(yobj, key, default=None):
     if not yobj.has_key(key): return default
     if isinstance(yobj[key],list): return yobj[key]
     return([yobj[key]])
+
+# get a cfg entry by its path array
+# for f['a']['b']: get_cfg_by_path(mycfg,('a','b'))
+def get_cfg_by_path(yobj,keyp,default=None):
+    cur = yobj
+    for tok in keyp:
+        if tok not in cur: return(default)
+        cur = cur[tok]
+    return(cur)
 
 # merge values from src into cand.
 # if src has a key, cand will not override
@@ -251,6 +258,40 @@ def read_file_with_includes(fname, rel = ".", stack=[], patt = None):
     stack.pop()
     return(contents)
 
+def read_conf_d(confd):
+    # get reverse sorted list (later trumps newer)
+    confs = sorted(os.listdir(confd),reverse=True)
+    
+    # remove anything not ending in '.cfg'
+    confs = filter(lambda f: f.endswith(".cfg"), confs)
+
+    # remove anything not a file
+    confs = filter(lambda f: os.path.isfile("%s/%s" % (confd,f)),confs)
+
+    cfg = { }
+    for conf in confs:
+        cfg = mergedict(cfg,read_conf("%s/%s" % (confd,conf)))
+
+    return(cfg)
+
+def read_conf_with_confd(cfgfile):
+    cfg = read_conf(cfgfile)
+    confd = False
+    if "conf_d" in cfg:
+        if cfg['conf_d'] is not None:
+            confd = cfg['conf_d']
+            if not isinstance(confd,str):
+                raise Exception("cfgfile %s contains 'conf_d' with non-string" % cfgfile)
+    elif os.path.isdir("%s.d" % cfgfile):
+        confd = "%s.d" % cfgfile
+
+    if not confd: return(cfg)
+
+    confd_cfg = read_conf_d(confd)
+
+    return(mergedict(confd_cfg,cfg))
+
+
 def get_cmdline():
     if 'DEBUG_PROC_CMDLINE' in os.environ:
         cmdline = os.environ["DEBUG_PROC_CMDLINE"]
@@ -329,3 +370,22 @@ def readurl(url, data=None):
 
    response = urllib2.urlopen(req)
    return(response.read())
+
+# shellify, takes a list of commands
+#  for each entry in the list
+#    if it is an array, shell protect it (with single ticks)
+#    if it is a string, do nothing
+def shellify(cmdlist):
+    content="#!/bin/sh\n"
+    escaped="%s%s%s%s" % ( "'", '\\', "'", "'" )
+    for args in cmdlist:
+        # if the item is a list, wrap all items in single tick
+        # if its not, then just write it directly
+        if isinstance(args,list):
+            fixed = [ ]
+            for f in args:
+                fixed.append("'%s'" % str(f).replace("'",escaped))
+            content="%s%s\n" % ( content, ' '.join(fixed) )
+        else:
+            content="%s%s\n" % ( content, str(args) )
+    return content

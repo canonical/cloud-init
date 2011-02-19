@@ -39,10 +39,10 @@ pathmap = {
    "sem" : "/sem",
    "boothooks" : "/boothooks",
    "userdata_raw" : "/user-data.txt",
-   "userdata" : "/user-data-raw.txt.i",
+   "userdata" : "/user-data.txt.i",
    "obj_pkl" : "/obj.pkl",
    "cloud_config" : "/cloud-config.txt",
-   "datadir" : "/data",
+   "data" : "/data",
    None : "",
 }
 
@@ -153,6 +153,7 @@ class CloudInit:
             cache = get_ipath_cur('obj_pkl')
             f=open(cache, "rb")
             data = cPickle.load(f)
+            f.close()
             self.datasource = data
             return True
         except:
@@ -169,10 +170,10 @@ class CloudInit:
         try:
             f=open(cache, "wb")
             data = cPickle.dump(self.datasource,f)
+            f.close()
             os.chmod(cache,0400)
-            return True
         except:
-            return False
+            raise
         
     def get_data_source(self):
         if self.datasource is not None: return True
@@ -188,7 +189,7 @@ class CloudInit:
         for cls in dslist:
             ds = cls.__name__
             try:
-                s = cls(log)
+                s = cls(sys_cfg=self.cfg)
                 if s.get_data():
                     self.datasource = s
                     self.datasource_name = ds
@@ -208,13 +209,20 @@ class CloudInit:
         except OSError as e:
             if e.errno != errno.ENOENT: raise
 
-        os.symlink("./instances/%s" % self.get_instance_id(), cur_instance_link)
+        iid = self.get_instance_id()
+        os.symlink("./instances/%s" % iid, cur_instance_link)
         idir = self.get_ipath()
         dlist = []
         for d in [ "handlers", "scripts", "sem" ]:
             dlist.append("%s/%s" % (idir, d))
             
         util.ensure_dirs(dlist)
+
+        ds = "%s: %s\n" % ( self.datasource.__class__, str(self.datasource) )
+        dp = self.get_cpath('data')
+        util.write_file("%s/%s" % (idir, 'datasource'), ds)
+        util.write_file("%s/%s" % (dp, 'previous-datasource'), ds)
+        util.write_file("%s/%s" % (dp, 'previous-instance-id'), "%s\n" % iid)
 
     def get_userdata(self):
         return(self.datasource.get_userdata())
@@ -384,8 +392,8 @@ class CloudInit:
 
         filename=filename.replace(os.sep,'_')
         scriptsdir = get_ipath_cur('scripts')
-        util.write_file("%s/%s/%s" % 
-            (scriptsdir,self.get_instance_id(),filename), payload, 0700)
+        util.write_file("%s/%s" % 
+            (scriptsdir,filename), payload, 0700)
 
     def handle_upstart_job(self,data,ctype,filename,payload):
         if ctype == "__end__" or ctype == "__begin__": return
@@ -482,20 +490,20 @@ def initfs():
     util.ensure_dirs(dlist)
 
     cfg = util.get_base_cfg(system_config,cfg_builtin,parsed_cfgs)
-    log_file = None
-    if 'def_log_file' in cfg:
-        log_file = cfg['def_log_file']
+    log_file = util.get_cfg_option_str(cfg, 'def_log_file', None)
+    perms = util.get_cfg_option_str(cfg, 'syslog_fix_perms', None)
+    if log_file:
         fp = open(log_file,"ab")
         fp.close()
-    if log_file and 'syslog' in cfg:
-        perms = cfg['syslog']
+    if log_file and perms:
         (u,g) = perms.split(':',1)
         if u == "-1" or u == "None": u = None
         if g == "-1" or g == "None": g = None
         util.chownbyname(log_file, u, g)
 
-def purge_cache():
-    rmlist = ( boot_finished , cur_instance_link )
+def purge_cache(rmcur=True):
+    rmlist = [ boot_finished ]
+    if rmcur: rmlist.append(cur_instance_link)
     for f in rmlist:
         try:
             os.unlink(f)
@@ -508,7 +516,7 @@ def purge_cache():
 
 # get_ipath_cur: get the current instance path for an item
 def get_ipath_cur(name=None):
-    return("%s/instance/%s" % (varlibdir, pathmap[name]))
+    return("%s/%s%s" % (varlibdir, "instance", pathmap[name]))
 
 # get_cpath : get the "clouddir" (/var/lib/cloud/<name>)
 # for a name in dirmap

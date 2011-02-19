@@ -1,5 +1,10 @@
 - environment.xml
   This is an example ovf environment file
+  to make an iso that qualifies for the ISO transport, do:
+    mkdir my-iso
+    cp environment.xml my-iso/ovf-env.xml
+    genisoimage -o transport.iso -r my-iso
+  Then, boot with that ISO attached as a CDrom
 - ProductSection.xml
   TODO: document what the ProductSection can look like
 - maverick-server.ovf

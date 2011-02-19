@@ -38,7 +38,8 @@
          boot-finished
             # this file indicates when "boot" is finished
             # it is created by the 'final_message' cloud-config
-          
+         datasource # a file containing the class and string of datasource
+
   - sem/
       scripts.once
     These are the cloud-specific semaphores.  The only thing that
@@ -52,6 +53,9 @@
   - data/
       this is a persistent data location.  cloud-init won't really
       use it, but something else (a handler or script could)
+      previous-datasource
+      previous-instance-id
+      previous-hostname
 
 to clear out the current instance's data as if to force a "new run" on reboot
 do:

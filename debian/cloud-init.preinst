@@ -154,4 +154,11 @@ case "$1" in
          # convert /var/lib/cloud from 0.5.x layout to 0.6.x
          convert_varlib_05x_06x
       fi
+
+      d=/etc/cloud/
+      if [ -f "$d/distro.cfg" ] && [ ! -f "$d/cloud.cfg.d/90_dpkg.cfg" ]; then
+         echo "moving $d/distro.cfg -> $d/cloud.cfg.d/90_dpkg.cfg"
+         [ -d "${d}/cloud.cfg.d" ] || mkdir "${d}/cloud.cfg.d"
+         mv "$d/distro.cfg" "$d/cloud.cfg.d/90_dpkg.cfg"
+      fi
 esac

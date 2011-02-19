@@ -1,6 +1,6 @@
 # vi: ts=4 expandtab
 #
-#    Copyright (C) 2009-2010 Canonical Ltd.
+#    Copyright (C) 2009-2011 Canonical Ltd.
 #
 #    Author: Scott Moser <scott.moser@canonical.com>
 #
@@ -15,15 +15,26 @@
 #
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
-import cloudinit
 import cloudinit.util as util
+import subprocess
+import tempfile
 
 def handle(name,cfg,cloud,log,args):
-    if not cfg.has_key("runcmd"):
+    if not cfg.has_key("bootcmd"):
         return
-    outfile="%s/runcmd" % cloud.get_ipath('scripts')
+
     try:
-        content = util.shellify(cfg["runcmd"])
-        util.write_file(outfile,content,0700)
+        content = util.shellify(cfg["bootcmd"])
+        tmpf = tempfile.TemporaryFile()
+        tmpf.write(content)
+        tmpf.seek(0)
     except:
-        log.warn("failed to open %s for runcmd" % outfile)
+        log.warn("failed to shellify bootcmd")
+        raise
+    
+    try:
+        subprocess.check_call(['/bin/sh'], stdin=tmpf)
+        tmpf.close()
+    except:
+        log.warn("failed to run commands from bootcmd")
+        raise

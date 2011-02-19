@@ -19,25 +19,27 @@ import os
 import pwd
 import socket
 import subprocess
+import StringIO
+import ConfigParser
+import cloudinit.CloudConfig as cc
 
 def handle(name,cfg,cloud,log,args):
     # If there isn't a puppet key in the configuration don't do anything
     if not cfg.has_key('puppet'): return
     puppet_cfg = cfg['puppet']
     # Start by installing the puppet package ...
-    e=os.environ.copy()
-    e['DEBIAN_FRONTEND']='noninteractive'
-    # Make sure that the apt database is updated since it's not run by
-    # default
-    # Note: we should have a helper to check if apt-get update 
-    # has already been run on this instance to speed the boot time.
-    subprocess.check_call(['apt-get', 'update'], env=e)
-    subprocess.check_call(['apt-get', 'install', '--assume-yes',
-                           'puppet'], env=e)
+    cc.install_packages(("puppet",))
+
     # ... and then update the puppet configuration
     if puppet_cfg.has_key('conf'):
         # Add all sections from the conf object to puppet.conf
-        puppet_conf_fh = open('/etc/puppet/puppet.conf', 'a')
+        puppet_conf_fh = open('/etc/puppet/puppet.conf', 'r')
+        # Create object for reading puppet.conf values
+        puppet_config = ConfigParser.ConfigParser()
+        # Read puppet.conf values from original file in order to be able to mix the rest up
+        puppet_config.readfp(StringIO.StringIO(''.join(i.lstrip() for i in puppet_conf_fh.readlines())))
+        # Close original file, no longer needed
+        puppet_conf_fh.close()
         for cfg_name, cfg in puppet_cfg['conf'].iteritems():
             # ca_cert configuration is a special case
             # Dump the puppetmaster ca certificate in the correct place
@@ -57,7 +59,12 @@ def handle(name,cfg,cloud,log,args):
                 os.chown('/var/lib/puppet/ssl/certs/ca.pem',
                          pwd.getpwnam('puppet').pw_uid, 0)
             else:
-                puppet_conf_fh.write("\n[%s]\n" % (cfg_name))
+                #puppet_conf_fh.write("\n[%s]\n" % (cfg_name))
+                # If puppet.conf already has this section we don't want to write it again
+                if puppet_config.has_section(cfg_name) == False:
+                    puppet_config.add_section(cfg_name)
+                # Iterate throug the config items, we'll use ConfigParser.set
+                # to overwrite or create new items as needed
                 for o, v in cfg.iteritems():
                     if o == 'certname':
                         # Expand %f as the fqdn
@@ -67,8 +74,13 @@ def handle(name,cfg,cloud,log,args):
                               cloud.datasource.get_instance_id())
                         # certname needs to be downcase
                         v = v.lower()
-                    puppet_conf_fh.write("%s=\"%s\"\n" % (o, v))
-        puppet_conf_fh.close()
+                    puppet_config.set(cfg_name,o,v)
+                    #puppet_conf_fh.write("%s=%s\n" % (o, v))
+            # We got all our config as wanted we'll rename
+            # the previous puppet.conf and create our new one
+            os.rename('/etc/puppet/puppet.conf','/etc/puppet/puppet.conf.old')
+            with open('/etc/puppet/puppet.conf', 'wb') as configfile:
+                puppet_config.write(configfile)
     # Set puppet default file to automatically start
     subprocess.check_call(['sed', '-i',
                            '-e', 's/^START=.*/START=yes/',

@@ -23,6 +23,7 @@ import sys
 import traceback
 import os
 import subprocess
+import time
 
 per_instance="once-per-instance"
 per_always="always"
@@ -32,13 +33,13 @@ class CloudConfig():
     cfgfile = None
     cfg = None
 
-    def __init__(self,cfgfile, cloud=None):
+    def __init__(self,cfgfile, cloud=None, ds_deps=[]):
         if cloud == None:
-            self.cloud = cloudinit.CloudInit()
+            self.cloud = cloudinit.CloudInit(ds_deps)
+            self.cloud.get_data_source()
         else:
             self.cloud = cloud
         self.cfg = self.get_config_obj(cfgfile)
-        self.cloud.get_data_source()
 
     def get_config_obj(self,cfgfile):
         try:
@@ -219,3 +220,31 @@ def redirect_output(outfmt,errfmt, o_out=sys.stdout, o_err=sys.stderr):
         if o_err:
             os.dup2(new_fp.fileno(), o_err.fileno())
     return
+
+def run_per_instance(name, func, args, clear_on_fail=False):
+    semfile = "%s/%s" % (cloudinit.get_ipath_cur("data"),name)
+    if os.path.exists(semfile): return
+
+    util.write_file(semfile,str(time.time()))
+    try:
+        func(*args)
+    except:
+        if clear_on_fail: os.unlink(semfile)
+        raise
+
+# apt_get top level command (install, update...), and args to pass it
+def apt_get(tlc,args=[]):
+    e=os.environ.copy()
+    e['DEBIAN_FRONTEND']='noninteractive'
+    cmd=[ 'apt-get',
+          '--option', 'Dpkg::Options::=--force-confold', '--assume-yes',
+          tlc ]
+    cmd.extend(args)
+    subprocess.check_call(cmd,env=e)
+
+def update_package_sources():
+    run_per_instance("update-sources", apt_get, ("update",))
+
+def install_packages(pkglist):
+    update_package_sources()
+    apt_get("install",pkglist)

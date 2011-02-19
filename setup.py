@@ -27,7 +27,7 @@ def is_f(p):
     return(os.path.isfile(p))
 
 setup(name='cloud-init',
-      version='0.6.0',
+      version='0.6.1',
       description='EC2 initialisation magic',
       author='Scott Moser',
       author_email='scott.moser@canonical.com',
@@ -36,9 +36,9 @@ setup(name='cloud-init',
       scripts=['cloud-init.py',
                'cloud-init-run-module.py',
                'cloud-init-cfg.py',
-               'cloud-init-query.py'
                ],
       data_files=[('/etc/cloud', glob('config/*.cfg')),
+                  ('/etc/cloud/cloud.cfg.d', glob('config/cloud.cfg.d/*')),
                   ('/etc/cloud/templates', glob('templates/*')),
                   ('/etc/init', glob('upstart/*.conf')),
                   ('/usr/share/cloud-init', []),

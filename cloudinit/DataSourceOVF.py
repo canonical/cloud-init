@@ -18,7 +18,7 @@
 
 import DataSource
 
-from cloudinit import seeddir
+from cloudinit import seeddir, log
 import cloudinit.util as util
 import sys
 import os.path
@@ -79,7 +79,7 @@ class DataSourceOVF(DataSource.DataSource):
         if len(found) == 0:
             return False
 
-        if 'seedfrom' in md:
+        if 'seedfrom' in md and md['seedfrom']:
             seedfrom = md['seedfrom']
             seedfound = False
             for proto in self.supported_seed_starts:
@@ -87,12 +87,12 @@ class DataSourceOVF(DataSource.DataSource):
                     seedfound = proto
                     break
             if not seedfound:
-                self.log.debug("seed from %s not supported by %s" %
+                log.debug("seed from %s not supported by %s" %
                     (seedfrom, self.__class__))
                 return False
 
             (md_seed,ud) = util.read_seeded(seedfrom)
-            self.log.debug("using seeded cache data from %s" % seedfrom)
+            log.debug("using seeded cache data from %s" % seedfrom)
 
             md = util.mergedict(md,md_seed)
             found.append(seedfrom)
@@ -199,6 +199,15 @@ def transport_iso9660(require_iso=False):
         fullp = "/dev/%s" % dev
 
         if fullp in mounted or not cdmatch.match(dev) or os.path.isdir(fullp):
+            continue
+
+        fp = None
+        try:
+            fp = open(fullp, "rb")
+            fp.read(512)
+            fp.close()
+        except:
+            if fp: fp.close()
             continue
 
         if tmpd is None:

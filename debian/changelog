@@ -1,3 +1,27 @@
+cloud-init (0.6.1-0ubuntu1) natty; urgency=low
+
+  * New upstream release.
+  * fix for puppet configuration options (LP: #709946) [Ryan Lane]
+  * fix pickling of DataSource, which broke seeding.
+  * turn resize_rootfs default to True
+  * avoid mounts in DataSourceOVF if 'read' on device fails
+    'mount /dev/sr0' for an empty virtual cdrom device was taking 18 seconds
+  * add 'manual_cache_clean' option to select manual cleaning of
+    the /var/lib/cloud/instance/ link, for a data source that might
+    not be present on every boot
+  * make DataSourceEc2 retries and timeout configurable
+  * add 'bootcmd' like 'runcmd' to cloud-config syntax for running things early
+  * move from '#opt_include' in config file format to conf_d.
+    now local config files should live in /etc/cloud/cloud.cfg.d/
+  * move /etc/cloud/distro.cfg to /etc/cloud/cloud.cfg.d/90_dpkg.cfg
+  * allow /etc/hosts to be written from hosts.tmpl. which allows
+    getting local-hostname into /etc/hosts (LP: #720440)
+  * better handle startup if there is no eth0 (LP: #714807)
+  * update rather than append in puppet config [Marc Cluet]
+  * add cloud-config for mcollective [Marc Cluet]
+
+ -- Scott Moser <smoser@ubuntu.com>  Sat, 19 Feb 2011 01:16:10 -0500
+
 cloud-init (0.6.0-0ubuntu4) natty; urgency=low
 
   * fix running of user scripts (LP: #711480) (cherry pick 344) 

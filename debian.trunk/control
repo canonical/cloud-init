@@ -1,0 +1,15 @@
+Source: cloud-init
+Section: admin
+Priority: extra
+Maintainer: Scott Moser <smoser@ubuntu.com>
+Build-Depends: cdbs, debhelper (>= 5.0.38), python, python-central (>= 0.5.6)
+XS-Python-Version: all
+Standards-Version: 3.9.1
+
+Package: cloud-init
+Architecture: all
+Depends: python, procps, python-configobj, python-cheetah, python-yaml, python-software-properties, cloud-utils, ${python:Depends}, ${misc:Depends}
+XB-Python-Version: ${python:Versions}
+Description: Init scripts for cloud instances
+ Cloud instances need special scripts to run during initialisation
+ to retrieve and install ssh keys and to let the user run various scripts.

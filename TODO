@@ -5,15 +5,6 @@
 - consider 'previous' DataSource
   If no other data source is found, fall back to the 'previous' one
   keep a indication of what instance id that is in /var/lib/cloud
-- allow setting of user password and lock account
-- move "user-scripts" upstart job to "final", possibly move its
-  contents to a managed script in /usr/lib/cloud
-- "final" things
- - messags to console
-   - failsafe warning
-   - ssh keys
-   - password (if set above)
- - post system info home
 - rewrite "cloud-init-query"
   have DataSource and cloudinit expose explicit fields
    - instance-id

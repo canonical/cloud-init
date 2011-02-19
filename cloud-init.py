@@ -27,6 +27,7 @@ import cloudinit.DataSource as ds
 import time
 import logging
 import errno
+import os
 
 def warn(wstr):
     sys.stderr.write("WARN:%s" % wstr)
@@ -75,25 +76,49 @@ def main():
     except Exception as e:
         warn("Failed to get and set output config: %s\n" % e)
 
-    msg = "cloud-init %s running: %s. up %s seconds" % (cmd, now, uptime)
-    sys.stderr.write(msg + "\n")
-    sys.stderr.flush()
-
     cloudinit.logging_set_from_cfg(cfg)
     log = logging.getLogger()
-    log.info(msg)
 
     try:
         cloudinit.initfs()
     except Exception as e:
         warn("failed to initfs, likely bad things to come: %s\n" % str(e))
-        
 
-    # cache is not instance specific, so it has to be purged
-    # but we want 'start' to benefit from a cache if
-    # a previous start-local populated one
-    if cmd == "start-local":
-        cloudinit.purge_cache()
+    nonet_path = "%s/%s" % (cloudinit.get_cpath("data"), "no-net")
+
+    if cmd == "start":
+        stop_files = ( cloudinit.get_ipath_cur("obj_pkl"), nonet_path )
+        # if starting as the network start, there are cases
+        # where everything is already done for us, and it makes
+        # most sense to exit early and silently
+        for f in stop_files:
+            try:
+                fp = open("/var/lib/cloud/instance/obj.pkl","r")
+                fp.close()
+            except:
+                continue
+            
+            log.debug("no need for cloud-init start to run (%s)\n", f)
+            sys.exit(0)
+    elif cmd == "start-local":
+        # cache is not instance specific, so it has to be purged
+        # but we want 'start' to benefit from a cache if
+        # a previous start-local populated one
+        manclean = util.get_cfg_option_bool(cfg, 'manual_cache_clean',False)
+        if manclean:
+            log.debug("not purging cache, manual_cache_clean = True")
+        cloudinit.purge_cache(not manclean)
+
+        try:
+            os.unlink(nonet_path)
+        except OSError as e:
+            if e.errno != errno.ENOENT: raise
+
+    msg = "cloud-init %s running: %s. up %s seconds" % (cmd, now, uptime)
+    sys.stderr.write(msg + "\n")
+    sys.stderr.flush()
+
+    log.info(msg)
 
     cloud = cloudinit.CloudInit(ds_deps=deps[cmd])
 
