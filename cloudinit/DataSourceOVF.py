@@ -79,7 +79,7 @@ class DataSourceOVF(DataSource.DataSource):
         if len(found) == 0:
             return False
 
-        if 'seedfrom' in md:
+        if 'seedfrom' in md and md['seedfrom']:
             seedfrom = md['seedfrom']
             seedfound = False
             for proto in self.supported_seed_starts:
