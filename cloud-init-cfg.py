@@ -60,7 +60,14 @@ def main():
     if os.environ.has_key(cfg_env_name):
         cfg_path = os.environ[cfg_env_name]
 
-    cc = CC.CloudConfig(cfg_path)
+    cloud = cloudinit.CloudInit(ds_deps=[]) # ds_deps=[], get only cached
+    try:
+        cloud.get_data_source()
+    except cloudinit.DataSourceNotFoundException as e:
+        # there was no datasource found, theres nothing to do
+        sys.exit(0)
+
+    cc = CC.CloudConfig(cfg_path,cloud)
 
     try:
         (outfmt, errfmt) = CC.get_output_cfg(cc.cfg,modename)

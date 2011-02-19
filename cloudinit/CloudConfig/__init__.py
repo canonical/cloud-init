@@ -33,13 +33,13 @@ class CloudConfig():
     cfgfile = None
     cfg = None
 
-    def __init__(self,cfgfile, cloud=None):
+    def __init__(self,cfgfile, cloud=None, ds_deps=[]):
         if cloud == None:
-            self.cloud = cloudinit.CloudInit()
+            self.cloud = cloudinit.CloudInit(ds_deps)
+            self.cloud.get_data_source()
         else:
             self.cloud = cloud
         self.cfg = self.get_config_obj(cfgfile)
-        self.cloud.get_data_source()
 
     def get_config_obj(self,cfgfile):
         try:
