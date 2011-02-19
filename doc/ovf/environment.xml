@@ -39,7 +39,7 @@
         The following represents '#!/bin/sh\necho "hi world"'
 
         -->
-        <Property oe:key="user-data" oe:value="IyEvYmluL3NoDQplY2hvICJoaSB3b3JsZCI="/>
+        <Property oe:key="user-data" oe:value="IyEvYmluL3NoCmVjaG8gImhpIHdvcmxkIgo="/>
         <Property oe:key="password" oe:value="passw0rd"/>
     </PropertySection>
 
