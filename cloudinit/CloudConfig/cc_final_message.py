@@ -46,7 +46,7 @@ def handle(name,cfg,cloud,log,args):
 
     try:
         subs = { 'UPTIME' : uptime, 'TIMESTAMP' : ts }
-        sys.stdout.write(util.render_string(msg_in, subs))
+        sys.stdout.write("%s\n" % util.render_string(msg_in, subs))
     except Exception as e:
         log.warn("failed to render string to stdout: %s" % e)
 
