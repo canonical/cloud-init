@@ -1,0 +1,15 @@
+#cloud-config
+#
+# This is an example file to automatically setup and run mcollective
+# when the instance boots for the first time.
+# Make sure that this file is valid yaml before starting instances.
+# It should be passed as user-data when starting the instance.
+mcollective:
+ # Every key present in the conf object will be added to server.cfg:
+ # key: value
+ #
+ # For example the configuration below will have the following key
+ # added to server.cfg:
+ # plugin.stomp.host: dbhost
+ conf:
+   plugin.stomp.host: dbhost
