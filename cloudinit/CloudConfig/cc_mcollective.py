@@ -61,7 +61,7 @@ def handle(name,cfg,cloud,log,args):
         mcollective_config.write(outputfile)
         # Now we got the whoe file, write to disk except first line
         final_configfile = open('/etc/mcollective/server.cfg', 'wb')
-        final_configfile.write(outputfile.getvalue().replace('[nullsection]\n',''))
+        final_configfile.write(outputfile.getvalue().replace('[nullsection]\n','').replace(' =',':'))
         final_configfile.close()
 
     # Start mcollective
