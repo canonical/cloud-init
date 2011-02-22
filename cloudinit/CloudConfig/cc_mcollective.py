@@ -20,20 +20,21 @@ import os
 import pwd
 import socket
 import subprocess
+import fileinput
 import StringIO
 import ConfigParser
 import cloudinit.CloudConfig as cc
 
 # Our fake header section
 class FakeSecHead(object):
-   def __init__(self, fp):
-     self.fp = fp
-     self.sechead = '[nullsection]\n'
-   def readline(self):
-     if self.sechead:
-       try: return self.sechead
-       finally: self.sechead = None
-     else: return self.fp.readline()
+    def __init__(self, fp):
+        self.fp = fp
+        self.sechead = '[nullsection]\n'
+    def readline(self):
+        if self.sechead:
+            try: return self.sechead
+            finally: self.sechead = None
+        else: return self.fp.readline()
 
 def handle(name,cfg,cloud,log,args):
     # If there isn't a mcollective key in the configuration don't do anything
@@ -53,11 +54,21 @@ def handle(name,cfg,cloud,log,args):
             # to overwrite or create new items as needed
             for o, v in cfg.iteritems():
                 mcollective_config.set(cfg_name,o,v)
-            # We got all our config as wanted we'll rename
-            # the previous server.cfg and create our new one
-            os.rename('/etc/mcollective/server.cfg','/etc/mcollective/server.cfg.old')
-            with open('/etc/mcollective/server.cfg', 'wb') as configfile:
-                mcollective_config.write(configfile)
+        # We got all our config as wanted we'll rename
+        # the previous server.cfg and create our new one
+        os.rename('/etc/mcollective/server.cfg','/etc/mcollective/server.cfg.old')
+        outputfile = StringIO.StringIO()
+        mcollective_config.write(outputfile)
+        # Now we got the whole file, write to disk except first line
+        final_configfile = open('/etc/mcollective/server.cfg', 'wb')
+        # Note below, that we've just used ConfigParser because it generally
+        # works.  Below, we remove the initial 'nullsection' header
+        # and then change 'key = value' to 'key: value'.  The global
+        # search and replace of '=' with ':' could be problematic though.
+        # this most likely needs fixing.
+        final_configfile.write(outputfile.getvalue().replace('[nullsection]\n','').replace(' =',':'))
+        final_configfile.close()
+
     # Start mcollective
     subprocess.check_call(['service', 'mcollective', 'start'])
 
