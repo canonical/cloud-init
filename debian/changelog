@@ -1,3 +1,10 @@
+cloud-init (0.6.1-0ubuntu2) natty; urgency=low
+
+  * grub-legacy-ec2: Use dpkg-query --control-path instead of hard-coding a
+    path to debconf templates file, for compatibility with multiarch.
+
+ -- Scott Moser <smoser@ubuntu.com>  Tue, 01 Mar 2011 23:23:55 -0500
+
 cloud-init (0.6.1-0ubuntu1) natty; urgency=low
 
   * New upstream release.

@@ -1054,7 +1054,7 @@ ucf_update_kernels() {
 		cat $buffer > $ucf_menu_file
 	fi
 
-	db_x_loadtemplatefile /var/lib/dpkg/info/grub-legacy-ec2.templates grub
+	db_x_loadtemplatefile "$(dpkg-query --control-path grub-legacy-ec2 templates)" grub
 
 	ucf --debconf-ok \
 		--debconf-template grub/update_grub_changeprompt_threeway \
