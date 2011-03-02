@@ -93,7 +93,7 @@ def main():
         # most sense to exit early and silently
         for f in stop_files:
             try:
-                fp = open("/var/lib/cloud/instance/obj.pkl","r")
+                fp = open(f,"r")
                 fp.close()
             except:
                 continue
