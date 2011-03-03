@@ -147,7 +147,7 @@ def subp(args, input=None):
     sp = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=s_in)
     out,err = sp.communicate(input)
     if sp.returncode is not 0:
-        raise subprocess.CalledProcessError(sp.returncode,args)
+        raise subprocess.CalledProcessError(sp.returncode,args, (out,err))
     return(out,err)
 
 def render_to_file(template, outfile, searchList):
