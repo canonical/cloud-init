@@ -34,8 +34,9 @@ def handle(name,cfg,cloud,log,args):
     cmd = ['blkid', '-c', '/dev/null', '-sTYPE', '-ovalue', '/dev/root']
     try:
         (fstype,err) = util.subp(cmd)
-    except Exception as e:
+    except subprocess.CalledProcessError as e:
         log.warn("Failed to get filesystem type via %s" % cmd)
+        log.warn("output=%s\nerror=%s\n", e.output[0], e.output[1])
         raise
 
     if fstype.startswith("ext"):
@@ -48,7 +49,8 @@ def handle(name,cfg,cloud,log,args):
 
     try:
         (out,err) = util.subp(resize_cmd)
-    except Exception as e:
+    except subprocess.CalledProcessError as e:
         log.warn("Failed to resize filesystem (%s)" % resize_cmd)
+        log.warn("output=%s\nerror=%s\n", e.output[0], e.output[1])
         raise
         
