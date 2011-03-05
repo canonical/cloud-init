@@ -1,3 +1,11 @@
+cloud-init (0.6.1-0ubuntu3) natty; urgency=low
+
+  * catch up to trunk cloud-init (rev 385).
+  * attempt to install packages on failed apt-get update (LP: #728167)
+  * enabled timezone and mcollective cloud-config plugins
+
+ -- Scott Moser <smoser@ubuntu.com>  Fri, 04 Mar 2011 21:17:21 -0500
+
 cloud-init (0.6.1-0ubuntu2) natty; urgency=low
 
   * grub-legacy-ec2: Use dpkg-query --control-path instead of hard-coding a

@@ -1,0 +1,235 @@
+------------------------------------------------------------
+revno: 385
+committer: Scott Moser <smoser@ubuntu.com>
+branch nick: trunk
+timestamp: Fri 2011-03-04 11:06:51 -0500
+message:
+  add mcollective to cloud.cfg
+------------------------------------------------------------
+revno: 384
+committer: Scott Moser <smoser@ubuntu.com>
+branch nick: trunk
+timestamp: Thu 2011-03-03 20:37:30 -0500
+message:
+  add 'timezone' cloud-config module to cloud.cfg
+------------------------------------------------------------
+revno: 383
+fixes bug(s): https://launchpad.net/bugs/728167
+committer: Scott Moser <smoser@ubuntu.com>
+branch nick: trunk
+timestamp: Thu 2011-03-03 20:04:24 -0500
+message:
+  make update of sources not prevent installation attempt (LP: #728167)
+------------------------------------------------------------
+revno: 382
+committer: Scott Moser <smoser@ubuntu.com>
+branch nick: trunk
+timestamp: Thu 2011-03-03 17:15:12 -0500
+message:
+  cc_resizefs.py: log output of failed resizefs or blkid commands
+------------------------------------------------------------
+revno: 381
+committer: Scott Moser <smoser@ubuntu.com>
+branch nick: trunk
+timestamp: Thu 2011-03-03 17:12:27 -0500
+message:
+  in subp, put output and stderr into the raised error
+------------------------------------------------------------
+revno: 380
+committer: Scott Moser <smoser@ubuntu.com>
+branch nick: trunk
+timestamp: Wed 2011-03-02 17:08:46 -0500
+message:
+  fix bug preventing early exit of cloud-init on 'no-net' path
+------------------------------------------------------------
+revno: 379 [merge]
+committer: Scott Moser <smoser@ubuntu.com>
+branch nick: trunk
+timestamp: Tue 2011-02-22 12:18:23 -0500
+message:
+  merge mcollective fixes from Marc.  Changes to indentation and added comments
+------------------------------------------------------------
+revno: 378
+tags: 0.6.1
+committer: Scott Moser <smoser@ubuntu.com>
+branch nick: trunk
+timestamp: Sat 2011-02-19 00:42:32 -0500
+message:
+  add examples of kernel command line cloud-config
+------------------------------------------------------------
+Use --include-merges or -n0 to see merged revisions.
+=== modified file 'cloud-init.py'
+--- a/cloud-init.py
++++ b/cloud-init.py
+@@ -93,7 +93,7 @@
+         # most sense to exit early and silently
+         for f in stop_files:
+             try:
+-                fp = open("/var/lib/cloud/instance/obj.pkl","r")
++                fp = open(f,"r")
+                 fp.close()
+             except:
+                 continue
+--- a/cloudinit/CloudConfig/cc_apt_update_upgrade.py
++++ b/cloudinit/CloudConfig/cc_apt_update_upgrade.py
+@@ -55,15 +55,34 @@
+             log.error("Failed to run debconf-set-selections")
+             log.debug(traceback.format_exc())
+ 
++    errors = [ ]
+     if update:
+-        cc.update_package_sources()
++        try:
++            cc.update_package_sources()
++        except subprocess.CalledProcessError as e:
++            log.warn("apt-get update failed")
++            log.debug(traceback.format_exc())
++            errors.append(e)
+ 
+     if upgrade:
+-        cc.apt_get("upgrade")
++        try:
++            cc.apt_get("upgrade")
++        except subprocess.CalledProcessError as e:
++            log.warn("apt upgrade failed")
++            log.debug(traceback.format_exc())
++            errors.append(e)
+ 
+     pkglist = util.get_cfg_option_list_or_str(cfg,'packages',[])
+     if len(pkglist):
+-        cc.install_packages(pkglist)
++        try:
++            cc.install_packages(pkglist)
++        except subprocess.CalledProcessError as e:
++            log.warn("Failed to install packages: %s " % pkglist)
++            log.debug(traceback.format_exc())
++            errors.append(e)
++
++    if len(errors):
++        raise errors[0]
+ 
+     return(True)
+ 
+--- a/cloudinit/CloudConfig/cc_mcollective.py
++++ b/cloudinit/CloudConfig/cc_mcollective.py
+@@ -20,20 +20,21 @@
+ import pwd
+ import socket
+ import subprocess
++import fileinput
+ import StringIO
+ import ConfigParser
+ import cloudinit.CloudConfig as cc
+ 
+ # Our fake header section
+ class FakeSecHead(object):
+-   def __init__(self, fp):
+-     self.fp = fp
+-     self.sechead = '[nullsection]\n'
+-   def readline(self):
+-     if self.sechead:
+-       try: return self.sechead
+-       finally: self.sechead = None
+-     else: return self.fp.readline()
++    def __init__(self, fp):
++        self.fp = fp
++        self.sechead = '[nullsection]\n'
++    def readline(self):
++        if self.sechead:
++            try: return self.sechead
++            finally: self.sechead = None
++        else: return self.fp.readline()
+ 
+ def handle(name,cfg,cloud,log,args):
+     # If there isn't a mcollective key in the configuration don't do anything
+@@ -53,11 +54,21 @@
+             # to overwrite or create new items as needed
+             for o, v in cfg.iteritems():
+                 mcollective_config.set(cfg_name,o,v)
+-            # We got all our config as wanted we'll rename
+-            # the previous server.cfg and create our new one
+-            os.rename('/etc/mcollective/server.cfg','/etc/mcollective/server.cfg.old')
+-            with open('/etc/mcollective/server.cfg', 'wb') as configfile:
+-                mcollective_config.write(configfile)
++        # We got all our config as wanted we'll rename
++        # the previous server.cfg and create our new one
++        os.rename('/etc/mcollective/server.cfg','/etc/mcollective/server.cfg.old')
++        outputfile = StringIO.StringIO()
++        mcollective_config.write(outputfile)
++        # Now we got the whole file, write to disk except first line
++        final_configfile = open('/etc/mcollective/server.cfg', 'wb')
++        # Note below, that we've just used ConfigParser because it generally
++        # works.  Below, we remove the initial 'nullsection' header
++        # and then change 'key = value' to 'key: value'.  The global
++        # search and replace of '=' with ':' could be problematic though.
++        # this most likely needs fixing.
++        final_configfile.write(outputfile.getvalue().replace('[nullsection]\n','').replace(' =',':'))
++        final_configfile.close()
++
+     # Start mcollective
+     subprocess.check_call(['service', 'mcollective', 'start'])
+ 
+--- a/cloudinit/CloudConfig/cc_resizefs.py
++++ b/cloudinit/CloudConfig/cc_resizefs.py
+@@ -34,8 +34,9 @@
+     cmd = ['blkid', '-c', '/dev/null', '-sTYPE', '-ovalue', '/dev/root']
+     try:
+         (fstype,err) = util.subp(cmd)
+-    except Exception as e:
++    except subprocess.CalledProcessError as e:
+         log.warn("Failed to get filesystem type via %s" % cmd)
++        log.warn("output=%s\nerror=%s\n", e.output[0], e.output[1])
+         raise
+ 
+     if fstype.startswith("ext"):
+@@ -48,7 +49,8 @@
+ 
+     try:
+         (out,err) = util.subp(resize_cmd)
+-    except Exception as e:
++    except subprocess.CalledProcessError as e:
+         log.warn("Failed to resize filesystem (%s)" % resize_cmd)
++        log.warn("output=%s\nerror=%s\n", e.output[0], e.output[1])
+         raise
+         
+--- a/cloudinit/util.py
++++ b/cloudinit/util.py
+@@ -147,7 +147,7 @@
+     sp = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=s_in)
+     out,err = sp.communicate(input)
+     if sp.returncode is not 0:
+-        raise subprocess.CalledProcessError(sp.returncode,args)
++        raise subprocess.CalledProcessError(sp.returncode,args, (out,err))
+     return(out,err)
+ 
+ def render_to_file(template, outfile, searchList):
+--- a/config/cloud.cfg
++++ b/config/cloud.cfg
+@@ -19,7 +19,9 @@
+  - set-passwords
+  - grub-dpkg
+  - apt-update-upgrade
++ - timezone
+  - puppet
++ - mcollective
+  - disable-ec2-metadata
+  - runcmd
+  - byobu
+--- /dev/null
++++ b/doc/examples/cloud-config-mcollective.txt
+@@ -0,0 +1,15 @@
++#cloud-config
++#
++# This is an example file to automatically setup and run mcollective
++# when the instance boots for the first time.
++# Make sure that this file is valid yaml before starting instances.
++# It should be passed as user-data when starting the instance.
++mcollective:
++ # Every key present in the conf object will be added to server.cfg:
++ # key: value
++ #
++ # For example the configuration below will have the following key
++ # added to server.cfg:
++ # plugin.stomp.host: dbhost
++ conf:
++   plugin.stomp.host: dbhost
