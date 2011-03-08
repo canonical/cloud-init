@@ -55,8 +55,10 @@ def handle(name,cfg,cloud,log,args):
             log.error("Failed to run debconf-set-selections")
             log.debug(traceback.format_exc())
 
+    pkglist = util.get_cfg_option_list_or_str(cfg,'packages',[])
+
     errors = [ ]
-    if update:
+    if update or len(pkglist) or upgrade:
         try:
             cc.update_package_sources()
         except subprocess.CalledProcessError as e:
@@ -72,7 +74,6 @@ def handle(name,cfg,cloud,log,args):
             log.debug(traceback.format_exc())
             errors.append(e)
 
-    pkglist = util.get_cfg_option_list_or_str(cfg,'packages',[])
     if len(pkglist):
         try:
             cc.install_packages(pkglist)
