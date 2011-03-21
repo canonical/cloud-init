@@ -363,7 +363,7 @@ class CloudInit:
         self.handlercount=self.handlercount+1
 
         # write content to instance's handlerdir
-        handlerdir = self.get_ipath("handler")
+        handlerdir = self.get_ipath("handlers")
         modname  = 'part-handler-%03d' % self.handlercount
         modfname = modname + ".py"
         util.write_file("%s/%s" % (handlerdir,modfname), payload, 0600)
