@@ -3,6 +3,8 @@
    It would not be run if 'upgrade' or packages were set to be installed
  - fix bug in part-handler code, that prevented working part-handlers
    (LP: #739694)
+ - fix bug in resizefs cloud-config that would cause trace based on
+   failure of 'blkid /dev/root' (LP: #726938)
 0.6.1:
  - fix bug in fixing permission on /var/log/cloud-init.log (LP: #704509)
  - improve comment strings in rsyslog file tools/21-cloudinit.conf
