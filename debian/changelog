@@ -1,3 +1,11 @@
+cloud-init (0.6.1-0ubuntu4) natty; urgency=low
+
+  * catch up to trunk cloud-init (rev 389).
+  * fix bug in part-handler code, that broke part handlers (LP: #739694)
+  * fix sporadic resizefs failure (LP: #726938)
+
+ -- Scott Moser <smoser@ubuntu.com>  Mon, 21 Mar 2011 22:06:59 -0400
+
 cloud-init (0.6.1-0ubuntu3) natty; urgency=low
 
   * catch up to trunk cloud-init (rev 385).
