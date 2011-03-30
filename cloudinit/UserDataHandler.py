@@ -74,7 +74,6 @@ def explode_cc_archive(archive,parts):
             if mtype == None:
                 mtype = type_from_startswith(payload,def_type)
 
-        print "adding %s,%s" % (filename, mtype)
         parts['content'].append(content)
         parts['names'].append(filename)
         parts['types'].append(mtype)
