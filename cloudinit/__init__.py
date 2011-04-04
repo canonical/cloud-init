@@ -393,14 +393,15 @@ class CloudInit:
         filename=filename.replace(os.sep,'_')
         scriptsdir = get_ipath_cur('scripts')
         util.write_file("%s/%s" % 
-            (scriptsdir,filename), payload, 0700)
+            (scriptsdir,filename), util.dos2unix(payload), 0700)
 
     def handle_upstart_job(self,data,ctype,filename,payload):
         if ctype == "__end__" or ctype == "__begin__": return
         if not filename.endswith(".conf"):
             filename=filename+".conf"
 
-        util.write_file("%s/%s" % ("/etc/init",filename), payload, 0644)
+        util.write_file("%s/%s" % ("/etc/init",filename),
+            util.dos2unix(payload), 0644)
 
     def handle_cloud_config(self,data,ctype,filename,payload):
         if ctype == "__begin__":
@@ -427,26 +428,15 @@ class CloudInit:
         if ctype == "__begin__": return
 
         filename=filename.replace(os.sep,'_')
+        payload = util.dos2unix(payload)
         prefix="#cloud-boothook"
-        dos=False
         start = 0
         if payload.startswith(prefix):
-            start = len(prefix)
-            if payload[start] == '\r':
-                start=start+1
-                dos = True
-        else:
-            if payload.find('\r\n',0,100) >= 0:
-                dos = True
-    
-        if dos:
-            payload=payload[start:].replace('\r\n','\n')
-        elif start != 0:
-            payload=payload[start:]
+            start = len(prefix) + 1
     
         boothooks_dir = self.get_ipath("boothooks")
         filepath = "%s/%s" % (boothooks_dir,filename)
-        util.write_file(filepath, payload, 0700)
+        util.write_file(filepath, payload[start:], 0700)
         try:
             env=os.environ.copy()
             env['INSTANCE_ID']= self.datasource.get_instance_id()

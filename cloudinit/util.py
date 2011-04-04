@@ -389,3 +389,9 @@ def shellify(cmdlist):
         else:
             content="%s%s\n" % ( content, str(args) )
     return content
+
+def dos2unix(input):
+    # find first end of line
+    pos = input.find('\n')
+    if pos <= 0 or input[pos-1] != '\r': return(input)
+    return(input.replace('\r\n','\n'))
