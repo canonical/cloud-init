@@ -1,3 +1,13 @@
+cloud-init (0.6.1-0ubuntu5) natty; urgency=low
+
+  * fix --purge of grub-legacy-ec2 package (LP: #749444)
+  * catchup to trunk cloud-init (rev 394)
+  * support user-data formated in dos format by converting to unix for
+    user-scripts, boothooks, and upstart jobs (LP: #744965)
+  * removal of some debug code, minor documentation fix
+
+ -- Scott Moser <smoser@ubuntu.com>  Mon, 04 Apr 2011 13:20:27 -0400
+
 cloud-init (0.6.1-0ubuntu4) natty; urgency=low
 
   * catch up to trunk cloud-init (rev 389).

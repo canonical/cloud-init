@@ -1,0 +1,151 @@
+------------------------------------------------------------
+revno: 394
+fixes bug(s): https://launchpad.net/bugs/744965
+committer: Scott Moser <smoser@ubuntu.com>
+branch nick: trunk
+timestamp: Mon 2011-04-04 12:45:01 -0400
+message:
+  convert some user input from dos to unix (LP: #744965)
+  
+  If user input is a consumed as a user-script, a boothook, or a upstart
+  job and appears to be dos-formated, then change it to unix formated
+------------------------------------------------------------
+revno: 393
+committer: Scott Moser <smoser@ubuntu.com>
+branch nick: trunk
+timestamp: Mon 2011-04-04 12:41:58 -0400
+message:
+  documentation update: fix paths for seed dir in examples/seed/README
+------------------------------------------------------------
+revno: 392
+committer: Scott Moser <smoser@ubuntu.com>
+branch nick: trunk
+timestamp: Wed 2011-03-30 14:12:12 -0400
+message:
+  cloudinit/CloudConfig/cc_timezone.py: remove debug print out
+------------------------------------------------------------
+revno: 391
+committer: Scott Moser <smoser@ubuntu.com>
+branch nick: trunk
+timestamp: Wed 2011-03-30 13:10:07 -0400
+message:
+  remove debug printout in cloudinit/UserDataHandler.py
+=== modified file 'ChangeLog'
+--- old/ChangeLog	2011-03-22 01:35:54 +0000
++++ new/ChangeLog	2011-04-04 16:45:01 +0000
+@@ -5,6 +5,8 @@
+    (LP: #739694)
+  - fix bug in resizefs cloud-config that would cause trace based on
+    failure of 'blkid /dev/root' (LP: #726938)
++ - convert dos formated files to unix for user-scripts, boothooks,
++   and upstart jobs (LP: #744965)
+ 0.6.1:
+  - fix bug in fixing permission on /var/log/cloud-init.log (LP: #704509)
+  - improve comment strings in rsyslog file tools/21-cloudinit.conf
+
+=== modified file 'cloudinit/CloudConfig/cc_timezone.py'
+--- old/cloudinit/CloudConfig/cc_timezone.py	2011-01-26 19:31:32 +0000
++++ new/cloudinit/CloudConfig/cc_timezone.py	2011-03-30 18:12:12 +0000
+@@ -25,7 +25,6 @@
+ tz_base = "/usr/share/zoneinfo"
+ 
+ def handle(name,cfg,cloud,log,args):
+-    print args
+     if len(args) != 0:
+         timezone = args[0]
+     else:
+
+=== modified file 'cloudinit/UserDataHandler.py'
+--- old/cloudinit/UserDataHandler.py	2011-01-19 22:32:52 +0000
++++ new/cloudinit/UserDataHandler.py	2011-03-30 17:10:07 +0000
+@@ -74,7 +74,6 @@
+             if mtype == None:
+                 mtype = type_from_startswith(payload,def_type)
+ 
+-        print "adding %s,%s" % (filename, mtype)
+         parts['content'].append(content)
+         parts['names'].append(filename)
+         parts['types'].append(mtype)
+
+=== modified file 'cloudinit/__init__.py'
+--- old/cloudinit/__init__.py	2011-03-21 20:24:52 +0000
++++ new/cloudinit/__init__.py	2011-04-04 16:45:01 +0000
+@@ -393,14 +393,15 @@
+         filename=filename.replace(os.sep,'_')
+         scriptsdir = get_ipath_cur('scripts')
+         util.write_file("%s/%s" % 
+-            (scriptsdir,filename), payload, 0700)
++            (scriptsdir,filename), util.dos2unix(payload), 0700)
+ 
+     def handle_upstart_job(self,data,ctype,filename,payload):
+         if ctype == "__end__" or ctype == "__begin__": return
+         if not filename.endswith(".conf"):
+             filename=filename+".conf"
+ 
+-        util.write_file("%s/%s" % ("/etc/init",filename), payload, 0644)
++        util.write_file("%s/%s" % ("/etc/init",filename),
++            util.dos2unix(payload), 0644)
+ 
+     def handle_cloud_config(self,data,ctype,filename,payload):
+         if ctype == "__begin__":
+@@ -427,26 +428,15 @@
+         if ctype == "__begin__": return
+ 
+         filename=filename.replace(os.sep,'_')
++        payload = util.dos2unix(payload)
+         prefix="#cloud-boothook"
+-        dos=False
+         start = 0
+         if payload.startswith(prefix):
+-            start = len(prefix)
+-            if payload[start] == '\r':
+-                start=start+1
+-                dos = True
+-        else:
+-            if payload.find('\r\n',0,100) >= 0:
+-                dos = True
+-    
+-        if dos:
+-            payload=payload[start:].replace('\r\n','\n')
+-        elif start != 0:
+-            payload=payload[start:]
++            start = len(prefix) + 1
+     
+         boothooks_dir = self.get_ipath("boothooks")
+         filepath = "%s/%s" % (boothooks_dir,filename)
+-        util.write_file(filepath, payload, 0700)
++        util.write_file(filepath, payload[start:], 0700)
+         try:
+             env=os.environ.copy()
+             env['INSTANCE_ID']= self.datasource.get_instance_id()
+
+=== modified file 'cloudinit/util.py'
+--- old/cloudinit/util.py	2011-03-03 22:12:27 +0000
++++ new/cloudinit/util.py	2011-04-04 16:45:01 +0000
+@@ -389,3 +389,9 @@
+         else:
+             content="%s%s\n" % ( content, str(args) )
+     return content
++
++def dos2unix(input):
++    # find first end of line
++    pos = input.find('\n')
++    if pos <= 0 or input[pos-1] != '\r': return(input)
++    return(input.replace('\r\n','\n'))
+
+=== modified file 'doc/examples/seed/README'
+--- old/doc/examples/seed/README	2010-08-12 17:26:29 +0000
++++ new/doc/examples/seed/README	2011-04-04 16:41:58 +0000
+@@ -2,9 +2,9 @@
+ 
+ 
+ copying these files inside an instance's
+-  /var/lib/cloud/data/cache/nocloud
++  /var/lib/cloud/seed/nocloud
+ or
+-  /var/lib/cloud/data/cache/nocloud-net
++  /var/lib/cloud/seed/nocloud-net
+ 
+ will cause the 'DataSourceNoCloud' and 'DataSourceNoCloudNet' modules
+ to enable and read the given data.
+
