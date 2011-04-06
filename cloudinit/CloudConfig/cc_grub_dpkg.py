@@ -31,7 +31,8 @@ def handle(name,cfg,cloud,log,args):
         idevs_empty=util.get_cfg_option_str(cfg["grub-dpkg"],
             "grub-pc/install_devices_empty",None)
 
-    if os.path.exists("/dev/sda1") and not os.path.exists("/dev/sda"):
+    if (( os.path.exists("/dev/sda1") and not os.path.exists("/dev/sda") ) or
+        ( os.path.exists("/dev/xvda1") and not os.path.exists("/dev/xvda") )):
         if idevs == None: idevs=""
         if idevs_empty == None: idevs_empty="true"
     else:
