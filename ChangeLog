@@ -7,6 +7,8 @@
    failure of 'blkid /dev/root' (LP: #726938)
  - convert dos formated files to unix for user-scripts, boothooks,
    and upstart jobs (LP: #744965)
+ - fix bug in seeding of grub dpkg configuration (LP: #752361) due
+   to renamed devices in newer (natty) kernels (/dev/sda1 -> /dev/xvda1)
 0.6.1:
  - fix bug in fixing permission on /var/log/cloud-init.log (LP: #704509)
  - improve comment strings in rsyslog file tools/21-cloudinit.conf
