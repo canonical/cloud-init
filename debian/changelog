@@ -1,3 +1,10 @@
+cloud-init (0.6.1-0ubuntu6) natty; urgency=low
+
+  * avoid upgrade prompt for grub-pc when devices are named xvdX (LP: #752361)
+  * catchup to trunk cloud-init (rev 395)
+
+ -- Scott Moser <smoser@ubuntu.com>  Wed, 06 Apr 2011 06:46:55 -0400
+
 cloud-init (0.6.1-0ubuntu5) natty; urgency=low
 
   * fix --purge of grub-legacy-ec2 package (LP: #749444)
