@@ -1,3 +1,10 @@
+cloud-init (0.6.1-0ubuntu7) natty; urgency=low
+
+  * grub-legacy-ec2: add /boot/grub directory so installation does
+    not depend on it already existing (LP: #759885)
+
+ -- Scott Moser <smoser@ubuntu.com>  Wed, 13 Apr 2011 11:03:04 -0400
+
 cloud-init (0.6.1-0ubuntu6) natty; urgency=low
 
   * avoid upgrade prompt for grub-pc when devices are named xvdX (LP: #752361)
