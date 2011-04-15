@@ -1,3 +1,10 @@
+cloud-init (0.6.1-0ubuntu8) natty; urgency=low
+
+  * instead of including /boot/grub, create it in postinst
+    of grub-legacy-ec2.
+
+ -- Scott Moser <smoser@ubuntu.com>  Fri, 15 Apr 2011 13:01:17 -0400
+
 cloud-init (0.6.1-0ubuntu7) natty; urgency=low
 
   * grub-legacy-ec2: add /boot/grub directory so installation does

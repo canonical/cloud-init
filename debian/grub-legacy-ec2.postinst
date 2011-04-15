@@ -3,6 +3,7 @@
 set -e
 
 if [ "$1" = "configure" ]; then
+   mkdir -p /boot/grub
    update-grub-legacy-ec2 -y
 fi
 
