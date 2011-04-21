@@ -24,7 +24,12 @@ def handle(name,cfg,cloud,log,args):
         return(True)
 
     try:
-        hostname = util.get_cfg_option_str(cfg,"hostname",cloud.get_hostname())
+        hostname_prefix = util.get_cfg_option_str(cfg, "hostname_prefix", None)
+        hostname_attr = util.get_cfg_option_str(cfg, "hostname_attribute", "hostname")
+        hostname_function = getattr(cloud, 'get_' + hostname_attr, None)
+        if hostname_fucntion is None: hostname_fucntion = cloud.get_hostname
+        hostname = util.get_cfg_option_str(cfg,"hostname", hostname_function)
+        if hostname_prefix: hostname = hostname_prefix + "-" + hostname
         set_hostname(hostname, log)
     except Exception as e:
         util.logexc(log)
