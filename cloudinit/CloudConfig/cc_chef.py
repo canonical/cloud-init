@@ -20,6 +20,7 @@ import subprocess
 import StringIO
 import ConfigParser
 import cloudinit.CloudConfig as cc
+import cloudinit.util as util
 
 ruby_packages = {'1.8': ('ruby', 'rubygems', 'ruby-dev', 'libopenssl-ruby'),
         '1.9.1': ('ruby1.9.1', 'rubygems1.9.1', 'ruby1.9.1-dev', 'libruby1.9.1'),
@@ -29,12 +30,10 @@ def handle(name,cfg,cloud,log,args):
     # If there isn't a chef key in the configuration don't do anything
     if not cfg.has_key('chef'): return
     chef_cfg = cfg['chef']
-    ruby_version = '1.8'
 
     # Install chef packages from selected source
     if chef_cfg['install_type'] == "gems":
-        if chef_cfg.has_key('ruby_version'):
-            ruby_version = chef_cfg['ruby_version']
+        ruby_version = util.get_cfg_option_str(chef_cfg, 'ruby_version', '1.8')
         cc.install_packages(ruby_packages['ruby_version'])
         chef_version_arg = ""
         if chef_cfg.has_key('version'):
@@ -42,6 +41,11 @@ def handle(name,cfg,cloud,log,args):
         subprocess.check_call([gem_bin,'install','chef',chef_version_arg, '--no-ri','--no-rdoc','--no-test','-q'])
         os.mkdirs('/etc/chef', '/var/log/chef', '/var/lib/chef', '/var/cache/chef', '/var/backups/chef', '/var/run/chef')
         os.symlink('/var/lib/gem/%s/bin/chef-client' % ruby_version, '/usr/bin/chef-client')
+        # Ohai ruby plugin breaks if there is no ruby or gem binaries at /usr/bin, so
+        try: os.symlink('/usr/bin/gem%s' % ruby_version, '/usr/bin/gem')
+        except: pass
+        try: os.symlink('/usr/bin/ruby%s' % ruby_version, '/usr/bin/ruby')
+        except: pass
     else:
         cc.install_packages(('chef',))
 
@@ -54,7 +58,7 @@ def handle(name,cfg,cloud,log,args):
     util.render_to_file('chef_client.rb', '/etc/chef/client.rb',
             {'server_url': chef_cfg['server_url'], 'validation_name': chef_cfg['validation_name'] || 'chef-validator'})
 
-    chef_args = []
+    chef_args = ['-d']
     # set the firstboot json
     if chef_cfg.has_key('run_list'):
         with open('/etc/chef/firstboot.json') as firstboot_json_fh:
