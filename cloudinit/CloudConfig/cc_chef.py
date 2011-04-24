@@ -23,8 +23,8 @@ import cloudinit.CloudConfig as cc
 import cloudinit.util as util
 
 ruby_packages = {'1.8': ('ruby', 'rubygems', 'ruby-dev', 'libopenssl-ruby'),
-        '1.9.1': ('ruby1.9.1', 'rubygems1.9.1', 'ruby1.9.1-dev', 'libruby1.9.1'),
-        '1.9': ('ruby1.9', 'rubygems1.9', 'ruby1.9-dev', 'libruby1.9') }
+        '1.9.1': ('ruby1.9.1', 'ruby1.9.1-dev', 'libruby1.9.1'),
+        '1.9': ('ruby1.9', 'ruby1.9-dev', 'libruby1.9') }
 
 def handle(name,cfg,cloud,log,args):
     # If there isn't a chef key in the configuration don't do anything
