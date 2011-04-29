@@ -32,22 +32,17 @@ def handle(name,cfg,cloud,log,args):
     chef_cfg = cfg['chef']
 
     # Install chef packages from selected source
-    if chef_cfg['install_type'] == "gems":
-        ruby_version = util.get_cfg_option_str(chef_cfg, 'ruby_version', '1.8')
-        cc.install_packages(ruby_packages['ruby_version'])
-        chef_version_arg = ""
-        if chef_cfg.has_key('version'):
-            chef_version_arg = '-v %s' % chef_cfg['version']
-        subprocess.check_call([gem_bin,'install','chef',chef_version_arg, '--no-ri','--no-rdoc','--no-test','-q'])
-        os.mkdirs('/etc/chef', '/var/log/chef', '/var/lib/chef', '/var/cache/chef', '/var/backups/chef', '/var/run/chef')
-        os.symlink('/var/lib/gem/%s/bin/chef-client' % ruby_version, '/usr/bin/chef-client')
-        # Ohai ruby plugin breaks if there is no ruby or gem binaries at /usr/bin, so
-        try: os.symlink('/usr/bin/gem%s' % ruby_version, '/usr/bin/gem')
-        except: pass
-        try: os.symlink('/usr/bin/ruby%s' % ruby_version, '/usr/bin/ruby')
-        except: pass
-    else:
-        cc.install_packages(('chef',))
+    if not os.path.isfile('/usr/bin/chef-client'):
+        if chef_cfg['install_type'] == "gems":
+            if chef_cfg.has_key('version'):
+                chef_version = chef_cfg['version']
+            else:
+                chef_version = None
+            install_chef_from_gems(
+                    util.get_cfg_option_str(chef_cfg, 'ruby_version', '1.8'),
+                    chef_version)
+        else:
+            cc.install_packages(('chef',))
 
     # set the validation cert
     if chef_cfg.has_key('validation_cert'):
@@ -70,3 +65,16 @@ def handle(name,cfg,cloud,log,args):
 
     # and finally, run chef
     subprocess.check_call(['/usr/bin/chef-client'] + chef_args)
+
+def install_chef_from_gems(ruby_version, chef_version = None):
+    cc.install_packages(ruby_packages[ruby_version])
+    chef_version_arg = ""
+    if chef_version: chef_version_arg = "-v %s" % chef_version
+    subprocess.check_call([gem_bin,'install','chef',chef_version_arg, '--no-ri','--no-rdoc','--no-test','-q'])
+    os.mkdirs('/etc/chef', '/var/log/chef', '/var/lib/chef', '/var/cache/chef', '/var/backups/chef', '/var/run/chef')
+    os.symlink('/var/lib/gem/%s/bin/chef-client' % ruby_version, '/usr/bin/chef-client')
+    # Ohai ruby plugin breaks if there is no ruby or gem binaries at /usr/bin, so
+    try: os.symlink('/usr/bin/gem%s' % ruby_version, '/usr/bin/gem')
+    except: pass
+    try: os.symlink('/usr/bin/ruby%s' % ruby_version, '/usr/bin/ruby')
+    except: pass
