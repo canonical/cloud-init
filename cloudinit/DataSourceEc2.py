@@ -101,7 +101,7 @@ class DataSourceEc2(DataSource.DataSource):
             log.warn("Failed to get timeout, using %s" % timeout)
 
         sleeptime = 1
-        addresslist = ['169.254.169.254', "instance-data"]
+        addresslist = ['169.254.169.254', "instance-data:8773"]
         starttime = time.time()
     
         for x in range(sleeps):
