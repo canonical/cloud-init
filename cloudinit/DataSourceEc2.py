@@ -31,6 +31,7 @@ import errno
 class DataSourceEc2(DataSource.DataSource):
     api_ver  = '2009-04-04'
     seeddir = seeddir + '/ec2'
+    metadata_address = "169.254.169.254"
 
     def __str__(self):
         return("DataSourceEc2")
@@ -46,8 +47,8 @@ class DataSourceEc2(DataSource.DataSource):
         try:
             if not self.wait_for_metadata_service():
                 return False
-            self.userdata_raw = boto_utils.get_instance_userdata(self.api_ver)
-            self.metadata = boto_utils.get_instance_metadata(self.api_ver)
+            self.userdata_raw = boto_utils.get_instance_userdata(metadata_address,self.api_ver)
+            self.metadata = boto_utils.get_instance_metadata(metadata_address,self.api_ver)
             return True
         except Exception as e:
             print e
@@ -100,30 +101,33 @@ class DataSourceEc2(DataSource.DataSource):
             log.warn("Failed to get timeout, using %s" % timeout)
 
         sleeptime = 1
-        address = '169.254.169.254'
+        addresslist = ['169.254.169.254', "instance-data"]
         starttime = time.time()
     
-        url="http://%s/%s/meta-data/instance-id" % (address,self.api_ver)
         for x in range(sleeps):
-            # given 100 sleeps, this ends up total sleep time of 1050 sec
-            sleeptime=int(x/5)+1
+            for address in addresslist:
+                url="http://%s/%s/meta-data/instance-id" % (address,self.api_ver)
+                # given 100 sleeps, this ends up total sleep time of 1050 sec
+                sleeptime=int(x/5)+1
 
-            reason = ""
-            try:
-                req = urllib2.Request(url)
-                resp = urllib2.urlopen(req, timeout=timeout)
-                if resp.read() != "": return True
-                reason = "empty data [%s]" % resp.getcode()
-            except urllib2.HTTPError as e:
-                reason = "http error [%s]" % e.code
-            except urllib2.URLError as e:
-                reason = "url error [%s]" % e.reason
-    
-            if x == 0:
-                log.warning("waiting for metadata service at %s\n" % url)
+                reason = ""
+                try:
+                    req = urllib2.Request(url)
+                    resp = urllib2.urlopen(req, timeout=timeout)
+                    if resp.read() != "": 
+                        metadata_address = address
+                        return True
+                    reason = "empty data [%s]" % resp.getcode()
+                except urllib2.HTTPError as e:
+                    reason = "http error [%s]" % e.code
+                except urllib2.URLError as e:
+                    reason = "url error [%s]" % e.reason
+        
+                if x == 0:
+                    log.warning("waiting for metadata service at %s\n" % url)
 
-            log.warning("  %s [%02s/%s]: %s\n" %
-                (time.strftime("%H:%M:%S",time.gmtime()), x+1, sleeps, reason))
+                log.warning("  %s [%02s/%s]: %s\n" %
+                    (time.strftime("%H:%M:%S",time.gmtime()), x+1, sleeps, reason))
             time.sleep(sleeptime)
 
         log.critical("giving up on md after %i seconds\n" %
