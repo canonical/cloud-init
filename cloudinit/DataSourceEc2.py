@@ -47,8 +47,8 @@ class DataSourceEc2(DataSource.DataSource):
         try:
             if not self.wait_for_metadata_service():
                 return False
-            self.userdata_raw = boto_utils.get_instance_userdata(self.api_ver,None,metadata_address)
-            self.metadata = boto_utils.get_instance_metadata(self.api_ver,metadata_address)
+            self.userdata_raw = boto_utils.get_instance_userdata(self.api_ver,None,self.metadata_address)
+            self.metadata = boto_utils.get_instance_metadata(self.api_ver,self.metadata_address)
             return True
         except Exception as e:
             print e
@@ -119,8 +119,9 @@ class DataSourceEc2(DataSource.DataSource):
                     req = urllib2.Request(url)
                     resp = urllib2.urlopen(req, timeout=timeout)
                     if resp.read() != "": 
-                        metadata_address = host
+                        self.metadata_address = host
                         return True
+                        log.info("Using $s for metadata" % self.metadata_address)
                     reason = "empty data [%s]" % resp.getcode()
                 except urllib2.HTTPError as e:
                     reason = "http error [%s]" % e.code
