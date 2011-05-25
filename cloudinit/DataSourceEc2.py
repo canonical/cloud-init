@@ -47,8 +47,8 @@ class DataSourceEc2(DataSource.DataSource):
         try:
             if not self.wait_for_metadata_service():
                 return False
-            self.userdata_raw = boto_utils.get_instance_userdata(metadata_address,self.api_ver)
-            self.metadata = boto_utils.get_instance_metadata(metadata_address,self.api_ver)
+            self.userdata_raw = boto_utils.get_instance_userdata(self.api_ver,None,metadata_address)
+            self.metadata = boto_utils.get_instance_metadata(self.api_ver,metadata_address)
             return True
         except Exception as e:
             print e
@@ -101,27 +101,33 @@ class DataSourceEc2(DataSource.DataSource):
             log.warn("Failed to get timeout, using %s" % timeout)
 
         sleeptime = 1
-        addresslist = ['169.254.169.254', "instance-data:8773"]
+        addresslist = [['169.254.169.254',80], ["instance-data",8773]]
         starttime = time.time()
     
         for x in range(sleeps):
             for address in addresslist:
-                url="http://%s/%s/meta-data/instance-id" % (address,self.api_ver)
+                host="http://%s:%i/" % (address[0],address[1])
+                url="%s%s/meta-data/instance-id" % (host,self.api_ver)
+                
                 # given 100 sleeps, this ends up total sleep time of 1050 sec
                 sleeptime=int(x/5)+1
-
+                
+               
                 reason = ""
                 try:
+                    socket.getaddrinfo(address[0],address[1])
                     req = urllib2.Request(url)
                     resp = urllib2.urlopen(req, timeout=timeout)
                     if resp.read() != "": 
-                        metadata_address = address
+                        metadata_address = host
                         return True
                     reason = "empty data [%s]" % resp.getcode()
                 except urllib2.HTTPError as e:
                     reason = "http error [%s]" % e.code
                 except urllib2.URLError as e:
                     reason = "url error [%s]" % e.reason
+                except socket.gaierror as e:
+                    reason = "url error [%s]" % e
         
                 if x == 0:
                     log.warning("waiting for metadata service at %s\n" % url)
