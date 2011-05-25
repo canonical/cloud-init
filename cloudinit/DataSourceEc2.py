@@ -31,7 +31,7 @@ import errno
 class DataSourceEc2(DataSource.DataSource):
     api_ver  = '2009-04-04'
     seeddir = seeddir + '/ec2'
-    metadata_address = "169.254.169.254"
+    metadata_address = "http://169.254.169.254:80/"
 
     def __str__(self):
         return("DataSourceEc2")
