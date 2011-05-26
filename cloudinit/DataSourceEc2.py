@@ -110,8 +110,8 @@ class DataSourceEc2(DataSource.DataSource):
         addresslist = [['169.254.169.254',80], ["instance-data",8773]]
         starttime = time.time()
         
-        # Remove addresses from the list that wont resolve.
-        addresslist[:] = [x for x in addresslist if try_to_resolve_metadata(x)]
+        # Remove addresses from the list that wont resolve. 
+        addresslist[:] = [x for x in addresslist if self.try_to_resolve_metadata(x)]
         
         log.warning("Checking the following for metadata service:")
         for addr in addresslist:
