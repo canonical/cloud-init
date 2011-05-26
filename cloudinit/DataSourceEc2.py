@@ -80,6 +80,12 @@ class DataSourceEc2(DataSource.DataSource):
         except:
             return fallback
 
+    def try_to_resolve_metadata(self,addresstup):
+        try:
+            socket.getaddrinfo(addresstup[0],addresstup[1])
+            return True
+        except Exception as e:
+            return False
 
     def wait_for_metadata_service(self, sleeps = None):
         mcfg = self.ds_cfg
@@ -103,7 +109,15 @@ class DataSourceEc2(DataSource.DataSource):
         sleeptime = 1
         addresslist = [['169.254.169.254',80], ["instance-data",8773]]
         starttime = time.time()
-    
+        
+        # Remove addresses from the list that wont resolve.
+        addresslist[:] = [x for x in addresslist if try_to_resolve_metadata(x)]
+        
+        log.warning("Checking the following for metadata service:")
+        for addr in addresslist:
+            log.warning("\thttp://%s:%i/meta-data/instance-id" % (addr[0],addr[1]))
+        
+        
         for x in range(sleeps):
             for address in addresslist:
                 host="http://%s:%i/" % (address[0],address[1])
@@ -112,10 +126,9 @@ class DataSourceEc2(DataSource.DataSource):
                 # given 100 sleeps, this ends up total sleep time of 1050 sec
                 sleeptime=int(x/5)+1
                 
-               
                 reason = ""
                 try:
-                    socket.getaddrinfo(address[0],address[1])
+                    log.warning("Trying to access metadata service at %s" % url)
                     req = urllib2.Request(url)
                     resp = urllib2.urlopen(req, timeout=timeout)
                     if resp.read() != "": 
@@ -127,11 +140,10 @@ class DataSourceEc2(DataSource.DataSource):
                     reason = "http error [%s]" % e.code
                 except urllib2.URLError as e:
                     reason = "url error [%s]" % e.reason
-                except socket.gaierror as e:
-                    reason = "url error [%s]" % e
-        
-                if x == 0:
-                    log.warning("waiting for metadata service at %s\n" % url)
+                
+                #not needed? Addresses being checked are displayed above
+                #if x == 0: 
+                #    log.warning("waiting for metadata service at %s" % url)
 
                 log.warning("  %s [%02s/%s]: %s\n" %
                     (time.strftime("%H:%M:%S",time.gmtime()), x+1, sleeps, reason))
