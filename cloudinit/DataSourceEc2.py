@@ -28,8 +28,9 @@ import boto_utils
 import os.path
 import errno
 
+
 class DataSourceEc2(DataSource.DataSource):
-    api_ver  = '2009-04-04'
+    api_ver = '2009-04-04'
     seeddir = seeddir + '/ec2'
     metadata_address = "http://169.254.169.254:80/"
 
@@ -37,18 +38,18 @@ class DataSourceEc2(DataSource.DataSource):
         return("DataSourceEc2")
 
     def get_data(self):
-        seedret={ }
-        if util.read_optional_seed(seedret,base=self.seeddir+ "/"):
+        seedret={}
+        if util.read_optional_seed(seedret, base=self.seeddir+ "/"):
             self.userdata_raw = seedret['user-data']
             self.metadata = seedret['meta-data']
             log.debug("using seeded ec2 data in %s" % self.seeddir)
             return True
-        
+
         try:
             if not self.wait_for_metadata_service():
                 return False
-            self.userdata_raw = boto_utils.get_instance_userdata(self.api_ver,None,self.metadata_address)
-            self.metadata = boto_utils.get_instance_metadata(self.api_ver,self.metadata_address)
+            self.userdata_raw = boto_utils.get_instance_userdata(self.api_ver, None, self.metadata_address)
+            self.metadata = boto_utils.get_instance_metadata(self.api_ver, self.metadata_address)
             return True
         except Exception as e:
             print e
@@ -80,11 +81,13 @@ class DataSourceEc2(DataSource.DataSource):
         except:
             return fallback
 
-    def try_to_resolve_metadata(self,addresstup):
+    def try_to_resolve_metadata(self, address):
+        log.warning("Trying %s" % address)
         try:
-            socket.getaddrinfo(addresstup[0],addresstup[1])
+            socket.getaddrinfo(address.split(":")[1][2:], address.split(":")[2])
             return True
         except Exception as e:
+            log.warning("%s failed with %s" % (address, e))
             return False
 
     def wait_for_metadata_service(self, sleeps = None):
@@ -92,61 +95,73 @@ class DataSourceEc2(DataSource.DataSource):
         if sleeps is None:
             sleeps = 30
             try:
-                sleeps = int(mcfg.get("retries",sleeps))
+                sleeps = int(mcfg.get("retries", sleeps))
             except Exception as e:
                 util.logexc(log)
                 log.warn("Failed to get number of sleeps, using %s" % sleeps)
 
-        if sleeps == 0: return False
+        if sleeps == 0:
+            return False
 
         timeout=2
         try:
-            timeout = int(mcfg.get("timeout",timeout))
+            timeout = int(mcfg.get("timeout", timeout))
         except Exception as e:
             util.logexc(log)
             log.warn("Failed to get timeout, using %s" % timeout)
 
         sleeptime = 1
-        addresslist = [['169.254.169.254',80], ["instance-data",8773]]
+
+        addresslist = ["http://169.254.169.254:80", "http://instance-data:8773"]
+        try:
+            addresslist = mcfg.get("metadata_url", addresslist)
+        except Exception as e:
+            util.logexc(log)
+            log.warn("Failed to get metadata URLs, using defaults")
+
         starttime = time.time()
-        
-        # Remove addresses from the list that wont resolve. 
+
+        log.warning("Attempting to resolve metadata services")
+        #for addr in addresslist:
+        #    log.warning("\t%s/meta-data/instance-id" % addr)
+
+        # Remove addresses from the list that wont resolve.
         addresslist[:] = [x for x in addresslist if self.try_to_resolve_metadata(x)]
-        
-        log.warning("Checking the following for metadata service:")
+
+        log.warning("The following metadata service addresses resolved:")
         for addr in addresslist:
-            log.warning("\thttp://%s:%i/meta-data/instance-id" % (addr[0],addr[1]))
-        
-        
+            log.warning("\t%s/meta-data/instance-id" % addr)
+
+
         for x in range(sleeps):
+            log.warning("[%02s/%s] Trying Metadata Services:" % (time.strftime("%H:%M:%S", time.gmtime()), x+1, sleeps))
             for address in addresslist:
-                host="http://%s:%i/" % (address[0],address[1])
-                url="%s%s/meta-data/instance-id" % (host,self.api_ver)
-                
+                url="%s/%s/meta-data/instance-id" % (address, self.api_ver)
+
                 # given 100 sleeps, this ends up total sleep time of 1050 sec
                 sleeptime=int(x/5)+1
-                
+
                 reason = ""
                 try:
-                    log.warning("Trying to access metadata service at %s" % url)
+                    #log.warning("\t - Trying %s" % url)
                     req = urllib2.Request(url)
                     resp = urllib2.urlopen(req, timeout=timeout)
-                    if resp.read() != "": 
-                        self.metadata_address = host
+                    if resp.read() != "":
+                        self.metadata_address = address
+                        log.warning("\nUsing %s for metadata" % self.metadata_address)
                         return True
-                        log.info("Using $s for metadata" % self.metadata_address)
                     reason = "empty data [%s]" % resp.getcode()
                 except urllib2.HTTPError as e:
                     reason = "http error [%s]" % e.code
                 except urllib2.URLError as e:
                     reason = "url error [%s]" % e.reason
-                
+
                 #not needed? Addresses being checked are displayed above
-                #if x == 0: 
+                #if x == 0:
                 #    log.warning("waiting for metadata service at %s" % url)
 
-                log.warning("  %s [%02s/%s]: %s\n" %
-                    (time.strftime("%H:%M:%S",time.gmtime()), x+1, sleeps, reason))
+                log.warning("\t%s - Failed With : %s" % (address, reason))
+            log.warning("Sleeping for %d seconds\n" % sleeptime)
             time.sleep(sleeptime)
 
         log.critical("giving up on md after %i seconds\n" %
@@ -177,10 +192,10 @@ class DataSourceEc2(DataSource.DataSource):
         # when the kernel named them 'vda' or 'xvda'
         # we want to return the correct value for what will actually
         # exist in this instance
-        mappings = { "sd": ("vd", "xvd") }
+        mappings = {"sd": ("vd", "xvd")}
         ofound = found
         short = os.path.basename(found)
-        
+
         if not found.startswith("/"):
             found="/dev/%s" % found
 
@@ -188,11 +203,12 @@ class DataSourceEc2(DataSource.DataSource):
             return(found)
 
         for nfrom, tlist in mappings.items():
-            if not short.startswith(nfrom): continue
+            if not short.startswith(nfrom):
+                continue
             for nto in tlist:
                 cand = "/dev/%s%s" % (nto, short[len(nfrom):])
                 if os.path.exists(cand):
-                    log.debug("remapped device name %s => %s" % (found,cand))
+                    log.debug("remapped device name %s => %s" % (found, cand))
                     return(cand)
         return ofound
 
@@ -204,8 +220,8 @@ class DataSourceEc2(DataSource.DataSource):
             return True
         return False
 
-datasources = [ 
-  ( DataSourceEc2, ( DataSource.DEP_FILESYSTEM , DataSource.DEP_NETWORK ) ),
+datasources = [
+  (DataSourceEc2, (DataSource.DEP_FILESYSTEM, DataSource.DEP_NETWORK)),
 ]
 
 # return a list of data sources that match this set of dependencies
