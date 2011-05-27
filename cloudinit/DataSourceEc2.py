@@ -148,7 +148,7 @@ class DataSourceEc2(DataSource.DataSource):
                     resp = urllib2.urlopen(req, timeout=timeout)
                     if resp.read() != "":
                         self.metadata_address = address
-                        log.warning("\nUsing %s for metadata" % self.metadata_address)
+                        log.warning("Success! Using %s for metadata" % self.metadata_address)
                         return True
                     reason = "empty data [%s]" % resp.getcode()
                 except urllib2.HTTPError as e:
