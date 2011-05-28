@@ -117,7 +117,7 @@ class DataSourceEc2(DataSource.DataSource):
             addresslist = mcfg.get("metadata_url", addresslist)
         except Exception as e:
             util.logexc(log)
-            log.warn("Failed to get metadata URLs, using defaults")
+            log.warning("Failed to get metadata URLs, using defaults")
 
         starttime = time.time()
 
@@ -134,7 +134,7 @@ class DataSourceEc2(DataSource.DataSource):
 
 
         for x in range(sleeps):
-            log.warning("[%02s/%s] Trying Metadata Services:" % (time.strftime("%H:%M:%S", time.gmtime()), x+1, sleeps))
+            log.warning("[%02s/%s] Trying Metadata Services:" % (x+1, sleeps))
             for address in addresslist:
                 url="%s/%s/meta-data/instance-id" % (address, self.api_ver)
 
