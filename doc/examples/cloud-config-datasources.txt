@@ -10,7 +10,7 @@ datasource:
     retries : 30
 
     #metadata_url: a list of URLs to check for metadata services
-    metadata_url:
+    metadata_urls:
      - http://169.254.169.254:80
      - http://instance-data:8773
 

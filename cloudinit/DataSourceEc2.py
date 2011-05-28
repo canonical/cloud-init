@@ -114,7 +114,7 @@ class DataSourceEc2(DataSource.DataSource):
 
         addresslist = ["http://169.254.169.254:80", "http://instance-data:8773"]
         try:
-            addresslist = mcfg.get("metadata_url", addresslist)
+            addresslist = mcfg.get("metadata_urls", addresslist)
         except Exception as e:
             util.logexc(log)
             log.warning("Failed to get metadata URLs, using defaults")
