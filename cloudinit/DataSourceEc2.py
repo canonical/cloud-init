@@ -28,9 +28,8 @@ import boto_utils
 import os.path
 import errno
 
-
 class DataSourceEc2(DataSource.DataSource):
-    api_ver = '2009-04-04'
+    api_ver  = '2009-04-04'
     seeddir = seeddir + '/ec2'
     metadata_address = "http://169.254.169.254:80/"
 
@@ -38,13 +37,13 @@ class DataSourceEc2(DataSource.DataSource):
         return("DataSourceEc2")
 
     def get_data(self):
-        seedret={}
-        if util.read_optional_seed(seedret, base=self.seeddir+ "/"):
+        seedret={ }
+        if util.read_optional_seed(seedret,base=self.seeddir+ "/"):
             self.userdata_raw = seedret['user-data']
             self.metadata = seedret['meta-data']
             log.debug("using seeded ec2 data in %s" % self.seeddir)
             return True
-
+        
         try:
             if not self.wait_for_metadata_service():
                 return False
@@ -95,17 +94,16 @@ class DataSourceEc2(DataSource.DataSource):
         if sleeps is None:
             sleeps = 30
             try:
-                sleeps = int(mcfg.get("retries", sleeps))
+                sleeps = int(mcfg.get("retries",sleeps))
             except Exception as e:
                 util.logexc(log)
                 log.warn("Failed to get number of sleeps, using %s" % sleeps)
 
-        if sleeps == 0:
-            return False
+        if sleeps == 0: return False
 
         timeout=2
         try:
-            timeout = int(mcfg.get("timeout", timeout))
+            timeout = int(mcfg.get("timeout",timeout))
         except Exception as e:
             util.logexc(log)
             log.warn("Failed to get timeout, using %s" % timeout)
@@ -192,10 +190,10 @@ class DataSourceEc2(DataSource.DataSource):
         # when the kernel named them 'vda' or 'xvda'
         # we want to return the correct value for what will actually
         # exist in this instance
-        mappings = {"sd": ("vd", "xvd")}
+        mappings = { "sd": ("vd", "xvd") }
         ofound = found
         short = os.path.basename(found)
-
+        
         if not found.startswith("/"):
             found="/dev/%s" % found
 
@@ -203,12 +201,11 @@ class DataSourceEc2(DataSource.DataSource):
             return(found)
 
         for nfrom, tlist in mappings.items():
-            if not short.startswith(nfrom):
-                continue
+            if not short.startswith(nfrom): continue
             for nto in tlist:
                 cand = "/dev/%s%s" % (nto, short[len(nfrom):])
                 if os.path.exists(cand):
-                    log.debug("remapped device name %s => %s" % (found, cand))
+                    log.debug("remapped device name %s => %s" % (found,cand))
                     return(cand)
         return ofound
 
@@ -220,8 +217,8 @@ class DataSourceEc2(DataSource.DataSource):
             return True
         return False
 
-datasources = [
-  (DataSourceEc2, (DataSource.DEP_FILESYSTEM, DataSource.DEP_NETWORK)),
+datasources = [ 
+  ( DataSourceEc2, ( DataSource.DEP_FILESYSTEM , DataSource.DEP_NETWORK ) ),
 ]
 
 # return a list of data sources that match this set of dependencies
