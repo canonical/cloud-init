@@ -255,9 +255,14 @@ debconf_selections: |     # Need to perserve newlines
         debconf debconf/frontend seen false
 
 # manage byobu defaults
-# byobu_by_default: ('user'|'system')
-#   'user' will set byobu 'launch-by-default' for the default user
-#   'system' will enable launch-by-default for for all users
+# byobu_by_default:
+#   'user' or 'enable-user': set byobu 'launch-by-default' for the default user
+#   'system' or 'enable-system' or 'enable':
+#      enable 'launch-by-default' for all users, do not modify default user
+#   'disable': disable both default user and system
+#   'disable-system': disable system
+#   'disable-user': disable for default user
+#   not-set: no changes made
 byobu_by_default: system
 
 # disable ssh access as root.

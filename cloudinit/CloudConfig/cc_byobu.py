@@ -27,19 +27,40 @@ def handle(name,cfg,cloud,log,args):
 
     if not value: return
 
-    if value == "user":
-        user = util.get_cfg_option_str(cfg,"user","ubuntu")
-        cmd = [ 'sudo', '-Hu', user, 'byobu-launcher-install' ]
-    elif value == "system":
-        shcmd="echo '%s' | debconf-set-selections && %s" % \
-            ( "byobu byobu/launch-by-default boolean true", 
-              "dpkg-reconfigure byobu --frontend=noninteractive" )
-        cmd = [ "/bin/sh", "-c", shcmd ]
-    else:
-        log.warn("Unknown value %s for byobu_by_default" % value)
-        return
+    if value == "user" or value == "system":
+        value = "enable-%s" % value
 
-    log.debug("enabling byobu for %s" % value)
+    valid = ( "enable-user", "enable-system", "enable",
+              "disable-user", "disable-system", "disable" )
+    if not value in valid:
+        log.warn("Unknown value %s for byobu_by_default" % value)
+
+    mod_user = value.endswith("-user")
+    mod_sys = value.endswith("-system")
+    if value.startswith("enable"):
+        bl_inst = "install"
+        dc_val = "byobu byobu/launch-by-default boolean true"
+        mod_sys = True
+    else:
+        if value == "disable":
+            mod_user = True
+            mod_sys = True
+        bl_inst = "uninstall"
+        dc_val = "byobu byobu/launch-by-default boolean false"
+
+    shcmd = ""
+    if mod_user:
+        user = util.get_cfg_option_str(cfg,"user","ubuntu")
+        shcmd += " sudo -Hu \"%s\" byobu-launcher-%s" % (user, bl_inst)
+        shcmd += " || X=$(($X+1)); "
+    if mod_sys:
+        shcmd += "echo \"%s\" | debconf-set-selections" % dc_val
+        shcmd += " && dpkg-reconfigure byobu --frontend=noninteractive"
+        shcmd += " || X=$(($X+1)); "
+
+    cmd = [ "/bin/sh", "-c", "%s %s %s" % ("X=0;", shcmd, "exit $X" ) ]
+
+    log.debug("setting byobu to %s" % value)
 
     try:
         subprocess.check_call(cmd)

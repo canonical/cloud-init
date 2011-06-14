@@ -11,6 +11,7 @@
    to renamed devices in newer (natty) kernels (/dev/sda1 -> /dev/xvda1)
  - make metadata urls configurable, to support eucalyptus in
    STATIC or SYSTEM modes (LP: #761847)
+ - support disabling byobu in cloud-config
 0.6.1:
  - fix bug in fixing permission on /var/log/cloud-init.log (LP: #704509)
  - improve comment strings in rsyslog file tools/21-cloudinit.conf
