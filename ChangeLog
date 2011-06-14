@@ -12,6 +12,8 @@
  - make metadata urls configurable, to support eucalyptus in
    STATIC or SYSTEM modes (LP: #761847)
  - support disabling byobu in cloud-config
+ - run cc_ssh as a cloud-init module so it is guaranteed to run before
+   ssh starts (LP: #781101)
 0.6.1:
  - fix bug in fixing permission on /var/log/cloud-init.log (LP: #704509)
  - improve comment strings in rsyslog file tools/21-cloudinit.conf
