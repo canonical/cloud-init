@@ -11,11 +11,12 @@ When you've done a fresh checkout of above, you will need to run:
    debian/rules quilt-setup
 
 To cherry pick revisions 391 to tip from from trunk, do something like:
-  s=391; e=; 
-  b=../trunk; 
-  pfile=catchup-${s}${e:+-${e}}.patch
+  s=391; e=;
+  b=../trunk;
   [ -n "${e}" ] || e=$(cd ${b} && bzr revno)
-  ( cd ../trunk && bzr log -r$s..$e && 
+  pfile=catchup-${s}${e:+-${e}}.patch
+  [ "$s" = "$e" ] && pfile=catchup-${s}.patch
+  ( cd ../trunk && bzr log -r$s..$e &&
       bzr diff -p1 -r$(($s-1))..$e ) > "debian/patches/$pfile"
   echo "$pfile" >> debian/patches/series
   quilt push

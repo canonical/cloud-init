@@ -1,0 +1,610 @@
+------------------------------------------------------------
+revno: 404
+fixes bug(s): https://launchpad.net/bugs/785542
+committer: Scott Moser <smoser@ubuntu.com>
+branch nick: trunk
+timestamp: Fri 2011-06-17 11:40:41 -0400
+message:
+  read authorized_keys location from sshd_config (LP: #731849)
+------------------------------------------------------------
+revno: 403
+fixes bug(s): https://launchpad.net/bugs/785542
+committer: Scott Moser <smoser@ubuntu.com>
+branch nick: trunk
+timestamp: Fri 2011-06-17 11:13:16 -0400
+message:
+  make the default "fill in" mount entries configurable. (LP: #785542)
+  
+  The primary motivation for this is so that 'nobootwait' is not hard
+  coded to appear in the fs_opts field.
+------------------------------------------------------------
+revno: 402
+fixes bug(s): https://launchpad.net/bugs/785551
+committer: Scott Moser <smoser@ubuntu.com>
+branch nick: trunk
+timestamp: Fri 2011-06-17 11:03:49 -0400
+message:
+  make the "cloud-config ready" command configurable (LP: #785551)
+  
+  Previously, when cloud-config was ready, cloud-init would emit an
+  upstart event with:
+    initctl emit cloud-config
+  
+  Now, that command is configurable via the 'cc_ready_cmd' value in
+  cloud.cfg or user data.  The default behavior is not changed.
+------------------------------------------------------------
+revno: 401
+committer: Scott Moser <smoser@ubuntu.com>
+branch nick: trunk
+timestamp: Fri 2011-06-17 10:51:08 -0400
+message:
+  mention previous commit in ChangeLog
+------------------------------------------------------------
+revno: 400
+fixes bug(s): https://launchpad.net/bugs/798505
+committer: Scott Moser <smoser@ubuntu.com>
+branch nick: trunk
+timestamp: Fri 2011-06-17 10:44:22 -0400
+message:
+  change, and make configurable the prefix for entries in root authorized_keys
+  
+  This makes the prefix for entries added to root's authorized keys 
+  configurable.  Previously, the value was:
+     command="echo 'Please login as the user \"ubuntu\" rather than the user \"root\".\';echo;sleep 10\""
+  
+  Now, at is configurable in cloud.cfg or user data by setting
+  'root_disabled_opts'.
+  
+  Additionally, the default has been changed to include 
+  'no-port-forwarding,no-agent-forwarding,no-X11-forwarding'
+  See LP: #798505 for more information on that.
+  
+  Note, that 'no-pty' was *not* added to this list as adding it means the
+  user who simply does 'ssh root@host' gets a "cannot allocate pty" message
+  rather than seeing warning about using root.
+------------------------------------------------------------
+revno: 399
+committer: Scott Moser <smoser@ubuntu.com>
+branch nick: trunk
+timestamp: Fri 2011-06-17 06:41:53 -0400
+message:
+  fix broken ec2 metadata service (incorrect variable name)
+------------------------------------------------------------
+revno: 398
+fixes bug(s): https://launchpad.net/bugs/781101
+committer: Scott Moser <smoser@ubuntu.com>
+branch nick: trunk
+timestamp: Tue 2011-06-14 16:25:34 -0400
+message:
+  run cc_ssh as a cloud-init module so it is guaranteed to run before
+  ssh starts (LP: #781101)
+------------------------------------------------------------
+revno: 397
+fixes bug(s): https://launchpad.net/bugs/797336
+committer: Scott Moser <smoser@ubuntu.com>
+branch nick: trunk
+timestamp: Tue 2011-06-14 16:23:46 -0400
+message:
+  Support disabling of byobu.
+------------------------------------------------------------
+revno: 396 [merge]
+fixes bug(s): https://launchpad.net/bugs/761847
+committer: Scott Moser <smoser@ubuntu.com>
+branch nick: trunk.merge
+timestamp: Wed 2011-06-01 16:29:37 -0400
+message:
+  support configurable urls for metadata service
+  
+  Now, if a Eucalyptus install is in STATIC or SYSTEM mode,
+  the metadata service can still be used. In order to do that,
+  the user must configure their DNS so that 'instance-data' will
+  resolve to the cloud controller.
+  
+  Thanks to Kieran Evans.
+------------------------------------------------------------
+Use --include-merges or -n0 to see merged revisions.
+=== modified file 'ChangeLog'
+--- old/ChangeLog	2011-04-06 10:35:45 +0000
++++ new/ChangeLog	2011-06-17 15:40:41 +0000
+@@ -9,6 +9,20 @@
+    and upstart jobs (LP: #744965)
+  - fix bug in seeding of grub dpkg configuration (LP: #752361) due
+    to renamed devices in newer (natty) kernels (/dev/sda1 -> /dev/xvda1)
++ - make metadata urls configurable, to support eucalyptus in
++   STATIC or SYSTEM modes (LP: #761847)
++ - support disabling byobu in cloud-config
++ - run cc_ssh as a cloud-init module so it is guaranteed to run before
++   ssh starts (LP: #781101)
++ - make prefix for keys added to /root/.ssh/authorized_keys configurable
++   and add 'no-port-forwarding,no-agent-forwarding,no-X11-forwarding'
++   to the default (LP: #798505)
++ - make 'cloud-config ready' command configurable (LP: #785551)
++ - make fstab fields used to 'fill in' shorthand entries configurable
++   This means you do not have to have 'nobootwait' in the values
++   (LP: #785542)
++ - read /etc/ssh/sshd_config for AuthorizedKeysFile rather than
++   assuming ~/.ssh/authorized_keys (LP: #731849)
+ 0.6.1:
+  - fix bug in fixing permission on /var/log/cloud-init.log (LP: #704509)
+  - improve comment strings in rsyslog file tools/21-cloudinit.conf
+
+=== modified file 'cloud-init.py'
+--- old/cloud-init.py	2011-03-02 22:08:46 +0000
++++ new/cloud-init.py	2011-06-17 15:03:49 +0000
+@@ -146,9 +146,6 @@
+         warn("consuming user data failed!\n")
+         raise
+ 
+-    # finish, send the cloud-config event
+-    cloud.initctl_emit()
+-
+     cfg_path = cloudinit.get_ipath_cur("cloud_config")
+     cc = CC.CloudConfig(cfg_path, cloud)
+ 
+@@ -163,6 +160,16 @@
+     except Exception as e:
+         warn("Failed to get and set output config: %s\n" % e)
+ 
++    # send the cloud-config ready event
++    cc_path = cloudinit.get_ipath_cur('cloud_config')
++    cc_ready = cc.cfg.get("cc_ready_cmd",
++        ['initctl', 'emit', 'cloud-config',
++         '%s=%s' % (cloudinit.cfg_env_name, cc_path) ])
++    if cc_ready:
++        if isinstance(cc_ready,str):
++            cc_ready = [ 'sh', '-c', cc_ready]
++        subprocess.Popen(cc_ready).communicate()
++
+     module_list = CC.read_cc_modules(cc.cfg,"cloud_init_modules")
+ 
+     failures = []
+
+=== modified file 'cloudinit/CloudConfig/cc_byobu.py'
+--- old/cloudinit/CloudConfig/cc_byobu.py	2010-06-18 19:41:59 +0000
++++ new/cloudinit/CloudConfig/cc_byobu.py	2011-06-14 20:23:46 +0000
+@@ -27,19 +27,40 @@
+ 
+     if not value: return
+ 
+-    if value == "user":
++    if value == "user" or value == "system":
++        value = "enable-%s" % value
++
++    valid = ( "enable-user", "enable-system", "enable",
++              "disable-user", "disable-system", "disable" )
++    if not value in valid:
++        log.warn("Unknown value %s for byobu_by_default" % value)
++
++    mod_user = value.endswith("-user")
++    mod_sys = value.endswith("-system")
++    if value.startswith("enable"):
++        bl_inst = "install"
++        dc_val = "byobu byobu/launch-by-default boolean true"
++        mod_sys = True
++    else:
++        if value == "disable":
++            mod_user = True
++            mod_sys = True
++        bl_inst = "uninstall"
++        dc_val = "byobu byobu/launch-by-default boolean false"
++
++    shcmd = ""
++    if mod_user:
+         user = util.get_cfg_option_str(cfg,"user","ubuntu")
+-        cmd = [ 'sudo', '-Hu', user, 'byobu-launcher-install' ]
+-    elif value == "system":
+-        shcmd="echo '%s' | debconf-set-selections && %s" % \
+-            ( "byobu byobu/launch-by-default boolean true", 
+-              "dpkg-reconfigure byobu --frontend=noninteractive" )
+-        cmd = [ "/bin/sh", "-c", shcmd ]
+-    else:
+-        log.warn("Unknown value %s for byobu_by_default" % value)
+-        return
+-
+-    log.debug("enabling byobu for %s" % value)
++        shcmd += " sudo -Hu \"%s\" byobu-launcher-%s" % (user, bl_inst)
++        shcmd += " || X=$(($X+1)); "
++    if mod_sys:
++        shcmd += "echo \"%s\" | debconf-set-selections" % dc_val
++        shcmd += " && dpkg-reconfigure byobu --frontend=noninteractive"
++        shcmd += " || X=$(($X+1)); "
++
++    cmd = [ "/bin/sh", "-c", "%s %s %s" % ("X=0;", shcmd, "exit $X" ) ]
++
++    log.debug("setting byobu to %s" % value)
+ 
+     try:
+         subprocess.check_call(cmd)
+
+=== modified file 'cloudinit/CloudConfig/cc_mounts.py'
+--- old/cloudinit/CloudConfig/cc_mounts.py	2010-09-10 19:32:32 +0000
++++ new/cloudinit/CloudConfig/cc_mounts.py	2011-06-17 15:13:16 +0000
+@@ -32,13 +32,14 @@
+     return False
+ 
+ def handle(name,cfg,cloud,log,args):
++    # fs_spec, fs_file, fs_vfstype, fs_mntops, fs-freq, fs_passno
++    defvals = [ None, None, "auto", "defaults,nobootwait", "0", "2" ]
++    defvals = cfg.get("mount_default_fields", defvals)
++
+     # these are our default set of mounts
+-    defmnts = [ [ "ephemeral0", "/mnt", "auto", "defaults,nobootwait", "0", "2" ],
++    defmnts = [ [ "ephemeral0", "/mnt", "auto", defvals[3], "0", "2" ],
+                 [ "swap", "none", "swap", "sw", "0", "0" ] ]
+ 
+-    # fs_spec, fs_file, fs_vfstype, fs_mntops, fs-freq, fs_passno
+-    defvals = [ None, None, "auto", "defaults,nobootwait", "0", "2" ]
+-
+     cfgmnt = [ ]
+     if cfg.has_key("mounts"):
+         cfgmnt = cfg["mounts"]
+
+=== modified file 'cloudinit/CloudConfig/cc_ssh.py'
+--- old/cloudinit/CloudConfig/cc_ssh.py	2011-01-26 20:35:07 +0000
++++ new/cloudinit/CloudConfig/cc_ssh.py	2011-06-17 15:40:41 +0000
+@@ -20,7 +20,15 @@
+ import glob
+ import subprocess
+ 
++DISABLE_ROOT_OPTS="no-port-forwarding,no-agent-forwarding,no-X11-forwarding,command=\"echo \'Please login as the user \\\"$USER\\\" rather than the user \\\"root\\\".\';echo;sleep 10\""
++
++
++global_log = None
++
+ def handle(name,cfg,cloud,log,args):
++    global global_log
++    global_log = log
++
+     # remove the static keys from the pristine image
+     for f in glob.glob("/etc/ssh/ssh_host_*_key*"):
+         try: os.unlink(f)
+@@ -55,14 +63,17 @@
+     try:
+         user = util.get_cfg_option_str(cfg,'user')
+         disable_root = util.get_cfg_option_bool(cfg, "disable_root", True)
++        disable_root_opts = util.get_cfg_option_str(cfg, "disable_root_opts",
++            DISABLE_ROOT_OPTS)
+         keys = cloud.get_public_ssh_keys()
+ 
+         if cfg.has_key("ssh_authorized_keys"):
+             cfgkeys = cfg["ssh_authorized_keys"]
+             keys.extend(cfgkeys)
+ 
+-        apply_credentials(keys,user,disable_root)
++        apply_credentials(keys,user,disable_root, disable_root_opts)
+     except:
++        util.logexc(log)
+         log.warn("applying credentials failed!\n")
+ 
+     send_ssh_keys_to_console()
+@@ -70,13 +81,13 @@
+ def send_ssh_keys_to_console():
+     subprocess.call(('/usr/lib/cloud-init/write-ssh-key-fingerprints',))
+ 
+-def apply_credentials(keys, user, disable_root):
++def apply_credentials(keys, user, disable_root, disable_root_opts=DISABLE_ROOT_OPTS):
+     keys = set(keys)
+     if user:
+         setup_user_keys(keys, user, '')
+  
+     if disable_root:
+-        key_prefix = 'command="echo \'Please login as the user \\\"%s\\\" rather than the user \\\"root\\\".\';echo;sleep 10" ' % user
++        key_prefix = disable_root_opts.replace('$USER', user)
+     else:
+         key_prefix = ''
+ 
+@@ -93,13 +104,34 @@
+         os.mkdir(ssh_dir)
+         os.chown(ssh_dir, pwent.pw_uid, pwent.pw_gid)
+ 
+-    authorized_keys = '%s/.ssh/authorized_keys' % pwent.pw_dir
++    try:
++        ssh_cfg = parse_ssh_config()
++        akeys = ssh_cfg.get("AuthorizedKeysFile","%h/.ssh/authorized_keys")
++        akeys = akeys.replace("%h", pwent.pw_dir)
++        akeys = akeys.replace("%u", user)
++        authorized_keys = akeys
++    except Exception as e:
++        authorized_keys = '%s/.ssh/authorized_keys' % pwent.pw_dir
++        util.logexc(global_log)
++
+     fp = open(authorized_keys, 'a')
+-    fp.write(''.join(['%s%s\n' % (key_prefix, key) for key in keys]))
++    key_prefix = key_prefix.replace("\n"," ")
++    fp.write(''.join(['%s %s\n' % (key_prefix.strip(), key) for key in keys]))
+     fp.close()
+ 
+     os.chown(authorized_keys, pwent.pw_uid, pwent.pw_gid)
+ 
+     os.umask(saved_umask)
+ 
++def parse_ssh_config(fname="/etc/ssh/sshd_config"):
++    ret = { }
++    fp=open(fname)
++    for l in fp.readlines():
++        l = l.strip()
++        if not l or l.startswith("#"):
++            continue
++        key,val = l.split(None,1)
++        ret[key]=val
++    fp.close()
++    return(ret)
+ 
+
+=== modified file 'cloudinit/DataSourceEc2.py'
+--- old/cloudinit/DataSourceEc2.py	2011-02-07 18:09:42 +0000
++++ new/cloudinit/DataSourceEc2.py	2011-06-17 10:41:53 +0000
+@@ -27,10 +27,12 @@
+ import boto_utils
+ import os.path
+ import errno
++import urlparse
+ 
+ class DataSourceEc2(DataSource.DataSource):
+     api_ver  = '2009-04-04'
+     seeddir = seeddir + '/ec2'
++    metadata_address = "http://169.254.169.254"
+ 
+     def __str__(self):
+         return("DataSourceEc2")
+@@ -46,8 +48,8 @@
+         try:
+             if not self.wait_for_metadata_service():
+                 return False
+-            self.userdata_raw = boto_utils.get_instance_userdata(self.api_ver)
+-            self.metadata = boto_utils.get_instance_metadata(self.api_ver)
++            self.userdata_raw = boto_utils.get_instance_userdata(self.api_ver, None, self.metadata_address)
++            self.metadata = boto_utils.get_instance_metadata(self.api_ver, self.metadata_address)
+             return True
+         except Exception as e:
+             print e
+@@ -100,30 +102,58 @@
+             log.warn("Failed to get timeout, using %s" % timeout)
+ 
+         sleeptime = 1
+-        address = '169.254.169.254'
++
++        def_mdurls = ["http://169.254.169.254", "http://instance-data:8773"]
++        try:
++            mdurls = mcfg.get("metadata_urls", def_mdurls)
++        except Exception as e:
++            mdurls = def_mdurls
++            util.logexc(log)
++            log.warn("Failed to get metadata URLs, using defaults")
++
+         starttime = time.time()
+-    
+-        url="http://%s/%s/meta-data/instance-id" % (address,self.api_ver)
++
++        # Remove addresses from the list that wont resolve.
++        filtered = [x for x in mdurls if try_to_resolve_metadata(x)]
++
++        if set(filtered) != set(mdurls):
++            log.debug("removed the following from metadata urls: %s" %
++                list((set(mdurls) - set(filtered))))
++
++        if len(filtered):
++            mdurls = filtered
++        else:
++            log.warn("Empty metadata url list! using default list")
++            mdurls = def_mdurls
++
++        log.debug("Searching the following metadata urls: %s" % mdurls)
++
+         for x in range(sleeps):
+-            # given 100 sleeps, this ends up total sleep time of 1050 sec
+-            sleeptime=int(x/5)+1
+-
+-            reason = ""
+-            try:
+-                req = urllib2.Request(url)
+-                resp = urllib2.urlopen(req, timeout=timeout)
+-                if resp.read() != "": return True
+-                reason = "empty data [%s]" % resp.getcode()
+-            except urllib2.HTTPError as e:
+-                reason = "http error [%s]" % e.code
+-            except urllib2.URLError as e:
+-                reason = "url error [%s]" % e.reason
+-    
+-            if x == 0:
+-                log.warning("waiting for metadata service at %s\n" % url)
+-
+-            log.warning("  %s [%02s/%s]: %s\n" %
+-                (time.strftime("%H:%M:%S",time.gmtime()), x+1, sleeps, reason))
++            for url in mdurls:
++                iurl="%s/%s/meta-data/instance-id" % (url, self.api_ver)
++
++                # given 100 sleeps, this ends up total sleep time of 1050 sec
++                sleeptime=int(x/5)+1
++
++                reason = ""
++                try:
++                    req = urllib2.Request(iurl)
++                    resp = urllib2.urlopen(req, timeout=timeout)
++                    if resp.read() != "":
++                        self.metadata_address = url
++                        log.debug("Using metadata source: '%s'" % url)
++                        return True
++                    reason = "empty data [%s]" % resp.getcode()
++                except urllib2.HTTPError as e:
++                    reason = "http error [%s]" % e.code
++                except urllib2.URLError as e:
++                    reason = "url error [%s]" % e.reason
++
++                #not needed? Addresses being checked are displayed above
++                #if x == 0:
++                #    log.warn("waiting for metadata service at %s" % url)
++
++                log.warn("'%s' failed: %s" % (url, reason))
+             time.sleep(sleeptime)
+ 
+         log.critical("giving up on md after %i seconds\n" %
+@@ -181,6 +211,15 @@
+             return True
+         return False
+ 
++def try_to_resolve_metadata(url):
++    try:
++        addr = urlparse.urlsplit(url).netloc.split(":")[0]
++        socket.getaddrinfo(addr, None)
++        return True
++    except Exception as e:
++        return False
++
++
+ datasources = [ 
+   ( DataSourceEc2, ( DataSource.DEP_FILESYSTEM , DataSource.DEP_NETWORK ) ),
+ ]
+
+=== modified file 'cloudinit/__init__.py'
+--- old/cloudinit/__init__.py	2011-04-04 16:45:01 +0000
++++ new/cloudinit/__init__.py	2011-06-17 15:03:49 +0000
+@@ -243,11 +243,6 @@
+         util.write_file(self.get_ipath('userdata'),
+             self.datasource.get_userdata(), 0600)
+ 
+-    def initctl_emit(self):
+-        cc_path = get_ipath_cur('cloud_config')
+-        subprocess.Popen(['initctl', 'emit', 'cloud-config',
+-            '%s=%s' % (cfg_env_name,cc_path)]).communicate()
+-
+     def sem_getpath(self,name,freq):
+         if freq == 'once-per-instance':
+             return("%s/%s" % (self.get_ipath("sem"),name))
+
+=== modified file 'cloudinit/boto_utils.py'
+--- old/cloudinit/boto_utils.py	2011-01-26 14:03:46 +0000
++++ new/cloudinit/boto_utils.py	2011-05-27 23:50:41 +0000
+@@ -60,7 +60,7 @@
+     sys.stderr.write('Caught exception reading instance data, giving up\n')
+     return ''
+ 
+-def get_instance_metadata(version='latest'):
++def get_instance_metadata(version='latest',url='http://169.254.169.254'):
+     """
+     Returns the instance metadata as a nested Python dictionary.
+     Simple values (e.g. local_hostname, hostname, etc.) will be
+@@ -68,11 +68,11 @@
+     be stored in the dict as a list of string values.  More complex
+     fields such as public-keys and will be stored as nested dicts.
+     """
+-    url = 'http://169.254.169.254/%s/meta-data/' % version
++    url = '%s/%s/meta-data/' % (url,version)
+     return _get_instance_metadata(url)
+ 
+-def get_instance_userdata(version='latest', sep=None):
+-    url = 'http://169.254.169.254/%s/user-data' % version
++def get_instance_userdata(version='latest', sep=None,url='http://169.254.169.254'):
++    url = '%s/%s/user-data' % (url,version)
+     user_data = retry_url(url, retry_on_404=False)
+     if user_data:
+         if sep:
+
+=== modified file 'config/cloud.cfg'
+--- old/config/cloud.cfg	2011-03-04 16:06:51 +0000
++++ new/config/cloud.cfg	2011-06-14 20:25:34 +0000
+@@ -10,12 +10,12 @@
+  - update_hostname
+  - update_etc_hosts
+  - rsyslog
++ - ssh
+ 
+ cloud_config_modules:
+  - mounts
+  - ssh-import-id
+  - locale
+- - ssh
+  - set-passwords
+  - grub-dpkg
+  - apt-update-upgrade
+
+=== modified file 'doc/examples/cloud-config-datasources.txt'
+--- old/doc/examples/cloud-config-datasources.txt	2011-02-07 18:09:42 +0000
++++ new/doc/examples/cloud-config-datasources.txt	2011-05-28 00:44:00 +0000
+@@ -8,3 +8,10 @@
+     # after each try, a sleep of int(try_number/5)+1 is done
+     # default sleep is 30
+     retries : 30
++
++    #metadata_url: a list of URLs to check for metadata services
++    metadata_urls:
++     - http://169.254.169.254:80
++     - http://instance-data:8773
++
++    
+
+=== modified file 'doc/examples/cloud-config.txt'
+--- old/doc/examples/cloud-config.txt	2011-02-17 21:22:53 +0000
++++ new/doc/examples/cloud-config.txt	2011-06-17 15:13:16 +0000
+@@ -111,7 +111,7 @@
+ #   written to /etc/fstab.
+ # - '/dev' can be ommitted for device names that begin with: xvd, sd, hd, vd
+ # - if an entry does not have all 6 fields, they will be filled in
+-#   from the following: [ None, None, "auto", "defaults,nobootwait", "0", "2" ]
++#   with values from 'mount_default_fields' below.
+ #
+ # Note, that you should set 'nobootwait' (see man fstab) for volumes that may
+ # not be attached at instance boot (or reboot)
+@@ -122,6 +122,11 @@
+  - [ xvdh, /opt/data, "auto", "defaults,nobootwait", "0", "0" ]
+  - [ dd, /dev/zero ]
+ 
++# mount_default_fields
++# These values are used to fill in any entries in 'mounts' that are not
++# complete.  This must be an array, and must have 7 fields.
++mount_default_fields: [ None, None, "auto", "defaults,nobootwait", "0", "2" ]
++
+ # add each entry to ~/.ssh/authorized_keys for the configured user
+ ssh_authorized_keys:
+   - ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAGEA3FSyQwBI6Z+nCSjUUk8EEAnnkhXlukKoUPND/RRClWz2s5TCzIkd3Ou5+Cyz71X0XmazM3l5WgeErvtIwQMyT1KjNoMhoJMrJnWqQPOt5Q8zWd9qG7PBl9+eiH5qV7NZ mykey@host
+@@ -255,9 +260,14 @@
+         debconf debconf/frontend seen false
+ 
+ # manage byobu defaults
+-# byobu_by_default: ('user'|'system')
+-#   'user' will set byobu 'launch-by-default' for the default user
+-#   'system' will enable launch-by-default for for all users
++# byobu_by_default:
++#   'user' or 'enable-user': set byobu 'launch-by-default' for the default user
++#   'system' or 'enable-system' or 'enable':
++#      enable 'launch-by-default' for all users, do not modify default user
++#   'disable': disable both default user and system
++#   'disable-system': disable system
++#   'disable-user': disable for default user
++#   not-set: no changes made
+ byobu_by_default: system
+ 
+ # disable ssh access as root.
+@@ -266,6 +276,15 @@
+ # default: true
+ disable_root: false
+ 
++# disable_root_opts: the value of this variable will prefix the
++# respective key in /root/.ssh/authorized_keys if disable_root is true
++# see 'man authorized_keys' for more information on what you can do here
++#
++# The string '$USER' will be replaced with the username of the default user
++#
++# disable_root_opts: no-port-forwarding,no-agent-forwarding,no-X11-forwarding,command="echo 'Please login as the user \"$USER\" rather than the user \"root\".';echo;sleep 10"
++
++
+ # set the locale to a given locale
+ # default: en_US.UTF-8
+ locale: en_US.UTF-8
+@@ -408,3 +427,15 @@
+ # on a per-always basis (to account for ebs stop/start), then set
+ # manage_etc_hosts to True. The default is 'False'
+ manage_etc_hosts: False
++
++# When cloud-init is finished running including having run 
++# cloud_init_modules, then it will run this command.  The default
++# is to emit an upstart signal as shown below.  If the value is a
++# list, it will be passed to Popen.  If it is a string, it will be
++# invoked through 'sh -c'.
++# 
++# default value:
++# cc_ready_cmd: [ initctl, emit, cloud-config, CLOUD_CFG=/var/lib/instance//cloud-config.txt ]
++# example:
++# cc_ready_cmd: [ sh, -c, 'echo HI MOM > /tmp/file' ]
++
+

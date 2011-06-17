@@ -1,3 +1,20 @@
+cloud-init (0.6.1-0ubuntu9) oneiric; urgency=low
+
+  * sync with trunk (rev 404)
+  * make metadata urls configurable, to support eucalyptus in
+    STATIC or SYSTEM modes (LP: #761847)
+  * support disabling byobu in cloud-config (LP: #797336)
+  * guarantee that ssh_config runs before sshd starts (LP: #781101)
+  * make prefix for keys added to /root/.ssh/authorized_keys configurable
+    and add 'no-port-forwarding,no-agent-forwarding,no-X11-forwarding'
+    to the default (LP: #798505)
+  * make 'cloud-config ready' command configurable (LP: #785551)
+  * make fstab fields used to 'fill in' shorthand mount entries configurable
+    (LP: #785542)
+  * read sshd_config to properly get path for authorized_keys (LP: #731849)
+
+ -- Scott Moser <smoser@ubuntu.com>  Fri, 17 Jun 2011 12:18:34 -0400
+
 cloud-init (0.6.1-0ubuntu8) natty; urgency=low
 
   * instead of including /boot/grub, create it in postinst
