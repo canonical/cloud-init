@@ -137,7 +137,7 @@ class DataSourceEc2(DataSource.DataSource):
 
                 reason = ""
                 try:
-                    req = urllib2.Request(url)
+                    req = urllib2.Request(iurl)
                     resp = urllib2.urlopen(req, timeout=timeout)
                     if resp.read() != "":
                         self.metadata_address = url
