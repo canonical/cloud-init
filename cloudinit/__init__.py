@@ -243,11 +243,6 @@ class CloudInit:
         util.write_file(self.get_ipath('userdata'),
             self.datasource.get_userdata(), 0600)
 
-    def initctl_emit(self):
-        cc_path = get_ipath_cur('cloud_config')
-        subprocess.Popen(['initctl', 'emit', 'cloud-config',
-            '%s=%s' % (cfg_env_name,cc_path)]).communicate()
-
     def sem_getpath(self,name,freq):
         if freq == 'once-per-instance':
             return("%s/%s" % (self.get_ipath("sem"),name))
