@@ -18,6 +18,9 @@
    and add 'no-port-forwarding,no-agent-forwarding,no-X11-forwarding'
    to the default (LP: #798505)
  - make 'cloud-config ready' command configurable (LP: #785551)
+ - make fstab fields used to 'fill in' shorthand entries configurable
+   This means you do not have to have 'nobootwait' in the values
+   (LP: #785542)
 0.6.1:
  - fix bug in fixing permission on /var/log/cloud-init.log (LP: #704509)
  - improve comment strings in rsyslog file tools/21-cloudinit.conf
