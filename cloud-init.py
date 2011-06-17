@@ -146,9 +146,6 @@ def main():
         warn("consuming user data failed!\n")
         raise
 
-    # finish, send the cloud-config event
-    cloud.initctl_emit()
-
     cfg_path = cloudinit.get_ipath_cur("cloud_config")
     cc = CC.CloudConfig(cfg_path, cloud)
 
@@ -162,6 +159,16 @@ def main():
             CC.redirect_output(outfmt, errfmt)
     except Exception as e:
         warn("Failed to get and set output config: %s\n" % e)
+
+    # send the cloud-config ready event
+    cc_path = cloudinit.get_ipath_cur('cloud_config')
+    cc_ready = cc.cfg.get("cc_ready_cmd",
+        ['initctl', 'emit', 'cloud-config',
+         '%s=%s' % (cloudinit.cfg_env_name, cc_path) ])
+    if cc_ready:
+        if isinstance(cc_ready,str):
+            cc_ready = [ 'sh', '-c', cc_ready]
+        subprocess.Popen(cc_ready).communicate()
 
     module_list = CC.read_cc_modules(cc.cfg,"cloud_init_modules")
 
