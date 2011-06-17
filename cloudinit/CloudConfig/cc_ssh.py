@@ -23,7 +23,12 @@ import subprocess
 DISABLE_ROOT_OPTS="no-port-forwarding,no-agent-forwarding,no-X11-forwarding,command=\"echo \'Please login as the user \\\"$USER\\\" rather than the user \\\"root\\\".\';echo;sleep 10\""
 
 
+global_log = None
+
 def handle(name,cfg,cloud,log,args):
+    global global_log
+    global_log = log
+
     # remove the static keys from the pristine image
     for f in glob.glob("/etc/ssh/ssh_host_*_key*"):
         try: os.unlink(f)
@@ -68,6 +73,7 @@ def handle(name,cfg,cloud,log,args):
 
         apply_credentials(keys,user,disable_root, disable_root_opts)
     except:
+        util.logexc(log)
         log.warn("applying credentials failed!\n")
 
     send_ssh_keys_to_console()
@@ -98,7 +104,16 @@ def setup_user_keys(keys, user, key_prefix):
         os.mkdir(ssh_dir)
         os.chown(ssh_dir, pwent.pw_uid, pwent.pw_gid)
 
-    authorized_keys = '%s/.ssh/authorized_keys' % pwent.pw_dir
+    try:
+        ssh_cfg = parse_ssh_config()
+        akeys = ssh_cfg.get("AuthorizedKeysFile","%h/.ssh/authorized_keys")
+        akeys = akeys.replace("%h", pwent.pw_dir)
+        akeys = akeys.replace("%u", user)
+        authorized_keys = akeys
+    except Exception as e:
+        authorized_keys = '%s/.ssh/authorized_keys' % pwent.pw_dir
+        util.logexc(global_log)
+
     fp = open(authorized_keys, 'a')
     key_prefix = key_prefix.replace("\n"," ")
     fp.write(''.join(['%s %s\n' % (key_prefix.strip(), key) for key in keys]))
@@ -108,4 +123,15 @@ def setup_user_keys(keys, user, key_prefix):
 
     os.umask(saved_umask)
 
+def parse_ssh_config(fname="/etc/ssh/sshd_config"):
+    ret = { }
+    fp=open(fname)
+    for l in fp.readlines():
+        l = l.strip()
+        if not l or l.startswith("#"):
+            continue
+        key,val = l.split(None,1)
+        ret[key]=val
+    fp.close()
+    return(ret)
 
