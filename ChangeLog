@@ -14,6 +14,9 @@
  - support disabling byobu in cloud-config
  - run cc_ssh as a cloud-init module so it is guaranteed to run before
    ssh starts (LP: #781101)
+ - make prefix for keys added to /root/.ssh/authorized_keys configurable
+   and add 'no-port-forwarding,no-agent-forwarding,no-X11-forwarding'
+   to the default (LP: #798505)
 0.6.1:
  - fix bug in fixing permission on /var/log/cloud-init.log (LP: #704509)
  - improve comment strings in rsyslog file tools/21-cloudinit.conf
