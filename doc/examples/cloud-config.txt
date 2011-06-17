@@ -271,6 +271,15 @@ byobu_by_default: system
 # default: true
 disable_root: false
 
+# disable_root_opts: the value of this variable will prefix the
+# respective key in /root/.ssh/authorized_keys if disable_root is true
+# see 'man authorized_keys' for more information on what you can do here
+#
+# The string '$USER' will be replaced with the username of the default user
+#
+# disable_root_opts: no-port-forwarding,no-agent-forwarding,no-X11-forwarding,command="echo 'Please login as the user \"$USER\" rather than the user \"root\".';echo;sleep 10"
+
+
 # set the locale to a given locale
 # default: en_US.UTF-8
 locale: en_US.UTF-8

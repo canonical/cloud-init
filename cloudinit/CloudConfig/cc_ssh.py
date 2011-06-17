@@ -20,6 +20,9 @@ import os
 import glob
 import subprocess
 
+DISABLE_ROOT_OPTS="no-port-forwarding,no-agent-forwarding,no-X11-forwarding,command=\"echo \'Please login as the user \\\"$USER\\\" rather than the user \\\"root\\\".\';echo;sleep 10\""
+
+
 def handle(name,cfg,cloud,log,args):
     # remove the static keys from the pristine image
     for f in glob.glob("/etc/ssh/ssh_host_*_key*"):
@@ -55,13 +58,15 @@ def handle(name,cfg,cloud,log,args):
     try:
         user = util.get_cfg_option_str(cfg,'user')
         disable_root = util.get_cfg_option_bool(cfg, "disable_root", True)
+        disable_root_opts = util.get_cfg_option_str(cfg, "disable_root_opts",
+            DISABLE_ROOT_OPTS)
         keys = cloud.get_public_ssh_keys()
 
         if cfg.has_key("ssh_authorized_keys"):
             cfgkeys = cfg["ssh_authorized_keys"]
             keys.extend(cfgkeys)
 
-        apply_credentials(keys,user,disable_root)
+        apply_credentials(keys,user,disable_root, disable_root_opts)
     except:
         log.warn("applying credentials failed!\n")
 
@@ -70,13 +75,13 @@ def handle(name,cfg,cloud,log,args):
 def send_ssh_keys_to_console():
     subprocess.call(('/usr/lib/cloud-init/write-ssh-key-fingerprints',))
 
-def apply_credentials(keys, user, disable_root):
+def apply_credentials(keys, user, disable_root, disable_root_opts=DISABLE_ROOT_OPTS):
     keys = set(keys)
     if user:
         setup_user_keys(keys, user, '')
  
     if disable_root:
-        key_prefix = 'command="echo \'Please login as the user \\\"%s\\\" rather than the user \\\"root\\\".\';echo;sleep 10" ' % user
+        key_prefix = disable_root_opts.replace('$USER', user)
     else:
         key_prefix = ''
 
@@ -95,7 +100,8 @@ def setup_user_keys(keys, user, key_prefix):
 
     authorized_keys = '%s/.ssh/authorized_keys' % pwent.pw_dir
     fp = open(authorized_keys, 'a')
-    fp.write(''.join(['%s%s\n' % (key_prefix, key) for key in keys]))
+    key_prefix = key_prefix.replace("\n"," ")
+    fp.write(''.join(['%s %s\n' % (key_prefix.strip(), key) for key in keys]))
     fp.close()
 
     os.chown(authorized_keys, pwent.pw_uid, pwent.pw_gid)
