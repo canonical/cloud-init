@@ -1,3 +1,10 @@
+cloud-init (0.6.1-0ubuntu10) oneiric; urgency=low
+
+  * sync with trunk (rev 405)
+  * fix cloud-init in ubuntu lxc containers (LP: #800824)
+
+ -- Scott Moser <smoser@ubuntu.com>  Tue, 28 Jun 2011 06:46:14 -0400
+
 cloud-init (0.6.1-0ubuntu9) oneiric; urgency=low
 
   * sync with trunk (rev 404)

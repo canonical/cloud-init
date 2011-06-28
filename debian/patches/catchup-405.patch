@@ -1,0 +1,33 @@
+------------------------------------------------------------
+revno: 405
+fixes bug(s): https://launchpad.net/bugs/800824
+committer: Scott Moser <smoser@ubuntu.com>
+branch nick: trunk
+timestamp: Tue 2011-06-28 06:41:05 -0400
+message:
+  fix cloud-init in ubuntu lxc containers (LP: #800824) [Clint Byrum]
+=== modified file 'ChangeLog'
+--- old/ChangeLog	2011-06-17 15:40:41 +0000
++++ new/ChangeLog	2011-06-28 10:41:05 +0000
+@@ -23,6 +23,7 @@
+    (LP: #785542)
+  - read /etc/ssh/sshd_config for AuthorizedKeysFile rather than
+    assuming ~/.ssh/authorized_keys (LP: #731849)
++ - fix cloud-init in ubuntu lxc containers (LP: #800824)
+ 0.6.1:
+  - fix bug in fixing permission on /var/log/cloud-init.log (LP: #704509)
+  - improve comment strings in rsyslog file tools/21-cloudinit.conf
+
+=== modified file 'upstart/cloud-init-nonet.conf'
+--- old/upstart/cloud-init-nonet.conf	2011-02-19 04:28:14 +0000
++++ new/upstart/cloud-init-nonet.conf	2011-06-28 10:41:05 +0000
+@@ -14,6 +14,8 @@
+ 
+    [ -f /var/lib/cloud/instance/obj.pkl ] && exit 0
+ 
++   start networking
++
+    short=10; long=60;
+    sleep ${short}
+    echo $UPSTART_JOB "waiting ${long} seconds for a network device."
+
