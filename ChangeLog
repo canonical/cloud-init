@@ -24,6 +24,7 @@
  - read /etc/ssh/sshd_config for AuthorizedKeysFile rather than
    assuming ~/.ssh/authorized_keys (LP: #731849)
  - fix cloud-init in ubuntu lxc containers (LP: #800824)
+ - sanitize hosts file for system's hostname to 127.0.1.1 (LP: #802637)
 0.6.1:
  - fix bug in fixing permission on /var/log/cloud-init.log (LP: #704509)
  - improve comment strings in rsyslog file tools/21-cloudinit.conf
