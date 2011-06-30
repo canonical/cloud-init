@@ -1,9 +1,16 @@
+cloud-init (0.6.1-0ubuntu11) oneiric; urgency=low
+
+  [Marc Cluet]
+  * sanitize hosts file for system's hostname to 127.0.1.1 (LP: #802637)
+
+ -- Scott Moser <smoser@ubuntu.com>  Thu, 30 Jun 2011 14:12:47 -0400
+
 cloud-init (0.6.1-0ubuntu10) oneiric; urgency=low
 
   * sync with trunk (rev 405)
   * fix cloud-init in ubuntu lxc containers (LP: #800824)
 
- -- Scott Moser <smoser@ubuntu.com>  Tue, 28 Jun 2011 06:46:14 -0400
+ -- Scott Moser <smoser@ubuntu.com>  Tue, 28 Jun 2011 06:42:45 -0400
 
 cloud-init (0.6.1-0ubuntu9) oneiric; urgency=low
 
