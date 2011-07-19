@@ -395,3 +395,26 @@ def dos2unix(input):
     pos = input.find('\n')
     if pos <= 0 or input[pos-1] != '\r': return(input)
     return(input.replace('\r\n','\n'))
+
+def islxc():
+    # is this host running lxc?
+    try:
+        with open("/proc/1/cgroup") as f:
+            if f.read() == "/": 
+                return True
+    except IOError as e:
+        if e.errno != errno.ENOENT:
+            raise
+
+    try:
+        # try to run a program named 'lxc-is-container'. if it returns true, then
+        # we're inside a container. otherwise, no
+        sp = subprocess.Popen(['lxc-is-container'], stdout=subprocess.PIPE,
+                              stderr=subprocess.PIPE)
+        out,err = sp.communicate(None)
+        return(sp.returncode == 0)
+    except OSError as e:
+        if e.errno != errno.ENOENT:
+            raise
+
+    return False
