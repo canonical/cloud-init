@@ -42,6 +42,9 @@ def handle(name,cfg,cloud,log,args):
        dev=os.makedev(os.major(st_dev),os.minor(st_dev))
        os.mknod(devpth, 0400 | stat.S_IFBLK, dev)
     except:
+        if util.islxc():
+            log.debug("inside lxc, ignoring mknod failure in resizefs")
+            return
         log.warn("Failed to make device node to resize /")
         raise
 
