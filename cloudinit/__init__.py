@@ -452,8 +452,8 @@ class CloudInit:
     def get_mirror(self):
         return(self.datasource.get_local_mirror())
 
-    def get_hostname(self):
-        return(self.datasource.get_hostname())
+    def get_hostname(self, fqdn=False):
+        return(self.datasource.get_hostname(fqdn=fqdn))
 
     def device_name_to_device(self,name):
         return(self.datasource.device_name_to_device(name))
