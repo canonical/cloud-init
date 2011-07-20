@@ -27,6 +27,7 @@
  - sanitize hosts file for system's hostname to 127.0.1.1 (LP: #802637)
  - add chef support (cloudinit/CloudConfig/cc_chef.py)
  - do not give trace on failure to resize in lxc container (LP: #800856)
+ - increase the timeout on url gets for "seedfrom" values (LP: #812646)
 0.6.1:
  - fix bug in fixing permission on /var/log/cloud-init.log (LP: #704509)
  - improve comment strings in rsyslog file tools/21-cloudinit.conf

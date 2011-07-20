@@ -189,8 +189,12 @@ def read_seeded(base="", ext="", timeout=2):
         md_url = "%s%s%s" % (base, "meta-data", ext)
 
     try:
-        md_resp = urllib2.urlopen(urllib2.Request(md_url), timeout=timeout)
-        ud_resp = urllib2.urlopen(urllib2.Request(ud_url), timeout=timeout)
+        if timeout == None:
+            md_resp = urllib2.urlopen(urllib2.Request(md_url))
+            ud_resp = urllib2.urlopen(urllib2.Request(ud_url))
+        else:
+            md_resp = urllib2.urlopen(urllib2.Request(md_url), timeout=timeout)
+            ud_resp = urllib2.urlopen(urllib2.Request(ud_url), timeout=timeout)
 
         md_str = md_resp.read()
         ud = ud_resp.read()
