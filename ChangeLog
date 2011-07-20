@@ -28,6 +28,7 @@
  - add chef support (cloudinit/CloudConfig/cc_chef.py)
  - do not give trace on failure to resize in lxc container (LP: #800856)
  - increase the timeout on url gets for "seedfrom" values (LP: #812646)
+ - do not write entries for ephemeral0 on t1.micro (LP: #744019)
 0.6.1:
  - fix bug in fixing permission on /var/log/cloud-init.log (LP: #704509)
  - improve comment strings in rsyslog file tools/21-cloudinit.conf
