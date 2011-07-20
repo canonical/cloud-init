@@ -176,7 +176,7 @@ class DataSourceEc2(DataSource.DataSource):
             if entname == "ephemeral" and name == "ephemeral0":
                 found = device
         if found == None:
-            log.warn("unable to convert %s to a device" % name)
+            log.debug("unable to convert %s to a device" % name)
             return None
 
         # LP: #611137
@@ -201,6 +201,14 @@ class DataSourceEc2(DataSource.DataSource):
                 if os.path.exists(cand):
                     log.debug("remapped device name %s => %s" % (found,cand))
                     return(cand)
+
+        # on t1.micro, ephemeral0 will appear in block-device-mapping from
+        # metadata, but it will not exist on disk (and never will)
+        # at this pint, we've verified that the path did not exist
+        # in the special case of 'ephemeral0' return None to avoid bogus
+        # fstab entry (LP: #744019)
+        if name == "ephemeral0":
+            return None
         return ofound
 
     def is_vpc(self):
