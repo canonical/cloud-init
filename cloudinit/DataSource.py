@@ -22,6 +22,7 @@ DEP_NETWORK = "NETWORK"
 
 import UserDataHandler as ud
 import cloudinit.util as util
+import platform
 
 class DataSource:
     userdata = None
@@ -96,20 +97,33 @@ class DataSource:
             return "ubuntuhost"
         return(self.metadata['instance-id'])
 
-    def get_hostname(self):
+    def get_hostname(self, fqdn=False):
+        domain = "localdomain"
         if not 'local-hostname' in self.metadata:
-            return None
+            toks = [ platform.node(), domain ]
+        else:
+            toks = self.metadata['local-hostname'].split('.')
 
-        toks = self.metadata['local-hostname'].split('.')
         # if there is an ipv4 address in 'local-hostname', then
         # make up a hostname (LP: #475354)
         if len(toks) == 4:
             try:
                 r = filter(lambda x: int(x) < 256 and x > 0, toks)
                 if len(r) == 4:
-                    return("ip-%s" % '-'.join(r))
-            except: pass
-        return toks[0]
+                    toks = [ "ip-%s" % '-'.join(r) ]
+            except:
+                pass
+
+        if len(toks) > 1:
+            hostname = toks[0]
+            domain = '.'.join(toks[1:])
+        else:
+            hostname = toks[0]
+
+        if fqdn:
+            return "%s.%s" % (hostname,domain)
+        else:
+            return hostname
 
 # return a list of classes that have the same depends as 'depends'
 # iterate through cfg_list, loading "DataSourceCollections" modules
