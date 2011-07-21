@@ -1,3 +1,18 @@
+cloud-init (0.6.1-0ubuntu12) oneiric; urgency=low
+
+  * do not give trace on failure to resize in lxc container (LP: #800856)
+  * increase the timeout on url gets for "seedfrom" values (LP: #812646)
+  * do not write entries for ephemeral0 on t1.micro (LP: #744019)
+
+  [Adam Gandalman]
+  * improve the updating of /etc/hosts with correct fqdn when possible
+    (LP: #812539)
+   
+  [Avishai Ish-Shalom]
+  * add chef support (cloudinit/CloudConfig/cc_chef.py) (LP: #798844)
+
+ -- Scott Moser <smoser@ubuntu.com>  Thu, 21 Jul 2011 05:51:03 -0400
+
 cloud-init (0.6.1-0ubuntu11) oneiric; urgency=low
 
   [Marc Cluet]

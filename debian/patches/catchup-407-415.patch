@@ -1,0 +1,553 @@
+------------------------------------------------------------
+revno: 415
+committer: Scott Moser <smoser@ubuntu.com>
+branch nick: trunk
+timestamp: Thu 2011-07-21 05:11:30 -0400
+message:
+  add bug number for chef bug to Changelog
+------------------------------------------------------------
+revno: 414
+committer: Scott Moser <smoser@ubuntu.com>
+branch nick: trunk
+timestamp: Thu 2011-07-21 05:11:18 -0400
+message:
+  add chef module to cloud.cfg so it runs as cloud-config
+------------------------------------------------------------
+revno: 413
+committer: Scott Moser <smoser@ubuntu.com>
+branch nick: trunk
+timestamp: Thu 2011-07-21 05:10:47 -0400
+message:
+  fix syntax error in cc_chef.py
+------------------------------------------------------------
+revno: 412
+committer: Scott Moser <smoser@ubuntu.com>
+branch nick: trunk
+timestamp: Tue 2011-07-19 23:52:08 -0400
+message:
+  update changelog
+------------------------------------------------------------
+revno: 411
+fixes bug(s): https://launchpad.net/bugs/744019
+committer: Scott Moser <smoser@ubuntu.com>
+branch nick: trunk
+timestamp: Tue 2011-07-19 23:49:17 -0400
+message:
+  special case handling of mapping for ephemeral0
+  
+  t1.micro do not have a ephemeral0 disk, but the metadata service will have
+  an entry there.
+  
+  i386 t1.micro:
+   'block-device-mapping': {'ami': '/dev/sda1',
+                            'ephemeral0': '/dev/sda2',
+                            'root': '/dev/sda1'},
+  amd64 t1.micro:
+   'block-device-mapping': {'ami': '/dev/sda1',
+                            'ephemeral0': '/dev/sdb',
+                            'root': '/dev/sda1'},
+------------------------------------------------------------
+revno: 410
+fixes bug(s): https://launchpad.net/bugs/812646
+committer: Scott Moser <smoser@ubuntu.com>
+branch nick: trunk
+timestamp: Tue 2011-07-19 23:17:27 -0400
+message:
+  increase timeout on read_seed when a seedfrom was explicitly given
+  
+  In the case where a seedfrom value was given on the command line or in the
+  config file, we were timing out in 2 seconds on the connection.  That timeout
+  was put in place to support "probing" for sources, but seedfrom is explictly
+  given.
+  
+  So, in that case, do a urllib.open without a timeout value.  Looking at source
+  code, default timeout is 'socket._GLOBAL_DEFAULT_TIMEOUT', but rather than
+  importing that and using  it, I will call without a timeout value.
+------------------------------------------------------------
+revno: 409
+fixes bug(s): https://launchpad.net/bugs/812539
+committer: Scott Moser <smoser@ubuntu.com>
+branch nick: trunk
+timestamp: Tue 2011-07-19 22:53:05 -0400
+message:
+  improve the updating of /etc/hosts with correct fqdn when possible
+  
+  Thanks to Adam Gandalman and Marc Cluet for this fix.
+------------------------------------------------------------
+revno: 408
+fixes bug(s): https://launchpad.net/bugs/800856
+committer: Scott Moser <smoser@ubuntu.com>
+branch nick: trunk
+timestamp: Tue 2011-07-19 15:42:52 -0400
+message:
+  do not complain if attempt to resizefs in an lxc container fails
+  
+  it is expected / understood that mknod would fail inside an lxc container.
+  So, if thats the case, just log a debug message saying so.
+------------------------------------------------------------
+revno: 407 [merge]
+committer: Scott Moser <smoser@ubuntu.com>
+branch nick: chef.merge
+timestamp: Mon 2011-07-18 14:03:16 -0400
+message:
+  add chef [Avishai Ish-Shalom]
+------------------------------------------------------------
+Use --include-merges or -n0 to see merged revisions.
+=== modified file 'ChangeLog'
+--- old/ChangeLog	2011-06-30 17:57:42 +0000
++++ new/ChangeLog	2011-07-21 09:11:30 +0000
+@@ -25,6 +25,10 @@
+    assuming ~/.ssh/authorized_keys (LP: #731849)
+  - fix cloud-init in ubuntu lxc containers (LP: #800824)
+  - sanitize hosts file for system's hostname to 127.0.1.1 (LP: #802637)
++ - add chef support (cloudinit/CloudConfig/cc_chef.py) (LP: ##798844)
++ - do not give trace on failure to resize in lxc container (LP: #800856)
++ - increase the timeout on url gets for "seedfrom" values (LP: #812646)
++ - do not write entries for ephemeral0 on t1.micro (LP: #744019)
+ 0.6.1:
+  - fix bug in fixing permission on /var/log/cloud-init.log (LP: #704509)
+  - improve comment strings in rsyslog file tools/21-cloudinit.conf
+
+=== added file 'cloudinit/CloudConfig/cc_chef.py'
+--- old/cloudinit/CloudConfig/cc_chef.py	1970-01-01 00:00:00 +0000
++++ new/cloudinit/CloudConfig/cc_chef.py	2011-07-21 09:10:47 +0000
+@@ -0,0 +1,83 @@
++# vi: ts=4 expandtab
++#
++#    Author: Avishai Ish-Shalom <avishai@fewbytes.com>
++#
++#    This program is free software: you can redistribute it and/or modify
++#    it under the terms of the GNU General Public License version 3, as
++#    published by the Free Software Foundation.
++#
++#    This program is distributed in the hope that it will be useful,
++#    but WITHOUT ANY WARRANTY; without even the implied warranty of
++#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++#    GNU General Public License for more details.
++#
++#    You should have received a copy of the GNU General Public License
++#    along with this program.  If not, see <http://www.gnu.org/licenses/>.
++import os
++import pwd
++import socket
++import subprocess
++import StringIO
++import ConfigParser
++import cloudinit.CloudConfig as cc
++import cloudinit.util as util
++
++ruby_packages = {'1.8': ('ruby', 'rubygems', 'ruby-dev', 'libopenssl-ruby'),
++        '1.9.1': ('ruby1.9.1', 'ruby1.9.1-dev', 'libruby1.9.1'),
++        '1.9': ('ruby1.9', 'ruby1.9-dev', 'libruby1.9') }
++
++def handle(name,cfg,cloud,log,args):
++    # If there isn't a chef key in the configuration don't do anything
++    if not cfg.has_key('chef'): return
++    chef_cfg = cfg['chef']
++
++    # Install chef packages from selected source
++    if not os.path.isfile('/usr/bin/chef-client'):
++        if chef_cfg['install_type'] == "gems":
++            if chef_cfg.has_key('version'):
++                chef_version = chef_cfg['version']
++            else:
++                chef_version = None
++            install_chef_from_gems(
++                    util.get_cfg_option_str(chef_cfg, 'ruby_version', '1.8'),
++                    chef_version)
++        else:
++            cc.install_packages(('chef',))
++
++    # set the validation cert
++    if chef_cfg.has_key('validation_cert'):
++        with open('/etc/chef/validation.cert', 'w') as validation_cert_fh:
++            validation_cert_fh.write(chef_cfg['validation_cert'])
++
++    validation_name = chef_cfg.get('validation_name','chef-validator')
++    # create the chef config from template
++    util.render_to_file('chef_client.rb', '/etc/chef/client.rb',
++            {'server_url': chef_cfg['server_url'], 
++             'validation_name': chef_cfg['validation_name']})
++
++    chef_args = ['-d']
++    # set the firstboot json
++    if chef_cfg.has_key('run_list'):
++        with open('/etc/chef/firstboot.json') as firstboot_json_fh:
++            firstboot_json_fh.write("{\n\"run_list\":\n[\n")
++            for runlist_item in chef_cfg['run_list']:
++                firstboot_json_fh.write(runlist_item + "\n")
++            firstboot_json_fh.write("]\n\}")
++        chef_args.append('-j /etc/chef/firstboot.json')
++
++    # and finally, run chef
++    log.debug("running chef-client %s" % chef_args)
++    subprocess.check_call(['/usr/bin/chef-client'] + chef_args)
++
++def install_chef_from_gems(ruby_version, chef_version = None):
++    cc.install_packages(ruby_packages[ruby_version])
++    chef_version_arg = ""
++    if chef_version: chef_version_arg = "-v %s" % chef_version
++    subprocess.check_call([gem_bin,'install','chef',chef_version_arg, '--no-ri','--no-rdoc','--no-test','-q'])
++    os.mkdirs('/etc/chef', '/var/log/chef', '/var/lib/chef', '/var/cache/chef', '/var/backups/chef', '/var/run/chef')
++    os.symlink('/var/lib/gem/%s/bin/chef-client' % ruby_version, '/usr/bin/chef-client')
++    # Ohai ruby plugin breaks if there is no ruby or gem binaries at /usr/bin, so
++    try: os.symlink('/usr/bin/gem%s' % ruby_version, '/usr/bin/gem')
++    except: pass
++    try: os.symlink('/usr/bin/ruby%s' % ruby_version, '/usr/bin/ruby')
++    except: pass
+
+=== modified file 'cloudinit/CloudConfig/cc_resizefs.py'
+--- old/cloudinit/CloudConfig/cc_resizefs.py	2011-03-22 01:35:54 +0000
++++ new/cloudinit/CloudConfig/cc_resizefs.py	2011-07-19 19:42:52 +0000
+@@ -42,6 +42,9 @@
+        dev=os.makedev(os.major(st_dev),os.minor(st_dev))
+        os.mknod(devpth, 0400 | stat.S_IFBLK, dev)
+     except:
++        if util.islxc():
++            log.debug("inside lxc, ignoring mknod failure in resizefs")
++            return
+         log.warn("Failed to make device node to resize /")
+         raise
+ 
+
+=== modified file 'cloudinit/CloudConfig/cc_update_etc_hosts.py'
+--- old/cloudinit/CloudConfig/cc_update_etc_hosts.py	2011-06-30 17:35:12 +0000
++++ new/cloudinit/CloudConfig/cc_update_etc_hosts.py	2011-07-20 02:53:05 +0000
+@@ -17,57 +17,60 @@
+ #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ import cloudinit.util as util
+ from cloudinit.CloudConfig import per_always
+-import platform
+ import StringIO
+ 
+ frequency = per_always
+ 
+ def handle(name,cfg,cloud,log,args):
+-    if not util.get_cfg_option_bool(cfg,"manage_etc_hosts",False):
++    hostname = util.get_cfg_option_str(cfg,"hostname",cloud.get_hostname())
++    fqdn = util.get_cfg_option_str(cfg,"fqdn",cloud.get_hostname(fqdn=True))
++
++    if util.get_cfg_option_bool(cfg,"manage_etc_hosts", True):
++        # manage_etc_hosts not true, update the 127.0.1.1 entry via update_etc_hosts
+         log.debug("manage_etc_hosts is not set, checking sanity of /etc/hosts")
+-        with open('/etc/hosts', 'r') as etchosts:
+-            current_hostname = platform.node()
+-            hosts_line = "# Added by cloud-init\n127.0.1.1\t%s.localdomain %s\n" % (current_hostname, current_hostname)
+-            need_write = False
+-            need_change = True
+-            new_etchosts = StringIO.StringIO()
+-            for line in etchosts:
+-                split_line = [s.strip() for s in line.split()]
+-                # skip over malformed /etc/hosts entries
+-                if len(split_line) < 2:
+-                    continue
+-                ip, hostnames = split_line[0], split_line[1:]
+-                if ip == "127.0.1.1":
+-                    for hostname in hostnames:
+-                        if hostname == current_hostname:
+-                            need_change = False
+-                    if need_change == True:
+-                        line = hosts_line
+-                        need_change = False
+-                        need_write = True
+-                new_etchosts.write(line)
+-            etchosts.close()
+-            if need_change == True:
+-                new_etchosts.write(hosts_line)
+-                need_write = True
+-            if need_write == True:
+-                new_etcfile = open ('/etc/hosts','wb')
+-                new_etcfile.write(new_etchosts.getvalue())
+-                new_etcfile.close()
+-            new_etchosts.close()
++        update_etc_hosts(hostname, fqdn, log)
+         return
+ 
++    # manage_etc_hosts is set, render from template file
+     try:
+-        hostname = util.get_cfg_option_str(cfg,"hostname",cloud.get_hostname())
+-        if not hostname:
+-            hostname = cloud.get_hostname()
+-
+         if not hostname:
+             log.info("manage_etc_hosts was set, but no hostname found")
+             return
+ 
+-        util.render_to_file('hosts', '/etc/hosts', { 'hostname' : hostname })
++        util.render_to_file('hosts', '/etc/hosts', \
++            { 'hostname' : hostname, 'fqdn' : fqdn })
+ 
+     except Exception as e:
+         log.warn("failed to update /etc/hosts")
+         raise
++
++def update_etc_hosts(hostname, fqdn, log):
++     with open('/etc/hosts', 'r') as etchosts:
++         hosts_line = "# Added by cloud-init\n127.0.1.1\t%s %s\n" % (fqdn, hostname)
++         need_write = False
++         need_change = True
++         new_etchosts = StringIO.StringIO()
++         for line in etchosts:
++             split_line = [s.strip() for s in line.split()]
++             # skip over malformed /etc/hosts entries
++             if len(split_line) < 2:
++                 continue
++             ip, hosts = split_line[0], split_line[1:]
++             if ip == "127.0.1.1":
++                 if sorted([hostname, fqdn]) == sorted(hosts):
++                     need_change = False
++                 if need_change == True:
++                     line = hosts_line
++                     need_change = False
++                     need_write = True
++             new_etchosts.write(line)
++         etchosts.close()
++         if need_change == True:
++             new_etchosts.write(hosts_line)
++             need_write = True
++         if need_write == True:
++             new_etcfile = open ('/etc/hosts','wb')
++             new_etcfile.write(new_etchosts.getvalue())
++             new_etcfile.close()
++         new_etchosts.close()
++     return
+
+=== modified file 'cloudinit/DataSource.py'
+--- old/cloudinit/DataSource.py	2011-02-07 18:05:34 +0000
++++ new/cloudinit/DataSource.py	2011-07-20 02:53:05 +0000
+@@ -22,6 +22,7 @@
+ 
+ import UserDataHandler as ud
+ import cloudinit.util as util
++import platform
+ 
+ class DataSource:
+     userdata = None
+@@ -96,20 +97,33 @@
+             return "ubuntuhost"
+         return(self.metadata['instance-id'])
+ 
+-    def get_hostname(self):
++    def get_hostname(self, fqdn=False):
++        domain = "localdomain"
+         if not 'local-hostname' in self.metadata:
+-            return None
++            toks = [ platform.node(), domain ]
++        else:
++            toks = self.metadata['local-hostname'].split('.')
+ 
+-        toks = self.metadata['local-hostname'].split('.')
+         # if there is an ipv4 address in 'local-hostname', then
+         # make up a hostname (LP: #475354)
+         if len(toks) == 4:
+             try:
+                 r = filter(lambda x: int(x) < 256 and x > 0, toks)
+                 if len(r) == 4:
+-                    return("ip-%s" % '-'.join(r))
+-            except: pass
+-        return toks[0]
++                    toks = [ "ip-%s" % '-'.join(r) ]
++            except:
++                pass
++
++        if len(toks) > 1:
++            hostname = toks[0]
++            domain = '.'.join(toks[1:])
++        else:
++            hostname = toks[0]
++
++        if fqdn:
++            return "%s.%s" % (hostname,domain)
++        else:
++            return hostname
+ 
+ # return a list of classes that have the same depends as 'depends'
+ # iterate through cfg_list, loading "DataSourceCollections" modules
+
+=== modified file 'cloudinit/DataSourceEc2.py'
+--- old/cloudinit/DataSourceEc2.py	2011-06-17 10:41:53 +0000
++++ new/cloudinit/DataSourceEc2.py	2011-07-20 03:49:17 +0000
+@@ -176,7 +176,7 @@
+             if entname == "ephemeral" and name == "ephemeral0":
+                 found = device
+         if found == None:
+-            log.warn("unable to convert %s to a device" % name)
++            log.debug("unable to convert %s to a device" % name)
+             return None
+ 
+         # LP: #611137
+@@ -201,6 +201,14 @@
+                 if os.path.exists(cand):
+                     log.debug("remapped device name %s => %s" % (found,cand))
+                     return(cand)
++
++        # on t1.micro, ephemeral0 will appear in block-device-mapping from
++        # metadata, but it will not exist on disk (and never will)
++        # at this pint, we've verified that the path did not exist
++        # in the special case of 'ephemeral0' return None to avoid bogus
++        # fstab entry (LP: #744019)
++        if name == "ephemeral0":
++            return None
+         return ofound
+ 
+     def is_vpc(self):
+
+=== modified file 'cloudinit/DataSourceNoCloud.py'
+--- old/cloudinit/DataSourceNoCloud.py	2011-02-04 21:56:17 +0000
++++ new/cloudinit/DataSourceNoCloud.py	2011-07-20 03:17:27 +0000
+@@ -86,7 +86,7 @@
+ 
+             # this could throw errors, but the user told us to do it
+             # so if errors are raised, let them raise
+-            (md_seed,ud) = util.read_seeded(seedfrom)
++            (md_seed,ud) = util.read_seeded(seedfrom, timeout=None)
+             log.debug("using seeded cache data from %s" % seedfrom)
+ 
+             # values in the command line override those from the seed
+
+=== modified file 'cloudinit/__init__.py'
+--- old/cloudinit/__init__.py	2011-06-17 15:03:49 +0000
++++ new/cloudinit/__init__.py	2011-07-20 02:53:05 +0000
+@@ -452,8 +452,8 @@
+     def get_mirror(self):
+         return(self.datasource.get_local_mirror())
+ 
+-    def get_hostname(self):
+-        return(self.datasource.get_hostname())
++    def get_hostname(self, fqdn=False):
++        return(self.datasource.get_hostname(fqdn=fqdn))
+ 
+     def device_name_to_device(self,name):
+         return(self.datasource.device_name_to_device(name))
+
+=== modified file 'cloudinit/util.py'
+--- old/cloudinit/util.py	2011-04-04 16:45:01 +0000
++++ new/cloudinit/util.py	2011-07-20 03:17:27 +0000
+@@ -189,8 +189,12 @@
+         md_url = "%s%s%s" % (base, "meta-data", ext)
+ 
+     try:
+-        md_resp = urllib2.urlopen(urllib2.Request(md_url), timeout=timeout)
+-        ud_resp = urllib2.urlopen(urllib2.Request(ud_url), timeout=timeout)
++        if timeout == None:
++            md_resp = urllib2.urlopen(urllib2.Request(md_url))
++            ud_resp = urllib2.urlopen(urllib2.Request(ud_url))
++        else:
++            md_resp = urllib2.urlopen(urllib2.Request(md_url), timeout=timeout)
++            ud_resp = urllib2.urlopen(urllib2.Request(ud_url), timeout=timeout)
+ 
+         md_str = md_resp.read()
+         ud = ud_resp.read()
+@@ -395,3 +399,26 @@
+     pos = input.find('\n')
+     if pos <= 0 or input[pos-1] != '\r': return(input)
+     return(input.replace('\r\n','\n'))
++
++def islxc():
++    # is this host running lxc?
++    try:
++        with open("/proc/1/cgroup") as f:
++            if f.read() == "/": 
++                return True
++    except IOError as e:
++        if e.errno != errno.ENOENT:
++            raise
++
++    try:
++        # try to run a program named 'lxc-is-container'. if it returns true, then
++        # we're inside a container. otherwise, no
++        sp = subprocess.Popen(['lxc-is-container'], stdout=subprocess.PIPE,
++                              stderr=subprocess.PIPE)
++        out,err = sp.communicate(None)
++        return(sp.returncode == 0)
++    except OSError as e:
++        if e.errno != errno.ENOENT:
++            raise
++
++    return False
+
+=== modified file 'config/cloud.cfg'
+--- old/config/cloud.cfg	2011-06-14 20:25:34 +0000
++++ new/config/cloud.cfg	2011-07-21 09:11:18 +0000
+@@ -21,6 +21,7 @@
+  - apt-update-upgrade
+  - timezone
+  - puppet
++ - chef
+  - mcollective
+  - disable-ec2-metadata
+  - runcmd
+
+=== added file 'doc/examples/cloud-config-chef.txt'
+--- old/doc/examples/cloud-config-chef.txt	1970-01-01 00:00:00 +0000
++++ new/doc/examples/cloud-config-chef.txt	2011-04-21 14:57:54 +0000
+@@ -0,0 +1,38 @@
++#cloud-config
++#
++# This is an example file to automatically setup and run puppetd
++# when the instance boots for the first time.
++# Make sure that this file is valid yaml before starting instances.
++# It should be passed as user-data when starting the instance.
++
++# The default is to install from packages. If you want the latest packages from Opscode, be sure to add their repo:
++apt_mirror: http://apt.opscode.com/
++
++chef:
++ # If you want to install from rubygems:
++ install_type: "gems"
++
++ # Chef settings
++ server_url: "https://chef.yourorg.com:4000"
++
++ # Default validation name is chef-validator
++ validation_name: "yourorg-validator"
++ validation_cert: |
++     -----BEGIN CERTIFICATE-----
++     MIICCTCCAXKgAwIBAgIBATANBgkqhkiG9w0BAQUFADANMQswCQYDVQQDDAJjYTAe
++     Fw0xMDAyMTUxNzI5MjFaFw0xNTAyMTQxNzI5MjFaMA0xCzAJBgNVBAMMAmNhMIGf
++     MA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQCu7Q40sm47/E1Pf+r8AYb/V/FWGPgc
++     b014OmNoX7dgCxTDvps/h8Vw555PdAFsW5+QhsGr31IJNI3kSYprFQcYf7A8tNWu
++     1MASW2CfaEiOEi9F1R3R4Qlz4ix+iNoHiUDTjazw/tZwEdxaQXQVLwgTGRwVa+aA
++     qbutJKi93MILLwIDAQABo3kwdzA4BglghkgBhvhCAQ0EKxYpUHVwcGV0IFJ1Ynkv
++     T3BlblNTTCBHZW5lcmF0ZWQgQ2VydGlmaWNhdGUwDwYDVR0TAQH/BAUwAwEB/zAd
++     BgNVHQ4EFgQUu4+jHB+GYE5Vxo+ol1OAhevspjAwCwYDVR0PBAQDAgEGMA0GCSqG
++     SIb3DQEBBQUAA4GBAH/rxlUIjwNb3n7TXJcDJ6MMHUlwjr03BDJXKb34Ulndkpaf
++     +GAlzPXWa7bO908M9I8RnPfvtKnteLbvgTK+h+zX1XCty+S2EQWk29i2AdoqOTxb
++     hppiGMp0tT5Havu4aceCXiy2crVcudj3NFciy8X66SoECemW9UYDCb9T5D0d
++     -----END CERTIFICATE-----
++
++ # A run list for a first boot json
++ run_list:
++  - "recipe[apache2]"
++  - "role[db]"
+
+=== added file 'templates/chef_client.rb.tmpl'
+--- old/templates/chef_client.rb.tmpl	1970-01-01 00:00:00 +0000
++++ new/templates/chef_client.rb.tmpl	2011-04-21 14:57:54 +0000
+@@ -0,0 +1,12 @@
++log_level          :info
++log_location       "/var/log/chef/client.log"
++ssl_verify_mode    :verify_none
++validation_client_name "$validation_name"
++validation_key         "/etc/chef/validation.pem"
++client_key               "/etc/chef/client.pem"
++chef_server_url    "$server_url"
++file_cache_path    "/var/cache/chef"
++file_backup_path  "/var/backups/chef"
++pid_file           "/var/run/chef/client.pid"
++Chef::Log::Formatter.show_time = true
++
+
+=== modified file 'templates/hosts.tmpl'
+--- old/templates/hosts.tmpl	2011-02-17 21:22:53 +0000
++++ new/templates/hosts.tmpl	2011-07-20 02:53:05 +0000
+@@ -13,7 +13,7 @@
+ #     /etc/cloud/cloud.cfg or cloud-config from user-data
+ # 
+ ## The value '$hostname' will be replaced with the local-hostname
+-127.0.1.1 $hostname
++127.0.1.1 $fqdn $hostname
+ 127.0.0.1 localhost
+ 
+ # The following lines are desirable for IPv6 capable hosts
+
