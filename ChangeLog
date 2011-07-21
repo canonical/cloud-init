@@ -25,7 +25,7 @@
    assuming ~/.ssh/authorized_keys (LP: #731849)
  - fix cloud-init in ubuntu lxc containers (LP: #800824)
  - sanitize hosts file for system's hostname to 127.0.1.1 (LP: #802637)
- - add chef support (cloudinit/CloudConfig/cc_chef.py)
+ - add chef support (cloudinit/CloudConfig/cc_chef.py) (LP: ##798844)
  - do not give trace on failure to resize in lxc container (LP: #800856)
  - increase the timeout on url gets for "seedfrom" values (LP: #812646)
  - do not write entries for ephemeral0 on t1.micro (LP: #744019)
