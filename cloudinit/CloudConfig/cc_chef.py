@@ -48,10 +48,12 @@ def handle(name,cfg,cloud,log,args):
     if chef_cfg.has_key('validation_cert'):
         with open('/etc/chef/validation.cert', 'w') as validation_cert_fh:
             validation_cert_fh.write(chef_cfg['validation_cert'])
-    
+
+    validation_name = chef_cfg.get('validation_name','chef-validator')
     # create the chef config from template
     util.render_to_file('chef_client.rb', '/etc/chef/client.rb',
-            {'server_url': chef_cfg['server_url'], 'validation_name': chef_cfg['validation_name'] || 'chef-validator'})
+            {'server_url': chef_cfg['server_url'], 
+             'validation_name': chef_cfg['validation_name']})
 
     chef_args = ['-d']
     # set the firstboot json
@@ -64,6 +66,7 @@ def handle(name,cfg,cloud,log,args):
         chef_args.append('-j /etc/chef/firstboot.json')
 
     # and finally, run chef
+    log.debug("running chef-client %s" % chef_args)
     subprocess.check_call(['/usr/bin/chef-client'] + chef_args)
 
 def install_chef_from_gems(ruby_version, chef_version = None):
