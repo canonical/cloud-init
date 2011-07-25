@@ -50,10 +50,23 @@ def handle(name,cfg,cloud,log,args):
         # Read server.cfg values from original file in order to be able to mix the rest up
         mcollective_config.readfp(FakeSecHead(open('/etc/mcollective/server.cfg')))
         for cfg_name, cfg in mcollective_cfg['conf'].iteritems():
-            # Iterate throug the config items, we'll use ConfigParser.set
-            # to overwrite or create new items as needed
-            for o, v in cfg.iteritems():
-                mcollective_config.set(cfg_name,o,v)
+            if cfg_name == 'public-cert':
+                publicrt_fh = open('/etc/mcollective/ssl/server-public.pem', 'w')
+                publicrt_fh.write(cfg)
+                publicrt_fh.close()
+                mcollective_config.set(cfg_name,'plugin.ssl_server_public','/etc/mcollective/ssl/server-public.pem')
+                mcollective_config.set(cfg_name,'securityprovider','ssl')
+            elif cfg_name == 'private-cert':
+                privcrt_fh = open('/etc/mcollective/ssl/server-private.pem', 'w')
+                privcrt_fh.write(cfg)
+                privcrt_fh.close()
+                mcollective_config.set(cfg_name,'plugin.ssl_server_private','/etc/mcollective/ssl/server-private.pem')
+                mcollective_config.set(cfg_name,'securityprovider','ssl')
+            else:
+                # Iterate throug the config items, we'll use ConfigParser.set
+                # to overwrite or create new items as needed
+                for o, v in cfg.iteritems():
+                    mcollective_config.set(cfg_name,o,v)
         # We got all our config as wanted we'll rename
         # the previous server.cfg and create our new one
         os.rename('/etc/mcollective/server.cfg','/etc/mcollective/server.cfg.old')
