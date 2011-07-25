@@ -25,6 +25,7 @@ import yaml
 
 starts_with_mappings={
     '#include' : 'text/x-include-url',
+    '#include-once' : 'text/x-include-once-url',
     '#!' : 'text/x-shellscript',
     '#cloud-config' : 'text/cloud-config',
     '#upstart-job'  : 'text/upstart-job',
@@ -45,15 +46,33 @@ def decomp_str(str):
 
 def do_include(str,parts):
     import urllib
+    import os
+    import base64
     # is just a list of urls, one per line
     # also support '#include <url here>'
+    includeonce = False
     for line in str.splitlines():
         if line == "#include": continue
-        if line.startswith("#include"):
+        if line == "#include-once":
+            includeonce == True
+        if line.startswith("#include-once"):
+            line = line[len("#include-once"):].lstrip()
+            includeonce = True
+        elif line.startswith("#include"):
             line = line[len("#include"):].lstrip()
         if line.startswith("#"): continue
-        content = urllib.urlopen(line).read()
+        if includeonce == True:
+            uniquestring = base64.encodestring(line).strip('\n')
+            includeonce_filename = "/var/lib/cloud/instance/.includeonce.%s" % uniquestring
+            if os.path.isfile(includeonce_filename): continue
+            includeonce_file = open(includeonce_filename,'w')
+            includeonce_file.close()
+        try:
+            content = urllib.urlopen(line).read()
+        except Exception as e:
+            log.debug(traceback.format_exc(e))
         process_includes(email.message_from_string(decomp_str(content)),parts)
+
 
 def explode_cc_archive(archive,parts):
     for ent in yaml.load(archive):
