@@ -29,6 +29,9 @@
  - do not give trace on failure to resize in lxc container (LP: #800856)
  - increase the timeout on url gets for "seedfrom" values (LP: #812646)
  - do not write entries for ephemeral0 on t1.micro (LP: #744019)
+ - support 'include-once' so that expiring or one-time use urls can
+   be used for '#include' to provide sensitive data.
+ - support for passing public and private keys to mcollective via cloud-config
 0.6.1:
  - fix bug in fixing permission on /var/log/cloud-init.log (LP: #704509)
  - improve comment strings in rsyslog file tools/21-cloudinit.conf

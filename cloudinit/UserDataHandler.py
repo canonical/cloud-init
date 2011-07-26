@@ -22,9 +22,13 @@ from email.mime.text import MIMEText
 from email.mime.base import MIMEBase
 from email import encoders
 import yaml
+import cloudinit
+import cloudinit.util as util
+import md5
 
 starts_with_mappings={
     '#include' : 'text/x-include-url',
+    '#include-once' : 'text/x-include-once-url',
     '#!' : 'text/x-shellscript',
     '#cloud-config' : 'text/cloud-config',
     '#upstart-job'  : 'text/upstart-job',
@@ -45,15 +49,40 @@ def decomp_str(str):
 
 def do_include(str,parts):
     import urllib
+    import os
     # is just a list of urls, one per line
     # also support '#include <url here>'
+    includeonce = False
     for line in str.splitlines():
         if line == "#include": continue
-        if line.startswith("#include"):
+        if line == "#include-once":
+            includeonce = True
+            continue
+        if line.startswith("#include-once"):
+            line = line[len("#include-once"):].lstrip()
+            includeonce = True
+        elif line.startswith("#include"):
             line = line[len("#include"):].lstrip()
         if line.startswith("#"): continue
-        content = urllib.urlopen(line).read()
+
+        # urls cannot not have leading or trailing white space
+        msum = md5.new()
+        msum.update(line.strip())
+        includeonce_filename = "%s/urlcache/%s" % (
+            cloudinit.get_ipath_cur("data"), msum.hexdigest())
+        try:
+            if includeonce and os.path.isfile(includeonce_filename):
+                with open(includeonce_filename, "r") as fp:
+                    content = fp.read()
+            else:
+                content = urllib.urlopen(line).read()
+                if includeonce:
+                    util.write_file(includeonce_filename, content, mode=0600)
+        except Exception as e:
+            raise
+
         process_includes(email.message_from_string(decomp_str(content)),parts)
+
 
 def explode_cc_archive(archive,parts):
     for ent in yaml.load(archive):
@@ -110,6 +139,10 @@ def process_includes(msg,parts):
             ctype = ctype_orig
 
         if ctype == 'text/x-include-url':
+            do_include(payload,parts)
+            continue
+
+        if ctype == 'text/x-include-once-url':
             do_include(payload,parts)
             continue
 
