@@ -75,14 +75,14 @@ def handle(name,cfg,cloud,log,args):
         outputfile = StringIO.StringIO()
         mcollective_config.write(outputfile)
         # Now we got the whole file, write to disk except first line
-        final_configfile = open('/etc/mcollective/server.cfg', 'wb')
         # Note below, that we've just used ConfigParser because it generally
         # works.  Below, we remove the initial 'nullsection' header
         # and then change 'key = value' to 'key: value'.  The global
         # search and replace of '=' with ':' could be problematic though.
         # this most likely needs fixing.
-        final_configfile.write(outputfile.getvalue().replace('[nullsection]\n','').replace(' =',':'))
-        final_configfile.close()
+        util.write_file('/etc/mcollective/server.cfg',
+            outputfile.getvalue().replace('[nullsection]\n','').replace(' =',':'),
+            mode=0644)
 
     # Start mcollective
     subprocess.check_call(['service', 'mcollective', 'start'])
