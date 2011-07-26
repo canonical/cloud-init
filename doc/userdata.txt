@@ -42,7 +42,9 @@ finds.  However, certain types of user-data are handled specially.
    urls, one per line.  Each of the URLs will be read, and their content
    will be passed through this same set of rules.  Ie, the content
    read from the URL can be gzipped, mime-multi-part, or plain text
-   This file will just be processed once by cloud-init
+   This file will just be downloaded only once per instance, and its
+   contents cached for subsequent boots.  This allows you to pass in
+   one-time-use or expiring URLs.
 
  * Cloud Config Data
    begins with  #cloud-config or Content-Type: text/cloud-config
