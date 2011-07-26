@@ -24,6 +24,10 @@ import fileinput
 import StringIO
 import ConfigParser
 import cloudinit.CloudConfig as cc
+import cloudinit.util as util
+
+pubcert_file = "/etc/mcollective/ssl/server-public.pem"
+pricert_file = "/etc/mcollective/ssl/server-private.pem"
 
 # Our fake header section
 class FakeSecHead(object):
@@ -51,16 +55,14 @@ def handle(name,cfg,cloud,log,args):
         mcollective_config.readfp(FakeSecHead(open('/etc/mcollective/server.cfg')))
         for cfg_name, cfg in mcollective_cfg['conf'].iteritems():
             if cfg_name == 'public-cert':
-                publicrt_fh = open('/etc/mcollective/ssl/server-public.pem', 'w')
-                publicrt_fh.write(cfg)
-                publicrt_fh.close()
-                mcollective_config.set(cfg_name,'plugin.ssl_server_public','/etc/mcollective/ssl/server-public.pem')
+                util.write_file(pubcert_file, cfg, mode=0644)
+                mcollective_config.set(cfg_name,
+                    'plugin.ssl_server_public', pubcert_file)
                 mcollective_config.set(cfg_name,'securityprovider','ssl')
             elif cfg_name == 'private-cert':
-                privcrt_fh = open('/etc/mcollective/ssl/server-private.pem', 'w')
-                privcrt_fh.write(cfg)
-                privcrt_fh.close()
-                mcollective_config.set(cfg_name,'plugin.ssl_server_private','/etc/mcollective/ssl/server-private.pem')
+                util.write_file(pricert_file, cfg, mode=0600)
+                mcollective_config.set(cfg_name,
+                    'plugin.ssl_server_private', pricert_file)
                 mcollective_config.set(cfg_name,'securityprovider','ssl')
             else:
                 # Iterate throug the config items, we'll use ConfigParser.set
