@@ -22,7 +22,8 @@ from email.mime.text import MIMEText
 from email.mime.base import MIMEBase
 from email import encoders
 import yaml
-from cloudinit import util, get_ipath_cur
+import cloudinit
+import cloudinit.util as util
 
 starts_with_mappings={
     '#include' : 'text/x-include-url',
@@ -55,7 +56,8 @@ def do_include(str,parts):
     for line in str.splitlines():
         if line == "#include": continue
         if line == "#include-once":
-            includeonce == True
+            includeonce = True
+            continue
         if line.startswith("#include-once"):
             line = line[len("#include-once"):].lstrip()
             includeonce = True
@@ -65,7 +67,7 @@ def do_include(str,parts):
 
         # urls cannot not have leading or trailing white space
         uniquestring = base64.encodestring(line).strip()
-        includeonce_filename = "%/urlcache/%s" % (get_ipath_cur("data"), uniquestring)
+        includeonce_filename = "%s/urlcache/%s" % (cloudinit.get_ipath_cur("data"), uniquestring)
         try:
             if includeonce and os.path.isfile(includeonce_filename):
                 with open(includeonce_filename, "r") as fp:
@@ -75,7 +77,7 @@ def do_include(str,parts):
                 if includeonce:
                     util.write_file(includeonce_filename, content, mode=0600)
         except Exception as e:
-            log.debug(traceback.format_exc(e))
+            raise
 
         process_includes(email.message_from_string(decomp_str(content)),parts)
 
@@ -135,6 +137,10 @@ def process_includes(msg,parts):
             ctype = ctype_orig
 
         if ctype == 'text/x-include-url':
+            do_include(payload,parts)
+            continue
+
+        if ctype == 'text/x-include-once-url':
             do_include(payload,parts)
             continue
 
