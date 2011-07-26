@@ -22,6 +22,7 @@ from email.mime.text import MIMEText
 from email.mime.base import MIMEBase
 from email import encoders
 import yaml
+from cloudinit import util, get_ipath_cur
 
 starts_with_mappings={
     '#include' : 'text/x-include-url',
@@ -61,16 +62,21 @@ def do_include(str,parts):
         elif line.startswith("#include"):
             line = line[len("#include"):].lstrip()
         if line.startswith("#"): continue
-        if includeonce == True:
-            uniquestring = base64.encodestring(line).strip('\n')
-            includeonce_filename = "/var/lib/cloud/instance/.includeonce.%s" % uniquestring
-            if os.path.isfile(includeonce_filename): continue
-            includeonce_file = open(includeonce_filename,'w')
-            includeonce_file.close()
+
+        # urls cannot not have leading or trailing white space
+        uniquestring = base64.encodestring(line).strip()
+        includeonce_filename = "%/urlcache/%s" % (get_ipath_cur("data"), uniquestring)
         try:
-            content = urllib.urlopen(line).read()
+            if includeonce and os.path.isfile(includeonce_filename):
+                with open(includeonce_filename, "r") as fp:
+                    content = fp.read()
+            else:
+                content = urllib.urlopen(line).read()
+                if includeonce:
+                    util.write_file(includeonce_filename, content, mode=0600)
         except Exception as e:
             log.debug(traceback.format_exc(e))
+
         process_includes(email.message_from_string(decomp_str(content)),parts)
 
 
