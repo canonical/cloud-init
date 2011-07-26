@@ -24,6 +24,7 @@ from email import encoders
 import yaml
 import cloudinit
 import cloudinit.util as util
+import md5
 
 starts_with_mappings={
     '#include' : 'text/x-include-url',
@@ -49,7 +50,6 @@ def decomp_str(str):
 def do_include(str,parts):
     import urllib
     import os
-    import base64
     # is just a list of urls, one per line
     # also support '#include <url here>'
     includeonce = False
@@ -66,8 +66,10 @@ def do_include(str,parts):
         if line.startswith("#"): continue
 
         # urls cannot not have leading or trailing white space
-        uniquestring = base64.encodestring(line).strip()
-        includeonce_filename = "%s/urlcache/%s" % (cloudinit.get_ipath_cur("data"), uniquestring)
+        msum = md5.new()
+        msum.update(line.strip())
+        includeonce_filename = "%s/urlcache/%s" % (
+            cloudinit.get_ipath_cur("data"), msum.hexdigest())
         try:
             if includeonce and os.path.isfile(includeonce_filename):
                 with open(includeonce_filename, "r") as fp:
