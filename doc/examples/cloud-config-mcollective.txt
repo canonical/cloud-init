@@ -15,7 +15,8 @@ mcollective:
    plugin.stomp.host: dbhost
    # This will add ssl certs to mcollective
    # WARNING WARNING WARNING
-   # Please remember cloud-init data is transmitted without encryption
+   # The ec2 metadata service is a network service, and thus is readable
+   # by non-root users on the system (ie: 'ec2metadata --user-data')
    # If you want security for this, please use include-once + SSL urls
    public-cert: |
      -----BEGIN CERTIFICATE-----
