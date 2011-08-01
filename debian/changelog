@@ -1,3 +1,17 @@
+cloud-init (0.6.1-0ubuntu13) oneiric; urgency=low
+
+  * do not install 92-uec-upgrade-available as a motd hook.  This file was
+    installed but did not do anything since updates-check was removed.
+  * support multiple staticly configured network devices, as long as
+    all of them come up early (LP: #810044)
+
+  [Marc Cluet]
+  * add support for passing mcollective keys via cloud-config
+  * add support for 'include-once' type.  include-once urls are only
+    retrieved once-per-instance rather than on every boot.
+
+ -- Scott Moser <smoser@ubuntu.com>  Mon, 01 Aug 2011 16:45:40 -0400
+
 cloud-init (0.6.1-0ubuntu12) oneiric; urgency=low
 
   * do not give trace on failure to resize in lxc container (LP: #800856)

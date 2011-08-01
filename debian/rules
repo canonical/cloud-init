@@ -14,8 +14,6 @@ DEB_DH_INSTALL_SOURCEDIR := debian/tmp
 
 cloud-init-fixups:
 	for x in $(DEB_DESTDIR)/usr/bin/*.py; do mv "$$x" "$${x%.py}"; done
-	install -d $(DEB_DESTDIR)/etc/update-motd.d
-	cp tools/motd-hook $(DEB_DESTDIR)/etc/update-motd.d/92-uec-upgrade-available
 	install -d $(DEB_DESTDIR)/etc/rsyslog.d
 	cp tools/21-cloudinit.conf $(DEB_DESTDIR)/etc/rsyslog.d/21-cloudinit.conf
 

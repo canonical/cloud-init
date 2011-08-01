@@ -1,0 +1,262 @@
+------------------------------------------------------------
+revno: 417
+fixes bug(s): https://launchpad.net/bugs/810044
+committer: Scott Moser <smoser@ubuntu.com>
+branch nick: trunk
+timestamp: Mon 2011-08-01 14:32:59 -0400
+message:
+  avoid a race condition if there were multiple networking devices
+------------------------------------------------------------
+revno: 416 [merge]
+committer: Scott Moser <smoser@ubuntu.com>
+branch nick: trunk
+timestamp: Tue 2011-07-26 14:17:24 -0400
+message:
+  add support for 'include-once' and public and private keys to mcollective
+  
+  the new 'include-once' type will include a URL only once, and cache its
+  results.  This way you can use expiring URLs or one-time use urls to
+  pass sensitive data to the instance.  The instance will cache the result
+  in a local root only file for subsequent boots.
+  
+  Additionally, add support for specifying public and private keys for
+  mcollective via cloud-config.
+  
+  Both these features come via Marc Cluet.
+------------------------------------------------------------
+Use --include-merges or -n0 to see merged revisions.
+=== modified file 'ChangeLog'
+--- old/ChangeLog	2011-07-21 09:11:30 +0000
++++ new/ChangeLog	2011-08-01 18:32:59 +0000
+@@ -29,6 +29,11 @@
+  - do not give trace on failure to resize in lxc container (LP: #800856)
+  - increase the timeout on url gets for "seedfrom" values (LP: #812646)
+  - do not write entries for ephemeral0 on t1.micro (LP: #744019)
++ - support 'include-once' so that expiring or one-time use urls can
++   be used for '#include' to provide sensitive data.
++ - support for passing public and private keys to mcollective via cloud-config
++ - support multiple staticly configured network devices, as long as
++   all of them come up early (LP: #810044)
+ 0.6.1:
+  - fix bug in fixing permission on /var/log/cloud-init.log (LP: #704509)
+  - improve comment strings in rsyslog file tools/21-cloudinit.conf
+
+=== modified file 'cloudinit/CloudConfig/cc_mcollective.py'
+--- old/cloudinit/CloudConfig/cc_mcollective.py	2011-02-22 17:18:23 +0000
++++ new/cloudinit/CloudConfig/cc_mcollective.py	2011-07-26 15:18:10 +0000
+@@ -24,6 +24,10 @@
+ import StringIO
+ import ConfigParser
+ import cloudinit.CloudConfig as cc
++import cloudinit.util as util
++
++pubcert_file = "/etc/mcollective/ssl/server-public.pem"
++pricert_file = "/etc/mcollective/ssl/server-private.pem"
+ 
+ # Our fake header section
+ class FakeSecHead(object):
+@@ -50,24 +54,35 @@
+         # Read server.cfg values from original file in order to be able to mix the rest up
+         mcollective_config.readfp(FakeSecHead(open('/etc/mcollective/server.cfg')))
+         for cfg_name, cfg in mcollective_cfg['conf'].iteritems():
+-            # Iterate throug the config items, we'll use ConfigParser.set
+-            # to overwrite or create new items as needed
+-            for o, v in cfg.iteritems():
+-                mcollective_config.set(cfg_name,o,v)
++            if cfg_name == 'public-cert':
++                util.write_file(pubcert_file, cfg, mode=0644)
++                mcollective_config.set(cfg_name,
++                    'plugin.ssl_server_public', pubcert_file)
++                mcollective_config.set(cfg_name,'securityprovider','ssl')
++            elif cfg_name == 'private-cert':
++                util.write_file(pricert_file, cfg, mode=0600)
++                mcollective_config.set(cfg_name,
++                    'plugin.ssl_server_private', pricert_file)
++                mcollective_config.set(cfg_name,'securityprovider','ssl')
++            else:
++                # Iterate throug the config items, we'll use ConfigParser.set
++                # to overwrite or create new items as needed
++                for o, v in cfg.iteritems():
++                    mcollective_config.set(cfg_name,o,v)
+         # We got all our config as wanted we'll rename
+         # the previous server.cfg and create our new one
+         os.rename('/etc/mcollective/server.cfg','/etc/mcollective/server.cfg.old')
+         outputfile = StringIO.StringIO()
+         mcollective_config.write(outputfile)
+         # Now we got the whole file, write to disk except first line
+-        final_configfile = open('/etc/mcollective/server.cfg', 'wb')
+         # Note below, that we've just used ConfigParser because it generally
+         # works.  Below, we remove the initial 'nullsection' header
+         # and then change 'key = value' to 'key: value'.  The global
+         # search and replace of '=' with ':' could be problematic though.
+         # this most likely needs fixing.
+-        final_configfile.write(outputfile.getvalue().replace('[nullsection]\n','').replace(' =',':'))
+-        final_configfile.close()
++        util.write_file('/etc/mcollective/server.cfg',
++            outputfile.getvalue().replace('[nullsection]\n','').replace(' =',':'),
++            mode=0644)
+ 
+     # Start mcollective
+     subprocess.check_call(['service', 'mcollective', 'start'])
+
+=== modified file 'cloudinit/UserDataHandler.py'
+--- old/cloudinit/UserDataHandler.py	2011-03-30 17:10:07 +0000
++++ new/cloudinit/UserDataHandler.py	2011-07-26 18:04:02 +0000
+@@ -22,9 +22,13 @@
+ from email.mime.base import MIMEBase
+ from email import encoders
+ import yaml
++import cloudinit
++import cloudinit.util as util
++import md5
+ 
+ starts_with_mappings={
+     '#include' : 'text/x-include-url',
++    '#include-once' : 'text/x-include-once-url',
+     '#!' : 'text/x-shellscript',
+     '#cloud-config' : 'text/cloud-config',
+     '#upstart-job'  : 'text/upstart-job',
+@@ -45,16 +49,41 @@
+ 
+ def do_include(str,parts):
+     import urllib
++    import os
+     # is just a list of urls, one per line
+     # also support '#include <url here>'
++    includeonce = False
+     for line in str.splitlines():
+         if line == "#include": continue
+-        if line.startswith("#include"):
++        if line == "#include-once":
++            includeonce = True
++            continue
++        if line.startswith("#include-once"):
++            line = line[len("#include-once"):].lstrip()
++            includeonce = True
++        elif line.startswith("#include"):
+             line = line[len("#include"):].lstrip()
+         if line.startswith("#"): continue
+-        content = urllib.urlopen(line).read()
++
++        # urls cannot not have leading or trailing white space
++        msum = md5.new()
++        msum.update(line.strip())
++        includeonce_filename = "%s/urlcache/%s" % (
++            cloudinit.get_ipath_cur("data"), msum.hexdigest())
++        try:
++            if includeonce and os.path.isfile(includeonce_filename):
++                with open(includeonce_filename, "r") as fp:
++                    content = fp.read()
++            else:
++                content = urllib.urlopen(line).read()
++                if includeonce:
++                    util.write_file(includeonce_filename, content, mode=0600)
++        except Exception as e:
++            raise
++
+         process_includes(email.message_from_string(decomp_str(content)),parts)
+ 
++
+ def explode_cc_archive(archive,parts):
+     for ent in yaml.load(archive):
+         # ent can be one of:
+@@ -113,6 +142,10 @@
+             do_include(payload,parts)
+             continue
+ 
++        if ctype == 'text/x-include-once-url':
++            do_include(payload,parts)
++            continue
++
+         if ctype == "text/cloud-config-archive":
+             explode_cc_archive(payload,parts)
+             continue
+
+=== modified file 'doc/examples/cloud-config-mcollective.txt'
+--- old/doc/examples/cloud-config-mcollective.txt	2011-02-20 13:45:12 +0000
++++ new/doc/examples/cloud-config-mcollective.txt	2011-07-26 13:40:19 +0000
+@@ -13,3 +13,37 @@
+  # plugin.stomp.host: dbhost
+  conf:
+    plugin.stomp.host: dbhost
++   # This will add ssl certs to mcollective
++   # WARNING WARNING WARNING
++   # The ec2 metadata service is a network service, and thus is readable
++   # by non-root users on the system (ie: 'ec2metadata --user-data')
++   # If you want security for this, please use include-once + SSL urls
++   public-cert: |
++     -----BEGIN CERTIFICATE-----
++     MIICCTCCAXKgAwIBAgIBATANBgkqhkiG9w0BAQUFADANMQswCQYDVQQDDAJjYTAe
++     Fw0xMDAyMTUxNzI5MjFaFw0xNTAyMTQxNzI5MjFaMA0xCzAJBgNVBAMMAmNhMIGf
++     MA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQCu7Q40sm47/E1Pf+r8AYb/V/FWGPgc
++     b014OmNoX7dgCxTDvps/h8Vw555PdAFsW5+QhsGr31IJNI3kSYprFQcYf7A8tNWu
++     1MASW2CfaEiOEi9F1R3R4Qlz4ix+iNoHiUDTjazw/tZwEdxaQXQVLwgTGRwVa+aA
++     qbutJKi93MILLwIDAQABo3kwdzA4BglghkgBhvhCAQ0EKxYpUHVwcGV0IFJ1Ynkv
++     T3BlblNTTCBHZW5lcmF0ZWQgQ2VydGlmaWNhdGUwDwYDVR0TAQH/BAUwAwEB/zAd
++     BgNVHQ4EFgQUu4+jHB+GYE5Vxo+ol1OAhevspjAwCwYDVR0PBAQDAgEGMA0GCSqG
++     SIb3DQEBBQUAA4GBAH/rxlUIjwNb3n7TXJcDJ6MMHUlwjr03BDJXKb34Ulndkpaf
++     +GAlzPXWa7bO908M9I8RnPfvtKnteLbvgTK+h+zX1XCty+S2EQWk29i2AdoqOTxb
++     hppiGMp0tT5Havu4aceCXiy2crVcudj3NFciy8X66SoECemW9UYDCb9T5D0d
++     -----END CERTIFICATE-----
++   private-cert: |
++     -----BEGIN CERTIFICATE-----
++     MIICCTCCAXKgAwIBAgIBATANBgkqhkiG9w0BAQUFADANMQswCQYDVQQDDAJjYTAe
++     Fw0xMDAyMTUxNzI5MjFaFw0xNTAyMTQxNzI5MjFaMA0xCzAJBgNVBAMMAmNhMIGf
++     MA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQCu7Q40sm47/E1Pf+r8AYb/V/FWGPgc
++     b014OmNoX7dgCxTDvps/h8Vw555PdAFsW5+QhsGr31IJNI3kSYprFQcYf7A8tNWu
++     1MASW2CfaEiOEi9F1R3R4Qlz4ix+iNoHiUDTjazw/tZwEdxaQXQVLwgTGRwVa+aA
++     qbutJKi93MILLwIDAQABo3kwdzA4BglghkgBhvhCAQ0EKxYpUHVwcGV0IFJ1Ynkv
++     T3BlblNTTCBHZW5lcmF0ZWQgQ2VydGlmaWNhdGUwDwYDVR0TAQH/BAUwAwEB/zAd
++     BgNVHQ4EFgQUu4+jHB+GYE5Vxo+ol1OAhevspjAwCwYDVR0PBAQDAgEGMA0GCSqG
++     SIb3DQEBBQUAA4GBAH/rxlUIjwNb3n7TXJcDJ6MMHUlwjr03BDJXKb34Ulndkpaf
++     +GAlzPXWa7bO908M9I8RnPfvtKnteLbvgTK+h+zX1XCty+S2EQWk29i2AdoqOTxb
++     hppiGMp0tT5Havu4aceCXiy2crVcudj3NFciy8X66SoECemW9UYDCb9T5D0d
++     -----END CERTIFICATE-----
++
+
+=== added file 'doc/examples/include-once.txt'
+--- old/doc/examples/include-once.txt	1970-01-01 00:00:00 +0000
++++ new/doc/examples/include-once.txt	2011-07-25 12:27:27 +0000
+@@ -0,0 +1,7 @@
++#include-once
++# entries are one url per line. comment lines beginning with '#' are allowed
++# urls are passed to urllib.urlopen, so the format must be supported there
++# This entries will just be processed ONE TIME by cloud-init, any further
++# iterations won't process this file
++http://www.ubuntu.com/robots.txt
++http://www.w3schools.com/html/lastpage.htm
+
+=== modified file 'doc/userdata.txt'
+--- old/doc/userdata.txt	2010-06-18 04:49:01 +0000
++++ new/doc/userdata.txt	2011-07-26 14:22:23 +0000
+@@ -36,6 +36,16 @@
+    will be passed through this same set of rules.  Ie, the content
+    read from the URL can be gzipped, mime-multi-part, or plain text
+ 
++* Include File Once
++   begins with  #include-once      or Content-Type: text/x-include-once-url
++   This content is a "include" file.  The file contains a list of
++   urls, one per line.  Each of the URLs will be read, and their content
++   will be passed through this same set of rules.  Ie, the content
++   read from the URL can be gzipped, mime-multi-part, or plain text
++   This file will just be downloaded only once per instance, and its
++   contents cached for subsequent boots.  This allows you to pass in
++   one-time-use or expiring URLs.
++
+  * Cloud Config Data
+    begins with  #cloud-config or Content-Type: text/cloud-config
+ 
+
+=== modified file 'upstart/cloud-init-nonet.conf'
+--- old/upstart/cloud-init-nonet.conf	2011-06-28 10:41:05 +0000
++++ new/upstart/cloud-init-nonet.conf	2011-08-01 18:32:59 +0000
+@@ -3,7 +3,7 @@
+ #  * to block running of cloud-init until a non 'lo' interface is up
+ #  * timeout if one doens't come up in a reasonable amount of time
+ start on mounted MOUNTPOINT=/ and stopped cloud-init-local
+-stop on net-device-up IFACE!=lo
++stop on static-network-up
+ task
+ 
+ console output
+
