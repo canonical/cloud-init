@@ -32,6 +32,8 @@
  - support 'include-once' so that expiring or one-time use urls can
    be used for '#include' to provide sensitive data.
  - support for passing public and private keys to mcollective via cloud-config
+ - support multiple staticly configured network devices, as long as
+   all of them come up early (LP: #810044)
 0.6.1:
  - fix bug in fixing permission on /var/log/cloud-init.log (LP: #704509)
  - improve comment strings in rsyslog file tools/21-cloudinit.conf
