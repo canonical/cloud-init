@@ -190,11 +190,10 @@ def preprocess_userdata(data):
     process_includes(email.message_from_string(decomp_str(data)),parts)
     return(parts2mime(parts))
 
-# callbacks is a dictionary with:
-#  { 'content-type': handler(data,content_type,filename,payload) }
-def walk_userdata(str, callbacks, data = None):
+# callback is a function that will be called with (data, content_type, filename, payload)
+def walk_userdata(istr, callback, data = None):
     partnum = 0
-    for part in email.message_from_string(str).walk():
+    for part in email.message_from_string(istr).walk():
         # multipart/* are just containers
         if part.get_content_maintype() == 'multipart':
             continue
@@ -207,8 +206,7 @@ def walk_userdata(str, callbacks, data = None):
         if not filename:
             filename = 'part-%03d' % partnum
 
-        if callbacks.has_key(ctype):
-            callbacks[ctype](data,ctype,filename,part.get_payload())
+        callback(data, ctype, filename, part.get_payload())
 
         partnum = partnum+1
 
