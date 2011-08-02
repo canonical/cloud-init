@@ -140,8 +140,10 @@ def main():
 
     # parse the user data (ec2-run-userdata.py)
     try:
-        cloud.sem_and_run("consume_userdata", "once-per-instance",
-            cloud.consume_userdata,[],False)
+        ran = cloud.sem_and_run("consume_userdata", cloudinit.per_instance,
+            cloud.consume_userdata,[cloudinit.per_instance],False)
+        if not ran:
+            cloud.consume_userdata(cloudinit.per_always)
     except:
         warn("consuming user data failed!\n")
         raise

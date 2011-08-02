@@ -25,9 +25,9 @@ import os
 import subprocess
 import time
 
-per_instance="once-per-instance"
-per_always="always"
-per_once="once"
+per_instance= cloudinit.per_instance
+per_always = cloudinit.per_always
+per_once = cloudinit.per_once
 
 class CloudConfig():
     cfgfile = None
