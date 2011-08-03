@@ -311,10 +311,49 @@ rsyslog:
 # set to 'False' to disable
 resize_rootfs: True
 
-# if hostname is set, cloud-init will set the system hostname 
-# appropriately to its value
-# if not set, it will set hostname from the cloud metadata
-# default: None
+## hostname and /etc/hosts management
+# cloud-init will do its best to set up a sane hostname and corresponding
+# entries in /etc/hosts.
+#
+# if you do nothing, you should get the system generally correctly
+# configured.
+#  * /etc/hostname contain the hostname (not fqdn)
+#  * an entry in /etc/hosts for with both hostname and fqdn
+#    that are obtained from the metadata service
+#  * On each boot, the above will again be set
+#  * cloud-init generally "owns" the 127.0.1.1 entry.  The
+#    rest of the file will not be modified
+#
+# You can change the above behavior with the following config variables:
+#  Remember that these can be set in cloud-config via user-data,
+#  /etc/cloud/cloud.cfg or any file in /etc/cloud/cloud.cfg.d/
+#
+# hostname:
+#   this option will be used wherever the 'hostname' is needed
+#   simply substitute it in the description above.
+#   ** If you wish to set your hostname, set it here **
+#   default: 'hostname' as returned by the metadata service
+#       on EC2, the hostname portion of 'local-hostname' is used
+#       which is something like 'ip-10-244-170-199'
+#
+# fqdn:
+#   this option will be used wherever 'fqdn' is needed.
+#   simply substitue it in the description above.
+#   default: fqdn as returned by the metadata service.  on EC2 'hostname'
+#       is used, so this is like: ip-10-244-170-199.ec2.internal
+# 
+# manage_etc_hosts:
+#   default: false
+#   Setting this config variable to 'true' will mean that on every
+#   boot, /etc/hosts will be re-written from /etc/cloud/templates/hosts.tmpl
+#   The strings '$hostname' and '$fqdn' are replaced in the template
+#   with the appropriate values.
+#
+# preserve_hostname:
+#   default: False
+#   If this option is set to True, then /etc/hostname will never updated
+#   The default behavior is to update it if it has not been modified by
+#   the user.
 
 # final_message
 # default: cloud-init boot finished at $TIMESTAMP. Up $UPTIME seconds
@@ -422,11 +461,6 @@ ssh_pwauth: True
 #  will be booted as a new instance.
 # default is False
 manual_cache_clean: False
-
-# if you wish to have /etc/hosts written from /etc/cloud/templates/hosts.tmpl
-# on a per-always basis (to account for ebs stop/start), then set
-# manage_etc_hosts to True. The default is 'False'
-manage_etc_hosts: False
 
 # When cloud-init is finished running including having run 
 # cloud_init_modules, then it will run this command.  The default
