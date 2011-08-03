@@ -62,7 +62,6 @@ def update_etc_hosts(hostname, fqdn, log):
                  if sorted([hostname, fqdn]) == sorted(hosts):
                      need_change = False
                  if need_change == True:
-                     print "header=%s!" % header
                      line = "%s%s" % (header, hosts_line)
                      need_change = False
                      need_write = True
