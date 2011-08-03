@@ -422,3 +422,26 @@ def islxc():
             raise
 
     return False
+
+def get_hostname_fqdn(cfg, cloud):
+    # return the hostname and fqdn from 'cfg'.  If not found in cfg,
+    # then fall back to data from cloud
+    if "fqdn" in cfg:
+        # user specified a fqdn.  Default hostname then is based off that
+        fqdn = cfg['fqdn']
+        hostname = get_cfg_option_str(cfg,"hostname",fqdn.split('.')[0])
+    else:
+        if "hostname" in cfg and cfg['hostname'].find('.') > 0:
+            # user specified hostname, and it had '.' in it
+            # be nice to them.  set fqdn and hostname from that
+            fqdn = cfg['hostname']
+            hostname = cfg['hostname'][:fqdn.find('.')]
+        else
+            # no fqdn set, get fqdn from cloud. 
+            # get hostname from cfg if available otherwise cloud
+            fqdn = cloud.get_hostname(fqdn=True)
+            if "hostname" in cfg:
+                hostname = cfg['hostname']
+            else:
+                hostname = cloud.get_hostname()
+    return(hostname, fqdn)

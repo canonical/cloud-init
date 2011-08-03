@@ -22,8 +22,7 @@ import StringIO
 frequency = per_always
 
 def handle(name,cfg,cloud,log,args):
-    hostname = util.get_cfg_option_str(cfg,"hostname",cloud.get_hostname())
-    fqdn = util.get_cfg_option_str(cfg,"fqdn",cloud.get_hostname(fqdn=True))
+    ( hostname, fqdn ) = util.get_hostname_fqdn(cfg, cloud)
 
     if util.get_cfg_option_bool(cfg,"manage_etc_hosts", True):
         # manage_etc_hosts not true, update the 127.0.1.1 entry via update_etc_hosts
