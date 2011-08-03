@@ -317,8 +317,8 @@ resize_rootfs: True
 #
 # if you do nothing, you should get the system generally correctly
 # configured.
-#  * /etc/hostname contain the hostname (not fqdn)
-#  * an entry in /etc/hosts for with both hostname and fqdn
+#  * /etc/hostname (and thus `hostname` output) set with hostname (not fqdn)
+#  * an entry in /etc/hosts for both hostname and fqdn
 #    that are obtained from the metadata service
 #  * On each boot, the above will again be set
 #  * cloud-init generally "owns" the 127.0.1.1 entry.  The
