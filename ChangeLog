@@ -34,6 +34,10 @@
  - support for passing public and private keys to mcollective via cloud-config
  - support multiple staticly configured network devices, as long as
    all of them come up early (LP: #810044)
+ - Changes to handling user data mean that:
+   * boothooks will now run more than once as they were intended (and as bootcmd
+     commands do)
+   * cloud-config and user-scripts will be updated from user data every boot
 0.6.1:
  - fix bug in fixing permission on /var/log/cloud-init.log (LP: #704509)
  - improve comment strings in rsyslog file tools/21-cloudinit.conf
