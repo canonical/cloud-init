@@ -436,7 +436,7 @@ def get_hostname_fqdn(cfg, cloud):
             # be nice to them.  set fqdn and hostname from that
             fqdn = cfg['hostname']
             hostname = cfg['hostname'][:fqdn.find('.')]
-        else
+        else:
             # no fqdn set, get fqdn from cloud. 
             # get hostname from cfg if available otherwise cloud
             fqdn = cloud.get_hostname(fqdn=True)
