@@ -24,7 +24,8 @@ frequency = per_always
 def handle(name,cfg,cloud,log,args):
     ( hostname, fqdn ) = util.get_hostname_fqdn(cfg, cloud)
 
-    if util.get_cfg_option_bool(cfg,"manage_etc_hosts", True):
+    use_template = util.get_cfg_option_bool(cfg,"manage_etc_hosts", False)
+    if not use_template:
         # manage_etc_hosts not true, update the 127.0.1.1 entry via update_etc_hosts
         log.debug("manage_etc_hosts is not set, checking sanity of /etc/hosts")
         update_etc_hosts(hostname, fqdn, log)
