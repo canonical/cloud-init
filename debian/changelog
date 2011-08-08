@@ -1,3 +1,13 @@
+cloud-init (0.6.1-0ubuntu14) oneiric; urgency=low
+
+  * change the handling of user-data (LP: #810044)
+   * boothooks will now run more than once as they were intended
+   * cloud-config and user-scripts will be updated from user data every boot
+  * Add a second type of part-handler that will be called on every boot 
+  * fix bad handling of /etc/hosts if manage_etc_hosts was false
+
+ -- Scott Moser <smoser@ubuntu.com>  Mon, 08 Aug 2011 12:46:56 -0500
+
 cloud-init (0.6.1-0ubuntu13) oneiric; urgency=low
 
   * do not install 92-uec-upgrade-available as a motd hook.  This file was
