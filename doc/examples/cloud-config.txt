@@ -135,6 +135,7 @@ ssh_authorized_keys:
 # Send pre-generated ssh private keys to the server
 # If these are present, they will be written to /etc/ssh and
 # new random keys will not be generated
+#  in addition to 'rsa' and 'dsa' as shown below, 'ecdsa' is also supported
 ssh_keys:
   rsa_private: |
     -----BEGIN RSA PRIVATE KEY-----
@@ -391,7 +392,7 @@ output:
 #
 phone_home:
  url: http://my.example.com/$INSTANCE_ID/
- post: [ pub_key_dsa, pub_key_rsa, instance_id ]
+ post: [ pub_key_dsa, pub_key_rsa, pub_key_ecdsa, instance_id ]
 
 # timezone: set the timezone for this instance
 # the value of 'timezone' must exist in /usr/share/zoneinfo

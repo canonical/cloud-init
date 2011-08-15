@@ -41,13 +41,17 @@ def handle(name,cfg,cloud,log,args):
             "rsa_public"  : ("/etc/ssh/ssh_host_rsa_key.pub", 0644),
             "dsa_private" : ("/etc/ssh/ssh_host_dsa_key", 0600),
             "dsa_public"  : ("/etc/ssh/ssh_host_dsa_key.pub", 0644)
+            "ecdsa_private" : ("/etc/ssh/ssh_host_ecdsa_key", 0600),
+            "ecdsa_public"  : ("/etc/ssh/ssh_host_ecdsa_key.pub", 0644)
         }
 
         for key,val in cfg["ssh_keys"].items():
             if key2file.has_key(key):
                 util.write_file(key2file[key][0],val,key2file[key][1])
 
-        priv2pub = { 'rsa_private':'rsa_public', 'dsa_private':'dsa_public' }
+        priv2pub = { 'rsa_private':'rsa_public', 'dsa_private':'dsa_public',
+            'ecdsa_private': 'ecdsa_public', }
+
         cmd = 'o=$(ssh-keygen -yf "%s") && echo "$o" root@localhost > "%s"'
         for priv,pub in priv2pub.iteritems():
             if pub in cfg['ssh_keys'] or not priv in cfg['ssh_keys']: continue
@@ -58,6 +62,7 @@ def handle(name,cfg,cloud,log,args):
         # if not, generate them
         genkeys ='ssh-keygen -f /etc/ssh/ssh_host_rsa_key -t rsa -N ""; '
         genkeys+='ssh-keygen -f /etc/ssh/ssh_host_dsa_key -t dsa -N ""; '
+        genkeys+='ssh-keygen -f /etc/ssh/ssh_host_ecdsa_key -t ecdsa -N ""; '
         subprocess.call(('sh', '-c', "{ %s } </dev/null" % (genkeys)))
 
     try:
