@@ -42,7 +42,9 @@
    apt-add-repository would get stdin which was attached to a terminal
   (/dev/console) and would thus hang when running during boot.  (LP: 831505)
    This was done by changing all users of util.subp to have None input unless specified
-  
+ - Add some debug info to the console when cloud-init runs.
+   This is useful if debugging, IP and route information is printed to the console.
+
 0.6.1:
  - fix bug in fixing permission on /var/log/cloud-init.log (LP: #704509)
  - improve comment strings in rsyslog file tools/21-cloudinit.conf

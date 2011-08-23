@@ -24,6 +24,7 @@ import cloudinit
 import cloudinit.util as util
 import cloudinit.CloudConfig as CC
 import cloudinit.DataSource as ds
+import cloudinit.netinfo as netinfo
 import time
 import logging
 import errno
@@ -87,6 +88,8 @@ def main():
     nonet_path = "%s/%s" % (cloudinit.get_cpath("data"), "no-net")
 
     if cmd == "start":
+        print netinfo.debug_info()
+
         stop_files = ( cloudinit.get_ipath_cur("obj_pkl"), nonet_path )
         # if starting as the network start, there are cases
         # where everything is already done for us, and it makes
