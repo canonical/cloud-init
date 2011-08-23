@@ -141,10 +141,8 @@ def runparts(dirp, skip_no_exist=True):
     return
 
 def subp(args, input=None):
-    s_in = None
-    if input is not None:
-        s_in = subprocess.PIPE
-    sp = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=s_in)
+    sp = subprocess.Popen(args, stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE, stdin=subprocess.PIPE)
     out,err = sp.communicate(input)
     if sp.returncode is not 0:
         raise subprocess.CalledProcessError(sp.returncode,args, (out,err))

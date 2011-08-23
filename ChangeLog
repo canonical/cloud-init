@@ -38,6 +38,11 @@
    * boothooks will now run more than once as they were intended (and as bootcmd
      commands do)
    * cloud-config and user-scripts will be updated from user data every boot
+ - Fix issue where 'isatty' would return true for apt-add-repository.
+   apt-add-repository would get stdin which was attached to a terminal
+  (/dev/console) and would thus hang when running during boot.  (LP: 831505)
+   This was done by changing all users of util.subp to have None input unless specified
+  
 0.6.1:
  - fix bug in fixing permission on /var/log/cloud-init.log (LP: #704509)
  - improve comment strings in rsyslog file tools/21-cloudinit.conf

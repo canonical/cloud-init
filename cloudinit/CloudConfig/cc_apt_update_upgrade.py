@@ -127,7 +127,7 @@ def add_sources(srclist, searchList={ }):
 
         source=ent['source']
         if source.startswith("ppa:"):
-            try: util.subp(["add-apt-repository",source], "/dev/null")
+            try: util.subp(["add-apt-repository",source])
             except:
                 elst.append([source, "add-apt-repository failed"])
             continue
