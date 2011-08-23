@@ -40,9 +40,9 @@ def handle(name,cfg,cloud,log,args):
             "rsa_private" : ("/etc/ssh/ssh_host_rsa_key", 0600),
             "rsa_public"  : ("/etc/ssh/ssh_host_rsa_key.pub", 0644),
             "dsa_private" : ("/etc/ssh/ssh_host_dsa_key", 0600),
-            "dsa_public"  : ("/etc/ssh/ssh_host_dsa_key.pub", 0644)
+            "dsa_public"  : ("/etc/ssh/ssh_host_dsa_key.pub", 0644),
             "ecdsa_private" : ("/etc/ssh/ssh_host_ecdsa_key", 0600),
-            "ecdsa_public"  : ("/etc/ssh/ssh_host_ecdsa_key.pub", 0644)
+            "ecdsa_public"  : ("/etc/ssh/ssh_host_ecdsa_key.pub", 0644),
         }
 
         for key,val in cfg["ssh_keys"].items():
