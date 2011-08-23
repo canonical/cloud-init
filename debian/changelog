@@ -1,3 +1,13 @@
+cloud-init (0.6.1-0ubuntu15) oneiric; urgency=low
+
+  * catch up with trunk at revision 431
+  * add network debug info to console when cloud-init runs (LP: #828186)
+  * fix issue where subprocesses (apt-add-repository) where given
+    the console and would attempt to prompt user and hang boot (LP: #831505)
+  * add awareness of ecdsa to cc_ssh
+
+ -- Scott Moser <smoser@ubuntu.com>  Tue, 23 Aug 2011 00:01:01 -0400
+
 cloud-init (0.6.1-0ubuntu14) oneiric; urgency=low
 
   * change the handling of user-data (LP: #810044)
