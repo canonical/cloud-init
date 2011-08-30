@@ -16,6 +16,7 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 import cloudinit.util as util
+import cloudinit.SshUtil as sshutil
 import os
 import glob
 import subprocess
@@ -86,57 +87,15 @@ def handle(name,cfg,cloud,log,args):
 def send_ssh_keys_to_console():
     subprocess.call(('/usr/lib/cloud-init/write-ssh-key-fingerprints',))
 
-def apply_credentials(keys, user, disable_root, disable_root_opts=DISABLE_ROOT_OPTS):
+def apply_credentials(keys, user, disable_root, disable_root_opts=DISABLE_ROOT_OPTS, log=global_log):
     keys = set(keys)
     if user:
-        setup_user_keys(keys, user, '')
+        sshutil.setup_user_keys(keys, user, '', log)
  
     if disable_root:
         key_prefix = disable_root_opts.replace('$USER', user)
     else:
         key_prefix = ''
 
-    setup_user_keys(keys, 'root', key_prefix)
-
-def setup_user_keys(keys, user, key_prefix):
-    import pwd
-    saved_umask = os.umask(077)
-
-    pwent = pwd.getpwnam(user)
-
-    ssh_dir = '%s/.ssh' % pwent.pw_dir
-    if not os.path.exists(ssh_dir):
-        os.mkdir(ssh_dir)
-        os.chown(ssh_dir, pwent.pw_uid, pwent.pw_gid)
-
-    try:
-        ssh_cfg = parse_ssh_config()
-        akeys = ssh_cfg.get("AuthorizedKeysFile","%h/.ssh/authorized_keys")
-        akeys = akeys.replace("%h", pwent.pw_dir)
-        akeys = akeys.replace("%u", user)
-        authorized_keys = akeys
-    except Exception as e:
-        authorized_keys = '%s/.ssh/authorized_keys' % pwent.pw_dir
-        util.logexc(global_log)
-
-    fp = open(authorized_keys, 'a')
-    key_prefix = key_prefix.replace("\n"," ")
-    fp.write(''.join(['%s %s\n' % (key_prefix.strip(), key) for key in keys]))
-    fp.close()
-
-    os.chown(authorized_keys, pwent.pw_uid, pwent.pw_gid)
-
-    os.umask(saved_umask)
-
-def parse_ssh_config(fname="/etc/ssh/sshd_config"):
-    ret = { }
-    fp=open(fname)
-    for l in fp.readlines():
-        l = l.strip()
-        if not l or l.startswith("#"):
-            continue
-        key,val = l.split(None,1)
-        ret[key]=val
-    fp.close()
-    return(ret)
+    sshutil.setup_user_keys(keys, 'root', key_prefix, log)
 
