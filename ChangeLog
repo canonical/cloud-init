@@ -44,6 +44,9 @@
    This was done by changing all users of util.subp to have None input unless specified
  - Add some debug info to the console when cloud-init runs.
    This is useful if debugging, IP and route information is printed to the console.
+ - change the mechanism for handling .ssh/authorized_keys, to update entries
+   rather than appending.  This ensures that the authorized_keys that are being
+   inserted actually do something (LP: #434076, LP: #833499)
 
 0.6.1:
  - fix bug in fixing permission on /var/log/cloud-init.log (LP: #704509)
