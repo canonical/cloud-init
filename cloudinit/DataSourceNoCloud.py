@@ -41,7 +41,6 @@ class DataSourceNoCloud(DataSource.DataSource):
 
     def get_data(self):
         defaults = { 
-            "local-hostname" : "ubuntuhost",
             "instance-id" : "nocloud"
         }
 
