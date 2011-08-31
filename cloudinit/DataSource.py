@@ -94,7 +94,7 @@ class DataSource:
 
     def get_instance_id(self):
         if 'instance-id' not in self.metadata:
-            return "ubuntuhost"
+            return "iid-datasource"
         return(self.metadata['instance-id'])
 
     def get_hostname(self, fqdn=False):
