@@ -51,7 +51,6 @@ class DataSourceOVF(DataSource.DataSource):
         ud = ""
 
         defaults = { 
-            "local-hostname" : "ubuntuhost",
             "instance-id" : "nocloud"
         }
 
@@ -109,9 +108,6 @@ class DataSourceOVF(DataSource.DataSource):
         if not 'public-keys' in self.metadata: return([])
         return([self.metadata['public-keys'],])
         
-    def get_hostname(self):
-        return(self.metadata['local-hostname'])
-
     # the data sources' config_obj is a cloud-config formated
     # object that came to it from ways other than cloud-config
     # because cloud-config content would be handled elsewhere

@@ -48,6 +48,10 @@
    rather than appending.  This ensures that the authorized_keys that are being
    inserted actually do something (LP: #434076, LP: #833499)
  - log warning on failure to set hostname (LP: #832175)
+ - upstart/cloud-init-nonet.conf: wait for all network interfaces to be up
+ - DataSourceNoCloud, DataSourceOVF : do not provide a default hostname.
+   This way the configured hostname of the system will be used if not provided
+   by metadata (LP: #838280)
 
 0.6.1:
  - fix bug in fixing permission on /var/log/cloud-init.log (LP: #704509)
