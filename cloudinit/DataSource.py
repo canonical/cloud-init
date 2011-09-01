@@ -98,9 +98,31 @@ class DataSource:
         return(self.metadata['instance-id'])
 
     def get_hostname(self, fqdn=False):
-        domain = "localdomain"
+        defdomain = "localdomain"
+        defhost = "localhost" 
+
+        domain = defdomain
         if not 'local-hostname' in self.metadata:
-            toks = [ platform.node(), domain ]
+
+            # this is somewhat questionable really.
+            # the cloud datasource was asked for a hostname
+            # and didn't have one. raising error might be more appropriate
+            # but instead, basically look up the existing hostname
+            toks = []
+            pfn = platform.node()
+
+            # platform.node says: Returns the computer's network 
+            #    name (which may not be fully qualified)
+            toks = pfn.split(".")
+            if pfn.find(".") > 0:
+                toks = pfn.split(".")
+            elif pfn:
+                toks = [ pfn, defdomain ]
+
+            if len(toks) == 0:
+                toks = [ defhost, defdomain ]
+                #log.warn("unable to find hostname, using defaults")
+
         else:
             toks = self.metadata['local-hostname'].split('.')
 
