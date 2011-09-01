@@ -51,7 +51,7 @@ class DataSourceOVF(DataSource.DataSource):
         ud = ""
 
         defaults = { 
-            "instance-id" : "nocloud"
+            "instance-id" : "iid-dsovf"
         }
 
         (seedfile, contents) = get_ovf_env(seeddir)
