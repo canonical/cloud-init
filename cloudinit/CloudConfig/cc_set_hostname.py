@@ -28,11 +28,11 @@ def handle(name,cfg,cloud,log,args):
         set_hostname(hostname, log)
     except Exception as e:
         util.logexc(log)
-        log.warn("failed to set hostname\n")
+        log.warn("failed to set hostname to %s\n", hostname)
 
     return(True)
 
 def set_hostname(hostname, log):
-    subprocess.Popen(['hostname', hostname]).communicate()
+    util.subp(['hostname', hostname])
     util.write_file("/etc/hostname","%s\n" % hostname, 0644)
     log.debug("populated /etc/hostname with %s on first boot", hostname)
