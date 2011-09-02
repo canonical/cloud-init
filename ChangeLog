@@ -49,6 +49,7 @@
    inserted actually do something (LP: #434076, LP: #833499)
  - log warning on failure to set hostname (LP: #832175)
  - upstart/cloud-init-nonet.conf: wait for all network interfaces to be up
+   allow for the possibility of /var/run != /run.
  - DataSourceNoCloud, DataSourceOVF : do not provide a default hostname.
    This way the configured hostname of the system will be used if not provided
    by metadata (LP: #838280)
