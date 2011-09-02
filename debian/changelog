@@ -1,3 +1,18 @@
+cloud-init (0.6.1-0ubuntu16) oneiric; urgency=low
+
+  * catch up with trunk at revision 439
+  * warn on failure to set hostname (LP: #832175)
+  * properly wait for all static interfaces to be up before
+    cloud-init runs (depends on fix in LP:# 838968).
+  * in DataSources NoCloud and OVF, do not set hostname to the
+    static value 'ubuntuhost' if local-hostname is not in metadata
+    (LP: #838280)
+  * improve the way ssh_authorized_keys is updated, so that the
+    values given will be used. (LP: #434076, LP: #833499)
+  * cloud-init-notnet.conf: minor changes to config
+
+ -- Scott Moser <smoser@ubuntu.com>  Thu, 01 Sep 2011 21:14:09 -0400
+
 cloud-init (0.6.1-0ubuntu15) oneiric; urgency=low
 
   * catch up with trunk at revision 431
