@@ -58,8 +58,9 @@ def handle(name,cfg,cloud,log,args):
     if chef_cfg.has_key('run_list'):
         with open('/etc/chef/firstboot.json', 'w') as firstboot_json_fh:
             firstboot_json_fh.write("{\n\"run_list\":\n[\n")
-            for runlist_item in chef_cfg['run_list']:
-                firstboot_json_fh.write(runlist_item + "\n")
+            firstboot_json_fh.write(
+                    ",\n".join(["\"%s\"" % runlist_item for runlist_item in chef_cfg['run_list']])
+                    )
             firstboot_json_fh.write("]\n\}")
         chef_args.append('-j /etc/chef/firstboot.json')
 
