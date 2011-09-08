@@ -32,8 +32,9 @@ def handle(name,cfg,cloud,log,args):
     chef_cfg = cfg['chef']
 
     # Install chef packages from selected source
+    install_type = util.get_cfg_option_str(chef_cfg, "install_type", "packages")
     if not os.path.isfile('/usr/bin/chef-client'):
-        if chef_cfg['install_type'] == "gems":
+        if install_type == "gems":
             if chef_cfg.has_key('version'):
                 chef_version = chef_cfg['version']
             else:
@@ -46,7 +47,7 @@ def handle(name,cfg,cloud,log,args):
 
     # set the validation cert
     if chef_cfg.has_key('validation_cert'):
-        with open('/etc/chef/validation.cert', 'w') as validation_cert_fh:
+        with open('/etc/chef/validation.pem', 'w') as validation_cert_fh:
             validation_cert_fh.write(chef_cfg['validation_cert'])
 
     validation_name = chef_cfg.get('validation_name','chef-validator')
@@ -58,11 +59,12 @@ def handle(name,cfg,cloud,log,args):
     chef_args = ['-d']
     # set the firstboot json
     if chef_cfg.has_key('run_list'):
-        with open('/etc/chef/firstboot.json') as firstboot_json_fh:
+        with open('/etc/chef/firstboot.json', 'w') as firstboot_json_fh:
             firstboot_json_fh.write("{\n\"run_list\":\n[\n")
             for runlist_item in chef_cfg['run_list']:
-                firstboot_json_fh.write(runlist_item + "\n")
-            firstboot_json_fh.write("]\n\}")
+                firstboot_json_fh.write("\"" + runlist_item + "\"\n")
+            firstboot_json_fh.write("]\n}")
+
         chef_args.append('-j /etc/chef/firstboot.json')
 
     # and finally, run chef
@@ -71,6 +73,8 @@ def handle(name,cfg,cloud,log,args):
 
 def install_chef_from_gems(ruby_version, chef_version = None):
     cc.install_packages(ruby_packages[ruby_version])
+    gem_bin = get_gem_bin()
+    if not os.path.exists('/usr/bin/gem'): os.symlink(gem_bin, '/usr/bin/gem')
     chef_version_arg = ""
     if chef_version: chef_version_arg = "-v %s" % chef_version
     subprocess.check_call([gem_bin,'install','chef',chef_version_arg, '--no-ri','--no-rdoc','--no-test','-q'])
@@ -81,3 +85,6 @@ def install_chef_from_gems(ruby_version, chef_version = None):
     except: pass
     try: os.symlink('/usr/bin/ruby%s' % ruby_version, '/usr/bin/ruby')
     except: pass
+
+def get_gem_bin():
+    return '/usr/bin/gem%s' % util.get_cfg_option_str(chef_cfg, 'ruby_version', '1.8')
