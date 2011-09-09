@@ -1,0 +1,102 @@
+------------------------------------------------------------
+revno: 445
+committer: Scott Moser <smoser@ubuntu.com>
+branch nick: trunk
+timestamp: Fri 2011-09-09 14:10:58 -0700
+message:
+  return a list, not a string
+------------------------------------------------------------
+revno: 444
+fixes bug(s): https://launchpad.net/bugs/845155
+committer: Scott Moser <smoser@ubuntu.com>
+branch nick: trunk
+timestamp: Fri 2011-09-09 13:57:15 -0700
+message:
+  accept that public-keys keys in the metadata service might be a string
+------------------------------------------------------------
+revno: 443 [merge]
+committer: Scott Moser <smoser@ubuntu.com>
+branch nick: trunk
+timestamp: Thu 2011-09-08 16:10:17 -0700
+message:
+  Fix minor issue with multiple runlist items not written in the correct format.
+------------------------------------------------------------
+revno: 442 [merge]
+fixes bug(s): https://launchpad.net/bugs/845161
+committer: Scott Moser <smoser@ubuntu.com>
+branch nick: chef.fixes
+timestamp: Thu 2011-09-08 15:32:15 -0700
+message:
+  Fix cc_chef issues (LP: #845161)
+------------------------------------------------------------
+Use --include-merges or -n0 to see merged revisions.
+=== modified file 'cloudinit/CloudConfig/cc_chef.py'
+--- old/cloudinit/CloudConfig/cc_chef.py	2011-07-21 09:10:47 +0000
++++ new/cloudinit/CloudConfig/cc_chef.py	2011-09-08 23:10:17 +0000
+@@ -32,8 +32,9 @@
+     chef_cfg = cfg['chef']
+ 
+     # Install chef packages from selected source
++    install_type = util.get_cfg_option_str(chef_cfg, "install_type", "packages")
+     if not os.path.isfile('/usr/bin/chef-client'):
+-        if chef_cfg['install_type'] == "gems":
++        if install_type == "gems":
+             if chef_cfg.has_key('version'):
+                 chef_version = chef_cfg['version']
+             else:
+@@ -46,7 +47,7 @@
+ 
+     # set the validation cert
+     if chef_cfg.has_key('validation_cert'):
+-        with open('/etc/chef/validation.cert', 'w') as validation_cert_fh:
++        with open('/etc/chef/validation.pem', 'w') as validation_cert_fh:
+             validation_cert_fh.write(chef_cfg['validation_cert'])
+ 
+     validation_name = chef_cfg.get('validation_name','chef-validator')
+@@ -58,10 +59,11 @@
+     chef_args = ['-d']
+     # set the firstboot json
+     if chef_cfg.has_key('run_list'):
+-        with open('/etc/chef/firstboot.json') as firstboot_json_fh:
++        with open('/etc/chef/firstboot.json', 'w') as firstboot_json_fh:
+             firstboot_json_fh.write("{\n\"run_list\":\n[\n")
+-            for runlist_item in chef_cfg['run_list']:
+-                firstboot_json_fh.write(runlist_item + "\n")
++            firstboot_json_fh.write(
++                    ",\n".join(["\"%s\"" % runlist_item for runlist_item in chef_cfg['run_list']])
++                    )
+             firstboot_json_fh.write("]\n\}")
+         chef_args.append('-j /etc/chef/firstboot.json')
+ 
+@@ -71,6 +73,8 @@
+ 
+ def install_chef_from_gems(ruby_version, chef_version = None):
+     cc.install_packages(ruby_packages[ruby_version])
++    gem_bin = get_gem_bin()
++    if not os.path.exists('/usr/bin/gem'): os.symlink(gem_bin, '/usr/bin/gem')
+     chef_version_arg = ""
+     if chef_version: chef_version_arg = "-v %s" % chef_version
+     subprocess.check_call([gem_bin,'install','chef',chef_version_arg, '--no-ri','--no-rdoc','--no-test','-q'])
+@@ -81,3 +85,6 @@
+     except: pass
+     try: os.symlink('/usr/bin/ruby%s' % ruby_version, '/usr/bin/ruby')
+     except: pass
++
++def get_gem_bin():
++    return '/usr/bin/gem%s' % util.get_cfg_option_str(chef_cfg, 'ruby_version', '1.8')
+
+=== modified file 'cloudinit/DataSource.py'
+--- old/cloudinit/DataSource.py	2011-09-01 14:07:05 +0000
++++ new/cloudinit/DataSource.py	2011-09-09 21:10:58 +0000
+@@ -65,6 +65,10 @@
+     def get_public_ssh_keys(self):
+         keys = []
+         if not self.metadata.has_key('public-keys'): return([])
++
++        if isinstance(self.metadata['public-keys'], str):
++            return([self.metadata['public-keys'],])
++            
+         for keyname, klist in self.metadata['public-keys'].items():
+             # lp:506332 uec metadata service responds with
+             # data that makes boto populate a string for 'klist' rather
+

@@ -1,3 +1,10 @@
+cloud-init (0.6.1-0ubuntu17) oneiric; urgency=low
+
+  * fix issues with chef (LP: #845161)
+  * be more forgiving on metadata for public-keys (LP: #845155)
+
+ -- Scott Moser <smoser@ubuntu.com>  Fri, 09 Sep 2011 14:19:03 -0700
+
 cloud-init (0.6.1-0ubuntu16) oneiric; urgency=low
 
   * catch up with trunk at revision 439
