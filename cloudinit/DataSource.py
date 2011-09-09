@@ -67,7 +67,7 @@ class DataSource:
         if not self.metadata.has_key('public-keys'): return([])
 
         if isinstance(self.metadata['public-keys'], str):
-            return(self.metadata['public-keys'])
+            return([self.metadata['public-keys'],])
             
         for keyname, klist in self.metadata['public-keys'].items():
             # lp:506332 uec metadata service responds with
