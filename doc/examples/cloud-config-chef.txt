@@ -9,16 +9,19 @@
 apt_mirror: http://apt.opscode.com/
 
 chef:
- # If you want to install from rubygems:
+
+ # Valid values are 'gems' and 'packages'
  install_type: "gems"
 
  # Chef settings
  server_url: "https://chef.yourorg.com:4000"
 
  # Node Name
- node_name: "Your Node Name"
+ # Defaults to the instance-id if not present
+ node_name: "your-node-name"
 
  # Environment
+ # Defaults to '_default' if not present
  environment: "production"
 
  # Default validation name is chef-validator
