@@ -1,3 +1,12 @@
+cloud-init (0.6.1-0ubuntu18) oneiric; urgency=low
+
+  * minor documentation improvement.
+
+  [Mike Moulton, Avishai Ish-Shalom]
+  * Chef support fixes. support for environment and initial attr (LP: #845208)
+
+ -- Scott Moser <smoser@ubuntu.com>  Tue, 13 Sep 2011 17:02:48 -0400
+
 cloud-init (0.6.1-0ubuntu17) oneiric; urgency=low
 
   * fix issues with chef (LP: #845161)

@@ -1,0 +1,255 @@
+------------------------------------------------------------
+revno: 447
+committer: Scott Moser <smoser@ubuntu.com>
+branch nick: trunk
+timestamp: Tue 2011-09-13 11:48:08 -0400
+message:
+  [doc] add 'preseed' string to cloud-config for debconf-set-selections
+------------------------------------------------------------
+revno: 446 [merge]
+fixes bug(s): https://launchpad.net/bugs/845208
+committer: Scott Moser <smoser@ubuntu.com>
+branch nick: trunk
+timestamp: Tue 2011-09-13 08:02:37 -0400
+message:
+  Chef support fixes, and support for environment and initial attr (LP: #845208)
+  
+  Thanks to Mike Mouulton and Avishai Ish-Shalom.
+------------------------------------------------------------
+Use --include-merges or -n0 to see merged revisions.
+=== modified file 'cloudinit/CloudConfig/cc_chef.py'
+--- old/cloudinit/CloudConfig/cc_chef.py	2011-09-08 23:10:17 +0000
++++ new/cloudinit/CloudConfig/cc_chef.py	2011-09-13 00:38:37 +0000
+@@ -1,6 +1,7 @@
+ # vi: ts=4 expandtab
+ #
+ #    Author: Avishai Ish-Shalom <avishai@fewbytes.com>
++#    Author: Mike Moulton <mike@meltmedia.com>
+ #
+ #    This program is free software: you can redistribute it and/or modify
+ #    it under the terms of the GNU General Public License version 3, as
+@@ -17,6 +18,7 @@
+ import pwd
+ import socket
+ import subprocess
++import json
+ import StringIO
+ import ConfigParser
+ import cloudinit.CloudConfig as cc
+@@ -31,60 +33,73 @@
+     if not cfg.has_key('chef'): return
+     chef_cfg = cfg['chef']
+ 
+-    # Install chef packages from selected source
+-    install_type = util.get_cfg_option_str(chef_cfg, "install_type", "packages")
+-    if not os.path.isfile('/usr/bin/chef-client'):
+-        if install_type == "gems":
+-            if chef_cfg.has_key('version'):
+-                chef_version = chef_cfg['version']
+-            else:
+-                chef_version = None
+-            install_chef_from_gems(
+-                    util.get_cfg_option_str(chef_cfg, 'ruby_version', '1.8'),
+-                    chef_version)
+-        else:
+-            cc.install_packages(('chef',))
++    # ensure the chef directories we use exist
++    mkdirs(['/etc/chef', '/var/log/chef', '/var/lib/chef',
++            '/var/cache/chef', '/var/backups/chef', '/var/run/chef'])
+ 
+-    # set the validation cert
+-    if chef_cfg.has_key('validation_cert'):
+-        with open('/etc/chef/validation.pem', 'w') as validation_cert_fh:
+-            validation_cert_fh.write(chef_cfg['validation_cert'])
++    # set the validation key based on the presence of either 'validation_key'
++    # or 'validation_cert'. In the case where both exist, 'validation_key'
++    # takes precedence
++    if chef_cfg.has_key('validation_key') or chef_cfg.has_key('validation_cert'):
++        validation_key = util.get_cfg_option_str(chef_cfg, 'validation_key',
++                                                 chef_cfg['validation_cert'])
++        with open('/etc/chef/validation.pem', 'w') as validation_key_fh:
++            validation_key_fh.write(validation_key)
+ 
+     validation_name = chef_cfg.get('validation_name','chef-validator')
+     # create the chef config from template
+     util.render_to_file('chef_client.rb', '/etc/chef/client.rb',
+             {'server_url': chef_cfg['server_url'], 
++             'node_name': util.get_cfg_option_str(chef_cfg, 'node_name', 
++                                                  cloud.datasource.get_instance_id()),
++             'environment': util.get_cfg_option_str(chef_cfg, 'environment',
++                                                    '_default'),
+              'validation_name': chef_cfg['validation_name']})
+ 
+-    chef_args = ['-d']
+     # set the firstboot json
+-    if chef_cfg.has_key('run_list'):
+-        with open('/etc/chef/firstboot.json', 'w') as firstboot_json_fh:
+-            firstboot_json_fh.write("{\n\"run_list\":\n[\n")
+-            firstboot_json_fh.write(
+-                    ",\n".join(["\"%s\"" % runlist_item for runlist_item in chef_cfg['run_list']])
+-                    )
+-            firstboot_json_fh.write("]\n\}")
+-        chef_args.append('-j /etc/chef/firstboot.json')
++    with open('/etc/chef/firstboot.json', 'w') as firstboot_json_fh:
++        initial_json = {}
++        if chef_cfg.has_key('run_list'):
++            initial_json['run_list'] = chef_cfg['run_list']
++        if chef_cfg.has_key('initial_attributes'):
++            initial_attributes = chef_cfg['initial_attributes']
++            for k in initial_attributes.keys(): initial_json[k] = initial_attributes[k]
++        firstboot_json_fh.write(json.dumps(initial_json))
+ 
+-    # and finally, run chef
+-    log.debug("running chef-client %s" % chef_args)
+-    subprocess.check_call(['/usr/bin/chef-client'] + chef_args)
++    # If chef is not installed, we install chef based on 'install_type'
++    if not os.path.isfile('/usr/bin/chef-client'):
++        install_type = util.get_cfg_option_str(chef_cfg, 'install_type', 'packages')
++        if install_type == "gems":
++            # this will install and run the chef-client from gems
++            chef_version = util.get_cfg_option_str(chef_cfg, 'version', None)
++            ruby_version = util.get_cfg_option_str(chef_cfg, 'ruby_version', '1.8')
++            install_chef_from_gems(ruby_version, chef_version)
++            # and finally, run chef-client
++            log.debug('running chef-client')
++            subprocess.check_call(['/usr/bin/chef-client', '-d', '-i', '1800', '-s', '20'])
++        else:
++            # this will install and run the chef-client from packages
++            cc.install_packages(('chef',))
+ 
+ def install_chef_from_gems(ruby_version, chef_version = None):
+     cc.install_packages(ruby_packages[ruby_version])
+-    gem_bin = get_gem_bin()
+-    if not os.path.exists('/usr/bin/gem'): os.symlink(gem_bin, '/usr/bin/gem')
+-    chef_version_arg = ""
+-    if chef_version: chef_version_arg = "-v %s" % chef_version
+-    subprocess.check_call([gem_bin,'install','chef',chef_version_arg, '--no-ri','--no-rdoc','--no-test','-q'])
+-    os.mkdirs('/etc/chef', '/var/log/chef', '/var/lib/chef', '/var/cache/chef', '/var/backups/chef', '/var/run/chef')
+-    os.symlink('/var/lib/gem/%s/bin/chef-client' % ruby_version, '/usr/bin/chef-client')
+-    # Ohai ruby plugin breaks if there is no ruby or gem binaries at /usr/bin, so
+-    try: os.symlink('/usr/bin/gem%s' % ruby_version, '/usr/bin/gem')
+-    except: pass
+-    try: os.symlink('/usr/bin/ruby%s' % ruby_version, '/usr/bin/ruby')
+-    except: pass
+-
+-def get_gem_bin():
+-    return '/usr/bin/gem%s' % util.get_cfg_option_str(chef_cfg, 'ruby_version', '1.8')
++    if not os.path.exists('/usr/bin/gem'):
++      os.symlink('/usr/bin/gem%s' % ruby_version, '/usr/bin/gem')
++    if not os.path.exists('/usr/bin/ruby'):
++      os.symlink('/usr/bin/ruby%s' % ruby_version, '/usr/bin/ruby')
++    if chef_version:
++        subprocess.check_call(['/usr/bin/gem','install','chef',
++                               '-v %s' % chef_version, '--no-ri',
++                               '--no-rdoc','--bindir','/usr/bin','-q'])
++    else:
++        subprocess.check_call(['/usr/bin/gem','install','chef',
++                               '--no-ri','--no-rdoc','--bindir',
++                               '/usr/bin','-q'])
++
++def ensure_dir(d):
++    if not os.path.exists(d):
++        os.makedirs(d)
++
++def mkdirs(dirs):
++    for d in dirs:
++        ensure_dir(d)
+
+=== modified file 'doc/examples/cloud-config-chef.txt'
+--- old/doc/examples/cloud-config-chef.txt	2011-04-21 14:57:54 +0000
++++ new/doc/examples/cloud-config-chef.txt	2011-09-13 00:38:37 +0000
+@@ -9,30 +9,36 @@
+ apt_mirror: http://apt.opscode.com/
+ 
+ chef:
+- # If you want to install from rubygems:
++
++ # Valid values are 'gems' and 'packages'
+  install_type: "gems"
+ 
+  # Chef settings
+  server_url: "https://chef.yourorg.com:4000"
+ 
++ # Node Name
++ # Defaults to the instance-id if not present
++ node_name: "your-node-name"
++
++ # Environment
++ # Defaults to '_default' if not present
++ environment: "production"
++
+  # Default validation name is chef-validator
+  validation_name: "yourorg-validator"
+- validation_cert: |
+-     -----BEGIN CERTIFICATE-----
+-     MIICCTCCAXKgAwIBAgIBATANBgkqhkiG9w0BAQUFADANMQswCQYDVQQDDAJjYTAe
+-     Fw0xMDAyMTUxNzI5MjFaFw0xNTAyMTQxNzI5MjFaMA0xCzAJBgNVBAMMAmNhMIGf
+-     MA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQCu7Q40sm47/E1Pf+r8AYb/V/FWGPgc
+-     b014OmNoX7dgCxTDvps/h8Vw555PdAFsW5+QhsGr31IJNI3kSYprFQcYf7A8tNWu
+-     1MASW2CfaEiOEi9F1R3R4Qlz4ix+iNoHiUDTjazw/tZwEdxaQXQVLwgTGRwVa+aA
+-     qbutJKi93MILLwIDAQABo3kwdzA4BglghkgBhvhCAQ0EKxYpUHVwcGV0IFJ1Ynkv
+-     T3BlblNTTCBHZW5lcmF0ZWQgQ2VydGlmaWNhdGUwDwYDVR0TAQH/BAUwAwEB/zAd
+-     BgNVHQ4EFgQUu4+jHB+GYE5Vxo+ol1OAhevspjAwCwYDVR0PBAQDAgEGMA0GCSqG
+-     SIb3DQEBBQUAA4GBAH/rxlUIjwNb3n7TXJcDJ6MMHUlwjr03BDJXKb34Ulndkpaf
+-     +GAlzPXWa7bO908M9I8RnPfvtKnteLbvgTK+h+zX1XCty+S2EQWk29i2AdoqOTxb
+-     hppiGMp0tT5Havu4aceCXiy2crVcudj3NFciy8X66SoECemW9UYDCb9T5D0d
+-     -----END CERTIFICATE-----
+-
++ validation_key: |
++     -----BEGIN RSA PRIVATE KEY-----
++     YOUR-ORGS-VALIDATION-KEY-HERE
++     -----END RSA PRIVATE KEY-----
++ 
+  # A run list for a first boot json
+  run_list:
+   - "recipe[apache2]"
+   - "role[db]"
++
++ # Specify a list of initial attributes used by the cookbooks
++ initial_attributes:
++    apache:
++      prefork:
++        maxclients: 100
++      keepalive: "off"
+
+=== modified file 'doc/examples/cloud-config.txt'
+--- old/doc/examples/cloud-config.txt	2011-08-15 21:39:21 +0000
++++ new/doc/examples/cloud-config.txt	2011-09-13 15:48:08 +0000
+@@ -246,7 +246,7 @@
+ # This can be a single string ('smoser') or a list ([smoser, kirkland])
+ ssh_import_id: [smoser]
+ 
+-# Provide debconf answers
++# Provide debconf answers / debian preseed values
+ #
+ # See debconf-set-selections man page.
+ #
+
+=== modified file 'templates/chef_client.rb.tmpl'
+--- old/templates/chef_client.rb.tmpl	2011-04-21 14:57:54 +0000
++++ new/templates/chef_client.rb.tmpl	2011-09-10 22:34:05 +0000
+@@ -1,12 +1,15 @@
+-log_level          :info
+-log_location       "/var/log/chef/client.log"
+-ssl_verify_mode    :verify_none
++log_level              :info
++log_location           "/var/log/chef/client.log"
++ssl_verify_mode        :verify_none
+ validation_client_name "$validation_name"
+ validation_key         "/etc/chef/validation.pem"
+-client_key               "/etc/chef/client.pem"
+-chef_server_url    "$server_url"
+-file_cache_path    "/var/cache/chef"
+-file_backup_path  "/var/backups/chef"
+-pid_file           "/var/run/chef/client.pid"
++client_key             "/etc/chef/client.pem"
++chef_server_url        "$server_url"
++environment            "$environment"
++node_name              "$node_name"
++json_attribs           "/etc/chef/firstboot.json"
++file_cache_path        "/var/cache/chef"
++file_backup_path       "/var/backups/chef"
++pid_file               "/var/run/chef/client.pid"
+ Chef::Log::Formatter.show_time = true
+ 
+
