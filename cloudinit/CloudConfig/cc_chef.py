@@ -18,6 +18,7 @@ import os
 import pwd
 import socket
 import subprocess
+import json
 import StringIO
 import ConfigParser
 import cloudinit.CloudConfig as cc
@@ -57,13 +58,13 @@ def handle(name,cfg,cloud,log,args):
 
     # set the firstboot json
     with open('/etc/chef/firstboot.json', 'w') as firstboot_json_fh:
-        firstboot_json_fh.write("{\n")
+        initial_json = {}
         if chef_cfg.has_key('run_list'):
-            firstboot_json_fh.write("  \"run_list\": [\n")
-            firstboot_json_fh.write(",\n".join(["    \"%s\"" % runlist_item
-                                                for runlist_item in chef_cfg['run_list']]))
-            firstboot_json_fh.write("\n  ]\n")
-        firstboot_json_fh.write("}\n")  
+            initial_json['run_list'] = chef_cfg['run_list']
+        if chef_cfg.has_key('initial_attributes'):
+            initial_attributes = chef_cfg['initial_attributes']
+            for k in initial_attributes.keys(): initial_json[k] = initial_attributes[k]
+        firstboot_json_fh.write(json.dumps(initial_json))
 
     # If chef is not installed, we install chef based on 'install_type'
     if not os.path.isfile('/usr/bin/chef-client'):
