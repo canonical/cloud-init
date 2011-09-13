@@ -35,3 +35,10 @@ chef:
  run_list:
   - "recipe[apache2]"
   - "role[db]"
+
+ # Specify a list of initial attributes used by the cookbooks
+ initial_attributes:
+    apache:
+      prefork:
+        maxclients: 100
+      keepalive: "off"
