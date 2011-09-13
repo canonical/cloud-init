@@ -9,30 +9,36 @@
 apt_mirror: http://apt.opscode.com/
 
 chef:
- # If you want to install from rubygems:
+
+ # Valid values are 'gems' and 'packages'
  install_type: "gems"
 
  # Chef settings
  server_url: "https://chef.yourorg.com:4000"
 
+ # Node Name
+ # Defaults to the instance-id if not present
+ node_name: "your-node-name"
+
+ # Environment
+ # Defaults to '_default' if not present
+ environment: "production"
+
  # Default validation name is chef-validator
  validation_name: "yourorg-validator"
- validation_cert: |
-     -----BEGIN CERTIFICATE-----
-     MIICCTCCAXKgAwIBAgIBATANBgkqhkiG9w0BAQUFADANMQswCQYDVQQDDAJjYTAe
-     Fw0xMDAyMTUxNzI5MjFaFw0xNTAyMTQxNzI5MjFaMA0xCzAJBgNVBAMMAmNhMIGf
-     MA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQCu7Q40sm47/E1Pf+r8AYb/V/FWGPgc
-     b014OmNoX7dgCxTDvps/h8Vw555PdAFsW5+QhsGr31IJNI3kSYprFQcYf7A8tNWu
-     1MASW2CfaEiOEi9F1R3R4Qlz4ix+iNoHiUDTjazw/tZwEdxaQXQVLwgTGRwVa+aA
-     qbutJKi93MILLwIDAQABo3kwdzA4BglghkgBhvhCAQ0EKxYpUHVwcGV0IFJ1Ynkv
-     T3BlblNTTCBHZW5lcmF0ZWQgQ2VydGlmaWNhdGUwDwYDVR0TAQH/BAUwAwEB/zAd
-     BgNVHQ4EFgQUu4+jHB+GYE5Vxo+ol1OAhevspjAwCwYDVR0PBAQDAgEGMA0GCSqG
-     SIb3DQEBBQUAA4GBAH/rxlUIjwNb3n7TXJcDJ6MMHUlwjr03BDJXKb34Ulndkpaf
-     +GAlzPXWa7bO908M9I8RnPfvtKnteLbvgTK+h+zX1XCty+S2EQWk29i2AdoqOTxb
-     hppiGMp0tT5Havu4aceCXiy2crVcudj3NFciy8X66SoECemW9UYDCb9T5D0d
-     -----END CERTIFICATE-----
-
+ validation_key: |
+     -----BEGIN RSA PRIVATE KEY-----
+     YOUR-ORGS-VALIDATION-KEY-HERE
+     -----END RSA PRIVATE KEY-----
+ 
  # A run list for a first boot json
  run_list:
   - "recipe[apache2]"
   - "role[db]"
+
+ # Specify a list of initial attributes used by the cookbooks
+ initial_attributes:
+    apache:
+      prefork:
+        maxclients: 100
+      keepalive: "off"
