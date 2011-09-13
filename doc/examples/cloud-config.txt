@@ -246,7 +246,7 @@ cloud_config_modules:
 # This can be a single string ('smoser') or a list ([smoser, kirkland])
 ssh_import_id: [smoser]
 
-# Provide debconf answers
+# Provide debconf answers / debian preseed values
 #
 # See debconf-set-selections man page.
 #
