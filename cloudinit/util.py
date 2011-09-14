@@ -443,3 +443,31 @@ def get_hostname_fqdn(cfg, cloud):
             else:
                 hostname = cloud.get_hostname()
     return(hostname, fqdn)
+
+def get_fqdn_from_hosts(hostname, filename="/etc/hosts"):
+    # this parses /etc/hosts to get a fqdn.  It should return the same
+    # result as 'hostname -f <hostname>' if /etc/hosts.conf 
+    # did not have did not have 'bind' in the order attribute
+    fqdn = None
+    try:
+        with open(filename, "r") as hfp:
+            for line in hfp.readlines():
+                hashpos = line.find("#")
+                if hashpos >= 0:
+                    line = line[0:hashpos]
+                toks = line.split()
+
+                # if there there is less than 3 entries (ip, canonical, alias)
+                # then ignore this line
+                if len(toks) < 3:
+                    continue
+
+                if hostname in toks[2:]:
+                    fqdn = toks[1]
+                    break
+            hfp.close()
+    except IOError as e:
+        if e.errno == errno.ENOENT:
+            pass
+
+    return fqdn

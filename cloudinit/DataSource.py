@@ -22,7 +22,7 @@ DEP_NETWORK = "NETWORK"
 
 import UserDataHandler as ud
 import cloudinit.util as util
-import platform
+import socket
 
 class DataSource:
     userdata = None
@@ -113,32 +113,30 @@ class DataSource:
             # and didn't have one. raising error might be more appropriate
             # but instead, basically look up the existing hostname
             toks = []
-            pfn = platform.node()
 
-            # platform.node says: Returns the computer's network 
-            #    name (which may not be fully qualified)
-            toks = pfn.split(".")
-            if pfn.find(".") > 0:
-                toks = pfn.split(".")
-            elif pfn:
-                toks = [ pfn, defdomain ]
+            hostname = socket.gethostname()
 
-            if len(toks) == 0:
+            fqdn = util.get_fqdn_from_hosts()
+
+            if fqdn and fqdn.find(".") > 0:
+                toks = fqdn.split(".")
+            elif hostname:
+                toks = [ hostname, defdomain ]
+            else:
                 toks = [ defhost, defdomain ]
-                #log.warn("unable to find hostname, using defaults")
+
 
         else:
             toks = self.metadata['local-hostname'].split('.')
-
-        # if there is an ipv4 address in 'local-hostname', then
-        # make up a hostname (LP: #475354)
-        if len(toks) == 4:
-            try:
-                r = filter(lambda x: int(x) < 256 and x > 0, toks)
-                if len(r) == 4:
-                    toks = [ "ip-%s" % '-'.join(r) ]
-            except:
-                pass
+            # if there is an ipv4 address in 'local-hostname', then
+            # make up a hostname (LP: #475354)
+            if len(toks) == 4:
+                try:
+                    r = filter(lambda x: int(x) < 256 and x > 0, toks)
+                    if len(r) == 4:
+                        toks = [ "ip-%s" % '-'.join(r) ]
+                except:
+                    pass
 
         if len(toks) > 1:
             hostname = toks[0]
