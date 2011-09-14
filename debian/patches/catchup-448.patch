@@ -1,0 +1,112 @@
+------------------------------------------------------------
+revno: 448
+fixes bug(s): https://launchpad.net/bugs/850206
+committer: Scott Moser <smoser@ubuntu.com>
+branch nick: trunk
+timestamp: Wed 2011-09-14 14:28:44 -0400
+message:
+  try a little harder to get a fqdn rather than defaulting to localdomain
+  
+  This fixes (LP: #850206).  See bug for more info.
+=== modified file 'cloudinit/DataSource.py'
+--- old/cloudinit/DataSource.py	2011-09-09 21:10:58 +0000
++++ new/cloudinit/DataSource.py	2011-09-14 18:28:44 +0000
+@@ -22,7 +22,7 @@
+ 
+ import UserDataHandler as ud
+ import cloudinit.util as util
+-import platform
++import socket
+ 
+ class DataSource:
+     userdata = None
+@@ -113,32 +113,30 @@
+             # and didn't have one. raising error might be more appropriate
+             # but instead, basically look up the existing hostname
+             toks = []
+-            pfn = platform.node()
+-
+-            # platform.node says: Returns the computer's network 
+-            #    name (which may not be fully qualified)
+-            toks = pfn.split(".")
+-            if pfn.find(".") > 0:
+-                toks = pfn.split(".")
+-            elif pfn:
+-                toks = [ pfn, defdomain ]
+-
+-            if len(toks) == 0:
++
++            hostname = socket.gethostname()
++
++            fqdn = util.get_fqdn_from_hosts()
++
++            if fqdn and fqdn.find(".") > 0:
++                toks = fqdn.split(".")
++            elif hostname:
++                toks = [ hostname, defdomain ]
++            else:
+                 toks = [ defhost, defdomain ]
+-                #log.warn("unable to find hostname, using defaults")
++
+ 
+         else:
+             toks = self.metadata['local-hostname'].split('.')
+-
+-        # if there is an ipv4 address in 'local-hostname', then
+-        # make up a hostname (LP: #475354)
+-        if len(toks) == 4:
+-            try:
+-                r = filter(lambda x: int(x) < 256 and x > 0, toks)
+-                if len(r) == 4:
+-                    toks = [ "ip-%s" % '-'.join(r) ]
+-            except:
+-                pass
++            # if there is an ipv4 address in 'local-hostname', then
++            # make up a hostname (LP: #475354)
++            if len(toks) == 4:
++                try:
++                    r = filter(lambda x: int(x) < 256 and x > 0, toks)
++                    if len(r) == 4:
++                        toks = [ "ip-%s" % '-'.join(r) ]
++                except:
++                    pass
+ 
+         if len(toks) > 1:
+             hostname = toks[0]
+
+=== modified file 'cloudinit/util.py'
+--- old/cloudinit/util.py	2011-08-23 03:21:35 +0000
++++ new/cloudinit/util.py	2011-09-14 18:28:44 +0000
+@@ -443,3 +443,31 @@
+             else:
+                 hostname = cloud.get_hostname()
+     return(hostname, fqdn)
++
++def get_fqdn_from_hosts(hostname, filename="/etc/hosts"):
++    # this parses /etc/hosts to get a fqdn.  It should return the same
++    # result as 'hostname -f <hostname>' if /etc/hosts.conf 
++    # did not have did not have 'bind' in the order attribute
++    fqdn = None
++    try:
++        with open(filename, "r") as hfp:
++            for line in hfp.readlines():
++                hashpos = line.find("#")
++                if hashpos >= 0:
++                    line = line[0:hashpos]
++                toks = line.split()
++
++                # if there there is less than 3 entries (ip, canonical, alias)
++                # then ignore this line
++                if len(toks) < 3:
++                    continue
++
++                if hostname in toks[2:]:
++                    fqdn = toks[1]
++                    break
++            hfp.close()
++    except IOError as e:
++        if e.errno == errno.ENOENT:
++            pass
++
++    return fqdn
+

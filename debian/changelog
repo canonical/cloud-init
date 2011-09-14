@@ -1,3 +1,11 @@
+cloud-init (0.6.1-0ubuntu19) oneiric; urgency=low
+
+  * If local-hostname is not in meta-data, attempt to look up hostname in
+    an alias in /etc/hosts. This will avoid setting domain portion of fqdn
+    to 'localdomain' in some cases (LP: #850206).
+
+ -- Scott Moser <smoser@ubuntu.com>  Wed, 14 Sep 2011 15:15:00 -0400
+
 cloud-init (0.6.1-0ubuntu18) oneiric; urgency=low
 
   * minor documentation improvement.
