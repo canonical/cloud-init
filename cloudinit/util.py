@@ -24,6 +24,7 @@ from Cheetah.Template import Template
 import urllib2
 import urllib
 import logging
+import time
 import traceback
 import re
 
@@ -162,7 +163,7 @@ def render_string(template, searchList):
 # returns boolean indicating success or failure (presense of files)
 # if files are present, populates 'fill' dictionary with 'user-data' and
 # 'meta-data' entries
-def read_optional_seed(fill,base="",ext="", timeout=2):
+def read_optional_seed(fill,base="",ext="", timeout=5):
     try:
         (md,ud) = read_seeded(base,ext,timeout)
         fill['user-data']= ud
@@ -175,9 +176,13 @@ def read_optional_seed(fill,base="",ext="", timeout=2):
     
 
 # raise OSError with enoent if not found
-def read_seeded(base="", ext="", timeout=2):
+def read_seeded(base="", ext="", timeout=5, retries=10, file_retries=0):
     if base.startswith("/"):
         base="file://%s" % base
+
+    # default retries for file is 0. for network is 10
+    if base.startswith("file://"):
+        retries = file_retries
 
     if base.find("%s") >= 0:
         ud_url = base % ("user-data" + ext)
@@ -186,25 +191,28 @@ def read_seeded(base="", ext="", timeout=2):
         ud_url = "%s%s%s" % (base, "user-data", ext)
         md_url = "%s%s%s" % (base, "meta-data", ext)
 
-    try:
-        if timeout == None:
-            md_resp = urllib2.urlopen(urllib2.Request(md_url))
-            ud_resp = urllib2.urlopen(urllib2.Request(ud_url))
-        else:
-            md_resp = urllib2.urlopen(urllib2.Request(md_url), timeout=timeout)
-            ud_resp = urllib2.urlopen(urllib2.Request(ud_url), timeout=timeout)
+    raise_err = None
+    for attempt in range(0,retries+1):
+        try:
+            md_str = readurl(md_url, timeout=timeout)
+            ud = readurl(ud_url, timeout=timeout)
+            md = yaml.load(md_str)
+    
+            return(md,ud)
+        except urllib2.HTTPError as e:
+            raise_err = e
+        except urllib2.URLError as e:
+            if isinstance(e.reason,OSError) and e.reason.errno == errno.ENOENT:
+                raise_err = e.reason 
+            raise_err = e
 
-        md_str = md_resp.read()
-        ud = ud_resp.read()
-        md = yaml.load(md_str)
+        if attempt == retries:
+            break
 
-        return(md,ud)
-    except urllib2.HTTPError:
-        raise
-    except urllib2.URLError, e:
-        if isinstance(e.reason,OSError) and e.reason.errno == errno.ENOENT:
-           raise e.reason 
-        raise e
+        #print "%s failed, sleeping" % attempt
+        time.sleep(1)
+
+    raise(raise_err)
 
 def logexc(log,lvl=logging.DEBUG):
     log.log(lvl,traceback.format_exc())
@@ -363,15 +371,19 @@ def chownbyname(fname,user=None,group=None):
 
    os.chown(fname,uid,gid)
 
-def readurl(url, data=None):
-   if data is None:
-      req = urllib2.Request(url)
-   else:
-      encoded = urllib.urlencode(data)
-      req = urllib2.Request(url, encoded)
+def readurl(url, data=None, timeout=None):
+    openargs = { }
+    if timeout != None:
+        openargs['timeout'] = timeout
 
-   response = urllib2.urlopen(req)
-   return(response.read())
+    if data is None:
+        req = urllib2.Request(url)
+    else:
+        encoded = urllib.urlencode(data)
+        req = urllib2.Request(url, encoded)
+
+    response = urllib2.urlopen(req, **openargs)
+    return(response.read())
 
 # shellify, takes a list of commands
 #  for each entry in the list
