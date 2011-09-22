@@ -11,6 +11,7 @@ Architecture: all
 Depends: cloud-utils,
          procps,
          python,
+         python-boto (>=2.0),
          python-cheetah,
          python-configobj,
          python-software-properties,
