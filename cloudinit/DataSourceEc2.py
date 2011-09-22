@@ -24,7 +24,7 @@ import socket
 import urllib2
 import time
 import sys
-import boto_utils
+import boto.utils as boto_utils
 import os.path
 import errno
 import urlparse
