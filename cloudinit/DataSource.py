@@ -116,7 +116,7 @@ class DataSource:
 
             hostname = socket.gethostname()
 
-            fqdn = util.get_fqdn_from_hosts()
+            fqdn = util.get_fqdn_from_hosts(hostname)
 
             if fqdn and fqdn.find(".") > 0:
                 toks = fqdn.split(".")
