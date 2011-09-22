@@ -202,9 +202,9 @@ def read_seeded(base="", ext="", timeout=5, retries=10, file_retries=0):
         except urllib2.HTTPError as e:
             raise_err = e
         except urllib2.URLError as e:
+            raise_err = e
             if isinstance(e.reason,OSError) and e.reason.errno == errno.ENOENT:
                 raise_err = e.reason 
-            raise_err = e
 
         if attempt == retries:
             break
