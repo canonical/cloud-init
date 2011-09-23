@@ -1,3 +1,11 @@
+cloud-init (0.6.1-0ubuntu20) oneiric; urgency=low
+
+  * fix broken path if local-hostname was not in metadata (LP: #857380)
+  * redirect output of 'start networking' in 'cloud-init-nonet' to /dev/null
+  * include GPLv3 in source tree
+
+ -- Scott Moser <smoser@ubuntu.com>  Fri, 23 Sep 2011 09:24:27 -0400
+
 cloud-init (0.6.1-0ubuntu19) oneiric; urgency=low
 
   * If local-hostname is not in meta-data, attempt to look up hostname in
