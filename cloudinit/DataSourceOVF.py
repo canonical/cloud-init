@@ -90,7 +90,7 @@ class DataSourceOVF(DataSource.DataSource):
                     (seedfrom, self.__class__))
                 return False
 
-            (md_seed,ud) = util.read_seeded(seedfrom)
+            (md_seed,ud) = util.read_seeded(seedfrom, timeout=None)
             log.debug("using seeded cache data from %s" % seedfrom)
 
             md = util.mergedict(md,md_seed)
