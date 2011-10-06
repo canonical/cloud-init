@@ -94,7 +94,7 @@ class DataSourceEc2(DataSource.DataSource):
 
         if sleeps == 0: return False
 
-        timeout=2
+        timeout=3
         try:
             timeout = int(mcfg.get("timeout",timeout))
         except Exception as e:
@@ -148,6 +148,8 @@ class DataSourceEc2(DataSource.DataSource):
                     reason = "http error [%s]" % e.code
                 except urllib2.URLError as e:
                     reason = "url error [%s]" % e.reason
+                except socket.timeout as e:
+                    reason = "socket timeout [%s]" % e
 
                 #not needed? Addresses being checked are displayed above
                 #if x == 0:
