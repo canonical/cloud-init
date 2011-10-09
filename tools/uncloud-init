@@ -58,7 +58,7 @@ updateFrom() {
 		rsync -av "${mp}/updates/" "/" ||
 			{ log FAIL "failed rsync updates/ /"; return 1; }
 	fi
-	if [ -d "${mp}/updates.tar" ]; then
+	if [ -f "${mp}/updates.tar" ]; then
 		tar -C / -xvf "${mp}/updates.tar" ||
 			{ log FAIL "failed tar -C / -xvf ${mp}/updates.tar"; return 1; }
 	fi
