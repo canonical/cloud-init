@@ -1,0 +1,156 @@
+#!/bin/bash
+
+VERBOSITY=0
+PROPERTIES=( instance-id   hostname              user-data seedfrom )
+DEFAULTS=(   "i-ovfdemo00" "ovfdemo.localdomain" ""        ""       )
+
+DEF_OUTPUT="ovftransport.iso"
+TEMP_D=""
+
+error() { echo "$@" 1>&2; }
+fail() { [ $# -eq 0 ] || error "$@"; exit 1; }
+
+# propvalue(name, value)
+propvalue() {
+	local prop="" val="$2" i=0
+	for prop in "${PROPERTIES[@]}"; do
+		if [ "$prop" = "$1" ]; then
+			[ $# -eq 1 ] || DEFAULTS[$i]="$2"
+			_RET=${DEFAULTS[$i]}
+			return
+		fi
+		i=$(($i+1))
+	done
+	return
+}
+
+Usage() {
+	cat <<EOF
+Usage: ${0##*/} ovf-env.xml.tmpl [user-data-file]
+
+   create an an ovf transport iso with ovf-env.xml.tmpl
+   as ovf-env.xml on the iso.
+
+   if user-data-file is given, the file's contents will be base64 encoded
+   and stuffed inside ovf-env.xml. This will override the '--user-data'
+   argument.
+
+   options:
+     -o | --output OUTPUT    write output to OUTPUT [default: $DEF_OUTPUT]
+     -v | --verbose          increase verbosity
+
+EOF
+	local i=""
+	for i in "${PROPERTIES[@]}"; do
+		propvalue "$i"
+		printf "%10s--%-17s%s\n" "" "$i" "set $i. [default: '$_RET']"
+	done
+	cat <<EOF
+
+   Example:
+     $ ${0##*/} --hostname "foobar.mydomain" ovf-env.xml.tmpl user-data
+
+EOF
+}
+
+bad_Usage() { Usage 1>&2; [ $# -eq 0 ] || error "$@"; exit 1; }
+cleanup() {
+   [ -z "${TEMP_D}" -o ! -d "${TEMP_D}" ] || rm -Rf "${TEMP_D}"
+}
+
+debug() {
+	local level=${1}; shift;
+	[ "${level}" -ge "${VERBOSITY}" ] && return
+	error "${@}"
+}
+
+short_opts="ho:v"
+long_opts="help,output:,verbose"
+for i in "${PROPERTIES[@]}"; do
+	long_opts="$long_opts,$i:"
+done
+getopt_out=$(getopt --name "${0##*/}" \
+	--options "${short_opts}" --long "${long_opts}" -- "$@") &&
+	eval set -- "${getopt_out}" ||
+	bad_Usage
+
+## <<insert default variables here>>
+output="${DEF_OUTPUT}"
+user_data=""
+
+while [ $# -ne 0 ]; do
+	cur=${1}; next=${2};
+	case "$cur" in
+		-h|--help) Usage ; exit 0;;
+		-o|--output) output=${2}; shift;;
+		-v|--verbose) VERBOSITY=$((${VERBOSITY}+1));;
+		--) shift; break;;
+		--*)
+			for i in "${PROPERTIES[@]}" _none_; do
+				[ "${cur#--}" == "$i" ] || continue
+				[ "$i" != "user-data" ] ||
+					next=$(echo "$next" | base64 --wrap=0) ||
+						fail "failed to base64 encode userdata"
+				propvalue "$i" "$next"
+				break
+			done
+			[ "$i" = "_none_" ] && bad_Usage "confused by $cur"
+			;;
+	esac
+	shift;
+done
+
+[ $# -eq 1 -o $# -eq 2 ] ||
+	bad_Usage "wrong number of arguments"
+
+env_tmpl="$1"
+ud_file="$2"
+
+[ -f "$env_tmpl" ] || bad_Usage "$env_tmpl: not a file"
+[ -z "$ud_file" -o -f "$ud_file" ] ||
+	bad_Usage "$ud_file: not a file"
+
+TEMP_D=$(mktemp -d "${TMPDIR:-/tmp}/${0##*/}.XXXXXX") ||
+   fail "failed to make tempdir"
+trap cleanup EXIT
+
+mkdir "$TEMP_D/iso" && iso_d="$TEMP_D/iso" ||
+	fail "failed to make a tempdir?"
+ovf_env="$TEMP_D/iso/ovf-env.xml"
+
+if [ -n "$ud_file" ]; then
+	user_data=$(base64 --wrap=0 "$ud_file") ||
+		fail "failed to base64 encode $ud_file. Do you have base64 installed?"
+	propvalue user-data "$user_data"
+fi
+
+changes=( )
+for i in "${PROPERTIES[@]}"; do
+	changes[${#changes[@]}]="-e"
+	propvalue "$i"
+	changes[${#changes[@]}]="s|@@$i@@|$_RET|g"
+done
+
+sed "${changes[@]}" "$env_tmpl" > "$ovf_env" ||
+		fail "failed to replace string in $env_tmpl"
+
+if [ "${#changes[@]}" -ne 0 ]; then
+	cmp "$ovf_env" "$env_tmpl" >/dev/null &&
+		fail "nothing replaced in $ovf_env.  template is identical to output"
+fi
+
+debug 1 "creating iso with: genisoimage -o tmp.iso -r iso"
+( cd "$TEMP_D" && 
+	genisoimage -V OVF-TRANSPORT -o tmp.iso -r iso 2>/dev/null ) ||
+	fail "failed to create iso. do you have genisoimage?"
+
+if [ "$output" = "-" ]; then
+	cat "$TEMP_D/tmp.iso"
+else
+	cp "$TEMP_D/tmp.iso" "$output" ||
+		fail "failed to write to $output"
+fi
+
+error "wrote iso to $output"
+exit 0
+# vi: ts=4 noexpandtab

@@ -54,6 +54,8 @@
    This way the configured hostname of the system will be used if not provided
    by metadata (LP: #838280)
  - DataSourceOVF: change the default instance id to 'iid-dsovf' from 'nocloud'
+ - Improve the OVF documentation, and provide a simple command line
+   tool for creating a useful ISO file.
 
 0.6.1:
  - fix bug in fixing permission on /var/log/cloud-init.log (LP: #704509)
