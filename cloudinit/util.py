@@ -134,6 +134,9 @@ def getkeybyid(keyid,keyserver):
 def runparts(dirp, skip_no_exist=True):
     if skip_no_exist and not os.path.isdir(dirp): return
         
+    # per bug 857926, Fedora's run-parts will exit failure on empty dir
+    if os.path.isdir(dirp) and os.listdir(dirp) == []: return
+
     cmd = [ 'run-parts', '--regex', '.*', dirp ]
     sp = subprocess.Popen(cmd)
     sp.communicate()
