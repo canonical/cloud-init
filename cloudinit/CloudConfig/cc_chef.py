@@ -24,9 +24,7 @@ import ConfigParser
 import cloudinit.CloudConfig as cc
 import cloudinit.util as util
 
-ruby_packages = {'1.8': ('ruby', 'rubygems', 'ruby-dev', 'libopenssl-ruby'),
-        '1.9.1': ('ruby1.9.1', 'ruby1.9.1-dev', 'libruby1.9.1'),
-        '1.9': ('ruby1.9', 'ruby1.9-dev', 'libruby1.9') }
+ruby_version_default = "1.8"
 
 def handle(name,cfg,cloud,log,args):
     # If there isn't a chef key in the configuration don't do anything
@@ -72,7 +70,8 @@ def handle(name,cfg,cloud,log,args):
         if install_type == "gems":
             # this will install and run the chef-client from gems
             chef_version = util.get_cfg_option_str(chef_cfg, 'version', None)
-            ruby_version = util.get_cfg_option_str(chef_cfg, 'ruby_version', '1.8')
+            ruby_version = util.get_cfg_option_str(chef_cfg, 'ruby_version',
+                                                   ruby_version_default)
             install_chef_from_gems(ruby_version, chef_version)
             # and finally, run chef-client
             log.debug('running chef-client')
@@ -81,8 +80,15 @@ def handle(name,cfg,cloud,log,args):
             # this will install and run the chef-client from packages
             cc.install_packages(('chef',))
 
+def get_ruby_packages(version):
+    # return a list of packages needed to install ruby at version
+    pkgs = [ 'ruby%s' % version, 'ruby%s-dev' % version ]
+    if version == "1.8":
+        pkgs.extend(('libopenssl-ruby1.8', 'rubygems1.8'))
+    return(pkgs)
+
 def install_chef_from_gems(ruby_version, chef_version = None):
-    cc.install_packages(ruby_packages[ruby_version])
+    cc.install_packages(get_ruby_packages(ruby_version))
     if not os.path.exists('/usr/bin/gem'):
       os.symlink('/usr/bin/gem%s' % ruby_version, '/usr/bin/gem')
     if not os.path.exists('/usr/bin/ruby'):
