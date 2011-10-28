@@ -24,13 +24,15 @@ import socket
 import urllib2
 import time
 import sys
-import boto_utils
+import boto.utils as boto_utils
 import os.path
 import errno
+import urlparse
 
 class DataSourceEc2(DataSource.DataSource):
     api_ver  = '2009-04-04'
     seeddir = seeddir + '/ec2'
+    metadata_address = "http://169.254.169.254"
 
     def __str__(self):
         return("DataSourceEc2")
@@ -46,8 +48,8 @@ class DataSourceEc2(DataSource.DataSource):
         try:
             if not self.wait_for_metadata_service():
                 return False
-            self.userdata_raw = boto_utils.get_instance_userdata(self.api_ver)
-            self.metadata = boto_utils.get_instance_metadata(self.api_ver)
+            self.userdata_raw = boto_utils.get_instance_userdata(self.api_ver, None, self.metadata_address)
+            self.metadata = boto_utils.get_instance_metadata(self.api_ver, self.metadata_address)
             return True
         except Exception as e:
             print e
@@ -92,7 +94,7 @@ class DataSourceEc2(DataSource.DataSource):
 
         if sleeps == 0: return False
 
-        timeout=2
+        timeout=3
         try:
             timeout = int(mcfg.get("timeout",timeout))
         except Exception as e:
@@ -100,30 +102,60 @@ class DataSourceEc2(DataSource.DataSource):
             log.warn("Failed to get timeout, using %s" % timeout)
 
         sleeptime = 1
-        address = '169.254.169.254'
+
+        def_mdurls = ["http://169.254.169.254", "http://instance-data:8773"]
+        try:
+            mdurls = mcfg.get("metadata_urls", def_mdurls)
+        except Exception as e:
+            mdurls = def_mdurls
+            util.logexc(log)
+            log.warn("Failed to get metadata URLs, using defaults")
+
         starttime = time.time()
-    
-        url="http://%s/%s/meta-data/instance-id" % (address,self.api_ver)
+
+        # Remove addresses from the list that wont resolve.
+        filtered = [x for x in mdurls if try_to_resolve_metadata(x)]
+
+        if set(filtered) != set(mdurls):
+            log.debug("removed the following from metadata urls: %s" %
+                list((set(mdurls) - set(filtered))))
+
+        if len(filtered):
+            mdurls = filtered
+        else:
+            log.warn("Empty metadata url list! using default list")
+            mdurls = def_mdurls
+
+        log.debug("Searching the following metadata urls: %s" % mdurls)
+
         for x in range(sleeps):
-            # given 100 sleeps, this ends up total sleep time of 1050 sec
-            sleeptime=int(x/5)+1
+            for url in mdurls:
+                iurl="%s/%s/meta-data/instance-id" % (url, self.api_ver)
 
-            reason = ""
-            try:
-                req = urllib2.Request(url)
-                resp = urllib2.urlopen(req, timeout=timeout)
-                if resp.read() != "": return True
-                reason = "empty data [%s]" % resp.getcode()
-            except urllib2.HTTPError as e:
-                reason = "http error [%s]" % e.code
-            except urllib2.URLError as e:
-                reason = "url error [%s]" % e.reason
-    
-            if x == 0:
-                log.warning("waiting for metadata service at %s\n" % url)
+                # given 100 sleeps, this ends up total sleep time of 1050 sec
+                sleeptime=int(x/5)+1
 
-            log.warning("  %s [%02s/%s]: %s\n" %
-                (time.strftime("%H:%M:%S",time.gmtime()), x+1, sleeps, reason))
+                reason = ""
+                try:
+                    req = urllib2.Request(iurl)
+                    resp = urllib2.urlopen(req, timeout=timeout)
+                    if resp.read() != "":
+                        self.metadata_address = url
+                        log.debug("Using metadata source: '%s'" % url)
+                        return True
+                    reason = "empty data [%s]" % resp.getcode()
+                except urllib2.HTTPError as e:
+                    reason = "http error [%s]" % e.code
+                except urllib2.URLError as e:
+                    reason = "url error [%s]" % e.reason
+                except socket.timeout as e:
+                    reason = "socket timeout [%s]" % e
+
+                #not needed? Addresses being checked are displayed above
+                #if x == 0:
+                #    log.warn("waiting for metadata service at %s" % url)
+
+                log.warn("'%s' failed: %s" % (url, reason))
             time.sleep(sleeptime)
 
         log.critical("giving up on md after %i seconds\n" %
@@ -146,7 +178,7 @@ class DataSourceEc2(DataSource.DataSource):
             if entname == "ephemeral" and name == "ephemeral0":
                 found = device
         if found == None:
-            log.warn("unable to convert %s to a device" % name)
+            log.debug("unable to convert %s to a device" % name)
             return None
 
         # LP: #611137
@@ -171,6 +203,14 @@ class DataSourceEc2(DataSource.DataSource):
                 if os.path.exists(cand):
                     log.debug("remapped device name %s => %s" % (found,cand))
                     return(cand)
+
+        # on t1.micro, ephemeral0 will appear in block-device-mapping from
+        # metadata, but it will not exist on disk (and never will)
+        # at this pint, we've verified that the path did not exist
+        # in the special case of 'ephemeral0' return None to avoid bogus
+        # fstab entry (LP: #744019)
+        if name == "ephemeral0":
+            return None
         return ofound
 
     def is_vpc(self):
@@ -180,6 +220,15 @@ class DataSourceEc2(DataSource.DataSource):
             (p4 not in self.metadata or self.metadata[p4] == "")):
             return True
         return False
+
+def try_to_resolve_metadata(url):
+    try:
+        addr = urlparse.urlsplit(url).netloc.split(":")[0]
+        socket.getaddrinfo(addr, None)
+        return True
+    except Exception as e:
+        return False
+
 
 datasources = [ 
   ( DataSourceEc2, ( DataSource.DEP_FILESYSTEM , DataSource.DEP_NETWORK ) ),

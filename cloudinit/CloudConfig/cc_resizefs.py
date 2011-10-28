@@ -18,6 +18,9 @@
 import cloudinit.util as util
 import subprocess
 import traceback
+import os
+import stat
+import tempfile
 
 def handle(name,cfg,cloud,log,args):
     if len(args) != 0:
@@ -29,26 +32,51 @@ def handle(name,cfg,cloud,log,args):
 
     if not resize_root: return
 
-    log.debug("resizing root filesystem on first boot")
-
-    cmd = ['blkid', '-c', '/dev/null', '-sTYPE', '-ovalue', '/dev/root']
+    # this really only uses the filename from mktemp, then we mknod into it
+    (fd, devpth) = tempfile.mkstemp()
+    os.unlink(devpth)
+    os.close(fd)
+    
     try:
-        (fstype,err) = util.subp(cmd)
-    except Exception as e:
-        log.warn("Failed to get filesystem type via %s" % cmd)
+       st_dev=os.stat("/").st_dev
+       dev=os.makedev(os.major(st_dev),os.minor(st_dev))
+       os.mknod(devpth, 0400 | stat.S_IFBLK, dev)
+    except:
+        if util.islxc():
+            log.debug("inside lxc, ignoring mknod failure in resizefs")
+            return
+        log.warn("Failed to make device node to resize /")
         raise
 
+    cmd = [ 'blkid', '-c', '/dev/null', '-sTYPE', '-ovalue', devpth ]
+    try:
+        (fstype,err) = util.subp(cmd)
+    except subprocess.CalledProcessError as e:
+        log.warn("Failed to get filesystem type of maj=%s, min=%s via: %s" %
+            (os.major(st_dev), os.minor(st_dev), cmd))
+        log.warn("output=%s\nerror=%s\n", e.output[0], e.output[1])
+        os.unlink(devpth)
+        raise
+
+    log.debug("resizing root filesystem (type=%s, maj=%i, min=%i)" % 
+        (fstype.rstrip("\n"), os.major(st_dev), os.minor(st_dev)))
+
     if fstype.startswith("ext"):
-        resize_cmd = [ 'resize2fs', '/dev/root' ]
+        resize_cmd = [ 'resize2fs', devpth ]
     elif fstype == "xfs":
-        resize_cmd = [ 'xfs_growfs', '/dev/root' ]
+        resize_cmd = [ 'xfs_growfs', devpth ]
     else:
+        os.unlink(devpth)
         log.debug("not resizing unknown filesystem %s" % fstype)
         return
 
     try:
         (out,err) = util.subp(resize_cmd)
-    except Exception as e:
+    except subprocess.CalledProcessError as e:
         log.warn("Failed to resize filesystem (%s)" % resize_cmd)
+        log.warn("output=%s\nerror=%s\n", e.output[0], e.output[1])
+        os.unlink(devpth)
         raise
-        
+
+    os.unlink(devpth)
+    return

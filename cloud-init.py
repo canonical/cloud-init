@@ -24,6 +24,7 @@ import cloudinit
 import cloudinit.util as util
 import cloudinit.CloudConfig as CC
 import cloudinit.DataSource as ds
+import cloudinit.netinfo as netinfo
 import time
 import logging
 import errno
@@ -87,13 +88,15 @@ def main():
     nonet_path = "%s/%s" % (cloudinit.get_cpath("data"), "no-net")
 
     if cmd == "start":
+        print netinfo.debug_info()
+
         stop_files = ( cloudinit.get_ipath_cur("obj_pkl"), nonet_path )
         # if starting as the network start, there are cases
         # where everything is already done for us, and it makes
         # most sense to exit early and silently
         for f in stop_files:
             try:
-                fp = open("/var/lib/cloud/instance/obj.pkl","r")
+                fp = open(f,"r")
                 fp.close()
             except:
                 continue
@@ -140,14 +143,13 @@ def main():
 
     # parse the user data (ec2-run-userdata.py)
     try:
-        cloud.sem_and_run("consume_userdata", "once-per-instance",
-            cloud.consume_userdata,[],False)
+        ran = cloud.sem_and_run("consume_userdata", cloudinit.per_instance,
+            cloud.consume_userdata,[cloudinit.per_instance],False)
+        if not ran:
+            cloud.consume_userdata(cloudinit.per_always)
     except:
         warn("consuming user data failed!\n")
         raise
-
-    # finish, send the cloud-config event
-    cloud.initctl_emit()
 
     cfg_path = cloudinit.get_ipath_cur("cloud_config")
     cc = CC.CloudConfig(cfg_path, cloud)
@@ -162,6 +164,16 @@ def main():
             CC.redirect_output(outfmt, errfmt)
     except Exception as e:
         warn("Failed to get and set output config: %s\n" % e)
+
+    # send the cloud-config ready event
+    cc_path = cloudinit.get_ipath_cur('cloud_config')
+    cc_ready = cc.cfg.get("cc_ready_cmd",
+        ['initctl', 'emit', 'cloud-config',
+         '%s=%s' % (cloudinit.cfg_env_name, cc_path) ])
+    if cc_ready:
+        if isinstance(cc_ready,str):
+            cc_ready = [ 'sh', '-c', cc_ready]
+        subprocess.Popen(cc_ready).communicate()
 
     module_list = CC.read_cc_modules(cc.cfg,"cloud_init_modules")
 

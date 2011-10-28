@@ -111,7 +111,7 @@ packages:
 #   written to /etc/fstab.
 # - '/dev' can be ommitted for device names that begin with: xvd, sd, hd, vd
 # - if an entry does not have all 6 fields, they will be filled in
-#   from the following: [ None, None, "auto", "defaults,nobootwait", "0", "2" ]
+#   with values from 'mount_default_fields' below.
 #
 # Note, that you should set 'nobootwait' (see man fstab) for volumes that may
 # not be attached at instance boot (or reboot)
@@ -122,6 +122,11 @@ mounts:
  - [ xvdh, /opt/data, "auto", "defaults,nobootwait", "0", "0" ]
  - [ dd, /dev/zero ]
 
+# mount_default_fields
+# These values are used to fill in any entries in 'mounts' that are not
+# complete.  This must be an array, and must have 7 fields.
+mount_default_fields: [ None, None, "auto", "defaults,nobootwait", "0", "2" ]
+
 # add each entry to ~/.ssh/authorized_keys for the configured user
 ssh_authorized_keys:
   - ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAGEA3FSyQwBI6Z+nCSjUUk8EEAnnkhXlukKoUPND/RRClWz2s5TCzIkd3Ou5+Cyz71X0XmazM3l5WgeErvtIwQMyT1KjNoMhoJMrJnWqQPOt5Q8zWd9qG7PBl9+eiH5qV7NZ mykey@host
@@ -130,6 +135,7 @@ ssh_authorized_keys:
 # Send pre-generated ssh private keys to the server
 # If these are present, they will be written to /etc/ssh and
 # new random keys will not be generated
+#  in addition to 'rsa' and 'dsa' as shown below, 'ecdsa' is also supported
 ssh_keys:
   rsa_private: |
     -----BEGIN RSA PRIVATE KEY-----
@@ -240,7 +246,7 @@ cloud_config_modules:
 # This can be a single string ('smoser') or a list ([smoser, kirkland])
 ssh_import_id: [smoser]
 
-# Provide debconf answers
+# Provide debconf answers / debian preseed values
 #
 # See debconf-set-selections man page.
 #
@@ -255,9 +261,14 @@ debconf_selections: |     # Need to perserve newlines
         debconf debconf/frontend seen false
 
 # manage byobu defaults
-# byobu_by_default: ('user'|'system')
-#   'user' will set byobu 'launch-by-default' for the default user
-#   'system' will enable launch-by-default for for all users
+# byobu_by_default:
+#   'user' or 'enable-user': set byobu 'launch-by-default' for the default user
+#   'system' or 'enable-system' or 'enable':
+#      enable 'launch-by-default' for all users, do not modify default user
+#   'disable': disable both default user and system
+#   'disable-system': disable system
+#   'disable-user': disable for default user
+#   not-set: no changes made
 byobu_by_default: system
 
 # disable ssh access as root.
@@ -265,6 +276,15 @@ byobu_by_default: system
 # rather than as the 'ubuntu' user, then you must set this to false
 # default: true
 disable_root: false
+
+# disable_root_opts: the value of this variable will prefix the
+# respective key in /root/.ssh/authorized_keys if disable_root is true
+# see 'man authorized_keys' for more information on what you can do here
+#
+# The string '$USER' will be replaced with the username of the default user
+#
+# disable_root_opts: no-port-forwarding,no-agent-forwarding,no-X11-forwarding,command="echo 'Please login as the user \"$USER\" rather than the user \"root\".';echo;sleep 10"
+
 
 # set the locale to a given locale
 # default: en_US.UTF-8
@@ -292,10 +312,49 @@ rsyslog:
 # set to 'False' to disable
 resize_rootfs: True
 
-# if hostname is set, cloud-init will set the system hostname 
-# appropriately to its value
-# if not set, it will set hostname from the cloud metadata
-# default: None
+## hostname and /etc/hosts management
+# cloud-init will do its best to set up a sane hostname and corresponding
+# entries in /etc/hosts.
+#
+# if you do nothing, you should get the system generally correctly
+# configured.
+#  * /etc/hostname (and thus `hostname` output) set with hostname (not fqdn)
+#  * an entry in /etc/hosts for both hostname and fqdn
+#    that are obtained from the metadata service
+#  * On each boot, the above will again be set
+#  * cloud-init generally "owns" the 127.0.1.1 entry.  The
+#    rest of the file will not be modified
+#
+# You can change the above behavior with the following config variables:
+#  Remember that these can be set in cloud-config via user-data,
+#  /etc/cloud/cloud.cfg or any file in /etc/cloud/cloud.cfg.d/
+#
+# hostname:
+#   this option will be used wherever the 'hostname' is needed
+#   simply substitute it in the description above.
+#   ** If you wish to set your hostname, set it here **
+#   default: 'hostname' as returned by the metadata service
+#       on EC2, the hostname portion of 'local-hostname' is used
+#       which is something like 'ip-10-244-170-199'
+#
+# fqdn:
+#   this option will be used wherever 'fqdn' is needed.
+#   simply substitue it in the description above.
+#   default: fqdn as returned by the metadata service.  on EC2 'hostname'
+#       is used, so this is like: ip-10-244-170-199.ec2.internal
+# 
+# manage_etc_hosts:
+#   default: false
+#   Setting this config variable to 'true' will mean that on every
+#   boot, /etc/hosts will be re-written from /etc/cloud/templates/hosts.tmpl
+#   The strings '$hostname' and '$fqdn' are replaced in the template
+#   with the appropriate values.
+#
+# preserve_hostname:
+#   default: False
+#   If this option is set to True, then /etc/hostname will never updated
+#   The default behavior is to update it if it has not been modified by
+#   the user.
 
 # final_message
 # default: cloud-init boot finished at $TIMESTAMP. Up $UPTIME seconds
@@ -333,7 +392,7 @@ output:
 #
 phone_home:
  url: http://my.example.com/$INSTANCE_ID/
- post: [ pub_key_dsa, pub_key_rsa, instance_id ]
+ post: [ pub_key_dsa, pub_key_rsa, pub_key_ecdsa, instance_id ]
 
 # timezone: set the timezone for this instance
 # the value of 'timezone' must exist in /usr/share/zoneinfo
@@ -404,7 +463,14 @@ ssh_pwauth: True
 # default is False
 manual_cache_clean: False
 
-# if you wish to have /etc/hosts written from /etc/cloud/templates/hosts.tmpl
-# on a per-always basis (to account for ebs stop/start), then set
-# manage_etc_hosts to True. The default is 'False'
-manage_etc_hosts: False
+# When cloud-init is finished running including having run 
+# cloud_init_modules, then it will run this command.  The default
+# is to emit an upstart signal as shown below.  If the value is a
+# list, it will be passed to Popen.  If it is a string, it will be
+# invoked through 'sh -c'.
+# 
+# default value:
+# cc_ready_cmd: [ initctl, emit, cloud-config, CLOUD_CFG=/var/lib/instance//cloud-config.txt ]
+# example:
+# cc_ready_cmd: [ sh, -c, 'echo HI MOM > /tmp/file' ]
+

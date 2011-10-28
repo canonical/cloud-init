@@ -13,7 +13,7 @@
 #     /etc/cloud/cloud.cfg or cloud-config from user-data
 # 
 ## The value '$hostname' will be replaced with the local-hostname
-127.0.1.1 $hostname
+127.0.1.1 $fqdn $hostname
 127.0.0.1 localhost
 
 # The following lines are desirable for IPv6 capable hosts

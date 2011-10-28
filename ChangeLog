@@ -1,3 +1,62 @@
+0.6.2:
+ - fix bug where update was not done unless update was explicitly set.
+   It would not be run if 'upgrade' or packages were set to be installed
+ - fix bug in part-handler code, that prevented working part-handlers
+   (LP: #739694)
+ - fix bug in resizefs cloud-config that would cause trace based on
+   failure of 'blkid /dev/root' (LP: #726938)
+ - convert dos formated files to unix for user-scripts, boothooks,
+   and upstart jobs (LP: #744965)
+ - fix bug in seeding of grub dpkg configuration (LP: #752361) due
+   to renamed devices in newer (natty) kernels (/dev/sda1 -> /dev/xvda1)
+ - make metadata urls configurable, to support eucalyptus in
+   STATIC or SYSTEM modes (LP: #761847)
+ - support disabling byobu in cloud-config
+ - run cc_ssh as a cloud-init module so it is guaranteed to run before
+   ssh starts (LP: #781101)
+ - make prefix for keys added to /root/.ssh/authorized_keys configurable
+   and add 'no-port-forwarding,no-agent-forwarding,no-X11-forwarding'
+   to the default (LP: #798505)
+ - make 'cloud-config ready' command configurable (LP: #785551)
+ - make fstab fields used to 'fill in' shorthand entries configurable
+   This means you do not have to have 'nobootwait' in the values
+   (LP: #785542)
+ - read /etc/ssh/sshd_config for AuthorizedKeysFile rather than
+   assuming ~/.ssh/authorized_keys (LP: #731849)
+ - fix cloud-init in ubuntu lxc containers (LP: #800824)
+ - sanitize hosts file for system's hostname to 127.0.1.1 (LP: #802637)
+ - add chef support (cloudinit/CloudConfig/cc_chef.py) (LP: ##798844)
+ - do not give trace on failure to resize in lxc container (LP: #800856)
+ - increase the timeout on url gets for "seedfrom" values (LP: #812646)
+ - do not write entries for ephemeral0 on t1.micro (LP: #744019)
+ - support 'include-once' so that expiring or one-time use urls can
+   be used for '#include' to provide sensitive data.
+ - support for passing public and private keys to mcollective via cloud-config
+ - support multiple staticly configured network devices, as long as
+   all of them come up early (LP: #810044)
+ - Changes to handling user data mean that:
+   * boothooks will now run more than once as they were intended (and as bootcmd
+     commands do)
+   * cloud-config and user-scripts will be updated from user data every boot
+ - Fix issue where 'isatty' would return true for apt-add-repository.
+   apt-add-repository would get stdin which was attached to a terminal
+  (/dev/console) and would thus hang when running during boot.  (LP: 831505)
+   This was done by changing all users of util.subp to have None input unless specified
+ - Add some debug info to the console when cloud-init runs.
+   This is useful if debugging, IP and route information is printed to the console.
+ - change the mechanism for handling .ssh/authorized_keys, to update entries
+   rather than appending.  This ensures that the authorized_keys that are being
+   inserted actually do something (LP: #434076, LP: #833499)
+ - log warning on failure to set hostname (LP: #832175)
+ - upstart/cloud-init-nonet.conf: wait for all network interfaces to be up
+   allow for the possibility of /var/run != /run.
+ - DataSourceNoCloud, DataSourceOVF : do not provide a default hostname.
+   This way the configured hostname of the system will be used if not provided
+   by metadata (LP: #838280)
+ - DataSourceOVF: change the default instance id to 'iid-dsovf' from 'nocloud'
+ - Improve the OVF documentation, and provide a simple command line
+   tool for creating a useful ISO file.
+
 0.6.1:
  - fix bug in fixing permission on /var/log/cloud-init.log (LP: #704509)
  - improve comment strings in rsyslog file tools/21-cloudinit.conf

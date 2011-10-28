@@ -1,0 +1,15 @@
+log_level              :info
+log_location           "/var/log/chef/client.log"
+ssl_verify_mode        :verify_none
+validation_client_name "$validation_name"
+validation_key         "/etc/chef/validation.pem"
+client_key             "/etc/chef/client.pem"
+chef_server_url        "$server_url"
+environment            "$environment"
+node_name              "$node_name"
+json_attribs           "/etc/chef/firstboot.json"
+file_cache_path        "/var/cache/chef"
+file_backup_path       "/var/backups/chef"
+pid_file               "/var/run/chef/client.pid"
+Chef::Log::Formatter.show_time = true
+

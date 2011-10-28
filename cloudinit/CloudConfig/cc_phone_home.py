@@ -20,7 +20,7 @@ import cloudinit.util as util
 from time import sleep
 
 frequency = per_instance
-post_list_all = [ 'pub_key_dsa', 'pub_key_rsa', 'instance_id', 'hostname' ]
+post_list_all = [ 'pub_key_dsa', 'pub_key_rsa', 'pub_key_ecdsa', 'instance_id', 'hostname' ]
 
 # phone_home:
 #  url: http://my.foo.bar/$INSTANCE/
@@ -29,7 +29,7 @@ post_list_all = [ 'pub_key_dsa', 'pub_key_rsa', 'instance_id', 'hostname' ]
 #
 # phone_home:
 #  url: http://my.foo.bar/$INSTANCE_ID/
-#  post: [ pub_key_dsa, pub_key_rsa, instance_id
+#  post: [ pub_key_dsa, pub_key_rsa, pub_key_ecdsa, instance_id
 #   
 def handle(name,cfg,cloud,log,args):
     if len(args) != 0:
@@ -61,6 +61,7 @@ def handle(name,cfg,cloud,log,args):
     pubkeys = {
         'pub_key_dsa': '/etc/ssh/ssh_host_dsa_key.pub',
         'pub_key_rsa': '/etc/ssh/ssh_host_rsa_key.pub',
+        'pub_key_ecdsa': '/etc/ssh/ssh_host_ecdsa_key.pub',
     }
 
     for n, path in pubkeys.iteritems():

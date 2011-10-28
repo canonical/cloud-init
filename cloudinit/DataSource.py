@@ -22,6 +22,7 @@ DEP_NETWORK = "NETWORK"
 
 import UserDataHandler as ud
 import cloudinit.util as util
+import socket
 
 class DataSource:
     userdata = None
@@ -64,6 +65,10 @@ class DataSource:
     def get_public_ssh_keys(self):
         keys = []
         if not self.metadata.has_key('public-keys'): return([])
+
+        if isinstance(self.metadata['public-keys'], str):
+            return([self.metadata['public-keys'],])
+            
         for keyname, klist in self.metadata['public-keys'].items():
             # lp:506332 uec metadata service responds with
             # data that makes boto populate a string for 'klist' rather
@@ -93,23 +98,56 @@ class DataSource:
 
     def get_instance_id(self):
         if 'instance-id' not in self.metadata:
-            return "ubuntuhost"
+            return "iid-datasource"
         return(self.metadata['instance-id'])
 
-    def get_hostname(self):
-        if not 'local-hostname' in self.metadata:
-            return None
+    def get_hostname(self, fqdn=False):
+        defdomain = "localdomain"
+        defhost = "localhost" 
 
-        toks = self.metadata['local-hostname'].split('.')
-        # if there is an ipv4 address in 'local-hostname', then
-        # make up a hostname (LP: #475354)
-        if len(toks) == 4:
-            try:
-                r = filter(lambda x: int(x) < 256 and x > 0, toks)
-                if len(r) == 4:
-                    return("ip-%s" % '-'.join(r))
-            except: pass
-        return toks[0]
+        domain = defdomain
+        if not 'local-hostname' in self.metadata:
+
+            # this is somewhat questionable really.
+            # the cloud datasource was asked for a hostname
+            # and didn't have one. raising error might be more appropriate
+            # but instead, basically look up the existing hostname
+            toks = []
+
+            hostname = socket.gethostname()
+
+            fqdn = util.get_fqdn_from_hosts(hostname)
+
+            if fqdn and fqdn.find(".") > 0:
+                toks = fqdn.split(".")
+            elif hostname:
+                toks = [ hostname, defdomain ]
+            else:
+                toks = [ defhost, defdomain ]
+
+
+        else:
+            toks = self.metadata['local-hostname'].split('.')
+            # if there is an ipv4 address in 'local-hostname', then
+            # make up a hostname (LP: #475354)
+            if len(toks) == 4:
+                try:
+                    r = filter(lambda x: int(x) < 256 and x > 0, toks)
+                    if len(r) == 4:
+                        toks = [ "ip-%s" % '-'.join(r) ]
+                except:
+                    pass
+
+        if len(toks) > 1:
+            hostname = toks[0]
+            domain = '.'.join(toks[1:])
+        else:
+            hostname = toks[0]
+
+        if fqdn:
+            return "%s.%s" % (hostname,domain)
+        else:
+            return hostname
 
 # return a list of classes that have the same depends as 'depends'
 # iterate through cfg_list, loading "DataSourceCollections" modules

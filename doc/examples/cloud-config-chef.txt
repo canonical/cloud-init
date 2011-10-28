@@ -1,0 +1,44 @@
+#cloud-config
+#
+# This is an example file to automatically setup and run puppetd
+# when the instance boots for the first time.
+# Make sure that this file is valid yaml before starting instances.
+# It should be passed as user-data when starting the instance.
+
+# The default is to install from packages. If you want the latest packages from Opscode, be sure to add their repo:
+apt_mirror: http://apt.opscode.com/
+
+chef:
+
+ # Valid values are 'gems' and 'packages'
+ install_type: "gems"
+
+ # Chef settings
+ server_url: "https://chef.yourorg.com:4000"
+
+ # Node Name
+ # Defaults to the instance-id if not present
+ node_name: "your-node-name"
+
+ # Environment
+ # Defaults to '_default' if not present
+ environment: "production"
+
+ # Default validation name is chef-validator
+ validation_name: "yourorg-validator"
+ validation_key: |
+     -----BEGIN RSA PRIVATE KEY-----
+     YOUR-ORGS-VALIDATION-KEY-HERE
+     -----END RSA PRIVATE KEY-----
+ 
+ # A run list for a first boot json
+ run_list:
+  - "recipe[apache2]"
+  - "role[db]"
+
+ # Specify a list of initial attributes used by the cookbooks
+ initial_attributes:
+    apache:
+      prefork:
+        maxclients: 100
+      keepalive: "off"

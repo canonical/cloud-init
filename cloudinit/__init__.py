@@ -46,6 +46,10 @@ pathmap = {
    None : "",
 }
 
+per_instance="once-per-instance"
+per_always="always"
+per_once="once"
+
 parsed_cfgs = { }
 
 import os
@@ -63,6 +67,7 @@ import logging
 import logging.config
 import StringIO
 import glob
+import traceback
 
 class NullHandler(logging.Handler):
     def emit(self,record): pass
@@ -111,14 +116,16 @@ class CloudInit:
     ds_deps = [ DataSource.DEP_FILESYSTEM, DataSource.DEP_NETWORK ]
     datasource = None
 
+    builtin_handlers = [ ]
+
     def __init__(self, ds_deps = None, sysconfig=system_config):
-        self.part_handlers = {
-            'text/x-shellscript' : self.handle_user_script,
-            'text/cloud-config' : self.handle_cloud_config,
-            'text/upstart-job' : self.handle_upstart_job,
-            'text/part-handler' : self.handle_handler,
-            'text/cloud-boothook' : self.handle_cloud_boothook
-        }
+        self.builtin_handlers = [
+            [ 'text/x-shellscript', self.handle_user_script, per_always ],
+            [ 'text/cloud-config', self.handle_cloud_config, per_always ],
+            [ 'text/upstart-job', self.handle_upstart_job, per_instance ],
+            [ 'text/cloud-boothook', self.handle_cloud_boothook, per_always ],
+        ]
+
         if ds_deps != None:
             self.ds_deps = ds_deps
         self.sysconfig=sysconfig
@@ -243,18 +250,13 @@ class CloudInit:
         util.write_file(self.get_ipath('userdata'),
             self.datasource.get_userdata(), 0600)
 
-    def initctl_emit(self):
-        cc_path = get_ipath_cur('cloud_config')
-        subprocess.Popen(['initctl', 'emit', 'cloud-config',
-            '%s=%s' % (cfg_env_name,cc_path)]).communicate()
-
     def sem_getpath(self,name,freq):
         if freq == 'once-per-instance':
             return("%s/%s" % (self.get_ipath("sem"),name))
         return("%s/%s.%s" % (get_cpath("sem"), name, freq))
     
     def sem_has_run(self,name,freq):
-        if freq == "always": return False
+        if freq == per_always: return False
         semfile = self.sem_getpath(name,freq)
         if os.path.exists(semfile):
             return True
@@ -270,7 +272,7 @@ class CloudInit:
             if e.errno != errno.EEXIST:
                 raise e
     
-        if os.path.exists(semfile) and freq != "always":
+        if os.path.exists(semfile) and freq != per_always:
             return False
     
         # race condition
@@ -299,7 +301,7 @@ class CloudInit:
     def sem_and_run(self,semname,freq,func,args=[],clear_on_fail=False):
         if self.sem_has_run(semname,freq):
             log.debug("%s already ran %s", semname, freq)
-            return
+            return False
         try:
             if not self.sem_acquire(semname,freq):
                 raise Exception("Failed to acquire lock on %s" % semname)
@@ -310,13 +312,15 @@ class CloudInit:
                 self.sem_clear(semname,freq)
             raise
 
+        return True
+
     # get_ipath : get the instance path for a name in pathmap
     # (/var/lib/cloud/instances/<instance>/name)<name>)
     def get_ipath(self, name=None):
         return("%s/instances/%s%s" 
                % (varlibdir,self.get_instance_id(), pathmap[name]))
 
-    def consume_userdata(self):
+    def consume_userdata(self, frequency=per_instance):
         self.get_userdata()
         data = self
 
@@ -328,63 +332,40 @@ class CloudInit:
         sys.path.insert(0,cdir)
         sys.path.insert(0,idir)
 
+        part_handlers = { }
         # add handlers in cdir
         for fname in glob.glob("%s/*.py" % cdir):
             if not os.path.isfile(fname): continue
             modname = os.path.basename(fname)[0:-3]
             try:
                 mod = __import__(modname)
-                lister = getattr(mod, "list_types")
-                handler = getattr(mod, "handle_part")
-                mtypes = lister()
-                for mtype in mtypes:
-                    self.part_handlers[mtype]=handler
-                log.debug("added handler for [%s] from %s" % (mtypes,fname))
+                handler_register(mod, part_handlers, data, frequency)
+                log.debug("added handler for [%s] from %s" % (mod.list_types(), fname))
             except:
                 log.warn("failed to initialize handler in %s" % fname)
                 util.logexc(log)
-       
-        # give callbacks opportunity to initialize
-        for ctype, func in self.part_handlers.items():
-            func(data, "__begin__",None,None)
+
+        # add the internal handers if their type hasn't been already claimed
+        for (btype, bhand, bfreq) in self.builtin_handlers:
+            if btype in part_handlers:
+                continue
+            handler_register(InternalPartHandler(bhand, [btype], bfreq),
+                part_handlers, data, frequency)
+
+        # walk the data
+        pdata = { 'handlers': part_handlers, 'handlerdir': idir,
+            'data' : data, 'frequency': frequency }
         UserDataHandler.walk_userdata(self.get_userdata(),
-            self.part_handlers, data)
+            partwalker_callback, data = pdata)
 
         # give callbacks opportunity to finalize
-        for ctype, func in self.part_handlers.items():
-            func(data,"__end__",None,None)
+        called = [ ]
+        for (mtype, mod) in part_handlers.iteritems():
+            if mod in called:
+                continue
+            handler_call_end(mod, data, frequency)
 
-    def handle_handler(self,data,ctype,filename,payload):
-        if ctype == "__end__": return
-        if ctype == "__begin__" :
-            self.handlercount = 0
-            return
-
-        self.handlercount=self.handlercount+1
-
-        # write content to instance's handlerdir
-        handlerdir = self.get_ipath("handler")
-        modname  = 'part-handler-%03d' % self.handlercount
-        modfname = modname + ".py"
-        util.write_file("%s/%s" % (handlerdir,modfname), payload, 0600)
-
-        try:
-            mod = __import__(modname)
-            lister = getattr(mod, "list_types")
-            handler = getattr(mod, "handle_part")
-        except:
-            import traceback
-            traceback.print_exc(file=sys.stderr)
-            return
-
-        # - call it with '__begin__'
-        handler(data, "__begin__", None, None)
-
-        # - add it self.part_handlers
-        for mtype in lister():
-            self.part_handlers[mtype]=handler
-
-    def handle_user_script(self,data,ctype,filename,payload):
+    def handle_user_script(self,data,ctype,filename,payload, frequency):
         if ctype == "__end__": return
         if ctype == "__begin__":
             # maybe delete existing things here
@@ -393,16 +374,21 @@ class CloudInit:
         filename=filename.replace(os.sep,'_')
         scriptsdir = get_ipath_cur('scripts')
         util.write_file("%s/%s" % 
-            (scriptsdir,filename), payload, 0700)
+            (scriptsdir,filename), util.dos2unix(payload), 0700)
 
-    def handle_upstart_job(self,data,ctype,filename,payload):
+    def handle_upstart_job(self,data,ctype,filename,payload, frequency):
+        # upstart jobs are only written on the first boot
+        if frequency != per_instance:
+            return
+
         if ctype == "__end__" or ctype == "__begin__": return
         if not filename.endswith(".conf"):
             filename=filename+".conf"
 
-        util.write_file("%s/%s" % ("/etc/init",filename), payload, 0644)
+        util.write_file("%s/%s" % ("/etc/init",filename),
+            util.dos2unix(payload), 0644)
 
-    def handle_cloud_config(self,data,ctype,filename,payload):
+    def handle_cloud_config(self,data,ctype,filename,payload, frequency):
         if ctype == "__begin__":
             self.cloud_config_str=""
             return
@@ -422,31 +408,20 @@ class CloudInit:
 
         self.cloud_config_str+="\n#%s\n%s" % (filename,payload)
 
-    def handle_cloud_boothook(self,data,ctype,filename,payload):
+    def handle_cloud_boothook(self,data,ctype,filename,payload, frequency):
         if ctype == "__end__": return
         if ctype == "__begin__": return
 
         filename=filename.replace(os.sep,'_')
+        payload = util.dos2unix(payload)
         prefix="#cloud-boothook"
-        dos=False
         start = 0
         if payload.startswith(prefix):
-            start = len(prefix)
-            if payload[start] == '\r':
-                start=start+1
-                dos = True
-        else:
-            if payload.find('\r\n',0,100) >= 0:
-                dos = True
-    
-        if dos:
-            payload=payload[start:].replace('\r\n','\n')
-        elif start != 0:
-            payload=payload[start:]
+            start = len(prefix) + 1
     
         boothooks_dir = self.get_ipath("boothooks")
         filepath = "%s/%s" % (boothooks_dir,filename)
-        util.write_file(filepath, payload, 0700)
+        util.write_file(filepath, payload[start:], 0700)
         try:
             env=os.environ.copy()
             env['INSTANCE_ID']= self.datasource.get_instance_id()
@@ -467,8 +442,8 @@ class CloudInit:
     def get_mirror(self):
         return(self.datasource.get_local_mirror())
 
-    def get_hostname(self):
-        return(self.datasource.get_hostname())
+    def get_hostname(self, fqdn=False):
+        return(self.datasource.get_hostname(fqdn=fqdn))
 
     def device_name_to_device(self,name):
         return(self.datasource.device_name_to_device(name))
@@ -535,3 +510,81 @@ class DataSourceNotFoundException(Exception):
 
 def list_sources(cfg_list, depends):
     return(DataSource.list_sources(cfg_list,depends, ["cloudinit", "" ]))
+
+def handler_register(mod, part_handlers, data, frequency=per_instance):
+    if not hasattr(mod, "handler_version"):
+        setattr(mod, "handler_version", 1)
+
+    for mtype in mod.list_types():
+        part_handlers[mtype] = mod
+
+    handler_call_begin(mod, data, frequency)
+    return(mod)
+
+def handler_call_begin(mod, data, frequency):
+    handler_handle_part(mod, data, "__begin__", None, None, frequency)
+
+def handler_call_end(mod, data, frequency):
+    handler_handle_part(mod, data, "__end__", None, None, frequency)
+
+def handler_handle_part(mod, data, ctype, filename, payload, frequency):
+    # only add the handler if the module should run
+    modfreq = getattr(mod, "frequency", per_instance)
+    if not ( modfreq == per_always or 
+            ( frequency == per_instance and modfreq == per_instance)):
+        return
+    if mod.handler_version == 1:
+        mod.handle_part(data, ctype, filename, payload)
+    else:
+        mod.handle_part(data, ctype, filename, payload, frequency)
+
+def partwalker_handle_handler(pdata, ctype, filename, payload):
+
+    curcount = pdata['handlercount']
+    modname  = 'part-handler-%03d' % curcount
+    frequency = pdata['frequency']
+
+    modfname = modname + ".py"
+    util.write_file("%s/%s" % (pdata['handlerdir'], modfname), payload, 0600)
+
+    pdata['handlercount'] = curcount + 1
+
+    try:
+        mod = __import__(modname)
+        handler_register(mod, pdata['handlers'], pdata['data'], frequency)
+    except:
+        util.logexc(log)
+        traceback.print_exc(file=sys.stderr)
+        return
+
+def partwalker_callback(pdata, ctype, filename, payload):
+    # data here is the part_handlers array and then the data to pass through
+    if ctype == "text/part-handler":
+        if 'handlercount' not in pdata:
+            pdata['handlercount'] = 0
+        partwalker_handle_handler(pdata, ctype, filename, payload)
+        return
+    if ctype not in pdata['handlers']:
+        return
+    handler_handle_part(pdata['handlers'][ctype], pdata['data'],
+        ctype, filename, payload, pdata['frequency'])
+
+class InternalPartHandler:
+    freq = per_instance
+    mtypes = [ ]
+    handler_version = 1
+    handler = None
+    def __init__(self, handler, mtypes, frequency, version = 2):
+        self.handler = handler
+        self.mtypes = mtypes
+        self.frequency = frequency
+        self.handler_version = version
+
+    def __repr__():
+        return("InternalPartHandler: [%s]" % self.mtypes)
+
+    def list_types(self):
+        return(self.mtypes)
+
+    def handle_part(self, data, ctype, filename, payload, frequency):
+        return(self.handler(data, ctype, filename, payload, frequency))

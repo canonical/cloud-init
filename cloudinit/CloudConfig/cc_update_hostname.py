@@ -27,8 +27,8 @@ def handle(name,cfg,cloud,log,args):
         log.debug("preserve_hostname is set. not updating hostname")
         return
 
+    ( hostname, fqdn ) = util.get_hostname_fqdn(cfg, cloud)
     try:
-        hostname = util.get_cfg_option_str(cfg,"hostname",cloud.get_hostname())
         prev ="%s/%s" % (cloud.get_cpath('data'),"previous-hostname")
         update_hostname(hostname, prev, log)
     except Exception as e:

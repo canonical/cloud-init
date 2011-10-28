@@ -41,7 +41,6 @@ class DataSourceNoCloud(DataSource.DataSource):
 
     def get_data(self):
         defaults = { 
-            "local-hostname" : "ubuntuhost",
             "instance-id" : "nocloud"
         }
 
@@ -86,7 +85,7 @@ class DataSourceNoCloud(DataSource.DataSource):
 
             # this could throw errors, but the user told us to do it
             # so if errors are raised, let them raise
-            (md_seed,ud) = util.read_seeded(seedfrom)
+            (md_seed,ud) = util.read_seeded(seedfrom, timeout=None)
             log.debug("using seeded cache data from %s" % seedfrom)
 
             # values in the command line override those from the seed

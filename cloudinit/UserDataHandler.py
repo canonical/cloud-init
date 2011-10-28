@@ -22,9 +22,13 @@ from email.mime.text import MIMEText
 from email.mime.base import MIMEBase
 from email import encoders
 import yaml
+import cloudinit
+import cloudinit.util as util
+import md5
 
 starts_with_mappings={
     '#include' : 'text/x-include-url',
+    '#include-once' : 'text/x-include-once-url',
     '#!' : 'text/x-shellscript',
     '#cloud-config' : 'text/cloud-config',
     '#upstart-job'  : 'text/upstart-job',
@@ -45,15 +49,40 @@ def decomp_str(str):
 
 def do_include(str,parts):
     import urllib
+    import os
     # is just a list of urls, one per line
     # also support '#include <url here>'
+    includeonce = False
     for line in str.splitlines():
         if line == "#include": continue
-        if line.startswith("#include"):
+        if line == "#include-once":
+            includeonce = True
+            continue
+        if line.startswith("#include-once"):
+            line = line[len("#include-once"):].lstrip()
+            includeonce = True
+        elif line.startswith("#include"):
             line = line[len("#include"):].lstrip()
         if line.startswith("#"): continue
-        content = urllib.urlopen(line).read()
+
+        # urls cannot not have leading or trailing white space
+        msum = md5.new()
+        msum.update(line.strip())
+        includeonce_filename = "%s/urlcache/%s" % (
+            cloudinit.get_ipath_cur("data"), msum.hexdigest())
+        try:
+            if includeonce and os.path.isfile(includeonce_filename):
+                with open(includeonce_filename, "r") as fp:
+                    content = fp.read()
+            else:
+                content = urllib.urlopen(line).read()
+                if includeonce:
+                    util.write_file(includeonce_filename, content, mode=0600)
+        except Exception as e:
+            raise
+
         process_includes(email.message_from_string(decomp_str(content)),parts)
+
 
 def explode_cc_archive(archive,parts):
     for ent in yaml.load(archive):
@@ -74,7 +103,6 @@ def explode_cc_archive(archive,parts):
             if mtype == None:
                 mtype = type_from_startswith(payload,def_type)
 
-        print "adding %s,%s" % (filename, mtype)
         parts['content'].append(content)
         parts['names'].append(filename)
         parts['types'].append(mtype)
@@ -111,6 +139,10 @@ def process_includes(msg,parts):
             ctype = ctype_orig
 
         if ctype == 'text/x-include-url':
+            do_include(payload,parts)
+            continue
+
+        if ctype == 'text/x-include-once-url':
             do_include(payload,parts)
             continue
 
@@ -158,11 +190,10 @@ def preprocess_userdata(data):
     process_includes(email.message_from_string(decomp_str(data)),parts)
     return(parts2mime(parts))
 
-# callbacks is a dictionary with:
-#  { 'content-type': handler(data,content_type,filename,payload) }
-def walk_userdata(str, callbacks, data = None):
+# callback is a function that will be called with (data, content_type, filename, payload)
+def walk_userdata(istr, callback, data = None):
     partnum = 0
-    for part in email.message_from_string(str).walk():
+    for part in email.message_from_string(istr).walk():
         # multipart/* are just containers
         if part.get_content_maintype() == 'multipart':
             continue
@@ -175,8 +206,7 @@ def walk_userdata(str, callbacks, data = None):
         if not filename:
             filename = 'part-%03d' % partnum
 
-        if callbacks.has_key(ctype):
-            callbacks[ctype](data,ctype,filename,part.get_payload())
+        callback(data, ctype, filename, part.get_payload())
 
         partnum = partnum+1
 

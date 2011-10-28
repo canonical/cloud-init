@@ -1,3 +1,9 @@
+cloud-init (0.6.2-0ubuntu1) precise; urgency=low
+
+  * New upstream release
+
+ -- Scott Moser <smoser@ubuntu.com>  Thu, 27 Oct 2011 23:05:15 -0400
+
 cloud-init (0.6.1-0ubuntu20) oneiric; urgency=low
 
   * fix broken path if local-hostname was not in metadata (LP: #857380)

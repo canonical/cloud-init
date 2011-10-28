@@ -8,7 +8,16 @@ Standards-Version: 3.9.1
 
 Package: cloud-init
 Architecture: all
-Depends: python, procps, python-configobj, python-cheetah, python-yaml, python-software-properties, cloud-utils, ${python:Depends}, ${misc:Depends}
+Depends: cloud-utils,
+         procps,
+         python,
+         python-boto (>=2.0),
+         python-cheetah,
+         python-configobj,
+         python-software-properties,
+         python-yaml,
+         ${misc:Depends},
+         ${python:Depends}
 XB-Python-Version: ${python:Versions}
 Description: Init scripts for cloud instances
  Cloud instances need special scripts to run during initialisation

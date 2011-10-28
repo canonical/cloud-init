@@ -55,15 +55,35 @@ def handle(name,cfg,cloud,log,args):
             log.error("Failed to run debconf-set-selections")
             log.debug(traceback.format_exc())
 
-    if update:
-        cc.update_package_sources()
+    pkglist = util.get_cfg_option_list_or_str(cfg,'packages',[])
+
+    errors = [ ]
+    if update or len(pkglist) or upgrade:
+        try:
+            cc.update_package_sources()
+        except subprocess.CalledProcessError as e:
+            log.warn("apt-get update failed")
+            log.debug(traceback.format_exc())
+            errors.append(e)
 
     if upgrade:
-        cc.apt_get("upgrade")
+        try:
+            cc.apt_get("upgrade")
+        except subprocess.CalledProcessError as e:
+            log.warn("apt upgrade failed")
+            log.debug(traceback.format_exc())
+            errors.append(e)
 
-    pkglist = util.get_cfg_option_list_or_str(cfg,'packages',[])
     if len(pkglist):
-        cc.install_packages(pkglist)
+        try:
+            cc.install_packages(pkglist)
+        except subprocess.CalledProcessError as e:
+            log.warn("Failed to install packages: %s " % pkglist)
+            log.debug(traceback.format_exc())
+            errors.append(e)
+
+    if len(errors):
+        raise errors[0]
 
     return(True)
 

@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Environment xmlns="http://schemas.dmtf.org/ovf/environment/1"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xmlns:oe="http://schemas.dmtf.org/ovf/environment/1"
+    xsi:schemaLocation="http://schemas.dmtf.org/ovf/environment/1 ../dsp8027.xsd"
+    oe:id="WebTier">
+    
+    <!-- This example reference a local schema file, to validate against online schema use:
+    xsi:schemaLocation="http://schemas.dmtf.org/ovf/envelope/1 http://schemas.dmtf.org/ovf/envelope/1/dsp8027_1.0.0.xsd"
+    -->
+    
+    <!-- Information about hypervisor platform -->
+    <oe:PlatformSection>
+        <Kind>ESX Server</Kind>
+        <Version>3.0.1</Version>
+        <Vendor>VMware, Inc.</Vendor>
+        <Locale>en_US</Locale>
+    </oe:PlatformSection>
+
+    <!--- Properties defined for this virtual machine -->
+    <PropertySection>
+        <Property oe:key="instance-id" oe:value="@@instance-id@@"/>
+        <Property oe:key="hostname" oe:value="@@hostname@@"/>
+        <Property oe:key="user-data" oe:value="@@user-data@@"/>
+        <Property oe:key="seedfrom" oe:value="@@seedfrom@@"/>
+    </PropertySection>
+
+</Environment>
