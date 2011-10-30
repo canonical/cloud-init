@@ -45,6 +45,13 @@ def handle(name,cfg,cloud,log,args):
     except:
         log.debug("failed to write to /etc/timezone")
         raise
+    if os.path.exists("/etc/sysconfig/clock"):
+        try:
+            with open("/etc/sysconfig/clock", "w") as fp:
+                fp.write('ZONE="%s"\n' % timezone)
+        except:
+            log.debug("failed to write to /etc/sysconfig/clock")
+            raise
 
     try:
         shutil.copy(tz_file, "/etc/localtime")
