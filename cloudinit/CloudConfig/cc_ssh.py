@@ -66,6 +66,8 @@ def handle(name,cfg,cloud,log,args):
         genkeys+='ssh-keygen -f /etc/ssh/ssh_host_ecdsa_key -t ecdsa -N ""; '
         subprocess.call(('sh', '-c', "{ %s } </dev/null" % (genkeys)))
 
+    util.restorecon_if_possible('/etc/ssh', recursive=True)
+
     try:
         user = util.get_cfg_option_str(cfg,'user')
         disable_root = util.get_cfg_option_bool(cfg, "disable_root", True)

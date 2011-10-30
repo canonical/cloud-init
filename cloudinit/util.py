@@ -28,6 +28,12 @@ import time
 import traceback
 import re
 
+try:
+    import selinux
+    HAVE_LIBSELINUX = True
+except ImportError:
+    HAVE_LIBSELINUX = False
+
 def read_conf(fname):
     try:
 	    stream = open(fname,"r")
@@ -113,6 +119,11 @@ def write_file(file,content,mode=0644,omode="wb"):
             os.chmod(file,mode)
         f.write(content)
         f.close()
+        restorecon_if_possible(file)
+
+def restorecon_if_possible(path, recursive=False):
+    if HAVE_LIBSELINUX and selinux.is_selinux_enabled():
+        selinux.restorecon(path, recursive=recursive)
 
 # get keyid from keyserver
 def getkeybyid(keyid,keyserver):
