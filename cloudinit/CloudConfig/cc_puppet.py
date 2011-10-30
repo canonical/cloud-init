@@ -16,6 +16,7 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 import os
+import os.path
 import pwd
 import socket
 import subprocess
@@ -84,10 +85,15 @@ def handle(name,cfg,cloud,log,args):
             with open('/etc/puppet/puppet.conf', 'wb') as configfile:
                 puppet_config.write(configfile)
             util.restorecon_if_possible('/etc/puppet/puppet.conf')
-    # Set puppet default file to automatically start
-    subprocess.check_call(['sed', '-i',
-                           '-e', 's/^START=.*/START=yes/',
-                           '/etc/default/puppet'])
+    # Set puppet to automatically start
+    if os.path.exists('/etc/default/puppet'):
+        subprocess.check_call(['sed', '-i',
+                               '-e', 's/^START=.*/START=yes/',
+                               '/etc/default/puppet'])
+    elif os.path.exists('/bin/systemctl'):
+        subprocess.check_call(['/bin/systemctl', 'enable', 'puppet.service'])
+    elif os.path.exists('/sbin/chkconfig'):
+        subprocess.check_call(['/sbin/chkconfig', 'puppet', 'on'])
     # Start puppetd
     subprocess.check_call(['service', 'puppet', 'start'])
 
