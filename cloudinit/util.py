@@ -84,6 +84,7 @@ def get_cfg_option_str(yobj, key, default=None):
 
 def get_cfg_option_list_or_str(yobj, key, default=None):
     if not yobj.has_key(key): return default
+    if yobj[key] is None: return []
     if isinstance(yobj[key],list): return yobj[key]
     return([yobj[key]])
 

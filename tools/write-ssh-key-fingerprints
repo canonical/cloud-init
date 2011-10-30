@@ -3,8 +3,10 @@
 echo
 echo "#############################################################"
 echo "-----BEGIN SSH HOST KEY FINGERPRINTS-----"
-ssh-keygen -l -f /etc/ssh/ssh_host_rsa_key.pub
-ssh-keygen -l -f /etc/ssh/ssh_host_dsa_key.pub
+for f in /etc/ssh/ssh_host_*key.pub; do
+    [ -f "$f" ] || continue
+    ssh-keygen -l -f "$f"
+done
 echo "-----END SSH HOST KEY FINGERPRINTS-----"
 echo "#############################################################"
 } | logger -p user.info -s -t "ec2"
