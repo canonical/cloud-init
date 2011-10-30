@@ -31,7 +31,7 @@ def handle(name,cfg,cloud,log,args):
     global_log = log
 
     # remove the static keys from the pristine image
-    for f in glob.glob("/etc/ssh/ssh_host_*_key*"):
+    for f in glob.glob("/etc/ssh/ssh_host_*key*"):
         try: os.unlink(f)
         except: pass
 
@@ -61,10 +61,10 @@ def handle(name,cfg,cloud,log,args):
             log.debug("generated %s from %s" % pair)
     else:
         # if not, generate them
-        genkeys ='ssh-keygen -f /etc/ssh/ssh_host_rsa_key -t rsa -N ""; '
-        genkeys+='ssh-keygen -f /etc/ssh/ssh_host_dsa_key -t dsa -N ""; '
-        genkeys+='ssh-keygen -f /etc/ssh/ssh_host_ecdsa_key -t ecdsa -N ""; '
-        subprocess.call(('sh', '-c', "{ %s } </dev/null" % (genkeys)))
+        for keytype in util.get_cfg_option_list_or_str(cfg, 'ssh_genkeytypes',
+                                                       ['rsa', 'dsa', 'ecdsa']):
+            subprocess.call(['ssh-keygen', '-t', keytype, '-N', '',
+                             '-f', '/etc/ssh/ssh_host_%s_key' % keytype])
 
     util.restorecon_if_possible('/etc/ssh', recursive=True)
 
@@ -83,11 +83,6 @@ def handle(name,cfg,cloud,log,args):
     except:
         util.logexc(log)
         log.warn("applying credentials failed!\n")
-
-    send_ssh_keys_to_console()
-
-def send_ssh_keys_to_console():
-    subprocess.call(('/usr/lib/cloud-init/write-ssh-key-fingerprints',))
 
 def apply_credentials(keys, user, disable_root, disable_root_opts=DISABLE_ROOT_OPTS, log=global_log):
     keys = set(keys)
