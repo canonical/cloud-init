@@ -94,6 +94,8 @@ def handle(name,cfg,cloud,log,args):
         subprocess.check_call(['/bin/systemctl', 'enable', 'puppet.service'])
     elif os.path.exists('/sbin/chkconfig'):
         subprocess.check_call(['/sbin/chkconfig', 'puppet', 'on'])
+    else:
+        log.warn("Do not know how to enable puppet service on this system")
     # Start puppetd
     subprocess.check_call(['service', 'puppet', 'start'])
 
