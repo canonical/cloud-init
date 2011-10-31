@@ -289,6 +289,8 @@ disable_root: false
 # set the locale to a given locale
 # default: en_US.UTF-8
 locale: en_US.UTF-8
+# render template default-locale.tmpl to locale_configfile
+locale_configfile: /etc/default/locale
 
 # add entries to rsyslog configuration
 # The first occurance of a given filename will truncate. 
@@ -474,3 +476,15 @@ manual_cache_clean: False
 # example:
 # cc_ready_cmd: [ sh, -c, 'echo HI MOM > /tmp/file' ]
 
+## configure interaction with ssh server
+# ssh_svcname: ssh
+#    set the name of the option to 'service restart'
+#    in order to restart the ssh daemon. For fedora, use 'sshd'
+#    default: ssh
+# ssh_deletekeys: True
+#    boolean indicating if existing ssh keys should be deleted on a
+#    per-instance basis.  On a public image, this should absolutely be set
+#    to 'True'
+# ssh_genkeytypes: ['rsa', 'dsa', 'ecdsa']
+#    a list of the ssh key types that should be generated
+#    These are passed to 'ssh-keygen -t'
