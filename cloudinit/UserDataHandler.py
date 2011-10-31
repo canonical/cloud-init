@@ -24,7 +24,7 @@ from email import encoders
 import yaml
 import cloudinit
 import cloudinit.util as util
-import md5
+import hashlib
 
 starts_with_mappings={
     '#include' : 'text/x-include-url',
@@ -66,7 +66,7 @@ def do_include(str,parts):
         if line.startswith("#"): continue
 
         # urls cannot not have leading or trailing white space
-        msum = md5.new()
+        msum = hashlib.md5()
         msum.update(line.strip())
         includeonce_filename = "%s/urlcache/%s" % (
             cloudinit.get_ipath_cur("data"), msum.hexdigest())
