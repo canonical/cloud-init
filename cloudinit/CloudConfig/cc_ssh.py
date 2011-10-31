@@ -31,9 +31,10 @@ def handle(name,cfg,cloud,log,args):
     global_log = log
 
     # remove the static keys from the pristine image
-    for f in glob.glob("/etc/ssh/ssh_host_*key*"):
-        try: os.unlink(f)
-        except: pass
+    if cfg.get("ssh_deletekeys", True):
+        for f in glob.glob("/etc/ssh/ssh_host_*key*"):
+            try: os.unlink(f)
+            except: pass
 
     if cfg.has_key("ssh_keys"):
         # if there are keys in cloud-config, use them
@@ -63,8 +64,10 @@ def handle(name,cfg,cloud,log,args):
         # if not, generate them
         for keytype in util.get_cfg_option_list_or_str(cfg, 'ssh_genkeytypes',
                                                        ['rsa', 'dsa', 'ecdsa']):
-            subprocess.call(['ssh-keygen', '-t', keytype, '-N', '',
-                             '-f', '/etc/ssh/ssh_host_%s_key' % keytype])
+            keyfile = '/etc/ssh/ssh_host_%s_key' % keytype
+            if not os.path.exists(keyfile):
+                subprocess.call(['ssh-keygen', '-t', keytype, '-N', '',
+                                 '-f', keyfile])
 
     util.restorecon_if_possible('/etc/ssh', recursive=True)
 
