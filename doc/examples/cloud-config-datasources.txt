@@ -6,7 +6,7 @@ datasource:
     timeout : 2
     # the number of tries that should be attempted at the metadata service
     # after each try, a sleep of int(try_number/5)+1 is done
-    # default sleep is 30
+    # default is 30
     retries : 30
 
     #metadata_url: a list of URLs to check for metadata services
