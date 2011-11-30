@@ -72,8 +72,10 @@ def handle(name,cfg,cloud,log,args):
                 cfgmnt[i][0] = "/dev/%s" % cfgmnt[i][0]
 
         # in case the user did not quote a field (likely fs-freq, fs_passno)
+        # but do not convert None to 'None' (LP: #898365)
         for j in range(len(cfgmnt[i])):
-            cfgmnt[i][j]=str(cfgmnt[i][j])
+            if isinstance(cfgmnt[i][j], int):
+                cfgmnt[i][j]=str(cfgmnt[i][j])
 
     for i in range(len(cfgmnt)):
         # fill in values with defaults from defvals above
