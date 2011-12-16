@@ -27,10 +27,8 @@ def handle(name,cfg,cloud,log,args):
     upgrade = util.get_cfg_option_bool(cfg, 'apt_upgrade', False)
 
     release = get_release()
-    if cfg.has_key("apt_mirror"):
-        mirror = cfg["apt_mirror"]
-    else:
-        mirror = cloud.get_mirror()
+
+    mirror = find_apt_mirror(cloud, cfg)
 
     if not util.get_cfg_option_bool(cfg, \
         'apt_preserve_sources_list', False):
@@ -162,3 +160,46 @@ def add_sources(srclist, searchList={ }):
     return(elst)
 
 
+def find_apt_mirror(cloud, cfg):
+    """ find an apt_mirror given the cloud and cfg provided """
+
+    # TODO: distro and defaults should be configurable
+    distro = "ubuntu"
+    defaults = {
+        'ubuntu': "http://archive.ubuntu.com/ubuntu",
+        'debian': "http://archive.debian.org/debian",
+    }
+    mirror = None
+
+    if cfg.has_key("apt_mirror"):
+        mirror = [cfg["apt_mirror"],]
+    elif cfg.has_key("apt_mirror_search"):
+        mirror = util.search_for_mirror(cfg['apt_mirror_search'])
+    else:
+        if cloud:
+            mirror = cloud.get_mirror()
+
+        mydom = ""
+
+        doms = []
+
+        if not mirror and cloud:
+            # if we have a fqdn, then search its domain portion first
+            ( hostname, fqdn ) = util.get_hostname_fqdn(cfg, cloud)
+            mydom = ".".join(fqdn.split(".")[1:])
+            if mydom:
+                doms.append(".%s" % mydom)
+
+        doms.extend((".localdomain", "",))
+
+        mirror_list = []
+        for post in doms:
+            mirror_list.append("http://ubuntu-mirror%s/ubuntu" % post)
+
+        print "searching %s" % mirror_list
+        mirror = util.search_for_mirror(mirror_list)
+
+    if not mirror:
+        mirror = defaults[distro]
+
+    return mirror

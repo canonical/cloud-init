@@ -69,7 +69,7 @@ class DataSourceEc2(DataSource.DataSource):
         if availability_zone == None:
             availability_zone = self.get_availability_zone()
 
-        fallback = 'http://archive.ubuntu.com/ubuntu/'
+        fallback = None
 
         if self.is_vpc():
             return fallback

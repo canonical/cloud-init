@@ -24,9 +24,11 @@ from Cheetah.Template import Template
 import urllib2
 import urllib
 import logging
+import re
+import socket
 import time
 import traceback
-import re
+import urlparse
 
 try:
     import selinux
@@ -97,7 +99,7 @@ def get_cfg_by_path(yobj,keyp,default=None):
         cur = cur[tok]
     return(cur)
 
-# merge values from src into cand.
+# merge values from cand into source
 # if src has a key, cand will not override
 def mergedict(src,cand):
     if isinstance(src,dict) and isinstance(cand,dict):
@@ -498,3 +500,26 @@ def get_fqdn_from_hosts(hostname, filename="/etc/hosts"):
             pass
 
     return fqdn
+
+def is_resolvable(name):
+    """ determine if a url is resolvable, return a boolean """
+    try:
+        socket.getaddrinfo(name, None)
+        return True
+    except socket.gaierror as e:
+        return False
+
+def is_resolvable_url(url):
+    """ determine if this url is resolvable (existing or ip) """
+    return(is_resolvable(urlparse.urlparse(url).hostname))
+
+def search_for_mirror(candidates):
+    """ Search through a list of mirror urls for one that works """
+    for cand in candidates:
+        try:
+            if is_resolvable_url(cand):
+                return cand
+        except Exception as e:
+            raise
+
+    return None
