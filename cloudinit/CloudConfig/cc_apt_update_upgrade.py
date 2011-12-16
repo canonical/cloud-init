@@ -174,7 +174,7 @@ def find_apt_mirror(cloud, cfg):
     mirror = None
 
     if cfg.has_key("apt_mirror"):
-        mirror = [cfg["apt_mirror"],]
+        mirror = cfg["apt_mirror"]
     elif cfg.has_key("apt_mirror_search"):
         mirror = util.search_for_mirror(cfg['apt_mirror_search'])
     else:
