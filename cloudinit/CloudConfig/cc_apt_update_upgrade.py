@@ -196,8 +196,9 @@ def find_apt_mirror(cloud, cfg):
         doms.extend((".localdomain", "",))
 
         mirror_list = []
+        mirrorfmt = "http://%s-mirror%s/%s" % (distro, "%s", distro )
         for post in doms:
-            mirror_list.append("http://ubuntu-mirror%s/ubuntu" % post)
+            mirror_list.append(mirrorfmt % post)
 
         mirror = util.search_for_mirror(mirror_list)
 
