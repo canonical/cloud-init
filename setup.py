@@ -27,7 +27,7 @@ def is_f(p):
     return(os.path.isfile(p))
 
 setup(name='cloud-init',
-      version='0.6.2',
+      version='0.6.3',
       description='EC2 initialisation magic',
       author='Scott Moser',
       author_email='scott.moser@canonical.com',
