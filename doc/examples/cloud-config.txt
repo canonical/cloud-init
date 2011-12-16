@@ -42,6 +42,9 @@ apt_mirror_search:
  - http://local-mirror.mydomain
  - http://archive.ubuntu.com
 
+# apt_proxy (configure Acquire::HTTP::Proxy)
+apt_proxy: http://my.apt.proxy:3128
+
 # Preserve existing /etc/apt/sources.list
 # Default: overwrite sources_list with mirror.  If this is true
 # then apt_mirror above will have no effect
