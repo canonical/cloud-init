@@ -22,7 +22,12 @@ sed -i -e "s,VERSION,$version," -e "s,REVNO,bzr$revno," \
    "$TEMP_D/cloud-init/debian/changelog"
 cd "${TEMP_D}/cloud-init"
 debuild "$@"
-for x in ../*.deb; do
-   echo wrote ${x##*/}
-done
-mv ../*.deb "${start}"
+#for x in ../*.deb; do
+#   echo wrote ${x##*/}
+#done
+debname="cloud-init_${version}~bzr${revno}-0_all.deb"
+mv "../$debname" "$start"
+link="$start/cloud-init_all.deb"
+echo "wrote $debname"
+[ ! -e "$link" -o -L "$link" ] 
+   { ln -sf "$debname" "$link" && echo "linked ${link##*/}"; }
