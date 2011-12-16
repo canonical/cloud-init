@@ -94,7 +94,7 @@ class DataSource:
         return('en_US.UTF-8')
 
     def get_local_mirror(self):
-        return('http://archive.ubuntu.com/ubuntu/')
+        return None
 
     def get_instance_id(self):
         if 'instance-id' not in self.metadata:
