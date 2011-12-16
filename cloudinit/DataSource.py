@@ -130,7 +130,7 @@ class DataSource:
             # if there is an ipv4 address in 'local-hostname', then
             # make up a hostname (LP: #475354) in format ip-xx.xx.xx.xx
             lhost = self.metadata['local-hostname']
-            if util.is_ipv4(lhost):
+            if is_ipv4(lhost):
                 toks = "ip-%s" % lhost.replace(".","-")
             else:
                 toks = lhost.split(".")
