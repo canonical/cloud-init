@@ -45,7 +45,7 @@ def handle(name,cfg,cloud,log,args):
     proxy_filename = "/etc/apt/apt.conf.d/95cloud-init-proxy"
     if proxy:
         try:
-            contents = "Acquire::HTTP::Proxy:: \"%s\";\n"
+            contents = "Acquire::HTTP::Proxy \"%s\";\n"
             with open(proxy_filename,"w") as fp:
                 fp.write(contents % proxy)
         except Exception as e:
