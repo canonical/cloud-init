@@ -30,6 +30,8 @@ def handle(name,cfg,cloud,log,args):
 
     mirror = find_apt_mirror(cloud, cfg)
 
+    log.debug("selected mirror at: %s" % mirror)
+
     if not util.get_cfg_option_bool(cfg, \
         'apt_preserve_sources_list', False):
         generate_sources_list(release, mirror)
@@ -196,7 +198,6 @@ def find_apt_mirror(cloud, cfg):
         for post in doms:
             mirror_list.append("http://ubuntu-mirror%s/ubuntu" % post)
 
-        print "searching %s" % mirror_list
         mirror = util.search_for_mirror(mirror_list)
 
     if not mirror:
