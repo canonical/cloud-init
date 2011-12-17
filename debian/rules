@@ -1,7 +1,6 @@
 #!/usr/bin/make -f
 
-DEB_PYTHON_SYSTEM := pycentral
-export DH_PYCENTRAL=include-links
+DEB_PYTHON2_MODULE_PACKAGES = cloud-init
 
 binary-install/cloud-init::cloud-init-fixups
 
