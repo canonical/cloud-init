@@ -114,7 +114,7 @@ class DataSourceEc2(DataSource.DataSource):
         starttime = time.time()
 
         # Remove addresses from the list that wont resolve.
-        filtered = [x for x in mdurls if try_to_resolve_metadata(x)]
+        filtered = [x for x in mdurls if util.is_resolvable_url(x)]
 
         if set(filtered) != set(mdurls):
             log.debug("removed the following from metadata urls: %s" %
@@ -220,15 +220,6 @@ class DataSourceEc2(DataSource.DataSource):
             (p4 not in self.metadata or self.metadata[p4] == "")):
             return True
         return False
-
-def try_to_resolve_metadata(url):
-    try:
-        addr = urlparse.urlsplit(url).netloc.split(":")[0]
-        socket.getaddrinfo(addr, None)
-        return True
-    except Exception as e:
-        return False
-
 
 datasources = [ 
   ( DataSourceEc2, ( DataSource.DEP_FILESYSTEM , DataSource.DEP_NETWORK ) ),
