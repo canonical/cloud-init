@@ -34,6 +34,8 @@ def warn(wstr):
     sys.stderr.write("WARN:%s" % wstr)
 
 def main():
+    util.close_stdin()
+
     cmds = ( "start", "start-local" )
     deps = { "start" : ( ds.DEP_FILESYSTEM, ds.DEP_NETWORK ),
              "start-local" : ( ds.DEP_FILESYSTEM, ) }

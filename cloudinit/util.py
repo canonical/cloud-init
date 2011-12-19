@@ -26,6 +26,7 @@ import urllib
 import logging
 import re
 import socket
+import sys
 import time
 import traceback
 import urlparse
@@ -523,3 +524,16 @@ def search_for_mirror(candidates):
             raise
 
     return None
+
+def close_stdin():
+   """
+   reopen stdin as /dev/null so even subprocesses or other os level things get
+   /dev/null as input.
+
+   if _CLOUD_INIT_SAVE_STDIN is set in environment to a non empty or '0' value
+   then input will not be closed (only useful potentially for debugging).
+   """
+   if os.environ.get("_CLOUD_INIT_SAVE_STDIN") in ("", "0", False):
+      return
+   with open(os.devnull) as fp:
+       os.dup2(fp.fileno(), sys.stdin.fileno())

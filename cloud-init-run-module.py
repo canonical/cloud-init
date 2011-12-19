@@ -25,6 +25,8 @@ def Usage(out = sys.stdout):
     out.write("Usage: cloud-init-run-module freq sem-name mod-name [args]\n")
     
 def main():
+    util.close_stdin()
+
     # expect to be called with
     #   <freq> <semaphore-name> <module-name> args
     if len(sys.argv) < 4:
