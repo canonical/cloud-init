@@ -35,6 +35,8 @@ def main():
     #   read cloud config jobs from config (builtin -> system)
     #   and run all in order
 
+    util.close_stdin()
+
     modename = "config"
     
     if len(sys.argv) < 2:
