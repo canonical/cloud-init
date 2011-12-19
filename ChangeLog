@@ -6,6 +6,8 @@
  - support configuration of mirror based on dns name ubuntu-mirror in
    local domain.
  - support setting of Acquire::HTTP::Proxy via 'apt_proxy'
+ - DataSourceEc2: more resilliant to slow metadata service
+   - config change: 'retries' dropped, 'max_wait' added, timeout increased
 0.6.2:
  - fix bug where update was not done unless update was explicitly set.
    It would not be run if 'upgrade' or packages were set to be installed
