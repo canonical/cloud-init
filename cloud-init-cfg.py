@@ -19,6 +19,7 @@
 
 import sys
 import cloudinit
+import cloudinit.util as util
 import cloudinit.CloudConfig as CC
 import logging
 import os
