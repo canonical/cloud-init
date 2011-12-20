@@ -19,6 +19,7 @@
 
 import sys
 import cloudinit
+import cloudinit.util as util
 import logging
 
 def Usage(out = sys.stdout):
