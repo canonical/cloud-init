@@ -1,7 +1,7 @@
 #!/bin/sh
 
-DATA_PRE="/var/lib/cloud/data/bootper"
-INST_PRE="/var/lib/cloud/instance/bootper"
+DATA_PRE="/var/lib/cloud/sem/bootper"
+INST_PRE="/var/lib/cloud/instance/sem/bootper"
 
 Usage() {
    cat <<EOF
