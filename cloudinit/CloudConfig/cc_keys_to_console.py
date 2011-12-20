@@ -16,15 +16,20 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 from cloudinit.CloudConfig import per_instance
+import cloudinit.util as util
 import subprocess
 
 frequency = per_instance
 
 def handle(name,cfg,cloud,log,args):
-    write_ssh_prog='/usr/lib/cloud-init/write-ssh-key-fingerprints'
+    cmd = [ '/usr/lib/cloud-init/write-ssh-key-fingerprints' ]
+    fp_blacklist = util.get_cfg_option_list_or_str(cfg, "ssh_fp_console_blacklist", [])
+    key_blacklist = util.get_cfg_option_list_or_str(cfg, "ssh_key_console_blacklist", ["ssh-dss"])
     try:
         confp = open('/dev/console',"wb")
-        subprocess.call(write_ssh_prog,stdout=confp)
+        cmd.append(','.join(fp_blacklist))
+        cmd.append(','.join(key_blacklist))
+        subprocess.call(cmd, stdout=confp)
         confp.close()
     except:
         log.warn("writing keys to console value")

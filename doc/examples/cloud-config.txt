@@ -546,3 +546,10 @@ manual_cache_clean: False
 # ssh_genkeytypes: ['rsa', 'dsa', 'ecdsa']
 #    a list of the ssh key types that should be generated
 #    These are passed to 'ssh-keygen -t'
+
+## configuration of ssh keys output to console
+# ssh_fp_console_blacklist: []
+# ssh_key_console_blacklist: [ssh-dss]
+#   A list of key types (first token of a /etc/ssh/ssh_key_*.pub file)
+#   that should be skipped when outputting key fingerprints and keys
+#   to the console respectively.
