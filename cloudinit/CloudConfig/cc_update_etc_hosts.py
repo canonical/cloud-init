@@ -24,25 +24,29 @@ frequency = per_always
 def handle(name,cfg,cloud,log,args):
     ( hostname, fqdn ) = util.get_hostname_fqdn(cfg, cloud)
 
-    use_template = util.get_cfg_option_bool(cfg,"manage_etc_hosts", False)
-    if not use_template:
-        # manage_etc_hosts not true, update the 127.0.1.1 entry via update_etc_hosts
-        log.debug("manage_etc_hosts is not set, checking sanity of /etc/hosts")
+    manage_hosts = util.get_cfg_option_bool(cfg,"manage_etc_hosts", False)
+    if manage_hosts in ("True", "true", True, "template"):
+        # render from template file
+        try:
+            if not hostname:
+                log.info("manage_etc_hosts was set, but no hostname found")
+                return
+
+            util.render_to_file('hosts', '/etc/hosts', \
+                { 'hostname' : hostname, 'fqdn' : fqdn })
+        except Exception as e:
+            log.warn("failed to update /etc/hosts")
+            raise
+    elif manage_hosts == "localhost":
+        log.debug("managing 127.0.1.1 in /etc/hosts")
         update_etc_hosts(hostname, fqdn, log)
         return
+    else:
+        if manage_hosts not in ("False", False):
+            log.warn("Unknown value for manage_etc_hosts.  Assuming False")
+        else:
+            log.debug("not managing /etc/hosts")
 
-    # manage_etc_hosts is set, render from template file
-    try:
-        if not hostname:
-            log.info("manage_etc_hosts was set, but no hostname found")
-            return
-
-        util.render_to_file('hosts', '/etc/hosts', \
-            { 'hostname' : hostname, 'fqdn' : fqdn })
-
-    except Exception as e:
-        log.warn("failed to update /etc/hosts")
-        raise
 
 def update_etc_hosts(hostname, fqdn, log):
      with open('/etc/hosts', 'r') as etchosts:
