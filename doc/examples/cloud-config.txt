@@ -341,48 +341,80 @@ rsyslog:
 resize_rootfs: True
 
 ## hostname and /etc/hosts management
-# cloud-init will do its best to set up a sane hostname and corresponding
-# entries in /etc/hosts.
+# cloud-init can handle updating some entries in /etc/hosts,
+# and can set your hostname for you.
 #
-# if you do nothing, you should get the system generally correctly
-# configured.
-#  * /etc/hostname (and thus `hostname` output) set with hostname (not fqdn)
-#  * an entry in /etc/hosts for both hostname and fqdn
-#    that are obtained from the metadata service
-#  * On each boot, the above will again be set
-#  * cloud-init generally "owns" the 127.0.1.1 entry.  The
-#    rest of the file will not be modified
+# if you do nothing you'll end up with:
+#  * /etc/hostname (and `hostname`) managed via: 'preserve_hostame: false'
+#    if you do not change /etc/hostname, it will be updated with the cloud
+#    provided hostname on each boot.  If you make a change, then manual
+#    maintenance takes over, and cloud-init will not modify it.
+#
+#  * /etc/hosts managed via: 'manage_etc_hosts: false'
+#    cloud-init will not manage /etc/hosts at all.  It is in full manual
+#    maintenance mode.
 #
 # You can change the above behavior with the following config variables:
 #  Remember that these can be set in cloud-config via user-data,
 #  /etc/cloud/cloud.cfg or any file in /etc/cloud/cloud.cfg.d/
 #
-# hostname:
-#   this option will be used wherever the 'hostname' is needed
-#   simply substitute it in the description above.
-#   ** If you wish to set your hostname, set it here **
-#   default: 'hostname' as returned by the metadata service
-#       on EC2, the hostname portion of 'local-hostname' is used
-#       which is something like 'ip-10-244-170-199'
+# == Hostname management (via /etc/hostname) ==
+#  * preserve_hostname:
+#      default: False
+#      If this option is set to True, then /etc/hostname will never updated
+#      The default behavior is to update it if it has not been modified by
+#      the user.
 #
-# fqdn:
-#   this option will be used wherever 'fqdn' is needed.
-#   simply substitue it in the description above.
-#   default: fqdn as returned by the metadata service.  on EC2 'hostname'
-#       is used, so this is like: ip-10-244-170-199.ec2.internal
-# 
-# manage_etc_hosts:
-#   default: false
-#   Setting this config variable to 'true' will mean that on every
-#   boot, /etc/hosts will be re-written from /etc/cloud/templates/hosts.tmpl
-#   The strings '$hostname' and '$fqdn' are replaced in the template
-#   with the appropriate values.
+#  * hostname:
+#      this option will be used wherever the 'hostname' is needed
+#      simply substitute it in the description above.
+#      ** If you wish to set your hostname, set it here **
+#      default: 'hostname' as returned by the metadata service
+#               on EC2, the hostname portion of 'local-hostname' is used
+#               which is something like 'ip-10-244-170-199'
 #
-# preserve_hostname:
-#   default: False
-#   If this option is set to True, then /etc/hostname will never updated
-#   The default behavior is to update it if it has not been modified by
-#   the user.
+#  * fqdn:
+#      this option will be used wherever 'fqdn' is needed.
+#      simply substitue it in the description above.
+#      default: fqdn as returned by the metadata service.  on EC2 'hostname'
+#               is used, so this is like: ip-10-244-170-199.ec2.internal
+#
+# == /etc/hosts management ==
+#
+# The cloud-config variable that covers management of /etc/hosts is 
+# 'manage_etc_hosts'
+#
+# By default, its value is 'false' (boolean False)
+#
+#  * manage_etc_hosts:
+#      default: false
+#
+#    false:
+#      cloud-init will not modify /etc/hosts at all.  
+#      * Whatever is present at instance boot time will be present after boot.
+#      * User changes will not be overwritten
+#
+#    true or 'template':
+#      on every boot, /etc/hosts will be re-written from 
+#      /etc/cloud/templates/hosts.tmpl.
+#      The strings '$hostname' and '$fqdn' are replaced in the template
+#      with the appropriate values.
+#      To make modifications persistant across a reboot, you must make 
+#      modificatoins to /etc/cloud/templates/hosts.tmpl
+#
+#    localhost:
+#      This option ensures that an entry is present for fqdn as described in
+#      section 5.1.2 of the debian manual 
+#      http://www.debian.org/doc/manuals/debian-reference/ch05.en.html
+#
+#      cloud-init will generally own the 127.0.1.1 entry, and will update 
+#      it to the hostname and fqdn on every boot.  All other entries will
+#      be left as is.  'ping `hostname`' will ping 127.0.1.1
+#
+#      If you want a fqdn entry with aliases other than 'hostname' to resolve
+#      to a localhost interface, you'll need to use something other than 
+#      127.0.1.1.  For example:
+#        127.0.1.2 myhost.fqdn.example.com myhost whatup.example.com
 
 # final_message
 # default: cloud-init boot finished at $TIMESTAMP. Up $UPTIME seconds
