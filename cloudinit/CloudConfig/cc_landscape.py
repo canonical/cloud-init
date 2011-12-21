@@ -56,10 +56,8 @@ def mergeTogether(objs):
     merge together ConfigObj objects or things that ConfigObj() will take in
     later entries override earlier
     """
-    if len(objs) == 0:
-        return { }
-    cfg = ConfigObj(objs[1])
-    for obj in objs[1:]:
+    cfg = ConfigObj({})
+    for obj in objs:
         if isinstance(obj, ConfigObj):
             cfg.merge(obj)
         else:
