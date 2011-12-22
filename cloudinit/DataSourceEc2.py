@@ -48,8 +48,10 @@ class DataSourceEc2(DataSource.DataSource):
         try:
             if not self.wait_for_metadata_service():
                 return False
+            start = time.time()
             self.userdata_raw = boto_utils.get_instance_userdata(self.api_ver, None, self.metadata_address)
             self.metadata = boto_utils.get_instance_metadata(self.api_ver, self.metadata_address)
+            log.debug("crawl of metadata service took %ds" % (time.time()-start))
             return True
         except Exception as e:
             print e
@@ -69,7 +71,7 @@ class DataSourceEc2(DataSource.DataSource):
         if availability_zone == None:
             availability_zone = self.get_availability_zone()
 
-        fallback = 'http://archive.ubuntu.com/ubuntu/'
+        fallback = None
 
         if self.is_vpc():
             return fallback
@@ -81,40 +83,34 @@ class DataSourceEc2(DataSource.DataSource):
         except:
             return fallback
 
-
-    def wait_for_metadata_service(self, sleeps = None):
+    def wait_for_metadata_service(self):
         mcfg = self.ds_cfg
-        if sleeps is None:
-            sleeps = 30
-            try:
-                sleeps = int(mcfg.get("retries",sleeps))
-            except Exception as e:
-                util.logexc(log)
-                log.warn("Failed to get number of sleeps, using %s" % sleeps)
 
-        if sleeps == 0: return False
+        if not hasattr(mcfg, "get"):
+            mcfg =  {}
 
-        timeout=3
+        max_wait = 120
+        try:
+            max_wait = int(mcfg.get("max_wait",max_wait))
+        except Exception as e:
+            util.logexc(log)
+            log.warn("Failed to get max wait. using %s" % max_wait)
+
+        if max_wait == 0:
+            return False
+
+        timeout = 50
         try:
             timeout = int(mcfg.get("timeout",timeout))
         except Exception as e:
             util.logexc(log)
             log.warn("Failed to get timeout, using %s" % timeout)
 
-        sleeptime = 1
-
         def_mdurls = ["http://169.254.169.254", "http://instance-data:8773"]
-        try:
-            mdurls = mcfg.get("metadata_urls", def_mdurls)
-        except Exception as e:
-            mdurls = def_mdurls
-            util.logexc(log)
-            log.warn("Failed to get metadata URLs, using defaults")
-
-        starttime = time.time()
+        mdurls = mcfg.get("metadata_urls", def_mdurls)
 
         # Remove addresses from the list that wont resolve.
-        filtered = [x for x in mdurls if try_to_resolve_metadata(x)]
+        filtered = [x for x in mdurls if util.is_resolvable_url(x)]
 
         if set(filtered) != set(mdurls):
             log.debug("removed the following from metadata urls: %s" %
@@ -126,41 +122,25 @@ class DataSourceEc2(DataSource.DataSource):
             log.warn("Empty metadata url list! using default list")
             mdurls = def_mdurls
 
-        log.debug("Searching the following metadata urls: %s" % mdurls)
+        urls = [ ]
+        url2base = { False: False }
+        for url in mdurls:
+            cur = "%s/%s/meta-data/instance-id" % (url, self.api_ver)
+            urls.append(cur)
+            url2base[cur] = url
 
-        for x in range(sleeps):
-            for url in mdurls:
-                iurl="%s/%s/meta-data/instance-id" % (url, self.api_ver)
+        starttime = time.time()
+        url = wait_for_metadata_service(urls=urls, max_wait=max_wait,
+                  timeout=timeout, status_cb=log.warn)
 
-                # given 100 sleeps, this ends up total sleep time of 1050 sec
-                sleeptime=int(x/5)+1
+        if url:
+            log.debug("Using metadata source: '%s'" % url2base[url])
+        else:
+            log.critical("giving up on md after %i seconds\n" %
+                         int(time.time()-starttime))
 
-                reason = ""
-                try:
-                    req = urllib2.Request(iurl)
-                    resp = urllib2.urlopen(req, timeout=timeout)
-                    if resp.read() != "":
-                        self.metadata_address = url
-                        log.debug("Using metadata source: '%s'" % url)
-                        return True
-                    reason = "empty data [%s]" % resp.getcode()
-                except urllib2.HTTPError as e:
-                    reason = "http error [%s]" % e.code
-                except urllib2.URLError as e:
-                    reason = "url error [%s]" % e.reason
-                except socket.timeout as e:
-                    reason = "socket timeout [%s]" % e
-
-                #not needed? Addresses being checked are displayed above
-                #if x == 0:
-                #    log.warn("waiting for metadata service at %s" % url)
-
-                log.warn("'%s' failed: %s" % (url, reason))
-            time.sleep(sleeptime)
-
-        log.critical("giving up on md after %i seconds\n" %
-                  int(time.time()-starttime))
-        return False
+        self.metadata_address = url2base[url]
+        return (bool(url))
 
     def device_name_to_device(self, name):
         # consult metadata service, that has
@@ -221,13 +201,82 @@ class DataSourceEc2(DataSource.DataSource):
             return True
         return False
 
-def try_to_resolve_metadata(url):
-    try:
-        addr = urlparse.urlsplit(url).netloc.split(":")[0]
-        socket.getaddrinfo(addr, None)
-        return True
-    except Exception as e:
-        return False
+
+def wait_for_metadata_service(urls, max_wait=None, timeout=None, status_cb=None):
+    """
+    urls:      a list of urls to try
+    max_wait:  roughly the maximum time to wait before giving up
+               The max time is *actually* len(urls)*timeout as each url will
+               be tried once and given the timeout provided.
+    timeout:   the timeout provided to urllib2.urlopen
+    status_cb: call method with string message when a url is not available
+      
+    the idea of this routine is to wait for the EC2 metdata service to
+    come up.  On both Eucalyptus and EC2 we have seen the case where
+    the instance hit the MD before the MD service was up.  EC2 seems
+    to have permenantely fixed this, though.
+
+    In openstack, the metadata service might be painfully slow, and
+    unable to avoid hitting a timeout of even up to 10 seconds or more
+    (LP: #894279) for a simple GET.
+
+    Offset those needs with the need to not hang forever (and block boot)
+    on a system where cloud-init is configured to look for EC2 Metadata
+    service but is not going to find one.  It is possible that the instance
+    data host (169.254.169.254) may be firewalled off Entirely for a sytem,
+    meaning that the connection will block forever unless a timeout is set.
+    """
+    starttime = time.time()
+
+    sleeptime = 1
+    timeout_orig = timeout
+
+    if status_cb == None:
+        def status_cb(msg): return
+
+    def timeup(max_wait, starttime):
+        return((max_wait <= 0 or max_wait == None) or
+               (time.time()-starttime > max_wait))
+
+    loop_n = 0
+    while True:
+        sleeptime=int(loop_n/5)+1
+        for url in urls:
+            now = time.time()
+            if loop_n != 0:
+                if timeup(max_wait, starttime):
+                    break
+                if timeout and (now + timeout > (starttime + max_wait)):
+                    # shorten timeout to not run way over max_time
+                    timeout = int((starttime + max_wait) - now)
+
+            reason = ""
+            try:
+                req = urllib2.Request(url)
+                resp = urllib2.urlopen(req, timeout=timeout)
+                if resp.read() != "":
+                    return url
+                reason = "empty data [%s]" % resp.getcode()
+            except urllib2.HTTPError as e:
+                reason = "http error [%s]" % e.code
+            except urllib2.URLError as e:
+                reason = "url error [%s]" % e.reason
+            except socket.timeout as e:
+                reason = "socket timeout [%s]" % e
+            except Exception as e:
+                reason = "unexpected error [%s]" % e
+
+            if log:
+                status_cb("'%s' failed [%s/%ss]: %s" %
+                          (url, int(time.time()-starttime), max_wait, reason))
+
+        if timeup(max_wait, starttime):
+            break
+
+        loop_n = loop_n + 1
+        time.sleep(sleeptime)
+
+    return False
 
 
 datasources = [ 

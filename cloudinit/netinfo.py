@@ -63,7 +63,7 @@ def debug_info(pre="ci-info: "):
         netdev = netdev_info()
     except Exception as e:
         lines.append("netdev_info failed!")
-        netdev = []
+        netdev = {}
     for (dev, d) in netdev.iteritems():
         lines.append("%s%-6s: %i %-15s %-15s %s" %
             (pre, dev, d["up"], d["addr"],d["mask"], d["hwaddr"]))

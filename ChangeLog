@@ -1,3 +1,22 @@
+0.6.3:
+ - add sample systemd config files [Garrett Holmstrom]
+ - add Fedora support [Garrent Holstrom] (LP: #883286)
+ - fix bug in netinfo.debug_info if no net devices available (LP: #883367)
+ - use python module hashlib rather than md5 to avoid deprecation warnings.
+ - support configuration of mirror based on dns name ubuntu-mirror in
+   local domain.
+ - support setting of Acquire::HTTP::Proxy via 'apt_proxy'
+ - DataSourceEc2: more resilliant to slow metadata service
+   - config change: 'retries' dropped, 'max_wait' added, timeout increased
+ - close stdin in all cloud-init programs that are launched at boot (LP: #903993)
+ - revert management of /etc/hosts to 0.6.1 style (LP: #890501, LP: #871966)
+ - write full ssh keys to console for easy machine consumption (LP: #893400)
+ - put INSTANCE_ID environment variable in bootcmd scripts
+ - add 'cloud-init-per' script for easily running things with a given frequency
+ - replace cloud-init-run-module with cloud-init-per
+ - support configuration of landscape-client via cloud-config (LP: #857366)
+ - part-handlers now get base64 decoded content rather than 2xbase64 encoded
+   in the payload parameter. (LP: #874342)
 0.6.2:
  - fix bug where update was not done unless update was explicitly set.
    It would not be run if 'upgrade' or packages were set to be installed

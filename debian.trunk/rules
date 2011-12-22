@@ -1,7 +1,6 @@
 #!/usr/bin/make -f
 
-DEB_PYTHON_SYSTEM := pycentral
-export DH_PYCENTRAL=include-links
+DEB_PYTHON2_MODULE_PACKAGES = cloud-init
 
 binary-install/cloud-init::cloud-init-fixups
 
@@ -14,6 +13,7 @@ cloud-init-fixups:
 	for x in $(DEB_DESTDIR)/usr/bin/*.py; do mv "$$x" "$${x%.py}"; done
 	install -d $(DEB_DESTDIR)/etc/rsyslog.d
 	cp tools/21-cloudinit.conf $(DEB_DESTDIR)/etc/rsyslog.d/21-cloudinit.conf
+	ln -sf cloud-init-per $(DEB_DESTDIR)/usr/bin/cloud-init-run-module
 
 # You only need to run this immediately after checking out the package from
 # revision control.

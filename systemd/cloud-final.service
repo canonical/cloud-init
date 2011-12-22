@@ -1,0 +1,13 @@
+[Unit]
+Description=Execute cloud user/final scripts
+After=network.target syslog.target cloud-config.service rc-local.service
+Requires=cloud-config.target
+Wants=network.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/cloud-init-cfg all final
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

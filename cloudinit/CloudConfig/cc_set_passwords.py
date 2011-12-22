@@ -104,7 +104,7 @@ def handle(name,cfg,cloud,log,args):
             errors.append(e)
 
         try:
-            p = util.subp(['service', 'ssh', 'restart'])
+            p = util.subp(['service', cfg.get('ssh_svcname', 'ssh'), 'restart'])
             log.debug("restarted sshd")
         except:
             log.warn("restart of ssh failed")

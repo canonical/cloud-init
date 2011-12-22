@@ -94,7 +94,7 @@ class DataSource:
         return('en_US.UTF-8')
 
     def get_local_mirror(self):
-        return('http://archive.ubuntu.com/ubuntu/')
+        return None
 
     def get_instance_id(self):
         if 'instance-id' not in self.metadata:
@@ -127,16 +127,13 @@ class DataSource:
 
 
         else:
-            toks = self.metadata['local-hostname'].split('.')
             # if there is an ipv4 address in 'local-hostname', then
-            # make up a hostname (LP: #475354)
-            if len(toks) == 4:
-                try:
-                    r = filter(lambda x: int(x) < 256 and x > 0, toks)
-                    if len(r) == 4:
-                        toks = [ "ip-%s" % '-'.join(r) ]
-                except:
-                    pass
+            # make up a hostname (LP: #475354) in format ip-xx.xx.xx.xx
+            lhost = self.metadata['local-hostname']
+            if is_ipv4(lhost):
+                toks = "ip-%s" % lhost.replace(".","-")
+            else:
+                toks = lhost.split(".")
 
         if len(toks) > 1:
             hostname = toks[0]
@@ -191,3 +188,17 @@ def list_from_depends(depends, dslist):
         if depset == set(deps):
             retlist.append(cls)
     return(retlist)
+
+
+def is_ipv4(instr):
+    """ determine if input string is a ipv4 address. return boolean"""
+    toks = instr.split('.')
+    if len(toks) != 4:
+        return False
+
+    try:
+        r = filter(lambda x: int(x) < 256 and x > 0, toks)
+    except:
+        return False
+
+    return True

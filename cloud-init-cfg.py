@@ -19,6 +19,7 @@
 
 import sys
 import cloudinit
+import cloudinit.util as util
 import cloudinit.CloudConfig as CC
 import logging
 import os
@@ -34,6 +35,8 @@ def main():
     # or
     #   read cloud config jobs from config (builtin -> system)
     #   and run all in order
+
+    util.close_stdin()
 
     modename = "config"
     

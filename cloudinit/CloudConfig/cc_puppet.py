@@ -16,12 +16,14 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 import os
+import os.path
 import pwd
 import socket
 import subprocess
 import StringIO
 import ConfigParser
 import cloudinit.CloudConfig as cc
+import cloudinit.util as util
 
 def handle(name,cfg,cloud,log,args):
     # If there isn't a puppet key in the configuration don't do anything
@@ -58,6 +60,7 @@ def handle(name,cfg,cloud,log,args):
                 ca_fh.close()
                 os.chown('/var/lib/puppet/ssl/certs/ca.pem',
                          pwd.getpwnam('puppet').pw_uid, 0)
+                util.restorecon_if_possible('/var/lib/puppet', recursive=True)
             else:
                 #puppet_conf_fh.write("\n[%s]\n" % (cfg_name))
                 # If puppet.conf already has this section we don't want to write it again
@@ -81,10 +84,18 @@ def handle(name,cfg,cloud,log,args):
             os.rename('/etc/puppet/puppet.conf','/etc/puppet/puppet.conf.old')
             with open('/etc/puppet/puppet.conf', 'wb') as configfile:
                 puppet_config.write(configfile)
-    # Set puppet default file to automatically start
-    subprocess.check_call(['sed', '-i',
-                           '-e', 's/^START=.*/START=yes/',
-                           '/etc/default/puppet'])
+            util.restorecon_if_possible('/etc/puppet/puppet.conf')
+    # Set puppet to automatically start
+    if os.path.exists('/etc/default/puppet'):
+        subprocess.check_call(['sed', '-i',
+                               '-e', 's/^START=.*/START=yes/',
+                               '/etc/default/puppet'])
+    elif os.path.exists('/bin/systemctl'):
+        subprocess.check_call(['/bin/systemctl', 'enable', 'puppet.service'])
+    elif os.path.exists('/sbin/chkconfig'):
+        subprocess.check_call(['/sbin/chkconfig', 'puppet', 'on'])
+    else:
+        log.warn("Do not know how to enable puppet service on this system")
     # Start puppetd
     subprocess.check_call(['service', 'puppet', 'start'])
 

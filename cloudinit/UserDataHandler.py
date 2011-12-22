@@ -24,7 +24,9 @@ from email import encoders
 import yaml
 import cloudinit
 import cloudinit.util as util
-import md5
+import hashlib
+import os
+import urllib
 
 starts_with_mappings={
     '#include' : 'text/x-include-url',
@@ -47,13 +49,12 @@ def decomp_str(str):
     except:
         return(str)
 
-def do_include(str,parts):
-    import urllib
+def do_include(content, appendmsg):
     import os
     # is just a list of urls, one per line
     # also support '#include <url here>'
     includeonce = False
-    for line in str.splitlines():
+    for line in content.splitlines():
         if line == "#include": continue
         if line == "#include-once":
             includeonce = True
@@ -66,7 +67,7 @@ def do_include(str,parts):
         if line.startswith("#"): continue
 
         # urls cannot not have leading or trailing white space
-        msum = md5.new()
+        msum = hashlib.md5()
         msum.update(line.strip())
         includeonce_filename = "%s/urlcache/%s" % (
             cloudinit.get_ipath_cur("data"), msum.hexdigest())
@@ -81,31 +82,70 @@ def do_include(str,parts):
         except Exception as e:
             raise
 
-        process_includes(email.message_from_string(decomp_str(content)),parts)
+        process_includes(message_from_string(decomp_str(content)), appendmsg)
 
 
-def explode_cc_archive(archive,parts):
+def explode_cc_archive(archive, appendmsg):
     for ent in yaml.load(archive):
         # ent can be one of:
         #  dict { 'filename' : 'value' , 'content' : 'value', 'type' : 'value' }
         #    filename and type not be present
         # or
         #  scalar(payload)
-        filename = 'part-%03d' % len(parts['content'])
+        
         def_type = "text/cloud-config"
         if isinstance(ent,str):
-            content = ent
-            mtype = type_from_startswith(content,def_type)
-        else:
-            content = ent.get('content', '')
-            filename = ent.get('filename', filename)
-            mtype = ent.get('type', None)
-            if mtype == None:
-                mtype = type_from_startswith(payload,def_type)
+            ent = { 'content': ent }
 
-        parts['content'].append(content)
-        parts['names'].append(filename)
-        parts['types'].append(mtype)
+        content = ent.get('content', '')
+        mtype = ent.get('type', None)
+        if mtype == None:
+            mtype = type_from_startswith(content, def_type)
+
+        maintype, subtype = mtype.split('/', 1)
+        if maintype == "text":
+            msg = MIMEText(content, _subtype=subtype)
+        else:
+            msg = MIMEBase(maintype, subtype)
+            msg.set_payload(content)
+
+        if 'filename' in ent:
+            msg.add_header('Content-Disposition', 'attachment',
+                           filename=ent['filename'])
+
+        for header in ent.keys():
+            if header in ('content', 'filename', 'type'):
+                continue
+            msg.add_header(header, ent['header'])
+
+        _attach_part(appendmsg,msg)
+
+
+def multi_part_count(outermsg, newcount=None):
+    """
+    Return the number of attachments to this MIMEMultipart by looking
+    at its 'Number-Attachments' header.
+    """
+    nfield = 'Number-Attachments'
+    if nfield not in outermsg:
+        outermsg[nfield] = "0"
+
+    if newcount != None:
+        outermsg.replace_header(nfield, str(newcount))
+
+    return(int(outermsg.get('Number-Attachments', 0)))
+
+def _attach_part(outermsg, part):
+    """
+    Attach an part to an outer message. outermsg must be a MIMEMultipart.
+    Modifies a header in outermsg to keep track of number of attachments.
+    """
+    cur = multi_part_count(outermsg)
+    if not part.get_filename(None):
+        part.add_header('Content-Disposition', 'attachment',
+            filename = 'part-%03d' % (cur+1))
+    outermsg.attach(part)
+    multi_part_count(outermsg, cur+1)
     
 def type_from_startswith(payload, default=None):
     # slist is sorted longest first
@@ -115,85 +155,69 @@ def type_from_startswith(payload, default=None):
             return(starts_with_mappings[sstr])
     return default
 
-def process_includes(msg,parts):
-    # parts is a dictionary of arrays
-    # parts['content']
-    # parts['names']
-    # parts['types']
-    for t in ( 'content', 'names', 'types' ):
-        if not parts.has_key(t):
-            parts[t]=[ ]
+def process_includes(msg, appendmsg=None):
+    if appendmsg == None:
+        appendmsg = MIMEMultipart()
+
     for part in msg.walk():
         # multipart/* are just containers
         if part.get_content_maintype() == 'multipart':
             continue
 
-        payload = part.get_payload()
-
         ctype = None
         ctype_orig = part.get_content_type()
+
+        payload = part.get_payload(decode=True)
+
         if ctype_orig == "text/plain":
             ctype = type_from_startswith(payload)
 
         if ctype is None:
             ctype = ctype_orig
 
-        if ctype == 'text/x-include-url':
-            do_include(payload,parts)
-            continue
-
-        if ctype == 'text/x-include-once-url':
-            do_include(payload,parts)
+        if ctype in ('text/x-include-url', 'text/x-include-once-url'):
+            do_include(payload, appendmsg)
             continue
 
         if ctype == "text/cloud-config-archive":
-            explode_cc_archive(payload,parts)
+            explode_cc_archive(payload, appendmsg)
             continue
 
-        filename = part.get_filename()
-        if not filename:
-            filename = 'part-%03d' % len(parts['content'])
-
-        parts['content'].append(payload)
-        parts['types'].append(ctype)
-        parts['names'].append(filename)
-
-def parts2mime(parts):
-    outer = MIMEMultipart()
-
-    i = 0
-    while i < len(parts['content']):
-        if parts['types'][i] is None:
-            # No guess could be made, or the file is encoded (compressed), so
-            # use a generic bag-of-bits type.
-            ctype = 'application/octet-stream'
-        else: ctype = parts['types'][i]
-        maintype, subtype = ctype.split('/', 1)
-        if maintype == 'text':
-            msg = MIMEText(parts['content'][i], _subtype=subtype)
+        if 'Content-Type' in msg:
+            msg.replace_header('Content-Type', ctype)
         else:
-            msg = MIMEBase(maintype, subtype)
-            msg.set_payload(parts['content'][i])
-            # Encode the payload using Base64
-            encoders.encode_base64(msg)
-        # Set the filename parameter
-        msg.add_header('Content-Disposition', 'attachment', 
-            filename=parts['names'][i])
-        outer.attach(msg)
+            msg['Content-Type'] = ctype
 
-        i=i+1
-    return(outer.as_string())
+        _attach_part(appendmsg, part)
+
+def message_from_string(data, headers={}):
+    if "mime-version:" in data[0:4096].lower():
+        was_mime = True
+        msg = email.message_from_string(data)
+        for (key,val) in headers.items():
+            if key in msg:
+                msg.replace_header(key,val)
+            else:
+                msg[key] = val
+    else:
+        was_mime = False
+        mtype = headers.get("Content-Type","text/plain")
+        maintype, subtype = mtype.split("/", 1)
+        msg = MIMEBase(maintype, subtype, *headers)
+        msg.set_payload(data)
+
+    return(msg)
 
 # this is heavily wasteful, reads through userdata string input
 def preprocess_userdata(data):
-    parts = { }
-    process_includes(email.message_from_string(decomp_str(data)),parts)
-    return(parts2mime(parts))
+    newmsg = MIMEMultipart()
+    process_includes(message_from_string(decomp_str(data)), newmsg)
+    return(newmsg.as_string())
 
 # callback is a function that will be called with (data, content_type, filename, payload)
 def walk_userdata(istr, callback, data = None):
     partnum = 0
-    for part in email.message_from_string(istr).walk():
+    for part in message_from_string(istr).walk():
         # multipart/* are just containers
         if part.get_content_maintype() == 'multipart':
             continue
@@ -206,14 +230,14 @@ def walk_userdata(istr, callback, data = None):
         if not filename:
             filename = 'part-%03d' % partnum
 
-        callback(data, ctype, filename, part.get_payload())
+        callback(data, ctype, filename, part.get_payload(decode=True))
 
         partnum = partnum+1
 
 if __name__ == "__main__":
     import sys
     data = decomp_str(file(sys.argv[1]).read())
-    parts = { }
-    process_includes(email.message_from_string(data),parts)
-    print "#found %s parts" % len(parts['content'])
-    print parts2mime(parts)
+    newmsg = MIMEMultipart()
+    process_includes(message_from_string(data), newmsg)
+    print newmsg
+    print "#found %s parts" % multi_part_count(newmsg)

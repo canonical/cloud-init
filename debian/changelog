@@ -1,3 +1,22 @@
+cloud-init (0.6.3~bzr497-0ubuntu1) precise; urgency=low
+
+  * New upstream snapshot.
+    - cloud-config support for configuring apt-proxy
+    - selection of local mirror based on presense of 'ubuntu-mirror' dns
+      entry in local domain. (LP: #897688)
+    - DataSourceEc2: more resilliant to slow metadata service (LP: #894279)
+    - close stdin in all programs launched by cloud-init (LP: #903993)
+    - revert management of /etc/hosts to 0.6.1 style (LP: #890501, LP: #871966)
+    - write full ssh keys to console for easy machine consumption (LP: #893400)
+    - put INSTANCE_ID environment variable in bootcmd scripts
+    - add 'cloud-init-per' script for easily running things with a given freq
+      (this replaced cloud-init-run-module)
+    - support configuration of landscape-client via cloud-config (LP: #857366)
+    - part-handlers now get base64 decoded content rather than 2xbase64 encoded
+      in the payload parameter. (LP: #874342)
+
+ -- Scott Moser <smoser@ubuntu.com>  Thu, 22 Dec 2011 04:07:38 -0500
+
 cloud-init (0.6.2-0ubuntu2) precise; urgency=low
 
   * Build using dh_python2. LP: #904248.
