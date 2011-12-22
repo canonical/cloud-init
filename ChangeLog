@@ -15,6 +15,8 @@
  - add 'cloud-init-per' script for easily running things with a given frequency
  - replace cloud-init-run-module with cloud-init-per
  - support configuration of landscape-client via cloud-config (LP: #857366)
+ - part-handlers now get base64 decoded content rather than 2xbase64 encoded
+   in the payload parameter. (LP: #874342)
 0.6.2:
  - fix bug where update was not done unless update was explicitly set.
    It would not be run if 'upgrade' or packages were set to be installed
