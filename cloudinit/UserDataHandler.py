@@ -183,7 +183,11 @@ def process_includes(msg, appendmsg=None):
             explode_cc_archive(payload, appendmsg)
             continue
 
-        part['Content-Type'] = ctype
+        if 'Content-Type' in msg:
+            msg.replace_header('Content-Type', ctype)
+        else:
+            msg['Content-Type'] = ctype
+
         _attach_part(appendmsg, part)
 
 def message_from_string(data, headers={}):
