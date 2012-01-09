@@ -21,6 +21,9 @@ import traceback
 import os
 import stat
 import tempfile
+from cloudinit.CloudConfig import per_always
+
+frequency = per_always
 
 def handle(name,cfg,cloud,log,args):
     if len(args) != 0:
