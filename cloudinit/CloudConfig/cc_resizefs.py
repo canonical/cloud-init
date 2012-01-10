@@ -28,7 +28,7 @@ frequency = per_always
 def handle(name,cfg,cloud,log,args):
     if len(args) != 0:
         resize_root = False
-        if str(value).lower() in [ 'true', '1', 'on', 'yes']:
+        if str(args[0]).lower() in [ 'true', '1', 'on', 'yes']:
             resize_root = True
     else:
         resize_root = util.get_cfg_option_bool(cfg,"resize_rootfs",True)
