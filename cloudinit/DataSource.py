@@ -199,8 +199,8 @@ def is_ipv4(instr):
         return False
 
     try:
-        filter(lambda x: int(x) < 256 and x > 0, toks)
+        toks = [x for x in toks if (int(x) < 256 and int(x) > 0)]
     except:
         return False
 
-    return True
+    return (len(toks) == 4)

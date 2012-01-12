@@ -292,10 +292,10 @@ def read_conf_d(confd):
     confs = sorted(os.listdir(confd),reverse=True)
     
     # remove anything not ending in '.cfg'
-    confs = filter(lambda f: f.endswith(".cfg"), confs)
+    confs = [f for f in confs if f.endswith(".cfg")]
 
     # remove anything not a file
-    confs = filter(lambda f: os.path.isfile("%s/%s" % (confd,f)),confs)
+    confs = [f for f in confs if os.path.isfile("%s/%s" % (confd,f))]
 
     cfg = { }
     for conf in confs:
