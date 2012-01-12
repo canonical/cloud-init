@@ -21,7 +21,7 @@ import StringIO
 
 frequency = per_always
 
-def handle(name,cfg,cloud,log,args):
+def handle(_name,cfg,cloud,log,_args):
     ( hostname, fqdn ) = util.get_hostname_fqdn(cfg, cloud)
 
     manage_hosts = util.get_cfg_option_bool(cfg,"manage_etc_hosts", False)
@@ -34,7 +34,7 @@ def handle(name,cfg,cloud,log,args):
 
             util.render_to_file('hosts', '/etc/hosts', \
                 { 'hostname' : hostname, 'fqdn' : fqdn })
-        except Exception as e:
+        except Exception:
             log.warn("failed to update /etc/hosts")
             raise
     elif manage_hosts == "localhost":
@@ -48,37 +48,37 @@ def handle(name,cfg,cloud,log,args):
             log.debug("not managing /etc/hosts")
 
 
-def update_etc_hosts(hostname, fqdn, log):
-     with open('/etc/hosts', 'r') as etchosts:
-         header = "# Added by cloud-init\n"
-         hosts_line = "127.0.1.1\t%s %s\n" % (fqdn, hostname)
-         need_write = False
-         need_change = True
-         new_etchosts = StringIO.StringIO()
-         for line in etchosts:
-             split_line = [s.strip() for s in line.split()]
-             if len(split_line) < 2:
+def update_etc_hosts(hostname, fqdn, _log):
+    with open('/etc/hosts', 'r') as etchosts:
+        header = "# Added by cloud-init\n"
+        hosts_line = "127.0.1.1\t%s %s\n" % (fqdn, hostname)
+        need_write = False
+        need_change = True
+        new_etchosts = StringIO.StringIO()
+        for line in etchosts:
+            split_line = [s.strip() for s in line.split()]
+            if len(split_line) < 2:
                 new_etchosts.write(line)
                 continue
-             if line == header:
+            if line == header:
                 continue
-             ip, hosts = split_line[0], split_line[1:]
-             if ip == "127.0.1.1":
-                 if sorted([hostname, fqdn]) == sorted(hosts):
-                     need_change = False
-                 if need_change == True:
-                     line = "%s%s" % (header, hosts_line)
-                     need_change = False
-                     need_write = True
-             new_etchosts.write(line)
-         etchosts.close()
-         if need_change == True:
-             new_etchosts.write("%s%s" % (header, hosts_line))
-             need_write = True
-         if need_write == True:
-             new_etcfile = open ('/etc/hosts','wb')
-             new_etcfile.write(new_etchosts.getvalue())
-             new_etcfile.close()
-         new_etchosts.close()
-     return
+            ip, hosts = split_line[0], split_line[1:]
+            if ip == "127.0.1.1":
+                if sorted([hostname, fqdn]) == sorted(hosts):
+                    need_change = False
+                if need_change == True:
+                    line = "%s%s" % (header, hosts_line)
+                    need_change = False
+                    need_write = True
+            new_etchosts.write(line)
+        etchosts.close()
+        if need_change == True:
+            new_etchosts.write("%s%s" % (header, hosts_line))
+            need_write = True
+        if need_write == True:
+            new_etcfile = open ('/etc/hosts','wb')
+            new_etcfile.write(new_etchosts.getvalue())
+            new_etcfile.close()
+        new_etchosts.close()
+    return
 

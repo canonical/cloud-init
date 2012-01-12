@@ -18,12 +18,8 @@
 
 import DataSource
 
-from cloudinit import seeddir, log
+from cloudinit import seeddir, log  # pylint: disable=W0611
 import cloudinit.util as util
-import sys
-import os.path
-import os
-import errno
 
 class DataSourceNoCloud(DataSource.DataSource):
     metadata = None
@@ -94,7 +90,7 @@ class DataSourceNoCloud(DataSource.DataSource):
 
         md = util.mergedict(md,defaults)
         self.seed = ",".join(found)
-        self.metadata = md;
+        self.metadata = md
         self.userdata_raw = ud
         return True
 
