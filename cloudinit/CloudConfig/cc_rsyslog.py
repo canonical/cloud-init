@@ -24,7 +24,7 @@ import traceback
 DEF_FILENAME = "20-cloud-config.conf"
 DEF_DIR = "/etc/rsyslog.d"
 
-def handle(name,cfg,cloud,log,args):
+def handle(_name,cfg,_cloud,log,_args):
     # rsyslog:
     #  - "*.* @@192.158.1.1"
     #  - content: "*.*   @@192.0.2.1:10514"

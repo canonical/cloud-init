@@ -23,7 +23,7 @@ import cloudinit.util as util
 
 ruby_version_default = "1.8"
 
-def handle(name,cfg,cloud,log,args):
+def handle(_name,cfg,cloud,log,_args):
     # If there isn't a chef key in the configuration don't do anything
     if not cfg.has_key('chef'): return
     chef_cfg = cfg['chef']

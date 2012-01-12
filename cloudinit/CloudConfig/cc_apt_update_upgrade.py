@@ -22,7 +22,7 @@ import os
 import glob
 import cloudinit.CloudConfig as cc
 
-def handle(name,cfg,cloud,log,args):
+def handle(_name,cfg,cloud,log,_args):
     update = util.get_cfg_option_bool(cfg, 'apt_update', False)
     upgrade = util.get_cfg_option_bool(cfg, 'apt_upgrade', False)
 

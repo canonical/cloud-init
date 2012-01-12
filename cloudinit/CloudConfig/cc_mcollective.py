@@ -38,7 +38,7 @@ class FakeSecHead(object):
             finally: self.sechead = None
         else: return self.fp.readline()
 
-def handle(name,cfg,cloud,log,args):
+def handle(_name,cfg,_cloud,_log,_args):
     # If there isn't a mcollective key in the configuration don't do anything
     if not cfg.has_key('mcollective'): return
     mcollective_cfg = cfg['mcollective']

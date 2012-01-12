@@ -28,7 +28,7 @@ def apply_locale(locale, cfgfile):
 
     util.render_to_file('default-locale', cfgfile, { 'locale' : locale })
 
-def handle(name,cfg,cloud,log,args):
+def handle(_name,cfg,cloud,log,args):
     if len(args) != 0:
         locale = args[0]
     else:
