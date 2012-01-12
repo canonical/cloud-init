@@ -24,7 +24,7 @@ import shutil
 frequency = per_instance
 tz_base = "/usr/share/zoneinfo"
 
-def handle(name,cfg,cloud,log,args):
+def handle(_name,cfg,_cloud,log,args):
     if len(args) != 0:
         timezone = args[0]
     else:

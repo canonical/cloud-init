@@ -23,7 +23,7 @@ from cloudinit import get_cpath
 frequency = per_always
 runparts_path = "%s/%s" % (get_cpath(), "scripts/per-boot")
 
-def handle(name,cfg,cloud,log,args):
+def handle(_name,_cfg,_cloud,log,_args):
     try:
         util.runparts(runparts_path)
     except:

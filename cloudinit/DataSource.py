@@ -82,7 +82,7 @@ class DataSource:
 
         return(keys)
 
-    def device_name_to_device(self, name):
+    def device_name_to_device(self, _name):
         # translate a 'name' to a device
         # the primary function at this point is on ec2
         # to consult metadata service, that has

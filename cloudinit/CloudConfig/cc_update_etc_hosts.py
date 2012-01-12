@@ -21,7 +21,7 @@ import StringIO
 
 frequency = per_always
 
-def handle(name,cfg,cloud,log,args):
+def handle(_name,cfg,cloud,log,_args):
     ( hostname, fqdn ) = util.get_hostname_fqdn(cfg, cloud)
 
     manage_hosts = util.get_cfg_option_bool(cfg,"manage_etc_hosts", False)
@@ -48,7 +48,7 @@ def handle(name,cfg,cloud,log,args):
             log.debug("not managing /etc/hosts")
 
 
-def update_etc_hosts(hostname, fqdn, log):
+def update_etc_hosts(hostname, fqdn, _log):
     with open('/etc/hosts', 'r') as etchosts:
         header = "# Added by cloud-init\n"
         hosts_line = "127.0.1.1\t%s %s\n" % (fqdn, hostname)

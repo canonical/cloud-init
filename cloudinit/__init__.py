@@ -365,7 +365,7 @@ class CloudInit:
                 continue
             handler_call_end(mod, data, frequency)
 
-    def handle_user_script(self,data,ctype,filename,payload, frequency):
+    def handle_user_script(self,_data,ctype,filename,payload, _frequency):
         if ctype == "__end__": return
         if ctype == "__begin__":
             # maybe delete existing things here
@@ -376,7 +376,7 @@ class CloudInit:
         util.write_file("%s/%s" % 
             (scriptsdir,filename), util.dos2unix(payload), 0700)
 
-    def handle_upstart_job(self,data,ctype,filename,payload, frequency):
+    def handle_upstart_job(self,_data,ctype,filename,payload, frequency):
         # upstart jobs are only written on the first boot
         if frequency != per_instance:
             return
@@ -388,7 +388,7 @@ class CloudInit:
         util.write_file("%s/%s" % ("/etc/init",filename),
             util.dos2unix(payload), 0644)
 
-    def handle_cloud_config(self,data,ctype,filename,payload, frequency):
+    def handle_cloud_config(self,_data,ctype,filename,payload, _frequency):
         if ctype == "__begin__":
             self.cloud_config_str=""
             return
@@ -408,7 +408,7 @@ class CloudInit:
 
         self.cloud_config_str+="\n#%s\n%s" % (filename,payload)
 
-    def handle_cloud_boothook(self,data,ctype,filename,payload, frequency):
+    def handle_cloud_boothook(self,_data,ctype,filename,payload, _frequency):
         if ctype == "__end__": return
         if ctype == "__begin__": return
 
@@ -538,7 +538,7 @@ def handler_handle_part(mod, data, ctype, filename, payload, frequency):
     else:
         mod.handle_part(data, ctype, filename, payload, frequency)
 
-def partwalker_handle_handler(pdata, ctype, filename, payload):
+def partwalker_handle_handler(pdata, _ctype, _filename, payload):
 
     curcount = pdata['handlercount']
     modname  = 'part-handler-%03d' % curcount

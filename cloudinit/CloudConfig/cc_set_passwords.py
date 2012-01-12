@@ -21,7 +21,7 @@ import sys
 import random
 import string
 
-def handle(name,cfg,cloud,log,args):
+def handle(_name,cfg,_cloud,log,args):
     if len(args) != 0:
         # if run from command line, and give args, wipe the chpasswd['list']
         password = args[0]

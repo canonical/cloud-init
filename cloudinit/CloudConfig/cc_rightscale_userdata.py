@@ -42,7 +42,7 @@ frequency = per_instance
 my_name = "cc_rightscale_userdata"
 my_hookname = 'CLOUD_INIT_REMOTE_HOOK'
 
-def handle(name,cfg,cloud,log,args):
+def handle(_name,_cfg,cloud,log,_args):
     try:
         ud = cloud.get_userdata_raw()
     except:

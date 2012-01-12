@@ -20,7 +20,7 @@ import cloudinit.util as util
 import traceback
 import os
 
-def handle(name,cfg,cloud,log,args):
+def handle(_name,cfg,_cloud,log,_args):
     
     idevs=None
     idevs_empty=None
