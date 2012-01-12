@@ -20,12 +20,10 @@ import email
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.mime.base import MIMEBase
-from email import encoders
 import yaml
 import cloudinit
 import cloudinit.util as util
 import hashlib
-import os
 import urllib
 
 starts_with_mappings={

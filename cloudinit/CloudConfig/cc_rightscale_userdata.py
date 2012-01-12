@@ -32,8 +32,9 @@
 ##   Therefore, this must run before that.
 ##
 ##
+
 import cloudinit.util as util
-from cloudinit.CloudConfig import per_once, per_always, per_instance
+from cloudinit.CloudConfig import per_instance
 from cloudinit import get_ipath_cur
 from urlparse import parse_qs
 
