@@ -115,6 +115,8 @@ class CloudInit:
     old_conffile = '/etc/ec2-init/ec2-config.cfg'
     ds_deps = [ DataSource.DEP_FILESYSTEM, DataSource.DEP_NETWORK ]
     datasource = None
+    cloud_config_str = ''
+    datasource_name = ''
 
     builtin_handlers = [ ]
 
