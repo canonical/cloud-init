@@ -115,7 +115,7 @@ def handle(_name,cfg,_cloud,log,args):
     return
 
 def rand_str(strlen=32, select_from=string.letters+string.digits):
-    return("".join([random.choice(select_from) for x in range(0, strlen)]))
+    return("".join([random.choice(select_from) for _x in range(0, strlen)]))
 
 def rand_user_password(pwlen=9):
     selfrom=(string.letters.translate(None,'loLOI') +

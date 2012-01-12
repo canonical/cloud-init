@@ -50,7 +50,7 @@ def handle(_name,_cfg,cloud,log,_args):
         return
 
     try:
-        mdict = parse_qs(cloud.get_userdata_raw())
+        mdict = parse_qs(ud)
         if not my_hookname in mdict: return
     except:
         log.warn("failed to urlparse.parse_qa(userdata_raw())")
@@ -58,7 +58,6 @@ def handle(_name,_cfg,cloud,log,_args):
 
     scripts_d = get_ipath_cur('scripts')
     i = 0
-    errors = [ ]
     first_e = None
     for url in mdict[my_hookname]:
         fname = "%s/rightscale-%02i" % (scripts_d,i)

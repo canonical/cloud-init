@@ -77,7 +77,7 @@ def do_include(content, appendmsg):
                 content = urllib.urlopen(line).read()
                 if includeonce:
                     util.write_file(includeonce_filename, content, mode=0600)
-        except Exception as e:
+        except Exception:
             raise
 
         process_includes(message_from_string(decomp_str(content)), appendmsg)
@@ -190,7 +190,6 @@ def process_includes(msg, appendmsg=None):
 
 def message_from_string(data, headers={}):
     if "mime-version:" in data[0:4096].lower():
-        was_mime = True
         msg = email.message_from_string(data)
         for (key,val) in headers.items():
             if key in msg:
@@ -198,7 +197,6 @@ def message_from_string(data, headers={}):
             else:
                 msg[key] = val
     else:
-        was_mime = False
         mtype = headers.get("Content-Type","text/plain")
         maintype, subtype = mtype.split("/", 1)
         msg = MIMEBase(maintype, subtype, *headers)

@@ -89,7 +89,7 @@ class DataSourceEc2(DataSource.DataSource):
         max_wait = 120
         try:
             max_wait = int(mcfg.get("max_wait",max_wait))
-        except Exception as e:
+        except Exception:
             util.logexc(log)
             log.warn("Failed to get max wait. using %s" % max_wait)
 
@@ -99,7 +99,7 @@ class DataSourceEc2(DataSource.DataSource):
         timeout = 50
         try:
             timeout = int(mcfg.get("timeout",timeout))
-        except Exception as e:
+        except Exception:
             util.logexc(log)
             log.warn("Failed to get timeout, using %s" % timeout)
 
@@ -226,7 +226,6 @@ def wait_for_metadata_service(urls, max_wait=None, timeout=None, status_cb=None)
     starttime = time.time()
 
     sleeptime = 1
-    timeout_orig = timeout
 
     if status_cb == None:
         def status_cb(msg): return

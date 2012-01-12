@@ -137,7 +137,7 @@ class CloudInit:
 
         try:
             conf = util.get_base_cfg(self.sysconfig,cfg_builtin, parsed_cfgs)
-        except Exception as e:
+        except Exception:
             conf = get_builtin_cfg()
 
         # support reading the old ConfigObj format file and merging
@@ -176,7 +176,7 @@ class CloudInit:
                 
         try:
             f=open(cache, "wb")
-            data = cPickle.dump(self.datasource,f)
+            cPickle.dump(self.datasource,f)
             f.close()
             os.chmod(cache,0400)
         except:
@@ -360,7 +360,7 @@ class CloudInit:
 
         # give callbacks opportunity to finalize
         called = [ ]
-        for (mtype, mod) in part_handlers.iteritems():
+        for (_mtype, mod) in part_handlers.iteritems():
             if mod in called:
                 continue
             handler_call_end(mod, data, frequency)
@@ -425,7 +425,7 @@ class CloudInit:
         try:
             env=os.environ.copy()
             env['INSTANCE_ID']= self.datasource.get_instance_id()
-            ret = subprocess.check_call([filepath], env=env)
+            subprocess.check_call([filepath], env=env)
         except subprocess.CalledProcessError as e:
             log.error("boothooks script %s returned %i" %
                 (filepath,e.returncode))
