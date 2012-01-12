@@ -111,19 +111,19 @@ def mergedict(src,cand):
                 src[k] = mergedict(src[k],v)
     return src
 
-def write_file(file,content,mode=0644,omode="wb"):
+def write_file(filename,content,mode=0644,omode="wb"):
     try:
-        os.makedirs(os.path.dirname(file))
+        os.makedirs(os.path.dirname(filename))
     except OSError as e:
         if e.errno != errno.EEXIST:
             raise e
 
-    f=open(file,omode)
+    f=open(filename,omode)
     if mode != None:
-        os.chmod(file,mode)
+        os.chmod(filename,mode)
     f.write(content)
     f.close()
-    restorecon_if_possible(file)
+    restorecon_if_possible(filename)
 
 def restorecon_if_possible(path, recursive=False):
     if HAVE_LIBSELINUX and selinux.is_selinux_enabled():
@@ -159,10 +159,10 @@ def runparts(dirp, skip_no_exist=True):
         raise subprocess.CalledProcessError(sp.returncode,cmd)
     return
 
-def subp(args, input=None):
+def subp(args, input_=None):
     sp = subprocess.Popen(args, stdout=subprocess.PIPE,
         stderr=subprocess.PIPE, stdin=subprocess.PIPE)
-    out,err = sp.communicate(input)
+    out,err = sp.communicate(input_)
     if sp.returncode is not 0:
         raise subprocess.CalledProcessError(sp.returncode,args, (out,err))
     return(out,err)
@@ -421,11 +421,11 @@ def shellify(cmdlist):
             content="%s%s\n" % ( content, str(args) )
     return content
 
-def dos2unix(input):
+def dos2unix(string):
     # find first end of line
-    pos = input.find('\n')
-    if pos <= 0 or input[pos-1] != '\r': return(input)
-    return(input.replace('\r\n','\n'))
+    pos = string.find('\n')
+    if pos <= 0 or string[pos-1] != '\r': return(string)
+    return(string.replace('\r\n','\n'))
 
 def islxc():
     # is this host running lxc?

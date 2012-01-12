@@ -102,14 +102,14 @@ def handle(_name,cfg,cloud,log,_args):
     return(True)
 
 def mirror2lists_fileprefix(mirror):
-    file=mirror
+    string=mirror
     # take of http:// or ftp://
-    if file.endswith("/"): file=file[0:-1]
-    pos=file.find("://")
+    if string.endswith("/"): string=string[0:-1]
+    pos=string.find("://")
     if pos >= 0:
-        file=file[pos+3:]
-    file=file.replace("/","_")
-    return file
+        string=string[pos+3:]
+    string=string.replace("/","_")
+    return string
 
 def rename_apt_lists(omirror,new_mirror,lists_d="/var/lib/apt/lists"):
     
@@ -117,8 +117,8 @@ def rename_apt_lists(omirror,new_mirror,lists_d="/var/lib/apt/lists"):
     nprefix="%s/%s" % (lists_d,mirror2lists_fileprefix(new_mirror))
     if(oprefix==nprefix): return
     olen=len(oprefix)
-    for file in glob.glob("%s_*" % oprefix):
-        os.rename(file,"%s%s" % (nprefix, file[olen:]))
+    for filename in glob.glob("%s_*" % oprefix):
+        os.rename(filename,"%s%s" % (nprefix, filename[olen:]))
 
 def get_release():
     stdout, _stderr = subprocess.Popen(['lsb_release', '-cs'], stdout=subprocess.PIPE).communicate()
