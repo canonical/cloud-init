@@ -23,9 +23,7 @@ import cloudinit.util as util
 import sys
 import os.path
 import os
-import errno
 from xml.dom import minidom
-from xml.dom import Node
 import base64
 import re
 import tempfile
@@ -66,13 +64,13 @@ class DataSourceOVF(DataSource.DataSource):
             np = { 'iso' : transport_iso9660, 
                    'vmware-guestd' : transport_vmware_guestd, }
             for name, transfunc in np.iteritems():
-                (contents, dev, fname) = transfunc()
+                (contents, _dev, _fname) = transfunc()
                 if contents: break
 
             if contents:
                 (md, ud, cfg) = read_ovf_environment(contents)
                 self.environment = contents
-                found.append(name)
+                found.append(name)  # pylint: disable=W0631
 
         # There was no OVF transports found
         if len(found) == 0:
@@ -99,7 +97,7 @@ class DataSourceOVF(DataSource.DataSource):
 
         md = util.mergedict(md,defaults)
         self.seed = ",".join(found)
-        self.metadata = md;
+        self.metadata = md
         self.userdata_raw = ud
         self.cfg = cfg
         return True
@@ -173,7 +171,7 @@ def transport_iso9660(require_iso=False):
 
     mounted = { }
     for mpline in mounts:
-        (dev,mp,fstype,opts,freq,passno) = mpline.split()
+        (dev,mp,fstype,_opts,_freq,_passno) = mpline.split()
         mounted[dev]=(dev,fstype,mp,False)
         mp = mp.replace("\\040"," ")
         if fstype != "iso9660" and require_iso: continue

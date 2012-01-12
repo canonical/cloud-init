@@ -1,3 +1,12 @@
+cloud-init (0.6.3~bzr502-0ubuntu1) precise; urgency=low
+
+  * New upstream snapshot.
+    - [Mike Milner] add test case framework (LP: #890851)
+    - [Juerg Haefliger] fix pylint warnings (LP: #914739)
+    - fix regression where ec2 mirrors were not selected (LP: #915282)
+
+ -- Scott Moser <smoser@ubuntu.com>  Thu, 12 Jan 2012 17:56:52 +0100
+
 cloud-init (0.6.3~bzr497-0ubuntu1) precise; urgency=low
 
   * New upstream snapshot.

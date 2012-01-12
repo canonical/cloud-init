@@ -56,12 +56,12 @@ def main():
 
     now = time.strftime("%a, %d %b %Y %H:%M:%S %z",time.gmtime())
     try:
-       uptimef=open("/proc/uptime")
-       uptime=uptimef.read().split(" ")[0]
-       uptimef.close()
+        uptimef=open("/proc/uptime")
+        uptime=uptimef.read().split(" ")[0]
+        uptimef.close()
     except IOError as e:
-       warn("unable to open /proc/uptime\n")
-       uptime = "na"
+        warn("unable to open /proc/uptime\n")
+        uptime = "na"
 
     try:
         cfg = cloudinit.get_base_cfg(cfg_path)

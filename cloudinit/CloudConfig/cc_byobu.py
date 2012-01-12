@@ -19,7 +19,7 @@ import cloudinit.util as util
 import subprocess
 import traceback
 
-def handle(name,cfg,cloud,log,args):
+def handle(_name,cfg,_cloud,log,args):
     if len(args) != 0:
         value = args[0]
     else:
