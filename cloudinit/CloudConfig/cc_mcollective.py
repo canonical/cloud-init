@@ -16,11 +16,9 @@
 #
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
 import os
-import pwd
-import socket
 import subprocess
-import fileinput
 import StringIO
 import ConfigParser
 import cloudinit.CloudConfig as cc
@@ -40,7 +38,7 @@ class FakeSecHead(object):
             finally: self.sechead = None
         else: return self.fp.readline()
 
-def handle(name,cfg,cloud,log,args):
+def handle(_name,cfg,_cloud,_log,_args):
     # If there isn't a mcollective key in the configuration don't do anything
     if not cfg.has_key('mcollective'): return
     mcollective_cfg = cfg['mcollective']

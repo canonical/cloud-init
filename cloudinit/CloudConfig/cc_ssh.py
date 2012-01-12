@@ -26,7 +26,7 @@ DISABLE_ROOT_OPTS="no-port-forwarding,no-agent-forwarding,no-X11-forwarding,comm
 
 global_log = None
 
-def handle(name,cfg,cloud,log,args):
+def handle(_name,cfg,cloud,log,_args):
     global global_log
     global_log = log
 

@@ -115,6 +115,8 @@ class CloudInit:
     old_conffile = '/etc/ec2-init/ec2-config.cfg'
     ds_deps = [ DataSource.DEP_FILESYSTEM, DataSource.DEP_NETWORK ]
     datasource = None
+    cloud_config_str = ''
+    datasource_name = ''
 
     builtin_handlers = [ ]
 
@@ -137,7 +139,7 @@ class CloudInit:
 
         try:
             conf = util.get_base_cfg(self.sysconfig,cfg_builtin, parsed_cfgs)
-        except Exception as e:
+        except Exception:
             conf = get_builtin_cfg()
 
         # support reading the old ConfigObj format file and merging
@@ -176,7 +178,7 @@ class CloudInit:
                 
         try:
             f=open(cache, "wb")
-            data = cPickle.dump(self.datasource,f)
+            cPickle.dump(self.datasource,f)
             f.close()
             os.chmod(cache,0400)
         except:
@@ -191,7 +193,8 @@ class CloudInit:
 
         cfglist=self.cfg['datasource_list']
         dslist = list_sources(cfglist, self.ds_deps)
-        dsnames = map(lambda f: f.__name__, dslist)
+        dsnames = [f.__name__ for f in dslist]
+
         log.debug("searching for data source in %s" % dsnames)
         for cls in dslist:
             ds = cls.__name__
@@ -205,7 +208,6 @@ class CloudInit:
             except Exception as e:
                 log.warn("get_data of %s raised %s" % (ds,e))
                 util.logexc(log)
-                pass
         msg = "Did not find data source. searched classes: %s" % dsnames
         log.debug(msg)
         raise DataSourceNotFoundException(msg)
@@ -298,7 +300,9 @@ class CloudInit:
     # if that does not exist, then call 'func' with given 'args'
     # if 'clear_on_fail' is True and func throws an exception
     #  then remove the lock (so it would run again)
-    def sem_and_run(self,semname,freq,func,args=[],clear_on_fail=False):
+    def sem_and_run(self,semname,freq,func,args=None,clear_on_fail=False):
+        if args is None:
+            args = []
         if self.sem_has_run(semname,freq):
             log.debug("%s already ran %s", semname, freq)
             return False
@@ -360,12 +364,12 @@ class CloudInit:
 
         # give callbacks opportunity to finalize
         called = [ ]
-        for (mtype, mod) in part_handlers.iteritems():
+        for (_mtype, mod) in part_handlers.iteritems():
             if mod in called:
                 continue
             handler_call_end(mod, data, frequency)
 
-    def handle_user_script(self,data,ctype,filename,payload, frequency):
+    def handle_user_script(self,_data,ctype,filename,payload, _frequency):
         if ctype == "__end__": return
         if ctype == "__begin__":
             # maybe delete existing things here
@@ -376,7 +380,7 @@ class CloudInit:
         util.write_file("%s/%s" % 
             (scriptsdir,filename), util.dos2unix(payload), 0700)
 
-    def handle_upstart_job(self,data,ctype,filename,payload, frequency):
+    def handle_upstart_job(self,_data,ctype,filename,payload, frequency):
         # upstart jobs are only written on the first boot
         if frequency != per_instance:
             return
@@ -388,7 +392,7 @@ class CloudInit:
         util.write_file("%s/%s" % ("/etc/init",filename),
             util.dos2unix(payload), 0644)
 
-    def handle_cloud_config(self,data,ctype,filename,payload, frequency):
+    def handle_cloud_config(self,_data,ctype,filename,payload, _frequency):
         if ctype == "__begin__":
             self.cloud_config_str=""
             return
@@ -408,7 +412,7 @@ class CloudInit:
 
         self.cloud_config_str+="\n#%s\n%s" % (filename,payload)
 
-    def handle_cloud_boothook(self,data,ctype,filename,payload, frequency):
+    def handle_cloud_boothook(self,_data,ctype,filename,payload, _frequency):
         if ctype == "__end__": return
         if ctype == "__begin__": return
 
@@ -425,7 +429,7 @@ class CloudInit:
         try:
             env=os.environ.copy()
             env['INSTANCE_ID']= self.datasource.get_instance_id()
-            ret = subprocess.check_call([filepath], env=env)
+            subprocess.check_call([filepath], env=env)
         except subprocess.CalledProcessError as e:
             log.error("boothooks script %s returned %i" %
                 (filepath,e.returncode))
@@ -538,7 +542,7 @@ def handler_handle_part(mod, data, ctype, filename, payload, frequency):
     else:
         mod.handle_part(data, ctype, filename, payload, frequency)
 
-def partwalker_handle_handler(pdata, ctype, filename, payload):
+def partwalker_handle_handler(pdata, _ctype, _filename, payload):
 
     curcount = pdata['handlercount']
     modname  = 'part-handler-%03d' % curcount
