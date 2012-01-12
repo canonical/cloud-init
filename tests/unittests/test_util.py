@@ -1,6 +1,6 @@
 from unittest import TestCase
 
-from cloudinit.util import mergedict
+from cloudinit.util import mergedict, get_cfg_option_list_or_str
 
 class TestMergeDict(TestCase):
     def test_simple_merge(self):
@@ -51,3 +51,29 @@ class TestMergeDict(TestCase):
         candidate = "candidate"
         result = mergedict(source, candidate)
         self.assertEqual(source, result)
+
+class TestGetCfgOptionListOrStr(TestCase):
+    def test_not_found_no_default(self):
+        config = {}
+        result = get_cfg_option_list_or_str(config, "key")
+        self.assertIsNone(result)
+
+    def test_not_found_with_default(self):
+        config = {}
+        result = get_cfg_option_list_or_str(config, "key", default=["DEFAULT"])
+        self.assertEqual(["DEFAULT"], result)
+
+    def test_found_with_default(self):
+        config = {"key": ["value1"]}
+        result = get_cfg_option_list_or_str(config, "key", default=["DEFAULT"])
+        self.assertEqual(["value1"], result)
+
+    def test_found_convert_to_list(self):
+        config = {"key": "value1"}
+        result = get_cfg_option_list_or_str(config, "key")
+        self.assertEqual(["value1"], result)
+
+    def test_value_is_none(self):
+        config = {"key": None}
+        result = get_cfg_option_list_or_str(config, "key")
+        self.assertEqual([], result)
