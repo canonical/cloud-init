@@ -207,14 +207,15 @@ def find_apt_mirror(cloud, cfg):
             if mydom:
                 doms.append(".%s" % mydom)
 
-        doms.extend((".localdomain", "",))
+        if not mirror:
+            doms.extend((".localdomain", "",))
 
-        mirror_list = []
-        mirrorfmt = "http://%s-mirror%s/%s" % (distro, "%s", distro )
-        for post in doms:
-            mirror_list.append(mirrorfmt % post)
+            mirror_list = []
+            mirrorfmt = "http://%s-mirror%s/%s" % (distro, "%s", distro )
+            for post in doms:
+                mirror_list.append(mirrorfmt % post)
 
-        mirror = util.search_for_mirror(mirror_list)
+            mirror = util.search_for_mirror(mirror_list)
 
     if not mirror:
         mirror = defaults[distro]
