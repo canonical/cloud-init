@@ -90,9 +90,9 @@ def get_ruby_packages(version):
 def install_chef_from_gems(ruby_version, chef_version = None):
     cc.install_packages(get_ruby_packages(ruby_version))
     if not os.path.exists('/usr/bin/gem'):
-      os.symlink('/usr/bin/gem%s' % ruby_version, '/usr/bin/gem')
+        os.symlink('/usr/bin/gem%s' % ruby_version, '/usr/bin/gem')
     if not os.path.exists('/usr/bin/ruby'):
-      os.symlink('/usr/bin/ruby%s' % ruby_version, '/usr/bin/ruby')
+        os.symlink('/usr/bin/ruby%s' % ruby_version, '/usr/bin/ruby')
     if chef_version:
         subprocess.check_call(['/usr/bin/gem','install','chef',
                                '-v %s' % chef_version, '--no-ri',

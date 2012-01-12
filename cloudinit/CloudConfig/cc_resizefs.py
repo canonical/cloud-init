@@ -41,9 +41,9 @@ def handle(name,cfg,cloud,log,args):
     os.close(fd)
     
     try:
-       st_dev=os.stat("/").st_dev
-       dev=os.makedev(os.major(st_dev),os.minor(st_dev))
-       os.mknod(devpth, 0400 | stat.S_IFBLK, dev)
+        st_dev=os.stat("/").st_dev
+        dev=os.makedev(os.major(st_dev),os.minor(st_dev))
+        os.mknod(devpth, 0400 | stat.S_IFBLK, dev)
     except:
         if util.islxc():
             log.debug("inside lxc, ignoring mknod failure in resizefs")

@@ -112,18 +112,18 @@ def mergedict(src,cand):
     return src
 
 def write_file(file,content,mode=0644,omode="wb"):
-        try:
-            os.makedirs(os.path.dirname(file))
-        except OSError as e:
-            if e.errno != errno.EEXIST:
-                raise e
+    try:
+        os.makedirs(os.path.dirname(file))
+    except OSError as e:
+        if e.errno != errno.EEXIST:
+            raise e
 
-        f=open(file,omode)
-        if mode != None:
-            os.chmod(file,mode)
-        f.write(content)
-        f.close()
-        restorecon_if_possible(file)
+    f=open(file,omode)
+    if mode != None:
+        os.chmod(file,mode)
+    f.write(content)
+    f.close()
+    restorecon_if_possible(file)
 
 def restorecon_if_possible(path, recursive=False):
     if HAVE_LIBSELINUX and selinux.is_selinux_enabled():
@@ -131,20 +131,20 @@ def restorecon_if_possible(path, recursive=False):
 
 # get keyid from keyserver
 def getkeybyid(keyid,keyserver):
-   shcmd="""
-   k=${1} ks=${2};
-   exec 2>/dev/null
-   [ -n "$k" ] || exit 1;
-   armour=$(gpg --list-keys --armour "${k}")
-   if [ -z "${armour}" ]; then
-      gpg --keyserver ${ks} --recv $k >/dev/null &&
-         armour=$(gpg --export --armour "${k}") &&
-         gpg --batch --yes --delete-keys "${k}"
-   fi
-   [ -n "${armour}" ] && echo "${armour}"
-   """
-   args=['sh', '-c', shcmd, "export-gpg-keyid", keyid, keyserver]
-   return(subp(args)[0])
+    shcmd="""
+    k=${1} ks=${2};
+    exec 2>/dev/null
+    [ -n "$k" ] || exit 1;
+    armour=$(gpg --list-keys --armour "${k}")
+    if [ -z "${armour}" ]; then
+       gpg --keyserver ${ks} --recv $k >/dev/null &&
+          armour=$(gpg --export --armour "${k}") &&
+          gpg --batch --yes --delete-keys "${k}"
+    fi
+    [ -n "${armour}" ] && echo "${armour}"
+    """
+    args=['sh', '-c', shcmd, "export-gpg-keyid", keyid, keyserver]
+    return(subp(args)[0])
 
 def runparts(dirp, skip_no_exist=True):
     if skip_no_exist and not os.path.isdir(dirp): return
@@ -377,17 +377,17 @@ def ensure_dirs(dirlist, mode=0755):
         os.chmod(d, mode)
 
 def chownbyname(fname,user=None,group=None):
-   uid = -1
-   gid = -1
-   if user == None and group == None: return
-   if user:
-      import pwd
-      uid = pwd.getpwnam(user).pw_uid
-   if group:
-      import grp
-      gid = grp.getgrnam(group).gr_gid
+    uid = -1
+    gid = -1
+    if user == None and group == None: return
+    if user:
+        import pwd
+        uid = pwd.getpwnam(user).pw_uid
+    if group:
+        import grp
+        gid = grp.getgrnam(group).gr_gid
 
-   os.chown(fname,uid,gid)
+    os.chown(fname,uid,gid)
 
 def readurl(url, data=None, timeout=None):
     openargs = { }
@@ -526,14 +526,14 @@ def search_for_mirror(candidates):
     return None
 
 def close_stdin():
-   """
-   reopen stdin as /dev/null so even subprocesses or other os level things get
-   /dev/null as input.
+    """
+    reopen stdin as /dev/null so even subprocesses or other os level things get
+    /dev/null as input.
 
-   if _CLOUD_INIT_SAVE_STDIN is set in environment to a non empty or '0' value
-   then input will not be closed (only useful potentially for debugging).
-   """
-   if os.environ.get("_CLOUD_INIT_SAVE_STDIN") in ("", "0", False):
-      return
-   with open(os.devnull) as fp:
-       os.dup2(fp.fileno(), sys.stdin.fileno())
+    if _CLOUD_INIT_SAVE_STDIN is set in environment to a non empty or '0' value
+    then input will not be closed (only useful potentially for debugging).
+    """
+    if os.environ.get("_CLOUD_INIT_SAVE_STDIN") in ("", "0", False):
+        return
+    with open(os.devnull) as fp:
+        os.dup2(fp.fileno(), sys.stdin.fileno())
