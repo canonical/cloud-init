@@ -121,7 +121,7 @@ def rename_apt_lists(omirror,new_mirror,lists_d="/var/lib/apt/lists"):
         os.rename(file,"%s%s" % (nprefix, file[olen:]))
 
 def get_release():
-    stdout, stderr = subprocess.Popen(['lsb_release', '-cs'], stdout=subprocess.PIPE).communicate()
+    stdout, _stderr = subprocess.Popen(['lsb_release', '-cs'], stdout=subprocess.PIPE).communicate()
     return(stdout.strip())
 
 def generate_sources_list(codename, mirror):
@@ -202,7 +202,7 @@ def find_apt_mirror(cloud, cfg):
 
         if not mirror and cloud:
             # if we have a fqdn, then search its domain portion first
-            ( hostname, fqdn ) = util.get_hostname_fqdn(cfg, cloud)
+            ( _hostname, fqdn ) = util.get_hostname_fqdn(cfg, cloud)
             mydom = ".".join(fqdn.split(".")[1:])
             if mydom:
                 doms.append(".%s" % mydom)

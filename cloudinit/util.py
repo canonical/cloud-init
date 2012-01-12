@@ -264,7 +264,6 @@ def read_file_with_includes(fname, rel = ".", stack=[], patt = None):
     stack.append(fname)
 
     cur = 0
-    clen = len(contents)
     while True:
         match = patt.search(contents[cur:])
         if not match: break
@@ -443,7 +442,7 @@ def islxc():
         # we're inside a container. otherwise, no
         sp = subprocess.Popen(['lxc-is-container'], stdout=subprocess.PIPE,
                               stderr=subprocess.PIPE)
-        out,err = sp.communicate(None)
+        sp.communicate(None)
         return(sp.returncode == 0)
     except OSError as e:
         if e.errno != errno.ENOENT:
@@ -507,7 +506,7 @@ def is_resolvable(name):
     try:
         socket.getaddrinfo(name, None)
         return True
-    except socket.gaierror as e:
+    except socket.gaierror:
         return False
 
 def is_resolvable_url(url):
@@ -520,7 +519,7 @@ def search_for_mirror(candidates):
         try:
             if is_resolvable_url(cand):
                 return cand
-        except Exception as e:
+        except Exception:
             raise
 
     return None

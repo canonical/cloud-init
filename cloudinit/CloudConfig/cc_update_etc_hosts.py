@@ -34,7 +34,7 @@ def handle(_name,cfg,cloud,log,_args):
 
             util.render_to_file('hosts', '/etc/hosts', \
                 { 'hostname' : hostname, 'fqdn' : fqdn })
-        except Exception as e:
+        except Exception:
             log.warn("failed to update /etc/hosts")
             raise
     elif manage_hosts == "localhost":

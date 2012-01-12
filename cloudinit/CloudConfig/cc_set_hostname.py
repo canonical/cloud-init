@@ -23,10 +23,10 @@ def handle(_name,cfg,cloud,log,_args):
         log.debug("preserve_hostname is set. not setting hostname")
         return(True)
 
-    ( hostname, fqdn ) = util.get_hostname_fqdn(cfg, cloud)
+    ( hostname, _fqdn ) = util.get_hostname_fqdn(cfg, cloud)
     try:
         set_hostname(hostname, log)
-    except Exception as e:
+    except Exception:
         util.logexc(log)
         log.warn("failed to set hostname to %s\n", hostname)
 

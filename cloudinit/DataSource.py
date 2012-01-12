@@ -69,7 +69,7 @@ class DataSource:
         if isinstance(self.metadata['public-keys'], str):
             return([self.metadata['public-keys'],])
             
-        for keyname, klist in self.metadata['public-keys'].items():
+        for _keyname, klist in self.metadata['public-keys'].items():
             # lp:506332 uec metadata service responds with
             # data that makes boto populate a string for 'klist' rather
             # than a list.
@@ -197,7 +197,7 @@ def is_ipv4(instr):
         return False
 
     try:
-        r = filter(lambda x: int(x) < 256 and x > 0, toks)
+        filter(lambda x: int(x) < 256 and x > 0, toks)
     except:
         return False
 

@@ -53,7 +53,7 @@ def handle(_name,cfg,_cloud,log,args):
 
     cmd = [ 'blkid', '-c', '/dev/null', '-sTYPE', '-ovalue', devpth ]
     try:
-        (fstype,err) = util.subp(cmd)
+        (fstype,_err) = util.subp(cmd)
     except subprocess.CalledProcessError as e:
         log.warn("Failed to get filesystem type of maj=%s, min=%s via: %s" %
             (os.major(st_dev), os.minor(st_dev), cmd))
@@ -74,7 +74,7 @@ def handle(_name,cfg,_cloud,log,args):
         return
 
     try:
-        (out,err) = util.subp(resize_cmd)
+        util.subp(resize_cmd)
     except subprocess.CalledProcessError as e:
         log.warn("Failed to resize filesystem (%s)" % resize_cmd)
         log.warn("output=%s\nerror=%s\n", e.output[0], e.output[1])

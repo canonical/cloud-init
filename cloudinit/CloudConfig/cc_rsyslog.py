@@ -38,8 +38,6 @@ def handle(_name,cfg,_cloud,log,_args):
     def_dir = cfg.get('rsyslog_dir', DEF_DIR)
     def_fname = cfg.get('rsyslog_filename', DEF_FILENAME)
 
-    entries = cfg['rsyslog']
-
     files = [ ]
     elst = [ ]
     for ent in cfg['rsyslog']:
@@ -80,7 +78,7 @@ def handle(_name,cfg,_cloud,log,_args):
         # it will also return failure on the attempt, so 'restarted'
         # won't get set
         log.debug("restarting rsyslog")
-        p = util.subp(['service', 'rsyslog', 'restart'])
+        util.subp(['service', 'rsyslog', 'restart'])
         restarted = True
 
     except Exception as e:

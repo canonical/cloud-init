@@ -41,7 +41,6 @@ def handle(_name,cfg,cloud,log,_args):
         with open('/etc/chef/validation.pem', 'w') as validation_key_fh:
             validation_key_fh.write(validation_key)
 
-    validation_name = chef_cfg.get('validation_name','chef-validator')
     # create the chef config from template
     util.render_to_file('chef_client.rb', '/etc/chef/client.rb',
             {'server_url': chef_cfg['server_url'], 

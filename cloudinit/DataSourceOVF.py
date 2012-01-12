@@ -64,7 +64,7 @@ class DataSourceOVF(DataSource.DataSource):
             np = { 'iso' : transport_iso9660, 
                    'vmware-guestd' : transport_vmware_guestd, }
             for name, transfunc in np.iteritems():
-                (contents, dev, fname) = transfunc()
+                (contents, _dev, _fname) = transfunc()
                 if contents: break
 
             if contents:
@@ -171,7 +171,7 @@ def transport_iso9660(require_iso=False):
 
     mounted = { }
     for mpline in mounts:
-        (dev,mp,fstype,opts,freq,passno) = mpline.split()
+        (dev,mp,fstype,_opts,_freq,_passno) = mpline.split()
         mounted[dev]=(dev,fstype,mp,False)
         mp = mp.replace("\\040"," ")
         if fstype != "iso9660" and require_iso: continue
