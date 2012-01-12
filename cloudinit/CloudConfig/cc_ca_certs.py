@@ -16,7 +16,7 @@
 import os
 import pwd
 import socket
-import subprocess
+from subprocess import check_call
 import json
 import StringIO
 import ConfigParser
@@ -26,10 +26,29 @@ import cloudinit.util as util
 CERT_FILENAME = "/usr/share/ca-certificates/cloud-init-provided.crt"
 
 def write_file(filename, contents, owner, group, mode):
-    raise Exception()
+    """
+    Write a file to disk with specified owner, group, and mode. If the file
+    exists already it will be overwritten.
+
+    @param filename: Full path to the new file.
+    @param contents: The contents of the newly created file.
+    @param owner: The username who should own the file.
+    @param group: The group for the new file.
+    @param mode: The octal mode (as string) for the new file.
+    """
+    raise NotImplementedError()
+
+def update_ca_certs():
+    """
+    Updates the CA certificate cache on the current machine.
+    """
+    check_call(["dpkg-reconfigure", "ca-certificates"])
+    check_call(["update-ca-certificates"])
 
 def handle(name, cfg, cloud, log, args):
     """
+    Call to handle ca-cert sections in cloud-config file.
+
     @param name: The module name "ca-cert" from cloud.cfg
     @param cfg: A nested dict containing the entire cloud config contents.
     @param cloud: The L{CloudInit} object in use
@@ -49,3 +68,5 @@ def handle(name, cfg, cloud, log, args):
         if trusted_certs:
             cert_file_contents = "\n".join(trusted_certs)
             write_file(CERT_FILENAME, cert_file_contents, "root", "root", "644")
+
+    update_ca_certs()
