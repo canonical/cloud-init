@@ -39,10 +39,10 @@ except ImportError:
 
 def read_conf(fname):
     try:
-	    stream = open(fname,"r")
-	    conf = yaml.load(stream)
-	    stream.close()
-	    return conf
+        stream = open(fname,"r")
+        conf = yaml.load(stream)
+        stream.close()
+        return conf
     except IOError as e:
         if e.errno == errno.ENOENT:
             return { }
@@ -282,7 +282,7 @@ def read_file_with_includes(fname, rel = ".", stack=[], patt = None):
             else:
                 raise
         contents = contents[0:loc] + inc_contents + contents[endl+1:]
-	cur = loc + len(inc_contents)
+        cur = loc + len(inc_contents)
     stack.pop()
     return(contents)
 
