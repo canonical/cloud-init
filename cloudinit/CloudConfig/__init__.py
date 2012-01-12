@@ -33,7 +33,7 @@ class CloudConfig():
     cfgfile = None
     cfg = None
 
-    def __init__(self,cfgfile, cloud=None, ds_deps=[]):
+    def __init__(self,cfgfile, cloud=None, ds_deps=None):
         if cloud == None:
             self.cloud = cloudinit.CloudInit(ds_deps)
             self.cloud.get_data_source()
@@ -233,7 +233,9 @@ def run_per_instance(name, func, args, clear_on_fail=False):
         raise
 
 # apt_get top level command (install, update...), and args to pass it
-def apt_get(tlc,args=[]):
+def apt_get(tlc,args=None):
+    if args is None:
+        args = []
     e=os.environ.copy()
     e['DEBIAN_FRONTEND']='noninteractive'
     cmd=[ 'apt-get',

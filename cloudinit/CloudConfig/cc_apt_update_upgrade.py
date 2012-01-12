@@ -131,7 +131,9 @@ def generate_sources_list(codename, mirror):
 # srclist is a list of dictionaries, 
 # each entry must have: 'source'
 # may have: key, ( keyid and keyserver)
-def add_sources(srclist, searchList={ }):
+def add_sources(srclist, searchList=None):
+    if searchList is None:
+        searchList = {}
     elst = []
 
     for ent in srclist:

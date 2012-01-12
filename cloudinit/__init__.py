@@ -297,7 +297,9 @@ class CloudInit:
     # if that does not exist, then call 'func' with given 'args'
     # if 'clear_on_fail' is True and func throws an exception
     #  then remove the lock (so it would run again)
-    def sem_and_run(self,semname,freq,func,args=[],clear_on_fail=False):
+    def sem_and_run(self,semname,freq,func,args=None,clear_on_fail=False):
+        if args is None:
+            args = []
         if self.sem_has_run(semname,freq):
             log.debug("%s already ran %s", semname, freq)
             return False
