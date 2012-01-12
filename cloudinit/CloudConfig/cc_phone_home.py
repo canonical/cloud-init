@@ -68,7 +68,6 @@ def handle(_name,cfg,cloud,log,args):
         try:
             fp = open(path, "rb")
             all_keys[n] = fp.read()
-            all_keys[n]
             fp.close()
         except:
             log.warn("%s: failed to open in phone_home" % path)
