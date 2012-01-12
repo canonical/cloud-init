@@ -1,14 +1,14 @@
 
-all: test pylint pyflakes
+all: test
 
 pylint:
-	-pylint cloudinit
+	pylint cloudinit
 
 pyflakes:
-	-pyflakes .
+	pyflakes .
 
 test:
-	-nosetests tests/unittests/
+	nosetests tests/unittests/
 
 .PHONY: test pylint pyflakes
 
