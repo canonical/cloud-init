@@ -15,8 +15,8 @@
 #
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
 import cloudinit.util as util
-import subprocess
 
 def handle(name,cfg,cloud,log,args):
     if util.get_cfg_option_bool(cfg,"preserve_hostname",False):

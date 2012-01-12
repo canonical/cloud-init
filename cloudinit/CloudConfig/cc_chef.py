@@ -14,13 +14,10 @@
 #
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
 import os
-import pwd
-import socket
 import subprocess
 import json
-import StringIO
-import ConfigParser
 import cloudinit.CloudConfig as cc
 import cloudinit.util as util
 

@@ -23,9 +23,7 @@ import cloudinit.util as util
 import sys
 import os.path
 import os
-import errno
 from xml.dom import minidom
-from xml.dom import Node
 import base64
 import re
 import tempfile

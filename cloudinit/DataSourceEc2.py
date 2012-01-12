@@ -18,16 +18,13 @@
 
 import DataSource
 
-from cloudinit import seeddir, log
+from cloudinit import seeddir, log  # pylint: disable=W0611
 import cloudinit.util as util
 import socket
 import urllib2
 import time
-import sys
 import boto.utils as boto_utils
 import os.path
-import errno
-import urlparse
 
 class DataSourceEc2(DataSource.DataSource):
     api_ver  = '2009-04-04'
