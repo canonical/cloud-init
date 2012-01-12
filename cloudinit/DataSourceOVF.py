@@ -70,7 +70,7 @@ class DataSourceOVF(DataSource.DataSource):
             if contents:
                 (md, ud, cfg) = read_ovf_environment(contents)
                 self.environment = contents
-                found.append(name)
+                found.append(name)  # pylint: disable=W0631
 
         # There was no OVF transports found
         if len(found) == 0:
