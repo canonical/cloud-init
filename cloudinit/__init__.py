@@ -205,7 +205,6 @@ class CloudInit:
             except Exception as e:
                 log.warn("get_data of %s raised %s" % (ds,e))
                 util.logexc(log)
-                pass
         msg = "Did not find data source. searched classes: %s" % dsnames
         log.debug(msg)
         raise DataSourceNotFoundException(msg)
