@@ -188,7 +188,9 @@ def process_includes(msg, appendmsg=None):
 
         _attach_part(appendmsg, part)
 
-def message_from_string(data, headers={}):
+def message_from_string(data, headers=None):
+    if headers is None:
+        headers = {}
     if "mime-version:" in data[0:4096].lower():
         msg = email.message_from_string(data)
         for (key,val) in headers.items():

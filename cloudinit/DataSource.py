@@ -157,7 +157,9 @@ class DataSource:
 #   ie, pkglist=[ "foo", "" ]
 #     will first try to load foo.DataSource<item>
 #     then DataSource<item>
-def list_sources(cfg_list, depends, pkglist=[]):
+def list_sources(cfg_list, depends, pkglist=None):
+    if pkglist is None:
+        pkglist = []
     retlist = []
     for ds_coll in cfg_list:
         for pkg in pkglist:

@@ -238,7 +238,9 @@ def logexc(log,lvl=logging.DEBUG):
 class RecursiveInclude(Exception):
     pass
 
-def read_file_with_includes(fname, rel = ".", stack=[], patt = None):
+def read_file_with_includes(fname, rel = ".", stack=None, patt = None):
+    if stack is None:
+        stack = []
     if not fname.startswith("/"):
         fname = os.sep.join((rel, fname))
 
