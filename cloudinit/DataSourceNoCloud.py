@@ -94,7 +94,7 @@ class DataSourceNoCloud(DataSource.DataSource):
 
         md = util.mergedict(md,defaults)
         self.seed = ",".join(found)
-        self.metadata = md;
+        self.metadata = md
         self.userdata_raw = ud
         return True
 
