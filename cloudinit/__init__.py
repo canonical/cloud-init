@@ -191,7 +191,8 @@ class CloudInit:
 
         cfglist=self.cfg['datasource_list']
         dslist = list_sources(cfglist, self.ds_deps)
-        dsnames = map(lambda f: f.__name__, dslist)
+        dsnames = [f.__name__ for f in dslist]
+
         log.debug("searching for data source in %s" % dsnames)
         for cls in dslist:
             ds = cls.__name__

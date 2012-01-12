@@ -116,7 +116,7 @@ def handle(_name,cfg,cloud,log,_args):
 
     # now, each entry in the cfgmnt list has all fstab values
     # if the second field is None (not the string, the value) we skip it
-    actlist = filter(lambda x: x[1] is not None, cfgmnt)
+    actlist = [x for x in cfgmnt if x[1] is not None]
 
     if len(actlist) == 0: return
 
