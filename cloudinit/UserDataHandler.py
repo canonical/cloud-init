@@ -37,15 +37,15 @@ starts_with_mappings={
     '#cloud-config-archive' : 'text/cloud-config-archive',
 }
 
-# if 'str' is compressed return decompressed otherwise return it
-def decomp_str(str):
+# if 'string' is compressed return decompressed otherwise return it
+def decomp_str(string):
     import StringIO
     import gzip
     try:
-        uncomp = gzip.GzipFile(None,"rb",1,StringIO.StringIO(str)).read()
+        uncomp = gzip.GzipFile(None,"rb",1,StringIO.StringIO(string)).read()
         return(uncomp)
     except:
-        return(str)
+        return(string)
 
 def do_include(content, appendmsg):
     import os
