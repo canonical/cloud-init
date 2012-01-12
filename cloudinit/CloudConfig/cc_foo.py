@@ -21,4 +21,4 @@ from cloudinit.CloudConfig import per_instance
 
 frequency = per_instance
 def handle(name,cfg,cloud,log,args):
-   print "hi"
+    print "hi"
