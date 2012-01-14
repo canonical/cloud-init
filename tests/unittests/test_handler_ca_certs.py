@@ -1,7 +1,8 @@
 from unittest import TestCase
 from mocker import MockerTestCase
 
-from cloudinit.CloudConfig.cc_ca_certs import handle, write_file, update_ca_certs, add_ca_certs
+from cloudinit.CloudConfig.cc_ca_certs import handle, write_file, update_ca_certs, add_ca_certs, remove_default_ca_certs
+
 
 class TestNoConfig(MockerTestCase):
     def setUp(self):
@@ -32,16 +33,82 @@ class TestConfig(MockerTestCase):
         self.log = None
         self.args = []
 
-        # The config option is present for all these tests so
-        # update_ca_certs should always be called.
-        mock = self.mocker.replace(update_ca_certs, passthrough=False)
-        mock()
+        # Mock out the functions that actually modify the system
+        self.mock_add = self.mocker.replace(add_ca_certs, passthrough=False)
+        self.mock_update = self.mocker.replace(update_ca_certs, passthrough=False)
+        self.mock_remove = self.mocker.replace(remove_default_ca_certs, passthrough=False)
+        # Order must be correct
+        self.mocker.order()
 
     def test_no_trusted_list(self):
-        """Test that no certificate are written if not provided."""
+        """
+        Test that no certificates are written if the 'trusted' key is not
+        present.
+        """
         config = {"ca-certs": {}}
 
-        mock = self.mocker.replace(write_file, passthrough=False)
+        # No functions should be called
+        self.mock_update()
+        self.mocker.replay()
+
+        handle(self.name, config, self.cloud_init, self.log, self.args)
+
+    def test_empty_trusted_list(self):
+        """Test that no certificate are written if 'trusted' list is empty"""
+        config = {"ca-certs": {"trusted": []}}
+
+        # No functions should be called
+        self.mock_update()
+        self.mocker.replay()
+
+        handle(self.name, config, self.cloud_init, self.log, self.args)
+
+    def test_single_trusted(self):
+        """Test that a single cert gets passed to add_ca_certs"""
+        config = {"ca-certs": {"trusted": ["CERT1"]}}
+
+        self.mock_add(["CERT1"])
+        self.mock_update()
+        self.mocker.replay()
+
+        handle(self.name, config, self.cloud_init, self.log, self.args)
+
+    def test_multiple_trusted(self):
+        """Test that multiple certs get passed to add_ca_certs"""
+        config = {"ca-certs": {"trusted": ["CERT1", "CERT2"]}}
+
+        self.mock_add(["CERT1", "CERT2"])
+        self.mock_update()
+        self.mocker.replay()
+
+        handle(self.name, config, self.cloud_init, self.log, self.args)
+
+    def test_remove_default_ca_certs(self):
+        """Test remove_defaults works as expected"""
+        config = {"ca-certs": {"remove-defaults": True}}
+
+        self.mock_remove()
+        self.mock_update()
+        self.mocker.replay()
+
+        handle(self.name, config, self.cloud_init, self.log, self.args)
+
+    def test_no_remove_defaults_if_false(self):
+        """Test remove_defaults is not called when config value is False"""
+        config = {"ca-certs": {"remove-defaults": False}}
+
+        self.mock_update()
+        self.mocker.replay()
+
+        handle(self.name, config, self.cloud_init, self.log, self.args)
+
+    def test_correct_order_for_remove_then_add(self):
+        """Test remove_defaults is not called when config value is False"""
+        config = {"ca-certs": {"remove-defaults": True, "trusted": ["CERT1"]}}
+
+        self.mock_remove()
+        self.mock_add(["CERT1"])
+        self.mock_update()
         self.mocker.replay()
 
         handle(self.name, config, self.cloud_init, self.log, self.args)
@@ -78,6 +145,7 @@ class TestAddCaCerts(MockerTestCase):
 
         add_ca_certs(certs)
 
+
 class TestUpdateCaCerts(MockerTestCase):
     def test_commands(self):
         mock_check_call = self.mocker.replace("subprocess.check_call",
@@ -87,3 +155,14 @@ class TestUpdateCaCerts(MockerTestCase):
         self.mocker.replay()
 
         update_ca_certs()
+
+
+#class TestRemoveDefaultCaCerts(MockerTestCase):
+#    def test_commands(self):
+#        mock_check_call = self.mocker.replace("subprocess.check_call",
+#                                              passthrough=False)
+#        mock_check_call(["dpkg-reconfigure", "ca-certificates"])
+#        mock_check_call(["update-ca-certificates"])
+#        self.mocker.replay()
+#
+#        update_ca_certs()
