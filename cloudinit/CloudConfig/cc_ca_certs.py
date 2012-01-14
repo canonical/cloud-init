@@ -45,6 +45,17 @@ def update_ca_certs():
     check_call(["dpkg-reconfigure", "ca-certificates"])
     check_call(["update-ca-certificates"])
 
+def add_ca_certs(certs):
+    """
+    Adds certificates to the system. To actually apply the new certificates
+    you must also call L{update_ca_certs}.
+
+    @param certs: A list of certificate strings.
+    """
+    if certs:
+        cert_file_contents = "\n".join(certs)
+        write_file(CERT_FILENAME, cert_file_contents, "root", "root", "644")
+
 def handle(name, cfg, cloud, log, args):
     """
     Call to handle ca-cert sections in cloud-config file.
@@ -66,7 +77,5 @@ def handle(name, cfg, cloud, log, args):
     if ca_cert_cfg.has_key('trusted'):
         trusted_certs = util.get_cfg_option_list_or_str(ca_cert_cfg, 'trusted')
         if trusted_certs:
-            cert_file_contents = "\n".join(trusted_certs)
-            write_file(CERT_FILENAME, cert_file_contents, "root", "root", "644")
-
+            add_ca_certs(trusted_certs)
     update_ca_certs()
