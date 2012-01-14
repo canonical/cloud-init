@@ -56,6 +56,12 @@ def add_ca_certs(certs):
         cert_file_contents = "\n".join(certs)
         write_file(CERT_FILENAME, cert_file_contents, "root", "root", "644")
 
+def remove_default_ca_certs():
+    """
+    Removes all default trusted CA certificates from the system.
+    """
+    raise NotImplementedError()
+
 def handle(name, cfg, cloud, log, args):
     """
     Call to handle ca-cert sections in cloud-config file.
@@ -70,6 +76,9 @@ def handle(name, cfg, cloud, log, args):
     if not cfg.has_key('ca-certs'):
         return
     ca_cert_cfg = cfg['ca-certs']
+
+    if ca_cert_cfg.get("remove-defaults", False):
+        remove_default_ca_certs()
 
     # set the validation key based on the presence of either 'validation_key'
     # or 'validation_cert'. In the case where both exist, 'validation_key'
