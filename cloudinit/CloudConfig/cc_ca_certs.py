@@ -23,7 +23,10 @@ import ConfigParser
 import cloudinit.CloudConfig as cc
 import cloudinit.util as util
 
-CERT_FILENAME = "/usr/share/ca-certificates/cloud-init-provided.crt"
+CA_CERT_PATH = "/usr/share/ca-certificates/"
+CA_CERT_FILENAME = "cloud-init-ca-certs.crt"
+CA_CERT_CONFIG = "/etc/ca-certificates.conf"
+CA_CERT_SYSTEM_PATH = "/etc/ssl/certs/"
 
 def write_file(filename, contents, owner, group, mode):
     """
@@ -38,11 +41,29 @@ def write_file(filename, contents, owner, group, mode):
     """
     raise NotImplementedError()
 
+def append_to_file(filename, contents):
+    """
+    Append C{contents} to an existing file on the filesystem. If the file
+    doesn't exist it will be created with the default owner and permissions.
+
+    @param filename: Full path to the new file.
+    @param contents: The contents to append to the file.
+    """
+    raise NotImplementedError()
+
+def delete_dir_contents(dirname):
+    """
+    Delete all the contents of the directory specified by C{dirname} without
+    deleting the directory itself.
+
+    @param dirname: The directory whose contents should be deleted.
+    """
+    raise NotImplementedError()
+
 def update_ca_certs():
     """
     Updates the CA certificate cache on the current machine.
     """
-    check_call(["dpkg-reconfigure", "ca-certificates"])
     check_call(["update-ca-certificates"])
 
 def add_ca_certs(certs):
@@ -54,13 +75,17 @@ def add_ca_certs(certs):
     """
     if certs:
         cert_file_contents = "\n".join(certs)
-        write_file(CERT_FILENAME, cert_file_contents, "root", "root", "644")
+        cert_file_fullpath = os.path.join(CA_CERT_PATH, CA_CERT_FILENAME)
+        write_file(cert_file_fullpath, cert_file_contents, "root", "root", "644")
+        append_to_file(CA_CERT_CONFIG, CA_CERT_FILENAME) 
 
 def remove_default_ca_certs():
     """
     Removes all default trusted CA certificates from the system.
     """
-    raise NotImplementedError()
+    delete_dir_contents(CA_CERT_PATH)
+    delete_dir_contents(CA_CERT_SYSTEM_PATH)
+    write_file(CA_CERT_CONFIG, "", "root", "root", "644")
 
 def handle(name, cfg, cloud, log, args):
     """
