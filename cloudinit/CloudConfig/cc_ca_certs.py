@@ -81,7 +81,8 @@ def add_ca_certs(certs):
 
 def remove_default_ca_certs():
     """
-    Removes all default trusted CA certificates from the system.
+    Removes all default trusted CA certificates from the system. To actually
+    apply the change you must also call L{update_ca_certs}.
     """
     delete_dir_contents(CA_CERT_PATH)
     delete_dir_contents(CA_CERT_SYSTEM_PATH)
