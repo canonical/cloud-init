@@ -49,7 +49,8 @@ class CloudConfig():
             cloudinit.log.critical("Failed loading of cloud config '%s'. Continuing with empty config\n" % cfgfile)
             cloudinit.log.debug(traceback.format_exc() + "\n")
             cfg = None
-        if cfg is None: cfg = { }
+        if cfg is None:
+            cfg = { }
 
         try:
             ds_cfg = self.cloud.datasource.get_config_obj()
@@ -76,7 +77,8 @@ class CloudConfig():
 # reads a cloudconfig module list, returns
 # a 2 dimensional array suitable to pass to run_cc_modules
 def read_cc_modules(cfg,name):
-    if name not in cfg: return([])
+    if name not in cfg:
+        return([])
     module_list = []
     # create 'module_list', an array of arrays
     # where array[0] = config
@@ -126,13 +128,15 @@ def run_cc_modules(cc,module_list,log):
 # None if if none is given
 def get_output_cfg(cfg, mode="init"):
     ret = [ None, None ]
-    if not 'output' in cfg: return ret
+    if not 'output' in cfg:
+        return ret
 
     outcfg = cfg['output']
     if mode in outcfg:
         modecfg = outcfg[mode]
     else:
-        if 'all' not in outcfg: return ret
+        if 'all' not in outcfg:
+            return ret
         # if there is a 'all' item in the output list
         # then it applies to all users of this (init, config, final)
         modecfg = outcfg['all']
@@ -143,7 +147,8 @@ def get_output_cfg(cfg, mode="init"):
 
     # if its a list, then we expect (stdout, stderr)
     if isinstance(modecfg,list):
-        if len(modecfg) > 0: ret[0] = modecfg[0]
+        if len(modecfg) > 0:
+            ret[0] = modecfg[0]
         if len(modecfg) > 1:
             ret[1] = modecfg[1]
 
@@ -157,11 +162,13 @@ def get_output_cfg(cfg, mode="init"):
 
     # if err's entry == "&1", then make it same as stdout
     # as in shell syntax of "echo foo >/dev/null 2>&1"
-    if ret[1] == "&1": ret[1] = ret[0]
+    if ret[1] == "&1":
+        ret[1] = ret[0]
 
     swlist = [ ">>", ">", "|" ]
     for i in range(len(ret)):
-        if not ret[i]: continue
+        if not ret[i]:
+            continue
         val = ret[i].lstrip()
         found = False
         for s in swlist:
@@ -191,7 +198,8 @@ def redirect_output(outfmt,errfmt, o_out=sys.stdout, o_err=sys.stderr):
         (mode, arg) = outfmt.split(" ",1)
         if mode == ">" or mode == ">>":
             owith = "ab"
-            if mode == ">": owith = "wb"
+            if mode == ">":
+                owith = "wb"
             new_fp = open(arg, owith)
         elif mode == "|":
             proc = subprocess.Popen(arg, shell=True, stdin=subprocess.PIPE)
@@ -209,7 +217,8 @@ def redirect_output(outfmt,errfmt, o_out=sys.stdout, o_err=sys.stderr):
         (mode, arg) = errfmt.split(" ",1)
         if mode == ">" or mode == ">>":
             owith = "ab"
-            if mode == ">": owith = "wb"
+            if mode == ">":
+                owith = "wb"
             new_fp = open(arg, owith)
         elif mode == "|":
             proc = subprocess.Popen(arg, shell=True, stdin=subprocess.PIPE)
@@ -223,13 +232,15 @@ def redirect_output(outfmt,errfmt, o_out=sys.stdout, o_err=sys.stderr):
 
 def run_per_instance(name, func, args, clear_on_fail=False):
     semfile = "%s/%s" % (cloudinit.get_ipath_cur("data"),name)
-    if os.path.exists(semfile): return
+    if os.path.exists(semfile):
+        return
 
     util.write_file(semfile,str(time.time()))
     try:
         func(*args)
     except:
-        if clear_on_fail: os.unlink(semfile)
+        if clear_on_fail:
+            os.unlink(semfile)
         raise
 
 # apt_get top level command (install, update...), and args to pass it

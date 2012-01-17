@@ -51,7 +51,8 @@ def handle(_name,_cfg,cloud,log,_args):
 
     try:
         mdict = parse_qs(ud)
-        if not my_hookname in mdict: return
+        if not my_hookname in mdict:
+            return
     except:
         log.warn("failed to urlparse.parse_qa(userdata_raw())")
         raise
@@ -66,7 +67,8 @@ def handle(_name,_cfg,cloud,log,_args):
             content = util.readurl(url)
             util.write_file(fname, content, mode=0700)
         except Exception as e:
-            if not first_e: first_e = None
+            if not first_e:
+                first_e = None
             log.warn("%s failed to read %s: %s" % (my_name, url, e))
             
     if first_e:

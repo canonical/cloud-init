@@ -33,7 +33,8 @@ def handle(_name,cfg,_cloud,log,_args):
     #      *.*   @@syslogd.example.com
 
     # process 'rsyslog'
-    if not 'rsyslog' in cfg: return
+    if not 'rsyslog' in cfg:
+        return
 
     def_dir = cfg.get('rsyslog_dir', DEF_DIR)
     def_fname = cfg.get('rsyslog_filename', DEF_FILENAME)

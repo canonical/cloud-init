@@ -70,7 +70,8 @@ import glob
 import traceback
 
 class NullHandler(logging.Handler):
-    def emit(self,record): pass
+    def emit(self,record):
+        pass
 
 log = logging.getLogger(logger_name)
 log.addHandler(NullHandler())
@@ -147,7 +148,8 @@ class CloudInit:
         try:
             from configobj import ConfigObj
             oldcfg = ConfigObj(self.old_conffile)
-            if oldcfg is None: oldcfg = { }
+            if oldcfg is None:
+                oldcfg = { }
             conf = util.mergedict(conf,oldcfg)
         except:
             pass
@@ -185,7 +187,8 @@ class CloudInit:
             raise
         
     def get_data_source(self):
-        if self.datasource is not None: return True
+        if self.datasource is not None:
+            return True
 
         if self.restore_from_cache():
             log.debug("restored from cache type %s" % self.datasource)
@@ -216,7 +219,8 @@ class CloudInit:
         try:
             os.unlink(cur_instance_link)
         except OSError as e:
-            if e.errno != errno.ENOENT: raise
+            if e.errno != errno.ENOENT:
+                raise
 
         iid = self.get_instance_id()
         os.symlink("./instances/%s" % iid, cur_instance_link)
@@ -258,7 +262,8 @@ class CloudInit:
         return("%s/%s.%s" % (get_cpath("sem"), name, freq))
     
     def sem_has_run(self,name,freq):
-        if freq == per_always: return False
+        if freq == per_always:
+            return False
         semfile = self.sem_getpath(name,freq)
         if os.path.exists(semfile):
             return True
@@ -339,7 +344,8 @@ class CloudInit:
         part_handlers = { }
         # add handlers in cdir
         for fname in glob.glob("%s/*.py" % cdir):
-            if not os.path.isfile(fname): continue
+            if not os.path.isfile(fname):
+                continue
             modname = os.path.basename(fname)[0:-3]
             try:
                 mod = __import__(modname)
@@ -370,7 +376,8 @@ class CloudInit:
             handler_call_end(mod, data, frequency)
 
     def handle_user_script(self,_data,ctype,filename,payload, _frequency):
-        if ctype == "__end__": return
+        if ctype == "__end__":
+            return
         if ctype == "__begin__":
             # maybe delete existing things here
             return
@@ -385,7 +392,8 @@ class CloudInit:
         if frequency != per_instance:
             return
 
-        if ctype == "__end__" or ctype == "__begin__": return
+        if ctype == "__end__" or ctype == "__begin__":
+            return
         if not filename.endswith(".conf"):
             filename=filename+".conf"
 
@@ -413,8 +421,10 @@ class CloudInit:
         self.cloud_config_str+="\n#%s\n%s" % (filename,payload)
 
     def handle_cloud_boothook(self,_data,ctype,filename,payload, _frequency):
-        if ctype == "__end__": return
-        if ctype == "__begin__": return
+        if ctype == "__end__":
+            return
+        if ctype == "__begin__":
+            return
 
         filename=filename.replace(os.sep,'_')
         payload = util.dos2unix(payload)
@@ -476,18 +486,22 @@ def initfs():
         fp.close()
     if log_file and perms:
         (u,g) = perms.split(':',1)
-        if u == "-1" or u == "None": u = None
-        if g == "-1" or g == "None": g = None
+        if u == "-1" or u == "None":
+            u = None
+        if g == "-1" or g == "None":
+            g = None
         util.chownbyname(log_file, u, g)
 
 def purge_cache(rmcur=True):
     rmlist = [ boot_finished ]
-    if rmcur: rmlist.append(cur_instance_link)
+    if rmcur:
+        rmlist.append(cur_instance_link)
     for f in rmlist:
         try:
             os.unlink(f)
         except OSError as e:
-            if e.errno == errno.ENOENT: continue
+            if e.errno == errno.ENOENT:
+                continue
             return(False)
         except:
             return(False)
@@ -503,7 +517,8 @@ def get_cpath(name=None):
     return("%s%s" % (varlibdir, pathmap[name]))
 
 def get_base_cfg(cfg_path=None):
-    if cfg_path is None: cfg_path = system_config
+    if cfg_path is None:
+        cfg_path = system_config
     return(util.get_base_cfg(cfg_path,cfg_builtin,parsed_cfgs))
 
 def get_builtin_cfg():

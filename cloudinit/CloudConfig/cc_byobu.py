@@ -25,7 +25,8 @@ def handle(_name,cfg,_cloud,log,args):
     else:
         value = util.get_cfg_option_str(cfg,"byobu_by_default","")
 
-    if not value: return
+    if not value:
+        return
 
     if value == "user" or value == "system":
         value = "enable-%s" % value

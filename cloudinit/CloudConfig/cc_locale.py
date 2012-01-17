@@ -37,7 +37,8 @@ def handle(_name,cfg,cloud,log,args):
     locale_cfgfile = util.get_cfg_option_str(cfg, "locale_configfile",
                                              "/etc/default/locale")
 
-    if not locale: return
+    if not locale:
+        return
 
     log.debug("setting locale to %s" % locale)
 

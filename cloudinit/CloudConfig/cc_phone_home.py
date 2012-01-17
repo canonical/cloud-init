@@ -35,7 +35,8 @@ def handle(_name,cfg,cloud,log,args):
     if len(args) != 0:
         ph_cfg = util.readconf(args[0])
     else:
-        if not 'phone_home' in cfg: return
+        if not 'phone_home' in cfg:
+            return
         ph_cfg = cfg['phone_home']
 
     if 'url' not in ph_cfg:

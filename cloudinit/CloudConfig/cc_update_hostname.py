@@ -51,7 +51,8 @@ def read_hostname(filename, default=None):
             if line:
                 return line
     except IOError as e:
-        if e.errno != errno.ENOENT: raise
+        if e.errno != errno.ENOENT:
+            raise
     return default
     
 def update_hostname(hostname, prev_file, log):

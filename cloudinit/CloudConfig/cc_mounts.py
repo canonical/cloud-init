@@ -50,7 +50,8 @@ def handle(_name,cfg,cloud,log,_args):
 
     for i in range(len(cfgmnt)):
         # skip something that wasn't a list
-        if not isinstance(cfgmnt[i],list): continue
+        if not isinstance(cfgmnt[i],list):
+            continue
 
         # workaround, allow user to specify 'ephemeral'
         # rather than more ec2 correct 'ephemeral0'
@@ -98,7 +99,8 @@ def handle(_name,cfg,cloud,log,_args):
     # entry has the same device name
     for defmnt in defmnts:
         devname = cloud.device_name_to_device(defmnt[0])
-        if devname is None: continue
+        if devname is None:
+            continue
         if devname.startswith("/"):
             defmnt[0] = devname
         else:
@@ -110,7 +112,8 @@ def handle(_name,cfg,cloud,log,_args):
                 cfgmnt_has = True
                 break
         
-        if cfgmnt_has: continue
+        if cfgmnt_has:
+            continue
         cfgmnt.append(defmnt)
 
 
@@ -118,7 +121,8 @@ def handle(_name,cfg,cloud,log,_args):
     # if the second field is None (not the string, the value) we skip it
     actlist = [x for x in cfgmnt if x[1] is not None]
 
-    if len(actlist) == 0: return
+    if len(actlist) == 0:
+        return
 
     comment="comment=cloudconfig"
     cc_lines = [ ]
@@ -127,8 +131,10 @@ def handle(_name,cfg,cloud,log,_args):
     for line in actlist:
         # write 'comment' in the fs_mntops, entry,  claiming this
         line[3]="%s,comment=cloudconfig" % line[3]
-        if line[2] == "swap": needswap = True
-        if line[1].startswith("/"): dirs.append(line[1])
+        if line[2] == "swap":
+            needswap = True
+        if line[1].startswith("/"):
+            dirs.append(line[1])
         cc_lines.append('\t'.join(line))
 
     fstab_lines = [ ]
@@ -137,7 +143,8 @@ def handle(_name,cfg,cloud,log,_args):
     for line in fstab.read().splitlines():
         try:
             toks = ws.split(line)
-            if toks[3].find(comment) != -1: continue
+            if toks[3].find(comment) != -1:
+                continue
         except:
             pass
         fstab_lines.append(line)
@@ -150,13 +157,20 @@ def handle(_name,cfg,cloud,log,_args):
     fstab.close()
 
     if needswap:
-        try: util.subp(("swapon", "-a"))
-        except: log.warn("Failed to enable swap")
+        try:
+            util.subp(("swapon", "-a"))
+        except:
+            log.warn("Failed to enable swap")
 
     for d in dirs:
-        if os.path.exists(d): continue
-        try: os.makedirs(d)
-        except: log.warn("Failed to make '%s' config-mount\n",d)
+        if os.path.exists(d):
+            continue
+        try:
+            os.makedirs(d)
+        except:
+            log.warn("Failed to make '%s' config-mount\n",d)
 
-    try: util.subp(("mount","-a"))
-    except: log.warn("'mount -a' failed")
+    try:
+        util.subp(("mount","-a"))
+    except:
+        log.warn("'mount -a' failed")

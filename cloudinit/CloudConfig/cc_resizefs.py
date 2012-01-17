@@ -33,7 +33,8 @@ def handle(_name,cfg,_cloud,log,args):
     else:
         resize_root = util.get_cfg_option_bool(cfg,"resize_rootfs",True)
 
-    if not resize_root: return
+    if not resize_root:
+        return
 
     # this really only uses the filename from mktemp, then we mknod into it
     (fd, devpth) = tempfile.mkstemp()

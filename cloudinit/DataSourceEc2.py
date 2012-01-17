@@ -174,7 +174,8 @@ class DataSourceEc2(DataSource.DataSource):
             return(found)
 
         for nfrom, tlist in mappings.items():
-            if not short.startswith(nfrom): continue
+            if not short.startswith(nfrom):
+                continue
             for nto in tlist:
                 cand = "/dev/%s%s" % (nto, short[len(nfrom):])
                 if os.path.exists(cand):
@@ -192,7 +193,8 @@ class DataSourceEc2(DataSource.DataSource):
 
     def is_vpc(self):
         # per comment in LP: #615545
-        ph="public-hostname"; p4="public-ipv4"
+        ph="public-hostname"
+        p4="public-ipv4"
         if ((ph not in self.metadata or self.metadata[ph] == "") and
             (p4 not in self.metadata or self.metadata[p4] == "")):
             return True

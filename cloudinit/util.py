@@ -74,21 +74,27 @@ def get_base_cfg(cfgfile,cfg_builtin="", parsed_cfgs=None):
     return(fin)
 
 def get_cfg_option_bool(yobj, key, default=False):
-    if not yobj.has_key(key): return default
+    if not yobj.has_key(key):
+        return default
     val = yobj[key]
-    if val is True: return True
+    if val is True:
+        return True
     if str(val).lower() in [ 'true', '1', 'on', 'yes']:
         return True
     return False
 
 def get_cfg_option_str(yobj, key, default=None):
-    if not yobj.has_key(key): return default
+    if not yobj.has_key(key):
+        return default
     return yobj[key]
 
 def get_cfg_option_list_or_str(yobj, key, default=None):
-    if not yobj.has_key(key): return default
-    if yobj[key] is None: return []
-    if isinstance(yobj[key],list): return yobj[key]
+    if not yobj.has_key(key):
+        return default
+    if yobj[key] is None:
+        return []
+    if isinstance(yobj[key],list):
+        return yobj[key]
     return([yobj[key]])
 
 # get a cfg entry by its path array
@@ -96,7 +102,8 @@ def get_cfg_option_list_or_str(yobj, key, default=None):
 def get_cfg_by_path(yobj,keyp,default=None):
     cur = yobj
     for tok in keyp:
-        if tok not in cur: return(default)
+        if tok not in cur:
+            return(default)
         cur = cur[tok]
     return(cur)
 
@@ -147,10 +154,12 @@ def getkeybyid(keyid,keyserver):
     return(subp(args)[0])
 
 def runparts(dirp, skip_no_exist=True):
-    if skip_no_exist and not os.path.isdir(dirp): return
+    if skip_no_exist and not os.path.isdir(dirp):
+        return
         
     # per bug 857926, Fedora's run-parts will exit failure on empty dir
-    if os.path.isdir(dirp) and os.listdir(dirp) == []: return
+    if os.path.isdir(dirp) and os.listdir(dirp) == []:
+        return
 
     cmd = [ 'run-parts', '--regex', '.*', dirp ]
     sp = subprocess.Popen(cmd)
@@ -268,7 +277,8 @@ def read_file_with_includes(fname, rel = ".", stack=None, patt = None):
     cur = 0
     while True:
         match = patt.search(contents[cur:])
-        if not match: break
+        if not match:
+            break
         loc = match.start() + cur
         endl = match.end() + cur
 
@@ -314,7 +324,8 @@ def read_conf_with_confd(cfgfile):
     elif os.path.isdir("%s.d" % cfgfile):
         confd = "%s.d" % cfgfile
 
-    if not confd: return(cfg)
+    if not confd:
+        return(cfg)
 
     confd_cfg = read_conf_d(confd)
 
@@ -371,8 +382,10 @@ def ensure_dirs(dirlist, mode=0755):
             else:
                 os.makedirs(d, mode)
         except OSError as e:
-            if e.errno != errno.EEXIST: raise
-            if mode != None: fixmodes.append(d)
+            if e.errno != errno.EEXIST:
+                raise
+            if mode != None:
+                fixmodes.append(d)
 
     for d in fixmodes:
         os.chmod(d, mode)
@@ -380,7 +393,8 @@ def ensure_dirs(dirlist, mode=0755):
 def chownbyname(fname,user=None,group=None):
     uid = -1
     gid = -1
-    if user == None and group == None: return
+    if user == None and group == None:
+        return
     if user:
         import pwd
         uid = pwd.getpwnam(user).pw_uid
@@ -426,7 +440,8 @@ def shellify(cmdlist):
 def dos2unix(string):
     # find first end of line
     pos = string.find('\n')
-    if pos <= 0 or string[pos-1] != '\r': return(string)
+    if pos <= 0 or string[pos-1] != '\r':
+        return(string)
     return(string.replace('\r\n','\n'))
 
 def islxc():
