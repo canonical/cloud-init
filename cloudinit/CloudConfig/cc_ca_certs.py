@@ -21,21 +21,12 @@ import json
 import StringIO
 import ConfigParser
 import cloudinit.CloudConfig as cc
-from cloudinit.util import write_file, get_cfg_option_list_or_str
+from cloudinit.util import write_file, get_cfg_option_list_or_str, delete_dir_contents
 
 CA_CERT_PATH = "/usr/share/ca-certificates/"
 CA_CERT_FILENAME = "cloud-init-ca-certs.crt"
 CA_CERT_CONFIG = "/etc/ca-certificates.conf"
 CA_CERT_SYSTEM_PATH = "/etc/ssl/certs/"
-
-def delete_dir_contents(dirname):
-    """
-    Delete all the contents of the directory specified by C{dirname} without
-    deleting the directory itself.
-
-    @param dirname: The directory whose contents should be deleted.
-    """
-    raise NotImplementedError()
 
 def update_ca_certs():
     """
