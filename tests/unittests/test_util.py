@@ -5,7 +5,7 @@ from shutil import rmtree
 import os
 import stat
 
-from cloudinit.util import mergedict, get_cfg_option_list_or_str, write_file
+from cloudinit.util import mergedict, get_cfg_option_list_or_str, write_file, delete_dir_contents
 
 class TestMergeDict(TestCase):
     def test_simple_merge(self):
@@ -173,3 +173,73 @@ class TestWriteFile(MockerTestCase):
         self.mocker.replay()
 
         write_file(path, contents)
+
+class TestDeleteDirContents(TestCase):
+    def setUp(self):
+        super(TestDeleteDirContents, self).setUp()
+        # Make a temp directoy for tests to use.
+        self.tmp = mkdtemp(prefix="unittest_")
+
+    def tearDown(self):
+        super(TestDeleteDirContents, self).tearDown()
+        # Clean up temp directory
+        rmtree(self.tmp)
+
+    def assertDirEmpty(self, dirname):
+        self.assertEqual([], os.listdir(dirname))
+
+    def test_does_not_delete_dir(self):
+        """Ensure directory itself is not deleted."""
+        delete_dir_contents(self.tmp)
+
+        self.assertTrue(os.path.isdir(self.tmp))
+        self.assertDirEmpty(self.tmp)
+
+    def test_deletes_files(self):
+        """Single file should be deleted."""
+        with open(os.path.join(self.tmp, "new_file.txt"), "wb") as f:
+            f.write("DELETE ME")
+
+        delete_dir_contents(self.tmp)
+
+        self.assertDirEmpty(self.tmp)
+
+    def test_deletes_empty_dirs(self):
+        """Empty directories should be deleted."""
+        os.mkdir(os.path.join(self.tmp, "new_dir"))
+
+        delete_dir_contents(self.tmp)
+
+        self.assertDirEmpty(self.tmp)
+
+    def test_deletes_nested_dirs(self):
+        """Nested directories should be deleted."""
+        os.mkdir(os.path.join(self.tmp, "new_dir"))
+        os.mkdir(os.path.join(self.tmp, "new_dir", "new_subdir"))
+
+        delete_dir_contents(self.tmp)
+
+        self.assertDirEmpty(self.tmp)
+
+    def test_deletes_non_empty_dirs(self):
+        """Non-empty directories should be deleted."""
+        os.mkdir(os.path.join(self.tmp, "new_dir"))
+        f_name = os.path.join(self.tmp, "new_dir", "new_file.txt")
+        with open(f_name, "wb") as f:
+            f.write("DELETE ME")
+
+        delete_dir_contents(self.tmp)
+
+        self.assertDirEmpty(self.tmp)
+
+    def test_deletes_symlinks(self):
+        """Symlinks should be deleted."""
+        file_name = os.path.join(self.tmp, "new_file.txt")
+        link_name = os.path.join(self.tmp, "new_file_link.txt")
+        with open(file_name, "wb") as f:
+            f.write("DELETE ME")
+        os.symlink(file_name, link_name)
+
+        delete_dir_contents(self.tmp)
+
+        self.assertDirEmpty(self.tmp)
