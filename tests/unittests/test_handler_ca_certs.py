@@ -1,7 +1,8 @@
 from unittest import TestCase
 from mocker import MockerTestCase
 
-from cloudinit.CloudConfig.cc_ca_certs import handle, write_file, update_ca_certs, add_ca_certs, remove_default_ca_certs, append_to_file, delete_dir_contents
+from cloudinit.util import write_file
+from cloudinit.CloudConfig.cc_ca_certs import handle, update_ca_certs, add_ca_certs, remove_default_ca_certs, delete_dir_contents
 
 
 class TestNoConfig(MockerTestCase):
@@ -127,24 +128,22 @@ class TestAddCaCerts(MockerTestCase):
         cert = "CERT1\nLINE2\nLINE3"
 
         mock_write = self.mocker.replace(write_file, passthrough=False)
-        mock_append = self.mocker.replace(append_to_file, passthrough=False)
         mock_write("/usr/share/ca-certificates/cloud-init-ca-certs.crt",
-                   cert, "root", "root", "644")
-        mock_append("/etc/ca-certificates.conf", "cloud-init-ca-certs.crt")
+                   cert, mode=0644)
+        mock_write("/etc/ca-certificates.conf", "\ncloud-init-ca-certs.crt", omode="a")
         self.mocker.replay()
 
         add_ca_certs([cert])
 
     def test_multiple_certs(self):
-        """Test adding multiple certificate to the trusted CAs"""
+        """Test adding multiple certificates to the trusted CAs"""
         certs = ["CERT1\nLINE2\nLINE3", "CERT2\nLINE2\nLINE3"]
         expected_cert_file = "\n".join(certs)
 
         mock_write = self.mocker.replace(write_file, passthrough=False)
-        mock_append = self.mocker.replace(append_to_file, passthrough=False)
         mock_write("/usr/share/ca-certificates/cloud-init-ca-certs.crt",
-                   expected_cert_file, "root", "root", "644")
-        mock_append("/etc/ca-certificates.conf", "cloud-init-ca-certs.crt")
+                   expected_cert_file, mode=0644)
+        mock_write("/etc/ca-certificates.conf", "\ncloud-init-ca-certs.crt", omode="a")
         self.mocker.replay()
 
         add_ca_certs(certs)
@@ -167,7 +166,7 @@ class TestRemoveDefaultCaCerts(MockerTestCase):
 
         mock_delete_dir_contents("/usr/share/ca-certificates/")
         mock_delete_dir_contents("/etc/ssl/certs/")
-        mock_write("/etc/ca-certificates.conf", "", "root", "root", "644")
+        mock_write("/etc/ca-certificates.conf", "", mode=0644)
         
         self.mocker.replay()
 

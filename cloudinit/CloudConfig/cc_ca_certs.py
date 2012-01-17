@@ -21,35 +21,12 @@ import json
 import StringIO
 import ConfigParser
 import cloudinit.CloudConfig as cc
-import cloudinit.util as util
+from cloudinit.util import write_file, get_cfg_option_list_or_str
 
 CA_CERT_PATH = "/usr/share/ca-certificates/"
 CA_CERT_FILENAME = "cloud-init-ca-certs.crt"
 CA_CERT_CONFIG = "/etc/ca-certificates.conf"
 CA_CERT_SYSTEM_PATH = "/etc/ssl/certs/"
-
-def write_file(filename, contents, owner, group, mode):
-    """
-    Write a file to disk with specified owner, group, and mode. If the file
-    exists already it will be overwritten.
-
-    @param filename: Full path to the new file.
-    @param contents: The contents of the newly created file.
-    @param owner: The username who should own the file.
-    @param group: The group for the new file.
-    @param mode: The octal mode (as string) for the new file.
-    """
-    raise NotImplementedError()
-
-def append_to_file(filename, contents):
-    """
-    Append C{contents} to an existing file on the filesystem. If the file
-    doesn't exist it will be created with the default owner and permissions.
-
-    @param filename: Full path to the new file.
-    @param contents: The contents to append to the file.
-    """
-    raise NotImplementedError()
 
 def delete_dir_contents(dirname):
     """
@@ -76,8 +53,9 @@ def add_ca_certs(certs):
     if certs:
         cert_file_contents = "\n".join(certs)
         cert_file_fullpath = os.path.join(CA_CERT_PATH, CA_CERT_FILENAME)
-        write_file(cert_file_fullpath, cert_file_contents, "root", "root", "644")
-        append_to_file(CA_CERT_CONFIG, CA_CERT_FILENAME) 
+        write_file(cert_file_fullpath, cert_file_contents, mode=0644)
+        # Append cert filename to CA_CERT_CONFIG file.
+        write_file(CA_CERT_CONFIG, "\n%s" % CA_CERT_FILENAME, omode="a")
 
 def remove_default_ca_certs():
     """
@@ -86,7 +64,7 @@ def remove_default_ca_certs():
     """
     delete_dir_contents(CA_CERT_PATH)
     delete_dir_contents(CA_CERT_SYSTEM_PATH)
-    write_file(CA_CERT_CONFIG, "", "root", "root", "644")
+    write_file(CA_CERT_CONFIG, "", mode=0644)
 
 def handle(name, cfg, cloud, log, args):
     """
@@ -110,7 +88,7 @@ def handle(name, cfg, cloud, log, args):
 
     # If we are given any new trusted CA certs to add, add them.
     if ca_cert_cfg.has_key('trusted'):
-        trusted_certs = util.get_cfg_option_list_or_str(ca_cert_cfg, 'trusted')
+        trusted_certs = get_cfg_option_list_or_str(ca_cert_cfg, 'trusted')
         if trusted_certs:
             add_ca_certs(trusted_certs)
 
