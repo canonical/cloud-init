@@ -55,7 +55,7 @@ class DataSourceOVF(DataSource.DataSource):
         (seedfile, contents) = get_ovf_env(seeddir)
         if seedfile:
             # found a seed dir
-            seed = "%s/%s" % (seeddir,seedfile)
+            seed = "%s/%s" % (seeddir, seedfile)
             (md, ud, cfg) = read_ovf_environment(contents)
             self.environment = contents
 
@@ -89,14 +89,14 @@ class DataSourceOVF(DataSource.DataSource):
                     (seedfrom, self.__class__))
                 return False
 
-            (md_seed,ud) = util.read_seeded(seedfrom, timeout=None)
+            (md_seed, ud) = util.read_seeded(seedfrom, timeout=None)
             log.debug("using seeded cache data from %s" % seedfrom)
 
-            md = util.mergedict(md,md_seed)
+            md = util.mergedict(md, md_seed)
             found.append(seedfrom)
                     
 
-        md = util.mergedict(md,defaults)
+        md = util.mergedict(md, defaults)
         self.seed = ",".join(found)
         self.metadata = md
         self.userdata_raw = ud
@@ -147,12 +147,12 @@ def read_ovf_environment(contents):
 def get_ovf_env(dirname):
     env_names = ("ovf-env.xml", "ovf_env.xml", "OVF_ENV.XML", "OVF-ENV.XML" )
     for fname in env_names:
-        if os.path.isfile("%s/%s" % (dirname,fname)):
-            fp = open("%s/%s" % (dirname,fname))
+        if os.path.isfile("%s/%s" % (dirname, fname)):
+            fp = open("%s/%s" % (dirname, fname))
             contents = fp.read()
             fp.close()
-            return(fname,contents)
-    return(None,False)
+            return(fname, contents)
+    return(None, False)
 
 # transport functions take no input and return
 # a 3 tuple of content, path, filename
@@ -164,7 +164,7 @@ def transport_iso9660(require_iso=False):
     envname = "CLOUD_INIT_CDROM_DEV_REGEX"
     default_regex = "^(sr[0-9]+|hd[a-z]|xvd.*)"
 
-    devname_regex = os.environ.get(envname,default_regex)
+    devname_regex = os.environ.get(envname, default_regex)
     cdmatch = re.compile(devname_regex)
 
     # go through mounts to see if it was already mounted
@@ -174,18 +174,18 @@ def transport_iso9660(require_iso=False):
 
     mounted = { }
     for mpline in mounts:
-        (dev,mp,fstype,_opts,_freq,_passno) = mpline.split()
-        mounted[dev] = (dev,fstype,mp,False)
-        mp = mp.replace("\\040"," ")
+        (dev, mp, fstype, _opts, _freq, _passno) = mpline.split()
+        mounted[dev] = (dev, fstype, mp, False)
+        mp = mp.replace("\\040", " ")
         if fstype != "iso9660" and require_iso:
             continue
 
         if cdmatch.match(dev[5:]) == None: # take off '/dev/'
             continue
         
-        (fname,contents) = get_ovf_env(mp)
+        (fname, contents) = get_ovf_env(mp)
         if contents is not False:
-            return(contents,dev,fname)
+            return(contents, dev, fname)
 
     tmpd = None
     dvnull = None
@@ -219,19 +219,19 @@ def transport_iso9660(require_iso=False):
 
         cmd = [ "mount", "-o", "ro", fullp, tmpd ]
         if require_iso:
-            cmd.extend(('-t','iso9660'))
+            cmd.extend(('-t', 'iso9660'))
 
         rc = subprocess.call(cmd, stderr=dvnull, stdout=dvnull, stdin=dvnull)
         if rc:
             continue
 
-        (fname,contents) = get_ovf_env(tmpd)
+        (fname, contents) = get_ovf_env(tmpd)
 
         subprocess.call(["umount", tmpd])
 
         if contents is not False:
             os.rmdir(tmpd)
-            return(contents,fullp,fname)
+            return(contents, fullp, fname)
 
     if tmpd:
         os.rmdir(tmpd)
@@ -245,7 +245,7 @@ def transport_vmware_guestd():
     # http://blogs.vmware.com/vapp/2009/07/selfconfiguration-and-the-ovf-environment.html
     # try:
     #     cmd = ['vmware-guestd', '--cmd', 'info-get guestinfo.ovfEnv']
-    #     (out,err) = subp(cmd)
+    #     (out, err) = subp(cmd)
     #     return(out, 'guestinfo.ovfEnv', 'vmware-guestd')
     # except:
     #     # would need to error check here and see why this failed
@@ -254,7 +254,7 @@ def transport_vmware_guestd():
     return(False, None, None)
 
 
-def findChild(node,filter_func):
+def findChild(node, filter_func):
     ret = []
     if not node.hasChildNodes():
         return ret
@@ -285,8 +285,8 @@ def getProperties(environString):
     propElems = findChild(propSections[0], lambda n: n.localName == "Property")
 
     for elem in propElems:
-        key = elem.attributes.getNamedItemNS(envNsURI,"key").value
-        val = elem.attributes.getNamedItemNS(envNsURI,"value").value
+        key = elem.attributes.getNamedItemNS(envNsURI, "key").value
+        val = elem.attributes.getNamedItemNS(envNsURI, "value").value
         props[key] = val
 
     return(props)

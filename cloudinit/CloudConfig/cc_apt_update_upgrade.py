@@ -22,7 +22,7 @@ import os
 import glob
 import cloudinit.CloudConfig as cc
 
-def handle(_name,cfg,cloud,log,_args):
+def handle(_name, cfg, cloud, log, _args):
     update = util.get_cfg_option_bool(cfg, 'apt_update', False)
     upgrade = util.get_cfg_option_bool(cfg, 'apt_upgrade', False)
 
@@ -35,7 +35,7 @@ def handle(_name,cfg,cloud,log,_args):
     if not util.get_cfg_option_bool(cfg, \
         'apt_preserve_sources_list', False):
         generate_sources_list(release, mirror)
-        old_mir = util.get_cfg_option_str(cfg,'apt_old_mirror', \
+        old_mir = util.get_cfg_option_str(cfg, 'apt_old_mirror', \
             "archive.ubuntu.com/ubuntu")
         rename_apt_lists(old_mir, mirror)
 
@@ -46,7 +46,7 @@ def handle(_name,cfg,cloud,log,_args):
     if proxy:
         try:
             contents = "Acquire::HTTP::Proxy \"%s\";\n"
-            with open(proxy_filename,"w") as fp:
+            with open(proxy_filename, "w") as fp:
                 fp.write(contents % proxy)
         except Exception as e:
             log.warn("Failed to write proxy to %s" % proxy_filename)
@@ -69,7 +69,7 @@ def handle(_name,cfg,cloud,log,_args):
             log.error("Failed to run debconf-set-selections")
             log.debug(traceback.format_exc())
 
-    pkglist = util.get_cfg_option_list_or_str(cfg,'packages',[])
+    pkglist = util.get_cfg_option_list_or_str(cfg, 'packages', [])
 
     errors = [ ]
     if update or len(pkglist) or upgrade:
@@ -109,18 +109,18 @@ def mirror2lists_fileprefix(mirror):
     pos = string.find("://")
     if pos >= 0:
         string = string[pos+3:]
-    string = string.replace("/","_")
+    string = string.replace("/", "_")
     return string
 
-def rename_apt_lists(omirror,new_mirror,lists_d="/var/lib/apt/lists"):
+def rename_apt_lists(omirror, new_mirror, lists_d="/var/lib/apt/lists"):
     
-    oprefix = "%s/%s" % (lists_d,mirror2lists_fileprefix(omirror))
-    nprefix = "%s/%s" % (lists_d,mirror2lists_fileprefix(new_mirror))
+    oprefix = "%s/%s" % (lists_d, mirror2lists_fileprefix(omirror))
+    nprefix = "%s/%s" % (lists_d, mirror2lists_fileprefix(new_mirror))
     if(oprefix == nprefix):
         return
     olen = len(oprefix)
     for filename in glob.glob("%s_*" % oprefix):
-        os.rename(filename,"%s%s" % (nprefix, filename[olen:]))
+        os.rename(filename, "%s%s" % (nprefix, filename[olen:]))
 
 def get_release():
     stdout, _stderr = subprocess.Popen(['lsb_release', '-cs'], stdout=subprocess.PIPE).communicate()
@@ -146,7 +146,7 @@ def add_sources(srclist, searchList=None):
         source = ent['source']
         if source.startswith("ppa:"):
             try:
-                util.subp(["add-apt-repository",source])
+                util.subp(["add-apt-repository", source])
             except:
                 elst.append([source, "add-apt-repository failed"])
             continue
@@ -167,7 +167,7 @@ def add_sources(srclist, searchList=None):
             try:
                 ent['key'] = util.getkeybyid(ent['keyid'], ks)
             except:
-                elst.append([source,"failed to get key from %s" % ks])
+                elst.append([source, "failed to get key from %s" % ks])
                 continue
 
         if ent.has_key('key'):
@@ -195,7 +195,7 @@ def find_apt_mirror(cloud, cfg):
     }
     mirror = None
 
-    cfg_mirror = cfg.get("apt_mirror",None)
+    cfg_mirror = cfg.get("apt_mirror", None)
     if cfg_mirror:
         mirror = cfg["apt_mirror"]
     elif cfg.has_key("apt_mirror_search"):

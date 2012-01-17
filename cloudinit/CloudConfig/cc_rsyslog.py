@@ -24,7 +24,7 @@ import traceback
 DEF_FILENAME = "20-cloud-config.conf"
 DEF_DIR = "/etc/rsyslog.d"
 
-def handle(_name,cfg,_cloud,log,_args):
+def handle(_name, cfg, _cloud, log, _args):
     # rsyslog:
     #  - "*.* @@192.158.1.1"
     #  - content: "*.*   @@192.0.2.1:10514"
@@ -42,7 +42,7 @@ def handle(_name,cfg,_cloud,log,_args):
     files = [ ]
     elst = [ ]
     for ent in cfg['rsyslog']:
-        if isinstance(ent,dict):
+        if isinstance(ent, dict):
             if not "content" in ent:
                 elst.append((ent, "no 'content' entry"))
                 continue
@@ -53,7 +53,7 @@ def handle(_name,cfg,_cloud,log,_args):
             filename = def_fname
 
         if not filename.startswith("/"):
-            filename = "%s/%s" % (def_dir,filename)
+            filename = "%s/%s" % (def_dir, filename)
 
         omode = "ab"
         # truncate filename first time you see it

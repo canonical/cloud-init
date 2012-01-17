@@ -35,7 +35,7 @@ class DataSource:
     # datasource config, the cloud-config['datasource']['__name__']
     ds_cfg = { }  # datasource config
 
-    def __init__(self,sys_cfg=None):
+    def __init__(self, sys_cfg=None):
         if not self.cfgname:
             name = str(self.__class__).split(".")[-1]
             if name.startswith("DataSource"):
@@ -45,7 +45,7 @@ class DataSource:
             self.sys_cfg = sys_cfg
 
         self.ds_cfg = util.get_cfg_by_path(self.sys_cfg,
-                          ("datasource",self.cfgname),self.ds_cfg)
+                          ("datasource", self.cfgname), self.ds_cfg)
 
     def get_userdata(self):
         if self.userdata == None:
@@ -74,7 +74,7 @@ class DataSource:
             # lp:506332 uec metadata service responds with
             # data that makes boto populate a string for 'klist' rather
             # than a list.
-            if isinstance(klist,str):
+            if isinstance(klist, str):
                 klist = [ klist ]
             for pkey in klist:
                 # there is an empty string at the end of the keylist, trim it
@@ -132,7 +132,7 @@ class DataSource:
             # make up a hostname (LP: #475354) in format ip-xx.xx.xx.xx
             lhost = self.metadata['local-hostname']
             if is_ipv4(lhost):
-                toks = "ip-%s" % lhost.replace(".","-")
+                toks = "ip-%s" % lhost.replace(".", "-")
             else:
                 toks = lhost.split(".")
 
@@ -143,7 +143,7 @@ class DataSource:
             hostname = toks[0]
 
         if fqdn:
-            return "%s.%s" % (hostname,domain)
+            return "%s.%s" % (hostname, domain)
         else:
             return hostname
 

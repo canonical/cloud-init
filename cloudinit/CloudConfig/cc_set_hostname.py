@@ -18,8 +18,8 @@
 
 import cloudinit.util as util
 
-def handle(_name,cfg,cloud,log,_args):
-    if util.get_cfg_option_bool(cfg,"preserve_hostname",False):
+def handle(_name, cfg, cloud, log, _args):
+    if util.get_cfg_option_bool(cfg, "preserve_hostname", False):
         log.debug("preserve_hostname is set. not setting hostname")
         return(True)
 
@@ -34,5 +34,5 @@ def handle(_name,cfg,cloud,log,_args):
 
 def set_hostname(hostname, log):
     util.subp(['hostname', hostname])
-    util.write_file("/etc/hostname","%s\n" % hostname, 0644)
+    util.write_file("/etc/hostname", "%s\n" % hostname, 0644)
     log.debug("populated /etc/hostname with %s on first boot", hostname)

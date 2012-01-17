@@ -41,7 +41,7 @@ class FakeSecHead(object):
         else:
             return self.fp.readline()
 
-def handle(_name,cfg,_cloud,_log,_args):
+def handle(_name, cfg, _cloud, _log, _args):
     # If there isn't a mcollective key in the configuration don't do anything
     if not cfg.has_key('mcollective'):
         return
@@ -60,20 +60,20 @@ def handle(_name,cfg,_cloud,_log,_args):
                 util.write_file(pubcert_file, cfg, mode=0644)
                 mcollective_config.set(cfg_name,
                     'plugin.ssl_server_public', pubcert_file)
-                mcollective_config.set(cfg_name,'securityprovider','ssl')
+                mcollective_config.set(cfg_name, 'securityprovider', 'ssl')
             elif cfg_name == 'private-cert':
                 util.write_file(pricert_file, cfg, mode=0600)
                 mcollective_config.set(cfg_name,
                     'plugin.ssl_server_private', pricert_file)
-                mcollective_config.set(cfg_name,'securityprovider','ssl')
+                mcollective_config.set(cfg_name, 'securityprovider', 'ssl')
             else:
                 # Iterate throug the config items, we'll use ConfigParser.set
                 # to overwrite or create new items as needed
                 for o, v in cfg.iteritems():
-                    mcollective_config.set(cfg_name,o,v)
+                    mcollective_config.set(cfg_name, o, v)
         # We got all our config as wanted we'll rename
         # the previous server.cfg and create our new one
-        os.rename('/etc/mcollective/server.cfg','/etc/mcollective/server.cfg.old')
+        os.rename('/etc/mcollective/server.cfg', '/etc/mcollective/server.cfg.old')
         outputfile = StringIO.StringIO()
         mcollective_config.write(outputfile)
         # Now we got the whole file, write to disk except first line
@@ -83,7 +83,7 @@ def handle(_name,cfg,_cloud,_log,_args):
         # search and replace of '=' with ':' could be problematic though.
         # this most likely needs fixing.
         util.write_file('/etc/mcollective/server.cfg',
-            outputfile.getvalue().replace('[nullsection]\n','').replace(' =',':'),
+            outputfile.getvalue().replace('[nullsection]\n', '').replace(' =', ':'),
             mode=0644)
 
     # Start mcollective

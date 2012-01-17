@@ -69,10 +69,10 @@ def main():
         # there was no datasource found, theres nothing to do
         sys.exit(0)
 
-    cc = CC.CloudConfig(cfg_path,cloud)
+    cc = CC.CloudConfig(cfg_path, cloud)
 
     try:
-        (outfmt, errfmt) = CC.get_output_cfg(cc.cfg,modename)
+        (outfmt, errfmt) = CC.get_output_cfg(cc.cfg, modename)
         CC.redirect_output(outfmt, errfmt)
     except Exception as e:
         err("Failed to get and set output config: %s\n" % e)
@@ -84,25 +84,25 @@ def main():
     module_list = [ ]
     if name == "all":
         modlist_cfg_name = "cloud_%s_modules" % modename
-        module_list = CC.read_cc_modules(cc.cfg,modlist_cfg_name)
+        module_list = CC.read_cc_modules(cc.cfg, modlist_cfg_name)
         if not len(module_list):
-            err("no modules to run in cloud_config [%s]" % modename,log)
+            err("no modules to run in cloud_config [%s]" % modename, log)
             sys.exit(0)
     else:
         module_list.append( [ name, freq ] + run_args )
 
-    failures = CC.run_cc_modules(cc,module_list,log)
+    failures = CC.run_cc_modules(cc, module_list, log)
     if len(failures):
-        err("errors running cloud_config [%s]: %s" % (modename,failures), log)
+        err("errors running cloud_config [%s]: %s" % (modename, failures), log)
     sys.exit(len(failures))
 
-def err(msg,log=None):
+def err(msg, log=None):
     if log:
         log.error(msg)
     sys.stderr.write(msg + "\n")
 
-def fail(msg,log=None):
-    err(msg,log)
+def fail(msg, log=None):
+    err(msg, log)
     sys.exit(1)
 
 if __name__ == '__main__':

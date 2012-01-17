@@ -19,15 +19,15 @@ import cloudinit.util as util
 import subprocess
 import traceback
 
-def handle(_name,cfg,_cloud,log,args):
+def handle(_name, cfg, _cloud, log, args):
     if len(args) != 0:
         user = args[0]
         ids = [ ]
         if len(args) > 1:
             ids = args[1:]
     else:
-        user = util.get_cfg_option_str(cfg,"user","ubuntu")
-        ids = util.get_cfg_option_list_or_str(cfg,"ssh_import_id",[])
+        user = util.get_cfg_option_str(cfg, "user", "ubuntu")
+        ids = util.get_cfg_option_list_or_str(cfg, "ssh_import_id", [])
 
     if len(ids) == 0:
         return

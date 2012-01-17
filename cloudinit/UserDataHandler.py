@@ -42,7 +42,7 @@ def decomp_str(string):
     import StringIO
     import gzip
     try:
-        uncomp = gzip.GzipFile(None,"rb",1,StringIO.StringIO(string)).read()
+        uncomp = gzip.GzipFile(None, "rb", 1, StringIO.StringIO(string)).read()
         return(uncomp)
     except:
         return(string)
@@ -94,7 +94,7 @@ def explode_cc_archive(archive, appendmsg):
         #  scalar(payload)
         
         def_type = "text/cloud-config"
-        if isinstance(ent,str):
+        if isinstance(ent, str):
             ent = { 'content': ent }
 
         content = ent.get('content', '')
@@ -118,7 +118,7 @@ def explode_cc_archive(archive, appendmsg):
                 continue
             msg.add_header(header, ent['header'])
 
-        _attach_part(appendmsg,msg)
+        _attach_part(appendmsg, msg)
 
 
 def multi_part_count(outermsg, newcount=None):
@@ -195,13 +195,13 @@ def message_from_string(data, headers=None):
         headers = {}
     if "mime-version:" in data[0:4096].lower():
         msg = email.message_from_string(data)
-        for (key,val) in headers.items():
+        for (key, val) in headers.items():
             if key in msg:
-                msg.replace_header(key,val)
+                msg.replace_header(key, val)
             else:
                 msg[key] = val
     else:
-        mtype = headers.get("Content-Type","text/plain")
+        mtype = headers.get("Content-Type", "text/plain")
         maintype, subtype = mtype.split("/", 1)
         msg = MIMEBase(maintype, subtype, *headers)
         msg.set_payload(data)
