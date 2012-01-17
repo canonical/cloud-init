@@ -25,12 +25,8 @@ DISABLE_ROOT_OPTS = "no-port-forwarding,no-agent-forwarding," \
 "no-X11-forwarding,command=\"echo \'Please login as the user \\\"$USER\\\" " \
 "rather than the user \\\"root\\\".\';echo;sleep 10\""
 
-global_log = None
-
 
 def handle(_name, cfg, cloud, log, _args):
-    global global_log
-    global_log = log
 
     # remove the static keys from the pristine image
     if cfg.get("ssh_deletekeys", True):
@@ -87,14 +83,14 @@ def handle(_name, cfg, cloud, log, _args):
             cfgkeys = cfg["ssh_authorized_keys"]
             keys.extend(cfgkeys)
 
-        apply_credentials(keys, user, disable_root, disable_root_opts)
+        apply_credentials(keys, user, disable_root, disable_root_opts, log)
     except:
         util.logexc(log)
         log.warn("applying credentials failed!\n")
 
 
 def apply_credentials(keys, user, disable_root,
-                      disable_root_opts=DISABLE_ROOT_OPTS, log=global_log):
+                      disable_root_opts=DISABLE_ROOT_OPTS, log=None):
     keys = set(keys)
     if user:
         sshutil.setup_user_keys(keys, user, '', log)
