@@ -125,7 +125,7 @@ def write_file(filename,content,mode=0644,omode="wb"):
         if e.errno != errno.EEXIST:
             raise e
 
-    f=open(filename,omode)
+    f = open(filename,omode)
     if mode != None:
         os.chmod(filename,mode)
     f.write(content)
@@ -138,7 +138,7 @@ def restorecon_if_possible(path, recursive=False):
 
 # get keyid from keyserver
 def getkeybyid(keyid,keyserver):
-    shcmd="""
+    shcmd = """
     k=${1} ks=${2};
     exec 2>/dev/null
     [ -n "$k" ] || exit 1;
@@ -150,7 +150,7 @@ def getkeybyid(keyid,keyserver):
     fi
     [ -n "${armour}" ] && echo "${armour}"
     """
-    args=['sh', '-c', shcmd, "export-gpg-keyid", keyid, keyserver]
+    args = ['sh', '-c', shcmd, "export-gpg-keyid", keyid, keyserver]
     return(subp(args)[0])
 
 def runparts(dirp, skip_no_exist=True):
@@ -193,8 +193,8 @@ def render_string(template, searchList):
 def read_optional_seed(fill,base="",ext="", timeout=5):
     try:
         (md,ud) = read_seeded(base,ext,timeout)
-        fill['user-data']= ud
-        fill['meta-data']= md
+        fill['user-data'] = ud
+        fill['meta-data'] = md
         return True
     except OSError, e:
         if e.errno == errno.ENOENT:
@@ -205,7 +205,7 @@ def read_optional_seed(fill,base="",ext="", timeout=5):
 # raise OSError with enoent if not found
 def read_seeded(base="", ext="", timeout=5, retries=10, file_retries=0):
     if base.startswith("/"):
-        base="file://%s" % base
+        base = "file://%s" % base
 
     # default retries for file is 0. for network is 10
     if base.startswith("file://"):
@@ -356,8 +356,8 @@ def read_cc_from_cmdline(cmdline=None):
     if cmdline is None:
         cmdline = get_cmdline()
 
-    tag_begin="cc:"
-    tag_end="end_cc"
+    tag_begin = "cc:"
+    tag_end = "end_cc"
     begin_l = len(tag_begin)
     end_l = len(tag_end)
     clen = len(cmdline)
@@ -423,8 +423,8 @@ def readurl(url, data=None, timeout=None):
 #    if it is an array, shell protect it (with single ticks)
 #    if it is a string, do nothing
 def shellify(cmdlist):
-    content="#!/bin/sh\n"
-    escaped="%s%s%s%s" % ( "'", '\\', "'", "'" )
+    content = "#!/bin/sh\n"
+    escaped = "%s%s%s%s" % ( "'", '\\', "'", "'" )
     for args in cmdlist:
         # if the item is a list, wrap all items in single tick
         # if its not, then just write it directly
@@ -432,9 +432,9 @@ def shellify(cmdlist):
             fixed = [ ]
             for f in args:
                 fixed.append("'%s'" % str(f).replace("'",escaped))
-            content="%s%s\n" % ( content, ' '.join(fixed) )
+            content = "%s%s\n" % ( content, ' '.join(fixed) )
         else:
-            content="%s%s\n" % ( content, str(args) )
+            content = "%s%s\n" % ( content, str(args) )
     return content
 
 def dos2unix(string):

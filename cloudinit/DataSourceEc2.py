@@ -35,7 +35,7 @@ class DataSourceEc2(DataSource.DataSource):
         return("DataSourceEc2")
 
     def get_data(self):
-        seedret={ }
+        seedret = { }
         if util.read_optional_seed(seedret,base=self.seeddir+ "/"):
             self.userdata_raw = seedret['user-data']
             self.metadata = seedret['meta-data']
@@ -74,7 +74,7 @@ class DataSourceEc2(DataSource.DataSource):
             return fallback
 
         try:
-            host="%s.ec2.archive.ubuntu.com" % availability_zone[:-1]
+            host = "%s.ec2.archive.ubuntu.com" % availability_zone[:-1]
             socket.getaddrinfo(host, None, 0, socket.SOCK_STREAM)
             return 'http://%s/ubuntu/' % host
         except:
@@ -168,7 +168,7 @@ class DataSourceEc2(DataSource.DataSource):
         short = os.path.basename(found)
         
         if not found.startswith("/"):
-            found="/dev/%s" % found
+            found = "/dev/%s" % found
 
         if os.path.exists(found):
             return(found)
@@ -193,8 +193,8 @@ class DataSourceEc2(DataSource.DataSource):
 
     def is_vpc(self):
         # per comment in LP: #615545
-        ph="public-hostname"
-        p4="public-ipv4"
+        ph = "public-hostname"
+        p4 = "public-ipv4"
         if ((ph not in self.metadata or self.metadata[ph] == "") and
             (p4 not in self.metadata or self.metadata[p4] == "")):
             return True
@@ -238,7 +238,7 @@ def wait_for_metadata_service(urls, max_wait=None, timeout=None, status_cb=None)
 
     loop_n = 0
     while True:
-        sleeptime=int(loop_n/5)+1
+        sleeptime = int(loop_n/5)+1
         for url in urls:
             now = time.time()
             if loop_n != 0:

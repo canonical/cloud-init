@@ -21,7 +21,7 @@ import os
 import glob
 import subprocess
 
-DISABLE_ROOT_OPTS="no-port-forwarding,no-agent-forwarding,no-X11-forwarding,command=\"echo \'Please login as the user \\\"$USER\\\" rather than the user \\\"root\\\".\';echo;sleep 10\""
+DISABLE_ROOT_OPTS = "no-port-forwarding,no-agent-forwarding,no-X11-forwarding,command=\"echo \'Please login as the user \\\"$USER\\\" rather than the user \\\"root\\\".\';echo;sleep 10\""
 
 
 global_log = None
@@ -60,7 +60,7 @@ def handle(_name,cfg,cloud,log,_args):
         for priv,pub in priv2pub.iteritems():
             if pub in cfg['ssh_keys'] or not priv in cfg['ssh_keys']:
                 continue
-            pair=(key2file[priv][0], key2file[pub][0])
+            pair = (key2file[priv][0], key2file[pub][0])
             subprocess.call(('sh', '-xc', cmd % pair))
             log.debug("generated %s from %s" % pair)
     else:

@@ -26,7 +26,7 @@ import cloudinit.util as util
 import hashlib
 import urllib
 
-starts_with_mappings={
+starts_with_mappings = {
     '#include' : 'text/x-include-url',
     '#include-once' : 'text/x-include-once-url',
     '#!' : 'text/x-shellscript',

@@ -31,8 +31,8 @@ def handle(_name,cfg,_cloud,log,args):
         msg_in = util.get_cfg_option_str(cfg,"final_message",final_message)
 
     try:
-        uptimef=open("/proc/uptime")
-        uptime=uptimef.read().split(" ")[0]
+        uptimef = open("/proc/uptime")
+        uptime = uptimef.read().split(" ")[0]
         uptimef.close()
     except IOError as e:
         log.warn("unable to open /proc/uptime\n")

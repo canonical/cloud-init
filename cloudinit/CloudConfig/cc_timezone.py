@@ -40,7 +40,7 @@ def handle(_name,cfg,_cloud,log,args):
         raise Exception("Invalid timezone %s" % tz_file)
 
     try:
-        fp=open("/etc/timezone","wb")
+        fp = open("/etc/timezone","wb")
         fp.write("%s\n" % timezone)
         fp.close()
     except:

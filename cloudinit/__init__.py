@@ -46,9 +46,9 @@ pathmap = {
    None : "",
 }
 
-per_instance="once-per-instance"
-per_always="always"
-per_once="once"
+per_instance = "once-per-instance"
+per_always = "always"
+per_once = "once"
 
 parsed_cfgs = { }
 
@@ -81,7 +81,7 @@ def logging_set_from_cfg_file(cfg_file=system_config):
 
 def logging_set_from_cfg(cfg):
     log_cfgs = []
-    logcfg=util.get_cfg_option_str(cfg, "log_cfg", False)
+    logcfg = util.get_cfg_option_str(cfg, "log_cfg", False)
     if logcfg:
         # if there is a 'logcfg' entry in the config, respect
         # it, it is the old keyname
@@ -131,8 +131,8 @@ class CloudInit:
 
         if ds_deps != None:
             self.ds_deps = ds_deps
-        self.sysconfig=sysconfig
-        self.cfg=self.read_cfg()
+        self.sysconfig = sysconfig
+        self.cfg = self.read_cfg()
 
     def read_cfg(self):
         if self.cfg:
@@ -162,7 +162,7 @@ class CloudInit:
             # by using the instance link, if purge_cache was called
             # the file wont exist
             cache = get_ipath_cur('obj_pkl')
-            f=open(cache, "rb")
+            f = open(cache, "rb")
             data = cPickle.load(f)
             f.close()
             self.datasource = data
@@ -179,7 +179,7 @@ class CloudInit:
                 return False
                 
         try:
-            f=open(cache, "wb")
+            f = open(cache, "wb")
             cPickle.dump(self.datasource,f)
             f.close()
             os.chmod(cache,0400)
@@ -194,7 +194,7 @@ class CloudInit:
             log.debug("restored from cache type %s" % self.datasource)
             return True
 
-        cfglist=self.cfg['datasource_list']
+        cfglist = self.cfg['datasource_list']
         dslist = list_sources(cfglist, self.ds_deps)
         dsnames = [f.__name__ for f in dslist]
 
@@ -382,7 +382,7 @@ class CloudInit:
             # maybe delete existing things here
             return
 
-        filename=filename.replace(os.sep,'_')
+        filename = filename.replace(os.sep,'_')
         scriptsdir = get_ipath_cur('scripts')
         util.write_file("%s/%s" % 
             (scriptsdir,filename), util.dos2unix(payload), 0700)
@@ -395,14 +395,14 @@ class CloudInit:
         if ctype == "__end__" or ctype == "__begin__":
             return
         if not filename.endswith(".conf"):
-            filename=filename+".conf"
+            filename = filename+".conf"
 
         util.write_file("%s/%s" % ("/etc/init",filename),
             util.dos2unix(payload), 0644)
 
     def handle_cloud_config(self,_data,ctype,filename,payload, _frequency):
         if ctype == "__begin__":
-            self.cloud_config_str=""
+            self.cloud_config_str = ""
             return
         if ctype == "__end__":
             cloud_config = self.get_ipath("cloud_config")
@@ -418,7 +418,7 @@ class CloudInit:
 
             return
 
-        self.cloud_config_str+="\n#%s\n%s" % (filename,payload)
+        self.cloud_config_str += "\n#%s\n%s" % (filename,payload)
 
     def handle_cloud_boothook(self,_data,ctype,filename,payload, _frequency):
         if ctype == "__end__":
@@ -426,9 +426,9 @@ class CloudInit:
         if ctype == "__begin__":
             return
 
-        filename=filename.replace(os.sep,'_')
+        filename = filename.replace(os.sep,'_')
         payload = util.dos2unix(payload)
-        prefix="#cloud-boothook"
+        prefix = "#cloud-boothook"
         start = 0
         if payload.startswith(prefix):
             start = len(prefix) + 1
@@ -437,8 +437,8 @@ class CloudInit:
         filepath = "%s/%s" % (boothooks_dir,filename)
         util.write_file(filepath, payload[start:], 0700)
         try:
-            env=os.environ.copy()
-            env['INSTANCE_ID']= self.datasource.get_instance_id()
+            env = os.environ.copy()
+            env['INSTANCE_ID'] = self.datasource.get_instance_id()
             subprocess.check_call([filepath], env=env)
         except subprocess.CalledProcessError as e:
             log.error("boothooks script %s returned %i" %

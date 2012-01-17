@@ -102,23 +102,23 @@ def handle(_name,cfg,cloud,log,_args):
     return(True)
 
 def mirror2lists_fileprefix(mirror):
-    string=mirror
+    string = mirror
     # take of http:// or ftp://
     if string.endswith("/"):
-        string=string[0:-1]
-    pos=string.find("://")
+        string = string[0:-1]
+    pos = string.find("://")
     if pos >= 0:
-        string=string[pos+3:]
-    string=string.replace("/","_")
+        string = string[pos+3:]
+    string = string.replace("/","_")
     return string
 
 def rename_apt_lists(omirror,new_mirror,lists_d="/var/lib/apt/lists"):
     
-    oprefix="%s/%s" % (lists_d,mirror2lists_fileprefix(omirror))
-    nprefix="%s/%s" % (lists_d,mirror2lists_fileprefix(new_mirror))
-    if(oprefix==nprefix):
+    oprefix = "%s/%s" % (lists_d,mirror2lists_fileprefix(omirror))
+    nprefix = "%s/%s" % (lists_d,mirror2lists_fileprefix(new_mirror))
+    if(oprefix == nprefix):
         return
-    olen=len(oprefix)
+    olen = len(oprefix)
     for filename in glob.glob("%s_*" % oprefix):
         os.rename(filename,"%s%s" % (nprefix, filename[olen:]))
 
@@ -143,7 +143,7 @@ def add_sources(srclist, searchList=None):
             elst.append([ "", "missing source" ])
             continue
 
-        source=ent['source']
+        source = ent['source']
         if source.startswith("ppa:"):
             try:
                 util.subp(["add-apt-repository",source])
@@ -154,7 +154,7 @@ def add_sources(srclist, searchList=None):
         source = util.render_string(source, searchList)
 
         if not ent.has_key('filename'):
-            ent['filename']='cloud_config_sources.list'
+            ent['filename'] = 'cloud_config_sources.list'
 
         if not ent['filename'].startswith("/"):
             ent['filename'] = "%s/%s" % \
