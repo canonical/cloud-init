@@ -19,7 +19,7 @@
 import cloudinit.util as util
 import sys
 import random
-import string
+from string import letters, digits  # pylint: disable=W0402
 
 
 def handle(_name, cfg, _cloud, log, args):
@@ -117,11 +117,11 @@ def handle(_name, cfg, _cloud, log, args):
     return
 
 
-def rand_str(strlen=32, select_from=string.letters + string.digits):
+def rand_str(strlen=32, select_from=letters + digits):
     return("".join([random.choice(select_from) for _x in range(0, strlen)]))
 
 
 def rand_user_password(pwlen=9):
-    selfrom = (string.letters.translate(None, 'loLOI') +
-               string.digits.translate(None, '01'))
+    selfrom = (letters.translate(None, 'loLOI') +
+               digits.translate(None, '01'))
     return(rand_str(pwlen, select_from=selfrom))
