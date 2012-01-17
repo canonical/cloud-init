@@ -37,7 +37,7 @@ def main():
         'instance_id' : cc.cloud.get_instance_id(),
     }
 
-    name = sys.argv[1].replace('-','_')
+    name = sys.argv[1].replace('-', '_')
 
     if name not in data:
         sys.stderr.write("unknown name '%s'.  Known values are:\n  %s\n" %

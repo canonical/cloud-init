@@ -26,7 +26,7 @@ import cloudinit.util as util
 import hashlib
 import urllib
 
-starts_with_mappings={
+starts_with_mappings = {
     '#include' : 'text/x-include-url',
     '#include-once' : 'text/x-include-once-url',
     '#!' : 'text/x-shellscript',
@@ -42,7 +42,7 @@ def decomp_str(string):
     import StringIO
     import gzip
     try:
-        uncomp = gzip.GzipFile(None,"rb",1,StringIO.StringIO(string)).read()
+        uncomp = gzip.GzipFile(None, "rb", 1, StringIO.StringIO(string)).read()
         return(uncomp)
     except:
         return(string)
@@ -53,7 +53,8 @@ def do_include(content, appendmsg):
     # also support '#include <url here>'
     includeonce = False
     for line in content.splitlines():
-        if line == "#include": continue
+        if line == "#include":
+            continue
         if line == "#include-once":
             includeonce = True
             continue
@@ -62,7 +63,8 @@ def do_include(content, appendmsg):
             includeonce = True
         elif line.startswith("#include"):
             line = line[len("#include"):].lstrip()
-        if line.startswith("#"): continue
+        if line.startswith("#"):
+            continue
 
         # urls cannot not have leading or trailing white space
         msum = hashlib.md5()
@@ -92,7 +94,7 @@ def explode_cc_archive(archive, appendmsg):
         #  scalar(payload)
         
         def_type = "text/cloud-config"
-        if isinstance(ent,str):
+        if isinstance(ent, str):
             ent = { 'content': ent }
 
         content = ent.get('content', '')
@@ -116,7 +118,7 @@ def explode_cc_archive(archive, appendmsg):
                 continue
             msg.add_header(header, ent['header'])
 
-        _attach_part(appendmsg,msg)
+        _attach_part(appendmsg, msg)
 
 
 def multi_part_count(outermsg, newcount=None):
@@ -193,13 +195,13 @@ def message_from_string(data, headers=None):
         headers = {}
     if "mime-version:" in data[0:4096].lower():
         msg = email.message_from_string(data)
-        for (key,val) in headers.items():
+        for (key, val) in headers.items():
             if key in msg:
-                msg.replace_header(key,val)
+                msg.replace_header(key, val)
             else:
                 msg[key] = val
     else:
-        mtype = headers.get("Content-Type","text/plain")
+        mtype = headers.get("Content-Type", "text/plain")
         maintype, subtype = mtype.split("/", 1)
         msg = MIMEBase(maintype, subtype, *headers)
         msg.set_payload(data)
@@ -212,7 +214,8 @@ def preprocess_userdata(data):
     process_includes(message_from_string(decomp_str(data)), newmsg)
     return(newmsg.as_string())
 
-# callback is a function that will be called with (data, content_type, filename, payload)
+# callback is a function that will be called with (data, content_type,
+# filename, payload)
 def walk_userdata(istr, callback, data = None):
     partnum = 0
     for part in message_from_string(istr).walk():

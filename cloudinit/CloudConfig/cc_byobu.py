@@ -19,13 +19,14 @@ import cloudinit.util as util
 import subprocess
 import traceback
 
-def handle(_name,cfg,_cloud,log,args):
+def handle(_name, cfg, _cloud, log, args):
     if len(args) != 0:
         value = args[0]
     else:
-        value = util.get_cfg_option_str(cfg,"byobu_by_default","")
+        value = util.get_cfg_option_str(cfg, "byobu_by_default", "")
 
-    if not value: return
+    if not value:
+        return
 
     if value == "user" or value == "system":
         value = "enable-%s" % value
@@ -50,7 +51,7 @@ def handle(_name,cfg,_cloud,log,args):
 
     shcmd = ""
     if mod_user:
-        user = util.get_cfg_option_str(cfg,"user","ubuntu")
+        user = util.get_cfg_option_str(cfg, "user", "ubuntu")
         shcmd += " sudo -Hu \"%s\" byobu-launcher-%s" % (user, bl_inst)
         shcmd += " || X=$(($X+1)); "
     if mod_sys:

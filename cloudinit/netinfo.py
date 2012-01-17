@@ -28,7 +28,7 @@ def netdev_info():
                     pass
             for field in ("addr", "bcast", "mask"):
                 target = "%s%s" % (field, fieldpost)
-                if devs[curdev].get(target,""): 
+                if devs[curdev].get(target, ""):
                     continue
                 if toks[i] == "%s:" % field:
                     try:
@@ -54,7 +54,7 @@ def route_info():
 def getgateway():
     for r in route_info():
         if r[3].find("G") >= 0:
-            return("%s[%s]" % (r[1],r[7]))
+            return("%s[%s]" % (r[1], r[7]))
     return(None)
 
 def debug_info(pre="ci-info: "):
@@ -66,7 +66,7 @@ def debug_info(pre="ci-info: "):
         netdev = {}
     for (dev, d) in netdev.iteritems():
         lines.append("%s%-6s: %i %-15s %-15s %s" %
-            (pre, dev, d["up"], d["addr"],d["mask"], d["hwaddr"]))
+            (pre, dev, d["up"], d["addr"], d["mask"], d["hwaddr"]))
     try:
         routes = route_info()
     except Exception:

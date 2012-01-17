@@ -25,9 +25,10 @@ import ConfigParser
 import cloudinit.CloudConfig as cc
 import cloudinit.util as util
 
-def handle(_name,cfg,cloud,log,_args):
+def handle(_name, cfg, cloud, log, _args):
     # If there isn't a puppet key in the configuration don't do anything
-    if not cfg.has_key('puppet'): return
+    if not cfg.has_key('puppet'):
+        return
     puppet_cfg = cfg['puppet']
     # Start by installing the puppet package ...
     cc.install_packages(("puppet",))
@@ -38,8 +39,10 @@ def handle(_name,cfg,cloud,log,_args):
         puppet_conf_fh = open('/etc/puppet/puppet.conf', 'r')
         # Create object for reading puppet.conf values
         puppet_config = ConfigParser.ConfigParser()
-        # Read puppet.conf values from original file in order to be able to mix the rest up
-        puppet_config.readfp(StringIO.StringIO(''.join(i.lstrip() for i in puppet_conf_fh.readlines())))
+        # Read puppet.conf values from original file in order to be able to
+        # mix the rest up
+        puppet_config.readfp(StringIO.StringIO(''.join(i.lstrip() for i in
+                                               puppet_conf_fh.readlines())))
         # Close original file, no longer needed
         puppet_conf_fh.close()
         for cfg_name, cfg in puppet_cfg['conf'].iteritems():
@@ -63,7 +66,8 @@ def handle(_name,cfg,cloud,log,_args):
                 util.restorecon_if_possible('/var/lib/puppet', recursive=True)
             else:
                 #puppet_conf_fh.write("\n[%s]\n" % (cfg_name))
-                # If puppet.conf already has this section we don't want to write it again
+                # If puppet.conf already has this section we don't want to
+                # write it again
                 if puppet_config.has_section(cfg_name) == False:
                     puppet_config.add_section(cfg_name)
                 # Iterate throug the config items, we'll use ConfigParser.set
@@ -77,11 +81,11 @@ def handle(_name,cfg,cloud,log,_args):
                               cloud.datasource.get_instance_id())
                         # certname needs to be downcase
                         v = v.lower()
-                    puppet_config.set(cfg_name,o,v)
+                    puppet_config.set(cfg_name, o, v)
                     #puppet_conf_fh.write("%s=%s\n" % (o, v))
             # We got all our config as wanted we'll rename
             # the previous puppet.conf and create our new one
-            os.rename('/etc/puppet/puppet.conf','/etc/puppet/puppet.conf.old')
+            os.rename('/etc/puppet/puppet.conf', '/etc/puppet/puppet.conf.old')
             with open('/etc/puppet/puppet.conf', 'wb') as configfile:
                 puppet_config.write(configfile)
             util.restorecon_if_possible('/etc/puppet/puppet.conf')

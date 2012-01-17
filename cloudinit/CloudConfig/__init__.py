@@ -25,7 +25,7 @@ import os
 import subprocess
 import time
 
-per_instance= cloudinit.per_instance
+per_instance = cloudinit.per_instance
 per_always = cloudinit.per_always
 per_once = cloudinit.per_once
 
@@ -33,7 +33,7 @@ class CloudConfig():
     cfgfile = None
     cfg = None
 
-    def __init__(self,cfgfile, cloud=None, ds_deps=None):
+    def __init__(self, cfgfile, cloud=None, ds_deps=None):
         if cloud == None:
             self.cloud = cloudinit.CloudInit(ds_deps)
             self.cloud.get_data_source()
@@ -41,15 +41,17 @@ class CloudConfig():
             self.cloud = cloud
         self.cfg = self.get_config_obj(cfgfile)
 
-    def get_config_obj(self,cfgfile):
+    def get_config_obj(self, cfgfile):
         try:
             cfg = util.read_conf(cfgfile)
         except:
             # TODO: this 'log' could/should be passed in
-            cloudinit.log.critical("Failed loading of cloud config '%s'. Continuing with empty config\n" % cfgfile)
+            cloudinit.log.critical("Failed loading of cloud config '%s'. "
+                                   "Continuing with empty config\n" % cfgfile)
             cloudinit.log.debug(traceback.format_exc() + "\n")
             cfg = None
-        if cfg is None: cfg = { }
+        if cfg is None:
+            cfg = { }
 
         try:
             ds_cfg = self.cloud.datasource.get_config_obj()
@@ -57,12 +59,12 @@ class CloudConfig():
             ds_cfg = { }
 
         cfg = util.mergedict(cfg, ds_cfg)
-        return(util.mergedict(cfg,self.cloud.cfg))
+        return(util.mergedict(cfg, self.cloud.cfg))
 
     def handle(self, name, args, freq=None):
         try:
-            mod = __import__("cc_" + name.replace("-","_"),globals())
-            def_freq = getattr(mod, "frequency",per_instance)
+            mod = __import__("cc_" + name.replace("-", "_"), globals())
+            def_freq = getattr(mod, "frequency", per_instance)
             handler = getattr(mod, "handle")
 
             if not freq:
@@ -75,23 +77,24 @@ class CloudConfig():
 
 # reads a cloudconfig module list, returns
 # a 2 dimensional array suitable to pass to run_cc_modules
-def read_cc_modules(cfg,name):
-    if name not in cfg: return([])
+def read_cc_modules(cfg, name):
+    if name not in cfg:
+        return([])
     module_list = []
     # create 'module_list', an array of arrays
     # where array[0] = config
     #       array[1] = freq
     #       array[2:] = arguemnts
     for item in cfg[name]:
-        if isinstance(item,str):
+        if isinstance(item, str):
             module_list.append((item,))
-        elif isinstance(item,list):
+        elif isinstance(item, list):
             module_list.append(item)
         else:
             raise TypeError("failed to read '%s' item in config")
     return(module_list)
     
-def run_cc_modules(cc,module_list,log):
+def run_cc_modules(cc, module_list, log):
     failures = []
     for cfg_mod in module_list:
         name = cfg_mod[0]
@@ -109,7 +112,7 @@ def run_cc_modules(cc,module_list,log):
         except:
             log.warn(traceback.format_exc())
             log.error("config handling of %s, %s, %s failed\n" %
-                (name,freq,run_args))
+                (name, freq, run_args))
             failures.append(name)
 
     return(failures)
@@ -126,24 +129,27 @@ def run_cc_modules(cc,module_list,log):
 # None if if none is given
 def get_output_cfg(cfg, mode="init"):
     ret = [ None, None ]
-    if not 'output' in cfg: return ret
+    if not 'output' in cfg:
+        return ret
 
     outcfg = cfg['output']
     if mode in outcfg:
         modecfg = outcfg[mode]
     else:
-        if 'all' not in outcfg: return ret
+        if 'all' not in outcfg:
+            return ret
         # if there is a 'all' item in the output list
         # then it applies to all users of this (init, config, final)
         modecfg = outcfg['all']
 
     # if value is a string, it specifies stdout and stderr
-    if isinstance(modecfg,str):
+    if isinstance(modecfg, str):
         ret = [ modecfg, modecfg ]
 
     # if its a list, then we expect (stdout, stderr)
-    if isinstance(modecfg,list):
-        if len(modecfg) > 0: ret[0] = modecfg[0]
+    if isinstance(modecfg, list):
+        if len(modecfg) > 0:
+            ret[0] = modecfg[0]
         if len(modecfg) > 1:
             ret[1] = modecfg[1]
 
@@ -157,16 +163,18 @@ def get_output_cfg(cfg, mode="init"):
 
     # if err's entry == "&1", then make it same as stdout
     # as in shell syntax of "echo foo >/dev/null 2>&1"
-    if ret[1] == "&1": ret[1] = ret[0]
+    if ret[1] == "&1":
+        ret[1] = ret[0]
 
     swlist = [ ">>", ">", "|" ]
     for i in range(len(ret)):
-        if not ret[i]: continue
+        if not ret[i]:
+            continue
         val = ret[i].lstrip()
         found = False
         for s in swlist:
             if val.startswith(s):
-                val = "%s %s" % (s,val[len(s):].strip())
+                val = "%s %s" % (s, val[len(s):].strip())
                 found = True
                 break
         if not found:
@@ -186,12 +194,13 @@ def get_output_cfg(cfg, mode="init"):
 #
 #   with a '|', arguments are passed to shell, so one level of
 #   shell escape is required.  
-def redirect_output(outfmt,errfmt, o_out=sys.stdout, o_err=sys.stderr):
+def redirect_output(outfmt, errfmt, o_out=sys.stdout, o_err=sys.stderr):
     if outfmt:
-        (mode, arg) = outfmt.split(" ",1)
+        (mode, arg) = outfmt.split(" ", 1)
         if mode == ">" or mode == ">>":
             owith = "ab"
-            if mode == ">": owith = "wb"
+            if mode == ">":
+                owith = "wb"
             new_fp = open(arg, owith)
         elif mode == "|":
             proc = subprocess.Popen(arg, shell=True, stdin=subprocess.PIPE)
@@ -206,10 +215,11 @@ def redirect_output(outfmt,errfmt, o_out=sys.stdout, o_err=sys.stderr):
             return
 
     if errfmt:
-        (mode, arg) = errfmt.split(" ",1)
+        (mode, arg) = errfmt.split(" ", 1)
         if mode == ">" or mode == ">>":
             owith = "ab"
-            if mode == ">": owith = "wb"
+            if mode == ">":
+                owith = "wb"
             new_fp = open(arg, owith)
         elif mode == "|":
             proc = subprocess.Popen(arg, shell=True, stdin=subprocess.PIPE)
@@ -222,31 +232,32 @@ def redirect_output(outfmt,errfmt, o_out=sys.stdout, o_err=sys.stderr):
     return
 
 def run_per_instance(name, func, args, clear_on_fail=False):
-    semfile = "%s/%s" % (cloudinit.get_ipath_cur("data"),name)
-    if os.path.exists(semfile): return
+    semfile = "%s/%s" % (cloudinit.get_ipath_cur("data"), name)
+    if os.path.exists(semfile):
+        return
 
-    util.write_file(semfile,str(time.time()))
+    util.write_file(semfile, str(time.time()))
     try:
         func(*args)
     except:
-        if clear_on_fail: os.unlink(semfile)
+        if clear_on_fail:
+            os.unlink(semfile)
         raise
 
 # apt_get top level command (install, update...), and args to pass it
-def apt_get(tlc,args=None):
+def apt_get(tlc, args=None):
     if args is None:
         args = []
-    e=os.environ.copy()
-    e['DEBIAN_FRONTEND']='noninteractive'
-    cmd=[ 'apt-get',
-          '--option', 'Dpkg::Options::=--force-confold', '--assume-yes',
-          tlc ]
+    e = os.environ.copy()
+    e['DEBIAN_FRONTEND'] = 'noninteractive'
+    cmd = ['apt-get', '--option', 'Dpkg::Options::=--force-confold',
+           '--assume-yes', tlc]
     cmd.extend(args)
-    subprocess.check_call(cmd,env=e)
+    subprocess.check_call(cmd, env=e)
 
 def update_package_sources():
     run_per_instance("update-sources", apt_get, ("update",))
 
 def install_packages(pkglist):
     update_package_sources()
-    apt_get("install",pkglist)
+    apt_get("install", pkglist)

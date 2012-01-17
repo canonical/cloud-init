@@ -25,15 +25,16 @@ from cloudinit.CloudConfig import per_always
 
 frequency = per_always
 
-def handle(_name,cfg,_cloud,log,args):
+def handle(_name, cfg, _cloud, log, args):
     if len(args) != 0:
         resize_root = False
         if str(args[0]).lower() in [ 'true', '1', 'on', 'yes']:
             resize_root = True
     else:
-        resize_root = util.get_cfg_option_bool(cfg,"resize_rootfs",True)
+        resize_root = util.get_cfg_option_bool(cfg, "resize_rootfs", True)
 
-    if not resize_root: return
+    if not resize_root:
+        return
 
     # this really only uses the filename from mktemp, then we mknod into it
     (fd, devpth) = tempfile.mkstemp()
@@ -41,8 +42,8 @@ def handle(_name,cfg,_cloud,log,args):
     os.close(fd)
     
     try:
-        st_dev=os.stat("/").st_dev
-        dev=os.makedev(os.major(st_dev),os.minor(st_dev))
+        st_dev = os.stat("/").st_dev
+        dev = os.makedev(os.major(st_dev), os.minor(st_dev))
         os.mknod(devpth, 0400 | stat.S_IFBLK, dev)
     except:
         if util.islxc():
@@ -53,7 +54,7 @@ def handle(_name,cfg,_cloud,log,args):
 
     cmd = [ 'blkid', '-c', '/dev/null', '-sTYPE', '-ovalue', devpth ]
     try:
-        (fstype,_err) = util.subp(cmd)
+        (fstype, _err) = util.subp(cmd)
     except subprocess.CalledProcessError as e:
         log.warn("Failed to get filesystem type of maj=%s, min=%s via: %s" %
             (os.major(st_dev), os.minor(st_dev), cmd))
@@ -62,9 +63,9 @@ def handle(_name,cfg,_cloud,log,args):
         raise
 
     log.debug("resizing root filesystem (type=%s, maj=%i, min=%i)" % 
-        (fstype.rstrip("\n"), os.major(st_dev), os.minor(st_dev)))
+        (str(fstype).rstrip("\n"), os.major(st_dev), os.minor(st_dev)))
 
-    if fstype.startswith("ext"):
+    if str(fstype).startswith("ext"):
         resize_cmd = [ 'resize2fs', devpth ]
     elif fstype == "xfs":
         resize_cmd = [ 'xfs_growfs', devpth ]
