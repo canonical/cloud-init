@@ -19,10 +19,11 @@ import cloudinit.util as util
 import subprocess
 import traceback
 
+
 def handle(_name, cfg, _cloud, log, args):
     if len(args) != 0:
         user = args[0]
-        ids = [ ]
+        ids = []
         if len(args) > 1:
             ids = args[1:]
     else:
@@ -32,7 +33,7 @@ def handle(_name, cfg, _cloud, log, args):
     if len(ids) == 0:
         return
 
-    cmd = [ "sudo", "-Hu", user, "ssh-import-id" ] + ids
+    cmd = ["sudo", "-Hu", user, "ssh-import-id"] + ids
 
     log.debug("importing ssh ids. cmd = %s" % cmd)
 
@@ -40,7 +41,7 @@ def handle(_name, cfg, _cloud, log, args):
         subprocess.check_call(cmd)
     except subprocess.CalledProcessError as e:
         log.debug(traceback.format_exc(e))
-        raise Exception("Cmd returned %s: %s" % ( e.returncode, cmd))
+        raise Exception("Cmd returned %s: %s" % (e.returncode, cmd))
     except OSError as e:
         log.debug(traceback.format_exc(e))
-        raise Exception("Cmd failed to execute: %s" % ( cmd ))
+        raise Exception("Cmd failed to execute: %s" % (cmd))

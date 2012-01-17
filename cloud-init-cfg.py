@@ -24,9 +24,11 @@ import cloudinit.CloudConfig as CC
 import logging
 import os
 
-def Usage(out = sys.stdout):
+
+def Usage(out=sys.stdout):
     out.write("Usage: %s name\n" % sys.argv[0])
-    
+
+
 def main():
     # expect to be called with
     #   name [ freq [ args ]
@@ -38,7 +40,7 @@ def main():
     util.close_stdin()
 
     modename = "config"
-    
+
     if len(sys.argv) < 2:
         Usage(sys.stderr)
         sys.exit(1)
@@ -59,10 +61,10 @@ def main():
 
     cfg_path = cloudinit.get_ipath_cur("cloud_config")
     cfg_env_name = cloudinit.cfg_env_name
-    if os.environ.has_key(cfg_env_name):
+    if cfg_env_name in os.environ:
         cfg_path = os.environ[cfg_env_name]
 
-    cloud = cloudinit.CloudInit(ds_deps=[]) # ds_deps=[], get only cached
+    cloud = cloudinit.CloudInit(ds_deps=[])  # ds_deps=[], get only cached
     try:
         cloud.get_data_source()
     except cloudinit.DataSourceNotFoundException as e:
@@ -81,7 +83,7 @@ def main():
     log = logging.getLogger()
     log.info("cloud-init-cfg %s" % sys.argv[1:])
 
-    module_list = [ ]
+    module_list = []
     if name == "all":
         modlist_cfg_name = "cloud_%s_modules" % modename
         module_list = CC.read_cc_modules(cc.cfg, modlist_cfg_name)
@@ -89,17 +91,19 @@ def main():
             err("no modules to run in cloud_config [%s]" % modename, log)
             sys.exit(0)
     else:
-        module_list.append( [ name, freq ] + run_args )
+        module_list.append([name, freq] + run_args)
 
     failures = CC.run_cc_modules(cc, module_list, log)
     if len(failures):
         err("errors running cloud_config [%s]: %s" % (modename, failures), log)
     sys.exit(len(failures))
 
+
 def err(msg, log=None):
     if log:
         log.error(msg)
     sys.stderr.write(msg + "\n")
+
 
 def fail(msg, log=None):
     err(msg, log)

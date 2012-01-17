@@ -18,8 +18,9 @@
 
 import cloudinit.util as util
 
+
 def handle(_name, cfg, cloud, log, _args):
-    if not cfg.has_key("runcmd"):
+    if "runcmd" not in cfg:
         return
     outfile = "%s/runcmd" % cloud.get_ipath('scripts')
     try:

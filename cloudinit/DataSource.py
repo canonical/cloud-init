@@ -20,20 +20,21 @@
 DEP_FILESYSTEM = "FILESYSTEM"
 DEP_NETWORK = "NETWORK"
 
-import UserDataHandler as ud
+import cloudinit.UserDataHandler as ud
 import cloudinit.util as util
 import socket
+
 
 class DataSource:
     userdata = None
     metadata = None
     userdata_raw = None
     cfgname = ""
-    # system config (passed in from cloudinit, 
+    # system config (passed in from cloudinit,
     # cloud-config before input from the DataSource)
-    sys_cfg = { }
+    sys_cfg = {}
     # datasource config, the cloud-config['datasource']['__name__']
-    ds_cfg = { }  # datasource config
+    ds_cfg = {}  # datasource config
 
     def __init__(self, sys_cfg=None):
         if not self.cfgname:
@@ -55,27 +56,26 @@ class DataSource:
     def get_userdata_raw(self):
         return(self.userdata_raw)
 
-
     # the data sources' config_obj is a cloud-config formated
     # object that came to it from ways other than cloud-config
     # because cloud-config content would be handled elsewhere
     def get_config_obj(self):
-        return({ })
+        return({})
 
     def get_public_ssh_keys(self):
         keys = []
-        if not self.metadata.has_key('public-keys'):
+        if 'public-keys' not in self.metadata:
             return([])
 
         if isinstance(self.metadata['public-keys'], str):
-            return([self.metadata['public-keys'],])
-            
+            return([self.metadata['public-keys'], ])
+
         for _keyname, klist in self.metadata['public-keys'].items():
             # lp:506332 uec metadata service responds with
             # data that makes boto populate a string for 'klist' rather
             # than a list.
             if isinstance(klist, str):
-                klist = [ klist ]
+                klist = [klist]
             for pkey in klist:
                 # there is an empty string at the end of the keylist, trim it
                 if pkey:
@@ -104,7 +104,7 @@ class DataSource:
 
     def get_hostname(self, fqdn=False):
         defdomain = "localdomain"
-        defhost = "localhost" 
+        defhost = "localhost"
 
         domain = defdomain
         if not 'local-hostname' in self.metadata:
@@ -120,12 +120,11 @@ class DataSource:
             fqdn = util.get_fqdn_from_hosts(hostname)
 
             if fqdn and fqdn.find(".") > 0:
-                toks = fqdn.split(".")
+                toks = str(fqdn).split(".")
             elif hostname:
-                toks = [ hostname, defdomain ]
+                toks = [hostname, defdomain]
             else:
-                toks = [ defhost, defdomain ]
-
+                toks = [defhost, defdomain]
 
         else:
             # if there is an ipv4 address in 'local-hostname', then
@@ -146,6 +145,7 @@ class DataSource:
             return "%s.%s" % (hostname, domain)
         else:
             return hostname
+
 
 # return a list of classes that have the same depends as 'depends'
 # iterate through cfg_list, loading "DataSourceCollections" modules
@@ -177,15 +177,16 @@ def list_sources(cfg_list, depends, pkglist=None):
                 raise
     return(retlist)
 
+
 # depends is a list of dependencies (DEP_FILESYSTEM)
 # dslist is a list of 2 item lists
-# dslist = [ 
+# dslist = [
 #   ( class, ( depends-that-this-class-needs ) )
 # }
 # it returns a list of 'class' that matched these deps exactly
 # it is a helper function for DataSourceCollections
 def list_from_depends(depends, dslist):
-    retlist = [ ]
+    retlist = []
     depset = set(depends)
     for elem in dslist:
         (cls, deps) = elem

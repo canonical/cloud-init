@@ -20,8 +20,8 @@ import cloudinit.util as util
 import traceback
 import os
 
+
 def handle(_name, cfg, _cloud, log, _args):
-    
     idevs = None
     idevs_empty = None
 
@@ -31,8 +31,8 @@ def handle(_name, cfg, _cloud, log, _args):
         idevs_empty = util.get_cfg_option_str(cfg["grub-dpkg"],
             "grub-pc/install_devices_empty", None)
 
-    if (( os.path.exists("/dev/sda1") and not os.path.exists("/dev/sda") ) or
-        ( os.path.exists("/dev/xvda1") and not os.path.exists("/dev/xvda") )):
+    if ((os.path.exists("/dev/sda1") and not os.path.exists("/dev/sda")) or
+        (os.path.exists("/dev/xvda1") and not os.path.exists("/dev/xvda"))):
         if idevs == None:
             idevs = ""
         if idevs_empty == None:
@@ -42,11 +42,11 @@ def handle(_name, cfg, _cloud, log, _args):
             idevs_empty = "false"
         if idevs == None:
             idevs = "/dev/sda"
-            for dev in ( "/dev/sda", "/dev/vda", "/dev/sda1", "/dev/vda1"):
+            for dev in ("/dev/sda", "/dev/vda", "/dev/sda1", "/dev/vda1"):
                 if os.path.exists(dev):
                     idevs = dev
                     break
-                
+
     # now idevs and idevs_empty are set to determined values
     # or, those set by user
 

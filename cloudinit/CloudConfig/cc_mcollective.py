@@ -27,11 +27,13 @@ import cloudinit.util as util
 pubcert_file = "/etc/mcollective/ssl/server-public.pem"
 pricert_file = "/etc/mcollective/ssl/server-private.pem"
 
+
 # Our fake header section
 class FakeSecHead(object):
     def __init__(self, fp):
         self.fp = fp
         self.sechead = '[nullsection]\n'
+
     def readline(self):
         if self.sechead:
             try:
@@ -41,16 +43,17 @@ class FakeSecHead(object):
         else:
             return self.fp.readline()
 
+
 def handle(_name, cfg, _cloud, _log, _args):
     # If there isn't a mcollective key in the configuration don't do anything
-    if not cfg.has_key('mcollective'):
+    if 'mcollective' not in cfg:
         return
     mcollective_cfg = cfg['mcollective']
     # Start by installing the mcollective package ...
     cc.install_packages(("mcollective",))
 
     # ... and then update the mcollective configuration
-    if mcollective_cfg.has_key('conf'):
+    if 'conf' in mcollective_cfg:
         # Create object for reading server.cfg values
         mcollective_config = ConfigParser.ConfigParser()
         # Read server.cfg values from original file in order to be able to mix
@@ -92,4 +95,3 @@ def handle(_name, cfg, _cloud, _log, _args):
 
     # Start mcollective
     subprocess.check_call(['service', 'mcollective', 'start'])
-

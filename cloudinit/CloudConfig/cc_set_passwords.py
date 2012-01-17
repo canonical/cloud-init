@@ -21,6 +21,7 @@ import sys
 import random
 import string
 
+
 def handle(_name, cfg, _cloud, log, args):
     if len(args) != 0:
         # if run from command line, and give args, wipe the chpasswd['list']
@@ -56,7 +57,7 @@ def handle(_name, cfg, _cloud, log, args):
                 randlist.append("%s:%s" % (u, p))
             plist_in.append("%s:%s" % (u, p))
             users.append(u)
-        
+
         ch_in = '\n'.join(plist_in)
         try:
             util.subp(['chpasswd'], ch_in)
@@ -67,7 +68,7 @@ def handle(_name, cfg, _cloud, log, args):
 
         if len(randlist):
             sys.stdout.write("%s\n%s\n" % ("Set the following passwords\n",
-                '\n'.join(randlist) ))
+                '\n'.join(randlist)))
 
         if expire:
             enum = len(errors)
@@ -76,27 +77,27 @@ def handle(_name, cfg, _cloud, log, args):
                     util.subp(['passwd', '--expire', u])
                 except Exception as e:
                     errors.append(e)
-                    log.warn("failed to expire account for %s" % u )
+                    log.warn("failed to expire account for %s" % u)
             if enum == len(errors):
                 log.debug("expired passwords for: %s" % u)
 
     if 'ssh_pwauth' in cfg:
         val = str(cfg['ssh_pwauth']).lower()
-        if val in ( "true", "1", "yes"):
+        if val in ("true", "1", "yes"):
             pw_auth = "yes"
             change_pwauth = True
-        elif val in ( "false", "0", "no"):
+        elif val in ("false", "0", "no"):
             pw_auth = "no"
             change_pwauth = True
         else:
             change_pwauth = False
-            
+
     if change_pwauth:
         pa_s = "\(#*\)\(PasswordAuthentication[[:space:]]\+\)\(yes\|no\)"
         msg = "set PasswordAuthentication to '%s'" % pw_auth
         try:
-            cmd = [ 'sed', '-i', 's,%s,\\2%s,' % (pa_s, pw_auth),
-                    '/etc/ssh/sshd_config' ]
+            cmd = ['sed', '-i', 's,%s,\\2%s,' % (pa_s, pw_auth),
+                   '/etc/ssh/sshd_config']
             util.subp(cmd)
             log.debug(msg)
         except Exception as e:
@@ -104,7 +105,8 @@ def handle(_name, cfg, _cloud, log, args):
             errors.append(e)
 
         try:
-            p = util.subp(['service', cfg.get('ssh_svcname', 'ssh'), 'restart'])
+            p = util.subp(['service', cfg.get('ssh_svcname', 'ssh'),
+                           'restart'])
             log.debug("restarted sshd")
         except:
             log.warn("restart of ssh failed")
@@ -114,11 +116,12 @@ def handle(_name, cfg, _cloud, log, args):
 
     return
 
-def rand_str(strlen=32, select_from=string.letters+string.digits):
+
+def rand_str(strlen=32, select_from=string.letters + string.digits):
     return("".join([random.choice(select_from) for _x in range(0, strlen)]))
+
 
 def rand_user_password(pwlen=9):
     selfrom = (string.letters.translate(None, 'loLOI') +
                string.digits.translate(None, '01'))
     return(rand_str(pwlen, select_from=selfrom))
-

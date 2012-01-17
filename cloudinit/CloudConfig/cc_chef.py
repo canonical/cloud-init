@@ -23,9 +23,10 @@ import cloudinit.util as util
 
 ruby_version_default = "1.8"
 
+
 def handle(_name, cfg, cloud, log, _args):
     # If there isn't a chef key in the configuration don't do anything
-    if not cfg.has_key('chef'):
+    if 'chef' not in cfg:
         return
     chef_cfg = cfg['chef']
 
@@ -36,8 +37,7 @@ def handle(_name, cfg, cloud, log, _args):
     # set the validation key based on the presence of either 'validation_key'
     # or 'validation_cert'. In the case where both exist, 'validation_key'
     # takes precedence
-    if (chef_cfg.has_key('validation_key') or
-        chef_cfg.has_key('validation_cert')):
+    if ('validation_key' in chef_cfg or 'validation_cert' in chef_cfg):
         validation_key = util.get_cfg_option_str(chef_cfg, 'validation_key',
                                                  chef_cfg['validation_cert'])
         with open('/etc/chef/validation.pem', 'w') as validation_key_fh:
@@ -55,9 +55,9 @@ def handle(_name, cfg, cloud, log, _args):
     # set the firstboot json
     with open('/etc/chef/firstboot.json', 'w') as firstboot_json_fh:
         initial_json = {}
-        if chef_cfg.has_key('run_list'):
+        if 'run_list' in chef_cfg:
             initial_json['run_list'] = chef_cfg['run_list']
-        if chef_cfg.has_key('initial_attributes'):
+        if 'initial_attributes' in chef_cfg:
             initial_attributes = chef_cfg['initial_attributes']
             for k in initial_attributes.keys():
                 initial_json[k] = initial_attributes[k]
@@ -81,14 +81,16 @@ def handle(_name, cfg, cloud, log, _args):
             # this will install and run the chef-client from packages
             cc.install_packages(('chef',))
 
+
 def get_ruby_packages(version):
     # return a list of packages needed to install ruby at version
-    pkgs = [ 'ruby%s' % version, 'ruby%s-dev' % version ]
+    pkgs = ['ruby%s' % version, 'ruby%s-dev' % version]
     if version == "1.8":
         pkgs.extend(('libopenssl-ruby1.8', 'rubygems1.8'))
     return(pkgs)
 
-def install_chef_from_gems(ruby_version, chef_version = None):
+
+def install_chef_from_gems(ruby_version, chef_version=None):
     cc.install_packages(get_ruby_packages(ruby_version))
     if not os.path.exists('/usr/bin/gem'):
         os.symlink('/usr/bin/gem%s' % ruby_version, '/usr/bin/gem')
@@ -103,9 +105,11 @@ def install_chef_from_gems(ruby_version, chef_version = None):
                                '--no-ri', '--no-rdoc', '--bindir',
                                '/usr/bin', '-q'])
 
+
 def ensure_dir(d):
     if not os.path.exists(d):
         os.makedirs(d)
+
 
 def mkdirs(dirs):
     for d in dirs:

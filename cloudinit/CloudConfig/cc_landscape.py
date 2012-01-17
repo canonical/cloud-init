@@ -23,7 +23,7 @@ frequency = per_instance
 lsc_client_cfg_file = "/etc/landscape/client.conf"
 
 # defaults taken from stock client.conf in landscape-client 11.07.1.1-0ubuntu2
-lsc_builtincfg = { 
+lsc_builtincfg = {
   'client': {
     'log_level': "info",
     'url': "https://landscape.canonical.com/message-system",
@@ -32,6 +32,7 @@ lsc_builtincfg = {
   }
 }
 
+
 def handle(_name, cfg, _cloud, log, _args):
     """
     Basically turn a top level 'landscape' entry with a 'client' dict
@@ -39,7 +40,7 @@ def handle(_name, cfg, _cloud, log, _args):
     /etc/landscape/client.conf
     """
 
-    ls_cloudcfg = cfg.get("landscape", { })
+    ls_cloudcfg = cfg.get("landscape", {})
 
     if not isinstance(ls_cloudcfg, dict):
         raise(Exception("'landscape' existed in config, but not a dict"))
@@ -50,6 +51,7 @@ def handle(_name, cfg, _cloud, log, _args):
         merged.write(fp)
 
     log.debug("updated %s" % lsc_client_cfg_file)
+
 
 def mergeTogether(objs):
     """

@@ -26,31 +26,31 @@ seeddir = varlibdir + "/seed"
 cfg_env_name = "CLOUD_CFG"
 
 cfg_builtin = """
-log_cfgs: [ ]
-datasource_list: [ "NoCloud", "OVF", "Ec2" ]
+log_cfgs: []
+datasource_list: ["NoCloud", "OVF", "Ec2"]
 def_log_file: /var/log/cloud-init.log
 syslog_fix_perms: syslog:adm
 """
 logger_name = "cloudinit"
 
 pathmap = {
-   "handlers" : "/handlers",
-   "scripts" : "/scripts",
-   "sem" : "/sem",
-   "boothooks" : "/boothooks",
-   "userdata_raw" : "/user-data.txt",
-   "userdata" : "/user-data.txt.i",
-   "obj_pkl" : "/obj.pkl",
-   "cloud_config" : "/cloud-config.txt",
-   "data" : "/data",
-   None : "",
+   "handlers": "/handlers",
+   "scripts": "/scripts",
+   "sem": "/sem",
+   "boothooks": "/boothooks",
+   "userdata_raw": "/user-data.txt",
+   "userdata": "/user-data.txt.i",
+   "obj_pkl": "/obj.pkl",
+   "cloud_config": "/cloud-config.txt",
+   "data": "/data",
+   None: "",
 }
 
 per_instance = "once-per-instance"
 per_always = "always"
 per_once = "once"
 
-parsed_cfgs = { }
+parsed_cfgs = {}
 
 import os
 from   configobj import ConfigObj
@@ -62,22 +62,27 @@ import errno
 import pwd
 import subprocess
 import yaml
-import util
 import logging
 import logging.config
 import StringIO
 import glob
 import traceback
 
+import cloudinit.util as util
+
+
 class NullHandler(logging.Handler):
     def emit(self, record):
         pass
 
+
 log = logging.getLogger(logger_name)
 log.addHandler(NullHandler())
 
+
 def logging_set_from_cfg_file(cfg_file=system_config):
     logging_set_from_cfg(util.get_base_cfg(cfg_file, cfg_builtin, parsed_cfgs))
+
 
 def logging_set_from_cfg(cfg):
     log_cfgs = []
@@ -85,7 +90,7 @@ def logging_set_from_cfg(cfg):
     if logcfg:
         # if there is a 'logcfg' entry in the config, respect
         # it, it is the old keyname
-        log_cfgs = [ logcfg ]
+        log_cfgs = [logcfg]
     elif "log_cfgs" in cfg:
         for cfg in cfg['log_cfgs']:
             if isinstance(cfg, list):
@@ -107,26 +112,27 @@ def logging_set_from_cfg(cfg):
     raise Exception("no valid logging found\n")
 
 
-import DataSource
-import UserDataHandler
+import cloudinit.DataSource as DataSource
+import cloudinit.UserDataHandler as UserDataHandler
+
 
 class CloudInit:
     cfg = None
-    part_handlers = { }
+    part_handlers = {}
     old_conffile = '/etc/ec2-init/ec2-config.cfg'
-    ds_deps = [ DataSource.DEP_FILESYSTEM, DataSource.DEP_NETWORK ]
+    ds_deps = [DataSource.DEP_FILESYSTEM, DataSource.DEP_NETWORK]
     datasource = None
     cloud_config_str = ''
     datasource_name = ''
 
-    builtin_handlers = [ ]
+    builtin_handlers = []
 
-    def __init__(self, ds_deps = None, sysconfig=system_config):
+    def __init__(self, ds_deps=None, sysconfig=system_config):
         self.builtin_handlers = [
-            [ 'text/x-shellscript', self.handle_user_script, per_always ],
-            [ 'text/cloud-config', self.handle_cloud_config, per_always ],
-            [ 'text/upstart-job', self.handle_upstart_job, per_instance ],
-            [ 'text/cloud-boothook', self.handle_cloud_boothook, per_always ],
+            ['text/x-shellscript', self.handle_user_script, per_always],
+            ['text/cloud-config', self.handle_cloud_config, per_always],
+            ['text/upstart-job', self.handle_upstart_job, per_instance],
+            ['text/cloud-boothook', self.handle_cloud_boothook, per_always],
         ]
 
         if ds_deps != None:
@@ -149,7 +155,7 @@ class CloudInit:
             from configobj import ConfigObj
             oldcfg = ConfigObj(self.old_conffile)
             if oldcfg is None:
-                oldcfg = { }
+                oldcfg = {}
             conf = util.mergedict(conf, oldcfg)
         except:
             pass
@@ -177,7 +183,7 @@ class CloudInit:
         except OSError as e:
             if e.errno != errno.EEXIST:
                 return False
-                
+
         try:
             f = open(cache, "wb")
             cPickle.dump(self.datasource, f)
@@ -185,7 +191,7 @@ class CloudInit:
             os.chmod(cache, 0400)
         except:
             raise
-        
+
     def get_data_source(self):
         if self.datasource is not None:
             return True
@@ -226,12 +232,12 @@ class CloudInit:
         os.symlink("./instances/%s" % iid, cur_instance_link)
         idir = self.get_ipath()
         dlist = []
-        for d in [ "handlers", "scripts", "sem" ]:
+        for d in ["handlers", "scripts", "sem"]:
             dlist.append("%s/%s" % (idir, d))
-            
+
         util.ensure_dirs(dlist)
 
-        ds = "%s: %s\n" % ( self.datasource.__class__, str(self.datasource) )
+        ds = "%s: %s\n" % (self.datasource.__class__, str(self.datasource))
         dp = self.get_cpath('data')
         util.write_file("%s/%s" % (idir, 'datasource'), ds)
         util.write_file("%s/%s" % (dp, 'previous-datasource'), ds)
@@ -260,7 +266,7 @@ class CloudInit:
         if freq == 'once-per-instance':
             return("%s/%s" % (self.get_ipath("sem"), name))
         return("%s/%s.%s" % (get_cpath("sem"), name, freq))
-    
+
     def sem_has_run(self, name, freq):
         if freq == per_always:
             return False
@@ -268,20 +274,20 @@ class CloudInit:
         if os.path.exists(semfile):
             return True
         return False
-    
+
     def sem_acquire(self, name, freq):
         from time import time
         semfile = self.sem_getpath(name, freq)
-    
+
         try:
             os.makedirs(os.path.dirname(semfile))
         except OSError as e:
             if e.errno != errno.EEXIST:
                 raise e
-    
+
         if os.path.exists(semfile) and freq != per_always:
             return False
-    
+
         # race condition
         try:
             f = open(semfile, "w")
@@ -290,7 +296,7 @@ class CloudInit:
         except:
             return(False)
         return(True)
-    
+
     def sem_clear(self, name, freq):
         semfile = self.sem_getpath(name, freq)
         try:
@@ -298,7 +304,7 @@ class CloudInit:
         except OSError as e:
             if e.errno != errno.ENOENT:
                 return False
-            
+
         return True
 
     # acquire lock on 'name' for given 'freq'
@@ -326,7 +332,7 @@ class CloudInit:
     # get_ipath : get the instance path for a name in pathmap
     # (/var/lib/cloud/instances/<instance>/name)<name>)
     def get_ipath(self, name=None):
-        return("%s/instances/%s%s" 
+        return("%s/instances/%s%s"
                % (varlibdir, self.get_instance_id(), pathmap[name]))
 
     def consume_userdata(self, frequency=per_instance):
@@ -341,7 +347,7 @@ class CloudInit:
         sys.path.insert(0, cdir)
         sys.path.insert(0, idir)
 
-        part_handlers = { }
+        part_handlers = {}
         # add handlers in cdir
         for fname in glob.glob("%s/*.py" % cdir):
             if not os.path.isfile(fname):
@@ -364,13 +370,13 @@ class CloudInit:
                 part_handlers, data, frequency)
 
         # walk the data
-        pdata = { 'handlers': part_handlers, 'handlerdir': idir,
-            'data' : data, 'frequency': frequency }
+        pdata = {'handlers': part_handlers, 'handlerdir': idir,
+                 'data': data, 'frequency': frequency}
         UserDataHandler.walk_userdata(self.get_userdata(),
-            partwalker_callback, data = pdata)
+            partwalker_callback, data=pdata)
 
         # give callbacks opportunity to finalize
-        called = [ ]
+        called = []
         for (_mtype, mod) in part_handlers.iteritems():
             if mod in called:
                 continue
@@ -385,7 +391,7 @@ class CloudInit:
 
         filename = filename.replace(os.sep, '_')
         scriptsdir = get_ipath_cur('scripts')
-        util.write_file("%s/%s" % 
+        util.write_file("%s/%s" %
             (scriptsdir, filename), util.dos2unix(payload), 0700)
 
     def handle_upstart_job(self, _data, ctype, filename, payload, frequency):
@@ -396,7 +402,7 @@ class CloudInit:
         if ctype == "__end__" or ctype == "__begin__":
             return
         if not filename.endswith(".conf"):
-            filename = filename+".conf"
+            filename = filename + ".conf"
 
         util.write_file("%s/%s" % ("/etc/init", filename),
             util.dos2unix(payload), 0644)
@@ -414,7 +420,7 @@ class CloudInit:
             ## as CloudConfig does that also, merging it with this cfg
             ##
             # ccfg = yaml.load(self.cloud_config_str)
-            # if ccfg is None: ccfg = { }
+            # if ccfg is None: ccfg = {}
             # self.cfg = util.mergedict(ccfg, self.cfg)
 
             return
@@ -434,7 +440,7 @@ class CloudInit:
         start = 0
         if payload.startswith(prefix):
             start = len(prefix) + 1
-    
+
         boothooks_dir = self.get_ipath("boothooks")
         filepath = "%s/%s" % (boothooks_dir, filename)
         util.write_file(filepath, payload[start:], 0700)
@@ -473,9 +479,9 @@ class CloudInit:
 
 
 def initfs():
-    subds = [ 'scripts/per-instance', 'scripts/per-once', 'scripts/per-boot',
-              'seed', 'instances', 'handlers', 'sem', 'data' ]
-    dlist = [ ]
+    subds = ['scripts/per-instance', 'scripts/per-once', 'scripts/per-boot',
+             'seed', 'instances', 'handlers', 'sem', 'data']
+    dlist = []
     for subd in subds:
         dlist.append("%s/%s" % (varlibdir, subd))
     util.ensure_dirs(dlist)
@@ -494,8 +500,9 @@ def initfs():
             g = None
         util.chownbyname(log_file, u, g)
 
+
 def purge_cache(rmcur=True):
-    rmlist = [ boot_finished ]
+    rmlist = [boot_finished]
     if rmcur:
         rmlist.append(cur_instance_link)
     for f in rmlist:
@@ -509,28 +516,35 @@ def purge_cache(rmcur=True):
             return(False)
     return(True)
 
+
 # get_ipath_cur: get the current instance path for an item
 def get_ipath_cur(name=None):
     return("%s/%s%s" % (varlibdir, "instance", pathmap[name]))
+
 
 # get_cpath : get the "clouddir" (/var/lib/cloud/<name>)
 # for a name in dirmap
 def get_cpath(name=None):
     return("%s%s" % (varlibdir, pathmap[name]))
 
+
 def get_base_cfg(cfg_path=None):
     if cfg_path is None:
         cfg_path = system_config
     return(util.get_base_cfg(cfg_path, cfg_builtin, parsed_cfgs))
 
+
 def get_builtin_cfg():
     return(yaml.load(cfg_builtin))
+
 
 class DataSourceNotFoundException(Exception):
     pass
 
+
 def list_sources(cfg_list, depends):
-    return(DataSource.list_sources(cfg_list, depends, ["cloudinit", "" ]))
+    return(DataSource.list_sources(cfg_list, depends, ["cloudinit", ""]))
+
 
 def handler_register(mod, part_handlers, data, frequency=per_instance):
     if not hasattr(mod, "handler_version"):
@@ -542,27 +556,30 @@ def handler_register(mod, part_handlers, data, frequency=per_instance):
     handler_call_begin(mod, data, frequency)
     return(mod)
 
+
 def handler_call_begin(mod, data, frequency):
     handler_handle_part(mod, data, "__begin__", None, None, frequency)
+
 
 def handler_call_end(mod, data, frequency):
     handler_handle_part(mod, data, "__end__", None, None, frequency)
 
+
 def handler_handle_part(mod, data, ctype, filename, payload, frequency):
     # only add the handler if the module should run
     modfreq = getattr(mod, "frequency", per_instance)
-    if not ( modfreq == per_always or 
-            ( frequency == per_instance and modfreq == per_instance)):
+    if not (modfreq == per_always or
+            (frequency == per_instance and modfreq == per_instance)):
         return
     if mod.handler_version == 1:
         mod.handle_part(data, ctype, filename, payload)
     else:
         mod.handle_part(data, ctype, filename, payload, frequency)
 
-def partwalker_handle_handler(pdata, _ctype, _filename, payload):
 
+def partwalker_handle_handler(pdata, _ctype, _filename, payload):
     curcount = pdata['handlercount']
-    modname  = 'part-handler-%03d' % curcount
+    modname = 'part-handler-%03d' % curcount
     frequency = pdata['frequency']
 
     modfname = modname + ".py"
@@ -578,6 +595,7 @@ def partwalker_handle_handler(pdata, _ctype, _filename, payload):
         traceback.print_exc(file=sys.stderr)
         return
 
+
 def partwalker_callback(pdata, ctype, filename, payload):
     # data here is the part_handlers array and then the data to pass through
     if ctype == "text/part-handler":
@@ -590,18 +608,20 @@ def partwalker_callback(pdata, ctype, filename, payload):
     handler_handle_part(pdata['handlers'][ctype], pdata['data'],
         ctype, filename, payload, pdata['frequency'])
 
+
 class InternalPartHandler:
     freq = per_instance
-    mtypes = [ ]
+    mtypes = []
     handler_version = 1
     handler = None
-    def __init__(self, handler, mtypes, frequency, version = 2):
+
+    def __init__(self, handler, mtypes, frequency, version=2):
         self.handler = handler
         self.mtypes = mtypes
         self.frequency = frequency
         self.handler_version = version
 
-    def __repr__():
+    def __repr__(self):
         return("InternalPartHandler: [%s]" % self.mtypes)
 
     def list_types(self):

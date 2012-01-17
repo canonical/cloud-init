@@ -21,20 +21,23 @@ import sys
 import cloudinit
 import cloudinit.CloudConfig
 
-def Usage(out = sys.stdout):
+
+def Usage(out=sys.stdout):
     out.write("Usage: %s name\n" % sys.argv[0])
-    
+
+
 def main():
     # expect to be called with name of item to fetch
     if len(sys.argv) != 2:
         Usage(sys.stderr)
         sys.exit(1)
 
-    cc = cloudinit.CloudConfig.CloudConfig(cloudinit.cloud_config)
+    cfg_path = cloudinit.get_ipath_cur("cloud_config")
+    cc = cloudinit.CloudConfig.CloudConfig(cfg_path)
     data = {
-        'user_data' : cc.cloud.get_userdata(),
-        'user_data_raw' : cc.cloud.get_userdata_raw(),
-        'instance_id' : cc.cloud.get_instance_id(),
+        'user_data': cc.cloud.get_userdata(),
+        'user_data_raw': cc.cloud.get_userdata_raw(),
+        'instance_id': cc.cloud.get_instance_id(),
     }
 
     name = sys.argv[1].replace('-', '_')

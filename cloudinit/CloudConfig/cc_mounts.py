@@ -20,28 +20,30 @@ import os
 import re
 import string
 
+
 def is_mdname(name):
     # return true if this is a metadata service name
-    if name in [ "ami", "root", "swap" ]:
+    if name in ["ami", "root", "swap"]:
         return True
     # names 'ephemeral0' or 'ephemeral1'
     # 'ebs[0-9]' appears when '--block-device-mapping sdf=snap-d4d90bbc'
-    for enumname in ( "ephemeral", "ebs" ):
+    for enumname in ("ephemeral", "ebs"):
         if name.startswith(enumname) and name.find(":") == -1:
             return True
     return False
 
+
 def handle(_name, cfg, cloud, log, _args):
     # fs_spec, fs_file, fs_vfstype, fs_mntops, fs-freq, fs_passno
-    defvals = [ None, None, "auto", "defaults,nobootwait", "0", "2" ]
+    defvals = [None, None, "auto", "defaults,nobootwait", "0", "2"]
     defvals = cfg.get("mount_default_fields", defvals)
 
     # these are our default set of mounts
-    defmnts = [ [ "ephemeral0", "/mnt", "auto", defvals[3], "0", "2" ],
-                [ "swap", "none", "swap", "sw", "0", "0" ] ]
+    defmnts = [["ephemeral0", "/mnt", "auto", defvals[3], "0", "2"],
+               ["swap", "none", "swap", "sw", "0", "0"]]
 
-    cfgmnt = [ ]
-    if cfg.has_key("mounts"):
+    cfgmnt = []
+    if "mounts" in cfg:
         cfgmnt = cfg["mounts"]
 
     # shortname matches 'sda', 'sda1', 'xvda', 'hda', 'sdb', xvdb, vda, vdd1
@@ -94,7 +96,6 @@ def handle(_name, cfg, cloud, log, _args):
                 if cfgmnt[j][0] == cfgmnt[i][0]:
                     cfgmnt[j][1] = None
 
-
     # for each of the "default" mounts, add them only if no other
     # entry has the same device name
     for defmnt in defmnts:
@@ -111,11 +112,10 @@ def handle(_name, cfg, cloud, log, _args):
             if cfgm[0] == defmnt[0]:
                 cfgmnt_has = True
                 break
-        
+
         if cfgmnt_has:
             continue
         cfgmnt.append(defmnt)
-
 
     # now, each entry in the cfgmnt list has all fstab values
     # if the second field is None (not the string, the value) we skip it
@@ -125,9 +125,9 @@ def handle(_name, cfg, cloud, log, _args):
         return
 
     comment = "comment=cloudconfig"
-    cc_lines = [ ]
+    cc_lines = []
     needswap = False
-    dirs = [ ]
+    dirs = []
     for line in actlist:
         # write 'comment' in the fs_mntops, entry,  claiming this
         line[3] = "%s,comment=cloudconfig" % line[3]
@@ -137,7 +137,7 @@ def handle(_name, cfg, cloud, log, _args):
             dirs.append(line[1])
         cc_lines.append('\t'.join(line))
 
-    fstab_lines = [ ]
+    fstab_lines = []
     fstab = open("/etc/fstab", "r+")
     ws = re.compile("[%s]+" % string.whitespace)
     for line in fstab.read().splitlines():
@@ -150,7 +150,7 @@ def handle(_name, cfg, cloud, log, _args):
         fstab_lines.append(line)
 
     fstab_lines.extend(cc_lines)
-        
+
     fstab.seek(0)
     fstab.write("%s\n" % '\n'.join(fstab_lines))
     fstab.truncate()

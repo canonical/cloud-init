@@ -24,6 +24,7 @@ import shutil
 frequency = per_instance
 tz_base = "/usr/share/zoneinfo"
 
+
 def handle(_name, cfg, _cloud, log, args):
     if len(args) != 0:
         timezone = args[0]
@@ -33,7 +34,7 @@ def handle(_name, cfg, _cloud, log, args):
     if not timezone:
         return
 
-    tz_file = "%s/%s" % (tz_base , timezone)
+    tz_file = "%s/%s" % (tz_base, timezone)
 
     if not os.path.isfile(tz_file):
         log.debug("Invalid timezone %s" % tz_file)
@@ -59,6 +60,6 @@ def handle(_name, cfg, _cloud, log, args):
     except:
         log.debug("failed to copy %s to /etc/localtime" % tz_file)
         raise
-        
+
     log.debug("set timezone to %s" % timezone)
     return

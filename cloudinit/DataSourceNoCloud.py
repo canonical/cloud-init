@@ -16,19 +16,21 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import DataSource
+import cloudinit.DataSource as DataSource
 
-from cloudinit import seeddir, log  # pylint: disable=W0611
+from cloudinit import seeddir as base_seeddir
+from cloudinit import log
 import cloudinit.util as util
+
 
 class DataSourceNoCloud(DataSource.DataSource):
     metadata = None
     userdata = None
     userdata_raw = None
-    supported_seed_starts = ( "/" , "file://" )
+    supported_seed_starts = ("/", "file://")
     seed = None
     cmdline_id = "ds=nocloud"
-    seeddir = seeddir + '/nocloud'
+    seeddir = base_seeddir + '/nocloud'
 
     def __str__(self):
         mstr = "DataSourceNoCloud"
@@ -36,12 +38,12 @@ class DataSourceNoCloud(DataSource.DataSource):
         return(mstr)
 
     def get_data(self):
-        defaults = { 
-            "instance-id" : "nocloud"
+        defaults = {
+            "instance-id": "nocloud"
         }
 
-        found = [ ]
-        md = { }
+        found = []
+        md = {}
         ud = ""
 
         try:
@@ -53,7 +55,7 @@ class DataSourceNoCloud(DataSource.DataSource):
             return False
 
         # check to see if the seeddir has data.
-        seedret = { }
+        seedret = {}
         if util.read_optional_seed(seedret, base=self.seeddir + "/"):
             md = util.mergedict(md, seedret['meta-data'])
             ud = seedret['user-data']
@@ -94,6 +96,7 @@ class DataSourceNoCloud(DataSource.DataSource):
         self.userdata_raw = ud
         return True
 
+
 # returns true or false indicating if cmdline indicated
 # that this module should be used
 # example cmdline:
@@ -103,7 +106,7 @@ def parse_cmdline_data(ds_id, fill, cmdline=None):
         cmdline = util.get_cmdline()
     cmdline = " %s " % cmdline
 
-    if not ( " %s " % ds_id in cmdline or " %s;" % ds_id in cmdline ):
+    if not (" %s " % ds_id in cmdline or " %s;" % ds_id in cmdline):
         return False
 
     argline = ""
@@ -112,7 +115,7 @@ def parse_cmdline_data(ds_id, fill, cmdline=None):
     for tok in cmdline.split():
         if tok.startswith(ds_id):
             argline = tok.split("=", 1)
-    
+
     # argline array is now 'nocloud' followed optionally by
     # a ';' and then key=value pairs also terminated with ';'
     tmp = argline[1].split(";")
@@ -122,7 +125,7 @@ def parse_cmdline_data(ds_id, fill, cmdline=None):
         kvpairs = ()
 
     # short2long mapping to save cmdline typing
-    s2l = {  "h" : "local-hostname", "i" : "instance-id", "s" : "seedfrom" }
+    s2l = {"h": "local-hostname", "i": "instance-id", "s": "seedfrom"}
     for item in kvpairs:
         try:
             (k, v) = item.split("=", 1)
@@ -135,16 +138,19 @@ def parse_cmdline_data(ds_id, fill, cmdline=None):
 
     return(True)
 
+
 class DataSourceNoCloudNet(DataSourceNoCloud):
     cmdline_id = "ds=nocloud-net"
-    supported_seed_starts = ( "http://", "https://", "ftp://" )
-    seeddir = seeddir + '/nocloud-net'
+    supported_seed_starts = ("http://", "https://", "ftp://")
+    seeddir = base_seeddir + '/nocloud-net'
+
 
 datasources = (
-  ( DataSourceNoCloud, ( DataSource.DEP_FILESYSTEM, ) ),
-  ( DataSourceNoCloudNet, 
-    ( DataSource.DEP_FILESYSTEM, DataSource.DEP_NETWORK ) ),
+  (DataSourceNoCloud, (DataSource.DEP_FILESYSTEM, )),
+  (DataSourceNoCloudNet,
+    (DataSource.DEP_FILESYSTEM, DataSource.DEP_NETWORK)),
 )
+
 
 # return a list of data sources that match this set of dependencies
 def get_datasource_list(depends):

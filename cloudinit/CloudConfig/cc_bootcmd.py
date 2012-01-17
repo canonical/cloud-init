@@ -18,11 +18,13 @@
 import cloudinit.util as util
 import subprocess
 import tempfile
+import os
 from cloudinit.CloudConfig import per_always
 frequency = per_always
 
+
 def handle(_name, cfg, cloud, log, _args):
-    if not cfg.has_key("bootcmd"):
+    if "bootcmd" not in cfg:
         return
 
     try:
@@ -33,7 +35,7 @@ def handle(_name, cfg, cloud, log, _args):
     except:
         log.warn("failed to shellify bootcmd")
         raise
-    
+
     try:
         env = os.environ.copy()
         env['INSTANCE_ID'] = cloud.get_instance_id()

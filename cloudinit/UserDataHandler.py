@@ -26,16 +26,18 @@ import cloudinit.util as util
 import hashlib
 import urllib
 
+
 starts_with_mappings = {
-    '#include' : 'text/x-include-url',
-    '#include-once' : 'text/x-include-once-url',
-    '#!' : 'text/x-shellscript',
-    '#cloud-config' : 'text/cloud-config',
-    '#upstart-job'  : 'text/upstart-job',
-    '#part-handler' : 'text/part-handler',
-    '#cloud-boothook' : 'text/cloud-boothook',
-    '#cloud-config-archive' : 'text/cloud-config-archive',
+    '#include': 'text/x-include-url',
+    '#include-once': 'text/x-include-once-url',
+    '#!': 'text/x-shellscript',
+    '#cloud-config': 'text/cloud-config',
+    '#upstart-job': 'text/upstart-job',
+    '#part-handler': 'text/part-handler',
+    '#cloud-boothook': 'text/cloud-boothook',
+    '#cloud-config-archive': 'text/cloud-config-archive',
 }
+
 
 # if 'string' is compressed return decompressed otherwise return it
 def decomp_str(string):
@@ -46,6 +48,7 @@ def decomp_str(string):
         return(uncomp)
     except:
         return(string)
+
 
 def do_include(content, appendmsg):
     import os
@@ -67,7 +70,7 @@ def do_include(content, appendmsg):
             continue
 
         # urls cannot not have leading or trailing white space
-        msum = hashlib.md5()
+        msum = hashlib.md5()  # pylint: disable=E1101
         msum.update(line.strip())
         includeonce_filename = "%s/urlcache/%s" % (
             cloudinit.get_ipath_cur("data"), msum.hexdigest())
@@ -88,14 +91,14 @@ def do_include(content, appendmsg):
 def explode_cc_archive(archive, appendmsg):
     for ent in yaml.load(archive):
         # ent can be one of:
-        #  dict { 'filename' : 'value' , 'content' : 'value', 'type' : 'value' }
+        #  dict { 'filename' : 'value', 'content' : 'value', 'type' : 'value' }
         #    filename and type not be present
         # or
         #  scalar(payload)
-        
+
         def_type = "text/cloud-config"
         if isinstance(ent, str):
-            ent = { 'content': ent }
+            ent = {'content': ent}
 
         content = ent.get('content', '')
         mtype = ent.get('type', None)
@@ -135,6 +138,7 @@ def multi_part_count(outermsg, newcount=None):
 
     return(int(outermsg.get('Number-Attachments', 0)))
 
+
 def _attach_part(outermsg, part):
     """
     Attach an part to an outer message. outermsg must be a MIMEMultipart.
@@ -143,17 +147,19 @@ def _attach_part(outermsg, part):
     cur = multi_part_count(outermsg)
     if not part.get_filename(None):
         part.add_header('Content-Disposition', 'attachment',
-            filename = 'part-%03d' % (cur+1))
+            filename='part-%03d' % (cur + 1))
     outermsg.attach(part)
-    multi_part_count(outermsg, cur+1)
-    
+    multi_part_count(outermsg, cur + 1)
+
+
 def type_from_startswith(payload, default=None):
     # slist is sorted longest first
-    slist = sorted(starts_with_mappings.keys(), key=lambda e: 0-len(e))
+    slist = sorted(starts_with_mappings.keys(), key=lambda e: 0 - len(e))
     for sstr in slist:
         if payload.startswith(sstr):
             return(starts_with_mappings[sstr])
     return default
+
 
 def process_includes(msg, appendmsg=None):
     if appendmsg == None:
@@ -190,6 +196,7 @@ def process_includes(msg, appendmsg=None):
 
         _attach_part(appendmsg, part)
 
+
 def message_from_string(data, headers=None):
     if headers is None:
         headers = {}
@@ -208,15 +215,17 @@ def message_from_string(data, headers=None):
 
     return(msg)
 
+
 # this is heavily wasteful, reads through userdata string input
 def preprocess_userdata(data):
     newmsg = MIMEMultipart()
     process_includes(message_from_string(decomp_str(data)), newmsg)
     return(newmsg.as_string())
 
+
 # callback is a function that will be called with (data, content_type,
 # filename, payload)
-def walk_userdata(istr, callback, data = None):
+def walk_userdata(istr, callback, data=None):
     partnum = 0
     for part in message_from_string(istr).walk():
         # multipart/* are just containers
@@ -233,7 +242,8 @@ def walk_userdata(istr, callback, data = None):
 
         callback(data, ctype, filename, part.get_payload(decode=True))
 
-        partnum = partnum+1
+        partnum = partnum + 1
+
 
 if __name__ == "__main__":
     import sys
