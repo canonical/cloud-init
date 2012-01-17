@@ -18,7 +18,7 @@
 import cloudinit.util as util
 import os
 import re
-import string
+from string import whitespace  # pylint: disable=W0402
 
 
 def is_mdname(name):
@@ -139,7 +139,7 @@ def handle(_name, cfg, cloud, log, _args):
 
     fstab_lines = []
     fstab = open("/etc/fstab", "r+")
-    ws = re.compile("[%s]+" % string.whitespace)
+    ws = re.compile("[%s]+" % whitespace)
     for line in fstab.read().splitlines():
         try:
             toks = ws.split(line)
