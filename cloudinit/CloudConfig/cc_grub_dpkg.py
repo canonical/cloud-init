@@ -20,23 +20,26 @@ import cloudinit.util as util
 import traceback
 import os
 
-def handle(_name,cfg,_cloud,log,_args):
+def handle(_name, cfg, _cloud, log, _args):
     
-    idevs=None
-    idevs_empty=None
+    idevs = None
+    idevs_empty = None
 
     if "grub-dpkg" in cfg:
-        idevs=util.get_cfg_option_str(cfg["grub-dpkg"],
-            "grub-pc/install_devices",None)
-        idevs_empty=util.get_cfg_option_str(cfg["grub-dpkg"],
-            "grub-pc/install_devices_empty",None)
+        idevs = util.get_cfg_option_str(cfg["grub-dpkg"],
+            "grub-pc/install_devices", None)
+        idevs_empty = util.get_cfg_option_str(cfg["grub-dpkg"],
+            "grub-pc/install_devices_empty", None)
 
     if (( os.path.exists("/dev/sda1") and not os.path.exists("/dev/sda") ) or
         ( os.path.exists("/dev/xvda1") and not os.path.exists("/dev/xvda") )):
-        if idevs == None: idevs=""
-        if idevs_empty == None: idevs_empty="true"
+        if idevs == None:
+            idevs = ""
+        if idevs_empty == None:
+            idevs_empty = "true"
     else:
-        if idevs_empty == None: idevs_empty="false"
+        if idevs_empty == None:
+            idevs_empty = "false"
         if idevs == None:
             idevs = "/dev/sda"
             for dev in ( "/dev/sda", "/dev/vda", "/dev/sda1", "/dev/vda1"):
@@ -50,7 +53,7 @@ def handle(_name,cfg,_cloud,log,_args):
     dconf_sel = "grub-pc grub-pc/install_devices string %s\n" % idevs + \
         "grub-pc grub-pc/install_devices_empty boolean %s\n" % idevs_empty
     log.debug("setting grub debconf-set-selections with '%s','%s'" %
-        (idevs,idevs_empty))
+        (idevs, idevs_empty))
 
     try:
         util.subp(('debconf-set-selections'), dconf_sel)

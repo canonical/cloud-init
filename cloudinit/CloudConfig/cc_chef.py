@@ -23,9 +23,10 @@ import cloudinit.util as util
 
 ruby_version_default = "1.8"
 
-def handle(_name,cfg,cloud,log,_args):
+def handle(_name, cfg, cloud, log, _args):
     # If there isn't a chef key in the configuration don't do anything
-    if not cfg.has_key('chef'): return
+    if not cfg.has_key('chef'):
+        return
     chef_cfg = cfg['chef']
 
     # ensure the chef directories we use exist
@@ -35,7 +36,8 @@ def handle(_name,cfg,cloud,log,_args):
     # set the validation key based on the presence of either 'validation_key'
     # or 'validation_cert'. In the case where both exist, 'validation_key'
     # takes precedence
-    if chef_cfg.has_key('validation_key') or chef_cfg.has_key('validation_cert'):
+    if (chef_cfg.has_key('validation_key') or
+        chef_cfg.has_key('validation_cert')):
         validation_key = util.get_cfg_option_str(chef_cfg, 'validation_key',
                                                  chef_cfg['validation_cert'])
         with open('/etc/chef/validation.pem', 'w') as validation_key_fh:
@@ -43,12 +45,12 @@ def handle(_name,cfg,cloud,log,_args):
 
     # create the chef config from template
     util.render_to_file('chef_client.rb', '/etc/chef/client.rb',
-            {'server_url': chef_cfg['server_url'], 
-             'node_name': util.get_cfg_option_str(chef_cfg, 'node_name', 
-                                                  cloud.datasource.get_instance_id()),
-             'environment': util.get_cfg_option_str(chef_cfg, 'environment',
-                                                    '_default'),
-             'validation_name': chef_cfg['validation_name']})
+        {'server_url': chef_cfg['server_url'],
+         'node_name': util.get_cfg_option_str(chef_cfg, 'node_name',
+                                          cloud.datasource.get_instance_id()),
+         'environment': util.get_cfg_option_str(chef_cfg, 'environment',
+                                                '_default'),
+         'validation_name': chef_cfg['validation_name']})
 
     # set the firstboot json
     with open('/etc/chef/firstboot.json', 'w') as firstboot_json_fh:
@@ -57,12 +59,14 @@ def handle(_name,cfg,cloud,log,_args):
             initial_json['run_list'] = chef_cfg['run_list']
         if chef_cfg.has_key('initial_attributes'):
             initial_attributes = chef_cfg['initial_attributes']
-            for k in initial_attributes.keys(): initial_json[k] = initial_attributes[k]
+            for k in initial_attributes.keys():
+                initial_json[k] = initial_attributes[k]
         firstboot_json_fh.write(json.dumps(initial_json))
 
     # If chef is not installed, we install chef based on 'install_type'
     if not os.path.isfile('/usr/bin/chef-client'):
-        install_type = util.get_cfg_option_str(chef_cfg, 'install_type', 'packages')
+        install_type = util.get_cfg_option_str(chef_cfg, 'install_type',
+                                               'packages')
         if install_type == "gems":
             # this will install and run the chef-client from gems
             chef_version = util.get_cfg_option_str(chef_cfg, 'version', None)
@@ -71,7 +75,8 @@ def handle(_name,cfg,cloud,log,_args):
             install_chef_from_gems(ruby_version, chef_version)
             # and finally, run chef-client
             log.debug('running chef-client')
-            subprocess.check_call(['/usr/bin/chef-client', '-d', '-i', '1800', '-s', '20'])
+            subprocess.check_call(['/usr/bin/chef-client', '-d', '-i', '1800',
+                                   '-s', '20'])
         else:
             # this will install and run the chef-client from packages
             cc.install_packages(('chef',))
@@ -90,13 +95,13 @@ def install_chef_from_gems(ruby_version, chef_version = None):
     if not os.path.exists('/usr/bin/ruby'):
         os.symlink('/usr/bin/ruby%s' % ruby_version, '/usr/bin/ruby')
     if chef_version:
-        subprocess.check_call(['/usr/bin/gem','install','chef',
+        subprocess.check_call(['/usr/bin/gem', 'install', 'chef',
                                '-v %s' % chef_version, '--no-ri',
-                               '--no-rdoc','--bindir','/usr/bin','-q'])
+                               '--no-rdoc', '--bindir', '/usr/bin', '-q'])
     else:
-        subprocess.check_call(['/usr/bin/gem','install','chef',
-                               '--no-ri','--no-rdoc','--bindir',
-                               '/usr/bin','-q'])
+        subprocess.check_call(['/usr/bin/gem', 'install', 'chef',
+                               '--no-ri', '--no-rdoc', '--bindir',
+                               '/usr/bin', '-q'])
 
 def ensure_dir(d):
     if not os.path.exists(d):

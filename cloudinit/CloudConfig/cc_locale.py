@@ -28,16 +28,17 @@ def apply_locale(locale, cfgfile):
 
     util.render_to_file('default-locale', cfgfile, { 'locale' : locale })
 
-def handle(_name,cfg,cloud,log,args):
+def handle(_name, cfg, cloud, log, args):
     if len(args) != 0:
         locale = args[0]
     else:
-        locale = util.get_cfg_option_str(cfg,"locale",cloud.get_locale())
+        locale = util.get_cfg_option_str(cfg, "locale", cloud.get_locale())
 
     locale_cfgfile = util.get_cfg_option_str(cfg, "locale_configfile",
                                              "/etc/default/locale")
 
-    if not locale: return
+    if not locale:
+        return
 
     log.debug("setting locale to %s" % locale)
 

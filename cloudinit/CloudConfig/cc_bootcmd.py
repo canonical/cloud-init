@@ -21,7 +21,7 @@ import tempfile
 from cloudinit.CloudConfig import per_always
 frequency = per_always
 
-def handle(_name,cfg,cloud,log,_args):
+def handle(_name, cfg, cloud, log, _args):
     if not cfg.has_key("bootcmd"):
         return
 
@@ -35,8 +35,8 @@ def handle(_name,cfg,cloud,log,_args):
         raise
     
     try:
-        env=os.environ.copy()
-        env['INSTANCE_ID']=cloud.get_instance_id()
+        env = os.environ.copy()
+        env['INSTANCE_ID'] = cloud.get_instance_id()
         subprocess.check_call(['/bin/sh'], env=env, stdin=tmpf)
         tmpf.close()
     except:

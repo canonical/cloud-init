@@ -18,12 +18,12 @@
 
 import cloudinit.util as util
 
-def handle(_name,cfg,cloud,log,_args):
+def handle(_name, cfg, cloud, log, _args):
     if not cfg.has_key("runcmd"):
         return
-    outfile="%s/runcmd" % cloud.get_ipath('scripts')
+    outfile = "%s/runcmd" % cloud.get_ipath('scripts')
     try:
         content = util.shellify(cfg["runcmd"])
-        util.write_file(outfile,content,0700)
+        util.write_file(outfile, content, 0700)
     except:
         log.warn("failed to open %s for runcmd" % outfile)

@@ -22,14 +22,14 @@ from cloudinit.CloudConfig import per_always
 
 frequency = per_always
 
-def handle(_name,cfg,cloud,log,_args):
-    if util.get_cfg_option_bool(cfg,"preserve_hostname",False):
+def handle(_name, cfg, cloud, log, _args):
+    if util.get_cfg_option_bool(cfg, "preserve_hostname", False):
         log.debug("preserve_hostname is set. not updating hostname")
         return
 
     ( hostname, _fqdn ) = util.get_hostname_fqdn(cfg, cloud)
     try:
-        prev ="%s/%s" % (cloud.get_cpath('data'),"previous-hostname")
+        prev ="%s/%s" % (cloud.get_cpath('data'), "previous-hostname")
         update_hostname(hostname, prev, log)
     except Exception:
         log.warn("failed to set hostname\n")
@@ -40,7 +40,7 @@ def handle(_name,cfg,cloud,log,_args):
 # if file doesn't exist, or no contents, return default
 def read_hostname(filename, default=None):
     try:
-        fp = open(filename,"r")
+        fp = open(filename, "r")
         lines = fp.readlines()
         fp.close()
         for line in lines:
@@ -51,7 +51,8 @@ def read_hostname(filename, default=None):
             if line:
                 return line
     except IOError as e:
-        if e.errno != errno.ENOENT: raise
+        if e.errno != errno.ENOENT:
+            raise
     return default
     
 def update_hostname(hostname, prev_file, log):
@@ -80,14 +81,14 @@ def update_hostname(hostname, prev_file, log):
 
     try:
         for fname in update_files:
-            util.write_file(fname,"%s\n" % hostname, 0644)
-            log.debug("wrote %s to %s" % (hostname,fname))
+            util.write_file(fname, "%s\n" % hostname, 0644)
+            log.debug("wrote %s to %s" % (hostname, fname))
     except:
         log.warn("failed to write hostname to %s" % fname)
 
     if hostname_in_etc and hostname_prev and hostname_in_etc != hostname_prev:
         log.debug("%s differs from %s. assuming user maintained" %
-                  (prev_file,etc_file))
+                  (prev_file, etc_file))
 
     if etc_file in update_files:
         log.debug("setting hostname to %s" % hostname)

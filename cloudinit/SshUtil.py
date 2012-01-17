@@ -18,13 +18,13 @@ class AuthKeyEntry():
     line_in = ""
 
     def __init__(self, line, def_opt=None):
-        line=line.rstrip("\n\r")
+        line = line.rstrip("\n\r")
         self.line_in = line
         if line.startswith("#") or line.strip() == "":
             self.is_comment = True
         else:
             ent = line.strip()
-            toks = ent.split(None,3)
+            toks = ent.split(None, 3)
             if len(toks) == 1:
                 self.base64 = toks[0]
             elif len(toks) == 2:
@@ -53,7 +53,7 @@ class AuthKeyEntry():
                 try:
                     self.options = ent[0:i]
                     (self.keytype, self.base64, self.comment) = \
-                        ent[i+1:].split(None,3)
+                        ent[i+1:].split(None, 3)
                 except ValueError:
                     # we did not understand this line
                     self.is_comment = True
@@ -64,8 +64,9 @@ class AuthKeyEntry():
         return
 
     def debug(self):
-        print("line_in=%s\ncomment: %s\noptions=%s\nkeytype=%s\nbase64=%s\ncomment=%s\n" %
-            (self.line_in, self.is_comment, self.options, self.keytype, self.base64, self.comment)),
+        print("line_in=%s\ncomment: %s\noptions=%s\nkeytype=%s\nbase64=%s\n"
+              "comment=%s\n" % (self.line_in, self.is_comment, self.options,
+                                self.keytype, self.base64, self.comment)),
     def __repr__(self):
         if self.is_comment:
             return(self.line_in)
@@ -95,7 +96,7 @@ def update_authorized_keys(fname, keys):
     for key in keys:
         to_add.append(key)
 
-    for i in range(0,len(lines)):
+    for i in range(0, len(lines)):
         ent = AuthKeyEntry(lines[i])
         for k in keys:
             if k.base64 == ent.base64 and not k.is_comment:
@@ -129,7 +130,7 @@ def setup_user_keys(keys, user, key_prefix, log=None):
 
     try:
         ssh_cfg = parse_ssh_config()
-        akeys = ssh_cfg.get("AuthorizedKeysFile","%h/.ssh/authorized_keys")
+        akeys = ssh_cfg.get("AuthorizedKeysFile", "%h/.ssh/authorized_keys")
         akeys = akeys.replace("%h", pwent.pw_dir)
         akeys = akeys.replace("%u", user)
         authorized_keys = akeys
@@ -153,6 +154,7 @@ def setup_user_keys(keys, user, key_prefix, log=None):
 
 if __name__ == "__main__":
     import sys
+    # pylint: disable=C0301
     # usage: orig_file, new_keys, [key_prefix]
     #   prints out merged, where 'new_keys' will trump old
     ##  example
@@ -168,6 +170,7 @@ if __name__ == "__main__":
     #
     # Then run as:
     #  program authorized_keys new_keys 'no-port-forwarding,command=\"echo hi world;\"'
+    # pylint: enable=C0301
     def_prefix = None
     orig_key_file = sys.argv[1]
     new_key_file = sys.argv[2]
@@ -184,13 +187,13 @@ if __name__ == "__main__":
 
 def parse_ssh_config(fname="/etc/ssh/sshd_config"):
     ret = { }
-    fp=open(fname)
+    fp = open(fname)
     for l in fp.readlines():
         l = l.strip()
         if not l or l.startswith("#"):
             continue
-        key,val = l.split(None,1)
-        ret[key]=val
+        key, val = l.split(None, 1)
+        ret[key] = val
     fp.close()
     return(ret)
 
