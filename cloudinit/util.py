@@ -18,6 +18,7 @@
 import yaml
 import os
 import os.path
+import shutil
 import errno
 import subprocess
 from Cheetah.Template import Template
@@ -126,6 +127,19 @@ def mergedict(src, cand):
             else:
                 src[k] = mergedict(src[k], v)
     return src
+
+def delete_dir_contents(dirname):
+    """
+    Deletes all contents of a directory without deleting the directory itself.
+
+    @param dirname: The directory whose contents should be deleted.
+    """
+    for node in os.listdir(dirname):
+        node_fullpath = os.path.join(dirname, node)
+        if os.path.isdir(node_fullpath):
+            shutil.rmtree(node_fullpath)
+        else:
+            os.unlink(node_fullpath)
 
 def write_file(filepath, content, mode=0644, omode="wb"):
     """
