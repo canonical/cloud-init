@@ -86,10 +86,24 @@ def get_cfg_option_str(yobj, key, default=None):
     return yobj[key]
 
 def get_cfg_option_list_or_str(yobj, key, default=None):
-    if not yobj.has_key(key): return default
-    if yobj[key] is None: return []
-    if isinstance(yobj[key],list): return yobj[key]
-    return([yobj[key]])
+    """
+    Gets the C{key} config option from C{yobj} as a list of strings. If the
+    key is present as a single string it will be returned as a list with one
+    string arg.
+
+    @param yobj: The configuration object.
+    @param key: The configuration key to get.
+    @param default: The default to return if key is not found.
+    @return: The configuration option as a list of strings or default if key
+        is not found.
+    """
+    if not key in yobj:
+        return default
+    if yobj[key] is None:
+        return []
+    if isinstance(yobj[key], list):
+        return yobj[key]
+    return [yobj[key]]
 
 # get a cfg entry by its path array
 # for f['a']['b']: get_cfg_by_path(mycfg,('a','b'))
@@ -100,30 +114,41 @@ def get_cfg_by_path(yobj,keyp,default=None):
         cur = cur[tok]
     return(cur)
 
-# merge values from cand into source
-# if src has a key, cand will not override
-def mergedict(src,cand):
-    if isinstance(src,dict) and isinstance(cand,dict):
-        for k,v in cand.iteritems():
+def mergedict(src, cand):
+    """
+    Merge values from C{cand} into C{src}. If C{src} has a key C{cand} will
+    not override. Nested dictionaries are merged recursively.
+    """
+    if isinstance(src, dict) and isinstance(cand, dict):
+        for k, v in cand.iteritems():
             if k not in src:
                 src[k] = v
             else:
-                src[k] = mergedict(src[k],v)
+                src[k] = mergedict(src[k], v)
     return src
 
-def write_file(file,content,mode=0644,omode="wb"):
-        try:
-            os.makedirs(os.path.dirname(file))
-        except OSError as e:
-            if e.errno != errno.EEXIST:
-                raise e
+def write_file(filepath, content, mode=0644, omode="wb"):
+    """
+    Writes a file with the given content and sets the file mode as specified.
+    Resotres the SELinux context if possible.
 
-        f=open(file,omode)
-        if mode != None:
-            os.chmod(file,mode)
-        f.write(content)
-        f.close()
-        restorecon_if_possible(file)
+    @param filepath: The full path of the file to write.
+    @param content: The content to write to the file.
+    @param mode: The filesystem mode to set on the file.
+    @param omode: The open mode used when opening the file (r, rb, a, etc.)
+    """
+    try:
+        os.makedirs(os.path.dirname(filepath))
+    except OSError as e:
+        if e.errno != errno.EEXIST:
+            raise e
+
+    f = open(filepath, omode)
+    if mode is not None:
+        os.chmod(filepath, mode)
+    f.write(content)
+    f.close()
+    restorecon_if_possible(filepath)
 
 def restorecon_if_possible(path, recursive=False):
     if HAVE_LIBSELINUX and selinux.is_selinux_enabled():
