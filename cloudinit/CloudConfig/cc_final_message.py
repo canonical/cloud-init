@@ -24,7 +24,7 @@ frequency = per_always
 
 final_message = "cloud-init boot finished at $TIMESTAMP. Up $UPTIME seconds"
 
-def handle(name,cfg,cloud,log,args):
+def handle(_name,cfg,_cloud,log,args):
     if len(args) != 0:
         msg_in = args[0]
     else:

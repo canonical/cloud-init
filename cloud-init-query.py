@@ -20,9 +20,6 @@
 import sys
 import cloudinit
 import cloudinit.CloudConfig
-import logging
-import os
-import traceback
 
 def Usage(out = sys.stdout):
     out.write("Usage: %s name\n" % sys.argv[0])
@@ -34,7 +31,6 @@ def main():
         sys.exit(1)
 
     cc = cloudinit.CloudConfig.CloudConfig(cloudinit.cloud_config)
-    cloud_config = cc.cfg
     data = {
         'user_data' : cc.cloud.get_userdata(),
         'user_data_raw' : cc.cloud.get_userdata_raw(),

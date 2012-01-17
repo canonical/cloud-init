@@ -32,7 +32,7 @@ lsc_builtincfg = {
   }
 }
 
-def handle(name,cfg,cloud,log,args):
+def handle(_name,cfg,_cloud,log,_args):
     """
     Basically turn a top level 'landscape' entry with a 'client' dict
     and render it to ConfigObj format under '[client]' section in

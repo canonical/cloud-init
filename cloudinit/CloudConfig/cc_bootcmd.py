@@ -21,7 +21,7 @@ import tempfile
 from cloudinit.CloudConfig import per_always
 frequency = per_always
 
-def handle(name,cfg,cloud,log,args):
+def handle(_name,cfg,cloud,log,_args):
     if not cfg.has_key("bootcmd"):
         return
 
