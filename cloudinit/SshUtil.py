@@ -18,7 +18,7 @@ class AuthKeyEntry():
     line_in = ""
 
     def __init__(self, line, def_opt=None):
-        line=line.rstrip("\n\r")
+        line = line.rstrip("\n\r")
         self.line_in = line
         if line.startswith("#") or line.strip() == "":
             self.is_comment = True
@@ -184,13 +184,13 @@ if __name__ == "__main__":
 
 def parse_ssh_config(fname="/etc/ssh/sshd_config"):
     ret = { }
-    fp=open(fname)
+    fp = open(fname)
     for l in fp.readlines():
         l = l.strip()
         if not l or l.startswith("#"):
             continue
         key,val = l.split(None,1)
-        ret[key]=val
+        ret[key] = val
     fp.close()
     return(ret)
 

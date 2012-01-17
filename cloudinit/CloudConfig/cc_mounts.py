@@ -76,7 +76,7 @@ def handle(_name,cfg,cloud,log,_args):
         # but do not convert None to 'None' (LP: #898365)
         for j in range(len(cfgmnt[i])):
             if isinstance(cfgmnt[i][j], int):
-                cfgmnt[i][j]=str(cfgmnt[i][j])
+                cfgmnt[i][j] = str(cfgmnt[i][j])
 
     for i in range(len(cfgmnt)):
         # fill in values with defaults from defvals above
@@ -124,13 +124,13 @@ def handle(_name,cfg,cloud,log,_args):
     if len(actlist) == 0:
         return
 
-    comment="comment=cloudconfig"
+    comment = "comment=cloudconfig"
     cc_lines = [ ]
     needswap = False
     dirs = [ ]
     for line in actlist:
         # write 'comment' in the fs_mntops, entry,  claiming this
-        line[3]="%s,comment=cloudconfig" % line[3]
+        line[3] = "%s,comment=cloudconfig" % line[3]
         if line[2] == "swap":
             needswap = True
         if line[1].startswith("/"):
@@ -138,7 +138,7 @@ def handle(_name,cfg,cloud,log,_args):
         cc_lines.append('\t'.join(line))
 
     fstab_lines = [ ]
-    fstab=open("/etc/fstab","r+")
+    fstab = open("/etc/fstab","r+")
     ws = re.compile("[%s]+" % string.whitespace)
     for line in fstab.read().splitlines():
         try:

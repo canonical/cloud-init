@@ -70,7 +70,7 @@ def handle(_name,cfg,_cloud,log,args):
                 '\n'.join(randlist) ))
 
         if expire:
-            enum=len(errors)
+            enum = len(errors)
             for u in users:
                 try:
                     util.subp(['passwd', '--expire', u])
@@ -83,13 +83,13 @@ def handle(_name,cfg,_cloud,log,args):
     if 'ssh_pwauth' in cfg:
         val = str(cfg['ssh_pwauth']).lower()
         if val in ( "true", "1", "yes"):
-            pw_auth="yes"
-            change_pwauth=True
+            pw_auth = "yes"
+            change_pwauth = True
         elif val in ( "false", "0", "no"):
-            pw_auth="no"
-            change_pwauth=True
+            pw_auth = "no"
+            change_pwauth = True
         else:
-            change_pwauth=False
+            change_pwauth = False
             
     if change_pwauth:
         pa_s = "\(#*\)\(PasswordAuthentication[[:space:]]\+\)\(yes\|no\)"
@@ -118,7 +118,7 @@ def rand_str(strlen=32, select_from=string.letters+string.digits):
     return("".join([random.choice(select_from) for _x in range(0, strlen)]))
 
 def rand_user_password(pwlen=9):
-    selfrom=(string.letters.translate(None,'loLOI') +
-             string.digits.translate(None,'01'))
+    selfrom = (string.letters.translate(None,'loLOI') +
+               string.digits.translate(None,'01'))
     return(rand_str(pwlen,select_from=selfrom))
 

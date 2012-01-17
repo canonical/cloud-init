@@ -49,13 +49,13 @@ def main():
     else:
         freq = None
         run_args = []
-        name=sys.argv[1]
+        name = sys.argv[1]
         if len(sys.argv) > 2:
             freq = sys.argv[2]
             if freq == "None":
                 freq = None
         if len(sys.argv) > 3:
-            run_args=sys.argv[3:]
+            run_args = sys.argv[3:]
 
     cfg_path = cloudinit.get_ipath_cur("cloud_config")
     cfg_env_name = cloudinit.cfg_env_name

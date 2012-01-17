@@ -25,7 +25,7 @@ import os
 import subprocess
 import time
 
-per_instance= cloudinit.per_instance
+per_instance = cloudinit.per_instance
 per_always = cloudinit.per_always
 per_once = cloudinit.per_once
 
@@ -247,11 +247,10 @@ def run_per_instance(name, func, args, clear_on_fail=False):
 def apt_get(tlc,args=None):
     if args is None:
         args = []
-    e=os.environ.copy()
-    e['DEBIAN_FRONTEND']='noninteractive'
-    cmd=[ 'apt-get',
-          '--option', 'Dpkg::Options::=--force-confold', '--assume-yes',
-          tlc ]
+    e = os.environ.copy()
+    e['DEBIAN_FRONTEND'] = 'noninteractive'
+    cmd = ['apt-get', '--option', 'Dpkg::Options::=--force-confold',
+           '--assume-yes', tlc]
     cmd.extend(args)
     subprocess.check_call(cmd,env=e)
 

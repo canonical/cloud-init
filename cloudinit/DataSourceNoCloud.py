@@ -31,7 +31,7 @@ class DataSourceNoCloud(DataSource.DataSource):
     seeddir = seeddir + '/nocloud'
 
     def __str__(self):
-        mstr="DataSourceNoCloud"
+        mstr = "DataSourceNoCloud"
         mstr = mstr + " [seed=%s]" % self.seed
         return(mstr)
 
@@ -53,7 +53,7 @@ class DataSourceNoCloud(DataSource.DataSource):
             return False
 
         # check to see if the seeddir has data.
-        seedret={ }
+        seedret = { }
         if util.read_optional_seed(seedret,base=self.seeddir + "/"):
             md = util.mergedict(md,seedret['meta-data'])
             ud = seedret['user-data']
@@ -72,7 +72,7 @@ class DataSourceNoCloud(DataSource.DataSource):
             seedfound = False
             for proto in self.supported_seed_starts:
                 if seedfrom.startswith(proto):
-                    seedfound=proto
+                    seedfound = proto
                     break
             if not seedfound:
                 log.debug("seed from %s not supported by %s" %
@@ -106,20 +106,20 @@ def parse_cmdline_data(ds_id,fill,cmdline=None):
     if not ( " %s " % ds_id in cmdline or " %s;" % ds_id in cmdline ):
         return False
 
-    argline=""
+    argline = ""
     # cmdline can contain:
     # ds=nocloud[;key=val;key=val]
     for tok in cmdline.split():
         if tok.startswith(ds_id):
-            argline=tok.split("=",1)
+            argline = tok.split("=",1)
     
     # argline array is now 'nocloud' followed optionally by
     # a ';' and then key=value pairs also terminated with ';'
-    tmp=argline[1].split(";")
+    tmp = argline[1].split(";")
     if len(tmp) > 1:
-        kvpairs=tmp[1:]
+        kvpairs = tmp[1:]
     else:
-        kvpairs=()
+        kvpairs = ()
 
     # short2long mapping to save cmdline typing
     s2l = {  "h" : "local-hostname", "i" : "instance-id", "s" : "seedfrom" }
@@ -127,11 +127,11 @@ def parse_cmdline_data(ds_id,fill,cmdline=None):
         try:
             (k,v) = item.split("=",1)
         except:
-            k=item
-            v=None
+            k = item
+            v = None
         if k in s2l:
-            k=s2l[k]
-        fill[k]=v
+            k = s2l[k]
+        fill[k] = v
 
     return(True)
 

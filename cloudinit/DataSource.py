@@ -165,7 +165,7 @@ def list_sources(cfg_list, depends, pkglist=None):
     for ds_coll in cfg_list:
         for pkg in pkglist:
             if pkg:
-                pkg="%s." % pkg
+                pkg = "%s." % pkg
             try:
                 mod = __import__("%sDataSource%s" % (pkg, ds_coll))
                 if pkg:

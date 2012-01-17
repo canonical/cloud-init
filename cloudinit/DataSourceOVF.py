@@ -39,7 +39,7 @@ class DataSourceOVF(DataSource.DataSource):
     supported_seed_starts = ( "/" , "file://" )
 
     def __str__(self):
-        mstr="DataSourceOVF"
+        mstr = "DataSourceOVF"
         mstr = mstr + " [seed=%s]" % self.seed
         return(mstr)
 
@@ -175,7 +175,7 @@ def transport_iso9660(require_iso=False):
     mounted = { }
     for mpline in mounts:
         (dev,mp,fstype,_opts,_freq,_passno) = mpline.split()
-        mounted[dev]=(dev,fstype,mp,False)
+        mounted[dev] = (dev,fstype,mp,False)
         mp = mp.replace("\\040"," ")
         if fstype != "iso9660" and require_iso:
             continue
