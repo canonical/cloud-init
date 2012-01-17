@@ -94,8 +94,8 @@ def handle(name, cfg, cloud, log, args):
 
     @param name: The module name "ca-cert" from cloud.cfg
     @param cfg: A nested dict containing the entire cloud config contents.
-    @param cloud: The L{CloudInit} object in use
-    @param log: Pre-initialized Python logger object to use for logging
+    @param cloud: The L{CloudInit} object in use.
+    @param log: Pre-initialized Python logger object to use for logging.
     @param args: Any module arguments from cloud.cfg
     """
     # If there isn't a ca-certs section in the configuration don't do anything
@@ -103,14 +103,16 @@ def handle(name, cfg, cloud, log, args):
         return
     ca_cert_cfg = cfg['ca-certs']
 
+    # If there is a remove-defaults option set to true, remove the system
+    # default trusted CA certs first.
     if ca_cert_cfg.get("remove-defaults", False):
         remove_default_ca_certs()
 
-    # set the validation key based on the presence of either 'validation_key'
-    # or 'validation_cert'. In the case where both exist, 'validation_key'
-    # takes precedence
+    # If we are given any new trusted CA certs to add, add them.
     if ca_cert_cfg.has_key('trusted'):
         trusted_certs = util.get_cfg_option_list_or_str(ca_cert_cfg, 'trusted')
         if trusted_certs:
             add_ca_certs(trusted_certs)
+
+    # Update the system with the new cert configuration.
     update_ca_certs()
