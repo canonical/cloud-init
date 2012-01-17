@@ -1,8 +1,8 @@
-from unittest import TestCase
 from mocker import MockerTestCase
 
 from cloudinit.util import write_file, delete_dir_contents
-from cloudinit.CloudConfig.cc_ca_certs import handle, update_ca_certs, add_ca_certs, remove_default_ca_certs
+from cloudinit.CloudConfig.cc_ca_certs import (
+    handle, update_ca_certs, add_ca_certs, remove_default_ca_certs)
 
 
 class TestNoConfig(MockerTestCase):
@@ -36,8 +36,10 @@ class TestConfig(MockerTestCase):
 
         # Mock out the functions that actually modify the system
         self.mock_add = self.mocker.replace(add_ca_certs, passthrough=False)
-        self.mock_update = self.mocker.replace(update_ca_certs, passthrough=False)
-        self.mock_remove = self.mocker.replace(remove_default_ca_certs, passthrough=False)
+        self.mock_update = self.mocker.replace(update_ca_certs,
+                                               passthrough=False)
+        self.mock_remove = self.mocker.replace(remove_default_ca_certs,
+                                               passthrough=False)
         # Order must be correct
         self.mocker.order()
 
@@ -118,7 +120,7 @@ class TestConfig(MockerTestCase):
 class TestAddCaCerts(MockerTestCase):
     def test_no_certs_in_list(self):
         """Test that no certificate are written if not provided."""
-        mock = self.mocker.replace(write_file, passthrough=False)
+        self.mocker.replace(write_file, passthrough=False)
         self.mocker.replay()
 
         add_ca_certs([])
@@ -130,7 +132,8 @@ class TestAddCaCerts(MockerTestCase):
         mock_write = self.mocker.replace(write_file, passthrough=False)
         mock_write("/usr/share/ca-certificates/cloud-init-ca-certs.crt",
                    cert, mode=0644)
-        mock_write("/etc/ca-certificates.conf", "\ncloud-init-ca-certs.crt", omode="a")
+        mock_write("/etc/ca-certificates.conf",
+                   "\ncloud-init-ca-certs.crt", omode="a")
         self.mocker.replay()
 
         add_ca_certs([cert])
@@ -143,7 +146,8 @@ class TestAddCaCerts(MockerTestCase):
         mock_write = self.mocker.replace(write_file, passthrough=False)
         mock_write("/usr/share/ca-certificates/cloud-init-ca-certs.crt",
                    expected_cert_file, mode=0644)
-        mock_write("/etc/ca-certificates.conf", "\ncloud-init-ca-certs.crt", omode="a")
+        mock_write("/etc/ca-certificates.conf",
+                   "\ncloud-init-ca-certs.crt", omode="a")
         self.mocker.replay()
 
         add_ca_certs(certs)
@@ -161,13 +165,13 @@ class TestUpdateCaCerts(MockerTestCase):
 
 class TestRemoveDefaultCaCerts(MockerTestCase):
     def test_commands(self):
-        mock_delete_dir_contents = self.mocker.replace(delete_dir_contents, passthrough=False)
+        mock_delete_dir_contents = self.mocker.replace(delete_dir_contents,
+                                                       passthrough=False)
         mock_write = self.mocker.replace(write_file, passthrough=False)
 
         mock_delete_dir_contents("/usr/share/ca-certificates/")
         mock_delete_dir_contents("/etc/ssl/certs/")
         mock_write("/etc/ca-certificates.conf", "", mode=0644)
-        
         self.mocker.replay()
 
         remove_default_ca_certs()

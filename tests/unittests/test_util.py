@@ -5,7 +5,9 @@ from shutil import rmtree
 import os
 import stat
 
-from cloudinit.util import mergedict, get_cfg_option_list_or_str, write_file, delete_dir_contents
+from cloudinit.util import (mergedict, get_cfg_option_list_or_str, write_file,
+                            delete_dir_contents)
+
 
 class TestMergeDict(TestCase):
     def test_simple_merge(self):
@@ -65,6 +67,7 @@ class TestMergeDict(TestCase):
         result = mergedict(source, candidate)
         self.assertEqual(source, result)
 
+
 class TestGetCfgOptionListOrStr(TestCase):
     def test_not_found_no_default(self):
         """None is returned if key is not found and no default given."""
@@ -95,6 +98,7 @@ class TestGetCfgOptionListOrStr(TestCase):
         config = {"key": None}
         result = get_cfg_option_list_or_str(config, "key")
         self.assertEqual([], result)
+
 
 class TestWriteFile(MockerTestCase):
     def setUp(self):
@@ -173,6 +177,7 @@ class TestWriteFile(MockerTestCase):
         self.mocker.replay()
 
         write_file(path, contents)
+
 
 class TestDeleteDirContents(TestCase):
     def setUp(self):
