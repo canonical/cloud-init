@@ -39,8 +39,10 @@ def handle(_name, cfg, cloud, log, _args):
         puppet_conf_fh = open('/etc/puppet/puppet.conf', 'r')
         # Create object for reading puppet.conf values
         puppet_config = ConfigParser.ConfigParser()
-        # Read puppet.conf values from original file in order to be able to mix the rest up
-        puppet_config.readfp(StringIO.StringIO(''.join(i.lstrip() for i in puppet_conf_fh.readlines())))
+        # Read puppet.conf values from original file in order to be able to
+        # mix the rest up
+        puppet_config.readfp(StringIO.StringIO(''.join(i.lstrip() for i in
+                                               puppet_conf_fh.readlines())))
         # Close original file, no longer needed
         puppet_conf_fh.close()
         for cfg_name, cfg in puppet_cfg['conf'].iteritems():
@@ -64,7 +66,8 @@ def handle(_name, cfg, cloud, log, _args):
                 util.restorecon_if_possible('/var/lib/puppet', recursive=True)
             else:
                 #puppet_conf_fh.write("\n[%s]\n" % (cfg_name))
-                # If puppet.conf already has this section we don't want to write it again
+                # If puppet.conf already has this section we don't want to
+                # write it again
                 if puppet_config.has_section(cfg_name) == False:
                     puppet_config.add_section(cfg_name)
                 # Iterate throug the config items, we'll use ConfigParser.set

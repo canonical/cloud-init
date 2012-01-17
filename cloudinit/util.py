@@ -177,7 +177,8 @@ def subp(args, input_=None):
     return(out, err)
 
 def render_to_file(template, outfile, searchList):
-    t = Template(file='/etc/cloud/templates/%s.tmpl' % template, searchList=[searchList])
+    t = Template(file='/etc/cloud/templates/%s.tmpl' % template,
+                 searchList=[searchList])
     f = open(outfile, 'w')
     f.write(t.respond())
     f.close()
@@ -320,7 +321,8 @@ def read_conf_with_confd(cfgfile):
         if cfg['conf_d'] is not None:
             confd = cfg['conf_d']
             if not isinstance(confd, str):
-                raise Exception("cfgfile %s contains 'conf_d' with non-string" % cfgfile)
+                raise Exception("cfgfile %s contains 'conf_d' "
+                                "with non-string" % cfgfile)
     elif os.path.isdir("%s.d" % cfgfile):
         confd = "%s.d" % cfgfile
 
@@ -455,8 +457,8 @@ def islxc():
             raise
 
     try:
-        # try to run a program named 'lxc-is-container'. if it returns true, then
-        # we're inside a container. otherwise, no
+        # try to run a program named 'lxc-is-container'. if it returns true,
+        # then we're inside a container. otherwise, no
         sp = subprocess.Popen(['lxc-is-container'], stdout=subprocess.PIPE,
                               stderr=subprocess.PIPE)
         sp.communicate(None)

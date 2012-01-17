@@ -46,7 +46,8 @@ class CloudConfig():
             cfg = util.read_conf(cfgfile)
         except:
             # TODO: this 'log' could/should be passed in
-            cloudinit.log.critical("Failed loading of cloud config '%s'. Continuing with empty config\n" % cfgfile)
+            cloudinit.log.critical("Failed loading of cloud config '%s'. "
+                                   "Continuing with empty config\n" % cfgfile)
             cloudinit.log.debug(traceback.format_exc() + "\n")
             cfg = None
         if cfg is None:

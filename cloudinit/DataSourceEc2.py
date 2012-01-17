@@ -46,9 +46,12 @@ class DataSourceEc2(DataSource.DataSource):
             if not self.wait_for_metadata_service():
                 return False
             start = time.time()
-            self.userdata_raw = boto_utils.get_instance_userdata(self.api_ver, None, self.metadata_address)
-            self.metadata = boto_utils.get_instance_metadata(self.api_ver, self.metadata_address)
-            log.debug("crawl of metadata service took %ds" % (time.time()-start))
+            self.userdata_raw = boto_utils.get_instance_userdata(self.api_ver,
+                None, self.metadata_address)
+            self.metadata = boto_utils.get_instance_metadata(self.api_ver,
+                self.metadata_address)
+            log.debug("crawl of metadata service took %ds" % (time.time() -
+                                                              start))
             return True
         except Exception as e:
             print e
@@ -201,7 +204,8 @@ class DataSourceEc2(DataSource.DataSource):
         return False
 
 
-def wait_for_metadata_service(urls, max_wait=None, timeout=None, status_cb=None):
+def wait_for_metadata_service(urls, max_wait=None, timeout=None,
+                              status_cb=None):
     """
     urls:      a list of urls to try
     max_wait:  roughly the maximum time to wait before giving up

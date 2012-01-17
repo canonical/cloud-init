@@ -214,7 +214,8 @@ def preprocess_userdata(data):
     process_includes(message_from_string(decomp_str(data)), newmsg)
     return(newmsg.as_string())
 
-# callback is a function that will be called with (data, content_type, filename, payload)
+# callback is a function that will be called with (data, content_type,
+# filename, payload)
 def walk_userdata(istr, callback, data = None):
     partnum = 0
     for part in message_from_string(istr).walk():

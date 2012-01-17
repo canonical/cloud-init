@@ -350,7 +350,8 @@ class CloudInit:
             try:
                 mod = __import__(modname)
                 handler_register(mod, part_handlers, data, frequency)
-                log.debug("added handler for [%s] from %s" % (mod.list_types(), fname))
+                log.debug("added handler for [%s] from %s" % (mod.list_types(),
+                                                              fname))
             except:
                 log.warn("failed to initialize handler in %s" % fname)
                 util.logexc(log)
@@ -420,7 +421,8 @@ class CloudInit:
 
         self.cloud_config_str += "\n#%s\n%s" % (filename, payload)
 
-    def handle_cloud_boothook(self, _data, ctype, filename, payload, _frequency):
+    def handle_cloud_boothook(self, _data, ctype, filename, payload,
+                              _frequency):
         if ctype == "__end__":
             return
         if ctype == "__begin__":
