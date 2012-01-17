@@ -70,14 +70,14 @@ import glob
 import traceback
 
 class NullHandler(logging.Handler):
-    def emit(self,record):
+    def emit(self, record):
         pass
 
 log = logging.getLogger(logger_name)
 log.addHandler(NullHandler())
 
 def logging_set_from_cfg_file(cfg_file=system_config):
-    logging_set_from_cfg(util.get_base_cfg(cfg_file,cfg_builtin,parsed_cfgs))
+    logging_set_from_cfg(util.get_base_cfg(cfg_file, cfg_builtin, parsed_cfgs))
 
 def logging_set_from_cfg(cfg):
     log_cfgs = []
@@ -88,7 +88,7 @@ def logging_set_from_cfg(cfg):
         log_cfgs = [ logcfg ]
     elif "log_cfgs" in cfg:
         for cfg in cfg['log_cfgs']:
-            if isinstance(cfg,list):
+            if isinstance(cfg, list):
                 log_cfgs.append('\n'.join(cfg))
             else:
                 log_cfgs.append()
@@ -139,7 +139,7 @@ class CloudInit:
             return(self.cfg)
 
         try:
-            conf = util.get_base_cfg(self.sysconfig,cfg_builtin, parsed_cfgs)
+            conf = util.get_base_cfg(self.sysconfig, cfg_builtin, parsed_cfgs)
         except Exception:
             conf = get_builtin_cfg()
 
@@ -150,7 +150,7 @@ class CloudInit:
             oldcfg = ConfigObj(self.old_conffile)
             if oldcfg is None:
                 oldcfg = { }
-            conf = util.mergedict(conf,oldcfg)
+            conf = util.mergedict(conf, oldcfg)
         except:
             pass
 
@@ -180,9 +180,9 @@ class CloudInit:
                 
         try:
             f = open(cache, "wb")
-            cPickle.dump(self.datasource,f)
+            cPickle.dump(self.datasource, f)
             f.close()
-            os.chmod(cache,0400)
+            os.chmod(cache, 0400)
         except:
             raise
         
@@ -209,7 +209,7 @@ class CloudInit:
                     log.debug("found data source %s" % ds)
                     return True
             except Exception as e:
-                log.warn("get_data of %s raised %s" % (ds,e))
+                log.warn("get_data of %s raised %s" % (ds, e))
                 util.logexc(log)
         msg = "Did not find data source. searched classes: %s" % dsnames
         log.debug(msg)
@@ -256,22 +256,22 @@ class CloudInit:
         util.write_file(self.get_ipath('userdata'),
             self.datasource.get_userdata(), 0600)
 
-    def sem_getpath(self,name,freq):
+    def sem_getpath(self, name, freq):
         if freq == 'once-per-instance':
-            return("%s/%s" % (self.get_ipath("sem"),name))
+            return("%s/%s" % (self.get_ipath("sem"), name))
         return("%s/%s.%s" % (get_cpath("sem"), name, freq))
     
-    def sem_has_run(self,name,freq):
+    def sem_has_run(self, name, freq):
         if freq == per_always:
             return False
-        semfile = self.sem_getpath(name,freq)
+        semfile = self.sem_getpath(name, freq)
         if os.path.exists(semfile):
             return True
         return False
     
-    def sem_acquire(self,name,freq):
+    def sem_acquire(self, name, freq):
         from time import time
-        semfile = self.sem_getpath(name,freq)
+        semfile = self.sem_getpath(name, freq)
     
         try:
             os.makedirs(os.path.dirname(semfile))
@@ -284,15 +284,15 @@ class CloudInit:
     
         # race condition
         try:
-            f = open(semfile,"w")
+            f = open(semfile, "w")
             f.write("%s\n" % str(time()))
             f.close()
         except:
             return(False)
         return(True)
     
-    def sem_clear(self,name,freq):
-        semfile = self.sem_getpath(name,freq)
+    def sem_clear(self, name, freq):
+        semfile = self.sem_getpath(name, freq)
         try:
             os.unlink(semfile)
         except OSError as e:
@@ -305,20 +305,20 @@ class CloudInit:
     # if that does not exist, then call 'func' with given 'args'
     # if 'clear_on_fail' is True and func throws an exception
     #  then remove the lock (so it would run again)
-    def sem_and_run(self,semname,freq,func,args=None,clear_on_fail=False):
+    def sem_and_run(self, semname, freq, func, args=None, clear_on_fail=False):
         if args is None:
             args = []
-        if self.sem_has_run(semname,freq):
+        if self.sem_has_run(semname, freq):
             log.debug("%s already ran %s", semname, freq)
             return False
         try:
-            if not self.sem_acquire(semname,freq):
+            if not self.sem_acquire(semname, freq):
                 raise Exception("Failed to acquire lock on %s" % semname)
 
             func(*args)
         except:
             if clear_on_fail:
-                self.sem_clear(semname,freq)
+                self.sem_clear(semname, freq)
             raise
 
         return True
@@ -327,7 +327,7 @@ class CloudInit:
     # (/var/lib/cloud/instances/<instance>/name)<name>)
     def get_ipath(self, name=None):
         return("%s/instances/%s%s" 
-               % (varlibdir,self.get_instance_id(), pathmap[name]))
+               % (varlibdir, self.get_instance_id(), pathmap[name]))
 
     def consume_userdata(self, frequency=per_instance):
         self.get_userdata()
@@ -338,8 +338,8 @@ class CloudInit:
 
         # add the path to the plugins dir to the top of our list for import
         # instance dir should be read before cloud-dir
-        sys.path.insert(0,cdir)
-        sys.path.insert(0,idir)
+        sys.path.insert(0, cdir)
+        sys.path.insert(0, idir)
 
         part_handlers = { }
         # add handlers in cdir
@@ -375,19 +375,19 @@ class CloudInit:
                 continue
             handler_call_end(mod, data, frequency)
 
-    def handle_user_script(self,_data,ctype,filename,payload, _frequency):
+    def handle_user_script(self, _data, ctype, filename, payload, _frequency):
         if ctype == "__end__":
             return
         if ctype == "__begin__":
             # maybe delete existing things here
             return
 
-        filename = filename.replace(os.sep,'_')
+        filename = filename.replace(os.sep, '_')
         scriptsdir = get_ipath_cur('scripts')
         util.write_file("%s/%s" % 
-            (scriptsdir,filename), util.dos2unix(payload), 0700)
+            (scriptsdir, filename), util.dos2unix(payload), 0700)
 
-    def handle_upstart_job(self,_data,ctype,filename,payload, frequency):
+    def handle_upstart_job(self, _data, ctype, filename, payload, frequency):
         # upstart jobs are only written on the first boot
         if frequency != per_instance:
             return
@@ -397,10 +397,10 @@ class CloudInit:
         if not filename.endswith(".conf"):
             filename = filename+".conf"
 
-        util.write_file("%s/%s" % ("/etc/init",filename),
+        util.write_file("%s/%s" % ("/etc/init", filename),
             util.dos2unix(payload), 0644)
 
-    def handle_cloud_config(self,_data,ctype,filename,payload, _frequency):
+    def handle_cloud_config(self, _data, ctype, filename, payload, _frequency):
         if ctype == "__begin__":
             self.cloud_config_str = ""
             return
@@ -418,15 +418,15 @@ class CloudInit:
 
             return
 
-        self.cloud_config_str += "\n#%s\n%s" % (filename,payload)
+        self.cloud_config_str += "\n#%s\n%s" % (filename, payload)
 
-    def handle_cloud_boothook(self,_data,ctype,filename,payload, _frequency):
+    def handle_cloud_boothook(self, _data, ctype, filename, payload, _frequency):
         if ctype == "__end__":
             return
         if ctype == "__begin__":
             return
 
-        filename = filename.replace(os.sep,'_')
+        filename = filename.replace(os.sep, '_')
         payload = util.dos2unix(payload)
         prefix = "#cloud-boothook"
         start = 0
@@ -434,7 +434,7 @@ class CloudInit:
             start = len(prefix) + 1
     
         boothooks_dir = self.get_ipath("boothooks")
-        filepath = "%s/%s" % (boothooks_dir,filename)
+        filepath = "%s/%s" % (boothooks_dir, filename)
         util.write_file(filepath, payload[start:], 0700)
         try:
             env = os.environ.copy()
@@ -442,10 +442,10 @@ class CloudInit:
             subprocess.check_call([filepath], env=env)
         except subprocess.CalledProcessError as e:
             log.error("boothooks script %s returned %i" %
-                (filepath,e.returncode))
+                (filepath, e.returncode))
         except Exception as e:
             log.error("boothooks unknown exception %s when running %s" %
-                (e,filepath))
+                (e, filepath))
 
     def get_public_ssh_keys(self):
         return(self.datasource.get_public_ssh_keys())
@@ -459,14 +459,14 @@ class CloudInit:
     def get_hostname(self, fqdn=False):
         return(self.datasource.get_hostname(fqdn=fqdn))
 
-    def device_name_to_device(self,name):
+    def device_name_to_device(self, name):
         return(self.datasource.device_name_to_device(name))
 
     # I really don't know if this should be here or not, but
     # I needed it in cc_update_hostname, where that code had a valid 'cloud'
     # reference, but did not have a cloudinit handle
     # (ie, no cloudinit.get_cpath())
-    def get_cpath(self,name=None):
+    def get_cpath(self, name=None):
         return(get_cpath(name))
 
 
@@ -478,14 +478,14 @@ def initfs():
         dlist.append("%s/%s" % (varlibdir, subd))
     util.ensure_dirs(dlist)
 
-    cfg = util.get_base_cfg(system_config,cfg_builtin,parsed_cfgs)
+    cfg = util.get_base_cfg(system_config, cfg_builtin, parsed_cfgs)
     log_file = util.get_cfg_option_str(cfg, 'def_log_file', None)
     perms = util.get_cfg_option_str(cfg, 'syslog_fix_perms', None)
     if log_file:
-        fp = open(log_file,"ab")
+        fp = open(log_file, "ab")
         fp.close()
     if log_file and perms:
-        (u,g) = perms.split(':',1)
+        (u, g) = perms.split(':', 1)
         if u == "-1" or u == "None":
             u = None
         if g == "-1" or g == "None":
@@ -519,7 +519,7 @@ def get_cpath(name=None):
 def get_base_cfg(cfg_path=None):
     if cfg_path is None:
         cfg_path = system_config
-    return(util.get_base_cfg(cfg_path,cfg_builtin,parsed_cfgs))
+    return(util.get_base_cfg(cfg_path, cfg_builtin, parsed_cfgs))
 
 def get_builtin_cfg():
     return(yaml.load(cfg_builtin))
@@ -528,7 +528,7 @@ class DataSourceNotFoundException(Exception):
     pass
 
 def list_sources(cfg_list, depends):
-    return(DataSource.list_sources(cfg_list,depends, ["cloudinit", "" ]))
+    return(DataSource.list_sources(cfg_list, depends, ["cloudinit", "" ]))
 
 def handler_register(mod, part_handlers, data, frequency=per_instance):
     if not hasattr(mod, "handler_version"):

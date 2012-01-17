@@ -36,7 +36,7 @@ class DataSourceEc2(DataSource.DataSource):
 
     def get_data(self):
         seedret = { }
-        if util.read_optional_seed(seedret,base=self.seeddir+ "/"):
+        if util.read_optional_seed(seedret, base=self.seeddir+"/"):
             self.userdata_raw = seedret['user-data']
             self.metadata = seedret['meta-data']
             log.debug("using seeded ec2 data in %s" % self.seeddir)
@@ -88,7 +88,7 @@ class DataSourceEc2(DataSource.DataSource):
 
         max_wait = 120
         try:
-            max_wait = int(mcfg.get("max_wait",max_wait))
+            max_wait = int(mcfg.get("max_wait", max_wait))
         except Exception:
             util.logexc(log)
             log.warn("Failed to get max wait. using %s" % max_wait)
@@ -98,7 +98,7 @@ class DataSourceEc2(DataSource.DataSource):
 
         timeout = 50
         try:
-            timeout = int(mcfg.get("timeout",timeout))
+            timeout = int(mcfg.get("timeout", timeout))
         except Exception:
             util.logexc(log)
             log.warn("Failed to get timeout, using %s" % timeout)
@@ -179,7 +179,7 @@ class DataSourceEc2(DataSource.DataSource):
             for nto in tlist:
                 cand = "/dev/%s%s" % (nto, short[len(nfrom):])
                 if os.path.exists(cand):
-                    log.debug("remapped device name %s => %s" % (found,cand))
+                    log.debug("remapped device name %s => %s" % (found, cand))
                     return(cand)
 
         # on t1.micro, ephemeral0 will appear in block-device-mapping from

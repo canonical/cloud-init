@@ -25,7 +25,7 @@ import ConfigParser
 import cloudinit.CloudConfig as cc
 import cloudinit.util as util
 
-def handle(_name,cfg,cloud,log,_args):
+def handle(_name, cfg, cloud, log, _args):
     # If there isn't a puppet key in the configuration don't do anything
     if not cfg.has_key('puppet'):
         return
@@ -78,11 +78,11 @@ def handle(_name,cfg,cloud,log,_args):
                               cloud.datasource.get_instance_id())
                         # certname needs to be downcase
                         v = v.lower()
-                    puppet_config.set(cfg_name,o,v)
+                    puppet_config.set(cfg_name, o, v)
                     #puppet_conf_fh.write("%s=%s\n" % (o, v))
             # We got all our config as wanted we'll rename
             # the previous puppet.conf and create our new one
-            os.rename('/etc/puppet/puppet.conf','/etc/puppet/puppet.conf.old')
+            os.rename('/etc/puppet/puppet.conf', '/etc/puppet/puppet.conf.old')
             with open('/etc/puppet/puppet.conf', 'wb') as configfile:
                 puppet_config.write(configfile)
             util.restorecon_if_possible('/etc/puppet/puppet.conf')

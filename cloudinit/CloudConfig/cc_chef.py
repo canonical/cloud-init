@@ -23,7 +23,7 @@ import cloudinit.util as util
 
 ruby_version_default = "1.8"
 
-def handle(_name,cfg,cloud,log,_args):
+def handle(_name, cfg, cloud, log, _args):
     # If there isn't a chef key in the configuration don't do anything
     if not cfg.has_key('chef'):
         return
@@ -92,13 +92,13 @@ def install_chef_from_gems(ruby_version, chef_version = None):
     if not os.path.exists('/usr/bin/ruby'):
         os.symlink('/usr/bin/ruby%s' % ruby_version, '/usr/bin/ruby')
     if chef_version:
-        subprocess.check_call(['/usr/bin/gem','install','chef',
+        subprocess.check_call(['/usr/bin/gem', 'install', 'chef',
                                '-v %s' % chef_version, '--no-ri',
-                               '--no-rdoc','--bindir','/usr/bin','-q'])
+                               '--no-rdoc', '--bindir', '/usr/bin', '-q'])
     else:
-        subprocess.check_call(['/usr/bin/gem','install','chef',
-                               '--no-ri','--no-rdoc','--bindir',
-                               '/usr/bin','-q'])
+        subprocess.check_call(['/usr/bin/gem', 'install', 'chef',
+                               '--no-ri', '--no-rdoc', '--bindir',
+                               '/usr/bin', '-q'])
 
 def ensure_dir(d):
     if not os.path.exists(d):

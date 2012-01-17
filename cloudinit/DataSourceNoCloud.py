@@ -54,8 +54,8 @@ class DataSourceNoCloud(DataSource.DataSource):
 
         # check to see if the seeddir has data.
         seedret = { }
-        if util.read_optional_seed(seedret,base=self.seeddir + "/"):
-            md = util.mergedict(md,seedret['meta-data'])
+        if util.read_optional_seed(seedret, base=self.seeddir + "/"):
+            md = util.mergedict(md, seedret['meta-data'])
             ud = seedret['user-data']
             found.append(self.seeddir)
             log.debug("using seeded cache data in %s" % self.seeddir)
@@ -81,14 +81,14 @@ class DataSourceNoCloud(DataSource.DataSource):
 
             # this could throw errors, but the user told us to do it
             # so if errors are raised, let them raise
-            (md_seed,ud) = util.read_seeded(seedfrom, timeout=None)
+            (md_seed, ud) = util.read_seeded(seedfrom, timeout=None)
             log.debug("using seeded cache data from %s" % seedfrom)
 
             # values in the command line override those from the seed
-            md = util.mergedict(md,md_seed)
+            md = util.mergedict(md, md_seed)
             found.append(seedfrom)
 
-        md = util.mergedict(md,defaults)
+        md = util.mergedict(md, defaults)
         self.seed = ",".join(found)
         self.metadata = md
         self.userdata_raw = ud
@@ -98,7 +98,7 @@ class DataSourceNoCloud(DataSource.DataSource):
 # that this module should be used
 # example cmdline:
 #  root=LABEL=uec-rootfs ro ds=nocloud
-def parse_cmdline_data(ds_id,fill,cmdline=None):
+def parse_cmdline_data(ds_id, fill, cmdline=None):
     if cmdline is None:
         cmdline = util.get_cmdline()
     cmdline = " %s " % cmdline
@@ -111,7 +111,7 @@ def parse_cmdline_data(ds_id,fill,cmdline=None):
     # ds=nocloud[;key=val;key=val]
     for tok in cmdline.split():
         if tok.startswith(ds_id):
-            argline = tok.split("=",1)
+            argline = tok.split("=", 1)
     
     # argline array is now 'nocloud' followed optionally by
     # a ';' and then key=value pairs also terminated with ';'
@@ -125,7 +125,7 @@ def parse_cmdline_data(ds_id,fill,cmdline=None):
     s2l = {  "h" : "local-hostname", "i" : "instance-id", "s" : "seedfrom" }
     for item in kvpairs:
         try:
-            (k,v) = item.split("=",1)
+            (k, v) = item.split("=", 1)
         except:
             k = item
             v = None

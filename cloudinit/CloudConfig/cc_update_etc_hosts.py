@@ -21,10 +21,10 @@ import StringIO
 
 frequency = per_always
 
-def handle(_name,cfg,cloud,log,_args):
+def handle(_name, cfg, cloud, log, _args):
     ( hostname, fqdn ) = util.get_hostname_fqdn(cfg, cloud)
 
-    manage_hosts = util.get_cfg_option_bool(cfg,"manage_etc_hosts", False)
+    manage_hosts = util.get_cfg_option_bool(cfg, "manage_etc_hosts", False)
     if manage_hosts in ("True", "true", True, "template"):
         # render from template file
         try:
@@ -76,7 +76,7 @@ def update_etc_hosts(hostname, fqdn, _log):
             new_etchosts.write("%s%s" % (header, hosts_line))
             need_write = True
         if need_write == True:
-            new_etcfile = open ('/etc/hosts','wb')
+            new_etcfile = open('/etc/hosts', 'wb')
             new_etcfile.write(new_etchosts.getvalue())
             new_etcfile.close()
         new_etchosts.close()

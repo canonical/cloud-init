@@ -31,7 +31,7 @@ def is_mdname(name):
             return True
     return False
 
-def handle(_name,cfg,cloud,log,_args):
+def handle(_name, cfg, cloud, log, _args):
     # fs_spec, fs_file, fs_vfstype, fs_mntops, fs-freq, fs_passno
     defvals = [ None, None, "auto", "defaults,nobootwait", "0", "2" ]
     defvals = cfg.get("mount_default_fields", defvals)
@@ -50,7 +50,7 @@ def handle(_name,cfg,cloud,log,_args):
 
     for i in range(len(cfgmnt)):
         # skip something that wasn't a list
-        if not isinstance(cfgmnt[i],list):
+        if not isinstance(cfgmnt[i], list):
             continue
 
         # workaround, allow user to specify 'ephemeral'
@@ -138,7 +138,7 @@ def handle(_name,cfg,cloud,log,_args):
         cc_lines.append('\t'.join(line))
 
     fstab_lines = [ ]
-    fstab = open("/etc/fstab","r+")
+    fstab = open("/etc/fstab", "r+")
     ws = re.compile("[%s]+" % string.whitespace)
     for line in fstab.read().splitlines():
         try:
@@ -168,9 +168,9 @@ def handle(_name,cfg,cloud,log,_args):
         try:
             os.makedirs(d)
         except:
-            log.warn("Failed to make '%s' config-mount\n",d)
+            log.warn("Failed to make '%s' config-mount\n", d)
 
     try:
-        util.subp(("mount","-a"))
+        util.subp(("mount", "-a"))
     except:
         log.warn("'mount -a' failed")

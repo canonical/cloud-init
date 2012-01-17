@@ -24,11 +24,11 @@ frequency = per_always
 
 final_message = "cloud-init boot finished at $TIMESTAMP. Up $UPTIME seconds"
 
-def handle(_name,cfg,_cloud,log,args):
+def handle(_name, cfg, _cloud, log, args):
     if len(args) != 0:
         msg_in = args[0]
     else:
-        msg_in = util.get_cfg_option_str(cfg,"final_message",final_message)
+        msg_in = util.get_cfg_option_str(cfg, "final_message", final_message)
 
     try:
         uptimef = open("/proc/uptime")
@@ -40,7 +40,7 @@ def handle(_name,cfg,_cloud,log,args):
 
 
     try:
-        ts = time.strftime("%a, %d %b %Y %H:%M:%S %z",time.gmtime())
+        ts = time.strftime("%a, %d %b %Y %H:%M:%S %z", time.gmtime())
     except:
         ts = "na"
 

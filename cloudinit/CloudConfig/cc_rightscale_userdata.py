@@ -42,7 +42,7 @@ frequency = per_instance
 my_name = "cc_rightscale_userdata"
 my_hookname = 'CLOUD_INIT_REMOTE_HOOK'
 
-def handle(_name,_cfg,cloud,log,_args):
+def handle(_name, _cfg, cloud, log, _args):
     try:
         ud = cloud.get_userdata_raw()
     except:
@@ -61,7 +61,7 @@ def handle(_name,_cfg,cloud,log,_args):
     i = 0
     first_e = None
     for url in mdict[my_hookname]:
-        fname = "%s/rightscale-%02i" % (scripts_d,i)
+        fname = "%s/rightscale-%02i" % (scripts_d, i)
         i = i +1
         try:
             content = util.readurl(url)

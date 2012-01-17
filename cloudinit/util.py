@@ -39,7 +39,7 @@ except ImportError:
 
 def read_conf(fname):
     try:
-        stream = open(fname,"r")
+        stream = open(fname, "r")
         conf = yaml.load(stream)
         stream.close()
         return conf
@@ -48,7 +48,7 @@ def read_conf(fname):
             return { }
         raise
 
-def get_base_cfg(cfgfile,cfg_builtin="", parsed_cfgs=None):
+def get_base_cfg(cfgfile, cfg_builtin="", parsed_cfgs=None):
     kerncfg = { }
     syscfg = { }
     if parsed_cfgs and cfgfile in parsed_cfgs:
@@ -65,7 +65,7 @@ def get_base_cfg(cfgfile,cfg_builtin="", parsed_cfgs=None):
 
     if cfg_builtin:
         builtin = yaml.load(cfg_builtin)
-        fin = mergedict(combined,builtin)
+        fin = mergedict(combined, builtin)
     else:
         fin = combined
 
@@ -93,13 +93,13 @@ def get_cfg_option_list_or_str(yobj, key, default=None):
         return default
     if yobj[key] is None:
         return []
-    if isinstance(yobj[key],list):
+    if isinstance(yobj[key], list):
         return yobj[key]
     return([yobj[key]])
 
 # get a cfg entry by its path array
 # for f['a']['b']: get_cfg_by_path(mycfg,('a','b'))
-def get_cfg_by_path(yobj,keyp,default=None):
+def get_cfg_by_path(yobj, keyp, default=None):
     cur = yobj
     for tok in keyp:
         if tok not in cur:
@@ -109,25 +109,25 @@ def get_cfg_by_path(yobj,keyp,default=None):
 
 # merge values from cand into source
 # if src has a key, cand will not override
-def mergedict(src,cand):
-    if isinstance(src,dict) and isinstance(cand,dict):
-        for k,v in cand.iteritems():
+def mergedict(src, cand):
+    if isinstance(src, dict) and isinstance(cand, dict):
+        for k, v in cand.iteritems():
             if k not in src:
                 src[k] = v
             else:
-                src[k] = mergedict(src[k],v)
+                src[k] = mergedict(src[k], v)
     return src
 
-def write_file(filename,content,mode=0644,omode="wb"):
+def write_file(filename, content, mode=0644, omode="wb"):
     try:
         os.makedirs(os.path.dirname(filename))
     except OSError as e:
         if e.errno != errno.EEXIST:
             raise e
 
-    f = open(filename,omode)
+    f = open(filename, omode)
     if mode != None:
-        os.chmod(filename,mode)
+        os.chmod(filename, mode)
     f.write(content)
     f.close()
     restorecon_if_possible(filename)
@@ -137,7 +137,7 @@ def restorecon_if_possible(path, recursive=False):
         selinux.restorecon(path, recursive=recursive)
 
 # get keyid from keyserver
-def getkeybyid(keyid,keyserver):
+def getkeybyid(keyid, keyserver):
     shcmd = """
     k=${1} ks=${2};
     exec 2>/dev/null
@@ -165,16 +165,16 @@ def runparts(dirp, skip_no_exist=True):
     sp = subprocess.Popen(cmd)
     sp.communicate()
     if sp.returncode is not 0:
-        raise subprocess.CalledProcessError(sp.returncode,cmd)
+        raise subprocess.CalledProcessError(sp.returncode, cmd)
     return
 
 def subp(args, input_=None):
     sp = subprocess.Popen(args, stdout=subprocess.PIPE,
         stderr=subprocess.PIPE, stdin=subprocess.PIPE)
-    out,err = sp.communicate(input_)
+    out, err = sp.communicate(input_)
     if sp.returncode is not 0:
-        raise subprocess.CalledProcessError(sp.returncode,args, (out,err))
-    return(out,err)
+        raise subprocess.CalledProcessError(sp.returncode, args, (out, err))
+    return(out, err)
 
 def render_to_file(template, outfile, searchList):
     t = Template(file='/etc/cloud/templates/%s.tmpl' % template, searchList=[searchList])
@@ -190,9 +190,9 @@ def render_string(template, searchList):
 # returns boolean indicating success or failure (presense of files)
 # if files are present, populates 'fill' dictionary with 'user-data' and
 # 'meta-data' entries
-def read_optional_seed(fill,base="",ext="", timeout=5):
+def read_optional_seed(fill, base="", ext="", timeout=5):
     try:
-        (md,ud) = read_seeded(base,ext,timeout)
+        (md, ud) = read_seeded(base, ext, timeout)
         fill['user-data'] = ud
         fill['meta-data'] = md
         return True
@@ -219,18 +219,18 @@ def read_seeded(base="", ext="", timeout=5, retries=10, file_retries=0):
         md_url = "%s%s%s" % (base, "meta-data", ext)
 
     raise_err = None
-    for attempt in range(0,retries+1):
+    for attempt in range(0, retries+1):
         try:
             md_str = readurl(md_url, timeout=timeout)
             ud = readurl(ud_url, timeout=timeout)
             md = yaml.load(md_str)
     
-            return(md,ud)
+            return(md, ud)
         except urllib2.HTTPError as e:
             raise_err = e
         except urllib2.URLError as e:
             raise_err = e
-            if isinstance(e.reason,OSError) and e.reason.errno == errno.ENOENT:
+            if isinstance(e.reason, OSError) and e.reason.errno == errno.ENOENT:
                 raise_err = e.reason 
 
         if attempt == retries:
@@ -241,8 +241,8 @@ def read_seeded(base="", ext="", timeout=5, retries=10, file_retries=0):
 
     raise(raise_err)
 
-def logexc(log,lvl=logging.DEBUG):
-    log.log(lvl,traceback.format_exc())
+def logexc(log, lvl=logging.DEBUG):
+    log.log(lvl, traceback.format_exc())
 
 class RecursiveInclude(Exception):
     pass
@@ -262,7 +262,7 @@ def read_file_with_includes(fname, rel = ".", stack=None, patt = None):
                                (fname, len(stack))))
 
     if patt == None:
-        patt = re.compile("^#(opt_include|include)[ \t].*$",re.MULTILINE)
+        patt = re.compile("^#(opt_include|include)[ \t].*$", re.MULTILINE)
 
     try:
         fp = open(fname)
@@ -282,7 +282,7 @@ def read_file_with_includes(fname, rel = ".", stack=None, patt = None):
         loc = match.start() + cur
         endl = match.end() + cur
 
-        (key, cur_fname) = contents[loc:endl].split(None,2)
+        (key, cur_fname) = contents[loc:endl].split(None, 2)
         cur_fname = cur_fname.strip()
 
         try:
@@ -299,17 +299,17 @@ def read_file_with_includes(fname, rel = ".", stack=None, patt = None):
 
 def read_conf_d(confd):
     # get reverse sorted list (later trumps newer)
-    confs = sorted(os.listdir(confd),reverse=True)
+    confs = sorted(os.listdir(confd), reverse=True)
     
     # remove anything not ending in '.cfg'
     confs = [f for f in confs if f.endswith(".cfg")]
 
     # remove anything not a file
-    confs = [f for f in confs if os.path.isfile("%s/%s" % (confd,f))]
+    confs = [f for f in confs if os.path.isfile("%s/%s" % (confd, f))]
 
     cfg = { }
     for conf in confs:
-        cfg = mergedict(cfg,read_conf("%s/%s" % (confd,conf)))
+        cfg = mergedict(cfg, read_conf("%s/%s" % (confd, conf)))
 
     return(cfg)
 
@@ -319,7 +319,7 @@ def read_conf_with_confd(cfgfile):
     if "conf_d" in cfg:
         if cfg['conf_d'] is not None:
             confd = cfg['conf_d']
-            if not isinstance(confd,str):
+            if not isinstance(confd, str):
                 raise Exception("cfgfile %s contains 'conf_d' with non-string" % cfgfile)
     elif os.path.isdir("%s.d" % cfgfile):
         confd = "%s.d" % cfgfile
@@ -329,7 +329,7 @@ def read_conf_with_confd(cfgfile):
 
     confd_cfg = read_conf_d(confd)
 
-    return(mergedict(confd_cfg,cfg))
+    return(mergedict(confd_cfg, cfg))
 
 
 def get_cmdline():
@@ -367,7 +367,7 @@ def read_cc_from_cmdline(cmdline=None):
         end = cmdline.find(tag_end, begin + begin_l)
         if end < 0:
             end = clen
-        tokens.append(cmdline[begin+begin_l:end].lstrip().replace("\\n","\n"))
+        tokens.append(cmdline[begin+begin_l:end].lstrip().replace("\\n", "\n"))
         
         begin = cmdline.find(tag_begin, end + end_l)
 
@@ -390,7 +390,7 @@ def ensure_dirs(dirlist, mode=0755):
     for d in fixmodes:
         os.chmod(d, mode)
 
-def chownbyname(fname,user=None,group=None):
+def chownbyname(fname, user=None, group=None):
     uid = -1
     gid = -1
     if user == None and group == None:
@@ -402,7 +402,7 @@ def chownbyname(fname,user=None,group=None):
         import grp
         gid = grp.getgrnam(group).gr_gid
 
-    os.chown(fname,uid,gid)
+    os.chown(fname, uid, gid)
 
 def readurl(url, data=None, timeout=None):
     openargs = { }
@@ -428,10 +428,10 @@ def shellify(cmdlist):
     for args in cmdlist:
         # if the item is a list, wrap all items in single tick
         # if its not, then just write it directly
-        if isinstance(args,list):
+        if isinstance(args, list):
             fixed = [ ]
             for f in args:
-                fixed.append("'%s'" % str(f).replace("'",escaped))
+                fixed.append("'%s'" % str(f).replace("'", escaped))
             content = "%s%s\n" % ( content, ' '.join(fixed) )
         else:
             content = "%s%s\n" % ( content, str(args) )
@@ -442,7 +442,7 @@ def dos2unix(string):
     pos = string.find('\n')
     if pos <= 0 or string[pos-1] != '\r':
         return(string)
-    return(string.replace('\r\n','\n'))
+    return(string.replace('\r\n', '\n'))
 
 def islxc():
     # is this host running lxc?
@@ -473,7 +473,7 @@ def get_hostname_fqdn(cfg, cloud):
     if "fqdn" in cfg:
         # user specified a fqdn.  Default hostname then is based off that
         fqdn = cfg['fqdn']
-        hostname = get_cfg_option_str(cfg,"hostname",fqdn.split('.')[0])
+        hostname = get_cfg_option_str(cfg, "hostname", fqdn.split('.')[0])
     else:
         if "hostname" in cfg and cfg['hostname'].find('.') > 0:
             # user specified hostname, and it had '.' in it

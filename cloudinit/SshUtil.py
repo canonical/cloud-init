@@ -24,7 +24,7 @@ class AuthKeyEntry():
             self.is_comment = True
         else:
             ent = line.strip()
-            toks = ent.split(None,3)
+            toks = ent.split(None, 3)
             if len(toks) == 1:
                 self.base64 = toks[0]
             elif len(toks) == 2:
@@ -53,7 +53,7 @@ class AuthKeyEntry():
                 try:
                     self.options = ent[0:i]
                     (self.keytype, self.base64, self.comment) = \
-                        ent[i+1:].split(None,3)
+                        ent[i+1:].split(None, 3)
                 except ValueError:
                     # we did not understand this line
                     self.is_comment = True
@@ -95,7 +95,7 @@ def update_authorized_keys(fname, keys):
     for key in keys:
         to_add.append(key)
 
-    for i in range(0,len(lines)):
+    for i in range(0, len(lines)):
         ent = AuthKeyEntry(lines[i])
         for k in keys:
             if k.base64 == ent.base64 and not k.is_comment:
@@ -129,7 +129,7 @@ def setup_user_keys(keys, user, key_prefix, log=None):
 
     try:
         ssh_cfg = parse_ssh_config()
-        akeys = ssh_cfg.get("AuthorizedKeysFile","%h/.ssh/authorized_keys")
+        akeys = ssh_cfg.get("AuthorizedKeysFile", "%h/.ssh/authorized_keys")
         akeys = akeys.replace("%h", pwent.pw_dir)
         akeys = akeys.replace("%u", user)
         authorized_keys = akeys
@@ -189,7 +189,7 @@ def parse_ssh_config(fname="/etc/ssh/sshd_config"):
         l = l.strip()
         if not l or l.startswith("#"):
             continue
-        key,val = l.split(None,1)
+        key, val = l.split(None, 1)
         ret[key] = val
     fp.close()
     return(ret)

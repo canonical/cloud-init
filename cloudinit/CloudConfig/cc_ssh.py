@@ -26,7 +26,7 @@ DISABLE_ROOT_OPTS = "no-port-forwarding,no-agent-forwarding,no-X11-forwarding,co
 
 global_log = None
 
-def handle(_name,cfg,cloud,log,_args):
+def handle(_name, cfg, cloud, log, _args):
     global global_log
     global_log = log
 
@@ -49,15 +49,15 @@ def handle(_name,cfg,cloud,log,_args):
             "ecdsa_public"  : ("/etc/ssh/ssh_host_ecdsa_key.pub", 0644),
         }
 
-        for key,val in cfg["ssh_keys"].items():
+        for key, val in cfg["ssh_keys"].items():
             if key2file.has_key(key):
-                util.write_file(key2file[key][0],val,key2file[key][1])
+                util.write_file(key2file[key][0], val, key2file[key][1])
 
         priv2pub = { 'rsa_private':'rsa_public', 'dsa_private':'dsa_public',
             'ecdsa_private': 'ecdsa_public', }
 
         cmd = 'o=$(ssh-keygen -yf "%s") && echo "$o" root@localhost > "%s"'
-        for priv,pub in priv2pub.iteritems():
+        for priv, pub in priv2pub.iteritems():
             if pub in cfg['ssh_keys'] or not priv in cfg['ssh_keys']:
                 continue
             pair = (key2file[priv][0], key2file[pub][0])
@@ -75,7 +75,7 @@ def handle(_name,cfg,cloud,log,_args):
     util.restorecon_if_possible('/etc/ssh', recursive=True)
 
     try:
-        user = util.get_cfg_option_str(cfg,'user')
+        user = util.get_cfg_option_str(cfg, 'user')
         disable_root = util.get_cfg_option_bool(cfg, "disable_root", True)
         disable_root_opts = util.get_cfg_option_str(cfg, "disable_root_opts",
             DISABLE_ROOT_OPTS)
@@ -85,7 +85,7 @@ def handle(_name,cfg,cloud,log,_args):
             cfgkeys = cfg["ssh_authorized_keys"]
             keys.extend(cfgkeys)
 
-        apply_credentials(keys,user,disable_root, disable_root_opts)
+        apply_credentials(keys, user, disable_root, disable_root_opts)
     except:
         util.logexc(log)
         log.warn("applying credentials failed!\n")

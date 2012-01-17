@@ -31,7 +31,7 @@ post_list_all = [ 'pub_key_dsa', 'pub_key_rsa', 'pub_key_ecdsa', 'instance_id', 
 #  url: http://my.foo.bar/$INSTANCE_ID/
 #  post: [ pub_key_dsa, pub_key_rsa, pub_key_ecdsa, instance_id
 #   
-def handle(_name,cfg,cloud,log,args):
+def handle(_name, cfg, cloud, log, args):
     if len(args) != 0:
         ph_cfg = util.readconf(args[0])
     else:
@@ -45,7 +45,7 @@ def handle(_name,cfg,cloud,log,args):
 
     url = ph_cfg['url']
     post_list = ph_cfg.get('post', 'all')
-    tries = ph_cfg.get('tries',10)
+    tries = ph_cfg.get('tries', 10)
     try:
         tries = int(tries)
     except:
@@ -84,7 +84,7 @@ def handle(_name,cfg,cloud,log,args):
     url = util.render_string(url, { 'INSTANCE_ID' : all_keys['instance_id'] })
 
     last_e = None
-    for i in range(0,tries):
+    for i in range(0, tries):
         try:
             util.readurl(url, submit_keys)
             log.debug("succeeded submit to %s on try %i" % (url, i+1))
