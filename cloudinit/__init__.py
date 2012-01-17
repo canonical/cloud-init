@@ -53,7 +53,6 @@ per_once = "once"
 parsed_cfgs = {}
 
 import os
-from   configobj import ConfigObj
 
 import cPickle
 import sys

@@ -21,7 +21,6 @@ import cloudinit.DataSource as DataSource
 from cloudinit import seeddir as base_seeddir
 from cloudinit import log
 import cloudinit.util as util
-import sys
 import os.path
 import os
 from xml.dom import minidom
@@ -313,16 +312,19 @@ def get_datasource_list(depends):
 
 
 if __name__ == "__main__":
-    import sys
-    envStr = open(sys.argv[1]).read()
-    props = getProperties(envStr)
-    import pprint
-    pprint.pprint(props)
+    def main():
+        import sys
+        envStr = open(sys.argv[1]).read()
+        props = getProperties(envStr)
+        import pprint
+        pprint.pprint(props)
 
-    md, ud, cfg = read_ovf_environment(envStr)
-    print "=== md ==="
-    pprint.pprint(md)
-    print "=== ud ==="
-    pprint.pprint(ud)
-    print "=== cfg ==="
-    pprint.pprint(cfg)
+        md, ud, cfg = read_ovf_environment(envStr)
+        print "=== md ==="
+        pprint.pprint(md)
+        print "=== ud ==="
+        pprint.pprint(ud)
+        print "=== cfg ==="
+        pprint.pprint(cfg)
+
+    main()
