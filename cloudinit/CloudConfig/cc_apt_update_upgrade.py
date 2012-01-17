@@ -123,7 +123,8 @@ def rename_apt_lists(omirror, new_mirror, lists_d="/var/lib/apt/lists"):
         os.rename(filename, "%s%s" % (nprefix, filename[olen:]))
 
 def get_release():
-    stdout, _stderr = subprocess.Popen(['lsb_release', '-cs'], stdout=subprocess.PIPE).communicate()
+    stdout, _stderr = subprocess.Popen(['lsb_release', '-cs'],
+                                       stdout=subprocess.PIPE).communicate()
     return(stdout.strip())
 
 def generate_sources_list(codename, mirror):

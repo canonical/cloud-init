@@ -53,8 +53,10 @@ def handle(_name, cfg, _cloud, _log, _args):
     if mcollective_cfg.has_key('conf'):
         # Create object for reading server.cfg values
         mcollective_config = ConfigParser.ConfigParser()
-        # Read server.cfg values from original file in order to be able to mix the rest up
-        mcollective_config.readfp(FakeSecHead(open('/etc/mcollective/server.cfg')))
+        # Read server.cfg values from original file in order to be able to mix
+        # the rest up
+        mcollective_config.readfp(FakeSecHead(open('/etc/mcollective/'
+                                                   'server.cfg')))
         for cfg_name, cfg in mcollective_cfg['conf'].iteritems():
             if cfg_name == 'public-cert':
                 util.write_file(pubcert_file, cfg, mode=0644)
@@ -73,7 +75,8 @@ def handle(_name, cfg, _cloud, _log, _args):
                     mcollective_config.set(cfg_name, o, v)
         # We got all our config as wanted we'll rename
         # the previous server.cfg and create our new one
-        os.rename('/etc/mcollective/server.cfg', '/etc/mcollective/server.cfg.old')
+        os.rename('/etc/mcollective/server.cfg',
+                  '/etc/mcollective/server.cfg.old')
         outputfile = StringIO.StringIO()
         mcollective_config.write(outputfile)
         # Now we got the whole file, write to disk except first line
@@ -83,7 +86,8 @@ def handle(_name, cfg, _cloud, _log, _args):
         # search and replace of '=' with ':' could be problematic though.
         # this most likely needs fixing.
         util.write_file('/etc/mcollective/server.cfg',
-            outputfile.getvalue().replace('[nullsection]\n', '').replace(' =', ':'),
+            outputfile.getvalue().replace('[nullsection]\n', '').replace(' =',
+                                                                         ':'),
             mode=0644)
 
     # Start mcollective

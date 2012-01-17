@@ -36,7 +36,8 @@ def handle(_name, cfg, cloud, log, _args):
     # set the validation key based on the presence of either 'validation_key'
     # or 'validation_cert'. In the case where both exist, 'validation_key'
     # takes precedence
-    if chef_cfg.has_key('validation_key') or chef_cfg.has_key('validation_cert'):
+    if (chef_cfg.has_key('validation_key') or
+        chef_cfg.has_key('validation_cert')):
         validation_key = util.get_cfg_option_str(chef_cfg, 'validation_key',
                                                  chef_cfg['validation_cert'])
         with open('/etc/chef/validation.pem', 'w') as validation_key_fh:
@@ -44,12 +45,12 @@ def handle(_name, cfg, cloud, log, _args):
 
     # create the chef config from template
     util.render_to_file('chef_client.rb', '/etc/chef/client.rb',
-            {'server_url': chef_cfg['server_url'], 
-             'node_name': util.get_cfg_option_str(chef_cfg, 'node_name', 
-                                                  cloud.datasource.get_instance_id()),
-             'environment': util.get_cfg_option_str(chef_cfg, 'environment',
-                                                    '_default'),
-             'validation_name': chef_cfg['validation_name']})
+        {'server_url': chef_cfg['server_url'],
+         'node_name': util.get_cfg_option_str(chef_cfg, 'node_name',
+                                          cloud.datasource.get_instance_id()),
+         'environment': util.get_cfg_option_str(chef_cfg, 'environment',
+                                                '_default'),
+         'validation_name': chef_cfg['validation_name']})
 
     # set the firstboot json
     with open('/etc/chef/firstboot.json', 'w') as firstboot_json_fh:
@@ -64,7 +65,8 @@ def handle(_name, cfg, cloud, log, _args):
 
     # If chef is not installed, we install chef based on 'install_type'
     if not os.path.isfile('/usr/bin/chef-client'):
-        install_type = util.get_cfg_option_str(chef_cfg, 'install_type', 'packages')
+        install_type = util.get_cfg_option_str(chef_cfg, 'install_type',
+                                               'packages')
         if install_type == "gems":
             # this will install and run the chef-client from gems
             chef_version = util.get_cfg_option_str(chef_cfg, 'version', None)
@@ -73,7 +75,8 @@ def handle(_name, cfg, cloud, log, _args):
             install_chef_from_gems(ruby_version, chef_version)
             # and finally, run chef-client
             log.debug('running chef-client')
-            subprocess.check_call(['/usr/bin/chef-client', '-d', '-i', '1800', '-s', '20'])
+            subprocess.check_call(['/usr/bin/chef-client', '-d', '-i', '1800',
+                                   '-s', '20'])
         else:
             # this will install and run the chef-client from packages
             cc.install_packages(('chef',))

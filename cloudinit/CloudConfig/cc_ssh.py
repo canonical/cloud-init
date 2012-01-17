@@ -21,7 +21,9 @@ import os
 import glob
 import subprocess
 
-DISABLE_ROOT_OPTS = "no-port-forwarding,no-agent-forwarding,no-X11-forwarding,command=\"echo \'Please login as the user \\\"$USER\\\" rather than the user \\\"root\\\".\';echo;sleep 10\""
+DISABLE_ROOT_OPTS = "no-port-forwarding,no-agent-forwarding," \
+"no-X11-forwarding,command=\"echo \'Please login as the user \\\"$USER\\\" " \
+"rather than the user \\\"root\\\".\';echo;sleep 10\""
 
 
 global_log = None
@@ -90,7 +92,8 @@ def handle(_name, cfg, cloud, log, _args):
         util.logexc(log)
         log.warn("applying credentials failed!\n")
 
-def apply_credentials(keys, user, disable_root, disable_root_opts=DISABLE_ROOT_OPTS, log=global_log):
+def apply_credentials(keys, user, disable_root,
+                      disable_root_opts=DISABLE_ROOT_OPTS, log=global_log):
     keys = set(keys)
     if user:
         sshutil.setup_user_keys(keys, user, '', log)

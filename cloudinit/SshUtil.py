@@ -64,8 +64,9 @@ class AuthKeyEntry():
         return
 
     def debug(self):
-        print("line_in=%s\ncomment: %s\noptions=%s\nkeytype=%s\nbase64=%s\ncomment=%s\n" %
-            (self.line_in, self.is_comment, self.options, self.keytype, self.base64, self.comment)),
+        print("line_in=%s\ncomment: %s\noptions=%s\nkeytype=%s\nbase64=%s\n"
+              "comment=%s\n" % (self.line_in, self.is_comment, self.options,
+                                self.keytype, self.base64, self.comment)),
     def __repr__(self):
         if self.is_comment:
             return(self.line_in)
@@ -153,6 +154,7 @@ def setup_user_keys(keys, user, key_prefix, log=None):
 
 if __name__ == "__main__":
     import sys
+    # pylint: disable=C0301
     # usage: orig_file, new_keys, [key_prefix]
     #   prints out merged, where 'new_keys' will trump old
     ##  example
@@ -168,6 +170,7 @@ if __name__ == "__main__":
     #
     # Then run as:
     #  program authorized_keys new_keys 'no-port-forwarding,command=\"echo hi world;\"'
+    # pylint: enable=C0301
     def_prefix = None
     orig_key_file = sys.argv[1]
     new_key_file = sys.argv[2]

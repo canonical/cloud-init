@@ -20,7 +20,8 @@ import cloudinit.util as util
 from time import sleep
 
 frequency = per_instance
-post_list_all = [ 'pub_key_dsa', 'pub_key_rsa', 'pub_key_ecdsa', 'instance_id', 'hostname' ]
+post_list_all = ['pub_key_dsa', 'pub_key_rsa', 'pub_key_ecdsa', 'instance_id',
+                 'hostname']
 
 # phone_home:
 #  url: http://my.foo.bar/$INSTANCE/

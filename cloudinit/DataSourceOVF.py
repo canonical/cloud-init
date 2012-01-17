@@ -242,6 +242,7 @@ def transport_iso9660(require_iso=False):
     return(False, None, None)
 
 def transport_vmware_guestd():
+    # pylint: disable=C0301
     # http://blogs.vmware.com/vapp/2009/07/selfconfiguration-and-the-ovf-environment.html
     # try:
     #     cmd = ['vmware-guestd', '--cmd', 'info-get guestinfo.ovfEnv']
@@ -251,6 +252,7 @@ def transport_vmware_guestd():
     #     # would need to error check here and see why this failed
     #     # to know if log/error should be raised
     #     return(False, None, None)
+    # pylint: enable=C0301
     return(False, None, None)
 
 

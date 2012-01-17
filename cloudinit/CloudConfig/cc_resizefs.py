@@ -63,9 +63,9 @@ def handle(_name, cfg, _cloud, log, args):
         raise
 
     log.debug("resizing root filesystem (type=%s, maj=%i, min=%i)" % 
-        (fstype.rstrip("\n"), os.major(st_dev), os.minor(st_dev)))
+        (str(fstype).rstrip("\n"), os.major(st_dev), os.minor(st_dev)))
 
-    if fstype.startswith("ext"):
+    if str(fstype).startswith("ext"):
         resize_cmd = [ 'resize2fs', devpth ]
     elif fstype == "xfs":
         resize_cmd = [ 'xfs_growfs', devpth ]
