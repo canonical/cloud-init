@@ -1,0 +1,49 @@
+#!/bin/bash
+
+def_files='cloud*.py cloudinit/*.py cloudinit/CloudConfig/*.py'
+
+if [ $# -eq 0 ]; then
+   files=( )
+   for f in $def_files; do
+      [ -f "$f" ] || { echo "failed, $f not a file" 1>&2; exit 1; }
+      files[${#files[@]}]=${f}
+   done
+else
+   files=( "$@" );
+fi 
+
+cmd=(
+    pylint
+    --reports=n
+    --include-ids=y
+    --max-line-length=79
+
+    --disable=R
+    --disable=I
+
+    --disable=W0142 # Used * or ** magic
+    --disable=W0511 # TODO/FIXME note
+    --disable=W0702 # No exception type(s) specified
+    --disable=W0703 # Catch "Exception"
+
+    --disable=C0103 # Invalid name
+    --disable=C0111 # Missing docstring
+
+    "${files[@]}"
+)
+
+echo -e "\nRunning pylint:"
+echo "${cmd[@]}"
+"${cmd[@]}"
+
+cmd=(
+    pep8
+
+    --ignore=E501 # Line too long (these are caught by pylint above)
+
+    "${files[@]}"
+)
+
+echo -e "\nRunning pep8:"
+echo "${cmd[@]}"
+"${cmd[@]}"
