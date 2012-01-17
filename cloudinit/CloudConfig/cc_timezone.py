@@ -30,7 +30,8 @@ def handle(_name,cfg,_cloud,log,args):
     else:
         timezone = util.get_cfg_option_str(cfg,"timezone",False)
 
-    if not timezone: return
+    if not timezone:
+        return
 
     tz_file = "%s/%s" % (tz_base , timezone)
 

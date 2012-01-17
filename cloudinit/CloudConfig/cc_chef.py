@@ -25,7 +25,8 @@ ruby_version_default = "1.8"
 
 def handle(_name,cfg,cloud,log,_args):
     # If there isn't a chef key in the configuration don't do anything
-    if not cfg.has_key('chef'): return
+    if not cfg.has_key('chef'):
+        return
     chef_cfg = cfg['chef']
 
     # ensure the chef directories we use exist
@@ -57,7 +58,8 @@ def handle(_name,cfg,cloud,log,_args):
             initial_json['run_list'] = chef_cfg['run_list']
         if chef_cfg.has_key('initial_attributes'):
             initial_attributes = chef_cfg['initial_attributes']
-            for k in initial_attributes.keys(): initial_json[k] = initial_attributes[k]
+            for k in initial_attributes.keys():
+                initial_json[k] = initial_attributes[k]
         firstboot_json_fh.write(json.dumps(initial_json))
 
     # If chef is not installed, we install chef based on 'install_type'

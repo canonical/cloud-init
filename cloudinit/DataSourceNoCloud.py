@@ -110,7 +110,8 @@ def parse_cmdline_data(ds_id,fill,cmdline=None):
     # cmdline can contain:
     # ds=nocloud[;key=val;key=val]
     for tok in cmdline.split():
-        if tok.startswith(ds_id): argline=tok.split("=",1)
+        if tok.startswith(ds_id):
+            argline=tok.split("=",1)
     
     # argline array is now 'nocloud' followed optionally by
     # a ';' and then key=value pairs also terminated with ';'
@@ -128,7 +129,8 @@ def parse_cmdline_data(ds_id,fill,cmdline=None):
         except:
             k=item
             v=None
-        if k in s2l: k=s2l[k]
+        if k in s2l:
+            k=s2l[k]
         fill[k]=v
 
     return(True)

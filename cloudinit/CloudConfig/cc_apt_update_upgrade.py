@@ -104,7 +104,8 @@ def handle(_name,cfg,cloud,log,_args):
 def mirror2lists_fileprefix(mirror):
     string=mirror
     # take of http:// or ftp://
-    if string.endswith("/"): string=string[0:-1]
+    if string.endswith("/"):
+        string=string[0:-1]
     pos=string.find("://")
     if pos >= 0:
         string=string[pos+3:]
@@ -115,7 +116,8 @@ def rename_apt_lists(omirror,new_mirror,lists_d="/var/lib/apt/lists"):
     
     oprefix="%s/%s" % (lists_d,mirror2lists_fileprefix(omirror))
     nprefix="%s/%s" % (lists_d,mirror2lists_fileprefix(new_mirror))
-    if(oprefix==nprefix): return
+    if(oprefix==nprefix):
+        return
     olen=len(oprefix)
     for filename in glob.glob("%s_*" % oprefix):
         os.rename(filename,"%s%s" % (nprefix, filename[olen:]))
@@ -143,7 +145,8 @@ def add_sources(srclist, searchList=None):
 
         source=ent['source']
         if source.startswith("ppa:"):
-            try: util.subp(["add-apt-repository",source])
+            try:
+                util.subp(["add-apt-repository",source])
             except:
                 elst.append([source, "add-apt-repository failed"])
             continue
@@ -159,7 +162,8 @@ def add_sources(srclist, searchList=None):
 
         if ( ent.has_key('keyid') and not ent.has_key('key') ):
             ks = "keyserver.ubuntu.com"
-            if ent.has_key('keyserver'): ks = ent['keyserver']
+            if ent.has_key('keyserver'):
+                ks = ent['keyserver']
             try:
                 ent['key'] = util.getkeybyid(ent['keyid'], ks)
             except:
@@ -167,11 +171,13 @@ def add_sources(srclist, searchList=None):
                 continue
 
         if ent.has_key('key'):
-            try: util.subp(('apt-key', 'add', '-'), ent['key'])
+            try:
+                util.subp(('apt-key', 'add', '-'), ent['key'])
             except:
                 elst.append([source, "failed add key"])
 
-        try: util.write_file(ent['filename'], source + "\n", omode="ab")
+        try:
+            util.write_file(ent['filename'], source + "\n", omode="ab")
         except:
             elst.append([source, "failed write to file %s" % ent['filename']])
 

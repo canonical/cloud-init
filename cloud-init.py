@@ -117,7 +117,8 @@ def main():
         try:
             os.unlink(nonet_path)
         except OSError as e:
-            if e.errno != errno.ENOENT: raise
+            if e.errno != errno.ENOENT:
+                raise
 
     msg = "cloud-init %s running: %s. up %s seconds" % (cmd, now, uptime)
     sys.stderr.write(msg + "\n")

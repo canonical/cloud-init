@@ -53,7 +53,8 @@ def do_include(content, appendmsg):
     # also support '#include <url here>'
     includeonce = False
     for line in content.splitlines():
-        if line == "#include": continue
+        if line == "#include":
+            continue
         if line == "#include-once":
             includeonce = True
             continue
@@ -62,7 +63,8 @@ def do_include(content, appendmsg):
             includeonce = True
         elif line.startswith("#include"):
             line = line[len("#include"):].lstrip()
-        if line.startswith("#"): continue
+        if line.startswith("#"):
+            continue
 
         # urls cannot not have leading or trailing white space
         msum = hashlib.md5()

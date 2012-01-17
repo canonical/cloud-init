@@ -65,7 +65,8 @@ class DataSourceOVF(DataSource.DataSource):
                    'vmware-guestd' : transport_vmware_guestd, }
             for name, transfunc in np.iteritems():
                 (contents, _dev, _fname) = transfunc()
-                if contents: break
+                if contents:
+                    break
 
             if contents:
                 (md, ud, cfg) = read_ovf_environment(contents)
@@ -103,7 +104,8 @@ class DataSourceOVF(DataSource.DataSource):
         return True
 
     def get_public_ssh_keys(self):
-        if not 'public-keys' in self.metadata: return([])
+        if not 'public-keys' in self.metadata:
+            return([])
         return([self.metadata['public-keys'],])
         
     # the data sources' config_obj is a cloud-config formated
@@ -126,7 +128,8 @@ def read_ovf_environment(contents):
     cfg_props = [ 'password', ]
     md_props = [ 'seedfrom', 'local-hostname', 'public-keys', 'instance-id' ]
     for prop, val in props.iteritems():
-        if prop == 'hostname': prop = "local-hostname"
+        if prop == 'hostname':
+            prop = "local-hostname"
         if prop in md_props:
             md[prop] = val
         elif prop in cfg_props:
@@ -174,7 +177,8 @@ def transport_iso9660(require_iso=False):
         (dev,mp,fstype,_opts,_freq,_passno) = mpline.split()
         mounted[dev]=(dev,fstype,mp,False)
         mp = mp.replace("\\040"," ")
-        if fstype != "iso9660" and require_iso: continue
+        if fstype != "iso9660" and require_iso:
+            continue
 
         if cdmatch.match(dev[5:]) == None: # take off '/dev/'
             continue
@@ -201,7 +205,8 @@ def transport_iso9660(require_iso=False):
             fp.read(512)
             fp.close()
         except:
-            if fp: fp.close()
+            if fp:
+                fp.close()
             continue
 
         if tmpd is None:
@@ -213,7 +218,8 @@ def transport_iso9660(require_iso=False):
                 pass
 
         cmd = [ "mount", "-o", "ro", fullp, tmpd ]
-        if require_iso: cmd.extend(('-t','iso9660'))
+        if require_iso:
+            cmd.extend(('-t','iso9660'))
 
         rc = subprocess.call(cmd, stderr=dvnull, stdout=dvnull, stdin=dvnull)
         if rc:
@@ -250,9 +256,11 @@ def transport_vmware_guestd():
 
 def findChild(node,filter_func):
     ret = []
-    if not node.hasChildNodes(): return ret
+    if not node.hasChildNodes():
+        return ret
     for child in node.childNodes:
-        if filter_func(child): ret.append(child)
+        if filter_func(child):
+            ret.append(child)
     return(ret)
 
 def getProperties(environString):

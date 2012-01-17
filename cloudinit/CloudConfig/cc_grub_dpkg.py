@@ -33,10 +33,13 @@ def handle(_name,cfg,_cloud,log,_args):
 
     if (( os.path.exists("/dev/sda1") and not os.path.exists("/dev/sda") ) or
         ( os.path.exists("/dev/xvda1") and not os.path.exists("/dev/xvda") )):
-        if idevs == None: idevs=""
-        if idevs_empty == None: idevs_empty="true"
+        if idevs == None:
+            idevs=""
+        if idevs_empty == None:
+            idevs_empty="true"
     else:
-        if idevs_empty == None: idevs_empty="false"
+        if idevs_empty == None:
+            idevs_empty="false"
         if idevs == None:
             idevs = "/dev/sda"
             for dev in ( "/dev/sda", "/dev/vda", "/dev/sda1", "/dev/vda1"):

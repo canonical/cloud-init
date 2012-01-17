@@ -34,13 +34,17 @@ class FakeSecHead(object):
         self.sechead = '[nullsection]\n'
     def readline(self):
         if self.sechead:
-            try: return self.sechead
-            finally: self.sechead = None
-        else: return self.fp.readline()
+            try:
+                return self.sechead
+            finally:
+                self.sechead = None
+        else:
+            return self.fp.readline()
 
 def handle(_name,cfg,_cloud,_log,_args):
     # If there isn't a mcollective key in the configuration don't do anything
-    if not cfg.has_key('mcollective'): return
+    if not cfg.has_key('mcollective'):
+        return
     mcollective_cfg = cfg['mcollective']
     # Start by installing the mcollective package ...
     cc.install_packages(("mcollective",))

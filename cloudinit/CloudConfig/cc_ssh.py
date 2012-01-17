@@ -33,8 +33,10 @@ def handle(_name,cfg,cloud,log,_args):
     # remove the static keys from the pristine image
     if cfg.get("ssh_deletekeys", True):
         for f in glob.glob("/etc/ssh/ssh_host_*key*"):
-            try: os.unlink(f)
-            except: pass
+            try:
+                os.unlink(f)
+            except:
+                pass
 
     if cfg.has_key("ssh_keys"):
         # if there are keys in cloud-config, use them
@@ -56,7 +58,8 @@ def handle(_name,cfg,cloud,log,_args):
 
         cmd = 'o=$(ssh-keygen -yf "%s") && echo "$o" root@localhost > "%s"'
         for priv,pub in priv2pub.iteritems():
-            if pub in cfg['ssh_keys'] or not priv in cfg['ssh_keys']: continue
+            if pub in cfg['ssh_keys'] or not priv in cfg['ssh_keys']:
+                continue
             pair=(key2file[priv][0], key2file[pub][0])
             subprocess.call(('sh', '-xc', cmd % pair))
             log.debug("generated %s from %s" % pair)

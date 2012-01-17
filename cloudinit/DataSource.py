@@ -64,7 +64,8 @@ class DataSource:
 
     def get_public_ssh_keys(self):
         keys = []
-        if not self.metadata.has_key('public-keys'): return([])
+        if not self.metadata.has_key('public-keys'):
+            return([])
 
         if isinstance(self.metadata['public-keys'], str):
             return([self.metadata['public-keys'],])
@@ -163,7 +164,8 @@ def list_sources(cfg_list, depends, pkglist=None):
     retlist = []
     for ds_coll in cfg_list:
         for pkg in pkglist:
-            if pkg: pkg="%s." % pkg
+            if pkg:
+                pkg="%s." % pkg
             try:
                 mod = __import__("%sDataSource%s" % (pkg, ds_coll))
                 if pkg:
