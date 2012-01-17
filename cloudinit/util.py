@@ -18,6 +18,7 @@
 import yaml
 import os
 import os.path
+import shutil
 import errno
 import subprocess
 from Cheetah.Template import Template
@@ -94,13 +95,24 @@ def get_cfg_option_str(yobj, key, default=None):
 
 
 def get_cfg_option_list_or_str(yobj, key, default=None):
-    if key not in yobj:
+    """
+    Gets the C{key} config option from C{yobj} as a list of strings. If the
+    key is present as a single string it will be returned as a list with one
+    string arg.
+
+    @param yobj: The configuration object.
+    @param key: The configuration key to get.
+    @param default: The default to return if key is not found.
+    @return: The configuration option as a list of strings or default if key
+        is not found.
+    """
+    if not key in yobj:
         return default
     if yobj[key] is None:
         return []
     if isinstance(yobj[key], list):
         return yobj[key]
-    return([yobj[key]])
+    return [yobj[key]]
 
 
 # get a cfg entry by its path array
@@ -114,9 +126,11 @@ def get_cfg_by_path(yobj, keyp, default=None):
     return(cur)
 
 
-# merge values from cand into source
-# if src has a key, cand will not override
 def mergedict(src, cand):
+    """
+    Merge values from C{cand} into C{src}. If C{src} has a key C{cand} will
+    not override. Nested dictionaries are merged recursively.
+    """
     if isinstance(src, dict) and isinstance(cand, dict):
         for k, v in cand.iteritems():
             if k not in src:
@@ -126,7 +140,30 @@ def mergedict(src, cand):
     return src
 
 
+def delete_dir_contents(dirname):
+    """
+    Deletes all contents of a directory without deleting the directory itself.
+
+    @param dirname: The directory whose contents should be deleted.
+    """
+    for node in os.listdir(dirname):
+        node_fullpath = os.path.join(dirname, node)
+        if os.path.isdir(node_fullpath):
+            shutil.rmtree(node_fullpath)
+        else:
+            os.unlink(node_fullpath)
+
+
 def write_file(filename, content, mode=0644, omode="wb"):
+    """
+    Writes a file with the given content and sets the file mode as specified.
+    Resotres the SELinux context if possible.
+
+    @param filename: The full path of the file to write.
+    @param content: The content to write to the file.
+    @param mode: The filesystem mode to set on the file.
+    @param omode: The open mode used when opening the file (r, rb, a, etc.)
+    """
     try:
         os.makedirs(os.path.dirname(filename))
     except OSError as e:
@@ -134,7 +171,7 @@ def write_file(filename, content, mode=0644, omode="wb"):
             raise e
 
     f = open(filename, omode)
-    if mode != None:
+    if mode is not None:
         os.chmod(filename, mode)
     f.write(content)
     f.close()
