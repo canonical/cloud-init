@@ -40,10 +40,10 @@ except ImportError:
 
 def read_conf(fname):
     try:
-	    stream = open(fname,"r")
-	    conf = yaml.load(stream)
-	    stream.close()
-	    return conf
+        stream = open(fname,"r")
+        conf = yaml.load(stream)
+        stream.close()
+        return conf
     except IOError as e:
         if e.errno == errno.ENOENT:
             return { }
@@ -141,28 +141,28 @@ def delete_dir_contents(dirname):
         else:
             os.unlink(node_fullpath)
 
-def write_file(filepath, content, mode=0644, omode="wb"):
+def write_file(filename, content, mode=0644, omode="wb"):
     """
     Writes a file with the given content and sets the file mode as specified.
     Resotres the SELinux context if possible.
 
-    @param filepath: The full path of the file to write.
+    @param filename: The full path of the file to write.
     @param content: The content to write to the file.
     @param mode: The filesystem mode to set on the file.
     @param omode: The open mode used when opening the file (r, rb, a, etc.)
     """
     try:
-        os.makedirs(os.path.dirname(filepath))
+        os.makedirs(os.path.dirname(filename))
     except OSError as e:
         if e.errno != errno.EEXIST:
             raise e
 
-    f = open(filepath, omode)
+    f = open(filename, omode)
     if mode is not None:
-        os.chmod(filepath, mode)
+        os.chmod(filename, mode)
     f.write(content)
     f.close()
-    restorecon_if_possible(filepath)
+    restorecon_if_possible(filename)
 
 def restorecon_if_possible(path, recursive=False):
     if HAVE_LIBSELINUX and selinux.is_selinux_enabled():
@@ -170,20 +170,20 @@ def restorecon_if_possible(path, recursive=False):
 
 # get keyid from keyserver
 def getkeybyid(keyid,keyserver):
-   shcmd="""
-   k=${1} ks=${2};
-   exec 2>/dev/null
-   [ -n "$k" ] || exit 1;
-   armour=$(gpg --list-keys --armour "${k}")
-   if [ -z "${armour}" ]; then
-      gpg --keyserver ${ks} --recv $k >/dev/null &&
-         armour=$(gpg --export --armour "${k}") &&
-         gpg --batch --yes --delete-keys "${k}"
-   fi
-   [ -n "${armour}" ] && echo "${armour}"
-   """
-   args=['sh', '-c', shcmd, "export-gpg-keyid", keyid, keyserver]
-   return(subp(args)[0])
+    shcmd="""
+    k=${1} ks=${2};
+    exec 2>/dev/null
+    [ -n "$k" ] || exit 1;
+    armour=$(gpg --list-keys --armour "${k}")
+    if [ -z "${armour}" ]; then
+       gpg --keyserver ${ks} --recv $k >/dev/null &&
+          armour=$(gpg --export --armour "${k}") &&
+          gpg --batch --yes --delete-keys "${k}"
+    fi
+    [ -n "${armour}" ] && echo "${armour}"
+    """
+    args=['sh', '-c', shcmd, "export-gpg-keyid", keyid, keyserver]
+    return(subp(args)[0])
 
 def runparts(dirp, skip_no_exist=True):
     if skip_no_exist and not os.path.isdir(dirp): return
@@ -198,10 +198,10 @@ def runparts(dirp, skip_no_exist=True):
         raise subprocess.CalledProcessError(sp.returncode,cmd)
     return
 
-def subp(args, input=None):
+def subp(args, input_=None):
     sp = subprocess.Popen(args, stdout=subprocess.PIPE,
         stderr=subprocess.PIPE, stdin=subprocess.PIPE)
-    out,err = sp.communicate(input)
+    out,err = sp.communicate(input_)
     if sp.returncode is not 0:
         raise subprocess.CalledProcessError(sp.returncode,args, (out,err))
     return(out,err)
@@ -277,7 +277,9 @@ def logexc(log,lvl=logging.DEBUG):
 class RecursiveInclude(Exception):
     pass
 
-def read_file_with_includes(fname, rel = ".", stack=[], patt = None):
+def read_file_with_includes(fname, rel = ".", stack=None, patt = None):
+    if stack is None:
+        stack = []
     if not fname.startswith("/"):
         fname = os.sep.join((rel, fname))
 
@@ -303,7 +305,6 @@ def read_file_with_includes(fname, rel = ".", stack=[], patt = None):
     stack.append(fname)
 
     cur = 0
-    clen = len(contents)
     while True:
         match = patt.search(contents[cur:])
         if not match: break
@@ -321,7 +322,7 @@ def read_file_with_includes(fname, rel = ".", stack=[], patt = None):
             else:
                 raise
         contents = contents[0:loc] + inc_contents + contents[endl+1:]
-	cur = loc + len(inc_contents)
+        cur = loc + len(inc_contents)
     stack.pop()
     return(contents)
 
@@ -330,10 +331,10 @@ def read_conf_d(confd):
     confs = sorted(os.listdir(confd),reverse=True)
     
     # remove anything not ending in '.cfg'
-    confs = filter(lambda f: f.endswith(".cfg"), confs)
+    confs = [f for f in confs if f.endswith(".cfg")]
 
     # remove anything not a file
-    confs = filter(lambda f: os.path.isfile("%s/%s" % (confd,f)),confs)
+    confs = [f for f in confs if os.path.isfile("%s/%s" % (confd,f))]
 
     cfg = { }
     for conf in confs:
@@ -416,17 +417,17 @@ def ensure_dirs(dirlist, mode=0755):
         os.chmod(d, mode)
 
 def chownbyname(fname,user=None,group=None):
-   uid = -1
-   gid = -1
-   if user == None and group == None: return
-   if user:
-      import pwd
-      uid = pwd.getpwnam(user).pw_uid
-   if group:
-      import grp
-      gid = grp.getgrnam(group).gr_gid
+    uid = -1
+    gid = -1
+    if user == None and group == None: return
+    if user:
+        import pwd
+        uid = pwd.getpwnam(user).pw_uid
+    if group:
+        import grp
+        gid = grp.getgrnam(group).gr_gid
 
-   os.chown(fname,uid,gid)
+    os.chown(fname,uid,gid)
 
 def readurl(url, data=None, timeout=None):
     openargs = { }
@@ -461,11 +462,11 @@ def shellify(cmdlist):
             content="%s%s\n" % ( content, str(args) )
     return content
 
-def dos2unix(input):
+def dos2unix(string):
     # find first end of line
-    pos = input.find('\n')
-    if pos <= 0 or input[pos-1] != '\r': return(input)
-    return(input.replace('\r\n','\n'))
+    pos = string.find('\n')
+    if pos <= 0 or string[pos-1] != '\r': return(string)
+    return(string.replace('\r\n','\n'))
 
 def islxc():
     # is this host running lxc?
@@ -482,7 +483,7 @@ def islxc():
         # we're inside a container. otherwise, no
         sp = subprocess.Popen(['lxc-is-container'], stdout=subprocess.PIPE,
                               stderr=subprocess.PIPE)
-        out,err = sp.communicate(None)
+        sp.communicate(None)
         return(sp.returncode == 0)
     except OSError as e:
         if e.errno != errno.ENOENT:
@@ -546,7 +547,7 @@ def is_resolvable(name):
     try:
         socket.getaddrinfo(name, None)
         return True
-    except socket.gaierror as e:
+    except socket.gaierror:
         return False
 
 def is_resolvable_url(url):
@@ -559,20 +560,20 @@ def search_for_mirror(candidates):
         try:
             if is_resolvable_url(cand):
                 return cand
-        except Exception as e:
+        except Exception:
             raise
 
     return None
 
 def close_stdin():
-   """
-   reopen stdin as /dev/null so even subprocesses or other os level things get
-   /dev/null as input.
+    """
+    reopen stdin as /dev/null so even subprocesses or other os level things get
+    /dev/null as input.
 
-   if _CLOUD_INIT_SAVE_STDIN is set in environment to a non empty or '0' value
-   then input will not be closed (only useful potentially for debugging).
-   """
-   if os.environ.get("_CLOUD_INIT_SAVE_STDIN") in ("", "0", False):
-      return
-   with open(os.devnull) as fp:
-       os.dup2(fp.fileno(), sys.stdin.fileno())
+    if _CLOUD_INIT_SAVE_STDIN is set in environment to a non empty or '0' value
+    then input will not be closed (only useful potentially for debugging).
+    """
+    if os.environ.get("_CLOUD_INIT_SAVE_STDIN") in ("", "0", False):
+        return
+    with open(os.devnull) as fp:
+        os.dup2(fp.fileno(), sys.stdin.fileno())

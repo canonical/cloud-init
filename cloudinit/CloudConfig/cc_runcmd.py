@@ -15,10 +15,10 @@
 #
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
-import cloudinit
+
 import cloudinit.util as util
 
-def handle(name,cfg,cloud,log,args):
+def handle(_name,cfg,cloud,log,_args):
     if not cfg.has_key("runcmd"):
         return
     outfile="%s/runcmd" % cloud.get_ipath('scripts')

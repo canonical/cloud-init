@@ -15,16 +15,16 @@
 #
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
 from cloudinit.CloudConfig import per_instance
 from cloudinit import util
-import subprocess
 import os.path
 import shutil
 
 frequency = per_instance
 tz_base = "/usr/share/zoneinfo"
 
-def handle(name,cfg,cloud,log,args):
+def handle(_name,cfg,_cloud,log,args):
     if len(args) != 0:
         timezone = args[0]
     else:

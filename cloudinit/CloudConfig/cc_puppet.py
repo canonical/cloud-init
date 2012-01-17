@@ -25,7 +25,7 @@ import ConfigParser
 import cloudinit.CloudConfig as cc
 import cloudinit.util as util
 
-def handle(name,cfg,cloud,log,args):
+def handle(_name,cfg,cloud,log,_args):
     # If there isn't a puppet key in the configuration don't do anything
     if not cfg.has_key('puppet'): return
     puppet_cfg = cfg['puppet']

@@ -21,7 +21,7 @@ import subprocess
 
 frequency = per_instance
 
-def handle(name,cfg,cloud,log,args):
+def handle(_name,cfg,_cloud,log,_args):
     cmd = [ '/usr/lib/cloud-init/write-ssh-key-fingerprints' ]
     fp_blacklist = util.get_cfg_option_list_or_str(cfg, "ssh_fp_console_blacklist", [])
     key_blacklist = util.get_cfg_option_list_or_str(cfg, "ssh_key_console_blacklist", ["ssh-dss"])
