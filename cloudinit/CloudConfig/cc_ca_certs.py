@@ -14,25 +14,22 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 import os
-import pwd
-import socket
 from subprocess import check_call
-import json
-import StringIO
-import ConfigParser
-import cloudinit.CloudConfig as cc
-from cloudinit.util import write_file, get_cfg_option_list_or_str, delete_dir_contents
+from cloudinit.util import (write_file, get_cfg_option_list_or_str,
+                            delete_dir_contents)
 
 CA_CERT_PATH = "/usr/share/ca-certificates/"
 CA_CERT_FILENAME = "cloud-init-ca-certs.crt"
 CA_CERT_CONFIG = "/etc/ca-certificates.conf"
 CA_CERT_SYSTEM_PATH = "/etc/ssl/certs/"
 
+
 def update_ca_certs():
     """
     Updates the CA certificate cache on the current machine.
     """
     check_call(["update-ca-certificates"])
+
 
 def add_ca_certs(certs):
     """
@@ -48,6 +45,7 @@ def add_ca_certs(certs):
         # Append cert filename to CA_CERT_CONFIG file.
         write_file(CA_CERT_CONFIG, "\n%s" % CA_CERT_FILENAME, omode="a")
 
+
 def remove_default_ca_certs():
     """
     Removes all default trusted CA certificates from the system. To actually
@@ -56,6 +54,7 @@ def remove_default_ca_certs():
     delete_dir_contents(CA_CERT_PATH)
     delete_dir_contents(CA_CERT_SYSTEM_PATH)
     write_file(CA_CERT_CONFIG, "", mode=0644)
+
 
 def handle(name, cfg, cloud, log, args):
     """
@@ -68,7 +67,7 @@ def handle(name, cfg, cloud, log, args):
     @param args: Any module arguments from cloud.cfg
     """
     # If there isn't a ca-certs section in the configuration don't do anything
-    if not cfg.has_key('ca-certs'):
+    if "ca-certs" not in cfg:
         return
     ca_cert_cfg = cfg['ca-certs']
 
@@ -78,8 +77,8 @@ def handle(name, cfg, cloud, log, args):
         remove_default_ca_certs()
 
     # If we are given any new trusted CA certs to add, add them.
-    if ca_cert_cfg.has_key('trusted'):
-        trusted_certs = get_cfg_option_list_or_str(ca_cert_cfg, 'trusted')
+    if "trusted" in ca_cert_cfg:
+        trusted_certs = get_cfg_option_list_or_str(ca_cert_cfg, "trusted")
         if trusted_certs:
             add_ca_certs(trusted_certs)
 
