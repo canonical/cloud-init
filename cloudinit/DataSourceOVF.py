@@ -65,6 +65,7 @@ class DataSourceOVF(DataSource.DataSource):
         else:
             np = {'iso': transport_iso9660,
                   'vmware-guestd': transport_vmware_guestd, }
+            name = None
             for name, transfunc in np.iteritems():
                 (contents, _dev, _fname) = transfunc()
                 if contents:
@@ -73,7 +74,7 @@ class DataSourceOVF(DataSource.DataSource):
             if contents:
                 (md, ud, cfg) = read_ovf_environment(contents)
                 self.environment = contents
-                found.append(name)  # pylint: disable=W0631
+                found.append(name)
 
         # There was no OVF transports found
         if len(found) == 0:
@@ -247,8 +248,8 @@ def transport_iso9660(require_iso=False):
 
 
 def transport_vmware_guestd():
-    # pylint: disable=C0301
-    # http://blogs.vmware.com/vapp/2009/07/selfconfiguration-and-the-ovf-environment.html
+    # http://blogs.vmware.com/vapp/2009/07/ \
+    #    selfconfiguration-and-the-ovf-environment.html
     # try:
     #     cmd = ['vmware-guestd', '--cmd', 'info-get guestinfo.ovfEnv']
     #     (out, err) = subp(cmd)
@@ -257,7 +258,6 @@ def transport_vmware_guestd():
     #     # would need to error check here and see why this failed
     #     # to know if log/error should be raised
     #     return(False, None, None)
-    # pylint: enable=C0301
     return(False, None, None)
 
 
