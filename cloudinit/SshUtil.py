@@ -156,39 +156,6 @@ def setup_user_keys(keys, user, key_prefix, log=None):
     os.umask(saved_umask)
 
 
-if __name__ == "__main__":
-    import sys
-    # usage: orig_file, new_keys, [key_prefix]
-    #   prints out merged, where 'new_keys' will trump old
-    ##  example
-    ## ### begin auth_keys ###
-    # ssh-rsa AAAAB3NzaC1xxxxxxxxxV3csgm8cJn7UveKHkYjJp8= smoser-work
-    # ssh-rsa AAAAB3NzaC1xxxxxxxxxCmXp5Kt5/82cD/VN3NtHw== smoser@brickies
-    # ### end authorized_keys ###
-    #
-    # ### begin new_keys ###
-    # ssh-rsa nonmatch smoser@newhost
-    # ssh-rsa AAAAB3NzaC1xxxxxxxxxV3csgm8cJn7UveKHkYjJp8= new_comment
-    # ### end new_keys ###
-    #
-    # Then run as:
-    #  program auth_keys new_keys \
-    #      'no-port-forwarding,command=\"echo hi world;\"'
-    def_prefix = None
-    orig_key_file = sys.argv[1]
-    new_key_file = sys.argv[2]
-    if len(sys.argv) > 3:
-        def_prefix = sys.argv[3]
-    fp = open(new_key_file)
-
-    newkeys = []
-    for line in fp.readlines():
-        newkeys.append(AuthKeyEntry(line, def_prefix))
-
-    fp.close()
-    print update_authorized_keys(orig_key_file, newkeys)
-
-
 def parse_ssh_config(fname="/etc/ssh/sshd_config"):
     ret = {}
     fp = open(fname)
@@ -200,3 +167,40 @@ def parse_ssh_config(fname="/etc/ssh/sshd_config"):
         ret[key] = val
     fp.close()
     return(ret)
+
+if __name__ == "__main__":
+    def main():
+        import sys
+        # usage: orig_file, new_keys, [key_prefix]
+        #   prints out merged, where 'new_keys' will trump old
+        ##  example
+        ## ### begin auth_keys ###
+        # ssh-rsa AAAAB3NzaC1xxxxxxxxxV3csgm8cJn7UveKHkYjJp8= smoser-work
+        # ssh-rsa AAAAB3NzaC1xxxxxxxxxCmXp5Kt5/82cD/VN3NtHw== smoser@brickies
+        # ### end authorized_keys ###
+        #
+        # ### begin new_keys ###
+        # ssh-rsa nonmatch smoser@newhost
+        # ssh-rsa AAAAB3NzaC1xxxxxxxxxV3csgm8cJn7UveKHkYjJp8= new_comment
+        # ### end new_keys ###
+        #
+        # Then run as:
+        #  program auth_keys new_keys \
+        #      'no-port-forwarding,command=\"echo hi world;\"'
+        def_prefix = None
+        orig_key_file = sys.argv[1]
+        new_key_file = sys.argv[2]
+        if len(sys.argv) > 3:
+            def_prefix = sys.argv[3]
+        fp = open(new_key_file)
+
+        newkeys = []
+        for line in fp.readlines():
+            newkeys.append(AuthKeyEntry(line, def_prefix))
+
+        fp.close()
+        print update_authorized_keys(orig_key_file, newkeys)
+
+    main()
+
+# vi: ts=4 expandtab

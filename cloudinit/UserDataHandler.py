@@ -246,9 +246,12 @@ def walk_userdata(istr, callback, data=None):
 
 
 if __name__ == "__main__":
-    import sys
-    data = decomp_str(file(sys.argv[1]).read())
-    newmsg = MIMEMultipart()
-    process_includes(message_from_string(data), newmsg)
-    print newmsg
-    print "#found %s parts" % multi_part_count(newmsg)
+    def main():
+        import sys
+        data = decomp_str(file(sys.argv[1]).read())
+        newmsg = MIMEMultipart()
+        process_includes(message_from_string(data), newmsg)
+        print newmsg
+        print "#found %s parts" % multi_part_count(newmsg)
+
+    main()
