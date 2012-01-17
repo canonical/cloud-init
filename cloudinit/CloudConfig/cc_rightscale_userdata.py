@@ -24,9 +24,9 @@
 ## for cloud-init support, there will be a key named
 ## 'CLOUD_INIT_REMOTE_HOOK'.
 ##
-## This cloud-config module will 
+## This cloud-config module will
 ## - read the blob of data from raw user data, and parse it as key/value
-## - for each key that is found, download the content to 
+## - for each key that is found, download the content to
 ##   the local instance/scripts directory and set them executable.
 ## - the files in that directory will be run by the user-scripts module
 ##   Therefore, this must run before that.
@@ -41,6 +41,7 @@ from urlparse import parse_qs
 frequency = per_instance
 my_name = "cc_rightscale_userdata"
 my_hookname = 'CLOUD_INIT_REMOTE_HOOK'
+
 
 def handle(_name, _cfg, cloud, log, _args):
     try:
@@ -62,7 +63,7 @@ def handle(_name, _cfg, cloud, log, _args):
     first_e = None
     for url in mdict[my_hookname]:
         fname = "%s/rightscale-%02i" % (scripts_d, i)
-        i = i +1
+        i = i + 1
         try:
             content = util.readurl(url)
             util.write_file(fname, content, mode=0700)
@@ -70,6 +71,6 @@ def handle(_name, _cfg, cloud, log, _args):
             if not first_e:
                 first_e = None
             log.warn("%s failed to read %s: %s" % (my_name, url, e))
-            
+
     if first_e:
         raise(e)

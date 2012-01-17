@@ -25,16 +25,17 @@ import ConfigParser
 import cloudinit.CloudConfig as cc
 import cloudinit.util as util
 
+
 def handle(_name, cfg, cloud, log, _args):
     # If there isn't a puppet key in the configuration don't do anything
-    if not cfg.has_key('puppet'):
+    if 'puppet' not in cfg:
         return
     puppet_cfg = cfg['puppet']
     # Start by installing the puppet package ...
     cc.install_packages(("puppet",))
 
     # ... and then update the puppet configuration
-    if puppet_cfg.has_key('conf'):
+    if 'conf' in puppet_cfg:
         # Add all sections from the conf object to puppet.conf
         puppet_conf_fh = open('/etc/puppet/puppet.conf', 'r')
         # Create object for reading puppet.conf values
@@ -102,4 +103,3 @@ def handle(_name, cfg, cloud, log, _args):
         log.warn("Do not know how to enable puppet service on this system")
     # Start puppetd
     subprocess.check_call(['service', 'puppet', 'start'])
-

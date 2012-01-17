@@ -18,12 +18,13 @@
 
 import cloudinit.util as util
 
+
 def handle(_name, cfg, cloud, log, _args):
     if util.get_cfg_option_bool(cfg, "preserve_hostname", False):
         log.debug("preserve_hostname is set. not setting hostname")
         return(True)
 
-    ( hostname, _fqdn ) = util.get_hostname_fqdn(cfg, cloud)
+    (hostname, _fqdn) = util.get_hostname_fqdn(cfg, cloud)
     try:
         set_hostname(hostname, log)
     except Exception:
@@ -31,6 +32,7 @@ def handle(_name, cfg, cloud, log, _args):
         log.warn("failed to set hostname to %s\n", hostname)
 
     return(True)
+
 
 def set_hostname(hostname, log):
     util.subp(['hostname', hostname])

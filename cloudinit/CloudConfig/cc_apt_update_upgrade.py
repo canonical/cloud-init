@@ -22,6 +22,7 @@ import os
 import glob
 import cloudinit.CloudConfig as cc
 
+
 def handle(_name, cfg, cloud, log, _args):
     update = util.get_cfg_option_bool(cfg, 'apt_update', False)
     upgrade = util.get_cfg_option_bool(cfg, 'apt_upgrade', False)
@@ -39,7 +40,6 @@ def handle(_name, cfg, cloud, log, _args):
             "archive.ubuntu.com/ubuntu")
         rename_apt_lists(old_mir, mirror)
 
-
     # set up proxy
     proxy = cfg.get("apt_proxy", None)
     proxy_filename = "/etc/apt/apt.conf.d/95cloud-init-proxy"
@@ -54,9 +54,9 @@ def handle(_name, cfg, cloud, log, _args):
         os.unlink(proxy_filename)
 
     # process 'apt_sources'
-    if cfg.has_key('apt_sources'):
+    if 'apt_sources' in cfg:
         errors = add_sources(cfg['apt_sources'],
-                             { 'MIRROR' : mirror, 'RELEASE' : release } )
+                             {'MIRROR': mirror, 'RELEASE': release})
         for e in errors:
             log.warn("Source Error: %s\n" % ':'.join(e))
 
@@ -71,7 +71,7 @@ def handle(_name, cfg, cloud, log, _args):
 
     pkglist = util.get_cfg_option_list_or_str(cfg, 'packages', [])
 
-    errors = [ ]
+    errors = []
     if update or len(pkglist) or upgrade:
         try:
             cc.update_package_sources()
@@ -101,6 +101,7 @@ def handle(_name, cfg, cloud, log, _args):
 
     return(True)
 
+
 def mirror2lists_fileprefix(mirror):
     string = mirror
     # take of http:// or ftp://
@@ -108,12 +109,12 @@ def mirror2lists_fileprefix(mirror):
         string = string[0:-1]
     pos = string.find("://")
     if pos >= 0:
-        string = string[pos+3:]
+        string = string[pos + 3:]
     string = string.replace("/", "_")
     return string
 
+
 def rename_apt_lists(omirror, new_mirror, lists_d="/var/lib/apt/lists"):
-    
     oprefix = "%s/%s" % (lists_d, mirror2lists_fileprefix(omirror))
     nprefix = "%s/%s" % (lists_d, mirror2lists_fileprefix(new_mirror))
     if(oprefix == nprefix):
@@ -122,26 +123,31 @@ def rename_apt_lists(omirror, new_mirror, lists_d="/var/lib/apt/lists"):
     for filename in glob.glob("%s_*" % oprefix):
         os.rename(filename, "%s%s" % (nprefix, filename[olen:]))
 
+
 def get_release():
     stdout, _stderr = subprocess.Popen(['lsb_release', '-cs'],
                                        stdout=subprocess.PIPE).communicate()
-    return(stdout.strip())
+    return(str(stdout).strip())
+
 
 def generate_sources_list(codename, mirror):
     util.render_to_file('sources.list', '/etc/apt/sources.list', \
-        { 'mirror' : mirror, 'codename' : codename })
+        {'mirror': mirror, 'codename': codename})
 
-# srclist is a list of dictionaries, 
-# each entry must have: 'source'
-# may have: key, ( keyid and keyserver)
+
 def add_sources(srclist, searchList=None):
+    """
+    add entries in /etc/apt/sources.list.d for each abbreviated
+    sources.list entry in 'srclist'.  When rendering template, also
+    include the values in dictionary searchList
+    """
     if searchList is None:
         searchList = {}
     elst = []
 
     for ent in srclist:
-        if not ent.has_key('source'):
-            elst.append([ "", "missing source" ])
+        if 'source' not in ent:
+            elst.append(["", "missing source"])
             continue
 
         source = ent['source']
@@ -154,16 +160,16 @@ def add_sources(srclist, searchList=None):
 
         source = util.render_string(source, searchList)
 
-        if not ent.has_key('filename'):
+        if 'filename' not in ent:
             ent['filename'] = 'cloud_config_sources.list'
 
         if not ent['filename'].startswith("/"):
             ent['filename'] = "%s/%s" % \
                 ("/etc/apt/sources.list.d/", ent['filename'])
 
-        if ( ent.has_key('keyid') and not ent.has_key('key') ):
+        if ('keyid' in ent and 'key' not in ent):
             ks = "keyserver.ubuntu.com"
-            if ent.has_key('keyserver'):
+            if 'keyserver' in ent:
                 ks = ent['keyserver']
             try:
                 ent['key'] = util.getkeybyid(ent['keyid'], ks)
@@ -171,7 +177,7 @@ def add_sources(srclist, searchList=None):
                 elst.append([source, "failed to get key from %s" % ks])
                 continue
 
-        if ent.has_key('key'):
+        if 'key' in ent:
             try:
                 util.subp(('apt-key', 'add', '-'), ent['key'])
             except:
@@ -199,7 +205,7 @@ def find_apt_mirror(cloud, cfg):
     cfg_mirror = cfg.get("apt_mirror", None)
     if cfg_mirror:
         mirror = cfg["apt_mirror"]
-    elif cfg.has_key("apt_mirror_search"):
+    elif "apt_mirror_search" in cfg:
         mirror = util.search_for_mirror(cfg['apt_mirror_search'])
     else:
         if cloud:
@@ -211,7 +217,7 @@ def find_apt_mirror(cloud, cfg):
 
         if not mirror and cloud:
             # if we have a fqdn, then search its domain portion first
-            ( _hostname, fqdn ) = util.get_hostname_fqdn(cfg, cloud)
+            (_hostname, fqdn) = util.get_hostname_fqdn(cfg, cloud)
             mydom = ".".join(fqdn.split(".")[1:])
             if mydom:
                 doms.append(".%s" % mydom)
@@ -220,7 +226,7 @@ def find_apt_mirror(cloud, cfg):
             doms.extend((".localdomain", "",))
 
             mirror_list = []
-            mirrorfmt = "http://%s-mirror%s/%s" % (distro, "%s", distro )
+            mirrorfmt = "http://%s-mirror%s/%s" % (distro, "%s", distro)
             for post in doms:
                 mirror_list.append(mirrorfmt % post)
 

@@ -4,6 +4,7 @@ import os
 import os.path
 import cloudinit.util as util
 
+
 class AuthKeyEntry():
     # lines are options, keytype, base64-encoded key, comment
     # man page says the following which I did not understand:
@@ -37,7 +38,7 @@ class AuthKeyEntry():
                 quoted = False
                 # taken from auth_rsa_key_allowed in auth-rsa.c
                 try:
-                    while (i < len(ent) and 
+                    while (i < len(ent) and
                            ((quoted) or (ent[i] not in (" ", "\t")))):
                         curc = ent[i]
                         nextc = ent[i + 1]
@@ -48,12 +49,12 @@ class AuthKeyEntry():
                         i = i + 1
                 except IndexError:
                     self.is_comment = True
-                    return()
+                    return
 
                 try:
                     self.options = ent[0:i]
                     (self.keytype, self.base64, self.comment) = \
-                        ent[i+1:].split(None, 3)
+                        ent[i + 1:].split(None, 3)
                 except ValueError:
                     # we did not understand this line
                     self.is_comment = True
@@ -67,28 +68,30 @@ class AuthKeyEntry():
         print("line_in=%s\ncomment: %s\noptions=%s\nkeytype=%s\nbase64=%s\n"
               "comment=%s\n" % (self.line_in, self.is_comment, self.options,
                                 self.keytype, self.base64, self.comment)),
+
     def __repr__(self):
         if self.is_comment:
             return(self.line_in)
         else:
-            toks = [ ]
+            toks = []
             for e in (self.options, self.keytype, self.base64, self.comment):
                 if e:
                     toks.append(e)
-                
+
             return(' '.join(toks))
-            
+
+
 def update_authorized_keys(fname, keys):
     # keys is a list of AuthKeyEntries
     # key_prefix is the prefix (options) to prepend
     try:
         fp = open(fname, "r")
-        lines = fp.readlines() # lines have carriage return
+        lines = fp.readlines()  # lines have carriage return
         fp.close()
     except IOError:
-        lines = [ ]
+        lines = []
 
-    ka_stats = { } # keys_added status
+    ka_stats = {}  # keys_added status
     for k in keys:
         ka_stats[k] = False
 
@@ -116,7 +119,7 @@ def update_authorized_keys(fname, keys):
     else:
         return('\n'.join(lines) + "\n")
 
-    
+
 def setup_user_keys(keys, user, key_prefix, log=None):
     import pwd
     saved_umask = os.umask(077)
@@ -152,25 +155,25 @@ def setup_user_keys(keys, user, key_prefix, log=None):
 
     os.umask(saved_umask)
 
+
 if __name__ == "__main__":
     import sys
-    # pylint: disable=C0301
     # usage: orig_file, new_keys, [key_prefix]
     #   prints out merged, where 'new_keys' will trump old
     ##  example
-    ## ### begin authorized_keys ###
-    # ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAIEA28CDAGtxSucHezSKqwh1wAs39xdeZTSVmmyMcKDI5Njnd1d/Uhgj/awxP0Whep8eRSm6F+Xgwi0pH1KNPCszPvq+03K+yi3YkYkQIkVBhctK6AP/UmlVQTVmjJdEvgtrppFTjCzf16q0BT0mXX5YFV3csgm8cJn7UveKHkYjJp8= smoser-work
-    # ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEA3I7VUf2l5gSn5uavROsc5HRDpZdQueUq5ozemNSj8T7enqKHOEaFoU2VoPgGEWC9RyzSQVeyD6s7APMcE82EtmW4skVEgEGSbDc1pvxzxtchBj78hJP6Cf5TCMFSXw+Fz5rF1dR23QDbN1mkHs7adr8GW4kSWqU7Q7NDwfIrJJtO7Hi42GyXtvEONHbiRPOe8stqUly7MvUoN+5kfjBM8Qqpfl2+FNhTYWpMfYdPUnE7u536WqzFmsaqJctz3gBxH9Ex7dFtrxR4qiqEr9Qtlu3xGn7Bw07/+i1D+ey3ONkZLN+LQ714cgj8fRS4Hj29SCmXp5Kt5/82cD/VN3NtHw== smoser@brickies
+    ## ### begin auth_keys ###
+    # ssh-rsa AAAAB3NzaC1xxxxxxxxxV3csgm8cJn7UveKHkYjJp8= smoser-work
+    # ssh-rsa AAAAB3NzaC1xxxxxxxxxCmXp5Kt5/82cD/VN3NtHw== smoser@brickies
     # ### end authorized_keys ###
-    # 
+    #
     # ### begin new_keys ###
     # ssh-rsa nonmatch smoser@newhost
-    # ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAIEA28CDAGtxSucHezSKqwh1wAs39xdeZTSVmmyMcKDI5Njnd1d/Uhgj/awxP0Whep8eRSm6F+Xgwi0pH1KNPCszPvq+03K+yi3YkYkQIkVBhctK6AP/UmlVQTVmjJdEvgtrppFTjCzf16q0BT0mXX5YFV3csgm8cJn7UveKHkYjJp8= new_comment
+    # ssh-rsa AAAAB3NzaC1xxxxxxxxxV3csgm8cJn7UveKHkYjJp8= new_comment
     # ### end new_keys ###
     #
     # Then run as:
-    #  program authorized_keys new_keys 'no-port-forwarding,command=\"echo hi world;\"'
-    # pylint: enable=C0301
+    #  program auth_keys new_keys \
+    #      'no-port-forwarding,command=\"echo hi world;\"'
     def_prefix = None
     orig_key_file = sys.argv[1]
     new_key_file = sys.argv[2]
@@ -178,15 +181,16 @@ if __name__ == "__main__":
         def_prefix = sys.argv[3]
     fp = open(new_key_file)
 
-    newkeys = [ ]
+    newkeys = []
     for line in fp.readlines():
         newkeys.append(AuthKeyEntry(line, def_prefix))
 
     fp.close()
     print update_authorized_keys(orig_key_file, newkeys)
 
+
 def parse_ssh_config(fname="/etc/ssh/sshd_config"):
-    ret = { }
+    ret = {}
     fp = open(fname)
     for l in fp.readlines():
         l = l.strip()
@@ -196,4 +200,3 @@ def parse_ssh_config(fname="/etc/ssh/sshd_config"):
         ret[key] = val
     fp.close()
     return(ret)
-

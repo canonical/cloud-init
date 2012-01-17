@@ -24,6 +24,7 @@ frequency = per_always
 
 final_message = "cloud-init boot finished at $TIMESTAMP. Up $UPTIME seconds"
 
+
 def handle(_name, cfg, _cloud, log, args):
     if len(args) != 0:
         msg_in = args[0]
@@ -38,14 +39,13 @@ def handle(_name, cfg, _cloud, log, args):
         log.warn("unable to open /proc/uptime\n")
         uptime = "na"
 
-
     try:
         ts = time.strftime("%a, %d %b %Y %H:%M:%S %z", time.gmtime())
     except:
         ts = "na"
 
     try:
-        subs = { 'UPTIME' : uptime, 'TIMESTAMP' : ts }
+        subs = {'UPTIME': uptime, 'TIMESTAMP': ts}
         sys.stdout.write("%s\n" % util.render_string(msg_in, subs))
     except Exception as e:
         log.warn("failed to render string to stdout: %s" % e)

@@ -25,8 +25,8 @@ DISABLE_ROOT_OPTS = "no-port-forwarding,no-agent-forwarding," \
 "no-X11-forwarding,command=\"echo \'Please login as the user \\\"$USER\\\" " \
 "rather than the user \\\"root\\\".\';echo;sleep 10\""
 
-
 global_log = None
+
 
 def handle(_name, cfg, cloud, log, _args):
     global global_log
@@ -40,23 +40,23 @@ def handle(_name, cfg, cloud, log, _args):
             except:
                 pass
 
-    if cfg.has_key("ssh_keys"):
+    if "ssh_keys" in cfg:
         # if there are keys in cloud-config, use them
         key2file = {
-            "rsa_private" : ("/etc/ssh/ssh_host_rsa_key", 0600),
-            "rsa_public"  : ("/etc/ssh/ssh_host_rsa_key.pub", 0644),
-            "dsa_private" : ("/etc/ssh/ssh_host_dsa_key", 0600),
-            "dsa_public"  : ("/etc/ssh/ssh_host_dsa_key.pub", 0644),
-            "ecdsa_private" : ("/etc/ssh/ssh_host_ecdsa_key", 0600),
-            "ecdsa_public"  : ("/etc/ssh/ssh_host_ecdsa_key.pub", 0644),
+            "rsa_private": ("/etc/ssh/ssh_host_rsa_key", 0600),
+            "rsa_public": ("/etc/ssh/ssh_host_rsa_key.pub", 0644),
+            "dsa_private": ("/etc/ssh/ssh_host_dsa_key", 0600),
+            "dsa_public": ("/etc/ssh/ssh_host_dsa_key.pub", 0644),
+            "ecdsa_private": ("/etc/ssh/ssh_host_ecdsa_key", 0600),
+            "ecdsa_public": ("/etc/ssh/ssh_host_ecdsa_key.pub", 0644),
         }
 
         for key, val in cfg["ssh_keys"].items():
-            if key2file.has_key(key):
+            if key in key2file:
                 util.write_file(key2file[key][0], val, key2file[key][1])
 
-        priv2pub = { 'rsa_private':'rsa_public', 'dsa_private':'dsa_public',
-            'ecdsa_private': 'ecdsa_public', }
+        priv2pub = {'rsa_private': 'rsa_public', 'dsa_private': 'dsa_public',
+                    'ecdsa_private': 'ecdsa_public', }
 
         cmd = 'o=$(ssh-keygen -yf "%s") && echo "$o" root@localhost > "%s"'
         for priv, pub in priv2pub.iteritems():
@@ -68,7 +68,7 @@ def handle(_name, cfg, cloud, log, _args):
     else:
         # if not, generate them
         for keytype in util.get_cfg_option_list_or_str(cfg, 'ssh_genkeytypes',
-                                                       ['rsa', 'dsa', 'ecdsa']):
+                                                      ['rsa', 'dsa', 'ecdsa']):
             keyfile = '/etc/ssh/ssh_host_%s_key' % keytype
             if not os.path.exists(keyfile):
                 subprocess.call(['ssh-keygen', '-t', keytype, '-N', '',
@@ -83,7 +83,7 @@ def handle(_name, cfg, cloud, log, _args):
             DISABLE_ROOT_OPTS)
         keys = cloud.get_public_ssh_keys()
 
-        if cfg.has_key("ssh_authorized_keys"):
+        if "ssh_authorized_keys" in cfg:
             cfgkeys = cfg["ssh_authorized_keys"]
             keys.extend(cfgkeys)
 
@@ -92,16 +92,16 @@ def handle(_name, cfg, cloud, log, _args):
         util.logexc(log)
         log.warn("applying credentials failed!\n")
 
+
 def apply_credentials(keys, user, disable_root,
                       disable_root_opts=DISABLE_ROOT_OPTS, log=global_log):
     keys = set(keys)
     if user:
         sshutil.setup_user_keys(keys, user, '', log)
- 
+
     if disable_root:
         key_prefix = disable_root_opts.replace('$USER', user)
     else:
         key_prefix = ''
 
     sshutil.setup_user_keys(keys, 'root', key_prefix, log)
-

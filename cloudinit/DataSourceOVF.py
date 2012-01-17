@@ -16,9 +16,10 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import DataSource
+import cloudinit.DataSource as DataSource
 
-from cloudinit import seeddir, log
+from cloudinit import seeddir as base_seeddir
+from cloudinit import log
 import cloudinit.util as util
 import sys
 import os.path
@@ -29,14 +30,15 @@ import re
 import tempfile
 import subprocess
 
+
 class DataSourceOVF(DataSource.DataSource):
     seed = None
-    seeddir = seeddir + '/ovf'
+    seeddir = base_seeddir + '/ovf'
     environment = None
-    cfg = { }
+    cfg = {}
     userdata_raw = None
     metadata = None
-    supported_seed_starts = ( "/" , "file://" )
+    supported_seed_starts = ("/", "file://")
 
     def __str__(self):
         mstr = "DataSourceOVF"
@@ -44,25 +46,25 @@ class DataSourceOVF(DataSource.DataSource):
         return(mstr)
 
     def get_data(self):
-        found = [ ]
-        md = { }
+        found = []
+        md = {}
         ud = ""
 
-        defaults = { 
-            "instance-id" : "iid-dsovf"
+        defaults = {
+            "instance-id": "iid-dsovf"
         }
 
-        (seedfile, contents) = get_ovf_env(seeddir)
+        (seedfile, contents) = get_ovf_env(base_seeddir)
         if seedfile:
             # found a seed dir
-            seed = "%s/%s" % (seeddir, seedfile)
+            seed = "%s/%s" % (base_seeddir, seedfile)
             (md, ud, cfg) = read_ovf_environment(contents)
             self.environment = contents
 
             found.append(seed)
         else:
-            np = { 'iso' : transport_iso9660, 
-                   'vmware-guestd' : transport_vmware_guestd, }
+            np = {'iso': transport_iso9660,
+                  'vmware-guestd': transport_vmware_guestd, }
             for name, transfunc in np.iteritems():
                 (contents, _dev, _fname) = transfunc()
                 if contents:
@@ -94,7 +96,6 @@ class DataSourceOVF(DataSource.DataSource):
 
             md = util.mergedict(md, md_seed)
             found.append(seedfrom)
-                    
 
         md = util.mergedict(md, defaults)
         self.seed = ",".join(found)
@@ -106,27 +107,29 @@ class DataSourceOVF(DataSource.DataSource):
     def get_public_ssh_keys(self):
         if not 'public-keys' in self.metadata:
             return([])
-        return([self.metadata['public-keys'],])
-        
+        return([self.metadata['public-keys'], ])
+
     # the data sources' config_obj is a cloud-config formated
     # object that came to it from ways other than cloud-config
     # because cloud-config content would be handled elsewhere
     def get_config_obj(self):
         return(self.cfg)
 
+
 class DataSourceOVFNet(DataSourceOVF):
-    seeddir = seeddir + '/ovf-net'
-    supported_seed_starts = ( "http://", "https://", "ftp://" )
+    seeddir = base_seeddir + '/ovf-net'
+    supported_seed_starts = ("http://", "https://", "ftp://")
+
 
 # this will return a dict with some content
 #  meta-data, user-data
 def read_ovf_environment(contents):
     props = getProperties(contents)
-    md = { }
-    cfg = { }
+    md = {}
+    cfg = {}
     ud = ""
-    cfg_props = [ 'password', ]
-    md_props = [ 'seedfrom', 'local-hostname', 'public-keys', 'instance-id' ]
+    cfg_props = ['password', ]
+    md_props = ['seedfrom', 'local-hostname', 'public-keys', 'instance-id']
     for prop, val in props.iteritems():
         if prop == 'hostname':
             prop = "local-hostname"
@@ -140,12 +143,12 @@ def read_ovf_environment(contents):
             except:
                 ud = val
     return(md, ud, cfg)
-        
+
 
 # returns tuple of filename (in 'dirname', and the contents of the file)
 # on "not found", returns 'None' for filename and False for contents
 def get_ovf_env(dirname):
-    env_names = ("ovf-env.xml", "ovf_env.xml", "OVF_ENV.XML", "OVF-ENV.XML" )
+    env_names = ("ovf-env.xml", "ovf_env.xml", "OVF_ENV.XML", "OVF-ENV.XML")
     for fname in env_names:
         if os.path.isfile("%s/%s" % (dirname, fname)):
             fp = open("%s/%s" % (dirname, fname))
@@ -154,11 +157,12 @@ def get_ovf_env(dirname):
             return(fname, contents)
     return(None, False)
 
+
 # transport functions take no input and return
 # a 3 tuple of content, path, filename
 def transport_iso9660(require_iso=False):
 
-    # default_regex matches values in 
+    # default_regex matches values in
     # /lib/udev/rules.d/60-cdrom_id.rules
     # KERNEL!="sr[0-9]*|hd[a-z]|xvd*", GOTO="cdrom_end"
     envname = "CLOUD_INIT_CDROM_DEV_REGEX"
@@ -172,7 +176,7 @@ def transport_iso9660(require_iso=False):
     mounts = fp.readlines()
     fp.close()
 
-    mounted = { }
+    mounted = {}
     for mpline in mounts:
         (dev, mp, fstype, _opts, _freq, _passno) = mpline.split()
         mounted[dev] = (dev, fstype, mp, False)
@@ -180,9 +184,9 @@ def transport_iso9660(require_iso=False):
         if fstype != "iso9660" and require_iso:
             continue
 
-        if cdmatch.match(dev[5:]) == None: # take off '/dev/'
+        if cdmatch.match(dev[5:]) == None:  # take off '/dev/'
             continue
-        
+
         (fname, contents) = get_ovf_env(mp)
         if contents is not False:
             return(contents, dev, fname)
@@ -217,7 +221,7 @@ def transport_iso9660(require_iso=False):
             except:
                 pass
 
-        cmd = [ "mount", "-o", "ro", fullp, tmpd ]
+        cmd = ["mount", "-o", "ro", fullp, tmpd]
         if require_iso:
             cmd.extend(('-t', 'iso9660'))
 
@@ -240,6 +244,7 @@ def transport_iso9660(require_iso=False):
         dvnull.close()
 
     return(False, None, None)
+
 
 def transport_vmware_guestd():
     # pylint: disable=C0301
@@ -265,6 +270,7 @@ def findChild(node, filter_func):
             ret.append(child)
     return(ret)
 
+
 def getProperties(environString):
     dom = minidom.parseString(environString)
     if dom.documentElement.localName != "Environment":
@@ -275,7 +281,7 @@ def getProperties(environString):
 
     envNsURI = "http://schemas.dmtf.org/ovf/environment/1"
 
-    # could also check here that elem.namespaceURI == 
+    # could also check here that elem.namespaceURI ==
     #   "http://schemas.dmtf.org/ovf/environment/1"
     propSections = findChild(dom.documentElement,
         lambda n: n.localName == "PropertySection")
@@ -283,7 +289,7 @@ def getProperties(environString):
     if len(propSections) == 0:
         raise Exception("No 'PropertySection's")
 
-    props = { }
+    props = {}
     propElems = findChild(propSections[0], lambda n: n.localName == "Property")
 
     for elem in propElems:
@@ -293,15 +299,18 @@ def getProperties(environString):
 
     return(props)
 
+
 datasources = (
-  ( DataSourceOVF, ( DataSource.DEP_FILESYSTEM, ) ),
-  ( DataSourceOVFNet, 
-    ( DataSource.DEP_FILESYSTEM, DataSource.DEP_NETWORK ) ),
+  (DataSourceOVF, (DataSource.DEP_FILESYSTEM, )),
+  (DataSourceOVFNet,
+    (DataSource.DEP_FILESYSTEM, DataSource.DEP_NETWORK)),
 )
+
 
 # return a list of data sources that match this set of dependencies
 def get_datasource_list(depends):
     return(DataSource.list_from_depends(depends, datasources))
+
 
 if __name__ == "__main__":
     import sys
@@ -309,7 +318,7 @@ if __name__ == "__main__":
     props = getProperties(envStr)
     import pprint
     pprint.pprint(props)
-    
+
     md, ud, cfg = read_ovf_environment(envStr)
     print "=== md ==="
     pprint.pprint(md)

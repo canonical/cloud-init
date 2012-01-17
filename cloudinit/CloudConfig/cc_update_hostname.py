@@ -22,18 +22,20 @@ from cloudinit.CloudConfig import per_always
 
 frequency = per_always
 
+
 def handle(_name, cfg, cloud, log, _args):
     if util.get_cfg_option_bool(cfg, "preserve_hostname", False):
         log.debug("preserve_hostname is set. not updating hostname")
         return
 
-    ( hostname, _fqdn ) = util.get_hostname_fqdn(cfg, cloud)
+    (hostname, _fqdn) = util.get_hostname_fqdn(cfg, cloud)
     try:
-        prev ="%s/%s" % (cloud.get_cpath('data'), "previous-hostname")
+        prev = "%s/%s" % (cloud.get_cpath('data'), "previous-hostname")
         update_hostname(hostname, prev, log)
     except Exception:
         log.warn("failed to set hostname\n")
         raise
+
 
 # read hostname from a 'hostname' file
 # allow for comments and stripping line endings.
@@ -54,7 +56,8 @@ def read_hostname(filename, default=None):
         if e.errno != errno.ENOENT:
             raise
     return default
-    
+
+
 def update_hostname(hostname, prev_file, log):
     etc_file = "/etc/hostname"
 
@@ -75,7 +78,7 @@ def update_hostname(hostname, prev_file, log):
     if not hostname_prev or hostname_prev != hostname:
         update_files.append(prev_file)
 
-    if (not hostname_in_etc or 
+    if (not hostname_in_etc or
         (hostname_in_etc == hostname_prev and hostname_in_etc != hostname)):
         update_files.append(etc_file)
 
@@ -93,4 +96,3 @@ def update_hostname(hostname, prev_file, log):
     if etc_file in update_files:
         log.debug("setting hostname to %s" % hostname)
         subprocess.Popen(['hostname', hostname]).communicate()
-

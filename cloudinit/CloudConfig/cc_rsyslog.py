@@ -24,6 +24,7 @@ import traceback
 DEF_FILENAME = "20-cloud-config.conf"
 DEF_DIR = "/etc/rsyslog.d"
 
+
 def handle(_name, cfg, _cloud, log, _args):
     # rsyslog:
     #  - "*.* @@192.158.1.1"
@@ -39,8 +40,8 @@ def handle(_name, cfg, _cloud, log, _args):
     def_dir = cfg.get('rsyslog_dir', DEF_DIR)
     def_fname = cfg.get('rsyslog_filename', DEF_FILENAME)
 
-    files = [ ]
-    elst = [ ]
+    files = []
+    elst = []
     for ent in cfg['rsyslog']:
         if isinstance(ent, dict):
             if not "content" in ent:
@@ -70,7 +71,7 @@ def handle(_name, cfg, _cloud, log, _args):
     # need to restart syslogd
     restarted = False
     try:
-        # if this config module is running at cloud-init time 
+        # if this config module is running at cloud-init time
         # (before rsyslog is running) we don't actually have to
         # restart syslog.
         #
@@ -84,7 +85,7 @@ def handle(_name, cfg, _cloud, log, _args):
 
     except Exception as e:
         elst.append(("restart", str(e)))
-    
+
     if restarted:
         # this only needs to run if we *actually* restarted
         # syslog above.

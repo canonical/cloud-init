@@ -29,6 +29,7 @@ per_instance = cloudinit.per_instance
 per_always = cloudinit.per_always
 per_once = cloudinit.per_once
 
+
 class CloudConfig():
     cfgfile = None
     cfg = None
@@ -51,12 +52,12 @@ class CloudConfig():
             cloudinit.log.debug(traceback.format_exc() + "\n")
             cfg = None
         if cfg is None:
-            cfg = { }
+            cfg = {}
 
         try:
             ds_cfg = self.cloud.datasource.get_config_obj()
         except:
-            ds_cfg = { }
+            ds_cfg = {}
 
         cfg = util.mergedict(cfg, ds_cfg)
         return(util.mergedict(cfg, self.cloud.cfg))
@@ -71,9 +72,10 @@ class CloudConfig():
                 freq = def_freq
 
             self.cloud.sem_and_run("config-" + name, freq, handler,
-                [ name, self.cfg, self.cloud, cloudinit.log, args ])
+                [name, self.cfg, self.cloud, cloudinit.log, args])
         except:
             raise
+
 
 # reads a cloudconfig module list, returns
 # a 2 dimensional array suitable to pass to run_cc_modules
@@ -93,13 +95,14 @@ def read_cc_modules(cfg, name):
         else:
             raise TypeError("failed to read '%s' item in config")
     return(module_list)
-    
+
+
 def run_cc_modules(cc, module_list, log):
     failures = []
     for cfg_mod in module_list:
         name = cfg_mod[0]
         freq = None
-        run_args = [ ]
+        run_args = []
         if len(cfg_mod) > 1:
             freq = cfg_mod[1]
         if len(cfg_mod) > 2:
@@ -107,7 +110,7 @@ def run_cc_modules(cc, module_list, log):
 
         try:
             log.debug("handling %s with freq=%s and args=%s" %
-                (name, freq, run_args ))
+                (name, freq, run_args))
             cc.handle(name, run_args, freq=freq)
         except:
             log.warn(traceback.format_exc())
@@ -117,7 +120,8 @@ def run_cc_modules(cc, module_list, log):
 
     return(failures)
 
-# always returns well formated values 
+
+# always returns well formated values
 # cfg is expected to have an entry 'output' in it, which is a dictionary
 # that includes entries for 'init', 'config', 'final' or 'all'
 #   init: /var/log/cloud.out
@@ -128,7 +132,7 @@ def run_cc_modules(cc, module_list, log):
 # this returns the specific 'mode' entry, cleanly formatted, with value
 # None if if none is given
 def get_output_cfg(cfg, mode="init"):
-    ret = [ None, None ]
+    ret = [None, None]
     if not 'output' in cfg:
         return ret
 
@@ -144,7 +148,7 @@ def get_output_cfg(cfg, mode="init"):
 
     # if value is a string, it specifies stdout and stderr
     if isinstance(modecfg, str):
-        ret = [ modecfg, modecfg ]
+        ret = [modecfg, modecfg]
 
     # if its a list, then we expect (stdout, stderr)
     if isinstance(modecfg, list):
@@ -166,7 +170,7 @@ def get_output_cfg(cfg, mode="init"):
     if ret[1] == "&1":
         ret[1] = ret[0]
 
-    swlist = [ ">>", ">", "|" ]
+    swlist = [">>", ">", "|"]
     for i in range(len(ret)):
         if not ret[i]:
             continue
@@ -179,12 +183,12 @@ def get_output_cfg(cfg, mode="init"):
                 break
         if not found:
             # default behavior is append
-            val = "%s %s" % ( ">>", val.strip())
+            val = "%s %s" % (">>", val.strip())
         ret[i] = val
 
     return(ret)
 
-    
+
 # redirect_output(outfmt, errfmt, orig_out, orig_err)
 #  replace orig_out and orig_err with filehandles specified in outfmt or errfmt
 #  fmt can be:
@@ -193,7 +197,7 @@ def get_output_cfg(cfg, mode="init"):
 #   | program [ arg1 [ arg2 [ ... ] ] ]
 #
 #   with a '|', arguments are passed to shell, so one level of
-#   shell escape is required.  
+#   shell escape is required.
 def redirect_output(outfmt, errfmt, o_out=sys.stdout, o_err=sys.stderr):
     if outfmt:
         (mode, arg) = outfmt.split(" ", 1)
@@ -231,6 +235,7 @@ def redirect_output(outfmt, errfmt, o_out=sys.stdout, o_err=sys.stderr):
             os.dup2(new_fp.fileno(), o_err.fileno())
     return
 
+
 def run_per_instance(name, func, args, clear_on_fail=False):
     semfile = "%s/%s" % (cloudinit.get_ipath_cur("data"), name)
     if os.path.exists(semfile):
@@ -244,6 +249,7 @@ def run_per_instance(name, func, args, clear_on_fail=False):
             os.unlink(semfile)
         raise
 
+
 # apt_get top level command (install, update...), and args to pass it
 def apt_get(tlc, args=None):
     if args is None:
@@ -255,8 +261,10 @@ def apt_get(tlc, args=None):
     cmd.extend(args)
     subprocess.check_call(cmd, env=e)
 
+
 def update_package_sources():
     run_per_instance("update-sources", apt_get, ("update",))
+
 
 def install_packages(pkglist):
     update_package_sources()

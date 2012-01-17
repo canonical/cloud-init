@@ -30,15 +30,17 @@ import logging
 import errno
 import os
 
+
 def warn(wstr):
     sys.stderr.write("WARN:%s" % wstr)
+
 
 def main():
     util.close_stdin()
 
-    cmds = ( "start", "start-local" )
-    deps = { "start" : ( ds.DEP_FILESYSTEM, ds.DEP_NETWORK ),
-             "start-local" : ( ds.DEP_FILESYSTEM, ) }
+    cmds = ("start", "start-local")
+    deps = {"start": (ds.DEP_FILESYSTEM, ds.DEP_NETWORK),
+            "start-local": (ds.DEP_FILESYSTEM, )}
 
     cmd = ""
     if len(sys.argv) > 1:
@@ -92,7 +94,7 @@ def main():
     if cmd == "start":
         print netinfo.debug_info()
 
-        stop_files = ( cloudinit.get_ipath_cur("obj_pkl"), nonet_path )
+        stop_files = (cloudinit.get_ipath_cur("obj_pkl"), nonet_path)
         # if starting as the network start, there are cases
         # where everything is already done for us, and it makes
         # most sense to exit early and silently
@@ -102,7 +104,7 @@ def main():
                 fp.close()
             except:
                 continue
-            
+
             log.debug("no need for cloud-init start to run (%s)\n", f)
             sys.exit(0)
     elif cmd == "start-local":
@@ -172,10 +174,10 @@ def main():
     cc_path = cloudinit.get_ipath_cur('cloud_config')
     cc_ready = cc.cfg.get("cc_ready_cmd",
         ['initctl', 'emit', 'cloud-config',
-         '%s=%s' % (cloudinit.cfg_env_name, cc_path) ])
+         '%s=%s' % (cloudinit.cfg_env_name, cc_path)])
     if cc_ready:
         if isinstance(cc_ready, str):
-            cc_ready = [ 'sh', '-c', cc_ready]
+            cc_ready = ['sh', '-c', cc_ready]
         subprocess.Popen(cc_ready).communicate()
 
     module_list = CC.read_cc_modules(cc.cfg, "cloud_init_modules")

@@ -20,13 +20,15 @@ import os.path
 import subprocess
 import traceback
 
+
 def apply_locale(locale, cfgfile):
     if os.path.exists('/usr/sbin/locale-gen'):
         subprocess.Popen(['locale-gen', locale]).communicate()
     if os.path.exists('/usr/sbin/update-locale'):
         subprocess.Popen(['update-locale', locale]).communicate()
 
-    util.render_to_file('default-locale', cfgfile, { 'locale' : locale })
+    util.render_to_file('default-locale', cfgfile, {'locale': locale})
+
 
 def handle(_name, cfg, cloud, log, args):
     if len(args) != 0:

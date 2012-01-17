@@ -19,6 +19,7 @@ import cloudinit.util as util
 import subprocess
 import traceback
 
+
 def handle(_name, cfg, _cloud, log, args):
     if len(args) != 0:
         value = args[0]
@@ -31,8 +32,8 @@ def handle(_name, cfg, _cloud, log, args):
     if value == "user" or value == "system":
         value = "enable-%s" % value
 
-    valid = ( "enable-user", "enable-system", "enable",
-              "disable-user", "disable-system", "disable" )
+    valid = ("enable-user", "enable-system", "enable",
+             "disable-user", "disable-system", "disable")
     if not value in valid:
         log.warn("Unknown value %s for byobu_by_default" % value)
 
@@ -59,7 +60,7 @@ def handle(_name, cfg, _cloud, log, args):
         shcmd += " && dpkg-reconfigure byobu --frontend=noninteractive"
         shcmd += " || X=$(($X+1)); "
 
-    cmd = [ "/bin/sh", "-c", "%s %s %s" % ("X=0;", shcmd, "exit $X" ) ]
+    cmd = ["/bin/sh", "-c", "%s %s %s" % ("X=0;", shcmd, "exit $X")]
 
     log.debug("setting byobu to %s" % value)
 
@@ -67,7 +68,7 @@ def handle(_name, cfg, _cloud, log, args):
         subprocess.check_call(cmd)
     except subprocess.CalledProcessError as e:
         log.debug(traceback.format_exc(e))
-        raise Exception("Cmd returned %s: %s" % ( e.returncode, cmd))
+        raise Exception("Cmd returned %s: %s" % (e.returncode, cmd))
     except OSError as e:
         log.debug(traceback.format_exc(e))
-        raise Exception("Cmd failed to execute: %s" % ( cmd ))
+        raise Exception("Cmd failed to execute: %s" % (cmd))

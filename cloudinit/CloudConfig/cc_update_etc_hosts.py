@@ -21,8 +21,9 @@ import StringIO
 
 frequency = per_always
 
+
 def handle(_name, cfg, cloud, log, _args):
-    ( hostname, fqdn ) = util.get_hostname_fqdn(cfg, cloud)
+    (hostname, fqdn) = util.get_hostname_fqdn(cfg, cloud)
 
     manage_hosts = util.get_cfg_option_bool(cfg, "manage_etc_hosts", False)
     if manage_hosts in ("True", "true", True, "template"):
@@ -32,8 +33,8 @@ def handle(_name, cfg, cloud, log, _args):
                 log.info("manage_etc_hosts was set, but no hostname found")
                 return
 
-            util.render_to_file('hosts', '/etc/hosts', \
-                { 'hostname' : hostname, 'fqdn' : fqdn })
+            util.render_to_file('hosts', '/etc/hosts',
+                                {'hostname': hostname, 'fqdn': fqdn})
         except Exception:
             log.warn("failed to update /etc/hosts")
             raise
@@ -81,4 +82,3 @@ def update_etc_hosts(hostname, fqdn, _log):
             new_etcfile.close()
         new_etchosts.close()
     return
-
