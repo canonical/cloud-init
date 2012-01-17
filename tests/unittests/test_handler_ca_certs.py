@@ -1,8 +1,8 @@
 from unittest import TestCase
 from mocker import MockerTestCase
 
-from cloudinit.util import write_file
-from cloudinit.CloudConfig.cc_ca_certs import handle, update_ca_certs, add_ca_certs, remove_default_ca_certs, delete_dir_contents
+from cloudinit.util import write_file, delete_dir_contents
+from cloudinit.CloudConfig.cc_ca_certs import handle, update_ca_certs, add_ca_certs, remove_default_ca_certs
 
 
 class TestNoConfig(MockerTestCase):
