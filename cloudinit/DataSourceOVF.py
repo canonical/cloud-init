@@ -21,7 +21,6 @@ import cloudinit.DataSource as DataSource
 from cloudinit import seeddir as base_seeddir
 from cloudinit import log
 import cloudinit.util as util
-import sys
 import os.path
 import os
 from xml.dom import minidom
