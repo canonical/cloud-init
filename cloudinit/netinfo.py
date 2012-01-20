@@ -22,7 +22,7 @@
 import subprocess
 
 
-def netdev_info():
+def netdev_info(empty=""):
     fields = ("hwaddr", "addr", "bcast", "mask")
     ifcfg_out = str(subprocess.check_output(["ifconfig", "-a"]))
     devs = {}
@@ -59,6 +59,13 @@ def netdev_info():
                         pass
                 elif toks[i].startswith("%s:" % field):
                     devs[curdev][target] = toks[i][len(field) + 1:]
+
+    if empty != "":
+        for (devname, dev) in devs.iteritems():
+            for field in dev:
+                if dev[field] == "":
+                    dev[field] = empty
+
     return(devs)
 
 
@@ -85,7 +92,7 @@ def getgateway():
 def debug_info(pre="ci-info: "):
     lines = []
     try:
-        netdev = netdev_info()
+        netdev = netdev_info(empty=".")
     except Exception:
         lines.append("netdev_info failed!")
         netdev = {}
