@@ -71,6 +71,8 @@ def do_include(content, appendmsg):
             line = line[len("#include"):].lstrip()
         if line.startswith("#"):
             continue
+        if line.strip() == "":
+            continue
 
         # urls cannot not have leading or trailing white space
         msum = hashlib.md5()  # pylint: disable=E1101
