@@ -22,6 +22,7 @@
  - add support for adding and deleting CA Certificates [Mike Milner] (LP: #915232)
  - in ci-info lines, use '.' to indicate empty field for easier machine reading
  - support empty lines in "#include" files (LP: #923043)
+ - support configuration of salt minions (Jeff Bauer) (LP: #927795)
 0.6.2:
  - fix bug where update was not done unless update was explicitly set.
    It would not be run if 'upgrade' or packages were set to be installed
