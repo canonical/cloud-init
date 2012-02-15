@@ -162,7 +162,7 @@ def get_ovf_env(dirname):
 
 # transport functions take no input and return
 # a 3 tuple of content, path, filename
-def transport_iso9660(require_iso=False):
+def transport_iso9660(require_iso=True):
 
     # default_regex matches values in
     # /lib/udev/rules.d/60-cdrom_id.rules
