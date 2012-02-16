@@ -32,6 +32,7 @@ import re
 import socket
 import sys
 import time
+import tempfile
 import traceback
 import urlparse
 
@@ -630,3 +631,82 @@ def close_stdin():
         return
     with open(os.devnull) as fp:
         os.dup2(fp.fileno(), sys.stdin.fileno())
+
+def find_devs_with(criteria):
+    """
+    find devices matching given criteria (via blkid)
+    criteria can be *one* of:
+      TYPE=<filesystem>
+      LABEL=<label>
+      UUID=<uuid>
+    """
+    try:
+        (out,err) = subp(['blkid','-t%s' % criteria,'-odevice'])
+    except subprocess.CalledProcessError as exc:
+        return([])
+    return(out.splitlines())
+
+
+class mountFailedError(Exception):
+    pass
+        
+def mount_callback_umount(device, callback, data=None):
+    """
+    mount the device, call method 'callback' passing the directory
+    in which it was mounted, then unmount.  Return whatever 'callback'
+    returned.  If data != None, also pass data to callback.
+    """
+
+    def _cleanup(mountpoint, tmpd):
+        if umount:
+            try:
+                subp(["umount", '-l', umount])
+            except subprocess.CalledProcessError as exc:
+                raise
+        if tmpd:
+            os.rmdir(tmpd)
+                
+    # go through mounts to see if it was already mounted
+    fp = open("/proc/mounts")
+    mounts = fp.readlines()
+    fp.close()
+
+    tmpd = None
+
+    mounted = {}
+    for mpline in mounts:
+        (dev, mp, fstype, _opts, _freq, _passno) = mpline.split()
+        mp = mp.replace("\\040", " ")
+        mounted[dev] = (dev, fstype, mp, False)
+
+    umount = False
+    if device in mounted:
+        mountpoint = mounted[device][2]
+    else:
+        tmpd = tempfile.mkdtemp()
+        
+        mountcmd = ["mount", "-o", "ro", device, tmpd]
+
+        try:
+            (out, err) = subp(mountcmd)
+            umount = tmpd
+        except subprocess.CalledProcessError as exc:
+            _cleanup(umount, tmpd)
+            print exc.output[1]
+            raise mountFailedError(exc.output[1])
+
+        mountpoint = tmpd
+
+    try:
+        if data == None:
+            ret = callback(mountpoint)
+        else:
+            ret = callback(mountpoint, data)
+
+    except Exception as exc:
+        _cleanup(umount, tmpd)
+        raise exc
+
+    _cleanup(umount, tmpd)
+
+    return(ret)
