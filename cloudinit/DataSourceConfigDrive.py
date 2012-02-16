@@ -17,10 +17,12 @@
 import cloudinit.DataSource as DataSource
 
 from cloudinit import seeddir as base_seeddir
+from cloudinit import log
 import cloudinit.util as util
 import os.path
 import os
 import json
+import subprocess
 
 DEFAULT_IID = "iid-dsconfigdrive"
 
@@ -34,7 +36,7 @@ class DataSourceConfigDrive(DataSource.DataSource):
     dsmode = "local"
 
     def __str__(self):
-        mstr = "DataSourceConfigDrive"
+        mstr = "DataSourceConfigDrive[%s]" % self.dsmode
         mstr = mstr + " [seed=%s]" % self.seed
         return(mstr)
 
@@ -43,13 +45,14 @@ class DataSourceConfigDrive(DataSource.DataSource):
         md = {}
         ud = ""
 
-        defaults = {"instance-id": DEFAULT_IID}
+        defaults = {"instance-id": DEFAULT_IID, "dsmode": "pass"}
 
-        try:
-            (md, ud) = read_config_drive_dir(self.seeddir)
-            found = self.seeddir
-        except nonConfigDriveDir:
-            pass
+        if os.path.isdir(self.seeddir):
+            try:
+                (md, ud) = read_config_drive_dir(self.seeddir)
+                found = self.seeddir
+            except nonConfigDriveDir:
+                pass
 
         if not found:
             dev = cfg_drive_device()
@@ -69,19 +72,36 @@ class DataSourceConfigDrive(DataSource.DataSource):
 
         md = util.mergedict(md, defaults)
 
+        if 'interfaces' in md and md['dsmode'] in (self.dsmode, "pass"):
+            if md['dsmode'] == "pass":
+                log.info("updating network interfaces from configdrive")
+            else:
+                log.debug("updating network interfaces from configdrive")
+
+            util.write_file("/etc/network/interfaces", md['interfaces'])
+            try:
+                (out, err) = util.subp(['ifup', '--all'])
+                if len(out) or len(err):
+                    log.warn("ifup --all had stderr: %s" % err)
+
+            except subprocess.CalledProcessError as exc:
+                log.warn("ifup --all failed: %s" % (exc.output[1]))
+
         self.seed = found
         self.metadata = md
         self.userdata_raw = ud
 
-        if 'dsmode' in md and md['dsmode'] == self.dsmode:
+        if md['dsmode'] == self.dsmode:
             return True
 
+        log.debug("%s: not claiming datasource, dsmode=%s" %
+            (self, md['dsmode']))
         return False
 
     def get_public_ssh_keys(self):
         if not 'public-keys' in self.metadata:
             return([])
-        return([self.metadata['public-keys'], ])
+        return(self.metadata['public-keys'])
 
     # the data sources' config_obj is a cloud-config formated
     # object that came to it from ways other than cloud-config
@@ -96,14 +116,6 @@ class DataSourceConfigDriveNet(DataSourceConfigDrive):
 
 class nonConfigDriveDir(Exception):
     pass
-
-
-def update_network_config(content):
-    """
-    Update [write] /etc/network/interfaces
-    """
-    util.write_file("/etc/network/interfaces", content)
-    util.subp(['ifup', '--all'])
 
 
 def cfg_drive_device():
@@ -125,7 +137,7 @@ def cfg_drive_device():
     devs = util.find_devs_with("TYPE=vfat")
 
     # filter out anything not ending in a letter (ignore partitions)
-    devs = [f for f in devs if f[-1] not in letters]
+    devs = [f for f in devs if f[-1] in letters]
 
     # sort them in reverse so "last" device is first
     devs.sort(reverse=True)
@@ -157,7 +169,10 @@ def read_config_drive_dir(source_dir):
 
     if "root/.ssh/authorized_keys" in found:
         with open("%s/%s" % (source_dir, "root/.ssh/authorized_keys")) as fp:
-            md['public_keys'] = fp.read()
+            content = fp.read()
+            lines = content.splitlines()
+            keys = [l for l in lines if len(l) and not l.startswith("#")]
+            md['public-keys'] = keys
 
     meta_js = {}
 
@@ -172,7 +187,7 @@ def read_config_drive_dir(source_dir):
             raise nonConfigDriveDir("%s: %s" %
                 (source_dir, "invalid json in meta.js"))
 
-    for copy in ('public_keys', 'dsmode', 'instance-id', 'dscfg'):
+    for copy in ('public-keys', 'dsmode', 'instance-id', 'dscfg'):
         if copy in meta_js:
             md[copy] = meta_js[copy]
 
