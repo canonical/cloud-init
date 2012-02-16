@@ -1,8 +1,10 @@
 # vi: ts=4 expandtab
 #
 #    Copyright (C) 2011 Canonical Ltd.
+#    Copyright (C) 2012 Hewlett-Packard Development Company, L.P.
 #
 #    Author: Scott Moser <scott.moser@canonical.com>
+#    Author: Juerg Haefliger <juerg.haefliger@hp.com>
 #
 #    This program is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License version 3, as
@@ -23,7 +25,8 @@ from cloudinit import get_ipath_cur
 frequency = per_instance
 runparts_path = "%s/%s" % (get_ipath_cur(), "scripts")
 
-def handle(_name,_cfg,_cloud,log,_args):
+
+def handle(_name, _cfg, _cloud, log, _args):
     try:
         util.runparts(runparts_path)
     except:

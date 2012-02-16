@@ -1,8 +1,10 @@
 # vi: ts=4 expandtab
 #
 #    Copyright (C) 2009-2010 Canonical Ltd.
+#    Copyright (C) 2012 Hewlett-Packard Development Company, L.P.
 #
 #    Author: Scott Moser <scott.moser@canonical.com>
+#    Author: Juerg Haefliger <juerg.haefliger@hp.com>
 #
 #    This program is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License version 3, as
@@ -15,33 +17,36 @@
 #
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
 import cloudinit.util as util
 import os
 import re
-import string
+from string import whitespace  # pylint: disable=W0402
+
 
 def is_mdname(name):
     # return true if this is a metadata service name
-    if name in [ "ami", "root", "swap" ]:
+    if name in ["ami", "root", "swap"]:
         return True
     # names 'ephemeral0' or 'ephemeral1'
     # 'ebs[0-9]' appears when '--block-device-mapping sdf=snap-d4d90bbc'
-    for enumname in ( "ephemeral", "ebs" ):
+    for enumname in ("ephemeral", "ebs"):
         if name.startswith(enumname) and name.find(":") == -1:
             return True
     return False
 
-def handle(_name,cfg,cloud,log,_args):
+
+def handle(_name, cfg, cloud, log, _args):
     # fs_spec, fs_file, fs_vfstype, fs_mntops, fs-freq, fs_passno
-    defvals = [ None, None, "auto", "defaults,nobootwait", "0", "2" ]
+    defvals = [None, None, "auto", "defaults,nobootwait", "0", "2"]
     defvals = cfg.get("mount_default_fields", defvals)
 
     # these are our default set of mounts
-    defmnts = [ [ "ephemeral0", "/mnt", "auto", defvals[3], "0", "2" ],
-                [ "swap", "none", "swap", "sw", "0", "0" ] ]
+    defmnts = [["ephemeral0", "/mnt", "auto", defvals[3], "0", "2"],
+               ["swap", "none", "swap", "sw", "0", "0"]]
 
-    cfgmnt = [ ]
-    if cfg.has_key("mounts"):
+    cfgmnt = []
+    if "mounts" in cfg:
         cfgmnt = cfg["mounts"]
 
     # shortname matches 'sda', 'sda1', 'xvda', 'hda', 'sdb', xvdb, vda, vdd1
@@ -50,7 +55,8 @@ def handle(_name,cfg,cloud,log,_args):
 
     for i in range(len(cfgmnt)):
         # skip something that wasn't a list
-        if not isinstance(cfgmnt[i],list): continue
+        if not isinstance(cfgmnt[i], list):
+            continue
 
         # workaround, allow user to specify 'ephemeral'
         # rather than more ec2 correct 'ephemeral0'
@@ -75,7 +81,7 @@ def handle(_name,cfg,cloud,log,_args):
         # but do not convert None to 'None' (LP: #898365)
         for j in range(len(cfgmnt[i])):
             if isinstance(cfgmnt[i][j], int):
-                cfgmnt[i][j]=str(cfgmnt[i][j])
+                cfgmnt[i][j] = str(cfgmnt[i][j])
 
     for i in range(len(cfgmnt)):
         # fill in values with defaults from defvals above
@@ -93,12 +99,12 @@ def handle(_name,cfg,cloud,log,_args):
                 if cfgmnt[j][0] == cfgmnt[i][0]:
                     cfgmnt[j][1] = None
 
-
     # for each of the "default" mounts, add them only if no other
     # entry has the same device name
     for defmnt in defmnts:
         devname = cloud.device_name_to_device(defmnt[0])
-        if devname is None: continue
+        if devname is None:
+            continue
         if devname.startswith("/"):
             defmnt[0] = devname
         else:
@@ -109,54 +115,65 @@ def handle(_name,cfg,cloud,log,_args):
             if cfgm[0] == defmnt[0]:
                 cfgmnt_has = True
                 break
-        
-        if cfgmnt_has: continue
-        cfgmnt.append(defmnt)
 
+        if cfgmnt_has:
+            continue
+        cfgmnt.append(defmnt)
 
     # now, each entry in the cfgmnt list has all fstab values
     # if the second field is None (not the string, the value) we skip it
     actlist = [x for x in cfgmnt if x[1] is not None]
 
-    if len(actlist) == 0: return
+    if len(actlist) == 0:
+        return
 
-    comment="comment=cloudconfig"
-    cc_lines = [ ]
+    comment = "comment=cloudconfig"
+    cc_lines = []
     needswap = False
-    dirs = [ ]
+    dirs = []
     for line in actlist:
         # write 'comment' in the fs_mntops, entry,  claiming this
-        line[3]="%s,comment=cloudconfig" % line[3]
-        if line[2] == "swap": needswap = True
-        if line[1].startswith("/"): dirs.append(line[1])
+        line[3] = "%s,comment=cloudconfig" % line[3]
+        if line[2] == "swap":
+            needswap = True
+        if line[1].startswith("/"):
+            dirs.append(line[1])
         cc_lines.append('\t'.join(line))
 
-    fstab_lines = [ ]
-    fstab=open("/etc/fstab","r+")
-    ws = re.compile("[%s]+" % string.whitespace)
+    fstab_lines = []
+    fstab = open("/etc/fstab", "r+")
+    ws = re.compile("[%s]+" % whitespace)
     for line in fstab.read().splitlines():
         try:
             toks = ws.split(line)
-            if toks[3].find(comment) != -1: continue
+            if toks[3].find(comment) != -1:
+                continue
         except:
             pass
         fstab_lines.append(line)
 
     fstab_lines.extend(cc_lines)
-        
+
     fstab.seek(0)
     fstab.write("%s\n" % '\n'.join(fstab_lines))
     fstab.truncate()
     fstab.close()
 
     if needswap:
-        try: util.subp(("swapon", "-a"))
-        except: log.warn("Failed to enable swap")
+        try:
+            util.subp(("swapon", "-a"))
+        except:
+            log.warn("Failed to enable swap")
 
     for d in dirs:
-        if os.path.exists(d): continue
-        try: os.makedirs(d)
-        except: log.warn("Failed to make '%s' config-mount\n",d)
+        if os.path.exists(d):
+            continue
+        try:
+            os.makedirs(d)
+        except:
+            log.warn("Failed to make '%s' config-mount\n", d)
 
-    try: util.subp(("mount","-a"))
-    except: log.warn("'mount -a' failed")
+    try:
+        util.subp(("mount", "-a"))
+    except:
+        log.warn("'mount -a' failed")

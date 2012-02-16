@@ -1,8 +1,10 @@
 # vi: ts=4 expandtab
 #
 #    Copyright (C) 2009-2011 Canonical Ltd.
+#    Copyright (C) 2012 Hewlett-Packard Development Company, L.P.
 #
 #    Author: Scott Moser <scott.moser@canonical.com>
+#    Author: Juerg Haefliger <juerg.haefliger@hp.com>
 #
 #    This program is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License version 3, as
@@ -18,11 +20,13 @@
 import cloudinit.util as util
 import subprocess
 import tempfile
+import os
 from cloudinit.CloudConfig import per_always
 frequency = per_always
 
-def handle(_name,cfg,cloud,log,_args):
-    if not cfg.has_key("bootcmd"):
+
+def handle(_name, cfg, cloud, log, _args):
+    if "bootcmd" not in cfg:
         return
 
     try:
@@ -33,10 +37,10 @@ def handle(_name,cfg,cloud,log,_args):
     except:
         log.warn("failed to shellify bootcmd")
         raise
-    
+
     try:
-        env=os.environ.copy()
-        env['INSTANCE_ID']=cloud.get_instance_id()
+        env = os.environ.copy()
+        env['INSTANCE_ID'] = cloud.get_instance_id()
         subprocess.check_call(['/bin/sh'], env=env, stdin=tmpf)
         tmpf.close()
     except:

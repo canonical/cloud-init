@@ -1,8 +1,10 @@
 # vi: ts=4 expandtab
 #
 #    Copyright (C) 2011 Canonical Ltd.
+#    Copyright (C) 2012 Hewlett-Packard Development Company, L.P.
 #
 #    Author: Scott Moser <scott.moser@canonical.com>
+#    Author: Juerg Haefliger <juerg.haefliger@hp.com>
 #
 #    This program is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License version 3, as
@@ -25,24 +27,26 @@ from cloudinit.CloudConfig import per_always
 
 frequency = per_always
 
-def handle(_name,cfg,_cloud,log,args):
+
+def handle(_name, cfg, _cloud, log, args):
     if len(args) != 0:
         resize_root = False
-        if str(args[0]).lower() in [ 'true', '1', 'on', 'yes']:
+        if str(args[0]).lower() in ['true', '1', 'on', 'yes']:
             resize_root = True
     else:
-        resize_root = util.get_cfg_option_bool(cfg,"resize_rootfs",True)
+        resize_root = util.get_cfg_option_bool(cfg, "resize_rootfs", True)
 
-    if not resize_root: return
+    if not resize_root:
+        return
 
     # this really only uses the filename from mktemp, then we mknod into it
     (fd, devpth) = tempfile.mkstemp()
     os.unlink(devpth)
     os.close(fd)
-    
+
     try:
-        st_dev=os.stat("/").st_dev
-        dev=os.makedev(os.major(st_dev),os.minor(st_dev))
+        st_dev = os.stat("/").st_dev
+        dev = os.makedev(os.major(st_dev), os.minor(st_dev))
         os.mknod(devpth, 0400 | stat.S_IFBLK, dev)
     except:
         if util.islxc():
@@ -51,9 +55,9 @@ def handle(_name,cfg,_cloud,log,args):
         log.warn("Failed to make device node to resize /")
         raise
 
-    cmd = [ 'blkid', '-c', '/dev/null', '-sTYPE', '-ovalue', devpth ]
+    cmd = ['blkid', '-c', '/dev/null', '-sTYPE', '-ovalue', devpth]
     try:
-        (fstype,_err) = util.subp(cmd)
+        (fstype, _err) = util.subp(cmd)
     except subprocess.CalledProcessError as e:
         log.warn("Failed to get filesystem type of maj=%s, min=%s via: %s" %
             (os.major(st_dev), os.minor(st_dev), cmd))
@@ -61,13 +65,13 @@ def handle(_name,cfg,_cloud,log,args):
         os.unlink(devpth)
         raise
 
-    log.debug("resizing root filesystem (type=%s, maj=%i, min=%i)" % 
-        (fstype.rstrip("\n"), os.major(st_dev), os.minor(st_dev)))
+    log.debug("resizing root filesystem (type=%s, maj=%i, min=%i)" %
+        (str(fstype).rstrip("\n"), os.major(st_dev), os.minor(st_dev)))
 
-    if fstype.startswith("ext"):
-        resize_cmd = [ 'resize2fs', devpth ]
+    if str(fstype).startswith("ext"):
+        resize_cmd = ['resize2fs', devpth]
     elif fstype == "xfs":
-        resize_cmd = [ 'xfs_growfs', devpth ]
+        resize_cmd = ['xfs_growfs', devpth]
     else:
         os.unlink(devpth)
         log.debug("not resizing unknown filesystem %s" % fstype)

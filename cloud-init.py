@@ -2,8 +2,10 @@
 # vi: ts=4 expandtab
 #
 #    Copyright (C) 2009-2010 Canonical Ltd.
+#    Copyright (C) 2012 Hewlett-Packard Development Company, L.P.
 #
 #    Author: Scott Moser <scott.moser@canonical.com>
+#    Author: Juerg Haefliger <juerg.haefliger@hp.com>
 #
 #    This program is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License version 3, as
@@ -30,15 +32,17 @@ import logging
 import errno
 import os
 
+
 def warn(wstr):
     sys.stderr.write("WARN:%s" % wstr)
+
 
 def main():
     util.close_stdin()
 
-    cmds = ( "start", "start-local" )
-    deps = { "start" : ( ds.DEP_FILESYSTEM, ds.DEP_NETWORK ),
-             "start-local" : ( ds.DEP_FILESYSTEM, ) }
+    cmds = ("start", "start-local")
+    deps = {"start": (ds.DEP_FILESYSTEM, ds.DEP_NETWORK),
+            "start-local": (ds.DEP_FILESYSTEM, )}
 
     cmd = ""
     if len(sys.argv) > 1:
@@ -54,10 +58,10 @@ def main():
         sys.stderr.write("bad command %s. use one of %s\n" % (cmd, cmds))
         sys.exit(1)
 
-    now = time.strftime("%a, %d %b %Y %H:%M:%S %z",time.gmtime())
+    now = time.strftime("%a, %d %b %Y %H:%M:%S %z", time.gmtime())
     try:
-        uptimef=open("/proc/uptime")
-        uptime=uptimef.read().split(" ")[0]
+        uptimef = open("/proc/uptime")
+        uptime = uptimef.read().split(" ")[0]
         uptimef.close()
     except IOError as e:
         warn("unable to open /proc/uptime\n")
@@ -74,7 +78,7 @@ def main():
             raise
 
     try:
-        (outfmt, errfmt) = CC.get_output_cfg(cfg,"init")
+        (outfmt, errfmt) = CC.get_output_cfg(cfg, "init")
         CC.redirect_output(outfmt, errfmt)
     except Exception as e:
         warn("Failed to get and set output config: %s\n" % e)
@@ -92,24 +96,24 @@ def main():
     if cmd == "start":
         print netinfo.debug_info()
 
-        stop_files = ( cloudinit.get_ipath_cur("obj_pkl"), nonet_path )
+        stop_files = (cloudinit.get_ipath_cur("obj_pkl"), nonet_path)
         # if starting as the network start, there are cases
         # where everything is already done for us, and it makes
         # most sense to exit early and silently
         for f in stop_files:
             try:
-                fp = open(f,"r")
+                fp = open(f, "r")
                 fp.close()
             except:
                 continue
-            
+
             log.debug("no need for cloud-init start to run (%s)\n", f)
             sys.exit(0)
     elif cmd == "start-local":
         # cache is not instance specific, so it has to be purged
         # but we want 'start' to benefit from a cache if
         # a previous start-local populated one
-        manclean = util.get_cfg_option_bool(cfg, 'manual_cache_clean',False)
+        manclean = util.get_cfg_option_bool(cfg, 'manual_cache_clean', False)
         if manclean:
             log.debug("not purging cache, manual_cache_clean = True")
         cloudinit.purge_cache(not manclean)
@@ -117,7 +121,8 @@ def main():
         try:
             os.unlink(nonet_path)
         except OSError as e:
-            if e.errno != errno.ENOENT: raise
+            if e.errno != errno.ENOENT:
+                raise
 
     msg = "cloud-init %s running: %s. up %s seconds" % (cmd, now, uptime)
     sys.stderr.write(msg + "\n")
@@ -146,7 +151,7 @@ def main():
     # parse the user data (ec2-run-userdata.py)
     try:
         ran = cloud.sem_and_run("consume_userdata", cloudinit.per_instance,
-            cloud.consume_userdata,[cloudinit.per_instance],False)
+            cloud.consume_userdata, [cloudinit.per_instance], False)
         if not ran:
             cloud.consume_userdata(cloudinit.per_always)
     except:
@@ -160,9 +165,9 @@ def main():
     try:
         outfmt_orig = outfmt
         errfmt_orig = errfmt
-        (outfmt, errfmt) = CC.get_output_cfg(cc.cfg,"init")
+        (outfmt, errfmt) = CC.get_output_cfg(cc.cfg, "init")
         if outfmt_orig != outfmt or errfmt_orig != errfmt:
-            warn("stdout, stderr changing to (%s,%s)" % (outfmt,errfmt))
+            warn("stdout, stderr changing to (%s,%s)" % (outfmt, errfmt))
             CC.redirect_output(outfmt, errfmt)
     except Exception as e:
         warn("Failed to get and set output config: %s\n" % e)
@@ -171,17 +176,17 @@ def main():
     cc_path = cloudinit.get_ipath_cur('cloud_config')
     cc_ready = cc.cfg.get("cc_ready_cmd",
         ['initctl', 'emit', 'cloud-config',
-         '%s=%s' % (cloudinit.cfg_env_name, cc_path) ])
+         '%s=%s' % (cloudinit.cfg_env_name, cc_path)])
     if cc_ready:
-        if isinstance(cc_ready,str):
-            cc_ready = [ 'sh', '-c', cc_ready]
+        if isinstance(cc_ready, str):
+            cc_ready = ['sh', '-c', cc_ready]
         subprocess.Popen(cc_ready).communicate()
 
-    module_list = CC.read_cc_modules(cc.cfg,"cloud_init_modules")
+    module_list = CC.read_cc_modules(cc.cfg, "cloud_init_modules")
 
     failures = []
     if len(module_list):
-        failures = CC.run_cc_modules(cc,module_list,log)
+        failures = CC.run_cc_modules(cc, module_list, log)
     else:
         msg = "no cloud_init_modules to run"
         sys.stderr.write(msg + "\n")
