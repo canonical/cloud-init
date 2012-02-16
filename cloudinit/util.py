@@ -681,7 +681,7 @@ def mount_callback_umount(device, callback, data=None):
 
     umount = False
     if device in mounted:
-        mountpoint = mounted[device][2]
+        mountpoint = "%s/" % mounted[device][2]
     else:
         tmpd = tempfile.mkdtemp()
         
@@ -695,7 +695,7 @@ def mount_callback_umount(device, callback, data=None):
             print exc.output[1]
             raise mountFailedError(exc.output[1])
 
-        mountpoint = tmpd
+        mountpoint = "%s/" % tmpd
 
     try:
         if data == None:
