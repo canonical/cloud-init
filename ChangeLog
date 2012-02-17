@@ -26,6 +26,7 @@
  - DataSourceOVF: only search for OVF data on ISO9660 filesystems (LP: #898373)
  - DataSourceConfigDrive: support getting data from openstack config drive (LP: #857378)
  - DataSourceNoCloud: support seed from external disk of ISO or vfat (LP: #857378)
+ - DataSourceNoCloud: support inserting /etc/network/interfaces
 0.6.2:
  - fix bug where update was not done unless update was explicitly set.
    It would not be run if 'upgrade' or packages were set to be installed

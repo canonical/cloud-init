@@ -72,13 +72,16 @@ class DataSourceConfigDrive(DataSource.DataSource):
 
         md = util.mergedict(md, defaults)
 
-        if 'interfaces' in md and md['dsmode'] in (self.dsmode, "pass"):
+        # update interfaces and ifup only on the local datasource
+        # this way the DataSourceConfigDriveNet doesn't do it also.
+        if 'network-interfaces' in md and self.dsmode == "local":
             if md['dsmode'] == "pass":
                 log.info("updating network interfaces from configdrive")
             else:
                 log.debug("updating network interfaces from configdrive")
 
-            util.write_file("/etc/network/interfaces", md['interfaces'])
+            util.write_file("/etc/network/interfaces",
+                md['network-interfaces'])
             try:
                 (out, err) = util.subp(['ifup', '--all'])
                 if len(out) or len(err):
@@ -159,20 +162,18 @@ def read_config_drive_dir(source_dir):
 
     flist = ("etc/network/interfaces", "root/.ssh/authorized_keys", "meta.js")
     found = [f for f in flist if os.path.isfile("%s/%s" % (source_dir, f))]
+    keydata = ""
 
     if len(found) == 0:
         raise nonConfigDriveDir("%s: %s" % (source_dir, "no files found"))
 
     if "etc/network/interfaces" in found:
         with open("%s/%s" % (source_dir, "/etc/network/interfaces")) as fp:
-            md['interfaces'] = fp.read()
+            md['network-interfaces'] = fp.read()
 
     if "root/.ssh/authorized_keys" in found:
         with open("%s/%s" % (source_dir, "root/.ssh/authorized_keys")) as fp:
-            content = fp.read()
-            lines = content.splitlines()
-            keys = [l for l in lines if len(l) and not l.startswith("#")]
-            md['public-keys'] = keys
+            keydata = fp.read()
 
     meta_js = {}
 
@@ -187,7 +188,14 @@ def read_config_drive_dir(source_dir):
             raise nonConfigDriveDir("%s: %s" %
                 (source_dir, "invalid json in meta.js"))
 
-    for copy in ('public-keys', 'dsmode', 'instance-id', 'dscfg'):
+    keydata = meta_js.get('public-keys', keydata)
+
+    if keydata:
+        lines = keydata.splitlines()
+        md['public-keys'] = [l for l in lines
+            if len(l) and not l.startswith("#")]
+
+    for copy in ('dsmode', 'instance-id', 'dscfg'):
         if copy in meta_js:
             md[copy] = meta_js[copy]
 
