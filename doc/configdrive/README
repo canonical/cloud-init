@@ -1,0 +1,73 @@
+The 'ConfigDrive' DataSource supports the OpenStack configdrive disk.
+See doc/source/api_ext/ext_config_drive.rst in the nova source code for
+more information on config drive.
+
+The following criteria are required to be identified by
+DataSourceConfigDrive as a config drive:
+ * must be formated with vfat filesystem
+ * must be a un-partitioned block device (/dev/vdb, not /dev/vdb1)
+ * must contain one of the following files:
+    * etc/network/interfaces
+    * root/.ssh/authorized_keys
+    * meta.js
+
+By default, cloud-init does not consider this source to be a full-fledged
+datasource.  Instead, the default behavior is to assume it is really only
+present to provide networking information.  Cloud-init will copy off the
+network information, apply it to the system, and then continue on.  The
+"full" datasource would then be found in the EC2 metadata service.
+
+== Content of config-drive ==
+  * etc/network/interfaces
+    This file is laid down by nova in order to pass static networking
+    information to the guest.  Cloud-init will copy it off of the config-drive
+    and into /etc/network/interfaces as soon as it can, and then attempt to
+    bring up all network interfaces.
+
+  * root/.ssh/authorized_keys
+    This file is laid down by nova, and contains the keys that were
+    provided to it on instance creation (nova-boot --key ....)
+
+    Cloud-init will copy those keys and put them into the configured user
+    ('ubuntu') .ssh/authorized_keys.
+
+  * meta.js
+    meta.js is populated on the config-drive in response to the user passing
+    "meta flags" (nova boot --meta key=value ...).  It is expected to be json
+    formated.
+
+== Configuration ==
+Cloud-init's behavior can be modified by keys found in the meta.js file in
+the following ways:
+ * dsmode:  
+   values: local, net, pass
+   default: pass
+
+   This is what indicates if configdrive is a final data source or not.
+   By default it is 'pass', meaning this datasource should not be read.
+   Set it to 'local' or 'net' to stop cloud-init from continuing on to
+   search for other data sources after network config.
+
+   The difference between 'local' and 'net' is that local will not require
+   networking to be up before user-data actions (or boothooks) are run.
+   
+ * instance-id:
+   default: iid-dsconfigdrive
+   This is utilized as the metadata's instance-id.  It should generally
+   be unique, as it is what is used to determine "is this a new instance".
+
+ * public-keys:
+   default: None
+   if present, these keys will be used as the public keys for the
+   instance.  This value overrides the content in authorized_keys.
+   Note: it is likely preferable to provide keys via user-data
+
+ * user-data:
+   default: None
+   This provides cloud-init user-data.  See other documentation for what
+   all can be present here.
+
+--
+[1] https://github.com/openstack/nova/blob/master/doc/source/api_ext/ext_config_drive.rst for more if
+
+
