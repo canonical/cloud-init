@@ -67,6 +67,51 @@ the following ways:
    This provides cloud-init user-data.  See other documentation for what
    all can be present here.
 
+== Example ==
+Here is an example using the nova client (python-novaclien)
+
+Assuming the following variables set up:
+ * img_id : set to the nova image id (uuid from image-list)
+ * flav_id : set to numeric flavor_id (nova flavor-list)
+ * keyname : set to name of key for this instance (nova keypair-list)
+
+$ cat my-user-data 
+#!/bin/sh
+echo ==== USER_DATA FROM EC2 MD ==== | tee /ud.log
+
+$ ud_value=$(sed 's,EC2 MD,META KEY,')
+
+## Now, 'ud_value' has same content of my-user-data file, but
+## with the string "USER_DATA FROM META KEY"
+
+## launch an instance with dsmode=pass
+## This will really not use the configdrive for anything as the mode
+## for the datasource is 'pass', meaning it will still expect some
+## other data source (DataSourceEc2).
+
+$ nova boot --image=$img_id --config-drive=1 --flavor=$flav_id \
+   --key_name=$keyname \
+   --user_data=my-user-data \
+   "--meta=instance-id=iid-001 \
+   "--meta=user-data=${ud_keyval}" \
+   "--meta=dsmode=pass" cfgdrive-dsmode-pass
+
+$ euca-get-console-output i-0000001 | grep USER_DATA
+echo ==== USER_DATA FROM EC2 MD ==== | tee /ud.log
+
+## Now, launch an instance with dsmode=local
+## This time, the only metadata and userdata available to cloud-init
+## are on the config-drive
+$ nova boot --image=$img_id --config-drive=1 --flavor=$flav_id \
+   --key_name=$keyname \
+   --user_data=my-user-data \
+   "--meta=instance-id=iid-001 \
+   "--meta=user-data=${ud_keyval}" \
+   "--meta=dsmode=local" cfgdrive-dsmode-local
+
+$ euca-get-console-output i-0000002 | grep USER_DATA
+echo ==== USER_DATA FROM META KEY ==== | tee /ud.log
+
 --
 [1] https://github.com/openstack/nova/blob/master/doc/source/api_ext/ext_config_drive.rst for more if
 
