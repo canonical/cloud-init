@@ -72,13 +72,16 @@ class DataSourceConfigDrive(DataSource.DataSource):
 
         md = util.mergedict(md, defaults)
 
-        if 'interfaces' in md and md['dsmode'] in (self.dsmode, "pass"):
+        # update interfaces and ifup only on the local datasource
+        # this way the DataSourceConfigDriveNet doesn't do it also.
+        if 'network-interfaces' in md and self.dsmode == "local":
             if md['dsmode'] == "pass":
                 log.info("updating network interfaces from configdrive")
             else:
                 log.debug("updating network interfaces from configdrive")
 
-            util.write_file("/etc/network/interfaces", md['network-interfaces'])
+            util.write_file("/etc/network/interfaces",
+                md['network-interfaces'])
             try:
                 (out, err) = util.subp(['ifup', '--all'])
                 if len(out) or len(err):
