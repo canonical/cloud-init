@@ -78,7 +78,7 @@ class DataSourceConfigDrive(DataSource.DataSource):
             else:
                 log.debug("updating network interfaces from configdrive")
 
-            util.write_file("/etc/network/interfaces", md['interfaces'])
+            util.write_file("/etc/network/interfaces", md['network-interfaces'])
             try:
                 (out, err) = util.subp(['ifup', '--all'])
                 if len(out) or len(err):
@@ -165,7 +165,7 @@ def read_config_drive_dir(source_dir):
 
     if "etc/network/interfaces" in found:
         with open("%s/%s" % (source_dir, "/etc/network/interfaces")) as fp:
-            md['interfaces'] = fp.read()
+            md['network-interfaces'] = fp.read()
 
     if "root/.ssh/authorized_keys" in found:
         with open("%s/%s" % (source_dir, "root/.ssh/authorized_keys")) as fp:
