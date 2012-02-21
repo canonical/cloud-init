@@ -589,11 +589,10 @@ def partwalker_handle_handler(pdata, _ctype, _filename, payload):
     modfname = modname + ".py"
     util.write_file("%s/%s" % (pdata['handlerdir'], modfname), payload, 0600)
 
-    pdata['handlercount'] = curcount + 1
-
     try:
         mod = __import__(modname)
         handler_register(mod, pdata['handlers'], pdata['data'], frequency)
+        pdata['handlercount'] = curcount + 1
     except:
         util.logexc(log)
         traceback.print_exc(file=sys.stderr)

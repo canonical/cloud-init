@@ -49,7 +49,7 @@ class TestPartwalkerHandleHandler(MockerTestCase):
         self.assertEqual(1, self.data["handlercount"])
 
     def test_import_error(self):
-        """Payload gets written to file and added to C{pdata}."""
+        """Module import errors are logged. No handler added to C{pdata}"""
         # Mock the __import__ builtin
         import_mock = self.mocker.replace("__builtin__.__import__")
         import_mock(self.expected_module_name)
@@ -67,8 +67,10 @@ class TestPartwalkerHandleHandler(MockerTestCase):
         partwalker_handle_handler(self.data, self.ctype, self.filename,
                                   self.payload)
 
+        self.assertEqual(0, self.data["handlercount"])
+
     def test_attribute_error(self):
-        """Payload gets written to file and added to C{pdata}."""
+        """Attribute errors are logged. No handler added to C{pdata}"""
         # Mock the __import__ builtin
         import_mock = self.mocker.replace("__builtin__.__import__")
         import_mock(self.expected_module_name)
@@ -91,6 +93,8 @@ class TestPartwalkerHandleHandler(MockerTestCase):
 
         partwalker_handle_handler(self.data, self.ctype, self.filename,
                                   self.payload)
+
+        self.assertEqual(0, self.data["handlercount"])
 
 
 class TestHandlerHandlePart(MockerTestCase):
@@ -147,9 +151,9 @@ class TestHandlerHandlePart(MockerTestCase):
         getattr(mod_mock, "frequency")
         self.mocker.result("always")
         getattr(mod_mock, "handler_version")
-        self.mocker.result(2)
+        self.mocker.result(1)
         mod_mock.handle_part(self.data, self.ctype, self.filename,
-                             self.payload, self.frequency)
+                             self.payload)
         self.mocker.replay()
 
         handler_handle_part(mod_mock, self.data, self.ctype, self.filename,
