@@ -572,10 +572,14 @@ def handler_handle_part(mod, data, ctype, filename, payload, frequency):
     if not (modfreq == per_always or
             (frequency == per_instance and modfreq == per_instance)):
         return
-    if mod.handler_version == 1:
-        mod.handle_part(data, ctype, filename, payload)
-    else:
-        mod.handle_part(data, ctype, filename, payload, frequency)
+    try:
+        if mod.handler_version == 1:
+            mod.handle_part(data, ctype, filename, payload)
+        else:
+            mod.handle_part(data, ctype, filename, payload, frequency)
+    except:
+        util.logexc(log)
+        traceback.print_exc(file=sys.stderr)
 
 
 def partwalker_handle_handler(pdata, _ctype, _filename, payload):
@@ -594,7 +598,6 @@ def partwalker_handle_handler(pdata, _ctype, _filename, payload):
     except:
         util.logexc(log)
         traceback.print_exc(file=sys.stderr)
-        return
 
 
 def partwalker_callback(pdata, ctype, filename, payload):
