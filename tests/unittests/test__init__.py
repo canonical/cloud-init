@@ -144,3 +144,23 @@ class TestHandlerHandlePart(MockerTestCase):
         self.mocker.replay()
         
         handler_handle_part(mod_mock, self.data, self.ctype, self.filename, self.payload, self.frequency)
+
+    def test_exception_is_caught(self):
+        """Exceptions within C{handle_part} are caught and logged."""
+        # Build a mock part-handler module
+        mod_mock = self.mocker.mock()
+        getattr(mod_mock, "frequency")
+        self.mocker.result("once-per-instance")
+        getattr(mod_mock, "handler_version")
+        self.mocker.result(1)
+        mod_mock.handle_part(self.data, self.ctype, self.filename, self.payload)
+        self.mocker.throw(Exception())
+        # Mock log function
+        logexc_mock = self.mocker.replace(logexc, passthrough=False)
+        logexc_mock(ANY)
+        # Mock the print_exc function
+        print_exc_mock = self.mocker.replace("traceback.print_exc", passthrough=False)
+        print_exc_mock(ARGS, KWARGS)
+        self.mocker.replay()
+        
+        handler_handle_part(mod_mock, self.data, self.ctype, self.filename, self.payload, self.frequency)
