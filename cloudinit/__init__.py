@@ -60,7 +60,6 @@ import cPickle
 import sys
 import os.path
 import errno
-import pwd
 import subprocess
 import yaml
 import logging
