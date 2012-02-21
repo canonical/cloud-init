@@ -86,6 +86,61 @@ class TestPartwalkerHandleHandler(MockerTestCase):
         partwalker_handle_handler(self.data, self.ctype, self.filename, self.payload)
 
 
-class TestHandlerHandlePart(TestCase):
-    def test_dummy(self):
-        self.assertTrue(False)
+class TestHandlerHandlePart(MockerTestCase):
+    def setUp(self):
+        self.data = "fake data"
+        self.ctype = "fake ctype"
+        self.filename = "fake filename"
+        self.payload = "fake payload"
+        self.frequency = "once-per-instance"
+
+    def test_normal_version_1(self):
+        """C{handle_part} is called without frequency for C{handler_version} == 1"""
+        # Build a mock part-handler module
+        mod_mock = self.mocker.mock()
+        getattr(mod_mock, "frequency")
+        self.mocker.result("once-per-instance")
+        getattr(mod_mock, "handler_version")
+        self.mocker.result(1)
+        mod_mock.handle_part(self.data, self.ctype, self.filename, self.payload)
+        self.mocker.replay()
+        
+        handler_handle_part(mod_mock, self.data, self.ctype, self.filename, self.payload, self.frequency)
+
+    def test_normal_version_2(self):
+        """C{handle_part} is called with frequency for C{handler_version} == 2"""
+        # Build a mock part-handler module
+        mod_mock = self.mocker.mock()
+        getattr(mod_mock, "frequency")
+        self.mocker.result("once-per-instance")
+        getattr(mod_mock, "handler_version")
+        self.mocker.result(2)
+        mod_mock.handle_part(self.data, self.ctype, self.filename, self.payload, self.frequency)
+        self.mocker.replay()
+        
+        handler_handle_part(mod_mock, self.data, self.ctype, self.filename, self.payload, self.frequency)
+
+    def test_modfreq_per_always(self):
+        """C{handle_part} is called regardless of frequency if nofreq is always."""
+        self.frequency = "once"
+        # Build a mock part-handler module
+        mod_mock = self.mocker.mock()
+        getattr(mod_mock, "frequency")
+        self.mocker.result("always")
+        getattr(mod_mock, "handler_version")
+        self.mocker.result(2)
+        mod_mock.handle_part(self.data, self.ctype, self.filename, self.payload, self.frequency)
+        self.mocker.replay()
+        
+        handler_handle_part(mod_mock, self.data, self.ctype, self.filename, self.payload, self.frequency)
+
+    def test_no_handle_when_modfreq_once(self):
+        """C{handle_part} is not called if frequency is once"""
+        self.frequency = "once"
+        # Build a mock part-handler module
+        mod_mock = self.mocker.mock()
+        getattr(mod_mock, "frequency")
+        self.mocker.result("once-per-instance")
+        self.mocker.replay()
+        
+        handler_handle_part(mod_mock, self.data, self.ctype, self.filename, self.payload, self.frequency)
