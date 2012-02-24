@@ -54,6 +54,9 @@ def remove_default_ca_certs():
     delete_dir_contents(CA_CERT_PATH)
     delete_dir_contents(CA_CERT_SYSTEM_PATH)
     write_file(CA_CERT_CONFIG, "", mode=0644)
+    check_call([
+        "echo 'ca-certificates ca-certificates/trust_new_crts  select no' | "
+        "debconf-set-selections"], shell=True)
 
 
 def handle(_name, cfg, _cloud, log, _args):
