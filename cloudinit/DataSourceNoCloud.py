@@ -44,7 +44,7 @@ class DataSourceNoCloud(DataSource.DataSource):
 
     def get_data(self):
         defaults = {
-            "instance-id": "nocloud", "dsmode": "net"
+            "instance-id": "nocloud", "dsmode": self.dsmode
         }
 
         found = []
@@ -80,6 +80,14 @@ class DataSourceNoCloud(DataSource.DataSource):
                     util.read_seeded)
                 md = util.mergedict(newmd, md)
                 ud = newud
+
+                # for seed from a device, the default mode is 'net'.
+                # that is more likely to be what is desired.
+                # If they want dsmode of local, then they must
+                # specify that.
+                if 'dsmode' not in md:
+                    md['dsmode'] = "net"
+
                 log.debug("using data from %s" % dev)
                 found.append(dev)
                 break
