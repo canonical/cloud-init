@@ -60,7 +60,6 @@ import cPickle
 import sys
 import os.path
 import errno
-import pwd
 import subprocess
 import yaml
 import logging
@@ -572,10 +571,14 @@ def handler_handle_part(mod, data, ctype, filename, payload, frequency):
     if not (modfreq == per_always or
             (frequency == per_instance and modfreq == per_instance)):
         return
-    if mod.handler_version == 1:
-        mod.handle_part(data, ctype, filename, payload)
-    else:
-        mod.handle_part(data, ctype, filename, payload, frequency)
+    try:
+        if mod.handler_version == 1:
+            mod.handle_part(data, ctype, filename, payload)
+        else:
+            mod.handle_part(data, ctype, filename, payload, frequency)
+    except:
+        util.logexc(log)
+        traceback.print_exc(file=sys.stderr)
 
 
 def partwalker_handle_handler(pdata, _ctype, _filename, payload):
@@ -586,15 +589,13 @@ def partwalker_handle_handler(pdata, _ctype, _filename, payload):
     modfname = modname + ".py"
     util.write_file("%s/%s" % (pdata['handlerdir'], modfname), payload, 0600)
 
-    pdata['handlercount'] = curcount + 1
-
     try:
         mod = __import__(modname)
         handler_register(mod, pdata['handlers'], pdata['data'], frequency)
+        pdata['handlercount'] = curcount + 1
     except:
         util.logexc(log)
         traceback.print_exc(file=sys.stderr)
-        return
 
 
 def partwalker_callback(pdata, ctype, filename, payload):
