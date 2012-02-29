@@ -517,7 +517,8 @@ def dos2unix(string):
 
 
 def is_container():
-    # is this running in a cgroup other than /
+    # is this code running in a container of some sort
+
     for helper in ('running-in-container', 'lxc-is-container'):
         try:
             # try to run a helper program. if it returns true
