@@ -23,6 +23,8 @@ import cloudinit.DataSource as DataSource
 from cloudinit import seeddir as base_seeddir
 from cloudinit import log
 import cloudinit.util as util
+import errno
+import subprocess
 
 
 class DataSourceNoCloud(DataSource.DataSource):
@@ -30,6 +32,7 @@ class DataSourceNoCloud(DataSource.DataSource):
     userdata = None
     userdata_raw = None
     supported_seed_starts = ("/", "file://")
+    dsmode = "local"
     seed = None
     cmdline_id = "ds=nocloud"
     seeddir = base_seeddir + '/nocloud'
@@ -41,7 +44,7 @@ class DataSourceNoCloud(DataSource.DataSource):
 
     def get_data(self):
         defaults = {
-            "instance-id": "nocloud"
+            "instance-id": "nocloud", "dsmode": self.dsmode
         }
 
         found = []
@@ -64,13 +67,47 @@ class DataSourceNoCloud(DataSource.DataSource):
             found.append(self.seeddir)
             log.debug("using seeded cache data in %s" % self.seeddir)
 
+        fslist = util.find_devs_with("TYPE=vfat")
+        fslist.extend(util.find_devs_with("TYPE=iso9660"))
+
+        label_list = util.find_devs_with("LABEL=cidata")
+        devlist = list(set(fslist) & set(label_list))
+        devlist.sort(reverse=True)
+
+        for dev in devlist:
+            try:
+                (newmd, newud) = util.mount_callback_umount(dev,
+                    util.read_seeded)
+                md = util.mergedict(newmd, md)
+                ud = newud
+
+                # for seed from a device, the default mode is 'net'.
+                # that is more likely to be what is desired.
+                # If they want dsmode of local, then they must
+                # specify that.
+                if 'dsmode' not in md:
+                    md['dsmode'] = "net"
+
+                log.debug("using data from %s" % dev)
+                found.append(dev)
+                break
+            except OSError, e:
+                if e.errno != errno.ENOENT:
+                    raise
+            except util.mountFailedError:
+                log.warn("Failed to mount %s when looking for seed" % dev)
+
         # there was no indication on kernel cmdline or data
         # in the seeddir suggesting this handler should be used.
         if len(found) == 0:
             return False
 
+        seeded_interfaces = None
+
         # the special argument "seedfrom" indicates we should
         # attempt to seed the userdata / metadata from its value
+        # its primarily value is in allowing the user to type less
+        # on the command line, ie: ds=nocloud;s=http://bit.ly/abcdefg
         if "seedfrom" in md:
             seedfrom = md["seedfrom"]
             seedfound = False
@@ -83,6 +120,9 @@ class DataSourceNoCloud(DataSource.DataSource):
                     (seedfrom, self.__class__))
                 return False
 
+            if 'network-interfaces' in md:
+                seeded_interfaces = self.dsmode
+
             # this could throw errors, but the user told us to do it
             # so if errors are raised, let them raise
             (md_seed, ud) = util.read_seeded(seedfrom, timeout=None)
@@ -93,10 +133,35 @@ class DataSourceNoCloud(DataSource.DataSource):
             found.append(seedfrom)
 
         md = util.mergedict(md, defaults)
+
+        # update the network-interfaces if metadata had 'network-interfaces'
+        # entry and this is the local datasource, or 'seedfrom' was used
+        # and the source of the seed was self.dsmode
+        # ('local' for NoCloud, 'net' for NoCloudNet')
+        if ('network-interfaces' in md and
+            (self.dsmode in ("local", seeded_interfaces))):
+            log.info("updating network interfaces from nocloud")
+
+            util.write_file("/etc/network/interfaces",
+                md['network-interfaces'])
+            try:
+                (out, err) = util.subp(['ifup', '--all'])
+                if len(out) or len(err):
+                    log.warn("ifup --all had stderr: %s" % err)
+
+            except subprocess.CalledProcessError as exc:
+                log.warn("ifup --all failed: %s" % (exc.output[1]))
+
         self.seed = ",".join(found)
         self.metadata = md
         self.userdata_raw = ud
-        return True
+
+        if md['dsmode'] == self.dsmode:
+            return True
+
+        log.debug("%s: not claiming datasource, dsmode=%s" %
+            (self, md['dsmode']))
+        return False
 
 
 # returns true or false indicating if cmdline indicated
@@ -145,6 +210,7 @@ class DataSourceNoCloudNet(DataSourceNoCloud):
     cmdline_id = "ds=nocloud-net"
     supported_seed_starts = ("http://", "https://", "ftp://")
     seeddir = base_seeddir + '/nocloud-net'
+    dsmode = "net"
 
 
 datasources = (

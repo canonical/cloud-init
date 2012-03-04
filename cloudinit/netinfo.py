@@ -61,7 +61,7 @@ def netdev_info(empty=""):
                     devs[curdev][target] = toks[i][len(field) + 1:]
 
     if empty != "":
-        for (devname, dev) in devs.iteritems():
+        for (_devname, dev) in devs.iteritems():
             for field in dev:
                 if dev[field] == "":
                     dev[field] = empty
