@@ -28,7 +28,7 @@ frequency = per_always
 def handle(_name, cfg, cloud, log, _args):
     (hostname, fqdn) = util.get_hostname_fqdn(cfg, cloud)
 
-    manage_hosts = util.get_cfg_option_bool(cfg, "manage_etc_hosts", False)
+    manage_hosts = util.get_cfg_option_str(cfg, "manage_etc_hosts", False)
     if manage_hosts in ("True", "true", True, "template"):
         # render from template file
         try:
