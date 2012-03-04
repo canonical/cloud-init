@@ -37,10 +37,10 @@ class DataSourceCS(DataSource.DataSource):
 
     def __init__(self, sys_cfg=None):
         DataSource.DataSource.__init__(self, sys_cfg)
-        # Cloudstack has its metadata/userdata URLs located on http://<default-gateway-ip>/latest/
-        self.metadata_address = "http://" + self._get_default_gateway() + "/"
+        # Cloudstack has its metadata/userdata URLs located at http://<default-gateway-ip>/latest/
+        self.metadata_address = "http://%s/" % self.get_default_gateway()
         
-    def _get_default_gateway(self):
+    def get_default_gateway(self):
         f = None
         try:
             f = open("/proc/net/route", "r")
