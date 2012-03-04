@@ -24,7 +24,7 @@ import cloudinit.DataSource as DataSource
 from cloudinit import seeddir as base_seeddir
 from cloudinit import log
 import cloudinit.util as util
-import socket
+from socket import inet_ntoa
 import urllib2
 import time
 import boto.utils as boto_utils
@@ -50,7 +50,7 @@ class DataSourceCS(DataSource.DataSource):
                     # found the default route, get the gateway
                     gw = int(items[2], 16)
                     log.debug("found default route, gateway %s" % items[2])
-                    return socket.inet_ntoa(pack("<L", gw))
+                    return inet_ntoa(pack("<L", gw))
             f.close()
         except:
             if f is not None:
