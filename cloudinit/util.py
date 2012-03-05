@@ -209,16 +209,18 @@ def runparts(dirp, skip_no_exist=True):
     if skip_no_exist and not os.path.isdir(dirp):
         return
 
-    # per bug 857926, Fedora's run-parts will exit failure on empty dir
-    if os.path.isdir(dirp) and os.listdir(dirp) == []:
-        return
-
-    cmd = ['run-parts', '--regex', '.*', dirp]
-    sp = subprocess.Popen(cmd)
-    sp.communicate()
-    if sp.returncode is not 0:
-        raise subprocess.CalledProcessError(sp.returncode, cmd)
-    return
+    failed = 0
+    for exe_name in sorted(os.listdir(dirp)):
+        exe_path = os.path.join(dirp, exe_name)
+        if os.path.isfile(exe_path) and os.access(exe_path, os.X_OK):
+            popen = subprocess.Popen([exe_path])
+            popen.communicate()
+            if popen.returncode is not 0:
+                failed += 1
+                sys.stderr.write("failed: %s [%i]\n" %
+                    (exe_path, popen.returncode))
+    if failed:
+        raise RuntimeError('runparts: %i failures' % failed)
 
 
 def subp(args, input_=None):
