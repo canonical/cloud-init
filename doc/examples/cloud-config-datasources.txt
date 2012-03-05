@@ -13,3 +13,18 @@ datasource:
     metadata_urls:
      - http://169.254.169.254:80
      - http://instance-data:8773
+
+  MaaS:
+    timeout : 50
+    max_wait : 120
+
+    # there are no default values for metadata_url or credentials
+    # credentials are for oath.
+
+    # If no credentials are present,
+    # then non-authed attempts will be made.
+    # will be made
+    metadata_url: http://mass-host.localdomain/source
+    consumer_key: Xh234sdkljf
+    token_key: kjfhgb3n
+    token_secret: 24uysdfx1w4
