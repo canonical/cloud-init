@@ -761,6 +761,8 @@ def wait_for_url(urls, max_wait=None, timeout=None,
                be tried once and given the timeout provided.
     timeout:   the timeout provided to urllib2.urlopen
     status_cb: call method with string message when a url is not available
+    headers_cb: call method with single argument of url to get headers
+                for request.
 
     the idea of this routine is to wait for the EC2 metdata service to
     come up.  On both Eucalyptus and EC2 we have seen the case where
