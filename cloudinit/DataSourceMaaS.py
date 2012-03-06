@@ -196,9 +196,6 @@ def check_seed_contents(content, seed):
     if len(content) == 0:
         raise MaasSeedDirNone("%s: no data files found" % seed)
 
-    if 'user-data' not in content:
-        raise MaasSeedDirMalformed("%s: missing user-data" % seed)
-
     missing = [k for k in md_required if k not in found]
     if len(missing):
         raise MaasSeedDirMalformed("%s: missing files %s" % (seed, missing))
