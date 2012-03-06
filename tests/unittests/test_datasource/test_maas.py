@@ -26,33 +26,33 @@ class TestMaasDataSource(TestCase):
         """Verify a valid seeddir is read as such"""
 
         data = {'instance-id': 'i-valid01', 'hostname': 'valid01-hostname',
-            'userdata': 'valid01-userdata'}
+            'user-data': 'valid01-userdata'}
 
         my_d = os.path.join(self.tmp, "valid")
         populate_dir(my_d, data)
 
         (userdata, metadata) = read_maas_seed_dir(my_d)
 
-        self.assertEqual(userdata, data['userdata'])
+        self.assertEqual(userdata, data['user-data'])
         for key in ('instance-id', 'hostname'):
             self.assertEqual(data[key], metadata[key])
 
         # verify that 'userdata' is not returned as part of the metadata
-        self.assertFalse(('userdata' in metadata))
+        self.assertFalse(('user-data' in metadata))
         
     def test_seed_dir_valid_extra(self):
         """Verify extra files do not affect seed_dir validity """
 
         data = {'instance-id': 'i-valid-extra',
             'hostname': 'valid-extra-hostname',
-            'userdata': 'valid-extra-userdata', 'foo': 'bar'}
+            'user-data': 'valid-extra-userdata', 'foo': 'bar'}
 
         my_d = os.path.join(self.tmp, "valid_extra")
         populate_dir(my_d, data)
 
         (userdata, metadata) = read_maas_seed_dir(my_d)
 
-        self.assertEqual(userdata, data['userdata'])
+        self.assertEqual(userdata, data['user-data'])
         for key in ('instance-id', 'hostname'):
             self.assertEqual(data[key], metadata[key])
 
@@ -63,14 +63,14 @@ class TestMaasDataSource(TestCase):
         """Verify that invalid seed_dir raises MaasSeedDirMalformed"""
 
         valid = {'instance-id': 'i-instanceid',
-            'hostname': 'test-hostname', 'userdata': ''}
+            'hostname': 'test-hostname', 'user-data': ''}
 
         my_based = os.path.join(self.tmp, "valid_extra")
 
         # missing 'userdata' file
         my_d = "%s-01" % my_based
         invalid_data = copy(valid)
-        del invalid_data['userdata']
+        del invalid_data['user-data']
         populate_dir(my_d, invalid_data)
         self.assertRaises(MaasSeedDirMalformed, read_maas_seed_dir, my_d)
 

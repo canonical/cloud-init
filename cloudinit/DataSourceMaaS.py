@@ -137,7 +137,7 @@ def read_maas_seed_dir(seed_d):
       * hostname
       * user-data
     """
-    files = ('hostname', 'instance-id', 'userdata')
+    files = ('hostname', 'instance-id', 'user-data')
     md = {}
 
     if not os.path.isdir(seed_d):
@@ -166,7 +166,7 @@ def read_maas_seed_url(seed_url, header_cb=None, timeout=None):
       * <seed_url>/hostname
       * <seed_url>/user-data
     """
-    files = ('hostname', 'instance-id', 'userdata')
+    files = ('hostname', 'instance-id', 'user-data')
 
     md = {}
     for fname in files:
@@ -190,23 +190,23 @@ def check_seed_contents(content, seed):
        Either return a (userdata, metadata) tuple or
        Raise MaasSeedDirMalformed or MaasSeedDirNone
     """
-    md_required = ('userdata', 'instance-id', 'hostname')
+    md_required = ('user-data', 'instance-id', 'hostname')
     found = content.keys()
 
     if len(content) == 0:
         raise MaasSeedDirNone("%s: no data files found" % seed)
 
-    if 'userdata' not in content:
-        raise MaasSeedDirMalformed("%s: missing userdata" % seed)
+    if 'user-data' not in content:
+        raise MaasSeedDirMalformed("%s: missing user-data" % seed)
 
     missing = [k for k in md_required if k not in found]
     if len(missing):
         raise MaasSeedDirMalformed("%s: missing files %s" % (seed, missing))
 
-    userdata = content['userdata']
+    userdata = content['user-data']
     md = { }
     for (key, val) in content.iteritems():
-        if key == 'userdata':
+        if key == 'user-data':
             continue
         md[key] = val
             
