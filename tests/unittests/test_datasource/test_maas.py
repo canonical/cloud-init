@@ -36,6 +36,9 @@ class TestMaasDataSource(TestCase):
         self.assertEqual(userdata, data['userdata'])
         for key in ('instance-id', 'hostname'):
             self.assertEqual(data[key], metadata[key])
+
+        # verify that 'userdata' is not returned as part of the metadata
+        self.assertFalse(('userdata' in metadata))
         
     def test_seed_dir_valid_extra(self):
         """Verify extra files do not affect seed_dir validity """
