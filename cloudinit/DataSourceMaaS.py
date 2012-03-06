@@ -137,9 +137,7 @@ def read_maas_seed_dir(seed_d):
       * hostname
       * user-data
     """
-    md_required = set(('hostname', 'instance-id'))
-    files = md_required.union(set(('userdata',)))
-    userdata = None
+    files = ('hostname', 'instance-id', 'userdata')
     md = {}
 
     if not os.path.isdir(seed_d):
@@ -148,30 +146,16 @@ def read_maas_seed_dir(seed_d):
     for fname in files:
         try:
             with open(os.path.join(seed_d, fname)) as fp:
-                if fname == 'userdata':
-                    userdata = fp.read()
-                else:
-                    md[fname] = fp.read()
+                md[fname] = fp.read()
                 fp.close()
         except IOError as e:
             if e.errno != errno.ENOENT:
                 raise
 
-    if userdata == None and len(md) == 0:
-        raise MaasSeedDirNone("%s: no data files found" % seed_d)
-
-    if userdata == None:
-        raise MaasSeedDirMalformed("%s: missing userdata" % seed_d)
-
-    missing = md_required - set(md.keys())
-    if len(missing):
-        raise MaasSeedDirMalformed("%s: missing files %s" %
-            (seed_d, str(missing)))
-
-    return(userdata, md)
+    return(check_seed_contents(md, seed_d))
 
 
-def read_maas_seed_url(seed_url, header_cb=None):
+def read_maas_seed_url(seed_url, header_cb=None, timeout=None):
     """
     Read the maas datasource at seed_url.
     header_cb is a method that should return a headers dictionary that will
@@ -182,10 +166,51 @@ def read_maas_seed_url(seed_url, header_cb=None):
       * <seed_url>/hostname
       * <seed_url>/user-data
     """
-    userdata = ""
-    metadata = {'instance-id': 'i-maas-url', 'hostname': 'maas-url-hostname'}
+    files = ('hostname', 'instance-id', 'userdata')
 
-    return(userdata, metadata)
+    md = {}
+    for fname in files:
+        url = "%s/%s" % (seed_url, fname)
+        if header_cb:
+            headers = header_cb(url)
+        else:
+            headers = {}
+
+        req = urllib2.Request(url, data=None, headers=headers)
+        resp = urllib2.urlopen(req, timeout=timeout)
+
+        md[fname] = resp.read()
+
+    return(check_seed_contents(md, seed_url))
+
+
+def check_seed_contents(content, seed):
+    """Validate if content is Is the content a dict that is valid as a 
+       return for a datasource.
+       Either return a (userdata, metadata) tuple or
+       Raise MaasSeedDirMalformed or MaasSeedDirNone
+    """
+    md_required = ('userdata', 'instance-id', 'hostname')
+    found = content.keys()
+
+    if len(content) == 0:
+        raise MaasSeedDirNone("%s: no data files found" % seed)
+
+    if 'userdata' not in content:
+        raise MaasSeedDirMalformed("%s: missing userdata" % seed)
+
+    missing = [k for k in md_required if k not in found]
+    if len(missing):
+        raise MaasSeedDirMalformed("%s: missing files %s" % (seed, missing))
+
+    userdata = content['userdata']
+    md = { }
+    for (key, val) in content.iteritems():
+        if key == 'userdata':
+            continue
+        md[key] = val
+            
+    return(userdata, md)
 
 
 def oauth_headers(url, consumer_key, token_key, token_secret, consumer_secret):
@@ -220,3 +245,22 @@ datasources = [
 # return a list of data sources that match this set of dependencies
 def get_datasource_list(depends):
     return(DataSource.list_from_depends(depends, datasources))
+
+
+if __name__ == "__main__":
+    def main():
+        import sys
+        import pprint
+        seed = sys.argv[1]
+        if seed.startswith("http://") or seed.startswith("https://"):
+            (userdata, metadata) = read_maas_seed_url(seed)
+        else:
+            (userdata, metadata) = read_maas_seed_dir(seed)
+
+        print "=== userdata ==="
+        print userdata
+        print "=== metadata ==="
+        pprint.pprint(metadata)
+
+    main()
+
