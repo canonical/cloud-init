@@ -258,14 +258,13 @@ if __name__ == "__main__":
                 headers = oauth_headers(url, c_key, t_key, t_sec, c_sec)
                 print "%s\n  %s\n" % (url, headers)
                 return headers
-            cb = None
             (c_key, t_key, t_sec, c_sec) = (sys.argv + ["", "", "", ""])[2:6]
             if c_key:
                 print "oauth headers (%s)" % str((c_key, t_key, t_sec, c_sec,))
                 (userdata, metadata) = read_maas_seed_url(seed, my_headers)
             else:
                 (userdata, metadata) = read_maas_seed_url(seed)
-            
+
         else:
             (userdata, metadata) = read_maas_seed_dir(seed)
 
