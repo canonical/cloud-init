@@ -24,7 +24,6 @@ from cloudinit import seeddir as base_seeddir
 from cloudinit import log
 import cloudinit.util as util
 import socket
-import urllib2
 import time
 import boto.utils as boto_utils
 import os.path

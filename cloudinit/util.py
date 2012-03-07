@@ -752,6 +752,7 @@ def mount_callback_umount(device, callback, data=None):
 
     return(ret)
 
+
 def wait_for_url(urls, max_wait=None, timeout=None,
                  status_cb=None, headers_cb=None):
     """
@@ -826,10 +827,9 @@ def wait_for_url(urls, max_wait=None, timeout=None,
             except Exception as e:
                 reason = "unexpected error [%s]" % e
 
-            if log:
-                status_cb("'%s' failed [%s/%ss]: %s" %
-                          (url, int(time.time() - starttime), max_wait,
-                           reason))
+            status_cb("'%s' failed [%s/%ss]: %s" %
+                      (url, int(time.time() - starttime), max_wait,
+                       reason))
 
         if timeup(max_wait, starttime):
             break
@@ -838,5 +838,3 @@ def wait_for_url(urls, max_wait=None, timeout=None,
         time.sleep(sleeptime)
 
     return False
-
-
