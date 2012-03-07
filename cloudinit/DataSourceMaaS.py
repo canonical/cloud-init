@@ -245,11 +245,27 @@ def get_datasource_list(depends):
 
 if __name__ == "__main__":
     def main():
+        """
+        Call with single argument of directory or http or https url.
+        If url is given additional arguments are allowed, which will be
+        interpreted as consumer_key, token_key, token_secret, consumer_secret
+        """
         import sys
         import pprint
         seed = sys.argv[1]
         if seed.startswith("http://") or seed.startswith("https://"):
-            (userdata, metadata) = read_maas_seed_url(seed)
+            def my_headers(url):
+                headers = oauth_headers(url, c_key, t_key, t_sec, c_sec)
+                print "%s\n  %s\n" % (url, headers)
+                return headers
+            cb = None
+            (c_key, t_key, t_sec, c_sec) = (sys.argv + ["", "", "", ""])[2:6]
+            if c_key:
+                print "oauth headers (%s)" % str((c_key, t_key, t_sec, c_sec,))
+                (userdata, metadata) = read_maas_seed_url(seed, my_headers)
+            else:
+                (userdata, metadata) = read_maas_seed_url(seed)
+            
         else:
             (userdata, metadata) = read_maas_seed_dir(seed)
 
