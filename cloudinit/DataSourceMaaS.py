@@ -26,7 +26,6 @@ import cloudinit.util as util
 import errno
 import oauth.oauth as oauth
 import os.path
-import socket
 import urllib2
 import time
 
@@ -185,7 +184,7 @@ def read_maas_seed_url(seed_url, header_cb=None, timeout=None):
 
 
 def check_seed_contents(content, seed):
-    """Validate if content is Is the content a dict that is valid as a 
+    """Validate if content is Is the content a dict that is valid as a
        return for a datasource.
        Either return a (userdata, metadata) tuple or
        Raise MaasSeedDirMalformed or MaasSeedDirNone
@@ -201,12 +200,12 @@ def check_seed_contents(content, seed):
         raise MaasSeedDirMalformed("%s: missing files %s" % (seed, missing))
 
     userdata = content['user-data']
-    md = { }
+    md = {}
     for (key, val) in content.iteritems():
         if key == 'user-data':
             continue
         md[key] = val
-            
+
     return(userdata, md)
 
 
@@ -260,4 +259,3 @@ if __name__ == "__main__":
         pprint.pprint(metadata)
 
     main()
-
