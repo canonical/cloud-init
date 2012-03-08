@@ -606,6 +606,12 @@ def partwalker_callback(pdata, ctype, filename, payload):
         partwalker_handle_handler(pdata, ctype, filename, payload)
         return
     if ctype not in pdata['handlers']:
+        start = payload.split("\n", 1)[0][:24] # Use first line or 24 bytes
+        if start < payload:
+            details = "starting '%s...'" % start.encode("string-escape")
+        else:
+            details = repr(payload)
+        log.warning("Unhandled userdata part of type %s %s", ctype, details)
         return
     handler_handle_part(pdata['handlers'][ctype], pdata['data'],
         ctype, filename, payload, pdata['frequency'])
