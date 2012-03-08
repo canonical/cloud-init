@@ -17,36 +17,29 @@
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import cloudinit.util as util
-import cloudinit.SshUtil as sshutil
 import re
 import os
-from cloudinit.CloudConfig import per_always
+from cloudinit.CloudConfig import per_instance
 
-frequency = per_always
-default_file = "/etc/apt/apt.conf.d/90cloud-init-tweaks"
+frequency = per_instance
+default_file = "/etc/apt/apt.conf.d/90cloud-init-pipeling"
 
 def handle(_name, cfg, cloud, log, _args):
 
-    apt_pipelining_enabled = util.get_cfg_option_str(cfg, "apt-pipelining", False)
+    apt_pipe_value = util.get_cfg_option_str(cfg, "apt_pipelining", False)
+    apt_pipe_value = str(apt_pipe_value).lower()
 
-    if apt_pipelining_enabled in ("False", "false", False):
+    if apt_pipe_value in ("false", "default", False):
         write_apt_snippet(0, log)
 
-    elif apt_pipelining_enabled in ("Default", "default", "True", "true", True):
-        revert_os_default(log)
+    elif apt_pipe_value in ("none", "unchanged", "os"):
+        return
+
+    elif apt_pipe_value in str(range(1, 5)):
+        write_apt_snippet(apt_pipe_value, log)
 
     else:
-        write_apt_snippet(apt_pipelining_enabled, log)
-
-def revert_os_default(log, f_name=default_file):
-    try:
-
-        if os.path.exists(f_name):
-            os.unlink(f_name)
-
-    except OSError:
-        log.debug("Unable to remove %s" % f_name)
-
+        log.warn("Invalid option for apt_pipeling")
 
 def write_apt_snippet(setting, log, f_name=default_file):
     """
@@ -57,54 +50,19 @@ def write_apt_snippet(setting, log, f_name=default_file):
     acquire_pipeline_depth = 'Acquire::http::Pipeline-Depth "%s";\n'
     try:
         if os.path.exists(f_name):
-            update_file = False
             skip_re = re.compile('^//CLOUD-INIT-IGNORE.*')
-            enabled_re = re.compile('Acquire::http::Pipeline-Depth.*')
-
-            local_override = False
-            tweak = open(f_name, 'r')
-            new_file = []
 
             for line in tweak.readlines():
                 if skip_re.match(line):
-                    local_override = True
-                    continue
-
-                if enabled_re.match(line):
-
-                    try:
-                        value = line.replace('"','')
-                        value = value.replace(';','')
-                        enabled = value.split()[1]
-
-                        if enabled != setting:
-                            update_file = True
-                            line = acquire_pipeline_depth % setting
-
-                    except IndexError:
-                        log.debug("Unable to determine current setting of 'Acquire::http::Pipeline-Depth'\n%s" % e)
-                        return
-
-                new_file.append(line)
+                    tweak.close()
+                    return
 
             tweak.close()
 
-            if local_override:
-                log.debug("Not updating apt pipelining settings due to local override in %s" % f_name)
-                return
+        file_contents = ("//Cloud-init Tweaks\n//Disables APT HTTP pipelining"\
+                        "\n" + (acquire_pipeline_depth % setting))
 
-            if update_file:
-                tweak = open(f_name, 'w')
-                for line in new_file:
-                    tweak.write(line)
-                tweak.close()
-
-            return
-
-        tweak = open(f_name, 'w')
-        tweak.write("""//Cloud-init Tweaks\n//Disables APT HTTP pipelining\n""")
-        tweak.write(acquire_pipeline_depth % setting)
-        tweak.close()
+        util.write_file(f_name, file_contents)
 
         log.debug("Wrote %s with APT pipeline setting" % f_name )
 
