@@ -18,12 +18,8 @@ datasource:
     timeout : 50
     max_wait : 120
 
-    # there are no default values for metadata_url or credentials
-    # credentials are for oath.
-
-    # If no credentials are present,
-    # then non-authed attempts will be made.
-    # will be made
+    # there are no default values for metadata_url or oauth credentials
+    # If no credentials are present, non-authed attempts will be made.
     metadata_url: http://mass-host.localdomain/source
     consumer_key: Xh234sdkljf
     token_key: kjfhgb3n
