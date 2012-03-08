@@ -2,15 +2,19 @@ from unittest import TestCase
 from tempfile import mkdtemp
 from shutil import rmtree
 import os
+import urllib2
+from StringIO import StringIO
 from copy import copy
 from cloudinit.DataSourceMaaS import (
     MaasSeedDirNone,
     MaasSeedDirMalformed,
     read_maas_seed_dir,
+    read_maas_seed_url,
 )
+from mocker import MockerTestCase
 
 
-class TestMaasDataSource(TestCase):
+class TestMaasDataSource(MockerTestCase):
 
     def setUp(self):
         super(TestMaasDataSource, self).setUp()
@@ -94,7 +98,37 @@ class TestMaasDataSource(TestCase):
 
     def test_seed_url_valid(self):
         """Verify that valid seed_url is read as such"""
-        pass
+        valid = {'meta-data/instance-id': 'i-instanceid',
+            'meta-data/local-hostname': 'test-hostname', 'user-data': 'foodata'}
+
+        my_seed = "http://example.com/xmeta"
+        my_ver = "1999-99-99"
+        my_headers = {'header1': 'value1', 'header2': 'value2'}
+
+        def my_headers_cb(url):
+            return(my_headers)
+
+        mock_request = self.mocker.replace("urllib2.Request", passthrough=False)
+        mock_urlopen = self.mocker.replace("urllib2.urlopen", passthrough=False)
+
+        for (key, val) in valid.iteritems():
+            mock_request("%s/%s/%s" % (my_seed, my_ver, key),
+                data=None, headers=my_headers)
+            self.mocker.nospec()
+            self.mocker.result("fake-request-%s" % key)
+            mock_urlopen("fake-request-%s" % key, timeout=None)
+            self.mocker.result(StringIO(val))
+
+        self.mocker.replay()
+
+        (userdata, metadata) = read_maas_seed_url(my_seed,
+            header_cb=my_headers_cb, version=my_ver)
+
+        self.assertEqual("foodata", userdata)
+        self.assertEqual(metadata['instance-id'],
+            valid['meta-data/instance-id'])
+        self.assertEqual(metadata['local-hostname'],
+            valid['meta-data/local-hostname'])
 
     def test_seed_url_invalid(self):
         """Verify that invalid seed_url raises MaasSeedDirMalformed"""
