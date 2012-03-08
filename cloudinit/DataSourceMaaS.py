@@ -76,6 +76,8 @@ class DataSourceMaaS(DataSource.DataSource):
 
             (userdata, metadata) = read_maas_seed_url(self.baseurl,
                 self.md_headers)
+            self.userdata_raw = userdata
+            self.metadata = metadata
             return True
         except Exception:
             util.logexc(log)
@@ -117,7 +119,7 @@ class DataSourceMaaS(DataSource.DataSource):
             log.warn("Failed to get timeout, using %s" % timeout)
 
         starttime = time.time()
-        check_url = "%s/instance-id" % url
+        check_url = "%s/%s/meta-data/instance-id" % (url, MD_VERSION)
         url = util.wait_for_url(urls=[check_url], max_wait=max_wait,
             timeout=timeout, status_cb=log.warn,
             headers_cb=self.md_headers)
