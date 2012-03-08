@@ -30,6 +30,9 @@ import urllib2
 import time
 
 
+MD_VERSION = "2012-03-01"
+
+
 class DataSourceMaaS(DataSource.DataSource):
     """
     DataSourceMaaS reads instance information from MaaS.
@@ -133,10 +136,10 @@ def read_maas_seed_dir(seed_d):
     Return user-data and metadata for a maas seed dir in seed_d.
     Expected format of seed_d are the following files:
       * instance-id
-      * hostname
+      * local-hostname
       * user-data
     """
-    files = ('hostname', 'instance-id', 'user-data')
+    files = ('local-hostname', 'instance-id', 'user-data')
     md = {}
 
     if not os.path.isdir(seed_d):
@@ -154,31 +157,38 @@ def read_maas_seed_dir(seed_d):
     return(check_seed_contents(md, seed_d))
 
 
-def read_maas_seed_url(seed_url, header_cb=None, timeout=None):
+def read_maas_seed_url(seed_url, header_cb=None, timeout=None,
+    version=MD_VERSION):
     """
     Read the maas datasource at seed_url.
     header_cb is a method that should return a headers dictionary that will
     be given to urllib2.Request()
 
     Expected format of seed_url is are the following files:
-      * <seed_url>/instance-id
-      * <seed_url>/hostname
-      * <seed_url>/user-data
+      * <seed_url>/<version>/instance-id
+      * <seed_url>/<version>/local-hostname
+      * <seed_url>/<version>/user-data
     """
-    files = ('hostname', 'instance-id', 'user-data')
+    files = ('meta-data/local-hostname', 'meta-data/instance-id', 'user-data')
 
+    base_url = "%s/%s" % (seed_url, version)
+    print "seed_url=%s version=%s" % (seed_url, version)
     md = {}
     for fname in files:
-        url = "%s/%s" % (seed_url, fname)
+        url = "%s/%s" % (base_url, fname)
         if header_cb:
             headers = header_cb(url)
         else:
             headers = {}
 
-        req = urllib2.Request(url, data=None, headers=headers)
-        resp = urllib2.urlopen(req, timeout=timeout)
-
-        md[fname] = resp.read()
+        try:
+            print url
+            req = urllib2.Request(url, data=None, headers=headers)
+            resp = urllib2.urlopen(req, timeout=timeout)
+            md[os.path.basename(fname)] = resp.read()
+        except urllib2.HTTPError as e:
+            if e.code != 404:
+                raise
 
     return(check_seed_contents(md, seed_url))
 
@@ -189,7 +199,7 @@ def check_seed_contents(content, seed):
        Either return a (userdata, metadata) tuple or
        Raise MaasSeedDirMalformed or MaasSeedDirNone
     """
-    md_required = ('user-data', 'instance-id', 'hostname')
+    md_required = ('instance-id', 'local-hostname')
     found = content.keys()
 
     if len(content) == 0:
@@ -199,7 +209,7 @@ def check_seed_contents(content, seed):
     if len(missing):
         raise MaasSeedDirMalformed("%s: missing files %s" % (seed, missing))
 
-    userdata = content['user-data']
+    userdata = content.get('user-data', "")
     md = {}
     for (key, val) in content.iteritems():
         if key == 'user-data':
@@ -250,27 +260,86 @@ if __name__ == "__main__":
         If url is given additional arguments are allowed, which will be
         interpreted as consumer_key, token_key, token_secret, consumer_secret
         """
-        import sys
+        import argparse
         import pprint
-        seed = sys.argv[1]
-        if seed.startswith("http://") or seed.startswith("https://"):
-            def my_headers(url):
-                headers = oauth_headers(url, c_key, t_key, t_sec, c_sec)
-                print "%s\n  %s\n" % (url, headers)
-                return headers
-            (c_key, t_key, t_sec, c_sec) = (sys.argv + ["", "", "", ""])[2:6]
-            if c_key:
-                print "oauth headers (%s)" % str((c_key, t_key, t_sec, c_sec,))
-                (userdata, metadata) = read_maas_seed_url(seed, my_headers)
+
+        parser = argparse.ArgumentParser(description='Interact with Maas DS')
+        parser.add_argument("--config", metavar="file",
+            help="specify DS config file", default=None)
+        parser.add_argument("--ckey", metavar="key",
+            help="the consumer key to auth with", default=None)
+        parser.add_argument("--tkey", metavar="key",
+            help="the token key to auth with", default=None)
+        parser.add_argument("--csec", metavar="secret",
+            help="the consumer secret (likely '')", default="")
+        parser.add_argument("--tsec", metavar="secret",
+            help="the token secret to auth with", default=None)
+        parser.add_argument("--apiver", metavar="version",
+            help="the apiver to use ("" can be used)", default=MD_VERSION)
+
+        subcmds = parser.add_subparsers(title="subcommands", dest="subcmd")
+        subcmds.add_parser('crawl', help="crawl the datasource")
+        subcmds.add_parser('get', help="do a single GET of provided url")
+        subcmds.add_parser('check-seed', help="read andn verify seed at url")
+
+        parser.add_argument("url", help="the data source to query")
+
+        args = parser.parse_args()
+
+        creds = {'consumer_key': args.ckey, 'token_key': args.tkey,
+            'token_secret': args.tsec, 'consumer_secret': args.csec}
+
+        if args.config:
+            import yaml
+            with open(args.config) as fp:
+                cfg = yaml.load(fp)
+            print cfg
+            if 'datasource' in cfg:
+                cfg = cfg['datasource']['MaaS']
+            for key in creds.keys():
+                if key in cfg and creds[key] == None:
+                    creds[key] = cfg[key]
+
+        def geturl(url, headers_cb):
+            req = urllib2.Request(url, data=None, headers=headers_cb(url))
+            return(urllib2.urlopen(req).read())
+
+        def printurl(url, headers_cb):
+            print "== %s ==\n%s\n" % (url, geturl(url, headers_cb))
+
+        def crawl(url, headers_cb=None):
+            if url.endswith("/"):
+                for line in geturl(url, headers_cb).splitlines():
+                    if line.endswith("/"):
+                        crawl("%s%s" % (url, line), headers_cb)
+                    else:
+                        printurl("%s%s" % (url, line), headers_cb)
             else:
-                (userdata, metadata) = read_maas_seed_url(seed)
+                printurl(url, headers_cb)
 
-        else:
-            (userdata, metadata) = read_maas_seed_dir(seed)
+        def my_headers(url):
+            headers = {}
+            if creds.get('consumer_key', None) != None:
+                headers = oauth_headers(url, **creds)
+            return headers
 
-        print "=== userdata ==="
-        print userdata
-        print "=== metadata ==="
-        pprint.pprint(metadata)
+        if args.subcmd == "check-seed":
+            if args.url.startswith("http"):
+                (userdata, metadata) = read_maas_seed_url(args.url,
+                    header_cb=my_headers, version=args.apiver)
+            else:
+                (userdata, metadata) = read_maas_seed_url(args.url)
+            print "=== userdata ==="
+            print userdata
+            print "=== metadata ==="
+            pprint.pprint(metadata)
+
+        elif args.subcmd == "get":
+            printurl(args.url, my_headers)
+
+        elif args.subcmd == "crawl":
+            if not args.url.endswith("/"):
+                args.url = "%s/" % args.url
+            crawl(args.url, my_headers)
 
     main()
