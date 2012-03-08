@@ -169,15 +169,14 @@ class TestRemoveDefaultCaCerts(MockerTestCase):
         mock_delete_dir_contents = self.mocker.replace(delete_dir_contents,
                                                        passthrough=False)
         mock_write = self.mocker.replace(write_file, passthrough=False)
-        mock_check_call = self.mocker.replace("subprocess.check_call",
-                                              passthrough=False)
+        mock_subp = self.mocker.replace("cloudinit.util.subp",
+                                        passthrough=False)
 
         mock_delete_dir_contents("/usr/share/ca-certificates/")
         mock_delete_dir_contents("/etc/ssl/certs/")
         mock_write("/etc/ca-certificates.conf", "", mode=0644)
-        mock_check_call([
-            "echo 'ca-certificates ca-certificates/trust_new_crts  select no'"
-            " | debconf-set-selections"], shell=True)
+        mock_subp(('debconf-set-selections', '-'),
+                  "ca-certificates ca-certificates/trust_new_crts select no")
         self.mocker.replay()
 
         remove_default_ca_certs()
