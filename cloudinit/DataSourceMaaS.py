@@ -172,7 +172,6 @@ def read_maas_seed_url(seed_url, header_cb=None, timeout=None,
     files = ('meta-data/local-hostname', 'meta-data/instance-id', 'user-data')
 
     base_url = "%s/%s" % (seed_url, version)
-    print "seed_url=%s version=%s" % (seed_url, version)
     md = {}
     for fname in files:
         url = "%s/%s" % (base_url, fname)
@@ -182,7 +181,6 @@ def read_maas_seed_url(seed_url, header_cb=None, timeout=None,
             headers = {}
 
         try:
-            print url
             req = urllib2.Request(url, data=None, headers=headers)
             resp = urllib2.urlopen(req, timeout=timeout)
             md[os.path.basename(fname)] = resp.read()
