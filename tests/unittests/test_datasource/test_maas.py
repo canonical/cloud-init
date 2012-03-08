@@ -1,8 +1,6 @@
-from unittest import TestCase
 from tempfile import mkdtemp
 from shutil import rmtree
 import os
-import urllib2
 from StringIO import StringIO
 from copy import copy
 from cloudinit.DataSourceMaaS import (
@@ -29,7 +27,8 @@ class TestMaasDataSource(MockerTestCase):
     def test_seed_dir_valid(self):
         """Verify a valid seeddir is read as such"""
 
-        data = {'instance-id': 'i-valid01', 'local-hostname': 'valid01-hostname',
+        data = {'instance-id': 'i-valid01',
+            'local-hostname': 'valid01-hostname',
             'user-data': 'valid01-userdata'}
 
         my_d = os.path.join(self.tmp, "valid")
@@ -99,7 +98,8 @@ class TestMaasDataSource(MockerTestCase):
     def test_seed_url_valid(self):
         """Verify that valid seed_url is read as such"""
         valid = {'meta-data/instance-id': 'i-instanceid',
-            'meta-data/local-hostname': 'test-hostname', 'user-data': 'foodata'}
+            'meta-data/local-hostname': 'test-hostname',
+            'user-data': 'foodata'}
 
         my_seed = "http://example.com/xmeta"
         my_ver = "1999-99-99"
@@ -108,8 +108,10 @@ class TestMaasDataSource(MockerTestCase):
         def my_headers_cb(url):
             return(my_headers)
 
-        mock_request = self.mocker.replace("urllib2.Request", passthrough=False)
-        mock_urlopen = self.mocker.replace("urllib2.urlopen", passthrough=False)
+        mock_request = self.mocker.replace("urllib2.Request",
+            passthrough=False)
+        mock_urlopen = self.mocker.replace("urllib2.urlopen",
+            passthrough=False)
 
         for (key, val) in valid.iteritems():
             mock_request("%s/%s/%s" % (my_seed, my_ver, key),
