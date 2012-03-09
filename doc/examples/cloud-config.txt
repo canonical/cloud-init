@@ -47,7 +47,7 @@ apt_proxy: http://my.apt.proxy:3128
 
 # apt_pipelining (configure Acquire::http::Pipeline-Depth)
 # Default: disables HTTP pipelining. Certain web servers, such
-# as S3 do not pipeline properly.
+# as S3 do not pipeline properly (LP: #948461).
 # Valid options:
 #   False/default: Disables pipelining for APT
 #   None/Unchanged: Use OS default
