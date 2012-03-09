@@ -29,7 +29,7 @@ cfg_env_name = "CLOUD_CFG"
 
 cfg_builtin = """
 log_cfgs: []
-datasource_list: ["NoCloud", "ConfigDrive", "OVF", "Ec2"]
+datasource_list: ["NoCloud", "ConfigDrive", "OVF", "MaaS", "Ec2" ]
 def_log_file: /var/log/cloud-init.log
 syslog_fix_perms: syslog:adm
 """

@@ -24,7 +24,6 @@ from cloudinit import seeddir as base_seeddir
 from cloudinit import log
 import cloudinit.util as util
 import socket
-import urllib2
 import time
 import boto.utils as boto_utils
 import os.path
@@ -134,8 +133,8 @@ class DataSourceEc2(DataSource.DataSource):
             url2base[cur] = url
 
         starttime = time.time()
-        url = wait_for_metadata_service(urls=urls, max_wait=max_wait,
-                  timeout=timeout, status_cb=log.warn)
+        url = util.wait_for_url(urls=urls, max_wait=max_wait,
+                                timeout=timeout, status_cb=log.warn)
 
         if url:
             log.debug("Using metadata source: '%s'" % url2base[url])
@@ -206,87 +205,6 @@ class DataSourceEc2(DataSource.DataSource):
             (p4 not in self.metadata or self.metadata[p4] == "")):
             return True
         return False
-
-
-def wait_for_metadata_service(urls, max_wait=None, timeout=None,
-                              status_cb=None):
-    """
-    urls:      a list of urls to try
-    max_wait:  roughly the maximum time to wait before giving up
-               The max time is *actually* len(urls)*timeout as each url will
-               be tried once and given the timeout provided.
-    timeout:   the timeout provided to urllib2.urlopen
-    status_cb: call method with string message when a url is not available
-
-    the idea of this routine is to wait for the EC2 metdata service to
-    come up.  On both Eucalyptus and EC2 we have seen the case where
-    the instance hit the MD before the MD service was up.  EC2 seems
-    to have permenantely fixed this, though.
-
-    In openstack, the metadata service might be painfully slow, and
-    unable to avoid hitting a timeout of even up to 10 seconds or more
-    (LP: #894279) for a simple GET.
-
-    Offset those needs with the need to not hang forever (and block boot)
-    on a system where cloud-init is configured to look for EC2 Metadata
-    service but is not going to find one.  It is possible that the instance
-    data host (169.254.169.254) may be firewalled off Entirely for a sytem,
-    meaning that the connection will block forever unless a timeout is set.
-    """
-    starttime = time.time()
-
-    sleeptime = 1
-
-    def nullstatus_cb(msg):
-        return
-
-    if status_cb == None:
-        status_cb = nullstatus_cb
-
-    def timeup(max_wait, starttime):
-        return((max_wait <= 0 or max_wait == None) or
-               (time.time() - starttime > max_wait))
-
-    loop_n = 0
-    while True:
-        sleeptime = int(loop_n / 5) + 1
-        for url in urls:
-            now = time.time()
-            if loop_n != 0:
-                if timeup(max_wait, starttime):
-                    break
-                if timeout and (now + timeout > (starttime + max_wait)):
-                    # shorten timeout to not run way over max_time
-                    timeout = int((starttime + max_wait) - now)
-
-            reason = ""
-            try:
-                req = urllib2.Request(url)
-                resp = urllib2.urlopen(req, timeout=timeout)
-                if resp.read() != "":
-                    return url
-                reason = "empty data [%s]" % resp.getcode()
-            except urllib2.HTTPError as e:
-                reason = "http error [%s]" % e.code
-            except urllib2.URLError as e:
-                reason = "url error [%s]" % e.reason
-            except socket.timeout as e:
-                reason = "socket timeout [%s]" % e
-            except Exception as e:
-                reason = "unexpected error [%s]" % e
-
-            if log:
-                status_cb("'%s' failed [%s/%ss]: %s" %
-                          (url, int(time.time() - starttime), max_wait,
-                           reason))
-
-        if timeup(max_wait, starttime):
-            break
-
-        loop_n = loop_n + 1
-        time.sleep(sleeptime)
-
-    return False
 
 
 datasources = [

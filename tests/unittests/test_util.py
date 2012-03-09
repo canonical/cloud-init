@@ -28,7 +28,7 @@ class TestMergeDict(TestCase):
     def test_merge_does_not_override(self):
         """Test that candidate doesn't override source."""
         source = {"key1": "value1", "key2": "value2"}
-        candidate = {"key2": "value2", "key2": "NEW VALUE"}
+        candidate = {"key1": "value2", "key2": "NEW VALUE"}
         result = mergedict(source, candidate)
         self.assertEqual(source, result)
 

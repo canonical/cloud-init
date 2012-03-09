@@ -5,7 +5,7 @@
 #
 #    Author: Scott Moser <scott.moser@canonical.com>
 #    Author: Juerg Hafliger <juerg.haefliger@hp.com>
-#    Author: Cosmin Luta <cosmin.luta@avira.com>
+#    Author: Cosmin Luta <q4break@gmail.com>
 #
 #    This program is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License version 3, as
@@ -29,7 +29,7 @@ import time
 import boto.utils as boto_utils
 from struct import pack
 
-class DataSourceCS(DataSource.DataSource):
+class DataSourceCloudStack(DataSource.DataSource):
     api_ver = 'latest'
     seeddir = base_seeddir + '/cs'
     metadata_address = None
@@ -52,7 +52,7 @@ class DataSourceCS(DataSource.DataSource):
                     return gw
 
     def __str__(self):
-        return "DataSourceCS"
+        return "DataSourceCloudStack"
 
     def get_data(self):
         seedret = {}
@@ -81,7 +81,7 @@ class DataSourceCS(DataSource.DataSource):
         return self.metadata['availability-zone']
 
 datasources = [
-  (DataSourceCS, (DataSource.DEP_FILESYSTEM, DataSource.DEP_NETWORK)),
+  (DataSourceCloudStack, (DataSource.DEP_FILESYSTEM, DataSource.DEP_NETWORK)),
 ]
 
 # return a list of data sources that match this set of dependencies
