@@ -20,7 +20,7 @@ import cloudinit.util as util
 from cloudinit.CloudConfig import per_instance
 
 frequency = per_instance
-default_file = "/etc/apt/apt.conf.d/90cloud-init-pipeling"
+default_file = "/etc/apt/apt.conf.d/90cloud-init-pipelining"
 
 
 def handle(_name, cfg, _cloud, log, _args):
