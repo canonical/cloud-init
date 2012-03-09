@@ -1,3 +1,23 @@
+cloud-init (0.6.3~bzr539-0ubuntu1) precise; urgency=low
+
+  * New upstream snapshot.
+    * add ability to configure Acquire::http::Pipeline-Depth via
+      cloud-config setting 'apt_pipelining' (LP: #942061)
+    * if cloud-config settings removed default certificats
+      (remove-defaults), then seed package ca-certificates to not
+      install new ones on upgrade.
+    * run-parts now uses internal implementation rather than
+      separate command.
+    * add MaaS datasource (LP: #942061)
+  * debian/cloud-init.postinst: address population of apt_pipeline 
+    setting on installation.
+  * debian/cloud-init.postinst: support configuring cloud-init
+    maas datasource via preseed values cloud-init/maas-metadata-url and
+    cloud-init/maas-credentials. (LP: #942061)
+  * debian/cloud-init.postinst: support for (LP: #924375)
+
+ -- Scott Moser <smoser@ubuntu.com>  Fri, 09 Mar 2012 16:37:01 -0500
+
 cloud-init (0.6.3~bzr530-0ubuntu1) precise; urgency=low
 
   * New upstream snapshot.

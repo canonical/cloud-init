@@ -209,16 +209,18 @@ def runparts(dirp, skip_no_exist=True):
     if skip_no_exist and not os.path.isdir(dirp):
         return
 
-    # per bug 857926, Fedora's run-parts will exit failure on empty dir
-    if os.path.isdir(dirp) and os.listdir(dirp) == []:
-        return
-
-    cmd = ['run-parts', '--regex', '.*', dirp]
-    sp = subprocess.Popen(cmd)
-    sp.communicate()
-    if sp.returncode is not 0:
-        raise subprocess.CalledProcessError(sp.returncode, cmd)
-    return
+    failed = 0
+    for exe_name in sorted(os.listdir(dirp)):
+        exe_path = os.path.join(dirp, exe_name)
+        if os.path.isfile(exe_path) and os.access(exe_path, os.X_OK):
+            popen = subprocess.Popen([exe_path])
+            popen.communicate()
+            if popen.returncode is not 0:
+                failed += 1
+                sys.stderr.write("failed: %s [%i]\n" %
+                    (exe_path, popen.returncode))
+    if failed:
+        raise RuntimeError('runparts: %i failures' % failed)
 
 
 def subp(args, input_=None):
@@ -517,7 +519,8 @@ def dos2unix(string):
 
 
 def is_container():
-    # is this running in a cgroup other than /
+    # is this code running in a container of some sort
+
     for helper in ('running-in-container', 'lxc-is-container'):
         try:
             # try to run a helper program. if it returns true
@@ -750,3 +753,90 @@ def mount_callback_umount(device, callback, data=None):
     _cleanup(umount, tmpd)
 
     return(ret)
+
+
+def wait_for_url(urls, max_wait=None, timeout=None,
+                 status_cb=None, headers_cb=None):
+    """
+    urls:      a list of urls to try
+    max_wait:  roughly the maximum time to wait before giving up
+               The max time is *actually* len(urls)*timeout as each url will
+               be tried once and given the timeout provided.
+    timeout:   the timeout provided to urllib2.urlopen
+    status_cb: call method with string message when a url is not available
+    headers_cb: call method with single argument of url to get headers
+                for request.
+
+    the idea of this routine is to wait for the EC2 metdata service to
+    come up.  On both Eucalyptus and EC2 we have seen the case where
+    the instance hit the MD before the MD service was up.  EC2 seems
+    to have permenantely fixed this, though.
+
+    In openstack, the metadata service might be painfully slow, and
+    unable to avoid hitting a timeout of even up to 10 seconds or more
+    (LP: #894279) for a simple GET.
+
+    Offset those needs with the need to not hang forever (and block boot)
+    on a system where cloud-init is configured to look for EC2 Metadata
+    service but is not going to find one.  It is possible that the instance
+    data host (169.254.169.254) may be firewalled off Entirely for a sytem,
+    meaning that the connection will block forever unless a timeout is set.
+    """
+    starttime = time.time()
+
+    sleeptime = 1
+
+    def nullstatus_cb(msg):
+        return
+
+    if status_cb == None:
+        status_cb = nullstatus_cb
+
+    def timeup(max_wait, starttime):
+        return((max_wait <= 0 or max_wait == None) or
+               (time.time() - starttime > max_wait))
+
+    loop_n = 0
+    while True:
+        sleeptime = int(loop_n / 5) + 1
+        for url in urls:
+            now = time.time()
+            if loop_n != 0:
+                if timeup(max_wait, starttime):
+                    break
+                if timeout and (now + timeout > (starttime + max_wait)):
+                    # shorten timeout to not run way over max_time
+                    timeout = int((starttime + max_wait) - now)
+
+            reason = ""
+            try:
+                if headers_cb != None:
+                    headers = headers_cb(url)
+                else:
+                    headers = {}
+
+                req = urllib2.Request(url, data=None, headers=headers)
+                resp = urllib2.urlopen(req, timeout=timeout)
+                if resp.read() != "":
+                    return url
+                reason = "empty data [%s]" % resp.getcode()
+            except urllib2.HTTPError as e:
+                reason = "http error [%s]" % e.code
+            except urllib2.URLError as e:
+                reason = "url error [%s]" % e.reason
+            except socket.timeout as e:
+                reason = "socket timeout [%s]" % e
+            except Exception as e:
+                reason = "unexpected error [%s]" % e
+
+            status_cb("'%s' failed [%s/%ss]: %s" %
+                      (url, int(time.time() - starttime), max_wait,
+                       reason))
+
+        if timeup(max_wait, starttime):
+            break
+
+        loop_n = loop_n + 1
+        time.sleep(sleeptime)
+
+    return False
