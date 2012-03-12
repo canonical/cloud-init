@@ -28,6 +28,7 @@ import time
 import boto.utils as boto_utils
 from struct import pack
 
+
 class DataSourceCloudStack(DataSource.DataSource):
     api_ver = 'latest'
     seeddir = base_seeddir + '/cs'
@@ -35,9 +36,10 @@ class DataSourceCloudStack(DataSource.DataSource):
 
     def __init__(self, sys_cfg=None):
         DataSource.DataSource.__init__(self, sys_cfg)
-        # Cloudstack has its metadata/userdata URLs located at http://<default-gateway-ip>/latest/
+        # Cloudstack has its metadata/userdata URLs located at
+        # http://<default-gateway-ip>/latest/
         self.metadata_address = "http://%s/" % self.get_default_gateway()
-        
+
     def get_default_gateway(self):
         """ Returns the default gateway ip address in the dotted format
         """
@@ -67,7 +69,8 @@ class DataSourceCloudStack(DataSource.DataSource):
                 None, self.metadata_address)
             self.metadata = boto_utils.get_instance_metadata(self.api_ver,
                 self.metadata_address)
-            log.debug("crawl of metadata service took %ds" % (time.time() - start))
+            log.debug("crawl of metadata service took %ds" %
+                (time.time() - start))
             return True
         except Exception as e:
             log.exception(e)
@@ -82,6 +85,7 @@ class DataSourceCloudStack(DataSource.DataSource):
 datasources = [
   (DataSourceCloudStack, (DataSource.DEP_FILESYSTEM, DataSource.DEP_NETWORK)),
 ]
+
 
 # return a list of data sources that match this set of dependencies
 def get_datasource_list(depends):
