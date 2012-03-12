@@ -3,6 +3,8 @@
 import logging
 import StringIO
 
+from email.mime.base import MIMEBase
+
 from mocker import MockerTestCase
 
 import cloudinit
@@ -42,7 +44,28 @@ class TestConsumeUserData(MockerTestCase):
         self._log = logging.getLogger(cloudinit.logger_name)
         self._log.addHandler(self._log_handler)
 
-    def test_script(self):
+    def test_unhandled_type_warning(self):
+        """Raw text without magic is ignored but shows warning"""
+        self.mocker.replay()
+        ci = cloudinit.CloudInit()
+        ci.datasource = FakeDataSource("arbitrary text\n")
+        ci.consume_userdata()
+        self.assertEqual(
+            "Unhandled non-multipart userdata starting 'arbitrary text...'\n",
+            self.log_file.getvalue())
+
+    def test_mime_text_plain(self):
+        """Mime message of type text/plain is ignored without warning"""
+        self.mocker.replay()
+        ci = cloudinit.CloudInit()
+        message = MIMEBase("text", "plain")
+        message.set_payload("Just text")
+        ci.datasource = FakeDataSource(message.as_string())
+        ci.consume_userdata()
+        self.assertEqual("", self.log_file.getvalue())
+
+    def test_shellscript(self):
+        """Raw text starting #!/bin/sh is treated as script"""
         script = "#!/bin/sh\necho hello\n"
         outpath = cloudinit.get_ipath_cur("scripts") + "/part-001"
         self.mock_write(outpath, script, 0700)
@@ -52,9 +75,28 @@ class TestConsumeUserData(MockerTestCase):
         ci.consume_userdata()
         self.assertEqual("", self.log_file.getvalue())
 
-    def test_unhandled_type_warning(self):
+    def test_mime_text_x_shellscript(self):
+        """Mime message of type text/x-shellscript is treated as script"""
+        script = "#!/bin/sh\necho hello\n"
+        outpath = cloudinit.get_ipath_cur("scripts") + "/part-001"
+        self.mock_write(outpath, script, 0700)
         self.mocker.replay()
         ci = cloudinit.CloudInit()
-        ci.datasource = FakeDataSource("arbitrary text\n")
+        message = MIMEBase("text", "x-shellscript")
+        message.set_payload(script)
+        ci.datasource = FakeDataSource(message.as_string())
         ci.consume_userdata()
-        self.assertIn("Unhandled userdata part", self.log_file.getvalue())
+        self.assertEqual("", self.log_file.getvalue())
+
+    def test_mime_text_plain_shell(self):
+        """Mime type text/plain starting #!/bin/sh is treated as script"""
+        script = "#!/bin/sh\necho hello\n"
+        outpath = cloudinit.get_ipath_cur("scripts") + "/part-001"
+        self.mock_write(outpath, script, 0700)
+        self.mocker.replay()
+        ci = cloudinit.CloudInit()
+        message = MIMEBase("text", "plain")
+        message.set_payload(script)
+        ci.datasource = FakeDataSource(message.as_string())
+        ci.consume_userdata()
+        self.assertEqual("", self.log_file.getvalue())
