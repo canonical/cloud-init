@@ -28,6 +28,7 @@
  - DataSourceNoCloud: support seed from external disk of ISO or vfat (LP: #857378)
  - DataSourceNoCloud: support inserting /etc/network/interfaces
  - DataSourceMaaS: add data source for Ubuntu Machines as a Service (MaaS) (LP: #942061)
+ - DataSourceCloudStack: add support for CloudStack datasource [Cosmin Luta]
  - add option 'apt_pipelining' to address issue with S3 mirrors 
    (LP: #948461) [Ben Howard]
 0.6.2:
