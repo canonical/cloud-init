@@ -77,7 +77,7 @@ for k in sys.argv[2:]:
       local header="# written by cloud-init debian package per preseed entries
 # cloud-init/{maas-metadata-url,/maas-metadata-credentials}"
 
-      local pair="" k="" v="" pload=""
+      local pair="" k="" v="" pload="" orig_umask=""
       for pair in "metadata_url:$md_url" "consumer_key:${c_key}" \
          "token_key:${t_key}" "token_secret:$t_sec"; do
          k=${pair%%:*}
@@ -86,8 +86,11 @@ for k in sys.argv[2:]:
       done
 
       # '_' would indicate "delete", otherwise, existing entries are left
-      : >> "$cfg_file" && chmod go-w "$cfg_file"
+      orig_umask=$(umask)
+      umask 066
+      : >> "$cfg_file" && chmod 600 "$cfg_file"
       update_cfg "$cfg_file" "$header" "datasource: { MaaS: { ${pload%,} } }" _
+      umask ${orig_umask}
    fi
 
    # now clear the database of the values, as they've been consumed
