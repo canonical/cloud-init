@@ -29,7 +29,8 @@ class TestMAASDataSource(MockerTestCase):
 
         data = {'instance-id': 'i-valid01',
             'local-hostname': 'valid01-hostname',
-            'user-data': 'valid01-userdata'}
+            'user-data': 'valid01-userdata',
+            'public-keys': 'ssh-rsa AAAAB3Nz...aC1yc2E= keyname'}
 
         my_d = os.path.join(self.tmp, "valid")
         populate_dir(my_d, data)
@@ -99,6 +100,7 @@ class TestMAASDataSource(MockerTestCase):
         """Verify that valid seed_url is read as such"""
         valid = {'meta-data/instance-id': 'i-instanceid',
             'meta-data/local-hostname': 'test-hostname',
+            'meta-data/public-keys': 'test-hostname',
             'user-data': 'foodata'}
 
         my_seed = "http://example.com/xmeta"

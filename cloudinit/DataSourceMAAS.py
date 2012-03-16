@@ -139,7 +139,7 @@ def read_maas_seed_dir(seed_d):
       * local-hostname
       * user-data
     """
-    files = ('local-hostname', 'instance-id', 'user-data')
+    files = ('local-hostname', 'instance-id', 'user-data', 'public-keys')
     md = {}
 
     if not os.path.isdir(seed_d):
@@ -165,11 +165,14 @@ def read_maas_seed_url(seed_url, header_cb=None, timeout=None,
     be given to urllib2.Request()
 
     Expected format of seed_url is are the following files:
-      * <seed_url>/<version>/instance-id
-      * <seed_url>/<version>/local-hostname
+      * <seed_url>/<version>/meta-data/instance-id
+      * <seed_url>/<version>/meta-data/local-hostname
       * <seed_url>/<version>/user-data
     """
-    files = ('meta-data/local-hostname', 'meta-data/instance-id', 'user-data')
+    files = ('meta-data/local-hostname',
+             'meta-data/instance-id',
+             'meta-data/public-keys',
+             'user-data')
 
     base_url = "%s/%s" % (seed_url, version)
     md = {}
