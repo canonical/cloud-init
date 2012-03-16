@@ -17,11 +17,16 @@ instance_id = "i-testing"
 class FakeDataSource(DataSource):
 
     def __init__(self, userdata):
+        DataSource.__init__(self)
         self.metadata = {'instance-id': instance_id}
         self.userdata_raw = userdata
 
 
 class TestConsumeUserData(MockerTestCase):
+
+    _log_handler = None
+    _log = None
+    log_file = None
 
     def setUp(self):
         self.mock_write = self.mocker.replace("cloudinit.util.write_file",
