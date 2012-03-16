@@ -29,7 +29,7 @@ cfg_env_name = "CLOUD_CFG"
 
 cfg_builtin = """
 log_cfgs: []
-datasource_list: ["NoCloud", "ConfigDrive", "OVF", "MaaS", "Ec2" ]
+datasource_list: ["NoCloud", "ConfigDrive", "OVF", "MAAS", "Ec2", "CloudStack"]
 def_log_file: /var/log/cloud-init.log
 syslog_fix_perms: syslog:adm
 """
@@ -606,6 +606,14 @@ def partwalker_callback(pdata, ctype, filename, payload):
         partwalker_handle_handler(pdata, ctype, filename, payload)
         return
     if ctype not in pdata['handlers']:
+        if ctype == "text/x-not-multipart":
+            # Extract the first line or 24 bytes for displaying in the log
+            start = payload.split("\n", 1)[0][:24]
+            if start < payload:
+                details = "starting '%s...'" % start.encode("string-escape")
+            else:
+                details = repr(payload)
+            log.warning("Unhandled non-multipart userdata %s", details)
         return
     handler_handle_part(pdata['handlers'][ctype], pdata['data'],
         ctype, filename, payload, pdata['frequency'])

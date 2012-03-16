@@ -1,3 +1,15 @@
+cloud-init (0.6.3~bzr547-0ubuntu1) precise; urgency=low
+
+  * New upstream snapshot.
+    * rename DataSourceMaaS to DataSourceMAAS.
+    * support public-keys in DataSourceMAAS
+    * Warn in user-data processing on non-multipart, non-handled data 
+    * CloudStack data source added (not enabled by default)
+  * fix bug in cloud-init.postinst where the name used was wrong
+    causing config-apt-pipelining to run more than intended
+
+ -- Scott Moser <smoser@ubuntu.com>  Fri, 16 Mar 2012 14:12:38 -0400
+
 cloud-init (0.6.3~bzr539-0ubuntu3) precise; urgency=low
 
   * make maas config file only readable by root (LP: #954721)
