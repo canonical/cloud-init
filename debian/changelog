@@ -1,3 +1,12 @@
+cloud-init (0.6.3~bzr548-0ubuntu1) precise; urgency=low
+
+  * New upstream snapshot.
+    * If public-keys is a string, split it into multiple keys on newline
+      This specifically helps the MAAS data source, and should not negatively
+      affect others.
+
+ -- Scott Moser <smoser@ubuntu.com>  Mon, 19 Mar 2012 13:50:50 -0400
+
 cloud-init (0.6.3~bzr547-0ubuntu1) precise; urgency=low
 
   * New upstream snapshot.
