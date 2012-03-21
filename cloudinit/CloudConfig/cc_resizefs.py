@@ -22,6 +22,8 @@ import cloudinit.util as util
 import subprocess
 import os
 import stat
+import sys
+import time
 import tempfile
 from cloudinit.CloudConfig import per_always
 
@@ -39,10 +41,9 @@ def handle(_name, cfg, _cloud, log, args):
     if not resize_root:
         return
 
-    # this really only uses the filename from mktemp, then we mknod into it
-    (fd, devpth) = tempfile.mkstemp()
-    os.unlink(devpth)
-    os.close(fd)
+    # we use mktemp rather than mkstemp because early in boot nothing
+    # else should be able to race us for this, and we need to mknod.
+    devpth = tempfile.mktemp(prefix="cloudinit.resizefs.", dir="/run")
 
     try:
         st_dev = os.stat("/").st_dev
@@ -65,9 +66,6 @@ def handle(_name, cfg, _cloud, log, args):
         os.unlink(devpth)
         raise
 
-    log.debug("resizing root filesystem (type=%s, maj=%i, min=%i)" %
-        (str(fstype).rstrip("\n"), os.major(st_dev), os.minor(st_dev)))
-
     if str(fstype).startswith("ext"):
         resize_cmd = ['resize2fs', devpth]
     elif fstype == "xfs":
@@ -77,7 +75,24 @@ def handle(_name, cfg, _cloud, log, args):
         log.debug("not resizing unknown filesystem %s" % fstype)
         return
 
+    fid = os.fork()
+    if fid == 0:
+        try:
+            do_resize(resize_cmd, devpth, log)
+            os._exit(0)  # pylint: disable=W0212
+        except Exception as exc:
+            sys.stderr.write("Failed: %s" % exc)
+            os._exit(1)  # pylint: disable=W0212
+
+    log.debug("resizing root filesystem (type=%s, maj=%i, min=%i). pid=%s" %
+        (str(fstype).rstrip("\n"), os.major(st_dev), os.minor(st_dev), fid))
+
+    return
+
+
+def do_resize(resize_cmd, devpth, log):
     try:
+        start = time.time()
         util.subp(resize_cmd)
     except subprocess.CalledProcessError as e:
         log.warn("Failed to resize filesystem (%s)" % resize_cmd)
@@ -86,4 +101,4 @@ def handle(_name, cfg, _cloud, log, args):
         raise
 
     os.unlink(devpth)
-    return
+    log.debug("resize took %s seconds" % (time.time() - start))
