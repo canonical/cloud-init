@@ -36,9 +36,9 @@ def handle(_name, cfg, _cloud, log, args):
         if str(args[0]).lower() in ['true', '1', 'on', 'yes']:
             resize_root = True
     else:
-        resize_root = util.get_cfg_option_bool(cfg, "resize_rootfs", True)
+        resize_root = util.get_cfg_option_str(cfg, "resize_rootfs", True)
 
-    if not resize_root:
+    if str(resize_root).lower() in ['false', '0']:
         return
 
     # we use mktemp rather than mkstemp because early in boot nothing
@@ -75,14 +75,17 @@ def handle(_name, cfg, _cloud, log, args):
         log.debug("not resizing unknown filesystem %s" % fstype)
         return
 
-    fid = os.fork()
-    if fid == 0:
-        try:
-            do_resize(resize_cmd, devpth, log)
-            os._exit(0)  # pylint: disable=W0212
-        except Exception as exc:
-            sys.stderr.write("Failed: %s" % exc)
-            os._exit(1)  # pylint: disable=W0212
+    if resize_root == "noblock":
+        fid = os.fork()
+        if fid == 0:
+            try:
+                do_resize(resize_cmd, devpth, log)
+                os._exit(0)  # pylint: disable=W0212
+            except Exception as exc:
+                sys.stderr.write("Failed: %s" % exc)
+                os._exit(1)  # pylint: disable=W0212
+    else:
+        do_resize(resize_cmd, devpth, log)
 
     log.debug("resizing root filesystem (type=%s, maj=%i, min=%i). pid=%s" %
         (str(fstype).rstrip("\n"), os.major(st_dev), os.minor(st_dev), fid))
