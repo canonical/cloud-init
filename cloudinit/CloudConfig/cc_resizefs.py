@@ -87,8 +87,9 @@ def handle(_name, cfg, _cloud, log, args):
     else:
         do_resize(resize_cmd, devpth, log)
 
-    log.debug("resizing root filesystem (type=%s, maj=%i, min=%i). pid=%s" %
-        (str(fstype).rstrip("\n"), os.major(st_dev), os.minor(st_dev), fid))
+    log.debug("resizing root filesystem (type=%s, maj=%i, min=%i, val=%s)" %
+        (str(fstype).rstrip("\n"), os.major(st_dev), os.minor(st_dev),
+         resize_root))
 
     return
 
