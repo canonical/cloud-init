@@ -1,3 +1,10 @@
+cloud-init (0.6.3~bzr551-0ubuntu1) precise; urgency=low
+
+  * New upstream snapshot.
+    * support running resize2fs in the background (default=off) (LP: #961226)
+
+ -- Scott Moser <smoser@ubuntu.com>  Thu, 22 Mar 2012 14:33:59 -0400
+
 cloud-init (0.6.3~bzr548-0ubuntu1) precise; urgency=low
 
   * New upstream snapshot.
