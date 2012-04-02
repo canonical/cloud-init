@@ -1,4 +1,3 @@
-export FOO=bar
 #!/bin/sh
 # vi: ts=4 noexpandtab
 #
@@ -69,16 +68,15 @@ locale_warn() {
 	done
 
 	printf "To see all available language packs, run:\n"
-	printf "   apt-cache search \"^language-pack-*\"\n"
-	printf "To see the current locale settings, run 'locale'\n"
-	printf "This message can be disabled by running:\n"
-	printf "    touch /var/lib/cloud/instance/locale.skip\n"
+	printf "   apt-cache search \"^language-pack-[a-z][a-z]$\"\n"
+	printf "To disable for all users, run:\n"
+	printf "   sudo touch /var/lib/cloud/instance/locale-check.skip\n"
+	printf "To disable this check for this user only, run: \n"
+	printf "   touch ~/.locale-test.skip \n"
 	printf "_____________________________________________________________________\n\n"
 }
 
-[ -f /var/lib/cloud/instance/locale.skip ] && return
+[ -f /home/${USER}/.locale-test.skip -o -f /var/lib/cloud/instance/locale-check.skip ] ||
+	locale 2>&1 | locale_warn
 
-locale_warn <<EOF
-$(locale 2>&1)
-EOF
 unset locale_warn
