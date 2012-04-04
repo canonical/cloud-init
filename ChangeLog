@@ -40,6 +40,8 @@
  - run resizefs in the background in order to not block boot (LP: #961226)
  - Fix bug in Chef support where validation_key was present in config, but
    'validation_cert' was not (LP: #960547)
+ - Provide user friendly message when an invalid locale is set 
+   [Ben Howard] (LP: #859814)
 
 0.6.2:
  - fix bug where update was not done unless update was explicitly set.
