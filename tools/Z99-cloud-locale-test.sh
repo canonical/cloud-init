@@ -69,14 +69,15 @@ locale_warn() {
 
 	printf "To see all available language packs, run:\n"
 	printf "   apt-cache search \"^language-pack-[a-z][a-z]$\"\n"
-	printf "To disable for all users, run:\n"
+	printf "To disable this message for all users, run:\n"
 	printf "   sudo touch /var/lib/cloud/instance/locale-check.skip\n"
-	printf "To disable this check for this user only, run: \n"
-	printf "   touch ~/.locale-test.skip \n"
 	printf "_____________________________________________________________________\n\n"
+
+	# only show the message once
+	: > ~/.cloud-locale-test.skip 2>/dev/null || :
 }
 
-[ -f /home/${USER}/.locale-test.skip -o -f /var/lib/cloud/instance/locale-check.skip ] ||
+[ -f ~/.cloud-locale-test.skip -o -f /var/lib/cloud/instance/locale-check.skip ] ||
 	locale 2>&1 | locale_warn
 
 unset locale_warn
