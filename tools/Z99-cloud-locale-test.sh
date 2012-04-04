@@ -12,7 +12,7 @@
 locale_warn() {
 	local cr="
 "
-	local line bad_names="" bad_lcs="" key="" value="" var=""
+	local bad_names="" bad_lcs="" key="" value="" var=""
 	local w1 w2 w3 w4 remain
 	# locale is expected to output either:
 	# VARIABLE=
@@ -31,8 +31,11 @@ locale_warn() {
 	done
 	for bad in $bad_names; do
 		for var in ${vars}; do
-			[ "${bad}" = "${var%=*}" ] &&
-				bad_lcs="${bad_lcs} ${var#*=}" && break 2
+			[ "${bad}" = "${var%=*}" ] || continue
+			value=${var#*=}
+			[ "${bad_lcs#* ${value}}" = "${bad_lcs}" ] &&
+        			bad_lcs="${bad_lcs} ${value}"
+			break
 		done
 	done
 	bad_lcs=${bad_lcs# }
@@ -41,13 +44,10 @@ locale_warn() {
 	printf "_____________________________________________________________________\n"
 	printf "WARNING! Your environment specifies an invalid locale.\n"
 	printf " This can affect your user experience significantly, including the\n"
-	printf " ability to manage packages. You may install the locales by running\n"
-	printf " the following command(s):\n\n"
+	printf " ability to manage packages. You may install the locales by running:\n\n"
 
 	local bad invalid="" to_gen="" sfile="/usr/share/i18n/SUPPORTED"
-	if [ ! -e "$sfile" ]; then
-		printf "  sudo apt-get install locales\n"
-	fi
+	local pkgs=""
 	if [ -e "$sfile" ]; then
 		for bad in ${bad_lcs}; do
 			grep -q -i "${bad}" "$sfile" &&
@@ -55,14 +55,23 @@ locale_warn() {
 				invalid="${invalid} ${bad}"
 		done
 	else
+		printf "  sudo apt-get install locales\n"
 		to_gen=$bad_lcs
 	fi
+	to_gen=${to_gen# }
 
+	local pkgs=""
 	for bad in ${to_gen}; do
-		printf "   sudo apt-get install language-pack-${bad%%_*}\n"
-		printf "   sudo locale-gen ${bad}\n"
+		pkgs="${pkgs} language-pack-${bad%%_*}"
 	done
-	printf "\n"
+	pkgs=${pkgs# }
+
+	if [ -n "${pkgs}" ]; then
+		printf "   sudo apt-get install ${pkgs# }\n"
+		printf "     or\n"
+		printf "   sudo locale-gen ${to_gen# }\n"
+		printf "\n"
+	fi
 	for bad in ${invalid}; do
         	printf "WARNING: '${bad}' is an invalid locale\n"
 	done
