@@ -840,3 +840,16 @@ def wait_for_url(urls, max_wait=None, timeout=None,
         time.sleep(sleeptime)
 
     return False
+
+
+def keyval_str_to_dict(kvstring):
+    ret = {}
+    for tok in kvstring.split():
+        try:
+            (key, val) = tok.split("=", 1)
+        except ValueError:
+            key = tok
+            val = True
+        ret[key] = val
+
+    return(ret)
