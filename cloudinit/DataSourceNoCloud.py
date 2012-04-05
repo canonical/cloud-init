@@ -71,7 +71,7 @@ class DataSourceNoCloud(DataSource.DataSource):
         # precedence over a 'seedfrom' that was found in a filesystem
         # but not over external medi
         if 'seedfrom' in self.ds_cfg and self.ds_cfg['seedfrom']:
-            found.append(["ds_config"])
+            found.append("ds_config")
             md["seedfrom"] = self.ds_cfg['seedfrom']
 
         fslist = util.find_devs_with("TYPE=vfat")
