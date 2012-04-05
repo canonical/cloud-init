@@ -140,24 +140,6 @@ class CloudInit:
 
         self.sysconfig = sysconfig
 
-        if DataSource.DEP_NETWORK in self.ds_deps:
-            target = "%s.d/%s" % (self.sysconfig, "91_kernel_cmdline_url.cfg")
-            if os.path.exists(target):
-                log.debug("cmdline: %s existed" % target)
-            else:
-                try:
-                    (key, url, content) = get_cmdline_url()
-                    if key and content:
-                        util.write_file(target, content, mode=0600)
-                        log.debug("cmdline: wrote %s from %s, %s" %
-                            (target, key, url))
-                    elif key:
-                        log.debug("cmdline: %s, %s had no cloud-config" %
-                            (key, url))
-                except Exception:
-                    util.logexc(log)
-                    log.warn("cmdline: exception occurred while reading")
-
         self.cfg = self.read_cfg()
 
     def read_cfg(self):

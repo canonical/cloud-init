@@ -28,6 +28,7 @@ import cloudinit.CloudConfig as CC
 import cloudinit.DataSource as ds
 import cloudinit.netinfo as netinfo
 import time
+import traceback
 import logging
 import errno
 import os
@@ -67,6 +68,26 @@ def main():
         warn("unable to open /proc/uptime\n")
         uptime = "na"
 
+    cmdline_msg = None
+    cmdline_exc = None
+    if cmd == "start":
+        target = "%s.d/%s" % (cloudinit.system_config,
+            "91_kernel_cmdline_url.cfg")
+        if os.path.exists(target):
+            cmdline_msg = "cmdline: %s existed" % target
+        else:
+            try:
+                (key, url, content) = cloudinit.get_cmdline_url()
+                if key and content:
+                    util.write_file(target, content, mode=0600)
+                    cmdline_msg = ("cmdline: wrote %s from %s, %s" %
+                        (target, key, url))
+                elif key:
+                    cmdline_msg = ("cmdline: %s, %s had no cloud-config" %
+                        (key, url))
+            except Exception:
+                cmdline_exc = traceback.format_exc()
+
     try:
         cfg = cloudinit.get_base_cfg(cfg_path)
     except Exception as e:
@@ -85,6 +106,11 @@ def main():
 
     cloudinit.logging_set_from_cfg(cfg)
     log = logging.getLogger()
+
+    if cmdline_exc:
+        log.warn(cmdline_exc)
+    elif cmdline_msg:
+        log.debug(cmdline_msg)
 
     try:
         cloudinit.initfs()
