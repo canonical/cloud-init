@@ -6,7 +6,8 @@ import os
 import stat
 
 from cloudinit.util import (mergedict, get_cfg_option_list_or_str, write_file,
-                            delete_dir_contents)
+                            delete_dir_contents, get_cmdline,
+                            keyval_str_to_dict)
 
 
 class TestMergeDict(TestCase):
@@ -248,3 +249,18 @@ class TestDeleteDirContents(TestCase):
         delete_dir_contents(self.tmp)
 
         self.assertDirEmpty(self.tmp)
+
+
+class TestKeyValStrings(TestCase):
+    def test_keyval_str_to_dict(self):
+        expected = {'1': 'one', '2': 'one+one', 'ro': True}
+        cmdline = "1=one ro 2=one+one"
+        self.assertEqual(expected, keyval_str_to_dict(cmdline))
+
+
+class TestGetCmdline(TestCase):
+    def test_cmdline_reads_debug_env(self):
+        os.environ['DEBUG_PROC_CMDLINE'] = 'abcd 123'
+        self.assertEqual(os.environ['DEBUG_PROC_CMDLINE'], get_cmdline())
+
+# vi: ts=4 expandtab

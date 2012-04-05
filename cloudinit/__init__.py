@@ -137,7 +137,27 @@ class CloudInit:
 
         if ds_deps != None:
             self.ds_deps = ds_deps
+
         self.sysconfig = sysconfig
+
+        if DataSource.DEP_NETWORK in self.ds_deps:
+            target = "%s.d/%s" % (self.sysconfig, "91_kernel_cmdline_url.cfg")
+            if os.path.exists(target):
+                log.debug("cmdline: %s existed" % target)
+            else:
+                try:
+                    (key, url, content) = get_cmdline_url()
+                    if key and content:
+                        util.write_file(target, content, mode=0600)
+                        log.debug("cmdline: wrote %s from %s, %s" %
+                            (target, key, url))
+                    elif key:
+                        log.debug("cmdline: %s, %s had no cloud-config" %
+                            (key, url))
+                except Exception:
+                    util.logexc(log)
+                    log.warn("cmdline: exception occurred while reading")
+
         self.cfg = self.read_cfg()
 
     def read_cfg(self):
@@ -639,3 +659,27 @@ class InternalPartHandler:
 
     def handle_part(self, data, ctype, filename, payload, frequency):
         return(self.handler(data, ctype, filename, payload, frequency))
+
+
+def get_cmdline_url(names=('cloud-config-url', 'url'),
+                    starts="#cloud-config", cmdline=None):
+
+    if cmdline == None:
+        cmdline = util.get_cmdline()
+
+    data = util.keyval_str_to_dict(cmdline)
+    url = None
+    key = None
+    for key in names:
+        if key in data:
+            url = data[key]
+            break
+    if url == None:
+        return (None, None, None)
+
+    contents = util.readurl(url)
+
+    if contents.startswith(starts):
+        return (key, url, contents)
+
+    return (key, url, None)
