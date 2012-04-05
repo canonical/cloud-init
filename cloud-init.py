@@ -86,7 +86,7 @@ def main():
                     cmdline_msg = ("cmdline: %s, %s had no cloud-config" %
                         (key, url))
             except Exception:
-                cmdline_exc = "%s\n%s\n" % (traceback.format_exc()
+                cmdline_exc = "%s\n%s\n" % (traceback.format_exc(),
                     "cmdline token was %s=%s" % (key, url))
                 warn(cmdline_exc)
 
