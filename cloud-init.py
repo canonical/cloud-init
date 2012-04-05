@@ -76,8 +76,10 @@ def main():
         if os.path.exists(target):
             cmdline_msg = "cmdline: %s existed" % target
         else:
+            cmdline=util.get_cmdline()
             try:
-                (key, url, content) = cloudinit.get_cmdline_url()
+                (key, url, content) = cloudinit.get_cmdline_url(
+                    cmdline=cmdline)
                 if key and content:
                     util.write_file(target, content, mode=0600)
                     cmdline_msg = ("cmdline: wrote %s from %s, %s" %
@@ -86,7 +88,8 @@ def main():
                     cmdline_msg = ("cmdline: %s, %s had no cloud-config" %
                         (key, url))
             except Exception:
-                cmdline_exc = traceback.format_exc()
+                cmdline_exc = ("cmdline: '%s' raised exception\n%s" %
+                    (cmdline, traceback.format_exc()))
                 warn(cmdline_exc)
 
     try:
