@@ -24,3 +24,10 @@ datasource:
     consumer_key: Xh234sdkljf
     token_key: kjfhgb3n
     token_secret: 24uysdfx1w4
+
+  NoCloud:
+    # default seedfrom is None
+    # if found, then it should contain a url with:
+    #    <url>/user-data and <url>/meta-data
+    # seedfrom: http://my.example.com/i-abcde
+    seedfrom: None
