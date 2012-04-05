@@ -47,5 +47,6 @@ setup(name='cloud-init',
                   ('/usr/share/doc/cloud-init', filter(is_f,glob('doc/*'))),
                   ('/usr/share/doc/cloud-init/examples', filter(is_f,glob('doc/examples/*'))),
                   ('/usr/share/doc/cloud-init/examples/seed', filter(is_f,glob('doc/examples/seed/*'))),
+                  ('/etc/profile.d', ['tools/Z99-cloud-locale-test.sh']),
                   ],
       )

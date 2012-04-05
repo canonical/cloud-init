@@ -137,7 +137,9 @@ class CloudInit:
 
         if ds_deps != None:
             self.ds_deps = ds_deps
+
         self.sysconfig = sysconfig
+
         self.cfg = self.read_cfg()
 
     def read_cfg(self):
@@ -639,3 +641,27 @@ class InternalPartHandler:
 
     def handle_part(self, data, ctype, filename, payload, frequency):
         return(self.handler(data, ctype, filename, payload, frequency))
+
+
+def get_cmdline_url(names=('cloud-config-url', 'url'),
+                    starts="#cloud-config", cmdline=None):
+
+    if cmdline == None:
+        cmdline = util.get_cmdline()
+
+    data = util.keyval_str_to_dict(cmdline)
+    url = None
+    key = None
+    for key in names:
+        if key in data:
+            url = data[key]
+            break
+    if url == None:
+        return (None, None, None)
+
+    contents = util.readurl(url)
+
+    if contents.startswith(starts):
+        return (key, url, contents)
+
+    return (key, url, None)

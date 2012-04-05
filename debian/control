@@ -11,7 +11,7 @@ Build-Depends: cdbs,
                python-nose,
                python-mocker,
 XS-Python-Version: all
-Standards-Version: 3.9.2
+Standards-Version: 3.9.3
 
 Package: cloud-init
 Architecture: all
