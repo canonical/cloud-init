@@ -86,7 +86,9 @@ def main():
                     cmdline_msg = ("cmdline: %s, %s had no cloud-config" %
                         (key, url))
             except Exception:
-                cmdline_exc = traceback.format_exc()
+                cmdline_exc = "%s\n%s\n" % (traceback.format_exc()
+                    "cmdline token was %s=%s" % (key, url))
+                warn(cmdline_exc)
 
     try:
         cfg = cloudinit.get_base_cfg(cfg_path)
@@ -108,7 +110,7 @@ def main():
     log = logging.getLogger()
 
     if cmdline_exc:
-        log.warn(cmdline_exc)
+        log.debug(cmdline_exc)
     elif cmdline_msg:
         log.debug(cmdline_msg)
 
