@@ -1,12 +1,21 @@
 #cloud-config
 #
-# This is an example file to automatically setup chef and run a list of recipes
-# when the instance boots for the first time.
+# This is an example file to automatically install chef-client and run a 
+# list of recipes when the instance boots for the first time.
 # Make sure that this file is valid yaml before starting instances.
 # It should be passed as user-data when starting the instance.
+#
+# This example assumes the instance is 12.04 (precise)
 
-# The default is to install from packages. If you want the latest packages from Opscode, be sure to add their repo:
-apt_mirror: http://apt.opscode.com/
+
+# The default is to install from packages. 
+# In this example, we show how to specify the opscode repository for
+# installing from packages, but we install chef from gems because 
+# cloud-init doesn't install opscode's GPG key so packages fail to install
+
+
+apt_sources:
+ - source: "deb http://apt.opscode.com/ precise-0.10 main"
 
 chef:
 
@@ -42,3 +51,8 @@ chef:
       prefork:
         maxclients: 100
       keepalive: "off"
+
+
+# Capture all subprocess output into a logfile
+# Useful for troubleshooting cloud-init issues
+output: {all: '| tee -a /var/log/cloud-init-output.log'}
