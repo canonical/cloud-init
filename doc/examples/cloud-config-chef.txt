@@ -12,7 +12,7 @@
 
 # Key from http://apt.opscode.com/packages@opscode.com.gpg.key
 apt_sources:
- - source: "deb http://apt.opscode.com/ precise-0.10 main"
+ - source: "deb http://apt.opscode.com/ $RELEASE-0.10 main"
    key: |
      -----BEGIN PGP PUBLIC KEY BLOCK-----
      Version: GnuPG v1.4.9 (GNU/Linux)
