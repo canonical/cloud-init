@@ -12,7 +12,7 @@
 
 # Key from http://apt.opscode.com/packages@opscode.com.gpg.key
 apt_sources:
- - source: "deb http://apt.opscode.com/ oneiric-0.10 main"
+ - source: "deb http://apt.opscode.com/ $RELEASE-0.10 main"
    key: |
      -----BEGIN PGP PUBLIC KEY BLOCK-----
      Version: GnuPG v1.4.9 (GNU/Linux)
@@ -47,8 +47,7 @@ apt_sources:
 
 chef:
 
- # Will fail on oneiric if install_type is "gems"
- # see: https://bugs.launchpad.net/cloud-init/+bug/960576
+ # 11.10 will fail if install_type is "gems" (LP: #960576)
  install_type: "packages"
 
  # Chef settings
@@ -66,8 +65,7 @@ chef:
  validation_name: "yourorg-validator"
 
  # value of validation_cert is not used if validation_key defined,
- # but variable needs to be defined
- # See: https://bugs.launchpad.net/cloud-init/+bug/960547
+ # but variable needs to be defined (LP: #960547)
  validation_cert: "unused"
  validation_key: |
      -----BEGIN RSA PRIVATE KEY-----
