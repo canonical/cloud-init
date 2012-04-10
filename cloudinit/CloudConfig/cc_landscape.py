@@ -18,6 +18,8 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+import os
+import os.path
 from cloudinit.CloudConfig import per_instance
 from configobj import ConfigObj
 
@@ -49,6 +51,9 @@ def handle(_name, cfg, _cloud, log, _args):
         raise(Exception("'landscape' existed in config, but not a dict"))
 
     merged = mergeTogether([lsc_builtincfg, lsc_client_cfg_file, ls_cloudcfg])
+
+    if not os.path.isdir(os.path.dirname(lsc_client_cfg_file)):
+        os.makedirs(os.path.dirname(lsc_client_cfg_file))
 
     with open(lsc_client_cfg_file, "w") as fp:
         merged.write(fp)
