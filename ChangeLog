@@ -44,6 +44,8 @@
    [Ben Howard] (LP: #859814)
  - Support reading cloud-config from kernel command line parameter and
    populating local file with it, which can then provide data for DataSources
+ - improve chef examples for working configurations on 11.10 and 12.04 
+   [Lorin Hochstein] (LP: #960564)
 
 0.6.2:
  - fix bug where update was not done unless update was explicitly set.
