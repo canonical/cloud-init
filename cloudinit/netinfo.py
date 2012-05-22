@@ -19,14 +19,14 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import subprocess
+import cloudinit.util as util
 
 
 def netdev_info(empty=""):
     fields = ("hwaddr", "addr", "bcast", "mask")
-    ifcfg_out = str(subprocess.check_output(["ifconfig", "-a"]))
+    (ifcfg_out, _err) = util.subp(["ifconfig", "-a"])
     devs = {}
-    for line in ifcfg_out.splitlines():
+    for line in str(ifcfg_out).splitlines():
         if len(line) == 0:
             continue
         if line[0] not in ("\t", " "):
@@ -70,9 +70,9 @@ def netdev_info(empty=""):
 
 
 def route_info():
-    route_out = str(subprocess.check_output(["route", "-n"]))
+    (route_out, _err) = util.subp(["route", "-n"])
     routes = []
-    for line in route_out.splitlines()[1:]:
+    for line in str(route_out).splitlines()[1:]:
         if not line:
             continue
         toks = line.split()
