@@ -155,6 +155,8 @@ def setup_user_keys(keys, user, key_prefix, log=None):
         akeys = ssh_cfg.get("AuthorizedKeysFile", "%h/.ssh/authorized_keys")
         akeys = akeys.replace("%h", pwent.pw_dir)
         akeys = akeys.replace("%u", user)
+        if not akeys.startswith('/'):
+            akeys = os.path.join(pwent.pw_dir, akeys)
         authorized_keys = akeys
     except Exception:
         authorized_keys = '%s/.ssh/authorized_keys' % pwent.pw_dir

@@ -1,3 +1,5 @@
+0.6.4:
+ - support relative path in AuthorizedKeysFile (LP: #970071).
 0.6.3:
  - add sample systemd config files [Garrett Holmstrom]
  - add Fedora support [Garrent Holstrom] (LP: #883286)
