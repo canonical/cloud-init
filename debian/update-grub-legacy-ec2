@@ -1399,14 +1399,19 @@ fi
 
 if ! type is_xen_kernel >/dev/null 2>&1; then
   is_xen_kernel() {
-    case "${1}" in
+    # input is like /boot/vmlinuz-2.6.35-13-virtual
+    # get the version string out of it.
+    local ver_flavor="";
+    ver_flavor="${1##*vmlinuz-}"
+
+    case "${ver_flavor}" in
        *-ec2) return 0;;
        *-virtual)
-         # input is like /boot/vmlinuz-2.6.35-13-virtual
-         # get the version string out of it.
-         local ver=""
-         ver=${1##*/}; ver=${ver#vmlinuz-}; ver=${ver%-virtual};
-         dpkg --compare-versions ${ver} gt 2.6.35-13 && return 0
+         # 10.04 LTS through 12.04 LTS -virtual is the EC2/Xen kernel
+         dpkg --compare-versions ${ver_flavor%-virtual} gt 2.6.35-13 && return 0;;
+       *-generic)
+         # Starting with 12.10, -virtual was merged into -generic
+         dpkg --compare-versions ${ver_flavor%-generic} ge 3.4.0-3 && return 0;;
     esac
     return 1;
   }

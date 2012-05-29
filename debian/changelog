@@ -1,3 +1,10 @@
+cloud-init (0.6.3-0ubuntu2) quantal; urgency=high
+
+  * Added -generic to Xen kernels list since -virtual has been dropped with
+    Quantal. (LP: #1005551)
+
+ -- Ben Howard <ben.howard@ubuntu.com>  Tue, 29 May 2012 12:59:01 -0600
+
 cloud-init (0.6.3-0ubuntu1) precise; urgency=low
 
   * New upstream release.
