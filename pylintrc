@@ -1,0 +1,42 @@
+# The format of this file isn't really documented; just use --generate-rcfile
+
+[Master]
+
+[Messages Control]
+
+# http://pylint-messages.wikidot.com/all-codes
+# NOTE(justinsb): We might want to have a 2nd strict pylintrc in future
+# C0111: Don't require docstrings on every method
+# R0912: Too many branches (huh)
+# R0914: Too many local variables is odd.
+# W0142: *args and **kwargs are fine.
+# W0511: TODOs in code comments are fine.
+# W0613: Unused argument '??' should be ok (they are useful sometimes to know intention of variable)
+# W0622: Redefining id is fine.
+disable=C0111,W0142,W0622,C0301,R0902,R0201,R0914,W0613,R0912,R0801
+
+[Basic]
+
+# Variable names can be 1 to 31 characters long, with lowercase and underscores
+variable-rgx=[a-z_][a-z0-9_]{0,30}$
+
+# Argument names can be 2 to 31 characters long, with lowercase and underscores
+argument-rgx=[a-z_][a-z0-9_]{1,30}$
+
+# Method names should be at least 3 characters long
+# and be lowercased with underscores
+method-rgx=([a-z_][a-z0-9_]{2,50}|setUp|tearDown)$
+
+# Don't require docstrings on tests.
+no-docstring-rgx=((__.*__)|([tT]est.*)|setUp|tearDown)$
+
+[Design]
+
+max-public-methods=100
+min-public-methods=0
+max-args=6
+
+[Variables]
+
+# List of additional names supposed to be defined in builtins. Remember that
+# you should avoid to define new builtins when possible.
