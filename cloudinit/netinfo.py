@@ -110,7 +110,3 @@ def debug_info(pre="ci-info: "):
             (pre, n, r[0], r[1], r[2], r[7], r[3]))
         n = n + 1
     return('\n'.join(lines))
-
-
-if __name__ == '__main__':
-    print debug_info()
