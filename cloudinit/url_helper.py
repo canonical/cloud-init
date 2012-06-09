@@ -1,15 +1,11 @@
 import errno
-import httplib
 import time
 import urllib
 import urllib2
 
-from StringIO import StringIO
-
 from contextlib import closing
 
 from cloudinit import log as logging
-from cloudinit import shell as sh
 
 LOG = logging.getLogger(__name__)
 
@@ -18,7 +14,7 @@ def ok_http_code(st):
     return st in xrange(200, 400)
 
 
-def readurl(url, data=None, timeout=None, retries=0, sec_between=1, read_cb=None, headers=None):
+def readurl(url, data=None, timeout=None, retries=0, sec_between=1, headers=None):
     openargs = {}
     if timeout is not None:
         openargs['timeout'] = int(timeout)
@@ -31,14 +27,13 @@ def readurl(url, data=None, timeout=None, retries=0, sec_between=1, read_cb=None
     if retries <= 0:
         retries = 1
 
+    attempts = retries + 1
     last_excp = None
-    LOG.debug("Attempting to read from %s with %s attempts to be performed", url, retries)
-    for i in range(0, retries):
+    LOG.debug("Attempting to read from %s with %s attempts to be performed", url, attempts)
+    for i in range(0, attempts):
         try:
             with closing(urllib2.urlopen(req, **openargs)) as rh:
-                ofh = StringIO()
-                sh.pipe_in_out(rh, ofh, chunk_cb=read_cb)
-                return (ofh.getvalue(), rh.getcode())
+                return (rh.read(), rh.getcode())
         except urllib2.HTTPError as e:
             last_excp = e
             LOG.exception("Failed at reading from %s.", url)
@@ -51,11 +46,12 @@ def readurl(url, data=None, timeout=None, retries=0, sec_between=1, read_cb=None
             else:
                 last_excp = e
             LOG.exception("Failed at reading from %s.", url)
-        LOG.debug("Please wait %s seconds while we wait to try again.", sec_between)
-        time.sleep(sec_between)
+        if i + 1 < attempts:
+            LOG.debug("Please wait %s seconds while we wait to try again.", sec_between)
+            time.sleep(sec_between)
 
     # Didn't work out
-    LOG.warn("Failed downloading from %s after %s attempts", url, i + 1)
+    LOG.warn("Failed downloading from %s after %s attempts", url, attempts)
     if last_excp is not None:
         raise last_excp
 
@@ -118,11 +114,11 @@ def wait_for_url(urls, max_wait=None, timeout=None,
                 else:
                     headers = {}
 
-                (resp, status_code) = readurl(url, headers=headers, timeout=timeout)
+                (resp, sc) = readurl(url, headers=headers, timeout=timeout)
                 if not resp:
-                    reason = "empty response [%s]" % status_code
-                elif not ok_http_code(status_code):
-                    reason = "bad status code [%s]" % status_code
+                    reason = "empty response [%s]" % sc
+                elif not ok_http_code(sc):
+                    reason = "bad status code [%s]" % sc
                 else:
                     return url
             except urllib2.HTTPError as e:
