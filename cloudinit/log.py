@@ -2,7 +2,12 @@
 
 import logging
 import logging.handlers
+import logging.config
+
+import os
 import sys
+
+from StringIO import StringIO
 
 # Logging levels for easy access
 CRITICAL = logging.CRITICAL
@@ -13,10 +18,6 @@ WARN = logging.WARN
 INFO = logging.INFO
 DEBUG = logging.DEBUG
 NOTSET = logging.NOTSET
-
-# File log rotation settings
-ROTATE_AMOUNT = 10  # Only keep the past 9 + 1 active
-ROTATE_SIZE = 10 * 1024 * 1024  # 10 MB
 
 
 class ConsoleFormatter(logging.Formatter):
@@ -31,50 +32,39 @@ class ConsoleFormatter(logging.Formatter):
         record.message = record.getMessage()
         rdict = dict(record.__dict__)
         rdict['minilevelname'] = self._get_mini_level(record)
-        # Skipping exception info for the console...
         return self._fmt % (rdict)
 
 
-def setupLogging(level, filename=None, filelevel=logging.DEBUG):
-    root = getLogger()
-    consolelg = logging.StreamHandler(sys.stdout)
-    consolelg.setFormatter(ConsoleFormatter('%(minilevelname)s%(message)s'))
-    consolelg.setLevel(level)
-    root.addHandler(consolelg)
-    if filename:
-        filelg = logging.handlers.RotatingFileHandler(filename, maxBytes=ROTATE_SIZE, backupCount=ROTATE_AMOUNT)
-        filelg.setFormatter(logging.Formatter('%(levelname)s: @%(name)s : %(message)s'))
-        filelg.setLevel(filelevel)
-        root.addHandler(filelg)
-    root.setLevel(level)
-
-
-def logging_set_from_cfg(cfg):
+def setupLogging(cfg):
     log_cfgs = []
-    logcfg = util.get_cfg_option_str(cfg, "log_cfg", False)
-    if logcfg:
+    log_cfg = cfg.get('logcfg')
+    if log_cfg:
         # if there is a 'logcfg' entry in the config, respect
         # it, it is the old keyname
-        log_cfgs = [logcfg]
+        log_cfgs = [log_cfg]
     elif "log_cfgs" in cfg:
         for cfg in cfg['log_cfgs']:
             if isinstance(cfg, list):
                 log_cfgs.append('\n'.join(cfg))
             else:
-                log_cfgs.append()
+                log_cfgs.append(cfg)
 
     if not len(log_cfgs):
         sys.stderr.write("Warning, no logging configured\n")
         return
 
+    am_worked = 0
     for logcfg in log_cfgs:
         try:
-            logging.config.fileConfig(StringIO.StringIO(logcfg))
-            return
+            if not os.path.isfile(logcfg):
+                logcfg = StringIO(logcfg)
+            logging.config.fileConfig(logcfg)
+            am_worked += 1
         except:
             pass
 
-    raise Exception("no valid logging found\n")
+    if not am_worked:
+        sys.stderr.write("Warning, no logging configured\n")
 
 
 def getLogger(name='cloudinit'):
