@@ -23,18 +23,17 @@
 import os
 
 import sys
-import os.path
 import errno
 import subprocess
 import yaml
 import glob
-import traceback
 
-import cloudinit.log as logging
-import cloudinit.shell as sh
-import cloudinit.util as util
+from cloudinit import log as logging
+from cloudinit import sources
+from cloudinit import url_helper as uhelp
+from cloudinit import util
 
-from cloudinit.constants import (VAR_LIB_DIR, CFG_BUILTIN, CLOUD_CONFIG,
+from cloudinit.settings import (VAR_LIB_DIR, CFG_BUILTIN, CLOUD_CONFIG,
                                  BOOT_FINISHED, CUR_INSTANCE_LINK, PATH_MAP)
 
 LOG = logging.getLogger(__name__)
@@ -62,20 +61,20 @@ def initfs():
     dlist = []
     for subd in INIT_SUBDIRS:
         dlist.append(os.path.join(VAR_LIB_DIR, subd))
-    sh.ensure_dirs(dlist)
+    util.ensure_dirs(dlist)
 
     cfg = util.get_base_cfg(CLOUD_CONFIG, get_builtin_cfg(), parsed_cfgs)
     log_file = util.get_cfg_option_str(cfg, 'def_log_file', None)
     perms = util.get_cfg_option_str(cfg, 'syslog_fix_perms', None)
     if log_file:
-        sh.ensure_file(log_file)
+        util.ensure_file(log_file)
     if log_file and perms:
         (u, g) = perms.split(':', 1)
         if u == "-1" or u == "None":
             u = None
         if g == "-1" or g == "None":
             g = None
-        sh.chownbyname(log_file, u, g)
+        util.chownbyname(log_file, u, g)
 
 
 def purge_cache(rmcur=True):
@@ -83,34 +82,8 @@ def purge_cache(rmcur=True):
     if rmcur:
         rmlist.append(CUR_INSTANCE_LINK)
     for f in rmlist:
-        try:
-            sh.unlink(f)
-        except OSError as e:
-            if e.errno == errno.ENOENT:
-                continue
-            return False
-        except:
-            return False
+        util.unlink(f)
     return True
-
-
-# get_ipath_cur: get the current instance path for an item
-def get_ipath_cur(name=None):
-    add_on = PATH_MAP.get(name)
-    ipath = os.path.join(VAR_LIB_DIR, 'instance')
-    if add_on:
-        ipath = os.path.join(ipath, add_on)
-    return ipath
-
-
-# get_cpath : get the "clouddir" (/var/lib/cloud/<name>)
-# for a name in dirmap
-def get_cpath(name=None):
-    cpath = VAR_LIB_DIR
-    add_on = PATH_MAP.get(name)
-    if add_on:
-        cpath = os.path.join(cpath, add_on)
-    return cpath
 
 
 def get_base_cfg(cfg_path=None):
@@ -124,7 +97,7 @@ def get_builtin_cfg():
 
 
 def list_sources(cfg_list, depends):
-    return (DataSource.list_sources(cfg_list, depends, ["cloudinit", ""]))
+    return (sources.list_sources(cfg_list, depends, ["cloudinit", ""]))
 
 
 def get_cmdline_url(names=('cloud-config-url', 'url'),
@@ -140,11 +113,11 @@ def get_cmdline_url(names=('cloud-config-url', 'url'),
         if key in data:
             url = data[key]
             break
-    if url == None:
+
+    if url is None:
         return (None, None, None)
 
-    contents = util.readurl(url)
-
+    contents = uhelp.readurl(url)
     if contents.startswith(starts):
         return (key, url, contents)
 
