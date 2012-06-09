@@ -2,21 +2,26 @@ from time import time
 
 import cPickle as pickle
 import contextlib
+import copy
 import os
 import sys
 import weakref
 
-
 from cloudinit.settings import (PER_INSTANCE, PER_ALWAYS,
                                 OLD_CLOUD_CONFIG, CLOUD_CONFIG,
-                                CFG_BUILTIN, CUR_INSTANCE_LINK)
+                                CUR_INSTANCE_LINK)
 from cloudinit import (get_builtin_cfg, get_base_cfg)
 from cloudinit import log as logging
-from cloudinit import parts
 from cloudinit import sources
 from cloudinit import util
 from cloudinit import user_data
 from cloudinit import handlers
+
+from cloudinit import parts
+from cloudinit.parts import boot_hook as bh_part
+from cloudinit.parts import cloud_config as cc_part
+from cloudinit.parts import upstart_job as up_part
+from cloudinit.parts import shell_script as ss_part
 
 LOG = logging.getLogger(__name__)
 
@@ -128,10 +133,10 @@ class CloudPaths(object):
         return ipath
 
 
-class CloudPartData(object):
-    def __init__(self, datasource, paths):
-        self.datasource = datasource
-        self.paths = paths
+class CloudSimple(object):
+    def __init__(self, init):
+        self.datasource = init.datasource
+        self.paths = init.paths
 
     def get_userdata(self):
         return self.datasource.get_userdata()
@@ -288,7 +293,7 @@ class CloudInit(object):
         sys.path.insert(0, idir)
 
         # Data will be a little proxy that modules can use
-        data = CloudPartData(self.datasource, self.paths)
+        data = CloudSimple(self)
 
         # This keeps track of all the active handlers
         handlers = CloudHandlers(self)
@@ -369,13 +374,13 @@ class CloudHandlers(object):
     def _get_default_handlers(self):
         def_handlers = []
         if self.paths.get_ipath("cloud_config"):
-            def_handlers.append(parts.CloudConfigPartHandler(self.paths.get_ipath("cloud_config")))
+            def_handlers.append(cc_part.CloudConfigPartHandler(self.paths.get_ipath("cloud_config")))
         if self.paths.get_ipath_cur('scripts'):
-            def_handlers.append(parts.ShellScriptPartHandler(self.paths.get_ipath_cur('scripts')))
+            def_handlers.append(ss_part.ShellScriptPartHandler(self.paths.get_ipath_cur('scripts')))
         if self.paths.get_ipath("boothooks"):
-            def_handlers.append(parts.BootHookPartHandler(self.paths.get_ipath("boothooks")))
+            def_handlers.append(bh_part.BootHookPartHandler(self.paths.get_ipath("boothooks")))
         if self.paths.upstart_conf_d:
-            def_handlers.append(parts.UpstartJobPartHandler(self.paths.upstart_conf_d))
+            def_handlers.append(up_part.UpstartJobPartHandler(self.paths.upstart_conf_d))
         return def_handlers
 
     def register_defaults(self):
@@ -391,13 +396,11 @@ class CloudHandlers(object):
 class CloudConfig(object):
 
     def __init__(self, cfgfile, cloud):
-        self.cloud = cloud
+        self.cloud = CloudSimple(cloud)
         self.cfg = self._get_config(cfgfile)
-        self.paths = cloud.paths
-        self.sems = CloudSemaphores(self.paths)
+        self.sems = CloudSemaphores(self.cloud.paths)
 
     def _get_config(self, cfgfile):
-
         cfg = None
         try:
             cfg = util.read_conf(cfgfile)
@@ -430,5 +433,5 @@ class CloudConfig(object):
         if not freq:
             freq = def_freq
         c_name = "config-%s" % (name)
-        real_args = [name, self.cfg, self.cloud, LOG, args]
+        real_args = [name, copy.deepcopy(self.cfg), self.cloud, LOG, copy.deepcopy(args)]
         return self.sems.run_functor(c_name, freq, mod.handle, real_args)
