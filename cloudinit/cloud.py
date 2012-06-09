@@ -16,6 +16,7 @@ from cloudinit import parts
 from cloudinit import sources
 from cloudinit import util
 from cloudinit import user_data
+from cloudinit import handlers
 
 LOG = logging.getLogger(__name__)
 
@@ -168,7 +169,6 @@ class CloudInit(object):
         else:
             self.ds_deps = [sources.DEP_FILESYSTEM, sources.DEP_NETWORK]
         self.paths = CloudPaths(self)
-        self.sems = CloudSemaphores(self.paths)
         self.cfg = self._read_cfg()
 
     def _read_cfg_old(self):
@@ -294,16 +294,14 @@ class CloudInit(object):
         handlers = CloudHandlers(self)
 
         # Add handlers in cdir
-        for fname in glob.glob(os.path.join(cdir, "*.py")):
-            if not os.path.isfile(fname):
-                continue
-            modname = os.path.basename(fname)[0:-3]
+        potential_handlers = parts.find_module_files(cdir)
+        for (fname, modname) in potential_handlers.iteritems():
             try:
                 mod = parts.fixup_module(importer.import_module(modname))
                 types = handlers.register(mod)
                 LOG.debug("Added handler for [%s] from %s", types, fname)
             except:
-                LOG.exception("Failed to register handler in %s", fname)
+                LOG.exception("Failed to register handler from %s", fname)
 
         def_handlers = handlers.register_defaults()
         if def_handlers:
@@ -391,47 +389,46 @@ class CloudHandlers(object):
 
 
 class CloudConfig(object):
-    cfgfile = None
-    cfg = None
 
-    def __init__(self, cfgfile, cloud=None, ds_deps=None):
-        if cloud == None:
-            self.cloud = cloudinit.CloudInit(ds_deps)
-            self.cloud.get_data_source()
-        else:
-            self.cloud = cloud
-        self.cfg = self.get_config_obj(cfgfile)
+    def __init__(self, cfgfile, cloud):
+        self.cloud = cloud
+        self.cfg = self._get_config(cfgfile)
+        self.paths = cloud.paths
+        self.sems = CloudSemaphores(self.paths)
 
-    def get_config_obj(self, cfgfile):
+    def _get_config(self, cfgfile):
+
+        cfg = None
         try:
             cfg = util.read_conf(cfgfile)
         except:
-            # TODO: this 'log' could/should be passed in
-            cloudinit.log.critical("Failed loading of cloud config '%s'. "
-                                   "Continuing with empty config\n" % cfgfile)
-            cloudinit.log.debug(traceback.format_exc() + "\n")
-            cfg = None
-        if cfg is None:
+            LOG.exception(("Failed loading of cloud config '%s'. "
+                          "Continuing with empty config."), cfgfile)
+        if not cfg:
             cfg = {}
 
+        ds_cfg = None
         try:
             ds_cfg = self.cloud.datasource.get_config_obj()
         except:
+            LOG.exception("Failed loading of datasource config.")
+        if not ds_cfg:
             ds_cfg = {}
 
         cfg = util.mergedict(cfg, ds_cfg)
-        return(util.mergedict(cfg, self.cloud.cfg))
+        cloud_cfg = self.cloud.cfg or {}
+        return util.mergedict(cfg, cloud_cfg)
 
-    def handle(self, name, args, freq=None):
-        try:
-            mod = __import__("cc_" + name.replace("-", "_"), globals())
-            def_freq = getattr(mod, "frequency", per_instance)
-            handler = getattr(mod, "handle")
+    def extract(self, name):
+        modname = handlers.form_module_name(name)
+        if not modname:
+            return None
+        return handlers.fixup_module(importer.import_module(modname))
 
-            if not freq:
-                freq = def_freq
-
-            self.cloud.sem_and_run("config-" + name, freq, handler,
-                [name, self.cfg, self.cloud, cloudinit.log, args])
-        except:
-            raise
+    def handle(self, name, mod, args, freq=None):
+        def_freq = mod.frequency 
+        if not freq:
+            freq = def_freq
+        c_name = "config-%s" % (name)
+        real_args = [name, self.cfg, self.cloud, LOG, args]
+        return self.sems.run_functor(c_name, freq, mod.handle, real_args)
