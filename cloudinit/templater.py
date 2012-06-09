@@ -2,14 +2,17 @@ import os
 
 from Cheetah.Template import Template
 
+from cloudinit import settings
 from cloudinit import util
-
-TEMPLATE_DIR = '/etc/cloud/templates/'
 
 
 def render_to_file(template, outfile, searchList):
-    contents = Template(file=os.path.join(TEMPLATE_DIR, template),
-                 searchList=[searchList]).respond()
+    fn = template
+    (base, ext) = os.path.splitext(fn)
+    if ext != ".tmpl":
+        fn = "%s.tmpl" % (fn)
+    fn = os.path.join(settings.TEMPLATE_DIR, fn)
+    contents = Template(file=fn, searchList=[searchList]).respond()
     util.write_file(outfile, contents)
 
 
