@@ -36,6 +36,7 @@ LOG = logging.getLogger(__name__)
 
 DEF_HANDLER_VERSION = 1
 DEF_FREQ = PER_INSTANCE
+HANDLER_TPL = "cc_%s"
 
 
 # reads a cloudconfig module list, returns
@@ -230,3 +231,25 @@ def update_package_sources():
 def install_packages(pkglist):
     update_package_sources()
     apt_get("install", pkglist)
+
+
+def form_module_name(name):
+    canon_name = name.replace("-", "_")
+    if canon_name.endswith(".py"):
+        canon_name = canon_name[0:(len(canon_name) - 3)]
+    canon_name = canon_name.strip()
+    if not canon_name:
+        return None
+    return HANDLER_TPL % (canon_name)
+
+
+def fixup_module(mod):
+    freq = getattr(mod, "frequency", None)
+    if not freq:
+        setattr(mod, 'frequency', PER_INSTANCE)
+    handler = getattr(mod, "handle", None)
+    if not handler:
+        def empty_handle(_name, _cfg, _cloud, _log, _args):
+            pass
+        setattr(mod, 'handle', empty_handle)
+    return mod
