@@ -34,47 +34,37 @@ from cloudinit import url_helper as uhelp
 from cloudinit import util
 
 from cloudinit.settings import (VAR_LIB_DIR, CFG_BUILTIN, CLOUD_CONFIG,
-                                 BOOT_FINISHED, CUR_INSTANCE_LINK, PATH_MAP)
+                                 BOOT_FINISHED, CUR_INSTANCE_LINK)
 
 LOG = logging.getLogger(__name__)
 
 INIT_SUBDIRS = [
-    'scripts',
-    os.path.join('scripts', 'per-instance'),
-    os.path.join('scripts', 'per-once'),
-    os.path.join('scripts', 'per-boot'),
-    'seed',
-    'instances',
-    'handlers',
-    'sem',
-    'data'
+    os.path.join(VAR_LIB_DIR, 'scripts'),
+    os.path.join(VAR_LIB_DIR, 'scripts', 'per-instance'),
+    os.path.join(VAR_LIB_DIR, 'scripts', 'per-once'),
+    os.path.join(VAR_LIB_DIR, 'scripts', 'per-boot'),
+    os.path.join(VAR_LIB_DIR, 'seed'),
+    os.path.join(VAR_LIB_DIR, 'instances'),
+    os.path.join(VAR_LIB_DIR, 'handlers'),
+    os.path.join(VAR_LIB_DIR, 'sem'),
+    os.path.join(VAR_LIB_DIR, 'data'),
 ]
 
 
-# TODO: get rid of this global
-parsed_cfgs = {}
-
-
 def initfs():
-
-    # TODO don't do this every time this function is called?
-    dlist = []
-    for subd in INIT_SUBDIRS:
-        dlist.append(os.path.join(VAR_LIB_DIR, subd))
-    util.ensure_dirs(dlist)
-
-    cfg = util.get_base_cfg(CLOUD_CONFIG, get_builtin_cfg(), parsed_cfgs)
+    util.ensure_dirs(INIT_SUBDIRS)
+    cfg = util.get_base_cfg(CLOUD_CONFIG, get_builtin_cfg())
     log_file = util.get_cfg_option_str(cfg, 'def_log_file', None)
     perms = util.get_cfg_option_str(cfg, 'syslog_fix_perms', None)
     if log_file:
         util.ensure_file(log_file)
-    if log_file and perms:
-        (u, g) = perms.split(':', 1)
-        if u == "-1" or u == "None":
-            u = None
-        if g == "-1" or g == "None":
-            g = None
-        util.chownbyname(log_file, u, g)
+        if perms:
+            (u, g) = perms.split(':', 1)
+            if u == "-1" or u == "None":
+                u = None
+            if g == "-1" or g == "None":
+                g = None
+            util.chownbyname(log_file, u, g)
 
 
 def purge_cache(rmcur=True):
@@ -89,7 +79,7 @@ def purge_cache(rmcur=True):
 def get_base_cfg(cfg_path=None):
     if cfg_path is None:
         cfg_path = CLOUD_CONFIG
-    return util.get_base_cfg(cfg_path, get_builtin_cfg(), parsed_cfgs)
+    return util.get_base_cfg(cfg_path, get_builtin_cfg())
 
 
 def get_builtin_cfg():
@@ -97,14 +87,16 @@ def get_builtin_cfg():
 
 
 def list_sources(cfg_list, depends):
-    return (sources.list_sources(cfg_list, depends, ["cloudinit", ""]))
+    return sources.list_sources(cfg_list, depends, ["cloudinit", ""])
 
 
-def get_cmdline_url(names=('cloud-config-url', 'url'),
-                    starts="#cloud-config", cmdline=None):
-
-    if cmdline == None:
+def get_cmdline_url(names=None, starts=None, cmdline=None):
+    if cmdline is None:
         cmdline = util.get_cmdline()
+    if not names:
+        names = ('cloud-config-url', 'url')
+    if not starts:
+        starts = "#cloud-config"
 
     data = util.keyval_str_to_dict(cmdline)
     url = None
