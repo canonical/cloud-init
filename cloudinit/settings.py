@@ -7,6 +7,7 @@ SEED_DIR = os.path.join(VAR_LIB_DIR, "seed")
 
 CFG_ENV_NAME = "CLOUD_CFG"
 CLOUD_CONFIG = '/etc/cloud/cloud.cfg'
+OLD_CLOUD_CONFIG = '/etc/ec2-init/ec2-config.cfg'
 
 CFG_BUILTIN = {
     'datasource_list': ['NoCloud',
@@ -35,3 +36,5 @@ PATH_MAP = {
 PER_INSTANCE = "once-per-instance"
 PER_ALWAYS = "always"
 PER_ONCE = "once"
+
+TEMPLATE_DIR = '/etc/cloud/templates/'
