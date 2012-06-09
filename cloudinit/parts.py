@@ -137,7 +137,21 @@ def fixup_module(mod):
         setattr(mod, 'list_types', empty_types)
     if not hasattr(mod, frequency):
         setattr(mod, 'frequency', PER_INSTANCE)
+    if not hasattr(mod, 'handle_part'):
+        def empty_handler(data, ctype, filename, payload):
+            pass
+        setattr(mod, 'handle_part', empty_handler)
     return mod
+
+
+def find_module_files(root_dir):
+    entries = dict()
+    for fname in glob.glob(os.path.join(root_dir, "*.py")):
+        if not os.path.isfile(fname):
+            continue
+        modname = os.path.basename(fname)[0:-3]
+        entries[fname] = modname
+    return entries
 
 
 def run_part(mod, data, ctype, filename, payload, frequency):
