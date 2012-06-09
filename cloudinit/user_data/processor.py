@@ -1,10 +1,12 @@
 # vi: ts=4 expandtab
 #
-#    Copyright (C) 2009-2010 Canonical Ltd.
+#    Copyright (C) 2012 Canonical Ltd.
 #    Copyright (C) 2012 Hewlett-Packard Development Company, L.P.
+#    Copyright (C) 2012 Yahoo! Inc.
 #
 #    Author: Scott Moser <scott.moser@canonical.com>
-#    Author: Juerg Hafliger <juerg.haefliger@hp.com>
+#    Author: Juerg Haefliger <juerg.haefliger@hp.com>
+#    Author: Joshua Harlow <harlowja@yahoo-inc.com>
 #
 #    This program is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License version 3, as
@@ -22,7 +24,6 @@ import hashlib
 import os
 import urllib
 
-import email
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.mime.base import MIMEBase
@@ -30,20 +31,8 @@ from email.mime.base import MIMEBase
 import yaml
 
 from cloudinit import url_helper
+from cloudinit import user_data as ud
 from cloudinit import util
-
-
-# Different file beginnings to there content type
-INCLUSION_TYPES_MAP = {
-    '#include': 'text/x-include-url',
-    '#include-once': 'text/x-include-once-url',
-    '#!': 'text/x-shellscript',
-    '#cloud-config': 'text/cloud-config',
-    '#upstart-job': 'text/upstart-job',
-    '#part-handler': 'text/part-handler',
-    '#cloud-boothook': 'text/cloud-boothook',
-    '#cloud-config-archive': 'text/cloud-config-archive',
-}
 
 # Various special content types
 TYPE_NEEDED = ["text/plain", "text/x-not-multipart"]
@@ -51,11 +40,7 @@ INCLUDE_TYPES = ['text/x-include-url', 'text/x-include-once-url']
 ARCHIVE_TYPES = ["text/cloud-config-archive"]
 UNDEF_TYPE = "text/plain"
 ARCHIVE_UNDEF_TYPE = "text/cloud-config"
-NOT_MULTIPART_TYPE = "text/x-not-multipart"
 OCTET_TYPE = 'application/octet-stream'
-
-# Sorted longest first
-INCLUSION_SRCH = sorted(INCLUSION_TYPES_MAP.keys(), key=(lambda e: 0 - len(e)))
 
 # Msg header used to track attachments
 ATTACHMENT_FIELD = 'Number-Attachments'
@@ -64,16 +49,13 @@ ATTACHMENT_FIELD = 'Number-Attachments'
 # When we want to make sure a entry isn't included more than once across sessions.
 INCLUDE_ONCE_HASHER = 'md5'
 
-# For those pieces without filenames
-PART_FN_TPL = 'part-%03d'
-
 
 class UserDataProcessor(object):
     def __init__(self, paths):
         self.paths = paths
 
     def process(self, blob):
-        base_msg = convert_string(blob)
+        base_msg = ud.convert_string(blob)
         process_msg = MIMEMultipart()
         self._process_msg(base_msg, process_msg)
         return process_msg
@@ -92,7 +74,7 @@ class UserDataProcessor(object):
                 ctype_orig = UNDEF_TYPE
     
             if ctype_orig in TYPE_NEEDED:
-                ctype = type_from_starts_with(payload)
+                ctype = ud.type_from_starts_with(payload)
     
             if ctype is None:
                 ctype = ctype_orig
@@ -146,7 +128,7 @@ class UserDataProcessor(object):
                 if not url_helper.ok_http_code(st):
                     content = ''
 
-            new_msg = convert_string(content)
+            new_msg = ud.convert_string(content)
             self._process_msg(new_msg, append_msg)
 
     def _explode_archive(self, archive, append_msg):
@@ -173,7 +155,7 @@ class UserDataProcessor(object):
             content = ent.get('content', '')
             mtype = ent.get('type')
             if not mtype:
-                mtype = type_from_starts_with(content, ARCHIVE_UNDEF_TYPE)
+                mtype = ud.type_from_starts_with(content, ARCHIVE_UNDEF_TYPE)
 
             maintype, subtype = mtype.split('/', 1)
             if maintype == "text":
@@ -217,55 +199,7 @@ class UserDataProcessor(object):
         """
         cur = self._multi_part_count(outer_msg)
         if not part.get_filename():
-            part.add_header('Content-Disposition', 'attachment', filename=PART_FN_TPL % (cur + 1))
+            fn = ud.PART_FN_TPL % (cur + 1)
+            part.add_header('Content-Disposition', 'attachment', filename=fn)
         outer_msg.attach(part)
         self._multi_part_count(outer_msg, cur + 1)
-
-
-# Callback is a function that will be called with 
-# (data, content_type, filename, payload)
-def walk(ud_msg, callback, data):
-    partnum = 0
-    for part in ud_msg.walk():
-        # multipart/* are just containers
-        if part.get_content_maintype() == 'multipart':
-            continue
-
-        ctype = part.get_content_type()
-        if ctype is None:
-            ctype = OCTET_TYPE
-
-        filename = part.get_filename()
-        if not filename:
-            filename = PART_FN_TPL % partnum
-
-        callback(data, ctype, filename, part.get_payload(decode=True))
-        partnum = partnum + 1
-
-
-def convert_string(self, raw_data, headers=None):
-    if not data:
-        data = ''
-    if not headers:
-        headers = {}
-    data = util.decomp_str(raw_data)
-    if "mime-version:" in data[0:4096].lower():
-        msg = email.message_from_string(data)
-        for (key, val) in headers.items():
-            if key in msg:
-                msg.replace_header(key, val)
-            else:
-                msg[key] = val
-    else:
-        mtype = headers.get("Content-Type", NOT_MULTIPART_TYPE)
-        maintype, subtype = mtype.split("/", 1)
-        msg = MIMEBase(maintype, subtype, *headers)
-        msg.set_payload(data)
-    return msg
-
-
-def type_from_starts_with(payload, default=None):
-    for text in INCLUSION_SRCH:
-        if payload.startswith(text):
-            return INCLUSION_TYPES_MAP[text]
-    return default
