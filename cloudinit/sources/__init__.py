@@ -18,13 +18,16 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+from cloudinit import user_data as ud
+from cloudinit import util
+
+import socket
 
 DEP_FILESYSTEM = "FILESYSTEM"
 DEP_NETWORK = "NETWORK"
 
-import cloudinit.UserDataHandler as ud
-import cloudinit.util as util
-import socket
+class DataSourceNotFoundException(Exception):
+    pass
 
 
 class DataSource:
@@ -152,6 +155,25 @@ class DataSource:
             return hostname
 
 
+def find_source(cfg, ds_deps):
+    cfglist = cfg.get('datasource_list') or []
+    dslist = list_sources(cfglist, ds_deps)
+    dsnames = [f.__name__ for f in dslist]
+    
+    LOG.debug("Searching for data source in %s", dsnames)
+    for cls in dslist:
+        ds = cls.__name__
+        try:
+            s = cls(sys_cfg=cfg)
+            if s.get_data():
+                return (s, ds)
+        except Exception as e:
+            LOG.exception("Getting data from %s raised %s", ds, e)
+
+    msg = "Did not find any data source, searched classes: %s" % dsnames
+    raise DataSourceNotFoundException(msg)
+
+
 # return a list of classes that have the same depends as 'depends'
 # iterate through cfg_list, loading "DataSourceCollections" modules
 # and calling their "get_datasource_list".
@@ -198,17 +220,3 @@ def list_from_depends(depends, dslist):
         if depset == set(deps):
             retlist.append(cls)
     return(retlist)
-
-
-def is_ipv4(instr):
-    """ determine if input string is a ipv4 address. return boolean"""
-    toks = instr.split('.')
-    if len(toks) != 4:
-        return False
-
-    try:
-        toks = [x for x in toks if (int(x) < 256 and int(x) > 0)]
-    except:
-        return False
-
-    return (len(toks) == 4)
