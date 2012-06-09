@@ -1,10 +1,12 @@
 # vi: ts=4 expandtab
 #
-#    Copyright (C) 2009-2010 Canonical Ltd.
+#    Copyright (C) 2012 Canonical Ltd.
 #    Copyright (C) 2012 Hewlett-Packard Development Company, L.P.
+#    Copyright (C) 2012 Yahoo! Inc.
 #
 #    Author: Scott Moser <scott.moser@canonical.com>
-#    Author: Juerg Hafliger <juerg.haefliger@hp.com>
+#    Author: Juerg Haefliger <juerg.haefliger@hp.com>
+#    Author: Joshua Harlow <harlowja@yahoo-inc.com>
 #
 #    This program is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License version 3, as
@@ -21,13 +23,16 @@
 from StringIO import StringIO
 
 import contextlib
+import glob
 import grp
 import gzip
 import os
 import platform
 import pwd
 import shutil
+import socket
 import subprocess
+import types
 import urlparse
 
 import yaml
@@ -96,7 +101,7 @@ class ProcessExecutionError(IOError):
         self.reason = reason
 
 
-class _SeLinuxGuard(object):
+class SeLinuxGuard(object):
     def __init__(self, path, recursive=False):
         self.path = path
         self.recursive = recursive
@@ -149,6 +154,18 @@ def decomp_str(data):
         return data
 
 
+def find_modules(root_dir):
+    entries = dict()
+    for fname in glob.glob(os.path.join(root_dir, "*.py")):
+        if not os.path.isfile(fname):
+            continue
+        modname = os.path.basename(fname)[0:-3]
+        modname = modname.strip()
+        if modname and modname.find(".") == -1:
+            entries[fname] = modname
+    return entries
+
+
 def is_ipv4(instr):
     """ determine if input string is a ipv4 address. return boolean"""
     toks = instr.split('.')
@@ -163,15 +180,16 @@ def is_ipv4(instr):
     return (len(toks) == 4)
 
 
-def get_base_cfg(cfgfile, cfg_builtin=None, parsed_cfgs=None):
-    if parsed_cfgs and cfgfile in parsed_cfgs:
-        return parsed_cfgs[cfgfile]
-
+def get_base_cfg(cfgfile, cfg_builtin=None):
     syscfg = read_conf_with_confd(cfgfile)
+
     kern_contents = read_cc_from_cmdline()
     kerncfg = {}
     if kern_contents:
-        kerncfg = yaml.load(kern_contents)
+        try:
+            kerncfg = yaml.load(kern_contents)
+        except:
+            pass
 
     # kernel parameters override system config
     combined = mergedict(kerncfg, syscfg)
@@ -180,9 +198,6 @@ def get_base_cfg(cfgfile, cfg_builtin=None, parsed_cfgs=None):
     else:
         fin = combined
 
-    # Cache it?
-    if parsed_cfgs:
-        parsed_cfgs[cfgfile] = fin
     return fin
 
 
@@ -223,7 +238,7 @@ def get_cfg_option_list_or_str(yobj, key, default=None):
         return default
     if yobj[key] is None:
         return []
-    if isinstance(yobj[key], list):
+    if isinstance(yobj[key], (list)):
         return yobj[key]
     return [yobj[key]]
 
@@ -237,6 +252,15 @@ def get_cfg_by_path(yobj, keyp, default=None):
             return(default)
         cur = cur[tok]
     return cur
+
+
+def obj_name(obj):
+    if isinstance(obj, (types.TypeType,
+                        types.ModuleType,
+                        types.FunctionType,
+                        types.LambdaType)):
+        return str(obj.__name__)
+    return obj_name(obj.__class__)
 
 
 def mergedict(src, cand):
@@ -256,6 +280,15 @@ def mergedict(src, cand):
         if not isinstance(cand, dict):
             raise TypeError("Attempting to merge a non dictionary candiate type: %s" % (type(cand)))
     return src
+
+
+@contextlib.contextmanager
+def umask(n_msk):
+    old = os.umask(n_msk)
+    try:
+        yield old
+    finally:
+        os.umask(old)
 
 
 @contextlib.contextmanager
@@ -379,13 +412,15 @@ def read_conf_with_confd(cfgfile):
     if "conf_d" in cfg:
         if cfg['conf_d'] is not None:
             confd = cfg['conf_d']
-            if not isinstance(confd, str):
-                raise RuntimeError("cfgfile %s contains 'conf_d' "
-                                "with non-string" % cfgfile)
+            if not isinstance(confd, (str)):
+                raise RuntimeError(("Config file %s contains 'conf_d' "
+                                    "with non-string") % (cfgfile))
+            else:
+                confd = confd.strip()
     elif os.path.isdir("%s.d" % cfgfile):
         confd = "%s.d" % cfgfile
 
-    if not confd:
+    if not confd or not os.path.isdir(confd):
         return cfg
 
     return mergedict(read_conf_d(confd), cfg)
@@ -479,6 +514,32 @@ def get_fqdn_from_hosts(hostname, filename="/etc/hosts"):
     return fqdn
 
 
+def get_cmdline_url(names=None, starts=None, cmdline=None):
+    if cmdline is None:
+        cmdline = get_cmdline()
+    if not names:
+        names = ('cloud-config-url', 'url')
+    if not starts:
+        starts = "#cloud-config"
+
+    data = keyval_str_to_dict(cmdline)
+    url = None
+    key = None
+    for key in names:
+        if key in data:
+            url = data[key]
+            break
+
+    if not url:
+        return (None, None, None)
+
+    (contents, sc) = uhelp.readurl(url)
+    if contents.startswith(starts) and uhelp.ok_http_code(sc):
+        return (key, url, contents)
+
+    return (key, url, None)
+
+
 def is_resolvable(name):
     """ determine if a url is resolvable, return a boolean """
     try:
@@ -486,6 +547,11 @@ def is_resolvable(name):
         return True
     except socket.gaierror:
         return False
+
+
+def get_hostname():
+    hostname = socket.gethostname()
+    return hostname
 
 
 def is_resolvable_url(url):
@@ -634,7 +700,7 @@ def write_file(filename, content, mode=0644, omode="wb"):
     ensure_dir(os.path.dirname(filename))
     LOG.debug("Writing to %s - %s (perms=%s) %s bytes", filename, omode, mode, len(content))
     with open(filename, omode) as fh:
-        with _SeLinuxGuard(filename):
+        with SeLinuxGuard(filename):
             fh.write(content)
             fh.flush()
             if mode is not None:
@@ -711,11 +777,8 @@ def is_container():
             cmd = [helper]
             (stdout, stderr) = subp(cmd, allowed_rc=[0])
             return True
-        except IOError as e:
+        except (IOError, OSError):
             pass
-            # Is this really needed?
-            # if e.errno != errno.ENOENT:
-            #     raise
 
     # this code is largely from the logic in
     # ubuntu's /etc/init/container-detect.conf
@@ -727,7 +790,7 @@ def is_container():
             return True
         if "LIBVIRT_LXC_UUID" in pid1env:
             return True
-    except IOError as e:
+    except (IOError, OSError):
         pass
 
     # Detect OpenVZ containers
@@ -742,7 +805,7 @@ def is_container():
                 (_key, val) = line.strip().split(":", 1)
                 if val != "0":
                     return True
-    except IOError as e:
+    except (IOError, OSError):
         pass
 
     return False
@@ -759,9 +822,9 @@ def get_proc_env(pid):
             if tok == "":
                 continue
             (name, val) = tok.split("=", 1)
-            if not name:
+            if name:
                 env[name] = val
-    except IOError:
+    except (IOError, OSError):
         pass
     return env
 
