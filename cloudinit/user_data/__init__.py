@@ -28,6 +28,7 @@ import email
 
 from email.mime.base import MIMEBase
 
+from cloudinit import importer
 from cloudinit import log as logging
 from cloudinit import util
 
@@ -51,6 +52,7 @@ PART_FN_TPL = 'part-%03d'
 # Used as the content type when a message is not multipart
 # and it doesn't contain its own content-type
 NOT_MULTIPART_TYPE = "text/x-not-multipart"
+OCTET_TYPE = 'application/octet-stream'
 
 # Different file beginnings to there content type
 INCLUSION_TYPES_MAP = {
@@ -86,17 +88,17 @@ class PartHandler(object):
         raise NotImplementedError()
 
 
-def fixup_module(mod):
+def fixup_module(mod, def_freq=PER_INSTANCE):
     if not hasattr(mod, "handler_version"):
         setattr(mod, "handler_version", 1)
     if not hasattr(mod, 'list_types'):
         def empty_types():
             return []
         setattr(mod, 'list_types', empty_types)
-    if not hasattr(mod, frequency):
-        setattr(mod, 'frequency', PER_INSTANCE)
+    if not hasattr(mod, 'frequency'):
+        setattr(mod, 'frequency', def_freq)
     if not hasattr(mod, 'handle_part'):
-        def empty_handler(data, ctype, filename, payload):
+        def empty_handler(_data, _ctype, _filename, _payload):
             pass
         setattr(mod, 'handle_part', empty_handler)
     return mod
@@ -114,7 +116,9 @@ def run_part(mod, data, ctype, filename, payload, frequency):
         else:
             mod.handle_part(data, ctype, filename, payload, frequency)
     except:
-        LOG.exception("Failed calling mod %s (%s, %s, %s) with frequency %s", mod, ctype, filename, mod_ver, frequency)
+        LOG.exception(("Failed calling mod %s (%s, %s, %s)"
+                     " with frequency %s"), mod, ctype, filename,
+                     mod_ver, frequency)
 
 
 def call_begin(mod, data, frequency):
@@ -157,7 +161,8 @@ def walker_callback(pdata, ctype, filename, payload):
                 details = repr(payload)
             LOG.warning("Unhandled non-multipart userdata: %s", details)
         return
-    run_part(handlers[ctype], pdata['data'], ctype, filename, payload, pdata['frequency'])
+    run_part(handlers[ctype], pdata['data'], ctype, filename,
+             payload, pdata['frequency'])
 
 
 # Callback is a function that will be called with 
@@ -182,7 +187,7 @@ def walk(msg, callback, data):
 
 
 # Coverts a raw string into a mime message
-def convert_string(self, raw_data, headers=None):
+def convert_string(raw_data, headers=None):
     if not raw_data:
         raw_data = ''
     if not headers:
