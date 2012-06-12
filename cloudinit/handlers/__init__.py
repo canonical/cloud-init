@@ -36,7 +36,6 @@ LOG = logging.getLogger(__name__)
 
 DEF_HANDLER_VERSION = 1
 DEF_FREQ = PER_INSTANCE
-HANDLER_TPL = "cc_%s"
 
 
 # reads a cloudconfig module list, returns
@@ -198,41 +197,6 @@ def redirect_output(outfmt, errfmt, o_out=sys.stdout, o_err=sys.stderr):
     return
 
 
-def run_per_instance(name, func, args, clear_on_fail=False):
-    semfile = "%s/%s" % (cloudinit.get_ipath_cur("data"), name)
-    if os.path.exists(semfile):
-        return
-
-    util.write_file(semfile, str(time.time()))
-    try:
-        func(*args)
-    except:
-        if clear_on_fail:
-            os.unlink(semfile)
-        raise
-
-
-# apt_get top level command (install, update...), and args to pass it
-def apt_get(tlc, args=None):
-    if args is None:
-        args = []
-    e = os.environ.copy()
-    e['DEBIAN_FRONTEND'] = 'noninteractive'
-    cmd = ['apt-get', '--option', 'Dpkg::Options::=--force-confold',
-           '--assume-yes', tlc]
-    cmd.extend(args)
-    subprocess.check_call(cmd, env=e)
-
-
-def update_package_sources():
-    run_per_instance("update-sources", apt_get, ("update",))
-
-
-def install_packages(pkglist):
-    update_package_sources()
-    apt_get("install", pkglist)
-
-
 def form_module_name(name):
     canon_name = name.replace("-", "_")
     if canon_name.endswith(".py"):
@@ -240,7 +204,9 @@ def form_module_name(name):
     canon_name = canon_name.strip()
     if not canon_name:
         return None
-    return HANDLER_TPL % (canon_name)
+    if not canon_name.startswith("cc_"):
+        canon_name = 'cc_%s' % (canon_name)
+    return canon_name
 
 
 def fixup_module(mod):
