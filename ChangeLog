@@ -1,3 +1,5 @@
+0.7.0:
+ - Huge refactor [Joshua Harlow]
 0.6.4:
  - support relative path in AuthorizedKeysFile (LP: #970071).
 0.6.3:
