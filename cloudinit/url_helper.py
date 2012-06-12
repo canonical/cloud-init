@@ -20,13 +20,13 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+from contextlib import closing
 
 import errno
+import socket
 import time
 import urllib
 import urllib2
-
-from contextlib import closing
 
 from cloudinit import log as logging
 
@@ -37,46 +37,58 @@ def ok_http_code(st):
     return st in xrange(200, 400)
 
 
-def readurl(url, data=None, timeout=None, retries=0, sec_between=1, headers=None):
-    openargs = {}
-    if timeout is not None:
-        openargs['timeout'] = int(timeout)
+def readurl(url, data=None, timeout=None,
+            retries=0, sec_between=1, headers=None):
 
-    if data is None:
-        req = urllib2.Request(url, headers=headers)
-    else:
-        req = urllib2.Request(url, data=urllib.urlencode(data), headers=headers)
+    req_args = {}
+    req_args['url'] = url
+    if data is not None:
+        req_args['data'] = urllib.urlencode(data)
+    if headers is not None:
+        req_args['headers'] = dict(headers)
+    req = urllib2.Request(**req_args)
 
-    if retries <= 0:
-        retries = 1
-
+    retries = max(retries, 0)
     attempts = retries + 1
-    last_excp = None
-    LOG.debug("Attempting to read from %s with %s attempts to be performed", url, attempts)
+
+    last_excp = Exception("??")
+    LOG.info(("Attempting to read from %s with %s attempts"
+                " (%s retries) to be performed"), url, attempts, retries)
+    open_args = {}
+    if timeout is not None:
+        open_args['timeout'] = int(timeout)
     for i in range(0, attempts):
         try:
-            with closing(urllib2.urlopen(req, **openargs)) as rh:
-                return (rh.read(), rh.getcode())
+            with closing(urllib2.urlopen(req, **open_args)) as rh:
+                content = rh.read()
+                status = rh.getcode()
+                if status is None:
+                    # This seems to happen when files are read...
+                    status = 200
+                LOG.info("Read from %s (%s, %sb) after %s attempts",
+                         url, status, len(content), (i + 1))
+                return (content, status)
         except urllib2.HTTPError as e:
             last_excp = e
             LOG.exception("Failed at reading from %s.", url)
         except urllib2.URLError as e:
             # This can be a message string or
-            # another exception instance (socket.error for remote URLs, OSError for local URLs).
+            # another exception instance 
+            # (socket.error for remote URLs, OSError for local URLs).
             if (isinstance(e.reason, OSError) and
                 e.reason.errno == errno.ENOENT):
                 last_excp = e.reason
             else:
                 last_excp = e
-            LOG.exception("Failed at reading from %s.", url)
+            LOG.exception("Failed at reading from %s", url)
         if i + 1 < attempts:
-            LOG.debug("Please wait %s seconds while we wait to try again.", sec_between)
+            LOG.info("Please wait %s seconds while we wait to try again",
+                     sec_between)
             time.sleep(sec_between)
 
     # Didn't work out
-    LOG.warn("Failed downloading from %s after %s attempts", url, attempts)
-    if last_excp is not None:
-        raise last_excp
+    LOG.warn("Failed reading from %s after %s attempts", url, attempts)
+    raise last_excp
 
 
 def wait_for_url(urls, max_wait=None, timeout=None,
@@ -106,29 +118,29 @@ def wait_for_url(urls, max_wait=None, timeout=None,
     data host (169.254.169.254) may be firewalled off Entirely for a sytem,
     meaning that the connection will block forever unless a timeout is set.
     """
-    starttime = time.time()
+    start_time = time.time()
 
-    def nullstatus_cb(msg):
-        return
+    def log_status_cb(msg):
+        LOG.info(msg)
 
     if status_cb is None:
-        status_cb = nullstatus_cb
+        status_cb = log_status_cb
 
-    def timeup(max_wait, starttime):
+    def timeup(max_wait, start_time):
         return ((max_wait <= 0 or max_wait is None) or
-                (time.time() - starttime > max_wait))
+                (time.time() - start_time > max_wait))
 
     loop_n = 0
     while True:
-        sleeptime = int(loop_n / 5) + 1
+        sleep_time = int(loop_n / 5) + 1
         for url in urls:
             now = time.time()
             if loop_n != 0:
-                if timeup(max_wait, starttime):
+                if timeup(max_wait, start_time):
                     break
-                if timeout and (now + timeout > (starttime + max_wait)):
+                if timeout and (now + timeout > (start_time + max_wait)):
                     # shorten timeout to not run way over max_time
-                    timeout = int((starttime + max_wait) - now)
+                    timeout = int((start_time + max_wait) - now)
 
             reason = ""
             try:
@@ -153,14 +165,18 @@ def wait_for_url(urls, max_wait=None, timeout=None,
             except Exception as e:
                 reason = "unexpected error [%s]" % e
 
-            status_cb("'%s' failed [%s/%ss]: %s" %
-                      (url, int(time.time() - starttime), max_wait,
-                       reason))
+            time_taken = int(time.time() - start_time)
+            status_msg = "Calling '%s' failed [%s/%ss]: %s" % (url,
+                                                             time_taken,
+                                                             max_wait, reason)
+            status_cb(status_msg)
 
-        if timeup(max_wait, starttime):
+        if timeup(max_wait, start_time):
             break
 
         loop_n = loop_n + 1
-        time.sleep(sleeptime)
+        LOG.info("Please wait %s seconds while we wait to try again",
+                 sleep_time)
+        time.sleep(sleep_time)
 
     return False
