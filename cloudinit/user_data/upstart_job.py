@@ -46,11 +46,14 @@ class UpstartJobPartHandler(ud.PartHandler):
         if ctype in ud.CONTENT_SIGNALS:
             return
 
-        filename = utils.clean_filename(filename)
-        (name, ext) = os.path.splitext(filename)
+        filename = util.clean_filename(filename)
+        (_name, ext) = os.path.splitext(filename)
+        if not ext:
+            ext = ''
         ext = ext.lower()
         if ext != ".conf":
             filename = filename + ".conf"
 
         payload = util.dos2unix(payload)
-        util.write_file(os.path.join(self.upstart_dir, filename), payload, 0644)
+        path = os.path.join(self.upstart_dir, filename)
+        util.write_file(path, payload, 0644)
