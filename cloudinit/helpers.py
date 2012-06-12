@@ -202,3 +202,66 @@ class ContentHandlers(object):
                     self.registered[t] = mod
                     registered.add(t)
         return registered
+
+
+class Paths(object):
+    def __init__(self, sys_info):
+        self.cloud_dir = sys_info.get('cloud_dir', '/var/lib/cloud')
+        self.instance_link = os.path.join(self.cloud_dir, 'instance')
+        self.boot_finished = os.path.join(self.instance_link, "boot-finished")
+        self.upstart_conf_d = sys_info.get('upstart_dir')
+        template_dir = sys_info.get('templates_dir', '/etc/cloud/templates/')
+        self.template_tpl = os.path.join(template_dir, '%s.tmpl')
+        self.seed_dir = os.path.join(self.cloud_dir, 'seed')
+        self.lookups = {
+           "handlers": "handlers",
+           "scripts": "scripts",
+           "sem": "sem",
+           "boothooks": "boothooks",
+           "userdata_raw": "user-data.txt",
+           "userdata": "user-data.txt.i",
+           "obj_pkl": "obj.pkl",
+           "cloud_config": "cloud-config.txt",
+           "data": "data",
+        }
+        # Set when a datasource becomes active
+        self.datasource = None
+
+    # get_ipath_cur: get the current instance path for an item
+    def get_ipath_cur(self, name=None):
+        ipath = self.instance_link
+        add_on = self.lookups.get(name)
+        if add_on:
+            ipath = os.path.join(ipath, add_on)
+        return ipath
+
+    # get_cpath : get the "clouddir" (/var/lib/cloud/<name>)
+    # for a name in dirmap
+    def get_cpath(self, name=None):
+        cpath = self.cloud_dir
+        add_on = self.lookups.get(name)
+        if add_on:
+            cpath = os.path.join(cpath, add_on)
+        return cpath
+
+    def _get_ipath(self, name=None):
+        if not self.datasource:
+            return None
+        iid = self.datasource.get_instance_id()
+        if iid is None:
+            return None
+        ipath = os.path.join(self.cloud_dir, 'instances', iid)
+        add_on = self.lookups.get(name)
+        if add_on:
+            ipath = os.path.join(ipath, add_on)
+        return ipath
+
+    # (/var/lib/cloud/instances/<instance>/<name>)
+    def get_ipath(self, name=None):
+        ipath = self._get_ipath(name)
+        if not ipath:
+            LOG.warn(("No per instance semaphores available, "
+                              "is there an datasource/iid set?"))
+            return None
+        else:
+            return ipath
