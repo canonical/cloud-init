@@ -316,6 +316,11 @@ def tempdir(**kwargs):
         del_dir(tdir)
 
 
+def center(text, fill, max_len):
+    return '{0:{fill}{align}{size}}'.format(text, fill=fill,
+                                            align="^", size=max_len)
+
+
 def del_dir(path):
     LOG.debug("Recursively deleting %s", path)
     shutil.rmtree(path)
@@ -805,8 +810,10 @@ def mount_cb(device, callback, data=None, rw=False):
                 mountcmd.append(tmpd)
                 subp(mountcmd)
                 umount = tmpd
-            except IOError as exc:
-                raise MountFailedError("%s" % (exc))
+            except (IOError, OSError) as exc:
+                raise MountFailedError(("Failed mounting %s "
+                                        "to %s due to: %s") %
+                                       (device, tmpd, exc))
             mountpoint = "%s/" % tmpd
         with unmounter(umount):
             if data is None:
