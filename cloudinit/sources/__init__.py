@@ -24,9 +24,12 @@ from cloudinit import importer
 from cloudinit import log as logging
 from cloudinit import util
 
+from cloudinit.user_data import processor as ud_proc
+
 DEP_FILESYSTEM = "FILESYSTEM"
 DEP_NETWORK = "NETWORK"
 DS_PREFIX = 'DataSource'
+
 LOG = logging.getLogger(__name__)
 
 
@@ -35,26 +38,25 @@ class DataSourceNotFoundException(Exception):
 
 
 class DataSource(object):
-    def __init__(self, ud_proc, cfg):
+    def __init__(self, sys_cfg, distro, paths):
         name = util.obj_name(self)
         if name.startswith(DS_PREFIX):
             name = name[DS_PREFIX:]
         self.cfgname = name
-        if sys_cfg:
-            self.sys_cfg = sys_cfg
-        else:
-            self.sys_cfg = {}
-        self.ud_proc = ud_proc
+        self.sys_cfg = sys_cfg
+        self.distro = distro
+        self.paths = paths
+        self.userdata_proc = ud_proc.UserDataProcessor(paths)
         self.userdata = None
         self.metadata = None
         self.userdata_raw = None
         self.ds_cfg = util.get_cfg_by_path(self.sys_cfg,
-                          ("datasource", self.cfgname), self.ds_cfg)
+                        ("datasource", self.cfgname), {})
 
     def get_userdata(self):
         if self.userdata is None:
             raw_data = self.get_userdata_raw()
-            self.userdata = self.ud_proc.process(raw_data)
+            self.userdata = self.userdata_proc.process(raw_data)
         return self.userdata
 
     def get_userdata_raw(self):
@@ -85,7 +87,7 @@ class DataSource(object):
                 # than a list.
                 if isinstance(klist, (str)):
                     klist = [klist]
-                if isinstance(klist, (list)):
+                if isinstance(klist, (list, set)):
                     for pkey in klist:
                         # there is an empty string at the end of the keylist, trim it
                         if pkey:
@@ -105,6 +107,7 @@ class DataSource(object):
         return 'en_US.UTF-8'
 
     def get_local_mirror(self):
+        # ??
         return None
 
     def get_instance_id(self):
@@ -152,20 +155,18 @@ class DataSource(object):
             return hostname
 
 
-def find_source(cfg, ds_deps, cfg_list, pkg_list, **kwargs):
+def find_source(sys_cfg, distro, paths, ds_deps, cfg_list, pkg_list):
     ds_list = list_sources(cfg_list, ds_deps, pkg_list)
     ds_names = [util.obj_name(f) for f in ds_list]
-    ds_args = dict(kwargs)
-    ds_args['cfg'] = cfg
     LOG.info("Searching for data source in: %s", ds_names)
     for cls in ds_list:
         ds = util.obj_name(cls)
         try:
-            s = cls(**ds_args)
+            s = cls(distro, sys_cfg, paths)
             if s.get_data():
                 return (s, ds)
         except Exception as e:
-            LOG.exception("Getting data from %s failed", ds)
+            LOG.exception("Getting data from %s failed due to %s", ds, e)
 
     msg = "Did not find any data source, searched classes: %s" % (ds_names)
     raise DataSourceNotFoundException(msg)
@@ -187,8 +188,7 @@ def list_sources(cfg_list, depends, pkg_list):
             if pkg:
                 pkg_name.append(str(pkg))
             pkg_name.append(ds_name)
-            mod_name = ".".join(pkg_name)
-            mod = importer.import_module(mod_name)
+            mod = importer.import_module(".".join(pkg_name))
             if pkg:
                 mod = getattr(mod, ds_name, None)
             if not mod:
@@ -196,10 +196,13 @@ def list_sources(cfg_list, depends, pkg_list):
             lister = getattr(mod, "get_datasource_list", None)
             if not lister:
                 continue
+            LOG.debug("Seeing if %s matches using function %s", mod, lister)
             cls_matches = lister(depends)
             if not cls_matches:
                 continue
             src_list.extend(cls_matches)
+            LOG.debug("Found a match for data source %s in %s with matches %s", 
+                        ds_name, mod, cls_matches)
             break
     return src_list
 
