@@ -20,15 +20,22 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-from Cheetah.Template import Template
+from tempita import Template
 
 from cloudinit import util
 
 
-def render_to_file(template_fn, outfile, searchList):
-    contents = Template(file=template_fn, searchList=[searchList]).respond()
+def render_from_file(fn, params):
+    return render_string(util.load_file(fn), params, name=fn)
+
+
+def render_to_file(name, outfile, params):
+    contents = render_from_file(name, params)
     util.write_file(outfile, contents)
 
 
-def render_string(template, searchList):
-    return Template(template, searchList=[searchList]).respond()
+def render_string(content, params, name=None):
+    tpl = Template(content, name=name)
+    if not params:
+        params = dict()
+    return tpl.substitute(params)
