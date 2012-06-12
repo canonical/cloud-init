@@ -49,8 +49,14 @@ class DummySemaphores(object):
     def has_run(self, _name, _freq):
         return False
 
+    def clear(self, _name, _freq):
+        return True
 
-class Semaphores(object):
+    def clear_all(self):
+        pass
+
+
+class FileSemaphores(object):
     def __init__(self, sem_path):
         self.sem_path = sem_path
 
@@ -70,6 +76,12 @@ class Semaphores(object):
         except (IOError, OSError):
             return False
         return True
+
+    def clear_all(self):
+        try:
+            util.del_dir(self.sem_path)
+        except (IOError, OSError):
+            pass
 
     def _acquire(self, name, freq):
         if self.has_run(name, freq):
@@ -117,7 +129,7 @@ class Runners(object):
         if not sem_path:
             return None
         if sem_path not in self.sems:
-            self.sems[sem_path] = Semaphores(sem_path)
+            self.sems[sem_path] = FileSemaphores(sem_path)
         return self.sems[sem_path]
 
     def run(self, name, functor, args, freq=None, clear_on_fail=False):
