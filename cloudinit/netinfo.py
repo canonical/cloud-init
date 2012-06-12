@@ -19,12 +19,11 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+import os
+
 import cloudinit.util as util
 
-
-class NetInfo(object):
-    def __init__(self):
-        pass
+from prettytable import PrettyTable
 
 
 def netdev_info(empty=""):
@@ -71,47 +70,89 @@ def netdev_info(empty=""):
                 if dev[field] == "":
                     dev[field] = empty
 
-    return(devs)
+    return devs
 
 
 def route_info():
     (route_out, _err) = util.subp(["route", "-n"])
     routes = []
-    for line in str(route_out).splitlines()[1:]:
+    entries = route_out.splitlines()[1:]
+    for line in entries:
         if not line:
             continue
         toks = line.split()
         if toks[0] == "Kernel" or toks[0] == "Destination":
             continue
-        routes.append(toks)
-    return(routes)
+        entry = {
+            'destination': toks[0],
+            'gateway': toks[1],
+            'genmask': toks[2],
+            'flags': toks[3],
+            'metric': toks[4],
+            'ref': toks[5],
+            'use': toks[6],
+            'iface': toks[7],
+        }
+        routes.append(entry)
+    return routes
 
 
 def getgateway():
-    for r in route_info():
-        if r[3].find("G") >= 0:
-            return("%s[%s]" % (r[1], r[7]))
-    return(None)
+    routes = []
+    try:
+        routes = route_info()
+    except:
+        pass
+    for r in routes:
+        if r['flags'].find("G") >= 0:
+            return "%s[%s]" % (r['gateway'], r['iface'])
+    return None
 
 
-def debug_info(pre="ci-info: "):
+def netdev_pformat():
     lines = []
     try:
         netdev = netdev_info(empty=".")
     except Exception:
-        lines.append("netdev_info failed!")
-        netdev = {}
-    for (dev, d) in netdev.iteritems():
-        lines.append("%s%-6s: %i %-15s %-15s %s" %
-            (pre, dev, d["up"], d["addr"], d["mask"], d["hwaddr"]))
+        lines.append(util.center("Net device info failed", '!', 80))
+        netdev = None
+    if netdev is not None:
+        fields = ['Device', 'Up', 'Address', 'Mask', 'Hw-Address']
+        tbl = PrettyTable(fields)
+        for (dev, d) in netdev.iteritems():
+            tbl.add_row([dev, d["up"], d["addr"], d["mask"], d["hwaddr"]])
+        netdev_s = tbl.get_string()
+        max_len = len(max(netdev_s.splitlines(), key=len))
+        header = util.center("Net device info", "+", max_len)
+        lines.extend([header, netdev_s])
+    return os.linesep.join(lines)
+
+
+def route_pformat():
+    lines = []
     try:
         routes = route_info()
     except Exception:
-        lines.append("route_info failed")
-        routes = []
-    n = 0
-    for r in routes:
-        lines.append("%sroute-%d: %-15s %-15s %-15s %-6s %s" %
-            (pre, n, r[0], r[1], r[2], r[7], r[3]))
-        n = n + 1
-    return('\n'.join(lines))
+        lines.append(util.center('Route info failed', '!', 80))
+        routes = None
+    if routes is not None:
+        fields = ['Route', 'Destination', 'Gateway',
+                  'Genmask', 'Interface', 'Flags']
+        tbl = PrettyTable(fields)
+        for n, r in enumerate(routes):
+            route_id = str(n)
+            tbl.add_row([str(n), r['destination'],
+                        r['gateway'], r['genmask'],
+                        r['iface'], r['flags']])
+        route_s = tbl.get_string()
+        max_len = len(max(route_s.splitlines(), key=len))
+        header = util.center("Route info", "+", max_len)
+        lines.extend([header, route_s])
+    return os.linesep.join(lines)
+
+
+def debug_info(pre=""):
+    lines = []
+    lines.append(netdev_pformat())
+    lines.append(route_pformat())
+    return os.linesep.join(lines)
