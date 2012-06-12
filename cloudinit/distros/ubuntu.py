@@ -39,7 +39,7 @@ class Distro(distros.Distro):
         self.apt_get('install', pkglist)
 
     def apply_network(self, settings):
-        pass
+        util.write_file("/etc/network/interfaces", settings)
 
     # apt_get top level command (install, update...), and args to pass it
     def apt_get(self, tlc, args=None):
