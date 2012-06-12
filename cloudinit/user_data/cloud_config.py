@@ -20,9 +20,6 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-
-import os
-
 from cloudinit import log as logging
 from cloudinit import user_data as ud
 from cloudinit import util
@@ -56,4 +53,4 @@ class CloudConfigPartHandler(ud.PartHandler):
 
         filename = util.clean_filename(filename)
         entry = "\n".join(["#%s" % (filename), str(payload)])
-        self.config_buf.append(entry)
+        self.cloud_buf.append(entry)
