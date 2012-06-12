@@ -20,14 +20,13 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-
 import os
 
 from cloudinit import log as logging
 from cloudinit import user_data as ud
 from cloudinit import util
 
-from cloudinit.settings import (PER_INSTANCE)
+from cloudinit.settings import (PER_ALWAYS)
 
 LOG = logging.getLogger(__name__)
 
@@ -45,9 +44,10 @@ class ShellScriptPartHandler(ud.PartHandler):
 
     def _handle_part(self, _data, ctype, filename, payload, _frequency):
         if ctype in ud.CONTENT_SIGNALS:
-            # maybe delete existing things here
+            # TODO: maybe delete existing things here
             return
 
         filename = util.clean_filename(filename)
         payload = util.dos2unix(payload)
-        util.write_file(os.path.join(self.script_dir, filename), payload, 0700)
+        path = os.path.join(self.script_dir, filename)
+        util.write_file(path, payload, 0700)
