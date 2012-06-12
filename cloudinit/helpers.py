@@ -260,8 +260,8 @@ class Paths(object):
     def get_ipath(self, name=None):
         ipath = self._get_ipath(name)
         if not ipath:
-            LOG.warn(("No per instance semaphores available, "
-                              "is there an datasource/iid set?"))
+            LOG.warn(("No per instance data available, "
+                      "is there an datasource/iid set?"))
             return None
         else:
             return ipath
