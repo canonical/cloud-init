@@ -40,52 +40,56 @@ INFO = logging.INFO
 DEBUG = logging.DEBUG
 NOTSET = logging.NOTSET
 
-
-class ConsoleFormatter(logging.Formatter):
-
-    def _get_mini_level(self, record):
-        if record.levelno in [INFO, NOTSET] or not record.levelname:
-            return ''
-        lvlname = record.levelname
-        return lvlname[0].upper() + ": "
-
-    def format(self, record):
-        record.message = record.getMessage()
-        rdict = dict(record.__dict__)
-        rdict['minilevelname'] = self._get_mini_level(record)
-        return self._fmt % (rdict)
+# Default basic format
+DEF_FORMAT = '%(levelname)s: @%(name)s : %(message)s'
 
 
-def setupLogging(cfg):
+def setupBasicLogging(level=INFO, fmt=DEF_FORMAT):
+    root = getLogger()
+    console = logging.StreamHandler(sys.stdout)
+    console.setFormatter(logging.Formatter(fmt))
+    console.setLevel(level)
+    root.addHandler(console)
+    root.setLevel(level)
+
+
+def setupLogging(cfg=None):
+    # See if the config provides any logging conf...
+    if not cfg:
+        cfg = {}
+
     log_cfgs = []
     log_cfg = cfg.get('logcfg')
-    if log_cfg:
-        # if there is a 'logcfg' entry in the config, respect
-        # it, it is the old keyname
-        log_cfgs = [log_cfg]
-    elif "log_cfgs" in cfg:
-        for cfg in cfg['log_cfgs']:
-            if isinstance(cfg, list):
-                log_cfgs.append('\n'.join(cfg))
+    if log_cfg and isinstance(log_cfg, (str, basestring)):
+        # Ff there is a 'logcfg' entry in the config,
+        # respect it, it is the old keyname
+        log_cfgs.append(str(log_cfg))
+    elif "log_cfgs" in cfg and isinstance(cfg['log_cfgs'], (set, list)):
+        for a_cfg in cfg['log_cfgs']:
+            if isinstance(a_cfg, (list, set, dict)):
+                cfg_str = [str(c) for c in a_cfg]
+                log_cfgs.append('\n'.join(cfg_str))
             else:
-                log_cfgs.append(cfg)
+                log_cfgs.append(str(a_cfg))
 
-    if not len(log_cfgs):
-        sys.stderr.write("Warning, no logging configured\n")
-        return
-
+    # See if any of them actually load...
     am_worked = 0
-    for logcfg in log_cfgs:
+    for log_cfg in log_cfgs:
         try:
-            if not os.path.isfile(logcfg):
-                logcfg = StringIO(logcfg)
-            logging.config.fileConfig(logcfg)
+            if not os.path.isfile(log_cfg):
+                log_cfg = StringIO(log_cfg)
+            logging.config.fileConfig(log_cfg)
             am_worked += 1
-        except:
+        except Exception:
             pass
 
+    # If it didn't work, at least setup a basic logger
+    basic_enabled = cfg.get('log_basic', True)
     if not am_worked:
-        sys.stderr.write("Warning, no logging configured\n")
+        sys.stderr.write("Warning, no logging configured!\n")
+        if basic_enabled:
+            sys.stderr.write("Setting up basic logging...\n")
+            setupBasicLogging()
 
 
 def getLogger(name='cloudinit'):
