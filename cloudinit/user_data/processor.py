@@ -22,14 +22,12 @@
 
 import hashlib
 import os
-import urllib
 
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.mime.base import MIMEBase
 
-import yaml
-
+from cloudinit import log as logging
 from cloudinit import url_helper
 from cloudinit import user_data as ud
 from cloudinit import util
@@ -46,8 +44,12 @@ OCTET_TYPE = 'application/octet-stream'
 ATTACHMENT_FIELD = 'Number-Attachments'
 
 # This will be used to create a filename from a url (or like) entry
-# When we want to make sure a entry isn't included more than once across sessions.
+# When we want to make sure a entry isn't included
+# more than once across sessions.
 INCLUDE_ONCE_HASHER = 'md5'
+MAX_INCLUDE_FN_LEN = 64
+
+LOG = logging.getLogger(__name__)
 
 
 class UserDataProcessor(object):
@@ -97,8 +99,10 @@ class UserDataProcessor(object):
     def _get_include_once_filename(self, entry):
         msum = hashlib.new(INCLUDE_ONCE_HASHER)
         msum.update(entry)
-        entry_fn = msum.hexdigest()[0:64]  # Don't get to long now
-        return os.path.join(self.paths.get_ipath_cur('data'), 'urlcache', entry_fn)
+        # Don't get to long now
+        entry_fn = msum.hexdigest()[0:MAX_INCLUDE_FN_LEN]
+        return os.path.join(self.paths.get_ipath_cur('data'),
+                            'urlcache', entry_fn)
 
     def _do_include(self, content, append_msg):
         # is just a list of urls, one per line
@@ -132,17 +136,11 @@ class UserDataProcessor(object):
             self._process_msg(new_msg, append_msg)
 
     def _explode_archive(self, archive, append_msg):
-        try:
-            entries = yaml.load(archive)
-        except:
-            entries = []
-        if not isinstance(entries, (list, set)):
-            # TODO raise?
-            entries = []
-
+        entries = util.load_yaml(archive, default=[], allowed=[list, set])
         for ent in entries:
             # ent can be one of:
-            #  dict { 'filename' : 'value', 'content' : 'value', 'type' : 'value' }
+            #  dict { 'filename' : 'value', 'content' :
+            #       'value', 'type' : 'value' }
             #    filename and type not be present
             # or
             #  scalar(payload)
@@ -165,7 +163,8 @@ class UserDataProcessor(object):
                 msg.set_payload(content)
 
             if 'filename' in ent:
-                msg.add_header('Content-Disposition', 'attachment', filename=ent['filename'])
+                msg.add_header('Content-Disposition', 'attachment',
+                                filename=ent['filename'])
 
             for header in ent.keys():
                 if header in ('content', 'filename', 'type'):
