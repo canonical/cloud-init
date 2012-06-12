@@ -22,6 +22,11 @@
 import cloudinit.util as util
 
 
+class NetInfo(object):
+    def __init__(self):
+        pass
+
+
 def netdev_info(empty=""):
     fields = ("hwaddr", "addr", "bcast", "mask")
     (ifcfg_out, _err) = util.subp(["ifconfig", "-a"])
