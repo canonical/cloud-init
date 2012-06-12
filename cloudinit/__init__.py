@@ -19,17 +19,3 @@
 #
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
-
-from cloudinit import util
-
-from cloudinit.settings import (CFG_BUILTIN, CLOUD_CONFIG)
-
-
-def get_base_cfg(cfg_path=None):
-    if not cfg_path:
-        cfg_path = CLOUD_CONFIG
-    return util.get_base_cfg(cfg_path, get_builtin_cfg())
-
-
-def get_builtin_cfg():
-    return dict(CFG_BUILTIN)
