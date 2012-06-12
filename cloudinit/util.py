@@ -23,6 +23,8 @@
 from StringIO import StringIO
 
 import contextlib
+import copy
+import errno
 import glob
 import grp
 import gzip
@@ -32,6 +34,8 @@ import pwd
 import shutil
 import socket
 import subprocess
+import sys
+import tempfile
 import types
 import urlparse
 
@@ -39,6 +43,8 @@ import yaml
 
 from cloudinit import log as logging
 from cloudinit import url_helper as uhelp
+
+from cloudinit.settings import (CFG_BUILTIN, CLOUD_CONFIG)
 
 
 try:
@@ -54,6 +60,9 @@ LOG = logging.getLogger(__name__)
 FN_REPLACEMENTS = {
     os.sep: '_',
 }
+
+# Helper utils to see if running in a container
+CONTAINER_TESTS = ['running-in-container', 'lxc-is-container']
 
 
 class ProcessExecutionError(IOError):
@@ -112,10 +121,15 @@ class SeLinuxGuard(object):
     def __enter__(self):
         return self.engaged
 
-    def __exit__(self, type, value, traceback):
+    def __exit__(self, excp_type, excp_value, excp_traceback):
         if self.engaged:
-            LOG.debug("Disengaging selinux mode for %s: %s", self.path, self.recursive)
+            LOG.debug("Disengaging selinux mode for %s: %s",
+                      self.path, self.recursive)
             selinux.restorecon(self.path, recursive=self.recursive)
+
+
+class MountFailedError(Exception):
+    pass
 
 
 def translate_bool(val):
@@ -130,14 +144,12 @@ def translate_bool(val):
 
 def read_conf(fname):
     try:
-        mp = yaml.load(load_file(fname))
-        if not isinstance(mp, (dict)):
-            return {}
-        return mp
+        return load_yaml(load_file(fname), default={})
     except IOError as e:
         if e.errno == errno.ENOENT:
             return {}
-        raise
+        else:
+            raise
 
 
 def clean_filename(fn):
@@ -148,8 +160,9 @@ def clean_filename(fn):
 
 def decomp_str(data):
     try:
-        uncomp = gzip.GzipFile(None, "rb", 1, StringIO(data)).read()
-        return uncomp
+        buf = StringIO(str(data))
+        with contextlib.closing(gzip.GzipFile(None, "rb", 1, buf)) as gh:
+            return gh.read()
     except:
         return data
 
@@ -180,16 +193,13 @@ def is_ipv4(instr):
     return (len(toks) == 4)
 
 
-def get_base_cfg(cfgfile, cfg_builtin=None):
+def merge_base_cfg(cfgfile, cfg_builtin=None):
     syscfg = read_conf_with_confd(cfgfile)
 
     kern_contents = read_cc_from_cmdline()
     kerncfg = {}
     if kern_contents:
-        try:
-            kerncfg = yaml.load(kern_contents)
-        except:
-            pass
+        kerncfg = load_yaml(kern_contents, default={})
 
     # kernel parameters override system config
     combined = mergedict(kerncfg, syscfg)
@@ -265,8 +275,9 @@ def obj_name(obj):
 
 def mergedict(src, cand):
     """
-    Merge values from C{cand} into C{src}. If C{src} has a key C{cand} will
-    not override. Nested dictionaries are merged recursively.
+    Merge values from C{cand} into C{src}.
+    If C{src} has a key C{cand} will not override.
+    Nested dictionaries are merged recursively.
     """
     if isinstance(src, dict) and isinstance(cand, dict):
         for k, v in cand.iteritems():
@@ -276,9 +287,11 @@ def mergedict(src, cand):
                 src[k] = mergedict(src[k], v)
     else:
         if not isinstance(src, dict):
-            raise TypeError("Attempting to merge a non dictionary source type: %s" % (type(src)))
+            raise TypeError(("Attempting to merge a non dictionary "
+                             "source type: %s") % (obj_name(src)))
         if not isinstance(cand, dict):
-            raise TypeError("Attempting to merge a non dictionary candiate type: %s" % (type(cand)))
+            raise TypeError(("Attempting to merge a non dictionary "
+                             "candidate type: %s") % (obj_name(cand)))
     return src
 
 
@@ -308,8 +321,9 @@ def del_dir(path):
     shutil.rmtree(path)
 
 
-# get keyid from keyserver
+# get gpg keyid from keyserver
 def getkeybyid(keyid, keyserver):
+    # TODO fix this...
     shcmd = """
     k=${1} ks=${2};
     exec 2>/dev/null
@@ -323,7 +337,7 @@ def getkeybyid(keyid, keyserver):
     [ -n "${armour}" ] && echo "${armour}"
     """
     args = ['sh', '-c', shcmd, "export-gpg-keyid", keyid, keyserver]
-    (stdout, stderr) = subp(args)
+    (stdout, _stderr) = subp(args)
     return stdout
 
 
@@ -340,11 +354,12 @@ def runparts(dirp, skip_no_exist=True):
             try:
                 subp([exe_path])
             except ProcessExecutionError as e:
-                LOG.exception("Failed running %s [%i]", exe_path, e.exit_code)
+                LOG.exception("Failed running %s [%s]", exe_path, e.exit_code)
                 failed += 1
 
     if failed and attempted:
-        raise RuntimeError('runparts: %i failures in %i attempted commands' % (failed, attempted))
+        raise RuntimeError('Runparts: %s failures in %s attempted commands'
+                           % (failed, attempted))
 
 
 # read_optional_seed
@@ -363,6 +378,32 @@ def read_optional_seed(fill, base="", ext="", timeout=5):
         raise
 
 
+def read_file_or_url(url, timeout, retries, file_retries):
+    if url.startswith("/"):
+        url = "file://%s" % url
+    if url.startswith("file://"):
+        retries = file_retries
+    return uhelp.readurl(url, timeout=timeout, retries=retries)
+
+
+def load_yaml(blob, default=None, allowed=(dict,)):
+    loaded = default
+    try:
+        blob = str(blob)
+        LOG.debug(("Attempting to load yaml from string "
+                 "of length %s with allowed root types %s"), 
+                 len(blob), allowed)
+        converted = yaml.load(blob)
+        if not isinstance(converted, allowed):
+            # Yes this will just be caught, but thats ok for now...
+            raise TypeError("Yaml load allows %s types, but got %s instead" %
+                            (allowed, obj_name(converted)))
+        loaded = converted
+    except (yaml.YAMLError, TypeError, ValueError) as exc:
+        LOG.exception("Failed loading yaml due to: %s", exc)
+    return loaded
+
+
 def read_seeded(base="", ext="", timeout=5, retries=10, file_retries=0):
     if base.startswith("/"):
         base = "file://%s" % base
@@ -378,13 +419,16 @@ def read_seeded(base="", ext="", timeout=5, retries=10, file_retries=0):
         ud_url = "%s%s%s" % (base, "user-data", ext)
         md_url = "%s%s%s" % (base, "meta-data", ext)
 
-    (md_str, msc) = uhelp.readurl(md_url, timeout=timeout, retries=retries)
-    (ud, usc) = uhelp.readurl(ud_url, timeout=timeout, retries=retries)
+    (md_str, msc) = read_file_or_url(md_url, timeout, retries, file_retries)
     md = None
     if md_str and uhelp.ok_http_code(msc):
-        md = yaml.load(md_str)
-    if not uhelp.ok_http_code(usc):
-        ud = None
+        md = load_yaml(md_str, default={})
+
+    (ud_str, usc) = read_file_or_url(ud_url, timeout, retries, file_retries)
+    ud = None
+    if ud_str and uhelp.ok_http_code(usc):
+        ud = ud_str
+
     return (md, ud)
 
 
@@ -410,13 +454,14 @@ def read_conf_with_confd(cfgfile):
 
     confd = False
     if "conf_d" in cfg:
-        if cfg['conf_d'] is not None:
-            confd = cfg['conf_d']
-            if not isinstance(confd, (str)):
-                raise RuntimeError(("Config file %s contains 'conf_d' "
-                                    "with non-string") % (cfgfile))
+        confd = cfg['conf_d']
+        if confd:
+            if not isinstance(confd, (str, basestring)):
+                raise TypeError(("Config file %s contains 'conf_d' "
+                                 "with non-string type %s") %
+                                 (cfgfile, obj_name(confd)))
             else:
-                confd = confd.strip()
+                confd = str(confd).strip()
     elif os.path.isdir("%s.d" % cfgfile):
         confd = "%s.d" % cfgfile
 
@@ -490,26 +535,41 @@ def get_hostname_fqdn(cfg, cloud):
 
 
 def get_fqdn_from_hosts(hostname, filename="/etc/hosts"):
-    # this parses /etc/hosts to get a fqdn.  It should return the same
-    # result as 'hostname -f <hostname>' if /etc/hosts.conf
-    # did not have did not have 'bind' in the order attribute
+    """
+    For each host a single line should be present with
+      the following information:
+    
+	     IP_address canonical_hostname [aliases...]
+    
+      Fields of the entry are separated by any number of  blanks  and/or  tab
+      characters.  Text  from	a "#" character until the end of the line is a
+      comment, and is ignored.	 Host  names  may  contain  only  alphanumeric
+      characters, minus signs ("-"), and periods (".").  They must begin with
+      an  alphabetic  character  and  end  with  an  alphanumeric  character.
+      Optional aliases provide for name changes, alternate spellings, shorter
+      hostnames, or generic hostnames (for example, localhost).
+    """
     fqdn = None
     try:
         for line in load_file(filename).splitlines():
             hashpos = line.find("#")
             if hashpos >= 0:
                 line = line[0:hashpos]
-            toks = line.split()
-        
-            # if there there is less than 3 entries (ip, canonical, alias)
+            line = line.strip()
+            if not line:
+                continue
+
+            # If there there is less than 3 entries 
+            # (IP_address, canonical_hostname, alias)
             # then ignore this line
+            toks = line.split()
             if len(toks) < 3:
                 continue
-        
+
             if hostname in toks[2:]:
                 fqdn = toks[1]
                 break
-    except IOError as e:
+    except IOError:
         pass
     return fqdn
 
@@ -584,7 +644,7 @@ def close_stdin():
         os.dup2(fp.fileno(), sys.stdin.fileno())
 
 
-def find_devs_with(criteria):
+def find_devs_with(criteria=None):
     """
     find devices matching given criteria (via blkid)
     criteria can be *one* of:
@@ -593,10 +653,26 @@ def find_devs_with(criteria):
       UUID=<uuid>
     """
     try:
-        (out, _err) = subp(['blkid', '-t%s' % criteria, '-odevice'])
+        blk_id_cmd = ['blkid']
+        if criteria:
+            # Search for block devices with tokens named NAME that 
+            # have the value 'value' and display any devices which are found.
+            # Common values for NAME include  TYPE, LABEL, and UUID.
+            # If there are no devices specified on the command line,
+            # all block devices will be searched; otherwise, 
+            # only search the devices specified by the user.
+            blk_id_cmd.append("-t%s" % (criteria))
+        # Only print the device name
+        blk_id_cmd.append('-odevice')
+        (out, _err) = subp(blk_id_cmd)
+        entries = []
+        for line in out.splitlines():
+            line = line.strip()
+            if line:
+                entries.append(line)
+        return entries
     except ProcessExecutionError:
         return []
-    return (out.splitlines())
 
 
 def load_file(fname, read_cb=None):
@@ -604,7 +680,10 @@ def load_file(fname, read_cb=None):
     with open(fname, 'rb') as fh:
         ofh = StringIO()
         pipe_in_out(fh, ofh, chunk_cb=read_cb)
-        return ofh.getvalue()
+        ofh.flush()
+        contents = ofh.getvalue()
+        LOG.debug("Read %s bytes from %s", len(contents), fname)
+        return contents
 
 
 def get_cmdline():
@@ -620,7 +699,8 @@ def get_cmdline():
 
 def pipe_in_out(in_fh, out_fh, chunk_size=1024, chunk_cb=None):
     bytes_piped = 0
-    LOG.debug("Transferring the contents of %s to %s in chunks of size %s.", in_fh, out_fh, chunk_size)
+    LOG.debug(("Transferring the contents of %s "
+             "to %s in chunks of size %sb"), in_fh, out_fh, chunk_size)
     while True:
         data = in_fh.read(chunk_size)
         if data == '':
@@ -658,15 +738,87 @@ def ensure_dirs(dirlist, mode=0755):
 
 def ensure_dir(path, mode=0755):
     if not os.path.isdir(path):
-        fixmodes = []
-        LOG.debug("Ensuring directory exists at path %s (perms=%s)", dir_name, mode)
-        try:
-            os.makedirs(path)
-        except OSError as e:
-            if e.errno != errno.EEXIST:
-                raise e
-        if mode is not None:
-            os.chmod(path, mode)
+        # Make the dir and adjust the mode
+        LOG.debug("Ensuring directory exists at path %s", path)
+        os.makedirs(path)
+        chmod(path, mode)
+    else:
+        # Just adjust the mode
+        chmod(path, mode)
+
+
+def get_base_cfg(cfg_path=None):
+    if not cfg_path:
+        cfg_path = CLOUD_CONFIG
+    return merge_base_cfg(cfg_path, get_builtin_cfg())
+
+
+@contextlib.contextmanager
+def unmounter(umount):
+    try:
+        yield umount
+    finally:
+        if umount:
+            umount_cmd = ["umount", '-l', umount]
+            subp(umount_cmd)
+
+
+def mounts():
+    mounted = {}
+    try:
+        # Go through mounts to see if it was already mounted
+        mount_locs = load_file("/proc/mounts").splitlines()
+        for mpline in mount_locs:
+            # Format at: http://linux.die.net/man/5/fstab
+            try:
+                (dev, mp, fstype, _opts, _freq, _passno) = mpline.split()
+            except:
+                continue
+            # If the name of the mount point contains spaces these 
+            # can be escaped as '\040', so undo that..
+            mp = mp.replace("\\040", " ")
+            mounted[dev] = (dev, fstype, mp, False)
+    except (IOError, OSError):
+        pass
+    return mounted
+
+
+def mount_cb(device, callback, data=None, rw=False):
+    """
+    Mount the device, call method 'callback' passing the directory
+    in which it was mounted, then unmount.  Return whatever 'callback'
+    returned.  If data != None, also pass data to callback.
+    """
+    mounted = mounts()
+    with tempdir() as tmpd:
+        umount = False
+        if device in mounted:
+            mountpoint = "%s/" % mounted[device][2]
+        else:
+            try:
+                mountcmd = ['mount', "-o"]
+                if rw:
+                    mountcmd.append('rw')
+                else:
+                    mountcmd.append('ro')
+                mountcmd.append(device)
+                mountcmd.append(tmpd)
+                subp(mountcmd)
+                umount = tmpd
+            except IOError as exc:
+                raise MountFailedError("%s" % (exc))
+            mountpoint = "%s/" % tmpd
+        with unmounter(umount):
+            if data is None:
+                ret = callback(mountpoint)
+            else:
+                ret = callback(mountpoint, data)
+            return ret
+
+
+def get_builtin_cfg():
+    # Deep copy so that others can't modify
+    return copy.deepcopy(CFG_BUILTIN)
 
 
 def sym_link(source, link):
@@ -687,6 +839,18 @@ def ensure_file(path):
     write_file(path, content='', omode="ab")
 
 
+def chmod(path, mode):
+    real_mode = None
+    try:
+        real_mode = int(mode)
+    except (ValueError, TypeError):
+        pass
+    if path and real_mode:
+        LOG.debug("Adjusting the permissions of %s (perms=%o)",
+                 path, real_mode)
+        os.chmod(path, real_mode)
+
+
 def write_file(filename, content, mode=0644, omode="wb"):
     """
     Writes a file with the given content and sets the file mode as specified.
@@ -698,13 +862,12 @@ def write_file(filename, content, mode=0644, omode="wb"):
     @param omode: The open mode used when opening the file (r, rb, a, etc.)
     """
     ensure_dir(os.path.dirname(filename))
-    LOG.debug("Writing to %s - %s (perms=%s) %s bytes", filename, omode, mode, len(content))
+    LOG.debug("Writing to %s - %s, %s bytes", filename, omode, len(content))
     with open(filename, omode) as fh:
         with SeLinuxGuard(filename):
             fh.write(content)
             fh.flush()
-            if mode is not None:
-                os.chmod(filename, mode)
+            chmod(filename, mode)
 
 
 def delete_dir_contents(dirname):
@@ -725,7 +888,8 @@ def subp(args, input_data=None, allowed_rc=None, env=None):
     if allowed_rc is None:
         allowed_rc = [0]
     try:
-        LOG.debug("Running command %s with allowed return codes %s", args, allowed_rc)
+        LOG.debug("Running command %s with allowed return codes %s",
+                  args, allowed_rc)
         sp = subprocess.Popen(args, stdout=subprocess.PIPE,
             stderr=subprocess.PIPE, stdin=subprocess.PIPE,
             env=env)
@@ -768,14 +932,16 @@ def shellify(cmdlist, add_header=True):
 
 
 def is_container():
-    # is this code running in a container of some sort
+    """
+    Checks to see if this code running in a container of some sort
+    """
 
-    for helper in ('running-in-container', 'lxc-is-container'):
+    for helper in CONTAINER_TESTS:
         try:
             # try to run a helper program. if it returns true/zero
             # then we're inside a container. otherwise, no
             cmd = [helper]
-            (stdout, stderr) = subp(cmd, allowed_rc=[0])
+            subp(cmd, allowed_rc=[0])
             return True
         except (IOError, OSError):
             pass
@@ -812,7 +978,10 @@ def is_container():
 
 
 def get_proc_env(pid):
-    # return the environment in a dict that a given process id was started with
+    """
+    Return the environment in a dict that a given process id was started with.
+    """
+
     env = {}
     fn = os.path.join("/proc/", str(pid), "environ")
     try:
