@@ -124,7 +124,6 @@ class Init(object):
                 util.chownbyname(log_file, u, g)
 
     def _read_cfg(self):
-        # Deep copy so that
         b_config = util.get_builtin_cfg()
         try:
             conf = util.get_base_cfg()
@@ -279,8 +278,10 @@ class Init(object):
         data = cloud.Cloud(self.datasource,
                            self.paths, copy.deepcopy(self.cfg))
 
-        # Init the handlers first
         # Ensure userdata fetched before activation
+        ud_obj = data.get_userdata()
+
+        # Init the handlers first
         called = []
         for (_mtype, mod) in c_handlers.iteritems():
             if mod in called:
@@ -294,9 +295,12 @@ class Init(object):
             'handlerdir': idir,
             'data': data, 
             'frequency': frequency,
+            # This will be used when new handlers are found
+            # to help write there contents to files with numbered
+            # names...
             'handlercount': 0,
         }
-        ud.walk(data.get_userdata(), ud.walker_callback, data=part_data)
+        ud.walk(ud_obj, ud.walker_callback, data=part_data)
 
         # Give callbacks opportunity to finalize
         called = []
