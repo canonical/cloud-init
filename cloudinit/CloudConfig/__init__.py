@@ -260,7 +260,7 @@ def apt_get(tlc, args=None):
     e = os.environ.copy()
     e['DEBIAN_FRONTEND'] = 'noninteractive'
     cmd = ['apt-get', '--option', 'Dpkg::Options::=--force-confold',
-           '--assume-yes', tlc]
+           '--assume-yes', '-q', tlc]
     cmd.extend(args)
     subprocess.check_call(cmd, env=e)
 
