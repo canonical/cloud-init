@@ -36,6 +36,7 @@ import socket
 import subprocess
 import sys
 import tempfile
+import traceback
 import types
 import urlparse
 
@@ -259,9 +260,77 @@ def get_cfg_by_path(yobj, keyp, default=None):
     cur = yobj
     for tok in keyp:
         if tok not in cur:
-            return(default)
+            return default
         cur = cur[tok]
     return cur
+
+
+# redirect_output(outfmt, errfmt, orig_out, orig_err)
+#  replace orig_out and orig_err with filehandles specified in outfmt or errfmt
+#  fmt can be:
+#   > FILEPATH
+#   >> FILEPATH
+#   | program [ arg1 [ arg2 [ ... ] ] ]
+#
+#   with a '|', arguments are passed to shell, so one level of
+#   shell escape is required.
+def redirect_output(outfmt, errfmt, o_out=sys.stdout, o_err=sys.stderr):
+    if outfmt:
+        (mode, arg) = outfmt.split(" ", 1)
+        if mode == ">" or mode == ">>":
+            owith = "ab"
+            if mode == ">":
+                owith = "wb"
+            new_fp = open(arg, owith)
+        elif mode == "|":
+            proc = subprocess.Popen(arg, shell=True, stdin=subprocess.PIPE)
+            new_fp = proc.stdin
+        else:
+            raise TypeError("Invalid type for outfmt: %s" % outfmt)
+
+        if o_out:
+            os.dup2(new_fp.fileno(), o_out.fileno())
+        if errfmt == outfmt:
+            os.dup2(new_fp.fileno(), o_err.fileno())
+            return
+
+    if errfmt:
+        (mode, arg) = errfmt.split(" ", 1)
+        if mode == ">" or mode == ">>":
+            owith = "ab"
+            if mode == ">":
+                owith = "wb"
+            new_fp = open(arg, owith)
+        elif mode == "|":
+            proc = subprocess.Popen(arg, shell=True, stdin=subprocess.PIPE)
+            new_fp = proc.stdin
+        else:
+            raise TypeError("Invalid type for errfmt: %s" % errfmt)
+
+        if o_err:
+            os.dup2(new_fp.fileno(), o_err.fileno())
+
+
+def make_url(scheme, host, port=None,
+                path='', params='', query='', fragment=''):
+
+    pieces = []
+    pieces.append(scheme or '')
+
+    netloc = ''
+    if host:
+        netloc = str(host)
+
+    if port is not None:
+        netloc += ":" + "%s" % (port)
+
+    pieces.append(netloc or '')
+    pieces.append(path or '')
+    pieces.append(params or '')
+    pieces.append(query or '')
+    pieces.append(fragment or '')
+
+    return urlparse.urlunparse(pieces)
 
 
 def obj_name(obj):
@@ -359,7 +428,7 @@ def runparts(dirp, skip_no_exist=True):
             try:
                 subp([exe_path])
             except ProcessExecutionError as e:
-                LOG.exception("Failed running %s [%s]", exe_path, e.exit_code)
+                logexc(LOG, "Failed running %s [%s]", exe_path, e.exit_code)
                 failed += 1
 
     if failed and attempted:
@@ -405,7 +474,7 @@ def load_yaml(blob, default=None, allowed=(dict,)):
                             (allowed, obj_name(converted)))
         loaded = converted
     except (yaml.YAMLError, TypeError, ValueError) as exc:
-        LOG.exception("Failed loading yaml due to: %s", exc)
+        logexc(LOG, "Failed loading yaml blob")
     return loaded
 
 
@@ -682,9 +751,9 @@ def find_devs_with(criteria=None):
 
 def load_file(fname, read_cb=None):
     LOG.debug("Reading from %s", fname)
-    with open(fname, 'rb') as fh:
+    with open(fname, 'rb') as ifh:
         ofh = StringIO()
-        pipe_in_out(fh, ofh, chunk_cb=read_cb)
+        pipe_in_out(ifh, ofh, chunk_cb=read_cb)
         ofh.flush()
         contents = ofh.getvalue()
         LOG.debug("Read %s bytes from %s", len(contents), fname)
@@ -736,12 +805,90 @@ def chownbyname(fname, user=None, group=None):
     chownbyid(fname, uid, gid)
 
 
+# Always returns well formated values
+# cfg is expected to have an entry 'output' in it, which is a dictionary
+# that includes entries for 'init', 'config', 'final' or 'all'
+#   init: /var/log/cloud.out
+#   config: [ ">> /var/log/cloud-config.out", /var/log/cloud-config.err ]
+#   final:
+#     output: "| logger -p"
+#     error: "> /dev/null"
+# this returns the specific 'mode' entry, cleanly formatted, with value
+def get_output_cfg(cfg, mode="init"):
+    ret = [None, None]
+    if not cfg or not 'output' in cfg:
+        return ret
+
+    outcfg = cfg['output']
+    if mode in outcfg:
+        modecfg = outcfg[mode]
+    else:
+        if 'all' not in outcfg:
+            return ret
+        # if there is a 'all' item in the output list
+        # then it applies to all users of this (init, config, final)
+        modecfg = outcfg['all']
+
+    # if value is a string, it specifies stdout and stderr
+    if isinstance(modecfg, str):
+        ret = [modecfg, modecfg]
+
+    # if its a list, then we expect (stdout, stderr)
+    if isinstance(modecfg, list):
+        if len(modecfg) > 0:
+            ret[0] = modecfg[0]
+        if len(modecfg) > 1:
+            ret[1] = modecfg[1]
+
+    # if it is a dictionary, expect 'out' and 'error'
+    # items, which indicate out and error
+    if isinstance(modecfg, dict):
+        if 'output' in modecfg:
+            ret[0] = modecfg['output']
+        if 'error' in modecfg:
+            ret[1] = modecfg['error']
+
+    # if err's entry == "&1", then make it same as stdout
+    # as in shell syntax of "echo foo >/dev/null 2>&1"
+    if ret[1] == "&1":
+        ret[1] = ret[0]
+
+    swlist = [">>", ">", "|"]
+    for i in range(len(ret)):
+        if not ret[i]:
+            continue
+        val = ret[i].lstrip()
+        found = False
+        for s in swlist:
+            if val.startswith(s):
+                val = "%s %s" % (s, val[len(s):].strip())
+                found = True
+                break
+        if not found:
+            # default behavior is append
+            val = "%s %s" % (">>", val.strip())
+        ret[i] = val
+
+    return ret
+
+
+def logexc(log, msg='', *args):
+    # Setting this here allows this to change
+    # levels easily (not always error level)
+    # or even desirable to have that much junk
+    # coming out to a non-debug stream
+    if msg:
+        log.warn(msg, *args)
+    # Debug gets the full trace
+    log.debug(msg, exc_info=1, *args)
+
+
 def ensure_dirs(dirlist, mode=0755):
     for d in dirlist:
         ensure_dir(d, mode)
 
 
-def ensure_dir(path, mode=0755):
+def ensure_dir(path, mode=None):
     if not os.path.isdir(path):
         # Make the dir and adjust the mode
         LOG.debug("Ensuring directory exists at path %s", path)
@@ -771,24 +918,29 @@ def unmounter(umount):
 def mounts():
     mounted = {}
     try:
-        # Go through mounts to see if it was already mounted
+        # Go through mounts to see what is already mounted
         mount_locs = load_file("/proc/mounts").splitlines()
         for mpline in mount_locs:
             # Format at: http://linux.die.net/man/5/fstab
             try:
-                (dev, mp, fstype, _opts, _freq, _passno) = mpline.split()
+                (dev, mp, fstype, opts, _freq, _passno) = mpline.split()
             except:
                 continue
             # If the name of the mount point contains spaces these 
             # can be escaped as '\040', so undo that..
             mp = mp.replace("\\040", " ")
-            mounted[dev] = (dev, fstype, mp, False)
+            mounted[dev] = {
+                'fstype': fstype,
+                'mountpoint': mp,
+                'opts': opts,
+            }
+        LOG.debug("Fetched %s mounts from %s", mounted, "/proc/mounts")
     except (IOError, OSError):
-        pass
+        logexc(LOG, "Failed fetching mount points from /proc/mounts")
     return mounted
 
 
-def mount_cb(device, callback, data=None, rw=False):
+def mount_cb(device, callback, data=None, rw=False, mtype=None):
     """
     Mount the device, call method 'callback' passing the directory
     in which it was mounted, then unmount.  Return whatever 'callback'
@@ -798,7 +950,7 @@ def mount_cb(device, callback, data=None, rw=False):
     with tempdir() as tmpd:
         umount = False
         if device in mounted:
-            mountpoint = "%s/" % mounted[device][2]
+            mountpoint = "%s/" % mounted[device]['mountpoint']
         else:
             try:
                 mountcmd = ['mount', "-o"]
@@ -806,6 +958,8 @@ def mount_cb(device, callback, data=None, rw=False):
                     mountcmd.append('rw')
                 else:
                     mountcmd.append('ro')
+                if mtype:
+                    mountcmd.extend(['-t', mtype])
                 mountcmd.append(device)
                 mountcmd.append(tmpd)
                 subp(mountcmd)
@@ -891,28 +1045,42 @@ def delete_dir_contents(dirname):
             del_file(node_fullpath)
 
 
-def subp(args, input_data=None, allowed_rc=None, env=None):
-    if allowed_rc is None:
-        allowed_rc = [0]
+def subp(args, data=None, rcs=None, env=None, capture=True, shell=False):
+    if rcs is None:
+        rcs = [0]
     try:
-        LOG.debug("Running command %s with allowed return codes %s",
-                  args, allowed_rc)
-        sp = subprocess.Popen(args, stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE, stdin=subprocess.PIPE,
-            env=env)
-        (out, err) = sp.communicate(input_data)
+        LOG.debug(("Running command %s with allowed return codes %s"
+                   " (shell=%s, capture=%s)"), args, rcs, shell, capture)
+        if not capture:
+            stdout = None
+            stderr = None
+        else:
+            stdout = subprocess.PIPE
+            stderr = subprocess.PIPE
+        # Always pipe stdin (for now)
+        # harlowja: I don't see why anyone would want to pipe stdin
+        # since cloud-init shuts it down (via the method close stdin)
+        stdin = subprocess.PIPE
+        sp = subprocess.Popen(args, stdout=stdout,
+                        stderr=stderr, stdin=stdin,
+                        env=env, shell=shell)
+        (out, err) = sp.communicate(data)
     except OSError as e:
         raise ProcessExecutionError(cmd=args, reason=e)
     rc = sp.returncode
-    if rc not in allowed_rc:
+    if rc not in rcs:
         raise ProcessExecutionError(stdout=out, stderr=err,
-                                         exit_code=rc,
-                                         cmd=args)
-    # Just ensure blank instead of none??
-    if not out:
+                                    exit_code=rc,
+                                    cmd=args)
+    # Just ensure blank instead of none?? (iff capturing)
+    if not out and capture:
         out = ''
-    if not err:
+    if not err and capture:
         err = ''
+    # Useful to note what happened...
+    if capture:
+        LOG.debug("Stdout: %s", out)
+        LOG.debug("Stderr: %s", err)
     return (out, err)
 
 
