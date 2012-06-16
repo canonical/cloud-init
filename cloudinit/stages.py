@@ -233,13 +233,13 @@ class Init(object):
 
         # Write what the datasource was and is..
         ds = "%s: %s" % (util.obj_name(self.datasource), self.datasource)
-        previous_ds = ''
+        previous_ds = None
         ds_fn = os.path.join(idir, 'datasource')
         try:
             previous_ds = util.load_file(ds_fn).strip()
         except Exception:
             pass
-        if not previous_ds:
+        if previous_ds is None:
             # TODO: ?? is this right
             previous_ds = ds
         util.write_file(ds_fn, "%s\n" % ds)
@@ -248,14 +248,14 @@ class Init(object):
 
         # What the instance id was and is...
         iid = self.datasource.get_instance_id()
-        previous_iid = ''
+        previous_iid = None
         p_iid_fn = os.path.join(dp, 'previous-instance-id')
         c_iid_fn = os.path.join(dp, 'instance-id')
         try:
             previous_iid = util.load_file(p_iid_fn).strip()
         except Exception:
             pass
-        if not previous_iid:
+        if previous_iid is None:
             # TODO: ?? is this right
             previous_iid = iid
         util.write_file(c_iid_fn, "%s\n" % iid)
