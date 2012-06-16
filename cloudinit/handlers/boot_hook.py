@@ -63,7 +63,7 @@ class BootHookPartHandler(handlers.Handler):
         filepath = self._write_part(payload, filename)
         try:
             env = os.environ.copy()
-            if self.instance_id:
+            if self.instance_id is not None:
                 env['INSTANCE_ID'] = str(self.instance_id)
             util.subp([filepath], env=env)
         except util.ProcessExecutionError:
