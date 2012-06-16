@@ -69,7 +69,7 @@ def handle(name, cfg, cloud, log, _args):
         initial_json['run_list'] = chef_cfg['run_list']
     if 'initial_attributes' in chef_cfg:
         initial_attributes = chef_cfg['initial_attributes']
-        for k in initial_attributes.keys():
+        for k in list(initial_attributes.keys()):
             initial_json[k] = initial_attributes[k]
     util.write_file('/etc/chef/firstboot.json', json.dumps(initial_json))
 
