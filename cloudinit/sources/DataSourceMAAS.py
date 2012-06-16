@@ -204,7 +204,7 @@ def check_seed_contents(content, seed):
     if len(content) == 0:
         raise MAASSeedDirNone("%s: no data files found" % seed)
 
-    found = content.keys()
+    found = list(content.keys())
     missing = [k for k in md_required if k not in found]
     if len(missing):
         raise MAASSeedDirMalformed("%s: missing files %s" % (seed, missing))
