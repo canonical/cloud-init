@@ -41,16 +41,27 @@ DEBUG = logging.DEBUG
 NOTSET = logging.NOTSET
 
 # Default basic format
-DEF_FORMAT = '%(levelname)s: @%(name)s : %(message)s'
+DEF_CON_FORMAT = '%(asctime)s - %(filename)s[%(levelname)s]: %(message)s'
 
 
-def setupBasicLogging(level=INFO, fmt=DEF_FORMAT):
-    root = getLogger()
-    console = logging.StreamHandler(sys.stdout)
-    console.setFormatter(logging.Formatter(fmt))
-    console.setLevel(level)
+def setupBasicLogging():
+    root = logging.getLogger()
+    # Warnings go to the console
+    console = logging.StreamHandler(sys.stderr)
+    console.setFormatter(logging.Formatter(DEF_CON_FORMAT))
+    console.setLevel(WARNING)
     root.addHandler(console)
-    root.setLevel(level)
+    # Everything else goes to this file (if we can)
+    try:
+        cfile = logging.FileHandler('/var/log/cloud-init.log')
+        cfile.setFormatter(logging.Formatter(DEF_CON_FORMAT))
+        cfile.setLevel(DEBUG)
+        root.addHandle(cfile)
+    except (IOError, OSError):
+        # Likely that u can't write to that file...
+        # Make console now have DEBUG??
+        console.setLevel(DEBUG)
+    root.setLevel(DEBUG)
 
 
 def setupLogging(cfg=None):
@@ -61,7 +72,7 @@ def setupLogging(cfg=None):
     log_cfgs = []
     log_cfg = cfg.get('logcfg')
     if log_cfg and isinstance(log_cfg, (str, basestring)):
-        # Ff there is a 'logcfg' entry in the config,
+        # If there is a 'logcfg' entry in the config,
         # respect it, it is the old keyname
         log_cfgs.append(str(log_cfg))
     elif "log_cfgs" in cfg and isinstance(cfg['log_cfgs'], (set, list)):
@@ -73,20 +84,27 @@ def setupLogging(cfg=None):
                 log_cfgs.append(str(a_cfg))
 
     # See if any of them actually load...
+    am_tried = 0
     am_worked = 0
     for log_cfg in log_cfgs:
         try:
-            if not os.path.isfile(log_cfg):
+            am_tried += 1
+            # Assume its just a string if not a filename
+            if log_cfg.startswith("/") and os.path.isfile(log_cfg):
+                pass
+            else:
                 log_cfg = StringIO(log_cfg)
+            # Attempt to load its config
             logging.config.fileConfig(log_cfg)
             am_worked += 1
         except Exception:
             pass
 
-    # If it didn't work, at least setup a basic logger
+    # If it didn't work, at least setup a basic logger (if desired)
     basic_enabled = cfg.get('log_basic', True)
     if not am_worked:
-        sys.stderr.write("Warning, no logging configured!\n")
+        sys.stderr.write(("Warning, no logging configured!"
+                          " (tried %s configs)\n") % (am_tried))
         if basic_enabled:
             sys.stderr.write("Setting up basic logging...\n")
             setupBasicLogging()
@@ -105,5 +123,5 @@ except ImportError:
         def emit(self, record):
             pass
 
-logger = getLogger()
+logger = logging.getLogger()
 logger.addHandler(NullHandler())
