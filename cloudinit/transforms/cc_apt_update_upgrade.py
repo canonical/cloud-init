@@ -49,6 +49,7 @@ def handle(_name, cfg, cloud, log, _args):
     proxy_filename = "/etc/apt/apt.conf.d/95cloud-init-proxy"
     if proxy:
         try:
+            # See http://linux.die.net/man/5/apt.conf
             contents = "Acquire::HTTP::Proxy \"%s\";\n"
             util.write_file(proxy_filename, contents % (proxy))
         except Exception as e:
@@ -186,7 +187,7 @@ def add_sources(srclist, template_params=None):
                 errorlist.append([source, "failed add key"])
 
         try:
-            util.write_file(ent['filename'], source + "\n", omode="ab")
+            util.write_file(ent['filename'], "%s\n" % (source), omode="ab")
         except:
             errorlist.append([source,
                              "failed write to file %s" % ent['filename']])
