@@ -144,13 +144,13 @@ class AuthKeyEntry(object):
             return ' '.join(toks)
 
 
-def _update_authorized_keys(fname, keys):
+def update_authorized_keys(fname, keys):
     lines = []
     try:
         if os.path.isfile(fname):
             lines = util.load_file(fname).splitlines()
     except (IOError, OSError):
-        LOG.exception("Error reading lines from %s", fname)
+        util.logexc(LOG, "Error reading lines from %s", fname)
         lines = []
 
     to_add = list(keys)
@@ -199,7 +199,7 @@ def setup_user_keys(keys, user, key_prefix, sshd_config_fn=None):
             # The following tokens are defined: %% is replaced by a literal
             # '%', %h is replaced by the home directory of the user being
             # authenticated and %u is replaced by the username of that user.
-            ssh_cfg = _parse_ssh_config(sshd_config_fn)
+            ssh_cfg = parse_ssh_config(sshd_config_fn)
             akeys = ssh_cfg.get("authorizedkeysfile", '')
             akeys = akeys.strip()
             if not akeys:
@@ -212,19 +212,19 @@ def setup_user_keys(keys, user, key_prefix, sshd_config_fn=None):
             authorized_keys = akeys
         except (IOError, OSError):
             authorized_keys = os.path.join(ssh_dir, 'authorized_keys')
-            LOG.exception(("Failed extracting 'AuthorizedKeysFile'"
-                            " in ssh config"
-                            " from %s, using 'AuthorizedKeysFile' file"
-                            " %s instead"),
-                           sshd_config_fn, authorized_keys)
+            util.logexc(LOG, ("Failed extracting 'AuthorizedKeysFile'"
+                              " in ssh config"
+                              " from %s, using 'AuthorizedKeysFile' file"
+                              " %s instead"),
+                        sshd_config_fn, authorized_keys)
 
-        content = _update_authorized_keys(authorized_keys, key_entries)
+        content = update_authorized_keys(authorized_keys, key_entries)
         util.ensure_dir(os.path.dirname(authorized_keys), mode=0700)
         util.write_file(authorized_keys, content, mode=0600)
         util.chownbyid(authorized_keys, pwent.pw_uid, pwent.pw_gid)
 
 
-def _parse_ssh_config(fname):
+def parse_ssh_config(fname):
     # The file contains keyword-argument pairs, one per line.
     # Lines starting with '#' and empty lines are interpreted as comments.
     # Note: key-words are case-insensitive and arguments are case-sensitive
