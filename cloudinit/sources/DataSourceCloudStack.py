@@ -2,9 +2,11 @@
 #
 #    Copyright (C) 2012 Canonical Ltd.
 #    Copyright (C) 2012 Cosmin Luta
+#    Copyright (C) 2012 Yahoo! Inc.
 #
 #    Author: Cosmin Luta <q4break@gmail.com>
 #    Author: Scott Moser <scott.moser@canonical.com>
+#    Author: Joshua Harlow <harlowja@yahoo-inc.com>
 #
 #    This program is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License version 3, as
@@ -66,7 +68,7 @@ class DataSourceCloudStack(sources.DataSource):
         if util.read_optional_seed(seed_ret, base=(self.seed_dir + "/")):
             self.userdata_raw = seed_ret['user-data']
             self.metadata = seed_ret['meta-data']
-            LOG.info("Using seeded cloudstack data from: %s", self.seed_dir)
+            LOG.debug("Using seeded cloudstack data from: %s", self.seed_dir)
             return True
         try:
             start = time.time()
@@ -74,12 +76,12 @@ class DataSourceCloudStack(sources.DataSource):
                 None, self.metadata_address)
             self.metadata = boto_utils.get_instance_metadata(self.api_ver,
                 self.metadata_address)
-            LOG.debug("Crawl of metadata service took %ds",
-                      (time.time() - start))
+            tot_time = (time.time() - start)
+            LOG.debug("Crawl of metadata service took %s", int(tot_time))
             return True
         except Exception as e:
-            LOG.exception(('Failed fetching from metadata '
-                           'service %s due to: %s'), self.metadata_address, e)
+            util.logexc(LOG, ('Failed fetching from metadata '
+                              'service %s'), self.metadata_address)
             return False
 
     def get_instance_id(self):
