@@ -225,7 +225,7 @@ def read_conf(fname):
 
 
 def clean_filename(fn):
-    for (k, v) in FN_REPLACEMENTS.items():
+    for (k, v) in FN_REPLACEMENTS.iteritems():
         fn = fn.replace(k, v)
     return fn.strip()
 
@@ -344,6 +344,11 @@ def get_cfg_by_path(yobj, keyp, default=None):
     return cur
 
 
+def fixup_output(cfg, mode):
+    (outfmt, errfmt) = get_output_cfg(cfg, mode)
+    redirect_output(outfmt, errfmt)
+
+
 # redirect_output(outfmt, errfmt, orig_out, orig_err)
 #  replace orig_out and orig_err with filehandles specified in outfmt or errfmt
 #  fmt can be:
@@ -353,8 +358,14 @@ def get_cfg_by_path(yobj, keyp, default=None):
 #
 #   with a '|', arguments are passed to shell, so one level of
 #   shell escape is required.
-def redirect_output(outfmt, errfmt, o_out=sys.stdout, o_err=sys.stderr):
+def redirect_output(outfmt, errfmt, o_out=None, o_err=None):
+    if not o_out:
+        o_out = sys.stdout
+    if not o_err:
+        o_err = sys.stderr
+
     if outfmt:
+        LOG.debug("Redirecting %s to %s", o_out, outfmt)
         (mode, arg) = outfmt.split(" ", 1)
         if mode == ">" or mode == ">>":
             owith = "ab"
@@ -365,15 +376,18 @@ def redirect_output(outfmt, errfmt, o_out=sys.stdout, o_err=sys.stderr):
             proc = subprocess.Popen(arg, shell=True, stdin=subprocess.PIPE)
             new_fp = proc.stdin
         else:
-            raise TypeError("Invalid type for outfmt: %s" % outfmt)
+            raise TypeError("Invalid type for output format: %s" % outfmt)
 
         if o_out:
             os.dup2(new_fp.fileno(), o_out.fileno())
+
         if errfmt == outfmt:
+            LOG.debug("Redirecting %s to %s", o_err, outfmt)
             os.dup2(new_fp.fileno(), o_err.fileno())
             return
 
     if errfmt:
+        LOG.debug("Redirecting %s to %s", o_err, errfmt)
         (mode, arg) = errfmt.split(" ", 1)
         if mode == ">" or mode == ">>":
             owith = "ab"
@@ -384,7 +398,7 @@ def redirect_output(outfmt, errfmt, o_out=sys.stdout, o_err=sys.stderr):
             proc = subprocess.Popen(arg, shell=True, stdin=subprocess.PIPE)
             new_fp = proc.stdin
         else:
-            raise TypeError("Invalid type for errfmt: %s" % errfmt)
+            raise TypeError("Invalid type for error format: %s" % errfmt)
 
         if o_err:
             os.dup2(new_fp.fileno(), o_err.fileno())
@@ -912,7 +926,7 @@ def chownbyname(fname, user=None, group=None):
 #     output: "| logger -p"
 #     error: "> /dev/null"
 # this returns the specific 'mode' entry, cleanly formatted, with value
-def get_output_cfg(cfg, mode="init"):
+def get_output_cfg(cfg, mode):
     ret = [None, None]
     if not cfg or not 'output' in cfg:
         return ret
