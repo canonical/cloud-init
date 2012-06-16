@@ -1,6 +1,10 @@
+# vi: ts=4 expandtab
+#
 #    Copyright (C) 2012 Canonical Ltd.
+#    Copyright (C) 2012 Yahoo! Inc.
 #
 #    Author: Scott Moser <scott.moser@canonical.com>
+#    Author: Joshua Harlow <harlowja@yahoo-inc.com>
 #
 #    This program is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License version 3, as
@@ -22,6 +26,8 @@ from cloudinit import sources
 from cloudinit import util
 
 LOG = logging.getLogger(__name__)
+
+# Various defaults/constants...
 DEFAULT_IID = "iid-dsconfigdrive"
 DEFAULT_MODE = 'pass'
 CFG_DRIVE_FILES = [
@@ -33,7 +39,6 @@ DEFAULT_METADATA = {
     "instance-id": DEFAULT_IID, 
     "dsmode": DEFAULT_MODE,
 }
-IF_UP_CMD = ['ifup', '--all']
 CFG_DRIVE_DEV_ENV = 'CLOUD_INIT_CONFIG_DRIVE_DEVICE'
 
 
@@ -43,11 +48,11 @@ class DataSourceConfigDrive(sources.DataSource):
         self.seed = None
         self.cfg = {}
         self.dsmode = 'local'
-        self.seed_dir = os.path.join(self.paths.seed_dir, 'config_drive')
+        self.seed_dir = os.path.join(paths.seed_dir, 'config_drive')
 
     def __str__(self):
         mstr = "%s[%s]" % (util.obj_name(self), self.dsmode)
-        mstr = mstr + " [seed=%s]" % (self.seed)
+        mstr += " [seed=%s]" % (self.seed)
         return mstr
 
     def get_data(self):
@@ -60,8 +65,8 @@ class DataSourceConfigDrive(sources.DataSource):
                 (md, ud) = read_config_drive_dir(self.seed_dir)
                 found = self.seed_dir
             except NonConfigDriveDir:
-                LOG.exception("Failed reading config drive from %s",
-                              self.seed_dir)
+                util.logexc(LOG, "Failed reading config drive from %s",
+                            self.seed_dir)
         if not found:
             dev = find_cfg_drive_device()
             if dev:
@@ -86,15 +91,7 @@ class DataSourceConfigDrive(sources.DataSource):
                 LOG.info("Updating network interfaces from configdrive")
             else:
                 LOG.debug("Updating network interfaces from configdrive")
-
             self.distro.apply_network(md['network-interfaces'])
-            try:
-                (_out, err) = util.subp(IF_UP_CMD)
-                if len(err):
-                    LOG.warn("Running %s resulted in stderr output: %s",
-                             IF_UP_CMD, err)
-            except util.ProcessExecutionError:
-                LOG.exception("Running %s failed", IF_UP_CMD)
 
         self.seed = found
         self.metadata = md
@@ -109,7 +106,7 @@ class DataSourceConfigDrive(sources.DataSource):
     def get_public_ssh_keys(self):
         if not 'public-keys' in self.metadata:
             return []
-        return list(self.metadata['public-keys'])
+        return self.metadata['public-keys']
 
     # The data sources' config_obj is a cloud-config formated
     # object that came to it from ways other than cloud-config
@@ -226,6 +223,6 @@ datasources = [
 ]
 
 
-# Used to match classes to dependencies
+# Return a list of data sources that match this set of dependencies
 def get_datasource_list(depends):
     return sources.list_from_depends(depends, datasources)
