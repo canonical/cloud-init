@@ -77,13 +77,11 @@ class Init(object):
     def distro(self):
         if not self._distro:
             # Try to find the right class to use
-            d_cfg = self._extract_cfg('system')
-            distro_name = d_cfg.pop('distro', 'ubuntu')
-            distro_cls = distros.fetch(distro_name)
-            LOG.debug("Using distro class %s", distro_cls)
-            distro = distro_cls(distro_name, d_cfg,
-                                helpers.Runners(self.paths))
-            self._distro = distro
+            scfg = self._extract_cfg('system')
+            name = scfg.pop('distro', 'ubuntu')
+            cls = distros.fetch(name)
+            LOG.debug("Using distro class %s", cls)
+            self._distro = cls(name, scfg, self.paths)
         return self._distro
 
     @property
