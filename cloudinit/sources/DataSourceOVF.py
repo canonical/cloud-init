@@ -2,9 +2,11 @@
 #
 #    Copyright (C) 2011 Canonical Ltd.
 #    Copyright (C) 2012 Hewlett-Packard Development Company, L.P.
+#    Copyright (C) 2012 Yahoo! Inc.
 #
 #    Author: Scott Moser <scott.moser@canonical.com>
 #    Author: Juerg Hafliger <juerg.haefliger@hp.com>
+#    Author: Joshua Harlow <harlowja@yahoo-inc.com>
 #
 #    This program is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License version 3, as
@@ -18,33 +20,30 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import cloudinit.DataSource as DataSource
-
-from cloudinit import seeddir as base_seeddir
-from cloudinit import log
-import cloudinit.util as util
-import os.path
-import os
 from xml.dom import minidom
 import base64
+import os
 import re
 import tempfile
-import subprocess
+
+from cloudinit import log as logging
+from cloudinit import sources
+from cloudinit import util
+
+LOG = logging.getLogger(__name__)
 
 
-class DataSourceOVF(DataSource.DataSource):
-    seed = None
-    seeddir = base_seeddir + '/ovf'
-    environment = None
-    cfg = {}
-    userdata_raw = None
-    metadata = None
-    supported_seed_starts = ("/", "file://")
+class DataSourceOVF(sources.DataSource):
+    def __init__(self, sys_cfg, distro, paths):
+        sources.DataSource.__init__(self, sys_cfg, distro, paths)
+        self.seed = None
+        self.seed_dir = os.path.join(paths.seed_dir, 'ovf')
+        self.environment = None
+        self.cfg = {}
+        self.supported_seed_starts = ("/", "file://")
 
     def __str__(self):
-        mstr = "DataSourceOVF"
-        mstr = mstr + " [seed=%s]" % self.seed
-        return(mstr)
+        return "%s [seed=%s]" % (util.obj_name(self), self.seed)
 
     def get_data(self):
         found = []
@@ -55,13 +54,12 @@ class DataSourceOVF(DataSource.DataSource):
             "instance-id": "iid-dsovf"
         }
 
-        (seedfile, contents) = get_ovf_env(base_seeddir)
+        (seedfile, contents) = get_ovf_env(self.paths.seed_dir)
         if seedfile:
-            # found a seed dir
-            seed = "%s/%s" % (base_seeddir, seedfile)
+            # Found a seed dir
+            seed = os.path.join(self.paths.seed_dir, seedfile)
             (md, ud, cfg) = read_ovf_environment(contents)
             self.environment = contents
-
             found.append(seed)
         else:
             np = {'iso': transport_iso9660,
@@ -71,7 +69,6 @@ class DataSourceOVF(DataSource.DataSource):
                 (contents, _dev, _fname) = transfunc()
                 if contents:
                     break
-
             if contents:
                 (md, ud, cfg) = read_ovf_environment(contents)
                 self.environment = contents
@@ -89,17 +86,19 @@ class DataSourceOVF(DataSource.DataSource):
                     seedfound = proto
                     break
             if not seedfound:
-                log.debug("seed from %s not supported by %s" %
-                    (seedfrom, self.__class__))
+                LOG.debug("Seed from %s not supported by %s",
+                          seedfrom, self)
                 return False
 
             (md_seed, ud) = util.read_seeded(seedfrom, timeout=None)
-            log.debug("using seeded cache data from %s" % seedfrom)
+            LOG.debug("Using seeded cache data from %s", seedfrom)
 
             md = util.mergedict(md, md_seed)
             found.append(seedfrom)
 
+        # Now that we have exhausted any other places merge in the defaults
         md = util.mergedict(md, defaults)
+
         self.seed = ",".join(found)
         self.metadata = md
         self.userdata_raw = ud
@@ -108,31 +107,37 @@ class DataSourceOVF(DataSource.DataSource):
 
     def get_public_ssh_keys(self):
         if not 'public-keys' in self.metadata:
-            return([])
-        return([self.metadata['public-keys'], ])
+            return []
+        pks = self.metadata['public-keys']
+        if isinstance(pks, (list)):
+            return pks
+        else:
+            return [pks]
 
-    # the data sources' config_obj is a cloud-config formated
+    # The data sources' config_obj is a cloud-config formatted
     # object that came to it from ways other than cloud-config
     # because cloud-config content would be handled elsewhere
     def get_config_obj(self):
-        return(self.cfg)
+        return self.cfg
 
 
 class DataSourceOVFNet(DataSourceOVF):
-    seeddir = base_seeddir + '/ovf-net'
-    supported_seed_starts = ("http://", "https://", "ftp://")
+    def __init__(self, sys_cfg, distro, paths):
+        DataSourceOVF.__init__(self, sys_cfg, distro, paths)
+        self.seed_dir = os.path.join(paths.seed_dir, 'ovf-net')
+        self.supported_seed_starts = ("http://", "https://", "ftp://")
 
 
-# this will return a dict with some content
-#  meta-data, user-data
+# This will return a dict with some content
+#  meta-data, user-data, some config
 def read_ovf_environment(contents):
-    props = getProperties(contents)
+    props = get_properties(contents)
     md = {}
     cfg = {}
     ud = ""
-    cfg_props = ['password', ]
+    cfg_props = ['password']
     md_props = ['seedfrom', 'local-hostname', 'public-keys', 'instance-id']
-    for prop, val in props.iteritems():
+    for (prop, val) in props.iteritems():
         if prop == 'hostname':
             prop = "local-hostname"
         if prop in md_props:
@@ -144,23 +149,25 @@ def read_ovf_environment(contents):
                 ud = base64.decodestring(val)
             except:
                 ud = val
-    return(md, ud, cfg)
+    return (md, ud, cfg)
 
 
-# returns tuple of filename (in 'dirname', and the contents of the file)
+# Returns tuple of filename (in 'dirname', and the contents of the file)
 # on "not found", returns 'None' for filename and False for contents
 def get_ovf_env(dirname):
     env_names = ("ovf-env.xml", "ovf_env.xml", "OVF_ENV.XML", "OVF-ENV.XML")
     for fname in env_names:
-        if os.path.isfile("%s/%s" % (dirname, fname)):
-            fp = open("%s/%s" % (dirname, fname))
-            contents = fp.read()
-            fp.close()
-            return(fname, contents)
-    return(None, False)
+        full_fn = os.path.join(dirname, fname)
+        if os.path.isfile(full_fn):
+            try:
+                contents = util.load_file(full_fn)
+                return (fname, contents)
+            except:
+                util.logexc(LOG, "Failed loading ovf file %s", full_fn)
+    return (None, False)
 
 
-# transport functions take no input and return
+# Transport functions take no input and return
 # a 3 tuple of content, path, filename
 def transport_iso9660(require_iso=True):
 
@@ -173,79 +180,45 @@ def transport_iso9660(require_iso=True):
     devname_regex = os.environ.get(envname, default_regex)
     cdmatch = re.compile(devname_regex)
 
-    # go through mounts to see if it was already mounted
-    fp = open("/proc/mounts")
-    mounts = fp.readlines()
-    fp.close()
-
-    mounted = {}
-    for mpline in mounts:
-        (dev, mp, fstype, _opts, _freq, _passno) = mpline.split()
-        mounted[dev] = (dev, fstype, mp, False)
-        mp = mp.replace("\\040", " ")
+    # Go through mounts to see if it was already mounted
+    mounts = util.mounts()
+    for (dev, info) in mounts.iteritems():
+        fstype = info['fstype']
         if fstype != "iso9660" and require_iso:
             continue
-
         if cdmatch.match(dev[5:]) == None:  # take off '/dev/'
             continue
-
+        mp = info['mountpoint']
         (fname, contents) = get_ovf_env(mp)
         if contents is not False:
-            return(contents, dev, fname)
-
-    tmpd = None
-    dvnull = None
+            return (contents, dev, fname)
 
     devs = os.listdir("/dev/")
     devs.sort()
-
     for dev in devs:
-        fullp = "/dev/%s" % dev
+        fullp = os.path.join("/dev/", dev)
 
-        if fullp in mounted or not cdmatch.match(dev) or os.path.isdir(fullp):
+        if (fullp in mounted or
+            not cdmatch.match(dev) or os.path.isdir(fullp)):
             continue
 
-        fp = None
         try:
-            fp = open(fullp, "rb")
-            fp.read(512)
-            fp.close()
+            # See if we can read anything at all...??
+            with open(fullp, 'rb') as fp:
+                fp.read(512)
         except:
-            if fp:
-                fp.close()
             continue
 
-        if tmpd is None:
-            tmpd = tempfile.mkdtemp()
-        if dvnull is None:
-            try:
-                dvnull = open("/dev/null")
-            except:
-                pass
-
-        cmd = ["mount", "-o", "ro", fullp, tmpd]
-        if require_iso:
-            cmd.extend(('-t', 'iso9660'))
-
-        rc = subprocess.call(cmd, stderr=dvnull, stdout=dvnull, stdin=dvnull)
-        if rc:
+        try:
+            (fname, contents) = utils.mount_cb(fullp, get_ovf_env, mtype="iso9660")
+        except util.MountFailedError:
+            util.logexc(LOG, "Failed mounting %s", fullp)
             continue
-
-        (fname, contents) = get_ovf_env(tmpd)
-
-        subprocess.call(["umount", tmpd])
 
         if contents is not False:
-            os.rmdir(tmpd)
-            return(contents, fullp, fname)
+            return (contents, fullp, fname)
 
-    if tmpd:
-        os.rmdir(tmpd)
-
-    if dvnull:
-        dvnull.close()
-
-    return(False, None, None)
+    return (False, None, None)
 
 
 def transport_vmware_guestd():
@@ -259,74 +232,60 @@ def transport_vmware_guestd():
     #     # would need to error check here and see why this failed
     #     # to know if log/error should be raised
     #     return(False, None, None)
-    return(False, None, None)
+    return (False, None, None)
 
 
-def findChild(node, filter_func):
+def find_child(node, filter_func):
     ret = []
     if not node.hasChildNodes():
         return ret
     for child in node.childNodes:
         if filter_func(child):
             ret.append(child)
-    return(ret)
+    return ret
 
 
-def getProperties(environString):
-    dom = minidom.parseString(environString)
+def get_properties(contents):
+
+    dom = minidom.parseString(contents)
     if dom.documentElement.localName != "Environment":
-        raise Exception("No Environment Node")
+        raise XmlError("No Environment Node")
 
     if not dom.documentElement.hasChildNodes():
-        raise Exception("No Child Nodes")
+        raise XmlError("No Child Nodes")
 
     envNsURI = "http://schemas.dmtf.org/ovf/environment/1"
 
     # could also check here that elem.namespaceURI ==
     #   "http://schemas.dmtf.org/ovf/environment/1"
-    propSections = findChild(dom.documentElement,
+    propSections = find_child(dom.documentElement,
         lambda n: n.localName == "PropertySection")
 
     if len(propSections) == 0:
-        raise Exception("No 'PropertySection's")
+        raise XmlError("No 'PropertySection's")
 
     props = {}
-    propElems = findChild(propSections[0], lambda n: n.localName == "Property")
+    propElems = find_child(propSections[0], lambda n: n.localName == "Property")
 
     for elem in propElems:
         key = elem.attributes.getNamedItemNS(envNsURI, "key").value
         val = elem.attributes.getNamedItemNS(envNsURI, "value").value
         props[key] = val
 
-    return(props)
+    return props
 
 
+class XmlError(Exception):
+    pass
+
+
+# Used to match classes to dependencies
 datasources = (
-  (DataSourceOVF, (DataSource.DEP_FILESYSTEM, )),
-  (DataSourceOVFNet,
-    (DataSource.DEP_FILESYSTEM, DataSource.DEP_NETWORK)),
+  (DataSourceOVF, (sources.DEP_FILESYSTEM, )),
+  (DataSourceOVFNet, (sources.DEP_FILESYSTEM, sources.DEP_NETWORK)),
 )
 
 
-# return a list of data sources that match this set of dependencies
+# Return a list of data sources that match this set of dependencies
 def get_datasource_list(depends):
-    return(DataSource.list_from_depends(depends, datasources))
-
-
-if __name__ == "__main__":
-    def main():
-        import sys
-        envStr = open(sys.argv[1]).read()
-        props = getProperties(envStr)
-        import pprint
-        pprint.pprint(props)
-
-        md, ud, cfg = read_ovf_environment(envStr)
-        print "=== md ==="
-        pprint.pprint(md)
-        print "=== ud ==="
-        pprint.pprint(ud)
-        print "=== cfg ==="
-        pprint.pprint(cfg)
-
-    main()
+    return sources.list_from_depends(depends, datasources)

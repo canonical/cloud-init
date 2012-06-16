@@ -18,17 +18,23 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import cloudinit.util as util
-from cloudinit.CloudConfig import per_always
-from cloudinit import get_cpath
+import os
 
-frequency = per_always
-runparts_path = "%s/%s" % (get_cpath(), "scripts/per-boot")
+from cloudinit import util
+
+from cloudinit.settings import PER_ALWAYS
+
+frequency = PER_ALWAYS
+
+script_subdir = 'per-boot'
 
 
-def handle(_name, _cfg, _cloud, log, _args):
+def handle(_name, _cfg, cloud, log, _args):
+    # Comes from the following:
+    # https://forums.aws.amazon.com/thread.jspa?threadID=96918
+    runparts_path = os.path.join(cloud.get_cpath(), 'scripts', script_subdir)
     try:
         util.runparts(runparts_path)
     except:
-        log.warn("failed to run-parts in %s" % runparts_path)
+        log.warn("Failed to run-parts(%s) in %s", script_subdir, runparts_path)
         raise

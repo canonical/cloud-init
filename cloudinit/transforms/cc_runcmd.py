@@ -18,15 +18,20 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import cloudinit.util as util
+import os
+
+from cloudinit import util
 
 
-def handle(_name, cfg, cloud, log, _args):
+def handle(name, cfg, cloud, log, _args):
     if "runcmd" not in cfg:
+        log.debug("Skipping module named %s, no 'runcmd' key in configuration", name)
         return
-    outfile = "%s/runcmd" % cloud.get_ipath('scripts')
+
+    outfile = os.path.join(cloud.get_ipath('scripts'), "runcmd")
+    cmd = cfg["runcmd"]
     try:
-        content = util.shellify(cfg["runcmd"])
+        content = util.shellify(cmd)
         util.write_file(outfile, content, 0700)
     except:
-        log.warn("failed to open %s for runcmd" % outfile)
+        util.logexc(log, "Failed to shellify %s into file %s", cmd, outfile)

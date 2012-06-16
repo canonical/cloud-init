@@ -35,44 +35,64 @@
 ##
 ##
 
-import cloudinit.util as util
-from cloudinit.CloudConfig import per_instance
-from cloudinit import get_ipath_cur
+import os
+
+from cloudinit import url_helper as uhelp
+from cloudinit import util
+from cloudinit.settings import PER_INSTANCE
+
 from urlparse import parse_qs
 
-frequency = per_instance
+frequency = PER_INSTANCE
+
 my_name = "cc_rightscale_userdata"
 my_hookname = 'CLOUD_INIT_REMOTE_HOOK'
 
 
-def handle(_name, _cfg, cloud, log, _args):
+def handle(name, _cfg, cloud, log, _args):
     try:
         ud = cloud.get_userdata_raw()
     except:
-        log.warn("failed to get raw userdata in %s" % my_name)
+        log.warn("Failed to get raw userdata in module %s", name)
         return
 
     try:
         mdict = parse_qs(ud)
-        if not my_hookname in mdict:
+        if not mdict or not my_hookname in mdict:
+            log.debug("Skipping module %s, did not find %s in parsed raw userdata", name, my_hookname)
             return
     except:
-        log.warn("failed to urlparse.parse_qa(userdata_raw())")
+        log.warn("Failed to parse query string %s into a dictionary", ud)
         raise
 
-    scripts_d = get_ipath_cur('scripts')
-    i = 0
-    first_e = None
-    for url in mdict[my_hookname]:
-        fname = "%s/rightscale-%02i" % (scripts_d, i)
-        i = i + 1
-        try:
-            content = util.readurl(url)
-            util.write_file(fname, content, mode=0700)
-        except Exception as e:
-            if not first_e:
-                first_e = None
-            log.warn("%s failed to read %s: %s" % (my_name, url, e))
+    wrote_fns = []
+    captured_excps = []
 
-    if first_e:
-        raise(e)
+    # These will eventually be then ran by the cc_scripts_user
+    # TODO: maybe this should just be a new user data handler??
+    # Instead of a late transform that acts like a user data handler?
+    scripts_d = cloud.get_ipath_cur('scripts')
+    urls = mdict[my_hookname]
+    for (i, url) in enumerate(urls):
+        fname = os.path.join(scripts_d, "rightscale-%02i" % (i))
+        try:
+            (content, st) = uhelp.readurl(url)
+            # Ensure its a valid http response (and something gotten)
+            if uhelp.ok_http_code(st) and content:
+                util.write_file(fname, content, mode=0700)
+                wrote_fns.append(fname)
+        except Exception as e:
+            captured_excps.append(e)
+            util.logexc(log, "%s failed to read %s and write %s", my_name, url, fname)
+
+    if wrote_fns:
+        log.debug("Wrote out rightscale userdata to %s files", len(wrote_fns))
+
+    if len(wrote_fns) != len(urls):
+        skipped = len(urls) - len(wrote_fns)
+        log.debug("%s urls were skipped or failed", skipped)
+
+    if captured_excps:
+        log.warn("%s failed with exceptions, re-raising the last one", len(captured_excps))
+        raise captured_excps[-1]
+

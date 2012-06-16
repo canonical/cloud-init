@@ -18,18 +18,19 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import cloudinit.util as util
-import subprocess
-import traceback
+from cloudinit import util
+
+distros = ['ubuntu', 'debian']
 
 
-def handle(_name, cfg, _cloud, log, args):
+def handle(name, cfg, _cloud, log, args):
     if len(args) != 0:
         value = args[0]
     else:
         value = util.get_cfg_option_str(cfg, "byobu_by_default", "")
 
     if not value:
+        log.debug("Skipping module named %s, no 'byobu' values found", name)
         return
 
     if value == "user" or value == "system":
@@ -38,7 +39,7 @@ def handle(_name, cfg, _cloud, log, args):
     valid = ("enable-user", "enable-system", "enable",
              "disable-user", "disable-system", "disable")
     if not value in valid:
-        log.warn("Unknown value %s for byobu_by_default" % value)
+        log.warn("Unknown value %s for byobu_by_default", value)
 
     mod_user = value.endswith("-user")
     mod_sys = value.endswith("-system")
@@ -65,13 +66,6 @@ def handle(_name, cfg, _cloud, log, args):
 
     cmd = ["/bin/sh", "-c", "%s %s %s" % ("X=0;", shcmd, "exit $X")]
 
-    log.debug("setting byobu to %s" % value)
+    log.debug("Setting byobu to %s", value)
 
-    try:
-        subprocess.check_call(cmd)
-    except subprocess.CalledProcessError as e:
-        log.debug(traceback.format_exc(e))
-        raise Exception("Cmd returned %s: %s" % (e.returncode, cmd))
-    except OSError as e:
-        log.debug(traceback.format_exc(e))
-        raise Exception("Cmd failed to execute: %s" % (cmd))
+    util.subp(cmd)

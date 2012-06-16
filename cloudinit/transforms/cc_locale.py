@@ -18,22 +18,28 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import cloudinit.util as util
-import os.path
-import subprocess
-import traceback
+import os
+
+from cloudinit import templater
+from cloudinit import util
 
 
-def apply_locale(locale, cfgfile):
+def apply_locale(locale, cfgfile, cloud, log):
+    # TODO this command might not work on RH...
     if os.path.exists('/usr/sbin/locale-gen'):
-        subprocess.Popen(['locale-gen', locale]).communicate()
+        util.subp(['locale-gen', locale], capture=False)
     if os.path.exists('/usr/sbin/update-locale'):
-        subprocess.Popen(['update-locale', locale]).communicate()
+        util.subp(['update-locale', locale], capture=False)
+    if not cfgfile:
+        return
+    template_fn = cloud.get_template_filename('default-locale')
+    if not template_fn:
+        log.warn("No template filename found to write to %s", cfgfile)
+    else:
+        templater.render_to_file(template_fn, cfgfile, {'locale': locale})
 
-    util.render_to_file('default-locale', cfgfile, {'locale': locale})
 
-
-def handle(_name, cfg, cloud, log, args):
+def handle(name, cfg, cloud, log, args):
     if len(args) != 0:
         locale = args[0]
     else:
@@ -43,12 +49,10 @@ def handle(_name, cfg, cloud, log, args):
                                              "/etc/default/locale")
 
     if not locale:
+        log.debug(("Skipping module named %s, "
+                   "no 'locale' configuration found"), name)
         return
 
-    log.debug("setting locale to %s" % locale)
+    log.debug("Setting locale to %s", locale)
 
-    try:
-        apply_locale(locale, locale_cfgfile)
-    except Exception as e:
-        log.debug(traceback.format_exc(e))
-        raise Exception("failed to apply locale %s" % locale)
+    apply_locale(locale, locale_cfgfile, cloud, log)

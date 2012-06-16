@@ -18,9 +18,11 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import cloudinit.util as util
-import traceback
 import os
+
+from cloudinit import util
+
+distros = ['ubuntu', 'debian']
 
 
 def handle(_name, cfg, _cloud, log, _args):
@@ -52,13 +54,14 @@ def handle(_name, cfg, _cloud, log, _args):
     # now idevs and idevs_empty are set to determined values
     # or, those set by user
 
-    dconf_sel = "grub-pc grub-pc/install_devices string %s\n" % idevs + \
-        "grub-pc grub-pc/install_devices_empty boolean %s\n" % idevs_empty
-    log.debug("setting grub debconf-set-selections with '%s','%s'" %
+    dconf_sel = ("grub-pc grub-pc/install_devices string %s\n"
+                 "grub-pc grub-pc/install_devices_empty boolean %s\n") %
+                (idevs, idevs_empty)
+
+    log.debug("Setting grub debconf-set-selections with '%s','%s'" %
         (idevs, idevs_empty))
 
     try:
-        util.subp(('debconf-set-selections'), dconf_sel)
+        util.subp(['debconf-set-selections'], dconf_sel)
     except:
-        log.error("Failed to run debconf-set-selections for grub-dpkg")
-        log.debug(traceback.format_exc())
+        util.logexc(log, "Failed to run debconf-set-selections for grub-dpkg")
