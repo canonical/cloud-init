@@ -16,10 +16,13 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import cloudinit.util as util
-from cloudinit.CloudConfig import per_instance
+from cloudinit import util
+from cloudinit.settings import PER_INSTANCE
 
-frequency = per_instance
+frequency = PER_INSTANCE
+
+distros = ['ubuntu', 'debian']
+
 default_file = "/etc/apt/apt.conf.d/90cloud-init-pipelining"
 
 

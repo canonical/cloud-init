@@ -18,12 +18,13 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import cloudinit.util as util
-import subprocess
-import traceback
-import os
 import glob
-import cloudinit.CloudConfig as cc
+import os
+
+from cloudinit import templater
+from cloudinit import util
+
+distros = ['ubuntu', 'debian']
 
 
 def handle(_name, cfg, cloud, log, _args):
@@ -34,13 +35,13 @@ def handle(_name, cfg, cloud, log, _args):
 
     mirror = find_apt_mirror(cloud, cfg)
 
-    log.debug("selected mirror at: %s" % mirror)
+    log.debug("Selected mirror at: %s" % mirror)
 
-    if not util.get_cfg_option_bool(cfg, \
-        'apt_preserve_sources_list', False):
-        generate_sources_list(release, mirror)
-        old_mir = util.get_cfg_option_str(cfg, 'apt_old_mirror', \
-            "archive.ubuntu.com/ubuntu")
+    if not util.get_cfg_option_bool(cfg,
+                                    'apt_preserve_sources_list', False):
+        generate_sources_list(release, mirror, cloud, log)
+        old_mir = util.get_cfg_option_str(cfg, 'apt_old_mirror',
+                                          "archive.ubuntu.com/ubuntu")
         rename_apt_lists(old_mir, mirror)
 
     # set up proxy
@@ -49,19 +50,18 @@ def handle(_name, cfg, cloud, log, _args):
     if proxy:
         try:
             contents = "Acquire::HTTP::Proxy \"%s\";\n"
-            with open(proxy_filename, "w") as fp:
-                fp.write(contents % proxy)
+            util.write_file(proxy_filename, contents % (proxy))
         except Exception as e:
-            log.warn("Failed to write proxy to %s" % proxy_filename)
+            util.logexc(log, "Failed to write proxy to %s", proxy_filename)
     elif os.path.isfile(proxy_filename):
-        os.unlink(proxy_filename)
+        util.del_file(proxy_filename)
 
     # process 'apt_sources'
     if 'apt_sources' in cfg:
         errors = add_sources(cfg['apt_sources'],
                              {'MIRROR': mirror, 'RELEASE': release})
         for e in errors:
-            log.warn("Source Error: %s\n" % ':'.join(e))
+            log.warn("Source Error: %s", ':'.join(e))
 
     dconf_sel = util.get_cfg_option_str(cfg, 'debconf_selections', False)
     if dconf_sel:
@@ -69,40 +69,34 @@ def handle(_name, cfg, cloud, log, _args):
         try:
             util.subp(('debconf-set-selections', '-'), dconf_sel)
         except:
-            log.error("Failed to run debconf-set-selections")
-            log.debug(traceback.format_exc())
+            util.logexc(log, "Failed to run debconf-set-selections")
 
     pkglist = util.get_cfg_option_list_or_str(cfg, 'packages', [])
 
     errors = []
     if update or len(pkglist) or upgrade:
         try:
-            cc.update_package_sources()
-        except subprocess.CalledProcessError as e:
-            log.warn("apt-get update failed")
-            log.debug(traceback.format_exc())
+            cloud.distro.update_package_sources()
+        except Exception as e:
+            util.logexc(log, "Package update failed")
             errors.append(e)
 
     if upgrade:
         try:
-            cc.apt_get("upgrade")
-        except subprocess.CalledProcessError as e:
-            log.warn("apt upgrade failed")
-            log.debug(traceback.format_exc())
+            cloud.distro.package_command("upgrade")
+        except Exception as e:
+            util.logexc(log, "Package upgrade failed")
             errors.append(e)
 
     if len(pkglist):
         try:
-            cc.install_packages(pkglist)
-        except subprocess.CalledProcessError as e:
-            log.warn("Failed to install packages: %s " % pkglist)
-            log.debug(traceback.format_exc())
+            cloud.distro.install_packages(pkglist)
+        except Exception as e:
+            util.logexc(log, "Failed to install packages: %s ", pkglist)
             errors.append(e)
 
     if len(errors):
         raise errors[0]
-
-    return(True)
 
 
 def mirror2lists_fileprefix(mirror):
@@ -120,37 +114,40 @@ def mirror2lists_fileprefix(mirror):
 def rename_apt_lists(omirror, new_mirror, lists_d="/var/lib/apt/lists"):
     oprefix = "%s/%s" % (lists_d, mirror2lists_fileprefix(omirror))
     nprefix = "%s/%s" % (lists_d, mirror2lists_fileprefix(new_mirror))
-    if(oprefix == nprefix):
+    if oprefix == nprefix:
         return
     olen = len(oprefix)
     for filename in glob.glob("%s_*" % oprefix):
-        os.rename(filename, "%s%s" % (nprefix, filename[olen:]))
+        util.rename(filename, "%s%s" % (nprefix, filename[olen:]))
 
 
 def get_release():
-    stdout, _stderr = subprocess.Popen(['lsb_release', '-cs'],
-                                       stdout=subprocess.PIPE).communicate()
-    return(str(stdout).strip())
+    (stdout, _stderr) = util.subp(['lsb_release', '-cs'])
+    return stdout.strip()
 
 
-def generate_sources_list(codename, mirror):
-    util.render_to_file('sources.list', '/etc/apt/sources.list', \
-        {'mirror': mirror, 'codename': codename})
+def generate_sources_list(codename, mirror, cloud, log):
+    template_fn = cloud.get_template_filename('sources.list')
+    if template_fn:
+        params = {'mirror': mirror, 'codename': codename}
+        templater.render_to_file(template_fn, '/etc/apt/sources.list', params)
+    else:
+        log.warn("No template found, not rendering /etc/apt/sources.list")
 
 
-def add_sources(srclist, searchList=None):
+def add_sources(srclist, template_params=None):
     """
     add entries in /etc/apt/sources.list.d for each abbreviated
     sources.list entry in 'srclist'.  When rendering template, also
     include the values in dictionary searchList
     """
-    if searchList is None:
-        searchList = {}
-    elst = []
+    if template_params is None:
+        template_params = {}
 
+    errorlist = []
     for ent in srclist:
         if 'source' not in ent:
-            elst.append(["", "missing source"])
+            errorlist.append(["", "missing source"])
             continue
 
         source = ent['source']
@@ -158,17 +155,17 @@ def add_sources(srclist, searchList=None):
             try:
                 util.subp(["add-apt-repository", source])
             except:
-                elst.append([source, "add-apt-repository failed"])
+                errorlist.append([source, "add-apt-repository failed"])
             continue
 
-        source = util.render_string(source, searchList)
+        source = templater.render_string(source, template_params)
 
         if 'filename' not in ent:
             ent['filename'] = 'cloud_config_sources.list'
 
         if not ent['filename'].startswith("/"):
-            ent['filename'] = "%s/%s" % \
-                ("/etc/apt/sources.list.d/", ent['filename'])
+            ent['filename'] = os.path.join("/etc/apt/sources.list.d/",
+                                           ent['filename'])
 
         if ('keyid' in ent and 'key' not in ent):
             ks = "keyserver.ubuntu.com"
@@ -177,32 +174,26 @@ def add_sources(srclist, searchList=None):
             try:
                 ent['key'] = util.getkeybyid(ent['keyid'], ks)
             except:
-                elst.append([source, "failed to get key from %s" % ks])
+                errorlist.append([source, "failed to get key from %s" % ks])
                 continue
 
         if 'key' in ent:
             try:
                 util.subp(('apt-key', 'add', '-'), ent['key'])
             except:
-                elst.append([source, "failed add key"])
+                errorlist.append([source, "failed add key"])
 
         try:
             util.write_file(ent['filename'], source + "\n", omode="ab")
         except:
-            elst.append([source, "failed write to file %s" % ent['filename']])
+            errorlist.append([source, "failed write to file %s" % ent['filename']])
 
-    return(elst)
+    return errorlist
 
 
 def find_apt_mirror(cloud, cfg):
     """ find an apt_mirror given the cloud and cfg provided """
 
-    # TODO: distro and defaults should be configurable
-    distro = "ubuntu"
-    defaults = {
-        'ubuntu': "http://archive.ubuntu.com/ubuntu",
-        'debian': "http://archive.debian.org/debian",
-    }
     mirror = None
 
     cfg_mirror = cfg.get("apt_mirror", None)
@@ -211,14 +202,13 @@ def find_apt_mirror(cloud, cfg):
     elif "apt_mirror_search" in cfg:
         mirror = util.search_for_mirror(cfg['apt_mirror_search'])
     else:
-        if cloud:
-            mirror = cloud.get_mirror()
+        mirror = cloud.get_local_mirror()
 
         mydom = ""
 
         doms = []
 
-        if not mirror and cloud:
+        if not mirror:
             # if we have a fqdn, then search its domain portion first
             (_hostname, fqdn) = util.get_hostname_fqdn(cfg, cloud)
             mydom = ".".join(fqdn.split(".")[1:])
@@ -236,6 +226,6 @@ def find_apt_mirror(cloud, cfg):
             mirror = util.search_for_mirror(mirror_list)
 
     if not mirror:
-        mirror = defaults[distro]
+        mirror = cloud.distro.get_package_mirror()
 
     return mirror

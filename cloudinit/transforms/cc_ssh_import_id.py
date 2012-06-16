@@ -18,12 +18,14 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import cloudinit.util as util
-import subprocess
-import traceback
+from cloudinit import util
+
+# The ssh-import-id only seems to exist on ubuntu (for now)
+# https://launchpad.net/ssh-import-id
+distros = ['ubuntu']
 
 
-def handle(_name, cfg, _cloud, log, args):
+def handle(name, cfg, _cloud, log, args):
     if len(args) != 0:
         user = args[0]
         ids = []
@@ -34,17 +36,14 @@ def handle(_name, cfg, _cloud, log, args):
         ids = util.get_cfg_option_list_or_str(cfg, "ssh_import_id", [])
 
     if len(ids) == 0:
+        log.debug("Skipping module named %s, no ids found to import", name)
         return
 
     cmd = ["sudo", "-Hu", user, "ssh-import-id"] + ids
-
-    log.debug("importing ssh ids. cmd = %s" % cmd)
+    log.debug("Importing ssh ids for user %s.", user)
 
     try:
-        subprocess.check_call(cmd)
-    except subprocess.CalledProcessError as e:
-        log.debug(traceback.format_exc(e))
-        raise Exception("Cmd returned %s: %s" % (e.returncode, cmd))
-    except OSError as e:
-        log.debug(traceback.format_exc(e))
-        raise Exception("Cmd failed to execute: %s" % (cmd))
+        util.subp(cmd, capture=False)
+    except util.ProcessExecutionError as e:
+        util.logexc(log, "Failed to run command to import %s ssh ids", user)
+        raise e

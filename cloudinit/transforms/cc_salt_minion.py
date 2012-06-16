@@ -15,42 +15,43 @@
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import os
-import os.path
-import subprocess
-import cloudinit.CloudConfig as cc
-import yaml
+
+from cloudinit import util
+
+# Note: see http://saltstack.org/topics/installation/
 
 
-def handle(_name, cfg, _cloud, _log, _args):
+def handle(name, cfg, cloud, _log, _args):
     # If there isn't a salt key in the configuration don't do anything
     if 'salt_minion' not in cfg:
+        log.debug("Skipping module named %s, no 'salt_minion' key in configuration", name)
         return
+
     salt_cfg = cfg['salt_minion']
+
     # Start by installing the salt package ...
-    cc.install_packages(("salt",))
-    config_dir = '/etc/salt'
-    if not os.path.isdir(config_dir):
-        os.makedirs(config_dir)
+    cloud.distro.install_packages(("salt",))
+    
+    # Ensure we can configure files at the right dir
+    config_dir = salt_cfg.get("config_dir", '/etc/salt')
+    util.ensure_dir(config_dir)
+
     # ... and then update the salt configuration
     if 'conf' in salt_cfg:
         # Add all sections from the conf object to /etc/salt/minion
         minion_config = os.path.join(config_dir, 'minion')
-        yaml.dump(salt_cfg['conf'],
-                  file(minion_config, 'w'),
-                  default_flow_style=False)
+        minion_data = util.yaml_dumps(salt_cfg.get('conf'))
+        util.write_file(minion_config, minion_data)
+
     # ... copy the key pair if specified
     if 'public_key' in salt_cfg and 'private_key' in salt_cfg:
-        pki_dir = '/etc/salt/pki'
-        cumask = os.umask(077)
-        if not os.path.isdir(pki_dir):
-            os.makedirs(pki_dir)
-        pub_name = os.path.join(pki_dir, 'minion.pub')
-        pem_name = os.path.join(pki_dir, 'minion.pem')
-        with open(pub_name, 'w') as f:
-            f.write(salt_cfg['public_key'])
-        with open(pem_name, 'w') as f:
-            f.write(salt_cfg['private_key'])
-        os.umask(cumask)
+        pki_dir = salt_cfg.get('pki_dir', '/etc/salt/pki')
+        with util.umask(077):
+            util.ensure_dir(pki_dir)
+            pub_name = os.path.join(pki_dir, 'minion.pub')
+            pem_name = os.path.join(pki_dir, 'minion.pem')
+            util.write_file(pub_name, salt_cfg['public_key'])
+            util.write_file(pem_name, salt_cfg['private_key'])
 
     # Start salt-minion
-    subprocess.check_call(['service', 'salt-minion', 'start'])
+    util.subp(['service', 'salt-minion', 'start'], capture=False)

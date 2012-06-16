@@ -18,16 +18,15 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import cloudinit
-import logging
-import cloudinit.util as util
-import traceback
+import os
+
+from cloudinit import util
 
 DEF_FILENAME = "20-cloud-config.conf"
 DEF_DIR = "/etc/rsyslog.d"
 
 
-def handle(_name, cfg, _cloud, log, _args):
+def handle(name, cfg, cloud, log, _args):
     # rsyslog:
     #  - "*.* @@192.158.1.1"
     #  - content: "*.*   @@192.0.2.1:10514"
@@ -37,17 +36,17 @@ def handle(_name, cfg, _cloud, log, _args):
 
     # process 'rsyslog'
     if not 'rsyslog' in cfg:
+        log.debug("Skipping module named %s, no 'rsyslog' key in configuration", name)
         return
 
     def_dir = cfg.get('rsyslog_dir', DEF_DIR)
     def_fname = cfg.get('rsyslog_filename', DEF_FILENAME)
 
     files = []
-    elst = []
-    for ent in cfg['rsyslog']:
+    for i, ent in enumerate(cfg['rsyslog']):
         if isinstance(ent, dict):
             if not "content" in ent:
-                elst.append((ent, "no 'content' entry"))
+                log.warn("No 'content' entry in config entry %s", i + 1)
                 continue
             content = ent['content']
             filename = ent.get("filename", def_fname)
@@ -55,8 +54,13 @@ def handle(_name, cfg, _cloud, log, _args):
             content = ent
             filename = def_fname
 
+        filename = filename.strip()
+        if not filename:
+            log.warn("Entry %s has an empty filename", i + 1)
+            continue
+
         if not filename.startswith("/"):
-            filename = "%s/%s" % (def_dir, filename)
+            filename = os.path.join(def_dir, filename)
 
         omode = "ab"
         # truncate filename first time you see it
@@ -67,35 +71,29 @@ def handle(_name, cfg, _cloud, log, _args):
         try:
             util.write_file(filename, content + "\n", omode=omode)
         except Exception as e:
-            log.debug(traceback.format_exc(e))
-            elst.append((content, "failed to write to %s" % filename))
+            util.logexc(log, "Failed to write to %s", filename)
 
-    # need to restart syslogd
+    # Attempt to restart syslogd
     restarted = False
     try:
-        # if this config module is running at cloud-init time
+        # If this config module is running at cloud-init time
         # (before rsyslog is running) we don't actually have to
         # restart syslog.
         #
-        # upstart actually does what we want here, in that it doesn't
+        # Upstart actually does what we want here, in that it doesn't
         # start a service that wasn't running already on 'restart'
         # it will also return failure on the attempt, so 'restarted'
-        # won't get set
-        log.debug("restarting rsyslog")
+        # won't get set.
+        log.debug("Restarting rsyslog")
         util.subp(['service', 'rsyslog', 'restart'])
         restarted = True
-
     except Exception as e:
-        elst.append(("restart", str(e)))
+        util.logexc("Failed restarting rsyslog")
 
     if restarted:
-        # this only needs to run if we *actually* restarted
+        # This only needs to run if we *actually* restarted
         # syslog above.
-        cloudinit.logging_set_from_cfg_file()
-        log = logging.getLogger()
-        log.debug("rsyslog configured %s" % files)
-
-    for e in elst:
-        log.warn("rsyslog error: %s\n" % ':'.join(e))
-
-    return
+        cloud.cycle_logging()
+        # This should now use rsyslog if
+        # the logging was setup to use it...
+        log.debug("%s configured %s files", name, files)

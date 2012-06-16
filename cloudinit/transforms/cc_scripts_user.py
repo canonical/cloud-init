@@ -18,17 +18,22 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import cloudinit.util as util
-from cloudinit.CloudConfig import per_instance
-from cloudinit import get_ipath_cur
+import os
 
-frequency = per_instance
-runparts_path = "%s/%s" % (get_ipath_cur(), "scripts")
+from cloudinit import util
+
+from cloudinit.settings import PER_INSTANCE
+
+frequency = PER_INSTANCE
 
 
-def handle(_name, _cfg, _cloud, log, _args):
+def handle(_name, _cfg, cloud, log, _args):
+    # This is written to by the user data handlers
+    # Ie, any custom shell scripts that come down
+    # go here...
+    runparts_path = os.path.join(cloud.get_ipath_cur(), "scripts")
     try:
         util.runparts(runparts_path)
     except:
-        log.warn("failed to run-parts in %s" % runparts_path)
+        log.warn("Failed to run-parts(%s) in %s", "user-data", runparts_path)
         raise

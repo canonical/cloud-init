@@ -18,10 +18,17 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import cloudinit.util as util
+from string import whitespace  # pylint: disable=W0402
+
 import os
 import re
-from string import whitespace  # pylint: disable=W0402
+
+from cloudinit import util
+
+# shortname matches 'sda', 'sda1', 'xvda', 'hda', 'sdb', xvdb, vda, vdd1
+shortname_filter = r"^[x]{0,1}[shv]d[a-z][0-9]*$"
+shortname = re.compile(shortname_filter)
+ws = re.compile("[%s]+" % whitespace)
 
 
 def is_mdname(name):
@@ -49,38 +56,46 @@ def handle(_name, cfg, cloud, log, _args):
     if "mounts" in cfg:
         cfgmnt = cfg["mounts"]
 
-    # shortname matches 'sda', 'sda1', 'xvda', 'hda', 'sdb', xvdb, vda, vdd1
-    shortname_filter = r"^[x]{0,1}[shv]d[a-z][0-9]*$"
-    shortname = re.compile(shortname_filter)
-
+    
     for i in range(len(cfgmnt)):
         # skip something that wasn't a list
         if not isinstance(cfgmnt[i], list):
+            log.warn("Mount option %s not a list, got a %s instead",
+                     (i + 1), util.obj_name(cfgmnt[i]))
             continue
+
+        startname = str(cfgmnt[i][0])
+        LOG.debug("Attempting to determine the real name of %s", startname)
 
         # workaround, allow user to specify 'ephemeral'
         # rather than more ec2 correct 'ephemeral0'
-        if cfgmnt[i][0] == "ephemeral":
+        if startname == "ephemeral":
             cfgmnt[i][0] = "ephemeral0"
+            log.debug("Adjusted mount option %s name from ephemeral to ephemeral0", (i + 1))
 
-        if is_mdname(cfgmnt[i][0]):
-            newname = cloud.device_name_to_device(cfgmnt[i][0])
+        if is_mdname(startname):
+            newname = cloud.device_name_to_device(startname)
             if not newname:
-                log.debug("ignoring nonexistant named mount %s" % cfgmnt[i][0])
+                log.debug("Ignoring nonexistant named mount %s", startname)
                 cfgmnt[i][1] = None
             else:
-                if newname.startswith("/"):
-                    cfgmnt[i][0] = newname
-                else:
-                    cfgmnt[i][0] = "/dev/%s" % newname
+                renamed = newname
+                if not newname.startswith("/"):
+                    renamed = "/dev/%s" % newname
+                cfgmnt[i][0] = renamed
+                log.debug("Mapped metadata name %s to %s", startname, renamed)
         else:
-            if shortname.match(cfgmnt[i][0]):
-                cfgmnt[i][0] = "/dev/%s" % cfgmnt[i][0]
+            if shortname.match(startname):
+                renamed = "/dev/%s" % startname
+                log.debug("Mapped shortname name %s to %s", startname, renamed)
+                cfgmnt[i][0] = renamed
 
         # in case the user did not quote a field (likely fs-freq, fs_passno)
         # but do not convert None to 'None' (LP: #898365)
         for j in range(len(cfgmnt[i])):
-            if isinstance(cfgmnt[i][j], int):
+            if j is None:
+                continue
+            else:
                 cfgmnt[i][j] = str(cfgmnt[i][j])
 
     for i in range(len(cfgmnt)):
@@ -102,13 +117,17 @@ def handle(_name, cfg, cloud, log, _args):
     # for each of the "default" mounts, add them only if no other
     # entry has the same device name
     for defmnt in defmnts:
-        devname = cloud.device_name_to_device(defmnt[0])
+        startname = defmnt[0]
+        devname = cloud.device_name_to_device(startname)
         if devname is None:
+            log.debug("Ignoring nonexistant named default mount %s", startname)
             continue
         if devname.startswith("/"):
             defmnt[0] = devname
         else:
             defmnt[0] = "/dev/%s" % devname
+
+        log.debug("Mapped default device %s to %s", startname, defmnt[0])
 
         cfgmnt_has = False
         for cfgm in cfgmnt:
@@ -117,14 +136,21 @@ def handle(_name, cfg, cloud, log, _args):
                 break
 
         if cfgmnt_has:
+            log.debug("Not including %s, already previously included", startname)
             continue
         cfgmnt.append(defmnt)
 
     # now, each entry in the cfgmnt list has all fstab values
     # if the second field is None (not the string, the value) we skip it
-    actlist = [x for x in cfgmnt if x[1] is not None]
+    actlist = []
+    for x in cfgmnt:
+        if x[1] is None:
+            log.debug("Skipping non-existent device named %s", x[0])
+        else:
+            actlist.append(x)
 
     if len(actlist) == 0:
+        log.debug("No modifications to fstab needed.")
         return
 
     comment = "comment=cloudconfig"
@@ -141,8 +167,7 @@ def handle(_name, cfg, cloud, log, _args):
         cc_lines.append('\t'.join(line))
 
     fstab_lines = []
-    fstab = open("/etc/fstab", "r+")
-    ws = re.compile("[%s]+" % whitespace)
+    fstab = util.load_file("/etc/fstab")
     for line in fstab.read().splitlines():
         try:
             toks = ws.split(line)
@@ -153,27 +178,22 @@ def handle(_name, cfg, cloud, log, _args):
         fstab_lines.append(line)
 
     fstab_lines.extend(cc_lines)
-
-    fstab.seek(0)
-    fstab.write("%s\n" % '\n'.join(fstab_lines))
-    fstab.truncate()
-    fstab.close()
+    contents = "%s\n" % ('\n'.join(fstab_lines))
+    util.write_file("/etc/fstab", contents)
 
     if needswap:
         try:
             util.subp(("swapon", "-a"))
         except:
-            log.warn("Failed to enable swap")
+            util.logexc(log, "Activating swap via 'swapon -a' failed")
 
     for d in dirs:
-        if os.path.exists(d):
-            continue
         try:
-            os.makedirs(d)
+            util.ensure_dir(d)
         except:
-            log.warn("Failed to make '%s' config-mount\n", d)
+            util.logexc(log, "Failed to make '%s' config-mount", d)
 
     try:
         util.subp(("mount", "-a"))
     except:
-        log.warn("'mount -a' failed")
+        util.logexc(log, "Activating mounts via 'mount -a' failed")

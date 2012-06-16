@@ -18,25 +18,18 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import cloudinit.util as util
+from cloudinit import util
 
 
-def handle(_name, cfg, cloud, log, _args):
+def handle(name, cfg, cloud, log, _args):
     if util.get_cfg_option_bool(cfg, "preserve_hostname", False):
-        log.debug("preserve_hostname is set. not setting hostname")
-        return(True)
+        log.debug(("Configuration option 'preserve_hostname' is set,"
+                    " not setting the hostname in %s"), name)
+        return
 
     (hostname, _fqdn) = util.get_hostname_fqdn(cfg, cloud)
     try:
-        set_hostname(hostname, log)
+        log.debug("Setting hostname to %s", hostname)
+        cloud.distro.set_hostname(hostname)
     except Exception:
-        util.logexc(log)
-        log.warn("failed to set hostname to %s\n", hostname)
-
-    return(True)
-
-
-def set_hostname(hostname, log):
-    util.subp(['hostname', hostname])
-    util.write_file("/etc/hostname", "%s\n" % hostname, 0644)
-    log.debug("populated /etc/hostname with %s on first boot", hostname)
+        util.logexc(log, "Failed to set hostname to %s", hostname)

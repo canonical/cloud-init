@@ -17,13 +17,18 @@
 #
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
-from cloudinit.CloudConfig import per_instance
-import cloudinit.util as util
+
+from cloudinit import templater
+from cloudinit import url_helper as uhelp
+from cloudinit import util
+
+from cloudinit.settings import PER_INSTANCE
+
 from time import sleep
 
-frequency = per_instance
-post_list_all = ['pub_key_dsa', 'pub_key_rsa', 'pub_key_ecdsa', 'instance_id',
-                 'hostname']
+frequency = PER_INSTANCE
+post_list_all = ['pub_key_dsa', 'pub_key_rsa', 'pub_key_ecdsa',
+                 'instance_id', 'hostname']
 
 
 # phone_home:
@@ -35,7 +40,7 @@ post_list_all = ['pub_key_dsa', 'pub_key_rsa', 'pub_key_ecdsa', 'instance_id',
 #  url: http://my.foo.bar/$INSTANCE_ID/
 #  post: [ pub_key_dsa, pub_key_rsa, pub_key_ecdsa, instance_id
 #
-def handle(_name, cfg, cloud, log, args):
+def handle(name, cfg, cloud, log, args):
     if len(args) != 0:
         ph_cfg = util.read_conf(args[0])
     else:
@@ -44,7 +49,8 @@ def handle(_name, cfg, cloud, log, args):
         ph_cfg = cfg['phone_home']
 
     if 'url' not in ph_cfg:
-        log.warn("no 'url' token in phone_home")
+        log.warn(("Skipping module named %s, "
+                  "no 'url' found in 'phone_home' configuration"), name)
         return
 
     url = ph_cfg['url']
@@ -53,8 +59,8 @@ def handle(_name, cfg, cloud, log, args):
     try:
         tries = int(tries)
     except:
-        log.warn("tries is not an integer. using 10")
         tries = 10
+        util.logexc(log, "Configuration entry 'tries' is not an integer, using %s", tries)
 
     if post_list == "all":
         post_list = post_list_all
@@ -71,11 +77,9 @@ def handle(_name, cfg, cloud, log, args):
 
     for n, path in pubkeys.iteritems():
         try:
-            fp = open(path, "rb")
-            all_keys[n] = fp.read()
-            fp.close()
+            all_keys[n] = util.load_file(path)
         except:
-            log.warn("%s: failed to open in phone_home" % path)
+            util.logexc(log, "%s: failed to open, can not phone home that data", path)
 
     submit_keys = {}
     for k in post_list:
@@ -83,24 +87,11 @@ def handle(_name, cfg, cloud, log, args):
             submit_keys[k] = all_keys[k]
         else:
             submit_keys[k] = "N/A"
-            log.warn("requested key %s from 'post' list not available")
+            log.warn("Requested key %s from 'post' configuration list not available", k)
 
-    url = util.render_string(url, {'INSTANCE_ID': all_keys['instance_id']})
+    url = templater.render_string(url, {'INSTANCE_ID': all_keys['instance_id']})
 
-    null_exc = object()
-    last_e = null_exc
-    for i in range(0, tries):
-        try:
-            util.readurl(url, submit_keys)
-            log.debug("succeeded submit to %s on try %i" % (url, i + 1))
-            return
-        except Exception as e:
-            log.debug("failed to post to %s on try %i" % (url, i + 1))
-            last_e = e
-        sleep(3)
-
-    log.warn("failed to post to %s in %i tries" % (url, tries))
-    if last_e is not null_exc:
-        raise(last_e)
-
-    return
+    try:
+        uhelp.readurl(url, data=submit_keys, retries=tries, sec_between=3)
+    except:
+        util.logexc(log, "Failed to post phone home data to %s in %s tries", url, tries)

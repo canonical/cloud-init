@@ -18,11 +18,10 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-from cloudinit.CloudConfig import per_instance
-import cloudinit.util as util
-import subprocess
+from cloudinit.settings import PER_INSTANCE
+from cloudinit import util
 
-frequency = per_instance
+frequency = PER_INSTANCE
 
 
 def handle(_name, cfg, _cloud, log, _args):
@@ -32,11 +31,10 @@ def handle(_name, cfg, _cloud, log, _args):
     key_blacklist = util.get_cfg_option_list_or_str(cfg,
         "ssh_key_console_blacklist", ["ssh-dss"])
     try:
-        confp = open('/dev/console', "wb")
         cmd.append(','.join(fp_blacklist))
         cmd.append(','.join(key_blacklist))
-        subprocess.call(cmd, stdout=confp)
-        confp.close()
+        (stdout, stderr) = util.subp(cmd)
+        util.write_file('/dev/console', stdout)
     except:
-        log.warn("writing keys to console value")
+        log.warn("Writing keys to console failed!")
         raise

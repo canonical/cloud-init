@@ -18,91 +18,117 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import cloudinit.util as util
-import subprocess
+import errno
 import os
 import stat
 import sys
-import time
 import tempfile
-from cloudinit.CloudConfig import per_always
+import time
 
-frequency = per_always
+from cloudinit import util
+from cloudinit.settings import PER_ALWAYS
+
+frequency = PER_ALWAYS
+
+resize_fs_prefixes_cmds = [
+    ('ext', 'resize2fs'),
+    ('xfs', 'xfs_growfs'),
+]
 
 
-def handle(_name, cfg, _cloud, log, args):
+def nodeify_path(devpth, where, log):
+    try:
+        st_dev = os.stat(where).st_dev
+        dev = os.makedev(os.major(st_dev), os.minor(st_dev))
+        os.mknod(devpth, 0400 | stat.S_IFBLK, dev)
+        return st_dev
+    except:
+        if util.is_container():
+            log.debug("Inside container, ignoring mknod failure in resizefs")
+            return
+        log.warn("Failed to make device node to resize %s at %s", where, devpth)
+        raise
+
+
+def get_fs_type(st_dev, path, log):
+    try:
+        fs_type = util.find_devs_with(tag='TYPE', oformat='value',
+                                         no_cache=True, path=path)
+        return fs_type
+    except util.ProcessExecutionError:
+        util.logexc(log, ("Failed to get filesystem type"
+                          " of maj=%s, min=%s for path %s"),
+                    os.major(st_dev), os.minor(st_dev), path)
+        raise
+
+
+def handle(name, cfg, _cloud, log, args):
     if len(args) != 0:
-        resize_root = False
-        if str(args[0]).lower() in ['true', '1', 'on', 'yes']:
-            resize_root = True
+        resize_root = args[0]
     else:
         resize_root = util.get_cfg_option_str(cfg, "resize_rootfs", True)
 
-    if str(resize_root).lower() in ['false', '0']:
+    if not util.translate_bool(resize_root):
+        log.debug("Skipping module named %s,  resizing disabled", name)
         return
 
-    # we use mktemp rather than mkstemp because early in boot nothing
-    # else should be able to race us for this, and we need to mknod.
-    devpth = tempfile.mktemp(prefix="cloudinit.resizefs.", dir="/run")
+    # TODO is the directory ok to be used??
+    resize_root_d = util.get_cfg_option_str(cfg, "resize_rootfs_tmp", "/run")
+    util.ensure_dir(resize_root_d)
+    with util.SilentTemporaryFile(prefix="cloudinit.resizefs.",
+                                  dir=resize_root_d, delete=True) as tfh:
+        devpth = tfh.name
 
-    try:
-        st_dev = os.stat("/").st_dev
-        dev = os.makedev(os.major(st_dev), os.minor(st_dev))
-        os.mknod(devpth, 0400 | stat.S_IFBLK, dev)
-    except:
-        if util.is_container():
-            log.debug("inside container, ignoring mknod failure in resizefs")
+        # Delete the file so that mknod will work
+        # but don't change the file handle to know that its
+        # removed so that when a later call that recreates
+        # occurs this temporary file will still benefit from
+        # auto deletion
+        tfh.unlink_now()
+    
+        # TODO: allow what is to be resized to
+        # be configurable??
+        st_dev = nodeify_path(devpth, "/", log)
+        fs_type = get_fs_type(st_dev, devpath, log)
+    
+        resizer = None
+        fstype_lc = fstype.lower()
+        for (pfix, root_cmd) in resize_fs_prefixes_cmds:
+            if fstype_lc.startswith(pfix):
+                resizer = root_cmd
+                break
+
+        if not resizer:
+            log.warn("Not resizing unknown filesystem type %s", fs_type)
             return
-        log.warn("Failed to make device node to resize /")
-        raise
 
-    cmd = ['blkid', '-c', '/dev/null', '-sTYPE', '-ovalue', devpth]
-    try:
-        (fstype, _err) = util.subp(cmd)
-    except subprocess.CalledProcessError as e:
-        log.warn("Failed to get filesystem type of maj=%s, min=%s via: %s" %
-            (os.major(st_dev), os.minor(st_dev), cmd))
-        log.warn("output=%s\nerror=%s\n", e.output[0], e.output[1])
-        os.unlink(devpth)
-        raise
+        log.debug("Resizing using %s", resizer)
+        resize_cmd = [resizer, devpth]
 
-    if str(fstype).startswith("ext"):
-        resize_cmd = ['resize2fs', devpth]
-    elif fstype == "xfs":
-        resize_cmd = ['xfs_growfs', devpth]
-    else:
-        os.unlink(devpth)
-        log.debug("not resizing unknown filesystem %s" % fstype)
-        return
+        if resize_root == "noblock":
+            # Fork to a child that will run 
+            # the resize command
+            util.fork_cb(do_resize, resize_cmd, log)
+            # Don't delete the file now in the parent
+            tfh.delete = False
+        else:
+            do_resize(resize_cmd, log)
 
+    action = 'Resized'
     if resize_root == "noblock":
-        fid = os.fork()
-        if fid == 0:
-            try:
-                do_resize(resize_cmd, devpth, log)
-                os._exit(0)  # pylint: disable=W0212
-            except Exception as exc:
-                sys.stderr.write("Failed: %s" % exc)
-                os._exit(1)  # pylint: disable=W0212
-    else:
-        do_resize(resize_cmd, devpth, log)
-
-    log.debug("resizing root filesystem (type=%s, maj=%i, min=%i, val=%s)" %
-        (str(fstype).rstrip("\n"), os.major(st_dev), os.minor(st_dev),
-         resize_root))
-
-    return
+        action = 'Resizing (via forking)'
+    log.debug("%s root filesystem (type=%s, maj=%i, min=%i, val=%s)",
+              action, fs_type, os.major(st_dev), os.minor(st_dev), resize_root)
 
 
-def do_resize(resize_cmd, devpth, log):
+def do_resize(resize_cmd, log):
+    start = time.time()
     try:
-        start = time.time()
         util.subp(resize_cmd)
-    except subprocess.CalledProcessError as e:
-        log.warn("Failed to resize filesystem (%s)" % resize_cmd)
-        log.warn("output=%s\nerror=%s\n", e.output[0], e.output[1])
-        os.unlink(devpth)
+    except util.ProcessExecutionError as e:
+        util.logexc(log, "Failed to resize filesystem (using %s)", resize_cmd)
         raise
-
-    os.unlink(devpth)
-    log.debug("resize took %s seconds" % (time.time() - start))
+    tot_time = int(time.time() - start)
+    log.debug("Resizing took %s seconds", tot_time)
+    # TODO: Should we add a fsck check after this to make
+    # sure we didn't corrupt anything?

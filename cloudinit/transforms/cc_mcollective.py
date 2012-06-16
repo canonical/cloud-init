@@ -19,50 +19,53 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+from ConfigParser import ConfigParser
+from StringIO import StringIO
+
 import os
-import subprocess
-import StringIO
-import ConfigParser
-import cloudinit.CloudConfig as cc
-import cloudinit.util as util
+
+from cloudinit import util
+from cloudinit import cfg
 
 pubcert_file = "/etc/mcollective/ssl/server-public.pem"
 pricert_file = "/etc/mcollective/ssl/server-private.pem"
 
 
-# Our fake header section
-class FakeSecHead(object):
-    def __init__(self, fp):
-        self.fp = fp
-        self.sechead = '[nullsection]\n'
+def handle(name, cfg, cloud, log, _args):
 
-    def readline(self):
-        if self.sechead:
-            try:
-                return self.sechead
-            finally:
-                self.sechead = None
-        else:
-            return self.fp.readline()
-
-
-def handle(_name, cfg, _cloud, _log, _args):
     # If there isn't a mcollective key in the configuration don't do anything
     if 'mcollective' not in cfg:
+        log.debug(("Skipping module named %s, "
+                   "no 'mcollective' key in configuration"), name)
         return
+
     mcollective_cfg = cfg['mcollective']
+
     # Start by installing the mcollective package ...
-    cc.install_packages(("mcollective",))
+    cloud.distro.install_packages(("mcollective",))
 
     # ... and then update the mcollective configuration
     if 'conf' in mcollective_cfg:
         # Create object for reading server.cfg values
-        mcollective_config = ConfigParser.ConfigParser()
+        mcollective_config = cfg.DefaultingConfigParser()
         # Read server.cfg values from original file in order to be able to mix
         # the rest up
-        mcollective_config.readfp(FakeSecHead(open('/etc/mcollective/'
-                                                   'server.cfg')))
-        for cfg_name, cfg in mcollective_cfg['conf'].iteritems():
+        old_contents = util.load_file('/etc/mcollective/server.cfg')
+        # It doesn't contain any sections so just add one temporarily
+        # Use a hash id based off the contents,
+        # just incase of conflicts... (try to not have any...)
+        # This is so that an error won't occur when reading (and no 
+        # sections exist in the file)
+        section_tpl = "[nullsection_%s]"
+        attempts = 0
+        section_head = section_tpl % (attempts)
+        while old_contents.find(section_head) != -1:
+            attempts += 1
+            section_head = section_tpl % (attempts)
+        sectioned_contents = "%s\n%s" % (section_head, old_contents)
+        mcollective_config.readfp(StringIO(sectioned_contents),
+                                  filename='/etc/mcollective/server.cfg')
+        for (cfg_name, cfg) in mcollective_cfg['conf'].iteritems():
             if cfg_name == 'public-cert':
                 util.write_file(pubcert_file, cfg, mode=0644)
                 mcollective_config.set(cfg_name,
@@ -76,24 +79,19 @@ def handle(_name, cfg, _cloud, _log, _args):
             else:
                 # Iterate throug the config items, we'll use ConfigParser.set
                 # to overwrite or create new items as needed
-                for o, v in cfg.iteritems():
+                for (o, v) in cfg.iteritems():
                     mcollective_config.set(cfg_name, o, v)
         # We got all our config as wanted we'll rename
         # the previous server.cfg and create our new one
-        os.rename('/etc/mcollective/server.cfg',
-                  '/etc/mcollective/server.cfg.old')
-        outputfile = StringIO.StringIO()
-        mcollective_config.write(outputfile)
-        # Now we got the whole file, write to disk except first line
+        util.rename('/etc/mcollective/server.cfg',
+                    '/etc/mcollective/server.cfg.old')
+        # Now we got the whole file, write to disk except the section 
+        # we added so that config parser won't error out when trying to read.
         # Note below, that we've just used ConfigParser because it generally
-        # works.  Below, we remove the initial 'nullsection' header
-        # and then change 'key = value' to 'key: value'.  The global
-        # search and replace of '=' with ':' could be problematic though.
-        # this most likely needs fixing.
-        util.write_file('/etc/mcollective/server.cfg',
-            outputfile.getvalue().replace('[nullsection]\n', '').replace(' =',
-                                                                         ':'),
-            mode=0644)
+        # works.  Below, we remove the initial 'nullsection' header.
+        contents = mcollective_config.stringify()
+        contents = contents.replace("%s\n" % (section_head), "")
+        util.write_file('/etc/mcollective/server.cfg', contents, mode=0644)
 
     # Start mcollective
-    subprocess.check_call(['service', 'mcollective', 'start'])
+    util.subp(['service', 'mcollective', 'start'], capture=False)

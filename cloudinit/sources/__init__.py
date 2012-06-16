@@ -39,10 +39,6 @@ class DataSourceNotFoundException(Exception):
 
 class DataSource(object):
     def __init__(self, sys_cfg, distro, paths):
-        name = util.obj_name(self)
-        if name.startswith(DS_PREFIX):
-            name = name[DS_PREFIX:]
-        self.cfgname = name
         self.sys_cfg = sys_cfg
         self.distro = distro
         self.paths = paths
@@ -50,8 +46,11 @@ class DataSource(object):
         self.userdata = None
         self.metadata = None
         self.userdata_raw = None
+        name = util.obj_name(self)
+        if name.startswith(DS_PREFIX):
+            name = name[DS_PREFIX:]
         self.ds_cfg = util.get_cfg_by_path(self.sys_cfg,
-                        ("datasource", self.cfgname), {})
+                                          ("datasource", name), {})
 
     def get_userdata(self):
         if self.userdata is None:
@@ -112,6 +111,7 @@ class DataSource(object):
 
     def get_instance_id(self):
         if not self.metadata or 'instance-id' not in self.metadata:
+            # Return a magic not really instance id string
             return "iid-datasource"
         return str(self.metadata['instance-id'])
 
@@ -166,7 +166,7 @@ def find_source(sys_cfg, distro, paths, ds_deps, cfg_list, pkg_list):
             if s.get_data():
                 return (s, ds)
         except Exception as e:
-            LOG.exception("Getting data from %s failed due to %s", ds, e)
+            util.logexc(LOG, "Getting data from %s failed", ds)
 
     msg = "Did not find any data source, searched classes: %s" % (ds_names)
     raise DataSourceNotFoundException(msg)

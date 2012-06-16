@@ -19,13 +19,23 @@
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import os
-import os.path
-from cloudinit.CloudConfig import per_instance
-from configobj import ConfigObj
 
-frequency = per_instance
+from StringIO import StringIO
+
+try:
+    from configobj import ConfigObj
+except ImportError:
+    ConfigObj = None
+
+from cloudinit import util
+
+from cloudinit.settings import PER_INSTANCE
+
+frequency = PER_INSTANCE
 
 lsc_client_cfg_file = "/etc/landscape/client.conf"
+
+distros = ['ubuntu']
 
 # defaults taken from stock client.conf in landscape-client 11.07.1.1-0ubuntu2
 lsc_builtincfg = {
@@ -38,36 +48,43 @@ lsc_builtincfg = {
 }
 
 
-def handle(_name, cfg, _cloud, log, _args):
+def handle(name, cfg, _cloud, log, _args):
     """
     Basically turn a top level 'landscape' entry with a 'client' dict
     and render it to ConfigObj format under '[client]' section in
     /etc/landscape/client.conf
     """
+    if not ConfigObj:
+        log.warn("'ConfigObj' support not enabled, running %s disabled", name)
+        return
 
     ls_cloudcfg = cfg.get("landscape", {})
 
     if not isinstance(ls_cloudcfg, dict):
-        raise(Exception("'landscape' existed in config, but not a dict"))
+        raise Exception(("'landscape' key existed in config," 
+                         " but not a dictionary type,"
+                         " is a %s instead"), util.obj_name(ls_cloudcfg))
 
-    merged = mergeTogether([lsc_builtincfg, lsc_client_cfg_file, ls_cloudcfg])
+    merged = merge_together([lsc_builtincfg, lsc_client_cfg_file, ls_cloudcfg])
 
     if not os.path.isdir(os.path.dirname(lsc_client_cfg_file)):
-        os.makedirs(os.path.dirname(lsc_client_cfg_file))
+        util.ensure_dir(os.path.dirname(lsc_client_cfg_file))
 
-    with open(lsc_client_cfg_file, "w") as fp:
-        merged.write(fp)
+    contents = StringIO()
+    merged.write(contents)
+    util.write_file(lsc_client_cfg_file, contents.getvalue())
+    log.debug("Wrote landscape config file to %s", lsc_client_cfg_file)
 
-    log.debug("updated %s" % lsc_client_cfg_file)
 
-
-def mergeTogether(objs):
+def merge_together(objs):
     """
     merge together ConfigObj objects or things that ConfigObj() will take in
     later entries override earlier
     """
     cfg = ConfigObj({})
     for obj in objs:
+        if not obj:
+            continue
         if isinstance(obj, ConfigObj):
             cfg.merge(obj)
         else:

@@ -18,13 +18,18 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import cloudinit.util as util
 import sys
-import random
-from string import letters, digits  # pylint: disable=W0402
+
+from cloudinit import util
+
+from string import letters, digits
+
+# We are removing certain 'painful' letters/numbers
+pw_set = (letters.translate(None, 'loLOI') +
+          digits.translate(None, '01'))
 
 
-def handle(_name, cfg, _cloud, log, args):
+def handle(_name, cfg, cloud, log, args):
     if len(args) != 0:
         # if run from command line, and give args, wipe the chpasswd['list']
         password = args[0]
@@ -62,68 +67,83 @@ def handle(_name, cfg, _cloud, log, args):
 
         ch_in = '\n'.join(plist_in)
         try:
+            log.debug("Changing password for %s:", users)
             util.subp(['chpasswd'], ch_in)
-            log.debug("changed password for %s:" % users)
         except Exception as e:
             errors.append(e)
-            log.warn("failed to set passwords with chpasswd: %s" % e)
+            util.logexc(log, "Failed to set passwords with chpasswd for %s", users)
 
         if len(randlist):
-            sys.stdout.write("%s\n%s\n" % ("Set the following passwords\n",
+            sys.stderr.write("%s\n%s\n" % ("Set the following 'random' passwords\n",
                 '\n'.join(randlist)))
 
         if expire:
-            enum = len(errors)
+            expired_users = []
             for u in users:
                 try:
                     util.subp(['passwd', '--expire', u])
+                    expired_users.append(u)
                 except Exception as e:
                     errors.append(e)
-                    log.warn("failed to expire account for %s" % u)
-            if enum == len(errors):
-                log.debug("expired passwords for: %s" % u)
+                    util.logexc(log, "Failed to set 'expire' for %s", u)
+            if expired_users:
+                log.debug("Expired passwords for: %s users", expired_users)
 
+    change_pwauth = False
+    pw_auth = None
     if 'ssh_pwauth' in cfg:
-        val = str(cfg['ssh_pwauth']).lower()
-        if val in ("true", "1", "yes"):
-            pw_auth = "yes"
-            change_pwauth = True
-        elif val in ("false", "0", "no"):
-            pw_auth = "no"
-            change_pwauth = True
-        else:
-            change_pwauth = False
+        change_pwauth = True
+        if util.is_true_str(cfg['ssh_pwauth']):
+            pw_auth = 'yes'
+        if util.is_false_str(cfg['ssh_pwauth']):
+            pw_auth = 'no'
 
     if change_pwauth:
-        pa_s = "\(#*\)\(PasswordAuthentication[[:space:]]\+\)\(yes\|no\)"
-        msg = "set PasswordAuthentication to '%s'" % pw_auth
-        try:
-            cmd = ['sed', '-i', 's,%s,\\2%s,' % (pa_s, pw_auth),
-                   '/etc/ssh/sshd_config']
-            util.subp(cmd)
-            log.debug(msg)
-        except Exception as e:
-            log.warn("failed %s" % msg)
-            errors.append(e)
+        new_lines = []
+        replaced_auth = False
+        replacement = "PasswordAuthentication %s" % (pw_auth)
+
+        # See http://linux.die.net/man/5/sshd_config
+        old_lines = util.load_file('/etc/ssh/sshd_config').splitlines()
+        for i, line in enumerate(old_lines):
+            if not line.strip() or line.startswith("#"):
+                new_lines.append(line)
+                continue
+            splitup = line.split(None, 1)
+            if len(splitup) <= 1:
+                new_lines.append(line)
+                continue
+            (cmd, args) = splitup
+            # Keywords are case-insensitive and arguments are case-sensitive
+            cmd = cmd.lower().strip()
+            if cmd == 'passwordauthentication':
+                log.debug("Replacing auth line %s with %s", i + 1, replacement)
+                replaced_auth = True
+                new_lines.append(replacement)
+            else:
+                new_lines.append(line)
+
+        if not replaced_auth:
+            log.debug("Adding new auth line %s", replacement)
+            replaced_auth = True
+            new_lines.append(replacement)
+
+        new_contents = "\n".join(new_lines)
+        util.write_file('/etc/ssh/sshd_config', new_contents)
 
         try:
-            p = util.subp(['service', cfg.get('ssh_svcname', 'ssh'),
-                           'restart'])
-            log.debug("restarted sshd")
+            cmd = ['service']
+            cmd.append(cloud.distro.get_option('ssh_svcname', 'ssh'))
+            cmd.append('restart')
+            util.subp(cmd)
+            log.debug("Restarted the ssh daemon")
         except:
-            log.warn("restart of ssh failed")
+            util.logexc(log, "Restarting of the ssh daemon failed")
 
     if len(errors):
-        raise(errors[0])
-
-    return
-
-
-def rand_str(strlen=32, select_from=letters + digits):
-    return("".join([random.choice(select_from) for _x in range(0, strlen)]))
+        log.debug("%s errors occured, re-raising the last one", len(errors))
+        raise errors[-1]
 
 
 def rand_user_password(pwlen=9):
-    selfrom = (letters.translate(None, 'loLOI') +
-               digits.translate(None, '01'))
-    return(rand_str(pwlen, select_from=selfrom))
+    return util.rand_str(pwlen, select_from=pw_set)
