@@ -76,15 +76,8 @@ class Init(object):
     @property
     def distro(self):
         if not self._distro:
-            d_cfg = util.get_cfg_by_path(self.cfg, ('system_info'), {})
-            # Ensure its a dictionary
-            if not isinstance(d_cfg, (dict)):
-                d_cfg = {}
-            # Ensure not modified indirectly
-            d_cfg = copy.deepcopy(d_cfg)
-            # Remove this since its path config, not distro config
-            d_cfg.pop('paths', None)
             # Try to find the right class to use
+            d_cfg = self._extract_cfg('system')
             distro_name = d_cfg.pop('distro', 'ubuntu')
             distro_cls = distros.fetch(distro_name)
             LOG.debug("Using distro class %s", distro_cls)
@@ -95,19 +88,29 @@ class Init(object):
 
     @property
     def cfg(self):
+        return self._extract_cfg('restricted')
+
+    def _extract_cfg(self, restriction):
         # None check so that we don't keep on re-loading if empty
         if self._cfg is None:
             self._cfg = self._read_cfg()
             LOG.debug("Loading init config %s", self._cfg)
-        return self._cfg
+        # Nobody gets the real config
+        ocfg = copy.deepcopy(self._cfg)
+        if restriction == 'restricted':
+            ocfg.pop('system_info', None)
+        elif restriction == 'system':
+            ocfg = util.get_cfg_by_path(ocfg, ('system_info',), {})
+        elif restriction == 'paths':
+            ocfg = util.get_cfg_by_path(ocfg, ('system_info', 'paths'), {})
+        if not isinstance(ocfg, (dict)):
+            ocfg = {}
+        return ocfg
 
     @property
     def paths(self):
         if not self._paths:
-            path_info = util.get_cfg_by_path(self.cfg,
-                                            ('system_info', 'paths'), {})
-            # Ensure not modified indirectly
-            path_info = copy.deepcopy(path_info)
+            path_info = self._extract_cfg('paths')
             self._paths = helpers.Paths(path_info, self.datasource)
         return self._paths
 
