@@ -20,8 +20,8 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+from cloudinit import handlers
 from cloudinit import log as logging
-from cloudinit import user_data as ud
 from cloudinit import util
 
 from cloudinit.settings import (PER_ALWAYS)
@@ -29,28 +29,34 @@ from cloudinit.settings import (PER_ALWAYS)
 LOG = logging.getLogger(__name__)
 
 
-class CloudConfigPartHandler(ud.PartHandler):
+class CloudConfigPartHandler(handlers.Handler):
     def __init__(self, paths, **_kwargs):
-        ud.PartHandler.__init__(self, PER_ALWAYS)
+        handlers.Handler.__init__(self, PER_ALWAYS)
         self.cloud_buf = []
         self.cloud_fn = paths.get_ipath("cloud_config")
 
     def list_types(self):
         return [
-            ud.type_from_starts_with("#cloud-config"),
+            handlers.type_from_starts_with("#cloud-config"),
         ]
 
+    def _write_cloud_config(self, buf):
+        if not self.cloud_fn:
+            return
+        lines = [str(b) for b in buf]
+        payload = "\n".join(lines)
+        util.write_file(self.cloud_fn, payload, 0600)
+
     def _handle_part(self, _data, ctype, filename, payload, _frequency):
-        if ctype == ud.CONTENT_START:
+        if ctype == handlers.CONTENT_START:
             self.cloud_buf = []
             return
-
-        if ctype == ud.CONTENT_END:
-            payload = "\n".join(self.cloud_buf)
-            util.write_file(self.cloud_fn, payload, 0600)
+        if ctype == handlers.CONTENT_END:
+            self._write_cloud_config(self.cloud_buf)
             self.cloud_buf = []
             return
 
         filename = util.clean_filename(filename)
-        entry = "\n".join(["#%s" % (filename), str(payload)])
-        self.cloud_buf.append(entry)
+        if not filename:
+            filename = '??'
+        self.cloud_buf.extend(["#%s" % (filename), str(payload)])

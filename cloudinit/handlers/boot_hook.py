@@ -22,8 +22,8 @@
 
 import os
 
+from cloudinit import handlers
 from cloudinit import log as logging
-from cloudinit import user_data as ud
 from cloudinit import util
 
 from cloudinit.settings import (PER_ALWAYS)
@@ -31,31 +31,34 @@ from cloudinit.settings import (PER_ALWAYS)
 LOG = logging.getLogger(__name__)
 
 
-class BootHookPartHandler(ud.PartHandler):
+class BootHookPartHandler(handlers.Handler):
     def __init__(self, paths, instance_id, **_kwargs):
-        ud.PartHandler.__init__(self, PER_ALWAYS)
+        handlers.Handler.__init__(self, PER_ALWAYS)
         self.boothook_dir = paths.get_ipath("boothooks")
         self.instance_id = instance_id
 
     def list_types(self):
         return [
-            ud.type_from_starts_with("#cloud-boothook"),
+            handlers.type_from_starts_with("#cloud-boothook"),
         ]
 
-    def _handle_part(self, _data, ctype, filename, payload, _frequency):
-        if ctype in ud.CONTENT_SIGNALS:
-            return
-
+    def _write_part(self, payload, filename):
         filename = util.clean_filename(filename)
         payload = util.dos2unix(payload)
         prefix = "#cloud-boothook"
         start = 0
         if payload.startswith(prefix):
             start = len(prefix) + 1
-
         filepath = os.path.join(self.boothook_dir, filename)
         contents = payload[start:]
         util.write_file(filepath, contents, 0700)
+        return filepath
+
+    def _handle_part(self, _data, ctype, filename, payload, _frequency):
+        if ctype in handlers.CONTENT_SIGNALS:
+            return
+
+        filepath = self._write_part(payload, filename)
         try:
             env = os.environ.copy()
             if self.instance_id:
