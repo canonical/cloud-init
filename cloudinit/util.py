@@ -28,14 +28,18 @@ import errno
 import glob
 import grp
 import gzip
+import hashlib
 import os
 import platform
 import pwd
+import random
 import shutil
 import socket
+import string
 import subprocess
 import sys
 import tempfile
+import time
 import traceback
 import types
 import urlparse
@@ -68,8 +72,11 @@ CONTAINER_TESTS = ['running-in-container', 'lxc-is-container']
 
 class ProcessExecutionError(IOError):
 
-    MESSAGE_TMPL = ('%(description)s\nCommand: %(cmd)s\n'
-                    'Exit code: %(exit_code)s\nStdout: %(stdout)r\n'
+    MESSAGE_TMPL = ('%(description)s\n'
+                    'Command: %(cmd)s\n'
+                    'Exit code: %(exit_code)s\n'
+                    'Reason: %(reason)s\n'
+                    'Stdout: %(stdout)r\n'
                     'Stderr: %(stderr)r')
 
     def __init__(self, stdout=None, stderr=None,
@@ -100,31 +107,37 @@ class ProcessExecutionError(IOError):
         else:
             self.stdout = stdout
 
+        if reason:
+            self.reason = reason
+        else:
+            self.reason = '-'
+
         message = self.MESSAGE_TMPL % {
             'description': self.description,
             'cmd': self.cmd,
             'exit_code': self.exit_code,
             'stdout': self.stdout,
             'stderr': self.stderr,
+            'reason': self.reason,
         }
         IOError.__init__(self, message)
-        self.reason = reason
 
 
 class SeLinuxGuard(object):
     def __init__(self, path, recursive=False):
         self.path = path
         self.recursive = recursive
-        self.engaged = False
+        self.enabled = False
         if HAVE_LIBSELINUX and selinux.is_selinux_enabled():
-            self.engaged = True
+            self.enabled = True
 
     def __enter__(self):
-        return self.engaged
+        # TODO: Should we try to engage selinux here??
+        return None
 
     def __exit__(self, excp_type, excp_value, excp_traceback):
-        if self.engaged:
-            LOG.debug("Disengaging selinux mode for %s: %s",
+        if self.enabled:
+            LOG.debug("Restoring selinux mode for %s (recursive=%s)",
                       self.path, self.recursive)
             selinux.restorecon(self.path, recursive=self.recursive)
 
@@ -133,14 +146,72 @@ class MountFailedError(Exception):
     pass
 
 
-def translate_bool(val):
-    if not val:
-        return False
-    if val is isinstance(val, bool):
-        return val
-    if str(val).lower().strip() in ['true', '1', 'on', 'yes']:
+def SilentTemporaryFile(**kwargs):
+    fh = tempfile.NamedTemporaryFile(**kwargs)
+    # Replace its unlink with a quiet version
+    # that does not raise errors when the
+    # file to unlink has been unlinked elsewhere..
+    LOG.debug("Created temporary file %s", fh.name)
+    fh.unlink = del_file
+    # Add a new method that will unlink 
+    # right 'now' but still lets the exit
+    # method attempt to remove it (which will
+    # not throw due to our del file being quiet
+    # about files that are not there)
+    def unlink_now():
+        fh.unlink(fh.name)
+    setattr(fh, 'unlink_now', unlink_now)
+    return fh
+
+
+def fork_cb(child_cb, *args):
+    fid = os.fork()
+    if fid == 0:
+        try:
+            child_cb(*args)
+            os._exit(0)  # pylint: disable=W0212
+        except:
+            logexc(LOG, "Failed forking and calling callback %s", obj_name(child_cb))
+            os._exit(1)  # pylint: disable=W0212
+    else:
+        LOG.debug("Forked child %s who will run callback %s",
+                  fid, obj_name(child_cb))
+
+
+def is_true_str(val, addons=None):
+    check_set = ['true', '1', 'on', 'yes']
+    if addons:
+        check_set = check_set + addons
+    if str(val).lower().strip() in check_set:
         return True
     return False
+
+
+def is_false_str(val, addons=None):
+    check_set = ['off', '0', 'no', 'false']
+    if addons:
+        check_set = check_set + addons
+    if str(val).lower().strip() in check_set:
+        return True
+    return False
+
+
+def translate_bool(val, addons=None):
+    if not val:
+        # This handles empty lists and false and 
+        # other things that python believes are false
+        return False
+    # If its already a boolean skip
+    if isinstance(val, (bool)):
+        return val
+    return is_true_str(val, addons)
+
+
+def rand_str(strlen=32, select_from=None):
+    if not select_from:
+        select_from = string.letters + string.digits
+    return "".join([random.choice(select_from) for _x in range(0, strlen)])
+
 
 
 def read_conf(fname):
@@ -221,7 +292,10 @@ def get_cfg_option_bool(yobj, key, default=False):
 def get_cfg_option_str(yobj, key, default=None):
     if key not in yobj:
         return default
-    return yobj[key]
+    val = yobj[key]
+    if not isinstance(val, (str, basestring)):
+        val = str(val)
+    return val
 
 
 def system_info():
@@ -233,7 +307,7 @@ def system_info():
     }
 
 
-def get_cfg_option_list_or_str(yobj, key, default=None):
+def get_cfg_option_list(yobj, key, default=None):
     """
     Gets the C{key} config option from C{yobj} as a list of strings. If the
     key is present as a single string it will be returned as a list with one
@@ -249,9 +323,14 @@ def get_cfg_option_list_or_str(yobj, key, default=None):
         return default
     if yobj[key] is None:
         return []
-    if isinstance(yobj[key], (list)):
-        return yobj[key]
-    return [yobj[key]]
+    val = yobj[key]
+    if isinstance(val, (list)):
+        # Should we ensure they are all strings??
+        cval = [str(v) for v in val]
+        return cval
+    if not isinstance(val, (str, basestring)):
+        val = str(val)
+    return [val]
 
 
 # get a cfg entry by its path array
@@ -419,21 +498,21 @@ def runparts(dirp, skip_no_exist=True):
     if skip_no_exist and not os.path.isdir(dirp):
         return
 
-    failed = 0
-    attempted = 0
+    failed = []
+    attempted = []
     for exe_name in sorted(os.listdir(dirp)):
         exe_path = os.path.join(dirp, exe_name)
         if os.path.isfile(exe_path) and os.access(exe_path, os.X_OK):
-            attempted += 1
+            attempted.append(exe_path)
             try:
                 subp([exe_path])
             except ProcessExecutionError as e:
                 logexc(LOG, "Failed running %s [%s]", exe_path, e.exit_code)
-                failed += 1
+                failed.append(e)
 
     if failed and attempted:
         raise RuntimeError('Runparts: %s failures in %s attempted commands'
-                           % (failed, attempted))
+                           % (len(failed), len(attempted)))
 
 
 # read_optional_seed
@@ -470,7 +549,7 @@ def load_yaml(blob, default=None, allowed=(dict,)):
         converted = yaml.load(blob)
         if not isinstance(converted, allowed):
             # Yes this will just be caught, but thats ok for now...
-            raise TypeError("Yaml load allows %s types, but got %s instead" %
+            raise TypeError("Yaml load allows %s root types, but got %s instead" %
                             (allowed, obj_name(converted)))
         loaded = converted
     except (yaml.YAMLError, TypeError, ValueError) as exc:
@@ -718,7 +797,8 @@ def close_stdin():
         os.dup2(fp.fileno(), sys.stdin.fileno())
 
 
-def find_devs_with(criteria=None):
+def find_devs_with(criteria=None, oformat='device', 
+                    tag=None, no_cache=False, path=None):
     """
     find devices matching given criteria (via blkid)
     criteria can be *one* of:
@@ -726,38 +806,58 @@ def find_devs_with(criteria=None):
       LABEL=<label>
       UUID=<uuid>
     """
-    try:
-        blk_id_cmd = ['blkid']
-        if criteria:
-            # Search for block devices with tokens named NAME that 
-            # have the value 'value' and display any devices which are found.
-            # Common values for NAME include  TYPE, LABEL, and UUID.
-            # If there are no devices specified on the command line,
-            # all block devices will be searched; otherwise, 
-            # only search the devices specified by the user.
-            blk_id_cmd.append("-t%s" % (criteria))
-        # Only print the device name
-        blk_id_cmd.append('-odevice')
-        (out, _err) = subp(blk_id_cmd)
+    blk_id_cmd = ['blkid']
+    options = []
+    if criteria:
+        # Search for block devices with tokens named NAME that 
+        # have the value 'value' and display any devices which are found.
+        # Common values for NAME include  TYPE, LABEL, and UUID.
+        # If there are no devices specified on the command line,
+        # all block devices will be searched; otherwise, 
+        # only search the devices specified by the user.
+        options.append("-t%s" % (criteria))
+    if tag:
+        # For each (specified) device, show only the tags that match tag.
+        options.append("-s%s" % (tag))
+    if no_cache:
+        # If you want to start with a clean cache 
+        # (i.e. don't report devices previously scanned 
+        # but not necessarily available at this time), specify /dev/null.
+        options.extend(["-c", "/dev/null"])
+    if oformat:
+        # Display blkid's output using the specified format. 
+        # The format parameter may be:
+        # full, value, list, device, udev, export
+        options.append('-o%s' % (oformat))
+    if path:
+        options.append(path)
+    cmd = blk_id_cmd + options
+    (out, _err) = subp(cmd)
+    if path:
+        return out.strip()
+    else:
         entries = []
         for line in out.splitlines():
             line = line.strip()
             if line:
                 entries.append(line)
         return entries
-    except ProcessExecutionError:
-        return []
 
 
-def load_file(fname, read_cb=None):
-    LOG.debug("Reading from %s", fname)
-    with open(fname, 'rb') as ifh:
-        ofh = StringIO()
-        pipe_in_out(ifh, ofh, chunk_cb=read_cb)
-        ofh.flush()
-        contents = ofh.getvalue()
-        LOG.debug("Read %s bytes from %s", len(contents), fname)
-        return contents
+def load_file(fname, read_cb=None, quiet=False):
+    LOG.debug("Reading from %s (quiet=%s)", fname, quiet)
+    ofh = StringIO()
+    try:
+        with open(fname, 'rb') as ifh:
+            pipe_in_out(ifh, ofh, chunk_cb=read_cb)
+    except IOError as e:
+        if not quiet:
+            raise
+        if e.errno != errno.ENOENT:
+            raise
+    contents = ofh.getvalue()
+    LOG.debug("Read %s bytes from %s", len(contents), fname)
+    return contents
 
 
 def get_cmdline():
@@ -872,7 +972,7 @@ def get_output_cfg(cfg, mode="init"):
     return ret
 
 
-def logexc(log, msg='', *args):
+def logexc(log, msg, *args):
     # Setting this here allows this to change
     # levels easily (not always error level)
     # or even desirable to have that much junk
@@ -883,16 +983,46 @@ def logexc(log, msg='', *args):
     log.debug(msg, exc_info=1, *args)
 
 
+def hash_blob(blob, routine, mlen=None):
+    hasher = hashlib.new(routine)
+    hasher.update(blob)
+    digest = hasher.hexdigest()
+    # Don't get to long now
+    if mlen is not None:
+        return digest[0:mlen]
+    else:
+        return digest
+
+
+def rename(src, dest):
+    LOG.debug("Renaming %s to %s", src, dest)
+    # TODO use a se guard here??
+    os.rename(src, dest)
+
+
 def ensure_dirs(dirlist, mode=0755):
     for d in dirlist:
         ensure_dir(d, mode)
+
+
+def yaml_dumps(obj):
+    formatted = yaml.dump(obj,
+                    line_break="\n",
+                    indent=4,
+                    explicit_start=True,
+                    explicit_end=True,
+                    default_flow_style=False,
+                    )
+    return formatted
 
 
 def ensure_dir(path, mode=None):
     if not os.path.isdir(path):
         # Make the dir and adjust the mode
         LOG.debug("Ensuring directory exists at path %s", path)
-        os.makedirs(path)
+        # TODO: check if guard needed??
+        with SeLinuxGuard(path=os.path.dirname(path)):
+            os.makedirs(path)
         chmod(path, mode)
     else:
         # Just adjust the mode
@@ -996,6 +1126,32 @@ def del_file(path):
             raise e
 
 
+def copy(src, dest):
+    LOG.debug("Copying %s to %s", src, dest)
+    shutil.copy(src, dest)
+
+
+def time_rfc2822():
+    try:
+        ts = time.strftime("%a, %d %b %Y %H:%M:%S %z", time.gmtime())
+    except:
+        ts = "??"
+    return ts
+
+
+def uptime():
+    try:
+        uptimef = load_file("/proc/uptime").strip()
+        if not uptimef:
+            uptime = 'na'
+        else:
+            uptime = uptimef.split()[0]
+    except:
+        logexc(LOG, "Unable to read uptime from /proc/uptime")
+        uptime = '??'
+    return uptime
+
+
 def ensure_file(path):
     write_file(path, content='', omode="ab")
 
@@ -1009,7 +1165,9 @@ def chmod(path, mode):
     if path and real_mode:
         LOG.debug("Adjusting the permissions of %s (perms=%o)",
                  path, real_mode)
-        os.chmod(path, real_mode)
+        # TODO: check if guard needed??
+        with SeLinuxGuard(path=path):
+            os.chmod(path, real_mode)
 
 
 def write_file(filename, content, mode=0644, omode="wb"):
@@ -1024,11 +1182,12 @@ def write_file(filename, content, mode=0644, omode="wb"):
     """
     ensure_dir(os.path.dirname(filename))
     LOG.debug("Writing to %s - %s, %s bytes", filename, omode, len(content))
-    with open(filename, omode) as fh:
-        with SeLinuxGuard(filename):
+    # TODO: check if guard needed??
+    with SeLinuxGuard(path=filename):
+        with open(filename, omode) as fh:
             fh.write(content)
             fh.flush()
-            chmod(filename, mode)
+    chmod(filename, mode)
 
 
 def delete_dir_contents(dirname):
@@ -1057,9 +1216,6 @@ def subp(args, data=None, rcs=None, env=None, capture=True, shell=False):
         else:
             stdout = subprocess.PIPE
             stderr = subprocess.PIPE
-        # Always pipe stdin (for now)
-        # harlowja: I don't see why anyone would want to pipe stdin
-        # since cloud-init shuts it down (via the method close stdin)
         stdin = subprocess.PIPE
         sp = subprocess.Popen(args, stdout=stdout,
                         stderr=stderr, stdin=stdin,
@@ -1099,10 +1255,14 @@ def shellify(cmdlist, add_header=True):
         if isinstance(args, list):
             fixed = []
             for f in args:
-                fixed.append("'%s'" % str(f).replace("'", escaped))
+                fixed.append("'%s'" % (str(f).replace("'", escaped)))
             content = "%s%s\n" % (content, ' '.join(fixed))
+        elif isinstance(args, (str, basestring)):
+            content = "%s%s\n" % (content, args)
         else:
-            content = "%s%s\n" % (content, str(args))
+            raise RuntimeError(("Unable to shellify type %s"
+                                " which is not a list or string") % (obj_name(args)))
+    LOG.debug("Shellified %s to %s", cmdlist, content)
     return content
 
 
