@@ -73,7 +73,7 @@ class Distro(distros.Distro):
             LOG.debug("Setting hostname to %s", hostname)
             util.subp(['hostname', hostname])
 
-    def _read_hostname(filename, default=None):
+    def _read_hostname(self, filename, default=None):
         contents = util.load_file(filename, quiet=True)
         for line in contents.splitlines():
             hpos = line.find("#")
