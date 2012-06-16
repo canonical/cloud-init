@@ -32,5 +32,6 @@ def handle(_name, cfg, cloud, log, args):
     if not timezone:
         log.debug("Skipping module named %s, no 'timezone' specified", name)
         return
-
+    
+    # Let the distro handle settings its timezone
     cloud.distro.set_timezone(timezone)
