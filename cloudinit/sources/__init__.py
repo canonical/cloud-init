@@ -42,7 +42,7 @@ class DataSource(object):
 
     __metaclass__ = abc.ABCMeta
 
-    def __init__(self, sys_cfg, distro, paths):
+    def __init__(self, sys_cfg, distro, paths, ud_proc=None):
         self.sys_cfg = sys_cfg
         self.distro = distro
         self.paths = paths
@@ -54,11 +54,15 @@ class DataSource(object):
             name = name[DS_PREFIX:]
         self.ds_cfg = util.get_cfg_by_path(self.sys_cfg,
                                           ("datasource", name), {})
+        if not ud_proc:
+            self.ud_proc = ud.UserDataProcessor(self.paths)
+        else:
+            self.ud_proc = ud_proc
 
     def get_userdata(self):
         if self.userdata is None:
             raw_data = self.get_userdata_raw()
-            self.userdata = ud.UserDataProcessor(self.paths).process(raw_data)
+            self.userdata = self.ud_proc.process(raw_data)
         return self.userdata
 
     def get_userdata_raw(self):
