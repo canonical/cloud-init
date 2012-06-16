@@ -104,7 +104,7 @@ def run_part(mod, data, ctype, filename, payload, frequency):
         else:
             mod.handle_part(data, ctype, filename, payload, frequency)
     except:
-        util.logexc(LOG, ("Failed calling mod %s (%s, %s, %s)"
+        util.logexc(LOG, ("Failed calling handler %s (%s, %s, %s)"
                          " with frequency %s"), 
                     mod, ctype, filename,
                     mod_ver, frequency)
