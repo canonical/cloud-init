@@ -80,7 +80,8 @@ class Distro(object):
         self._write_network(settings)
         # Now try to bring them up
         if bring_up:
-            self._interface_action('up')
+            return self._interface_action('up')
+        return False
 
     @abc.abstractmethod
     def set_timezone(self, tz):
