@@ -66,7 +66,7 @@ def handle(_name, cfg, cloud, log, _args):
                 tgt_perms = key2file[key][1]
                 util.write_file(tgt_fn, val, tgt_perms)
 
-        for priv, pub in priv2pub.iteritems():
+        for (priv, pub) in priv2pub.iteritems():
             if pub in cfg['ssh_keys'] or not priv in cfg['ssh_keys']:
                 continue
             pair = (key2file[priv][0], key2file[pub][0])
