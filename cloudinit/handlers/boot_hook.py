@@ -60,7 +60,7 @@ class BootHookPartHandler(ud.PartHandler):
             env['INSTANCE_ID'] = str(self.instance_id)
             util.subp([filepath], env=env)
         except util.ProcessExecutionError as e:
-            LOG.error("Boothooks script %s execution error %s", filepath, e)
+            util.logexc(LOG, "Boothooks script %s execution error", filepath)
         except Exception as e:
-            LOG.exception(("Boothooks unknown "
-                           "error %s when running %s"), e, filepath)
+            util.logexc(LOG, ("Boothooks unknown "
+                              "error when running %s"), filepath)
