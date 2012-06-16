@@ -20,6 +20,14 @@ import io
 
 from ConfigParser import (NoSectionError, NoOptionError, RawConfigParser)
 
+# This config parser will not throw when sections don't exist
+# and you are setting values on those sections which is useful
+# when writing to new options that may not have corresponding
+# sections. Also it can default other values when doing gets
+# so that if those sections/options do not exist you will
+# get a default instead of an error. Another useful case where
+# you can avoid catching exceptions that you typically don't
+# care about...
 
 class DefaultingConfigParser(RawConfigParser):
     DEF_INT = 0
