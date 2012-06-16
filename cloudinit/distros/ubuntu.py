@@ -53,8 +53,7 @@ class Distro(distros.Distro):
         util.subp(['hostname', hostname])
 
     def update_hostname(self, hostname, prev_file):
-        hostname_prev = None 
-        prev_name = self._read_hostname(prev_file)
+        hostname_prev = self._read_hostname(prev_file)
         hostname_in_etc = self._read_hostname("/etc/hostname")
         update_files = []
         if not hostname_prev or hostname_prev != hostname:
