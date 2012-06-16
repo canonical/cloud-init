@@ -98,11 +98,18 @@ def run_part(mod, data, ctype, filename, payload, frequency):
             (frequency == PER_INSTANCE and mod_freq == PER_INSTANCE)):
         return
     mod_ver = mod.handler_version
+    # Sanity checks on version (should be an int convertable)
     try:
-        if mod_ver == 1:
-            mod.handle_part(data, ctype, filename, payload)
-        else:
+        mod_ver = int(mod_ver)
+    except:
+        mod_ver = None
+    try:
+        if mod_ver and mod_ver >= 2:
+            # Treat as v. 2 which does get a frequency
             mod.handle_part(data, ctype, filename, payload, frequency)
+        else:
+            # Treat as v. 1 which gets no frequency
+            mod.handle_part(data, ctype, filename, payload)
     except:
         util.logexc(LOG, ("Failed calling handler %s (%s, %s, %s)"
                          " with frequency %s"), 
