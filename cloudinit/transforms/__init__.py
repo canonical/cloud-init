@@ -26,9 +26,9 @@ from cloudinit import log as logging
 LOG = logging.getLogger(__name__)
 
 
-def form_module_name(name):
+def form_transform_name(name):
     canon_name = name.replace("-", "_")
-    if canon_name.endswith(".py"):
+    if canon_name.lower().endswith(".py"):
         canon_name = canon_name[0:(len(canon_name) - 3)]
     canon_name = canon_name.strip()
     if not canon_name:
@@ -38,7 +38,7 @@ def form_module_name(name):
     return canon_name
 
 
-def fixup_module(mod, def_freq=PER_INSTANCE):
+def fixup_transform(mod, def_freq=PER_INSTANCE):
     if not hasattr(mod, 'frequency'):
         setattr(mod, 'frequency', def_freq)
     else:
@@ -49,7 +49,6 @@ def fixup_module(mod, def_freq=PER_INSTANCE):
         def empty_handle(_name, _cfg, _cloud, _log, _args):
             pass
         setattr(mod, 'handle', empty_handle)
-    # Used only for warning if possibly running on a not checked distro...
     if not hasattr(mod, 'distros'):
         setattr(mod, 'distros', None)
     return mod
