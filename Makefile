@@ -12,5 +12,8 @@ pyflakes:
 test:
 	nosetests tests/unittests/
 
-.PHONY: test pylint pyflakes
+2to3:
+	2to3 $(PY_FILES)
+
+.PHONY: test pylint pyflakes 2to3
 
