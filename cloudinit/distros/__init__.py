@@ -75,10 +75,6 @@ class Distro(object):
     def get_package_mirror(self):
         return self.get_option('package_mirror')
 
-    def get_paths(self):
-        paths = self.get_option("paths") or {}
-        return copy.deepcopy(paths)
-
     def apply_network(self, settings, bring_up=True):
         # Write it out
         self._write_network(settings)
@@ -127,7 +123,7 @@ class Distro(object):
             need_write = True
         if need_write:
             contents = new_etchosts.getvalue()
-            util.write_file("/etc/hosts", contents)
+            util.write_file("/etc/hosts", contents, mode=0644)
 
     def _interface_action(self, action):
         if action not in IFACE_ACTIONS:
