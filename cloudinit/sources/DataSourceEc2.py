@@ -198,13 +198,15 @@ class DataSourceEc2(sources.DataSource):
         # 'ephemeral0': '/dev/sdb',
         # 'root': '/dev/sda1'}
         found = None
-        for (entname, device) in self.metadata['block-device-mapping'].iteritems():
+        bdm_items = self.metadata['block-device-mapping'].iteritems()
+        for (entname, device) in bdm_items:
             if entname == name:
                 found = device
                 break
             # LP: #513842 mapping in Euca has 'ephemeral' not 'ephemeral0'
             if entname == "ephemeral" and name == "ephemeral0":
                 found = device
+
         if found is None:
             LOG.debug("Unable to convert %s to a device", name)
             return None
@@ -212,6 +214,7 @@ class DataSourceEc2(sources.DataSource):
         ofound = found
         if not found.startswith("/"):
             found = "/dev/%s" % found
+
         if os.path.exists(found):
             return found
 
