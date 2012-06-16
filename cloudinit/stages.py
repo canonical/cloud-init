@@ -287,7 +287,7 @@ class Init(object):
     def _default_userdata_handlers(self):
         opts = {
             'paths': self.paths,
-            'instance_id': self.datasource.get_instance_id(),
+            'datasource': self.datasource,
         }
         # TODO Hmmm, should we dynamically import these??
         def_handlers = [

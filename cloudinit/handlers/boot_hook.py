@@ -32,10 +32,12 @@ LOG = logging.getLogger(__name__)
 
 
 class BootHookPartHandler(handlers.Handler):
-    def __init__(self, paths, instance_id, **_kwargs):
+    def __init__(self, paths, datasource, **_kwargs):
         handlers.Handler.__init__(self, PER_ALWAYS)
         self.boothook_dir = paths.get_ipath("boothooks")
-        self.instance_id = instance_id
+        self.instance_id = None
+        if datasource:
+            self.instance_id = datasource.get_instance_id()
 
     def list_types(self):
         return [
