@@ -1090,7 +1090,7 @@ def mounts():
     return mounted
 
 
-def mount_cb(device, callback, data=None, rw=False, mtype=None):
+def mount_cb(device, callback, data=None, rw=False, mtype=None, sync=True):
     """
     Mount the device, call method 'callback' passing the directory
     in which it was mounted, then unmount.  Return whatever 'callback'
@@ -1103,11 +1103,18 @@ def mount_cb(device, callback, data=None, rw=False, mtype=None):
             mountpoint = "%s/" % mounted[device]['mountpoint']
         else:
             try:
-                mountcmd = ['mount', "-o"]
+                mountcmd = ['mount']
+                mountopts = []
                 if rw:
-                    mountcmd.append('rw')
+                    mountopts.append('rw')
                 else:
-                    mountcmd.append('ro')
+                    mountopts.append('ro')
+                if sync:
+                    # This seems like the safe approach to do
+                    # (where this is on by default)
+                    mountopts.append("sync")
+                if mountopts:
+                    mountcmd.extend(["-o", ",".join(mountopts)])
                 if mtype:
                     mountcmd.extend(['-t', mtype])
                 mountcmd.append(device)
