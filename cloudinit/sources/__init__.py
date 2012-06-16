@@ -20,6 +20,8 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+import abc
+
 from cloudinit import importer
 from cloudinit import log as logging
 from cloudinit import user_data as ud
@@ -37,6 +39,9 @@ class DataSourceNotFoundException(Exception):
 
 
 class DataSource(object):
+
+    __metaclass__ = abc.ABCMeta
+
     def __init__(self, sys_cfg, distro, paths):
         self.sys_cfg = sys_cfg
         self.distro = distro

@@ -20,7 +20,7 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-
+import abc
 import os
 
 import email
@@ -233,6 +233,9 @@ class UserDataProcessor(object):
 
 
 class PartHandler(object):
+
+    __metaclass__ = abc.ABCMeta
+
     def __init__(self, frequency, version=2):
         self.handler_version = version
         self.frequency = frequency
@@ -240,12 +243,14 @@ class PartHandler(object):
     def __repr__(self):
         return "%s: [%s]" % (util.obj_name(self), self.list_types())
 
+    @abc.abstractmethod
     def list_types(self):
         raise NotImplementedError()
 
     def handle_part(self, data, ctype, filename, payload, frequency):
         return self._handle_part(data, ctype, filename, payload, frequency)
 
+    @abc.abstractmethod
     def _handle_part(self, data, ctype, filename, payload, frequency):
         raise NotImplementedError()
 
