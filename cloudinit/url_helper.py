@@ -29,12 +29,16 @@ import urllib
 import urllib2
 
 from cloudinit import log as logging
+from cloudinit import version
 
 LOG = logging.getLogger(__name__)
 
 
-def ok_http_code(st):
-    return st in xrange(200, 400)
+def ok_http_code(st, redirects_ok=False):
+    if redirects_ok:
+        return st in xrange(200, 400)
+    else:
+        return st in xrange(200, 300)
 
 
 def readurl(url, data=None, timeout=None,
@@ -44,8 +48,13 @@ def readurl(url, data=None, timeout=None,
     req_args['url'] = url
     if data is not None:
         req_args['data'] = urllib.urlencode(data)
-    if headers is not None:
-        req_args['headers'] = dict(headers)
+
+    if not headers:
+        headers = {
+            'User-Agent': 'Cloud-Init/%s' % (version.version_string()),
+        }
+
+    req_args['headers'] = headers
     req = urllib2.Request(**req_args)
 
     retries = max(retries, 0)
@@ -70,19 +79,17 @@ def readurl(url, data=None, timeout=None,
                 return (content, status)
         except urllib2.HTTPError as e:
             last_excp = e
-            LOG.exception("Failed at reading from %s.", url)
         except urllib2.URLError as e:
             # This can be a message string or
             # another exception instance 
             # (socket.error for remote URLs, OSError for local URLs).
-            if (isinstance(e.reason, OSError) and
+            if (isinstance(e.reason, (OSError)) and
                 e.reason.errno == errno.ENOENT):
                 last_excp = e.reason
             else:
                 last_excp = e
-            LOG.exception("Failed at reading from %s", url)
         if i + 1 < attempts:
-            LOG.info("Please wait %s seconds while we wait to try again",
+            LOG.debug("Please wait %s seconds while we wait to try again",
                      sec_between)
             time.sleep(sec_between)
 
