@@ -26,7 +26,7 @@ from cloudinit import log as logging
 LOG = logging.getLogger(__name__)
 
 # TODO remove this from being a prefix??
-TRANSFORM_PREFIX = "cc_"
+TRANSFORM_PREFIX = ''  # "cc_"
 
 
 def form_transform_name(name):
