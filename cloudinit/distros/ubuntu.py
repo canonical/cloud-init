@@ -44,7 +44,8 @@ class Distro(distros.Distro):
         self._apt_get(command, args)
 
     def set_hostname(self, hostname):
-        util.write_file("/etc/hostname", "%s\n" % hostname, 0644)
+        contents = "%s\n" % (hostname)
+        util.write_file("/etc/hostname", contents, 0644)
         LOG.debug("Setting hostname to %s", hostname)
         util.subp(['hostname', hostname])
 
@@ -59,7 +60,8 @@ class Distro(distros.Distro):
             update_files.append("/etc/hostname")
         for fn in update_files:
             try:
-                util.write_file(fn, "%s\n" % hostname, 0644)
+                contents = "%s\n" % (hostname)
+                util.write_file(fn, contents, 0644)
             except:
                 util.logexc(LOG, "Failed to write hostname %s to %s",
                             hostname, fn)
