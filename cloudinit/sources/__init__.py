@@ -78,7 +78,7 @@ class DataSource(object):
             return list(self.metadata['public-keys'])
 
         if isinstance(self.metadata['public-keys'], (dict)):
-            for _keyname, klist in self.metadata['public-keys'].items():
+            for (_keyname, klist) in self.metadata['public-keys'].iteritems():
                 # lp:506332 uec metadata service responds with
                 # data that makes boto populate a string for 'klist' rather
                 # than a list.
