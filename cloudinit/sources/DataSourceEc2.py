@@ -198,7 +198,7 @@ class DataSourceEc2(sources.DataSource):
         # 'ephemeral0': '/dev/sdb',
         # 'root': '/dev/sda1'}
         found = None
-        for (entname, device) in self.metadata['block-device-mapping'].items():
+        for (entname, device) in self.metadata['block-device-mapping'].iteritems():
             if entname == name:
                 found = device
                 break
