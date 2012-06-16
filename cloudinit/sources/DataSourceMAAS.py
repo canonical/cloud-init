@@ -18,9 +18,9 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import os
 import errno
 import oauth.oauth as oauth
+import os
 import time
 import urllib2
 
@@ -48,7 +48,7 @@ class DataSourceMAAS(sources.DataSource):
         self.seed_dir = os.path.join(paths.seed_dir, 'maas')
 
     def __str__(self):
-        return "%s[%s]" % (util.obj_name(self), self.base_url)
+        return "%s [%s]" % (util.obj_name(self), self.base_url)
 
     def get_data(self):
         mcfg = self.ds_cfg
@@ -122,9 +122,10 @@ class DataSourceMAAS(sources.DataSource):
 
         starttime = time.time()
         check_url = "%s/%s/meta-data/instance-id" % (url, MD_VERSION)
-        url = util.wait_for_url(urls=[check_url], max_wait=max_wait,
-                                timeout=timeout, status_cb=LOG.warn,
-                                headers_cb=self.md_headers)
+        urls = [check_url]
+        url = uhelp.wait_for_url(urls=urls, max_wait=max_wait,
+                                 timeout=timeout, status_cb=LOG.warn,
+                                 headers_cb=self.md_headers)
 
         if url:
             LOG.info("Using metadata source: '%s'", url)
@@ -185,7 +186,8 @@ def read_maas_seed_url(seed_url, header_cb=None, timeout=None,
             headers = {}
         try:
             (resp, sc) = uhelp.readurl(url, headers=headers, timeout=timeout)
-            md[name] = resp
+            if uhelp.ok_http_code(sc):
+                md[name] = resp
         except urllib2.HTTPError as e:
             if e.code != 404:
                 raise

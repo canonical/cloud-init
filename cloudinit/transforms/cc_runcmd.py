@@ -25,13 +25,14 @@ from cloudinit import util
 
 def handle(name, cfg, cloud, log, _args):
     if "runcmd" not in cfg:
-        log.debug("Skipping module named %s, no 'runcmd' key in configuration", name)
+        log.debug(("Skipping transform named %s,"
+                   " no 'runcmd' key in configuration"), name)
         return
 
-    outfile = os.path.join(cloud.get_ipath('scripts'), "runcmd")
+    out_fn = os.path.join(cloud.get_ipath('scripts'), "runcmd")
     cmd = cfg["runcmd"]
     try:
         content = util.shellify(cmd)
-        util.write_file(outfile, content, 0700)
+        util.write_file(out_fn, content, 0700)
     except:
-        util.logexc(log, "Failed to shellify %s into file %s", cmd, outfile)
+        util.logexc(log, "Failed to shellify %s into file %s", cmd, out_fn)

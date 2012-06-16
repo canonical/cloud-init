@@ -22,8 +22,8 @@
 
 from StringIO import StringIO
 
+import copy as obj_copy
 import contextlib
-import copy
 import errno
 import glob
 import grp
@@ -35,12 +35,11 @@ import pwd
 import random
 import shutil
 import socket
-import string
+import string # pylint: disable=W0402
 import subprocess
 import sys
 import tempfile
 import time
-import traceback
 import types
 import urlparse
 
@@ -171,7 +170,8 @@ def fork_cb(child_cb, *args):
             child_cb(*args)
             os._exit(0)  # pylint: disable=W0212
         except:
-            logexc(LOG, "Failed forking and calling callback %s", obj_name(child_cb))
+            logexc(LOG, ("Failed forking and"
+                         " calling callback %s"), obj_name(child_cb))
             os._exit(1)  # pylint: disable=W0212
     else:
         LOG.debug("Forked child %s who will run callback %s",
@@ -549,10 +549,11 @@ def load_yaml(blob, default=None, allowed=(dict,)):
         converted = yaml.load(blob)
         if not isinstance(converted, allowed):
             # Yes this will just be caught, but thats ok for now...
-            raise TypeError("Yaml load allows %s root types, but got %s instead" %
+            raise TypeError(("Yaml load allows %s root types,"
+                             " but got %s instead") %
                             (allowed, obj_name(converted)))
         loaded = converted
-    except (yaml.YAMLError, TypeError, ValueError) as exc:
+    except (yaml.YAMLError, TypeError, ValueError):
         logexc(LOG, "Failed loading yaml blob")
     return loaded
 
@@ -833,15 +834,12 @@ def find_devs_with(criteria=None, oformat='device',
         options.append(path)
     cmd = blk_id_cmd + options
     (out, _err) = subp(cmd)
-    if path:
-        return out.strip()
-    else:
-        entries = []
-        for line in out.splitlines():
-            line = line.strip()
-            if line:
-                entries.append(line)
-        return entries
+    entries = []
+    for line in out.splitlines():
+        line = line.strip()
+        if line:
+            entries.append(line)
+    return entries
 
 
 def load_file(fname, read_cb=None, quiet=False):
@@ -1109,7 +1107,7 @@ def mount_cb(device, callback, data=None, rw=False, mtype=None):
 
 def get_builtin_cfg():
     # Deep copy so that others can't modify
-    return copy.deepcopy(CFG_BUILTIN)
+    return obj_copy.deepcopy(CFG_BUILTIN)
 
 
 def sym_link(source, link):
@@ -1140,16 +1138,14 @@ def time_rfc2822():
 
 
 def uptime():
+    uptime_str = '??'
     try:
-        uptimef = load_file("/proc/uptime").strip()
-        if not uptimef:
-            uptime = 'na'
-        else:
-            uptime = uptimef.split()[0]
+        contents = load_file("/proc/uptime").strip()
+        if contents:
+            uptime_str = contents.split()[0]
     except:
         logexc(LOG, "Unable to read uptime from /proc/uptime")
-        uptime = '??'
-    return uptime
+    return uptime_str
 
 
 def ensure_file(path):
@@ -1261,7 +1257,8 @@ def shellify(cmdlist, add_header=True):
             content = "%s%s\n" % (content, args)
         else:
             raise RuntimeError(("Unable to shellify type %s"
-                                " which is not a list or string") % (obj_name(args)))
+                                " which is not a list or string")
+                               % (obj_name(args)))
     LOG.debug("Shellified %s to %s", cmdlist, content)
     return content
 
@@ -1275,8 +1272,7 @@ def is_container():
         try:
             # try to run a helper program. if it returns true/zero
             # then we're inside a container. otherwise, no
-            cmd = [helper]
-            subp(cmd, allowed_rc=[0])
+            subp([helper])
             return True
         except (IOError, OSError):
             pass

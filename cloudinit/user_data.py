@@ -22,14 +22,15 @@
 
 
 import os
-import glob
 
 import email
-
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 from email.mime.base import MIMEBase
 
 from cloudinit import importer
 from cloudinit import log as logging
+from cloudinit import url_helper
 from cloudinit import util
 
 from cloudinit.settings import (PER_ALWAYS, PER_INSTANCE, FREQUENCIES)
@@ -86,7 +87,7 @@ class UserDataProcessor(object):
         self.paths = paths
 
     def process(self, blob):
-        base_msg = ud.convert_string(blob)
+        base_msg = convert_string(blob)
         process_msg = MIMEMultipart()
         self._process_msg(base_msg, process_msg)
         return process_msg
@@ -105,7 +106,7 @@ class UserDataProcessor(object):
                 ctype_orig = UNDEF_TYPE
     
             if ctype_orig in TYPE_NEEDED:
-                ctype = ud.type_from_starts_with(payload)
+                ctype = type_from_starts_with(payload)
     
             if ctype is None:
                 ctype = ctype_orig
@@ -158,7 +159,7 @@ class UserDataProcessor(object):
                 if not url_helper.ok_http_code(st):
                     content = ''
 
-            new_msg = ud.convert_string(content)
+            new_msg = convert_string(content)
             self._process_msg(new_msg, append_msg)
 
     def _explode_archive(self, archive, append_msg):
@@ -179,7 +180,7 @@ class UserDataProcessor(object):
             content = ent.get('content', '')
             mtype = ent.get('type')
             if not mtype:
-                mtype = ud.type_from_starts_with(content, ARCHIVE_UNDEF_TYPE)
+                mtype = type_from_starts_with(content, ARCHIVE_UNDEF_TYPE)
 
             maintype, subtype = mtype.split('/', 1)
             if maintype == "text":

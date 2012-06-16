@@ -30,7 +30,8 @@ frequency = PER_ALWAYS
 def handle(name, cfg, cloud, log, _args):
 
     if "bootcmd" not in cfg:
-        log.debug("Skipping module named %s,  no 'bootcomd' key in configuration", name)
+        log.debug(("Skipping transform named %s,"
+                   " no 'bootcomd' key in configuration"), name)
         return
 
     with tempfile.NamedTemporaryFile(suffix=".sh") as tmpf:
@@ -39,7 +40,7 @@ def handle(name, cfg, cloud, log, _args):
             tmpf.write(content)
             tmpf.flush()
         except:
-            log.warn("Failed to shellify bootcmd")
+            util.logexc(log, "Failed to shellify bootcmd")
             raise
 
         try:
@@ -48,5 +49,6 @@ def handle(name, cfg, cloud, log, _args):
             cmd = ['/bin/sh', tmpf.name]
             util.subp(cmd, env=env, capture=False)
         except:
-            log.warn("Failed to run commands from bootcmd")
+            util.logexc(log,
+                        ("Failed to run bootcmd transform %s"), name)
             raise

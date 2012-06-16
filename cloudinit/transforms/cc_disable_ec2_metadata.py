@@ -28,5 +28,6 @@ reject_cmd = ['route', 'add', '-host', '169.254.169.254', 'reject']
 
 
 def handle(_name, cfg, _cloud, _log, _args):
-    if util.get_cfg_option_bool(cfg, "disable_ec2_metadata", False):
+    disabled = util.get_cfg_option_bool(cfg, "disable_ec2_metadata", False)
+    if disabled:
         util.subp(reject_cmd)

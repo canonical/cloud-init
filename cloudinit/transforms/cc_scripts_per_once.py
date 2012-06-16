@@ -29,12 +29,13 @@ frequency = PER_ONCE
 script_subdir = 'per-once'
 
 
-def handle(_name, _cfg, cloud, log, _args):
+def handle(name, _cfg, cloud, log, _args):
     # Comes from the following:
     # https://forums.aws.amazon.com/thread.jspa?threadID=96918
     runparts_path = os.path.join(cloud.get_cpath(), 'scripts', script_subdir)
     try:
         util.runparts(runparts_path)
     except:
-        log.warn("Failed to run-parts(%s) in %s", script_subdir, runparts_path)
+        log.warn("Failed to run transform %s (%s in %s)",
+                 name, script_subdir, runparts_path)
         raise

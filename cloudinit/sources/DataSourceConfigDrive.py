@@ -51,8 +51,8 @@ class DataSourceConfigDrive(sources.DataSource):
         self.seed_dir = os.path.join(paths.seed_dir, 'config_drive')
 
     def __str__(self):
-        mstr = "%s[%s]" % (util.obj_name(self), self.dsmode)
-        mstr += " [seed=%s]" % (self.seed)
+        mstr = "%s [%s]" % (util.obj_name(self), self.dsmode)
+        mstr += "[seed=%s]" % (self.seed)
         return mstr
 
     def get_data(self):

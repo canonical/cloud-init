@@ -33,9 +33,9 @@ LOG = logging.getLogger(__name__)
 
 
 class UpstartJobPartHandler(ud.PartHandler):
-    def __init__(self, upstart_dir):
+    def __init__(self, paths, **_kwargs):
         ud.PartHandler.__init__(self, PER_INSTANCE)
-        self.upstart_dir = upstart_dir
+        self.upstart_dir = paths.upstart_conf_d
 
     def list_types(self):
         return [
@@ -44,6 +44,9 @@ class UpstartJobPartHandler(ud.PartHandler):
 
     def _handle_part(self, _data, ctype, filename, payload, frequency):
         if ctype in ud.CONTENT_SIGNALS:
+            return
+
+        if not self.upstart_dir:
             return
 
         filename = util.clean_filename(filename)

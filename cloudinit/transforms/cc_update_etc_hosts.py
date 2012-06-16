@@ -30,22 +30,30 @@ def handle(name, cfg, cloud, log, _args):
     manage_hosts = util.get_cfg_option_str(cfg, "manage_etc_hosts", False)
     if util.translate_bool(manage_hosts, addons=['template']):
         (hostname, fqdn) = util.get_hostname_fqdn(cfg, cloud)
-        # Render from template file
         if not hostname:
-            log.warn("Option 'manage_etc_hosts' was set, but no hostname was found")
+            log.warn(("Option 'manage_etc_hosts' was set,"
+                     " but no hostname was found"))
             return
-        tpl_fn_name = cloud.get_template_filename("hosts.%s" % (cloud.distro.name()))
+
+        # Render from a template file
+        distro_n = cloud.distro.name
+        tpl_fn_name = cloud.get_template_filename("hosts.%s" % (distro_n))
         if not tpl_fn_name:
-            raise Exception("No hosts template could be found for distro %s" % (cloud.distro.name()))
+            raise Exception(("No hosts template could be"
+                             " found for distro %s") % (distro_n))
+
         templater.render_to_file(tpl_fn_name, '/etc/hosts',
                                 {'hostname': hostname, 'fqdn': fqdn})
+
     elif manage_hosts == "localhost":
-        log.debug("Managing localhost in /etc/hosts")
         (hostname, fqdn) = util.get_hostname_fqdn(cfg, cloud)
         if not hostname:
-            log.warn("Option 'manage_etc_hosts' was set, but no hostname was found")
+            log.warn(("Option 'manage_etc_hosts' was set,"
+                     " but no hostname was found"))
             return
+
+        log.debug("Managing localhost in /etc/hosts")
         cloud.distro.update_etc_hosts(hostname, fqdn)
     else:
         log.debug(("Configuration option 'manage_etc_hosts' is not set,"
-                    " not managing /etc/hosts in %s"), name)
+                    " not managing /etc/hosts in transform %s"), name)

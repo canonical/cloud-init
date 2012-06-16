@@ -20,17 +20,13 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-from StringIO import StringIO
-
 import os
-import socket
 
 from cloudinit import distros
 from cloudinit import log as logging
-from cloudinit import templater
 from cloudinit import util
 
-from cloudinit.settings import (PER_INSTANCE)
+from cloudinit.settings import PER_INSTANCE
 
 LOG = logging.getLogger(__name__)
 
@@ -65,9 +61,11 @@ class Distro(distros.Distro):
             try:
                 util.write_file(fn, "%s\n" % hostname, 0644)
             except:
-                util.logexc(LOG, "Failed to write hostname %s to %s", hostname, fn)
-        if hostname_in_etc and hostname_prev and hostname_in_etc != hostname_prev:
-             LOG.debug(("%s differs from /etc/hostname."
+                util.logexc(LOG, "Failed to write hostname %s to %s",
+                            hostname, fn)
+        if (hostname_in_etc and hostname_prev and
+            hostname_in_etc != hostname_prev):
+            LOG.debug(("%s differs from /etc/hostname."
                         " Assuming user maintained hostname."), prev_file)
         if "/etc/hostname" in update_files:
             LOG.debug("Setting hostname to %s", hostname)
@@ -91,7 +89,8 @@ class Distro(distros.Distro):
     def set_timezone(self, tz):
         tz_file = os.path.join("/usr/share/zoneinfo", tz)
         if not os.path.isfile(tz_file):
-            raise Exception("Invalid timezone %s, no file found at %s" % (tz, tz_file))
+            raise Exception(("Invalid timezone %s,"
+                             " no file found at %s") % (tz, tz_file))
         tz_contents = "%s\n" % tz
         util.write_file("/etc/timezone", tz_contents)
         # TODO, this should be in a rhel distro subclass??
@@ -100,9 +99,6 @@ class Distro(distros.Distro):
             util.write_file("/etc/sysconfig/clock", tz_contents)
         # This ensures that the correct tz will be used for the system
         util.copy(tz_file, "/etc/localtime")
-
-    def name(self):
-        return "ubuntu"
 
     # apt_get top level command (install, update...), and args to pass it
     def _apt_get(self, tlc, args=None):
@@ -116,4 +112,5 @@ class Distro(distros.Distro):
         util.subp(cmd, env=e, capture=False)
 
     def _update_package_sources(self):
-        self.runner.run("update-sources", self._apt_get, ["update"], freq=PER_INSTANCE)
+        self._runner.run("update-sources", self._apt_get,
+                         ["update"], freq=PER_INSTANCE)

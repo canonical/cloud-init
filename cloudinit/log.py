@@ -56,7 +56,7 @@ def setupBasicLogging():
         cfile = logging.FileHandler('/var/log/cloud-init.log')
         cfile.setFormatter(logging.Formatter(DEF_CON_FORMAT))
         cfile.setLevel(DEBUG)
-        root.addHandle(cfile)
+        root.addHandler(cfile)
     except (IOError, OSError):
         # Likely that u can't write to that file...
         # Make console now have DEBUG??

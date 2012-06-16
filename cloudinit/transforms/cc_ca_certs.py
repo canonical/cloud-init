@@ -23,6 +23,8 @@ CA_CERT_FILENAME = "cloud-init-ca-certs.crt"
 CA_CERT_CONFIG = "/etc/ca-certificates.conf"
 CA_CERT_SYSTEM_PATH = "/etc/ssl/certs/"
 
+distros = ['ubuntu']
+
 
 def update_ca_certs():
     """
@@ -70,22 +72,25 @@ def handle(name, cfg, _cloud, log, _args):
     """
     # If there isn't a ca-certs section in the configuration don't do anything
     if "ca-certs" not in cfg:
-        log.debug("Skipping module named %s, no 'ca-certs' key in configuration", name)
+        log.debug(("Skipping transform named %s,"
+                   " no 'ca-certs' key in configuration"), name)
         return
+
     ca_cert_cfg = cfg['ca-certs']
 
     # If there is a remove-defaults option set to true, remove the system
     # default trusted CA certs first.
     if ca_cert_cfg.get("remove-defaults", False):
-        log.debug("removing default certificates")
+        log.debug("Removing default certificates")
         remove_default_ca_certs()
 
     # If we are given any new trusted CA certs to add, add them.
     if "trusted" in ca_cert_cfg:
-        trusted_certs = util.get_cfg_option_list_or_str(ca_cert_cfg, "trusted")
+        trusted_certs = util.get_cfg_option_list(ca_cert_cfg, "trusted")
         if trusted_certs:
-            log.debug("adding %d certificates" % len(trusted_certs))
+            log.debug("Adding %d certificates" % len(trusted_certs))
             add_ca_certs(trusted_certs)
 
     # Update the system with the new cert configuration.
+    log.debug("Updating certificates")
     update_ca_certs()

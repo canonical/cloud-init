@@ -24,7 +24,7 @@ from cloudinit import util
 def handle(name, cfg, cloud, log, _args):
     if util.get_cfg_option_bool(cfg, "preserve_hostname", False):
         log.debug(("Configuration option 'preserve_hostname' is set,"
-                    " not setting the hostname in %s"), name)
+                    " not setting the hostname in transform %s"), name)
         return
 
     (hostname, _fqdn) = util.get_hostname_fqdn(cfg, cloud)

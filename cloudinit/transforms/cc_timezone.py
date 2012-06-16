@@ -18,20 +18,22 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+from cloudinit import util
+
 from cloudinit.settings import PER_INSTANCE
 
 frequency = PER_INSTANCE
 
 
-def handle(_name, cfg, cloud, log, args):
+def handle(name, cfg, cloud, log, args):
     if len(args) != 0:
         timezone = args[0]
     else:
         timezone = util.get_cfg_option_str(cfg, "timezone", False)
 
     if not timezone:
-        log.debug("Skipping module named %s, no 'timezone' specified", name)
+        log.debug("Skipping transform named %s, no 'timezone' specified", name)
         return
-    
+
     # Let the distro handle settings its timezone
     cloud.distro.set_timezone(timezone)

@@ -30,10 +30,10 @@ LOG = logging.getLogger(__name__)
 
 
 class CloudConfigPartHandler(ud.PartHandler):
-    def __init__(self, cloud_fn):
+    def __init__(self, paths, **_kwargs):
         ud.PartHandler.__init__(self, PER_ALWAYS)
         self.cloud_buf = []
-        self.cloud_fn = cloud_fn
+        self.cloud_fn = paths.get_ipath("cloud_config")
 
     def list_types(self):
         return [

@@ -49,7 +49,7 @@ def handle(name, cfg, cloud, log, args):
                                              "/etc/default/locale")
 
     if not locale:
-        log.debug(("Skipping module named %s, "
+        log.debug(("Skipping transform named %s, "
                    "no 'locale' configuration found"), name)
         return
 
