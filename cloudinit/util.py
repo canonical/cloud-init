@@ -1162,8 +1162,8 @@ def uptime():
     return uptime_str
 
 
-def ensure_file(path):
-    write_file(path, content='', omode="ab")
+def ensure_file(path, mode=0644):
+    write_file(path, content='', omode="ab", mode=mode)
 
 
 def chmod(path, mode):
