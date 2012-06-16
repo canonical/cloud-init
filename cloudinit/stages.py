@@ -239,7 +239,7 @@ class Init(object):
             previous_ds = util.load_file(ds_fn).strip()
         except Exception:
             pass
-        if previous_ds is None:
+        if not previous_ds:
             # TODO: ?? is this right
             previous_ds = ds
         util.write_file(ds_fn, "%s\n" % ds)
@@ -255,7 +255,7 @@ class Init(object):
             previous_iid = util.load_file(p_iid_fn).strip()
         except Exception:
             pass
-        if previous_iid is None:
+        if not previous_iid:
             # TODO: ?? is this right
             previous_iid = iid
         util.write_file(c_iid_fn, "%s\n" % iid)
