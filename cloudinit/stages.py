@@ -34,6 +34,7 @@ except ImportError:
 from cloudinit.settings import (OLD_CLOUD_CONFIG)
 from cloudinit.settings import (PER_INSTANCE, FREQUENCIES)
 
+from cloudinit import handlers
 from cloudinit.handlers import boot_hook as bh_part
 from cloudinit.handlers import cloud_config as cc_part
 from cloudinit.handlers import shell_script as ss_part
@@ -46,7 +47,6 @@ from cloudinit import importer
 from cloudinit import log as logging
 from cloudinit import sources
 from cloudinit import transforms
-from cloudinit import user_data as ud
 from cloudinit import util
 
 LOG = logging.getLogger(__name__)
@@ -319,7 +319,7 @@ class Init(object):
         potential_handlers = util.find_modules(cdir)
         for (fname, modname) in potential_handlers.iteritems():
             try:
-                mod = ud.fixup_handler(importer.import_module(modname))
+                mod = handlers.fixup_handler(importer.import_module(modname))
                 types = c_handlers.register(mod)
                 LOG.debug("Added handler for %s from %s", types, fname)
             except:
@@ -338,7 +338,7 @@ class Init(object):
         for (_ctype, mod) in c_handlers.iteritems():
             if mod in called:
                 continue
-            ud.call_begin(mod, data, frequency)
+            handlers.call_begin(mod, data, frequency)
             called.append(mod)
 
         # Walk the user data
@@ -352,14 +352,14 @@ class Init(object):
             # names...
             'handlercount': 0,
         }
-        ud.walk(ud_obj, ud.walker_callback, data=part_data)
+        handlers.walk(ud_obj, handlers.walker_callback, data=part_data)
 
         # Give callbacks opportunity to finalize
         called = []
         for (_ctype, mod) in c_handlers.iteritems():
             if mod in called:
                 continue
-            ud.call_end(mod, data, frequency)
+            handlers.call_end(mod, data, frequency)
             called.append(mod)
 
 
@@ -481,7 +481,7 @@ class Transforms(object):
                 run_name = "config-%s" % (name)
                 c_cloud.run(run_name, mod.handle, func_args, freq=freq)
             except Exception as e:
-                util.logexc(LOG, "Running %s failed", mod)
+                util.logexc(LOG, "Running %s (%s) failed", name, mod)
                 failures.append((name, e))
         return failures
 
