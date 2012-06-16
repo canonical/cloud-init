@@ -23,8 +23,8 @@
 
 import os
 
+from cloudinit import handlers
 from cloudinit import log as logging
-from cloudinit import user_data as ud
 from cloudinit import util
 
 from cloudinit.settings import (PER_INSTANCE)
@@ -32,18 +32,18 @@ from cloudinit.settings import (PER_INSTANCE)
 LOG = logging.getLogger(__name__)
 
 
-class UpstartJobPartHandler(ud.PartHandler):
+class UpstartJobPartHandler(handlers.Handler):
     def __init__(self, paths, **_kwargs):
-        ud.PartHandler.__init__(self, PER_INSTANCE)
+        handlers.Handler.__init__(self, PER_INSTANCE)
         self.upstart_dir = paths.upstart_conf_d
 
     def list_types(self):
         return [
-            ud.type_from_starts_with("#upstart-job"),
+            handlers.type_from_starts_with("#upstart-job"),
         ]
 
     def _handle_part(self, _data, ctype, filename, payload, frequency):
-        if ctype in ud.CONTENT_SIGNALS:
+        if ctype in handlers.CONTENT_SIGNALS:
             return
 
         if not self.upstart_dir:

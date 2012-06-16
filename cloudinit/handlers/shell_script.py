@@ -22,8 +22,8 @@
 
 import os
 
+from cloudinit import handlers
 from cloudinit import log as logging
-from cloudinit import user_data as ud
 from cloudinit import util
 
 from cloudinit.settings import (PER_ALWAYS)
@@ -31,18 +31,18 @@ from cloudinit.settings import (PER_ALWAYS)
 LOG = logging.getLogger(__name__)
 
 
-class ShellScriptPartHandler(ud.PartHandler):
+class ShellScriptPartHandler(handlers.Handler):
     def __init__(self, paths, **_kwargs):
-        ud.PartHandler.__init__(self, PER_ALWAYS)
+        handlers.Handler.__init__(self, PER_ALWAYS)
         self.script_dir = paths.get_ipath_cur('scripts')
 
     def list_types(self):
         return [
-            ud.type_from_starts_with("#!"),
+            handlers.type_from_starts_with("#!"),
         ]
 
     def _handle_part(self, _data, ctype, filename, payload, _frequency):
-        if ctype in ud.CONTENT_SIGNALS:
+        if ctype in handlers.CONTENT_SIGNALS:
             # TODO: maybe delete existing things here
             return
 
