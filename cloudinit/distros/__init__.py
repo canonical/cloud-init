@@ -20,26 +20,139 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import contextlib
+import abc
+import copy
 
 from cloudinit import importer
+from cloudinit import util
+
+from StringIO import StringIO
+
+# TODO: Make this via config??
+IFACE_ACTIONS = {
+    'up': ['ifup', '--all'],
+    'down': ['ifdown', '--all'],
+}
 
 
 class Distro(object):
-    def __init__(self, cloud):
-        self.cloud = cloud
 
+    __metaclass__ = abc.ABCMeta
+
+    def __init__(self, cfg, runner):
+        self._runner = runner
+        self._cfg = util.get_cfg_by_path(cfg, ('system_info', ), {})
+        self.name = self._cfg.pop("distro", 'generic')
+
+    @abc.abstractmethod
     def install_packages(self, pkglist):
         raise NotImplementedError()
 
-    def apply_network(self, settings):
+    @abc.abstractmethod
+    def _write_network(self, settings):
+        # In the future use the python-netcf
+        # to write this blob out in a distro format
         raise NotImplementedError()
 
+    def get_option(self, opt_name, default=None):
+        return self._cfg.get(opt_name, default)
 
-def fetch(cfg, cloud):
-    sys_info = cfg.get('system_info', {})
-    distro = sys_info.get('distro', 'ubuntu')
-    mod_name = "%s.%s" % (__name__, distro)
-    mod = importer.import_module(mod_name)
+    @abc.abstractmethod
+    def set_hostname(self, hostname):
+        raise NotImplementedError()
+
+    @abc.abstractmethod
+    def update_hostname(self, hostname, prev_hostname_fn):
+        raise NotImplementedError()
+
+    @abc.abstractmethod
+    def package_command(self, cmd, args=None):
+        raise NotImplementedError()
+
+    def get_package_mirror(self):
+        return self.get_option('package_mirror')
+
+    def get_paths(self):
+        paths = self.get_option("paths") or {}
+        return copy.deepcopy(paths)
+
+    def apply_network(self, settings, bring_up=True):
+        # Write it out
+        self._write_network(settings)
+        # Now try to bring them up
+        if bring_up:
+            self._interface_action('up')
+
+    @abc.abstractmethod
+    def set_timezone(self, tz):
+        raise NotImplementedError()
+
+    def _get_localhost_ip(self):
+        return "127.0.0.1"
+
+    def update_etc_hosts(self, hostname, fqdn):
+        # Format defined at
+        # http://unixhelp.ed.ac.uk/CGI/man-cgi?hosts
+        header = "# Added by cloud-init"
+        real_header = "%s on %s" % (header, util.time_rfc2822())
+        local_ip = self._get_localhost_ip()
+        hosts_line = "%s\t%s %s" % (local_ip, fqdn, hostname)
+        new_etchosts = StringIO()
+        need_write = False
+        need_change = True
+        for line in util.load_file("/etc/hosts").splitlines():
+            if line.strip().startswith(header):
+                continue
+            if not line.strip() or line.strip().startswith("#"):
+                new_etchosts.write("%s\n" % (line))
+                continue
+            split_line = [s.strip() for s in line.split()]
+            if len(split_line) < 2:
+                new_etchosts.write("%s\n" % (line))
+                continue
+            (ip, hosts) = split_line[0], split_line[1:]
+            if ip == local_ip:
+                if sorted([hostname, fqdn]) == sorted(hosts):
+                    need_change = False
+                if need_change:
+                    line = "%s\n%s" % (real_header, hosts_line)
+                    need_change = False
+                    need_write = True
+            new_etchosts.write("%s\n" % (line))
+        if need_change:
+            new_etchosts.write("%s\n%s\n" % (real_header, hosts_line))
+            need_write = True
+        if need_write:
+            contents = new_etchosts.getvalue()
+            util.write_file("/etc/hosts", contents)
+
+    def _interface_action(self, action):
+        if action not in IFACE_ACTIONS:
+            raise NotImplementedError("Unknown interface action %s" % (action))
+        cmd = IFACE_ACTIONS[action]
+        try:
+            LOG.info("Attempting to run %s interface action using command %s",
+                     action, cmd)
+            (_out, err) = util.subp(cmd)
+            if len(err):
+                LOG.warn("Running %s resulted in stderr output: %s",
+                         IF_UP_CMD, err)
+            return True
+        except util.ProcessExecutionError as exc:
+            util.logexc(LOG, "Running %s failed", cmd)
+            return False
+
+
+def fetch(distro_name, mods=(__name__, )):
+    mod = None
+    for m in mods:
+        try:
+            mod_name = "%s.%s" % (m, distro_name)
+            mod = importer.import_module(mod_name)
+        except RuntimeError:
+            pass
+    if not mod:
+        raise RuntimeError("No distribution found for distro %s" % (distro_name))
     distro_cls = getattr(mod, 'Distro')
-    return distro_cls(cloud)
+    return distro_cls
+    
