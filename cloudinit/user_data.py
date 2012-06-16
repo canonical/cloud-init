@@ -250,7 +250,7 @@ class PartHandler(object):
         raise NotImplementedError()
 
 
-def fixup_module(mod, def_freq=PER_INSTANCE):
+def fixup_handler(mod, def_freq=PER_INSTANCE):
     if not hasattr(mod, "handler_version"):
         setattr(mod, "handler_version", 1)
     if not hasattr(mod, 'list_types'):
@@ -307,12 +307,23 @@ def walker_handle_handler(pdata, _ctype, _filename, payload):
     util.write_file(modfname, payload, 0600)
     handlers = pdata['handlers']
     try:
-        mod = fixup_module(importer.import_module(modname))
+        mod = fixup_handler(importer.import_module(modname))
         handlers.register(mod)
         call_begin(mod, pdata['data'], frequency)
         pdata['handlercount'] = curcount + 1
     except:
         util.logexc(LOG, "Failed at registered python file: %s", modfname)
+
+
+def extract_first_or_bytes(blob, size):
+    # Extract the first line upto X bytes or X bytes from more than the
+    # first line if the first line does not contain enough bytes
+    first_line = blob.split("\n", 1)[0]
+    if len(first_line) >= size:
+        start = first_line[:size]
+    else:
+        start = blob[0:size]
+    return start
 
 
 def walker_callback(pdata, ctype, filename, payload):
@@ -321,17 +332,18 @@ def walker_callback(pdata, ctype, filename, payload):
         return
     handlers = pdata['handlers']
     if ctype not in handlers:
+        # Extract the first line or 24 bytes for displaying in the log
+        start = extract_first_or_bytes(payload, 24)
+        details = "'%s...'" % (start.encode("string-escape"))
         if ctype == NOT_MULTIPART_TYPE:
-            # Extract the first line or 24 bytes for displaying in the log
-            start = payload.split("\n", 1)[0][:24]
-            if start < payload:
-                details = "starting '%s...'" % start.encode("string-escape")
-            else:
-                details = repr(payload)
-            LOG.warning("Unhandled non-multipart userdata: %s", details)
-        return
-    run_part(handlers[ctype], pdata['data'], ctype, filename,
-             payload, pdata['frequency'])
+            LOG.warning("Unhandled non-multipart (%s) userdata: %s",
+                        ctype, details)
+        else:
+            LOG.warning("Unhandled unknown content-type (%s) userdata: %s",
+                        ctype, details)
+    else:
+        run_part(handlers[ctype], pdata['data'], ctype, filename,
+                 payload, pdata['frequency'])
 
 
 # Callback is a function that will be called with 
