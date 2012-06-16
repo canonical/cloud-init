@@ -30,11 +30,6 @@ from cloudinit.settings import (PER_INSTANCE, PER_ALWAYS, PER_ONCE)
 from cloudinit import log as logging
 from cloudinit import util
 
-from cloudinit.user_data import boot_hook as bh_part
-from cloudinit.user_data import cloud_config as cc_part
-from cloudinit.user_data import shell_script as ss_part
-from cloudinit.user_data import upstart_job as up_part
-
 LOG = logging.getLogger(__name__)
 
 
@@ -77,7 +72,7 @@ class FileSemaphores(object):
         sem_file = self._get_path(name, freq)
         try:
             util.del_file(sem_file)
-        except (IOError, OSError) as e:
+        except (IOError, OSError):
             util.logexc(LOG, "Failed deleting semaphore %s", sem_file)
             return False
         return True
@@ -99,7 +94,7 @@ class FileSemaphores(object):
         contents = "%s: %s\n" % (os.getpid(), time())
         try:
             util.write_file(sem_file, contents)
-        except (IOError, OSError) as e:
+        except (IOError, OSError):
             util.logexc(LOG, "Failed writing semaphore file %s", sem_file)
             return None
         return sem_file
@@ -162,9 +157,10 @@ class Runners(object):
 
 class ContentHandlers(object):
 
-    def __init__(self, paths):
+    def __init__(self, paths, iid=None):
         self.paths = paths
         self.registered = {}
+        self.iid = iid
 
     def __contains__(self, item):
         return self.is_registered(item)
@@ -191,34 +187,9 @@ class ContentHandlers(object):
     def iteritems(self):
         return self.registered.iteritems()
 
-    def _get_default_handlers(self):
-        def_handlers = []
-
-        cc_path = self.paths.get_ipath("cloud_config")
-        if cc_path:
-            cc_h = cc_part.CloudConfigPartHandler(cc_path)
-            def_handlers.append(cc_h)
-
-        sc_path = self.paths.get_ipath_cur('scripts')
-        if sc_path:
-            ss_h = ss_part.ShellScriptPartHandler(sc_path)
-            def_handlers.append(ss_h)
-
-        bh_path = self.paths.get_ipath("boothooks")
-        if bh_path:
-            bh_h = bh_part.BootHookPartHandler(bh_path)
-            def_handlers.append(bh_h)
-
-        upstart_pth = self.paths.upstart_conf_d
-        if upstart_pth:
-            up_h = up_part.UpstartJobPartHandler(upstart_pth)
-            def_handlers.append(up_h)
-
-        return def_handlers
-
-    def register_defaults(self):
+    def register_defaults(self, defs):
         registered = set()
-        for mod in self._get_default_handlers():
+        for mod in defs:
             for t in mod.list_types():
                 if not self.is_registered(t):
                     self.registered[t] = mod

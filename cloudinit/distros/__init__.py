@@ -20,13 +20,14 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+from StringIO import StringIO
+
 import abc
 import copy
 
 from cloudinit import importer
+from cloudinit import log as logging
 from cloudinit import util
-
-from StringIO import StringIO
 
 # TODO: Make this via config??
 IFACE_ACTIONS = {
@@ -34,15 +35,17 @@ IFACE_ACTIONS = {
     'down': ['ifdown', '--all'],
 }
 
+LOG = logging.getLogger(__name__)
+
 
 class Distro(object):
 
     __metaclass__ = abc.ABCMeta
 
-    def __init__(self, cfg, runner):
+    def __init__(self, name, cfg, runner):
         self._runner = runner
-        self._cfg = util.get_cfg_by_path(cfg, ('system_info', ), {})
-        self.name = self._cfg.pop("distro", 'generic')
+        self._cfg = cfg
+        self.name = name
 
     @abc.abstractmethod
     def install_packages(self, pkglist):
@@ -135,10 +138,9 @@ class Distro(object):
                      action, cmd)
             (_out, err) = util.subp(cmd)
             if len(err):
-                LOG.warn("Running %s resulted in stderr output: %s",
-                         IF_UP_CMD, err)
+                LOG.warn("Running %s resulted in stderr output: %s", cmd, err)
             return True
-        except util.ProcessExecutionError as exc:
+        except util.ProcessExecutionError:
             util.logexc(LOG, "Running %s failed", cmd)
             return False
 
@@ -152,7 +154,8 @@ def fetch(distro_name, mods=(__name__, )):
         except RuntimeError:
             pass
     if not mod:
-        raise RuntimeError("No distribution found for distro %s" % (distro_name))
+        raise RuntimeError("No distribution found for distro %s"
+                           % (distro_name))
     distro_cls = getattr(mod, 'Distro')
     return distro_cls
     

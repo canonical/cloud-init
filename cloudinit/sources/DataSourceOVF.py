@@ -21,10 +21,10 @@
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 from xml.dom import minidom
+
 import base64
 import os
 import re
-import tempfile
 
 from cloudinit import log as logging
 from cloudinit import sources
@@ -51,7 +51,7 @@ class DataSourceOVF(sources.DataSource):
         ud = ""
 
         defaults = {
-            "instance-id": "iid-dsovf"
+            "instance-id": "iid-dsovf",
         }
 
         (seedfile, contents) = get_ovf_env(self.paths.seed_dir)
@@ -198,7 +198,7 @@ def transport_iso9660(require_iso=True):
     for dev in devs:
         fullp = os.path.join("/dev/", dev)
 
-        if (fullp in mounted or
+        if (fullp in mounts or
             not cdmatch.match(dev) or os.path.isdir(fullp)):
             continue
 
@@ -210,7 +210,8 @@ def transport_iso9660(require_iso=True):
             continue
 
         try:
-            (fname, contents) = utils.mount_cb(fullp, get_ovf_env, mtype="iso9660")
+            (fname, contents) = util.mount_cb(fullp,
+                                               get_ovf_env, mtype="iso9660")
         except util.MountFailedError:
             util.logexc(LOG, "Failed mounting %s", fullp)
             continue
@@ -265,7 +266,8 @@ def get_properties(contents):
         raise XmlError("No 'PropertySection's")
 
     props = {}
-    propElems = find_child(propSections[0], lambda n: n.localName == "Property")
+    propElems = find_child(propSections[0],
+                            (lambda n: n.localName == "Property"))
 
     for elem in propElems:
         key = elem.attributes.getNamedItemNS(envNsURI, "key").value

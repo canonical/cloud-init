@@ -32,9 +32,9 @@ LOG = logging.getLogger(__name__)
 
 
 class BootHookPartHandler(ud.PartHandler):
-    def __init__(self, boothook_dir, instance_id):
+    def __init__(self, paths, instance_id, **_kwargs):
         ud.PartHandler.__init__(self, PER_ALWAYS)
-        self.boothook_dir = boothook_dir
+        self.boothook_dir = paths.get_ipath("boothooks")
         self.instance_id = instance_id
 
     def list_types(self):
@@ -54,13 +54,15 @@ class BootHookPartHandler(ud.PartHandler):
             start = len(prefix) + 1
 
         filepath = os.path.join(self.boothook_dir, filename)
-        util.write_file(filepath, payload[start:], 0700)
+        contents = payload[start:]
+        util.write_file(filepath, contents, 0700)
         try:
             env = os.environ.copy()
-            env['INSTANCE_ID'] = str(self.instance_id)
+            if self.instance_id:
+                env['INSTANCE_ID'] = str(self.instance_id)
             util.subp([filepath], env=env)
-        except util.ProcessExecutionError as e:
+        except util.ProcessExecutionError:
             util.logexc(LOG, "Boothooks script %s execution error", filepath)
-        except Exception as e:
+        except Exception:
             util.logexc(LOG, ("Boothooks unknown "
                               "error when running %s"), filepath)

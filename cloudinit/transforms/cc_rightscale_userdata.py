@@ -53,16 +53,19 @@ def handle(name, _cfg, cloud, log, _args):
     try:
         ud = cloud.get_userdata_raw()
     except:
-        log.warn("Failed to get raw userdata in module %s", name)
+        log.warn("Failed to get raw userdata in transform %s", name)
         return
 
     try:
         mdict = parse_qs(ud)
         if not mdict or not my_hookname in mdict:
-            log.debug("Skipping module %s, did not find %s in parsed raw userdata", name, my_hookname)
+            log.debug(("Skipping transform %s, "
+                       "did not find %s in parsed"
+                       " raw userdata"), name, my_hookname)
             return
     except:
-        log.warn("Failed to parse query string %s into a dictionary", ud)
+        util.logexc(log, ("Failed to parse query string %s"
+                           " into a dictionary"), ud)
         raise
 
     wrote_fns = []
@@ -83,7 +86,8 @@ def handle(name, _cfg, cloud, log, _args):
                 wrote_fns.append(fname)
         except Exception as e:
             captured_excps.append(e)
-            util.logexc(log, "%s failed to read %s and write %s", my_name, url, fname)
+            util.logexc(log, "%s failed to read %s and write %s",
+                        my_name, url, fname)
 
     if wrote_fns:
         log.debug("Wrote out rightscale userdata to %s files", len(wrote_fns))
@@ -93,6 +97,6 @@ def handle(name, _cfg, cloud, log, _args):
         log.debug("%s urls were skipped or failed", skipped)
 
     if captured_excps:
-        log.warn("%s failed with exceptions, re-raising the last one", len(captured_excps))
+        log.warn("%s failed with exceptions, re-raising the last one",
+                 len(captured_excps))
         raise captured_excps[-1]
-

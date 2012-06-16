@@ -22,7 +22,7 @@ import sys
 
 from cloudinit import util
 
-from string import letters, digits
+from string import letters, digits  # pylint: disable=W0402
 
 # We are removing certain 'painful' letters/numbers
 pw_set = (letters.translate(None, 'loLOI') +
@@ -71,11 +71,13 @@ def handle(_name, cfg, cloud, log, args):
             util.subp(['chpasswd'], ch_in)
         except Exception as e:
             errors.append(e)
-            util.logexc(log, "Failed to set passwords with chpasswd for %s", users)
+            util.logexc(log,
+                        "Failed to set passwords with chpasswd for %s", users)
 
         if len(randlist):
-            sys.stderr.write("%s\n%s\n" % ("Set the following 'random' passwords\n",
-                '\n'.join(randlist)))
+            blurb = ("Set the following 'random' passwords\n",
+                     '\n'.join(randlist))
+            sys.stderr.write("%s\n%s\n" % blurb)
 
         if expire:
             expired_users = []

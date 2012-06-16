@@ -45,8 +45,8 @@ from cloudinit.settings import PER_INSTANCE
 #    informational purposes. If non existent all distros are assumed and 
 #    no warning occurs.
 
-frequency = settings.PER_INSTANCE
+frequency = PER_INSTANCE
 
 
-def handle(name, _cfg, _cloud, _log, _args):
-    print("Hi from %s" % (name))
+def handle(name, _cfg, _cloud, log, _args):
+    log.debug("Hi from transform %s", name)

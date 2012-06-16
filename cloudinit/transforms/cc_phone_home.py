@@ -24,9 +24,8 @@ from cloudinit import util
 
 from cloudinit.settings import PER_INSTANCE
 
-from time import sleep
-
 frequency = PER_INSTANCE
+
 post_list_all = ['pub_key_dsa', 'pub_key_rsa', 'pub_key_ecdsa',
                  'instance_id', 'hostname']
 
@@ -49,7 +48,7 @@ def handle(name, cfg, cloud, log, args):
         ph_cfg = cfg['phone_home']
 
     if 'url' not in ph_cfg:
-        log.warn(("Skipping module named %s, "
+        log.warn(("Skipping transform named %s, "
                   "no 'url' found in 'phone_home' configuration"), name)
         return
 
@@ -60,7 +59,8 @@ def handle(name, cfg, cloud, log, args):
         tries = int(tries)
     except:
         tries = 10
-        util.logexc(log, "Configuration entry 'tries' is not an integer, using %s", tries)
+        util.logexc(log, ("Configuration entry 'tries'"
+                          " is not an integer, using %s instead"), tries)
 
     if post_list == "all":
         post_list = post_list_all
@@ -75,23 +75,37 @@ def handle(name, cfg, cloud, log, args):
         'pub_key_ecdsa': '/etc/ssh/ssh_host_ecdsa_key.pub',
     }
 
-    for n, path in pubkeys.iteritems():
+    for (n, path) in pubkeys.iteritems():
         try:
             all_keys[n] = util.load_file(path)
         except:
-            util.logexc(log, "%s: failed to open, can not phone home that data", path)
+            util.logexc(log, ("%s: failed to open, can not"
+                              " phone home that data"), path)
 
     submit_keys = {}
     for k in post_list:
         if k in all_keys:
             submit_keys[k] = all_keys[k]
         else:
-            submit_keys[k] = "N/A"
-            log.warn("Requested key %s from 'post' configuration list not available", k)
+            submit_keys[k] = None
+            log.warn(("Requested key %s from 'post'"
+                      " configuration list not available"), k)
 
-    url = templater.render_string(url, {'INSTANCE_ID': all_keys['instance_id']})
+    # Get them read to be posted
+    real_submit_keys = {}
+    for (k, v) in submit_keys.iteritems():
+        if v is None:
+            real_submit_keys[k] = 'N/A'
+        else:
+            real_submit_keys[k] = str(v)
 
+    # Incase the url is parameterized
+    url_params = {
+        'INSTANCE_ID': all_keys['instance_id'],
+    }
+    url = templater.render_string(url, url_params)
     try:
-        uhelp.readurl(url, data=submit_keys, retries=tries, sec_between=3)
+        uhelp.readurl(url, data=real_submit_keys, retries=tries, sec_between=3)
     except:
-        util.logexc(log, "Failed to post phone home data to %s in %s tries", url, tries)
+        util.logexc(log, ("Failed to post phone home data to"
+                          " %s in %s tries"), url, tries)

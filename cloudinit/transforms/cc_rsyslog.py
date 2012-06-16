@@ -36,7 +36,8 @@ def handle(name, cfg, cloud, log, _args):
 
     # process 'rsyslog'
     if not 'rsyslog' in cfg:
-        log.debug("Skipping module named %s, no 'rsyslog' key in configuration", name)
+        log.debug(("Skipping transform named %s,"
+                   " no 'rsyslog' key in configuration"), name)
         return
 
     def_dir = cfg.get('rsyslog_dir', DEF_DIR)
@@ -62,15 +63,16 @@ def handle(name, cfg, cloud, log, _args):
         if not filename.startswith("/"):
             filename = os.path.join(def_dir, filename)
 
+        # Truncate filename first time you see it
         omode = "ab"
-        # truncate filename first time you see it
         if filename not in files:
             omode = "wb"
             files.append(filename)
 
         try:
-            util.write_file(filename, content + "\n", omode=omode)
-        except Exception as e:
+            contents = "%s\n" % (content)
+            util.write_file(filename, contents, omode=omode)
+        except Exception:
             util.logexc(log, "Failed to write to %s", filename)
 
     # Attempt to restart syslogd
@@ -87,8 +89,8 @@ def handle(name, cfg, cloud, log, _args):
         log.debug("Restarting rsyslog")
         util.subp(['service', 'rsyslog', 'restart'])
         restarted = True
-    except Exception as e:
-        util.logexc("Failed restarting rsyslog")
+    except Exception:
+        util.logexc(log, "Failed restarting rsyslog")
 
     if restarted:
         # This only needs to run if we *actually* restarted

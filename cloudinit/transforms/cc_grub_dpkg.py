@@ -54,9 +54,9 @@ def handle(_name, cfg, _cloud, log, _args):
     # now idevs and idevs_empty are set to determined values
     # or, those set by user
 
-    dconf_sel = ("grub-pc grub-pc/install_devices string %s\n"
+    dconf_sel = (("grub-pc grub-pc/install_devices string %s\n"
                  "grub-pc grub-pc/install_devices_empty boolean %s\n") %
-                (idevs, idevs_empty)
+                 (idevs, idevs_empty))
 
     log.debug("Setting grub debconf-set-selections with '%s','%s'" %
         (idevs, idevs_empty))

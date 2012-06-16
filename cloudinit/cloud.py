@@ -23,8 +23,6 @@
 import copy
 import os
 
-from cloudinit import distros
-from cloudinit import helpers
 from cloudinit import log as logging
 
 LOG = logging.getLogger(__name__)

@@ -79,7 +79,7 @@ class DataSourceCloudStack(sources.DataSource):
             tot_time = (time.time() - start)
             LOG.debug("Crawl of metadata service took %s", int(tot_time))
             return True
-        except Exception as e:
+        except Exception:
             util.logexc(LOG, ('Failed fetching from metadata '
                               'service %s'), self.metadata_address)
             return False

@@ -20,7 +20,6 @@
 
 from string import whitespace  # pylint: disable=W0402
 
-import os
 import re
 
 from cloudinit import util
@@ -28,7 +27,7 @@ from cloudinit import util
 # shortname matches 'sda', 'sda1', 'xvda', 'hda', 'sdb', xvdb, vda, vdd1
 shortname_filter = r"^[x]{0,1}[shv]d[a-z][0-9]*$"
 shortname = re.compile(shortname_filter)
-ws = re.compile("[%s]+" % whitespace)
+ws = re.compile("[%s]+" % (whitespace))
 
 
 def is_mdname(name):
@@ -65,13 +64,14 @@ def handle(_name, cfg, cloud, log, _args):
             continue
 
         startname = str(cfgmnt[i][0])
-        LOG.debug("Attempting to determine the real name of %s", startname)
+        log.debug("Attempting to determine the real name of %s", startname)
 
         # workaround, allow user to specify 'ephemeral'
         # rather than more ec2 correct 'ephemeral0'
         if startname == "ephemeral":
             cfgmnt[i][0] = "ephemeral0"
-            log.debug("Adjusted mount option %s name from ephemeral to ephemeral0", (i + 1))
+            log.debug(("Adjusted mount option %s "
+                       "name from ephemeral to ephemeral0"), (i + 1))
 
         if is_mdname(startname):
             newname = cloud.device_name_to_device(startname)
@@ -136,7 +136,8 @@ def handle(_name, cfg, cloud, log, _args):
                 break
 
         if cfgmnt_has:
-            log.debug("Not including %s, already previously included", startname)
+            log.debug(("Not including %s, already"
+                       " previously included"), startname)
             continue
         cfgmnt.append(defmnt)
 
@@ -159,7 +160,7 @@ def handle(_name, cfg, cloud, log, _args):
     dirs = []
     for line in actlist:
         # write 'comment' in the fs_mntops, entry,  claiming this
-        line[3] = "%s,comment=cloudconfig" % line[3]
+        line[3] = "%s,%s" % (line[3], comment)
         if line[2] == "swap":
             needswap = True
         if line[1].startswith("/"):
@@ -168,7 +169,7 @@ def handle(_name, cfg, cloud, log, _args):
 
     fstab_lines = []
     fstab = util.load_file("/etc/fstab")
-    for line in fstab.read().splitlines():
+    for line in fstab.splitlines():
         try:
             toks = ws.split(line)
             if toks[3].find(comment) != -1:

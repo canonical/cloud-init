@@ -19,13 +19,10 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-from ConfigParser import ConfigParser
 from StringIO import StringIO
 
-import os
-
+from cloudinit import cfg as config
 from cloudinit import util
-from cloudinit import cfg
 
 pubcert_file = "/etc/mcollective/ssl/server-public.pem"
 pricert_file = "/etc/mcollective/ssl/server-private.pem"
@@ -35,7 +32,7 @@ def handle(name, cfg, cloud, log, _args):
 
     # If there isn't a mcollective key in the configuration don't do anything
     if 'mcollective' not in cfg:
-        log.debug(("Skipping module named %s, "
+        log.debug(("Skipping transform named %s, "
                    "no 'mcollective' key in configuration"), name)
         return
 
@@ -47,7 +44,7 @@ def handle(name, cfg, cloud, log, _args):
     # ... and then update the mcollective configuration
     if 'conf' in mcollective_cfg:
         # Create object for reading server.cfg values
-        mcollective_config = cfg.DefaultingConfigParser()
+        mcollective_config = config.DefaultingConfigParser()
         # Read server.cfg values from original file in order to be able to mix
         # the rest up
         old_contents = util.load_file('/etc/mcollective/server.cfg')

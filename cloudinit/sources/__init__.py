@@ -22,9 +22,8 @@
 
 from cloudinit import importer
 from cloudinit import log as logging
+from cloudinit import user_data as ud
 from cloudinit import util
-
-from cloudinit.user_data import processor as ud_proc
 
 DEP_FILESYSTEM = "FILESYSTEM"
 DEP_NETWORK = "NETWORK"
@@ -42,7 +41,6 @@ class DataSource(object):
         self.sys_cfg = sys_cfg
         self.distro = distro
         self.paths = paths
-        self.userdata_proc = ud_proc.UserDataProcessor(paths)
         self.userdata = None
         self.metadata = None
         self.userdata_raw = None
@@ -55,7 +53,7 @@ class DataSource(object):
     def get_userdata(self):
         if self.userdata is None:
             raw_data = self.get_userdata_raw()
-            self.userdata = self.userdata_proc.process(raw_data)
+            self.userdata = ud.UserDataProcessor(self.paths).process(raw_data)
         return self.userdata
 
     def get_userdata_raw(self):
@@ -73,7 +71,7 @@ class DataSource(object):
         if not self.metadata or 'public-keys' not in self.metadata:
             return keys
 
-        if isinstance(self.metadata['public-keys'], (str)):
+        if isinstance(self.metadata['public-keys'], (basestring, str)):
             return str(self.metadata['public-keys']).splitlines()
 
         if isinstance(self.metadata['public-keys'], (list, set)):
@@ -84,11 +82,12 @@ class DataSource(object):
                 # lp:506332 uec metadata service responds with
                 # data that makes boto populate a string for 'klist' rather
                 # than a list.
-                if isinstance(klist, (str)):
+                if isinstance(klist, (str, basestring)):
                     klist = [klist]
                 if isinstance(klist, (list, set)):
                     for pkey in klist:
-                        # there is an empty string at the end of the keylist, trim it
+                        # There is an empty string at
+                        # the end of the keylist, trim it
                         if pkey:
                             keys.append(pkey)
 
@@ -159,13 +158,14 @@ def find_source(sys_cfg, distro, paths, ds_deps, cfg_list, pkg_list):
     ds_list = list_sources(cfg_list, ds_deps, pkg_list)
     ds_names = [util.obj_name(f) for f in ds_list]
     LOG.info("Searching for data source in: %s", ds_names)
+
     for cls in ds_list:
         ds = util.obj_name(cls)
         try:
             s = cls(distro, sys_cfg, paths)
             if s.get_data():
                 return (s, ds)
-        except Exception as e:
+        except Exception:
             util.logexc(LOG, "Getting data from %s failed", ds)
 
     msg = "Did not find any data source, searched classes: %s" % (ds_names)
@@ -178,7 +178,8 @@ def find_source(sys_cfg, distro, paths, ds_deps, cfg_list, pkg_list):
 # return an ordered list of classes that match
 def list_sources(cfg_list, depends, pkg_list):
     src_list = []
-    LOG.info("Looking for for data source in: %s, %s that match %s", cfg_list, pkg_list, depends)
+    LOG.info(("Looking for for data source in: %s,"
+              " %s that matches %s"), cfg_list, pkg_list, depends)
     for ds_coll in cfg_list:
         ds_name = str(ds_coll)
         if not ds_name.startswith(DS_PREFIX):
@@ -201,8 +202,8 @@ def list_sources(cfg_list, depends, pkg_list):
             if not cls_matches:
                 continue
             src_list.extend(cls_matches)
-            LOG.debug("Found a match for data source %s in %s with matches %s", 
-                        ds_name, mod, cls_matches)
+            LOG.debug(("Found a match for data source %s"
+                       " in %s with matches %s"), ds_name, mod, cls_matches)
             break
     return src_list
 

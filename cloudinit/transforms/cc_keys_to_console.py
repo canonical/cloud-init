@@ -18,23 +18,34 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+import os
+
 from cloudinit.settings import PER_INSTANCE
 from cloudinit import util
 
 frequency = PER_INSTANCE
 
+# This is a tool that cloud init provides
+helper_tool = '/usr/lib/cloud-init/write-ssh-key-fingerprints'
 
-def handle(_name, cfg, _cloud, log, _args):
-    cmd = ['/usr/lib/cloud-init/write-ssh-key-fingerprints']
-    fp_blacklist = util.get_cfg_option_list_or_str(cfg,
+
+def handle(name, cfg, _cloud, log, _args):
+    if not os.path.exists(helper_tool):
+        log.warn(("Unable to activate transform %s,"
+                  " helper tool not found at %s"), name, helper_tool)
+        return
+
+    fp_blacklist = util.get_cfg_option_list(cfg,
         "ssh_fp_console_blacklist", [])
-    key_blacklist = util.get_cfg_option_list_or_str(cfg,
+    key_blacklist = util.get_cfg_option_list(cfg,
         "ssh_key_console_blacklist", ["ssh-dss"])
+
     try:
+        cmd = [helper_tool]
         cmd.append(','.join(fp_blacklist))
         cmd.append(','.join(key_blacklist))
-        (stdout, stderr) = util.subp(cmd)
+        (stdout, _stderr) = util.subp(cmd)
         util.write_file('/dev/console', stdout)
     except:
-        log.warn("Writing keys to console failed!")
+        log.warn("Writing keys to /dev/console failed!")
         raise

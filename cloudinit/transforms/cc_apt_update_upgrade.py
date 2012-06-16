@@ -71,7 +71,7 @@ def handle(_name, cfg, cloud, log, _args):
         except:
             util.logexc(log, "Failed to run debconf-set-selections")
 
-    pkglist = util.get_cfg_option_list_or_str(cfg, 'packages', [])
+    pkglist = util.get_cfg_option_list(cfg, 'packages', [])
 
     errors = []
     if update or len(pkglist) or upgrade:
@@ -96,7 +96,9 @@ def handle(_name, cfg, cloud, log, _args):
             errors.append(e)
 
     if len(errors):
-        raise errors[0]
+        log.warn("%s failed with exceptions, re-raising the last one",
+                 len(errors))
+        raise errors[-1]
 
 
 def mirror2lists_fileprefix(mirror):
@@ -186,7 +188,8 @@ def add_sources(srclist, template_params=None):
         try:
             util.write_file(ent['filename'], source + "\n", omode="ab")
         except:
-            errorlist.append([source, "failed write to file %s" % ent['filename']])
+            errorlist.append([source,
+                             "failed write to file %s" % ent['filename']])
 
     return errorlist
 
@@ -219,9 +222,10 @@ def find_apt_mirror(cloud, cfg):
             doms.extend((".localdomain", "",))
 
             mirror_list = []
+            distro = cloud.distro.name
             mirrorfmt = "http://%s-mirror%s/%s" % (distro, "%s", distro)
             for post in doms:
-                mirror_list.append(mirrorfmt % post)
+                mirror_list.append(mirrorfmt % (post))
 
             mirror = util.search_for_mirror(mirror_list)
 

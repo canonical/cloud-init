@@ -33,10 +33,14 @@ def handle(name, cfg, _cloud, log, args):
             ids = args[1:]
     else:
         user = util.get_cfg_option_str(cfg, "user", "ubuntu")
-        ids = util.get_cfg_option_list_or_str(cfg, "ssh_import_id", [])
+        ids = util.get_cfg_option_list(cfg, "ssh_import_id", [])
 
     if len(ids) == 0:
-        log.debug("Skipping module named %s, no ids found to import", name)
+        log.debug("Skipping transform named %s, no ids found to import", name)
+        return
+
+    if not user:
+        log.debug("Skipping transform named %s, no user found to import", name)
         return
 
     cmd = ["sudo", "-Hu", user, "ssh-import-id"] + ids

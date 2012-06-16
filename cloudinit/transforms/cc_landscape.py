@@ -55,7 +55,8 @@ def handle(name, cfg, _cloud, log, _args):
     /etc/landscape/client.conf
     """
     if not ConfigObj:
-        log.warn("'ConfigObj' support not enabled, running %s disabled", name)
+        log.warn(("'ConfigObj' support not available,"
+                  " running transform %s disabled"), name)
         return
 
     ls_cloudcfg = cfg.get("landscape", {})

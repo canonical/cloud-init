@@ -21,16 +21,17 @@ from cloudinit import util
 # Note: see http://saltstack.org/topics/installation/
 
 
-def handle(name, cfg, cloud, _log, _args):
+def handle(name, cfg, cloud, log, _args):
     # If there isn't a salt key in the configuration don't do anything
     if 'salt_minion' not in cfg:
-        log.debug("Skipping module named %s, no 'salt_minion' key in configuration", name)
+        log.debug(("Skipping transform named %s,"
+                   " no 'salt_minion' key in configuration"), name)
         return
 
     salt_cfg = cfg['salt_minion']
 
     # Start by installing the salt package ...
-    cloud.distro.install_packages(("salt",))
+    cloud.distro.install_packages(["salt"])
     
     # Ensure we can configure files at the right dir
     config_dir = salt_cfg.get("config_dir", '/etc/salt')

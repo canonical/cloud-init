@@ -32,7 +32,7 @@ final_message_def = ("Cloud-init v. {{version}} finished at {{timestamp}}."
                      " Up {{uptime}} seconds.")
 
 
-def handle(name, cfg, cloud, log, args):
+def handle(_name, cfg, cloud, log, args):
 
     msg_in = None
     if len(args) != 0:
@@ -60,7 +60,7 @@ def handle(name, cfg, cloud, log, args):
         # Use stdout, stderr or the logger??
         content = templater.render_string(msg_in, subs)
         sys.stderr.write("%s\n" % (content))
-    except Exception as e:
+    except Exception:
         util.logexc(log, "Failed to render final message template")
 
     boot_fin_fn = cloud.paths.boot_finished

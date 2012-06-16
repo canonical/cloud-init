@@ -106,7 +106,8 @@ class DataSourceNoCloud(sources.DataSource):
                 if e.errno != errno.ENOENT:
                     raise
             except util.MountFailedError:
-                util.logexc(LOG, "Failed to mount %s when looking for seed", dev)
+                util.logexc(LOG, ("Failed to mount %s"
+                                  " when looking for data"), dev)
 
         # There was no indication on kernel cmdline or data
         # in the seeddir suggesting this handler should be used.

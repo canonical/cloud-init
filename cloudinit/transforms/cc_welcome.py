@@ -35,9 +35,9 @@ welcome_message_def = ("Cloud-init v. {{version}} starting stage {{stage}} at "
 frequency = PER_ALWAYS
 
 
-def handle(name, cfg, cloud, log, args):
+def handle(_name, cfg, cloud, log, args):
 
-    welcome_msg = util.get_cfg_option_str(cfg, "welcome_msg"):
+    welcome_msg = util.get_cfg_option_str(cfg, "welcome_msg")
     if not welcome_msg:
         tpl_fn = cloud.get_template_filename("welcome_msg")
         if tpl_fn:
@@ -54,7 +54,7 @@ def handle(name, cfg, cloud, log, args):
         'stage': stage,
         'version': version.version_string(),
         'uptime': util.uptime(),
-        'timestamp', util.time_rfc2822(),
+        'timestamp': util.time_rfc2822(),
     }
     try:
         contents = templater.render_string(welcome_msg, tpl_params)

@@ -31,19 +31,23 @@ try:
 except ImportError:
     ConfigObj = None
 
-from cloudinit.settings import (PER_INSTANCE, FREQUENCIES)
 from cloudinit.settings import (OLD_CLOUD_CONFIG)
+from cloudinit.settings import (PER_INSTANCE, FREQUENCIES)
+
+from cloudinit.handlers import boot_hook as bh_part
+from cloudinit.handlers import cloud_config as cc_part
+from cloudinit.handlers import shell_script as ss_part
+from cloudinit.handlers import upstart_job as up_part
 
 from cloudinit import cloud
 from cloudinit import distros
-from cloudinit import modules
 from cloudinit import helpers
 from cloudinit import importer
 from cloudinit import log as logging
 from cloudinit import sources
-from cloudinit import util
-
+from cloudinit import transforms
 from cloudinit import user_data as ud
+from cloudinit import util
 
 LOG = logging.getLogger(__name__)
 
@@ -73,12 +77,19 @@ class Init(object):
     def distro(self):
         if not self._distro:
             d_cfg = util.get_cfg_by_path(self.cfg, ('system_info'), {})
+            # Ensure its a dictionary
+            if not isinstance(d_cfg, (dict)):
+                d_cfg = {}
             # Ensure not modified indirectly
             d_cfg = copy.deepcopy(d_cfg)
+            # Remove this since its path config, not distro config
             d_cfg.pop('paths', None)
-            distro_cls = distros.fetch(sys_cfg.pop('distro', 'ubuntu'))
+            # Try to find the right class to use
+            distro_name = d_cfg.pop('distro', 'ubuntu')
+            distro_cls = distros.fetch(distro_name)
             LOG.debug("Using distro class %s", distro_cls)
-            distro = distro_cls(d_cfg, helpers.Runners(self.paths))
+            distro = distro_cls(distro_name, d_cfg,
+                                helpers.Runners(self.paths))
             self._distro = distro
         return self._distro
 
@@ -93,7 +104,8 @@ class Init(object):
     @property
     def paths(self):
         if not self._paths:
-            path_info = util.get_cfg_by_path(self.cfg, ('system_info', 'paths'), {})
+            path_info = util.get_cfg_by_path(self.cfg,
+                                            ('system_info', 'paths'), {})
             # Ensure not modified indirectly
             path_info = copy.deepcopy(path_info)
             self._paths = helpers.Paths(path_info, self.datasource)
@@ -156,7 +168,7 @@ class Init(object):
             # by using the instance link, if purge_cache was called
             # the file wont exist
             return pickle.loads(util.load_file(pickled_fn))
-        except Exception as e:
+        except Exception:
             util.logexc(LOG, "Failed loading pickled datasource from %s",
                         pickled_fn)
             return None
@@ -166,7 +178,7 @@ class Init(object):
         try:
             contents = pickle.dumps(self.datasource)
             util.write_file(pickled_fn, contents, mode=0400)
-        except Exception as e:
+        except Exception:
             util.logexc(LOG, "Failed pickling datasource to %s", pickled_fn)
             return False
 
@@ -192,7 +204,8 @@ class Init(object):
             # (which will affect user-data handlers down the line...)
             sys_cfg = copy.deepcopy(self.cfg)
             ds_deps = copy.deepcopy(self.ds_deps)
-            (ds, dsname) = sources.find_source(sys_cfg, self.distro, self.paths,
+            (ds, dsname) = sources.find_source(sys_cfg, self.distro,
+                                               self.paths,
                                                ds_deps, cfg_list, pkg_list)
             LOG.debug("Loaded datasource %s - %s", dsname, ds)
         self.datasource = ds
@@ -270,6 +283,20 @@ class Init(object):
         processed_ud = "%s" % (self.datasource.get_userdata())
         util.write_file(self.paths.get_ipath('userdata'), processed_ud, 0600)
 
+    def _default_userdata_handlers(self):
+        opts = {
+            'paths': self.paths,
+            'instance_id': self.datasource.get_instance_id(),
+        }
+        # TODO Hmmm, should we dynamically import these??
+        def_handlers = [
+            cc_part.CloudConfigPartHandler(**opts),
+            ss_part.ShellScriptPartHandler(**opts),
+            bh_part.BootHookPartHandler(**opts),
+            up_part.UpstartJobPartHandler(**opts),
+        ]
+        return def_handlers
+
     def consume(self, frequency=PER_INSTANCE):
         cdir = self.paths.get_cpath("handlers")
         idir = self.paths.get_ipath("handlers")
@@ -279,8 +306,11 @@ class Init(object):
         sys.path.insert(0, cdir)
         sys.path.insert(0, idir)
 
+        # Ensure datasource fetched before activation (just incase)
+        ud_obj = self.datasource.get_userdata()
+
         # This keeps track of all the active handlers
-        c_handlers = helpers.ContentHandlers(self.paths)
+        c_handlers = helpers.ContentHandlers(paths=self.paths)
 
         # Add handlers in cdir
         potential_handlers = util.find_modules(cdir)
@@ -292,13 +322,10 @@ class Init(object):
             except:
                 util.logexc(LOG, "Failed to register handler from %s", fname)
 
-        def_handlers = c_handlers.register_defaults()
-        if def_handlers:
-            LOG.debug("Registered default handlers for %s", def_handlers)
-
-
-        # Ensure userdata fetched before activation (just incase)
-        ud_obj = self.datasource.get_userdata()
+        def_handlers = self._default_userdata_handlers()
+        applied_def_handlers = c_handlers.register_defaults(def_handlers)
+        if applied_def_handlers:
+            LOG.debug("Registered default handlers: %s", applied_def_handlers)
 
         # Form our cloud interface
         data = self.cloudify()
@@ -334,11 +361,11 @@ class Init(object):
 
 
 class Transforms(object):
-    def __init__(self, cloudobj, cfgfile=None):
-        self.datasource = cloudobj.datasource
+    def __init__(self, init, cfgfile=None):
+        self.datasource = init.fetch()
         self.cfgfile = cfgfile
-        self.basecfg = copy.deepcopy(cloudobj.cfg)
-        self.cloudobj = cloudobj
+        self.basecfg = copy.deepcopy(init.cfg)
+        self.init = init
         # Created on first use
         self._cachedcfg = None
 
@@ -409,25 +436,28 @@ class Transforms(object):
                                  (item, util.obj_name(item)))
         return module_list
 
-    def _transforms_modules(self, raw_mods):
+    def _fixup_transforms(self, raw_mods):
         mostly_mods = []
         for raw_mod in raw_mods:
             raw_name = raw_mod['mod']
             freq = raw_mod.get('freq')
             run_args = raw_mod.get('args') or []
-            mod_name = modules.form_module_name(raw_name)
+            mod_name = transforms.form_module_name(raw_name)
             if not mod_name:
                 continue
             if freq and freq not in FREQUENCIES:
-                LOG.warn("Config specified module %s has an unknown frequency %s", raw_name, freq)
+                LOG.warn(("Config specified transform %s"
+                          " has an unknown frequency %s"), raw_name, freq)
                 # Reset it so when ran it will get set to a known value
                 freq = None
-            mod = modules.fixup_module(importer.import_module(mod_name))
+            mod = transforms.fixup_module(importer.import_module(mod_name))
             mostly_mods.append([mod, raw_name, freq, run_args])
         return mostly_mods
 
     def _run_transforms(self, mostly_mods):
         failures = []
+        d_name = self.init.distro.name
+        c_cloud = self.init.cloudify()
         for (mod, name, freq, args) in mostly_mods:
             try:
                 # Try the modules frequency, otherwise fallback to a known one
@@ -436,17 +466,17 @@ class Transforms(object):
                 if not freq in FREQUENCIES:
                     freq = PER_INSTANCE
                 worked_distros = mod.distros
-                if worked_distros and self.cloud.distro.name() not in worked_distros:
-                    LOG.warn(("Module %s is verified on %s distros"
+                if (worked_distros and d_name not in worked_distros):
+                    LOG.warn(("Transform %s is verified on %s distros"
                               " but not on %s distro. It may or may not work"
-                              " correctly."), name, worked_distros,
-                              self.cloud.distro.name())
+                              " correctly."), name, worked_distros, d_name)
                 # Deep copy the config so that modules can't alter it
+                # Use the transforms logger and not our own
                 func_args = [name, copy.deepcopy(self.cfg),
-                             self.cloudobj, LOG, args]
-                # This name will affect the semphapore name created
+                             c_cloud, transforms.LOG, args]
+                # This name will affect the semaphore name created
                 run_name = "config-%s" % (name)
-                self.cloudobj.run(run_name, mod.handle, func_args, freq=freq)
+                c_cloud.run(run_name, mod.handle, func_args, freq=freq)
             except Exception as e:
                 util.logexc(LOG, "Running %s failed", mod)
                 failures.append((name, e))
@@ -454,5 +484,5 @@ class Transforms(object):
 
     def run(self, name):
         raw_mods = self._read_transforms(name)
-        mostly_mods = self._transforms_modules(raw_mods)
+        mostly_mods = self._fixup_transforms(raw_mods)
         return self._run_transforms(mostly_mods)

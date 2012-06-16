@@ -32,10 +32,9 @@ LOG = logging.getLogger(__name__)
 
 
 class ShellScriptPartHandler(ud.PartHandler):
-
-    def __init__(self, script_dir):
+    def __init__(self, paths, **_kwargs):
         ud.PartHandler.__init__(self, PER_ALWAYS)
-        self.script_dir = script_dir
+        self.script_dir = paths.get_ipath_cur('scripts')
 
     def list_types(self):
         return [

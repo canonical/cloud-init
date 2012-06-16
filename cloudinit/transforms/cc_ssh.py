@@ -65,8 +65,7 @@ def handle(_name, cfg, cloud, log, _args):
                 tgt_fn = key2file[key][0]
                 tgt_perms = key2file[key][1]
                 util.write_file(tgt_fn, val, tgt_perms)
-    
-        cmd = 'o=$(ssh-keygen -yf "%s") && echo "$o" root@localhost > "%s"'
+
         for priv, pub in priv2pub.iteritems():
             if pub in cfg['ssh_keys'] or not priv in cfg['ssh_keys']:
                 continue
@@ -78,11 +77,15 @@ def handle(_name, cfg, cloud, log, _args):
                     util.subp(cmd, capture=False)
                 log.debug("Generated a key for %s from %s", pair[0], pair[1])
             except:
-                util.logexc(log, "Failed generated a key for %s from %s", pair[0], pair[1])
+                util.logexc(log, ("Failed generated a key"
+                                  " for %s from %s"), pair[0], pair[1])
     else:
         # if not, generate them
-        for keytype in util.get_cfg_option_list_or_str(cfg, 'ssh_genkeytypes', generate_keys):
-            keyfile = '/etc/ssh/ssh_host_%s_key' % keytype
+        genkeys = util.get_cfg_option_list(cfg,
+                                            'ssh_genkeytypes', 
+                                            generate_keys)
+        for keytype in genkeys:
+            keyfile = '/etc/ssh/ssh_host_%s_key' % (keytype)
             if not os.path.exists(keyfile):
                 cmd = ['ssh-keygen', '-t', keytype, '-N', '', '-f', keyfile]
                 try:
@@ -90,26 +93,27 @@ def handle(_name, cfg, cloud, log, _args):
                     with util.SeLinuxGuard("/etc/ssh", recursive=True):
                         util.subp(cmd, capture=False)
                 except:
-                    util.logexc(log, "Failed generating key type %s to file %s", keytype, keyfile)
+                    util.logexc(log, ("Failed generating key type"
+                                      " %s to file %s"), keytype, keyfile)
 
     try:
         user = util.get_cfg_option_str(cfg, 'user')
         disable_root = util.get_cfg_option_bool(cfg, "disable_root", True)
         disable_root_opts = util.get_cfg_option_str(cfg, "disable_root_opts",
-            DISABLE_ROOT_OPTS)
+                                                    DISABLE_ROOT_OPTS)
 
         keys = cloud.get_public_ssh_keys() or []
         if "ssh_authorized_keys" in cfg:
             cfgkeys = cfg["ssh_authorized_keys"]
             keys.extend(cfgkeys)
 
-        apply_credentials(keys, user, disable_root, disable_root_opts, log)
+        apply_credentials(keys, user, disable_root, disable_root_opts)
     except:
         util.logexc(log, "Applying ssh credentials failed!")
 
 
 def apply_credentials(keys, user, disable_root,
-                      disable_root_opts=DISABLE_ROOT_OPTS, log=None):
+                      disable_root_opts=DISABLE_ROOT_OPTS):
 
     keys = set(keys)
     if user:

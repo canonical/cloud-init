@@ -24,31 +24,32 @@ import os
 import pwd
 import socket
 
+from cloudinit import cfg as config
 from cloudinit import util
-from cloudinit import cfg
 
 
 def handle(name, cfg, cloud, log, _args):
     # If there isn't a puppet key in the configuration don't do anything
     if 'puppet' not in cfg:
-        log.debug(("Skipping module named %s,"
+        log.debug(("Skipping transform named %s,"
                    " no 'puppet' configuration found"), name)
         return
 
     puppet_cfg = cfg['puppet']
 
     # Start by installing the puppet package ...
-    cloud.distro.install_packages(("puppet",))
+    cloud.distro.install_packages(["puppet"])
 
     # ... and then update the puppet configuration
     if 'conf' in puppet_cfg:
         # Add all sections from the conf object to puppet.conf
         contents = util.load_file('/etc/puppet/puppet.conf')
         # Create object for reading puppet.conf values
-        puppet_config = cfg.DefaultingConfigParser()
+        puppet_config = config.DefaultingConfigParser()
         # Read puppet.conf values from original file in order to be able to
         # mix the rest up. First clean them up (TODO is this really needed??)
-        cleaned_contents = '\n'.join([i.lstrip() for i in contents.splitlines()])
+        cleaned_lines = [i.lstrip() for i in contents.splitlines()]
+        cleaned_contents = '\n'.join(cleaned_lines)
         puppet_config.readfp(StringIO(cleaned_contents),
                              filename='/etc/puppet/puppet.conf')
         for (cfg_name, cfg) in puppet_cfg['conf'].iteritems():
@@ -81,7 +82,8 @@ def handle(name, cfg, cloud, log, _args):
                     puppet_config.set(cfg_name, o, v)
             # We got all our config as wanted we'll rename
             # the previous puppet.conf and create our new one
-            util.rename('/etc/puppet/puppet.conf', '/etc/puppet/puppet.conf.old')
+            util.rename('/etc/puppet/puppet.conf',
+                        '/etc/puppet/puppet.conf.old')
             contents = puppet_config.stringify()
             util.write_file('/etc/puppet/puppet.conf', contents)
 
@@ -91,7 +93,8 @@ def handle(name, cfg, cloud, log, _args):
                   '-e', 's/^START=.*/START=yes/',
                   '/etc/default/puppet'], capture=False)
     elif os.path.exists('/bin/systemctl'):
-        util.subp(['/bin/systemctl', 'enable', 'puppet.service'], capture=False)
+        util.subp(['/bin/systemctl', 'enable', 'puppet.service'],
+                  capture=False)
     elif os.path.exists('/sbin/chkconfig'):
         util.subp(['/sbin/chkconfig', 'puppet', 'on'], capture=False)
     else:

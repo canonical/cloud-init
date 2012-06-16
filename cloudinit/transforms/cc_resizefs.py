@@ -18,11 +18,8 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import errno
 import os
 import stat
-import sys
-import tempfile
 import time
 
 from cloudinit import util
@@ -46,15 +43,18 @@ def nodeify_path(devpth, where, log):
         if util.is_container():
             log.debug("Inside container, ignoring mknod failure in resizefs")
             return
-        log.warn("Failed to make device node to resize %s at %s", where, devpth)
+        log.warn("Failed to make device node to resize %s at %s",
+                 where, devpth)
         raise
 
 
 def get_fs_type(st_dev, path, log):
     try:
-        fs_type = util.find_devs_with(tag='TYPE', oformat='value',
+        dev_entries = util.find_devs_with(tag='TYPE', oformat='value',
                                          no_cache=True, path=path)
-        return fs_type
+        if not dev_entries:
+            return None
+        return dev_entries[0].strip()
     except util.ProcessExecutionError:
         util.logexc(log, ("Failed to get filesystem type"
                           " of maj=%s, min=%s for path %s"),
@@ -69,12 +69,16 @@ def handle(name, cfg, _cloud, log, args):
         resize_root = util.get_cfg_option_str(cfg, "resize_rootfs", True)
 
     if not util.translate_bool(resize_root):
-        log.debug("Skipping module named %s,  resizing disabled", name)
+        log.debug("Skipping transform named %s, resizing disabled", name)
         return
 
     # TODO is the directory ok to be used??
     resize_root_d = util.get_cfg_option_str(cfg, "resize_rootfs_tmp", "/run")
     util.ensure_dir(resize_root_d)
+
+    # TODO: allow what is to be resized to
+    # be configurable??
+    resize_what = "/"
     with util.SilentTemporaryFile(prefix="cloudinit.resizefs.",
                                   dir=resize_root_d, delete=True) as tfh:
         devpth = tfh.name
@@ -86,23 +90,25 @@ def handle(name, cfg, _cloud, log, args):
         # auto deletion
         tfh.unlink_now()
     
-        # TODO: allow what is to be resized to
-        # be configurable??
-        st_dev = nodeify_path(devpth, "/", log)
-        fs_type = get_fs_type(st_dev, devpath, log)
+        st_dev = nodeify_path(devpth, resize_what, log)
+        fs_type = get_fs_type(st_dev, devpth, log)
+        if not fs_type:
+            log.warn("Could not determine filesystem type of %s", resize_what)
+            return
     
         resizer = None
-        fstype_lc = fstype.lower()
+        fstype_lc = fs_type.lower()
         for (pfix, root_cmd) in resize_fs_prefixes_cmds:
             if fstype_lc.startswith(pfix):
                 resizer = root_cmd
                 break
 
         if not resizer:
-            log.warn("Not resizing unknown filesystem type %s", fs_type)
+            log.warn("Not resizing unknown filesystem type %s for %s",
+                     fs_type, resize_what)
             return
 
-        log.debug("Resizing using %s", resizer)
+        log.debug("Resizing %s (%s) using %s", resize_what, fs_type, resizer)
         resize_cmd = [resizer, devpth]
 
         if resize_root == "noblock":
@@ -125,8 +131,8 @@ def do_resize(resize_cmd, log):
     start = time.time()
     try:
         util.subp(resize_cmd)
-    except util.ProcessExecutionError as e:
-        util.logexc(log, "Failed to resize filesystem (using %s)", resize_cmd)
+    except util.ProcessExecutionError:
+        util.logexc(log, "Failed to resize filesystem (cmd=%s)", resize_cmd)
         raise
     tot_time = int(time.time() - start)
     log.debug("Resizing took %s seconds", tot_time)
