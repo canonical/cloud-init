@@ -29,9 +29,9 @@ def render_from_file(fn, params):
     return render_string(util.load_file(fn), params, name=fn)
 
 
-def render_to_file(fn, outfn, params):
+def render_to_file(fn, outfn, params, mode=0644):
     contents = render_from_file(fn, params)
-    util.write_file(outfn, contents)
+    util.write_file(outfn, contents, mode=mode)
 
 
 def render_string(content, params, name=None):
