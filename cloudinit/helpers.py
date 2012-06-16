@@ -160,8 +160,7 @@ class Runners(object):
 
 class ContentHandlers(object):
 
-    def __init__(self, paths):
-        self.paths = paths
+    def __init__(self):
         self.registered = {}
 
     def __contains__(self, item):

@@ -313,7 +313,7 @@ class Init(object):
         ud_obj = self.datasource.get_userdata()
 
         # This keeps track of all the active handlers
-        c_handlers = helpers.ContentHandlers(paths=self.paths)
+        c_handlers = helpers.ContentHandlers()
 
         # Add handlers in cdir
         potential_handlers = util.find_modules(cdir)
