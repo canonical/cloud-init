@@ -65,7 +65,7 @@ class DataSourceOVF(sources.DataSource):
             np = {'iso': transport_iso9660,
                   'vmware-guestd': transport_vmware_guestd, }
             name = None
-            for name, transfunc in np.iteritems():
+            for (name, transfunc) in np.iteritems():
                 (contents, _dev, _fname) = transfunc()
                 if contents:
                     break
