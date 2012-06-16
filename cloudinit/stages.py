@@ -31,12 +31,12 @@ try:
 except ImportError:
     ConfigObj = None
 
-from cloudinit.settings import (PER_INSTANCE)
+from cloudinit.settings import (PER_INSTANCE, FREQUENCIES)
 from cloudinit.settings import (OLD_CLOUD_CONFIG)
 
 from cloudinit import cloud
 from cloudinit import distros
-from cloudinit import handlers
+from cloudinit import modules
 from cloudinit import helpers
 from cloudinit import importer
 from cloudinit import log as logging
@@ -50,15 +50,16 @@ LOG = logging.getLogger(__name__)
 
 class Init(object):
     def __init__(self, ds_deps=None):
-        self.datasource = None
         if ds_deps:
             self.ds_deps = ds_deps
         else:
             self.ds_deps = [sources.DEP_FILESYSTEM, sources.DEP_NETWORK]
         # Created on first use
-        self.cached_cfg = None
-        self.cached_distro = None
-        self.cached_paths = None
+        self._cfg = None
+        self._paths = None
+        self._distro = None
+        # Created only when a fetch occurs
+        self.datasource = None
 
     def _read_cfg_old(self):
         # Support reading the old ConfigObj format file and merging
@@ -69,22 +70,39 @@ class Init(object):
         return dict(old_cfg)
 
     @property
+    def distro(self):
+        if not self._distro:
+            d_cfg = util.get_cfg_by_path(self.cfg, ('system_info'), {})
+            # Ensure not modified indirectly
+            d_cfg = copy.deepcopy(d_cfg)
+            d_cfg.pop('paths', None)
+            distro_cls = distros.fetch(sys_cfg.pop('distro', 'ubuntu'))
+            LOG.debug("Using distro class %s", distro_cls)
+            distro = distro_cls(d_cfg, helpers.Runners(self.paths))
+            self._distro = distro
+        return self._distro
+
+    @property
     def cfg(self):
-        if self.cached_cfg is None:
-            self.cached_cfg = self._read_cfg()
-        return self.cached_cfg
+        # None check so that we don't keep on re-loading if empty
+        if self._cfg is None:
+            self._cfg = self._read_cfg()
+            LOG.debug("Loading init config %s", self._cfg)
+        return self._cfg
 
     @property
     def paths(self):
-        if not self.cached_paths:
-            sys_info = self.cfg.get('system_info', {})
-            self.cached_paths = helpers.Paths(copy.deepcopy(sys_info),
-                                          self.datasource)
-        return self.cached_paths
+        if not self._paths:
+            path_info = util.get_cfg_by_path(self.cfg, ('system_info', 'paths'), {})
+            # Ensure not modified indirectly
+            path_info = copy.deepcopy(path_info)
+            self._paths = helpers.Paths(path_info, self.datasource)
+        return self._paths
 
     def _initial_subdirs(self):
         c_dir = self.paths.cloud_dir
         initial_dirs = [
+            c_dir,
             os.path.join(c_dir, 'scripts'),
             os.path.join(c_dir, 'scripts', 'per-instance'),
             os.path.join(c_dir, 'scripts', 'per-once'),
@@ -139,8 +157,8 @@ class Init(object):
             # the file wont exist
             return pickle.loads(util.load_file(pickled_fn))
         except Exception as e:
-            LOG.exception(("Failed loading pickled datasource from"
-                           " %s due to: %s"), pickled_fn, e)
+            util.logexc(LOG, "Failed loading pickled datasource from %s",
+                        pickled_fn)
             return None
 
     def _write_to_cache(self):
@@ -149,8 +167,7 @@ class Init(object):
             contents = pickle.dumps(self.datasource)
             util.write_file(pickled_fn, contents, mode=0400)
         except Exception as e:
-            LOG.exception(("Failed pickling datasource to"
-                          " %s due to: %s"), pickled_fn, e)
+            util.logexc(LOG, "Failed pickling datasource to %s", pickled_fn)
             return False
 
     def _get_datasources(self):
@@ -171,19 +188,17 @@ class Init(object):
             LOG.debug("Restored from cache datasource: %s" % ds)
         else:
             (cfg_list, pkg_list) = self._get_datasources()
-            # Deep copy so that handlers can not modify (which will
-            # affect handlers down the line...)
+            # Deep copy so that user-data handlers can not modify
+            # (which will affect user-data handlers down the line...)
             sys_cfg = copy.deepcopy(self.cfg)
             ds_deps = copy.deepcopy(self.ds_deps)
-            distro = distros.fetch(sys_cfg,
-                                   cloud.Cloud(self.datasource,
-                                               self.paths, sys_cfg))
-            (ds, dsname) = sources.find_source(sys_cfg, distro, self.paths,
+            (ds, dsname) = sources.find_source(sys_cfg, self.distro, self.paths,
                                                ds_deps, cfg_list, pkg_list)
             LOG.debug("Loaded datasource %s - %s", dsname, ds)
         self.datasource = ds
-        if self.cached_paths:
-            self.cached_paths.datasource = ds
+        # Ensure we adjust our path members datasource
+        # now that we have one (thus allowing ipath to be used)
+        self.paths.datasource = ds
         return ds
 
     def _reflect_cur_instance(self):
@@ -231,12 +246,19 @@ class Init(object):
             previous_iid = iid
         util.write_file(c_iid_fn, "%s\n" % iid)
         util.write_file(p_iid_fn, "%s\n" % previous_iid)
+        return iid
 
     def fetch(self):
         return self._get_data_source()
 
     def instancify(self):
-        self._reflect_cur_instance()
+        return self._reflect_cur_instance()
+
+    def cloudify(self):
+        # Form the needed options to cloudify our members
+        return cloud.Cloud(self.datasource, 
+                           self.paths, self.cfg,
+                           self.distro, helpers.Runners(self.paths))
 
     def update(self):
         self._write_to_cache()
@@ -266,24 +288,24 @@ class Init(object):
             try:
                 mod = ud.fixup_module(importer.import_module(modname))
                 types = c_handlers.register(mod)
-                LOG.debug("Added handler for [%s] from %s", types, fname)
+                LOG.debug("Added handler for %s from %s", types, fname)
             except:
-                LOG.exception("Failed to register handler from %s", fname)
+                util.logexc(LOG, "Failed to register handler from %s", fname)
 
         def_handlers = c_handlers.register_defaults()
         if def_handlers:
-            LOG.debug("Registered default handlers for [%s]", def_handlers)
+            LOG.debug("Registered default handlers for %s", def_handlers)
 
-        # Form our cloud proxy
-        data = cloud.Cloud(self.datasource,
-                           self.paths, copy.deepcopy(self.cfg))
 
-        # Ensure userdata fetched before activation
-        ud_obj = data.get_userdata()
+        # Ensure userdata fetched before activation (just incase)
+        ud_obj = self.datasource.get_userdata()
+
+        # Form our cloud interface
+        data = self.cloudify()
 
         # Init the handlers first
         called = []
-        for (_mtype, mod) in c_handlers.iteritems():
+        for (_ctype, mod) in c_handlers.iteritems():
             if mod in called:
                 continue
             ud.call_begin(mod, data, frequency)
@@ -304,26 +326,28 @@ class Init(object):
 
         # Give callbacks opportunity to finalize
         called = []
-        for (_mtype, mod) in c_handlers.iteritems():
+        for (_ctype, mod) in c_handlers.iteritems():
             if mod in called:
                 continue
             ud.call_end(mod, data, frequency)
             called.append(mod)
 
 
-class Handlers(object):
-    def __init__(self, datasource, h_cloud, cfgfile=None, basecfg=None):
-        self.datasource = datasource
+class Transforms(object):
+    def __init__(self, cloudobj, cfgfile=None):
+        self.datasource = cloudobj.datasource
         self.cfgfile = cfgfile
-        self.basecfg = basecfg
-        self.h_cloud = h_cloud
-        self.cachedcfg = None
+        self.basecfg = copy.deepcopy(cloudobj.cfg)
+        self.cloudobj = cloudobj
+        # Created on first use
+        self._cachedcfg = None
 
     @property
     def cfg(self):
-        if self.cachedcfg is None:
-            self.cachedcfg = self._get_config(self.cfgfile)
-        return self.cachedcfg
+        if self._cachedcfg is None:
+            self._cachedcfg = self._get_config(self.cfgfile)
+            LOG.debug("Loading module config %s", self._cachedcfg)
+        return self._cachedcfg
 
     def _get_config(self, cfgfile):
         mcfg = None
@@ -332,8 +356,8 @@ class Handlers(object):
             try:
                 mcfg = util.read_conf(cfgfile)
             except:
-                LOG.exception(("Failed loading of cloud config '%s'. "
-                              "Continuing with an empty config."), cfgfile)
+                util.logexc(LOG, ("Failed loading of cloud config '%s'. "
+                                  "Continuing with an empty config."), cfgfile)
         if not mcfg:
             mcfg = {}
 
@@ -341,7 +365,7 @@ class Handlers(object):
         try:
             ds_cfg = self.datasource.get_config_obj()
         except:
-            LOG.exception("Failed loading of datasource config.")
+            util.logexc(LOG, "Failed loading of datasource config object.")
         if not ds_cfg:
             ds_cfg = {}
 
@@ -352,64 +376,83 @@ class Handlers(object):
             return mcfg
 
 
-    def _read_modules(self, name):
+    def _read_transforms(self, name):
         module_list = []
         if name not in self.cfg:
             return module_list
         cfg_mods = self.cfg[name]
-        # Create 'module_list', an array of arrays
-        # Where array[0] = module name
-        #       array[1] = frequency
-        #       array[2:] = arguments
+        # Create 'module_list', an array of hashes
+        # Where hash['mod'] = module name
+        #       hash['freq'] = frequency
+        #       hash['args'] = arguments
         for item in cfg_mods:
             if not item:
                 continue
-            if isinstance(item, str):
-                module_list.append([item])
-            elif isinstance(item, list):
-                module_list.append(item)
+            if isinstance(item, (str, basestring)):
+                module_list.append({
+                    'mod': item.strip(),
+                })
+            elif isinstance(item, (list)):
+                contents = {}
+                # Meant to fall through...
+                if len(item) >= 1:
+                    contents['mod'] = item[0].strip()
+                if len(item) >= 2:
+                    contents['freq'] = item[1].strip()
+                if len(item) >= 3:
+                    contents['args'] = item[2:]
+                if contents:
+                    module_list.append(contents)
             else:
-                raise TypeError("Failed to read '%s' item in config")
+                raise TypeError(("Failed to read '%s' item in config,"
+                                 " unknown type %s") %
+                                 (item, util.obj_name(item)))
         return module_list
 
-    def _form_modules(self, raw_mods):
+    def _transforms_modules(self, raw_mods):
         mostly_mods = []
         for raw_mod in raw_mods:
-            raw_name = raw_mod[0]
-            freq = None
-            run_args = None
-            if len(raw_mod) > 1:
-                freq = raw_mod[1]
-            if len(raw_mod) > 2:
-                run_args = raw_mod[2:]
-            if not run_args:
-                run_args = []
-            mod_name = handlers.form_module_name(raw_name)
+            raw_name = raw_mod['mod']
+            freq = raw_mod.get('freq')
+            run_args = raw_mod.get('args') or []
+            mod_name = modules.form_module_name(raw_name)
             if not mod_name:
                 continue
-            mod = handlers.fixup_module(importer.import_module(mod_name))
+            if freq and freq not in FREQUENCIES:
+                LOG.warn("Config specified module %s has an unknown frequency %s", raw_name, freq)
+                # Reset it so when ran it will get set to a known value
+                freq = None
+            mod = modules.fixup_module(importer.import_module(mod_name))
             mostly_mods.append([mod, raw_name, freq, run_args])
         return mostly_mods
 
-    def _run_modules(self, mostly_mods):
+    def _run_transforms(self, mostly_mods):
         failures = []
         for (mod, name, freq, args) in mostly_mods:
             try:
+                # Try the modules frequency, otherwise fallback to a known one
                 if not freq:
                     freq = mod.frequency
-                if not freq:
+                if not freq in FREQUENCIES:
                     freq = PER_INSTANCE
+                worked_distros = mod.distros
+                if worked_distros and self.cloud.distro.name() not in worked_distros:
+                    LOG.warn(("Module %s is verified on %s distros"
+                              " but not on %s distro. It may or may not work"
+                              " correctly."), name, worked_distros,
+                              self.cloud.distro.name())
+                # Deep copy the config so that modules can't alter it
                 func_args = [name, copy.deepcopy(self.cfg),
-                             self.h_cloud, LOG,
-                             args]
-                run_name = "config-" + name        
-                self.h_cloud.run(run_name, mod.handle, func_args, freq=freq)
-            except:
-                LOG.exception("Running %s failed", mod)
-                failures.append(name)
+                             self.cloudobj, LOG, args]
+                # This name will affect the semphapore name created
+                run_name = "config-%s" % (name)
+                self.cloudobj.run(run_name, mod.handle, func_args, freq=freq)
+            except Exception as e:
+                util.logexc(LOG, "Running %s failed", mod)
+                failures.append((name, e))
         return failures
 
     def run(self, name):
-        raw_mods = self._read_modules(name)
-        mostly_mods = self._form_modules(raw_mods)
-        return self._run_modules(mostly_mods)
+        raw_mods = self._read_transforms(name)
+        mostly_mods = self._transforms_modules(raw_mods)
+        return self._run_transforms(mostly_mods)
