@@ -20,10 +20,17 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+# Set and read for determining the cloud config file location
 CFG_ENV_NAME = "CLOUD_CFG"
+
+# This is expected to be a yaml formatted file
 CLOUD_CONFIG = '/etc/cloud/cloud.cfg'
+
+# This legacy format is expected to be readable by
+# configobj, see http://pypi.python.org/pypi/configobj
 OLD_CLOUD_CONFIG = '/etc/ec2-init/ec2-config.cfg'
 
+# What u get if no config is provided
 CFG_BUILTIN = {
     'datasource_list': [
         'NoCloud',
@@ -45,7 +52,10 @@ CFG_BUILTIN = {
     },
 }
 
+# Valid frequencies of handlers/modules
 PER_INSTANCE = "once-per-instance"
 PER_ALWAYS = "always"
 PER_ONCE = "once"
 
+# Used to sanity check incoming handlers/modules frequencies
+FREQUENCIES = [PER_INSTANCE, PER_ALWAYS, PER_ONCE]
