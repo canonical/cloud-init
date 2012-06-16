@@ -79,12 +79,22 @@ class AuthKeyEntry(object):
     
         options = ent[0:i]
         options_lst = []
+        
+        # Now use a csv parser to pull the options
+        # out of the above string that we just found an endpoint for.
+        #
+        # No quoting so we don't mess up any of the quoting that
+        # is already there.
         reader = csv.reader(StringIO(options), quoting=csv.QUOTE_NONE)
         for row in reader:
             for e in row:
+                # Only keep non-empty csv options
                 e = e.strip()
                 if e:
                     options_lst.append(e)
+
+        # Now take the rest of the items before the string
+        # as long as there is room to do this...
         toks = []
         if i + 1 < len(ent):
             toks = ent[i + 1:].split(None, 3)
