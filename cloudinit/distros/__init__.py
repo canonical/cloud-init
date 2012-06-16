@@ -42,8 +42,8 @@ class Distro(object):
 
     __metaclass__ = abc.ABCMeta
 
-    def __init__(self, name, cfg, runner):
-        self._runner = runner
+    def __init__(self, name, cfg, paths):
+        self._paths = paths
         self._cfg = cfg
         self.name = name
 
