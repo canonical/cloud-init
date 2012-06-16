@@ -68,7 +68,8 @@ INCLUSION_TYPES_MAP = {
 }
 
 # Sorted longest first
-INCLUSION_SRCH = sorted(INCLUSION_TYPES_MAP.keys(), key=(lambda e: 0 - len(e)))
+INCLUSION_SRCH = sorted(list(INCLUSION_TYPES_MAP.keys()),
+                        key=(lambda e: 0 - len(e)))
 
 # Various special content types
 TYPE_NEEDED = ["text/plain", "text/x-not-multipart"]
@@ -193,7 +194,7 @@ class UserDataProcessor(object):
                 msg.add_header('Content-Disposition', 'attachment',
                                 filename=ent['filename'])
 
-            for header in ent.keys():
+            for header in list(ent.keys()):
                 if header in ('content', 'filename', 'type'):
                     continue
                 msg.add_header(header, ent['header'])
@@ -363,7 +364,7 @@ def convert_string(raw_data, headers=None):
     data = util.decomp_str(raw_data)
     if "mime-version:" in data[0:4096].lower():
         msg = email.message_from_string(data)
-        for (key, val) in headers.items():
+        for (key, val) in headers.iteritems():
             if key in msg:
                 msg.replace_header(key, val)
             else:
