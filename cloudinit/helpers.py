@@ -38,12 +38,16 @@ from cloudinit.user_data import upstart_job as up_part
 LOG = logging.getLogger(__name__)
 
 
+class LockFailure(Exception):
+    pass
+
+
 class DummySemaphores(object):
     def __init__(self):
         pass
 
     @contextlib.contextmanager
-    def lock(self, _name, _freq, _clear_on_fail):
+    def lock(self, _name, _freq, _clear_on_fail=False):
         yield True
 
     def has_run(self, _name, _freq):
@@ -61,7 +65,7 @@ class FileSemaphores(object):
         self.sem_path = sem_path
 
     @contextlib.contextmanager
-    def lock(self, name, freq, clear_on_fail):
+    def lock(self, name, freq, clear_on_fail=False):
         try:
             yield self._acquire(name, freq)
         except:
@@ -73,15 +77,17 @@ class FileSemaphores(object):
         sem_file = self._get_path(name, freq)
         try:
             util.del_file(sem_file)
-        except (IOError, OSError):
+        except (IOError, OSError) as e:
+            util.logexc(LOG, "Failed deleting semaphore %s", sem_file)
             return False
         return True
 
     def clear_all(self):
         try:
             util.del_dir(self.sem_path)
-        except (IOError, OSError):
-            pass
+        except (IOError, OSError) as e:
+            LOG.debug("Failed deleting semaphore directory %s due to %s",
+                      self.sem_path, e)
 
     def _acquire(self, name, freq):
         if self.has_run(name, freq):
@@ -93,7 +99,8 @@ class FileSemaphores(object):
         contents = "%s: %s\n" % (os.getpid(), time())
         try:
             util.write_file(sem_file, contents)
-        except (IOError, OSError):
+        except (IOError, OSError) as e:
+            util.logexc(LOG, "Failed writing semaphore file %s", sem_file)
             return None
         return sem_file
 
@@ -143,11 +150,14 @@ class Runners(object):
             return None
         with sem.lock(name, freq, clear_on_fail) as lk:
             if not lk:
-                raise RuntimeError("Failed to acquire lock on %s" % name)
+                raise LockFailure("Failed to acquire lock for %s" % name)
             else:
                 LOG.debug("Running %s with args %s using lock %s",
                           functor, args, lk)
-                return functor(*args)
+                if isinstance(args, (dict)):
+                    return functor(**args)
+                else:
+                    return functor(*args)
 
 
 class ContentHandlers(object):
@@ -217,12 +227,12 @@ class ContentHandlers(object):
 
 
 class Paths(object):
-    def __init__(self, sys_info):
-        self.cloud_dir = sys_info.get('cloud_dir', '/var/lib/cloud')
+    def __init__(self, path_cfgs, ds=None):
+        self.cloud_dir = path_cfgs.get('cloud_dir', '/var/lib/cloud')
         self.instance_link = os.path.join(self.cloud_dir, 'instance')
         self.boot_finished = os.path.join(self.instance_link, "boot-finished")
-        self.upstart_conf_d = sys_info.get('upstart_dir')
-        template_dir = sys_info.get('templates_dir', '/etc/cloud/templates/')
+        self.upstart_conf_d = path_cfgs.get('upstart_dir')
+        template_dir = path_cfgs.get('templates_dir', '/etc/cloud/templates/')
         self.template_tpl = os.path.join(template_dir, '%s.tmpl')
         self.seed_dir = os.path.join(self.cloud_dir, 'seed')
         self.lookups = {
@@ -237,7 +247,7 @@ class Paths(object):
            "data": "data",
         }
         # Set when a datasource becomes active
-        self.datasource = None
+        self.datasource = ds
 
     # get_ipath_cur: get the current instance path for an item
     def get_ipath_cur(self, name=None):
@@ -256,6 +266,8 @@ class Paths(object):
             cpath = os.path.join(cpath, add_on)
         return cpath
 
+    # get_ipath : get the instance path for a name in pathmap
+    # (/var/lib/cloud/instances/<instance>/<name>)
     def _get_ipath(self, name=None):
         if not self.datasource:
             return None
@@ -268,6 +280,7 @@ class Paths(object):
             ipath = os.path.join(ipath, add_on)
         return ipath
 
+    # get_ipath : get the instance path for a name in pathmap
     # (/var/lib/cloud/instances/<instance>/<name>)
     def get_ipath(self, name=None):
         ipath = self._get_ipath(name)
