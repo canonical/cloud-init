@@ -319,7 +319,7 @@ class Init(object):
         potential_handlers = util.find_modules(cdir)
         for (fname, modname) in potential_handlers.iteritems():
             try:
-                mod = ud.fixup_module(importer.import_module(modname))
+                mod = ud.fixup_handler(importer.import_module(modname))
                 types = c_handlers.register(mod)
                 LOG.debug("Added handler for %s from %s", types, fname)
             except:
@@ -445,7 +445,7 @@ class Transforms(object):
             raw_name = raw_mod['mod']
             freq = raw_mod.get('freq')
             run_args = raw_mod.get('args') or []
-            mod_name = transforms.form_module_name(raw_name)
+            mod_name = transforms.form_transform_name(raw_name)
             if not mod_name:
                 continue
             if freq and freq not in FREQUENCIES:
@@ -453,7 +453,7 @@ class Transforms(object):
                           " has an unknown frequency %s"), raw_name, freq)
                 # Reset it so when ran it will get set to a known value
                 freq = None
-            mod = transforms.fixup_module(importer.import_module(mod_name))
+            mod = transforms.fixup_transform(importer.import_module(mod_name))
             mostly_mods.append([mod, raw_name, freq, run_args])
         return mostly_mods
 
