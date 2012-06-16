@@ -57,4 +57,4 @@ def write_apt_snippet(setting, log, f_name=default_file):
 
     util.write_file(f_name, file_contents)
 
-    log.debug("Wrote %s with APT pipeline setting" % f_name)
+    log.debug("Wrote %s with apt pipeline depth setting %s", f_name, setting)
