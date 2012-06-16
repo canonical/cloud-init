@@ -80,16 +80,17 @@ class FileSemaphores(object):
     def clear_all(self):
         try:
             util.del_dir(self.sem_path)
-        except (IOError, OSError) as e:
-            LOG.debug("Failed deleting semaphore directory %s due to %s",
-                      self.sem_path, e)
+        except (IOError, OSError):
+            util.logexc(LOG, "Failed deleting semaphore directory %s", 
+                        self.sem_path)
 
     def _acquire(self, name, freq):
+        # Check again if its been already gotten
         if self.has_run(name, freq):
             return None
         # This is a race condition since nothing atomic is happening
         # here, but this should be ok due to the nature of when
-        # and where cloud-init runs... (file writing is not a lock..)
+        # and where cloud-init runs... (file writing is not a lock...)
         sem_file = self._get_path(name, freq)
         contents = "%s: %s\n" % (os.getpid(), time())
         try:
@@ -100,9 +101,11 @@ class FileSemaphores(object):
         return sem_file
 
     def has_run(self, name, freq):
-        if freq == PER_ALWAYS:
+        if not freq or freq == PER_ALWAYS:
             return False
         sem_file = self._get_path(name, freq)
+        # This isn't really a good atomic check
+        # but it suffices for where and when cloudinit runs
         if os.path.exists(sem_file):
             return True
         return False
@@ -157,10 +160,9 @@ class Runners(object):
 
 class ContentHandlers(object):
 
-    def __init__(self, paths, iid=None):
+    def __init__(self, paths):
         self.paths = paths
         self.registered = {}
-        self.iid = iid
 
     def __contains__(self, item):
         return self.is_registered(item)
@@ -245,7 +247,7 @@ class Paths(object):
         iid = self.datasource.get_instance_id()
         if iid is None:
             return None
-        ipath = os.path.join(self.cloud_dir, 'instances', iid)
+        ipath = os.path.join(self.cloud_dir, 'instances', str(iid))
         add_on = self.lookups.get(name)
         if add_on:
             ipath = os.path.join(ipath, add_on)
