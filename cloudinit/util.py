@@ -64,6 +64,7 @@ LOG = logging.getLogger(__name__)
 FN_REPLACEMENTS = {
     os.sep: '_',
 }
+FN_ALLOWED = ('_-.()' + string.digits + string.ascii_letters)
 
 # Helper utils to see if running in a container
 CONTAINER_TESTS = ['running-in-container', 'lxc-is-container']
@@ -227,7 +228,14 @@ def read_conf(fname):
 def clean_filename(fn):
     for (k, v) in FN_REPLACEMENTS.iteritems():
         fn = fn.replace(k, v)
-    return fn.strip()
+    removals = []
+    for k in fn:
+        if k not in FN_ALLOWED:
+            removals.append(k)
+    for k in removals:
+        fn = fn.replace(k, '')
+    fn = fn.strip()
+    return fn
 
 
 def decomp_str(data):
