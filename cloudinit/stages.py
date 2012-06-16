@@ -92,7 +92,7 @@ class Init(object):
         # None check so that we don't keep on re-loading if empty
         if self._cfg is None:
             self._cfg = self._read_cfg()
-            LOG.debug("Loading init config %s", self._cfg)
+            LOG.debug("Loaded init config %s", self._cfg)
         # Nobody gets the real config
         ocfg = copy.deepcopy(self._cfg)
         if restriction == 'restricted':
