@@ -82,7 +82,7 @@ def route_info():
         if not line:
             continue
         toks = line.split()
-        if toks[0] == "Kernel" or toks[0] == "Destination":
+        if len(toks) < 8 or toks[0] == "Kernel" or toks[0] == "Destination":
             continue
         entry = {
             'destination': toks[0],
@@ -140,9 +140,9 @@ def route_pformat():
         fields = ['Route', 'Destination', 'Gateway',
                   'Genmask', 'Interface', 'Flags']
         tbl = PrettyTable(fields)
-        for n, r in enumerate(routes):
+        for (n, r) in enumerate(routes):
             route_id = str(n)
-            tbl.add_row([str(n), r['destination'],
+            tbl.add_row([route_id, r['destination'],
                         r['gateway'], r['genmask'],
                         r['iface'], r['flags']])
         route_s = tbl.get_string()
@@ -152,7 +152,7 @@ def route_pformat():
     return os.linesep.join(lines)
 
 
-def debug_info(pre=""):
+def debug_info():
     lines = []
     lines.append(netdev_pformat())
     lines.append(route_pformat())
