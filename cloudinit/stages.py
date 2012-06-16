@@ -249,17 +249,17 @@ class Init(object):
         # What the instance id was and is...
         iid = self.datasource.get_instance_id()
         previous_iid = None
-        p_iid_fn = os.path.join(dp, 'previous-instance-id')
         c_iid_fn = os.path.join(dp, 'instance-id')
         try:
-            previous_iid = util.load_file(p_iid_fn).strip()
+            previous_iid = util.load_file(c_iid_fn).strip()
         except Exception:
             pass
         if not previous_iid:
             # TODO: ?? is this right
             previous_iid = iid
         util.write_file(c_iid_fn, "%s\n" % iid)
-        util.write_file(p_iid_fn, "%s\n" % previous_iid)
+        util.write_file(os.path.join(dp, 'previous-instance-id'),
+                        "%s\n" % previous_iid)
         return iid
 
     def fetch(self):
