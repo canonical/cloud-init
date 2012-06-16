@@ -128,6 +128,11 @@ class Runners(object):
             return None
         sem_path = None
         if freq == PER_INSTANCE:
+            # This may not exist,
+            # so thats why we still check for none
+            # below if say the paths object
+            # doesn't have a datasource that can
+            # provide this instance path...
             sem_path = self.paths.get_ipath("sem")
         elif freq == PER_ONCE:
             sem_path = self.paths.get_cpath("sem")
