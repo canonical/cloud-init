@@ -27,6 +27,16 @@ from cloudinit import log as logging
 
 LOG = logging.getLogger(__name__)
 
+# This class is the high level wrapper that provides
+# access to cloud-init objects without exposing the stage objects
+# to handler and or transform manipulation. It allows for cloud
+# init to restrict what those types of user facing code may see
+# and or adjust (which helps avoid code messing with each other)
+#
+# It also provides util functions that avoid having to know
+# how to get a certain member from this submembers as well
+# as providing a backwards compatible object that can be maintained
+# while the stages/other objects can be worked on independently...
 
 class Cloud(object):
     def __init__(self, datasource, paths, cfg, distro, runners):
