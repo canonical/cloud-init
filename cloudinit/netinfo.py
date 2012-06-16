@@ -126,7 +126,7 @@ def netdev_pformat():
         max_len = len(max(netdev_s.splitlines(), key=len))
         header = util.center("Net device info", "+", max_len)
         lines.extend([header, netdev_s])
-    return os.linesep.join(lines)
+    return "\n".join(lines)
 
 
 def route_pformat():
@@ -149,11 +149,11 @@ def route_pformat():
         max_len = len(max(route_s.splitlines(), key=len))
         header = util.center("Route info", "+", max_len)
         lines.extend([header, route_s])
-    return os.linesep.join(lines)
+    return "\n".join(lines)
 
 
 def debug_info():
     lines = []
     lines.append(netdev_pformat())
     lines.append(route_pformat())
-    return os.linesep.join(lines)
+    return "\n".join(lines)
