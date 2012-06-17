@@ -474,7 +474,7 @@ class Transforms(object):
                 func_args = [name, copy.deepcopy(self.cfg),
                              c_cloud, transforms.LOG, args]
                 # This name will affect the semaphore name created
-                run_name = "config-%s" % (name)
+                run_name = "transform-%s" % (name)
                 c_cloud.run(run_name, mod.handle, func_args, freq=freq)
             except Exception as e:
                 util.logexc(LOG, "Running %s (%s) failed", name, mod)
