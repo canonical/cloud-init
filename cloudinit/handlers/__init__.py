@@ -141,7 +141,8 @@ def walker_handle_handler(pdata, _ctype, _filename, payload):
         handlers.register(mod)
         call_begin(mod, pdata['data'], frequency)
     except:
-        util.logexc(LOG, "Failed at registered python file: %s", modfname)
+        util.logexc(LOG, ("Failed at registering python file: %s"
+                          " (part handler %s)"), modfname, curcount)
 
 
 def _extract_first_or_bytes(blob, size):
