@@ -60,7 +60,7 @@ def readurl(url, data=None, timeout=None,
     retries = max(retries, 0)
     attempts = retries + 1
 
-    last_excp = Exception("??")
+    excepts = []
     LOG.info(("Attempting to read from %s with %s attempts"
                 " (%s retries) to be performed"), url, attempts, retries)
     open_args = {}
@@ -78,16 +78,16 @@ def readurl(url, data=None, timeout=None,
                          url, status, len(content), (i + 1))
                 return (content, status)
         except urllib2.HTTPError as e:
-            last_excp = e
+            excepts.append(e)
         except urllib2.URLError as e:
             # This can be a message string or
             # another exception instance 
             # (socket.error for remote URLs, OSError for local URLs).
             if (isinstance(e.reason, (OSError)) and
                 e.reason.errno == errno.ENOENT):
-                last_excp = e.reason
+                excepts.append(e.reason)
             else:
-                last_excp = e
+                excepts.append(e)
         if i + 1 < attempts:
             LOG.debug("Please wait %s seconds while we wait to try again",
                      sec_between)
@@ -95,7 +95,11 @@ def readurl(url, data=None, timeout=None,
 
     # Didn't work out
     LOG.warn("Failed reading from %s after %s attempts", url, attempts)
-    raise last_excp
+    
+    # It must of errored at least once for code
+    # to get here so re-raise the last error
+    LOG.debug("%s errors occured, re-raising the last one", len(excepts))
+    raise excepts[-1]
 
 
 def wait_for_url(urls, max_wait=None, timeout=None,
