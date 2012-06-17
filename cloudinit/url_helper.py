@@ -88,6 +88,8 @@ def readurl(url, data=None, timeout=None,
                 excepts.append(e.reason)
             else:
                 excepts.append(e)
+        except Exception as e:
+            excepts.append(e)
         if i + 1 < attempts:
             LOG.debug("Please wait %s seconds while we wait to try again",
                      sec_between)
