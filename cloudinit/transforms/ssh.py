@@ -112,8 +112,7 @@ def handle(_name, cfg, cloud, log, _args):
         util.logexc(log, "Applying ssh credentials failed!")
 
 
-def apply_credentials(keys, user, disable_root,
-                      disable_root_opts=DISABLE_ROOT_OPTS):
+def apply_credentials(keys, user, disable_root, disable_root_opts):
 
     keys = set(keys)
     if user:

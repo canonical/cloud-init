@@ -210,10 +210,7 @@ def update_authorized_keys(fname, keys):
     return '\n'.join(lines)
 
 
-def setup_user_keys(keys, user, key_prefix, sshd_config_fn=None):
-    if not sshd_config_fn:
-        sshd_config_fn = DEF_SSHD_CFG
-
+def setup_user_keys(keys, user, key_prefix, sshd_config_fn=DEF_SSHD_CFG):
     pwent = pwd.getpwnam(user)
     ssh_dir = os.path.join(pwent.pw_dir, '.ssh')
     if not os.path.exists(ssh_dir):
