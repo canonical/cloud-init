@@ -218,8 +218,10 @@ def fixup_handler(mod, def_freq=PER_INSTANCE):
 
 
 def type_from_starts_with(payload, default=None):
+    payload_lc = payload.lower()
+    payload_lc = payload_lc.lstrip()
     for text in INCLUSION_SRCH:
-        if payload.startswith(text):
+        if payload_lc.startswith(text):
             return INCLUSION_TYPES_MAP[text]
     return default
 
