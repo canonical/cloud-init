@@ -104,7 +104,9 @@ def run_part(mod, data, ctype, filename, payload, frequency):
     except:
         mod_ver = 1
     try:
-        if mod_ver and mod_ver >= 2:
+        LOG.debug("Calling handler %s (%s, %s, %s) with frequency %s", 
+                  mod, ctype, filename, mod_ver, frequency)
+        if mod_ver >= 2:
             # Treat as v. 2 which does get a frequency
             mod.handle_part(data, ctype, filename, payload, frequency)
         else:
