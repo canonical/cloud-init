@@ -553,7 +553,7 @@ def read_optional_seed(fill, base="", ext="", timeout=5):
         raise
 
 
-def read_file_or_url(url, timeout, retries, file_retries):
+def read_file_or_url(url, timeout=5, retries=10, file_retries=0):
     if url.startswith("/"):
         url = "file://%s" % url
     if url.startswith("file://"):
