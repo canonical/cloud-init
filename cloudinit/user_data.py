@@ -113,6 +113,7 @@ class UserDataProcessor(object):
                 include_once_on = True
             elif lc_line.startswith("#include"):
                 line = line[len("#include"):].lstrip()
+                # TODO: Should we turn back off include once here???
             if line.startswith("#"):
                 continue
             include_url = line.strip()
