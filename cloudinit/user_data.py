@@ -100,16 +100,18 @@ class UserDataProcessor(object):
                             'urlcache', entry_fn)
 
     def _do_include(self, content, append_msg):
-        # is just a list of urls, one per line
+        # Inlude a list of urls, one per line
         # also support '#include <url here>'
+        # or #include-once '<url here>'
+        include_once_on = False
         for line in content.splitlines():
-            includeonce = False
-            if line in ("#include", "#include-once"):
-                continue
-            if line.startswith("#include-once"):
+            lc_line = line.lower()
+            if lc_line.startswith("#include-once"):
                 line = line[len("#include-once"):].lstrip()
-                includeonce = True
-            elif line.startswith("#include"):
+                # Every following include will now 
+                # not be refetched....
+                include_once_on = True
+            elif lc_line.startswith("#include"):
                 line = line[len("#include"):].lstrip()
             if line.startswith("#"):
                 continue
@@ -117,13 +119,15 @@ class UserDataProcessor(object):
             if not include_url:
                 continue
 
-            includeonce_filename = self._get_include_once_filename(include_url)
-            if includeonce and os.path.isfile(includeonce_filename):
-                content = util.load_file(includeonce_filename)
+            include_once_fn = None
+            if include_once_on:
+                include_once_fn = self._get_include_once_filename(include_url)
+            if include_once_on and os.path.isfile(include_once_fn):
+                content = util.load_file(include_once_fn)
             else:
                 (content, st) = url_helper.readurl(include_url)
-                if includeonce and url_helper.ok_http_code(st):
-                    util.write_file(includeonce_filename, content, mode=0600)
+                if include_once_on and url_helper.ok_http_code(st):
+                    util.write_file(include_once_fn, content, mode=0600)
                 if not url_helper.ok_http_code(st):
                     content = ''
 
