@@ -306,7 +306,7 @@ class Init(object):
         sys.path.insert(0, idir)
 
         # Ensure datasource fetched before activation (just incase)
-        ud_obj = self.datasource.get_userdata()
+        user_data_msg = self.datasource.get_userdata()
 
         # This keeps track of all the active handlers
         c_handlers = helpers.ContentHandlers()
@@ -340,15 +340,17 @@ class Init(object):
         # Walk the user data
         part_data = {
             'handlers': c_handlers,
+            # Any new handlers that are encountered get writen here
             'handlerdir': idir,
-            'data': data, 
+            'data': data,
+            # The default frequency if handlers don't have one
             'frequency': frequency,
             # This will be used when new handlers are found
             # to help write there contents to files with numbered
             # names...
             'handlercount': 0,
         }
-        handlers.walk(ud_obj, handlers.walker_callback, data=part_data)
+        handlers.walk(user_data_msg, handlers.walker_callback, data=part_data)
 
         # Give callbacks opportunity to finalize
         called = []
