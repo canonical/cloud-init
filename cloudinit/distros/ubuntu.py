@@ -49,10 +49,13 @@ class Distro(distros.Distro):
         util.write_file("/etc/network/interfaces", settings)
 
     def set_hostname(self, hostname):
-        contents = "%s\n" % (hostname)
-        util.write_file("/etc/hostname", contents, 0644)
+        self._write_hostname(hostname, "/etc/hostname")
         LOG.debug("Setting hostname to %s", hostname)
         util.subp(['hostname', hostname])
+
+    def _write_hostname(self, hostname, out_fn):
+        contents = "%s\n" % (hostname)
+        util.write_file(out_fn, contents, 0644)
 
     def update_hostname(self, hostname, prev_file):
         hostname_prev = self._read_hostname(prev_file)
@@ -65,8 +68,7 @@ class Distro(distros.Distro):
             update_files.append("/etc/hostname")
         for fn in update_files:
             try:
-                contents = "%s\n" % (hostname)
-                util.write_file(fn, contents, 0644)
+                self._write_hostname(hostname, fn)
             except:
                 util.logexc(LOG, "Failed to write hostname %s to %s",
                             hostname, fn)
@@ -82,11 +84,12 @@ class Distro(distros.Distro):
         contents = util.load_file(filename, quiet=True)
         for line in contents.splitlines():
             hpos = line.find("#")
+            # Handle inline comments
             if hpos != -1:
                 line = line[0:hpos]
-            line = line.rstrip()
-            if line:
-                return line
+            line_c = line.strip()
+            if line_c:
+                return line_c
         return default
 
     def _get_localhost_ip(self):
