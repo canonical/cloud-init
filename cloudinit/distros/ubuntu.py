@@ -43,13 +43,10 @@ class Distro(distros.Distro):
     
     def install_packages(self, pkglist):
         self._update_package_sources()
-        self._apt_get('install', pkglist)
+        self.package_command('install', pkglist)
 
     def _write_network(self, settings):
         util.write_file("/etc/network/interfaces", settings)
-
-    def package_command(self, command, args=None):
-        self._apt_get(command, args)
 
     def set_hostname(self, hostname):
         contents = "%s\n" % (hostname)
@@ -103,24 +100,20 @@ class Distro(distros.Distro):
                              " no file found at %s") % (tz, tz_file))
         tz_contents = "%s\n" % tz
         util.write_file("/etc/timezone", tz_contents)
-        # TODO, this should be in a rhel distro subclass??
-        if os.path.exists("/etc/sysconfig/clock"):
-            tz_contents = '"%s"\n' % tz
-            util.write_file("/etc/sysconfig/clock", tz_contents)
-        # This ensures that the correct tz will be used for the system
         util.copy(tz_file, "/etc/localtime")
 
-    # apt_get top level command (install, update...), and args to pass it
-    def _apt_get(self, tlc, args=None):
+    def package_command(self, command, args=None):
         e = os.environ.copy()
+        # See: http://tiny.cc/kg91fw
+        # Or: http://tiny.cc/mh91fw
         e['DEBIAN_FRONTEND'] = 'noninteractive'
         cmd = ['apt-get', '--option', 'Dpkg::Options::=--force-confold',
-               '--assume-yes', tlc]
+               '--assume-yes', command]
         if args:
             cmd.extend(args)
         # Allow the output of this to flow outwards (ie not be captured)
         util.subp(cmd, env=e, capture=False)
 
     def _update_package_sources(self):
-        self._runner.run("update-sources", self._apt_get,
+        self._runner.run("update-sources", self.package_command,
                          ["update"], freq=PER_INSTANCE)
