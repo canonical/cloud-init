@@ -128,7 +128,7 @@ class AuthKeyLineParser(object):
             toks = rest.split(None, 2)
         return (options_lst, toks)
 
-    def _form_components(self, line, toks, options=None):
+    def _form_components(self, src_line, toks, options=None):
         components = {}
         if len(toks) == 1:
             components['base64'] = toks[0]
@@ -141,26 +141,26 @@ class AuthKeyLineParser(object):
             components['comment'] = toks[2]
         components['options'] = options
         if not components:
-            return AuthKeyLine(line)
+            return AuthKeyLine(src_line)
         else:
-            return AuthKeyLine(line, **components)
+            return AuthKeyLine(src_line, **components)
 
-    def parse(self, in_line, def_opt=None):
-        line = in_line.rstrip("\r\n")
+    def parse(self, src_line, def_opt=None):
+        line = src_line.rstrip("\r\n")
         if line.startswith("#") or line.strip() == '':
-            return AuthKeyLine(source=line)
+            return AuthKeyLine(src_line)
         else:
             ent = line.strip()
             toks = ent.split(None, 3)
             if len(toks) < 4:
-                return self._form_components(line, toks, def_opt)
+                return self._form_components(src_line, toks, def_opt)
             else:
                 (options, toks) = self._extract_options(ent)
                 if options:
                     options = ",".join(options)
                 else:
                     options = def_opt
-                return self._form_components(line, toks, options)
+                return self._form_components(src_line, toks, options)
 
 
 def parse_authorized_keys(fname):
