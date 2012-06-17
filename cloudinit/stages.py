@@ -431,6 +431,18 @@ class Transforms(object):
                     contents['args'] = item[2:]
                 if contents:
                     module_list.append(contents)
+            elif isinstance(item, (dict)):
+                contents = {}
+                valid = False
+                if 'name' in item:
+                    contents['mod'] = item['name'].strip()
+                    valid = True
+                if 'frequency' in item:
+                    contents['freq'] = item['frequency'].strip()
+                if 'args' in item:
+                    contents['args'] = item['args'] or []
+                if contents and valid:
+                    module_list.append(contents)
             else:
                 raise TypeError(("Failed to read '%s' item in config,"
                                  " unknown type %s") %
