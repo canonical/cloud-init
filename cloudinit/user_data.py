@@ -121,19 +121,25 @@ class UserDataProcessor(object):
                 continue
 
             include_once_fn = None
+            content = None
             if include_once_on:
                 include_once_fn = self._get_include_once_filename(include_url)
             if include_once_on and os.path.isfile(include_once_fn):
                 content = util.load_file(include_once_fn)
             else:
-                (content, st) = url_helper.readurl(include_url)
-                if include_once_on and url_helper.ok_http_code(st):
-                    util.write_file(include_once_fn, content, mode=0600)
-                if not url_helper.ok_http_code(st):
-                    content = ''
+                resp = url_helper.readurl(include_url)
+                if include_once_on and resp.ok():
+                    util.write_file(include_once_fn, str(resp), mode=0600)
+                if resp.ok():
+                    content = str(resp)
+                else:
+                    LOG.warn(("Fetching from %s resulted in"
+                              " a invalid http code of %s"),
+                             include_url, resp.code)
 
-            new_msg = convert_string(content)
-            self._process_msg(new_msg, append_msg)
+            if content is not None:
+                new_msg = convert_string(content)
+                self._process_msg(new_msg, append_msg)
 
     def _explode_archive(self, archive, append_msg):
         entries = util.load_yaml(archive, default=[], allowed=[list, set])
