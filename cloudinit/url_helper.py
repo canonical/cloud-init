@@ -34,11 +34,35 @@ from cloudinit import version
 LOG = logging.getLogger(__name__)
 
 
-def ok_http_code(st, redirects_ok=False):
-    if redirects_ok:
-        return st in xrange(200, 400)
-    else:
-        return st in xrange(200, 300)
+class UrlResponse(object):
+    def __init__(self, status_code, contents=None, headers=None):
+        self._status_code = status_code
+        self._contents = contents
+        self._headers = headers
+
+    @property
+    def code(self):
+        return self._status_code
+
+    @property
+    def contents(self):
+        return self._contents
+    
+    @property
+    def headers(self):
+        return self._headers
+    
+    def __str__(self):
+        if not self.contents:
+            return ''
+        else:
+            return str(self.contents)
+
+    def ok(self, redirects_ok=False):
+        if redirects_ok:
+            return self.code in xrange(200, 400)
+        else:
+            return self.code in xrange(200, 300)
 
 
 def readurl(url, data=None, timeout=None,
@@ -74,9 +98,12 @@ def readurl(url, data=None, timeout=None,
                 if status is None:
                     # This seems to happen when files are read...
                     status = 200
+                headers = {}
+                if rh.headers:
+                    headers = dict(rh.headers)
                 LOG.info("Read from %s (%s, %sb) after %s attempts",
                          url, status, len(content), (i + 1))
-                return (content, status)
+                return UrlResponse(status, content, headers)
         except urllib2.HTTPError as e:
             excepts.append(e)
         except urllib2.URLError as e:
@@ -162,11 +189,11 @@ def wait_for_url(urls, max_wait=None, timeout=None,
                 else:
                     headers = {}
 
-                (resp, sc) = readurl(url, headers=headers, timeout=timeout)
-                if not resp:
-                    reason = "empty response [%s]" % sc
-                elif not ok_http_code(sc):
-                    reason = "bad status code [%s]" % sc
+                resp = readurl(url, headers=headers, timeout=timeout)
+                if not resp.contents:
+                    reason = "empty response [%s]" % (resp.code)
+                elif not resp.ok():
+                    reason = "bad status code [%s]" % (resp.code)
                 else:
                     return url
             except urllib2.HTTPError as e:

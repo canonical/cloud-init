@@ -185,9 +185,12 @@ def read_maas_seed_url(seed_url, header_cb=None, timeout=None,
         else:
             headers = {}
         try:
-            (resp, sc) = uhelp.readurl(url, headers=headers, timeout=timeout)
-            if uhelp.ok_http_code(sc):
-                md[name] = resp
+            resp = uhelp.readurl(url, headers=headers, timeout=timeout)
+            if resp.ok():
+                md[name] = str(resp)
+            else:
+                LOG.warn(("Fetching from %s resulted in"
+                          " an invalid http code %s"), url, resp.code)
         except urllib2.HTTPError as e:
             if e.code != 404:
                 raise

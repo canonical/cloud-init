@@ -79,10 +79,10 @@ def handle(name, _cfg, cloud, log, _args):
     for (i, url) in enumerate(urls):
         fname = os.path.join(scripts_d, "rightscale-%02i" % (i))
         try:
-            (content, st) = uhelp.readurl(url)
+            resp = uhelp.readurl(url)
             # Ensure its a valid http response (and something gotten)
-            if uhelp.ok_http_code(st) and content:
-                util.write_file(fname, content, mode=0700)
+            if resp.ok() and resp.contents:
+                util.write_file(fname, str(resp), mode=0700)
                 wrote_fns.append(fname)
         except Exception as e:
             captured_excps.append(e)

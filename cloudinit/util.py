@@ -595,14 +595,16 @@ def read_seeded(base="", ext="", timeout=5, retries=10, file_retries=0):
         ud_url = "%s%s%s" % (base, "user-data", ext)
         md_url = "%s%s%s" % (base, "meta-data", ext)
 
-    (md_str, msc) = read_file_or_url(md_url, timeout, retries, file_retries)
+    md_resp = read_file_or_url(md_url, timeout, retries, file_retries)
     md = None
-    if md_str and uhelp.ok_http_code(msc):
+    if md_resp.ok():
+        md_str = str(md_resp)
         md = load_yaml(md_str, default={})
 
-    (ud_str, usc) = read_file_or_url(ud_url, timeout, retries, file_retries)
+    ud_resp = read_file_or_url(ud_url, timeout, retries, file_retries)
     ud = None
-    if ud_str and uhelp.ok_http_code(usc):
+    if ud_resp.ok():
+        ud_str = str(ud_resp)
         ud = ud_str
 
     return (md, ud)
@@ -769,9 +771,9 @@ def get_cmdline_url(names=None, starts=None, cmdline=None):
     if not url:
         return (None, None, None)
 
-    (contents, sc) = uhelp.readurl(url)
-    if contents.startswith(starts) and uhelp.ok_http_code(sc):
-        return (key, url, contents)
+    resp = uhelp.readurl(url)
+    if resp.contents.startswith(starts) and resp.ok():
+        return (key, url, str(resp))
 
     return (key, url, None)
 
