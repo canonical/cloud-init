@@ -83,10 +83,10 @@ class Distro(distros.Distro):
     def _read_hostname(self, filename, default=None):
         contents = util.load_file(filename, quiet=True)
         for line in contents.splitlines():
-            hpos = line.find("#")
+            c_pos = line.find("#")
             # Handle inline comments
-            if hpos != -1:
-                line = line[0:hpos]
+            if c_pos != -1:
+                line = line[0:c_pos]
             line_c = line.strip()
             if line_c:
                 return line_c
