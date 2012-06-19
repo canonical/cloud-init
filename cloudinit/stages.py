@@ -128,7 +128,7 @@ class Init(object):
 
     def purge_cache(self, rm_instance_lnk=True):
         rm_list = []
-        rmlist.append(self.paths.boot_finished)
+        rm_list.append(self.paths.boot_finished)
         if rm_instance_lnk:
             rm_list.append(self.paths.instance_link)
         for f in rm_list:
