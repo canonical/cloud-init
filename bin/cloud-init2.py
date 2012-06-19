@@ -32,12 +32,12 @@ possible_topdir = os.path.normpath(os.path.join(os.path.abspath(
 if os.path.exists(os.path.join(possible_topdir, "cloudinit", "__init__.py")):
     sys.path.insert(0, possible_topdir)
 
-
 from cloudinit import log as logging
 from cloudinit import netinfo
 from cloudinit import settings
 from cloudinit import sources
 from cloudinit import stages
+from cloudinit import templater
 from cloudinit import util
 from cloudinit import version
 
@@ -49,58 +49,58 @@ QUERY_DATA_TYPES = [
     'instance_id',
 ]
 
-LOG = logging.getLogger(__name__)
+LOG = logging.getLogger()
 
 
-def read_write_cmdline_url(target_fn):
-    if not os.path.exists(target_fn):
-        try:
-            (key, url, content) = util.get_cmdline_url()
-        except:
-            util.logexc(LOG, "Failed fetching command line url")
-            return
-        try:
-            if key and content:
-                util.write_file(target_fn, content, mode=0600)
-                LOG.info(("Wrote to %s with contents of command line"
-                          " url %s (len=%s)"), target_fn, url, len(content))
-            elif key and not content:
-                LOG.info(("Command line key %s with url"
-                          " %s had no contents"), key, url)
-        except:
-            util.logexc(LOG, "Failed writing url content to %s", target_fn)
+def warn(wstr):
+    sys.stderr.write("WARN: %s\n" % (wstr))
 
 
-def main_init(args):
+def welcome(action):
+    msg = ("Cloud-init v. {{version}} running '{{action}}' at "
+           "{{timestamp}}. Up {{uptime}} seconds.")
+    tpl_params = {
+        'version': version.version_string(),
+        'uptime': util.uptime(),
+        'timestamp': util.time_rfc2822(),
+        'action': action,
+    }
+    welcome_msg = "%s" % (templater.render_string(msg, tpl_params))
+    sys.stderr.write("%s\n" % (welcome_msg))
+    sys.stderr.flush()
+    LOG.info(welcome_msg)
+
+
+def main_init(name, args):
     deps = [sources.DEP_FILESYSTEM, sources.DEP_NETWORK]
     if args.local:
         deps = [sources.DEP_FILESYSTEM]
 
-    cfg_path = None
-    if args.file:
+    cfg_extra_paths = []
+    if args.files:
         # Already opened so lets just pass that along
         # since it would of broke if it couldn't have
         # read that file
-        cfg_path = str(args.file.name)
+        for f in args.files:
+            cfg_extra_paths.append(f.name)
 
     if not args.local:
-        # What is this for??
+        # TODO: What is this for??
         root_name = "%s.d" % (settings.CLOUD_CONFIG)
         target_fn = os.path.join(root_name, "91_kernel_cmdline_url.cfg")
-        read_write_cmdline_url(target_fn)
-    
-    # Cloud-init 'init' stage is broken up into the following stages
+        util.read_write_cmdline_url(target_fn)
+
+    # Cloud-init 'init' stage is broken up into the following sub-stages
     # 1. Ensure that the init object fetches its config without errors
     # 2. Setup logging/output redirections with resultant config (if any)
     # 3. Initialize the cloud-init filesystem
     # 4. Check if we can stop early by looking for various files
     # 5. Fetch the datasource
-    # 6. Consume the userdata (handlers get activated here)
-    # 7. Adjust any subsequent logging/output redirections
-    # 8. Run the transforms for the 'init' stage
-    # 9. Done!
-    now = util.time_rfc2822()
-    uptime = util.uptime()
+    # 6. Connect to the current instance location + update the cache
+    # 7. Consume the userdata (handlers get activated here)
+    # 8. Adjust any subsequent logging/output redirections
+    # 9. Run the transforms for the 'init' stage
+    # 10. Done!
     init = stages.Init(deps)
     # Stage 1
     init.read_cfg()
@@ -122,13 +122,70 @@ def main_init(args):
     # Stage 4
     path_helper = init.paths
     if not args.local:
-        nonet_path = "%s/%s" % (cloudinit.get_cpath("data"), "no-net")
+        sys.stderr.write("%s\n" % (netinfo.debug_info()))
+        LOG.debug(("Checking to see if files that we need already"
+                   " exist from a previous run that would allow us"
+                   " to stop early."))
+        stop_files = [
+            os.path.join(path_helper.get_cpath("data"), "no-net"),
+            path_helper.get_ipath_cur("obj_pkl"),
+        ]
+        existing_files = []
+        for fn in stop_files:
+            try:
+                c = util.load_file(fn)
+                if len(c):
+                    existing_files.append((fn, len(c)))
+            except Exception as e:
+                pass
+        if existing_files:
+            LOG.debug("Exiting early due to the existence of %s", existing_files)
+            return 0
+    else:
+        # The cache is not instance specific, so it has to be purged
+        # but we want 'start' to benefit from a cache if
+        # a previous start-local populated one...
+        manual_clean = util.get_cfg_option_bool(init.cfg,
+                                                'manual_cache_clean', False)
+        if manual_clean:
+            LOG.debug("Not purging instance link, manual cleaning enabled")
+            init.purge_cache(False)
+        else:
+            init.purge_cache()
+        # Delete the non-net file as well
+        util.del_fie(os.path.join(path_helper.get_cpath("data"), "no-net"))
+    # Stage 5
+    welcome(name)
+    try:
+        init.fetch()
+    except sources.DataSourceNotFoundException as e:
+        util.logexc(LOG, "No instance datasource found")
+        warn("No instance datasource found: %s" % (e))
+        # TODO: Return 0 or 1??
+        return 1
+    # Stage 6
+    iid = init.instancify()
+    LOG.debug("%s will now be targeting instance id: %s", name, iid)
+    init.update()
+    # Stage 7
+    try:
+        (ran, _results) = init.cloudify().run('consume_userdata',
+                                             init.consume,
+                                             args=[settings.PER_INSTANCE],
+                                             freq=settings.PER_INSTANCE)
+        if not ran:
+            init.consume(settings.ALWAYS)
+    except Exception as e:
+        warn("Consuming user data failed: %s" % (e))
+        raise
+    # Stage 8
+    
 
-def main_config(args):
+def main_config(name, args):
     pass
 
 
-def main_final(args):
+def main_final(name, args):
     pass
 
 
@@ -136,7 +193,8 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--version', '-v', action='version', 
                         version='%(prog)s ' + (version.version_string()))
-    parser.add_argument('--file', '-f', action='store', 
+    parser.add_argument('--file', '-f', action='append', 
+                        dest='files',
                         help='additional configuration file to include',
                         type=argparse.FileType('rb'))
     parser.add_argument('--debug', '-d', action='store_true', 
@@ -175,7 +233,7 @@ def main():
         'final': main_final,
     }
     func = stage_mp.get(stage_name)
-    return func(args)
+    return func(stage_name, args)
 
 
 if __name__ == '__main__':
