@@ -100,7 +100,7 @@ class UserDataProcessor(object):
                             'urlcache', entry_fn)
 
     def _do_include(self, content, append_msg):
-        # Inlude a list of urls, one per line
+        # Include a list of urls, one per line
         # also support '#include <url here>'
         # or #include-once '<url here>'
         include_once_on = False
@@ -109,11 +109,14 @@ class UserDataProcessor(object):
             if lc_line.startswith("#include-once"):
                 line = line[len("#include-once"):].lstrip()
                 # Every following include will now 
-                # not be refetched....
+                # not be refetched.... but will be 
+                # re-read from a local urlcache (if it worked)
                 include_once_on = True
             elif lc_line.startswith("#include"):
                 line = line[len("#include"):].lstrip()
-                # TODO: Should we turn back off include once here???
+                # Disable the include once if it was on
+                # if it wasn't, then this has no effect.
+                include_once_on = False
             if line.startswith("#"):
                 continue
             include_url = line.strip()
