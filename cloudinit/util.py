@@ -1021,6 +1021,25 @@ def ensure_dirs(dirlist, mode=0755):
         ensure_dir(d, mode)
 
 
+def read_write_cmdline_url(target_fn):
+    if not os.path.exists(target_fn):
+        try:
+            (key, url, content) = get_cmdline_url()
+        except:
+            logexc(LOG, "Failed fetching command line url")
+            return
+        try:
+            if key and content:
+                write_file(target_fn, content, mode=0600)
+                LOG.debug(("Wrote to %s with contents of command line"
+                          " url %s (len=%s)"), target_fn, url, len(content))
+            elif key and not content:
+                LOG.debug(("Command line key %s with url"
+                          " %s had no contents"), key, url)
+        except:
+            logexc(LOG, "Failed writing url content to %s", target_fn)
+
+
 def yaml_dumps(obj):
     formatted = yaml.dump(obj,
                     line_break="\n",
@@ -1045,10 +1064,12 @@ def ensure_dir(path, mode=None):
         chmod(path, mode)
 
 
-def get_base_cfg(cfg_path=None):
+def get_base_cfg(cfg_path=None, builtin=None):
     if not cfg_path:
         cfg_path = CLOUD_CONFIG
-    return merge_base_cfg(cfg_path, get_builtin_cfg())
+    if not builtin:
+        builtin = get_builtin_cfg()
+    return merge_base_cfg(cfg_path, builtin)
 
 
 @contextlib.contextmanager
