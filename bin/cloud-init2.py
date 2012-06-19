@@ -103,7 +103,7 @@ def main_init(name, args):
     # 10. Done!
     init = stages.Init(deps)
     # Stage 1
-    init.read_cfg()
+    init.read_cfg(cfg_extra_paths)
     # Stage 2
     try:
         util.fixup_output(init.cfg, 'init')
