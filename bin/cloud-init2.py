@@ -106,9 +106,9 @@ def main_init(name, args):
     init.read_cfg(cfg_extra_paths)
     # Stage 2
     try:
-        util.fixup_output(init.cfg, 'init')
+        util.fixup_output(init.cfg, name)
     except:
-        util.logexc(LOG, "Failed to setup output redirection")
+        util.logexc(LOG, "Failed to setup output redirection!")
     if args.debug:
         # Reset so that all the debug handlers are closed out
         LOG.debug("Logging being reset, this logger may no longer be active shortly")
@@ -118,7 +118,7 @@ def main_init(name, args):
     try:
         init.initialize()
     except Exception as e:
-        util.logexc(LOG, "Failed to initialize, likely bad things to come: %s", e)
+        util.logexc(LOG, "Failed to initialize, likely bad things to come!")
     # Stage 4
     path_helper = init.paths
     if not args.local:
@@ -159,8 +159,7 @@ def main_init(name, args):
     try:
         init.fetch()
     except sources.DataSourceNotFoundException as e:
-        util.logexc(LOG, "No instance datasource found")
-        warn("No instance datasource found: %s" % (e))
+        util.logexc(LOG, "No instance datasource found!")
         # TODO: Return 0 or 1??
         return 1
     # Stage 6
@@ -176,8 +175,8 @@ def main_init(name, args):
         if not ran:
             init.consume(settings.ALWAYS)
     except Exception as e:
-        warn("Consuming user data failed: %s" % (e))
-        raise
+        util.logexc(LOG, "Consuming user data failed!")
+        return 1
     # Stage 8
     
 
