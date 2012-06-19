@@ -89,10 +89,8 @@ class Init(object):
         return self._extract_cfg('restricted')
 
     def _extract_cfg(self, restriction):
-        # None check so that we don't keep on re-loading if empty
-        if self._cfg is None:
-            self._cfg = self._read_cfg()
-            LOG.debug("Loaded init config %s", self._cfg)
+        # Ensure actually read
+        self.read_cfg()
         # Nobody gets the real config
         ocfg = copy.deepcopy(self._cfg)
         if restriction == 'restricted':
@@ -153,6 +151,12 @@ class Init(object):
                 if g == "-1" or g == "None":
                     g = None
                 util.chownbyname(log_file, u, g)
+
+    def read_cfg(self):
+        # None check so that we don't keep on re-loading if empty
+        if self._cfg is None:
+            self._cfg = self._read_cfg()
+            LOG.debug("Loaded init config %s", self._cfg)
 
     def _read_cfg(self):
         b_config = util.get_builtin_cfg()
@@ -488,7 +492,7 @@ class Transforms(object):
                 func_args = [name, copy.deepcopy(self.cfg),
                              c_cloud, transforms.LOG, args]
                 # This name will affect the semaphore name created
-                run_name = "transform-%s" % (name)
+                run_name = "config-%s" % (name)
                 c_cloud.run(run_name, mod.handle, func_args, freq=freq)
             except Exception as e:
                 util.logexc(LOG, "Running %s (%s) failed", name, mod)
