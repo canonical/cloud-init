@@ -70,6 +70,7 @@ class Distro(distros.Distro):
             mac_addr = info.get('hwaddress')
             if mac_addr:
                 lines.append("MACADDR=%s" % (mac_addr))
+            lines.insert(0, '# Created by cloud-init')
             contents = "\n".join(lines)
             net_fn = NETWORK_FN_TPL % (dev)
             util.write_file(net_fn, contents, 0644)
@@ -100,6 +101,7 @@ class Distro(distros.Distro):
             new_contents.append("=".join([cmd, args]))
         # Guess not found, append it
         if not adjusted:
+            new_contents.append("# Added by cloud-init")
             new_contents.append("HOSTNAME=%s" % (hostname))
         contents = "\n".join(new_contents)
         util.write_file(out_fn, contents, 0644)
@@ -189,6 +191,7 @@ class Distro(distros.Distro):
             new_contents.append("=".join([cmd, args]))
         # Guess not found, append it
         if not zone_added:
+            new_contents.append("# Added by cloud-init")
             new_contents.append('ZONE="%s"' % (tz))
         tz_contents = "\n".join(new_contents)
         util.write_file("/etc/sysconfig/clock", tz_contents)
