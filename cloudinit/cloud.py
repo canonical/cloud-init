@@ -50,6 +50,7 @@ class Cloud(object):
     # it is typically useful to cause the logging to be
     # setup again.
     def cycle_logging(self):
+        logging.resetLogging()
         logging.setupLogging(self.cfg)
 
     @property
