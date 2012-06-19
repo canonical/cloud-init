@@ -169,13 +169,13 @@ def find_source(sys_cfg, distro, paths, ds_deps, cfg_list, pkg_list):
     LOG.info("Searching for data source in: %s", ds_names)
 
     for cls in ds_list:
-        ds = util.obj_name(cls)
         try:
+            LOG.debug("Seeing if we can get any data from %s", cls)
             s = cls(sys_cfg, distro, paths)
             if s.get_data():
-                return (s, ds)
+                return (s, util.obj_name(cls))
         except Exception:
-            util.logexc(LOG, "Getting data from %s failed", ds)
+            util.logexc(LOG, "Getting data from %s failed", cls)
 
     msg = "Did not find any data source, searched classes: %s" % (ds_names)
     raise DataSourceNotFoundException(msg)
@@ -188,7 +188,7 @@ def find_source(sys_cfg, distro, paths, ds_deps, cfg_list, pkg_list):
 def list_sources(cfg_list, depends, pkg_list):
     src_list = []
     LOG.info(("Looking for for data source in: %s,"
-              " %s that matches %s"), cfg_list, pkg_list, depends)
+              " via packages %s that matches dependencies %s"), cfg_list, pkg_list, depends)
     for ds_coll in cfg_list:
         ds_name = str(ds_coll)
         if not ds_name.startswith(DS_PREFIX):
@@ -209,8 +209,8 @@ def list_sources(cfg_list, depends, pkg_list):
             if not cls_matches:
                 continue
             src_list.extend(cls_matches)
-            LOG.debug(("Found a match for data source %s"
-                       " in %s with matches %s"), ds_name, mod, cls_matches)
+            LOG.debug(("Found a match"
+                       " in %s with matches %s"), mod, cls_matches)
             break
     return src_list
 
