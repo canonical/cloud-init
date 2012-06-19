@@ -156,20 +156,27 @@ class Init(object):
         # None check so that we don't keep on re-loading if empty
         if self._cfg is None:
             self._cfg = self._read_cfg(extra_fns)
-            LOG.debug("Loaded init config %s", self._cfg)
+            LOG.debug("Loaded %s config %s", util.obj_name(self), self._cfg)
 
     def _read_cfg(self, extra_fns):
-        builtin_cfg = util.get_builtin_cfg()
-        try:
-            conf = util.get_base_cfg(builtin=builtin_cfg)
-        except Exception:
-            conf = builtin_cfg
-        m_cfg = util.mergedict(conf, self._read_cfg_old())
+        # Read extra files provided (if any)
+        i_cfgs = []
         if extra_fns:
             for fn in extra_fns:
-                # Any extras over-ride the existing configs
-                m_cfg = util.mergedict(util.read_conf(fn), m_cfg)
-        return m_cfg
+                try:
+                    fn_cfg = util.read_conf(fn)
+                    i_cfgs.append(fn_cfg)
+                except:
+                    util.logexc(LOG, ("Failed loading of additional"
+                                      " configuration from %s"), fn)
+        # Now read in the built-in + base + old
+        try:
+            conf = util.get_base_cfg(builtin=util.get_builtin_cfg())
+        except Exception:
+            conf = util.get_builtin_cfg()
+        i_cfgs.append(conf)
+        i_cfgs.append(self._read_cfg_old())
+        return util.mergemanydict(i_cfgs)
 
     def _restore_from_cache(self):
         pickled_fn = self.paths.get_ipath_cur('obj_pkl')
@@ -371,46 +378,46 @@ class Init(object):
 
 
 class Transforms(object):
-    def __init__(self, init, cfgfile=None):
+    def __init__(self, init, cfg_files=None):
         self.datasource = init.fetch()
-        self.cfgfile = cfgfile
-        self.basecfg = copy.deepcopy(init.cfg)
+        self.cfg_files = cfg_files
+        self.base_cfg = copy.deepcopy(init.cfg)
         self.init = init
         # Created on first use
-        self._cachedcfg = None
+        self._cached_cfg = None
 
     @property
     def cfg(self):
-        if self._cachedcfg is None:
-            self._cachedcfg = self._get_config(self.cfgfile)
-            LOG.debug("Loading module config %s", self._cachedcfg)
-        return self._cachedcfg
+        # None check to avoid empty case
+        if self._cached_cfg is None:
+            self._cached_cfg = self._get_config()
+            LOG.debug("Loading %s config %s",
+                      util.obj_name(self), self._cached_cfg)
+        return self._cached_cfg
 
-    def _get_config(self, cfgfile):
-        mcfg = None
+    def _get_config(self):
+        t_cfgs = []
+        if self.cfg_files:
+            for fn in self.cfg_files:
+                try:
+                    t_cfgs.append(util.read_conf(fn))
+                except:
+                    util.logexc(LOG, ("Failed loading of configuration"
+                                       " from %s"), fn)
 
-        if self.cfgfile:
+        if self.datasource:
             try:
-                mcfg = util.read_conf(cfgfile)
+                d_cfg = self.datasource.get_config_obj()
+                if d_cfg:
+                    t_cfgs.append(d_cfg)
             except:
-                util.logexc(LOG, ("Failed loading of cloud config '%s'. "
-                                  "Continuing with an empty config."), cfgfile)
-        if not mcfg:
-            mcfg = {}
+                util.logexc(LOG, ("Failed loading of datasource"
+                                  " config object from %s"), self.datasource)
+        
+        if self.base_cfg:
+            t_cfgs.append(self.base_cfg)
 
-        ds_cfg = None
-        try:
-            ds_cfg = self.datasource.get_config_obj()
-        except:
-            util.logexc(LOG, "Failed loading of datasource config object.")
-        if not ds_cfg:
-            ds_cfg = {}
-
-        mcfg = util.mergedict(mcfg, ds_cfg)
-        if self.basecfg:
-            return util.mergedict(mcfg, self.basecfg)
-        else:
-            return mcfg
+        return util.mergemanydict(t_cfgs)
 
 
     def _read_transforms(self, name):
