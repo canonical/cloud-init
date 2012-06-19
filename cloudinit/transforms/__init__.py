@@ -29,7 +29,7 @@ LOG = logging.getLogger(__name__)
 TRANSFORM_PREFIX = ''  # "cc_"
 
 
-def form_transform_name(name):
+def form_transform_name(name, mod=__name__):
     canon_name = name.replace("-", "_")
     if canon_name.lower().endswith(".py"):
         canon_name = canon_name[0:(len(canon_name) - 3)]
@@ -38,7 +38,7 @@ def form_transform_name(name):
         return None
     if not canon_name.startswith(TRANSFORM_PREFIX):
         canon_name = '%s%s' % (TRANSFORM_PREFIX, canon_name)
-    return canon_name
+    return ".".join([str(mod), str(canon_name)])
 
 
 def fixup_transform(mod, def_freq=PER_INSTANCE):
