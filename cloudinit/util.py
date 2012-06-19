@@ -275,15 +275,20 @@ def is_ipv4(instr):
 
 def merge_base_cfg(cfgfile, cfg_builtin=None):
     syscfg = read_conf_with_confd(cfgfile)
-
+    
     kern_contents = read_cc_from_cmdline()
     kerncfg = {}
     if kern_contents:
         kerncfg = load_yaml(kern_contents, default={})
 
-    # kernel parameters override system config
-    combined = mergedict(kerncfg, syscfg)
+    # Kernel parameters override system config
+    if kerncfg:
+        combined = mergedict(kerncfg, syscfg)
+    else:
+        combined = syscfg
+
     if cfg_builtin:
+        # Combined over-ride anything builtin
         fin = mergedict(combined, cfg_builtin)
     else:
         fin = combined
@@ -450,18 +455,11 @@ def mergedict(src, cand):
     Nested dictionaries are merged recursively.
     """
     if isinstance(src, dict) and isinstance(cand, dict):
-        for k, v in cand.iteritems():
+        for (k, v) in cand.iteritems():
             if k not in src:
                 src[k] = v
             else:
                 src[k] = mergedict(src[k], v)
-    else:
-        if not isinstance(src, dict):
-            raise TypeError(("Attempting to merge a non dictionary "
-                             "source type: %s") % (obj_name(src)))
-        if not isinstance(cand, dict):
-            raise TypeError(("Attempting to merge a non dictionary "
-                             "candidate type: %s") % (obj_name(cand)))
     return src
 
 
@@ -616,7 +614,7 @@ def read_conf_d(confd):
 
     # remove anything not ending in '.cfg'
     confs = [f for f in confs if f.endswith(".cfg")]
-
+    
     # remove anything not a file
     confs = [f for f in confs if os.path.isfile(os.path.join(confd, f))]
 
@@ -646,7 +644,8 @@ def read_conf_with_confd(cfgfile):
     if not confd or not os.path.isdir(confd):
         return cfg
 
-    return mergedict(read_conf_d(confd), cfg)
+    cfg = mergedict(read_conf_d(confd), cfg)
+    return cfg
 
 
 def read_cc_from_cmdline(cmdline=None):
@@ -752,13 +751,10 @@ def get_fqdn_from_hosts(hostname, filename="/etc/hosts"):
     return fqdn
 
 
-def get_cmdline_url(names=None, starts=None, cmdline=None):
+def get_cmdline_url(names=('cloud-config-url', 'url'),
+                    starts="#cloud-config", cmdline=None):
     if cmdline is None:
         cmdline = get_cmdline()
-    if not names:
-        names = ('cloud-config-url', 'url')
-    if not starts:
-        starts = "#cloud-config"
 
     data = keyval_str_to_dict(cmdline)
     url = None
@@ -895,8 +891,6 @@ def get_cmdline():
 
 def pipe_in_out(in_fh, out_fh, chunk_size=1024, chunk_cb=None):
     bytes_piped = 0
-    LOG.debug(("Transferring the contents of %s "
-             "to %s in chunks of size %sb"), in_fh, out_fh, chunk_size)
     while True:
         data = in_fh.read(chunk_size)
         if data == '':
