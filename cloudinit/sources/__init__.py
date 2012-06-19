@@ -182,14 +182,15 @@ def find_source(sys_cfg, distro, paths, ds_deps, cfg_list, pkg_list):
     raise DataSourceNotFoundException(msg)
 
 
-# return a list of classes that have the same depends as 'depends'
-# iterate through cfg_list, loading "DataSourceCollections" modules
+# Return a list of classes that have the same depends as 'depends'
+# iterate through cfg_list, loading "DataSource*" modules
 # and calling their "get_datasource_list".
-# return an ordered list of classes that match
+# Return an ordered list of classes that match (if any)
 def list_sources(cfg_list, depends, pkg_list):
     src_list = []
     LOG.info(("Looking for for data source in: %s,"
-              " via packages %s that matches dependencies %s"), cfg_list, pkg_list, depends)
+              " via packages %s that matches dependencies %s"),
+             cfg_list, pkg_list, depends)
     for ds_coll in cfg_list:
         ds_name = str(ds_coll)
         if not ds_name.startswith(DS_PREFIX):
