@@ -360,6 +360,7 @@ def get_cfg_by_path(yobj, keyp, default=None):
 def fixup_output(cfg, mode):
     (outfmt, errfmt) = get_output_cfg(cfg, mode)
     redirect_output(outfmt, errfmt)
+    return (outfmt, errfmt)
 
 
 # redirect_output(outfmt, errfmt, orig_out, orig_err)
@@ -446,6 +447,16 @@ def obj_name(obj):
                         types.LambdaType)):
         return str(obj.__name__)
     return obj_name(obj.__class__)
+
+
+def mergemanydict(srcs, reverse=False):
+    if reverse:
+        srcs = reversed(srcs)
+    m_cfg = {}
+    for a_cfg in srcs:
+        if a_cfg:
+            m_cfg = mergedict(m_cfg, a_cfg)
+    return m_cfg
 
 
 def mergedict(src, cand):
