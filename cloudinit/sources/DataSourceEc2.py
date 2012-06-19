@@ -31,8 +31,15 @@ from cloudinit import url_helper as uhelp
 from cloudinit import util
 
 LOG = logging.getLogger(__name__)
+
 DEF_MD_URL = "http://169.254.169.254"
+
+# Which version we are requesting of the ec2 metadata apis
 DEF_MD_VERSION = '2009-04-04'
+
+# Default metadata urls that will be used if none are provided
+# They will be checked for 'resolveability' and some of the 
+# following may be discarded if they do not resolve
 DEF_MD_URLS = [DEF_MD_URL, "http://instance-data:8773"]
 
 
@@ -57,13 +64,13 @@ class DataSourceEc2(sources.DataSource):
         try:
             if not self.wait_for_metadata_service():
                 return False
-            start = time.time()
+            start_time = time.time()
             self.userdata_raw = boto_utils.get_instance_userdata(self.api_ver,
                 None, self.metadata_address)
             self.metadata = boto_utils.get_instance_metadata(self.api_ver,
                 self.metadata_address)
-            tot_time = int(time.time() - start)
-            LOG.debug("Crawl of metadata service took %s", tot_time)
+            LOG.debug("Crawl of metadata service took %s seconds", 
+                       int(time.time() - start_time))
             return True
         except Exception:
             util.logexc(LOG, "Failed reading from metadata address %s",
@@ -126,6 +133,7 @@ class DataSourceEc2(sources.DataSource):
             timeout = int(mcfg.get("timeout", timeout))
         except Exception:
             util.logexc(LOG, "Failed to get timeout, using %s", timeout)
+
         return (max_wait, timeout)
 
     def wait_for_metadata_service(self):
@@ -156,15 +164,15 @@ class DataSourceEc2(sources.DataSource):
             urls.append(cur)
             url2base[cur] = url
 
-        starttime = time.time()
+        start_time = time.time()
         url = uhelp.wait_for_url(urls=urls, max_wait=max_wait,
                                 timeout=timeout, status_cb=LOG.warn)
 
         if url:
             LOG.info("Using metadata source: '%s'", url2base[url])
         else:
-            LOG.critical("Giving up on md from %s after %i seconds",
-                            urls, int(time.time() - starttime))
+            LOG.critical("Giving up on md from %s after %s seconds",
+                            urls, int(time.time() - start_time))
 
         self.metadata_address = url2base.get(url)
         return bool(url)
