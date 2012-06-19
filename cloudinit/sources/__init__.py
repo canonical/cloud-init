@@ -177,7 +177,8 @@ def find_source(sys_cfg, distro, paths, ds_deps, cfg_list, pkg_list):
         except Exception:
             util.logexc(LOG, "Getting data from %s failed", cls)
 
-    msg = "Did not find any data source, searched classes: %s" % (ds_names)
+    msg = ("Did not find any data source,"
+           " searched classes: (%s)") % (", ".join(ds_names))
     raise DataSourceNotFoundException(msg)
 
 
