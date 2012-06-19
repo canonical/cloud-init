@@ -53,7 +53,7 @@ class Distro(object):
 
     @abc.abstractmethod
     def _write_network(self, settings):
-        # In the future use the python-netcf
+        # In the future use the http://fedorahosted.org/netcf/
         # to write this blob out in a distro format
         raise NotImplementedError()
 
