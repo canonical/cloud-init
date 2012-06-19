@@ -150,7 +150,7 @@ class Runners(object):
             args = []
         if sem.has_run(name, freq):
             LOG.info("%s already ran (freq=%s)", name, freq)
-            return None
+            return (False, None)
         with sem.lock(name, freq, clear_on_fail) as lk:
             if not lk:
                 raise LockFailure("Failed to acquire lock for %s" % name)
@@ -158,9 +158,10 @@ class Runners(object):
                 LOG.debug("Running %s with args %s using lock %s",
                           functor, args, lk)
                 if isinstance(args, (dict)):
-                    return functor(**args)
+                    results = functor(**args)
                 else:
-                    return functor(*args)
+                    results = functor(*args)
+                return (True, results)
 
 
 class ContentHandlers(object):
