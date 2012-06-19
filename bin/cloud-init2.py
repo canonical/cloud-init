@@ -42,6 +42,9 @@ from cloudinit import util
 from cloudinit import version
 
 
+# Transform section template
+TR_TPL = "cloud_%s_modules"
+
 # Things u can query on
 QUERY_DATA_TYPES = [
     'data',
@@ -98,26 +101,31 @@ def main_init(name, args):
     # 5. Fetch the datasource
     # 6. Connect to the current instance location + update the cache
     # 7. Consume the userdata (handlers get activated here)
-    # 8. Adjust any subsequent logging/output redirections
-    # 9. Run the transforms for the 'init' stage
-    # 10. Done!
+    # 8. Construct the transform object
+    # 9. Adjust any subsequent logging/output redirections using
+    #    the transform objects configuration
+    # 10. Run the transforms for the 'init' stage
+    # 11. Done!
     init = stages.Init(deps)
     # Stage 1
     init.read_cfg(cfg_extra_paths)
     # Stage 2
+    outfmt = None
+    errfmt = None
     try:
-        util.fixup_output(init.cfg, name)
+        (outfmt, errfmt) = util.fixup_output(init.cfg, name)
     except:
         util.logexc(LOG, "Failed to setup output redirection!")
     if args.debug:
         # Reset so that all the debug handlers are closed out
-        LOG.debug("Logging being reset, this logger may no longer be active shortly")
+        LOG.debug(("Logging being reset, this logger may no"
+                    " longer be active shortly"))
         logging.resetLogging()
     logging.setupLogging(init.cfg)
     # Stage 3
     try:
         init.initialize()
-    except Exception as e:
+    except Exception:
         util.logexc(LOG, "Failed to initialize, likely bad things to come!")
     # Stage 4
     path_helper = init.paths
@@ -136,10 +144,11 @@ def main_init(name, args):
                 c = util.load_file(fn)
                 if len(c):
                     existing_files.append((fn, len(c)))
-            except Exception as e:
+            except Exception:
                 pass
         if existing_files:
-            LOG.debug("Exiting early due to the existence of %s", existing_files)
+            LOG.debug("Exiting early due to the existence of %s files",
+                      existing_files)
             return 0
     else:
         # The cache is not instance specific, so it has to be purged
@@ -153,7 +162,7 @@ def main_init(name, args):
         else:
             init.purge_cache()
         # Delete the non-net file as well
-        util.del_fie(os.path.join(path_helper.get_cpath("data"), "no-net"))
+        util.del_file(os.path.join(path_helper.get_cpath("data"), "no-net"))
     # Stage 5
     welcome(name)
     try:
@@ -173,18 +182,38 @@ def main_init(name, args):
                                              args=[settings.PER_INSTANCE],
                                              freq=settings.PER_INSTANCE)
         if not ran:
-            init.consume(settings.ALWAYS)
+            init.consume(settings.PER_ALWAYS)
     except Exception as e:
         util.logexc(LOG, "Consuming user data failed!")
         return 1
     # Stage 8
-    
+    tr = stages.Transforms(init, cfg_extra_paths)
+    # Stage 9 - TODO is this really needed??
+    try:
+        outfmt_orig = outfmt
+        errfmt_orig = errfmt
+        (outfmt, errfmt) = util.get_output_cfg(tr.cfg, name)
+        if outfmt_orig != outfmt or errfmt_orig != errfmt:
+            LOG.warn("Stdout, stderr changing to (%s, %s)", outfmt, errfmt)
+            (outfmt, errfmt) = util.fixup_output(tr.cfg, name)
+    except:
+        util.logexc(LOG, "Failed to adjust output redirection!")
+    # Stage 10
+    section_name = TR_TPL % (name)
+    (ran_am, failures) = tr.run(section_name)
+    if not ran_am:
+        msg = "No %s transforms to run under section %s" % (name, section_name)
+        sys.stderr.write("%s\n" % (msg))
+        LOG.debug(msg)
+        return 0
+    return len(failures)
 
-def main_config(name, args):
+
+def main_config(_name, _args):
     pass
 
 
-def main_final(name, args):
+def main_final(_name, _args):
     pass
 
 
@@ -202,18 +231,27 @@ def main():
     subparsers = parser.add_subparsers()
 
     # Each action and its suboptions (if any)
-    parser_init = subparsers.add_parser('init', help='initializes cloud-init and performs \'init\' transforms')
+    parser_init = subparsers.add_parser('init', 
+                                        help=('initializes cloud-init and'
+                                              ' performs \'init\' transforms'))
     parser_init.add_argument("--local", '-l', action='store_true',
                              help="start in local mode", default=False)
-    parser_init.set_defaults(action='init')  # This is used so that we can know which action is selected
+    # This is used so that we can know which action is selected
+    parser_init.set_defaults(action='init')
 
-    parser_config = subparsers.add_parser('config', help='performs cloud-init \'config\' transforms')
+    parser_config = subparsers.add_parser('config', 
+                                          help=('performs cloud-init '
+                                                '\'config\' transforms'))
     parser_config.set_defaults(action='config')
 
-    parser_final = subparsers.add_parser('final', help='performs cloud-init \'final\' transforms')
+    parser_final = subparsers.add_parser('final', 
+                                         help=('performs cloud-init '
+                                               '\'final\' transforms'))
     parser_final.set_defaults(action='final')
 
-    parser_query = subparsers.add_parser('query', help='query information stored in cloud-init')
+    parser_query = subparsers.add_parser('query', 
+                                         help=('query information stored '
+                                               'in cloud-init'))
     parser_query.add_argument("--name", action="store",
                               help="item name to query on",
                               required=True,
