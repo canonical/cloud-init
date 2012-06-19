@@ -156,7 +156,7 @@ class Init(object):
         # None check so that we don't keep on re-loading if empty
         if self._cfg is None:
             self._cfg = self._read_cfg(extra_fns)
-            LOG.debug("Loaded %s config %s", util.obj_name(self), self._cfg)
+            LOG.debug("Loaded 'init' config %s", self._cfg)
 
     def _read_cfg(self, extra_fns):
         # Read extra files provided (if any)
@@ -391,8 +391,7 @@ class Transforms(object):
         # None check to avoid empty case
         if self._cached_cfg is None:
             self._cached_cfg = self._get_config()
-            LOG.debug("Loading %s config %s",
-                      util.obj_name(self), self._cached_cfg)
+            LOG.debug("Loading 'transform' config %s", self._cached_cfg)
         return self._cached_cfg
 
     def _get_config(self):
@@ -487,6 +486,7 @@ class Transforms(object):
         failures = []
         d_name = self.init.distro.name
         c_cloud = self.init.cloudify()
+        am_ran = 0
         for (mod, name, freq, args) in mostly_mods:
             try:
                 # Try the modules frequency, otherwise fallback to a known one
@@ -503,13 +503,15 @@ class Transforms(object):
                 # Use the transforms logger and not our own
                 func_args = [name, copy.deepcopy(self.cfg),
                              c_cloud, transforms.LOG, args]
+                # Mark it as having started running
+                am_ran += 1
                 # This name will affect the semaphore name created
                 run_name = "config-%s" % (name)
                 c_cloud.run(run_name, mod.handle, func_args, freq=freq)
             except Exception as e:
                 util.logexc(LOG, "Running %s (%s) failed", name, mod)
                 failures.append((name, e))
-        return failures
+        return (am_ran, failures)
 
     def run(self, name):
         raw_mods = self._read_transforms(name)
