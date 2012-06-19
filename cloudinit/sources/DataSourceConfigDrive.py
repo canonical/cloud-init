@@ -116,8 +116,8 @@ class DataSourceConfigDrive(sources.DataSource):
 
 
 class DataSourceConfigDriveNet(DataSourceConfigDrive):
-    def __init__(self, sys_cfg, paths):
-        DataSourceConfigDrive.__init__(self, sys_cfg, paths)
+    def __init__(self, sys_cfg, distro, paths):
+        DataSourceConfigDrive.__init__(self, sys_cfg, distro, paths)
         self.dsmode = 'net'
 
 
