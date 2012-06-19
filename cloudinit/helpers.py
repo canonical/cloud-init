@@ -206,11 +206,17 @@ class ContentHandlers(object):
 
 class Paths(object):
     def __init__(self, path_cfgs, ds=None):
-        self.cloud_dir = path_cfgs.get('cloud_dir', '/var/lib/cloud')
+        self.cfgs = path_cfgs
+        # Populate all the initial paths
+        self.cloud_dir = self.join_paths(False,
+                                         path_cfgs.get('cloud_dir',
+                                                       '/var/lib/cloud'))
         self.instance_link = os.path.join(self.cloud_dir, 'instance')
         self.boot_finished = os.path.join(self.instance_link, "boot-finished")
         self.upstart_conf_d = path_cfgs.get('upstart_dir')
-        template_dir = path_cfgs.get('templates_dir', '/etc/cloud/templates/')
+        template_dir = self.join_paths(True,
+                                       path_cfgs.get('templates_dir',
+                                                     '/etc/cloud/templates/'))
         self.template_tpl = os.path.join(template_dir, '%s.tmpl')
         self.seed_dir = os.path.join(self.cloud_dir, 'seed')
         self.lookups = {
@@ -226,6 +232,20 @@ class Paths(object):
         }
         # Set when a datasource becomes active
         self.datasource = ds
+
+    # joins the paths but also appends a read 
+    # or write root if available
+    def join_paths(self, read_only, *paths):
+        if read_only:
+            root = self.cfgs.get('read_root', '/')
+        else:
+            root = self.cfgs.get('write_root', '/')
+        if not paths:
+            return root
+        joined = os.path.join(*paths)
+        if root:
+            joined = os.path.join(root, joined.lstrip("/"))
+        return joined
 
     # get_ipath_cur: get the current instance path for an item
     def get_ipath_cur(self, name=None):
