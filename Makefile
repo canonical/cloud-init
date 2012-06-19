@@ -15,5 +15,9 @@ test:
 2to3:
 	2to3 $(PY_FILES)
 
-.PHONY: test pylint pyflakes 2to3
+clean:
+	rm -rf /var/log/cloud-init.log \
+		   /var/lib/cloud/
+
+.PHONY: test pylint pyflakes 2to3 clean
 
