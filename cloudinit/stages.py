@@ -126,14 +126,14 @@ class Init(object):
         ]
         return initial_dirs
 
-    def purge_cache(self, rmcur=True):
-        rmlist = []
+    def purge_cache(self, rm_instance_lnk=True):
+        rm_list = []
         rmlist.append(self.paths.boot_finished)
-        if rmcur:
-            rmlist.append(self.paths.instance_link)
-        for f in rmlist:
+        if rm_instance_lnk:
+            rm_list.append(self.paths.instance_link)
+        for f in rm_list:
             util.del_file(f)
-        return len(rmlist)
+        return len(rm_list)
 
     def initialize(self):
         self._initialize_filesystem()
@@ -152,19 +152,24 @@ class Init(object):
                     g = None
                 util.chownbyname(log_file, u, g)
 
-    def read_cfg(self):
+    def read_cfg(self, extra_fns=None):
         # None check so that we don't keep on re-loading if empty
         if self._cfg is None:
-            self._cfg = self._read_cfg()
+            self._cfg = self._read_cfg(extra_fns)
             LOG.debug("Loaded init config %s", self._cfg)
 
-    def _read_cfg(self):
-        b_config = util.get_builtin_cfg()
+    def _read_cfg(self, extra_fns):
+        builtin_cfg = util.get_builtin_cfg()
         try:
-            conf = util.get_base_cfg()
+            conf = util.get_base_cfg(builtin=builtin_cfg)
         except Exception:
-            conf = b_config
-        return util.mergedict(conf, self._read_cfg_old())
+            conf = builtin_cfg
+        m_cfg = util.mergedict(conf, self._read_cfg_old())
+        if extra_fns:
+            for fn in extra_fns:
+                # Any extras over-ride the existing configs
+                m_cfg = util.mergedict(util.read_conf(fn), m_cfg)
+        return m_cfg
 
     def _restore_from_cache(self):
         pickled_fn = self.paths.get_ipath_cur('obj_pkl')
