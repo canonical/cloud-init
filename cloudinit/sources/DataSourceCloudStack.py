@@ -30,6 +30,7 @@ import boto.utils as boto_utils
 
 from cloudinit import log as logging
 from cloudinit import sources
+from cloudinit import url_helper as uhelp
 from cloudinit import util
 
 LOG = logging.getLogger(__name__)
@@ -63,6 +64,48 @@ class DataSourceCloudStack(sources.DataSource):
     def __str__(self):
         return util.obj_name(self)
 
+    def _get_url_settings(self):
+        mcfg = self.ds_cfg
+        if not mcfg:
+            mcfg = {}
+        max_wait = 120
+        try:
+            max_wait = int(mcfg.get("max_wait", max_wait))
+        except Exception:
+            util.logexc(LOG, "Failed to get max wait. using %s", max_wait)
+
+        if max_wait == 0:
+            return False
+
+        timeout = 50
+        try:
+            timeout = int(mcfg.get("timeout", timeout))
+        except Exception:
+            util.logexc(LOG, "Failed to get timeout, using %s", timeout)
+
+        return (max_wait, timeout)
+
+    def wait_for_metadata_service(self):
+        mcfg = self.ds_cfg
+        if not mcfg:
+            mcfg = {}
+
+        (max_wait, timeout) = self._get_url_settings()
+
+        urls = [self.metadata_address]
+        start_time = time.time()
+        url = uhelp.wait_for_url(urls=urls, max_wait=max_wait,
+                                timeout=timeout, status_cb=LOG.warn)
+
+        if url:
+            LOG.info("Using metadata source: '%s'", url)
+        else:
+            LOG.critical(("Giving up on waiting for the metadata from %s"
+                          " after %s seconds"),
+                          urls, int(time.time() - start_time))
+
+        return bool(url)
+
     def get_data(self):
         seed_ret = {}
         if util.read_optional_seed(seed_ret, base=(self.seed_dir + "/")):
@@ -71,13 +114,15 @@ class DataSourceCloudStack(sources.DataSource):
             LOG.debug("Using seeded cloudstack data from: %s", self.seed_dir)
             return True
         try:
-            start = time.time()
+            if not self.wait_for_metadata_service():
+                return False
+            start_time = time.time()
             self.userdata_raw = boto_utils.get_instance_userdata(self.api_ver,
                 None, self.metadata_address)
             self.metadata = boto_utils.get_instance_metadata(self.api_ver,
                 self.metadata_address)
-            tot_time = (time.time() - start)
-            LOG.debug("Crawl of metadata service took %s", int(tot_time))
+            LOG.debug("Crawl of metadata service took %s seconds", 
+                      int(time.time() - start_time))
             return True
         except Exception:
             util.logexc(LOG, ('Failed fetching from metadata '
