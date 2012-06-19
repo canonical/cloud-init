@@ -85,7 +85,7 @@ def readurl(url, data=None, timeout=None,
     attempts = retries + 1
 
     excepts = []
-    LOG.info(("Attempting to read from %s with %s attempts"
+    LOG.info(("Attempting to open %s with %s attempts"
                 " (%s retries) to be performed"), url, attempts, retries)
     open_args = {}
     if timeout is not None:
