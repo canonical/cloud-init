@@ -51,7 +51,7 @@ class DataSource(object):
         self.userdata_raw = None
         name = util.obj_name(self)
         if name.startswith(DS_PREFIX):
-            name = name[DS_PREFIX:]
+            name = name[len(DS_PREFIX):]
         self.ds_cfg = util.get_cfg_by_path(self.sys_cfg,
                                           ("datasource", name), {})
         if not ud_proc:
@@ -171,7 +171,7 @@ def find_source(sys_cfg, distro, paths, ds_deps, cfg_list, pkg_list):
     for cls in ds_list:
         ds = util.obj_name(cls)
         try:
-            s = cls(distro, sys_cfg, paths)
+            s = cls(sys_cfg, distro, paths)
             if s.get_data():
                 return (s, ds)
         except Exception:
@@ -198,15 +198,13 @@ def list_sources(cfg_list, depends, pkg_list):
             if pkg:
                 pkg_name.append(str(pkg))
             pkg_name.append(ds_name)
-            mod = importer.import_module(".".join(pkg_name))
-            if pkg:
-                mod = getattr(mod, ds_name, None)
-            if not mod:
+            try:
+                mod = importer.import_module(".".join(pkg_name))
+            except RuntimeError:
                 continue
             lister = getattr(mod, "get_datasource_list", None)
             if not lister:
                 continue
-            LOG.debug("Seeing if %s matches using function %s", mod, lister)
             cls_matches = lister(depends)
             if not cls_matches:
                 continue
