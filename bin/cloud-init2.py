@@ -54,10 +54,6 @@ QUERY_DATA_TYPES = [
 LOG = logging.getLogger()
 
 
-def warn(wstr):
-    sys.stderr.write("WARN: %s\n" % (wstr))
-
-
 def welcome(action):
     msg = ("Cloud-init v. {{version}} running '{{action}}' at "
            "{{timestamp}}. Up {{uptime}} seconds.")
@@ -202,6 +198,8 @@ def main_init(name, args):
                                              args=[settings.PER_INSTANCE],
                                              freq=settings.PER_INSTANCE)
         if not ran:
+            # Just consume anything that is set to run per
+            # always if nothing ran in the per instance section
             init.consume(settings.PER_ALWAYS)
     except Exception:
         util.logexc(LOG, "Consuming user data failed!")
@@ -217,12 +215,12 @@ def main_init(name, args):
             LOG.warn("Stdout, stderr changing to (%s, %s)", outfmt, errfmt)
             (outfmt, errfmt) = util.fixup_output(tr.cfg, name)
     except:
-        util.logexc(LOG, "Failed to adjust output redirection!")
+        util.logexc(LOG, "Failed to re-adjust output redirection!")
     # Stage 10
     return run_transform_section(tr, name, name)
 
 
-def main_transform(_action_name, args):
+def main_transform(action_name, args):
     name = args.mode
     # Cloud-init transform stages are broken up into the following sub-stages
     # 1. Ensure that the init object fetches its config without errors
@@ -234,7 +232,7 @@ def main_transform(_action_name, args):
     #    the transform objects configuration
     # 5. Run the transforms for the given stage name
     # 6. Done!
-    welcome(name)
+    welcome("%s:%s" % (action_name, name))
     init = stages.Init(ds_deps=[])
     # Stage 1
     init.read_cfg(extract_fns(args))
@@ -243,7 +241,7 @@ def main_transform(_action_name, args):
         init.fetch()
     except sources.DataSourceNotFoundException:
         # There was no datasource found, theres nothing to do
-        util.logexc(LOG, 'Can not apply stage %s, no datasource found', name)
+        util.logexc(LOG, 'Can not apply stage %s, no datasource found!', name)
         return 1
     # Stage 3
     tr_cfgs = extract_fns(args)
@@ -287,34 +285,52 @@ def main_single(name, args):
     #    the transform objects configuration
     # 6. Run the single transform
     # 7. Done!
-    transform_name = args.name
-    st_name = "%s:%s" % (name, transform_name)
-    welcome(st_name)
+    tr_name = args.name
+    welcome("%s:%s" % (name, tr_name))
     init = stages.Init(ds_deps=[])
     # Stage 1
     init.read_cfg(extract_fns(args))
     tr = stages.Transforms(init, extract_fns(args))
-    where_look = [
-        TR_TPL % ('init'),
-        TR_TPL % ('config'),
-        TR_TPL % ('final'),
-    ]
-    found_at = tr.find_transform(transform_name, where_look)
+    where_look_mp = {
+        TR_TPL % ('init'): 'init',
+        TR_TPL % ('config'): 'config',
+        TR_TPL % ('final'): 'final',
+    }
+    where_look = list(where_look_mp.keys())
+    found_at = tr.find_transform(tr_name, where_look)
     if not found_at:
         msg = ("No known transform named %s "
-              "in sections %s") % (transform_name, where_look)
-        sys.stderr.write("%s\n" % (msg))
+              "in sections (%s)") % (tr_name, ", ".join(where_look))
         LOG.warn(msg)
         return 1
     else:
-        LOG.debug("Found transform %s in section/s: %s",
-                  transform_name, found_at)
-        LOG.debug("Selecting section %s as its run section.", found_at[0])
-        (_run_am, failures) = tr.run_single(transform_name, found_at[0],
-                                            args.transform_args,
-                                            args.frequency)
+        LOG.debug("Found transform %s in sections: %s",
+                  tr_name, found_at)
+        sect_name = found_at[0]
+        LOG.debug("Selecting section %s as its 'source' section.", sect_name)
+        tr_args = args.transform_args
+        if tr_args:
+            LOG.debug("Using passed in arguments %s", tr_args)
+        tr_freq = args.frequency
+        if tr_freq:
+            LOG.debug("Using passed in frequency %s", tr_freq)
+        try:
+            LOG.debug("Closing stdin")
+            util.close_stdin()
+            # This seems to use the short name, instead of the long name
+            util.fixup_output(tr.cfg, where_look_mp.get(sect_name))
+        except:
+            util.logexc(LOG, "Failed to setup output redirection!")
+        if args.debug:
+            # Reset so that all the debug handlers are closed out
+            LOG.debug(("Logging being reset, this logger may no"
+                       " longer be active shortly"))
+            logging.resetLogging()
+        logging.setupLogging(tr.cfg)
+        (_run_am, failures) = tr.run_single(tr_name, sect_name,
+                                            tr_args, tr_freq)
         if failures:
-            LOG.debug("Ran %s but it failed", transform_name)
+            LOG.debug("Ran %s but it failed", tr_name)
             return 1
         else:
             return 0
