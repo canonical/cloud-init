@@ -10,7 +10,7 @@ Build-Depends: cdbs,
                pylint,
                python-mocker,
 XS-Python-Version: all
-Standards-Version: 3.9.1
+Standards-Version: 3.9.3
 
 Package: cloud-init
 Architecture: all
