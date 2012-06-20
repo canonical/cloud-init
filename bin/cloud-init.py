@@ -269,7 +269,8 @@ def main_transform(action_name, args):
 
 
 def main_query(name, _args):
-    raise NotImplementedError("Action '%s' is not currently implemented" % (name))
+    raise NotImplementedError(("Action '%s' is not"
+                               " currently implemented") % (name))
 
 
 def main_single(name, args):
