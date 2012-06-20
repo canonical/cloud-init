@@ -26,7 +26,6 @@ import os
 import re
 
 from distutils.core import setup
-from setuptools import find_packages
 
 
 def is_f(p):
@@ -69,13 +68,17 @@ setup(name='cloud-init',
       author='Scott Moser',
       author_email='scott.moser@canonical.com',
       url='http://launchpad.net/cloud-init/',
-      packages=find_packages(),
+      # This second package referencing cloudinit.conf.*
+      # makes the config modules accessible to the whole
+      # import system...
+      packages=['cloudinit', 'cloudinit.conf'],
       scripts=['bin/cloud-init',
                'tools/cloud-init-per',
                ],
       data_files=[('/etc/cloud', glob('config/*.cfg')),
                   ('/etc/cloud/cloud.cfg.d', glob('config/cloud.cfg.d/*')),
                   ('/etc/cloud/templates', glob('templates/*')),
+                  # Only really need for upstart based systems
                   ('/etc/init', glob('upstart/*.conf')),
                   ('/usr/share/cloud-init', []),
                   ('/usr/lib/cloud-init',
