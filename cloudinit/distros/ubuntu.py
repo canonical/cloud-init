@@ -46,30 +46,35 @@ class Distro(distros.Distro):
         self.package_command('install', pkglist)
 
     def _write_network(self, settings):
-        n_fn = self._paths.join(False, "/etc/network/interfaces")
-        util.write_file(n_fn, settings)
+        net_fn = self._paths.join(False, "/etc/network/interfaces")
+        util.write_file(net_fn, settings)
 
     def set_hostname(self, hostname):
-        self._write_hostname(hostname, "/etc/hostname")
-        LOG.debug("Setting hostname to %s", hostname)
-        util.subp(['hostname', hostname])
+        out_fn = self._paths.join(False, "/etc/hostname")
+        self._write_hostname(hostname, out_fn)
+        if out_fn == '/etc/hostname':
+            # Only do this if we are running in non-adjusted root mode
+            LOG.debug("Setting hostname to %s", hostname)
+            util.subp(['hostname', hostname])
 
     def _write_hostname(self, hostname, out_fn):
         lines = []
         lines.append("# Created by cloud-init")
         lines.append(str(hostname))
         contents = "\n".join(lines)
-        util.write_file(self._paths.join(False, out_fn), contents, 0644)
+        util.write_file(out_fn, contents, 0644)
 
-    def update_hostname(self, hostname, prev_file):
-        hostname_prev = self._read_hostname(prev_file)
-        hostname_in_etc = self._read_hostname("/etc/hostname")
+    def update_hostname(self, hostname, prev_fn):
+        hostname_prev = self._read_hostname(prev_fn)
+        read_fn = self._paths.join(True, "/etc/hostname")
+        hostname_in_etc = self._read_hostname(read_fn)
         update_files = []
         if not hostname_prev or hostname_prev != hostname:
-            update_files.append(prev_file)
+            update_files.append(prev_fn)
         if (not hostname_in_etc or
-           (hostname_in_etc == hostname_prev and hostname_in_etc != hostname)):
-            update_files.append("/etc/hostname")
+            (hostname_in_etc == hostname_prev and hostname_in_etc != hostname)):
+            write_fn = self._paths.join(False, "/etc/hostname")
+            update_files.append(write_fn)
         for fn in update_files:
             try:
                 self._write_hostname(hostname, fn)
@@ -79,13 +84,13 @@ class Distro(distros.Distro):
         if (hostname_in_etc and hostname_prev and
             hostname_in_etc != hostname_prev):
             LOG.debug(("%s differs from /etc/hostname."
-                        " Assuming user maintained hostname."), prev_file)
+                        " Assuming user maintained hostname."), prev_fn)
         if "/etc/hostname" in update_files:
+            # Only do this if we are running in non-adjusted root mode
             LOG.debug("Setting hostname to %s", hostname)
             util.subp(['hostname', hostname])
 
     def _read_hostname(self, filename, default=None):
-        filename = self._paths.join(True, filename)
         contents = util.load_file(filename, quiet=True)
         for line in contents.splitlines():
             c_pos = line.find("#")
@@ -109,7 +114,7 @@ class Distro(distros.Distro):
         tz_contents = "%s\n" % tz
         tz_fn = self._paths.join(False, "/etc/timezone")
         util.write_file(tz_fn, tz_contents)
-        util.copy(tz_file, "/etc/localtime")
+        util.copy(tz_file, self._paths.join(False, "/etc/localtime"))
 
     def package_command(self, command, args=None):
         e = os.environ.copy()
