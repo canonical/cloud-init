@@ -167,7 +167,7 @@ def main_init(name, args):
     welcome(name)
     try:
         init.fetch()
-    except sources.DataSourceNotFoundException as e:
+    except sources.DataSourceNotFoundException:
         util.logexc(LOG, "No instance datasource found!")
         # TODO: Return 0 or 1??
         return 1
@@ -223,25 +223,36 @@ def main():
                         version='%(prog)s ' + (version.version_string()))
     parser.add_argument('--file', '-f', action='append', 
                         dest='files',
-                        help='additional configuration file to include',
+                        help=('additional yaml configuration'
+                              ' files to use'),
                         type=argparse.FileType('rb'))
-    parser.add_argument('--debug', '-d', action='store_true', 
-                        help='show additional pre-action logging',
+    parser.add_argument('--debug', '-d', action='store_true',
+                        help=('show additional pre-action'
+                              ' logging (default: %(default)s)'),
                         default=False)
     subparsers = parser.add_subparsers()
+
+    # Possible mode names
+    mode_names = ('init', 'config', 'final')
 
     # Each action and its suboptions (if any)
     parser_init = subparsers.add_parser('init', 
                                         help=('initializes cloud-init and'
                                               ' performs \'init\' transforms'))
     parser_init.add_argument("--local", '-l', action='store_true',
-                             help="start in local mode", default=False)
+                             help="start in local mode (default: %(default)s)",
+                             default=False)
     # This is used so that we can know which action is selected
     parser_init.set_defaults(action='init')
 
     parser_config = subparsers.add_parser('config', 
                                           help=('performs cloud-init '
                                                 '\'config\' transforms'))
+    parser_config.add_argument("--mode", '-m', action='store',
+                             help=("transform configuration name "
+                                    "to use (default: %(default)s)"),
+                             default='config',
+                             choices=mode_names)
     parser_config.set_defaults(action='config')
 
     parser_final = subparsers.add_parser('final', 
