@@ -78,7 +78,7 @@ def handle(name, cfg, cloud, log, args):
     util.ensure_dir(resize_root_d)
 
     # TODO: allow what is to be resized to be configurable??
-    resize_what = cloud.paths.join(False)
+    resize_what = cloud.paths.join(False, "/")
     with util.SilentTemporaryFile(prefix="cloudinit.resizefs.",
                                   dir=resize_root_d, delete=True) as tfh:
         devpth = tfh.name
