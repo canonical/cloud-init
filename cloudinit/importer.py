@@ -22,10 +22,18 @@
 
 import sys
 
+from cloudinit import log as logging
+from cloudinit import util
 
+LOG = logging.getLogger(__name__)
+
+
+# Simple wrapper that allows us to add more logging in...
 def import_module(module_name):
     try:
+        LOG.debug("Attempting to import module %s", module_name)
         __import__(module_name)
         return sys.modules[module_name]
-    except ImportError as err:
-        raise RuntimeError('Could not load module %s: %s' % (module_name, err))
+    except:
+        util.logexc(LOG, 'Failed at importing %s', module_name)
+        raise
