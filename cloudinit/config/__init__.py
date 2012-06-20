@@ -25,29 +25,32 @@ from cloudinit import log as logging
 
 LOG = logging.getLogger(__name__)
 
-# TODO remove this from being a prefix??
-TRANSFORM_PREFIX = ''  # "cc_"
+# This prefix is used to make it less 
+# of a change that when importing
+# we will not find something else with the same
+# name in the lookup path...
+MOD_PREFIX = "cc_"
 
 
-def form_transform_name(name, mod=__name__):
+def form_module_name(name):
     canon_name = name.replace("-", "_")
     if canon_name.lower().endswith(".py"):
         canon_name = canon_name[0:(len(canon_name) - 3)]
     canon_name = canon_name.strip()
     if not canon_name:
         return None
-    if not canon_name.startswith(TRANSFORM_PREFIX):
-        canon_name = '%s%s' % (TRANSFORM_PREFIX, canon_name)
-    return ".".join([str(mod), str(canon_name)])
+    if not canon_name.startswith(MOD_PREFIX):
+        canon_name = '%s%s' % (MOD_PREFIX, canon_name)
+    return canon_name
 
 
-def fixup_transform(mod, def_freq=PER_INSTANCE):
+def fixup_module(mod, def_freq=PER_INSTANCE):
     if not hasattr(mod, 'frequency'):
         setattr(mod, 'frequency', def_freq)
     else:
         freq = mod.frequency
         if freq and freq not in FREQUENCIES:
-            LOG.warn("Transform %s has an unknown frequency %s", mod, freq)
+            LOG.warn("Module %s has an unknown frequency %s", mod, freq)
     if not hasattr(mod, 'handle'):
         def empty_handle(_name, _cfg, _cloud, _log, _args):
             pass
