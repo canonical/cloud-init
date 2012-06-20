@@ -27,7 +27,7 @@ def handle(_name, cfg, _cloud, _log, _args):
         return
     salt_cfg = cfg['salt_minion']
     # Start by installing the salt package ...
-    cc.install_packages(("salt",))
+    cc.install_packages(("salt-minion",))
     config_dir = '/etc/salt'
     if not os.path.isdir(config_dir):
         os.makedirs(config_dir)
