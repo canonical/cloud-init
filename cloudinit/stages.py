@@ -209,13 +209,13 @@ class Init(object):
         cfg_list = self.cfg.get('datasource_list') or []
         return (cfg_list, pkg_list)
 
-    def _get_data_source(self):
+    def _get_data_source(self, local_only=False):
         if self.datasource:
             return self.datasource
         ds = self._restore_from_cache()
         if ds:
-            LOG.debug("Restored from cache datasource: %s" % ds)
-        else:
+            LOG.debug("Restored from cache, datasource: %s", ds)
+        if not ds and not local_only:
             (cfg_list, pkg_list) = self._get_datasources()
             # Deep copy so that user-data handlers can not modify
             # (which will affect user-data handlers down the line...)
@@ -225,10 +225,11 @@ class Init(object):
                                                self.paths,
                                                ds_deps, cfg_list, pkg_list)
             LOG.debug("Loaded datasource %s - %s", dsname, ds)
-        self.datasource = ds
-        # Ensure we adjust our path members datasource
-        # now that we have one (thus allowing ipath to be used)
-        self.paths.datasource = ds
+        if ds:
+            self.datasource = ds
+            # Ensure we adjust our path members datasource
+            # now that we have one (thus allowing ipath to be used)
+            self.paths.datasource = ds
         return ds
 
     def _reflect_cur_instance(self):
@@ -276,8 +277,8 @@ class Init(object):
                         "%s\n" % (previous_iid))
         return iid
 
-    def fetch(self):
-        return self._get_data_source()
+    def fetch(self, local_only=False):
+        return self._get_data_source(local_only)
 
     def instancify(self):
         return self._reflect_cur_instance()
