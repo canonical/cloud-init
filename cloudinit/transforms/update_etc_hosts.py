@@ -42,7 +42,8 @@ def handle(name, cfg, cloud, log, _args):
             raise Exception(("No hosts template could be"
                              " found for distro %s") % (distro_n))
 
-        templater.render_to_file(tpl_fn_name, '/etc/hosts',
+        out_fn = cloud.paths.join(False, '/etc/hosts')
+        templater.render_to_file(tpl_fn_name, out_fn,
                                 {'hostname': hostname, 'fqdn': fqdn})
 
     elif manage_hosts == "localhost":
