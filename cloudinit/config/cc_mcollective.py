@@ -21,7 +21,7 @@
 
 from StringIO import StringIO
 
-from cloudinit import cfg as config
+from cloudinit import helpers
 from cloudinit import util
 
 PUBCERT_FILE = "/etc/mcollective/ssl/server-public.pem"
@@ -44,7 +44,7 @@ def handle(name, cfg, cloud, log, _args):
     # ... and then update the mcollective configuration
     if 'conf' in mcollective_cfg:
         # Create object for reading server.cfg values
-        mcollective_config = config.DefaultingConfigParser()
+        mcollective_config = helpers.DefaultingConfigParser()
         # Read server.cfg values from original file in order to be able to mix
         # the rest up
         server_cfg_fn = cloud.paths.join(True, '/etc/mcollective/server.cfg')

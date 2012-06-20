@@ -24,7 +24,7 @@ import os
 import pwd
 import socket
 
-from cloudinit import cfg as config
+from cloudinit import helpers
 from cloudinit import util
 
 
@@ -46,7 +46,7 @@ def handle(name, cfg, cloud, log, _args):
         puppet_conf_fn = cloud.paths.join(False, '/etc/puppet/puppet.conf')
         contents = util.load_file(puppet_conf_fn)
         # Create object for reading puppet.conf values
-        puppet_config = config.DefaultingConfigParser()
+        puppet_config = helpers.DefaultingConfigParser()
         # Read puppet.conf values from original file in order to be able to
         # mix the rest up. First clean them up (TODO is this really needed??)
         cleaned_lines = [i.lstrip() for i in contents.splitlines()]
