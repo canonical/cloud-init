@@ -100,7 +100,8 @@ class Distro(object):
         new_etchosts = StringIO()
         need_write = False
         need_change = True
-        for line in util.load_file("/etc/hosts").splitlines():
+        hosts_ro_fn = self._paths.join(True, "/etc/hosts")
+        for line in util.load_file(hosts_ro_fn).splitlines():
             if line.strip().startswith(header):
                 continue
             if not line.strip() or line.strip().startswith("#"):
@@ -124,7 +125,8 @@ class Distro(object):
             need_write = True
         if need_write:
             contents = new_etchosts.getvalue()
-            util.write_file("/etc/hosts", contents, mode=0644)
+            util.write_file(self._paths.join(False, "/etc/hosts"),
+                            contents, mode=0644)
 
     def _interface_action(self, action):
         if action not in IFACE_ACTIONS:

@@ -73,13 +73,15 @@ class Distro(distros.Distro):
             lines.insert(0, '# Created by cloud-init')
             contents = "\n".join(lines)
             net_fn = NETWORK_FN_TPL % (dev)
-            net_fn = self._paths.join(False, net_fn)
-            util.write_file(net_fn, contents, 0644)
+            util.write_file(self._paths.join(False, net_fn), contents, 0644)
 
     def set_hostname(self, hostname):
-        self._write_hostname(hostname, "/etc/sysconfig/network")
-        LOG.debug("Setting hostname to %s", hostname)
-        util.subp(['hostname', hostname])
+        out_fn = self._paths.join(False, '/etc/sysconfig/network')
+        self._write_hostname(hostname, out_fn)
+        if out_fn == '/etc/sysconfig/network':
+            # Only do this if we are running in non-adjusted root mode
+            LOG.debug("Setting hostname to %s", hostname)
+            util.subp(['hostname', hostname])
 
     def _write_hostname(self, hostname, out_fn):
         old_contents = []
@@ -105,18 +107,19 @@ class Distro(distros.Distro):
             new_contents.append("# Added by cloud-init")
             new_contents.append("HOSTNAME=%s" % (hostname))
         contents = "\n".join(new_contents)
-        out_fn = self._paths.join(False, out_fn)
         util.write_file(out_fn, contents, 0644)
 
     def update_hostname(self, hostname, prev_file):
         hostname_prev = self._read_hostname(prev_file)
-        hostname_in_sys = self._read_hostname("/etc/sysconfig/network")
+        read_fn = self._paths.join(True, "/etc/sysconfig/network")
+        hostname_in_sys = self._read_hostname(read_fn)
         update_files = []
         if not hostname_prev or hostname_prev != hostname:
             update_files.append(prev_file)
         if (not hostname_in_sys or
-           (hostname_in_sys == hostname_prev and hostname_in_sys != hostname)):
-            update_files.append("/etc/sysconfig/network")
+            (hostname_in_sys == hostname_prev and hostname_in_sys != hostname)):
+            write_fn = self._paths.join(False, "/etc/sysconfig/network")
+            update_files.append(write_fn)
         for fn in update_files:
             try:
                 self._write_hostname(hostname, fn)
@@ -128,6 +131,7 @@ class Distro(distros.Distro):
             LOG.debug(("%s differs from /etc/sysconfig/network."
                         " Assuming user maintained hostname."), prev_file)
         if "/etc/sysconfig/network" in update_files:
+            # Only do this if we are running in non-adjusted root mode
             LOG.debug("Setting hostname to %s", hostname)
             util.subp(['hostname', hostname])
 
@@ -145,7 +149,6 @@ class Distro(distros.Distro):
         return default
 
     def _read_conf(self, filename):
-        filename = self._paths.join(True, filename)
         contents = util.load_file(filename, quiet=True)
         conf_lines = []
         for line in contents.splitlines():
@@ -176,7 +179,8 @@ class Distro(distros.Distro):
             raise Exception(("Invalid timezone %s,"
                              " no file found at %s") % (tz, tz_file))
         # Adjust the sysconfig clock zone setting
-        old_contents = self._read_conf("/etc/sysconfig/clock")
+        read_fn = self._paths.join(True, "/etc/sysconfig/clock")
+        old_contents = self._read_conf(read_fn)
         new_contents = []
         zone_added = False
         # Update the 'ZONE' if it exists instead of appending
@@ -197,10 +201,10 @@ class Distro(distros.Distro):
             new_contents.append("# Added by cloud-init")
             new_contents.append('ZONE="%s"' % (tz))
         tz_contents = "\n".join(new_contents)
-        tz_fn = self._paths.join(False, "/etc/sysconfig/clock")
-        util.write_file(tz_fn, tz_contents)
+        write_fn = self._paths.join(False, "/etc/sysconfig/clock")
+        util.write_file(write_fn, tz_contents)
         # This ensures that the correct tz will be used for the system
-        util.copy(tz_file, "/etc/localtime")
+        util.copy(tz_file, self._paths.join(False, "/etc/localtime"))
 
     def package_command(self, command, args=None):
         cmd = ['yum']
