@@ -198,11 +198,13 @@ def list_sources(cfg_list, depends, pkg_list):
         for pkg in pkg_list:
             pkg_name = []
             if pkg:
+                # Any package name given, this affects
+                # the lookup path
                 pkg_name.append(str(pkg))
             pkg_name.append(ds_name)
             try:
                 mod = importer.import_module(".".join(pkg_name))
-            except RuntimeError:
+            except ImportError:
                 continue
             lister = getattr(mod, "get_datasource_list", None)
             if not lister:
