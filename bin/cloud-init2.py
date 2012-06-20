@@ -23,7 +23,6 @@
 
 import argparse
 import os
-import traceback
 import sys
 
 # This is more just for running from the bin folder
@@ -199,7 +198,7 @@ def main_init(name, args):
                                              freq=settings.PER_INSTANCE)
         if not ran:
             init.consume(settings.PER_ALWAYS)
-    except Exception as e:
+    except Exception:
         util.logexc(LOG, "Consuming user data failed!")
         return 1
     # Stage 8
@@ -240,7 +239,7 @@ def main_transform(_action_name, args):
     init.read_cfg(i_cfgs)
     # Stage 2
     try:
-        ds = init.fetch()
+        init.fetch()
     except sources.DataSourceNotFoundException:
         # There was no datasource found, theres nothing to do
         util.logexc(LOG, 'Can not apply stage %s, no datasource found', name)
@@ -257,7 +256,7 @@ def main_transform(_action_name, args):
     try:
         LOG.debug("Closing stdin")
         util.close_stdin()
-        (outfmt, errfmt) = util.fixup_output(tr.cfg, name)
+        util.fixup_output(tr.cfg, name)
     except:
         util.logexc(LOG, "Failed to setup output redirection!")
     if args.debug:
@@ -265,7 +264,7 @@ def main_transform(_action_name, args):
         LOG.debug(("Logging being reset, this logger may no"
                     " longer be active shortly"))
         logging.resetLogging()
-    logging.setupLogging(cc.cfg)
+    logging.setupLogging(tr.cfg)
     # Stage 5
     return run_transforms(tr, name, name)
 
