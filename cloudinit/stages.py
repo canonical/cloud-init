@@ -521,7 +521,7 @@ class Transforms(object):
                     found_where.append(n)
         return found_where
 
-    def run_single(self, tr_name, section):
+    def run_single(self, tr_name, section, args=None, freq=None):
         mods = self._read_transforms(section)
         mod_tr = None
         for mod_info in mods:
@@ -532,6 +532,12 @@ class Transforms(object):
             # Nothing to run, does that transform exist there??
             return (0, 0)
         else:
+            # Adjust the module
+            if args:
+                mod_tr['args'] = args
+            if freq:
+                mod_tr['freq'] = freq
+            # Now resume doing the normal fixups and running
             raw_mods = [mod_tr]
             mostly_mods = self._fixup_transforms(raw_mods)
             return self._run_transforms(mostly_mods)
