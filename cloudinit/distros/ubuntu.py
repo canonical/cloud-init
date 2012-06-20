@@ -72,7 +72,8 @@ class Distro(distros.Distro):
         if not hostname_prev or hostname_prev != hostname:
             update_files.append(prev_fn)
         if (not hostname_in_etc or
-            (hostname_in_etc == hostname_prev and hostname_in_etc != hostname)):
+            (hostname_in_etc == hostname_prev and
+             hostname_in_etc != hostname)):
             write_fn = self._paths.join(False, "/etc/hostname")
             update_files.append(write_fn)
         for fn in update_files:

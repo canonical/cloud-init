@@ -117,7 +117,8 @@ class Distro(distros.Distro):
         if not hostname_prev or hostname_prev != hostname:
             update_files.append(prev_file)
         if (not hostname_in_sys or
-            (hostname_in_sys == hostname_prev and hostname_in_sys != hostname)):
+            (hostname_in_sys == hostname_prev
+             and hostname_in_sys != hostname)):
             write_fn = self._paths.join(False, "/etc/sysconfig/network")
             update_files.append(write_fn)
         for fn in update_files:
