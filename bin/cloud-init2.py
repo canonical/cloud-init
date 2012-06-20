@@ -73,9 +73,22 @@ def welcome(action):
     LOG.info(welcome_msg)
 
 
-def run_transforms(tr, action_name, section):
+def extract_fns(args):
+    # Files are already opened so lets just pass that along
+    # since it would of broke if it couldn't have
+    # read that file already...
+    fn_cfgs = []
+    if args.files:
+        for fh in args.files:
+            # The realpath is more useful in logging
+            # so lets resolve to that...
+            fn_cfgs.append(os.path.realpath(fh.name))
+    return fn_cfgs
+
+
+def run_transform_section(tr, action_name, section):
     full_section_name = TR_TPL % (section)
-    (ran_am, failures) = tr.run(full_section_name)
+    (ran_am, failures) = tr.run_section(full_section_name)
     if not ran_am:
         msg = ("No '%s' transforms to run"
                " under section '%s'") % (action_name, full_section_name)
@@ -91,14 +104,6 @@ def main_init(name, args):
     deps = [sources.DEP_FILESYSTEM, sources.DEP_NETWORK]
     if args.local:
         deps = [sources.DEP_FILESYSTEM]
-
-    cfg_extra_paths = []
-    if args.files:
-        # Already opened so lets just pass that along
-        # since it would of broke if it couldn't have
-        # read that file
-        for f in args.files:
-            cfg_extra_paths.append(f.name)
 
     if not args.local:
         # TODO: What is this for??
@@ -122,7 +127,7 @@ def main_init(name, args):
     welcome(name)
     init = stages.Init(deps)
     # Stage 1
-    init.read_cfg(cfg_extra_paths)
+    init.read_cfg(extract_fns(args))
     # Stage 2
     outfmt = None
     errfmt = None
@@ -201,8 +206,8 @@ def main_init(name, args):
     except Exception:
         util.logexc(LOG, "Consuming user data failed!")
         return 1
-    # Stage 8
-    tr = stages.Transforms(init, cfg_extra_paths)
+    # Stage 8 - TODO - do we really need to re-extract our configs?
+    tr = stages.Transforms(init, extract_fns(args))
     # Stage 9 - TODO is this really needed??
     try:
         outfmt_orig = outfmt
@@ -214,15 +219,11 @@ def main_init(name, args):
     except:
         util.logexc(LOG, "Failed to adjust output redirection!")
     # Stage 10
-    return run_transforms(tr, name, name)
+    return run_transform_section(tr, name, name)
 
 
 def main_transform(_action_name, args):
     name = args.mode
-    i_cfgs = []
-    if args.files:
-        for fh in args.files:
-            i_cfgs.append(fh.name)
     # Cloud-init transform stages are broken up into the following sub-stages
     # 1. Ensure that the init object fetches its config without errors
     # 2. Get the datasource from the init object, if it does
@@ -236,7 +237,7 @@ def main_transform(_action_name, args):
     welcome(name)
     init = stages.Init(ds_deps=[])
     # Stage 1
-    init.read_cfg(i_cfgs)
+    init.read_cfg(extract_fns(args))
     # Stage 2
     try:
         init.fetch()
@@ -245,7 +246,7 @@ def main_transform(_action_name, args):
         util.logexc(LOG, 'Can not apply stage %s, no datasource found', name)
         return 1
     # Stage 3
-    tr_cfgs = list(i_cfgs)
+    tr_cfgs = extract_fns(args)
     cc_cfg = init.paths.get_ipath_cur('cloud_config')
     if settings.CFG_ENV_NAME in os.environ:
         cc_cfg = os.environ[settings.CFG_ENV_NAME]
@@ -266,15 +267,57 @@ def main_transform(_action_name, args):
         logging.resetLogging()
     logging.setupLogging(tr.cfg)
     # Stage 5
-    return run_transforms(tr, name, name)
+    return run_transform_section(tr, name, name)
 
 
 def main_query(_name, _args):
     pass
 
 
-def main_single(_name, _args):
-    pass
+def main_single(name, args):
+    # Cloud-init single stage is broken up into the following sub-stages
+    # 1. Ensure that the init object fetches its config without errors
+    # 2. Check to see if we can find the transform name
+    #    in the 'init', 'final', 'config' stages, if not bail
+    # 3. Get the datasource from the init object, if it does
+    #    not exist then that means the main_init stage never
+    #    worked, and thus this stage can not run.
+    # 4. Construct the transform object
+    # 5. Adjust any subsequent logging/output redirections using
+    #    the transform objects configuration
+    # 6. Run the single transform
+    # 7. Done!
+    transform_name = args.name
+    st_name = "%s:%s" % (name, transform_name)
+    welcome(st_name)
+    init = stages.Init(ds_deps=[])
+    # Stage 1
+    init.read_cfg(extract_fns(args))
+    tr = stages.Transforms(init, extract_fns(args))
+    where_look = [
+        TR_TPL % ('init'),
+        TR_TPL % ('config'),
+        TR_TPL % ('final'),
+    ]
+    found_at = tr.find_transform(transform_name, where_look)
+    if not found_at:
+        msg = ("No known transform named %s "
+              "in sections %s") % (transform_name, where_look)
+        sys.stderr.write("%s\n" % (msg))
+        LOG.warn(msg)
+        return 1
+    else:
+        LOG.debug("Found transform %s in section/s: %s",
+                  transform_name, found_at)
+        LOG.debug("Selecting section %s as its run section.", found_at[0])
+        (_run_am, failures) = tr.run_single(transform_name, found_at[0],
+                                            args.transform_args,
+                                            args.frequency)
+        if failures:
+            LOG.debug("Ran %s but it failed", transform_name)
+            return 1
+        else:
+            return 0
 
 
 def main():
@@ -340,6 +383,10 @@ def main():
                               required=False,
                               default=settings.PER_ALWAYS,
                               choices=settings.FREQUENCIES)
+    parser_single.add_argument("transform_args", nargs="*",
+                              metavar='argument',
+                              help=('any additional arguments to'
+                                    ' pass to this transform'))
     parser_single.set_defaults(action=('single', main_single))
 
 
