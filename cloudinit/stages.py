@@ -54,7 +54,7 @@ LOG = logging.getLogger(__name__)
 
 class Init(object):
     def __init__(self, ds_deps=None):
-        if ds_deps:
+        if ds_deps is not None:
             self.ds_deps = ds_deps
         else:
             self.ds_deps = [sources.DEP_FILESYSTEM, sources.DEP_NETWORK]
