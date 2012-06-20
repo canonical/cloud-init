@@ -45,8 +45,8 @@ from urlparse import parse_qs
 
 frequency = PER_INSTANCE
 
-my_name = "cc_rightscale_userdata"
-my_hookname = 'CLOUD_INIT_REMOTE_HOOK'
+MY_NAME = "cc_rightscale_userdata"
+MY_HOOKNAME = 'CLOUD_INIT_REMOTE_HOOK'
 
 
 def handle(name, _cfg, cloud, log, _args):
@@ -58,10 +58,10 @@ def handle(name, _cfg, cloud, log, _args):
 
     try:
         mdict = parse_qs(ud)
-        if not mdict or not my_hookname in mdict:
+        if not mdict or not MY_HOOKNAME in mdict:
             log.debug(("Skipping transform %s, "
                        "did not find %s in parsed"
-                       " raw userdata"), name, my_hookname)
+                       " raw userdata"), name, MY_HOOKNAME)
             return
     except:
         util.logexc(log, ("Failed to parse query string %s"
@@ -75,10 +75,9 @@ def handle(name, _cfg, cloud, log, _args):
     # TODO: maybe this should just be a new user data handler??
     # Instead of a late transform that acts like a user data handler?
     scripts_d = cloud.get_ipath_cur('scripts')
-    urls = mdict[my_hookname]
+    urls = mdict[MY_HOOKNAME]
     for (i, url) in enumerate(urls):
         fname = os.path.join(scripts_d, "rightscale-%02i" % (i))
-        fname = cloud.paths.join(False, fname)
         try:
             resp = uhelp.readurl(url)
             # Ensure its a valid http response (and something gotten)
@@ -88,7 +87,7 @@ def handle(name, _cfg, cloud, log, _args):
         except Exception as e:
             captured_excps.append(e)
             util.logexc(log, "%s failed to read %s and write %s",
-                        my_name, url, fname)
+                        MY_NAME, url, fname)
 
     if wrote_fns:
         log.debug("Wrote out rightscale userdata to %s files", len(wrote_fns))
