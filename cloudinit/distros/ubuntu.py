@@ -59,7 +59,7 @@ class Distro(distros.Distro):
         lines.append("# Created by cloud-init")
         lines.append(str(hostname))
         contents = "\n".join(lines)
-        util.write_file(out_fn, contents, 0644)
+        util.write_file(self._paths.join(False, out_fn), contents, 0644)
 
     def update_hostname(self, hostname, prev_file):
         hostname_prev = self._read_hostname(prev_file)

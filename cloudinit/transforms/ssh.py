@@ -52,7 +52,8 @@ def handle(_name, cfg, cloud, log, _args):
 
     # remove the static keys from the pristine image
     if cfg.get("ssh_deletekeys", True):
-        for f in glob.glob("/etc/ssh/ssh_host_*key*"):
+        key_pth = cloud.paths.join(False, "/etc/ssh/", "ssh_host_*key*")
+        for f in glob.glob(key_pth):
             try:
                 util.del_file(f)
             except:
@@ -88,6 +89,7 @@ def handle(_name, cfg, cloud, log, _args):
         for keytype in genkeys:
             keyfile = '/etc/ssh/ssh_host_%s_key' % (keytype)
             keyfile = cloud.paths.join(False, keyfile)
+            util.ensure_dir(os.path.dirname(keyfile)) 
             if not os.path.exists(keyfile):
                 cmd = ['ssh-keygen', '-t', keytype, '-N', '', '-f', keyfile]
                 try:
