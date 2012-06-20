@@ -147,10 +147,10 @@ class Distro(object):
 def fetch(distro_name, mods=(__name__, )):
     mod = None
     for m in mods:
+        mod_name = "%s.%s" % (m, distro_name)
         try:
-            mod_name = "%s.%s" % (m, distro_name)
             mod = importer.import_module(mod_name)
-        except RuntimeError:
+        except ImportError:
             pass
     if not mod:
         raise RuntimeError("No distribution found for distro %s"
