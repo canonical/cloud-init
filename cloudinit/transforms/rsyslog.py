@@ -71,7 +71,8 @@ def handle(name, cfg, cloud, log, _args):
 
         try:
             contents = "%s\n" % (content)
-            util.write_file(filename, contents, omode=omode)
+            util.write_file(cloud.paths.join(False, filename),
+                            contents, omode=omode)
         except Exception:
             util.logexc(log, "Failed to write to %s", filename)
 

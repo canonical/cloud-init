@@ -35,6 +35,7 @@ def handle(name, cfg, cloud, log, _args):
     
     # Ensure we can configure files at the right dir
     config_dir = salt_cfg.get("config_dir", '/etc/salt')
+    config_dir = cloud.paths.join(False, config_dir)
     util.ensure_dir(config_dir)
 
     # ... and then update the salt configuration
@@ -47,6 +48,7 @@ def handle(name, cfg, cloud, log, _args):
     # ... copy the key pair if specified
     if 'public_key' in salt_cfg and 'private_key' in salt_cfg:
         pki_dir = salt_cfg.get('pki_dir', '/etc/salt/pki')
+        pki_dir = cloud.paths.join(pki_dir)
         with util.umask(077):
             util.ensure_dir(pki_dir)
             pub_name = os.path.join(pki_dir, 'minion.pub')

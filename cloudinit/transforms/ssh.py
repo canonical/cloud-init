@@ -64,7 +64,8 @@ def handle(_name, cfg, cloud, log, _args):
             if key in key2file:
                 tgt_fn = key2file[key][0]
                 tgt_perms = key2file[key][1]
-                util.write_file(tgt_fn, val, tgt_perms)
+                util.write_file(cloud.paths.join(False, tgt_fn),
+                                val, tgt_perms)
 
         for (priv, pub) in priv2pub.iteritems():
             if pub in cfg['ssh_keys'] or not priv in cfg['ssh_keys']:
@@ -86,6 +87,7 @@ def handle(_name, cfg, cloud, log, _args):
                                             generate_keys)
         for keytype in genkeys:
             keyfile = '/etc/ssh/ssh_host_%s_key' % (keytype)
+            keyfile = cloud.paths.join(False, keyfile)
             if not os.path.exists(keyfile):
                 cmd = ['ssh-keygen', '-t', keytype, '-N', '', '-f', keyfile]
                 try:
@@ -107,20 +109,21 @@ def handle(_name, cfg, cloud, log, _args):
             cfgkeys = cfg["ssh_authorized_keys"]
             keys.extend(cfgkeys)
 
-        apply_credentials(keys, user, disable_root, disable_root_opts)
+        apply_credentials(keys, user, cloud.paths,
+                          disable_root, disable_root_opts)
     except:
         util.logexc(log, "Applying ssh credentials failed!")
 
 
-def apply_credentials(keys, user, disable_root, disable_root_opts):
+def apply_credentials(keys, user, paths, disable_root, disable_root_opts):
 
     keys = set(keys)
     if user:
-        ssh_util.setup_user_keys(keys, user, '')
+        ssh_util.setup_user_keys(keys, user, '', paths)
 
     if disable_root and user:
         key_prefix = disable_root_opts.replace('$USER', user)
     else:
         key_prefix = ''
 
-    ssh_util.setup_user_keys(keys, 'root', key_prefix)
+    ssh_util.setup_user_keys(keys, 'root', key_prefix, paths)

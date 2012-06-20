@@ -73,6 +73,7 @@ class Distro(distros.Distro):
             lines.insert(0, '# Created by cloud-init')
             contents = "\n".join(lines)
             net_fn = NETWORK_FN_TPL % (dev)
+            net_fn = self._paths.join(False, net_fn)
             util.write_file(net_fn, contents, 0644)
 
     def set_hostname(self, hostname):
@@ -104,6 +105,7 @@ class Distro(distros.Distro):
             new_contents.append("# Added by cloud-init")
             new_contents.append("HOSTNAME=%s" % (hostname))
         contents = "\n".join(new_contents)
+        out_fn = self._paths.join(False, out_fn)
         util.write_file(out_fn, contents, 0644)
 
     def update_hostname(self, hostname, prev_file):
@@ -143,6 +145,7 @@ class Distro(distros.Distro):
         return default
 
     def _read_conf(self, filename):
+        filename = self._paths.join(True, filename)
         contents = util.load_file(filename, quiet=True)
         conf_lines = []
         for line in contents.splitlines():
@@ -194,7 +197,8 @@ class Distro(distros.Distro):
             new_contents.append("# Added by cloud-init")
             new_contents.append('ZONE="%s"' % (tz))
         tz_contents = "\n".join(new_contents)
-        util.write_file("/etc/sysconfig/clock", tz_contents)
+        tz_fn = self._paths.join(False, "/etc/sysconfig/clock")
+        util.write_file(tz_fn, tz_contents)
         # This ensures that the correct tz will be used for the system
         util.copy(tz_file, "/etc/localtime")
 

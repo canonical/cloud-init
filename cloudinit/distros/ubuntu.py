@@ -46,7 +46,8 @@ class Distro(distros.Distro):
         self.package_command('install', pkglist)
 
     def _write_network(self, settings):
-        util.write_file("/etc/network/interfaces", settings)
+        n_fn = self._paths.join(False, "/etc/network/interfaces")
+        util.write_file(n_fn, settings)
 
     def set_hostname(self, hostname):
         self._write_hostname(hostname, "/etc/hostname")
@@ -84,6 +85,7 @@ class Distro(distros.Distro):
             util.subp(['hostname', hostname])
 
     def _read_hostname(self, filename, default=None):
+        filename = self._paths.join(True, filename)
         contents = util.load_file(filename, quiet=True)
         for line in contents.splitlines():
             c_pos = line.find("#")
@@ -105,7 +107,8 @@ class Distro(distros.Distro):
             raise Exception(("Invalid timezone %s,"
                              " no file found at %s") % (tz, tz_file))
         tz_contents = "%s\n" % tz
-        util.write_file("/etc/timezone", tz_contents)
+        tz_fn = self._paths.join(False, "/etc/timezone")
+        util.write_file(tz_fn, tz_contents)
         util.copy(tz_file, "/etc/localtime")
 
     def package_command(self, command, args=None):
