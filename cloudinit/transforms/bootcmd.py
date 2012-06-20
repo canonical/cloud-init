@@ -31,7 +31,7 @@ def handle(name, cfg, cloud, log, _args):
 
     if "bootcmd" not in cfg:
         log.debug(("Skipping transform named %s,"
-                   " no 'bootcomd' key in configuration"), name)
+                   " no 'bootcmd' key in configuration"), name)
         return
 
     with tempfile.NamedTemporaryFile(suffix=".sh") as tmpf:
