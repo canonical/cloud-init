@@ -74,6 +74,20 @@ def welcome(action):
     LOG.info(welcome_msg)
 
 
+def run_transforms(tr, action_name, section):
+    full_section_name = TR_TPL % (section)
+    (ran_am, failures) = tr.run(full_section_name)
+    if not ran_am:
+        msg = ("No '%s' transforms to run"
+               " under section '%s'") % (action_name, full_section_name)
+        sys.stderr.write("%s\n" % (msg))
+        LOG.debug(msg)
+        return 0
+    else:
+        LOG.debug("Ran %s transforms with %s failures", ran_am, len(failures))
+        return len(failures)
+
+
 def main_init(name, args):
     deps = [sources.DEP_FILESYSTEM, sources.DEP_NETWORK]
     if args.local:
@@ -106,6 +120,7 @@ def main_init(name, args):
     #    the transform objects configuration
     # 10. Run the transforms for the 'init' stage
     # 11. Done!
+    welcome(name)
     init = stages.Init(deps)
     # Stage 1
     init.read_cfg(cfg_extra_paths)
@@ -113,6 +128,8 @@ def main_init(name, args):
     outfmt = None
     errfmt = None
     try:
+        LOG.debug("Closing stdin")
+        util.close_stdin()
         (outfmt, errfmt) = util.fixup_output(init.cfg, name)
     except:
         util.logexc(LOG, "Failed to setup output redirection!")
@@ -164,7 +181,6 @@ def main_init(name, args):
         # Delete the non-net file as well
         util.del_file(os.path.join(path_helper.get_cpath("data"), "no-net"))
     # Stage 5
-    welcome(name)
     try:
         init.fetch()
     except sources.DataSourceNotFoundException:
@@ -199,26 +215,73 @@ def main_init(name, args):
     except:
         util.logexc(LOG, "Failed to adjust output redirection!")
     # Stage 10
-    section_name = TR_TPL % (name)
-    (ran_am, failures) = tr.run(section_name)
-    if not ran_am:
-        msg = "No %s transforms to run under section %s" % (name, section_name)
-        sys.stderr.write("%s\n" % (msg))
-        LOG.debug(msg)
-        return 0
-    return len(failures)
+    return run_transforms(tr, name, name)
 
 
-def main_config(_name, _args):
+def main_transform(_action_name, args):
+    name = args.mode
+    i_cfgs = []
+    if args.files:
+        for fh in args.files:
+            i_cfgs.append(fh.name)
+    # Cloud-init transform stages are broken up into the following sub-stages
+    # 1. Ensure that the init object fetches its config without errors
+    # 2. Get the datasource from the init object, if it does
+    #    not exist then that means the main_init stage never
+    #    worked, and thus this stage can not run.
+    # 3. Construct the transform object
+    # 4. Adjust any subsequent logging/output redirections using
+    #    the transform objects configuration
+    # 5. Run the transforms for the given stage name
+    # 6. Done!
+    welcome(name)
+    init = stages.Init(ds_deps=[])
+    # Stage 1
+    init.read_cfg(i_cfgs)
+    # Stage 2
+    try:
+        ds = init.fetch()
+    except sources.DataSourceNotFoundException:
+        # There was no datasource found, theres nothing to do
+        util.logexc(LOG, 'Can not apply stage %s, no datasource found', name)
+        return 1
+    # Stage 3
+    tr_cfgs = list(i_cfgs)
+    cc_cfg = init.paths.get_ipath_cur('cloud_config')
+    if settings.CFG_ENV_NAME in os.environ:
+        cc_cfg = os.environ[settings.CFG_ENV_NAME]
+    if cc_cfg and os.path.exists(cc_cfg):
+        tr_cfgs.append(cc_cfg)
+    tr = stages.Transforms(init, tr_cfgs)
+    # Stage 4
+    try:
+        LOG.debug("Closing stdin")
+        util.close_stdin()
+        (outfmt, errfmt) = util.fixup_output(tr.cfg, name)
+    except:
+        util.logexc(LOG, "Failed to setup output redirection!")
+    if args.debug:
+        # Reset so that all the debug handlers are closed out
+        LOG.debug(("Logging being reset, this logger may no"
+                    " longer be active shortly"))
+        logging.resetLogging()
+    logging.setupLogging(cc.cfg)
+    # Stage 5
+    return run_transforms(tr, name, name)
+
+
+def main_query(_name, _args):
     pass
 
 
-def main_final(_name, _args):
+def main_single(_name, _args):
     pass
 
 
 def main():
     parser = argparse.ArgumentParser()
+    
+    # Top level args
     parser.add_argument('--version', '-v', action='version', 
                         version='%(prog)s ' + (version.version_string()))
     parser.add_argument('--file', '-f', action='append', 
@@ -232,56 +295,63 @@ def main():
                         default=False)
     subparsers = parser.add_subparsers()
 
-    # Possible mode names
-    mode_names = ('init', 'config', 'final')
-
-    # Each action and its suboptions (if any)
+    # Each action and its sub-options (if any)
     parser_init = subparsers.add_parser('init', 
                                         help=('initializes cloud-init and'
-                                              ' performs \'init\' transforms'))
+                                              ' performs initial transforms'))
     parser_init.add_argument("--local", '-l', action='store_true',
                              help="start in local mode (default: %(default)s)",
                              default=False)
-    # This is used so that we can know which action is selected
-    parser_init.set_defaults(action='init')
+    # This is used so that we can know which action is selected + 
+    # the functor to use to run this subcommand
+    parser_init.set_defaults(action=('init', main_init))
 
-    parser_config = subparsers.add_parser('config', 
-                                          help=('performs cloud-init '
-                                                '\'config\' transforms'))
-    parser_config.add_argument("--mode", '-m', action='store',
+    # These settings are used for the 'config' and 'final' stages
+    parser_tr = subparsers.add_parser('transform', 
+                                      help=('performs transforms '
+                                            'using a given configuration key'))
+    parser_tr.add_argument("--mode", '-m', action='store',
                              help=("transform configuration name "
                                     "to use (default: %(default)s)"),
                              default='config',
-                             choices=mode_names)
-    parser_config.set_defaults(action='config')
+                             choices=('config', 'final'))
+    parser_tr.set_defaults(action=('transform', main_transform))
 
-    parser_final = subparsers.add_parser('final', 
-                                         help=('performs cloud-init '
-                                               '\'final\' transforms'))
-    parser_final.set_defaults(action='final')
-
+    # These settings are used when you want to query information
+    # stored in the cloud-init data objects/directories/files
     parser_query = subparsers.add_parser('query', 
                                          help=('query information stored '
                                                'in cloud-init'))
-    parser_query.add_argument("--name", action="store",
+    parser_query.add_argument("--name", '-n', action="store",
                               help="item name to query on",
                               required=True,
                               choices=QUERY_DATA_TYPES)
-    parser_query.set_defaults(action='query')
+    parser_query.set_defaults(action=('query', main_query))
+
+    # This subcommand allows you to run a single transform
+    parser_single = subparsers.add_parser('single', 
+                                         help=('run a single transform '))
+    parser_single.set_defaults(action=('single', main_single))
+    parser_single.add_argument("--name", '-n', action="store",
+                              help="transform name to run",
+                              required=True)
+    parser_single.add_argument("--frequency", action="store",
+                              help=("frequency of "
+                                    " the transform (default: %(default)s)"),
+                              required=False,
+                              default=settings.PER_ALWAYS,
+                              choices=settings.FREQUENCIES)
+    parser_single.set_defaults(action=('single', main_single))
+
+
     args = parser.parse_args()
-    
+
     # Setup basic logging to start (until reinitialized)
     if args.debug:
         logging.setupBasicLogging()
 
-    stage_name = args.action
-    stage_mp = {
-        'init': main_init,
-        'config': main_config,
-        'final': main_final,
-    }
-    func = stage_mp.get(stage_name)
-    return func(stage_name, args)
+    (name, functor) = args.action
+    return functor(name, args)
 
 
 if __name__ == '__main__':
