@@ -23,7 +23,7 @@ frequency = PER_INSTANCE
 
 distros = ['ubuntu', 'debian']
 
-default_file = "/etc/apt/apt.conf.d/90cloud-init-pipelining"
+DEFAULT_FILE = "/etc/apt/apt.conf.d/90cloud-init-pipelining"
 
 # Acquire::http::Pipeline-Depth can be a value
 # from 0 to 5 indicating how many outstanding requests APT should send.
@@ -31,30 +31,27 @@ default_file = "/etc/apt/apt.conf.d/90cloud-init-pipelining"
 # on TCP connections - otherwise data corruption will occur.
 
 
-def handle(_name, cfg, _cloud, log, _args):
+def handle(_name, cfg, cloud, log, _args):
 
     apt_pipe_value = util.get_cfg_option_str(cfg, "apt_pipelining", False)
     apt_pipe_value_s = str(apt_pipe_value).lower().strip()
 
     if apt_pipe_value_s == "false":
-        write_apt_snippet("0", log)
-
+        write_apt_snippet(cloud, "0", log, DEFAULT_FILE)
     elif apt_pipe_value_s in ("none", "unchanged", "os"):
         return
-
     elif apt_pipe_value_s in [str(b) for b in xrange(0, 6)]:
-        write_apt_snippet(apt_pipe_value_s, log)
-
+        write_apt_snippet(cloud, apt_pipe_value_s, log, DEFAULT_FILE)
     else:
         log.warn("Invalid option for apt_pipeling: %s", apt_pipe_value)
 
 
-def write_apt_snippet(setting, log, f_name=default_file):
+def write_apt_snippet(cloud, setting, log, f_name):
     """ Writes f_name with apt pipeline depth 'setting' """
 
     file_contents = ("//Written by cloud-init per 'apt_pipelining'\n"
                      'Acquire::http::Pipeline-Depth "%s";\n') % (setting)
 
-    util.write_file(f_name, file_contents)
+    util.write_file(cloud.paths.join(False, f_name), file_contents)
 
     log.debug("Wrote %s with apt pipeline depth setting %s", f_name, setting)

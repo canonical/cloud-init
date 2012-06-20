@@ -36,30 +36,40 @@ def handle(name, cfg, cloud, log, _args):
         return
     chef_cfg = cfg['chef']
 
-    # ensure the chef directories we use exist
-    util.ensure_dirs(['/etc/chef', '/var/log/chef', '/var/lib/chef',
-                     '/var/cache/chef', '/var/backups/chef', '/var/run/chef'])
+    # Ensure the chef directories we use exist
+    c_dirs = [
+        '/etc/chef', 
+        '/var/log/chef', 
+        '/var/lib/chef', 
+        '/var/cache/chef', 
+        '/var/backups/chef', 
+        '/var/run/chef',
+    ]
+    for d in c_dirs:
+        util.ensure_dir(cloud.paths.join(False, d))
 
-    # set the validation key based on the presence of either 'validation_key'
+    # Set the validation key based on the presence of either 'validation_key'
     # or 'validation_cert'. In the case where both exist, 'validation_key'
     # takes precedence
     for key in ('validation_key', 'validation_cert'):
         if key in chef_cfg and chef_cfg[key]:
-            util.write_file('/etc/chef/validation.pem', chef_cfg[key])
+            v_fn = cloud.paths.join(False, '/etc/chef/validation.pem')
+            util.write_file(v_fn, chef_cfg[key])
             break
 
-    # create the chef config from template
+    # Create the chef config from template
     template_fn = cloud.get_template_filename('chef_client.rb')
     if template_fn:
+        iid = str(cloud.datasource.get_instance_id())
         params = {
             'server_url': chef_cfg['server_url'],
-            'node_name': util.get_cfg_option_str(chef_cfg, 'node_name',
-                                    cloud.datasource.get_instance_id()),
+            'node_name': util.get_cfg_option_str(chef_cfg, 'node_name', iid),
             'environment': util.get_cfg_option_str(chef_cfg, 'environment',
                                                    '_default'),
             'validation_name': chef_cfg['validation_name']
         }
-        templater.render_to_file(template_fn, '/etc/chef/client.rb', params)
+        out_fn = cloud.paths.join(False, '/etc/chef/client.rb')
+        templater.render_to_file(template_fn, out_fn, params)
     else:
         log.warn("No template found, not rendering to /etc/chef/client.rb")
 
@@ -71,7 +81,8 @@ def handle(name, cfg, cloud, log, _args):
         initial_attributes = chef_cfg['initial_attributes']
         for k in list(initial_attributes.keys()):
             initial_json[k] = initial_attributes[k]
-    util.write_file('/etc/chef/firstboot.json', json.dumps(initial_json))
+    firstboot_fn = cloud.paths.join(False, '/etc/chef/firstboot.json')
+    util.write_file(firstboot_fn, json.dumps(initial_json))
 
     # If chef is not installed, we install chef based on 'install_type'
     if not os.path.isfile('/usr/bin/chef-client'):

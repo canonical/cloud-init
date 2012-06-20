@@ -78,6 +78,7 @@ def handle(name, _cfg, cloud, log, _args):
     urls = mdict[my_hookname]
     for (i, url) in enumerate(urls):
         fname = os.path.join(scripts_d, "rightscale-%02i" % (i))
+        fname = cloud.paths.join(False, fname)
         try:
             resp = uhelp.readurl(url)
             # Ensure its a valid http response (and something gotten)

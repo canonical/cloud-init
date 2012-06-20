@@ -77,7 +77,7 @@ def handle(name, cfg, cloud, log, args):
 
     for (n, path) in pubkeys.iteritems():
         try:
-            all_keys[n] = util.load_file(path)
+            all_keys[n] = util.load_file(cloud.paths.join(True, path))
         except:
             util.logexc(log, ("%s: failed to open, can not"
                               " phone home that data"), path)

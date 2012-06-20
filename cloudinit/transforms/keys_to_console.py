@@ -29,23 +29,24 @@ frequency = PER_INSTANCE
 helper_tool = '/usr/lib/cloud-init/write-ssh-key-fingerprints'
 
 
-def handle(name, cfg, _cloud, log, _args):
+def handle(name, cfg, cloud, log, _args):
     if not os.path.exists(helper_tool):
         log.warn(("Unable to activate transform %s,"
                   " helper tool not found at %s"), name, helper_tool)
         return
 
     fp_blacklist = util.get_cfg_option_list(cfg,
-        "ssh_fp_console_blacklist", [])
+                                            "ssh_fp_console_blacklist", [])
     key_blacklist = util.get_cfg_option_list(cfg,
-        "ssh_key_console_blacklist", ["ssh-dss"])
+                                             "ssh_key_console_blacklist",
+                                              ["ssh-dss"])
 
     try:
         cmd = [helper_tool]
         cmd.append(','.join(fp_blacklist))
         cmd.append(','.join(key_blacklist))
         (stdout, _stderr) = util.subp(cmd)
-        util.write_file('/dev/console', stdout)
+        util.write_file(cloud.paths.join(False, '/dev/console'), stdout)
     except:
         log.warn("Writing keys to /dev/console failed!")
         raise

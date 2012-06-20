@@ -130,8 +130,8 @@ def handle(_name, cfg, cloud, log, args):
             replaced_auth = True
             new_lines.append(replacement)
 
-        new_contents = "\n".join(new_lines)
-        util.write_file('/etc/ssh/sshd_config', new_contents)
+        util.write_file(cloud.paths.join(False, '/etc/ssh/sshd_config'),
+                        "\n".join(new_lines))
 
         try:
             cmd = ['service']

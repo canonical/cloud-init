@@ -210,9 +210,12 @@ def update_authorized_keys(fname, keys):
     return '\n'.join(lines)
 
 
-def setup_user_keys(keys, user, key_prefix, sshd_config_fn=DEF_SSHD_CFG):
+def setup_user_keys(keys, user, key_prefix, paths):
+    
+    # Make sure the users .ssh dir is setup accordingly
     pwent = pwd.getpwnam(user)
     ssh_dir = os.path.join(pwent.pw_dir, '.ssh')
+    ssh_dir = paths.join(False, ssh_dir)
     if not os.path.exists(ssh_dir):
         util.ensure_dir(ssh_dir, mode=0700)
         util.chownbyid(ssh_dir, pwent.pw_uid, pwent.pw_gid)
@@ -223,6 +226,7 @@ def setup_user_keys(keys, user, key_prefix, sshd_config_fn=DEF_SSHD_CFG):
     for k in keys:
         key_entries.append(parser.parse(str(k), def_opt=key_prefix))
 
+    sshd_conf_fn = paths.join(True, DEF_SSHD_CFG)
     with util.SeLinuxGuard(ssh_dir, recursive=True):
         try:
             # AuthorizedKeysFile may contain tokens
@@ -230,7 +234,7 @@ def setup_user_keys(keys, user, key_prefix, sshd_config_fn=DEF_SSHD_CFG):
             # The following tokens are defined: %% is replaced by a literal
             # '%', %h is replaced by the home directory of the user being
             # authenticated and %u is replaced by the username of that user.
-            ssh_cfg = parse_ssh_config(sshd_config_fn)
+            ssh_cfg = parse_ssh_config(sshd_conf_fn)
             akeys = ssh_cfg.get("authorizedkeysfile", '')
             akeys = akeys.strip()
             if not akeys:
@@ -247,7 +251,7 @@ def setup_user_keys(keys, user, key_prefix, sshd_config_fn=DEF_SSHD_CFG):
                               " in ssh config"
                               " from %s, using 'AuthorizedKeysFile' file"
                               " %s instead"),
-                        sshd_config_fn, authorized_keys)
+                        sshd_conf_fn, authorized_keys)
 
         content = update_authorized_keys(authorized_keys, key_entries)
         util.ensure_dir(os.path.dirname(authorized_keys), mode=0700)

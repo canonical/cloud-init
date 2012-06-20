@@ -168,7 +168,7 @@ def handle(_name, cfg, cloud, log, _args):
         cc_lines.append('\t'.join(line))
 
     fstab_lines = []
-    fstab = util.load_file("/etc/fstab")
+    fstab = util.load_file(cloud.paths.join(True, "/etc/fstab"))
     for line in fstab.splitlines():
         try:
             toks = ws.split(line)
@@ -180,7 +180,7 @@ def handle(_name, cfg, cloud, log, _args):
 
     fstab_lines.extend(cc_lines)
     contents = "%s\n" % ('\n'.join(fstab_lines))
-    util.write_file("/etc/fstab", contents)
+    util.write_file(cloud.paths.join(False, "/etc/fstab"), contents)
 
     if needswap:
         try:
@@ -190,7 +190,7 @@ def handle(_name, cfg, cloud, log, _args):
 
     for d in dirs:
         try:
-            util.ensure_dir(d)
+            util.ensure_dir(cloud.paths.join(False, d))
         except:
             util.logexc(log, "Failed to make '%s' config-mount", d)
 

@@ -33,12 +33,12 @@ from cloudinit.settings import PER_INSTANCE
 
 frequency = PER_INSTANCE
 
-lsc_client_cfg_file = "/etc/landscape/client.conf"
+LSC_CLIENT_CFG_FILE = "/etc/landscape/client.conf"
 
 distros = ['ubuntu']
 
 # defaults taken from stock client.conf in landscape-client 11.07.1.1-0ubuntu2
-lsc_builtincfg = {
+LSC_BUILTIN_CFG = {
   'client': {
     'log_level': "info",
     'url': "https://landscape.canonical.com/message-system",
@@ -48,7 +48,7 @@ lsc_builtincfg = {
 }
 
 
-def handle(name, cfg, _cloud, log, _args):
+def handle(name, cfg, cloud, log, _args):
     """
     Basically turn a top level 'landscape' entry with a 'client' dict
     and render it to ConfigObj format under '[client]' section in
@@ -66,15 +66,19 @@ def handle(name, cfg, _cloud, log, _args):
                          " but not a dictionary type,"
                          " is a %s instead"), util.obj_name(ls_cloudcfg))
 
-    merged = merge_together([lsc_builtincfg, lsc_client_cfg_file, ls_cloudcfg])
+    lsc_client_fn = cloud.paths.join(True, LSC_CLIENT_CFG_FILE)
+    merged = merge_together([LSC_BUILTIN_CFG, lsc_client_fn, ls_cloudcfg])
 
-    if not os.path.isdir(os.path.dirname(lsc_client_cfg_file)):
-        util.ensure_dir(os.path.dirname(lsc_client_cfg_file))
+    lsc_dir = cloud.paths.join(False, os.path.dirname(lsc_client_fn))
+    if not os.path.isdir(lsc_dir):
+        util.ensure_dir(lsc_dir)
 
     contents = StringIO()
     merged.write(contents)
-    util.write_file(lsc_client_cfg_file, contents.getvalue())
-    log.debug("Wrote landscape config file to %s", lsc_client_cfg_file)
+    contents.flush()
+
+    util.write_file(lsc_client_fn, contents.getvalue())
+    log.debug("Wrote landscape config file to %s", lsc_client_fn)
 
 
 def merge_together(objs):

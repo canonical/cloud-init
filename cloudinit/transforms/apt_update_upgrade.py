@@ -26,6 +26,8 @@ from cloudinit import util
 
 distros = ['ubuntu', 'debian']
 
+PROXY_TPL = "Acquire::HTTP::Proxy \"%s\";\n"
+
 
 def handle(_name, cfg, cloud, log, _args):
     update = util.get_cfg_option_bool(cfg, 'apt_update', False)
@@ -44,22 +46,23 @@ def handle(_name, cfg, cloud, log, _args):
                                           "archive.ubuntu.com/ubuntu")
         rename_apt_lists(old_mir, mirror)
 
-    # set up proxy
+    # Set up any apt proxy
     proxy = cfg.get("apt_proxy", None)
     proxy_filename = "/etc/apt/apt.conf.d/95cloud-init-proxy"
     if proxy:
         try:
-            # See http://linux.die.net/man/5/apt.conf
-            contents = "Acquire::HTTP::Proxy \"%s\";\n"
-            util.write_file(proxy_filename, contents % (proxy))
+            # See man 'apt.conf'
+            contents = PROXY_TPL % (proxy)
+            util.write_file(cloud.paths.join(False, proxy_filename),
+                            contents)
         except Exception as e:
             util.logexc(log, "Failed to write proxy to %s", proxy_filename)
     elif os.path.isfile(proxy_filename):
         util.del_file(proxy_filename)
 
-    # process 'apt_sources'
+    # Process 'apt_sources'
     if 'apt_sources' in cfg:
-        errors = add_sources(cfg['apt_sources'],
+        errors = add_sources(cloud, cfg['apt_sources'],
                              {'MIRROR': mirror, 'RELEASE': release})
         for e in errors:
             log.warn("Source Error: %s", ':'.join(e))
@@ -138,7 +141,7 @@ def generate_sources_list(codename, mirror, cloud, log):
         log.warn("No template found, not rendering /etc/apt/sources.list")
 
 
-def add_sources(srclist, template_params=None):
+def add_sources(cloud, srclist, template_params=None):
     """
     add entries in /etc/apt/sources.list.d for each abbreviated
     sources.list entry in 'srclist'.  When rendering template, also
@@ -187,7 +190,9 @@ def add_sources(srclist, template_params=None):
                 errorlist.append([source, "failed add key"])
 
         try:
-            util.write_file(ent['filename'], "%s\n" % (source), omode="ab")
+            contents = "%s\n" % (source)
+            util.write_file(cloud.paths.join(False, ent['filename']),
+                            contents, omode="ab")
         except:
             errorlist.append([source,
                              "failed write to file %s" % ent['filename']])
