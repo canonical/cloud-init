@@ -35,18 +35,20 @@ from cloudinit.settings import (OLD_CLOUD_CONFIG)
 from cloudinit.settings import (PER_INSTANCE, FREQUENCIES)
 
 from cloudinit import handlers
+
+# Default handlers (used if not overridden)
 from cloudinit.handlers import boot_hook as bh_part
 from cloudinit.handlers import cloud_config as cc_part
 from cloudinit.handlers import shell_script as ss_part
 from cloudinit.handlers import upstart_job as up_part
 
 from cloudinit import cloud
+from cloudinit import config
 from cloudinit import distros
 from cloudinit import helpers
 from cloudinit import importer
 from cloudinit import log as logging
 from cloudinit import sources
-from cloudinit import transforms
 from cloudinit import util
 
 LOG = logging.getLogger(__name__)
@@ -319,8 +321,10 @@ class Init(object):
     
         # Add the path to the plugins dir to the top of our list for import
         # instance dir should be read before cloud-dir
-        sys.path.insert(0, cdir)
-        sys.path.insert(0, idir)
+        if cdir and cdir not in sys.path:
+            sys.path.insert(0, cdir)
+        if idir and idir not in sys.path:
+            sys.path.insert(0, idir)
 
         # Ensure datasource fetched before activation (just incase)
         user_data_msg = self.datasource.get_userdata()
@@ -378,7 +382,7 @@ class Init(object):
             called.append(mod)
 
 
-class Transforms(object):
+class Modules(object):
     def __init__(self, init, cfg_files=None):
         self.datasource = init.datasource
         self.cfg_files = cfg_files
@@ -392,7 +396,7 @@ class Transforms(object):
         # None check to avoid empty case
         if self._cached_cfg is None:
             self._cached_cfg = self._get_config()
-            LOG.debug("Loading 'transform' config %s", self._cached_cfg)
+            LOG.debug("Loading 'module' config %s", self._cached_cfg)
         return self._cached_cfg
 
     def _get_config(self):
@@ -419,7 +423,7 @@ class Transforms(object):
 
         return util.mergemanydict(t_cfgs)
 
-    def _read_transforms(self, name):
+    def _read_modules(self, name):
         module_list = []
         if name not in self.cfg:
             return module_list
@@ -464,28 +468,28 @@ class Transforms(object):
                                  (item, util.obj_name(item)))
         return module_list
 
-    def _fixup_transforms(self, raw_mods):
+    def _fixup_modules(self, raw_mods):
         mostly_mods = []
         for raw_mod in raw_mods:
             raw_name = raw_mod['mod']
             freq = raw_mod.get('freq')
             run_args = raw_mod.get('args') or []
-            mod_name = transforms.form_transform_name(raw_name)
+            mod_name = config.form_module_name(raw_name)
             if not mod_name:
                 continue
             if freq and freq not in FREQUENCIES:
-                LOG.warn(("Config specified transform %s"
+                LOG.warn(("Config specified module %s"
                           " has an unknown frequency %s"), raw_name, freq)
                 # Reset it so when ran it will get set to a known value
                 freq = None
-            mod = transforms.fixup_transform(importer.import_module(mod_name))
+            mod = config.fixup_module(importer.import_module(mod_name))
             mostly_mods.append([mod, raw_name, freq, run_args])
         return mostly_mods
 
-    def _run_transforms(self, mostly_mods):
+    def _run_modules(self, mostly_mods):
         failures = []
         d_name = self.init.distro.name
-        c_cloud = self.init.cloudify()
+        cc = self.init.cloudify()
         am_ran = 0
         for (mod, name, freq, args) in mostly_mods:
             try:
@@ -496,54 +500,36 @@ class Transforms(object):
                     freq = PER_INSTANCE
                 worked_distros = mod.distros
                 if (worked_distros and d_name not in worked_distros):
-                    LOG.warn(("Transform %s is verified on %s distros"
+                    LOG.warn(("Module %s is verified on %s distros"
                               " but not on %s distro. It may or may not work"
                               " correctly."), name, worked_distros, d_name)
                 # Deep copy the config so that modules can't alter it
                 # Use the transforms logger and not our own
                 func_args = [name, copy.deepcopy(self.cfg),
-                             c_cloud, transforms.LOG, args]
+                             cc, config.LOG, args]
                 # Mark it as having started running
                 am_ran += 1
                 # This name will affect the semaphore name created
                 run_name = "config-%s" % (name)
-                c_cloud.run(run_name, mod.handle, func_args, freq=freq)
+                cc.run(run_name, mod.handle, func_args, freq=freq)
             except Exception as e:
                 util.logexc(LOG, "Running %s (%s) failed", name, mod)
                 failures.append((name, e))
         return (am_ran, failures)
 
-    def find_transform(self, tr_name, sections):
-        found_where = []
-        for n in sections:
-            mods = self._read_transforms(n)
-            for mod_info in mods:
-                if mod_info.get('mod') == tr_name:
-                    found_where.append(n)
-        return found_where
-
-    def run_single(self, tr_name, section, args=None, freq=None):
-        mods = self._read_transforms(section)
-        mod_tr = None
-        for mod_info in mods:
-            if mod_info.get('mod') == tr_name:
-                mod_tr = mod_info
-                break
-        if not mod_tr:
-            # Nothing to run, does that transform exist there??
-            return (0, 0)
-        else:
-            # Adjust the module
-            if args:
-                mod_tr['args'] = args
-            if freq:
-                mod_tr['freq'] = freq
-            # Now resume doing the normal fixups and running
-            raw_mods = [mod_tr]
-            mostly_mods = self._fixup_transforms(raw_mods)
-            return self._run_transforms(mostly_mods)
+    def run_single(self, mod_name, args=None, freq=None):
+        # Form the users module 'specs'
+        mod_to_be = {
+            'mod': mod_name,
+            'args': args,
+            'freq': freq,
+        }
+        # Now resume doing the normal fixups and running
+        raw_mods = [mod_to_be]
+        mostly_mods = self._fixup_modules(raw_mods)
+        return self._run_modules(mostly_mods)
 
     def run_section(self, section_name):
-        raw_mods = self._read_transforms(section_name)
-        mostly_mods = self._fixup_transforms(raw_mods)
-        return self._run_transforms(mostly_mods)
+        raw_mods = self._read_modules(section_name)
+        mostly_mods = self._fixup_modules(raw_mods)
+        return self._run_modules(mostly_mods)
