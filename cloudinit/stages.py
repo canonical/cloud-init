@@ -543,6 +543,6 @@ class Transforms(object):
             return self._run_transforms(mostly_mods)
 
     def run_section(self, section_name):
-        raw_mods = self.read_transforms(section_name)
+        raw_mods = self._read_transforms(section_name)
         mostly_mods = self._fixup_transforms(raw_mods)
         return self._run_transforms(mostly_mods)
