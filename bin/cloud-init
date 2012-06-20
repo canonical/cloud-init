@@ -25,11 +25,18 @@ import argparse
 import os
 import sys
 
-# This is more just for running from the bin folder
+# This is more just for running from the bin folder so that
+# cloud-init binary can find the cloudinit module
 possible_topdir = os.path.normpath(os.path.join(os.path.abspath(
         sys.argv[0]), os.pardir, os.pardir))
 if os.path.exists(os.path.join(possible_topdir, "cloudinit", "__init__.py")):
     sys.path.insert(0, possible_topdir)
+
+# This is so config modules can be found
+if os.path.exists(os.path.join(possible_topdir,
+                 "cloudinit", 'config', "__init__.py")):
+    sys.path.insert(0, os.path.join(possible_topdir, 'cloudinit', 'config'))
+
 
 from cloudinit import log as logging
 from cloudinit import netinfo
@@ -41,8 +48,8 @@ from cloudinit import util
 from cloudinit import version
 
 
-# Transform section template
-TR_TPL = "cloud_%s_modules"
+# Module section template
+MOD_SECTION_TPL = "cloud_%s_modules"
 
 # Things u can query on
 QUERY_DATA_TYPES = [
@@ -68,7 +75,6 @@ def welcome(action):
     sys.stderr.flush()
     LOG.info(welcome_msg)
 
-
 def extract_fns(args):
     # Files are already opened so lets just pass that along
     # since it would of broke if it couldn't have
@@ -82,17 +88,17 @@ def extract_fns(args):
     return fn_cfgs
 
 
-def run_transform_section(tr, action_name, section):
-    full_section_name = TR_TPL % (section)
-    (ran_am, failures) = tr.run_section(full_section_name)
+def run_module_section(mods, action_name, section):
+    full_section_name = MOD_SECTION_TPL % (section)
+    (ran_am, failures) = mods.run_section(full_section_name)
     if not ran_am:
-        msg = ("No '%s' transforms to run"
+        msg = ("No '%s' modules to run"
                " under section '%s'") % (action_name, full_section_name)
         sys.stderr.write("%s\n" % (msg))
         LOG.debug(msg)
         return 0
     else:
-        LOG.debug("Ran %s transforms with %s failures", ran_am, len(failures))
+        LOG.debug("Ran %s modules with %s failures", ran_am, len(failures))
         return len(failures)
 
 
@@ -115,10 +121,10 @@ def main_init(name, args):
     # 5. Fetch the datasource
     # 6. Connect to the current instance location + update the cache
     # 7. Consume the userdata (handlers get activated here)
-    # 8. Construct the transform object
+    # 8. Construct the modules object
     # 9. Adjust any subsequent logging/output redirections using
-    #    the transform objects configuration
-    # 10. Run the transforms for the 'init' stage
+    #    the modules objects configuration
+    # 10. Run the modules for the 'init' stage
     # 11. Done!
     welcome(name)
     init = stages.Init(deps)
@@ -205,32 +211,32 @@ def main_init(name, args):
         util.logexc(LOG, "Consuming user data failed!")
         return 1
     # Stage 8 - TODO - do we really need to re-extract our configs?
-    tr = stages.Transforms(init, extract_fns(args))
+    mods = stages.Modules(init, extract_fns(args))
     # Stage 9 - TODO is this really needed??
     try:
         outfmt_orig = outfmt
         errfmt_orig = errfmt
-        (outfmt, errfmt) = util.get_output_cfg(tr.cfg, name)
+        (outfmt, errfmt) = util.get_output_cfg(mods.cfg, name)
         if outfmt_orig != outfmt or errfmt_orig != errfmt:
             LOG.warn("Stdout, stderr changing to (%s, %s)", outfmt, errfmt)
-            (outfmt, errfmt) = util.fixup_output(tr.cfg, name)
+            (outfmt, errfmt) = util.fixup_output(mods.cfg, name)
     except:
         util.logexc(LOG, "Failed to re-adjust output redirection!")
     # Stage 10
-    return run_transform_section(tr, name, name)
+    return run_module_section(mods, name, name)
 
 
-def main_transform(action_name, args):
+def main_modules(action_name, args):
     name = args.mode
-    # Cloud-init transform stages are broken up into the following sub-stages
+    # Cloud-init 'modules' stages are broken up into the following sub-stages
     # 1. Ensure that the init object fetches its config without errors
     # 2. Get the datasource from the init object, if it does
     #    not exist then that means the main_init stage never
     #    worked, and thus this stage can not run.
-    # 3. Construct the transform object
+    # 3. Construct the modules object
     # 4. Adjust any subsequent logging/output redirections using
-    #    the transform objects configuration
-    # 5. Run the transforms for the given stage name
+    #    the modules objects configuration
+    # 5. Run the modules for the given stage name
     # 6. Done!
     welcome("%s:%s" % (action_name, name))
     init = stages.Init(ds_deps=[])
@@ -244,18 +250,18 @@ def main_transform(action_name, args):
         util.logexc(LOG, 'Can not apply stage %s, no datasource found!', name)
         return 1
     # Stage 3
-    tr_cfgs = extract_fns(args)
+    mod_cfgs = extract_fns(args)
     cc_cfg = init.paths.get_ipath_cur('cloud_config')
     if settings.CFG_ENV_NAME in os.environ:
         cc_cfg = os.environ[settings.CFG_ENV_NAME]
     if cc_cfg and os.path.exists(cc_cfg):
-        tr_cfgs.append(cc_cfg)
-    tr = stages.Transforms(init, tr_cfgs)
+        mod_cfgs.append(cc_cfg)
+    mods = stages.Modules(init, mod_cfgs)
     # Stage 4
     try:
         LOG.debug("Closing stdin")
         util.close_stdin()
-        util.fixup_output(tr.cfg, name)
+        util.fixup_output(mods.cfg, name)
     except:
         util.logexc(LOG, "Failed to setup output redirection!")
     if args.debug:
@@ -263,9 +269,9 @@ def main_transform(action_name, args):
         LOG.debug(("Logging being reset, this logger may no"
                     " longer be active shortly"))
         logging.resetLogging()
-    logging.setupLogging(tr.cfg)
+    logging.setupLogging(mods.cfg)
     # Stage 5
-    return run_transform_section(tr, name, name)
+    return run_module_section(mods, name, name)
 
 
 def main_query(name, _args):
@@ -276,65 +282,49 @@ def main_query(name, _args):
 def main_single(name, args):
     # Cloud-init single stage is broken up into the following sub-stages
     # 1. Ensure that the init object fetches its config without errors
-    # 2. Check to see if we can find the transform name
-    #    in the 'init', 'final', 'config' stages, if not bail
-    # 3. Get the datasource from the init object, if it does
-    #    not exist then that means the main_init stage never
-    #    worked, and thus this stage can not run.
-    # 4. Construct the transform object
-    # 5. Adjust any subsequent logging/output redirections using
-    #    the transform objects configuration
-    # 6. Run the single transform
-    # 7. Done!
-    tr_name = args.name
-    welcome("%s:%s" % (name, tr_name))
+    # 2. Construct the modules object
+    # 3. Adjust any subsequent logging/output redirections using
+    #    the modules objects configuration
+    # 4. Run the single module
+    # 5. Done!
+    mod_name = args.name
+    welcome("%s:%s" % (name, mod_name))
     init = stages.Init(ds_deps=[])
     # Stage 1
     init.read_cfg(extract_fns(args))
-    tr = stages.Transforms(init, extract_fns(args))
-    where_look_mp = {
-        TR_TPL % ('init'): 'init',
-        TR_TPL % ('config'): 'config',
-        TR_TPL % ('final'): 'final',
-    }
-    where_look = list(where_look_mp.keys())
-    found_at = tr.find_transform(tr_name, where_look)
-    if not found_at:
-        msg = ("No known transform named %s "
-              "in sections (%s)") % (tr_name, ", ".join(where_look))
-        LOG.warn(msg)
+    mods = stages.Modules(init, extract_fns(args))
+    mod_args = args.module_args
+    if mod_args:
+        LOG.debug("Using passed in arguments %s", mod_args)
+    mod_freq = args.frequency
+    if mod_freq:
+        LOG.debug("Using passed in frequency %s", mod_freq)
+    # Stage 3
+    try:
+        LOG.debug("Closing stdin")
+        util.close_stdin()
+        util.fixup_output(mods.cfg, None)
+    except:
+        util.logexc(LOG, "Failed to setup output redirection!")
+    if args.debug:
+        # Reset so that all the debug handlers are closed out
+        LOG.debug(("Logging being reset, this logger may no"
+                   " longer be active shortly"))
+        logging.resetLogging()
+    logging.setupLogging(mods.cfg)
+    # Stage 4
+    try:
+        (_run_am, failures) = mods.run_single(mod_name,
+                                              mod_args,
+                                              mod_freq)
+    except ImportError:
+        util.logexc(LOG, "Failed at importing module %s", mod_name)
+        return 1
+    if failures:
+        LOG.debug("Ran %s but it failed", mod_name)
         return 1
     else:
-        LOG.debug("Found transform %s in sections: %s",
-                  tr_name, found_at)
-        sect_name = found_at[0]
-        LOG.debug("Selecting section %s as its 'source' section.", sect_name)
-        tr_args = args.transform_args
-        if tr_args:
-            LOG.debug("Using passed in arguments %s", tr_args)
-        tr_freq = args.frequency
-        if tr_freq:
-            LOG.debug("Using passed in frequency %s", tr_freq)
-        try:
-            LOG.debug("Closing stdin")
-            util.close_stdin()
-            # This seems to use the short name, instead of the long name
-            util.fixup_output(tr.cfg, where_look_mp.get(sect_name))
-        except:
-            util.logexc(LOG, "Failed to setup output redirection!")
-        if args.debug:
-            # Reset so that all the debug handlers are closed out
-            LOG.debug(("Logging being reset, this logger may no"
-                       " longer be active shortly"))
-            logging.resetLogging()
-        logging.setupLogging(tr.cfg)
-        (_run_am, failures) = tr.run_single(tr_name, sect_name,
-                                            tr_args, tr_freq)
-        if failures:
-            LOG.debug("Ran %s but it failed", tr_name)
-            return 1
-        else:
-            return 0
+        return 0
 
 
 def main():
@@ -357,7 +347,7 @@ def main():
     # Each action and its sub-options (if any)
     parser_init = subparsers.add_parser('init', 
                                         help=('initializes cloud-init and'
-                                              ' performs initial transforms'))
+                                              ' performs initial modules'))
     parser_init.add_argument("--local", '-l', action='store_true',
                              help="start in local mode (default: %(default)s)",
                              default=False)
@@ -366,15 +356,15 @@ def main():
     parser_init.set_defaults(action=('init', main_init))
 
     # These settings are used for the 'config' and 'final' stages
-    parser_tr = subparsers.add_parser('transform', 
-                                      help=('performs transforms '
+    parser_mod = subparsers.add_parser('modules', 
+                                      help=('activates modules '
                                             'using a given configuration key'))
-    parser_tr.add_argument("--mode", '-m', action='store',
-                             help=("transform configuration name "
+    parser_mod.add_argument("--mode", '-m', action='store',
+                             help=("module configuration name "
                                     "to use (default: %(default)s)"),
                              default='config',
-                             choices=('config', 'final'))
-    parser_tr.set_defaults(action=('transform', main_transform))
+                             choices=('init', 'config', 'final'))
+    parser_mod.set_defaults(action=('modules', main_modules))
 
     # These settings are used when you want to query information
     # stored in the cloud-init data objects/directories/files
@@ -387,23 +377,21 @@ def main():
                               choices=QUERY_DATA_TYPES)
     parser_query.set_defaults(action=('query', main_query))
 
-    # This subcommand allows you to run a single transform
+    # This subcommand allows you to run a single module
     parser_single = subparsers.add_parser('single', 
-                                         help=('run a single transform '))
+                                         help=('run a single module '))
     parser_single.set_defaults(action=('single', main_single))
     parser_single.add_argument("--name", '-n', action="store",
-                              help="transform name to run",
+                              help="module name to run",
                               required=True)
     parser_single.add_argument("--frequency", action="store",
-                              help=("frequency of "
-                                    " the transform (default: %(default)s)"),
+                              help=("frequency of the module"),
                               required=False,
-                              default=settings.PER_ALWAYS,
                               choices=settings.FREQUENCIES)
-    parser_single.add_argument("transform_args", nargs="*",
+    parser_single.add_argument("module_args", nargs="*",
                               metavar='argument',
                               help=('any additional arguments to'
-                                    ' pass to this transform'))
+                                    ' pass to this module'))
     parser_single.set_defaults(action=('single', main_single))
 
 
