@@ -379,7 +379,7 @@ class Init(object):
 
 class Transforms(object):
     def __init__(self, init, cfg_files=None):
-        self.datasource = init.fetch()
+        self.datasource = init.datasource
         self.cfg_files = cfg_files
         self.base_cfg = copy.deepcopy(init.cfg)
         self.init = init
@@ -417,7 +417,6 @@ class Transforms(object):
             t_cfgs.append(self.base_cfg)
 
         return util.mergemanydict(t_cfgs)
-
 
     def _read_transforms(self, name):
         module_list = []
@@ -513,7 +512,31 @@ class Transforms(object):
                 failures.append((name, e))
         return (am_ran, failures)
 
-    def run(self, name):
-        raw_mods = self._read_transforms(name)
+    def find_transform(self, tr_name, sections):
+        found_where = []
+        for n in sections:
+            mods = self._read_transforms(n)
+            for mod_info in mods:
+                if mod_info.get('mod') == tr_name:
+                    found_where.append(n)
+        return found_where
+
+    def run_single(self, tr_name, section):
+        mods = self._read_transforms(section)
+        mod_tr = None
+        for mod_info in mods:
+            if mod_info.get('mod') == tr_name:
+                mod_tr = mod_info
+                break
+        if not mod_tr:
+            # Nothing to run, does that transform exist there??
+            return (0, 0)
+        else:
+            raw_mods = [mod_tr]
+            mostly_mods = self._fixup_transforms(raw_mods)
+            return self._run_transforms(mostly_mods)
+
+    def run_section(self, section_name):
+        raw_mods = self.read_transforms(section_name)
         mostly_mods = self._fixup_transforms(raw_mods)
         return self._run_transforms(mostly_mods)
