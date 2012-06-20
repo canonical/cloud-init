@@ -1,6 +1,7 @@
 0.6.4:
  - support relative path in AuthorizedKeysFile (LP: #970071).
  - make apt-get update run with --quiet (suitable for logging) (LP: #1012613)
+ - cc_salt_minion: use package 'salt-minion' rather than 'salt' (LP: #996166)
 0.6.3:
  - add sample systemd config files [Garrett Holmstrom]
  - add Fedora support [Garrent Holstrom] (LP: #883286)
