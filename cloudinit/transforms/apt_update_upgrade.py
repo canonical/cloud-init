@@ -124,6 +124,7 @@ def rename_apt_lists(omirror, new_mirror, lists_d="/var/lib/apt/lists"):
         return
     olen = len(oprefix)
     for filename in glob.glob("%s_*" % oprefix):
+        # TODO use the cloud.paths.join...
         util.rename(filename, "%s%s" % (nprefix, filename[olen:]))
 
 
@@ -136,7 +137,8 @@ def generate_sources_list(codename, mirror, cloud, log):
     template_fn = cloud.get_template_filename('sources.list')
     if template_fn:
         params = {'mirror': mirror, 'codename': codename}
-        templater.render_to_file(template_fn, '/etc/apt/sources.list', params)
+        out_fn = cloud.paths.join(False, '/etc/apt/sources.list')
+        templater.render_to_file(template_fn, out_fn, params)
     else:
         log.warn("No template found, not rendering /etc/apt/sources.list")
 

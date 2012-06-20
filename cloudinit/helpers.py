@@ -253,7 +253,7 @@ class Paths(object):
             # will confuse os.path.join
             joined = joined.lstrip("/")
             joined = os.path.join(root, joined)
-            LOG.debug("Translated %s to adjusted path %s (%s)",
+            LOG.debug("Translated %s to adjusted path %s (read-only=%s)",
                       pre_joined, joined, read_only)
         return joined
 
