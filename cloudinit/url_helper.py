@@ -59,11 +59,14 @@ class UrlResponse(object):
             return str(self.contents)
 
     def ok(self, redirects_ok=False):
+        upper = 300
         if redirects_ok:
-            return self.code in xrange(200, 400)
+            upper = 400
+        if self.code >= 200 and self.code < upper:
+            return True
         else:
-            return self.code in xrange(200, 300)
-
+            return False
+    
 
 def readurl(url, data=None, timeout=None,
             retries=0, sec_between=1, headers=None):
