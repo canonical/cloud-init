@@ -244,7 +244,7 @@ def setup_user_keys(keys, user, key_prefix, paths):
             akeys = akeys.replace("%%", '%')
             if not akeys.startswith('/'):
                 akeys = os.path.join(pwent.pw_dir, akeys)
-            authorized_keys = akeys
+            authorized_keys = paths.join(False, akeys)
         except (IOError, OSError):
             authorized_keys = os.path.join(ssh_dir, 'authorized_keys')
             util.logexc(LOG, ("Failed extracting 'AuthorizedKeysFile'"
