@@ -23,3 +23,5 @@ configobj>=4.6
 # All new style configurations are in the yaml format
 pyyaml>=3.0
 
+# The new main entrypoint uses argparse instead of optparse
+argparse>=1.1
