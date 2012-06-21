@@ -36,11 +36,11 @@ class Distro(distros.Distro):
 
     def __init__(self, name, cfg, paths):
         distros.Distro.__init__(self, name, cfg, paths)
-        # This will be used to restrict certain 
+        # This will be used to restrict certain
         # calls from repeatly happening (when they
         # should only happen say once per instance...)
         self._runner = helpers.Runners(paths)
-    
+
     def install_packages(self, pkglist):
         self._update_package_sources()
         self.package_command('install', pkglist)

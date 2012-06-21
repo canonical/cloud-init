@@ -38,7 +38,7 @@ DEF_MD_URL = "http://169.254.169.254"
 DEF_MD_VERSION = '2009-04-04'
 
 # Default metadata urls that will be used if none are provided
-# They will be checked for 'resolveability' and some of the 
+# They will be checked for 'resolveability' and some of the
 # following may be discarded if they do not resolve
 DEF_MD_URLS = [DEF_MD_URL, "http://instance-data:8773"]
 
@@ -69,7 +69,7 @@ class DataSourceEc2(sources.DataSource):
                 None, self.metadata_address)
             self.metadata = boto_utils.get_instance_metadata(self.api_ver,
                 self.metadata_address)
-            LOG.debug("Crawl of metadata service took %s seconds", 
+            LOG.debug("Crawl of metadata service took %s seconds",
                        int(time.time() - start_time))
             return True
         except Exception:
@@ -201,7 +201,7 @@ class DataSourceEc2(sources.DataSource):
             return None
 
         # Example:
-        # 'block-device-mapping': 
+        # 'block-device-mapping':
         # {'ami': '/dev/sda1',
         # 'ephemeral0': '/dev/sdb',
         # 'root': '/dev/sda1'}

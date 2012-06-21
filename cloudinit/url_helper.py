@@ -47,11 +47,11 @@ class UrlResponse(object):
     @property
     def contents(self):
         return self._contents
-    
+
     @property
     def headers(self):
         return self._headers
-    
+
     def __str__(self):
         if not self.contents:
             return ''
@@ -66,7 +66,7 @@ class UrlResponse(object):
             return True
         else:
             return False
-    
+
 
 def readurl(url, data=None, timeout=None,
             retries=0, sec_between=1, headers=None):
@@ -89,8 +89,8 @@ def readurl(url, data=None, timeout=None,
 
     excepts = []
     LOG.info(("Attempting to open '%s' with %s attempts"
-                " (%s retries, timeout=%s) to be performed"), 
-             url, attempts, retries, timeout)
+              " (%s retries, timeout=%s) to be performed"),
+              url, attempts, retries, timeout)
     open_args = {}
     if timeout is not None:
         open_args['timeout'] = int(timeout)
@@ -112,7 +112,7 @@ def readurl(url, data=None, timeout=None,
             excepts.append(e)
         except urllib2.URLError as e:
             # This can be a message string or
-            # another exception instance 
+            # another exception instance
             # (socket.error for remote URLs, OSError for local URLs).
             if (isinstance(e.reason, (OSError)) and
                 e.reason.errno == errno.ENOENT):
@@ -128,7 +128,7 @@ def readurl(url, data=None, timeout=None,
 
     # Didn't work out
     LOG.warn("Failed reading from %s after %s attempts", url, attempts)
-    
+
     # It must of errored at least once for code
     # to get here so re-raise the last error
     LOG.debug("%s errors occured, re-raising the last one", len(excepts))

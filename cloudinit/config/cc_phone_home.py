@@ -26,8 +26,13 @@ from cloudinit.settings import PER_INSTANCE
 
 frequency = PER_INSTANCE
 
-post_list_all = ['pub_key_dsa', 'pub_key_rsa', 'pub_key_ecdsa',
-                 'instance_id', 'hostname']
+POST_LIST_ALL = [
+    'pub_key_dsa',
+    'pub_key_rsa',
+    'pub_key_ecdsa',
+    'instance_id',
+    'hostname'
+]
 
 
 # phone_home:
@@ -63,7 +68,7 @@ def handle(name, cfg, cloud, log, args):
                           " is not an integer, using %s instead"), tries)
 
     if post_list == "all":
-        post_list = post_list_all
+        post_list = POST_LIST_ALL
 
     all_keys = {}
     all_keys['instance_id'] = cloud.get_instance_id()

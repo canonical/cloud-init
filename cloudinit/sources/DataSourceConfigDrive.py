@@ -36,7 +36,7 @@ CFG_DRIVE_FILES = [
     "meta.js",
 ]
 DEFAULT_METADATA = {
-    "instance-id": DEFAULT_IID, 
+    "instance-id": DEFAULT_IID,
     "dsmode": DEFAULT_MODE,
 }
 CFG_DRIVE_DEV_ENV = 'CLOUD_INIT_CONFIG_DRIVE_DEVICE'

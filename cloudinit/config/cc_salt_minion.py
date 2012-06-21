@@ -32,7 +32,7 @@ def handle(name, cfg, cloud, log, _args):
 
     # Start by installing the salt package ...
     cloud.distro.install_packages(["salt"])
-    
+
     # Ensure we can configure files at the right dir
     config_dir = salt_cfg.get("config_dir", '/etc/salt')
     config_dir = cloud.paths.join(False, config_dir)

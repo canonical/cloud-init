@@ -20,7 +20,6 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-
 import logging
 import logging.handlers
 import logging.config
@@ -51,7 +50,6 @@ def setupBasicLogging():
     console.setLevel(DEBUG)
     root.addHandler(console)
     root.setLevel(DEBUG)
-
 
 
 def setupLogging(cfg=None):

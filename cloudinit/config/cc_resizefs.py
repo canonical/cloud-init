@@ -27,7 +27,7 @@ from cloudinit.settings import PER_ALWAYS
 
 frequency = PER_ALWAYS
 
-resize_fs_prefixes_cmds = [
+RESIZE_FS_PREFIXES_CMDS = [
     ('ext', 'resize2fs'),
     ('xfs', 'xfs_growfs'),
 ]
@@ -89,16 +89,16 @@ def handle(name, cfg, cloud, log, args):
         # occurs this temporary file will still benefit from
         # auto deletion
         tfh.unlink_now()
-    
+
         st_dev = nodeify_path(devpth, resize_what, log)
         fs_type = get_fs_type(st_dev, devpth, log)
         if not fs_type:
             log.warn("Could not determine filesystem type of %s", resize_what)
             return
-    
+
         resizer = None
         fstype_lc = fs_type.lower()
-        for (pfix, root_cmd) in resize_fs_prefixes_cmds:
+        for (pfix, root_cmd) in RESIZE_FS_PREFIXES_CMDS:
             if fstype_lc.startswith(pfix):
                 resizer = root_cmd
                 break
@@ -112,7 +112,7 @@ def handle(name, cfg, cloud, log, args):
         resize_cmd = [resizer, devpth]
 
         if resize_root == "noblock":
-            # Fork to a child that will run 
+            # Fork to a child that will run
             # the resize command
             util.fork_cb(do_resize, resize_cmd, log)
             # Don't delete the file now in the parent

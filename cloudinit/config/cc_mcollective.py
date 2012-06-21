@@ -52,7 +52,7 @@ def handle(name, cfg, cloud, log, _args):
         # It doesn't contain any sections so just add one temporarily
         # Use a hash id based off the contents,
         # just incase of conflicts... (try to not have any...)
-        # This is so that an error won't occur when reading (and no 
+        # This is so that an error won't occur when reading (and no
         # sections exist in the file)
         section_tpl = "[nullsection_%s]"
         attempts = 0
@@ -85,7 +85,7 @@ def handle(name, cfg, cloud, log, _args):
         # the previous server.cfg and create our new one
         old_fn = "%s.old" % (server_cfg_fn)
         util.rename(server_cfg_fn, old_fn)
-        # Now we got the whole file, write to disk except the section 
+        # Now we got the whole file, write to disk except the section
         # we added so that config parser won't error out when trying to read.
         # Note below, that we've just used ConfigParser because it generally
         # works.  Below, we remove the initial 'nullsection' header.

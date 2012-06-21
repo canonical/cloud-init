@@ -24,11 +24,11 @@ import glob
 from cloudinit import util
 from cloudinit import ssh_util
 
-DISABLE_ROOT_OPTS = ( "no-port-forwarding,no-agent-forwarding," 
-"no-X11-forwarding,command=\"echo \'Please login as the user \\\"$USER\\\" " 
+DISABLE_ROOT_OPTS = ("no-port-forwarding,no-agent-forwarding,"
+"no-X11-forwarding,command=\"echo \'Please login as the user \\\"$USER\\\" "
 "rather than the user \\\"root\\\".\';echo;sleep 10\"")
 
-key2file = {
+KEY_2_FILE = {
     "rsa_private": ("/etc/ssh/ssh_host_rsa_key", 0600),
     "rsa_public": ("/etc/ssh/ssh_host_rsa_key.pub", 0644),
     "dsa_private": ("/etc/ssh/ssh_host_dsa_key", 0600),
@@ -37,15 +37,17 @@ key2file = {
     "ecdsa_public": ("/etc/ssh/ssh_host_ecdsa_key.pub", 0644),
 }
 
-priv2pub = {
-    'rsa_private': 'rsa_public', 
+PRIV_2_PUB = {
+    'rsa_private': 'rsa_public',
     'dsa_private': 'dsa_public',
     'ecdsa_private': 'ecdsa_public',
 }
 
-key_gen_tpl = 'o=$(ssh-keygen -yf "%s") && echo "$o" root@localhost > "%s"'
+KEY_GEN_TPL = 'o=$(ssh-keygen -yf "%s") && echo "$o" root@localhost > "%s"'
 
-generate_keys = ['rsa', 'dsa', 'ecdsa']
+GENERATE_KEY_NAMES = ['rsa', 'dsa', 'ecdsa']
+
+KEY_FILE_TPL = '/etc/ssh/ssh_host_%s_key'
 
 
 def handle(_name, cfg, cloud, log, _args):
@@ -58,21 +60,21 @@ def handle(_name, cfg, cloud, log, _args):
                 util.del_file(f)
             except:
                 util.logexc(log, "Failed deleting key file %s", f)
-    
+
     if "ssh_keys" in cfg:
         # if there are keys in cloud-config, use them
         for (key, val) in cfg["ssh_keys"].iteritems():
-            if key in key2file:
-                tgt_fn = key2file[key][0]
-                tgt_perms = key2file[key][1]
+            if key in KEY_2_FILE:
+                tgt_fn = KEY_2_FILE[key][0]
+                tgt_perms = KEY_2_FILE[key][1]
                 util.write_file(cloud.paths.join(False, tgt_fn),
                                 val, tgt_perms)
 
-        for (priv, pub) in priv2pub.iteritems():
+        for (priv, pub) in PRIV_2_PUB.iteritems():
             if pub in cfg['ssh_keys'] or not priv in cfg['ssh_keys']:
                 continue
-            pair = (key2file[priv][0], key2file[pub][0])
-            cmd = ['sh', '-xc', key_gen_tpl % pair]
+            pair = (KEY_2_FILE[priv][0], KEY_2_FILE[pub][0])
+            cmd = ['sh', '-xc', KEY_GEN_TPL % pair]
             try:
                 # TODO: Is this guard needed?
                 with util.SeLinuxGuard("/etc/ssh", recursive=True):
@@ -84,12 +86,11 @@ def handle(_name, cfg, cloud, log, _args):
     else:
         # if not, generate them
         genkeys = util.get_cfg_option_list(cfg,
-                                            'ssh_genkeytypes', 
-                                            generate_keys)
+                                           'ssh_genkeytypes',
+                                           GENERATE_KEY_NAMES)
         for keytype in genkeys:
-            keyfile = '/etc/ssh/ssh_host_%s_key' % (keytype)
-            keyfile = cloud.paths.join(False, keyfile)
-            util.ensure_dir(os.path.dirname(keyfile)) 
+            keyfile = cloud.paths.join(False, KEY_FILE_TPL % (keytype))
+            util.ensure_dir(os.path.dirname(keyfile))
             if not os.path.exists(keyfile):
                 cmd = ['ssh-keygen', '-t', keytype, '-N', '', '-f', keyfile]
                 try:

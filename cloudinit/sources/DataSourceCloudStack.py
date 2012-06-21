@@ -121,7 +121,7 @@ class DataSourceCloudStack(sources.DataSource):
                 None, self.metadata_address)
             self.metadata = boto_utils.get_instance_metadata(self.api_ver,
                 self.metadata_address)
-            LOG.debug("Crawl of metadata service took %s seconds", 
+            LOG.debug("Crawl of metadata service took %s seconds",
                       int(time.time() - start_time))
             return True
         except Exception:

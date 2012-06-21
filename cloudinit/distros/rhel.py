@@ -35,7 +35,7 @@ class Distro(distros.Distro):
 
     def __init__(self, name, cfg, paths):
         distros.Distro.__init__(self, name, cfg, paths)
-    
+
     def install_packages(self, pkglist):
         self.package_command('install', pkglist)
 
@@ -210,12 +210,12 @@ class Distro(distros.Distro):
     def package_command(self, command, args=None):
         cmd = ['yum']
         # If enabled, then yum will be tolerant of errors on the command line
-        # with regard to packages. 
-        # For example: if you request to install foo, bar and baz and baz is 
+        # with regard to packages.
+        # For example: if you request to install foo, bar and baz and baz is
         # installed; yum won't error out complaining that baz is already
-        # installed. 
+        # installed.
         cmd.append("-t")
-        # Determines whether or not yum prompts for confirmation 
+        # Determines whether or not yum prompts for confirmation
         # of critical actions. We don't want to prompt...
         cmd.append("-y")
         cmd.append(command)
@@ -223,8 +223,8 @@ class Distro(distros.Distro):
             cmd.extend(args)
         # Allow the output of this to flow outwards (ie not be captured)
         util.subp(cmd, capture=False)
-        
-        
+
+
 # This is a util function to translate a ubuntu /etc/network/interfaces 'blob'
 # to a rhel equiv. that can then be written to /etc/sysconfig/network-scripts/
 # TODO remove when we have python-netcf active...

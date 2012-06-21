@@ -26,17 +26,17 @@ from cloudinit.settings import PER_INSTANCE
 
 frequency = PER_INSTANCE
 
-script_subdir = 'scripts'
+SCRIPT_SUBDIR = 'scripts'
 
 
 def handle(name, _cfg, cloud, log, _args):
     # This is written to by the user data handlers
     # Ie, any custom shell scripts that come down
     # go here...
-    runparts_path = os.path.join(cloud.get_ipath_cur(), script_subdir)
+    runparts_path = os.path.join(cloud.get_ipath_cur(), SCRIPT_SUBDIR)
     try:
         util.runparts(runparts_path)
     except:
         log.warn("Failed to run transform %s (%s in %s)",
-                 name, script_subdir, runparts_path)
+                 name, SCRIPT_SUBDIR, runparts_path)
         raise

@@ -63,7 +63,7 @@ def handle(name, cfg, cloud, log, _args):
                 util.ensure_dir(pp_ssl_dir, 0771)
                 util.chownbyid(pp_ssl_dir,
                                pwd.getpwnam('puppet').pw_uid, 0)
-                pp_ssl_certs = cloud.paths.join(False, 
+                pp_ssl_certs = cloud.paths.join(False,
                                                 '/var/lib/puppet/ssl/certs/')
                 util.ensure_dir(pp_ssl_certs)
                 util.chownbyid(pp_ssl_certs,

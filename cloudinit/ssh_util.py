@@ -103,10 +103,10 @@ class AuthKeyLineParser(object):
             elif curc == '"':
                 quoted = not quoted
             i = i + 1
-    
+
         options = ent[0:i]
         options_lst = []
-        
+
         # Now use a csv parser to pull the options
         # out of the above string that we just found an endpoint for.
         #
@@ -211,7 +211,6 @@ def update_authorized_keys(fname, keys):
 
 
 def setup_user_keys(keys, user, key_prefix, paths):
-    
     # Make sure the users .ssh dir is setup accordingly
     pwent = pwd.getpwnam(user)
     ssh_dir = os.path.join(pwent.pw_dir, '.ssh')

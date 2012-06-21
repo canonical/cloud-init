@@ -26,16 +26,16 @@ from cloudinit.settings import PER_ALWAYS
 
 frequency = PER_ALWAYS
 
-script_subdir = 'per-boot'
+SCRIPT_SUBDIR = 'per-boot'
 
 
 def handle(name, _cfg, cloud, log, _args):
     # Comes from the following:
     # https://forums.aws.amazon.com/thread.jspa?threadID=96918
-    runparts_path = os.path.join(cloud.get_cpath(), 'scripts', script_subdir)
+    runparts_path = os.path.join(cloud.get_cpath(), 'scripts', SCRIPT_SUBDIR)
     try:
         util.runparts(runparts_path)
     except:
         log.warn("Failed to run transform %s (%s in %s)",
-                 name, script_subdir, runparts_path)
+                 name, SCRIPT_SUBDIR, runparts_path)
         raise

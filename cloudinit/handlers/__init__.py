@@ -104,7 +104,7 @@ def run_part(mod, data, ctype, filename, payload, frequency):
     except:
         mod_ver = 1
     try:
-        LOG.debug("Calling handler %s (%s, %s, %s) with frequency %s", 
+        LOG.debug("Calling handler %s (%s, %s, %s) with frequency %s",
                   mod, ctype, filename, mod_ver, frequency)
         if mod_ver >= 2:
             # Treat as v. 2 which does get a frequency
@@ -114,7 +114,7 @@ def run_part(mod, data, ctype, filename, payload, frequency):
             mod.handle_part(data, ctype, filename, payload)
     except:
         util.logexc(LOG, ("Failed calling handler %s (%s, %s, %s)"
-                         " with frequency %s"), 
+                         " with frequency %s"),
                     mod, ctype, filename,
                     mod_ver, frequency)
 
@@ -178,7 +178,7 @@ def walker_callback(pdata, ctype, filename, payload):
                  payload, pdata['frequency'])
 
 
-# Callback is a function that will be called with 
+# Callback is a function that will be called with
 # (data, content_type, filename, payload)
 def walk(msg, callback, data):
     partnum = 0
@@ -226,5 +226,3 @@ def type_from_starts_with(payload, default=None):
         if payload_lc.startswith(text):
             return INCLUSION_TYPES_MAP[text]
     return default
-
-

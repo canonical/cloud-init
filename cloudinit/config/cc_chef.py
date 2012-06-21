@@ -24,7 +24,7 @@ import os
 from cloudinit import templater
 from cloudinit import util
 
-ruby_version_default = "1.8"
+RUBY_VERSION_DEFAULT = "1.8"
 
 
 def handle(name, cfg, cloud, log, _args):
@@ -38,11 +38,11 @@ def handle(name, cfg, cloud, log, _args):
 
     # Ensure the chef directories we use exist
     c_dirs = [
-        '/etc/chef', 
-        '/var/log/chef', 
-        '/var/lib/chef', 
-        '/var/cache/chef', 
-        '/var/backups/chef', 
+        '/etc/chef',
+        '/var/log/chef',
+        '/var/lib/chef',
+        '/var/cache/chef',
+        '/var/backups/chef',
         '/var/run/chef',
     ]
     for d in c_dirs:
@@ -92,7 +92,7 @@ def handle(name, cfg, cloud, log, _args):
             # this will install and run the chef-client from gems
             chef_version = util.get_cfg_option_str(chef_cfg, 'version', None)
             ruby_version = util.get_cfg_option_str(chef_cfg, 'ruby_version',
-                                                   ruby_version_default)
+                                                   RUBY_VERSION_DEFAULT)
             install_chef_from_gems(cloud.distro, ruby_version, chef_version)
             # and finally, run chef-client
             log.debug('Running chef-client')

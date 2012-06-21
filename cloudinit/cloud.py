@@ -38,6 +38,7 @@ LOG = logging.getLogger(__name__)
 # as providing a backwards compatible object that can be maintained
 # while the stages/other objects can be worked on independently...
 
+
 class Cloud(object):
     def __init__(self, datasource, paths, cfg, distro, runners):
         self.datasource = datasource
@@ -71,7 +72,7 @@ class Cloud(object):
     # The rest of thes are just useful proxies
     def get_userdata(self):
         return self.datasource.get_userdata()
-    
+
     def get_instance_id(self):
         return self.datasource.get_instance_id()
 
