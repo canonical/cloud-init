@@ -578,7 +578,7 @@ def load_yaml(blob, default=None, allowed=(dict,)):
         LOG.debug(("Attempting to load yaml from string "
                  "of length %s with allowed root types %s"),
                  len(blob), allowed)
-        converted = yaml.load(blob)
+        converted = yaml.safe_load(blob)
         if not isinstance(converted, allowed):
             # Yes this will just be caught, but thats ok for now...
             raise TypeError(("Yaml load allows %s root types,"
