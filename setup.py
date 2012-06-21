@@ -25,7 +25,7 @@ from glob import glob
 import os
 import re
 
-from distutils.core import setup
+import setuptools
 
 
 def is_f(p):
@@ -62,7 +62,7 @@ def requires(fn='Requires'):
     return requires
 
 
-setup(name='cloud-init',
+setuptools.setup(name='cloud-init',
       version=versions()[0],
       description='EC2 initialisation magic',
       author='Scott Moser',
