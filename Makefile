@@ -11,7 +11,7 @@ pyflakes:
 	pyflakes $(PY_FILES)
 
 test:
-	nosetests tests/unittests/
+	nosetests $(noseopts) tests/unittests/
 
 2to3:
 	2to3 $(PY_FILES)
