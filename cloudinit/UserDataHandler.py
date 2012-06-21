@@ -94,7 +94,7 @@ def do_include(content, appendmsg):
 
 
 def explode_cc_archive(archive, appendmsg):
-    for ent in yaml.load(archive):
+    for ent in yaml.safe_load(archive):
         # ent can be one of:
         #  dict { 'filename' : 'value', 'content' : 'value', 'type' : 'value' }
         #    filename and type not be present
