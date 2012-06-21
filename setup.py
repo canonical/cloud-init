@@ -68,13 +68,11 @@ setuptools.setup(name='cloud-init',
       author='Scott Moser',
       author_email='scott.moser@canonical.com',
       url='http://launchpad.net/cloud-init/',
-      # This second package referencing cloudinit.conf.*
-      # makes the config modules accessible to the whole
-      # import system...
-      packages=['cloudinit', 'cloudinit.config'],
+      packages=setuptools.find_packages(exclude=['tests']),
       scripts=['bin/cloud-init',
                'tools/cloud-init-per',
                ],
+      license='GPLv3',
       data_files=[('/etc/cloud', glob('config/*.cfg')),
                   ('/etc/cloud/cloud.cfg.d', glob('config/cloud.cfg.d/*')),
                   ('/etc/cloud/templates', glob('templates/*')),
