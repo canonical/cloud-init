@@ -1,6 +1,3 @@
-from shutil import rmtree
-from tempfile import mkdtemp
-
 import os
 import stat
 
@@ -10,7 +7,7 @@ from mocker import MockerTestCase
 from cloudinit import util
 
 
-class TestMergeDict(TestCase):
+class TestMergeDict(MockerTestCase):
     def test_simple_merge(self):
         """Test simple non-conflict merge."""
         source = {"key1": "value1"}
@@ -105,12 +102,10 @@ class TestWriteFile(MockerTestCase):
     def setUp(self):
         super(TestWriteFile, self).setUp()
         # Make a temp directoy for tests to use.
-        self.tmp = mkdtemp(prefix="unittest_")
+        self.tmp = self.makeDir(prefix="unittest_")
 
     def tearDown(self):
         super(TestWriteFile, self).tearDown()
-        # Clean up temp directory
-        rmtree(self.tmp)
 
     def test_basic_usage(self):
         """Verify basic usage with default args."""
