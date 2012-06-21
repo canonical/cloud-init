@@ -23,7 +23,6 @@
 from StringIO import StringIO
 
 import abc
-import copy
 
 from cloudinit import importer
 from cloudinit import log as logging
