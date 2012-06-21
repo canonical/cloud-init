@@ -46,7 +46,7 @@ except ImportError:
 def read_conf(fname):
     try:
         stream = open(fname, "r")
-        conf = yaml.load(stream)
+        conf = yaml.safe_load(stream)
         stream.close()
         return conf
     except IOError as e:
@@ -65,13 +65,13 @@ def get_base_cfg(cfgfile, cfg_builtin="", parsed_cfgs=None):
 
     kern_contents = read_cc_from_cmdline()
     if kern_contents:
-        kerncfg = yaml.load(kern_contents)
+        kerncfg = yaml.safe_load(kern_contents)
 
     # kernel parameters override system config
     combined = mergedict(kerncfg, syscfg)
 
     if cfg_builtin:
-        builtin = yaml.load(cfg_builtin)
+        builtin = yaml.safe_load(cfg_builtin)
         fin = mergedict(combined, builtin)
     else:
         fin = combined
@@ -282,7 +282,7 @@ def read_seeded(base="", ext="", timeout=5, retries=10, file_retries=0):
         try:
             md_str = readurl(md_url, timeout=timeout)
             ud = readurl(ud_url, timeout=timeout)
-            md = yaml.load(md_str)
+            md = yaml.safe_load(md_str)
 
             return(md, ud)
         except urllib2.HTTPError as e:

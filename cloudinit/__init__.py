@@ -421,7 +421,7 @@ class CloudInit:
             ## for now, not doing this as it seems somewhat circular
             ## as CloudConfig does that also, merging it with this cfg
             ##
-            # ccfg = yaml.load(self.cloud_config_str)
+            # ccfg = yaml.safe_load(self.cloud_config_str)
             # if ccfg is None: ccfg = {}
             # self.cfg = util.mergedict(ccfg, self.cfg)
 
@@ -537,7 +537,7 @@ def get_base_cfg(cfg_path=None):
 
 
 def get_builtin_cfg():
-    return(yaml.load(cfg_builtin))
+    return(yaml.safe_load(cfg_builtin))
 
 
 class DataSourceNotFoundException(Exception):
