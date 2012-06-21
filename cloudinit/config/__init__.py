@@ -51,10 +51,6 @@ def fixup_module(mod, def_freq=PER_INSTANCE):
         freq = mod.frequency
         if freq and freq not in FREQUENCIES:
             LOG.warn("Module %s has an unknown frequency %s", mod, freq)
-    if not hasattr(mod, 'handle'):
-        def empty_handle(_name, _cfg, _cloud, _log, _args):
-            pass
-        setattr(mod, 'handle', empty_handle)
     if not hasattr(mod, 'distros'):
         setattr(mod, 'distros', None)
     return mod

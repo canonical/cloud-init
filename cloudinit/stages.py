@@ -205,7 +205,7 @@ class Init(object):
         # Any config provided???
         pkg_list = self.cfg.get('datasource_pkg_list') or []
         # Add the defaults at the end
-        for n in [util.obj_name(sources), '']:
+        for n in ['', util.obj_name(sources)]:
             if n not in pkg_list:
                 pkg_list.append(n)
         cfg_list = self.cfg.get('datasource_list') or []
@@ -334,9 +334,17 @@ class Init(object):
 
         # Add handlers in cdir
         potential_handlers = util.find_modules(cdir)
-        for (fname, modname) in potential_handlers.iteritems():
+        for (fname, mod_name) in potential_handlers.iteritems():
             try:
-                mod = handlers.fixup_handler(importer.import_module(modname))
+                mod_locs = importer.find_module(mod_name, [''],
+                                                ['list_types',
+                                                 'handle_part'])
+                if not mod_locs:
+                    LOG.warn(("Could not find a valid user-data handler"
+                              " named %s in file %s"), mod_name, fname)
+                    continue
+                mod = importer.import_module(mod_locs[0])
+                mod = handlers.fixup_handler(mod)
                 types = c_handlers.register(mod)
                 LOG.debug("Added handler for %s from %s", types, fname)
             except:
@@ -482,7 +490,13 @@ class Modules(object):
                           " has an unknown frequency %s"), raw_name, freq)
                 # Reset it so when ran it will get set to a known value
                 freq = None
-            mod = config.fixup_module(importer.import_module(mod_name))
+            mod_locs = importer.find_module(mod_name,
+                                            ['', util.obj_name(config)],
+                                            ['handle'])
+            if not mod_locs:
+                LOG.warn("Could not find module named %s", mod_name)
+                continue
+            mod = config.fixup_module(importer.import_module(mod_locs[0]))
             mostly_mods.append([mod, raw_name, freq, run_args])
         return mostly_mods
 

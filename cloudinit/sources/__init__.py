@@ -191,31 +191,19 @@ def list_sources(cfg_list, depends, pkg_list):
     LOG.info(("Looking for for data source in: %s,"
               " via packages %s that matches dependencies %s"),
              cfg_list, pkg_list, depends)
-    for ds_coll in cfg_list:
-        ds_name = str(ds_coll)
+    for ds_name in cfg_list:
         if not ds_name.startswith(DS_PREFIX):
             ds_name = '%s%s' % (DS_PREFIX, ds_name)
-        for pkg in pkg_list:
-            pkg_name = []
-            if pkg:
-                # Any package name given, this affects
-                # the lookup path
-                pkg_name.append(str(pkg))
-            pkg_name.append(ds_name)
-            try:
-                mod = importer.import_module(".".join(pkg_name))
-            except ImportError:
-                continue
-            lister = getattr(mod, "get_datasource_list", None)
-            if not lister:
-                continue
-            cls_matches = lister(depends)
-            if not cls_matches:
-                continue
-            src_list.extend(cls_matches)
-            LOG.debug(("Found a match"
-                       " in %s with matches %s"), mod, cls_matches)
-            break
+        m_locs = importer.find_module(ds_name,
+                                      pkg_list,
+                                      ['get_datasource_list'])
+        for m_loc in m_locs:
+            mod = importer.import_module(m_loc)
+            lister = getattr(mod, "get_datasource_list")
+            matches = lister(depends)
+            if matches:
+                src_list.extend(matches)
+                break
     return src_list
 
 
