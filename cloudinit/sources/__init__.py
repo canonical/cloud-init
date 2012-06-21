@@ -166,7 +166,7 @@ class DataSource(object):
 def find_source(sys_cfg, distro, paths, ds_deps, cfg_list, pkg_list):
     ds_list = list_sources(cfg_list, ds_deps, pkg_list)
     ds_names = [util.obj_name(f) for f in ds_list]
-    LOG.info("Searching for data source in: %s", ds_names)
+    LOG.debug("Searching for data source in: %s", ds_names)
 
     for cls in ds_list:
         try:
@@ -188,9 +188,9 @@ def find_source(sys_cfg, distro, paths, ds_deps, cfg_list, pkg_list):
 # Return an ordered list of classes that match (if any)
 def list_sources(cfg_list, depends, pkg_list):
     src_list = []
-    LOG.info(("Looking for for data source in: %s,"
-              " via packages %s that matches dependencies %s"),
-             cfg_list, pkg_list, depends)
+    LOG.debug(("Looking for for data source in: %s,"
+               " via packages %s that matches dependencies %s"),
+              cfg_list, pkg_list, depends)
     for ds_name in cfg_list:
         if not ds_name.startswith(DS_PREFIX):
             ds_name = '%s%s' % (DS_PREFIX, ds_name)
@@ -207,17 +207,17 @@ def list_sources(cfg_list, depends, pkg_list):
     return src_list
 
 
-# depends is a list of dependencies (DEP_FILESYSTEM)
-# dslist is a list of 2 item lists
-# dslist = [
+# 'depends' is a list of dependencies (DEP_FILESYSTEM)
+# ds_list is a list of 2 item lists
+# ds_list = [
 #   ( class, ( depends-that-this-class-needs ) )
 # }
-# it returns a list of 'class' that matched these deps exactly
-# it is a helper function for DataSourceCollections
-def list_from_depends(depends, dslist):
+# It returns a list of 'class' that matched these deps exactly
+# It mainly is a helper function for DataSourceCollections
+def list_from_depends(depends, ds_list):
     ret_list = []
     depset = set(depends)
-    for (cls, deps) in dslist:
+    for (cls, deps) in ds_list:
         if depset == set(deps):
             ret_list.append(cls)
     return ret_list

@@ -169,7 +169,7 @@ class DataSourceEc2(sources.DataSource):
                                 timeout=timeout, status_cb=LOG.warn)
 
         if url:
-            LOG.info("Using metadata source: '%s'", url2base[url])
+            LOG.debug("Using metadata source: '%s'", url2base[url])
         else:
             LOG.critical("Giving up on md from %s after %s seconds",
                             urls, int(time.time() - start_time))

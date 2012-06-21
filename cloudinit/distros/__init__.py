@@ -133,14 +133,14 @@ class Distro(object):
             raise NotImplementedError("Unknown interface action %s" % (action))
         cmd = IFACE_ACTIONS[action]
         try:
-            LOG.info("Attempting to run %s interface action using command %s",
-                     action, cmd)
+            LOG.debug("Attempting to run %s interface action using command %s",
+                      action, cmd)
             (_out, err) = util.subp(cmd)
             if len(err):
                 LOG.warn("Running %s resulted in stderr output: %s", cmd, err)
             return True
         except util.ProcessExecutionError:
-            util.logexc(LOG, "Running %s failed", cmd)
+            util.logexc(LOG, "Running interface command %s failed", cmd)
             return False
 
 
