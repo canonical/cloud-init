@@ -31,7 +31,7 @@ from cloudinit import util
 def handle(name, cfg, cloud, log, _args):
     # If there isn't a puppet key in the configuration don't do anything
     if 'puppet' not in cfg:
-        log.debug(("Skipping transform named %s,"
+        log.debug(("Skipping module named %s,"
                    " no 'puppet' configuration found"), name)
         return
 
@@ -43,7 +43,7 @@ def handle(name, cfg, cloud, log, _args):
     # ... and then update the puppet configuration
     if 'conf' in puppet_cfg:
         # Add all sections from the conf object to puppet.conf
-        puppet_conf_fn = cloud.paths.join(False, '/etc/puppet/puppet.conf')
+        puppet_conf_fn = cloud.paths.join(True, '/etc/puppet/puppet.conf')
         contents = util.load_file(puppet_conf_fn)
         # Create object for reading puppet.conf values
         puppet_config = helpers.DefaultingConfigParser()
@@ -89,9 +89,11 @@ def handle(name, cfg, cloud, log, _args):
                     puppet_config.set(cfg_name, o, v)
             # We got all our config as wanted we'll rename
             # the previous puppet.conf and create our new one
-            puppet_conf_old_fn = "%s.old" % (puppet_conf_fn)
-            util.rename(puppet_conf_fn, puppet_conf_old_fn)
-            util.write_file(puppet_conf_fn, puppet_config.stringify())
+            conf_old_fn = cloud.paths.join(False,
+                                           '/etc/puppet/puppet.conf.old')
+            util.rename(puppet_conf_fn, conf_old_fn)
+            puppet_conf_rw = cloud.paths.join(False, '/etc/puppet/puppet.conf')
+            util.write_file(puppet_conf_rw, puppet_config.stringify())
 
     # Set puppet to automatically start
     if os.path.exists('/etc/default/puppet'):

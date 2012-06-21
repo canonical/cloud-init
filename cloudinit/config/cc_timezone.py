@@ -32,7 +32,7 @@ def handle(name, cfg, cloud, log, args):
         timezone = util.get_cfg_option_str(cfg, "timezone", False)
 
     if not timezone:
-        log.debug("Skipping transform named %s, no 'timezone' specified", name)
+        log.debug("Skipping module named %s, no 'timezone' specified", name)
         return
 
     # Let the distro handle settings its timezone

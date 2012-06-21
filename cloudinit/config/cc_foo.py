@@ -49,4 +49,4 @@ frequency = PER_INSTANCE
 
 
 def handle(name, _cfg, _cloud, log, _args):
-    log.debug("Hi from transform %s", name)
+    log.debug("Hi from module %s", name)

@@ -188,8 +188,9 @@ def handle(_name, cfg, cloud, log, _args):
             util.logexc(log, "Activating swap via 'swapon -a' failed")
 
     for d in dirs:
+        real_dir = cloud.paths.join(False, d)
         try:
-            util.ensure_dir(cloud.paths.join(False, d))
+            util.ensure_dir(real_dir)
         except:
             util.logexc(log, "Failed to make '%s' config-mount", d)
 

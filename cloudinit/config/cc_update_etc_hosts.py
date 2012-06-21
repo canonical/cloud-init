@@ -57,4 +57,4 @@ def handle(name, cfg, cloud, log, _args):
         cloud.distro.update_etc_hosts(hostname, fqdn)
     else:
         log.debug(("Configuration option 'manage_etc_hosts' is not set,"
-                    " not managing /etc/hosts in transform %s"), name)
+                    " not managing /etc/hosts in module %s"), name)

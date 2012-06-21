@@ -69,7 +69,7 @@ def handle(name, cfg, cloud, log, args):
         resize_root = util.get_cfg_option_str(cfg, "resize_rootfs", True)
 
     if not util.translate_bool(resize_root):
-        log.debug("Skipping transform named %s, resizing disabled", name)
+        log.debug("Skipping module named %s, resizing disabled", name)
         return
 
     # TODO is the directory ok to be used??

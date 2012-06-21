@@ -36,7 +36,7 @@ def handle(name, cfg, cloud, log, _args):
 
     # process 'rsyslog'
     if not 'rsyslog' in cfg:
-        log.debug(("Skipping transform named %s,"
+        log.debug(("Skipping module named %s,"
                    " no 'rsyslog' key in configuration"), name)
         return
 

@@ -29,7 +29,7 @@ LOG = logging.getLogger(__name__)
 
 # This class is the high level wrapper that provides
 # access to cloud-init objects without exposing the stage objects
-# to handler and or transform manipulation. It allows for cloud
+# to handler and or module manipulation. It allows for cloud
 # init to restrict what those types of user facing code may see
 # and or adjust (which helps avoid code messing with each other)
 #
@@ -47,7 +47,7 @@ class Cloud(object):
         self._cfg = cfg
         self._runners = runners
 
-    # If a transform manipulates logging or logging services
+    # If a 'user' manipulates logging or logging services
     # it is typically useful to cause the logging to be
     # setup again.
     def cycle_logging(self):

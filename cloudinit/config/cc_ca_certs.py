@@ -75,7 +75,7 @@ def handle(name, cfg, cloud, log, _args):
     """
     # If there isn't a ca-certs section in the configuration don't do anything
     if "ca-certs" not in cfg:
-        log.debug(("Skipping transform named %s,"
+        log.debug(("Skipping module named %s,"
                    " no 'ca-certs' key in configuration"), name)
         return
 

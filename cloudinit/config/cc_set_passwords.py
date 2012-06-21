@@ -106,7 +106,9 @@ def handle(_name, cfg, cloud, log, args):
         replacement = "PasswordAuthentication %s" % (pw_auth)
 
         # See http://linux.die.net/man/5/sshd_config
-        old_lines = util.load_file('/etc/ssh/sshd_config').splitlines()
+        conf_fn = cloud.paths.join(True, '/etc/ssh/sshd_config')
+        # Todo: use the common ssh_util function for this parsing...
+        old_lines = util.load_file(conf_fn).splitlines()
         for i, line in enumerate(old_lines):
             if not line.strip() or line.startswith("#"):
                 new_lines.append(line)

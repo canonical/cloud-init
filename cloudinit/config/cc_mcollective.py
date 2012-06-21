@@ -32,7 +32,7 @@ def handle(name, cfg, cloud, log, _args):
 
     # If there isn't a mcollective key in the configuration don't do anything
     if 'mcollective' not in cfg:
-        log.debug(("Skipping transform named %s, "
+        log.debug(("Skipping module named %s, "
                    "no 'mcollective' key in configuration"), name)
         return
 
