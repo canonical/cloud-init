@@ -133,7 +133,7 @@ class SeLinuxGuard(object):
 
     def __enter__(self):
         # TODO: Should we try to engage selinux here??
-        return None
+        return self.enabled
 
     def __exit__(self, excp_type, excp_value, excp_traceback):
         if self.enabled:
