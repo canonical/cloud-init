@@ -71,7 +71,7 @@ setuptools.setup(name='cloud-init',
       # This second package referencing cloudinit.conf.*
       # makes the config modules accessible to the whole
       # import system...
-      packages=['cloudinit', 'cloudinit.conf'],
+      packages=['cloudinit', 'cloudinit.config'],
       scripts=['bin/cloud-init',
                'tools/cloud-init-per',
                ],
