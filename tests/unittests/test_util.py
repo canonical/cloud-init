@@ -1,13 +1,13 @@
-from unittest import TestCase
-from mocker import MockerTestCase
-from tempfile import mkdtemp
 from shutil import rmtree
+from tempfile import mkdtemp
+
 import os
 import stat
 
-from cloudinit.util import (mergedict, get_cfg_option_list_or_str, write_file,
-                            delete_dir_contents, get_cmdline,
-                            keyval_str_to_dict)
+from unittest import TestCase
+from mocker import MockerTestCase
+
+from cloudinit import util
 
 
 class TestMergeDict(TestCase):
@@ -15,14 +15,14 @@ class TestMergeDict(TestCase):
         """Test simple non-conflict merge."""
         source = {"key1": "value1"}
         candidate = {"key2": "value2"}
-        result = mergedict(source, candidate)
+        result = util.mergedict(source, candidate)
         self.assertEqual({"key1": "value1", "key2": "value2"}, result)
 
     def test_nested_merge(self):
         """Test nested merge."""
         source = {"key1": {"key1.1": "value1.1"}}
         candidate = {"key1": {"key1.2": "value1.2"}}
-        result = mergedict(source, candidate)
+        result = util.mergedict(source, candidate)
         self.assertEqual(
             {"key1": {"key1.1": "value1.1", "key1.2": "value1.2"}}, result)
 
@@ -30,42 +30,42 @@ class TestMergeDict(TestCase):
         """Test that candidate doesn't override source."""
         source = {"key1": "value1", "key2": "value2"}
         candidate = {"key1": "value2", "key2": "NEW VALUE"}
-        result = mergedict(source, candidate)
+        result = util.mergedict(source, candidate)
         self.assertEqual(source, result)
 
     def test_empty_candidate(self):
         """Test empty candidate doesn't change source."""
         source = {"key": "value"}
         candidate = {}
-        result = mergedict(source, candidate)
+        result = util.mergedict(source, candidate)
         self.assertEqual(source, result)
 
     def test_empty_source(self):
         """Test empty source is replaced by candidate."""
         source = {}
         candidate = {"key": "value"}
-        result = mergedict(source, candidate)
+        result = util.mergedict(source, candidate)
         self.assertEqual(candidate, result)
 
     def test_non_dict_candidate(self):
         """Test non-dict candidate is discarded."""
         source = {"key": "value"}
         candidate = "not a dict"
-        result = mergedict(source, candidate)
+        result = util.mergedict(source, candidate)
         self.assertEqual(source, result)
 
     def test_non_dict_source(self):
         """Test non-dict source is not modified with a dict candidate."""
         source = "not a dict"
         candidate = {"key": "value"}
-        result = mergedict(source, candidate)
+        result = util.mergedict(source, candidate)
         self.assertEqual(source, result)
 
     def test_neither_dict(self):
         """Test if neither candidate or source is dict source wins."""
         source = "source"
         candidate = "candidate"
-        result = mergedict(source, candidate)
+        result = util.mergedict(source, candidate)
         self.assertEqual(source, result)
 
 
@@ -73,31 +73,31 @@ class TestGetCfgOptionListOrStr(TestCase):
     def test_not_found_no_default(self):
         """None is returned if key is not found and no default given."""
         config = {}
-        result = get_cfg_option_list_or_str(config, "key")
+        result = util.get_cfg_option_list(config, "key")
         self.assertIsNone(result)
 
     def test_not_found_with_default(self):
         """Default is returned if key is not found."""
         config = {}
-        result = get_cfg_option_list_or_str(config, "key", default=["DEFAULT"])
+        result = util.get_cfg_option_list(config, "key", default=["DEFAULT"])
         self.assertEqual(["DEFAULT"], result)
 
     def test_found_with_default(self):
         """Default is not returned if key is found."""
         config = {"key": ["value1"]}
-        result = get_cfg_option_list_or_str(config, "key", default=["DEFAULT"])
+        result = util.get_cfg_option_list(config, "key", default=["DEFAULT"])
         self.assertEqual(["value1"], result)
 
     def test_found_convert_to_list(self):
         """Single string is converted to one element list."""
         config = {"key": "value1"}
-        result = get_cfg_option_list_or_str(config, "key")
+        result = util.get_cfg_option_list(config, "key")
         self.assertEqual(["value1"], result)
 
     def test_value_is_none(self):
         """If value is None empty list is returned."""
         config = {"key": None}
-        result = get_cfg_option_list_or_str(config, "key")
+        result = util.get_cfg_option_list(config, "key")
         self.assertEqual([], result)
 
 
@@ -117,7 +117,7 @@ class TestWriteFile(MockerTestCase):
         path = os.path.join(self.tmp, "NewFile.txt")
         contents = "Hey there"
 
-        write_file(path, contents)
+        util.write_file(path, contents)
 
         self.assertTrue(os.path.exists(path))
         self.assertTrue(os.path.isfile(path))
@@ -133,7 +133,7 @@ class TestWriteFile(MockerTestCase):
         path = os.path.join(dirname, "NewFile.txt")
         contents = "Hey there"
 
-        write_file(path, contents)
+        util.write_file(path, contents)
 
         self.assertTrue(os.path.isdir(dirname))
         self.assertTrue(os.path.isfile(path))
@@ -143,7 +143,7 @@ class TestWriteFile(MockerTestCase):
         path = os.path.join(self.tmp, "NewFile.txt")
         contents = "Hey there"
 
-        write_file(path, contents, mode=0666)
+        util.write_file(path, contents, mode=0666)
 
         self.assertTrue(os.path.exists(path))
         self.assertTrue(os.path.isfile(path))
@@ -158,7 +158,7 @@ class TestWriteFile(MockerTestCase):
         # Create file first with basic content
         with open(path, "wb") as f:
             f.write("LINE1\n")
-        write_file(path, contents, omode="a")
+        util.write_file(path, contents, omode="a")
 
         self.assertTrue(os.path.exists(path))
         self.assertTrue(os.path.isfile(path))
@@ -167,17 +167,24 @@ class TestWriteFile(MockerTestCase):
             self.assertEqual("LINE1\nHey there", create_contents)
 
     def test_restorecon_if_possible_is_called(self):
-        """Make sure the restorecon_if_possible is called correctly."""
-        path = os.path.join(self.tmp, "NewFile.txt")
-        contents = "Hey there"
-
-        # Mock out the restorecon_if_possible call to test if it's called.
-        mock_restorecon = self.mocker.replace(
-            "cloudinit.util.restorecon_if_possible", passthrough=False)
-        mock_restorecon(path)
-        self.mocker.replay()
-
-        write_file(path, contents)
+        """Make sure the selinux guard is called correctly."""
+        try:
+            # We can only mock these out if selinux actually
+            # exists, so thats why we catch the import
+            mock_restorecon = self.mocker.replace(
+                "selinux.restorecon", passthrough=False)
+            mock_is_selinux_enabled = self.mocker.replace(
+                "selinux.is_selinux_enabled", passthrough=False)
+            mock_is_selinux_enabled.result(True)
+            mock_restorecon(path)
+            self.mocker.replay()
+            old = util.HAVE_LIBSELINUX
+            util.HAVE_LIBSELINUX = True
+            with util.SeLinuxGuard(self.tmp) as is_on:
+                self.assertTrue(is_on)
+            util.HAVE_LIBSELINUX = old
+        except ImportError:
+            pass
 
 
 class TestDeleteDirContents(TestCase):
@@ -196,7 +203,7 @@ class TestDeleteDirContents(TestCase):
 
     def test_does_not_delete_dir(self):
         """Ensure directory itself is not deleted."""
-        delete_dir_contents(self.tmp)
+        util.delete_dir_contents(self.tmp)
 
         self.assertTrue(os.path.isdir(self.tmp))
         self.assertDirEmpty(self.tmp)
@@ -206,7 +213,7 @@ class TestDeleteDirContents(TestCase):
         with open(os.path.join(self.tmp, "new_file.txt"), "wb") as f:
             f.write("DELETE ME")
 
-        delete_dir_contents(self.tmp)
+        util.delete_dir_contents(self.tmp)
 
         self.assertDirEmpty(self.tmp)
 
@@ -214,7 +221,7 @@ class TestDeleteDirContents(TestCase):
         """Empty directories should be deleted."""
         os.mkdir(os.path.join(self.tmp, "new_dir"))
 
-        delete_dir_contents(self.tmp)
+        util.delete_dir_contents(self.tmp)
 
         self.assertDirEmpty(self.tmp)
 
@@ -223,7 +230,7 @@ class TestDeleteDirContents(TestCase):
         os.mkdir(os.path.join(self.tmp, "new_dir"))
         os.mkdir(os.path.join(self.tmp, "new_dir", "new_subdir"))
 
-        delete_dir_contents(self.tmp)
+        util.delete_dir_contents(self.tmp)
 
         self.assertDirEmpty(self.tmp)
 
@@ -234,7 +241,7 @@ class TestDeleteDirContents(TestCase):
         with open(f_name, "wb") as f:
             f.write("DELETE ME")
 
-        delete_dir_contents(self.tmp)
+        util.delete_dir_contents(self.tmp)
 
         self.assertDirEmpty(self.tmp)
 
@@ -246,7 +253,7 @@ class TestDeleteDirContents(TestCase):
             f.write("DELETE ME")
         os.symlink(file_name, link_name)
 
-        delete_dir_contents(self.tmp)
+        util.delete_dir_contents(self.tmp)
 
         self.assertDirEmpty(self.tmp)
 
@@ -255,12 +262,12 @@ class TestKeyValStrings(TestCase):
     def test_keyval_str_to_dict(self):
         expected = {'1': 'one', '2': 'one+one', 'ro': True}
         cmdline = "1=one ro 2=one+one"
-        self.assertEqual(expected, keyval_str_to_dict(cmdline))
+        self.assertEqual(expected, util.keyval_str_to_dict(cmdline))
 
 
 class TestGetCmdline(TestCase):
     def test_cmdline_reads_debug_env(self):
         os.environ['DEBUG_PROC_CMDLINE'] = 'abcd 123'
-        self.assertEqual(os.environ['DEBUG_PROC_CMDLINE'], get_cmdline())
+        self.assertEqual(os.environ['DEBUG_PROC_CMDLINE'], util.get_cmdline())
 
 # vi: ts=4 expandtab
