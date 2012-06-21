@@ -20,6 +20,7 @@
 
 import sys
 
+from cloudinit import ssh_util
 from cloudinit import util
 
 from string import letters, digits  # pylint: disable=W0402
@@ -101,39 +102,31 @@ def handle(_name, cfg, cloud, log, args):
             pw_auth = 'no'
 
     if change_pwauth:
-        new_lines = []
         replaced_auth = False
-        replacement = "PasswordAuthentication %s" % (pw_auth)
 
-        # See http://linux.die.net/man/5/sshd_config
-        conf_fn = cloud.paths.join(True, '/etc/ssh/sshd_config')
-        # Todo: use the common ssh_util function for this parsing...
-        old_lines = util.load_file(conf_fn).splitlines()
-        for i, line in enumerate(old_lines):
-            if not line.strip() or line.startswith("#"):
-                new_lines.append(line)
-                continue
-            splitup = line.split(None, 1)
-            if len(splitup) <= 1:
-                new_lines.append(line)
-                continue
-            (cmd, args) = splitup
+        # See: man sshd_config
+        conf_fn = cloud.paths.join(True, ssh_util.DEF_SSHD_CFG)
+        old_lines = ssh_util.parse_ssh_config(conf_fn)
+        new_lines = []
+        i = 0
+        for (i, line) in enumerate(old_lines):
             # Keywords are case-insensitive and arguments are case-sensitive
-            cmd = cmd.lower().strip()
-            if cmd == 'passwordauthentication':
-                log.debug("Replacing auth line %s with %s", i + 1, replacement)
+            if line.key == 'passwordauthentication':
+                log.debug("Replacing auth line %s with %s", i + 1, pw_auth)
                 replaced_auth = True
-                new_lines.append(replacement)
-            else:
-                new_lines.append(line)
+                line.value = pw_auth
+            new_lines.append(line)
 
         if not replaced_auth:
-            log.debug("Adding new auth line %s", replacement)
+            log.debug("Adding new auth line %s", i + 1)
             replaced_auth = True
-            new_lines.append(replacement)
+            new_lines.append(ssh_util.SshdConfigLine('',
+                                                     'PasswordAuthentication',
+                                                     pw_auth))
 
-        util.write_file(cloud.paths.join(False, '/etc/ssh/sshd_config'),
-                        "\n".join(new_lines))
+        lines = [str(e) for e in new_lines]
+        ssh_rw_fn = cloud.paths.join(False, ssh_util.DEF_SSHD_CFG)
+        util.write_file(ssh_rw_fn, "\n".join(lines))
 
         try:
             cmd = ['service']
