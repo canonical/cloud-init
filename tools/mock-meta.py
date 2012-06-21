@@ -181,7 +181,7 @@ class MetaDataHandler(object):
                 else:
                     return "%s" % (PLACEMENT_CAPABILITIES.get(pentry, ''))
         else:
-            return ''
+            return '{}'
 
 class UserDataHandler(object):
 
