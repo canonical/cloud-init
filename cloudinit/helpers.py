@@ -40,13 +40,17 @@ class LockFailure(Exception):
     pass
 
 
+class DummyLock(object):
+    pass
+
+
 class DummySemaphores(object):
     def __init__(self):
         pass
 
     @contextlib.contextmanager
     def lock(self, _name, _freq, _clear_on_fail=False):
-        yield True
+        yield DummyLock()
 
     def has_run(self, _name, _freq):
         return False
@@ -56,6 +60,11 @@ class DummySemaphores(object):
 
     def clear_all(self):
         pass
+
+
+class FileLock(object):
+    def __init__(self, fn):
+        self.fn = fn
 
 
 class FileSemaphores(object):
@@ -101,7 +110,7 @@ class FileSemaphores(object):
         except (IOError, OSError):
             util.logexc(LOG, "Failed writing semaphore file %s", sem_file)
             return None
-        return sem_file
+        return FileLock(sem_file)
 
     def has_run(self, name, freq):
         if not freq or freq == PER_ALWAYS:
@@ -158,8 +167,8 @@ class Runners(object):
             if not lk:
                 raise LockFailure("Failed to acquire lock for %s" % name)
             else:
-                LOG.debug("Running %s with args %s using lock %s (%s)",
-                          functor, args, util.obj_name(lk), lk)
+                LOG.debug("Running %s with args %s using lock (%s)",
+                          functor, args, lk)
                 if isinstance(args, (dict)):
                     results = functor(**args)
                 else:
