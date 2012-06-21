@@ -101,11 +101,7 @@ class TestGetCfgOptionListOrStr(TestCase):
 class TestWriteFile(MockerTestCase):
     def setUp(self):
         super(TestWriteFile, self).setUp()
-        # Make a temp directoy for tests to use.
         self.tmp = self.makeDir(prefix="unittest_")
-
-    def tearDown(self):
-        super(TestWriteFile, self).tearDown()
 
     def test_basic_usage(self):
         """Verify basic usage with default args."""
@@ -182,16 +178,10 @@ class TestWriteFile(MockerTestCase):
             pass
 
 
-class TestDeleteDirContents(TestCase):
+class TestDeleteDirContents(MockerTestCase):
     def setUp(self):
         super(TestDeleteDirContents, self).setUp()
-        # Make a temp directoy for tests to use.
-        self.tmp = mkdtemp(prefix="unittest_")
-
-    def tearDown(self):
-        super(TestDeleteDirContents, self).tearDown()
-        # Clean up temp directory
-        rmtree(self.tmp)
+        self.tmp = self.makeDir(prefix="unittest_")
 
     def assertDirEmpty(self, dirname):
         self.assertEqual([], os.listdir(dirname))
