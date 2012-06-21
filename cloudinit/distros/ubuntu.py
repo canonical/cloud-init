@@ -112,7 +112,11 @@ class Distro(distros.Distro):
         if not os.path.isfile(tz_file):
             raise Exception(("Invalid timezone %s,"
                              " no file found at %s") % (tz, tz_file))
-        tz_contents = "%s\n" % tz
+        tz_lines = [
+            "# Created by cloud-init",
+            str(tz),
+        ]
+        tz_contents = "\n".join(tz_lines)
         tz_fn = self._paths.join(False, "/etc/timezone")
         util.write_file(tz_fn, tz_contents)
         util.copy(tz_file, self._paths.join(False, "/etc/localtime"))

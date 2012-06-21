@@ -88,8 +88,8 @@ def readurl(url, data=None, timeout=None,
     attempts = retries + 1
 
     excepts = []
-    LOG.info(("Attempting to open '%s' with %s attempts"
-              " (%s retries, timeout=%s) to be performed"),
+    LOG.debug(("Attempting to open '%s' with %s attempts"
+               " (%s retries, timeout=%s) to be performed"),
               url, attempts, retries, timeout)
     open_args = {}
     if timeout is not None:
@@ -105,8 +105,8 @@ def readurl(url, data=None, timeout=None,
                 headers = {}
                 if rh.headers:
                     headers = dict(rh.headers)
-                LOG.info("Read from %s (%s, %sb) after %s attempts",
-                         url, status, len(content), (i + 1))
+                LOG.debug("Read from %s (%s, %sb) after %s attempts",
+                          url, status, len(content), (i + 1))
                 return UrlResponse(status, content, headers)
         except urllib2.HTTPError as e:
             excepts.append(e)
@@ -165,7 +165,7 @@ def wait_for_url(urls, max_wait=None, timeout=None,
     start_time = time.time()
 
     def log_status_cb(msg):
-        LOG.info(msg)
+        LOG.debug(msg)
 
     if status_cb is None:
         status_cb = log_status_cb
@@ -219,8 +219,8 @@ def wait_for_url(urls, max_wait=None, timeout=None,
             break
 
         loop_n = loop_n + 1
-        LOG.info("Please wait %s seconds while we wait to try again",
-                 sleep_time)
+        LOG.debug("Please wait %s seconds while we wait to try again",
+                  sleep_time)
         time.sleep(sleep_time)
 
     return False

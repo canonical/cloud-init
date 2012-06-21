@@ -152,7 +152,7 @@ class DataSourceNoCloud(sources.DataSource):
         # ('local' for NoCloud, 'net' for NoCloudNet')
         if ('network-interfaces' in md and
             (self.dsmode in ("local", seeded_interfaces))):
-            LOG.info("Updating network interfaces from %s", self)
+            LOG.debug("Updating network interfaces from %s", self)
             self.distro.apply_network(md['network-interfaces'])
 
         if md['dsmode'] == self.dsmode:

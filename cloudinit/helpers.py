@@ -161,7 +161,7 @@ class Runners(object):
         if not args:
             args = []
         if sem.has_run(name, freq):
-            LOG.info("%s already ran (freq=%s)", name, freq)
+            LOG.debug("%s already ran (freq=%s)", name, freq)
             return (False, None)
         with sem.lock(name, freq, clear_on_fail) as lk:
             if not lk:

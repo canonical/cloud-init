@@ -73,8 +73,7 @@ def welcome(action):
     }
     welcome_msg = "%s" % (templater.render_string(msg, tpl_params))
     sys.stderr.write("%s\n" % (welcome_msg))
-    sys.stderr.flush()
-    LOG.info(welcome_msg)
+    LOG.debug(welcome_msg)
 
 
 def extract_fns(args):

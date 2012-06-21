@@ -98,7 +98,7 @@ class DataSourceCloudStack(sources.DataSource):
                                 timeout=timeout, status_cb=LOG.warn)
 
         if url:
-            LOG.info("Using metadata source: '%s'", url)
+            LOG.debug("Using metadata source: '%s'", url)
         else:
             LOG.critical(("Giving up on waiting for the metadata from %s"
                           " after %s seconds"),

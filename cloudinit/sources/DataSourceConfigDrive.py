@@ -87,10 +87,8 @@ class DataSourceConfigDrive(sources.DataSource):
         # Update interfaces and ifup only on the local datasource
         # this way the DataSourceConfigDriveNet doesn't do it also.
         if 'network-interfaces' in md and self.dsmode == "local":
-            if md['dsmode'] == "pass":
-                LOG.info("Updating network interfaces from configdrive")
-            else:
-                LOG.debug("Updating network interfaces from configdrive")
+            LOG.debug("Updating network interfaces from config drive (%s)",
+                     md['dsmode'])
             self.distro.apply_network(md['network-interfaces'])
 
         self.seed = found

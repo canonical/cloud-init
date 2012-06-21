@@ -128,7 +128,7 @@ class DataSourceMAAS(sources.DataSource):
                                  headers_cb=self.md_headers)
 
         if url:
-            LOG.info("Using metadata source: '%s'", url)
+            LOG.debug("Using metadata source: '%s'", url)
         else:
             LOG.critical("Giving up on md from %s after %i seconds",
                             urls, int(time.time() - starttime))
