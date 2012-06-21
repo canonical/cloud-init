@@ -32,12 +32,6 @@ possible_topdir = os.path.normpath(os.path.join(os.path.abspath(
 if os.path.exists(os.path.join(possible_topdir, "cloudinit", "__init__.py")):
     sys.path.insert(0, possible_topdir)
 
-# This is so config modules can be found
-if os.path.exists(os.path.join(possible_topdir,
-                 "cloudinit", 'config', "__init__.py")):
-    sys.path.insert(0, os.path.join(possible_topdir, 'cloudinit', 'config'))
-
-
 from cloudinit import log as logging
 from cloudinit import netinfo
 from cloudinit import settings
