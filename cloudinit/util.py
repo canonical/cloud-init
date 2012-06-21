@@ -35,7 +35,7 @@ import pwd
 import random
 import shutil
 import socket
-import string # pylint: disable=W0402
+import string  # pylint: disable=W0402
 import subprocess
 import sys
 import tempfile
@@ -153,13 +153,15 @@ def SilentTemporaryFile(**kwargs):
     # file to unlink has been unlinked elsewhere..
     LOG.debug("Created temporary file %s", fh.name)
     fh.unlink = del_file
-    # Add a new method that will unlink 
+
+    # Add a new method that will unlink
     # right 'now' but still lets the exit
     # method attempt to remove it (which will
     # not throw due to our del file being quiet
     # about files that are not there)
     def unlink_now():
         fh.unlink(fh.name)
+
     setattr(fh, 'unlink_now', unlink_now)
     return fh
 
@@ -199,7 +201,7 @@ def is_false_str(val, addons=None):
 
 def translate_bool(val, addons=None):
     if not val:
-        # This handles empty lists and false and 
+        # This handles empty lists and false and
         # other things that python believes are false
         return False
     # If its already a boolean skip
@@ -212,7 +214,6 @@ def rand_str(strlen=32, select_from=None):
     if not select_from:
         select_from = string.letters + string.digits
     return "".join([random.choice(select_from) for _x in range(0, strlen)])
-
 
 
 def read_conf(fname):
@@ -275,7 +276,7 @@ def is_ipv4(instr):
 
 def merge_base_cfg(cfgfile, cfg_builtin=None):
     syscfg = read_conf_with_confd(cfgfile)
-    
+
     kern_contents = read_cc_from_cmdline()
     kerncfg = {}
     if kern_contents:
@@ -575,7 +576,7 @@ def load_yaml(blob, default=None, allowed=(dict,)):
     try:
         blob = str(blob)
         LOG.debug(("Attempting to load yaml from string "
-                 "of length %s with allowed root types %s"), 
+                 "of length %s with allowed root types %s"),
                  len(blob), allowed)
         converted = yaml.load(blob)
         if not isinstance(converted, allowed):
@@ -625,7 +626,7 @@ def read_conf_d(confd):
 
     # remove anything not ending in '.cfg'
     confs = [f for f in confs if f.endswith(".cfg")]
-    
+
     # remove anything not a file
     confs = [f for f in confs if os.path.isfile(os.path.join(confd, f))]
 
@@ -726,9 +727,9 @@ def get_fqdn_from_hosts(hostname, filename="/etc/hosts"):
     """
     For each host a single line should be present with
       the following information:
-    
-	     IP_address canonical_hostname [aliases...]
-    
+
+        IP_address canonical_hostname [aliases...]
+
       Fields of the entry are separated by any number of  blanks  and/or  tab
       characters.  Text  from	a "#" character until the end of the line is a
       comment, and is ignored.	 Host  names  may  contain  only  alphanumeric
@@ -747,7 +748,7 @@ def get_fqdn_from_hosts(hostname, filename="/etc/hosts"):
             if not line:
                 continue
 
-            # If there there is less than 3 entries 
+            # If there there is less than 3 entries
             # (IP_address, canonical_hostname, alias)
             # then ignore this line
             toks = line.split()
@@ -829,7 +830,7 @@ def close_stdin():
         os.dup2(fp.fileno(), sys.stdin.fileno())
 
 
-def find_devs_with(criteria=None, oformat='device', 
+def find_devs_with(criteria=None, oformat='device',
                     tag=None, no_cache=False, path=None):
     """
     find devices matching given criteria (via blkid)
@@ -841,23 +842,23 @@ def find_devs_with(criteria=None, oformat='device',
     blk_id_cmd = ['blkid']
     options = []
     if criteria:
-        # Search for block devices with tokens named NAME that 
+        # Search for block devices with tokens named NAME that
         # have the value 'value' and display any devices which are found.
         # Common values for NAME include  TYPE, LABEL, and UUID.
         # If there are no devices specified on the command line,
-        # all block devices will be searched; otherwise, 
+        # all block devices will be searched; otherwise,
         # only search the devices specified by the user.
         options.append("-t%s" % (criteria))
     if tag:
         # For each (specified) device, show only the tags that match tag.
         options.append("-s%s" % (tag))
     if no_cache:
-        # If you want to start with a clean cache 
-        # (i.e. don't report devices previously scanned 
+        # If you want to start with a clean cache
+        # (i.e. don't report devices previously scanned
         # but not necessarily available at this time), specify /dev/null.
         options.extend(["-c", "/dev/null"])
     if oformat:
-        # Display blkid's output using the specified format. 
+        # Display blkid's output using the specified format.
         # The format parameter may be:
         # full, value, list, device, udev, export
         options.append('-o%s' % (oformat))
@@ -1104,7 +1105,7 @@ def mounts():
                 (dev, mp, fstype, opts, _freq, _passno) = mpline.split()
             except:
                 continue
-            # If the name of the mount point contains spaces these 
+            # If the name of the mount point contains spaces these
             # can be escaped as '\040', so undo that..
             mp = mp.replace("\\040", " ")
             mounted[dev] = {

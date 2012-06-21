@@ -25,7 +25,7 @@ from cloudinit import util
 from string import letters, digits  # pylint: disable=W0402
 
 # We are removing certain 'painful' letters/numbers
-pw_set = (letters.translate(None, 'loLOI') +
+PW_SET = (letters.translate(None, 'loLOI') +
           digits.translate(None, '01'))
 
 
@@ -148,4 +148,4 @@ def handle(_name, cfg, cloud, log, args):
 
 
 def rand_user_password(pwlen=9):
-    return util.rand_str(pwlen, select_from=pw_set)
+    return util.rand_str(pwlen, select_from=PW_SET)

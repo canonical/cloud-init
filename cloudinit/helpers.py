@@ -84,7 +84,7 @@ class FileSemaphores(object):
         try:
             util.del_dir(self.sem_path)
         except (IOError, OSError):
-            util.logexc(LOG, "Failed deleting semaphore directory %s", 
+            util.logexc(LOG, "Failed deleting semaphore directory %s",
                         self.sem_path)
 
     def _acquire(self, name, freq):
@@ -212,7 +212,7 @@ class Paths(object):
         self.cfgs = path_cfgs
         # Populate all the initial paths
         self.cloud_dir = self.join(False,
-                                   path_cfgs.get('cloud_dir', 
+                                   path_cfgs.get('cloud_dir',
                                                  '/var/lib/cloud'))
         self.instance_link = os.path.join(self.cloud_dir, 'instance')
         self.boot_finished = os.path.join(self.instance_link, "boot-finished")
@@ -237,7 +237,7 @@ class Paths(object):
         # Set when a datasource becomes active
         self.datasource = ds
 
-    # joins the paths but also appends a read 
+    # joins the paths but also appends a read
     # or write root if available
     def join(self, read_only, *paths):
         if read_only:

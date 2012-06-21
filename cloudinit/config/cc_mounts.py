@@ -24,10 +24,10 @@ import re
 
 from cloudinit import util
 
-# shortname matches 'sda', 'sda1', 'xvda', 'hda', 'sdb', xvdb, vda, vdd1
-shortname_filter = r"^[x]{0,1}[shv]d[a-z][0-9]*$"
-shortname = re.compile(shortname_filter)
-ws = re.compile("[%s]+" % (whitespace))
+# Shortname matches 'sda', 'sda1', 'xvda', 'hda', 'sdb', xvdb, vda, vdd1
+SHORTNAME_FILTER = r"^[x]{0,1}[shv]d[a-z][0-9]*$"
+SHORTNAME = re.compile(SHORTNAME_FILTER)
+WS = re.compile("[%s]+" % (whitespace))
 
 
 def is_mdname(name):
@@ -55,7 +55,6 @@ def handle(_name, cfg, cloud, log, _args):
     if "mounts" in cfg:
         cfgmnt = cfg["mounts"]
 
-    
     for i in range(len(cfgmnt)):
         # skip something that wasn't a list
         if not isinstance(cfgmnt[i], list):
@@ -85,7 +84,7 @@ def handle(_name, cfg, cloud, log, _args):
                 cfgmnt[i][0] = renamed
                 log.debug("Mapped metadata name %s to %s", startname, renamed)
         else:
-            if shortname.match(startname):
+            if SHORTNAME.match(startname):
                 renamed = "/dev/%s" % startname
                 log.debug("Mapped shortname name %s to %s", startname, renamed)
                 cfgmnt[i][0] = renamed
@@ -171,7 +170,7 @@ def handle(_name, cfg, cloud, log, _args):
     fstab = util.load_file(cloud.paths.join(True, "/etc/fstab"))
     for line in fstab.splitlines():
         try:
-            toks = ws.split(line)
+            toks = WS.split(line)
             if toks[3].find(comment) != -1:
                 continue
         except:

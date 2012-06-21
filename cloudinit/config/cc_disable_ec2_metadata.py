@@ -24,13 +24,13 @@ from cloudinit.settings import PER_ALWAYS
 
 frequency = PER_ALWAYS
 
-reject_cmd = ['route', 'add', '-host', '169.254.169.254', 'reject']
+REJECT_CMD = ['route', 'add', '-host', '169.254.169.254', 'reject']
 
 
 def handle(name, cfg, _cloud, log, _args):
     disabled = util.get_cfg_option_bool(cfg, "disable_ec2_metadata", False)
     if disabled:
-        util.subp(reject_cmd)
+        util.subp(REJECT_CMD)
     else:
         log.debug(("Skipping transform named %s,"
                    " disabling the ec2 route not enabled"), name)

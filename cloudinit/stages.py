@@ -287,7 +287,7 @@ class Init(object):
 
     def cloudify(self):
         # Form the needed options to cloudify our members
-        return cloud.Cloud(self.datasource, 
+        return cloud.Cloud(self.datasource,
                            self.paths, self.cfg,
                            self.distro, helpers.Runners(self.paths))
 
@@ -318,7 +318,7 @@ class Init(object):
     def consume(self, frequency=PER_INSTANCE):
         cdir = self.paths.get_cpath("handlers")
         idir = self.paths.get_ipath("handlers")
-    
+
         # Add the path to the plugins dir to the top of our list for import
         # instance dir should be read before cloud-dir
         if cdir and cdir not in sys.path:
@@ -417,7 +417,7 @@ class Modules(object):
             except:
                 util.logexc(LOG, ("Failed loading of datasource"
                                   " config object from %s"), self.datasource)
-        
+
         if self.base_cfg:
             t_cfgs.append(self.base_cfg)
 

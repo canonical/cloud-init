@@ -65,33 +65,33 @@ class UserDataProcessor(object):
             # multipart/* are just containers
             if part.get_content_maintype() == 'multipart':
                 continue
-    
+
             ctype = None
             ctype_orig = part.get_content_type()
             payload = part.get_payload(decode=True)
-    
+
             if not ctype_orig:
                 ctype_orig = UNDEF_TYPE
-    
+
             if ctype_orig in TYPE_NEEDED:
                 ctype = handlers.type_from_starts_with(payload)
-    
+
             if ctype is None:
                 ctype = ctype_orig
-    
+
             if ctype in INCLUDE_TYPES:
                 self._do_include(payload, append_msg)
                 continue
-    
+
             if ctype in ARCHIVE_TYPES:
                 self._explode_archive(payload, append_msg)
                 continue
-    
+
             if 'Content-Type' in base_msg:
                 base_msg.replace_header('Content-Type', ctype)
             else:
                 base_msg['Content-Type'] = ctype
-    
+
             self._attach_part(append_msg, part)
 
     def _get_include_once_filename(self, entry):
@@ -108,8 +108,8 @@ class UserDataProcessor(object):
             lc_line = line.lower()
             if lc_line.startswith("#include-once"):
                 line = line[len("#include-once"):].lstrip()
-                # Every following include will now 
-                # not be refetched.... but will be 
+                # Every following include will now
+                # not be refetched.... but will be
                 # re-read from a local urlcache (if it worked)
                 include_once_on = True
             elif lc_line.startswith("#include"):
@@ -190,10 +190,10 @@ class UserDataProcessor(object):
         """
         if ATTACHMENT_FIELD not in outer_msg:
             outer_msg[ATTACHMENT_FIELD] = '0'
-    
+
         if new_count is not None:
             outer_msg.replace_header(ATTACHMENT_FIELD, str(new_count))
-    
+
         fetched_count = 0
         try:
             fetched_count = int(outer_msg.get(ATTACHMENT_FIELD))
@@ -234,7 +234,3 @@ def convert_string(raw_data, headers=None):
         msg = MIMEBase(maintype, subtype, *headers)
         msg.set_payload(data)
     return msg
-
-
-
-

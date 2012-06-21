@@ -75,6 +75,7 @@ def welcome(action):
     sys.stderr.flush()
     LOG.info(welcome_msg)
 
+
 def extract_fns(args):
     # Files are already opened so lets just pass that along
     # since it would of broke if it couldn't have
@@ -329,11 +330,11 @@ def main_single(name, args):
 
 def main():
     parser = argparse.ArgumentParser()
-    
+
     # Top level args
-    parser.add_argument('--version', '-v', action='version', 
+    parser.add_argument('--version', '-v', action='version',
                         version='%(prog)s ' + (version.version_string()))
-    parser.add_argument('--file', '-f', action='append', 
+    parser.add_argument('--file', '-f', action='append',
                         dest='files',
                         help=('additional yaml configuration'
                               ' files to use'),
@@ -345,18 +346,18 @@ def main():
     subparsers = parser.add_subparsers()
 
     # Each action and its sub-options (if any)
-    parser_init = subparsers.add_parser('init', 
+    parser_init = subparsers.add_parser('init',
                                         help=('initializes cloud-init and'
                                               ' performs initial modules'))
     parser_init.add_argument("--local", '-l', action='store_true',
                              help="start in local mode (default: %(default)s)",
                              default=False)
-    # This is used so that we can know which action is selected + 
+    # This is used so that we can know which action is selected +
     # the functor to use to run this subcommand
     parser_init.set_defaults(action=('init', main_init))
 
     # These settings are used for the 'config' and 'final' stages
-    parser_mod = subparsers.add_parser('modules', 
+    parser_mod = subparsers.add_parser('modules',
                                       help=('activates modules '
                                             'using a given configuration key'))
     parser_mod.add_argument("--mode", '-m', action='store',
@@ -368,7 +369,7 @@ def main():
 
     # These settings are used when you want to query information
     # stored in the cloud-init data objects/directories/files
-    parser_query = subparsers.add_parser('query', 
+    parser_query = subparsers.add_parser('query',
                                          help=('query information stored '
                                                'in cloud-init'))
     parser_query.add_argument("--name", '-n', action="store",
@@ -378,7 +379,7 @@ def main():
     parser_query.set_defaults(action=('query', main_query))
 
     # This subcommand allows you to run a single module
-    parser_single = subparsers.add_parser('single', 
+    parser_single = subparsers.add_parser('single',
                                          help=('run a single module '))
     parser_single.set_defaults(action=('single', main_single))
     parser_single.add_argument("--name", '-n', action="store",
@@ -394,10 +395,10 @@ def main():
                                     ' pass to this module'))
     parser_single.set_defaults(action=('single', main_single))
 
-
     args = parser.parse_args()
 
     # Setup basic logging to start (until reinitialized)
+    # iff in debug mode...
     if args.debug:
         logging.setupBasicLogging()
 
@@ -407,4 +408,3 @@ def main():
 
 if __name__ == '__main__':
     sys.exit(main())
-

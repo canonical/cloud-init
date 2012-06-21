@@ -157,4 +157,3 @@ def fetch(distro_name, mods=(__name__, )):
                            % (distro_name))
     distro_cls = getattr(mod, 'Distro')
     return distro_cls
-    

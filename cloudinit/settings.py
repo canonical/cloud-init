@@ -47,7 +47,7 @@ CFG_BUILTIN = {
         'paths': {
             'cloud_dir': '/var/lib/cloud',
             'templates_dir': '/etc/cloud/templates/',
-        }, 
+        },
         'distro': 'ubuntu',
     },
 }

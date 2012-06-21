@@ -28,7 +28,7 @@ from cloudinit.settings import PER_ALWAYS
 
 frequency = PER_ALWAYS
 
-final_message_def = ("Cloud-init v. {{version}} finished at {{timestamp}}."
+FINAL_MESSAGE_DEF = ("Cloud-init v. {{version}} finished at {{timestamp}}."
                      " Up {{uptime}} seconds.")
 
 
@@ -39,21 +39,21 @@ def handle(_name, cfg, cloud, log, args):
         msg_in = args[0]
     else:
         msg_in = util.get_cfg_option_str(cfg, "final_message")
-    
+
     if not msg_in:
         template_fn = cloud.get_template_filename('final_message')
         if template_fn:
             msg_in = util.load_file(template_fn)
 
     if not msg_in:
-        msg_in = final_message_def
+        msg_in = FINAL_MESSAGE_DEF
 
     uptime = util.uptime()
     ts = util.time_rfc2822()
     cver = version.version_string()
     try:
         subs = {
-            'uptime': uptime, 
+            'uptime': uptime,
             'timestamp': ts,
             'version': cver,
         }

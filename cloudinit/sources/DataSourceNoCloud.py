@@ -154,7 +154,7 @@ class DataSourceNoCloud(sources.DataSource):
             (self.dsmode in ("local", seeded_interfaces))):
             LOG.info("Updating network interfaces from %s", self)
             self.distro.apply_network(md['network-interfaces'])
-            
+
         if md['dsmode'] == self.dsmode:
             self.seed = ",".join(found)
             self.metadata = md
