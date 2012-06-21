@@ -23,17 +23,43 @@
 import sys
 
 from cloudinit import log as logging
-from cloudinit import util
 
 LOG = logging.getLogger(__name__)
 
 
-# Simple wrapper that allows us to add more logging in...
 def import_module(module_name):
-    try:
-        LOG.debug("Attempting to import module %s", module_name)
-        __import__(module_name)
-        return sys.modules[module_name]
-    except:
-        util.logexc(LOG, 'Failed at importing %s', module_name)
-        raise
+    __import__(module_name)
+    return sys.modules[module_name]
+
+
+def find_module(base_name, search_paths, required_attrs=None):
+    found_places = []
+    if not required_attrs:
+        required_attrs = []
+    real_paths = []
+    for path in search_paths:
+        real_path = []
+        if path:
+            real_path.extend(path.split("."))
+        real_path.append(base_name)
+        full_path = '.'.join(real_path)
+        real_paths.append(full_path)
+    LOG.debug("Looking for modules %s that have attributes %s",
+              real_paths, required_attrs)
+    for full_path in real_paths:
+        mod = None
+        try:
+            mod = import_module(full_path)
+        except ImportError:
+            pass
+        if not mod:
+            continue
+        found_attrs = 0
+        for attr in required_attrs:
+            if hasattr(mod, attr):
+                found_attrs += 1
+        if found_attrs == len(required_attrs):
+            found_places.append(full_path)
+    LOG.debug("Found %s with attributes %s in %s", base_name,
+              required_attrs, found_places)
+    return found_places

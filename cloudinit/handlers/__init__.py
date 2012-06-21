@@ -202,20 +202,12 @@ def walk(msg, callback, data):
 def fixup_handler(mod, def_freq=PER_INSTANCE):
     if not hasattr(mod, "handler_version"):
         setattr(mod, "handler_version", 1)
-    if not hasattr(mod, 'list_types'):
-        def empty_types():
-            return []
-        setattr(mod, 'list_types', empty_types)
     if not hasattr(mod, 'frequency'):
         setattr(mod, 'frequency', def_freq)
     else:
         freq = mod.frequency
         if freq and freq not in FREQUENCIES:
             LOG.warn("Handler %s has an unknown frequency %s", mod, freq)
-    if not hasattr(mod, 'handle_part'):
-        def empty_handler(_data, _ctype, _filename, _payload):
-            pass
-        setattr(mod, 'handle_part', empty_handler)
     return mod
 
 
