@@ -27,7 +27,6 @@ from cloudinit.settings import (PER_ALWAYS, PER_INSTANCE, FREQUENCIES)
 
 from cloudinit import importer
 from cloudinit import log as logging
-from cloudinit import url_helper
 from cloudinit import util
 
 LOG = logging.getLogger(__name__)
