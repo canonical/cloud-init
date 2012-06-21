@@ -52,6 +52,13 @@ QUERY_DATA_TYPES = [
     'instance_id',
 ]
 
+# Frequency shortname to full name
+FREQ_SHORT_NAMES = {
+    'instance': settings.PER_INSTANCE,
+    'always': settings.PER_ALWAYS,
+    'once': settings.PER_ONCE,
+}
+
 LOG = logging.getLogger()
 
 
@@ -294,6 +301,7 @@ def main_single(name, args):
     mod_freq = args.frequency
     if mod_freq:
         LOG.debug("Using passed in frequency %s", mod_freq)
+        mod_freq = FREQ_SHORT_NAMES.get(mod_freq)
     # Stage 3
     try:
         LOG.debug("Closing stdin")
@@ -308,15 +316,14 @@ def main_single(name, args):
         logging.resetLogging()
     logging.setupLogging(mods.cfg)
     # Stage 4
-    try:
-        (_run_am, failures) = mods.run_single(mod_name,
-                                              mod_args,
-                                              mod_freq)
-    except ImportError:
-        util.logexc(LOG, "Failed at importing module %s", mod_name)
-        return 1
+    (run_am, failures) = mods.run_single(mod_name,
+                                         mod_args,
+                                         mod_freq)
     if failures:
-        LOG.debug("Ran %s but it failed", mod_name)
+        LOG.warn("Ran %s but it failed!", mod_name)
+        return 1
+    elif run_am == 0:
+        LOG.warn("Did not run %s, does it exist?", mod_name)
         return 1
     else:
         return 0
@@ -382,7 +389,7 @@ def main():
     parser_single.add_argument("--frequency", action="store",
                               help=("frequency of the module"),
                               required=False,
-                              choices=settings.FREQUENCIES)
+                              choices=list(FREQ_SHORT_NAMES.keys()))
     parser_single.add_argument("module_args", nargs="*",
                               metavar='argument',
                               help=('any additional arguments to'
