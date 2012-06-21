@@ -29,6 +29,8 @@ from cloudinit import log as logging
 from cloudinit import util
 
 LOG = logging.getLogger(__name__)
+
+# See: man sshd_config
 DEF_SSHD_CFG = "/etc/ssh/sshd_config"
 
 
@@ -233,7 +235,7 @@ def setup_user_keys(keys, user, key_prefix, paths):
             # The following tokens are defined: %% is replaced by a literal
             # '%', %h is replaced by the home directory of the user being
             # authenticated and %u is replaced by the username of that user.
-            ssh_cfg = parse_ssh_config(sshd_conf_fn)
+            ssh_cfg = parse_ssh_config_map(sshd_conf_fn)
             akeys = ssh_cfg.get("authorizedkeysfile", '')
             akeys = akeys.strip()
             if not akeys:
@@ -258,19 +260,54 @@ def setup_user_keys(keys, user, key_prefix, paths):
         util.chownbyid(authorized_keys, pwent.pw_uid, pwent.pw_gid)
 
 
+class SshdConfigLine(object):
+    def __init__(self, line, k=None, v=None):
+        self.line = line
+        self._key = k
+        self.value = v
+
+    @property
+    def key(self):
+        if self._key is None:
+            return None
+        # Keywords are case-insensitive
+        return self._key.lower()
+
+    def __str__(self):
+        if self._key is None:
+            return str(self.line)
+        else:
+            v = str(self._key)
+            if self.value:
+                v += " " + str(self.value)
+            return v
+
+
 def parse_ssh_config(fname):
+    # See: man sshd_config
     # The file contains keyword-argument pairs, one per line.
     # Lines starting with '#' and empty lines are interpreted as comments.
     # Note: key-words are case-insensitive and arguments are case-sensitive
-    ret = {}
+    lines = []
     if not os.path.isfile(fname):
-        return ret
+        return lines
     for line in util.load_file(fname).splitlines():
         line = line.strip()
         if not line or line.startswith("#"):
+            lines.append(SshdConfigLine(line))
             continue
         (key, val) = line.split(None, 1)
-        key = key.strip().lower()
-        if key:
-            ret[key] = val
+        lines.append(SshdConfigLine(line, key, val))
+    return lines
+
+
+def parse_ssh_config_map(fname):
+    lines = parse_ssh_config(fname)
+    if not lines:
+        return {}
+    ret = {}
+    for line in lines:
+        if not line.key:
+            continue
+        ret[line.key] = line.value
     return ret
