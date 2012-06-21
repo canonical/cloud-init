@@ -31,7 +31,7 @@ HELPER_TOOL = '/usr/lib/cloud-init/write-ssh-key-fingerprints'
 
 def handle(name, cfg, cloud, log, _args):
     if not os.path.exists(HELPER_TOOL):
-        log.warn(("Unable to activate transform %s,"
+        log.warn(("Unable to activate module %s,"
                   " helper tool not found at %s"), name, HELPER_TOOL)
         return
 

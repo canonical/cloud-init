@@ -53,13 +53,13 @@ def handle(name, _cfg, cloud, log, _args):
     try:
         ud = cloud.get_userdata_raw()
     except:
-        log.warn("Failed to get raw userdata in transform %s", name)
+        log.warn("Failed to get raw userdata in module %s", name)
         return
 
     try:
         mdict = parse_qs(ud)
         if not mdict or not MY_HOOKNAME in mdict:
-            log.debug(("Skipping transform %s, "
+            log.debug(("Skipping module %s, "
                        "did not find %s in parsed"
                        " raw userdata"), name, MY_HOOKNAME)
             return
@@ -73,7 +73,7 @@ def handle(name, _cfg, cloud, log, _args):
 
     # These will eventually be then ran by the cc_scripts_user
     # TODO: maybe this should just be a new user data handler??
-    # Instead of a late transform that acts like a user data handler?
+    # Instead of a late module that acts like a user data handler?
     scripts_d = cloud.get_ipath_cur('scripts')
     urls = mdict[MY_HOOKNAME]
     for (i, url) in enumerate(urls):

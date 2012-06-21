@@ -36,6 +36,6 @@ def handle(name, _cfg, cloud, log, _args):
     try:
         util.runparts(runparts_path)
     except:
-        log.warn("Failed to run transform %s (%s in %s)",
+        log.warn("Failed to run module %s (%s in %s)",
                  name, SCRIPT_SUBDIR, runparts_path)
         raise

@@ -31,7 +31,7 @@ def handle(name, cfg, cloud, log, _args):
 
     # If there isn't a chef key in the configuration don't do anything
     if 'chef' not in cfg:
-        log.debug(("Skipping transform named %s,"
+        log.debug(("Skipping module named %s,"
                   " no 'chef' key in configuration"), name)
         return
     chef_cfg = cfg['chef']

@@ -53,7 +53,7 @@ def handle(name, cfg, cloud, log, args):
         ph_cfg = cfg['phone_home']
 
     if 'url' not in ph_cfg:
-        log.warn(("Skipping transform named %s, "
+        log.warn(("Skipping module named %s, "
                   "no 'url' found in 'phone_home' configuration"), name)
         return
 

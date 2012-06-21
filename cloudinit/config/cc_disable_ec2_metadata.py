@@ -32,5 +32,5 @@ def handle(name, cfg, _cloud, log, _args):
     if disabled:
         util.subp(REJECT_CMD)
     else:
-        log.debug(("Skipping transform named %s,"
+        log.debug(("Skipping module named %s,"
                    " disabling the ec2 route not enabled"), name)

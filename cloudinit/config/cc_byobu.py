@@ -30,7 +30,7 @@ def handle(name, cfg, _cloud, log, args):
         value = util.get_cfg_option_str(cfg, "byobu_by_default", "")
 
     if not value:
-        log.debug("Skipping transform named %s, no 'byobu' values found", name)
+        log.debug("Skipping module named %s, no 'byobu' values found", name)
         return
 
     if value == "user" or value == "system":

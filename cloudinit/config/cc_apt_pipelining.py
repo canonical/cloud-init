@@ -25,6 +25,9 @@ distros = ['ubuntu', 'debian']
 
 DEFAULT_FILE = "/etc/apt/apt.conf.d/90cloud-init-pipelining"
 
+APT_PIPE_TPL = ("//Written by cloud-init per 'apt_pipelining'\n"
+                'Acquire::http::Pipeline-Depth "%s";\n')
+
 # Acquire::http::Pipeline-Depth can be a value
 # from 0 to 5 indicating how many outstanding requests APT should send.
 # A value of zero MUST be specified if the remote host does not properly linger
@@ -49,8 +52,7 @@ def handle(_name, cfg, cloud, log, _args):
 def write_apt_snippet(cloud, setting, log, f_name):
     """ Writes f_name with apt pipeline depth 'setting' """
 
-    file_contents = ("//Written by cloud-init per 'apt_pipelining'\n"
-                     'Acquire::http::Pipeline-Depth "%s";\n') % (setting)
+    file_contents = APT_PIPE_TPL % (setting)
 
     util.write_file(cloud.paths.join(False, f_name), file_contents)
 

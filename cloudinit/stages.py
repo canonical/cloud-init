@@ -518,7 +518,7 @@ class Modules(object):
                               " but not on %s distro. It may or may not work"
                               " correctly."), name, worked_distros, d_name)
                 # Deep copy the config so that modules can't alter it
-                # Use the transforms logger and not our own
+                # Use the configs logger and not our own
                 func_args = [name, copy.deepcopy(self.cfg),
                              cc, config.LOG, args]
                 # Mark it as having started running

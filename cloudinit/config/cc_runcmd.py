@@ -25,7 +25,7 @@ from cloudinit import util
 
 def handle(name, cfg, cloud, log, _args):
     if "runcmd" not in cfg:
-        log.debug(("Skipping transform named %s,"
+        log.debug(("Skipping module named %s,"
                    " no 'runcmd' key in configuration"), name)
         return
 

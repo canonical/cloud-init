@@ -56,7 +56,7 @@ def handle(name, cfg, cloud, log, _args):
     """
     if not ConfigObj:
         log.warn(("'ConfigObj' support not available,"
-                  " running transform %s disabled"), name)
+                  " running module %s disabled"), name)
         return
 
     ls_cloudcfg = cfg.get("landscape", {})
@@ -66,9 +66,14 @@ def handle(name, cfg, cloud, log, _args):
                          " but not a dictionary type,"
                          " is a %s instead"), util.obj_name(ls_cloudcfg))
 
-    lsc_client_fn = cloud.paths.join(True, LSC_CLIENT_CFG_FILE)
-    merged = merge_together([LSC_BUILTIN_CFG, lsc_client_fn, ls_cloudcfg])
+    merge_data = [
+        LSC_BUILTIN_CFG,
+        cloud.paths.join(True, LSC_CLIENT_CFG_FILE),
+        ls_cloudcfg,
+    ]
+    merged = merge_together(merge_data)
 
+    lsc_client_fn = cloud.paths.join(False, LSC_CLIENT_CFG_FILE)
     lsc_dir = cloud.paths.join(False, os.path.dirname(lsc_client_fn))
     if not os.path.isdir(lsc_dir):
         util.ensure_dir(lsc_dir)

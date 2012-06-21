@@ -30,7 +30,7 @@ frequency = PER_ALWAYS
 def handle(name, cfg, cloud, log, _args):
 
     if "bootcmd" not in cfg:
-        log.debug(("Skipping transform named %s,"
+        log.debug(("Skipping module named %s,"
                    " no 'bootcmd' key in configuration"), name)
         return
 
@@ -52,5 +52,5 @@ def handle(name, cfg, cloud, log, _args):
             util.subp(cmd, env=env, capture=False)
         except:
             util.logexc(log,
-                        ("Failed to run bootcmd transform %s"), name)
+                        ("Failed to run bootcmd module %s"), name)
             raise
