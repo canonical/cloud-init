@@ -83,7 +83,7 @@ def handle(name, cfg, cloud, log, _args):
                     mcollective_config.set(cfg_name, o, v)
         # We got all our config as wanted we'll rename
         # the previous server.cfg and create our new one
-        old_fn = "%s.old" % (server_cfg_fn)
+        old_fn = cloud.paths.join(False, '/etc/mcollective/server.cfg.old')
         util.rename(server_cfg_fn, old_fn)
         # Now we got the whole file, write to disk except the section
         # we added so that config parser won't error out when trying to read.
@@ -91,7 +91,8 @@ def handle(name, cfg, cloud, log, _args):
         # works.  Below, we remove the initial 'nullsection' header.
         contents = mcollective_config.stringify()
         contents = contents.replace("%s\n" % (section_head), "")
-        util.write_file(server_cfg_fn, contents, mode=0644)
+        server_cfg_rw = cloud.paths.join(False, '/etc/mcollective/server.cfg')
+        util.write_file(server_cfg_rw, contents, mode=0644)
 
     # Start mcollective
     util.subp(['service', 'mcollective', 'start'], capture=False)
