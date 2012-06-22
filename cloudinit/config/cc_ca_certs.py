@@ -33,7 +33,7 @@ def update_ca_certs():
     util.subp(["update-ca-certificates"])
 
 
-def add_ca_certs(cloud, certs):
+def add_ca_certs(paths, certs):
     """
     Adds certificates to the system. To actually apply the new certificates
     you must also call L{update_ca_certs}.
@@ -44,21 +44,21 @@ def add_ca_certs(cloud, certs):
         # First ensure they are strings...
         cert_file_contents = "\n".join([str(c) for c in certs])
         cert_file_fullpath = os.path.join(CA_CERT_PATH, CA_CERT_FILENAME)
-        cert_file_fullpath = cloud.paths.join(False, cert_file_fullpath)
+        cert_file_fullpath = paths.join(False, cert_file_fullpath)
         util.write_file(cert_file_fullpath, cert_file_contents, mode=0644)
         # Append cert filename to CA_CERT_CONFIG file.
-        util.write_file(cloud.paths.join(False, CA_CERT_CONFIG),
+        util.write_file(paths.join(False, CA_CERT_CONFIG),
                         "\n%s" % CA_CERT_FILENAME, omode="ab")
 
 
-def remove_default_ca_certs(cloud):
+def remove_default_ca_certs(paths):
     """
     Removes all default trusted CA certificates from the system. To actually
     apply the change you must also call L{update_ca_certs}.
     """
-    util.delete_dir_contents(cloud.paths.join(False, CA_CERT_PATH))
-    util.delete_dir_contents(cloud.paths.join(False, CA_CERT_SYSTEM_PATH))
-    util.write_file(cloud.paths.join(False, CA_CERT_CONFIG), "", mode=0644)
+    util.delete_dir_contents(paths.join(False, CA_CERT_PATH))
+    util.delete_dir_contents(paths.join(False, CA_CERT_SYSTEM_PATH))
+    util.write_file(paths.join(False, CA_CERT_CONFIG), "", mode=0644)
     debconf_sel = "ca-certificates ca-certificates/trust_new_crts select no"
     util.subp(('debconf-set-selections', '-'), debconf_sel)
 
@@ -85,14 +85,14 @@ def handle(name, cfg, cloud, log, _args):
     # default trusted CA certs first.
     if ca_cert_cfg.get("remove-defaults", False):
         log.debug("Removing default certificates")
-        remove_default_ca_certs(cloud)
+        remove_default_ca_certs(cloud.paths)
 
     # If we are given any new trusted CA certs to add, add them.
     if "trusted" in ca_cert_cfg:
         trusted_certs = util.get_cfg_option_list(ca_cert_cfg, "trusted")
         if trusted_certs:
             log.debug("Adding %d certificates" % len(trusted_certs))
-            add_ca_certs(cloud, trusted_certs)
+            add_ca_certs(cloud.paths, trusted_certs)
 
     # Update the system with the new cert configuration.
     log.debug("Updating certificates")
