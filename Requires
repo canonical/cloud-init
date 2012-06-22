@@ -18,6 +18,10 @@ oauth>=1.0
 boto>=2.4
 
 # This is only needed if you have old style configurations
+# and any places where we need to support configs in a manner
+# that the built-in config parser is not sufficent (ie
+# when we need to preserve comments, or do not have a top-level
+# section)...
 configobj>=4.6
 
 # All new style configurations are in the yaml format
