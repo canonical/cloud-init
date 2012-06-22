@@ -26,10 +26,6 @@ CFG_ENV_NAME = "CLOUD_CFG"
 # This is expected to be a yaml formatted file
 CLOUD_CONFIG = '/etc/cloud/cloud.cfg'
 
-# This legacy format is expected to be readable by
-# configobj, see http://pypi.python.org/pypi/configobj
-OLD_CLOUD_CONFIG = '/etc/ec2-init/ec2-config.cfg'
-
 # What u get if no config is provided
 CFG_BUILTIN = {
     'datasource_list': [
