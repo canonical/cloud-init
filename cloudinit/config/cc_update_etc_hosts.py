@@ -39,8 +39,8 @@ def handle(name, cfg, cloud, log, _args):
         distro_n = cloud.distro.name
         tpl_fn_name = cloud.get_template_filename("hosts.%s" % (distro_n))
         if not tpl_fn_name:
-            raise Exception(("No hosts template could be"
-                             " found for distro %s") % (distro_n))
+            raise RuntimeError(("No hosts template could be"
+                                " found for distro %s") % (distro_n))
 
         out_fn = cloud.paths.join(False, '/etc/hosts')
         templater.render_to_file(tpl_fn_name, out_fn,
