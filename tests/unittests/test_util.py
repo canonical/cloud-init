@@ -71,7 +71,7 @@ class TestGetCfgOptionListOrStr(TestCase):
         """None is returned if key is not found and no default given."""
         config = {}
         result = util.get_cfg_option_list(config, "key")
-        self.assertIsNone(result)
+        self.assertEqual(None, result)
 
     def test_not_found_with_default(self):
         """Default is returned if key is not found."""
@@ -166,14 +166,13 @@ class TestWriteFile(MockerTestCase):
                 "selinux.restorecon", passthrough=False)
             mock_is_selinux_enabled = self.mocker.replace(
                 "selinux.is_selinux_enabled", passthrough=False)
-            mock_is_selinux_enabled.result(True)
-            mock_restorecon(path)
+            mock_is_selinux_enabled()
+            self.mocker.result(True)
+            mock_restorecon("/etc/hosts", recursive=False)
+            self.mocker.result(True)
             self.mocker.replay()
-            old = util.HAVE_LIBSELINUX
-            util.HAVE_LIBSELINUX = True
-            with util.SeLinuxGuard(self.tmp) as is_on:
+            with util.SeLinuxGuard("/etc/hosts") as is_on:
                 self.assertTrue(is_on)
-            util.HAVE_LIBSELINUX = old
         except ImportError:
             pass
 
