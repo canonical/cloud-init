@@ -26,9 +26,6 @@ import copy
 import os
 import sys
 
-from configobj import ConfigObj
-
-from cloudinit.settings import (OLD_CLOUD_CONFIG)
 from cloudinit.settings import (PER_INSTANCE, FREQUENCIES)
 
 from cloudinit import handlers
@@ -63,11 +60,6 @@ class Init(object):
         self._distro = None
         # Created only when a fetch occurs
         self.datasource = None
-
-    def _read_cfg_old(self):
-        # Support reading the old ConfigObj format file
-        old_cfg = ConfigObj(OLD_CLOUD_CONFIG)
-        return dict(old_cfg)
 
     @property
     def distro(self):
@@ -165,13 +157,12 @@ class Init(object):
                 except:
                     util.logexc(LOG, ("Failed loading of additional"
                                       " configuration from %s"), fn)
-        # Now read in the built-in + base + old
+        # Now read in the built-in + base
         try:
             conf = util.get_base_cfg(builtin=util.get_builtin_cfg())
         except Exception:
             conf = util.get_builtin_cfg()
         i_cfgs.append(conf)
-        i_cfgs.append(self._read_cfg_old())
         return util.mergemanydict(i_cfgs)
 
     def _restore_from_cache(self):
