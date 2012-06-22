@@ -135,12 +135,15 @@ def walker_handle_handler(pdata, _ctype, _filename, payload):
         modfname = "%s.py" % (modfname)
     # TODO: Check if path exists??
     util.write_file(modfname, payload, 0600)
-    pdata['handlercount'] = curcount + 1
     handlers = pdata['handlers']
     try:
         mod = fixup_handler(importer.import_module(modname))
-        handlers.register(mod)
         call_begin(mod, pdata['data'], frequency)
+        # Only register and increment
+        # after the above have worked (so we don't if it
+        # fails)
+        handlers.register(mod)
+        pdata['handlercount'] = curcount + 1
     except:
         util.logexc(LOG, ("Failed at registering python file: %s"
                           " (part handler %s)"), modfname, curcount)
