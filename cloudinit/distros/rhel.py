@@ -34,6 +34,10 @@ NETWORK_FN_TPL = '/etc/sysconfig/network-scripts/ifcfg-%s'
 # For what alot of these files that are being written
 # are and the format of them
 
+# This library is used to parse/write
+# out the various sysconfig files edited
+from configobj import ConfigObj
+
 
 class Distro(distros.Distro):
 
@@ -50,34 +54,38 @@ class Distro(distros.Distro):
                   settings, entries)
         # Make the intermediate format as the rhel format...
         for (dev, info) in entries.iteritems():
-            lines = []
-            lines.append("DEVICE=%s" % (dev))
+            net_fn = NETWORK_FN_TPL % (dev)
+            net_ro_fn = self._paths.join(True, net_fn)
+            (prev_exist, net_cfg) = self._read_conf(net_ro_fn)
+            net_cfg['DEVICE'] = dev
             boot_proto = info.get('bootproto')
             if boot_proto:
-                lines.append("BOOTPROTO=%s" % (boot_proto))
+                net_cfg['BOOTPROTO'] = boot_proto
             net_mask = info.get('netmask')
             if net_mask:
-                lines.append("NETMASK=%s" % (net_mask))
+                net_cfg["NETMASK"] = net_mask
             addr = info.get('address')
             if addr:
-                lines.append("IPADDR=%s" % (addr))
+                net_cfg["IPADDR"] = addr
             if info.get('auto'):
-                lines.append("ONBOOT=yes")
+                net_cfg['ONBOOT'] = 'yes'
             else:
-                lines.append("ONBOOT=no")
+                net_cfg['ONBOOT'] = 'no'
             gtway = info.get('gateway')
             if gtway:
-                lines.append("GATEWAY=%s" % (gtway))
+                net_cfg["GATEWAY"] = gtway
             bcast = info.get('broadcast')
             if bcast:
-                lines.append("BROADCAST=%s" % (bcast))
+                net_cfg["BROADCAST"] = bcast
             mac_addr = info.get('hwaddress')
             if mac_addr:
-                lines.append("MACADDR=%s" % (mac_addr))
-            lines.insert(0, '# Created by cloud-init')
-            contents = "\n".join(lines)
-            net_fn = NETWORK_FN_TPL % (dev)
-            util.write_file(self._paths.join(False, net_fn), contents, 0644)
+                net_cfg["MACADDR"] = mac_addr
+            lines = net_cfg.write()
+            if not prev_exist:
+                lines.insert(0, '# Created by cloud-init')
+            w_contents = "\n".join(lines)
+            net_rw_fn = self._paths.join(False, net_fn)
+            util.write_file(net_rw_fn, w_contents, 0644)
 
     def set_hostname(self, hostname):
         out_fn = self._paths.join(False, '/etc/sysconfig/network')
@@ -91,54 +99,16 @@ class Distro(distros.Distro):
         if not out_fn:
             out_fn = self._paths.join(False, '/etc/sysconfig/i18n')
         ro_fn = self._paths.join(True, '/etc/sysconfig/i18n')
-        # Update the 'LANG' if it exists instead of appending
-        old_contents = self._read_conf(ro_fn)
-        adjusted = False
-        new_contents = []
-        for entry in old_contents:
-            if not entry:
-                continue
-            if len(entry) == 1:
-                new_contents.append(entry[0])
-                continue
-            (cmd, args) = entry
-            cmd_c = cmd.strip().lower()
-            if cmd_c == 'lang':
-                args = "%s" % (locale)
-                adjusted = True
-            new_contents.append("=".join([cmd, args]))
-        # Guess not found, append it
-        if not adjusted:
-            new_contents.append("# Added by cloud-init")
-            new_contents.append('LANG="%s"' % (locale))
-        contents = "\n".join(new_contents)
-        util.write_file(out_fn, contents, 0644)
+        (_exists, contents) = self._read_conf(ro_fn)
+        contents['LANG'] = locale
+        w_contents = "\n".join(contents.write())
+        util.write_file(out_fn, w_contents, 0644)
 
     def _write_hostname(self, hostname, out_fn):
-        old_contents = []
-        if os.path.isfile(out_fn):
-            old_contents = self._read_conf(out_fn)
-        # Update the 'HOSTNAME' if it exists instead of appending
-        new_contents = []
-        adjusted = False
-        for entry in old_contents:
-            if not entry:
-                continue
-            if len(entry) == 1:
-                new_contents.append(entry[0])
-                continue
-            (cmd, args) = entry
-            cmd_c = cmd.strip().lower()
-            if cmd_c == 'hostname':
-                args = "%s" % (hostname)
-                adjusted = True
-            new_contents.append("=".join([cmd, args]))
-        # Guess not found, append it
-        if not adjusted:
-            new_contents.append("# Added by cloud-init")
-            new_contents.append("HOSTNAME=%s" % (hostname))
-        contents = "\n".join(new_contents)
-        util.write_file(out_fn, contents, 0644)
+        (_exists, contents) = self._read_conf(out_fn)
+        contents['HOSTNAME'] = hostname
+        w_contents = "\n".join(contents.write())
+        util.write_file(out_fn, w_contents, 0644)
 
     def update_hostname(self, hostname, prev_file):
         hostname_prev = self._read_hostname(prev_file)
@@ -168,42 +138,20 @@ class Distro(distros.Distro):
             util.subp(['hostname', hostname])
 
     def _read_hostname(self, filename, default=None):
-        contents = self._read_conf(filename)
-        for c in contents:
-            if len(c) != 2:
-                continue
-            (cmd, args) = c
-            cmd_c = cmd.lower().strip()
-            if cmd_c == 'hostname':
-                args_c = args.strip()
-                if args_c:
-                    return args_c
-        return default
+        (_exists, contents) = self._read_conf(filename)
+        if 'HOSTNAME' in contents:
+            return contents['HOSTNAME']
+        else:
+            return default
 
     def _read_conf(self, filename):
-        contents = util.load_file(filename, quiet=True)
-        conf_lines = []
-        for line in contents.splitlines():
-            c_line = line.strip()
-            if not c_line or c_line.startswith("#"):
-                conf_lines.append([line])
-                continue
-            # Handle inline comments
-            c_pos = c_line.find("#")
-            if c_pos != -1:
-                c_line = c_line[0:c_pos].strip()
-            if not c_line:
-                conf_lines.append([line])
-                continue
-            # Format should be CMD=ARG1 ARG2...
-            pieces = c_line.split("=", 1)
-            if not pieces or len(pieces) == 1:
-                conf_lines.append([line])
-                continue
-            (cmd, args) = pieces
-            cmd = cmd.strip()
-            conf_lines.append([cmd, args])
-        return conf_lines
+        exists = False
+        if os.path.isfile(filename):
+            contents = util.load_file(filename).splitlines()
+            exists = True
+        else:
+            contents = []
+        return (exists, ConfigObj(contents))
 
     def set_timezone(self, tz):
         tz_file = os.path.join("/usr/share/zoneinfo", tz)
@@ -212,27 +160,9 @@ class Distro(distros.Distro):
                                 " no file found at %s") % (tz, tz_file))
         # Adjust the sysconfig clock zone setting
         read_fn = self._paths.join(True, "/etc/sysconfig/clock")
-        old_contents = self._read_conf(read_fn)
-        new_contents = []
-        zone_added = False
-        # Update the 'ZONE' if it exists instead of appending
-        for entry in old_contents:
-            if not entry:
-                continue
-            if len(entry) == 1:
-                new_contents.append(entry[0])
-                continue
-            (cmd, args) = entry
-            cmd_c = cmd.lower().strip()
-            if cmd_c == 'zone':
-                args = '"%s"' % (tz)
-                zone_added = True
-            new_contents.append("=".join([cmd, args]))
-        # Guess not found, append it
-        if not zone_added:
-            new_contents.append("# Added by cloud-init")
-            new_contents.append('ZONE="%s"' % (tz))
-        tz_contents = "\n".join(new_contents)
+        (_exists, contents) = self._read_conf(read_fn)
+        contents['ZONE'] = tz
+        tz_contents = "\n".join(contents.write())
         write_fn = self._paths.join(False, "/etc/sysconfig/clock")
         util.write_file(write_fn, tz_contents)
         # This ensures that the correct tz will be used for the system
