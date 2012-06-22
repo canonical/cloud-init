@@ -172,6 +172,12 @@ def read_maas_seed_url(seed_url, header_cb=None, timeout=None,
       * <seed_url>/<version>/user-data
     """
     base_url = "%s/%s" % (seed_url, version)
+    file_order = [
+        'local-hostname',
+        'instance-id',
+        'public-keys',
+        'user-data',
+    ]
     files = {
         'local-hostname': "%s/%s" % (base_url, 'meta-data/local-hostname'),
         'instance-id': "%s/%s" % (base_url, 'meta-data/instance-id'),
@@ -179,7 +185,8 @@ def read_maas_seed_url(seed_url, header_cb=None, timeout=None,
         'user-data': "%s/%s" % (base_url, 'user-data'),
     }
     md = {}
-    for (name, url) in files:
+    for name in file_order:
+        url = files.get(name)
         if header_cb:
             headers = header_cb(url)
         else:
