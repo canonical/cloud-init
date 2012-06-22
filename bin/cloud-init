@@ -92,7 +92,8 @@ def extract_fns(args):
 def run_module_section(mods, action_name, section):
     full_section_name = MOD_SECTION_TPL % (section)
     (ran_am, failures) = mods.run_section(full_section_name)
-    if not ran_am:
+    total_attempted = ran_am + len(failures)
+    if total_attempted == 0:
         msg = ("No '%s' modules to run"
                " under section '%s'") % (action_name, full_section_name)
         sys.stderr.write("%s\n" % (msg))
