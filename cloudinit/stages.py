@@ -234,15 +234,29 @@ class Init(object):
             self.paths.datasource = ds
         return ds
 
+    def _get_instance_subdirs(self):
+        return ['handlers', 'scripts', 'sems']
+
+    def _get_ipath(self, subname=None):
+        # Force a check to see if anything
+        # actually comes back, if not
+        # then a datasource has not been assigned...
+        instance_dir = self.paths.get_ipath(subname)
+        if not instance_dir:
+            raise RuntimeError(("No instance directory is available."
+                                " Has a datasource been fetched??"))
+        return instance_dir
+
     def _reflect_cur_instance(self):
-        # Ensure we are hooked into the right symlink for the current instance
-        idir = self.paths.get_ipath()
+        # Remove the old symlink and attach a new one so
+        # that further reads/writes connect into the right location
+        idir = self._get_ipath()
         util.del_file(self.paths.instance_link)
         util.sym_link(idir, self.paths.instance_link)
 
         # Ensures these dirs exist
         dir_list = []
-        for d in ["handlers", "scripts", "sem"]:
+        for d in self._get_instance_subdirs():
             dir_list.append(os.path.join(idir, d))
         util.ensure_dirs(dir_list)
 
@@ -297,9 +311,9 @@ class Init(object):
 
     def _store_userdata(self):
         raw_ud = "%s" % (self.datasource.get_userdata_raw())
-        util.write_file(self.paths.get_ipath('userdata_raw'), raw_ud, 0600)
+        util.write_file(self._get_ipath('userdata_raw'), raw_ud, 0600)
         processed_ud = "%s" % (self.datasource.get_userdata())
-        util.write_file(self.paths.get_ipath('userdata'), processed_ud, 0600)
+        util.write_file(self._get_ipath('userdata'), processed_ud, 0600)
 
     def _default_userdata_handlers(self):
         opts = {
@@ -317,7 +331,7 @@ class Init(object):
 
     def consume(self, frequency=PER_INSTANCE):
         cdir = self.paths.get_cpath("handlers")
-        idir = self.paths.get_ipath("handlers")
+        idir = self._get_ipath("handlers")
 
         # Add the path to the plugins dir to the top of our list for import
         # instance dir should be read before cloud-dir
