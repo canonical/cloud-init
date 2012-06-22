@@ -286,7 +286,7 @@ class Paths(object):
             cpath = os.path.join(cpath, add_on)
         return cpath
 
-    # get_ipath : get the instance path for a name in pathmap
+    # _get_ipath : get the instance path for a name in pathmap
     # (/var/lib/cloud/instances/<instance>/<name>)
     def _get_ipath(self, name=None):
         if not self.datasource:
@@ -302,6 +302,7 @@ class Paths(object):
 
     # get_ipath : get the instance path for a name in pathmap
     # (/var/lib/cloud/instances/<instance>/<name>)
+    # returns None + warns if no active datasource....
     def get_ipath(self, name=None):
         ipath = self._get_ipath(name)
         if not ipath:
@@ -337,7 +338,7 @@ class DefaultingConfigParser(RawConfigParser):
             pass
         return value
 
-    def set(self, section, option, value):
+    def set(self, section, option, value=None):
         if not self.has_section(section) and section.lower() != 'default':
             self.add_section(section)
         RawConfigParser.set(self, section, option, value)
