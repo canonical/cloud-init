@@ -21,7 +21,10 @@
 
 from StringIO import StringIO
 
-from cloudinit import helpers
+# Used since this can maintain comments
+# and doesn't need a top level section
+from configobj import ConfigObj
+
 from cloudinit import util
 
 PUBCERT_FILE = "/etc/mcollective/ssl/server-public.pem"
@@ -43,54 +46,44 @@ def handle(name, cfg, cloud, log, _args):
 
     # ... and then update the mcollective configuration
     if 'conf' in mcollective_cfg:
-        # Create object for reading server.cfg values
-        mcollective_config = helpers.DefaultingConfigParser()
-        # Read server.cfg values from original file in order to be able to mix
-        # the rest up
+        # Read server.cfg values from the
+        # original file in order to be able to mix the rest up
         server_cfg_fn = cloud.paths.join(True, '/etc/mcollective/server.cfg')
-        old_contents = util.load_file(server_cfg_fn)
-        # It doesn't contain any sections so just add one temporarily
-        # Use a hash id based off the contents,
-        # just incase of conflicts... (try to not have any...)
-        # This is so that an error won't occur when reading (and no
-        # sections exist in the file)
-        section_tpl = "[nullsection_%s]"
-        attempts = 0
-        section_head = section_tpl % (attempts)
-        while old_contents.find(section_head) != -1:
-            attempts += 1
-            section_head = section_tpl % (attempts)
-        sectioned_contents = "%s\n%s" % (section_head, old_contents)
-        mcollective_config.readfp(StringIO(sectioned_contents),
-                                  filename=server_cfg_fn)
+        mcollective_config = ConfigObj(server_cfg_fn)
+        # See: http://tiny.cc/jh9agw
         for (cfg_name, cfg) in mcollective_cfg['conf'].iteritems():
             if cfg_name == 'public-cert':
                 pubcert_fn = cloud.paths.join(True, PUBCERT_FILE)
                 util.write_file(pubcert_fn, cfg, mode=0644)
-                mcollective_config.set(cfg_name,
-                    'plugin.ssl_server_public', pubcert_fn)
-                mcollective_config.set(cfg_name, 'securityprovider', 'ssl')
+                mcollective_config['plugin.ssl_server_public'] = pubcert_fn
+                mcollective_config['securityprovider'] = 'ssl'
             elif cfg_name == 'private-cert':
                 pricert_fn = cloud.paths.join(True, PRICERT_FILE)
                 util.write_file(pricert_fn, cfg, mode=0600)
-                mcollective_config.set(cfg_name,
-                    'plugin.ssl_server_private', pricert_fn)
-                mcollective_config.set(cfg_name, 'securityprovider', 'ssl')
+                mcollective_config['plugin.ssl_server_private'] = pricert_fn
+                mcollective_config['securityprovider'] = 'ssl'
             else:
-                # Iterate throug the config items, we'll use ConfigParser.set
-                # to overwrite or create new items as needed
-                for (o, v) in cfg.iteritems():
-                    mcollective_config.set(cfg_name, o, v)
+                if isinstance(cfg, (basestring, str)):
+                    # Just set it in the 'main' section
+                    mcollective_config[cfg_name] = cfg
+                elif isinstance(cfg, (dict)):
+                    # Iterate throug the config items, create a section
+                    # if it is needed and then add/or create items as needed
+                    if cfg_name not in mcollective_config.sections:
+                        mcollective_config[cfg_name] = {}
+                    for (o, v) in cfg.iteritems():
+                        mcollective_config[cfg_name][o] = v
+                else:
+                    # Otherwise just try to convert it to a string
+                    mcollective_config[cfg_name] = str(cfg)
         # We got all our config as wanted we'll rename
         # the previous server.cfg and create our new one
         old_fn = cloud.paths.join(False, '/etc/mcollective/server.cfg.old')
         util.rename(server_cfg_fn, old_fn)
-        # Now we got the whole file, write to disk except the section
-        # we added so that config parser won't error out when trying to read.
-        # Note below, that we've just used ConfigParser because it generally
-        # works.  Below, we remove the initial 'nullsection' header.
-        contents = mcollective_config.stringify()
-        contents = contents.replace("%s\n" % (section_head), "")
+        # Now we got the whole file, write to disk...
+        contents = StringIO()
+        mcollective_config.write(contents)
+        contents = contents.getvalue()
         server_cfg_rw = cloud.paths.join(False, '/etc/mcollective/server.cfg')
         util.write_file(server_cfg_rw, contents, mode=0644)
 
