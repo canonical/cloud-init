@@ -221,11 +221,12 @@ class Init(object):
             (cfg_list, pkg_list) = self._get_datasources()
             # Deep copy so that user-data handlers can not modify
             # (which will affect user-data handlers down the line...)
-            sys_cfg = copy.deepcopy(self.cfg)
-            ds_deps = copy.deepcopy(self.ds_deps)
-            (ds, dsname) = sources.find_source(sys_cfg, self.distro,
+            (ds, dsname) = sources.find_source(self.cfg,
+                                               self.distro,
                                                self.paths,
-                                               ds_deps, cfg_list, pkg_list)
+                                               copy.deepcopy(self.ds_deps),
+                                               cfg_list,
+                                               pkg_list)
             LOG.debug("Loaded datasource %s - %s", dsname, ds)
         if ds:
             self.datasource = ds
@@ -408,7 +409,7 @@ class Modules(object):
     def __init__(self, init, cfg_files=None):
         self.datasource = init.datasource
         self.cfg_files = cfg_files
-        self.base_cfg = copy.deepcopy(init.cfg)
+        self.base_cfg = init.cfg
         self.init = init
         # Created on first use
         self._cached_cfg = None
@@ -419,7 +420,8 @@ class Modules(object):
         if self._cached_cfg is None:
             self._cached_cfg = self._get_config()
             LOG.debug("Loading 'module' config %s", self._cached_cfg)
-        return self._cached_cfg
+        # Only give out a copy so that others can't modify this...
+        return copy.deepcopy(self._cached_cfg)
 
     def _get_config(self):
         t_cfgs = []
@@ -531,9 +533,11 @@ class Modules(object):
                     LOG.warn(("Module %s is verified on %s distros"
                               " but not on %s distro. It may or may not work"
                               " correctly."), name, worked_distros, d_name)
-                # Deep copy the config so that modules can't alter it
                 # Use the configs logger and not our own
-                func_args = [name, copy.deepcopy(self.cfg),
+                # TODO: possibly check the module
+                # for having a LOG attr and just give it back
+                # its own logger?
+                func_args = [name, self.cfg,
                              cc, config.LOG, args]
                 # Mark it as having started running
                 am_ran += 1

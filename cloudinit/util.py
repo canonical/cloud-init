@@ -35,6 +35,7 @@ import pwd
 import random
 import shutil
 import socket
+import stat
 import string  # pylint: disable=W0402
 import subprocess
 import sys
@@ -132,14 +133,24 @@ class SeLinuxGuard(object):
             self.enabled = True
 
     def __enter__(self):
-        # TODO: Should we try to engage selinux here??
         return self.enabled
 
     def __exit__(self, excp_type, excp_value, excp_traceback):
         if self.enabled:
-            LOG.debug("Restoring selinux mode for %s (recursive=%s)",
-                      self.path, self.recursive)
-            selinux.restorecon(self.path, recursive=self.recursive)
+            path = os.path.realpath(os.path.expanduser(self.path))
+            do_restore = False
+            try:
+                # See if even worth restoring??
+                stats = os.lstat(path)
+                if stat.ST_MODE in stats:
+                    selinux.matchpathcon(path, stats[stat.ST_MODE])
+                    do_restore = True
+            except OSError:
+                pass
+            if do_restore:
+                LOG.debug("Restoring selinux mode for %s (recursive=%s)",
+                          path, self.recursive)
+                selinux.restorecon(path, recursive=self.recursive)
 
 
 class MountFailedError(Exception):
@@ -1067,8 +1078,7 @@ def ensure_dir(path, mode=None):
     if not os.path.isdir(path):
         # Make the dir and adjust the mode
         LOG.debug("Ensuring directory exists at path %s", path)
-        # TODO: check if guard needed??
-        with SeLinuxGuard(path=os.path.dirname(path)):
+        with SeLinuxGuard(os.path.dirname(path), recursive=True):
             os.makedirs(path)
         chmod(path, mode)
     else:
@@ -1222,8 +1232,7 @@ def chmod(path, mode):
     if path and real_mode:
         LOG.debug("Adjusting the permissions of %s (perms=%o)",
                  path, real_mode)
-        # TODO: check if guard needed??
-        with SeLinuxGuard(path=path):
+        with SeLinuxGuard(path):
             os.chmod(path, real_mode)
 
 
@@ -1239,7 +1248,6 @@ def write_file(filename, content, mode=0644, omode="wb"):
     """
     ensure_dir(os.path.dirname(filename))
     LOG.debug("Writing to %s - %s, %s bytes", filename, omode, len(content))
-    # TODO: check if guard needed??
     with SeLinuxGuard(path=filename):
         with open(filename, omode) as fh:
             fh.write(content)
