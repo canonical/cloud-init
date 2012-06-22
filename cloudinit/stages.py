@@ -26,10 +26,7 @@ import copy
 import os
 import sys
 
-try:
-    from configobj import ConfigObj
-except ImportError:
-    ConfigObj = None
+from configobj import ConfigObj
 
 from cloudinit.settings import (OLD_CLOUD_CONFIG)
 from cloudinit.settings import (PER_INSTANCE, FREQUENCIES)
@@ -68,10 +65,7 @@ class Init(object):
         self.datasource = None
 
     def _read_cfg_old(self):
-        # Support reading the old ConfigObj format file and merging
-        # it into the yaml dictionary
-        if not ConfigObj:
-            return {}
+        # Support reading the old ConfigObj format file
         old_cfg = ConfigObj(OLD_CLOUD_CONFIG)
         return dict(old_cfg)
 
