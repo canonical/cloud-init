@@ -121,8 +121,8 @@ class Distro(distros.Distro):
     def set_timezone(self, tz):
         tz_file = os.path.join("/usr/share/zoneinfo", tz)
         if not os.path.isfile(tz_file):
-            raise Exception(("Invalid timezone %s,"
-                             " no file found at %s") % (tz, tz_file))
+            raise RuntimeError(("Invalid timezone %s,"
+                                " no file found at %s") % (tz, tz_file))
         tz_lines = [
             "# Created by cloud-init",
             str(tz),

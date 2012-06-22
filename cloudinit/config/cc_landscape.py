@@ -61,10 +61,10 @@ def handle(name, cfg, cloud, log, _args):
 
     ls_cloudcfg = cfg.get("landscape", {})
 
-    if not isinstance(ls_cloudcfg, dict):
-        raise Exception(("'landscape' key existed in config,"
-                         " but not a dictionary type,"
-                         " is a %s instead"), util.obj_name(ls_cloudcfg))
+    if not isinstance(ls_cloudcfg, (dict)):
+        raise RuntimeError(("'landscape' key existed in config,"
+                            " but not a dictionary type,"
+                            " is a %s instead"), util.obj_name(ls_cloudcfg))
 
     merge_data = [
         LSC_BUILTIN_CFG,
