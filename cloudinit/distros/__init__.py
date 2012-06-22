@@ -83,6 +83,10 @@ class Distro(object):
         return False
 
     @abc.abstractmethod
+    def apply_locale(self, locale, out_fn=None):
+        raise NotImplementedError()
+
+    @abc.abstractmethod
     def set_timezone(self, tz):
         raise NotImplementedError()
 

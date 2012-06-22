@@ -30,6 +30,10 @@ LOG = logging.getLogger(__name__)
 
 NETWORK_FN_TPL = '/etc/sysconfig/network-scripts/ifcfg-%s'
 
+# See: http://tiny.cc/6r99fw
+# For what alot of these files that are being written
+# are and the format of them
+
 
 class Distro(distros.Distro):
 
@@ -82,6 +86,33 @@ class Distro(distros.Distro):
             # Only do this if we are running in non-adjusted root mode
             LOG.debug("Setting hostname to %s", hostname)
             util.subp(['hostname', hostname])
+
+    def apply_locale(self, locale, out_fn=None):
+        if not out_fn:
+            out_fn = self._paths.join(False, '/etc/sysconfig/i18n')
+        ro_fn = self._paths.join(True, '/etc/sysconfig/i18n')
+        # Update the 'LANG' if it exists instead of appending
+        old_contents = self._read_conf(ro_fn)
+        adjusted = False
+        new_contents = []
+        for entry in old_contents:
+            if not entry:
+                continue
+            if len(entry) == 1:
+                new_contents.append(entry[0])
+                continue
+            (cmd, args) = entry
+            cmd_c = cmd.strip().lower()
+            if cmd_c == 'lang':
+                args = "%s" % (locale)
+                adjusted = True
+            new_contents.append("=".join([cmd, args]))
+        # Guess not found, append it
+        if not adjusted:
+            new_contents.append("# Added by cloud-init")
+            new_contents.append('LANG="%s"' % (locale))
+        contents = "\n".join(new_contents)
+        util.write_file(out_fn, contents, 0644)
 
     def _write_hostname(self, hostname, out_fn):
         old_contents = []
