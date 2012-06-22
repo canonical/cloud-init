@@ -23,7 +23,7 @@ CA_CERT_FILENAME = "cloud-init-ca-certs.crt"
 CA_CERT_CONFIG = "/etc/ca-certificates.conf"
 CA_CERT_SYSTEM_PATH = "/etc/ssl/certs/"
 
-distros = ['ubuntu']
+distros = ['ubuntu', 'debian']
 
 
 def update_ca_certs():
