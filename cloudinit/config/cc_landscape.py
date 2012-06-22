@@ -22,10 +22,7 @@ import os
 
 from StringIO import StringIO
 
-try:
-    from configobj import ConfigObj
-except ImportError:
-    ConfigObj = None
+from configobj import ConfigObj
 
 from cloudinit import util
 
@@ -48,16 +45,12 @@ LSC_BUILTIN_CFG = {
 }
 
 
-def handle(name, cfg, cloud, log, _args):
+def handle(_name, cfg, cloud, log, _args):
     """
     Basically turn a top level 'landscape' entry with a 'client' dict
     and render it to ConfigObj format under '[client]' section in
     /etc/landscape/client.conf
     """
-    if not ConfigObj:
-        log.warn(("'ConfigObj' support not available,"
-                  " running module %s disabled"), name)
-        return
 
     ls_cloudcfg = cfg.get("landscape", {})
 
