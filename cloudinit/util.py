@@ -1100,7 +1100,7 @@ def mounts():
         # Go through mounts to see what is already mounted
         mount_locs = load_file("/proc/mounts").splitlines()
         for mpline in mount_locs:
-            # Format at: http://linux.die.net/man/5/fstab
+            # Format at: man fstab
             try:
                 (dev, mp, fstype, opts, _freq, _passno) = mpline.split()
             except:
@@ -1129,7 +1129,7 @@ def mount_cb(device, callback, data=None, rw=False, mtype=None, sync=True):
     with tempdir() as tmpd:
         umount = False
         if device in mounted:
-            mountpoint = "%s/" % mounted[device]['mountpoint']
+            mountpoint = mounted[device]['mountpoint']
         else:
             try:
                 mountcmd = ['mount']
@@ -1140,7 +1140,7 @@ def mount_cb(device, callback, data=None, rw=False, mtype=None, sync=True):
                     mountopts.append('ro')
                 if sync:
                     # This seems like the safe approach to do
-                    # (where this is on by default)
+                    # (ie where this is on by default)
                     mountopts.append("sync")
                 if mountopts:
                     mountcmd.extend(["-o", ",".join(mountopts)])
@@ -1149,12 +1149,15 @@ def mount_cb(device, callback, data=None, rw=False, mtype=None, sync=True):
                 mountcmd.append(device)
                 mountcmd.append(tmpd)
                 subp(mountcmd)
-                umount = tmpd
+                umount = tmpd  # This forces it to be unmounted (when set)
+                mountpoint = tmpd
             except (IOError, OSError) as exc:
                 raise MountFailedError(("Failed mounting %s "
                                         "to %s due to: %s") %
                                        (device, tmpd, exc))
-            mountpoint = "%s/" % tmpd
+        # Be nice and ensure it ends with a slash
+        if not mountpoint.endswith("/"):
+            mountpoint += "/"
         with unmounter(umount):
             if data is None:
                 ret = callback(mountpoint)
