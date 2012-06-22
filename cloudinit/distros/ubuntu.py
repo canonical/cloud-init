@@ -41,6 +41,17 @@ class Distro(distros.Distro):
         # should only happen say once per instance...)
         self._runner = helpers.Runners(paths)
 
+    def apply_locale(self, locale, out_fn=None):
+        if not out_fn:
+            out_fn = self._paths.join(False, '/etc/default/locale')
+        util.subp(['locale-gen', locale], capture=False)
+        util.subp(['update-locale', locale], capture=False)
+        contents = [
+            "# Created by cloud-init",
+            'LANG="%s"' % (locale),
+        ]
+        util.write_file(out_fn, "\n".join(contents))
+
     def install_packages(self, pkglist):
         self._update_package_sources()
         self.package_command('install', pkglist)
