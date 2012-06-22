@@ -517,10 +517,12 @@ class Modules(object):
         return mostly_mods
 
     def _run_modules(self, mostly_mods):
-        failures = []
         d_name = self.init.distro.name
         cc = self.init.cloudify()
-        am_ran = 0
+        # Return which ones ran
+        # and which ones failed + the exception of why it failed
+        failures = []
+        which_ran = []
         for (mod, name, freq, args) in mostly_mods:
             try:
                 # Try the modules frequency, otherwise fallback to a known one
@@ -540,14 +542,14 @@ class Modules(object):
                 func_args = [name, self.cfg,
                              cc, config.LOG, args]
                 # Mark it as having started running
-                am_ran += 1
+                which_ran.append(name)
                 # This name will affect the semaphore name created
                 run_name = "config-%s" % (name)
                 cc.run(run_name, mod.handle, func_args, freq=freq)
             except Exception as e:
                 util.logexc(LOG, "Running %s (%s) failed", name, mod)
                 failures.append((name, e))
-        return (am_ran, failures)
+        return (which_ran, failures)
 
     def run_single(self, mod_name, args=None, freq=None):
         # Form the users module 'specs'

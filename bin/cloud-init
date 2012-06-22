@@ -91,8 +91,8 @@ def extract_fns(args):
 
 def run_module_section(mods, action_name, section):
     full_section_name = MOD_SECTION_TPL % (section)
-    (ran_am, failures) = mods.run_section(full_section_name)
-    total_attempted = ran_am + len(failures)
+    (which_ran, failures) = mods.run_section(full_section_name)
+    total_attempted = len(which_ran) + len(failures)
     if total_attempted == 0:
         msg = ("No '%s' modules to run"
                " under section '%s'") % (action_name, full_section_name)
@@ -100,7 +100,8 @@ def run_module_section(mods, action_name, section):
         LOG.debug(msg)
         return 0
     else:
-        LOG.debug("Ran %s modules with %s failures", ran_am, len(failures))
+        LOG.debug("Ran %s modules with %s failures",
+                  len(which_ran), len(failures))
         return len(failures)
 
 
@@ -316,16 +317,17 @@ def main_single(name, args):
         logging.resetLogging()
     logging.setupLogging(mods.cfg)
     # Stage 4
-    (run_am, failures) = mods.run_single(mod_name,
-                                         mod_args,
-                                         mod_freq)
+    (which_ran, failures) = mods.run_single(mod_name,
+                                            mod_args,
+                                            mod_freq)
     if failures:
         LOG.warn("Ran %s but it failed!", mod_name)
         return 1
-    elif run_am == 0:
+    elif not which_ran:
         LOG.warn("Did not run %s, does it exist?", mod_name)
         return 1
     else:
+        # Guess it worked
         return 0
 
 
