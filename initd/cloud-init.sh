@@ -70,7 +70,7 @@ start() {
     [ -f $conf ] || return 6
 
     echo -n $"Starting $prog: "
-    $prog $CLOUD_INIT_ARGS init
+    $cloud_init $CLOUDINITARGS init
     RETVAL=$?
     return $RETVAL
 }
