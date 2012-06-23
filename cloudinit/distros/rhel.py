@@ -43,7 +43,6 @@ NETWORK_FN_TPL = '/etc/sysconfig/network-scripts/ifcfg-%s'
 # bash scripts...
 from configobj import ConfigObj
 
-
 # See: http://tiny.cc/oezbgw
 D_QUOTE_CHARS = {
     "\"": "\\\"",
@@ -217,19 +216,26 @@ class QuotingConfigObj(ConfigObj):
 
     def _quote_posix(self, text):
         if not text:
-            return '""'
+            return ''
         for (k, v) in D_QUOTE_CHARS.iteritems():
             text = text.replace(k, v)
         return '"%s"' % (text)
+
+    def _quote_special(self, text):
+        if text.lower() in ['yes', 'no', 'true', 'false']:
+            return text
+        else:
+            return self._quote_posix(text)
 
     def _write_line(self, indent_string, entry, this_entry, comment):
         # Ensure it is formatted fine for
         # how these sysconfig scripts are used
         val = self._decode_element(self._quote(this_entry))
+        # Single quoted strings should
+        # always work.
         if not val.startswith("'"):
-            # Not already quoted, double quote
-            # it for safety
-            val = self._quote_posix(val)
+            # Perform any special quoting
+            val = self._quote_special(val)
         key = self._decode_element(self._quote(entry, multiline=False))
         cmnt = self._decode_element(comment)
         return '%s%s%s%s%s' % (indent_string,
