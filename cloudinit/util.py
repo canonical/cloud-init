@@ -157,7 +157,7 @@ class MountFailedError(Exception):
     pass
 
 
-def SilentTemporaryFile(**kwargs):
+def ExtendedTemporaryFile(**kwargs):
     fh = tempfile.NamedTemporaryFile(**kwargs)
     # Replace its unlink with a quiet version
     # that does not raise errors when the
@@ -515,26 +515,6 @@ def center(text, fill, max_len):
 def del_dir(path):
     LOG.debug("Recursively deleting %s", path)
     shutil.rmtree(path)
-
-
-# get gpg keyid from keyserver
-def getkeybyid(keyid, keyserver):
-    # TODO fix this...
-    shcmd = """
-    k=${1} ks=${2};
-    exec 2>/dev/null
-    [ -n "$k" ] || exit 1;
-    armour=$(gpg --list-keys --armour "${k}")
-    if [ -z "${armour}" ]; then
-       gpg --keyserver ${ks} --recv $k >/dev/null &&
-          armour=$(gpg --export --armour "${k}") &&
-          gpg --batch --yes --delete-keys "${k}"
-    fi
-    [ -n "${armour}" ] && echo "${armour}"
-    """
-    args = ['sh', '-c', shcmd, "export-gpg-keyid", keyid, keyserver]
-    (stdout, _stderr) = subp(args)
-    return stdout
 
 
 def runparts(dirp, skip_no_exist=True):
@@ -928,7 +908,7 @@ def pipe_in_out(in_fh, out_fh, chunk_size=1024, chunk_cb=None):
 
 
 def chownbyid(fname, uid=None, gid=None):
-    if uid == None and gid == None:
+    if uid is None and gid is None:
         return
     LOG.debug("Changing the ownership of %s to %s:%s", fname, uid, gid)
     os.chown(fname, uid, gid)

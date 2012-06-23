@@ -186,7 +186,7 @@ def transport_iso9660(require_iso=True):
         fstype = info['fstype']
         if fstype != "iso9660" and require_iso:
             continue
-        if cdmatch.match(dev[5:]) == None:  # take off '/dev/'
+        if cdmatch.match(dev[5:]) is None:  # take off '/dev/'
             continue
         mp = info['mountpoint']
         (fname, contents) = get_ovf_env(mp)
