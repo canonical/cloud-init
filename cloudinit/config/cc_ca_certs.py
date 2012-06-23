@@ -30,7 +30,7 @@ def update_ca_certs():
     """
     Updates the CA certificate cache on the current machine.
     """
-    util.subp(["update-ca-certificates"])
+    util.subp(["update-ca-certificates"], capture=False)
 
 
 def add_ca_certs(paths, certs):
