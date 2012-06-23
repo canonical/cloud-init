@@ -26,7 +26,7 @@ from cloudinit import log as logging
 LOG = logging.getLogger(__name__)
 
 # This prefix is used to make it less
-# of a change that when importing
+# of a chance that when importing
 # we will not find something else with the same
 # name in the lookup path...
 MOD_PREFIX = "cc_"
