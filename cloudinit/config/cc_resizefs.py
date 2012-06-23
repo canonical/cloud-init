@@ -79,8 +79,8 @@ def handle(name, cfg, cloud, log, args):
 
     # TODO: allow what is to be resized to be configurable??
     resize_what = cloud.paths.join(False, "/")
-    with util.SilentTemporaryFile(prefix="cloudinit.resizefs.",
-                                  dir=resize_root_d, delete=True) as tfh:
+    with util.ExtendedTemporaryFile(prefix="cloudinit.resizefs.",
+                                    dir=resize_root_d, delete=True) as tfh:
         devpth = tfh.name
 
         # Delete the file so that mknod will work
