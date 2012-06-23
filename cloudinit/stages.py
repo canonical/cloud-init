@@ -178,10 +178,13 @@ class Init(object):
             return None
 
     def _write_to_cache(self):
+        if not self.datasource:
+            return False
         pickled_fn = self.paths.get_ipath_cur("obj_pkl")
         try:
             contents = pickle.dumps(self.datasource)
             util.write_file(pickled_fn, contents, mode=0400)
+            return True
         except Exception:
             util.logexc(LOG, "Failed pickling datasource to %s", pickled_fn)
             return False
@@ -292,7 +295,8 @@ class Init(object):
                            self.distro, helpers.Runners(self.paths))
 
     def update(self):
-        self._write_to_cache()
+        if not self._write_to_cache():
+            return
         self._store_userdata()
 
     def _store_userdata(self):
