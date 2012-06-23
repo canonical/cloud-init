@@ -27,6 +27,7 @@ from cloudinit import util
 distros = ['ubuntu', 'debian']
 
 PROXY_TPL = "Acquire::HTTP::Proxy \"%s\";\n"
+PROXY_FN = "/etc/apt/apt.conf.d/95cloud-init-proxy"
 
 
 def handle(_name, cfg, cloud, log, _args):
@@ -48,7 +49,7 @@ def handle(_name, cfg, cloud, log, _args):
 
     # Set up any apt proxy
     proxy = cfg.get("apt_proxy", None)
-    proxy_filename = "/etc/apt/apt.conf.d/95cloud-init-proxy"
+    proxy_filename = PROXY_FN
     if proxy:
         try:
             # See man 'apt.conf'
