@@ -204,7 +204,7 @@ class UserDataProcessor(object):
             outer_msg.replace_header(ATTACHMENT_FIELD, str(fetched_count))
         return fetched_count
 
-    def _part_filename(self, unnamed_part, count):
+    def _part_filename(self, _unnamed_part, count):
         return PART_FN_TPL % (count + 1)
 
     def _attach_part(self, outer_msg, part):
