@@ -49,6 +49,8 @@ def handle(name, cfg, cloud, log, args):
         ph_cfg = util.read_conf(args[0])
     else:
         if not 'phone_home' in cfg:
+            log.debug(("Skipping module named %s, "
+                       "no 'phone_home' configuration found"), name)
             return
         ph_cfg = cfg['phone_home']
 
@@ -59,7 +61,7 @@ def handle(name, cfg, cloud, log, args):
 
     url = ph_cfg['url']
     post_list = ph_cfg.get('post', 'all')
-    tries = ph_cfg.get('tries', 10)
+    tries = ph_cfg.get('tries')
     try:
         tries = int(tries)
     except:
