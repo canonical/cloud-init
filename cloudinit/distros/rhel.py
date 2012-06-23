@@ -36,7 +36,22 @@ NETWORK_FN_TPL = '/etc/sysconfig/network-scripts/ifcfg-%s'
 
 # This library is used to parse/write
 # out the various sysconfig files edited
+#
+# It has to be slightly modified though
+# to ensure that all values are quoted
+# since these configs are usually sourced into
+# bash scripts...
 from configobj import ConfigObj
+
+
+# See: http://tiny.cc/oezbgw
+D_QUOTE_CHARS = {
+    "\"": "\\\"",
+    "(": "\\(",
+    ")": "\\)",
+    "$": '\$',
+    '`': '\`',
+}
 
 
 class Distro(distros.Distro):
@@ -144,14 +159,14 @@ class Distro(distros.Distro):
         else:
             return default
 
-    def _read_conf(self, filename):
+    def _read_conf(self, fn):
         exists = False
-        if os.path.isfile(filename):
-            contents = util.load_file(filename).splitlines()
+        if os.path.isfile(fn):
+            contents = util.load_file(fn).splitlines()
             exists = True
         else:
             contents = []
-        return (exists, ConfigObj(contents))
+        return (exists, QuotingConfigObj(contents))
 
     def set_timezone(self, tz):
         tz_file = os.path.join("/usr/share/zoneinfo", tz)
@@ -184,6 +199,44 @@ class Distro(distros.Distro):
             cmd.extend(args)
         # Allow the output of this to flow outwards (ie not be captured)
         util.subp(cmd, capture=False)
+
+
+# This class helps adjust the configobj
+# writing to ensure that when writing a k/v
+# on a line, that they are properly quoted
+# and have no spaces between the '=' sign.
+# - This is mainly due to the fact that
+# the sysconfig scripts are often sourced
+# directly into bash/shell scripts so ensure
+# that it works for those types of use cases.
+class QuotingConfigObj(ConfigObj):
+    def __init__(self, lines):
+        ConfigObj.__init__(self, lines,
+                           interpolation=False,
+                           write_empty_values=True)
+
+    def _quote_posix(self, text):
+        if not text:
+            return '""'
+        for (k, v) in D_QUOTE_CHARS.iteritems():
+            text = text.replace(k, v)
+        return '"%s"' % (text)
+
+    def _write_line(self, indent_string, entry, this_entry, comment):
+        # Ensure it is formatted fine for
+        # how these sysconfig scripts are used
+        val = self._decode_element(self._quote(this_entry))
+        if not val.startswith("'"):
+            # Not already quoted, double quote
+            # it for safety
+            val = self._quote_posix(val)
+        key = self._decode_element(self._quote(entry, multiline=False))
+        cmnt = self._decode_element(comment)
+        return '%s%s%s%s%s' % (indent_string,
+                               key,
+                               "=",
+                               val,
+                               cmnt)
 
 
 # This is a util function to translate a ubuntu /etc/network/interfaces 'blob'
