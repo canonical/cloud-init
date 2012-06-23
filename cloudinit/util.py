@@ -641,11 +641,10 @@ def read_conf_d(confd):
     # remove anything not a file
     confs = [f for f in confs if os.path.isfile(os.path.join(confd, f))]
 
-    cfg = {}
-    for conf in confs:
-        cfg = mergedict(cfg, read_conf(os.path.join(confd, conf)))
-
-    return cfg
+    cfgs = []
+    for fn in confs:
+        cfgs.append(read_conf(os.path.join(confd, fn))
+    return mergemanydict(cfgs)
 
 
 def read_conf_with_confd(cfgfile):
@@ -667,8 +666,8 @@ def read_conf_with_confd(cfgfile):
     if not confd or not os.path.isdir(confd):
         return cfg
 
-    cfg = mergedict(read_conf_d(confd), cfg)
-    return cfg
+    # Conf.d settings override input configuration
+    return mergedict(read_conf_d(confd), cfg)
 
 
 def read_cc_from_cmdline(cmdline=None):
