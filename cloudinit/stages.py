@@ -147,23 +147,16 @@ class Init(object):
             LOG.debug("Loaded 'init' config %s", self._cfg)
 
     def _read_cfg(self, extra_fns):
-        # Read extra files provided (if any)
-        i_cfgs = []
-        if extra_fns:
-            for fn in extra_fns:
-                try:
-                    fn_cfg = util.read_conf(fn)
-                    i_cfgs.append(fn_cfg)
-                except:
-                    util.logexc(LOG, ("Failed loading of additional"
-                                      " configuration from %s"), fn)
-        # Now read in the built-in + base
         try:
-            conf = util.get_base_cfg(builtin=util.get_builtin_cfg())
+            base_conf = util.get_base_cfg(builtin=util.get_builtin_cfg())
         except Exception:
-            conf = util.get_builtin_cfg()
-        i_cfgs.append(conf)
-        return util.mergemanydict(i_cfgs)
+            base_conf = util.get_builtin_cfg()
+        no_cfg_pths = helpers.Paths({}, self.datasource)
+        merger = helpers.ConfigMerger(paths=no_cfg_pths,
+                                      datasource=self.datasource,
+                                      additional_fns=extra_fns,
+                                      base_cfg=base_conf)
+        return merger.cfg
 
     def _restore_from_cache(self):
         pickled_fn = self.paths.get_ipath_cur('obj_pkl')
@@ -392,45 +385,23 @@ class Init(object):
 
 class Modules(object):
     def __init__(self, init, cfg_files=None):
-        self.datasource = init.datasource
-        self.cfg_files = cfg_files
-        self.base_cfg = init.cfg
         self.init = init
+        self.cfg_files = cfg_files
         # Created on first use
         self._cached_cfg = None
 
     @property
     def cfg(self):
-        # None check to avoid empty case
+        # None check to avoid empty case causing re-reading
         if self._cached_cfg is None:
-            self._cached_cfg = self._get_config()
+            merger = helpers.ConfigMerger(paths=self.init.paths,
+                                          datasource=self.init.datasource,
+                                          fns=self.cfg_files,
+                                          base_cfg=self.init.cfg)
+            self._cached_cfg = merger.cfg
             LOG.debug("Loading 'module' config %s", self._cached_cfg)
         # Only give out a copy so that others can't modify this...
         return copy.deepcopy(self._cached_cfg)
-
-    def _get_config(self):
-        t_cfgs = []
-        if self.cfg_files:
-            for fn in self.cfg_files:
-                try:
-                    t_cfgs.append(util.read_conf(fn))
-                except:
-                    util.logexc(LOG, ("Failed loading of configuration"
-                                       " from %s"), fn)
-
-        if self.datasource:
-            try:
-                d_cfg = self.datasource.get_config_obj()
-                if d_cfg:
-                    t_cfgs.append(d_cfg)
-            except:
-                util.logexc(LOG, ("Failed loading of datasource"
-                                  " config object from %s"), self.datasource)
-
-        if self.base_cfg:
-            t_cfgs.append(self.base_cfg)
-
-        return util.mergemanydict(t_cfgs)
 
     def _read_modules(self, name):
         module_list = []

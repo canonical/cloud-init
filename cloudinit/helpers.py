@@ -28,7 +28,8 @@ import os
 
 from ConfigParser import (NoSectionError, NoOptionError, RawConfigParser)
 
-from cloudinit.settings import (PER_INSTANCE, PER_ALWAYS, PER_ONCE)
+from cloudinit.settings import (PER_INSTANCE, PER_ALWAYS, PER_ONCE,
+                                CFG_ENV_NAME)
 
 from cloudinit import log as logging
 from cloudinit import util
@@ -174,6 +175,85 @@ class Runners(object):
                 else:
                     results = functor(*args)
                 return (True, results)
+
+
+class ConfigMerger(object):
+    def __init__(self, paths=None, datasource=None,
+                 additional_fns=None, base_cfg=None):
+        self._paths = paths
+        self._ds = datasource
+        self._fns = additional_fns
+        self._base_cfg = base_cfg
+        # Created on first use
+        self._cfg = None
+
+    def _get_datasource_configs(self):
+        d_cfgs = []
+        if self._ds:
+            try:
+                ds_cfg = self._ds.get_config_obj()
+                if ds_cfg and isinstance(ds_cfg, (dict)):
+                    d_cfgs.append(ds_cfg)
+            except:
+                util.logexc(LOG, ("Failed loading of datasource"
+                                  " config object from %s"), self._ds)
+        return d_cfgs
+
+    def _get_env_configs(self):
+        e_cfgs = []
+        if CFG_ENV_NAME in os.environ:
+            e_fn = os.environ[CFG_ENV_NAME]
+            try:
+                e_cfgs.append(util.read_conf(e_fn))
+            except:
+                util.logexc(LOG, ('Failed loading of env. config'
+                                  ' from %s'), e_fn)
+        return e_cfgs
+
+    def _get_instance_configs(self):
+        i_cfgs = []
+        # If cloud-config was written, pick it up as
+        # a configuration file to use when running...
+        if not self._paths:
+            return i_cfgs
+        cc_fn = self._paths.get_ipath_cur('cloud_config')
+        if cc_fn and os.path.isfile(cc_fn):
+            try:
+                i_cfgs.append(util.read_conf(cc_fn))
+            except:
+                util.logexc(LOG, ('Failed loading of cloud-config'
+                                      ' from %s'), cc_fn)
+        return i_cfgs
+
+    def _read_cfg(self):
+        # Input config files override
+        # env config files which
+        # override instance configs
+        # which override datasource
+        # configs which override
+        # base configuration
+        cfgs = []
+        if self._fns:
+            for c_fn in self._fns:
+                try:
+                    cfgs.append(util.read_conf(c_fn))
+                except:
+                    util.logexc(LOG, ("Failed loading of configuration"
+                                       " from %s"), c_fn)
+
+        cfgs.extend(self._get_env_configs())
+        cfgs.extend(self._get_instance_configs())
+        cfgs.extend(self._get_datasource_configs())
+        if self._base_cfg:
+            cfgs.append(self._base_cfg)
+        return util.mergemanydict(cfgs)
+
+    @property
+    def cfg(self):
+        # None check to avoid empty case causing re-reading
+        if self._cfg is None:
+            self._cfg = self._read_cfg()
+        return self._cfg
 
 
 class ContentHandlers(object):
