@@ -34,8 +34,6 @@
 # Short-Description: The initial cloud-init job (local fs contingent)
 # Description:       Start cloud-init and runs the initialization phases
 #	and any associated initial modules as desired.
-#	A filesystem is required to have this script activate
-#	correctly.
 ### END INIT INFO
 
 . /etc/init.d/functions
