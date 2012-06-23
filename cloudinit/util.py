@@ -643,7 +643,8 @@ def read_conf_d(confd):
 
     cfgs = []
     for fn in confs:
-        cfgs.append(read_conf(os.path.join(confd, fn))
+        cfgs.append(read_conf(os.path.join(confd, fn)))
+
     return mergemanydict(cfgs)
 
 
