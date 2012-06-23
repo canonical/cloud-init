@@ -99,7 +99,7 @@ case "$1" in
         # 
         ## Note: try-restart is now part of LSB (as of 1.9).
         ## RH has a similar command named condrestart.
-        stop ; start
+        start
         RETVAL=$?
 	;;
     reload|force-reload)
