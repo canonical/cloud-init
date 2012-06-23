@@ -68,4 +68,4 @@ def handle(name, cfg, _cloud, log, args):
 
     log.debug("Setting byobu to %s", value)
 
-    util.subp(cmd)
+    util.subp(cmd, capture=False)
