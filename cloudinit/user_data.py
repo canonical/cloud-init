@@ -39,6 +39,9 @@ NOT_MULTIPART_TYPE = handlers.NOT_MULTIPART_TYPE
 PART_FN_TPL = handlers.PART_FN_TPL
 OCTET_TYPE = handlers.OCTET_TYPE
 
+# Saves typing errors
+CONTENT_TYPE = 'Content-Type'
+
 # Various special content types that cause special actions
 TYPE_NEEDED = ["text/plain", "text/x-not-multipart"]
 INCLUDE_TYPES = ['text/x-include-url', 'text/x-include-once-url']
@@ -87,10 +90,10 @@ class UserDataProcessor(object):
                 self._explode_archive(payload, append_msg)
                 continue
 
-            if 'Content-Type' in base_msg:
-                base_msg.replace_header('Content-Type', ctype)
+            if CONTENT_TYPE in base_msg:
+                base_msg.replace_header(CONTENT_TYPE, ctype)
             else:
-                base_msg['Content-Type'] = ctype
+                base_msg[CONTENT_TYPE] = ctype
 
             self._attach_part(append_msg, part)
 
@@ -173,8 +176,8 @@ class UserDataProcessor(object):
                 msg.set_payload(content)
 
             if 'filename' in ent:
-                msg.add_header('Content-Disposition', 'attachment',
-                                filename=ent['filename'])
+                msg.add_header('Content-Disposition',
+                               'attachment', filename=ent['filename'])
 
             for header in list(ent.keys()):
                 if header in ('content', 'filename', 'type'):
@@ -201,17 +204,21 @@ class UserDataProcessor(object):
             outer_msg.replace_header(ATTACHMENT_FIELD, str(fetched_count))
         return fetched_count
 
+    def _part_filename(self, unnamed_part, count):
+        return PART_FN_TPL % (count + 1)
+
     def _attach_part(self, outer_msg, part):
         """
         Attach an part to an outer message. outermsg must be a MIMEMultipart.
         Modifies a header in the message to keep track of number of attachments.
         """
-        cur = self._multi_part_count(outer_msg)
+        cur_c = self._multi_part_count(outer_msg)
         if not part.get_filename():
-            fn = PART_FN_TPL % (cur + 1)
-            part.add_header('Content-Disposition', 'attachment', filename=fn)
+            fn = self._part_filename(part, cur_c)
+            part.add_header('Content-Disposition',
+                            'attachment', filename=fn)
         outer_msg.attach(part)
-        self._multi_part_count(outer_msg, cur + 1)
+        self._multi_part_count(outer_msg, cur_c + 1)
 
 
 # Coverts a raw string into a mime message
@@ -229,7 +236,7 @@ def convert_string(raw_data, headers=None):
             else:
                 msg[key] = val
     else:
-        mtype = headers.get("Content-Type", NOT_MULTIPART_TYPE)
+        mtype = headers.get(CONTENT_TYPE, NOT_MULTIPART_TYPE)
         maintype, subtype = mtype.split("/", 1)
         msg = MIMEBase(maintype, subtype, *headers)
         msg.set_payload(data)
