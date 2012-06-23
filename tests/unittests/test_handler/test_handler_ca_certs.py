@@ -168,7 +168,7 @@ class TestUpdateCaCerts(MockerTestCase):
     def test_commands(self):
         mock_check_call = self.mocker.replace(util.subp,
                                               passthrough=False)
-        mock_check_call(["update-ca-certificates"])
+        mock_check_call(["update-ca-certificates"], capture=False)
         self.mocker.replay()
 
         cc_ca_certs.update_ca_certs()
