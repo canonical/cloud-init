@@ -29,6 +29,21 @@ distros = ['ubuntu', 'debian']
 PROXY_TPL = "Acquire::HTTP::Proxy \"%s\";\n"
 PROXY_FN = "/etc/apt/apt.conf.d/95cloud-init-proxy"
 
+# A temporary shell program to get a given gpg key
+# from a given keyserver
+EXPORT_GPG_KEYID = """
+    k=${1} ks=${2};
+    exec 2>/dev/null
+    [ -n "$k" ] || exit 1;
+    armour=$(gpg --list-keys --armour "${k}")
+    if [ -z "${armour}" ]; then
+       gpg --keyserver ${ks} --recv $k >/dev/null &&
+          armour=$(gpg --export --armour "${k}") &&
+          gpg --batch --yes --delete-keys "${k}"
+    fi
+    [ -n "${armour}" ] && echo "${armour}"
+"""
+
 
 def handle(_name, cfg, cloud, log, _args):
     update = util.get_cfg_option_bool(cfg, 'apt_update', False)
@@ -106,6 +121,16 @@ def handle(_name, cfg, cloud, log, _args):
         raise errors[-1]
 
 
+# get gpg keyid from keyserver
+def getkeybyid(keyid, keyserver):
+    with util.ExtendedTemporaryFile(suffix='.sh') as fh:
+        fh.write(EXPORT_GPG_KEYID)
+        fh.flush()
+        cmd = ['/bin/sh', fh.name, keyid, keyserver]
+        (stdout, _stderr) = util.subp(cmd)
+        return stdout.strip()
+
+
 def mirror2lists_fileprefix(mirror):
     string = mirror
     # take of http:// or ftp://
@@ -181,7 +206,7 @@ def add_sources(cloud, srclist, template_params=None):
             if 'keyserver' in ent:
                 ks = ent['keyserver']
             try:
-                ent['key'] = util.getkeybyid(ent['keyid'], ks)
+                ent['key'] = getkeybyid(ent['keyid'], ks)
             except:
                 errorlist.append([source, "failed to get key from %s" % ks])
                 continue

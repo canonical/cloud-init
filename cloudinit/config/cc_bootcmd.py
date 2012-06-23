@@ -19,7 +19,6 @@
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import os
-import tempfile
 
 from cloudinit import util
 from cloudinit.settings import PER_ALWAYS
@@ -34,7 +33,7 @@ def handle(name, cfg, cloud, log, _args):
                    " no 'bootcmd' key in configuration"), name)
         return
 
-    with tempfile.NamedTemporaryFile(suffix=".sh") as tmpf:
+    with util.ExtendedTemporaryFile(suffix=".sh") as tmpf:
         try:
             content = util.shellify(cfg["bootcmd"])
             tmpf.write(content)
