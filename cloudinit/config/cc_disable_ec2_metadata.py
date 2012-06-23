@@ -30,7 +30,7 @@ REJECT_CMD = ['route', 'add', '-host', '169.254.169.254', 'reject']
 def handle(name, cfg, _cloud, log, _args):
     disabled = util.get_cfg_option_bool(cfg, "disable_ec2_metadata", False)
     if disabled:
-        util.subp(REJECT_CMD, subp=False)
+        util.subp(REJECT_CMD, capture=False)
     else:
         log.debug(("Skipping module named %s,"
                    " disabling the ec2 route not enabled"), name)
