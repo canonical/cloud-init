@@ -96,7 +96,8 @@ def handle(name, cfg, cloud, log, _args):
             install_chef_from_gems(cloud.distro, ruby_version, chef_version)
             # and finally, run chef-client
             log.debug('Running chef-client')
-            util.subp(['/usr/bin/chef-client', '-d', '-i', '1800', '-s', '20'])
+            util.subp(['/usr/bin/chef-client', 
+                       '-d', '-i', '1800', '-s', '20'], capture=False)
         elif install_type == 'packages':
             # this will install and run the chef-client from packages
             cloud.distro.install_packages(('chef',))
@@ -121,8 +122,8 @@ def install_chef_from_gems(ruby_version, chef_version, distro):
     if chef_version:
         util.subp(['/usr/bin/gem', 'install', 'chef',
                   '-v %s' % chef_version, '--no-ri',
-                  '--no-rdoc', '--bindir', '/usr/bin', '-q'])
+                  '--no-rdoc', '--bindir', '/usr/bin', '-q'], capture=False)
     else:
         util.subp(['/usr/bin/gem', 'install', 'chef',
                   '--no-ri', '--no-rdoc', '--bindir',
-                  '/usr/bin', '-q'])
+                  '/usr/bin', '-q'], capture=False)
