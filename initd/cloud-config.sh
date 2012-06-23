@@ -24,16 +24,16 @@
 # Also based on dhcpd in RHEL (for comparison)
 
 ### BEGIN INIT INFO
-# Provides:          cloud-init
-# Required-Start:    $local_fs $network $named $remote_fs
+# Provides:          cloud-config
+# Required-Start:    cloud-init
 # Should-Start:      $time
 # Required-Stop:
 # Should-Stop:
 # Default-Start:     3 5
 # Default-Stop:
-# Short-Description: The initial cloud-init job (net and fs contingent)
-# Description:       Start cloud-init and runs the initialization phase
-#	and any associated initial modules as desired.
+# Short-Description: The config cloud-init job
+# Description:       Start cloud-init and runs the config phase
+#	and any associated config modules as desired.
 ### END INIT INFO
 
 . /etc/init.d/functions
@@ -68,7 +68,7 @@ start() {
     [ -f $conf ] || return 6
 
     echo -n $"Starting $prog: "
-    $cloud_init $CLOUDINITARGS init
+    $cloud_init $CLOUDINITARGS modules --mode config
     RETVAL=$?
     return $RETVAL
 }
