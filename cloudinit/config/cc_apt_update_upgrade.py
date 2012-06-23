@@ -133,7 +133,7 @@ def getkeybyid(keyid, keyserver):
 
 def mirror2lists_fileprefix(mirror):
     string = mirror
-    # take of http:// or ftp://
+    # take off http:// or ftp://
     if string.endswith("/"):
         string = string[0:-1]
     pos = string.find("://")
@@ -144,8 +144,8 @@ def mirror2lists_fileprefix(mirror):
 
 
 def rename_apt_lists(omirror, new_mirror, lists_d="/var/lib/apt/lists"):
-    oprefix = "%s/%s" % (lists_d, mirror2lists_fileprefix(omirror))
-    nprefix = "%s/%s" % (lists_d, mirror2lists_fileprefix(new_mirror))
+    oprefix = os.path.join(lists_d, mirror2lists_fileprefix(omirror))
+    nprefix = os.path.join(lists_d, mirror2lists_fileprefix(new_mirror))
     if oprefix == nprefix:
         return
     olen = len(oprefix)
