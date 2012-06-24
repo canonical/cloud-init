@@ -35,7 +35,10 @@ Description: Init scripts for cloud instances
  to retrieve and install ssh keys and to let the user run various scripts.
 
 Package: grub-legacy-ec2
-Depends: debconf (>= 1.5.19) | cdebconf, util-linux (>= 2.15-1), ${misc:Depends}
+Depends: debconf (>= 1.5.19) | cdebconf,
+         ucf,
+         util-linux (>= 2.15-1),
+         ${misc:Depends}
 Conflicts: grub
 Suggests: grub-legacy-doc
 Architecture: all

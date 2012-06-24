@@ -1,3 +1,9 @@
+cloud-init (0.6.3-0ubuntu3) quantal; urgency=low
+
+  * grub-legacy-ec2: add missing dependency on ucf (LP: #960336).
+
+ -- Robie Basak <robie.basak@ubuntu.com>  Sun, 24 Jun 2012 05:10:13 +0100
+
 cloud-init (0.6.3-0ubuntu2) quantal; urgency=high
 
   * Added -generic to Xen kernels list since -virtual has been dropped with
