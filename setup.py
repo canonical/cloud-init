@@ -27,26 +27,17 @@ import re
 
 import setuptools
 
+import subprocess
+
 
 def is_f(p):
     return os.path.isfile(p)
 
 
-def versions(fn="ChangeLog"):
-    with open(fn, 'r') as fh:
-        lines = fh.read().splitlines()
-    versions = []
-    for line in lines:
-        line = line.strip()
-        if line.startswith("-") or not line:
-            continue
-        if not re.match(r"[\d]", line):
-            continue
-        line = line.strip(":")
-        if (re.match(r"^[\d+]\.[\d+]\.[\d+]$", line) or
-            re.match(r"^[\d+]\.[\d+]$", line)):
-            versions.append(line)
-    return versions
+def get_version():
+    cmd = ['tools/read-version']
+    ver = subprocess.check_output(cmd)
+    return ver.strip()
 
 
 def requires(fn='Requires'):
@@ -63,7 +54,7 @@ def requires(fn='Requires'):
 
 
 setuptools.setup(name='cloud-init',
-      version=versions()[0],
+      version=get_version(),
       description='EC2 initialisation magic',
       author='Scott Moser',
       author_email='scott.moser@canonical.com',
