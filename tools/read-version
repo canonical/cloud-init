@@ -1,0 +1,51 @@
+#!/usr/bin/python
+# vi: ts=4 expandtab
+
+import os
+import sys
+import re
+
+def parse_versions(fn):
+    with open(fn, 'r') as fh:
+        lines = fh.read().splitlines()
+    versions = []
+    for line in lines:
+        line = line.strip()
+        if line.startswith("-") or not line:
+            continue
+        if not re.match(r"[\d]", line):
+            continue
+        line = line.strip(":")
+        if (re.match(r"^[\d+]\.[\d+]\.[\d+]$", line) or
+            re.match(r"^[\d+]\.[\d+]$", line)):
+            versions.append(line)
+    return versions
+
+def find_changelog(args):
+    p_files = []
+    if args:
+        p_files.append(args[0])
+    p_files.append(os.path.join(os.pardir, "ChangeLog"))
+    p_files.append(os.path.join(os.getcwd(), 'ChangeLog'))
+    found = None
+    for fn in p_files:
+        if os.path.isfile(fn):
+            found = fn
+            break
+    return found
+
+
+if __name__ == '__main__':
+    run_args = sys.argv[1:]
+    fn = find_changelog(run_args)
+    if not fn:
+        sys.stderr.write("'ChangeLog' file not found!\n")
+        sys.exit(1)
+    else:
+        versions = parse_versions(fn)
+        if not versions:
+            sys.stderr.write("No versions found in %s!\n" % (fn))
+            sys.exit(1)
+        else:
+            sys.stdout.write(versions[0].strip())
+            sys.exit(0)
