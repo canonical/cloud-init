@@ -1,3 +1,45 @@
-#!/bin/sh
+#!/usr/bin/python
+# vi: ts=4 expandtab
+
+import os
+import subprocess
+import sys
+import tempfile
+import re
+
+import tempita
+
+# This is more just for running from the bin folder so that
+# cloud-init binary can find the cloudinit module
+possible_topdir = os.path.normpath(os.path.join(os.path.abspath(
+        sys.argv[0]), os.pardir, os.pardir))
+if os.path.exists(os.path.join(possible_topdir, "cloudinit", "__init__.py")):
+    sys.path.insert(0, possible_topdir)
+
+PWD = os.getcwd()
+
+def info(msg):
+    sys.stderr.write("INFO: %s\n" % (msg))
 
 
+def warn(msg):
+    sys.stderr.write("WARNING: %s\n" % (msg))
+
+
+def main():
+    if not os.path.isfile(os.path.join(PWD, 'brpm.tmpl')):
+        warn("Can not find required template file 'brpm.tmpl'")
+        return 1
+    if not os.path.isfile(os.path.join(os.pardir, 'setup.py')):
+        warn("Can not find required root 'setup.py' file")
+        return 1
+
+    cmd = [os.path.join(os.pardir, 'tools', 'read-version')]
+    version = subprocess.check_Call(cmd)
+    
+    
+    return 0
+
+
+if __name__ == '__main__':
+    sys.exit(main())
