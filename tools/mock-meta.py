@@ -6,10 +6,11 @@
 
 import functools
 import httplib
+import json
 import logging
-import sys
-import string
 import random
+import string
+import sys
 import yaml
 
 from optparse import OptionParser
@@ -87,6 +88,8 @@ AVAILABILITY_ZONES = [
 PLACEMENT_CAPABILITIES = {
     'availability-zone': AVAILABILITY_ZONES,
 }
+
+NOT_IMPL_RESPONSE = json.dumps({})
 
 
 class WebException(Exception):
@@ -181,7 +184,11 @@ class MetaDataHandler(object):
                 else:
                     return "%s" % (PLACEMENT_CAPABILITIES.get(pentry, ''))
         else:
-            return '{}'
+            log.warn(("Did not implement action %s, "
+                      "returning empty response: %r"),
+                      action, NOT_IMPL_RESPONSE)
+            return NOT_IMPL_RESPONSE
+
 
 class UserDataHandler(object):
 
