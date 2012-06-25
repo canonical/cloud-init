@@ -1,0 +1,62 @@
+#!/bin/sh 
+
+# Ensure we can find the setup.py file which
+# should be at the root of the cloud-init tree
+PKG_DIR=`pwd`
+ROOT="$PKG_DIR/../"
+if [ ! -e "$ROOT/setup.py" ]; then
+    echo "No setup.py found at $ROOT"
+    exit 1
+fi
+echo "Using root directory $ROOT for building your debian package"
+
+# Ensure tempdir is cleaned and ready to go
+TEMP_D=$(mktemp -d "${TMPDIR:-/tmp}/${0##*/}.XXXXXXX")
+echo "With $TEMP_D as a temporary workspace"
+rm -Rf "${TEMP_D}"; mkdir "${TEMP_D}"
+set -e
+
+# Ensure tempdir removed if breaks...
+trap "rm -Rf '${TEMP_D}'" EXIT SIGINT SIGTERM
+
+# Go to the root and start making a package!
+cd $ROOT
+files=$(bzr ls --versioned)
+revno=$(bzr revno)
+version=$(awk -F: \
+   '$1 ~ /[0-9][.][0-9]+[.][0-9]+/ { print $1 ; exit(0); }' ChangeLog )
+
+# Ensure that the version found in 'Changelog' is the same in the python 
+# cloud-init version directory
+py_version=$(python -c 'from cloudinit import version; import sys; \
+sys.stdout.write(version.version_string())')
+
+# Canonicalize the changelog version
+ch_version=$(python -c "from distutils import version; import sys; \
+sys.stdout.write(str(version.StrictVersion('$version')));")
+
+if [ "$py_version" != "$ch_version" ]; then
+    echo "Cloud-init python version $py_version" \
+         " != changelog version $ch_version"
+    echo "Please ensure they are the same!"
+    exit 1
+fi
+
+mkdir "${TEMP_D}/cloud-init"
+otar="$TEMP_D/cloud-init_$version~bzr${revno}.orig.tar.gz"
+tar -czf - ${files} > "$otar"
+tar -C "${TEMP_D}/cloud-init" -xzf - < "$otar"
+
+if [ ! -d "${TEMP_D}/cloud-init/debian" ]; then
+   rsync -a $PKG_DIR/debian.trunk/ "${TEMP_D}/cloud-init/debian"
+fi
+
+sed -i -e "s,VERSION,$version," -e "s,REVNO,bzr$revno," \
+          "$TEMP_D/cloud-init/debian/changelog"
+
+cd "${TEMP_D}/cloud-init"
+debuild "$@"
+debname="cloud-init_${version}~bzr${revno}-1_all.deb"
+mv "../$debname" "$PKG_DIR"
+echo "Wrote $debname to $PKG_DIR"
+
