@@ -9,7 +9,7 @@ Usage: ${0##*/} version
 EOF
 }
 
-topdir=$PWD
+topdir="../$PWD"
 tag=${1}
 
 [ -n "$tag" ] || { Usage 1>&2 ; exit 1; }
@@ -22,4 +22,4 @@ out=${topdir}/cloud-init-${tag}.tar.gz
 cd ${tmpd} && 
    bzr branch -r "tag:${tag}" "${topdir}" ./cloud-init-${tag} &&
    tar czf "${out}" cloud-init-${tag}/ --exclude cloud-init-${tag}/.bzr &&
-   echo "wrote ${out}"
+   echo "Wrote ${out}"
