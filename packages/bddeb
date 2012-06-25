@@ -23,24 +23,7 @@ trap "rm -Rf '${TEMP_D}'" EXIT SIGINT SIGTERM
 cd $ROOT
 files=$(bzr ls --versioned)
 revno=$(bzr revno)
-version=$(awk -F: \
-   '$1 ~ /[0-9][.][0-9]+[.][0-9]+/ { print $1 ; exit(0); }' ChangeLog )
-
-# Ensure that the version found in 'Changelog' is the same in the python 
-# cloud-init version directory
-py_version=$(python -c 'from cloudinit import version; import sys; \
-sys.stdout.write(version.version_string())')
-
-# Canonicalize the changelog version
-ch_version=$(python -c "from distutils import version; import sys; \
-sys.stdout.write(str(version.StrictVersion('$version')));")
-
-if [ "$py_version" != "$ch_version" ]; then
-    echo "Cloud-init python version $py_version" \
-         " != changelog version $ch_version"
-    echo "Please ensure they are the same!"
-    exit 1
-fi
+version=$(tools/read-version)
 
 mkdir "${TEMP_D}/cloud-init"
 otar="$TEMP_D/cloud-init_$version~bzr${revno}.orig.tar.gz"
