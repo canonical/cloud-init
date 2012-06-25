@@ -29,6 +29,12 @@ import setuptools
 
 import subprocess
 
+def tiny_p(cmd):
+    sp = subprocess.Popen(cmd, stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE, stdin=None)
+    (out, err) = sp.communicate()
+    return (out, err)
+
 
 def is_f(p):
     return os.path.isfile(p)
@@ -36,21 +42,14 @@ def is_f(p):
 
 def get_version():
     cmd = ['tools/read-version']
-    ver = subprocess.check_output(cmd)
+    (ver, _e) = tiny_p(cmd)
     return ver.strip()
 
 
-def requires(fn='Requires'):
-    requires = []
-    with open(fn, 'r') as fh:
-        lines = fh.read().splitlines()
-    for line in lines:
-        line = line.strip()
-        if not line or line[0] == '#':
-            continue
-        else:
-            requires.append(line)
-    return requires
+def read_requires():
+    cmd = ['tools/read-dependencies']
+    (deps, _e) = tiny_p(cmd)
+    return deps.splitlines()
 
 
 setuptools.setup(name='cloud-init',
@@ -68,14 +67,15 @@ setuptools.setup(name='cloud-init',
                   ('/etc/cloud/cloud.cfg.d', glob('config/cloud.cfg.d/*')),
                   ('/etc/cloud/templates', glob('templates/*')),
                   # Only really need for upstart based systems
-                  ('/etc/init', glob('upstart/*.conf')),
+                  #('/etc/init', glob('upstart/*.conf')),
                   ('/usr/share/cloud-init', []),
                   ('/usr/lib/cloud-init',
                     ['tools/uncloud-init', 'tools/write-ssh-key-fingerprints']),
                   ('/usr/share/doc/cloud-init', filter(is_f, glob('doc/*'))),
                   ('/usr/share/doc/cloud-init/examples', filter(is_f, glob('doc/examples/*'))),
                   ('/usr/share/doc/cloud-init/examples/seed', filter(is_f, glob('doc/examples/seed/*'))),
-                  ('/etc/profile.d', ['tools/Z99-cloud-locale-test.sh']),
+                  # ??
+                  # ('/etc/profile.d', ['tools/Z99-cloud-locale-test.sh']),
                   ],
-      install_requires=requires(),
+      install_requires=read_requires(),
       )
