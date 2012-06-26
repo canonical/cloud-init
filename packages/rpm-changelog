@@ -1,0 +1,220 @@
+#!/usr/bin/python
+# vi: ts=4 expandtab
+
+import sys
+import os
+import re
+
+import textwrap
+
+from datetime import datetime
+from datetime import date
+
+import subprocess
+
+def tiny_p(cmd):
+    sp = subprocess.Popen(cmd, stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE, stdin=None)
+    (out, err) = sp.communicate()
+    return (out, err)
+
+# This util converts a bzr log into a useful rpm changelog
+
+def cut_up(entry, maxline=80):
+    if len(entry) < maxline:
+        return entry
+    else:
+        c = entry[0:maxline]
+        return "%s..." % (c)
+
+
+def adj_iter(elems):
+    if not elems:
+        raise StopIteration()
+    curr = elems[0]
+    yield curr
+    for i in range(1, len(elems)):
+        e = elems[i]
+        if e != curr:
+            yield e
+            curr = e
+
+def extract_entry(collecting):
+    a_entry = {}
+    for t in ['tags', 'revno', 'author', 'timestamp', 'committer']:
+        look_for = "%s:" % (t)
+        for v in collecting:
+            if v.startswith(look_for):
+                a_entry[t] = v[len(look_for):].strip()
+                break
+    i = -1
+    for a, v in enumerate(collecting):
+        if v.startswith("message:"):
+            i = a
+            break
+    if i != -1:
+        msg_lines = collecting[i + 1:]
+        a_entry['message'] = "\n".join(msg_lines)
+    return a_entry
+
+
+def clean_authors(authors):
+    if not authors:
+        return ''
+    auth_cleaned = set()
+    for a in authors:
+        a = a.strip()
+        if a:
+            auth_cleaned.add(a)
+    if not auth_cleaned:
+        return ''
+    uniq_authors = list(auth_cleaned)
+    if len(uniq_authors) == 1:
+        return authors[0]
+    auths = "(%s)" % ", ".join(uniq_authors)
+    return auths
+
+
+def clean_revnos(revnos):
+    novs = list()
+    for r in revnos:
+        r = r.strip()
+        r = r.replace("[merge]", "")
+        if r:
+            novs.append(int(r))
+    entries = list(novs)
+    if not entries:
+        return ''
+    entries.sort()
+    if len(entries) == 1:
+        return "%s" % (entries[0])
+
+    # Check if consecutive
+    start = entries[0]
+    consec = True
+    for (i, v) in enumerate(entries):
+        if v != start + i:
+            consec = False
+            break
+    if consec:
+        end = entries[-1]
+        return "%s => %s" % (start, end)
+    v = [str(b) for b in entries]
+    return ", ".join(v)
+
+
+def spacey(am):
+    return " " * am
+
+
+def justify(text, space_wanted):
+    c_bef = len(text)
+    t_c = len(text.lstrip())
+    space_am = (c_bef - t_c)
+    needed = (space_wanted - space_am)
+    if needed < 0:
+        return text
+    return (" " * (needed) + text)
+
+
+def clean_messages(messages):
+    contents = []
+    for msg in messages:
+        # Split into sub-messages...
+        # if we can
+        lines = []
+        pieces = msg.splitlines()
+        if len(pieces) == 1:
+            lines.append("%s- %s " %
+                         (spacey(4), msg.strip()))
+        else:
+            n_lines = []
+            n_lines.append(pieces[0].strip())
+            for line in pieces[1:]:
+                line = line.lstrip()
+                if not line:
+                    continue
+                n_lines.append(justify(line, 6))
+            lines.append("%s- %s" % (spacey(4), "\n".join(n_lines)))
+        contents.extend(lines)
+    return "\n".join(contents)
+
+
+def build_changelog(history=-1):
+    cmd = ['bzr', 'log', '--timezone=utc']
+    (stdout, _stderr) = tiny_p(cmd)
+    # Clean the format up
+    entries = stdout.splitlines()
+    all_entries = []
+    collecting = []
+    for e in entries:
+        if e.startswith("---"):
+            if collecting:
+                a_entry = extract_entry(collecting)
+                if a_entry:
+                    all_entries.append(a_entry)
+                collecting = []
+        else:
+            collecting.append(e)
+
+    a_entry = extract_entry(collecting)
+    if a_entry:
+        all_entries.append(a_entry)
+
+    if history > 0:
+        take_entries = list(all_entries[0:history])
+    else:
+        take_entries = list(all_entries)
+
+    # Merge those with same date
+    date_entries = {}
+    for e in take_entries:
+        author = e.get('author')
+        if not author:
+            author = e.get('committer')
+        if not author:
+            continue
+        timestamp = e.get('timestamp')
+        if not timestamp:
+            continue
+        msg = e.get('message')
+        if not msg:
+            continue
+        revno = e.get('revno')
+        if not revno:
+            continue
+        # http://bugs.python.org/issue6641
+        timestamp = timestamp.replace("+0000", '').strip()
+        ds = datetime.strptime(timestamp, '%a %Y-%m-%d %H:%M:%S')
+        c_ds = ds.date()
+        if c_ds not in date_entries:
+            ap_entry = {}
+            ap_entry['messages'] = []
+            ap_entry['authors'] = []
+            ap_entry['revnos'] = []
+            date_entries[c_ds] = ap_entry
+        ap_entry = date_entries[c_ds]
+        ap_entry['messages'].append(msg)
+        ap_entry['authors'].append(author)
+        ap_entry['revnos'].append(revno)
+
+    dates = sorted(date_entries.keys())
+    chglog = []
+    for ds in reversed(dates):
+        e = date_entries[ds]
+        authors = clean_authors(e['authors'])
+        revnos = clean_revnos(e['revnos'])
+        top_line = "%s %s - %s" % (ds.strftime("%a %b %d %Y"),
+                                   authors, revnos)
+        chglog.append("* %s" % (top_line))
+        chglog.append(clean_messages(e['messages']))
+    return "\n".join(chglog)
+
+
+if __name__ == '__main__':
+    args = sys.argv[1:]
+    history_am = -1
+    if args:
+        history_am = int(args[0])
+    chglog = build_changelog(history_am)
+    print chglog
