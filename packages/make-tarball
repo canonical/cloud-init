@@ -78,11 +78,9 @@ def main(args):
         os.chdir(owcd)
         shutil.move(o_fn, fn)
 
-        print revno
-        print version
-        print bfn
-        print(os.path.abspath(fn))
-
+        out = [revno, version, bfn, os.path.abspath(fn)]
+        print('\t'.join(out))
+        
     return 0
 
 
