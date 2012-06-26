@@ -15,7 +15,8 @@ def tmpdir():
     try:
         yield t
     finally:
-        shutil.rmtree(t)
+        pass
+        #shutil.rmtree(t)
 
 
 def join(*paths):
@@ -56,6 +57,10 @@ def archive_code():
 
 def main():
 
+    # cmd = ['apt-get', 'install', 'python-nose',
+    #'pyflakes', 'python-mocker', 'cdbs', 'debhelper']
+    # tiny_p(cmd)
+
     with tmpdir() as td:
         (revno, version, bname, archive_fn) = archive_code()
         real_archive_fn = os.path.join(td, os.path.basename(archive_fn))
@@ -68,10 +73,16 @@ def main():
         edir = join(td, bname)
         shutil.move(edir, join(td, 'cloud-init'))
         shutil.copytree('debian.trunk', join(td, 'cloud-init', 'debian'))
-
+        
         cmd = ['sed', '-i', '-e',"s,VERSION,%s," %(version),
                '-e', "s,REVNO,bzr%s," % (revno),
                join(td, 'cloud-init', 'debian', 'changelog')]
+        tiny_p(cmd)
+        
+        # Seems to want an original tar ball
+        o_tar = "cloud-init_%s~bzr%s.orig.tar.gz" % (version, revno)
+        cmd = ['tar', '-czf', join(td, o_tar), '-C', join(td, 'cloud-init')]
+        cmd.extend(os.listdir(join(td, 'cloud-init')))
         tiny_p(cmd)
         
         ocwd = os.getcwd()
