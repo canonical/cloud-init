@@ -13,6 +13,8 @@ if os.path.exists(os.path.join(possible_topdir, "cloudinit", "__init__.py")):
 from cloudinit import templater
 from cloudinit import util
 
+import argparse
+
 # Package names that will showup in requires to what we can actually
 # use in our debian 'control' file
 PKG_MP = {
@@ -70,6 +72,23 @@ def write_debian_folder(root, version, revno):
 
 def main():
 
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-n", "--no-sign", dest="sign",
+                        help=("attempt to sign "
+                              "the package (default: %(default)s)"),
+                        default=True,
+                        action='store_false')
+    parser.add_argument("-v", "--verbose", dest="verbose",
+                        help=("run verbosely"
+                              " (default: %(default)s)"),
+                        default=False,
+                        action='store_true')
+    args = parser.parse_args()
+
+    capture = True
+    if args.verbose:
+        capture = False
+
     with util.tempdir() as tdir:
 
         cmd = [sys.executable,
@@ -95,24 +114,28 @@ def main():
         base_name = os.path.basename(arch_fn)[:-len(".tar.gz")]
         shutil.move(util.abs_join(tdir, base_name), 
                     util.abs_join(tdir, 'cloud-init'))
-        
+
         write_debian_folder(util.abs_join(tdir, 'cloud-init'),
                             version, revno)
-        
+
         tar_fn = "cloud-init_%s~%s.orig.tar.gz" % (version, revno)
         cmd = ['tar', '-czvf', 
                util.abs_join(tdir, tar_fn), 
                '-C', util.abs_join(tdir, 'cloud-init')]
         cmd.extend(os.listdir(util.abs_join(tdir, 'cloud-init')))
         util.subp(cmd)
+        shutil.copy(util.abs_join(tdir, tar_fn), tar_fn)
+        print("Wrote out archive %r" % (util.abs_join(tar_fn)))
         
-        ocwd = os.getcwd()
         with util.chdir(util.abs_join(tdir, 'cloud-init')):
-            util.subp(['debuild'], capture=False)
-            debname = "cloud-init_%s~bzr%s-1_all.deb" % (version, revno)
-            shutil.move(debname, util.abs_join(ocwd, debname))
-        
-        print("Wrote out debian package %s" % (util.abs_join(ocwd, debname)))
+            cmd = ['debuild']
+            if not args.sign:
+                cmd.extend(['-us', '-uc'])
+            util.subp(cmd, capture=capture)
+
+        debname = "cloud-init_%s~%s-1_all.deb" % (version, revno)
+        shutil.move(util.abs_join(tdir, debname), debname)
+        print("Wrote out debian package %r" % (util.abs_join(debname)))
 
     return 0
 
