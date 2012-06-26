@@ -7,9 +7,11 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import re
 
 import tempita
 
+from datetime import datetime
 
 # Mapping of expected packages to there full name...
 PKG_MP = {
@@ -53,6 +55,46 @@ def tiny_p(cmd, capture=True):
                             % (cmd, sp.returncode, out, err))
     return (out, err)
 
+def get_log_header(version):
+    cmd = ['bzr', 'tags']
+    (stdout, _stderr) = tiny_p(cmd)
+    a_rev = None
+    for t in stdout.splitlines():
+        ver, rev = t.split(None)
+        if ver == version:
+            a_rev = rev
+            break
+    if not a_rev:
+        return format_change_line(datetime.now(),
+                                  '??', version)
+    cmd = ['bzr', 'log', '-r%s' % (a_rev), '--timezone=utc']
+    (stdout, _stderr) = tiny_p(cmd)
+    kvs = {
+        'comment': version,
+    }
+    for line in stdout.splitlines():
+        if line.startswith('committer:'):
+            kvs['who'] = line[len('committer:'):].strip()
+        if line.startswith('timestamp:'):
+            ts = line[len('timestamp:'):]
+            ts = ts.strip()
+            # http://bugs.python.org/issue6641
+            ts = ts.replace("+0000", '').strip()
+            ds = datetime.strptime(ts, '%a %Y-%m-%d %H:%M:%S')
+            kvs['ds'] = ds
+    return format_change_line(**kvs)
+
+def format_change_line(ds, who, comment=None):
+    d = format_rpm_date(ds)
+    d += " - %s" % (who)
+    if comment:
+        d += " - %s" % (comment)
+    return "* %s" % (d)
+
+
+def format_rpm_date(ds):
+    return ds.strftime("%a %b %d %Y")
+
 
 def info(msg):
     print("INFO: %s" % (msg))
@@ -93,9 +135,21 @@ def generate_spec_contents(tmpl_fn, revno, version):
     base_name = 'cloud-init-%s-%s' % (version, subs['revno'])
     subs['requires'] = requires
 
-    (stdout, _stderr) = tiny_p([sys.executable, 
-                               join(os.getcwd(), 'rpm-changelog')])
-    subs['changelog'] = stdout.strip()
+    # Format a nice changelog (as best as we can)
+    changelog = ''
+    with open(join(os.pardir, 'ChangeLog')) as fh:
+        changelog = fh.read()
+    ch_lines = []
+    for line in changelog.splitlines():
+        if not line.strip():
+            continue
+        if re.match(r"^\s*[\d][.][\d][.][\d]:\s*", line):
+            line = line.strip(":")
+            header = get_log_header(line)
+            ch_lines.append(header)
+        else:
+            ch_lines.append(line)
+    subs['changelog'] = "\n".join(ch_lines)
 
     # See: http://www.zarb.org/~jasonc/macros.php
     # Pickup any special files
