@@ -243,7 +243,8 @@ def generate_spec_contents(tmpl_fn):
 def main():
     root_dir = os.path.expanduser("~/rpmbuild")
     info("Cleaning %s" % (root_dir))
-    util.delete_dir_contents(root_dir)
+    if os.path.isdir(root_dir):
+        util.delete_dir_contents(root_dir)
     arc_dir = os.path.join(root_dir, 'SOURCES')
     util.ensure_dirs([root_dir, arc_dir])
     tmpl_fn = os.path.join(os.getcwd(), 'brpm.tmpl')
