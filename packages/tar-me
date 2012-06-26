@@ -76,7 +76,7 @@ def main(args):
         tiny_p(cmd)
 
         os.chdir(owcd)
-        shutil.copy(o_fn, fn)
+        shutil.move(o_fn, fn)
 
         print revno
         print version
