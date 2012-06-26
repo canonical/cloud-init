@@ -145,7 +145,7 @@ def main():
     # Archive the code
     (revno, version, archive_fn) = archive_code()
     real_archive_fn = os.path.join(arc_dir, os.path.basename(archive_fn))
-    shutil.copy(archive_fn, real_archive_fn)
+    shutil.move(archive_fn, real_archive_fn)
     info("Archived code to %s" % (real_archive_fn))
 
     # Form the spec file to be used
@@ -175,7 +175,7 @@ def main():
     for fn in globs:
         n = os.path.basename(fn)
         tgt_fn = os.path.join(os.getcwd(), n)
-        util.copy(fn, tgt_fn)
+        shutil.move(fn, tgt_fn)
         info("Copied %s to %s" % (n, tgt_fn))
 
     return 0
