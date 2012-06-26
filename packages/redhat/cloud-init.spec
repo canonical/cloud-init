@@ -37,10 +37,14 @@ ssh keys and to let the user run various scripts.
 %build
 %{__python} setup.py build
 
-
 %install
 rm -rf $RPM_BUILD_ROOT
 %{__python} setup.py install -O1 --skip-build --root $RPM_BUILD_ROOT
+
+# Remove anything after it was installed??
+{{for r in post_remove}}
+rm -rfv $RPM_BUILD_ROOT/{{r}}
+{{endfor}}
 
 %clean
 rm -rf $RPM_BUILD_ROOT

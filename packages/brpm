@@ -9,6 +9,8 @@ import sys
 import tempfile
 import re
 
+import argparse
+
 import tempita
 
 from datetime import datetime
@@ -104,7 +106,7 @@ def warn(msg):
     print("WARNING: %s" % (msg))
 
 
-def generate_spec_contents(tmpl_fn, revno, version):
+def generate_spec_contents(args, tmpl_fn, revno, version):
 
     # Tmpl params
     subs = {}
@@ -172,6 +174,22 @@ def generate_spec_contents(tmpl_fn, revno, version):
         '%{_bindir}/*',
         '/usr/lib/cloud-init/*',
     ]
+    # Since setup.py installs them
+    # all, we need to selectively 
+    # knock off the wrong ones and
+    # ensure the right one is kept
+    post_remove_keep = {
+        'initd': '/etc/init.d/',
+        'systemd': '/etc/systemd/',
+        'upstart': '/etc/init/',
+    }
+    post_remove = []
+    for (k, v) in post_remove_keep.iteritems():
+        if k != args.boot:
+            post_remove.append(v)
+        else:
+            other_files.append(v)
+    subs['post_remove'] = post_remove
     subs['files'] = other_files
     
     with open(tmpl_fn, 'r') as fh:
@@ -188,6 +206,13 @@ def archive_code():
 
 
 def main():
+    
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-b", "--boot", dest="boot",
+                        help="select boot type (default: %(default)s)", 
+                        metavar="TYPE", default='initd',
+                        choices=['upstart', 'initd', 'systemd'])
+    args = parser.parse_args()
 
     # Clean out the root dir and make sure the dirs we want are in place
     root_dir = os.path.expanduser("~/rpmbuild")
@@ -207,7 +232,8 @@ def main():
     # Form the spec file to be used
     tmpl_fn = os.path.join(os.getcwd(), 'redhat', 'cloud-init.spec')
     info("Generated spec file from template %r" % (tmpl_fn))
-    (base_name, arc_name, contents) = generate_spec_contents(tmpl_fn,
+    (base_name, arc_name, contents) = generate_spec_contents(args,
+                                                             tmpl_fn,
                                                              revno, version)
     spec_fn = os.path.join(root_dir, 'cloud-init.spec')
     with open(spec_fn, 'w') as fh:
