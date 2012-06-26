@@ -1,25 +1,15 @@
 #!/usr/bin/python
-# vi: ts=4 expandtab
 
-import os
-import sys
-import shutil
-
+import contextlib
 import glob
+import os
+import shutil
+import subprocess
+import sys
+import tempfile
 
 import tempita
 
-from distutils import version as ver
-
-# This is more just for running from the bin folder so that
-# cloud-init binary can find the cloudinit module
-possible_topdir = os.path.normpath(os.path.join(os.path.abspath(
-        sys.argv[0]), os.pardir, os.pardir))
-if os.path.exists(os.path.join(possible_topdir, "cloudinit", "__init__.py")):
-    sys.path.insert(0, possible_topdir)
-
-from cloudinit import util
-from cloudinit import version
 
 # Mapping of expected packages to there full name...
 PKG_MP = {
@@ -33,6 +23,31 @@ PKG_MP = {
 }
 
 
+@contextlib.contextmanager
+def tmpdir():
+    t = tempfile.mkdtemp()
+    try:
+        yield t
+    finally:
+        shutil.rmtree(t)
+
+
+def join(*paths):
+    p = os.path.join(*paths)
+    return os.path.abspath(p)
+
+
+def tiny_p(cmd):
+    # Darn python 2.6 doesn't have check_output (argggg)
+    info("Running %s" % (cmd))
+    sp = subprocess.Popen(cmd, stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE, stdin=None)
+    (out, err) = sp.communicate()
+    if sp.returncode not in [0]:
+        raise RuntimeError("Failed running %s [rc=%s]" % (cmd, sp.returncode))
+    return (out, err)
+
+
 def info(msg):
     print("INFO: %s" % (msg))
 
@@ -44,26 +59,22 @@ def warn(msg):
 def generate_spec_contents(tmpl_fn):
 
     # Version junk
-    cmd = [os.path.join(os.pardir, 'tools', 'read-version')]
-    (stdout, _stderr) = util.subp(cmd)
+    cmd = [sys.executable, join(os.pardir, 'tools', 'read-version')]
+    (stdout, _stderr) = tiny_p(cmd)
     i_version = stdout.strip()
-
-    # Ensure ok match!
-    if ver.StrictVersion(i_version) != version.version():
-        raise RuntimeError("Version found does not match the code version")
 
     # Tmpl params
     subs = {}
     subs['version'] = i_version
-    (stdout, _stderr) = util.subp(['bzr', 'revno'])
+    (stdout, _stderr) = tiny_p(['bzr', 'revno'])
     subs['revno'] = "%s" % (stdout.strip())
     subs['release'] = "%s" % (subs['revno'])
     subs['archive_name'] = '%{name}-%{version}-' + subs['revno'] + '.tar.gz'
     subs['bd_requires'] = ['python-devel', 'python-setuptools']
 
     requires = []
-    cmd = [os.path.join(os.pardir, 'tools', 'read-dependencies')]
-    (stdout, _stderr) = util.subp(cmd)
+    cmd = [sys.executable, join(os.pardir, 'tools', 'read-dependencies')]
+    (stdout, _stderr) = tiny_p(cmd)
     pkgs = stdout.splitlines()
     
     # Map to known packages
@@ -82,7 +93,8 @@ def generate_spec_contents(tmpl_fn):
     base_name = 'cloud-init-%s-%s' % (i_version, subs['revno'])
     subs['requires'] = requires
 
-    (stdout, _stderr) = util.subp([os.path.join(os.getcwd(), 'rpm-changelog')])
+    (stdout, _stderr) = tiny_p([sys.executable, 
+                               join(os.getcwd(), 'rpm-changelog')])
     subs['changelog'] = stdout
 
     # See: http://www.zarb.org/~jasonc/macros.php
@@ -120,20 +132,22 @@ def main():
     root_dir = os.path.expanduser("~/rpmbuild")
     info("Cleaning %s" % (root_dir))
     if os.path.isdir(root_dir):
-        util.delete_dir_contents(root_dir)
+        shutil.rmtree(root_dir)
     arc_dir = os.path.join(root_dir, 'SOURCES')
-    util.ensure_dirs([root_dir, arc_dir])
+    for d in [root_dir, arc_dir]:
+        os.makedirs(d)
 
     # Form the spec file to be used
     tmpl_fn = os.path.join(os.getcwd(), 'brpm.tmpl')
     info("Generated spec file from template %s" % (tmpl_fn))
     (base_name, arc_name, contents) = generate_spec_contents(tmpl_fn)
     spec_fn = os.path.join(root_dir, 'cloud-init.spec')
-    util.write_file(spec_fn, contents)
-    info("Wrote spec file to %s" % (spec_fn))
+    with open(spec_fn, 'w') as fh:
+        fh.write(contents)
+        info("Wrote spec file to %s" % (spec_fn))
 
     # Archive the code and files that we want to
-    with util.tempdir() as td:
+    with tmpdir() as td:
         src_dir = os.path.join(td, base_name)
         os.makedirs(src_dir)
         for fn in os.listdir(os.pardir):
@@ -151,13 +165,13 @@ def main():
             arc_fn = os.path.join(arc_dir, arc_name)
         cmd = ['tar', '-zcvf', arc_fn, '-C', td]
         cmd.extend(os.listdir(td))
-        util.subp(cmd)
+        tiny_p(cmd)
         info("Archived code at %s" % (arc_fn))
 
     # Now build it!
     cmd = ['rpmbuild', '-ba', spec_fn]
     info("Running rpmbuild %s" % (cmd))
-    util.subp(cmd)
+    tiny_p(cmd)
     info("Rpmbuild completed!")
 
     # Copy the items built to our local dir
