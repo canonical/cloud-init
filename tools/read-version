@@ -5,6 +5,15 @@ import os
 import sys
 import re
 
+from distutils import version as ver
+
+possible_topdir = os.path.normpath(os.path.join(os.path.abspath(
+        sys.argv[0]), os.pardir, os.pardir))
+if os.path.exists(os.path.join(possible_topdir, "cloudinit", "__init__.py")):
+    sys.path.insert(0, possible_topdir)
+
+from cloudinit import version as cver
+
 def parse_versions(fn):
     with open(fn, 'r') as fh:
         lines = fh.read().splitlines()
@@ -47,5 +56,15 @@ if __name__ == '__main__':
             sys.stderr.write("No versions found in %s!\n" % (fn))
             sys.exit(1)
         else:
-            sys.stdout.write(versions[0].strip())
+            # Check that the code version is the same 
+            # as the version we found!
+            ch_ver = versions[0].strip()
+            code_ver = cver.version()
+            ch_ver_obj = ver.StrictVersion(ch_ver)
+            if ch_ver_obj != code_ver:
+                sys.stderr.write(("Code version %s does not match"
+                                  " changelog version %s\n") % 
+                                  (code_ver, ch_ver_obj))
+                sys.exit(1)
+            sys.stdout.write(ch_ver)
             sys.exit(0)
