@@ -44,7 +44,8 @@ def tiny_p(cmd):
                     stderr=subprocess.PIPE, stdin=None)
     (out, err) = sp.communicate()
     if sp.returncode not in [0]:
-        raise RuntimeError("Failed running %s [rc=%s]" % (cmd, sp.returncode))
+        raise RuntimeError("Failed running %s [rc=%s] (%s, %s)" 
+                            % (cmd, sp.returncode, out, err))
     return (out, err)
 
 
@@ -56,19 +57,13 @@ def warn(msg):
     print("WARNING: %s" % (msg))
 
 
-def generate_spec_contents(tmpl_fn):
-
-    # Version junk
-    cmd = [sys.executable, join(os.pardir, 'tools', 'read-version')]
-    (stdout, _stderr) = tiny_p(cmd)
-    i_version = stdout.strip()
+def generate_spec_contents(tmpl_fn, revno, version):
 
     # Tmpl params
     subs = {}
-    subs['version'] = i_version
-    (stdout, _stderr) = tiny_p(['bzr', 'revno'])
-    subs['revno'] = "%s" % (stdout.strip())
-    subs['release'] = "%s" % (subs['revno'])
+    subs['version'] = version
+    subs['revno'] = revno
+    subs['release'] = revno
     subs['archive_name'] = '%{name}-%{version}-' + subs['revno'] + '.tar.gz'
     subs['bd_requires'] = ['python-devel', 'python-setuptools']
 
@@ -90,7 +85,7 @@ def generate_spec_contents(tmpl_fn):
         else:
             requires.append(tgt_pkg)
 
-    base_name = 'cloud-init-%s-%s' % (i_version, subs['revno'])
+    base_name = 'cloud-init-%s-%s' % (version, subs['revno'])
     subs['requires'] = requires
 
     (stdout, _stderr) = tiny_p([sys.executable, 
@@ -126,6 +121,16 @@ def generate_spec_contents(tmpl_fn):
         return (base_name, '%s.tar.gz' % (base_name), contents)
 
 
+def archive_code():
+    (stdout, _stderr) = tiny_p([sys.executable, 
+                               join(os.getcwd(), 'tar-me')])
+    lines = stdout.splitlines()
+    revno = lines[0]
+    version = lines[1]
+    arc_fn = lines[2]
+    return (revno, version, arc_fn)
+
+
 def main():
 
     # Clean out the root dir and make sure the dirs we want are in place
@@ -136,37 +141,22 @@ def main():
     arc_dir = os.path.join(root_dir, 'SOURCES')
     for d in [root_dir, arc_dir]:
         os.makedirs(d)
+        
+    # Archive the code
+    (revno, version, archive_fn) = archive_code()
+    real_archive_fn = os.path.join(arc_dir, os.path.basename(archive_fn))
+    shutil.copy(archive_fn, real_archive_fn)
+    info("Archived code to %s" % (real_archive_fn))
 
     # Form the spec file to be used
     tmpl_fn = os.path.join(os.getcwd(), 'brpm.tmpl')
     info("Generated spec file from template %s" % (tmpl_fn))
-    (base_name, arc_name, contents) = generate_spec_contents(tmpl_fn)
+    (base_name, arc_name, contents) = generate_spec_contents(tmpl_fn,
+                                                             revno, version)
     spec_fn = os.path.join(root_dir, 'cloud-init.spec')
     with open(spec_fn, 'w') as fh:
         fh.write(contents)
         info("Wrote spec file to %s" % (spec_fn))
-
-    # Archive the code and files that we want to
-    with tmpdir() as td:
-        src_dir = os.path.join(td, base_name)
-        os.makedirs(src_dir)
-        for fn in os.listdir(os.pardir):
-            if fn.startswith("."):
-                continue
-            full_fn = os.path.abspath(os.path.join(os.pardir, fn))
-            if os.path.isfile(full_fn):
-                shutil.copy(full_fn, os.path.join(src_dir, fn))
-            else:
-                shutil.copytree(full_fn, os.path.join(src_dir, fn),
-                                ignore=shutil.ignore_patterns('*.pyc',
-                                                              '.bzr',
-                                                              'tmp*',
-                                                              '*bzr*'))
-            arc_fn = os.path.join(arc_dir, arc_name)
-        cmd = ['tar', '-zcvf', arc_fn, '-C', td]
-        cmd.extend(os.listdir(td))
-        tiny_p(cmd)
-        info("Archived code at %s" % (arc_fn))
 
     # Now build it!
     cmd = ['rpmbuild', '-ba', spec_fn]
