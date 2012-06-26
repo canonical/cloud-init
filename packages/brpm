@@ -90,7 +90,7 @@ def generate_spec_contents(tmpl_fn, revno, version):
 
     (stdout, _stderr) = tiny_p([sys.executable, 
                                join(os.getcwd(), 'rpm-changelog')])
-    subs['changelog'] = stdout
+    subs['changelog'] = stdout.strip()
 
     # See: http://www.zarb.org/~jasonc/macros.php
     # Pickup any special files
@@ -127,7 +127,8 @@ def archive_code():
     lines = stdout.splitlines()
     revno = lines[0]
     version = lines[1]
-    arc_fn = lines[2]
+    bname = lines[2]
+    arc_fn = lines[3]
     return (revno, version, arc_fn)
 
 
