@@ -61,12 +61,18 @@ def main(args):
             if not fn or fn.startswith("."):
                 continue
             fns.append(fn)
-
         bfn = 'cloud-init-%s-%s' % (version, revno)
+        os.makedirs(join(td, bfn))
+        
+        for fn in fns:
+            if os.path.isfile(fn):
+                shutil.copy(fn, join(td, bfn, fn))
+            else:
+                shutil.copytree(fn, join(td, bfn, fn))
+
         fn = '%s.tar.gz' % (bfn)
         o_fn = join(td, fn)
-        cmd = ['tar', '-czf', o_fn]
-        cmd.extend(fns)
+        cmd = ['tar', '-czf', o_fn, '-C', join(td), bfn]
         tiny_p(cmd)
 
         os.chdir(owcd)
