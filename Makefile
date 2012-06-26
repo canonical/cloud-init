@@ -23,5 +23,11 @@ clean:
 	rm -rf /var/log/cloud-init.log \
 		   /var/lib/cloud/
 
-.PHONY: test pylint pyflakes 2to3 clean pep8
+rpm:
+	cd packages && ./brpm
+
+deb:
+	cd packages && ./bddeb
+
+.PHONY: test pylint pyflakes 2to3 clean pep8 rpm deb
 
