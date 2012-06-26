@@ -11,9 +11,17 @@ import re
 
 import argparse
 
-import tempita
+# Use the util functions from cloudinit
+possible_topdir = os.path.normpath(os.path.join(os.path.abspath(
+        sys.argv[0]), os.pardir, os.pardir))
+if os.path.exists(os.path.join(possible_topdir, "cloudinit", "__init__.py")):
+    sys.path.insert(0, possible_topdir)
+
+from cloudinit import templater
+from cloudinit import util
 
 from datetime import datetime
+
 
 # Mapping of expected packages to there full name...
 PKG_MP = {
@@ -27,39 +35,10 @@ PKG_MP = {
 }
 
 
-@contextlib.contextmanager
-def tmpdir():
-    t = tempfile.mkdtemp()
-    try:
-        yield t
-    finally:
-        shutil.rmtree(t)
-
-
-def join(*paths):
-    p = os.path.join(*paths)
-    return os.path.abspath(p)
-
-
-def tiny_p(cmd, capture=True):
-    # Darn python 2.6 doesn't have check_output (argggg)
-    info("Running %s" % (cmd))
-    stdout = subprocess.PIPE
-    stderr = subprocess.PIPE
-    if not capture:
-        stdout = None
-        stderr = None
-    sp = subprocess.Popen(cmd, stdout=stdout,
-                    stderr=stderr, stdin=None)
-    (out, err) = sp.communicate()
-    if sp.returncode not in [0]:
-        raise RuntimeError("Failed running %s [rc=%s] (%s, %s)" 
-                            % (cmd, sp.returncode, out, err))
-    return (out, err)
-
 def get_log_header(version):
+    # Try to find the version in the tags output
     cmd = ['bzr', 'tags']
-    (stdout, _stderr) = tiny_p(cmd)
+    (stdout, _stderr) = util.subp(cmd)
     a_rev = None
     for t in stdout.splitlines():
         ver, rev = t.split(None)
@@ -69,11 +48,14 @@ def get_log_header(version):
     if not a_rev:
         return format_change_line(datetime.now(),
                                   '??', version)
+    
+    # Extract who made that tag as the header
     cmd = ['bzr', 'log', '-r%s' % (a_rev), '--timezone=utc']
-    (stdout, _stderr) = tiny_p(cmd)
+    (stdout, _stderr) = util.subp(cmd)
     kvs = {
         'comment': version,
     }
+
     for line in stdout.splitlines():
         if line.startswith('committer:'):
             kvs['who'] = line[len('committer:'):].strip()
@@ -84,74 +66,73 @@ def get_log_header(version):
             ts = ts.replace("+0000", '').strip()
             ds = datetime.strptime(ts, '%a %Y-%m-%d %H:%M:%S')
             kvs['ds'] = ds
+
     return format_change_line(**kvs)
 
+
 def format_change_line(ds, who, comment=None):
-    d = format_rpm_date(ds)
+    d = ds.strftime("%a %b %d %Y")
     d += " - %s" % (who)
     if comment:
         d += " - %s" % (comment)
     return "* %s" % (d)
 
 
-def format_rpm_date(ds):
-    return ds.strftime("%a %b %d %Y")
+def generate_spec_contents(args, tmpl_fn):
 
-
-def info(msg):
-    print("INFO: %s" % (msg))
-
-
-def warn(msg):
-    print("WARNING: %s" % (msg))
-
-
-def generate_spec_contents(args, tmpl_fn, revno, version):
+    # Figure out the version and revno
+    cmd = [sys.executable,
+            util.abs_join(os.pardir, 'tools', 'read-version')]
+    (stdout, _stderr) = util.subp(cmd)
+    version = stdout.strip()
+    
+    cmd = ['bzr', 'revno']
+    (stdout, _stderr) = util.subp(cmd)
+    revno = stdout.strip()
 
     # Tmpl params
     subs = {}
     subs['version'] = version
     subs['revno'] = revno
     subs['release'] = revno
-    subs['archive_name'] = '%{name}-%{version}-' + subs['revno'] + '.tar.gz'
+    subs['archive_name'] = '%{name}-%{version}-' + revno + '.tar.gz'
     subs['bd_requires'] = ['python-devel', 'python-setuptools']
 
-    requires = []
-    cmd = [sys.executable, join(os.pardir, 'tools', 'read-dependencies')]
-    (stdout, _stderr) = tiny_p(cmd)
-    pkgs = stdout.splitlines()
-    
+    cmd = [sys.executable, 
+            util.abs_join(os.pardir, 'tools', 'read-dependencies')]
+    (stdout, _stderr) = util.subp(cmd)
+
     # Map to known packages
-    for e in pkgs:
-        e = e.lower().strip()
+    pkgs = [p.lower().strip() for p in stdout.splitlines()]
+
+    # Map to known packages
+    requires = []
+    for p in pkgs:
         tgt_pkg = None
-        for n in PKG_MP.keys():
-            if e.find(n) != -1:
-                tgt_pkg = PKG_MP.get(n)
+        for name in PKG_MP.keys():
+            if p.find(name) != -1:
+                tgt_pkg = PKG_MP.get(name)
+                break
         if not tgt_pkg:
             raise RuntimeError(("Do not know how to translate %s to "
-                                " a known package") % (e))
+                                " a known package") % (p))
         else:
             requires.append(tgt_pkg)
-
-    base_name = 'cloud-init-%s-%s' % (version, subs['revno'])
     subs['requires'] = requires
 
     # Format a nice changelog (as best as we can)
-    changelog = ''
-    with open(join(os.pardir, 'ChangeLog')) as fh:
-        changelog = fh.read()
-    ch_lines = []
+    changelog = util.load_file(util.abs_join(os.pardir, 'ChangeLog'))
+    changelog_lines = []
     for line in changelog.splitlines():
         if not line.strip():
             continue
         if re.match(r"^\s*[\d][.][\d][.][\d]:\s*", line):
             line = line.strip(":")
             header = get_log_header(line)
-            ch_lines.append(header)
+            changelog_lines.append(header)
         else:
-            ch_lines.append(line)
-    subs['changelog'] = "\n".join(ch_lines)
+            changelog_lines.append(line)
+    subs['changelog'] = "\n".join(changelog_lines)
 
     # See: http://www.zarb.org/~jasonc/macros.php
     # Pickup any special files
@@ -174,6 +155,7 @@ def generate_spec_contents(args, tmpl_fn, revno, version):
         '%{_bindir}/*',
         '/usr/lib/cloud-init/*',
     ]
+
     # Since setup.py installs them
     # all, we need to selectively 
     # knock off the wrong ones and
@@ -192,10 +174,7 @@ def generate_spec_contents(args, tmpl_fn, revno, version):
     subs['post_remove'] = post_remove
     subs['files'] = other_files
     
-    with open(tmpl_fn, 'r') as fh:
-        tmpl = tempita.Template(fh.read())
-        contents = tmpl.substitute(**subs)
-        return contents
+    return templater.render_from_file(tmpl_fn, params=subs)
 
 
 def archive_code():
@@ -216,31 +195,28 @@ def main():
 
     # Clean out the root dir and make sure the dirs we want are in place
     root_dir = os.path.expanduser("~/rpmbuild")
-    info("Cleaning %r" % (root_dir))
     if os.path.isdir(root_dir):
         shutil.rmtree(root_dir)
-    arc_dir = os.path.join(root_dir, 'SOURCES')
-    for d in [root_dir, arc_dir]:
-        os.makedirs(d)
-        
+    arc_dir = util.abs_join(root_dir, 'SOURCES')
+    util.ensure_dirs([root_dir, arc_dir])
+
     # Archive the code
-    (revno, version, archive_fn) = archive_code()
+    cmd = [sys.executable,
+            util.abs_join(os.getcwd(), 'make-tarball')]
+    (stdout, _stderr) = util.subp(cmd)
+    archive_fn = stdout.strip()
     real_archive_fn = os.path.join(arc_dir, os.path.basename(archive_fn))
     shutil.move(archive_fn, real_archive_fn)
-    info("Archived code to %r" % (real_archive_fn))
 
     # Form the spec file to be used
-    tmpl_fn = os.path.join(os.getcwd(), 'redhat', 'cloud-init.spec')
-    info("Generating spec file from template %r" % (tmpl_fn))
-    contents = generate_spec_contents(args, tmpl_fn, revno, version)
+    tmpl_fn = util.abs_join(os.getcwd(), 'redhat', 'cloud-init.spec')
+    contents = generate_spec_contents(args, tmpl_fn)
     spec_fn = os.path.join(root_dir, 'cloud-init.spec')
-    with open(spec_fn, 'w') as fh:
-        fh.write(contents)
-        info("Wrote spec file to %r" % (spec_fn))
+    util.write_file(spec_fn, contents)
 
     # Now build it!
     cmd = ['rpmbuild', '-ba', spec_fn]
-    tiny_p(cmd, capture=False)
+    util.subp(cmd, capture=False)
     info("Rpmbuild completed!")
 
     # Copy the items built to our local dir
@@ -251,11 +227,10 @@ def main():
                            (os.path.join(root_dir, 'RPMS'))))
     globs.extend(glob.glob("%s/*.rpm" %
                            (os.path.join(root_dir, 'SRPMS'))))
-    for fn in globs:
-        n = os.path.basename(fn)
-        tgt_fn = os.path.join(os.getcwd(), n)
-        shutil.move(fn, tgt_fn)
-        info("Copied %s to %s" % (n, tgt_fn))
+    for rpm_fn in globs:
+        tgt_fn = util.abs_join(os.getcwd(), os.path.basename(rpm_fn))
+        shutil.move(rpm_fn, tgt_fn)
+        print(tgt_fn)
 
     return 0
 
