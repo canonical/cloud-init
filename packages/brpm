@@ -37,11 +37,16 @@ def join(*paths):
     return os.path.abspath(p)
 
 
-def tiny_p(cmd):
+def tiny_p(cmd, capture=True):
     # Darn python 2.6 doesn't have check_output (argggg)
     info("Running %s" % (cmd))
-    sp = subprocess.Popen(cmd, stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE, stdin=None)
+    stdout = subprocess.PIPE
+    stderr = subprocess.PIPE
+    if not capture:
+        stdout = None
+        stderr = None
+    sp = subprocess.Popen(cmd, stdout=stdout,
+                    stderr=stderr, stdin=None)
     (out, err) = sp.communicate()
     if sp.returncode not in [0]:
         raise RuntimeError("Failed running %s [rc=%s] (%s, %s)" 
@@ -123,12 +128,8 @@ def generate_spec_contents(tmpl_fn, revno, version):
 
 def archive_code():
     (stdout, _stderr) = tiny_p([sys.executable, 
-                               join(os.getcwd(), 'tar-me')])
-    lines = stdout.splitlines()
-    revno = lines[0]
-    version = lines[1]
-    bname = lines[2]
-    arc_fn = lines[3]
+                               join(os.getcwd(), 'make-tarball')])
+    (revno, version, bname, arc_fn) = stdout.split(None)
     return (revno, version, arc_fn)
 
 
@@ -136,7 +137,7 @@ def main():
 
     # Clean out the root dir and make sure the dirs we want are in place
     root_dir = os.path.expanduser("~/rpmbuild")
-    info("Cleaning %s" % (root_dir))
+    info("Cleaning %r" % (root_dir))
     if os.path.isdir(root_dir):
         shutil.rmtree(root_dir)
     arc_dir = os.path.join(root_dir, 'SOURCES')
@@ -147,22 +148,21 @@ def main():
     (revno, version, archive_fn) = archive_code()
     real_archive_fn = os.path.join(arc_dir, os.path.basename(archive_fn))
     shutil.move(archive_fn, real_archive_fn)
-    info("Archived code to %s" % (real_archive_fn))
+    info("Archived code to %r" % (real_archive_fn))
 
     # Form the spec file to be used
-    tmpl_fn = os.path.join(os.getcwd(), 'brpm.tmpl')
-    info("Generated spec file from template %s" % (tmpl_fn))
+    tmpl_fn = os.path.join(os.getcwd(), 'redhat', 'cloud-init.spec')
+    info("Generated spec file from template %r" % (tmpl_fn))
     (base_name, arc_name, contents) = generate_spec_contents(tmpl_fn,
                                                              revno, version)
     spec_fn = os.path.join(root_dir, 'cloud-init.spec')
     with open(spec_fn, 'w') as fh:
         fh.write(contents)
-        info("Wrote spec file to %s" % (spec_fn))
+        info("Wrote spec file to %r" % (spec_fn))
 
     # Now build it!
     cmd = ['rpmbuild', '-ba', spec_fn]
-    info("Running rpmbuild %s" % (cmd))
-    tiny_p(cmd)
+    tiny_p(cmd, capture=False)
     info("Rpmbuild completed!")
 
     # Copy the items built to our local dir

@@ -8,6 +8,17 @@ import subprocess
 import sys
 import tempfile
 
+import tempita
+
+PKG_MP = {
+    'tempita': 'python-tempita',
+    'boto': 'python-boto',
+    'configobj': 'python-configobj',
+    'oauth': 'python-oauth',
+    'yaml': 'python-yaml',
+    'prettytable': 'python-prettytable',
+    'argparse': 'python-argparse',
+}
 
 @contextlib.contextmanager
 def tmpdir():
@@ -24,17 +35,69 @@ def join(*paths):
     return os.path.abspath(p)
 
 
-def tiny_p(cmd):
+def tiny_p(cmd, capture=True):
     # Darn python 2.6 doesn't have check_output (argggg)
     info("Running %s" % (cmd))
-    sp = subprocess.Popen(cmd, stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE, stdin=None)
+    stdout = subprocess.PIPE
+    stderr = subprocess.PIPE
+    if not capture:
+        stdout = None
+        stderr = None
+    sp = subprocess.Popen(cmd, stdout=stdout,
+                    stderr=stderr, stdin=None)
     (out, err) = sp.communicate()
     if sp.returncode not in [0]:
         raise RuntimeError("Failed running %s [rc=%s] (%s, %s)" 
                             % (cmd, sp.returncode, out, err))
     return (out, err)
 
+
+def tmpl_file(name, params):
+    with open(join('debian', name), 'r') as fh:
+        contents = fh.read()
+    tpl = tempita.Template(contents)
+    return tpl.substitute(**params)
+    
+
+def write_debian(version, revno, root):
+    db_dir = join(root, 'debian')
+    os.makedirs(db_dir)
+    
+    # Fill in the change log template
+    with open(join(db_dir, 'changelog'), 'w') as fh:
+        params = {
+            'version': version,
+            'revision': revno,
+        }
+        contents = tmpl_file('changelog', params) 
+        fh.write(contents)
+
+    # Write out the control file template
+    cmd = [sys.executable, join(os.pardir, 'tools', 'read-dependencies')]
+    (stdout, _stderr) = tiny_p(cmd)
+    pkgs = stdout.splitlines()
+    requires = []
+    
+    # Map to known packages
+    for e in pkgs:
+        e = e.lower().strip()
+        tgt_pkg = None
+        for n in PKG_MP.keys():
+            if e.find(n) != -1:
+                tgt_pkg = PKG_MP.get(n)
+        if not tgt_pkg:
+            raise RuntimeError(("Do not know how to translate %s to "
+                                " a known package") % (e))
+        else:
+            requires.append(tgt_pkg)
+    contents = tmpl_file('control', {'requires': requires})
+    with open(join(db_dir, 'control'), 'w') as fh:
+        fh.write(contents)
+    
+    # Just copy the following directly
+    for fn in ['dirs', 'copyright', 'compat', 'pycompat', 'rules']:
+        shutil.copy(join('debian', fn), 
+                    join(db_dir, fn))
 
 def info(msg):
     print("INFO: %s" % (msg))
@@ -46,49 +109,33 @@ def warn(msg):
 
 def archive_code():
     (stdout, _stderr) = tiny_p([sys.executable, 
-                               join(os.getcwd(), 'tar-me')])
-    lines = stdout.splitlines()
-    revno = lines[0]
-    version = lines[1]
-    bname = lines[2]
-    arc_fn = lines[3]
-    return (revno, version, bname, arc_fn)
+                               join(os.getcwd(), 'make-tarball')])
+    return stdout.split(None)
 
 
 def main():
-
-    # cmd = ['apt-get', 'install', 'python-nose',
-    #'pyflakes', 'python-mocker', 'cdbs', 'debhelper']
-    # tiny_p(cmd)
 
     with tmpdir() as td:
         (revno, version, bname, archive_fn) = archive_code()
         real_archive_fn = os.path.join(td, os.path.basename(archive_fn))
         shutil.move(archive_fn, real_archive_fn)
-        info("Archived code to %s" % (real_archive_fn))
-
         cmd = ['tar', '-xvzf', real_archive_fn, '-C', td]
         stdout, stderr = tiny_p(cmd)
 
         edir = join(td, bname)
         shutil.move(edir, join(td, 'cloud-init'))
-        shutil.copytree('debian.trunk', join(td, 'cloud-init', 'debian'))
-        
-        cmd = ['sed', '-i', '-e',"s,VERSION,%s," %(version),
-               '-e', "s,REVNO,bzr%s," % (revno),
-               join(td, 'cloud-init', 'debian', 'changelog')]
-        tiny_p(cmd)
-        
+        write_debian(version, revno, join(td, 'cloud-init'))
+
         # Seems to want an original tar ball
-        o_tar = "cloud-init_%s~bzr%s.orig.tar.gz" % (version, revno)
-        cmd = ['tar', '-czf', join(td, o_tar), '-C', join(td, 'cloud-init')]
+        o_tar = "cloud-init_%s~%s.orig.tar.gz" % (version, revno)
+        cmd = ['tar', '-czvf', join(td, o_tar), '-C', join(td, 'cloud-init')]
         cmd.extend(os.listdir(join(td, 'cloud-init')))
         tiny_p(cmd)
         
         ocwd = os.getcwd()
         os.chdir(join(td, 'cloud-init'))
         cmd = ['debuild']
-        tiny_p(cmd)
+        tiny_p(cmd, capture=False)
 
         debname = "cloud-init_%s~bzr%s-1_all.deb" % (version, revno)
         shutil.move(debname, join(owcwd, debname))
