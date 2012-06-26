@@ -217,7 +217,6 @@ def main():
     # Now build it!
     cmd = ['rpmbuild', '-ba', spec_fn]
     util.subp(cmd, capture=False)
-    info("Rpmbuild completed!")
 
     # Copy the items built to our local dir
     globs = [] 
