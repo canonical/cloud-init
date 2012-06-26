@@ -1,0 +1,84 @@
+#!/usr/bin/python
+
+import contextlib
+import os
+import shutil
+import subprocess
+import sys
+import tempfile
+
+
+def join(*paths):
+    p = os.path.join(*paths)
+    return os.path.abspath(p)
+
+
+def tiny_p(cmd):
+    # Darn python 2.6 doesn't have check_output (argggg)
+    sp = subprocess.Popen(cmd, stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE, stdin=None)
+    (out, err) = sp.communicate()
+    if sp.returncode not in [0]:
+        raise RuntimeError("Failed running %s [rc=%s] (%s, %s)" 
+                            % (cmd, sp.returncode, out, err))
+    return (out, err)
+
+
+@contextlib.contextmanager
+def tmpdir():
+    t = tempfile.mkdtemp()
+    try:
+        yield t
+    finally:
+        shutil.rmtree(t)
+
+
+
+def main(args):
+    
+    tag = None
+    if args:
+        tag = args[0]
+
+    with tmpdir() as td:
+        (stdout, _stderr) = tiny_p(['bzr', 'revno'])
+        revno = stdout.strip()
+
+        cmd = [sys.executable, join(os.pardir, 'tools', 'read-version')]
+        (stdout, _stderr) = tiny_p(cmd)
+        version = stdout.strip()
+
+        owcd = os.getcwd()
+        os.chdir(os.path.abspath(os.pardir))
+        if not os.path.exists('setup.py'):
+            raise RuntimeError("No setup.py found in %s" % (os.getcwd()))
+
+        cmd = ['bzr', 'ls', '--versioned']
+        (stdout, _stderr) = tiny_p(cmd)
+        fns = []
+        for fn in stdout.splitlines():
+            fn = fn.strip()
+            if not fn or fn.startswith("."):
+                continue
+            fns.append(fn)
+
+        bfn = 'cloud-init-%s-%s' % (version, revno)
+        fn = '%s.tar.gz' % (bfn)
+        o_fn = join(td, fn)
+        cmd = ['tar', '-czf', o_fn]
+        cmd.extend(fns)
+        tiny_p(cmd)
+
+        os.chdir(owcd)
+        shutil.copy(o_fn, fn)
+
+        print revno
+        print version
+        print(os.path.abspath(fn))
+
+    return 0
+
+
+if __name__ == '__main__':
+    sys.exit(main(sys.argv[1:]))
+
