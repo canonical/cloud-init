@@ -195,7 +195,7 @@ def generate_spec_contents(args, tmpl_fn, revno, version):
     with open(tmpl_fn, 'r') as fh:
         tmpl = tempita.Template(fh.read())
         contents = tmpl.substitute(**subs)
-        return (base_name, '%s.tar.gz' % (base_name), contents)
+        return contents
 
 
 def archive_code():
@@ -231,10 +231,8 @@ def main():
 
     # Form the spec file to be used
     tmpl_fn = os.path.join(os.getcwd(), 'redhat', 'cloud-init.spec')
-    info("Generated spec file from template %r" % (tmpl_fn))
-    (base_name, arc_name, contents) = generate_spec_contents(args,
-                                                             tmpl_fn,
-                                                             revno, version)
+    info("Generating spec file from template %r" % (tmpl_fn))
+    contents = generate_spec_contents(args, tmpl_fn, revno, version)
     spec_fn = os.path.join(root_dir, 'cloud-init.spec')
     with open(spec_fn, 'w') as fh:
         fh.write(contents)
