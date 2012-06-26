@@ -29,10 +29,20 @@ import setuptools
 
 import subprocess
 
-def tiny_p(cmd):
-    sp = subprocess.Popen(cmd, stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE, stdin=None)
+
+def tiny_p(cmd, capture=True):
+    # Darn python 2.6 doesn't have check_output (argggg)
+    stdout = subprocess.PIPE
+    stderr = subprocess.PIPE
+    if not capture:
+        stdout = None
+        stderr = None
+    sp = subprocess.Popen(cmd, stdout=stdout,
+                    stderr=stderr, stdin=None)
     (out, err) = sp.communicate()
+    if sp.returncode not in [0]:
+        raise RuntimeError("Failed running %s [rc=%s] (%s, %s)" 
+                            % (cmd, sp.returncode, out, err))
     return (out, err)
 
 
