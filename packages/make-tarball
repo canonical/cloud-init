@@ -8,78 +8,56 @@ import sys
 import tempfile
 
 
-def join(*paths):
-    p = os.path.join(*paths)
-    return os.path.abspath(p)
+# Use the util functions from cloudinit
+possible_topdir = os.path.normpath(os.path.join(os.path.abspath(
+        sys.argv[0]), os.pardir, os.pardir))
+if os.path.exists(os.path.join(possible_topdir, "cloudinit", "__init__.py")):
+    sys.path.insert(0, possible_topdir)
 
-
-def tiny_p(cmd):
-    # Darn python 2.6 doesn't have check_output (argggg)
-    sp = subprocess.Popen(cmd, stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE, stdin=None)
-    (out, err) = sp.communicate()
-    if sp.returncode not in [0]:
-        raise RuntimeError("Failed running %s [rc=%s] (%s, %s)" 
-                            % (cmd, sp.returncode, out, err))
-    return (out, err)
-
-
-@contextlib.contextmanager
-def tmpdir():
-    t = tempfile.mkdtemp()
-    try:
-        yield t
-    finally:
-        shutil.rmtree(t)
-
+from cloudinit import util
 
 
 def main(args):
-    
-    tag = None
+
+    base_fn = None
     if args:
-        tag = args[0]
+        base_fn = args[0]
 
-    with tmpdir() as td:
-        (stdout, _stderr) = tiny_p(['bzr', 'revno'])
-        revno = stdout.strip()
+    with util.tempdir() as tdir:
 
-        cmd = [sys.executable, join(os.pardir, 'tools', 'read-version')]
-        (stdout, _stderr) = tiny_p(cmd)
-        version = stdout.strip()
+        if not base_fn:
+            (stdout, _stderr) = util.subp(['bzr', 'revno'])
+            revno = stdout.strip()
+    
+            cmd = [sys.executable,
+                   util.abs_join(os.pardir, 'tools', 'read-version')]
+            (stdout, _stderr) = util.subp(cmd)
+            version = stdout.strip()
+            base_fn = 'cloud-init-%s-%s' % (version, revno)
 
-        owcd = os.getcwd()
-        os.chdir(os.path.abspath(os.pardir))
-        if not os.path.exists('setup.py'):
-            raise RuntimeError("No setup.py found in %s" % (os.getcwd()))
+        util.ensure_dir(util.abs_join(tdir, base_fn))
+        arch_fn = '%s.tar.gz' % (base_fn)
 
-        cmd = ['bzr', 'ls', '--versioned']
-        (stdout, _stderr) = tiny_p(cmd)
-        fns = []
-        for fn in stdout.splitlines():
-            fn = fn.strip()
-            if not fn or fn.startswith("."):
-                continue
-            fns.append(fn)
-        bfn = 'cloud-init-%s-%s' % (version, revno)
-        os.makedirs(join(td, bfn))
-        
-        for fn in fns:
-            if os.path.isfile(fn):
-                shutil.copy(fn, join(td, bfn, fn))
-            else:
-                shutil.copytree(fn, join(td, bfn, fn))
+        with util.chdir(os.pardir):
+            (stdout, _stderr) = util.subp(['bzr', 'ls', '--versioned'])
+            fns = [fn for fn in stdout.splitlines() 
+                          if fn and not fn.startswith('.')]
+            # TODO - only copy the right files
+            # ie do a recursive versioned...
+            for fn in fns:
+                if os.path.isfile(fn):
+                    shutil.copy(fn, util.abs_join(tdir, base_fn, fn))
+                else:
+                    shutil.copytree(fn, util.abs_join(tdir, base_fn, fn))
 
-        fn = '%s.tar.gz' % (bfn)
-        o_fn = join(td, fn)
-        cmd = ['tar', '-czf', o_fn, '-C', join(td), bfn]
-        tiny_p(cmd)
+        cmd = ['tar', '-czf',
+                util.abs_join(tdir, arch_fn), 
+                '-C', tdir, base_fn]
+        util.subp(cmd)
 
-        os.chdir(owcd)
-        shutil.move(o_fn, fn)
-
-        out = [revno, version, bfn, os.path.abspath(fn)]
-        print('\t'.join(out))
+        shutil.move(util.abs_join(tdir, arch_fn),
+                    util.abs_join(os.getcwd(), arch_fn))
+        print(os.path.abspath(arch_fn))
         
     return 0
 
