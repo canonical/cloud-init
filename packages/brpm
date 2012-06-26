@@ -191,7 +191,15 @@ def main():
                         help="select boot type (default: %(default)s)", 
                         metavar="TYPE", default='initd',
                         choices=['upstart', 'initd', 'systemd'])
+    parser.add_argument("-v", "--verbose", dest="verbose",
+                        help=("run verbosely"
+                              " (default: %(default)s)"),
+                        default=False,
+                        action='store_true')
     args = parser.parse_args()
+    capture = True
+    if args.verbose:
+        capture = False
 
     # Clean out the root dir and make sure the dirs we want are in place
     root_dir = os.path.expanduser("~/rpmbuild")
@@ -216,7 +224,7 @@ def main():
 
     # Now build it!
     cmd = ['rpmbuild', '-ba', spec_fn]
-    util.subp(cmd, capture=False)
+    util.subp(cmd, capture=capture)
 
     # Copy the items built to our local dir
     globs = [] 
