@@ -2,20 +2,12 @@
 # vi: ts=4 expandtab
 
 import os
-import subprocess
 import sys
-import tempfile
-import re
-import textwrap
 import shutil
-import zipfile
 
 import glob
 
 import tempita
-
-from datetime import datetime
-from datetime import date
 
 from distutils import version as ver
 
@@ -29,8 +21,6 @@ if os.path.exists(os.path.join(possible_topdir, "cloudinit", "__init__.py")):
 from cloudinit import util
 from cloudinit import version
 
-import contextlib
-
 # Mapping of expected packages to there full name...
 PKG_MP = {
     'boto': 'python-boto',
@@ -43,17 +33,6 @@ PKG_MP = {
 }
 
 
-@contextlib.contextmanager
-def chdir(where_to):
-    cur_cwd = os.path.abspath(os.getcwd())
-    where_to = os.path.abspath(where_to)
-    os.chdir(where_to)
-    yield where_to
-    os.chdir(cur_cwd)
-
-
-PWD = os.getcwd()
-
 def info(msg):
     print("INFO: %s" % (msg))
 
@@ -62,114 +41,8 @@ def warn(msg):
     print("WARNING: %s" % (msg))
 
 
-def cut_up(entry, maxline=80):
-    if len(entry) < maxline:
-        return entry
-    else:
-        c = entry[0:maxline]
-        return "%s..." % (c)
-
-
-def extract_entry(collecting):
-    a_entry = {}
-    for t in ['tags', 'revno', 'author', 'timestamp', 'committer']:
-        look_for = "%s:" % (t)
-        for v in collecting:
-            if v.startswith(look_for):
-                a_entry[t] = v[len(look_for):].strip()
-                break
-    i = -1
-    for a, v in enumerate(collecting):
-        if v.startswith("message:"):
-            i = a
-            break
-    if i != -1:
-        msg_lines = collecting[i + 1:]
-        n_lines = []
-        for m in msg_lines:
-            m = m.strip()
-            if not m:
-                continue
-            m = m.replace("\n", " ")
-            n_lines.append("" + m.lstrip())
-        message = " ".join(n_lines).lstrip()
-        a_entry['message'] = message
-    return a_entry
-
-
-def build_changelog(history=-1):
-    cmd = ['bzr', 'log', '--timezone=utc']
-    (stdout, _stderr) = util.subp(cmd)
-    # Clean the format up
-    entries = stdout.splitlines()
-    all_entries = []
-    collecting = []
-    for e in entries:
-        if e.startswith("---"):
-            if collecting:
-                a_entry = extract_entry(collecting)
-                if a_entry:
-                    all_entries.append(a_entry)
-                collecting = []
-        else:
-            collecting.append(e)
-
-    a_entry = extract_entry(collecting)
-    if a_entry:
-        all_entries.append(a_entry)
-
-    if history > 0:
-        take_entries = list(all_entries[0:history])
-    else:
-        take_entries = list(all_entries)
-
-    # Merge those with same date
-    date_entries = {}
-    for e in take_entries:
-        author = e.get('author')
-        if not author:
-            author = e.get('committer')
-        if not author:
-            continue
-        timestamp = e.get('timestamp')
-        if not timestamp:
-            continue
-        msg = e.get('message')
-        if not msg:
-            continue
-        revno = e.get('revno')
-        if not revno:
-            continue
-        # http://bugs.python.org/issue6641
-        timestamp = timestamp.replace("+0000", '').strip()
-        ds = datetime.strptime(timestamp, '%a %Y-%m-%d %H:%M:%S')
-        c_ds = ds.date()
-        if c_ds not in date_entries:
-            ap_entry = {}
-            ap_entry['messages'] = []
-            ap_entry['authors'] = []
-            ap_entry['revnos'] = []
-            date_entries[c_ds] = ap_entry
-        ap_entry = date_entries[c_ds]
-        ap_entry['messages'].append(msg)
-        ap_entry['authors'].append(author)
-        ap_entry['revnos'].append(revno)
-
-    dates = sorted(date_entries.keys())
-    chglog = []
-    for ds in reversed(dates):
-        e = date_entries[ds]
-        authors = ", ".join(set(e['authors']))
-        revnos = ", ".join(list(sorted(e['revnos'])))
-        top_line = "%s %s - %s" % (ds.strftime("%a %b %d %Y"),
-                                   authors, revnos)
-        chglog.append("* %s" % (top_line))
-        for msg in e['messages']:
-            chglog.append("- %s" % (cut_up(msg)))
-    return "\n".join(chglog)
-
-
 def generate_spec_contents(tmpl_fn):
+
     # Version junk
     cmd = [os.path.join(os.pardir, 'tools', 'read-version')]
     (stdout, _stderr) = util.subp(cmd)
@@ -208,10 +81,11 @@ def generate_spec_contents(tmpl_fn):
 
     base_name = 'cloud-init-%s-%s' % (i_version, subs['revno'])
     subs['requires'] = requires
-    subs['changelog'] = build_changelog()
+
+    (stdout, _stderr) = util.subp(['rpm-changelog'])
+    subs['changelog'] = stdout
 
     # See: http://www.zarb.org/~jasonc/macros.php
-    
     # Pickup any special files
     docs = [
         'TODO',
@@ -241,18 +115,24 @@ def generate_spec_contents(tmpl_fn):
 
 
 def main():
+
+    # Clean out the root dir and make sure the dirs we want are in place
     root_dir = os.path.expanduser("~/rpmbuild")
     info("Cleaning %s" % (root_dir))
     if os.path.isdir(root_dir):
         util.delete_dir_contents(root_dir)
     arc_dir = os.path.join(root_dir, 'SOURCES')
     util.ensure_dirs([root_dir, arc_dir])
+
+    # Form the spec file to be used
     tmpl_fn = os.path.join(os.getcwd(), 'brpm.tmpl')
     info("Generated spec file from template %s" % (tmpl_fn))
     (base_name, arc_name, contents) = generate_spec_contents(tmpl_fn)
     spec_fn = os.path.join(root_dir, 'cloud-init.spec')
     util.write_file(spec_fn, contents)
     info("Wrote spec file to %s" % (spec_fn))
+
+    # Archive the code and files that we want to
     with util.tempdir() as td:
         src_dir = os.path.join(td, base_name)
         os.makedirs(src_dir)
@@ -273,10 +153,14 @@ def main():
         cmd.extend(os.listdir(td))
         util.subp(cmd)
         info("Archived code at %s" % (arc_fn))
+
+    # Now build it!
     cmd = ['rpmbuild', '-ba', spec_fn]
     info("Running rpmbuild %s" % (cmd))
     util.subp(cmd)
     info("Rpmbuild completed!")
+
+    # Copy the items built to our local dir
     globs = [] 
     globs.extend(glob.glob("%s/*.rpm" %
                            (os.path.join(root_dir, 'RPMS', 'noarch'))))
@@ -289,6 +173,7 @@ def main():
         tgt_fn = os.path.join(os.getcwd(), n)
         util.copy(fn, tgt_fn)
         info("Copied %s to %s" % (n, tgt_fn))
+
     return 0
 
 
