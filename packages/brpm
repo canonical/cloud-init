@@ -82,7 +82,7 @@ def generate_spec_contents(tmpl_fn):
     base_name = 'cloud-init-%s-%s' % (i_version, subs['revno'])
     subs['requires'] = requires
 
-    (stdout, _stderr) = util.subp(['rpm-changelog'])
+    (stdout, _stderr) = util.subp([os.path.join(os.getcwd(), 'rpm-changelog')])
     subs['changelog'] = stdout
 
     # See: http://www.zarb.org/~jasonc/macros.php
