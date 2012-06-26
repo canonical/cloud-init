@@ -487,6 +487,16 @@ def mergedict(src, cand):
 
 
 @contextlib.contextmanager
+def chdir(ndir):
+    curr = os.getcwd()
+    try:
+        os.chdir(ndir)
+        yield ndir
+    finally:
+        os.chdir(curr)
+
+
+@contextlib.contextmanager
 def umask(n_msk):
     old = os.umask(n_msk)
     try:
@@ -1283,6 +1293,10 @@ def subp(args, data=None, rcs=None, env=None, capture=True, shell=False):
         LOG.debug("Stdout: %s", out)
         LOG.debug("Stderr: %s", err)
     return (out, err)
+
+
+def abs_join(*paths):
+    return os.path.abspath(os.path.join(*paths))
 
 
 # shellify, takes a list of commands
