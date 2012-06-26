@@ -3,28 +3,28 @@
 # Used for templating any files or strings that are considered 
 # to be templates, not cheetah since it pulls in alot of extra libs.
 # This one is pretty dinky and does want we want (var substituion)
-Tempita>=0.4
+Tempita
 
 # This is used for any pretty printing of tabular data.
-PrettyTable>=0.4
+PrettyTable
 
 # This one is currently only used by the MAAS datasource. If that
 # datasource is removed, this is no longer needed
-oauth>=1.0
+oauth
 
 # This is used to fetch the ec2 metadata into a easily
 # parseable format, instead of having to have cloud-init perform
 # those same fetchs and decodes and signing (...) that ec2 requires.
-boto>=2.4
+boto
 
 # This is only needed for places where we need to support configs in a manner
 # that the built-in config parser is not sufficent (ie
 # when we need to preserve comments, or do not have a top-level
 # section)...
-configobj>=4.6
+configobj
 
 # All new style configurations are in the yaml format
-pyyaml>=3.0
+pyyaml
 
 # The new main entrypoint uses argparse instead of optparse
-argparse>=1.1
+argparse
