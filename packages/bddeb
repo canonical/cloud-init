@@ -1,45 +1,66 @@
-#!/bin/sh 
+#!/usr/bin/python
 
-# Ensure we can find the setup.py file which
-# should be at the root of the cloud-init tree
-PKG_DIR=`pwd`
-ROOT="$PKG_DIR/../"
-if [ ! -e "$ROOT/setup.py" ]; then
-    echo "No setup.py found at $ROOT"
-    exit 1
-fi
-echo "Using root directory $ROOT for building your debian package"
+import contextlib
+import glob
+import os
+import shutil
+import subprocess
+import sys
+import tempfile
 
-# Ensure tempdir is cleaned and ready to go
-TEMP_D=$(mktemp -d "${TMPDIR:-/tmp}/${0##*/}.XXXXXXX")
-echo "With $TEMP_D as a temporary workspace"
-rm -Rf "${TEMP_D}"; mkdir "${TEMP_D}"
-set -e
 
-# Ensure tempdir removed if breaks...
-trap "rm -Rf '${TEMP_D}'" EXIT SIGINT SIGTERM
+@contextlib.contextmanager
+def tmpdir():
+    t = tempfile.mkdtemp()
+    try:
+        yield t
+    finally:
+        shutil.rmtree(t)
 
-# Go to the root and start making a package!
-cd $ROOT
-files=$(bzr ls --versioned)
-revno=$(bzr revno)
-version=$(tools/read-version)
 
-mkdir "${TEMP_D}/cloud-init"
-otar="$TEMP_D/cloud-init_$version~bzr${revno}.orig.tar.gz"
-tar -czf - ${files} > "$otar"
-tar -C "${TEMP_D}/cloud-init" -xzf - < "$otar"
+def join(*paths):
+    p = os.path.join(*paths)
+    return os.path.abspath(p)
 
-if [ ! -d "${TEMP_D}/cloud-init/debian" ]; then
-   rsync -a $PKG_DIR/debian.trunk/ "${TEMP_D}/cloud-init/debian"
-fi
 
-sed -i -e "s,VERSION,$version," -e "s,REVNO,bzr$revno," \
-          "$TEMP_D/cloud-init/debian/changelog"
+def tiny_p(cmd):
+    # Darn python 2.6 doesn't have check_output (argggg)
+    info("Running %s" % (cmd))
+    sp = subprocess.Popen(cmd, stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE, stdin=None)
+    (out, err) = sp.communicate()
+    if sp.returncode not in [0]:
+        raise RuntimeError("Failed running %s [rc=%s] (%s, %s)" 
+                            % (cmd, sp.returncode, out, err))
+    return (out, err)
 
-cd "${TEMP_D}/cloud-init"
-debuild "$@"
-debname="cloud-init_${version}~bzr${revno}-1_all.deb"
-mv "../$debname" "$PKG_DIR"
-echo "Wrote $debname to $PKG_DIR"
 
+def info(msg):
+    print("INFO: %s" % (msg))
+
+
+def warn(msg):
+    print("WARNING: %s" % (msg))
+
+ 
+
+def main():
+
+    with tmpdir() as td:
+        info("Using %s as a temporary workspace" % (td))
+        (stdout, _stderr) = tiny_p(['bzr', 'revno'])
+        revno = stdout.strip()
+        
+        
+        
+        cmd = [sys.executable, join(os.pardir, 'tools', 'read-version')]
+        (stdout, _stderr) = tiny_p(cmd)
+        version = stdout.strip()
+        
+        
+
+    return 0
+
+
+if __name__ == '__main__':
+    sys.exit(main())
