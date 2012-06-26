@@ -42,22 +42,46 @@ def info(msg):
 def warn(msg):
     print("WARNING: %s" % (msg))
 
- 
+
+def archive_code():
+    (stdout, _stderr) = tiny_p([sys.executable, 
+                               join(os.getcwd(), 'tar-me')])
+    lines = stdout.splitlines()
+    revno = lines[0]
+    version = lines[1]
+    bname = lines[2]
+    arc_fn = lines[3]
+    return (revno, version, bname, arc_fn)
+
 
 def main():
 
     with tmpdir() as td:
-        info("Using %s as a temporary workspace" % (td))
-        (stdout, _stderr) = tiny_p(['bzr', 'revno'])
-        revno = stdout.strip()
+        (revno, version, bname, archive_fn) = archive_code()
+        real_archive_fn = os.path.join(td, os.path.basename(archive_fn))
+        shutil.move(archive_fn, real_archive_fn)
+        info("Archived code to %s" % (real_archive_fn))
+
+        cmd = ['tar', '-xvzf', real_archive_fn, '-C', td]
+        stdout, stderr = tiny_p(cmd)
+
+        edir = join(td, bname)
+        shutil.move(edir, join(td, 'cloud-init'))
+        shutil.copytree('debian.trunk', join(td, 'cloud-init', 'debian'))
+
+        cmd = ['sed', '-i', '-e',"s,VERSION,%s," %(version),
+               '-e', "s,REVNO,bzr%s," % (revno),
+               join(td, 'cloud-init', 'debian', 'changelog')]
+        tiny_p(cmd)
         
-        
-        
-        cmd = [sys.executable, join(os.pardir, 'tools', 'read-version')]
-        (stdout, _stderr) = tiny_p(cmd)
-        version = stdout.strip()
-        
-        
+        ocwd = os.getcwd()
+        os.chdir(join(td, 'cloud-init'))
+        cmd = ['debuild']
+        tiny_p(cmd)
+
+        debname = "cloud-init_%s~bzr%s-1_all.deb" % (version, revno)
+        shutil.move(debname, join(owcwd, debname))
+        info("Wrote out debian package %s" % (join(owcwd, debname)))
 
     return 0
 
