@@ -1,61 +1,49 @@
 #!/usr/bin/python
 # vi: ts=4 expandtab
 
-import sys
+# A crappy little script
+# that changes bzr 'log' 
+# into someting that rpm spec files can use (best effort)
+
 import os
 import re
-
-import textwrap
+import sys
 
 from datetime import datetime
 from datetime import date
 
 import subprocess
 
+E_TYPES = ['tags', 'revno', 'author', 'timestamp', 'committer']
+
+
 def tiny_p(cmd):
+    # Darn python 2.6 doesn't have check_output (argggg)
     sp = subprocess.Popen(cmd, stdout=subprocess.PIPE,
                     stderr=subprocess.PIPE, stdin=None)
     (out, err) = sp.communicate()
     return (out, err)
 
-# This util converts a bzr log into a useful rpm changelog
-
-def cut_up(entry, maxline=80):
-    if len(entry) < maxline:
-        return entry
-    else:
-        c = entry[0:maxline]
-        return "%s..." % (c)
-
-
-def adj_iter(elems):
-    if not elems:
-        raise StopIteration()
-    curr = elems[0]
-    yield curr
-    for i in range(1, len(elems)):
-        e = elems[i]
-        if e != curr:
-            yield e
-            curr = e
 
 def extract_entry(collecting):
-    a_entry = {}
-    for t in ['tags', 'revno', 'author', 'timestamp', 'committer']:
+    entry = {}
+    for t in E_TYPES:
         look_for = "%s:" % (t)
         for v in collecting:
             if v.startswith(look_for):
-                a_entry[t] = v[len(look_for):].strip()
+                entry[t] = v[len(look_for):].strip()
                 break
     i = -1
+    # Messages seem to be the last element so suck 
+    # those all up
     for a, v in enumerate(collecting):
         if v.startswith("message:"):
             i = a
             break
     if i != -1:
         msg_lines = collecting[i + 1:]
-        a_entry['message'] = "\n".join(msg_lines)
-    return a_entry
+        entry['message'] = "\n".join(msg_lines)
+    return entry
 
 
 def clean_authors(authors):
@@ -143,6 +131,7 @@ def clean_messages(messages):
 def build_changelog(history=-1):
     cmd = ['bzr', 'log', '--timezone=utc']
     (stdout, _stderr) = tiny_p(cmd)
+
     # Clean the format up
     entries = stdout.splitlines()
     all_entries = []
@@ -157,9 +146,10 @@ def build_changelog(history=-1):
         else:
             collecting.append(e)
 
-    a_entry = extract_entry(collecting)
-    if a_entry:
-        all_entries.append(a_entry)
+    # Anything that we left behind??
+    entry = extract_entry(collecting)
+    if entry:
+        all_entries.append(entry)
 
     if history > 0:
         take_entries = list(all_entries[0:history])
@@ -186,25 +176,26 @@ def build_changelog(history=-1):
         # http://bugs.python.org/issue6641
         timestamp = timestamp.replace("+0000", '').strip()
         ds = datetime.strptime(timestamp, '%a %Y-%m-%d %H:%M:%S')
-        c_ds = ds.date()
-        if c_ds not in date_entries:
-            ap_entry = {}
-            ap_entry['messages'] = []
-            ap_entry['authors'] = []
-            ap_entry['revnos'] = []
-            date_entries[c_ds] = ap_entry
-        ap_entry = date_entries[c_ds]
-        ap_entry['messages'].append(msg)
-        ap_entry['authors'].append(author)
-        ap_entry['revnos'].append(revno)
+        ds = ds.date()
+        if ds not in date_entries:
+            entry = {}
+            entry['messages'] = []
+            entry['authors'] = []
+            entry['revnos'] = []
+            date_entries[ds] = entry
+        entry = date_entries[ds]
+        entry['messages'].append(msg)
+        entry['authors'].append(author)
+        entry['revnos'].append(revno)
 
+    # It wants them in chronological order...
     dates = sorted(date_entries.keys())
     chglog = []
     for ds in reversed(dates):
         e = date_entries[ds]
         authors = clean_authors(e['authors'])
         revnos = clean_revnos(e['revnos'])
-        top_line = "%s %s - %s" % (ds.strftime("%a %b %d %Y"),
+        top_line = "%s %s - [revison %s]" % (ds.strftime("%a %b %d %Y"),
                                    authors, revnos)
         chglog.append("* %s" % (top_line))
         chglog.append(clean_messages(e['messages']))
