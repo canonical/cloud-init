@@ -170,7 +170,8 @@ def generate_spec_contents(args, tmpl_fn):
         if k != args.boot:
             post_remove.append(v)
         else:
-            other_files.append(v)
+            take = v + "*"
+            other_files.append(take)
     subs['post_remove'] = post_remove
     subs['files'] = other_files
     
