@@ -607,7 +607,7 @@ def partwalker_callback(pdata, ctype, filename, payload):
             pdata['handlercount'] = 0
         partwalker_handle_handler(pdata, ctype, filename, payload)
         return
-    if ctype not in pdata['handlers']:
+    if ctype not in pdata['handlers'] and payload:
         if ctype == "text/x-not-multipart":
             # Extract the first line or 24 bytes for displaying in the log
             start = payload.split("\n", 1)[0][:24]
