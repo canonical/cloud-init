@@ -162,11 +162,13 @@ def generate_spec_contents(args, tmpl_fn):
     boot_remove = { 
         'initd': [
             '/etc/init.d/cloud-init-local',
+            # Remove the other auto-start folders
             '/etc/systemd/',
             '/etc/init/',
         ],
         'initd-local': [
             '/etc/init.d/cloud-init',
+            # Remove the other auto-start folders
             '/etc/systemd/',
             '/etc/init/',
         ],
@@ -174,18 +176,21 @@ def generate_spec_contents(args, tmpl_fn):
         # all of its files being 'active' (and not have naming
         # or event name conflicts??)
         'systemd': [
+            # Remove the other auto-start folders
             '/etc/init.d/',
             '/etc/init/',
         ],
         'upstart': [
             '/etc/init/cloud-init-nonet.conf',
             '/etc/init/cloud-init-local.conf',
-            '/etc/init/',
+            # Remove the other auto-start folders
+            '/etc/init.d/',
             '/etc/systemd/',
         ],
         'upstart-local': [
             '/etc/init/cloud-init.conf',
-            '/etc/init/',
+            # Remove the other auto-start folders
+            '/etc/init.d/',
             '/etc/systemd/',
         ]
     }
