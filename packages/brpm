@@ -189,7 +189,7 @@ def generate_spec_contents(args, tmpl_fn):
             '/etc/systemd/',
         ]
     }
-    boot_keep = [
+    boot_keep = {
         'systemd': [
             '/etc/systemd/*',
         ],
@@ -205,9 +205,9 @@ def generate_spec_contents(args, tmpl_fn):
         'initd': [
             '/etc/init.d/*',
         ],
-    ]
+    }
     subs['post_remove'] = boot_remove[args.boot]
-    other_files.extend(boot_keep[args.boot]
+    other_files.extend(boot_keep[args.boot])
     subs['files'] = other_files
     return templater.render_from_file(tmpl_fn, params=subs)
 
