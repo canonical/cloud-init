@@ -154,27 +154,41 @@ def generate_spec_contents(args, tmpl_fn):
     other_files = [
         '%{_bindir}/*',
         '/usr/lib/cloud-init/*',
+        '/etc/init/*',
+        '/etc/systemd/*',
+        '/etc/init.d/*',
     ]
 
-    # Since setup.py installs them
-    # all, we need to selectively 
-    # knock off the wrong ones and
-    # ensure the right one is kept
-    post_remove_keep = {
-        'initd': '/etc/init.d/',
-        'systemd': '/etc/systemd/',
-        'upstart': '/etc/init/',
+    # Since setup.py installs them all, we need to selectively
+    # remove the wrong ones and ensure the right one/s are kept
+    # for the boot mode that is desired...
+    post_remove = { 
+        'initd': [
+            '/etc/init.d/cloud-init-local',
+            '/etc/systemd/',
+            '/etc/init/',
+        ],
+        'initd-local': [
+            '/etc/init.d/cloud-init',
+            '/etc/systemd/',
+            '/etc/init/',
+        ],
+        # It seems like systemd can work with
+        # all of its files being 'active' (and not have naming
+        # or event name conflicts??)
+        'systemd': [
+            '/etc/init.d/',
+            '/etc/init/',
+        ],
+        'upstart': [
+            '/etc/init/cloud-init-nonet.conf',
+            '/etc/init/cloud-init-local.conf',
+            '/etc/init/',
+            '/etc/systemd/',
+        ],
     }
-    post_remove = []
-    for (k, v) in post_remove_keep.iteritems():
-        if k != args.boot:
-            post_remove.append(v)
-        else:
-            take = v + "*"
-            other_files.append(take)
-    subs['post_remove'] = post_remove
+    subs['post_remove'] = post_remove[args.boot]
     subs['files'] = other_files
-    
     return templater.render_from_file(tmpl_fn, params=subs)
 
 
@@ -191,7 +205,8 @@ def main():
     parser.add_argument("-b", "--boot", dest="boot",
                         help="select boot type (default: %(default)s)", 
                         metavar="TYPE", default='initd',
-                        choices=['upstart', 'initd', 'systemd'])
+                        choices=('upstart', 'initd', 'systemd',
+                                 'upstart-local', 'initd-local'))
     parser.add_argument("-v", "--verbose", dest="verbose",
                         help=("run verbosely"
                               " (default: %(default)s)"),
