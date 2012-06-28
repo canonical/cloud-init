@@ -162,7 +162,7 @@ def generate_spec_contents(args, tmpl_fn):
     # Since setup.py installs them all, we need to selectively
     # remove the wrong ones and ensure the right one/s are kept
     # for the boot mode that is desired...
-    post_remove = { 
+    boot_remove = { 
         'initd': [
             '/etc/init.d/cloud-init-local',
             '/etc/systemd/',
@@ -186,8 +186,31 @@ def generate_spec_contents(args, tmpl_fn):
             '/etc/init/',
             '/etc/systemd/',
         ],
+        'upstart-local': [
+            '/etc/init/cloud-init.conf',
+            '/etc/init/',
+            '/etc/systemd/',
+        ]
     }
-    subs['post_remove'] = post_remove[args.boot]
+    boot_keep = [
+        'systemd': [
+            '/etc/systemd/*',
+        ],
+        'upstart': [
+            '/etc/init/*',
+        ],
+        'upstart-local': [
+            '/etc/init/*',
+        ],
+        'initd-local': [
+            '/etc/init.d/*',
+        ],
+        'initd': [
+            '/etc/init.d/*',
+        ],
+    ]
+    subs['post_remove'] = boot_remove[args.boot]
+    other_files.extend(boot_keep[args.boot]
     subs['files'] = other_files
     return templater.render_from_file(tmpl_fn, params=subs)
 
