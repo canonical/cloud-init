@@ -192,13 +192,13 @@ class Init(object):
         cfg_list = self.cfg.get('datasource_list') or []
         return (cfg_list, pkg_list)
 
-    def _get_data_source(self, local_only=False):
+    def _get_data_source(self):
         if self.datasource:
             return self.datasource
         ds = self._restore_from_cache()
         if ds:
             LOG.debug("Restored from cache, datasource: %s", ds)
-        if not ds and not local_only:
+        if not ds:
             (cfg_list, pkg_list) = self._get_datasources()
             # Deep copy so that user-data handlers can not modify
             # (which will affect user-data handlers down the line...)
@@ -209,11 +209,10 @@ class Init(object):
                                                cfg_list,
                                                pkg_list)
             LOG.debug("Loaded datasource %s - %s", dsname, ds)
-        if ds:
-            self.datasource = ds
-            # Ensure we adjust our path members datasource
-            # now that we have one (thus allowing ipath to be used)
-            self.paths.datasource = ds
+        self.datasource = ds
+        # Ensure we adjust our path members datasource
+        # now that we have one (thus allowing ipath to be used)
+        self.paths.datasource = ds
         return ds
 
     def _get_instance_subdirs(self):
@@ -275,8 +274,8 @@ class Init(object):
                         "%s\n" % (previous_iid))
         return iid
 
-    def fetch(self, local_only=False):
-        return self._get_data_source(local_only)
+    def fetch(self):
+        return self._get_data_source()
 
     def instancify(self):
         return self._reflect_cur_instance()
@@ -312,7 +311,7 @@ class Init(object):
         ]
         return def_handlers
 
-    def consume(self, frequency=PER_INSTANCE):
+    def consume_userdata(self, frequency=PER_INSTANCE):
         cdir = self.paths.get_cpath("handlers")
         idir = self._get_ipath("handlers")
 

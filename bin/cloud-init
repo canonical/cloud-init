@@ -34,12 +34,14 @@ if os.path.exists(os.path.join(possible_topdir, "cloudinit", "__init__.py")):
 
 from cloudinit import log as logging
 from cloudinit import netinfo
-from cloudinit import settings
 from cloudinit import sources
 from cloudinit import stages
 from cloudinit import templater
 from cloudinit import util
 from cloudinit import version
+
+from cloudinit.settings import (PER_INSTANCE, PER_ALWAYS, PER_ONCE,
+                                CLOUD_CONFIG)
 
 
 # Module section template
@@ -54,9 +56,9 @@ QUERY_DATA_TYPES = [
 
 # Frequency shortname to full name
 FREQ_SHORT_NAMES = {
-    'instance': settings.PER_INSTANCE,
-    'always': settings.PER_ALWAYS,
-    'once': settings.PER_ONCE,
+    'instance': PER_INSTANCE,
+    'always': PER_ALWAYS,
+    'once': PER_ONCE,
 }
 
 LOG = logging.getLogger()
@@ -111,8 +113,15 @@ def main_init(name, args):
         deps = [sources.DEP_FILESYSTEM]
 
     if not args.local:
-        # TODO: What is this for??
-        root_name = "%s.d" % (settings.CLOUD_CONFIG)
+        # See doc/kernel-cmdline.txt
+        #
+        # This is used in maas datasource, in "ephemeral" (read-only root)
+        # environment where the instance netboots to iscsi ro root.
+        # and the entity that controls the pxe config has to configure
+        # the maas datasource.
+        #
+        # Could be used elsewhere, only works on network based (not local).
+        root_name = "%s.d" % (CLOUD_CONFIG)
         target_fn = os.path.join(root_name, "91_kernel_cmdline_url.cfg")
         util.read_write_cmdline_url(target_fn)
 
@@ -194,22 +203,34 @@ def main_init(name, args):
         init.fetch()
     except sources.DataSourceNotFoundException:
         util.logexc(LOG, "No instance datasource found!")
-        # TODO: Return 0 or 1??
-        return 1
+        # In the case of cloud-init (net mode) it is a bit
+        # more likely that the user would consider it
+        # failure if nothing was found. When using
+        # upstart it will also mentions job failure
+        # in console log if exit code is != 0.
+        if args.local:
+            return 0
+        else:
+            return 1
     # Stage 6
     iid = init.instancify()
     LOG.debug("%s will now be targeting instance id: %s", name, iid)
     init.update()
     # Stage 7
     try:
+        # Attempt to consume the data per instance.
+        # This may run user-data handlers and/or perform
+        # url downloads and such as needed.
         (ran, _results) = init.cloudify().run('consume_userdata',
-                                             init.consume,
-                                             args=[settings.PER_INSTANCE],
-                                             freq=settings.PER_INSTANCE)
+                                             init.consume_userdata,
+                                             args=[PER_INSTANCE],
+                                             freq=PER_INSTANCE)
         if not ran:
-            # Just consume anything that is set to run per
-            # always if nothing ran in the per instance section
-            init.consume(settings.PER_ALWAYS)
+            # Just consume anything that is set to run per-always
+            # if nothing ran in the per-instance code
+            #
+            # TODO: should this always happen?? (even if the above runs?)
+            init.consume_userdata(PER_ALWAYS)
     except Exception:
         util.logexc(LOG, "Consuming user data failed!")
         return 1

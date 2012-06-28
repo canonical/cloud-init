@@ -68,7 +68,7 @@ class TestConsumeUserData(MockerTestCase):
 
         log_file = self.capture_log(logging.WARNING)
         ci.fetch()
-        ci.consume()
+        ci.consume_userdata()
         self.assertIn(
             "Unhandled non-multipart (text/x-not-multipart) userdata:",
             log_file.getvalue())
@@ -85,7 +85,7 @@ class TestConsumeUserData(MockerTestCase):
 
         log_file = self.capture_log(logging.WARNING)
         ci.fetch()
-        ci.consume()
+        ci.consume_userdata()
         self.assertIn(
             "Unhandled unknown content-type (text/plain)",
             log_file.getvalue())
@@ -104,7 +104,7 @@ class TestConsumeUserData(MockerTestCase):
 
         log_file = self.capture_log(logging.WARNING)
         ci.fetch()
-        ci.consume()
+        ci.consume_userdata()
         self.assertEqual("", log_file.getvalue())
 
     def test_mime_text_x_shellscript(self):
@@ -122,7 +122,7 @@ class TestConsumeUserData(MockerTestCase):
 
         log_file = self.capture_log(logging.WARNING)
         ci.fetch()
-        ci.consume()
+        ci.consume_userdata()
         self.assertEqual("", log_file.getvalue())
 
     def test_mime_text_plain_shell(self):
@@ -140,5 +140,5 @@ class TestConsumeUserData(MockerTestCase):
 
         log_file = self.capture_log(logging.WARNING)
         ci.fetch()
-        ci.consume()
+        ci.consume_userdata()
         self.assertEqual("", log_file.getvalue())
