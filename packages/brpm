@@ -154,9 +154,6 @@ def generate_spec_contents(args, tmpl_fn):
     other_files = [
         '%{_bindir}/*',
         '/usr/lib/cloud-init/*',
-        '/etc/init/*',
-        '/etc/systemd/*',
-        '/etc/init.d/*',
     ]
 
     # Since setup.py installs them all, we need to selectively
