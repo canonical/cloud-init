@@ -197,7 +197,8 @@ def update_authorized_keys(fname, keys):
                 # Replace it with our better one
                 ent = k
                 # Don't add it later
-                to_add.remove(k)
+                if k in to_add:
+                    to_add.remove(k)
         entries[i] = ent
 
     # Now append any entries we did not match above
