@@ -229,7 +229,8 @@ def main_init(name, args):
             # Just consume anything that is set to run per-always
             # if nothing ran in the per-instance code
             #
-            # TODO: should this always happen?? (even if the above runs?)
+            # See: https://bugs.launchpad.net/bugs/819507 for a little
+            # reason behind this...
             init.consume_userdata(PER_ALWAYS)
     except Exception:
         util.logexc(LOG, "Consuming user data failed!")
