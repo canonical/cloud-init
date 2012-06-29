@@ -168,8 +168,7 @@ class Runners(object):
             if not lk:
                 raise LockFailure("Failed to acquire lock for %s" % name)
             else:
-                LOG.debug("Running %s with args %s using lock (%s)",
-                          functor, args, lk)
+                LOG.debug("Running %s using lock (%s)", name, lk)
                 if isinstance(args, (dict)):
                     results = functor(**args)
                 else:
