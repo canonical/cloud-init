@@ -133,9 +133,17 @@ def main():
                 cmd.extend(['-us', '-uc'])
             util.subp(cmd, capture=capture)
 
-        debname = "cloud-init_%s~%s-1_all.deb" % (version, revno)
-        shutil.move(util.abs_join(tdir, debname), debname)
-        print("Wrote out debian package %r" % (util.abs_join(debname)))
+        globs = [] 
+        globs.extend(glob.glob("%s/*.deb" %
+                     (os.path.join(tdir))))
+        for fn in globs:
+            base_fn = os.path.basename(fn)
+            shutil.move(fn, base_fn)
+            print("Wrote out debian package %r" % (base_fn))
+            if fn.endswith('_all.deb'):
+                # Add in the local link
+                util.del_file('cloud-init_all.deb')
+                util.symlink(base_fn, 'cloud-init_all.deb')
 
     return 0
 
