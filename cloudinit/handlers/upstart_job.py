@@ -46,6 +46,10 @@ class UpstartJobPartHandler(handlers.Handler):
         if ctype in handlers.CONTENT_SIGNALS:
             return
 
+        # See: https://bugs.launchpad.net/bugs/819507
+        if frequency != PER_INSTANCE:
+            return
+
         if not self.upstart_dir:
             return
 
