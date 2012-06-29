@@ -138,7 +138,7 @@ class Distro(distros.Distro):
         # Or: http://tiny.cc/mh91fw
         e['DEBIAN_FRONTEND'] = 'noninteractive'
         cmd = ['apt-get', '--option', 'Dpkg::Options::=--force-confold',
-               '--assume-yes', command]
+               '--assume-yes', '--quiet', command]
         if args:
             cmd.extend(args)
         # Allow the output of this to flow outwards (ie not be captured)
