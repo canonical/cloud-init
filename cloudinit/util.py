@@ -1303,21 +1303,24 @@ def shellify(cmdlist, add_header=True):
     if add_header:
         content += "#!/bin/sh\n"
     escaped = "%s%s%s%s" % ("'", '\\', "'", "'")
+    cmds_made = 0
     for args in cmdlist:
-        # if the item is a list, wrap all items in single tick
-        # if its not, then just write it directly
+        # If the item is a list, wrap all items in single tick.
+        # If its not, then just write it directly.
         if isinstance(args, list):
             fixed = []
             for f in args:
                 fixed.append("'%s'" % (str(f).replace("'", escaped)))
             content = "%s%s\n" % (content, ' '.join(fixed))
+            cmds_made += 1
         elif isinstance(args, (str, basestring)):
             content = "%s%s\n" % (content, args)
+            cmds_made += 1
         else:
             raise RuntimeError(("Unable to shellify type %s"
                                 " which is not a list or string")
                                % (obj_name(args)))
-    LOG.debug("Shellified %s to %s", cmdlist, content)
+    LOG.debug("Shellified %s commands.", cmds_made)
     return content
 
 
