@@ -399,7 +399,7 @@ class Modules(object):
         if self._cached_cfg is None:
             merger = helpers.ConfigMerger(paths=self.init.paths,
                                           datasource=self.init.datasource,
-                                          fns=self.cfg_files,
+                                          additional_fns=self.cfg_files,
                                           base_cfg=self.init.cfg)
             self._cached_cfg = merger.cfg
             LOG.debug("Loading 'module' config %s", self._cached_cfg)
