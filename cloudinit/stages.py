@@ -159,15 +159,23 @@ class Init(object):
         return merger.cfg
 
     def _restore_from_cache(self):
+        # We try to restore from a current link and static path
+        # by using the instance link, if purge_cache was called
+        # the file wont exist.
         pickled_fn = self.paths.get_ipath_cur('obj_pkl')
+        pickle_contents = None
         try:
-            # we try to restore from a current link and static path
-            # by using the instance link, if purge_cache was called
-            # the file wont exist
-            return pickle.loads(util.load_file(pickled_fn))
+            pickle_contents = util.load_file(pickled_fn)
         except Exception:
-            util.logexc(LOG, "Failed loading pickled datasource from %s",
-                        pickled_fn)
+            pass
+        # This is expected so just return nothing
+        # successfully loaded...
+        if not pickle_contents:
+            return None
+        try:
+            return pickle.loads(pickle_contents)
+        except Exception:
+            util.logexc(LOG, "Failed loading pickled blob from %s", pickled_fn)
             return None
 
     def _write_to_cache(self):
@@ -175,12 +183,16 @@ class Init(object):
             return False
         pickled_fn = self.paths.get_ipath_cur("obj_pkl")
         try:
-            contents = pickle.dumps(self.datasource)
-            util.write_file(pickled_fn, contents, mode=0400)
-            return True
+            pk_contents = pickle.dumps(self.datasource)
+        except Exception:
+            util.logexc(LOG, "Failed pickling datasource %s", self.datasource)
+            return False
+        try:
+            util.write_file(pickled_fn, pk_contents, mode=0400)
         except Exception:
             util.logexc(LOG, "Failed pickling datasource to %s", pickled_fn)
             return False
+        return True
 
     def _get_datasources(self):
         # Any config provided???
