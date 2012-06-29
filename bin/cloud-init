@@ -301,16 +301,27 @@ def main_query(name, _args):
 def main_single(name, args):
     # Cloud-init single stage is broken up into the following sub-stages
     # 1. Ensure that the init object fetches its config without errors
-    # 2. Construct the modules object
-    # 3. Adjust any subsequent logging/output redirections using
+    # 2. Attempt to fetch the datasource (warn if it doesn't work)
+    # 3. Construct the modules object
+    # 4. Adjust any subsequent logging/output redirections using
     #    the modules objects configuration
-    # 4. Run the single module
-    # 5. Done!
+    # 5. Run the single module
+    # 6. Done!
     mod_name = args.name
     welcome("%s:%s" % (name, mod_name))
     init = stages.Init(ds_deps=[])
     # Stage 1
     init.read_cfg(extract_fns(args))
+    # Stage 2
+    try:
+        init.fetch()
+    except sources.DataSourceNotFoundException:
+        # There was no datasource found,
+        # that might be bad (or ok) depending on
+        # the module being ran (so continue on)
+        util.logexc(LOG, ("Failed to fetch your datasource,"
+                          " likely bad things to come!"))
+    # Stage 3
     mods = stages.Modules(init, extract_fns(args))
     mod_args = args.module_args
     if mod_args:
@@ -319,7 +330,7 @@ def main_single(name, args):
     if mod_freq:
         LOG.debug("Using passed in frequency %s", mod_freq)
         mod_freq = FREQ_SHORT_NAMES.get(mod_freq)
-    # Stage 3
+    # Stage 4
     try:
         LOG.debug("Closing stdin")
         util.close_stdin()
@@ -332,7 +343,7 @@ def main_single(name, args):
                    " longer be active shortly"))
         logging.resetLogging()
     logging.setupLogging(mods.cfg)
-    # Stage 4
+    # Stage 5
     (which_ran, failures) = mods.run_single(mod_name,
                                             mod_args,
                                             mod_freq)
