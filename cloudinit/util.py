@@ -1287,10 +1287,6 @@ def subp(args, data=None, rcs=None, env=None, capture=True, shell=False):
         out = ''
     if not err and capture:
         err = ''
-    # Useful to note what happened...
-    if capture:
-        LOG.debug("Stdout: %s", out)
-        LOG.debug("Stderr: %s", err)
     return (out, err)
 
 
