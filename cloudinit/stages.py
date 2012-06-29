@@ -144,7 +144,7 @@ class Init(object):
         # None check so that we don't keep on re-loading if empty
         if self._cfg is None:
             self._cfg = self._read_cfg(extra_fns)
-            LOG.debug("Loaded 'init' config %s", self._cfg)
+            # LOG.debug("Loaded 'init' config %s", self._cfg)
 
     def _read_cfg(self, extra_fns):
         try:
@@ -414,7 +414,7 @@ class Modules(object):
                                           additional_fns=self.cfg_files,
                                           base_cfg=self.init.cfg)
             self._cached_cfg = merger.cfg
-            LOG.debug("Loading 'module' config %s", self._cached_cfg)
+            # LOG.debug("Loading 'module' config %s", self._cached_cfg)
         # Only give out a copy so that others can't modify this...
         return copy.deepcopy(self._cached_cfg)
 
