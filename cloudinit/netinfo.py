@@ -150,8 +150,18 @@ def route_pformat():
     return "\n".join(lines)
 
 
-def debug_info():
+def debug_info(prefix='ci-info: '):
     lines = []
-    lines.append(netdev_pformat())
-    lines.append(route_pformat())
+    netdev_lines = netdev_pformat().splitlines()
+    if prefix:
+        for line in netdev_lines:
+            lines.append("%s%s" % (prefix, line))
+    else:
+        lines.extend(netdev_lines)
+    route_lines = route_pformat().splitlines()
+    if prefix:
+        for line in route_lines:
+            lines.append("%s%s" % (prefix, line))
+    else:
+        lines.extend(route_lines)
     return "\n".join(lines)
