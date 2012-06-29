@@ -1068,7 +1068,6 @@ def yaml_dumps(obj):
 def ensure_dir(path, mode=None):
     if not os.path.isdir(path):
         # Make the dir and adjust the mode
-        LOG.debug("Ensuring directory exists at path %s", path)
         with SeLinuxGuard(os.path.dirname(path), recursive=True):
             os.makedirs(path)
         chmod(path, mode)
@@ -1221,8 +1220,6 @@ def chmod(path, mode):
     except (ValueError, TypeError):
         pass
     if path and real_mode:
-        LOG.debug("Adjusting the permissions of %s (perms=%o)",
-                 path, real_mode)
         with SeLinuxGuard(path):
             os.chmod(path, real_mode)
 
@@ -1238,7 +1235,8 @@ def write_file(filename, content, mode=0644, omode="wb"):
     @param omode: The open mode used when opening the file (r, rb, a, etc.)
     """
     ensure_dir(os.path.dirname(filename))
-    LOG.debug("Writing to %s - %s, %s bytes", filename, omode, len(content))
+    LOG.debug("Writing to %s - %s: [%s] %s bytes",
+               filename, omode, mode, len(content))
     with SeLinuxGuard(path=filename):
         with open(filename, omode) as fh:
             fh.write(content)
