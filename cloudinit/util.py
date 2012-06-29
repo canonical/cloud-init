@@ -866,7 +866,8 @@ def find_devs_with(criteria=None, oformat='device',
     if path:
         options.append(path)
     cmd = blk_id_cmd + options
-    (out, _err) = subp(cmd)
+    # See man blkid for why 2 is added
+    (out, _err) = subp(cmd, rcs=[0, 2])
     entries = []
     for line in out.splitlines():
         line = line.strip()
