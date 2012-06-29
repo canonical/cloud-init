@@ -24,6 +24,7 @@
 import argparse
 import os
 import sys
+import traceback
 
 # This is more just for running from the bin folder so that
 # cloud-init binary can find the cloudinit module
@@ -62,6 +63,18 @@ FREQ_SHORT_NAMES = {
 }
 
 LOG = logging.getLogger()
+
+
+# Used for when a logger may not be active
+# and we still want to print exceptions...
+def print_exc(msg=''):
+    if msg:
+        sys.stderr.write("%s\n" % (msg))
+    sys.stderr.write('-' * 60)
+    sys.stderr.write("\n")
+    traceback.print_exc(file=sys.stderr)
+    sys.stderr.write('-' * 60)
+    sys.stderr.write("\n")
 
 
 def welcome(action):
@@ -151,6 +164,7 @@ def main_init(name, args):
         (outfmt, errfmt) = util.fixup_output(init.cfg, name)
     except:
         util.logexc(LOG, "Failed to setup output redirection!")
+        print_exc("Failed to setup output redirection!")
     if args.debug:
         # Reset so that all the debug handlers are closed out
         LOG.debug(("Logging being reset, this logger may no"
@@ -277,6 +291,9 @@ def main_modules(action_name, args):
         util.logexc(LOG, ('Can not apply stage %s, '
                           'no datasource found!'
                           " Likely bad things to come!"), name)
+        print_exc(('Can not apply stage %s, '
+                   'no datasource found!'
+                   " Likely bad things to come!") % (name))
         if not args.force:
             return 1
     # Stage 3
@@ -326,6 +343,8 @@ def main_single(name, args):
         # the module being ran (so continue on)
         util.logexc(LOG, ("Failed to fetch your datasource,"
                           " likely bad things to come!"))
+        print_exc(("Failed to fetch your datasource,"
+                   " likely bad things to come!"))
         if not args.force:
             return 1
     # Stage 3
