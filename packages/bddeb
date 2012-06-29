@@ -3,6 +3,7 @@
 import os
 import shutil
 import sys
+import glob
 
 # Use the util functions from cloudinit
 possible_topdir = os.path.normpath(os.path.join(os.path.abspath(
@@ -123,7 +124,7 @@ def main():
                util.abs_join(tdir, tar_fn), 
                '-C', util.abs_join(tdir, 'cloud-init')]
         cmd.extend(os.listdir(util.abs_join(tdir, 'cloud-init')))
-        util.subp(cmd)
+        util.subp(cmd, capture=capture)
         shutil.copy(util.abs_join(tdir, tar_fn), tar_fn)
         print("Wrote out archive %r" % (util.abs_join(tar_fn)))
         
@@ -143,7 +144,7 @@ def main():
             if fn.endswith('_all.deb'):
                 # Add in the local link
                 util.del_file('cloud-init_all.deb')
-                util.symlink(base_fn, 'cloud-init_all.deb')
+                os.symlink(base_fn, 'cloud-init_all.deb')
 
     return 0
 
