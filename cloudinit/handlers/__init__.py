@@ -165,7 +165,7 @@ def walker_callback(pdata, ctype, filename, payload):
         walker_handle_handler(pdata, ctype, filename, payload)
         return
     handlers = pdata['handlers']
-    if ctype not in handlers:
+    if ctype not in pdata['handlers'] and payload:
         # Extract the first line or 24 bytes for displaying in the log
         start = _extract_first_or_bytes(payload, 24)
         details = "'%s...'" % (start.encode("string-escape"))
