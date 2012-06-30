@@ -71,6 +71,10 @@ class Distro(object):
     def package_command(self, cmd, args=None):
         raise NotImplementedError()
 
+    @abc.abstractmethod
+    def update_package_sources(self):
+        raise NotImplementedError()
+
     def get_package_mirror(self):
         return self.get_option('package_mirror')
 

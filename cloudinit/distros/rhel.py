@@ -26,6 +26,8 @@ from cloudinit import distros
 from cloudinit import log as logging
 from cloudinit import util
 
+from cloudinit.settings import PER_INSTANCE
+
 LOG = logging.getLogger(__name__)
 
 NETWORK_FN_TPL = '/etc/sysconfig/network-scripts/ifcfg-%s'
@@ -57,6 +59,10 @@ class Distro(distros.Distro):
 
     def __init__(self, name, cfg, paths):
         distros.Distro.__init__(self, name, cfg, paths)
+        # This will be used to restrict certain
+        # calls from repeatly happening (when they
+        # should only happen say once per instance...)
+        self._runner = helpers.Runners(paths)
 
     def install_packages(self, pkglist):
         self.package_command('install', pkglist)
@@ -198,6 +204,10 @@ class Distro(distros.Distro):
             cmd.extend(args)
         # Allow the output of this to flow outwards (ie not be captured)
         util.subp(cmd, capture=False)
+
+    def update_package_sources(self):
+        self._runner.run("update-sources", self.package_command,
+                         ["update"], freq=PER_INSTANCE)
 
 
 # This class helps adjust the configobj
