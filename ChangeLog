@@ -179,6 +179,10 @@
    and the new distro objects where applicable so that those pieces of code can 
    benefit from the unified and enhanced functionality being provided in that
    util module
+ - fix a potential bug whereby when a #includeonce was encountered it would
+   enable checking of urls against a cache, if later a #include was encountered
+   it would continue checking against that cache, instead of refetching (which
+   would likely be the expected case)
 0.6.4:
  - support relative path in AuthorizedKeysFile (LP: #970071).
  - make apt-get update run with --quiet (suitable for logging) (LP: #1012613)
