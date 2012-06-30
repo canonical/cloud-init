@@ -1,14 +1,21 @@
-- consider 'failsafe' DataSource
+- Consider a 'failsafe' DataSource
   If all others fail, setting a default that
    - sets the user password, writing it to console
    - logs to console that this happened
-- consider 'previous' DataSource
+- Consider 'previous' DataSource
   If no other data source is found, fall back to the 'previous' one
   keep a indication of what instance id that is in /var/lib/cloud
-- rewrite "cloud-init-query"
-  have DataSource and cloudinit expose explicit fields
+- Rewrite "cloud-init-query" (currently not implemented)
+  Possibly have DataSource and cloudinit expose explicit fields
    - instance-id
    - hostname
    - mirror
    - release
    - ssh public keys
+- Remove the conversion of the ubuntu network interface format conversion
+  to a RH/fedora format and replace it with a top level format that uses
+  the netcf libraries format instead (which itself knows how to translate
+  into the specific formats)
+- Replace the 'apt*' modules with variants that now use the distro classes
+  to perform distro independent packaging commands (where possible)
+ 
