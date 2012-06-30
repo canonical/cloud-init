@@ -2,7 +2,7 @@
   If all others fail, setting a default that
    - sets the user password, writing it to console
    - logs to console that this happened
-- Consider 'previous' DataSource
+- Consider a 'previous' DataSource
   If no other data source is found, fall back to the 'previous' one
   keep a indication of what instance id that is in /var/lib/cloud
 - Rewrite "cloud-init-query" (currently not implemented)
@@ -18,4 +18,15 @@
   into the specific formats)
 - Replace the 'apt*' modules with variants that now use the distro classes
   to perform distro independent packaging commands (where possible)
- 
+- Canonicalize the semaphore/lock name for modules and user data handlers
+  a. It is most likely a bug that currently exists that if a module in config
+     alters its name and it has already ran, then it will get ran again since
+     the lock name hasn't be canonicalized
+- Replace some the LOG.debug calls with a LOG.info where appropriate instead
+  of how right now there is really only 2 levels (WARN and DEBUG)
+- Remove the 'cc_' for config modules, either have them fully specified (ie
+  'cloudinit.config.resizefs') or by default only look in the 'cloudinit.config'
+  for these modules (or have a combination of the above), this avoids having
+  to understand where your modules are coming from (which can be altered by
+  the current python inclusion path)
+
