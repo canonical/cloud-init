@@ -5,6 +5,26 @@ from unittest import TestCase
 from mocker import MockerTestCase
 
 from cloudinit import util
+from cloudinit import importer
+
+
+class FakeSelinux(object):
+
+    def __init__(self, match_what):
+        self.match_what = match_what
+        self.restored = []
+
+    def matchpathcon(self, path, mode):
+        if path == self.match_what:
+            return
+        else:
+            raise OSError("No match!")
+
+    def is_selinux_enabled(self):
+        return True
+
+    def restorecon(self, path, recursive):
+        self.restored.append(path)
 
 
 class TestMergeDict(MockerTestCase):
@@ -159,22 +179,16 @@ class TestWriteFile(MockerTestCase):
 
     def test_restorecon_if_possible_is_called(self):
         """Make sure the selinux guard is called correctly."""
-        try:
-            # We can only mock these out if selinux actually
-            # exists, so thats why we catch the import
-            mock_restorecon = self.mocker.replace(
-                "selinux.restorecon", passthrough=False)
-            mock_is_selinux_enabled = self.mocker.replace(
-                "selinux.is_selinux_enabled", passthrough=False)
-            mock_is_selinux_enabled()
-            self.mocker.result(True)
-            mock_restorecon("/etc/hosts", recursive=False)
-            self.mocker.result(True)
-            self.mocker.replay()
-            with util.SeLinuxGuard("/etc/hosts") as is_on:
-                self.assertTrue(is_on)
-        except ImportError:
-            pass
+        import_mock = self.mocker.replace(importer.import_module,
+                                          passthrough=False)
+        import_mock('selinux')
+        fake_se = FakeSelinux('/etc/hosts')
+        self.mocker.result(fake_se)
+        self.mocker.replay()
+        with util.SeLinuxGuard("/etc/hosts") as is_on:
+            self.assertTrue(is_on)
+        self.assertEqual(1, len(fake_se.restored))
+        self.assertEqual('/etc/hosts', fake_se.restored[0])
 
 
 class TestDeleteDirContents(MockerTestCase):
