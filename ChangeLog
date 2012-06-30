@@ -24,10 +24,14 @@
        run function objects passed in (along with there arguments) and there
        frequency
    - add in a 'paths' object that provides access to the previously global
-     and/or config based paths, this also adds in the ability to change the
-     path when constructing that path 'object' and adding in additional config
-     that can be used to alter the root paths of 'joins' (useful for testing
-     or possibly useful in chroots?)
+     and/or config based paths (thus providing a single entrypoint object/type
+     that provides path information)
+       - this also adds in the ability to change the path when constructing 
+       that path 'object' and adding in additional config that can be used to 
+       alter the root paths of 'joins' (useful for testing or possibly useful
+       in chroots?)
+        - config options now avaiable that can alter the 'write_root' and the 
+         'read_root' when backing code uses the paths join() function
    - add a config parser subclass that will automatically add unknown sections
      and return default values (instead of throwing exceptions for these cases)
    - a new config merging class that will be the central object that knows
@@ -129,6 +133,7 @@
  - pythonify a large set of various pieces of code
    - remove wrapping return statements with () when it has no effect
    - upper case all constants used
+   - correctly 'case' class and method names (where applicable)
    - use os.path.join (and similar commands) instead of custom path creation
    - use 'is None' instead of the frowned upon '== None' which picks up a large
      set of 'true' cases than is typically desired (ie for objects that have
