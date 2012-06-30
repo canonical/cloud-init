@@ -53,7 +53,7 @@ class Distro(distros.Distro):
         util.write_file(out_fn, "\n".join(contents))
 
     def install_packages(self, pkglist):
-        self._update_package_sources()
+        self.update_package_sources()
         self.package_command('install', pkglist)
 
     def _write_network(self, settings):
@@ -144,6 +144,6 @@ class Distro(distros.Distro):
         # Allow the output of this to flow outwards (ie not be captured)
         util.subp(cmd, env=e, capture=False)
 
-    def _update_package_sources(self):
+    def update_package_sources(self):
         self._runner.run("update-sources", self.package_command,
                          ["update"], freq=PER_INSTANCE)
