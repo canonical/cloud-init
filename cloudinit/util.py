@@ -46,17 +46,11 @@ import urlparse
 
 import yaml
 
+from cloudinit import importer
 from cloudinit import log as logging
 from cloudinit import url_helper as uhelp
 
 from cloudinit.settings import (CFG_BUILTIN, CLOUD_CONFIG)
-
-
-try:
-    import selinux
-    HAVE_LIBSELINUX = True
-except ImportError:
-    HAVE_LIBSELINUX = False
 
 
 LOG = logging.getLogger(__name__)
@@ -126,31 +120,37 @@ class ProcessExecutionError(IOError):
 
 class SeLinuxGuard(object):
     def __init__(self, path, recursive=False):
+        # Late import since it might not always
+        # be possible to use this
+        try:
+            self.selinux = importer.import_module('selinux')
+        except ImportError:
+            self.selinux = None
         self.path = path
         self.recursive = recursive
-        self.enabled = False
-        if HAVE_LIBSELINUX and selinux.is_selinux_enabled():
-            self.enabled = True
 
     def __enter__(self):
-        return self.enabled
+        if self.selinux:
+            return True
+        else:
+            return False
 
     def __exit__(self, excp_type, excp_value, excp_traceback):
-        if self.enabled:
+        if self.selinux:
             path = os.path.realpath(os.path.expanduser(self.path))
             do_restore = False
             try:
                 # See if even worth restoring??
                 stats = os.lstat(path)
                 if stat.ST_MODE in stats:
-                    selinux.matchpathcon(path, stats[stat.ST_MODE])
+                    self.selinux.matchpathcon(path, stats[stat.ST_MODE])
                     do_restore = True
             except OSError:
                 pass
             if do_restore:
                 LOG.debug("Restoring selinux mode for %s (recursive=%s)",
                           path, self.recursive)
-                selinux.restorecon(path, recursive=self.recursive)
+                self.selinux.restorecon(path, recursive=self.recursive)
 
 
 class MountFailedError(Exception):
