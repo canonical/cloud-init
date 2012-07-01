@@ -50,7 +50,7 @@ from cloudinit import importer
 from cloudinit import log as logging
 from cloudinit import url_helper as uhelp
 
-from cloudinit.settings import (CFG_BUILTIN, CLOUD_CONFIG)
+from cloudinit.settings import (CFG_BUILTIN)
 
 
 LOG = logging.getLogger(__name__)
@@ -192,7 +192,9 @@ def fork_cb(child_cb, *args):
                   fid, obj_name(child_cb))
 
 
-def is_true_str(val, addons=None):
+def is_true(val, addons=None):
+    if isinstance(val, (bool)):
+        return val is True
     check_set = ['true', '1', 'on', 'yes']
     if addons:
         check_set = check_set + addons
@@ -201,7 +203,9 @@ def is_true_str(val, addons=None):
     return False
 
 
-def is_false_str(val, addons=None):
+def is_false(val, addons=None):
+    if isinstance(val, (bool)):
+        return val is False
     check_set = ['off', '0', 'no', 'false']
     if addons:
         check_set = check_set + addons
@@ -218,7 +222,7 @@ def translate_bool(val, addons=None):
     # If its already a boolean skip
     if isinstance(val, (bool)):
         return val
-    return is_true_str(val, addons)
+    return is_true(val, addons)
 
 
 def rand_str(strlen=32, select_from=None):
@@ -283,29 +287,6 @@ def is_ipv4(instr):
         return False
 
     return (len(toks) == 4)
-
-
-def merge_base_cfg(cfgfile, cfg_builtin=None):
-    syscfg = read_conf_with_confd(cfgfile)
-
-    kern_contents = read_cc_from_cmdline()
-    kerncfg = {}
-    if kern_contents:
-        kerncfg = load_yaml(kern_contents, default={})
-
-    # Kernel parameters override system config
-    if kerncfg:
-        combined = mergedict(kerncfg, syscfg)
-    else:
-        combined = syscfg
-
-    if cfg_builtin:
-        # Combined over-ride anything builtin
-        fin = mergedict(combined, cfg_builtin)
-    else:
-        fin = combined
-
-    return fin
 
 
 def get_cfg_option_bool(yobj, key, default=False):
@@ -622,15 +603,17 @@ def read_seeded(base="", ext="", timeout=5, retries=10, file_retries=0):
 
 
 def read_conf_d(confd):
-    # get reverse sorted list (later trumps newer)
+    # Get reverse sorted list (later trumps newer)
     confs = sorted(os.listdir(confd), reverse=True)
 
-    # remove anything not ending in '.cfg'
+    # Remove anything not ending in '.cfg'
     confs = [f for f in confs if f.endswith(".cfg")]
 
-    # remove anything not a file
-    confs = [f for f in confs if os.path.isfile(os.path.join(confd, f))]
+    # Remove anything not a file
+    confs = [f for f in confs
+             if os.path.isfile(os.path.join(confd, f))]
 
+    # Load them all so that they can be merged
     cfgs = []
     for fn in confs:
         cfgs.append(read_conf(os.path.join(confd, fn)))
@@ -658,7 +641,8 @@ def read_conf_with_confd(cfgfile):
         return cfg
 
     # Conf.d settings override input configuration
-    return mergedict(read_conf_d(confd), cfg)
+    confd_cfg = read_conf_d(confd)
+    return mergedict(confd_cfg, cfg)
 
 
 def read_cc_from_cmdline(cmdline=None):
@@ -1074,14 +1058,6 @@ def ensure_dir(path, mode=None):
     else:
         # Just adjust the mode
         chmod(path, mode)
-
-
-def get_base_cfg(cfg_path=None, builtin=None):
-    if not cfg_path:
-        cfg_path = CLOUD_CONFIG
-    if not builtin:
-        builtin = get_builtin_cfg()
-    return merge_base_cfg(cfg_path, builtin)
 
 
 @contextlib.contextmanager
