@@ -86,9 +86,7 @@ def welcome(action):
         'timestamp': util.time_rfc2822(),
         'action': action,
     }
-    welcome_msg = "%s" % (templater.render_string(msg, tpl_params))
-    sys.stderr.write("%s\n" % (welcome_msg))
-    LOG.debug(welcome_msg)
+    util.multi_log("%s\n" % (templater.render_string(msg, tpl_params)))
 
 
 def extract_fns(args):
