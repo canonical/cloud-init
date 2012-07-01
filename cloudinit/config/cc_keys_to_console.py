@@ -29,7 +29,7 @@ frequency = PER_INSTANCE
 HELPER_TOOL = '/usr/lib/cloud-init/write-ssh-key-fingerprints'
 
 
-def handle(name, cfg, cloud, log, _args):
+def handle(name, cfg, _cloud, log, _args):
     if not os.path.exists(HELPER_TOOL):
         log.warn(("Unable to activate module %s,"
                   " helper tool not found at %s"), name, HELPER_TOOL)
@@ -46,7 +46,7 @@ def handle(name, cfg, cloud, log, _args):
         cmd.append(','.join(fp_blacklist))
         cmd.append(','.join(key_blacklist))
         (stdout, _stderr) = util.subp(cmd)
-        util.write_file(cloud.paths.join(False, '/dev/console'), stdout)
+        util.multi_log("%s\n" % (stdout.strip()), stderr=False)
     except:
-        log.warn("Writing keys to /dev/console failed!")
+        log.warn("Writing keys to the system console failed!")
         raise
