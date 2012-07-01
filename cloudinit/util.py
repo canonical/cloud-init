@@ -275,6 +275,17 @@ def find_modules(root_dir):
     return entries
 
 
+def multi_log(text, console=True, stderr=True, log=None):
+    if stderr:
+        sys.stderr.write(text)
+    if console:
+        with open('/dev/console', 'wb') as wfh:
+            wfh.write(text)
+            wfh.flush()
+    if log:
+        log.debug(text)
+
+
 def is_ipv4(instr):
     """ determine if input string is a ipv4 address. return boolean"""
     toks = instr.split('.')

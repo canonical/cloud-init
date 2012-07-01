@@ -18,8 +18,6 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import sys
-
 from cloudinit import templater
 from cloudinit import util
 from cloudinit import version
@@ -57,9 +55,7 @@ def handle(_name, cfg, cloud, log, args):
             'timestamp': ts,
             'version': cver,
         }
-        # Use stdout, stderr or the logger??
-        content = templater.render_string(msg_in, subs)
-        sys.stderr.write("%s\n" % (content))
+        util.multi_log("%s\n" % (templater.render_string(msg_in, subs)))
     except Exception:
         util.logexc(log, "Failed to render final message template")
 
