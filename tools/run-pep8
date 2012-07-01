@@ -12,17 +12,24 @@ if [ $# -eq 0 ]; then
    done
 else
    files=( "$@" );
-fi 
+fi
+
+if [ -f 'hacking.py' ]
+then
+    base=`pwd`
+else
+    base=`pwd`/tools/
+fi
 
 cmd=(
-    pep8
+    ${base}/hacking.py
 
     --ignore=E501 # Line too long (these are caught by pylint)
 
     "${files[@]}"
 )
 
-echo -e "\nRunning pep8:"
+echo -e "\nRunning 'cloudinit' pep8:"
 echo "${cmd[@]}"
 "${cmd[@]}"
 
