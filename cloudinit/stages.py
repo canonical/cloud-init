@@ -154,8 +154,8 @@ class Init(object):
         if kern_contents:
             base_cfgs.append(util.load_yaml(kern_contents, default={}))
         # Anything in your conf.d location??
-        if os.path.isfile(CLOUD_CONFIG):
-            base_cfgs.append(util.read_conf_with_confd(CLOUD_CONFIG))
+        # or the 'default' cloud.cfg location???
+        base_cfgs.append(util.read_conf_with_confd(CLOUD_CONFIG))
         # And finally the default gets to play
         if default_cfg:
             base_cfgs.append(default_cfg)
