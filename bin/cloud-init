@@ -45,6 +45,10 @@ from cloudinit.settings import (PER_INSTANCE, PER_ALWAYS, PER_ONCE,
                                 CLOUD_CONFIG)
 
 
+# Pretty little welcome message template
+WELCOME_MSG_TPL = ("Cloud-init v. {{version}} running '{{action}}' at "
+                   "{{timestamp}}. Up {{uptime}} seconds.")
+
 # Module section template
 MOD_SECTION_TPL = "cloud_%s_modules"
 
@@ -56,6 +60,7 @@ QUERY_DATA_TYPES = [
 ]
 
 # Frequency shortname to full name
+# (so users don't have to remember the full name...)
 FREQ_SHORT_NAMES = {
     'instance': PER_INSTANCE,
     'always': PER_ALWAYS,
@@ -78,15 +83,15 @@ def print_exc(msg=''):
 
 
 def welcome(action):
-    msg = ("Cloud-init v. {{version}} running '{{action}}' at "
-           "{{timestamp}}. Up {{uptime}} seconds.")
     tpl_params = {
         'version': version.version_string(),
         'uptime': util.uptime(),
         'timestamp': util.time_rfc2822(),
         'action': action,
     }
-    util.multi_log("%s\n" % (templater.render_string(msg, tpl_params)))
+    tpl_msg = templater.render_string(WELCOME_MSG_TPL, tpl_params)
+    util.multi_log("%s\n" % (tpl_msg),
+                   console=False, stderr=True)
 
 
 def extract_fns(args):

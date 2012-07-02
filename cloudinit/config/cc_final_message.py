@@ -55,7 +55,8 @@ def handle(_name, cfg, cloud, log, args):
             'timestamp': ts,
             'version': cver,
         }
-        util.multi_log("%s\n" % (templater.render_string(msg_in, subs)))
+        util.multi_log("%s\n" % (templater.render_string(msg_in, subs)),
+                       console=False, stderr=True)
     except Exception:
         util.logexc(log, "Failed to render final message template")
 
