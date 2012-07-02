@@ -76,20 +76,12 @@ setuptools.setup(name='cloud-init',
       data_files=[('/etc/cloud', glob('config/*.cfg')),
                   ('/etc/cloud/cloud.cfg.d', glob('config/cloud.cfg.d/*')),
                   ('/etc/cloud/templates', glob('templates/*')),
-                  # Only really need for upstart based systems
-                  ('/etc/init', glob('upstart/*.conf')),
-                  # Only really need for systemd based systems
-                  ('/etc/systemd/system', glob('systemd/*.service')),
-                  # Only really need for init.d based system
-                  ('/etc/init.d', glob('initd/*')),
                   ('/usr/share/cloud-init', []),
                   ('/usr/lib/cloud-init',
                     ['tools/uncloud-init', 'tools/write-ssh-key-fingerprints']),
                   ('/usr/share/doc/cloud-init', filter(is_f, glob('doc/*'))),
                   ('/usr/share/doc/cloud-init/examples', filter(is_f, glob('doc/examples/*'))),
                   ('/usr/share/doc/cloud-init/examples/seed', filter(is_f, glob('doc/examples/seed/*'))),
-                  # ??
-                  # ('/etc/profile.d', ['tools/Z99-cloud-locale-test.sh']),
                   ],
       install_requires=read_requires(),
       )
