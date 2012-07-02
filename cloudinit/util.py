@@ -275,15 +275,18 @@ def find_modules(root_dir):
     return entries
 
 
-def multi_log(text, console=True, stderr=True, log=None):
+def multi_log(text, console=True, stderr=True,
+              log=None, log_level=logging.DEBUG):
     if stderr:
         sys.stderr.write(text)
     if console:
+        # Don't use the write_file since
+        # this might be 'sensitive' info (not debug worthy?)
         with open('/dev/console', 'wb') as wfh:
             wfh.write(text)
             wfh.flush()
     if log:
-        log.debug(text)
+        log.log(log_level, text)
 
 
 def is_ipv4(instr):
