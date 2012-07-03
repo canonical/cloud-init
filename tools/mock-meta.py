@@ -196,18 +196,26 @@ class UserDataHandler(object):
         self.opts = opts
 
     def _get_user_blob(self, **kwargs):
-        blob_mp = {}
-        blob_mp['hostname'] = kwargs.get('who', '')
-        lines = []
-        lines.append("#cloud-config")
-        lines.append(yamlify(blob_mp))
-        blob = "\n".join(lines)
+        blob = None
+        if self.opts['user_data_file']:
+            with open(opts['user_data_file'], 'rb') as fh:
+                blob = fh.read()
+                blob = blob.strip()
+        if not blob:
+            blob_mp = {
+                'hostname': kwargs.get('who', 'localhost'),
+            }
+            lines = [
+                "#cloud-config",
+                yamlify(blob_mp),
+            ]
+            blob = "\n".join(lines)
         return blob.strip()
 
     def get_data(self, params, who, **kwargs):
         if not params:
             return self._get_user_blob(who=who)
-        return ''
+        return NOT_IMPL_RESPONSE
 
 
 # Seem to need to use globals since can't pass 
@@ -303,10 +311,15 @@ def extract_opts():
     parser = OptionParser()
     parser.add_option("-p", "--port", dest="port", action="store", type=int, default=80,
                   help="port from which to serve traffic (default: %default)", metavar="PORT")
+    parser.add_option("-f", '--user-data-file', dest='user_data_file', action='store',
+                      help="user data blob to serve back to incoming requests", metavar='FILE')
     (options, args) = parser.parse_args()
     out = dict()
     out['extra'] = args
     out['port'] = options.port
+    out['user_data_file'] = None
+    if options.user_data_file:
+        out['user_data_file'] = options.user_data_file
     return out
 
 
