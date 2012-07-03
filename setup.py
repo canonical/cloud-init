@@ -26,8 +26,43 @@ import os
 import re
 
 import setuptools
+from setuptools.command.install import install
+
+from distutils.command.install_data import install_data
+from distutils.errors import DistutilsArgError
 
 import subprocess
+
+
+def is_f(p):
+    return os.path.isfile(p)
+
+
+DAEMON_FILES = {
+    'initd': filter((lambda x: is_f(x)
+                     and x.find('local') == -1), glob('initd/*')),
+    'initd-local': filter((lambda x: is_f(x)
+                     and not x.endswith('cloud-init')), glob('initd/*')),
+    'systemd': filter((lambda x: is_f(x)), glob('systemd/*')),
+    'upstart': filter((lambda x: is_f(x)
+                     and x.find('local') == -1
+                     and x.find('nonet') == -1), glob('upstart/*')),
+    'upstart-nonet': filter((lambda x: is_f(x)
+                        and x.find('local') == -1
+                        and not x.endswith('cloud-init.conf')), glob('upstart/*')),
+    'upstart-local': filter((lambda x: is_f(x)
+                        and x.find('nonet') == -1
+                        and not x.endswith('cloud-init.conf')), glob('upstart/*')),
+}
+DAEMON_ROOTS = {
+    'initd': '/etc/rc.d/init.d',
+    'initd-local': '/etc/rc.d/init.d',
+    'systemd': '/etc/systemd/system/',
+    'upstart': '/etc/init/',
+    'upstart-nonet': '/etc/init/',
+    'upstart-local': '/etc/init/',
+}
+DAEMON_TYPES = sorted(list(DAEMON_ROOTS.keys()))
 
 
 def tiny_p(cmd, capture=True):
@@ -46,10 +81,6 @@ def tiny_p(cmd, capture=True):
     return (out, err)
 
 
-def is_f(p):
-    return os.path.isfile(p)
-
-
 def get_version():
     cmd = ['tools/read-version']
     (ver, _e) = tiny_p(cmd)
@@ -60,6 +91,34 @@ def read_requires():
     cmd = ['tools/read-dependencies']
     (deps, _e) = tiny_p(cmd)
     return deps.splitlines()
+
+
+# TODO: Is there a better way to do this??
+class DaemonInstallData(install):
+    user_options = install.user_options + [
+        # This will magically show up in member variable 'daemon_type'
+        ('daemon-type=', None,
+            ('daemon type to configure (%s) [default: None]') %
+                (", ".join(DAEMON_TYPES))
+        ),
+    ]
+
+    def initialize_options(self):
+        install.initialize_options(self)
+        self.daemon_type = None
+
+    def finalize_options(self):
+        install.finalize_options(self)
+        if self.daemon_type and self.daemon_type not in DAEMON_TYPES:
+                raise DistutilsArgError(
+                    ("You must specify one of (%s) when"
+                     " specifying a daemon type!") % (", ".join(DAEMON_TYPES))
+                )
+        elif self.daemon_type:
+            self.distribution.data_files.append((DAEMON_ROOTS[self.daemon_type], 
+                                                 DAEMON_FILES[self.daemon_type]))
+            # Force that command to reinitalize (with new file list)
+            self.distribution.reinitialize_command('install_data', True)
 
 
 setuptools.setup(name='cloud-init',
@@ -84,4 +143,9 @@ setuptools.setup(name='cloud-init',
                   ('/usr/share/doc/cloud-init/examples/seed', filter(is_f, glob('doc/examples/seed/*'))),
                   ],
       install_requires=read_requires(),
+      cmdclass = {
+          # Use a subclass for install that handles
+          # adding on the right daemon configuration files
+          'install': DaemonInstallData,
+      },
       )
