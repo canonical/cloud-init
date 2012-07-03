@@ -8,6 +8,7 @@ import functools
 import httplib
 import json
 import logging
+import os
 import random
 import string
 import sys
@@ -312,13 +313,15 @@ def extract_opts():
     parser.add_option("-p", "--port", dest="port", action="store", type=int, default=80,
                   help="port from which to serve traffic (default: %default)", metavar="PORT")
     parser.add_option("-f", '--user-data-file', dest='user_data_file', action='store',
-                      help="user data blob to serve back to incoming requests", metavar='FILE')
+                      help="user data filename to serve back to incoming requests", metavar='FILE')
     (options, args) = parser.parse_args()
     out = dict()
     out['extra'] = args
     out['port'] = options.port
     out['user_data_file'] = None
     if options.user_data_file:
+        if not os.path.isfile(options.user_data_file):
+            parser.error("Option -f specified a non-existent file")
         out['user_data_file'] = options.user_data_file
     return out
 
