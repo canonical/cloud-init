@@ -4,6 +4,19 @@
 #
 # http://docs.amazonwebservices.com/AWSEC2/2007-08-29/DeveloperGuide/AESDG-chapter-instancedata.html
 
+"""
+To use this to mimic the EC2 metadata service entirely, run it like:
+  # Where 'eth0' is *some* interface.  
+  sudo ifconfig eth0:0 169.254.169.254 netmask 255.255.255.255
+
+  sudo ./mock-meta -a 169.254.169.254 -p 80
+
+Then:
+  wget -q http://169.254.169.254/latest/meta-data/instance-id -O -; echo
+  curl --silent http://169.254.169.254/latest/meta-data/instance-id ; echo
+  ec2metadata --instance-id
+"""
+
 import functools
 import httplib
 import json
@@ -20,7 +33,6 @@ from BaseHTTPServer import (HTTPServer, BaseHTTPRequestHandler)
 
 log = logging.getLogger('meta-server')
 
-# Constants
 EC2_VERSIONS = [
     '1.0',
     '2007-01-19',
@@ -68,6 +80,14 @@ META_CAPABILITIES = [
     'reservation-id',
     'security-groups'
 ]
+
+PUB_KEYS = {
+    'brickies': [
+        'ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEA3I7VUf2l5gSn5uavROsc5HRDpZdQueUq5ozemNSj8T7enqKHOEaFoU2VoPgGEWC9RyzSQVeyD6s7APMcE82EtmW4skVEgEGSbDc1pvxzxtchBj78hJP6Cf5TCMFSXw+Fz5rF1dR23QDbN1mkHs7adr8GW4kSWqU7Q7NDwfIrJJtO7Hi42GyXtvEONHbiRPOe8stqUly7MvUoN+5kfjBM8Qqpfl2+FNhTYWpMfYdPUnE7u536WqzFmsaqJctz3gBxH9Ex7dFtrxR4qiqEr9Qtlu3xGn7Bw07/+i1D+ey3ONkZLN+LQ714cgj8fRS4Hj29SCmXp5Kt5/82cD/VN3NtHw== brickies',
+        '',
+    ],
+}
+
 
 INSTANCE_TYPES = [
     'm1.small',
@@ -136,6 +156,8 @@ class MetaDataHandler(object):
 
     def get_data(self, params, who, **kwargs):
         if not params:
+            # Show the root level capabilities when
+            # no params are passed...
             caps = sorted(META_CAPABILITIES)
             return "\n".join(caps)
         action = params[0]
@@ -172,6 +194,43 @@ class MetaDataHandler(object):
             return "r-%s" % (id_generator(lower=True))
         elif action == 'product-codes':
             return "%s" % (id_generator(size=8))
+        elif action == 'public-keys':
+            nparams = params[1:]
+            # public-keys is messed up. a list of /latest/meta-data/public-keys/
+	        # shows something like: '0=brickies'
+	        # but a GET to /latest/meta-data/public-keys/0=brickies will fail
+	        # you have to know to get '/latest/meta-data/public-keys/0', then
+	        # from there you get a 'openssh-key', which you can get.
+	        # this hunk of code just re-works the object for that.
+            key_ids = sorted(list(PUB_KEYS.keys()))
+            if nparams:
+                mybe_key = nparams[0]
+                try:
+                    key_id = int(mybe_key)
+                    key_name = key_ids[key_id]
+                except:
+                    raise WebException(httplib.BAD_REQUEST, "Unknown key id %r" % mybe_key)
+                # Extract the possible sub-params
+                key_info = {
+                    "openssh-key": "\n".join(PUB_KEYS[key_name]),
+                }
+                result = dict(key_info)
+                for k in nparams[1:]:
+                    try:
+                        result = result.get(k)
+                    except (AttributeError, TypeError):
+                        result = None
+                        break
+                if isinstance(result, (dict)):
+                    result = json.dumps(result)
+                if result is None:
+                    result = ''
+                return str(result)
+            else:
+                contents = []
+                for (i, key_id) in enumerate(key_ids):
+                    contents.append("%s=%s" % (i, key_id))
+                return "\n".join(contents)
         elif action == 'placement':
             nparams = params[1:]
             if not nparams:
@@ -198,10 +257,8 @@ class UserDataHandler(object):
 
     def _get_user_blob(self, **kwargs):
         blob = None
-        if self.opts['user_data_file']:
-            with open(opts['user_data_file'], 'rb') as fh:
-                blob = fh.read()
-                blob = blob.strip()
+        if self.opts['user_data_file'] is not None:
+            blob = self.opts['user_data_file']
         if not blob:
             blob_mp = {
                 'hostname': kwargs.get('who', 'localhost'),
@@ -312,6 +369,8 @@ def extract_opts():
     parser = OptionParser()
     parser.add_option("-p", "--port", dest="port", action="store", type=int, default=80,
                   help="port from which to serve traffic (default: %default)", metavar="PORT")
+    parser.add_option("-a", "--addr", dest="address", action="store", type=str, default='0.0.0.0',
+                  help="address from which to serve traffic (default: %default)", metavar="ADDRESS")
     parser.add_option("-f", '--user-data-file', dest='user_data_file', action='store',
                       help="user data filename to serve back to incoming requests", metavar='FILE')
     (options, args) = parser.parse_args()
@@ -319,10 +378,12 @@ def extract_opts():
     out['extra'] = args
     out['port'] = options.port
     out['user_data_file'] = None
+    out['address'] = options.address
     if options.user_data_file:
         if not os.path.isfile(options.user_data_file):
             parser.error("Option -f specified a non-existent file")
-        out['user_data_file'] = options.user_data_file
+        with open(options.user_data_file, 'rb') as fh:
+            out['user_data_file'] = fh.read()
     return out
 
 
@@ -340,9 +401,10 @@ def run_server():
     setup_logging(logging.DEBUG)
     setup_fetchers(opts)
     log.info("CLI opts: %s", opts)
-    server = HTTPServer(('0.0.0.0', opts['port']), Ec2Handler)
+    server_address = (opts['address'], opts['port'])
+    server = HTTPServer(server_address, Ec2Handler)
     sa = server.socket.getsockname()
-    log.info("Serving server on %s using port %s ...", sa[0], sa[1])
+    log.info("Serving ec2 metadata on %s using port %s ...", sa[0], sa[1])
     server.serve_forever()
 
 
