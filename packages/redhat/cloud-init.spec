@@ -1,6 +1,6 @@
 %{!?python_sitelib: %global python_sitelib %(%{__python} -c "from distutils.sysconfig import get_python_lib; print get_python_lib()")}
 
-# See: See: http://www.zarb.org/~jasonc/macros.php
+# See: http://www.zarb.org/~jasonc/macros.php
 # Or: http://fedoraproject.org/wiki/Packaging:ScriptletSnippets
 # Or: http://www.rpm.org/max-rpm/ch-rpm-inside.html
 
@@ -61,31 +61,15 @@ ssh keys and to let the user run various scripts.
 
 %install
 rm -rf $RPM_BUILD_ROOT
-%{__python} setup.py install -O1 --skip-build --root $RPM_BUILD_ROOT
+%{__python} setup.py install -O1 \
+            --skip-build --root $RPM_BUILD_ROOT \
+            --daemon-type={{daemon_type}}
 
 # Note that /etc/rsyslog.d didn't exist by default until F15.
 # el6 request: https://bugzilla.redhat.com/show_bug.cgi?id=740420
 mkdir -p $RPM_BUILD_ROOT/%{_sysconfdir}/rsyslog.d
 cp -p tools/21-cloudinit.conf \
                     $RPM_BUILD_ROOT/%{_sysconfdir}/rsyslog.d/21-cloudinit.conf
-
-{{if init_d}}
-mkdir -p $RPM_BUILD_ROOT/%{_initddir}/
-{{endif}}
-{{if init_d_local}}
-cp -p initd/cloud-init-local $RPM_BUILD_ROOT/%{_initddir}/
-cp -p initd/cloud-config $RPM_BUILD_ROOT/%{_initddir}/
-cp -p initd/cloud-final $RPM_BUILD_ROOT/%{_initddir}/
-{{elif init_d}}
-cp -p initd/cloud-init $RPM_BUILD_ROOT/%{_initddir}/
-cp -p initd/cloud-config $RPM_BUILD_ROOT/%{_initddir}/
-cp -p initd/cloud-final $RPM_BUILD_ROOT/%{_initddir}/
-{{endif}}
-
-{{if systemd}}
-mkdir -p        $RPM_BUILD_ROOT/%{_unitdir}
-cp -p systemd/* $RPM_BUILD_ROOT/%{_unitdir}
-{{endif}}
 
 %clean
 rm -rf $RPM_BUILD_ROOT
@@ -103,13 +87,13 @@ fi
 {{endif}}
 
 {{if init_d_local}}
-/sbin/chkconfig --add /etc/rc.d/init.d/cloud-init-local
+/sbin/chkconfig --add %{_initrddir}/cloud-init-local
 {{elif init_d}}
-/sbin/chkconfig --add /etc/rc.d/init.d/cloud-init
+/sbin/chkconfig --add %{_initrddir}/cloud-init
 {{endif}}
 {{if init_d}}
-/sbin/chkconfig --add /etc/rc.d/init.d/cloud-config
-/sbin/chkconfig --add /etc/rc.d/init.d/cloud-final
+/sbin/chkconfig --add %{_initrddir}/cloud-config
+/sbin/chkconfig --add %{_initrddir}/cloud-final
 {{endif}}
 
 %preun
@@ -166,11 +150,7 @@ fi
 {{endif}}
 
 {{if systemd}}
-%{_unitdir}/cloud-config.service
-%{_unitdir}/cloud-config.target
-%{_unitdir}/cloud-init.service
-%{_unitdir}/cloud-init-local.service
-%{_unitdir}/cloud-final.service
+%{_unitdir}/cloud-*
 {{endif}}
 
 # Program binaries

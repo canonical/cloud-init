@@ -150,6 +150,7 @@ def generate_spec_contents(args, tmpl_fn):
     else:
         subs['systemd'] = False
 
+    subs['daemon_type'] = args.boot
     return templater.render_from_file(tmpl_fn, params=subs)
 
 
