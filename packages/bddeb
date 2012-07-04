@@ -29,7 +29,7 @@ PKG_MP = {
 }
 
 
-def write_debian_folder(root, version, revno):
+def write_debian_folder(root, version, revno, daemon_type):
     deb_dir = util.abs_join(root, 'debian')
     os.makedirs(deb_dir)
     
@@ -65,8 +65,12 @@ def write_debian_folder(root, version, revno):
                              util.abs_join(deb_dir, 'control'),
                              params={'requires': requires})
     
+    templater.render_to_file(util.abs_join('debian', 'rules'),
+                             util.abs_join(deb_dir, 'rules'),
+                             params={'daemon_type': daemon_type})
+    
     # Just copy the following directly
-    for base_fn in ['dirs', 'copyright', 'compat', 'pycompat', 'rules']:
+    for base_fn in ['dirs', 'copyright', 'compat', 'pycompat']:
         shutil.copy(util.abs_join('debian', base_fn),
                     util.abs_join(deb_dir, base_fn))
 
@@ -84,6 +88,10 @@ def main():
                               " (default: %(default)s)"),
                         default=False,
                         action='store_true')
+    parser.add_argument("-b", "--boot", dest="boot",
+                        help="select boot type (default: %(default)s)", 
+                        metavar="TYPE", default='upstart',
+                        choices=('upstart', 'upstart-local'))
     args = parser.parse_args()
 
     capture = True
@@ -101,25 +109,33 @@ def main():
         (sysout, _stderr) = util.subp(cmd)
         revno = sysout.strip()
         
+        # This is really only a temporary archive
+        # since we will extract it then add in the debian
+        # folder, then re-archive it for debian happiness
+        print("Creating a temporary tarball using the 'make-tarball' helper")
         cmd = [sys.executable,
                 util.abs_join(os.getcwd(), 'make-tarball')]
         (sysout, _stderr) = util.subp(cmd)
         arch_fn = sysout.strip()
-
         tmp_arch_fn = util.abs_join(tdir, os.path.basename(arch_fn))
         shutil.move(arch_fn, tmp_arch_fn)
 
+        print("Extracting temporary tarball %r" % (tmp_arch_fn))
         cmd = ['tar', '-xvzf', tmp_arch_fn, '-C', tdir]
-        util.subp(cmd)
-        
+        util.subp(cmd, capture=capture)
         base_name = os.path.basename(arch_fn)[:-len(".tar.gz")]
         shutil.move(util.abs_join(tdir, base_name), 
                     util.abs_join(tdir, 'cloud-init'))
 
+        print("Creating a debian/ folder in %r" % 
+             (util.abs_join(tdir, 'cloud-init')))
         write_debian_folder(util.abs_join(tdir, 'cloud-init'),
-                            version, revno)
+                            version, revno, args.boot)
 
+        # The naming here seems to follow some debian standard
+        # so it will whine if it is changed...
         tar_fn = "cloud-init_%s~%s.orig.tar.gz" % (version, revno)
+        print("Archiving that new folder into %r" % (tar_fn))
         cmd = ['tar', '-czvf', 
                util.abs_join(tdir, tar_fn), 
                '-C', util.abs_join(tdir, 'cloud-init')]
@@ -127,7 +143,8 @@ def main():
         util.subp(cmd, capture=capture)
         shutil.copy(util.abs_join(tdir, tar_fn), tar_fn)
         print("Wrote out archive %r" % (util.abs_join(tar_fn)))
-        
+
+        print("Running 'debuild' in %r" % (util.abs_join(tdir, 'cloud-init')))
         with util.chdir(util.abs_join(tdir, 'cloud-init')):
             cmd = ['debuild']
             if not args.sign:
@@ -137,14 +154,16 @@ def main():
         globs = [] 
         globs.extend(glob.glob("%s/*.deb" %
                      (os.path.join(tdir))))
+        link_fn = os.path.join(os.getcwd(), 'cloud-init_all.deb')
         for fn in globs:
             base_fn = os.path.basename(fn)
             shutil.move(fn, base_fn)
             print("Wrote out debian package %r" % (base_fn))
             if fn.endswith('_all.deb'):
                 # Add in the local link
-                util.del_file('cloud-init_all.deb')
-                os.symlink(base_fn, 'cloud-init_all.deb')
+                util.del_file(link_fn)
+                os.symlink(base_fn, link_fn)
+                print("Linked %r to %r" % (base_fn, link_fn))
 
     return 0
 

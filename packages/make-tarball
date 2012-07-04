@@ -7,6 +7,8 @@ import subprocess
 import sys
 import tempfile
 
+import optparse
+
 
 # Use the util functions from cloudinit
 possible_topdir = os.path.normpath(os.path.join(os.path.abspath(
@@ -17,51 +19,71 @@ if os.path.exists(os.path.join(possible_topdir, "cloudinit", "__init__.py")):
 from cloudinit import util
 
 
-def main(args):
+def find_versioned_files():
+    (stdout, _stderr) = util.subp(['bzr', 'ls', '--versioned', '--recursive'])
+    fns = [fn for fn in stdout.splitlines() 
+                  if fn and not fn.startswith('.')]
+    fns.sort()
+    return fns
 
-    base_fn = None
-    if args:
-        base_fn = args[0]
+
+def copy(fn, where_to, verbose):
+    if verbose:
+        print("Copying %r --> %r" % (fn, where_to))
+    if os.path.isfile(fn):
+        shutil.copy(fn, where_to)
+    elif os.path.isdir(fn) and not os.path.isdir(where_to):
+        os.makedirs(where_to)
+    else:
+        raise RuntimeError("Do not know how to copy %s" % (fn))
+
+
+def main():
+
+    parser = optparse.OptionParser()
+    parser.add_option("-f", "--file", dest="filename",
+                      help="write archive to FILE", metavar="FILE")
+    parser.add_option("-v", "--verbose",
+                  action="store_true", dest="verbose", default=False,
+                  help="show verbose messaging")
+
+    (options, args) = parser.parse_args()
+
+    base_fn = options.filename
+    if not base_fn:
+        (stdout, _stderr) = util.subp(['bzr', 'revno'])
+        revno = stdout.strip()
+        cmd = [sys.executable,
+               util.abs_join(os.pardir, 'tools', 'read-version')]
+        (stdout, _stderr) = util.subp(cmd)
+        version = stdout.strip()
+        base_fn = 'cloud-init-%s-%s' % (version, revno)
 
     with util.tempdir() as tdir:
-
-        if not base_fn:
-            (stdout, _stderr) = util.subp(['bzr', 'revno'])
-            revno = stdout.strip()
-    
-            cmd = [sys.executable,
-                   util.abs_join(os.pardir, 'tools', 'read-version')]
-            (stdout, _stderr) = util.subp(cmd)
-            version = stdout.strip()
-            base_fn = 'cloud-init-%s-%s' % (version, revno)
-
         util.ensure_dir(util.abs_join(tdir, base_fn))
         arch_fn = '%s.tar.gz' % (base_fn)
 
         with util.chdir(os.pardir):
-            (stdout, _stderr) = util.subp(['bzr', 'ls', '--versioned'])
-            fns = [fn for fn in stdout.splitlines() 
-                          if fn and not fn.startswith('.')]
-            # TODO - only copy the right files
-            # ie do a recursive versioned...
+            fns =  find_versioned_files()
             for fn in fns:
-                if os.path.isfile(fn):
-                    shutil.copy(fn, util.abs_join(tdir, base_fn, fn))
-                else:
-                    shutil.copytree(fn, util.abs_join(tdir, base_fn, fn))
+                copy(fn, util.abs_join(tdir, base_fn, fn),
+                     verbose=options.verbose)
 
-        cmd = ['tar', '-czf',
-                util.abs_join(tdir, arch_fn), 
-                '-C', tdir, base_fn]
-        util.subp(cmd)
+        arch_full_fn = util.abs_join(tdir, arch_fn)
+        cmd = ['tar', '-czvf', arch_full_fn, '-C', tdir, base_fn]
+        if options.verbose:
+            print("Creating an archive from directory %r to %r" %
+                  (util.abs_join(tdir, base_fn), arch_full_fn))
 
+        util.subp(cmd, capture=(not options.verbose))
         shutil.move(util.abs_join(tdir, arch_fn),
                     util.abs_join(os.getcwd(), arch_fn))
+
         print(os.path.abspath(arch_fn))
         
     return 0
 
 
 if __name__ == '__main__':
-    sys.exit(main(sys.argv[1:]))
+    sys.exit(main())
 
