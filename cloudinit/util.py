@@ -917,7 +917,8 @@ def pipe_in_out(in_fh, out_fh, chunk_size=1024, chunk_cb=None):
 
 
 def chownbyid(fname, uid=None, gid=None):
-    if uid is None and gid is None:
+    if uid in [None, -1] and gid in [None, -1]:
+        # Nothing to do
         return
     LOG.debug("Changing the ownership of %s to %s:%s", fname, uid, gid)
     os.chown(fname, uid, gid)
@@ -926,11 +927,17 @@ def chownbyid(fname, uid=None, gid=None):
 def chownbyname(fname, user=None, group=None):
     uid = -1
     gid = -1
-    if user:
-        uid = pwd.getpwnam(user).pw_uid
-    if group:
-        gid = grp.getgrnam(group).gr_gid
+    try:
+        if user:
+            uid = pwd.getpwnam(user).pw_uid
+        if group:
+            gid = grp.getgrnam(group).gr_gid
+    except KeyError:
+        logexc(LOG, ("Failed changing the ownership of %s using username %s and"
+                     " groupname %s (do they exist?)"), fname, user, group)
+        return False
     chownbyid(fname, uid, gid)
+    return True
 
 
 # Always returns well formated values
