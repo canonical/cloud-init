@@ -43,16 +43,15 @@ EC2_VERSIONS = [
     '2008-02-01',
     '2008-09-01',
     '2009-04-04',
-    'latest',
 ]
 
 BLOCK_DEVS = [
     'ami',
-    'root',
     'ephemeral0',
+    'root',
 ]
 
-DEV_PREFIX = 'v'
+DEV_PREFIX = 'v'  # This seems to vary alot depending on images...
 DEV_MAPPINGS = {
     'ephemeral0': '%sda2' % (DEV_PREFIX),
     'root': '/dev/%sda1' % (DEV_PREFIX),
@@ -77,22 +76,28 @@ META_CAPABILITIES = [
     'product-codes',
     'public-hostname',
     'public-ipv4',
+    'public-keys/',
     'reservation-id',
     'security-groups'
 ]
 
 PUB_KEYS = {
     'brickies': [
-        'ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEA3I7VUf2l5gSn5uavROsc5HRDpZdQueUq5ozemNSj8T7enqKHOEaFoU2VoPgGEWC9RyzSQVeyD6s7APMcE82EtmW4skVEgEGSbDc1pvxzxtchBj78hJP6Cf5TCMFSXw+Fz5rF1dR23QDbN1mkHs7adr8GW4kSWqU7Q7NDwfIrJJtO7Hi42GyXtvEONHbiRPOe8stqUly7MvUoN+5kfjBM8Qqpfl2+FNhTYWpMfYdPUnE7u536WqzFmsaqJctz3gBxH9Ex7dFtrxR4qiqEr9Qtlu3xGn7Bw07/+i1D+ey3ONkZLN+LQ714cgj8fRS4Hj29SCmXp5Kt5/82cD/VN3NtHw== brickies',
+        ('ssh-rsa '
+         'AAAAB3NzaC1yc2EAAAABIwAAAQEA3I7VUf2l5gSn5uavROsc5HRDpZdQueUq5ozemNSj8T'
+         '7enqKHOEaFoU2VoPgGEWC9RyzSQVeyD6s7APMcE82EtmW4skVEgEGSbDc1pvxzxtchBj78'
+         'hJP6Cf5TCMFSXw+Fz5rF1dR23QDbN1mkHs7adr8GW4kSWqU7Q7NDwfIrJJtO7Hi42GyXtv'
+         'EONHbiRPOe8stqUly7MvUoN+5kfjBM8Qqpfl2+FNhTYWpMfYdPUnE7u536WqzFmsaqJctz'
+         '3gBxH9Ex7dFtrxR4qiqEr9Qtlu3xGn7Bw07/+i1D+ey3ONkZLN+LQ714cgj8fRS4Hj29SC'
+         'mXp5Kt5/82cD/VN3NtHw== brickies'),
         '',
     ],
 }
 
-
 INSTANCE_TYPES = [
-    'm1.small',
-    'm1.medium',
     'm1.large',
+    'm1.medium',
+    'm1.small',
     'm1.xlarge',
 ]
 
@@ -100,10 +105,10 @@ AVAILABILITY_ZONES = [
     "us-east-1a",
     "us-east-1b",
     "us-east-1c",
-    'us-west-1',
     "us-east-1d",
     'eu-west-1a',
     'eu-west-1b',
+    'us-west-1',
 ]
 
 PLACEMENT_CAPABILITIES = {
@@ -139,6 +144,17 @@ def format_text(text):
     return "\n".join(nlines)
 
 
+def traverse(keys, mp):
+    result = dict(mp)
+    for k in keys:
+        try:
+            result = result.get(k)
+        except (AttributeError, TypeError):
+            result = None
+            break
+    return result
+
+
 ID_CHARS = [c for c in (string.ascii_uppercase + string.digits)]
 def id_generator(size=6, lower=False):
     txt = ''.join(random.choice(ID_CHARS) for x in range(size))
@@ -146,6 +162,23 @@ def id_generator(size=6, lower=False):
         return txt.lower()
     else:
         return txt
+
+
+def get_ssh_keys():
+    keys = {}
+    keys.update(PUB_KEYS)
+
+    # Nice helper to add in the 'running' users key (if they have one)
+    key_pth = os.path.expanduser('~/.ssh/id_rsa.pub')
+    if not os.path.isfile(key_pth):
+        key_pth = os.path.expanduser('~/.ssh/id_dsa.pub')
+
+    if os.path.isfile(key_pth):
+        with open(key_pth, 'rb') as fh:
+            contents = fh.read()
+        keys[os.getlogin()] = [contents, '']
+
+    return keys
 
 
 class MetaDataHandler(object):
@@ -165,7 +198,7 @@ class MetaDataHandler(object):
         if action == 'instance-id':
             return 'i-%s' % (id_generator(lower=True))
         elif action == 'ami-launch-index':
-            return "%s" % random.choice([0,1,2,3])
+            return "%s" % random.choice([0, 1, 2, 3])
         elif action == 'aki-id':
             return 'aki-%s' % (id_generator(lower=True))
         elif action == 'ami-id':
@@ -175,11 +208,15 @@ class MetaDataHandler(object):
         elif action == 'block-device-mapping':
             nparams = params[1:]
             if not nparams:
-                devs = sorted(BLOCK_DEVS)
-                return "\n".join(devs)
+                return "\n".join(BLOCK_DEVS)
             else:
-                return "%s" % (DEV_MAPPINGS.get(nparams[0].strip(), ''))
+                subvalue = traverse(nparams, DEV_MAPPINGS)
+                if not subvalue:
+                    return "\n".join(sorted(list(DEV_MAPPINGS.keys())))
+                else:
+                    return str(subvalue)
         elif action in ['hostname', 'local-hostname', 'public-hostname']:
+            # Just echo back there own hostname that they called in on..
             return "%s" % (who)
         elif action == 'instance-type':
             return random.choice(INSTANCE_TYPES)
@@ -188,21 +225,23 @@ class MetaDataHandler(object):
         elif action == 'security-groups':
             return 'default'
         elif action in ['local-ipv4', 'public-ipv4']:
-            there_ip = kwargs.get('client_ip', '10.0.0.1')
-            return "%s" % (there_ip)
+            # Just echo back there own ip that they called in on...
+            return "%s" % (kwargs.get('client_ip', '10.0.0.1'))
         elif action == 'reservation-id':
             return "r-%s" % (id_generator(lower=True))
         elif action == 'product-codes':
             return "%s" % (id_generator(size=8))
         elif action == 'public-keys':
             nparams = params[1:]
-            # public-keys is messed up. a list of /latest/meta-data/public-keys/
+            # This is a weird kludge, why amazon why!!!
+            # public-keys is messed up, a list of /latest/meta-data/public-keys/
 	        # shows something like: '0=brickies'
 	        # but a GET to /latest/meta-data/public-keys/0=brickies will fail
 	        # you have to know to get '/latest/meta-data/public-keys/0', then
 	        # from there you get a 'openssh-key', which you can get.
 	        # this hunk of code just re-works the object for that.
-            key_ids = sorted(list(PUB_KEYS.keys()))
+            avail_keys = get_ssh_keys()
+            key_ids = sorted(list(avail_keys.keys()))
             if nparams:
                 mybe_key = nparams[0]
                 try:
@@ -211,21 +250,15 @@ class MetaDataHandler(object):
                 except:
                     raise WebException(httplib.BAD_REQUEST, "Unknown key id %r" % mybe_key)
                 # Extract the possible sub-params
-                key_info = {
-                    "openssh-key": "\n".join(PUB_KEYS[key_name]),
-                }
-                result = dict(key_info)
-                for k in nparams[1:]:
-                    try:
-                        result = result.get(k)
-                    except (AttributeError, TypeError):
-                        result = None
-                        break
+                result = traverse(nparams[1:], {
+                    "openssh-key": "\n".join(avail_keys[key_name]),
+                })
                 if isinstance(result, (dict)):
-                    result = json.dumps(result)
-                if result is None:
+                    # TODO: This might not be right??
+                    result = "\n".join(sorted(result.keys()))
+                if not result:
                     result = ''
-                return str(result)
+                return result
             else:
                 contents = []
                 for (i, key_id) in enumerate(key_ids):
@@ -286,12 +319,7 @@ user_fetcher = None
 class Ec2Handler(BaseHTTPRequestHandler):
 
     def _get_versions(self):
-        versions = []
-        for v in EC2_VERSIONS:
-            if v == 'latest':
-                continue
-            else:
-                versions.append(v)
+        versions = ['latest'] + EC2_VERSIONS
         versions = sorted(versions)
         return "\n".join(versions)
 
@@ -308,11 +336,12 @@ class Ec2Handler(BaseHTTPRequestHandler):
             'meta-data': meta_fetcher.get_data,
         }
         segments = [piece for piece in path.split('/') if len(piece)]
+        log.info("Received segments %s", segments)
         if not segments:
             return self._get_versions
         date = segments[0].strip().lower()
-        if date not in EC2_VERSIONS:
-            raise WebException(httplib.BAD_REQUEST, "Unknown date format %r" % date)
+        if date not in self._get_versions():
+            raise WebException(httplib.BAD_REQUEST, "Unknown version format %r" % date)
         if len(segments) < 2:
             raise WebException(httplib.BAD_REQUEST, "No action provided")
         look_name = segments[1].lower()
