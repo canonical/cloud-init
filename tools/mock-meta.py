@@ -365,7 +365,6 @@ class Ec2Handler(BaseHTTPRequestHandler):
         log.info("Got a call from %s for path %s", who, self.path)
         try:
             func = self._find_method(self.path)
-            log.info("Calling into func %s to get your data.", func)
             data = func()
             if not data:
                 data = ''
