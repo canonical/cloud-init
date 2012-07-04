@@ -349,10 +349,14 @@ class Ec2Handler(BaseHTTPRequestHandler):
             raise WebException(httplib.BAD_REQUEST, "Unknown requested data %r" % look_name)
         base_func = func_mapping[look_name]
         who = self.address_string()
+        ip_from = self.client_address[0]
+        if who == ip_from:
+            # Nothing resolved, so just use 'localhost'
+            who = 'localhost'
         kwargs = {
             'params': list(segments[2:]),
-            'who': self.address_string(),
-            'client_ip': self.client_address[0],
+            'who': who,
+            'client_ip': ip_from,
         }
         return functools.partial(base_func, **kwargs)
 
