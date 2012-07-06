@@ -29,4 +29,9 @@
   for these modules (or have a combination of the above), this avoids having
   to understand where your modules are coming from (which can be altered by
   the current python inclusion path)
-
+- Depending on if people think the wrapper around 'os.path.join' provided
+  by the 'paths' object is useful (allowing us to modify based off a 'read'
+  and 'write' configuration based 'root') or is just to confusing, it might be 
+  something to remove later, and just recommend using 'chroot' instead (or the X 
+  different other options which are similar to 'chroot'), which is might be more 
+  natural and less confusing...
