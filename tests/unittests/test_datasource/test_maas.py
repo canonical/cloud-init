@@ -1,14 +1,11 @@
-from tempfile import mkdtemp
-from shutil import rmtree
 import os
 from StringIO import StringIO
 from copy import copy
-from cloudinit.DataSourceMAAS import (
-    MAASSeedDirNone,
-    MAASSeedDirMalformed,
-    read_maas_seed_dir,
-    read_maas_seed_url,
-)
+
+from cloudinit import util
+from cloudinit import url_helper
+from cloudinit.sources import DataSourceMAAS
+
 from mocker import MockerTestCase
 
 
@@ -17,12 +14,7 @@ class TestMAASDataSource(MockerTestCase):
     def setUp(self):
         super(TestMAASDataSource, self).setUp()
         # Make a temp directoy for tests to use.
-        self.tmp = mkdtemp(prefix="unittest_")
-
-    def tearDown(self):
-        super(TestMAASDataSource, self).tearDown()
-        # Clean up temp directory
-        rmtree(self.tmp)
+        self.tmp = self.makeDir()
 
     def test_seed_dir_valid(self):
         """Verify a valid seeddir is read as such"""
@@ -35,7 +27,7 @@ class TestMAASDataSource(MockerTestCase):
         my_d = os.path.join(self.tmp, "valid")
         populate_dir(my_d, data)
 
-        (userdata, metadata) = read_maas_seed_dir(my_d)
+        (userdata, metadata) = DataSourceMAAS.read_maas_seed_dir(my_d)
 
         self.assertEqual(userdata, data['user-data'])
         for key in ('instance-id', 'local-hostname'):
@@ -54,7 +46,7 @@ class TestMAASDataSource(MockerTestCase):
         my_d = os.path.join(self.tmp, "valid_extra")
         populate_dir(my_d, data)
 
-        (userdata, metadata) = read_maas_seed_dir(my_d)
+        (userdata, metadata) = DataSourceMAAS.read_maas_seed_dir(my_d)
 
         self.assertEqual(userdata, data['user-data'])
         for key in ('instance-id', 'local-hostname'):
@@ -76,24 +68,28 @@ class TestMAASDataSource(MockerTestCase):
         invalid_data = copy(valid)
         del invalid_data['local-hostname']
         populate_dir(my_d, invalid_data)
-        self.assertRaises(MAASSeedDirMalformed, read_maas_seed_dir, my_d)
+        self.assertRaises(DataSourceMAAS.MAASSeedDirMalformed,
+                          DataSourceMAAS.read_maas_seed_dir, my_d)
 
         # missing 'instance-id'
         my_d = "%s-02" % my_based
         invalid_data = copy(valid)
         del invalid_data['instance-id']
         populate_dir(my_d, invalid_data)
-        self.assertRaises(MAASSeedDirMalformed, read_maas_seed_dir, my_d)
+        self.assertRaises(DataSourceMAAS.MAASSeedDirMalformed,
+                          DataSourceMAAS.read_maas_seed_dir, my_d)
 
     def test_seed_dir_none(self):
         """Verify that empty seed_dir raises MAASSeedDirNone"""
 
         my_d = os.path.join(self.tmp, "valid_empty")
-        self.assertRaises(MAASSeedDirNone, read_maas_seed_dir, my_d)
+        self.assertRaises(DataSourceMAAS.MAASSeedDirNone,
+                          DataSourceMAAS.read_maas_seed_dir, my_d)
 
     def test_seed_dir_missing(self):
         """Verify that missing seed_dir raises MAASSeedDirNone"""
-        self.assertRaises(MAASSeedDirNone, read_maas_seed_dir,
+        self.assertRaises(DataSourceMAAS.MAASSeedDirNone, 
+            DataSourceMAAS.read_maas_seed_dir,
             os.path.join(self.tmp, "nonexistantdirectory"))
 
     def test_seed_url_valid(self):
@@ -102,30 +98,30 @@ class TestMAASDataSource(MockerTestCase):
             'meta-data/local-hostname': 'test-hostname',
             'meta-data/public-keys': 'test-hostname',
             'user-data': 'foodata'}
-
+        valid_order = [
+            'meta-data/local-hostname',
+            'meta-data/instance-id',
+            'meta-data/public-keys',
+            'user-data',
+        ]
         my_seed = "http://example.com/xmeta"
         my_ver = "1999-99-99"
         my_headers = {'header1': 'value1', 'header2': 'value2'}
 
         def my_headers_cb(url):
-            return(my_headers)
+            return my_headers
 
-        mock_request = self.mocker.replace("urllib2.Request",
-            passthrough=False)
-        mock_urlopen = self.mocker.replace("urllib2.urlopen",
+        mock_request = self.mocker.replace(url_helper.readurl,
             passthrough=False)
 
-        for (key, val) in valid.iteritems():
-            mock_request("%s/%s/%s" % (my_seed, my_ver, key),
-                data=None, headers=my_headers)
-            self.mocker.nospec()
-            self.mocker.result("fake-request-%s" % key)
-            mock_urlopen("fake-request-%s" % key, timeout=None)
-            self.mocker.result(StringIO(val))
-
+        for key in valid_order:
+            url = "%s/%s/%s" % (my_seed, my_ver, key)
+            mock_request(url, headers=my_headers, timeout=None)
+            resp = valid.get(key)
+            self.mocker.result(url_helper.UrlResponse(200, resp))
         self.mocker.replay()
 
-        (userdata, metadata) = read_maas_seed_url(my_seed,
+        (userdata, metadata) = DataSourceMAAS.read_maas_seed_url(my_seed,
             header_cb=my_headers_cb, version=my_ver)
 
         self.assertEqual("foodata", userdata)
