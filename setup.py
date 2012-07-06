@@ -91,18 +91,18 @@ class InitsysInstallData(install):
 
     def initialize_options(self):
         install.initialize_options(self)
-        self.initsys = None
+        self.init_system = None
 
     def finalize_options(self):
         install.finalize_options(self)
-        if self.initsys and self.initsys not in INITSYS_TYPES:
+        if self.init_system and self.init_system not in INITSYS_TYPES:
                 raise DistutilsArgError(
                     ("You must specify one of (%s) when"
                      " specifying a init system!") % (", ".join(INITSYS_TYPES))
                 )
-        elif self.initsys:
-            self.distribution.data_files.append((INITSYS_ROOTS[self.initsys], 
-                                                 INITSYS_FILES[self.initsys]))
+        elif self.init_system:
+            self.distribution.data_files.append((INITSYS_ROOTS[self.init_system], 
+                                                 INITSYS_FILES[self.init_system]))
             # Force that command to reinitalize (with new file list)
             self.distribution.reinitialize_command('install_data', True)
 
