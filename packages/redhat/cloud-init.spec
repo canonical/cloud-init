@@ -63,7 +63,7 @@ ssh keys and to let the user run various scripts.
 rm -rf $RPM_BUILD_ROOT
 %{__python} setup.py install -O1 \
             --skip-build --root $RPM_BUILD_ROOT \
-            --daemon-type={{daemon_type}}
+            --init-system={{init_sys}}
 
 # Note that /etc/rsyslog.d didn't exist by default until F15.
 # el6 request: https://bugzilla.redhat.com/show_bug.cgi?id=740420

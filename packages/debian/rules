@@ -7,7 +7,7 @@ binary-install/cloud-init::cloud-init-fixups
 include /usr/share/cdbs/1/rules/debhelper.mk
 include /usr/share/cdbs/1/class/python-distutils.mk
 
-DEB_PYTHON_INSTALL_ARGS_ALL += --daemon-type={{daemon_type}}
+DEB_PYTHON_INSTALL_ARGS_ALL += --init-system={{init_sys}}
 
 DEB_DH_INSTALL_SOURCEDIR := debian/tmp
 

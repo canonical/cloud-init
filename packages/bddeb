@@ -29,7 +29,7 @@ PKG_MP = {
 }
 
 
-def write_debian_folder(root, version, revno, daemon_type):
+def write_debian_folder(root, version, revno, init_sys):
     deb_dir = util.abs_join(root, 'debian')
     os.makedirs(deb_dir)
     
@@ -67,7 +67,7 @@ def write_debian_folder(root, version, revno, daemon_type):
     
     templater.render_to_file(util.abs_join('debian', 'rules'),
                              util.abs_join(deb_dir, 'rules'),
-                             params={'daemon_type': daemon_type})
+                             params={'init_sys': init_sys})
     
     # Just copy the following directly
     for base_fn in ['dirs', 'copyright', 'compat', 'pycompat']:

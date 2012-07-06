@@ -38,31 +38,17 @@ def is_f(p):
     return os.path.isfile(p)
 
 
-DAEMON_FILES = {
-    'initd': filter((lambda x: is_f(x)
-                     and x.find('local') == -1), glob('initd/*')),
-    'initd-local': filter((lambda x: is_f(x)
-                     and not x.endswith('cloud-init')), glob('initd/*')),
+INITSYS_FILES = {
+    'sysvinit': filter((lambda x: is_f(x)), glob('sysvinit/*')),
     'systemd': filter((lambda x: is_f(x)), glob('systemd/*')),
-    'upstart': filter((lambda x: is_f(x)
-                     and x.find('local') == -1
-                     and x.find('nonet') == -1), glob('upstart/*')),
-    'upstart-nonet': filter((lambda x: is_f(x)
-                        and x.find('local') == -1
-                        and not x.endswith('cloud-init.conf')), glob('upstart/*')),
-    'upstart-local': filter((lambda x: is_f(x)
-                        and x.find('nonet') == -1
-                        and not x.endswith('cloud-init.conf')), glob('upstart/*')),
+    'upstart': filter((lambda x: is_f(x)), glob('upstart/*')),
 }
-DAEMON_ROOTS = {
-    'initd': '/etc/rc.d/init.d',
-    'initd-local': '/etc/rc.d/init.d',
+INITSYS_ROOTS = {
+    'sysvinit': '/etc/rc.d/init.d',
     'systemd': '/etc/systemd/system/',
     'upstart': '/etc/init/',
-    'upstart-nonet': '/etc/init/',
-    'upstart-local': '/etc/init/',
 }
-DAEMON_TYPES = sorted(list(DAEMON_ROOTS.keys()))
+INITSYS_TYPES = sorted(list(INITSYS_ROOTS.keys()))
 
 
 def tiny_p(cmd, capture=True):
@@ -94,29 +80,29 @@ def read_requires():
 
 
 # TODO: Is there a better way to do this??
-class DaemonInstallData(install):
+class InitsysInstallData(install):
     user_options = install.user_options + [
-        # This will magically show up in member variable 'daemon_type'
-        ('daemon-type=', None,
-            ('daemon type to configure (%s) [default: None]') %
-                (", ".join(DAEMON_TYPES))
+        # This will magically show up in member variable 'init_sys'
+        ('init-system=', None,
+            ('init system to configure (%s) [default: None]') %
+                (", ".join(INITSYS_TYPES))
         ),
     ]
 
     def initialize_options(self):
         install.initialize_options(self)
-        self.daemon_type = None
+        self.initsys = None
 
     def finalize_options(self):
         install.finalize_options(self)
-        if self.daemon_type and self.daemon_type not in DAEMON_TYPES:
+        if self.initsys and self.initsys not in INITSYS_TYPES:
                 raise DistutilsArgError(
                     ("You must specify one of (%s) when"
-                     " specifying a daemon type!") % (", ".join(DAEMON_TYPES))
+                     " specifying a init system!") % (", ".join(INITSYS_TYPES))
                 )
-        elif self.daemon_type:
-            self.distribution.data_files.append((DAEMON_ROOTS[self.daemon_type], 
-                                                 DAEMON_FILES[self.daemon_type]))
+        elif self.initsys:
+            self.distribution.data_files.append((INITSYS_ROOTS[self.initsys], 
+                                                 INITSYS_FILES[self.initsys]))
             # Force that command to reinitalize (with new file list)
             self.distribution.reinitialize_command('install_data', True)
 
@@ -145,7 +131,7 @@ setuptools.setup(name='cloud-init',
       install_requires=read_requires(),
       cmdclass = {
           # Use a subclass for install that handles
-          # adding on the right daemon configuration files
-          'install': DaemonInstallData,
+          # adding on the right init system configuration files
+          'install': InitsysInstallData,
       },
       )
