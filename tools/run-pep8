@@ -1,0 +1,35 @@
+#!/bin/bash
+
+ci_files='cloud*.py cloudinit/*.py cloudinit/config/*.py'
+test_files=$(find tests -name "*.py")
+def_files="$ci_files $test_files"
+
+if [ $# -eq 0 ]; then
+   files=( )
+   for f in $def_files; do
+      [ -f "$f" ] || { echo "failed, $f not a file" 1>&2; exit 1; }
+      files[${#files[@]}]=${f}
+   done
+else
+   files=( "$@" );
+fi
+
+if [ -f 'hacking.py' ]
+then
+    base=`pwd`
+else
+    base=`pwd`/tools/
+fi
+
+cmd=(
+    ${base}/hacking.py
+
+    --ignore=E501 # Line too long (these are caught by pylint)
+
+    "${files[@]}"
+)
+
+echo -e "\nRunning 'cloudinit' pep8:"
+echo "${cmd[@]}"
+"${cmd[@]}"
+

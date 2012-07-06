@@ -1,0 +1,5 @@
+cloud-init ({{version}}~{{revision}}-1) UNRELEASED; urgency=low
+
+  * build
+
+ -- Scott Moser <smoser@ubuntu.com>  Fri, 16 Dec 2011 11:50:25 -0500

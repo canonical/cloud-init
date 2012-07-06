@@ -1,0 +1,45 @@
+#!/usr/bin/python
+# vi: ts=4 expandtab
+
+import os
+import sys
+import re
+
+
+def parse_requires(fn):
+    requires = []
+    with open(fn, 'r') as fh:
+        lines = fh.read().splitlines()
+    for line in lines:
+        line = line.strip()
+        if not line or line[0] == '#':
+            continue
+        else:
+            requires.append(line)
+    return requires
+
+
+def find_requires(args):
+    p_files = []
+    if args:
+        p_files.append(args[0])
+    p_files.append(os.path.join(os.pardir, "Requires"))
+    p_files.append(os.path.join(os.getcwd(), 'Requires'))
+    found = None
+    for fn in p_files:
+        if os.path.isfile(fn):
+            found = fn
+            break
+    return found
+
+
+if __name__ == '__main__':
+    run_args = sys.argv[1:]
+    fn = find_requires(run_args)
+    if not fn:
+        sys.stderr.write("'Requires' file not found!\n")
+        sys.exit(1)
+    else:
+        deps = parse_requires(fn)
+        for entry in deps:
+            print entry
