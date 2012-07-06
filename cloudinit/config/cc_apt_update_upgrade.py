@@ -45,13 +45,16 @@ EXPORT_GPG_KEYID = """
 """
 
 
-def handle(_name, cfg, cloud, log, _args):
+def handle(name, cfg, cloud, log, _args):
     update = util.get_cfg_option_bool(cfg, 'apt_update', False)
     upgrade = util.get_cfg_option_bool(cfg, 'apt_upgrade', False)
 
     release = get_release()
-
     mirror = find_apt_mirror(cloud, cfg)
+    if not mirror:
+        log.debug(("Skipping module named %s,"
+                   " no package 'mirror' located"), name)
+        return
 
     log.debug("Selected mirror at: %s" % mirror)
 
