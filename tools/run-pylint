@@ -1,6 +1,6 @@
 #!/bin/bash
 
-ci_files='cloud*.py cloudinit/*.py cloudinit/CloudConfig/*.py'
+ci_files='cloud*.py cloudinit/*.py cloudinit/config/*.py'
 test_files=$(find tests -name "*.py")
 def_files="$ci_files $test_files"
 
@@ -38,14 +38,3 @@ echo -e "\nRunning pylint:"
 echo "${cmd[@]}"
 "${cmd[@]}"
 
-cmd=(
-    pep8
-
-    --ignore=E501 # Line too long (these are caught by pylint above)
-
-    "${files[@]}"
-)
-
-echo -e "\nRunning pep8:"
-echo "${cmd[@]}"
-"${cmd[@]}"

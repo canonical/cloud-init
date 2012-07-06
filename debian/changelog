@@ -1,3 +1,12 @@
+cloud-init (0.7.0~bzr564-0ubuntu1) quantal; urgency=low
+
+  * New upstream snapshot.
+    Thanks to Joshua Harlow for hard work.
+  * depend on software-properties-common rather than
+    python-software-properties (LP: #1021418)
+
+ -- Scott Moser <smoser@ubuntu.com>  Fri, 06 Jul 2012 17:31:01 -0400
+
 cloud-init (0.6.3-0ubuntu3) quantal; urgency=low
 
   * grub-legacy-ec2: add missing dependency on ucf (LP: #960336).

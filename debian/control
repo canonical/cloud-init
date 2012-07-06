@@ -8,21 +8,24 @@ Build-Depends: cdbs,
                pyflakes,
                pylint,
                python (>= 2.6.6-3~),
-               python-nose,
                python-mocker,
+               python-nose
 XS-Python-Version: all
 Standards-Version: 3.9.3
 
 Package: cloud-init
 Architecture: all
-Depends: cloud-utils,
+Depends: add-apt-repository,
+         cloud-utils,
          ifupdown (>= 0.6.10ubuntu5),
          procps,
          python,
-         python-cheetah,
+         python-argparse,
+         python-boto,
          python-configobj,
          python-oauth,
-         python-software-properties,
+         python-prettytable,
+         python-tempita,
          python-yaml,
          ${misc:Depends},
          ${python:Depends}

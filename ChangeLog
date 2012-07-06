@@ -1,3 +1,201 @@
+0.7.0:
+ - unified binary that activates the various stages
+   - Now using argparse + subcommands to specify the various CLI options
+ - a stage module that clearly separates the stages of the different
+   components (also described how they are used and in what order in the
+   new unified binary)
+ - user_data is now a module that just does user data processing while the
+   actual activation and 'handling' of the processed user data is done via
+   a separate set of files (and modules) with the main 'init' stage being the
+   controller of this
+   - creation of boot_hook, cloud_config, shell_script, upstart_job version 2
+     modules (with classes that perform there functionality) instead of those
+     having functionality that is attached to the cloudinit object (which
+     reduces reuse and limits future functionality, and makes testing harder)
+ - removal of global config that defined paths, shared config, now this is
+   via objects making unit testing testing and global side-effects a non issue
+ - creation of a 'helpers.py' 
+   - this contains an abstraction for the 'lock' like objects that the various 
+     module/handler running stages use to avoid re-running a given 
+     module/handler for a given frequency. this makes it separated from 
+     the actual usage of that object (thus helpful for testing and clear lines
+     usage and how the actual job is accomplished)
+     - a common 'runner' class is the main entrypoint using these locks to
+       run function objects passed in (along with there arguments) and there
+       frequency
+   - add in a 'paths' object that provides access to the previously global
+     and/or config based paths (thus providing a single entrypoint object/type
+     that provides path information)
+       - this also adds in the ability to change the path when constructing 
+       that path 'object' and adding in additional config that can be used to 
+       alter the root paths of 'joins' (useful for testing or possibly useful
+       in chroots?)
+        - config options now avaiable that can alter the 'write_root' and the 
+         'read_root' when backing code uses the paths join() function
+   - add a config parser subclass that will automatically add unknown sections
+     and return default values (instead of throwing exceptions for these cases)
+   - a new config merging class that will be the central object that knows
+     how to do the common configuration merging from the various configuration
+     sources. The order is the following:
+     - cli config files override environment config files
+       which override instance configs which override datasource
+       configs which override base configuration which overrides
+       default configuration.
+ - remove the passing around of the 'cloudinit' object as a 'cloud' variable
+   and instead pass around an 'interface' object that can be given to modules
+   and handlers as there cloud access layer while the backing of that
+   object can be varied (good for abstraction and testing)
+ - use a single set of functions to do importing of modules
+ - add a function in which will search for a given set of module names with
+   a given set of attributes and return those which are found
+ - refactor logging so that instead of using a single top level 'log' that
+   instead each component/module can use its own logger (if desired), this
+   should be backwards compatible with handlers and config modules that used
+   the passed in logger (its still passed in)
+   - ensure that all places where exception are caught and where applicable
+     that the util logexc() is called, so that no exceptions that may occur
+     are dropped without first being logged (where it makes sense for this 
+     to happen)
+ - add a 'requires' file that lists cloud-init dependencies
+   - applying it in package creation (bdeb and brpm) as well as using it
+     in the modified setup.py to ensure dependencies are installed when
+     using that method of packaging
+ - add a 'version.py' that lists the active version (in code) so that code
+   inside cloud-init can report the version in messaging and other config files
+ - cleanup of subprocess usage so that all subprocess calls go through the
+   subp() utility method, which now has an exception type that will provide
+   detailed information on python 2.6 and 2.7
+ - forced all code loading, moving, chmod, writing files and other system
+   level actions to go through standard set of util functions, this greatly 
+   helps in debugging and determining exactly which system actions cloud-init is
+   performing
+ - switching out the templating engine cheetah for tempita since tempita has
+   no external dependencies (minus python) while cheetah has many dependencies
+   which makes it more difficult to adopt cloud-init in distros that may not
+   have those dependencies
+ - adjust url fetching and url trying to go through a single function that
+   reads urls in the new 'url helper' file, this helps in tracing, debugging
+   and knowing which urls are being called and/or posted to from with-in 
+   cloud-init code
+   - add in the sending of a 'User-Agent' header for all urls fetched that
+     do not provide there own header mapping, derive this user-agent from
+     the following template, 'Cloud-Init/{version}' where the version is the
+     cloud-init version number
+ - using prettytable for netinfo 'debug' printing since it provides a standard
+   and defined output that should be easier to parse than a custom format
+ - add a set of distro specific classes, that handle distro specific actions
+   that modules and or handler code can use as needed, this is organized into
+   a base abstract class with child classes that implement the shared 
+   functionality. config determines exactly which subclass to load, so it can
+   be easily extended as needed.
+   - current functionality
+      - network interface config file writing
+      - hostname setting/updating
+      - locale/timezone/ setting
+      - updating of /etc/hosts (with templates or generically)
+      - package commands (ie installing, removing)/mirror finding
+      - interface up/down activating
+   - implemented a debian + ubuntu subclass
+   - implemented a redhat + fedora subclass
+ - adjust the root 'cloud.cfg' file to now have distrobution/path specific 
+   configuration values in it. these special configs are merged as the normal
+   config is, but the system level config is not passed into modules/handlers
+   - modules/handlers must go through the path and distro object instead
+ - have the cloudstack datasource test the url before calling into boto to 
+   avoid the long wait for boto to finish retrying and finally fail when
+   the gateway meta-data address is unavailable
+ - add a simple mock ec2 meta-data python based http server that can serve a
+   very simple set of ec2 meta-data back to callers
+      - useful for testing or for understanding what the ec2 meta-data 
+        service can provide in terms of data or functionality
+ - for ssh key and authorized key file parsing add in classes and util functions
+   that maintain the state of individual lines, allowing for a clearer 
+   separation of parsing and modification (useful for testing and tracing)
+ - add a set of 'base' init.d scripts that can be used on systems that do
+   not have full upstart or systemd support (or support that does not match
+   the standard fedora/ubuntu implementation)
+   - currently these are being tested on RHEL 6.2
+ - separate the datasources into there own subdirectory (instead of being
+   a top-level item), this matches how config 'modules' and user-data 'handlers'
+   are also in there own subdirectory (thus helping new developers and others
+   understand the code layout in a quicker manner)
+ - add the building of rpms based off a new cli tool and template 'spec' file
+   that will templatize and perform the necessary commands to create a source
+   and binary package to be used with a cloud-init install on a 'rpm' supporting
+   system
+   - uses the new standard set of requires and converts those pypi requirements
+     into a local set of package requirments (that are known to exist on RHEL
+     systems but should also exist on fedora systems)
+ - adjust the bdeb builder to be a python script (instead of a shell script) and
+   make its 'control' file a template that takes in the standard set of pypi 
+   dependencies and uses a local mapping (known to work on ubuntu) to create the
+   packages set of dependencies (that should also work on ubuntu-like systems)
+ - pythonify a large set of various pieces of code
+   - remove wrapping return statements with () when it has no effect
+   - upper case all constants used
+   - correctly 'case' class and method names (where applicable)
+   - use os.path.join (and similar commands) instead of custom path creation
+   - use 'is None' instead of the frowned upon '== None' which picks up a large
+     set of 'true' cases than is typically desired (ie for objects that have
+     there own equality)
+   - use context managers on locks, tempdir, chdir, file, selinux, umask, 
+     unmounting commands so that these actions do not have to be closed and/or
+     cleaned up manually in finally blocks, which is typically not done and will
+     eventually be a bug in the future
+   - use the 'abc' module for abstract classes base where possible
+      - applied in the datasource root class, the distro root class, and the
+        user-data v2 root class
+ - when loading yaml, check that the 'root' type matches a predefined set of
+   valid types (typically just 'dict') and throw a type error if a mismatch
+   occurs, this seems to be a good idea to do when loading user config files
+ - when forking a long running task (ie resizing a filesytem) use a new util
+   function that will fork and then call a callback, instead of having to
+   implement all that code in a non-shared location (thus allowing it to be
+   used by others in the future)
+ - when writing out filenames, go through a util function that will attempt to
+   ensure that the given filename is 'filesystem' safe by replacing '/' with
+   '_' and removing characters which do not match a given whitelist of allowed
+   filename characters
+ - for the varying usages of the 'blkid' command make a function in the util
+   module that can be used as the single point of entry for interaction with
+   that command (and its results) instead of having X separate implementations
+ - place the rfc 8222 time formatting and uptime repeated pieces of code in the
+   util module as a set of function with the name 'time_rfc2822'/'uptime'
+ - separate the pylint+pep8 calling from one tool into two indivudal tools so
+   that they can be called independently, add make file sections that can be 
+   used to call these independently
+ - remove the support for the old style config that was previously located in
+   '/etc/ec2-init/ec2-config.cfg', no longer supported!
+ - instead of using a altered config parser that added its own 'dummy' section
+   on in the 'mcollective' module, use configobj which handles the parsing of
+   config without sections better (and it also maintains comments instead of
+   removing them)
+ - use the new defaulting config parser (that will not raise errors on sections
+   that do not exist or return errors when values are fetched that do not exist)
+   in the 'puppet' module
+ - for config 'modules' add in the ability for the module to provide a list of 
+   distro names which it is known to work with, if when ran and the distro being
+   used name does not match one of those in this list, a warning will be written
+   out saying that this module may not work correctly on this distrobution
+ - for all dynamically imported modules ensure that they are fixed up before 
+   they are used by ensuring that they have certain attributes, if they do not
+   have those attributes they will be set to a sensible set of defaults instead
+ - adjust all 'config' modules and handlers to use the adjusted util functions
+   and the new distro objects where applicable so that those pieces of code can 
+   benefit from the unified and enhanced functionality being provided in that
+   util module
+ - fix a potential bug whereby when a #includeonce was encountered it would
+   enable checking of urls against a cache, if later a #include was encountered
+   it would continue checking against that cache, instead of refetching (which
+   would likely be the expected case)
+ - add a openstack/nova based pep8 extension utility ('hacking.py') that allows
+   for custom checks (along with the standard pep8 checks) to occur when running
+   'make pep8' and its derivatives
+0.6.4:
+ - support relative path in AuthorizedKeysFile (LP: #970071).
+ - make apt-get update run with --quiet (suitable for logging) (LP: #1012613)
+ - cc_salt_minion: use package 'salt-minion' rather than 'salt' (LP: #996166)
+ - use yaml.safe_load rather than yaml.load (LP: #1015818)
 0.6.3:
  - add sample systemd config files [Garrett Holmstrom]
  - add Fedora support [Garrent Holstrom] (LP: #883286)
