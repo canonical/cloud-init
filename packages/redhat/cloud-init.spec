@@ -34,7 +34,7 @@ Requires:       shadow-utils
 Requires:       {{r}}
 {{endfor}}
 
-{{if init_d}}
+{{if sysvinit}}
 Requires(post):       chkconfig
 Requires(postun):     initscripts
 Requires(preun):      chkconfig
@@ -86,34 +86,22 @@ then
 fi
 {{endif}}
 
-{{if init_d_local}}
+{{if sysvinit}}
 /sbin/chkconfig --add %{_initrddir}/cloud-init-local
-{{elif init_d}}
 /sbin/chkconfig --add %{_initrddir}/cloud-init
-{{endif}}
-{{if init_d}}
 /sbin/chkconfig --add %{_initrddir}/cloud-config
 /sbin/chkconfig --add %{_initrddir}/cloud-final
 {{endif}}
 
 %preun
 
-{{if init_d_local}}
-if [ $1 -eq 0 ]
-then
-    /sbin/service cloud-init-local stop >/dev/null 2>&1
-    /sbin/chkconfig --del cloud-init-local
-fi
-{{elif init_d}}
+{{if sysvinit}}
 if [ $1 -eq 0 ]
 then
     /sbin/service cloud-init stop >/dev/null 2>&1
     /sbin/chkconfig --del cloud-init
-fi
-{{endif}}
-{{if init_d}}
-if [ $1 -eq 0 ]
-then
+    /sbin/service cloud-init-local stop >/dev/null 2>&1
+    /sbin/chkconfig --del cloud-init-local
     /sbin/service cloud-config stop >/dev/null 2>&1
     /sbin/chkconfig --del cloud-config
     /sbin/service cloud-final stop >/dev/null 2>&1
@@ -139,13 +127,10 @@ fi
 
 %files
 
-{{if init_d}}
+{{if sysvinit}}
 %attr(0755, root, root) %{_initddir}/cloud-config
 %attr(0755, root, root) %{_initddir}/cloud-final
-{{endif}}
-{{if init_d_local}}
 %attr(0755, root, root) %{_initddir}/cloud-init-local
-{{elif init_d}}
 %attr(0755, root, root) %{_initddir}/cloud-init
 {{endif}}
 
