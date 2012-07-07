@@ -1,3 +1,9 @@
+cloud-init (0.7.0~bzr564-0ubuntu2) quantal; urgency=low
+
+  * debian/control: Build-Depends on python-setuptools (LP: #1022101)
+
+ -- Angel Abad <angelabad@ubuntu.com>  Sat, 07 Jul 2012 18:43:05 +0200
+
 cloud-init (0.7.0~bzr564-0ubuntu1) quantal; urgency=low
 
   * New upstream snapshot.
