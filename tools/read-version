@@ -1,70 +1,27 @@
-#!/usr/bin/python
-# vi: ts=4 expandtab
+#!/bin/sh
 
-import os
-import sys
-import re
+set -e
 
-from distutils import version as ver
+if [ -e "setup.py" ]
+then
+    ROOT_DIR="$PWD"
+elif [ -e "../setup.py" ]
+then
+    ROOT_DIR="$PWD/../"
+else
+    echo "Unable to locate 'setup.py' file that should" \
+          "exist in the cloud-init root directory."
+    exit 1
+fi
 
-possible_topdir = os.path.normpath(os.path.join(os.path.abspath(
-        sys.argv[0]), os.pardir, os.pardir))
-if os.path.exists(os.path.join(possible_topdir, "cloudinit", "__init__.py")):
-    sys.path.insert(0, possible_topdir)
+CHNG_LOG="$ROOT_DIR/ChangeLog"
 
-from cloudinit import version as cver
+if [ ! -e "$CHNG_LOG" ]
+then
+    echo "Unable to find 'ChangeLog' file located at $CHNG_LOG"
+    exit 1
+fi
 
-def parse_versions(fn):
-    with open(fn, 'r') as fh:
-        lines = fh.read().splitlines()
-    versions = []
-    for line in lines:
-        line = line.strip()
-        if line.startswith("-") or not line:
-            continue
-        if not re.match(r"[\d]", line):
-            continue
-        line = line.strip(":")
-        if (re.match(r"^[\d+]\.[\d+]\.[\d+]$", line) or
-            re.match(r"^[\d+]\.[\d+]$", line)):
-            versions.append(line)
-    return versions
+VERSION=$(grep -P "\d+.\d+.\d+:" $CHNG_LOG  | cut -f1 -d ":" | head -n 1)
+echo $VERSION
 
-def find_changelog(args):
-    p_files = []
-    if args:
-        p_files.append(args[0])
-    p_files.append(os.path.join(os.pardir, "ChangeLog"))
-    p_files.append(os.path.join(os.getcwd(), 'ChangeLog'))
-    found = None
-    for fn in p_files:
-        if os.path.isfile(fn):
-            found = fn
-            break
-    return found
-
-
-if __name__ == '__main__':
-    run_args = sys.argv[1:]
-    fn = find_changelog(run_args)
-    if not fn:
-        sys.stderr.write("'ChangeLog' file not found!\n")
-        sys.exit(1)
-    else:
-        versions = parse_versions(fn)
-        if not versions:
-            sys.stderr.write("No versions found in %s!\n" % (fn))
-            sys.exit(1)
-        else:
-            # Check that the code version is the same 
-            # as the version we found!
-            ch_ver = versions[0].strip()
-            code_ver = cver.version()
-            ch_ver_obj = ver.StrictVersion(ch_ver)
-            if ch_ver_obj != code_ver:
-                sys.stderr.write(("Code version %s does not match"
-                                  " changelog version %s\n") % 
-                                  (code_ver, ch_ver_obj))
-                sys.exit(1)
-            sys.stdout.write(ch_ver)
-            sys.exit(0)

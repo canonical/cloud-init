@@ -1,0 +1,33 @@
+#!/bin/sh
+
+set -e
+
+ROOT_DIR=""
+if [ -e "setup.py" ]
+then
+    ROOT_DIR="$PWD"
+elif [ -e "../setup.py" ]
+then
+    ROOT_DIR="$PWD/../"
+else
+    echo "Unable to locate 'setup.py' file that should" \
+          "exist in the cloud-init root directory."
+    exit 1
+fi
+
+if [ ! -z "$1" ]
+then
+    ARCHIVE_FN="$1"
+else
+    REVNO=$(bzr revno $ROOT_DIR)
+    VERSION=$($ROOT_DIR/tools/read-version)
+    ARCHIVE_FN="$PWD/cloud-init-$REVNO-$VERSION.tar.gz"
+fi
+
+FILES=$(cd $ROOT_DIR && bzr ls --versioned --recursive)
+echo "$FILES" | tar czf $ARCHIVE_FN \
+                -C "$ROOT_DIR" \
+                --no-recursion --files-from -
+
+echo "$ARCHIVE_FN"
+
