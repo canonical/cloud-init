@@ -1,45 +1,30 @@
-#!/usr/bin/python
-# vi: ts=4 expandtab
+#!/bin/sh
 
-import os
-import sys
-import re
+set -e
 
+if [ -e "setup.py" ]
+then
+    ROOT_DIR="$PWD"
+elif [ -e "../setup.py" ]
+then
+    ROOT_DIR="$PWD/../"
+else
+    echo "Unable to locate 'setup.py' file that should" \
+          "exist in the cloud-init root directory."
+    exit 1
+fi
 
-def parse_requires(fn):
-    requires = []
-    with open(fn, 'r') as fh:
-        lines = fh.read().splitlines()
-    for line in lines:
-        line = line.strip()
-        if not line or line[0] == '#':
-            continue
-        else:
-            requires.append(line)
-    return requires
+REQUIRES="$ROOT_DIR/Requires"
 
+if [ ! -e "$REQUIRES" ]
+then
+    echo "Unable to find 'Requires' file located at $REQUIRES"
+    exit 1
+fi
 
-def find_requires(args):
-    p_files = []
-    if args:
-        p_files.append(args[0])
-    p_files.append(os.path.join(os.pardir, "Requires"))
-    p_files.append(os.path.join(os.getcwd(), 'Requires'))
-    found = None
-    for fn in p_files:
-        if os.path.isfile(fn):
-            found = fn
-            break
-    return found
+# Filter out comments and empty liens
+DEPS=$(cat $REQUIRES | grep -Pv "^\s*#" | grep -Pv '^\s*$')
+echo "$DEPS" | sort -d -f
 
 
-if __name__ == '__main__':
-    run_args = sys.argv[1:]
-    fn = find_requires(run_args)
-    if not fn:
-        sys.stderr.write("'Requires' file not found!\n")
-        sys.exit(1)
-    else:
-        deps = parse_requires(fn)
-        for entry in deps:
-            print entry
+
