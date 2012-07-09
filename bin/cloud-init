@@ -45,9 +45,9 @@ from cloudinit.settings import (PER_INSTANCE, PER_ALWAYS, PER_ONCE,
                                 CLOUD_CONFIG)
 
 
-# Pretty little welcome message template
-WELCOME_MSG_TPL = ("Cloud-init v. {{version}} running '{{action}}' at "
-                   "{{timestamp}}. Up {{uptime}} seconds.")
+# Pretty little cheetah formatted welcome message template
+WELCOME_MSG_TPL = ("Cloud-init v. ${version} running '${action}' at "
+                   "${timestamp}. Up ${uptime} seconds.")
 
 # Module section template
 MOD_SECTION_TPL = "cloud_%s_modules"

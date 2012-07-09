@@ -31,14 +31,16 @@ from cloudinit import templater
 from cloudinit import util
 
 # Mapping of expected packages to there full name...
+# this is a translation of the 'requires'
+# file pypi package name to a redhat/fedora package name.
 PKG_MP = {
     'boto': 'python-boto',
-    'tempita': 'python-tempita',
+    'cheetah': 'python-cheetah',
     'prettytable': 'python-prettytable',
     'oauth': 'python-oauth',
     'configobj': 'python-configobj',
-    'yaml': 'PyYAML',
-    'argparse': 'python-argparse'
+    'pyyaml': 'PyYAML',
+    'argparse': 'python-argparse',
 }
 
 # Subdirectories of the ~/rpmbuild dir
@@ -106,25 +108,18 @@ def generate_spec_contents(args, tmpl_fn, arc_fn):
     subs['revno'] = revno
     subs['release'] = "bzr%s" % (revno)
     subs['archive_name'] = arc_fn
-    subs['bd_requires'] = ['python-devel', 'python-setuptools']
 
     cmd = [util.abs_join(find_root(), 'tools', 'read-dependencies')]
     (stdout, _stderr) = util.subp(cmd)
-
-    # Map to known packages
     pkgs = [p.lower().strip() for p in stdout.splitlines()]
 
     # Map to known packages
     requires = []
     for p in pkgs:
-        tgt_pkg = None
-        for name in PKG_MP.keys():
-            if p.find(name) != -1:
-                tgt_pkg = PKG_MP.get(name)
-                break
+        tgt_pkg = PKG_MP.get(p)
         if not tgt_pkg:
-            raise RuntimeError(("Do not know how to translate %s to "
-                                " a known package") % (p))
+            raise RuntimeError(("Do not know how to translate pypi dependency"
+                                " %r to a known package") % (p))
         else:
             requires.append(tgt_pkg)
     subs['requires'] = requires
@@ -195,8 +190,10 @@ def main():
     print("Archived the code in %r" % (real_archive_fn))
 
     # Form the spec file to be used
-    tmpl_fn = util.abs_join(find_root(), 'packages', 'redhat', 'cloud-init.spec')
-    contents = generate_spec_contents(args, tmpl_fn, os.path.basename(archive_fn))
+    tmpl_fn = util.abs_join(find_root(), 'packages',
+                            'redhat', 'cloud-init.spec.in')
+    contents = generate_spec_contents(args, tmpl_fn,
+                                      os.path.basename(archive_fn))
     spec_fn = util.abs_join(root_dir, 'cloud-init.spec')
     util.write_file(spec_fn, contents)
     print("Created spec file at %r" % (spec_fn))

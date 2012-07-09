@@ -1,4 +1,5 @@
-cloud-init ({{version}}~{{revision}}-1) UNRELEASED; urgency=low
+## This is a cheetah template
+cloud-init (${version}~${revision}-1) UNRELEASED; urgency=low
 
   * build
 
