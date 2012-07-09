@@ -937,12 +937,9 @@ def chownbyname(fname, user=None, group=None):
             uid = pwd.getpwnam(user).pw_uid
         if group:
             gid = grp.getgrnam(group).gr_gid
-    except KeyError:
-        logexc(LOG, ("Failed changing the ownership of %s using username %s "
-                     "and groupname %s (do they exist?)"), fname, user, group)
-        return False
+    except KeyError as e:
+        raise OSError("Unknown user or group: %s" % (e))
     chownbyid(fname, uid, gid)
-    return True
 
 
 # Always returns well formated values
