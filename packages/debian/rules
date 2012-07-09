@@ -1,13 +1,14 @@
 #!/usr/bin/make -f
 
 DEB_PYTHON2_MODULE_PACKAGES = cloud-init
+INIT_SYSTEM ?= upstart
 
 binary-install/cloud-init::cloud-init-fixups
 
 include /usr/share/cdbs/1/rules/debhelper.mk
 include /usr/share/cdbs/1/class/python-distutils.mk
 
-DEB_PYTHON_INSTALL_ARGS_ALL += --init-system={{init_sys}}
+DEB_PYTHON_INSTALL_ARGS_ALL += --init-system=$(INIT_SYSTEM)
 
 DEB_DH_INSTALL_SOURCEDIR := debian/tmp
 

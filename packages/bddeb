@@ -37,7 +37,7 @@ PKG_MP = {
 }
 
 
-def write_debian_folder(root, version, revno, init_sys):
+def write_debian_folder(root, version, revno):
     deb_dir = util.abs_join(root, 'debian')
     os.makedirs(deb_dir)
     
@@ -53,7 +53,7 @@ def write_debian_folder(root, version, revno, init_sys):
     # Write out the control file template
     cmd = [util.abs_join(find_root(), 'tools', 'read-dependencies')]
     (stdout, _stderr) = util.subp(cmd)
-    
+
     # Map to known packages
     pkgs = [p.lower().strip() for p in stdout.splitlines()]
     requires = []
@@ -74,13 +74,8 @@ def write_debian_folder(root, version, revno, init_sys):
                              util.abs_join(deb_dir, 'control'),
                              params={'requires': requires})
     
-    templater.render_to_file(util.abs_join(find_root(),
-                                           'packages', 'debian', 'rules'),
-                             util.abs_join(deb_dir, 'rules'),
-                             params={'init_sys': init_sys})
-    
     # Just copy the following directly
-    for base_fn in ['dirs', 'copyright', 'compat', 'pycompat']:
+    for base_fn in ['dirs', 'copyright', 'compat', 'pycompat', 'rules']:
         shutil.copy(util.abs_join(find_root(),
                                   'packages', 'debian', base_fn),
                     util.abs_join(deb_dir, base_fn))
@@ -99,10 +94,6 @@ def main():
                               " (default: %(default)s)"),
                         default=False,
                         action='store_true')
-    parser.add_argument("-b", "--boot", dest="boot",
-                        help="select boot type (default: %(default)s)", 
-                        metavar="TYPE", default='upstart',
-                        choices=('upstart', 'upstart-local'))
     args = parser.parse_args()
 
     capture = True
@@ -130,29 +121,31 @@ def main():
         shutil.move(arch_fn, tmp_arch_fn)
 
         print("Extracting temporary tarball %r" % (tmp_arch_fn))
-        xdir = util.abs_join(tdir, 'cloud-init')
-        os.makedirs(xdir)
-        cmd = ['tar', '-xvzf', tmp_arch_fn, '-C', xdir]
+        cmd = ['tar', '-xvzf', tmp_arch_fn, '-C', tdir]
         util.subp(cmd, capture=capture)
+        extracted_name = tmp_arch_fn[:-len('.tar.gz')]
+        os.remove(tmp_arch_fn)
+
+        xdir = util.abs_join(tdir, 'cloud-init')
+        shutil.move(extracted_name, xdir)
 
         print("Creating a debian/ folder in %r" % (xdir))
-        write_debian_folder(xdir, version, revno, args.boot)
+        write_debian_folder(xdir, version, revno)
 
         # The naming here seems to follow some debian standard
         # so it will whine if it is changed...
         tar_fn = "cloud-init_%s~%s.orig.tar.gz" % (version, revno)
-        print("Archiving that new folder into %r" % (tar_fn))
+        print("Archiving the adjusted source into %r" %
+              (util.abs_join(tdir, tar_fn)))
         cmd = ['tar', '-czvf', 
                util.abs_join(tdir, tar_fn), 
                '-C', xdir]
         cmd.extend(os.listdir(xdir))
         util.subp(cmd, capture=capture)
-        shutil.copy(util.abs_join(tdir, tar_fn), tar_fn)
-        print("Wrote out archive %r" % (util.abs_join(tar_fn)))
 
         print("Running 'debuild' in %r" % (xdir))
-        with util.chdir(util.abs_join(tdir, 'cloud-init')):
-            cmd = ['debuild']
+        with util.chdir(xdir):
+            cmd = ['debuild', '--preserve-envvar', 'INIT_SYSTEM']
             if not args.sign:
                 cmd.extend(['-us', '-uc'])
             util.subp(cmd, capture=capture)
