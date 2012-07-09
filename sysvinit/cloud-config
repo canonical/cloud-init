@@ -25,7 +25,7 @@
 
 ### BEGIN INIT INFO
 # Provides:          cloud-config
-# Required-Start:    cloud-init
+# Required-Start:    cloud-init cloud-init-local
 # Should-Start:      $time
 # Required-Stop:
 # Should-Stop:
