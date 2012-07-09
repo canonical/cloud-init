@@ -37,7 +37,7 @@ def handle(_name, cfg, cloud, log, args):
     if len(args) != 0:
         msg_in = str(args[0])
     else:
-        msg_in = util.get_cfg_option_str(cfg, "final_message". msg_in)
+        msg_in = util.get_cfg_option_str(cfg, "final_message", "")
 
     msg_in = msg_in.strip()
     if not msg_in:
