@@ -127,7 +127,7 @@ def readurl(url, data=None, timeout=None,
             time.sleep(sec_between)
 
     # Didn't work out
-    LOG.warn("Failed reading from %s after %s attempts", url, attempts)
+    LOG.debug("Failed reading from %s after %s attempts", url, attempts)
 
     # It must of errored at least once for code
     # to get here so re-raise the last error
