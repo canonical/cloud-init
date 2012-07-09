@@ -24,7 +24,7 @@
 # Also based on dhcpd in RHEL (for comparison)
 
 ### BEGIN INIT INFO
-# Provides:          cloud-init
+# Provides:          cloud-init-local
 # Required-Start:    $local_fs $remote_fs
 # Should-Start:      $time
 # Required-Stop:

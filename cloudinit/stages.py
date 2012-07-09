@@ -133,12 +133,24 @@ class Init(object):
         if log_file:
             util.ensure_file(log_file)
             if perms:
-                (u, g) = perms.split(':', 1)
-                if u == "-1" or u == "None":
+                perms_parted = perms.split(':', 1)
+                u = perms_parted[0]
+                if len(perms_parted) == 2:
+                    g = perms_parted[1]
+                else:
+                    g = ''
+                u = u.strip()
+                g = g.strip()
+                if u == "-1" or u.lower() == "none":
                     u = None
-                if g == "-1" or g == "None":
+                if g == "-1" or g.lower() == "none":
                     g = None
-                util.chownbyname(log_file, u, g)
+                try:
+                    util.chownbyname(log_file, u, g)
+                except OSError:
+                    util.logexc(LOG, ("Unable to change the ownership"
+                                      " of %s to user %s, group %s"),
+                                log_file, u, g)
 
     def read_cfg(self, extra_fns=None):
         # None check so that we don't keep on re-loading if empty

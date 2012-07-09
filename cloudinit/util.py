@@ -19,6 +19,8 @@
 #
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+# pylint: disable=C0302
 
 from StringIO import StringIO
 
@@ -805,7 +807,10 @@ def is_resolvable_url(url):
 
 
 def search_for_mirror(candidates):
-    """ Search through a list of mirror urls for one that works """
+    """
+    Search through a list of mirror urls for one that works
+    This needs to return quickly.
+    """
     for cand in candidates:
         try:
             if is_resolvable_url(cand):
@@ -932,12 +937,9 @@ def chownbyname(fname, user=None, group=None):
             uid = pwd.getpwnam(user).pw_uid
         if group:
             gid = grp.getgrnam(group).gr_gid
-    except KeyError:
-        logexc(LOG, ("Failed changing the ownership of %s using username %s and"
-                     " groupname %s (do they exist?)"), fname, user, group)
-        return False
+    except KeyError as e:
+        raise OSError("Unknown user or group: %s" % (e))
     chownbyid(fname, uid, gid)
-    return True
 
 
 # Always returns well formated values

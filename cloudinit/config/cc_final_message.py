@@ -26,23 +26,20 @@ from cloudinit.settings import PER_ALWAYS
 
 frequency = PER_ALWAYS
 
-FINAL_MESSAGE_DEF = ("Cloud-init v. {{version}} finished at {{timestamp}}."
-                     " Up {{uptime}} seconds.")
+# Cheetah formated default message
+FINAL_MESSAGE_DEF = ("Cloud-init v. ${version} finished at ${timestamp}."
+                     " Up ${uptime} seconds.")
 
 
 def handle(_name, cfg, cloud, log, args):
 
-    msg_in = None
+    msg_in = ''
     if len(args) != 0:
-        msg_in = args[0]
+        msg_in = str(args[0])
     else:
-        msg_in = util.get_cfg_option_str(cfg, "final_message")
+        msg_in = util.get_cfg_option_str(cfg, "final_message", "")
 
-    if not msg_in:
-        template_fn = cloud.get_template_filename('final_message')
-        if template_fn:
-            msg_in = util.load_file(template_fn)
-
+    msg_in = msg_in.strip()
     if not msg_in:
         msg_in = FINAL_MESSAGE_DEF
 

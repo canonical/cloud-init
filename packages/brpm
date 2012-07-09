@@ -1,5 +1,6 @@
 #!/usr/bin/python
 
+import argparse
 import contextlib
 import glob
 import os
@@ -9,30 +10,41 @@ import sys
 import tempfile
 import re
 
-import argparse
+from datetime import datetime
+
+
+def find_root():
+    # expected path is in <top_dir>/packages/
+    top_dir = os.environ.get("CLOUD_INIT_TOP_D", None)
+    if top_dir is None:
+       top_dir = os.path.dirname(os.path.dirname(os.path.abspath(sys.argv[0])))
+    if os.path.isfile(os.path.join(top_dir, 'setup.py')):
+        return os.path.abspath(top_dir)
+    raise OSError(("Unable to determine where your cloud-init topdir is."
+                       " set CLOUD_INIT_TOP_D?"))
+
 
 # Use the util functions from cloudinit
-possible_topdir = os.path.normpath(os.path.join(os.path.abspath(
-        sys.argv[0]), os.pardir, os.pardir))
-if os.path.exists(os.path.join(possible_topdir, "cloudinit", "__init__.py")):
-    sys.path.insert(0, possible_topdir)
+sys.path.insert(0, find_root())
 
 from cloudinit import templater
 from cloudinit import util
 
-from datetime import datetime
-
-
 # Mapping of expected packages to there full name...
+# this is a translation of the 'requires'
+# file pypi package name to a redhat/fedora package name.
 PKG_MP = {
     'boto': 'python-boto',
-    'tempita': 'python-tempita',
+    'cheetah': 'python-cheetah',
     'prettytable': 'python-prettytable',
     'oauth': 'python-oauth',
     'configobj': 'python-configobj',
-    'yaml': 'PyYAML',
-    'argparse': 'python-argparse'
+    'pyyaml': 'PyYAML',
+    'argparse': 'python-argparse',
 }
+
+# Subdirectories of the ~/rpmbuild dir
+RPM_BUILD_SUBDIRS = ['BUILD', 'RPMS', 'SOURCES', 'SPECS', 'SRPMS']
 
 
 def get_log_header(version):
@@ -79,11 +91,10 @@ def format_change_line(ds, who, comment=None):
     return "* %s" % (d)
 
 
-def generate_spec_contents(args, tmpl_fn):
+def generate_spec_contents(args, tmpl_fn, arc_fn):
 
     # Figure out the version and revno
-    cmd = [sys.executable,
-            util.abs_join(os.pardir, 'tools', 'read-version')]
+    cmd = [util.abs_join(find_root(), 'tools', 'read-version')]
     (stdout, _stderr) = util.subp(cmd)
     version = stdout.strip()
     
@@ -95,34 +106,26 @@ def generate_spec_contents(args, tmpl_fn):
     subs = {}
     subs['version'] = version
     subs['revno'] = revno
-    subs['release'] = revno
-    subs['archive_name'] = '%{name}-%{version}-' + revno + '.tar.gz'
-    subs['bd_requires'] = ['python-devel', 'python-setuptools']
+    subs['release'] = "bzr%s" % (revno)
+    subs['archive_name'] = arc_fn
 
-    cmd = [sys.executable, 
-            util.abs_join(os.pardir, 'tools', 'read-dependencies')]
+    cmd = [util.abs_join(find_root(), 'tools', 'read-dependencies')]
     (stdout, _stderr) = util.subp(cmd)
-
-    # Map to known packages
     pkgs = [p.lower().strip() for p in stdout.splitlines()]
 
     # Map to known packages
     requires = []
     for p in pkgs:
-        tgt_pkg = None
-        for name in PKG_MP.keys():
-            if p.find(name) != -1:
-                tgt_pkg = PKG_MP.get(name)
-                break
+        tgt_pkg = PKG_MP.get(p)
         if not tgt_pkg:
-            raise RuntimeError(("Do not know how to translate %s to "
-                                " a known package") % (p))
+            raise RuntimeError(("Do not know how to translate pypi dependency"
+                                " %r to a known package") % (p))
         else:
             requires.append(tgt_pkg)
     subs['requires'] = requires
 
     # Format a nice changelog (as best as we can)
-    changelog = util.load_file(util.abs_join(os.pardir, 'ChangeLog'))
+    changelog = util.load_file(util.abs_join(find_root(), 'ChangeLog'))
     changelog_lines = []
     for line in changelog.splitlines():
         if not line.strip():
@@ -135,15 +138,10 @@ def generate_spec_contents(args, tmpl_fn):
             changelog_lines.append(line)
     subs['changelog'] = "\n".join(changelog_lines)
 
-    if args.boot == 'initd':
-        subs['init_d'] = True
-        subs['init_d_local'] = False
-    elif args.boot == 'initd-local':
-        subs['init_d'] = True
-        subs['init_d_local'] = True
+    if args.boot == 'sysvinit':
+        subs['sysvinit'] = True
     else:
-        subs['init_d'] = False
-        subs['init_d_local'] = False
+        subs['sysvinit'] = False
 
     if args.boot == 'systemd':
         subs['systemd'] = True
@@ -159,8 +157,8 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("-b", "--boot", dest="boot",
                         help="select boot type (default: %(default)s)", 
-                        metavar="TYPE", default='initd',
-                        choices=('initd', 'systemd', 'initd-local'))
+                        metavar="TYPE", default='sysvinit',
+                        choices=('sysvinit', 'systemd'))
     parser.add_argument("-v", "--verbose", dest="verbose",
                         help=("run verbosely"
                               " (default: %(default)s)"),
@@ -175,39 +173,49 @@ def main():
     root_dir = os.path.expanduser("~/rpmbuild")
     if os.path.isdir(root_dir):
         shutil.rmtree(root_dir)
+
     arc_dir = util.abs_join(root_dir, 'SOURCES')
-    util.ensure_dirs([root_dir, arc_dir])
+    build_dirs = [root_dir, arc_dir]
+    for dname in RPM_BUILD_SUBDIRS:
+        build_dirs.append(util.abs_join(root_dir, dname))
+    build_dirs.sort()
+    util.ensure_dirs(build_dirs)
 
     # Archive the code
-    cmd = [sys.executable,
-            util.abs_join(os.getcwd(), 'make-tarball')]
+    cmd = [util.abs_join(find_root(), 'tools', 'make-tarball')]
     (stdout, _stderr) = util.subp(cmd)
     archive_fn = stdout.strip()
     real_archive_fn = os.path.join(arc_dir, os.path.basename(archive_fn))
     shutil.move(archive_fn, real_archive_fn)
+    print("Archived the code in %r" % (real_archive_fn))
 
     # Form the spec file to be used
-    tmpl_fn = util.abs_join(os.getcwd(), 'redhat', 'cloud-init.spec')
-    contents = generate_spec_contents(args, tmpl_fn)
-    spec_fn = os.path.join(root_dir, 'cloud-init.spec')
+    tmpl_fn = util.abs_join(find_root(), 'packages',
+                            'redhat', 'cloud-init.spec.in')
+    contents = generate_spec_contents(args, tmpl_fn,
+                                      os.path.basename(archive_fn))
+    spec_fn = util.abs_join(root_dir, 'cloud-init.spec')
     util.write_file(spec_fn, contents)
+    print("Created spec file at %r" % (spec_fn))
 
     # Now build it!
-    cmd = ['rpmbuild', '-ba', spec_fn]
+    print("Running 'rpmbuild' in %r" % (root_dir))
+    cmd = ['rpmbuild', '--clean',
+           '-ba', spec_fn]
     util.subp(cmd, capture=capture)
 
     # Copy the items built to our local dir
     globs = [] 
     globs.extend(glob.glob("%s/*.rpm" %
-                           (os.path.join(root_dir, 'RPMS', 'noarch'))))
+                           (util.abs_join(root_dir, 'RPMS', 'noarch'))))
     globs.extend(glob.glob("%s/*.rpm" %
-                           (os.path.join(root_dir, 'RPMS'))))
+                           (util.abs_join(root_dir, 'RPMS'))))
     globs.extend(glob.glob("%s/*.rpm" %
-                           (os.path.join(root_dir, 'SRPMS'))))
+                           (util.abs_join(root_dir, 'SRPMS'))))
     for rpm_fn in globs:
         tgt_fn = util.abs_join(os.getcwd(), os.path.basename(rpm_fn))
         shutil.move(rpm_fn, tgt_fn)
-        print(tgt_fn)
+        print("Wrote out redhat package %r" % (tgt_fn))
 
     return 0
 

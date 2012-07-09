@@ -1,4 +1,10 @@
 0.7.0:
+ - Add setuptools + cheetah to debian package build dependencies (LP: #1022101)
+ - Adjust the sysvinit local script to provide 'cloud-init-local' and have
+   the cloud-config script depend on that as well.
+ - Add the 'bzr' name to all packages built
+ - Reduce logging levels for certain non-critical cases to DEBUG instead of the
+   previous level of WARNING
  - unified binary that activates the various stages
    - Now using argparse + subcommands to specify the various CLI options
  - a stage module that clearly separates the stages of the different
@@ -69,10 +75,6 @@
    level actions to go through standard set of util functions, this greatly 
    helps in debugging and determining exactly which system actions cloud-init is
    performing
- - switching out the templating engine cheetah for tempita since tempita has
-   no external dependencies (minus python) while cheetah has many dependencies
-   which makes it more difficult to adopt cloud-init in distros that may not
-   have those dependencies
  - adjust url fetching and url trying to go through a single function that
    reads urls in the new 'url helper' file, this helps in tracing, debugging
    and knowing which urls are being called and/or posted to from with-in 

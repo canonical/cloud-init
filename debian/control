@@ -5,29 +5,29 @@ Maintainer: Scott Moser <smoser@ubuntu.com>
 Build-Depends: cdbs,
                debhelper (>= 5.0.38),
                po-debconf,
-               python-setuptools,
                pyflakes,
                pylint,
                python (>= 2.6.6-3~),
                python-mocker,
-               python-nose
+               python-nose,
+               python-setuptools
 XS-Python-Version: all
 Standards-Version: 3.9.3
 
 Package: cloud-init
 Architecture: all
-Depends: add-apt-repository,
-         cloud-utils,
+Depends: cloud-utils,
          ifupdown (>= 0.6.10ubuntu5),
          procps,
          python,
          python-argparse,
          python-boto,
+         python-cheetah,
          python-configobj,
          python-oauth,
          python-prettytable,
-         python-tempita,
          python-yaml,
+         software-properties-common,
          ${misc:Depends},
          ${python:Depends}
 Provides: ec2-init

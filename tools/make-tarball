@@ -1,0 +1,35 @@
+#!/bin/sh
+set -e
+
+find_root() {
+   local topd
+   if [ -z "${CLOUD_INIT_TOP_D}" ]; then
+      topd=$(cd "$(dirname "${0}")" && cd .. && pwd)
+   else
+      topd=$(cd "${CLOUD_INIT_TOP_D}" && pwd)
+   fi
+   [ $? -eq 0 -a -f "${topd}/setup.py" ] || return
+   ROOT_DIR="$topd"
+}
+
+if ! find_root; then
+    echo "Unable to locate 'setup.py' file that should" \
+          "exist in the cloud-init root directory." 1>&2
+    exit 1;
+fi
+
+if [ ! -z "$1" ]; then
+    ARCHIVE_FN="$1"
+else
+    REVNO=$(bzr revno $ROOT_DIR)
+    VERSION=$($ROOT_DIR/tools/read-version)
+    ARCHIVE_FN="$PWD/cloud-init-$VERSION~bzr$REVNO.tar.gz"
+fi
+
+FILES=$(cd $ROOT_DIR && bzr ls --versioned --recursive)
+echo "$FILES" | tar czf $ARCHIVE_FN \
+                -C "$ROOT_DIR" \
+                --transform "s,^,cloud-init-$VERSION~bzr$REVNO/," \
+                --no-recursion --files-from -
+
+echo "$ARCHIVE_FN"

@@ -1,3 +1,12 @@
+cloud-init (0.7.0~bzr583-0ubuntu1) quantal; urgency=low
+
+  * New upstream snapshot.
+  * debian/control: wrap-and-sort
+  * debian/control: actually depend on software-properties-common
+  * debian/control: depend on python-cheetah again instead of python-tempita
+
+ -- Scott Moser <smoser@ubuntu.com>  Mon, 09 Jul 2012 17:41:22 -0400
+
 cloud-init (0.7.0~bzr564-0ubuntu2) quantal; urgency=low
 
   * debian/control: Build-Depends on python-setuptools (LP: #1022101)
