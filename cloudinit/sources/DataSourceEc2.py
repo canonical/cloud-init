@@ -87,6 +87,7 @@ class DataSourceEc2(sources.DataSource):
         return self.get_mirror_from_availability_zone()
 
     def get_mirror_from_availability_zone(self, availability_zone=None):
+        # Return type None indicates there is no cloud specific mirror
         # Availability is like 'us-west-1b' or 'eu-west-1a'
         if availability_zone is None:
             availability_zone = self.get_availability_zone()
@@ -94,26 +95,26 @@ class DataSourceEc2(sources.DataSource):
         if self.is_vpc():
             return None
 
-        # Use the distro to get the mirror
         if not availability_zone:
             return None
 
-        mirror_tpl = self.distro.get_option('availability_zone_template')
-        if not mirror_tpl:
+        mirror_tpl = self.distro.get_option('package_mirror_ec2_template', None)
+
+        if mirror_tpl is None:
             return None
 
+        # in EC2, the 'region' is 'us-east-1' if 'zone' is 'us-east-1a'
         tpl_params = {
             'zone': availability_zone.strip(),
+            'region': availability_zone[:-1]
         }
         mirror_url = mirror_tpl % (tpl_params)
 
-        (max_wait, timeout) = self._get_url_settings()
-        worked = uhelp.wait_for_url([mirror_url], max_wait=max_wait,
-                                timeout=timeout, status_cb=LOG.warn)
-        if not worked:
-            return None
+        found = util.search_for_mirror([mirror_url])
+        if found is not None:
+            return mirror_url
 
-        return mirror_url
+        return None
 
     def _get_url_settings(self):
         mcfg = self.ds_cfg
