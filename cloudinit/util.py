@@ -805,7 +805,10 @@ def is_resolvable_url(url):
 
 
 def search_for_mirror(candidates):
-    """ Search through a list of mirror urls for one that works """
+    """
+    Search through a list of mirror urls for one that works
+    This needs to return quickly.
+    """
     for cand in candidates:
         try:
             if is_resolvable_url(cand):
