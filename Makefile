@@ -24,10 +24,10 @@ clean:
 		   /var/lib/cloud/
 
 rpm:
-	cd packages && ./brpm
+	./packages/brpm
 
 deb:
-	cd packages && ./bddeb
+	./packages/bddeb
 
 .PHONY: test pylint pyflakes 2to3 clean pep8 rpm deb
 
