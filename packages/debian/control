@@ -9,6 +9,7 @@ Build-Depends: cdbs,
                pyflakes,
                pylint,
                python-mocker,
+               python-setuptools
 XS-Python-Version: all
 Standards-Version: 3.9.3
 
