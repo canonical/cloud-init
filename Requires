@@ -1,9 +1,7 @@
 # Pypi requirements for cloud-init to work
 
-# Used for templating any files or strings that are considered 
-# to be templates, not cheetah since it pulls in alot of extra libs.
-# This one is pretty dinky and does want we want (var substituion)
-Tempita
+# Used for untemplating any files or strings with parameters.
+cheetah
 
 # This is used for any pretty printing of tabular data.
 PrettyTable

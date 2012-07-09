@@ -25,15 +25,16 @@ from cloudinit import util
 import argparse
 
 # Package names that will showup in requires to what we can actually
-# use in our debian 'control' file
+# use in our debian 'control' file, this is a translation of the 'requires'
+# file pypi package name to a debian/ubuntu package name.
 PKG_MP = {
-    'tempita': 'python-tempita',
     'boto': 'python-boto',
     'configobj': 'python-configobj',
     'oauth': 'python-oauth',
-    'yaml': 'python-yaml',
+    'pyyaml': 'python-yaml',
     'prettytable': 'python-prettytable',
     'argparse': 'python-argparse',
+    'cheetah': 'python-cheetah',
 }
 
 
@@ -43,7 +44,7 @@ def write_debian_folder(root, version, revno):
     
     # Fill in the change log template
     templater.render_to_file(util.abs_join(find_root(),
-                             'packages', 'debian', 'changelog'),
+                             'packages', 'debian', 'changelog.in'),
                              util.abs_join(deb_dir, 'changelog'),
                              params={
                                  'version': version,
@@ -53,27 +54,23 @@ def write_debian_folder(root, version, revno):
     # Write out the control file template
     cmd = [util.abs_join(find_root(), 'tools', 'read-dependencies')]
     (stdout, _stderr) = util.subp(cmd)
+    pkgs = [p.lower().strip() for p in stdout.splitlines()]
 
     # Map to known packages
-    pkgs = [p.lower().strip() for p in stdout.splitlines()]
     requires = []
     for p in pkgs:
-        tgt_pkg = None
-        for name in PKG_MP.keys():
-            if p.find(name) != -1:
-                tgt_pkg = PKG_MP.get(name)
-                break
+        tgt_pkg = PKG_MP.get(p)
         if not tgt_pkg:
-            raise RuntimeError(("Do not know how to translate %s to "
-                                " a known package") % (p))
+            raise RuntimeError(("Do not know how to translate pypi dependency"
+                                " %r to a known package") % (p))
         else:
             requires.append(tgt_pkg)
 
     templater.render_to_file(util.abs_join(find_root(),
-                                           'packages', 'debian', 'control'),
+                                           'packages', 'debian', 'control.in'),
                              util.abs_join(deb_dir, 'control'),
                              params={'requires': requires})
-    
+ 
     # Just copy the following directly
     for base_fn in ['dirs', 'copyright', 'compat', 'pycompat', 'rules']:
         shutil.copy(util.abs_join(find_root(),
@@ -142,6 +139,12 @@ def main():
                '-C', xdir]
         cmd.extend(os.listdir(xdir))
         util.subp(cmd, capture=capture)
+
+        # Copy it locally for reference
+        shutil.copy(util.abs_join(tdir, tar_fn),
+                    util.abs_join(os.getcwd(), tar_fn))
+        print("Copied that archive to %r for local usage (if desired)." % 
+              (util.abs_join(os.getcwd(), tar_fn)))
 
         print("Running 'debuild' in %r" % (xdir))
         with util.chdir(xdir):
