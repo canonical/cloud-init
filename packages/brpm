@@ -1,5 +1,6 @@
 #!/usr/bin/python
 
+import argparse
 import contextlib
 import glob
 import os
@@ -9,7 +10,8 @@ import sys
 import tempfile
 import re
 
-import argparse
+from datetime import datetime
+
 
 def find_root():
     # expected path is in <top_dir>/packages/
@@ -25,12 +27,8 @@ def find_root():
 # Use the util functions from cloudinit
 sys.path.insert(0, find_root())
 
-
 from cloudinit import templater
 from cloudinit import util
-
-from datetime import datetime
-
 
 # Mapping of expected packages to there full name...
 PKG_MP = {
@@ -43,6 +41,7 @@ PKG_MP = {
     'argparse': 'python-argparse'
 }
 
+# Subdirectories of the ~/rpmbuild dir
 RPM_BUILD_SUBDIRS = ['BUILD', 'RPMS', 'SOURCES', 'SPECS', 'SRPMS']
 
 
@@ -193,15 +192,19 @@ def main():
     archive_fn = stdout.strip()
     real_archive_fn = os.path.join(arc_dir, os.path.basename(archive_fn))
     shutil.move(archive_fn, real_archive_fn)
+    print("Archived the code in %r" % (real_archive_fn))
 
     # Form the spec file to be used
     tmpl_fn = util.abs_join(find_root(), 'packages', 'redhat', 'cloud-init.spec')
     contents = generate_spec_contents(args, tmpl_fn, os.path.basename(archive_fn))
     spec_fn = util.abs_join(root_dir, 'cloud-init.spec')
     util.write_file(spec_fn, contents)
+    print("Created spec file at %r" % (spec_fn))
 
     # Now build it!
-    cmd = ['rpmbuild', '-ba', spec_fn]
+    print("Running 'rpmbuild' in %r" % (root_dir))
+    cmd = ['rpmbuild', '--clean',
+           '-ba', spec_fn]
     util.subp(cmd, capture=capture)
 
     # Copy the items built to our local dir
@@ -215,7 +218,7 @@ def main():
     for rpm_fn in globs:
         tgt_fn = util.abs_join(os.getcwd(), os.path.basename(rpm_fn))
         shutil.move(rpm_fn, tgt_fn)
-        print(tgt_fn)
+        print("Wrote out redhat package %r" % (tgt_fn))
 
     return 0
 
