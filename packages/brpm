@@ -142,15 +142,10 @@ def generate_spec_contents(args, tmpl_fn):
             changelog_lines.append(line)
     subs['changelog'] = "\n".join(changelog_lines)
 
-    if args.boot == 'initd':
-        subs['init_d'] = True
-        subs['init_d_local'] = False
-    elif args.boot == 'initd-local':
-        subs['init_d'] = True
-        subs['init_d_local'] = True
+    if args.boot == 'sysvinit':
+        subs['sysvinit'] = True
     else:
-        subs['init_d'] = False
-        subs['init_d_local'] = False
+        subs['sysvinit'] = False
 
     if args.boot == 'systemd':
         subs['systemd'] = True

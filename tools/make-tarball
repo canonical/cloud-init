@@ -23,12 +23,13 @@ if [ ! -z "$1" ]; then
 else
     REVNO=$(bzr revno $ROOT_DIR)
     VERSION=$($ROOT_DIR/tools/read-version)
-    ARCHIVE_FN="$PWD/cloud-init-$REVNO-$VERSION.tar.gz"
+    ARCHIVE_FN="$PWD/cloud-init-$VERSION-$REVNO.tar.gz"
 fi
 
 FILES=$(cd $ROOT_DIR && bzr ls --versioned --recursive)
 echo "$FILES" | tar czf $ARCHIVE_FN \
                 -C "$ROOT_DIR" \
+                --transform "s,^,cloud-init-$VERSION-$REVNO/," \
                 --no-recursion --files-from -
 
 echo "$ARCHIVE_FN"
