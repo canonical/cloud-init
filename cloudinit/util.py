@@ -19,6 +19,8 @@
 #
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+# pylint: disable=C0302
 
 from StringIO import StringIO
 
@@ -936,8 +938,8 @@ def chownbyname(fname, user=None, group=None):
         if group:
             gid = grp.getgrnam(group).gr_gid
     except KeyError:
-        logexc(LOG, ("Failed changing the ownership of %s using username %s and"
-                     " groupname %s (do they exist?)"), fname, user, group)
+        logexc(LOG, ("Failed changing the ownership of %s using username %s "
+                     "and groupname %s (do they exist?)"), fname, user, group)
         return False
     chownbyid(fname, uid, gid)
     return True
