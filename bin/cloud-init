@@ -219,13 +219,15 @@ def main_init(name, args):
     try:
         init.fetch()
     except sources.DataSourceNotFoundException:
-        util.logexc(LOG, ("No instance datasource found!"
-                          " Likely bad things to come!"))
-        # In the case of cloud-init (net mode) it is a bit
-        # more likely that the user would consider it
-        # failure if nothing was found. When using
-        # upstart it will also mentions job failure
+        # In the case of 'cloud-init init' without '--local' it is a bit
+        # more likely that the user would consider it failure if nothing was
+        # found. When using upstart it will also mentions job failure
         # in console log if exit code is != 0.
+        if args.local:
+            LOG.debug("No local datasource found")
+        else:
+            util.logexc(LOG, ("No instance datasource found!"
+                              " Likely bad things to come!"))
         if not args.force:
             if args.local:
                 return 0
