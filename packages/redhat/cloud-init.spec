@@ -54,7 +54,7 @@ need special scripts to run during initialization to retrieve and install
 ssh keys and to let the user run various scripts.
 
 %prep
-%setup -q -n %{name}-%{version}-{{revno}}
+%setup -q -n %{name}-%{version}~{{release}}
 
 %build
 %{__python} setup.py build
