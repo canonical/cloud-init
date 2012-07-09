@@ -98,7 +98,8 @@ class DataSourceEc2(sources.DataSource):
         if not availability_zone:
             return None
 
-        mirror_tpl = self.distro.get_option('package_mirror_ec2_template', None)
+        mirror_tpl = self.distro.get_option('package_mirror_ec2_template',
+                                             None)
 
         if mirror_tpl is None:
             return None
