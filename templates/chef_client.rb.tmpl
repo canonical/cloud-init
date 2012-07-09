@@ -1,3 +1,13 @@
+#*
+     This file is only utilized if the module 'cc_chef' is enabled in 
+     cloud-config. Specifically, in order to enable it
+     you need to add the following to config:
+       chef:
+         validation_key: XYZ
+         validation_cert: XYZ
+         validation_name: XYZ
+         server_url: XYZ
+*#
 log_level              :info
 log_location           "/var/log/chef/client.log"
 ssl_verify_mode        :verify_none
