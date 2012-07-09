@@ -53,7 +53,7 @@ def handle(name, _cfg, cloud, log, _args):
     try:
         ud = cloud.get_userdata_raw()
     except:
-        log.warn("Failed to get raw userdata in module %s", name)
+        log.debug("Failed to get raw userdata in module %s", name)
         return
 
     try:
