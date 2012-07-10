@@ -288,8 +288,10 @@ def multi_log(text, console=True, stderr=True,
             wfh.write(text)
             wfh.flush()
     if log:
-        log.log(log_level, text)
-
+        if text[-1] == "\n":
+            log.log(log_level, text[:-1])
+        else:
+            log.log(log_level, text)
 
 def is_ipv4(instr):
     """ determine if input string is a ipv4 address. return boolean"""
