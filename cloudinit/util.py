@@ -828,7 +828,7 @@ def close_stdin():
     if _CLOUD_INIT_SAVE_STDIN is set in environment to a non empty or '0' value
     then input will not be closed (only useful potentially for debugging).
     """
-    if os.environ.get("_CLOUD_INIT_SAVE_STDIN") in ("", "0", 'False'):
+    if is_false(os.environ.get("_CLOUD_INIT_SAVE_STDIN")):
         return
     with open(os.devnull) as fp:
         os.dup2(fp.fileno(), sys.stdin.fileno())
