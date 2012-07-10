@@ -131,7 +131,7 @@ def main():
 
         # The naming here seems to follow some debian standard
         # so it will whine if it is changed...
-        tar_fn = "cloud-init_%s~%s.orig.tar.gz" % (version, revno)
+        tar_fn = "cloud-init_%s~bzr%s.orig.tar.gz" % (version, revno)
         print("Archiving the adjusted source into %r" %
               (util.abs_join(tdir, tar_fn)))
         cmd = ['tar', '-czvf', 
