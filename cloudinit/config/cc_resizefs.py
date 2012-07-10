@@ -134,7 +134,7 @@ def do_resize(resize_cmd, log):
     except util.ProcessExecutionError:
         util.logexc(log, "Failed to resize filesystem (cmd=%s)", resize_cmd)
         raise
-    tot_time = int(time.time() - start)
-    log.debug("Resizing took %s seconds", tot_time)
+    tot_time = time.time() - start
+    log.debug("Resizing took %.3f seconds", tot_time)
     # TODO: Should we add a fsck check after this to make
     # sure we didn't corrupt anything?
