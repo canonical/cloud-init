@@ -24,6 +24,7 @@ import logging
 import logging.handlers
 import logging.config
 
+import collections
 import os
 import sys
 
@@ -63,9 +64,11 @@ def setupLogging(cfg=None):
         # If there is a 'logcfg' entry in the config,
         # respect it, it is the old keyname
         log_cfgs.append(str(log_cfg))
-    elif "log_cfgs" in cfg and isinstance(cfg['log_cfgs'], (set, list)):
+    elif "log_cfgs" in cfg:
         for a_cfg in cfg['log_cfgs']:
-            if isinstance(a_cfg, (list, set, dict)):
+            if isinstance(a_cfg, (basestring, str)):
+                log_cfgs.append(a_cfg)
+            elif isinstance(a_cfg, (collections.Iterable)):
                 cfg_str = [str(c) for c in a_cfg]
                 log_cfgs.append('\n'.join(cfg_str))
             else:
