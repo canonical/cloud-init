@@ -78,17 +78,21 @@ def setupLogging(cfg=None):
             am_tried += 1
             # Assume its just a string if not a filename
             if log_cfg.startswith("/") and os.path.isfile(log_cfg):
+                # Leave it as a file and do not make it look like
+                # something that is a file (but is really a buffer that
+                # is acting as a file)
                 pass
             else:
                 log_cfg = StringIO(log_cfg)
             # Attempt to load its config
             logging.config.fileConfig(log_cfg)
+            # The first one to work wins!
             return
         except Exception:
-            # we do not write any logs of this here, because the default
+            # We do not write any logs of this here, because the default
             # configuration includes an attempt at using /dev/log, followed
             # up by writing to a file.  /dev/log will not exist in very early
-            # boot, so an exception on that is expected. 
+            # boot, so an exception on that is expected.
             pass
 
     # If it didn't work, at least setup a basic logger (if desired)
