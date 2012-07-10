@@ -35,3 +35,12 @@
   something to remove later, and just recommend using 'chroot' instead (or the X 
   different other options which are similar to 'chroot'), which is might be more 
   natural and less confusing...
+- Instead of just warning when a module is being ran on a 'unknown' distribution
+  perhaps we should not run that module in that case? Or we might want to start
+  reworking those modules so they will run on all distributions? Or if that is
+  not the case, then maybe we want to allow fully specified python paths for
+  modules and start encouraging packages of 'ubuntu' modules, packages of 'rhel'
+  specific modules that people can add instead of having them all under the 
+  cloud-init 'root' tree? This might encourage more development of other modules
+  instead of having to go edit the cloud-init code to accomplish this.
+
