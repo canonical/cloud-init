@@ -73,8 +73,7 @@ def setupLogging(cfg=None):
 
     # See if any of them actually load...
     am_tried = 0
-    am_worked = 0
-    for i, log_cfg in enumerate(log_cfgs):
+    for log_cfg in enumerate(log_cfgs):
         try:
             am_tried += 1
             # Assume its just a string if not a filename
@@ -84,19 +83,22 @@ def setupLogging(cfg=None):
                 log_cfg = StringIO(log_cfg)
             # Attempt to load its config
             logging.config.fileConfig(log_cfg)
-            am_worked += 1
-        except Exception as e:
-            sys.stderr.write(("WARN: Setup of logging config %s"
-                              " failed due to: %s\n") % (i + 1, e))
+            return
+        except Exception:
+            # we do not write any logs of this here, because the default
+            # configuration includes an attempt at using /dev/log, followed
+            # up by writing to a file.  /dev/log will not exist in very early
+            # boot, so an exception on that is expected. 
+            pass
 
     # If it didn't work, at least setup a basic logger (if desired)
     basic_enabled = cfg.get('log_basic', True)
-    if not am_worked:
-        sys.stderr.write(("WARN: no logging configured!"
-                          " (tried %s configs)\n") % (am_tried))
-        if basic_enabled:
-            sys.stderr.write("Setting up basic logging...\n")
-            setupBasicLogging()
+
+    sys.stderr.write(("WARN: no logging configured!"
+                      " (tried %s configs)\n") % (am_tried))
+    if basic_enabled:
+        sys.stderr.write("Setting up basic logging...\n")
+        setupBasicLogging()
 
 
 def getLogger(name='cloudinit'):
