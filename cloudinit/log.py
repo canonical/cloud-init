@@ -73,7 +73,7 @@ def setupLogging(cfg=None):
 
     # See if any of them actually load...
     am_tried = 0
-    for log_cfg in enumerate(log_cfgs):
+    for log_cfg in log_cfgs:
         try:
             am_tried += 1
             # Assume its just a string if not a filename
