@@ -32,7 +32,7 @@ def handle(name, cfg, _cloud, log, _args):
     files = cfg.get('write_files')
     if not files:
         log.debug(("Skipping module named %s,"
-                   " no/empty 'files' key in configuration"), name)
+                   " no/empty 'write_files' key in configuration"), name)
         return
     write_files(name, files, log)
 
