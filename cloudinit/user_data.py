@@ -227,7 +227,7 @@ def convert_string(raw_data, headers=None):
         raw_data = ''
     if not headers:
         headers = {}
-    data = util.decomp_str(raw_data)
+    data = util.decomp_gzip(raw_data)
     if "mime-version:" in data[0:4096].lower():
         msg = email.message_from_string(data)
         for (key, val) in headers.iteritems():
