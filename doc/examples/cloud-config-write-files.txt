@@ -1,0 +1,32 @@
+#cloud-config
+# vim: syntax=yaml
+#
+# This is the configuration syntax that the write_files module
+# will know how to understand, it can be given b64, b32, b16, or 
+# gz (or gz+b64) encoded strings which will be decoded accordingly
+# and then written to the path that is provided. 
+#
+# Note: Content strings here are truncated for example purposes.
+#
+write_files:
+-   content: CiMgVGhpcyBmaWxlIGNvbnRyb2xzIHRoZSBzdGF0ZSBvZiBTRUxpbnV4IG9u.....
+    encoding: b64
+    path: /etc/sysconfig/selinux
+-   content: '
+
+        # My new /etc/sysconfig/samba file
+
+        SMBDOPTIONS="-D"
+
+        '
+    path: /etc/sysconfig/samba
+-   content: H4sIADXC/U8C/+1Yf2wbVx1/d7YT122TQEMpadS6kgOZqL30J+.....
+    encoding: gz+b64
+    path: /usr/bin/uptime
+-   content: BIRSAU3FOR2GS3THOMQGM33SEB2GQZJAINJE6TRAMRQWK3LPNYXAU===
+    encoding: b32
+    path: /etc/sysconfig/crond
+-   content: 0A232053657474696E677320666F7220746865204E4653206461656D6F6E2E0A
+    encoding: b16
+    path: /etc/sysconfig/nfs
+
