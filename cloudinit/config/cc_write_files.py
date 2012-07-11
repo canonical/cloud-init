@@ -24,6 +24,7 @@ from cloudinit.settings import PER_INSTANCE
 
 frequency = PER_INSTANCE
 
+DEFAULT_OWNER = "root:root"
 DEFAULT_PERMS = 0644
 UNKNOWN_ENC = 'text/plain'
 
@@ -37,26 +38,23 @@ def handle(name, cfg, _cloud, log, _args):
     write_files(name, files, log)
 
 
-def canonicalize_decoding(enc):
-    if not enc:
-        enc = ''
-    enc = enc.lower().strip()
-    # Translate to a mime-type (or set of) that will be understood
-    # when decoding (for now we only support a limited set of known mime-types)
-    # See: http://tiny.cc/m4kahw
-    # See: http://www.iana.org/assignments/media-types/index.html
-    if enc in ['gz', 'gzip']:
-        # Should we assume that this is 'always' base64?
-        # Someone might of got lucky and not had to encode it?
+def canonicalize_extraction(compression_type, log):
+    if not compression_type:
+        compression_type = ''
+    compression_type = compression_type.lower().strip()
+    if compression_type in ['gz', 'gzip']:
         return ['application/x-gzip']
-    if enc in ['gz+base64', 'gzip+base64', 'gz+b64', 'gzip+b64']:
+    if compression_type in ['gz+base64', 'gzip+base64', 'gz+b64', 'gzip+b64']:
         return ['application/base64', 'application/x-gzip']
-    if enc in ['base64', 'b64']:
+    # Yaml already encodes binary data as base64 if it is given to the 
+    # yaml file as binary, so those will be automatically decoded for you.
+    # But the above b64 is just for people that are more 'comfortable'
+    # specifing it manually (which might be a possiblity)
+    if compression_type in ['b64', 'base64']:
         return ['application/base64']
-    if enc in ['base32', 'b32']:
-        return ['application/base32']
-    if enc in ['base16', 'b16']:
-        return ['application/base16']
+    if compression_type:
+        log.warn("Unknown compression type %s, assuming %s",
+                 compression_type, UNKNOWN_ENC)
     return [UNKNOWN_ENC]
 
 
@@ -71,32 +69,34 @@ def write_files(name, files, log):
                      i + 1, name)
             continue
         path = os.path.abspath(path)
-        decodings = canonicalize_decoding(f_info.get('encoding'))
-        contents = decode_contents(f_info.get('content', ''), decodings)
-        (u, g) = util.extract_usergroup(f_info.get('owner'))
-        perms = safe_int(f_info.get('permissions'), DEFAULT_PERMS)
+        extractions = canonicalize_extraction(f_info.get('compression'), log)
+        contents = extract_contents(f_info.get('content', ''), extractions)
+        (u, g) = util.extract_usergroup(f_info.get('owner', DEFAULT_OWNER))
+        perms = decode_perms(f_info.get('permissions'), DEFAULT_PERMS, log)
         util.write_file(path, contents, mode=perms)
         util.chownbyname(path, u, g)
 
 
-def safe_int(text, default):
+def decode_perms(perm, default, log):
     try:
-        return int(text)
+        if isinstance(perm, (int, long, float)):
+            # Just 'downcast' it (if a float)
+            return int(perm)
+        else:
+            # Force to string and try octal conversion
+            return int(str(perm), 8)
     except (TypeError, ValueError):
+        log.warn("Undecodable permissions %s, assuming %s", perm, default)
         return default
 
 
-def decode_contents(contents, decodings):
+def extract_contents(contents, extraction_types):
     result = str(contents)
-    for enc in decodings:
-        if enc == 'application/x-gzip':
+    for t in extraction_types:
+        if t == 'application/x-gzip':
             result = util.decomp_gzip(result, quiet=False)
-        elif enc == 'application/base64':
+        elif t == 'application/base64':
             result = base64.b64decode(result)
-        elif enc == 'application/base32':
-            result = base64.b32decode(result)
-        elif enc == 'application/base16':
-            result = base64.b16decode(result)
-        elif enc == UNKNOWN_ENC:
+        elif t == UNKNOWN_ENC:
             pass
     return result

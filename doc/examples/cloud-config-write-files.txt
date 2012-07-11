@@ -9,9 +9,11 @@
 # Note: Content strings here are truncated for example purposes.
 #
 write_files:
--   content: CiMgVGhpcyBmaWxlIGNvbnRyb2xzIHRoZSBzdGF0ZSBvZiBTRUxpbnV4IG9u.....
-    encoding: b64
+-   compression: b64
+    content: CiMgVGhpcyBmaWxlIGNvbnRyb2xzIHRoZSBzdGF0ZSBvZiBTRUxpbnV4...
+    owner: root:root
     path: /etc/sysconfig/selinux
+    perms: '0644'
 -   content: '
 
         # My new /etc/sysconfig/samba file
@@ -20,13 +22,16 @@ write_files:
 
         '
     path: /etc/sysconfig/samba
--   content: H4sIADXC/U8C/+1Yf2wbVx1/d7YT122TQEMpadS6kgOZqL30J+.....
-    encoding: gz+b64
-    path: /usr/bin/uptime
--   content: BIRSAU3FOR2GS3THOMQGM33SEB2GQZJAINJE6TRAMRQWK3LPNYXAU===
-    encoding: b32
-    path: /etc/sysconfig/crond
--   content: 0A232053657474696E677320666F7220746865204E4653206461656D6F6E2E0A
-    encoding: b16
-    path: /etc/sysconfig/nfs
+-   content: !!binary |
+        f0VMRgIBAQAAAAAAAAAAAAIAPgABAAAAwARAAAAAAABAAAAAAAAAAJAVAAAAAAAAAAAAAEAAOAAI
+        AEAAHgAdAAYAAAAFAAAAQAAAAAAAAABAAEAAAAAAAEAAQAAAAAAAwAEAAAAAAADAAQAAAAAAAAgA
+        AAAAAAAAAwAAAAQAAAAAAgAAAAAAAAACQAAAAAAAAAJAAAAAAAAcAAAAAAAAABwAAAAAAAAAAQAA
+        ....
+    path: /bin/arch
+    perms: '0555'
+-   compression: gzip
+    content: !!binary |
+        H4sIAIDb/U8C/1NW1E/KzNMvzuBKTc7IV8hIzcnJVyjPL8pJ4QIA6N+MVxsAAAA=
+    path: /usr/bin/hello
+    perms: '0755'
 
