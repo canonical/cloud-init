@@ -160,7 +160,10 @@ def main_init(name, args):
     #    objects config as it may be different from init object
     # 10. Run the modules for the 'init' stage
     # 11. Done!
-    w_msg = welcome_format(name)
+    if not args.local:
+        w_msg = welcome_format(name)
+    else:
+        w_msg = welcome_format("%s-local" % (name))
     init = stages.Init(deps)
     # Stage 1
     init.read_cfg(extract_fns(args))
