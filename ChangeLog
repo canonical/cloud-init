@@ -1,4 +1,5 @@
 0.7.0:
+ - add write-files module (LP: #1012854)
  - Add setuptools + cheetah to debian package build dependencies (LP: #1022101)
  - Adjust the sysvinit local script to provide 'cloud-init-local' and have
    the cloud-config script depend on that as well.
