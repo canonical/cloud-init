@@ -159,6 +159,10 @@ class MountFailedError(Exception):
     pass
 
 
+class DecompressionError(Exception):
+    pass
+
+
 def ExtendedTemporaryFile(**kwargs):
     fh = tempfile.NamedTemporaryFile(**kwargs)
     # Replace its unlink with a quiet version
@@ -256,13 +260,32 @@ def clean_filename(fn):
     return fn
 
 
-def decomp_str(data):
+def decomp_gzip(data, quiet=True):
     try:
         buf = StringIO(str(data))
         with contextlib.closing(gzip.GzipFile(None, "rb", 1, buf)) as gh:
             return gh.read()
-    except:
-        return data
+    except Exception as e:
+        if quiet:
+            return data
+        else:
+            raise DecompressionError(str(e))
+
+
+def extract_usergroup(ug_pair):
+    if not ug_pair:
+        return (None, None)
+    ug_parted = ug_pair.split(':', 1)
+    u = ug_parted[0].strip()
+    if len(ug_parted) == 2:
+        g = ug_parted[1].strip()
+    else:
+        g = None
+    if not u or u == "-1" or u.lower() == "none":
+        u = None
+    if not g or g == "-1" or g.lower() == "none":
+        g = None
+    return (u, g)
 
 
 def find_modules(root_dir):
