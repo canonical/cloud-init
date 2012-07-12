@@ -560,7 +560,7 @@ def runparts(dirp, skip_no_exist=True):
         if os.path.isfile(exe_path) and os.access(exe_path, os.X_OK):
             attempted.append(exe_path)
             try:
-                subp([exe_path])
+                subp([exe_path], capture=False)
             except ProcessExecutionError as e:
                 logexc(LOG, "Failed running %s [%s]", exe_path, e.exit_code)
                 failed.append(e)
