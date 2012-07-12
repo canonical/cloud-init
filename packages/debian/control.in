@@ -24,7 +24,7 @@ Depends: cloud-utils,
 #for $r in $requires
          ${r},
 #end for
-         python-software-properties,
+         python-software-properties | software-properties-common,
          \${misc:Depends},
          \${python:Depends}
 XB-Python-Version: \${python:Versions}

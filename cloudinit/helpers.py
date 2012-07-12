@@ -67,6 +67,9 @@ class FileLock(object):
     def __init__(self, fn):
         self.fn = fn
 
+    def __str__(self):
+        return "<%s using file %r>" % (util.obj_name(self), self.fn)
+
 
 class FileSemaphores(object):
     def __init__(self, sem_path):

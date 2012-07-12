@@ -1,3 +1,13 @@
+cloud-init (0.7.0~bzr604-0ubuntu1) quantal; urgency=low
+
+  * New upstream snapshot.
+    * add cc_write_file for injecting files via cloud-config (LP: #1012854)
+    * fix issue with empty user data
+    * remove some un-needed warnings to console output in DataSourceOVF
+    * allow user-data scripts output through to the console
+
+ -- Scott Moser <smoser@ubuntu.com>  Thu, 12 Jul 2012 16:11:01 -0400
+
 cloud-init (0.7.0~bzr583-0ubuntu1) quantal; urgency=low
 
   * New upstream snapshot.

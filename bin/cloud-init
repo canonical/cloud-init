@@ -82,16 +82,22 @@ def print_exc(msg=''):
     sys.stderr.write("\n")
 
 
-def welcome(action):
+def welcome(action, msg=None):
+    if not msg:
+        msg = welcome_format(action)
+    util.multi_log("%s\n" % (msg),
+                   console=False, stderr=True, log=LOG)
+    return msg
+
+
+def welcome_format(action):
     tpl_params = {
         'version': version.version_string(),
         'uptime': util.uptime(),
         'timestamp': util.time_rfc2822(),
         'action': action,
     }
-    tpl_msg = templater.render_string(WELCOME_MSG_TPL, tpl_params)
-    util.multi_log("%s\n" % (tpl_msg),
-                   console=False, stderr=True)
+    return templater.render_string(WELCOME_MSG_TPL, tpl_params)
 
 
 def extract_fns(args):
@@ -150,11 +156,14 @@ def main_init(name, args):
     # 6. Connect to the current instance location + update the cache
     # 7. Consume the userdata (handlers get activated here)
     # 8. Construct the modules object
-    # 9. Adjust any subsequent logging/output redirections using
-    #    the modules objects configuration
+    # 9. Adjust any subsequent logging/output redirections using the modules
+    #    objects config as it may be different from init object
     # 10. Run the modules for the 'init' stage
     # 11. Done!
-    welcome(name)
+    if not args.local:
+        w_msg = welcome_format(name)
+    else:
+        w_msg = welcome_format("%s-local" % (name))
     init = stages.Init(deps)
     # Stage 1
     init.read_cfg(extract_fns(args))
@@ -174,6 +183,12 @@ def main_init(name, args):
                     " longer be active shortly"))
         logging.resetLogging()
     logging.setupLogging(init.cfg)
+
+    # Any log usage prior to setupLogging above did not have local user log
+    # config applied.  We send the welcome message now, as stderr/out have
+    # been redirected and log now configured.
+    welcome(name, msg=w_msg)
+
     # Stage 3
     try:
         init.initialize()
@@ -256,9 +271,10 @@ def main_init(name, args):
     except Exception:
         util.logexc(LOG, "Consuming user data failed!")
         return 1
-    # Stage 8 - TODO - do we really need to re-extract our configs?
+
+    # Stage 8 - re-read and apply relevant cloud-config to include user-data
     mods = stages.Modules(init, extract_fns(args))
-    # Stage 9 - TODO is this really needed??
+    # Stage 9
     try:
         outfmt_orig = outfmt
         errfmt_orig = errfmt
@@ -268,6 +284,8 @@ def main_init(name, args):
             (outfmt, errfmt) = util.fixup_output(mods.cfg, name)
     except:
         util.logexc(LOG, "Failed to re-adjust output redirection!")
+    logging.setupLogging(mods.cfg)
+
     # Stage 10
     return run_module_section(mods, name, name)
 
@@ -284,7 +302,7 @@ def main_modules(action_name, args):
     #    the modules objects configuration
     # 5. Run the modules for the given stage name
     # 6. Done!
-    welcome("%s:%s" % (action_name, name))
+    w_msg = welcome_format("%s:%s" % (action_name, name))
     init = stages.Init(ds_deps=[])
     # Stage 1
     init.read_cfg(extract_fns(args))
@@ -316,6 +334,10 @@ def main_modules(action_name, args):
                     " longer be active shortly"))
         logging.resetLogging()
     logging.setupLogging(mods.cfg)
+
+    # now that logging is setup and stdout redirected, send welcome
+    welcome(name, msg=w_msg)
+
     # Stage 5
     return run_module_section(mods, name, name)
 
@@ -335,7 +357,7 @@ def main_single(name, args):
     # 5. Run the single module
     # 6. Done!
     mod_name = args.name
-    welcome("%s:%s" % (name, mod_name))
+    w_msg = welcome_format(name)
     init = stages.Init(ds_deps=[])
     # Stage 1
     init.read_cfg(extract_fns(args))
@@ -374,6 +396,10 @@ def main_single(name, args):
                    " longer be active shortly"))
         logging.resetLogging()
     logging.setupLogging(mods.cfg)
+
+    # now that logging is setup and stdout redirected, send welcome
+    welcome(name, msg=w_msg)
+
     # Stage 5
     (which_ran, failures) = mods.run_single(mod_name,
                                             mod_args,

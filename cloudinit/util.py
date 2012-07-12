@@ -159,6 +159,10 @@ class MountFailedError(Exception):
     pass
 
 
+class DecompressionError(Exception):
+    pass
+
+
 def ExtendedTemporaryFile(**kwargs):
     fh = tempfile.NamedTemporaryFile(**kwargs)
     # Replace its unlink with a quiet version
@@ -256,13 +260,32 @@ def clean_filename(fn):
     return fn
 
 
-def decomp_str(data):
+def decomp_gzip(data, quiet=True):
     try:
         buf = StringIO(str(data))
         with contextlib.closing(gzip.GzipFile(None, "rb", 1, buf)) as gh:
             return gh.read()
-    except:
-        return data
+    except Exception as e:
+        if quiet:
+            return data
+        else:
+            raise DecompressionError(str(e))
+
+
+def extract_usergroup(ug_pair):
+    if not ug_pair:
+        return (None, None)
+    ug_parted = ug_pair.split(':', 1)
+    u = ug_parted[0].strip()
+    if len(ug_parted) == 2:
+        g = ug_parted[1].strip()
+    else:
+        g = None
+    if not u or u == "-1" or u.lower() == "none":
+        u = None
+    if not g or g == "-1" or g.lower() == "none":
+        g = None
+    return (u, g)
 
 
 def find_modules(root_dir):
@@ -288,8 +311,10 @@ def multi_log(text, console=True, stderr=True,
             wfh.write(text)
             wfh.flush()
     if log:
-        log.log(log_level, text)
-
+        if text[-1] == "\n":
+            log.log(log_level, text[:-1])
+        else:
+            log.log(log_level, text)
 
 def is_ipv4(instr):
     """ determine if input string is a ipv4 address. return boolean"""
@@ -535,7 +560,7 @@ def runparts(dirp, skip_no_exist=True):
         if os.path.isfile(exe_path) and os.access(exe_path, os.X_OK):
             attempted.append(exe_path)
             try:
-                subp([exe_path])
+                subp([exe_path], capture=False)
             except ProcessExecutionError as e:
                 logexc(LOG, "Failed running %s [%s]", exe_path, e.exit_code)
                 failed.append(e)
@@ -584,7 +609,10 @@ def load_yaml(blob, default=None, allowed=(dict,)):
                             (allowed, obj_name(converted)))
         loaded = converted
     except (yaml.YAMLError, TypeError, ValueError):
-        logexc(LOG, "Failed loading yaml blob")
+        if len(blob) == 0:
+            LOG.debug("load_yaml given empty string, returning default")
+        else:
+            logexc(LOG, "Failed loading yaml blob")
     return loaded
 
 
@@ -828,7 +856,7 @@ def close_stdin():
     if _CLOUD_INIT_SAVE_STDIN is set in environment to a non empty or '0' value
     then input will not be closed (only useful potentially for debugging).
     """
-    if os.environ.get("_CLOUD_INIT_SAVE_STDIN") in ("", "0", 'False'):
+    if is_false(os.environ.get("_CLOUD_INIT_SAVE_STDIN")):
         return
     with open(os.devnull) as fp:
         os.dup2(fp.fileno(), sys.stdin.fileno())

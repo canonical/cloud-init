@@ -24,6 +24,7 @@ import logging
 import logging.handlers
 import logging.config
 
+import collections
 import os
 import sys
 
@@ -63,9 +64,11 @@ def setupLogging(cfg=None):
         # If there is a 'logcfg' entry in the config,
         # respect it, it is the old keyname
         log_cfgs.append(str(log_cfg))
-    elif "log_cfgs" in cfg and isinstance(cfg['log_cfgs'], (set, list)):
+    elif "log_cfgs" in cfg:
         for a_cfg in cfg['log_cfgs']:
-            if isinstance(a_cfg, (list, set, dict)):
+            if isinstance(a_cfg, (basestring, str)):
+                log_cfgs.append(a_cfg)
+            elif isinstance(a_cfg, (collections.Iterable)):
                 cfg_str = [str(c) for c in a_cfg]
                 log_cfgs.append('\n'.join(cfg_str))
             else:
@@ -73,30 +76,36 @@ def setupLogging(cfg=None):
 
     # See if any of them actually load...
     am_tried = 0
-    am_worked = 0
-    for i, log_cfg in enumerate(log_cfgs):
+    for log_cfg in log_cfgs:
         try:
             am_tried += 1
             # Assume its just a string if not a filename
             if log_cfg.startswith("/") and os.path.isfile(log_cfg):
+                # Leave it as a file and do not make it look like
+                # something that is a file (but is really a buffer that
+                # is acting as a file)
                 pass
             else:
                 log_cfg = StringIO(log_cfg)
             # Attempt to load its config
             logging.config.fileConfig(log_cfg)
-            am_worked += 1
-        except Exception as e:
-            sys.stderr.write(("WARN: Setup of logging config %s"
-                              " failed due to: %s\n") % (i + 1, e))
+            # The first one to work wins!
+            return
+        except Exception:
+            # We do not write any logs of this here, because the default
+            # configuration includes an attempt at using /dev/log, followed
+            # up by writing to a file.  /dev/log will not exist in very early
+            # boot, so an exception on that is expected.
+            pass
 
     # If it didn't work, at least setup a basic logger (if desired)
     basic_enabled = cfg.get('log_basic', True)
-    if not am_worked:
-        sys.stderr.write(("WARN: no logging configured!"
-                          " (tried %s configs)\n") % (am_tried))
-        if basic_enabled:
-            sys.stderr.write("Setting up basic logging...\n")
-            setupBasicLogging()
+
+    sys.stderr.write(("WARN: no logging configured!"
+                      " (tried %s configs)\n") % (am_tried))
+    if basic_enabled:
+        sys.stderr.write("Setting up basic logging...\n")
+        setupBasicLogging()
 
 
 def getLogger(name='cloudinit'):
