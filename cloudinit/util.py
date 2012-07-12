@@ -609,7 +609,10 @@ def load_yaml(blob, default=None, allowed=(dict,)):
                             (allowed, obj_name(converted)))
         loaded = converted
     except (yaml.YAMLError, TypeError, ValueError):
-        logexc(LOG, "Failed loading yaml blob")
+        if len(blob) == 0:
+            LOG.debug("load_yaml given empty string, returning default")
+        else:
+            logexc(LOG, "Failed loading yaml blob")
     return loaded
 
 
