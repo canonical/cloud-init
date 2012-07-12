@@ -165,7 +165,10 @@ def walker_callback(pdata, ctype, filename, payload):
         walker_handle_handler(pdata, ctype, filename, payload)
         return
     handlers = pdata['handlers']
-    if ctype not in pdata['handlers'] and payload:
+    if ctype in pdata['handlers']:
+        run_part(handlers[ctype], pdata['data'], ctype, filename,
+                 payload, pdata['frequency'])
+    elif payload:
         # Extract the first line or 24 bytes for displaying in the log
         start = _extract_first_or_bytes(payload, 24)
         details = "'%s...'" % (start.encode("string-escape"))
@@ -176,8 +179,7 @@ def walker_callback(pdata, ctype, filename, payload):
             LOG.warning("Unhandled unknown content-type (%s) userdata: %s",
                         ctype, details)
     else:
-        run_part(handlers[ctype], pdata['data'], ctype, filename,
-                 payload, pdata['frequency'])
+        LOG.debug("empty payload of type %s" % ctype)
 
 
 # Callback is a function that will be called with
