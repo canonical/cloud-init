@@ -214,6 +214,7 @@ def transport_iso9660(require_iso=True):
                                                get_ovf_env, mtype="iso9660")
         except util.MountFailedError:
             LOG.debug("%s not mountable as iso9660" % fullp)
+            continue
 
         if contents is not False:
             return (contents, fullp, fname)
