@@ -3,14 +3,14 @@
 import os
 import shutil
 import sys
-import glob
 
 
 def find_root():
     # expected path is in <top_dir>/packages/
     top_dir = os.environ.get("CLOUD_INIT_TOP_D", None)
     if top_dir is None:
-       top_dir = os.path.dirname(os.path.dirname(os.path.abspath(sys.argv[0])))
+        top_dir = os.path.dirname(
+            os.path.dirname(os.path.abspath(sys.argv[0])))
     if os.path.isfile(os.path.join(top_dir, 'setup.py')):
         return os.path.abspath(top_dir)
     raise OSError(("Unable to determine where your cloud-init topdir is."
@@ -36,12 +36,13 @@ PKG_MP = {
     'argparse': 'python-argparse',
     'cheetah': 'python-cheetah',
 }
+DEBUILD_ARGS = ["-us", "-S", "-uc"]
 
 
 def write_debian_folder(root, version, revno):
     deb_dir = util.abs_join(root, 'debian')
     os.makedirs(deb_dir)
-    
+
     # Fill in the change log template
     templater.render_to_file(util.abs_join(find_root(),
                              'packages', 'debian', 'changelog.in'),
@@ -70,7 +71,7 @@ def write_debian_folder(root, version, revno):
                                            'packages', 'debian', 'control.in'),
                              util.abs_join(deb_dir, 'control'),
                              params={'requires': requires})
- 
+
     # Just copy the following directly
     for base_fn in ['dirs', 'copyright', 'compat', 'pycompat', 'rules']:
         shutil.copy(util.abs_join(find_root(),
@@ -81,16 +82,16 @@ def write_debian_folder(root, version, revno):
 def main():
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("-n", "--no-sign", dest="sign",
-                        help=("attempt to sign "
-                              "the package (default: %(default)s)"),
-                        default=True,
-                        action='store_false')
     parser.add_argument("-v", "--verbose", dest="verbose",
                         help=("run verbosely"
                               " (default: %(default)s)"),
                         default=False,
                         action='store_true')
+
+    for ent in DEBUILD_ARGS:
+        parser.add_argument(ent, dest="debuild_args", action='append_const',
+            const=ent, help=("pass through '%s' to debuild" % ent))
+
     args = parser.parse_args()
 
     capture = True
@@ -106,7 +107,7 @@ def main():
         cmd = ['bzr', 'revno']
         (sysout, _stderr) = util.subp(cmd)
         revno = sysout.strip()
-        
+
         # This is really only a temporary archive
         # since we will extract it then add in the debian
         # folder, then re-archive it for debian happiness
@@ -134,8 +135,8 @@ def main():
         tar_fn = "cloud-init_%s~bzr%s.orig.tar.gz" % (version, revno)
         print("Archiving the adjusted source into %r" %
               (util.abs_join(tdir, tar_fn)))
-        cmd = ['tar', '-czvf', 
-               util.abs_join(tdir, tar_fn), 
+        cmd = ['tar', '-czvf',
+               util.abs_join(tdir, tar_fn),
                '-C', xdir]
         cmd.extend(os.listdir(xdir))
         util.subp(cmd, capture=capture)
@@ -143,29 +144,35 @@ def main():
         # Copy it locally for reference
         shutil.copy(util.abs_join(tdir, tar_fn),
                     util.abs_join(os.getcwd(), tar_fn))
-        print("Copied that archive to %r for local usage (if desired)." % 
+        print("Copied that archive to %r for local usage (if desired)." %
               (util.abs_join(os.getcwd(), tar_fn)))
 
         print("Running 'debuild' in %r" % (xdir))
         with util.chdir(xdir):
             cmd = ['debuild', '--preserve-envvar', 'INIT_SYSTEM']
-            if not args.sign:
-                cmd.extend(['-us', '-uc'])
+            if args.debuild_args:
+                cmd.extend(args.debuild_args)
             util.subp(cmd, capture=capture)
 
-        globs = [] 
-        globs.extend(glob.glob("%s/*.deb" %
-                     (os.path.join(tdir))))
         link_fn = os.path.join(os.getcwd(), 'cloud-init_all.deb')
-        for fn in globs:
-            base_fn = os.path.basename(fn)
-            shutil.move(fn, base_fn)
-            print("Wrote out debian package %r" % (base_fn))
-            if fn.endswith('_all.deb'):
+        link_dsc = os.path.join(os.getcwd(), 'cloud-init.dsc')
+        for base_fn in os.listdir(os.path.join(tdir)):
+            full_fn = os.path.join(tdir, base_fn)
+            if not os.path.isfile(full_fn):
+                continue
+            shutil.move(full_fn, base_fn)
+            print("Wrote %r" % (base_fn))
+            if base_fn.endswith('_all.deb'):
                 # Add in the local link
                 util.del_file(link_fn)
                 os.symlink(base_fn, link_fn)
-                print("Linked %r to %r" % (base_fn, link_fn))
+                print("Linked %r to %r" % (base_fn,
+                                           os.path.basename(link_fn)))
+            if base_fn.endswith('.dsc'):
+                util.del_file(link_dsc)
+                os.symlink(base_fn, link_dsc)
+                print("Linked %r to %r" % (base_fn,
+                                           os.path.basename(link_dsc)))
 
     return 0
 

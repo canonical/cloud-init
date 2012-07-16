@@ -1,3 +1,10 @@
+cloud-init (0.7.0~bzr608-0ubuntu1) quantal; urgency=low
+
+  * New upstream snapshot.
+    * fix issue with EC2 datasource that prevented /mnt from being mounted.
+
+ -- Scott Moser <smoser@ubuntu.com>  Mon, 16 Jul 2012 16:49:55 -0400
+
 cloud-init (0.7.0~bzr604-0ubuntu1) quantal; urgency=low
 
   * New upstream snapshot.
