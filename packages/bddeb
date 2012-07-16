@@ -3,7 +3,6 @@
 import os
 import shutil
 import sys
-import glob
 
 
 def find_root():
@@ -37,6 +36,7 @@ PKG_MP = {
     'argparse': 'python-argparse',
     'cheetah': 'python-cheetah',
 }
+DEBUILD_ARGS = ["-us", "-S", "-uc"]
 
 
 def write_debian_folder(root, version, revno):
@@ -82,16 +82,16 @@ def write_debian_folder(root, version, revno):
 def main():
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("-n", "--no-sign", dest="sign",
-                        help=("attempt to sign "
-                              "the package (default: %(default)s)"),
-                        default=True,
-                        action='store_false')
     parser.add_argument("-v", "--verbose", dest="verbose",
                         help=("run verbosely"
                               " (default: %(default)s)"),
                         default=False,
                         action='store_true')
+
+    for ent in DEBUILD_ARGS:
+        parser.add_argument(ent, dest="debuild_args", action='append_const',
+            const=ent, help=("pass through '%s' to debuild" % ent))
+
     args = parser.parse_args()
 
     capture = True
@@ -150,23 +150,29 @@ def main():
         print("Running 'debuild' in %r" % (xdir))
         with util.chdir(xdir):
             cmd = ['debuild', '--preserve-envvar', 'INIT_SYSTEM']
-            if not args.sign:
-                cmd.extend(['-us', '-uc'])
+            if args.debuild_args:
+                cmd.extend(args.debuild_args)
             util.subp(cmd, capture=capture)
 
-        globs = []
-        globs.extend(glob.glob("%s/*.deb" %
-                     (os.path.join(tdir))))
         link_fn = os.path.join(os.getcwd(), 'cloud-init_all.deb')
-        for fn in globs:
-            base_fn = os.path.basename(fn)
-            shutil.move(fn, base_fn)
-            print("Wrote out debian package %r" % (base_fn))
-            if fn.endswith('_all.deb'):
+        link_dsc = os.path.join(os.getcwd(), 'cloud-init.dsc')
+        for base_fn in os.listdir(os.path.join(tdir)):
+            full_fn = os.path.join(tdir, base_fn)
+            if not os.path.isfile(full_fn):
+                continue
+            shutil.move(full_fn, base_fn)
+            print("Wrote %r" % (base_fn))
+            if base_fn.endswith('_all.deb'):
                 # Add in the local link
                 util.del_file(link_fn)
                 os.symlink(base_fn, link_fn)
-                print("Linked %r to %r" % (base_fn, link_fn))
+                print("Linked %r to %r" % (base_fn,
+                                           os.path.basename(link_fn)))
+            if base_fn.endswith('.dsc'):
+                util.del_file(link_dsc)
+                os.symlink(base_fn, link_dsc)
+                print("Linked %r to %r" % (base_fn,
+                                           os.path.basename(link_dsc)))
 
     return 0
 
