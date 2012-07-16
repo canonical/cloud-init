@@ -406,7 +406,16 @@ def fixup_output(cfg, mode):
 #
 #   with a '|', arguments are passed to shell, so one level of
 #   shell escape is required.
+#
+#   if _CLOUD_INIT_SAVE_STDOUT is set in environment to a non empty and true
+#   value then output input will not be closed (useful for debugging).
+#
 def redirect_output(outfmt, errfmt, o_out=None, o_err=None):
+
+    if is_true(os.environ.get("_CLOUD_INIT_SAVE_STDOUT")):
+        LOG.debug("Not redirecting output due to _CLOUD_INIT_SAVE_STDOUT")
+        return
+
     if not o_out:
         o_out = sys.stdout
     if not o_err:
@@ -853,10 +862,10 @@ def close_stdin():
     reopen stdin as /dev/null so even subprocesses or other os level things get
     /dev/null as input.
 
-    if _CLOUD_INIT_SAVE_STDIN is set in environment to a non empty or '0' value
-    then input will not be closed (only useful potentially for debugging).
+    if _CLOUD_INIT_SAVE_STDIN is set in environment to a non empty and true
+    value then input will not be closed (useful for debugging).
     """
-    if is_false(os.environ.get("_CLOUD_INIT_SAVE_STDIN")):
+    if is_true(os.environ.get("_CLOUD_INIT_SAVE_STDIN")):
         return
     with open(os.devnull) as fp:
         os.dup2(fp.fileno(), sys.stdin.fileno())
