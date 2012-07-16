@@ -10,7 +10,8 @@ def find_root():
     # expected path is in <top_dir>/packages/
     top_dir = os.environ.get("CLOUD_INIT_TOP_D", None)
     if top_dir is None:
-       top_dir = os.path.dirname(os.path.dirname(os.path.abspath(sys.argv[0])))
+        top_dir = os.path.dirname(
+            os.path.dirname(os.path.abspath(sys.argv[0])))
     if os.path.isfile(os.path.join(top_dir, 'setup.py')):
         return os.path.abspath(top_dir)
     raise OSError(("Unable to determine where your cloud-init topdir is."
@@ -41,7 +42,7 @@ PKG_MP = {
 def write_debian_folder(root, version, revno):
     deb_dir = util.abs_join(root, 'debian')
     os.makedirs(deb_dir)
-    
+
     # Fill in the change log template
     templater.render_to_file(util.abs_join(find_root(),
                              'packages', 'debian', 'changelog.in'),
@@ -70,7 +71,7 @@ def write_debian_folder(root, version, revno):
                                            'packages', 'debian', 'control.in'),
                              util.abs_join(deb_dir, 'control'),
                              params={'requires': requires})
- 
+
     # Just copy the following directly
     for base_fn in ['dirs', 'copyright', 'compat', 'pycompat', 'rules']:
         shutil.copy(util.abs_join(find_root(),
@@ -106,7 +107,7 @@ def main():
         cmd = ['bzr', 'revno']
         (sysout, _stderr) = util.subp(cmd)
         revno = sysout.strip()
-        
+
         # This is really only a temporary archive
         # since we will extract it then add in the debian
         # folder, then re-archive it for debian happiness
@@ -134,8 +135,8 @@ def main():
         tar_fn = "cloud-init_%s~bzr%s.orig.tar.gz" % (version, revno)
         print("Archiving the adjusted source into %r" %
               (util.abs_join(tdir, tar_fn)))
-        cmd = ['tar', '-czvf', 
-               util.abs_join(tdir, tar_fn), 
+        cmd = ['tar', '-czvf',
+               util.abs_join(tdir, tar_fn),
                '-C', xdir]
         cmd.extend(os.listdir(xdir))
         util.subp(cmd, capture=capture)
@@ -143,7 +144,7 @@ def main():
         # Copy it locally for reference
         shutil.copy(util.abs_join(tdir, tar_fn),
                     util.abs_join(os.getcwd(), tar_fn))
-        print("Copied that archive to %r for local usage (if desired)." % 
+        print("Copied that archive to %r for local usage (if desired)." %
               (util.abs_join(os.getcwd(), tar_fn)))
 
         print("Running 'debuild' in %r" % (xdir))
@@ -153,7 +154,7 @@ def main():
                 cmd.extend(['-us', '-uc'])
             util.subp(cmd, capture=capture)
 
-        globs = [] 
+        globs = []
         globs.extend(glob.glob("%s/*.deb" %
                      (os.path.join(tdir))))
         link_fn = os.path.join(os.getcwd(), 'cloud-init_all.deb')
