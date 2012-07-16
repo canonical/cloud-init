@@ -230,7 +230,7 @@ class DataSourceEc2(sources.DataSource):
 
         remapped = self._remap_device(os.path.basename(found))
         if remapped:
-            LOG.debug("Remapped device name %s => %s", (found, remapped))
+            LOG.debug("Remapped device name %s => %s", found, remapped)
             return remapped
 
         # On t1.micro, ephemeral0 will appear in block-device-mapping from
