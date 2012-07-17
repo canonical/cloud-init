@@ -29,6 +29,7 @@ CLOUD_CONFIG = '/etc/cloud/cloud.cfg'
 # What u get if no config is provided
 CFG_BUILTIN = {
     'datasource_list': [
+        'AltCloud',
         'NoCloud',
         'ConfigDrive',
         'OVF',
