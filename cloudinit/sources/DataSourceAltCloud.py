@@ -7,6 +7,7 @@
 #    Author: Scott Moser <scott.moser@canonical.com>
 #    Author: Juerg Hafliger <juerg.haefliger@hp.com>
 #    Author: Joshua Harlow <harlowja@yahoo-inc.com>
+#    Author: Joe VLcek <JVLcek@RedHat.com>
 #
 #    This program is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License version 3, as
@@ -21,6 +22,7 @@
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import errno
+import time
 import os
 import os.path
 import subprocess
@@ -51,6 +53,12 @@ CMD_DMI_SYSTEM   = ['/usr/sbin/dmidecode', '--string', 'system-product-name']
 CMD_PROBE_FLOPPY = ['/sbin/modprobe', 'floppy']
 CMD_MNT_FLOPPY   = ['/bin/mount', '/dev/fd0', MEDIA_DIR]
 CMD_MNT_CDROM    = ['/bin/mount', '/dev/cdrom', MEDIA_DIR]
+
+'''
+Retry times and sleep secs between each try
+'''
+RETRY_TIMES = 3
+SLEEP_SECS = 3
 
 META_DATA_NOT_SUPPORTED =  {
     'block-device-mapping' : {},
@@ -144,14 +152,27 @@ class DataSourceAltCloud(sources.DataSource):
 
         LOG.debug('cloud_type: ' + str(cloud_type))
 
-        if 'RHEV' in cloud_type:
-            return self.user_data_rhevm()
-        elif 'VSPHERE' in cloud_type:
-            return self.user_data_vsphere()
-        else:
-            # there was no recognized alternate cloud type.
-            # suggesting this handler should not be used.
-            return False
+        # Simple retry logic around user_data_<type>() methods
+        tries = RETRY_TIMES
+        sleep_secs = SLEEP_SECS
+        while tries > 0:
+            if 'RHEV' in cloud_type:
+                if self.user_data_rhevm():
+                    return True
+            elif 'VSPHERE' in cloud_type:
+                if self.user_data_vsphere():
+                    return True
+            else:
+                # there was no recognized alternate cloud type.
+                # suggesting this handler should not be used.
+                return False
+
+            time.sleep(sleep_secs)
+            tries -= 1
+            sleep_secs *= 3
+
+        # Retry loop exhausted
+        return False
 
     def user_data_rhevm(self):
         '''
