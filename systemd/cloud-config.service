@@ -9,5 +9,8 @@ Type=oneshot
 ExecStart=/usr/bin/cloud-init-cfg all config
 RemainAfterExit=yes
 
+# Output needs to appear in instance console output
+StandardOutput=tty
+
 [Install]
 WantedBy=multi-user.target
