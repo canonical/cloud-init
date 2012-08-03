@@ -7,6 +7,7 @@ After=local-fs.target
 Type=oneshot
 ExecStart=/usr/bin/cloud-init init --local
 RemainAfterExit=yes
+TimeoutSec=0
 
 # Output needs to appear in instance console output
 StandardOutput=tty
