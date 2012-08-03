@@ -1,3 +1,13 @@
+cloud-init (0.7.0~bzr614-0ubuntu1) quantal; urgency=low
+
+  * New upstream snapshot.
+    * disable searching for 'ubuntu-mirror' in local dns to find a
+      local mirror (LP: #974509)
+    * emit the cloud-config event (LP: #1028674) 
+    * write timestamps to console on reboot and shutdown (LP: #1018554)
+
+ -- Scott Moser <smoser@ubuntu.com>  Fri, 03 Aug 2012 14:55:37 -0400
+
 cloud-init (0.7.0~bzr608-0ubuntu1) quantal; urgency=low
 
   * New upstream snapshot.
