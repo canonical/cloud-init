@@ -255,7 +255,8 @@ def find_apt_mirror(cloud, cfg):
             if mydom:
                 doms.append(".%s" % mydom)
 
-        if not mirror and cfg.get(cfg, "apt_mirror_search_dns", False):
+        if (not mirror and
+            util.get_cfg_option_bool(cfg, "apt_mirror_search_dns", False)):
             doms.extend((".localdomain", "",))
 
             mirror_list = []
