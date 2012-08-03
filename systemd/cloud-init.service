@@ -8,6 +8,7 @@ Wants=local-fs.target cloud-init-local.service
 Type=oneshot
 ExecStart=/usr/bin/cloud-init init
 RemainAfterExit=yes
+TimeoutSec=0
 
 # Output needs to appear in instance console output
 StandardOutput=tty
