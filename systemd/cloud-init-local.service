@@ -5,7 +5,7 @@ After=local-fs.target
 
 [Service]
 Type=oneshot
-ExecStart=/usr/bin/cloud-init start-local
+ExecStart=/usr/bin/cloud-init init --local
 RemainAfterExit=yes
 
 # Output needs to appear in instance console output
