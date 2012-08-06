@@ -55,6 +55,7 @@ from cloudinit import url_helper as uhelp
 from cloudinit.settings import (CFG_BUILTIN)
 
 
+_DNS_REDIRECT_IP = None
 LOG = logging.getLogger(__name__)
 
 # Helps cleanup filenames to ensure they aren't FS incompatible
@@ -825,9 +826,43 @@ def get_cmdline_url(names=('cloud-config-url', 'url'),
 
 
 def is_resolvable(name):
-    """ determine if a url is resolvable, return a boolean """
+    """ determine if a url is resolvable, return a boolean
+    This also attempts to be resilent against dns redirection.
+
+    Note, that normal nsswitch resolution is used here.  So in order
+    to avoid any utilization of 'search' entries in /etc/resolv.conf
+    we have to append '.'. 
+
+    The top level 'invalid' domain is invalid per RFC.  And example.com
+    should also not exist.  The random entry will be resolved inside
+    the search list.
+    """
+    global _DNS_REDIRECT_IP  # pylint: disable=W0603
+    if _DNS_REDIRECT_IP is None:
+        badips = set()
+        badnames = ("does-not-exist.example.com.", "example.invalid.",
+                    rand_str())
+        badresults = {}
+        for iname in badnames:
+            try:
+                result = socket.getaddrinfo(iname, None, 0, 0,
+                    socket.SOCK_STREAM, socket.AI_CANONNAME)
+                badresults[iname] = [] 
+                for (_fam, _stype, _proto, cname, sockaddr) in result:
+                    badresults[iname].append("%s: %s" % (cname, sockaddr[0]))
+                    badips.add(sockaddr[0])
+            except socket.gaierror:
+                pass
+        _DNS_REDIRECT_IP = badips
+        if badresults:
+            LOG.debug("detected dns redirection: %s" % badresults)
+    
     try:
-        socket.getaddrinfo(name, None)
+        result = socket.getaddrinfo(name, None)
+        # check first result's sockaddr field
+        addr = result[0][4][0]
+        if addr in _DNS_REDIRECT_IP:
+            return False
         return True
     except socket.gaierror:
         return False
