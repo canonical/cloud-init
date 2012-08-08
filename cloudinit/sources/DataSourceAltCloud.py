@@ -4,9 +4,6 @@
 #    Copyright (C) 2012 Hewlett-Packard Development Company, L.P.
 #    Copyright (C) 2012 Yahoo! Inc.
 #
-#    Author: Scott Moser <scott.moser@canonical.com>
-#    Author: Juerg Hafliger <juerg.haefliger@hp.com>
-#    Author: Joshua Harlow <harlowja@yahoo-inc.com>
 #    Author: Joe VLcek <JVLcek@RedHat.com>
 #
 #    This program is free software: you can redistribute it and/or modify
@@ -21,9 +18,10 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import time
+import errno
 import os
 import os.path
+import time
 
 from cloudinit import log as logging
 from cloudinit import sources
@@ -34,19 +32,10 @@ LOG = logging.getLogger(__name__)
 
 # Needed file paths
 CLOUD_INFO_FILE = '/etc/sysconfig/cloud-info'
-MEDIA_DIR = '/media/userdata'
-
-# Deltacloud file name contains deltacloud. Those not using
-# Deltacloud but instead instrumenting the injection, could
-# drop deltacloud from the file name.
-DELTACLOUD_USER_DATA_FILE = MEDIA_DIR + '/deltacloud-user-data.txt'
-USER_DATA_FILE = MEDIA_DIR + '/user-data.txt'
 
 # Shell command lists
 CMD_DMI_SYSTEM = ['/usr/sbin/dmidecode', '--string', 'system-product-name']
 CMD_PROBE_FLOPPY = ['/sbin/modprobe', 'floppy']
-CMD_MNT_FLOPPY = ['/bin/mount', '/dev/fd0', MEDIA_DIR]
-CMD_MNT_CDROM = ['/bin/mount', '/dev/cdrom', MEDIA_DIR]
 
 # Retry times and sleep secs between each try
 RETRY_TIMES = 3
@@ -60,18 +49,50 @@ META_DATA_NOT_SUPPORTED = {
     }
 
 
+def read_user_data_callback(mount_dir):
+    '''
+    Description:
+        This callback will be applied by util.mount_cb() on the mounted
+        file.
+
+        Deltacloud file name contains deltacloud. Those not using
+        Deltacloud but instead instrumenting the injection, could
+        drop deltacloud from the file name.
+
+    Input:
+        mount_dir - Mount directory
+
+    Returns:
+        User Data
+
+    '''
+
+    deltacloud_user_data_file = mount_dir + '/deltacloud-user-data.txt'
+    user_data_file = mount_dir + '/user-data.txt'
+
+    # First try deltacloud_user_data_file. On failure try user_data_file.
+    try:
+        with open(deltacloud_user_data_file, 'r') as user_data_f:
+            user_data = user_data_f.read().strip()
+    except:
+        try:
+            with open(user_data_file, 'r') as user_data_f:
+                user_data = user_data_f.read().strip()
+        except:
+            util.logexc(LOG, ('Failed accessing user data file.'))
+            return None
+
+    return user_data
+
+
 class DataSourceAltCloud(sources.DataSource):
     def __init__(self, sys_cfg, distro, paths):
         sources.DataSource.__init__(self, sys_cfg, distro, paths)
-        self.dsmode = 'local'
         self.seed = None
-        self.cmdline_id = "ds=nocloud"
-        self.seed_dir = os.path.join(paths.seed_dir, 'nocloud')
         self.supported_seed_starts = ("/", "file://")
 
     def __str__(self):
-        mstr = "%s [seed=%s][dsmode=%s]" % (util.obj_name(self),
-                                            self.seed, self.dsmode)
+        mstr = "%s [seed=%s]" % (util.obj_name(self), self.seed)
         return mstr
 
     def get_cloud_type(self):
@@ -117,6 +138,7 @@ class DataSourceAltCloud(sources.DataSource):
         '''
         Description:
             User Data is passed to the launching instance which
+            is used to perform instance configuration.
 
             Cloud providers expose the user data differently.
             It is necessary to determine which cloud provider
@@ -172,14 +194,18 @@ class DataSourceAltCloud(sources.DataSource):
         RHEVM specific userdata read
 
          If on RHEV-M the user data will be contained on the
-         floppy device in file <USER_DATA_FILE>
+         floppy device in file <user_data_file>
          To access it:
            modprobe floppy
-           mkdir <MEDIA_DIR>
-           mount /dev/fd0 <MEDIA_DIR>
-           mount /dev/fd0 <MEDIA_DIR> # NOTE: -> /dev/
-           read <MEDIA_DIR>/<USER_DATA_FILE>
+
+           Leverage util.mount_cb to:
+               mkdir <tmp mount dir>
+               mount /dev/fd0 <tmp mount dir>
+               The call back passed to util.mount_cb will do:
+                   read <tmp mount dir>/<user_data_file>
         '''
+
+        return_str = None
 
         # modprobe floppy
         try:
@@ -195,118 +221,59 @@ class DataSourceAltCloud(sources.DataSource):
                 (' '.join(cmd), _err.message)))
             return False
 
-        # mkdir <MEDIA_DIR> dir just in case it isn't already.
+        floppy_dev = '/dev/fd0'
         try:
-            os.makedirs(MEDIA_DIR)
-        except OSError, (_err, strerror):
-            if _err is not 17:
-                LOG.debug(('makedirs(<MEDIA_DIR>) failed: %s \nError: %s') % \
-                    (_err, strerror))
-                return False
+            return_str = util.mount_cb(floppy_dev, read_user_data_callback)
+        except OSError as err:
+            if err.errno != errno.ENOENT:
+                raise
+        except util.MountFailedError:
+            util.logexc(LOG, ("Failed to mount %s"
+                              " when looking for user data"), floppy_dev)
 
-        # mount /dev/fd0 <MEDIA_DIR>
-        try:
-            cmd = CMD_MNT_FLOPPY
-            (cmd_out, _err) = util.subp(cmd)
-            LOG.debug(('Command: %s\nOutput%s') % (' '.join(cmd), cmd_out))
-        except ProcessExecutionError, _err:
-            # Ignore failure: already mounted
-            if 'ALREADY MOUNTED' not in str(_err.message).upper():
-                util.logexc(LOG, (('Failed command: %s\n%s') % \
-                    (' '.join(cmd), _err.message)))
-                return False
-        except OSError, _err:
-            util.logexc(LOG, (('Failed command: %s\n%s') % \
-                (' '.join(cmd), _err.message)))
-            return False
-
-        # This could be done using "with open()" but that's not available
-        # in Python 2.4 as used on RHEL5
-        # First try DELTACLOUD_USER_DATA_FILE. If that fails then try
-        # USER_DATA_FILE.
-        try:
-            user_data_file = open(DELTACLOUD_USER_DATA_FILE, 'r')
-            user_data = user_data_file.read().strip()
-            user_data_file.close()
-        except:
-            try:
-                user_data_file = open(USER_DATA_FILE, 'r')
-                user_data = user_data_file.read().strip()
-                user_data_file.close()
-            except:
-                util.logexc(LOG, ('Failed accessing RHEVm user data file.'))
-                try:
-                    user_data_file.close()
-                except:
-                    pass
-                return False
-
-        self.userdata_raw = user_data
+        self.userdata_raw = return_str
         self.metadata = META_DATA_NOT_SUPPORTED
 
-        return True
+        if return_str:
+            return True
+        else:
+            return False
 
     def user_data_vsphere(self):
         '''
-        VSphere specific userdata read
+        vSphere specific userdata read
 
         If on vSphere the user data will be contained on the
-        floppy device in file <USER_DATA_FILE>
+        cdrom device in file <user_data_file>
         To access it:
-           mkdir <MEDIA_DIR> dir just in case it isn't already.
-           mount /dev/cdrom <MEDIA_DIR> # NOTE: -> /dev/cdrom
-           read <MEDIA_DIR>/<USER_DATA_FILE>
+           Leverage util.mount_cb to:
+               mkdir <tmp mount dir>
+               mount /dev/fd0 <tmp mount dir>
+               The call back passed to util.mount_cb will do:
+                   read <tmp mount dir>/<user_data_file>
         '''
 
-        # mkdir <MEDIA_DIR> dir just in case it isn't already.
-        try:
-            os.makedirs(MEDIA_DIR)
-        except OSError, (_err, strerror):
-            if _err is not 17:
-                LOG.debug(('makedirs(<MEDIA_DIR>) failed: %s \nError: %s') % \
-                    (_err, strerror))
-                return False
-
-        # mount /dev/cdrom <MEDIA_DIR>
-        try:
-            cmd = CMD_MNT_CDROM
-            (cmd_out, _err) = util.subp(cmd)
-            LOG.debug(('Command: %s\nOutput%s') % (' '.join(cmd), cmd_out))
-        except ProcessExecutionError, _err:
-            # Ignore failure: already mounted
-            if 'ALREADY MOUNTED' not in str(_err.message).upper():
-                LOG.debug(('Failed command: %s\n%s') % \
-                    (' '.join(cmd), _err.message))
-                return False
-        except OSError, _err:
-            LOG.debug(('Failed command: %s\n%s') % \
-                (' '.join(cmd), _err.message))
-            return False
-
-        # This could be done using "with open()" but that's not available
-        # in Python 2.4 as used on RHEL5
-        # First try DELTACLOUD_USER_DATA_FILE. If that fails then try
-        # USER_DATA_FILE.
-        try:
-            user_data_file = open(DELTACLOUD_USER_DATA_FILE, 'r')
-            user_data = user_data_file.read().strip()
-            user_data_file.close()
-        except:
+        return_str = None
+        cdrom_list = util.find_devs_with('LABEL=CDROM')
+        for cdrom_dev in cdrom_list:
             try:
-                user_data_file = open(USER_DATA_FILE, 'r')
-                user_data = user_data_file.read().strip()
-                user_data_file.close()
-            except:
-                LOG.debug('Failed accessing vSphere user data file.')
-                try:
-                    user_data_file.close()
-                except:
-                    pass
-                return False
+                return_str = util.mount_cb(cdrom_dev, read_user_data_callback)
+                if return_str:
+                    break
+            except OSError as err:
+                if err.errno != errno.ENOENT:
+                    raise
+            except util.MountFailedError:
+                util.logexc(LOG, ("Failed to mount %s"
+                                  " when looking for user data"), cdrom_dev)
 
-        self.userdata_raw = user_data
+        self.userdata_raw = return_str
         self.metadata = META_DATA_NOT_SUPPORTED
-        return True
+
+        if return_str:
+            return True
+        else:
+            return False
 
 # Used to match classes to dependencies
 datasources = [
