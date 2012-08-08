@@ -1,20 +1,14 @@
 #! /usr/bin/env python
 
 import os
-import stat
-import tempfile
 
-from shutil import rmtree
-from tempfile import mkdtemp
 from unittest import TestCase
-
-from time import sleep
-
 from cloudinit import helpers
 
 # Get the cloudinit.sources.DataSourceAltCloud import items needed.
 import cloudinit.sources.DataSourceAltCloud
 from cloudinit.sources.DataSourceAltCloud import DataSourceAltCloud
+from cloudinit.sources.DataSourceAltCloud import read_user_data_callback
 
 def _write_cloud_info_file(value):
     '''
@@ -33,28 +27,47 @@ def _remove_cloud_info_file():
     '''
     os.remove(cloudinit.sources.DataSourceAltCloud.CLOUD_INFO_FILE)
 
-def _write_user_data_files(value):
+def _write_user_data_files(mount_dir, value):
     '''
-    Populate the DELTACLOUD_USER_DATA_FILE the USER_DATA_FILE
+    Populate the deltacloud_user_data_file the user_data_file
     which would be populated with user data.
     '''
-    f = open(cloudinit.sources.DataSourceAltCloud.DELTACLOUD_USER_DATA_FILE, 'w')
+    deltacloud_user_data_file = mount_dir + '/deltacloud-user-data.txt'
+    user_data_file = mount_dir + '/user-data.txt'
+
+    f = open(deltacloud_user_data_file, 'w')
     f.write(value)
     f.close()
-    os.chmod(cloudinit.sources.DataSourceAltCloud.DELTACLOUD_USER_DATA_FILE, 0664)
+    os.chmod(deltacloud_user_data_file, 0664)
 
-    f = open(cloudinit.sources.DataSourceAltCloud.USER_DATA_FILE, 'w')
+    f = open(user_data_file, 'w')
     f.write(value)
     f.close()
-    os.chmod(cloudinit.sources.DataSourceAltCloud.USER_DATA_FILE, 0664)
+    os.chmod(user_data_file, 0664)
 
-def _remove_user_data_files():
+def _remove_user_data_files(mount_dir,
+                            dc_file=True,
+                            non_dc_file=True):
     '''
-    Remove the test files: DELTACLOUD_USER_DATA_FILE and
-    USER_DATA_FILE
+    Remove the test files: deltacloud_user_data_file and
+    user_data_file
     '''
-    os.remove(cloudinit.sources.DataSourceAltCloud.DELTACLOUD_USER_DATA_FILE)
-    os.remove(cloudinit.sources.DataSourceAltCloud.USER_DATA_FILE)
+    deltacloud_user_data_file = mount_dir + '/deltacloud-user-data.txt'
+    user_data_file = mount_dir + '/user-data.txt'
+
+    # Ignore any failures removeing files that are already gone.
+    if dc_file:
+        try:
+            os.remove(deltacloud_user_data_file)
+        except OSError:
+            pass
+
+    if non_dc_file:
+        try:
+            os.remove(user_data_file)
+        except OSError:
+            pass
+
 
 class TestDataSouceAltCloud_get_cloud_type(TestCase):
     '''
@@ -143,7 +156,7 @@ class TestDataSouceAltCloud_get_data_cloud_info_file(TestCase):
     def tearDown(self):
         # Reset
         cloudinit.sources.DataSourceAltCloud.CLOUD_INFO_FILE = \
-            CLOUD_INFO_FILE = '/etc/sysconfig/cloud-info'
+            '/etc/sysconfig/cloud-info'
         cloudinit.sources.DataSourceAltCloud.RETRY_TIMES = 3
         cloudinit.sources.DataSourceAltCloud.SLEEP_SECS = 3
 
@@ -202,7 +215,7 @@ class TestDataSouceAltCloud_get_data_no_cloud_info_file(TestCase):
     def tearDown(self):
         # Reset
         cloudinit.sources.DataSourceAltCloud.CLOUD_INFO_FILE = \
-            CLOUD_INFO_FILE = '/etc/sysconfig/cloud-info'
+            '/etc/sysconfig/cloud-info'
         cloudinit.sources.DataSourceAltCloud.CMD_DMI_SYSTEM = \
             ['dmidecode', '--string', 'system-product-name']
         cloudinit.sources.DataSourceAltCloud.RETRY_TIMES = 3
@@ -241,83 +254,50 @@ class TestDataSouceAltCloud_user_data_rhevm(TestCase):
     def setUp(self):
         ''' Set up '''
         self.paths = helpers.Paths({ 'cloud_dir': '/tmp' })
+        self.mount_dir = '/tmp/cloudinit_test_media'
+
         cloudinit.sources.DataSourceAltCloud.CLOUD_INFO_FILE = \
             '/tmp/cloudinit_test_etc_sysconfig_cloud-info'
-        cloudinit.sources.DataSourceAltCloud.MEDIA_DIR = \
-            '/tmp/cloudinit_test_media'
-        cloudinit.sources.DataSourceAltCloud.DELTACLOUD_USER_DATA_FILE = \
-            cloudinit.sources.DataSourceAltCloud.MEDIA_DIR + \
-            '/deltacloud-user-data.txt'
-        cloudinit.sources.DataSourceAltCloud.USER_DATA_FILE = \
-            cloudinit.sources.DataSourceAltCloud.MEDIA_DIR + \
-            '/user-data.txt'
         cloudinit.sources.DataSourceAltCloud.RETRY_TIMES = 1
         cloudinit.sources.DataSourceAltCloud.SLEEP_SECS = 1
 
         try:
-            os.mkdir(cloudinit.sources.DataSourceAltCloud.MEDIA_DIR)
+            os.mkdir(self.mount_dir)
         except OSError, (errno, strerror):
             # Ignore OSError: [Errno 17] File exists:
             if errno is not 17:
                 raise
 
-        _write_user_data_files('test user data')
+        _write_user_data_files(self.mount_dir, 'test user data')
 
     def tearDown(self):
         # Reset
 
-        _remove_user_data_files()
+        _remove_user_data_files(self.mount_dir)
 
         cloudinit.sources.DataSourceAltCloud.CLOUD_INFO_FILE = \
-            CLOUD_INFO_FILE = '/etc/sysconfig/cloud-info'
-        cloudinit.sources.DataSourceAltCloud.MEDIA_DIR = '/media'
-
-        cloudinit.sources.DataSourceAltCloud.DELTACLOUD_USER_DATA_FILE = \
-            cloudinit.sources.DataSourceAltCloud.MEDIA_DIR + \
-                '/deltacloud-user-data.txt'
-
-        cloudinit.sources.DataSourceAltCloud.USER_DATA_FILE = \
-            cloudinit.sources.DataSourceAltCloud.MEDIA_DIR + '/user-data.txt'
+            '/etc/sysconfig/cloud-info'
 
         cloudinit.sources.DataSourceAltCloud.CMD_PROBE_FLOPPY = \
             ['/sbin/modprobe', 'floppy']
-        cloudinit.sources.DataSourceAltCloud.CMD_MNT_FLOPPY = \
-            ['/bin/mount', '/dev/fd0', \
-                cloudinit.sources.DataSourceAltCloud.MEDIA_DIR]
         cloudinit.sources.DataSourceAltCloud.RETRY_TIMES = 3
         cloudinit.sources.DataSourceAltCloud.SLEEP_SECS = 3
 
     def test_user_data_rhevm(self):
-        '''Test user_data_rhevm() '''
-
-        cloudinit.sources.DataSourceAltCloud.MEDIA_DIR = \
-            '/tmp/cloudinit_test_media'
-        cloudinit.sources.DataSourceAltCloud.DELTACLOUD_USER_DATA_FILE = \
-            cloudinit.sources.DataSourceAltCloud.MEDIA_DIR + \
-                '/deltacloud-user-data.txt'
+        '''Test user_data_rhevm() where mount_cb fails'''
 
         cloudinit.sources.DataSourceAltCloud.CMD_PROBE_FLOPPY = \
             ['echo', 'modprobe floppy']
-        cloudinit.sources.DataSourceAltCloud.CMD_MNT_FLOPPY = \
-            ['echo', 'floppy mounted']
 
         ds = DataSourceAltCloud({}, None, self.paths)
 
-        self.assertEquals(True, ds.user_data_rhevm())
+        self.assertEquals(False, ds.user_data_rhevm())
 
     def test_user_data_rhevm_modprobe_fails(self):
         '''Test user_data_rhevm() where modprobe fails. '''
 
-        cloudinit.sources.DataSourceAltCloud.MEDIA_DIR = \
-            '/tmp/cloudinit_test_media'
-        cloudinit.sources.DataSourceAltCloud.DELTACLOUD_USER_DATA_FILE = \
-            cloudinit.sources.DataSourceAltCloud.MEDIA_DIR + \
-                '/deltacloud-user-data.txt'
-
         cloudinit.sources.DataSourceAltCloud.CMD_PROBE_FLOPPY = \
             ['ls', 'modprobe floppy']
-        cloudinit.sources.DataSourceAltCloud.CMD_MNT_FLOPPY = \
-            ['echo', 'floppy mounted']
 
         ds = DataSourceAltCloud({}, None, self.paths)
 
@@ -326,88 +306,12 @@ class TestDataSouceAltCloud_user_data_rhevm(TestCase):
     def test_user_data_rhevm_no_modprobe_cmd(self):
         '''Test user_data_rhevm() with no modprobe command. '''
 
-        cloudinit.sources.DataSourceAltCloud.MEDIA_DIR = \
-            '/tmp/cloudinit_test_media'
-        cloudinit.sources.DataSourceAltCloud.DELTACLOUD_USER_DATA_FILE = \
-            cloudinit.sources.DataSourceAltCloud.MEDIA_DIR + \
-                '/deltacloud-user-data.txt'
-
         cloudinit.sources.DataSourceAltCloud.CMD_PROBE_FLOPPY = \
             ['bad command', 'modprobe floppy']
-        cloudinit.sources.DataSourceAltCloud.CMD_MNT_FLOPPY = \
-            ['echo', 'floppy mounted']
 
         ds = DataSourceAltCloud({}, None, self.paths)
 
         self.assertEquals(False, ds.user_data_rhevm())
-
-    def test_user_data_rhevm_mount_fails(self):
-        '''Test user_data_rhevm() where mount fails. '''
-
-        cloudinit.sources.DataSourceAltCloud.MEDIA_DIR = \
-            '/tmp/cloudinit_test_media'
-        cloudinit.sources.DataSourceAltCloud.DELTACLOUD_USER_DATA_FILE = \
-            cloudinit.sources.DataSourceAltCloud.MEDIA_DIR + \
-                '/deltacloud-user-data.txt'
-
-        cloudinit.sources.DataSourceAltCloud.CMD_PROBE_FLOPPY = \
-            ['echo', 'modprobe floppy']
-        cloudinit.sources.DataSourceAltCloud.CMD_MNT_FLOPPY = \
-            ['ls', 'floppy mounted']
-
-        ds = DataSourceAltCloud({}, None, self.paths)
-
-        self.assertEquals(False, ds.user_data_rhevm())
-
-    def test_user_data_rhevm_no_user_data_file(self):
-        '''Test user_data_rhevm() with no user data files.'''
-
-        cloudinit.sources.DataSourceAltCloud.MEDIA_DIR = \
-            '/tmp/cloudinit_test_media'
-        cloudinit.sources.DataSourceAltCloud.DELTACLOUD_USER_DATA_FILE = \
-            cloudinit.sources.DataSourceAltCloud.MEDIA_DIR + \
-                '/not-user-data.txt'
-        cloudinit.sources.DataSourceAltCloud.USER_DATA_FILE = \
-            cloudinit.sources.DataSourceAltCloud.MEDIA_DIR + \
-                '/not-user-data.txt'
-
-        cloudinit.sources.DataSourceAltCloud.CMD_PROBE_FLOPPY = \
-            ['echo', 'modprobe floppy']
-        cloudinit.sources.DataSourceAltCloud.CMD_MNT_FLOPPY = \
-            ['echo', 'floppy mounted']
-
-        ds = DataSourceAltCloud({}, None, self.paths)
-
-        self.assertEquals(False, ds.user_data_rhevm())
-
-        cloudinit.sources.DataSourceAltCloud.DELTACLOUD_USER_DATA_FILE = \
-            cloudinit.sources.DataSourceAltCloud.MEDIA_DIR + \
-                '/deltacloud-user-data.txt'
-        cloudinit.sources.DataSourceAltCloud.USER_DATA_FILE = \
-            cloudinit.sources.DataSourceAltCloud.MEDIA_DIR + \
-                '/user-data.txt'
-
-    def test_user_data_rhevm_no_user_data_file(self):
-        '''Test user_data_rhevm() with no deltacloud user data file.'''
-
-        cloudinit.sources.DataSourceAltCloud.MEDIA_DIR = \
-            '/tmp/cloudinit_test_media'
-        cloudinit.sources.DataSourceAltCloud.DELTACLOUD_USER_DATA_FILE = \
-            cloudinit.sources.DataSourceAltCloud.MEDIA_DIR + \
-                '/not-user-data.txt'
-
-        cloudinit.sources.DataSourceAltCloud.CMD_PROBE_FLOPPY = \
-            ['echo', 'modprobe floppy']
-        cloudinit.sources.DataSourceAltCloud.CMD_MNT_FLOPPY = \
-            ['echo', 'floppy mounted']
-
-        ds = DataSourceAltCloud({}, None, self.paths)
-
-        self.assertEquals(True, ds.user_data_rhevm())
-
-        cloudinit.sources.DataSourceAltCloud.DELTACLOUD_USER_DATA_FILE = \
-            cloudinit.sources.DataSourceAltCloud.MEDIA_DIR + \
-                '/deltacloud-user-data.txt'
 
 class TestDataSouceAltCloud_user_data_vsphere(TestCase):
     '''
@@ -416,125 +320,88 @@ class TestDataSouceAltCloud_user_data_vsphere(TestCase):
     def setUp(self):
         ''' Set up '''
         self.paths = helpers.Paths({ 'cloud_dir': '/tmp' })
+        self.mount_dir = '/tmp/cloudinit_test_media'
+
         cloudinit.sources.DataSourceAltCloud.CLOUD_INFO_FILE = \
             '/tmp/cloudinit_test_etc_sysconfig_cloud-info'
-        cloudinit.sources.DataSourceAltCloud.MEDIA_DIR = \
-            '/tmp/cloudinit_test_media'
-        cloudinit.sources.DataSourceAltCloud.DELTACLOUD_USER_DATA_FILE = \
-            cloudinit.sources.DataSourceAltCloud.MEDIA_DIR + \
-            '/deltacloud-user-data.txt'
-        cloudinit.sources.DataSourceAltCloud.USER_DATA_FILE = \
-            cloudinit.sources.DataSourceAltCloud.MEDIA_DIR + \
-            '/user-data.txt'
         cloudinit.sources.DataSourceAltCloud.RETRY_TIMES = 1
         cloudinit.sources.DataSourceAltCloud.SLEEP_SECS = 1
 
         try:
-            os.mkdir(cloudinit.sources.DataSourceAltCloud.MEDIA_DIR)
+            os.mkdir(self.mount_dir)
         except OSError, (errno, strerror):
             # Ignore OSError: [Errno 17] File exists:
             if errno is not 17:
                 raise
 
-        _write_user_data_files('test user data')
+        _write_user_data_files(self.mount_dir, 'test user data')
 
     def tearDown(self):
         # Reset
 
-        _remove_user_data_files()
+        _remove_user_data_files(self.mount_dir)
 
         cloudinit.sources.DataSourceAltCloud.CLOUD_INFO_FILE = \
-            CLOUD_INFO_FILE = '/etc/sysconfig/cloud-info'
-        cloudinit.sources.DataSourceAltCloud.MEDIA_DIR = '/media'
-
-        cloudinit.sources.DataSourceAltCloud.DELTACLOUD_USER_DATA_FILE = \
-            cloudinit.sources.DataSourceAltCloud.MEDIA_DIR + \
-                '/deltacloud-user-data.txt'
-
-        cloudinit.sources.DataSourceAltCloud.CMD_MNT_CDROM = \
-            ['/bin/mount', '/dev/fd0', \
-                cloudinit.sources.DataSourceAltCloud.MEDIA_DIR]
-
+            '/etc/sysconfig/cloud-info'
         cloudinit.sources.DataSourceAltCloud.RETRY_TIMES = 3
         cloudinit.sources.DataSourceAltCloud.SLEEP_SECS = 3
 
     def test_user_data_vsphere(self):
-        '''Test user_data_vsphere() '''
+        '''Test user_data_vsphere() where mount_cb fails'''
 
         cloudinit.sources.DataSourceAltCloud.MEDIA_DIR = \
             '/tmp/cloudinit_test_media'
-        cloudinit.sources.DataSourceAltCloud.DELTACLOUD_USER_DATA_FILE = \
-            cloudinit.sources.DataSourceAltCloud.MEDIA_DIR + \
-                '/deltacloud-user-data.txt'
-
-        cloudinit.sources.DataSourceAltCloud.CMD_MNT_CDROM = \
-            ['echo', 'floppy mounted']
-
-        ds = DataSourceAltCloud({}, None, self.paths)
-
-        self.assertEquals(True, ds.user_data_vsphere())
-
-    def test_user_data_vsphere_mount_fails(self):
-        '''Test user_data_vsphere() where mount fails. '''
-
-        cloudinit.sources.DataSourceAltCloud.MEDIA_DIR = \
-            '/tmp/cloudinit_test_media'
-        cloudinit.sources.DataSourceAltCloud.DELTACLOUD_USER_DATA_FILE = \
-            cloudinit.sources.DataSourceAltCloud.MEDIA_DIR + \
-                '/deltacloud-user-data.txt'
-
-        cloudinit.sources.DataSourceAltCloud.CMD_MNT_CDROM = \
-            ['ls', 'floppy mounted']
 
         ds = DataSourceAltCloud({}, None, self.paths)
 
         self.assertEquals(False, ds.user_data_vsphere())
 
-    def test_user_data_vsphere_no_user_data_file(self):
-        '''Test user_data_vsphere() with no user data files.'''
+class TestDataSouceAltCloud_read_user_data_callback(TestCase):
+    '''
+    Test to exercise method: DataSourceAltCloud.read_user_data_callback() 
+    '''
+    def setUp(self):
+        ''' Set up '''
+        self.paths = helpers.Paths({ 'cloud_dir': '/tmp' })
+        self.mount_dir = '/tmp/cloudinit_test_media'
 
-        cloudinit.sources.DataSourceAltCloud.MEDIA_DIR = \
-            '/tmp/cloudinit_test_media'
-        cloudinit.sources.DataSourceAltCloud.DELTACLOUD_USER_DATA_FILE = \
-            cloudinit.sources.DataSourceAltCloud.MEDIA_DIR + \
-                '/not-user-data.txt'
-        cloudinit.sources.DataSourceAltCloud.USER_DATA_FILE = \
-            cloudinit.sources.DataSourceAltCloud.MEDIA_DIR + \
-                '/not-user-data.txt'
+        _write_user_data_files(self.mount_dir, 'test user data')
 
-        cloudinit.sources.DataSourceAltCloud.CMD_MNT_CDROM = \
-            ['echo', 'floppy mounted']
+    def tearDown(self):
+        # Reset
 
-        ds = DataSourceAltCloud({}, None, self.paths)
+        _remove_user_data_files(self.mount_dir)
 
-        self.assertEquals(False, ds.user_data_vsphere())
+    def test_read_user_data_callback_both(self):
+        '''Test read_user_data_callback() with both files'''
 
-        cloudinit.sources.DataSourceAltCloud.DELTACLOUD_USER_DATA_FILE = \
-            cloudinit.sources.DataSourceAltCloud.MEDIA_DIR + \
-                '/deltacloud-user-data.txt'
-        cloudinit.sources.DataSourceAltCloud.USER_DATA_FILE = \
-            cloudinit.sources.DataSourceAltCloud.MEDIA_DIR + \
-                '/user-data.txt'
+        self.assertEquals('test user data',
+            read_user_data_callback(self.mount_dir))
 
-    def test_user_data_vsphere_no_user_data_file(self):
-        '''Test user_data_vsphere() with no deltacloud user data files.'''
+    def test_read_user_data_callback_dc(self):
+        '''Test read_user_data_callback() with only DC file'''
 
-        cloudinit.sources.DataSourceAltCloud.MEDIA_DIR = \
-            '/tmp/cloudinit_test_media'
-        cloudinit.sources.DataSourceAltCloud.DELTACLOUD_USER_DATA_FILE = \
-            cloudinit.sources.DataSourceAltCloud.MEDIA_DIR + \
-                '/not-user-data.txt'
+        _remove_user_data_files(self.mount_dir,
+            dc_file=False,
+            non_dc_file=True)
 
-        cloudinit.sources.DataSourceAltCloud.CMD_MNT_CDROM = \
-            ['echo', 'floppy mounted']
+        self.assertEquals('test user data',
+            read_user_data_callback(self.mount_dir))
 
-        ds = DataSourceAltCloud({}, None, self.paths)
+    def test_read_user_data_callback_non_dc(self):
+        '''Test read_user_data_callback() with only non-DC file'''
 
-        self.assertEquals(True, ds.user_data_vsphere())
+        _remove_user_data_files(self.mount_dir,
+            dc_file=True,
+            non_dc_file=False)
 
-        cloudinit.sources.DataSourceAltCloud.DELTACLOUD_USER_DATA_FILE = \
-            cloudinit.sources.DataSourceAltCloud.MEDIA_DIR + \
-                '/deltacloud-user-data.txt'
+        self.assertEquals('test user data',
+            read_user_data_callback(self.mount_dir))
+
+    def test_read_user_data_callback_none(self):
+        '''Test read_user_data_callback() no files are found'''
+
+        _remove_user_data_files(self.mount_dir) 
+        self.assertEquals(None, read_user_data_callback(self.mount_dir))
 
 # vi: ts=4 expandtab
-
