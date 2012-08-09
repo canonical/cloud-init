@@ -26,7 +26,8 @@ class TestNoConfig(MockerTestCase):
         self.mocker.replace(cc_ca_certs.update_ca_certs, passthrough=False)
         self.mocker.replay()
 
-        cc_ca_certs.handle(self.name, config, self.cloud_init, self.log, self.args)
+        cc_ca_certs.handle(self.name, config, self.cloud_init, self.log,
+                           self.args)
 
 
 class TestConfig(MockerTestCase):
@@ -39,11 +40,12 @@ class TestConfig(MockerTestCase):
         self.args = []
 
         # Mock out the functions that actually modify the system
-        self.mock_add = self.mocker.replace(cc_ca_certs.add_ca_certs, passthrough=False)
+        self.mock_add = self.mocker.replace(cc_ca_certs.add_ca_certs,
+                                            passthrough=False)
         self.mock_update = self.mocker.replace(cc_ca_certs.update_ca_certs,
                                                passthrough=False)
-        self.mock_remove = self.mocker.replace(cc_ca_certs.remove_default_ca_certs,
-                                               passthrough=False)
+        self.mock_remove = self.mocker.replace(
+            cc_ca_certs.remove_default_ca_certs, passthrough=False)
 
         # Order must be correct
         self.mocker.order()
@@ -183,8 +185,8 @@ class TestRemoveDefaultCaCerts(MockerTestCase):
         })
 
     def test_commands(self):
-        mock_delete_dir_contents = self.mocker.replace(util.delete_dir_contents,
-                                                       passthrough=False)
+        mock_delete_dir_contents = self.mocker.replace(
+            util.delete_dir_contents, passthrough=False)
         mock_write = self.mocker.replace(util.write_file, passthrough=False)
         mock_subp = self.mocker.replace(util.subp,
                                         passthrough=False)

@@ -1,15 +1,15 @@
 #!/usr/bin/python
 
 # Provides a somewhat random, somewhat compat, somewhat useful mock version of
-#
-# http://docs.amazonwebservices.com/AWSEC2/2007-08-29/DeveloperGuide/AESDG-chapter-instancedata.html
+# http://docs.amazonwebservices.com
+#   /AWSEC2/2007-08-29/DeveloperGuide/AESDG-chapter-instancedata.htm
 
 """
 To use this to mimic the EC2 metadata service entirely, run it like:
   # Where 'eth0' is *some* interface.  
   sudo ifconfig eth0:0 169.254.169.254 netmask 255.255.255.255
 
-  sudo ./mock-meta -a 169.254.169.254 -p 80
+  sudo ./mock-meta.py -a 169.254.169.254 -p 80
 
 Then:
   wget -q http://169.254.169.254/latest/meta-data/instance-id -O -; echo
@@ -23,7 +23,7 @@ import json
 import logging
 import os
 import random
-import string
+import string # pylint: disable=W0402
 import sys
 import yaml
 
@@ -84,12 +84,12 @@ META_CAPABILITIES = [
 PUB_KEYS = {
     'brickies': [
         ('ssh-rsa '
-         'AAAAB3NzaC1yc2EAAAABIwAAAQEA3I7VUf2l5gSn5uavROsc5HRDpZdQueUq5ozemNSj8T'
-         '7enqKHOEaFoU2VoPgGEWC9RyzSQVeyD6s7APMcE82EtmW4skVEgEGSbDc1pvxzxtchBj78'
-         'hJP6Cf5TCMFSXw+Fz5rF1dR23QDbN1mkHs7adr8GW4kSWqU7Q7NDwfIrJJtO7Hi42GyXtv'
-         'EONHbiRPOe8stqUly7MvUoN+5kfjBM8Qqpfl2+FNhTYWpMfYdPUnE7u536WqzFmsaqJctz'
-         '3gBxH9Ex7dFtrxR4qiqEr9Qtlu3xGn7Bw07/+i1D+ey3ONkZLN+LQ714cgj8fRS4Hj29SC'
-         'mXp5Kt5/82cD/VN3NtHw== brickies'),
+         'AAAAB3NzaC1yc2EAAAABIwAAAQEA3I7VUf2l5gSn5uavROsc5HRDpZdQueUq5ozemN'
+         'Sj8T7enqKHOEaFoU2VoPgGEWC9RyzSQVeyD6s7APMcE82EtmW4skVEgEGSbDc1pvxz'
+         'xtchBj78hJP6Cf5TCMFSXw+Fz5rF1dR23QDbN1mkHs7adr8GW4kSWqU7Q7NDwfIrJJ'
+         'tO7Hi42GyXtvEONHbiRPOe8stqUly7MvUoN+5kfjBM8Qqpfl2+FNhTYWpMfYdPUnE7'
+         'u536WqzFmsaqJctz3gBxH9Ex7dFtrxR4qiqEr9Qtlu3xGn7Bw07/+i1D+ey3ONkZLN'
+         '+LQ714cgj8fRS4Hj29SCmXp5Kt5/82cD/VN3NtHw== brickies'),
         '',
     ],
 }
@@ -234,7 +234,7 @@ class MetaDataHandler(object):
         elif action == 'public-keys':
             nparams = params[1:]
             # This is a weird kludge, why amazon why!!!
-            # public-keys is messed up, a list of /latest/meta-data/public-keys/
+            # public-keys is messed up, list of /latest/meta-data/public-keys/
 	        # shows something like: '0=brickies'
 	        # but a GET to /latest/meta-data/public-keys/0=brickies will fail
 	        # you have to know to get '/latest/meta-data/public-keys/0', then
@@ -248,7 +248,8 @@ class MetaDataHandler(object):
                     key_id = int(mybe_key)
                     key_name = key_ids[key_id]
                 except:
-                    raise WebException(httplib.BAD_REQUEST, "Unknown key id %r" % mybe_key)
+                    raise WebException(httplib.BAD_REQUEST,
+                                       "Unknown key id %r" % mybe_key)
                 # Extract the possible sub-params
                 result = traverse(nparams[1:], {
                     "openssh-key": "\n".join(avail_keys[key_name]),
@@ -303,7 +304,7 @@ class UserDataHandler(object):
             blob = "\n".join(lines)
         return blob.strip()
 
-    def get_data(self, params, who, **kwargs):
+    def get_data(self, params, who, **kwargs): # pylint: disable=W0613
         if not params:
             return self._get_user_blob(who=who)
         return NOT_IMPL_RESPONSE
@@ -323,14 +324,12 @@ class Ec2Handler(BaseHTTPRequestHandler):
         versions = sorted(versions)
         return "\n".join(versions)
 
-    def log_message(self, format, *args):
-        msg = "%s - %s" % (self.address_string(), format % (args))
+    def log_message(self, fmt, *args):
+        msg = "%s - %s" % (self.address_string(), fmt % (args))
         log.info(msg)
 
     def _find_method(self, path):
         # Puke! (globals)
-        global meta_fetcher
-        global user_fetcher
         func_mapping = {
             'user-data': user_fetcher.get_data,
             'meta-data': meta_fetcher.get_data,
@@ -341,12 +340,14 @@ class Ec2Handler(BaseHTTPRequestHandler):
             return self._get_versions
         date = segments[0].strip().lower()
         if date not in self._get_versions():
-            raise WebException(httplib.BAD_REQUEST, "Unknown version format %r" % date)
+            raise WebException(httplib.BAD_REQUEST,
+                               "Unknown version format %r" % date)
         if len(segments) < 2:
             raise WebException(httplib.BAD_REQUEST, "No action provided")
         look_name = segments[1].lower()
         if look_name not in func_mapping:
-            raise WebException(httplib.BAD_REQUEST, "Unknown requested data %r" % look_name)
+            raise WebException(httplib.BAD_REQUEST,
+                               "Unknown requested data %r" % look_name)
         base_func = func_mapping[look_name]
         who = self.address_string()
         ip_from = self.client_address[0]
@@ -371,7 +372,8 @@ class Ec2Handler(BaseHTTPRequestHandler):
             self.send_response(httplib.OK)
             self.send_header("Content-Type", "binary/octet-stream")
             self.send_header("Content-Length", len(data))
-            log.info("Sending data (len=%s):\n%s", len(data), format_text(data))
+            log.info("Sending data (len=%s):\n%s", len(data),
+                     format_text(data))
             self.end_headers()
             self.wfile.write(data)
         except RuntimeError as e:
@@ -389,22 +391,25 @@ class Ec2Handler(BaseHTTPRequestHandler):
         self._do_response()
 
 
-def setup_logging(log_level, format='%(levelname)s: @%(name)s : %(message)s'):
+def setup_logging(log_level, fmt='%(levelname)s: @%(name)s : %(message)s'):
     root_logger = logging.getLogger()
     console_logger = logging.StreamHandler(sys.stdout)
-    console_logger.setFormatter(logging.Formatter(format))
+    console_logger.setFormatter(logging.Formatter(fmt))
     root_logger.addHandler(console_logger)
     root_logger.setLevel(log_level)
 
 
 def extract_opts():
     parser = OptionParser()
-    parser.add_option("-p", "--port", dest="port", action="store", type=int, default=80,
-                  help="port from which to serve traffic (default: %default)", metavar="PORT")
-    parser.add_option("-a", "--addr", dest="address", action="store", type=str, default='0.0.0.0',
-                  help="address from which to serve traffic (default: %default)", metavar="ADDRESS")
-    parser.add_option("-f", '--user-data-file', dest='user_data_file', action='store',
-                      help="user data filename to serve back to incoming requests", metavar='FILE')
+    parser.add_option("-p", "--port", dest="port", action="store", type=int,
+        default=80, metavar="PORT",
+        help="port from which to serve traffic (default: %default)")
+    parser.add_option("-a", "--addr", dest="address", action="store", type=str,
+        default='0.0.0.0', metavar="ADDRESS",
+        help="address from which to serve traffic (default: %default)")
+    parser.add_option("-f", '--user-data-file', dest='user_data_file',
+        action='store', metavar='FILE',
+        help="user data filename to serve back to incoming requests")
     (options, args) = parser.parse_args()
     out = dict()
     out['extra'] = args
@@ -420,8 +425,8 @@ def extract_opts():
 
 
 def setup_fetchers(opts):
-    global meta_fetcher
-    global user_fetcher
+    global meta_fetcher  # pylint: disable=W0603
+    global user_fetcher  # pylint: disable=W0603
     meta_fetcher = MetaDataHandler(opts)
     user_fetcher = UserDataHandler(opts)
 

@@ -23,12 +23,10 @@
 from glob import glob
 
 import os
-import re
 
 import setuptools
 from setuptools.command.install import install
 
-from distutils.command.install_data import install_data
 from distutils.errors import DistutilsArgError
 
 import subprocess
@@ -39,9 +37,9 @@ def is_f(p):
 
 
 INITSYS_FILES = {
-    'sysvinit': filter((lambda x: is_f(x)), glob('sysvinit/*')),
-    'systemd': filter((lambda x: is_f(x)), glob('systemd/*')),
-    'upstart': filter((lambda x: is_f(x)), glob('upstart/*')),
+    'sysvinit': [f for f in glob('sysvinit/*') if is_f(f)],
+    'systemd': [f for f in glob('systemd/*') if is_f(f)],
+    'upstart': [f for f in glob('upstart/*') if is_f(f)],
 }
 INITSYS_ROOTS = {
     'sysvinit': '/etc/rc.d/init.d',
@@ -70,17 +68,18 @@ def tiny_p(cmd, capture=True):
 def get_version():
     cmd = ['tools/read-version']
     (ver, _e) = tiny_p(cmd)
-    return ver.strip()
+    return str(ver).strip()
 
 
 def read_requires():
     cmd = ['tools/read-dependencies']
     (deps, _e) = tiny_p(cmd)
-    return deps.splitlines()
+    return str(deps).splitlines()
 
 
 # TODO: Is there a better way to do this??
 class InitsysInstallData(install):
+    init_system = None
     user_options = install.user_options + [
         # This will magically show up in member variable 'init_sys'
         ('init-system=', None,
@@ -96,13 +95,12 @@ class InitsysInstallData(install):
     def finalize_options(self):
         install.finalize_options(self)
         if self.init_system and self.init_system not in INITSYS_TYPES:
-                raise DistutilsArgError(
-                    ("You must specify one of (%s) when"
-                     " specifying a init system!") % (", ".join(INITSYS_TYPES))
-                )
+            raise DistutilsArgError(("You must specify one of (%s) when"
+                 " specifying a init system!") % (", ".join(INITSYS_TYPES)))
         elif self.init_system:
-            self.distribution.data_files.append((INITSYS_ROOTS[self.init_system], 
-                                                 INITSYS_FILES[self.init_system]))
+            self.distribution.data_files.append(
+                (INITSYS_ROOTS[self.init_system], 
+                 INITSYS_FILES[self.init_system]))
             # Force that command to reinitalize (with new file list)
             self.distribution.reinitialize_command('install_data', True)
 
@@ -123,11 +121,15 @@ setuptools.setup(name='cloud-init',
                   ('/etc/cloud/templates', glob('templates/*')),
                   ('/usr/share/cloud-init', []),
                   ('/usr/lib/cloud-init',
-                    ['tools/uncloud-init', 'tools/write-ssh-key-fingerprints']),
-                  ('/usr/share/doc/cloud-init', filter(is_f, glob('doc/*'))),
-                  ('/usr/share/doc/cloud-init/examples', filter(is_f, glob('doc/examples/*'))),
-                  ('/usr/share/doc/cloud-init/examples/seed', filter(is_f, glob('doc/examples/seed/*'))),
-                  ],
+                    ['tools/uncloud-init',
+                     'tools/write-ssh-key-fingerprints']),
+                  ('/usr/share/doc/cloud-init',
+                   [f for f in glob('doc/*') if is_f(f)]),
+                  ('/usr/share/doc/cloud-init/examples',
+                   [f for f in glob('doc/examples/*') if is_f(f)]),
+                  ('/usr/share/doc/cloud-init/examples/seed',
+                   [f for f in glob('doc/examples/seed/*') if is_f(f)]),
+                 ],
       install_requires=read_requires(),
       cmdclass = {
           # Use a subclass for install that handles
