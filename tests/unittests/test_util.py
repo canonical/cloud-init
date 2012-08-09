@@ -14,7 +14,7 @@ class FakeSelinux(object):
         self.match_what = match_what
         self.restored = []
 
-    def matchpathcon(self, path, mode):
+    def matchpathcon(self, path, mode):  # pylint: disable=W0613
         if path == self.match_what:
             return
         else:
@@ -23,7 +23,7 @@ class FakeSelinux(object):
     def is_selinux_enabled(self):
         return True
 
-    def restorecon(self, path, recursive):
+    def restorecon(self, path, recursive):  # pylint: disable=W0613
         self.restored.append(path)
 
 
