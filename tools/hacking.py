@@ -23,11 +23,8 @@ built on top of pep8.py
 
 import inspect
 import logging
-import os
 import re
 import sys
-import tokenize
-import warnings
 
 import pep8
 
@@ -158,7 +155,7 @@ def add_cloud():
         if not inspect.isfunction(function):
             continue
         if name.startswith("cloud_"):
-            exec("pep8.%s = %s" % (name, name))
+            exec("pep8.%s = %s" % (name, name))  # pylint: disable=W0122
 
 if __name__ == "__main__":
     # NOVA based 'hacking.py' error codes start with an N
@@ -167,7 +164,7 @@ if __name__ == "__main__":
     pep8.current_file = current_file
     pep8.readlines = readlines
     try:
-        pep8._main()
+        pep8._main()  # pylint: disable=W0212
     finally:
         if len(_missingImport) > 0:
             print >> sys.stderr, ("%i imports missing in this test environment"
