@@ -4,18 +4,14 @@ import StringIO
 
 import logging
 import os
-import shutil
-import tempfile
 
 from email.mime.base import MIMEBase
 
 from mocker import MockerTestCase
 
-from cloudinit import helpers
 from cloudinit import log
 from cloudinit import sources
 from cloudinit import stages
-from cloudinit import util
 
 INSTANCE_ID = "i-testing"
 

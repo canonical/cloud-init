@@ -1,8 +1,6 @@
 import os
-from StringIO import StringIO
 from copy import copy
 
-from cloudinit import util
 from cloudinit import url_helper
 from cloudinit.sources import DataSourceMAAS
 
