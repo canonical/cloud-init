@@ -6,7 +6,6 @@ from mocker import MockerTestCase
 
 from cloudinit import handlers
 from cloudinit import helpers
-from cloudinit import util
 
 from cloudinit.handlers import upstart_job
 
