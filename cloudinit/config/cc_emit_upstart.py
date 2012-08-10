@@ -25,15 +25,15 @@ from cloudinit.settings import PER_ALWAYS
 
 frequency = PER_ALWAYS
 
-distros = ['ubuntu']
+distros = ['ubuntu', 'debian']
 
 
 def handle(name, _cfg, cloud, log, args):
     event_names = args
     if not event_names:
-        log.debug(("Skipping module named %s,"
-                   " no event names provided"), name)
-        return
+        # Default to the 'cloud-config'
+        # event for backwards compat.
+        event_names = ['cloud-config']
     if not os.path.isfile("/sbin/initctl"):
         log.debug(("Skipping module named %s,"
                    " no /sbin/initctl located"), name)
@@ -43,5 +43,6 @@ def handle(name, _cfg, cloud, log, args):
         cmd = ['initctl', 'emit', str(n), 'CLOUD_CFG=%s' % cfgpath]
         try:
             util.subp(cmd)
-        except:
-            log.warn("Emission of upstart event %s failed", n)
+        except Exception as e:
+            # TODO, use log exception from utils??
+            log.warn("Emission of upstart event %s failed due to: %s", n, e)
