@@ -18,10 +18,14 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+'''
+This file contains code used to gather the user data passed to an
+instance on RHEVm and vSphere.
+'''
+
 import errno
 import os
 import os.path
-import time
 
 from cloudinit import log as logging
 from cloudinit import sources
@@ -36,10 +40,7 @@ CLOUD_INFO_FILE = '/etc/sysconfig/cloud-info'
 # Shell command lists
 CMD_DMI_SYSTEM = ['/usr/sbin/dmidecode', '--string', 'system-product-name']
 CMD_PROBE_FLOPPY = ['/sbin/modprobe', 'floppy']
-
-# Retry times and sleep secs between each try
-RETRY_TIMES = 3
-SLEEP_SECS = 3
+CMD_UDEVADM_SETTLE = ['/sbin/udevadm', 'settle', '--quiet', '--timeout=5']
 
 META_DATA_NOT_SUPPORTED = {
     'block-device-mapping': {},
@@ -167,26 +168,19 @@ class DataSourceAltCloud(sources.DataSource):
 
         LOG.debug('cloud_type: ' + str(cloud_type))
 
-        # Simple retry logic around user_data_<type>() methods
-        tries = RETRY_TIMES
-        sleep_secs = SLEEP_SECS
-        while tries > 0:
-            if 'RHEV' in cloud_type:
-                if self.user_data_rhevm():
-                    return True
-            elif 'VSPHERE' in cloud_type:
-                if self.user_data_vsphere():
-                    return True
-            else:
-                # there was no recognized alternate cloud type.
-                # suggesting this handler should not be used.
-                return False
+        if 'RHEV' in cloud_type:
+            if self.user_data_rhevm():
+                return True
+        elif 'VSPHERE' in cloud_type:
+            if self.user_data_vsphere():
+                return True
+        else:
+            # there was no recognized alternate cloud type
+            # indicating this handler should not be used.
+            return False
 
-            time.sleep(sleep_secs)
-            tries -= 1
-            sleep_secs *= 3
-
-        # Retry loop exhausted
+        # No user data found
+        util.logexc(LOG, ('Failed accessing user data.'))
         return False
 
     def user_data_rhevm(self):
@@ -222,6 +216,22 @@ class DataSourceAltCloud(sources.DataSource):
             return False
 
         floppy_dev = '/dev/fd0'
+
+        # udevadm settle for floppy device
+        try:
+            cmd = CMD_UDEVADM_SETTLE
+            cmd.append('--exit-if-exists=' + floppy_dev)
+            (cmd_out, _err) = util.subp(cmd)
+            LOG.debug(('Command: %s\nOutput%s') % (' '.join(cmd), cmd_out))
+        except ProcessExecutionError, _err:
+            util.logexc(LOG, (('Failed command: %s\n%s') % \
+                (' '.join(cmd), _err.message)))
+            return False
+        except OSError, _err:
+            util.logexc(LOG, (('Failed command: %s\n%s') % \
+                (' '.join(cmd), _err.message)))
+            return False
+
         try:
             return_str = util.mount_cb(floppy_dev, read_user_data_callback)
         except OSError as err:
@@ -276,8 +286,11 @@ class DataSourceAltCloud(sources.DataSource):
             return False
 
 # Used to match classes to dependencies
+# Source DataSourceAltCloud does not really depend on networking.
+# In the future 'dsmode' like behavior can be added to offer user
+# the ability to run before networking.
 datasources = [
-  (DataSourceAltCloud, (sources.DEP_FILESYSTEM, )),
+  (DataSourceAltCloud, (sources.DEP_FILESYSTEM, sources.DEP_NETWORK)),
 ]
 
 
