@@ -100,29 +100,6 @@ def welcome_format(action):
     return templater.render_string(WELCOME_MSG_TPL, tpl_params)
 
 
-def emit_cloud_config_ready(cfg, cfgpath):
-    # emit the cloud config ready event
-    # this can be used by upstart jobs for 'start on cloud-config'. There is a
-    # builtin value for 'cc_ready_cmd' if that is not overidden by config, then
-    # we check to make sure that /sbin/initctl is availble.  This makes it so
-    # that non-ubuntu distro will just no-op here with no explicit config.
-    cmd = None
-    if 'cc_ready_cmd' in cfg:
-        cmd = cfg['cc_ready_cmd']
-        if isinstance(cmd, str):
-            cmd = ['sh', '-c', cmd]
-    elif os.path.isfile("/sbin/initctl"):
-        cmd = ['initctl', 'emit', 'cloud-config',
-               'CLOUD_CFG=%s' % cfgpath]
-
-    if not cmd:
-        return
-    try:
-        util.subp(cmd)
-    except:
-        LOG.warn("emission of cloud-config event failed")
-
-
 def extract_fns(args):
     # Files are already opened so lets just pass that along
     # since it would of broke if it couldn't have
@@ -360,11 +337,6 @@ def main_modules(action_name, args):
 
     # now that logging is setup and stdout redirected, send welcome
     welcome(name, msg=w_msg)
-
-    # send the cloud-config event.
-    if name == "config":
-        emit_cloud_config_ready(mods.cfg,
-            init.paths.get_ipath_cur("cloud_config"))
 
     # Stage 5
     return run_module_section(mods, name, name)
