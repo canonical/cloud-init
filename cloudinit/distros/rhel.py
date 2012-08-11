@@ -68,12 +68,26 @@ class Distro(distros.Distro):
     def install_packages(self, pkglist):
         self.package_command('install', pkglist)
 
+    def _write_resolve(self, dns_servers, search_servers):
+        contents = []
+        if dns_servers:
+            for s in dns_servers:
+                contents.append("nameserver %s" % (s))
+        if search_servers:
+            contents.append("search %s" % (" ".join(search_servers)))
+        if contents:
+            resolve_rw_fn = self._paths.join(False, "/etc/resolv.conf")
+            contents.insert(0, '# Created by cloud-init')
+            util.write_file(resolve_rw_fn, "\n".join(contents), 0644)
+
     def _write_network(self, settings):
         # TODO fix this... since this is the ubuntu format
         entries = translate_network(settings)
         LOG.debug("Translated ubuntu style network settings %s into %s",
                   settings, entries)
         # Make the intermediate format as the rhel format...
+        nameservers = []
+        searchservers = []
         for (dev, info) in entries.iteritems():
             net_fn = NETWORK_FN_TPL % (dev)
             net_ro_fn = self._paths.join(True, net_fn)
@@ -102,11 +116,17 @@ class Distro(distros.Distro):
             if mac_addr:
                 net_cfg["MACADDR"] = mac_addr
             lines = net_cfg.write()
+            if 'dns-nameservers' in info:
+                nameservers.extend(info['dns-nameservers'])
+            if 'dns-search' in info:
+                searchservers.extend(info['dns-search'])
             if not prev_exist:
                 lines.insert(0, '# Created by cloud-init')
             w_contents = "\n".join(lines)
             net_rw_fn = self._paths.join(False, net_fn)
             util.write_file(net_rw_fn, w_contents, 0644)
+        if nameservers or searchservers:
+            self._write_resolve(nameservers, searchservers)
 
     def set_hostname(self, hostname):
         out_fn = self._paths.join(False, '/etc/sysconfig/network')
@@ -314,6 +334,12 @@ def translate_network(settings):
                 val = info[k].strip().lower()
                 if val:
                     iface_info[k] = val
+        # Name server info provided??
+        if 'dns-nameservers' in info:
+            iface_info['dns-nameservers'] = info['dns-nameservers'].split()
+        # Name server search info provided??
+        if 'dns-search' in info:
+            iface_info['dns-search'] = info['dns-search'].split()
         # Is any mac address spoofing going on??
         if 'hwaddress' in info:
             hw_info = info['hwaddress'].lower().strip()
