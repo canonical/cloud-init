@@ -291,6 +291,8 @@ class TestUserDataRhevm(TestCase):
             '/etc/sysconfig/cloud-info'
         cloudinit.sources.DataSourceAltCloud.CMD_PROBE_FLOPPY = \
             ['/sbin/modprobe', 'floppy']
+        cloudinit.sources.DataSourceAltCloud.CMD_UDEVADM_SETTLE = \
+            ['/sbin/udevadm', 'settle', '--quiet', '--timeout=5']
 
     def test_mount_cb_fails(self):
         '''Test user_data_rhevm() where mount_cb fails'''
@@ -317,6 +319,26 @@ class TestUserDataRhevm(TestCase):
 
         cloudinit.sources.DataSourceAltCloud.CMD_PROBE_FLOPPY = \
             ['bad command', 'modprobe floppy']
+
+        dsrc = DataSourceAltCloud({}, None, self.paths)
+
+        self.assertEquals(False, dsrc.user_data_rhevm())
+
+    def test_udevadm_fails(self):
+        '''Test user_data_rhevm() where udevadm fails. '''
+
+        cloudinit.sources.DataSourceAltCloud.CMD_UDEVADM_SETTLE = \
+            ['ls', 'udevadm floppy']
+
+        dsrc = DataSourceAltCloud({}, None, self.paths)
+
+        self.assertEquals(False, dsrc.user_data_rhevm())
+
+    def test_no_udevadm_cmd(self):
+        '''Test user_data_rhevm() with no udevadm command. '''
+
+        cloudinit.sources.DataSourceAltCloud.CMD_UDEVADM_SETTLE = \
+            ['bad command', 'udevadm floppy']
 
         dsrc = DataSourceAltCloud({}, None, self.paths)
 
