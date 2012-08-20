@@ -1,5 +1,6 @@
 0.7.0:
  - write ssh authorized keys to console, ssh_authkey_fingerprints
+   config module [Joshua Harlow] (LP: #1010582)
  - Added RHEVm and vSphere support as source AltCloud [Joseph VLcek]
  - add write-files module (LP: #1012854)
  - Add setuptools + cheetah to debian package build dependencies (LP: #1022101)
