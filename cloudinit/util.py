@@ -1329,17 +1329,17 @@ def delete_dir_contents(dirname):
             del_file(node_fullpath)
 
 
-def subp(args, data=None, rcs=None, env=None, capture=True, shell=False, hidden=False):
+def subp(args, data=None, rcs=None, env=None, capture=True, shell=False, logstring=False):
     if rcs is None:
         rcs = [0]
     try:
 
-        if not hidden:
+        if not logstring:
             LOG.debug(("Running command %s with allowed return codes %s"
                       " (shell=%s, capture=%s)"), args, rcs, shell, capture)
         else:
-            LOG.debug(("Running hidden command to protect sensative output "
-                        " Calling function: %s" ), hidden)
+            LOG.debug(("Running hidden command to protect sensitive input/output "
+                        " logstring: %s" ), logstring)
 
         if not capture:
             stdout = None
