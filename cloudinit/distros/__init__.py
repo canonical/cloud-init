@@ -47,6 +47,14 @@ class Distro(object):
         self.name = name
 
     @abc.abstractmethod
+    def add_default_user(self):
+        raise NotImplementedError()
+
+    @abc.abstractmethod
+    def get_default_username(self):
+        raise NotImplementedError()
+
+    @abc.abstractmethod
     def install_packages(self, pkglist):
         raise NotImplementedError()
 
