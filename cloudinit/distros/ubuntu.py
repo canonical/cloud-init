@@ -65,11 +65,12 @@ class Distro(debian.Distro):
                         '--home', '/home/%s' % self.__default_user_name__,
                         '--disabled-password',
                         '--gecos', 'Ubuntu',
-			self.__default_user_name__,
+                        self.__default_user_name__,
                         ])
 
             pass_string = '%(u)s:%(u)s' % {'u': self.__default_user_name__}
-            util.subp(['chpasswd'], pass_string)
+            x_pass_string = '%(u)s:REDACTED' % {'u': self.__default_user_name__}
+            util.subp(['chpasswd'], pass_string, logstring=x_pass_string)
             util.subp(['passwd', '-l', self.__default_user_name__])
 
             ubuntu_sudoers="""

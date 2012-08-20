@@ -91,21 +91,22 @@ def create_user(user, user_config, log, cloud):
         log.info("Creating user %s" % user)
 
     adduser_cmd = ['useradd', user]
+    x_adduser_cmd = adduser_cmd
     adduser_opts = {
-            "gecos": '-c',
+            "gecos": '--comment',
             "homedir": '--home',
-            "primary-group": '-g',
-            "groups": '-G',
-            "passwd": '-p',
-            "shell": '-s',
-            "expiredate": '-e',
-            "inactive": '-f',
+            "primary-group": '--gid',
+            "groups": '--groups',
+            "passwd": '--password',
+            "shell": '--shell',
+            "expiredate": '--expiredate',
+            "inactive": '--inactive',
             }
 
     adduser_opts_flags = {
-            "no-user-group": '-N',
-            "system": '-r',
-            "no-log-init": '-l',
+            "no-user-group": '--no-user-group',
+            "system": '--system',
+            "no-log-init": '--no-log-init',
             "no-create-home": "-M",
             }
 
@@ -116,8 +117,15 @@ def create_user(user, user_config, log, cloud):
             and type(value).__name__ == "str":
             adduser_cmd.extend([adduser_opts[option], value])
 
+            # Redact the password field from the logs
+            if option != "password":
+                x_adduser_cmd.extend([adduser_opts[option], value])
+            else:
+                x_adduser_cmd.extend([adduser_opts[option], 'REDACTED'])
+
         if option in adduser_opts_flags and value:
             adduser_cmd.append(adduser_opts_flags[option])
+            x_adduser_cmd.append(adduser_opts_flags[option])
 
     # Default to creating home directory unless otherwise directed
     #  Also, we do not create home directories for system users.
@@ -129,8 +137,7 @@ def create_user(user, user_config, log, cloud):
 
     # Create the user
     try:
-        util.subp(adduser_cmd,
-                hidden="cloudinit.user_config.cc_users_groups(%s)" % user)
+        util.subp(adduser_cmd, logstring=x_adduser_cmd)
 
     except Exception as e:
         log.warn("Failed to create user %s due to error.\n%s" % user)
