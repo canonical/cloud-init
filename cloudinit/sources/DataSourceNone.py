@@ -22,8 +22,6 @@ from cloudinit import util
 
 LOG = logging.getLogger(__name__)
 
-NONE_IID = 'iid-datasource-none'
-
 
 class DataSourceNone(sources.DataSource):
     def __init__(self, sys_cfg, distro, paths, ud_proc=None):
@@ -33,10 +31,17 @@ class DataSourceNone(sources.DataSource):
         self.userdata_raw = ''
 
     def get_data(self):
+        # If the datasource config has any provided 'fallback'
+        # userdata or metadata, use it...
+        if 'userdata' in self.ds_cfg:
+            self.userdata = self.ds_cfg['userdata']
+            self.userdata_raw = util.yaml_dumps(self.userdata)
+        if 'metadata' in self.ds_cfg:
+            self.metadata = self.ds_cfg['metadata']
         return True
 
     def get_instance_id(self):
-        return NONE_IID
+        return 'iid-datasource-none'
 
     def __str__(self):
         return util.obj_name(self)
@@ -46,10 +51,9 @@ class DataSourceNone(sources.DataSource):
         return True
 
 
-# Used to match classes to dependencies (this will always match)
+# Used to match classes to dependencies
 datasources = [
   (DataSourceNone, (sources.DEP_FILESYSTEM, sources.DEP_NETWORK)),
-  (DataSourceNone, (sources.DEP_FILESYSTEM,)),
   (DataSourceNone, []),
 ]
 
