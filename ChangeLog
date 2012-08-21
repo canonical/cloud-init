@@ -1,4 +1,6 @@
 0.7.0:
+ - add the 'None' datasource (LP: #906669), which will allow jobs
+   to run even if there is no "real" datasource found.
  - write ssh authorized keys to console, ssh_authkey_fingerprints
    config module [Joshua Harlow] (LP: #1010582)
  - Added RHEVm and vSphere support as source AltCloud [Joseph VLcek]

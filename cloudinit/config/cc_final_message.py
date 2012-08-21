@@ -28,7 +28,7 @@ frequency = PER_ALWAYS
 
 # Cheetah formated default message
 FINAL_MESSAGE_DEF = ("Cloud-init v. ${version} finished at ${timestamp}."
-                     " Up ${uptime} seconds.")
+                     " Datasource ${datasource}.  Up ${uptime} seconds")
 
 
 def handle(_name, cfg, cloud, log, args):
@@ -51,6 +51,7 @@ def handle(_name, cfg, cloud, log, args):
             'uptime': uptime,
             'timestamp': ts,
             'version': cver,
+            'datasource': str(cloud.datasource),
         }
         util.multi_log("%s\n" % (templater.render_string(msg_in, subs)),
                        console=False, stderr=True)
@@ -63,3 +64,6 @@ def handle(_name, cfg, cloud, log, args):
         util.write_file(boot_fin_fn, contents)
     except:
         util.logexc(log, "Failed to write boot finished file %s", boot_fin_fn)
+
+    if cloud.datasource.is_disconnected:
+        log.warn("Used fallback datasource")

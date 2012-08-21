@@ -35,7 +35,9 @@ CFG_BUILTIN = {
         'OVF',
         'MAAS',
         'Ec2',
-        'CloudStack'
+        'CloudStack',
+        # At the end to act as a 'catch' when none of the above work...
+        'None',
     ],
     'def_log_file': '/var/log/cloud-init.log',
     'log_cfgs': [],
