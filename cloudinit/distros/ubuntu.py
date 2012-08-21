@@ -27,7 +27,7 @@ from cloudinit import helpers
 from cloudinit import log as logging
 from cloudinit import util
 from cloudinit.settings import PER_INSTANCE
-
+import hashlib
 import pwd
 
 LOG = logging.getLogger(__name__)
@@ -36,7 +36,7 @@ LOG = logging.getLogger(__name__)
 class Distro(debian.Distro):
 
     distro_name = 'ubuntu'
-    __default_user_name__ = 'ubuntu-test'
+    __default_user_name__ = 'ubuntu'
 
     def __init__(self, name, cfg, paths):
         distros.Distro.__init__(self, name, cfg, paths)
@@ -45,7 +45,7 @@ class Distro(debian.Distro):
         # should only happen say once per instance...)
         self._runner = helpers.Runners(paths)
 
-    def get_default_username(self):
+    def get_default_user(self):
         return self.__default_user_name__
 
     def add_default_user(self):
@@ -53,39 +53,30 @@ class Distro(debian.Distro):
         #  - Password is 'ubuntu', but is locked
         #  - nopasswd sudo access
 
+        self.create_user(self.__default_user_name__,
+                        plain_text_passwd=self.__default_user_name__,
+                        home="/home/%s" % self.__default_user_name__,
+                        shell="/bin/bash",
+                        lockpasswd=True,
+                        gecos="Ubuntu",
+                        sudo="ALL=(ALL) NOPASSWD:ALL")
 
-        if self.__default_user_name__ in [x[0] for x in pwd.getpwall()]:
-            LOG.warn("'%s' user already exists, not creating it." % \
-                    self.__default_user_name__)
-            return
+        LOG.info("Added default 'ubuntu' user with passwordless sudo")
 
-        try:
-            util.subp(['adduser',
-                        '--shell', '/bin/bash',
-                        '--home', '/home/%s' % self.__default_user_name__,
-                        '--disabled-password',
-                        '--gecos', 'Ubuntu',
-                        self.__default_user_name__,
-                        ])
+    def create_user(self, name, **kargs):
 
-            pass_string = '%(u)s:%(u)s' % {'u': self.__default_user_name__}
-            x_pass_string = '%(u)s:REDACTED' % {'u': self.__default_user_name__}
-            util.subp(['chpasswd'], pass_string, logstring=x_pass_string)
-            util.subp(['passwd', '-l', self.__default_user_name__])
+        if not super(Distro, self).create_user(name, **kargs):
+            return False
 
-            ubuntu_sudoers="""
-# Added by cloud-init
-# %(user)s user is default user in cloud-images.
-# It needs passwordless sudo functionality.
-%(user)s ALL=(ALL) NOPASSWD:ALL
-""" % { 'user': self.__default_user_name__ }
+        if 'sshimportid' in kargs:
+            cmd = ["sudo", "-Hu", name, "ssh-import-id"] + kargs['sshimportid']
+            LOG.debug("Importing ssh ids for user %s, post user creation."
+                        % name)
 
-            util.write_file('/etc/sudoers.d/90-cloud-init-ubuntu',
-                            ubuntu_sudoers,
-                            mode=0440)
+            try:
+                util.subp(cmd, capture=True)
+            except util.ProcessExecutionError as e:
+                util.logexc(LOG, "Failed to import %s ssh ids", name)
+                raise e
 
-            LOG.info("Added default 'ubuntu' user with passwordless sudo")
-
-        except Exception as e:
-            util.logexc(LOG, "Failed to create %s user\n%s" %
-                        (self.__default_user_name__, e))
+        return True
