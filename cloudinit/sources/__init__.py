@@ -65,6 +65,10 @@ class DataSource(object):
             self.userdata = self.ud_proc.process(raw_data)
         return self.userdata
 
+    @property
+    def is_disconnected(self):
+        return False
+
     def get_userdata_raw(self):
         return self.userdata_raw
 
