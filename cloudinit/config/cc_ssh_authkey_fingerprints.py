@@ -77,12 +77,13 @@ def _pprint_key_entries(user, key_fn, key_entries, hash_meth='md5', prefix='ci-i
     authtbl_lines = authtbl_s.splitlines()
     max_len = len(max(authtbl_lines, key=len))
     lines = [
-        util.center("Authorized keys fingerprints from %s for user %s" %
+        util.center("Authorized keys from %s for user %s" %
                     (key_fn, user), "+", max_len),
     ]
     lines.extend(authtbl_lines)
     for line in lines:
-        util.multi_log(text="%s%s\n" % (prefix, line))
+        util.multi_log(text="%s%s\n" % (prefix, line),
+                       stderr=False, console=True)
 
 
 def handle(name, cfg, cloud, log, _args):
