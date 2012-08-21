@@ -24,54 +24,63 @@ from prettytable import PrettyTable
 from cloudinit import ssh_util
 from cloudinit import util
 
-FP_HASH_TYPE = 'md5'
-FP_SEGMENT_LEN = 2
-FP_SEGMENT_SEP = ":"
-
 
 def _split_hash(bin_hash):
     split_up = []
+<<<<<<< TREE
     for i in xrange(0, len(bin_hash), FP_SEGMENT_LEN):
         split_up.append(bin_hash[i:i + FP_SEGMENT_LEN])
+=======
+    for i in xrange(0, len(bin_hash), 2):
+        split_up.append(bin_hash[i:i+2])
+>>>>>>> MERGE-SOURCE
     return split_up
 
 
-def _gen_fingerprint(b64_text):
+def _gen_fingerprint(b64_text, hash_meth='md5'):
     if not b64_text:
         return ''
-    # Maybe we should feed this into 'ssh -lf'?
+    # TBD(harlowja): Maybe we should feed this into 'ssh -lf'?
     try:
-        bin_text = base64.b64decode(b64_text)
-        hasher = hashlib.new(FP_HASH_TYPE)
-        hasher.update(bin_text)
-        pp_hash = FP_SEGMENT_SEP.join(_split_hash(hasher.hexdigest()))
-        return pp_hash
+        hasher = hashlib.new(hash_meth)
+        hasher.update(base64.b64decode(b64_text))
+        return ":".join(_split_hash(hasher.hexdigest()))
     except TypeError:
-        return ''
+        # Raised when b64 not really b64...
+        return '?'
 
 
-def _pprint_key_entries(user, key_fn, key_entries, prefix='ci-info: '):
+def _is_printable_key(entry):
+    if any([entry.keytype, entry.base64, entry.comment, entry.options]):
+        if entry.keytype and entry.keytype.lower().strip() in ['ssh-dss', 'ssh-rsa']:
+            return True
+    return False
+
+
+def _pprint_key_entries(user, key_fn, key_entries, hash_meth='md5', prefix='ci-info: '):
     if not key_entries:
         message = ("%sno authorized ssh keys fingerprints found for user %s."
                    % (prefix, user))
         util.multi_log(message)
         return
-    tbl_fields = ['Keytype', 'Fingerprint', 'Options', 'Comment']
+    tbl_fields = ['Keytype', 'Fingerprint (%s)' % (hash_meth), 'Options', 'Comment']
     tbl = PrettyTable(tbl_fields)
     for entry in key_entries:
-        row = []
-        row.append(entry.keytype or '-')
-        row.append(_gen_fingerprint(entry.base64) or '-')
-        row.append(entry.comment or '-')
-        row.append(entry.options or '-')
-        tbl.add_row(row)
+        if _is_printable_key(entry):
+            row = []
+            row.append(entry.keytype or '-')
+            row.append(_gen_fingerprint(entry.base64, hash_meth) or '-')
+            row.append(entry.options or '-')
+            row.append(entry.comment or '-')
+            tbl.add_row(row)
     authtbl_s = tbl.get_string()
-    max_len = len(max(authtbl_s.splitlines(), key=len))
+    authtbl_lines = authtbl_s.splitlines()
+    max_len = len(max(authtbl_lines, key=len))
     lines = [
         util.center("Authorized keys fingerprints from %s for user %s" %
                     (key_fn, user), "+", max_len),
     ]
-    lines.extend(authtbl_s.splitlines())
+    lines.extend(authtbl_lines)
     for line in lines:
         util.multi_log(text="%s%s\n" % (prefix, line))
 
@@ -81,7 +90,7 @@ def handle(name, cfg, cloud, log, _args):
         log.debug(("Skipping module named %s, "
                    "logging of ssh fingerprints disabled"), name)
 
-    user = util.get_cfg_option_str(cfg, "user", "ubuntu")
+    user_name = util.get_cfg_option_str(cfg, "user", "ubuntu")
     extract = ssh_util.extract_authorized_keys
-    (auth_key_fn, auth_key_entries) = extract(user, cloud.paths)
-    _pprint_key_entries(user, auth_key_fn, auth_key_entries)
+    (auth_key_fn, auth_key_entries) = extract(user_name, cloud.paths)
+    _pprint_key_entries(user_name, auth_key_fn, auth_key_entries, hash_meth)
