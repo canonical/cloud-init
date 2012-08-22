@@ -16,8 +16,8 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-from cloudinit import util
 from cloudinit.settings import PER_INSTANCE
+from cloudinit import util
 
 frequency = PER_INSTANCE
 
@@ -50,7 +50,7 @@ def handle(_name, cfg, cloud, log, _args):
 
 
 def write_apt_snippet(cloud, setting, log, f_name):
-    """ Writes f_name with apt pipeline depth 'setting' """
+    """Writes f_name with apt pipeline depth 'setting'."""
 
     file_contents = APT_PIPE_TPL % (setting)
 

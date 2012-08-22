@@ -18,11 +18,11 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import os
 import glob
+import os
 
-from cloudinit import util
 from cloudinit import ssh_util
+from cloudinit import util
 
 DISABLE_ROOT_OPTS = ("no-port-forwarding,no-agent-forwarding,"
 "no-X11-forwarding,command=\"echo \'Please login as the user \\\"$USER\\\" "
@@ -76,7 +76,7 @@ def handle(_name, cfg, cloud, log, _args):
             pair = (KEY_2_FILE[priv][0], KEY_2_FILE[pub][0])
             cmd = ['sh', '-xc', KEY_GEN_TPL % pair]
             try:
-                # TODO: Is this guard needed?
+                # TODO(harlowja): Is this guard needed?
                 with util.SeLinuxGuard("/etc/ssh", recursive=True):
                     util.subp(cmd, capture=False)
                 log.debug("Generated a key for %s from %s", pair[0], pair[1])
@@ -94,7 +94,7 @@ def handle(_name, cfg, cloud, log, _args):
             if not os.path.exists(keyfile):
                 cmd = ['ssh-keygen', '-t', keytype, '-N', '', '-f', keyfile]
                 try:
-                    # TODO: Is this guard needed?
+                    # TODO(harlowja): Is this guard needed?
                     with util.SeLinuxGuard("/etc/ssh", recursive=True):
                         util.subp(cmd, capture=False)
                 except:

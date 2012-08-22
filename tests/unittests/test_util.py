@@ -1,11 +1,11 @@
 import os
 import stat
 
-from unittest import TestCase
 from mocker import MockerTestCase
+from unittest import TestCase
 
-from cloudinit import util
 from cloudinit import importer
+from cloudinit import util
 
 
 class FakeSelinux(object):

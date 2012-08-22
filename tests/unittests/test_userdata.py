@@ -1,4 +1,4 @@
-"""Tests for handling of userdata within cloud init"""
+"""Tests for handling of userdata within cloud init."""
 
 import StringIO
 
@@ -54,7 +54,7 @@ class TestConsumeUserData(MockerTestCase):
         return log_file
 
     def test_unhandled_type_warning(self):
-        """Raw text without magic is ignored but shows warning"""
+        """Raw text without magic is ignored but shows warning."""
         ci = stages.Init()
         data = "arbitrary text\n"
         ci.datasource = FakeDataSource(data)
@@ -70,7 +70,7 @@ class TestConsumeUserData(MockerTestCase):
             log_file.getvalue())
 
     def test_mime_text_plain(self):
-        """Mime message of type text/plain is ignored but shows warning"""
+        """Mime message of type text/plain is ignored but shows warning."""
         ci = stages.Init()
         message = MIMEBase("text", "plain")
         message.set_payload("Just text")
@@ -86,9 +86,8 @@ class TestConsumeUserData(MockerTestCase):
             "Unhandled unknown content-type (text/plain)",
             log_file.getvalue())
 
-    
     def test_shellscript(self):
-        """Raw text starting #!/bin/sh is treated as script"""
+        """Raw text starting #!/bin/sh is treated as script."""
         ci = stages.Init()
         script = "#!/bin/sh\necho hello\n"
         ci.datasource = FakeDataSource(script)
@@ -104,7 +103,7 @@ class TestConsumeUserData(MockerTestCase):
         self.assertEqual("", log_file.getvalue())
 
     def test_mime_text_x_shellscript(self):
-        """Mime message of type text/x-shellscript is treated as script"""
+        """Mime message of type text/x-shellscript is treated as script."""
         ci = stages.Init()
         script = "#!/bin/sh\necho hello\n"
         message = MIMEBase("text", "x-shellscript")
@@ -122,7 +121,7 @@ class TestConsumeUserData(MockerTestCase):
         self.assertEqual("", log_file.getvalue())
 
     def test_mime_text_plain_shell(self):
-        """Mime type text/plain starting #!/bin/sh is treated as script"""
+        """Mime type text/plain starting #!/bin/sh is treated as script."""
         ci = stages.Init()
         script = "#!/bin/sh\necho hello\n"
         message = MIMEBase("text", "plain")

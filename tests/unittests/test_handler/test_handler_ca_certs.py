@@ -1,8 +1,8 @@
 from mocker import MockerTestCase
 
-from cloudinit import util
 from cloudinit import cloud
 from cloudinit import helpers
+from cloudinit import util
 
 from cloudinit.config import cc_ca_certs
 
@@ -64,7 +64,7 @@ class TestConfig(MockerTestCase):
         cc_ca_certs.handle(self.name, config, self.cloud, self.log, self.args)
 
     def test_empty_trusted_list(self):
-        """Test that no certificate are written if 'trusted' list is empty"""
+        """Test that no certificate are written if 'trusted' list is empty."""
         config = {"ca-certs": {"trusted": []}}
 
         # No functions should be called
@@ -74,7 +74,7 @@ class TestConfig(MockerTestCase):
         cc_ca_certs.handle(self.name, config, self.cloud, self.log, self.args)
 
     def test_single_trusted(self):
-        """Test that a single cert gets passed to add_ca_certs"""
+        """Test that a single cert gets passed to add_ca_certs."""
         config = {"ca-certs": {"trusted": ["CERT1"]}}
 
         self.mock_add(self.paths, ["CERT1"])
@@ -84,7 +84,7 @@ class TestConfig(MockerTestCase):
         cc_ca_certs.handle(self.name, config, self.cloud, self.log, self.args)
 
     def test_multiple_trusted(self):
-        """Test that multiple certs get passed to add_ca_certs"""
+        """Test that multiple certs get passed to add_ca_certs."""
         config = {"ca-certs": {"trusted": ["CERT1", "CERT2"]}}
 
         self.mock_add(self.paths, ["CERT1", "CERT2"])
@@ -94,7 +94,7 @@ class TestConfig(MockerTestCase):
         cc_ca_certs.handle(self.name, config, self.cloud, self.log, self.args)
 
     def test_remove_default_ca_certs(self):
-        """Test remove_defaults works as expected"""
+        """Test remove_defaults works as expected."""
         config = {"ca-certs": {"remove-defaults": True}}
 
         self.mock_remove(self.paths)
@@ -104,7 +104,7 @@ class TestConfig(MockerTestCase):
         cc_ca_certs.handle(self.name, config, self.cloud, self.log, self.args)
 
     def test_no_remove_defaults_if_false(self):
-        """Test remove_defaults is not called when config value is False"""
+        """Test remove_defaults is not called when config value is False."""
         config = {"ca-certs": {"remove-defaults": False}}
 
         self.mock_update()
@@ -113,7 +113,7 @@ class TestConfig(MockerTestCase):
         cc_ca_certs.handle(self.name, config, self.cloud, self.log, self.args)
 
     def test_correct_order_for_remove_then_add(self):
-        """Test remove_defaults is not called when config value is False"""
+        """Test remove_defaults is not called when config value is False."""
         config = {"ca-certs": {"remove-defaults": True, "trusted": ["CERT1"]}}
 
         self.mock_remove(self.paths)
@@ -139,7 +139,7 @@ class TestAddCaCerts(MockerTestCase):
         cc_ca_certs.add_ca_certs(self.paths, [])
 
     def test_single_cert(self):
-        """Test adding a single certificate to the trusted CAs"""
+        """Test adding a single certificate to the trusted CAs."""
         cert = "CERT1\nLINE2\nLINE3"
 
         mock_write = self.mocker.replace(util.write_file, passthrough=False)
@@ -152,7 +152,7 @@ class TestAddCaCerts(MockerTestCase):
         cc_ca_certs.add_ca_certs(self.paths, [cert])
 
     def test_multiple_certs(self):
-        """Test adding multiple certificates to the trusted CAs"""
+        """Test adding multiple certificates to the trusted CAs."""
         certs = ["CERT1\nLINE2\nLINE3", "CERT2\nLINE2\nLINE3"]
         expected_cert_file = "\n".join(certs)
 

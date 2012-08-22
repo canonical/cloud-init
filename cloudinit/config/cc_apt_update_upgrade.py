@@ -244,7 +244,7 @@ def add_sources(cloud, srclist, template_params=None):
 
 
 def find_apt_mirror_info(cloud, cfg):
-    """ find an apt_mirror given the cloud and cfg provided """
+    """find an apt_mirror given the cloud and cfg provided."""
 
     mirror = None
 
