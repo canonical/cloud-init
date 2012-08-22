@@ -1,4 +1,6 @@
 0.7.0:
+ - add apt_reboot_if_required to reboot if an upgrade or package installation
+   forced the need for one (LP: #1038108)
  - allow distro mirror selection to include availability-zone (LP: #1037727)
  - allow arch specific mirror selection (select ports.ubuntu.com on arm)
    LP: #1028501
