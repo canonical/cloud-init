@@ -21,8 +21,8 @@
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import logging
-import logging.handlers
 import logging.config
+import logging.handlers
 
 import collections
 import os

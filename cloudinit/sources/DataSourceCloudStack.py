@@ -49,8 +49,7 @@ class DataSourceCloudStack(sources.DataSource):
         self.metadata_address = "http://%s/" % (gw_addr)
 
     def get_default_gateway(self):
-        """ Returns the default gateway ip address in the dotted format
-        """
+        """Returns the default gateway ip address in the dotted format."""
         lines = util.load_file("/proc/net/route").splitlines()
         for line in lines:
             items = line.split("\t")

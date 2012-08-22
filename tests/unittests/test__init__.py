@@ -1,6 +1,6 @@
-import StringIO
 import logging
 import os
+import StringIO
 import sys
 
 from mocker import MockerTestCase, ANY, ARGS, KWARGS
@@ -61,14 +61,14 @@ class TestWalkerHandleHandler(MockerTestCase):
         import_mock(self.expected_module_name)
         self.mocker.result(self.module_fake)
         self.mocker.replay()
- 
+
         handlers.walker_handle_handler(self.data, self.ctype, self.filename,
                                        self.payload)
- 
+
         self.assertEqual(1, self.data["handlercount"])
- 
+
     def test_import_error(self):
-        """Module import errors are logged. No handler added to C{pdata}"""
+        """Module import errors are logged. No handler added to C{pdata}."""
         import_mock = self.mocker.replace(importer.import_module,
                                           passthrough=False)
         import_mock(self.expected_module_name)
@@ -81,7 +81,7 @@ class TestWalkerHandleHandler(MockerTestCase):
         self.assertEqual(0, self.data["handlercount"])
 
     def test_attribute_error(self):
-        """Attribute errors are logged. No handler added to C{pdata}"""
+        """Attribute errors are logged. No handler added to C{pdata}."""
         import_mock = self.mocker.replace(importer.import_module,
                                           passthrough=False)
         import_mock(self.expected_module_name)
@@ -156,7 +156,7 @@ class TestHandlerHandlePart(MockerTestCase):
                           self.payload, self.frequency)
 
     def test_no_handle_when_modfreq_once(self):
-        """C{handle_part} is not called if frequency is once"""
+        """C{handle_part} is not called if frequency is once."""
         self.frequency = "once"
         mod_mock = self.mocker.mock()
         getattr(mod_mock, "frequency")
