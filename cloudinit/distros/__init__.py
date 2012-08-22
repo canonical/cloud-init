@@ -28,7 +28,7 @@ from cloudinit import importer
 from cloudinit import log as logging
 from cloudinit import util
 
-# TODO: Make this via config??
+# TODO(harlowja): Make this via config??
 IFACE_ACTIONS = {
     'up': ['ifup', '--all'],
     'down': ['ifdown', '--all'],

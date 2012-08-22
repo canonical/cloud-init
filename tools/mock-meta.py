@@ -6,7 +6,7 @@
 
 """
 To use this to mimic the EC2 metadata service entirely, run it like:
-  # Where 'eth0' is *some* interface.  
+  # Where 'eth0' is *some* interface.
   sudo ifconfig eth0:0 169.254.169.254 netmask 255.255.255.255
 
   sudo ./mock-meta.py -a 169.254.169.254 -p 80
@@ -23,7 +23,7 @@ import json
 import logging
 import os
 import random
-import string # pylint: disable=W0402
+import string  # pylint: disable=W0402
 import sys
 import yaml
 
@@ -156,6 +156,8 @@ def traverse(keys, mp):
 
 
 ID_CHARS = [c for c in (string.ascii_uppercase + string.digits)]
+
+
 def id_generator(size=6, lower=False):
     txt = ''.join(random.choice(ID_CHARS) for x in range(size))
     if lower:
@@ -235,11 +237,11 @@ class MetaDataHandler(object):
             nparams = params[1:]
             # This is a weird kludge, why amazon why!!!
             # public-keys is messed up, list of /latest/meta-data/public-keys/
-	        # shows something like: '0=brickies'
-	        # but a GET to /latest/meta-data/public-keys/0=brickies will fail
-	        # you have to know to get '/latest/meta-data/public-keys/0', then
-	        # from there you get a 'openssh-key', which you can get.
-	        # this hunk of code just re-works the object for that.
+            # shows something like: '0=brickies'
+            # but a GET to /latest/meta-data/public-keys/0=brickies will fail
+            # you have to know to get '/latest/meta-data/public-keys/0', then
+            # from there you get a 'openssh-key', which you can get.
+            # this hunk of code just re-works the object for that.
             avail_keys = get_ssh_keys()
             key_ids = sorted(list(avail_keys.keys()))
             if nparams:
@@ -255,7 +257,7 @@ class MetaDataHandler(object):
                     "openssh-key": "\n".join(avail_keys[key_name]),
                 })
                 if isinstance(result, (dict)):
-                    # TODO: This might not be right??
+                    # TODO(harlowja): This might not be right??
                     result = "\n".join(sorted(result.keys()))
                 if not result:
                     result = ''
@@ -304,13 +306,13 @@ class UserDataHandler(object):
             blob = "\n".join(lines)
         return blob.strip()
 
-    def get_data(self, params, who, **kwargs): # pylint: disable=W0613
+    def get_data(self, params, who, **kwargs):  # pylint: disable=W0613
         if not params:
             return self._get_user_blob(who=who)
         return NOT_IMPL_RESPONSE
 
 
-# Seem to need to use globals since can't pass 
+# Seem to need to use globals since can't pass
 # data into the request handlers instances...
 # Puke!
 meta_fetcher = None
@@ -432,7 +434,7 @@ def setup_fetchers(opts):
 
 
 def run_server():
-    # Using global here since it doesn't seem like we 
+    # Using global here since it doesn't seem like we
     # can pass opts into a request handler constructor...
     opts = extract_opts()
     setup_logging(logging.DEBUG)

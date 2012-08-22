@@ -124,12 +124,12 @@ class NonConfigDriveDir(Exception):
 
 
 def find_cfg_drive_device():
-    """ Get the config drive device.  Return a string like '/dev/vdb'
-        or None (if there is no non-root device attached). This does not
-        check the contents, only reports that if there *were* a config_drive
-        attached, it would be this device.
-        Note: per config_drive documentation, this is
-        "associated as the last available disk on the instance"
+    """Get the config drive device.  Return a string like '/dev/vdb'
+       or None (if there is no non-root device attached). This does not
+       check the contents, only reports that if there *were* a config_drive
+       attached, it would be this device.
+       Note: per config_drive documentation, this is
+       "associated as the last available disk on the instance"
     """
 
     # This seems to be for debugging??
@@ -160,7 +160,7 @@ def read_config_drive_dir(source_dir):
        string populated.  If not a valid dir, raise a NonConfigDriveDir
     """
 
-    # TODO: fix this for other operating systems...
+    # TODO(harlowja): fix this for other operating systems...
     # Ie: this is where https://fedorahosted.org/netcf/ or similar should
     # be hooked in... (or could be)
     found = {}

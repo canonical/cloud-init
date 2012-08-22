@@ -48,7 +48,8 @@ def handle(name, cfg, cloud, log, _args):
         # Create object for reading puppet.conf values
         puppet_config = helpers.DefaultingConfigParser()
         # Read puppet.conf values from original file in order to be able to
-        # mix the rest up. First clean them up (TODO is this really needed??)
+        # mix the rest up. First clean them up
+        # (TODO(harlowja) is this really needed??)
         cleaned_lines = [i.lstrip() for i in contents.splitlines()]
         cleaned_contents = '\n'.join(cleaned_lines)
         puppet_config.readfp(StringIO(cleaned_contents),
@@ -80,7 +81,7 @@ def handle(name, cfg, cloud, log, _args):
                 for (o, v) in cfg.iteritems():
                     if o == 'certname':
                         # Expand %f as the fqdn
-                        # TODO should this use the cloud fqdn??
+                        # TODO(harlowja) should this use the cloud fqdn??
                         v = v.replace("%f", socket.getfqdn())
                         # Expand %i as the instance id
                         v = v.replace("%i", cloud.get_instance_id())
