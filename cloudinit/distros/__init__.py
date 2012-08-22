@@ -23,6 +23,8 @@
 from StringIO import StringIO
 
 import abc
+import os
+import re
 
 from cloudinit import importer
 from cloudinit import log as logging
@@ -75,8 +77,26 @@ class Distro(object):
     def update_package_sources(self):
         raise NotImplementedError()
 
-    def get_package_mirror(self):
-        return self.get_option('package_mirror')
+    def get_primary_arch(self):
+        arch = os.uname[4]
+        if arch in ("i386", "i486", "i586", "i686"):
+            return "i386"
+        return arch
+
+    def _get_arch_package_mirror_info(self, arch=None):
+        mirror_info = self.get_option("package_mirrors", None)
+        if arch == None:
+            arch = self.get_primary_arch()
+        return _get_arch_package_mirror_info(mirror_info, arch)
+
+    def get_package_mirror_info(self, arch=None,
+                                availability_zone=None):
+        # this resolves the package_mirrors config option
+        # down to a single dict of {mirror_name: mirror_url}
+        arch_info = self._get_arch_package_mirror_info(arch)
+
+        return _get_package_mirror_info(availability_zone=availability_zone,
+                                        mirror_info=arch_info)
 
     def apply_network(self, settings, bring_up=True):
         # Write it out
@@ -150,6 +170,55 @@ class Distro(object):
             util.logexc(LOG, "Running interface command %s failed", cmd)
             return False
 
+
+def _get_package_mirror_info(mirror_info, availability_zone=None,
+                             mirror_filter=util.search_for_mirror):
+    # given a arch specific 'mirror_info' entry (from package_mirrors)
+    # search through the 'search' entries, and fallback appropriately
+    # return a dict with only {name: mirror} entries.
+
+    ec2_az_re = ("^[a-z][a-z]-(%s)-[1-9][0-9]*[a-z]$" %
+        "north|northeast|east|southeast|south|southwest|west|northwest")
+
+    unset_value = "_UNSET_VALUE_USED_"
+    azone = availability_zone
+
+    if azone and re.match(ec2_az_re, azone):
+        ec2_region = "%s" % azone[0:-1]
+    elif azone:
+        ec2_region = unset_value
+    else:
+        azone = unset_value
+        ec2_region = unset_value
+
+    results = {}
+    for (name, mirror) in mirror_info.get('failsafe', {}).iteritems():
+        results[name] = mirror
+
+    for (name, searchlist) in mirror_info.get('search', {}).iteritems():
+        mirrors = [m % {'ec2_region': ec2_region, 'availability_zone': azone}
+                   for m in searchlist]
+        # now filter out anything that used the unset availability zone
+        mirrors = [m for m in mirrors if m.find(unset_value) < 0]
+
+        found = mirror_filter(mirrors)
+        if found:
+            results[name] = found
+
+    LOG.debug("filtered distro mirror info: %s" % results)
+
+    return results
+
+def _get_arch_package_mirror_info(package_mirrors, arch):
+    # pull out the specific arch from a 'package_mirrors' config option
+    default = None
+    for item in package_mirrors:
+        arches = item.get("arches")
+        if arch in arches:
+            return item
+        if "default" in arches:
+            default = item
+    return default
 
 def fetch(name):
     locs = importer.find_module(name,
