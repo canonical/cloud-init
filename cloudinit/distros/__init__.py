@@ -180,26 +180,24 @@ def _get_package_mirror_info(mirror_info, availability_zone=None,
     ec2_az_re = ("^[a-z][a-z]-(%s)-[1-9][0-9]*[a-z]$" %
         "north|northeast|east|southeast|south|southwest|west|northwest")
 
-    unset_value = "_UNSET_VALUE_USED_"
-    azone = availability_zone
+    subst = {}
+    if availability_zone:
+        subst['availability_zone'] = availability_zone
 
-    if azone and re.match(ec2_az_re, azone):
-        ec2_region = "%s" % azone[0:-1]
-    elif azone:
-        ec2_region = unset_value
-    else:
-        azone = unset_value
-        ec2_region = unset_value
+    if availability_zone and re.match(ec2_az_re, availability_zone):
+        subst['ec2_region'] = "%s" % availability_zone[0:-1]
 
     results = {}
     for (name, mirror) in mirror_info.get('failsafe', {}).iteritems():
         results[name] = mirror
 
     for (name, searchlist) in mirror_info.get('search', {}).iteritems():
-        mirrors = [m % {'ec2_region': ec2_region, 'availability_zone': azone}
-                   for m in searchlist]
-        # now filter out anything that used the unset availability zone
-        mirrors = [m for m in mirrors if m.find(unset_value) < 0]
+        mirrors = []
+        for tmpl in searchlist:
+            try:
+                mirrors.append(tmpl % subst)
+            except KeyError:
+                pass
 
         found = mirror_filter(mirrors)
         if found:
