@@ -47,18 +47,21 @@ def _gen_fingerprint(b64_text, hash_meth='md5'):
 
 def _is_printable_key(entry):
     if any([entry.keytype, entry.base64, entry.comment, entry.options]):
-        if entry.keytype and entry.keytype.lower().strip() in ['ssh-dss', 'ssh-rsa']:
+        if (entry.keytype and
+            entry.keytype.lower().strip() in ['ssh-dss', 'ssh-rsa']):
             return True
     return False
 
 
-def _pprint_key_entries(user, key_fn, key_entries, hash_meth='md5', prefix='ci-info: '):
+def _pprint_key_entries(user, key_fn, key_entries, hash_meth='md5',
+                        prefix='ci-info: '):
     if not key_entries:
         message = ("%sno authorized ssh keys fingerprints found for user %s."
                    % (prefix, user))
         util.multi_log(message)
         return
-    tbl_fields = ['Keytype', 'Fingerprint (%s)' % (hash_meth), 'Options', 'Comment']
+    tbl_fields = ['Keytype', 'Fingerprint (%s)' % (hash_meth), 'Options',
+                  'Comment']
     tbl = PrettyTable(tbl_fields)
     for entry in key_entries:
         if _is_printable_key(entry):
@@ -87,6 +90,7 @@ def handle(name, cfg, cloud, log, _args):
                    "logging of ssh fingerprints disabled"), name)
 
     user_name = util.get_cfg_option_str(cfg, "user", "ubuntu")
+    hash_meth = util.get_cfg_option_str(cfg, "authkey_hash", "md5")
     extract = ssh_util.extract_authorized_keys
     (auth_key_fn, auth_key_entries) = extract(user_name, cloud.paths)
     _pprint_key_entries(user_name, auth_key_fn, auth_key_entries, hash_meth)
