@@ -66,8 +66,8 @@ def handle(name, cfg, cloud, log, _args):
                                     'apt_preserve_sources_list', False):
         generate_sources_list(release, mirrors, cloud, log)
         old_mirrors = cfg.get('apt_old_mirrors',
-            old_mirrors = {"primary": "archive.ubuntu.com/ubuntu",
-                           "security": "security.ubuntu.com/ubuntu"})
+                              {"primary": "archive.ubuntu.com/ubuntu",
+                               "security": "security.ubuntu.com/ubuntu"})
         rename_apt_lists(old_mirrors, mirrors)
 
     # Set up any apt proxy
@@ -165,6 +165,7 @@ def rename_apt_lists(old_mirrors, new_mirrors, lists_d="/var/lib/apt/lists"):
         olen = len(oprefix)
         for filename in glob.glob("%s_*" % oprefix):
             util.rename(filename, "%s%s" % (nprefix, filename[olen:]))
+
 
 def get_release():
     (stdout, _stderr) = util.subp(['lsb_release', '-cs'])
@@ -276,8 +277,8 @@ def find_apt_mirror_info(cloud, cfg):
             mirror_list.append(mirrorfmt % (post))
 
         mirror = util.search_for_mirror(mirror_list)
-    
-    mirror_info = cloud.get_package_mirror_info()
+
+    mirror_info = cloud.datasource.get_package_mirror_info()
 
     # this is a bit strange.
     # if mirror is set, then one of the legacy options above set it
