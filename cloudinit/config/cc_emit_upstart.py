@@ -20,8 +20,8 @@
 
 import os
 
-from cloudinit import util
 from cloudinit.settings import PER_ALWAYS
+from cloudinit import util
 
 frequency = PER_ALWAYS
 
@@ -44,5 +44,5 @@ def handle(name, _cfg, cloud, log, args):
         try:
             util.subp(cmd)
         except Exception as e:
-            # TODO, use log exception from utils??
+            # TODO(harlowja), use log exception from utils??
             log.warn("Emission of upstart event %s failed due to: %s", n, e)

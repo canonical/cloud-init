@@ -326,7 +326,7 @@ class Init(object):
             'paths': self.paths,
             'datasource': self.datasource,
         }
-        # TODO Hmmm, should we dynamically import these??
+        # TODO(harlowja) Hmmm, should we dynamically import these??
         def_handlers = [
             cc_part.CloudConfigPartHandler(**opts),
             ss_part.ShellScriptPartHandler(**opts),
@@ -519,7 +519,7 @@ class Modules(object):
                               " but not on %s distro. It may or may not work"
                               " correctly."), name, worked_distros, d_name)
                 # Use the configs logger and not our own
-                # TODO: possibly check the module
+                # TODO(harlowja): possibly check the module
                 # for having a LOG attr and just give it back
                 # its own logger?
                 func_args = [name, self.cfg,

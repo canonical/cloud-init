@@ -20,8 +20,8 @@
 
 import os
 
-from cloudinit import util
 from cloudinit.settings import PER_ALWAYS
+from cloudinit import util
 
 frequency = PER_ALWAYS
 

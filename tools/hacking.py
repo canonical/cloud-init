@@ -100,7 +100,7 @@ def cloud_todo_format(physical_line):
     """
     pos = physical_line.find('TODO')
     pos1 = physical_line.find('TODO(')
-    pos2 = physical_line.find('#') # make sure it's a comment
+    pos2 = physical_line.find('#')  # make sure it's a comment
     if (pos != pos1 and pos2 >= 0 and pos2 < pos):
         return pos, "N101: Use TODO(NAME)"
 
@@ -131,7 +131,6 @@ def cloud_docstring_multiline_end(physical_line):
         print physical_line
         if (physical_line[pos + 3] == ' '):
             return (pos, "N403: multi line docstring end on new line")
-
 
 
 current_file = ""
@@ -169,4 +168,3 @@ if __name__ == "__main__":
         if len(_missingImport) > 0:
             print >> sys.stderr, ("%i imports missing in this test environment"
                     % len(_missingImport))
-
