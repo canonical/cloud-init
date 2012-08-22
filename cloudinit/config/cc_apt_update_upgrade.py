@@ -50,20 +50,25 @@ def handle(name, cfg, cloud, log, _args):
     upgrade = util.get_cfg_option_bool(cfg, 'apt_upgrade', False)
 
     release = get_release()
-    mirror = find_apt_mirror(cloud, cfg)
-    if not mirror:
+    mirrors = find_apt_mirror_info(cloud, cfg)
+    if not mirrors or "primary" not in mirrors:
         log.debug(("Skipping module named %s,"
                    " no package 'mirror' located"), name)
         return
 
-    log.debug("Selected mirror at: %s" % mirror)
+    # backwards compatibility
+    mirror = mirrors["primary"]
+    mirrors["mirror"] = mirror
+
+    log.debug("mirror info: %s" % mirrors)
 
     if not util.get_cfg_option_bool(cfg,
                                     'apt_preserve_sources_list', False):
-        generate_sources_list(release, mirror, cloud, log)
-        old_mir = util.get_cfg_option_str(cfg, 'apt_old_mirror',
-                                          "archive.ubuntu.com/ubuntu")
-        rename_apt_lists(old_mir, mirror)
+        generate_sources_list(release, mirrors, cloud, log)
+        old_mirrors = cfg.get('apt_old_mirrors',
+                              {"primary": "archive.ubuntu.com/ubuntu",
+                               "security": "security.ubuntu.com/ubuntu"})
+        rename_apt_lists(old_mirrors, mirrors)
 
     # Set up any apt proxy
     proxy = cfg.get("apt_proxy", None)
@@ -81,8 +86,10 @@ def handle(name, cfg, cloud, log, _args):
 
     # Process 'apt_sources'
     if 'apt_sources' in cfg:
-        errors = add_sources(cloud, cfg['apt_sources'],
-                             {'MIRROR': mirror, 'RELEASE': release})
+        params = mirrors
+        params['RELEASE'] = release
+        params['MIRROR'] = mirror
+        errors = add_sources(cloud, cfg['apt_sources'], params)
         for e in errors:
             log.warn("Source Error: %s", ':'.join(e))
 
@@ -146,15 +153,18 @@ def mirror2lists_fileprefix(mirror):
     return string
 
 
-def rename_apt_lists(omirror, new_mirror, lists_d="/var/lib/apt/lists"):
-    oprefix = os.path.join(lists_d, mirror2lists_fileprefix(omirror))
-    nprefix = os.path.join(lists_d, mirror2lists_fileprefix(new_mirror))
-    if oprefix == nprefix:
-        return
-    olen = len(oprefix)
-    for filename in glob.glob("%s_*" % oprefix):
-        # TODO(harlowja) use the cloud.paths.join...
-        util.rename(filename, "%s%s" % (nprefix, filename[olen:]))
+def rename_apt_lists(old_mirrors, new_mirrors, lists_d="/var/lib/apt/lists"):
+    for (name, omirror) in old_mirrors.iteritems():
+        nmirror = new_mirrors.get(name)
+        if not nmirror:
+            continue
+        oprefix = os.path.join(lists_d, mirror2lists_fileprefix(omirror))
+        nprefix = os.path.join(lists_d, mirror2lists_fileprefix(nmirror))
+        if oprefix == nprefix:
+            continue
+        olen = len(oprefix)
+        for filename in glob.glob("%s_*" % oprefix):
+            util.rename(filename, "%s%s" % (nprefix, filename[olen:]))
 
 
 def get_release():
@@ -162,14 +172,17 @@ def get_release():
     return stdout.strip()
 
 
-def generate_sources_list(codename, mirror, cloud, log):
+def generate_sources_list(codename, mirrors, cloud, log):
     template_fn = cloud.get_template_filename('sources.list')
-    if template_fn:
-        params = {'mirror': mirror, 'codename': codename}
-        out_fn = cloud.paths.join(False, '/etc/apt/sources.list')
-        templater.render_to_file(template_fn, out_fn, params)
-    else:
+    if not template_fn:
         log.warn("No template found, not rendering /etc/apt/sources.list")
+        return
+
+    params = {'codename': codename}
+    for k in mirrors:
+        params[k] = mirrors[k]
+    out_fn = cloud.paths.join(False, '/etc/apt/sources.list')
+    templater.render_to_file(template_fn, out_fn, params)
 
 
 def add_sources(cloud, srclist, template_params=None):
@@ -231,43 +244,47 @@ def add_sources(cloud, srclist, template_params=None):
     return errorlist
 
 
-def find_apt_mirror(cloud, cfg):
+def find_apt_mirror_info(cloud, cfg):
     """find an apt_mirror given the cloud and cfg provided."""
 
     mirror = None
 
-    cfg_mirror = cfg.get("apt_mirror", None)
-    if cfg_mirror:
-        mirror = cfg["apt_mirror"]
-    elif "apt_mirror_search" in cfg:
-        mirror = util.search_for_mirror(cfg['apt_mirror_search'])
-    else:
-        mirror = cloud.get_local_mirror()
+    # this is less preferred way of specifying mirror preferred would be to
+    # use the distro's search or package_mirror.
+    mirror = cfg.get("apt_mirror", None)
 
+    search = cfg.get("apt_mirror_search", None)
+    if not mirror and search:
+        mirror = util.search_for_mirror(search)
+
+    if (not mirror and
+        util.get_cfg_option_bool(cfg, "apt_mirror_search_dns", False)):
         mydom = ""
-
         doms = []
 
-        if not mirror:
-            # if we have a fqdn, then search its domain portion first
-            (_hostname, fqdn) = util.get_hostname_fqdn(cfg, cloud)
-            mydom = ".".join(fqdn.split(".")[1:])
-            if mydom:
-                doms.append(".%s" % mydom)
+        # if we have a fqdn, then search its domain portion first
+        (_hostname, fqdn) = util.get_hostname_fqdn(cfg, cloud)
+        mydom = ".".join(fqdn.split(".")[1:])
+        if mydom:
+            doms.append(".%s" % mydom)
 
-        if (not mirror and
-            util.get_cfg_option_bool(cfg, "apt_mirror_search_dns", False)):
-            doms.extend((".localdomain", "",))
+        doms.extend((".localdomain", "",))
 
-            mirror_list = []
-            distro = cloud.distro.name
-            mirrorfmt = "http://%s-mirror%s/%s" % (distro, "%s", distro)
-            for post in doms:
-                mirror_list.append(mirrorfmt % (post))
+        mirror_list = []
+        distro = cloud.distro.name
+        mirrorfmt = "http://%s-mirror%s/%s" % (distro, "%s", distro)
+        for post in doms:
+            mirror_list.append(mirrorfmt % (post))
 
-            mirror = util.search_for_mirror(mirror_list)
+        mirror = util.search_for_mirror(mirror_list)
 
-    if not mirror:
-        mirror = cloud.distro.get_package_mirror()
+    mirror_info = cloud.datasource.get_package_mirror_info()
 
-    return mirror
+    # this is a bit strange.
+    # if mirror is set, then one of the legacy options above set it
+    # but they do not cover security. so we need to get that from
+    # get_package_mirror_info
+    if mirror:
+        mirror_info.update({'primary': mirror})
+
+    return mirror_info
