@@ -26,16 +26,14 @@ LOG = logging.getLogger(__name__)
 class DataSourceNone(sources.DataSource):
     def __init__(self, sys_cfg, distro, paths, ud_proc=None):
         sources.DataSource.__init__(self, sys_cfg, distro, paths, ud_proc)
-        self.userdata = {}
         self.metadata = {}
         self.userdata_raw = ''
 
     def get_data(self):
         # If the datasource config has any provided 'fallback'
         # userdata or metadata, use it...
-        if 'userdata' in self.ds_cfg:
-            self.userdata = self.ds_cfg['userdata']
-            self.userdata_raw = util.yaml_dumps(self.userdata)
+        if 'userdata_raw' in self.ds_cfg:
+            self.userdata_raw = self.ds_cfg['userdata_raw']
         if 'metadata' in self.ds_cfg:
             self.metadata = self.ds_cfg['metadata']
         return True
