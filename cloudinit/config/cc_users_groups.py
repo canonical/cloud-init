@@ -78,7 +78,3 @@ def handle(name, cfg, cloud, log, _args):
                         new_opts[opt.replace('-', '')] = user_config[opt]
 
                 cloud.distro.create_user(name, **new_opts)
-
-    if user_zero:
-        cloud.distro.set_configured_user(user_zero)
-        log.info("Set configured user for this instance to %s" % user_zero)

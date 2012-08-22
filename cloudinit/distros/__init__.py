@@ -49,13 +49,10 @@ class Distro(object):
         self._paths = paths
         self._cfg = cfg
         self.name = name
+        self.default_user = None
 
     @abc.abstractmethod
     def add_default_user(self):
-        raise NotImplementedError()
-
-    @abc.abstractmethod
-    def get_default_user(self):
         raise NotImplementedError()
 
     @abc.abstractmethod
@@ -172,11 +169,9 @@ class Distro(object):
     def set_configured_user(self, name):
         self.default_user = name
 
-    def get_configured_user(self):
-        try:
-            return getattr(self, 'default_user')
-        except:
-            return None
+    def get_default_user(self):
+        return None
+
 
     def create_user(self, name, **kwargs):
         """
@@ -241,7 +236,7 @@ class Distro(object):
             util.subp(adduser_cmd, logstring=x_adduser_cmd)
         except Exception as e:
             util.logexc(LOG, "Failed to create user %s due to error.", e)
-            return False
+            raise e
 
         # Set password if plain-text password provided
         if 'plain_text_passwd' in kwargs and kwargs['plain_text_passwd']:
@@ -256,7 +251,7 @@ class Distro(object):
             except Exception as e:
                 util.logexc(LOG, ("Failed to disable password logins for"
                             "user %s" % name), e)
-                return False
+                raise e
 
         # Configure sudo access
         if 'sudo' in kwargs:
@@ -280,7 +275,7 @@ class Distro(object):
             util.subp(cmd, pass_string, logstring="chpasswd for %s" % user)
         except Exception as e:
             util.logexc(LOG, "Failed to set password for %s" % user)
-            return False
+            raise e
 
         return True
 
@@ -306,9 +301,9 @@ class Distro(object):
             try:
                 with open(sudo_file, 'a') as f:
                     f.write(content)
-                f.close()
             except IOError as e:
                 util.logexc(LOG, "Failed to write %s" % sudo_file, e)
+                raise e
 
     def isgroup(self, name):
         try:
