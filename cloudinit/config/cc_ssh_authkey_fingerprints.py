@@ -27,13 +27,8 @@ from cloudinit import util
 
 def _split_hash(bin_hash):
     split_up = []
-<<<<<<< TREE
-    for i in xrange(0, len(bin_hash), FP_SEGMENT_LEN):
-        split_up.append(bin_hash[i:i + FP_SEGMENT_LEN])
-=======
     for i in xrange(0, len(bin_hash), 2):
         split_up.append(bin_hash[i:i+2])
->>>>>>> MERGE-SOURCE
     return split_up
 
 
