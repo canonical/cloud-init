@@ -22,8 +22,8 @@ import os
 import stat
 import time
 
-from cloudinit import util
 from cloudinit.settings import PER_ALWAYS
+from cloudinit import util
 
 frequency = PER_ALWAYS
 
@@ -72,12 +72,12 @@ def handle(name, cfg, cloud, log, args):
         log.debug("Skipping module named %s, resizing disabled", name)
         return
 
-    # TODO is the directory ok to be used??
+    # TODO(harlowja) is the directory ok to be used??
     resize_root_d = util.get_cfg_option_str(cfg, "resize_rootfs_tmp", "/run")
     resize_root_d = cloud.paths.join(False, resize_root_d)
     util.ensure_dir(resize_root_d)
 
-    # TODO: allow what is to be resized to be configurable??
+    # TODO(harlowja): allow what is to be resized to be configurable??
     resize_what = cloud.paths.join(False, "/")
     with util.ExtendedTemporaryFile(prefix="cloudinit.resizefs.",
                                     dir=resize_root_d, delete=True) as tfh:
@@ -136,5 +136,5 @@ def do_resize(resize_cmd, log):
         raise
     tot_time = time.time() - start
     log.debug("Resizing took %.3f seconds", tot_time)
-    # TODO: Should we add a fsck check after this to make
+    # TODO(harlowja): Should we add a fsck check after this to make
     # sure we didn't corrupt anything?

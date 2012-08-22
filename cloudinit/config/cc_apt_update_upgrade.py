@@ -153,7 +153,7 @@ def rename_apt_lists(omirror, new_mirror, lists_d="/var/lib/apt/lists"):
         return
     olen = len(oprefix)
     for filename in glob.glob("%s_*" % oprefix):
-        # TODO use the cloud.paths.join...
+        # TODO(harlowja) use the cloud.paths.join...
         util.rename(filename, "%s%s" % (nprefix, filename[olen:]))
 
 
@@ -232,7 +232,7 @@ def add_sources(cloud, srclist, template_params=None):
 
 
 def find_apt_mirror(cloud, cfg):
-    """ find an apt_mirror given the cloud and cfg provided """
+    """find an apt_mirror given the cloud and cfg provided."""
 
     mirror = None
 

@@ -43,7 +43,7 @@ class ShellScriptPartHandler(handlers.Handler):
 
     def _handle_part(self, _data, ctype, filename, payload, _frequency):
         if ctype in handlers.CONTENT_SIGNALS:
-            # TODO: maybe delete existing things here
+            # TODO(harlowja): maybe delete existing things here
             return
 
         filename = util.clean_filename(filename)
