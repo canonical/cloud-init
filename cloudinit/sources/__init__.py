@@ -167,7 +167,7 @@ class DataSource(object):
             return hostname
 
     def get_package_mirror_info(self):
-        self.distro.get_package_mirror_info(
+        return self.distro.get_package_mirror_info(
             availability_zone=self.availability_zone)
 
 
