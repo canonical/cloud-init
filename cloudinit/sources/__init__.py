@@ -65,6 +65,10 @@ class DataSource(object):
             self.userdata = self.ud_proc.process(raw_data)
         return self.userdata
 
+    @property
+    def is_disconnected(self):
+        return False
+
     def get_userdata_raw(self):
         return self.userdata_raw
 
@@ -113,9 +117,9 @@ class DataSource(object):
     def get_locale(self):
         return 'en_US.UTF-8'
 
-    def get_local_mirror(self):
-        # ??
-        return None
+    @property
+    def availability_zone(self):
+        return self.metadata.get('availability-zone')
 
     def get_instance_id(self):
         if not self.metadata or 'instance-id' not in self.metadata:
@@ -161,6 +165,10 @@ class DataSource(object):
             return "%s.%s" % (hostname, domain)
         else:
             return hostname
+
+    def get_package_mirror_info(self):
+        return self.distro.get_package_mirror_info(
+            availability_zone=self.availability_zone)
 
 
 def find_source(sys_cfg, distro, paths, ds_deps, cfg_list, pkg_list):

@@ -133,7 +133,7 @@ def walker_handle_handler(pdata, _ctype, _filename, payload):
     modfname = os.path.join(pdata['handlerdir'], "%s" % (modname))
     if not modfname.endswith(".py"):
         modfname = "%s.py" % (modfname)
-    # TODO: Check if path exists??
+    # TODO(harlowja): Check if path exists??
     util.write_file(modfname, payload, 0600)
     handlers = pdata['handlers']
     try:

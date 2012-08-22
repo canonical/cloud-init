@@ -19,8 +19,8 @@
 import base64
 import os
 
-from cloudinit import util
 from cloudinit.settings import PER_INSTANCE
+from cloudinit import util
 
 frequency = PER_INSTANCE
 
@@ -46,7 +46,7 @@ def canonicalize_extraction(encoding_type, log):
         return ['application/x-gzip']
     if encoding_type in ['gz+base64', 'gzip+base64', 'gz+b64', 'gzip+b64']:
         return ['application/base64', 'application/x-gzip']
-    # Yaml already encodes binary data as base64 if it is given to the 
+    # Yaml already encodes binary data as base64 if it is given to the
     # yaml file as binary, so those will be automatically decoded for you.
     # But the above b64 is just for people that are more 'comfortable'
     # specifing it manually (which might be a possiblity)
