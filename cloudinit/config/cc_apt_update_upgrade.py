@@ -20,6 +20,7 @@
 
 import glob
 import os
+import time
 
 from cloudinit import templater
 from cloudinit import util
@@ -124,6 +125,20 @@ def handle(name, cfg, cloud, log, _args):
         except Exception as e:
             util.logexc(log, "Failed to install packages: %s ", pkglist)
             errors.append(e)
+
+    # kernel and openssl (possibly some other packages)
+    # write a file /var/run/reboot-required after upgrading.
+    # if that file exists and configured, then just stop right now and reboot
+    # TODO(smoser): handle this less voilently
+    reboot_file = "/var/run/reboot-required"
+    if ((upgrade or pkglist) and cfg.get("apt_reboot_if_required", False) and
+         os.path.isfile(reboot_file)):
+        log.warn("rebooting after upgrade or install per %s" % reboot_file)
+        time.sleep(1)  # give the warning time to get out
+        util.subp(["/sbin/reboot"])
+        time.sleep(60)
+        log.warn("requested reboot did not happen!")
+        errors.append(Exception("requested reboot did not happen!"))
 
     if len(errors):
         log.warn("%s failed with exceptions, re-raising the last one",
