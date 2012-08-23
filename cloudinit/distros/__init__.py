@@ -211,11 +211,6 @@ class Distro(object):
             distros where useradd is not desirable or not available.
         """
 
-        if self.isuser(name):
-            LOG.warn("User %s already exists, skipping." % name)
-        else:
-            LOG.debug("Creating name %s" % name)
-
         adduser_cmd = ['useradd', name]
         x_adduser_cmd = ['useradd', name]
 
@@ -263,11 +258,15 @@ class Distro(object):
             adduser_cmd.append('-m')
 
         # Create the user
-        try:
-            util.subp(adduser_cmd, logstring=x_adduser_cmd)
-        except Exception as e:
-            util.logexc(LOG, "Failed to create user %s due to error.", e)
-            raise e
+        if self.isuser(name):
+            LOG.warn("User %s already exists, skipping." % name)
+        else:
+            LOG.debug("Creating name %s" % name)
+            try:
+                util.subp(adduser_cmd, logstring=x_adduser_cmd)
+            except Exception as e:
+                util.logexc(LOG, "Failed to create user %s due to error.", e)
+                raise e
 
         # Set password if plain-text password provided
         if 'plain_text_passwd' in kwargs and kwargs['plain_text_passwd']:
