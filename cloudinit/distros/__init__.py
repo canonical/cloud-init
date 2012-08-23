@@ -67,11 +67,10 @@ class Distro(object):
                         home="/home/%s" % user,
                         shell="/bin/bash",
                         lockpasswd=True,
-                        gecos="%s%s" % (user[0:1].upper(),user[1:]),
+                        gecos="%s%s" % (user[0:1].upper(), user[1:]),
                         sudo="ALL=(ALL) NOPASSWD:ALL")
 
         LOG.info("Added default '%s' user with passwordless sudo", user)
-
 
     @abc.abstractmethod
     def install_packages(self, pkglist):
