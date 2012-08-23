@@ -1337,10 +1337,10 @@ def subp(args, data=None, rcs=None, env=None, capture=True, shell=False, logstri
 
         if not logstring:
             LOG.debug(("Running command %s with allowed return codes %s"
-                      " (shell=%s, capture=%s)"), args, rcs, shell, capture)
+                       " (shell=%s, capture=%s)"), args, rcs, shell, capture)
         else:
             LOG.debug(("Running hidden command to protect sensitive input/output "
-                        " logstring: %s" ), logstring)
+                       " logstring: %s"), logstring)
 
         if not capture:
             stdout = None

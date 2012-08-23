@@ -25,8 +25,9 @@ from cloudinit import distros
 from cloudinit.distros import debian
 from cloudinit import helpers
 from cloudinit import log as logging
-from cloudinit import util
 from cloudinit.settings import PER_INSTANCE
+from cloudinit import util
+
 import hashlib
 import pwd
 

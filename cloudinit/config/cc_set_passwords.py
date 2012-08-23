@@ -53,7 +53,7 @@ def handle(_name, cfg, cloud, log, args):
         user = cloud.distro.get_default_user()
 
         if 'users' in cfg:
-            user_zero =  cfg['users'].keys()[0]
+            user_zero = cfg['users'].keys()[0]
 
             if user_zero != "default":
                 user = user_zero

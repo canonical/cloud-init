@@ -31,8 +31,8 @@ import re
 
 from cloudinit import importer
 from cloudinit import log as logging
-from cloudinit import util
 from cloudinit import ssh_util
+from cloudinit import util
 
 # TODO(harlowja): Make this via config??
 IFACE_ACTIONS = {
@@ -191,7 +191,6 @@ class Distro(object):
 
     def get_default_user(self):
         return None
-
 
     def create_user(self, name, **kwargs):
         """
