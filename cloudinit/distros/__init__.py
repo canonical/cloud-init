@@ -46,16 +46,33 @@ LOG = logging.getLogger(__name__)
 class Distro(object):
 
     __metaclass__ = abc.ABCMeta
+    default_user = None
 
     def __init__(self, name, cfg, paths):
         self._paths = paths
         self._cfg = cfg
         self.name = name
-        self.default_user = None
 
     @abc.abstractmethod
     def add_default_user(self):
-        raise NotImplementedError()
+        # Adds the distro user using the rules:
+        #  - Password is same as username but is locked
+        #  - nopasswd sudo access
+
+        user = self.get_default_user()
+        if not user:
+            raise NotImplementedError("No Default user")
+
+        self.create_user(user,
+                        plain_text_passwd=user,
+                        home="/home/%s" % user,
+                        shell="/bin/bash",
+                        lockpasswd=True,
+                        gecos="%s%s" % (user[0:1].upper(),user[1:]),
+                        sudo="ALL=(ALL) NOPASSWD:ALL")
+
+        LOG.info("Added default '%s' user with passwordless sudo", user)
+
 
     @abc.abstractmethod
     def install_packages(self, pkglist):
@@ -186,11 +203,8 @@ class Distro(object):
         except KeyError:
             return False
 
-    def set_configured_user(self, name):
-        self.default_user = name
-
     def get_default_user(self):
-        return None
+        return self.default_user
 
     def create_user(self, name, **kwargs):
         """
@@ -326,7 +340,7 @@ class Distro(object):
 
     def isgroup(self, name):
         try:
-            if grp.getgrpnam(name):
+            if grp.getgrnam(name):
                 return True
         except:
             return False

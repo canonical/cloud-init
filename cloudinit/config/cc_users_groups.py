@@ -16,22 +16,12 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import grp
-import os
-import pwd
-import traceback
-
 from cloudinit.settings import PER_INSTANCE
-from cloudinit import ssh_util
-from cloudinit import templater
-from cloudinit import util
 
 frequency = PER_INSTANCE
 
 
 def handle(name, cfg, cloud, log, _args):
-    groups_cfg = None
-    users_cfg = None
     user_zero = None
 
     if 'groups' in cfg:
@@ -43,7 +33,7 @@ def handle(name, cfg, cloud, log, _args):
                     elif isinstance(values, str):
                         cloud.distro.create_group(name, values.split(','))
             else:
-                cloud.distro.create_group(item, [])
+                cloud.distro.create_group(group, [])
 
     if 'users' in cfg:
         user_zero = None
@@ -63,7 +53,7 @@ def handle(name, cfg, cloud, log, _args):
                     if user_zero == name:
                         user_zero = cloud.distro.get_default_user()
 
-                except NotImplementedError as e:
+                except NotImplementedError:
 
                     if user_zero == name:
                         user_zero = None
