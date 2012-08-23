@@ -53,7 +53,6 @@ class Distro(object):
         self._cfg = cfg
         self.name = name
 
-    @abc.abstractmethod
     def add_default_user(self):
         # Adds the distro user using the rules:
         #  - Password is same as username but is locked
