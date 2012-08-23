@@ -21,15 +21,9 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-from cloudinit import distros
 from cloudinit.distros import debian
-from cloudinit import helpers
 from cloudinit import log as logging
-from cloudinit.settings import PER_INSTANCE
 from cloudinit import util
-
-import hashlib
-import pwd
 
 LOG = logging.getLogger(__name__)
 
@@ -37,32 +31,10 @@ LOG = logging.getLogger(__name__)
 class Distro(debian.Distro):
 
     distro_name = 'ubuntu'
-    __default_user_name__ = 'ubuntu'
+    default_user = 'ubuntu'
 
     def __init__(self, name, cfg, paths):
-        distros.Distro.__init__(self, name, cfg, paths)
-        # This will be used to restrict certain
-        # calls from repeatly happening (when they
-        # should only happen say once per instance...)
-        self._runner = helpers.Runners(paths)
-
-    def get_default_user(self):
-        return self.__default_user_name__
-
-    def add_default_user(self):
-        # Adds the ubuntu user using the rules:
-        #  - Password is 'ubuntu', but is locked
-        #  - nopasswd sudo access
-
-        self.create_user(self.__default_user_name__,
-                        plain_text_passwd=self.__default_user_name__,
-                        home="/home/%s" % self.__default_user_name__,
-                        shell="/bin/bash",
-                        lockpasswd=True,
-                        gecos="Ubuntu",
-                        sudo="ALL=(ALL) NOPASSWD:ALL")
-
-        LOG.info("Added default 'ubuntu' user with passwordless sudo")
+        super(Distro, self).__init__(self, name, cfg, paths)
 
     def create_user(self, name, **kargs):
 
