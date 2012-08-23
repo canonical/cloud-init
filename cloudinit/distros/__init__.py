@@ -218,7 +218,7 @@ class Distro(object):
             LOG.debug("Creating name %s" % name)
 
         adduser_cmd = ['useradd', name]
-        x_adduser_cmd = adduser_cmd
+        x_adduser_cmd = ['useradd', name]
 
         # Since we are creating users, we want to carefully validate the
         # inputs. If something goes wrong, we can end up with a system
@@ -254,7 +254,7 @@ class Distro(object):
                 else:
                     x_adduser_cmd.extend([adduser_opts[option], 'REDACTED'])
 
-            if option in adduser_opts_flags and value:
+            elif option in adduser_opts_flags and value:
                 adduser_cmd.append(adduser_opts_flags[option])
                 x_adduser_cmd.append(adduser_opts_flags[option])
 
