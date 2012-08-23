@@ -33,9 +33,6 @@ class Distro(debian.Distro):
     distro_name = 'ubuntu'
     default_user = 'ubuntu'
 
-    def __init__(self, name, cfg, paths):
-        super(Distro, self).__init__(self, name, cfg, paths)
-
     def create_user(self, name, **kargs):
 
         if not super(Distro, self).create_user(name, **kargs):
