@@ -1,6 +1,6 @@
-import StringIO
 import logging
 import os
+import StringIO
 import sys
 
 from mocker import MockerTestCase, ANY, ARGS, KWARGS
@@ -50,24 +50,27 @@ class TestWalkerHandleHandler(MockerTestCase):
         self.payload = "dummy payload"
 
         # Mock the write_file function
-        write_file_mock = self.mocker.replace(util.write_file, passthrough=False)
+        write_file_mock = self.mocker.replace(util.write_file,
+                                              passthrough=False)
         write_file_mock(expected_file_fullname, self.payload, 0600)
 
     def test_no_errors(self):
         """Payload gets written to file and added to C{pdata}."""
-        import_mock = self.mocker.replace(importer.import_module, passthrough=False)
+        import_mock = self.mocker.replace(importer.import_module,
+                                          passthrough=False)
         import_mock(self.expected_module_name)
         self.mocker.result(self.module_fake)
         self.mocker.replay()
- 
+
         handlers.walker_handle_handler(self.data, self.ctype, self.filename,
                                        self.payload)
- 
+
         self.assertEqual(1, self.data["handlercount"])
- 
+
     def test_import_error(self):
-        """Module import errors are logged. No handler added to C{pdata}"""
-        import_mock = self.mocker.replace(importer.import_module, passthrough=False)
+        """Module import errors are logged. No handler added to C{pdata}."""
+        import_mock = self.mocker.replace(importer.import_module,
+                                          passthrough=False)
         import_mock(self.expected_module_name)
         self.mocker.throw(ImportError())
         self.mocker.replay()
@@ -78,8 +81,9 @@ class TestWalkerHandleHandler(MockerTestCase):
         self.assertEqual(0, self.data["handlercount"])
 
     def test_attribute_error(self):
-        """Attribute errors are logged. No handler added to C{pdata}"""
-        import_mock = self.mocker.replace(importer.import_module, passthrough=False)
+        """Attribute errors are logged. No handler added to C{pdata}."""
+        import_mock = self.mocker.replace(importer.import_module,
+                                          passthrough=False)
         import_mock(self.expected_module_name)
         self.mocker.result(self.module_fake)
         self.mocker.throw(AttributeError())
@@ -152,7 +156,7 @@ class TestHandlerHandlePart(MockerTestCase):
                           self.payload, self.frequency)
 
     def test_no_handle_when_modfreq_once(self):
-        """C{handle_part} is not called if frequency is once"""
+        """C{handle_part} is not called if frequency is once."""
         self.frequency = "once"
         mod_mock = self.mocker.mock()
         getattr(mod_mock, "frequency")
@@ -185,13 +189,15 @@ class TestCmdlineUrl(MockerTestCase):
         payload = "0"
         cmdline = "ro %s=%s bar=1" % (key, url)
 
-        mock_readurl = self.mocker.replace(url_helper.readurl, passthrough=False)
+        mock_readurl = self.mocker.replace(url_helper.readurl,
+                                           passthrough=False)
         mock_readurl(url)
         self.mocker.result(url_helper.UrlResponse(200, payload))
         self.mocker.replay()
 
         self.assertEqual((key, url, None),
-            util.get_cmdline_url(names=[key], starts="xxxxxx", cmdline=cmdline))
+            util.get_cmdline_url(names=[key], starts="xxxxxx",
+                                 cmdline=cmdline))
 
     def test_valid_content(self):
         url = "http://example.com/foo"
@@ -199,7 +205,8 @@ class TestCmdlineUrl(MockerTestCase):
         payload = "xcloud-config\nmydata: foo\nbar: wark\n"
         cmdline = "ro %s=%s bar=1" % (key, url)
 
-        mock_readurl = self.mocker.replace(url_helper.readurl, passthrough=False)
+        mock_readurl = self.mocker.replace(url_helper.readurl,
+                                           passthrough=False)
         mock_readurl(url)
         self.mocker.result(url_helper.UrlResponse(200, payload))
         self.mocker.replay()

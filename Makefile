@@ -1,5 +1,5 @@
 CWD=$(shell pwd)
-PY_FILES=$(shell find cloudinit bin -name "*.py")
+PY_FILES=$(shell find cloudinit bin tests tools -name "*.py")
 PY_FILES+="bin/cloud-init"
 
 all: test

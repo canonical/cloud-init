@@ -82,9 +82,6 @@ class Cloud(object):
     def get_locale(self):
         return self.datasource.get_locale()
 
-    def get_local_mirror(self):
-        return self.datasource.get_local_mirror()
-
     def get_hostname(self, fqdn=False):
         return self.datasource.get_hostname(fqdn=fqdn)
 

@@ -1,10 +1,8 @@
-import os
-from StringIO import StringIO
 from copy import copy
+import os
 
-from cloudinit import util
-from cloudinit import url_helper
 from cloudinit.sources import DataSourceMAAS
+from cloudinit import url_helper
 
 from mocker import MockerTestCase
 
@@ -17,7 +15,7 @@ class TestMAASDataSource(MockerTestCase):
         self.tmp = self.makeDir()
 
     def test_seed_dir_valid(self):
-        """Verify a valid seeddir is read as such"""
+        """Verify a valid seeddir is read as such."""
 
         data = {'instance-id': 'i-valid01',
             'local-hostname': 'valid01-hostname',
@@ -37,7 +35,7 @@ class TestMAASDataSource(MockerTestCase):
         self.assertFalse(('user-data' in metadata))
 
     def test_seed_dir_valid_extra(self):
-        """Verify extra files do not affect seed_dir validity """
+        """Verify extra files do not affect seed_dir validity."""
 
         data = {'instance-id': 'i-valid-extra',
             'local-hostname': 'valid-extra-hostname',
@@ -56,7 +54,7 @@ class TestMAASDataSource(MockerTestCase):
         self.assertFalse(('foo' in metadata))
 
     def test_seed_dir_invalid(self):
-        """Verify that invalid seed_dir raises MAASSeedDirMalformed"""
+        """Verify that invalid seed_dir raises MAASSeedDirMalformed."""
 
         valid = {'instance-id': 'i-instanceid',
             'local-hostname': 'test-hostname', 'user-data': ''}
@@ -80,20 +78,20 @@ class TestMAASDataSource(MockerTestCase):
                           DataSourceMAAS.read_maas_seed_dir, my_d)
 
     def test_seed_dir_none(self):
-        """Verify that empty seed_dir raises MAASSeedDirNone"""
+        """Verify that empty seed_dir raises MAASSeedDirNone."""
 
         my_d = os.path.join(self.tmp, "valid_empty")
         self.assertRaises(DataSourceMAAS.MAASSeedDirNone,
                           DataSourceMAAS.read_maas_seed_dir, my_d)
 
     def test_seed_dir_missing(self):
-        """Verify that missing seed_dir raises MAASSeedDirNone"""
-        self.assertRaises(DataSourceMAAS.MAASSeedDirNone, 
+        """Verify that missing seed_dir raises MAASSeedDirNone."""
+        self.assertRaises(DataSourceMAAS.MAASSeedDirNone,
             DataSourceMAAS.read_maas_seed_dir,
             os.path.join(self.tmp, "nonexistantdirectory"))
 
     def test_seed_url_valid(self):
-        """Verify that valid seed_url is read as such"""
+        """Verify that valid seed_url is read as such."""
         valid = {'meta-data/instance-id': 'i-instanceid',
             'meta-data/local-hostname': 'test-hostname',
             'meta-data/public-keys': 'test-hostname',
@@ -131,11 +129,11 @@ class TestMAASDataSource(MockerTestCase):
             valid['meta-data/local-hostname'])
 
     def test_seed_url_invalid(self):
-        """Verify that invalid seed_url raises MAASSeedDirMalformed"""
+        """Verify that invalid seed_url raises MAASSeedDirMalformed."""
         pass
 
     def test_seed_url_missing(self):
-        """Verify seed_url with no found entries raises MAASSeedDirNone"""
+        """Verify seed_url with no found entries raises MAASSeedDirNone."""
         pass
 
 

@@ -52,9 +52,9 @@ deb-src $mirror $codename-updates universe
 # deb http://archive.canonical.com/ubuntu $codename partner
 # deb-src http://archive.canonical.com/ubuntu $codename partner
 
-deb http://security.ubuntu.com/ubuntu $codename-security main
-deb-src http://security.ubuntu.com/ubuntu $codename-security main
-deb http://security.ubuntu.com/ubuntu $codename-security universe
-deb-src http://security.ubuntu.com/ubuntu $codename-security universe
-# deb http://security.ubuntu.com/ubuntu $codename-security multiverse
-# deb-src http://security.ubuntu.com/ubuntu $codename-security multiverse
+deb $security $codename-security main
+deb-src $security $codename-security main
+deb $security $codename-security universe
+deb-src $security $codename-security universe
+# deb $security $codename-security multiverse
+# deb-src $security $codename-security multiverse

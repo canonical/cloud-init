@@ -69,7 +69,7 @@ class Distro(distros.Distro):
         self.package_command('install', pkglist)
 
     def _write_network(self, settings):
-        # TODO fix this... since this is the ubuntu format
+        # TODO(harlowja) fix this... since this is the ubuntu format
         entries = translate_network(settings)
         LOG.debug("Translated ubuntu style network settings %s into %s",
                   settings, entries)
@@ -258,7 +258,7 @@ class QuotingConfigObj(ConfigObj):
 
 # This is a util function to translate a ubuntu /etc/network/interfaces 'blob'
 # to a rhel equiv. that can then be written to /etc/sysconfig/network-scripts/
-# TODO remove when we have python-netcf active...
+# TODO(harlowja) remove when we have python-netcf active...
 def translate_network(settings):
     # Get the standard cmd, args from the ubuntu format
     entries = []

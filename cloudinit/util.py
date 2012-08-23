@@ -24,8 +24,8 @@
 
 from StringIO import StringIO
 
-import copy as obj_copy
 import contextlib
+import copy as obj_copy
 import errno
 import glob
 import grp
@@ -55,6 +55,7 @@ from cloudinit import url_helper as uhelp
 from cloudinit.settings import (CFG_BUILTIN)
 
 
+_DNS_REDIRECT_IP = None
 LOG = logging.getLogger(__name__)
 
 # Helps cleanup filenames to ensure they aren't FS incompatible
@@ -316,8 +317,9 @@ def multi_log(text, console=True, stderr=True,
         else:
             log.log(log_level, text)
 
+
 def is_ipv4(instr):
-    """ determine if input string is a ipv4 address. return boolean"""
+    """determine if input string is a ipv4 address. return boolean."""
     toks = instr.split('.')
     if len(toks) != 4:
         return False
@@ -825,9 +827,43 @@ def get_cmdline_url(names=('cloud-config-url', 'url'),
 
 
 def is_resolvable(name):
-    """ determine if a url is resolvable, return a boolean """
+    """determine if a url is resolvable, return a boolean
+    This also attempts to be resilent against dns redirection.
+
+    Note, that normal nsswitch resolution is used here.  So in order
+    to avoid any utilization of 'search' entries in /etc/resolv.conf
+    we have to append '.'.
+
+    The top level 'invalid' domain is invalid per RFC.  And example.com
+    should also not exist.  The random entry will be resolved inside
+    the search list.
+    """
+    global _DNS_REDIRECT_IP  # pylint: disable=W0603
+    if _DNS_REDIRECT_IP is None:
+        badips = set()
+        badnames = ("does-not-exist.example.com.", "example.invalid.",
+                    rand_str())
+        badresults = {}
+        for iname in badnames:
+            try:
+                result = socket.getaddrinfo(iname, None, 0, 0,
+                    socket.SOCK_STREAM, socket.AI_CANONNAME)
+                badresults[iname] = []
+                for (_fam, _stype, _proto, cname, sockaddr) in result:
+                    badresults[iname].append("%s: %s" % (cname, sockaddr[0]))
+                    badips.add(sockaddr[0])
+            except socket.gaierror:
+                pass
+        _DNS_REDIRECT_IP = badips
+        if badresults:
+            LOG.debug("detected dns redirection: %s" % badresults)
+
     try:
-        socket.getaddrinfo(name, None)
+        result = socket.getaddrinfo(name, None)
+        # check first result's sockaddr field
+        addr = result[0][4][0]
+        if addr in _DNS_REDIRECT_IP:
+            return False
         return True
     except socket.gaierror:
         return False
@@ -839,7 +875,7 @@ def get_hostname():
 
 
 def is_resolvable_url(url):
-    """ determine if this url is resolvable (existing or ip) """
+    """determine if this url is resolvable (existing or ip)."""
     return (is_resolvable(urlparse.urlparse(url).hostname))
 
 
@@ -1070,7 +1106,7 @@ def hash_blob(blob, routine, mlen=None):
 
 def rename(src, dest):
     LOG.debug("Renaming %s to %s", src, dest)
-    # TODO use a se guard here??
+    # TODO(harlowja) use a se guard here??
     os.rename(src, dest)
 
 
@@ -1294,12 +1330,19 @@ def delete_dir_contents(dirname):
             del_file(node_fullpath)
 
 
-def subp(args, data=None, rcs=None, env=None, capture=True, shell=False):
+def subp(args, data=None, rcs=None, env=None, capture=True, shell=False,
+         logstring=False):
     if rcs is None:
         rcs = [0]
     try:
-        LOG.debug(("Running command %s with allowed return codes %s"
-                   " (shell=%s, capture=%s)"), args, rcs, shell, capture)
+
+        if not logstring:
+            LOG.debug(("Running command %s with allowed return codes %s"
+                       " (shell=%s, capture=%s)"), args, rcs, shell, capture)
+        else:
+            LOG.debug(("Running hidden command to protect sensitive "
+                       "input/output logstring: %s"), logstring)
+
         if not capture:
             stdout = None
             stderr = None

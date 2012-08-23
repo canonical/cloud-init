@@ -1,4 +1,4 @@
-"""Tests of the built-in user data handlers"""
+"""Tests of the built-in user data handlers."""
 
 import os
 
@@ -6,7 +6,6 @@ from mocker import MockerTestCase
 
 from cloudinit import handlers
 from cloudinit import helpers
-from cloudinit import util
 
 from cloudinit.handlers import upstart_job
 
@@ -34,7 +33,7 @@ class TestBuiltins(MockerTestCase):
                       None, None, None)
         self.assertEquals(0, len(os.listdir(up_root)))
 
-    def test_upstart_frequency_single(self): 
+    def test_upstart_frequency_single(self):
         c_root = self.makeDir()
         up_root = self.makeDir()
         paths = helpers.Paths({

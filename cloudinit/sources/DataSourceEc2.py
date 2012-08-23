@@ -83,40 +83,6 @@ class DataSourceEc2(sources.DataSource):
     def get_availability_zone(self):
         return self.metadata['placement']['availability-zone']
 
-    def get_local_mirror(self):
-        return self.get_mirror_from_availability_zone()
-
-    def get_mirror_from_availability_zone(self, availability_zone=None):
-        # Return type None indicates there is no cloud specific mirror
-        # Availability is like 'us-west-1b' or 'eu-west-1a'
-        if availability_zone is None:
-            availability_zone = self.get_availability_zone()
-
-        if self.is_vpc():
-            return None
-
-        if not availability_zone:
-            return None
-
-        mirror_tpl = self.distro.get_option('package_mirror_ec2_template',
-                                             None)
-
-        if mirror_tpl is None:
-            return None
-
-        # in EC2, the 'region' is 'us-east-1' if 'zone' is 'us-east-1a'
-        tpl_params = {
-            'zone': availability_zone.strip(),
-            'region': availability_zone[:-1]
-        }
-        mirror_url = mirror_tpl % (tpl_params)
-
-        found = util.search_for_mirror([mirror_url])
-        if found is not None:
-            return mirror_url
-
-        return None
-
     def _get_url_settings(self):
         mcfg = self.ds_cfg
         if not mcfg:
@@ -255,6 +221,12 @@ class DataSourceEc2(sources.DataSource):
             return True
         return False
 
+    @property
+    def availability_zone(self):
+        try:
+            return self.metadata['placement']['availability-zone']
+        except KeyError:
+            return None
 
 # Used to match classes to dependencies
 datasources = [

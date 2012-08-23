@@ -1,3 +1,22 @@
+cloud-init (0.7.0~bzr633-0ubuntu1) quantal; urgency=low
+
+  * New upstream snapshot.
+    * support creating users on boot. remove requirement for a 'ubuntu'
+      user to be previously present in image. (LP: #1028503)
+    * add experimental apt_reboot_if_required flag to reboot if necessary
+      after upgrade or package install (LP: #1038108)
+    * improve mirror selection for a distro: 
+      * support arm mirrors (LP: #1028501)
+      * support seeding security mirror (LP: #1006963)
+      * support dns mirrors including availability-zone reference
+        (LP: #1037727)
+    * include a "None" datasource so items like ssh host key generation
+      occur if there is no other metadata service. (LP: #906669)
+    * print authorized_keys for users to the console (LP: #1010582)
+    * Add RHEVm and vSphere support as datasource AltCloud [Joseph VLcek]
+
+ -- Scott Moser <smoser@ubuntu.com>  Thu, 23 Aug 2012 01:06:34 -0400
+
 cloud-init (0.7.0~bzr614-0ubuntu1) quantal; urgency=low
 
   * New upstream snapshot.

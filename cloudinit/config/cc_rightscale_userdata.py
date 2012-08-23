@@ -37,9 +37,9 @@
 
 import os
 
+from cloudinit.settings import PER_INSTANCE
 from cloudinit import url_helper as uhelp
 from cloudinit import util
-from cloudinit.settings import PER_INSTANCE
 
 from urlparse import parse_qs
 
@@ -72,7 +72,7 @@ def handle(name, _cfg, cloud, log, _args):
     captured_excps = []
 
     # These will eventually be then ran by the cc_scripts_user
-    # TODO: maybe this should just be a new user data handler??
+    # TODO(harlowja): maybe this should just be a new user data handler??
     # Instead of a late module that acts like a user data handler?
     scripts_d = cloud.get_ipath_cur('scripts')
     urls = mdict[MY_HOOKNAME]

@@ -262,3 +262,94 @@ datasources = [
 # Return a list of data sources that match this set of dependencies
 def get_datasource_list(depends):
     return sources.list_from_depends(depends, datasources)
+
+
+if __name__ == "__main__":
+    def main():
+        """
+        Call with single argument of directory or http or https url.
+        If url is given additional arguments are allowed, which will be
+        interpreted as consumer_key, token_key, token_secret, consumer_secret
+        """
+        import argparse
+        import pprint
+
+        parser = argparse.ArgumentParser(description='Interact with MAAS DS')
+        parser.add_argument("--config", metavar="file",
+            help="specify DS config file", default=None)
+        parser.add_argument("--ckey", metavar="key",
+            help="the consumer key to auth with", default=None)
+        parser.add_argument("--tkey", metavar="key",
+            help="the token key to auth with", default=None)
+        parser.add_argument("--csec", metavar="secret",
+            help="the consumer secret (likely '')", default="")
+        parser.add_argument("--tsec", metavar="secret",
+            help="the token secret to auth with", default=None)
+        parser.add_argument("--apiver", metavar="version",
+            help="the apiver to use ("" can be used)", default=MD_VERSION)
+
+        subcmds = parser.add_subparsers(title="subcommands", dest="subcmd")
+        subcmds.add_parser('crawl', help="crawl the datasource")
+        subcmds.add_parser('get', help="do a single GET of provided url")
+        subcmds.add_parser('check-seed', help="read andn verify seed at url")
+
+        parser.add_argument("url", help="the data source to query")
+
+        args = parser.parse_args()
+
+        creds = {'consumer_key': args.ckey, 'token_key': args.tkey,
+            'token_secret': args.tsec, 'consumer_secret': args.csec}
+
+        if args.config:
+            import yaml
+            with open(args.config) as fp:
+                cfg = yaml.safe_load(fp)
+            if 'datasource' in cfg:
+                cfg = cfg['datasource']['MAAS']
+            for key in creds.keys():
+                if key in cfg and creds[key] is None:
+                    creds[key] = cfg[key]
+
+        def geturl(url, headers_cb):
+            req = urllib2.Request(url, data=None, headers=headers_cb(url))
+            return(urllib2.urlopen(req).read())
+
+        def printurl(url, headers_cb):
+            print "== %s ==\n%s\n" % (url, geturl(url, headers_cb))
+
+        def crawl(url, headers_cb=None):
+            if url.endswith("/"):
+                for line in geturl(url, headers_cb).splitlines():
+                    if line.endswith("/"):
+                        crawl("%s%s" % (url, line), headers_cb)
+                    else:
+                        printurl("%s%s" % (url, line), headers_cb)
+            else:
+                printurl(url, headers_cb)
+
+        def my_headers(url):
+            headers = {}
+            if creds.get('consumer_key', None) is not None:
+                headers = oauth_headers(url, **creds)
+            return headers
+
+        if args.subcmd == "check-seed":
+            if args.url.startswith("http"):
+                (userdata, metadata) = read_maas_seed_url(args.url,
+                    header_cb=my_headers, version=args.apiver)
+            else:
+                (userdata, metadata) = read_maas_seed_url(args.url)
+            print "=== userdata ==="
+            print userdata
+            print "=== metadata ==="
+            pprint.pprint(metadata)
+
+        elif args.subcmd == "get":
+            printurl(args.url, my_headers)
+
+        elif args.subcmd == "crawl":
+            if not args.url.endswith("/"):
+                args.url = "%s/" % args.url
+            crawl(args.url, my_headers)
+
+    main()

@@ -1,6 +1,6 @@
 # vi: ts=4 expandtab
 #
-#    Copyright (C) 2011 Canonical Ltd.
+#    Copyright (C) 2009-2011 Canonical Ltd.
 #    Copyright (C) 2012 Hewlett-Packard Development Company, L.P.
 #
 #    Author: Scott Moser <scott.moser@canonical.com>
@@ -25,17 +25,24 @@ from cloudinit import util
 
 frequency = PER_ALWAYS
 
+distros = ['ubuntu', 'debian']
 
-def handle(name, cfg, cloud, log, _args):
-    if util.get_cfg_option_bool(cfg, "preserve_hostname", False):
-        log.debug(("Configuration option 'preserve_hostname' is set,"
-                    " not updating the hostname in module %s"), name)
+
+def handle(name, _cfg, cloud, log, args):
+    event_names = args
+    if not event_names:
+        # Default to the 'cloud-config'
+        # event for backwards compat.
+        event_names = ['cloud-config']
+    if not os.path.isfile("/sbin/initctl"):
+        log.debug(("Skipping module named %s,"
+                   " no /sbin/initctl located"), name)
         return
-
-    (hostname, _fqdn) = util.get_hostname_fqdn(cfg, cloud)
-    try:
-        prev_fn = os.path.join(cloud.get_cpath('data'), "previous-hostname")
-        cloud.distro.update_hostname(hostname, prev_fn)
-    except Exception:
-        util.logexc(log, "Failed to set the hostname to %s", hostname)
-        raise
+    cfgpath = cloud.paths.get_ipath_cur("cloud_config")
+    for n in event_names:
+        cmd = ['initctl', 'emit', str(n), 'CLOUD_CFG=%s' % cfgpath]
+        try:
+            util.subp(cmd)
+        except Exception as e:
+            # TODO(harlowja), use log exception from utils??
+            log.warn("Emission of upstart event %s failed due to: %s", n, e)

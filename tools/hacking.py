@@ -23,11 +23,8 @@ built on top of pep8.py
 
 import inspect
 import logging
-import os
 import re
 import sys
-import tokenize
-import warnings
 
 import pep8
 
@@ -103,7 +100,7 @@ def cloud_todo_format(physical_line):
     """
     pos = physical_line.find('TODO')
     pos1 = physical_line.find('TODO(')
-    pos2 = physical_line.find('#') # make sure it's a comment
+    pos2 = physical_line.find('#')  # make sure it's a comment
     if (pos != pos1 and pos2 >= 0 and pos2 < pos):
         return pos, "N101: Use TODO(NAME)"
 
@@ -136,7 +133,6 @@ def cloud_docstring_multiline_end(physical_line):
             return (pos, "N403: multi line docstring end on new line")
 
 
-
 current_file = ""
 
 
@@ -158,7 +154,7 @@ def add_cloud():
         if not inspect.isfunction(function):
             continue
         if name.startswith("cloud_"):
-            exec("pep8.%s = %s" % (name, name))
+            exec("pep8.%s = %s" % (name, name))  # pylint: disable=W0122
 
 if __name__ == "__main__":
     # NOVA based 'hacking.py' error codes start with an N
@@ -167,9 +163,8 @@ if __name__ == "__main__":
     pep8.current_file = current_file
     pep8.readlines = readlines
     try:
-        pep8._main()
+        pep8._main()  # pylint: disable=W0212
     finally:
         if len(_missingImport) > 0:
             print >> sys.stderr, ("%i imports missing in this test environment"
                     % len(_missingImport))
-

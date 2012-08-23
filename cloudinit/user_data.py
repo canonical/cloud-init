@@ -23,9 +23,9 @@
 import os
 
 import email
+from email.mime.base import MIMEBase
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
-from email.mime.base import MIMEBase
 
 from cloudinit import handlers
 from cloudinit import log as logging
@@ -159,7 +159,7 @@ class UserDataProcessor(object):
             if isinstance(ent, (str, basestring)):
                 ent = {'content': ent}
             if not isinstance(ent, (dict)):
-                # TODO raise?
+                # TODO(harlowja) raise?
                 continue
 
             content = ent.get('content', '')

@@ -147,3 +147,7 @@ class Distro(distros.Distro):
     def update_package_sources(self):
         self._runner.run("update-sources", self.package_command,
                          ["update"], freq=PER_INSTANCE)
+
+    def get_primary_arch(self):
+        (arch, _err) = util.subp(['dpkg', '--print-architecture'])
+        return str(arch).strip()

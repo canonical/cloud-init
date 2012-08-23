@@ -18,11 +18,11 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import os
 import glob
+import os
 
-from cloudinit import util
 from cloudinit import ssh_util
+from cloudinit import util
 
 DISABLE_ROOT_OPTS = ("no-port-forwarding,no-agent-forwarding,"
 "no-X11-forwarding,command=\"echo \'Please login as the user \\\"$USER\\\" "
@@ -76,7 +76,7 @@ def handle(_name, cfg, cloud, log, _args):
             pair = (KEY_2_FILE[priv][0], KEY_2_FILE[pub][0])
             cmd = ['sh', '-xc', KEY_GEN_TPL % pair]
             try:
-                # TODO: Is this guard needed?
+                # TODO(harlowja): Is this guard needed?
                 with util.SeLinuxGuard("/etc/ssh", recursive=True):
                     util.subp(cmd, capture=False)
                 log.debug("Generated a key for %s from %s", pair[0], pair[1])
@@ -94,7 +94,7 @@ def handle(_name, cfg, cloud, log, _args):
             if not os.path.exists(keyfile):
                 cmd = ['ssh-keygen', '-t', keytype, '-N', '', '-f', keyfile]
                 try:
-                    # TODO: Is this guard needed?
+                    # TODO(harlowja): Is this guard needed?
                     with util.SeLinuxGuard("/etc/ssh", recursive=True):
                         util.subp(cmd, capture=False)
                 except:
@@ -102,7 +102,16 @@ def handle(_name, cfg, cloud, log, _args):
                                       " %s to file %s"), keytype, keyfile)
 
     try:
-        user = util.get_cfg_option_str(cfg, 'user')
+        # TODO(utlemming): consolidate this stanza that occurs in:
+        # cc_ssh_import_id, cc_set_passwords, maybe cc_users_groups.py
+        user = cloud.distro.get_default_user()
+
+        if 'users' in cfg:
+            user_zero = cfg['users'].keys()[0]
+
+            if user_zero != "default":
+                user = user_zero
+
         disable_root = util.get_cfg_option_bool(cfg, "disable_root", True)
         disable_root_opts = util.get_cfg_option_str(cfg, "disable_root_opts",
                                                     DISABLE_ROOT_OPTS)
@@ -124,7 +133,9 @@ def apply_credentials(keys, user, paths, disable_root, disable_root_opts):
     if user:
         ssh_util.setup_user_keys(keys, user, '', paths)
 
-    if disable_root and user:
+    if disable_root:
+        if not user:
+            user = "NONE"
         key_prefix = disable_root_opts.replace('$USER', user)
     else:
         key_prefix = ''
