@@ -60,11 +60,11 @@ class DataSourceConfigDrive(sources.DataSource):
     def get_data(self):
         found = None
         md = {}
-        ud = ""
 
+        results = {}
         if os.path.isdir(self.seed_dir):
             try:
-                (md, ud, files, ver) = read_config_drive_dir(self.seed_dir)
+                results = read_config_drive_dir(self.seed_dir)
                 found = self.seed_dir
             except NonConfigDriveDir:
                 util.logexc(LOG, "Failed reading config drive from %s",
@@ -84,7 +84,7 @@ class DataSourceConfigDrive(sources.DataSource):
 
             for dev in devlist:
                 try:
-                    (md, ud, files, ver) = util.mount_cb(dev, read_config_drive_dir)
+                    results = util.mount_cb(dev, read_config_drive_dir)
                     found = dev
                     break
                 except (NonConfigDriveDir, util.MountFailedError):
@@ -106,9 +106,8 @@ class DataSourceConfigDrive(sources.DataSource):
             self.distro.apply_network(md['network-interfaces'])
 
         self.seed = found
-        self.metadata = md
-        self.userdata_raw = ud
-        self.version = ver
+        self.metadata = results['metadata']
+        self.userdata_raw = results.get('userdata')
 
         if md['dsmode'] == self.dsmode:
             return True
@@ -136,6 +135,7 @@ class DataSourceConfigDriveNet(DataSourceConfigDrive):
 
 class NonConfigDriveDir(Exception):
     pass
+
 
 class BrokenConfigDriveDir(Exception):
     pass
@@ -181,6 +181,7 @@ def read_config_drive_dir(source_dir):
             last_e = exc
     raise last_e
 
+
 def read_config_drive_dir_v2(source_dir, version="latest"):
     datafiles = (
         ('metadata',
@@ -222,7 +223,7 @@ def read_config_drive_dir_v2(source_dir, version="latest"):
 
     files = {}
     try:
-        for item in results['metadata'].get('files',{}):
+        for item in results['metadata'].get('files', {}):
             files[item['path']] = read_content_path(item)
 
         item = results['metadata'].get("network_config", None)
@@ -234,6 +235,7 @@ def read_config_drive_dir_v2(source_dir, version="latest"):
     results['files'] = files
     results['cfgdrive_ver'] = 2
     return results
+
 
 def read_config_drive_dir_v1(source_dir):
     """
