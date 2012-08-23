@@ -4,7 +4,6 @@ import os
 import os.path
 
 from cloudinit.sources import DataSourceConfigDrive
-from cloudinit import url_helper
 from mocker import MockerTestCase
 
 
@@ -54,7 +53,7 @@ CFG_DRIVE_FILES_V2 = {
   'openstack/2012-08-10/user_data': USER_DATA,
   'openstack/content/0000': CONTENT_0,
   'openstack/content/0001': CONTENT_1,
-  'openstack/latest/meta_data.json':  json.dumps(OSTACK_META),
+  'openstack/latest/meta_data.json': json.dumps(OSTACK_META),
   'openstack/latest/user_data': USER_DATA}
 
 
