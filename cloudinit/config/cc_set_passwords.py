@@ -50,8 +50,16 @@ def handle(_name, cfg, cloud, log, args):
         expire = util.get_cfg_option_bool(chfg, 'expire', expire)
 
     if not plist and password:
-        user = util.get_cfg_option_str(cfg, "user", "ubuntu")
-        plist = "%s:%s" % (user, password)
+        user = cloud.distro.get_default_user()
+
+        if 'users' in cfg:
+            user_zero = cfg['users'].keys()[0]
+
+            if user_zero != "default":
+                user = user_zero
+
+        if user:
+            plist = "%s:%s" % (user, password)
 
     errors = []
     if plist:

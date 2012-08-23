@@ -102,7 +102,16 @@ def handle(_name, cfg, cloud, log, _args):
                                       " %s to file %s"), keytype, keyfile)
 
     try:
-        user = util.get_cfg_option_str(cfg, 'user')
+        # TODO(utlemming): consolidate this stanza that occurs in:
+        # cc_ssh_import_id, cc_set_passwords, maybe cc_users_groups.py
+        user = cloud.distro.get_default_user()
+
+        if 'users' in cfg:
+            user_zero = cfg['users'].keys()[0]
+
+            if user_zero != "default":
+                user = user_zero
+
         disable_root = util.get_cfg_option_bool(cfg, "disable_root", True)
         disable_root_opts = util.get_cfg_option_str(cfg, "disable_root_opts",
                                                     DISABLE_ROOT_OPTS)
@@ -124,7 +133,9 @@ def apply_credentials(keys, user, paths, disable_root, disable_root_opts):
     if user:
         ssh_util.setup_user_keys(keys, user, '', paths)
 
-    if disable_root and user:
+    if disable_root:
+        if not user:
+            user = "NONE"
         key_prefix = disable_root_opts.replace('$USER', user)
     else:
         key_prefix = ''
