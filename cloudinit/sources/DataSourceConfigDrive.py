@@ -30,7 +30,7 @@ LOG = logging.getLogger(__name__)
 # Various defaults/constants...
 DEFAULT_IID = "iid-dsconfigdrive"
 DEFAULT_MODE = 'pass'
-CFG_DRIVE_FILES = [
+CFG_DRIVE_FILES_V1 = [
     "etc/network/interfaces",
     "root/.ssh/authorized_keys",
     "meta.js",
@@ -49,9 +49,11 @@ class DataSourceConfigDrive(sources.DataSource):
         self.cfg = {}
         self.dsmode = 'local'
         self.seed_dir = os.path.join(paths.seed_dir, 'config_drive')
+        self.version = None
 
     def __str__(self):
-        mstr = "%s [%s]" % (util.obj_name(self), self.dsmode)
+        mstr = "%s [%s,ver=%s]" % (util.obj_name(self), self.dsmode,
+                                   self.version)
         mstr += "[seed=%s]" % (self.seed)
         return mstr
 
@@ -62,17 +64,29 @@ class DataSourceConfigDrive(sources.DataSource):
 
         if os.path.isdir(self.seed_dir):
             try:
-                (md, ud) = read_config_drive_dir(self.seed_dir)
+                (md, ud, files, ver) = read_config_drive_dir(self.seed_dir)
                 found = self.seed_dir
             except NonConfigDriveDir:
                 util.logexc(LOG, "Failed reading config drive from %s",
                             self.seed_dir)
         if not found:
+            fslist = util.find_devs_with("TYPE=vfat")
+            fslist.extend(util.find_devs_with("TYPE=iso9660"))
+
+            label_list = util.find_devs_with("LABEL=config-2")
+            devlist = list(set(fslist) & set(label_list))
+
             dev = find_cfg_drive_device()
-            if dev:
+            if dev not in devlist:
+                devlist.append(dev)
+
+            devlist.sort(reverse=True)
+
+            for dev in devlist:
                 try:
-                    (md, ud) = util.mount_cb(dev, read_config_drive_dir)
+                    (md, ud, files, ver) = util.mount_cb(dev, read_config_drive_dir)
                     found = dev
+                    break
                 except (NonConfigDriveDir, util.MountFailedError):
                     pass
 
@@ -94,6 +108,7 @@ class DataSourceConfigDrive(sources.DataSource):
         self.seed = found
         self.metadata = md
         self.userdata_raw = ud
+        self.version = ver
 
         if md['dsmode'] == self.dsmode:
             return True
@@ -120,6 +135,9 @@ class DataSourceConfigDriveNet(DataSourceConfigDrive):
 
 
 class NonConfigDriveDir(Exception):
+    pass
+
+class BrokenConfigDriveDir(Exception):
     pass
 
 
@@ -154,17 +172,80 @@ def find_cfg_drive_device():
 
 
 def read_config_drive_dir(source_dir):
+    last_e = NonConfigDriveDir("Not found")
+    for finder in (read_config_drive_dir_v2, read_config_drive_dir_v1):
+        try:
+            data = finder(source_dir)
+            return data
+        except NonConfigDriveDir as exc:
+            last_e = exc
+    raise last_e
+
+def read_config_drive_dir_v2(source_dir, version="latest"):
+    datafiles = (
+        ('metadata',
+         "openstack/%s/meta_data.json" % version, True, json.loads),
+        ('userdata', "openstack/%s/user_data" % version, False, None),
+        ('ec2-metadata', "ec2/latest/metadata.json", False, json.loads),
+    )
+
+    results = {}
+    for (name, path, required, process) in datafiles:
+        fpath = os.path.join(source_dir, path)
+        data = None
+        found = False
+        if os.path.isfile(fpath):
+            try:
+                with open(fpath) as fp:
+                    data = fp.read()
+            except Exception as exc:
+                raise BrokenConfigDriveDir("failed to read: %s" % fpath)
+            found = True
+        elif required:
+            raise BrokenConfigDriveDir("missing mandatory %s" % fpath)
+
+        if found and process:
+            try:
+                data = process(data)
+            except Exception as exc:
+                raise BrokenConfigDriveDir("failed to process: %s" % fpath)
+
+        if found:
+            results[name] = data
+
+    def read_content_path(item):
+        # do not use os.path.join here, as content_path starts with /
+        cpath = os.path.sep.join((source_dir, "openstack",
+                                  "./%s" % item['content_path']))
+        with open(cpath) as fp:
+            return(fp.read())
+
+    files = {}
+    try:
+        for item in results['metadata'].get('files',{}):
+            files[item['path']] = read_content_path(item)
+
+        item = results['metadata'].get("network_config", None)
+        if item:
+            results['network_config'] = read_content_path(item)
+    except Exception as exc:
+        raise BrokenConfigDriveDir("failed to read file %s: %s" % (item, exc))
+
+    results['files'] = files
+    results['cfgdrive_ver'] = 2
+    return results
+
+def read_config_drive_dir_v1(source_dir):
     """
-    read_config_drive_dir(source_dir):
-       read source_dir, and return a tuple with metadata dict and user-data
-       string populated.  If not a valid dir, raise a NonConfigDriveDir
+    read source_dir, and return a tuple with metadata dict, user-data,
+    files and version (1).  If not a valid dir, raise a NonConfigDriveDir
     """
 
     # TODO(harlowja): fix this for other operating systems...
     # Ie: this is where https://fedorahosted.org/netcf/ or similar should
     # be hooked in... (or could be)
     found = {}
-    for af in CFG_DRIVE_FILES:
+    for af in CFG_DRIVE_FILES_V1:
         fn = os.path.join(source_dir, af)
         if os.path.isfile(fn):
             found[af] = fn
@@ -211,7 +292,8 @@ def read_config_drive_dir(source_dir):
     if 'user-data' in meta_js:
         ud = meta_js['user-data']
 
-    return (md, ud)
+    # metadata, user-data, 'files', 1
+    return {'metadata': md, 'userdata': ud, 'files': [], 'cfgdrive_ver': 1}
 
 
 # Used to match classes to dependencies
