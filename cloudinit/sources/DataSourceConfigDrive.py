@@ -205,7 +205,14 @@ def read_config_drive_dir(source_dir):
     raise last_e
 
 
-def read_config_drive_dir_v2(source_dir, version="latest"):
+def read_config_drive_dir_v2(source_dir, version="2012-08-10"):
+
+    if (not os.path.isdir(os.path.join(source_dir, "openstack", version)) and
+        os.path.isdir(os.path.join(source_dir, "openstack", "latest"))):
+        LOG.warn("version '%s' not available, attempting to use 'latest'" %
+                 version)
+        version = "latest"
+
     datafiles = (
         ('metadata',
          "openstack/%s/meta_data.json" % version, True, json.loads),
