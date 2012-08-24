@@ -1,3 +1,10 @@
+cloud-init (0.7.0~bzr634-0ubuntu1) quantal; urgency=low
+
+  * New upstream snapshot.
+    * support for datasource from config-drive-v2 (LP: #1037567)
+
+ -- Scott Moser <smoser@ubuntu.com>  Fri, 24 Aug 2012 17:24:26 -0400
+
 cloud-init (0.7.0~bzr633-0ubuntu1) quantal; urgency=low
 
   * New upstream snapshot.
