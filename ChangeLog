@@ -1,4 +1,5 @@
 0.7.0:
+ - add support for config-drive-v2 (LP:#1037567)
  - support creating users, including the default user.
    [Ben Howard] (LP: #1028503)
  - add apt_reboot_if_required to reboot if an upgrade or package installation
