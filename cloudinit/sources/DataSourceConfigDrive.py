@@ -373,8 +373,10 @@ def get_ds_mode(cfgdrv_ver, ds_cfg=None, user=None):
 
 
 def get_previous_iid(paths):
-    fname = os.path.join(paths.get_cpath('data'),
-                         'previous-instance-id')
+    # interestingly, for this purpose the "previous" instance-id is the current
+    # instance-id.  cloud-init hasn't moved them over yet as this datasource
+    # hasn't declared itself found.
+    fname = os.path.join(paths.get_cpath('data'), 'instance-id')
     try:
         with open(fname) as fp:
             return fp.read()
