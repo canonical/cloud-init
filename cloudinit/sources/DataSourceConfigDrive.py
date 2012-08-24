@@ -203,7 +203,7 @@ def read_config_drive_dir_v2(source_dir, version="latest"):
                 raise BrokenConfigDriveDir("failed to read: %s" % fpath)
             found = True
         elif required:
-            raise BrokenConfigDriveDir("missing mandatory %s" % fpath)
+            raise NonConfigDriveDir("missing mandatory %s" % fpath)
 
         if found and process:
             try:
