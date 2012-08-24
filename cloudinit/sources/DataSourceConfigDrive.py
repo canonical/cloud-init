@@ -237,6 +237,13 @@ def read_config_drive_dir_v2(source_dir, version="latest"):
         if found:
             results[name] = data
 
+    # instance-id is 'uuid' for openstack. just copy it to instance-id.
+    if 'instance-id' not in results['metadata']:
+        try:
+            results['metadata']['instance-id'] = results['metadata']['uuid']
+        except KeyError:
+            raise BrokenConfigDriveDir("No uuid entry in metadata")
+
     def read_content_path(item):
         # do not use os.path.join here, as content_path starts with /
         cpath = os.path.sep.join((source_dir, "openstack",
