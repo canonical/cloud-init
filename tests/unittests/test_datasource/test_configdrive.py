@@ -79,8 +79,11 @@ class TestConfigDriveDataSource(TestCase):
 
         found = ds.read_config_drive_dir(self.tmp)
 
+        expected_md = copy(OSTACK_META)
+        expected_md['instance-id'] = expected_md['uuid']
+
         self.assertEqual(USER_DATA, found['userdata'])
-        self.assertEqual(OSTACK_META, found['metadata'])
+        self.assertEqual(expected_md, found['metadata'])
         self.assertEqual(found['files']['/etc/foo.cfg'], CONTENT_0)
         self.assertEqual(found['files']['/etc/bar/bar.cfg'], CONTENT_1)
 
@@ -94,7 +97,11 @@ class TestConfigDriveDataSource(TestCase):
         populate_dir(self.tmp, data)
 
         found = ds.read_config_drive_dir(self.tmp)
-        self.assertEqual(OSTACK_META, found['metadata'])
+
+        expected_md = copy(OSTACK_META)
+        expected_md['instance-id'] = expected_md['uuid']
+
+        self.assertEqual(expected_md, found['metadata'])
 
     def test_seed_dir_bad_json_metadata(self):
         """Verify that bad json in metadata raises BrokenConfigDriveDir."""
