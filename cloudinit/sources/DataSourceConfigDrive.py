@@ -37,16 +37,14 @@ CFG_DRIVE_FILES_V1 = [
 ]
 DEFAULT_METADATA = {
     "instance-id": DEFAULT_IID,
-    "dsmode": DEFAULT_MODE,
 }
-CFG_DRIVE_DEV_ENV = 'CLOUD_INIT_CONFIG_DRIVE_DEVICE'
+VALID_DSMODES = ("local", "net", "pass", "disabled")
 
 
 class DataSourceConfigDrive(sources.DataSource):
     def __init__(self, sys_cfg, distro, paths):
         sources.DataSource.__init__(self, sys_cfg, distro, paths)
-        self.seed = None
-        self.cfg = {}
+        self.source = None
         self.dsmode = 'local'
         self.seed_dir = os.path.join(paths.seed_dir, 'config_drive')
         self.version = None
@@ -54,7 +52,7 @@ class DataSourceConfigDrive(sources.DataSource):
     def __str__(self):
         mstr = "%s [%s,ver=%s]" % (util.obj_name(self), self.dsmode,
                                    self.version)
-        mstr += "[seed=%s]" % (self.seed)
+        mstr += "[source=%s]" % (self.source)
         return mstr
 
     def get_data(self):
@@ -70,18 +68,7 @@ class DataSourceConfigDrive(sources.DataSource):
                 util.logexc(LOG, "Failed reading config drive from %s",
                             self.seed_dir)
         if not found:
-            fslist = util.find_devs_with("TYPE=vfat")
-            fslist.extend(util.find_devs_with("TYPE=iso9660"))
-
-            label_list = util.find_devs_with("LABEL=config-2")
-            devlist = list(set(fslist) & set(label_list))
-
-            dev = find_cfg_drive_device()
-            if dev not in devlist:
-                devlist.append(dev)
-
-            devlist.sort(reverse=True)
-
+            devlist = find_candidate_devs()
             for dev in devlist:
                 try:
                     results = util.mount_cb(dev, read_config_drive_dir)
@@ -89,42 +76,72 @@ class DataSourceConfigDrive(sources.DataSource):
                     break
                 except (NonConfigDriveDir, util.MountFailedError):
                     pass
+                except BrokenConfigDriveDir:
+                    util.logexc(LOG, "broken config drive: %s", dev)
 
         if not found:
             return False
 
-        if 'dsconfig' in md:
-            self.cfg = md['dscfg']
-
+        md = results['metadata']
         md = util.mergedict(md, DEFAULT_METADATA)
 
-        # Update interfaces and ifup only on the local datasource
-        # this way the DataSourceConfigDriveNet doesn't do it also.
-        if 'network-interfaces' in md and self.dsmode == "local":
+        user_dsmode = results.get('dsmode', None)
+        if user_dsmode not in VALID_DSMODES + (None,):
+            LOG.warn("user specified invalid mode: %s" % user_dsmode)
+            user_dsmode = None
+
+        dsmode = get_ds_mode(cfgdrv_ver=results['cfgdrive_ver'],
+                             ds_cfg=self.ds_cfg.get('dsmode'),
+                             user=user_dsmode)
+
+        if dsmode == "disabled":
+            # most likely user specified
+            return False
+
+        # TODO(smoser): fix this, its dirty.
+        # we want to do some things (writing files and network config)
+        # only on first boot, and even then, we want to do so in the
+        # local datasource (so they happen earlier) even if the configured
+        # dsmode is 'net' or 'pass'. To do this, we check the previous
+        # instance-id
+        prev_iid = get_previous_iid(self.paths)
+        cur_iid = md['instance-id']
+
+        if ('network_config' in results and self.dsmode == "local" and
+            prev_iid != cur_iid):
             LOG.debug("Updating network interfaces from config drive (%s)",
-                     md['dsmode'])
-            self.distro.apply_network(md['network-interfaces'])
+                      dsmode)
+            self.distro.apply_network(results['network_config'])
 
-        self.seed = found
-        self.metadata = results['metadata']
+        # file writing occurs in local mode (to be as early as possible)
+        if self.dsmode == "local" and prev_iid != cur_iid and results['files']:
+            LOG.debug("writing injected files")
+            try:
+                write_files(results['files'])
+            except:
+                util.logexc(LOG, "Failed writing files")
+
+        # dsmode != self.dsmode here if:
+        #  * dsmode = "pass",  pass means it should only copy files and then
+        #    pass to another datasource
+        #  * dsmode = "net" and self.dsmode = "local"
+        #    so that user boothooks would be applied with network, the
+        #    local datasource just gets out of the way, and lets the net claim
+        if dsmode != self.dsmode:
+            LOG.debug("%s: not claiming datasource, dsmode=%s", self, dsmode)
+            return False
+
+        self.source = found
+        self.metadata = md
         self.userdata_raw = results.get('userdata')
+        self.version = results['cfgdrive_ver']
 
-        if md['dsmode'] == self.dsmode:
-            return True
-
-        LOG.debug("%s: not claiming datasource, dsmode=%s", self, md['dsmode'])
-        return False
+        return True
 
     def get_public_ssh_keys(self):
         if not 'public-keys' in self.metadata:
             return []
         return self.metadata['public-keys']
-
-    # The data sources' config_obj is a cloud-config formated
-    # object that came to it from ways other than cloud-config
-    # because cloud-config content would be handled elsewhere
-    def get_config_obj(self):
-        return self.cfg
 
 
 class DataSourceConfigDriveNet(DataSourceConfigDrive):
@@ -141,34 +158,40 @@ class BrokenConfigDriveDir(Exception):
     pass
 
 
-def find_cfg_drive_device():
-    """Get the config drive device.  Return a string like '/dev/vdb'
-       or None (if there is no non-root device attached). This does not
-       check the contents, only reports that if there *were* a config_drive
-       attached, it would be this device.
-       Note: per config_drive documentation, this is
-       "associated as the last available disk on the instance"
+def find_candidate_devs():
+    """Return a list of devices that may contain the config drive.
+
+    The returned list is sorted by search order where the first item has
+    should be searched first (highest priority)
+
+    config drive v1:
+       Per documentation, this is "associated as the last available disk on the
+       instance", and should be VFAT.
+       Currently, we do not restrict search list to "last available disk"
+
+    config drive v2:
+       Disk should be:
+        * either vfat or iso9660 formated
+        * labeled with 'config-2'
     """
 
-    # This seems to be for debugging??
-    if CFG_DRIVE_DEV_ENV in os.environ:
-        return os.environ[CFG_DRIVE_DEV_ENV]
+    by_fstype = (util.find_devs_with("TYPE=vfat") +
+                 util.find_devs_with("TYPE=iso9660"))
+    by_label = util.find_devs_with("LABEL=config-2")
 
-    # We are looking for a raw block device (sda, not sda1) with a vfat
-    # filesystem on it....
-    letters = "abcdefghijklmnopqrstuvwxyz"
-    devs = util.find_devs_with("TYPE=vfat")
+    # give preference to "last available disk" (vdb over vda)
+    # note, this is not a perfect rendition of that.
+    by_fstype.sort(reverse=True)
+    by_label.sort(reverse=True)
 
-    # Filter out anything not ending in a letter (ignore partitions)
-    devs = [f for f in devs if f[-1] in letters]
+    # combine list of items by putting by-label items first
+    # followed by fstype items, but with dupes removed
+    combined = (by_label + [d for d in by_fstype if d not in by_label])
 
-    # Sort them in reverse so "last" device is first
-    devs.sort(reverse=True)
+    # We are looking for block device (sda, not sda1), ignore partitions
+    combined = [d for d in combined if d[-1] not in "0123456789"]
 
-    if devs:
-        return devs[0]
-
-    return None
+    return combined
 
 
 def read_config_drive_dir(source_dir):
@@ -190,7 +213,7 @@ def read_config_drive_dir_v2(source_dir, version="latest"):
         ('ec2-metadata', "ec2/latest/metadata.json", False, json.loads),
     )
 
-    results = {}
+    results = {'userdata': None}
     for (name, path, required, process) in datafiles:
         fpath = os.path.join(source_dir, path)
         data = None
@@ -226,11 +249,23 @@ def read_config_drive_dir_v2(source_dir, version="latest"):
         for item in results['metadata'].get('files', {}):
             files[item['path']] = read_content_path(item)
 
+        # the 'network_config' item in metadata is a content pointer
+        # to the network config that should be applied.
+        # in folsom, it is just a '/etc/network/interfaces' file.
         item = results['metadata'].get("network_config", None)
         if item:
             results['network_config'] = read_content_path(item)
     except Exception as exc:
         raise BrokenConfigDriveDir("failed to read file %s: %s" % (item, exc))
+
+    # to openstack, user can specify meta ('nova boot --meta=key=value') and
+    # those will appear under metadata['meta'].
+    # if they specify 'dsmode' they're indicating the mode that they intend
+    # for this datasource to operate in.
+    try:
+        results['dsmode'] = results['metadata']['meta']['dsmode']
+    except KeyError:
+        pass
 
     results['files'] = files
     results['cfgdrive_ver'] = 2
@@ -243,9 +278,6 @@ def read_config_drive_dir_v1(source_dir):
     files and version (1).  If not a valid dir, raise a NonConfigDriveDir
     """
 
-    # TODO(harlowja): fix this for other operating systems...
-    # Ie: this is where https://fedorahosted.org/netcf/ or similar should
-    # be hooked in... (or could be)
     found = {}
     for af in CFG_DRIVE_FILES_V1:
         fn = os.path.join(source_dir, af)
@@ -256,11 +288,10 @@ def read_config_drive_dir_v1(source_dir):
         raise NonConfigDriveDir("%s: %s" % (source_dir, "no files found"))
 
     md = {}
-    ud = ""
     keydata = ""
     if "etc/network/interfaces" in found:
         fn = found["etc/network/interfaces"]
-        md['network-interfaces'] = util.load_file(fn)
+        md['network_config'] = util.load_file(fn)
 
     if "root/.ssh/authorized_keys" in found:
         fn = found["root/.ssh/authorized_keys"]
@@ -280,22 +311,75 @@ def read_config_drive_dir_v1(source_dir):
                 (source_dir, "invalid json in meta.js", e))
         md['meta_js'] = content
 
-    # Key data override??
+    # keydata in meta_js is preferred over "injected"
     keydata = meta_js.get('public-keys', keydata)
     if keydata:
         lines = keydata.splitlines()
         md['public-keys'] = [l for l in lines
             if len(l) and not l.startswith("#")]
 
-    for copy in ('dsmode', 'instance-id', 'dscfg'):
-        if copy in meta_js:
-            md[copy] = meta_js[copy]
+    # config-drive-v1 has no way for openstack to provide the instance-id
+    # so we copy that into metadata from the user input
+    if 'instance-id' in meta_js:
+        md['instance-id'] = meta_js['instance-id']
 
-    if 'user-data' in meta_js:
-        ud = meta_js['user-data']
+    results = {'cfgdrive_ver': 1, 'metadata': md}
 
-    # metadata, user-data, 'files', 1
-    return {'metadata': md, 'userdata': ud, 'files': [], 'cfgdrive_ver': 1}
+    # allow the user to specify 'dsmode' in a meta tag
+    if 'dsmode' in meta_js:
+        results['dsmode'] = meta_js['dsmode']
+
+    # config-drive-v1 has no way of specifying user-data, so the user has
+    # to cheat and stuff it in a meta tag also.
+    results['userdata'] = meta_js.get('user-data')
+
+    # this implementation does not support files
+    # (other than network/interfaces and authorized_keys)
+    results['files'] = []
+
+    return results
+
+
+def get_ds_mode(cfgdrv_ver, ds_cfg=None, user=None):
+    """Determine what mode should be used.
+    valid values are 'pass', 'disabled', 'local', 'net'
+    """
+    # user passed data trumps everything
+    if user is not None:
+        return user
+
+    if ds_cfg is not None:
+        return ds_cfg
+
+    # at config-drive version 1, the default behavior was pass.  That
+    # meant to not use use it as primary data source, but expect a ec2 metadata
+    # source. for version 2, we default to 'net', which means
+    # the DataSourceConfigDriveNet, would be used.
+    #
+    # this could change in the future.  If there was definitive metadata
+    # that indicated presense of an openstack metadata service, then
+    # we could change to 'pass' by default also. The motivation for that
+    # would be 'cloud-init query' as the web service could be more dynamic
+    if cfgdrv_ver == 1:
+        return "pass"
+    return "net"
+
+
+def get_previous_iid(paths):
+    fname = os.path.join(paths.get_cpath('data'),
+                         'previous-instance-id')
+    try:
+        with open(fname) as fp:
+            return fp.read()
+    except IOError:
+        return None
+
+
+def write_files(files):
+    for (name, content) in files.iteritems():
+        if name[0] != os.sep:
+            name = os.sep + name
+        util.write_file(name, content, mode=0660)
 
 
 # Used to match classes to dependencies
