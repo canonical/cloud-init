@@ -2,9 +2,12 @@ from copy import copy
 import json
 import os
 import os.path
+import shutil
+import tempfile
+from unittest import TestCase
 
-from cloudinit.sources import DataSourceConfigDrive
-from mocker import MockerTestCase
+from cloudinit.sources import DataSourceConfigDrive as ds
+from cloudinit import util
 
 
 PUBKEY = u'ssh-rsa AAAAB3NzaC1....sIkJhq8wdX+4I3A4cYbYP ubuntu@server-460\n'
@@ -57,20 +60,24 @@ CFG_DRIVE_FILES_V2 = {
   'openstack/latest/user_data': USER_DATA}
 
 
-class TestConfigDriveDataSource(MockerTestCase):
+class TestConfigDriveDataSource(TestCase):
 
     def setUp(self):
         super(TestConfigDriveDataSource, self).setUp()
-        # Make a temp directoy for tests to use.
-        self.tmp = self.makeDir()
+        self.tmp = tempfile.mkdtemp()
+
+    def tearDown(self):
+        try:
+            shutil.rmtree(self.tmp)
+        except OSError:
+            pass
 
     def test_dir_valid(self):
         """Verify a dir is read as such."""
 
-        my_d = os.path.join(self.tmp, "valid")
-        populate_dir(my_d, CFG_DRIVE_FILES_V2)
+        populate_dir(self.tmp, CFG_DRIVE_FILES_V2)
 
-        found = DataSourceConfigDrive.read_config_drive_dir(my_d)
+        found = ds.read_config_drive_dir(self.tmp)
 
         self.assertEqual(USER_DATA, found['userdata'])
         self.assertEqual(OSTACK_META, found['metadata'])
@@ -80,28 +87,26 @@ class TestConfigDriveDataSource(MockerTestCase):
     def test_seed_dir_valid_extra(self):
         """Verify extra files do not affect datasource validity."""
 
-        my_d = os.path.join(self.tmp, "valid_extra")
         data = copy(CFG_DRIVE_FILES_V2)
         data["myfoofile.txt"] = "myfoocontent"
         data["openstack/latest/random-file.txt"] = "random-content"
 
-        populate_dir(my_d, data)
+        populate_dir(self.tmp, data)
 
-        found = DataSourceConfigDrive.read_config_drive_dir(my_d)
+        found = ds.read_config_drive_dir(self.tmp)
         self.assertEqual(OSTACK_META, found['metadata'])
 
     def test_seed_dir_bad_json_metadata(self):
         """Verify that bad json in metadata raises BrokenConfigDriveDir."""
-        my_d = os.path.join(self.tmp, "bad-json-metadata")
         data = copy(CFG_DRIVE_FILES_V2)
 
         data["openstack/2012-08-10/meta_data.json"] = "non-json garbage {}"
         data["openstack/latest/meta_data.json"] = "non-json garbage {}"
 
-        populate_dir(my_d, data)
+        populate_dir(self.tmp, data)
 
-        self.assertRaises(DataSourceConfigDrive.BrokenConfigDriveDir,
-                          DataSourceConfigDrive.read_config_drive_dir, my_d)
+        self.assertRaises(ds.BrokenConfigDriveDir,
+                          ds.read_config_drive_dir, self.tmp)
 
     def test_seed_dir_no_configdrive(self):
         """Verify that no metadata raises NonConfigDriveDir."""
@@ -112,18 +117,47 @@ class TestConfigDriveDataSource(MockerTestCase):
         data["openstack/latest/random-file.txt"] = "random-content"
         data["content/foo"] = "foocontent"
 
-        self.assertRaises(DataSourceConfigDrive.NonConfigDriveDir,
-                          DataSourceConfigDrive.read_config_drive_dir, my_d)
+        self.assertRaises(ds.NonConfigDriveDir,
+                          ds.read_config_drive_dir, my_d)
 
     def test_seed_dir_missing(self):
         """Verify that missing seed_dir raises NonConfigDriveDir."""
         my_d = os.path.join(self.tmp, "nonexistantdirectory")
-        self.assertRaises(DataSourceConfigDrive.NonConfigDriveDir,
-                          DataSourceConfigDrive.read_config_drive_dir, my_d)
+        self.assertRaises(ds.NonConfigDriveDir,
+                          ds.read_config_drive_dir, my_d)
+
+    def test_find_candidates(self):
+        devs_with_answers = {
+            "TYPE=vfat": [],
+            "TYPE=iso9660": ["/dev/vdb"],
+            "LABEL=config-2": ["/dev/vdb"],
+        }
+
+        def my_devs_with(criteria):
+            return devs_with_answers[criteria]
+
+        try:
+            orig_find_devs_with = util.find_devs_with
+            util.find_devs_with = my_devs_with
+
+            self.assertEqual(["/dev/vdb"], ds.find_candidate_devs())
+
+            # add a vfat item
+            # zdd reverse sorts after vdb, but config-2 label is preferred
+            devs_with_answers['TYPE=vfat'] = ["/dev/zdd"]
+            self.assertEqual(["/dev/vdb", "/dev/zdd"],
+                             ds.find_candidate_devs())
+
+            # verify that partitions are not considered
+            devs_with_answers = {"TYPE=vfat": ["/dev/sda1"],
+                "TYPE=iso9660": [], "LABEL=config-2": ["/dev/vdb3"]}
+            self.assertEqual([], ds.find_candidate_devs())
+
+        finally:
+            util.find_devs_with = orig_find_devs_with
 
 
 def populate_dir(seed_dir, files):
-    os.mkdir(seed_dir)
     for (name, content) in files.iteritems():
         path = os.path.join(seed_dir, name)
         dirname = os.path.dirname(path)
