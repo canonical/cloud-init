@@ -70,11 +70,14 @@ class Cloud(object):
         return fn
 
     # The rest of thes are just useful proxies
-    def get_userdata(self):
-        return self.datasource.get_userdata()
+    def get_userdata(self, apply_filter=True):
+        return self.datasource.get_userdata(apply_filter)
 
     def get_instance_id(self):
         return self.datasource.get_instance_id()
+
+    def get_launch_index(self):
+        return self.datasource.get_launch_index()
 
     def get_public_ssh_keys(self):
         return self.datasource.get_public_ssh_keys()
