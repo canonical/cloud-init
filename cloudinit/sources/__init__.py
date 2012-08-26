@@ -20,6 +20,8 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+from email.mime.multipart import MIMEMultipart
+
 import abc
 
 from cloudinit import importer
@@ -59,11 +61,52 @@ class DataSource(object):
         else:
             self.ud_proc = ud_proc
 
-    def get_userdata(self):
+    def get_userdata(self, apply_filter=False):
         if self.userdata is None:
-            raw_data = self.get_userdata_raw()
-            self.userdata = self.ud_proc.process(raw_data)
+            self.userdata = self.ud_proc.process(self.get_userdata_raw())
+        if apply_filter:
+            return self._filter_userdata(self.userdata)
         return self.userdata
+
+    def get_launch_index(self):
+        return None
+
+    def _filter_userdata(self, processed_ud):
+        idx = self.get_launch_index()
+        if idx is None:
+            return processed_ud
+        # First do a scan to see if any one with launch-index
+        # headers, if not just skip this....
+        launch_idxs = 0
+        for part in processed_ud.walk():
+            # multipart/* are just containers
+            if part.get_content_maintype() == 'multipart':
+                continue
+            launch_idx_h = part.get('Launch-Index', None)
+            if launch_idx_h is not None:
+                launch_idxs += 1
+        if not launch_idxs:
+            return processed_ud
+        # Reform a new message with those that either have
+        # no launch index or ones that have our launch index or ones
+        # that have some other garbage that we don't know what to do with
+        accumulating_msg = MIMEMultipart()
+        tot_attached = 0
+        for part in processed_ud.walk():
+            # multipart/* are just containers
+            if part.get_content_maintype() == 'multipart':
+                continue
+            try:
+                launch_idx_h = part.get('Launch-Index', None)
+                if launch_idx_h is None or int(launch_idx_h) == int(idx):
+                    accumulating_msg.attach(part)
+                    tot_attached += 1
+            except:
+                # If any int conversion fails (or other error), keep the part
+                accumulating_msg.attach(part)
+                tot_attached += 1
+        accumulating_msg[ud.ATTACHMENT_FIELD] = str(tot_attached)
+        return accumulating_msg
 
     @property
     def is_disconnected(self):
