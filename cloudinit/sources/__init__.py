@@ -72,6 +72,8 @@ class DataSource(object):
         return None
 
     def _filter_userdata(self, processed_ud):
+        if not processed_ud:
+            return processed_ud
         idx = self.get_launch_index()
         if idx is None:
             return processed_ud
