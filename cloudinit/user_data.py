@@ -53,7 +53,8 @@ ARCHIVE_UNDEF_TYPE = "text/cloud-config"
 ATTACHMENT_FIELD = 'Number-Attachments'
 
 # Only the following content types can have there launch index examined
-CAN_HAVE_LAUNCH_INDEX = ["text/cloud-config", "text/cloud-config-archive"]
+# in there payload, evey other content type can still provide a header
+EXAMINE_FOR_LAUNCH_INDEX = ["text/cloud-config", "text/cloud-config-archive"]
 
 
 class UserDataProcessor(object):
@@ -101,7 +102,7 @@ class UserDataProcessor(object):
     def _attach_launch_index(self, msg):
         header_idx = msg.get('Launch-Index', None)
         payload_idx = None
-        if msg.get_content_type() in CAN_HAVE_LAUNCH_INDEX:
+        if msg.get_content_type() in EXAMINE_FOR_LAUNCH_INDEX:
             try:
                 # See if it has a launch-index field
                 # that might affect the final header
