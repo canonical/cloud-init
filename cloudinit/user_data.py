@@ -52,6 +52,9 @@ ARCHIVE_UNDEF_TYPE = "text/cloud-config"
 # Msg header used to track attachments
 ATTACHMENT_FIELD = 'Number-Attachments'
 
+# Only the following content types can have there launch index examined
+CAN_HAVE_LAUNCH_INDEX = ["text/cloud-config", "text/cloud-config-archive"]
+
 
 class UserDataProcessor(object):
     def __init__(self, paths):
@@ -64,8 +67,7 @@ class UserDataProcessor(object):
 
     def _process_msg(self, base_msg, append_msg):
         for part in base_msg.walk():
-            # multipart/* are just containers
-            if part.get_content_maintype() == 'multipart':
+            if is_skippable(part):
                 continue
 
             ctype = None
@@ -99,13 +101,16 @@ class UserDataProcessor(object):
     def _attach_launch_index(self, msg):
         header_idx = msg.get('Launch-Index', None)
         payload_idx = None
-        try:
-            payload = util.load_yaml(msg.get_payload(decode=True))
-            if payload:
-                payload_idx = payload.get('launch-index')
-        except:
-            pass
-        # Header overrides contents...
+        if msg.get_content_type() in CAN_HAVE_LAUNCH_INDEX:
+            try:
+                # See if it has a launch-index field
+                # that might affect the final header
+                payload = util.load_yaml(msg.get_payload(decode=True))
+                if payload:
+                    payload_idx = payload.get('launch-index')
+            except:
+                pass
+        # Header overrides contents, for now (?) or the other way around?
         if header_idx is not None:
             payload_idx = header_idx
         # Nothing found in payload, use header (if anything there)
@@ -114,7 +119,7 @@ class UserDataProcessor(object):
         if payload_idx is not None:
             try:
                 msg.add_header('Launch-Index', str(int(payload_idx)))
-            except:
+            except (ValueError, TypeError):
                 pass
 
     def _get_include_once_filename(self, entry):
@@ -239,6 +244,14 @@ class UserDataProcessor(object):
         self._process_before_attach(part, part_count + 1)
         outer_msg.attach(part)
         self._multi_part_count(outer_msg, part_count + 1)
+
+
+def is_skippable(part):
+    # multipart/* are just containers
+    part_maintype = part.get_content_maintype() or ''
+    if part_maintype.lower() == 'multipart':
+        return True
+    return False
 
 
 # Coverts a raw string into a mime message
