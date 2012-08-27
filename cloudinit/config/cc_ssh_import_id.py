@@ -19,6 +19,7 @@
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 from cloudinit import util
+import pwd
 
 # The ssh-import-id only seems to exist on ubuntu (for now)
 # https://launchpad.net/ssh-import-id
@@ -26,29 +27,46 @@ distros = ['ubuntu']
 
 
 def handle(name, cfg, cloud, log, args):
+
+    # import for "user: XXXXX"
     if len(args) != 0:
         user = args[0]
         ids = []
         if len(args) > 1:
             ids = args[1:]
-    else:
-        user = cloud.distro.get_default_user()
 
-        if 'users' in cfg:
-            user_zero = cfg['users'].keys()[0]
+        import_ssh_ids(ids, user, log)
 
-            if user_zero != "default":
-                user = user_zero
+    # import for cloudinit created users
+    for user in cfg['users'].keys():
+        if user == "default":
+            distro_user = cloud.distro.get_default_user()
+            d_ids = util.get_cfg_option_list(cfg, "ssh_import_id", [])
+            import_ssh_ids(d_ids, distro_user, log)
 
-        ids = util.get_cfg_option_list(cfg, "ssh_import_id", [])
+        user_cfg = cfg['users'][user]
+        if not isinstance(user_cfg, dict):
+            user_cfg = None
 
-    if len(ids) == 0:
-        log.debug("Skipping module named %s, no ids found to import", name)
-        return
+        if user_cfg:
+            ids = util.get_cfg_option_list(user_cfg, "ssh_import_id", [])
+            import_ssh_ids(ids, user, log)
+
+
+def import_ssh_ids(ids, user):
 
     if not user:
-        log.debug("Skipping module named %s, no user found to import", name)
+        log.debug("Skipping ssh-import-ids, no user for ids")
         return
+
+    if len(ids) == 0:
+        log.debug("Skipping ssh-import-ids for %s, no ids to import" % user)
+        return
+
+    try:
+        check = pwd.getpwnam(user)
+    except KeyError:
+        log.debug("Skipping ssh-import-ids for %s, user not found" % user)
 
     cmd = ["sudo", "-Hu", user, "ssh-import-id"] + ids
     log.debug("Importing ssh ids for user %s.", user)
