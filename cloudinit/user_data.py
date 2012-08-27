@@ -209,9 +209,11 @@ class UserDataProcessor(object):
             if 'filename' in ent:
                 msg.add_header('Content-Disposition',
                                'attachment', filename=ent['filename'])
+            if 'launch-index' in ent:
+                msg.add_header('Launch-Index', str(ent['launch-index']))
 
             for header in list(ent.keys()):
-                if header in ('content', 'filename', 'type'):
+                if header in ('content', 'filename', 'type', 'launch-index'):
                     continue
                 msg.add_header(header, ent['header'])
 
