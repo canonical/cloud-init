@@ -1,4 +1,5 @@
 0.7.0:
+ - search only top level dns for 'instance-data' in DataSourceEc2 (LP: #1040200)
  - add support for config-drive-v2 (LP:#1037567)
  - support creating users, including the default user.
    [Ben Howard] (LP: #1028503)
