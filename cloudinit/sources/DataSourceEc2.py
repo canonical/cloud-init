@@ -77,7 +77,10 @@ class DataSourceEc2(sources.DataSource):
                         self.metadata_address)
             return False
 
-    def get_launch_index(self):
+    @property
+    def launch_index(self):
+        if not self.metadata:
+            return None
         return self.metadata.get('ami-launch-index')
 
     def get_instance_id(self):

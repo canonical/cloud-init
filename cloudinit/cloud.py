@@ -76,8 +76,9 @@ class Cloud(object):
     def get_instance_id(self):
         return self.datasource.get_instance_id()
 
-    def get_launch_index(self):
-        return self.datasource.get_launch_index()
+    @property
+    def launch_index(self):
+        return self.datasource.launch_index
 
     def get_public_ssh_keys(self):
         return self.datasource.get_public_ssh_keys()

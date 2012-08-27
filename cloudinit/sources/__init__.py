@@ -68,13 +68,18 @@ class DataSource(object):
             return self._filter_userdata(self.userdata)
         return self.userdata
 
-    def get_launch_index(self):
+    @property
+    def launch_index(self):
+        if not self.metadata:
+            return None
+        if 'launch-index' in self.metadata:
+            return self.metadata['launch-index']
         return None
 
     def _filter_userdata(self, processed_ud):
         if not processed_ud:
             return processed_ud
-        idx = self.get_launch_index()
+        idx = self.launch_index
         if idx is None:
             return processed_ud
         # First do a scan to see if any one with launch-index
