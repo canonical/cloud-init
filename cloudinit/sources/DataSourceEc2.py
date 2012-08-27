@@ -40,7 +40,7 @@ DEF_MD_VERSION = '2009-04-04'
 # Default metadata urls that will be used if none are provided
 # They will be checked for 'resolveability' and some of the
 # following may be discarded if they do not resolve
-DEF_MD_URLS = [DEF_MD_URL, "http://instance-data:8773"]
+DEF_MD_URLS = [DEF_MD_URL, "http://instance-data.:8773"]
 
 
 class DataSourceEc2(sources.DataSource):
