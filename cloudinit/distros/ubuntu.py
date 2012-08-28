@@ -32,21 +32,3 @@ class Distro(debian.Distro):
 
     distro_name = 'ubuntu'
     default_user = 'ubuntu'
-
-    def create_user(self, name, **kargs):
-
-        if not super(Distro, self).create_user(name, **kargs):
-            return False
-
-        if 'sshimportid' in kargs:
-            cmd = ["sudo", "-Hu", name, "ssh-import-id"] + kargs['sshimportid']
-            LOG.debug("Importing ssh ids for user %s, post user creation."
-                        % name)
-
-            try:
-                util.subp(cmd, capture=True)
-            except util.ProcessExecutionError as e:
-                util.logexc(LOG, "Failed to import %s ssh ids", name)
-                raise e
-
-        return True
