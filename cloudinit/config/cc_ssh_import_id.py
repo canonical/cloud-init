@@ -57,9 +57,10 @@ def handle(_name, cfg, cloud, log, args):
             continue
 
         try:
-            import_ssh_ids(ids, user, log)
+            import_ssh_ids(import_ids, user, log)
         except Exception as exc:
-            util.logexc(exc, "ssh-import-id failed for: %s %s" % (user, ids))
+            util.logexc(exc, "ssh-import-id failed for: %s %s" %
+                        (user, import_ids))
             elist.append(exc)
 
     if len(elist):
