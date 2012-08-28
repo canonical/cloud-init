@@ -29,6 +29,8 @@ from cloudinit import log as logging
 from cloudinit import user_data as ud
 from cloudinit import util
 
+from cloudinit.filters import launch_index
+
 DEP_FILESYSTEM = "FILESYSTEM"
 DEP_NETWORK = "NETWORK"
 DS_PREFIX = 'DataSource'
@@ -77,48 +79,13 @@ class DataSource(object):
         return None
 
     def _filter_userdata(self, processed_ud):
-        if not processed_ud:
-            return processed_ud
-        idx = self.launch_index
-        if idx is None:
-            return processed_ud
-        # First do a scan to see if any one with launch-index
-        # headers, if not just skip this....
-        launch_idxs = 0
-        for part in processed_ud.walk():
-            if ud.is_skippable(part):
-                continue
-            launch_idx_h = part.get('Launch-Index', None)
-            if launch_idx_h is not None:
-                launch_idxs += 1
-        if not launch_idxs:
-            return processed_ud
-        # Reform a new message with those that either have
-        # no launch index or ones that have our launch index or ones
-        # that have some other garbage that we don't know what to do with
-        accumulating_msg = MIMEMultipart()
-        tot_attached = 0
-        tot_processed = 0
-        for part in processed_ud.walk():
-            if ud.is_skippable(part):
-                continue
-            try:
-                tot_processed += 1
-                launch_idx_h = part.get('Launch-Index', None)
-                if launch_idx_h is None or int(launch_idx_h) == int(idx):
-                    accumulating_msg.attach(part)
-                    tot_attached += 1
-                else:
-                    LOG.debug(("Discarding multipart message %s, "
-                               "launch-index provided destined for %s "
-                               "and not %s"),
-                               tot_processed, launch_idx_h, idx)
-            except (TypeError, ValueError):
-                # If any int conversion fails keep the message
-                accumulating_msg.attach(part)
-                tot_attached += 1
-        accumulating_msg[ud.ATTACHMENT_FIELD] = str(tot_attached)
-        return accumulating_msg
+        filters = [
+            launch_index.Filter(util.safe_int(self.launch_index)),
+        ]
+        new_ud = processed_ud
+        for f in filters:
+            new_ud = f.apply(new_ud)
+        return new_ud
 
     @property
     def is_disconnected(self):
