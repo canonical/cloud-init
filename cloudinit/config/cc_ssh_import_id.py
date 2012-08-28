@@ -26,7 +26,7 @@ import pwd
 distros = ['ubuntu']
 
 
-def handle(name, cfg, cloud, log, args):
+def handle(_name, cfg, cloud, log, args):
 
     # import for "user: XXXXX"
     if len(args) != 0:
@@ -36,43 +36,51 @@ def handle(name, cfg, cloud, log, args):
             ids = args[1:]
 
         import_ssh_ids(ids, user, log)
-
-    # import for cloudinit created users
-    for user in cfg['users'].keys():
-        if user == "default":
-            distro_user = cloud.distro.get_default_user()
-            d_ids = util.get_cfg_option_list(cfg, "ssh_import_id", [])
-            import_ssh_ids(d_ids, distro_user, log)
-
-        user_cfg = cfg['users'][user]
-        if not isinstance(user_cfg, dict):
-            user_cfg = None
-
-        if user_cfg:
-            ids = util.get_cfg_option_list(user_cfg, "ssh_import_id", [])
-            import_ssh_ids(ids, user, log)
-
-
-def import_ssh_ids(ids, user):
-
-    if not user:
-        log.debug("Skipping ssh-import-ids, no user for ids")
         return
 
-    if len(ids) == 0:
-        log.debug("Skipping ssh-import-ids for %s, no ids to import" % user)
+    # import for cloudinit created users
+    elist = []
+    for user in cfg['users'].keys():
+        if user == "default":
+            user = cloud.distro.get_default_user()
+            if not user:
+                continue
+            import_ids = util.get_cfg_option_list(cfg, "ssh_import_id", [])
+        else:
+            if not isinstance(cfg['users'][user], dict):
+                log.debug("cfg['users'][%s] not a dict, skipping ssh_import",
+                          user)
+            import_ids = util.get_cfg_option_list(cfg['users'][user],
+                                                  "ssh_import_id", [])
+
+        if not len(import_ids):
+            continue
+
+        try:
+            import_ssh_ids(ids, user, log)
+        except Exception as exc:
+            util.logexc(exc, "ssh-import-id failed for: %s %s" % (user, ids))
+            elist.append(exc)
+
+    if len(elist):
+        raise elist[0]
+
+
+def import_ssh_ids(ids, user, log):
+    if not (user and ids):
+        log.debug("empty user(%s) or ids(%s). not importing", user, ids)
         return
 
     try:
-        check = pwd.getpwnam(user)
-    except KeyError:
-        log.debug("Skipping ssh-import-ids for %s, user not found" % user)
+        _check = pwd.getpwnam(user)
+    except KeyError as exc:
+        raise exc
 
     cmd = ["sudo", "-Hu", user, "ssh-import-id"] + ids
     log.debug("Importing ssh ids for user %s.", user)
 
     try:
         util.subp(cmd, capture=False)
-    except util.ProcessExecutionError as e:
+    except util.ProcessExecutionError as exc:
         util.logexc(log, "Failed to run command to import %s ssh ids", user)
-        raise e
+        raise exc
