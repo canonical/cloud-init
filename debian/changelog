@@ -1,3 +1,14 @@
+cloud-init (0.7.0~bzr637-0ubuntu1) quantal; urgency=low
+
+  * New upstream snapshot.
+    * fix issue with public keys not being added to 'ubuntu' user
+      since the user was not created yet. (LP: #1042459)
+    * only search the top level domain 'instance-data' for the EC2
+      metadata service, to avoid misconfiguration or unexpected results
+      by searching search entries in /etc/resolv.conf (LP: #1040200)
+
+ -- Scott Moser <smoser@ubuntu.com>  Mon, 27 Aug 2012 20:27:06 -0400
+
 cloud-init (0.7.0~bzr634-0ubuntu1) quantal; urgency=low
 
   * New upstream snapshot.
