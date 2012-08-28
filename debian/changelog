@@ -1,3 +1,10 @@
+cloud-init (0.7.0~bzr639-0ubuntu1) quantal; urgency=low
+
+  * New upstream snapshot.
+    * fix broken ssh_import_id, which would give stack trace
+
+ -- Scott Moser <smoser@ubuntu.com>  Tue, 28 Aug 2012 14:09:47 -0400
+
 cloud-init (0.7.0~bzr637-0ubuntu1) quantal; urgency=low
 
   * New upstream snapshot.

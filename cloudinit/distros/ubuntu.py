@@ -23,7 +23,6 @@
 
 from cloudinit.distros import debian
 from cloudinit import log as logging
-from cloudinit import util
 
 LOG = logging.getLogger(__name__)
 
