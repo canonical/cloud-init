@@ -35,8 +35,6 @@ class Filter(object):
         self.allow_none = allow_none
 
     def _select(self, message):
-        if ud.is_skippable(message):
-            return False
         msg_idx = message.get('Launch-Index', None)
         if self.allow_none and msg_idx is None:
             return True
@@ -45,19 +43,33 @@ class Filter(object):
             return False
         return True
 
-    def apply(self, base_message):
-        if not base_message.is_multipart() or self.wanted_idx is None:
-            return base_message
-        prev_msgs = base_message.get_payload(decode=False)
-        to_attach = []
-        for sub_msg in base_message.walk():
-            if self._select(sub_msg):
-                to_attach.append(sub_msg)
-        if len(prev_msgs) != len(to_attach):
+    def _do_filter(self, message):
+        # Don't use walk() here since we want to do the reforming of the 
+        # messages ourselves and not flatten the message listings...
+        if not self._select(message):
+            return None
+        if message.is_multipart():
+            # Recreate it and its child messages
+            prev_msgs = message.get_payload(decode=False)
+            new_msgs = []
+            discarded = 0
+            for m in prev_msgs:
+                m = self._do_filter(m)
+                if m is not None:
+                    new_msgs.append(m)
+                else:
+                    discarded += 1
             LOG.debug(("Discarding %s multipart messages "
                        "which do not match launch index %s"),
-                      (len(prev_msgs) - len(to_attach)), self.wanted_idx)
-        filtered_msg = copy.deepcopy(base_message)
-        filtered_msg.set_payload(to_attach)
-        filtered_msg[ud.ATTACHMENT_FIELD] = str(len(to_attach))
-        return filtered_msg
+                       discarded, self.wanted_idx)
+            new_message = copy.copy(message)
+            new_message.set_payload(new_msgs)
+            new_message[ud.ATTACHMENT_FIELD] = str(len(new_msgs))
+            return new_message
+        else:
+            return copy.copy(message)
+
+    def apply(self, root_message):
+        if self.wanted_idx is None:
+            return root_message
+        return self._do_filter(root_message)
