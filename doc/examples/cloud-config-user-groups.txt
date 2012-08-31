@@ -25,7 +25,7 @@ users:
     ssh-authorized-keys:
       - <ssh pub key 1>
       - <ssh pub key 2>
-  - name cloudy
+  - name: cloudy
     gecos: Magic Cloud App Daemon User
     inactive: true
     system: true
