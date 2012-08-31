@@ -40,18 +40,31 @@ def handle(_name, cfg, cloud, log, args):
 
     # import for cloudinit created users
     elist = []
-    for user in cfg['users'].keys():
-        if user == "default":
+    for user_cfg in cfg['users']:
+        user = None
+        import_ids = []
+
+        if isinstance(user_cfg, str) and user_cfg == "default":
             user = cloud.distro.get_default_user()
             if not user:
                 continue
+
             import_ids = util.get_cfg_option_list(cfg, "ssh_import_id", [])
-        else:
-            if not isinstance(cfg['users'][user], dict):
-                log.debug("cfg['users'][%s] not a dict, skipping ssh_import",
-                          user)
-            import_ids = util.get_cfg_option_list(cfg['users'][user],
-                                                  "ssh_import_id", [])
+
+        elif isinstance(user_cfg, dict):
+            user = None
+            import_ids = []
+
+            try:
+                user = user_cfg['name']
+                import_ids = user_cfg['ssh_import_id']
+
+                if import_ids and isinstance(import_ids, str):
+                    import_ids = str(import_ids).split(',')
+
+            except:
+                log.debug("user %s is not configured for ssh_import" % user)
+                continue
 
         if not len(import_ids):
             continue
@@ -59,8 +72,8 @@ def handle(_name, cfg, cloud, log, args):
         try:
             import_ssh_ids(import_ids, user, log)
         except Exception as exc:
-            util.logexc(exc, "ssh-import-id failed for: %s %s" %
-                        (user, import_ids))
+            util.logexc(log, "ssh-import-id failed for: %s %s" %
+                            (user, import_ids), exc)
             elist.append(exc)
 
     if len(elist):
@@ -68,6 +81,7 @@ def handle(_name, cfg, cloud, log, args):
 
 
 def import_ssh_ids(ids, user, log):
+
     if not (user and ids):
         log.debug("empty user(%s) or ids(%s). not importing", user, ids)
         return
