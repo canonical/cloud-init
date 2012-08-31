@@ -347,7 +347,7 @@ class Init(object):
             sys.path.insert(0, idir)
 
         # Ensure datasource fetched before activation (just incase)
-        user_data_msg = self.datasource.get_userdata()
+        user_data_msg = self.datasource.get_userdata(True)
 
         # This keeps track of all the active handlers
         c_handlers = helpers.ContentHandlers()
