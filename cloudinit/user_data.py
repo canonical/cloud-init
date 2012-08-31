@@ -52,21 +52,23 @@ ARCHIVE_UNDEF_TYPE = "text/cloud-config"
 # Msg header used to track attachments
 ATTACHMENT_FIELD = 'Number-Attachments'
 
+# Only the following content types can have there launch index examined
+# in there payload, evey other content type can still provide a header
+EXAMINE_FOR_LAUNCH_INDEX = ["text/cloud-config", "text/cloud-config-archive"]
+
 
 class UserDataProcessor(object):
     def __init__(self, paths):
         self.paths = paths
 
     def process(self, blob):
-        base_msg = convert_string(blob)
-        process_msg = MIMEMultipart()
-        self._process_msg(base_msg, process_msg)
-        return process_msg
+        accumulating_msg = MIMEMultipart()
+        self._process_msg(convert_string(blob), accumulating_msg)
+        return accumulating_msg
 
     def _process_msg(self, base_msg, append_msg):
         for part in base_msg.walk():
-            # multipart/* are just containers
-            if part.get_content_maintype() == 'multipart':
+            if is_skippable(part):
                 continue
 
             ctype = None
@@ -97,10 +99,40 @@ class UserDataProcessor(object):
 
             self._attach_part(append_msg, part)
 
+    def _attach_launch_index(self, msg):
+        header_idx = msg.get('Launch-Index', None)
+        payload_idx = None
+        if msg.get_content_type() in EXAMINE_FOR_LAUNCH_INDEX:
+            try:
+                # See if it has a launch-index field
+                # that might affect the final header
+                payload = util.load_yaml(msg.get_payload(decode=True))
+                if payload:
+                    payload_idx = payload.get('launch-index')
+            except:
+                pass
+        # Header overrides contents, for now (?) or the other way around?
+        if header_idx is not None:
+            payload_idx = header_idx
+        # Nothing found in payload, use header (if anything there)
+        if payload_idx is None:
+            payload_idx = header_idx
+        if payload_idx is not None:
+            try:
+                msg.add_header('Launch-Index', str(int(payload_idx)))
+            except (ValueError, TypeError):
+                pass
+
     def _get_include_once_filename(self, entry):
         entry_fn = util.hash_blob(entry, 'md5', 64)
         return os.path.join(self.paths.get_ipath_cur('data'),
                             'urlcache', entry_fn)
+
+    def _process_before_attach(self, msg, attached_id):
+        if not msg.get_filename():
+            msg.add_header('Content-Disposition',
+                           'attachment', filename=PART_FN_TPL % (attached_id))
+        self._attach_launch_index(msg)
 
     def _do_include(self, content, append_msg):
         # Include a list of urls, one per line
@@ -178,9 +210,11 @@ class UserDataProcessor(object):
             if 'filename' in ent:
                 msg.add_header('Content-Disposition',
                                'attachment', filename=ent['filename'])
+            if 'launch-index' in ent:
+                msg.add_header('Launch-Index', str(ent['launch-index']))
 
             for header in list(ent.keys()):
-                if header in ('content', 'filename', 'type'):
+                if header in ('content', 'filename', 'type', 'launch-index'):
                     continue
                 msg.add_header(header, ent['header'])
 
@@ -204,21 +238,23 @@ class UserDataProcessor(object):
             outer_msg.replace_header(ATTACHMENT_FIELD, str(fetched_count))
         return fetched_count
 
-    def _part_filename(self, _unnamed_part, count):
-        return PART_FN_TPL % (count + 1)
-
     def _attach_part(self, outer_msg, part):
         """
-        Attach an part to an outer message. outermsg must be a MIMEMultipart.
-        Modifies a header in the message to keep track of number of attachments.
+        Attach a message to an outer message. outermsg must be a MIMEMultipart.
+        Modifies a header in the outer message to keep track of number of attachments.
         """
-        cur_c = self._multi_part_count(outer_msg)
-        if not part.get_filename():
-            fn = self._part_filename(part, cur_c)
-            part.add_header('Content-Disposition',
-                            'attachment', filename=fn)
+        part_count = self._multi_part_count(outer_msg)
+        self._process_before_attach(part, part_count + 1)
         outer_msg.attach(part)
-        self._multi_part_count(outer_msg, cur_c + 1)
+        self._multi_part_count(outer_msg, part_count + 1)
+
+
+def is_skippable(part):
+    # multipart/* are just containers
+    part_maintype = part.get_content_maintype() or ''
+    if part_maintype.lower() == 'multipart':
+        return True
+    return False
 
 
 # Coverts a raw string into a mime message

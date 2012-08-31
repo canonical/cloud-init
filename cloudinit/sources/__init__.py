@@ -20,12 +20,16 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+from email.mime.multipart import MIMEMultipart
+
 import abc
 
 from cloudinit import importer
 from cloudinit import log as logging
 from cloudinit import user_data as ud
 from cloudinit import util
+
+from cloudinit.filters import launch_index
 
 DEP_FILESYSTEM = "FILESYSTEM"
 DEP_NETWORK = "NETWORK"
@@ -59,11 +63,29 @@ class DataSource(object):
         else:
             self.ud_proc = ud_proc
 
-    def get_userdata(self):
+    def get_userdata(self, apply_filter=False):
         if self.userdata is None:
-            raw_data = self.get_userdata_raw()
-            self.userdata = self.ud_proc.process(raw_data)
+            self.userdata = self.ud_proc.process(self.get_userdata_raw())
+        if apply_filter:
+            return self._filter_userdata(self.userdata)
         return self.userdata
+
+    @property
+    def launch_index(self):
+        if not self.metadata:
+            return None
+        if 'launch-index' in self.metadata:
+            return self.metadata['launch-index']
+        return None
+
+    def _filter_userdata(self, processed_ud):
+        filters = [
+            launch_index.Filter(util.safe_int(self.launch_index)),
+        ]
+        new_ud = processed_ud
+        for f in filters:
+            new_ud = f.apply(new_ud)
+        return new_ud
 
     @property
     def is_disconnected(self):

@@ -6,8 +6,12 @@ Wants=local-fs.target cloud-init-local.service
 
 [Service]
 Type=oneshot
-ExecStart=/usr/bin/cloud-init start
+ExecStart=/usr/bin/cloud-init init
 RemainAfterExit=yes
+TimeoutSec=0
+
+# Output needs to appear in instance console output
+StandardOutput=tty
 
 [Install]
 WantedBy=multi-user.target

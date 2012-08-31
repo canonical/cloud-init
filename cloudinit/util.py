@@ -1285,12 +1285,15 @@ def ensure_file(path, mode=0644):
     write_file(path, content='', omode="ab", mode=mode)
 
 
-def chmod(path, mode):
-    real_mode = None
+def safe_int(possible_int):
     try:
-        real_mode = int(mode)
+        return int(possible_int)
     except (ValueError, TypeError):
-        pass
+        return None
+
+
+def chmod(path, mode):
+    real_mode = safe_int(mode)
     if path and real_mode:
         with SeLinuxGuard(path):
             os.chmod(path, real_mode)

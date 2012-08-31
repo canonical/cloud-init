@@ -1,3 +1,11 @@
+cloud-init (0.7.0~bzr642-0ubuntu1) quantal; urgency=low
+
+  * New upstream snapshot.
+    * support using launch-index (ami-launch-index) (LP: #1023177)
+    * usergroup related fixes (LP: #1041384, #1044044, #1044508)
+
+ -- Scott Moser <smoser@ubuntu.com>  Fri, 31 Aug 2012 17:04:06 -0400
+
 cloud-init (0.7.0~bzr639-0ubuntu1) quantal; urgency=low
 
   * New upstream snapshot.

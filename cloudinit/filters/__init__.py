@@ -7,7 +7,6 @@
 #    Author: Scott Moser <scott.moser@canonical.com>
 #    Author: Juerg Haefliger <juerg.haefliger@hp.com>
 #    Author: Joshua Harlow <harlowja@yahoo-inc.com>
-#    Author: Ben Howard <ben.howard@canonical.com>
 #
 #    This program is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License version 3, as
@@ -20,16 +19,3 @@
 #
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
-
-from cloudinit.distros import debian
-from cloudinit import log as logging
-
-LOG = logging.getLogger(__name__)
-
-
-class Distro(debian.Distro):
-
-    distro_name = 'ubuntu'
-    default_user = 'ubuntu'
-    default_user_groups = ("adm,admin,audio,cdrom,dialout,floppy,video,"
-                            "plugdev,dip,netdev,sudo")
