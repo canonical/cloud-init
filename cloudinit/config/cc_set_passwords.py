@@ -53,13 +53,17 @@ def handle(_name, cfg, cloud, log, args):
         user = cloud.distro.get_default_user()
 
         if 'users' in cfg:
-            user_zero = cfg['users'].keys()[0]
 
-            if user_zero != "default":
-                user = user_zero
+            user_zero = cfg['users'][0]
+
+            if isinstance(user_zero, dict) and 'name' in user_zero:
+                user = user_zero['name']
 
         if user:
             plist = "%s:%s" % (user, password)
+
+        else:
+            log.warn("No default or defined user to change password for.")
 
     errors = []
     if plist:
