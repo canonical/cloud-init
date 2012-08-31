@@ -47,6 +47,7 @@ class Distro(object):
 
     __metaclass__ = abc.ABCMeta
     default_user = None
+    default_user_groups = None
 
     def __init__(self, name, cfg, paths):
         self._paths = paths
@@ -59,16 +60,25 @@ class Distro(object):
         #  - nopasswd sudo access
 
         user = self.get_default_user()
+        groups = self.get_default_user_groups()
+
         if not user:
             raise NotImplementedError("No Default user")
 
-        self.create_user(user,
-                        plain_text_passwd=user,
-                        home="/home/%s" % user,
-                        shell="/bin/bash",
-                        lockpasswd=True,
-                        gecos="%s%s" % (user[0:1].upper(), user[1:]),
-                        sudo="ALL=(ALL) NOPASSWD:ALL")
+        user_dict = {
+                    'name': user,
+                    'plain_text_passwd': user,
+                    'home': "/home/%s" % user,
+                    'shell': "/bin/bash",
+                    'lock_passwd': True,
+                    'gecos': "%s%s" % (user[0:1].upper(), user[1:]),
+                    'sudo': "ALL=(ALL) NOPASSWD:ALL",
+                    }
+
+        if groups:
+            user_dict['groups'] = groups
+
+        self.create_user(**user_dict)
 
         LOG.info("Added default '%s' user with passwordless sudo", user)
 
@@ -204,6 +214,9 @@ class Distro(object):
     def get_default_user(self):
         return self.default_user
 
+    def get_default_user_groups(self):
+        return self.default_user_groups
+
     def create_user(self, name, **kwargs):
         """
             Creates users for the system using the GNU passwd tools. This
@@ -220,7 +233,7 @@ class Distro(object):
         adduser_opts = {
                 "gecos": '--comment',
                 "homedir": '--home',
-                "primarygroup": '--gid',
+                "primary_group": '--gid',
                 "groups": '--groups',
                 "passwd": '--password',
                 "shell": '--shell',
@@ -229,10 +242,10 @@ class Distro(object):
                 }
 
         adduser_opts_flags = {
-                "nousergroup": '--no-user-group',
+                "no_user_group": '--no-user-group',
                 "system": '--system',
-                "nologinit": '--no-log-init',
-                "nocreatehome": "-M",
+                "no_log_init": '--no-log-init',
+                "no_create_home": "-M",
                 }
 
         # Now check the value and create the command
@@ -254,7 +267,7 @@ class Distro(object):
 
         # Default to creating home directory unless otherwise directed
         #  Also, we do not create home directories for system users.
-        if "nocreatehome" not in kwargs and "system" not in kwargs:
+        if "no_create_home" not in kwargs and "system" not in kwargs:
             adduser_cmd.append('-m')
 
         # Create the user
@@ -273,8 +286,8 @@ class Distro(object):
             self.set_passwd(name, kwargs['plain_text_passwd'])
 
         # Default locking down the account.
-        if ('lockpasswd' not in kwargs and
-            ('lockpasswd' in kwargs and kwargs['lockpasswd']) or
+        if ('lock_passwd' not in kwargs and
+            ('lock_passwd' in kwargs and kwargs['lock_passwd']) or
             'system' not in kwargs):
             try:
                 util.subp(['passwd', '--lock', name])
@@ -288,8 +301,8 @@ class Distro(object):
             self.write_sudo_rules(name, kwargs['sudo'])
 
         # Import SSH keys
-        if 'sshauthorizedkeys' in kwargs:
-            keys = set(kwargs['sshauthorizedkeys']) or []
+        if 'ssh_authorized_keys' in kwargs:
+            keys = set(kwargs['ssh_authorized_keys']) or []
             ssh_util.setup_user_keys(keys, name, None, self._paths)
 
         return True

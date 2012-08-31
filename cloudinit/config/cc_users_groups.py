@@ -38,19 +38,17 @@ def handle(name, cfg, cloud, log, _args):
     if 'users' in cfg:
         user_zero = None
 
-        for name, user_config in cfg['users'].iteritems():
-            if not user_zero:
-                user_zero = name
+        for user_config in cfg['users']:
 
             # Handle the default user creation
-            if name == "default" and user_config:
+            if 'default' in user_config:
                 log.info("Creating default user")
 
                 # Create the default user if so defined
                 try:
                     cloud.distro.add_default_user()
 
-                    if user_zero == name:
+                    if not user_zero:
                         user_zero = cloud.distro.get_default_user()
 
                 except NotImplementedError:
@@ -60,11 +58,21 @@ def handle(name, cfg, cloud, log, _args):
 
                     log.warn("Distro has not implemented default user "
                              "creation. No default user will be created")
-            else:
+
+            elif isinstance(user_config, dict) and 'name' in user_config:
+
+                name = user_config['name']
+                if not user_zero:
+                    user_zero = name
+
                 # Make options friendly for distro.create_user
                 new_opts = {}
                 if isinstance(user_config, dict):
                     for opt in user_config:
-                        new_opts[opt.replace('-', '')] = user_config[opt]
+                        new_opts[opt.replace('-', '_')] = user_config[opt]
 
-                cloud.distro.create_user(name, **new_opts)
+                cloud.distro.create_user(**new_opts)
+
+            else:
+                # create user with no configuration
+                cloud.distro.create_user(user_config)
