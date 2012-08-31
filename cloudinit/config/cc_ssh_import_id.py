@@ -60,7 +60,7 @@ def handle(_name, cfg, cloud, log, args):
                 import_ids = user_cfg['ssh_import_id']
 
                 if import_ids and isinstance(import_ids, str):
-                    import_ids = import_ids.split(',')
+                    import_ids = str(import_ids).split(',')
 
             except:
                 log.debug("user %s is not configured for ssh_import" % user)
