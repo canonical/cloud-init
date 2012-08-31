@@ -7,6 +7,7 @@ groups:
 
 # add users to the system. Users are added after groups are added.
 users:
+  - default
   - name: foobar
     gecos: Foo B. Bar
     primary-group: foobar
@@ -24,12 +25,13 @@ users:
     ssh-authorized-keys:
       - <ssh pub key 1>
       - <ssh pub key 2>
-  cloudy:
+  - name cloudy
     gecos: Magic Cloud App Daemon User
     inactive: true
     system: true
 
 # Valid Values:
+#   name: The user's login name
 #   gecos: The user name's real name, i.e. "Bob B. Smith"
 #   homedir: Optional. Set to the local path you want to use. Defaults to
 #           /home/<username>
