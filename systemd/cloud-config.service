@@ -6,8 +6,12 @@ Wants=network.target
 
 [Service]
 Type=oneshot
-ExecStart=/usr/bin/cloud-init-cfg all config
+ExecStart=/usr/bin/cloud-init modules --mode=config
 RemainAfterExit=yes
+TimeoutSec=0
+
+# Output needs to appear in instance console output
+StandardOutput=tty
 
 [Install]
 WantedBy=multi-user.target
