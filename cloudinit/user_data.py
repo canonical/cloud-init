@@ -84,6 +84,12 @@ class UserDataProcessor(object):
             if ctype is None:
                 ctype = ctype_orig
 
+            if ctype != ctype_orig:
+                if CONTENT_TYPE in part:
+                    part.replace_header(CONTENT_TYPE, ctype)
+                else:
+                    part[CONTENT_TYPE] = ctype
+
             if ctype in INCLUDE_TYPES:
                 self._do_include(payload, append_msg)
                 continue
@@ -92,6 +98,8 @@ class UserDataProcessor(object):
                 self._explode_archive(payload, append_msg)
                 continue
 
+            # Should this be happening, shouldn't
+            # the part header be modified and not the base?
             if CONTENT_TYPE in base_msg:
                 base_msg.replace_header(CONTENT_TYPE, ctype)
             else:
