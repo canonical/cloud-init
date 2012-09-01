@@ -54,7 +54,7 @@ ATTACHMENT_FIELD = 'Number-Attachments'
 
 # Only the following content types can have there launch index examined
 # in there payload, evey other content type can still provide a header
-EXAMINE_FOR_LAUNCH_INDEX = ["text/cloud-config", "text/cloud-config-archive"]
+EXAMINE_FOR_LAUNCH_INDEX = ["text/cloud-config"]
 
 
 class UserDataProcessor(object):
@@ -180,7 +180,7 @@ class UserDataProcessor(object):
                 self._process_msg(new_msg, append_msg)
 
     def _explode_archive(self, archive, append_msg):
-        entries = util.load_yaml(archive, default=[], allowed=[list, set])
+        entries = util.load_yaml(archive, default=[], allowed=(list, set))
         for ent in entries:
             # ent can be one of:
             #  dict { 'filename' : 'value', 'content' :
