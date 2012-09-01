@@ -22,7 +22,8 @@ class ResourceUsingTestCase(MockerTestCase):
                 if os.path.isdir(p):
                     self.resource_path = p
                     break
-        self.assertTrue((self.resource_path and os.path.isdir(self.resource_path)),
+        self.assertTrue((self.resource_path and
+                         os.path.isdir(self.resource_path)),
                         msg="Unable to locate test resource data path!")
         if not subname:
             return self.resource_path

@@ -1,6 +1,4 @@
-import os
 import copy
-import sys
 
 import helpers as th
 
@@ -26,7 +24,8 @@ class TestLaunchFilter(th.ResourceUsingTestCase):
     def assertCounts(self, message, expected_counts):
         orig_message = copy.deepcopy(message)
         for (index, count) in expected_counts.items():
-            filtered_message = launch_index.Filter(util.safe_int(index)).apply(message)
+            index = util.safe_int(index)
+            filtered_message = launch_index.Filter(index).apply(message)
             self.assertEquals(count_messages(filtered_message), count)
         # Ensure original message still ok/not modified
         self.assertTrue(self.equivalentMessage(message, orig_message))
@@ -50,7 +49,9 @@ class TestLaunchFilter(th.ResourceUsingTestCase):
                 return False
             if m1_msg.is_multipart() != m2_msg.is_multipart():
                 return False
-            if m1_msg.get_payload(decode=True) != m2_msg.get_payload(decode=True):
+            m1_py = m1_msg.get_payload(decode=True)
+            m2_py = m2_msg.get_payload(decode=True)
+            if m1_py != m2_py:
                 return False
         return True
 
@@ -79,6 +80,7 @@ class TestLaunchFilter(th.ResourceUsingTestCase):
         expected_counts = {
             5: 1,
             -1: 0,
+            'c': 1,
             None: 1,
         }
         self.assertCounts(message, expected_counts)
