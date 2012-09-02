@@ -1,3 +1,13 @@
+cloud-init (0.7.0~bzr644-0ubuntu1) quantal; urgency=low
+
+  * New upstream snapshot.
+    * fix cloud-archives (LP: #1044594)
+    * fix set_passwords for usergroups as a list (LP: #1044553)
+  * fix 'failed to setup apt-pipelining' warning on install due to
+    old 0.6 style usage of cloud-init.
+
+ -- Scott Moser <smoser@ubuntu.com>  Sat, 01 Sep 2012 20:11:34 -0400
+
 cloud-init (0.7.0~bzr642-0ubuntu1) quantal; urgency=low
 
   * New upstream snapshot.

@@ -135,7 +135,7 @@ EOF
    # cloud-init to run it on next boot.
    pipeline_f="/etc/apt/apt.conf.d/90cloud-init-pipelining"
    if [ -f /var/lib/cloud/instance/obj.pkl ]; then
-      cloud-init-cfg apt-pipelining once-per-instance >/dev/null 2>&1 ||
+      cloud-init single --name apt-pipelining --frequency once >/dev/null 2>&1 ||
          echo "Warning: failed to setup apt-pipelining" 1>&2
    elif [ ! -f "$pipeline_f" ]; then
       # there was no cloud available, so populate it ourselves.
