@@ -54,7 +54,7 @@ ATTACHMENT_FIELD = 'Number-Attachments'
 
 # Only the following content types can have there launch index examined
 # in there payload, evey other content type can still provide a header
-EXAMINE_FOR_LAUNCH_INDEX = ["text/cloud-config", "text/cloud-config-archive"]
+EXAMINE_FOR_LAUNCH_INDEX = ["text/cloud-config"]
 
 
 class UserDataProcessor(object):
@@ -84,6 +84,12 @@ class UserDataProcessor(object):
             if ctype is None:
                 ctype = ctype_orig
 
+            if ctype != ctype_orig:
+                if CONTENT_TYPE in part:
+                    part.replace_header(CONTENT_TYPE, ctype)
+                else:
+                    part[CONTENT_TYPE] = ctype
+
             if ctype in INCLUDE_TYPES:
                 self._do_include(payload, append_msg)
                 continue
@@ -92,6 +98,8 @@ class UserDataProcessor(object):
                 self._explode_archive(payload, append_msg)
                 continue
 
+            # Should this be happening, shouldn't
+            # the part header be modified and not the base?
             if CONTENT_TYPE in base_msg:
                 base_msg.replace_header(CONTENT_TYPE, ctype)
             else:
@@ -180,7 +188,7 @@ class UserDataProcessor(object):
                 self._process_msg(new_msg, append_msg)
 
     def _explode_archive(self, archive, append_msg):
-        entries = util.load_yaml(archive, default=[], allowed=[list, set])
+        entries = util.load_yaml(archive, default=[], allowed=(list, set))
         for ent in entries:
             # ent can be one of:
             #  dict { 'filename' : 'value', 'content' :

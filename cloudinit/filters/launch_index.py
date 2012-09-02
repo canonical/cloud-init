@@ -44,7 +44,7 @@ class Filter(object):
         return True
 
     def _do_filter(self, message):
-        # Don't use walk() here since we want to do the reforming of the 
+        # Don't use walk() here since we want to do the reforming of the
         # messages ourselves and not flatten the message listings...
         if not self._select(message):
             return None
