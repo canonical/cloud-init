@@ -31,6 +31,7 @@ from cloudinit.settings import PER_INSTANCE
 frequency = PER_INSTANCE
 
 LSC_CLIENT_CFG_FILE = "/etc/landscape/client.conf"
+LS_DEFAULT_FILE = "/etc/default/landscape-client"
 
 distros = ['ubuntu']
 
@@ -77,6 +78,8 @@ def handle(_name, cfg, cloud, log, _args):
 
     util.write_file(lsc_client_fn, contents.getvalue())
     log.debug("Wrote landscape config file to %s", lsc_client_fn)
+
+    util.write_file(LS_DEFAULT_FILE, "RUN=1\n")
 
 
 def merge_together(objs):
