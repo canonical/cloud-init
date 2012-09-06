@@ -92,7 +92,7 @@ def handle(_name, cfg, cloud, log, _args):
         # in case the user did not quote a field (likely fs-freq, fs_passno)
         # but do not convert None to 'None' (LP: #898365)
         for j in range(len(cfgmnt[i])):
-            if j is None:
+            if cfgmnt[i][j] is None:
                 continue
             else:
                 cfgmnt[i][j] = str(cfgmnt[i][j])
