@@ -31,7 +31,8 @@ from cloudinit import version as vr
 EXIT_FOR = {
     signal.SIGINT: ('Cloud-init %(version)s interrupted, exiting...', 1),
     signal.SIGTERM: ('Cloud-init %(version)s terminated, exiting...', 1),
-    # signal.SIGKILL: ('Cloud-init killed, exiting...', 1), - Can't be caught...
+    # Can't be caught...
+    # signal.SIGKILL: ('Cloud-init killed, exiting...', 1),
     signal.SIGABRT: ('Cloud-init %(version)s aborted, exiting...', 1),
 }
 
