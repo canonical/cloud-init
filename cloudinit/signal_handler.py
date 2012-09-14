@@ -24,10 +24,14 @@ import sys
 
 from StringIO import StringIO
 
+from cloudinit import log as logging
 from cloudinit import util
 from cloudinit import version as vr
 
+LOG = logging.getLogger(__name__)
 
+
+BACK_FRAME_TRACE_DEPTH = 3
 EXIT_FOR = {
     signal.SIGINT: ('Cloud-init %(version)s interrupted, exiting...', 1),
     signal.SIGTERM: ('Cloud-init %(version)s terminated, exiting...', 1),
@@ -37,24 +41,36 @@ EXIT_FOR = {
 }
 
 
-def _pprint_frame(frame, depth=1, max_depth=3):
+def _pprint_frame(frame, depth, max_depth, contents):
     if depth > max_depth or not frame:
         return
     frame_info = inspect.getframeinfo(frame)
     prefix = " " * (depth * 2)
-    contents = StringIO()
     contents.write("%sFilename: %s\n" % (prefix, frame_info.filename))
     contents.write("%sFunction: %s\n" % (prefix, frame_info.function))
     contents.write("%sLine number: %s\n" % (prefix, frame_info.lineno))
-    util.multi_log(contents.getvalue())
-    _pprint_frame(frame.f_back, depth + 1, max_depth)
+    _pprint_frame(frame.f_back, depth + 1, max_depth, contents)
 
 
 def _handle_exit(signum, frame):
     (msg, rc) = EXIT_FOR[signum]
+    # Reset logging so that only the basic logging
+    # is active since the state of syslog or other
+    # logging processes is unknown if we are being
+    # signaled by a reboot process which is external and
+    # killing other processes while this process is being
+    # finished off...
+    try:
+        logging.resetLogging()
+        logging.setupBasicLogging()
+    except:
+        pass
     msg = msg % ({'version': vr.version()})
-    util.multi_log("%s\n" % (msg))
-    _pprint_frame(frame)
+    contents = StringIO()
+    contents.write("%s\n" % (msg))
+    _pprint_frame(frame, 1, BACK_FRAME_TRACE_DEPTH, contents)
+    util.multi_log(contents.getvalue(),
+                   console=True, stderr=False, log=LOG)
     sys.exit(rc)
 
 
