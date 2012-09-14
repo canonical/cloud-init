@@ -1,4 +1,7 @@
 0.7.0:
+ - do not 'start networking' in cloud-init-nonet, but add
+   cloud-init-container job that runs only if in container and emits
+   net-device-added (LP: #1031065)
  - search only top level dns for 'instance-data' in DataSourceEc2 (LP: #1040200)
  - add support for config-drive-v2 (LP:#1037567)
  - support creating users, including the default user.
