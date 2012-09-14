@@ -1,6 +1,5 @@
 """Tests for handling of signals within cloud init."""
 
-import os
 import subprocess
 import sys
 import time
@@ -17,11 +16,14 @@ class TestSignal(MockerTestCase):
         # This is done since nose/unittest is actually setting up
         # output capturing, signal handling itself, and its easier
         # to just call out to cloudinit with a loop and see what the result is
-        run_what = [sys.executable, 
-                    '-c', ('import time; from cloudinit import signal_handler;'
-                           'signal_handler.attach_handlers(); time.sleep(120)')]
+        run_what = [sys.executable,
+                    '-c',
+                    ('import time; from cloudinit import signal_handler;'
+                    'signal_handler.attach_handlers(); time.sleep(120)')]
 
-        pc_info = subprocess.Popen(run_what, stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+        pc_info = subprocess.Popen(run_what,
+                                   stderr=subprocess.PIPE,
+                                   stdout=subprocess.PIPE)
 
         # Let it start up
         time.sleep(0.5)
@@ -38,7 +40,6 @@ class TestSignal(MockerTestCase):
         if pc_info.stderr:
             outputs.write(pc_info.stderr.read())
         val = outputs.getvalue()
-        print val
 
         # Check some of the outputs that should of happened
         self.assertEquals(1, pc_info.wait())
