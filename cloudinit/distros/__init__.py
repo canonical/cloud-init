@@ -239,6 +239,7 @@ class Distro(object):
                 "shell": '--shell',
                 "expiredate": '--expiredate',
                 "inactive": '--inactive',
+                "selinux_user": '--selinux-user',
                 }
 
         adduser_opts_flags = {
