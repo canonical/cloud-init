@@ -228,7 +228,7 @@ class Distro(distros.Distro):
 
     def update_package_sources(self):
         self._runner.run("update-sources", self.package_command,
-                         ["update"], freq=PER_INSTANCE)
+                         ["makecache"], freq=PER_INSTANCE)
 
 
 # This class helps adjust the configobj
