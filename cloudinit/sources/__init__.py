@@ -149,7 +149,7 @@ class DataSource(object):
             return "iid-datasource"
         return str(self.metadata['instance-id'])
 
-    def get_hostname(self, fqdn=False):
+    def get_hostname(self, fqdn=False, resolve_ip=False):
         defdomain = "localdomain"
         defhost = "localhost"
         domain = defdomain
@@ -173,7 +173,13 @@ class DataSource(object):
             # make up a hostname (LP: #475354) in format ip-xx.xx.xx.xx
             lhost = self.metadata['local-hostname']
             if util.is_ipv4(lhost):
-                toks = "ip-%s" % lhost.replace(".", "-")
+                if resolve_ip:
+                    toks = util.gethostbyaddr(lhost)
+
+                if toks:
+                    toks = toks.split('.')
+                else:
+                    toks = "ip-%s" % lhost.replace(".", "-")
             else:
                 toks = lhost.split(".")
 
