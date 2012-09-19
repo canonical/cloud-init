@@ -67,8 +67,7 @@ class Distro(distros.Distro):
 
     def _write_hostname(self, hostname, out_fn):
         # "" gives trailing newline.
-        lines = ["# Created by cloud-init", str(hostname), ""]
-        util.write_file(out_fn, '\n'.join(lines), 0644)
+        util.write_file(out_fn, "%s\n" % str(hostname), 0644)
 
     def update_hostname(self, hostname, prev_fn):
         hostname_prev = self._read_hostname(prev_fn)
