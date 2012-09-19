@@ -46,11 +46,8 @@ class Distro(distros.Distro):
             out_fn = self._paths.join(False, '/etc/default/locale')
         util.subp(['locale-gen', locale], capture=False)
         util.subp(['update-locale', locale], capture=False)
-        contents = [
-            "# Created by cloud-init",
-            'LANG="%s"' % (locale),
-        ]
-        util.write_file(out_fn, "\n".join(contents))
+        lines = ["# Created by cloud-init", 'LANG="%s"' % (locale), ""]
+        util.write_file(out_fn, "\n".join(lines))
 
     def install_packages(self, pkglist):
         self.update_package_sources()
@@ -69,11 +66,9 @@ class Distro(distros.Distro):
             util.subp(['hostname', hostname])
 
     def _write_hostname(self, hostname, out_fn):
-        lines = []
-        lines.append("# Created by cloud-init")
-        lines.append(str(hostname))
-        contents = "\n".join(lines)
-        util.write_file(out_fn, contents, 0644)
+        # "" gives trailing newline.
+        lines = ["# Created by cloud-init", str(hostname), ""]
+        util.write_file(out_fn, '\n'.join(lines), 0644)
 
     def update_hostname(self, hostname, prev_fn):
         hostname_prev = self._read_hostname(prev_fn)
@@ -123,13 +118,10 @@ class Distro(distros.Distro):
         if not os.path.isfile(tz_file):
             raise RuntimeError(("Invalid timezone %s,"
                                 " no file found at %s") % (tz, tz_file))
-        tz_lines = [
-            "# Created by cloud-init",
-            str(tz),
-        ]
-        tz_contents = "\n".join(tz_lines)
+        # "" provides trailing newline during join
+        tz_lines = ["# Created by cloud-init", str(tz), ""]
         tz_fn = self._paths.join(False, "/etc/timezone")
-        util.write_file(tz_fn, tz_contents)
+        util.write_file(tz_fn, "\n".join(tz_lines))
         util.copy(tz_file, self._paths.join(False, "/etc/localtime"))
 
     def package_command(self, command, args=None):
