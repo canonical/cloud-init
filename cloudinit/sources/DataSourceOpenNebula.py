@@ -109,6 +109,8 @@ class DataSourceOpenNebula(sources.DataSource):
         LOG.debug("%s: not claiming datasource, dsmode=%s", self, md['dsmode'])
         return False
 
+    def get_hostname(self, fqdn=False, resolve_ip=True):
+        return sources.DataSource.get_hostname(self, fqdn, resolve_ip)
 
 class DataSourceOpenNebulaNet(DataSourceOpenNebula):
     dsmode = "net"
@@ -205,6 +207,8 @@ def read_context_disk_dir(source_dir):
     # custom hostname
     if 'hostname' in context_sh:
         results['metadata']['local-hostname'] = context_sh['hostname']
+    elif 'public_ip'in context_sh:
+        results['metadata']['local-hostname'] = context_sh['public_ip']
 
     # raw user data
     if "user_data" in context_sh:
