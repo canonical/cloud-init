@@ -12,6 +12,7 @@ users:
     gecos: Foo B. Bar
     primary-group: foobar
     groups: users
+    selinux-user: staff_u
     expiredate: 2012-09-01
     ssh-import-id: foobar
     lock-passwd: false
@@ -38,6 +39,9 @@ users:
 #   primary-group: define the primary group. Defaults to a new group created
 #           named after the user.
 #   groups:  Optional. Additional groups to add the user to. Defaults to none
+#   selinux-user:  Optional. The SELinux user for the user's login, such as
+#           "staff_u". When this is omitted the system will select the default
+#           SELinux user.
 #   lock-passwd: Defaults to true. Lock the password to disable password login
 #   inactive: Create the user as inactive
 #   passwd: The hash -- not the password itself -- of the password you want
