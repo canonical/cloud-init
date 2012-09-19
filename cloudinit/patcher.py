@@ -18,57 +18,39 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+import imp
 import logging
 import sys
 
+# Default fallback format
 FALL_FORMAT = 'FALLBACK: %(asctime)s - %(filename)s[%(levelname)s]: %(message)s'
 
-Handler = logging.Handler
 
-class QuietStreamHandler(Handler):
+class QuietStreamHandler(logging.StreamHandler):
     def handleError(self, record):
         pass
 
 
-class FallbackHandler(Handler):
-    def __init__(self, level=logging.NOTSET, fb_handler=None):
-        super(FallbackHandler, self).__init__(level)
-        if not fb_handler:
-            self.fallback_handler = QuietStreamHandler(sys.stderr)
-        else:
-            self.fallback_handler = fb_handler
-        self.fallback_handler.setFormatter(logging.Formatter(FALL_FORMAT))
-        self.fallback_handler.setLevel(level)
-
-    def flush(self):
-        super(FallbackHandler, self).flush()
-        self.fallback_handler.flush()
-
-    def close(self):
-        super(FallbackHandler, self).close(self)
-        self.fallback_handler.close()
-
-    def setLevel(self, level):
-        super(FallbackHandler, self).setLevel(self, level)
-        self.fallback_logger.setLevel(level)
-
-    def handleError(self, record):
-        try:
-            self.fallback_logger.handle(record)
-            # Always ensure this one is flushed...
-            self.fallback_logger.flush()
-        except:
-            pass
-
-
 def _patch_logging():
-    # Replace handler with one that will be more
+    # Replace 'handleError' with one that will be more
     # tolerant of errors in that it can avoid
     # re-notifying on exceptions and when errors
     # do occur, it can at least try to write to
     # sys.stderr using a fallback logger
-    logging.Handler = FallbackHandler
+    fallback_handler = QuietStreamHandler(sys.stderr)
+    fallback_handler.setFormatter(logging.Formatter(FALL_FORMAT))
+    def handleError(self, record):
+        try:
+            fallback_handler.handle(record)
+            fallback_handler.flush()
+        except IOError:
+            pass
+    setattr(logging.Handler, 'handleError', handleError)
 
 
 def patch():
-    _patch_logging()
+    imp.acquire_lock()
+    try:
+        _patch_logging()
+    finally:
+        imp.release_lock()
