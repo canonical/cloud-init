@@ -54,17 +54,6 @@ def _pprint_frame(frame, depth, max_depth, contents):
 
 def _handle_exit(signum, frame):
     (msg, rc) = EXIT_FOR[signum]
-    # Reset logging so that only the basic logging
-    # is active since the state of syslog or other
-    # logging processes is unknown if we are being
-    # signaled by a reboot process which is external and
-    # killing other processes while this process is being
-    # finished off...
-    try:
-        logging.resetLogging()
-        logging.setupBasicLogging()
-    except:
-        pass
     msg = msg % ({'version': vr.version()})
     contents = StringIO()
     contents.write("%s\n" % (msg))
