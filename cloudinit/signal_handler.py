@@ -33,11 +33,11 @@ LOG = logging.getLogger(__name__)
 
 BACK_FRAME_TRACE_DEPTH = 3
 EXIT_FOR = {
-    signal.SIGINT: ('Cloud-init %(version)s interrupted, exiting...', 1),
-    signal.SIGTERM: ('Cloud-init %(version)s terminated, exiting...', 1),
+    signal.SIGINT: ('Cloud-init %(version)s received SIGINT, exiting...', 1),
+    signal.SIGTERM: ('Cloud-init %(version)s received SIGTERM, exiting...', 1),
     # Can't be caught...
     # signal.SIGKILL: ('Cloud-init killed, exiting...', 1),
-    signal.SIGABRT: ('Cloud-init %(version)s aborted, exiting...', 1),
+    signal.SIGABRT: ('Cloud-init %(version)s received SIGABRT, exiting...', 1),
 }
 
 
