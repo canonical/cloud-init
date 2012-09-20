@@ -63,6 +63,11 @@ def _make_sysconfig_bool(val):
         return 'no'
 
 
+def _make_header():
+    ci_ver = version.version_string()
+    return '# Created by cloud-init v. %s' % (ci_ver)
+
+
 class Distro(distros.Distro):
 
     def __init__(self, name, cfg, paths):
@@ -83,7 +88,7 @@ class Distro(distros.Distro):
         if search_servers:
             contents.append("search %s" % (" ".join(search_servers)))
         if contents:
-            contents.insert(0, '# Created by cloud-init')
+            contents.insert(0, _make_header())
             util.write_file("/etc/resolv.conf", "\n".join(contents), 0644)
 
     def _write_network(self, settings):
@@ -137,8 +142,7 @@ class Distro(distros.Distro):
         if updated_am:
             lines = contents.write()
             if not exists:
-                ci_ver = version.version_string()
-                lines.insert(0, '# Created by cloud-init v. %s' % (ci_ver))
+                lines.insert(0, _make_header())
             util.write_file(fn, "\n".join(lines), 0644)
 
     def set_hostname(self, hostname):
@@ -212,7 +216,7 @@ class Distro(distros.Distro):
         }
         self._update_sysconfig_file("/etc/sysconfig/clock", clock_cfg)
         # This ensures that the correct tz will be used for the system
-        util.copy(tz_file, self._paths.join(False, "/etc/localtime"))
+        util.copy(tz_file, "/etc/localtime")
 
     def package_command(self, command, args=None):
         cmd = ['yum']
