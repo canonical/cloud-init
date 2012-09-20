@@ -32,6 +32,7 @@ LOG = logging.getLogger(__name__)
 
 DEFAULT_IID = "iid-dsopennebula"
 CONTEXT_DISK_FILES = ["context.sh"]
+VALID_DSMODES = ("local", "net", "disabled")
 
 class DataSourceOpenNebula(sources.DataSource):
     def __init__(self, sys_cfg, distro, paths):
@@ -81,6 +82,20 @@ class DataSourceOpenNebula(sources.DataSource):
         md = results['metadata']
         md = util.mergedict(md, defaults)
 
+        dsmode = results.get('dsmode', None)
+        if dsmode not in VALID_DSMODES + (None,):
+            LOG.warn("user specified invalid mode: %s" % dsmode)
+            dsmode = None
+
+        if (dsmode is None) and self.ds_cfg.get('dsmode'):
+            dsmode = self.ds_cfg.get('dsmode')
+        else:
+            dsmode = self.dsmode
+
+        if dsmode == "disabled":
+            # most likely user specified
+            return False
+
         # update interfaces and ifup only on the local datasource
         # this way the DataSourceConfigDriveNet doesn't do it also.
 #       if 'network-interfaces' in md and self.dsmode == "local":
@@ -100,20 +115,29 @@ class DataSourceOpenNebula(sources.DataSource):
 #                log.warn("ifup --all failed: %s" % (exc.output[1]))
 #
 
-        if md['dsmode'] == self.dsmode:
-            self.seed = found
-            self.metadata = md
-            self.userdata_raw = ud
-            return True
+        if dsmode != self.dsmode:
+            LOG.debug("%s: not claiming datasource, dsmode=%s", self, dsmode)
+            return False
 
-        LOG.debug("%s: not claiming datasource, dsmode=%s", self, md['dsmode'])
-        return False
+        self.seed = found
+        self.metadata = md
+        self.userdata_raw = ud
 
-    def get_hostname(self, fqdn=False, resolve_ip=True):
+        return True
+
+    def get_hostname(self, fqdn=False, resolve_ip=None):
+        if resolve_ip is None:
+            if self.dsmode == 'net':
+                resolve_ip = True
+            else:
+                resolve_ip = False
         return sources.DataSource.get_hostname(self, fqdn, resolve_ip)
 
+
 class DataSourceOpenNebulaNet(DataSourceOpenNebula):
-    dsmode = "net"
+    def __init__(self, sys_cfg, distro, paths):
+        DataSourceOpenNebula.__init__(self, sys_cfg, distro, paths)
+        self.dsmode = 'net'
 
 
 class NonContextDeviceDir(Exception):
