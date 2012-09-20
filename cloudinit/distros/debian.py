@@ -56,12 +56,17 @@ class Distro(distros.Distro):
     def _write_network(self, settings):
         net_fn = self._paths.join(False, "/etc/network/interfaces")
         util.write_file(net_fn, settings)
-        return []
+        return ['all']
 
     def _bring_up_interfaces(self, device_names):
-        if not device_names:
-            device_names = ['--all']
-        return distros.Distro._bring_up_interfaces(self, device_names)
+        use_all = False
+        for d in device_names:
+            if d == 'all':
+                use_all = True
+        if use_all:
+            return distros.Distro._bring_up_interface(self, '--all')
+        else:
+            return distros.Distro._bring_up_interfaces(self, device_names)
 
     def set_hostname(self, hostname):
         out_fn = self._paths.join(False, "/etc/hostname")
