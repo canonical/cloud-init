@@ -1,3 +1,22 @@
+cloud-init (0.7.0~bzr659-0ubuntu1) quantal; urgency=low
+
+  * New upstream snapshot.
+    * add signal handlers to more cleanly exit
+    * add logging fallback in case logging fails
+    * documentation fix for landscape config (LP: #1042764)
+    * do not write a comment in /etc/hostname (LP: #1052664)
+    * fix incorrect ubuntu mirrors for 'ports' arches [Robbie Basak]
+    * fix generation of hostname based on ip address in datasource 
+      (LP: #1050962) [Andy Grimm]
+    * remove 'start networking' from cloud-init-nonet and replace it
+      with container specific fixes (LP: #1031065)
+    * fix landscape configuration so client will run (LP: #1042758)
+    * enable all available datasources (adding AltCloud and None)
+    * fix bug where user data scripts re-ran on upgrade from 10.04 versions
+      (LP: #1049146)
+
+ -- Scott Moser <smoser@ubuntu.com>  Wed, 19 Sep 2012 22:08:51 -0400
+
 cloud-init (0.7.0~bzr644-0ubuntu1) quantal; urgency=low
 
   * New upstream snapshot.
