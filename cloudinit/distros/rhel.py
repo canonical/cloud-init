@@ -88,6 +88,7 @@ class Distro(distros.Distro):
         # Make the intermediate format as the rhel format...
         nameservers = []
         searchservers = []
+        dev_names = entries.keys()
         for (dev, info) in entries.iteritems():
             net_fn = NETWORK_FN_TPL % (dev)
             net_ro_fn = self._paths.join(True, net_fn)
@@ -127,6 +128,7 @@ class Distro(distros.Distro):
             util.write_file(net_rw_fn, w_contents, 0644)
         if nameservers or searchservers:
             self._write_resolve(nameservers, searchservers)
+        return dev_names
 
     def set_hostname(self, hostname):
         out_fn = self._paths.join(False, '/etc/sysconfig/network')
