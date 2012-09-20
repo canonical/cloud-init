@@ -77,7 +77,7 @@ class ResolvConf(object):
         found = []
         for (line_type, components) in self._contents:
             if line_type == 'option':
-                (cfg_opt, cfg_value, comment_tail) = components
+                (cfg_opt, cfg_value, _comment_tail) = components
                 if cfg_opt == opt_name:
                     found.append(cfg_value)
         return found
@@ -104,13 +104,16 @@ class ResolvConf(object):
         def remove_opt(item):
             line_type, components = item
             if line_type != 'option':
-                return True
-            (cfg_opt, cfg_value, comment_tail) = components
+                return False
+            (cfg_opt, _cfg_value, _comment_tail) = components
             if cfg_opt != opt_name:
-                return True
-            return False
+                return False
+            return True
 
-        new_contents = filter(remove_opt, self._contents)
+        new_contents = []
+        for c in self._contents:
+            if not remove_opt(c):
+                new_contents.append(c)
         self._contents = new_contents
 
     def add_search_domain(self, search_domain):
@@ -170,8 +173,10 @@ class ResolvConf(object):
             try:
                 (cfg_opt, cfg_values) = head.split(None, 1)
             except (IndexError, ValueError):
-                raise IOError("Incorrectly formatted resolv.conf line %s" % (i + 1))
-            if cfg_opt not in ('nameserver', 'domain', 'search', 'sortlist', 'options'):
+                raise IOError("Incorrectly formatted resolv.conf line %s"
+                              % (i + 1))
+            if cfg_opt not in ['nameserver', 'domain',
+                               'search', 'sortlist', 'options']:
                 raise IOError("Unexpected resolv.conf option %s" % (cfg_opt))
             entries.append(("option", [cfg_opt, cfg_values, tail]))
         return entries
