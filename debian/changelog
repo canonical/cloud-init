@@ -1,3 +1,9 @@
+cloud-init (0.7.0~bzr659-0ubuntu2) quantal; urgency=low
+
+  * debian/cloud-init.templates: fix bad template file (LP: #1053239)
+
+ -- Scott Moser <smoser@ubuntu.com>  Thu, 20 Sep 2012 09:18:20 -0400
+
 cloud-init (0.7.0~bzr659-0ubuntu1) quantal; urgency=low
 
   * New upstream snapshot.
