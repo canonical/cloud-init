@@ -23,6 +23,8 @@
 import os
 
 from cloudinit import distros
+from cloudinit.distros import helpers as d_helpers
+
 from cloudinit import helpers
 from cloudinit import log as logging
 from cloudinit import util
@@ -68,17 +70,29 @@ class Distro(distros.Distro):
     def install_packages(self, pkglist):
         self.package_command('install', pkglist)
 
-    def _write_resolve(self, dns_servers, search_servers):
-        contents = []
+    def _adjust_resolve(self, dns_servers, search_servers):
+        r_conf = d_helpers.ResolvConf(util.load_file("/etc/resolv.conf"))
+        try:
+            r_conf.parse()
+        except IOError:
+            util.logexc(LOG, 
+                        "Failed at parsing %s reverting to an empty instance",
+                        "/etc/resolv.conf")
+            r_conf = d_helpers.ResolvConf('')
+            r_conf.parse()
         if dns_servers:
             for s in dns_servers:
-                contents.append("nameserver %s" % (s))
+                try:
+                    r_conf.add_nameserver(s)
+                except ValueError:
+                    util.logexc(LOG, "Failed at adding nameserver %s", s)
         if search_servers:
-            contents.append("search %s" % (" ".join(search_servers)))
-        if contents:
-            resolve_rw_fn = self._paths.join(False, "/etc/resolv.conf")
-            contents.insert(0, '# Created by cloud-init')
-            util.write_file(resolve_rw_fn, "\n".join(contents), 0644)
+            for s in search_servers:
+                try:
+                    r_conf.add_search_domain(s)
+                except ValueError:
+                    util.logexc(LOG, "Failed at adding search domain %s", s)
+        util.write_file("/etc/resolv.conf", str(r_conf), 0644)
 
     def _write_network(self, settings):
         # TODO(harlowja) fix this... since this is the ubuntu format
@@ -126,7 +140,7 @@ class Distro(distros.Distro):
             net_rw_fn = self._paths.join(False, net_fn)
             util.write_file(net_rw_fn, w_contents, 0644)
         if nameservers or searchservers:
-            self._write_resolve(nameservers, searchservers)
+            self._adjust_resolve(nameservers, searchservers)
 
     def set_hostname(self, hostname):
         out_fn = self._paths.join(False, '/etc/sysconfig/network')
