@@ -44,10 +44,7 @@ LOG = logging.getLogger(__name__)
 
 
 class Distro(object):
-
     __metaclass__ = abc.ABCMeta
-    default_user = None
-    default_user_groups = None
 
     def __init__(self, name, cfg, paths):
         self._paths = paths
@@ -61,7 +58,6 @@ class Distro(object):
 
         user = self.get_default_user()
         groups = self.get_default_user_groups()
-
         if not user:
             raise NotImplementedError("No Default user")
 
@@ -71,12 +67,12 @@ class Distro(object):
                     'home': "/home/%s" % user,
                     'shell': "/bin/bash",
                     'lock_passwd': True,
-                    'gecos': "%s%s" % (user[0:1].upper(), user[1:]),
+                    'gecos': user.title(),
                     'sudo': "ALL=(ALL) NOPASSWD:ALL",
                     }
 
         if groups:
-            user_dict['groups'] = groups
+            user_dict['groups'] = ",".join(groups)
 
         self.create_user(**user_dict)
 
@@ -212,10 +208,10 @@ class Distro(object):
             return False
 
     def get_default_user(self):
-        return self.default_user
+        return self.get_option('default_user')
 
     def get_default_user_groups(self):
-        return self.default_user_groups
+        return self.get_option('default_user_groups')
 
     def create_user(self, name, **kwargs):
         """
