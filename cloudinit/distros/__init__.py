@@ -338,6 +338,8 @@ class Distro(object):
                     raise TypeError(("Unmappable user value type %s"
                                      " for key %s") % (util.obj_name(v), k))
             u_cfg = ad_ucfg
+        elif isinstance(u_cfg, (str, basestring)):
+            u_cfg = u_cfg.strip().split(",")
 
         users = {}
         for user_config in u_cfg:

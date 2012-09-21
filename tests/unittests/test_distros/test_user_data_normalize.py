@@ -112,6 +112,17 @@ class TestUGNormalize(MockerTestCase):
         ((users, def_user), groups) = distro.normalize_users_groups(ug_cfg)
         self.assertEquals({}, def_user)
 
+    def test_users_simple_csv(self):
+        distro = self._make_distro('ubuntu')
+        ug_cfg = {
+            'users': 'joe,bob',
+        }
+        ((users, def_user), groups) = distro.normalize_users_groups(ug_cfg)
+        self.assertIn('joe', users)
+        self.assertIn('bob', users)
+        self.assertEquals({}, users['joe'])
+        self.assertEquals({}, users['bob'])
+
     def test_users_simple(self):
         distro = self._make_distro('ubuntu')
         ug_cfg = {
