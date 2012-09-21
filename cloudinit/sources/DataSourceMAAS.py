@@ -301,9 +301,7 @@ if __name__ == "__main__":
             'token_secret': args.tsec, 'consumer_secret': args.csec}
 
         if args.config:
-            import yaml
-            with open(args.config) as fp:
-                cfg = yaml.safe_load(fp)
+            cfg = util.read_conf(args.config)
             if 'datasource' in cfg:
                 cfg = cfg['datasource']['MAAS']
             for key in creds.keys():
@@ -312,7 +310,7 @@ if __name__ == "__main__":
 
         def geturl(url, headers_cb):
             req = urllib2.Request(url, data=None, headers=headers_cb(url))
-            return(urllib2.urlopen(req).read())
+            return (urllib2.urlopen(req).read())
 
         def printurl(url, headers_cb):
             print "== %s ==\n%s\n" % (url, geturl(url, headers_cb))
