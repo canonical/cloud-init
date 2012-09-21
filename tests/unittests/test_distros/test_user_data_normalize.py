@@ -78,21 +78,21 @@ class TestUGNormalize(MockerTestCase):
                 'default': True,
             }
         }
-        ((users, def_user), groups) = distro.normalize_users_groups(ug_cfg)
+        ((_users, def_user), _groups) = distro.normalize_users_groups(ug_cfg)
         self.assertEquals('bob', def_user['name'])
         ug_cfg = {
             'users': {
                 'default': 'yes',
             }
         }
-        ((users, def_user), groups) = distro.normalize_users_groups(ug_cfg)
+        ((_users, def_user), _groups) = distro.normalize_users_groups(ug_cfg)
         self.assertEquals('bob', def_user['name'])
         ug_cfg = {
             'users': {
                 'default': '1',
             }
         }
-        ((users, def_user), groups) = distro.normalize_users_groups(ug_cfg)
+        ((_users, def_user), _groups) = distro.normalize_users_groups(ug_cfg)
         self.assertEquals('bob', def_user['name'])
 
     def test_users_simple_dict_no(self):
@@ -102,14 +102,14 @@ class TestUGNormalize(MockerTestCase):
                 'default': False,
             }
         }
-        ((users, def_user), groups) = distro.normalize_users_groups(ug_cfg)
+        ((_users, def_user), _groups) = distro.normalize_users_groups(ug_cfg)
         self.assertEquals({}, def_user)
         ug_cfg = {
             'users': {
                 'default': 'no',
             }
         }
-        ((users, def_user), groups) = distro.normalize_users_groups(ug_cfg)
+        ((_users, def_user), _groups) = distro.normalize_users_groups(ug_cfg)
         self.assertEquals({}, def_user)
 
     def test_users_simple_csv(self):
@@ -117,7 +117,7 @@ class TestUGNormalize(MockerTestCase):
         ug_cfg = {
             'users': 'joe,bob',
         }
-        ((users, def_user), groups) = distro.normalize_users_groups(ug_cfg)
+        ((users, _def_user), _groups) = distro.normalize_users_groups(ug_cfg)
         self.assertIn('joe', users)
         self.assertIn('bob', users)
         self.assertEquals({}, users['joe'])
@@ -131,7 +131,7 @@ class TestUGNormalize(MockerTestCase):
                 'bob'
             ],
         }
-        ((users, def_user), groups) = distro.normalize_users_groups(ug_cfg)
+        ((users, _def_user), _groups) = distro.normalize_users_groups(ug_cfg)
         self.assertIn('joe', users)
         self.assertIn('bob', users)
         self.assertEquals({}, users['joe'])
@@ -144,7 +144,7 @@ class TestUGNormalize(MockerTestCase):
                 {'name': 'default', 'blah': True}
             ],
         }
-        ((users, def_user), groups) = distro.normalize_users_groups(ug_cfg)
+        ((users, def_user), _groups) = distro.normalize_users_groups(ug_cfg)
         self.assertIn('bob', def_user['name'])
         self.assertEquals(",".join(distro.get_default_user_groups()),
                           def_user['config']['groups'])
@@ -159,7 +159,7 @@ class TestUGNormalize(MockerTestCase):
                 'default',
             ],
         }
-        ((users, def_user), groups) = distro.normalize_users_groups(ug_cfg)
+        ((users, def_user), _groups) = distro.normalize_users_groups(ug_cfg)
         self.assertIn('bob', def_user['name'])
         self.assertEquals(",".join(distro.get_default_user_groups()),
                           def_user['config']['groups'])
@@ -174,7 +174,7 @@ class TestUGNormalize(MockerTestCase):
                 {'name': 'bob'},
             ],
         }
-        ((users, def_user), groups) = distro.normalize_users_groups(ug_cfg)
+        ((users, _def_user), _groups) = distro.normalize_users_groups(ug_cfg)
         self.assertIn('joe', users)
         self.assertIn('bob', users)
         self.assertEquals({'tr_me': True}, users['joe'])
@@ -188,7 +188,7 @@ class TestUGNormalize(MockerTestCase):
                 {'name': 'bob'},
             ],
         }
-        ((users, def_user), groups) = distro.normalize_users_groups(ug_cfg)
+        ((users, _def_user), _groups) = distro.normalize_users_groups(ug_cfg)
         self.assertIn('joe', users)
         self.assertIn('bob', users)
         self.assertEquals({}, users['joe'])

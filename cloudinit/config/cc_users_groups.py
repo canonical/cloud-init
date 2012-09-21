@@ -24,7 +24,6 @@ frequency = PER_INSTANCE
 
 
 def handle(name, cfg, cloud, log, _args):
-
     distro = cloud.distro
     ((users, default_user), groups) = distro.normalize_users_groups(cfg)
     for (name, members) in groups.items():
@@ -34,7 +33,6 @@ def handle(name, cfg, cloud, log, _args):
         user = default_user['name']
         config = default_user['config']
         def_base_config = {
-            'name': user,
             'plain_text_passwd': user,
             'home': "/home/%s" % user,
             'shell': "/bin/bash",
@@ -43,7 +41,8 @@ def handle(name, cfg, cloud, log, _args):
             'sudo': "ALL=(ALL) NOPASSWD:ALL",
         }
         u_config = util.mergemanydict([def_base_config, config])
-        distro.create_user(**u_config)
+        distro.create_user(user, **u_config)
+        log.info("Added default '%s' user with passwordless sudo", user)
 
     for (user, config) in users.items():
         distro.create_user(user, **config)

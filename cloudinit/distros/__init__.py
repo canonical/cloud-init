@@ -400,7 +400,8 @@ class Distro(object):
                     }
                 else:
                     LOG.warn(("Distro has not provided a default user "
-                             "creation. No default user will be normalized."))
+                              "for creation. No default user will be "
+                              "normalized."))
                     users.pop('default', None)
             except NotImplementedError:
                 LOG.warn(("Distro has not implemented default user "
