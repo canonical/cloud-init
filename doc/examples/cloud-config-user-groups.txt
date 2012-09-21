@@ -81,14 +81,16 @@ users:
 #               directive.
 #   system: Create the user as a system user. This means no home directory.
 #
-# Default user creation: Ubuntu Only
-# Unless you define users, you will get a Ubuntu user on Ubuntu systems with the
+# Default user creation:
+#
+# Unless you define users, you will get a 'ubuntu' user on buntu systems with the
 # legacy permission (no password sudo, locked user, etc). If however, you want
 # to have the ubuntu user in addition to other users, you need to instruct
 # cloud-init that you also want the default user. To do this use the following
 # syntax:
 #    users:
-#      default: True
+#      - default
+#      - bob
 #  foobar: ...
 #
 # users[0] (the first user in users) overrides the user directive.
