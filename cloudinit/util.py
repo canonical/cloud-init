@@ -1104,6 +1104,22 @@ def hash_blob(blob, routine, mlen=None):
         return digest
 
 
+def is_user(name):
+    try:
+        if pwd.getpwnam(name):
+            return True
+    except KeyError:
+        return False
+
+
+def is_group(name):
+    try:
+        if grp.getgrnam(name):
+            return True
+    except KeyError:
+        return False
+
+
 def rename(src, dest):
     LOG.debug("Renaming %s to %s", src, dest)
     # TODO(harlowja) use a se guard here??
