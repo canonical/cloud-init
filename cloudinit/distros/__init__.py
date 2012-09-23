@@ -180,13 +180,7 @@ class Distro(object):
     def get_default_user_groups(self):
         if not self.default_user_groups:
             return []
-        def_groups = []
-        if isinstance(self.default_user_groups, (str, basestring)):
-            def_groups = self.default_user_groups.split(",")
-        else:
-            def_groups = list(self.default_user_groups)
-        def_groups = list(sorted(set(def_groups)))
-        return def_groups
+        return _uniq_merge_sorted(self.default_user_groups)
 
     def create_user(self, name, **kwargs):
         """
@@ -294,133 +288,6 @@ class Distro(object):
 
         return True
 
-    def _normalize_groups(self, grp_cfg):
-        groups = {}
-        if isinstance(grp_cfg, (str, basestring)):
-            grp_cfg = grp_cfg.strip().split(",")
-
-        if isinstance(grp_cfg, (list)):
-            for g in grp_cfg:
-                g = g.strip()
-                if g:
-                    groups[g] = []
-        elif isinstance(grp_cfg, (dict)):
-            for grp_name, grp_members in grp_cfg.items():
-                if isinstance(grp_members, (str, basestring)):
-                    r_grp_members = []
-                    for gc in grp_members.strip().split(','):
-                        gc = gc.strip()
-                        if gc and gc not in r_grp_members:
-                            r_grp_members.append(gc)
-                    grp_members = r_grp_members
-                elif not isinstance(grp_members, (list)):
-                    raise TypeError(("Group member config must be list "
-                                     " or string types only and not %s") %
-                                    util.obj_name(grp_members))
-                groups[grp_name] = grp_members
-        else:
-            raise TypeError(("Group config must be list, dict "
-                             " or string types only and not %s") %
-                            util.obj_name(grp_cfg))
-        return groups
-
-    def _normalize_users(self, u_cfg):
-        if isinstance(u_cfg, (dict)):
-            ad_ucfg = []
-            for (k, v) in u_cfg.items():
-                if isinstance(v, (bool, int, basestring, str)):
-                    if util.is_true(v):
-                        ad_ucfg.append(str(k))
-                elif isinstance(v, (dict)):
-                    v['name'] = k
-                    ad_ucfg.append(v)
-                else:
-                    raise TypeError(("Unmappable user value type %s"
-                                     " for key %s") % (util.obj_name(v), k))
-            u_cfg = ad_ucfg
-        elif isinstance(u_cfg, (str, basestring)):
-            u_cfg = u_cfg.strip().split(",")
-
-        users = {}
-        for user_config in u_cfg:
-            if isinstance(user_config, (str, basestring)):
-                for u in user_config.strip().split(","):
-                    u = u.strip()
-                    if u and u not in users:
-                        users[u] = {}
-            elif isinstance(user_config, (dict)):
-                if 'name' in user_config:
-                    n = user_config.pop('name')
-                    prev_config = users.get(n) or {}
-                    users[n] = util.mergemanydict([prev_config,
-                                                   user_config])
-                else:
-                    # Assume the default user then
-                    prev_config = users.get('default') or {}
-                    users['default'] = util.mergemanydict([prev_config,
-                                                           user_config])
-            elif isinstance(user_config, (bool, int)):
-                pass
-            else:
-                raise TypeError(("User config must be dictionary "
-                                 " or string types only and not %s") %
-                                util.obj_name(user_config))
-
-        # Ensure user options are in the right python friendly format
-        if users:
-            c_users = {}
-            for (uname, uconfig) in users.items():
-                c_uconfig = {}
-                for (k, v) in uconfig.items():
-                    k = k.replace('-', '_').strip()
-                    if k:
-                        c_uconfig[k] = v
-                c_users[uname] = c_uconfig
-            users = c_users
-
-        # Fixup the default user into the real
-        # default user name and extract it
-        default_user = {}
-        if users and 'default' in users:
-            try:
-                def_config = users.pop('default')
-                def_user = self.get_default_user()
-                def_groups = self.get_default_user_groups()
-                if def_user:
-                    u_config = users.pop(def_user, None) or {}
-                    u_groups = u_config.get('groups') or []
-                    if isinstance(u_groups, (str, basestring)):
-                        u_groups = u_groups.strip().split(",")
-                    u_groups.extend(def_groups)
-                    u_groups = set([x.strip() for x in u_groups if x.strip()])
-                    u_config['groups'] = ",".join(sorted(u_groups))
-                    default_user = {
-                        'name': def_user,
-                        'config': util.mergemanydict([def_config, u_config]),
-                    }
-                else:
-                    LOG.warn(("Distro has not provided a default user "
-                              "for creation. No default user will be "
-                              "normalized."))
-                    users.pop('default', None)
-            except NotImplementedError:
-                LOG.warn(("Distro has not implemented default user "
-                         "creation. No default user will be normalized."))
-                users.pop('default', None)
-
-        return (default_user, users)
-
-    def normalize_users_groups(self, ug_cfg):
-        users = {}
-        groups = {}
-        default_user = {}
-        if 'groups' in ug_cfg:
-            groups = self._normalize_groups(ug_cfg['groups'])
-
-        if 'users' in ug_cfg:
-            default_user, users = self._normalize_users(ug_cfg['users'])
-        return ((users, default_user), groups)
-
     def write_sudo_rules(self,
         user,
         rules,
@@ -519,6 +386,129 @@ def _get_arch_package_mirror_info(package_mirrors, arch):
         if "default" in arches:
             default = item
     return default
+
+
+def _uniq_merge_sorted(*lists):
+    return sorted(_uniq_merge(*lists))
+
+
+def _uniq_merge(*lists):
+    combined_list = []
+    for a_list in lists:
+        if isinstance(a_list, (str, basestring)):
+            a_list = a_list.strip().split(",")
+        else:
+            a_list = [str(a) for a in a_list]
+        a_list = [a.strip() for a in a_list if a.strip()]
+        combined_list.extend(a_list)
+    uniq_list = []
+    for a in combined_list:
+        if a in uniq_list:
+            continue
+        else:
+            uniq_list.append(a)
+    return uniq_list
+
+
+def _normalize_groups(grp_cfg):
+    if isinstance(grp_cfg, (str, basestring, list)):
+        c_grp_cfg = {}
+        for i in _uniq_merge(grp_cfg):
+            c_grp_cfg[i] = []
+        grp_cfg = c_grp_cfg
+
+    groups = {}
+    if isinstance(grp_cfg, (dict)):
+        for (grp_name, grp_members) in grp_cfg.items():
+            groups[grp_name] = _uniq_merge_sorted(grp_members)
+    else:
+        raise TypeError(("Group config must be list, dict "
+                         " or string types only and not %s") %
+                        util.obj_name(grp_cfg))
+    return groups
+
+
+def _normalize_users(u_cfg, def_user=None, def_user_groups=None):
+    if isinstance(u_cfg, (dict)):
+        ad_ucfg = []
+        for (k, v) in u_cfg.items():
+            if isinstance(v, (bool, int, basestring, str, float)):
+                if util.is_true(v):
+                    ad_ucfg.append(str(k))
+            elif isinstance(v, (dict)):
+                v['name'] = k
+                ad_ucfg.append(v)
+            else:
+                raise TypeError(("Unmappable user value type %s"
+                                 " for key %s") % (util.obj_name(v), k))
+        u_cfg = ad_ucfg
+    elif isinstance(u_cfg, (str, basestring)):
+        u_cfg = _uniq_merge_sorted(u_cfg)
+
+    users = {}
+    for user_config in u_cfg:
+        if isinstance(user_config, (str, basestring, list)):
+            for u in _uniq_merge(user_config):
+                if u and u not in users:
+                    users[u] = {}
+        elif isinstance(user_config, (dict)):
+            if 'name' in user_config:
+                n = user_config.pop('name')
+                prev_config = users.get(n) or {}
+                users[n] = util.mergemanydict([prev_config,
+                                               user_config])
+            else:
+                # Assume the default user then
+                prev_config = users.get('default') or {}
+                users['default'] = util.mergemanydict([prev_config,
+                                                       user_config])
+        else:
+            raise TypeError(("User config must be dictionary/list "
+                             " or string types only and not %s") %
+                            util.obj_name(user_config))
+
+    # Ensure user options are in the right python friendly format
+    if users:
+        c_users = {}
+        for (uname, uconfig) in users.items():
+            c_uconfig = {}
+            for (k, v) in uconfig.items():
+                k = k.replace('-', '_').strip()
+                if k:
+                    c_uconfig[k] = v
+            c_users[uname] = c_uconfig
+        users = c_users
+
+    # Fixup the default user into the real
+    # default user name and extract it
+    default_user = {}
+    if users and 'default' in users:
+        def_config = users.pop('default')
+        def_groups = def_user_groups or []
+        if def_user:
+            u_config = users.pop(def_user, None) or {}
+            u_groups = u_config.get('groups') or []
+            u_groups = _uniq_merge_sorted(u_groups, def_groups)
+            u_config['groups'] = ",".join(u_groups)
+            default_user = {
+                'name': def_user,
+                'config': util.mergemanydict([def_config, u_config]),
+            }
+
+    return (default_user, users)
+
+
+def normalize_users_groups(cfg, def_user=None, def_user_groups=None):
+    users = {}
+    groups = {}
+    default_user = {}
+    if 'groups' in cfg:
+        groups = _normalize_groups(cfg['groups'])
+    if 'users' in cfg:
+        (default_user, users) = _normalize_users(cfg['users'],
+                                                 def_user,
+                                                 def_user_groups)
+    return ((users, default_user), groups)
 
 
 def fetch(name):
