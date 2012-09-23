@@ -339,7 +339,7 @@ class Distro(object):
             content += "\n"
 
         if not os.path.exists(sudo_file):
-            util.write_file(sudo_file, content, 0644)
+            util.write_file(sudo_file, content, 0440)
 
         else:
             try:
