@@ -19,12 +19,17 @@ class TestUGNormalize(MockerTestCase):
             distro.default_user_groups = def_groups
         return distro
 
+    def _norm(self, cfg, distro):
+        def_u = distro.get_default_user()
+        def_u_gs = distro.get_default_user_groups()
+        return distros.normalize_users_groups(cfg, def_u, def_u_gs)
+
     def test_basic_groups(self):
         distro = self._make_distro('ubuntu')
         ug_cfg = {
             'groups': ['bob'],
         }
-        ((users, def_user), groups) = distro.normalize_users_groups(ug_cfg)
+        ((users, def_user), groups) = self._norm(ug_cfg, distro)
         self.assertIn('bob', groups)
         self.assertEquals({}, users)
         self.assertEquals({}, def_user)
@@ -34,7 +39,7 @@ class TestUGNormalize(MockerTestCase):
         ug_cfg = {
             'groups': 'bob,joe,steve',
         }
-        ((users, def_user), groups) = distro.normalize_users_groups(ug_cfg)
+        ((users, def_user), groups) = self._norm(ug_cfg, distro)
         self.assertIn('bob', groups)
         self.assertIn('joe', groups)
         self.assertIn('steve', groups)
@@ -46,7 +51,7 @@ class TestUGNormalize(MockerTestCase):
         ug_cfg = {
             'groups': ['bob', 'joe', 'steve',]
         }
-        ((users, def_user), groups) = distro.normalize_users_groups(ug_cfg)
+        ((users, def_user), groups) = self._norm(ug_cfg, distro)
         self.assertIn('bob', groups)
         self.assertIn('joe', groups)
         self.assertIn('steve', groups)
@@ -62,7 +67,7 @@ class TestUGNormalize(MockerTestCase):
                 'steve': [],
             }
         }
-        ((users, def_user), groups) = distro.normalize_users_groups(ug_cfg)
+        ((users, def_user), groups) = self._norm(ug_cfg, distro)
         self.assertIn('bob', groups)
         self.assertEquals(['s'], groups['bob'])
         self.assertEquals([], groups['joe'])
@@ -78,21 +83,21 @@ class TestUGNormalize(MockerTestCase):
                 'default': True,
             }
         }
-        ((_users, def_user), _groups) = distro.normalize_users_groups(ug_cfg)
+        ((_users, def_user), _groups) = self._norm(ug_cfg, distro)
         self.assertEquals('bob', def_user['name'])
         ug_cfg = {
             'users': {
                 'default': 'yes',
             }
         }
-        ((_users, def_user), _groups) = distro.normalize_users_groups(ug_cfg)
+        ((_users, def_user), _groups) = self._norm(ug_cfg, distro)
         self.assertEquals('bob', def_user['name'])
         ug_cfg = {
             'users': {
                 'default': '1',
             }
         }
-        ((_users, def_user), _groups) = distro.normalize_users_groups(ug_cfg)
+        ((_users, def_user), _groups) = self._norm(ug_cfg, distro)
         self.assertEquals('bob', def_user['name'])
 
     def test_users_simple_dict_no(self):
@@ -102,14 +107,14 @@ class TestUGNormalize(MockerTestCase):
                 'default': False,
             }
         }
-        ((_users, def_user), _groups) = distro.normalize_users_groups(ug_cfg)
+        ((_users, def_user), _groups) = self._norm(ug_cfg, distro)
         self.assertEquals({}, def_user)
         ug_cfg = {
             'users': {
                 'default': 'no',
             }
         }
-        ((_users, def_user), _groups) = distro.normalize_users_groups(ug_cfg)
+        ((_users, def_user), _groups) = self._norm(ug_cfg, distro)
         self.assertEquals({}, def_user)
 
     def test_users_simple_csv(self):
@@ -117,7 +122,7 @@ class TestUGNormalize(MockerTestCase):
         ug_cfg = {
             'users': 'joe,bob',
         }
-        ((users, _def_user), _groups) = distro.normalize_users_groups(ug_cfg)
+        ((users, _def_user), _groups) = self._norm(ug_cfg, distro)
         self.assertIn('joe', users)
         self.assertIn('bob', users)
         self.assertEquals({}, users['joe'])
@@ -131,7 +136,7 @@ class TestUGNormalize(MockerTestCase):
                 'bob'
             ],
         }
-        ((users, _def_user), _groups) = distro.normalize_users_groups(ug_cfg)
+        ((users, _def_user), _groups) = self._norm(ug_cfg, distro)
         self.assertIn('joe', users)
         self.assertIn('bob', users)
         self.assertEquals({}, users['joe'])
@@ -144,7 +149,7 @@ class TestUGNormalize(MockerTestCase):
                 {'name': 'default', 'blah': True}
             ],
         }
-        ((users, def_user), _groups) = distro.normalize_users_groups(ug_cfg)
+        ((users, def_user), _groups) = self._norm(ug_cfg, distro)
         self.assertIn('bob', def_user['name'])
         self.assertEquals(",".join(distro.get_default_user_groups()),
                           def_user['config']['groups'])
@@ -159,7 +164,7 @@ class TestUGNormalize(MockerTestCase):
                 'default',
             ],
         }
-        ((users, def_user), _groups) = distro.normalize_users_groups(ug_cfg)
+        ((users, def_user), _groups) = self._norm(ug_cfg, distro)
         self.assertIn('bob', def_user['name'])
         self.assertEquals(",".join(distro.get_default_user_groups()),
                           def_user['config']['groups'])
@@ -174,7 +179,7 @@ class TestUGNormalize(MockerTestCase):
                 {'name': 'bob'},
             ],
         }
-        ((users, _def_user), _groups) = distro.normalize_users_groups(ug_cfg)
+        ((users, _def_user), _groups) = self._norm(ug_cfg, distro)
         self.assertIn('joe', users)
         self.assertIn('bob', users)
         self.assertEquals({'tr_me': True}, users['joe'])
@@ -188,7 +193,7 @@ class TestUGNormalize(MockerTestCase):
                 {'name': 'bob'},
             ],
         }
-        ((users, _def_user), _groups) = distro.normalize_users_groups(ug_cfg)
+        ((users, _def_user), _groups) = self._norm(ug_cfg, distro)
         self.assertIn('joe', users)
         self.assertIn('bob', users)
         self.assertEquals({}, users['joe'])
