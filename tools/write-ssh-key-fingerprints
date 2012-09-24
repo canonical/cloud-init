@@ -16,6 +16,8 @@ done
 echo "-----END SSH HOST KEY FINGERPRINTS-----"
 echo "#############################################################"
 
+} | logger -p user.info --stderr -t "ec2"
+
 echo -----BEGIN SSH HOST KEY KEYS-----
 for f in /etc/ssh/ssh_host_*key.pub; do
     [ -f "$f" ] || continue
@@ -25,5 +27,3 @@ for f in /etc/ssh/ssh_host_*key.pub; do
     cat $f
 done
 echo -----END SSH HOST KEY KEYS-----
-
-} | logger -p user.info --stderr -t "ec2"
