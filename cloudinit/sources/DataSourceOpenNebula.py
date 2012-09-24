@@ -54,7 +54,6 @@ class DataSourceOpenNebula(sources.DataSource):
 
         found = None
         md = {}
-        ud = ""
 
         results = {}
         if os.path.isdir(self.seed_dir):
@@ -121,7 +120,7 @@ class DataSourceOpenNebula(sources.DataSource):
 
         self.seed = found
         self.metadata = md
-        self.userdata_raw = ud
+        self.userdata_raw = results.get('userdata')
 
         return True
 
@@ -237,7 +236,7 @@ def read_context_disk_dir(source_dir):
     # raw user data
     if "user_data" in context_sh:
         results['userdata'] = context_sh["user_data"]
-    if "userdata" in context_sh:
+    elif "userdata" in context_sh:
         results['userdata'] = context_sh["userdata"]
 
     return results
