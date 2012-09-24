@@ -28,5 +28,5 @@ LOG = logging.getLogger(__name__)
 
 
 class Distro(rhel.Distro):
-    distro_name  = 'fedora'
+    distro_name = 'fedora'
     default_user = 'ec2-user'
