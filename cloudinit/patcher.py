@@ -39,6 +39,7 @@ def _patch_logging():
     # sys.stderr using a fallback logger
     fallback_handler = QuietStreamHandler(sys.stderr)
     fallback_handler.setFormatter(logging.Formatter(FALL_FORMAT))
+
     def handleError(self, record):
         try:
             fallback_handler.handle(record)
