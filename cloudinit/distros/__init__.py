@@ -529,19 +529,19 @@ def normalize_users_groups(cfg, distro):
             LOG.warn(("Distro has not implemented default user "
                       "access. No default user will be normalized."))
         base_users = cfg['users']
-        if isinstance(base_users, (list)):
-            if len(base_users) and old_user:
-                # The old user replaces user[0]
-                base_users[0] = {'name': old_user}
-            elif not base_users and old_user:
-                base_users.append({'name': old_user})
-        elif isinstance(base_users, (dict)):
-            # Sorry order not possible
-            if old_user and old_user not in base_users:
-                base_users[old_user] = True
-        elif isinstance(base_users, (str, basestring)):
-            # Just append it on to be re-parsed later
-            if old_user:
+        if old_user:
+            if isinstance(base_users, (list)):
+                if len(base_users):
+                    # The old user replaces user[0]
+                    base_users[0] = {'name': old_user}
+                else:
+                    # Just add it on at the end...
+                    base_users.append({'name': old_user})
+            elif isinstance(base_users, (dict)):
+                if old_user not in base_users:
+                    base_users[old_user] = True
+            elif isinstance(base_users, (str, basestring)):
+                # Just append it on to be re-parsed later
                 base_users += ",%s" % (old_user)
         users = _normalize_users(base_users, default_user_config)
     return (users, groups)
