@@ -37,7 +37,7 @@ Requires:       ${r}
 #end for
 
 # Custom patches
-#set $size 0
+#set $size = 0
 #for $p in $patches
 Patch${size}: $p
 #set $size += 1
