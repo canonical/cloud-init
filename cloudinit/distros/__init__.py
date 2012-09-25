@@ -32,12 +32,6 @@ from cloudinit import log as logging
 from cloudinit import ssh_util
 from cloudinit import util
 
-# TODO(harlowja): Make this via config??
-IFACE_ACTIONS = {
-    'up': ['ifup', '--all'],
-    'down': ['ifdown', '--all'],
-}
-
 LOG = logging.getLogger(__name__)
 
 
@@ -104,10 +98,10 @@ class Distro(object):
 
     def apply_network(self, settings, bring_up=True):
         # Write it out
-        self._write_network(settings)
+        dev_names = self._write_network(settings)
         # Now try to bring them up
         if bring_up:
-            return self._interface_action('up')
+            return self._bring_up_interfaces(dev_names)
         return False
 
     @abc.abstractmethod
@@ -159,13 +153,11 @@ class Distro(object):
             util.write_file(self._paths.join(False, "/etc/hosts"),
                             contents, mode=0644)
 
-    def _interface_action(self, action):
-        if action not in IFACE_ACTIONS:
-            raise NotImplementedError("Unknown interface action %s" % (action))
-        cmd = IFACE_ACTIONS[action]
+    def _bring_up_interface(self, device_name):
+        cmd = ['ifup', device_name]
+        LOG.debug("Attempting to run bring up interface %s using command %s",
+                   device_name, cmd)
         try:
-            LOG.debug("Attempting to run %s interface action using command %s",
-                      action, cmd)
             (_out, err) = util.subp(cmd)
             if len(err):
                 LOG.warn("Running %s resulted in stderr output: %s", cmd, err)
@@ -173,6 +165,15 @@ class Distro(object):
         except util.ProcessExecutionError:
             util.logexc(LOG, "Running interface command %s failed", cmd)
             return False
+
+    def _bring_up_interfaces(self, device_names):
+        am_failed = 0
+        for d in device_names:
+            if not self._bring_up_interface(d):
+                am_failed += 1
+        if am_failed == 0:
+            return True
+        return False
 
     def get_default_user(self):
         if not self.default_user:
@@ -312,7 +313,7 @@ class Distro(object):
             content += "\n"
 
         if not os.path.exists(sudo_file):
-            util.write_file(sudo_file, content, 0644)
+            util.write_file(sudo_file, content, 0440)
 
         else:
             try:

@@ -240,7 +240,7 @@ class Init(object):
         return ds
 
     def _get_instance_subdirs(self):
-        return ['handlers', 'scripts', 'sems']
+        return ['handlers', 'scripts', 'sem']
 
     def _get_ipath(self, subname=None):
         # Force a check to see if anything
