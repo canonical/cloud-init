@@ -149,6 +149,7 @@ def generate_spec_contents(args, tmpl_fn, arc_fn):
         subs['systemd'] = False
 
     subs['init_sys'] = args.boot
+    subs['patches'] = [os.path.basename(p) for p in args.patches]
     return templater.render_from_file(tmpl_fn, params=subs)
 
 
@@ -164,6 +165,10 @@ def main():
                               " (default: %(default)s)"),
                         default=False,
                         action='store_true')
+    parser.add_argument("-p", "--patch", dest="patches",
+                        help=("include the following patch when building"),
+                        default=[],
+                        action='append')
     args = parser.parse_args()
     capture = True
     if args.verbose:
@@ -197,6 +202,8 @@ def main():
     spec_fn = util.abs_join(root_dir, 'cloud-init.spec')
     util.write_file(spec_fn, contents)
     print("Created spec file at %r" % (spec_fn))
+    for p in args.patches:
+        util.copy(p, util.abs_join(arc_dir, os.path.basename(p))
 
     # Now build it!
     print("Running 'rpmbuild' in %r" % (root_dir))

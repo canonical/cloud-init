@@ -36,6 +36,13 @@ Requires:       shadow-utils
 Requires:       ${r}
 #end for
 
+# Custom patches
+#set $size 0
+#for $p in $patches
+Patch${size}: $p
+#set $size += 1
+#end for
+
 #if $sysvinit
 Requires(post):       chkconfig
 Requires(postun):     initscripts
