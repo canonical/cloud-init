@@ -203,7 +203,7 @@ def main():
     util.write_file(spec_fn, contents)
     print("Created spec file at %r" % (spec_fn))
     for p in args.patches:
-        util.copy(p, util.abs_join(arc_dir, os.path.basename(p))
+        util.copy(p, util.abs_join(arc_dir, os.path.basename(p)))
 
     # Now build it!
     print("Running 'rpmbuild' in %r" % (root_dir))
