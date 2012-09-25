@@ -23,6 +23,7 @@ from prettytable import PrettyTable
 
 from cloudinit import ssh_util
 from cloudinit import util
+from cloudinit import distros
 
 
 def _split_hash(bin_hash):
@@ -89,8 +90,9 @@ def handle(name, cfg, cloud, log, _args):
         log.debug(("Skipping module named %s, "
                    "logging of ssh fingerprints disabled"), name)
 
-    user_name = util.get_cfg_option_str(cfg, "user", "ubuntu")
     hash_meth = util.get_cfg_option_str(cfg, "authkey_hash", "md5")
-    extract = ssh_util.extract_authorized_keys
-    (auth_key_fn, auth_key_entries) = extract(user_name, cloud.paths)
-    _pprint_key_entries(user_name, auth_key_fn, auth_key_entries, hash_meth)
+    extract_func = ssh_util.extract_authorized_keys
+    (users, _groups) = distros.normalize_users_groups(cfg, cloud.distro)
+    for (user_name, _cfg) in users.items():
+        (auth_key_fn, auth_key_entries) = extract_func(user_name, cloud.paths)
+        _pprint_key_entries(user_name, auth_key_fn, auth_key_entries, hash_meth)
