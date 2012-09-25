@@ -206,6 +206,12 @@ class Distro(distros.Distro):
             contents = []
         return (exists, QuotingConfigObj(contents))
 
+    def _bring_up_interfaces(self, device_names):
+        if device_names and 'all' in device_names:
+            raise RuntimeError(('Distro %s can not translate '
+                                'the device name "all"') % (self.name))
+        return distros.Distro._bring_up_interfaces(self, device_names)
+
     def set_timezone(self, tz):
         tz_file = os.path.join("/usr/share/zoneinfo", tz)
         if not os.path.isfile(tz_file):
