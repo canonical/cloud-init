@@ -12,7 +12,7 @@ from cloudinit import util
 from StringIO import StringIO
 
 
-BASE_NET_CFG ='''
+BASE_NET_CFG = '''
 auto lo
 iface lo inet loopback
 
@@ -53,8 +53,10 @@ class TestNetCfgDistro(MockerTestCase):
         
     def test_simple_write_ub(self):
         ub_distro = self._get_distro('ubuntu')
-        util_mock = self.mocker.replace(util.write_file, spec=False, passthrough=False)
-        exists_mock = self.mocker.replace(os.path.isfile, spec=False, passthrough=False)
+        util_mock = self.mocker.replace(util.write_file,
+                                        spec=False, passthrough=False)
+        exists_mock = self.mocker.replace(os.path.isfile,
+                                          spec=False, passthrough=False)
 
         exists_mock(mocker.ARGS)
         self.mocker.count(0, None)
@@ -81,9 +83,12 @@ class TestNetCfgDistro(MockerTestCase):
 
     def test_simple_write_rh(self):
         rh_distro = self._get_distro('rhel')
-        write_mock = self.mocker.replace(util.write_file, spec=False, passthrough=False)
-        load_mock = self.mocker.replace(util.load_file, spec=False, passthrough=False)
-        exists_mock = self.mocker.replace(os.path.isfile, spec=False, passthrough=False)
+        write_mock = self.mocker.replace(util.write_file,
+                                         spec=False, passthrough=False)
+        load_mock = self.mocker.replace(util.load_file,
+                                        spec=False, passthrough=False)
+        exists_mock = self.mocker.replace(os.path.isfile,
+                                          spec=False, passthrough=False)
 
         write_bufs = {}
         def replace_write(filename, content, mode=0644, omode="wb"):
@@ -101,7 +106,7 @@ class TestNetCfgDistro(MockerTestCase):
         self.mocker.count(0, None)
         self.mocker.result('')
 
-        for i in range(0, 3):
+        for _i in range(0, 3):
             write_mock(mocker.ARGS)
             self.mocker.call(replace_write)
 
