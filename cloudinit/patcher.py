@@ -23,7 +23,8 @@ import logging
 import sys
 
 # Default fallback format
-FALL_FORMAT = 'FALLBACK: %(asctime)s - %(filename)s[%(levelname)s]: %(message)s'
+FALL_FORMAT = ('FALLBACK: %(asctime)s - %(filename)s[%(levelname)s]: ' +
+               '%(message)s')
 
 
 class QuietStreamHandler(logging.StreamHandler):
@@ -39,7 +40,8 @@ def _patch_logging():
     # sys.stderr using a fallback logger
     fallback_handler = QuietStreamHandler(sys.stderr)
     fallback_handler.setFormatter(logging.Formatter(FALL_FORMAT))
-    def handleError(self, record):
+
+    def handleError(self, record):  # pylint: disable=W0613
         try:
             fallback_handler.handle(record)
             fallback_handler.flush()

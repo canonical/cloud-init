@@ -144,6 +144,8 @@ class Distro(distros.Distro):
             if not exists:
                 lines.insert(0, _make_header())
             util.write_file(fn, "\n".join(lines), 0644)
+=======
+>>>>>>> MERGE-SOURCE
 
     def set_hostname(self, hostname):
         self._write_hostname(hostname, '/etc/sysconfig/network')
