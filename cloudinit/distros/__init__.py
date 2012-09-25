@@ -175,12 +175,20 @@ class Distro(object):
             return False
 
     def get_default_user(self):
-        return self.default_user
-
-    def get_default_user_groups(self):
-        if not self.default_user_groups:
-            return []
-        return _uniq_merge_sorted(self.default_user_groups)
+        if not self.default_user:
+            return None
+        user_cfg = {
+            'name': self.default_user,
+            'plain_text_passwd': self.default_user,
+            'home': "/home/%s" % (self.default_user),
+            'shell': "/bin/bash",
+            'lock_passwd': True,
+            'gecos': "%s" % (self.default_user.title()),
+            'sudo': "ALL=(ALL) NOPASSWD:ALL",
+        }
+        if self.default_user_groups:
+            user_cfg['groups'] = _uniq_merge_sorted(self.default_user_groups)
+        return user_cfg
 
     def create_user(self, name, **kwargs):
         """
@@ -428,7 +436,7 @@ def _normalize_groups(grp_cfg):
     return groups
 
 
-def _normalize_users(u_cfg, def_user=None, def_user_groups=None):
+def _normalize_users(u_cfg, def_user_cfg=None):
     if isinstance(u_cfg, (dict)):
         ad_ucfg = []
         for (k, v) in u_cfg.items():
@@ -480,35 +488,55 @@ def _normalize_users(u_cfg, def_user=None, def_user_groups=None):
         users = c_users
 
     # Fixup the default user into the real
-    # default user name and extract it
-    default_user = {}
+    # default user name and replace it...
     if users and 'default' in users:
         def_config = users.pop('default')
-        def_groups = def_user_groups or []
-        if def_user:
-            u_config = users.pop(def_user, None) or {}
-            u_groups = u_config.get('groups') or []
-            u_groups = _uniq_merge_sorted(u_groups, def_groups)
-            u_config['groups'] = ",".join(u_groups)
-            default_user = {
-                'name': def_user,
-                'config': util.mergemanydict([def_config, u_config]),
-            }
+        if def_user_cfg:
+            def_user = def_user_cfg.pop('name')
+            def_groups = def_user_cfg.pop('groups', [])
+            parsed_config = users.pop(def_user, {})
+            users_groups = _uniq_merge_sorted(parsed_config.get('groups', []),
+                                              def_groups)
+            parsed_config['groups'] = ",".join(users_groups)
+            users[def_user] = util.mergemanydict([def_user_cfg,
+                                                  def_config,
+                                                  parsed_config])
 
-    return (default_user, users)
+    return users
 
 
-def normalize_users_groups(cfg, def_user=None, def_user_groups=None):
+def normalize_users_groups(cfg, distro):
     users = {}
     groups = {}
-    default_user = {}
     if 'groups' in cfg:
         groups = _normalize_groups(cfg['groups'])
+    old_user = None
+    if 'user' in cfg:
+        old_user = str(cfg['user'])
     if 'users' in cfg:
-        (default_user, users) = _normalize_users(cfg['users'],
-                                                 def_user,
-                                                 def_user_groups)
-    return ((users, default_user), groups)
+        default_user_config = None
+        try:
+            default_user_config = distro.get_default_user()
+        except NotImplementedError:
+            LOG.warn(("Distro has not implemented default user "
+                      "access. No default user will be normalized."))
+        base_users = cfg['users']
+        if isinstance(base_users, (list)):
+            if len(base_users) and old_user:
+                # The old user replaces user[0]
+                base_users[0] = {'name': old_user}
+            elif not base_users and old_user:
+                base.append({'name': old_user})
+        elif isinstance(base_users, (dict)):
+            # Sorry order not possible
+            if old_user and old_user not in base_users:
+                base_users[old_user] = True
+        elif isinstance(base_users, (str, basestring)):
+            # Just append it on to be re-parsed later
+            if old_user:
+                base_users += ",%s" % (old_user)
+        users = _normalize_users(base_users, default_user_config)
+    return (users, groups)
 
 
 def fetch(name):
