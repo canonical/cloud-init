@@ -1,4 +1,4 @@
-# vi: ts=4 expandtab
+   # vi: ts=4 expandtab
 #
 #    Copyright (C) 2012 Canonical Ltd.
 #    Copyright (C) 2012 Hewlett-Packard Development Company, L.P.
@@ -55,6 +55,7 @@ D_QUOTE_CHARS = {
     "$": '\$',
     '`': '\`',
 }
+
 
 def _make_sysconfig_bool(val):
     if val:
@@ -160,7 +161,7 @@ class Distro(distros.Distro):
 
     def _write_hostname(self, hostname, out_fn):
         host_cfg = {
-            'HOSTNAME':  hostname,
+            'HOSTNAME': hostname,
         }
         self._update_sysconfig_file(out_fn, host_cfg)
 
