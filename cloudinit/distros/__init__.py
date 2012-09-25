@@ -507,13 +507,20 @@ def _normalize_users(u_cfg, def_user_cfg=None):
 
 
 def normalize_users_groups(cfg, distro):
+    if not cfg:
+        cfg = {}
     users = {}
     groups = {}
     if 'groups' in cfg:
         groups = _normalize_groups(cfg['groups'])
+
+    # Handle the previous style of doing this...
     old_user = None
-    if 'user' in cfg:
+    if 'user' in cfg and cfg['user']:
         old_user = str(cfg['user'])
+        if not 'users' in cfg:
+            cfg['users'] = old_user
+            old_user = None
     if 'users' in cfg:
         default_user_config = None
         try:
@@ -527,7 +534,7 @@ def normalize_users_groups(cfg, distro):
                 # The old user replaces user[0]
                 base_users[0] = {'name': old_user}
             elif not base_users and old_user:
-                base.append({'name': old_user})
+                base_users.append({'name': old_user})
         elif isinstance(base_users, (dict)):
             # Sorry order not possible
             if old_user and old_user not in base_users:

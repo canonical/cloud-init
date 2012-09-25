@@ -174,6 +174,16 @@ class TestUGNormalize(MockerTestCase):
         self.assertIn('bob', users)
         self.assertIn('joe', users)
         self.assertIn('zetta', users)
+        ug_cfg = {
+            'user': 'zetta',
+        }
+        (users, _groups) = self._norm(ug_cfg, distro)
+        self.assertIn('zetta', users)
+        ug_cfg = {
+        }
+        (users, groups) = self._norm(ug_cfg, distro)
+        self.assertEquals({}, users)
+        self.assertEquals({}, groups)
 
     def test_users_dict_default_additional(self):
         distro = self._make_distro('ubuntu', 'bob')
