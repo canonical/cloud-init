@@ -22,8 +22,7 @@ def rebase_path(old_path, new_base):
     return path
 
 
-# Can work on anything that takes a path
-# as first argument
+# Can work on anything that takes a path as arguments
 def retarget_many_wrapper(new_base, am, old_func):
     def wrapper(*args, **kwds):
         n_args = list(args)
