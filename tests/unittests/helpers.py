@@ -1,7 +1,5 @@
 import os
 
-import mocker
-
 from mocker import MockerTestCase
 
 from cloudinit import helpers as ch
@@ -84,7 +82,7 @@ class FilesystemMockingTestCase(ResourceUsingTestCase):
     def replicateTestRoot(self, example_root, target_root):
         real_root = self.resourceLocation()
         real_root = os.path.join(real_root, 'roots', example_root)
-        for (dir_path, dirnames, filenames) in os.walk(real_root):
+        for (dir_path, _dirnames, filenames) in os.walk(real_root):
             real_path = dir_path
             make_path = rebase_path(real_path[len(real_root):], target_root)
             util.ensure_dir(make_path)
@@ -122,13 +120,13 @@ class FilesystemMockingTestCase(ResourceUsingTestCase):
         # Handle subprocess calls
         func = getattr(util, 'subp')
 
-        def nsubp(*args, **kwargs):
+        def nsubp(*_args, **_kwargs):
             return ('', '')
 
         setattr(util, 'subp', nsubp)
         self.patched_funcs.append((util, 'subp', func))
 
-        def null_func(*args, **kwargs):
+        def null_func(*_args, **_kwargs):
             return None
 
         for f in ['chownbyid', 'chownbyname']:
