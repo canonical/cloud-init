@@ -208,8 +208,7 @@ def main():
 
     # Now build it!
     print("Running 'rpmbuild' in %r" % (root_dir))
-    cmd = ['rpmbuild', '--clean',
-           '-ba', spec_fn]
+    cmd = ['rpmbuild', '-ba', spec_fn]
     util.subp(cmd, capture=capture)
 
     # Copy the items built to our local dir
