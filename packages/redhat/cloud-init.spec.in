@@ -5,6 +5,10 @@
 # Or: http://fedoraproject.org/wiki/Packaging:ScriptletSnippets
 # Or: http://www.rpm.org/max-rpm/ch-rpm-inside.html
 
+#for $d in $defines
+%define ${d}
+#end for
+
 Name:           cloud-init
 Version:        ${version}
 Release:        ${release}%{?dist}

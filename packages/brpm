@@ -91,7 +91,7 @@ def format_change_line(ds, who, comment=None):
     return "* %s" % (d)
 
 
-def generate_spec_contents(args, tmpl_fn, arc_fn):
+def generate_spec_contents(args, tmpl_fn, top_dir, arc_fn):
 
     # Figure out the version and revno
     cmd = [util.abs_join(find_root(), 'tools', 'read-version')]
@@ -148,6 +148,7 @@ def generate_spec_contents(args, tmpl_fn, arc_fn):
     else:
         subs['systemd'] = False
 
+    subs['defines'] = ["_topdir %s" % (top_dir)]
     subs['init_sys'] = args.boot
     subs['patches'] = [os.path.basename(p) for p in args.patches]
     return templater.render_from_file(tmpl_fn, params=subs)
@@ -197,7 +198,7 @@ def main():
     # Form the spec file to be used
     tmpl_fn = util.abs_join(find_root(), 'packages',
                             'redhat', 'cloud-init.spec.in')
-    contents = generate_spec_contents(args, tmpl_fn,
+    contents = generate_spec_contents(args, tmpl_fn, root_dir,
                                       os.path.basename(archive_fn))
     spec_fn = util.abs_join(root_dir, 'cloud-init.spec')
     util.write_file(spec_fn, contents)
