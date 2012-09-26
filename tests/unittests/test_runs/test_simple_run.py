@@ -1,6 +1,3 @@
-from mocker import MockerTestCase
-
-import mocker
 import sys
 import os
 
@@ -19,7 +16,7 @@ from cloudinit import stages
 from cloudinit.settings import (PER_INSTANCE)
 
 
-class TestSimpleRunDistro(helpers.FilesystemMockingTestCase):
+class TestSimpleRun(helpers.FilesystemMockingTestCase):
     def _patchIn(self, root):
         self.restore()
         self.patchOS(root)
@@ -76,13 +73,14 @@ class TestSimpleRunDistro(helpers.FilesystemMockingTestCase):
         initer.update()
         self.assertTrue(os.path.islink("var/lib/cloud/instance"))
 
-        (ran, results) = initer.cloudify().run('consume_userdata',
-                                               initer.consume_userdata,
-                                               args=[PER_INSTANCE],
-                                               freq=PER_INSTANCE)
+        initer.cloudify().run('consume_userdata',
+                              initer.consume_userdata,
+                              args=[PER_INSTANCE],
+                              freq=PER_INSTANCE)
 
         mods = stages.Modules(initer)
         (which_ran, failures) = mods.run_section('cloud_init_modules')
+        self.assertTrue(len(failures) == 0)
         self.assertTrue(os.path.exists('/etc/blah.ini'))
         self.assertIn('write-files', which_ran)
         contents = util.load_file('/etc/blah.ini')
