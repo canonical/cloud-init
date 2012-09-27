@@ -72,7 +72,7 @@ ssh keys and to let the user run various scripts.
 # Custom patches activation
 #set $size = 0
 #for $p in $patches
-%patch${size}
+%patch${size} -p1
 #set $size += 1
 #end for
 
