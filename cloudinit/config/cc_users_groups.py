@@ -16,16 +16,15 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-from cloudinit import distros
-from cloudinit import util
+from cloudinit import distros as ds
 
 from cloudinit.settings import PER_INSTANCE
 
 frequency = PER_INSTANCE
 
 
-def handle(name, cfg, cloud, log, _args):
-    (users, groups) = distros.normalize_users_groups(cfg, cloud.distro)
+def handle(name, cfg, cloud, _log, _args):
+    (users, groups) = ds.normalize_users_groups(cfg, cloud.distro)
     for (name, members) in groups.items():
         cloud.distro.create_group(name, members)
     for (user, config) in users.items():

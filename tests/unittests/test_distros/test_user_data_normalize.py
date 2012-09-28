@@ -119,8 +119,8 @@ class TestUGNormalize(MockerTestCase):
         (users, _groups) = self._norm(ug_cfg, distro)
         self.assertIn('joe', users)
         self.assertIn('bob', users)
-        self.assertEquals({}, users['joe'])
-        self.assertEquals({}, users['bob'])
+        self.assertEquals({'default': False}, users['joe'])
+        self.assertEquals({'default': False}, users['bob'])
 
     def test_users_simple(self):
         distro = self._make_distro('ubuntu')
@@ -133,8 +133,8 @@ class TestUGNormalize(MockerTestCase):
         (users, _groups) = self._norm(ug_cfg, distro)
         self.assertIn('joe', users)
         self.assertIn('bob', users)
-        self.assertEquals({}, users['joe'])
-        self.assertEquals({}, users['bob'])
+        self.assertEquals({'default': False}, users['joe'])
+        self.assertEquals({'default': False}, users['bob'])
 
     def test_users_old_user(self):
         distro = self._make_distro('ubuntu', 'bob')
@@ -179,8 +179,7 @@ class TestUGNormalize(MockerTestCase):
         }
         (users, _groups) = self._norm(ug_cfg, distro)
         self.assertIn('zetta', users)
-        ug_cfg = {
-        }
+        ug_cfg = {}
         (users, groups) = self._norm(ug_cfg, distro)
         self.assertEquals({}, users)
         self.assertEquals({}, groups)
@@ -198,6 +197,35 @@ class TestUGNormalize(MockerTestCase):
                           users['bob']['groups'])
         self.assertEquals(True,
                           users['bob']['blah'])
+        self.assertEquals(True,
+                          users['bob']['default'])
+
+    def test_users_dict_extract(self):
+        distro = self._make_distro('ubuntu', 'bob')
+        ug_cfg = {
+            'users': [
+                'default',
+            ],
+        }
+        (users, _groups) = self._norm(ug_cfg, distro)
+        self.assertIn('bob', users)
+        (name, config) = distros.extract_default(users)
+        self.assertEquals(name, 'bob')
+        expected_config = {}
+        def_config = None
+        try:
+            def_config = distro.get_default_user()
+        except NotImplementedError:
+            pass
+        if not def_config:
+            def_config = {}
+        expected_config.update(def_config)
+
+        # Ignore these for now
+        expected_config.pop('name', None)
+        expected_config.pop('groups', None)
+        config.pop('groups', None)
+        self.assertEquals(config, expected_config)
 
     def test_users_dict_default(self):
         distro = self._make_distro('ubuntu', 'bob')
@@ -210,6 +238,8 @@ class TestUGNormalize(MockerTestCase):
         self.assertIn('bob', users)
         self.assertEquals(",".join(distro.get_default_user()['groups']),
                           users['bob']['groups'])
+        self.assertEquals(True,
+                          users['bob']['default'])
 
     def test_users_dict_trans(self):
         distro = self._make_distro('ubuntu')
@@ -223,8 +253,8 @@ class TestUGNormalize(MockerTestCase):
         (users, _groups) = self._norm(ug_cfg, distro)
         self.assertIn('joe', users)
         self.assertIn('bob', users)
-        self.assertEquals({'tr_me': True}, users['joe'])
-        self.assertEquals({}, users['bob'])
+        self.assertEquals({'tr_me': True, 'default': False}, users['joe'])
+        self.assertEquals({'default': False}, users['bob'])
 
     def test_users_dict(self):
         distro = self._make_distro('ubuntu')
@@ -237,5 +267,5 @@ class TestUGNormalize(MockerTestCase):
         (users, _groups) = self._norm(ug_cfg, distro)
         self.assertIn('joe', users)
         self.assertIn('bob', users)
-        self.assertEquals({}, users['joe'])
-        self.assertEquals({}, users['bob'])
+        self.assertEquals({'default': False}, users['joe'])
+        self.assertEquals({'default': False}, users['bob'])
