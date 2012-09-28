@@ -27,5 +27,6 @@ _CustomSafeLoader.add_constructor(
     u'tag:yaml.org,2002:python/unicode',
     _CustomSafeLoader.construct_python_unicode)
 
+
 def load(blob):
     return(yaml.load(blob, Loader=_CustomSafeLoader))

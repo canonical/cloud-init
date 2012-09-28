@@ -95,4 +95,5 @@ def handle(name, cfg, cloud, log, _args):
     (users, _groups) = distros.normalize_users_groups(cfg, cloud.distro)
     for (user_name, _cfg) in users.items():
         (auth_key_fn, auth_key_entries) = extract_func(user_name, cloud.paths)
-        _pprint_key_entries(user_name, auth_key_fn, auth_key_entries, hash_meth)
+        _pprint_key_entries(user_name, auth_key_fn, auth_key_entries,
+                            hash_meth)
