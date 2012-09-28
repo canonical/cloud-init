@@ -16,6 +16,9 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+# Ensure this is aliased to a name not 'distros'
+# since the module attribute 'distros'
+# is a list of distros that are supported, not a sub-module
 from cloudinit import distros as ds
 
 from cloudinit.settings import PER_INSTANCE
