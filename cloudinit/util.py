@@ -50,6 +50,7 @@ import yaml
 
 from cloudinit import importer
 from cloudinit import log as logging
+from cloudinit import safeyaml
 from cloudinit import url_helper as uhelp
 
 from cloudinit.settings import (CFG_BUILTIN)
@@ -642,7 +643,7 @@ def load_yaml(blob, default=None, allowed=(dict,)):
         LOG.debug(("Attempting to load yaml from string "
                  "of length %s with allowed root types %s"),
                  len(blob), allowed)
-        converted = yaml.safe_load(blob)
+        converted = safeyaml.load(blob)
         if not isinstance(converted, allowed):
             # Yes this will just be caught, but thats ok for now...
             raise TypeError(("Yaml load allows %s root types,"
