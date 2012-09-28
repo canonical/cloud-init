@@ -338,7 +338,7 @@ if __name__ == "__main__":
         if args.config:
             import yaml
             with open(args.config) as fp:
-                cfg = yaml.safe_load(fp)
+                cfg = util.load_yaml(fp.read())
             if 'datasource' in cfg:
                 cfg = cfg['datasource']['MAAS']
             for key in creds.keys():
