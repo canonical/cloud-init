@@ -24,9 +24,7 @@
 from StringIO import StringIO
 
 import abc
-import grp
 import os
-import pwd
 import re
 
 from cloudinit import importer
@@ -47,34 +45,6 @@ class Distro(object):
         self._paths = paths
         self._cfg = cfg
         self.name = name
-
-    def add_default_user(self):
-        # Adds the distro user using the rules:
-        #  - Password is same as username but is locked
-        #  - nopasswd sudo access
-
-        user = self.get_default_user()
-        groups = self.get_default_user_groups()
-
-        if not user:
-            raise NotImplementedError("No Default user")
-
-        user_dict = {
-                    'name': user,
-                    'plain_text_passwd': user,
-                    'home': "/home/%s" % user,
-                    'shell': "/bin/bash",
-                    'lock_passwd': True,
-                    'gecos': "%s%s" % (user[0:1].upper(), user[1:]),
-                    'sudo': "ALL=(ALL) NOPASSWD:ALL",
-                    }
-
-        if groups:
-            user_dict['groups'] = groups
-
-        self.create_user(**user_dict)
-
-        LOG.info("Added default '%s' user with passwordless sudo", user)
 
     @abc.abstractmethod
     def install_packages(self, pkglist):
@@ -205,18 +175,21 @@ class Distro(object):
             return True
         return False
 
-    def isuser(self, name):
-        try:
-            if pwd.getpwnam(name):
-                return True
-        except KeyError:
-            return False
-
     def get_default_user(self):
-        return self.default_user
-
-    def get_default_user_groups(self):
-        return self.default_user_groups
+        if not self.default_user:
+            return None
+        user_cfg = {
+            'name': self.default_user,
+            'plain_text_passwd': self.default_user,
+            'home': "/home/%s" % (self.default_user),
+            'shell': "/bin/bash",
+            'lock_passwd': True,
+            'gecos': "%s" % (self.default_user.title()),
+            'sudo': "ALL=(ALL) NOPASSWD:ALL",
+        }
+        if self.default_user_groups:
+            user_cfg['groups'] = _uniq_merge_sorted(self.default_user_groups)
+        return user_cfg
 
     def create_user(self, name, **kwargs):
         """
@@ -273,7 +246,7 @@ class Distro(object):
             adduser_cmd.append('-m')
 
         # Create the user
-        if self.isuser(name):
+        if util.is_user(name):
             LOG.warn("User %s already exists, skipping." % name)
         else:
             LOG.debug("Creating name %s" % name)
@@ -350,18 +323,11 @@ class Distro(object):
                 util.logexc(LOG, "Failed to write %s" % sudo_file, e)
                 raise e
 
-    def isgroup(self, name):
-        try:
-            if grp.getgrnam(name):
-                return True
-        except:
-            return False
-
     def create_group(self, name, members):
         group_add_cmd = ['groupadd', name]
 
         # Check if group exists, and then add it doesn't
-        if self.isgroup(name):
+        if util.is_group(name):
             LOG.warn("Skipping creation of existing group '%s'" % name)
         else:
             try:
@@ -373,7 +339,7 @@ class Distro(object):
         # Add members to the group, if so defined
         if len(members) > 0:
             for member in members:
-                if not self.isuser(member):
+                if not util.is_user(member):
                     LOG.warn("Unable to add group member '%s' to group '%s'"
                             "; user does not exist." % (member, name))
                     continue
@@ -429,6 +395,156 @@ def _get_arch_package_mirror_info(package_mirrors, arch):
         if "default" in arches:
             default = item
     return default
+
+
+def _uniq_merge_sorted(*lists):
+    return sorted(_uniq_merge(*lists))
+
+
+def _uniq_merge(*lists):
+    combined_list = []
+    for a_list in lists:
+        if isinstance(a_list, (str, basestring)):
+            a_list = a_list.strip().split(",")
+        else:
+            a_list = [str(a) for a in a_list]
+        a_list = [a.strip() for a in a_list if a.strip()]
+        combined_list.extend(a_list)
+    uniq_list = []
+    for a in combined_list:
+        if a in uniq_list:
+            continue
+        else:
+            uniq_list.append(a)
+    return uniq_list
+
+
+def _normalize_groups(grp_cfg):
+    if isinstance(grp_cfg, (str, basestring, list)):
+        c_grp_cfg = {}
+        for i in _uniq_merge(grp_cfg):
+            c_grp_cfg[i] = []
+        grp_cfg = c_grp_cfg
+
+    groups = {}
+    if isinstance(grp_cfg, (dict)):
+        for (grp_name, grp_members) in grp_cfg.items():
+            groups[grp_name] = _uniq_merge_sorted(grp_members)
+    else:
+        raise TypeError(("Group config must be list, dict "
+                         " or string types only and not %s") %
+                        util.obj_name(grp_cfg))
+    return groups
+
+
+def _normalize_users(u_cfg, def_user_cfg=None):
+    if isinstance(u_cfg, (dict)):
+        ad_ucfg = []
+        for (k, v) in u_cfg.items():
+            if isinstance(v, (bool, int, basestring, str, float)):
+                if util.is_true(v):
+                    ad_ucfg.append(str(k))
+            elif isinstance(v, (dict)):
+                v['name'] = k
+                ad_ucfg.append(v)
+            else:
+                raise TypeError(("Unmappable user value type %s"
+                                 " for key %s") % (util.obj_name(v), k))
+        u_cfg = ad_ucfg
+    elif isinstance(u_cfg, (str, basestring)):
+        u_cfg = _uniq_merge_sorted(u_cfg)
+
+    users = {}
+    for user_config in u_cfg:
+        if isinstance(user_config, (str, basestring, list)):
+            for u in _uniq_merge(user_config):
+                if u and u not in users:
+                    users[u] = {}
+        elif isinstance(user_config, (dict)):
+            if 'name' in user_config:
+                n = user_config.pop('name')
+                prev_config = users.get(n) or {}
+                users[n] = util.mergemanydict([prev_config,
+                                               user_config])
+            else:
+                # Assume the default user then
+                prev_config = users.get('default') or {}
+                users['default'] = util.mergemanydict([prev_config,
+                                                       user_config])
+        else:
+            raise TypeError(("User config must be dictionary/list "
+                             " or string types only and not %s") %
+                            util.obj_name(user_config))
+
+    # Ensure user options are in the right python friendly format
+    if users:
+        c_users = {}
+        for (uname, uconfig) in users.items():
+            c_uconfig = {}
+            for (k, v) in uconfig.items():
+                k = k.replace('-', '_').strip()
+                if k:
+                    c_uconfig[k] = v
+            c_users[uname] = c_uconfig
+        users = c_users
+
+    # Fixup the default user into the real
+    # default user name and replace it...
+    if users and 'default' in users:
+        def_config = users.pop('default')
+        if def_user_cfg:
+            def_user = def_user_cfg.pop('name')
+            def_groups = def_user_cfg.pop('groups', [])
+            parsed_config = users.pop(def_user, {})
+            users_groups = _uniq_merge_sorted(parsed_config.get('groups', []),
+                                              def_groups)
+            parsed_config['groups'] = ",".join(users_groups)
+            users[def_user] = util.mergemanydict([def_user_cfg,
+                                                  def_config,
+                                                  parsed_config])
+
+    return users
+
+
+def normalize_users_groups(cfg, distro):
+    if not cfg:
+        cfg = {}
+    users = {}
+    groups = {}
+    if 'groups' in cfg:
+        groups = _normalize_groups(cfg['groups'])
+
+    # Handle the previous style of doing this...
+    old_user = None
+    if 'user' in cfg and cfg['user']:
+        old_user = str(cfg['user'])
+        if not 'users' in cfg:
+            cfg['users'] = old_user
+            old_user = None
+    if 'users' in cfg:
+        default_user_config = None
+        try:
+            default_user_config = distro.get_default_user()
+        except NotImplementedError:
+            LOG.warn(("Distro has not implemented default user "
+                      "access. No default user will be normalized."))
+        base_users = cfg['users']
+        if old_user:
+            if isinstance(base_users, (list)):
+                if len(base_users):
+                    # The old user replaces user[0]
+                    base_users[0] = {'name': old_user}
+                else:
+                    # Just add it on at the end...
+                    base_users.append({'name': old_user})
+            elif isinstance(base_users, (dict)):
+                if old_user not in base_users:
+                    base_users[old_user] = True
+            elif isinstance(base_users, (str, basestring)):
+                # Just append it on to be re-parsed later
+                base_users += ",%s" % (old_user)
+        users = _normalize_users(base_users, default_user_config)
+    return (users, groups)
 
 
 def fetch(name):
