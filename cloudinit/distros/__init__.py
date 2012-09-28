@@ -386,6 +386,8 @@ def _get_package_mirror_info(mirror_info, availability_zone=None,
     # given a arch specific 'mirror_info' entry (from package_mirrors)
     # search through the 'search' entries, and fallback appropriately
     # return a dict with only {name: mirror} entries.
+    if not mirror_info:
+        mirror_info = {}
 
     ec2_az_re = ("^[a-z][a-z]-(%s)-[1-9][0-9]*[a-z]$" %
         "north|northeast|east|southeast|south|southwest|west|northwest")
