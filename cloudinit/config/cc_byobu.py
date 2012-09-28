@@ -62,16 +62,19 @@ def handle(name, cfg, cloud, log, args):
     shcmd = ""
     if mod_user:
         (users, _groups) = ds.normalize_users_groups(cfg, cloud.distro)
-        (user, _user_config) = ds.extract_default(users, 'ubuntu')
-        shcmd += " sudo -Hu \"%s\" byobu-launcher-%s" % (user, bl_inst)
-        shcmd += " || X=$(($X+1)); "
+        (user, _user_config) = ds.extract_default(users)
+        if not user:
+            log.warn(("No default byobu user provided, "
+                      "can not launch %s for the default user"), bl_inst)
+        else:
+            shcmd += " sudo -Hu \"%s\" byobu-launcher-%s" % (user, bl_inst)
+            shcmd += " || X=$(($X+1)); "
     if mod_sys:
         shcmd += "echo \"%s\" | debconf-set-selections" % dc_val
         shcmd += " && dpkg-reconfigure byobu --frontend=noninteractive"
         shcmd += " || X=$(($X+1)); "
 
-    cmd = ["/bin/sh", "-c", "%s %s %s" % ("X=0;", shcmd, "exit $X")]
-
-    log.debug("Setting byobu to %s", value)
-
-    util.subp(cmd, capture=False)
+    if len(shcmd):
+        cmd = ["/bin/sh", "-c", "%s %s %s" % ("X=0;", shcmd, "exit $X")]
+        log.debug("Setting byobu to %s", value)
+        util.subp(cmd, capture=False)
