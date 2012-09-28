@@ -1,5 +1,6 @@
 import os
 import stat
+import yaml
 
 from mocker import MockerTestCase
 from unittest import TestCase
@@ -267,5 +268,43 @@ class TestGetCmdline(TestCase):
     def test_cmdline_reads_debug_env(self):
         os.environ['DEBUG_PROC_CMDLINE'] = 'abcd 123'
         self.assertEqual(os.environ['DEBUG_PROC_CMDLINE'], util.get_cmdline())
+
+
+class TestLoadYaml(TestCase):
+    mydefault = "7b03a8ebace993d806255121073fed52"
+
+    def test_simple(self):
+        mydata = {'1': "one", '2': "two"}
+        self.assertEqual(util.load_yaml(yaml.dump(mydata)), mydata)
+
+    def test_nonallowed_returns_default(self):
+        # for now, anything not in the allowed list just returns the default.
+        myyaml = yaml.dump({'1': "one"})
+        self.assertEqual(util.load_yaml(blob=myyaml,
+                                        default=self.mydefault,
+                                        allowed=(str,)),
+                         self.mydefault)
+
+    def test_bogus_returns_default(self):
+        badyaml = "1\n 2:"
+        self.assertEqual(util.load_yaml(blob=badyaml,
+                                        default=self.mydefault),
+                         self.mydefault)
+
+    def test_unsafe_types(self):
+        # should not load complex types
+        unsafe_yaml = yaml.dump((1, 2, 3,))
+        self.assertEqual(util.load_yaml(blob=unsafe_yaml,
+                                        default=self.mydefault),
+                         self.mydefault)
+
+    def test_python_unicode(self):
+        # complex type of python/unicde is explicitly allowed
+        myobj = {'1': unicode("FOOBAR")}
+        safe_yaml = yaml.dump(myobj)
+        self.assertEqual(util.load_yaml(blob=safe_yaml,
+                                        default=self.mydefault),
+                         myobj)
+
 
 # vi: ts=4 expandtab
