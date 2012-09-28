@@ -20,6 +20,7 @@
 
 import sys
 
+from cloudinit import distros as ds
 from cloudinit import ssh_util
 from cloudinit import util
 
@@ -50,18 +51,10 @@ def handle(_name, cfg, cloud, log, args):
         expire = util.get_cfg_option_bool(chfg, 'expire', expire)
 
     if not plist and password:
-        user = cloud.distro.get_default_user()
-
-        if 'users' in cfg:
-
-            user_zero = cfg['users'][0]
-
-            if isinstance(user_zero, dict) and 'name' in user_zero:
-                user = user_zero['name']
-
+        (users, _groups) = ds.normalize_users_groups(cfg, cloud.distro)
+        (user, _user_config) = ds.extract_default(users)
         if user:
             plist = "%s:%s" % (user, password)
-
         else:
             log.warn("No default or defined user to change password for.")
 

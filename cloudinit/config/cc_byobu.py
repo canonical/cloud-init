@@ -18,12 +18,13 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+from cloudinit import distros as ds
 from cloudinit import util
 
 distros = ['ubuntu', 'debian']
 
 
-def handle(name, cfg, _cloud, log, args):
+def handle(name, cfg, cloud, log, args):
     if len(args) != 0:
         value = args[0]
     else:
@@ -56,7 +57,8 @@ def handle(name, cfg, _cloud, log, args):
 
     shcmd = ""
     if mod_user:
-        user = util.get_cfg_option_str(cfg, "user", "ubuntu")
+        (users, _groups) = ds.normalize_users_groups(cfg, cloud.distro)
+        (user, _user_config) = ds.extract_default(users, 'ubuntu')
         shcmd += " sudo -Hu \"%s\" byobu-launcher-%s" % (user, bl_inst)
         shcmd += " || X=$(($X+1)); "
     if mod_sys:

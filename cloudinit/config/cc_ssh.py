@@ -21,6 +21,7 @@
 import glob
 import os
 
+from cloudinit import distros as ds
 from cloudinit import ssh_util
 from cloudinit import util
 
@@ -102,16 +103,8 @@ def handle(_name, cfg, cloud, log, _args):
                                       " %s to file %s"), keytype, keyfile)
 
     try:
-        # TODO(utlemming): consolidate this stanza that occurs in:
-        # cc_ssh_import_id, cc_set_passwords, maybe cc_users_groups.py
-        user = cloud.distro.get_default_user()
-
-        if 'users' in cfg:
-            user_zero = cfg['users'][0]
-
-            if user_zero != "default":
-                user = user_zero
-
+        (users, _groups) = ds.normalize_users_groups(cfg, cloud.distro)
+        (user, _user_config) = ds.extract_default(users)
         disable_root = util.get_cfg_option_bool(cfg, "disable_root", True)
         disable_root_opts = util.get_cfg_option_str(cfg, "disable_root_opts",
                                                     DISABLE_ROOT_OPTS)
