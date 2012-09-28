@@ -56,5 +56,6 @@ def handle(name, cfg, cloud, log, _args):
             util.write_file(pub_name, salt_cfg['public_key'])
             util.write_file(pem_name, salt_cfg['private_key'])
 
-    # Start salt-minion
-    util.subp(['service', 'salt-minion', 'start'], capture=False)
+    # restart salt-minion.  'service' will start even if not started.  if it
+    # was started, it needs to be restarted for config change.
+    util.subp(['service', 'salt-minion', 'restart'], capture=False)
