@@ -20,7 +20,11 @@
 
 import sys
 
+# Ensure this is aliased to a name not 'distros'
+# since the module attribute 'distros'
+# is a list of distros that are supported, not a sub-module
 from cloudinit import distros as ds
+
 from cloudinit import ssh_util
 from cloudinit import util
 
