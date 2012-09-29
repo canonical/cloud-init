@@ -296,6 +296,38 @@ class Distro(object):
 
         return True
 
+    def ensure_sudo_dir(self, path, sudo_base='/etc/sudoers'):
+        # Ensure the dir is included and that
+        # it actually exists as a directory
+        sudoers_contents = ''
+        if os.path.exists(sudo_base):
+            sudoers_contents = util.load_file(sudo_base)
+        found_include = False
+        for line in sudoers_contents.splitlines():
+            line = line.strip()
+            mtch = re.search(r"#includedir\s+(.*)$", line)
+            if not mtch:
+                continue
+            included_dir = mtch.group(1).strip()
+            if not included_dir:
+                continue
+            included_dir = os.path.abspath(included_dir)
+            if included_dir == path:
+                found_include = True
+                break
+        if not found_include:
+            sudoers_contents += "\n#includedir %s\n" % (path)
+            try:
+                if not os.path.exists(sudo_base):
+                    util.write_file(sudo_base, sudoers_contents, 0440)
+                else:
+                    with open(sudo_base, 'a') as f:
+                        f.write(sudoers_contents)
+            except IOError as e:
+                util.logexc(LOG, "Failed to write %s" % sudo_base, e)
+                raise e
+        util.ensure_dir(path, 0440)
+
     def write_sudo_rules(self,
         user,
         rules,
@@ -311,9 +343,10 @@ class Distro(object):
                 content += "%s %s\n" % (user, rule)
             content += "\n"
 
+        self.ensure_sudo_dir(os.path.dirname(sudo_file))
+
         if not os.path.exists(sudo_file):
             util.write_file(sudo_file, content, 0440)
-
         else:
             try:
                 with open(sudo_file, 'a') as f:
