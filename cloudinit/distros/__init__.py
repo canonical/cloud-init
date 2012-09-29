@@ -248,7 +248,7 @@ class Distro(object):
         if util.is_user(name):
             LOG.warn("User %s already exists, skipping." % name)
         else:
-            LOG.debug("Creating name %s" % name)
+            LOG.debug("Adding user named %s", name)
             try:
                 util.subp(adduser_cmd, logstring=x_adduser_cmd)
             except Exception as e:
