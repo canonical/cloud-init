@@ -326,7 +326,7 @@ class Distro(object):
             except IOError as e:
                 util.logexc(LOG, "Failed to write %s" % sudo_base, e)
                 raise e
-        util.ensure_dir(path, 0440)
+        util.ensure_dir(path, 0755)
 
     def write_sudo_rules(self,
         user,
