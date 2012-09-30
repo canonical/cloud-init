@@ -305,10 +305,10 @@ class Distro(object):
         found_include = False
         for line in sudoers_contents.splitlines():
             line = line.strip()
-            mtch = re.search(r"#includedir\s+(.*)$", line)
-            if not mtch:
+            include_match = re.search(r"^#includedir\s+(.*)$", line)
+            if not include_match:
                 continue
-            included_dir = mtch.group(1).strip()
+            included_dir = include_match.group(1).strip()
             if not included_dir:
                 continue
             included_dir = os.path.abspath(included_dir)
