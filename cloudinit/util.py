@@ -249,6 +249,36 @@ def read_conf(fname):
             raise
 
 
+# Merges X lists, and then keeps the
+# unique ones, but orders by sort order
+# instead of by the original order
+def uniq_merge_sorted(*lists):
+    return sorted(uniq_merge(*lists))
+
+
+# Merges X lists and then iterates over those
+# and only keeps the unique items (order preserving)
+# and returns that merged and uniqued list as the
+# final result.
+#
+# Note: if any entry is a string it will be
+# split on commas and empty entries will be
+# evicted and merged in accordingly.
+def uniq_merge(*lists):
+    combined_list = []
+    for a_list in lists:
+        if isinstance(a_list, (str, basestring)):
+            a_list = a_list.strip().split(",")
+            # Kickout the empty ones
+            a_list = [a for a in a_list if len(a)]
+        combined_list.extend(a_list)
+    uniq_list = []
+    for i in combined_list:
+        if i not in uniq_list:
+            uniq_list.append(i)
+    return uniq_list
+
+
 def clean_filename(fn):
     for (k, v) in FN_REPLACEMENTS.iteritems():
         fn = fn.replace(k, v)

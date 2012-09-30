@@ -21,7 +21,11 @@ import hashlib
 
 from prettytable import PrettyTable
 
-from cloudinit import distros
+# Ensure this is aliased to a name not 'distros'
+# since the module attribute 'distros'
+# is a list of distros that are supported, not a sub-module
+from cloudinit import distros as ds
+
 from cloudinit import ssh_util
 from cloudinit import util
 
@@ -41,8 +45,10 @@ def _gen_fingerprint(b64_text, hash_meth='md5'):
         hasher = hashlib.new(hash_meth)
         hasher.update(base64.b64decode(b64_text))
         return ":".join(_split_hash(hasher.hexdigest()))
-    except TypeError:
+    except (TypeError, ValueError):
         # Raised when b64 not really b64...
+        # or when the hash type is not really
+        # a known/supported hash type...
         return '?'
 
 
@@ -92,8 +98,8 @@ def handle(name, cfg, cloud, log, _args):
 
     hash_meth = util.get_cfg_option_str(cfg, "authkey_hash", "md5")
     extract_func = ssh_util.extract_authorized_keys
-    (users, _groups) = distros.normalize_users_groups(cfg, cloud.distro)
+    (users, _groups) = ds.normalize_users_groups(cfg, cloud.distro)
     for (user_name, _cfg) in users.items():
         (auth_key_fn, auth_key_entries) = extract_func(user_name, cloud.paths)
-        _pprint_key_entries(user_name, auth_key_fn, auth_key_entries,
-                            hash_meth)
+        _pprint_key_entries(user_name, auth_key_fn,
+                            auth_key_entries, hash_meth)
