@@ -336,7 +336,6 @@ if __name__ == "__main__":
             'token_secret': args.tsec, 'consumer_secret': args.csec}
 
         if args.config:
-            import yaml
             with open(args.config) as fp:
                 cfg = util.load_yaml(fp.read())
             if 'datasource' in cfg:
