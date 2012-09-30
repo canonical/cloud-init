@@ -1,3 +1,19 @@
+cloud-init (0.7.0~bzr677-0ubuntu1) quantal; urgency=low
+
+  * add CloudStack to DataSources listed by dpkg-reconfigure (LP: #1002155)
+  * New upstream snapshot.
+    * 0440 permissions on /etc/sudoers.d files rather than 0644
+    * get host ssh keys to the console (LP: #1055688)
+    * MAAS DataSource adjust timestamp in oauth header to one based on the
+      timestamp in the response of a 403.  This accounts for a bad local
+      clock. (LP: #978127)
+    * re-start the salt daemon rather than start to ensure config changes
+      are taken.
+    * allow for python unicode types in yaml that is loaded.
+    * cleanup in how config modules get at users and groups.
+
+ -- Scott Moser <smoser@ubuntu.com>  Sun, 30 Sep 2012 14:29:04 -0400
+
 cloud-init (0.7.0~bzr659-0ubuntu2) quantal; urgency=low
 
   * debian/cloud-init.templates: fix bad template file (LP: #1053239)

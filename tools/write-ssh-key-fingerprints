@@ -1,4 +1,5 @@
 #!/bin/sh
+exec 2>&1
 fp_blist=",${1},"
 key_blist=",${2},"
 {
@@ -15,7 +16,7 @@ done
 echo "-----END SSH HOST KEY FINGERPRINTS-----"
 echo "#############################################################"
 
-} | logger -p user.info -s -t "ec2"
+} | logger -p user.info --stderr -t "ec2"
 
 echo -----BEGIN SSH HOST KEY KEYS-----
 for f in /etc/ssh/ssh_host_*key.pub; do

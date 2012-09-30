@@ -18,6 +18,7 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+from email.utils import parsedate
 import errno
 import oauth.oauth as oauth
 import os
@@ -46,6 +47,7 @@ class DataSourceMAAS(sources.DataSource):
         sources.DataSource.__init__(self, sys_cfg, distro, paths)
         self.base_url = None
         self.seed_dir = os.path.join(paths.seed_dir, 'maas')
+        self.oauth_clockskew = None
 
     def __str__(self):
         return "%s [%s]" % (util.obj_name(self), self.base_url)
@@ -95,11 +97,17 @@ class DataSourceMAAS(sources.DataSource):
                 return {}
 
         consumer_secret = mcfg.get('consumer_secret', "")
+
+        timestamp = None
+        if self.oauth_clockskew:
+            timestamp = int(time.time()) + self.oauth_clockskew
+
         return oauth_headers(url=url,
                              consumer_key=mcfg['consumer_key'],
                              token_key=mcfg['token_key'],
                              token_secret=mcfg['token_secret'],
-                             consumer_secret=consumer_secret)
+                             consumer_secret=consumer_secret,
+                             timestamp=timestamp)
 
     def wait_for_metadata_service(self, url):
         mcfg = self.ds_cfg
@@ -124,7 +132,7 @@ class DataSourceMAAS(sources.DataSource):
         check_url = "%s/%s/meta-data/instance-id" % (url, MD_VERSION)
         urls = [check_url]
         url = uhelp.wait_for_url(urls=urls, max_wait=max_wait,
-                                 timeout=timeout, status_cb=LOG.warn,
+                                 timeout=timeout, exception_cb=self._except_cb,
                                  headers_cb=self.md_headers)
 
         if url:
@@ -134,6 +142,26 @@ class DataSourceMAAS(sources.DataSource):
                             urls, int(time.time() - starttime))
 
         return bool(url)
+
+    def _except_cb(self, msg, exception):
+        if not (isinstance(exception, urllib2.HTTPError) and
+                exception.code == 403):
+            return
+        if 'date' not in exception.headers:
+            LOG.warn("date field not in 403 headers")
+            return
+
+        date = exception.headers['date']
+
+        try:
+            ret_time = time.mktime(parsedate(date))
+        except:
+            LOG.warn("failed to convert datetime '%s'")
+            return
+
+        self.oauth_clockskew = int(ret_time - time.time())
+        LOG.warn("set oauth clockskew to %d" % self.oauth_clockskew)
+        return
 
 
 def read_maas_seed_dir(seed_d):
@@ -229,13 +257,20 @@ def check_seed_contents(content, seed):
     return (userdata, md)
 
 
-def oauth_headers(url, consumer_key, token_key, token_secret, consumer_secret):
+def oauth_headers(url, consumer_key, token_key, token_secret, consumer_secret,
+                  timestamp=None):
     consumer = oauth.OAuthConsumer(consumer_key, consumer_secret)
     token = oauth.OAuthToken(token_key, token_secret)
+
+    if timestamp is None:
+        ts = int(time.time())
+    else:
+        ts = timestamp
+
     params = {
         'oauth_version': "1.0",
         'oauth_nonce': oauth.generate_nonce(),
-        'oauth_timestamp': int(time.time()),
+        'oauth_timestamp': ts,
         'oauth_token': token.key,
         'oauth_consumer_key': consumer.key,
     }
@@ -301,9 +336,8 @@ if __name__ == "__main__":
             'token_secret': args.tsec, 'consumer_secret': args.csec}
 
         if args.config:
-            import yaml
             with open(args.config) as fp:
-                cfg = yaml.safe_load(fp)
+                cfg = util.load_yaml(fp.read())
             if 'datasource' in cfg:
                 cfg = cfg['datasource']['MAAS']
             for key in creds.keys():

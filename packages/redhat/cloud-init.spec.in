@@ -5,6 +5,10 @@
 # Or: http://fedoraproject.org/wiki/Packaging:ScriptletSnippets
 # Or: http://www.rpm.org/max-rpm/ch-rpm-inside.html
 
+#for $d in $defines
+%define ${d}
+#end for
+
 Name:           cloud-init
 Version:        ${version}
 Release:        ${release}%{?dist}
@@ -36,6 +40,13 @@ Requires:       shadow-utils
 Requires:       ${r}
 #end for
 
+# Custom patches
+#set $size = 0
+#for $p in $patches
+Patch${size}: $p
+#set $size += 1
+#end for
+
 #if $sysvinit
 Requires(post):       chkconfig
 Requires(postun):     initscripts
@@ -57,6 +68,13 @@ ssh keys and to let the user run various scripts.
 
 %prep
 %setup -q -n %{name}-%{version}~${release}
+
+# Custom patches activation
+#set $size = 0
+#for $p in $patches
+%patch${size} -p1
+#set $size += 1
+#end for
 
 %build
 %{__python} setup.py build

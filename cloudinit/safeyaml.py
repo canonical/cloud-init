@@ -1,13 +1,8 @@
 # vi: ts=4 expandtab
 #
 #    Copyright (C) 2012 Canonical Ltd.
-#    Copyright (C) 2012 Hewlett-Packard Development Company, L.P.
-#    Copyright (C) 2012 Yahoo! Inc.
 #
 #    Author: Scott Moser <scott.moser@canonical.com>
-#    Author: Juerg Haefliger <juerg.haefliger@hp.com>
-#    Author: Joshua Harlow <harlowja@yahoo-inc.com>
-#    Author: Ben Howard <ben.howard@canonical.com>
 #
 #    This program is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License version 3, as
@@ -21,14 +16,17 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-from cloudinit.distros import debian
-from cloudinit import log as logging
-
-LOG = logging.getLogger(__name__)
+import yaml
 
 
-class Distro(debian.Distro):
+class _CustomSafeLoader(yaml.SafeLoader):
+    def construct_python_unicode(self, node):
+        return self.construct_scalar(node)
 
-    default_user = 'ubuntu'
-    default_user_groups = ("adm,audio,cdrom,dialout,floppy,video,"
-                            "plugdev,dip,netdev,sudo")
+_CustomSafeLoader.add_constructor(
+    u'tag:yaml.org,2002:python/unicode',
+    _CustomSafeLoader.construct_python_unicode)
+
+
+def load(blob):
+    return(yaml.load(blob, Loader=_CustomSafeLoader))

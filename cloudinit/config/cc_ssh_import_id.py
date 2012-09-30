@@ -18,6 +18,11 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+# Ensure this is aliased to a name not 'distros'
+# since the module attribute 'distros'
+# is a list of distros that are supported, not a sub-module
+from cloudinit import distros as ds
+
 from cloudinit import util
 import pwd
 
@@ -39,32 +44,26 @@ def handle(_name, cfg, cloud, log, args):
         return
 
     # import for cloudinit created users
+    (users, _groups) = ds.normalize_users_groups(cfg, cloud.distro)
     elist = []
-    for user_cfg in cfg['users']:
-        user = None
+    for (user, user_cfg) in users.items():
         import_ids = []
-
-        if isinstance(user_cfg, str) and user_cfg == "default":
-            user = cloud.distro.get_default_user()
-            if not user:
-                continue
-
+        if user_cfg['default']:
             import_ids = util.get_cfg_option_list(cfg, "ssh_import_id", [])
-
-        elif isinstance(user_cfg, dict):
-            user = None
-            import_ids = []
-
+        else:
             try:
-                user = user_cfg['name']
                 import_ids = user_cfg['ssh_import_id']
-
-                if import_ids and isinstance(import_ids, str):
-                    import_ids = str(import_ids).split(',')
-
             except:
-                log.debug("user %s is not configured for ssh_import" % user)
+                log.debug("User %s is not configured for ssh_import_id", user)
                 continue
+
+        try:
+            import_ids = util.uniq_merge(import_ids)
+            import_ids = [str(i) for i in import_ids]
+        except:
+            log.debug("User %s is not correctly configured for ssh_import_id",
+                      user)
+            continue
 
         if not len(import_ids):
             continue

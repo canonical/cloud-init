@@ -50,6 +50,7 @@ import yaml
 
 from cloudinit import importer
 from cloudinit import log as logging
+from cloudinit import safeyaml
 from cloudinit import url_helper as uhelp
 
 from cloudinit.settings import (CFG_BUILTIN)
@@ -246,6 +247,36 @@ def read_conf(fname):
             return {}
         else:
             raise
+
+
+# Merges X lists, and then keeps the
+# unique ones, but orders by sort order
+# instead of by the original order
+def uniq_merge_sorted(*lists):
+    return sorted(uniq_merge(*lists))
+
+
+# Merges X lists and then iterates over those
+# and only keeps the unique items (order preserving)
+# and returns that merged and uniqued list as the
+# final result.
+#
+# Note: if any entry is a string it will be
+# split on commas and empty entries will be
+# evicted and merged in accordingly.
+def uniq_merge(*lists):
+    combined_list = []
+    for a_list in lists:
+        if isinstance(a_list, (str, basestring)):
+            a_list = a_list.strip().split(",")
+            # Kickout the empty ones
+            a_list = [a for a in a_list if len(a)]
+        combined_list.extend(a_list)
+    uniq_list = []
+    for i in combined_list:
+        if i not in uniq_list:
+            uniq_list.append(i)
+    return uniq_list
 
 
 def clean_filename(fn):
@@ -612,7 +643,7 @@ def load_yaml(blob, default=None, allowed=(dict,)):
         LOG.debug(("Attempting to load yaml from string "
                  "of length %s with allowed root types %s"),
                  len(blob), allowed)
-        converted = yaml.safe_load(blob)
+        converted = safeyaml.load(blob)
         if not isinstance(converted, allowed):
             # Yes this will just be caught, but thats ok for now...
             raise TypeError(("Yaml load allows %s root types,"
@@ -1102,6 +1133,22 @@ def hash_blob(blob, routine, mlen=None):
         return digest[0:mlen]
     else:
         return digest
+
+
+def is_user(name):
+    try:
+        if pwd.getpwnam(name):
+            return True
+    except KeyError:
+        return False
+
+
+def is_group(name):
+    try:
+        if grp.getgrnam(name):
+            return True
+    except KeyError:
+        return False
 
 
 def rename(src, dest):
