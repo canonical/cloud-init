@@ -24,6 +24,7 @@
 from StringIO import StringIO
 
 import abc
+import itertools
 import os
 import re
 
@@ -186,8 +187,10 @@ class Distro(object):
             'gecos': "%s" % (self.default_user.title()),
             'sudo': "ALL=(ALL) NOPASSWD:ALL",
         }
-        if self.default_user_groups:
-            user_cfg['groups'] = _uniq_merge_sorted(self.default_user_groups)
+        def_groups = self.default_user_groups
+        if not def_groups:
+            def_groups = []
+        user_cfg['groups'] = util.uniq_merge_sorted(def_groups)
         return user_cfg
 
     def create_user(self, name, **kwargs):
@@ -398,39 +401,27 @@ def _get_arch_package_mirror_info(package_mirrors, arch):
     return default
 
 
-def _uniq_merge_sorted(*lists):
-    return sorted(_uniq_merge(*lists))
-
-
-def _uniq_merge(*lists):
-    combined_list = []
-    for a_list in lists:
-        if isinstance(a_list, (str, basestring)):
-            a_list = a_list.strip().split(",")
-        else:
-            a_list = [str(a) for a in a_list]
-        a_list = [a.strip() for a in a_list if a.strip()]
-        combined_list.extend(a_list)
-    uniq_list = []
-    for a in combined_list:
-        if a in uniq_list:
-            continue
-        else:
-            uniq_list.append(a)
-    return uniq_list
-
-
+# Normalizes a input group configuration
+# which can be a comma seperated list of
+# group names, or a list of group names
+# or a python dictionary of group names
+# to a list of members of that group.
+#
+# The output is a dictionary of group
+# names => members of that group which
+# is the standard form used in the rest
+# of cloud-init
 def _normalize_groups(grp_cfg):
     if isinstance(grp_cfg, (str, basestring, list)):
         c_grp_cfg = {}
-        for i in _uniq_merge(grp_cfg):
+        for i in util.uniq_merge(grp_cfg):
             c_grp_cfg[i] = []
         grp_cfg = c_grp_cfg
 
     groups = {}
     if isinstance(grp_cfg, (dict)):
         for (grp_name, grp_members) in grp_cfg.items():
-            groups[grp_name] = _uniq_merge_sorted(grp_members)
+            groups[grp_name] = util.uniq_merge_sorted(grp_members)
     else:
         raise TypeError(("Group config must be list, dict "
                          " or string types only and not %s") %
@@ -438,6 +429,21 @@ def _normalize_groups(grp_cfg):
     return groups
 
 
+# Normalizes a input group configuration
+# which can be a comma seperated list of
+# user names, or a list of string user names
+# or a list of dictionaries with components
+# that define the user config + 'name' (if
+# a 'name' field does not exist then the
+# default user is assumed to 'own' that
+# configuration.
+#
+# The output is a dictionary of user
+# names => user config which is the standard 
+# form used in the rest of cloud-init. Note
+# the default user will have a special config
+# entry 'default' which will be marked as true
+# all other users will be marked as false.
 def _normalize_users(u_cfg, def_user_cfg=None):
     if isinstance(u_cfg, (dict)):
         ad_ucfg = []
@@ -453,12 +459,12 @@ def _normalize_users(u_cfg, def_user_cfg=None):
                                  " for key %s") % (util.obj_name(v), k))
         u_cfg = ad_ucfg
     elif isinstance(u_cfg, (str, basestring)):
-        u_cfg = _uniq_merge_sorted(u_cfg)
+        u_cfg = util.uniq_merge_sorted(u_cfg)
 
     users = {}
     for user_config in u_cfg:
         if isinstance(user_config, (str, basestring, list)):
-            for u in _uniq_merge(user_config):
+            for u in util.uniq_merge(user_config):
                 if u and u not in users:
                     users[u] = {}
         elif isinstance(user_config, (dict)):
@@ -491,22 +497,59 @@ def _normalize_users(u_cfg, def_user_cfg=None):
 
     # Fixup the default user into the real
     # default user name and replace it...
+    def_user = None
     if users and 'default' in users:
         def_config = users.pop('default')
         if def_user_cfg:
+            # Pickup what the default 'real name' is
+            # and any groups that are provided by the
+            # default config
             def_user = def_user_cfg.pop('name')
             def_groups = def_user_cfg.pop('groups', [])
+            # Pickup any config + groups for that user name
+            # that we may have previously extracted
             parsed_config = users.pop(def_user, {})
-            users_groups = _uniq_merge_sorted(parsed_config.get('groups', []),
-                                              def_groups)
+            parsed_groups = parsed_config.get('groups', [])
+            # Now merge our extracted groups with
+            # anything the default config provided
+            users_groups = util.uniq_merge_sorted(parsed_groups, def_groups)
             parsed_config['groups'] = ",".join(users_groups)
+            # The real config for the default user is the
+            # combination of the default user config provided
+            # by the distro, the default user config provided
+            # by the above merging for the user 'default' and
+            # then the parsed config from the user's 'real name'
+            # which does not have to be 'default' (but could be)
             users[def_user] = util.mergemanydict([def_user_cfg,
                                                   def_config,
                                                   parsed_config])
 
+    # Ensure that only the default user that we
+    # found (if any) is actually marked as being
+    # the default user
+    if users:
+        for (uname, uconfig) in users.items():
+            if def_user and uname == def_user:
+                uconfig['default'] = True
+            else:
+                uconfig['default'] = False
+
     return users
 
 
+# Normalizes a set of user/users and group
+# dictionary configuration into a useable
+# format that the rest of cloud-init can
+# understand using the default user
+# provided by the input distrobution (if any)
+# to allow for mapping of the 'default' user.
+#
+# Output is a dictionary of group names -> [member] (list)
+# and a dictionary of user names -> user configuration (dict)
+#
+# If 'user' exists it will override
+# the 'users'[0] entry (if a list) otherwise it will
+# just become an entry in the returned dictionary (no override)
 def normalize_users_groups(cfg, distro):
     if not cfg:
         cfg = {}
@@ -546,6 +589,33 @@ def normalize_users_groups(cfg, distro):
                 base_users += ",%s" % (old_user)
         users = _normalize_users(base_users, default_user_config)
     return (users, groups)
+
+
+# Given a user dictionary config it will
+# extract the default user name and user config
+# from that list and return that tuple or
+# return (None, None) if no default user is
+# found in the given input
+def extract_default(users, default_name=None, default_config=None):
+    if not users:
+        users = {}
+
+    def safe_find(entry):
+        config = entry[1]
+        if not config or 'default' not in config:
+            return False
+        else:
+            return config['default']
+
+    tmp_users = users.items()
+    tmp_users = dict(itertools.ifilter(safe_find, tmp_users))
+    if not tmp_users:
+        return (default_name, default_config)
+    else:
+        name = tmp_users.keys()[0]
+        config = tmp_users[name]
+        config.pop('default', None)
+        return (name, config)
 
 
 def fetch(name):
