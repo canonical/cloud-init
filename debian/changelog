@@ -1,3 +1,11 @@
+cloud-init (0.7.0-0ubuntu1) quantal; urgency=low
+
+  * New upstream release.
+    * minor change to oauth header fix (LP: #978127).
+    * incorporation of 0.7.0 upstream release.
+
+ -- Scott Moser <smoser@ubuntu.com>  Mon, 01 Oct 2012 14:19:46 -0400
+
 cloud-init (0.7.0~bzr677-0ubuntu1) quantal; urgency=low
 
   * add CloudStack to DataSources listed by dpkg-reconfigure (LP: #1002155)

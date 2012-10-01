@@ -1,4 +1,8 @@
 0.7.0:
+ - add a 'exception_cb' argument to 'wait_for_url'.  If provided, this
+   method will be called back with the exception received and the message.
+ - utilize the 'exception_cb' above to modify the oauth timestamp in 
+   DataSourceMAAS requests if a 401 or 403 is received. (LP: #978127)
  - catch signals and exit rather than stack tracing
  - if logging fails, enable a fallback logger by patching the logging module
  - do not 'start networking' in cloud-init-nonet, but add
