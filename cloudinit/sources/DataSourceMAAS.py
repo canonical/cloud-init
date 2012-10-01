@@ -145,10 +145,10 @@ class DataSourceMAAS(sources.DataSource):
 
     def _except_cb(self, msg, exception):
         if not (isinstance(exception, urllib2.HTTPError) and
-                exception.code == 403):
+                (exception.code == 403 or exception.code == 401)):
             return
         if 'date' not in exception.headers:
-            LOG.warn("date field not in 403 headers")
+            LOG.warn("date field not in %d headers" % exception.code)
             return
 
         date = exception.headers['date']
