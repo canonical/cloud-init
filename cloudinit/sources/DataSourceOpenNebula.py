@@ -95,25 +95,6 @@ class DataSourceOpenNebula(sources.DataSource):
             # most likely user specified
             return False
 
-        # update interfaces and ifup only on the local datasource
-        # this way the DataSourceConfigDriveNet doesn't do it also.
-#       if 'network-interfaces' in md and self.dsmode == "local":
-#            if md['dsmode'] == "pass":
-#                log.info("updating network interfaces from configdrive")
-#            else:
-#                log.debug("updating network interfaces from configdrive")
-#
-#            util.write_file("/etc/network/interfaces",
-#                md['network-interfaces'])
-#            try:
-#                (out, err) = util.subp(['ifup', '--all'])
-#                if len(out) or len(err):
-#                    log.warn("ifup --all had stderr: %s" % err)
-#
-#            except subprocess.CalledProcessError as exc:
-#                log.warn("ifup --all failed: %s" % (exc.output[1]))
-#
-
         if dsmode != self.dsmode:
             LOG.debug("%s: not claiming datasource, dsmode=%s", self, dsmode)
             return False
