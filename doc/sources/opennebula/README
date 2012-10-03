@@ -9,8 +9,8 @@ DataSourceOpenNebula as contextualization disk:
 
 == Content of config-drive ==
   * context.sh
-    This is the only mandatory file on context disk, the rest depends
-    on contextualization parameter FILES and thus are optional. It's
+    This is the only mandatory file on context disk, the rest content depends
+    on contextualization parameter FILES and thus is optional. It's
     a shell script defining all context parameters. This script is
     processed by bash (/bin/bash) to simulate behaviour of common
     OpenNebula context scripts. Processed variables are handed over
@@ -18,7 +18,8 @@ DataSourceOpenNebula as contextualization disk:
 
 == Configuration ==
 Cloud-init's behaviour can be modified by context variables found
-in the context.sh file in the folowing ways:
+in the context.sh file in the folowing ways (variable names are
+case-insensitive):
   * dsmode:
     values: local, net, disabled
     default: None
@@ -39,7 +40,7 @@ in the context.sh file in the folowing ways:
 
   * public_ip:
     default: None
-    If hostname not specified, public_ip is used to resolve hostname.
+    If hostname not specified, public_ip is used to DNS resolve hostname.
 
   * 'user_data' or 'userdata':
     default: None
@@ -62,5 +63,4 @@ mounts:
 - [vdc,none,swap,sw,0,0]
 runcmd:
 - echo 'Instance has been configured by cloud-init.' | wall
-
 " ]
