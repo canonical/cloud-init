@@ -2,7 +2,7 @@
 #
 #    Copyright (C) 2012 Canonical Ltd.
 #    Copyright (C) 2012 Yahoo! Inc.
-#    Copyright (C) 2012 CERIT-Scientific Cloud
+#    Copyright (C) 2012 CERIT Scientific Cloud
 #
 #    Author: Scott Moser <scott.moser@canonical.com>
 #    Author: Joshua Harlow <harlowja@yahoo-inc.com>
