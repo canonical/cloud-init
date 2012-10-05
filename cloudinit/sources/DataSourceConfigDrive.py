@@ -68,12 +68,29 @@ class DataSourceConfigDrive(sources.DataSource):
     def _os_name_to_device(self, name):
         device = None
         try:
-            dev_entries = util.find_devs_with('LABEL=%s' % (name))
+            criteria = 'LABEL=%s' % (name)
+            if name in ['swap']:
+                criteria = 'TYPE=%s' % (name)
+            dev_entries = util.find_devs_with(criteria)
             if dev_entries:
                 device = dev_entries[0]
         except util.ProcessExecutionError:
             pass
         return device
+
+    def _validate_device_name(self, device):
+        if not device:
+            return None
+        if not device.startswith("/"):
+            device = "/dev/%s" % device
+        if os.path.exists(device):
+            return device
+        # Durn, try adjusting the mapping
+        remapped = self._remap_device(os.path.basename(device))
+        if remapped:
+            LOG.debug("Remapped device name %s => %s", device, remapped)
+            return remapped
+        return None
 
     def device_name_to_device(self, name):
         # Translate a 'name' to a 'physical' device
@@ -86,31 +103,26 @@ class DataSourceConfigDrive(sources.DataSource):
         if name == 'ami':
             names.append('root')
         device = None
+        LOG.debug("Using ec2 metadata lookup to find device %s", names)
         for n in names:
             device = self._ec2_name_to_device(n)
+            device = self._validate_device_name(device)
             if device:
                 break
         # Try the openstack way second
         if not device:
+            LOG.debug("Using os lookup to find device %s", names)
             for n in names:
                 device = self._os_name_to_device(n)
+                device = self._validate_device_name(device)
                 if device:
                     break
         # Ok give up...
         if not device:
             return None
-        # Ensure translated ok
-        if not device.startswith("/"):
-            device = "/dev/%s" % device
-        if os.path.exists(device):
+        else:
+            LOG.debug("Using cfg drive lookup mapped to device %s", device)
             return device
-        # Durn, try adjusting the mapping
-        remapped = self._remap_device(os.path.basename(device))
-        if remapped:
-            LOG.debug("Remapped device name %s => %s", device, remapped)
-            return remapped
-        # Really give up now
-        return None
 
     def get_data(self):
         found = None
