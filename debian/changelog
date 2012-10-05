@@ -1,3 +1,10 @@
+cloud-init (0.7.0-0ubuntu2) quantal; urgency=low
+
+  * config-drive: copy metadata entry 'hostname' to 'local-hostname' to fix
+    config modules (set_hostname) will function as expected (LP: #1061964)
+
+ -- Scott Moser <smoser@ubuntu.com>  Fri, 05 Oct 2012 11:45:15 -0400
+
 cloud-init (0.7.0-0ubuntu1) quantal; urgency=low
 
   * New upstream release.
