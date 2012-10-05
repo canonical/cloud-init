@@ -140,7 +140,7 @@ def generate_spec_contents(args, tmpl_fn, top_dir, arc_fn):
                     changelog_lines.append(format_change_line(datetime.now(), '??'))
                 else:
                     sys.stderr.write(("Changelog version line %s "
-                                      "does not have a corresponding tag!") % (line))
+                                      "does not have a corresponding tag!\n") % (line))
             else:
                 changelog_lines.append(header)
         else:
