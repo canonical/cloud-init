@@ -4,10 +4,15 @@ import os
 import os.path
 import shutil
 import tempfile
-from unittest import TestCase
+
+import mocker
+from mocker import MockerTestCase
 
 from cloudinit.sources import DataSourceConfigDrive as ds
+from cloudinit import settings
 from cloudinit import util
+from cloudinit import helpers
+
 
 
 PUBKEY = u'ssh-rsa AAAAB3NzaC1....sIkJhq8wdX+4I3A4cYbYP ubuntu@server-460\n'
@@ -60,17 +65,143 @@ CFG_DRIVE_FILES_V2 = {
   'openstack/latest/user_data': USER_DATA}
 
 
-class TestConfigDriveDataSource(TestCase):
+class TestConfigDriveDataSource(MockerTestCase):
 
     def setUp(self):
         super(TestConfigDriveDataSource, self).setUp()
-        self.tmp = tempfile.mkdtemp()
+        self.tmp = self.makeDir()
 
-    def tearDown(self):
-        try:
-            shutil.rmtree(self.tmp)
-        except OSError:
-            pass
+    def test_ec2_metadata(self):
+        populate_dir(self.tmp, CFG_DRIVE_FILES_V2)
+        cfg_ds = ds.DataSourceConfigDrive(settings.CFG_BUILTIN,
+                                          None,
+                                          helpers.Paths({}))
+        found = ds.read_config_drive_dir(self.tmp)
+        self.assertTrue('ec2-metadata' in found)
+        ec2_md = found['ec2-metadata']
+        self.assertEqual(EC2_META, ec2_md)
+
+    def test_dev_os_remap(self):
+        populate_dir(self.tmp, CFG_DRIVE_FILES_V2)
+        cfg_ds = ds.DataSourceConfigDrive(settings.CFG_BUILTIN,
+                                          None,
+                                          helpers.Paths({}))
+        found = ds.read_config_drive_dir(self.tmp)
+        cfg_ds.metadata = found['metadata']
+        name_tests = {
+            'ami': '/dev/vda1',
+            'root': '/dev/vda1',
+            'ephemeral0': '/dev/vda2',
+            'swap': '/dev/vda3',
+        }
+        for name, dev_name in name_tests.items():
+            my_mock = mocker.Mocker()
+            find_mock = my_mock.replace(util.find_devs_with,
+                                        spec=False, passthrough=False)
+            provided_name = dev_name[len('/dev/'):]
+            provided_name = "s" + provided_name[1:]
+            find_mock(mocker.ARGS)
+            my_mock.result([provided_name])
+            exists_mock = my_mock.replace(os.path.exists,
+                                          spec=False, passthrough=False)
+            exists_mock(mocker.ARGS)
+            my_mock.result(False)
+            exists_mock(mocker.ARGS)
+            my_mock.result(True)
+            my_mock.replay()
+            device = cfg_ds.device_name_to_device(name)
+            my_mock.restore()
+            self.assertEquals(dev_name, device)
+
+    def test_dev_os_map(self):
+        populate_dir(self.tmp, CFG_DRIVE_FILES_V2)
+        cfg_ds = ds.DataSourceConfigDrive(settings.CFG_BUILTIN,
+                                          None,
+                                          helpers.Paths({}))
+        found = ds.read_config_drive_dir(self.tmp)
+        os_md = found['metadata']
+        cfg_ds.metadata = os_md
+        name_tests = {
+            'ami': '/dev/vda1',
+            'root': '/dev/vda1',
+            'ephemeral0': '/dev/vda2',
+            'swap': '/dev/vda3',
+        }
+        for name, dev_name in name_tests.items():
+            my_mock = mocker.Mocker()
+            find_mock = my_mock.replace(util.find_devs_with,
+                                        spec=False, passthrough=False)
+            find_mock(mocker.ARGS)
+            my_mock.result([dev_name])
+            exists_mock = my_mock.replace(os.path.exists,
+                                          spec=False, passthrough=False)
+            exists_mock(mocker.ARGS)
+            my_mock.result(True)
+            my_mock.replay()
+            device = cfg_ds.device_name_to_device(name)
+            my_mock.restore()
+            self.assertEquals(dev_name, device)
+
+    def test_dev_ec2_remap(self):
+        populate_dir(self.tmp, CFG_DRIVE_FILES_V2)
+        cfg_ds = ds.DataSourceConfigDrive(settings.CFG_BUILTIN,
+                                          None,
+                                          helpers.Paths({}))
+        found = ds.read_config_drive_dir(self.tmp)
+        ec2_md = found['ec2-metadata']
+        os_md = found['metadata']
+        cfg_ds.ec2_metadata = ec2_md
+        cfg_ds.metadata = os_md
+        name_tests = {
+            'ami': '/dev/vda1',
+            'root': '/dev/vda1',
+            'ephemeral0': '/dev/vda2',
+            'swap': '/dev/vda3',
+            None: None,
+            'bob': None,
+            'root2k': None,
+        }
+        for name, dev_name in name_tests.items():
+            my_mock = mocker.Mocker()
+            exists_mock = my_mock.replace(os.path.exists,
+                                          spec=False, passthrough=False)
+            exists_mock(mocker.ARGS)
+            my_mock.result(False)
+            exists_mock(mocker.ARGS)
+            my_mock.result(True)
+            my_mock.replay()
+            device = cfg_ds.device_name_to_device(name)
+            self.assertEquals(dev_name, device)
+            my_mock.restore()
+
+    def test_dev_ec2_map(self):
+        populate_dir(self.tmp, CFG_DRIVE_FILES_V2)
+        cfg_ds = ds.DataSourceConfigDrive(settings.CFG_BUILTIN,
+                                          None,
+                                          helpers.Paths({}))
+        found = ds.read_config_drive_dir(self.tmp)
+        exists_mock = self.mocker.replace(os.path.exists,
+                                          spec=False, passthrough=False)
+        exists_mock(mocker.ARGS)
+        self.mocker.count(0, None)
+        self.mocker.result(True)
+        self.mocker.replay()
+        ec2_md = found['ec2-metadata']
+        os_md = found['metadata']
+        cfg_ds.ec2_metadata = ec2_md
+        cfg_ds.metadata = os_md
+        name_tests = {
+            'ami': '/dev/sda1',
+            'root': '/dev/sda1',
+            'ephemeral0': '/dev/sda2',
+            'swap': '/dev/sda3',
+            None: None,
+            'bob': None,
+            'root2k': None,
+        }
+        for name, dev_name in name_tests.items():
+            device = cfg_ds.device_name_to_device(name)
+            self.assertEquals(dev_name, device)
 
     def test_dir_valid(self):
         """Verify a dir is read as such."""
