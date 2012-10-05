@@ -126,13 +126,22 @@ def generate_spec_contents(args, tmpl_fn, top_dir, arc_fn):
     # Format a nice changelog (as best as we can)
     changelog = util.load_file(util.abs_join(find_root(), 'ChangeLog'))
     changelog_lines = []
+    missing_versions = 0
     for line in changelog.splitlines():
         if not line.strip():
             continue
         if re.match(r"^\s*[\d][.][\d][.][\d]:\s*", line):
             line = line.strip(":")
             header = get_log_header(line)
-            if header:
+            if not header:
+                missing_versions += 1
+                if missing_versions == 1:
+                    # Must be using a new 'dev'/'trunk' release
+                    changelog_lines.append(format_change_line(datetime.now(), '??'))
+                else:
+                    sys.stderr.write(("Changelog version line %s "
+                                      "does not have a corresponding tag!") % (line))
+            else:
                 changelog_lines.append(header)
         else:
             changelog_lines.append(line)
