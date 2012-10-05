@@ -85,6 +85,16 @@ class DataSourceConfigDrive(sources.DataSource):
         md = results['metadata']
         md = util.mergedict(md, DEFAULT_METADATA)
 
+        # Perform some metadata 'fixups'
+        #
+        # OpenStack uses the 'hostname' key
+        # while most of cloud-init uses the metadata
+        # 'local-hostname' key instead so if it doesn't
+        # exist we need to make sure its copied over.
+        for (tgt, src) in [('local-hostname', 'hostname')]:
+            if tgt not in md and src in md:
+                md[tgt] = md[src]
+
         user_dsmode = results.get('dsmode', None)
         if user_dsmode not in VALID_DSMODES + (None,):
             LOG.warn("user specified invalid mode: %s" % user_dsmode)
