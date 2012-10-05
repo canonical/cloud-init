@@ -1,3 +1,6 @@
+0.7.1:
+ - sysvinit: fix missing dependency in cloud-init job for RHEL 5.6 
+ - config-drive: map hostname to local-hostname (LP: #1061964)
 0.7.0:
  - add a 'exception_cb' argument to 'wait_for_url'.  If provided, this
    method will be called back with the exception received and the message.
