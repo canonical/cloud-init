@@ -285,7 +285,7 @@ def read_config_drive_dir_v2(source_dir, version="2012-08-10"):
         ('metadata',
          "openstack/%s/meta_data.json" % version, True, json.loads),
         ('userdata', "openstack/%s/user_data" % version, False, None),
-        ('ec2-metadata', "ec2/latest/metadata.json", False, json.loads),
+        ('ec2-metadata', "ec2/latest/meta-data.json", False, json.loads),
     )
 
     results = {'userdata': None}
