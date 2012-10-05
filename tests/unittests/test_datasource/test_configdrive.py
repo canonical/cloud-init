@@ -2,8 +2,6 @@ from copy import copy
 import json
 import os
 import os.path
-import shutil
-import tempfile
 
 import mocker
 from mocker import MockerTestCase
@@ -73,9 +71,6 @@ class TestConfigDriveDataSource(MockerTestCase):
 
     def test_ec2_metadata(self):
         populate_dir(self.tmp, CFG_DRIVE_FILES_V2)
-        cfg_ds = ds.DataSourceConfigDrive(settings.CFG_BUILTIN,
-                                          None,
-                                          helpers.Paths({}))
         found = ds.read_config_drive_dir(self.tmp)
         self.assertTrue('ec2-metadata' in found)
         ec2_md = found['ec2-metadata']
