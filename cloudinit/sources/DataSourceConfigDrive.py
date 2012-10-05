@@ -48,12 +48,69 @@ class DataSourceConfigDrive(sources.DataSource):
         self.dsmode = 'local'
         self.seed_dir = os.path.join(paths.seed_dir, 'config_drive')
         self.version = None
+        self.ec2_metadata = None
 
     def __str__(self):
         mstr = "%s [%s,ver=%s]" % (util.obj_name(self), self.dsmode,
                                    self.version)
         mstr += "[source=%s]" % (self.source)
         return mstr
+
+    def _ec2_name_to_device(self, name):
+        if not self.ec2_metadata:
+            return None
+        bdm = self.ec2_metadata.get('block-device-mapping', {})
+        for (ent_name, device) in bdm.items():
+            if name == ent_name:
+                return device
+        return None
+
+    def _os_name_to_device(self, name):
+        device = None
+        try:
+            dev_entries = util.find_devs_with('LABEL=%s' % (name))
+            if dev_entries:
+                device = dev_entries[0]
+        except util.ProcessExecutionError:
+            pass
+        return device
+
+    def device_name_to_device(self, name):
+        # Translate a 'name' to a 'physical' device
+        if not name:
+            return None
+        # Try the ec2 mapping first
+        names = [name]
+        if name == 'root':
+            names.insert(0, 'ami')
+        if name == 'ami':
+            names.append('root')
+        device = None
+        for n in names:
+            device = self._ec2_name_to_device(n)
+            if device:
+                break
+        # Try the openstack way second
+        if not device:
+            for n in names:
+                device = self._os_name_to_device(n)
+                if device:
+                    break
+        # Ok give up...
+        if not device:
+            return None
+        # Ensure translated ok
+        if not device.startswith("/"):
+            device = "/dev/%s" % device
+        if os.path.exists(device):
+            return device
+        # Durn, try adjusting the mapping
+        remapped = self._remap_device(os.path.basename(device))
+        if remapped:
+            LOG.debug("Remapped device name %s => %s", device, remapped)
+            return remapped
+        # Really give up now
+        return None
 
     def get_data(self):
         found = None
@@ -143,6 +200,7 @@ class DataSourceConfigDrive(sources.DataSource):
 
         self.source = found
         self.metadata = md
+        self.ec2_metadata = results.get('ec2-metadata')
         self.userdata_raw = results.get('userdata')
         self.version = results['cfgdrive_ver']
 

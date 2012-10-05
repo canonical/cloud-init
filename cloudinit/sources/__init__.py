@@ -23,6 +23,7 @@
 from email.mime.multipart import MIMEMultipart
 
 import abc
+import os
 
 from cloudinit import importer
 from cloudinit import log as logging
@@ -127,6 +128,22 @@ class DataSource(object):
                             keys.append(pkey)
 
         return keys
+
+    def _remap_device(self, short_name):
+        # LP: #611137
+        # the metadata service may believe that devices are named 'sda'
+        # when the kernel named them 'vda' or 'xvda'
+        # we want to return the correct value for what will actually
+        # exist in this instance
+        mappings = {"sd": ("vd", "xvd")}
+        for (nfrom, tlist) in mappings.iteritems():
+            if not short_name.startswith(nfrom):
+                continue
+            for nto in tlist:
+                cand = "/dev/%s%s" % (nto, short_name[len(nfrom):])
+                if os.path.exists(cand):
+                    return cand
+        return None
 
     def device_name_to_device(self, _name):
         # translate a 'name' to a device

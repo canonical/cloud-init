@@ -151,22 +151,6 @@ class DataSourceEc2(sources.DataSource):
         self.metadata_address = url2base.get(url)
         return bool(url)
 
-    def _remap_device(self, short_name):
-        # LP: #611137
-        # the metadata service may believe that devices are named 'sda'
-        # when the kernel named them 'vda' or 'xvda'
-        # we want to return the correct value for what will actually
-        # exist in this instance
-        mappings = {"sd": ("vd", "xvd")}
-        for (nfrom, tlist) in mappings.iteritems():
-            if not short_name.startswith(nfrom):
-                continue
-            for nto in tlist:
-                cand = "/dev/%s%s" % (nto, short_name[len(nfrom):])
-                if os.path.exists(cand):
-                    return cand
-        return None
-
     def device_name_to_device(self, name):
         # Consult metadata service, that has
         #  ephemeral0: sdb
