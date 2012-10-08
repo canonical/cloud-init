@@ -106,6 +106,8 @@ def generate_spec_contents(args, tmpl_fn, top_dir, arc_fn):
     subs['version'] = version
     subs['revno'] = revno
     subs['release'] = "bzr%s" % (revno)
+    if args.sub_release is not None:
+        subs['release'] += ".%s" % (args.sub_release)
     subs['archive_name'] = arc_fn
 
     cmd = [util.abs_join(find_root(), 'tools', 'read-dependencies')]
@@ -175,6 +177,13 @@ def main():
                               " (default: %(default)s)"),
                         default=False,
                         action='store_true')
+    parser.add_argument('-s', "--sub-release", dest="sub_release",
+                        metavar="RELEASE",
+                        help=("a 'internal' release number to concat"
+                              " with the bzr version number to form"
+                              " the final version number"),
+                        type=int,
+                        default=None)
     parser.add_argument("-p", "--patch", dest="patches",
                         help=("include the following patch when building"),
                         default=[],
