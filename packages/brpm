@@ -107,7 +107,9 @@ def generate_spec_contents(args, tmpl_fn, top_dir, arc_fn):
     subs['revno'] = revno
     subs['release'] = "bzr%s" % (revno)
     if args.sub_release is not None:
-        subs['release'] += ".%s" % (args.sub_release)
+        subs['subrelease'] = "." + str(args.sub_release)
+    else:
+        subs['subrelease'] = ''
     subs['archive_name'] = arc_fn
 
     cmd = [util.abs_join(find_root(), 'tools', 'read-dependencies')]
