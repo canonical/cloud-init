@@ -983,6 +983,16 @@ def find_devs_with(criteria=None, oformat='device',
     return entries
 
 
+def uniq_list(in_list):
+    out_list = []
+    for i in in_list:
+        if i in out_list:
+            continue
+        else:
+            out_list.append(i)
+    return out_list
+
+
 def load_file(fname, read_cb=None, quiet=False):
     LOG.debug("Reading from %s (quiet=%s)", fname, quiet)
     ofh = StringIO()
