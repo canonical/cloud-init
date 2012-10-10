@@ -1,6 +1,8 @@
 from mocker import MockerTestCase
 
-from cloudinit.distros import helpers
+from cloudinit.distros.parsers import resolv_conf
+
+import re
 
 
 BASE_RESOLVE = '''
@@ -14,12 +16,12 @@ BASE_RESOLVE = BASE_RESOLVE.strip()
 
 class TestResolvHelper(MockerTestCase):
     def test_parse_same(self):
-        rp = helpers.ResolvConf(BASE_RESOLVE)
+        rp = resolv_conf.ResolvConf(BASE_RESOLVE)
         rp_r = str(rp).strip()
         self.assertEquals(BASE_RESOLVE, rp_r)
 
     def test_local_domain(self):
-        rp = helpers.ResolvConf(BASE_RESOLVE)
+        rp = resolv_conf.ResolvConf(BASE_RESOLVE)
         self.assertEquals(None, rp.local_domain)
 
         rp.local_domain = "bob"
@@ -27,7 +29,7 @@ class TestResolvHelper(MockerTestCase):
         self.assertIn('domain bob', str(rp))
 
     def test_nameservers(self):
-        rp = helpers.ResolvConf(BASE_RESOLVE)
+        rp = resolv_conf.ResolvConf(BASE_RESOLVE)
         self.assertIn('10.15.44.14', rp.nameservers)
         self.assertIn('10.15.30.92', rp.nameservers)
         rp.add_nameserver('10.2')
@@ -41,12 +43,12 @@ class TestResolvHelper(MockerTestCase):
         self.assertNotIn('10.3', rp.nameservers)
 
     def test_search_domains(self):
-        rp = helpers.ResolvConf(BASE_RESOLVE)
+        rp = resolv_conf.ResolvConf(BASE_RESOLVE)
         self.assertIn('yahoo.com', rp.search_domains)
         self.assertIn('blah.yahoo.com', rp.search_domains)
         rp.add_search_domain('bbb.y.com')
         self.assertIn('bbb.y.com', rp.search_domains)
-        self.assertRegexpMatches(str(rp), r'search(.*)bbb.y.com(.*)')
+        self.assertTrue(re.search(r'search(.*)bbb.y.com(.*)', str(rp)))
         self.assertIn('bbb.y.com', rp.search_domains)
         rp.add_search_domain('bbb.y.com')
         self.assertEquals(len(rp.search_domains), 3)

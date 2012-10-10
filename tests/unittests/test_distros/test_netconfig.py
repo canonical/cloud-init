@@ -83,7 +83,7 @@ class TestNetCfgDistro(MockerTestCase):
         self.assertEquals(write_buf.mode, 0644)
 
     def assertCfgEquals(self, blob1, blob2):
-        cfg_tester = distros.rhel.QuotingConfigObj
+        cfg_tester = distros.parsers.quoting_conf.QuotingConfigObj
         b1 = dict(cfg_tester(blob1.strip().splitlines()))
         b2 = dict(cfg_tester(blob2.strip().splitlines()))
         self.assertEquals(b1, b2)
