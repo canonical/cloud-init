@@ -33,6 +33,8 @@ from cloudinit import log as logging
 from cloudinit import ssh_util
 from cloudinit import util
 
+from cloudinit.distros import helpers
+
 LOG = logging.getLogger(__name__)
 
 
@@ -116,42 +118,43 @@ class Distro(object):
         return "127.0.0.1"
 
     def update_etc_hosts(self, hostname, fqdn):
-        # Format defined at
-        # http://unixhelp.ed.ac.uk/CGI/man-cgi?hosts
-        header = "# Added by cloud-init"
-        real_header = "%s on %s" % (header, util.time_rfc2822())
+        header = ''
+        if os.path.exists('/etc/hosts'):
+            eh = helpers.HostsConf(util.load_file("/etc/hosts"))
+        else:
+            eh = helpers.HostsConf('')
+            header = "# Added by cloud-init"
+            header = "%s on %s" % (header, util.time_rfc2822())
         local_ip = self._get_localhost_ip()
-        hosts_line = "%s\t%s %s" % (local_ip, fqdn, hostname)
-        new_etchosts = StringIO()
-        need_write = False
-        need_change = True
-        hosts_ro_fn = self._paths.join(True, "/etc/hosts")
-        for line in util.load_file(hosts_ro_fn).splitlines():
-            if line.strip().startswith(header):
-                continue
-            if not line.strip() or line.strip().startswith("#"):
-                new_etchosts.write("%s\n" % (line))
-                continue
-            split_line = [s.strip() for s in line.split()]
-            if len(split_line) < 2:
-                new_etchosts.write("%s\n" % (line))
-                continue
-            (ip, hosts) = split_line[0], split_line[1:]
-            if ip == local_ip:
-                if sorted([hostname, fqdn]) == sorted(hosts):
+        prev_info = eh.get_entry(local_ip)
+        need_change = False
+        if not prev_info:
+            eh.add_entry(local_ip, fqdn, hostname)
+            need_change = True
+        else:
+            need_change = True
+            for entry in prev_info:
+                if sorted(entry) == sorted([fqdn, hostname]):
+                    # Exists already, leave it be
                     need_change = False
-                if need_change:
-                    line = "%s\n%s" % (real_header, hosts_line)
-                    need_change = False
-                    need_write = True
-            new_etchosts.write("%s\n" % (line))
+                    break
+            if need_change:
+                # Doesn't exist, change the first
+                # entry to be this entry
+                new_entries = list(prev_info)
+                new_entries[0] = [fqdn, hostname]
+                eh.del_entries(local_ip)
+                for entry in new_entries:
+                    if len(entry) == 1:
+                        eh.add_entry(local_ip, entry[0])
+                    elif len(entry) >= 2:
+                        eh.add_entry(local_ip, *entry)
         if need_change:
-            new_etchosts.write("%s\n%s\n" % (real_header, hosts_line))
-            need_write = True
-        if need_write:
-            contents = new_etchosts.getvalue()
-            util.write_file(self._paths.join(False, "/etc/hosts"),
-                            contents, mode=0644)
+            contents = StringIO()
+            if header:
+                contents.write("%s\n" % (header))
+            contents.write("%s\n" % (eh))
+            util.write_file("/etc/hosts", contents.getvalue(), mode=0644)
 
     def _bring_up_interface(self, device_name):
         cmd = ['ifup', device_name]
