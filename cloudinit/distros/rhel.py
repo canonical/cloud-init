@@ -186,8 +186,8 @@ class Distro(distros.Distro):
         return distros.Distro._bring_up_interfaces(self, device_names)
 
     def set_timezone(self, tz):
-        # Ensure that this timezone is actually
-        # available on this system, if not give up
+        # TODO(harlowja): move this code into
+        # the parent distro...
         tz_file = os.path.join(self.tz_zone_dir, str(tz))
         if not os.path.isfile(tz_file):
             raise RuntimeError(("Invalid timezone %s,"
