@@ -33,7 +33,7 @@ from cloudinit import log as logging
 from cloudinit import ssh_util
 from cloudinit import util
 
-from cloudinit.distros import helpers
+from cloudinit.distros.parsers import hosts
 
 LOG = logging.getLogger(__name__)
 
@@ -43,6 +43,8 @@ class Distro(object):
     __metaclass__ = abc.ABCMeta
     default_user = None
     default_user_groups = None
+    hosts_fn = "/etc/hosts"
+    ci_sudoers_fn = "/etc/sudoers.d/90-cloud-init-users"
 
     def __init__(self, name, cfg, paths):
         self._paths = paths
@@ -64,10 +66,6 @@ class Distro(object):
 
     @abc.abstractmethod
     def set_hostname(self, hostname):
-        raise NotImplementedError()
-
-    @abc.abstractmethod
-    def update_hostname(self, hostname, prev_hostname_fn):
         raise NotImplementedError()
 
     @abc.abstractmethod
@@ -117,14 +115,62 @@ class Distro(object):
     def _get_localhost_ip(self):
         return "127.0.0.1"
 
+    @abc.abstractmethod
+    def _read_hostname(self, filename, default=None):
+        raise NotImplementedError()
+
+    @abc.abstractmethod
+    def _write_hostname(self, hostname, filename):
+        raise NotImplementedError()
+
+    @abc.abstractmethod
+    def _read_system_hostname(self):
+        raise NotImplementedError()
+
+    def _apply_hostname(self, hostname):
+        LOG.debug("Setting system hostname to %s", hostname)
+        util.subp(['hostname', hostname])
+
+    def update_hostname(self, hostname, prev_hostname_fn):
+        if not hostname:
+            return
+
+        prev_hostname = self._read_hostname(prev_hostname_fn)
+        (sys_fn, sys_hostname) = self._read_system_hostname()
+        update_files = []
+        if not prev_hostname or prev_hostname != hostname:
+            update_files.append(prev_hostname_fn)
+
+        if (not sys_hostname) or (sys_hostname == prev_hostname
+                                  and sys_hostname != hostname):
+            update_files.append(sys_fn)
+
+        update_files = set([f for f in update_files if f])
+        LOG.debug("Attempting to update hostname to %s in %s files",
+                  hostname, len(update_files))
+
+        for fn in update_files:
+            try:
+                self._write_hostname(hostname, fn)
+            except IOError:
+                util.logexc(LOG, "Failed to write hostname %s to %s",
+                            hostname, fn)
+
+        if (sys_hostname and prev_hostname and
+            sys_hostname != prev_hostname):
+            LOG.debug("%s differs from %s, assuming user maintained hostname.",
+                       prev_hostname_fn, sys_fn)
+
+        if sys_fn in update_files:
+            self._apply_hostname(hostname)
+
     def update_etc_hosts(self, hostname, fqdn):
         header = ''
-        if os.path.exists('/etc/hosts'):
-            eh = helpers.HostsConf(util.load_file("/etc/hosts"))
+        if os.path.exists(self.hosts_fn):
+            eh = hosts.HostsConf(util.load_file(self.hosts_fn))
         else:
-            eh = helpers.HostsConf('')
-            header = "# Added by cloud-init"
-            header = "%s on %s" % (header, util.time_rfc2822())
+            eh = hosts.HostsConf('')
+            header = util.make_header(base="added")
         local_ip = self._get_localhost_ip()
         prev_info = eh.get_entry(local_ip)
         need_change = False
@@ -154,7 +200,7 @@ class Distro(object):
             if header:
                 contents.write("%s\n" % (header))
             contents.write("%s\n" % (eh))
-            util.write_file("/etc/hosts", contents.getvalue(), mode=0644)
+            util.write_file(self.hosts_fn, contents.getvalue(), mode=0644)
 
     def _bring_up_interface(self, device_name):
         cmd = ['ifup', device_name]
@@ -302,30 +348,31 @@ class Distro(object):
 
         return True
 
-    def write_sudo_rules(self,
-        user,
-        rules,
-        sudo_file="/etc/sudoers.d/90-cloud-init-users",
-        ):
+    def write_sudo_rules(self, user, rules, sudo_file=None):
+        if not sudo_file:
+            sudo_file = self.ci_sudoers_fn
 
-        content_header = "# user rules for %s" % user
+        content_header = "# User rules for %s" % user
         content = "%s\n%s %s\n\n" % (content_header, user, rules)
 
-        if isinstance(rules, list):
+        if isinstance(rules, (list, tuple, set)):
             content = "%s\n" % content_header
             for rule in rules:
                 content += "%s %s\n" % (user, rule)
             content += "\n"
 
         if not os.path.exists(sudo_file):
-            util.write_file(sudo_file, content, 0440)
-
+            contents = [
+                util.make_header(),
+                content,
+            ]
+            util.write_file(sudo_file, "\n".join(contents), 0440)
         else:
             try:
                 with open(sudo_file, 'a') as f:
                     f.write(content)
             except IOError as e:
-                util.logexc(LOG, "Failed to write %s" % sudo_file, e)
+                util.logexc(LOG, "Failed to write sudoers file %s", sudo_file)
                 raise e
 
     def create_group(self, name, members):

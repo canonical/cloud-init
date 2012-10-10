@@ -1,6 +1,6 @@
 from mocker import MockerTestCase
 
-from cloudinit.distros import helpers
+from cloudinit.distros.parsers import hosts
 
 
 BASE_ETC = '''
@@ -16,7 +16,7 @@ BASE_ETC = BASE_ETC.strip()
 
 class TestHostsHelper(MockerTestCase):
     def test_parse(self):
-        eh = helpers.HostsConf(BASE_ETC)
+        eh = hosts.HostsConf(BASE_ETC)
         self.assertEquals(eh.get_entry('127.0.0.1'), [['localhost']])
         self.assertEquals(eh.get_entry('192.168.1.10'),
                           [['foo.mydomain.org', 'foo'],
@@ -25,7 +25,7 @@ class TestHostsHelper(MockerTestCase):
         self.assertTrue(eh.startswith('# Example'))
 
     def test_add(self):
-        eh = helpers.HostsConf(BASE_ETC)
+        eh = hosts.HostsConf(BASE_ETC)
         eh.add_entry('127.0.0.0', 'blah')
         self.assertEquals(eh.get_entry('127.0.0.0'), [['blah']])
         eh.add_entry('127.0.0.3', 'blah', 'blah2', 'blah3')
@@ -33,7 +33,7 @@ class TestHostsHelper(MockerTestCase):
                           [['blah', 'blah2', 'blah3']])
 
     def test_del(self):
-        eh = helpers.HostsConf(BASE_ETC)
+        eh = hosts.HostsConf(BASE_ETC)
         eh.add_entry('127.0.0.0', 'blah')
         self.assertEquals(eh.get_entry('127.0.0.0'), [['blah']])
 
