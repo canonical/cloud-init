@@ -128,8 +128,16 @@ class Distro(object):
         raise NotImplementedError()
 
     def _apply_hostname(self, hostname):
-        LOG.debug("Setting system hostname to %s", hostname)
-        util.subp(['hostname', hostname])
+        # This really only sets the hostname
+        # temporarily (until reboot so it should
+        # not be depended on). Use the write
+        # hostname functions for 'permanent' adjustments.
+        LOG.debug("Temporarily setting the system hostname to %s", hostname)
+        try:
+            util.subp(['hostname', hostname])
+        except util.ProcessExecutionError:
+            util.logexc(LOG, ("Failed to temporarily adjust"
+                              " the system hostname to %s"), hostname)
 
     def update_hostname(self, hostname, prev_hostname_fn):
         if not hostname:
