@@ -111,7 +111,9 @@ class Distro(distros.Distro):
         return "127.0.1.1"
 
     def set_timezone(self, tz):
-        tz_file = os.path.join(self.tz_zone_dir, tz)
+        # TODO(harlowja): move this code into
+        # the parent distro...
+        tz_file = os.path.join(self.tz_zone_dir, str(tz))
         if not os.path.isfile(tz_file):
             raise RuntimeError(("Invalid timezone %s,"
                                 " no file found at %s") % (tz, tz_file))
@@ -122,6 +124,7 @@ class Distro(distros.Distro):
             "",
         ]
         util.write_file(self.tz_conf_fn, "\n".join(tz_lines))
+        # This ensures that the correct tz will be used for the system
         util.copy(tz_file, self.tz_local_fn)
 
     def package_command(self, command, args=None):
