@@ -27,7 +27,7 @@ from cloudinit import helpers
 from cloudinit import log as logging
 from cloudinit import util
 
-from cloudinit.distros.parsers import chop_comment
+from cloudinit.distros.parsers.hostname import HostnameConf
 
 from cloudinit.settings import PER_INSTANCE
 
@@ -84,27 +84,38 @@ class Distro(distros.Distro):
         self._write_hostname(hostname, self.hostname_conf_fn)
         self._apply_hostname(hostname)
 
-    def _write_hostname(self, hostname, out_fn):
-        # "" gives trailing newline.
-        hostname_lines = [
-            str(hostname),
-            "",
-        ]
-        util.write_file(out_fn, "\n".join(hostname_lines), 0644)
+    def _write_hostname(self, your_hostname, out_fn):
+        conf = self._read_hostname_conf(out_fn)
+        if not conf:
+            conf = HostnameConf('')
+            conf.parse()
+        conf.set_hostname(your_hostname)
+        util.write_file(out_fn, str(conf), 0644)
 
     def _read_system_hostname(self):
-        return (self.hostname_conf_fn,
-                self._read_hostname(self.hostname_conf_fn))
+        conf = self._read_hostname_conf(self.hostname_conf_fn)
+        if conf:
+            sys_hostname = conf.hostname
+        else:
+            sys_hostname = None
+        return (self.hostname_conf_fn, sys_hostname)
+
+    def _read_hostname_conf(self, filename):
+        try:
+            conf = HostnameConf(util.load_file(filename))
+            conf.parse()
+            return conf
+        except IOError:
+            util.logexc(LOG, "Error reading hostname from %s", filename)
+            return None
 
     def _read_hostname(self, filename, default=None):
-        contents = util.load_file(filename, quiet=True)
-        for line in contents.splitlines():
-            # Handle inline comments
-            (before_comment, _comment) = chop_comment(line, "#")
-            before_comment = before_comment.strip()
-            if len(before_comment):
-                return before_comment
-        return default
+        conf = self._read_hostname_conf(filename)
+        if not conf:
+            return default
+        if not conf.hostname:
+            return default
+        return conf.hostname
 
     def _get_localhost_ip(self):
         # Note: http://www.leonardoborda.com/blog/127-0-1-1-ubuntu-debian/

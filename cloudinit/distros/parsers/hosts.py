@@ -23,6 +23,7 @@ from cloudinit.distros.parsers import chop_comment
 
 # See: man hosts
 # or http://unixhelp.ed.ac.uk/CGI/man-cgi?hosts
+# or http://tinyurl.com/6lmox3
 class HostsConf(object):
     def __init__(self, text):
         self._text = text
@@ -80,7 +81,7 @@ class HostsConf(object):
         contents = StringIO()
         for (line_type, components) in self._contents:
             if line_type == 'blank':
-                contents.write("%s\n")
+                contents.write("%s\n" % (components[0]))
             elif line_type == 'all_comment':
                 contents.write("%s\n" % (components[0]))
             elif line_type == 'option':
