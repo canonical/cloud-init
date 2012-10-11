@@ -24,7 +24,8 @@ import os
 
 from cloudinit import distros
 
-from cloudinit.distros.parsers import (resolv_conf, quoting_conf)
+from cloudinit.distros.parsers.resolv_conf import ResolvConf
+from cloudinit.distros.parsers.sys_conf import SysConf
 
 from cloudinit import helpers
 from cloudinit import log as logging
@@ -63,14 +64,14 @@ class Distro(distros.Distro):
         self.package_command('install', pkglist)
 
     def _adjust_resolve(self, dns_servers, search_servers):
-        r_conf = resolv_conf.ResolvConf(util.load_file(self.resolve_conf_fn))
+        r_conf = ResolvConf(util.load_file(self.resolve_conf_fn))
         try:
             r_conf.parse()
         except IOError:
             util.logexc(LOG, 
                         "Failed at parsing %s reverting to an empty instance",
                         self.resolve_conf_fn)
-            r_conf = resolv_conf.ResolvConf('')
+            r_conf = ResolvConf('')
             r_conf.parse()
         if dns_servers:
             for s in dns_servers:
@@ -135,7 +136,9 @@ class Distro(distros.Distro):
             contents[k] = v
             updated_am += 1
         if updated_am:
-            lines = contents.write()
+            lines = [
+                str(contents),
+            ]
             if not exists:
                 lines.insert(0, util.make_header())
             util.write_file(fn, "\n".join(lines), 0644)
@@ -177,7 +180,7 @@ class Distro(distros.Distro):
         else:
             contents = []
         return (exists,
-                quoting_conf.QuotingConfigObj(contents))
+                SysConf(contents))
 
     def _bring_up_interfaces(self, device_names):
         if device_names and 'all' in device_names:

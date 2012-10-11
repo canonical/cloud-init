@@ -9,6 +9,8 @@ from cloudinit import helpers
 from cloudinit import settings
 from cloudinit import util
 
+from cloudinit.distros.parsers.sys_conf import SysConf
+
 from StringIO import StringIO
 
 
@@ -83,9 +85,8 @@ class TestNetCfgDistro(MockerTestCase):
         self.assertEquals(write_buf.mode, 0644)
 
     def assertCfgEquals(self, blob1, blob2):
-        cfg_tester = distros.parsers.quoting_conf.QuotingConfigObj
-        b1 = dict(cfg_tester(blob1.strip().splitlines()))
-        b2 = dict(cfg_tester(blob2.strip().splitlines()))
+        b1 = dict(SysConf(blob1.strip().splitlines()))
+        b2 = dict(SysConf(blob2.strip().splitlines()))
         self.assertEquals(b1, b2)
         for (k, v) in b1.items():
             self.assertIn(k, b2)
