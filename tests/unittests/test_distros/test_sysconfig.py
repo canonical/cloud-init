@@ -9,7 +9,8 @@ from cloudinit.distros.parsers.sys_conf import SysConf
 # http://content.hccfl.edu/pollock/AUnix1/SysconfigFilesDesc.txt
 
 class TestSysConfHelper(MockerTestCase):
-    def assertRegexpMatches(self, text, regexp):
+    # This function was added in 2.7, make it work for 2.6
+    def assertRegMatches(self, text, regexp):
         regexp = re.compile(regexp)
         self.assertTrue(regexp.search(text),
                         msg="%s must match %s!" % (text, regexp.pattern))
@@ -34,6 +35,21 @@ USEMD5=no'''
                                                  '-G ${DEVICE} rx 256 tx 256'))
         self.assertEquals(contents, str(conf))
 
+    def test_parse_shell_vars(self):
+        contents = 'USESMBAUTH=$XYZ'
+        conf = SysConf(contents.splitlines())
+        self.assertEquals(contents, str(conf))
+        conf = SysConf('')
+        conf['B'] = '${ZZ}d apples'
+        # Should be quoted
+        self.assertEquals('B="${ZZ}d apples"', str(conf))
+        conf = SysConf('')
+        conf['B'] = '$? d apples'
+        self.assertEquals('B="$? d apples"', str(conf))
+        contents = 'IPMI_WATCHDOG_OPTIONS="timeout=60"'
+        conf = SysConf(contents.splitlines())
+        self.assertEquals('IPMI_WATCHDOG_OPTIONS=timeout=60', str(conf))
+
     def test_parse_adjust(self):
         contents = 'IPV6TO4_ROUTING="eth0-:0004::1/64 eth1-:0005::1/64"'
         conf = SysConf(contents.splitlines())
@@ -43,7 +59,8 @@ USEMD5=no'''
         conf['IPV6TO4_ROUTING'] = "blah \tblah"
         contents2 = str(conf).strip()
         # Should be requoted due to whitespace
-        self.assertRegexpMatches(contents2, r'IPV6TO4_ROUTING=[\']blah\s+blah[\']')
+        self.assertRegMatches(contents2,
+                              r'IPV6TO4_ROUTING=[\']blah\s+blah[\']')
 
     def test_parse_no_adjust_shell(self):
         conf = SysConf(''.splitlines())

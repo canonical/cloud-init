@@ -132,7 +132,8 @@ class Distro(object):
         # temporarily (until reboot so it should
         # not be depended on). Use the write
         # hostname functions for 'permanent' adjustments.
-        LOG.debug("Non-persistently setting the system hostname to %s", hostname)
+        LOG.debug("Non-persistently setting the system hostname to %s",
+                  hostname)
         try:
             util.subp(['hostname', hostname])
         except util.ProcessExecutionError:

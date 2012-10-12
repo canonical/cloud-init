@@ -22,7 +22,7 @@ import pipes
 import re
 
 # This library is used to parse/write
-# out the various sysconfig files edited
+# out the various sysconfig files edited (best attempt effort)
 #
 # It has to be slightly modified though
 # to ensure that all values are quoted/unquoted correctly
@@ -30,11 +30,26 @@ import re
 # bash scripts...
 import configobj
 
+# See: http://pubs.opengroup.org/onlinepubs/000095399/basedefs/xbd_chap08.html
+# or look at the 'param_expand()' function in the subst.c file in the bash
+# source tarball...
+SHELL_VAR_RULE = r'[a-zA-Z_]+[a-zA-Z0-9_]*'
+SHELL_VAR_REGEXES = [
+    # Basic variables
+    re.compile(r"\$" + SHELL_VAR_RULE),
+    # Things like $?, $0, $-, $@
+    re.compile(r"\$[0-9#\?\-@\*]"),
+    # Things like ${blah:1} - but this one
+    # gets very complex so just try the 
+    # simple path
+    re.compile(r"\$\{.+\}"),
+]
+
 
 def _contains_shell_variable(text):
-    if (re.search(r"\$\{.+\}", text) or
-        re.search(r"\$[a-zA-Z_]+[a-zA-Z0-9_]*", text)):
-           return True
+    for r in SHELL_VAR_REGEXES:
+        if r.search(text):
+            return True
     return False
 
 
@@ -58,33 +73,36 @@ class SysConf(configobj.ConfigObj):
             raise ValueError('Value "%s" is not a string' % (value))
         if len(value) == 0:
             return ''
-        quot_func = (lambda x: str(x))
+        quot_func = None
         if value[0] in ['"', "'"] and value[-1] in ['"', "'"]:
             if len(value) == 1:
-                quot_func = (lambda x: self._get_single_quote(x) % x)
+                quot_func = (lambda x:
+                                self._get_single_quote(x) % x)
         else:
             # Quote whitespace if it isn't the start + end of a shell command
-            white_space_ok = False
             if value.strip().startswith("$(") and value.strip().endswith(")"):
-                white_space_ok = True
-            if re.search(r"[\t\r\n ]", value) and not white_space_ok:
-                if _contains_shell_variable(value):
-                    # If it contains shell variables then we likely want to 
-                    # leave it alone since the pipes.quote function likes to
-                    # use single quotes which won't get expanded...
-                    if re.search(r"[\n\"']", value):
-                        quot_func = (lambda x: self._get_triple_quote(x) % x)
+                pass
+            else:
+                if re.search(r"[\t\r\n ]", value):
+                    if _contains_shell_variable(value):
+                        # If it contains shell variables then we likely want to
+                        # leave it alone since the pipes.quote function likes
+                        # to use single quotes which won't get expanded...
+                        if re.search(r"[\n\"']", value):
+                            quot_func = (lambda x:
+                                            self._get_triple_quote(x) % x)
+                        else:
+                            quot_func = (lambda x:
+                                            self._get_single_quote(x) % x)
                     else:
-                        quot_func = (lambda x: self._get_single_quote(x) % x)
-                else:
-                    quot_func = pipes.quote
+                        quot_func = pipes.quote
+        if not quot_func:
+            return value
         return quot_func(value)
 
     def _write_line(self, indent_string, entry, this_entry, comment):
         # Ensure it is formatted fine for
         # how these sysconfig scripts are used
-        if this_entry.startswith("'") or this_entry.startswith('"'):
-            val = this_entry
         val = self._decode_element(self._quote(this_entry))
         key = self._decode_element(self._quote(entry))
         cmnt = self._decode_element(comment)
@@ -93,4 +111,3 @@ class SysConf(configobj.ConfigObj):
                                self._a_to_u('='),
                                val,
                                cmnt)
-
