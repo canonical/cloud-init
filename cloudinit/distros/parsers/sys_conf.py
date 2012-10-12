@@ -61,7 +61,7 @@ class SysConf(configobj.ConfigObj):
         quot_func = (lambda x: str(x))
         if value[0] in ['"', "'"] and value[-1] in ['"', "'"]:
             if len(value) == 1:
-                quot_func = self._get_single_quote
+                quot_func = (lambda x: self._get_single_quote(x) % x)
         else:
             # Quote whitespace if it isn't the start + end of a shell command
             white_space_ok = False
