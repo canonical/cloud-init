@@ -18,6 +18,7 @@
 
 from StringIO import StringIO
 
+import pipes
 import re
 
 # This library is used to parse/write
@@ -28,6 +29,7 @@ import re
 # since these configs are usually sourced into
 # bash scripts...
 import configobj
+
 
 
 class SysConf(configobj.ConfigObj):
@@ -50,24 +52,18 @@ class SysConf(configobj.ConfigObj):
             raise ValueError('Value "%s" is not a string' % (value))
         if len(value) == 0:
             return ''
-        if re.search(r"[\n\r]", value):
-            raise ValueError('Value "%s" cannot be safely quoted.' % (value))
-        quot = "%s"
-        if '#' in value:
-            quot = self._get_single_quote(value)
-        elif value[0] in ['"', "'"] and value[-1] in ['"', "'"]:
-            # Already quoted, leave it be
-            pass
-        elif "'" in value and '"' in value:
-            quot = self._get_triple_quote(value)
+        quot_func = (lambda x: str(x))
+        if value[0] in ['"', "'"] and value[-1] in ['"', "'"]:
+            if len(value) == 1:
+                quot_func = self._get_single_quote
         else:
-            # Quote whitespace if it isn't the start+end of a shell command
+            # Quote whitespace if it isn't the start + end of a shell command
             white_space_ok = False
             if value.strip().startswith("$(") and value.strip().endswith(")"):
                 white_space_ok = True
-            if re.search(r"[\t ]", value) and not white_space_ok:
-                quot = self._get_single_quote(value)
-        return quot % (value)
+            if re.search(r"[\t\r\n ]", value) and not white_space_ok:
+                quot_func = pipes.quote
+        return quot_func(value)
 
     def _write_line(self, indent_string, entry, this_entry, comment):
         # Ensure it is formatted fine for
