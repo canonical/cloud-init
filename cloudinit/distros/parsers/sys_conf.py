@@ -31,6 +31,12 @@ import re
 import configobj
 
 
+def _contains_shell_variable(text):
+    if (re.search(r"\$\{.+\}", text) or
+        re.search(r"\$[a-zA-Z_]+[a-zA-Z0-9_]*", text)):
+           return True
+    return False
+
 
 class SysConf(configobj.ConfigObj):
     def __init__(self, contents):
@@ -62,7 +68,16 @@ class SysConf(configobj.ConfigObj):
             if value.strip().startswith("$(") and value.strip().endswith(")"):
                 white_space_ok = True
             if re.search(r"[\t\r\n ]", value) and not white_space_ok:
-                quot_func = pipes.quote
+                if _contains_shell_variable(value):
+                    # If it contains shell variables then we likely want to 
+                    # leave it alone since the pipes.quote function likes to
+                    # use single quotes which won't get expanded...
+                    if re.search(r"[\n\"']", value):
+                        quot_func = (lambda x: self._get_triple_quote(x) % x)
+                    else:
+                        quot_func = (lambda x: self._get_single_quote(x) % x)
+                else:
+                    quot_func = pipes.quote
         return quot_func(value)
 
     def _write_line(self, indent_string, entry, this_entry, comment):
