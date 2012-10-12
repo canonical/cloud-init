@@ -24,7 +24,7 @@ NETMASK0=255.255.255.0
 # Inline comment
 LIST=$LOGROOT/incremental-list
 IPV6TO4_ROUTING='eth0-:0004::1/64 eth1-:0005::1/64'
-ETHTOOL_OPTS='-K ${DEVICE} tso on; -G ${DEVICE} rx 256 tx 256'
+ETHTOOL_OPTS="-K ${DEVICE} tso on; -G ${DEVICE} rx 256 tx 256"
 USEMD5=no'''
         conf = SysConf(contents.splitlines())
         self.assertEquals(conf['HOSTNAME'], 'blahblah')
@@ -32,7 +32,6 @@ USEMD5=no'''
         # Should be unquoted
         self.assertEquals(conf['ETHTOOL_OPTS'], ('-K ${DEVICE} tso on; '
                                                  '-G ${DEVICE} rx 256 tx 256'))
-        # This is harmless convertion
         self.assertEquals(contents, str(conf))
 
     def test_parse_adjust(self):
@@ -44,7 +43,7 @@ USEMD5=no'''
         conf['IPV6TO4_ROUTING'] = "blah \tblah"
         contents2 = str(conf).strip()
         # Should be requoted due to whitespace
-        self.assertRegexpMatches(contents2, r'IPV6TO4_ROUTING=["\']blah \tblah["\']')
+        self.assertRegexpMatches(contents2, r'IPV6TO4_ROUTING=[\']blah\s+blah[\']')
 
     def test_parse_no_adjust_shell(self):
         conf = SysConf(''.splitlines())
