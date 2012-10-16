@@ -34,14 +34,17 @@ def _canonicalize_id(repo_id):
 def _format_repository_config(repo_id, repo_config):
     to_be = configobj.ConfigObj()
     to_be[repo_id] = {}
-    # Do basic translation of 
+    # Do basic translation of the items -> values
     for (k, v) in repo_config.items():
         if isinstance(v, bool):
+            # Seems like yum prefers 1/0
             if v:
                 v = '1'
             else:
                 v = '0'
         elif isinstance(v, (tuple, list)):
+            # Can handle 'lists' in certain cases
+            # See: http://bit.ly/Qqrf1t
             v = "\n    ".join(v)
         # For now assume that peopel using this know
         # the format of yum and don't verify further
