@@ -20,7 +20,6 @@
 
 import os
 
-from cloudinit import templater
 from cloudinit import util
 
 import configobj
@@ -53,7 +52,7 @@ def _format_repository_config(repo_id, repo_config):
     return "\n".join(lines)
 
 
-def handle(name, cfg, cloud, log, _args):
+def handle(name, cfg, _cloud, log, _args):
     repos = cfg.get('yum_repos')
     if not repos:
         log.debug(("Skipping module named %s,"
@@ -84,10 +83,12 @@ def handle(name, cfg, cloud, log, _args):
                 n_repo_config[k] = v
         repo_config = n_repo_config
         if not 'baseurl' in repo_config:
-            log.warn("Repository %s does not contain a baseurl address", repo_id)
+            log.warn("Repository %s does not contain a baseurl address",
+                     repo_id)
         else:
             repo_configs[canon_repo_id] = repo_config
             repo_locations[canon_repo_id] = repo_fn_pth
     for (c_repo_id, path) in repo_locations.items():
-        repo_blob = _format_repository_config(c_repo_id, repo_configs.get(c_repo_id))
+        repo_blob = _format_repository_config(c_repo_id,
+                                              repo_configs.get(c_repo_id))
         util.write_file(path, repo_blob)
