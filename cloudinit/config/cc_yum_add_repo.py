@@ -50,6 +50,7 @@ def _format_repository_config(repo_id, repo_config):
         # the format of yum and don't verify further
         to_be[repo_id][k] = v
     lines = to_be.write()
+    lines.insert(0, util.make_header())
     return "\n".join(lines)
 
 
