@@ -16,10 +16,10 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-from logging import StreamHandler
 import os
 import time
 
+from cloudinit import log as logging
 from cloudinit import util
 
 REBOOT_FILE = "/var/run/reboot-required"
@@ -31,17 +31,6 @@ def _multi_cfg_bool_get(cfg, *keys):
         if util.get_cfg_option_bool(cfg, k, False):
             return True
     return False
-
-
-def _flush_loggers(root):
-    for h in root.handlers:
-        if isinstance(h, (StreamHandler)):
-            try:
-                h.flush()
-            except IOError:
-                pass
-    if root.parent:
-        _flush_loggers(root.parent)
 
 
 def _fire_reboot(log, wait_attempts=6, initial_sleep=1, backoff=2):
@@ -98,7 +87,7 @@ def handle(_name, cfg, cloud, log, _args):
         try:
             log.warn("Rebooting after upgrade or install per %s", REBOOT_FILE)
             # Flush the above warning + anything else out...
-            _flush_loggers(log)
+            logging.flushLoggers(log)
             _fire_reboot(log)
         except Exception as e:
             util.logexc(log, "Requested reboot did not happen!")
