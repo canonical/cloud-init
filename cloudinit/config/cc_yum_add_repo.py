@@ -53,7 +53,7 @@ def _format_repository_config(repo_id, repo_config):
         # the format of yum and don't verify keys/values further
         to_be[repo_id][k] = _format_repo_value(v)
     lines = to_be.write()
-    lines.insert(0, util.make_header())
+    lines.insert(0, "# Created by cloud-init on %s" % (util.time_rfc2822()))
     return "\n".join(lines)
 
 
@@ -87,12 +87,19 @@ def handle(name, cfg, _cloud, log, _args):
             if k:
                 n_repo_config[k] = v
         repo_config = n_repo_config
-        if not 'baseurl' in repo_config:
-            log.warn("Repository %s does not contain a baseurl address",
-                     repo_id)
-        else:
+        missing_required = 0
+        for req_field in ['baseurl']:
+            if not req_field in repo_config:
+                log.warn(("Repository %s does not contain a %s"
+                           " configuration 'required' entry"),
+                         repo_id, req_field)
+                missing_required += 1
+        if not missing_required:
             repo_configs[canon_repo_id] = repo_config
             repo_locations[canon_repo_id] = repo_fn_pth
+        else:
+            log.warn("Repository %s is missing %s required fields, skipping!",
+                     repo_id, missing_required)
     for (c_repo_id, path) in repo_locations.items():
         repo_blob = _format_repository_config(c_repo_id,
                                               repo_configs.get(c_repo_id))
