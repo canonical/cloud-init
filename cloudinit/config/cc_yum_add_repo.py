@@ -29,6 +29,19 @@ def _canonicalize_id(repo_id):
     return repo_id
 
 
+def _format_repo_value(val):
+    if isinstance(val, (bool)):
+        # Seems like yum prefers 1/0
+        return str(int(val))
+    if isinstance(val, (list, tuple)):
+        # Can handle 'lists' in certain cases
+        # See: http://bit.ly/Qqrf1t
+        return "\n    ".join([_format_repo_value(v) for v in val])
+    if not isinstance(val, (basestring, str)):
+        return str(val)
+    return val
+
+
 ## TODO(harlowja): move to distro?
 # See man yum.conf
 def _format_repository_config(repo_id, repo_config):
@@ -36,19 +49,9 @@ def _format_repository_config(repo_id, repo_config):
     to_be[repo_id] = {}
     # Do basic translation of the items -> values
     for (k, v) in repo_config.items():
-        if isinstance(v, bool):
-            # Seems like yum prefers 1/0
-            if v:
-                v = '1'
-            else:
-                v = '0'
-        elif isinstance(v, (tuple, list)):
-            # Can handle 'lists' in certain cases
-            # See: http://bit.ly/Qqrf1t
-            v = "\n    ".join(v)
-        # For now assume that peopel using this know
-        # the format of yum and don't verify further
-        to_be[repo_id][k] = v
+        # For now assume that people using this know
+        # the format of yum and don't verify keys/values further
+        to_be[repo_id][k] = _format_repo_value(v)
     lines = to_be.write()
     lines.insert(0, util.make_header())
     return "\n".join(lines)
