@@ -26,3 +26,6 @@ pyyaml
 
 # The new main entrypoint uses argparse instead of optparse
 argparse
+
+# Urllib3 handles ssl correctly!
+urllib3

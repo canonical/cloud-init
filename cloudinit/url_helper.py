@@ -26,7 +26,9 @@ import errno
 import socket
 import time
 import urllib
-import urllib2
+
+from urllib3 import connectionpool
+from urllib3 import util
 
 from cloudinit import log as logging
 from cloudinit import version
@@ -68,71 +70,38 @@ class UrlResponse(object):
             return False
 
 
-def readurl(url, data=None, timeout=None,
-            retries=0, sec_between=1, headers=None):
-
+def readurl(url, data=None, timeout=None, retries=0,
+            headers=None, ssl_details=None):
     req_args = {}
-    req_args['url'] = url
-    if data is not None:
-        req_args['data'] = urllib.urlencode(data)
-
-    if not headers:
-        headers = {
-            'User-Agent': 'Cloud-Init/%s' % (version.version_string()),
+    p_url = util.parse_url(url)
+    if p_url.scheme == 'https' and ssl_details:
+        for k in ['key_file', 'cert_file', 'cert_reqs', 'ca_certs']:
+            if k in ssl_details:
+                req_args[k] = ssl_details[k]
+    with closing(connectionpool.connection_from_url(url, **req_args)) as req_p:
+        retries = max(int(retries), 0)
+        attempts = retries + 1
+        LOG.debug(("Attempting to open '%s' with %s attempts"
+                   " (%s retries, timeout=%s) to be performed"),
+                  url, attempts, retries, timeout)
+        open_args = {
+            'method': 'GET',
+            'retries': retries,
+            'redirect': False,
+            'url': p_url.request_uri,
         }
-
-    req_args['headers'] = headers
-    req = urllib2.Request(**req_args)
-
-    retries = max(retries, 0)
-    attempts = retries + 1
-
-    excepts = []
-    LOG.debug(("Attempting to open '%s' with %s attempts"
-               " (%s retries, timeout=%s) to be performed"),
-              url, attempts, retries, timeout)
-    open_args = {}
-    if timeout is not None:
-        open_args['timeout'] = int(timeout)
-    for i in range(0, attempts):
-        try:
-            with closing(urllib2.urlopen(req, **open_args)) as rh:
-                content = rh.read()
-                status = rh.getcode()
-                if status is None:
-                    # This seems to happen when files are read...
-                    status = 200
-                headers = {}
-                if rh.headers:
-                    headers = dict(rh.headers)
-                LOG.debug("Read from %s (%s, %sb) after %s attempts",
-                          url, status, len(content), (i + 1))
-                return UrlResponse(status, content, headers)
-        except urllib2.HTTPError as e:
-            excepts.append(e)
-        except urllib2.URLError as e:
-            # This can be a message string or
-            # another exception instance
-            # (socket.error for remote URLs, OSError for local URLs).
-            if (isinstance(e.reason, (OSError)) and
-                e.reason.errno == errno.ENOENT):
-                excepts.append(e.reason)
-            else:
-                excepts.append(e)
-        except Exception as e:
-            excepts.append(e)
-        if i + 1 < attempts:
-            LOG.debug("Please wait %s seconds while we wait to try again",
-                     sec_between)
-            time.sleep(sec_between)
-
-    # Didn't work out
-    LOG.debug("Failed reading from %s after %s attempts", url, attempts)
-
-    # It must of errored at least once for code
-    # to get here so re-raise the last error
-    LOG.debug("%s errors occured, re-raising the last one", len(excepts))
-    raise excepts[-1]
+        if data is not None:
+            open_args['body'] = urllib.urlencode(data)
+            open_args['method'] = 'POST'
+        if not headers:
+            headers = {
+                'User-Agent': 'Cloud-Init/%s' % (version.version_string()),
+            }
+        open_args['headers'] = headers
+        if timeout is not None:
+            open_args['timeout'] = max(int(timeout), 0)
+        r = req_p.urlopen(**open_args)
+        return UrlResponse(r.status, r.data, r.headers)
 
 
 def wait_for_url(urls, max_wait=None, timeout=None,
