@@ -22,11 +22,10 @@
 
 from contextlib import closing
 
-import errno
-import socket
 import time
 import urllib
 
+from urllib3 import exceptions
 from urllib3 import connectionpool
 from urllib3 import util
 
@@ -91,7 +90,10 @@ def readurl(url, data=None, timeout=None, retries=0,
             'url': p_url.request_uri,
         }
         if data is not None:
-            open_args['body'] = urllib.urlencode(data)
+            if isinstance(data, (str, basestring)):
+                open_args['body'] = data
+            else:
+                open_args['body'] = urllib.urlencode(data)
             open_args['method'] = 'POST'
         if not headers:
             headers = {
@@ -112,7 +114,7 @@ def wait_for_url(urls, max_wait=None, timeout=None,
     max_wait:  roughly the maximum time to wait before giving up
                The max time is *actually* len(urls)*timeout as each url will
                be tried once and given the timeout provided.
-    timeout:   the timeout provided to urllib2.urlopen
+    timeout:   the timeout provided to urlopen
     status_cb: call method with string message when a url is not available
     headers_cb: call method with single argument of url to get headers
                 for request.
@@ -174,12 +176,8 @@ def wait_for_url(urls, max_wait=None, timeout=None,
                     e = ValueError(reason)
                 else:
                     return url
-            except urllib2.HTTPError as e:
+            except exceptions.HTTPError as e:
                 reason = "http error [%s]" % e.code
-            except urllib2.URLError as e:
-                reason = "url error [%s]" % e.reason
-            except socket.timeout as e:
-                reason = "socket timeout [%s]" % e
             except Exception as e:
                 reason = "unexpected error [%s]" % e
 
