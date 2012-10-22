@@ -25,7 +25,7 @@ import time
 import requests
 from requests import exceptions
 
-from urlparse import urlparse
+from urlparse import (urlparse, urlunparse)
 
 from cloudinit import log as logging
 from cloudinit import version
@@ -48,42 +48,20 @@ except:
     pass
 
 
-class UrlResponse(object):
-    def __init__(self, status_code, contents=None, headers=None):
-        self._status_code = status_code
-        self._contents = contents
-        self._headers = headers
-
-    @property
-    def code(self):
-        return self._status_code
-
-    @property
-    def contents(self):
-        return self._contents
-
-    @property
-    def headers(self):
-        return self._headers
-
-    def __str__(self):
-        if not self.contents:
-            return ''
-        else:
-            return str(self.contents)
-
-    def ok(self, redirects_ok=False):
-        upper = 300
-        if redirects_ok:
-            upper = 400
-        if self.code >= 200 and self.code < upper:
-            return True
-        else:
-            return False
+def _cleanurl(url):
+    parsed_url = list(urlparse(url, scheme='http'))
+    if not parsed_url[1] and parsed_url[2]:
+        # Swap these since this seems to be a common
+        # occurrence when given urls like 'www.google.com'
+        parsed_url[1] = parsed_url[2]
+        parsed_url[2] = ''
+    return urlunparse(parsed_url)
 
 
-def readurl(url, data=None, timeout=None, retries=0,
-            headers=None, ssl_details=None, check_status=True):
+def readurl(url, data=None, timeout=None, retries=0, sec_between=1,
+            headers=None, ssl_details=None, check_status=True,
+            allow_redirects=False):
+    url = _cleanurl(url)
     req_args = {
         'url': url,
     }
@@ -98,7 +76,8 @@ def readurl(url, data=None, timeout=None, retries=0,
             if 'cert_file' in ssl_details and 'key_file' in ssl_details:
                 req_args['cert'] = [ssl_details['cert_file'],
                                     ssl_details['key_file']]
-    req_args['allow_redirects'] = False
+                                    
+    req_args['allow_redirects'] = allow_redirects
     req_args['method'] = 'GET'
     if timeout is not None:
         req_args['timeout'] = max(float(timeout), 0)
@@ -107,16 +86,19 @@ def readurl(url, data=None, timeout=None, retries=0,
     # It doesn't seem like config
     # was added in older library versions, thus we
     # need to manually do the retries if it wasn't
-    manual_tries = 1
     if CONFIG_ENABLED:
-        req_config = {}
-        req_config['store_cookies'] = False
-        if retries:
-            req_config['max_retries'] = max(int(retries), 0)
+        req_config = {
+            'store_cookies': False,
+        }
+        # Don't use the retry support built-in
+        # since it doesn't allow for 'sleep_times'
+        # in between tries....
+        # if retries:
+        #     req_config['max_retries'] = max(int(retries), 0)
         req_args['config'] = req_config
-    else:
-        if retries:
-            manual_tries = max(int(retries) + 1, 1)
+    manual_tries = 1
+    if retries:
+        manual_tries = max(int(retries) + 1, 1)
     if not headers:
         headers = {
             'User-Agent': 'Cloud-Init/%s' % (version.version_string()),
@@ -126,17 +108,38 @@ def readurl(url, data=None, timeout=None, retries=0,
     if data:
         # Do this after the log (it might be large)
         req_args['data'] = data
-    last_excp = []
-    for _i in range(0, manual_tries):
+    if sec_between is None:
+        sec_between = -1
+    excps = []
+    # Handle retrying ourselves since the built-in support
+    # doesn't handle sleeping between tries...
+    for i in range(0, manual_tries):
         try:
             r = requests.request(**req_args)
             if check_status:
                 r.raise_for_status()
+            contents = r.content
+            status = r.status_code
+            headers = r.headers
+            LOG.debug("Read from %s (%s, %sb) after %s attempts", url,
+                      status, len(contents), (i + 1))
+            # Doesn't seem like we can make it use a different
+            # subclass for responses, so add our own backward-compat
+            # attrs
+            if not hasattr(r, 'code'):
+                setattr(r, 'code', status)
+            if not hasattr(r, 'contents'):
+                setattr(r, 'contents', contents)
+            return r
         except exceptions.RequestException as e:
-            last_excp = [e]
-    if last_excp:
-        raise last_excp[-1]
-    return UrlResponse(r.status_code, r.content, r.headers)
+            excps.append(e)
+            if i + 1 < manual_tries and sec_between > 0:
+                LOG.debug("Please wait %s seconds while we wait to try again",
+                          sec_between)
+                time.sleep(sec_between)
+    if excps:
+        raise excps[-1]
+    return None # Should throw before this...
 
 
 def wait_for_url(urls, max_wait=None, timeout=None,
