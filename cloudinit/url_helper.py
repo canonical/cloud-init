@@ -130,12 +130,12 @@ def readurl(url, data=None, timeout=None, retries=0,
     for _i in range(0, manual_tries):
         try:
             r = requests.request(**req_args)
+            if check_status:
+                r.raise_for_status()
         except exceptions.RequestException as e:
             last_excp = [e]
     if last_excp:
         raise last_excp[-1]
-    if check_status:
-        r.raise_for_status()
     return UrlResponse(r.status_code, r.content, r.headers)
 
 
