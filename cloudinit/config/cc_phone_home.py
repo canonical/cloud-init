@@ -112,7 +112,7 @@ def handle(name, cfg, cloud, log, args):
     }
     url = templater.render_string(url, url_params)
     try:
-        uhelp.readurl(url, data=real_submit_keys, retries=tries)
+        uhelp.readurl(url, data=real_submit_keys, retries=tries, sec_between=3)
     except:
         util.logexc(log, ("Failed to post phone home data to"
                           " %s in %s tries"), url, tries)
