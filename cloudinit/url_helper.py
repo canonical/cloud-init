@@ -20,19 +20,32 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-from contextlib import closing
-
 import time
-import urllib
 
-from urllib3 import exceptions
-from urllib3 import connectionpool
-from urllib3 import util
+import requests
+from requests import exceptions
+
+from urlparse import urlparse
 
 from cloudinit import log as logging
 from cloudinit import version
 
 LOG = logging.getLogger(__name__)
+
+# Check if requests has ssl support (added in requests >= 0.8.8)
+SSL_ENABLED = False
+CONFIG_ENABLED = False # This was added in 0.7
+try:
+    import pkg_resources
+    from distutils.version import LooseVersion
+    _REQ = pkg_resources.get_distribution('requests')
+    _REQ_VER = LooseVersion(_REQ.version)
+    if _REQ_VER >= LooseVersion('0.8.8'):
+        SSL_ENABLED = True
+    if _REQ_VER >= LooseVersion('0.7.0'):
+        CONFIG_ENABLED = True
+except:
+    pass
 
 
 class UrlResponse(object):
@@ -70,40 +83,60 @@ class UrlResponse(object):
 
 
 def readurl(url, data=None, timeout=None, retries=0,
-            headers=None, ssl_details=None):
-    req_args = {}
-    p_url = util.parse_url(url)
-    if p_url.scheme == 'https' and ssl_details:
-        for k in ['key_file', 'cert_file', 'cert_reqs', 'ca_certs']:
-            if k in ssl_details:
-                req_args[k] = ssl_details[k]
-    with closing(connectionpool.connection_from_url(url, **req_args)) as req_p:
-        retries = max(int(retries), 0)
-        attempts = retries + 1
-        LOG.debug(("Attempting to open '%s' with %s attempts"
-                   " (%s retries, timeout=%s) to be performed"),
-                  url, attempts, retries, timeout)
-        open_args = {
-            'method': 'GET',
-            'retries': retries,
-            'redirect': False,
-            'url': p_url.request_uri,
-        }
-        if data is not None:
-            if isinstance(data, (str, basestring)):
-                open_args['body'] = data
+            headers=None, ssl_details=None, check_status=True):
+    req_args = {
+        'url': url,
+    }
+    if urlparse(url).scheme == 'https' and ssl_details:
+        if not SSL_ENABLED:
+            LOG.warn("SSL is not enabled, cert. verification can not occur!")
+        else:
+            if 'ca_certs' in ssl_details and ssl_details['ca_certs']:
+                req_args['verify'] = ssl_details['ca_certs']
             else:
-                open_args['body'] = urllib.urlencode(data)
-            open_args['method'] = 'POST'
-        if not headers:
-            headers = {
-                'User-Agent': 'Cloud-Init/%s' % (version.version_string()),
-            }
-        open_args['headers'] = headers
-        if timeout is not None:
-            open_args['timeout'] = max(int(timeout), 0)
-        r = req_p.urlopen(**open_args)
-        return UrlResponse(r.status, r.data, r.headers)
+                req_args['verify'] = True
+            if 'cert_file' in ssl_details and 'key_file' in ssl_details:
+                req_args['cert'] = [ssl_details['cert_file'],
+                                    ssl_details['key_file']]
+    req_args['allow_redirects'] = False
+    req_args['method'] = 'GET'
+    if timeout is not None:
+        req_args['timeout'] = max(float(timeout), 0)
+    if data:
+        req_args['method'] = 'POST'
+    # It doesn't seem like config
+    # was added in older library versions, thus we
+    # need to manually do the retries if it wasn't
+    manual_tries = 1
+    if CONFIG_ENABLED:
+        req_config = {}
+        req_config['store_cookies'] = False
+        if retries:
+            req_config['max_retries'] = max(int(retries), 0)
+        req_args['config'] = req_config
+    else:
+        if retries:
+            manual_tries = max(int(retries) + 1, 1)
+    if not headers:
+        headers = {
+            'User-Agent': 'Cloud-Init/%s' % (version.version_string()),
+        }
+    req_args['headers'] = headers
+    LOG.debug("Attempting to open '%s' with %s configuration", url, req_args)
+    if data:
+        # Do this after the log (it might be large)
+        req_args['data'] = data
+    last_excp = []
+    for _i in range(0, manual_tries):
+        try:
+            r = requests.request(**req_args)
+        except exceptions.RequestException as e:
+            last_excp = [e]
+    if last_excp:
+        raise last_excp[-1]
+    if check_status:
+        r.raise_for_status()
+    return UrlResponse(r.status_code, r.content, r.headers)
 
 
 def wait_for_url(urls, max_wait=None, timeout=None,
@@ -167,7 +200,8 @@ def wait_for_url(urls, max_wait=None, timeout=None,
                 else:
                     headers = {}
 
-                resp = readurl(url, headers=headers, timeout=timeout)
+                resp = readurl(url, headers=headers, timeout=timeout,
+                               check_status=False)
                 if not resp.contents:
                     reason = "empty response [%s]" % (resp.code)
                     e = ValueError(reason)
@@ -176,8 +210,8 @@ def wait_for_url(urls, max_wait=None, timeout=None,
                     e = ValueError(reason)
                 else:
                     return url
-            except exceptions.HTTPError as e:
-                reason = "http error [%s]" % e.code
+            except exceptions.RequestException as e:
+                reason = "request error [%s]" % e
             except Exception as e:
                 reason = "unexpected error [%s]" % e
 
