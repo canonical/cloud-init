@@ -37,10 +37,7 @@ LOG = logging.getLogger(__name__)
 
 
 class Distro(object):
-
     __metaclass__ = abc.ABCMeta
-    default_user = None
-    default_user_groups = None
 
     def __init__(self, name, cfg, paths):
         self._paths = paths
@@ -176,22 +173,10 @@ class Distro(object):
         return False
 
     def get_default_user(self):
-        if not self.default_user:
-            return None
-        user_cfg = {
-            'name': self.default_user,
-            'plain_text_passwd': self.default_user,
-            'home': "/home/%s" % (self.default_user),
-            'shell': "/bin/bash",
-            'lock_passwd': True,
-            'gecos': "%s" % (self.default_user.title()),
-            'sudo': "ALL=(ALL) NOPASSWD:ALL",
-        }
-        def_groups = self.default_user_groups
-        if not def_groups:
-            def_groups = []
-        user_cfg['groups'] = util.uniq_merge_sorted(def_groups)
-        return user_cfg
+        return self.get_option('default_user')
+
+    def get_default_user_groups(self):
+        return self.get_option('default_user_groups')
 
     def create_user(self, name, **kwargs):
         """
@@ -504,6 +489,7 @@ def _normalize_users(u_cfg, def_user_cfg=None):
             # Pickup what the default 'real name' is
             # and any groups that are provided by the
             # default config
+            def_user_cfg = def_user_cfg.copy()
             def_user = def_user_cfg.pop('name')
             def_groups = def_user_cfg.pop('groups', [])
             # Pickup any config + groups for that user name
