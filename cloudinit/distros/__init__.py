@@ -236,7 +236,7 @@ class Distro(object):
         if util.is_user(name):
             LOG.warn("User %s already exists, skipping." % name)
         else:
-            LOG.debug("Creating name %s" % name)
+            LOG.debug("Adding user named %s", name)
             try:
                 util.subp(adduser_cmd, logstring=x_adduser_cmd)
             except Exception as e:
@@ -284,6 +284,39 @@ class Distro(object):
 
         return True
 
+    def ensure_sudo_dir(self, path, sudo_base='/etc/sudoers'):
+        # Ensure the dir is included and that
+        # it actually exists as a directory
+        sudoers_contents = ''
+        if os.path.exists(sudo_base):
+            sudoers_contents = util.load_file(sudo_base)
+        found_include = False
+        for line in sudoers_contents.splitlines():
+            line = line.strip()
+            include_match = re.search(r"^#includedir\s+(.*)$", line)
+            if not include_match:
+                continue
+            included_dir = include_match.group(1).strip()
+            if not included_dir:
+                continue
+            included_dir = os.path.abspath(included_dir)
+            if included_dir == path:
+                found_include = True
+                break
+        if not found_include:
+            sudoers_contents += "\n#includedir %s\n" % (path)
+            try:
+                if not os.path.exists(sudo_base):
+                    util.write_file(sudo_base, sudoers_contents, 0440)
+                else:
+                    with open(sudo_base, 'a') as f:
+                        f.write(sudoers_contents)
+                LOG.debug("added '#includedir %s' to %s" % (path, sudo_base))
+            except IOError as e:
+                util.logexc(LOG, "Failed to write %s" % sudo_base, e)
+                raise e
+        util.ensure_dir(path, 0755)
+
     def write_sudo_rules(self,
         user,
         rules,
@@ -299,9 +332,10 @@ class Distro(object):
                 content += "%s %s\n" % (user, rule)
             content += "\n"
 
+        self.ensure_sudo_dir(os.path.dirname(sudo_file))
+
         if not os.path.exists(sudo_file):
             util.write_file(sudo_file, content, 0440)
-
         else:
             try:
                 with open(sudo_file, 'a') as f:
