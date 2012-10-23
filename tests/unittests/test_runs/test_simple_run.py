@@ -1,5 +1,5 @@
-import sys
 import os
+import sys
 
 # Allow running this test individually
 top_dir = os.path.join(os.path.dirname(__file__), os.pardir, "helpers.py")
@@ -10,10 +10,9 @@ if os.path.exists(top_dir):
 
 import helpers
 
-from cloudinit import util
-from cloudinit import stages
-
 from cloudinit.settings import (PER_INSTANCE)
+from cloudinit import stages
+from cloudinit import util
 
 
 class TestSimpleRun(helpers.FilesystemMockingTestCase):

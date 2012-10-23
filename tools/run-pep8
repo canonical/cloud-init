@@ -1,6 +1,6 @@
 #!/bin/bash
 
-ci_files='cloud*.py cloudinit/*.py cloudinit/config/*.py'
+ci_files='cloudinit/*.py cloudinit/config/*.py'
 test_files=$(find tests -name "*.py")
 def_files="$ci_files $test_files"
 

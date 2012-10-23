@@ -7,6 +7,7 @@ from cloudinit import util
 
 import shutil
 
+
 # Makes the old path start
 # with new base instead of whatever
 # it previously had

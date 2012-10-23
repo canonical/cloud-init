@@ -335,8 +335,7 @@ class Distro(object):
             util.write_file(sudo_file, content, 0440)
         else:
             try:
-                with open(sudo_file, 'a') as f:
-                    f.write(content)
+                util.append_file(sudo_file, content)
             except IOError as e:
                 util.logexc(LOG, "Failed to write %s" % sudo_file, e)
                 raise e

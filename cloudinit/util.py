@@ -983,6 +983,12 @@ def find_devs_with(criteria=None, oformat='device',
     return entries
 
 
+def peek_file(fname, max_bytes):
+    LOG.debug("Peeking at %s (max_bytes=%s)", fname, max_bytes)
+    with open(fname, 'rb') as ifh:
+        return ifh.read(max_bytes)
+
+
 def load_file(fname, read_cb=None, quiet=False):
     LOG.debug("Reading from %s (quiet=%s)", fname, quiet)
     ofh = StringIO()
@@ -1326,6 +1332,10 @@ def uptime():
     except:
         logexc(LOG, "Unable to read uptime from /proc/uptime")
     return uptime_str
+
+
+def append_file(path, content):
+    write_file(path, content, omode="ab", mode=None)
 
 
 def ensure_file(path, mode=0644):
