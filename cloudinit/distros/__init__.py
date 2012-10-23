@@ -175,9 +175,6 @@ class Distro(object):
     def get_default_user(self):
         return self.get_option('default_user')
 
-    def get_default_user_groups(self):
-        return self.get_option('default_user_groups')
-
     def create_user(self, name, **kwargs):
         """
             Creates users for the system using the GNU passwd tools. This
