@@ -84,6 +84,7 @@ def handle(_name, cfg, cloud, log, _args):
     log.debug("Wrote landscape config file to %s", lsc_client_fn)
 
     util.write_file(LS_DEFAULT_FILE, "RUN=1\n")
+    util.subp(["service", "landscape-client", "restart"])
 
 
 def merge_together(objs):
