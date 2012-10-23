@@ -4,6 +4,8 @@
  - landscape: install landscape-client package if not installed.
    only take action if cloud-config is present (LP: #1066115)
  - cc_landscape: restart landscape after install or config (LP: #1070345)
+ - multipart/archive.  do not fail on unknown headers in multipart
+   mime or cloud-archive config (LP: #1065116).
 0.7.0:
  - add a 'exception_cb' argument to 'wait_for_url'.  If provided, this
    method will be called back with the exception received and the message.
