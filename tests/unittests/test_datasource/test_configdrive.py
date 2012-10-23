@@ -6,11 +6,10 @@ import os.path
 import mocker
 from mocker import MockerTestCase
 
-from cloudinit.sources import DataSourceConfigDrive as ds
-from cloudinit import settings
-from cloudinit import util
 from cloudinit import helpers
-
+from cloudinit import settings
+from cloudinit.sources import DataSourceConfigDrive as ds
+from cloudinit import util
 
 
 PUBKEY = u'ssh-rsa AAAAB3NzaC1....sIkJhq8wdX+4I3A4cYbYP ubuntu@server-460\n'

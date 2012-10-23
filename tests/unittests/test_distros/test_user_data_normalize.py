@@ -14,6 +14,7 @@ bcfg = {
    'groups': ["foo"]
 }
 
+
 class TestUGNormalize(MockerTestCase):
 
     def _make_distro(self, dtype, def_user=None):
