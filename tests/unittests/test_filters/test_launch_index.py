@@ -1,6 +1,14 @@
 import copy
+import os
+import sys
 
-import helpers as th
+top_dir = os.path.join(os.path.dirname(__file__), os.pardir, "helpers.py")
+top_dir = os.path.abspath(top_dir)
+if os.path.exists(top_dir):
+    sys.path.insert(0, os.path.dirname(top_dir))
+
+
+import helpers
 
 import itertools
 
@@ -18,7 +26,7 @@ def count_messages(root):
     return am
 
 
-class TestLaunchFilter(th.ResourceUsingTestCase):
+class TestLaunchFilter(helpers.ResourceUsingTestCase):
 
     def assertCounts(self, message, expected_counts):
         orig_message = copy.deepcopy(message)
