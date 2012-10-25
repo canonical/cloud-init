@@ -24,6 +24,14 @@ import cloudinit.url_helper as uh
 
 import boto.utils as boto_utils
 
+# Versions of boto >= 2.6.0 try to lazily load
+# the metadata backing, which doesn't work so well
+# in cloud-init especially since the metadata is
+# serialized and actions are performed where the
+# metadata server may be blocked (thus the datasource
+# will start failing) resulting in url exceptions
+# when fields that do exist (or would have existed)
+# do not exist due to the blocking that occurred.
 
 BOTO_LAZY = False
 try:
@@ -34,14 +42,6 @@ except pkg_resources.DistributionNotFound:
     pass
 
 
-# Versions of boto >= 2.6.0 try to lazily load
-# the metadata backing, which doesn't work so well
-# in cloud-init especially since the metadata is
-# serialized and actions are performed where the
-# metadata server may be blocked (thus the datasource
-# will start failing) resulting in url exceptions
-# when fields that do exist (or would have existed)
-# do not exist due to the blocking that occurred.
 def _unlazy_dict(mp):
     if not isinstance(mp, (dict)):
         return mp
