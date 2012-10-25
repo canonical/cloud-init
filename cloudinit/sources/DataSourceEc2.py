@@ -23,8 +23,7 @@
 import os
 import time
 
-import boto.utils as boto_utils
-
+from cloudinit import ec2_utils as ec2
 from cloudinit import log as logging
 from cloudinit import sources
 from cloudinit import url_helper as uhelp
@@ -53,6 +52,10 @@ class DataSourceEc2(sources.DataSource):
     def __str__(self):
         return util.obj_name(self)
 
+    def __getstate__(self):
+        # Versions of boto
+        pass
+
     def get_data(self):
         seed_ret = {}
         if util.read_optional_seed(seed_ret, base=(self.seed_dir + "/")):
@@ -65,10 +68,10 @@ class DataSourceEc2(sources.DataSource):
             if not self.wait_for_metadata_service():
                 return False
             start_time = time.time()
-            self.userdata_raw = boto_utils.get_instance_userdata(self.api_ver,
-                None, self.metadata_address)
-            self.metadata = boto_utils.get_instance_metadata(self.api_ver,
-                self.metadata_address)
+            self.userdata_raw = ec2.get_instance_userdata(self.api_ver,
+                                                          self.metadata_address)
+            self.metadata = ec2.get_instance_metadata(self.api_ver,
+                                                      self.metadata_address)
             LOG.debug("Crawl of metadata service took %s seconds",
                        int(time.time() - start_time))
             return True
