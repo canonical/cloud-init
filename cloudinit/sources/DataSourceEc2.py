@@ -52,10 +52,6 @@ class DataSourceEc2(sources.DataSource):
     def __str__(self):
         return util.obj_name(self)
 
-    def __getstate__(self):
-        # Versions of boto
-        pass
-
     def get_data(self):
         seed_ret = {}
         if util.read_optional_seed(seed_ret, base=(self.seed_dir + "/")):
