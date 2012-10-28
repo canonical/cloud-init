@@ -302,14 +302,10 @@ class Paths(object):
     def __init__(self, path_cfgs, ds=None):
         self.cfgs = path_cfgs
         # Populate all the initial paths
-        self.cloud_dir = self.join(False,
-                                   path_cfgs.get('cloud_dir',
-                                                 '/var/lib/cloud'))
+        self.cloud_dir = path_cfgs.get('cloud_dir', '/var/lib/cloud')
         self.instance_link = os.path.join(self.cloud_dir, 'instance')
         self.boot_finished = os.path.join(self.instance_link, "boot-finished")
         self.upstart_conf_d = path_cfgs.get('upstart_dir')
-        if self.upstart_conf_d:
-            self.upstart_conf_d = self.join(False, self.upstart_conf_d)
         self.seed_dir = os.path.join(self.cloud_dir, 'seed')
         # This one isn't joined, since it should just be read-only
         template_dir = path_cfgs.get('templates_dir', '/etc/cloud/templates/')
@@ -327,29 +323,6 @@ class Paths(object):
         }
         # Set when a datasource becomes active
         self.datasource = ds
-
-    # joins the paths but also appends a read
-    # or write root if available
-    def join(self, read_only, *paths):
-        if read_only:
-            root = self.cfgs.get('read_root')
-        else:
-            root = self.cfgs.get('write_root')
-        if not paths:
-            return root
-        if len(paths) > 1:
-            joined = os.path.join(*paths)
-        else:
-            joined = paths[0]
-        if root:
-            pre_joined = joined
-            # Need to remove any starting '/' since this
-            # will confuse os.path.join
-            joined = joined.lstrip("/")
-            joined = os.path.join(root, joined)
-            LOG.debug("Translated %s to adjusted path %s (read-only=%s)",
-                      pre_joined, joined, read_only)
-        return joined
 
     # get_ipath_cur: get the current instance path for an item
     def get_ipath_cur(self, name=None):
