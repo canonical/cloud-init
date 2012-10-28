@@ -1,14 +1,6 @@
 import os
-import sys
 
-# Allow running this test individually
-top_dir = os.path.join(os.path.dirname(__file__), os.pardir, "helpers.py")
-top_dir = os.path.abspath(top_dir)
-if os.path.exists(top_dir):
-    sys.path.insert(0, os.path.dirname(top_dir))
-
-
-import helpers
+from tests.unittests import helpers
 
 from cloudinit.settings import (PER_INSTANCE)
 from cloudinit import stages

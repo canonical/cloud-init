@@ -114,8 +114,7 @@ def handle(_name, cfg, cloud, log, args):
         replaced_auth = False
 
         # See: man sshd_config
-        conf_fn = cloud.paths.join(True, ssh_util.DEF_SSHD_CFG)
-        old_lines = ssh_util.parse_ssh_config(conf_fn)
+        old_lines = ssh_util.parse_ssh_config(ssh_util.DEF_SSHD_CFG)
         new_lines = []
         i = 0
         for (i, line) in enumerate(old_lines):
@@ -134,8 +133,7 @@ def handle(_name, cfg, cloud, log, args):
                                                      pw_auth))
 
         lines = [str(e) for e in new_lines]
-        ssh_rw_fn = cloud.paths.join(False, ssh_util.DEF_SSHD_CFG)
-        util.write_file(ssh_rw_fn, "\n".join(lines))
+        util.write_file(ssh_util.DEF_SSHD_CFG, "\n".join(lines))
 
         try:
             cmd = ['service']
