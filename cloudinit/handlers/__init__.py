@@ -171,7 +171,11 @@ def walker_callback(pdata, ctype, filename, payload):
     elif payload:
         # Extract the first line or 24 bytes for displaying in the log
         start = _extract_first_or_bytes(payload, 24)
-        details = "'%s...'" % (start.encode("string-escape"))
+        try:
+            details = "'%s...'" % (start.encode("string-escape"))
+        except TypeError:
+            # Unicode doesn't support string-escape...
+            details = "'%s...'" % (start)
         if ctype == NOT_MULTIPART_TYPE:
             LOG.warning("Unhandled non-multipart (%s) userdata: %s",
                         ctype, details)
