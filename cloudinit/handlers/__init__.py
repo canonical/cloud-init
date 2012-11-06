@@ -162,14 +162,14 @@ def _extract_first_or_bytes(blob, size):
 
 def _escape_string(text):
     try:
-        text = "'%s...'" % (text.encode("string-escape"))
+        return text.encode("string-escape")
     except TypeError:
         try:
             # Unicode doesn't support string-escape...
-            text = "'%s...'" % (text.encode('unicode-escape'))
+            return text.encode('unicode-escape')
         except TypeError:
             # Give up...
-            text = "'%s...'" % (text)
+            pass
     return text
 
 
@@ -184,7 +184,7 @@ def walker_callback(pdata, ctype, filename, payload):
     elif payload:
         # Extract the first line or 24 bytes for displaying in the log
         start = _extract_first_or_bytes(payload, 24)
-        details = _escape_string(start)
+        details = "'%s...'" % (_escape_string(start))
         if ctype == NOT_MULTIPART_TYPE:
             LOG.warning("Unhandled non-multipart (%s) userdata: %s",
                         ctype, details)
