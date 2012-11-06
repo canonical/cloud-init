@@ -6,6 +6,8 @@
  - cc_landscape: restart landscape after install or config (LP: #1070345)
  - multipart/archive.  do not fail on unknown headers in multipart
    mime or cloud-archive config (LP: #1065116).
+ - tools/Z99-cloud-locale-test.sh: avoid warning when user's shell is
+   zsh (LP: #1073077)
 0.7.0:
  - add a 'exception_cb' argument to 'wait_for_url'.  If provided, this
    method will be called back with the exception received and the message.
