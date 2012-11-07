@@ -204,9 +204,8 @@ def transport_iso9660(require_iso=True):
 
         try:
             # See if we can read anything at all...??
-            with open(fullp, 'rb') as fp:
-                fp.read(512)
-        except:
+            util.peek_file(fullp, 512)
+        except IOError:
             continue
 
         try:

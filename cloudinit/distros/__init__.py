@@ -37,10 +37,7 @@ LOG = logging.getLogger(__name__)
 
 
 class Distro(object):
-
     __metaclass__ = abc.ABCMeta
-    default_user = None
-    default_user_groups = None
 
     def __init__(self, name, cfg, paths):
         self._paths = paths
@@ -176,22 +173,7 @@ class Distro(object):
         return False
 
     def get_default_user(self):
-        if not self.default_user:
-            return None
-        user_cfg = {
-            'name': self.default_user,
-            'plain_text_passwd': self.default_user,
-            'home': "/home/%s" % (self.default_user),
-            'shell': "/bin/bash",
-            'lock_passwd': True,
-            'gecos': "%s" % (self.default_user.title()),
-            'sudo': "ALL=(ALL) NOPASSWD:ALL",
-        }
-        def_groups = self.default_user_groups
-        if not def_groups:
-            def_groups = []
-        user_cfg['groups'] = util.uniq_merge_sorted(def_groups)
-        return user_cfg
+        return self.get_option('default_user')
 
     def create_user(self, name, **kwargs):
         """
@@ -251,7 +233,7 @@ class Distro(object):
         if util.is_user(name):
             LOG.warn("User %s already exists, skipping." % name)
         else:
-            LOG.debug("Creating name %s" % name)
+            LOG.debug("Adding user named %s", name)
             try:
                 util.subp(adduser_cmd, logstring=x_adduser_cmd)
             except Exception as e:
@@ -299,6 +281,39 @@ class Distro(object):
 
         return True
 
+    def ensure_sudo_dir(self, path, sudo_base='/etc/sudoers'):
+        # Ensure the dir is included and that
+        # it actually exists as a directory
+        sudoers_contents = ''
+        if os.path.exists(sudo_base):
+            sudoers_contents = util.load_file(sudo_base)
+        found_include = False
+        for line in sudoers_contents.splitlines():
+            line = line.strip()
+            include_match = re.search(r"^#includedir\s+(.*)$", line)
+            if not include_match:
+                continue
+            included_dir = include_match.group(1).strip()
+            if not included_dir:
+                continue
+            included_dir = os.path.abspath(included_dir)
+            if included_dir == path:
+                found_include = True
+                break
+        if not found_include:
+            sudoers_contents += "\n#includedir %s\n" % (path)
+            try:
+                if not os.path.exists(sudo_base):
+                    util.write_file(sudo_base, sudoers_contents, 0440)
+                else:
+                    with open(sudo_base, 'a') as f:
+                        f.write(sudoers_contents)
+                LOG.debug("added '#includedir %s' to %s" % (path, sudo_base))
+            except IOError as e:
+                util.logexc(LOG, "Failed to write %s" % sudo_base, e)
+                raise e
+        util.ensure_dir(path, 0755)
+
     def write_sudo_rules(self,
         user,
         rules,
@@ -314,13 +329,13 @@ class Distro(object):
                 content += "%s %s\n" % (user, rule)
             content += "\n"
 
+        self.ensure_sudo_dir(os.path.dirname(sudo_file))
+
         if not os.path.exists(sudo_file):
             util.write_file(sudo_file, content, 0440)
-
         else:
             try:
-                with open(sudo_file, 'a') as f:
-                    f.write(content)
+                util.append_file(sudo_file, content)
             except IOError as e:
                 util.logexc(LOG, "Failed to write %s" % sudo_file, e)
                 raise e
@@ -504,6 +519,7 @@ def _normalize_users(u_cfg, def_user_cfg=None):
             # Pickup what the default 'real name' is
             # and any groups that are provided by the
             # default config
+            def_user_cfg = def_user_cfg.copy()
             def_user = def_user_cfg.pop('name')
             def_groups = def_user_cfg.pop('groups', [])
             # Pickup any config + groups for that user name
