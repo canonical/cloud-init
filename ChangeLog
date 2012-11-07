@@ -3,6 +3,12 @@
  - config-drive: map hostname to local-hostname (LP: #1061964)
  - landscape: install landscape-client package if not installed.
    only take action if cloud-config is present (LP: #1066115)
+ - cc_landscape: restart landscape after install or config (LP: #1070345)
+ - multipart/archive.  do not fail on unknown headers in multipart
+   mime or cloud-archive config (LP: #1065116).
+ - tools/Z99-cloud-locale-test.sh: avoid warning when user's shell is
+   zsh (LP: #1073077)
+ - fix stack trace when unknown user-data input had unicode (LP: #1075756)
  - split 'apt-update-upgrade' config module into 'apt-configure' and
    'package-update-upgrade-install'.  The 'package-update-upgrade-install'
    will be a cross distro module.
