@@ -439,7 +439,7 @@ def _normalize_groups(grp_cfg):
 # configuration.
 #
 # The output is a dictionary of user
-# names => user config which is the standard 
+# names => user config which is the standard
 # form used in the rest of cloud-init. Note
 # the default user will have a special config
 # entry 'default' which will be marked as true
