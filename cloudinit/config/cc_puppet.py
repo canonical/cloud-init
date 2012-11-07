@@ -21,11 +21,31 @@
 from StringIO import StringIO
 
 import os
-import pwd
 import socket
 
 from cloudinit import helpers
 from cloudinit import util
+
+PUPPET_CONF_PATH = '/etc/puppet/puppet.conf'
+PUPPET_SSL_CERT_DIR = '/var/lib/puppet/ssl/certs/'
+PUPPET_SSL_DIR = '/var/lib/puppet/ssl'
+PUPPET_SSL_CERT_PATH = '/var/lib/puppet/ssl/certs/ca.pem'
+
+
+def _autostart_puppet(log):
+    # Set puppet to automatically start
+    if os.path.exists('/etc/default/puppet'):
+        util.subp(['sed', '-i',
+                  '-e', 's/^START=.*/START=yes/',
+                  '/etc/default/puppet'], capture=False)
+    elif os.path.exists('/bin/systemctl'):
+        util.subp(['/bin/systemctl', 'enable', 'puppet.service'],
+                  capture=False)
+    elif os.path.exists('/sbin/chkconfig'):
+        util.subp(['/sbin/chkconfig', 'puppet', 'on'], capture=False)
+    else:
+        log.warn(("Sorry we do not know how to enable"
+                  " puppet services on this system"))
 
 
 def handle(name, cfg, cloud, log, _args):
@@ -43,8 +63,7 @@ def handle(name, cfg, cloud, log, _args):
     # ... and then update the puppet configuration
     if 'conf' in puppet_cfg:
         # Add all sections from the conf object to puppet.conf
-        puppet_conf_fn = cloud.paths.join(True, '/etc/puppet/puppet.conf')
-        contents = util.load_file(puppet_conf_fn)
+        contents = util.load_file(PUPPET_CONF_PATH)
         # Create object for reading puppet.conf values
         puppet_config = helpers.DefaultingConfigParser()
         # Read puppet.conf values from original file in order to be able to
@@ -53,28 +72,19 @@ def handle(name, cfg, cloud, log, _args):
         cleaned_lines = [i.lstrip() for i in contents.splitlines()]
         cleaned_contents = '\n'.join(cleaned_lines)
         puppet_config.readfp(StringIO(cleaned_contents),
-                             filename=puppet_conf_fn)
+                             filename=PUPPET_CONF_PATH)
         for (cfg_name, cfg) in puppet_cfg['conf'].iteritems():
             # Cert configuration is a special case
             # Dump the puppet master ca certificate in the correct place
             if cfg_name == 'ca_cert':
                 # Puppet ssl sub-directory isn't created yet
                 # Create it with the proper permissions and ownership
-                pp_ssl_dir = cloud.paths.join(False, '/var/lib/puppet/ssl')
-                util.ensure_dir(pp_ssl_dir, 0771)
-                util.chownbyid(pp_ssl_dir,
-                               pwd.getpwnam('puppet').pw_uid, 0)
-                pp_ssl_certs = cloud.paths.join(False,
-                                                '/var/lib/puppet/ssl/certs/')
-                util.ensure_dir(pp_ssl_certs)
-                util.chownbyid(pp_ssl_certs,
-                               pwd.getpwnam('puppet').pw_uid, 0)
-                pp_ssl_ca_certs = cloud.paths.join(False,
-                                                   ('/var/lib/puppet/'
-                                                    'ssl/certs/ca.pem'))
-                util.write_file(pp_ssl_ca_certs, cfg)
-                util.chownbyid(pp_ssl_ca_certs,
-                               pwd.getpwnam('puppet').pw_uid, 0)
+                util.ensure_dir(PUPPET_SSL_DIR, 0771)
+                util.chownbyname(PUPPET_SSL_DIR, 'puppet', 'root')
+                util.ensure_dir(PUPPET_SSL_CERT_DIR)
+                util.chownbyname(PUPPET_SSL_CERT_DIR, 'puppet', 'root')
+                util.write_file(PUPPET_SSL_CERT_PATH, str(cfg))
+                util.chownbyname(PUPPET_SSL_CERT_PATH, 'puppet', 'root')
             else:
                 # Iterate throug the config items, we'll use ConfigParser.set
                 # to overwrite or create new items as needed
@@ -90,25 +100,11 @@ def handle(name, cfg, cloud, log, _args):
                     puppet_config.set(cfg_name, o, v)
             # We got all our config as wanted we'll rename
             # the previous puppet.conf and create our new one
-            conf_old_fn = cloud.paths.join(False,
-                                           '/etc/puppet/puppet.conf.old')
-            util.rename(puppet_conf_fn, conf_old_fn)
-            puppet_conf_rw = cloud.paths.join(False, '/etc/puppet/puppet.conf')
-            util.write_file(puppet_conf_rw, puppet_config.stringify())
+            util.rename(PUPPET_CONF_PATH, "%s.old" % (PUPPET_CONF_PATH))
+            util.write_file(PUPPET_CONF_PATH, puppet_config.stringify())
 
-    # Set puppet to automatically start
-    if os.path.exists('/etc/default/puppet'):
-        util.subp(['sed', '-i',
-                  '-e', 's/^START=.*/START=yes/',
-                  '/etc/default/puppet'], capture=False)
-    elif os.path.exists('/bin/systemctl'):
-        util.subp(['/bin/systemctl', 'enable', 'puppet.service'],
-                  capture=False)
-    elif os.path.exists('/sbin/chkconfig'):
-        util.subp(['/sbin/chkconfig', 'puppet', 'on'], capture=False)
-    else:
-        log.warn(("Sorry we do not know how to enable"
-                  " puppet services on this system"))
+    # Set it up so it autostarts
+    _autostart_puppet(log)
 
     # Start puppetd
     util.subp(['service', 'puppet', 'start'], capture=False)

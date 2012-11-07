@@ -1,20 +1,20 @@
 CWD=$(shell pwd)
-PY_FILES=$(shell find cloudinit bin tests tools -name "*.py")
+PY_FILES=$(shell find cloudinit bin tests tools -name "*.py" -type f )
 PY_FILES+="bin/cloud-init"
 
 all: test
 
 pep8:
-	$(CWD)/tools/run-pep8 $(PY_FILES)
+	@$(CWD)/tools/run-pep8 $(PY_FILES)
 
 pylint:
-	$(CWD)/tools/run-pylint $(PY_FILES)
+	@$(CWD)/tools/run-pylint $(PY_FILES)
 
 pyflakes:
 	pyflakes $(PY_FILES)
 
 test:
-	nosetests $(noseopts) tests/unittests/
+	@nosetests $(noseopts) tests/
 
 2to3:
 	2to3 $(PY_FILES)

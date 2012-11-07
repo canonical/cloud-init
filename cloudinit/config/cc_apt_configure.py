@@ -74,8 +74,7 @@ def handle(name, cfg, cloud, log, _args):
         try:
             # See man 'apt.conf'
             contents = PROXY_TPL % (proxy)
-            util.write_file(cloud.paths.join(False, proxy_filename),
-                            contents)
+            util.write_file(proxy_filename, contents)
         except Exception as e:
             util.logexc(log, "Failed to write proxy to %s", proxy_filename)
     elif os.path.isfile(proxy_filename):
@@ -86,7 +85,7 @@ def handle(name, cfg, cloud, log, _args):
         params = mirrors
         params['RELEASE'] = release
         params['MIRROR'] = mirror
-        errors = add_sources(cloud, cfg['apt_sources'], params)
+        errors = add_sources(cfg['apt_sources'], params)
         for e in errors:
             log.warn("Add source error: %s", ':'.join(e))
 
@@ -149,11 +148,10 @@ def generate_sources_list(codename, mirrors, cloud, log):
     params = {'codename': codename}
     for k in mirrors:
         params[k] = mirrors[k]
-    out_fn = cloud.paths.join(False, '/etc/apt/sources.list')
-    templater.render_to_file(template_fn, out_fn, params)
+    templater.render_to_file(template_fn, '/etc/apt/sources.list', params)
 
 
-def add_sources(cloud, srclist, template_params=None):
+def add_sources(srclist, template_params=None):
     """
     add entries in /etc/apt/sources.list.d for each abbreviated
     sources.list entry in 'srclist'.  When rendering template, also
@@ -203,8 +201,7 @@ def add_sources(cloud, srclist, template_params=None):
 
         try:
             contents = "%s\n" % (source)
-            util.write_file(cloud.paths.join(False, ent['filename']),
-                            contents, omode="ab")
+            util.write_file(ent['filename'], contents, omode="ab")
         except:
             errorlist.append([source,
                              "failed write to file %s" % ent['filename']])
