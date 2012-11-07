@@ -12,6 +12,10 @@
  - split 'apt-update-upgrade' config module into 'apt-configure' and
    'package-update-upgrade-install'.  The 'package-update-upgrade-install'
    will be a cross distro module.
+ - Cleanups:
+   - Remove usage of paths.join, as all code should run through util helpers
+   - Fix pylint complaining about tests folder 'helpers.py' not being found
+   - Add a pylintrc file that is used instead options hidden in 'run_pylint'
 0.7.0:
  - add a 'exception_cb' argument to 'wait_for_url'.  If provided, this
    method will be called back with the exception received and the message.
