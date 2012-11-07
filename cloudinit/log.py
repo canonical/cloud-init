@@ -53,6 +53,18 @@ def setupBasicLogging():
     root.setLevel(DEBUG)
 
 
+def flushLoggers(root):
+    if not root:
+        return
+    for h in root.handlers:
+        if isinstance(h, (logging.StreamHandler)):
+            try:
+                h.flush()
+            except IOError:
+                pass
+    flushLoggers(root.parent)
+
+
 def setupLogging(cfg=None):
     # See if the config provides any logging conf...
     if not cfg:
