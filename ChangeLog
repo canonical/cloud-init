@@ -3,6 +3,9 @@
  - config-drive: map hostname to local-hostname (LP: #1061964)
  - landscape: install landscape-client package if not installed.
    only take action if cloud-config is present (LP: #1066115)
+ - split 'apt-update-upgrade' config module into 'apt-configure' and
+   'package-update-upgrade-install'.  The 'package-update-upgrade-install'
+   will be a cross distro module.
 0.7.0:
  - add a 'exception_cb' argument to 'wait_for_url'.  If provided, this
    method will be called back with the exception received and the message.
