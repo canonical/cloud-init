@@ -22,7 +22,7 @@ locale_warn() {
 		case "$w1" in
 			locale:) bad_names="${bad_names} ${w4}";;
 			*)
-				key=${w1%%\=*}
+				key=${w1%%=*}
 				val=${w1#*=}
 				val=${val#\"}
 				val=${val%\"}
@@ -31,7 +31,7 @@ locale_warn() {
 	done
 	for bad in $bad_names; do
 		for var in ${vars}; do
-			[ "${bad}" = "${var%\=*}" ] || continue
+			[ "${bad}" = "${var%=*}" ] || continue
 			value=${var#*=}
 			[ "${bad_lcs#* ${value}}" = "${bad_lcs}" ] &&
         			bad_lcs="${bad_lcs} ${value}"
