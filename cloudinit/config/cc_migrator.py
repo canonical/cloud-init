@@ -46,14 +46,16 @@ def _migrate_canon_sems(cloud):
 
 def _migrate_legacy_sems(cloud, log):
     sem_path = cloud.paths.get_ipath('sem')
-    touch_there = {
+    if not sem_path or not os.path.exists(sem_path):
+        return
+    legacy_adjust = {
         'apt-update-upgrade': [
             'apt-configure',
             'package-update-upgrade-install',
         ],
     }
     sem_helper = helpers.FileSemaphores(sem_path)
-    for (mod_name, migrate_to) in touch_there.items():
+    for (mod_name, migrate_to) in legacy_adjust.items():
         possibles = [mod_name, helpers.canon_sem_name(mod_name)]
         old_exists = []
         for p in os.listdir(sem_path):
