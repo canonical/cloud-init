@@ -10,9 +10,7 @@
 #
 
 locale_warn() {
-	local cr="
-"
-	local bad_names="" bad_lcs="" key="" value="" var=""
+	local bad_names="" bad_lcs="" key="" val="" var="" vars=""
 	local w1 w2 w3 w4 remain
 	# locale is expected to output either:
 	# VARIABLE=
@@ -32,9 +30,9 @@ locale_warn() {
 	for bad in $bad_names; do
 		for var in ${vars}; do
 			[ "${bad}" = "${var%=*}" ] || continue
-			value=${var#*=}
-			[ "${bad_lcs#* ${value}}" = "${bad_lcs}" ] &&
-        			bad_lcs="${bad_lcs} ${value}"
+			val=${var#*=}
+			[ "${bad_lcs#* ${val}}" = "${bad_lcs}" ] &&
+        			bad_lcs="${bad_lcs} ${val}"
 			break
 		done
 	done
