@@ -12,6 +12,11 @@
 locale_warn() {
 	local bad_names="" bad_lcs="" key="" val="" var="" vars=""
 	local w1 w2 w3 w4 remain
+
+	# if shell is zsh, act like sh only for this function (-L).
+	# The behavior change will not permenently affect user's shell.
+	[ "${ZSH_NAME+zsh}" = "zsh" ] && emulate -L sh
+
 	# locale is expected to output either:
 	# VARIABLE=
 	# VARIABLE="value"
