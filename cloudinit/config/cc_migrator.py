@@ -35,12 +35,39 @@ def _migrate_canon_sems(cloud):
     for p in os.listdir(sem_path):
         full_path = os.path.join(sem_path, p)
         if os.path.isfile(full_path):
-            canon_p = helpers.canon_sem_name(p)
-            if canon_p != p:
-                new_path = os.path.join(sem_path, p)
+            (name, ext) = os.path.splitext(p)
+            canon_name = helpers.canon_sem_name(name)
+            if canon_name != name:
+                new_path = os.path.join(sem_path, canon_name + ext)
                 shutil.move(full_path, new_path)
                 am_adjusted += 1
     return am_adjusted
+
+
+def _migrate_legacy_sems(cloud, log):
+    sem_path = cloud.paths.get_ipath('sem')
+    touch_there = {
+        'apt-update-upgrade': [
+            'apt-configure',
+            'package-update-upgrade-install',
+        ],
+    }
+    sem_helper = helpers.FileSemaphores(sem_path)
+    for (mod_name, migrate_to) in touch_there.items():
+        possibles = [mod_name, helpers.canon_sem_name(mod_name)]
+        old_exists = []
+        for p in os.listdir(sem_path):
+            (name, _ext) = os.path.splitext(p)
+            if name in possibles and os.path.isfile(p):
+                old_exists.append(p)
+        for p in old_exists:
+            util.del_file(os.path.join(sem_path, p))
+            (_name, freq) = os.path.splitext(p)
+            for m in migrate_to:
+                log.debug("Migrating %s => %s with the same frequency",
+                          p, m)
+                with sem_helper.lock(m, freq):
+                    pass
 
 
 def handle(name, cfg, cloud, log, _args):
@@ -51,3 +78,4 @@ def handle(name, cfg, cloud, log, _args):
     sems_moved = _migrate_canon_sems(cloud)
     log.debug("Migrated %s semaphore files to there canonicalized names",
               sems_moved)
+    _migrate_legacy_sems(cloud, log)
