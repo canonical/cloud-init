@@ -355,8 +355,7 @@ rsyslog:
  - ':syslogtag, isequal, "[CLOUDINIT]" /var/log/cloud-foo.log'
  - content: "*.*   @@192.0.2.1:10514"
  - filename: 01-examplecom.conf
-   content: |
-   *.*   @@syslogd.example.com
+   content: "*.*   @@syslogd.example.com"
 
 # resize_rootfs should the / filesytem be resized on first boot
 # this allows you to launch an instance with a larger disk / partition
