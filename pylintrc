@@ -1,0 +1,19 @@
+[General]
+init-hook='import sys; sys.path.append("tests/")'
+
+[MESSAGES CONTROL]
+# See: http://pylint-messages.wikidot.com/all-codes
+# W0142: *args and **kwargs are fine.
+# W0511: TODOs in code comments are fine.
+# W0702: No exception type(s) specified
+# W0703: Catch "Exception"
+# C0103: Invalid name
+# C0111: Missing docstring
+disable=W0142,W0511,W0702,W0703,C0103,C0111
+
+[REPORTS]
+reports=no
+include-ids=yes
+
+[FORMAT]
+max-line-length=79

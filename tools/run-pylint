@@ -6,23 +6,16 @@ else
    files=( "$@" );
 fi 
 
+RC_FILE="pylintrc"
+if [ ! -f $RC_FILE ]; then
+    RC_FILE="../pylintrc"
+fi
+
 cmd=(
     pylint
-    --reports=n
-    --include-ids=y
-    --max-line-length=79
-
+    --rcfile=$RC_FILE
     --disable=R
     --disable=I
-
-    --disable=W0142 # Used * or ** magic
-    --disable=W0511 # TODO/FIXME note
-    --disable=W0702 # No exception type(s) specified
-    --disable=W0703 # Catch "Exception"
-
-    --disable=C0103 # Invalid name
-    --disable=C0111 # Missing docstring
-
     "${files[@]}"
 )
 

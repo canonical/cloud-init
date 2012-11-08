@@ -37,10 +37,7 @@ LOG = logging.getLogger(__name__)
 
 
 class Distro(object):
-
     __metaclass__ = abc.ABCMeta
-    default_user = None
-    default_user_groups = None
 
     def __init__(self, name, cfg, paths):
         self._paths = paths
@@ -84,7 +81,7 @@ class Distro(object):
 
     def _get_arch_package_mirror_info(self, arch=None):
         mirror_info = self.get_option("package_mirrors", [])
-        if arch == None:
+        if not arch:
             arch = self.get_primary_arch()
         return _get_arch_package_mirror_info(mirror_info, arch)
 
@@ -125,8 +122,7 @@ class Distro(object):
         new_etchosts = StringIO()
         need_write = False
         need_change = True
-        hosts_ro_fn = self._paths.join(True, "/etc/hosts")
-        for line in util.load_file(hosts_ro_fn).splitlines():
+        for line in util.load_file("/etc/hosts").splitlines():
             if line.strip().startswith(header):
                 continue
             if not line.strip() or line.strip().startswith("#"):
@@ -150,8 +146,7 @@ class Distro(object):
             need_write = True
         if need_write:
             contents = new_etchosts.getvalue()
-            util.write_file(self._paths.join(False, "/etc/hosts"),
-                            contents, mode=0644)
+            util.write_file("/etc/hosts", contents, mode=0644)
 
     def _bring_up_interface(self, device_name):
         cmd = ['ifup', device_name]
@@ -176,22 +171,7 @@ class Distro(object):
         return False
 
     def get_default_user(self):
-        if not self.default_user:
-            return None
-        user_cfg = {
-            'name': self.default_user,
-            'plain_text_passwd': self.default_user,
-            'home': "/home/%s" % (self.default_user),
-            'shell': "/bin/bash",
-            'lock_passwd': True,
-            'gecos': "%s" % (self.default_user.title()),
-            'sudo': "ALL=(ALL) NOPASSWD:ALL",
-        }
-        def_groups = self.default_user_groups
-        if not def_groups:
-            def_groups = []
-        user_cfg['groups'] = util.uniq_merge_sorted(def_groups)
-        return user_cfg
+        return self.get_option('default_user')
 
     def create_user(self, name, **kwargs):
         """
@@ -207,23 +187,23 @@ class Distro(object):
         # inputs. If something goes wrong, we can end up with a system
         # that nobody can login to.
         adduser_opts = {
-                "gecos": '--comment',
-                "homedir": '--home',
-                "primary_group": '--gid',
-                "groups": '--groups',
-                "passwd": '--password',
-                "shell": '--shell',
-                "expiredate": '--expiredate',
-                "inactive": '--inactive',
-                "selinux_user": '--selinux-user',
-                }
+            "gecos": '--comment',
+            "homedir": '--home',
+            "primary_group": '--gid',
+            "groups": '--groups',
+            "passwd": '--password',
+            "shell": '--shell',
+            "expiredate": '--expiredate',
+            "inactive": '--inactive',
+            "selinux_user": '--selinux-user',
+        }
 
         adduser_opts_flags = {
-                "no_user_group": '--no-user-group',
-                "system": '--system',
-                "no_log_init": '--no-log-init',
-                "no_create_home": "-M",
-                }
+            "no_user_group": '--no-user-group',
+            "system": '--system',
+            "no_log_init": '--no-log-init',
+            "no_create_home": "-M",
+        }
 
         # Now check the value and create the command
         for option in kwargs:
@@ -251,7 +231,7 @@ class Distro(object):
         if util.is_user(name):
             LOG.warn("User %s already exists, skipping." % name)
         else:
-            LOG.debug("Creating name %s" % name)
+            LOG.debug("Adding user named %s", name)
             try:
                 util.subp(adduser_cmd, logstring=x_adduser_cmd)
             except Exception as e:
@@ -280,7 +260,7 @@ class Distro(object):
         # Import SSH keys
         if 'ssh_authorized_keys' in kwargs:
             keys = set(kwargs['ssh_authorized_keys']) or []
-            ssh_util.setup_user_keys(keys, name, None, self._paths)
+            ssh_util.setup_user_keys(keys, name, key_prefix=None)
 
         return True
 
@@ -299,11 +279,42 @@ class Distro(object):
 
         return True
 
-    def write_sudo_rules(self,
-        user,
-        rules,
-        sudo_file="/etc/sudoers.d/90-cloud-init-users",
-        ):
+    def ensure_sudo_dir(self, path, sudo_base='/etc/sudoers'):
+        # Ensure the dir is included and that
+        # it actually exists as a directory
+        sudoers_contents = ''
+        if os.path.exists(sudo_base):
+            sudoers_contents = util.load_file(sudo_base)
+        found_include = False
+        for line in sudoers_contents.splitlines():
+            line = line.strip()
+            include_match = re.search(r"^#includedir\s+(.*)$", line)
+            if not include_match:
+                continue
+            included_dir = include_match.group(1).strip()
+            if not included_dir:
+                continue
+            included_dir = os.path.abspath(included_dir)
+            if included_dir == path:
+                found_include = True
+                break
+        if not found_include:
+            sudoers_contents += "\n#includedir %s\n" % (path)
+            try:
+                if not os.path.exists(sudo_base):
+                    util.write_file(sudo_base, sudoers_contents, 0440)
+                else:
+                    with open(sudo_base, 'a') as f:
+                        f.write(sudoers_contents)
+                LOG.debug("added '#includedir %s' to %s" % (path, sudo_base))
+            except IOError as e:
+                util.logexc(LOG, "Failed to write %s" % sudo_base, e)
+                raise e
+        util.ensure_dir(path, 0755)
+
+    def write_sudo_rules(self, user, rules, sudo_file=None):
+        if not sudo_file:
+            sudo_file = "/etc/sudoers.d/90-cloud-init-users"
 
         content_header = "# user rules for %s" % user
         content = "%s\n%s %s\n\n" % (content_header, user, rules)
@@ -314,13 +325,13 @@ class Distro(object):
                 content += "%s %s\n" % (user, rule)
             content += "\n"
 
+        self.ensure_sudo_dir(os.path.dirname(sudo_file))
+
         if not os.path.exists(sudo_file):
             util.write_file(sudo_file, content, 0440)
-
         else:
             try:
-                with open(sudo_file, 'a') as f:
-                    f.write(content)
+                util.append_file(sudo_file, content)
             except IOError as e:
                 util.logexc(LOG, "Failed to write %s" % sudo_file, e)
                 raise e
@@ -439,7 +450,7 @@ def _normalize_groups(grp_cfg):
 # configuration.
 #
 # The output is a dictionary of user
-# names => user config which is the standard 
+# names => user config which is the standard
 # form used in the rest of cloud-init. Note
 # the default user will have a special config
 # entry 'default' which will be marked as true
@@ -504,6 +515,7 @@ def _normalize_users(u_cfg, def_user_cfg=None):
             # Pickup what the default 'real name' is
             # and any groups that are provided by the
             # default config
+            def_user_cfg = def_user_cfg.copy()
             def_user = def_user_cfg.pop('name')
             def_groups = def_user_cfg.pop('groups', [])
             # Pickup any config + groups for that user name

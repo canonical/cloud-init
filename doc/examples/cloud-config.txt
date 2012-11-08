@@ -3,15 +3,20 @@
 # (ie run apt-get update)
 #
 # Default: true
-#
-apt_update: false
+# Aliases: apt_update
+package_update: false
 
 # Upgrade the instance on first boot
 # (ie run apt-get upgrade)
 #
 # Default: false
-#
-apt_upgrade: true
+# Aliases: apt_upgrade
+package_upgrade: true
+
+# Reboot after package install/update if necessary
+# Default: false
+# Aliases: apt_reboot_if_required
+package_reboot_if_required: true
 
 # Add apt repositories
 #

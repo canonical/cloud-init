@@ -66,8 +66,8 @@ def cloud_import_alphabetical(physical_line, line_number, lines):
     # handle import x
     # use .lower since capitalization shouldn't dictate order
     split_line = import_normalize(physical_line.strip()).lower().split()
-    split_previous = import_normalize(lines[line_number - 2]
-            ).strip().lower().split()
+    split_previous = import_normalize(lines[line_number - 2])
+    split_previous = split_previous.strip().lower().split()
     # with or without "as y"
     length = [2, 4]
     if (len(split_line) in length and len(split_previous) in length and

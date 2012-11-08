@@ -62,7 +62,7 @@ def get_fs_type(st_dev, path, log):
         raise
 
 
-def handle(name, cfg, cloud, log, args):
+def handle(name, cfg, _cloud, log, args):
     if len(args) != 0:
         resize_root = args[0]
     else:
@@ -74,11 +74,10 @@ def handle(name, cfg, cloud, log, args):
 
     # TODO(harlowja) is the directory ok to be used??
     resize_root_d = util.get_cfg_option_str(cfg, "resize_rootfs_tmp", "/run")
-    resize_root_d = cloud.paths.join(False, resize_root_d)
     util.ensure_dir(resize_root_d)
 
     # TODO(harlowja): allow what is to be resized to be configurable??
-    resize_what = cloud.paths.join(False, "/")
+    resize_what = "/"
     with util.ExtendedTemporaryFile(prefix="cloudinit.resizefs.",
                                     dir=resize_root_d, delete=True) as tfh:
         devpth = tfh.name
