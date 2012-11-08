@@ -71,12 +71,17 @@ class FileLock(object):
         return "<%s using file %r>" % (util.obj_name(self), self.fn)
 
 
+def canon_sem_name(name):
+    return name.replace("-", "_")
+
+
 class FileSemaphores(object):
-    def __init__(self, sem_path):
+    def __init__(self, sem_path):   
         self.sem_path = sem_path
 
     @contextlib.contextmanager
     def lock(self, name, freq, clear_on_fail=False):
+        name = canon_sem_name(name)
         try:
             yield self._acquire(name, freq)
         except:
@@ -85,6 +90,7 @@ class FileSemaphores(object):
             raise
 
     def clear(self, name, freq):
+        name = canon_sem_name(name)
         sem_file = self._get_path(name, freq)
         try:
             util.del_file(sem_file)
@@ -119,6 +125,7 @@ class FileSemaphores(object):
     def has_run(self, name, freq):
         if not freq or freq == PER_ALWAYS:
             return False
+        name = canon_sem_name(name)
         sem_file = self._get_path(name, freq)
         # This isn't really a good atomic check
         # but it suffices for where and when cloudinit runs
