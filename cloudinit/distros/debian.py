@@ -43,7 +43,7 @@ class Distro(distros.Distro):
 
     def apply_locale(self, locale, out_fn=None):
         if not out_fn:
-            out_fn = self._paths.join(False, '/etc/default/locale')
+            out_fn = '/etc/default/locale'
         util.subp(['locale-gen', locale], capture=False)
         util.subp(['update-locale', locale], capture=False)
         lines = ["# Created by cloud-init", 'LANG="%s"' % (locale), ""]
@@ -54,8 +54,7 @@ class Distro(distros.Distro):
         self.package_command('install', pkglist)
 
     def _write_network(self, settings):
-        net_fn = self._paths.join(False, "/etc/network/interfaces")
-        util.write_file(net_fn, settings)
+        util.write_file("/etc/network/interfaces", settings)
         return ['all']
 
     def _bring_up_interfaces(self, device_names):
@@ -69,12 +68,9 @@ class Distro(distros.Distro):
             return distros.Distro._bring_up_interfaces(self, device_names)
 
     def set_hostname(self, hostname):
-        out_fn = self._paths.join(False, "/etc/hostname")
-        self._write_hostname(hostname, out_fn)
-        if out_fn == '/etc/hostname':
-            # Only do this if we are running in non-adjusted root mode
-            LOG.debug("Setting hostname to %s", hostname)
-            util.subp(['hostname', hostname])
+        self._write_hostname(hostname, "/etc/hostname")
+        LOG.debug("Setting hostname to %s", hostname)
+        util.subp(['hostname', hostname])
 
     def _write_hostname(self, hostname, out_fn):
         # "" gives trailing newline.
@@ -82,16 +78,14 @@ class Distro(distros.Distro):
 
     def update_hostname(self, hostname, prev_fn):
         hostname_prev = self._read_hostname(prev_fn)
-        read_fn = self._paths.join(True, "/etc/hostname")
-        hostname_in_etc = self._read_hostname(read_fn)
+        hostname_in_etc = self._read_hostname("/etc/hostname")
         update_files = []
         if not hostname_prev or hostname_prev != hostname:
             update_files.append(prev_fn)
         if (not hostname_in_etc or
             (hostname_in_etc == hostname_prev and
              hostname_in_etc != hostname)):
-            write_fn = self._paths.join(False, "/etc/hostname")
-            update_files.append(write_fn)
+            update_files.append("/etc/hostname")
         for fn in update_files:
             try:
                 self._write_hostname(hostname, fn)
@@ -103,7 +97,6 @@ class Distro(distros.Distro):
             LOG.debug(("%s differs from /etc/hostname."
                         " Assuming user maintained hostname."), prev_fn)
         if "/etc/hostname" in update_files:
-            # Only do this if we are running in non-adjusted root mode
             LOG.debug("Setting hostname to %s", hostname)
             util.subp(['hostname', hostname])
 
@@ -130,9 +123,8 @@ class Distro(distros.Distro):
                                 " no file found at %s") % (tz, tz_file))
         # "" provides trailing newline during join
         tz_lines = ["# Created by cloud-init", str(tz), ""]
-        tz_fn = self._paths.join(False, "/etc/timezone")
-        util.write_file(tz_fn, "\n".join(tz_lines))
-        util.copy(tz_file, self._paths.join(False, "/etc/localtime"))
+        util.write_file("/etc/timezone", "\n".join(tz_lines))
+        util.copy(tz_file, "/etc/localtime")
 
     def package_command(self, command, args=None):
         e = os.environ.copy()
