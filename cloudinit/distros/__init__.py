@@ -425,12 +425,36 @@ def _get_arch_package_mirror_info(package_mirrors, arch):
 # is the standard form used in the rest
 # of cloud-init
 def _normalize_groups(grp_cfg):
-    if isinstance(grp_cfg, (str, basestring, list)):
+    if isinstance(grp_cfg, (str, basestring)):
+        grp_cfg = grp_cfg.strip().split(",")
+    if isinstance(grp_cfg, (list)):
         c_grp_cfg = {}
-        for i in util.uniq_merge(grp_cfg):
-            c_grp_cfg[i] = []
+        for i in grp_cfg:
+            if isinstance(i, (dict)):
+                for k, v in i.items():
+                    if k not in c_grp_cfg:
+                        if isinstance(v, (list)):
+                            c_grp_cfg[k] = list(v)
+                        elif isinstance(v, (basestring, str)):
+                            c_grp_cfg[k] = [v]
+                        else:
+                            raise TypeError("Bad group member type %s" %
+                                            util.obj_name(v))
+                    else:
+                        if isinstance(v, (list)):
+                            c_grp_cfg[k].extend(v)
+                        elif isinstance(v, (basestring, str)):
+                            c_grp_cfg[k].append(v)
+                        else:
+                            raise TypeError("Bad group member type %s" %
+                                            util.obj_name(v))
+            elif isinstance(i, (str, basestring)):
+                if i not in c_grp_cfg:
+                    c_grp_cfg[i] = []
+            else:
+                raise TypeError("Unknown group name type %s" %
+                                util.obj_name(i))
         grp_cfg = c_grp_cfg
-
     groups = {}
     if isinstance(grp_cfg, (dict)):
         for (grp_name, grp_members) in grp_cfg.items():
