@@ -67,7 +67,7 @@ class Distro(distros.Distro):
         else:
             return distros.Distro._bring_up_interfaces(self, device_names)
 
-    def set_hostname(self, hostname):
+    def set_hostname(self, hostname, fqdn=None):
         self._write_hostname(hostname, "/etc/hostname")
         LOG.debug("Setting hostname to %s", hostname)
         util.subp(['hostname', hostname])
@@ -76,7 +76,7 @@ class Distro(distros.Distro):
         # "" gives trailing newline.
         util.write_file(out_fn, "%s\n" % str(hostname), 0644)
 
-    def update_hostname(self, hostname, prev_fn):
+    def update_hostname(self, hostname, fqdn, prev_fn):
         hostname_prev = self._read_hostname(prev_fn)
         hostname_in_etc = self._read_hostname("/etc/hostname")
         update_files = []
