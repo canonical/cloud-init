@@ -58,11 +58,11 @@ class Distro(object):
         return self._cfg.get(opt_name, default)
 
     @abc.abstractmethod
-    def set_hostname(self, hostname):
+    def set_hostname(self, hostname, fqdn=None):
         raise NotImplementedError()
 
     @abc.abstractmethod
-    def update_hostname(self, hostname, prev_hostname_fn):
+    def update_hostname(self, hostname, fqdn, prev_hostname_fn):
         raise NotImplementedError()
 
     @abc.abstractmethod
