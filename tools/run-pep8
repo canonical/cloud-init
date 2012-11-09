@@ -31,6 +31,7 @@ IGNORE="$IGNORE,E125" # Continuation line does not distinguish itself from next 
 IGNORE="$IGNORE,E126" # Continuation line over-indented for hanging indent
 IGNORE="$IGNORE,E127" # Continuation line over-indented for visual indent
 IGNORE="$IGNORE,E128" # Continuation line under-indented for visual indent
+IGNORE="$IGNORE,E502" # The backslash is redundant between brackets
 
 cmd=(
     ${base}/hacking.py
