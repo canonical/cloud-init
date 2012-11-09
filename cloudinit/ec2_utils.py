@@ -49,6 +49,7 @@ def _unlazy_dict(mp):
         return mp
     for (k, v) in mp.items():
         _unlazy_dict(v)
+    return mp
 
 
 def get_instance_userdata(api_version, metadata_address):
