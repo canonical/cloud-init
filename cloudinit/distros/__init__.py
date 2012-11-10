@@ -283,8 +283,10 @@ class Distro(object):
         # Ensure the dir is included and that
         # it actually exists as a directory
         sudoers_contents = ''
+        base_exists = False
         if os.path.exists(sudo_base):
             sudoers_contents = util.load_file(sudo_base)
+            base_exists = True
         found_include = False
         for line in sudoers_contents.splitlines():
             line = line.strip()
@@ -299,18 +301,24 @@ class Distro(object):
                 found_include = True
                 break
         if not found_include:
-            sudoers_contents += "\n#includedir %s\n" % (path)
             try:
-                if not os.path.exists(sudo_base):
+                if not base_exists:
+                    lines = [('# See sudoers(5) for more information'
+                              ' on "#include" directives:'), '',
+                             '# Added by cloud-init',
+                             "#includedir %s" % (path), '']
+                    sudoers_contents = "\n".join(lines)
                     util.write_file(sudo_base, sudoers_contents, 0440)
                 else:
-                    with open(sudo_base, 'a') as f:
-                        f.write(sudoers_contents)
-                LOG.debug("added '#includedir %s' to %s" % (path, sudo_base))
+                    lines = ['', '# Added by cloud-init',
+                             "#includedir %s" % (path), '']
+                    sudoers_contents = "\n".join(lines)
+                    util.append_file(sudo_base, sudoers_contents)
+                LOG.debug("Added '#includedir %s' to %s" % (path, sudo_base))
             except IOError as e:
                 util.logexc(LOG, "Failed to write %s" % sudo_base, e)
                 raise e
-        util.ensure_dir(path, 0755)
+        util.ensure_dir(path, 0750)
 
     def write_sudo_rules(self,
         user,
