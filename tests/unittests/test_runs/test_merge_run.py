@@ -7,7 +7,7 @@ from cloudinit import stages
 from cloudinit import util
 
 
-class TestSimpleRun(helpers.FilesystemMockingTestCase):
+class TestMergeRun(helpers.FilesystemMockingTestCase):
     def _patchIn(self, root):
         self.restore()
         self.patchOS(root)
