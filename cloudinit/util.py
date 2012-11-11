@@ -1193,8 +1193,7 @@ def yaml_dumps(obj):
                     indent=4,
                     explicit_start=True,
                     explicit_end=True,
-                    default_flow_style=False,
-                    )
+                    default_flow_style=False)
     return formatted
 
 

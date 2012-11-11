@@ -187,23 +187,23 @@ class Distro(object):
         # inputs. If something goes wrong, we can end up with a system
         # that nobody can login to.
         adduser_opts = {
-                "gecos": '--comment',
-                "homedir": '--home',
-                "primary_group": '--gid',
-                "groups": '--groups',
-                "passwd": '--password',
-                "shell": '--shell',
-                "expiredate": '--expiredate',
-                "inactive": '--inactive',
-                "selinux_user": '--selinux-user',
-                }
+            "gecos": '--comment',
+            "homedir": '--home',
+            "primary_group": '--gid',
+            "groups": '--groups',
+            "passwd": '--password',
+            "shell": '--shell',
+            "expiredate": '--expiredate',
+            "inactive": '--inactive',
+            "selinux_user": '--selinux-user',
+        }
 
         adduser_opts_flags = {
-                "no_user_group": '--no-user-group',
-                "system": '--system',
-                "no_log_init": '--no-log-init',
-                "no_create_home": "-M",
-                }
+            "no_user_group": '--no-user-group',
+            "system": '--system',
+            "no_log_init": '--no-log-init',
+            "no_create_home": "-M",
+        }
 
         # Now check the value and create the command
         for option in kwargs:
@@ -320,11 +320,9 @@ class Distro(object):
                 raise e
         util.ensure_dir(path, 0750)
 
-    def write_sudo_rules(self,
-        user,
-        rules,
-        sudo_file="/etc/sudoers.d/90-cloud-init-users",
-        ):
+    def write_sudo_rules(self, user, rules, sudo_file=None):
+        if not sudo_file:
+            sudo_file = "/etc/sudoers.d/90-cloud-init-users"
 
         content_header = "# user rules for %s" % user
         content = "%s\n%s %s\n\n" % (content_header, user, rules)
