@@ -1,0 +1,20 @@
+#cloud-config
+# vim: syntax=yaml
+#
+# Add yum repository configuration to the system
+#
+# The following example adds the file /etc/yum.repos.d/epel_testing.repo
+# which can then subsequently be used by yum for later operations.
+yum_repos:
+    # The name of the repository
+    epel-testing:
+        # Any repository configuration options
+        # See: man yum.conf
+        #
+        # This one is required!
+        baseurl: http://download.fedoraproject.org/pub/epel/testing/5/$basearch
+        enabled: false
+        failovermethod: priority
+        gpgcheck: true
+        gpgkey: file:///etc/pki/rpm-gpg/RPM-GPG-KEY-EPEL
+        name: Extra Packages for Enterprise Linux 5 - Testing
