@@ -22,6 +22,7 @@
  - add yaml/cloud config examples checking tool [revno 706]
  - Fix the merging of group configuration when that group configuration is a
    dict => members. [revno 707]
+ - add yum_add_repo configuration module for adding additional yum repos
 0.7.0:
  - add a 'exception_cb' argument to 'wait_for_url'.  If provided, this
    method will be called back with the exception received and the message.
