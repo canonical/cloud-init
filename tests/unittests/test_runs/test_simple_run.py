@@ -37,11 +37,13 @@ class TestSimpleRun(helpers.FilesystemMockingTestCase):
         self.replicateTestRoot('simple_ubuntu', new_root)
         cfg = {
             'datasource_list': ['None'],
-            'write_files': [{
+            'write_files': [
+                {
                     'path': '/etc/blah.ini',
                     'content': 'blah',
                     'permissions': 0755,
-            }],
+                },
+            ],
             'cloud_init_modules': ['write-files'],
         }
         cloud_cfg = util.yaml_dumps(cfg)
