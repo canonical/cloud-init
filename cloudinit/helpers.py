@@ -76,7 +76,7 @@ def canon_sem_name(name):
 
 
 class FileSemaphores(object):
-    def __init__(self, sem_path):   
+    def __init__(self, sem_path):
         self.sem_path = sem_path
 
     @contextlib.contextmanager

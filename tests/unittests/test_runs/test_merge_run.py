@@ -33,7 +33,7 @@ class TestMergeRun(helpers.FilesystemMockingTestCase):
         initer.initialize()
         initer.fetch()
         initer.datasource.userdata_raw = ud
-        iid = initer.instancify()
+        _iid = initer.instancify()
         initer.update()
         initer.cloudify().run('consume_userdata',
                               initer.consume_userdata,
