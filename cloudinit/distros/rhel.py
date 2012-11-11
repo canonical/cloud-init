@@ -146,8 +146,13 @@ class Distro(distros.Distro):
                 lines.insert(0, _make_header())
             util.write_file(fn, "\n".join(lines), 0644)
 
-    def set_hostname(self, hostname):
-        self._write_hostname(hostname, '/etc/sysconfig/network')
+    def set_hostname(self, hostname, fqdn=None):
+        # See: http://bit.ly/TwitgL
+        # Should be fqdn if we can use it
+        sysconfig_hostname = fqdn
+        if not sysconfig_hostname:
+            sysconfig_hostname = hostname
+        self._write_hostname(sysconfig_hostname, '/etc/sysconfig/network')
         LOG.debug("Setting hostname to %s", hostname)
         util.subp(['hostname', hostname])
 
@@ -165,28 +170,32 @@ class Distro(distros.Distro):
         }
         self._update_sysconfig_file(out_fn, host_cfg)
 
-    def update_hostname(self, hostname, prev_file):
+    def update_hostname(self, hostname, fqdn, prev_file):
+        # See: http://bit.ly/TwitgL
+        # Should be fqdn if we can use it
+        sysconfig_hostname = fqdn
+        if not sysconfig_hostname:
+            sysconfig_hostname = hostname
         hostname_prev = self._read_hostname(prev_file)
         hostname_in_sys = self._read_hostname("/etc/sysconfig/network")
         update_files = []
-        if not hostname_prev or hostname_prev != hostname:
+        if not hostname_prev or hostname_prev != sysconfig_hostname:
             update_files.append(prev_file)
         if (not hostname_in_sys or
             (hostname_in_sys == hostname_prev
-             and hostname_in_sys != hostname)):
+             and hostname_in_sys != sysconfig_hostname)):
             update_files.append("/etc/sysconfig/network")
         for fn in update_files:
             try:
-                self._write_hostname(hostname, fn)
+                self._write_hostname(sysconfig_hostname, fn)
             except:
                 util.logexc(LOG, "Failed to write hostname %s to %s",
-                            hostname, fn)
+                            sysconfig_hostname, fn)
         if (hostname_in_sys and hostname_prev and
             hostname_in_sys != hostname_prev):
             LOG.debug(("%s differs from /etc/sysconfig/network."
                         " Assuming user maintained hostname."), prev_file)
         if "/etc/sysconfig/network" in update_files:
-            # Only do this if we are running in non-adjusted root mode
             LOG.debug("Setting hostname to %s", hostname)
             util.subp(['hostname', hostname])
 

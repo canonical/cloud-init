@@ -58,11 +58,11 @@ class Distro(object):
         return self._cfg.get(opt_name, default)
 
     @abc.abstractmethod
-    def set_hostname(self, hostname):
+    def set_hostname(self, hostname, fqdn=None):
         raise NotImplementedError()
 
     @abc.abstractmethod
-    def update_hostname(self, hostname, prev_hostname_fn):
+    def update_hostname(self, hostname, fqdn, prev_hostname_fn):
         raise NotImplementedError()
 
     @abc.abstractmethod
@@ -283,8 +283,10 @@ class Distro(object):
         # Ensure the dir is included and that
         # it actually exists as a directory
         sudoers_contents = ''
+        base_exists = False
         if os.path.exists(sudo_base):
             sudoers_contents = util.load_file(sudo_base)
+            base_exists = True
         found_include = False
         for line in sudoers_contents.splitlines():
             line = line.strip()
@@ -299,18 +301,24 @@ class Distro(object):
                 found_include = True
                 break
         if not found_include:
-            sudoers_contents += "\n#includedir %s\n" % (path)
             try:
-                if not os.path.exists(sudo_base):
+                if not base_exists:
+                    lines = [('# See sudoers(5) for more information'
+                              ' on "#include" directives:'), '',
+                             '# Added by cloud-init',
+                             "#includedir %s" % (path), '']
+                    sudoers_contents = "\n".join(lines)
                     util.write_file(sudo_base, sudoers_contents, 0440)
                 else:
-                    with open(sudo_base, 'a') as f:
-                        f.write(sudoers_contents)
-                LOG.debug("added '#includedir %s' to %s" % (path, sudo_base))
+                    lines = ['', '# Added by cloud-init',
+                             "#includedir %s" % (path), '']
+                    sudoers_contents = "\n".join(lines)
+                    util.append_file(sudo_base, sudoers_contents)
+                LOG.debug("Added '#includedir %s' to %s" % (path, sudo_base))
             except IOError as e:
                 util.logexc(LOG, "Failed to write %s" % sudo_base, e)
                 raise e
-        util.ensure_dir(path, 0755)
+        util.ensure_dir(path, 0750)
 
     def write_sudo_rules(self, user, rules, sudo_file=None):
         if not sudo_file:
@@ -423,12 +431,36 @@ def _get_arch_package_mirror_info(package_mirrors, arch):
 # is the standard form used in the rest
 # of cloud-init
 def _normalize_groups(grp_cfg):
-    if isinstance(grp_cfg, (str, basestring, list)):
+    if isinstance(grp_cfg, (str, basestring)):
+        grp_cfg = grp_cfg.strip().split(",")
+    if isinstance(grp_cfg, (list)):
         c_grp_cfg = {}
-        for i in util.uniq_merge(grp_cfg):
-            c_grp_cfg[i] = []
+        for i in grp_cfg:
+            if isinstance(i, (dict)):
+                for k, v in i.items():
+                    if k not in c_grp_cfg:
+                        if isinstance(v, (list)):
+                            c_grp_cfg[k] = list(v)
+                        elif isinstance(v, (basestring, str)):
+                            c_grp_cfg[k] = [v]
+                        else:
+                            raise TypeError("Bad group member type %s" %
+                                            util.obj_name(v))
+                    else:
+                        if isinstance(v, (list)):
+                            c_grp_cfg[k].extend(v)
+                        elif isinstance(v, (basestring, str)):
+                            c_grp_cfg[k].append(v)
+                        else:
+                            raise TypeError("Bad group member type %s" %
+                                            util.obj_name(v))
+            elif isinstance(i, (str, basestring)):
+                if i not in c_grp_cfg:
+                    c_grp_cfg[i] = []
+            else:
+                raise TypeError("Unknown group name type %s" %
+                                util.obj_name(i))
         grp_cfg = c_grp_cfg
-
     groups = {}
     if isinstance(grp_cfg, (dict)):
         for (grp_name, grp_members) in grp_cfg.items():
