@@ -49,6 +49,7 @@ from cloudinit import util
 
 LOG = logging.getLogger(__name__)
 
+NULL_DATA_SOURCE = DataSourceNone.DataSourceNone({}, None, None)
 
 class Init(object):
     def __init__(self, ds_deps=None):
@@ -61,7 +62,7 @@ class Init(object):
         self._paths = None
         self._distro = None
         # Changed only when a fetch occurs
-        self.datasource = DataSourceNone.DataSourceNone({}, None, None)
+        self.datasource = NULL_DATA_SOURCE
 
     def _reset(self, ds=False):
         # Recreated on access
@@ -69,7 +70,7 @@ class Init(object):
         self._paths = None
         self._distro = None
         if ds:
-            self.datasource = DataSourceNone.DataSourceNone({}, None, None)
+            self.datasource = NULL_DATA_SOURCE
 
     @property
     def distro(self):
@@ -201,7 +202,7 @@ class Init(object):
             return None
 
     def _write_to_cache(self):
-        if not self.datasource:
+        if self.datasource is NULL_DATA_SOURCE:
             return False
         pickled_fn = self.paths.get_ipath_cur("obj_pkl")
         try:
@@ -227,7 +228,7 @@ class Init(object):
         return (cfg_list, pkg_list)
 
     def _get_data_source(self):
-        if self.datasource:
+        if self.datasource is not NULL_DATA_SOURCE:
             return self.datasource
         ds = self._restore_from_cache()
         if ds:
