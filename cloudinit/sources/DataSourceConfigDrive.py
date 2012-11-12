@@ -218,6 +218,11 @@ class DataSourceConfigDrive(sources.DataSource):
 
         return True
 
+    def get_public_ssh_keys(self):
+        if not 'public-keys' in self.metadata:
+            return []
+        return self.metadata['public-keys']
+
 
 class DataSourceConfigDriveNet(DataSourceConfigDrive):
     def __init__(self, sys_cfg, distro, paths):
@@ -325,13 +330,6 @@ def read_config_drive_dir_v2(source_dir, version="2012-08-10"):
             results['metadata']['instance-id'] = results['metadata']['uuid']
         except KeyError:
             raise BrokenConfigDriveDir("No uuid entry in metadata")
-
-    # other datasources (and config-drive-v1) populate metadata['public-keys']
-    # where as with config-drive-v2, that would be 'public_keys'.  So, just
-    # copy the field if it is present
-    if ('public_keys' in results['metadata'] and not
-        'public-keys' in results['metadata']):
-        results['public-keys'] = results['public_keys']
 
     def read_content_path(item):
         # do not use os.path.join here, as content_path starts with /
