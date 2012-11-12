@@ -50,4 +50,3 @@ runcmd:
  
 
 byobu_by_default: user
-output: {all: '| tee -a /var/log/cloud-init-output.log'}

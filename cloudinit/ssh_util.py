@@ -212,17 +212,15 @@ def update_authorized_keys(old_entries, keys):
     return '\n'.join(lines)
 
 
-def users_ssh_info(username, paths):
+def users_ssh_info(username):
     pw_ent = pwd.getpwnam(username)
-    if not pw_ent:
+    if not pw_ent or not pw_ent.pw_dir:
         raise RuntimeError("Unable to get ssh info for user %r" % (username))
-    ssh_dir = paths.join(False, os.path.join(pw_ent.pw_dir, '.ssh'))
-    return (ssh_dir, pw_ent)
+    return (os.path.join(pw_ent.pw_dir, '.ssh'), pw_ent)
 
 
-def extract_authorized_keys(username, paths):
-    (ssh_dir, pw_ent) = users_ssh_info(username, paths)
-    sshd_conf_fn = paths.join(True, DEF_SSHD_CFG)
+def extract_authorized_keys(username):
+    (ssh_dir, pw_ent) = users_ssh_info(username)
     auth_key_fn = None
     with util.SeLinuxGuard(ssh_dir, recursive=True):
         try:
@@ -231,7 +229,7 @@ def extract_authorized_keys(username, paths):
             # The following tokens are defined: %% is replaced by a literal
             # '%', %h is replaced by the home directory of the user being
             # authenticated and %u is replaced by the username of that user.
-            ssh_cfg = parse_ssh_config_map(sshd_conf_fn)
+            ssh_cfg = parse_ssh_config_map(DEF_SSHD_CFG)
             auth_key_fn = ssh_cfg.get("authorizedkeysfile", '').strip()
             if not auth_key_fn:
                 auth_key_fn = "%h/.ssh/authorized_keys"
@@ -240,7 +238,6 @@ def extract_authorized_keys(username, paths):
             auth_key_fn = auth_key_fn.replace("%%", '%')
             if not auth_key_fn.startswith('/'):
                 auth_key_fn = os.path.join(pw_ent.pw_dir, auth_key_fn)
-            auth_key_fn = paths.join(False, auth_key_fn)
         except (IOError, OSError):
             # Give up and use a default key filename
             auth_key_fn = os.path.join(ssh_dir, 'authorized_keys')
@@ -248,14 +245,13 @@ def extract_authorized_keys(username, paths):
                               " in ssh config"
                               " from %r, using 'AuthorizedKeysFile' file"
                               " %r instead"),
-                        sshd_conf_fn, auth_key_fn)
-    auth_key_entries = parse_authorized_keys(auth_key_fn)
-    return (auth_key_fn, auth_key_entries)
+                        DEF_SSHD_CFG, auth_key_fn)
+    return (auth_key_fn, parse_authorized_keys(auth_key_fn))
 
 
-def setup_user_keys(keys, username, key_prefix, paths):
+def setup_user_keys(keys, username, key_prefix):
     # Make sure the users .ssh dir is setup accordingly
-    (ssh_dir, pwent) = users_ssh_info(username, paths)
+    (ssh_dir, pwent) = users_ssh_info(username)
     if not os.path.isdir(ssh_dir):
         util.ensure_dir(ssh_dir, mode=0700)
         util.chownbyid(ssh_dir, pwent.pw_uid, pwent.pw_gid)
@@ -267,7 +263,7 @@ def setup_user_keys(keys, username, key_prefix, paths):
         key_entries.append(parser.parse(str(k), def_opt=key_prefix))
 
     # Extract the old and make the new
-    (auth_key_fn, auth_key_entries) = extract_authorized_keys(username, paths)
+    (auth_key_fn, auth_key_entries) = extract_authorized_keys(username)
     with util.SeLinuxGuard(ssh_dir, recursive=True):
         content = update_authorized_keys(auth_key_entries, key_entries)
         util.ensure_dir(os.path.dirname(auth_key_fn), mode=0700)
