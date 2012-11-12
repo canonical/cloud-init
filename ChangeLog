@@ -29,6 +29,23 @@
  - fix public key importing with config-drive-v2 datasource (LP: #1077700)
  - handle renaming and fixing up of marker names (LP: 1075980) [revno 710]
    this relieves that burden from the distro/packaging.
+ - datasource: move back to using the value 'None' for the initial datasource
+   since it causes early failure if used, instead of transient and
+   not easily-detectable later failure
+ - group config: fix how group members weren't being translated correctly
+   when the group: [member, member...] format was used (LP: #1077245)
+ - sysconfig: fix how the /etc/sysconfig/network should be using the fully
+   qualified domain name instead of the partially qualified domain name
+   which is used in the ubuntu/debian case (LP: #1076759)
+ - fix how string escaping was not working when the string was a unicode
+   string which was causing the warning message not to be written
+   out (LP: #1075756)
+ - for boto > 0.6.0 there was a lazy load of the metadata added, when cloud-init
+   runs the usage of this lazy loading is hidden and since that lazy loading 
+   will be performed on future attribute access we must traverse the lazy loaded
+   dictionary and force it to full expand so that if cloud-init blocks the ec2
+   metadata port the lazy loaded dictionary will continue working properly 
+   instead of trying to make additional url calls which will fail (LP: #1068801)
 0.7.0:
  - add a 'exception_cb' argument to 'wait_for_url'.  If provided, this
    method will be called back with the exception received and the message.
