@@ -35,8 +35,8 @@ class TestConfig(helpers.FilesystemMockingTestCase):
         }
         self.patchUtils(self.tmp)
         cc_yum_add_repo.handle('yum_add_repo', cfg, None, LOG, [])
-        with self.assertRaises(IOError):
-            util.load_file("/etc/yum.repos.d/epel_testing.repo")
+        self.assertRaises(IOError, util.load_file,
+                          "/etc/yum.repos.d/epel_testing.repo")
 
     def test_write_config(self):
         cfg = {
