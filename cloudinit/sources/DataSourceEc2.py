@@ -65,7 +65,7 @@ class DataSourceEc2(sources.DataSource):
                 return False
             start_time = time.time()
             self.userdata_raw = ec2.get_instance_userdata(self.api_ver,
-                                                          self.metadata_address)
+                self.metadata_address)
             self.metadata = ec2.get_instance_metadata(self.api_ver,
                                                       self.metadata_address)
             LOG.debug("Crawl of metadata service took %s seconds",
