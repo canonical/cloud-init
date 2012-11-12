@@ -288,6 +288,32 @@ class TestConfigDriveDataSource(MockerTestCase):
         finally:
             util.find_devs_with = orig_find_devs_with
 
+    def test_pubkeys_v2(self):
+        """Verify that public-keys work in config-drive-v2."""
+        populate_dir(self.tmp, CFG_DRIVE_FILES_V2)
+        myds = cfg_ds_from_dir(self.tmp)
+        self.assertEqual(myds.get_public_ssh_keys(),
+           [OSTACK_META['public_keys']['mykey']])
+
+
+def cfg_ds_from_dir(seed_d):
+    found = ds.read_config_drive_dir(seed_d)
+    cfg_ds = ds.DataSourceConfigDrive(settings.CFG_BUILTIN, None,
+                                      helpers.Paths({}))
+    populate_ds_from_read_config(cfg_ds, seed_d, found)
+    return cfg_ds
+
+
+def populate_ds_from_read_config(cfg_ds, source, results):
+    """Patch the DataSourceConfigDrive from the results of
+    read_config_drive_dir hopefully in line with what it would have
+    if cfg_ds.get_data had been successfully called"""
+    cfg_ds.source = source
+    cfg_ds.metadata = results.get('metadata')
+    cfg_ds.ec2_metadata = results.get('ec2-metadata')
+    cfg_ds.userdata_raw = results.get('userdata')
+    cfg_ds.version = results.get('cfgdrive_ver')
+
 
 def populate_dir(seed_dir, files):
     for (name, content) in files.iteritems():
