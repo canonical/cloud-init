@@ -23,6 +23,9 @@
  - Fix the merging of group configuration when that group configuration is a
    dict => members. [revno 707]
  - add yum_add_repo configuration module for adding additional yum repos
+ - work around the lazy loading of get_instance_metadata in boto >= 2.6.0
+   by fully walking the dictionary. (LP: #1068801)
+   Added dependency on distribute's python-pkg-resources
 0.7.0:
  - add a 'exception_cb' argument to 'wait_for_url'.  If provided, this
    method will be called back with the exception received and the message.

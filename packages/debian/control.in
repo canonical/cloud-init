@@ -19,6 +19,7 @@ Standards-Version: 3.9.3
 Package: cloud-init
 Architecture: all
 Depends: cloud-utils,
+         distribute,
          procps,
          python,
 #for $r in $requires
