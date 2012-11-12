@@ -1,6 +1,15 @@
 0.7.1:
  - sysvinit: fix missing dependency in cloud-init job for RHEL 5.6 
  - config-drive: map hostname to local-hostname (LP: #1061964)
+ - use a set of helper/parsing classes to perform system configuration
+   file modification in a manner that provides a nice object oriented
+   interface to those objects as well as makes it possible to test
+   those parsing entities without having to invoke distro class code.
+    - Created parsers for:
+     - /etc/sysconfig
+     - /etc/hostname 
+     - resolv.conf
+     - /etc/hosts
 0.7.0:
  - add a 'exception_cb' argument to 'wait_for_url'.  If provided, this
    method will be called back with the exception received and the message.
