@@ -26,6 +26,7 @@
  - work around the lazy loading of get_instance_metadata in boto >= 2.6.0
    by fully walking the dictionary. (LP: #1068801)
    Added dependency on distribute's python-pkg-resources
+ - fix public key importing with config-drive-v2 datasource (LP: #1077700)
 0.7.0:
  - add a 'exception_cb' argument to 'wait_for_url'.  If provided, this
    method will be called back with the exception received and the message.

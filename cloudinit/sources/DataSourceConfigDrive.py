@@ -219,9 +219,10 @@ class DataSourceConfigDrive(sources.DataSource):
         return True
 
     def get_public_ssh_keys(self):
-        if not 'public-keys' in self.metadata:
-            return []
-        return self.metadata['public-keys']
+        name = "public_keys"
+        if self.version == 1:
+            name = "public-keys"
+        return sources.normalize_pubkey_data(self.metadata.get(name))
 
 
 class DataSourceConfigDriveNet(DataSourceConfigDrive):
