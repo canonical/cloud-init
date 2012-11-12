@@ -53,6 +53,10 @@ def _unlazy_dict(mp):
 
 
 def get_instance_userdata(api_version, metadata_address):
+    # Note: boto.utils.get_instance_metadata returns '' for empty string
+    # so the change from non-true to '' is not specifically necessary, but
+    # this way cloud-init will get consistent behavior even if boto changed
+    # in the future to return a None on "no user-data provided".
     ud = boto_utils.get_instance_userdata(api_version, None, metadata_address)
     if not ud:
         ud = ''
