@@ -127,7 +127,7 @@ class ResolvConf(object):
             # Hard restriction on only 6 search domains
             raise ValueError(("Adding %r would go beyond the "
                               "'6' maximum search domains") % (search_domain))
-        s_list  = " ".join(new_sds)
+        s_list = " ".join(new_sds)
         if len(s_list) > 256:
             # Some hard limit on 256 chars total
             raise ValueError(("Adding %r would go beyond the "
@@ -167,5 +167,3 @@ class ResolvConf(object):
                 raise IOError("Unexpected resolv.conf option %s" % (cfg_opt))
             entries.append(("option", [cfg_opt, cfg_values, tail]))
         return entries
-
-

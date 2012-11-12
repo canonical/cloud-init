@@ -189,15 +189,20 @@ class Distro(object):
         else:
             need_change = True
             for entry in prev_info:
-                if sorted(entry) == sorted([fqdn, hostname]):
-                    # Exists already, leave it be
-                    need_change = False
-                    break
+                entry_fqdn = None
+                entry_aliases = []
+                if len(entry) >= 1:
+                    entry_fqdn = entry[0]
+                if len(entry) >= 2:
+                    entry_aliases = entry[1:]
+                if entry_fqdn is not None and entry_fqdn == fqdn:
+                    if hostname in entry_aliases:
+                        # Exists already, leave it be
+                        need_change = False
             if need_change:
-                # Doesn't exist, change the first
-                # entry to be this entry
+                # Doesn't exist, add that entry in...
                 new_entries = list(prev_info)
-                new_entries[0] = [fqdn, hostname]
+                new_entries.append([fqdn, hostname])
                 eh.del_entries(local_ip)
                 for entry in new_entries:
                     if len(entry) == 1:

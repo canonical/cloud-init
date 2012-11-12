@@ -86,5 +86,3 @@ class HostnameConf(object):
             raise IOError("Multiple hostnames (%s) found!"
                            % (hostnames_found))
         return entries
-    
-    
