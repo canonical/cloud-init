@@ -16,6 +16,7 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+
 def chop_comment(text, comment_chars):
     comment_locations = [text.find(c) for c in comment_chars]
     comment_locations = [c for c in comment_locations if c != -1]

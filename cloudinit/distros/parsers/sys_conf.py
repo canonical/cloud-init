@@ -40,7 +40,7 @@ SHELL_VAR_REGEXES = [
     # Things like $?, $0, $-, $@
     re.compile(r"\$[0-9#\?\-@\*]"),
     # Things like ${blah:1} - but this one
-    # gets very complex so just try the 
+    # gets very complex so just try the
     # simple path
     re.compile(r"\$\{.+\}"),
 ]
