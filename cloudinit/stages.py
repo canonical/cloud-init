@@ -49,7 +49,7 @@ from cloudinit import util
 
 LOG = logging.getLogger(__name__)
 
-NULL_DATA_SOURCE = DataSourceNone.DataSourceNone({}, None, None)
+NULL_DATA_SOURCE = None
 
 class Init(object):
     def __init__(self, ds_deps=None):
