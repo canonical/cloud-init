@@ -17,10 +17,7 @@
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import pkg_resources
-from pkg_resources import parse_version
-
-import cloudinit.util as util
-import cloudinit.url_helper as uh
+from pkg_resources import parse_version as pver
 
 import boto.utils as boto_utils
 
@@ -36,7 +33,7 @@ import boto.utils as boto_utils
 BOTO_LAZY = False
 try:
     _boto_lib = pkg_resources.get_distribution('boto')
-    if _boto_lib.parsed_version > parse_version("2.5.2"):
+    if _boto_lib.parsed_version > pver("2.5.2"):  # pylint: disable=E1103
         BOTO_LAZY = True
 except pkg_resources.DistributionNotFound:
     pass
@@ -47,7 +44,7 @@ def _unlazy_dict(mp):
         return mp
     if not BOTO_LAZY:
         return mp
-    for (k, v) in mp.items():
+    for (_k, v) in mp.items():
         _unlazy_dict(v)
     return mp
 
