@@ -58,11 +58,11 @@ class Distro(object):
         return self._cfg.get(opt_name, default)
 
     @abc.abstractmethod
-    def set_hostname(self, hostname):
+    def set_hostname(self, hostname, fqdn=None):
         raise NotImplementedError()
 
     @abc.abstractmethod
-    def update_hostname(self, hostname, prev_hostname_fn):
+    def update_hostname(self, hostname, fqdn, prev_hostname_fn):
         raise NotImplementedError()
 
     @abc.abstractmethod
@@ -81,7 +81,7 @@ class Distro(object):
 
     def _get_arch_package_mirror_info(self, arch=None):
         mirror_info = self.get_option("package_mirrors", [])
-        if arch == None:
+        if not arch:
             arch = self.get_primary_arch()
         return _get_arch_package_mirror_info(mirror_info, arch)
 
@@ -122,8 +122,7 @@ class Distro(object):
         new_etchosts = StringIO()
         need_write = False
         need_change = True
-        hosts_ro_fn = self._paths.join(True, "/etc/hosts")
-        for line in util.load_file(hosts_ro_fn).splitlines():
+        for line in util.load_file("/etc/hosts").splitlines():
             if line.strip().startswith(header):
                 continue
             if not line.strip() or line.strip().startswith("#"):
@@ -147,8 +146,7 @@ class Distro(object):
             need_write = True
         if need_write:
             contents = new_etchosts.getvalue()
-            util.write_file(self._paths.join(False, "/etc/hosts"),
-                            contents, mode=0644)
+            util.write_file("/etc/hosts", contents, mode=0644)
 
     def _bring_up_interface(self, device_name):
         cmd = ['ifup', device_name]
@@ -189,23 +187,23 @@ class Distro(object):
         # inputs. If something goes wrong, we can end up with a system
         # that nobody can login to.
         adduser_opts = {
-                "gecos": '--comment',
-                "homedir": '--home',
-                "primary_group": '--gid',
-                "groups": '--groups',
-                "passwd": '--password',
-                "shell": '--shell',
-                "expiredate": '--expiredate',
-                "inactive": '--inactive',
-                "selinux_user": '--selinux-user',
-                }
+            "gecos": '--comment',
+            "homedir": '--home',
+            "primary_group": '--gid',
+            "groups": '--groups',
+            "passwd": '--password',
+            "shell": '--shell',
+            "expiredate": '--expiredate',
+            "inactive": '--inactive',
+            "selinux_user": '--selinux-user',
+        }
 
         adduser_opts_flags = {
-                "no_user_group": '--no-user-group',
-                "system": '--system',
-                "no_log_init": '--no-log-init',
-                "no_create_home": "-M",
-                }
+            "no_user_group": '--no-user-group',
+            "system": '--system',
+            "no_log_init": '--no-log-init',
+            "no_create_home": "-M",
+        }
 
         # Now check the value and create the command
         for option in kwargs:
@@ -262,7 +260,7 @@ class Distro(object):
         # Import SSH keys
         if 'ssh_authorized_keys' in kwargs:
             keys = set(kwargs['ssh_authorized_keys']) or []
-            ssh_util.setup_user_keys(keys, name, None, self._paths)
+            ssh_util.setup_user_keys(keys, name, key_prefix=None)
 
         return True
 
@@ -285,8 +283,10 @@ class Distro(object):
         # Ensure the dir is included and that
         # it actually exists as a directory
         sudoers_contents = ''
+        base_exists = False
         if os.path.exists(sudo_base):
             sudoers_contents = util.load_file(sudo_base)
+            base_exists = True
         found_include = False
         for line in sudoers_contents.splitlines():
             line = line.strip()
@@ -301,24 +301,28 @@ class Distro(object):
                 found_include = True
                 break
         if not found_include:
-            sudoers_contents += "\n#includedir %s\n" % (path)
             try:
-                if not os.path.exists(sudo_base):
+                if not base_exists:
+                    lines = [('# See sudoers(5) for more information'
+                              ' on "#include" directives:'), '',
+                             '# Added by cloud-init',
+                             "#includedir %s" % (path), '']
+                    sudoers_contents = "\n".join(lines)
                     util.write_file(sudo_base, sudoers_contents, 0440)
                 else:
-                    with open(sudo_base, 'a') as f:
-                        f.write(sudoers_contents)
-                LOG.debug("added '#includedir %s' to %s" % (path, sudo_base))
+                    lines = ['', '# Added by cloud-init',
+                             "#includedir %s" % (path), '']
+                    sudoers_contents = "\n".join(lines)
+                    util.append_file(sudo_base, sudoers_contents)
+                LOG.debug("Added '#includedir %s' to %s" % (path, sudo_base))
             except IOError as e:
                 util.logexc(LOG, "Failed to write %s" % sudo_base, e)
                 raise e
-        util.ensure_dir(path, 0755)
+        util.ensure_dir(path, 0750)
 
-    def write_sudo_rules(self,
-        user,
-        rules,
-        sudo_file="/etc/sudoers.d/90-cloud-init-users",
-        ):
+    def write_sudo_rules(self, user, rules, sudo_file=None):
+        if not sudo_file:
+            sudo_file = "/etc/sudoers.d/90-cloud-init-users"
 
         content_header = "# user rules for %s" % user
         content = "%s\n%s %s\n\n" % (content_header, user, rules)
@@ -427,12 +431,36 @@ def _get_arch_package_mirror_info(package_mirrors, arch):
 # is the standard form used in the rest
 # of cloud-init
 def _normalize_groups(grp_cfg):
-    if isinstance(grp_cfg, (str, basestring, list)):
+    if isinstance(grp_cfg, (str, basestring)):
+        grp_cfg = grp_cfg.strip().split(",")
+    if isinstance(grp_cfg, (list)):
         c_grp_cfg = {}
-        for i in util.uniq_merge(grp_cfg):
-            c_grp_cfg[i] = []
+        for i in grp_cfg:
+            if isinstance(i, (dict)):
+                for k, v in i.items():
+                    if k not in c_grp_cfg:
+                        if isinstance(v, (list)):
+                            c_grp_cfg[k] = list(v)
+                        elif isinstance(v, (basestring, str)):
+                            c_grp_cfg[k] = [v]
+                        else:
+                            raise TypeError("Bad group member type %s" %
+                                            util.obj_name(v))
+                    else:
+                        if isinstance(v, (list)):
+                            c_grp_cfg[k].extend(v)
+                        elif isinstance(v, (basestring, str)):
+                            c_grp_cfg[k].append(v)
+                        else:
+                            raise TypeError("Bad group member type %s" %
+                                            util.obj_name(v))
+            elif isinstance(i, (str, basestring)):
+                if i not in c_grp_cfg:
+                    c_grp_cfg[i] = []
+            else:
+                raise TypeError("Unknown group name type %s" %
+                                util.obj_name(i))
         grp_cfg = c_grp_cfg
-
     groups = {}
     if isinstance(grp_cfg, (dict)):
         for (grp_name, grp_members) in grp_cfg.items():

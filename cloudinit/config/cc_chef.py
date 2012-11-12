@@ -26,6 +26,15 @@ from cloudinit import util
 
 RUBY_VERSION_DEFAULT = "1.8"
 
+CHEF_DIRS = [
+    '/etc/chef',
+    '/var/log/chef',
+    '/var/lib/chef',
+    '/var/cache/chef',
+    '/var/backups/chef',
+    '/var/run/chef',
+]
+
 
 def handle(name, cfg, cloud, log, _args):
 
@@ -37,24 +46,15 @@ def handle(name, cfg, cloud, log, _args):
     chef_cfg = cfg['chef']
 
     # Ensure the chef directories we use exist
-    c_dirs = [
-        '/etc/chef',
-        '/var/log/chef',
-        '/var/lib/chef',
-        '/var/cache/chef',
-        '/var/backups/chef',
-        '/var/run/chef',
-    ]
-    for d in c_dirs:
-        util.ensure_dir(cloud.paths.join(False, d))
+    for d in CHEF_DIRS:
+        util.ensure_dir(d)
 
     # Set the validation key based on the presence of either 'validation_key'
     # or 'validation_cert'. In the case where both exist, 'validation_key'
     # takes precedence
     for key in ('validation_key', 'validation_cert'):
         if key in chef_cfg and chef_cfg[key]:
-            v_fn = cloud.paths.join(False, '/etc/chef/validation.pem')
-            util.write_file(v_fn, chef_cfg[key])
+            util.write_file('/etc/chef/validation.pem', chef_cfg[key])
             break
 
     # Create the chef config from template
@@ -68,8 +68,7 @@ def handle(name, cfg, cloud, log, _args):
                                                    '_default'),
             'validation_name': chef_cfg['validation_name']
         }
-        out_fn = cloud.paths.join(False, '/etc/chef/client.rb')
-        templater.render_to_file(template_fn, out_fn, params)
+        templater.render_to_file(template_fn, '/etc/chef/client.rb', params)
     else:
         log.warn("No template found, not rendering to /etc/chef/client.rb")
 
@@ -81,8 +80,7 @@ def handle(name, cfg, cloud, log, _args):
         initial_attributes = chef_cfg['initial_attributes']
         for k in list(initial_attributes.keys()):
             initial_json[k] = initial_attributes[k]
-    firstboot_fn = cloud.paths.join(False, '/etc/chef/firstboot.json')
-    util.write_file(firstboot_fn, json.dumps(initial_json))
+    util.write_file('/etc/chef/firstboot.json', json.dumps(initial_json))
 
     # If chef is not installed, we install chef based on 'install_type'
     if not os.path.isfile('/usr/bin/chef-client'):

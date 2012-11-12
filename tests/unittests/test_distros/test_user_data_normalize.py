@@ -30,6 +30,28 @@ class TestUGNormalize(MockerTestCase):
     def _norm(self, cfg, distro):
         return distros.normalize_users_groups(cfg, distro)
 
+    def test_group_dict(self):
+        distro = self._make_distro('ubuntu')
+        g = {'groups': [
+                {
+                    'ubuntu': ['foo', 'bar'],
+                    'bob': 'users',
+                },
+                'cloud-users',
+                {
+                    'bob': 'users2',
+                },
+            ]
+        }
+        (_users, groups) = self._norm(g, distro)
+        self.assertIn('ubuntu', groups)
+        ub_members = groups['ubuntu']
+        self.assertEquals(sorted(['foo', 'bar']), sorted(ub_members))
+        self.assertIn('bob', groups)
+        b_members = groups['bob']
+        self.assertEquals(sorted(['users', 'users2']),
+                          sorted(b_members))
+
     def test_basic_groups(self):
         distro = self._make_distro('ubuntu')
         ug_cfg = {

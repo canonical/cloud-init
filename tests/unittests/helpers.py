@@ -103,6 +103,7 @@ class FilesystemMockingTestCase(ResourceUsingTestCase):
     def patchUtils(self, new_root):
         patch_funcs = {
             util: [('write_file', 1),
+                   ('append_file', 1),
                    ('load_file', 1),
                    ('ensure_dir', 1),
                    ('chmod', 1),

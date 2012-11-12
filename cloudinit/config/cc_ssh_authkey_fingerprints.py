@@ -97,9 +97,8 @@ def handle(name, cfg, cloud, log, _args):
                    "logging of ssh fingerprints disabled"), name)
 
     hash_meth = util.get_cfg_option_str(cfg, "authkey_hash", "md5")
-    extract_func = ssh_util.extract_authorized_keys
     (users, _groups) = ds.normalize_users_groups(cfg, cloud.distro)
     for (user_name, _cfg) in users.items():
-        (auth_key_fn, auth_key_entries) = extract_func(user_name, cloud.paths)
-        _pprint_key_entries(user_name, auth_key_fn,
-                            auth_key_entries, hash_meth)
+        (key_fn, key_entries) = ssh_util.extract_authorized_keys(user_name)
+        _pprint_key_entries(user_name, key_fn,
+                            key_entries, hash_meth)

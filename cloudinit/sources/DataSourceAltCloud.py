@@ -47,7 +47,7 @@ META_DATA_NOT_SUPPORTED = {
     'instance-id': 455,
     'local-hostname': 'localhost',
     'placement': {},
-    }
+}
 
 
 def read_user_data_callback(mount_dir):

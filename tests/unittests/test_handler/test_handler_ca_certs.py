@@ -77,7 +77,7 @@ class TestConfig(MockerTestCase):
         """Test that a single cert gets passed to add_ca_certs."""
         config = {"ca-certs": {"trusted": ["CERT1"]}}
 
-        self.mock_add(self.paths, ["CERT1"])
+        self.mock_add(["CERT1"])
         self.mock_update()
         self.mocker.replay()
 
@@ -87,7 +87,7 @@ class TestConfig(MockerTestCase):
         """Test that multiple certs get passed to add_ca_certs."""
         config = {"ca-certs": {"trusted": ["CERT1", "CERT2"]}}
 
-        self.mock_add(self.paths, ["CERT1", "CERT2"])
+        self.mock_add(["CERT1", "CERT2"])
         self.mock_update()
         self.mocker.replay()
 
@@ -97,7 +97,7 @@ class TestConfig(MockerTestCase):
         """Test remove_defaults works as expected."""
         config = {"ca-certs": {"remove-defaults": True}}
 
-        self.mock_remove(self.paths)
+        self.mock_remove()
         self.mock_update()
         self.mocker.replay()
 
@@ -116,8 +116,8 @@ class TestConfig(MockerTestCase):
         """Test remove_defaults is not called when config value is False."""
         config = {"ca-certs": {"remove-defaults": True, "trusted": ["CERT1"]}}
 
-        self.mock_remove(self.paths)
-        self.mock_add(self.paths, ["CERT1"])
+        self.mock_remove()
+        self.mock_add(["CERT1"])
         self.mock_update()
         self.mocker.replay()
 
@@ -136,7 +136,7 @@ class TestAddCaCerts(MockerTestCase):
         """Test that no certificate are written if not provided."""
         self.mocker.replace(util.write_file, passthrough=False)
         self.mocker.replay()
-        cc_ca_certs.add_ca_certs(self.paths, [])
+        cc_ca_certs.add_ca_certs([])
 
     def test_single_cert(self):
         """Test adding a single certificate to the trusted CAs."""
@@ -149,7 +149,7 @@ class TestAddCaCerts(MockerTestCase):
                    "\ncloud-init-ca-certs.crt", omode="ab")
         self.mocker.replay()
 
-        cc_ca_certs.add_ca_certs(self.paths, [cert])
+        cc_ca_certs.add_ca_certs([cert])
 
     def test_multiple_certs(self):
         """Test adding multiple certificates to the trusted CAs."""
@@ -163,7 +163,7 @@ class TestAddCaCerts(MockerTestCase):
                    "\ncloud-init-ca-certs.crt", omode="ab")
         self.mocker.replay()
 
-        cc_ca_certs.add_ca_certs(self.paths, certs)
+        cc_ca_certs.add_ca_certs(certs)
 
 
 class TestUpdateCaCerts(MockerTestCase):
@@ -198,4 +198,4 @@ class TestRemoveDefaultCaCerts(MockerTestCase):
                   "ca-certificates ca-certificates/trust_new_crts select no")
         self.mocker.replay()
 
-        cc_ca_certs.remove_default_ca_certs(self.paths)
+        cc_ca_certs.remove_default_ca_certs()

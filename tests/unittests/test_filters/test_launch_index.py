@@ -1,14 +1,6 @@
 import copy
-import os
-import sys
 
-top_dir = os.path.join(os.path.dirname(__file__), os.pardir, "helpers.py")
-top_dir = os.path.abspath(top_dir)
-if os.path.exists(top_dir):
-    sys.path.insert(0, os.path.dirname(top_dir))
-
-
-import helpers
+from tests.unittests import helpers
 
 import itertools
 
