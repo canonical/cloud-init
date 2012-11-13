@@ -33,6 +33,7 @@ PKG_MP = {
     'cheetah': 'python-cheetah',
     'configobj': 'python-configobj',
     'oauth': 'python-oauth',
+    'pkg_resources': 'python-pkg-resources',
     'prettytable': 'python-prettytable',
     'pyyaml': 'python-yaml',
 }
