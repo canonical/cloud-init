@@ -41,6 +41,8 @@
    metadata port the lazy loaded dictionary will continue working properly 
    instead of trying to make additional url calls which will fail (LP: #1068801)
     - Added dependency on distribute's python-pkg-resources
+ - use a set of helper/parsing classes to perform system configuration
+   for easier test.  (/etc/sysconfig, /etc/hostname, resolv.conf, /etc/hosts)
 0.7.0:
  - add a 'exception_cb' argument to 'wait_for_url'.  If provided, this
    method will be called back with the exception received and the message.
