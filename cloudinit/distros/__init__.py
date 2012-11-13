@@ -24,6 +24,7 @@
 from StringIO import StringIO
 
 import abc
+import collections
 import itertools
 import os
 import re
@@ -33,11 +34,18 @@ from cloudinit import log as logging
 from cloudinit import ssh_util
 from cloudinit import util
 
+from cloudinit.distros.parsers import hosts
+
 LOG = logging.getLogger(__name__)
 
 
 class Distro(object):
     __metaclass__ = abc.ABCMeta
+    default_user = None
+    default_user_groups = None
+    hosts_fn = "/etc/hosts"
+    ci_sudoers_fn = "/etc/sudoers.d/90-cloud-init-users"
+    hostname_conf_fn = "/etc/hostname"
 
     def __init__(self, name, cfg, paths):
         self._paths = paths
@@ -57,13 +65,10 @@ class Distro(object):
     def get_option(self, opt_name, default=None):
         return self._cfg.get(opt_name, default)
 
-    @abc.abstractmethod
     def set_hostname(self, hostname, fqdn=None):
-        raise NotImplementedError()
-
-    @abc.abstractmethod
-    def update_hostname(self, hostname, fqdn, prev_hostname_fn):
-        raise NotImplementedError()
+        writeable_hostname = self._select_hostname(hostname, fqdn)
+        self._write_hostname(writeable_hostname, self.hostname_conf_fn)
+        self._apply_hostname(hostname)
 
     @abc.abstractmethod
     def package_command(self, cmd, args=None):
@@ -87,7 +92,7 @@ class Distro(object):
 
     def get_package_mirror_info(self, arch=None,
                                 availability_zone=None):
-        # this resolves the package_mirrors config option
+        # This resolves the package_mirrors config option
         # down to a single dict of {mirror_name: mirror_url}
         arch_info = self._get_arch_package_mirror_info(arch)
         return _get_package_mirror_info(availability_zone=availability_zone,
@@ -112,41 +117,110 @@ class Distro(object):
     def _get_localhost_ip(self):
         return "127.0.0.1"
 
+    @abc.abstractmethod
+    def _read_hostname(self, filename, default=None):
+        raise NotImplementedError()
+
+    @abc.abstractmethod
+    def _write_hostname(self, hostname, filename):
+        raise NotImplementedError()
+
+    @abc.abstractmethod
+    def _read_system_hostname(self):
+        raise NotImplementedError()
+
+    def _apply_hostname(self, hostname):
+        # This really only sets the hostname
+        # temporarily (until reboot so it should
+        # not be depended on). Use the write
+        # hostname functions for 'permanent' adjustments.
+        LOG.debug("Non-persistently setting the system hostname to %s",
+                  hostname)
+        try:
+            util.subp(['hostname', hostname])
+        except util.ProcessExecutionError:
+            util.logexc(LOG, ("Failed to non-persistently adjust"
+                              " the system hostname to %s"), hostname)
+
+    @abc.abstractmethod
+    def _select_hostname(self, hostname, fqdn):
+        raise NotImplementedError()
+
+    def update_hostname(self, hostname, fqdn,
+                        previous_hostname_filename):
+        applying_hostname = hostname
+        hostname = self._select_hostname(hostname, fqdn)
+        prev_hostname = self._read_hostname(prev_hostname_fn)
+        (sys_fn, sys_hostname) = self._read_system_hostname()
+        update_files = []
+        if not prev_hostname or prev_hostname != hostname:
+            update_files.append(prev_hostname_fn)
+
+        if (not sys_hostname) or (sys_hostname == prev_hostname
+                                  and sys_hostname != hostname):
+            update_files.append(sys_fn)
+
+        update_files = set([f for f in update_files if f])
+        LOG.debug("Attempting to update hostname to %s in %s files",
+                  hostname, len(update_files))
+
+        for fn in update_files:
+            try:
+                self._write_hostname(hostname, fn)
+            except IOError:
+                util.logexc(LOG, "Failed to write hostname %s to %s",
+                            hostname, fn)
+
+        if (sys_hostname and prev_hostname and
+            sys_hostname != prev_hostname):
+            LOG.debug("%s differs from %s, assuming user maintained hostname.",
+                       prev_hostname_fn, sys_fn)
+
+        if sys_fn in update_files:
+            self._apply_hostname(applying_hostname)
+
     def update_etc_hosts(self, hostname, fqdn):
-        # Format defined at
-        # http://unixhelp.ed.ac.uk/CGI/man-cgi?hosts
-        header = "# Added by cloud-init"
-        real_header = "%s on %s" % (header, util.time_rfc2822())
+        header = ''
+        if os.path.exists(self.hosts_fn):
+            eh = hosts.HostsConf(util.load_file(self.hosts_fn))
+        else:
+            eh = hosts.HostsConf('')
+            header = util.make_header(base="added")
         local_ip = self._get_localhost_ip()
-        hosts_line = "%s\t%s %s" % (local_ip, fqdn, hostname)
-        new_etchosts = StringIO()
-        need_write = False
-        need_change = True
-        for line in util.load_file("/etc/hosts").splitlines():
-            if line.strip().startswith(header):
-                continue
-            if not line.strip() or line.strip().startswith("#"):
-                new_etchosts.write("%s\n" % (line))
-                continue
-            split_line = [s.strip() for s in line.split()]
-            if len(split_line) < 2:
-                new_etchosts.write("%s\n" % (line))
-                continue
-            (ip, hosts) = split_line[0], split_line[1:]
-            if ip == local_ip:
-                if sorted([hostname, fqdn]) == sorted(hosts):
-                    need_change = False
-                if need_change:
-                    line = "%s\n%s" % (real_header, hosts_line)
-                    need_change = False
-                    need_write = True
-            new_etchosts.write("%s\n" % (line))
+        prev_info = eh.get_entry(local_ip)
+        need_change = False
+        if not prev_info:
+            eh.add_entry(local_ip, fqdn, hostname)
+            need_change = True
+        else:
+            need_change = True
+            for entry in prev_info:
+                entry_fqdn = None
+                entry_aliases = []
+                if len(entry) >= 1:
+                    entry_fqdn = entry[0]
+                if len(entry) >= 2:
+                    entry_aliases = entry[1:]
+                if entry_fqdn is not None and entry_fqdn == fqdn:
+                    if hostname in entry_aliases:
+                        # Exists already, leave it be
+                        need_change = False
+            if need_change:
+                # Doesn't exist, add that entry in...
+                new_entries = list(prev_info)
+                new_entries.append([fqdn, hostname])
+                eh.del_entries(local_ip)
+                for entry in new_entries:
+                    if len(entry) == 1:
+                        eh.add_entry(local_ip, entry[0])
+                    elif len(entry) >= 2:
+                        eh.add_entry(local_ip, *entry)
         if need_change:
-            new_etchosts.write("%s\n%s\n" % (real_header, hosts_line))
-            need_write = True
-        if need_write:
-            contents = new_etchosts.getvalue()
-            util.write_file("/etc/hosts", contents, mode=0644)
+            contents = StringIO()
+            if header:
+                contents.write("%s\n" % (header))
+            contents.write("%s\n" % (eh))
+            util.write_file(self.hosts_fn, contents.getvalue(), mode=0644)
 
     def _bring_up_interface(self, device_name):
         cmd = ['ifup', device_name]
@@ -305,12 +379,12 @@ class Distro(object):
                 if not base_exists:
                     lines = [('# See sudoers(5) for more information'
                               ' on "#include" directives:'), '',
-                             '# Added by cloud-init',
+                             util.make_header(base="added"),
                              "#includedir %s" % (path), '']
                     sudoers_contents = "\n".join(lines)
                     util.write_file(sudo_base, sudoers_contents, 0440)
                 else:
-                    lines = ['', '# Added by cloud-init',
+                    lines = ['', util.make_header(base="added"),
                              "#includedir %s" % (path), '']
                     sudoers_contents = "\n".join(lines)
                     util.append_file(sudo_base, sudoers_contents)
@@ -322,26 +396,35 @@ class Distro(object):
 
     def write_sudo_rules(self, user, rules, sudo_file=None):
         if not sudo_file:
-            sudo_file = "/etc/sudoers.d/90-cloud-init-users"
+            sudo_file = self.ci_sudoers_fn
 
-        content_header = "# user rules for %s" % user
-        content = "%s\n%s %s\n\n" % (content_header, user, rules)
-
-        if isinstance(rules, list):
-            content = "%s\n" % content_header
+        lines = [
+            '',
+            "# User rules for %s" % user,
+        ]
+        if isinstance(rules, collections.Iterable):
             for rule in rules:
-                content += "%s %s\n" % (user, rule)
-            content += "\n"
+                lines.append("%s %s" % (user, rule))
+        else:
+            lines.append("%s %s" % (user, rules))
+        content = "\n".join(lines)
 
         self.ensure_sudo_dir(os.path.dirname(sudo_file))
-
         if not os.path.exists(sudo_file):
-            util.write_file(sudo_file, content, 0440)
+            contents = [
+                util.make_header(),
+                content,
+            ]
+            try:
+                util.write_file(sudo_file, "\n".join(contents), 0440)
+            except IOError as e:
+                util.logexc(LOG, "Failed to write sudoers file %s", sudo_file)
+                raise e
         else:
             try:
                 util.append_file(sudo_file, content)
             except IOError as e:
-                util.logexc(LOG, "Failed to write %s" % sudo_file, e)
+                util.logexc(LOG, "Failed to append sudoers file %s", sudo_file)
                 raise e
 
     def create_group(self, name, members):
