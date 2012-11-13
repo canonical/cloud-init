@@ -88,37 +88,37 @@ class Distro(distros.Distro):
         return hostname
 
     def _write_hostname(self, your_hostname, out_fn):
-        conf = self._read_hostname_conf(out_fn)
+        conf = None
+        try:
+            # Try to update the previous one
+            # so lets see if we can read it first.
+            conf = self._read_hostname_conf(out_fn)
+        except IOError:
+            pass
         if not conf:
             conf = HostnameConf('')
-            conf.parse()
         conf.set_hostname(your_hostname)
         util.write_file(out_fn, str(conf), 0644)
 
     def _read_system_hostname(self):
-        conf = self._read_hostname_conf(self.hostname_conf_fn)
-        if conf:
-            sys_hostname = conf.hostname
-        else:
-            sys_hostname = None
+        sys_hostname = self._read_hostname(self.hostname_conf_fn)
         return (self.hostname_conf_fn, sys_hostname)
 
     def _read_hostname_conf(self, filename):
-        try:
-            conf = HostnameConf(util.load_file(filename))
-            conf.parse()
-            return conf
-        except IOError:
-            util.logexc(LOG, "Error reading hostname from %s", filename)
-            return None
+        conf = HostnameConf(util.load_file(filename))
+        conf.parse()
+        return conf
 
     def _read_hostname(self, filename, default=None):
-        conf = self._read_hostname_conf(filename)
-        if not conf:
+        hostname = None
+        try:
+            conf = self._read_hostname_conf(filename)
+            hostname = conf.hostname
+        except IOError:
+            pass
+        if not hostname:
             return default
-        if not conf.hostname:
-            return default
-        return conf.hostname
+        return hostname
 
     def _get_localhost_ip(self):
         # Note: http://www.leonardoborda.com/blog/127-0-1-1-ubuntu-debian/
