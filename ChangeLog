@@ -50,6 +50,10 @@
      - /etc/hostname 
      - resolv.conf
      - /etc/hosts
+    - Moved duplicated functionality into the root level distro class including:
+     - apply_hostname
+     - set_hostname
+     - *various shared configuration file names/paths*
 0.7.0:
  - add a 'exception_cb' argument to 'wait_for_url'.  If provided, this
    method will be called back with the exception received and the message.
