@@ -256,6 +256,24 @@ bootcmd:
  - echo 192.168.1.130 us.archive.ubuntu.com > /etc/hosts
  - [ cloud-init-per, once, mymkfs, mkfs, /dev/vdb ]
 
+# final commands
+# default: none
+# This can be used to execute commands after and fully detached from
+# a cloud-init stage.  The initial purpose of it was to allow 'poweroff'
+# detached from cloud-init.  If poweroff was run from 'runcmd' or userdata
+# then messages may be spewed from cloud-init about logging failing or other
+# issues as a result of the system being turned off.
+#
+# You probably are better off using 'runcmd' for this.
+#
+# The output of finalcmd will redirected redirected to /dev/null
+# If you want output to be seen, take care to do so in your commands
+# themselves.  See example.
+finalcmd:
+ - sleep 30
+ - "echo $(date -R): powering off > /dev/console"
+ - /sbin/poweroff
+
 # cloud_config_modules:
 # default:
 # cloud_config_modules:
