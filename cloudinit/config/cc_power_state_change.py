@@ -49,7 +49,7 @@ def handle(_name, cfg, _cloud, log, _args):
         log.warn("power_state: failed to get cmdline of current process")
         return
 
-    devnull_fp = open("/dev/null", "w")
+    devnull_fp = open(os.devnull, "w")
 
     log.debug("After pid %s ends, will execute: %s" % (mypid, ' '.join(args)))
 
