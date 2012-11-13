@@ -34,13 +34,14 @@ from cloudinit import util
 # this is a translation of the 'requires'
 # file pypi package name to a redhat/fedora package name.
 PKG_MP = {
+    'argparse': 'python-argparse',
     'boto': 'python-boto',
     'cheetah': 'python-cheetah',
-    'prettytable': 'python-prettytable',
-    'oauth': 'python-oauth',
     'configobj': 'python-configobj',
+    'oauth': 'python-oauth',
+    'pkg_resources': 'python-setuptools',
+    'prettytable': 'python-prettytable',
     'pyyaml': 'PyYAML',
-    'argparse': 'python-argparse',
 }
 
 # Subdirectories of the ~/rpmbuild dir

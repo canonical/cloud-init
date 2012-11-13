@@ -40,7 +40,7 @@
    dictionary and force it to full expand so that if cloud-init blocks the ec2
    metadata port the lazy loaded dictionary will continue working properly 
    instead of trying to make additional url calls which will fail (LP: #1068801)
-    - Added dependency on distribute's python-pkg-resources
+    - Added dependency: python-pkg-resources (deb), python-setuptools (rpm)
  - use a set of helper/parsing classes to perform system configuration
    for easier test.  (/etc/sysconfig, /etc/hostname, resolv.conf, /etc/hosts)
 0.7.0:
