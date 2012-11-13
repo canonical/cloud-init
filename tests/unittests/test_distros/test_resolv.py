@@ -38,8 +38,7 @@ class TestResolvHelper(MockerTestCase):
         self.assertNotIn('10.3', rp.nameservers)
         self.assertEquals(len(rp.nameservers), 3)
         rp.add_nameserver('10.2')
-        with self.assertRaises(ValueError):
-            rp.add_nameserver('10.3')
+        self.assertRaises(ValueError, rp.add_nameserver, '10.3')
         self.assertNotIn('10.3', rp.nameservers)
 
     def test_search_domains(self):
@@ -58,6 +57,5 @@ class TestResolvHelper(MockerTestCase):
         self.assertEquals(len(rp.search_domains), 5)
         rp.add_search_domain('bbb4.y.com')
         self.assertEquals(len(rp.search_domains), 6)
-        with self.assertRaises(ValueError):
-            rp.add_search_domain('bbb5.y.com')
+        self.assertRaises(ValueError, rp.add_search_domain, 'bbb5.y.com')
         self.assertEquals(len(rp.search_domains), 6)
