@@ -121,6 +121,8 @@ def run_after_pid_gone(pid, pidcmdline, timeout, log, func, args):
             log.warn(msg)
         doexit(EXIT_FAIL)
 
+    known_errnos = (errno.ENOENT, errno.ESRCH)
+
     while True:
         if time.time() > end_time:
             msg = "timeout reached before %s ended" % pid
@@ -135,14 +137,16 @@ def run_after_pid_gone(pid, pidcmdline, timeout, log, func, args):
                 break
 
         except IOError as ioerr:
-            if ioerr.errno == errno.ENOENT:
-                msg = "pidfile '%s' gone" % cmdline_f
+            if ioerr.errno in known_errnos:
+                msg = "pidfile '%s' gone [%d]" % (cmdline_f, ioerr.errno)
             else:
                 fatal("IOError during wait: %s" % ioerr)
             break
 
         except Exception as e:
             fatal("Unexpected Exception: %s" % e)
+
+        time.sleep(.25)
 
     if not msg:
         fatal("Unexpected error in run_after_pid_gone")
