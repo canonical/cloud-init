@@ -146,17 +146,37 @@ class Distro(object):
 
     def update_hostname(self, hostname, fqdn, prev_hostname_fn):
         applying_hostname = hostname
+
+        # Determine what the actual written hostname should be
         hostname = self._select_hostname(hostname, fqdn)
-        prev_hostname = self._read_hostname(prev_hostname_fn)
+
+        # If the previous hostname file exists lets see if we
+        # can get a hostname from it
+        if prev_hostname_fn and os.path.exists(prev_hostname_fn):
+            prev_hostname = self._read_hostname(prev_hostname_fn)
+        else:
+            prev_hostname = None
+
+        # Lets get where we should write the system hostname
+        # and what the system hostname is
         (sys_fn, sys_hostname) = self._read_system_hostname()
         update_files = []
+
+        # If there is no previous hostname or it differs
+        # from what we want, lets update it or create the
+        # file in the first place
         if not prev_hostname or prev_hostname != hostname:
             update_files.append(prev_hostname_fn)
 
+        # If the system hostname is different than the previous
+        # one or the desired one lets update it as well
         if (not sys_hostname) or (sys_hostname == prev_hostname
                                   and sys_hostname != hostname):
             update_files.append(sys_fn)
 
+        # Remove duplicates (incase the previous config filename)
+        # is the same as the system config filename, don't bother
+        # doing it twice
         update_files = set([f for f in update_files if f])
         LOG.debug("Attempting to update hostname to %s in %s files",
                   hostname, len(update_files))
@@ -173,6 +193,8 @@ class Distro(object):
             LOG.debug("%s differs from %s, assuming user maintained hostname.",
                        prev_hostname_fn, sys_fn)
 
+        # If the system hostname file name was provided set the
+        # non-fqdn as the transient hostname.
         if sys_fn in update_files:
             self._apply_hostname(applying_hostname)
 
