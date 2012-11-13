@@ -28,6 +28,8 @@ import time
 
 frequency = PER_INSTANCE
 
+EXIT_FAIL = 254
+
 
 def handle(_name, cfg, _cloud, log, _args):
 
@@ -90,14 +92,19 @@ def load_power_state(cfg):
     return (args, timeout)
 
 
+def doexit(sysexit):
+    os._exit(sysexit)  # pylint: disable=W0212
+
+
 def execmd(exe_args, output=None, data_in=None):
     try:
         proc = subprocess.Popen(exe_args, stdin=subprocess.PIPE,
                                 stdout=output, stderr=subprocess.STDOUT)
         proc.communicate(data_in)
+        ret = proc.returncode
     except Exception:
-        sys.exit(254)
-    sys.exit(proc.returncode())
+        doexit(EXIT_FAIL)
+    doexit(ret)
 
 
 def run_after_pid_gone(pid, pidcmdline, timeout, log, func, args):
@@ -112,7 +119,7 @@ def run_after_pid_gone(pid, pidcmdline, timeout, log, func, args):
     def fatal(msg):
         if log:
             log.warn(msg)
-        sys.exit(254)
+        doexit(EXIT_FAIL)
 
     while True:
         if time.time() > end_time:
