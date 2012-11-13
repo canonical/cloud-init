@@ -146,8 +146,7 @@ class Distro(object):
     def _select_hostname(self, hostname, fqdn):
         raise NotImplementedError()
 
-    def update_hostname(self, hostname, fqdn,
-                        previous_hostname_filename):
+    def update_hostname(self, hostname, fqdn, prev_hostname_fn):
         applying_hostname = hostname
         hostname = self._select_hostname(hostname, fqdn)
         prev_hostname = self._read_hostname(prev_hostname_fn)
