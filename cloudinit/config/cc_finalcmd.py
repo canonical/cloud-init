@@ -78,7 +78,7 @@ def execmd(exe_args, data_in=None, output=None):
 
 
 def runfinal(shellcode, finalcmd_d, output=None):
-    ret = execmd(("/bin/sh",), data_in=shellcode, output=output)
+    ret = execmd(["/bin/sh",], data_in=shellcode, output=output)
     if not (finalcmd_d and os.path.isdir(finalcmd_d)):
         sys.exit(ret)
 
@@ -90,7 +90,7 @@ def runfinal(shellcode, finalcmd_d, output=None):
     for exe_name in sorted(os.listdir(finalcmd_d)):
         exe_path = os.path.join(finalcmd_d, exe_name)
         if os.path.isfile(exe_path) and os.access(exe_path, os.X_OK):
-            ret = execmd(exe_path, data_in=None, output=output)
+            ret = execmd([exe_path], data_in=None, output=output)
             if ret != 0:
                 fails += 1
     sys.exit(fails)
