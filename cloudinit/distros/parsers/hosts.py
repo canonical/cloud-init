@@ -90,4 +90,3 @@ class HostsConf(object):
                 pieces = "\t".join(pieces)
                 contents.write("%s%s\n" % (pieces, tail))
         return contents.getvalue()
-
