@@ -23,15 +23,9 @@
  - Fix the merging of group configuration when that group configuration is a
    dict => members. [revno 707]
  - add yum_add_repo configuration module for adding additional yum repos
- - work around the lazy loading of get_instance_metadata in boto >= 2.6.0
-   by fully walking the dictionary. (LP: #1068801)
-   Added dependency on distribute's python-pkg-resources
  - fix public key importing with config-drive-v2 datasource (LP: #1077700)
  - handle renaming and fixing up of marker names (LP: 1075980) [revno 710]
    this relieves that burden from the distro/packaging.
- - datasource: move back to using the value 'None' for the initial datasource
-   since it causes early failure if used, instead of transient and
-   not easily-detectable later failure
  - group config: fix how group members weren't being translated correctly
    when the group: [member, member...] format was used (LP: #1077245)
  - sysconfig: fix how the /etc/sysconfig/network should be using the fully
@@ -46,6 +40,9 @@
    dictionary and force it to full expand so that if cloud-init blocks the ec2
    metadata port the lazy loaded dictionary will continue working properly 
    instead of trying to make additional url calls which will fail (LP: #1068801)
+    - Added dependency on distribute's python-pkg-resources
+ - use a set of helper/parsing classes to perform system configuration
+   for easier test.  (/etc/sysconfig, /etc/hostname, resolv.conf, /etc/hosts)
  - add 'finalcmd' config module to execute 'finalcmd' entries like
    'runcmd' but detached from cloud-init (LP: #1064665)
 0.7.0:
