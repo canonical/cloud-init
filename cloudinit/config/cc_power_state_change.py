@@ -41,7 +41,7 @@ def handle(_name, cfg, _cloud, log, _args):
         return
 
     mypid = os.getpid()
-    cmdline = util.load_file("/proc/%s/cmdline")
+    cmdline = util.load_file("/proc/%s/cmdline" % mypid)
 
     if not cmdline:
         log.warn("power_state: failed to get cmdline of current process")
