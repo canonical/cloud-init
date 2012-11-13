@@ -80,4 +80,3 @@ USEMD5=no'''
         contents = str(conf)
         self.assertIn("Z=d", contents)
         self.assertIn("BLAH=b", contents)
-        

@@ -48,7 +48,7 @@ class Distro(distros.Distro):
     clock_conf_fn = "/etc/sysconfig/clock"
     locale_conf_fn = '/etc/sysconfig/i18n'
     network_conf_fn = "/etc/sysconfig/network"
-    hostname_conf_fn = "/etc/sysconfig/network" 
+    hostname_conf_fn = "/etc/sysconfig/network"
     network_script_tpl = '/etc/sysconfig/network-scripts/ifcfg-%s'
     resolve_conf_fn = "/etc/resolv.conf"
     tz_local_fn = "/etc/localtime"
@@ -65,11 +65,11 @@ class Distro(distros.Distro):
         self.package_command('install', pkglist)
 
     def _adjust_resolve(self, dns_servers, search_servers):
-        r_conf = ResolvConf(util.load_file(self.resolve_conf_fn))
         try:
+            r_conf = ResolvConf(util.load_file(self.resolve_conf_fn))
             r_conf.parse()
         except IOError:
-            util.logexc(LOG, 
+            util.logexc(LOG,
                         "Failed at parsing %s reverting to an empty instance",
                         self.resolve_conf_fn)
             r_conf = ResolvConf('')
@@ -178,10 +178,10 @@ class Distro(distros.Distro):
 
     def _read_conf(self, fn):
         exists = False
-        if os.path.isfile(fn):
+        try:
             contents = util.load_file(fn).splitlines()
             exists = True
-        else:
+        except IOError:
             contents = []
         return (exists,
                 SysConf(contents))
