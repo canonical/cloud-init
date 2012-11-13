@@ -36,8 +36,6 @@ from cloudinit.handlers import cloud_config as cc_part
 from cloudinit.handlers import shell_script as ss_part
 from cloudinit.handlers import upstart_job as up_part
 
-from cloudinit.sources import DataSourceNone
-
 from cloudinit import cloud
 from cloudinit import config
 from cloudinit import distros
@@ -50,6 +48,7 @@ from cloudinit import util
 LOG = logging.getLogger(__name__)
 
 NULL_DATA_SOURCE = None
+
 
 class Init(object):
     def __init__(self, ds_deps=None):
