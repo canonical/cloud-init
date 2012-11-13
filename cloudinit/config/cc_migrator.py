@@ -28,48 +28,50 @@ frequency = PER_ALWAYS
 
 
 def _migrate_canon_sems(cloud):
-    sem_path = cloud.paths.get_ipath('sem')
-    if not sem_path or not os.path.exists(sem_path):
-        return 0
+    paths = (cloud.paths.get_ipath('sem'), cloud.paths.get_cpath('sem'))
     am_adjusted = 0
-    for p in os.listdir(sem_path):
-        full_path = os.path.join(sem_path, p)
-        if os.path.isfile(full_path):
-            (name, ext) = os.path.splitext(p)
-            canon_name = helpers.canon_sem_name(name)
-            if canon_name != name:
-                new_path = os.path.join(sem_path, canon_name + ext)
-                shutil.move(full_path, new_path)
-                am_adjusted += 1
+    for sem_path in paths:
+        if not sem_path or not os.path.exists(sem_path):
+            continue
+        for p in os.listdir(sem_path):
+            full_path = os.path.join(sem_path, p)
+            if os.path.isfile(full_path):
+                (name, ext) = os.path.splitext(p)
+                canon_name = helpers.canon_sem_name(name)
+                if canon_name != name:
+                    new_path = os.path.join(sem_path, canon_name + ext)
+                    shutil.move(full_path, new_path)
+                    am_adjusted += 1
     return am_adjusted
 
 
 def _migrate_legacy_sems(cloud, log):
-    sem_path = cloud.paths.get_ipath('sem')
-    if not sem_path or not os.path.exists(sem_path):
-        return
     legacy_adjust = {
         'apt-update-upgrade': [
             'apt-configure',
             'package-update-upgrade-install',
         ],
     }
-    sem_helper = helpers.FileSemaphores(sem_path)
-    for (mod_name, migrate_to) in legacy_adjust.items():
-        possibles = [mod_name, helpers.canon_sem_name(mod_name)]
-        old_exists = []
-        for p in os.listdir(sem_path):
-            (name, _ext) = os.path.splitext(p)
-            if name in possibles and os.path.isfile(p):
-                old_exists.append(p)
-        for p in old_exists:
-            util.del_file(os.path.join(sem_path, p))
-            (_name, freq) = os.path.splitext(p)
-            for m in migrate_to:
-                log.debug("Migrating %s => %s with the same frequency",
-                          p, m)
-                with sem_helper.lock(m, freq):
-                    pass
+    paths = (cloud.paths.get_ipath('sem'), cloud.paths.get_cpath('sem'))
+    for sem_path in paths:
+        if not sem_path or not os.path.exists(sem_path):
+            continue
+        sem_helper = helpers.FileSemaphores(sem_path)
+        for (mod_name, migrate_to) in legacy_adjust.items():
+            possibles = [mod_name, helpers.canon_sem_name(mod_name)]
+            old_exists = []
+            for p in os.listdir(sem_path):
+                (name, _ext) = os.path.splitext(p)
+                if name in possibles and os.path.isfile(p):
+                    old_exists.append(p)
+            for p in old_exists:
+                util.del_file(os.path.join(sem_path, p))
+                (_name, freq) = os.path.splitext(p)
+                for m in migrate_to:
+                    log.debug("Migrating %s => %s with the same frequency",
+                              p, m)
+                    with sem_helper.lock(m, freq):
+                        pass
 
 
 def handle(name, cfg, cloud, log, _args):
