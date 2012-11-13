@@ -46,6 +46,8 @@
    dictionary and force it to full expand so that if cloud-init blocks the ec2
    metadata port the lazy loaded dictionary will continue working properly 
    instead of trying to make additional url calls which will fail (LP: #1068801)
+ - add 'finalcmd' config module to execute 'finalcmd' entries like
+   'runcmd' but detached from cloud-init (LP: #1064665)
 0.7.0:
  - add a 'exception_cb' argument to 'wait_for_url'.  If provided, this
    method will be called back with the exception received and the message.
