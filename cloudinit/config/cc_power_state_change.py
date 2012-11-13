@@ -21,6 +21,7 @@ from cloudinit import util
 
 import errno
 import os
+import re
 import subprocess
 import sys
 import time
@@ -28,82 +29,90 @@ import time
 frequency = PER_INSTANCE
 
 
-def handle(_name, cfg, cloud, log, _args):
+def handle(_name, cfg, _cloud, log, _args):
 
-    finalcmds = cfg.get("finalcmd")
-
-    if not finalcmds:
-        log.debug("No final commands")
+    try:
+        (args, timeout) = load_power_state(cfg)
+        if args is None:
+            log.debug("no power_state provided. doing nothing")
+            return
+    except Exception as e:
+        log.warn("%s Not performing power state change!" % str(e))
         return
 
     mypid = os.getpid()
     cmdline = util.load_file("/proc/%s/cmdline")
 
     if not cmdline:
-        log.warn("Failed to get cmdline of current process")
-        return
-
-    try:
-        timeout = float(cfg.get("finalcmd_timeout", 30.0))
-    except ValueError:
-        log.warn("failed to convert finalcmd_timeout '%s' to float" %
-                 cfg.get("finalcmd_timeout", 30.0))
+        log.warn("power_state: failed to get cmdline of current process")
         return
 
     devnull_fp = open("/dev/null", "w")
 
-    shellcode = util.shellify(finalcmds)
+    log.debug("After pid %s ends, will execute: %s" % (mypid, ' '.join(args)))
 
-    # note, after the fork, we do not use any of cloud-init's functions
-    # that would attempt to log.  The primary reason for that is
-    # to allow the 'finalcmd' the ability to do just about anything
-    # and not depend on syslog services.
-    # Basically, it should "just work" to have finalcmd of:
-    #  - sleep 30
-    #  - /sbin/poweroff
-    finalcmd_d = os.path.join(cloud.get_ipath_cur(), "finalcmds")
-
-    util.fork_cb(run_after_pid_gone, mypid, cmdline, timeout,
-                 runfinal, (shellcode, finalcmd_d, devnull_fp))
+    util.fork_cb(run_after_pid_gone, mypid, cmdline, timeout, log, execmd,
+                 [args, devnull_fp])
 
 
-def execmd(exe_args, data_in=None, output=None):
+def load_power_state(cfg):
+    # returns a tuple of shutdown_command, timeout
+    # shutdown_command is None if no config found
+    pstate = cfg.get('power_state')
+
+    if pstate is None:
+        return (None, None)
+
+    if not isinstance(pstate, dict):
+        raise TypeError("power_state is not a dict.")
+
+    opt_map = {'halt': '-H', 'poweroff': '-P', 'reboot': '-r'}
+
+    mode = pstate.get("mode")
+    if mode not in opt_map:
+        raise TypeError("power_state[mode] required, must be one of: %s." %
+                        ','.join(opt_map.keys()))
+
+    delay = pstate.get("delay", "now")
+    if delay != "now" and not re.match("\+[0-9]+", delay):
+        raise TypeError("power_state[delay] must be 'now' or '+m' (minutes).")
+
+    args = ["shutdown", opt_map[mode], delay]
+    if pstate.get("message"):
+        args.append(pstate.get("message"))
+
+    try:
+        timeout = float(pstate.get('timeout', 30.0))
+    except ValueError:
+        raise ValueError("failed to convert timeout '%s' to float." %
+                         pstate['timeout'])
+
+    return (args, timeout)
+
+
+def execmd(exe_args, output=None, data_in=None):
     try:
         proc = subprocess.Popen(exe_args, stdin=subprocess.PIPE,
                                 stdout=output, stderr=subprocess.STDOUT)
         proc.communicate(data_in)
     except Exception:
-        return 254
-    return proc.returncode()
+        sys.exit(254)
+    sys.exit(proc.returncode())
 
 
-def runfinal(shellcode, finalcmd_d, output=None):
-    ret = execmd(["/bin/sh"], data_in=shellcode, output=output)
-    if not (finalcmd_d and os.path.isdir(finalcmd_d)):
-        sys.exit(ret)
-
-    fails = 0
-    if ret != 0:
-        fails = 1
-
-    # now runparts the final command dir
-    for exe_name in sorted(os.listdir(finalcmd_d)):
-        exe_path = os.path.join(finalcmd_d, exe_name)
-        if os.path.isfile(exe_path) and os.access(exe_path, os.X_OK):
-            ret = execmd([exe_path], data_in=None, output=output)
-            if ret != 0:
-                fails += 1
-    sys.exit(fails)
-
-
-def run_after_pid_gone(pid, pidcmdline, timeout, func, args):
+def run_after_pid_gone(pid, pidcmdline, timeout, log, func, args):
     # wait until pid, with /proc/pid/cmdline contents of pidcmdline
     # is no longer alive.  After it is gone, or timeout has passed
     # execute func(args)
-    msg = "ERROR: Uncaught error"
+    msg = None
     end_time = time.time() + timeout
 
     cmdline_f = "/proc/%s/cmdline" % pid
+
+    def fatal(msg):
+        if log:
+            log.warn(msg)
+        sys.exit(254)
 
     while True:
         if time.time() > end_time:
@@ -122,18 +131,15 @@ def run_after_pid_gone(pid, pidcmdline, timeout, func, args):
             if ioerr.errno == errno.ENOENT:
                 msg = "pidfile '%s' gone" % cmdline_f
             else:
-                msg = "ERROR: IOError: %s" % ioerr
-                raise
+                fatal("IOError during wait: %s" % ioerr)
             break
 
         except Exception as e:
-            msg = "ERROR: Exception: %s" % e
-            raise
+            fatal("Unexpected Exception: %s" % e)
 
-    if msg.startswith("ERROR:"):
-        sys.stderr.write(msg)
-        sys.stderr.write("Not executing finalcmd")
-        sys.exit(1)
+    if not msg:
+        fatal("Unexpected error in run_after_pid_gone")
 
-    sys.stderr.write("calling %s with %s\n" % (func, args))
-    sys.exit(func(*args))
+    if log:
+        log.debug(msg)
+    func(*args)

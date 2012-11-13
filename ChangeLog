@@ -43,8 +43,8 @@
     - Added dependency on distribute's python-pkg-resources
  - use a set of helper/parsing classes to perform system configuration
    for easier test.  (/etc/sysconfig, /etc/hostname, resolv.conf, /etc/hosts)
- - add 'finalcmd' config module to execute 'finalcmd' entries like
-   'runcmd' but detached from cloud-init (LP: #1064665)
+ - add power_state_change config module for shutting down stystem after
+   cloud-init finishes. (LP: #1064665)
 0.7.0:
  - add a 'exception_cb' argument to 'wait_for_url'.  If provided, this
    method will be called back with the exception received and the message.
