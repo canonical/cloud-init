@@ -28,7 +28,7 @@ import time
 frequency = PER_INSTANCE
 
 
-def handle(_name, cfg, _cloud, log, _args):
+def handle(_name, cfg, cloud, log, _args):
 
     finalcmds = cfg.get("finalcmd")
 
@@ -70,15 +70,15 @@ def handle(_name, cfg, _cloud, log, _args):
 def execmd(exe_args, data_in=None, output=None):
     try:
         proc = subprocess.Popen(exe_args, stdin=subprocess.PIPE,
-                                stdout=output, stderr=subprocess.STDERR)
+                                stdout=output, stderr=subprocess.STDOUT)
         proc.communicate(data_in)
-    except Exception as e:
+    except Exception:
         return 254
     return proc.returncode()
 
 
 def runfinal(shellcode, finalcmd_d, output=None):
-    ret = execmd(["/bin/sh",], data_in=shellcode, output=output)
+    ret = execmd(["/bin/sh"], data_in=shellcode, output=output)
     if not (finalcmd_d and os.path.isdir(finalcmd_d)):
         sys.exit(ret)
 
