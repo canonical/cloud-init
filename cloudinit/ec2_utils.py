@@ -16,34 +16,26 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import pkg_resources
-from pkg_resources import parse_version as pver
-
 import boto.utils as boto_utils
 
-# Versions of boto >= 2.6.0 try to lazily load
-# the metadata backing, which doesn't work so well
-# in cloud-init especially since the metadata is
-# serialized and actions are performed where the
-# metadata server may be blocked (thus the datasource
-# will start failing) resulting in url exceptions
-# when fields that do exist (or would have existed)
-# do not exist due to the blocking that occurred.
-
-BOTO_LAZY = False
-try:
-    _boto_lib = pkg_resources.get_distribution('boto')
-    if _boto_lib.parsed_version > pver("2.5.2"):  # pylint: disable=E1103
-        BOTO_LAZY = True
-except pkg_resources.DistributionNotFound:
-    pass
+# Versions of boto >= 2.6.0 (and possibly 2.5.2)
+# try to lazily load the metadata backing, which
+# doesn't work so well in cloud-init especially
+# since the metadata is serialized and actions are
+# performed where the metadata server may be blocked
+# (thus the datasource will start failing) resulting
+# in url exceptions when fields that do exist (or
+# would have existed) do not exist due to the blocking
+# that occurred.
 
 
 def _unlazy_dict(mp):
     if not isinstance(mp, (dict)):
         return mp
-    if not BOTO_LAZY:
-        return mp
+    # Walk over the keys/values which
+    # forces boto to unlazy itself and
+    # has no effect on dictionaries that
+    # already have there items.
     for (_k, v) in mp.items():
         _unlazy_dict(v)
     return mp

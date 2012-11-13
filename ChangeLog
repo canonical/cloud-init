@@ -38,9 +38,8 @@
    runs the usage of this lazy loading is hidden and since that lazy loading 
    will be performed on future attribute access we must traverse the lazy loaded
    dictionary and force it to full expand so that if cloud-init blocks the ec2
-   metadata port the lazy loaded dictionary will continue working properly 
+   metadata port the lazy loaded dictionary will continue working properly
    instead of trying to make additional url calls which will fail (LP: #1068801)
-    - Added dependency: python-pkg-resources (deb), python-setuptools (rpm)
  - use a set of helper/parsing classes to perform system configuration
    for easier test.  (/etc/sysconfig, /etc/hostname, resolv.conf, /etc/hosts)
 0.7.0:
