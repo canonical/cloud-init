@@ -28,13 +28,14 @@ import argparse
 # use in our debian 'control' file, this is a translation of the 'requires'
 # file pypi package name to a debian/ubuntu package name.
 PKG_MP = {
+    'argparse': 'python-argparse',
     'boto': 'python-boto',
+    'cheetah': 'python-cheetah',
     'configobj': 'python-configobj',
     'oauth': 'python-oauth',
-    'pyyaml': 'python-yaml',
+    'pkg_resources': 'python-pkg-resources',
     'prettytable': 'python-prettytable',
-    'argparse': 'python-argparse',
-    'cheetah': 'python-cheetah',
+    'pyyaml': 'python-yaml',
 }
 DEBUILD_ARGS = ["-us", "-S", "-uc"]
 
