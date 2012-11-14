@@ -1,4 +1,6 @@
 import os
+import sys
+import unittest
 
 from mocker import MockerTestCase
 
@@ -6,6 +8,27 @@ from cloudinit import helpers as ch
 from cloudinit import util
 
 import shutil
+
+# Handle how 2.6 doesn't have the assertIn or assertNotIn
+_PY_VER = sys.version_info
+_PY_MAJOR, _PY_MINOR = _PY_VER[0:2]
+if (_PY_MAJOR, _PY_MINOR) <= (2, 6):
+    # For now add these on, taken from python 2.7 + slightly adjusted
+    class TestCase(unittest.TestCase):
+        def assertIn(self, member, container, msg=None):
+            if member not in container:
+                standardMsg = '%r not found in %r' % (member, container)
+                self.fail(self._formatMessage(msg, standardMsg))
+
+        def assertNotIn(self, member, container, msg=None):
+            if member in container:
+                standardMsg = '%r unexpectedly found in %r'
+                standardMsg = standardMsg % (member, container)
+                self.fail(self._formatMessage(msg, standardMsg))
+
+else:
+    class TestCase(unittest.TestCase):
+        pass
 
 
 # Makes the old path start

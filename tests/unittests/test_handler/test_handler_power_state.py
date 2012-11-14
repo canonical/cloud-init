@@ -1,9 +1,9 @@
-from unittest import TestCase
-
 from cloudinit.config import cc_power_state_change as psc
 
+from tests.unittests import helpers as t_help
 
-class TestLoadPowerState(TestCase):
+
+class TestLoadPowerState(t_help.TestCase):
     def setUp(self):
         super(self.__class__, self).setUp()
 
