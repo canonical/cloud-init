@@ -11,7 +11,7 @@
 
 Name:           cloud-init
 Version:        ${version}
-Release:        ${release}%{?dist}
+Release:        ${release}${subrelease}%{?dist}
 Summary:        Cloud instance init scripts
 
 Group:          System Environment/Base

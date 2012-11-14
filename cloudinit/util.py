@@ -52,6 +52,7 @@ from cloudinit import importer
 from cloudinit import log as logging
 from cloudinit import safeyaml
 from cloudinit import url_helper as uhelp
+from cloudinit import version
 
 from cloudinit.settings import (CFG_BUILTIN)
 
@@ -272,11 +273,7 @@ def uniq_merge(*lists):
             # Kickout the empty ones
             a_list = [a for a in a_list if len(a)]
         combined_list.extend(a_list)
-    uniq_list = []
-    for i in combined_list:
-        if i not in uniq_list:
-            uniq_list.append(i)
-    return uniq_list
+    return uniq_list(combined_list)
 
 
 def clean_filename(fn):
@@ -983,6 +980,22 @@ def find_devs_with(criteria=None, oformat='device',
     return entries
 
 
+def peek_file(fname, max_bytes):
+    LOG.debug("Peeking at %s (max_bytes=%s)", fname, max_bytes)
+    with open(fname, 'rb') as ifh:
+        return ifh.read(max_bytes)
+
+
+def uniq_list(in_list):
+    out_list = []
+    for i in in_list:
+        if i in out_list:
+            continue
+        else:
+            out_list.append(i)
+    return out_list
+
+
 def load_file(fname, read_cb=None, quiet=False):
     LOG.debug("Reading from %s (quiet=%s)", fname, quiet)
     ofh = StringIO()
@@ -1187,8 +1200,7 @@ def yaml_dumps(obj):
                     indent=4,
                     explicit_start=True,
                     explicit_end=True,
-                    default_flow_style=False,
-                    )
+                    default_flow_style=False)
     return formatted
 
 
@@ -1328,6 +1340,10 @@ def uptime():
     return uptime_str
 
 
+def append_file(path, content):
+    write_file(path, content, omode="ab", mode=None)
+
+
 def ensure_file(path, mode=0644):
     write_file(path, content='', omode="ab", mode=mode)
 
@@ -1417,6 +1433,14 @@ def subp(args, data=None, rcs=None, env=None, capture=True, shell=False,
     if not err and capture:
         err = ''
     return (out, err)
+
+
+def make_header(comment_char="#", base='created'):
+    ci_ver = version.version_string()
+    header = str(comment_char)
+    header += " %s by cloud-init v. %s" % (base.title(), ci_ver)
+    header += " on %s" % time_rfc2822()
+    return header
 
 
 def abs_join(*paths):

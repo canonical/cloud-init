@@ -1,6 +1,6 @@
 import copy
 
-import helpers as th
+from tests.unittests import helpers
 
 import itertools
 
@@ -18,7 +18,7 @@ def count_messages(root):
     return am
 
 
-class TestLaunchFilter(th.ResourceUsingTestCase):
+class TestLaunchFilter(helpers.ResourceUsingTestCase):
 
     def assertCounts(self, message, expected_counts):
         orig_message = copy.deepcopy(message)

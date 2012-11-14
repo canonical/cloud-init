@@ -27,9 +27,11 @@ def handle(name, cfg, cloud, log, _args):
                     " not setting the hostname in module %s"), name)
         return
 
-    (hostname, _fqdn) = util.get_hostname_fqdn(cfg, cloud)
+    (hostname, fqdn) = util.get_hostname_fqdn(cfg, cloud)
     try:
-        log.debug("Setting hostname to %s", hostname)
-        cloud.distro.set_hostname(hostname)
+        log.debug("Setting the hostname to %s (%s)", fqdn, hostname)
+        cloud.distro.set_hostname(hostname, fqdn)
     except Exception:
-        util.logexc(log, "Failed to set hostname to %s", hostname)
+        util.logexc(log, "Failed to set the hostname to %s (%s)",
+                    fqdn, hostname)
+        raise

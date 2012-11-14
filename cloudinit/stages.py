@@ -47,6 +47,8 @@ from cloudinit import util
 
 LOG = logging.getLogger(__name__)
 
+NULL_DATA_SOURCE = None
+
 
 class Init(object):
     def __init__(self, ds_deps=None):
@@ -58,8 +60,16 @@ class Init(object):
         self._cfg = None
         self._paths = None
         self._distro = None
-        # Created only when a fetch occurs
-        self.datasource = None
+        # Changed only when a fetch occurs
+        self.datasource = NULL_DATA_SOURCE
+
+    def _reset(self, ds=False):
+        # Recreated on access
+        self._cfg = None
+        self._paths = None
+        self._distro = None
+        if ds:
+            self.datasource = NULL_DATA_SOURCE
 
     @property
     def distro(self):
@@ -191,7 +201,7 @@ class Init(object):
             return None
 
     def _write_to_cache(self):
-        if not self.datasource:
+        if self.datasource is NULL_DATA_SOURCE:
             return False
         pickled_fn = self.paths.get_ipath_cur("obj_pkl")
         try:
@@ -217,7 +227,7 @@ class Init(object):
         return (cfg_list, pkg_list)
 
     def _get_data_source(self):
-        if self.datasource:
+        if self.datasource is not NULL_DATA_SOURCE:
             return self.datasource
         ds = self._restore_from_cache()
         if ds:
@@ -236,7 +246,7 @@ class Init(object):
         self.datasource = ds
         # Ensure we adjust our path members datasource
         # now that we have one (thus allowing ipath to be used)
-        self.paths.datasource = ds
+        self._reset()
         return ds
 
     def _get_instance_subdirs(self):
@@ -296,6 +306,10 @@ class Init(object):
         util.write_file(iid_fn, "%s\n" % iid)
         util.write_file(os.path.join(dp, 'previous-instance-id'),
                         "%s\n" % (previous_iid))
+        # Ensure needed components are regenerated
+        # after change of instance which may cause
+        # change of configuration
+        self._reset()
         return iid
 
     def fetch(self):
@@ -408,6 +422,17 @@ class Init(object):
                 continue
             handlers.call_end(mod, data, frequency)
             called.append(mod)
+
+        # Perform post-consumption adjustments so that
+        # modules that run during the init stage reflect
+        # this consumed set.
+        #
+        # They will be recreated on future access...
+        self._reset()
+        # Note(harlowja): the 'active' datasource will have
+        # references to the previous config, distro, paths
+        # objects before the load of the userdata happened,
+        # this is expected.
 
 
 class Modules(object):

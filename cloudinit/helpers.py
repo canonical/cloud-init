@@ -71,12 +71,17 @@ class FileLock(object):
         return "<%s using file %r>" % (util.obj_name(self), self.fn)
 
 
+def canon_sem_name(name):
+    return name.replace("-", "_")
+
+
 class FileSemaphores(object):
     def __init__(self, sem_path):
         self.sem_path = sem_path
 
     @contextlib.contextmanager
     def lock(self, name, freq, clear_on_fail=False):
+        name = canon_sem_name(name)
         try:
             yield self._acquire(name, freq)
         except:
@@ -85,6 +90,7 @@ class FileSemaphores(object):
             raise
 
     def clear(self, name, freq):
+        name = canon_sem_name(name)
         sem_file = self._get_path(name, freq)
         try:
             util.del_file(sem_file)
@@ -119,11 +125,23 @@ class FileSemaphores(object):
     def has_run(self, name, freq):
         if not freq or freq == PER_ALWAYS:
             return False
-        sem_file = self._get_path(name, freq)
+
+        cname = canon_sem_name(name)
+        sem_file = self._get_path(cname, freq)
         # This isn't really a good atomic check
         # but it suffices for where and when cloudinit runs
         if os.path.exists(sem_file):
             return True
+
+        # this case could happen if the migrator module hadn't run yet
+        # but the item had run before we did canon_sem_name.
+        if cname != name and os.path.exists(self._get_path(name, freq)):
+            LOG.warn("%s has run without canonicalized name [%s].\n"
+                "likely the migrator has not yet run. It will run next boot.\n"
+                "run manually with: cloud-init single --name=migrator"
+                % (name, cname))
+            return True
+
         return False
 
     def _get_path(self, name, freq):
@@ -302,14 +320,10 @@ class Paths(object):
     def __init__(self, path_cfgs, ds=None):
         self.cfgs = path_cfgs
         # Populate all the initial paths
-        self.cloud_dir = self.join(False,
-                                   path_cfgs.get('cloud_dir',
-                                                 '/var/lib/cloud'))
+        self.cloud_dir = path_cfgs.get('cloud_dir', '/var/lib/cloud')
         self.instance_link = os.path.join(self.cloud_dir, 'instance')
         self.boot_finished = os.path.join(self.instance_link, "boot-finished")
         self.upstart_conf_d = path_cfgs.get('upstart_dir')
-        if self.upstart_conf_d:
-            self.upstart_conf_d = self.join(False, self.upstart_conf_d)
         self.seed_dir = os.path.join(self.cloud_dir, 'seed')
         # This one isn't joined, since it should just be read-only
         template_dir = path_cfgs.get('templates_dir', '/etc/cloud/templates/')
@@ -327,29 +341,6 @@ class Paths(object):
         }
         # Set when a datasource becomes active
         self.datasource = ds
-
-    # joins the paths but also appends a read
-    # or write root if available
-    def join(self, read_only, *paths):
-        if read_only:
-            root = self.cfgs.get('read_root')
-        else:
-            root = self.cfgs.get('write_root')
-        if not paths:
-            return root
-        if len(paths) > 1:
-            joined = os.path.join(*paths)
-        else:
-            joined = paths[0]
-        if root:
-            pre_joined = joined
-            # Need to remove any starting '/' since this
-            # will confuse os.path.join
-            joined = joined.lstrip("/")
-            joined = os.path.join(root, joined)
-            LOG.debug("Translated %s to adjusted path %s (read-only=%s)",
-                      pre_joined, joined, read_only)
-        return joined
 
     # get_ipath_cur: get the current instance path for an item
     def get_ipath_cur(self, name=None):

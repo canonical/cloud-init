@@ -25,8 +25,8 @@
 
 ### BEGIN INIT INFO
 # Provides:          cloud-init
-# Required-Start:    $local_fs $network $named $remote_fs
-# Should-Start:      $time cloud-init-local
+# Required-Start:    $local_fs $network $named $remote_fs cloud-init-local
+# Should-Start:      $time
 # Required-Stop:
 # Should-Stop:
 # Default-Start:     3 5
