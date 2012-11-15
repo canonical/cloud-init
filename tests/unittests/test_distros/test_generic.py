@@ -55,6 +55,29 @@ class TestGenericDistro(helpers.FilesystemMockingTestCase):
         # Make a temp directoy for tests to use.
         self.tmp = self.makeDir()
 
+    def test_sudoers_ensure_rules(self):
+        rules = ['ALL=(ALL:ALL) ALL']
+        rules.append('B-ALL=(ALL:ALL) ALL')
+        cls = distros.fetch("ubuntu")
+        d = cls("ubuntu", {}, None)
+        os.makedirs(os.path.join(self.tmp, "etc"))
+        os.makedirs(os.path.join(self.tmp, "etc", 'sudoers.d'))
+        self.patchOS(self.tmp)
+        self.patchUtils(self.tmp)
+        d.write_sudo_rules("harlowja", rules)
+        contents = util.load_file(d.ci_sudoers_fn)
+        self.restore()
+        lines = contents.splitlines()
+        found_amount = 0
+        expected = ['harlowja ALL=(ALL:ALL) ALL']
+        expected.append('harlowja B-ALL=(ALL:ALL) ALL')
+        for e in expected:
+            for line in lines:
+                line = line.strip()
+                if line == e:
+                    found_amount += 1
+        self.assertEquals(2, found_amount)
+
     def test_sudoers_ensure_new(self):
         cls = distros.fetch("ubuntu")
         d = cls("ubuntu", {}, None)
