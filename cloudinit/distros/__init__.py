@@ -423,8 +423,11 @@ class Distro(object):
         if isinstance(rules, (list, tuple)):
             for rule in rules:
                 lines.append("%s %s" % (user, rule))
-        else:
+        elif isinstance(rules, (basestring, str)):
             lines.append("%s %s" % (user, rules))
+        else:
+            msg = "Can not create sudoers rule addition with type %r"
+            raise TypeError(msg % (util.obj_name(rules)))
         content = "\n".join(lines)
 
         self.ensure_sudo_dir(os.path.dirname(sudo_file))
