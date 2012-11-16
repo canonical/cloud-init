@@ -24,7 +24,6 @@
 from StringIO import StringIO
 
 import abc
-import collections
 import itertools
 import os
 import re
@@ -421,11 +420,14 @@ class Distro(object):
             '',
             "# User rules for %s" % user,
         ]
-        if isinstance(rules, collections.Iterable):
+        if isinstance(rules, (list, tuple)):
             for rule in rules:
                 lines.append("%s %s" % (user, rule))
-        else:
+        elif isinstance(rules, (basestring, str)):
             lines.append("%s %s" % (user, rules))
+        else:
+            msg = "Can not create sudoers rule addition with type %r"
+            raise TypeError(msg % (util.obj_name(rules)))
         content = "\n".join(lines)
 
         self.ensure_sudo_dir(os.path.dirname(sudo_file))
