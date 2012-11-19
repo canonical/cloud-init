@@ -1,3 +1,11 @@
+cloud-init (0.7.1-0ubuntu2) raring; urgency=low
+
+  * debian/watch: add watch file
+  * add 'ubuntu' user to sudoers (LP: #1080717)
+  * set 'ubuntu' user shell to bash
+
+ -- Scott Moser <smoser@ubuntu.com>  Mon, 19 Nov 2012 09:38:29 -0500
+
 cloud-init (0.7.1-0ubuntu1) raring; urgency=low
 
   * New upstream release.
