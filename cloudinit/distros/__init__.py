@@ -429,6 +429,7 @@ class Distro(object):
             msg = "Can not create sudoers rule addition with type %r"
             raise TypeError(msg % (util.obj_name(rules)))
         content = "\n".join(lines)
+        content += "\n"  # trailing newline
 
         self.ensure_sudo_dir(os.path.dirname(sudo_file))
         if not os.path.exists(sudo_file):

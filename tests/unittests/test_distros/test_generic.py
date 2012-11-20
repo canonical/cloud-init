@@ -55,7 +55,7 @@ class TestGenericDistro(helpers.FilesystemMockingTestCase):
         # Make a temp directoy for tests to use.
         self.tmp = self.makeDir()
 
-    def _write_load_sudoers(self, user, rules):
+    def _write_load_sudoers(self, _user, rules):
         cls = distros.fetch("ubuntu")
         d = cls("ubuntu", {}, None)
         os.makedirs(os.path.join(self.tmp, "etc"))
