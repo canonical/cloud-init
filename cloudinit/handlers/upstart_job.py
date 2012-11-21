@@ -42,7 +42,7 @@ class UpstartJobPartHandler(handlers.Handler):
             handlers.type_from_starts_with("#upstart-job"),
         ]
 
-    def _handle_part(self, _data, ctype, filename, payload, frequency):
+    def handle_part(self, _data, ctype, filename, payload, frequency):
         if ctype in handlers.CONTENT_SIGNALS:
             return
 

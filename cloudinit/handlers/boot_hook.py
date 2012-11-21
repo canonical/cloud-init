@@ -56,7 +56,7 @@ class BootHookPartHandler(handlers.Handler):
         util.write_file(filepath, contents, 0700)
         return filepath
 
-    def _handle_part(self, _data, ctype, filename, payload, _frequency):
+    def handle_part(self, _data, ctype, filename, payload, _frequency):
         if ctype in handlers.CONTENT_SIGNALS:
             return
 
