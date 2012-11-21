@@ -69,7 +69,6 @@ INCLUSION_SRCH = sorted(list(INCLUSION_TYPES_MAP.keys()),
 
 
 class Handler(object):
-
     __metaclass__ = abc.ABCMeta
 
     def __init__(self, frequency, version=2):
@@ -83,15 +82,12 @@ class Handler(object):
     def list_types(self):
         raise NotImplementedError()
 
-    def handle_part(self, data, ctype, filename, payload, frequency):
-        return self._handle_part(data, ctype, filename, payload, frequency)
-
     @abc.abstractmethod
-    def _handle_part(self, data, ctype, filename, payload, frequency):
+    def handle_part(self, *args, **kwargs):
         raise NotImplementedError()
 
 
-def run_part(mod, data, ctype, filename, payload, frequency):
+def run_part(mod, data, filename, payload, headers, frequency):
     mod_freq = mod.frequency
     if not (mod_freq == PER_ALWAYS or
             (frequency == PER_INSTANCE and mod_freq == PER_INSTANCE)):
@@ -102,19 +98,25 @@ def run_part(mod, data, ctype, filename, payload, frequency):
         mod_ver = int(mod_ver)
     except:
         mod_ver = 1
+    content_type = headers['Content-Type']
     try:
         LOG.debug("Calling handler %s (%s, %s, %s) with frequency %s",
-                  mod, ctype, filename, mod_ver, frequency)
-        if mod_ver >= 2:
+                  mod, content_type, filename, mod_ver, frequency)
+        if mod_ver == 3:
+            # Treat as v. 3 which does get a frequency + headers
+            mod.handle_part(data, content_type, filename,
+                            payload, frequency, headers)
+        elif mod_ver == 2:
             # Treat as v. 2 which does get a frequency
-            mod.handle_part(data, ctype, filename, payload, frequency)
+            mod.handle_part(data, content_type, filename,
+                            payload, frequency)
         else:
             # Treat as v. 1 which gets no frequency
-            mod.handle_part(data, ctype, filename, payload)
+            mod.handle_part(data, content_type, filename, payload)
     except:
         util.logexc(LOG, ("Failed calling handler %s (%s, %s, %s)"
                          " with frequency %s"),
-                    mod, ctype, filename,
+                    mod, content_type, filename,
                     mod_ver, frequency)
 
 
@@ -173,26 +175,27 @@ def _escape_string(text):
     return text
 
 
-def walker_callback(pdata, ctype, filename, payload):
-    if ctype in PART_CONTENT_TYPES:
-        walker_handle_handler(pdata, ctype, filename, payload)
+def walker_callback(data, filename, payload, headers):
+    content_type = headers['Content-Type']
+    if content_type in PART_CONTENT_TYPES:
+        walker_handle_handler(data, content_type, filename, payload)
         return
-    handlers = pdata['handlers']
-    if ctype in pdata['handlers']:
-        run_part(handlers[ctype], pdata['data'], ctype, filename,
-                 payload, pdata['frequency'])
+    handlers = data['handlers']
+    if content_type in handlers:
+        run_part(handlers[content_type], data['data'], filename,
+                 payload, headers, data['frequency'])
     elif payload:
         # Extract the first line or 24 bytes for displaying in the log
         start = _extract_first_or_bytes(payload, 24)
         details = "'%s...'" % (_escape_string(start))
         if ctype == NOT_MULTIPART_TYPE:
             LOG.warning("Unhandled non-multipart (%s) userdata: %s",
-                        ctype, details)
+                        content_type, details)
         else:
             LOG.warning("Unhandled unknown content-type (%s) userdata: %s",
-                        ctype, details)
+                        content_type, details)
     else:
-        LOG.debug("empty payload of type %s" % ctype)
+        LOG.debug("Empty payload of type %s", content_type)
 
 
 # Callback is a function that will be called with
@@ -212,7 +215,9 @@ def walk(msg, callback, data):
         if not filename:
             filename = PART_FN_TPL % (partnum)
 
-        callback(data, ctype, filename, part.get_payload(decode=True))
+        callback(data, ctype, filename,
+                 part.get_payload(decode=True),
+                 dict(part))
         partnum = partnum + 1
 
 

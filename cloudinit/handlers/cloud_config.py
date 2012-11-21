@@ -22,6 +22,7 @@
 
 from cloudinit import handlers
 from cloudinit import log as logging
+from cloudinit import mergers
 from cloudinit import util
 
 from cloudinit.settings import (PER_ALWAYS)
@@ -31,8 +32,8 @@ LOG = logging.getLogger(__name__)
 
 class CloudConfigPartHandler(handlers.Handler):
     def __init__(self, paths, **_kwargs):
-        handlers.Handler.__init__(self, PER_ALWAYS)
-        self.cloud_buf = []
+        handlers.Handler.__init__(self, PER_ALWAYS, version=3)
+        self.cloud_buf = {}
         self.cloud_fn = paths.get_ipath("cloud_config")
 
     def list_types(self):
@@ -43,20 +44,17 @@ class CloudConfigPartHandler(handlers.Handler):
     def _write_cloud_config(self, buf):
         if not self.cloud_fn:
             return
-        lines = [str(b) for b in buf]
-        payload = "\n".join(lines)
+        payload = util.yaml_dumps(self.cloud_buf)
         util.write_file(self.cloud_fn, payload, 0600)
 
-    def _handle_part(self, _data, ctype, filename, payload, _frequency):
+    def handle_part(self, _data, ctype, filename, payload, _frequency, headers):
         if ctype == handlers.CONTENT_START:
-            self.cloud_buf = []
+            self.cloud_buf = {}
             return
         if ctype == handlers.CONTENT_END:
             self._write_cloud_config(self.cloud_buf)
-            self.cloud_buf = []
+            self.cloud_buf = {}
             return
-
-        filename = util.clean_filename(filename)
-        if not filename:
-            filename = '??'
-        self.cloud_buf.extend(["#%s" % (filename), str(payload)])
+        merge_how = headers.get("Merge-Type", 'list+dict+str')
+        merger = mergers.construct(merge_how)
+        self.cloud_buf = merger.merge(self.cloud_buf, util.load_yaml(payload))
