@@ -92,14 +92,14 @@ def run_part(mod, data, filename, payload, headers, frequency):
     if not (mod_freq == PER_ALWAYS or
             (frequency == PER_INSTANCE and mod_freq == PER_INSTANCE)):
         return
-    mod_ver = mod.handler_version
     # Sanity checks on version (should be an int convertable)
     try:
+        mod_ver = mod.handler_version
         mod_ver = int(mod_ver)
-    except:
+    except (TypeError, ValueError, AttributeError):
         mod_ver = 1
-    content_type = headers['Content-Type']
     try:
+        content_type = headers['Content-Type']
         LOG.debug("Calling handler %s (%s, %s, %s) with frequency %s",
                   mod, content_type, filename, mod_ver, frequency)
         if mod_ver == 3:
@@ -110,9 +110,11 @@ def run_part(mod, data, filename, payload, headers, frequency):
             # Treat as v. 2 which does get a frequency
             mod.handle_part(data, content_type, filename,
                             payload, frequency)
-        else:
+        elif mod_ver == 1:
             # Treat as v. 1 which gets no frequency
             mod.handle_part(data, content_type, filename, payload)
+        else:
+            raise ValueError("Unknown module version %s" % (mod_ver))
     except:
         util.logexc(LOG, ("Failed calling handler %s (%s, %s, %s)"
                          " with frequency %s"),
@@ -121,11 +123,17 @@ def run_part(mod, data, filename, payload, headers, frequency):
 
 
 def call_begin(mod, data, frequency):
-    run_part(mod, data, CONTENT_START, None, None, frequency)
+    headers = {
+        'Content-Type': CONTENT_START,
+    }
+    run_part(mod, data, None, None, headers, frequency)
 
 
 def call_end(mod, data, frequency):
-    run_part(mod, data, CONTENT_END, None, None, frequency)
+    headers = {
+        'Content-Type': CONTENT_END,
+    }
+    run_part(mod, data, None, None, headers, frequency)
 
 
 def walker_handle_handler(pdata, _ctype, _filename, payload):
@@ -215,9 +223,9 @@ def walk(msg, callback, data):
         if not filename:
             filename = PART_FN_TPL % (partnum)
 
-        callback(data, ctype, filename,
-                 part.get_payload(decode=True),
-                 dict(part))
+        headers = dict(part)
+        headers['Content-Type'] = ctype
+        callback(data, filename, part.get_payload(decode=True), headers)
         partnum = partnum + 1
 
 
