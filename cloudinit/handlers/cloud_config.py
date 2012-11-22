@@ -38,6 +38,7 @@ class CloudConfigPartHandler(handlers.Handler):
         handlers.Handler.__init__(self, PER_ALWAYS, version=3)
         self.cloud_buf = {}
         self.cloud_fn = paths.get_ipath("cloud_config")
+        self.file_names = []
 
     def list_types(self):
         return [
@@ -48,7 +49,17 @@ class CloudConfigPartHandler(handlers.Handler):
         if not self.cloud_fn:
             return
         # Write the combined & merged dictionary/yaml out
-        lines = ["#cloud-config", util.yaml_dumps(self.cloud_buf)]
+        lines = [
+            "#cloud-config",
+            '',
+        ]
+        # Write which files we merged from
+        if self.file_names:
+            lines.append("# from %s files" % (len(self.file_names)))
+            for fn in self.file_names:
+                lines.append("# %s" % (fn))
+            lines.append("")
+        lines.append(util.yaml_dumps(self.cloud_buf))
         util.write_file(self.cloud_fn, "\n".join(lines), 0600)
 
     def _merge_header_extract(self, payload_yaml):
@@ -78,16 +89,21 @@ class CloudConfigPartHandler(handlers.Handler):
         merger = mergers.construct(merge_how)
         self.cloud_buf = merger.merge(self.cloud_buf, payload_yaml)
 
+    def _reset(self):
+        self.file_names = []
+        self.cloud_buf = {}
+
     def handle_part(self, _data, ctype, filename, payload, _freq, headers):
         if ctype == handlers.CONTENT_START:
-            self.cloud_buf = {}
+            self._reset()
             return
         if ctype == handlers.CONTENT_END:
             self._write_cloud_config(self.cloud_buf)
-            self.cloud_buf = {}
+            self._reset()
             return
         try:
             self._merge_part(payload, headers)
+            self.file_names.append(filename)
         except:
             util.logexc(LOG, "Failed at merging in cloud config part from %s",
                         filename)
