@@ -30,6 +30,7 @@ from cloudinit.settings import (PER_ALWAYS)
 LOG = logging.getLogger(__name__)
 
 DEF_MERGE_TYPE = "list+dict+str"
+MERGE_HEADER = 'Merge-Type'
 
 
 class CloudConfigPartHandler(handlers.Handler):
@@ -46,19 +47,33 @@ class CloudConfigPartHandler(handlers.Handler):
     def _write_cloud_config(self, buf):
         if not self.cloud_fn:
             return
+        # Write the combined & merged dictionary/yaml out
         lines = ["#cloud-config", util.yaml_dumps(self.cloud_buf)]
         util.write_file(self.cloud_fn, "\n".join(lines), 0600)
 
+    def _merge_header_extract(self, payload_yaml):
+        merge_header_yaml = ''
+        for k in [MERGE_HEADER, MERGE_HEADER.lower(),
+                  MERGE_HEADER.lower().replace("-", "_")]:
+            if k in payload_yaml:
+                merge_header_yaml = str(payload_yaml[k])
+                break
+        return merge_header_yaml
+
     def _merge_part(self, payload, headers, filename):
-        merge_headers = headers.get("Merge-Type")
+        merge_header_headers = headers.get(MERGE_HEADER, '')
         try:
             payload_y = util.load_yaml(payload)
             merge_how = ''
-            for merge_i in [payload_y.pop("Merge-Type", ''), merge_headers]:
+            # Select either the merge-type from the content
+            # or the merge type from the headers or default to our own set
+            # if neither exists (or is empty) from the later
+            merge_header_yaml = self._merge_header_extract(payload_y)
+            for merge_i in [merge_header_yaml, merge_header_headers]:
+                merge_i = merge_i.strip().lower()
                 if merge_i:
                     merge_how = merge_i
                     break
-            merge_how = merge_how.strip().lower()
             if not merge_how:
                 merge_how = DEF_MERGE_TYPE
             merger = mergers.construct(merge_how)
