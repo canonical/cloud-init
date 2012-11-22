@@ -29,6 +29,8 @@ from cloudinit.settings import (PER_ALWAYS)
 
 LOG = logging.getLogger(__name__)
 
+DEF_MERGE_TYPE = "list+dict+str"
+
 
 class CloudConfigPartHandler(handlers.Handler):
     def __init__(self, paths, **_kwargs):
@@ -44,10 +46,25 @@ class CloudConfigPartHandler(handlers.Handler):
     def _write_cloud_config(self, buf):
         if not self.cloud_fn:
             return
-        payload = util.yaml_dumps(self.cloud_buf)
-        util.write_file(self.cloud_fn, payload, 0600)
+        lines = ["#cloud-config", util.yaml_dumps(self.cloud_buf)]
+        util.write_file(self.cloud_fn, "\n".join(lines), 0600)
 
-    def handle_part(self, _data, ctype, filename, payload, _frequency, headers):
+    def _merge_part(self, payload, headers, filename):
+        merge_how = headers.get("Merge-Type")
+        try:
+            payload_y = util.load_yaml(payload)
+            if not merge_how:
+                merge_how = payload_y.pop("Merge-Type", '')
+            merge_how = merge_how.strip().lower()
+            if not merge_how:
+                merge_how = DEF_MERGE_TYPE
+            merger = mergers.construct(merge_how)
+            self.cloud_buf = merger.merge(self.cloud_buf, payload_y)
+        except:
+            util.logexc(LOG, "Failed at merging in cloud config part from %s",
+                        filename)
+
+    def handle_part(self, _data, ctype, filename, payload, _freq, headers):
         if ctype == handlers.CONTENT_START:
             self.cloud_buf = {}
             return
@@ -55,6 +72,4 @@ class CloudConfigPartHandler(handlers.Handler):
             self._write_cloud_config(self.cloud_buf)
             self.cloud_buf = {}
             return
-        merge_how = headers.get("Merge-Type", 'list+dict+str')
-        merger = mergers.construct(merge_how)
-        self.cloud_buf = merger.merge(self.cloud_buf, util.load_yaml(payload))
+        self._merge_part(payload, headers, filename)
