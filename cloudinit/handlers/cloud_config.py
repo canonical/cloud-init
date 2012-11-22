@@ -50,13 +50,14 @@ class CloudConfigPartHandler(handlers.Handler):
         util.write_file(self.cloud_fn, "\n".join(lines), 0600)
 
     def _merge_part(self, payload, headers, filename):
-        merge_headers_how = headers.get("Merge-Type")
+        merge_headers = headers.get("Merge-Type")
         try:
             payload_y = util.load_yaml(payload)
             merge_how = ''
-            for merge_i in [payload_y.pop("Merge-Type", ''), merge_headers_how]:
+            for merge_i in [payload_y.pop("Merge-Type", ''), merge_headers]:
                 if merge_i:
                     merge_how = merge_i
+                    break
             merge_how = merge_how.strip().lower()
             if not merge_how:
                 merge_how = DEF_MERGE_TYPE
