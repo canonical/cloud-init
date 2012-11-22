@@ -60,27 +60,23 @@ class CloudConfigPartHandler(handlers.Handler):
                 break
         return merge_header_yaml
 
-    def _merge_part(self, payload, headers, filename):
+    def _merge_part(self, payload, headers):
         merge_header_headers = headers.get(MERGE_HEADER, '')
-        try:
-            payload_y = util.load_yaml(payload)
-            merge_how = ''
-            # Select either the merge-type from the content
-            # or the merge type from the headers or default to our own set
-            # if neither exists (or is empty) from the later
-            merge_header_yaml = self._merge_header_extract(payload_y)
-            for merge_i in [merge_header_yaml, merge_header_headers]:
-                merge_i = merge_i.strip().lower()
-                if merge_i:
-                    merge_how = merge_i
-                    break
-            if not merge_how:
-                merge_how = DEF_MERGE_TYPE
-            merger = mergers.construct(merge_how)
-            self.cloud_buf = merger.merge(self.cloud_buf, payload_y)
-        except:
-            util.logexc(LOG, "Failed at merging in cloud config part from %s",
-                        filename)
+        payload_yaml = util.load_yaml(payload)
+        merge_how = ''
+        # Select either the merge-type from the content
+        # or the merge type from the headers or default to our own set
+        # if neither exists (or is empty) from the later
+        merge_header_yaml = self._merge_header_extract(payload_yaml)
+        for merge_i in [merge_header_yaml, merge_header_headers]:
+            merge_i = merge_i.strip().lower()
+            if merge_i:
+                merge_how = merge_i
+                break
+        if not merge_how:
+            merge_how = DEF_MERGE_TYPE
+        merger = mergers.construct(merge_how)
+        self.cloud_buf = merger.merge(self.cloud_buf, payload_yaml)
 
     def handle_part(self, _data, ctype, filename, payload, _freq, headers):
         if ctype == handlers.CONTENT_START:
@@ -90,4 +86,8 @@ class CloudConfigPartHandler(handlers.Handler):
             self._write_cloud_config(self.cloud_buf)
             self.cloud_buf = {}
             return
-        self._merge_part(payload, headers, filename)
+        try:
+            self._merge_part(payload, headers)
+        except:
+            util.logexc(LOG, "Failed at merging in cloud config part from %s",
+                        filename)
