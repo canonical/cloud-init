@@ -21,15 +21,15 @@ class Merger(object):
     def __init__(self, merger, opts):
         self._merger = merger
         self._discard_non = 'discard_non_list' in opts
-        self._append = 'append' in opts
+        self._extend = 'extend' in opts
 
     def _on_tuple(self, value, merge_with):
         return self._on_list(list(value), merge_with)
 
     def _on_list(self, value, merge_with):
+        new_value = list(value)
         if isinstance(merge_with, (tuple, list)):
-            new_value = list(value)
-            if self._append:
+            if self._extend:
                 new_value.extend(merge_with)
             else:
                 # Merge instead
@@ -42,9 +42,6 @@ class Merger(object):
                     if m_am == 0:
                         new_value.append(m_v)
         else:
-            new_value = list(value)
-            if self._discard_non:
-                pass
-            else:
+            if not self._discard_non:
                 new_value.append(merge_with)
         return new_value

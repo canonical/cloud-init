@@ -21,9 +21,6 @@ class Merger(object):
     def __init__(self, merger, opts):
         self._merger = merger
         self._overwrite = 'overwrite' in opts
-        
-        if opts and opts.lower().find("overwrite") != -1:
-            self._overwrite = True
 
     def _on_dict(self, value, merge_with):
         if not isinstance(merge_with, (dict)):
