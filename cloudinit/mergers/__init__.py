@@ -16,10 +16,13 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+import re
 
 from cloudinit import importer
 from cloudinit import log as logging
 from cloudinit import util
+
+NAME_MTCH = re.compile(r"(^[a-zA-Z_][A-Za-z0-9_]*)\((.*?)\)$")
 
 LOG = logging.getLogger(__name__)
 
@@ -71,10 +74,8 @@ def _extract_merger_names(merge_how):
     names = []
     for m_name in merge_how.split("+"):
         # Canonicalize the name (so that it can be found
-        # even when users alter it in various ways...
+        # even when users alter it in various ways)
         m_name = m_name.lower().strip()
-        m_name = m_name.replace(" ", "_")
-        m_name = m_name.replace("\t", "_")
         m_name = m_name.replace("-", "_")
         if not m_name:
             continue
@@ -82,23 +83,29 @@ def _extract_merger_names(merge_how):
     return names
 
 
-def construct(merge_how, default_classes=None):
-    mergers = []
-    merger_classes = []
-    root = LookupMerger(mergers)
-    for m_name in _extract_merger_names(merge_how):
+def construct(merge_how):
+    mergers_to_be = []
+    for name in _extract_merger_names(merge_how):
+        match = NAME_MTCH.match(name)
+        if not match:
+            msg = "Matcher identifer '%s' is not in the right format" % (name)
+            raise ValueError(msg)
+        (m_name, m_ops) = match.groups()
+        m_ops = m_ops.strip().split(",")
+        m_ops = [m.strip().lower() for m in m_ops if m.strip()]
         merger_locs = importer.find_module(m_name,
                                            [__name__],
                                            ['Merger'])
         if not merger_locs:
-            msg = "Could not find merger named %s" % (m_name)
+            msg = "Could not find merger named '%s'" % (m_name)
             raise ImportError(msg)
         else:
             mod = importer.import_module(merger_locs[0])
-            cls = getattr(mod, 'Merger')
-            merger_classes.append(cls)
-    if not merger_classes and default_classes:
-        merger_classes = default_classes
-    for m_class in merger_classes:
-        mergers.append(m_class(root))
+            mod_attr = getattr(mod, 'Merger')
+            mergers_to_be.append((mod_attr, m_ops))
+    # Now form them...
+    mergers = []
+    root = LookupMerger(mergers)
+    for (attr, opts) in mergers_to_be:
+        mergers.append(attr(root, opts))
     return root

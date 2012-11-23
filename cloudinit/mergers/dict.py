@@ -18,8 +18,12 @@
 
 
 class Merger(object):
-    def __init__(self, merger):
+    def __init__(self, merger, opts):
         self._merger = merger
+        self._overwrite = 'overwrite' in opts
+        
+        if opts and opts.lower().find("overwrite") != -1:
+            self._overwrite = True
 
     def _on_dict(self, value, merge_with):
         if not isinstance(merge_with, (dict)):
@@ -27,7 +31,10 @@ class Merger(object):
         merged = dict(value)
         for (k, v) in merge_with.items():
             if k in merged:
-                merged[k] = self._merger.merge(merged[k], v)
+                if not self._overwrite:
+                    merged[k] = self._merger.merge(merged[k], v)
+                else:
+                    merged[k] = v
             else:
                 merged[k] = v
         return merged
