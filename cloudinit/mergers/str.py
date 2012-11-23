@@ -18,11 +18,17 @@
 
 
 class Merger(object):
-    def __init__(self, merger):
-        pass
+    def __init__(self, merger, opts):
+        self._append = 'append' in opts
 
     def _on_unicode(self, value, merge_with):
         return self._on_str(value, merge_with)
 
     def _on_str(self, value, merge_with):
-        return value
+        if not self._append:
+            return value
+        else:
+            if isinstance(value, (unicode)):
+                return value + unicode(merge_with)
+            else:
+                return value + str(merge_with)

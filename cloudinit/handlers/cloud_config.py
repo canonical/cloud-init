@@ -29,7 +29,7 @@ from cloudinit.settings import (PER_ALWAYS)
 
 LOG = logging.getLogger(__name__)
 
-DEF_MERGE_TYPE = "list+dict+str"
+DEF_MERGE_TYPE = "list()+dict()+str()"
 MERGE_HEADER = 'Merge-Type'
 
 
