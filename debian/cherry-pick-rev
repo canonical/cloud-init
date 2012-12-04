@@ -27,6 +27,7 @@ fname="${revno}-${name}.patch"
 
 ( cd "${repo}" && bzr log -r${revno}..${revno} &&
   bzr diff -p1 -r$((${revno}-1))..${revno} ) |
+  filterdiff --exclude "*/ChangeLog" |
   quilt import -P "${fname}" /dev/stdin
 
 [ $? -eq 0 ] || { echo "failed"; exit 1; }
@@ -35,8 +36,9 @@ cat <<EOF
 now,
   quilt push
   quilt refresh
-  bzr add \$(quilt files ${fname}) debian/patches/series debian/patches/${fname}
+  files="\$(quilt files ${fname}) debian/patches/series debian/patches/${fname} .pc/${fname} .pc/applied-patches)"
+  bzr add $files
   dch --append "${name} (cherry pick $revno)"
   dch --edit # improve the entry
-  debcommit \$(quilt files ${fname}) debian/patches/series debian/patches/${fname}
+  debcommit $files
 EOF

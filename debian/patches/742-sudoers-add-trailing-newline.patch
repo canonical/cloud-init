@@ -1,0 +1,29 @@
+------------------------------------------------------------
+revno: 742
+committer: Scott Moser <smoser@ubuntu.com>
+branch nick: trunk
+timestamp: Tue 2012-11-20 01:04:31 -0500
+message:
+  pep8 and pylint
+=== modified file 'cloudinit/distros/__init__.py'
+--- a/cloudinit/distros/__init__.py
++++ b/cloudinit/distros/__init__.py
+@@ -429,6 +429,7 @@ class Distro(object):
+             msg = "Can not create sudoers rule addition with type %r"
+             raise TypeError(msg % (util.obj_name(rules)))
+         content = "\n".join(lines)
++        content += "\n"  # trailing newline
+ 
+         self.ensure_sudo_dir(os.path.dirname(sudo_file))
+         if not os.path.exists(sudo_file):
+--- a/tests/unittests/test_distros/test_generic.py
++++ b/tests/unittests/test_distros/test_generic.py
+@@ -55,7 +55,7 @@ class TestGenericDistro(helpers.Filesyst
+         # Make a temp directoy for tests to use.
+         self.tmp = self.makeDir()
+ 
+-    def _write_load_sudoers(self, user, rules):
++    def _write_load_sudoers(self, _user, rules):
+         cls = distros.fetch("ubuntu")
+         d = cls("ubuntu", {}, None)
+         os.makedirs(os.path.join(self.tmp, "etc"))

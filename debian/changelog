@@ -1,3 +1,15 @@
+cloud-init (0.7.1-0ubuntu3) raring; urgency=low
+
+  * cherry pick relevant patches from trunk up to revision 745
+  * fix writing of sudoers when suders rule is a string rather than
+    an array (LP: #1079002)
+  * add trailing slash to sudoers files that are written
+  * fix resizefs module when 'noblock' was provided (LP: #1080985)
+  * make sure there is no blank line before cloud-init entry in
+    there are no blank lines in /etc/ca-certificates.conf (LP: #1077020)
+
+ -- Scott Moser <smoser@ubuntu.com>  Mon, 03 Dec 2012 21:45:48 -0500
+
 cloud-init (0.7.1-0ubuntu2) raring; urgency=low
 
   * debian/watch: add watch file

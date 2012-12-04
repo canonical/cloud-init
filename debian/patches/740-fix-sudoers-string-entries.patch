@@ -1,0 +1,102 @@
+------------------------------------------------------------
+revno: 740 [merge]
+committer: Joshua Harlow <harlowja@yahoo-inc.com>
+branch nick: cloud-init
+timestamp: Thu 2012-11-15 18:48:37 -0800
+message:
+  Strings are iterable...
+  
+  Using collections.iterable means that strings get iterated over
+  which is not the desired effect when writing a string sudoers rule.
+------------------------------------------------------------
+Use --include-merged or -n0 to see merged revisions.
+=== modified file 'cloudinit/distros/__init__.py'
+--- a/cloudinit/distros/__init__.py
++++ b/cloudinit/distros/__init__.py
+@@ -24,7 +24,6 @@
+ from StringIO import StringIO
+ 
+ import abc
+-import collections
+ import itertools
+ import os
+ import re
+@@ -421,11 +420,14 @@ class Distro(object):
+             '',
+             "# User rules for %s" % user,
+         ]
+-        if isinstance(rules, collections.Iterable):
++        if isinstance(rules, (list, tuple)):
+             for rule in rules:
+                 lines.append("%s %s" % (user, rule))
+-        else:
++        elif isinstance(rules, (basestring, str)):
+             lines.append("%s %s" % (user, rules))
++        else:
++            msg = "Can not create sudoers rule addition with type %r"
++            raise TypeError(msg % (util.obj_name(rules)))
+         content = "\n".join(lines)
+ 
+         self.ensure_sudo_dir(os.path.dirname(sudo_file))
+--- a/tests/unittests/test_distros/test_generic.py
++++ b/tests/unittests/test_distros/test_generic.py
+@@ -55,6 +55,59 @@ class TestGenericDistro(helpers.Filesyst
+         # Make a temp directoy for tests to use.
+         self.tmp = self.makeDir()
+ 
++    def _write_load_sudoers(self, user, rules):
++        cls = distros.fetch("ubuntu")
++        d = cls("ubuntu", {}, None)
++        os.makedirs(os.path.join(self.tmp, "etc"))
++        os.makedirs(os.path.join(self.tmp, "etc", 'sudoers.d'))
++        self.patchOS(self.tmp)
++        self.patchUtils(self.tmp)
++        d.write_sudo_rules("harlowja", rules)
++        contents = util.load_file(d.ci_sudoers_fn)
++        self.restore()
++        return contents
++
++    def _count_in(self, lines_look_for, text_content):
++        found_amount = 0
++        for e in lines_look_for:
++            for line in text_content.splitlines():
++                line = line.strip()
++                if line == e:
++                    found_amount += 1
++        return found_amount
++
++    def test_sudoers_ensure_rules(self):
++        rules = 'ALL=(ALL:ALL) ALL'
++        contents = self._write_load_sudoers('harlowja', rules)
++        expected = ['harlowja ALL=(ALL:ALL) ALL']
++        self.assertEquals(len(expected), self._count_in(expected, contents))
++        not_expected = [
++            'harlowja A',
++            'harlowja L',
++            'harlowja L',
++        ]
++        self.assertEquals(0, self._count_in(not_expected, contents))
++
++    def test_sudoers_ensure_rules_list(self):
++        rules = [
++            'ALL=(ALL:ALL) ALL',
++            'B-ALL=(ALL:ALL) ALL',
++            'C-ALL=(ALL:ALL) ALL',
++        ]
++        contents = self._write_load_sudoers('harlowja', rules)
++        expected = [
++            'harlowja ALL=(ALL:ALL) ALL',
++            'harlowja B-ALL=(ALL:ALL) ALL',
++            'harlowja C-ALL=(ALL:ALL) ALL',
++        ]
++        self.assertEquals(len(expected), self._count_in(expected, contents))
++        not_expected = [
++            'harlowja A',
++            'harlowja L',
++            'harlowja L',
++        ]
++        self.assertEquals(0, self._count_in(not_expected, contents))
++
+     def test_sudoers_ensure_new(self):
+         cls = distros.fetch("ubuntu")
+         d = cls("ubuntu", {}, None)

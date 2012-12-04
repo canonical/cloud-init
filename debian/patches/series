@@ -1,2 +1,6 @@
 ubuntu-user-bash-shell
 ubuntu-user-add-sudo
+740-fix-sudoers-string-entries.patch
+742-sudoers-add-trailing-newline.patch
+743-fix-resize-root-noblock.patch
+744-no-blank-lines-in-ca-certificates.patch
