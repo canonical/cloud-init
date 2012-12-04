@@ -55,6 +55,59 @@ class TestGenericDistro(helpers.FilesystemMockingTestCase):
         # Make a temp directoy for tests to use.
         self.tmp = self.makeDir()
 
+    def _write_load_sudoers(self, _user, rules):
+        cls = distros.fetch("ubuntu")
+        d = cls("ubuntu", {}, None)
+        os.makedirs(os.path.join(self.tmp, "etc"))
+        os.makedirs(os.path.join(self.tmp, "etc", 'sudoers.d'))
+        self.patchOS(self.tmp)
+        self.patchUtils(self.tmp)
+        d.write_sudo_rules("harlowja", rules)
+        contents = util.load_file(d.ci_sudoers_fn)
+        self.restore()
+        return contents
+
+    def _count_in(self, lines_look_for, text_content):
+        found_amount = 0
+        for e in lines_look_for:
+            for line in text_content.splitlines():
+                line = line.strip()
+                if line == e:
+                    found_amount += 1
+        return found_amount
+
+    def test_sudoers_ensure_rules(self):
+        rules = 'ALL=(ALL:ALL) ALL'
+        contents = self._write_load_sudoers('harlowja', rules)
+        expected = ['harlowja ALL=(ALL:ALL) ALL']
+        self.assertEquals(len(expected), self._count_in(expected, contents))
+        not_expected = [
+            'harlowja A',
+            'harlowja L',
+            'harlowja L',
+        ]
+        self.assertEquals(0, self._count_in(not_expected, contents))
+
+    def test_sudoers_ensure_rules_list(self):
+        rules = [
+            'ALL=(ALL:ALL) ALL',
+            'B-ALL=(ALL:ALL) ALL',
+            'C-ALL=(ALL:ALL) ALL',
+        ]
+        contents = self._write_load_sudoers('harlowja', rules)
+        expected = [
+            'harlowja ALL=(ALL:ALL) ALL',
+            'harlowja B-ALL=(ALL:ALL) ALL',
+            'harlowja C-ALL=(ALL:ALL) ALL',
+        ]
+        self.assertEquals(len(expected), self._count_in(expected, contents))
+        not_expected = [
+            'harlowja A',
+            'harlowja L',
+            'harlowja L',
+        ]
+        self.assertEquals(0, self._count_in(not_expected, contents))
+
     def test_sudoers_ensure_new(self):
         cls = distros.fetch("ubuntu")
         d = cls("ubuntu", {}, None)
