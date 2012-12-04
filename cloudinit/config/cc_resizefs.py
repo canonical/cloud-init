@@ -32,6 +32,8 @@ RESIZE_FS_PREFIXES_CMDS = [
     ('xfs', 'xfs_growfs'),
 ]
 
+NOBLOCK = "noblock"
+
 
 def nodeify_path(devpth, where, log):
     try:
@@ -68,7 +70,7 @@ def handle(name, cfg, _cloud, log, args):
     else:
         resize_root = util.get_cfg_option_str(cfg, "resize_rootfs", True)
 
-    if not util.translate_bool(resize_root):
+    if not util.translate_bool(resize_root, addons=[NOBLOCK]):
         log.debug("Skipping module named %s, resizing disabled", name)
         return
 
@@ -110,7 +112,7 @@ def handle(name, cfg, _cloud, log, args):
         log.debug("Resizing %s (%s) using %s", resize_what, fs_type, resizer)
         resize_cmd = [resizer, devpth]
 
-        if resize_root == "noblock":
+        if resize_root == NOBLOCK:
             # Fork to a child that will run
             # the resize command
             util.fork_cb(do_resize, resize_cmd, log)
@@ -120,7 +122,7 @@ def handle(name, cfg, _cloud, log, args):
             do_resize(resize_cmd, log)
 
     action = 'Resized'
-    if resize_root == "noblock":
+    if resize_root == NOBLOCK:
         action = 'Resizing (via forking)'
     log.debug("%s root filesystem (type=%s, maj=%i, min=%i, val=%s)",
               action, fs_type, os.major(st_dev), os.minor(st_dev), resize_root)
