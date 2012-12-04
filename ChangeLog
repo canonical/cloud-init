@@ -5,6 +5,8 @@
  - make sure there is no blank line before cloud-init entry in
    there are no blank lines in /etc/ca-certificates.conf (LP: #1077020)
  - fix sudoers writing when entry is a string (LP: #1079002)
+ - tools/write-ssh-key-fingerprints: use '-s' rather than '--stderr'
+   option (LP: #1083715)
 0.7.1:
  - sysvinit: fix missing dependency in cloud-init job for RHEL 5.6 
  - config-drive: map hostname to local-hostname (LP: #1061964)

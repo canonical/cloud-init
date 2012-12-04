@@ -1,5 +1,14 @@
 #!/bin/sh
+
+logger_opts="-p user.info -t ec2"
+
+# rhels' version of logger_opts does not support long
+# for of -s (--stderr), so use short form.
+logger_opts="$logger_opts -s"
+
+# Redirect stderr to stdout
 exec 2>&1
+
 fp_blist=",${1},"
 key_blist=",${2},"
 {
@@ -16,9 +25,9 @@ done
 echo "-----END SSH HOST KEY FINGERPRINTS-----"
 echo "#############################################################"
 
-} | logger -p user.info --stderr -t "ec2"
+} | logger $logger_opts
 
-echo -----BEGIN SSH HOST KEY KEYS-----
+echo "-----BEGIN SSH HOST KEY KEYS-----"
 for f in /etc/ssh/ssh_host_*key.pub; do
     [ -f "$f" ] || continue
     read ktype line < "$f"
@@ -26,4 +35,4 @@ for f in /etc/ssh/ssh_host_*key.pub; do
     [ "${key_blist#*,$ktype,}" = "${key_blist}" ] || continue
     cat $f
 done
-echo -----END SSH HOST KEY KEYS-----
+echo "-----END SSH HOST KEY KEYS-----"
