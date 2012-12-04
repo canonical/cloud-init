@@ -2,13 +2,9 @@
 
 logger_opts="-p user.info -t ec2"
 
-if [ -f "/etc/redhat-release" ]
-then
-    # Seems like rhel only supports the short version
-    logger_opts="$logger_opts -s"
-else
-    logger_opts="$logger_opts --stderr"
-fi
+# rhels' version of logger_opts does not support long
+# for of -s (--stderr), so use short form.
+logger_opts="$logger_opts -s"
 
 # Redirect stderr to stdout
 exec 2>&1
