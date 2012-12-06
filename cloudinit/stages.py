@@ -157,27 +157,12 @@ class Init(object):
             self._cfg = self._read_cfg(extra_fns)
             # LOG.debug("Loaded 'init' config %s", self._cfg)
 
-    def _read_base_cfg(self):
-        base_cfgs = []
-        default_cfg = util.get_builtin_cfg()
-        kern_contents = util.read_cc_from_cmdline()
-        # Kernel/cmdline parameters override system config
-        if kern_contents:
-            base_cfgs.append(util.load_yaml(kern_contents, default={}))
-        # Anything in your conf.d location??
-        # or the 'default' cloud.cfg location???
-        base_cfgs.append(util.read_conf_with_confd(CLOUD_CONFIG))
-        # And finally the default gets to play
-        if default_cfg:
-            base_cfgs.append(default_cfg)
-        return util.mergemanydict(base_cfgs)
-
     def _read_cfg(self, extra_fns):
         no_cfg_paths = helpers.Paths({}, self.datasource)
         merger = helpers.ConfigMerger(paths=no_cfg_paths,
                                       datasource=self.datasource,
                                       additional_fns=extra_fns,
-                                      base_cfg=self._read_base_cfg())
+                                      base_cfg=fetch_base_config())
         return merger.cfg
 
     def _restore_from_cache(self):
@@ -575,3 +560,23 @@ class Modules(object):
         raw_mods = self._read_modules(section_name)
         mostly_mods = self._fixup_modules(raw_mods)
         return self._run_modules(mostly_mods)
+
+
+def fetch_base_config():
+    base_cfgs = []
+    default_cfg = util.get_builtin_cfg()
+    kern_contents = util.read_cc_from_cmdline()
+
+    # Kernel/cmdline parameters override system config
+    if kern_contents:
+        base_cfgs.append(util.load_yaml(kern_contents, default={}))
+
+    # Anything in your conf.d location??
+    # or the 'default' cloud.cfg location???
+    base_cfgs.append(util.read_conf_with_confd(CLOUD_CONFIG))
+
+    # And finally the default gets to play
+    if default_cfg:
+        base_cfgs.append(default_cfg)
+
+    return util.mergemanydict(base_cfgs)
