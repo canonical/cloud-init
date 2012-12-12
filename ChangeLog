@@ -7,6 +7,7 @@
  - fix sudoers writing when entry is a string (LP: #1079002)
  - tools/write-ssh-key-fingerprints: use '-s' rather than '--stderr'
    option (LP: #1083715)
+ - support omnibus installer for chef [Anatoliy Dobrosynets]
 0.7.1:
  - sysvinit: fix missing dependency in cloud-init job for RHEL 5.6 
  - config-drive: map hostname to local-hostname (LP: #1061964)
