@@ -57,8 +57,10 @@ def handle(name, cfg, cloud, log, _args):
 
     puppet_cfg = cfg['puppet']
 
-    # Start by installing the puppet package ...
-    cloud.distro.install_packages(["puppet"])
+    # Start by installing the puppet package if necessary...
+    install = util.get_cfg_option_bool(puppet_cfg, 'install', True)
+    if install:
+        cloud.distro.install_packages(["puppet"])
 
     # ... and then update the puppet configuration
     if 'conf' in puppet_cfg:
