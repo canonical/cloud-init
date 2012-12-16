@@ -22,6 +22,7 @@ import json
 import os
 
 from cloudinit import templater
+from cloudinit import url_helper
 from cloudinit import util
 
 RUBY_VERSION_DEFAULT = "1.8"
@@ -34,6 +35,8 @@ CHEF_DIRS = [
     '/var/backups/chef',
     '/var/run/chef',
 ]
+
+OMNIBUS_URL = "https://www.opscode.com/chef/install.sh"
 
 
 def handle(name, cfg, cloud, log, _args):
@@ -83,7 +86,9 @@ def handle(name, cfg, cloud, log, _args):
     util.write_file('/etc/chef/firstboot.json', json.dumps(initial_json))
 
     # If chef is not installed, we install chef based on 'install_type'
-    if not os.path.isfile('/usr/bin/chef-client'):
+    if (not os.path.isfile('/usr/bin/chef-client') or
+        util.get_cfg_option_bool(chef_cfg, 'force_install', default=False)):
+
         install_type = util.get_cfg_option_str(chef_cfg, 'install_type',
                                                'packages')
         if install_type == "gems":
@@ -99,6 +104,14 @@ def handle(name, cfg, cloud, log, _args):
         elif install_type == 'packages':
             # this will install and run the chef-client from packages
             cloud.distro.install_packages(('chef',))
+        elif install_type == 'omnibus':
+            url = util.get_cfg_option_str(chef_cfg, "omnibus_url", OMNIBUS_URL)
+            content = url_helper.readurl(url=url, retries=5)
+            with util.tempdir() as tmpd:
+                # use tmpd over tmpfile to avoid 'Text file busy' on execute
+                tmpf = "%s/chef-omnibus-install" % tmpd
+                util.write_file(tmpf, content, mode=0700)
+                util.subp([tmpf], capture=False)
         else:
             log.warn("Unknown chef install type %s", install_type)
 
