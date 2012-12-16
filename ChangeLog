@@ -8,6 +8,7 @@
  - tools/write-ssh-key-fingerprints: use '-s' rather than '--stderr'
    option (LP: #1083715)
  - make install of puppet configurable (LP: #1090205) [Craig Tracey]
+ - support omnibus installer for chef [Anatoliy Dobrosynets]
 0.7.1:
  - sysvinit: fix missing dependency in cloud-init job for RHEL 5.6 
  - config-drive: map hostname to local-hostname (LP: #1061964)
