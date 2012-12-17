@@ -4,3 +4,8 @@ ubuntu-user-add-sudo
 742-sudoers-add-trailing-newline.patch
 743-fix-resize-root-noblock.patch
 744-no-blank-lines-in-ca-certificates.patch
+746-write-fingerprints-use-short-argument-s.patch
+747-separate-read_base_cfg-to-own-function.patch
+748-puppet-conditionally-install.patch
+749-chef-install-via-omnibus.patch
+750-update-datasources-distro-via-userdata.patch

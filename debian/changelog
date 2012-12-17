@@ -1,3 +1,15 @@
+cloud-init (0.7.1-0ubuntu4) raring; urgency=low
+
+  * cherry pick relevant patches from trunk up to revision 750
+  * use short form of '--stderr' argument to logger for better cross
+    distro support (LP: #1083715)
+  * puppet: make installation configurable (LP: #1090205)
+  * chef: add omnibus installation method
+  * fix allowing cloud-config input via user-data to affect the
+    apt mirror selection (LP: #090482)
+
+ -- Scott Moser <smoser@ubuntu.com>  Mon, 17 Dec 2012 10:48:23 -0500
+
 cloud-init (0.7.1-0ubuntu3) raring; urgency=low
 
   * cherry pick relevant patches from trunk up to revision 745

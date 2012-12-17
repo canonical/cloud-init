@@ -1,0 +1,90 @@
+------------------------------------------------------------
+revno: 749 [merge]
+committer: Scott Moser <smoser@ubuntu.com>
+branch nick: trunk
+timestamp: Sat 2012-12-15 20:12:11 -0500
+message:
+  Add 'omnibus' install mode for chef
+  
+  This adds 'omnibus' to the values supported for chef's "omnibus_url" config
+  option. It also:
+   * makes 'omnibus_url' configurable in cloud-config.
+   * adds a 'force_install' flag, to allow the install code to
+     act even if /usr/bin/chef-client is already present.
+------------------------------------------------------------
+Use --include-merged or -n0 to see merged revisions.
+=== modified file 'ChangeLog'
+
+=== modified file 'cloudinit/config/cc_chef.py'
+--- a/cloudinit/config/cc_chef.py
++++ b/cloudinit/config/cc_chef.py
+@@ -22,6 +22,7 @@ import json
+ import os
+ 
+ from cloudinit import templater
++from cloudinit import url_helper
+ from cloudinit import util
+ 
+ RUBY_VERSION_DEFAULT = "1.8"
+@@ -35,6 +36,8 @@ CHEF_DIRS = [
+     '/var/run/chef',
+ ]
+ 
++OMNIBUS_URL = "https://www.opscode.com/chef/install.sh"
++
+ 
+ def handle(name, cfg, cloud, log, _args):
+ 
+@@ -83,7 +86,9 @@ def handle(name, cfg, cloud, log, _args)
+     util.write_file('/etc/chef/firstboot.json', json.dumps(initial_json))
+ 
+     # If chef is not installed, we install chef based on 'install_type'
+-    if not os.path.isfile('/usr/bin/chef-client'):
++    if (not os.path.isfile('/usr/bin/chef-client') or
++        util.get_cfg_option_bool(chef_cfg, 'force_install', default=False)):
++
+         install_type = util.get_cfg_option_str(chef_cfg, 'install_type',
+                                                'packages')
+         if install_type == "gems":
+@@ -99,6 +104,14 @@ def handle(name, cfg, cloud, log, _args)
+         elif install_type == 'packages':
+             # this will install and run the chef-client from packages
+             cloud.distro.install_packages(('chef',))
++        elif install_type == 'omnibus':
++            url = util.get_cfg_option_str(chef_cfg, "omnibus_url", OMNIBUS_URL)
++            content = url_helper.readurl(url=url, retries=5)
++            with util.tempdir() as tmpd:
++                # use tmpd over tmpfile to avoid 'Text file busy' on execute
++                tmpf = "%s/chef-omnibus-install" % tmpd
++                util.write_file(tmpf, content, mode=0700)
++                util.subp([tmpf], capture=False)
+         else:
+             log.warn("Unknown chef install type %s", install_type)
+ 
+--- a/doc/examples/cloud-config-chef.txt
++++ b/doc/examples/cloud-config-chef.txt
+@@ -47,9 +47,13 @@ apt_sources:
+ 
+ chef:
+ 
+- # Valid values are 'gems' and 'packages'
++ # Valid values are 'gems' and 'packages' and 'omnibus'
+  install_type: "packages"
+ 
++ # Boolean: run 'install_type' code even if chef-client
++ #          appears already installed.
++ force_install: false
++
+  # Chef settings
+  server_url: "https://chef.yourorg.com:4000"
+ 
+@@ -80,6 +84,9 @@ chef:
+         maxclients: 100
+       keepalive: "off"
+ 
++ # if install_type is 'omnibus', change the url to download
++ omnibus_url: "https://www.opscode.com/chef/install.sh"
++
+ 
+ # Capture all subprocess output into a logfile
+ # Useful for troubleshooting cloud-init issues
