@@ -64,3 +64,7 @@ class UpstartJobPartHandler(handlers.Handler):
         payload = util.dos2unix(payload)
         path = os.path.join(self.upstart_dir, filename)
         util.write_file(path, payload, 0644)
+
+        # if inotify support is not present in the root filesystem
+        # (overlayroot) then we need to tell upstart to re-read /etc 
+        util.subp(["initctl", "reload-configuration"], capture=False)
