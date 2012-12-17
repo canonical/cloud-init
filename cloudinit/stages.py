@@ -63,23 +63,29 @@ class Init(object):
         # Changed only when a fetch occurs
         self.datasource = NULL_DATA_SOURCE
 
-    def _reset(self, ds=False):
+    def _reset(self, reset_ds=False):
         # Recreated on access
         self._cfg = None
         self._paths = None
         self._distro = None
-        if ds:
+        if reset_ds:
             self.datasource = NULL_DATA_SOURCE
 
     @property
     def distro(self):
         if not self._distro:
             # Try to find the right class to use
-            scfg = self._extract_cfg('system')
-            name = scfg.pop('distro', 'ubuntu')
-            cls = distros.fetch(name)
-            LOG.debug("Using distro class %s", cls)
-            self._distro = cls(name, scfg, self.paths)
+            system_config = self._extract_cfg('system')
+            distro_name = system_config.pop('distro', 'ubuntu')
+            distro_cls = distros.fetch(distro_name)
+            LOG.debug("Using distro class %s", distro_cls)
+            self._distro = distro_cls(distro_name, system_config, self.paths)
+            # If we have an active datasource we need to adjust
+            # said datasource and move its distro/system config
+            # from whatever it was to a new set...
+            if self.datasource is not NULL_DATA_SOURCE:
+                self.datasource.distro = self._distro
+                self.datasource.sys_cfg = system_config
         return self._distro
 
     @property
