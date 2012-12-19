@@ -11,6 +11,8 @@
  - support omnibus installer for chef [Anatoliy Dobrosynets]
  - fix bug where cloud-config in user-data could not modify system_info
    settings (LP: #1090482)
+ - fix CloudStack DataSource to use Virtual Router as found in
+   /var/lib/dhcpclient rather than default gateway (LP: #1089989)
 0.7.1:
  - sysvinit: fix missing dependency in cloud-init job for RHEL 5.6 
  - config-drive: map hostname to local-hostname (LP: #1061964)
