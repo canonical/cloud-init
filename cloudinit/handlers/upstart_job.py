@@ -66,5 +66,5 @@ class UpstartJobPartHandler(handlers.Handler):
         util.write_file(path, payload, 0644)
 
         # if inotify support is not present in the root filesystem
-        # (overlayroot) then we need to tell upstart to re-read /etc 
+        # (overlayroot) then we need to tell upstart to re-read /etc
         util.subp(["initctl", "reload-configuration"], capture=False)
