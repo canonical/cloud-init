@@ -1,17 +1,18 @@
-# add groups to the system
+# Add groups to the system
 # The following example adds the ubuntu group with members foo and bar and
 # the group cloud-users.
 groups:
   - ubuntu: [foo,bar]
   - cloud-users
 
-# add users to the system. Users are added after groups are added.
+# Add users to the system. Users are added after groups are added.
 users:
   - default
   - name: foobar
     gecos: Foo B. Bar
     primary-group: foobar
     groups: users
+    selinux-user: staff_u
     expiredate: 2012-09-01
     ssh-import-id: foobar
     lock-passwd: false
@@ -38,6 +39,9 @@ users:
 #   primary-group: define the primary group. Defaults to a new group created
 #           named after the user.
 #   groups:  Optional. Additional groups to add the user to. Defaults to none
+#   selinux-user:  Optional. The SELinux user for the user's login, such as
+#           "staff_u". When this is omitted the system will select the default
+#           SELinux user.
 #   lock-passwd: Defaults to true. Lock the password to disable password login
 #   inactive: Create the user as inactive
 #   passwd: The hash -- not the password itself -- of the password you want
@@ -77,14 +81,29 @@ users:
 #               directive.
 #   system: Create the user as a system user. This means no home directory.
 #
-# Default user creation: Ubuntu Only
-# Unless you define users, you will get a Ubuntu user on Ubuntu systems with the
+
+# Default user creation:
+#
+# Unless you define users, you will get a 'ubuntu' user on ubuntu systems with the
 # legacy permission (no password sudo, locked user, etc). If however, you want
-# to have the ubuntu user in addition to other users, you need to instruct
+# to have the 'ubuntu' user in addition to other users, you need to instruct
 # cloud-init that you also want the default user. To do this use the following
 # syntax:
 #    users:
-#      default: True
+#      - default
+#      - bob
+#      - ....
 #  foobar: ...
 #
 # users[0] (the first user in users) overrides the user directive.
+#
+# The 'default' user above references the distro's config:
+# system_info:
+#   default_user:
+#    name: Ubuntu
+#    plain_text_passwd: 'ubuntu'
+#    home: /home/ubuntu
+#    shell: /bin/bash
+#    lock_passwd: True
+#    gecos: Ubuntu
+#    groups: [adm, audio, cdrom, dialout, floppy, video, plugdev, dip, netdev]

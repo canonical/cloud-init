@@ -48,12 +48,81 @@ class DataSourceConfigDrive(sources.DataSource):
         self.dsmode = 'local'
         self.seed_dir = os.path.join(paths.seed_dir, 'config_drive')
         self.version = None
+        self.ec2_metadata = None
 
     def __str__(self):
         mstr = "%s [%s,ver=%s]" % (util.obj_name(self), self.dsmode,
                                    self.version)
         mstr += "[source=%s]" % (self.source)
         return mstr
+
+    def _ec2_name_to_device(self, name):
+        if not self.ec2_metadata:
+            return None
+        bdm = self.ec2_metadata.get('block-device-mapping', {})
+        for (ent_name, device) in bdm.items():
+            if name == ent_name:
+                return device
+        return None
+
+    def _os_name_to_device(self, name):
+        device = None
+        try:
+            criteria = 'LABEL=%s' % (name)
+            if name in ['swap']:
+                criteria = 'TYPE=%s' % (name)
+            dev_entries = util.find_devs_with(criteria)
+            if dev_entries:
+                device = dev_entries[0]
+        except util.ProcessExecutionError:
+            pass
+        return device
+
+    def _validate_device_name(self, device):
+        if not device:
+            return None
+        if not device.startswith("/"):
+            device = "/dev/%s" % device
+        if os.path.exists(device):
+            return device
+        # Durn, try adjusting the mapping
+        remapped = self._remap_device(os.path.basename(device))
+        if remapped:
+            LOG.debug("Remapped device name %s => %s", device, remapped)
+            return remapped
+        return None
+
+    def device_name_to_device(self, name):
+        # Translate a 'name' to a 'physical' device
+        if not name:
+            return None
+        # Try the ec2 mapping first
+        names = [name]
+        if name == 'root':
+            names.insert(0, 'ami')
+        if name == 'ami':
+            names.append('root')
+        device = None
+        LOG.debug("Using ec2 metadata lookup to find device %s", names)
+        for n in names:
+            device = self._ec2_name_to_device(n)
+            device = self._validate_device_name(device)
+            if device:
+                break
+        # Try the openstack way second
+        if not device:
+            LOG.debug("Using os lookup to find device %s", names)
+            for n in names:
+                device = self._os_name_to_device(n)
+                device = self._validate_device_name(device)
+                if device:
+                    break
+        # Ok give up...
+        if not device:
+            return None
+        else:
+            LOG.debug("Using cfg drive lookup mapped to device %s", device)
+            return device
 
     def get_data(self):
         found = None
@@ -84,6 +153,16 @@ class DataSourceConfigDrive(sources.DataSource):
 
         md = results['metadata']
         md = util.mergedict(md, DEFAULT_METADATA)
+
+        # Perform some metadata 'fixups'
+        #
+        # OpenStack uses the 'hostname' key
+        # while most of cloud-init uses the metadata
+        # 'local-hostname' key instead so if it doesn't
+        # exist we need to make sure its copied over.
+        for (tgt, src) in [('local-hostname', 'hostname')]:
+            if tgt not in md and src in md:
+                md[tgt] = md[src]
 
         user_dsmode = results.get('dsmode', None)
         if user_dsmode not in VALID_DSMODES + (None,):
@@ -133,15 +212,17 @@ class DataSourceConfigDrive(sources.DataSource):
 
         self.source = found
         self.metadata = md
+        self.ec2_metadata = results.get('ec2-metadata')
         self.userdata_raw = results.get('userdata')
         self.version = results['cfgdrive_ver']
 
         return True
 
     def get_public_ssh_keys(self):
-        if not 'public-keys' in self.metadata:
-            return []
-        return self.metadata['public-keys']
+        name = "public_keys"
+        if self.version == 1:
+            name = "public-keys"
+        return sources.normalize_pubkey_data(self.metadata.get(name))
 
 
 class DataSourceConfigDriveNet(DataSourceConfigDrive):
@@ -217,7 +298,7 @@ def read_config_drive_dir_v2(source_dir, version="2012-08-10"):
         ('metadata',
          "openstack/%s/meta_data.json" % version, True, json.loads),
         ('userdata', "openstack/%s/user_data" % version, False, None),
-        ('ec2-metadata', "ec2/latest/metadata.json", False, json.loads),
+        ('ec2-metadata', "ec2/latest/meta-data.json", False, json.loads),
     )
 
     results = {'userdata': None}
@@ -227,19 +308,19 @@ def read_config_drive_dir_v2(source_dir, version="2012-08-10"):
         found = False
         if os.path.isfile(fpath):
             try:
-                with open(fpath) as fp:
-                    data = fp.read()
-            except Exception as exc:
-                raise BrokenConfigDriveDir("failed to read: %s" % fpath)
+                data = util.load_file(fpath)
+            except IOError:
+                raise BrokenConfigDriveDir("Failed to read: %s" % fpath)
             found = True
         elif required:
-            raise NonConfigDriveDir("missing mandatory %s" % fpath)
+            raise NonConfigDriveDir("Missing mandatory path: %s" % fpath)
 
         if found and process:
             try:
                 data = process(data)
             except Exception as exc:
-                raise BrokenConfigDriveDir("failed to process: %s" % fpath)
+                raise BrokenConfigDriveDir(("Failed to process "
+                                            "path: %s") % fpath)
 
         if found:
             results[name] = data
@@ -255,8 +336,7 @@ def read_config_drive_dir_v2(source_dir, version="2012-08-10"):
         # do not use os.path.join here, as content_path starts with /
         cpath = os.path.sep.join((source_dir, "openstack",
                                   "./%s" % item['content_path']))
-        with open(cpath) as fp:
-            return(fp.read())
+        return util.load_file(cpath)
 
     files = {}
     try:
@@ -270,7 +350,7 @@ def read_config_drive_dir_v2(source_dir, version="2012-08-10"):
         if item:
             results['network_config'] = read_content_path(item)
     except Exception as exc:
-        raise BrokenConfigDriveDir("failed to read file %s: %s" % (item, exc))
+        raise BrokenConfigDriveDir("Failed to read file %s: %s" % (item, exc))
 
     # to openstack, user can specify meta ('nova boot --meta=key=value') and
     # those will appear under metadata['meta'].
@@ -385,8 +465,7 @@ def get_previous_iid(paths):
     # hasn't declared itself found.
     fname = os.path.join(paths.get_cpath('data'), 'instance-id')
     try:
-        with open(fname) as fp:
-            return fp.read()
+        return util.load_file(fname)
     except IOError:
         return None
 

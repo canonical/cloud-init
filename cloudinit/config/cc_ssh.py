@@ -21,6 +21,11 @@
 import glob
 import os
 
+# Ensure this is aliased to a name not 'distros'
+# since the module attribute 'distros'
+# is a list of distros that are supported, not a sub-module
+from cloudinit import distros as ds
+
 from cloudinit import ssh_util
 from cloudinit import util
 
@@ -54,7 +59,7 @@ def handle(_name, cfg, cloud, log, _args):
 
     # remove the static keys from the pristine image
     if cfg.get("ssh_deletekeys", True):
-        key_pth = cloud.paths.join(False, "/etc/ssh/", "ssh_host_*key*")
+        key_pth = os.path.join("/etc/ssh/", "ssh_host_*key*")
         for f in glob.glob(key_pth):
             try:
                 util.del_file(f)
@@ -67,8 +72,7 @@ def handle(_name, cfg, cloud, log, _args):
             if key in KEY_2_FILE:
                 tgt_fn = KEY_2_FILE[key][0]
                 tgt_perms = KEY_2_FILE[key][1]
-                util.write_file(cloud.paths.join(False, tgt_fn),
-                                val, tgt_perms)
+                util.write_file(tgt_fn, val, tgt_perms)
 
         for (priv, pub) in PRIV_2_PUB.iteritems():
             if pub in cfg['ssh_keys'] or not priv in cfg['ssh_keys']:
@@ -89,7 +93,7 @@ def handle(_name, cfg, cloud, log, _args):
                                            'ssh_genkeytypes',
                                            GENERATE_KEY_NAMES)
         for keytype in genkeys:
-            keyfile = cloud.paths.join(False, KEY_FILE_TPL % (keytype))
+            keyfile = KEY_FILE_TPL % (keytype)
             util.ensure_dir(os.path.dirname(keyfile))
             if not os.path.exists(keyfile):
                 cmd = ['ssh-keygen', '-t', keytype, '-N', '', '-f', keyfile]
@@ -102,16 +106,8 @@ def handle(_name, cfg, cloud, log, _args):
                                       " %s to file %s"), keytype, keyfile)
 
     try:
-        # TODO(utlemming): consolidate this stanza that occurs in:
-        # cc_ssh_import_id, cc_set_passwords, maybe cc_users_groups.py
-        user = cloud.distro.get_default_user()
-
-        if 'users' in cfg:
-            user_zero = cfg['users'][0]
-
-            if user_zero != "default":
-                user = user_zero
-
+        (users, _groups) = ds.normalize_users_groups(cfg, cloud.distro)
+        (user, _user_config) = ds.extract_default(users)
         disable_root = util.get_cfg_option_bool(cfg, "disable_root", True)
         disable_root_opts = util.get_cfg_option_str(cfg, "disable_root_opts",
                                                     DISABLE_ROOT_OPTS)
@@ -121,17 +117,16 @@ def handle(_name, cfg, cloud, log, _args):
             cfgkeys = cfg["ssh_authorized_keys"]
             keys.extend(cfgkeys)
 
-        apply_credentials(keys, user, cloud.paths,
-                          disable_root, disable_root_opts)
+        apply_credentials(keys, user, disable_root, disable_root_opts)
     except:
         util.logexc(log, "Applying ssh credentials failed!")
 
 
-def apply_credentials(keys, user, paths, disable_root, disable_root_opts):
+def apply_credentials(keys, user, disable_root, disable_root_opts):
 
     keys = set(keys)
     if user:
-        ssh_util.setup_user_keys(keys, user, '', paths)
+        ssh_util.setup_user_keys(keys, user, '')
 
     if disable_root:
         if not user:
@@ -140,4 +135,4 @@ def apply_credentials(keys, user, paths, disable_root, disable_root_opts):
     else:
         key_prefix = ''
 
-    ssh_util.setup_user_keys(keys, 'root', key_prefix, paths)
+    ssh_util.setup_user_keys(keys, 'root', key_prefix)

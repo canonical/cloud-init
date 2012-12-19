@@ -1,0 +1,15 @@
+#cloud-config
+write_files:
+-   content: blah
+    path: /etc/blah.ini
+    permissions: 493
+
+system_info:
+ package_mirrors:
+   - arches: [i386, amd64, blah]
+     failsafe:
+      primary: http://my.archive.mydomain.com/ubuntu
+      security: http://my.security.mydomain.com/ubuntu
+     search:
+      primary: []
+      security: []

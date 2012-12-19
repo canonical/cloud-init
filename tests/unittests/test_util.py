@@ -1,5 +1,6 @@
 import os
 import stat
+import yaml
 
 from mocker import MockerTestCase
 from unittest import TestCase
@@ -25,65 +26,6 @@ class FakeSelinux(object):
 
     def restorecon(self, path, recursive):  # pylint: disable=W0613
         self.restored.append(path)
-
-
-class TestMergeDict(MockerTestCase):
-    def test_simple_merge(self):
-        """Test simple non-conflict merge."""
-        source = {"key1": "value1"}
-        candidate = {"key2": "value2"}
-        result = util.mergedict(source, candidate)
-        self.assertEqual({"key1": "value1", "key2": "value2"}, result)
-
-    def test_nested_merge(self):
-        """Test nested merge."""
-        source = {"key1": {"key1.1": "value1.1"}}
-        candidate = {"key1": {"key1.2": "value1.2"}}
-        result = util.mergedict(source, candidate)
-        self.assertEqual(
-            {"key1": {"key1.1": "value1.1", "key1.2": "value1.2"}}, result)
-
-    def test_merge_does_not_override(self):
-        """Test that candidate doesn't override source."""
-        source = {"key1": "value1", "key2": "value2"}
-        candidate = {"key1": "value2", "key2": "NEW VALUE"}
-        result = util.mergedict(source, candidate)
-        self.assertEqual(source, result)
-
-    def test_empty_candidate(self):
-        """Test empty candidate doesn't change source."""
-        source = {"key": "value"}
-        candidate = {}
-        result = util.mergedict(source, candidate)
-        self.assertEqual(source, result)
-
-    def test_empty_source(self):
-        """Test empty source is replaced by candidate."""
-        source = {}
-        candidate = {"key": "value"}
-        result = util.mergedict(source, candidate)
-        self.assertEqual(candidate, result)
-
-    def test_non_dict_candidate(self):
-        """Test non-dict candidate is discarded."""
-        source = {"key": "value"}
-        candidate = "not a dict"
-        result = util.mergedict(source, candidate)
-        self.assertEqual(source, result)
-
-    def test_non_dict_source(self):
-        """Test non-dict source is not modified with a dict candidate."""
-        source = "not a dict"
-        candidate = {"key": "value"}
-        result = util.mergedict(source, candidate)
-        self.assertEqual(source, result)
-
-    def test_neither_dict(self):
-        """Test if neither candidate or source is dict source wins."""
-        source = "source"
-        candidate = "candidate"
-        result = util.mergedict(source, candidate)
-        self.assertEqual(source, result)
 
 
 class TestGetCfgOptionListOrStr(TestCase):
@@ -267,5 +209,43 @@ class TestGetCmdline(TestCase):
     def test_cmdline_reads_debug_env(self):
         os.environ['DEBUG_PROC_CMDLINE'] = 'abcd 123'
         self.assertEqual(os.environ['DEBUG_PROC_CMDLINE'], util.get_cmdline())
+
+
+class TestLoadYaml(TestCase):
+    mydefault = "7b03a8ebace993d806255121073fed52"
+
+    def test_simple(self):
+        mydata = {'1': "one", '2': "two"}
+        self.assertEqual(util.load_yaml(yaml.dump(mydata)), mydata)
+
+    def test_nonallowed_returns_default(self):
+        # for now, anything not in the allowed list just returns the default.
+        myyaml = yaml.dump({'1': "one"})
+        self.assertEqual(util.load_yaml(blob=myyaml,
+                                        default=self.mydefault,
+                                        allowed=(str,)),
+                         self.mydefault)
+
+    def test_bogus_returns_default(self):
+        badyaml = "1\n 2:"
+        self.assertEqual(util.load_yaml(blob=badyaml,
+                                        default=self.mydefault),
+                         self.mydefault)
+
+    def test_unsafe_types(self):
+        # should not load complex types
+        unsafe_yaml = yaml.dump((1, 2, 3,))
+        self.assertEqual(util.load_yaml(blob=unsafe_yaml,
+                                        default=self.mydefault),
+                         self.mydefault)
+
+    def test_python_unicode(self):
+        # complex type of python/unicde is explicitly allowed
+        myobj = {'1': unicode("FOOBAR")}
+        safe_yaml = yaml.dump(myobj)
+        self.assertEqual(util.load_yaml(blob=safe_yaml,
+                                        default=self.mydefault),
+                         myobj)
+
 
 # vi: ts=4 expandtab

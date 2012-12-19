@@ -28,8 +28,4 @@ LOG = logging.getLogger(__name__)
 
 
 class Distro(debian.Distro):
-
-    distro_name = 'ubuntu'
-    default_user = 'ubuntu'
-    default_user_groups = ("adm,audio,cdrom,dialout,floppy,video,"
-                            "plugdev,dip,netdev,sudo")
+    pass

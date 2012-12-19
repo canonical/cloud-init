@@ -33,8 +33,12 @@ possible_topdir = os.path.normpath(os.path.join(os.path.abspath(
 if os.path.exists(os.path.join(possible_topdir, "cloudinit", "__init__.py")):
     sys.path.insert(0, possible_topdir)
 
+from cloudinit import patcher
+patcher.patch()
+
 from cloudinit import log as logging
 from cloudinit import netinfo
+from cloudinit import signal_handler
 from cloudinit import sources
 from cloudinit import stages
 from cloudinit import templater
@@ -493,6 +497,9 @@ def main():
     # iff in debug mode...
     if args.debug:
         logging.setupBasicLogging()
+
+    # Setup signal handlers before running
+    signal_handler.attach_handlers()
 
     (name, functor) = args.action
     return functor(name, args)

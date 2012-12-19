@@ -47,6 +47,8 @@ from cloudinit import util
 
 LOG = logging.getLogger(__name__)
 
+NULL_DATA_SOURCE = None
+
 
 class Init(object):
     def __init__(self, ds_deps=None):
@@ -58,18 +60,32 @@ class Init(object):
         self._cfg = None
         self._paths = None
         self._distro = None
-        # Created only when a fetch occurs
-        self.datasource = None
+        # Changed only when a fetch occurs
+        self.datasource = NULL_DATA_SOURCE
+
+    def _reset(self, reset_ds=False):
+        # Recreated on access
+        self._cfg = None
+        self._paths = None
+        self._distro = None
+        if reset_ds:
+            self.datasource = NULL_DATA_SOURCE
 
     @property
     def distro(self):
         if not self._distro:
             # Try to find the right class to use
-            scfg = self._extract_cfg('system')
-            name = scfg.pop('distro', 'ubuntu')
-            cls = distros.fetch(name)
-            LOG.debug("Using distro class %s", cls)
-            self._distro = cls(name, scfg, self.paths)
+            system_config = self._extract_cfg('system')
+            distro_name = system_config.pop('distro', 'ubuntu')
+            distro_cls = distros.fetch(distro_name)
+            LOG.debug("Using distro class %s", distro_cls)
+            self._distro = distro_cls(distro_name, system_config, self.paths)
+            # If we have an active datasource we need to adjust
+            # said datasource and move its distro/system config
+            # from whatever it was to a new set...
+            if self.datasource is not NULL_DATA_SOURCE:
+                self.datasource.distro = self._distro
+                self.datasource.sys_cfg = system_config
         return self._distro
 
     @property
@@ -147,27 +163,12 @@ class Init(object):
             self._cfg = self._read_cfg(extra_fns)
             # LOG.debug("Loaded 'init' config %s", self._cfg)
 
-    def _read_base_cfg(self):
-        base_cfgs = []
-        default_cfg = util.get_builtin_cfg()
-        kern_contents = util.read_cc_from_cmdline()
-        # Kernel/cmdline parameters override system config
-        if kern_contents:
-            base_cfgs.append(util.load_yaml(kern_contents, default={}))
-        # Anything in your conf.d location??
-        # or the 'default' cloud.cfg location???
-        base_cfgs.append(util.read_conf_with_confd(CLOUD_CONFIG))
-        # And finally the default gets to play
-        if default_cfg:
-            base_cfgs.append(default_cfg)
-        return util.mergemanydict(base_cfgs)
-
     def _read_cfg(self, extra_fns):
         no_cfg_paths = helpers.Paths({}, self.datasource)
         merger = helpers.ConfigMerger(paths=no_cfg_paths,
                                       datasource=self.datasource,
                                       additional_fns=extra_fns,
-                                      base_cfg=self._read_base_cfg())
+                                      base_cfg=fetch_base_config())
         return merger.cfg
 
     def _restore_from_cache(self):
@@ -191,7 +192,7 @@ class Init(object):
             return None
 
     def _write_to_cache(self):
-        if not self.datasource:
+        if self.datasource is NULL_DATA_SOURCE:
             return False
         pickled_fn = self.paths.get_ipath_cur("obj_pkl")
         try:
@@ -217,7 +218,7 @@ class Init(object):
         return (cfg_list, pkg_list)
 
     def _get_data_source(self):
-        if self.datasource:
+        if self.datasource is not NULL_DATA_SOURCE:
             return self.datasource
         ds = self._restore_from_cache()
         if ds:
@@ -236,11 +237,11 @@ class Init(object):
         self.datasource = ds
         # Ensure we adjust our path members datasource
         # now that we have one (thus allowing ipath to be used)
-        self.paths.datasource = ds
+        self._reset()
         return ds
 
     def _get_instance_subdirs(self):
-        return ['handlers', 'scripts', 'sems']
+        return ['handlers', 'scripts', 'sem']
 
     def _get_ipath(self, subname=None):
         # Force a check to see if anything
@@ -296,6 +297,10 @@ class Init(object):
         util.write_file(iid_fn, "%s\n" % iid)
         util.write_file(os.path.join(dp, 'previous-instance-id'),
                         "%s\n" % (previous_iid))
+        # Ensure needed components are regenerated
+        # after change of instance which may cause
+        # change of configuration
+        self._reset()
         return iid
 
     def fetch(self):
@@ -408,6 +413,17 @@ class Init(object):
                 continue
             handlers.call_end(mod, data, frequency)
             called.append(mod)
+
+        # Perform post-consumption adjustments so that
+        # modules that run during the init stage reflect
+        # this consumed set.
+        #
+        # They will be recreated on future access...
+        self._reset()
+        # Note(harlowja): the 'active' datasource will have
+        # references to the previous config, distro, paths
+        # objects before the load of the userdata happened,
+        # this is expected.
 
 
 class Modules(object):
@@ -550,3 +566,23 @@ class Modules(object):
         raw_mods = self._read_modules(section_name)
         mostly_mods = self._fixup_modules(raw_mods)
         return self._run_modules(mostly_mods)
+
+
+def fetch_base_config():
+    base_cfgs = []
+    default_cfg = util.get_builtin_cfg()
+    kern_contents = util.read_cc_from_cmdline()
+
+    # Kernel/cmdline parameters override system config
+    if kern_contents:
+        base_cfgs.append(util.load_yaml(kern_contents, default={}))
+
+    # Anything in your conf.d location??
+    # or the 'default' cloud.cfg location???
+    base_cfgs.append(util.read_conf_with_confd(CLOUD_CONFIG))
+
+    # And finally the default gets to play
+    if default_cfg:
+        base_cfgs.append(default_cfg)
+
+    return util.mergemanydict(base_cfgs)

@@ -20,9 +20,8 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-from email.mime.multipart import MIMEMultipart
-
 import abc
+import os
 
 from cloudinit import importer
 from cloudinit import log as logging
@@ -101,32 +100,23 @@ class DataSource(object):
         return {}
 
     def get_public_ssh_keys(self):
-        keys = []
+        return normalize_pubkey_data(self.metadata.get('public-keys'))
 
-        if not self.metadata or 'public-keys' not in self.metadata:
-            return keys
-
-        if isinstance(self.metadata['public-keys'], (basestring, str)):
-            return str(self.metadata['public-keys']).splitlines()
-
-        if isinstance(self.metadata['public-keys'], (list, set)):
-            return list(self.metadata['public-keys'])
-
-        if isinstance(self.metadata['public-keys'], (dict)):
-            for (_keyname, klist) in self.metadata['public-keys'].iteritems():
-                # lp:506332 uec metadata service responds with
-                # data that makes boto populate a string for 'klist' rather
-                # than a list.
-                if isinstance(klist, (str, basestring)):
-                    klist = [klist]
-                if isinstance(klist, (list, set)):
-                    for pkey in klist:
-                        # There is an empty string at
-                        # the end of the keylist, trim it
-                        if pkey:
-                            keys.append(pkey)
-
-        return keys
+    def _remap_device(self, short_name):
+        # LP: #611137
+        # the metadata service may believe that devices are named 'sda'
+        # when the kernel named them 'vda' or 'xvda'
+        # we want to return the correct value for what will actually
+        # exist in this instance
+        mappings = {"sd": ("vd", "xvd")}
+        for (nfrom, tlist) in mappings.iteritems():
+            if not short_name.startswith(nfrom):
+                continue
+            for nto in tlist:
+                cand = "/dev/%s%s" % (nto, short_name[len(nfrom):])
+                if os.path.exists(cand):
+                    return cand
+        return None
 
     def device_name_to_device(self, _name):
         # translate a 'name' to a device
@@ -173,6 +163,7 @@ class DataSource(object):
             # make up a hostname (LP: #475354) in format ip-xx.xx.xx.xx
             lhost = self.metadata['local-hostname']
             if util.is_ipv4(lhost):
+<<<<<<< TREE
                 toks = []
                 if resolve_ip:
                     toks = util.gethostbyaddr(lhost)
@@ -181,6 +172,9 @@ class DataSource(object):
                     toks = toks.split('.')
                 else:
                     toks = ["ip-%s" % lhost.replace(".", "-")]
+=======
+                toks = ["ip-%s" % lhost.replace(".", "-")]
+>>>>>>> MERGE-SOURCE
             else:
                 toks = lhost.split(".")
 
@@ -198,6 +192,35 @@ class DataSource(object):
     def get_package_mirror_info(self):
         return self.distro.get_package_mirror_info(
             availability_zone=self.availability_zone)
+
+
+def normalize_pubkey_data(pubkey_data):
+    keys = []
+
+    if not pubkey_data:
+        return keys
+
+    if isinstance(pubkey_data, (basestring, str)):
+        return str(pubkey_data).splitlines()
+
+    if isinstance(pubkey_data, (list, set)):
+        return list(pubkey_data)
+
+    if isinstance(pubkey_data, (dict)):
+        for (_keyname, klist) in pubkey_data.iteritems():
+            # lp:506332 uec metadata service responds with
+            # data that makes boto populate a string for 'klist' rather
+            # than a list.
+            if isinstance(klist, (str, basestring)):
+                klist = [klist]
+            if isinstance(klist, (list, set)):
+                for pkey in klist:
+                    # There is an empty string at
+                    # the end of the keylist, trim it
+                    if pkey:
+                        keys.append(pkey)
+
+    return keys
 
 
 def find_source(sys_cfg, distro, paths, ds_deps, cfg_list, pkg_list):

@@ -32,10 +32,12 @@ def handle(name, cfg, cloud, log, _args):
                     " not updating the hostname in module %s"), name)
         return
 
-    (hostname, _fqdn) = util.get_hostname_fqdn(cfg, cloud)
+    (hostname, fqdn) = util.get_hostname_fqdn(cfg, cloud)
     try:
         prev_fn = os.path.join(cloud.get_cpath('data'), "previous-hostname")
-        cloud.distro.update_hostname(hostname, prev_fn)
+        log.debug("Updating hostname to %s (%s)", fqdn, hostname)
+        cloud.distro.update_hostname(hostname, fqdn, prev_fn)
     except Exception:
-        util.logexc(log, "Failed to set the hostname to %s", hostname)
+        util.logexc(log, "Failed to update the hostname to %s (%s)",
+                    fqdn, hostname)
         raise
