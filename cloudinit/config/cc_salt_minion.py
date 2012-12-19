@@ -34,8 +34,7 @@ def handle(name, cfg, cloud, log, _args):
     cloud.distro.install_packages(["salt-minion"])
 
     # Ensure we can configure files at the right dir
-    config_dir = cloud.paths.join(False, salt_cfg.get("config_dir",
-                                                      '/etc/salt'))
+    config_dir = salt_cfg.get("config_dir", '/etc/salt')
     util.ensure_dir(config_dir)
 
     # ... and then update the salt configuration
@@ -47,8 +46,7 @@ def handle(name, cfg, cloud, log, _args):
 
     # ... copy the key pair if specified
     if 'public_key' in salt_cfg and 'private_key' in salt_cfg:
-        pki_dir = cloud.paths.join(False, salt_cfg.get('pki_dir',
-                                                       '/etc/salt/pki'))
+        pki_dir = salt_cfg.get('pki_dir', '/etc/salt/pki')
         with util.umask(077):
             util.ensure_dir(pki_dir)
             pub_name = os.path.join(pki_dir, 'minion.pub')
@@ -56,5 +54,6 @@ def handle(name, cfg, cloud, log, _args):
             util.write_file(pub_name, salt_cfg['public_key'])
             util.write_file(pem_name, salt_cfg['private_key'])
 
-    # Start salt-minion
-    util.subp(['service', 'salt-minion', 'start'], capture=False)
+    # restart salt-minion.  'service' will start even if not started.  if it
+    # was started, it needs to be restarted for config change.
+    util.subp(['service', 'salt-minion', 'restart'], capture=False)

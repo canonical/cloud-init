@@ -34,13 +34,13 @@ from cloudinit import util
 # this is a translation of the 'requires'
 # file pypi package name to a redhat/fedora package name.
 PKG_MP = {
+    'argparse': 'python-argparse',
     'boto': 'python-boto',
     'cheetah': 'python-cheetah',
-    'prettytable': 'python-prettytable',
-    'oauth': 'python-oauth',
     'configobj': 'python-configobj',
+    'oauth': 'python-oauth',
+    'prettytable': 'python-prettytable',
     'pyyaml': 'PyYAML',
-    'argparse': 'python-argparse',
 }
 
 # Subdirectories of the ~/rpmbuild dir
@@ -58,8 +58,7 @@ def get_log_header(version):
             a_rev = rev
             break
     if not a_rev:
-        return format_change_line(datetime.now(),
-                                  '??', version)
+        return None
     
     # Extract who made that tag as the header
     cmd = ['bzr', 'log', '-r%s' % (a_rev), '--timezone=utc']
@@ -91,7 +90,7 @@ def format_change_line(ds, who, comment=None):
     return "* %s" % (d)
 
 
-def generate_spec_contents(args, tmpl_fn, arc_fn):
+def generate_spec_contents(args, tmpl_fn, top_dir, arc_fn):
 
     # Figure out the version and revno
     cmd = [util.abs_join(find_root(), 'tools', 'read-version')]
@@ -107,6 +106,10 @@ def generate_spec_contents(args, tmpl_fn, arc_fn):
     subs['version'] = version
     subs['revno'] = revno
     subs['release'] = "bzr%s" % (revno)
+    if args.sub_release is not None:
+        subs['subrelease'] = "." + str(args.sub_release)
+    else:
+        subs['subrelease'] = ''
     subs['archive_name'] = arc_fn
 
     cmd = [util.abs_join(find_root(), 'tools', 'read-dependencies')]
@@ -127,13 +130,23 @@ def generate_spec_contents(args, tmpl_fn, arc_fn):
     # Format a nice changelog (as best as we can)
     changelog = util.load_file(util.abs_join(find_root(), 'ChangeLog'))
     changelog_lines = []
+    missing_versions = 0
     for line in changelog.splitlines():
         if not line.strip():
             continue
         if re.match(r"^\s*[\d][.][\d][.][\d]:\s*", line):
             line = line.strip(":")
             header = get_log_header(line)
-            changelog_lines.append(header)
+            if not header:
+                missing_versions += 1
+                if missing_versions == 1:
+                    # Must be using a new 'dev'/'trunk' release
+                    changelog_lines.append(format_change_line(datetime.now(), '??'))
+                else:
+                    sys.stderr.write(("Changelog version line %s "
+                                      "does not have a corresponding tag!\n") % (line))
+            else:
+                changelog_lines.append(header)
         else:
             changelog_lines.append(line)
     subs['changelog'] = "\n".join(changelog_lines)
@@ -148,7 +161,9 @@ def generate_spec_contents(args, tmpl_fn, arc_fn):
     else:
         subs['systemd'] = False
 
+    subs['defines'] = ["_topdir %s" % (top_dir)]
     subs['init_sys'] = args.boot
+    subs['patches'] = [os.path.basename(p) for p in args.patches]
     return templater.render_from_file(tmpl_fn, params=subs)
 
 
@@ -164,6 +179,17 @@ def main():
                               " (default: %(default)s)"),
                         default=False,
                         action='store_true')
+    parser.add_argument('-s', "--sub-release", dest="sub_release",
+                        metavar="RELEASE",
+                        help=("a 'internal' release number to concat"
+                              " with the bzr version number to form"
+                              " the final version number"),
+                        type=int,
+                        default=None)
+    parser.add_argument("-p", "--patch", dest="patches",
+                        help=("include the following patch when building"),
+                        default=[],
+                        action='append')
     args = parser.parse_args()
     capture = True
     if args.verbose:
@@ -192,16 +218,17 @@ def main():
     # Form the spec file to be used
     tmpl_fn = util.abs_join(find_root(), 'packages',
                             'redhat', 'cloud-init.spec.in')
-    contents = generate_spec_contents(args, tmpl_fn,
+    contents = generate_spec_contents(args, tmpl_fn, root_dir,
                                       os.path.basename(archive_fn))
     spec_fn = util.abs_join(root_dir, 'cloud-init.spec')
     util.write_file(spec_fn, contents)
     print("Created spec file at %r" % (spec_fn))
+    for p in args.patches:
+        util.copy(p, util.abs_join(arc_dir, os.path.basename(p)))
 
     # Now build it!
     print("Running 'rpmbuild' in %r" % (root_dir))
-    cmd = ['rpmbuild', '--clean',
-           '-ba', spec_fn]
+    cmd = ['rpmbuild', '-ba', spec_fn]
     util.subp(cmd, capture=capture)
 
     # Copy the items built to our local dir

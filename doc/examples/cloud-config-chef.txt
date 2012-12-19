@@ -47,8 +47,12 @@ apt_sources:
 
 chef:
 
- # Valid values are 'gems' and 'packages'
+ # Valid values are 'gems' and 'packages' and 'omnibus'
  install_type: "packages"
+
+ # Boolean: run 'install_type' code even if chef-client
+ #          appears already installed.
+ force_install: false
 
  # Chef settings
  server_url: "https://chef.yourorg.com:4000"
@@ -79,6 +83,9 @@ chef:
       prefork:
         maxclients: 100
       keepalive: "off"
+
+ # if install_type is 'omnibus', change the url to download
+ omnibus_url: "https://www.opscode.com/chef/install.sh"
 
 
 # Capture all subprocess output into a logfile

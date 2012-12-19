@@ -136,7 +136,8 @@ def readurl(url, data=None, timeout=None,
 
 
 def wait_for_url(urls, max_wait=None, timeout=None,
-                 status_cb=None, headers_cb=None, sleep_time=1):
+                 status_cb=None, headers_cb=None, sleep_time=1,
+                 exception_cb=None):
     """
     urls:      a list of urls to try
     max_wait:  roughly the maximum time to wait before giving up
@@ -146,6 +147,8 @@ def wait_for_url(urls, max_wait=None, timeout=None,
     status_cb: call method with string message when a url is not available
     headers_cb: call method with single argument of url to get headers
                 for request.
+    exception_cb: call method with 2 arguments 'msg' (per status_cb) and
+                  'exception', the exception that occurred.
 
     the idea of this routine is to wait for the EC2 metdata service to
     come up.  On both Eucalyptus and EC2 we have seen the case where
@@ -164,7 +167,7 @@ def wait_for_url(urls, max_wait=None, timeout=None,
     """
     start_time = time.time()
 
-    def log_status_cb(msg):
+    def log_status_cb(msg, exc=None):
         LOG.debug(msg)
 
     if status_cb is None:
@@ -196,8 +199,10 @@ def wait_for_url(urls, max_wait=None, timeout=None,
                 resp = readurl(url, headers=headers, timeout=timeout)
                 if not resp.contents:
                     reason = "empty response [%s]" % (resp.code)
+                    e = ValueError(reason)
                 elif not resp.ok():
                     reason = "bad status code [%s]" % (resp.code)
+                    e = ValueError(reason)
                 else:
                     return url
             except urllib2.HTTPError as e:
@@ -214,6 +219,8 @@ def wait_for_url(urls, max_wait=None, timeout=None,
                                                              time_taken,
                                                              max_wait, reason)
             status_cb(status_msg)
+            if exception_cb:
+                exception_cb(msg=status_msg, exception=e)
 
         if timeup(max_wait, start_time):
             break

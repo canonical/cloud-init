@@ -23,8 +23,7 @@
 import os
 import time
 
-import boto.utils as boto_utils
-
+from cloudinit import ec2_utils as ec2
 from cloudinit import log as logging
 from cloudinit import sources
 from cloudinit import url_helper as uhelp
@@ -65,10 +64,10 @@ class DataSourceEc2(sources.DataSource):
             if not self.wait_for_metadata_service():
                 return False
             start_time = time.time()
-            self.userdata_raw = boto_utils.get_instance_userdata(self.api_ver,
-                None, self.metadata_address)
-            self.metadata = boto_utils.get_instance_metadata(self.api_ver,
+            self.userdata_raw = ec2.get_instance_userdata(self.api_ver,
                 self.metadata_address)
+            self.metadata = ec2.get_instance_metadata(self.api_ver,
+                                                      self.metadata_address)
             LOG.debug("Crawl of metadata service took %s seconds",
                        int(time.time() - start_time))
             return True
@@ -85,9 +84,6 @@ class DataSourceEc2(sources.DataSource):
 
     def get_instance_id(self):
         return self.metadata['instance-id']
-
-    def get_availability_zone(self):
-        return self.metadata['placement']['availability-zone']
 
     def _get_url_settings(self):
         mcfg = self.ds_cfg
@@ -151,22 +147,6 @@ class DataSourceEc2(sources.DataSource):
         self.metadata_address = url2base.get(url)
         return bool(url)
 
-    def _remap_device(self, short_name):
-        # LP: #611137
-        # the metadata service may believe that devices are named 'sda'
-        # when the kernel named them 'vda' or 'xvda'
-        # we want to return the correct value for what will actually
-        # exist in this instance
-        mappings = {"sd": ("vd", "xvd")}
-        for (nfrom, tlist) in mappings.iteritems():
-            if not short_name.startswith(nfrom):
-                continue
-            for nto in tlist:
-                cand = "/dev/%s%s" % (nto, short_name[len(nfrom):])
-                if os.path.exists(cand):
-                    return cand
-        return None
-
     def device_name_to_device(self, name):
         # Consult metadata service, that has
         #  ephemeral0: sdb
@@ -213,19 +193,6 @@ class DataSourceEc2(sources.DataSource):
         if name == "ephemeral0":
             return None
         return ofound
-
-    def is_vpc(self):
-        # See: https://bugs.launchpad.net/ubuntu/+source/cloud-init/+bug/615545
-        # Detect that the machine was launched in a VPC.
-        # But I did notice that when in a VPC, meta-data
-        # does not have public-ipv4 and public-hostname
-        # listed as a possibility.
-        ph = "public-hostname"
-        p4 = "public-ipv4"
-        if ((ph not in self.metadata or self.metadata[ph] == "") and
-            (p4 not in self.metadata or self.metadata[p4] == "")):
-            return True
-        return False
 
     @property
     def availability_zone(self):

@@ -50,7 +50,9 @@ import yaml
 
 from cloudinit import importer
 from cloudinit import log as logging
+from cloudinit import safeyaml
 from cloudinit import url_helper as uhelp
+from cloudinit import version
 
 from cloudinit.settings import (CFG_BUILTIN)
 
@@ -246,6 +248,32 @@ def read_conf(fname):
             return {}
         else:
             raise
+
+
+# Merges X lists, and then keeps the
+# unique ones, but orders by sort order
+# instead of by the original order
+def uniq_merge_sorted(*lists):
+    return sorted(uniq_merge(*lists))
+
+
+# Merges X lists and then iterates over those
+# and only keeps the unique items (order preserving)
+# and returns that merged and uniqued list as the
+# final result.
+#
+# Note: if any entry is a string it will be
+# split on commas and empty entries will be
+# evicted and merged in accordingly.
+def uniq_merge(*lists):
+    combined_list = []
+    for a_list in lists:
+        if isinstance(a_list, (str, basestring)):
+            a_list = a_list.strip().split(",")
+            # Kickout the empty ones
+            a_list = [a for a in a_list if len(a)]
+        combined_list.extend(a_list)
+    return uniq_list(combined_list)
 
 
 def clean_filename(fn):
@@ -612,7 +640,7 @@ def load_yaml(blob, default=None, allowed=(dict,)):
         LOG.debug(("Attempting to load yaml from string "
                  "of length %s with allowed root types %s"),
                  len(blob), allowed)
-        converted = yaml.safe_load(blob)
+        converted = safeyaml.load(blob)
         if not isinstance(converted, allowed):
             # Yes this will just be caught, but thats ok for now...
             raise TypeError(("Yaml load allows %s root types,"
@@ -959,6 +987,22 @@ def find_devs_with(criteria=None, oformat='device',
     return entries
 
 
+def peek_file(fname, max_bytes):
+    LOG.debug("Peeking at %s (max_bytes=%s)", fname, max_bytes)
+    with open(fname, 'rb') as ifh:
+        return ifh.read(max_bytes)
+
+
+def uniq_list(in_list):
+    out_list = []
+    for i in in_list:
+        if i in out_list:
+            continue
+        else:
+            out_list.append(i)
+    return out_list
+
+
 def load_file(fname, read_cb=None, quiet=False):
     LOG.debug("Reading from %s (quiet=%s)", fname, quiet)
     ofh = StringIO()
@@ -1111,6 +1155,22 @@ def hash_blob(blob, routine, mlen=None):
         return digest
 
 
+def is_user(name):
+    try:
+        if pwd.getpwnam(name):
+            return True
+    except KeyError:
+        return False
+
+
+def is_group(name):
+    try:
+        if grp.getgrnam(name):
+            return True
+    except KeyError:
+        return False
+
+
 def rename(src, dest):
     LOG.debug("Renaming %s to %s", src, dest)
     # TODO(harlowja) use a se guard here??
@@ -1147,8 +1207,7 @@ def yaml_dumps(obj):
                     indent=4,
                     explicit_start=True,
                     explicit_end=True,
-                    default_flow_style=False,
-                    )
+                    default_flow_style=False)
     return formatted
 
 
@@ -1288,6 +1347,10 @@ def uptime():
     return uptime_str
 
 
+def append_file(path, content):
+    write_file(path, content, omode="ab", mode=None)
+
+
 def ensure_file(path, mode=0644):
     write_file(path, content='', omode="ab", mode=mode)
 
@@ -1377,6 +1440,14 @@ def subp(args, data=None, rcs=None, env=None, capture=True, shell=False,
     if not err and capture:
         err = ''
     return (out, err)
+
+
+def make_header(comment_char="#", base='created'):
+    ci_ver = version.version_string()
+    header = str(comment_char)
+    header += " %s by cloud-init v. %s" % (base.title(), ci_ver)
+    header += " on %s" % time_rfc2822()
+    return header
 
 
 def abs_join(*paths):

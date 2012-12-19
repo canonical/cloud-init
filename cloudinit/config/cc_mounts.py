@@ -28,6 +28,7 @@ from cloudinit import util
 SHORTNAME_FILTER = r"^[x]{0,1}[shv]d[a-z][0-9]*$"
 SHORTNAME = re.compile(SHORTNAME_FILTER)
 WS = re.compile("[%s]+" % (whitespace))
+FSTAB_PATH = "/etc/fstab"
 
 
 def is_mdname(name):
@@ -167,8 +168,7 @@ def handle(_name, cfg, cloud, log, _args):
         cc_lines.append('\t'.join(line))
 
     fstab_lines = []
-    fstab = util.load_file(cloud.paths.join(True, "/etc/fstab"))
-    for line in fstab.splitlines():
+    for line in util.load_file(FSTAB_PATH).splitlines():
         try:
             toks = WS.split(line)
             if toks[3].find(comment) != -1:
@@ -179,7 +179,7 @@ def handle(_name, cfg, cloud, log, _args):
 
     fstab_lines.extend(cc_lines)
     contents = "%s\n" % ('\n'.join(fstab_lines))
-    util.write_file(cloud.paths.join(False, "/etc/fstab"), contents)
+    util.write_file(FSTAB_PATH, contents)
 
     if needswap:
         try:
@@ -188,9 +188,8 @@ def handle(_name, cfg, cloud, log, _args):
             util.logexc(log, "Activating swap via 'swapon -a' failed")
 
     for d in dirs:
-        real_dir = cloud.paths.join(False, d)
         try:
-            util.ensure_dir(real_dir)
+            util.ensure_dir(d)
         except:
             util.logexc(log, "Failed to make '%s' config-mount", d)
 
