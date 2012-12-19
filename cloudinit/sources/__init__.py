@@ -163,7 +163,6 @@ class DataSource(object):
             # make up a hostname (LP: #475354) in format ip-xx.xx.xx.xx
             lhost = self.metadata['local-hostname']
             if util.is_ipv4(lhost):
-<<<<<<< TREE
                 toks = []
                 if resolve_ip:
                     toks = util.gethostbyaddr(lhost)
@@ -172,9 +171,6 @@ class DataSource(object):
                     toks = toks.split('.')
                 else:
                     toks = ["ip-%s" % lhost.replace(".", "-")]
-=======
-                toks = ["ip-%s" % lhost.replace(".", "-")]
->>>>>>> MERGE-SOURCE
             else:
                 toks = lhost.split(".")
 
