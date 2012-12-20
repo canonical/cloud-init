@@ -167,10 +167,24 @@ def read_context_disk_dir(source_dir):
     }
 
     if "context.sh" in found:
-        # let bash process the contextualization script;
-        # write out data in normalized output NAME=\$?'?VALUE'?
-        # TODO: don't trust context.sh! parse manually !!!
         try:
+            # Note: context.sh is a "shell" script with defined context
+            # variables, like: X="Y" . It's ready to use as a shell source
+            # e.g.: ". context.sh" and as a shell script it can also reference
+            # to already defined shell variables. So to have same context var.
+            # values as we can have in custom shell script, we use bash itself
+            # to read context.sh and dump variables in easily parsable way.
+            #
+            # normalized variables dump format (get by cmd "set"):
+            # 1. simple single word assignment ........ X=Y
+            # 2. multiword assignment ................. X='Y Z'
+            # 3. assignments with backslash escapes ... X=$'Y\nZ'
+            #
+            # how context variables are read:
+            # 1. list existing ("old") shell variables and store into $VARS
+            # 2. read context variables
+            # 3. use comm to filter "old" variables from all current
+            #    variables and excl. few other vars with grep
             BASH_CMD='VARS=`set | sort -u `;' \
                 '. %s/context.sh;' \
                 'comm -23 <(set | sort -u) <(echo "$VARS") | egrep -v "^(VARS|PIPESTATUS|_)="'
