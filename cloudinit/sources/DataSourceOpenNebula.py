@@ -208,8 +208,8 @@ def read_context_disk_dir(source_dir):
                     else:
                         # simple values
                         context_sh[key.lower()]=value
-        except subprocess.CalledProcessError as exc:
-            LOG.warn("context script faled to read" % (exc.output[1]))
+        except util.ProcessExecutionError, _err:
+            LOG.warn("Failed to read context variables: %s" % (_err.message))
         results['metadata']=context_sh
 
     # process single or multiple SSH keys
