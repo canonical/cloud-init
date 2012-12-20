@@ -185,11 +185,7 @@ def read_context_disk_dir(source_dir):
                 # with backslash escapes
                 r=re.match("^\$'(.*)'$",value)
                 if r:
-                    context_sh[key.lower()]=r.group(1).\
-                        replace('\\\\','\\').\
-                        replace('\\t','\t').\
-                        replace('\\n','\n').\
-                        replace("\\'","'")
+                    context_sh[key.lower()]=r.group(1).decode('string_escape')
                 else:
                     # multiword values
                     r=re.match("^'(.*)'$",value)
