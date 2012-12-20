@@ -58,7 +58,7 @@ class DataSourceOpenNebula(sources.DataSource):
         results = {}
         if os.path.isdir(self.seed_dir):
             try:
-                results=read_on_context_device_dir(self.seed_dir)
+                results=read_context_disk_dir(self.seed_dir)
                 found = self.seed_dir
             except NonContextDeviceDir:
                 util.logexc(LOG, "Failed reading context device from %s",
@@ -70,10 +70,8 @@ class DataSourceOpenNebula(sources.DataSource):
                     results = util.mount_cb(dev, read_context_disk_dir)
                     found = dev
                     break
-                except (NonConfigDriveDir, util.MountFailedError):
+                except (NonContextDeviceDir, util.MountFailedError):
                     pass
-                except BrokenConfigDriveDir:
-                    util.logexc(LOG, "broken config drive: %s", dev)
 
         if not found:
             return False
@@ -211,6 +209,8 @@ def read_context_disk_dir(source_dir):
         except util.ProcessExecutionError, _err:
             LOG.warn("Failed to read context variables: %s" % (_err.message))
         results['metadata']=context_sh
+    else:
+        raise NonContextDeviceDir("Missing context.sh")
 
     # process single or multiple SSH keys
     if "ssh_key" in context_sh:
