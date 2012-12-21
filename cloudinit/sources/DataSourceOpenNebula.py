@@ -101,6 +101,12 @@ class DataSourceOpenNebula(sources.DataSource):
         self.metadata = md
         self.userdata_raw = results.get('userdata')
 
+        if 'network-interfaces' in results:
+            self.distro.apply_network(results['network-interfaces'])
+
+        if 'dns' in results:
+            self.distro.apply_resolv_conf(results['dns'])
+
         return True
 
     def get_hostname(self, fqdn=False, resolve_ip=None):
@@ -122,6 +128,93 @@ class NonContextDeviceDir(Exception):
     pass
 
 
+class OpenNebulaNetwork(object):
+    REG_ETH=re.compile('^eth')
+    REG_DEV_MAC=re.compile('^(eth\d+).*HWaddr (..:..:..:..:..:..)')
+
+    def __init__(self, ifconfig, context_sh):
+        self.ifconfig=ifconfig
+        self.context_sh=context_sh
+        self.ifaces=self.get_ifaces()
+
+    def get_ifaces(self):
+        return [self.REG_DEV_MAC.search(f).groups() for f in self.ifconfig.split("\n") if self.REG_ETH.match(f)]
+
+    def mac2ip(self, mac):
+        components=mac.split(':')[2:]
+
+        return [str(int(c, 16)) for c in components]
+        
+    def get_ip(self, dev, components):
+        var_name=dev+'_ip'
+        if var_name in self.context_sh:
+            return self.context_sh[var_name]
+        else:
+            return '.'.join(components)
+
+    def get_mask(self, dev, components):
+        var_name=dev+'_mask'
+        if var_name in self.context_sh:
+            return self.context_sh[var_name]
+        else:
+            return '255.255.255.0'
+
+    def get_network(self, dev, components):
+        var_name=dev+'_network'
+        if var_name in self.context_sh:
+            return self.context_sh[var_name]
+        else:
+            return '.'.join(components[:-1])+'.0'
+
+    def get_gateway(self, dev, components):
+        var_name=dev+'_gateway'
+        if var_name in self.context_sh:
+            return self.context_sh[var_name]
+        else:
+            None
+
+    def gen_conf(self):
+        conf=[]
+        conf.append('auto lo')
+        conf.append('iface lo inet loopback')
+        conf.append('')
+
+        for i in self.ifaces:
+            dev=i[0]
+            mac=i[1]
+            ip_components=self.mac2ip(mac)
+
+            conf.append('auto '+dev)
+            conf.append('iface '+dev+' inet static')
+            conf.append('  address '+self.get_ip(dev, ip_components))
+            conf.append('  network '+self.get_network(dev, ip_components))
+            conf.append('  netmask '+self.get_mask(dev, ip_components))
+
+            gateway=self.get_gateway(dev, ip_components)
+            if gateway:
+                conf.append('  gateway '+gateway)
+
+            conf.append('')
+
+        return "\n".join(conf)
+
+    def gen_dns(self):
+        dnss=[]
+
+        if 'dns' in self.context_sh:
+            dnss.append('nameserver '+self.context_sh['dns'])
+
+        keys=[d for d in self.context_sh.keys() if re.match('^eth\d+_dns$', d)]
+
+        for k in sorted(keys):
+            dnss.append('nameserver '+self.context_sh[k])
+
+        if not dnss:
+            return None
+        else:
+            return "\n".join(dnss)+"\n"
+
+
 def find_candidate_devs():
     """
     Return a list of devices that may contain the context disk.
@@ -135,9 +228,6 @@ def find_candidate_devs():
     # combine list of items by putting by-label items first
     # followed by fstype items, but with dupes removed
     combined = (by_label + [d for d in by_fstype if d not in by_label])
-
-    # We are looking for block device (sda, not sda1), ignore partitions
-    combined = [d for d in combined if d[-1] not in "0123456789"]
 
     return combined
 
@@ -213,8 +303,15 @@ def read_context_disk_dir(source_dir):
         raise NonContextDeviceDir("Missing context.sh")
 
     # process single or multiple SSH keys
+    ssh_key_var=None
+
     if "ssh_key" in context_sh:
-        lines = context_sh.get('ssh_key').splitlines()
+        ssh_key_var="ssh_key"
+    elif "ssh_public_key" in context_sh:
+        ssh_key_var="ssh_public_key"
+
+    if ssh_key_var:
+        lines = context_sh.get(ssh_key_var).splitlines()
         results['metadata']['public-keys'] = [l for l in lines
             if len(l) and not l.startswith("#")]
 
@@ -223,12 +320,22 @@ def read_context_disk_dir(source_dir):
         results['metadata']['local-hostname'] = context_sh['hostname']
     elif 'public_ip'in context_sh:
         results['metadata']['local-hostname'] = context_sh['public_ip']
+    elif 'eth0_ip' in context_sh:
+        results['metadata']['local-hostname'] = context_sh['eth0_ip']
 
     # raw user data
     if "user_data" in context_sh:
         results['userdata'] = context_sh["user_data"]
     elif "userdata" in context_sh:
         results['userdata'] = context_sh["userdata"]
+
+    (out, err) = util.subp(['/sbin/ifconfig', '-a'])
+    net=OpenNebulaNetwork(out, context_sh)
+    results['network-interfaces']=net.gen_conf()
+
+    dns=net.gen_dns()
+    if dns:
+        results['dns']=dns
 
     return results
 
