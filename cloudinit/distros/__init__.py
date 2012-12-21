@@ -59,6 +59,10 @@ class Distro(object):
         # to write this blob out in a distro format
         raise NotImplementedError()
 
+    def apply_resolv_conf(self, settings):
+        net_fn = self._paths.join(False, "/etc/resolv.conf")
+        util.write_file(net_fn, settings)
+
     def get_option(self, opt_name, default=None):
         return self._cfg.get(opt_name, default)
 
