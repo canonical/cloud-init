@@ -2,11 +2,13 @@
 #
 #    Copyright (C) 2012 Canonical Ltd.
 #    Copyright (C) 2012 Yahoo! Inc.
-#    Copyright (C) 2012 CERIT Scientific Cloud
+#    Copyright (C) 2012-2013 CERIT Scientific Cloud
+#    Copyright (C) 2012 OpenNebula.org
 #
 #    Author: Scott Moser <scott.moser@canonical.com>
 #    Author: Joshua Harlow <harlowja@yahoo-inc.com>
 #    Author: Vlastimil Holer <xholer@mail.muni.cz>
+#    Author: Javier Fontan <jfontan@opennebula.org>
 #
 #    This program is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License version 3, as
