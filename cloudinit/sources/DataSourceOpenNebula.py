@@ -103,11 +103,10 @@ class DataSourceOpenNebula(sources.DataSource):
         self.metadata = md
         self.userdata_raw = results.get('userdata')
 
-        if 'network-interfaces' in results:
+        # apply static network configuration only in 'local' dsmode
+        if ('network-interfaces' in results and self.dsmode == "local"):
+            LOG.debug("Updating network interfaces from %s", self)
             self.distro.apply_network(results['network-interfaces'])
-
-        if 'dns' in results:
-            self.distro.apply_resolv_conf(results['dns'])
 
         return True
 
@@ -175,7 +174,25 @@ class OpenNebulaNetwork(object):
         else:
             None
 
+    def get_dns(self, dev, components):
+        var_name=dev+'_dns'
+        if var_name in self.context_sh:
+            return self.context_sh[var_name]
+        else:
+            None
+
+    def get_domain(self, dev, components):
+        var_name=dev+'_domain'
+        if var_name in self.context_sh:
+            return self.context_sh[var_name]
+        else:
+            None
+
     def gen_conf(self):
+        global_dns=[]
+        if 'dns' in self.context_sh:
+            global_dns.append(self.context_sh['dns'])
+
         conf=[]
         conf.append('auto lo')
         conf.append('iface lo inet loopback')
@@ -196,25 +213,21 @@ class OpenNebulaNetwork(object):
             if gateway:
                 conf.append('  gateway '+gateway)
 
+            domain=self.get_domain(dev, ip_components)
+            if domain:
+                conf.append('  dns-search '+domain)
+
+            # add global DNS servers to all interfaces
+            dns=self.get_dns(dev, ip_components)
+            if global_dns or dns:
+                all_dns=global_dns
+                if dns:
+                    all_dns.append(dns)
+                conf.append('  dns-nameservers '+' '.join(all_dns))
+
             conf.append('')
 
         return "\n".join(conf)
-
-    def gen_dns(self):
-        dnss=[]
-
-        if 'dns' in self.context_sh:
-            dnss.append('nameserver '+self.context_sh['dns'])
-
-        keys=[d for d in self.context_sh.keys() if re.match('^eth\d+_dns$', d)]
-
-        for k in sorted(keys):
-            dnss.append('nameserver '+self.context_sh[k])
-
-        if not dnss:
-            return None
-        else:
-            return "\n".join(dnss)+"\n"
 
 
 def find_candidate_devs():
@@ -280,10 +293,8 @@ def read_context_disk_dir(source_dir):
                 'comm -23 <(set | sort -u) <(echo "$VARS") | egrep -v "^(VARS|PIPESTATUS|_)="'
 
             (out,err) = util.subp(['bash',
-                '--noprofile',
-                '--norc',
-                '-c',
-                BASH_CMD % (source_dir) ])
+                '--noprofile', '--norc',
+                '-c', BASH_CMD % (source_dir) ])
 
             for (key,value) in [ l.split('=',1) for l in out.rstrip().split("\n") ]:
                 # with backslash escapes
@@ -317,13 +328,12 @@ def read_context_disk_dir(source_dir):
         results['metadata']['public-keys'] = [l for l in lines
             if len(l) and not l.startswith("#")]
 
-    # custom hostname
-    if 'hostname' in context_sh:
-        results['metadata']['local-hostname'] = context_sh['hostname']
-    elif 'public_ip'in context_sh:
-        results['metadata']['local-hostname'] = context_sh['public_ip']
-    elif 'eth0_ip' in context_sh:
-        results['metadata']['local-hostname'] = context_sh['eth0_ip']
+    # custom hostname -- try hostname or leave cloud-init
+    # itself create hostname from IP address later
+    for k in ('hostname','public_ip','ip_public','eth0_ip'):
+        if k in context_sh:
+            results['metadata']['local-hostname'] = context_sh[k]
+            break
 
     # raw user data
     if "user_data" in context_sh:
@@ -334,10 +344,6 @@ def read_context_disk_dir(source_dir):
     (out, err) = util.subp(['/sbin/ifconfig', '-a'])
     net=OpenNebulaNetwork(out, context_sh)
     results['network-interfaces']=net.gen_conf()
-
-    dns=net.gen_dns()
-    if dns:
-        results['dns']=dns
 
     return results
 
