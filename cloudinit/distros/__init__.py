@@ -297,22 +297,26 @@ class Distro(object):
             "no_create_home": "-M",
         }
 
+        redact_fields = ['passwd']
+
         # Now check the value and create the command
         for option in kwargs:
             value = kwargs[option]
             if option in adduser_opts and value \
                 and isinstance(value, str):
                 adduser_cmd.extend([adduser_opts[option], value])
-
-                # Redact the password field from the logs
-                if option != "password":
-                    x_adduser_cmd.extend([adduser_opts[option], value])
-                else:
+                # Redact certain fields from the logs
+                if option in redact_fields:
                     x_adduser_cmd.extend([adduser_opts[option], 'REDACTED'])
-
+                else:
+                    x_adduser_cmd.extend([adduser_opts[option], value])
             elif option in adduser_opts_flags and value:
                 adduser_cmd.append(adduser_opts_flags[option])
-                x_adduser_cmd.append(adduser_opts_flags[option])
+                # Redact certain fields from the logs
+                if option in redact_fields:
+                    x_adduser_cmd.append('REDACTED')
+                else:
+                    x_adduser_cmd.append(adduser_opts_flags[option])
 
         # Default to creating home directory unless otherwise directed
         #  Also, we do not create home directories for system users.
