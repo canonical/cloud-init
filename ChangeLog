@@ -14,6 +14,8 @@
  - fix CloudStack DataSource to use Virtual Router as found in
    /var/lib/dhcpclient rather than default gateway (LP: #1089989)
  - fix redaction of password field in log (LP: #1096417)
+ - fix to cloud-config user setup.  Previously, lock_passwd was broken and
+   all accounts would be locked unless 'system' was given (LP: #1096423).
 0.7.1:
  - sysvinit: fix missing dependency in cloud-init job for RHEL 5.6 
  - config-drive: map hostname to local-hostname (LP: #1061964)
