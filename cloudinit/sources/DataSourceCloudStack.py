@@ -30,6 +30,8 @@ from cloudinit import log as logging
 from cloudinit import sources
 from cloudinit import url_helper as uhelp
 from cloudinit import util
+from socket import inet_ntoa
+from struct import pack
 
 LOG = logging.getLogger(__name__)
 
@@ -122,26 +124,70 @@ class DataSourceCloudStack(sources.DataSource):
         return self.metadata['availability-zone']
 
 
-def get_vr_address():
-    # get the address of the virtual router via dhcp responses
-    # see http://bit.ly/T76eKC for documentation on the virtual router.
-    dhclient_d = "/var/lib/dhclient"
-    addresses = set()
-    dhclient_files = os.listdir(dhclient_d)
-    for file_name in dhclient_files:
-        if file_name.endswith(".lease") or file_name.endswith(".leases"):
-            with open(os.path.join(dhclient_d, file_name), "r") as fd:
-                for line in fd:
-                    if "dhcp-server-identifier" in line:
-                        words = line.strip(" ;\r\n").split(" ")
-                        if len(words) > 2:
-                            dhcp = words[2]
-                            LOG.debug("Found DHCP identifier %s", dhcp)
-                            addresses.add(dhcp)
-    if len(addresses) != 1:
-        # No unique virtual router found
+def get_default_gateway():
+    # Returns the default gateway ip address in the dotted format.
+    lines = util.load_file("/proc/net/route").splitlines()
+    for line in lines:
+        items = line.split("\t")
+        if items[1] == "00000000":
+            # Found the default route, get the gateway
+            gw = inet_ntoa(pack("<L", int(items[2], 16)))
+            LOG.debug("Found default route, gateway is %s", gw)
+            return gw
+    return None
+
+
+def get_dhclient_d():
+    # find lease files directory
+    supported_dirs = ["/var/lib/dhclient", "/var/lib/dhcp"]
+    for d in supported_dirs:
+        if os.path.exists(d):
+            LOG.debug("Using %s lease directory", d)
+            return d
+    return None
+
+
+def get_latest_lease():
+    # find latest lease file
+    lease_d = get_dhclient_d()
+    if not lease_d:
         return None
-    return addresses.pop()
+    lease_files = os.listdir(lease_d)
+    latest_mtime = -1
+    latest_file = None
+    for file_name in lease_files:
+        if file_name.endswith(".lease") or file_name.endswith(".leases"):
+            abs_path = os.path.join(lease_d, file_name)
+            mtime = os.path.getmtime(abs_path)
+            if mtime > latest_mtime:
+                latest_mtime = mtime
+                latest_file = abs_path
+    return latest_file
+
+
+def get_vr_address():
+    # Get the address of the virtual router via dhcp leases
+    # see http://bit.ly/T76eKC for documentation on the virtual router.
+    # If no virtual router is detected, fallback on default gateway.
+    lease_file = get_latest_lease()
+    if not lease_file:
+        LOG.debug("No lease file found, using default gateway")
+        return get_default_gateway()
+
+    latest_address = None
+    with open(lease_file, "r") as fd:
+        for line in fd:
+            if "dhcp-server-identifier" in line:
+                words = line.strip(" ;\r\n").split(" ")
+                if len(words) > 2:
+                    dhcp = words[2]
+                    LOG.debug("Found DHCP identifier %s", dhcp)
+                    latest_address = dhcp
+    if not latest_address:
+        # No virtual router found, fallback on default gateway
+        LOG.debug("No DHCP found, using default gateway")
+        return get_default_gateway()
+    return latest_address
 
 
 # Used to match classes to dependencies

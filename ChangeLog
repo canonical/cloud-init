@@ -11,8 +11,10 @@
  - support omnibus installer for chef [Anatoliy Dobrosynets]
  - fix bug where cloud-config in user-data could not modify system_info
    settings (LP: #1090482)
- - fix CloudStack DataSource to use Virtual Router as found in
-   /var/lib/dhcpclient rather than default gateway (LP: #1089989)
+ - fix CloudStack DataSource to use Virtual Router as described by
+   CloudStack documentation if it is available by searching through dhclient
+   lease files.  If it is not available, then fall back to the default
+   gateway. (LP: #1089989)
  - fix redaction of password field in log (LP: #1096417)
  - fix to cloud-config user setup.  Previously, lock_passwd was broken and
    all accounts would be locked unless 'system' was given (LP: #1096423).
