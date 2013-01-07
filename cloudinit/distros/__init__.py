@@ -338,10 +338,9 @@ class Distro(object):
         if 'plain_text_passwd' in kwargs and kwargs['plain_text_passwd']:
             self.set_passwd(name, kwargs['plain_text_passwd'])
 
-        # Default locking down the account.
-        if ('lock_passwd' not in kwargs and
-            ('lock_passwd' in kwargs and kwargs['lock_passwd']) or
-            'system' not in kwargs):
+        # Default locking down the account.  'lock_passwd' defaults to True.
+        # lock account unless lock_password is False.
+        if kwargs.get('lock_passwd', True):
             try:
                 util.subp(['passwd', '--lock', name])
             except Exception as e:
