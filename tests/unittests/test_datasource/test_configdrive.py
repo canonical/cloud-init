@@ -11,6 +11,7 @@ from cloudinit import settings
 from cloudinit.sources import DataSourceConfigDrive as ds
 from cloudinit import util
 
+from tests.unittests import helpers as unit_helpers
 
 PUBKEY = u'ssh-rsa AAAAB3NzaC1....sIkJhq8wdX+4I3A4cYbYP ubuntu@server-460\n'
 EC2_META = {
@@ -89,23 +90,22 @@ class TestConfigDriveDataSource(MockerTestCase):
             'swap': '/dev/vda3',
         }
         for name, dev_name in name_tests.items():
-            my_mock = mocker.Mocker()
-            find_mock = my_mock.replace(util.find_devs_with,
-                                        spec=False, passthrough=False)
-            provided_name = dev_name[len('/dev/'):]
-            provided_name = "s" + provided_name[1:]
-            find_mock(mocker.ARGS)
-            my_mock.result([provided_name])
-            exists_mock = my_mock.replace(os.path.exists,
-                                          spec=False, passthrough=False)
-            exists_mock(mocker.ARGS)
-            my_mock.result(False)
-            exists_mock(mocker.ARGS)
-            my_mock.result(True)
-            my_mock.replay()
-            device = cfg_ds.device_name_to_device(name)
-            my_mock.restore()
-            self.assertEquals(dev_name, device)
+            with unit_helpers.mocker() as my_mock:
+                find_mock = my_mock.replace(util.find_devs_with,
+                                            spec=False, passthrough=False)
+                provided_name = dev_name[len('/dev/'):]
+                provided_name = "s" + provided_name[1:]
+                find_mock(mocker.ARGS)
+                my_mock.result([provided_name])
+                exists_mock = my_mock.replace(os.path.exists,
+                                              spec=False, passthrough=False)
+                exists_mock(mocker.ARGS)
+                my_mock.result(False)
+                exists_mock(mocker.ARGS)
+                my_mock.result(True)
+                my_mock.replay()
+                device = cfg_ds.device_name_to_device(name)
+                self.assertEquals(dev_name, device)
 
     def test_dev_os_map(self):
         populate_dir(self.tmp, CFG_DRIVE_FILES_V2)
@@ -122,19 +122,18 @@ class TestConfigDriveDataSource(MockerTestCase):
             'swap': '/dev/vda3',
         }
         for name, dev_name in name_tests.items():
-            my_mock = mocker.Mocker()
-            find_mock = my_mock.replace(util.find_devs_with,
-                                        spec=False, passthrough=False)
-            find_mock(mocker.ARGS)
-            my_mock.result([dev_name])
-            exists_mock = my_mock.replace(os.path.exists,
-                                          spec=False, passthrough=False)
-            exists_mock(mocker.ARGS)
-            my_mock.result(True)
-            my_mock.replay()
-            device = cfg_ds.device_name_to_device(name)
-            my_mock.restore()
-            self.assertEquals(dev_name, device)
+            with unit_helpers.mocker() as my_mock:
+                find_mock = my_mock.replace(util.find_devs_with,
+                                            spec=False, passthrough=False)
+                find_mock(mocker.ARGS)
+                my_mock.result([dev_name])
+                exists_mock = my_mock.replace(os.path.exists,
+                                              spec=False, passthrough=False)
+                exists_mock(mocker.ARGS)
+                my_mock.result(True)
+                my_mock.replay()
+                device = cfg_ds.device_name_to_device(name)
+                self.assertEquals(dev_name, device)
 
     def test_dev_ec2_remap(self):
         populate_dir(self.tmp, CFG_DRIVE_FILES_V2)
@@ -156,17 +155,16 @@ class TestConfigDriveDataSource(MockerTestCase):
             'root2k': None,
         }
         for name, dev_name in name_tests.items():
-            my_mock = mocker.Mocker()
-            exists_mock = my_mock.replace(os.path.exists,
-                                          spec=False, passthrough=False)
-            exists_mock(mocker.ARGS)
-            my_mock.result(False)
-            exists_mock(mocker.ARGS)
-            my_mock.result(True)
-            my_mock.replay()
-            device = cfg_ds.device_name_to_device(name)
-            self.assertEquals(dev_name, device)
-            my_mock.restore()
+            with unit_helpers.mocker(verify_calls=False) as my_mock:
+                exists_mock = my_mock.replace(os.path.exists,
+                                              spec=False, passthrough=False)
+                exists_mock(mocker.ARGS)
+                my_mock.result(False)
+                exists_mock(mocker.ARGS)
+                my_mock.result(True)
+                my_mock.replay()
+                device = cfg_ds.device_name_to_device(name)
+                self.assertEquals(dev_name, device)
 
     def test_dev_ec2_map(self):
         populate_dir(self.tmp, CFG_DRIVE_FILES_V2)
