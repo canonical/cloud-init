@@ -530,6 +530,7 @@ def _get_package_mirror_info(mirror_info, availability_zone=None,
 
     return results
 
+
 def _get_arch_package_mirror_info(package_mirrors, arch):
     # pull out the specific arch from a 'package_mirrors' config option
     default = None
