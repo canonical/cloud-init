@@ -48,6 +48,7 @@ class Distro(distros.Distro):
         # calls from repeatly happening (when they
         # should only happen say once per instance...)
         self._runner = helpers.Runners(paths)
+        self.osfamily = 'debian'
 
     def apply_locale(self, locale, out_fn=None):
         if not out_fn:
