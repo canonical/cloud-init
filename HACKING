@@ -1,0 +1,27 @@
+To get changes into cloud-init, the process to follow is:
+
+ *  get your changes into a local bzr branch:
+    # init a repo, and checkout trunk (init repo is to share bzr info
+    # across multiple checkouts, its different than git).
+    bzr init-repo cloud-init
+    bzr branch lp:cloud-init trunk.dist
+    bzr branch trunk.dist my-topic-branch
+ * commit your changes
+    bzr commit
+    # note, you can make multiple commits, fixes, more commits.
+ * check pylint and pep8 and test , and address issues
+    make test pylint pep8
+ * push to launchpad to a personal branch:
+    bzr push lp:~<YOUR_USERNAME>/cloud-init/<BRANCH_NAME>
+ * propose that for a merge into lp:cloud-init via web browser
+    # open the branch in launchpad, it will be at:
+    # https://code.launchpad.net/<YOUR_USERNAME>/<PROJECT>/<BRANCH_NAME>
+    # for example:
+    # https://code.launchpad.net/~smoser/cloud-init/mybranch
+    click 'propose for merging'
+    select 'lp:cloud-init' as the target branch
+
+ Then, someone on cloud-init-dev (currently Scott Moser and Joshua Harlow) will
+review your changes and follow up in the merge request.
+
+ Feel free to ping #cloud-init on freenode if you have any questions.
