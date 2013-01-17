@@ -1553,3 +1553,10 @@ def keyval_str_to_dict(kvstring):
             val = True
         ret[key] = val
     return ret
+
+
+def is_partition(device):
+    if device.startswith("/dev/"):
+        device = device[5:]
+
+    return os.path.isfile("/sys/class/block/%s/partition" % device)

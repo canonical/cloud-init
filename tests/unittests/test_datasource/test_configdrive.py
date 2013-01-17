@@ -257,19 +257,25 @@ class TestConfigDriveDataSource(MockerTestCase):
                           ds.read_config_drive_dir, my_d)
 
     def test_find_candidates(self):
-        devs_with_answers = {
-            "TYPE=vfat": [],
-            "TYPE=iso9660": ["/dev/vdb"],
-            "LABEL=config-2": ["/dev/vdb"],
-        }
+        devs_with_answers = {}
 
         def my_devs_with(criteria):
             return devs_with_answers[criteria]
+
+        def my_is_partition(dev):
+            return dev[-1] in "0123456789" and not dev.startswith("sr")
 
         try:
             orig_find_devs_with = util.find_devs_with
             util.find_devs_with = my_devs_with
 
+            orig_is_partition = util.is_partition
+            util.is_partition = my_is_partition
+
+            devs_with_answers = {"TYPE=vfat": [],
+                "TYPE=iso9660": ["/dev/vdb"],
+                "LABEL=config-2": ["/dev/vdb"],
+            }
             self.assertEqual(["/dev/vdb"], ds.find_candidate_devs())
 
             # add a vfat item
@@ -285,6 +291,7 @@ class TestConfigDriveDataSource(MockerTestCase):
 
         finally:
             util.find_devs_with = orig_find_devs_with
+            util.is_partition = orig_is_partition
 
     def test_pubkeys_v2(self):
         """Verify that public-keys work in config-drive-v2."""
