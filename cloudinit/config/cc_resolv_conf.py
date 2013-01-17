@@ -95,7 +95,7 @@ def handle(name, cfg, _cloud, log, _args):
                    " no 'manage_resolv_conf' key in configuration"), name)
         return
 
-    if not util.get_cfg_option_bool("manage_resolv_conf", False):
+    if not util.get_cfg_option_bool(cfg, "manage_resolv_conf", False):
         log.debug(("Skipping module named %s,"
                    " 'manage_resolv_conf' present but set to False"), name)
         return
