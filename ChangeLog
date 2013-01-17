@@ -20,6 +20,8 @@
    all accounts would be locked unless 'system' was given (LP: #1096423).
  - Allow 'sr0' (or sr[0-9]) to be specified without /dev/ as a source for
    mounts. [Vlastimil Holer]
+ - allow config-drive-data to come from a CD device by more correctly
+   filtering out partitions.  (LP: #1100545)
 0.7.1:
  - sysvinit: fix missing dependency in cloud-init job for RHEL 5.6 
  - config-drive: map hostname to local-hostname (LP: #1061964)
