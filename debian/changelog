@@ -1,3 +1,21 @@
+cloud-init (0.7.1-0ubuntu5) raring; urgency=low
+
+  * catchup-751-760.patch (sync to 760)
+    * DataSourceConfigDrive: allow config-drive data to come from a 
+      CD-ROM (LP: #1100545)
+    * Allow 'sr0' to be used as a source for mount config [Vlastimil Holer]
+    * do not log passwords provided via config (LP: #1096417)
+    * DataSourceCloudStack: Attempt to find the 'virtual router' as provided
+      from dhcp responses, rather than assuming it is the default route 
+      (LP: #1089989) [Gerard Dethier]
+      in the CloudStack environment use virtual router rather than default route 
+    * notify upstart after writing upstart jobs to support filesystems that
+      do not support inotify such as overlayfs (LP: #1080841)
+    * fix cloud-config 'lock_password' user setup (LP: #1096423)
+  * debian/README.source: minor improvements.
+
+ -- Scott Moser <smoser@ubuntu.com>  Fri, 18 Jan 2013 10:12:34 -0500
+
 cloud-init (0.7.1-0ubuntu4) raring; urgency=low
 
   * cherry pick relevant patches from trunk up to revision 750

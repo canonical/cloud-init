@@ -1,0 +1,601 @@
+------------------------------------------------------------
+revno: 760
+fixes bug: https://launchpad.net/bugs/1100545
+committer: Scott Moser <smoser@ubuntu.com>
+branch nick: trunk
+timestamp: Wed 2013-01-16 19:46:30 -0500
+message:
+  DataSourceConfigDrive: consider CD rom as valid config-drive source.
+  
+  previously, there was an attempt in the config drive source to limit
+  the source device to a "full block device" rather than a partition.
+  
+  This was done by a simplistic approach of checking that the last 
+  character of the name was not a number.  That was filtering out
+  CD-rom devices (sr0).
+  
+  Now, we have a bit more sophisticated approach to that same problem.
+  We filter out block devices that have a 'partition' entry in
+  /sys/class/block/DEVICE_NAME/partition .
+------------------------------------------------------------
+revno: 759 [merge]
+fixes bug: https://launchpad.net/bugs/1098430
+author: Joshua Harlow <harlowja@gmail.com>
+committer: Scott Moser <smoser@ubuntu.com>
+branch nick: trunk
+timestamp: Mon 2013-01-14 09:20:53 -0500
+message:
+  tests: Add a context manager function in test helpers.
+  
+  This function can be used to ensure that mocker objects 
+  are restored and verified during usage if exceptions are 
+  thrown while the mock object is being used.
+  
+  Ensure it is used in the config drive test when multiple
+  mock objects are being created and restored.
+------------------------------------------------------------
+revno: 758 [merge]
+author: Vlastimil Holer <vlastimil.holer@gmail.com>
+committer: Scott Moser <smoser@ubuntu.com>
+branch nick: trunk
+timestamp: Mon 2013-01-07 12:27:06 -0500
+message:
+  Allow 'sr0' to be specified as a device for mounts
+  
+  Previously cloud-config to get a '/dev/sr0' entry written to /etc/fstab
+  would have had to have the full /dev/sr0.  This change allows cloud-config
+  to reference it without the '/dev/' prefix.  Like:
+   | mounts:
+   |  - [ sr0, /media/sr0 ]
+------------------------------------------------------------
+revno: 757
+fixes bug: https://launchpad.net/bugs/1089989
+author: Gerard Dethier <g.dethier@gmail.com>
+committer: Scott Moser <smoser@ubuntu.com>
+branch nick: trunk
+timestamp: Mon 2013-01-07 12:20:58 -0500
+message:
+  DataSourceCloudStack: fallback to default route if no virtual router found
+  
+  Changes in revision 753 broke cloud-init on ubuntu, as it has a different
+  dhclient directory than Fedora where the change was developed and tested.
+  
+  This change does 2 things:
+   * searches multiple directories (including /var/lib/dhcp) for the lease
+     files.
+   * adds a fallback to the old code path of choosing the default route
+     as the virtual router if there were no virtual routers found in the
+     lease files.
+------------------------------------------------------------
+revno: 756 [merge]
+fixes bug: https://launchpad.net/bugs/1096423
+committer: Scott Moser <smoser@ubuntu.com>
+branch nick: trunk
+timestamp: Mon 2013-01-07 11:36:10 -0500
+message:
+  fix 'lock_password' for cloud-config user setup
+  
+  This simiplifies the logic, by just making it independent of 'system'.
+------------------------------------------------------------
+revno: 755 [merge]
+fixes bug: https://launchpad.net/bugs/1096417
+author: Joshua Harlow <harlowja@gmail.com>
+committer: Scott Moser <smoser@ubuntu.com>
+branch nick: trunk
+timestamp: Mon 2013-01-07 10:57:08 -0500
+message:
+  fix redaction of password field in log (LP: #1096417)
+  
+  We were trying to avoid the user's password being written to the log, but that
+  was looking for the wrong option.
+------------------------------------------------------------
+revno: 754
+committer: Scott Moser <smoser@ubuntu.com>
+branch nick: trunk
+timestamp: Wed 2012-12-19 10:09:39 -0500
+message:
+  add ChangeLog entry for previous commit
+------------------------------------------------------------
+revno: 753
+fixes bug: https://launchpad.net/bugs/1089989
+author: Gerard Dethier <g.dethier@gmail.com>
+committer: Scott Moser <smoser@ubuntu.com>
+branch nick: trunk
+timestamp: Wed 2012-12-19 09:27:33 -0500
+message:
+  DataSourceCloudStack: use virtual router rather than default route
+  
+  In CloudStack's documentation, it is stated that meta/user-data can be
+  retrieved from CloudStack's Virtual Router [1].
+  
+  However, cloud-init retrieves these information from default gateway. VR
+  and default gateway may be the same machine (i.e. have the same address)
+  in some cases, but that is not be always true (actually, in my case, it is
+  not).
+  
+  This change searches the lease files in /var/lib/dhclient to pick out 
+  the dhcp-server-identifier.
+  
+  It admittedly does make this specific to dhclient.
+  
+  --
+  [1] http://incubator.apache.org/cloudstack/docs/en-US/Apache_CloudStack/4.0.0-incubating/html/Admin_Guide/user-data-and-meta-data.html).
+------------------------------------------------------------
+revno: 752
+committer: Scott Moser <smoser@ubuntu.com>
+branch nick: trunk
+timestamp: Wed 2012-12-19 09:21:01 -0500
+message:
+  cloudinit/handlers/upstart_job.py: pep8 / trailing whitespace
+------------------------------------------------------------
+revno: 751
+fixes bug: https://launchpad.net/bugs/1080841
+committer: Scott Moser <smoser@ubuntu.com>
+branch nick: trunk
+timestamp: Mon 2012-12-17 12:26:10 -0500
+message:
+  tell upstart to reload configuration after writing an upstart job
+  
+  Invoking 'initctl reload-configuration' is only required if inotify 
+  does not work.  overlayroot does not support inotify.  So, we just
+  call initctl always, which wont hurt anything.
+------------------------------------------------------------
+Use --include-merged or -n0 to see merged revisions.
+=== modified file 'ChangeLog'
+
+=== modified file 'cloudinit/config/cc_mounts.py'
+--- a/cloudinit/config/cc_mounts.py
++++ b/cloudinit/config/cc_mounts.py
+@@ -24,8 +24,8 @@ import re
+ 
+ from cloudinit import util
+ 
+-# Shortname matches 'sda', 'sda1', 'xvda', 'hda', 'sdb', xvdb, vda, vdd1
+-SHORTNAME_FILTER = r"^[x]{0,1}[shv]d[a-z][0-9]*$"
++# Shortname matches 'sda', 'sda1', 'xvda', 'hda', 'sdb', xvdb, vda, vdd1, sr0
++SHORTNAME_FILTER = r"^([x]{0,1}[shv]d[a-z][0-9]*|sr[0-9]+)$"
+ SHORTNAME = re.compile(SHORTNAME_FILTER)
+ WS = re.compile("[%s]+" % (whitespace))
+ FSTAB_PATH = "/etc/fstab"
+--- a/cloudinit/distros/__init__.py
++++ b/cloudinit/distros/__init__.py
+@@ -297,22 +297,26 @@ class Distro(object):
+             "no_create_home": "-M",
+         }
+ 
++        redact_fields = ['passwd']
++
+         # Now check the value and create the command
+         for option in kwargs:
+             value = kwargs[option]
+             if option in adduser_opts and value \
+                 and isinstance(value, str):
+                 adduser_cmd.extend([adduser_opts[option], value])
+-
+-                # Redact the password field from the logs
+-                if option != "password":
+-                    x_adduser_cmd.extend([adduser_opts[option], value])
+-                else:
++                # Redact certain fields from the logs
++                if option in redact_fields:
+                     x_adduser_cmd.extend([adduser_opts[option], 'REDACTED'])
+-
++                else:
++                    x_adduser_cmd.extend([adduser_opts[option], value])
+             elif option in adduser_opts_flags and value:
+                 adduser_cmd.append(adduser_opts_flags[option])
+-                x_adduser_cmd.append(adduser_opts_flags[option])
++                # Redact certain fields from the logs
++                if option in redact_fields:
++                    x_adduser_cmd.append('REDACTED')
++                else:
++                    x_adduser_cmd.append(adduser_opts_flags[option])
+ 
+         # Default to creating home directory unless otherwise directed
+         #  Also, we do not create home directories for system users.
+@@ -334,10 +338,9 @@ class Distro(object):
+         if 'plain_text_passwd' in kwargs and kwargs['plain_text_passwd']:
+             self.set_passwd(name, kwargs['plain_text_passwd'])
+ 
+-        # Default locking down the account.
+-        if ('lock_passwd' not in kwargs and
+-            ('lock_passwd' in kwargs and kwargs['lock_passwd']) or
+-            'system' not in kwargs):
++        # Default locking down the account.  'lock_passwd' defaults to True.
++        # lock account unless lock_password is False.
++        if kwargs.get('lock_passwd', True):
+             try:
+                 util.subp(['passwd', '--lock', name])
+             except Exception as e:
+--- a/cloudinit/handlers/upstart_job.py
++++ b/cloudinit/handlers/upstart_job.py
+@@ -64,3 +64,7 @@ class UpstartJobPartHandler(handlers.Han
+         payload = util.dos2unix(payload)
+         path = os.path.join(self.upstart_dir, filename)
+         util.write_file(path, payload, 0644)
++
++        # if inotify support is not present in the root filesystem
++        # (overlayroot) then we need to tell upstart to re-read /etc
++        util.subp(["initctl", "reload-configuration"], capture=False)
+--- a/cloudinit/sources/DataSourceCloudStack.py
++++ b/cloudinit/sources/DataSourceCloudStack.py
+@@ -3,10 +3,12 @@
+ #    Copyright (C) 2012 Canonical Ltd.
+ #    Copyright (C) 2012 Cosmin Luta
+ #    Copyright (C) 2012 Yahoo! Inc.
++#    Copyright (C) 2012 Gerard Dethier
+ #
+ #    Author: Cosmin Luta <q4break@gmail.com>
+ #    Author: Scott Moser <scott.moser@canonical.com>
+ #    Author: Joshua Harlow <harlowja@yahoo-inc.com>
++#    Author: Gerard Dethier <g.dethier@gmail.com>
+ #
+ #    This program is free software: you can redistribute it and/or modify
+ #    it under the terms of the GNU General Public License version 3, as
+@@ -20,9 +22,6 @@
+ #    You should have received a copy of the GNU General Public License
+ #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ 
+-from socket import inet_ntoa
+-from struct import pack
+-
+ import os
+ import time
+ 
+@@ -31,6 +30,8 @@ from cloudinit import log as logging
+ from cloudinit import sources
+ from cloudinit import url_helper as uhelp
+ from cloudinit import util
++from socket import inet_ntoa
++from struct import pack
+ 
+ LOG = logging.getLogger(__name__)
+ 
+@@ -40,24 +41,12 @@ class DataSourceCloudStack(sources.DataS
+         sources.DataSource.__init__(self, sys_cfg, distro, paths)
+         self.seed_dir = os.path.join(paths.seed_dir, 'cs')
+         # Cloudstack has its metadata/userdata URLs located at
+-        # http://<default-gateway-ip>/latest/
++        # http://<virtual-router-ip>/latest/
+         self.api_ver = 'latest'
+-        gw_addr = self.get_default_gateway()
+-        if not gw_addr:
+-            raise RuntimeError("No default gateway found!")
+-        self.metadata_address = "http://%s/" % (gw_addr)
+-
+-    def get_default_gateway(self):
+-        """Returns the default gateway ip address in the dotted format."""
+-        lines = util.load_file("/proc/net/route").splitlines()
+-        for line in lines:
+-            items = line.split("\t")
+-            if items[1] == "00000000":
+-                # Found the default route, get the gateway
+-                gw = inet_ntoa(pack("<L", int(items[2], 16)))
+-                LOG.debug("Found default route, gateway is %s", gw)
+-                return gw
+-        return None
++        vr_addr = get_vr_address()
++        if not vr_addr:
++            raise RuntimeError("No virtual router found!")
++        self.metadata_address = "http://%s/" % (vr_addr)
+ 
+     def __str__(self):
+         return util.obj_name(self)
+@@ -90,7 +79,7 @@ class DataSourceCloudStack(sources.DataS
+ 
+         (max_wait, timeout) = self._get_url_settings()
+ 
+-        urls = [self.metadata_address]
++        urls = [self.metadata_address + "/latest/meta-data/instance-id"]
+         start_time = time.time()
+         url = uhelp.wait_for_url(urls=urls, max_wait=max_wait,
+                                 timeout=timeout, status_cb=LOG.warn)
+@@ -135,6 +124,72 @@ class DataSourceCloudStack(sources.DataS
+         return self.metadata['availability-zone']
+ 
+ 
++def get_default_gateway():
++    # Returns the default gateway ip address in the dotted format.
++    lines = util.load_file("/proc/net/route").splitlines()
++    for line in lines:
++        items = line.split("\t")
++        if items[1] == "00000000":
++            # Found the default route, get the gateway
++            gw = inet_ntoa(pack("<L", int(items[2], 16)))
++            LOG.debug("Found default route, gateway is %s", gw)
++            return gw
++    return None
++
++
++def get_dhclient_d():
++    # find lease files directory
++    supported_dirs = ["/var/lib/dhclient", "/var/lib/dhcp"]
++    for d in supported_dirs:
++        if os.path.exists(d):
++            LOG.debug("Using %s lease directory", d)
++            return d
++    return None
++
++
++def get_latest_lease():
++    # find latest lease file
++    lease_d = get_dhclient_d()
++    if not lease_d:
++        return None
++    lease_files = os.listdir(lease_d)
++    latest_mtime = -1
++    latest_file = None
++    for file_name in lease_files:
++        if file_name.endswith(".lease") or file_name.endswith(".leases"):
++            abs_path = os.path.join(lease_d, file_name)
++            mtime = os.path.getmtime(abs_path)
++            if mtime > latest_mtime:
++                latest_mtime = mtime
++                latest_file = abs_path
++    return latest_file
++
++
++def get_vr_address():
++    # Get the address of the virtual router via dhcp leases
++    # see http://bit.ly/T76eKC for documentation on the virtual router.
++    # If no virtual router is detected, fallback on default gateway.
++    lease_file = get_latest_lease()
++    if not lease_file:
++        LOG.debug("No lease file found, using default gateway")
++        return get_default_gateway()
++
++    latest_address = None
++    with open(lease_file, "r") as fd:
++        for line in fd:
++            if "dhcp-server-identifier" in line:
++                words = line.strip(" ;\r\n").split(" ")
++                if len(words) > 2:
++                    dhcp = words[2]
++                    LOG.debug("Found DHCP identifier %s", dhcp)
++                    latest_address = dhcp
++    if not latest_address:
++        # No virtual router found, fallback on default gateway
++        LOG.debug("No DHCP found, using default gateway")
++        return get_default_gateway()
++    return latest_address
++
++
+ # Used to match classes to dependencies
+ datasources = [
+   (DataSourceCloudStack, (sources.DEP_FILESYSTEM, sources.DEP_NETWORK)),
+--- a/cloudinit/sources/DataSourceConfigDrive.py
++++ b/cloudinit/sources/DataSourceConfigDrive.py
+@@ -270,7 +270,7 @@ def find_candidate_devs():
+     combined = (by_label + [d for d in by_fstype if d not in by_label])
+ 
+     # We are looking for block device (sda, not sda1), ignore partitions
+-    combined = [d for d in combined if d[-1] not in "0123456789"]
++    combined = [d for d in combined if not util.is_partition(d)]
+ 
+     return combined
+ 
+--- a/cloudinit/util.py
++++ b/cloudinit/util.py
+@@ -1553,3 +1553,10 @@ def keyval_str_to_dict(kvstring):
+             val = True
+         ret[key] = val
+     return ret
++
++
++def is_partition(device):
++    if device.startswith("/dev/"):
++        device = device[5:]
++
++    return os.path.isfile("/sys/class/block/%s/partition" % device)
+--- a/tests/unittests/helpers.py
++++ b/tests/unittests/helpers.py
+@@ -2,6 +2,9 @@ import os
+ import sys
+ import unittest
+ 
++from contextlib import contextmanager
++
++from mocker import Mocker
+ from mocker import MockerTestCase
+ 
+ from cloudinit import helpers as ch
+@@ -31,6 +34,17 @@ else:
+         pass
+ 
+ 
++@contextmanager
++def mocker(verify_calls=True):
++    m = Mocker()
++    try:
++        yield m
++    finally:
++        m.restore()
++        if verify_calls:
++            m.verify()
++
++
+ # Makes the old path start
+ # with new base instead of whatever
+ # it previously had
+--- a/tests/unittests/test_builtin_handlers.py
++++ b/tests/unittests/test_builtin_handlers.py
+@@ -6,6 +6,7 @@ from mocker import MockerTestCase
+ 
+ from cloudinit import handlers
+ from cloudinit import helpers
++from cloudinit import util
+ 
+ from cloudinit.handlers import upstart_job
+ 
+@@ -34,6 +35,7 @@ class TestBuiltins(MockerTestCase):
+         self.assertEquals(0, len(os.listdir(up_root)))
+ 
+     def test_upstart_frequency_single(self):
++        # files should be written out when frequency is ! per-instance
+         c_root = self.makeDir()
+         up_root = self.makeDir()
+         paths = helpers.Paths({
+@@ -41,9 +43,12 @@ class TestBuiltins(MockerTestCase):
+             'upstart_dir': up_root,
+         })
+         freq = PER_INSTANCE
++
++        mock_subp = self.mocker.replace(util.subp, passthrough=False)
++        mock_subp(["initctl", "reload-configuration"], capture=False)
++        self.mocker.replay()
++
+         h = upstart_job.UpstartJobPartHandler(paths)
+-        # No files should be written out when
+-        # the frequency is ! per-instance
+         h.handle_part('', handlers.CONTENT_START,
+                       None, None, None)
+         h.handle_part('blah', 'text/upstart-job',
+--- a/tests/unittests/test_datasource/test_configdrive.py
++++ b/tests/unittests/test_datasource/test_configdrive.py
+@@ -11,6 +11,7 @@ from cloudinit import settings
+ from cloudinit.sources import DataSourceConfigDrive as ds
+ from cloudinit import util
+ 
++from tests.unittests import helpers as unit_helpers
+ 
+ PUBKEY = u'ssh-rsa AAAAB3NzaC1....sIkJhq8wdX+4I3A4cYbYP ubuntu@server-460\n'
+ EC2_META = {
+@@ -89,23 +90,22 @@ class TestConfigDriveDataSource(MockerTe
+             'swap': '/dev/vda3',
+         }
+         for name, dev_name in name_tests.items():
+-            my_mock = mocker.Mocker()
+-            find_mock = my_mock.replace(util.find_devs_with,
+-                                        spec=False, passthrough=False)
+-            provided_name = dev_name[len('/dev/'):]
+-            provided_name = "s" + provided_name[1:]
+-            find_mock(mocker.ARGS)
+-            my_mock.result([provided_name])
+-            exists_mock = my_mock.replace(os.path.exists,
+-                                          spec=False, passthrough=False)
+-            exists_mock(mocker.ARGS)
+-            my_mock.result(False)
+-            exists_mock(mocker.ARGS)
+-            my_mock.result(True)
+-            my_mock.replay()
+-            device = cfg_ds.device_name_to_device(name)
+-            my_mock.restore()
+-            self.assertEquals(dev_name, device)
++            with unit_helpers.mocker() as my_mock:
++                find_mock = my_mock.replace(util.find_devs_with,
++                                            spec=False, passthrough=False)
++                provided_name = dev_name[len('/dev/'):]
++                provided_name = "s" + provided_name[1:]
++                find_mock(mocker.ARGS)
++                my_mock.result([provided_name])
++                exists_mock = my_mock.replace(os.path.exists,
++                                              spec=False, passthrough=False)
++                exists_mock(mocker.ARGS)
++                my_mock.result(False)
++                exists_mock(mocker.ARGS)
++                my_mock.result(True)
++                my_mock.replay()
++                device = cfg_ds.device_name_to_device(name)
++                self.assertEquals(dev_name, device)
+ 
+     def test_dev_os_map(self):
+         populate_dir(self.tmp, CFG_DRIVE_FILES_V2)
+@@ -122,19 +122,18 @@ class TestConfigDriveDataSource(MockerTe
+             'swap': '/dev/vda3',
+         }
+         for name, dev_name in name_tests.items():
+-            my_mock = mocker.Mocker()
+-            find_mock = my_mock.replace(util.find_devs_with,
+-                                        spec=False, passthrough=False)
+-            find_mock(mocker.ARGS)
+-            my_mock.result([dev_name])
+-            exists_mock = my_mock.replace(os.path.exists,
+-                                          spec=False, passthrough=False)
+-            exists_mock(mocker.ARGS)
+-            my_mock.result(True)
+-            my_mock.replay()
+-            device = cfg_ds.device_name_to_device(name)
+-            my_mock.restore()
+-            self.assertEquals(dev_name, device)
++            with unit_helpers.mocker() as my_mock:
++                find_mock = my_mock.replace(util.find_devs_with,
++                                            spec=False, passthrough=False)
++                find_mock(mocker.ARGS)
++                my_mock.result([dev_name])
++                exists_mock = my_mock.replace(os.path.exists,
++                                              spec=False, passthrough=False)
++                exists_mock(mocker.ARGS)
++                my_mock.result(True)
++                my_mock.replay()
++                device = cfg_ds.device_name_to_device(name)
++                self.assertEquals(dev_name, device)
+ 
+     def test_dev_ec2_remap(self):
+         populate_dir(self.tmp, CFG_DRIVE_FILES_V2)
+@@ -156,17 +155,16 @@ class TestConfigDriveDataSource(MockerTe
+             'root2k': None,
+         }
+         for name, dev_name in name_tests.items():
+-            my_mock = mocker.Mocker()
+-            exists_mock = my_mock.replace(os.path.exists,
+-                                          spec=False, passthrough=False)
+-            exists_mock(mocker.ARGS)
+-            my_mock.result(False)
+-            exists_mock(mocker.ARGS)
+-            my_mock.result(True)
+-            my_mock.replay()
+-            device = cfg_ds.device_name_to_device(name)
+-            self.assertEquals(dev_name, device)
+-            my_mock.restore()
++            with unit_helpers.mocker(verify_calls=False) as my_mock:
++                exists_mock = my_mock.replace(os.path.exists,
++                                              spec=False, passthrough=False)
++                exists_mock(mocker.ARGS)
++                my_mock.result(False)
++                exists_mock(mocker.ARGS)
++                my_mock.result(True)
++                my_mock.replay()
++                device = cfg_ds.device_name_to_device(name)
++                self.assertEquals(dev_name, device)
+ 
+     def test_dev_ec2_map(self):
+         populate_dir(self.tmp, CFG_DRIVE_FILES_V2)
+@@ -259,19 +257,25 @@ class TestConfigDriveDataSource(MockerTe
+                           ds.read_config_drive_dir, my_d)
+ 
+     def test_find_candidates(self):
+-        devs_with_answers = {
+-            "TYPE=vfat": [],
+-            "TYPE=iso9660": ["/dev/vdb"],
+-            "LABEL=config-2": ["/dev/vdb"],
+-        }
++        devs_with_answers = {}
+ 
+         def my_devs_with(criteria):
+             return devs_with_answers[criteria]
+ 
++        def my_is_partition(dev):
++            return dev[-1] in "0123456789" and not dev.startswith("sr")
++
+         try:
+             orig_find_devs_with = util.find_devs_with
+             util.find_devs_with = my_devs_with
+ 
++            orig_is_partition = util.is_partition
++            util.is_partition = my_is_partition
++
++            devs_with_answers = {"TYPE=vfat": [],
++                "TYPE=iso9660": ["/dev/vdb"],
++                "LABEL=config-2": ["/dev/vdb"],
++            }
+             self.assertEqual(["/dev/vdb"], ds.find_candidate_devs())
+ 
+             # add a vfat item
+@@ -287,6 +291,7 @@ class TestConfigDriveDataSource(MockerTe
+ 
+         finally:
+             util.find_devs_with = orig_find_devs_with
++            util.is_partition = orig_is_partition
+ 
+     def test_pubkeys_v2(self):
+         """Verify that public-keys work in config-drive-v2."""

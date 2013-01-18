@@ -9,3 +9,4 @@ ubuntu-user-add-sudo
 748-puppet-conditionally-install.patch
 749-chef-install-via-omnibus.patch
 750-update-datasources-distro-via-userdata.patch
+catchup-751-760.patch
