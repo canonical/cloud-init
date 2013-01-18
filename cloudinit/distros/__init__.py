@@ -705,41 +705,64 @@ def _normalize_users(u_cfg, def_user_cfg=None):
 def normalize_users_groups(cfg, distro):
     if not cfg:
         cfg = {}
+
     users = {}
     groups = {}
     if 'groups' in cfg:
         groups = _normalize_groups(cfg['groups'])
 
-    # Handle the previous style of doing this...
+    # Handle the previous style of doing this where the first user
+    # overrides the concept of the default user if provided in the user: XYZ
+    # format.
     old_user = None
     if 'user' in cfg and cfg['user']:
-        old_user = str(cfg['user'])
-        if not 'users' in cfg:
-            cfg['users'] = old_user
+        old_user = cfg['user']
+        # Translate it into the format that is more useful
+        # going forward
+        if isinstance(old_user, (basestring, str)):
+            old_user = {
+                'name': old_user,
+            }
+        if not isinstance(old_user, (dict)):
+            LOG.warn(("Format for 'user:' key must be a string or "
+                      "dictionary and not %s"), util.obj_name(old_user))
             old_user = None
-    if 'users' in cfg:
-        default_user_config = None
+
+    default_user_config = None
+    if not old_user:
+        # If no old user format, then assume the distro
+        # provides what the 'default' user maps to, but notice
+        # that if this is provided, we won't automatically inject
+        # a 'default' user into the users list, while if a old user
+        # format is provided we will.
         try:
             default_user_config = distro.get_default_user()
         except NotImplementedError:
             LOG.warn(("Distro has not implemented default user "
                       "access. No default user will be normalized."))
-        base_users = cfg['users']
-        if old_user:
-            if isinstance(base_users, (list)):
-                if len(base_users):
-                    # The old user replaces user[0]
-                    base_users[0] = {'name': old_user}
-                else:
-                    # Just add it on at the end...
-                    base_users.append({'name': old_user})
-            elif isinstance(base_users, (dict)):
-                if old_user not in base_users:
-                    base_users[old_user] = True
-            elif isinstance(base_users, (str, basestring)):
-                # Just append it on to be re-parsed later
-                base_users += ",%s" % (old_user)
-        users = _normalize_users(base_users, default_user_config)
+    else:
+        default_user_config = dict(old_user)
+
+    base_users = cfg.get('users', [])
+    if not isinstance(base_users, (list, dict, str, basestring)):
+        LOG.warn(("Format for 'users:' key must be a comma separated string"
+                  " or a dictionary or a list and not %s"),
+                 util.obj_name(base_users))
+        base_users = []
+
+    if old_user:
+        # Ensure that when user: is provided that this user
+        # always gets added (as the default user)
+        if isinstance(base_users, (list)):
+            # Just add it on at the end...
+            base_users.append({'name': 'default'})
+        elif isinstance(base_users, (dict)):
+            base_users['default'] = base_users.get('default', True)
+        elif isinstance(base_users, (str, basestring)):
+            # Just append it on to be re-parsed later
+            base_users += ",default"
+
+    users = _normalize_users(base_users, default_user_config)
     return (users, groups)
 
 
