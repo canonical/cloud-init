@@ -714,7 +714,7 @@ def normalize_users_groups(cfg, distro):
     # Handle the previous style of doing this where the first user
     # overrides the concept of the default user if provided in the user: XYZ
     # format.
-    old_user = None
+    old_user = {}
     if 'user' in cfg and cfg['user']:
         old_user = cfg['user']
         # Translate it into the format that is more useful
@@ -724,28 +724,32 @@ def normalize_users_groups(cfg, distro):
                 'name': old_user,
             }
         if not isinstance(old_user, (dict)):
-            LOG.warn(("Format for 'user:' key must be a string or "
+            LOG.warn(("Format for 'user' key must be a string or "
                       "dictionary and not %s"), util.obj_name(old_user))
-            old_user = None
+            old_user = {}
 
-    default_user_config = None
-    if not old_user:
-        # If no old user format, then assume the distro
-        # provides what the 'default' user maps to, but notice
-        # that if this is provided, we won't automatically inject
-        # a 'default' user into the users list, while if a old user
-        # format is provided we will.
-        try:
-            default_user_config = distro.get_default_user()
-        except NotImplementedError:
-            LOG.warn(("Distro has not implemented default user "
-                      "access. No default user will be normalized."))
-    else:
-        default_user_config = dict(old_user)
+    # If no old user format, then assume the distro
+    # provides what the 'default' user maps to, but notice
+    # that if this is provided, we won't automatically inject
+    # a 'default' user into the users list, while if a old user
+    # format is provided we will.
+    distro_user_config = {}
+    try:
+        distro_user_config = distro.get_default_user()
+    except NotImplementedError:
+        LOG.warn(("Distro has not implemented default user "
+                  "access. No distribution provided default user"
+                  " will be normalized."))
+
+    # Merge the old user (which may just be an empty dict when not
+    # present with the distro provided default user configuration so
+    # that the old user style picks up all the distribution specific
+    # attributes (if any)
+    default_user_config = util.mergemanydict([old_user, distro_user_config])
 
     base_users = cfg.get('users', [])
     if not isinstance(base_users, (list, dict, str, basestring)):
-        LOG.warn(("Format for 'users:' key must be a comma separated string"
+        LOG.warn(("Format for 'users' key must be a comma separated string"
                   " or a dictionary or a list and not %s"),
                  util.obj_name(base_users))
         base_users = []
