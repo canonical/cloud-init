@@ -35,6 +35,11 @@ from cloudinit import util
 
 from cloudinit.distros.parsers import hosts
 
+OSFAMILIES = {
+    'debian': ['debian', 'ubuntu'],
+    'redhat': ['fedora', 'rhel']
+}
+
 LOG = logging.getLogger(__name__)
 
 
@@ -142,6 +147,16 @@ class Distro(object):
     @abc.abstractmethod
     def _select_hostname(self, hostname, fqdn):
         raise NotImplementedError()
+
+    @staticmethod
+    def expand_osfamily(family_list):
+        distros = []
+        for family in family_list:
+            if not family in OSFAMILIES:
+                raise ValueError("No distibutions found for osfamily %s"
+                                 % (family))
+            distros.extend(OSFAMILIES[family])
+        return distros
 
     def update_hostname(self, hostname, fqdn, prev_hostname_fn):
         applying_hostname = hostname

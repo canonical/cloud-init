@@ -529,11 +529,16 @@ class Modules(object):
                     freq = mod.frequency
                 if not freq in FREQUENCIES:
                     freq = PER_INSTANCE
-                worked_distros = mod.distros
+
+                worked_distros = set(mod.distros)
+                worked_distros.update(
+                    distros.Distro.expand_osfamily(mod.osfamilies))
+
                 if (worked_distros and d_name not in worked_distros):
                     LOG.warn(("Module %s is verified on %s distros"
                               " but not on %s distro. It may or may not work"
-                              " correctly."), name, worked_distros, d_name)
+                              " correctly."), name, list(worked_distros),
+                              d_name)
                 # Use the configs logger and not our own
                 # TODO(harlowja): possibly check the module
                 # for having a LOG attr and just give it back
