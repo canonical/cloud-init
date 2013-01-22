@@ -60,6 +60,7 @@ class Distro(distros.Distro):
         # calls from repeatly happening (when they
         # should only happen say once per instance...)
         self._runner = helpers.Runners(paths)
+        self.osfamily = 'redhat'
 
     def install_packages(self, pkglist):
         self.package_command('install', pkglist)
