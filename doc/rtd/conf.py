@@ -42,6 +42,7 @@ master_doc = 'index'
 # |version| and |release|, also used in various other places throughout the
 # built documents.
 version = version.version_string()
+release = versions
 
 # Set the default Pygments syntax
 highlight_language = 'python'
@@ -70,4 +71,4 @@ html_theme_options = {
 
 # The name of an image file (relative to this directory) to place at the top
 # of the sidebar.
-html_logo = 'logo.png'
+html_logo = 'static/logo.png'
