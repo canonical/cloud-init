@@ -1,0 +1,11 @@
+#cloud-config
+
+# Install additional packages on first boot
+#
+# Default: none
+#
+# if packages are specified, this apt_update will be set to true
+#
+packages:
+ - pwgen
+ - pastebinit
