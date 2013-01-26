@@ -24,6 +24,6 @@ Summary
    topics/examples
    topics/modules
    topics/moreinfo
-
+   topics/hacking
 
 .. _Cloud-init: https://launchpad.net/cloud-init

@@ -3,7 +3,7 @@ More information
 =========
 
 Useful external references
-----------------
+-------------------------
 
 - `The beauty of cloudinit`_
 - `Introduction to cloud-init`_ (video)
