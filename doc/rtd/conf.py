@@ -42,7 +42,7 @@ master_doc = 'index'
 # |version| and |release|, also used in various other places throughout the
 # built documents.
 version = version.version_string()
-# release = version
+release = version
 
 # Set the default Pygments syntax
 highlight_language = 'python'
