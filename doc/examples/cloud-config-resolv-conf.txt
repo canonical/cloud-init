@@ -1,0 +1,20 @@
+#cloud-config
+#
+# This is an example file to automatically configure resolv.conf when the
+# instance boots for the first time.
+#
+# Ensure that your yaml is valid and pass this as user-data when starting
+# the instance. Also be sure that your cloud.cfg file includes this
+# configuration module in the appropirate section.
+#
+manage-resolv-conf: true
+
+resolv_conf:
+  nameservers: ['8.8.4.4', '8.8.8.8']
+  searchdomains:
+    - foo.example.com
+    - bar.example.com
+  domain: example.com
+  options:
+    rotate: true
+    timeout: 1
