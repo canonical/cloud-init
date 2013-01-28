@@ -22,6 +22,16 @@
    mounts. [Vlastimil Holer]
  - allow config-drive-data to come from a CD device by more correctly
    filtering out partitions.  (LP: #1100545)
+ - setup docs to be available on read-the-docs
+   https://cloudinit.readthedocs.org/en/latest/ (LP: #1093039)
+ - add HACKING file for information on contributing
+ - handle the legacy 'user:' configuration better, making it affect the
+   configured OS default user (LP: #1100920)
+ - Adding a resolv.conf configuration module (LP: #1100434).  Currently only
+   working on redhat systems (no support for resolvconf)
+ - support grouping linux distros into "os_families".  This allows a module
+   to operate on the family (redhat or debian) rather than the distro (ubuntu,
+   debian, fedora, rhel) (LP: #1100029)
 0.7.1:
  - sysvinit: fix missing dependency in cloud-init job for RHEL 5.6 
  - config-drive: map hostname to local-hostname (LP: #1061964)
