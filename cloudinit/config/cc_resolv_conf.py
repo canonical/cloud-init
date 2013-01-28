@@ -47,11 +47,11 @@
 #
 
 
-from cloudinit.settings import PER_ONCE
+from cloudinit.settings import PER_INSTANCE
 from cloudinit import templater
 from cloudinit import util
 
-frequency = PER_ONCE
+frequency = PER_INSTANCE
 
 distros = ['fedora', 'rhel']
 
