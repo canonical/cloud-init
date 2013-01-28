@@ -1560,3 +1560,26 @@ def is_partition(device):
         device = device[5:]
 
     return os.path.isfile("/sys/class/block/%s/partition" % device)
+
+
+def expand_package_list(version_fmt, pkgs):
+    # we will accept tuples, lists of tuples, or just plain lists
+    if not isinstance(pkgs, list):
+        pkgs = [pkgs]
+
+    pkglist = []
+    for pkg in pkgs:
+        if isinstance(pkg, str):
+            pkglist.append(pkg)
+            continue
+
+        if len(pkg) < 1 or len(pkg) > 2:
+            raise RuntimeError("Invalid package_command tuple.")
+
+        if len(pkg) == 2 and pkg[1]:
+            pkglist.append(version_fmt % pkg)
+            continue
+
+        pkglist.append(pkg[0])
+
+    return pkglist
