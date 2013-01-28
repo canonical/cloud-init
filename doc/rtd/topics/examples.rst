@@ -27,10 +27,22 @@ Adding a yum repository
    :language: yaml
    :linenos:
 
-Configure an instance's trusted CA certificates
+Configure an instances trusted CA certificates
 ------------------------------------------------------
 
 .. literalinclude:: ../../examples/cloud-config-ca-certs.txt
+   :language: yaml
+   :linenos:
+
+Configure an instances resolv.conf
+------------------------------------------------------
+
+*Note:* when using a config drive and a RHEL like system resolv.conf
+will also be managed 'automatically' due to the available information
+provided for dns servers in the config drive network format. For those
+that wish to have different settings use this module.
+
+.. literalinclude:: ../../examples/cloud-config-resolv-conf.txt
    :language: yaml
    :linenos:
 
