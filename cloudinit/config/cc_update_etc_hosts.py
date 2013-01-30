@@ -37,10 +37,11 @@ def handle(name, cfg, cloud, log, _args):
 
         # Render from a template file
         tpl_fn_name = cloud.get_template_filename("hosts.%s" %
-                                                  (cloud.distro.name))
+                                                  (cloud.distro.osfamily))
         if not tpl_fn_name:
             raise RuntimeError(("No hosts template could be"
-                                " found for distro %s") % (cloud.distro.name))
+                                " found for distro %s") %
+                                (cloud.distro.osfamily))
 
         templater.render_to_file(tpl_fn_name, '/etc/hosts',
                                 {'hostname': hostname, 'fqdn': fqdn})

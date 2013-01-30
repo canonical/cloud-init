@@ -32,6 +32,7 @@
  - support grouping linux distros into "os_families".  This allows a module
    to operate on the family (redhat or debian) rather than the distro (ubuntu,
    debian, fedora, rhel) (LP: #1100029)
+ - fix /etc/hosts writing when templates are used (LP: #1100036)
 0.7.1:
  - sysvinit: fix missing dependency in cloud-init job for RHEL 5.6 
  - config-drive: map hostname to local-hostname (LP: #1061964)
