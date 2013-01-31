@@ -402,10 +402,9 @@ def get_cfg_option_list(yobj, key, default=None):
         return []
     val = yobj[key]
     if isinstance(val, (list)):
-        # Should we ensure they are all strings??
-        cval = [str(v) for v in val]
+        cval = [v for v in val]
         return cval
-    if not isinstance(val, (str, basestring)):
+    if not isinstance(val, (basestring)):
         val = str(val)
     return [val]
 
@@ -1569,17 +1568,21 @@ def expand_package_list(version_fmt, pkgs):
 
     pkglist = []
     for pkg in pkgs:
-        if isinstance(pkg, str):
+        if isinstance(pkg, basestring):
             pkglist.append(pkg)
             continue
 
-        if len(pkg) < 1 or len(pkg) > 2:
-            raise RuntimeError("Invalid package_command tuple.")
+        if isinstance(pkg, (tuple, list)):
+            if len(pkg) < 1 or len(pkg) > 2:
+                raise RuntimeError("Invalid package & version tuple.")
 
-        if len(pkg) == 2 and pkg[1]:
-            pkglist.append(version_fmt % pkg)
-            continue
+            if len(pkg) == 2 and pkg[1]:
+                pkglist.append(version_fmt % tuple(pkg))
+                continue
 
-        pkglist.append(pkg[0])
+            pkglist.append(pkg[0])
+
+        else:
+            raise RuntimeError("Invalid package type.")
 
     return pkglist
