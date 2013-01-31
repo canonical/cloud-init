@@ -34,6 +34,8 @@
    debian, fedora, rhel) (LP: #1100029)
  - fix /etc/hosts writing when templates are used (LP: #1100036)
  - add package versioning logic to package installation functionality (LP: #1108047)
+ - fix documentation for write_files to correctly list 'permissions'
+   rather than 'perms' (LP: #1111205)
 0.7.1:
  - sysvinit: fix missing dependency in cloud-init job for RHEL 5.6 
  - config-drive: map hostname to local-hostname (LP: #1061964)
