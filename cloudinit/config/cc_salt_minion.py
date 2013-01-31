@@ -31,7 +31,7 @@ def handle(name, cfg, cloud, log, _args):
     salt_cfg = cfg['salt_minion']
 
     # Start by installing the salt package ...
-    cloud.distro.install_packages(["salt-minion"])
+    cloud.distro.install_packages(('salt-minion',))
 
     # Ensure we can configure files at the right dir
     config_dir = salt_cfg.get("config_dir", '/etc/salt')

@@ -402,10 +402,9 @@ def get_cfg_option_list(yobj, key, default=None):
         return []
     val = yobj[key]
     if isinstance(val, (list)):
-        # Should we ensure they are all strings??
-        cval = [str(v) for v in val]
+        cval = [v for v in val]
         return cval
-    if not isinstance(val, (str, basestring)):
+    if not isinstance(val, (basestring)):
         val = str(val)
     return [val]
 
@@ -1560,3 +1559,30 @@ def is_partition(device):
         device = device[5:]
 
     return os.path.isfile("/sys/class/block/%s/partition" % device)
+
+
+def expand_package_list(version_fmt, pkgs):
+    # we will accept tuples, lists of tuples, or just plain lists
+    if not isinstance(pkgs, list):
+        pkgs = [pkgs]
+
+    pkglist = []
+    for pkg in pkgs:
+        if isinstance(pkg, basestring):
+            pkglist.append(pkg)
+            continue
+
+        if isinstance(pkg, (tuple, list)):
+            if len(pkg) < 1 or len(pkg) > 2:
+                raise RuntimeError("Invalid package & version tuple.")
+
+            if len(pkg) == 2 and pkg[1]:
+                pkglist.append(version_fmt % tuple(pkg))
+                continue
+
+            pkglist.append(pkg[0])
+
+        else:
+            raise RuntimeError("Invalid package type.")
+
+    return pkglist

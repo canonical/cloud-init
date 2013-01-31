@@ -59,8 +59,14 @@ def handle(name, cfg, cloud, log, _args):
 
     # Start by installing the puppet package if necessary...
     install = util.get_cfg_option_bool(puppet_cfg, 'install', True)
-    if install:
-        cloud.distro.install_packages(["puppet"])
+    version = util.get_cfg_option_str(puppet_cfg, 'version', None)
+    if not install and version:
+        log.warn(("Puppet install set false but version supplied,"
+                  " doing nothing."))
+    elif install:
+        log.debug(("Attempting to install puppet %s,"),
+                   version if version else 'latest')
+        cloud.distro.install_packages(('puppet', version))
 
     # ... and then update the puppet configuration
     if 'conf' in puppet_cfg:
