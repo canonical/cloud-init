@@ -22,6 +22,7 @@ Summary
    topics/format
    topics/dir_layout
    topics/examples
+   topics/datasources
    topics/modules
    topics/moreinfo
    topics/hacking
