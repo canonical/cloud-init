@@ -25,9 +25,9 @@ Cloudinits's directory structure is somewhat different from a regular applicatio
             - user-data.txt
             - user-data.txt.i
       - scripts/
-      -     per-boot/
-      -     per-instance/
-      -     per-once/
+         - per-boot/
+         - per-instance/
+         - per-once/
       - seed/
       - sem/
 

@@ -1,1 +1,1 @@
-.. include:: ../../../HACKING
+.. include:: ../../../HACKING.rst
