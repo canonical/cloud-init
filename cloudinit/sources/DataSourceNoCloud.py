@@ -205,6 +205,8 @@ def parse_cmdline_data(ds_id, fill, cmdline=None):
     # short2long mapping to save cmdline typing
     s2l = {"h": "local-hostname", "i": "instance-id", "s": "seedfrom"}
     for item in kvpairs:
+        if item == "":
+            continue
         try:
             (k, v) = item.split("=", 1)
         except:
