@@ -3,6 +3,7 @@ import os
 
 from cloudinit.sources import DataSourceMAAS
 from cloudinit import url_helper
+from tests.unittests.helpers import populate_dir
 
 from mocker import MockerTestCase
 
@@ -136,12 +137,5 @@ class TestMAASDataSource(MockerTestCase):
         """Verify seed_url with no found entries raises MAASSeedDirNone."""
         pass
 
-
-def populate_dir(seed_dir, files):
-    os.mkdir(seed_dir)
-    for (name, content) in files.iteritems():
-        with open(os.path.join(seed_dir, name), "w") as fp:
-            fp.write(content)
-            fp.close()
 
 # vi: ts=4 expandtab
