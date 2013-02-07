@@ -80,7 +80,7 @@ class DataSourceNoCloud(sources.DataSource):
         # if ds_cfg has 'user-data' and 'meta-data'
         if 'user-data' in self.ds_cfg and 'meta-data' in self.ds_cfg:
             if self.ds_cfg['user-data']:
-                ud = util.mergedict(md, self.ds_cfg['user-data'])
+                ud = self.ds_cfg['user-data']
             if self.ds_cfg['meta-data'] is not False:
                 md = util.mergedict(md, self.ds_cfg['meta-data'])
             if 'ds_config' not in found:
