@@ -31,3 +31,14 @@ datasource:
     #    <url>/user-data and <url>/meta-data
     # seedfrom: http://my.example.com/i-abcde
     seedfrom: None
+
+    # fs_label: the label on filesystems to be searched for NoCloud source
+    fs_label: cidata
+
+    # these are optional, but allow you to basically provide a datasource
+    # right here
+    user-data: |
+       # This is the user-data verbatum
+    meta-data:
+       instance-id: i-87018aed
+       local-hostname: myhost.internal
