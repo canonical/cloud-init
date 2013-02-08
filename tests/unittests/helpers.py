@@ -182,3 +182,10 @@ class FilesystemMockingTestCase(ResourceUsingTestCase):
                 trap_func = retarget_many_wrapper(new_root, 1, func)
                 setattr(mod, f, trap_func)
                 self.patched_funcs.append((mod, f, func))
+
+def populate_dir(path, files):
+    os.makedirs(path)
+    for (name, content) in files.iteritems():
+        with open(os.path.join(path, name), "w") as fp:
+            fp.write(content)
+            fp.close()

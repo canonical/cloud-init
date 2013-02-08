@@ -38,6 +38,8 @@
  - fix documentation for write_files to correctly list 'permissions'
    rather than 'perms' (LP: #1111205)
  - cloud-init-container.conf: ensure /run/network before running ifquery
+ - DataSourceNoCloud: allow user-data and meta-data to be specified
+   in config (LP: #1115833).
 0.7.1:
  - sysvinit: fix missing dependency in cloud-init job for RHEL 5.6 
  - config-drive: map hostname to local-hostname (LP: #1061964)
