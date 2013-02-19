@@ -288,28 +288,35 @@ def read_context_disk_dir(source_dir):
             # 3. use comm to filter "old" variables from all current
             #    variables and excl. few other vars with grep
             BASH_CMD='VARS=`set | sort -u `;' \
-                '. %s/context.sh;' \
+                'source %s/context.sh;' \
                 'comm -23 <(set | sort -u) <(echo "$VARS") | egrep -v "^(VARS|PIPESTATUS|_)="'
 
-            (out,err) = util.subp(['bash',
-                '--noprofile', '--norc',
+            (out,err) = util.subp(['bash','--noprofile', '--norc',
                 '-c', BASH_CMD % (source_dir) ])
 
             for (key,value) in [ l.split('=',1) for l in out.rstrip().split("\n") ]:
-                # with backslash escapes
+                k=key.lower()
+
+                # with backslash escapes, e.g.
+                # X=$'Y\nZ'
                 r=re.match("^\$'(.*)'$",value)
                 if r:
-                    context_sh[key.lower()]=r.group(1).decode('string_escape')
+                    context_sh[k]=r.group(1).decode('string_escape')
                 else:
-                    # multiword values
+                    # multiword values, e.g.:
+                    # X='Y Z' 
+                    # X='Y'\''Z' for "Y'Z"
                     r=re.match("^'(.*)'$",value)
                     if r:
-                        context_sh[key.lower()]=r.group(1)
+                        context_sh[k]=r.group(1).replace("'\\''","'")
                     else:
-                        # simple values
-                        context_sh[key.lower()]=value
-        except util.ProcessExecutionError, _err:
-            LOG.warn("Failed to read context variables: %s" % (_err.message))
+                        # simple values, e.g.:
+                        # X=Y 
+                        context_sh[k]=value
+
+        except util.ProcessExecutionError as e:
+            raise NonContextDiskDir("Error reading context.sh: %s" % (e))
+
         results['metadata']=context_sh
     else:
         raise NonContextDiskDir("Missing context.sh")
