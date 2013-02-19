@@ -130,16 +130,15 @@ class NonContextDeviceDir(Exception):
 
 
 class OpenNebulaNetwork(object):
-    REG_ETH=re.compile('^eth')
-    REG_DEV_MAC=re.compile('^(eth\d+).*HWaddr (..:..:..:..:..:..)')
+    REG_DEV_MAC=re.compile('^\d+: (eth\d+):.*link\/ether (..:..:..:..:..:..) ')
 
-    def __init__(self, ifconfig, context_sh):
-        self.ifconfig=ifconfig
+    def __init__(self, ip, context_sh):
+        self.ip=ip
         self.context_sh=context_sh
         self.ifaces=self.get_ifaces()
 
     def get_ifaces(self):
-        return [self.REG_DEV_MAC.search(f).groups() for f in self.ifconfig.split("\n") if self.REG_ETH.match(f)]
+        return [self.REG_DEV_MAC.search(f).groups() for f in self.ip.split("\n") if self.REG_DEV_MAC.match(f)]
 
     def mac2ip(self, mac):
         components=mac.split(':')[2:]
@@ -341,7 +340,7 @@ def read_context_disk_dir(source_dir):
     elif "userdata" in context_sh:
         results['userdata'] = context_sh["userdata"]
 
-    (out, err) = util.subp(['/sbin/ifconfig', '-a'])
+    (out, err) = util.subp(['/sbin/ip', '-o', 'link'])
     net=OpenNebulaNetwork(out, context_sh)
     results['network-interfaces']=net.gen_conf()
 
