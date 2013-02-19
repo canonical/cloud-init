@@ -173,26 +173,29 @@ class TestUGNormalize(MockerTestCase):
             'users': 'default'
         }
         (users, _groups) = self._norm(ug_cfg, distro)
-        self.assertIn('bob', users)
+        self.assertNotIn('bob', users)  # Bob is not the default now, zetta is
         self.assertIn('zetta', users)
+        self.assertTrue(users['zetta']['default'])
         self.assertNotIn('default', users)
         ug_cfg = {
             'user': 'zetta',
             'users': 'default, joe'
         }
         (users, _groups) = self._norm(ug_cfg, distro)
-        self.assertIn('bob', users)
+        self.assertNotIn('bob', users)  # Bob is not the default now, zetta is
         self.assertIn('joe', users)
         self.assertIn('zetta', users)
+        self.assertTrue(users['zetta']['default'])
         self.assertNotIn('default', users)
         ug_cfg = {
             'user': 'zetta',
             'users': ['bob', 'joe']
         }
         (users, _groups) = self._norm(ug_cfg, distro)
-        self.assertNotIn('bob', users)
+        self.assertIn('bob', users)
         self.assertIn('joe', users)
         self.assertIn('zetta', users)
+        self.assertTrue(users['zetta']['default'])
         ug_cfg = {
             'user': 'zetta',
             'users': {
@@ -204,6 +207,7 @@ class TestUGNormalize(MockerTestCase):
         self.assertIn('bob', users)
         self.assertIn('joe', users)
         self.assertIn('zetta', users)
+        self.assertTrue(users['zetta']['default'])
         ug_cfg = {
             'user': 'zetta',
         }
