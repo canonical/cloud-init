@@ -62,8 +62,8 @@ class DataSourceOpenNebula(sources.DataSource):
             try:
                 results=read_context_disk_dir(self.seed_dir)
                 found = self.seed_dir
-            except NonContextDeviceDir:
-                util.logexc(LOG, "Failed reading context device from %s",
+            except NonContextDiskDir:
+                util.logexc(LOG, "Failed reading context disk from %s",
                             self.seed_dir)
         if not found:
             devlist = find_candidate_devs()
@@ -72,7 +72,7 @@ class DataSourceOpenNebula(sources.DataSource):
                     results = util.mount_cb(dev, read_context_disk_dir)
                     found = dev
                     break
-                except (NonContextDeviceDir, util.MountFailedError):
+                except (NonContextDiskDir, util.MountFailedError):
                     pass
 
         if not found:
@@ -125,7 +125,7 @@ class DataSourceOpenNebulaNet(DataSourceOpenNebula):
         self.dsmode = 'net'
 
 
-class NonContextDeviceDir(Exception):
+class NonContextDiskDir(Exception):
     pass
 
 
@@ -250,7 +250,7 @@ def read_context_disk_dir(source_dir):
     """
     read_context_disk_dir(source_dir):
     read source_dir and return a tuple with metadata dict and user-data
-    string populated.  If not a valid dir, raise a NonContextDeviceDir
+    string populated.  If not a valid dir, raise a NonContextDiskDir
     """
 
     found = {}
@@ -260,7 +260,7 @@ def read_context_disk_dir(source_dir):
             found[af] = fn
 
     if len(found) == 0:
-        raise NonContextDeviceDir("%s: %s" % (source_dir, "no files found"))
+        raise NonContextDiskDir("%s: %s" % (source_dir, "no files found"))
 
     context_sh = {}
     results = {
@@ -312,7 +312,7 @@ def read_context_disk_dir(source_dir):
             LOG.warn("Failed to read context variables: %s" % (_err.message))
         results['metadata']=context_sh
     else:
-        raise NonContextDeviceDir("Missing context.sh")
+        raise NonContextDiskDir("Missing context.sh")
 
     # process single or multiple SSH keys
     ssh_key_var=None
