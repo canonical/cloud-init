@@ -60,9 +60,10 @@ class Distro(distros.Distro):
         # calls from repeatly happening (when they
         # should only happen say once per instance...)
         self._runner = helpers.Runners(paths)
+        self.osfamily = 'redhat'
 
     def install_packages(self, pkglist):
-        self.package_command('install', pkglist)
+        self.package_command('install', pkgs=pkglist)
 
     def _adjust_resolve(self, dns_servers, search_servers):
         try:
@@ -207,7 +208,7 @@ class Distro(distros.Distro):
         # This ensures that the correct tz will be used for the system
         util.copy(tz_file, self.tz_local_fn)
 
-    def package_command(self, command, args=None):
+    def package_command(self, command, args=None, pkgs=[]):
         cmd = ['yum']
         # If enabled, then yum will be tolerant of errors on the command line
         # with regard to packages.
@@ -218,9 +219,17 @@ class Distro(distros.Distro):
         # Determines whether or not yum prompts for confirmation
         # of critical actions. We don't want to prompt...
         cmd.append("-y")
-        cmd.append(command)
-        if args:
+
+        if args and isinstance(args, str):
+            cmd.append(args)
+        elif args and isinstance(args, list):
             cmd.extend(args)
+
+        cmd.append(command)
+
+        pkglist = util.expand_package_list('%s-%s', pkgs)
+        cmd.extend(pkglist)
+
         # Allow the output of this to flow outwards (ie not be captured)
         util.subp(cmd, capture=False)
 

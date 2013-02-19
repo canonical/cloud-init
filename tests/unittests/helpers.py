@@ -2,6 +2,9 @@ import os
 import sys
 import unittest
 
+from contextlib import contextmanager
+
+from mocker import Mocker
 from mocker import MockerTestCase
 
 from cloudinit import helpers as ch
@@ -29,6 +32,17 @@ if (_PY_MAJOR, _PY_MINOR) <= (2, 6):
 else:
     class TestCase(unittest.TestCase):
         pass
+
+
+@contextmanager
+def mocker(verify_calls=True):
+    m = Mocker()
+    try:
+        yield m
+    finally:
+        m.restore()
+        if verify_calls:
+            m.verify()
 
 
 # Makes the old path start
@@ -168,3 +182,10 @@ class FilesystemMockingTestCase(ResourceUsingTestCase):
                 trap_func = retarget_many_wrapper(new_root, 1, func)
                 setattr(mod, f, trap_func)
                 self.patched_funcs.append((mod, f, func))
+
+def populate_dir(path, files):
+    os.makedirs(path)
+    for (name, content) in files.iteritems():
+        with open(os.path.join(path, name), "w") as fp:
+            fp.write(content)
+            fp.close()

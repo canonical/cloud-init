@@ -35,6 +35,11 @@ from cloudinit import util
 
 from cloudinit.distros.parsers import hosts
 
+OSFAMILIES = {
+    'debian': ['debian', 'ubuntu'],
+    'redhat': ['fedora', 'rhel']
+}
+
 LOG = logging.getLogger(__name__)
 
 
@@ -146,6 +151,16 @@ class Distro(object):
     @abc.abstractmethod
     def _select_hostname(self, hostname, fqdn):
         raise NotImplementedError()
+
+    @staticmethod
+    def expand_osfamily(family_list):
+        distros = []
+        for family in family_list:
+            if not family in OSFAMILIES:
+                raise ValueError("No distibutions found for osfamily %s"
+                                 % (family))
+            distros.extend(OSFAMILIES[family])
+        return distros
 
     def update_hostname(self, hostname, fqdn, prev_hostname_fn):
         applying_hostname = hostname
@@ -301,22 +316,26 @@ class Distro(object):
             "no_create_home": "-M",
         }
 
+        redact_fields = ['passwd']
+
         # Now check the value and create the command
         for option in kwargs:
             value = kwargs[option]
             if option in adduser_opts and value \
                 and isinstance(value, str):
                 adduser_cmd.extend([adduser_opts[option], value])
-
-                # Redact the password field from the logs
-                if option != "password":
-                    x_adduser_cmd.extend([adduser_opts[option], value])
-                else:
+                # Redact certain fields from the logs
+                if option in redact_fields:
                     x_adduser_cmd.extend([adduser_opts[option], 'REDACTED'])
-
+                else:
+                    x_adduser_cmd.extend([adduser_opts[option], value])
             elif option in adduser_opts_flags and value:
                 adduser_cmd.append(adduser_opts_flags[option])
-                x_adduser_cmd.append(adduser_opts_flags[option])
+                # Redact certain fields from the logs
+                if option in redact_fields:
+                    x_adduser_cmd.append('REDACTED')
+                else:
+                    x_adduser_cmd.append(adduser_opts_flags[option])
 
         # Default to creating home directory unless otherwise directed
         #  Also, we do not create home directories for system users.
@@ -338,10 +357,9 @@ class Distro(object):
         if 'plain_text_passwd' in kwargs and kwargs['plain_text_passwd']:
             self.set_passwd(name, kwargs['plain_text_passwd'])
 
-        # Default locking down the account.
-        if ('lock_passwd' not in kwargs and
-            ('lock_passwd' in kwargs and kwargs['lock_passwd']) or
-            'system' not in kwargs):
+        # Default locking down the account.  'lock_passwd' defaults to True.
+        # lock account unless lock_password is False.
+        if kwargs.get('lock_passwd', True):
             try:
                 util.subp(['passwd', '--lock', name])
             except Exception as e:
@@ -706,41 +724,68 @@ def _normalize_users(u_cfg, def_user_cfg=None):
 def normalize_users_groups(cfg, distro):
     if not cfg:
         cfg = {}
+
     users = {}
     groups = {}
     if 'groups' in cfg:
         groups = _normalize_groups(cfg['groups'])
 
-    # Handle the previous style of doing this...
-    old_user = None
+    # Handle the previous style of doing this where the first user
+    # overrides the concept of the default user if provided in the user: XYZ
+    # format.
+    old_user = {}
     if 'user' in cfg and cfg['user']:
-        old_user = str(cfg['user'])
-        if not 'users' in cfg:
-            cfg['users'] = old_user
-            old_user = None
-    if 'users' in cfg:
-        default_user_config = None
-        try:
-            default_user_config = distro.get_default_user()
-        except NotImplementedError:
-            LOG.warn(("Distro has not implemented default user "
-                      "access. No default user will be normalized."))
-        base_users = cfg['users']
-        if old_user:
-            if isinstance(base_users, (list)):
-                if len(base_users):
-                    # The old user replaces user[0]
-                    base_users[0] = {'name': old_user}
-                else:
-                    # Just add it on at the end...
-                    base_users.append({'name': old_user})
-            elif isinstance(base_users, (dict)):
-                if old_user not in base_users:
-                    base_users[old_user] = True
-            elif isinstance(base_users, (str, basestring)):
-                # Just append it on to be re-parsed later
-                base_users += ",%s" % (old_user)
-        users = _normalize_users(base_users, default_user_config)
+        old_user = cfg['user']
+        # Translate it into the format that is more useful
+        # going forward
+        if isinstance(old_user, (basestring, str)):
+            old_user = {
+                'name': old_user,
+            }
+        if not isinstance(old_user, (dict)):
+            LOG.warn(("Format for 'user' key must be a string or "
+                      "dictionary and not %s"), util.obj_name(old_user))
+            old_user = {}
+
+    # If no old user format, then assume the distro
+    # provides what the 'default' user maps to, but notice
+    # that if this is provided, we won't automatically inject
+    # a 'default' user into the users list, while if a old user
+    # format is provided we will.
+    distro_user_config = {}
+    try:
+        distro_user_config = distro.get_default_user()
+    except NotImplementedError:
+        LOG.warn(("Distro has not implemented default user "
+                  "access. No distribution provided default user"
+                  " will be normalized."))
+
+    # Merge the old user (which may just be an empty dict when not
+    # present with the distro provided default user configuration so
+    # that the old user style picks up all the distribution specific
+    # attributes (if any)
+    default_user_config = util.mergemanydict([old_user, distro_user_config])
+
+    base_users = cfg.get('users', [])
+    if not isinstance(base_users, (list, dict, str, basestring)):
+        LOG.warn(("Format for 'users' key must be a comma separated string"
+                  " or a dictionary or a list and not %s"),
+                 util.obj_name(base_users))
+        base_users = []
+
+    if old_user:
+        # Ensure that when user: is provided that this user
+        # always gets added (as the default user)
+        if isinstance(base_users, (list)):
+            # Just add it on at the end...
+            base_users.append({'name': 'default'})
+        elif isinstance(base_users, (dict)):
+            base_users['default'] = base_users.get('default', True)
+        elif isinstance(base_users, (str, basestring)):
+            # Just append it on to be re-parsed later
+            base_users += ",default"
+
+    users = _normalize_users(base_users, default_user_config)
     return (users, groups)
 
 

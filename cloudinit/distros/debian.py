@@ -48,6 +48,7 @@ class Distro(distros.Distro):
         # calls from repeatly happening (when they
         # should only happen say once per instance...)
         self._runner = helpers.Runners(paths)
+        self.osfamily = 'debian'
 
     def apply_locale(self, locale, out_fn=None):
         if not out_fn:
@@ -64,7 +65,7 @@ class Distro(distros.Distro):
 
     def install_packages(self, pkglist):
         self.update_package_sources()
-        self.package_command('install', pkglist)
+        self.package_command('install', pkgs=pkglist)
 
     def _write_network(self, settings):
         util.write_file(self.network_conf_fn, settings)
@@ -141,15 +142,24 @@ class Distro(distros.Distro):
         # This ensures that the correct tz will be used for the system
         util.copy(tz_file, self.tz_local_fn)
 
-    def package_command(self, command, args=None):
+    def package_command(self, command, args=None, pkgs=[]):
         e = os.environ.copy()
         # See: http://tiny.cc/kg91fw
         # Or: http://tiny.cc/mh91fw
         e['DEBIAN_FRONTEND'] = 'noninteractive'
         cmd = ['apt-get', '--option', 'Dpkg::Options::=--force-confold',
-               '--assume-yes', '--quiet', command]
-        if args:
+               '--assume-yes', '--quiet']
+
+        if args and isinstance(args, str):
+            cmd.append(args)
+        elif args and isinstance(args, list):
             cmd.extend(args)
+
+        cmd.append(command)
+
+        pkglist = util.expand_package_list('%s=%s', pkgs)
+        cmd.extend(pkglist)
+
         # Allow the output of this to flow outwards (ie not be captured)
         util.subp(cmd, env=e, capture=False)
 
