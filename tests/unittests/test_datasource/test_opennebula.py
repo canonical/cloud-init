@@ -9,7 +9,10 @@ TEST_VARS={
     'var3': 'multi\nline\n',
     'var4': "'single'",
     'var5': "'double word'",
-    'var6': "'multi\nline\n'" }
+    'var6': "'multi\nline\n'",
+    'var7': 'single\\t',
+    'var8': 'double\\tword',
+    'var9': 'multi\\t\nline\n' }
 
 USER_DATA='#cloud-config\napt_upgrade: true'
 SSH_KEY='ssh-rsa AAAAB3NzaC1....sIkJhq8wdX+4I3A4cYbYP ubuntu@server-460-%i'
