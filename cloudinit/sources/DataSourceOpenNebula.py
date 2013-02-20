@@ -33,6 +33,7 @@ from cloudinit import util
 LOG = logging.getLogger(__name__)
 
 DEFAULT_IID = "iid-dsopennebula"
+DEFAULT_MODE = 'net'
 CONTEXT_DISK_FILES = ["context.sh"]
 VALID_DSMODES = ("local", "net", "disabled")
 
@@ -44,30 +45,29 @@ class DataSourceOpenNebula(sources.DataSource):
         self.seed_dir = os.path.join(paths.seed_dir, 'opennebula')
 
     def __str__(self):
-        mstr = "%s [seed=%s][dsmode=%s]" % (util.obj_name(self),
-                                            self.seed, self.dsmode)
-        return mstr
+        return "%s [seed=%s][dsmode=%s]" % \
+            (util.obj_name(self), self.seed, self.dsmode)
 
     def get_data(self):
         defaults = {
             "instance-id": DEFAULT_IID,
-            "dsmode": self.dsmode,
-        }
+            "dsmode": self.dsmode }
 
         found = None
         md = {}
-
         results = {}
+
         if os.path.isdir(self.seed_dir):
             try:
-                results=read_context_disk_dir(self.seed_dir)
+                results = read_context_disk_dir(self.seed_dir)
                 found = self.seed_dir
             except NonContextDiskDir:
-                util.logexc(LOG, "Failed reading context disk from %s",
-                            self.seed_dir)
+                util.logexc(LOG, "Failed reading context disk from %s", self.seed_dir)
+
+        # find candidate devices, try to mount them and
+        # read context script if present
         if not found:
-            devlist = find_candidate_devs()
-            for dev in devlist:
+            for dev in find_candidate_devs():
                 try:
                     results = util.mount_cb(dev, read_context_disk_dir)
                     found = dev
@@ -81,19 +81,29 @@ class DataSourceOpenNebula(sources.DataSource):
         md = results['metadata']
         md = util.mergedict(md, defaults)
 
-        dsmode = results.get('dsmode', None)
-        if dsmode not in VALID_DSMODES + (None,):
-            LOG.warn("user specified invalid mode: %s" % dsmode)
-            dsmode = None
+        # check for valid user specified dsmode
+        user_dsmode = results.get('dsmode', None)
+        if user_dsmode not in VALID_DSMODES + (None,):
+            LOG.warn("user specified invalid mode: %s" % user_dsmode)
+            user_dsmode = None
 
-        if (dsmode is None) and self.ds_cfg.get('dsmode'):
+        # decide dsmode
+        if user_dsmode:
+            dsmode = user_dsmode
+        elif self.ds_cfg.get('dsmode'):
             dsmode = self.ds_cfg.get('dsmode')
         else:
-            dsmode = self.dsmode
+            dsmode = DEFAULT_MODE
 
         if dsmode == "disabled":
             # most likely user specified
             return False
+
+        # apply static network configuration only in 'local' dsmode
+        # TODO: first boot?
+        if ('network-interfaces' in results and self.dsmode == "local"):
+            LOG.debug("Updating network interfaces from %s", self)
+            self.distro.apply_network(results['network-interfaces'])
 
         if dsmode != self.dsmode:
             LOG.debug("%s: not claiming datasource, dsmode=%s", self, dsmode)
@@ -102,11 +112,6 @@ class DataSourceOpenNebula(sources.DataSource):
         self.seed = found
         self.metadata = md
         self.userdata_raw = results.get('userdata')
-
-        # apply static network configuration only in 'local' dsmode
-        if ('network-interfaces' in results and self.dsmode == "local"):
-            LOG.debug("Updating network interfaces from %s", self)
-            self.distro.apply_network(results['network-interfaces'])
 
         return True
 
@@ -234,9 +239,9 @@ def find_candidate_devs():
     Return a list of devices that may contain the context disk.
     """
     by_fstype = util.find_devs_with("TYPE=iso9660")
-    by_label = util.find_devs_with("LABEL=CDROM")
-
     by_fstype.sort()
+
+    by_label = util.find_devs_with("LABEL=CDROM")
     by_label.sort()
 
     # combine list of items by putting by-label items first
@@ -262,11 +267,8 @@ def read_context_disk_dir(source_dir):
     if len(found) == 0:
         raise NonContextDiskDir("%s: %s" % (source_dir, "no files found"))
 
+    results = {'userdata':None, 'metadata':{}}
     context_sh = {}
-    results = {
-        'userdata':None,
-        'metadata':{},
-    }
 
     if "context.sh" in found:
         try:
@@ -347,9 +349,15 @@ def read_context_disk_dir(source_dir):
     elif "userdata" in context_sh:
         results['userdata'] = context_sh["userdata"]
 
-    (out, err) = util.subp(['/sbin/ip', '-o', 'link'])
-    net=OpenNebulaNetwork(out, context_sh)
-    results['network-interfaces']=net.gen_conf()
+    # generate static /etc/network/interfaces
+    # only if there are any required context variables
+    # http://opennebula.org/documentation:rel3.8:cong#network_configuration
+    for k in context_sh.keys():
+        if re.match('^eth\d+_ip$',k):
+            (out, err) = util.subp(['/sbin/ip', '-o', 'link'])
+            net=OpenNebulaNetwork(out, context_sh)
+            results['network-interfaces']=net.gen_conf()
+            break
 
     return results
 
