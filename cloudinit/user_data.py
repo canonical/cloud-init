@@ -29,7 +29,6 @@ from email.mime.text import MIMEText
 
 from cloudinit import handlers
 from cloudinit import log as logging
-from cloudinit import url_helper
 from cloudinit import util
 
 LOG = logging.getLogger(__name__)
@@ -173,10 +172,10 @@ class UserDataProcessor(object):
             if include_once_on and os.path.isfile(include_once_fn):
                 content = util.load_file(include_once_fn)
             else:
-                resp = url_helper.readurl(include_url)
-                if include_once_on and resp.ok():
+                resp = util.read_file_or_url(include_url)
+                if include_once_on and resp.ok:
                     util.write_file(include_once_fn, str(resp), mode=0600)
-                if resp.ok():
+                if resp.ok:
                     content = str(resp)
                 else:
                     LOG.warn(("Fetching from %s resulted in"

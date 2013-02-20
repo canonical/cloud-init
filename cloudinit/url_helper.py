@@ -58,6 +58,44 @@ def _cleanurl(url):
     return urlunparse(parsed_url)
 
 
+class UrlResponse(object):
+    def __init__(self, response):
+        self._response = response
+
+    @property
+    def contents(self):
+        return self._response.content
+
+    @property
+    def url(self):
+        return self._response.url
+
+    @property
+    def ok(self):
+        return self._response.ok
+
+    @property
+    def headers(self):
+        return self._response.headers
+
+    @property
+    def code(self):
+        return self._response.status_code
+
+    def __str__(self):
+        return self.contents
+
+
+class UrlError(IOError):
+    def __init__(self, cause):
+        IOError.__init__(self, str(cause))
+        self.cause = cause
+        if isinstance(cause, exceptions.HTTPError) and cause.response:
+            self.code = cause.response.status_code
+        else:
+            self.code = None
+
+
 def readurl(url, data=None, timeout=None, retries=0, sec_between=1,
             headers=None, ssl_details=None, check_status=True,
             allow_redirects=False):
@@ -76,6 +114,8 @@ def readurl(url, data=None, timeout=None, retries=0, sec_between=1,
             if 'cert_file' in ssl_details and 'key_file' in ssl_details:
                 req_args['cert'] = [ssl_details['cert_file'],
                                     ssl_details['key_file']]
+            elif 'cert_file' in ssl_details:
+                req_args['cert'] = str(ssl_details['cert_file'])
                                     
     req_args['allow_redirects'] = allow_redirects
     req_args['method'] = 'GET'
@@ -126,13 +166,9 @@ def readurl(url, data=None, timeout=None, retries=0, sec_between=1,
             # Doesn't seem like we can make it use a different
             # subclass for responses, so add our own backward-compat
             # attrs
-            if not hasattr(r, 'code'):
-                setattr(r, 'code', status)
-            if not hasattr(r, 'contents'):
-                setattr(r, 'contents', contents)
-            return r
+            return UrlResponse(r)
         except exceptions.RequestException as e:
-            excps.append(e)
+            excps.append(UrlError(e))
             if i + 1 < manual_tries and sec_between > 0:
                 LOG.debug("Please wait %s seconds while we wait to try again",
                           sec_between)
@@ -213,7 +249,7 @@ def wait_for_url(urls, max_wait=None, timeout=None,
                     e = ValueError(reason)
                 else:
                     return url
-            except exceptions.RequestException as e:
+            except UrlError as e:
                 reason = "request error [%s]" % e
             except Exception as e:
                 reason = "unexpected error [%s]" % e

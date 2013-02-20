@@ -137,7 +137,7 @@ class DataSourceEc2(sources.DataSource):
 
         start_time = time.time()
         url = uhelp.wait_for_url(urls=urls, max_wait=max_wait,
-                                timeout=timeout, status_cb=LOG.warn)
+                                 timeout=timeout, status_cb=LOG.warn)
 
         if url:
             LOG.debug("Using metadata source: '%s'", url2base[url])

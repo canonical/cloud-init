@@ -25,9 +25,11 @@ import os
 import time
 import urllib2
 
+import requests
+
 from cloudinit import log as logging
 from cloudinit import sources
-from cloudinit import url_helper as uhelp
+from cloudinit import url_helper
 from cloudinit import util
 
 LOG = logging.getLogger(__name__)
@@ -191,8 +193,8 @@ def read_maas_seed_url(seed_url, header_cb=None, timeout=None,
     version=MD_VERSION):
     """
     Read the maas datasource at seed_url.
-    header_cb is a method that should return a headers dictionary that will
-    be given to urllib2.Request()
+      - header_cb is a method that should return a headers dictionary for
+        a given url
 
     Expected format of seed_url is are the following files:
       * <seed_url>/<version>/meta-data/instance-id
@@ -220,13 +222,13 @@ def read_maas_seed_url(seed_url, header_cb=None, timeout=None,
         else:
             headers = {}
         try:
-            resp = uhelp.readurl(url, headers=headers, timeout=timeout)
-            if resp.ok():
+            resp = util.read_file_or_url(url, headers=headers, timeout=timeout)
+            if resp.ok:
                 md[name] = str(resp)
             else:
                 LOG.warn(("Fetching from %s resulted in"
-                          " an invalid http code %s"), url, resp.code)
-        except urllib2.HTTPError as e:
+                          " an invalid http code %s"), url, resp.status_code)
+        except url_helper.UrlError as e:
             if e.code != 404:
                 raise
     return check_seed_contents(md, seed_url)
