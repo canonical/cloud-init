@@ -22,7 +22,6 @@ import json
 import urllib
 
 from cloudinit import log as logging
-from cloudinit import url_helper as uh
 from cloudinit import util
 
 LOG = logging.getLogger(__name__)
@@ -40,11 +39,10 @@ def combine_url(base, add_on):
 
 # See: http://bit.ly/TyoUQs
 class MetadataMaterializer(object):
-    def __init__(self, blob, base_url, **fetch_settings):
+    def __init__(self, blob, base_url):
         self._blob = blob
         self._md = None
         self._base_url = base_url
-        self._fetch_settings = fetch_settings
 
     def _parse(self, blob):
         leaves = {}
@@ -90,8 +88,8 @@ class MetadataMaterializer(object):
         self._md = self._materialize(self._blob, self._base_url)
         return self._md
 
-    def _fetch_url(self, url, **opts):
-        response = uh.readurl(url, **opts)
+    def _fetch_url(self, url):
+        response = util.read_file_or_url(url)
         return str(response)
 
     def _decode_leaf_blob(self, blob):
@@ -115,12 +113,12 @@ class MetadataMaterializer(object):
             child_url = combine_url(base_url, c)
             if not child_url.endswith("/"):
                 child_url += "/"
-            child_blob = self._fetch_url(child_url, **self._fetch_settings)
+            child_blob = self._fetch_url(child_url)
             child_contents[c] = self._materialize(child_blob, child_url)
         leaf_contents = {}
         for (field, resource) in leaves.items():
             leaf_url = combine_url(base_url, resource)
-            leaf_blob = self._fetch_url(leaf_url, **self._fetch_settings)
+            leaf_blob = self._fetch_url(leaf_url)
             leaf_contents[field] = self._decode_leaf_blob(leaf_blob)
         joined = {}
         joined.update(child_contents)
@@ -136,23 +134,19 @@ def get_instance_userdata(url, version='latest', ssl_details=None):
     ud_url = combine_url(url, version)
     ud_url = combine_url(ud_url, 'user-data')
     try:
-        response = uh.readurl(ud_url, timeout=5,
-                              retries=10, ssl_details=ssl_details)
+        response = util.read_file_or_url(ud_url)
         return str(response)
     except Exception:
         util.logexc(LOG, "Failed fetching userdata from url %s", ud_url)
         return None
 
 
-def get_instance_metadata(url, version='latest', ssl_details=None):
+def get_instance_metadata(url, version='latest'):
     md_url = combine_url(url, version)
     md_url = combine_url(md_url, 'meta-data')
     try:
-        response = uh.readurl(md_url, timeout=5,
-                              retries=10, ssl_details=ssl_details)
-        materializer = MetadataMaterializer(str(response), md_url,
-                                            timeout=5, retries=10,
-                                            ssl_details=ssl_details)
+        response = util.read_file_or_url(md_url)
+        materializer = MetadataMaterializer(str(response), md_url)
         return materializer.materialize()
     except Exception:
         util.logexc(LOG, "Failed fetching metadata from url %s", md_url)
