@@ -100,7 +100,6 @@ class DataSourceOpenNebula(sources.DataSource):
             return False
 
         # apply static network configuration only in 'local' dsmode
-        # TODO: first boot?
         if ('network-interfaces' in results and self.dsmode == "local"):
             LOG.debug("Updating network interfaces from %s", self)
             self.distro.apply_network(results['network-interfaces'])
