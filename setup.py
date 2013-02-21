@@ -42,7 +42,7 @@ INITSYS_FILES = {
     'upstart': [f for f in glob('upstart/*') if is_f(f)],
 }
 INITSYS_ROOTS = {
-    'sysvinit': '/etc/rc.d/init.d',
+    'sysvinit': '/etc/init.d',
     'systemd': '/etc/systemd/system/',
     'upstart': '/etc/init/',
 }
