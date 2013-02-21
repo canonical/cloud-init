@@ -90,6 +90,19 @@ One or multiple SSH keys (separated by newlines) can be specified.
 
 cloud-init user data.
 
+Example configuration
+~~~~~~~~~~~~~~~~~~~~~
+
+This example cloud-init configuration (*cloud.cfg*) enables
+OpenNebula datasource only in 'net' mode.
+
+::
+    
+    disable_ec2_metadata: True
+    datasource_list: ['OpenNebula']
+    datasource:
+      OpenNebula:
+        dsmode: net
 
 Example VM's context section
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
