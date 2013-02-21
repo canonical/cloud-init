@@ -29,14 +29,12 @@
 # Should-Start:      $time
 # Required-Stop:
 # Should-Stop:
-# Default-Start:     3 5
-# Default-Stop:
+# Default-Start:     2 3 4 5
+# Default-Stop:      0 1 6
 # Short-Description: The initial cloud-init job (local fs contingent)
 # Description:       Start cloud-init and runs the initialization phases
 #	and any associated initial modules as desired.
 ### END INIT INFO
-
-. /etc/init.d/functions
 
 # Return values acc. to LSB for all commands but status:
 # 0	  - success
@@ -60,8 +58,9 @@ prog="cloud-init"
 cloud_init="/usr/bin/cloud-init"
 conf="/etc/cloud/cloud.cfg"
 
-# If there exists a sysconfig variable override file use it...
+# If there exist sysconfig/default variable override files use it...
 [ -f /etc/sysconfig/cloud-init ] && . /etc/sysconfig/cloud-init
+[ -f /etc/default/cloud-init ] && . /etc/default/cloud-init
 
 start() {
     [ -x $cloud_init ] || return 5
@@ -79,8 +78,6 @@ stop() {
     RETVAL=7
     return $RETVAL
 }
-
-. /etc/init.d/functions
 
 case "$1" in
     start)
