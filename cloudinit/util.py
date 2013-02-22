@@ -673,7 +673,7 @@ def fetch_ssl_details(paths=None):
 
 
 def read_file_or_url(url, timeout=5, retries=10,
-                     headers=None, data=None, sec_between=1, paths=None):
+                     headers=None, data=None, sec_between=1, ssl_details=None):
     if url.startswith("/"):
         url = "file://%s" % url
     if url.lower().startswith("file://"):
@@ -686,7 +686,7 @@ def read_file_or_url(url, timeout=5, retries=10,
                                   headers=headers,
                                   data=data,
                                   sec_between=sec_between,
-                                  ssl_details=fetch_ssl_details(paths))
+                                  ssl_details=ssl_details)
 
 
 def load_yaml(blob, default=None, allowed=(dict,)):

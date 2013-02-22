@@ -81,7 +81,8 @@ class DataSourceMAAS(sources.DataSource):
             self.base_url = url
 
             (userdata, metadata) = read_maas_seed_url(self.base_url,
-                                                      self.md_headers)
+                                                      self.md_headers,
+                                                      paths=self.paths)
             self.userdata_raw = userdata
             self.metadata = metadata
             return True
@@ -141,7 +142,7 @@ class DataSourceMAAS(sources.DataSource):
             LOG.debug("Using metadata source: '%s'", url)
         else:
             LOG.critical("Giving up on md from %s after %i seconds",
-                            urls, int(time.time() - starttime))
+                         urls, int(time.time() - starttime))
 
         return bool(url)
 
@@ -190,7 +191,7 @@ def read_maas_seed_dir(seed_d):
 
 
 def read_maas_seed_url(seed_url, header_cb=None, timeout=None,
-    version=MD_VERSION):
+                       version=MD_VERSION, paths=None):
     """
     Read the maas datasource at seed_url.
       - header_cb is a method that should return a headers dictionary for
@@ -222,12 +223,13 @@ def read_maas_seed_url(seed_url, header_cb=None, timeout=None,
         else:
             headers = {}
         try:
-            resp = util.read_file_or_url(url, headers=headers, timeout=timeout)
+            resp = util.read_file_or_url(url, headers=headers, timeout=timeout,
+                                         ssl_details=util.fetch_ssl_details(paths))
             if resp.ok:
                 md[name] = str(resp)
             else:
                 LOG.warn(("Fetching from %s resulted in"
-                          " an invalid http code %s"), url, resp.status_code)
+                          " an invalid http code %s"), url, resp.code)
         except url_helper.UrlError as e:
             if e.code != 404:
                 raise
@@ -372,7 +374,8 @@ if __name__ == "__main__":
         if args.subcmd == "check-seed":
             if args.url.startswith("http"):
                 (userdata, metadata) = read_maas_seed_url(args.url,
-                    header_cb=my_headers, version=args.apiver)
+                                                          header_cb=my_headers,
+                                                          version=args.apiver)
             else:
                 (userdata, metadata) = read_maas_seed_url(args.url)
             print "=== userdata ==="

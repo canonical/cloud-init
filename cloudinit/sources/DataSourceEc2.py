@@ -64,8 +64,10 @@ class DataSourceEc2(sources.DataSource):
             if not self.wait_for_metadata_service():
                 return False
             start_time = time.time()
-            self.userdata_raw = ec2_utils.get_instance_userdata(self.metadata_address, self.api_ver)
-            self.metadata = ec2_utils.get_instance_metadata(self.metadata_address, self.api_ver)
+            self.userdata_raw = ec2_utils.get_instance_userdata(self.metadata_address, self.api_ver,
+                                                                ssl_details=util.fetch_ssl_details(self.paths))
+            self.metadata = ec2_utils.get_instance_metadata(self.metadata_address, self.api_ver,
+                                                            ssl_details=util.fetch_ssl_details(self.paths))
             LOG.debug("Crawl of metadata service took %s seconds",
                        int(time.time() - start_time))
             return True
