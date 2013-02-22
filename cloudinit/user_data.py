@@ -223,7 +223,7 @@ class UserDataProcessor(object):
             for header in list(ent.keys()):
                 if header in ('content', 'filename', 'type', 'launch-index'):
                     continue
-                msg.add_header(header, ent['header'])
+                msg.add_header(header, ent[header])
 
             self._attach_part(append_msg, msg)
 

@@ -20,7 +20,6 @@
 
 import glob
 import os
-import time
 
 from cloudinit import templater
 from cloudinit import util
@@ -47,9 +46,6 @@ EXPORT_GPG_KEYID = """
 
 
 def handle(name, cfg, cloud, log, _args):
-    update = util.get_cfg_option_bool(cfg, 'apt_update', False)
-    upgrade = util.get_cfg_option_bool(cfg, 'apt_upgrade', False)
-
     release = get_release()
     mirrors = find_apt_mirror_info(cloud, cfg)
     if not mirrors or "primary" not in mirrors:
@@ -61,7 +57,7 @@ def handle(name, cfg, cloud, log, _args):
     mirror = mirrors["primary"]
     mirrors["mirror"] = mirror
 
-    log.debug("mirror info: %s" % mirrors)
+    log.debug("Mirror info: %s" % mirrors)
 
     if not util.get_cfg_option_bool(cfg,
                                     'apt_preserve_sources_list', False):
@@ -78,8 +74,7 @@ def handle(name, cfg, cloud, log, _args):
         try:
             # See man 'apt.conf'
             contents = PROXY_TPL % (proxy)
-            util.write_file(cloud.paths.join(False, proxy_filename),
-                            contents)
+            util.write_file(proxy_filename, contents)
         except Exception as e:
             util.logexc(log, "Failed to write proxy to %s", proxy_filename)
     elif os.path.isfile(proxy_filename):
@@ -90,60 +85,17 @@ def handle(name, cfg, cloud, log, _args):
         params = mirrors
         params['RELEASE'] = release
         params['MIRROR'] = mirror
-        errors = add_sources(cloud, cfg['apt_sources'], params)
+        errors = add_sources(cfg['apt_sources'], params)
         for e in errors:
-            log.warn("Source Error: %s", ':'.join(e))
+            log.warn("Add source error: %s", ':'.join(e))
 
     dconf_sel = util.get_cfg_option_str(cfg, 'debconf_selections', False)
     if dconf_sel:
-        log.debug("setting debconf selections per cloud config")
+        log.debug("Setting debconf selections per cloud config")
         try:
             util.subp(('debconf-set-selections', '-'), dconf_sel)
-        except:
+        except Exception:
             util.logexc(log, "Failed to run debconf-set-selections")
-
-    pkglist = util.get_cfg_option_list(cfg, 'packages', [])
-
-    errors = []
-    if update or len(pkglist) or upgrade:
-        try:
-            cloud.distro.update_package_sources()
-        except Exception as e:
-            util.logexc(log, "Package update failed")
-            errors.append(e)
-
-    if upgrade:
-        try:
-            cloud.distro.package_command("upgrade")
-        except Exception as e:
-            util.logexc(log, "Package upgrade failed")
-            errors.append(e)
-
-    if len(pkglist):
-        try:
-            cloud.distro.install_packages(pkglist)
-        except Exception as e:
-            util.logexc(log, "Failed to install packages: %s ", pkglist)
-            errors.append(e)
-
-    # kernel and openssl (possibly some other packages)
-    # write a file /var/run/reboot-required after upgrading.
-    # if that file exists and configured, then just stop right now and reboot
-    # TODO(smoser): handle this less voilently
-    reboot_file = "/var/run/reboot-required"
-    if ((upgrade or pkglist) and cfg.get("apt_reboot_if_required", False) and
-         os.path.isfile(reboot_file)):
-        log.warn("rebooting after upgrade or install per %s" % reboot_file)
-        time.sleep(1)  # give the warning time to get out
-        util.subp(["/sbin/reboot"])
-        time.sleep(60)
-        log.warn("requested reboot did not happen!")
-        errors.append(Exception("requested reboot did not happen!"))
-
-    if len(errors):
-        log.warn("%s failed with exceptions, re-raising the last one",
-                 len(errors))
-        raise errors[-1]
 
 
 # get gpg keyid from keyserver
@@ -188,19 +140,21 @@ def get_release():
 
 
 def generate_sources_list(codename, mirrors, cloud, log):
-    template_fn = cloud.get_template_filename('sources.list')
+    template_fn = cloud.get_template_filename('sources.list.%s' %
+                                              (cloud.distro.name))
     if not template_fn:
-        log.warn("No template found, not rendering /etc/apt/sources.list")
-        return
+        template_fn = cloud.get_template_filename('sources.list')
+        if not template_fn:
+            log.warn("No template found, not rendering /etc/apt/sources.list")
+            return
 
     params = {'codename': codename}
     for k in mirrors:
         params[k] = mirrors[k]
-    out_fn = cloud.paths.join(False, '/etc/apt/sources.list')
-    templater.render_to_file(template_fn, out_fn, params)
+    templater.render_to_file(template_fn, '/etc/apt/sources.list', params)
 
 
-def add_sources(cloud, srclist, template_params=None):
+def add_sources(srclist, template_params=None):
     """
     add entries in /etc/apt/sources.list.d for each abbreviated
     sources.list entry in 'srclist'.  When rendering template, also
@@ -250,8 +204,7 @@ def add_sources(cloud, srclist, template_params=None):
 
         try:
             contents = "%s\n" % (source)
-            util.write_file(cloud.paths.join(False, ent['filename']),
-                            contents, omode="ab")
+            util.write_file(ent['filename'], contents, omode="ab")
         except:
             errorlist.append([source,
                              "failed write to file %s" % ent['filename']])

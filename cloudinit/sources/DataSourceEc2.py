@@ -64,10 +64,14 @@ class DataSourceEc2(sources.DataSource):
             if not self.wait_for_metadata_service():
                 return False
             start_time = time.time()
-            self.userdata_raw = ec2_utils.get_instance_userdata(self.metadata_address, self.api_ver,
-                                                                ssl_details=util.fetch_ssl_details(self.paths))
-            self.metadata = ec2_utils.get_instance_metadata(self.metadata_address, self.api_ver,
-                                                            ssl_details=util.fetch_ssl_details(self.paths))
+            md_addr = self.metadata_address
+            ssl_details = util.fetch_ssl_details(self.paths)
+            self.userdata_raw = ec2_utils.get_instance_userdata(self.api_ver,
+                                                                md_addr,
+                                                                ssl_details)
+            self.metadata = ec2_utils.get_instance_metadata(self.api_ver,
+                                                            md_addr,
+                                                            ssl_details)
             LOG.debug("Crawl of metadata service took %s seconds",
                        int(time.time() - start_time))
             return True
@@ -84,9 +88,6 @@ class DataSourceEc2(sources.DataSource):
 
     def get_instance_id(self):
         return self.metadata['instance-id']
-
-    def get_availability_zone(self):
-        return self.metadata['placement']['availability-zone']
 
     def _get_url_settings(self):
         mcfg = self.ds_cfg
@@ -196,19 +197,6 @@ class DataSourceEc2(sources.DataSource):
         if name == "ephemeral0":
             return None
         return ofound
-
-    def is_vpc(self):
-        # See: https://bugs.launchpad.net/ubuntu/+source/cloud-init/+bug/615545
-        # Detect that the machine was launched in a VPC.
-        # But I did notice that when in a VPC, meta-data
-        # does not have public-ipv4 and public-hostname
-        # listed as a possibility.
-        ph = "public-hostname"
-        p4 = "public-ipv4"
-        if ((ph not in self.metadata or self.metadata[ph] == "") and
-            (p4 not in self.metadata or self.metadata[p4] == "")):
-            return True
-        return False
 
     @property
     def availability_zone(self):

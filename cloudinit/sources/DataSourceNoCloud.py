@@ -77,37 +77,47 @@ class DataSourceNoCloud(sources.DataSource):
             found.append("ds_config")
             md["seedfrom"] = self.ds_cfg['seedfrom']
 
-        fslist = util.find_devs_with("TYPE=vfat")
-        fslist.extend(util.find_devs_with("TYPE=iso9660"))
+        # if ds_cfg has 'user-data' and 'meta-data'
+        if 'user-data' in self.ds_cfg and 'meta-data' in self.ds_cfg:
+            if self.ds_cfg['user-data']:
+                ud = self.ds_cfg['user-data']
+            if self.ds_cfg['meta-data'] is not False:
+                md = util.mergedict(md, self.ds_cfg['meta-data'])
+            if 'ds_config' not in found:
+                found.append("ds_config")
 
-        label_list = util.find_devs_with("LABEL=cidata")
-        devlist = list(set(fslist) & set(label_list))
-        devlist.sort(reverse=True)
+        if self.ds_cfg.get('fs_label', "cidata"):
+            fslist = util.find_devs_with("TYPE=vfat")
+            fslist.extend(util.find_devs_with("TYPE=iso9660"))
 
-        for dev in devlist:
-            try:
-                LOG.debug("Attempting to use data from %s", dev)
+            label = self.ds_cfg.get('fs_label')
+            label_list = util.find_devs_with("LABEL=%s" % label)
+            devlist = list(set(fslist) & set(label_list))
+            devlist.sort(reverse=True)
 
-                (newmd, newud) = util.mount_cb(dev, util.read_seeded)
-                md = util.mergedict(newmd, md)
-                ud = newud
+            for dev in devlist:
+                try:
+                    LOG.debug("Attempting to use data from %s", dev)
 
-                # For seed from a device, the default mode is 'net'.
-                # that is more likely to be what is desired.
-                # If they want dsmode of local, then they must
-                # specify that.
-                if 'dsmode' not in md:
-                    md['dsmode'] = "net"
+                    (newmd, newud) = util.mount_cb(dev, util.read_seeded)
+                    md = util.mergedict(newmd, md)
+                    ud = newud
 
-                LOG.debug("Using data from %s", dev)
-                found.append(dev)
-                break
-            except OSError as e:
-                if e.errno != errno.ENOENT:
-                    raise
-            except util.MountFailedError:
-                util.logexc(LOG, ("Failed to mount %s"
-                                  " when looking for data"), dev)
+                    # For seed from a device, the default mode is 'net'.
+                    # that is more likely to be what is desired.  If they want
+                    # dsmode of local, then they must specify that.
+                    if 'dsmode' not in md:
+                        md['dsmode'] = "net"
+
+                    LOG.debug("Using data from %s", dev)
+                    found.append(dev)
+                    break
+                except OSError as e:
+                    if e.errno != errno.ENOENT:
+                        raise
+                except util.MountFailedError:
+                    util.logexc(LOG, ("Failed to mount %s"
+                                      " when looking for data"), dev)
 
         # There was no indication on kernel cmdline or data
         # in the seeddir suggesting this handler should be used.
@@ -195,6 +205,8 @@ def parse_cmdline_data(ds_id, fill, cmdline=None):
     # short2long mapping to save cmdline typing
     s2l = {"h": "local-hostname", "i": "instance-id", "s": "seedfrom"}
     for item in kvpairs:
+        if item == "":
+            continue
         try:
             (k, v) = item.split("=", 1)
         except:

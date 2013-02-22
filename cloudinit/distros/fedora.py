@@ -28,4 +28,4 @@ LOG = logging.getLogger(__name__)
 
 
 class Distro(rhel.Distro):
-    default_user = 'ec2-user'
+    pass

@@ -6,6 +6,7 @@ from mocker import MockerTestCase
 
 from cloudinit import handlers
 from cloudinit import helpers
+from cloudinit import util
 
 from cloudinit.handlers import upstart_job
 
@@ -34,6 +35,7 @@ class TestBuiltins(MockerTestCase):
         self.assertEquals(0, len(os.listdir(up_root)))
 
     def test_upstart_frequency_single(self):
+        # files should be written out when frequency is ! per-instance
         c_root = self.makeDir()
         up_root = self.makeDir()
         paths = helpers.Paths({
@@ -41,9 +43,12 @@ class TestBuiltins(MockerTestCase):
             'upstart_dir': up_root,
         })
         freq = PER_INSTANCE
+
+        mock_subp = self.mocker.replace(util.subp, passthrough=False)
+        mock_subp(["initctl", "reload-configuration"], capture=False)
+        self.mocker.replay()
+
         h = upstart_job.UpstartJobPartHandler(paths)
-        # No files should be written out when
-        # the frequency is ! per-instance
         h.handle_part('', handlers.CONTENT_START,
                       None, None, None)
         h.handle_part('blah', 'text/upstart-job',
