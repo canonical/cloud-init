@@ -112,7 +112,8 @@ def handle(name, cfg, cloud, log, args):
     url = templater.render_string(url, url_params)
     try:
         util.read_file_or_url(url, data=real_submit_keys,
-                              retries=tries, sec_between=3)
+                              retries=tries, sec_between=3,
+                              ssl_details=util.fetch_ssl_details(cloud.paths))
     except:
         util.logexc(log, ("Failed to post phone home data to"
                           " %s in %s tries"), url, tries)

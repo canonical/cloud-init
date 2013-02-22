@@ -38,11 +38,16 @@ def combine_url(base, add_on):
 
 
 # See: http://bit.ly/TyoUQs
+#
+# Since boto metadata reader uses the old urllib which does not
+# support ssl, we need to ahead and create our own reader which
+# works the same as the boto one (for now).
 class MetadataMaterializer(object):
-    def __init__(self, blob, base_url):
+    def __init__(self, blob, base_url, ssl_details):
         self._blob = blob
         self._md = None
         self._base_url = base_url
+        self._ssl_details = ssl_details
 
     def _parse(self, blob):
         leaves = {}
@@ -89,7 +94,7 @@ class MetadataMaterializer(object):
         return self._md
 
     def _fetch_url(self, url):
-        response = util.read_file_or_url(url)
+        response = util.read_file_or_url(url, ssl_details=self._ssl_details)
         return str(response)
 
     def _decode_leaf_blob(self, blob):
@@ -134,19 +139,19 @@ def get_instance_userdata(url, version='latest', ssl_details=None):
     ud_url = combine_url(url, version)
     ud_url = combine_url(ud_url, 'user-data')
     try:
-        response = util.read_file_or_url(ud_url)
+        response = util.read_file_or_url(ud_url, ssl_details=ssl_details)
         return str(response)
     except Exception:
         util.logexc(LOG, "Failed fetching userdata from url %s", ud_url)
         return None
 
 
-def get_instance_metadata(url, version='latest'):
+def get_instance_metadata(url, version='latest', ssl_details=None):
     md_url = combine_url(url, version)
     md_url = combine_url(md_url, 'meta-data')
     try:
-        response = util.read_file_or_url(md_url)
-        materializer = MetadataMaterializer(str(response), md_url)
+        response = util.read_file_or_url(md_url, ssl_details=ssl_details)
+        materializer = MetadataMaterializer(str(response), md_url, ssl_details)
         return materializer.materialize()
     except Exception:
         util.logexc(LOG, "Failed fetching metadata from url %s", md_url)
