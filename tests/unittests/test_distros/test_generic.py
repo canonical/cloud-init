@@ -1,6 +1,9 @@
-from mocker import MockerTestCase
-
 from cloudinit import distros
+from cloudinit import util
+
+from tests.unittests import helpers
+
+import os
 
 unknown_arch_info = {
     'arches': ['default'],
@@ -27,7 +30,7 @@ gpmi = distros._get_package_mirror_info  # pylint: disable=W0212
 gapmi = distros._get_arch_package_mirror_info  # pylint: disable=W0212
 
 
-class TestGenericDistro(MockerTestCase):
+class TestGenericDistro(helpers.FilesystemMockingTestCase):
 
     def return_first(self, mlist):
         if not mlist:
@@ -51,6 +54,82 @@ class TestGenericDistro(MockerTestCase):
         super(TestGenericDistro, self).setUp()
         # Make a temp directoy for tests to use.
         self.tmp = self.makeDir()
+
+    def _write_load_sudoers(self, _user, rules):
+        cls = distros.fetch("ubuntu")
+        d = cls("ubuntu", {}, None)
+        os.makedirs(os.path.join(self.tmp, "etc"))
+        os.makedirs(os.path.join(self.tmp, "etc", 'sudoers.d'))
+        self.patchOS(self.tmp)
+        self.patchUtils(self.tmp)
+        d.write_sudo_rules("harlowja", rules)
+        contents = util.load_file(d.ci_sudoers_fn)
+        self.restore()
+        return contents
+
+    def _count_in(self, lines_look_for, text_content):
+        found_amount = 0
+        for e in lines_look_for:
+            for line in text_content.splitlines():
+                line = line.strip()
+                if line == e:
+                    found_amount += 1
+        return found_amount
+
+    def test_sudoers_ensure_rules(self):
+        rules = 'ALL=(ALL:ALL) ALL'
+        contents = self._write_load_sudoers('harlowja', rules)
+        expected = ['harlowja ALL=(ALL:ALL) ALL']
+        self.assertEquals(len(expected), self._count_in(expected, contents))
+        not_expected = [
+            'harlowja A',
+            'harlowja L',
+            'harlowja L',
+        ]
+        self.assertEquals(0, self._count_in(not_expected, contents))
+
+    def test_sudoers_ensure_rules_list(self):
+        rules = [
+            'ALL=(ALL:ALL) ALL',
+            'B-ALL=(ALL:ALL) ALL',
+            'C-ALL=(ALL:ALL) ALL',
+        ]
+        contents = self._write_load_sudoers('harlowja', rules)
+        expected = [
+            'harlowja ALL=(ALL:ALL) ALL',
+            'harlowja B-ALL=(ALL:ALL) ALL',
+            'harlowja C-ALL=(ALL:ALL) ALL',
+        ]
+        self.assertEquals(len(expected), self._count_in(expected, contents))
+        not_expected = [
+            'harlowja A',
+            'harlowja L',
+            'harlowja L',
+        ]
+        self.assertEquals(0, self._count_in(not_expected, contents))
+
+    def test_sudoers_ensure_new(self):
+        cls = distros.fetch("ubuntu")
+        d = cls("ubuntu", {}, None)
+        self.patchOS(self.tmp)
+        self.patchUtils(self.tmp)
+        d.ensure_sudo_dir("/b")
+        contents = util.load_file("/etc/sudoers")
+        self.assertIn("includedir /b", contents)
+        self.assertTrue(os.path.isdir("/b"))
+
+    def test_sudoers_ensure_append(self):
+        cls = distros.fetch("ubuntu")
+        d = cls("ubuntu", {}, None)
+        self.patchOS(self.tmp)
+        self.patchUtils(self.tmp)
+        util.write_file("/etc/sudoers", "josh, josh\n")
+        d.ensure_sudo_dir("/b")
+        contents = util.load_file("/etc/sudoers")
+        self.assertIn("includedir /b", contents)
+        self.assertTrue(os.path.isdir("/b"))
+        self.assertIn("josh", contents)
+        self.assertEquals(2, contents.count("josh"))
 
     def test_arch_package_mirror_info_unknown(self):
         """for an unknown arch, we should get back that with arch 'default'."""

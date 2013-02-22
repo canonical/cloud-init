@@ -62,28 +62,23 @@ def handle(_name, cfg, cloud, log, _args):
     if not ls_cloudcfg:
         return
 
-    cloud.distro.install_packages(["landscape-client"])
+    cloud.distro.install_packages(('landscape-client',))
 
     merge_data = [
         LSC_BUILTIN_CFG,
-        cloud.paths.join(True, LSC_CLIENT_CFG_FILE),
+        LSC_CLIENT_CFG_FILE,
         ls_cloudcfg,
     ]
     merged = merge_together(merge_data)
-
-    lsc_client_fn = cloud.paths.join(False, LSC_CLIENT_CFG_FILE)
-    lsc_dir = cloud.paths.join(False, os.path.dirname(lsc_client_fn))
-    if not os.path.isdir(lsc_dir):
-        util.ensure_dir(lsc_dir)
-
     contents = StringIO()
     merged.write(contents)
-    contents.flush()
 
-    util.write_file(lsc_client_fn, contents.getvalue())
-    log.debug("Wrote landscape config file to %s", lsc_client_fn)
+    util.ensure_dir(os.path.dirname(LSC_CLIENT_CFG_FILE))
+    util.write_file(LSC_CLIENT_CFG_FILE, contents.getvalue())
+    log.debug("Wrote landscape config file to %s", LSC_CLIENT_CFG_FILE)
 
     util.write_file(LS_DEFAULT_FILE, "RUN=1\n")
+    util.subp(["service", "landscape-client", "restart"])
 
 
 def merge_together(objs):

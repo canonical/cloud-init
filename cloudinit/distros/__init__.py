@@ -33,14 +33,21 @@ from cloudinit import log as logging
 from cloudinit import ssh_util
 from cloudinit import util
 
+from cloudinit.distros.parsers import hosts
+
+OSFAMILIES = {
+    'debian': ['debian', 'ubuntu'],
+    'redhat': ['fedora', 'rhel']
+}
+
 LOG = logging.getLogger(__name__)
 
 
 class Distro(object):
-
     __metaclass__ = abc.ABCMeta
-    default_user = None
-    default_user_groups = None
+    hosts_fn = "/etc/hosts"
+    ci_sudoers_fn = "/etc/sudoers.d/90-cloud-init-users"
+    hostname_conf_fn = "/etc/hostname"
 
     def __init__(self, name, cfg, paths):
         self._paths = paths
@@ -60,13 +67,10 @@ class Distro(object):
     def get_option(self, opt_name, default=None):
         return self._cfg.get(opt_name, default)
 
-    @abc.abstractmethod
-    def set_hostname(self, hostname):
-        raise NotImplementedError()
-
-    @abc.abstractmethod
-    def update_hostname(self, hostname, prev_hostname_fn):
-        raise NotImplementedError()
+    def set_hostname(self, hostname, fqdn=None):
+        writeable_hostname = self._select_hostname(hostname, fqdn)
+        self._write_hostname(writeable_hostname, self.hostname_conf_fn)
+        self._apply_hostname(hostname)
 
     @abc.abstractmethod
     def package_command(self, cmd, args=None):
@@ -84,13 +88,13 @@ class Distro(object):
 
     def _get_arch_package_mirror_info(self, arch=None):
         mirror_info = self.get_option("package_mirrors", [])
-        if arch == None:
+        if not arch:
             arch = self.get_primary_arch()
         return _get_arch_package_mirror_info(mirror_info, arch)
 
     def get_package_mirror_info(self, arch=None,
                                 availability_zone=None):
-        # this resolves the package_mirrors config option
+        # This resolves the package_mirrors config option
         # down to a single dict of {mirror_name: mirror_url}
         arch_info = self._get_arch_package_mirror_info(arch)
         return _get_package_mirror_info(availability_zone=availability_zone,
@@ -115,43 +119,141 @@ class Distro(object):
     def _get_localhost_ip(self):
         return "127.0.0.1"
 
+    @abc.abstractmethod
+    def _read_hostname(self, filename, default=None):
+        raise NotImplementedError()
+
+    @abc.abstractmethod
+    def _write_hostname(self, hostname, filename):
+        raise NotImplementedError()
+
+    @abc.abstractmethod
+    def _read_system_hostname(self):
+        raise NotImplementedError()
+
+    def _apply_hostname(self, hostname):
+        # This really only sets the hostname
+        # temporarily (until reboot so it should
+        # not be depended on). Use the write
+        # hostname functions for 'permanent' adjustments.
+        LOG.debug("Non-persistently setting the system hostname to %s",
+                  hostname)
+        try:
+            util.subp(['hostname', hostname])
+        except util.ProcessExecutionError:
+            util.logexc(LOG, ("Failed to non-persistently adjust"
+                              " the system hostname to %s"), hostname)
+
+    @abc.abstractmethod
+    def _select_hostname(self, hostname, fqdn):
+        raise NotImplementedError()
+
+    @staticmethod
+    def expand_osfamily(family_list):
+        distros = []
+        for family in family_list:
+            if not family in OSFAMILIES:
+                raise ValueError("No distibutions found for osfamily %s"
+                                 % (family))
+            distros.extend(OSFAMILIES[family])
+        return distros
+
+    def update_hostname(self, hostname, fqdn, prev_hostname_fn):
+        applying_hostname = hostname
+
+        # Determine what the actual written hostname should be
+        hostname = self._select_hostname(hostname, fqdn)
+
+        # If the previous hostname file exists lets see if we
+        # can get a hostname from it
+        if prev_hostname_fn and os.path.exists(prev_hostname_fn):
+            prev_hostname = self._read_hostname(prev_hostname_fn)
+        else:
+            prev_hostname = None
+
+        # Lets get where we should write the system hostname
+        # and what the system hostname is
+        (sys_fn, sys_hostname) = self._read_system_hostname()
+        update_files = []
+
+        # If there is no previous hostname or it differs
+        # from what we want, lets update it or create the
+        # file in the first place
+        if not prev_hostname or prev_hostname != hostname:
+            update_files.append(prev_hostname_fn)
+
+        # If the system hostname is different than the previous
+        # one or the desired one lets update it as well
+        if (not sys_hostname) or (sys_hostname == prev_hostname
+                                  and sys_hostname != hostname):
+            update_files.append(sys_fn)
+
+        # Remove duplicates (incase the previous config filename)
+        # is the same as the system config filename, don't bother
+        # doing it twice
+        update_files = set([f for f in update_files if f])
+        LOG.debug("Attempting to update hostname to %s in %s files",
+                  hostname, len(update_files))
+
+        for fn in update_files:
+            try:
+                self._write_hostname(hostname, fn)
+            except IOError:
+                util.logexc(LOG, "Failed to write hostname %s to %s",
+                            hostname, fn)
+
+        if (sys_hostname and prev_hostname and
+            sys_hostname != prev_hostname):
+            LOG.debug("%s differs from %s, assuming user maintained hostname.",
+                       prev_hostname_fn, sys_fn)
+
+        # If the system hostname file name was provided set the
+        # non-fqdn as the transient hostname.
+        if sys_fn in update_files:
+            self._apply_hostname(applying_hostname)
+
     def update_etc_hosts(self, hostname, fqdn):
-        # Format defined at
-        # http://unixhelp.ed.ac.uk/CGI/man-cgi?hosts
-        header = "# Added by cloud-init"
-        real_header = "%s on %s" % (header, util.time_rfc2822())
+        header = ''
+        if os.path.exists(self.hosts_fn):
+            eh = hosts.HostsConf(util.load_file(self.hosts_fn))
+        else:
+            eh = hosts.HostsConf('')
+            header = util.make_header(base="added")
         local_ip = self._get_localhost_ip()
-        hosts_line = "%s\t%s %s" % (local_ip, fqdn, hostname)
-        new_etchosts = StringIO()
-        need_write = False
-        need_change = True
-        hosts_ro_fn = self._paths.join(True, "/etc/hosts")
-        for line in util.load_file(hosts_ro_fn).splitlines():
-            if line.strip().startswith(header):
-                continue
-            if not line.strip() or line.strip().startswith("#"):
-                new_etchosts.write("%s\n" % (line))
-                continue
-            split_line = [s.strip() for s in line.split()]
-            if len(split_line) < 2:
-                new_etchosts.write("%s\n" % (line))
-                continue
-            (ip, hosts) = split_line[0], split_line[1:]
-            if ip == local_ip:
-                if sorted([hostname, fqdn]) == sorted(hosts):
-                    need_change = False
-                if need_change:
-                    line = "%s\n%s" % (real_header, hosts_line)
-                    need_change = False
-                    need_write = True
-            new_etchosts.write("%s\n" % (line))
+        prev_info = eh.get_entry(local_ip)
+        need_change = False
+        if not prev_info:
+            eh.add_entry(local_ip, fqdn, hostname)
+            need_change = True
+        else:
+            need_change = True
+            for entry in prev_info:
+                entry_fqdn = None
+                entry_aliases = []
+                if len(entry) >= 1:
+                    entry_fqdn = entry[0]
+                if len(entry) >= 2:
+                    entry_aliases = entry[1:]
+                if entry_fqdn is not None and entry_fqdn == fqdn:
+                    if hostname in entry_aliases:
+                        # Exists already, leave it be
+                        need_change = False
+            if need_change:
+                # Doesn't exist, add that entry in...
+                new_entries = list(prev_info)
+                new_entries.append([fqdn, hostname])
+                eh.del_entries(local_ip)
+                for entry in new_entries:
+                    if len(entry) == 1:
+                        eh.add_entry(local_ip, entry[0])
+                    elif len(entry) >= 2:
+                        eh.add_entry(local_ip, *entry)
         if need_change:
-            new_etchosts.write("%s\n%s\n" % (real_header, hosts_line))
-            need_write = True
-        if need_write:
-            contents = new_etchosts.getvalue()
-            util.write_file(self._paths.join(False, "/etc/hosts"),
-                            contents, mode=0644)
+            contents = StringIO()
+            if header:
+                contents.write("%s\n" % (header))
+            contents.write("%s\n" % (eh))
+            util.write_file(self.hosts_fn, contents.getvalue(), mode=0644)
 
     def _bring_up_interface(self, device_name):
         cmd = ['ifup', device_name]
@@ -176,22 +278,7 @@ class Distro(object):
         return False
 
     def get_default_user(self):
-        if not self.default_user:
-            return None
-        user_cfg = {
-            'name': self.default_user,
-            'plain_text_passwd': self.default_user,
-            'home': "/home/%s" % (self.default_user),
-            'shell': "/bin/bash",
-            'lock_passwd': True,
-            'gecos': "%s" % (self.default_user.title()),
-            'sudo': "ALL=(ALL) NOPASSWD:ALL",
-        }
-        def_groups = self.default_user_groups
-        if not def_groups:
-            def_groups = []
-        user_cfg['groups'] = util.uniq_merge_sorted(def_groups)
-        return user_cfg
+        return self.get_option('default_user')
 
     def create_user(self, name, **kwargs):
         """
@@ -207,23 +294,25 @@ class Distro(object):
         # inputs. If something goes wrong, we can end up with a system
         # that nobody can login to.
         adduser_opts = {
-                "gecos": '--comment',
-                "homedir": '--home',
-                "primary_group": '--gid',
-                "groups": '--groups',
-                "passwd": '--password',
-                "shell": '--shell',
-                "expiredate": '--expiredate',
-                "inactive": '--inactive',
-                "selinux_user": '--selinux-user',
-                }
+            "gecos": '--comment',
+            "homedir": '--home',
+            "primary_group": '--gid',
+            "groups": '--groups',
+            "passwd": '--password',
+            "shell": '--shell',
+            "expiredate": '--expiredate',
+            "inactive": '--inactive',
+            "selinux_user": '--selinux-user',
+        }
 
         adduser_opts_flags = {
-                "no_user_group": '--no-user-group',
-                "system": '--system',
-                "no_log_init": '--no-log-init',
-                "no_create_home": "-M",
-                }
+            "no_user_group": '--no-user-group',
+            "system": '--system',
+            "no_log_init": '--no-log-init',
+            "no_create_home": "-M",
+        }
+
+        redact_fields = ['passwd']
 
         # Now check the value and create the command
         for option in kwargs:
@@ -231,16 +320,18 @@ class Distro(object):
             if option in adduser_opts and value \
                 and isinstance(value, str):
                 adduser_cmd.extend([adduser_opts[option], value])
-
-                # Redact the password field from the logs
-                if option != "password":
-                    x_adduser_cmd.extend([adduser_opts[option], value])
-                else:
+                # Redact certain fields from the logs
+                if option in redact_fields:
                     x_adduser_cmd.extend([adduser_opts[option], 'REDACTED'])
-
+                else:
+                    x_adduser_cmd.extend([adduser_opts[option], value])
             elif option in adduser_opts_flags and value:
                 adduser_cmd.append(adduser_opts_flags[option])
-                x_adduser_cmd.append(adduser_opts_flags[option])
+                # Redact certain fields from the logs
+                if option in redact_fields:
+                    x_adduser_cmd.append('REDACTED')
+                else:
+                    x_adduser_cmd.append(adduser_opts_flags[option])
 
         # Default to creating home directory unless otherwise directed
         #  Also, we do not create home directories for system users.
@@ -251,7 +342,7 @@ class Distro(object):
         if util.is_user(name):
             LOG.warn("User %s already exists, skipping." % name)
         else:
-            LOG.debug("Creating name %s" % name)
+            LOG.debug("Adding user named %s", name)
             try:
                 util.subp(adduser_cmd, logstring=x_adduser_cmd)
             except Exception as e:
@@ -262,10 +353,9 @@ class Distro(object):
         if 'plain_text_passwd' in kwargs and kwargs['plain_text_passwd']:
             self.set_passwd(name, kwargs['plain_text_passwd'])
 
-        # Default locking down the account.
-        if ('lock_passwd' not in kwargs and
-            ('lock_passwd' in kwargs and kwargs['lock_passwd']) or
-            'system' not in kwargs):
+        # Default locking down the account.  'lock_passwd' defaults to True.
+        # lock account unless lock_password is False.
+        if kwargs.get('lock_passwd', True):
             try:
                 util.subp(['passwd', '--lock', name])
             except Exception as e:
@@ -280,7 +370,7 @@ class Distro(object):
         # Import SSH keys
         if 'ssh_authorized_keys' in kwargs:
             keys = set(kwargs['ssh_authorized_keys']) or []
-            ssh_util.setup_user_keys(keys, name, None, self._paths)
+            ssh_util.setup_user_keys(keys, name, key_prefix=None)
 
         return True
 
@@ -299,30 +389,82 @@ class Distro(object):
 
         return True
 
-    def write_sudo_rules(self,
-        user,
-        rules,
-        sudo_file="/etc/sudoers.d/90-cloud-init-users",
-        ):
+    def ensure_sudo_dir(self, path, sudo_base='/etc/sudoers'):
+        # Ensure the dir is included and that
+        # it actually exists as a directory
+        sudoers_contents = ''
+        base_exists = False
+        if os.path.exists(sudo_base):
+            sudoers_contents = util.load_file(sudo_base)
+            base_exists = True
+        found_include = False
+        for line in sudoers_contents.splitlines():
+            line = line.strip()
+            include_match = re.search(r"^#includedir\s+(.*)$", line)
+            if not include_match:
+                continue
+            included_dir = include_match.group(1).strip()
+            if not included_dir:
+                continue
+            included_dir = os.path.abspath(included_dir)
+            if included_dir == path:
+                found_include = True
+                break
+        if not found_include:
+            try:
+                if not base_exists:
+                    lines = [('# See sudoers(5) for more information'
+                              ' on "#include" directives:'), '',
+                             util.make_header(base="added"),
+                             "#includedir %s" % (path), '']
+                    sudoers_contents = "\n".join(lines)
+                    util.write_file(sudo_base, sudoers_contents, 0440)
+                else:
+                    lines = ['', util.make_header(base="added"),
+                             "#includedir %s" % (path), '']
+                    sudoers_contents = "\n".join(lines)
+                    util.append_file(sudo_base, sudoers_contents)
+                LOG.debug("Added '#includedir %s' to %s" % (path, sudo_base))
+            except IOError as e:
+                util.logexc(LOG, "Failed to write %s" % sudo_base, e)
+                raise e
+        util.ensure_dir(path, 0750)
 
-        content_header = "# user rules for %s" % user
-        content = "%s\n%s %s\n\n" % (content_header, user, rules)
+    def write_sudo_rules(self, user, rules, sudo_file=None):
+        if not sudo_file:
+            sudo_file = self.ci_sudoers_fn
 
-        if isinstance(rules, list):
-            content = "%s\n" % content_header
+        lines = [
+            '',
+            "# User rules for %s" % user,
+        ]
+        if isinstance(rules, (list, tuple)):
             for rule in rules:
-                content += "%s %s\n" % (user, rule)
-            content += "\n"
+                lines.append("%s %s" % (user, rule))
+        elif isinstance(rules, (basestring, str)):
+            lines.append("%s %s" % (user, rules))
+        else:
+            msg = "Can not create sudoers rule addition with type %r"
+            raise TypeError(msg % (util.obj_name(rules)))
+        content = "\n".join(lines)
+        content += "\n"  # trailing newline
 
+        self.ensure_sudo_dir(os.path.dirname(sudo_file))
         if not os.path.exists(sudo_file):
-            util.write_file(sudo_file, content, 0440)
-
+            contents = [
+                util.make_header(),
+                content,
+            ]
+            try:
+                util.write_file(sudo_file, "\n".join(contents), 0440)
+            except IOError as e:
+                util.logexc(LOG, "Failed to write sudoers file %s", sudo_file)
+                raise e
         else:
             try:
-                with open(sudo_file, 'a') as f:
-                    f.write(content)
+                util.append_file(sudo_file, content)
             except IOError as e:
-                util.logexc(LOG, "Failed to write %s" % sudo_file, e)
+                util.logexc(LOG, "Failed to append sudoers file %s", sudo_file)
                 raise e
 
     def create_group(self, name, members):
@@ -412,12 +554,36 @@ def _get_arch_package_mirror_info(package_mirrors, arch):
 # is the standard form used in the rest
 # of cloud-init
 def _normalize_groups(grp_cfg):
-    if isinstance(grp_cfg, (str, basestring, list)):
+    if isinstance(grp_cfg, (str, basestring)):
+        grp_cfg = grp_cfg.strip().split(",")
+    if isinstance(grp_cfg, (list)):
         c_grp_cfg = {}
-        for i in util.uniq_merge(grp_cfg):
-            c_grp_cfg[i] = []
+        for i in grp_cfg:
+            if isinstance(i, (dict)):
+                for k, v in i.items():
+                    if k not in c_grp_cfg:
+                        if isinstance(v, (list)):
+                            c_grp_cfg[k] = list(v)
+                        elif isinstance(v, (basestring, str)):
+                            c_grp_cfg[k] = [v]
+                        else:
+                            raise TypeError("Bad group member type %s" %
+                                            util.obj_name(v))
+                    else:
+                        if isinstance(v, (list)):
+                            c_grp_cfg[k].extend(v)
+                        elif isinstance(v, (basestring, str)):
+                            c_grp_cfg[k].append(v)
+                        else:
+                            raise TypeError("Bad group member type %s" %
+                                            util.obj_name(v))
+            elif isinstance(i, (str, basestring)):
+                if i not in c_grp_cfg:
+                    c_grp_cfg[i] = []
+            else:
+                raise TypeError("Unknown group name type %s" %
+                                util.obj_name(i))
         grp_cfg = c_grp_cfg
-
     groups = {}
     if isinstance(grp_cfg, (dict)):
         for (grp_name, grp_members) in grp_cfg.items():
@@ -439,7 +605,7 @@ def _normalize_groups(grp_cfg):
 # configuration.
 #
 # The output is a dictionary of user
-# names => user config which is the standard 
+# names => user config which is the standard
 # form used in the rest of cloud-init. Note
 # the default user will have a special config
 # entry 'default' which will be marked as true
@@ -504,6 +670,7 @@ def _normalize_users(u_cfg, def_user_cfg=None):
             # Pickup what the default 'real name' is
             # and any groups that are provided by the
             # default config
+            def_user_cfg = def_user_cfg.copy()
             def_user = def_user_cfg.pop('name')
             def_groups = def_user_cfg.pop('groups', [])
             # Pickup any config + groups for that user name
@@ -553,41 +720,68 @@ def _normalize_users(u_cfg, def_user_cfg=None):
 def normalize_users_groups(cfg, distro):
     if not cfg:
         cfg = {}
+
     users = {}
     groups = {}
     if 'groups' in cfg:
         groups = _normalize_groups(cfg['groups'])
 
-    # Handle the previous style of doing this...
-    old_user = None
+    # Handle the previous style of doing this where the first user
+    # overrides the concept of the default user if provided in the user: XYZ
+    # format.
+    old_user = {}
     if 'user' in cfg and cfg['user']:
-        old_user = str(cfg['user'])
-        if not 'users' in cfg:
-            cfg['users'] = old_user
-            old_user = None
-    if 'users' in cfg:
-        default_user_config = None
-        try:
-            default_user_config = distro.get_default_user()
-        except NotImplementedError:
-            LOG.warn(("Distro has not implemented default user "
-                      "access. No default user will be normalized."))
-        base_users = cfg['users']
-        if old_user:
-            if isinstance(base_users, (list)):
-                if len(base_users):
-                    # The old user replaces user[0]
-                    base_users[0] = {'name': old_user}
-                else:
-                    # Just add it on at the end...
-                    base_users.append({'name': old_user})
-            elif isinstance(base_users, (dict)):
-                if old_user not in base_users:
-                    base_users[old_user] = True
-            elif isinstance(base_users, (str, basestring)):
-                # Just append it on to be re-parsed later
-                base_users += ",%s" % (old_user)
-        users = _normalize_users(base_users, default_user_config)
+        old_user = cfg['user']
+        # Translate it into the format that is more useful
+        # going forward
+        if isinstance(old_user, (basestring, str)):
+            old_user = {
+                'name': old_user,
+            }
+        if not isinstance(old_user, (dict)):
+            LOG.warn(("Format for 'user' key must be a string or "
+                      "dictionary and not %s"), util.obj_name(old_user))
+            old_user = {}
+
+    # If no old user format, then assume the distro
+    # provides what the 'default' user maps to, but notice
+    # that if this is provided, we won't automatically inject
+    # a 'default' user into the users list, while if a old user
+    # format is provided we will.
+    distro_user_config = {}
+    try:
+        distro_user_config = distro.get_default_user()
+    except NotImplementedError:
+        LOG.warn(("Distro has not implemented default user "
+                  "access. No distribution provided default user"
+                  " will be normalized."))
+
+    # Merge the old user (which may just be an empty dict when not
+    # present with the distro provided default user configuration so
+    # that the old user style picks up all the distribution specific
+    # attributes (if any)
+    default_user_config = util.mergemanydict([old_user, distro_user_config])
+
+    base_users = cfg.get('users', [])
+    if not isinstance(base_users, (list, dict, str, basestring)):
+        LOG.warn(("Format for 'users' key must be a comma separated string"
+                  " or a dictionary or a list and not %s"),
+                 util.obj_name(base_users))
+        base_users = []
+
+    if old_user:
+        # Ensure that when user: is provided that this user
+        # always gets added (as the default user)
+        if isinstance(base_users, (list)):
+            # Just add it on at the end...
+            base_users.append({'name': 'default'})
+        elif isinstance(base_users, (dict)):
+            base_users['default'] = base_users.get('default', True)
+        elif isinstance(base_users, (str, basestring)):
+            # Just append it on to be re-parsed later
+            base_users += ",default"
+
+    users = _normalize_users(base_users, default_user_config)
     return (users, groups)
 
 

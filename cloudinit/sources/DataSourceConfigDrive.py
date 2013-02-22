@@ -219,9 +219,10 @@ class DataSourceConfigDrive(sources.DataSource):
         return True
 
     def get_public_ssh_keys(self):
-        if not 'public-keys' in self.metadata:
-            return []
-        return self.metadata['public-keys']
+        name = "public_keys"
+        if self.version == 1:
+            name = "public-keys"
+        return sources.normalize_pubkey_data(self.metadata.get(name))
 
 
 class DataSourceConfigDriveNet(DataSourceConfigDrive):
@@ -269,7 +270,7 @@ def find_candidate_devs():
     combined = (by_label + [d for d in by_fstype if d not in by_label])
 
     # We are looking for block device (sda, not sda1), ignore partitions
-    combined = [d for d in combined if d[-1] not in "0123456789"]
+    combined = [d for d in combined if not util.is_partition(d)]
 
     return combined
 
@@ -307,19 +308,19 @@ def read_config_drive_dir_v2(source_dir, version="2012-08-10"):
         found = False
         if os.path.isfile(fpath):
             try:
-                with open(fpath) as fp:
-                    data = fp.read()
-            except Exception as exc:
-                raise BrokenConfigDriveDir("failed to read: %s" % fpath)
+                data = util.load_file(fpath)
+            except IOError:
+                raise BrokenConfigDriveDir("Failed to read: %s" % fpath)
             found = True
         elif required:
-            raise NonConfigDriveDir("missing mandatory %s" % fpath)
+            raise NonConfigDriveDir("Missing mandatory path: %s" % fpath)
 
         if found and process:
             try:
                 data = process(data)
             except Exception as exc:
-                raise BrokenConfigDriveDir("failed to process: %s" % fpath)
+                raise BrokenConfigDriveDir(("Failed to process "
+                                            "path: %s") % fpath)
 
         if found:
             results[name] = data
@@ -335,8 +336,7 @@ def read_config_drive_dir_v2(source_dir, version="2012-08-10"):
         # do not use os.path.join here, as content_path starts with /
         cpath = os.path.sep.join((source_dir, "openstack",
                                   "./%s" % item['content_path']))
-        with open(cpath) as fp:
-            return(fp.read())
+        return util.load_file(cpath)
 
     files = {}
     try:
@@ -350,7 +350,7 @@ def read_config_drive_dir_v2(source_dir, version="2012-08-10"):
         if item:
             results['network_config'] = read_content_path(item)
     except Exception as exc:
-        raise BrokenConfigDriveDir("failed to read file %s: %s" % (item, exc))
+        raise BrokenConfigDriveDir("Failed to read file %s: %s" % (item, exc))
 
     # to openstack, user can specify meta ('nova boot --meta=key=value') and
     # those will appear under metadata['meta'].
@@ -465,8 +465,7 @@ def get_previous_iid(paths):
     # hasn't declared itself found.
     fname = os.path.join(paths.get_cpath('data'), 'instance-id')
     try:
-        with open(fname) as fp:
-            return fp.read()
+        return util.load_file(fname)
     except IOError:
         return None
 

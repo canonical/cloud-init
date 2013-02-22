@@ -32,6 +32,8 @@ RESIZE_FS_PREFIXES_CMDS = [
     ('xfs', 'xfs_growfs'),
 ]
 
+NOBLOCK = "noblock"
+
 
 def nodeify_path(devpth, where, log):
     try:
@@ -62,23 +64,22 @@ def get_fs_type(st_dev, path, log):
         raise
 
 
-def handle(name, cfg, cloud, log, args):
+def handle(name, cfg, _cloud, log, args):
     if len(args) != 0:
         resize_root = args[0]
     else:
         resize_root = util.get_cfg_option_str(cfg, "resize_rootfs", True)
 
-    if not util.translate_bool(resize_root):
+    if not util.translate_bool(resize_root, addons=[NOBLOCK]):
         log.debug("Skipping module named %s, resizing disabled", name)
         return
 
     # TODO(harlowja) is the directory ok to be used??
     resize_root_d = util.get_cfg_option_str(cfg, "resize_rootfs_tmp", "/run")
-    resize_root_d = cloud.paths.join(False, resize_root_d)
     util.ensure_dir(resize_root_d)
 
     # TODO(harlowja): allow what is to be resized to be configurable??
-    resize_what = cloud.paths.join(False, "/")
+    resize_what = "/"
     with util.ExtendedTemporaryFile(prefix="cloudinit.resizefs.",
                                     dir=resize_root_d, delete=True) as tfh:
         devpth = tfh.name
@@ -111,7 +112,7 @@ def handle(name, cfg, cloud, log, args):
         log.debug("Resizing %s (%s) using %s", resize_what, fs_type, resizer)
         resize_cmd = [resizer, devpth]
 
-        if resize_root == "noblock":
+        if resize_root == NOBLOCK:
             # Fork to a child that will run
             # the resize command
             util.fork_cb(do_resize, resize_cmd, log)
@@ -121,7 +122,7 @@ def handle(name, cfg, cloud, log, args):
             do_resize(resize_cmd, log)
 
     action = 'Resized'
-    if resize_root == "noblock":
+    if resize_root == NOBLOCK:
         action = 'Resizing (via forking)'
     log.debug("%s root filesystem (type=%s, maj=%i, min=%i, val=%s)",
               action, fs_type, os.major(st_dev), os.minor(st_dev), resize_root)

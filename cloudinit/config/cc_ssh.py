@@ -59,7 +59,7 @@ def handle(_name, cfg, cloud, log, _args):
 
     # remove the static keys from the pristine image
     if cfg.get("ssh_deletekeys", True):
-        key_pth = cloud.paths.join(False, "/etc/ssh/", "ssh_host_*key*")
+        key_pth = os.path.join("/etc/ssh/", "ssh_host_*key*")
         for f in glob.glob(key_pth):
             try:
                 util.del_file(f)
@@ -72,8 +72,7 @@ def handle(_name, cfg, cloud, log, _args):
             if key in KEY_2_FILE:
                 tgt_fn = KEY_2_FILE[key][0]
                 tgt_perms = KEY_2_FILE[key][1]
-                util.write_file(cloud.paths.join(False, tgt_fn),
-                                val, tgt_perms)
+                util.write_file(tgt_fn, val, tgt_perms)
 
         for (priv, pub) in PRIV_2_PUB.iteritems():
             if pub in cfg['ssh_keys'] or not priv in cfg['ssh_keys']:
@@ -94,7 +93,7 @@ def handle(_name, cfg, cloud, log, _args):
                                            'ssh_genkeytypes',
                                            GENERATE_KEY_NAMES)
         for keytype in genkeys:
-            keyfile = cloud.paths.join(False, KEY_FILE_TPL % (keytype))
+            keyfile = KEY_FILE_TPL % (keytype)
             util.ensure_dir(os.path.dirname(keyfile))
             if not os.path.exists(keyfile):
                 cmd = ['ssh-keygen', '-t', keytype, '-N', '', '-f', keyfile]
@@ -118,17 +117,16 @@ def handle(_name, cfg, cloud, log, _args):
             cfgkeys = cfg["ssh_authorized_keys"]
             keys.extend(cfgkeys)
 
-        apply_credentials(keys, user, cloud.paths,
-                          disable_root, disable_root_opts)
+        apply_credentials(keys, user, disable_root, disable_root_opts)
     except:
         util.logexc(log, "Applying ssh credentials failed!")
 
 
-def apply_credentials(keys, user, paths, disable_root, disable_root_opts):
+def apply_credentials(keys, user, disable_root, disable_root_opts):
 
     keys = set(keys)
     if user:
-        ssh_util.setup_user_keys(keys, user, '', paths)
+        ssh_util.setup_user_keys(keys, user, '')
 
     if disable_root:
         if not user:
@@ -137,4 +135,4 @@ def apply_credentials(keys, user, paths, disable_root, disable_root_opts):
     else:
         key_prefix = ''
 
-    ssh_util.setup_user_keys(keys, 'root', key_prefix, paths)
+    ssh_util.setup_user_keys(keys, 'root', key_prefix)

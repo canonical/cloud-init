@@ -77,7 +77,7 @@ class TestConfig(MockerTestCase):
         """Test that a single cert gets passed to add_ca_certs."""
         config = {"ca-certs": {"trusted": ["CERT1"]}}
 
-        self.mock_add(self.paths, ["CERT1"])
+        self.mock_add(["CERT1"])
         self.mock_update()
         self.mocker.replay()
 
@@ -87,7 +87,7 @@ class TestConfig(MockerTestCase):
         """Test that multiple certs get passed to add_ca_certs."""
         config = {"ca-certs": {"trusted": ["CERT1", "CERT2"]}}
 
-        self.mock_add(self.paths, ["CERT1", "CERT2"])
+        self.mock_add(["CERT1", "CERT2"])
         self.mock_update()
         self.mocker.replay()
 
@@ -97,7 +97,7 @@ class TestConfig(MockerTestCase):
         """Test remove_defaults works as expected."""
         config = {"ca-certs": {"remove-defaults": True}}
 
-        self.mock_remove(self.paths)
+        self.mock_remove()
         self.mock_update()
         self.mocker.replay()
 
@@ -116,8 +116,8 @@ class TestConfig(MockerTestCase):
         """Test remove_defaults is not called when config value is False."""
         config = {"ca-certs": {"remove-defaults": True, "trusted": ["CERT1"]}}
 
-        self.mock_remove(self.paths)
-        self.mock_add(self.paths, ["CERT1"])
+        self.mock_remove()
+        self.mock_add(["CERT1"])
         self.mock_update()
         self.mocker.replay()
 
@@ -136,20 +136,52 @@ class TestAddCaCerts(MockerTestCase):
         """Test that no certificate are written if not provided."""
         self.mocker.replace(util.write_file, passthrough=False)
         self.mocker.replay()
-        cc_ca_certs.add_ca_certs(self.paths, [])
+        cc_ca_certs.add_ca_certs([])
 
-    def test_single_cert(self):
-        """Test adding a single certificate to the trusted CAs."""
+    def test_single_cert_trailing_cr(self):
+        """Test adding a single certificate to the trusted CAs
+        when existing ca-certificates has trailing newline"""
         cert = "CERT1\nLINE2\nLINE3"
 
+        ca_certs_content = "line1\nline2\ncloud-init-ca-certs.crt\nline3\n"
+        expected = "line1\nline2\nline3\ncloud-init-ca-certs.crt\n"
+
         mock_write = self.mocker.replace(util.write_file, passthrough=False)
+        mock_load = self.mocker.replace(util.load_file, passthrough=False)
+
         mock_write("/usr/share/ca-certificates/cloud-init-ca-certs.crt",
                    cert, mode=0644)
-        mock_write("/etc/ca-certificates.conf",
-                   "\ncloud-init-ca-certs.crt", omode="ab")
+
+        mock_load("/etc/ca-certificates.conf")
+        self.mocker.result(ca_certs_content)
+
+        mock_write("/etc/ca-certificates.conf", expected, omode="wb")
         self.mocker.replay()
 
-        cc_ca_certs.add_ca_certs(self.paths, [cert])
+        cc_ca_certs.add_ca_certs([cert])
+
+    def test_single_cert_no_trailing_cr(self):
+        """Test adding a single certificate to the trusted CAs
+        when existing ca-certificates has no trailing newline"""
+        cert = "CERT1\nLINE2\nLINE3"
+
+        ca_certs_content = "line1\nline2\nline3"
+
+        mock_write = self.mocker.replace(util.write_file, passthrough=False)
+        mock_load = self.mocker.replace(util.load_file, passthrough=False)
+
+        mock_write("/usr/share/ca-certificates/cloud-init-ca-certs.crt",
+                   cert, mode=0644)
+
+        mock_load("/etc/ca-certificates.conf")
+        self.mocker.result(ca_certs_content)
+
+        mock_write("/etc/ca-certificates.conf",
+                   "%s\n%s\n" % (ca_certs_content, "cloud-init-ca-certs.crt"),
+                   omode="wb")
+        self.mocker.replay()
+
+        cc_ca_certs.add_ca_certs([cert])
 
     def test_multiple_certs(self):
         """Test adding multiple certificates to the trusted CAs."""
@@ -157,13 +189,21 @@ class TestAddCaCerts(MockerTestCase):
         expected_cert_file = "\n".join(certs)
 
         mock_write = self.mocker.replace(util.write_file, passthrough=False)
+        mock_load = self.mocker.replace(util.load_file, passthrough=False)
+
         mock_write("/usr/share/ca-certificates/cloud-init-ca-certs.crt",
                    expected_cert_file, mode=0644)
-        mock_write("/etc/ca-certificates.conf",
-                   "\ncloud-init-ca-certs.crt", omode="ab")
+
+        ca_certs_content = "line1\nline2\nline3"
+        mock_load("/etc/ca-certificates.conf")
+        self.mocker.result(ca_certs_content)
+
+        out = "%s\n%s\n" % (ca_certs_content, "cloud-init-ca-certs.crt")
+        mock_write("/etc/ca-certificates.conf", out, omode="wb")
+
         self.mocker.replay()
 
-        cc_ca_certs.add_ca_certs(self.paths, certs)
+        cc_ca_certs.add_ca_certs(certs)
 
 
 class TestUpdateCaCerts(MockerTestCase):
@@ -198,4 +238,4 @@ class TestRemoveDefaultCaCerts(MockerTestCase):
                   "ca-certificates ca-certificates/trust_new_crts select no")
         self.mocker.replay()
 
-        cc_ca_certs.remove_default_ca_certs(self.paths)
+        cc_ca_certs.remove_default_ca_certs()

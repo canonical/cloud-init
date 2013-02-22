@@ -52,6 +52,7 @@ from cloudinit import importer
 from cloudinit import log as logging
 from cloudinit import safeyaml
 from cloudinit import url_helper
+from cloudinit import version
 
 from cloudinit.settings import (CFG_BUILTIN)
 
@@ -284,11 +285,7 @@ def uniq_merge(*lists):
             # Kickout the empty ones
             a_list = [a for a in a_list if len(a)]
         combined_list.extend(a_list)
-    uniq_list = []
-    for i in combined_list:
-        if i not in uniq_list:
-            uniq_list.append(i)
-    return uniq_list
+    return uniq_list(combined_list)
 
 
 def clean_filename(fn):
@@ -417,10 +414,9 @@ def get_cfg_option_list(yobj, key, default=None):
         return []
     val = yobj[key]
     if isinstance(val, (list)):
-        # Should we ensure they are all strings??
-        cval = [str(v) for v in val]
+        cval = [v for v in val]
         return cval
-    if not isinstance(val, (str, basestring)):
+    if not isinstance(val, (basestring)):
         val = str(val)
     return [val]
 
@@ -1036,6 +1032,22 @@ def find_devs_with(criteria=None, oformat='device',
     return entries
 
 
+def peek_file(fname, max_bytes):
+    LOG.debug("Peeking at %s (max_bytes=%s)", fname, max_bytes)
+    with open(fname, 'rb') as ifh:
+        return ifh.read(max_bytes)
+
+
+def uniq_list(in_list):
+    out_list = []
+    for i in in_list:
+        if i in out_list:
+            continue
+        else:
+            out_list.append(i)
+    return out_list
+
+
 def load_file(fname, read_cb=None, quiet=False):
     LOG.debug("Reading from %s (quiet=%s)", fname, quiet)
     ofh = StringIO()
@@ -1240,8 +1252,7 @@ def yaml_dumps(obj):
                     indent=4,
                     explicit_start=True,
                     explicit_end=True,
-                    default_flow_style=False,
-                    )
+                    default_flow_style=False)
     return formatted
 
 
@@ -1381,6 +1392,10 @@ def uptime():
     return uptime_str
 
 
+def append_file(path, content):
+    write_file(path, content, omode="ab", mode=None)
+
+
 def ensure_file(path, mode=0644):
     write_file(path, content='', omode="ab", mode=mode)
 
@@ -1470,6 +1485,14 @@ def subp(args, data=None, rcs=None, env=None, capture=True, shell=False,
     if not err and capture:
         err = ''
     return (out, err)
+
+
+def make_header(comment_char="#", base='created'):
+    ci_ver = version.version_string()
+    header = str(comment_char)
+    header += " %s by cloud-init v. %s" % (base.title(), ci_ver)
+    header += " on %s" % time_rfc2822()
+    return header
 
 
 def abs_join(*paths):
@@ -1582,3 +1605,37 @@ def keyval_str_to_dict(kvstring):
             val = True
         ret[key] = val
     return ret
+
+
+def is_partition(device):
+    if device.startswith("/dev/"):
+        device = device[5:]
+
+    return os.path.isfile("/sys/class/block/%s/partition" % device)
+
+
+def expand_package_list(version_fmt, pkgs):
+    # we will accept tuples, lists of tuples, or just plain lists
+    if not isinstance(pkgs, list):
+        pkgs = [pkgs]
+
+    pkglist = []
+    for pkg in pkgs:
+        if isinstance(pkg, basestring):
+            pkglist.append(pkg)
+            continue
+
+        if isinstance(pkg, (tuple, list)):
+            if len(pkg) < 1 or len(pkg) > 2:
+                raise RuntimeError("Invalid package & version tuple.")
+
+            if len(pkg) == 2 and pkg[1]:
+                pkglist.append(version_fmt % tuple(pkg))
+                continue
+
+            pkglist.append(pkg[0])
+
+        else:
+            raise RuntimeError("Invalid package type.")
+
+    return pkglist
