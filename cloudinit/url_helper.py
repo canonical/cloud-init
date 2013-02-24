@@ -92,13 +92,13 @@ class UrlResponse(object):
 
 
 class UrlError(IOError):
-    def __init__(self, cause):
+    def __init__(self, cause, code=None, headers=None):
         IOError.__init__(self, str(cause))
         self.cause = cause
-        if isinstance(cause, exceptions.HTTPError) and cause.response:
-            self.code = cause.response.status_code
-        else:
-            self.code = None
+        self.code = code
+        self.headers = headers
+        if self.headers is None:
+            self.headers = {}
 
 
 def readurl(url, data=None, timeout=None, retries=0, sec_between=1,
@@ -170,7 +170,11 @@ def readurl(url, data=None, timeout=None, retries=0, sec_between=1,
             # attrs
             return UrlResponse(r)
         except exceptions.RequestException as e:
-            excps.append(UrlError(e))
+            if isinstance(e, (exceptions.HTTPError)) and e.response:
+                excps.append(UrlError(e, code=e.response.status_code,
+                                      headers=e.response.headers))
+            else:
+                excps.append(UrlError(e))
             if i + 1 < manual_tries and sec_between > 0:
                 LOG.debug("Please wait %s seconds while we wait to try again",
                           sec_between)
@@ -235,20 +239,23 @@ def wait_for_url(urls, max_wait=None, timeout=None,
                     timeout = int((start_time + max_wait) - now)
 
             reason = ""
+            e = None
             try:
                 if headers_cb is not None:
                     headers = headers_cb(url)
                 else:
                     headers = {}
 
-                resp = readurl(url, headers=headers, timeout=timeout,
-                               check_status=False)
-                if not resp.contents:
-                    reason = "empty response [%s]" % (resp.code)
-                    e = ValueError(reason)
-                elif not resp.ok():
-                    reason = "bad status code [%s]" % (resp.code)
-                    e = ValueError(reason)
+                response = readurl(url, headers=headers, timeout=timeout,
+                                   check_status=False)
+                if not response.contents:
+                    reason = "empty response [%s]" % (response.code)
+                    e = UrlError(ValueError(reason),
+                                 code=response.code, headers=response.headers)
+                elif not response.ok():
+                    reason = "bad status code [%s]" % (response.code)
+                    e = UrlError(ValueError(reason),
+                                 code=response.code, headers=response.headers)
                 else:
                     return url
             except UrlError as e:
@@ -263,6 +270,9 @@ def wait_for_url(urls, max_wait=None, timeout=None,
                                                                reason)
             status_cb(status_msg)
             if exception_cb:
+                # This can be used to alter the headers that will be sent
+                # in the future, for example this is what the MAAS datasource
+                # does.
                 exception_cb(msg=status_msg, exception=e)
 
         if timeup(max_wait, start_time):

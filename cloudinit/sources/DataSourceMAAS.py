@@ -25,8 +25,6 @@ import os
 import time
 import urllib2
 
-import requests
-
 from cloudinit import log as logging
 from cloudinit import sources
 from cloudinit import url_helper
@@ -81,7 +79,7 @@ class DataSourceMAAS(sources.DataSource):
             self.base_url = url
 
             (userdata, metadata) = read_maas_seed_url(self.base_url,
-                                                      self.md_headers,
+                                                      self._md_headers,
                                                       paths=self.paths)
             self.userdata_raw = userdata
             self.metadata = metadata
@@ -90,7 +88,7 @@ class DataSourceMAAS(sources.DataSource):
             util.logexc(LOG, "Failed fetching metadata from url %s", url)
             return False
 
-    def md_headers(self, url):
+    def _md_headers(self, url):
         mcfg = self.ds_cfg
 
         # If we are missing token_key, token_secret or consumer_key
@@ -134,9 +132,10 @@ class DataSourceMAAS(sources.DataSource):
         starttime = time.time()
         check_url = "%s/%s/meta-data/instance-id" % (url, MD_VERSION)
         urls = [check_url]
-        url = uhelp.wait_for_url(urls=urls, max_wait=max_wait,
-                                 timeout=timeout, exception_cb=self._except_cb,
-                                 headers_cb=self.md_headers)
+        url = url_helper.wait_for_url(urls=urls, max_wait=max_wait,
+                                      timeout=timeout,
+                                      exception_cb=self._except_cb,
+                                      headers_cb=self._md_headers)
 
         if url:
             LOG.debug("Using metadata source: '%s'", url)
@@ -147,23 +146,23 @@ class DataSourceMAAS(sources.DataSource):
         return bool(url)
 
     def _except_cb(self, msg, exception):
-        if not (isinstance(exception, urllib2.HTTPError) and
+        if not (isinstance(exception, url_helper.UrlError) and
                 (exception.code == 403 or exception.code == 401)):
             return
+
         if 'date' not in exception.headers:
-            LOG.warn("date field not in %d headers" % exception.code)
+            LOG.warn("Missing header 'date' in %s response", exception.code)
             return
 
         date = exception.headers['date']
-
         try:
             ret_time = time.mktime(parsedate(date))
-        except:
-            LOG.warn("failed to convert datetime '%s'")
+        except Exception as e:
+            LOG.warn("Failed to convert datetime '%s': %s", date, e)
             return
 
         self.oauth_clockskew = int(ret_time - time.time())
-        LOG.warn("set oauth clockskew to %d" % self.oauth_clockskew)
+        LOG.warn("Setting oauth clockskew to %d", self.oauth_clockskew)
         return
 
 
