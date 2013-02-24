@@ -70,16 +70,29 @@ FN_ALLOWED = ('_-.()' + string.digits + string.ascii_letters)
 CONTAINER_TESTS = ['running-in-container', 'lxc-is-container']
 
 
-class FileResponse(object):
-    def __init__(self, path, contents):
-        self.code = 200
+# Made to have same accessors as UrlResponse so that the
+# read_file_or_url can return this or that object and the
+# 'user' of those objects will not need to know the difference.
+class StringResponse(object):
+    def __init__(self, contents, code=200):
+        self.code = code
         self.headers = {}
         self.contents = contents
-        self.ok = True
-        self.url = path
+        self.url = None
+
+    def ok(self, *args, **kwargs):
+        if self.code != 200:
+            return False
+        return True
 
     def __str__(self):
         return self.contents
+
+
+class FileResponse(StringResponse):
+    def __init__(self, path, contents, code=200):
+        StringResponse.__init__(self, contents, code=code)
+        self.url = path
 
 
 class ProcessExecutionError(IOError):
@@ -630,7 +643,7 @@ def read_optional_seed(fill, base="", ext="", timeout=5):
         fill['user-data'] = ud
         fill['meta-data'] = md
         return True
-    except OSError as e:
+    except IOError as e:
         if e.errno == errno.ENOENT:
             return False
         raise
@@ -670,9 +683,12 @@ def fetch_ssl_details(paths=None):
 
 def read_file_or_url(url, timeout=5, retries=10,
                      headers=None, data=None, sec_between=1, ssl_details=None):
+    url = url.lstrip()
     if url.startswith("/"):
         url = "file://%s" % url
     if url.lower().startswith("file://"):
+        if data:
+            LOG.warn("Unable to post data to file resource %s", url)
         file_path = url[len("file://"):]
         return FileResponse(file_path, contents=load_file(file_path))
     else:
@@ -724,13 +740,13 @@ def read_seeded(base="", ext="", timeout=5, retries=10, file_retries=0):
 
     md_resp = read_file_or_url(md_url, timeout, retries, file_retries)
     md = None
-    if md_resp.ok:
+    if md_resp.ok():
         md_str = str(md_resp)
         md = load_yaml(md_str, default={})
 
     ud_resp = read_file_or_url(ud_url, timeout, retries, file_retries)
     ud = None
-    if ud_resp.ok:
+    if ud_resp.ok():
         ud_str = str(ud_resp)
         ud = ud_str
 
@@ -900,7 +916,7 @@ def get_cmdline_url(names=('cloud-config-url', 'url'),
         return (None, None, None)
 
     resp = read_file_or_url(url)
-    if resp.contents.startswith(starts) and resp.ok:
+    if resp.contents.startswith(starts) and resp.ok():
         return (key, url, str(resp))
 
     return (key, url, None)
