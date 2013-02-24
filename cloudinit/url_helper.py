@@ -70,9 +70,14 @@ class UrlResponse(object):
     def url(self):
         return self._response.url
 
-    @property
-    def ok(self):
-        return self._response.ok
+    def ok(self, redirects_ok=False):
+        upper = 300
+        if redirects_ok:
+            upper = 400
+        if self.code >= 200 and self.code < upper:
+            return True
+        else:
+            return False
 
     @property
     def headers(self):
@@ -158,11 +163,8 @@ def readurl(url, data=None, timeout=None, retries=0, sec_between=1,
             r = requests.request(**req_args)
             if check_status:
                 r.raise_for_status()
-            contents = r.content
-            status = r.status_code
-            headers = r.headers
             LOG.debug("Read from %s (%s, %sb) after %s attempts", url,
-                      status, len(contents), (i + 1))
+                      r.status_code, len(r.content), (i + 1))
             # Doesn't seem like we can make it use a different
             # subclass for responses, so add our own backward-compat
             # attrs
@@ -256,8 +258,9 @@ def wait_for_url(urls, max_wait=None, timeout=None,
 
             time_taken = int(time.time() - start_time)
             status_msg = "Calling '%s' failed [%s/%ss]: %s" % (url,
-                                                             time_taken,
-                                                             max_wait, reason)
+                                                               time_taken,
+                                                               max_wait,
+                                                               reason)
             status_cb(status_msg)
             if exception_cb:
                 exception_cb(msg=status_msg, exception=e)

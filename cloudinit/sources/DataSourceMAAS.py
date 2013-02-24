@@ -223,9 +223,12 @@ def read_maas_seed_url(seed_url, header_cb=None, timeout=None,
         else:
             headers = {}
         try:
-            resp = util.read_file_or_url(url, headers=headers, timeout=timeout,
-                                         ssl_details=util.fetch_ssl_details(paths))
-            if resp.ok:
+            ssl_details = util.fetch_ssl_details(paths)
+            resp = util.read_file_or_url(url,
+                                         headers=headers,
+                                         timeout=timeout,
+                                         ssl_details=ssl_details)
+            if resp.ok():
                 md[name] = str(resp)
             else:
                 LOG.warn(("Fetching from %s resulted in"
