@@ -107,62 +107,57 @@ class AuthKeyLineParser(object):
             i = i + 1
 
         options = ent[0:i]
-        options_lst = []
 
-        # Now use a csv parser to pull the options
-        # out of the above string that we just found an endpoint for.
-        #
-        # No quoting so we don't mess up any of the quoting that
-        # is already there.
-        reader = csv.reader(StringIO(options), quoting=csv.QUOTE_NONE)
-        for row in reader:
-            for e in row:
-                # Only keep non-empty csv options
-                e = e.strip()
-                if e:
-                    options_lst.append(e)
-
-        # Now take the rest of the items before the string
-        # as long as there is room to do this...
-        toks = []
-        if i + 1 < len(ent):
-            rest = ent[i + 1:]
-            toks = rest.split(None, 2)
-        return (options_lst, toks)
-
-    def _form_components(self, src_line, toks, options=None):
-        components = {}
-        if len(toks) == 1:
-            components['base64'] = toks[0]
-        elif len(toks) == 2:
-            components['base64'] = toks[0]
-            components['comment'] = toks[1]
-        elif len(toks) == 3:
-            components['keytype'] = toks[0]
-            components['base64'] = toks[1]
-            components['comment'] = toks[2]
-        components['options'] = options
-        if not components:
-            return AuthKeyLine(src_line)
-        else:
-            return AuthKeyLine(src_line, **components)
+        # Return the rest of the string in 'remain'
+        remain = ent[i:].lstrip()
+        return (options, remain)
 
     def parse(self, src_line, def_opt=None):
+        # modeled after opensshes auth2-pubkey.c:user_key_allowed2
         line = src_line.rstrip("\r\n")
         if line.startswith("#") or line.strip() == '':
             return AuthKeyLine(src_line)
-        else:
-            ent = line.strip()
-            toks = ent.split(None, 3)
-            if len(toks) < 4:
-                return self._form_components(src_line, toks, def_opt)
-            else:
-                (options, toks) = self._extract_options(ent)
-                if options:
-                    options = ",".join(options)
-                else:
-                    options = def_opt
-                return self._form_components(src_line, toks, options)
+
+        def parse_ssh_key(ent):
+            # return ketype, key, [comment]
+            toks = ent.split(None, 2)
+            if len(toks) < 2:
+                raise TypeError("To few fields: %s" % len(toks))
+            if not _is_valid_ssh_keytype(toks[0]):
+                raise TypeError("Invalid keytype %s" % toks[0])
+
+            # valid key type and 2 or 3 fields:
+            if len(toks) == 2:
+                # no comment in line
+                toks.append("")
+
+            return toks
+
+        ent = line.strip()
+        options = None
+        try:
+            (keytype, base64, comment) = parse_ssh_key(ent)
+            options = def_opt
+        except TypeError as e:
+            (options, remain) = self._extract_options(ent)
+            try:
+                (keytype, base64, comment) = parse_ssh_key(remain)
+            except TypeError as e:
+                return AuthKeyLine(src_line)
+
+        return AuthKeyLine(src_line, keytype=keytype, base64=base64,
+                           comment=comment, options=options)
+
+
+def _is_valid_ssh_keytype(key):
+    valid = ("rsa", "dsa", "ssh-rsa", "ssh-dss", "ecdsa",
+             "ssh-rsa-cert-v00@openssh.com", "ssh-dss-cert-v00@openssh.com",
+             "ssh-rsa-cert-v01@openssh.com", "ssh-dss-cert-v01@openssh.com",
+             "ecdsa-sha2-nistp256-cert-v01@openssh.com",
+             "ecdsa-sha2-nistp384-cert-v01@openssh.com",
+             "ecdsa-sha2-nistp521-cert-v01@openssh.com")
+
+    return key in valid
 
 
 def parse_authorized_keys(fname):
