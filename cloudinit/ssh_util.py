@@ -138,9 +138,6 @@ class AuthKeyLineParser(object):
 
             return toks
 
-        if "badopt" in src_line:
-            import ipdb; ipdb.set_trace()
-
         ent = line.strip()
         try:
             (keytype, base64, comment) = parse_ssh_key(ent)
