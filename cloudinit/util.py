@@ -1586,3 +1586,86 @@ def expand_package_list(version_fmt, pkgs):
             raise RuntimeError("Invalid package type.")
 
     return pkglist
+
+
+def get_mount_info(path, log):
+    # Use /proc/$$/mountinfo to find the device where path is mounted.
+    # This is done because with a btrfs filesystem using os.stat(path)
+    # does not return the ID of the device.
+    #
+    # Here, / has a device of 18 (decimal).
+    #
+    # $ stat /
+    #   File: '/'
+    #   Size: 234               Blocks: 0          IO Block: 4096   directory
+    # Device: 12h/18d   Inode: 256         Links: 1
+    # Access: (0755/drwxr-xr-x)  Uid: (    0/    root)   Gid: (    0/    root)
+    # Access: 2013-01-13 07:31:04.358011255 +0000
+    # Modify: 2013-01-13 18:48:25.930011255 +0000
+    # Change: 2013-01-13 18:48:25.930011255 +0000
+    #  Birth: -
+    #
+    # Find where / is mounted:
+    #
+    # $ mount | grep ' / '
+    # /dev/vda1 on / type btrfs (rw,subvol=@,compress=lzo)
+    #
+    # And the device ID for /dev/vda1 is not 18:
+    #
+    # $ ls -l /dev/vda1
+    # brw-rw---- 1 root disk 253, 1 Jan 13 08:29 /dev/vda1
+    #
+    # So use /proc/$$/mountinfo to find the device underlying the
+    # input path.
+    path_elements = [e for e in path.split('/') if e]
+    devpth = None
+    fs_type = None
+    match_mount_point = None
+    match_mount_point_elements = None
+    mountinfo_path = '/proc/%s/mountinfo' % os.getpid()
+    for line in load_file(mountinfo_path).splitlines():
+        parts = line.split()
+
+        mount_point = parts[4]
+        mount_point_elements = [e for e in mount_point.split('/') if e]
+
+        # Ignore mounts deeper than the path in question.
+        if len(mount_point_elements) > len(path_elements):
+            continue
+
+        # Ignore mounts where the common path is not the same.
+        l = min(len(mount_point_elements), len(path_elements))
+        if mount_point_elements[0:l] != path_elements[0:l]:
+            continue
+
+        # Ignore mount points higher than an already seen mount
+        # point.
+        if (match_mount_point_elements is not None and
+            len(match_mount_point_elements) > len(mount_point_elements)):
+            continue
+
+        # Find the '-' which terminates a list of optional columns to
+        # find the filesystem type and the path to the device.  See
+        # man 5 proc for the format of this file.
+        try:
+            i = parts.index('-')
+        except ValueError:
+            log.debug("Did not find column named '-' in %s",
+                      mountinfo_path)
+            return None
+
+        # Get the path to the device.
+        try:
+            fs_type = parts[i + 1]
+            devpth = parts[i + 2]
+        except IndexError:
+            log.debug("Too few columns in %s after '-' column", mountinfo_path)
+            return None
+
+        match_mount_point = mount_point
+        match_mount_point_elements = mount_point_elements
+
+    if devpth and fs_type and match_mount_point:
+        return (devpth, fs_type, match_mount_point)
+    else:
+        return None
