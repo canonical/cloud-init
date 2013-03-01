@@ -33,6 +33,14 @@ LOG = logging.getLogger(__name__)
 # See: man sshd_config
 DEF_SSHD_CFG = "/etc/ssh/sshd_config"
 
+# taken from openssh source key.c/key_type_from_name
+VALID_KEY_TYPES = ("rsa", "dsa", "ssh-rsa", "ssh-dss", "ecdsa",
+    "ssh-rsa-cert-v00@openssh.com", "ssh-dss-cert-v00@openssh.com",
+    "ssh-rsa-cert-v00@openssh.com", "ssh-dss-cert-v00@openssh.com",
+    "ssh-rsa-cert-v01@openssh.com", "ssh-dss-cert-v01@openssh.com",
+    "ecdsa-sha2-nistp256-cert-v01@openssh.com",
+    "ecdsa-sha2-nistp384-cert-v01@openssh.com",
+    "ecdsa-sha2-nistp521-cert-v01@openssh.com")
 
 class AuthKeyLine(object):
     def __init__(self, source, keytype=None, base64=None,
@@ -123,7 +131,7 @@ class AuthKeyLineParser(object):
             toks = ent.split(None, 2)
             if len(toks) < 2:
                 raise TypeError("To few fields: %s" % len(toks))
-            if not _is_valid_ssh_keytype(toks[0]):
+            if toks[0] not in VALID_KEY_TYPES:
                 raise TypeError("Invalid keytype %s" % toks[0])
 
             # valid key type and 2 or 3 fields:
@@ -147,17 +155,6 @@ class AuthKeyLineParser(object):
 
         return AuthKeyLine(src_line, keytype=keytype, base64=base64,
                            comment=comment, options=options)
-
-
-def _is_valid_ssh_keytype(key):
-    valid = ("rsa", "dsa", "ssh-rsa", "ssh-dss", "ecdsa",
-             "ssh-rsa-cert-v00@openssh.com", "ssh-dss-cert-v00@openssh.com",
-             "ssh-rsa-cert-v01@openssh.com", "ssh-dss-cert-v01@openssh.com",
-             "ecdsa-sha2-nistp256-cert-v01@openssh.com",
-             "ecdsa-sha2-nistp384-cert-v01@openssh.com",
-             "ecdsa-sha2-nistp521-cert-v01@openssh.com")
-
-    return key in valid
 
 
 def parse_authorized_keys(fname):
