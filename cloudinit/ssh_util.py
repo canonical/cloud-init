@@ -51,11 +51,8 @@ class AuthKeyLine(object):
         self.keytype = keytype
         self.source = source
 
-    def empty(self):
-        if (not self.base64 and
-            not self.comment and not self.keytype and not self.options):
-            return True
-        return False
+    def valid(self):
+        return (self.base64 and self.keytype)
 
     def __str__(self):
         toks = []
@@ -120,7 +117,7 @@ class AuthKeyLineParser(object):
         remain = ent[i:].lstrip()
         return (options, remain)
 
-    def parse(self, src_line, def_opt=None):
+    def parse(self, src_line, options=None):
         # modeled after opensshes auth2-pubkey.c:user_key_allowed2
         line = src_line.rstrip("\r\n")
         if line.startswith("#") or line.strip() == '':
@@ -141,13 +138,17 @@ class AuthKeyLineParser(object):
 
             return toks
 
+        if "badopt" in src_line:
+            import ipdb; ipdb.set_trace()
+
         ent = line.strip()
-        options = None
         try:
             (keytype, base64, comment) = parse_ssh_key(ent)
-            options = def_opt
         except TypeError as e:
-            (options, remain) = self._extract_options(ent)
+            (keyopts, remain) = self._extract_options(ent)
+            if options is None:
+                options = keyopts
+            
             try:
                 (keytype, base64, comment) = parse_ssh_key(remain)
             except TypeError as e:
@@ -178,11 +179,11 @@ def update_authorized_keys(old_entries, keys):
 
     for i in range(0, len(old_entries)):
         ent = old_entries[i]
-        if ent.empty() or not ent.base64:
+        if ent.valid():
             continue
         # Replace those with the same base64
         for k in keys:
-            if k.empty() or not k.base64:
+            if ent.valid():
                 continue
             if k.base64 == ent.base64:
                 # Replace it with our better one
@@ -241,7 +242,7 @@ def extract_authorized_keys(username):
     return (auth_key_fn, parse_authorized_keys(auth_key_fn))
 
 
-def setup_user_keys(keys, username, key_prefix):
+def setup_user_keys(keys, username, options=None):
     # Make sure the users .ssh dir is setup accordingly
     (ssh_dir, pwent) = users_ssh_info(username)
     if not os.path.isdir(ssh_dir):
@@ -252,7 +253,7 @@ def setup_user_keys(keys, username, key_prefix):
     parser = AuthKeyLineParser()
     key_entries = []
     for k in keys:
-        key_entries.append(parser.parse(str(k), def_opt=key_prefix))
+        key_entries.append(parser.parse(str(k), options=options))
 
     # Extract the old and make the new
     (auth_key_fn, auth_key_entries) = extract_authorized_keys(username)

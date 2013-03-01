@@ -126,7 +126,7 @@ def apply_credentials(keys, user, disable_root, disable_root_opts):
 
     keys = set(keys)
     if user:
-        ssh_util.setup_user_keys(keys, user, '')
+        ssh_util.setup_user_keys(keys, user)
 
     if disable_root:
         if not user:
@@ -135,4 +135,4 @@ def apply_credentials(keys, user, disable_root, disable_root_opts):
     else:
         key_prefix = ''
 
-    ssh_util.setup_user_keys(keys, 'root', key_prefix)
+    ssh_util.setup_user_keys(keys, 'root', options=key_prefix)

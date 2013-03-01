@@ -62,7 +62,7 @@ class TestAuthKeyLineParser(TestCase):
             self.assertFalse(key.comment)
             self.assertEqual(key.keytype, ktype)
     
-    def test_parse_with_options(self):
+    def test_parse_with_keyoptions(self):
         # test key line with options in it
         parser = ssh_util.AuthKeyLineParser()
         options = TEST_OPTIONS
@@ -77,18 +77,24 @@ class TestAuthKeyLineParser(TestCase):
             self.assertEqual(key.comment, comment)
             self.assertEqual(key.keytype, ktype)
 
-    def test_parse_with_defopt(self):
+    def test_parse_with_options_passed_in(self):
         # test key line with key type and base64 only
         parser = ssh_util.AuthKeyLineParser()
-        for ktype in ['rsa', 'ecdsa', 'dsa']:
-            content = VALID_CONTENT[ktype]
-            line = ' '.join((ktype, content,))
-            myopts = "no-port-forwarding,no-agent-forwarding"
-            key = parser.parse(line, myopts)
 
-            self.assertEqual(key.base64, content)
-            self.assertEqual(key.options, myopts)
-            self.assertFalse(key.comment)
-            self.assertEqual(key.keytype, ktype)
+        baseline = ' '.join(("rsa", VALID_CONTENT['rsa'], "user@host"))
+        myopts = "no-port-forwarding,no-agent-forwarding"
+
+        key = parser.parse("allowedopt" + " " + baseline)
+        self.assertEqual(key.options, "allowedopt")
+
+        key = parser.parse("overridden_opt " + baseline, options=myopts)
+        self.assertEqual(key.options, myopts)
+
+    def test_parse_invalid_keytype(self):
+        parser = ssh_util.AuthKeyLineParser()
+        key = parser.parse(' '.join(["badkeytype", VALID_CONTENT['rsa']]))
+
+        self.assertFalse(key.valid())
+
 
 # vi: ts=4 expandtab
