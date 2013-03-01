@@ -86,11 +86,11 @@ class DataSourceNoCloud(sources.DataSource):
             if 'ds_config' not in found:
                 found.append("ds_config")
 
-        if self.ds_cfg.get('fs_label', "cidata"):
+        label = self.ds_cfg.get('fs_label', "cidata")
+        if label is not None:
             fslist = util.find_devs_with("TYPE=vfat")
             fslist.extend(util.find_devs_with("TYPE=iso9660"))
 
-            label = self.ds_cfg.get('fs_label')
             label_list = util.find_devs_with("LABEL=%s" % label)
             devlist = list(set(fslist) & set(label_list))
             devlist.sort(reverse=True)
