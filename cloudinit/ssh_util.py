@@ -176,11 +176,11 @@ def update_authorized_keys(old_entries, keys):
 
     for i in range(0, len(old_entries)):
         ent = old_entries[i]
-        if ent.valid():
+        if not ent.valid():
             continue
         # Replace those with the same base64
         for k in keys:
-            if ent.valid():
+            if not ent.valid():
                 continue
             if k.base64 == ent.base64:
                 # Replace it with our better one
