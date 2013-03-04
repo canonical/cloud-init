@@ -32,6 +32,7 @@ def resizer_factory(mode):
             cur = resizer()
             if cur.available():
                 resize_class = cur
+                break
 
         if not resize_class:
             raise ValueError("No resizers available")
@@ -65,7 +66,7 @@ class ResizeParted(object):
 
         try:
             (out, _err) = util.subp(["parted", "--help"], env=myenv)
-            if re.search("COMMAND.*resize\s+", out, re.DOTALL):
+            if re.search("COMMAND.*resizepart\s+", out, re.DOTALL):
                 return True
 
         except util.ProcessExecutionError:
@@ -193,6 +194,9 @@ def handle(name, cfg, _cloud, log, _args):
         resizer = resizer_factory(mode)
     except (ValueError, TypeError) as e:
         log.debug("growpart unable to find resizer for '%s': %s" % (mode, e))
+        if mode != "auto":
+            raise e
+        return
 
     devices = util.get_cfg_option_list(cfg, "devices", ["/"])
     if not len(devices):
