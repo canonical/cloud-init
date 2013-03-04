@@ -1588,7 +1588,7 @@ def expand_package_list(version_fmt, pkgs):
     return pkglist
 
 
-def get_mount_info(path, log):
+def get_mount_info(path, log=LOG):
     # Use /proc/$$/mountinfo to find the device where path is mounted.
     # This is done because with a btrfs filesystem using os.stat(path)
     # does not return the ID of the device.
