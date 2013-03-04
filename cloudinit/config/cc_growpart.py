@@ -17,6 +17,7 @@
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import os.path
+import re
 import stat
 
 from cloudinit.settings import PER_ALWAYS
@@ -24,8 +25,82 @@ from cloudinit import util
 
 frequency = PER_ALWAYS
 
+def resizer_factory(mode):
+    resize_class = None
+    if mode == "auto":
+        for (_name, resizer) in RESIZERS:
+            cur = resizer()
+            if cur.available():
+                resize_class = cur
 
-def device_part_info(devpath, log):
+        if not resize_class:
+            raise ValueError("No resizers available")
+
+    else:
+        mmap = {}
+        for (k, v) in RESIZERS:
+            mmap[k] = v
+
+        if mode not in mmap:
+            raise TypeError("unknown resize mode %s" % mode)
+
+        mclass = mmap[mode]()
+        if mclass.available():
+            resize_class = mclass
+
+        if not resize_class:
+            raise ValueError("mode %s not available" % mode)
+
+    return resize_class
+
+
+class ResizeFailedException(Exception):
+    pass
+
+
+class ResizeParted(object):
+    def available(self):
+        myenv = os.environ.copy()
+        myenv['LANG'] = 'C'
+
+        try:
+            (out, _err) = util.subp(["parted", "--help"], env=myenv)
+            if re.search("COMMAND.*resize\s+", out, re.DOTALL):
+                return True
+
+        except util.ProcessExecutionError:
+            pass
+        return False
+
+    def resize(self, blockdev, part):
+        try:
+            util.subp(["parted", "resizepart", blockdev, part])
+        except util.ProcessExecutionError as e:
+            raise ResizeFailedException(e)
+
+
+class ResizeGrowPart(object):
+    def available(self):
+        myenv = os.environ.copy()
+        myenv['LANG'] = 'C'
+
+        try:
+            (out, _err) = util.subp(["growpart", "--help"], env=myenv)
+            if re.search("--update\s+", out, re.DOTALL):
+                return True
+
+        except util.ProcessExecutionError:
+            pass
+        return False
+
+    def resize(self, blockdev, part):
+        try:
+            util.subp(["growpart", blockdev, part])
+        except util.ProcessExecutionError as e:
+            raise ResizeFailedException(e)
+
+
+def device_part_info(devpath):
     # convert an entry in /dev/ to parent disk and partition number
 
     # input of /dev/vdb or /dev/disk/by-label/foo
@@ -36,13 +111,11 @@ def device_part_info(devpath, log):
     syspath = "/sys/class/block/%s" % bname
 
     if not os.path.exists(syspath):
-        log.debug("%s had no syspath (%s)" % (devpath, syspath))
-        return None
+        raise ValueError("%s had no syspath (%s)" % (devpath, syspath))
 
     ptpath = os.path.join(syspath, "partition")
     if not os.path.exists(ptpath):
-        log.debug("%s not a partition" % devpath)
-        return None
+        raise TypeError("%s not a partition" % devpath)
 
     ptnum = util.load_file(ptpath).rstrip()
 
@@ -59,40 +132,76 @@ def device_part_info(devpath, log):
     return (diskdevpath, ptnum)
 
 
-def handle(name, cfg, _cloud, log, args):
-    if len(args) != 0:
-        growroot = args[0]
+def devent2dev(devent):
+    if devent.startswith("/dev/"):
+        return devent
     else:
-        growroot = util.get_cfg_option_bool(cfg, "growroot", True)
+        result = util.get_mount_info(devent)
+        if not result:
+            raise ValueError("Could not determine device of '%s' % dev_ent")
+        return result[0]
 
-    if not growroot:
-        log.debug("Skipping module named %s, growroot disabled", name)
+
+def resize(resizer, devices, log):
+    resized = []
+    for devent in devices:
+        try:
+            blockdev = devent2dev(devent)
+        except ValueError as e:
+            log.debug("unable to turn %s into device: %s" % (devent, e))
+            continue
+
+        if not stat.S_ISBLK(os.stat(blockdev).st_mode):
+            log.debug("device '%s' for '%s' is not a block device" %
+                      (devent, blockdev))
+            continue
+
+        try:
+            (disk, ptnum) = device_part_info(blockdev)
+        except (TypeError, ValueError) as e:
+            log.debug("failed to get part_info for (%s, %s): %s" %
+                      (devent, blockdev, e))
+            continue
+
+        try:
+            resizer.resize(disk, ptnum)
+        except ResizeFailedException as e:
+            log.warn("failed to resize: devent=%s, disk=%s, ptnum=%s: %s",
+                     devent, disk, ptnum, e)
+
+        resized.append(devent)
+
+    return resized
+
+
+def handle(name, cfg, _cloud, log, _args):
+    if 'growpart' not in cfg:
+        log.debug("Skipping module named %s, no growpart entry", name)
         return
 
-    resize_what = "/"
-    result = util.get_mount_info(resize_what, log)
-    if not result:
-        log.warn("Could not determine filesystem type of %s" % resize_what)
+    mycfg = cfg.get('growpart')
+    if not isinstance(mycfg, dict):
+        log.warn("'growpart' in config was not a dict")
         return
 
-    (devpth, _fs_type, mount_point) = result
-
-    # Ensure the path is a block device.
-    if not stat.S_ISBLK(os.stat(devpth).st_mode):
-        log.debug("The %s device which was found for mount point %s for %s "
-                  "is not a block device" % (devpth, mount_point, resize_what))
+    mode = mycfg.get('mode')
+    if util.is_false(mode):
+        log.debug("growpart disabled: mode=%s" % mode)
         return
-
-    result = device_part_info(devpth, log)
-    if not result:
-        log.debug("%s did not look like a partition" % devpth)
-
-    (disk, ptnum) = result
 
     try:
-        (out, _err) = util.subp(["growpart", disk, ptnum], rcs=[0, 1])
-    except util.ProcessExecutionError as e:
-        log.warn("growpart failed: %s/%s" % (e.stdout, e.stderr))
+        resizer = resizer_factory(mode)
+    except (ValueError, TypeError) as e:
+        log.debug("growpart unable to find resizer for '%s': %s" % (mode, e))
+
+    devices = util.get_cfg_option_list(cfg, "devices", ["/"])
+    if not len(devices):
+        log.debug("growpart: empty device list")
         return
 
-    log.debug("growpart said: %s" % out)
+    resized = resize(resizer, devices, log)
+    log.debug("resized: %s" % resized)
+
+RESIZERS = (('parted', ResizeParted), ('growpart', ResizeGrowPart))
+
+
