@@ -106,16 +106,6 @@ class TestDisabled(MockerTestCase):
 
         self.handle(self.name, config, self.cloud_init, self.log, self.args)
 
-    def test_no_config(self):
-        #Test that nothing is done if no 'growpart' config
-        config = { }
-        self.mocker.replace(cc_growpart.resizer_factory,
-                            passthrough=False)
-        self.mocker.replay()
-
-        self.handle(self.name, config, self.cloud_init, self.log, self.args)
-
-
 class TestConfig(MockerTestCase):
     def setUp(self):
         super(TestConfig, self).setUp()
@@ -162,6 +152,28 @@ class TestConfig(MockerTestCase):
         ret = cc_growpart.resizer_factory(mode="auto")
         self.assertTrue(isinstance(ret, cc_growpart.ResizeParted))
 
+    def test_handle_with_no_growpart_entry(self):
+        #if no 'growpart' entry in config, then mode=auto should be used
+
+        myresizer = object()
+
+        factory = self.mocker.replace(cc_growpart.resizer_factory,
+                                      passthrough=False)
+        rsdevs = self.mocker.replace(cc_growpart.resize_devices,
+                                     passthrough=False)
+        factory("auto")
+        self.mocker.result(myresizer)
+        rsdevs(myresizer, ["/"], self.log)
+        self.mocker.result(["/"])
+        self.mocker.replay()
+
+        try:
+            orig_resizers = cc_growpart.RESIZERS
+            cc_growpart.RESIZERS = (('mysizer', object),)
+            self.handle(self.name, {}, self.cloud_init, self.log, self.args)
+        finally:
+            cc_growpart.RESIZERS = orig_resizers
+            
 
 class TestResize(MockerTestCase):
     def setUp(self):
@@ -203,7 +215,8 @@ class TestResize(MockerTestCase):
             cc_growpart.device_part_info = simple_device_part_info
             os.stat = mystat
 
-            resized = cc_growpart.resize(myresizer(), devs + enoent, self.log)
+            resized = cc_growpart.resize_devices(myresizer(), devs + enoent,
+                                                 self.log)
 
             self.assertEqual(devs, resized)
             self.assertEqual(resize_calls,
