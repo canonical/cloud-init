@@ -163,7 +163,7 @@ class TestConfig(MockerTestCase):
                                      passthrough=False)
         factory("auto")
         self.mocker.result(myresizer)
-        rsdevs(myresizer, ["/"], self.log)
+        rsdevs(myresizer, ["/"])
         self.mocker.result(["/"])
         self.mocker.replay()
 
@@ -215,8 +215,7 @@ class TestResize(MockerTestCase):
             cc_growpart.device_part_info = simple_device_part_info
             os.stat = mystat
 
-            resized = cc_growpart.resize_devices(myresizer(), devs + enoent,
-                                                 self.log)
+            resized = cc_growpart.resize_devices(myresizer(), devs + enoent)
 
             self.assertEqual(devs, resized)
             self.assertEqual(resize_calls,

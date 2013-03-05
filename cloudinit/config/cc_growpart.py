@@ -22,6 +22,7 @@ import re
 import stat
 
 from cloudinit.settings import PER_ALWAYS
+from cloudinit import log as logging
 from cloudinit import util
 
 frequency = PER_ALWAYS
@@ -31,6 +32,7 @@ DEFAULT_CONFIG = {
    'devices': ['/'],
 }
 
+LOG = logging.getLogger(__name__)
 
 def resizer_factory(mode):
     resize_class = None
@@ -103,8 +105,19 @@ class ResizeGrowPart(object):
 
     def resize(self, blockdev, part):
         try:
+            util.subp(["growpart", '--dry-run', blockdev, part])
+        except util.ProcessExecutionError as e:
+            if e.exit_code != 1:
+                logexc(LOG, ("Failed growpart --dry-run for (%s, %s)" %
+                             (blockdev, part)))
+                raise ResizeFailedException(e)
+            LOG.debug("no change necessary on (%s,%s)" % (blockdev, part))
+            return
+
+        try:
             util.subp(["growpart", blockdev, part])
         except util.ProcessExecutionError as e:
+            logexc(LOG, "Failed: growpart %s %s" % (blockdev, part))
             raise ResizeFailedException(e)
 
 
@@ -150,38 +163,38 @@ def devent2dev(devent):
         return result[0]
 
 
-def resize_devices(resizer, devices, log):
+def resize_devices(resizer, devices):
     resized = []
     for devent in devices:
         try:
             blockdev = devent2dev(devent)
         except ValueError as e:
-            log.debug("unable to turn %s into device: %s" % (devent, e))
+            LOG.debug("unable to turn %s into device: %s" % (devent, e))
             continue
 
         try:
             statret = os.stat(blockdev)
         except OSError as e:
-            log.debug("device '%s' for '%s' failed stat" %
+            LOG.debug("device '%s' for '%s' failed stat" %
                       (blockdev, devent))
             continue
             
         if not stat.S_ISBLK(statret.st_mode):
-            log.debug("device '%s' for '%s' is not a block device" %
+            LOG.debug("device '%s' for '%s' is not a block device" %
                       (blockdev, devent))
             continue
 
         try:
             (disk, ptnum) = device_part_info(blockdev)
         except (TypeError, ValueError) as e:
-            log.debug("failed to get part_info for (%s, %s): %s" %
+            LOG.debug("failed to get part_info for (%s, %s): %s" %
                       (devent, blockdev, e))
             continue
 
         try:
             resizer.resize(disk, ptnum)
         except ResizeFailedException as e:
-            log.warn("failed to resize: devent=%s, disk=%s, ptnum=%s: %s",
+            LOG.warn("failed to resize: devent=%s, disk=%s, ptnum=%s: %s",
                      devent, disk, ptnum, e)
 
         resized.append(devent)
@@ -218,7 +231,7 @@ def handle(name, cfg, _cloud, log, _args):
             raise e
         return
 
-    resized = resize_devices(resizer, devices, log)
+    resized = resize_devices(resizer, devices)
     log.debug("resized: %s" % resized)
 
 RESIZERS = (('parted', ResizeParted), ('growpart', ResizeGrowPart))
