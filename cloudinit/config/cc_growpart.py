@@ -16,23 +16,32 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import os.path
 import os
+import os.path
 import re
 import stat
 
-from cloudinit.settings import PER_ALWAYS
 from cloudinit import log as logging
+from cloudinit.settings import PER_ALWAYS
 from cloudinit import util
 
 frequency = PER_ALWAYS
 
 DEFAULT_CONFIG = {
-   'mode': 'auto',
-   'devices': ['/'],
+    'mode': 'auto',
+    'devices': ['/'],
 }
 
+
+def enum(**enums):
+    return type('Enum', (), enums)
+
+
+RESIZE = enum(SKIPPED="SKIPPED", CHANGED="CHANGED", NOCHANGE="NOCHANGE",
+              FAILED="FAILED")
+
 LOG = logging.getLogger(__name__)
+
 
 def resizer_factory(mode):
     resize_class = None
@@ -75,18 +84,21 @@ class ResizeParted(object):
 
         try:
             (out, _err) = util.subp(["parted", "--help"], env=myenv)
-            if re.search("COMMAND.*resizepart\s+", out, re.DOTALL):
+            if re.search(r"COMMAND.*resizepart\s+", out, re.DOTALL):
                 return True
 
         except util.ProcessExecutionError:
             pass
         return False
 
-    def resize(self, blockdev, part):
+    def resize(self, diskdev, partnum, partdev):
+        before = get_size(partdev)
         try:
-            util.subp(["parted", "resizepart", blockdev, part])
+            util.subp(["parted", "resizepart", diskdev, partnum])
         except util.ProcessExecutionError as e:
             raise ResizeFailedException(e)
+
+        return (before, get_size(partdev))
 
 
 class ResizeGrowPart(object):
@@ -96,29 +108,39 @@ class ResizeGrowPart(object):
 
         try:
             (out, _err) = util.subp(["growpart", "--help"], env=myenv)
-            if re.search("--update\s+", out, re.DOTALL):
+            if re.search(r"--update\s+", out, re.DOTALL):
                 return True
 
         except util.ProcessExecutionError:
             pass
         return False
 
-    def resize(self, blockdev, part):
+    def resize(self, diskdev, partnum, partdev):
+        before = get_size(partdev)
         try:
-            util.subp(["growpart", '--dry-run', blockdev, part])
+            util.subp(["growpart", '--dry-run', diskdev, partnum])
         except util.ProcessExecutionError as e:
             if e.exit_code != 1:
-                logexc(LOG, ("Failed growpart --dry-run for (%s, %s)" %
-                             (blockdev, part)))
+                util.logexc(LOG, ("Failed growpart --dry-run for (%s, %s)" %
+                                  (diskdev, partnum)))
                 raise ResizeFailedException(e)
-            LOG.debug("no change necessary on (%s,%s)" % (blockdev, part))
-            return
+            return (before, before)
 
         try:
-            util.subp(["growpart", blockdev, part])
+            util.subp(["growpart", diskdev, partnum])
         except util.ProcessExecutionError as e:
-            logexc(LOG, "Failed: growpart %s %s" % (blockdev, part))
+            util.logexc(LOG, "Failed: growpart %s %s" % (diskdev, partnum))
             raise ResizeFailedException(e)
+
+        return (before, get_size(partdev))
+
+
+def get_size(filename):
+    fd = os.open(filename, os.O_RDONLY)
+    try:
+        return os.lseek(fd, 0, os.SEEK_END)
+    finally:
+        os.close(fd)
 
 
 def device_part_info(devpath):
@@ -164,45 +186,54 @@ def devent2dev(devent):
 
 
 def resize_devices(resizer, devices):
-    resized = []
+    # returns a tuple of tuples containing (entry-in-devices, action, message)
+    info = []
     for devent in devices:
         try:
             blockdev = devent2dev(devent)
         except ValueError as e:
-            LOG.debug("unable to turn %s into device: %s" % (devent, e))
+            info.append((devent, RESIZE.SKIPPED,
+                         "unable to convert to device: %s" % e,))
             continue
 
         try:
             statret = os.stat(blockdev)
         except OSError as e:
-            LOG.debug("device '%s' for '%s' failed stat" %
-                      (blockdev, devent))
+            info.append((devent, RESIZE.SKIPPED,
+                         "stat of '%s' failed: %s" % (blockdev, e),))
             continue
-            
+
         if not stat.S_ISBLK(statret.st_mode):
-            LOG.debug("device '%s' for '%s' is not a block device" %
-                      (blockdev, devent))
+            info.append((devent, RESIZE.SKIPPED,
+                         "device '%s' not a block device" % blockdev,))
             continue
 
         try:
             (disk, ptnum) = device_part_info(blockdev)
         except (TypeError, ValueError) as e:
-            LOG.debug("failed to get part_info for (%s, %s): %s" %
-                      (devent, blockdev, e))
+            info.append((devent, RESIZE.SKIPPED,
+                         "device_part_info(%s) failed: %s" % (blockdev, e),))
             continue
 
         try:
-            resizer.resize(disk, ptnum)
+            (old, new) = resizer.resize(disk, ptnum, blockdev)
+            if old == new:
+                info.append((devent, RESIZE.NOCHANGE,
+                             "no change necessary (%s, %s)" % (disk, ptnum),))
+            else:
+                info.append((devent, RESIZE.CHANGED,
+                             "changed (%s, %s) from %s to %s" %
+                             (disk, ptnum, old, new),))
+
         except ResizeFailedException as e:
-            LOG.warn("failed to resize: devent=%s, disk=%s, ptnum=%s: %s",
-                     devent, disk, ptnum, e)
+            info.append((devent, RESIZE.FAILED,
+                         "failed to resize: disk=%s, ptnum=%s: %s" %
+                         (disk, ptnum, e),))
 
-        resized.append(devent)
-
-    return resized
+    return info
 
 
-def handle(name, cfg, _cloud, log, _args):
+def handle(_name, cfg, _cloud, log, _args):
     if 'growpart' not in cfg:
         log.debug("No 'growpart' entry in cfg.  Using default: %s" %
                   DEFAULT_CONFIG)
@@ -232,7 +263,10 @@ def handle(name, cfg, _cloud, log, _args):
         return
 
     resized = resize_devices(resizer, devices)
-    log.debug("resized: %s" % resized)
+    for (entry, action, msg) in resized:
+        if action == RESIZE.CHANGED:
+            log.info("'%s' resized: %s" % (entry, msg))
+        else:
+            log.debug("'%s' %s: %s" % (entry, action, msg))
 
 RESIZERS = (('parted', ResizeParted), ('growpart', ResizeGrowPart))
-
