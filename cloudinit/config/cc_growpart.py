@@ -213,7 +213,7 @@ def handle(name, cfg, _cloud, log, _args):
         log.warn("'growpart' in config was not a dict")
         return
 
-    mode = mycfg.get('mode')
+    mode = mycfg.get('mode', "auto")
     if util.is_false(mode):
         log.debug("growpart disabled: mode=%s" % mode)
         return
