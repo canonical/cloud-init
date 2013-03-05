@@ -46,6 +46,7 @@
  - fix issue when writing ssh keys to .ssh/authorized_keys (LP: #1136343)
  - upstart: cloud-init-nonet.conf trap the TERM signal, so that dmesg or other
    output does not get a 'killed by TERM signal' message.
+ - support resizing partitions via growpart or parted (LP: #1136936)
 
 0.7.1:
  - sysvinit: fix missing dependency in cloud-init job for RHEL 5.6 

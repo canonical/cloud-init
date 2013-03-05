@@ -1,0 +1,24 @@
+#cloud-config
+#
+# growpart entry is a dict, if it is not present at all
+# in config, then the default is used ({'mode': 'auto', 'devices': ['/']})
+#
+#  mode:
+#    values:
+#     * auto: use any option possible (growpart or parted)
+#             if none are available, do not warn, but debug.
+#     * growpart: use growpart to grow partitions
+#             if growpart is not available, this is an error.
+#     * parted: use parted (parted resizepart) to resize partitions
+#             if parted is not available, this is an error.
+#     * off, false
+#
+# devices:
+#   a list of things to resize.
+#   items can be filesystem paths or devices (in /dev)
+#   examples:
+#     devices: [/, /dev/vdb1]
+#
+growpart:
+  mode: auto
+  devices: ['/']
