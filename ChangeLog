@@ -43,6 +43,10 @@
  - improve debian support in sysvinit scripts, package build scripts, and
    split sources.list template to be distro specific.
  - support for resizing btrfs root filesystems [Blair Zajac]
+ - fix issue when writing ssh keys to .ssh/authorized_keys (LP: #1136343)
+ - upstart: cloud-init-nonet.conf trap the TERM signal, so that dmesg or other
+   output does not get a 'killed by TERM signal' message.
+
 0.7.1:
  - sysvinit: fix missing dependency in cloud-init job for RHEL 5.6 
  - config-drive: map hostname to local-hostname (LP: #1061964)
@@ -501,7 +505,4 @@
  - make the message on 'disable_root' more clear (LP: #672417)
  - do not require public key if private is given in ssh cloud-config 
    (LP: #648905)
- - fix issue when writing ssh keys to .ssh/authorized_keys (LP: #1136343)
- - upstart: cloud-init-nonet.conf trap the TERM signal, so that dmesg or other
-   output does not get a 'killed by TERM signal' message.
 # vi: syntax=text textwidth=79
