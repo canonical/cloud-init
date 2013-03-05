@@ -6,9 +6,12 @@ from cloudinit import util
 
 from cloudinit.config import cc_growpart
 
+import errno
 import logging
 import os
 import mocker
+import re
+import stat
 
 # growpart:
 #   mode: auto  # off, on, auto, 'growpart', 'parted'
@@ -94,7 +97,11 @@ class TestDisabled(MockerTestCase):
 
     def test_mode_off(self):
         #Test that nothing is done if mode is off.
+
+        # this really only verifies that resizer_factory isn't called
         config = {'growpart': {'mode': 'off'}}
+        self.mocker.replace(cc_growpart.resizer_factory,
+                            passthrough=False)
         self.mocker.replay()
 
         self.handle(self.name, config, self.cloud_init, self.log, self.args)
@@ -102,6 +109,8 @@ class TestDisabled(MockerTestCase):
     def test_no_config(self):
         #Test that nothing is done if no 'growpart' config
         config = { }
+        self.mocker.replace(cc_growpart.resizer_factory,
+                            passthrough=False)
         self.mocker.replay()
 
         self.handle(self.name, config, self.cloud_init, self.log, self.args)
@@ -152,5 +161,67 @@ class TestConfig(MockerTestCase):
 
         ret = cc_growpart.resizer_factory(mode="auto")
         self.assertTrue(isinstance(ret, cc_growpart.ResizeParted))
+
+
+class TestResize(MockerTestCase):
+    def setUp(self):
+        super(TestResize, self).setUp()
+        self.name = "growpart"
+        self.log = logging.getLogger("TestResize")
+
+        # Order must be correct
+        self.mocker.order()
+
+    def test_simple_devices(self):
+        #test simple device list
+        # this patches out devent2dev, os.stat, and device_part_info
+        # so in the end, doesn't test a lot
+        devs = ["/dev/XXda1", "/dev/YYda2"]
+        devstat_ret = Bunch(st_mode=25008, st_ino=6078, st_dev=5L,
+                            st_nlink=1, st_uid=0, st_gid=6, st_size=0,
+                            st_atime=0, st_mtime=0, st_ctime=0)
+        enoent = ["/dev/NOENT"]
+        real_stat = os.stat
+        resize_calls = []
+
+        class myresizer():
+            def resize(self, dev, part):
+                resize_calls.append((dev, part,))
+                return
+
+        def mystat(path):
+            if path in devs:
+                return devstat_ret
+            if path in enoent:
+                e = OSError("%s: does not exist" % path)
+                e.errno = errno.ENOENT
+                raise e
+            return real_stat(path)
+
+        try:
+            opinfo = cc_growpart.device_part_info
+            cc_growpart.device_part_info = simple_device_part_info
+            os.stat = mystat
+
+            resized = cc_growpart.resize(myresizer(), devs + enoent, self.log)
+
+            self.assertEqual(devs, resized)
+            self.assertEqual(resize_calls,
+                             [("/dev/XXda", "1",), ("/dev/YYda", "2",)])
+        finally:
+            cc_growpart.device_part_info = opinfo
+            os.stat = real_stat
+
+
+def simple_device_part_info(devpath):
+    # simple stupid return (/dev/vda, 1) for /dev/vda
+    ret = re.search("([^0-9]*)([0-9]*)$", devpath)
+    x = (ret.group(1), ret.group(2))
+    return x
+        
+class Bunch:
+    def __init__(self, **kwds):
+        self.__dict__.update(kwds)
+
 
 # vi: ts=4 expandtab

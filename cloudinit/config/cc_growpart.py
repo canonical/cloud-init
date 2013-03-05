@@ -17,6 +17,7 @@
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import os.path
+import os
 import re
 import stat
 
@@ -152,9 +153,16 @@ def resize(resizer, devices, log):
             log.debug("unable to turn %s into device: %s" % (devent, e))
             continue
 
-        if not stat.S_ISBLK(os.stat(blockdev).st_mode):
+        try:
+            statret = os.stat(blockdev)
+        except OSError as e:
+            log.debug("device '%s' for '%s' failed stat" %
+                      (blockdev, devent))
+            continue
+            
+        if not stat.S_ISBLK(statret.st_mode):
             log.debug("device '%s' for '%s' is not a block device" %
-                      (devent, blockdev))
+                      (blockdev, devent))
             continue
 
         try:
