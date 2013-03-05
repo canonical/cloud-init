@@ -26,6 +26,12 @@ from cloudinit import util
 
 frequency = PER_ALWAYS
 
+DEFAULT_CONFIG = {
+   'mode': 'auto',
+   'devices': ['/'],
+}
+
+
 def resizer_factory(mode):
     resize_class = None
     if mode == "auto":
@@ -144,7 +150,7 @@ def devent2dev(devent):
         return result[0]
 
 
-def resize(resizer, devices, log):
+def resize_devices(resizer, devices, log):
     resized = []
     for devent in devices:
         try:
@@ -185,8 +191,9 @@ def resize(resizer, devices, log):
 
 def handle(name, cfg, _cloud, log, _args):
     if 'growpart' not in cfg:
-        log.debug("Skipping module named %s, no growpart entry", name)
-        return
+        log.debug("No 'growpart' entry in cfg.  Using default: %s" %
+                  DEFAULT_CONFIG)
+        cfg['growpart'] = DEFAULT_CONFIG
 
     mycfg = cfg.get('growpart')
     if not isinstance(mycfg, dict):
@@ -198,6 +205,11 @@ def handle(name, cfg, _cloud, log, _args):
         log.debug("growpart disabled: mode=%s" % mode)
         return
 
+    devices = util.get_cfg_option_list(cfg, "devices", ["/"])
+    if not len(devices):
+        log.debug("growpart: empty device list")
+        return
+
     try:
         resizer = resizer_factory(mode)
     except (ValueError, TypeError) as e:
@@ -206,14 +218,8 @@ def handle(name, cfg, _cloud, log, _args):
             raise e
         return
 
-    devices = util.get_cfg_option_list(cfg, "devices", ["/"])
-    if not len(devices):
-        log.debug("growpart: empty device list")
-        return
-
-    resized = resize(resizer, devices, log)
+    resized = resize_devices(resizer, devices, log)
     log.debug("resized: %s" % resized)
 
 RESIZERS = (('parted', ResizeParted), ('growpart', ResizeGrowPart))
-
 
