@@ -164,7 +164,7 @@ class TestConfig(MockerTestCase):
         factory("auto")
         self.mocker.result(myresizer)
         rsdevs(myresizer, ["/"])
-        self.mocker.result(["/"])
+        self.mocker.result((("/", cc_growpart.RESIZE.CHANGED, "my-message",),))
         self.mocker.replay()
 
         try:
@@ -197,9 +197,11 @@ class TestResize(MockerTestCase):
         resize_calls = []
 
         class myresizer():
-            def resize(self, dev, part):
-                resize_calls.append((dev, part,))
-                return
+            def resize(self, diskdev, partnum, partdev):
+                resize_calls.append((diskdev, partnum, partdev))
+                if partdev == "/dev/YYda2":
+                    return (1024, 2048)
+                return (1024, 1024)  # old size, new size
 
         def mystat(path):
             if path in devs:
@@ -217,9 +219,21 @@ class TestResize(MockerTestCase):
 
             resized = cc_growpart.resize_devices(myresizer(), devs + enoent)
 
-            self.assertEqual(devs, resized)
-            self.assertEqual(resize_calls,
-                             [("/dev/XXda", "1",), ("/dev/YYda", "2",)])
+            def find(name, res):
+                for f in res:
+                    if f[0] == name:
+                        return f
+                return None
+                
+            self.assertEqual(cc_growpart.RESIZE.NOCHANGE,
+                             find("/dev/XXda1", resized)[1])
+            self.assertEqual(cc_growpart.RESIZE.CHANGED,
+                             find("/dev/YYda2", resized)[1])
+            self.assertEqual(cc_growpart.RESIZE.SKIPPED,
+                             find(enoent[0], resized)[1])
+            #self.assertEqual(resize_calls,
+                             #[("/dev/XXda", "1", "/dev/XXda1"),
+                              #("/dev/YYda", "2", "/dev/YYda2")])
         finally:
             cc_growpart.device_part_info = opinfo
             os.stat = real_stat
