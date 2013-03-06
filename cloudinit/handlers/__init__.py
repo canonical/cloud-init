@@ -87,7 +87,7 @@ class Handler(object):
         raise NotImplementedError()
 
 
-def run_part(mod, data, filename, payload, headers, frequency):
+def run_part(mod, data, filename, payload, frequency, headers):
     mod_freq = mod.frequency
     if not (mod_freq == PER_ALWAYS or
             (frequency == PER_INSTANCE and mod_freq == PER_INSTANCE)):
@@ -98,8 +98,8 @@ def run_part(mod, data, filename, payload, headers, frequency):
         mod_ver = int(mod_ver)
     except (TypeError, ValueError, AttributeError):
         mod_ver = 1
+    content_type = headers['Content-Type']
     try:
-        content_type = headers['Content-Type']
         LOG.debug("Calling handler %s (%s, %s, %s) with frequency %s",
                   mod, content_type, filename, mod_ver, frequency)
         if mod_ver == 3:
@@ -123,17 +123,19 @@ def run_part(mod, data, filename, payload, headers, frequency):
 
 
 def call_begin(mod, data, frequency):
+    # Create a fake header set
     headers = {
         'Content-Type': CONTENT_START,
     }
-    run_part(mod, data, None, None, headers, frequency)
+    run_part(mod, data, None, None, frequency, headers)
 
 
 def call_end(mod, data, frequency):
+    # Create a fake header set
     headers = {
         'Content-Type': CONTENT_END,
     }
-    run_part(mod, data, None, None, headers, frequency)
+    run_part(mod, data, None, None, frequency, headers)
 
 
 def walker_handle_handler(pdata, _ctype, _filename, payload):
@@ -191,12 +193,12 @@ def walker_callback(data, filename, payload, headers):
     handlers = data['handlers']
     if content_type in handlers:
         run_part(handlers[content_type], data['data'], filename,
-                 payload, headers, data['frequency'])
+                 payload, data['frequency'], headers)
     elif payload:
         # Extract the first line or 24 bytes for displaying in the log
         start = _extract_first_or_bytes(payload, 24)
         details = "'%s...'" % (_escape_string(start))
-        if ctype == NOT_MULTIPART_TYPE:
+        if content_type == NOT_MULTIPART_TYPE:
             LOG.warning("Unhandled non-multipart (%s) userdata: %s",
                         content_type, details)
         else:
@@ -224,6 +226,7 @@ def walk(msg, callback, data):
             filename = PART_FN_TPL % (partnum)
 
         headers = dict(part)
+        LOG.debug(headers)
         headers['Content-Type'] = ctype
         callback(data, filename, part.get_payload(decode=True), headers)
         partnum = partnum + 1

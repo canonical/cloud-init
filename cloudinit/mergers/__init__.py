@@ -34,6 +34,13 @@ class UnknownMerger(object):
     def _handle_unknown(self, meth_wanted, value, merge_with):
         return value
 
+    # This merging will attempt to look for a '_on_X' method
+    # in our own object for a given object Y with type X,
+    # if found it will be called to perform the merge of a source
+    # object and a object to merge_with.
+    #
+    # If not found the merge will be given to a '_handle_unknown'
+    # function which can decide what to do wit the 2 values.
     def merge(self, source, merge_with):
         type_name = util.obj_name(source)
         type_name = type_name.lower()
@@ -56,6 +63,11 @@ class LookupMerger(UnknownMerger):
         else:
             self._lookups = lookups
 
+    # For items which can not be merged by the parent this object
+    # will lookup in a internally maintained set of objects and
+    # find which one of those objects can perform the merge. If
+    # any of the contained objects have the needed method, they
+    # will be called to perform the merge.
     def _handle_unknown(self, meth_wanted, value, merge_with):
         meth = None
         for merger in self._lookups:
@@ -70,8 +82,33 @@ class LookupMerger(UnknownMerger):
         return meth(value, merge_with)
 
 
-def _extract_merger_names(merge_how):
-    names = []
+def dict_extract_mergers(config):
+    parsed_mergers = []
+    raw_mergers = config.get('merger_how')
+    if raw_mergers is None:
+        raw_mergers = config.get('merge_type')
+    if raw_mergers is None:
+        return parsed_mergers
+    if isinstance(raw_mergers, (str, basestring)):
+        return string_extract_mergers(raw_mergers)
+    for m in raw_mergers:
+        if isinstance(m, (dict)):
+            name = m['name']
+            name = name.replace("-", "_").strip()
+            opts = m['settings']
+        else:
+            name = m[0]
+            if len(m) >= 2:
+                opts = m[1:]
+            else:
+                opts = []
+        if name:
+            parsed_mergers.append((name, opts))
+    return parsed_mergers
+
+
+def string_extract_mergers(merge_how):
+    parsed_mergers = []
     for m_name in merge_how.split("+"):
         # Canonicalize the name (so that it can be found
         # even when users alter it in various ways)
@@ -79,20 +116,20 @@ def _extract_merger_names(merge_how):
         m_name = m_name.replace("-", "_")
         if not m_name:
             continue
-        names.append(m_name)
-    return names
-
-
-def construct(merge_how):
-    mergers_to_be = []
-    for name in _extract_merger_names(merge_how):
-        match = NAME_MTCH.match(name)
+        match = NAME_MTCH.match(m_name)
         if not match:
-            msg = "Matcher identifer '%s' is not in the right format" % (name)
+            msg = "Matcher identifer '%s' is not in the right format" % (m_name)
             raise ValueError(msg)
         (m_name, m_ops) = match.groups()
         m_ops = m_ops.strip().split(",")
         m_ops = [m.strip().lower() for m in m_ops if m.strip()]
+        parsed_mergers.append((m_name, m_ops))
+    return parsed_mergers
+
+
+def construct(parsed_mergers):
+    mergers_to_be = []
+    for (m_name, m_ops) in parsed_mergers:
         merger_locs = importer.find_module(m_name,
                                            [__name__],
                                            ['Merger'])

@@ -26,21 +26,24 @@ class Merger(object):
     def _on_tuple(self, value, merge_with):
         return self._on_list(list(value), merge_with)
 
+    # On encountering a list or tuple type this action will be applied
+    # a new list will be returned, if the value to merge with is itself
+    # a list and we have been told to 'extend', then the value here will
+    # be extended with the other list. If in 'extend' mode then we will
+    # attempt to merge instead, which means that values from the list
+    # to merge with will replace values in te original list (they will
+    # also be merged recursively).
+    #
+    # If the value to merge with is not a list, and we are set to discared
+    # then no modifications will take place, otherwise we will just append
+    # the value to merge with onto the end of our own list.
     def _on_list(self, value, merge_with):
         new_value = list(value)
         if isinstance(merge_with, (tuple, list)):
             if self._extend:
                 new_value.extend(merge_with)
             else:
-                # Merge instead
-                for m_v in merge_with:
-                    m_am = 0
-                    for (i, o_v) in enumerate(new_value):
-                        if m_v == o_v:
-                            new_value[i] = self._merger.merge(o_v, m_v)
-                            m_am += 1
-                    if m_am == 0:
-                        new_value.append(m_v)
+                return new_value
         else:
             if not self._discard_non:
                 new_value.append(merge_with)

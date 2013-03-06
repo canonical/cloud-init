@@ -22,8 +22,10 @@ class FakeModule(handlers.Handler):
     def list_types(self):
         return self.types
 
-    def _handle_part(self, data, ctype, filename, payload, frequency):
+    def handle_part(self, data, ctype, filename, payload, frequency):
         pass
+    
+    
 
 
 class TestWalkerHandleHandler(MockerTestCase):
@@ -103,6 +105,9 @@ class TestHandlerHandlePart(MockerTestCase):
         self.filename = "fake filename"
         self.payload = "fake payload"
         self.frequency = settings.PER_INSTANCE
+        self.headers = {
+            'Content-Type': self.ctype,
+        }
 
     def test_normal_version_1(self):
         """
@@ -118,8 +123,8 @@ class TestHandlerHandlePart(MockerTestCase):
                              self.payload)
         self.mocker.replay()
 
-        handlers.run_part(mod_mock, self.data, self.ctype, self.filename,
-                          self.payload, self.frequency)
+        handlers.run_part(mod_mock, self.data, self.filename,
+                          self.payload, self.frequency, self.headers)
 
     def test_normal_version_2(self):
         """
@@ -135,8 +140,8 @@ class TestHandlerHandlePart(MockerTestCase):
                              self.payload, self.frequency)
         self.mocker.replay()
 
-        handlers.run_part(mod_mock, self.data, self.ctype, self.filename,
-                          self.payload, self.frequency)
+        handlers.run_part(mod_mock, self.data, self.filename,
+                          self.payload, self.frequency, self.headers)
 
     def test_modfreq_per_always(self):
         """
@@ -152,8 +157,8 @@ class TestHandlerHandlePart(MockerTestCase):
                              self.payload)
         self.mocker.replay()
 
-        handlers.run_part(mod_mock, self.data, self.ctype, self.filename,
-                          self.payload, self.frequency)
+        handlers.run_part(mod_mock, self.data, self.filename,
+                          self.payload, self.frequency, self.headers)
 
     def test_no_handle_when_modfreq_once(self):
         """C{handle_part} is not called if frequency is once."""
@@ -163,8 +168,8 @@ class TestHandlerHandlePart(MockerTestCase):
         self.mocker.result(settings.PER_ONCE)
         self.mocker.replay()
 
-        handlers.run_part(mod_mock, self.data, self.ctype, self.filename,
-                          self.payload, self.frequency)
+        handlers.run_part(mod_mock, self.data, self.filename,
+                          self.payload, self.frequency, self.headers)
 
     def test_exception_is_caught(self):
         """Exceptions within C{handle_part} are caught and logged."""
@@ -178,8 +183,8 @@ class TestHandlerHandlePart(MockerTestCase):
         self.mocker.throw(Exception())
         self.mocker.replay()
 
-        handlers.run_part(mod_mock, self.data, self.ctype, self.filename,
-                          self.payload, self.frequency)
+        handlers.run_part(mod_mock, self.data, self.filename,
+                          self.payload, self.frequency, self.headers)
 
 
 class TestCmdlineUrl(MockerTestCase):

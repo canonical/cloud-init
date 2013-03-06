@@ -21,9 +21,14 @@ class Merger(object):
     def __init__(self, merger, opts):
         self._append = 'append' in opts
 
+    # On encountering a unicode object to merge value with
+    # we will for now just proxy into the string method to let it handle it.
     def _on_unicode(self, value, merge_with):
         return self._on_str(value, merge_with)
 
+    # On encountering a string object to merge with we will
+    # perform the following action, if appending we will
+    # merge them together, otherwise we will just return value.
     def _on_str(self, value, merge_with):
         if not self._append:
             return value

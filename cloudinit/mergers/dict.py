@@ -22,6 +22,17 @@ class Merger(object):
         self._merger = merger
         self._overwrite = 'overwrite' in opts
 
+    # This merging algorithm will attempt to merge with
+    # another dictionary, on encountering any other type of object
+    # it will not merge with said object, but will instead return
+    # the original value
+    #
+    # On encountering a dictionary, it will create a new dictionary
+    # composed of the original and the one to merge with, if 'overwrite'
+    # is enabled then keys that exist in the original will be overwritten
+    # by keys in the one to merge with (and associated values). Otherwise
+    # if not in overwrite mode the 2 conflicting keys themselves will
+    # be merged.
     def _on_dict(self, value, merge_with):
         if not isinstance(merge_with, (dict)):
             return value
