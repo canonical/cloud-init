@@ -246,6 +246,7 @@ def simple_device_part_info(devpath):
 
 
 class Bunch:
+    st_mode = None  # fix pylint complaint
     def __init__(self, **kwds):
         self.__dict__.update(kwds)
 
