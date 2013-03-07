@@ -1,0 +1,15 @@
+#cloud-config
+
+# boot commands
+# default: none
+# this is very similar to runcmd, but commands run very early
+# in the boot process, only slightly after a 'boothook' would run.
+# bootcmd should really only be used for things that could not be
+# done later in the boot process.  bootcmd is very much like
+# boothook, but possibly with more friendly.
+#  * bootcmd will run on every boot
+#  * the INSTANCE_ID variable will be set to the current instance id.
+#  * you can use 'cloud-init-boot-per' command to help only run once
+bootcmd:
+ - echo 192.168.1.130 us.archive.ubuntu.com > /etc/hosts
+ - [ cloud-init-per, once, mymkfs, mkfs, /dev/vdb ]

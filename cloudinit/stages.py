@@ -64,23 +64,29 @@ class Init(object):
         # Changed only when a fetch occurs
         self.datasource = NULL_DATA_SOURCE
 
-    def _reset(self, ds=False):
+    def _reset(self, reset_ds=False):
         # Recreated on access
         self._cfg = None
         self._paths = None
         self._distro = None
-        if ds:
+        if reset_ds:
             self.datasource = NULL_DATA_SOURCE
 
     @property
     def distro(self):
         if not self._distro:
             # Try to find the right class to use
-            scfg = self._extract_cfg('system')
-            name = scfg.pop('distro', 'ubuntu')
-            cls = distros.fetch(name)
-            LOG.debug("Using distro class %s", cls)
-            self._distro = cls(name, scfg, self.paths)
+            system_config = self._extract_cfg('system')
+            distro_name = system_config.pop('distro', 'ubuntu')
+            distro_cls = distros.fetch(distro_name)
+            LOG.debug("Using distro class %s", distro_cls)
+            self._distro = distro_cls(distro_name, system_config, self.paths)
+            # If we have an active datasource we need to adjust
+            # said datasource and move its distro/system config
+            # from whatever it was to a new set...
+            if self.datasource is not NULL_DATA_SOURCE:
+                self.datasource.distro = self._distro
+                self.datasource.sys_cfg = system_config
         return self._distro
 
     @property
@@ -158,27 +164,12 @@ class Init(object):
             self._cfg = self._read_cfg(extra_fns)
             # LOG.debug("Loaded 'init' config %s", self._cfg)
 
-    def _read_base_cfg(self):
-        base_cfgs = []
-        default_cfg = util.get_builtin_cfg()
-        kern_contents = util.read_cc_from_cmdline()
-        # Kernel/cmdline parameters override system config
-        if kern_contents:
-            base_cfgs.append(util.load_yaml(kern_contents, default={}))
-        # Anything in your conf.d location??
-        # or the 'default' cloud.cfg location???
-        base_cfgs.append(util.read_conf_with_confd(CLOUD_CONFIG))
-        # And finally the default gets to play
-        if default_cfg:
-            base_cfgs.append(default_cfg)
-        return util.mergemanydict(base_cfgs)
-
     def _read_cfg(self, extra_fns):
         no_cfg_paths = helpers.Paths({}, self.datasource)
         merger = helpers.ConfigMerger(paths=no_cfg_paths,
                                       datasource=self.datasource,
                                       additional_fns=extra_fns,
-                                      base_cfg=self._read_base_cfg())
+                                      base_cfg=fetch_base_config())
         return merger.cfg
 
     def _restore_from_cache(self):
@@ -539,11 +530,16 @@ class Modules(object):
                     freq = mod.frequency
                 if not freq in FREQUENCIES:
                     freq = PER_INSTANCE
-                worked_distros = mod.distros
+
+                worked_distros = set(mod.distros)
+                worked_distros.update(
+                    distros.Distro.expand_osfamily(mod.osfamilies))
+
                 if (worked_distros and d_name not in worked_distros):
                     LOG.warn(("Module %s is verified on %s distros"
                               " but not on %s distro. It may or may not work"
-                              " correctly."), name, worked_distros, d_name)
+                              " correctly."), name, list(worked_distros),
+                              d_name)
                 # Use the configs logger and not our own
                 # TODO(harlowja): possibly check the module
                 # for having a LOG attr and just give it back
@@ -576,3 +572,23 @@ class Modules(object):
         raw_mods = self._read_modules(section_name)
         mostly_mods = self._fixup_modules(raw_mods)
         return self._run_modules(mostly_mods)
+
+
+def fetch_base_config():
+    base_cfgs = []
+    default_cfg = util.get_builtin_cfg()
+    kern_contents = util.read_cc_from_cmdline()
+
+    # Kernel/cmdline parameters override system config
+    if kern_contents:
+        base_cfgs.append(util.load_yaml(kern_contents, default={}))
+
+    # Anything in your conf.d location??
+    # or the 'default' cloud.cfg location???
+    base_cfgs.append(util.read_conf_with_confd(CLOUD_CONFIG))
+
+    # And finally the default gets to play
+    if default_cfg:
+        base_cfgs.append(default_cfg)
+
+    return util.mergemanydict(base_cfgs)

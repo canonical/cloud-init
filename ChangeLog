@@ -2,6 +2,53 @@
  - add a debian watch file
  - add 'sudo' entry to ubuntu's default user (LP: #1080717)
  - fix resizefs module when 'noblock' was provided (LP: #1080985)
+ - make sure there is no blank line before cloud-init entry in
+   there are no blank lines in /etc/ca-certificates.conf (LP: #1077020)
+ - fix sudoers writing when entry is a string (LP: #1079002)
+ - tools/write-ssh-key-fingerprints: use '-s' rather than '--stderr'
+   option (LP: #1083715)
+ - make install of puppet configurable (LP: #1090205) [Craig Tracey]
+ - support omnibus installer for chef [Anatoliy Dobrosynets]
+ - fix bug where cloud-config in user-data could not modify system_info
+   settings (LP: #1090482)
+ - fix CloudStack DataSource to use Virtual Router as described by
+   CloudStack documentation if it is available by searching through dhclient
+   lease files.  If it is not available, then fall back to the default
+   gateway. (LP: #1089989)
+ - fix redaction of password field in log (LP: #1096417)
+ - fix to cloud-config user setup.  Previously, lock_passwd was broken and
+   all accounts would be locked unless 'system' was given (LP: #1096423).
+ - Allow 'sr0' (or sr[0-9]) to be specified without /dev/ as a source for
+   mounts. [Vlastimil Holer]
+ - allow config-drive-data to come from a CD device by more correctly
+   filtering out partitions.  (LP: #1100545)
+ - setup docs to be available on read-the-docs
+   https://cloudinit.readthedocs.org/en/latest/ (LP: #1093039)
+ - add HACKING file for information on contributing
+ - handle the legacy 'user:' configuration better, making it affect the
+   configured OS default user (LP: #1100920)
+ - Adding a resolv.conf configuration module (LP: #1100434).  Currently only
+   working on redhat systems (no support for resolvconf)
+ - support grouping linux distros into "os_families".  This allows a module
+   to operate on the family (redhat or debian) rather than the distro (ubuntu,
+   debian, fedora, rhel) (LP: #1100029)
+ - fix /etc/hosts writing when templates are used (LP: #1100036)
+ - add package versioning logic to package installation
+   functionality (LP: #1108047)
+ - fix documentation for write_files to correctly list 'permissions'
+   rather than 'perms' (LP: #1111205)
+ - cloud-init-container.conf: ensure /run/network before running ifquery
+ - DataSourceNoCloud: allow user-data and meta-data to be specified
+   in config (LP: #1115833).
+ - improve debian support in sysvinit scripts, package build scripts, and
+   split sources.list template to be distro specific.
+ - support for resizing btrfs root filesystems [Blair Zajac]
+ - fix issue when writing ssh keys to .ssh/authorized_keys (LP: #1136343)
+ - upstart: cloud-init-nonet.conf trap the TERM signal, so that dmesg or other
+   output does not get a 'killed by TERM signal' message.
+ - support resizing partitions via growpart or parted (LP: #1136936)
+ - allow specifying apt-get command in distro config ('apt_get_command')
+
 0.7.1:
  - sysvinit: fix missing dependency in cloud-init job for RHEL 5.6 
  - config-drive: map hostname to local-hostname (LP: #1061964)
@@ -38,12 +85,13 @@
  - fix how string escaping was not working when the string was a unicode
    string which was causing the warning message not to be written
    out (LP: #1075756)
- - for boto > 0.6.0 there was a lazy load of the metadata added, when cloud-init
-   runs the usage of this lazy loading is hidden and since that lazy loading 
-   will be performed on future attribute access we must traverse the lazy loaded
-   dictionary and force it to full expand so that if cloud-init blocks the ec2
-   metadata port the lazy loaded dictionary will continue working properly
-   instead of trying to make additional url calls which will fail (LP: #1068801)
+ - for boto > 0.6.0 there was a lazy load of the metadata added, when
+   cloud-init runs the usage of this lazy loading is hidden and since that lazy
+   loading will be performed on future attribute access we must traverse the
+   lazy loaded dictionary and force it to full expand so that if cloud-init
+   blocks the ec2 metadata port the lazy loaded dictionary will continue
+   working properly instead of trying to make additional url calls which will
+   fail (LP: #1068801)
  - use a set of helper/parsing classes to perform system configuration
    for easier test.  (/etc/sysconfig, /etc/hostname, resolv.conf, /etc/hosts)
  - add power_state_change config module for shutting down stystem after
@@ -58,7 +106,8 @@
  - do not 'start networking' in cloud-init-nonet, but add
    cloud-init-container job that runs only if in container and emits
    net-device-added (LP: #1031065)
- - search only top level dns for 'instance-data' in DataSourceEc2 (LP: #1040200)
+ - search only top level dns for 'instance-data' in 
+   DataSourceEc2 (LP: #1040200)
  - add support for config-drive-v2 (LP:#1037567)
  - support creating users, including the default user.
    [Ben Howard] (LP: #1028503)
@@ -148,8 +197,8 @@
    detailed information on python 2.6 and 2.7
  - forced all code loading, moving, chmod, writing files and other system
    level actions to go through standard set of util functions, this greatly 
-   helps in debugging and determining exactly which system actions cloud-init is
-   performing
+   helps in debugging and determining exactly which system actions cloud-init
+   is performing
  - adjust url fetching and url trying to go through a single function that
    reads urls in the new 'url helper' file, this helps in tracing, debugging
    and knowing which urls are being called and/or posted to from with-in 
@@ -185,28 +234,30 @@
    very simple set of ec2 meta-data back to callers
       - useful for testing or for understanding what the ec2 meta-data 
         service can provide in terms of data or functionality
- - for ssh key and authorized key file parsing add in classes and util functions
-   that maintain the state of individual lines, allowing for a clearer 
-   separation of parsing and modification (useful for testing and tracing)
+ - for ssh key and authorized key file parsing add in classes and util
+   functions that maintain the state of individual lines, allowing for a
+   clearer separation of parsing and modification (useful for testing and
+   tracing)
  - add a set of 'base' init.d scripts that can be used on systems that do
    not have full upstart or systemd support (or support that does not match
    the standard fedora/ubuntu implementation)
    - currently these are being tested on RHEL 6.2
  - separate the datasources into there own subdirectory (instead of being
-   a top-level item), this matches how config 'modules' and user-data 'handlers'
-   are also in there own subdirectory (thus helping new developers and others
-   understand the code layout in a quicker manner)
+   a top-level item), this matches how config 'modules' and user-data
+   'handlers' are also in there own subdirectory (thus helping new developers
+   and others understand the code layout in a quicker manner)
  - add the building of rpms based off a new cli tool and template 'spec' file
    that will templatize and perform the necessary commands to create a source
-   and binary package to be used with a cloud-init install on a 'rpm' supporting
-   system
+   and binary package to be used with a cloud-init install on a 'rpm'
+   supporting system
    - uses the new standard set of requires and converts those pypi requirements
      into a local set of package requirments (that are known to exist on RHEL
      systems but should also exist on fedora systems)
- - adjust the bdeb builder to be a python script (instead of a shell script) and
-   make its 'control' file a template that takes in the standard set of pypi 
-   dependencies and uses a local mapping (known to work on ubuntu) to create the
-   packages set of dependencies (that should also work on ubuntu-like systems)
+ - adjust the bdeb builder to be a python script (instead of a shell script)
+   and make its 'control' file a template that takes in the standard set of
+   pypi dependencies and uses a local mapping (known to work on ubuntu) to
+   create the packages set of dependencies (that should also work on
+   ubuntu-like systems)
  - pythonify a large set of various pieces of code
    - remove wrapping return statements with () when it has no effect
    - upper case all constants used
@@ -217,8 +268,8 @@
      there own equality)
    - use context managers on locks, tempdir, chdir, file, selinux, umask, 
      unmounting commands so that these actions do not have to be closed and/or
-     cleaned up manually in finally blocks, which is typically not done and will
-     eventually be a bug in the future
+     cleaned up manually in finally blocks, which is typically not done and
+     will eventually be a bug in the future
    - use the 'abc' module for abstract classes base where possible
       - applied in the datasource root class, the distro root class, and the
         user-data v2 root class
@@ -248,17 +299,18 @@
    config without sections better (and it also maintains comments instead of
    removing them)
  - use the new defaulting config parser (that will not raise errors on sections
-   that do not exist or return errors when values are fetched that do not exist)
-   in the 'puppet' module
+   that do not exist or return errors when values are fetched that do not
+   exist) in the 'puppet' module
  - for config 'modules' add in the ability for the module to provide a list of 
-   distro names which it is known to work with, if when ran and the distro being
-   used name does not match one of those in this list, a warning will be written
-   out saying that this module may not work correctly on this distrobution
+   distro names which it is known to work with, if when ran and the distro
+   being used name does not match one of those in this list, a warning will be
+   written out saying that this module may not work correctly on this
+   distrobution
  - for all dynamically imported modules ensure that they are fixed up before 
    they are used by ensuring that they have certain attributes, if they do not
    have those attributes they will be set to a sensible set of defaults instead
  - adjust all 'config' modules and handlers to use the adjusted util functions
-   and the new distro objects where applicable so that those pieces of code can 
+   and the new distro objects where applicable so that those pieces of code can
    benefit from the unified and enhanced functionality being provided in that
    util module
  - fix a potential bug whereby when a #includeonce was encountered it would
@@ -266,8 +318,8 @@
    it would continue checking against that cache, instead of refetching (which
    would likely be the expected case)
  - add a openstack/nova based pep8 extension utility ('hacking.py') that allows
-   for custom checks (along with the standard pep8 checks) to occur when running
-   'make pep8' and its derivatives
+   for custom checks (along with the standard pep8 checks) to occur when
+   running 'make pep8' and its derivatives
 0.6.4:
  - support relative path in AuthorizedKeysFile (LP: #970071).
  - make apt-get update run with --quiet (suitable for logging) (LP: #1012613)
@@ -455,3 +507,4 @@
  - make the message on 'disable_root' more clear (LP: #672417)
  - do not require public key if private is given in ssh cloud-config 
    (LP: #648905)
+# vi: syntax=text textwidth=79

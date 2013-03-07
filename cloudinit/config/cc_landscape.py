@@ -63,7 +63,7 @@ def handle(_name, cfg, cloud, log, _args):
     if not ls_cloudcfg:
         return
 
-    cloud.distro.install_packages(["landscape-client"])
+    cloud.distro.install_packages(('landscape-client',))
 
     merge_data = [
         LSC_BUILTIN_CFG,
