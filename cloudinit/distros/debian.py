@@ -33,6 +33,10 @@ from cloudinit.settings import PER_INSTANCE
 
 LOG = logging.getLogger(__name__)
 
+APT_GET_COMMAND = ('apt-get', '--option=Dpkg::Options::=--force-confold',
+                   '--option=Dpkg::options::=--force-unsafe-io',
+                   '--assume-yes', '--quiet')
+
 
 class Distro(distros.Distro):
     hostname_conf_fn = "/etc/hostname"
@@ -150,8 +154,7 @@ class Distro(distros.Distro):
         # See: http://tiny.cc/kg91fw
         # Or: http://tiny.cc/mh91fw
         e['DEBIAN_FRONTEND'] = 'noninteractive'
-        cmd = ['apt-get', '--option', 'Dpkg::Options::=--force-confold',
-               '--assume-yes', '--quiet']
+        cmd = list(self.get_option("apt_get_command", APT_GET_COMMAND))
 
         if args and isinstance(args, str):
             cmd.append(args)
