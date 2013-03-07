@@ -30,6 +30,7 @@ import os.path
 from cloudinit import log as logging
 from cloudinit import sources
 from cloudinit import util
+
 from cloudinit.util import ProcessExecutionError
 
 LOG = logging.getLogger(__name__)
@@ -91,8 +92,8 @@ class DataSourceAltCloud(sources.DataSource):
         self.supported_seed_starts = ("/", "file://")
 
     def __str__(self):
-        mstr = "%s [seed=%s]" % (util.obj_name(self), self.seed)
-        return mstr
+        root = sources.DataSource.__str__(self)
+        return "%s [seed=%s]" % (root, self.seed)
 
     def get_cloud_type(self):
         '''

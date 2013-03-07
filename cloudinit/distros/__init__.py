@@ -31,6 +31,7 @@ import re
 from cloudinit import importer
 from cloudinit import log as logging
 from cloudinit import ssh_util
+from cloudinit import type_utils
 from cloudinit import util
 
 from cloudinit.distros.parsers import hosts
@@ -445,7 +446,7 @@ class Distro(object):
             lines.append("%s %s" % (user, rules))
         else:
             msg = "Can not create sudoers rule addition with type %r"
-            raise TypeError(msg % (util.obj_name(rules)))
+            raise TypeError(msg % (type_utils.obj_name(rules)))
         content = "\n".join(lines)
         content += "\n"  # trailing newline
 
@@ -568,7 +569,7 @@ def _normalize_groups(grp_cfg):
                             c_grp_cfg[k] = [v]
                         else:
                             raise TypeError("Bad group member type %s" %
-                                            util.obj_name(v))
+                                            type_utils.obj_name(v))
                     else:
                         if isinstance(v, (list)):
                             c_grp_cfg[k].extend(v)
@@ -576,13 +577,13 @@ def _normalize_groups(grp_cfg):
                             c_grp_cfg[k].append(v)
                         else:
                             raise TypeError("Bad group member type %s" %
-                                            util.obj_name(v))
+                                            type_utils.obj_name(v))
             elif isinstance(i, (str, basestring)):
                 if i not in c_grp_cfg:
                     c_grp_cfg[i] = []
             else:
                 raise TypeError("Unknown group name type %s" %
-                                util.obj_name(i))
+                                type_utils.obj_name(i))
         grp_cfg = c_grp_cfg
     groups = {}
     if isinstance(grp_cfg, (dict)):
@@ -591,7 +592,7 @@ def _normalize_groups(grp_cfg):
     else:
         raise TypeError(("Group config must be list, dict "
                          " or string types only and not %s") %
-                        util.obj_name(grp_cfg))
+                        type_utils.obj_name(grp_cfg))
     return groups
 
 
@@ -622,7 +623,7 @@ def _normalize_users(u_cfg, def_user_cfg=None):
                 ad_ucfg.append(v)
             else:
                 raise TypeError(("Unmappable user value type %s"
-                                 " for key %s") % (util.obj_name(v), k))
+                                 " for key %s") % (type_utils.obj_name(v), k))
         u_cfg = ad_ucfg
     elif isinstance(u_cfg, (str, basestring)):
         u_cfg = util.uniq_merge_sorted(u_cfg)
@@ -647,7 +648,7 @@ def _normalize_users(u_cfg, def_user_cfg=None):
         else:
             raise TypeError(("User config must be dictionary/list "
                              " or string types only and not %s") %
-                            util.obj_name(user_config))
+                            type_utils.obj_name(user_config))
 
     # Ensure user options are in the right python friendly format
     if users:
@@ -740,7 +741,7 @@ def normalize_users_groups(cfg, distro):
             }
         if not isinstance(old_user, (dict)):
             LOG.warn(("Format for 'user' key must be a string or "
-                      "dictionary and not %s"), util.obj_name(old_user))
+                      "dictionary and not %s"), type_utils.obj_name(old_user))
             old_user = {}
 
     # If no old user format, then assume the distro
@@ -766,7 +767,7 @@ def normalize_users_groups(cfg, distro):
     if not isinstance(base_users, (list, dict, str, basestring)):
         LOG.warn(("Format for 'users' key must be a comma separated string"
                   " or a dictionary or a list and not %s"),
-                 util.obj_name(base_users))
+                 type_utils.obj_name(base_users))
         base_users = []
 
     if old_user:

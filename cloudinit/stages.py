@@ -43,6 +43,7 @@ from cloudinit import helpers
 from cloudinit import importer
 from cloudinit import log as logging
 from cloudinit import sources
+from cloudinit import type_utils
 from cloudinit import util
 
 LOG = logging.getLogger(__name__)
@@ -211,7 +212,7 @@ class Init(object):
         # Any config provided???
         pkg_list = self.cfg.get('datasource_pkg_list') or []
         # Add the defaults at the end
-        for n in ['', util.obj_name(sources)]:
+        for n in ['', type_utils.obj_name(sources)]:
             if n not in pkg_list:
                 pkg_list.append(n)
         cfg_list = self.cfg.get('datasource_list') or []
@@ -271,7 +272,7 @@ class Init(object):
         dp = self.paths.get_cpath('data')
 
         # Write what the datasource was and is..
-        ds = "%s: %s" % (util.obj_name(self.datasource), self.datasource)
+        ds = "%s: %s" % (type_utils.obj_name(self.datasource), self.datasource)
         previous_ds = None
         ds_fn = os.path.join(idir, 'datasource')
         try:
@@ -488,7 +489,7 @@ class Modules(object):
             else:
                 raise TypeError(("Failed to read '%s' item in config,"
                                  " unknown type %s") %
-                                 (item, util.obj_name(item)))
+                                 (item, type_utils.obj_name(item)))
         return module_list
 
     def _fixup_modules(self, raw_mods):
@@ -506,7 +507,7 @@ class Modules(object):
                 # Reset it so when ran it will get set to a known value
                 freq = None
             mod_locs = importer.find_module(mod_name,
-                                            ['', util.obj_name(config)],
+                                            ['', type_utils.obj_name(config)],
                                             ['handle'])
             if not mod_locs:
                 LOG.warn("Could not find module named %s", mod_name)

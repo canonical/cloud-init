@@ -48,6 +48,8 @@
    output does not get a 'killed by TERM signal' message.
  - support resizing partitions via growpart or parted (LP: #1136936)
  - allow specifying apt-get command in distro config ('apt_get_command')
+ - support different and user-suppliable merging algorithms for cloud-config
+   (LP: #1023179)
 
 0.7.1:
  - sysvinit: fix missing dependency in cloud-init job for RHEL 5.6 
