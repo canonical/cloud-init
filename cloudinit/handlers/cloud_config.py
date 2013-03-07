@@ -46,7 +46,7 @@ class CloudConfigPartHandler(handlers.Handler):
             handlers.type_from_starts_with("#cloud-config"),
         ]
 
-    def _write_cloud_config(self, buf):
+    def _write_cloud_config(self):
         if not self.cloud_fn:
             return
         # Capture which files we merged from...
@@ -107,12 +107,13 @@ class CloudConfigPartHandler(handlers.Handler):
         self.cloud_buf = None
         self.mergers = [DEF_MERGERS]
 
-    def handle_part(self, _data, ctype, filename, payload, _freq, headers):
+    def handle_part(self, _data, ctype, filename,  # pylint: disable=W0221
+                    payload, _frequency, headers):  # pylint: disable=W0613
         if ctype == handlers.CONTENT_START:
             self._reset()
             return
         if ctype == handlers.CONTENT_END:
-            self._write_cloud_config(self.cloud_buf)
+            self._write_cloud_config()
             self._reset()
             return
         try:
