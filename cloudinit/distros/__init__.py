@@ -741,7 +741,7 @@ def normalize_users_groups(cfg, distro):
             }
         if not isinstance(old_user, (dict)):
             LOG.warn(("Format for 'user' key must be a string or "
-                      "dictionary and not %s"), util.obj_name(old_user))
+                      "dictionary and not %s"), type_utils.obj_name(old_user))
             old_user = {}
 
     # If no old user format, then assume the distro
@@ -767,7 +767,7 @@ def normalize_users_groups(cfg, distro):
     if not isinstance(base_users, (list, dict, str, basestring)):
         LOG.warn(("Format for 'users' key must be a comma separated string"
                   " or a dictionary or a list and not %s"),
-                 util.obj_name(base_users))
+                 type_utils.obj_name(base_users))
         base_users = []
 
     if old_user:

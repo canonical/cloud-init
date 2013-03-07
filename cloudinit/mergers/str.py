@@ -18,7 +18,7 @@
 
 
 class Merger(object):
-    def __init__(self, merger, opts):
+    def __init__(self, _merger, opts):
         self._append = 'append' in opts
 
     # On encountering a unicode object to merge value with

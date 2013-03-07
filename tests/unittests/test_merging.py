@@ -1,5 +1,3 @@
-import os
-
 from tests.unittests import helpers
 
 from cloudinit import mergers
@@ -107,8 +105,10 @@ class TestSimpleRun(helpers.MockerTestCase):
         self.assertEquals(merged['a'], [1, 'b', 2, 'e', 'f', 'g'])
         self.assertEquals(merged['b'], 'blahblahmore')
         self.assertEquals(merged['c']['f'], 'bigblobofstuff')
-        self.assertEquals(merged['run'], ['runme', 'runme2', 'morecmd', 'moremoremore'])
-        self.assertEquals(merged['runmereally'], ['e', ['a'], 'd', 'blah', ['b'], 'e'])
+        self.assertEquals(merged['run'], ['runme', 'runme2', 'morecmd',
+                                          'moremoremore'])
+        self.assertEquals(merged['runmereally'], ['e', ['a'], 'd', 'blah',
+                                                  ['b'], 'e'])
 
     def test_dict_overwrite_layered(self):
         source = {

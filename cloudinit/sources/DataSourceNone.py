@@ -18,7 +18,6 @@
 
 from cloudinit import log as logging
 from cloudinit import sources
-from cloudinit import util
 
 LOG = logging.getLogger(__name__)
 
