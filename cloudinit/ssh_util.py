@@ -19,9 +19,6 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-from StringIO import StringIO
-
-import csv
 import os
 import pwd
 
@@ -41,6 +38,7 @@ VALID_KEY_TYPES = ("rsa", "dsa", "ssh-rsa", "ssh-dss", "ecdsa",
     "ecdsa-sha2-nistp256-cert-v01@openssh.com",
     "ecdsa-sha2-nistp384-cert-v01@openssh.com",
     "ecdsa-sha2-nistp521-cert-v01@openssh.com")
+
 
 class AuthKeyLine(object):
     def __init__(self, source, keytype=None, base64=None,
@@ -141,14 +139,14 @@ class AuthKeyLineParser(object):
         ent = line.strip()
         try:
             (keytype, base64, comment) = parse_ssh_key(ent)
-        except TypeError as e:
+        except TypeError:
             (keyopts, remain) = self._extract_options(ent)
             if options is None:
                 options = keyopts
-            
+
             try:
                 (keytype, base64, comment) = parse_ssh_key(remain)
-            except TypeError as e:
+            except TypeError:
                 return AuthKeyLine(src_line)
 
         return AuthKeyLine(src_line, keytype=keytype, base64=base64,

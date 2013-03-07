@@ -73,7 +73,7 @@ class Distro(object):
         self._apply_hostname(hostname)
 
     @abc.abstractmethod
-    def package_command(self, cmd, args=None):
+    def package_command(self, cmd, args=None, pkgs=None):
         raise NotImplementedError()
 
     @abc.abstractmethod
@@ -370,7 +370,7 @@ class Distro(object):
         # Import SSH keys
         if 'ssh_authorized_keys' in kwargs:
             keys = set(kwargs['ssh_authorized_keys']) or []
-            ssh_util.setup_user_keys(keys, name, key_prefix=None)
+            ssh_util.setup_user_keys(keys, name, options=None)
 
         return True
 
@@ -776,7 +776,7 @@ def normalize_users_groups(cfg, distro):
             # Just add it on at the end...
             base_users.append({'name': 'default'})
         elif isinstance(base_users, (dict)):
-            base_users['default'] = base_users.get('default', True)
+            base_users['default'] = dict(base_users).get('default', True)
         elif isinstance(base_users, (str, basestring)):
             # Just append it on to be re-parsed later
             base_users += ",default"
