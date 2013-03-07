@@ -272,7 +272,7 @@ def find_candidate_devs():
     combined = (by_label + [d for d in by_fstype if d not in by_label])
 
     # We are looking for block device (sda, not sda1), ignore partitions
-    combined = [d for d in combined if d[-1] not in "0123456789"]
+    combined = [d for d in combined if not util.is_partition(d)]
 
     return combined
 

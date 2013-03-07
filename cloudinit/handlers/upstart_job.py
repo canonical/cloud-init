@@ -64,3 +64,15 @@ class UpstartJobPartHandler(handlers.Handler):
         payload = util.dos2unix(payload)
         path = os.path.join(self.upstart_dir, filename)
         util.write_file(path, payload, 0644)
+
+        # FIXME LATER (LP: #1124384)
+        # a bug in upstart means that invoking reload-configuration
+        # at this stage in boot causes havoc.  So, until that is fixed
+        # we will not do that.  However, I'd like to be able to easily
+        # test to see if this bug is still present in an image with
+        # a newer upstart.  So, a boot hook could easiliy write this file.
+        if os.path.exists("/run/cloud-init-upstart-reload"):
+            # if inotify support is not present in the root filesystem
+            # (overlayroot) then we need to tell upstart to re-read /etc
+
+            util.subp(["initctl", "reload-configuration"], capture=False)

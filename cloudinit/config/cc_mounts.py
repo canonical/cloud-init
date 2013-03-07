@@ -25,8 +25,8 @@ import re
 from cloudinit import type_utils
 from cloudinit import util
 
-# Shortname matches 'sda', 'sda1', 'xvda', 'hda', 'sdb', xvdb, vda, vdd1
-SHORTNAME_FILTER = r"^[x]{0,1}[shv]d[a-z][0-9]*$"
+# Shortname matches 'sda', 'sda1', 'xvda', 'hda', 'sdb', xvdb, vda, vdd1, sr0
+SHORTNAME_FILTER = r"^([x]{0,1}[shv]d[a-z][0-9]*|sr[0-9]+)$"
 SHORTNAME = re.compile(SHORTNAME_FILTER)
 WS = re.compile("[%s]+" % (whitespace))
 FSTAB_PATH = "/etc/fstab"
