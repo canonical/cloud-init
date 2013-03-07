@@ -64,7 +64,7 @@ class DataSourceNoCloud(sources.DataSource):
         # Check to see if the seed dir has data.
         seedret = {}
         if util.read_optional_seed(seedret, base=self.seed_dir + "/"):
-            md = util.mergedict(md, seedret['meta-data'])
+            md = util.mergemanydict([md, seedret['meta-data']])
             ud = seedret['user-data']
             found.append(self.seed_dir)
             LOG.debug("Using seeded cache data from %s", self.seed_dir)
@@ -88,7 +88,7 @@ class DataSourceNoCloud(sources.DataSource):
                 LOG.debug("Attempting to use data from %s", dev)
 
                 (newmd, newud) = util.mount_cb(dev, util.read_seeded)
-                md = util.mergedict(newmd, md)
+                md = util.mergemanydict([newmd, md])
                 ud = newud
 
                 # For seed from a device, the default mode is 'net'.
@@ -139,11 +139,11 @@ class DataSourceNoCloud(sources.DataSource):
             LOG.debug("Using seeded cache data from %s", seedfrom)
 
             # Values in the command line override those from the seed
-            md = util.mergedict(md, md_seed)
+            md = util.mergemanydict([md, md_seed])
             found.append(seedfrom)
 
         # Now that we have exhausted any other places merge in the defaults
-        md = util.mergedict(md, defaults)
+        md = util.mergemanydict([md, defaults])
 
         # Update the network-interfaces if metadata had 'network-interfaces'
         # entry and this is the local datasource, or 'seedfrom' was used

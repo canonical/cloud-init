@@ -154,7 +154,7 @@ class DataSourceConfigDrive(sources.DataSource):
             return False
 
         md = results['metadata']
-        md = util.mergedict(md, DEFAULT_METADATA)
+        md = util.mergemanydict([md, DEFAULT_METADATA])
 
         # Perform some metadata 'fixups'
         #
