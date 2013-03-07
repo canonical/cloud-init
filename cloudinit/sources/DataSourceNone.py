@@ -41,9 +41,6 @@ class DataSourceNone(sources.DataSource):
     def get_instance_id(self):
         return 'iid-datasource-none'
 
-    def __str__(self):
-        return util.obj_name(self)
-
     @property
     def is_disconnected(self):
         return True

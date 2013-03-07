@@ -20,11 +20,12 @@ import re
 
 from cloudinit import importer
 from cloudinit import log as logging
-from cloudinit import util
+from cloudinit import type_utils
 
 NAME_MTCH = re.compile(r"(^[a-zA-Z_][A-Za-z0-9_]*)\((.*?)\)$")
 
 LOG = logging.getLogger(__name__)
+DEF_MERGE_TYPE = "list(extend)+dict()+str(append)"
 
 
 class UnknownMerger(object):
@@ -42,7 +43,7 @@ class UnknownMerger(object):
     # If not found the merge will be given to a '_handle_unknown'
     # function which can decide what to do wit the 2 values.
     def merge(self, source, merge_with):
-        type_name = util.obj_name(source)
+        type_name = type_utils.obj_name(source)
         type_name = type_name.lower()
         method_name = "_on_%s" % (type_name)
         meth = None
@@ -127,6 +128,10 @@ def string_extract_mergers(merge_how):
     return parsed_mergers
 
 
+def default_mergers():
+    return tuple(string_extract_mergers(DEF_MERGE_TYPE))
+
+
 def construct(parsed_mergers):
     mergers_to_be = []
     for (m_name, m_ops) in parsed_mergers:
@@ -146,3 +151,5 @@ def construct(parsed_mergers):
     for (attr, opts) in mergers_to_be:
         mergers.append(attr(root, opts))
     return root
+
+

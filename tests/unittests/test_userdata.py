@@ -74,7 +74,7 @@ run:
  - morestuff
 '''
         message2 = MIMEBase("text", "cloud-config")
-        message2['Merge-Type'] = 'dict()+list(extend)+str()'
+        message2['X-Merge-Type'] = 'dict()+list(extend)+str()'
         message2.set_payload(blob2)
 
         blob3 = '''
@@ -83,6 +83,7 @@ e:
  - 1
  - 2
  - 3
+p: 1
 '''
         message3 = MIMEBase("text", "cloud-config")
         message3['Merge-Type'] = 'dict()+list()+str()'
@@ -109,6 +110,7 @@ e:
         self.assertEquals(contents['run'], ['b', 'c', 'stuff', 'morestuff'])
         self.assertEquals(contents['a'], 'be')
         self.assertEquals(contents['e'], 'fg')
+        self.assertEquals(contents['p'], 1)
 
     def test_unhandled_type_warning(self):
         """Raw text without magic is ignored but shows warning."""

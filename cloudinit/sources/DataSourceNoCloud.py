@@ -40,9 +40,8 @@ class DataSourceNoCloud(sources.DataSource):
         self.supported_seed_starts = ("/", "file://")
 
     def __str__(self):
-        mstr = "%s [seed=%s][dsmode=%s]" % (util.obj_name(self),
-                                            self.seed, self.dsmode)
-        return mstr
+        root = sources.DataSource.__str__(self)
+        return "%s [seed=%s][dsmode=%s]" % (root, self.seed, self.dsmode)
 
     def get_data(self):
         defaults = {

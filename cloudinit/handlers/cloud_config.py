@@ -29,8 +29,8 @@ from cloudinit.settings import (PER_ALWAYS)
 
 LOG = logging.getLogger(__name__)
 
-DEF_MERGE_TYPE = "list(extend)+dict()+str(append)"
 MERGE_HEADER = 'Merge-Type'
+DEF_MERGERS = mergers.default_mergers()
 
 
 class CloudConfigPartHandler(handlers.Handler):
@@ -39,9 +39,7 @@ class CloudConfigPartHandler(handlers.Handler):
         self.cloud_buf = None
         self.cloud_fn = paths.get_ipath("cloud_config")
         self.file_names = []
-        self.mergers = [
-            mergers.string_extract_mergers(DEF_MERGE_TYPE),
-        ]
+        self.mergers = [DEF_MERGERS]
 
     def list_types(self):
         return [
@@ -59,6 +57,7 @@ class CloudConfigPartHandler(handlers.Handler):
                 file_lines.append("# %s" % (fn))
             file_lines.append("")
         if self.cloud_buf is not None:
+            # Something was actually gathered....
             lines = [
                 "#cloud-config",
                 '',
@@ -86,7 +85,7 @@ class CloudConfigPartHandler(handlers.Handler):
         all_mergers.extend(mergers_yaml)
         all_mergers.extend(mergers_header)
         if not all_mergers:
-            all_mergers = mergers.string_extract_mergers(DEF_MERGE_TYPE)
+            all_mergers = DEF_MERGERS
         return all_mergers
 
     def _merge_part(self, payload, headers):
@@ -94,7 +93,7 @@ class CloudConfigPartHandler(handlers.Handler):
         # Use the merger list from the last call, since it is the one
         # that will be defining how to merge with the next payload.
         curr_mergers = list(self.mergers[-1])
-        LOG.debug("Merging with %s", curr_mergers)
+        LOG.debug("Merging by applying %s", curr_mergers)
         self.mergers.append(next_mergers)
         merger = mergers.construct(curr_mergers)
         if self.cloud_buf is None:
@@ -106,9 +105,7 @@ class CloudConfigPartHandler(handlers.Handler):
     def _reset(self):
         self.file_names = []
         self.cloud_buf = None
-        self.mergers = [
-            mergers.string_extract_mergers(DEF_MERGE_TYPE),
-        ]
+        self.mergers = [DEF_MERGERS]
 
     def handle_part(self, _data, ctype, filename, payload, _freq, headers):
         if ctype == handlers.CONTENT_START:
