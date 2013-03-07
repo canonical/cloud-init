@@ -519,21 +519,20 @@ def mergemanydict(srcs, reverse=False):
     if reverse:
         srcs = reversed(srcs)
     m_cfg = {}
+    merge_how = [mergers.default_mergers()]
     for a_cfg in srcs:
         if a_cfg:
-            m_cfg = mergedict(m_cfg, a_cfg)
+            # Take the last merger as the one that
+            # will define how to merge next...
+            mergers_to_apply = list(merge_how[-1])
+            merger = mergers.construct(mergers_to_apply)
+            m_cfg = merger.merge(m_cfg, a_cfg)
+            # If the config has now has new merger set,
+            # extract them to be used next time...
+            new_mergers = mergers.dict_extract_mergers(m_cfg)
+            if new_mergers:
+                merge_how.append(new_mergers)
     return m_cfg
-
-
-def mergedict(src, cand):
-    """
-    Merge values from C{cand} into C{src}.
-    If C{src} has a key C{cand} will not override.
-    Nested dictionaries are merged recursively.
-    """
-    raw_mergers = mergers.default_mergers()
-    merger = mergers.construct(raw_mergers)
-    return merger.merge(src, cand)
 
 
 @contextlib.contextmanager
@@ -714,7 +713,7 @@ def read_conf_with_confd(cfgfile):
 
     # Conf.d settings override input configuration
     confd_cfg = read_conf_d(confd)
-    return mergedict(confd_cfg, cfg)
+    return mergemanydict([confd_cfg, cfg])
 
 
 def read_cc_from_cmdline(cmdline=None):
