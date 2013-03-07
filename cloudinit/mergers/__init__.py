@@ -152,5 +152,3 @@ def construct(parsed_mergers):
     for (attr, opts) in mergers_to_be:
         mergers.append(attr(root, opts))
     return root
-
-

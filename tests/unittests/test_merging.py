@@ -140,4 +140,3 @@ class TestSimpleRun(helpers.MockerTestCase):
                     'e': 'f',
                 }
         })
-

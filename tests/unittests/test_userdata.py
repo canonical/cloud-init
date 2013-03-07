@@ -55,7 +55,7 @@ class TestConsumeUserData(helpers.FilesystemMockingTestCase):
 #cloud-config
 a: b
 e: f
-run: 
+run:
  - b
  - c
 '''
@@ -67,7 +67,7 @@ run:
 #cloud-config
 a: e
 e: g
-run: 
+run:
  - stuff
  - morestuff
 '''
@@ -77,7 +77,7 @@ run:
 
         blob3 = '''
 #cloud-config
-e: 
+e:
  - 1
  - 2
  - 3
