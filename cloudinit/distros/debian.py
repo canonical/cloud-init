@@ -142,7 +142,10 @@ class Distro(distros.Distro):
         # This ensures that the correct tz will be used for the system
         util.copy(tz_file, self.tz_local_fn)
 
-    def package_command(self, command, args=None, pkgs=[]):
+    def package_command(self, command, args=None, pkgs=None):
+        if pkgs is None:
+            pkgs = []
+
         e = os.environ.copy()
         # See: http://tiny.cc/kg91fw
         # Or: http://tiny.cc/mh91fw

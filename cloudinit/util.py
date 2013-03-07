@@ -1530,7 +1530,7 @@ def get_proc_env(pid):
     fn = os.path.join("/proc/", str(pid), "environ")
     try:
         contents = load_file(fn)
-        toks = contents.split("\0")
+        toks = contents.split("\x00")
         for tok in toks:
             if tok == "":
                 continue

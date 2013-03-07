@@ -1,7 +1,6 @@
 from mocker import MockerTestCase
 
 from cloudinit import cloud
-from cloudinit import helpers
 from cloudinit import util
 
 from cloudinit.config import cc_growpart
@@ -9,9 +8,7 @@ from cloudinit.config import cc_growpart
 import errno
 import logging
 import os
-import mocker
 import re
-import stat
 
 # growpart:
 #   mode: auto  # off, on, auto, 'growpart', 'parted'
@@ -85,6 +82,7 @@ growpart disk partition
       Resize partition 1 on /dev/sda
 """
 
+
 class TestDisabled(MockerTestCase):
     def setUp(self):
         super(TestDisabled, self).setUp()
@@ -106,6 +104,7 @@ class TestDisabled(MockerTestCase):
 
         self.handle(self.name, config, self.cloud_init, self.log, self.args)
 
+
 class TestConfig(MockerTestCase):
     def setUp(self):
         super(TestConfig, self).setUp()
@@ -125,9 +124,9 @@ class TestConfig(MockerTestCase):
     def test_no_resizers_auto_is_fine(self):
         subp = self.mocker.replace(util.subp, passthrough=False)
         subp(['parted', '--help'], env={'LANG': 'C'})
-        self.mocker.result((HELP_PARTED_NO_RESIZE,""))
+        self.mocker.result((HELP_PARTED_NO_RESIZE, ""))
         subp(['growpart', '--help'], env={'LANG': 'C'})
-        self.mocker.result((HELP_GROWPART_NO_RESIZE,""))
+        self.mocker.result((HELP_GROWPART_NO_RESIZE, ""))
         self.mocker.replay()
 
         config = {'growpart': {'mode': 'auto'}}
@@ -136,7 +135,7 @@ class TestConfig(MockerTestCase):
     def test_no_resizers_mode_growpart_is_exception(self):
         subp = self.mocker.replace(util.subp, passthrough=False)
         subp(['growpart', '--help'], env={'LANG': 'C'})
-        self.mocker.result((HELP_GROWPART_NO_RESIZE,""))
+        self.mocker.result((HELP_GROWPART_NO_RESIZE, ""))
         self.mocker.replay()
 
         config = {'growpart': {'mode': "growpart"}}
@@ -146,7 +145,7 @@ class TestConfig(MockerTestCase):
     def test_mode_auto_prefers_parted(self):
         subp = self.mocker.replace(util.subp, passthrough=False)
         subp(['parted', '--help'], env={'LANG': 'C'})
-        self.mocker.result((HELP_PARTED_RESIZE,""))
+        self.mocker.result((HELP_PARTED_RESIZE, ""))
         self.mocker.replay()
 
         ret = cc_growpart.resizer_factory(mode="auto")
@@ -173,7 +172,7 @@ class TestConfig(MockerTestCase):
             self.handle(self.name, {}, self.cloud_init, self.log, self.args)
         finally:
             cc_growpart.RESIZERS = orig_resizers
-            
+
 
 class TestResize(MockerTestCase):
     def setUp(self):
@@ -196,7 +195,7 @@ class TestResize(MockerTestCase):
         real_stat = os.stat
         resize_calls = []
 
-        class myresizer():
+        class myresizer(object):
             def resize(self, diskdev, partnum, partdev):
                 resize_calls.append((diskdev, partnum, partdev))
                 if partdev == "/dev/YYda2":
@@ -224,7 +223,7 @@ class TestResize(MockerTestCase):
                     if f[0] == name:
                         return f
                 return None
-                
+
             self.assertEqual(cc_growpart.RESIZE.NOCHANGE,
                              find("/dev/XXda1", resized)[1])
             self.assertEqual(cc_growpart.RESIZE.CHANGED,
@@ -244,7 +243,8 @@ def simple_device_part_info(devpath):
     ret = re.search("([^0-9]*)([0-9]*)$", devpath)
     x = (ret.group(1), ret.group(2))
     return x
-        
+
+
 class Bunch:
     def __init__(self, **kwds):
         self.__dict__.update(kwds)

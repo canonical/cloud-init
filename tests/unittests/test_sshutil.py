@@ -1,5 +1,5 @@
-from unittest import TestCase
 from cloudinit import ssh_util
+from unittest import TestCase
 
 
 VALID_CONTENT = {
@@ -34,6 +34,7 @@ TEST_OPTIONS = ("no-port-forwarding,no-agent-forwarding,no-X11-forwarding,"
     'command="echo \'Please login as the user \"ubuntu\" rather than the'
     'user \"root\".\';echo;sleep 10"')
 
+
 class TestAuthKeyLineParser(TestCase):
     def test_simple_parse(self):
         # test key line with common 3 fields (keytype, base64, comment)
@@ -61,7 +62,7 @@ class TestAuthKeyLineParser(TestCase):
             self.assertFalse(key.options)
             self.assertFalse(key.comment)
             self.assertEqual(key.keytype, ktype)
-    
+
     def test_parse_with_keyoptions(self):
         # test key line with options in it
         parser = ssh_util.AuthKeyLineParser()

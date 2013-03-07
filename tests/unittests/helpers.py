@@ -183,6 +183,7 @@ class FilesystemMockingTestCase(ResourceUsingTestCase):
                 setattr(mod, f, trap_func)
                 self.patched_funcs.append((mod, f, func))
 
+
 def populate_dir(path, files):
     os.makedirs(path)
     for (name, content) in files.iteritems():
