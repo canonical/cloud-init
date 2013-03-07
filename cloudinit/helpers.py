@@ -32,6 +32,7 @@ from cloudinit.settings import (PER_INSTANCE, PER_ALWAYS, PER_ONCE,
                                 CFG_ENV_NAME)
 
 from cloudinit import log as logging
+from cloudinit import type_utils
 from cloudinit import util
 
 LOG = logging.getLogger(__name__)
@@ -68,7 +69,7 @@ class FileLock(object):
         self.fn = fn
 
     def __str__(self):
-        return "<%s using file %r>" % (util.obj_name(self), self.fn)
+        return "<%s using file %r>" % (type_utils.obj_name(self), self.fn)
 
 
 def canon_sem_name(name):

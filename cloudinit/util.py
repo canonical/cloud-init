@@ -43,14 +43,15 @@ import subprocess
 import sys
 import tempfile
 import time
-import types
 import urlparse
 
 import yaml
 
 from cloudinit import importer
 from cloudinit import log as logging
+from cloudinit import mergers
 from cloudinit import safeyaml
+from cloudinit import type_utils
 from cloudinit import url_helper as uhelp
 from cloudinit import version
 
@@ -194,11 +195,12 @@ def fork_cb(child_cb, *args):
             os._exit(0)  # pylint: disable=W0212
         except:
             logexc(LOG, ("Failed forking and"
-                         " calling callback %s"), obj_name(child_cb))
+                         " calling callback %s"),
+                   type_utils.obj_name(child_cb))
             os._exit(1)  # pylint: disable=W0212
     else:
         LOG.debug("Forked child %s who will run callback %s",
-                  fid, obj_name(child_cb))
+                  fid, type_utils.obj_name(child_cb))
 
 
 def is_true(val, addons=None):
@@ -512,38 +514,24 @@ def make_url(scheme, host, port=None,
     return urlparse.urlunparse(pieces)
 
 
-def obj_name(obj):
-    if isinstance(obj, (types.TypeType,
-                        types.ModuleType,
-                        types.FunctionType,
-                        types.LambdaType)):
-        return str(obj.__name__)
-    return obj_name(obj.__class__)
-
-
 def mergemanydict(srcs, reverse=False):
     if reverse:
         srcs = reversed(srcs)
     m_cfg = {}
+    merge_how = [mergers.default_mergers()]
     for a_cfg in srcs:
         if a_cfg:
-            m_cfg = mergedict(m_cfg, a_cfg)
+            # Take the last merger as the one that
+            # will define how to merge next...
+            mergers_to_apply = list(merge_how[-1])
+            merger = mergers.construct(mergers_to_apply)
+            m_cfg = merger.merge(m_cfg, a_cfg)
+            # If the config has now has new merger set,
+            # extract them to be used next time...
+            new_mergers = mergers.dict_extract_mergers(m_cfg)
+            if new_mergers:
+                merge_how.append(new_mergers)
     return m_cfg
-
-
-def mergedict(src, cand):
-    """
-    Merge values from C{cand} into C{src}.
-    If C{src} has a key C{cand} will not override.
-    Nested dictionaries are merged recursively.
-    """
-    if isinstance(src, dict) and isinstance(cand, dict):
-        for (k, v) in cand.iteritems():
-            if k not in src:
-                src[k] = v
-            else:
-                src[k] = mergedict(src[k], v)
-    return src
 
 
 @contextlib.contextmanager
@@ -644,7 +632,7 @@ def load_yaml(blob, default=None, allowed=(dict,)):
             # Yes this will just be caught, but thats ok for now...
             raise TypeError(("Yaml load allows %s root types,"
                              " but got %s instead") %
-                            (allowed, obj_name(converted)))
+                            (allowed, type_utils.obj_name(converted)))
         loaded = converted
     except (yaml.YAMLError, TypeError, ValueError):
         if len(blob) == 0:
@@ -713,7 +701,7 @@ def read_conf_with_confd(cfgfile):
             if not isinstance(confd, (str, basestring)):
                 raise TypeError(("Config file %s contains 'conf_d' "
                                  "with non-string type %s") %
-                                 (cfgfile, obj_name(confd)))
+                                 (cfgfile, type_utils.obj_name(confd)))
             else:
                 confd = str(confd).strip()
     elif os.path.isdir("%s.d" % cfgfile):
@@ -724,7 +712,7 @@ def read_conf_with_confd(cfgfile):
 
     # Conf.d settings override input configuration
     confd_cfg = read_conf_d(confd)
-    return mergedict(confd_cfg, cfg)
+    return mergemanydict([confd_cfg, cfg])
 
 
 def read_cc_from_cmdline(cmdline=None):
@@ -1471,7 +1459,7 @@ def shellify(cmdlist, add_header=True):
         else:
             raise RuntimeError(("Unable to shellify type %s"
                                 " which is not a list or string")
-                               % (obj_name(args)))
+                               % (type_utils.obj_name(args)))
     LOG.debug("Shellified %s commands.", cmds_made)
     return content
 
