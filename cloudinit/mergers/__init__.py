@@ -85,7 +85,7 @@ class LookupMerger(UnknownMerger):
 
 def dict_extract_mergers(config):
     parsed_mergers = []
-    raw_mergers = config.get('merger_how')
+    raw_mergers = config.get('merge_how')
     if raw_mergers is None:
         raw_mergers = config.get('merge_type')
     if raw_mergers is None:
