@@ -43,7 +43,8 @@ class DataSourceOVF(sources.DataSource):
         self.supported_seed_starts = ("/", "file://")
 
     def __str__(self):
-        return "%s [seed=%s]" % (util.obj_name(self), self.seed)
+        root = sources.DataSource.__str__(self)
+        return "%s [seed=%s]" % (root, self.seed)
 
     def get_data(self):
         found = []

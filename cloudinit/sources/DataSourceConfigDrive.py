@@ -51,7 +51,9 @@ class DataSourceConfigDrive(sources.DataSource):
         self.ec2_metadata = None
 
     def __str__(self):
-        mstr = "%s [%s,ver=%s]" % (util.obj_name(self), self.dsmode,
+        root = sources.DataSource.__str__(self)
+        mstr = "%s [%s,ver=%s]" % (root,
+                                   self.dsmode,
                                    self.version)
         mstr += "[source=%s]" % (self.source)
         return mstr

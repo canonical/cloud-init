@@ -50,7 +50,8 @@ class DataSourceMAAS(sources.DataSource):
         self.oauth_clockskew = None
 
     def __str__(self):
-        return "%s [%s]" % (util.obj_name(self), self.base_url)
+        root = sources.DataSource.__str__(self)
+        return "%s [%s]" % (root, self.base_url)
 
     def get_data(self):
         mcfg = self.ds_cfg

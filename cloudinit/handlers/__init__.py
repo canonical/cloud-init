@@ -27,6 +27,7 @@ from cloudinit.settings import (PER_ALWAYS, PER_INSTANCE, FREQUENCIES)
 
 from cloudinit import importer
 from cloudinit import log as logging
+from cloudinit import type_utils
 from cloudinit import util
 
 LOG = logging.getLogger(__name__)
@@ -76,7 +77,7 @@ class Handler(object):
         self.frequency = frequency
 
     def __repr__(self):
-        return "%s: [%s]" % (util.obj_name(self), self.list_types())
+        return "%s: [%s]" % (type_utils.obj_name(self), self.list_types())
 
     @abc.abstractmethod
     def list_types(self):
