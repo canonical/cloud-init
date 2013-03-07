@@ -24,8 +24,6 @@ class FakeModule(handlers.Handler):
 
     def handle_part(self, data, ctype, filename, payload, frequency):
         pass
-    
-    
 
 
 class TestWalkerHandleHandler(MockerTestCase):

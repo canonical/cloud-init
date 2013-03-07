@@ -32,7 +32,7 @@ class UnknownMerger(object):
     # Named differently so auto-method finding
     # doesn't pick this up if there is ever a type
     # named "unknown"
-    def _handle_unknown(self, meth_wanted, value, merge_with):
+    def _handle_unknown(self, _meth_wanted, value, _merge_with):
         return value
 
     # This merging will attempt to look for a '_on_X' method
@@ -119,7 +119,8 @@ def string_extract_mergers(merge_how):
             continue
         match = NAME_MTCH.match(m_name)
         if not match:
-            msg = "Matcher identifer '%s' is not in the right format" % (m_name)
+            msg = ("Matcher identifer '%s' is not in the right format" %
+                   (m_name))
             raise ValueError(msg)
         (m_name, m_ops) = match.groups()
         m_ops = m_ops.strip().split(",")

@@ -7,8 +7,6 @@ import os
 
 from email.mime.base import MIMEBase
 
-from mocker import MockerTestCase
-
 from cloudinit import handlers
 from cloudinit import helpers as c_helpers
 from cloudinit import log
@@ -97,14 +95,16 @@ p: 1
         new_root = self.makeDir()
         self.patchUtils(new_root)
         self.patchOS(new_root)
-        cloud_cfg.handle_part(None, handlers.CONTENT_START, None, None, None, None)
+        cloud_cfg.handle_part(None, handlers.CONTENT_START, None, None, None,
+                              None)
         for i, m in enumerate(messages):
             headers = dict(m)
             fn = "part-%s" % (i + 1)
             payload = m.get_payload(decode=True)
             cloud_cfg.handle_part(None, headers['Content-Type'],
                                   fn, payload, None, headers)
-        cloud_cfg.handle_part(None, handlers.CONTENT_END, None, None, None, None)
+        cloud_cfg.handle_part(None, handlers.CONTENT_END, None, None, None,
+                              None)
         contents = util.load_file(paths.get_ipath('cloud_config'))
         contents = util.load_yaml(contents)
         self.assertEquals(contents['run'], ['b', 'c', 'stuff', 'morestuff'])
@@ -118,8 +118,9 @@ p: 1
         data = "arbitrary text\n"
         ci.datasource = FakeDataSource(data)
 
-        self.mock_write = self.mocker.replace("cloudinit.util.write_file", passthrough=False)
-        self.mock_write(ci.paths.get_ipath("cloud_config"), "", 0600)
+        mock_write = self.mocker.replace("cloudinit.util.write_file",
+                                              passthrough=False)
+        mock_write(ci.paths.get_ipath("cloud_config"), "", 0600)
         self.mocker.replay()
 
         log_file = self.capture_log(logging.WARNING)
@@ -136,8 +137,9 @@ p: 1
         message.set_payload("Just text")
         ci.datasource = FakeDataSource(message.as_string())
 
-        self.mock_write = self.mocker.replace("cloudinit.util.write_file", passthrough=False)
-        self.mock_write(ci.paths.get_ipath("cloud_config"), "", 0600)
+        mock_write = self.mocker.replace("cloudinit.util.write_file",
+                                              passthrough=False)
+        mock_write(ci.paths.get_ipath("cloud_config"), "", 0600)
         self.mocker.replay()
 
         log_file = self.capture_log(logging.WARNING)
@@ -154,9 +156,10 @@ p: 1
         ci.datasource = FakeDataSource(script)
 
         outpath = os.path.join(ci.paths.get_ipath_cur("scripts"), "part-001")
-        self.mock_write = self.mocker.replace("cloudinit.util.write_file", passthrough=False)
-        self.mock_write(ci.paths.get_ipath("cloud_config"), "", 0600)
-        self.mock_write(outpath, script, 0700)
+        mock_write = self.mocker.replace("cloudinit.util.write_file",
+                                              passthrough=False)
+        mock_write(ci.paths.get_ipath("cloud_config"), "", 0600)
+        mock_write(outpath, script, 0700)
         self.mocker.replay()
 
         log_file = self.capture_log(logging.WARNING)
@@ -173,9 +176,10 @@ p: 1
         ci.datasource = FakeDataSource(message.as_string())
 
         outpath = os.path.join(ci.paths.get_ipath_cur("scripts"), "part-001")
-        self.mock_write = self.mocker.replace("cloudinit.util.write_file", passthrough=False)
-        self.mock_write(ci.paths.get_ipath("cloud_config"), "", 0600)
-        self.mock_write(outpath, script, 0700)
+        mock_write = self.mocker.replace("cloudinit.util.write_file",
+                                              passthrough=False)
+        mock_write(ci.paths.get_ipath("cloud_config"), "", 0600)
+        mock_write(outpath, script, 0700)
         self.mocker.replay()
 
         log_file = self.capture_log(logging.WARNING)
@@ -192,9 +196,10 @@ p: 1
         ci.datasource = FakeDataSource(message.as_string())
 
         outpath = os.path.join(ci.paths.get_ipath_cur("scripts"), "part-001")
-        self.mock_write = self.mocker.replace("cloudinit.util.write_file", passthrough=False)
-        self.mock_write(outpath, script, 0700)
-        self.mock_write(ci.paths.get_ipath("cloud_config"), "", 0600)
+        mock_write = self.mocker.replace("cloudinit.util.write_file",
+                                         passthrough=False)
+        mock_write(outpath, script, 0700)
+        mock_write(ci.paths.get_ipath("cloud_config"), "", 0600)
         self.mocker.replay()
 
         log_file = self.capture_log(logging.WARNING)
