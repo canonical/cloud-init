@@ -140,10 +140,13 @@ def get_release():
 
 
 def generate_sources_list(codename, mirrors, cloud, log):
-    template_fn = cloud.get_template_filename('sources.list')
+    template_fn = cloud.get_template_filename('sources.list.%s' %
+                                              (cloud.distro.name))
     if not template_fn:
-        log.warn("No template found, not rendering /etc/apt/sources.list")
-        return
+        template_fn = cloud.get_template_filename('sources.list')
+        if not template_fn:
+            log.warn("No template found, not rendering /etc/apt/sources.list")
+            return
 
     params = {'codename': codename}
     for k in mirrors:

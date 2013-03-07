@@ -45,8 +45,15 @@ def add_ca_certs(certs):
         # First ensure they are strings...
         cert_file_contents = "\n".join([str(c) for c in certs])
         util.write_file(CA_CERT_FULL_PATH, cert_file_contents, mode=0644)
+
         # Append cert filename to CA_CERT_CONFIG file.
-        util.write_file(CA_CERT_CONFIG, "\n%s" % CA_CERT_FILENAME, omode="ab")
+        # We have to strip the content because blank lines in the file
+        # causes subsequent entries to be ignored. (LP: #1077020)
+        orig = util.load_file(CA_CERT_CONFIG)
+        cur_cont = '\n'.join([l for l in orig.splitlines()
+                              if l != CA_CERT_FILENAME])
+        out = "%s\n%s\n" % (cur_cont.rstrip(), CA_CERT_FILENAME)
+        util.write_file(CA_CERT_CONFIG, out, omode="wb")
 
 
 def remove_default_ca_certs():

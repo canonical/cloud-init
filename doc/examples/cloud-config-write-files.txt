@@ -12,7 +12,7 @@ write_files:
     content: CiMgVGhpcyBmaWxlIGNvbnRyb2xzIHRoZSBzdGF0ZSBvZiBTRUxpbnV4...
     owner: root:root
     path: /etc/sysconfig/selinux
-    perms: '0644'
+    permissions: '0644'
 -   content: |
         # My new /etc/sysconfig/samba file
 
@@ -24,10 +24,10 @@ write_files:
         AAAAAAAAAwAAAAQAAAAAAgAAAAAAAAACQAAAAAAAAAJAAAAAAAAcAAAAAAAAABwAAAAAAAAAAQAA
         ....
     path: /bin/arch
-    perms: '0555'
+    permissions: '0555'
 -   encoding: gzip
     content: !!binary |
         H4sIAIDb/U8C/1NW1E/KzNMvzuBKTc7IV8hIzcnJVyjPL8pJ4QIA6N+MVxsAAAA=
     path: /usr/bin/hello
-    perms: '0755'
+    permissions: '0755'
 

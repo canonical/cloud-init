@@ -1,3 +1,22 @@
+cloud-init (0.7.2~bzr795-0ubuntu1) raring; urgency=low
+
+  * New upstream snapshot.
+    * documentation on write-files module (LP: #1111205)
+    * support for specifying package versions in package installs
+    * DataSourceNoCloud: allow specifyin user-data and meta-data in
+      the datasource config (LP: #1115833)
+    * work around bug in upstart for now (1124384)
+    * support resizing btrfs fileystems
+    * parse ssh keys more correctly (LP: #1136343)
+    * upstart/cloud-init-nonet.conf: handle sigterm gracefully (LP: #1015223)
+    * support growing partitions (LP: #1136936)
+    * use --force-unsafe-io for dpkg installations to improve speed
+      This is sane as it happens on instance initialization.
+    * more powerful and user-suppliable cloud-config merge mechanisms
+      (LP: #1023179)
+
+ -- Scott Moser <smoser@ubuntu.com>  Thu, 07 Mar 2013 17:33:59 -0500
+
 cloud-init (0.7.1-0ubuntu5) raring; urgency=low
 
   * catchup-751-760.patch (sync to 760)

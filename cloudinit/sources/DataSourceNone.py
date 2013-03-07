@@ -18,7 +18,6 @@
 
 from cloudinit import log as logging
 from cloudinit import sources
-from cloudinit import util
 
 LOG = logging.getLogger(__name__)
 
@@ -40,9 +39,6 @@ class DataSourceNone(sources.DataSource):
 
     def get_instance_id(self):
         return 'iid-datasource-none'
-
-    def __str__(self):
-        return util.obj_name(self)
 
     @property
     def is_disconnected(self):

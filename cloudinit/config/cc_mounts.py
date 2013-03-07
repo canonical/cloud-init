@@ -22,10 +22,11 @@ from string import whitespace  # pylint: disable=W0402
 
 import re
 
+from cloudinit import type_utils
 from cloudinit import util
 
-# Shortname matches 'sda', 'sda1', 'xvda', 'hda', 'sdb', xvdb, vda, vdd1
-SHORTNAME_FILTER = r"^[x]{0,1}[shv]d[a-z][0-9]*$"
+# Shortname matches 'sda', 'sda1', 'xvda', 'hda', 'sdb', xvdb, vda, vdd1, sr0
+SHORTNAME_FILTER = r"^([x]{0,1}[shv]d[a-z][0-9]*|sr[0-9]+)$"
 SHORTNAME = re.compile(SHORTNAME_FILTER)
 WS = re.compile("[%s]+" % (whitespace))
 FSTAB_PATH = "/etc/fstab"
@@ -60,7 +61,7 @@ def handle(_name, cfg, cloud, log, _args):
         # skip something that wasn't a list
         if not isinstance(cfgmnt[i], list):
             log.warn("Mount option %s not a list, got a %s instead",
-                     (i + 1), util.obj_name(cfgmnt[i]))
+                     (i + 1), type_utils.obj_name(cfgmnt[i]))
             continue
 
         startname = str(cfgmnt[i][0])

@@ -1,0 +1,7 @@
+#cloud-config
+# Update apt database on first boot
+# (ie run apt-get update)
+#
+# Default: true
+# Aliases: apt_update
+package_update: false

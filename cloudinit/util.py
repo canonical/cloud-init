@@ -43,14 +43,15 @@ import subprocess
 import sys
 import tempfile
 import time
-import types
 import urlparse
 
 import yaml
 
 from cloudinit import importer
 from cloudinit import log as logging
+from cloudinit import mergers
 from cloudinit import safeyaml
+from cloudinit import type_utils
 from cloudinit import url_helper as uhelp
 from cloudinit import version
 
@@ -194,11 +195,12 @@ def fork_cb(child_cb, *args):
             os._exit(0)  # pylint: disable=W0212
         except:
             logexc(LOG, ("Failed forking and"
-                         " calling callback %s"), obj_name(child_cb))
+                         " calling callback %s"),
+                   type_utils.obj_name(child_cb))
             os._exit(1)  # pylint: disable=W0212
     else:
         LOG.debug("Forked child %s who will run callback %s",
-                  fid, obj_name(child_cb))
+                  fid, type_utils.obj_name(child_cb))
 
 
 def is_true(val, addons=None):
@@ -402,10 +404,9 @@ def get_cfg_option_list(yobj, key, default=None):
         return []
     val = yobj[key]
     if isinstance(val, (list)):
-        # Should we ensure they are all strings??
-        cval = [str(v) for v in val]
+        cval = [v for v in val]
         return cval
-    if not isinstance(val, (str, basestring)):
+    if not isinstance(val, (basestring)):
         val = str(val)
     return [val]
 
@@ -513,38 +514,24 @@ def make_url(scheme, host, port=None,
     return urlparse.urlunparse(pieces)
 
 
-def obj_name(obj):
-    if isinstance(obj, (types.TypeType,
-                        types.ModuleType,
-                        types.FunctionType,
-                        types.LambdaType)):
-        return str(obj.__name__)
-    return obj_name(obj.__class__)
-
-
 def mergemanydict(srcs, reverse=False):
     if reverse:
         srcs = reversed(srcs)
     m_cfg = {}
+    merge_how = [mergers.default_mergers()]
     for a_cfg in srcs:
         if a_cfg:
-            m_cfg = mergedict(m_cfg, a_cfg)
+            # Take the last merger as the one that
+            # will define how to merge next...
+            mergers_to_apply = list(merge_how[-1])
+            merger = mergers.construct(mergers_to_apply)
+            m_cfg = merger.merge(m_cfg, a_cfg)
+            # If the config has now has new merger set,
+            # extract them to be used next time...
+            new_mergers = mergers.dict_extract_mergers(m_cfg)
+            if new_mergers:
+                merge_how.append(new_mergers)
     return m_cfg
-
-
-def mergedict(src, cand):
-    """
-    Merge values from C{cand} into C{src}.
-    If C{src} has a key C{cand} will not override.
-    Nested dictionaries are merged recursively.
-    """
-    if isinstance(src, dict) and isinstance(cand, dict):
-        for (k, v) in cand.iteritems():
-            if k not in src:
-                src[k] = v
-            else:
-                src[k] = mergedict(src[k], v)
-    return src
 
 
 @contextlib.contextmanager
@@ -645,7 +632,7 @@ def load_yaml(blob, default=None, allowed=(dict,)):
             # Yes this will just be caught, but thats ok for now...
             raise TypeError(("Yaml load allows %s root types,"
                              " but got %s instead") %
-                            (allowed, obj_name(converted)))
+                            (allowed, type_utils.obj_name(converted)))
         loaded = converted
     except (yaml.YAMLError, TypeError, ValueError):
         if len(blob) == 0:
@@ -714,7 +701,7 @@ def read_conf_with_confd(cfgfile):
             if not isinstance(confd, (str, basestring)):
                 raise TypeError(("Config file %s contains 'conf_d' "
                                  "with non-string type %s") %
-                                 (cfgfile, obj_name(confd)))
+                                 (cfgfile, type_utils.obj_name(confd)))
             else:
                 confd = str(confd).strip()
     elif os.path.isdir("%s.d" % cfgfile):
@@ -725,7 +712,7 @@ def read_conf_with_confd(cfgfile):
 
     # Conf.d settings override input configuration
     confd_cfg = read_conf_d(confd)
-    return mergedict(confd_cfg, cfg)
+    return mergemanydict([confd_cfg, cfg])
 
 
 def read_cc_from_cmdline(cmdline=None):
@@ -1472,7 +1459,7 @@ def shellify(cmdlist, add_header=True):
         else:
             raise RuntimeError(("Unable to shellify type %s"
                                 " which is not a list or string")
-                               % (obj_name(args)))
+                               % (type_utils.obj_name(args)))
     LOG.debug("Shellified %s commands.", cmds_made)
     return content
 
@@ -1531,7 +1518,7 @@ def get_proc_env(pid):
     fn = os.path.join("/proc/", str(pid), "environ")
     try:
         contents = load_file(fn)
-        toks = contents.split("\0")
+        toks = contents.split("\x00")
         for tok in toks:
             if tok == "":
                 continue
@@ -1553,3 +1540,120 @@ def keyval_str_to_dict(kvstring):
             val = True
         ret[key] = val
     return ret
+
+
+def is_partition(device):
+    if device.startswith("/dev/"):
+        device = device[5:]
+
+    return os.path.isfile("/sys/class/block/%s/partition" % device)
+
+
+def expand_package_list(version_fmt, pkgs):
+    # we will accept tuples, lists of tuples, or just plain lists
+    if not isinstance(pkgs, list):
+        pkgs = [pkgs]
+
+    pkglist = []
+    for pkg in pkgs:
+        if isinstance(pkg, basestring):
+            pkglist.append(pkg)
+            continue
+
+        if isinstance(pkg, (tuple, list)):
+            if len(pkg) < 1 or len(pkg) > 2:
+                raise RuntimeError("Invalid package & version tuple.")
+
+            if len(pkg) == 2 and pkg[1]:
+                pkglist.append(version_fmt % tuple(pkg))
+                continue
+
+            pkglist.append(pkg[0])
+
+        else:
+            raise RuntimeError("Invalid package type.")
+
+    return pkglist
+
+
+def get_mount_info(path, log=LOG):
+    # Use /proc/$$/mountinfo to find the device where path is mounted.
+    # This is done because with a btrfs filesystem using os.stat(path)
+    # does not return the ID of the device.
+    #
+    # Here, / has a device of 18 (decimal).
+    #
+    # $ stat /
+    #   File: '/'
+    #   Size: 234               Blocks: 0          IO Block: 4096   directory
+    # Device: 12h/18d   Inode: 256         Links: 1
+    # Access: (0755/drwxr-xr-x)  Uid: (    0/    root)   Gid: (    0/    root)
+    # Access: 2013-01-13 07:31:04.358011255 +0000
+    # Modify: 2013-01-13 18:48:25.930011255 +0000
+    # Change: 2013-01-13 18:48:25.930011255 +0000
+    #  Birth: -
+    #
+    # Find where / is mounted:
+    #
+    # $ mount | grep ' / '
+    # /dev/vda1 on / type btrfs (rw,subvol=@,compress=lzo)
+    #
+    # And the device ID for /dev/vda1 is not 18:
+    #
+    # $ ls -l /dev/vda1
+    # brw-rw---- 1 root disk 253, 1 Jan 13 08:29 /dev/vda1
+    #
+    # So use /proc/$$/mountinfo to find the device underlying the
+    # input path.
+    path_elements = [e for e in path.split('/') if e]
+    devpth = None
+    fs_type = None
+    match_mount_point = None
+    match_mount_point_elements = None
+    mountinfo_path = '/proc/%s/mountinfo' % os.getpid()
+    for line in load_file(mountinfo_path).splitlines():
+        parts = line.split()
+
+        mount_point = parts[4]
+        mount_point_elements = [e for e in mount_point.split('/') if e]
+
+        # Ignore mounts deeper than the path in question.
+        if len(mount_point_elements) > len(path_elements):
+            continue
+
+        # Ignore mounts where the common path is not the same.
+        l = min(len(mount_point_elements), len(path_elements))
+        if mount_point_elements[0:l] != path_elements[0:l]:
+            continue
+
+        # Ignore mount points higher than an already seen mount
+        # point.
+        if (match_mount_point_elements is not None and
+            len(match_mount_point_elements) > len(mount_point_elements)):
+            continue
+
+        # Find the '-' which terminates a list of optional columns to
+        # find the filesystem type and the path to the device.  See
+        # man 5 proc for the format of this file.
+        try:
+            i = parts.index('-')
+        except ValueError:
+            log.debug("Did not find column named '-' in %s",
+                      mountinfo_path)
+            return None
+
+        # Get the path to the device.
+        try:
+            fs_type = parts[i + 1]
+            devpth = parts[i + 2]
+        except IndexError:
+            log.debug("Too few columns in %s after '-' column", mountinfo_path)
+            return None
+
+        match_mount_point = mount_point
+        match_mount_point_elements = mount_point_elements
+
+    if devpth and fs_type and match_mount_point:
+        return (devpth, fs_type, match_mount_point)
+    else:
+        return None
