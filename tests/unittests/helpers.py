@@ -175,6 +175,7 @@ class FilesystemMockingTestCase(ResourceUsingTestCase):
     def patchOS(self, new_root):
         patch_funcs = {
             os.path: ['isfile', 'exists', 'islink', 'isdir'],
+            os: ['listdir'],
         }
         for (mod, funcs) in patch_funcs.items():
             for f in funcs:
