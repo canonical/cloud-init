@@ -1588,6 +1588,17 @@ def parse_mount_info(path, mountinfo_lines, log=LOG):
     for i, line in enumerate(mountinfo_lines):
         parts = line.split()
 
+        # Completely fail if there is anything in any line that is
+        # unexpected, as continuing to parse past a bad line could
+        # cause an incorrect result to be returned, so it's better
+        # return nothing than an incorrect result.
+
+        # The minimum number of elements in a valid line is 10.
+        if len(parts) < 10:
+            log.debug("Line %d has two few columns (%d): %s",
+                      i + 1, len(parts), line)
+            return None
+
         mount_point = parts[4]
         mount_point_elements = [e for e in mount_point.split('/') if e]
 
