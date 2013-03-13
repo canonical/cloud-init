@@ -867,7 +867,7 @@ def is_resolvable(name):
                 for (_fam, _stype, _proto, cname, sockaddr) in result:
                     badresults[iname].append("%s: %s" % (cname, sockaddr[0]))
                     badips.add(sockaddr[0])
-            except socket.gaierror:
+            except (socket.gaierror, socket.error):
                 pass
         _DNS_REDIRECT_IP = badips
         if badresults:
@@ -880,7 +880,7 @@ def is_resolvable(name):
         if addr in _DNS_REDIRECT_IP:
             return False
         return True
-    except socket.gaierror:
+    except (socket.gaierror, socket.error):
         return False
 
 
