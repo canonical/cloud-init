@@ -34,7 +34,7 @@ LOG = logging.getLogger(__name__)
 
 # Check if requests has ssl support (added in requests >= 0.8.8)
 SSL_ENABLED = False
-CONFIG_ENABLED = False # This was added in 0.7
+CONFIG_ENABLED = False # This was added in 0.7 (but taken out in >=1.0)
 try:
     import pkg_resources
     from distutils.version import LooseVersion
@@ -42,7 +42,7 @@ try:
     _REQ_VER = LooseVersion(_REQ.version)
     if _REQ_VER >= LooseVersion('0.8.8'):
         SSL_ENABLED = True
-    if _REQ_VER >= LooseVersion('0.7.0'):
+    if _REQ_VER >= LooseVersion('0.7.0') and _REQ_VER < LooseVersion('1.0.0'):
         CONFIG_ENABLED = True
 except:
     pass
@@ -129,8 +129,8 @@ def readurl(url, data=None, timeout=None, retries=0, sec_between=1,
     if data:
         req_args['method'] = 'POST'
     # It doesn't seem like config
-    # was added in older library versions, thus we
-    # need to manually do the retries if it wasn't
+    # was added in older library versions (or newer ones either), thus we
+    # need to manually do the retries if it wasn't...
     if CONFIG_ENABLED:
         req_config = {
             'store_cookies': False,
