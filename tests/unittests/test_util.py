@@ -1,3 +1,5 @@
+# pylint: disable=C0301
+# the mountinfo data lines are too long
 import os
 import stat
 import yaml
