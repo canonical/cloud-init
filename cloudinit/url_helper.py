@@ -34,12 +34,12 @@ LOG = logging.getLogger(__name__)
 
 # Check if requests has ssl support (added in requests >= 0.8.8)
 SSL_ENABLED = False
-CONFIG_ENABLED = False # This was added in 0.7 (but taken out in >=1.0)
+CONFIG_ENABLED = False  # This was added in 0.7 (but taken out in >=1.0)
 try:
-    import pkg_resources
     from distutils.version import LooseVersion
+    import pkg_resources
     _REQ = pkg_resources.get_distribution('requests')
-    _REQ_VER = LooseVersion(_REQ.version)
+    _REQ_VER = LooseVersion(_REQ.version)  # pylint: disable=E1103
     if _REQ_VER >= LooseVersion('0.8.8'):
         SSL_ENABLED = True
     if _REQ_VER >= LooseVersion('0.7.0') and _REQ_VER < LooseVersion('1.0.0'):
@@ -49,7 +49,7 @@ except:
 
 
 def _cleanurl(url):
-    parsed_url = list(urlparse(url, scheme='http'))
+    parsed_url = list(urlparse(url, scheme='http'))  # pylint: disable=E1123
     if not parsed_url[1] and parsed_url[2]:
         # Swap these since this seems to be a common
         # occurrence when given urls like 'www.google.com'
@@ -108,7 +108,8 @@ def readurl(url, data=None, timeout=None, retries=0, sec_between=1,
     req_args = {
         'url': url,
     }
-    if urlparse(url).scheme == 'https' and ssl_details:
+    scheme = urlparse(url).scheme  # pylint: disable=E1101
+    if scheme == 'https' and ssl_details:
         if not SSL_ENABLED:
             LOG.warn("SSL is not enabled, cert. verification can not occur!")
         else:
@@ -121,7 +122,7 @@ def readurl(url, data=None, timeout=None, retries=0, sec_between=1,
                                     ssl_details['key_file']]
             elif 'cert_file' in ssl_details:
                 req_args['cert'] = str(ssl_details['cert_file'])
-                                    
+
     req_args['allow_redirects'] = allow_redirects
     req_args['method'] = 'GET'
     if timeout is not None:
@@ -162,16 +163,17 @@ def readurl(url, data=None, timeout=None, retries=0, sec_between=1,
         try:
             r = requests.request(**req_args)
             if check_status:
-                r.raise_for_status()
+                r.raise_for_status()  # pylint: disable=E1103
             LOG.debug("Read from %s (%s, %sb) after %s attempts", url,
-                      r.status_code, len(r.content), (i + 1))
+                      r.status_code, len(r.content),  # pylint: disable=E1103
+                      (i + 1))
             # Doesn't seem like we can make it use a different
             # subclass for responses, so add our own backward-compat
             # attrs
             return UrlResponse(r)
         except exceptions.RequestException as e:
             if (isinstance(e, (exceptions.HTTPError))
-                and hasattr(e, 'response') # This appeared in v 0.10.8
+                and hasattr(e, 'response')  # This appeared in v 0.10.8
                 and e.response):
                 excps.append(UrlError(e, code=e.response.status_code,
                                       headers=e.response.headers))
@@ -183,7 +185,7 @@ def readurl(url, data=None, timeout=None, retries=0, sec_between=1,
                 time.sleep(sec_between)
     if excps:
         raise excps[-1]
-    return None # Should throw before this...
+    return None  # Should throw before this...
 
 
 def wait_for_url(urls, max_wait=None, timeout=None,
