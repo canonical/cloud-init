@@ -102,13 +102,10 @@ class DataSourceCloudStack(sources.DataSource):
                 return False
             start_time = time.time()
             md_addr = self.metadata_address
-            ssl_details = util.fetch_ssl_details(self.paths)
             self.userdata_raw = ec2_utils.get_instance_userdata(self.api_ver,
-                                                                md_addr,
-                                                                ssl_details)
+                                                                md_addr)
             self.metadata = ec2_utils.get_instance_metadata(self.api_ver,
-                                                            md_addr,
-                                                            ssl_details)
+                                                            md_addr)
             LOG.debug("Crawl of metadata service took %s seconds",
                       int(time.time() - start_time))
             return True

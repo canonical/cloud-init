@@ -24,3 +24,6 @@ argparse
 
 # Requests handles ssl correctly!
 requests
+
+# Boto for ec2
+boto
