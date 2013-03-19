@@ -148,7 +148,7 @@ def get_instance_userdata(version='latest', url='http://169.254.169.254',
 
 
 def get_instance_metadata(version='latest', url='http://169.254.169.254',
-                          ssl_details=None, timeout=5, num_retries=5)
+                          ssl_details=None, timeout=5, num_retries=5):
     md_url = combine_url(metadata_address, version)
     md_url = combine_url(md_url, 'meta-data')
     try:
