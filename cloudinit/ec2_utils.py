@@ -145,6 +145,7 @@ def get_instance_userdata(api_version, metadata_address, ssl_details=None):
         util.logexc(LOG, "Failed fetching userdata from url %s", ud_url)
         return None
 
+
 def get_instance_metadata(api_version, metadata_address, ssl_details=None):
     md_url = combine_url(metadata_address, api_version)
     md_url = combine_url(md_url, 'meta-data')

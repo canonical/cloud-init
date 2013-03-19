@@ -51,8 +51,8 @@ from cloudinit import importer
 from cloudinit import log as logging
 from cloudinit import mergers
 from cloudinit import safeyaml
-from cloudinit import url_helper
 from cloudinit import type_utils
+from cloudinit import url_helper
 from cloudinit import version
 
 from cloudinit.settings import (CFG_BUILTIN)
@@ -81,7 +81,7 @@ class StringResponse(object):
         self.contents = contents
         self.url = None
 
-    def ok(self, *args, **kwargs):
+    def ok(self, *args, **kwargs):  # pylint: disable=W0613
         if self.code != 200:
             return False
         return True
