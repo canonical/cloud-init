@@ -135,8 +135,9 @@ class MetadataMaterializer(object):
         return joined
 
 
-def get_instance_userdata(api_version, metadata_address, ssl_details=None):
-    ud_url = combine_url(metadata_address, api_version)
+def get_instance_userdata(version='latest', url='http://169.254.169.254',
+                          ssl_details=None):
+    ud_url = combine_url(url, version)
     ud_url = combine_url(ud_url, 'user-data')
     try:
         response = util.read_file_or_url(ud_url, ssl_details=ssl_details)
@@ -146,11 +147,13 @@ def get_instance_userdata(api_version, metadata_address, ssl_details=None):
         return None
 
 
-def get_instance_metadata(api_version, metadata_address, ssl_details=None):
-    md_url = combine_url(metadata_address, api_version)
+def get_instance_metadata(version='latest', url='http://169.254.169.254',
+                          ssl_details=None, timeout=5, num_retries=5)
+    md_url = combine_url(metadata_address, version)
     md_url = combine_url(md_url, 'meta-data')
     try:
-        response = util.read_file_or_url(md_url, ssl_details=ssl_details)
+        response = util.read_file_or_url(md_url, ssl_details=ssl_details,
+                                         timeout=timeout, retries=num_retries)
         materializer = MetadataMaterializer(str(response), md_url, ssl_details)
         return materializer.materialize()
     except Exception:
