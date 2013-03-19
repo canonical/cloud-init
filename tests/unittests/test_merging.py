@@ -1,62 +1,142 @@
-from mocker import MockerTestCase
+from tests.unittests import helpers
 
-from cloudinit import util
+from cloudinit import mergers
 
 
-class TestMergeDict(MockerTestCase):
-    def test_simple_merge(self):
-        """Test simple non-conflict merge."""
-        source = {"key1": "value1"}
-        candidate = {"key2": "value2"}
-        result = util.mergedict(source, candidate)
-        self.assertEqual({"key1": "value1", "key2": "value2"}, result)
+class TestSimpleRun(helpers.MockerTestCase):
+    def test_basic_merge(self):
+        source = {
+            'Blah': ['blah2'],
+            'Blah3': 'c',
+        }
+        merge_with = {
+            'Blah2': ['blah3'],
+            'Blah3': 'b',
+            'Blah': ['123'],
+        }
+        # Basic merge should not do thing special
+        merge_how = "list()+dict()+str()"
+        merger_set = mergers.string_extract_mergers(merge_how)
+        self.assertEquals(3, len(merger_set))
+        merger = mergers.construct(merger_set)
+        merged = merger.merge(source, merge_with)
+        self.assertEquals(merged['Blah'], ['blah2'])
+        self.assertEquals(merged['Blah2'], ['blah3'])
+        self.assertEquals(merged['Blah3'], 'c')
 
-    def test_nested_merge(self):
-        """Test nested merge."""
-        source = {"key1": {"key1.1": "value1.1"}}
-        candidate = {"key1": {"key1.2": "value1.2"}}
-        result = util.mergedict(source, candidate)
-        self.assertEqual(
-            {"key1": {"key1.1": "value1.1", "key1.2": "value1.2"}}, result)
+    def test_dict_overwrite(self):
+        source = {
+            'Blah': ['blah2'],
+        }
+        merge_with = {
+            'Blah': ['123'],
+        }
+        # Now lets try a dict overwrite
+        merge_how = "list()+dict(overwrite)+str()"
+        merger_set = mergers.string_extract_mergers(merge_how)
+        self.assertEquals(3, len(merger_set))
+        merger = mergers.construct(merger_set)
+        merged = merger.merge(source, merge_with)
+        self.assertEquals(merged['Blah'], ['123'])
 
-    def test_merge_does_not_override(self):
-        """Test that candidate doesn't override source."""
-        source = {"key1": "value1", "key2": "value2"}
-        candidate = {"key1": "value2", "key2": "NEW VALUE"}
-        result = util.mergedict(source, candidate)
-        self.assertEqual(source, result)
+    def test_string_append(self):
+        source = {
+            'Blah': 'blah2',
+        }
+        merge_with = {
+            'Blah': '345',
+        }
+        merge_how = "list()+dict()+str(append)"
+        merger_set = mergers.string_extract_mergers(merge_how)
+        self.assertEquals(3, len(merger_set))
+        merger = mergers.construct(merger_set)
+        merged = merger.merge(source, merge_with)
+        self.assertEquals(merged['Blah'], 'blah2345')
 
-    def test_empty_candidate(self):
-        """Test empty candidate doesn't change source."""
-        source = {"key": "value"}
-        candidate = {}
-        result = util.mergedict(source, candidate)
-        self.assertEqual(source, result)
+    def test_list_extend(self):
+        source = ['abc']
+        merge_with = ['123']
+        merge_how = "list(extend)+dict()+str()"
+        merger_set = mergers.string_extract_mergers(merge_how)
+        self.assertEquals(3, len(merger_set))
+        merger = mergers.construct(merger_set)
+        merged = merger.merge(source, merge_with)
+        self.assertEquals(merged, ['abc', '123'])
 
-    def test_empty_source(self):
-        """Test empty source is replaced by candidate."""
-        source = {}
-        candidate = {"key": "value"}
-        result = util.mergedict(source, candidate)
-        self.assertEqual(candidate, result)
+    def test_deep_merge(self):
+        source = {
+            'a': [1, 'b', 2],
+            'b': 'blahblah',
+            'c': {
+                'e': [1, 2, 3],
+                'f': 'bigblobof',
+                'iamadict': {
+                    'ok': 'ok',
+                }
+            },
+            'run': [
+                'runme',
+                'runme2',
+            ],
+            'runmereally': [
+                'e', ['a'], 'd',
+            ],
+        }
+        merge_with = {
+            'a': ['e', 'f', 'g'],
+            'b': 'more',
+            'c': {
+                'a': 'b',
+                'f': 'stuff',
+            },
+            'run': [
+                'morecmd',
+                'moremoremore',
+            ],
+            'runmereally': [
+                'blah', ['b'], 'e',
+            ],
+        }
+        merge_how = "list(extend)+dict()+str(append)"
+        merger_set = mergers.string_extract_mergers(merge_how)
+        self.assertEquals(3, len(merger_set))
+        merger = mergers.construct(merger_set)
+        merged = merger.merge(source, merge_with)
+        self.assertEquals(merged['a'], [1, 'b', 2, 'e', 'f', 'g'])
+        self.assertEquals(merged['b'], 'blahblahmore')
+        self.assertEquals(merged['c']['f'], 'bigblobofstuff')
+        self.assertEquals(merged['run'], ['runme', 'runme2', 'morecmd',
+                                          'moremoremore'])
+        self.assertEquals(merged['runmereally'], ['e', ['a'], 'd', 'blah',
+                                                  ['b'], 'e'])
 
-    def test_non_dict_candidate(self):
-        """Test non-dict candidate is discarded."""
-        source = {"key": "value"}
-        candidate = "not a dict"
-        result = util.mergedict(source, candidate)
-        self.assertEqual(source, result)
-
-    def test_non_dict_source(self):
-        """Test non-dict source is not modified with a dict candidate."""
-        source = "not a dict"
-        candidate = {"key": "value"}
-        result = util.mergedict(source, candidate)
-        self.assertEqual(source, result)
-
-    def test_neither_dict(self):
-        """Test if neither candidate or source is dict source wins."""
-        source = "source"
-        candidate = "candidate"
-        result = util.mergedict(source, candidate)
-        self.assertEqual(source, result)
+    def test_dict_overwrite_layered(self):
+        source = {
+            'Blah3': {
+                'f': '3',
+                'g': {
+                    'a': 'b',
+                }
+            }
+        }
+        merge_with = {
+            'Blah3': {
+                'e': '2',
+                'g': {
+                    'e': 'f',
+                }
+            }
+        }
+        merge_how = "list()+dict()+str()"
+        merger_set = mergers.string_extract_mergers(merge_how)
+        self.assertEquals(3, len(merger_set))
+        merger = mergers.construct(merger_set)
+        merged = merger.merge(source, merge_with)
+        self.assertEquals(merged['Blah3'], {
+                'e': '2',
+                'f': '3',
+                'g': {
+                    'a': 'b',
+                    'e': 'f',
+                }
+        })

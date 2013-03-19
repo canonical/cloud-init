@@ -19,9 +19,6 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-from StringIO import StringIO
-
-import csv
 import os
 import pwd
 
@@ -33,6 +30,15 @@ LOG = logging.getLogger(__name__)
 # See: man sshd_config
 DEF_SSHD_CFG = "/etc/ssh/sshd_config"
 
+# taken from openssh source key.c/key_type_from_name
+VALID_KEY_TYPES = ("rsa", "dsa", "ssh-rsa", "ssh-dss", "ecdsa",
+    "ssh-rsa-cert-v00@openssh.com", "ssh-dss-cert-v00@openssh.com",
+    "ssh-rsa-cert-v00@openssh.com", "ssh-dss-cert-v00@openssh.com",
+    "ssh-rsa-cert-v01@openssh.com", "ssh-dss-cert-v01@openssh.com",
+    "ecdsa-sha2-nistp256-cert-v01@openssh.com",
+    "ecdsa-sha2-nistp384-cert-v01@openssh.com",
+    "ecdsa-sha2-nistp521-cert-v01@openssh.com")
+
 
 class AuthKeyLine(object):
     def __init__(self, source, keytype=None, base64=None,
@@ -43,11 +49,8 @@ class AuthKeyLine(object):
         self.keytype = keytype
         self.source = source
 
-    def empty(self):
-        if (not self.base64 and
-            not self.comment and not self.keytype and not self.options):
-            return True
-        return False
+    def valid(self):
+        return (self.base64 and self.keytype)
 
     def __str__(self):
         toks = []
@@ -107,62 +110,47 @@ class AuthKeyLineParser(object):
             i = i + 1
 
         options = ent[0:i]
-        options_lst = []
 
-        # Now use a csv parser to pull the options
-        # out of the above string that we just found an endpoint for.
-        #
-        # No quoting so we don't mess up any of the quoting that
-        # is already there.
-        reader = csv.reader(StringIO(options), quoting=csv.QUOTE_NONE)
-        for row in reader:
-            for e in row:
-                # Only keep non-empty csv options
-                e = e.strip()
-                if e:
-                    options_lst.append(e)
+        # Return the rest of the string in 'remain'
+        remain = ent[i:].lstrip()
+        return (options, remain)
 
-        # Now take the rest of the items before the string
-        # as long as there is room to do this...
-        toks = []
-        if i + 1 < len(ent):
-            rest = ent[i + 1:]
-            toks = rest.split(None, 2)
-        return (options_lst, toks)
-
-    def _form_components(self, src_line, toks, options=None):
-        components = {}
-        if len(toks) == 1:
-            components['base64'] = toks[0]
-        elif len(toks) == 2:
-            components['base64'] = toks[0]
-            components['comment'] = toks[1]
-        elif len(toks) == 3:
-            components['keytype'] = toks[0]
-            components['base64'] = toks[1]
-            components['comment'] = toks[2]
-        components['options'] = options
-        if not components:
-            return AuthKeyLine(src_line)
-        else:
-            return AuthKeyLine(src_line, **components)
-
-    def parse(self, src_line, def_opt=None):
+    def parse(self, src_line, options=None):
+        # modeled after opensshes auth2-pubkey.c:user_key_allowed2
         line = src_line.rstrip("\r\n")
         if line.startswith("#") or line.strip() == '':
             return AuthKeyLine(src_line)
-        else:
-            ent = line.strip()
-            toks = ent.split(None, 3)
-            if len(toks) < 4:
-                return self._form_components(src_line, toks, def_opt)
-            else:
-                (options, toks) = self._extract_options(ent)
-                if options:
-                    options = ",".join(options)
-                else:
-                    options = def_opt
-                return self._form_components(src_line, toks, options)
+
+        def parse_ssh_key(ent):
+            # return ketype, key, [comment]
+            toks = ent.split(None, 2)
+            if len(toks) < 2:
+                raise TypeError("To few fields: %s" % len(toks))
+            if toks[0] not in VALID_KEY_TYPES:
+                raise TypeError("Invalid keytype %s" % toks[0])
+
+            # valid key type and 2 or 3 fields:
+            if len(toks) == 2:
+                # no comment in line
+                toks.append("")
+
+            return toks
+
+        ent = line.strip()
+        try:
+            (keytype, base64, comment) = parse_ssh_key(ent)
+        except TypeError:
+            (keyopts, remain) = self._extract_options(ent)
+            if options is None:
+                options = keyopts
+
+            try:
+                (keytype, base64, comment) = parse_ssh_key(remain)
+            except TypeError:
+                return AuthKeyLine(src_line)
+
+        return AuthKeyLine(src_line, keytype=keytype, base64=base64,
+                           comment=comment, options=options)
 
 
 def parse_authorized_keys(fname):
@@ -186,11 +174,11 @@ def update_authorized_keys(old_entries, keys):
 
     for i in range(0, len(old_entries)):
         ent = old_entries[i]
-        if ent.empty() or not ent.base64:
+        if not ent.valid():
             continue
         # Replace those with the same base64
         for k in keys:
-            if k.empty() or not k.base64:
+            if not ent.valid():
                 continue
             if k.base64 == ent.base64:
                 # Replace it with our better one
@@ -249,7 +237,7 @@ def extract_authorized_keys(username):
     return (auth_key_fn, parse_authorized_keys(auth_key_fn))
 
 
-def setup_user_keys(keys, username, key_prefix):
+def setup_user_keys(keys, username, options=None):
     # Make sure the users .ssh dir is setup accordingly
     (ssh_dir, pwent) = users_ssh_info(username)
     if not os.path.isdir(ssh_dir):
@@ -260,7 +248,7 @@ def setup_user_keys(keys, username, key_prefix):
     parser = AuthKeyLineParser()
     key_entries = []
     for k in keys:
-        key_entries.append(parser.parse(str(k), def_opt=key_prefix))
+        key_entries.append(parser.parse(str(k), options=options))
 
     # Extract the old and make the new
     (auth_key_fn, auth_key_entries) = extract_authorized_keys(username)

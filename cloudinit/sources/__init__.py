@@ -25,6 +25,7 @@ import os
 
 from cloudinit import importer
 from cloudinit import log as logging
+from cloudinit import type_utils
 from cloudinit import user_data as ud
 from cloudinit import util
 
@@ -52,7 +53,7 @@ class DataSource(object):
         self.userdata = None
         self.metadata = None
         self.userdata_raw = None
-        name = util.obj_name(self)
+        name = type_utils.obj_name(self)
         if name.startswith(DS_PREFIX):
             name = name[len(DS_PREFIX):]
         self.ds_cfg = util.get_cfg_by_path(self.sys_cfg,
@@ -61,6 +62,9 @@ class DataSource(object):
             self.ud_proc = ud.UserDataProcessor(self.paths)
         else:
             self.ud_proc = ud_proc
+
+    def __str__(self):
+        return type_utils.obj_name(self)
 
     def get_userdata(self, apply_filter=False):
         if self.userdata is None:
@@ -214,7 +218,7 @@ def normalize_pubkey_data(pubkey_data):
 
 def find_source(sys_cfg, distro, paths, ds_deps, cfg_list, pkg_list):
     ds_list = list_sources(cfg_list, ds_deps, pkg_list)
-    ds_names = [util.obj_name(f) for f in ds_list]
+    ds_names = [type_utils.obj_name(f) for f in ds_list]
     LOG.debug("Searching for data source in: %s", ds_names)
 
     for cls in ds_list:
@@ -222,7 +226,7 @@ def find_source(sys_cfg, distro, paths, ds_deps, cfg_list, pkg_list):
             LOG.debug("Seeing if we can get any data from %s", cls)
             s = cls(sys_cfg, distro, paths)
             if s.get_data():
-                return (s, util.obj_name(cls))
+                return (s, type_utils.obj_name(cls))
         except Exception:
             util.logexc(LOG, "Getting data from %s failed", cls)
 
