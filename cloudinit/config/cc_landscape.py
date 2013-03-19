@@ -24,6 +24,7 @@ from StringIO import StringIO
 
 from configobj import ConfigObj
 
+from cloudinit import type_utils
 from cloudinit import util
 
 from cloudinit.settings import PER_INSTANCE
@@ -58,7 +59,8 @@ def handle(_name, cfg, cloud, log, _args):
     if not isinstance(ls_cloudcfg, (dict)):
         raise RuntimeError(("'landscape' key existed in config,"
                             " but not a dictionary type,"
-                            " is a %s instead"), util.obj_name(ls_cloudcfg))
+                            " is a %s instead"),
+                           type_utils.obj_name(ls_cloudcfg))
     if not ls_cloudcfg:
         return
 

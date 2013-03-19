@@ -40,9 +40,8 @@ class DataSourceNoCloud(sources.DataSource):
         self.supported_seed_starts = ("/", "file://")
 
     def __str__(self):
-        mstr = "%s [seed=%s][dsmode=%s]" % (util.obj_name(self),
-                                            self.seed, self.dsmode)
-        return mstr
+        root = sources.DataSource.__str__(self)
+        return "%s [seed=%s][dsmode=%s]" % (root, self.seed, self.dsmode)
 
     def get_data(self):
         defaults = {
@@ -65,7 +64,7 @@ class DataSourceNoCloud(sources.DataSource):
         # Check to see if the seed dir has data.
         seedret = {}
         if util.read_optional_seed(seedret, base=self.seed_dir + "/"):
-            md = util.mergedict(md, seedret['meta-data'])
+            md = util.mergemanydict([md, seedret['meta-data']])
             ud = seedret['user-data']
             found.append(self.seed_dir)
             LOG.debug("Using seeded cache data from %s", self.seed_dir)
@@ -82,15 +81,15 @@ class DataSourceNoCloud(sources.DataSource):
             if self.ds_cfg['user-data']:
                 ud = self.ds_cfg['user-data']
             if self.ds_cfg['meta-data'] is not False:
-                md = util.mergedict(md, self.ds_cfg['meta-data'])
+                md = util.mergemanydict([md, self.ds_cfg['meta-data']])
             if 'ds_config' not in found:
                 found.append("ds_config")
 
-        if self.ds_cfg.get('fs_label', "cidata"):
+        label = self.ds_cfg.get('fs_label', "cidata")
+        if label is not None:
             fslist = util.find_devs_with("TYPE=vfat")
             fslist.extend(util.find_devs_with("TYPE=iso9660"))
 
-            label = self.ds_cfg.get('fs_label')
             label_list = util.find_devs_with("LABEL=%s" % label)
             devlist = list(set(fslist) & set(label_list))
             devlist.sort(reverse=True)
@@ -100,7 +99,7 @@ class DataSourceNoCloud(sources.DataSource):
                     LOG.debug("Attempting to use data from %s", dev)
 
                     (newmd, newud) = util.mount_cb(dev, util.read_seeded)
-                    md = util.mergedict(newmd, md)
+                    md = util.mergemanydict([newmd, md])
                     ud = newud
 
                     # For seed from a device, the default mode is 'net'.
@@ -150,11 +149,11 @@ class DataSourceNoCloud(sources.DataSource):
             LOG.debug("Using seeded cache data from %s", seedfrom)
 
             # Values in the command line override those from the seed
-            md = util.mergedict(md, md_seed)
+            md = util.mergemanydict([md, md_seed])
             found.append(seedfrom)
 
         # Now that we have exhausted any other places merge in the defaults
-        md = util.mergedict(md, defaults)
+        md = util.mergemanydict([md, defaults])
 
         # Update the network-interfaces if metadata had 'network-interfaces'
         # entry and this is the local datasource, or 'seedfrom' was used

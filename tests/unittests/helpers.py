@@ -175,6 +175,7 @@ class FilesystemMockingTestCase(ResourceUsingTestCase):
     def patchOS(self, new_root):
         patch_funcs = {
             os.path: ['isfile', 'exists', 'islink', 'isdir'],
+            os: ['listdir'],
         }
         for (mod, funcs) in patch_funcs.items():
             for f in funcs:
@@ -182,6 +183,7 @@ class FilesystemMockingTestCase(ResourceUsingTestCase):
                 trap_func = retarget_many_wrapper(new_root, 1, func)
                 setattr(mod, f, trap_func)
                 self.patched_funcs.append((mod, f, func))
+
 
 def populate_dir(path, files):
     os.makedirs(path)

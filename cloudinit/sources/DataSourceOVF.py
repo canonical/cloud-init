@@ -43,7 +43,8 @@ class DataSourceOVF(sources.DataSource):
         self.supported_seed_starts = ("/", "file://")
 
     def __str__(self):
-        return "%s [seed=%s]" % (util.obj_name(self), self.seed)
+        root = sources.DataSource.__str__(self)
+        return "%s [seed=%s]" % (root, self.seed)
 
     def get_data(self):
         found = []
@@ -93,11 +94,11 @@ class DataSourceOVF(sources.DataSource):
             (md_seed, ud) = util.read_seeded(seedfrom, timeout=None)
             LOG.debug("Using seeded cache data from %s", seedfrom)
 
-            md = util.mergedict(md, md_seed)
+            md = util.mergemanydict([md, md_seed])
             found.append(seedfrom)
 
         # Now that we have exhausted any other places merge in the defaults
-        md = util.mergedict(md, defaults)
+        md = util.mergemanydict([md, defaults])
 
         self.seed = ",".join(found)
         self.metadata = md

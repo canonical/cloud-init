@@ -48,9 +48,6 @@ class DataSourceCloudStack(sources.DataSource):
             raise RuntimeError("No virtual router found!")
         self.metadata_address = "http://%s/" % (vr_addr)
 
-    def __str__(self):
-        return util.obj_name(self)
-
     def _get_url_settings(self):
         mcfg = self.ds_cfg
         if not mcfg:
