@@ -103,7 +103,7 @@ class UrlError(IOError):
 
 def readurl(url, data=None, timeout=None, retries=0, sec_between=1,
             headers=None, ssl_details=None, check_status=True,
-            allow_redirects=False):
+            allow_redirects=True):
     url = _cleanurl(url)
     req_args = {
         'url': url,
