@@ -179,6 +179,10 @@ def readurl(url, data=None, timeout=None, retries=0, sec_between=1,
                                       headers=e.response.headers))
             else:
                 excps.append(UrlError(e))
+                if SSL_ENABLED and isinstance(e, exceptions.SSLError):
+                    # ssl exceptions are not going to get fixed by waiting a
+                    # few seconds
+                    break
             if i + 1 < manual_tries and sec_between > 0:
                 LOG.debug("Please wait %s seconds while we wait to try again",
                           sec_between)
