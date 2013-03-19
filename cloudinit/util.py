@@ -462,7 +462,7 @@ def redirect_output(outfmt, errfmt, o_out=None, o_err=None):
             new_fp = open(arg, owith)
         elif mode == "|":
             proc = subprocess.Popen(arg, shell=True, stdin=subprocess.PIPE)
-            new_fp = proc.stdin
+            new_fp = proc.stdin  # pylint: disable=E1101
         else:
             raise TypeError("Invalid type for output format: %s" % outfmt)
 
@@ -484,7 +484,7 @@ def redirect_output(outfmt, errfmt, o_out=None, o_err=None):
             new_fp = open(arg, owith)
         elif mode == "|":
             proc = subprocess.Popen(arg, shell=True, stdin=subprocess.PIPE)
-            new_fp = proc.stdin
+            new_fp = proc.stdin  # pylint: disable=E1101
         else:
             raise TypeError("Invalid type for error format: %s" % errfmt)
 
@@ -1409,7 +1409,7 @@ def subp(args, data=None, rcs=None, env=None, capture=True, shell=False,
         (out, err) = sp.communicate(data)
     except OSError as e:
         raise ProcessExecutionError(cmd=args, reason=e)
-    rc = sp.returncode
+    rc = sp.returncode  # pylint: disable=E1101
     if rc not in rcs:
         raise ProcessExecutionError(stdout=out, stderr=err,
                                     exit_code=rc,
