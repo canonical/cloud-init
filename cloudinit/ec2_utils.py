@@ -61,4 +61,3 @@ def get_instance_metadata(api_version, metadata_address):
     if not isinstance(metadata, (dict)):
         metadata = {}
     return _unlazy_dict(metadata)
-
