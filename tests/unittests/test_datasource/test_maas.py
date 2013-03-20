@@ -3,12 +3,13 @@ import os
 
 from cloudinit.sources import DataSourceMAAS
 from cloudinit import url_helper
+from cloudinit import util
 from tests.unittests.helpers import populate_dir
 
-from mocker import MockerTestCase
+import mocker
 
 
-class TestMAASDataSource(MockerTestCase):
+class TestMAASDataSource(mocker.MockerTestCase):
 
     def setUp(self):
         super(TestMAASDataSource, self).setUp()
@@ -115,9 +116,11 @@ class TestMAASDataSource(MockerTestCase):
 
         for key in valid_order:
             url = "%s/%s/%s" % (my_seed, my_ver, key)
-            mock_request(url, headers=my_headers, timeout=None)
+            mock_request(url, headers=my_headers, timeout=mocker.ANY,
+                         data=mocker.ANY, sec_between=mocker.ANY,
+                         ssl_details=mocker.ANY, retries=mocker.ANY)
             resp = valid.get(key)
-            self.mocker.result(url_helper.UrlResponse(200, resp))
+            self.mocker.result(util.StringResponse(resp))
         self.mocker.replay()
 
         (userdata, metadata) = DataSourceMAAS.read_maas_seed_url(my_seed,

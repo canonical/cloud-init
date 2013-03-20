@@ -10,11 +10,6 @@ PrettyTable
 # datasource is removed, this is no longer needed
 oauth
 
-# This is used to fetch the ec2 metadata into a easily
-# parseable format, instead of having to have cloud-init perform
-# those same fetchs and decodes and signing (...) that ec2 requires.
-boto
-
 # This is only needed for places where we need to support configs in a manner
 # that the built-in config parser is not sufficent (ie
 # when we need to preserve comments, or do not have a top-level
@@ -26,3 +21,9 @@ pyyaml
 
 # The new main entrypoint uses argparse instead of optparse
 argparse
+
+# Requests handles ssl correctly!
+requests
+
+# Boto for ec2
+boto
