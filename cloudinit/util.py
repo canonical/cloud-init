@@ -52,7 +52,7 @@ from cloudinit import log as logging
 from cloudinit import mergers
 from cloudinit import safeyaml
 from cloudinit import type_utils
-from cloudinit import url_helper as uhelp
+from cloudinit import url_helper
 from cloudinit import version
 
 from cloudinit.settings import (CFG_BUILTIN)
@@ -69,6 +69,31 @@ FN_ALLOWED = ('_-.()' + string.digits + string.ascii_letters)
 
 # Helper utils to see if running in a container
 CONTAINER_TESTS = ['running-in-container', 'lxc-is-container']
+
+
+# Made to have same accessors as UrlResponse so that the
+# read_file_or_url can return this or that object and the
+# 'user' of those objects will not need to know the difference.
+class StringResponse(object):
+    def __init__(self, contents, code=200):
+        self.code = code
+        self.headers = {}
+        self.contents = contents
+        self.url = None
+
+    def ok(self, *args, **kwargs):  # pylint: disable=W0613
+        if self.code != 200:
+            return False
+        return True
+
+    def __str__(self):
+        return self.contents
+
+
+class FileResponse(StringResponse):
+    def __init__(self, path, contents, code=200):
+        StringResponse.__init__(self, contents, code=code)
+        self.url = path
 
 
 class ProcessExecutionError(IOError):
@@ -606,18 +631,62 @@ def read_optional_seed(fill, base="", ext="", timeout=5):
         fill['user-data'] = ud
         fill['meta-data'] = md
         return True
-    except OSError as e:
+    except IOError as e:
         if e.errno == errno.ENOENT:
             return False
         raise
 
 
-def read_file_or_url(url, timeout=5, retries=10, file_retries=0):
+def fetch_ssl_details(paths=None):
+    ssl_details = {}
+    # Lookup in these locations for ssl key/cert files
+    ssl_cert_paths = [
+        '/var/lib/cloud/data/ssl',
+        '/var/lib/cloud/instance/data/ssl',
+    ]
+    if paths:
+        ssl_cert_paths.extend([
+            os.path.join(paths.get_ipath_cur('data'), 'ssl'),
+            os.path.join(paths.get_cpath('data'), 'ssl'),
+        ])
+    ssl_cert_paths = uniq_merge(ssl_cert_paths)
+    ssl_cert_paths = [d for d in ssl_cert_paths if d and os.path.isdir(d)]
+    cert_file = None
+    for d in ssl_cert_paths:
+        if os.path.isfile(os.path.join(d, 'cert.pem')):
+            cert_file = os.path.join(d, 'cert.pem')
+            break
+    key_file = None
+    for d in ssl_cert_paths:
+        if os.path.isfile(os.path.join(d, 'key.pem')):
+            key_file = os.path.join(d, 'key.pem')
+            break
+    if cert_file and key_file:
+        ssl_details['cert_file'] = cert_file
+        ssl_details['key_file'] = key_file
+    elif cert_file:
+        ssl_details['cert_file'] = cert_file
+    return ssl_details
+
+
+def read_file_or_url(url, timeout=5, retries=10,
+                     headers=None, data=None, sec_between=1, ssl_details=None):
+    url = url.lstrip()
     if url.startswith("/"):
         url = "file://%s" % url
-    if url.startswith("file://"):
-        retries = file_retries
-    return uhelp.readurl(url, timeout=timeout, retries=retries)
+    if url.lower().startswith("file://"):
+        if data:
+            LOG.warn("Unable to post data to file resource %s", url)
+        file_path = url[len("file://"):]
+        return FileResponse(file_path, contents=load_file(file_path))
+    else:
+        return url_helper.readurl(url,
+                                  timeout=timeout,
+                                  retries=retries,
+                                  headers=headers,
+                                  data=data,
+                                  sec_between=sec_between,
+                                  ssl_details=ssl_details)
 
 
 def load_yaml(blob, default=None, allowed=(dict,)):
@@ -834,7 +903,7 @@ def get_cmdline_url(names=('cloud-config-url', 'url'),
     if not url:
         return (None, None, None)
 
-    resp = uhelp.readurl(url)
+    resp = read_file_or_url(url)
     if resp.contents.startswith(starts) and resp.ok():
         return (key, url, str(resp))
 
