@@ -18,6 +18,7 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+import errno
 import os
 import stat
 import time
@@ -75,9 +76,29 @@ def handle(name, cfg, _cloud, log, args):
     (devpth, fs_type, mount_point) = result
 
     # Ensure the path is a block device.
-    if not stat.S_ISBLK(os.stat(devpth).st_mode):
-        log.debug("The %s device which was found for mount point %s for %s "
-                  "is not a block device" % (devpth, mount_point, resize_what))
+    info = "dev=%s mnt_point=%s path=%s" % (devpth, mount_point, resize_what)
+    log.debug("resize_info: %s" % info)
+
+    try:
+        statret = os.stat(devpth)
+    except OSError as exc:
+        if util.is_container() and exc.errno == errno.ENOENT:
+            log.debug("Device '%s' did not exist in container. "
+                      "cannot resize: %s" % (devpth, info))
+        elif exc.errno == errno.ENOENT:
+            log.warn("Device '%s' did not exist. cannot resize: %s" %
+                     (devpth, info))
+        else:
+            raise exc
+        return
+
+    if not stat.S_ISBLK(statret.st_mode):
+        if util.is_container():
+            log.debug("device '%s' not a block device in container."
+                      " cannot resize: %s" % (devpth, info))
+        else:
+            log.warn("device '%s' not a block device. cannot resize: %s" %
+                     (devpth, info))
         return
 
     resizer = None
