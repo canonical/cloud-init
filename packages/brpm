@@ -41,6 +41,7 @@ PKG_MP = {
     'oauth': 'python-oauth',
     'prettytable': 'python-prettytable',
     'pyyaml': 'PyYAML',
+    'requests': 'python-requests',
 }
 
 # Subdirectories of the ~/rpmbuild dir

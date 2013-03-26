@@ -35,6 +35,7 @@ PKG_MP = {
     'oauth': 'python-oauth',
     'prettytable': 'python-prettytable',
     'pyyaml': 'python-yaml',
+    'requests': 'python-requests',
 }
 DEBUILD_ARGS = ["-us", "-S", "-uc", "-d"]
 
