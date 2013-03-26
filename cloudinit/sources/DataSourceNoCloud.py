@@ -87,6 +87,9 @@ class DataSourceNoCloud(sources.DataSource):
 
         label = self.ds_cfg.get('fs_label', "cidata")
         if label is not None:
+            # Query optical drive to get it in blkid cache for 2.6 kernels
+            util.find_devs_with(path="/dev/sr0")
+
             fslist = util.find_devs_with("TYPE=vfat")
             fslist.extend(util.find_devs_with("TYPE=iso9660"))
 

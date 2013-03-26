@@ -408,6 +408,7 @@ def system_info():
         'release': platform.release(),
         'python': platform.python_version(),
         'uname': platform.uname(),
+        'dist': platform.linux_distribution(),
     }
 
 
