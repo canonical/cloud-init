@@ -29,7 +29,6 @@ from email.mime.text import MIMEText
 
 from cloudinit import handlers
 from cloudinit import log as logging
-from cloudinit import url_helper
 from cloudinit import util
 
 LOG = logging.getLogger(__name__)
@@ -60,6 +59,7 @@ EXAMINE_FOR_LAUNCH_INDEX = ["text/cloud-config"]
 class UserDataProcessor(object):
     def __init__(self, paths):
         self.paths = paths
+        self.ssl_details = util.fetch_ssl_details(paths)
 
     def process(self, blob):
         accumulating_msg = MIMEMultipart()
@@ -173,7 +173,8 @@ class UserDataProcessor(object):
             if include_once_on and os.path.isfile(include_once_fn):
                 content = util.load_file(include_once_fn)
             else:
-                resp = url_helper.readurl(include_url)
+                resp = util.read_file_or_url(include_url,
+                                             ssl_details=self.ssl_details)
                 if include_once_on and resp.ok():
                     util.write_file(include_once_fn, str(resp), mode=0600)
                 if resp.ok():

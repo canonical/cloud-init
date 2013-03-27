@@ -28,6 +28,10 @@ import boto.utils as boto_utils
 # would have existed) do not exist due to the blocking
 # that occurred.
 
+# TODO(harlowja): https://github.com/boto/boto/issues/1401
+# When boto finally moves to using requests, we should be able
+# to provide it ssl details, it does not yet, so we can't provide them...
+
 
 def _unlazy_dict(mp):
     if not isinstance(mp, (dict)):

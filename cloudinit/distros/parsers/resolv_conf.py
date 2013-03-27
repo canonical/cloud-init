@@ -137,8 +137,8 @@ class ResolvConf(object):
         self._contents.append(('option', ['search', s_list, '']))
         return flat_sds
 
-    @local_domain.setter
-    def local_domain(self, domain):
+    @local_domain.setter  # pl51222 pylint: disable=E1101
+    def local_domain(self, domain):  # pl51222 pylint: disable=E0102
         self.parse()
         self._remove_option('domain')
         self._contents.append(('option', ['domain', str(domain), '']))

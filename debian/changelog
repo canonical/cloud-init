@@ -1,3 +1,12 @@
+cloud-init (0.7.2~bzr804-0ubuntu1) raring; urgency=low
+
+  * New upstream snapshot.
+    * use python-requests rather than urllib2 for http (LP: #1067888)
+    * handle failure of resizefs better.  Specifically, do not show
+      warnings or stack trace in lxc (LP: #1160462)
+
+ -- Scott Moser <smoser@ubuntu.com>  Wed, 27 Mar 2013 10:04:41 -0400
+
 cloud-init (0.7.2~bzr795-0ubuntu1) raring; urgency=low
 
   * New upstream snapshot.
