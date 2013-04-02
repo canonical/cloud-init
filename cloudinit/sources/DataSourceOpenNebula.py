@@ -37,6 +37,7 @@ DEFAULT_MODE = 'net'
 CONTEXT_DISK_FILES = ["context.sh"]
 VALID_DSMODES = ("local", "net", "disabled")
 
+
 class DataSourceOpenNebula(sources.DataSource):
     def __init__(self, sys_cfg, distro, paths):
         sources.DataSource.__init__(self, sys_cfg, distro, paths)
@@ -51,7 +52,7 @@ class DataSourceOpenNebula(sources.DataSource):
     def get_data(self):
         defaults = {
             "instance-id": DEFAULT_IID,
-            "dsmode": self.dsmode }
+            "dsmode": self.dsmode}
 
         found = None
         md = {}
@@ -62,7 +63,8 @@ class DataSourceOpenNebula(sources.DataSource):
                 results = read_context_disk_dir(self.seed_dir)
                 found = self.seed_dir
             except NonContextDiskDir:
-                util.logexc(LOG, "Failed reading context disk from %s", self.seed_dir)
+                util.logexc(LOG, "Failed reading context disk from %s",
+                            self.seed_dir)
 
         # find candidate devices, try to mount them and
         # read context script if present
@@ -134,99 +136,98 @@ class NonContextDiskDir(Exception):
 
 
 class OpenNebulaNetwork(object):
-    REG_DEV_MAC=re.compile('^\d+: (eth\d+):.*link\/ether (..:..:..:..:..:..) ')
+    REG_DEV_MAC = re.compile('^\d+: (eth\d+):.*link\/ether (..:..:..:..:..:..) ')
 
     def __init__(self, ip, context_sh):
-        self.ip=ip
-        self.context_sh=context_sh
-        self.ifaces=self.get_ifaces()
+        self.ip = ip
+        self.context_sh = context_sh
+        self.ifaces = self.get_ifaces()
 
     def get_ifaces(self):
         return [self.REG_DEV_MAC.search(f).groups() for f in self.ip.split("\n") if self.REG_DEV_MAC.match(f)]
 
     def mac2ip(self, mac):
-        components=mac.split(':')[2:]
-
+        components = mac.split(':')[2:]
         return [str(int(c, 16)) for c in components]
-        
+
     def get_ip(self, dev, components):
-        var_name=dev+'_ip'
+        var_name = dev + '_ip'
         if var_name in self.context_sh:
             return self.context_sh[var_name]
         else:
             return '.'.join(components)
 
     def get_mask(self, dev, components):
-        var_name=dev+'_mask'
+        var_name = dev + '_mask'
         if var_name in self.context_sh:
             return self.context_sh[var_name]
         else:
             return '255.255.255.0'
 
     def get_network(self, dev, components):
-        var_name=dev+'_network'
+        var_name = dev + '_network'
         if var_name in self.context_sh:
             return self.context_sh[var_name]
         else:
-            return '.'.join(components[:-1])+'.0'
+            return '.'.join(components[:-1]) + '.0'
 
     def get_gateway(self, dev, components):
-        var_name=dev+'_gateway'
+        var_name = dev + '_gateway'
         if var_name in self.context_sh:
             return self.context_sh[var_name]
         else:
             None
 
     def get_dns(self, dev, components):
-        var_name=dev+'_dns'
+        var_name = dev + '_dns'
         if var_name in self.context_sh:
             return self.context_sh[var_name]
         else:
             None
 
     def get_domain(self, dev, components):
-        var_name=dev+'_domain'
+        var_name = dev + '_domain'
         if var_name in self.context_sh:
             return self.context_sh[var_name]
         else:
             None
 
     def gen_conf(self):
-        global_dns=[]
+        global_dns = []
         if 'dns' in self.context_sh:
             global_dns.append(self.context_sh['dns'])
 
-        conf=[]
+        conf = []
         conf.append('auto lo')
         conf.append('iface lo inet loopback')
         conf.append('')
 
         for i in self.ifaces:
-            dev=i[0]
-            mac=i[1]
-            ip_components=self.mac2ip(mac)
+            dev = i[0]
+            mac = i[1]
+            ip_components = self.mac2ip(mac)
 
-            conf.append('auto '+dev)
-            conf.append('iface '+dev+' inet static')
-            conf.append('  address '+self.get_ip(dev, ip_components))
-            conf.append('  network '+self.get_network(dev, ip_components))
-            conf.append('  netmask '+self.get_mask(dev, ip_components))
+            conf.append('auto ' + dev)
+            conf.append('iface ' + dev + ' inet static')
+            conf.append('  address ' + self.get_ip(dev, ip_components))
+            conf.append('  network ' + self.get_network(dev, ip_components))
+            conf.append('  netmask ' + self.get_mask(dev, ip_components))
 
-            gateway=self.get_gateway(dev, ip_components)
+            gateway = self.get_gateway(dev, ip_components)
             if gateway:
-                conf.append('  gateway '+gateway)
+                conf.append('  gateway ' + gateway)
 
-            domain=self.get_domain(dev, ip_components)
+            domain = self.get_domain(dev, ip_components)
             if domain:
-                conf.append('  dns-search '+domain)
+                conf.append('  dns-search ' + domain)
 
             # add global DNS servers to all interfaces
-            dns=self.get_dns(dev, ip_components)
+            dns = self.get_dns(dev, ip_components)
             if global_dns or dns:
-                all_dns=global_dns
+                all_dns = global_dns
                 if dns:
                     all_dns.append(dns)
-                conf.append('  dns-nameservers '+' '.join(all_dns))
+                conf.append('  dns-nameservers ' + ' '.join(all_dns))
 
             conf.append('')
 
@@ -266,7 +267,7 @@ def read_context_disk_dir(source_dir):
     if len(found) == 0:
         raise NonContextDiskDir("%s: %s" % (source_dir, "no files found"))
 
-    results = {'userdata':None, 'metadata':{}}
+    results = {'userdata': None, 'metadata': {}}
     context_sh = {}
 
     if "context.sh" in found:
@@ -288,47 +289,47 @@ def read_context_disk_dir(source_dir):
             # 2. read context variables
             # 3. use comm to filter "old" variables from all current
             #    variables and excl. few other vars with grep
-            BASH_CMD='VARS=`set | sort -u `;' \
+            BASH_CMD = 'VARS=`set | sort -u `;' \
                 'source %s/context.sh;' \
                 'comm -23 <(set | sort -u) <(echo "$VARS") | egrep -v "^(VARS|PIPESTATUS|_)="'
 
-            (out,err) = util.subp(['bash','--noprofile', '--norc',
-                '-c', BASH_CMD % (source_dir) ])
+            (out, err) = util.subp(['bash', '--noprofile', '--norc',
+                                   '-c', BASH_CMD % (source_dir)])
 
-            for (key,value) in [ l.split('=',1) for l in out.rstrip().split("\n") ]:
-                k=key.lower()
+            for (key, value) in [l.split('=', 1) for l in out.rstrip().split("\n")]:
+                k = key.lower()
 
                 # with backslash escapes, e.g.
                 # X=$'Y\nZ'
-                r=re.match("^\$'(.*)'$",value)
+                r = re.match("^\$'(.*)'$", value)
                 if r:
-                    context_sh[k]=r.group(1).decode('string_escape')
+                    context_sh[k] = r.group(1).decode('string_escape')
                 else:
                     # multiword values, e.g.:
-                    # X='Y Z' 
+                    # X='Y Z'
                     # X='Y'\''Z' for "Y'Z"
-                    r=re.match("^'(.*)'$",value)
+                    r = re.match("^'(.*)'$", value)
                     if r:
-                        context_sh[k]=r.group(1).replace("'\\''","'")
+                        context_sh[k] = r.group(1).replace("'\\''", "'")
                     else:
                         # simple values, e.g.:
-                        # X=Y 
-                        context_sh[k]=value
+                        # X=Y
+                        context_sh[k] = value
 
         except util.ProcessExecutionError as e:
             raise NonContextDiskDir("Error reading context.sh: %s" % (e))
 
-        results['metadata']=context_sh
+        results['metadata'] = context_sh
     else:
         raise NonContextDiskDir("Missing context.sh")
 
     # process single or multiple SSH keys
-    ssh_key_var=None
+    ssh_key_var = None
 
     if "ssh_key" in context_sh:
-        ssh_key_var="ssh_key"
+        ssh_key_var = "ssh_key"
     elif "ssh_public_key" in context_sh:
-        ssh_key_var="ssh_public_key"
+        ssh_key_var = "ssh_public_key"
 
     if ssh_key_var:
         lines = context_sh.get(ssh_key_var).splitlines()
@@ -337,7 +338,7 @@ def read_context_disk_dir(source_dir):
 
     # custom hostname -- try hostname or leave cloud-init
     # itself create hostname from IP address later
-    for k in ('hostname','public_ip','ip_public','eth0_ip'):
+    for k in ('hostname', 'public_ip', 'ip_public', 'eth0_ip'):
         if k in context_sh:
             results['metadata']['local-hostname'] = context_sh[k]
             break
@@ -352,10 +353,10 @@ def read_context_disk_dir(source_dir):
     # only if there are any required context variables
     # http://opennebula.org/documentation:rel3.8:cong#network_configuration
     for k in context_sh.keys():
-        if re.match('^eth\d+_ip$',k):
+        if re.match('^eth\d+_ip$', k):
             (out, err) = util.subp(['/sbin/ip', '-o', 'link'])
-            net=OpenNebulaNetwork(out, context_sh)
-            results['network-interfaces']=net.gen_conf()
+            net = OpenNebulaNetwork(out, context_sh)
+            results['network-interfaces'] = net.gen_conf()
             break
 
     return results
