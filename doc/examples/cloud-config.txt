@@ -125,6 +125,19 @@ apt_sources:
       =Y2oI
       -----END PGP PUBLIC KEY BLOCK-----
 
+# apt_get_command: [command, argument, argument]
+# Specify a different 'apt-get' command. must be a list.  subcommands are
+# appended to it. default is:
+# ['apt-get', '--option=Dpkg::Options::=--force-confold',
+#  '--option=Dpkg::options::=--force-unsafe-io', '--assume-yes', '--quiet']
+#
+# apt_get_upgrade_subcommand:
+# Specify a different 'apt-get upgrade' subcommand.  when 'apt_upgrade' or
+# package_upgrade is set to true above, then this subcommand will be invoked.
+# default is 'dist-upgrade'.  For example, you could set this to 'upgrade'.
+apt_get_upgrade_subcommand: dist-upgrade
+
+
 # Install additional packages on first boot
 #
 # Default: none
