@@ -52,6 +52,8 @@
    (LP: #1023179)
  - use python-requests rather than urllib2.  By using recent versions of
    python-requests, we get https support (LP: #1067888).
+ - make apt-get invoke 'dist-upgrade' rather than 'upgrade' for
+   package_upgrade. (LP: #1164147)
 
 0.7.1:
  - sysvinit: fix missing dependency in cloud-init job for RHEL 5.6 

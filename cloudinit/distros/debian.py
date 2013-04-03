@@ -161,7 +161,12 @@ class Distro(distros.Distro):
         elif args and isinstance(args, list):
             cmd.extend(args)
 
-        cmd.append(command)
+        subcmd = command
+        if command == "upgrade":
+            subcmd = self.get_option("apt_get_upgrade_subcommand",
+                                     "dist-upgrade")
+
+        cmd.append(subcmd)
 
         pkglist = util.expand_package_list('%s=%s', pkgs)
         cmd.extend(pkglist)
