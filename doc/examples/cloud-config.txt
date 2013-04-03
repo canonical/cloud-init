@@ -125,6 +125,24 @@ apt_sources:
       =Y2oI
       -----END PGP PUBLIC KEY BLOCK-----
 
+## apt config via system_info:
+# under the 'system_info', you can further customize cloud-init's interaction
+# with apt. 
+#   system_info:
+#    apt_get_command: [command, argument, argument]
+#    apt_get_upgrade_subcommand: dist-upgrade
+#
+# apt_get_command:
+#  To specify a different 'apt-get' command, set 'apt_get_command'.
+#  This must be a list, and the subcommand (update, upgrade) is appended to it.
+#  default is:
+#    ['apt-get', '--option=Dpkg::Options::=--force-confold',
+#     '--option=Dpkg::options::=--force-unsafe-io', '--assume-yes', '--quiet']
+#
+# apt_get_upgrade_subcommand:
+# Specify a different subcommand for 'upgrade. The default is 'dist-upgrade'.
+# This is the subcommand that is invoked if package_upgrade is set to true above.
+
 # Install additional packages on first boot
 #
 # Default: none
