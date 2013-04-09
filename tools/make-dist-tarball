@@ -10,16 +10,12 @@ EOF
 }
 
 topdir="$PWD"
-tag=${1}
+tag="$1"
 
 [ -n "$tag" ] || { Usage 1>&2 ; exit 1; }
 
-tmpd=$(mktemp -d ); 
-trap "rm -Rf '${tmpd}'" 0
+out="${topdir}/cloud-init-${tag}.tar.gz"
 
-out=${topdir}/cloud-init-${tag}.tar.gz
-
-cd ${tmpd} && 
-   bzr branch -r "tag:${tag}" "${topdir}" ./cloud-init-${tag} &&
-   tar czf "${out}" cloud-init-${tag}/ --exclude cloud-init-${tag}/.bzr &&
-   echo "Wrote ${out}"
+bzr export --format=tgz --root="cloud-init-$tag" \
+    "--revision=tag:${tag}" "$out" "$topdir" &&
+    echo "Wrote ${out}"
