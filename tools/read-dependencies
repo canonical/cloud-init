@@ -21,15 +21,11 @@ fi
 
 REQUIRES="$ROOT_DIR/Requires"
 
-if [ ! -e "$REQUIRES" ]
-then
+if [ ! -e "$REQUIRES" ]; then
     echo "Unable to find 'Requires' file located at $REQUIRES"
     exit 1
 fi
 
 # Filter out comments and empty liens
-DEPS=$(cat $REQUIRES | grep -Pv "^\s*#" | grep -Pv '^\s*$')
+DEPS=$(grep -Pv "^\s*#" "$REQUIRES" | grep -Pv '^\s*$')
 echo "$DEPS" | sort -d -f
-
-
-

@@ -18,18 +18,16 @@ if ! find_root; then
     exit 1;
 fi
 
+REVNO=$(bzr revno "$ROOT_DIR")
+
 if [ ! -z "$1" ]; then
     ARCHIVE_FN="$1"
 else
-    REVNO=$(bzr revno $ROOT_DIR)
-    VERSION=$($ROOT_DIR/tools/read-version)
+    VERSION=$("$ROOT_DIR/tools/read-version")
     ARCHIVE_FN="$PWD/cloud-init-$VERSION~bzr$REVNO.tar.gz"
 fi
 
-FILES=$(cd $ROOT_DIR && bzr ls --versioned --recursive)
-echo "$FILES" | tar czf $ARCHIVE_FN \
-                -C "$ROOT_DIR" \
-                --transform "s,^,cloud-init-$VERSION~bzr$REVNO/," \
-                --no-recursion --files-from -
+bzr export --format=tgz --root="cloud-init-$VERSION~bzr$REVNO" \
+    "--revision=${REVNO}" "${ARCHIVE_FN}" "$ROOT_DIR"
 
 echo "$ARCHIVE_FN"
