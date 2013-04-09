@@ -27,5 +27,5 @@ then
     exit 1
 fi
 
-VERSION=$(grep -P "\d+.\d+.\d+:" $CHNG_LOG  | cut -f1 -d ":" | head -n 1)
-echo $VERSION
+VERSION=$(grep -P "\d+.\d+.\d+:" "$CHNG_LOG"  | cut -f1 -d ":" | head -n 1)
+echo "$VERSION"
