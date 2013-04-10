@@ -54,6 +54,8 @@
    python-requests, we get https support (LP: #1067888).
  - make apt-get invoke 'dist-upgrade' rather than 'upgrade' for
    package_upgrade. (LP: #1164147)
+ - improvements for systemd with Fedora 18
+ - workaround 2.6 kernel issue that stopped blkid from showing /dev/sr0
 
 0.7.1:
  - sysvinit: fix missing dependency in cloud-init job for RHEL 5.6 

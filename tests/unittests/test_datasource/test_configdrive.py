@@ -259,8 +259,9 @@ class TestConfigDriveDataSource(MockerTestCase):
     def test_find_candidates(self):
         devs_with_answers = {}
 
-        def my_devs_with(criteria):
-            return devs_with_answers[criteria]
+        def my_devs_with(*args, **kwargs):
+            criteria = args[0] if len(args) else kwargs.pop('criteria', None)
+            return devs_with_answers.get(criteria, [])
 
         def my_is_partition(dev):
             return dev[-1] in "0123456789" and not dev.startswith("sr")

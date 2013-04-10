@@ -47,8 +47,10 @@ class Distro(distros.Distro):
     # See: http://tiny.cc/6r99fw
     clock_conf_fn = "/etc/sysconfig/clock"
     locale_conf_fn = '/etc/sysconfig/i18n'
+    systemd_locale_conf_fn = '/etc/locale.conf'
     network_conf_fn = "/etc/sysconfig/network"
     hostname_conf_fn = "/etc/sysconfig/network"
+    systemd_hostname_conf_fn = "/etc/hostname"
     network_script_tpl = '/etc/sysconfig/network-scripts/ifcfg-%s'
     resolve_conf_fn = "/etc/resolv.conf"
     tz_local_fn = "/etc/localtime"
@@ -143,21 +145,36 @@ class Distro(distros.Distro):
             ]
             if not exists:
                 lines.insert(0, util.make_header())
-            util.write_file(fn, "\n".join(lines), 0644)
+            util.write_file(fn, "\n".join(lines) + "\n", 0644)
+
+    def _dist_uses_systemd(self):
+        # Fedora 18 and RHEL 7 were the first adopters in their series
+        (dist, vers) = util.system_info()['dist'][:2]
+        major = (int)(vers.split('.')[0])
+        return ((dist.startswith('Red Hat Enterprise Linux') and major >= 7)
+                or (dist.startswith('Fedora') and major >= 18))
 
     def apply_locale(self, locale, out_fn=None):
-        if not out_fn:
-            out_fn = self.locale_conf_fn
+        if self._dist_uses_systemd():
+            if not out_fn:
+                out_fn = self.systemd_locale_conf_fn
+            out_fn = self.systemd_locale_conf_fn
+        else:
+            if not out_fn:
+                out_fn = self.locale_conf_fn
         locale_cfg = {
             'LANG': locale,
         }
         self._update_sysconfig_file(out_fn, locale_cfg)
 
     def _write_hostname(self, hostname, out_fn):
-        host_cfg = {
-            'HOSTNAME': hostname,
-        }
-        self._update_sysconfig_file(out_fn, host_cfg)
+        if self._dist_uses_systemd():
+            util.subp(['hostnamectl', 'set-hostname', str(hostname)])
+        else:
+            host_cfg = {
+                'HOSTNAME': hostname,
+            }
+            self._update_sysconfig_file(out_fn, host_cfg)
 
     def _select_hostname(self, hostname, fqdn):
         # See: http://bit.ly/TwitgL
@@ -167,15 +184,25 @@ class Distro(distros.Distro):
         return hostname
 
     def _read_system_hostname(self):
-        return (self.network_conf_fn,
-                self._read_hostname(self.network_conf_fn))
+        if self._dist_uses_systemd():
+            host_fn = self.systemd_hostname_conf_fn
+        else:
+            host_fn = self.hostname_conf_fn
+        return (host_fn, self._read_hostname(host_fn))
 
     def _read_hostname(self, filename, default=None):
-        (_exists, contents) = self._read_conf(filename)
-        if 'HOSTNAME' in contents:
-            return contents['HOSTNAME']
+        if self._dist_uses_systemd():
+            (out, _err) = util.subp(['hostname'])
+            if len(out):
+                return out
+            else:
+                return default
         else:
-            return default
+            (_exists, contents) = self._read_conf(filename)
+            if 'HOSTNAME' in contents:
+                return contents['HOSTNAME']
+            else:
+                return default
 
     def _read_conf(self, fn):
         exists = False
@@ -200,13 +227,19 @@ class Distro(distros.Distro):
         if not os.path.isfile(tz_file):
             raise RuntimeError(("Invalid timezone %s,"
                                 " no file found at %s") % (tz, tz_file))
-        # Adjust the sysconfig clock zone setting
-        clock_cfg = {
-            'ZONE': str(tz),
-        }
-        self._update_sysconfig_file(self.clock_conf_fn, clock_cfg)
-        # This ensures that the correct tz will be used for the system
-        util.copy(tz_file, self.tz_local_fn)
+        if self._dist_uses_systemd():
+            # Currently, timedatectl complains if invoked during startup
+            # so for compatibility, create the link manually.
+            util.del_file(self.tz_local_fn)
+            util.sym_link(tz_file, self.tz_local_fn)
+        else:
+            # Adjust the sysconfig clock zone setting
+            clock_cfg = {
+                'ZONE': str(tz),
+            }
+            self._update_sysconfig_file(self.clock_conf_fn, clock_cfg)
+            # This ensures that the correct tz will be used for the system
+            util.copy(tz_file, self.tz_local_fn)
 
     def package_command(self, command, args=None, pkgs=None):
         if pkgs is None:
