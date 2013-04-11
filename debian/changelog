@@ -1,3 +1,12 @@
+cloud-init (0.7.2~bzr809-0ubuntu1) raring; urgency=low
+
+  * New upstream snapshot.
+    * make apt-get invoke 'dist-upgrade' rather than 'upgrade' for
+      package_upgrade. (LP: #1164147)
+    * workaround 2.6 kernel issue that stopped blkid from showing /dev/sr0
+
+ -- Scott Moser <smoser@ubuntu.com>  Thu, 11 Apr 2013 12:55:51 -0400
+
 cloud-init (0.7.2~bzr804-0ubuntu1) raring; urgency=low
 
   * New upstream snapshot.

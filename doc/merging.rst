@@ -145,7 +145,7 @@ For example, the default string that is used when none is provided is the follow
 
 ::
     
-   list(extend)+dict()+str(append)
+   list()+dict()+str()
 
 Dictionary format
 ********

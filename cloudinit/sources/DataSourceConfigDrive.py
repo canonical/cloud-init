@@ -258,6 +258,9 @@ def find_candidate_devs():
         * labeled with 'config-2'
     """
 
+    # Query optical drive to get it in blkid cache for 2.6 kernels
+    util.find_devs_with(path="/dev/sr0")
+
     by_fstype = (util.find_devs_with("TYPE=vfat") +
                  util.find_devs_with("TYPE=iso9660"))
     by_label = util.find_devs_with("LABEL=config-2")
