@@ -39,7 +39,6 @@ class CloudConfigPartHandler(handlers.Handler):
         self.cloud_buf = None
         self.cloud_fn = paths.get_ipath("cloud_config")
         self.file_names = []
-        self.mergers = [DEF_MERGERS]
 
     def list_types(self):
         return [
@@ -89,13 +88,9 @@ class CloudConfigPartHandler(handlers.Handler):
         return all_mergers
 
     def _merge_part(self, payload, headers):
-        next_mergers = self._extract_mergers(payload, headers)
-        # Use the merger list from the last call, since it is the one
-        # that will be defining how to merge with the next payload.
-        curr_mergers = list(self.mergers[-1])
-        LOG.debug("Merging by applying %s", curr_mergers)
-        self.mergers.append(next_mergers)
-        merger = mergers.construct(curr_mergers)
+        my_mergers = self._extract_mergers(payload, headers)
+        LOG.debug("Merging by applying %s", my_mergers)
+        merger = mergers.construct(my_mergers)
         if self.cloud_buf is None:
             # First time through, merge with an empty dict...
             self.cloud_buf = {}
@@ -105,7 +100,6 @@ class CloudConfigPartHandler(handlers.Handler):
     def _reset(self):
         self.file_names = []
         self.cloud_buf = None
-        self.mergers = [DEF_MERGERS]
 
     def handle_part(self, _data, ctype, filename,  # pylint: disable=W0221
                     payload, _frequency, headers):  # pylint: disable=W0613

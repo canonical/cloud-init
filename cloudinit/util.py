@@ -543,21 +543,16 @@ def make_url(scheme, host, port=None,
 def mergemanydict(srcs, reverse=False):
     if reverse:
         srcs = reversed(srcs)
-    m_cfg = {}
-    merge_how = [mergers.default_mergers()]
-    for a_cfg in srcs:
-        if a_cfg:
-            # Take the last merger as the one that
-            # will define how to merge next...
-            mergers_to_apply = list(merge_how[-1])
+    merged_cfg = {}
+    for cfg in srcs:
+        if cfg:
+            # Figure out which mergers to apply...
+            mergers_to_apply = mergers.dict_extract_mergers(cfg)
+            if not mergers_to_apply:
+                mergers_to_apply = mergers.default_mergers()
             merger = mergers.construct(mergers_to_apply)
-            m_cfg = merger.merge(m_cfg, a_cfg)
-            # If the config has now has new merger set,
-            # extract them to be used next time...
-            new_mergers = mergers.dict_extract_mergers(m_cfg)
-            if new_mergers:
-                merge_how.append(new_mergers)
-    return m_cfg
+            merged_cfg = merger.merge(merged_cfg, cfg)
+    return merged_cfg
 
 
 @contextlib.contextmanager
