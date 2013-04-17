@@ -26,6 +26,8 @@ NAME_MTCH = re.compile(r"(^[a-zA-Z_][A-Za-z0-9_]*)\((.*?)\)$")
 
 LOG = logging.getLogger(__name__)
 DEF_MERGE_TYPE = "list()+dict()+str()"
+MERGER_PREFIX = 'm_'
+MERGER_ATTR = 'Merger'
 
 
 class UnknownMerger(object):
@@ -136,15 +138,18 @@ def default_mergers():
 def construct(parsed_mergers):
     mergers_to_be = []
     for (m_name, m_ops) in parsed_mergers:
+        if not m_name.startswith(MERGER_PREFIX):
+            m_name = MERGER_PREFIX + str(m_name)
         merger_locs = importer.find_module(m_name,
                                            [__name__],
-                                           ['Merger'])
+                                           [MERGER_ATTR])
         if not merger_locs:
-            msg = "Could not find merger named '%s'" % (m_name)
+            msg = ("Could not find merger module named '%s' "
+                   "with attribute '%s'") % (m_name, MERGER_ATTR)
             raise ImportError(msg)
         else:
             mod = importer.import_module(merger_locs[0])
-            mod_attr = getattr(mod, 'Merger')
+            mod_attr = getattr(mod, MERGER_ATTR)
             mergers_to_be.append((mod_attr, m_ops))
     # Now form them...
     mergers = []
