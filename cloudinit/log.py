@@ -44,13 +44,13 @@ NOTSET = logging.NOTSET
 DEF_CON_FORMAT = '%(asctime)s - %(filename)s[%(levelname)s]: %(message)s'
 
 
-def setupBasicLogging():
+def setupBasicLogging(level=DEBUG):
     root = logging.getLogger()
     console = logging.StreamHandler(sys.stderr)
     console.setFormatter(logging.Formatter(DEF_CON_FORMAT))
-    console.setLevel(DEBUG)
+    console.setLevel(level)
     root.addHandler(console)
-    root.setLevel(DEBUG)
+    root.setLevel(level)
 
 
 def flushLoggers(root):
