@@ -20,7 +20,7 @@
 class Merger(object):
     def __init__(self, merger, opts):
         self._merger = merger
-        self._overwrite = 'overwrite' in opts
+        self._not_overwrite = 'not_overwrite' in opts
 
     # This merging algorithm will attempt to merge with
     # another dictionary, on encountering any other type of object
@@ -39,7 +39,8 @@ class Merger(object):
         merged = dict(value)
         for (k, v) in merge_with.items():
             if k in merged:
-                if not self._overwrite:
+                if self._not_overwrite:
+                    # Attempt to merge them....
                     merged[k] = self._merger.merge(merged[k], v)
                 else:
                     merged[k] = v

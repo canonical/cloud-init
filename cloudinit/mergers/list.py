@@ -20,7 +20,6 @@
 class Merger(object):
     def __init__(self, merger, opts):
         self._merger = merger
-        self._discard_non = 'discard_non_list' in opts
         self._extend = 'extend' in opts
 
     def _on_tuple(self, value, merge_with):
@@ -33,18 +32,7 @@ class Merger(object):
     # attempt to merge instead, which means that values from the list
     # to merge with will replace values in te original list (they will
     # also be merged recursively).
-    #
-    # If the value to merge with is not a list, and we are set to discared
-    # then no modifications will take place, otherwise we will just append
-    # the value to merge with onto the end of our own list.
     def _on_list(self, value, merge_with):
-        new_value = list(value)
-        if isinstance(merge_with, (tuple, list)):
-            if self._extend:
-                new_value.extend(merge_with)
-            else:
-                return new_value
-        else:
-            if not self._discard_non:
-                new_value.append(merge_with)
-        return new_value
+        if not self._extend or not isinstance(merge_with, (tuple, list)):
+            return merge_with
+        return list(value).extend(merge_with)
