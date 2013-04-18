@@ -28,11 +28,10 @@ class Merger(object):
     # On encountering a list or tuple type this action will be applied
     # a new list will be returned, if the value to merge with is itself
     # a list and we have been told to 'extend', then the value here will
-    # be extended with the other list. If in 'extend' mode then we will
-    # attempt to merge instead, which means that values from the list
-    # to merge with will replace values in te original list (they will
-    # also be merged recursively).
+    # be extended with the other list.
     def _on_list(self, value, merge_with):
         if not self._extend or not isinstance(merge_with, (tuple, list)):
             return merge_with
-        return list(value).extend(merge_with)
+        # Leave the original list alone...
+        value = list(value)
+        return value.extend(merge_with)
