@@ -25,7 +25,7 @@ from cloudinit import type_utils
 NAME_MTCH = re.compile(r"(^[a-zA-Z_][A-Za-z0-9_]*)\((.*?)\)$")
 
 LOG = logging.getLogger(__name__)
-DEF_MERGE_TYPE = "list()+dict()+str()"
+DEF_MERGE_TYPE = "list()+dict()"
 MERGER_PREFIX = 'm_'
 MERGER_ATTR = 'Merger'
 
