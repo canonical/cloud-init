@@ -31,7 +31,7 @@ class Merger(object):
     # merge them together, otherwise we will just return value.
     def _on_str(self, value, merge_with):
         if not self._append:
-            return value
+            return merge_with
         else:
             if isinstance(value, (unicode)):
                 return value + unicode(merge_with)
