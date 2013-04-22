@@ -85,17 +85,16 @@ class CloudConfigPartHandler(handlers.Handler):
         all_mergers.extend(mergers_header)
         if not all_mergers:
             all_mergers = DEF_MERGERS
-        return all_mergers
+        return (payload_yaml, all_mergers)
 
     def _merge_part(self, payload, headers):
-        my_mergers = self._extract_mergers(payload, headers)
+        (payload_yaml, my_mergers) = self._extract_mergers(payload, headers)
         LOG.debug("Merging by applying %s", my_mergers)
         merger = mergers.construct(my_mergers)
         if self.cloud_buf is None:
             # First time through, merge with an empty dict...
             self.cloud_buf = {}
-        self.cloud_buf = merger.merge(self.cloud_buf,
-                                      util.load_yaml(payload))
+        self.cloud_buf = merger.merge(self.cloud_buf, payload_yaml)
 
     def _reset(self):
         self.file_names = []
