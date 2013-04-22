@@ -20,18 +20,55 @@
 class Merger(object):
     def __init__(self, merger, opts):
         self._merger = merger
-        self._extend = 'extend' in opts
+        # Affects merging behavior...
+        self._method = 'replace'
+        for m in ['append', 'prepend', 'replace']:
+            if m in opts:
+                self._method = m
+                break
+        # Affect how recursive merging is done on other primitives
+        self._recurse_str = 'recurse_str' in opts
+        self._recurse_dict = 'recurse_dict' in opts
+        self._recurse_array = 'recurse_array' in opts
+
+    def __str__(self):
+        return 'ListMerger: (m=%s,rs=%s,rd=%s,ra=%s)' % (self._method,
+                                                         self._recurse_str,
+                                                         self._recurse_dict,
+                                                         self._recurse_array)
 
     def _on_tuple(self, value, merge_with):
-        return self._on_list(list(value), merge_with)
+        return tuple(self._on_list(list(value), merge_with))
 
-    # On encountering a list or tuple type this action will be applied
-    # a new list will be returned, if the value to merge with is itself
-    # a list and we have been told to 'extend', then the value here will
-    # be extended with the other list.
     def _on_list(self, value, merge_with):
-        if not self._extend or not isinstance(merge_with, (tuple, list)):
-            return merge_with
-        # Leave the original list alone...
-        value = list(value)
-        return value.extend(merge_with)
+        if (self._method == 'replace' and
+            not isinstance(merge_with, (tuple, list))):
+                return merge_with
+
+        # Ok we now know that what we are merging with is a list or tuple.
+        merged_list = []
+        if self._method == 'prepend':
+            merged_list.extend(merge_with)
+            merged_list.extend(value)
+            return merged_list
+        elif self._method == 'append':
+            merged_list.extend(value)
+            merged_list.extend(merge_with)
+            return merged_list
+
+        def merge_same_index(old_v, new_v):
+            if isinstance(new_v, (list, tuple)) and self._recurse_array:
+                return self._merger.merge(old_v, new_v)
+            if isinstance(new_v, (str, basestring)) and self._recurse_str:
+                return self._merger.merge(old_v, new_v)
+            if isinstance(new_v, (dict)) and self._recurse_dict:
+                return self._merger.merge(old_v, new_v)
+            # Otherwise leave it be...
+            return old_v
+
+        # Ok now we are replacing same indexes
+        merged_list.extend(value)
+        common_len = min(len(merged_list), len(merge_with))
+        for i in xrange(0, common_len):
+            merged_list[i] = merge_same_index(merged_list[i], merge_with[i])
+        return merged_list
