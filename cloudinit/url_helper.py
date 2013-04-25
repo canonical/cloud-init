@@ -102,8 +102,8 @@ class UrlError(IOError):
 
 
 def readurl(url, data=None, timeout=None, retries=0, sec_between=1,
-            headers=None, ssl_details=None, check_status=True,
-            allow_redirects=True):
+            headers=None, headers_cb=None, ssl_details=None,
+            check_status=True, allow_redirects=True):
     url = _cleanurl(url)
     req_args = {
         'url': url,
@@ -149,8 +149,11 @@ def readurl(url, data=None, timeout=None, retries=0, sec_between=1,
         headers = {
             'User-Agent': 'Cloud-Init/%s' % (version.version_string()),
         }
-    req_args['headers'] = headers
-    LOG.debug("Attempting to open '%s' with %s configuration", url, req_args)
+    if not headers_cb:
+        def _cb(url):
+            return headers
+        headers_cb = _cb
+
     if data:
         # Do this after the log (it might be large)
         req_args['data'] = data
@@ -161,6 +164,11 @@ def readurl(url, data=None, timeout=None, retries=0, sec_between=1,
     # doesn't handle sleeping between tries...
     for i in range(0, manual_tries):
         try:
+            req_args['headers'] = headers_cb(url)
+            LOG.debug("[%s/%s] open '%s' with %s configuration", i,
+                      manual_tries, url,
+                      {k: req_args[k] for k in req_args if k != 'data'})
+
             r = requests.request(**req_args)
             if check_status:
                 r.raise_for_status()  # pylint: disable=E1103
@@ -174,7 +182,7 @@ def readurl(url, data=None, timeout=None, retries=0, sec_between=1,
         except exceptions.RequestException as e:
             if (isinstance(e, (exceptions.HTTPError))
                 and hasattr(e, 'response')  # This appeared in v 0.10.8
-                and e.response):
+                and hasattr(e.response, 'status_code')):
                 excps.append(UrlError(e, code=e.response.status_code,
                                       headers=e.response.headers))
             else:
