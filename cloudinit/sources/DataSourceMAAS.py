@@ -218,14 +218,20 @@ def read_maas_seed_url(seed_url, header_cb=None, timeout=None,
     md = {}
     for name in file_order:
         url = files.get(name)
-        if header_cb:
-            headers = header_cb(url)
+        if not header_cb:
+            def _cb(url):
+                return {}
+            header_cb = _cb
+
+        if name == 'user-data':
+            retries = 0
         else:
-            headers = {}
+            retries = None
+
         try:
             ssl_details = util.fetch_ssl_details(paths)
-            resp = util.read_file_or_url(url,
-                                         headers=headers,
+            resp = util.read_file_or_url(url, retries=retries,
+                                         headers_cb=header_cb,
                                          timeout=timeout,
                                          ssl_details=ssl_details)
             if resp.ok():
