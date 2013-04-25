@@ -116,9 +116,10 @@ class TestMAASDataSource(mocker.MockerTestCase):
 
         for key in valid_order:
             url = "%s/%s/%s" % (my_seed, my_ver, key)
-            mock_request(url, headers=my_headers, timeout=mocker.ANY,
+            mock_request(url, headers=None, timeout=mocker.ANY,
                          data=mocker.ANY, sec_between=mocker.ANY,
-                         ssl_details=mocker.ANY, retries=mocker.ANY)
+                         ssl_details=mocker.ANY, retries=mocker.ANY,
+                         headers_cb=my_headers_cb)
             resp = valid.get(key)
             self.mocker.result(util.StringResponse(resp))
         self.mocker.replay()
