@@ -16,13 +16,16 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+DEF_MERGE_TYPE = 'replace'
+MERGE_TYPES = ('append', 'prepend', DEF_MERGE_TYPE,)
+
 
 class Merger(object):
     def __init__(self, merger, opts):
         self._merger = merger
         # Affects merging behavior...
-        self._method = 'replace'
-        for m in ['append', 'prepend', 'replace']:
+        self._method = DEF_MERGE_TYPE
+        for m in MERGE_TYPES:
             if m in opts:
                 self._method = m
                 break
