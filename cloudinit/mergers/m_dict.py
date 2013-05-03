@@ -46,11 +46,8 @@ class Merger(object):
     def __str__(self):
         s = ('DictMerger: (method=%s,recurse_str=%s,'
              'recurse_dict=%s,recurse_array=%s,allow_delete=%s)')
-        s  = s % (self._method,
-                  self._recurse_str,
-                  self._recurse_dict,
-                  self._recurse_array,
-                  self._allow_delete)
+        s = s % (self._method, self._recurse_str,
+                 self._recurse_dict, self._recurse_array, self._allow_delete)
         return s
 
     def _do_dict_replace(self, value, merge_with, do_replace):

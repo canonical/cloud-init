@@ -12,7 +12,7 @@ import os
 import re
 
 SOURCE_PAT = "source*.*yaml"
-EXPECTED_PAT = "expected%s.yaml" 
+EXPECTED_PAT = "expected%s.yaml"
 
 
 def _old_mergedict(src, cand):
