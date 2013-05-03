@@ -60,7 +60,6 @@ run:
  - c
 '''
         message1 = MIMEBase("text", "cloud-config")
-        message1['Merge-Type'] = 'dict()+list(extend)+str(append)'
         message1.set_payload(blob)
 
         blob2 = '''
@@ -72,7 +71,8 @@ run:
  - morestuff
 '''
         message2 = MIMEBase("text", "cloud-config")
-        message2['X-Merge-Type'] = 'dict()+list(extend)+str()'
+        message2['X-Merge-Type'] = ('dict(recurse_array,'
+                                    'recurse_str)+list(append)+str(append)')
         message2.set_payload(blob2)
 
         blob3 = '''
@@ -84,7 +84,6 @@ e:
 p: 1
 '''
         message3 = MIMEBase("text", "cloud-config")
-        message3['Merge-Type'] = 'dict()+list()+str()'
         message3.set_payload(blob3)
 
         messages = [message1, message2, message3]

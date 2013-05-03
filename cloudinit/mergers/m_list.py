@@ -32,10 +32,11 @@ class Merger(object):
         self._recurse_array = 'recurse_array' in opts
 
     def __str__(self):
-        return 'ListMerger: (m=%s,rs=%s,rd=%s,ra=%s)' % (self._method,
-                                                         self._recurse_str,
-                                                         self._recurse_dict,
-                                                         self._recurse_array)
+        return ('ListMerger: (method=%s,recurse_str=%s,'
+                'recurse_dict=%s,recurse_array=%s)') % (self._method,
+                                                        self._recurse_str,
+                                                        self._recurse_dict,
+                                                        self._recurse_array)
 
     def _on_tuple(self, value, merge_with):
         return tuple(self._on_list(list(value), merge_with))
