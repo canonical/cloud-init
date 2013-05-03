@@ -16,21 +16,32 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+DEF_MERGE_TYPE = 'no_replace'
+MERGE_TYPES = ('replace', DEF_MERGE_TYPE,)
+
+
+def _has_any(what, *keys):
+    for k in keys:
+        if k in what:
+            return True
+    return False
+
 
 class Merger(object):
     def __init__(self, merger, opts):
         self._merger = merger
         # Affects merging behavior...
-        self._method = 'replace'
-        for m in ['replace', 'no_replace']:
+        self._method = DEF_MERGE_TYPE
+        for m in MERGE_TYPES:
             if m in opts:
                 self._method = m
                 break
-        # Affect how recursive merging is done on other primitives
+        # Affect how recursive merging is done on other primitives.
         self._recurse_str = 'recurse_str' in opts
-        self._recurse_dict = True
-        self._recurse_array = 'recurse_array' in opts
+        self._recurse_array = _has_any(opts, 'recurse_array', 'recurse_list')
         self._allow_delete = 'allow_delete' in opts
+        # Backwards compat require this to be on.
+        self._recurse_dict = True
 
     def __str__(self):
         s = ('DictMerger: (method=%s,recurse_str=%s,'
@@ -42,14 +53,14 @@ class Merger(object):
                   self._allow_delete)
         return s
 
-    def _do_dict_replace(self, value, merge_with, do_replace=True):
+    def _do_dict_replace(self, value, merge_with, do_replace):
 
         def merge_same_key(old_v, new_v):
             if do_replace:
                 return new_v
             if isinstance(new_v, (list, tuple)) and self._recurse_array:
                 return self._merger.merge(old_v, new_v)
-            if isinstance(new_v, (str, basestring)) and self._recurse_str:
+            if isinstance(new_v, (basestring)) and self._recurse_str:
                 return self._merger.merge(old_v, new_v)
             if isinstance(new_v, (dict)) and self._recurse_dict:
                 return self._merger.merge(old_v, new_v)
@@ -70,7 +81,7 @@ class Merger(object):
         if not isinstance(merge_with, (dict)):
             return value
         if self._method == 'replace':
-            merged = self._do_dict_replace(dict(value), merge_with)
+            merged = self._do_dict_replace(dict(value), merge_with, True)
         elif self._method == 'no_replace':
             merged = self._do_dict_replace(dict(value), merge_with, False)
         else:
