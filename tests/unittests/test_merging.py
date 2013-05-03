@@ -64,7 +64,7 @@ class TestSimpleRun(helpers.ResourceUsingTestCase):
             tests.append(entry)
         return tests
 
-    def test_merge_samples(self):
+    def test_merge_cc_samples(self):
         tests = self._load_merge_files()
         paths = c_helpers.Paths({})
         cc_handler = cloud_config.CloudConfigPartHandler(paths)
