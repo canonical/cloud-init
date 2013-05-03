@@ -119,6 +119,30 @@ class TestSimpleRun(helpers.ResourceUsingTestCase):
             '1': '2',
             'b': {
                 'f': 'g',
+                'e': 'c',
+                'h': 'd',
+                'hh': {
+                    '1': 2,
+                },
+            }
+        }
+        b = {
+            'b': {
+                'e': 'c',
+                'hh': {
+                    '3': 4,
+                }
+            }
+        }
+        c = _old_mergedict(a, b)
+        d = util.mergemanydict([a, b])
+        self.assertEquals(c, d)
+
+    def test_compat_merge_sub_dict2(self):
+        a = {
+            '1': '2',
+            'b': {
+                'f': 'g',
             }
         }
         b = {
