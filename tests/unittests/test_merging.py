@@ -9,10 +9,13 @@ from cloudinit import util
 import collections
 import glob
 import os
+import random
 import re
+import string
 
 SOURCE_PAT = "source*.*yaml"
 EXPECTED_PAT = "expected%s.yaml"
+TYPES = [long, int, dict, str, list, tuple, None]
 
 
 def _old_mergedict(src, cand):
@@ -35,6 +38,60 @@ def _old_mergemanydict(*args):
     for a in args:
         out = _old_mergedict(out, a)
     return out
+
+
+def _random_str(rand):
+    base = ''
+    for _i in xrange(rand.randint(1, 2**8)):
+        base += rand.choice(string.letters + string.digits)
+    return base
+
+
+class _NoMoreException(Exception):
+    pass
+
+
+def _make_dict(current_depth, max_depth, rand):
+    if current_depth >= max_depth:
+        raise _NoMoreException()
+    if current_depth == 0:
+        t = dict
+    else:
+        t = rand.choice(TYPES)
+    base = None
+    if t in [None]:
+        return base
+    if t in [dict, list, tuple]:
+        if t in [dict]:
+            amount = rand.randint(0, 5)
+            keys = [_random_str(rand) for _i in xrange(0, amount)]
+            base = {}
+            for k in keys:
+                try:
+                    base[k] = _make_dict(current_depth + 1, max_depth, rand)
+                except _NoMoreException:
+                    pass
+        elif t in [list, tuple]:
+            base = []
+            amount = rand.randint(0, 5)
+            for _i in xrange(0, amount):
+                try:
+                    base.append(_make_dict(current_depth + 1, max_depth, rand))
+                except _NoMoreException:
+                    pass
+            if t in [tuple]:
+                base = tuple(base)
+    elif t in [long, int]:
+        base = rand.randint(0, 2**8)
+    elif t in [str]:
+        base = _random_str(rand)
+    return base
+
+
+def make_dict(max_depth, seed=None):
+    max_depth = max(1, max_depth)
+    rand = random.Random(seed)
+    return _make_dict(0, max_depth, rand)
 
 
 class TestSimpleRun(helpers.ResourceUsingTestCase):
@@ -63,6 +120,18 @@ class TestSimpleRun(helpers.ResourceUsingTestCase):
             entry = [source_file_contents, [expected, expected_files[i]]]
             tests.append(entry)
         return tests
+
+    def test_seed_runs(self):
+        test_dicts = []
+        for i in range(1, 50):
+            base_dicts = []
+            for j in range(1, 50):
+                base_dicts.append(make_dict(5, i * j))
+            test_dicts.append(base_dicts)
+        for test in test_dicts:
+            c = _old_mergemanydict(*test)
+            d = util.mergemanydict(test)
+            self.assertEquals(c, d)
 
     def test_merge_cc_samples(self):
         tests = self._load_merge_files()
