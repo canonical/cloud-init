@@ -19,6 +19,12 @@
 DEF_MERGE_TYPE = 'replace'
 MERGE_TYPES = ('append', 'prepend', DEF_MERGE_TYPE,)
 
+def _has_any(what, *keys):
+    for k in keys:
+        if k in what:
+            return True
+    return False
+
 
 class Merger(object):
     def __init__(self, merger, opts):
@@ -30,9 +36,9 @@ class Merger(object):
                 self._method = m
                 break
         # Affect how recursive merging is done on other primitives
-        self._recurse_str = 'recurse_str' in opts
-        self._recurse_dict = 'recurse_dict' in opts
-        self._recurse_array = 'recurse_array' in opts
+        self._recurse_str = _has_any(opts, 'recurse_str')
+        self._recurse_dict = _has_any(opts, 'recurse_dict')
+        self._recurse_array = _has_any(opts, 'recurse_array', 'recurse_list')
 
     def __str__(self):
         return ('ListMerger: (method=%s,recurse_str=%s,'
