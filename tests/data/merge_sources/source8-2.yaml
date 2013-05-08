@@ -1,0 +1,6 @@
+#cloud-config
+
+mounts:
+ - [ ephemeral22, /mnt, auto, "defaults,noexec" ]
+
+merge_how: 'dict(recurse_array)+list(recurse_list,recurse_str)+str()'

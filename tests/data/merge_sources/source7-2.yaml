@@ -1,0 +1,17 @@
+#cloud-config
+
+users:
+  - bob
+  - joe
+  - sue
+  - name: foobar_jr
+    gecos: Foo B. Bar Jr
+    primary-group: foobar
+    groups: users
+    selinux-user: staff_u
+    expiredate: 2012-09-01
+    ssh-import-id: foobar
+    lock-passwd: false
+    passwd: $6$j212wezy$7H/1LT4f9/N3wpgNunhsIqtMj62OKiS3nyNwuizouQc3u7MbYCarYeAHWYPYb2FT.lbioDm2RrkJPb9BZMN1O/
+
+merge_how: "dict(recurse_array)+list(append)"
