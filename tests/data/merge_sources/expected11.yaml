@@ -1,0 +1,5 @@
+#cloud-config
+
+a: 22
+b: 4
+c: 3
