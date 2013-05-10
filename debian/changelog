@@ -1,3 +1,12 @@
+cloud-init (0.7.2~bzr812-0ubuntu1) saucy; urgency=low
+
+  * New upstream snapshot.
+    * catch up with upstream, which is hopefully 0.7.2
+    * straighten out the merging routines
+    * fix a bug in Maas datasource
+
+ -- Scott Moser <smoser@ubuntu.com>  Fri, 10 May 2013 17:53:49 -0400
+
 cloud-init (0.7.2~bzr809-0ubuntu1) raring; urgency=low
 
   * New upstream snapshot.
