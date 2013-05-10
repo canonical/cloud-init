@@ -108,7 +108,7 @@ p: 1
         contents = util.load_yaml(contents)
         self.assertEquals(contents['run'], ['b', 'c', 'stuff', 'morestuff'])
         self.assertEquals(contents['a'], 'be')
-        self.assertEquals(contents['e'], 'fg')
+        self.assertEquals(contents['e'], [1, 2, 3])
         self.assertEquals(contents['p'], 1)
 
     def test_unhandled_type_warning(self):

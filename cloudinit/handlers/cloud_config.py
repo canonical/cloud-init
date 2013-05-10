@@ -30,7 +30,13 @@ from cloudinit.settings import (PER_ALWAYS)
 LOG = logging.getLogger(__name__)
 
 MERGE_HEADER = 'Merge-Type'
-DEF_MERGERS = mergers.default_mergers()
+
+# Due to the way the loading of yaml configuration was done previously,
+# where previously each cloud config part was appended to a larger yaml
+# file and then finally that file was loaded as one big yaml file we need
+# to mimic that behavior by altering the default strategy to be replacing
+# keys of later mergers.
+DEF_MERGERS = mergers.string_extract_mergers('dict(replace)+list()+str()')
 
 
 class CloudConfigPartHandler(handlers.Handler):
@@ -53,6 +59,8 @@ class CloudConfigPartHandler(handlers.Handler):
         if self.file_names:
             file_lines.append("# from %s files" % (len(self.file_names)))
             for fn in self.file_names:
+                if not fn:
+                    fn = '?'
                 file_lines.append("# %s" % (fn))
             file_lines.append("")
         if self.cloud_buf is not None:
@@ -111,7 +119,10 @@ class CloudConfigPartHandler(handlers.Handler):
             return
         try:
             self._merge_part(payload, headers)
-            self.file_names.append(filename)
+            # Ensure filename is ok to store
+            for i in ("\n", "\r", "\t"):
+                filename = filename.replace(i, " ")
+            self.file_names.append(filename.strip())
         except:
             util.logexc(LOG, "Failed at merging in cloud config part from %s",
                         filename)

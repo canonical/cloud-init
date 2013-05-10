@@ -167,6 +167,21 @@ class TestSimpleRun(helpers.ResourceUsingTestCase):
         d = util.mergemanydict([a, b])
         self.assertEquals(c, d)
 
+    def test_compat_merges_dict(self):
+        a = {
+            'Blah': 1,
+            'Blah2': 2,
+            'Blah3': 3,
+        }
+        b = {
+            'Blah': 1,
+            'Blah2': 2,
+            'Blah3': [1],
+        }
+        c = _old_mergedict(a, b)
+        d = util.mergemanydict([a, b])
+        self.assertEquals(c, d)
+
     def test_compat_merges_list(self):
         a = {'b': [1, 2, 3]}
         b = {'b': [4, 5]}
