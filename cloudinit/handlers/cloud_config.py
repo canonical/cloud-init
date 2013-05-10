@@ -35,7 +35,19 @@ MERGE_HEADER = 'Merge-Type'
 # where previously each cloud config part was appended to a larger yaml
 # file and then finally that file was loaded as one big yaml file we need
 # to mimic that behavior by altering the default strategy to be replacing
-# keys of later mergers.
+# keys of prior merges.
+#
+#
+# For example
+# #file 1
+# a: 3
+# #file 2
+# a: 22
+# #combined file (comments not included)
+# a: 3
+# a: 22
+#
+# This gets loaded into yaml with final result {'a': 22}
 DEF_MERGERS = mergers.string_extract_mergers('dict(replace)+list()+str()')
 
 
