@@ -11,7 +11,7 @@ import glob
 import os
 import random
 import re
-import string
+import string  # pylint: disable=W0402
 
 SOURCE_PAT = "source*.*yaml"
 EXPECTED_PAT = "expected%s.yaml"
@@ -167,7 +167,7 @@ class TestSimpleRun(helpers.ResourceUsingTestCase):
         d = util.mergemanydict([a, b])
         self.assertEquals(c, d)
 
-    def test_compat_merges_dict(self):
+    def test_compat_merges_dict2(self):
         a = {
             'Blah': 1,
             'Blah2': 2,
