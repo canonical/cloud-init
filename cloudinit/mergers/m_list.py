@@ -17,7 +17,7 @@
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 DEF_MERGE_TYPE = 'replace'
-MERGE_TYPES = ('append', 'prepend', DEF_MERGE_TYPE,)
+MERGE_TYPES = ('append', 'prepend', DEF_MERGE_TYPE, 'no_replace')
 
 def _has_any(what, *keys):
     for k in keys:
@@ -67,14 +67,16 @@ class Merger(object):
             return merged_list
 
         def merge_same_index(old_v, new_v):
+            if self._method == 'no_replace':
+                # Leave it be...
+                return old_v
             if isinstance(new_v, (list, tuple)) and self._recurse_array:
                 return self._merger.merge(old_v, new_v)
             if isinstance(new_v, (str, basestring)) and self._recurse_str:
                 return self._merger.merge(old_v, new_v)
             if isinstance(new_v, (dict)) and self._recurse_dict:
                 return self._merger.merge(old_v, new_v)
-            # Otherwise leave it be...
-            return old_v
+            return new_v
 
         # Ok now we are replacing same indexes
         merged_list.extend(value)
