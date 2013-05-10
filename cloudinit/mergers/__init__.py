@@ -55,6 +55,9 @@ class UnknownMerger(object):
         if not meth:
             meth = self._handle_unknown
             args.insert(0, method_name)
+        LOG.debug("Merging '%s' into '%s' using method '%s' of '%s'",
+                  type_name, type_utils.obj_name(merge_with),
+                  meth.__name__, self)
         return meth(*args)
 
 
@@ -65,6 +68,9 @@ class LookupMerger(UnknownMerger):
             self._lookups = []
         else:
             self._lookups = lookups
+
+    def __str__(self):
+        return 'LookupMerger: (%s)' % (len(self._lookups))
 
     # For items which can not be merged by the parent this object
     # will lookup in a internally maintained set of objects and
@@ -78,6 +84,8 @@ class LookupMerger(UnknownMerger):
                 # First one that has that method/attr gets to be
                 # the one that will be called
                 meth = getattr(merger, meth_wanted)
+                LOG.debug(("Merging using located merger '%s'"
+                            " since it had method '%s'"), merger, meth_wanted)
                 break
         if not meth:
             return UnknownMerger._handle_unknown(self, meth_wanted,
@@ -87,9 +95,9 @@ class LookupMerger(UnknownMerger):
 
 def dict_extract_mergers(config):
     parsed_mergers = []
-    raw_mergers = config.get('merge_how')
+    raw_mergers = config.pop('merge_how', None)
     if raw_mergers is None:
-        raw_mergers = config.get('merge_type')
+        raw_mergers = config.pop('merge_type', None)
     if raw_mergers is None:
         return parsed_mergers
     if isinstance(raw_mergers, (str, basestring)):
