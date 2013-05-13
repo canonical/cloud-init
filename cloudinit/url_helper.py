@@ -165,9 +165,14 @@ def readurl(url, data=None, timeout=None, retries=0, sec_between=1,
     for i in range(0, manual_tries):
         try:
             req_args['headers'] = headers_cb(url)
+            filtered_req_args = {}
+            for (k, v) in req_args.items():
+                if k == 'data':
+                    continue
+                filtered_req_args[k] = v
+
             LOG.debug("[%s/%s] open '%s' with %s configuration", i,
-                      manual_tries, url,
-                      {k: req_args[k] for k in req_args if k != 'data'})
+                      manual_tries, url, filtered_req_args)
 
             r = requests.request(**req_args)
             if check_status:
