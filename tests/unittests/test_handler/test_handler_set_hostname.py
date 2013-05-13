@@ -35,7 +35,6 @@ class TestHostname(t_help.FilesystemMockingTestCase):
         ds = None
         cc = cloud.Cloud(ds, paths, {}, distro, None)
         self.patchUtils(self.tmp)
-        self.patchOS(self.tmp)
         cc_set_hostname.handle('cc_set_hostname',
                                cfg, cc, LOG, [])
         contents = util.load_file("/etc/sysconfig/network")
