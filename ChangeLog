@@ -1,3 +1,4 @@
+0.7.3:
 0.7.2:
  - add a debian watch file
  - add 'sudo' entry to ubuntu's default user (LP: #1080717)
