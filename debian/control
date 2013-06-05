@@ -12,7 +12,7 @@ Build-Depends: cdbs,
                python-nose,
                python-setuptools
 XS-Python-Version: all
-Standards-Version: 3.9.3
+Standards-Version: 3.9.4
 
 Package: cloud-init
 Architecture: all

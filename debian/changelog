@@ -1,3 +1,11 @@
+cloud-init (0.7.2-0ubuntu1) saucy; urgency=low
+
+  * New upstream release.
+    * fix merging routines to be backwards compatible (LP: #1180867)
+    * fix for python 2.6
+
+ -- Scott Moser <smoser@ubuntu.com>  Wed, 05 Jun 2013 11:12:46 -0400
+
 cloud-init (0.7.2~bzr812-0ubuntu1) saucy; urgency=low
 
   * New upstream snapshot.

@@ -30,7 +30,25 @@ from cloudinit.settings import (PER_ALWAYS)
 LOG = logging.getLogger(__name__)
 
 MERGE_HEADER = 'Merge-Type'
-DEF_MERGERS = mergers.default_mergers()
+
+# Due to the way the loading of yaml configuration was done previously,
+# where previously each cloud config part was appended to a larger yaml
+# file and then finally that file was loaded as one big yaml file we need
+# to mimic that behavior by altering the default strategy to be replacing
+# keys of prior merges.
+#
+#
+# For example
+# #file 1
+# a: 3
+# #file 2
+# a: 22
+# #combined file (comments not included)
+# a: 3
+# a: 22
+#
+# This gets loaded into yaml with final result {'a': 22}
+DEF_MERGERS = mergers.string_extract_mergers('dict(replace)+list()+str()')
 
 
 class CloudConfigPartHandler(handlers.Handler):
@@ -39,7 +57,6 @@ class CloudConfigPartHandler(handlers.Handler):
         self.cloud_buf = None
         self.cloud_fn = paths.get_ipath("cloud_config")
         self.file_names = []
-        self.mergers = [DEF_MERGERS]
 
     def list_types(self):
         return [
@@ -54,6 +71,8 @@ class CloudConfigPartHandler(handlers.Handler):
         if self.file_names:
             file_lines.append("# from %s files" % (len(self.file_names)))
             for fn in self.file_names:
+                if not fn:
+                    fn = '?'
                 file_lines.append("# %s" % (fn))
             file_lines.append("")
         if self.cloud_buf is not None:
@@ -86,26 +105,20 @@ class CloudConfigPartHandler(handlers.Handler):
         all_mergers.extend(mergers_header)
         if not all_mergers:
             all_mergers = DEF_MERGERS
-        return all_mergers
+        return (payload_yaml, all_mergers)
 
     def _merge_part(self, payload, headers):
-        next_mergers = self._extract_mergers(payload, headers)
-        # Use the merger list from the last call, since it is the one
-        # that will be defining how to merge with the next payload.
-        curr_mergers = list(self.mergers[-1])
-        LOG.debug("Merging by applying %s", curr_mergers)
-        self.mergers.append(next_mergers)
-        merger = mergers.construct(curr_mergers)
+        (payload_yaml, my_mergers) = self._extract_mergers(payload, headers)
+        LOG.debug("Merging by applying %s", my_mergers)
+        merger = mergers.construct(my_mergers)
         if self.cloud_buf is None:
             # First time through, merge with an empty dict...
             self.cloud_buf = {}
-        self.cloud_buf = merger.merge(self.cloud_buf,
-                                      util.load_yaml(payload))
+        self.cloud_buf = merger.merge(self.cloud_buf, payload_yaml)
 
     def _reset(self):
         self.file_names = []
         self.cloud_buf = None
-        self.mergers = [DEF_MERGERS]
 
     def handle_part(self, _data, ctype, filename,  # pylint: disable=W0221
                     payload, _frequency, headers):  # pylint: disable=W0613
@@ -118,7 +131,10 @@ class CloudConfigPartHandler(handlers.Handler):
             return
         try:
             self._merge_part(payload, headers)
-            self.file_names.append(filename)
+            # Ensure filename is ok to store
+            for i in ("\n", "\r", "\t"):
+                filename = filename.replace(i, " ")
+            self.file_names.append(filename.strip())
         except:
             util.logexc(LOG, "Failed at merging in cloud config part from %s",
                         filename)

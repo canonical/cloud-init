@@ -60,7 +60,6 @@ run:
  - c
 '''
         message1 = MIMEBase("text", "cloud-config")
-        message1['Merge-Type'] = 'dict()+list(extend)+str(append)'
         message1.set_payload(blob)
 
         blob2 = '''
@@ -72,7 +71,8 @@ run:
  - morestuff
 '''
         message2 = MIMEBase("text", "cloud-config")
-        message2['X-Merge-Type'] = 'dict()+list(extend)+str()'
+        message2['X-Merge-Type'] = ('dict(recurse_array,'
+                                    'recurse_str)+list(append)+str(append)')
         message2.set_payload(blob2)
 
         blob3 = '''
@@ -84,7 +84,6 @@ e:
 p: 1
 '''
         message3 = MIMEBase("text", "cloud-config")
-        message3['Merge-Type'] = 'dict()+list()+str()'
         message3.set_payload(blob3)
 
         messages = [message1, message2, message3]
@@ -109,7 +108,7 @@ p: 1
         contents = util.load_yaml(contents)
         self.assertEquals(contents['run'], ['b', 'c', 'stuff', 'morestuff'])
         self.assertEquals(contents['a'], 'be')
-        self.assertEquals(contents['e'], 'fg')
+        self.assertEquals(contents['e'], [1, 2, 3])
         self.assertEquals(contents['p'], 1)
 
     def test_unhandled_type_warning(self):
