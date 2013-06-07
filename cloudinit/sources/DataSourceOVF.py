@@ -194,6 +194,11 @@ def transport_iso9660(require_iso=True):
         if contents is not False:
             return (contents, dev, fname)
 
+    if require_iso:
+        mtype = "iso9660"
+    else:
+        mtype = None
+
     devs = os.listdir("/dev/")
     devs.sort()
     for dev in devs:
@@ -211,7 +216,7 @@ def transport_iso9660(require_iso=True):
 
         try:
             (fname, contents) = util.mount_cb(fullp,
-                                               get_ovf_env, mtype="iso9660")
+                                               get_ovf_env, mtype=mtype)
         except util.MountFailedError:
             LOG.debug("%s not mountable as iso9660" % fullp)
             continue

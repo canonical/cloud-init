@@ -1,5 +1,6 @@
 0.7.3:
  - fix omnibus chef installer (LP: #1182265) [Chris Wing]
+ - small fix for OVF datasource for iso transport on non-iso9660 filesystem
 0.7.2:
  - add a debian watch file
  - add 'sudo' entry to ubuntu's default user (LP: #1080717)
