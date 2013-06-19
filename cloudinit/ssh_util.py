@@ -229,11 +229,9 @@ def extract_authorized_keys(username):
         except (IOError, OSError):
             # Give up and use a default key filename
             auth_key_fn = os.path.join(ssh_dir, 'authorized_keys')
-            util.logexc(LOG, ("Failed extracting 'AuthorizedKeysFile'"
-                              " in ssh config"
-                              " from %r, using 'AuthorizedKeysFile' file"
-                              " %r instead"),
-                        DEF_SSHD_CFG, auth_key_fn)
+            util.logexc(LOG, "Failed extracting 'AuthorizedKeysFile' in ssh "
+                        "config from %r, using 'AuthorizedKeysFile' file "
+                        "%r instead", DEF_SSHD_CFG, auth_key_fn)
     return (auth_key_fn, parse_authorized_keys(auth_key_fn))
 
 

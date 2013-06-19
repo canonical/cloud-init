@@ -1,10 +1,11 @@
 # vi: ts=4 expandtab
 #
 #    Copyright (C) 2009-2010 Canonical Ltd.
-#    Copyright (C) 2012 Hewlett-Packard Development Company, L.P.
+#    Copyright (C) 2012, 2013 Hewlett-Packard Development Company, L.P.
 #    Copyright (C) 2012 Yahoo! Inc.
 #
 #    Author: Joe VLcek <JVLcek@RedHat.com>
+#    Author: Juerg Haefliger <juerg.haefliger@hp.com>
 #
 #    This program is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License version 3, as
@@ -79,7 +80,7 @@ def read_user_data_callback(mount_dir):
         try:
             user_data = util.load_file(user_data_file).strip()
         except IOError:
-            util.logexc(LOG, ('Failed accessing user data file.'))
+            util.logexc(LOG, 'Failed accessing user data file.')
             return None
 
     return user_data
@@ -178,7 +179,7 @@ class DataSourceAltCloud(sources.DataSource):
             return False
 
         # No user data found
-        util.logexc(LOG, ('Failed accessing user data.'))
+        util.logexc(LOG, 'Failed accessing user data.')
         return False
 
     def user_data_rhevm(self):
@@ -205,12 +206,12 @@ class DataSourceAltCloud(sources.DataSource):
             (cmd_out, _err) = util.subp(cmd)
             LOG.debug(('Command: %s\nOutput%s') % (' '.join(cmd), cmd_out))
         except ProcessExecutionError, _err:
-            util.logexc(LOG, (('Failed command: %s\n%s') % \
-                (' '.join(cmd), _err.message)))
+            util.logexc(LOG, 'Failed command: %s\n%s', ' '.join(cmd),
+                        _err.message)
             return False
         except OSError, _err:
-            util.logexc(LOG, (('Failed command: %s\n%s') % \
-                (' '.join(cmd), _err.message)))
+            util.logexc(LOG, 'Failed command: %s\n%s', ' '.join(cmd),
+                        _err.message)
             return False
 
         floppy_dev = '/dev/fd0'
@@ -222,12 +223,12 @@ class DataSourceAltCloud(sources.DataSource):
             (cmd_out, _err) = util.subp(cmd)
             LOG.debug(('Command: %s\nOutput%s') % (' '.join(cmd), cmd_out))
         except ProcessExecutionError, _err:
-            util.logexc(LOG, (('Failed command: %s\n%s') % \
-                (' '.join(cmd), _err.message)))
+            util.logexc(LOG, 'Failed command: %s\n%s', ' '.join(cmd),
+                        _err.message)
             return False
         except OSError, _err:
-            util.logexc(LOG, (('Failed command: %s\n%s') % \
-                (' '.join(cmd), _err.message)))
+            util.logexc(LOG, 'Failed command: %s\n%s', ' '.join(cmd),
+                        _err.message)
             return False
 
         try:
@@ -236,8 +237,8 @@ class DataSourceAltCloud(sources.DataSource):
             if err.errno != errno.ENOENT:
                 raise
         except util.MountFailedError:
-            util.logexc(LOG, ("Failed to mount %s"
-                              " when looking for user data"), floppy_dev)
+            util.logexc(LOG, "Failed to mount %s when looking for user data",
+                        floppy_dev)
 
         self.userdata_raw = return_str
         self.metadata = META_DATA_NOT_SUPPORTED
@@ -272,8 +273,8 @@ class DataSourceAltCloud(sources.DataSource):
                 if err.errno != errno.ENOENT:
                     raise
             except util.MountFailedError:
-                util.logexc(LOG, ("Failed to mount %s"
-                                  " when looking for user data"), cdrom_dev)
+                util.logexc(LOG, "Failed to mount %s when looking for user "
+                            "data", cdrom_dev)
 
         self.userdata_raw = return_str
         self.metadata = META_DATA_NOT_SUPPORTED
