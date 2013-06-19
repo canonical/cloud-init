@@ -1,7 +1,7 @@
 # vi: ts=4 expandtab
 #
 #    Copyright (C) 2012 Canonical Ltd.
-#    Copyright (C) 2012 Hewlett-Packard Development Company, L.P.
+#    Copyright (C) 2012, 2013 Hewlett-Packard Development Company, L.P.
 #    Copyright (C) 2012 Yahoo! Inc.
 #
 #    Author: Scott Moser <scott.moser@canonical.com>
@@ -154,9 +154,8 @@ class Init(object):
                 try:
                     util.chownbyname(log_file, u, g)
                 except OSError:
-                    util.logexc(LOG, ("Unable to change the ownership"
-                                      " of %s to user %s, group %s"),
-                                log_file, u, g)
+                    util.logexc(LOG, "Unable to change the ownership of %s to "
+                                "user %s, group %s", log_file, u, g)
 
     def read_cfg(self, extra_fns=None):
         # None check so that we don't keep on re-loading if empty
