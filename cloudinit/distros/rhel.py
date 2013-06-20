@@ -1,7 +1,7 @@
 # vi: ts=4 expandtab
 #
 #    Copyright (C) 2012 Canonical Ltd.
-#    Copyright (C) 2012 Hewlett-Packard Development Company, L.P.
+#    Copyright (C) 2012, 2013 Hewlett-Packard Development Company, L.P.
 #    Copyright (C) 2012 Yahoo! Inc.
 #
 #    Author: Scott Moser <scott.moser@canonical.com>
@@ -72,9 +72,8 @@ class Distro(distros.Distro):
             r_conf = ResolvConf(util.load_file(self.resolve_conf_fn))
             r_conf.parse()
         except IOError:
-            util.logexc(LOG,
-                        "Failed at parsing %s reverting to an empty instance",
-                        self.resolve_conf_fn)
+            util.logexc(LOG, "Failed at parsing %s reverting to an empty "
+                        "instance", self.resolve_conf_fn)
             r_conf = ResolvConf('')
             r_conf.parse()
         if dns_servers:

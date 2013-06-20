@@ -1,8 +1,10 @@
 # vi: ts=4 expandtab
 #
 #    Copyright (C) 2011 Canonical Ltd.
+#    Copyright (C) 2013 Hewlett-Packard Development Company, L.P.
 #
 #    Author: Scott Moser <scott.moser@canonical.com>
+#    Author: Juerg Haefliger <juerg.haefliger@hp.com>
 #
 #    This program is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License version 3, as
@@ -121,15 +123,15 @@ class ResizeGrowPart(object):
             util.subp(["growpart", '--dry-run', diskdev, partnum])
         except util.ProcessExecutionError as e:
             if e.exit_code != 1:
-                util.logexc(LOG, ("Failed growpart --dry-run for (%s, %s)" %
-                                  (diskdev, partnum)))
+                util.logexc(LOG, "Failed growpart --dry-run for (%s, %s)",
+                            diskdev, partnum)
                 raise ResizeFailedException(e)
             return (before, before)
 
         try:
             util.subp(["growpart", diskdev, partnum])
         except util.ProcessExecutionError as e:
-            util.logexc(LOG, "Failed: growpart %s %s" % (diskdev, partnum))
+            util.logexc(LOG, "Failed: growpart %s %s", diskdev, partnum)
             raise ResizeFailedException(e)
 
         return (before, get_size(partdev))

@@ -1,7 +1,7 @@
 # vi: ts=4 expandtab
 #
 #    Copyright (C) 2009-2011 Canonical Ltd.
-#    Copyright (C) 2012 Hewlett-Packard Development Company, L.P.
+#    Copyright (C) 2012, 2013 Hewlett-Packard Development Company, L.P.
 #
 #    Author: Scott Moser <scott.moser@canonical.com>
 #    Author: Juerg Haefliger <juerg.haefliger@hp.com>
@@ -50,6 +50,5 @@ def handle(name, cfg, cloud, log, _args):
             cmd = ['/bin/sh', tmpf.name]
             util.subp(cmd, env=env, capture=False)
         except:
-            util.logexc(log,
-                        ("Failed to run bootcmd module %s"), name)
+            util.logexc(log, "Failed to run bootcmd module %s", name)
             raise

@@ -4,11 +4,13 @@
 #    Copyright (C) 2012 Cosmin Luta
 #    Copyright (C) 2012 Yahoo! Inc.
 #    Copyright (C) 2012 Gerard Dethier
+#    Copyright (C) 2013 Hewlett-Packard Development Company, L.P.
 #
 #    Author: Cosmin Luta <q4break@gmail.com>
 #    Author: Scott Moser <scott.moser@canonical.com>
 #    Author: Joshua Harlow <harlowja@yahoo-inc.com>
 #    Author: Gerard Dethier <g.dethier@gmail.com>
+#    Author: Juerg Haefliger <juerg.haefliger@hp.com>
 #
 #    This program is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License version 3, as
@@ -109,8 +111,8 @@ class DataSourceCloudStack(sources.DataSource):
                       int(time.time() - start_time))
             return True
         except Exception:
-            util.logexc(LOG, ('Failed fetching from metadata '
-                              'service %s'), self.metadata_address)
+            util.logexc(LOG, 'Failed fetching from metadata service %s',
+                        self.metadata_address)
             return False
 
     def get_instance_id(self):
