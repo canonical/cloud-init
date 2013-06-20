@@ -281,15 +281,16 @@ class Distro(object):
     def get_default_user(self):
         return self.get_option('default_user')
 
-    def create_user(self, name, **kwargs):
+    def add_user(self, name, **kwargs):
         """
-            Creates users for the system using the GNU passwd tools. This
-            will work on an GNU system. This should be overriden on
-            distros where useradd is not desirable or not available.
+        Add a user to the system using standard GNU tools
         """
+        if util.is_user(name):
+            LOG.info("User %s already exists, skipping." % name)
+            return
 
         adduser_cmd = ['useradd', name]
-        x_adduser_cmd = ['useradd', name]
+        log_adduser_cmd = ['useradd', name]
 
         # Since we are creating users, we want to carefully validate the
         # inputs. If something goes wrong, we can end up with a system
@@ -306,63 +307,65 @@ class Distro(object):
             "selinux_user": '--selinux-user',
         }
 
-        adduser_opts_flags = {
+        adduser_flags = {
             "no_user_group": '--no-user-group',
             "system": '--system',
             "no_log_init": '--no-log-init',
-            "no_create_home": "-M",
         }
 
-        redact_fields = ['passwd']
+        redact_opts = ['passwd']
 
-        # Now check the value and create the command
-        for option in kwargs:
-            value = kwargs[option]
-            if option in adduser_opts and value \
-                and isinstance(value, str):
-                adduser_cmd.extend([adduser_opts[option], value])
+        # Check the values and create the command
+        for key, val in kwargs.iteritems():
+
+            if key in adduser_opts and val and isinstance(val, str):
+                adduser_cmd.extend([adduser_opts[key], val])
+
                 # Redact certain fields from the logs
-                if option in redact_fields:
-                    x_adduser_cmd.extend([adduser_opts[option], 'REDACTED'])
+                if key in redact_opts:
+                    log_adduser_cmd.extend([adduser_opts[key], 'REDACTED'])
                 else:
-                    x_adduser_cmd.extend([adduser_opts[option], value])
-            elif option in adduser_opts_flags and value:
-                adduser_cmd.append(adduser_opts_flags[option])
-                # Redact certain fields from the logs
-                if option in redact_fields:
-                    x_adduser_cmd.append('REDACTED')
-                else:
-                    x_adduser_cmd.append(adduser_opts_flags[option])
+                    log_adduser_cmd.extend([adduser_opts[key], val])
 
-        # Default to creating home directory unless otherwise directed
-        #  Also, we do not create home directories for system users.
-        if "no_create_home" not in kwargs and "system" not in kwargs:
-            adduser_cmd.append('-m')
+            elif key in adduser_flags and val:
+                adduser_cmd.append(adduser_flags[key])
+                log_adduser_cmd.append(adduser_flags[key])
 
-        # Create the user
-        if util.is_user(name):
-            LOG.warn("User %s already exists, skipping." % name)
+        # Don't create the home directory if directed so or if the user is a
+        # system user
+        if 'no_create_home' in kwargs or 'system' in kwargs:
+            adduser_cmd.append('-M')
+            log_adduser_cmd.append('-M')
         else:
-            LOG.debug("Adding user named %s", name)
-            try:
-                util.subp(adduser_cmd, logstring=x_adduser_cmd)
-            except Exception as e:
-                util.logexc(LOG, "Failed to create user %s", name)
-                raise e
+            adduser_cmd.append('-m')
+            log_adduser_cmd.append('-m')
+
+        # Run the command
+        LOG.debug("Adding user %s", name)
+        try:
+            util.subp(adduser_cmd, logstring=log_adduser_cmd)
+        except Exception as e:
+            util.logexc(LOG, "Failed to create user %s", name)
+            raise e
+
+    def create_user(self, name, **kwargs):
+        """
+        Creates users for the system using the GNU passwd tools. This
+        will work on an GNU system. This should be overriden on
+        distros where useradd is not desirable or not available.
+        """
+
+        # Add the user
+        self.add_user(name, **kwargs)
 
         # Set password if plain-text password provided
-        if 'plain_text_passwd' in kwargs and kwargs['plain_text_passwd']:
+        if 'plain_text_passwd' in kwargs:
             self.set_passwd(name, kwargs['plain_text_passwd'])
 
         # Default locking down the account.  'lock_passwd' defaults to True.
         # lock account unless lock_password is False.
         if kwargs.get('lock_passwd', True):
-            try:
-                util.subp(['passwd', '--lock', name])
-            except Exception as e:
-                util.logexc(LOG, "Failed to disable password logins for "
-                            "user %s", name)
-                raise e
+            self.lock_passwd(name)
 
         # Configure sudo access
         if 'sudo' in kwargs:
@@ -374,6 +377,16 @@ class Distro(object):
             ssh_util.setup_user_keys(keys, name, options=None)
 
         return True
+
+    def lock_passwd(self, name):
+        """
+        Lock the password of a user, i.e., disable password logins
+        """
+        try:
+            util.subp(['passwd', '--lock', name])
+        except Exception as e:
+            util.logexc(LOG, 'Failed to disable password for user %s', name)
+            raise e
 
     def set_passwd(self, user, passwd, hashed=False):
         pass_string = '%s:%s' % (user, passwd)
