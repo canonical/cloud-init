@@ -19,6 +19,7 @@
 DEF_MERGE_TYPE = 'replace'
 MERGE_TYPES = ('append', 'prepend', DEF_MERGE_TYPE, 'no_replace')
 
+
 def _has_any(what, *keys):
     for k in keys:
         if k in what:

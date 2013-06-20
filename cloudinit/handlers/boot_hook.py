@@ -70,5 +70,5 @@ class BootHookPartHandler(handlers.Handler):
         except util.ProcessExecutionError:
             util.logexc(LOG, "Boothooks script %s execution error", filepath)
         except Exception:
-            util.logexc(LOG, ("Boothooks unknown "
-                              "error when running %s"), filepath)
+            util.logexc(LOG, "Boothooks unknown error when running %s",
+                        filepath)
