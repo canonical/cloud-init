@@ -196,31 +196,3 @@ class Distro(distros.Distro):
     def update_package_sources(self):
         self._runner.run("update-sources", self.package_command,
                          ['refresh'], freq=PER_INSTANCE)
-
-    # Copied from parent class and modified to use short option names since
-    # the SLES command doesn't support long names (yet). This method can be
-    # removed when SLES finally catches up.
-    def lock_passwd(self, name):
-        """
-        Lock the password of a user, i.e., disable password logins
-        """
-        try:
-            util.subp(['passwd', '-l', name])
-        except Exception as e:
-            util.logexc(LOG, 'Failed to disable password for user %s', name)
-            raise e
-
-    # Copied from parent class and modified to use short option names since
-    # the SLES command doesn't support long names (yet). This method can be
-    # removed when SLES finally catches up.
-    def set_passwd(self, user, passwd, hashed=False):
-        pass_string = '%s:%s' % (user, passwd)
-        cmd = ['chpasswd']
-        if hashed:
-            cmd.append('-e')
-        try:
-            util.subp(cmd, pass_string, logstring="chpasswd for %s" % user)
-        except Exception as e:
-            util.logexc(LOG, "Failed to set password for %s", user)
-            raise e
-        return True

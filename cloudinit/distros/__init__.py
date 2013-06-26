@@ -386,7 +386,10 @@ class Distro(object):
         Lock the password of a user, i.e., disable password logins
         """
         try:
-            util.subp(['passwd', '--lock', name])
+            # Need to use the short option name '-l' instead of '--lock'
+            # (which would be more descriptive) since SLES 11 doesn't know
+            # about long names.
+            util.subp(['passwd', '-l', name])
         except Exception as e:
             util.logexc(LOG, 'Failed to disable password for user %s', name)
             raise e
@@ -396,7 +399,10 @@ class Distro(object):
         cmd = ['chpasswd']
 
         if hashed:
-            cmd.append('--encrypted')
+            # Need to use the short option name '-e' instead of '--encrypted'
+            # (which would be more descriptive) since SLES 11 doesn't know
+            # about long names.
+            cmd.append('-e')
 
         try:
             util.subp(cmd, pass_string, logstring="chpasswd for %s" % user)
