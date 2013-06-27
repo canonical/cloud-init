@@ -1,11 +1,9 @@
 # vi: ts=4 expandtab
 #
 #    Copyright (C) 2013 Craig Tracey
-#    Copyright (C) 2013 SUSE LLC
 #    Copyright (C) 2013 Hewlett-Packard Development Company, L.P.
 #
 #    Author: Craig Tracey <craigtracey@gmail.com>
-#    Author: Robert Schweikert <rjschwei@suse.com>
 #    Author: Juerg Haefliger <juerg.haefliger@hp.com>
 #
 #    This program is free software: you can redistribute it and/or modify

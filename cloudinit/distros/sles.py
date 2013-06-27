@@ -1,9 +1,7 @@
 # vi: ts=4 expandtab
 #
-#    Copyright (C) 2013 SUSE LLC
 #    Copyright (C) 2013 Hewlett-Packard Development Company, L.P.
 #
-#    Author: Robert Schweikert <rjschwei@suse.com>
 #    Author: Juerg Haefliger <juerg.haefliger@hp.com>
 #
 #    Leaning very heavily on the RHEL and Debian implementation
