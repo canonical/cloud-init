@@ -171,10 +171,7 @@ class Distro(distros.Distro):
 
         cmd = ['zypper']
         # No user interaction possible, enable non-interactive mode
-        cmd.append('-t')
-        # Do not check the keys, we assume that the initial repos configured
-        # in the image can be trusted
-        cmd.append('--no-gpg-checks')
+        cmd.append('--non-interactive')
 
         # Comand is the operation, such as install
         cmd.append(command)
