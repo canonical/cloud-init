@@ -42,3 +42,7 @@ datasource:
     meta-data:
        instance-id: i-87018aed
        local-hostname: myhost.internal
+
+  Azure:
+    agent_command: [service, walinuxagent, start]
+        
