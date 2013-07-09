@@ -89,6 +89,9 @@ class DataSourceAzureNet(sources.DataSource):
         if not found:
             return False
 
+        if found == ddir:
+            LOG.debug("using cached datasource in %s", ddir)
+
         fields = [('cmd', ['datasource', DS_NAME, 'agent_command']),
                   ('datadir', ddir_cfgpath)]
         mycfg = {}
