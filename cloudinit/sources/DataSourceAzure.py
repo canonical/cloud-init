@@ -47,8 +47,19 @@ class DataSourceAzureNet(sources.DataSource):
         return "%s [seed=%s]" % (root, self.seed)
 
     def get_data(self):
+        ddir_cfgpath = ['datasource', DS_NAME, 'data_dir']
+        # azure removes/ejects the cdrom containing the ovf-env.xml
+        # file on reboot.  So, in order to successfully reboot we
+        # need to look in the datadir and consider that valid
+        ddir = util.get_cfg_by_path(self.sys_cfg, ddir_cfgpath)
+        if ddir is None:
+            ddir = util.get_cfg_by_path(BUILTIN_DS_CONFIG, ddir_cfgpath)
+
         candidates = [self.seed_dir]
         candidates.extend(list_possible_azure_ds_devs())
+        if ddir:
+            candidates.append(ddir)
+
         found = None
 
         for cdev in candidates:
@@ -79,7 +90,7 @@ class DataSourceAzureNet(sources.DataSource):
             return False
 
         fields = [('cmd', ['datasource', DS_NAME, 'agent_command']),
-                  ('datadir', ['datasource', DS_NAME, 'data_dir'])]
+                  ('datadir', ddir_cfgpath)]
         mycfg = {}
         for cfg in (self.cfg, self.sys_cfg, BUILTIN_DS_CONFIG):
             for name, path in fields:
