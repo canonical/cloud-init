@@ -83,6 +83,12 @@ class TestAzureDataSource(MockerTestCase):
         def invoker(cmd):
             data['agent_invoked'] = cmd
 
+        def file_writer(datadir, files):
+            data['files'] = {}
+            data['datadir'] = datadir
+            for (fname, content) in files.items():
+                data['files'][fname] = content
+
         if data.get('ovfcontent') is not None:
             populate_dir(os.path.join(self.paths.seed_dir, "azure"),
                          {'ovf-env.xml': data['ovfcontent']})
@@ -93,6 +99,7 @@ class TestAzureDataSource(MockerTestCase):
             self.apply_patches([(mod, 'list_possible_azure_ds_devs', dsdevs)])
 
         self.apply_patches([(mod, 'invoke_agent', invoker)])
+        self.apply_patches([(mod, 'write_files', file_writer)])
 
         dsrc = mod.DataSourceAzureNet(
             data.get('sys_cfg', {}), distro=None, paths=self.paths)
@@ -109,6 +116,7 @@ class TestAzureDataSource(MockerTestCase):
         self.assertTrue(ret)
         self.assertEqual(dsrc.userdata_raw, "")
         self.assertEqual(dsrc.metadata['local-hostname'], odata['HostName'])
+        self.assertTrue('ovf-env.xml' in data['files'])
 
     def test_user_cfg_set_agent_command(self):
         cfg = {'agent_command': "my_command"}
