@@ -22,6 +22,7 @@
 
 
 import os
+import re
 
 from cloudinit import handlers
 from cloudinit import log as logging
@@ -66,14 +67,53 @@ class UpstartJobPartHandler(handlers.Handler):
         path = os.path.join(self.upstart_dir, filename)
         util.write_file(path, payload, 0644)
 
-        # FIXME LATER (LP: #1124384)
-        # a bug in upstart means that invoking reload-configuration
-        # at this stage in boot causes havoc.  So, until that is fixed
-        # we will not do that.  However, I'd like to be able to easily
-        # test to see if this bug is still present in an image with
-        # a newer upstart.  So, a boot hook could easiliy write this file.
-        if os.path.exists("/run/cloud-init-upstart-reload"):
-            # if inotify support is not present in the root filesystem
-            # (overlayroot) then we need to tell upstart to re-read /etc
-
+        if SUITABLE_UPSTART:
             util.subp(["initctl", "reload-configuration"], capture=False)
+
+
+def _has_suitable_upstart():
+    # (LP: #1124384)
+    # a bug in upstart means that invoking reload-configuration
+    # at this stage in boot causes havoc.  So, try to determine if upstart
+    # is installed, and reloading configuration is OK.
+    if not os.path.exists("/sbin/initctl"):
+        return False
+    try:
+        (version_out, _err) = util.subp(["initctl", "version"])
+    except:
+        util.logexc(LOG, "initctl version failed")
+        return False
+
+    # expecting 'initctl version' to output something like: init (upstart X.Y)
+    if re.match("upstart 1.[0-7][\)]", version_out):
+        return False
+    if "upstart 0." in version_out:
+        return False
+    elif "upstart 1.8" in version_out:
+        if not os.path.exists("/usr/bin/dpkg-query"):
+            return False
+        try:
+            (dpkg_ver, _err) = util.subp(["dpkg-query",
+                                          "--showformat=${Version}",
+                                          "--show", "upstart"], rcs=[0, 1])
+        except Exception:
+            util.logexc(LOG, "dpkg-query failed")
+            return False
+
+        try:
+            util.subp(["dpkg", "--compare-versions", dpkg_ver, "ge", good])
+            print "good version"
+            return True
+        except util.ProcessExecutionError as e:
+            if e.exit_code is 1:
+                pass
+            else:
+                util.logexc(LOG, "dpkg --compare-versions failed [%s]",
+                            e.exit_code)
+        except Exception as e:
+            util.logexc(LOG, "dpkg --compare-versions failed")
+        return False
+    else:
+        return True
+
+SUITABLE_UPSTART = _has_suitable_upstart()
