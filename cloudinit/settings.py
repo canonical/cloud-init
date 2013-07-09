@@ -31,6 +31,7 @@ CFG_BUILTIN = {
     'datasource_list': [
         'NoCloud',
         'ConfigDrive',
+        'Azure',
         'AltCloud',
         'OVF',
         'MAAS',
