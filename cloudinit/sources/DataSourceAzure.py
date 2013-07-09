@@ -114,6 +114,18 @@ def find_child(node, filter_func):
     return ret
 
 
+def load_azure_ovf_pubkeys(sshnode):
+    # in the future this would return a list of dicts like:
+    #  [{'fp': '6BE7A7C3C8A8F4B123CCA5D0C2F1BE4CA7B63ED7',
+    #    'path': 'where/to/go'}]
+    #
+    # <SSH><PublicKeys>
+    #   <PublicKey><Fingerprint>ABC</FingerPrint><Path>/ABC</Path>
+    #   ...
+    # </PublicKeys></SSH>
+    return []
+
+
 def read_azure_ovf(contents):
     try:
         dom = minidom.parseString(contents)
@@ -169,6 +181,8 @@ def read_azure_ovf(contents):
             md['local-hostname'] = value
         elif name == "dscfg":
             cfg['datasource'] = {DS_NAME: util.load_yaml(value, default={})}
+        elif name == "ssh":
+            cfg['_pubkeys'] = loadAzurePubkeys(child)
         elif simple:
             if name in md_props:
                 md[name] = value
