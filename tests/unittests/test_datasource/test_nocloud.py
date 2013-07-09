@@ -22,7 +22,7 @@ class TestNoCloudDataSource(MockerTestCase):
 
     def tearDown(self):
         apply_patches([i for i in reversed(self.unapply)])
-        super(TestNoCloudDataSource, self).setUp()
+        super(TestNoCloudDataSource, self).tearDown()
 
     def apply_patches(self, patches):
         ret = apply_patches(patches)
