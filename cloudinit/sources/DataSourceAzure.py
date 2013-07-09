@@ -160,6 +160,8 @@ def read_azure_ovf(contents):
     md = {'azure_data': {}}
     cfg = {}
     ud = ""
+    password = None
+    username = None
 
     for child in lpcs.childNodes:
         if child.nodeType == dom.TEXT_NODE or not child.localName:
@@ -176,18 +178,35 @@ def read_azure_ovf(contents):
         if name == "userdata":
             ud = base64.b64decode(''.join(value.split()))
         elif name == "username":
-            cfg['system_info'] = {'default_user': {'name': value}}
+            username = value
+        elif name == "userpassword":
+            password = value
         elif name == "hostname":
             md['local-hostname'] = value
         elif name == "dscfg":
             cfg['datasource'] = {DS_NAME: util.load_yaml(value, default={})}
         elif name == "ssh":
             cfg['_pubkeys'] = loadAzurePubkeys(child)
+        elif name == "disablesshpasswordauthentication":
+            cfg['ssh_pwauth'] = util.is_true(value)
         elif simple:
             if name in md_props:
                 md[name] = value
             else:
                 md['azure_data'][name] = value
+
+    defuser = {}
+    if username:
+        defuser['name'] = username
+    if password:
+        defuser['password'] = password
+        defuser['lock_passwd'] = False
+
+    if defuser:
+        cfg['system_info'] = {'default_user': defuser}
+
+    if 'ssh_pwauth' not in cfg and password:
+        cfg['ssh_pwauth'] = True
 
     return (md, ud, cfg)
 
