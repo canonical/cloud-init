@@ -30,7 +30,9 @@ LOG = logging.getLogger(__name__)
 DS_NAME = 'Azure'
 DEFAULT_METADATA = {"instance-id": "iid-AZURE-NODE"}
 AGENT_START = ['service', 'walinuxagent', 'start']
-BUILTIN_DS_CONFIG = {'datasource': {DS_NAME: {'agent_command': AGENT_START}}}
+BUILTIN_DS_CONFIG = {'datasource': {DS_NAME: {
+     'agent_command': AGENT_START,
+     'data_dir': "/var/lib/waagent"}}}
 
 
 class DataSourceAzureNet(sources.DataSource):
@@ -64,7 +66,7 @@ class DataSourceAzureNet(sources.DataSource):
                 LOG.warn("%s was not mountable" % cdev)
                 continue
 
-            (md, self.userdata_raw, cfg) = ret
+            (md, self.userdata_raw, cfg, files) = ret
             self.seed = cdev
             self.metadata = util.mergemanydict([md, DEFAULT_METADATA])
             self.cfg = cfg
@@ -76,23 +78,39 @@ class DataSourceAzureNet(sources.DataSource):
         if not found:
             return False
 
-        path = ['datasource', DS_NAME, 'agent_command']
-        cmd = None
+        fields = [('cmd', ['datasource', DS_NAME, 'agent_command']),
+                  ('datadir', ['datasource', DS_NAME, 'data_dir'])]
+        mycfg = {}
         for cfg in (self.cfg, self.sys_cfg, BUILTIN_DS_CONFIG):
-            cmd = util.get_cfg_by_path(cfg, keyp=path)
-            if cmd is not None:
-                break
+            for name, path in fields:
+                if name in mycfg:
+                    continue
+                value = util.get_cfg_by_path(cfg, keyp=path)
+                if value is not None:
+                    mycfg[name] = value
+
+        write_files(mycfg['datadir'], files)
 
         try:
-            invoke_agent(cmd)
+            invoke_agent(mycfg['cmd'])
         except util.ProcessExecutionError:
             # claim the datasource even if the command failed
-            util.logexc(LOG, "agent command '%s' failed.", cmd)
+            util.logexc(LOG, "agent command '%s' failed.", mycfg['cmd'])
 
         return True
 
     def get_config_obj(self):
         return self.cfg
+
+
+def write_files(datadir, files):
+    if not datadir:
+        return
+    if not files:
+        files = {}
+    for (name, content) in files.items():
+        util.write_file(filename=os.path.join(datadir, name),
+                        content=content, mode=0600)
 
 
 def invoke_agent(cmd):
@@ -114,7 +132,7 @@ def find_child(node, filter_func):
     return ret
 
 
-def load_azure_ovf_pubkeys(sshnode):
+def load_azure_ovf_pubkeys(_sshnode):
     # in the future this would return a list of dicts like:
     #  [{'fp': '6BE7A7C3C8A8F4B123CCA5D0C2F1BE4CA7B63ED7',
     #    'path': 'where/to/go'}]
@@ -186,7 +204,7 @@ def read_azure_ovf(contents):
         elif name == "dscfg":
             cfg['datasource'] = {DS_NAME: util.load_yaml(value, default={})}
         elif name == "ssh":
-            cfg['_pubkeys'] = loadAzurePubkeys(child)
+            cfg['_pubkeys'] = load_azure_ovf_pubkeys(child)
         elif name == "disablesshpasswordauthentication":
             cfg['ssh_pwauth'] = util.is_true(value)
         elif simple:
@@ -230,7 +248,8 @@ def load_azure_ds_dir(source_dir):
     with open(ovf_file, "r") as fp:
         contents = fp.read()
 
-    return read_azure_ovf(contents)
+    md, ud, cfg = read_azure_ovf(contents)
+    return (md, ud, cfg, {'ovf-env.xml': contents})
 
 
 class BrokenAzureDataSource(Exception):
