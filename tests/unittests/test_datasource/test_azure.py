@@ -131,6 +131,33 @@ class TestAzureDataSource(MockerTestCase):
         self.assertTrue(ret)
         self.assertEqual(data['agent_invoked'], '_COMMAND')
 
+    def test_username_used(self):
+        odata = {'HostName': "myhost", 'UserName': "myuser"}
+        data = {'ovfcontent': construct_valid_ovf_env(data=odata)}
+
+        dsrc = self._get_ds(data)
+        ret = dsrc.get_data()
+        self.assertTrue(ret)
+        self.assertEqual(dsrc.cfg['system_info']['default_user']['name'],
+                         "myuser")
+
+    def test_password_given(self):
+        odata = {'HostName': "myhost", 'UserName': "myuser",
+                 'UserPassword': "mypass"}
+        data = {'ovfcontent': construct_valid_ovf_env(data=odata)}
+
+        dsrc = self._get_ds(data)
+        ret = dsrc.get_data()
+        self.assertTrue(ret)
+        self.assertTrue('default_user' in dsrc.cfg['system_info'])
+        defuser = dsrc.cfg['system_info']['default_user']
+
+        # default user shoudl be updated for password and username
+        # and should not be locked.
+        self.assertEqual(defuser['name'], odata['UserName'])
+        self.assertEqual(defuser['password'], odata['UserPassword'])
+        self.assertFalse(defuser['lock_passwd'])
+
     def test_userdata_found(self):
         mydata = "FOOBAR"
         odata = {'UserData': base64.b64encode(mydata)}
