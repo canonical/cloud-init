@@ -18,6 +18,7 @@
 
 import base64
 import os
+import os.path
 from xml.dom import minidom
 
 from cloudinit import log as logging
@@ -29,7 +30,7 @@ LOG = logging.getLogger(__name__)
 DS_NAME = 'Azure'
 DEFAULT_METADATA = {"instance-id": "iid-AZURE-NODE"}
 AGENT_START = ['service', 'walinuxagent', 'start']
-DEFAULT_DS_CONFIG = {'datasource': {DS_NAME: {'agent_command': AGENT_START}}}
+BUILTIN_DS_CONFIG = {'datasource': {DS_NAME: {'agent_command': AGENT_START}}}
 
 
 class DataSourceAzureNet(sources.DataSource):
@@ -56,16 +57,17 @@ class DataSourceAzureNet(sources.DataSource):
                     ret = load_azure_ds_dir(cdev)
 
             except NonAzureDataSource:
-                pass
+                continue
             except BrokenAzureDataSource as exc:
                 raise exc
             except util.MountFailedError:
                 LOG.warn("%s was not mountable" % cdev)
+                continue
 
             (md, self.userdata_raw, cfg) = ret
             self.seed = cdev
             self.metadata = util.mergemanydict([md, DEFAULT_METADATA])
-            self.cfg = util.mergemanydict([cfg, DEFAULT_DS_CONFIG])
+            self.cfg = cfg
             found = cdev
 
             LOG.debug("found datasource in %s", cdev)
@@ -76,17 +78,25 @@ class DataSourceAzureNet(sources.DataSource):
 
         path = ['datasource', DS_NAME, 'agent_command']
         cmd = None
-        for cfg in (self.cfg, self.sys_cfg):
+        for cfg in (self.cfg, self.sys_cfg, BUILTIN_DS_CONFIG):
             cmd = util.get_cfg_by_path(cfg, keyp=path)
             if cmd is not None:
                 break
-        invoke_agent(cmd)
+
+        try:
+            invoke_agent(cmd)
+        except util.ProcessExecutionError:
+            # claim the datasource even if the command failed
+            util.logexc(LOG, "agent command '%s' failed.", cmd)
+
+        return True
 
     def get_config_obj(self):
         return self.cfg
 
 
 def invoke_agent(cmd):
+    # this is a function itself to simplify patching it for test
     if cmd:
         LOG.debug("invoking agent: %s" % cmd)
         util.subp(cmd, shell=(not isinstance(cmd, list)))
@@ -105,7 +115,11 @@ def find_child(node, filter_func):
 
 
 def read_azure_ovf(contents):
-    dom = minidom.parseString(contents)
+    try:
+        dom = minidom.parseString(contents)
+    except Exception as e:
+        raise NonAzureDataSource("invalid xml: %s" % e)
+
     results = find_child(dom.documentElement,
         lambda n: n.localName == "ProvisioningSection")
 
