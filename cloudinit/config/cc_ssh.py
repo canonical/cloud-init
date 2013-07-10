@@ -1,7 +1,7 @@
 # vi: ts=4 expandtab
 #
 #    Copyright (C) 2009-2010 Canonical Ltd.
-#    Copyright (C) 2012 Hewlett-Packard Development Company, L.P.
+#    Copyright (C) 2012, 2013 Hewlett-Packard Development Company, L.P.
 #
 #    Author: Scott Moser <scott.moser@canonical.com>
 #    Author: Juerg Haefliger <juerg.haefliger@hp.com>
@@ -85,8 +85,8 @@ def handle(_name, cfg, cloud, log, _args):
                     util.subp(cmd, capture=False)
                 log.debug("Generated a key for %s from %s", pair[0], pair[1])
             except:
-                util.logexc(log, ("Failed generated a key"
-                                  " for %s from %s"), pair[0], pair[1])
+                util.logexc(log, "Failed generated a key for %s from %s",
+                            pair[0], pair[1])
     else:
         # if not, generate them
         genkeys = util.get_cfg_option_list(cfg,
@@ -102,8 +102,8 @@ def handle(_name, cfg, cloud, log, _args):
                     with util.SeLinuxGuard("/etc/ssh", recursive=True):
                         util.subp(cmd, capture=False)
                 except:
-                    util.logexc(log, ("Failed generating key type"
-                                      " %s to file %s"), keytype, keyfile)
+                    util.logexc(log, "Failed generating key type %s to "
+                                "file %s", keytype, keyfile)
 
     try:
         (users, _groups) = ds.normalize_users_groups(cfg, cloud.distro)

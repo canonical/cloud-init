@@ -110,7 +110,7 @@ def handle(name, cfg, cloud, log, _args):
             with util.tempdir() as tmpd:
                 # use tmpd over tmpfile to avoid 'Text file busy' on execute
                 tmpf = "%s/chef-omnibus-install" % tmpd
-                util.write_file(tmpf, content, mode=0700)
+                util.write_file(tmpf, str(content), mode=0700)
                 util.subp([tmpf], capture=False)
         else:
             log.warn("Unknown chef install type %s", install_type)

@@ -1,7 +1,7 @@
 # vi: ts=4 expandtab
 #
 #    Copyright (C) 2012 Canonical Ltd.
-#    Copyright (C) 2012 Hewlett-Packard Development Company, L.P.
+#    Copyright (C) 2012, 2013 Hewlett-Packard Development Company, L.P.
 #    Copyright (C) 2012 Yahoo! Inc.
 #
 #    Author: Scott Moser <scott.moser@canonical.com>
@@ -219,8 +219,7 @@ def fork_cb(child_cb, *args):
             child_cb(*args)
             os._exit(0)  # pylint: disable=W0212
         except:
-            logexc(LOG, ("Failed forking and"
-                         " calling callback %s"),
+            logexc(LOG, "Failed forking and calling callback %s",
                    type_utils.obj_name(child_cb))
             os._exit(1)  # pylint: disable=W0212
     else:

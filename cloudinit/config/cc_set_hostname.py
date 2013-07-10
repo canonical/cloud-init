@@ -1,7 +1,7 @@
 # vi: ts=4 expandtab
 #
 #    Copyright (C) 2011 Canonical Ltd.
-#    Copyright (C) 2012 Hewlett-Packard Development Company, L.P.
+#    Copyright (C) 2012, 2013 Hewlett-Packard Development Company, L.P.
 #
 #    Author: Scott Moser <scott.moser@canonical.com>
 #    Author: Juerg Haefliger <juerg.haefliger@hp.com>
@@ -32,6 +32,6 @@ def handle(name, cfg, cloud, log, _args):
         log.debug("Setting the hostname to %s (%s)", fqdn, hostname)
         cloud.distro.set_hostname(hostname, fqdn)
     except Exception:
-        util.logexc(log, "Failed to set the hostname to %s (%s)",
-                    fqdn, hostname)
+        util.logexc(log, "Failed to set the hostname to %s (%s)", fqdn,
+                    hostname)
         raise

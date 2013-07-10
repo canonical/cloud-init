@@ -1,7 +1,7 @@
 # vi: ts=4 expandtab
 #
 #    Copyright (C) 2011 Canonical Ltd.
-#    Copyright (C) 2012 Hewlett-Packard Development Company, L.P.
+#    Copyright (C) 2012, 2013 Hewlett-Packard Development Company, L.P.
 #
 #    Author: Scott Moser <scott.moser@canonical.com>
 #    Author: Juerg Haefliger <juerg.haefliger@hp.com>
@@ -64,8 +64,8 @@ def handle(name, _cfg, cloud, log, _args):
                        " raw userdata"), name, MY_HOOKNAME)
             return
     except:
-        util.logexc(log, ("Failed to parse query string %s"
-                           " into a dictionary"), ud)
+        util.logexc(log, "Failed to parse query string %s into a dictionary",
+                    ud)
         raise
 
     wrote_fns = []
@@ -86,8 +86,8 @@ def handle(name, _cfg, cloud, log, _args):
                 wrote_fns.append(fname)
         except Exception as e:
             captured_excps.append(e)
-            util.logexc(log, "%s failed to read %s and write %s",
-                        MY_NAME, url, fname)
+            util.logexc(log, "%s failed to read %s and write %s", MY_NAME, url,
+                        fname)
 
     if wrote_fns:
         log.debug("Wrote out rightscale userdata to %s files", len(wrote_fns))

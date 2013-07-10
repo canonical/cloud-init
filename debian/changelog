@@ -1,3 +1,13 @@
+cloud-init (0.7.3~bzr826-0ubuntu1) saucy; urgency=low
+
+  * New upstream snapshot.
+    * Fix omnibus support (LP: #1182265)
+    * invoke 'initctl reload-configuration' on upstart jobs again
+      (LP: #1124384)
+  * Remove unowned files in /etc/apt/apt.conf.d/ after purge. (Closes #674237)
+
+ -- Scott Moser <smoser@ubuntu.com>  Wed, 10 Jul 2013 13:35:59 -0400
+
 cloud-init (0.7.2-0ubuntu1) saucy; urgency=low
 
   * New upstream release.

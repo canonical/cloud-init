@@ -1,7 +1,7 @@
 # vi: ts=4 expandtab
 #
 #    Copyright (C) 2012 Canonical Ltd.
-#    Copyright (C) 2012 Hewlett-Packard Development Company, L.P.
+#    Copyright (C) 2012, 2013 Hewlett-Packard Development Company, L.P.
 #    Copyright (C) 2012 Yahoo! Inc.
 #
 #    Author: Scott Moser <scott.moser@canonical.com>
@@ -142,8 +142,8 @@ class Distro(object):
         try:
             util.subp(['hostname', hostname])
         except util.ProcessExecutionError:
-            util.logexc(LOG, ("Failed to non-persistently adjust"
-                              " the system hostname to %s"), hostname)
+            util.logexc(LOG, "Failed to non-persistently adjust the system "
+                        "hostname to %s", hostname)
 
     @abc.abstractmethod
     def _select_hostname(self, hostname, fqdn):
@@ -200,8 +200,8 @@ class Distro(object):
             try:
                 self._write_hostname(hostname, fn)
             except IOError:
-                util.logexc(LOG, "Failed to write hostname %s to %s",
-                            hostname, fn)
+                util.logexc(LOG, "Failed to write hostname %s to %s", hostname,
+                            fn)
 
         if (sys_hostname and prev_hostname and
             sys_hostname != prev_hostname):
@@ -347,7 +347,7 @@ class Distro(object):
             try:
                 util.subp(adduser_cmd, logstring=x_adduser_cmd)
             except Exception as e:
-                util.logexc(LOG, "Failed to create user %s due to error.", e)
+                util.logexc(LOG, "Failed to create user %s", name)
                 raise e
 
         # Set password if plain-text password provided
@@ -360,8 +360,8 @@ class Distro(object):
             try:
                 util.subp(['passwd', '--lock', name])
             except Exception as e:
-                util.logexc(LOG, ("Failed to disable password logins for"
-                            "user %s" % name), e)
+                util.logexc(LOG, "Failed to disable password logins for "
+                            "user %s", name)
                 raise e
 
         # Configure sudo access
@@ -385,7 +385,7 @@ class Distro(object):
         try:
             util.subp(cmd, pass_string, logstring="chpasswd for %s" % user)
         except Exception as e:
-            util.logexc(LOG, "Failed to set password for %s" % user)
+            util.logexc(LOG, "Failed to set password for %s", user)
             raise e
 
         return True
@@ -427,7 +427,7 @@ class Distro(object):
                     util.append_file(sudo_base, sudoers_contents)
                 LOG.debug("Added '#includedir %s' to %s" % (path, sudo_base))
             except IOError as e:
-                util.logexc(LOG, "Failed to write %s" % sudo_base, e)
+                util.logexc(LOG, "Failed to write %s", sudo_base)
                 raise e
         util.ensure_dir(path, 0750)
 
@@ -478,15 +478,15 @@ class Distro(object):
             try:
                 util.subp(group_add_cmd)
                 LOG.info("Created new group %s" % name)
-            except Exception as e:
-                util.logexc("Failed to create group %s" % name, e)
+            except Exception:
+                util.logexc("Failed to create group %s", name)
 
         # Add members to the group, if so defined
         if len(members) > 0:
             for member in members:
                 if not util.is_user(member):
                     LOG.warn("Unable to add group member '%s' to group '%s'"
-                            "; user does not exist." % (member, name))
+                            "; user does not exist.", member, name)
                     continue
 
                 util.subp(['usermod', '-a', '-G', name, member])

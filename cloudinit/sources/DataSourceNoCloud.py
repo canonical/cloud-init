@@ -1,7 +1,7 @@
 # vi: ts=4 expandtab
 #
 #    Copyright (C) 2009-2010 Canonical Ltd.
-#    Copyright (C) 2012 Hewlett-Packard Development Company, L.P.
+#    Copyright (C) 2012, 2013 Hewlett-Packard Development Company, L.P.
 #    Copyright (C) 2012 Yahoo! Inc.
 #
 #    Author: Scott Moser <scott.moser@canonical.com>
@@ -89,6 +89,7 @@ class DataSourceNoCloud(sources.DataSource):
         if label is not None:
             # Query optical drive to get it in blkid cache for 2.6 kernels
             util.find_devs_with(path="/dev/sr0")
+            util.find_devs_with(path="/dev/sr1")
 
             fslist = util.find_devs_with("TYPE=vfat")
             fslist.extend(util.find_devs_with("TYPE=iso9660"))
@@ -118,8 +119,8 @@ class DataSourceNoCloud(sources.DataSource):
                     if e.errno != errno.ENOENT:
                         raise
                 except util.MountFailedError:
-                    util.logexc(LOG, ("Failed to mount %s"
-                                      " when looking for data"), dev)
+                    util.logexc(LOG, "Failed to mount %s when looking for "
+                                "data", dev)
 
         # There was no indication on kernel cmdline or data
         # in the seeddir suggesting this handler should be used.
