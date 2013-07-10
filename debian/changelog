@@ -1,3 +1,10 @@
+cloud-init (0.7.3~bzr826-0ubuntu2) saucy; urgency=low
+
+  * debian/cloud-init.templates: add 'Azure' datasource to list
+    of available datasources.
+
+ -- Scott Moser <smoser@ubuntu.com>  Wed, 10 Jul 2013 16:31:48 -0400
+
 cloud-init (0.7.3~bzr826-0ubuntu1) saucy; urgency=low
 
   * New upstream snapshot.
