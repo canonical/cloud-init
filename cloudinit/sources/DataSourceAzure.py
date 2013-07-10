@@ -146,7 +146,7 @@ def find_child(node, filter_func):
     return ret
 
 
-def load_azure_ovf_pubkeys(_sshnode):
+def load_azure_ovf_pubkeys(sshnode):
     # in the future this would return a list of dicts like:
     #  [{'fp': '6BE7A7C3C8A8F4B123CCA5D0C2F1BE4CA7B63ED7',
     #    'path': 'where/to/go'}]
@@ -155,7 +155,43 @@ def load_azure_ovf_pubkeys(_sshnode):
     #   <PublicKey><Fingerprint>ABC</FingerPrint><Path>/ABC</Path>
     #   ...
     # </PublicKeys></SSH>
-    return []
+    results = find_child(sshnode, lambda n: n.localName == "PublicKeys")
+    if len(results) == 0:
+        return []
+    if len(results) > 1:
+        raise BrokenAzureDataSource("Multiple 'PublicKeys'(%s) in SSH node" %
+                                    len(results))
+
+    pubkeys_node = results[0]
+    pubkeys = find_child(pubkeys_node, lambda n: n.localName == "PublicKey")
+
+    if len(pubkeys) == 0:
+        return []
+
+    found = []
+    text_node = minidom.Document.TEXT_NODE
+
+    for pk_node in pubkeys:
+        if not pk_node.hasChildNodes():
+            continue
+        cur = {'fingerprint': "", 'path': ""}
+        for child in pk_node.childNodes:
+            if (child.nodeType == text_node or not child.localName):
+                continue
+
+            name = child.localName.lower()
+
+            if name not in cur.keys():
+                continue
+
+            if (len(child.childNodes) != 1 or
+                child.childNodes[0].nodeType != text_node):
+                continue
+
+            cur[name] = child.childNodes[0].wholeText.strip()
+        found.append(cur)
+
+    return found
 
 
 def read_azure_ovf(contents):

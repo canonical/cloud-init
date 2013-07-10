@@ -34,11 +34,12 @@ def construct_valid_ovf_env(data=None, pubkeys=None, userdata=None):
 
     if pubkeys:
         content += "<SSH><PublicKeys>\n"
-        for fp, path in pubkeys.items():
+        for fp, path in pubkeys:
             content += " <PublicKey>"
             content += ("<Fingerprint>%s</Fingerprint><Path>%s</Path>" %
                         (fp, path))
-            content += " </PublicKey>"
+            content += "</PublicKey>\n"
+        content += "</PublicKeys></SSH>"
     content += """
  </LinuxProvisioningConfigurationSet>
  </wa:ProvisioningSection>
@@ -190,6 +191,14 @@ class TestReadAzureOvf(MockerTestCase):
         invalid_xml = "<foo>" + construct_valid_ovf_env(data={})
         self.assertRaises(DataSourceAzure.NonAzureDataSource,
             DataSourceAzure.read_azure_ovf, invalid_xml)
+
+    def test_load_with_pubkeys(self):
+        mypklist = [{'fingerprint': 'fp1', 'path': 'path1'}]
+        pubkeys = [(x['fingerprint'], x['path']) for x in mypklist]
+        content = construct_valid_ovf_env(pubkeys=pubkeys)
+        (md, ud, cfg) = DataSourceAzure.read_azure_ovf(content)
+        for mypk in mypklist:
+            self.assertIn(mypk, cfg['_pubkeys'])
 
 
 def apply_patches(patches):
