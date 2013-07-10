@@ -3,6 +3,7 @@
  - small fix for OVF datasource for iso transport on non-iso9660 filesystem
  - determine if upstart version is suitable for
    'initctl reload-configuration' (LP: #1124384).  If so, then invoke it.
+ - add Azure datasource.
 0.7.2:
  - add a debian watch file
  - add 'sudo' entry to ubuntu's default user (LP: #1080717)
