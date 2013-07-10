@@ -81,14 +81,22 @@ class TestAzureDataSource(MockerTestCase):
         def dsdevs():
             return data.get('dsdevs', [])
 
-        def invoker(cmd):
+        def _invoke_agent(cmd):
             data['agent_invoked'] = cmd
 
-        def file_writer(datadir, files):
+        def _write_files(datadir, files):
             data['files'] = {}
             data['datadir'] = datadir
             for (fname, content) in files.items():
                 data['files'][fname] = content
+
+        def _wait_for_files(flist, _maxwait=None, _naplen=None):
+            data['waited'] = flist
+            return []
+
+        def _pubkeys_from_crt_files(flist):
+            data['pubkey_files'] = flist
+            return ["pubkey_from: %s" % f for f in flist]
 
         if data.get('ovfcontent') is not None:
             populate_dir(os.path.join(self.paths.seed_dir, "azure"),
@@ -99,8 +107,11 @@ class TestAzureDataSource(MockerTestCase):
         if data.get('dsdevs'):
             self.apply_patches([(mod, 'list_possible_azure_ds_devs', dsdevs)])
 
-        self.apply_patches([(mod, 'invoke_agent', invoker)])
-        self.apply_patches([(mod, 'write_files', file_writer)])
+        self.apply_patches([(mod, 'invoke_agent', _invoke_agent),
+                            (mod, 'write_files', _write_files),
+                            (mod, 'wait_for_files', _wait_for_files),
+                            (mod, 'pubkeys_from_crt_files',
+                             _pubkeys_from_crt_files)])
 
         dsrc = mod.DataSourceAzureNet(
             data.get('sys_cfg', {}), distro=None, paths=self.paths)
@@ -209,7 +220,7 @@ class TestReadAzureOvf(MockerTestCase):
         mypklist = [{'fingerprint': 'fp1', 'path': 'path1'}]
         pubkeys = [(x['fingerprint'], x['path']) for x in mypklist]
         content = construct_valid_ovf_env(pubkeys=pubkeys)
-        (md, ud, cfg) = DataSourceAzure.read_azure_ovf(content)
+        (_md, _ud, cfg) = DataSourceAzure.read_azure_ovf(content)
         for mypk in mypklist:
             self.assertIn(mypk, cfg['_pubkeys'])
 
