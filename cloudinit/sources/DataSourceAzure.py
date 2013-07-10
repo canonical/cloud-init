@@ -111,6 +111,12 @@ class DataSourceAzureNet(sources.DataSource):
             # claim the datasource even if the command failed
             util.logexc(LOG, "agent command '%s' failed.", mycfg['cmd'])
 
+        wait_for = [os.path.join(mycfg['datadir'], "SharedConfig.xml")]
+
+        for pk in self.cfg.get('_pubkeys', []):
+            bname = pk['fingerprint'] + ".crt"
+            wait_for += [os.path.join(mycfg['datadir'], bname)]
+
         return True
 
     def get_config_obj(self):

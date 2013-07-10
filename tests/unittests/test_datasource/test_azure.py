@@ -185,6 +185,19 @@ class TestAzureDataSource(MockerTestCase):
         self.assertFalse(ret)
         self.assertFalse('agent_invoked' in data)
 
+    def test_cfg_has_pubkeys(self):
+        odata = {'HostName': "myhost", 'UserName': "myuser"}
+        mypklist = [{'fingerprint': 'fp1', 'path': 'path1'}]
+        pubkeys = [(x['fingerprint'], x['path']) for x in mypklist]
+        data = {'ovfcontent': construct_valid_ovf_env(data=odata,
+                                                      pubkeys=pubkeys)}
+
+        dsrc = self._get_ds(data)
+        ret = dsrc.get_data()
+        self.assertTrue(ret)
+        for mypk in mypklist:
+            self.assertIn(mypk, dsrc.cfg['_pubkeys'])
+
 
 class TestReadAzureOvf(MockerTestCase):
     def test_invalid_xml_raises_non_azure_ds(self):
