@@ -1,5 +1,5 @@
 ## This is a cheetah template
-cloud-init (${version}~bzr${revision}-1) UNRELEASED; urgency=low
+cloud-init (${version}~bzr${revision}-1) raring; urgency=low
 
   * build
 

@@ -19,6 +19,7 @@
 import base64
 import os
 import os.path
+import time
 from xml.dom import minidom
 
 from cloudinit import log as logging
@@ -113,14 +114,57 @@ class DataSourceAzureNet(sources.DataSource):
 
         wait_for = [os.path.join(mycfg['datadir'], "SharedConfig.xml")]
 
+        fp_files = []
         for pk in self.cfg.get('_pubkeys', []):
             bname = pk['fingerprint'] + ".crt"
-            wait_for += [os.path.join(mycfg['datadir'], bname)]
+            fp_files += [os.path.join(mycfg['datadir'], bname)]
+
+        missing = wait_for_files(wait_for + fp_files)
+        if len(missing):
+            LOG.warn("Did not find files, but going on: %s" % missing)
+
+        pubkeys = pubkeys_from_crt_files(fp_files)
+
+        self.metadata['public-keys'] = pubkeys
 
         return True
 
     def get_config_obj(self):
         return self.cfg
+
+
+def crtfile_to_pubkey(fname):
+    pipeline = ('openssl x509 -noout -pubkey < "$0" |'
+                'ssh-keygen -i -m PKCS8 -f /dev/stdin')
+    (out, _err) = util.subp(['sh', '-c', pipeline, fname], capture=True)
+    return out.rstrip()
+
+
+def pubkeys_from_crt_files(flist):
+    pubkeys = []
+    errors = []
+    for fname in flist:
+        try:
+            pubkeys.append(crtfile_to_pubkey(fname))
+        except util.ProcessExecutionError:
+            errors.extend(fname)
+
+    if errors:
+        LOG.warn("failed to convert the crt files to pubkey: %s" % errors)
+
+    return pubkeys
+
+
+def wait_for_files(flist, maxwait=60, naplen=.5):
+    need = set(flist)
+    waited = 0
+    while waited < maxwait:
+        need -= set([f for f in need if os.path.exists(f)])
+        if len(need) == 0:
+            return []
+        time.sleep(naplen)
+        waited += naplen
+    return need
 
 
 def write_files(datadir, files):
