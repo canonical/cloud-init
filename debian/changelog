@@ -1,3 +1,12 @@
+cloud-init (0.7.3~bzr829-0ubuntu1) saucy; urgency=low
+
+  * New upstream snapshot.
+    * fix to upstart_job handler if version upstart is version 1.8.
+    * Azure datasource: allow userdata to be found in node named
+      'UserData' or 'CustomData'
+
+ -- Scott Moser <smoser@ubuntu.com>  Thu, 11 Jul 2013 10:20:03 -0400
+
 cloud-init (0.7.3~bzr826-0ubuntu2) saucy; urgency=low
 
   * debian/cloud-init.templates: add 'Azure' datasource to list

@@ -85,7 +85,7 @@ def _has_suitable_upstart():
         return False
 
     # expecting 'initctl version' to output something like: init (upstart X.Y)
-    if re.match("upstart 1.[0-7][\)]", version_out):
+    if re.match("upstart 1.[0-7][)]", version_out):
         return False
     if "upstart 0." in version_out:
         return False
@@ -101,8 +101,8 @@ def _has_suitable_upstart():
             return False
 
         try:
+            good = "1.8-0ubuntu1.2"
             util.subp(["dpkg", "--compare-versions", dpkg_ver, "ge", good])
-            print "good version"
             return True
         except util.ProcessExecutionError as e:
             if e.exit_code is 1:
