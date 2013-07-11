@@ -1,7 +1,6 @@
 """Tests of the built-in user data handlers."""
 
 import os
-import unittest
 
 from tests.unittests import helpers as test_helpers
 
