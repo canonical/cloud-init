@@ -119,9 +119,13 @@ class DataSourceAzureNet(sources.DataSource):
             bname = pk['fingerprint'] + ".crt"
             fp_files += [os.path.join(mycfg['datadir'], bname)]
 
+        start = time.time()
         missing = wait_for_files(wait_for + fp_files)
         if len(missing):
-            LOG.warn("Did not find files, but going on: %s" % missing)
+            LOG.warn("Did not find files, but going on: %s", missing)
+        else:
+            LOG.debug("waited %.3f seconds for %d files to appear",
+                      time.time() - start, len(wait_for))
 
         pubkeys = pubkeys_from_crt_files(fp_files)
 
@@ -197,7 +201,8 @@ def find_child(node, filter_func):
 
 
 def load_azure_ovf_pubkeys(sshnode):
-    # in the future this would return a list of dicts like:
+    # This parses a 'SSH' node formatted like below, and returns
+    # an array of dicts.
     #  [{'fp': '6BE7A7C3C8A8F4B123CCA5D0C2F1BE4CA7B63ED7',
     #    'path': 'where/to/go'}]
     #
@@ -293,7 +298,9 @@ def read_azure_ovf(contents):
             simple = True
             value = child.childNodes[0].wholeText
 
-        if name == "userdata":
+        # we accept either UserData or CustomData.  If both are present
+        # then behavior is undefined.
+        if (name == "userdata" or name == "customdata"):
             ud = base64.b64decode(''.join(value.split()))
         elif name == "username":
             username = value
