@@ -313,7 +313,10 @@ def read_azure_ovf(contents):
         elif name == "ssh":
             cfg['_pubkeys'] = load_azure_ovf_pubkeys(child)
         elif name == "disablesshpasswordauthentication":
-            cfg['ssh_pwauth'] = util.is_true(value)
+            # The verb 'disablessh..." asks whether to disable password auth.
+            # Since it is disabled by default, "false" indicates that
+            # password authentication should be enabled.
+            cfg['ssh_pwauth'] = util.is_false(value)
         elif simple:
             if name in md_props:
                 md[name] = value
