@@ -34,14 +34,26 @@ from cloudinit import util
 # this is a translation of the 'requires'
 # file pypi package name to a redhat/fedora package name.
 PKG_MP = {
-    'argparse': 'python-argparse',
-    'boto': 'python-boto',
-    'cheetah': 'python-cheetah',
-    'configobj': 'python-configobj',
-    'oauth': 'python-oauth',
-    'prettytable': 'python-prettytable',
-    'pyyaml': 'PyYAML',
-    'requests': 'python-requests',
+    'redhat': {
+        'argparse': 'python-argparse',
+        'boto': 'python-boto',
+        'cheetah': 'python-cheetah',
+        'configobj': 'python-configobj',
+        'oauth': 'python-oauth',
+        'prettytable': 'python-prettytable',
+        'pyyaml': 'PyYAML',
+        'requests': 'python-requests',
+    },
+    'suse': {
+        'argparse': 'python-argparse',
+        'boto': 'python-boto',
+        'cheetah': 'python-cheetah',
+        'configobj': 'python-configobj',
+        'oauth': 'python-oauth',
+        'prettytable': 'python-prettytable',
+        'pyyaml': 'python-yaml',
+        'requests': 'python-requests',
+    }
 }
 
 # Subdirectories of the ~/rpmbuild dir
@@ -120,7 +132,7 @@ def generate_spec_contents(args, tmpl_fn, top_dir, arc_fn):
     # Map to known packages
     requires = []
     for p in pkgs:
-        tgt_pkg = PKG_MP.get(p)
+        tgt_pkg = PKG_MP[args.distro].get(p)
         if not tgt_pkg:
             raise RuntimeError(("Do not know how to translate pypi dependency"
                                 " %r to a known package") % (p))
@@ -142,10 +154,11 @@ def generate_spec_contents(args, tmpl_fn, top_dir, arc_fn):
                 missing_versions += 1
                 if missing_versions == 1:
                     # Must be using a new 'dev'/'trunk' release
-                    changelog_lines.append(format_change_line(datetime.now(), '??'))
+                    changelog_lines.append(format_change_line(datetime.now(),
+                                                              '??'))
                 else:
-                    sys.stderr.write(("Changelog version line %s "
-                                      "does not have a corresponding tag!\n") % (line))
+                    sys.stderr.write(("Changelog version line %s does not "
+                                      "have a corresponding tag!\n") % (line))
             else:
                 changelog_lines.append(header)
         else:
@@ -171,6 +184,10 @@ def generate_spec_contents(args, tmpl_fn, top_dir, arc_fn):
 def main():
     
     parser = argparse.ArgumentParser()
+    parser.add_argument("-d", "--distro", dest="distro",
+                        help="select distro (default: %(default)s)",
+                        metavar="DISTRO", default='redhat',
+                        choices=('redhat', 'suse'))
     parser.add_argument("-b", "--boot", dest="boot",
                         help="select boot type (default: %(default)s)", 
                         metavar="TYPE", default='sysvinit',
@@ -218,7 +235,7 @@ def main():
 
     # Form the spec file to be used
     tmpl_fn = util.abs_join(find_root(), 'packages',
-                            'redhat', 'cloud-init.spec.in')
+                            args.distro, 'cloud-init.spec.in')
     contents = generate_spec_contents(args, tmpl_fn, root_dir,
                                       os.path.basename(archive_fn))
     spec_fn = util.abs_join(root_dir, 'cloud-init.spec')
@@ -237,13 +254,15 @@ def main():
     globs.extend(glob.glob("%s/*.rpm" %
                            (util.abs_join(root_dir, 'RPMS', 'noarch'))))
     globs.extend(glob.glob("%s/*.rpm" %
+                           (util.abs_join(root_dir, 'RPMS', 'x86_64'))))
+    globs.extend(glob.glob("%s/*.rpm" %
                            (util.abs_join(root_dir, 'RPMS'))))
     globs.extend(glob.glob("%s/*.rpm" %
                            (util.abs_join(root_dir, 'SRPMS'))))
     for rpm_fn in globs:
         tgt_fn = util.abs_join(os.getcwd(), os.path.basename(rpm_fn))
         shutil.move(rpm_fn, tgt_fn)
-        print("Wrote out redhat package %r" % (tgt_fn))
+        print("Wrote out %s package %r" % (args.distro, tgt_fn))
 
     return 0
 

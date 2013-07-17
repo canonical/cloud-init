@@ -55,3 +55,16 @@ class TestHostname(t_help.FilesystemMockingTestCase):
                                cfg, cc, LOG, [])
         contents = util.load_file("/etc/hostname")
         self.assertEquals('blah', contents.strip())
+
+    def test_write_hostname_sles(self):
+        cfg = {
+            'hostname': 'blah.blah.blah.suse.com',
+        }
+        distro = self._fetch_distro('sles')
+        paths = helpers.Paths({})
+        ds = None
+        cc = cloud.Cloud(ds, paths, {}, distro, None)
+        self.patchUtils(self.tmp)
+        cc_set_hostname.handle('cc_set_hostname', cfg, cc, LOG, [])
+        contents = util.load_file("/etc/HOSTNAME")
+        self.assertEquals('blah', contents.strip())

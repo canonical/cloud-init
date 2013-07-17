@@ -1,8 +1,10 @@
 # vi: ts=4 expandtab
 #
 #    Copyright (C) 2013 Craig Tracey
+#    Copyright (C) 2013 Hewlett-Packard Development Company, L.P.
 #
 #    Author: Craig Tracey <craigtracey@gmail.com>
+#    Author: Juerg Haefliger <juerg.haefliger@hp.com>
 #
 #    This program is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License version 3, as
@@ -53,7 +55,7 @@ from cloudinit import util
 
 frequency = PER_INSTANCE
 
-distros = ['fedora', 'rhel']
+distros = ['fedora', 'rhel', 'sles']
 
 
 def generate_resolv_conf(cloud, log, params):
