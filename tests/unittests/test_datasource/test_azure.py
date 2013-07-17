@@ -84,9 +84,10 @@ class TestAzureDataSource(MockerTestCase):
         def _invoke_agent(cmd):
             data['agent_invoked'] = cmd
 
-        def _write_files(datadir, files):
+        def _write_files(datadir, files, dirmode):
             data['files'] = {}
             data['datadir'] = datadir
+            data['datadir_mode'] = dirmode
             for (fname, content) in files.items():
                 data['files'][fname] = content
 
@@ -129,6 +130,7 @@ class TestAzureDataSource(MockerTestCase):
         self.assertEqual(dsrc.userdata_raw, "")
         self.assertEqual(dsrc.metadata['local-hostname'], odata['HostName'])
         self.assertTrue('ovf-env.xml' in data['files'])
+        self.assertEqual(0700, data['datadir_mode'])
 
     def test_user_cfg_set_agent_command(self):
         cfg = {'agent_command': "my_command"}
