@@ -359,8 +359,8 @@ class Distro(object):
         # Add the user
         self.add_user(name, **kwargs)
 
-        # Set password if plain-text password provided
-        if 'plain_text_passwd' in kwargs:
+        # Set password if plain-text password provided and non-empty
+        if 'plain_text_passwd' in kwargs and kwargs['plain_text_passwd']:
             self.set_passwd(name, kwargs['plain_text_passwd'])
 
         # Default locking down the account.  'lock_passwd' defaults to True.
