@@ -104,7 +104,9 @@ class DataSourceAzureNet(sources.DataSource):
                 if value is not None:
                     mycfg[name] = value
 
-        write_files(mycfg['datadir'], files)
+        # walinux agent writes files world readable, but expects
+        # the directory to be protected.
+        write_files(mycfg['datadir'], files, dirmode=0700)
 
         try:
             invoke_agent(mycfg['cmd'])
@@ -171,11 +173,12 @@ def wait_for_files(flist, maxwait=60, naplen=.5):
     return need
 
 
-def write_files(datadir, files):
+def write_files(datadir, files, dirmode=None):
     if not datadir:
         return
     if not files:
         files = {}
+    util.ensure_dir(datadir, dirmode)
     for (name, content) in files.items():
         util.write_file(filename=os.path.join(datadir, name),
                         content=content, mode=0600)
