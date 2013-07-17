@@ -1,7 +1,6 @@
 """Tests of the built-in user data handlers."""
 
 import os
-import unittest
 
 from tests.unittests import helpers as test_helpers
 
@@ -35,7 +34,6 @@ class TestBuiltins(test_helpers.FilesystemMockingTestCase):
                       None, None, None)
         self.assertEquals(0, len(os.listdir(up_root)))
 
-    @unittest.skip("until LP: #1124384 fixed")
     def test_upstart_frequency_single(self):
         # files should be written out when frequency is ! per-instance
         new_root = self.makeDir()
@@ -47,6 +45,7 @@ class TestBuiltins(test_helpers.FilesystemMockingTestCase):
             'upstart_dir': "/etc/upstart",
         })
 
+        upstart_job.SUITABLE_UPSTART = True
         util.ensure_dir("/run")
         util.ensure_dir("/etc/upstart")
 
