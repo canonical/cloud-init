@@ -28,9 +28,9 @@ test:
 
 check_version:
 	@if [ "$(CHANGELOG_VERSION)" != "$(CODE_VERSION)" ]; then \
-        echo "Error: ChangeLog version $(CHANGELOG_VERSION)" \
-	     "not equal to code version $(CODE_VERSION)"; exit 2; \
-    else true; fi
+	    echo "Error: ChangeLog version $(CHANGELOG_VERSION)" \
+	    "not equal to code version $(CODE_VERSION)"; exit 2; \
+	    else true; fi
 
 2to3:
 	2to3 $(PY_FILES)
