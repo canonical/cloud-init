@@ -20,6 +20,8 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+import jsonpatch
+
 from cloudinit import handlers
 from cloudinit import log as logging
 from cloudinit import mergers
@@ -50,6 +52,9 @@ MERGE_HEADER = 'Merge-Type'
 # This gets loaded into yaml with final result {'a': 22}
 DEF_MERGERS = mergers.string_extract_mergers('dict(replace)+list()+str()')
 
+# See: https://tools.ietf.org/html/rfc6902
+JSON_PATCH_CTYPE = 'application/json-patch+json'
+
 
 class CloudConfigPartHandler(handlers.Handler):
     def __init__(self, paths, **_kwargs):
@@ -59,9 +64,11 @@ class CloudConfigPartHandler(handlers.Handler):
         self.file_names = []
 
     def list_types(self):
-        return [
+        ctypes_handled = [
             handlers.type_from_starts_with("#cloud-config"),
+            JSON_PATCH_CTYPE,
         ]
+        return ctypes_handled
 
     def _write_cloud_config(self):
         if not self.cloud_fn:
@@ -107,13 +114,15 @@ class CloudConfigPartHandler(handlers.Handler):
             all_mergers = DEF_MERGERS
         return (payload_yaml, all_mergers)
 
+    def _merge_patch(self, payload):
+        patch = jsonpatch.JsonPatch.from_string(payload)
+        LOG.debug("Merging by applying json patch %s", patch)
+        self.cloud_buf = patch.apply(self.cloud_buf, in_place=False)
+
     def _merge_part(self, payload, headers):
         (payload_yaml, my_mergers) = self._extract_mergers(payload, headers)
         LOG.debug("Merging by applying %s", my_mergers)
         merger = mergers.construct(my_mergers)
-        if self.cloud_buf is None:
-            # First time through, merge with an empty dict...
-            self.cloud_buf = {}
         self.cloud_buf = merger.merge(self.cloud_buf, payload_yaml)
 
     def _reset(self):
@@ -130,7 +139,13 @@ class CloudConfigPartHandler(handlers.Handler):
             self._reset()
             return
         try:
-            self._merge_part(payload, headers)
+            # First time through, merge with an empty dict...
+            if self.cloud_buf is None or not self.file_names:
+                self.cloud_buf = {}
+            if ctype == JSON_PATCH_CTYPE:
+                self._merge_patch(payload)
+            else:
+                self._merge_part(payload, headers)
             # Ensure filename is ok to store
             for i in ("\n", "\r", "\t"):
                 filename = filename.replace(i, " ")

@@ -27,3 +27,6 @@ requests
 
 # Boto for ec2
 boto
+
+# For patching pieces of cloud-config together
+jsonpatch
