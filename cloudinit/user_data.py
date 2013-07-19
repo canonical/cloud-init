@@ -48,6 +48,18 @@ ARCHIVE_TYPES = ["text/cloud-config-archive"]
 UNDEF_TYPE = "text/plain"
 ARCHIVE_UNDEF_TYPE = "text/cloud-config"
 
+# This seems to hit most of the gzip possible content types.
+DECOMP_TYPES = [
+    'application/gzip',
+    'application/gzip-compressed',
+    'application/gzipped',
+    'application/x-compress',
+    'application/x-compressed',
+    'application/x-gunzip',
+    'application/x-gzip',
+    'application/x-gzip-compressed',
+]
+
 # Msg header used to track attachments
 ATTACHMENT_FIELD = 'Number-Attachments'
 
@@ -67,6 +79,13 @@ class UserDataProcessor(object):
         return accumulating_msg
 
     def _process_msg(self, base_msg, append_msg):
+
+        def replace_header(part, key, value):
+            if key in part:
+                part.replace_header(key, value)
+            else:
+                part[key] = value
+
         for part in base_msg.walk():
             if is_skippable(part):
                 continue
@@ -74,6 +93,18 @@ class UserDataProcessor(object):
             ctype = None
             ctype_orig = part.get_content_type()
             payload = part.get_payload(decode=True)
+
+            # When the message states it is of a gzipped content type ensure
+            # that we attempt to decode said payload so that the decompressed
+            # data can be examined (instead of the compressed data).
+            if ctype_orig in DECOMP_TYPES:
+                try:
+                    payload = util.decomp_gzip(payload, quiet=False)
+                    ctype_orig = UNDEF_TYPE
+                    # TODO(harlowja): should we also set the payload to the
+                    # decompressed value??
+                except util.DecompressionError:
+                    pass
 
             if not ctype_orig:
                 ctype_orig = UNDEF_TYPE
@@ -85,10 +116,7 @@ class UserDataProcessor(object):
                 ctype = ctype_orig
 
             if ctype != ctype_orig:
-                if CONTENT_TYPE in part:
-                    part.replace_header(CONTENT_TYPE, ctype)
-                else:
-                    part[CONTENT_TYPE] = ctype
+                replace_header(part, CONTENT_TYPE, ctype)
 
             if ctype in INCLUDE_TYPES:
                 self._do_include(payload, append_msg)
@@ -100,10 +128,7 @@ class UserDataProcessor(object):
 
             # Should this be happening, shouldn't
             # the part header be modified and not the base?
-            if CONTENT_TYPE in base_msg:
-                base_msg.replace_header(CONTENT_TYPE, ctype)
-            else:
-                base_msg[CONTENT_TYPE] = ctype
+            replace_header(base_msg, CONTENT_TYPE, ctype)
 
             self._attach_part(append_msg, part)
 
