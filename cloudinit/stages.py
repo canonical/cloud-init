@@ -425,6 +425,8 @@ class Init(object):
                     # is registered to more than one content-type).
                     continue
                 if mod not in inited_handlers:
+                    # Said module was never inited in the first place, so lets
+                    # not attempt to finalize those that never got called.
                     continue
                 called.append(mod)
                 try:
