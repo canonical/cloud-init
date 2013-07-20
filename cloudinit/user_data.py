@@ -76,8 +76,6 @@ def _replace_header(msg, key, value):
 
 
 def _set_filename(msg, filename):
-    if not filename:
-        return
     del msg['Content-Disposition']
     msg.add_header('Content-Disposition',
                    'attachment', filename=str(filename))
@@ -141,7 +139,8 @@ class UserDataProcessor(object):
                 # Copy various headers from the old part to the new one,
                 # but don't include all the headers since some are not useful
                 # after decoding and decompression.
-                _set_filename(n_part, part.get_filename())
+                if part.get_filename():
+                    _set_filename(n_part, part.get_filename())
                 for h in ('Launch-Index',):
                     if h in part:
                         _replace_header(n_part, h, str(part[h]))
