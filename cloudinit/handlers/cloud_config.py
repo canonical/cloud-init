@@ -66,22 +66,21 @@ class CloudConfigPartHandler(handlers.Handler):
     def list_types(self):
         ctypes_handled = [
             handlers.type_from_starts_with("#cloud-config"),
-            JSON_PATCH_CTYPE,
+            handlers.type_from_starts_with("#json-patch"),
         ]
         return ctypes_handled
 
     def _write_cloud_config(self):
-        if not self.cloud_fn:
+        if not self.cloud_fn or not len(self.file_names):
             return
         # Capture which files we merged from...
         file_lines = []
-        if self.file_names:
-            file_lines.append("# from %s files" % (len(self.file_names)))
-            for fn in self.file_names:
-                if not fn:
-                    fn = '?'
-                file_lines.append("# %s" % (fn))
-            file_lines.append("")
+        file_lines.append("# from %s files" % (len(self.file_names)))
+        for fn in self.file_names:
+            if not fn:
+                fn = '?'
+            file_lines.append("# %s" % (fn))
+        file_lines.append("")
         if self.cloud_buf is not None:
             # Something was actually gathered....
             lines = [
