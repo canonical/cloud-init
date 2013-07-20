@@ -130,8 +130,12 @@ class UserDataProcessor(object):
             # messages will expect a part not compressed.
             if was_compressed:
                 maintype, subtype = ctype.split("/", 1)
-                part = MIMENonMultipart(maintype, subtype)
-                part.set_payload(payload)
+                n_part = MIMENonMultipart(maintype, subtype)
+                n_part.set_payload(payload)
+                if part.get_filename():
+                    n_part.add_header('Content-Disposition', 'attachment',
+                                      filename=part.get_filename())
+                part = n_part
 
             if ctype != ctype_orig:
                 replace_header(part, CONTENT_TYPE, ctype)
