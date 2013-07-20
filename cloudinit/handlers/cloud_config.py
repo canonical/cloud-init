@@ -114,7 +114,8 @@ class CloudConfigPartHandler(handlers.Handler):
         return (payload_yaml, all_mergers)
 
     def _merge_patch(self, payload):
-        if payload.startswith("#json-patch"):
+        payload = payload.lstrip()
+        if payload.lower().startswith("#json-patch"):
             # JSON doesn't handle comments in this manner, so ensure that
             # if we started with this 'type' that we remove it before
             # attempting to load it as json (which the jsonpatch library will
