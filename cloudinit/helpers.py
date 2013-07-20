@@ -22,6 +22,7 @@
 
 from time import time
 
+import collections
 import contextlib
 import io
 import os
@@ -281,6 +282,7 @@ class ContentHandlers(object):
 
     def __init__(self):
         self.registered = {}
+        self.markings = collections.defaultdict(list)
 
     def __contains__(self, item):
         return self.is_registered(item)

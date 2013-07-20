@@ -383,21 +383,15 @@ class Init(object):
         # Form our cloud interface
         data = self.cloudify()
 
-        # This list contains the modules initialized (so that we only finalize
-        # ones that were actually initialized)
-        inited_handlers = []
-
         def init_handlers():
             # Init the handlers first
-            called = []
             for (_ctype, mod) in c_handlers.iteritems():
-                if mod in called:
+                if 'initialized' in c_handlers.markings[mod]:
                     # Avoid initing the same module twice (if said module
                     # is registered to more than one content-type).
                     continue
                 handlers.call_begin(mod, data, frequency)
-                inited_handlers.append(mod)
-                called.append(mod)
+                c_handlers.markings[mod].append('initialized')
 
         def walk_handlers():
             # Walk the user data
@@ -413,22 +407,22 @@ class Init(object):
                 # names...
                 'handlercount': 0,
             }
-            handlers.walk(user_data_msg, handlers.walker_callback,
-                          data=part_data)
+            return handlers.walk(user_data_msg, handlers.walker_callback,
+                                 data=part_data)
 
         def finalize_handlers():
             # Give callbacks opportunity to finalize
-            called = []
             for (_ctype, mod) in c_handlers.iteritems():
-                if mod in called:
-                    # Avoid finalizing the same module twice (if said module
-                    # is registered to more than one content-type).
-                    continue
-                if mod not in inited_handlers:
+                mod_markings = c_handlers.markings[mod]
+                if 'initialized' not in mod_markings:
                     # Said module was never inited in the first place, so lets
                     # not attempt to finalize those that never got called.
                     continue
-                called.append(mod)
+                if 'finalized' in mod_markings:
+                    # Avoid finalizing the same module twice (if said module
+                    # is registered to more than one content-type).
+                    continue
+                c_handlers.markings[mod].append('finalized')
                 try:
                     handlers.call_end(mod, data, frequency)
                 except:
