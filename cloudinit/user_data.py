@@ -23,8 +23,10 @@
 import os
 
 import email
+
 from email.mime.base import MIMEBase
 from email.mime.multipart import MIMEMultipart
+from email.mime.nonmultipart import MIMENonMultipart
 from email.mime.text import MIMEText
 
 from cloudinit import handlers
@@ -80,6 +82,10 @@ class UserDataProcessor(object):
 
     def _process_msg(self, base_msg, append_msg):
 
+        def find_ctype(payload):
+            ctype = handlers.type_from_starts_with(payload)
+            return ctype
+
         def replace_header(part, key, value):
             if key in part:
                 part.replace_header(key, value)
@@ -93,6 +99,7 @@ class UserDataProcessor(object):
             ctype = None
             ctype_orig = part.get_content_type()
             payload = part.get_payload(decode=True)
+            was_compressed = False
 
             # When the message states it is of a gzipped content type ensure
             # that we attempt to decode said payload so that the decompressed
@@ -100,20 +107,31 @@ class UserDataProcessor(object):
             if ctype_orig in DECOMP_TYPES:
                 try:
                     payload = util.decomp_gzip(payload, quiet=False)
-                    ctype_orig = UNDEF_TYPE
-                    # TODO(harlowja): should we also set the payload to the
-                    # decompressed value??
-                except util.DecompressionError:
-                    pass
+                    # At this point we don't know what the content-type is
+                    # since we just decompressed it.
+                    ctype_orig = None
+                    was_compressed = True
+                except util.DecompressionError as e:
+                    LOG.warn("Failed decompressing payload from %s of length"
+                             " %s due to: %s", ctype_orig, len(payload), e)
+                    continue
 
+            # Attempt to figure out the payloads content-type
             if not ctype_orig:
                 ctype_orig = UNDEF_TYPE
-
             if ctype_orig in TYPE_NEEDED:
-                ctype = handlers.type_from_starts_with(payload)
-
+                ctype = find_ctype(payload)
             if ctype is None:
                 ctype = ctype_orig
+
+            # In the case where the data was compressed, we want to make sure
+            # that we create a new message that contains the found content
+            # type with the uncompressed content since later traversals of the
+            # messages will expect a part not compressed.
+            if was_compressed:
+                maintype, subtype = ctype.split("/", 1)
+                part = MIMENonMultipart(maintype, subtype)
+                part.set_payload(payload)
 
             if ctype != ctype_orig:
                 replace_header(part, CONTENT_TYPE, ctype)
@@ -126,7 +144,7 @@ class UserDataProcessor(object):
                 self._explode_archive(payload, append_msg)
                 continue
 
-            # Should this be happening, shouldn't
+            # TODO(harlowja): Should this be happening, shouldn't
             # the part header be modified and not the base?
             replace_header(base_msg, CONTENT_TYPE, ctype)
 
