@@ -52,6 +52,12 @@ MERGE_HEADER = 'Merge-Type'
 # This gets loaded into yaml with final result {'a': 22}
 DEF_MERGERS = mergers.string_extract_mergers('dict(replace)+list()+str()')
 
+# The file header -> content types this module will handle.
+CC_TYPES = {
+    '#json-patch': handlers.type_from_starts_with("#json-patch"),
+    '#cloud-config': handlers.type_from_starts_with("#cloud-config"),
+}
+
 
 class CloudConfigPartHandler(handlers.Handler):
     def __init__(self, paths, **_kwargs):
@@ -61,23 +67,20 @@ class CloudConfigPartHandler(handlers.Handler):
         self.file_names = []
 
     def list_types(self):
-        ctypes_handled = [
-            handlers.type_from_starts_with("#cloud-config"),
-            handlers.type_from_starts_with("#json-patch"),
-        ]
-        return ctypes_handled
+        return list(CC_TYPES.values())
 
     def _write_cloud_config(self):
-        if not self.cloud_fn or not len(self.file_names):
+        if not self.cloud_fn:
             return
         # Capture which files we merged from...
         file_lines = []
-        file_lines.append("# from %s files" % (len(self.file_names)))
-        for fn in self.file_names:
-            if not fn:
-                fn = '?'
-            file_lines.append("# %s" % (fn))
-        file_lines.append("")
+        if self.file_names:
+            file_lines.append("# from %s files" % (len(self.file_names)))
+            for fn in self.file_names:
+                if not fn:
+                    fn = '?'
+                file_lines.append("# %s" % (fn))
+            file_lines.append("")
         if self.cloud_buf is not None:
             # Something was actually gathered....
             lines = [
@@ -138,7 +141,7 @@ class CloudConfigPartHandler(handlers.Handler):
             # First time through, merge with an empty dict...
             if self.cloud_buf is None or not self.file_names:
                 self.cloud_buf = {}
-            if ctype == JSON_PATCH_CTYPE:
+            if ctype == CC_TYPES['#json-patch']:
                 self._merge_patch(payload)
             else:
                 self._merge_part(payload, headers)
