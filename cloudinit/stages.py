@@ -383,36 +383,60 @@ class Init(object):
         # Form our cloud interface
         data = self.cloudify()
 
-        # Init the handlers first
-        called = []
-        for (_ctype, mod) in c_handlers.iteritems():
-            if mod in called:
-                continue
-            handlers.call_begin(mod, data, frequency)
-            called.append(mod)
+        # This list contains the modules initialized (so that we only finalize
+        # ones that were actually initialized)
+        inited_handlers = []
 
-        # Walk the user data
-        part_data = {
-            'handlers': c_handlers,
-            # Any new handlers that are encountered get writen here
-            'handlerdir': idir,
-            'data': data,
-            # The default frequency if handlers don't have one
-            'frequency': frequency,
-            # This will be used when new handlers are found
-            # to help write there contents to files with numbered
-            # names...
-            'handlercount': 0,
-        }
-        handlers.walk(user_data_msg, handlers.walker_callback, data=part_data)
+        def init_handlers():
+            # Init the handlers first
+            called = []
+            for (_ctype, mod) in c_handlers.iteritems():
+                if mod in called:
+                    # Avoid initing the same module twice (if said module
+                    # is registered to more than one content-type).
+                    continue
+                handlers.call_begin(mod, data, frequency)
+                inited_handlers.append(mod)
+                called.append(mod)
 
-        # Give callbacks opportunity to finalize
-        called = []
-        for (_ctype, mod) in c_handlers.iteritems():
-            if mod in called:
-                continue
-            handlers.call_end(mod, data, frequency)
-            called.append(mod)
+        def walk_handlers():
+            # Walk the user data
+            part_data = {
+                'handlers': c_handlers,
+                # Any new handlers that are encountered get writen here
+                'handlerdir': idir,
+                'data': data,
+                # The default frequency if handlers don't have one
+                'frequency': frequency,
+                # This will be used when new handlers are found
+                # to help write there contents to files with numbered
+                # names...
+                'handlercount': 0,
+            }
+            handlers.walk(user_data_msg, handlers.walker_callback,
+                          data=part_data)
+
+        def finalize_handlers():
+            # Give callbacks opportunity to finalize
+            called = []
+            for (_ctype, mod) in c_handlers.iteritems():
+                if mod in called:
+                    # Avoid finalizing the same module twice (if said module
+                    # is registered to more than one content-type).
+                    continue
+                if mod not in inited_handlers:
+                    continue
+                called.append(mod)
+                try:
+                    handlers.call_end(mod, data, frequency)
+                except:
+                    util.logexc(LOG, "Failed to finalize handler: %s", mod)
+
+        try:
+            init_handlers()
+            walk_handlers()
+        finally:
+            finalize_handlers()
 
         # Perform post-consumption adjustments so that
         # modules that run during the init stage reflect
