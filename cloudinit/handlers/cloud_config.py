@@ -52,9 +52,6 @@ MERGE_HEADER = 'Merge-Type'
 # This gets loaded into yaml with final result {'a': 22}
 DEF_MERGERS = mergers.string_extract_mergers('dict(replace)+list()+str()')
 
-# See: https://tools.ietf.org/html/rfc6902
-JSON_PATCH_CTYPE = 'application/json-patch+json'
-
 
 class CloudConfigPartHandler(handlers.Handler):
     def __init__(self, paths, **_kwargs):
