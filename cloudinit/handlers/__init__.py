@@ -232,7 +232,6 @@ def walk(msg, callback, data):
         headers['Content-Type'] = ctype
         callback(data, filename, part.get_payload(decode=True), headers)
         partnum = partnum + 1
-    return partnum
 
 
 def fixup_handler(mod, def_freq=PER_INSTANCE):

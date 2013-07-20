@@ -407,8 +407,8 @@ class Init(object):
                 # names...
                 'handlercount': 0,
             }
-            return handlers.walk(user_data_msg, handlers.walker_callback,
-                                 data=part_data)
+            handlers.walk(user_data_msg, handlers.walker_callback,
+                          data=part_data)
 
         def finalize_handlers():
             # Give callbacks opportunity to finalize
