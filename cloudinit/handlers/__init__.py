@@ -151,10 +151,12 @@ def walker_handle_handler(pdata, _ctype, _filename, payload):
     try:
         mod = fixup_handler(importer.import_module(modname))
         call_begin(mod, pdata['data'], frequency)
-        # Only register and increment
-        # after the above have worked (so we don't if it
-        # fails)
+        # Only register and increment after the above have worked, so we don't
+        # register if it fails starting.
         handlers.register(mod)
+        # Ensure that it gets finalized by marking said module as having been
+        # initialized correctly.
+        handlers.markings[mod].append('initialized')
         pdata['handlercount'] = curcount + 1
     except:
         util.logexc(LOG, "Failed at registering python file: %s (part "
@@ -230,6 +232,7 @@ def walk(msg, callback, data):
         headers['Content-Type'] = ctype
         callback(data, filename, part.get_payload(decode=True), headers)
         partnum = partnum + 1
+    return partnum
 
 
 def fixup_handler(mod, def_freq=PER_INSTANCE):
