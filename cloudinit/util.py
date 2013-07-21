@@ -1530,6 +1530,14 @@ def shellify(cmdlist, add_header=True):
     return content
 
 
+def strip_prefix_suffix(line, prefix=None, suffix=None):
+    if prefix and line.startswith(prefix):
+        line = line[len(prefix):]
+    if suffix and line.endswith(suffix):
+        line = line[:-len(suffix)]
+    return line
+
+
 def is_container():
     """
     Checks to see if this code running in a container of some sort

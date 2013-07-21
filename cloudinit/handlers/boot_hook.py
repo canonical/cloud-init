@@ -48,11 +48,9 @@ class BootHookPartHandler(handlers.Handler):
     def _write_part(self, payload, filename):
         filename = util.clean_filename(filename)
         filepath = os.path.join(self.boothook_dir, filename)
-        contents = util.dos2unix(payload)
-        if contents.startswith(BOOTHOOK_PREFIX):
-            real_start = len(BOOTHOOK_PREFIX) + 1
-            contents = contents[real_start:]
-        util.write_file(filepath, contents, 0700)
+        contents = util.strip_prefix_suffix(util.dos2unix(payload),
+                                            prefix=BOOTHOOK_PREFIX)
+        util.write_file(filepath, contents.lstrip(), 0700)
         return filepath
 
     def handle_part(self, _data, ctype, filename,  # pylint: disable=W0221
