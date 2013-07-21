@@ -344,12 +344,13 @@ class Init(object):
         cdir = self.paths.get_cpath("handlers")
         idir = self._get_ipath("handlers")
 
-        # Add the path to the plugins dir to the top of our list for import
-        # instance dir should be read before cloud-dir
-        if cdir and cdir not in sys.path:
-            sys.path.insert(0, cdir)
-        if idir and idir not in sys.path:
-            sys.path.insert(0, idir)
+        # Add the path to the plugins dir to the top of our list for importing
+        # new handlers.
+        #
+        # Note(harlowja): instance dir should be read before cloud-dir
+        for d in [cdir, idir]:
+            if d and d not in sys.path:
+                sys.path.insert(0, d)
 
         # Ensure datasource fetched before activation (just incase)
         user_data_msg = self.datasource.get_userdata(True)
@@ -357,24 +358,32 @@ class Init(object):
         # This keeps track of all the active handlers
         c_handlers = helpers.ContentHandlers()
 
-        # Add handlers in cdir
-        potential_handlers = util.find_modules(cdir)
-        for (fname, mod_name) in potential_handlers.iteritems():
-            try:
-                mod_locs = importer.find_module(mod_name, [''],
-                                                ['list_types',
-                                                 'handle_part'])
-                if not mod_locs:
-                    LOG.warn(("Could not find a valid user-data handler"
-                              " named %s in file %s"), mod_name, fname)
-                    continue
-                mod = importer.import_module(mod_locs[0])
-                mod = handlers.fixup_handler(mod)
-                types = c_handlers.register(mod)
-                LOG.debug("Added handler for %s from %s", types, fname)
-            except:
-                util.logexc(LOG, "Failed to register handler from %s", fname)
+        def register_handlers_in_dir(path):
+            # Attempts to register any handler modules under the given path.
+            potential_handlers = util.find_modules(path)
+            for (fname, mod_name) in potential_handlers.iteritems():
+                try:
+                    mod_locs = importer.find_module(mod_name, [''],
+                                                    ['list_types',
+                                                     'handle_part'])
+                    if not mod_locs:
+                        LOG.warn(("Could not find a valid user-data handler"
+                                  " named %s in file %s"), mod_name, fname)
+                        continue
+                    mod = importer.import_module(mod_locs[0])
+                    mod = handlers.fixup_handler(mod)
+                    types = c_handlers.register(mod)
+                    LOG.debug("Added handler for %s from %s", types, fname)
+                except Exception:
+                    util.logexc(LOG, "Failed to register handler from %s",
+                                fname)
 
+        # Add any handlers in the cloud-dir
+        register_handlers_in_dir(cdir)
+
+        # Register any other handlers that come from the default set. This
+        # is done after the cloud-dir handlers so that the cdir modules can
+        # take over the default user-data handler content-types.
         def_handlers = self._default_userdata_handlers()
         applied_def_handlers = c_handlers.register_defaults(def_handlers)
         if applied_def_handlers:
