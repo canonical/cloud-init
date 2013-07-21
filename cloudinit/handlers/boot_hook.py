@@ -29,6 +29,7 @@ from cloudinit import util
 from cloudinit.settings import (PER_ALWAYS)
 
 LOG = logging.getLogger(__name__)
+BOOTHOOK_PREFIX = "#cloud-boothook"
 
 
 class BootHookPartHandler(handlers.Handler):
@@ -41,18 +42,16 @@ class BootHookPartHandler(handlers.Handler):
 
     def list_types(self):
         return [
-            handlers.type_from_starts_with("#cloud-boothook"),
+            handlers.type_from_starts_with(BOOTHOOK_PREFIX),
         ]
 
     def _write_part(self, payload, filename):
         filename = util.clean_filename(filename)
-        payload = util.dos2unix(payload)
-        prefix = "#cloud-boothook"
-        start = 0
-        if payload.startswith(prefix):
-            start = len(prefix) + 1
         filepath = os.path.join(self.boothook_dir, filename)
-        contents = payload[start:]
+        contents = util.dos2unix(payload)
+        if contents.startswith(BOOTHOOK_PREFIX):
+            real_start = len(BOOTHOOK_PREFIX) + 1
+            contents = contents[real_start:]
         util.write_file(filepath, contents, 0700)
         return filepath
 
