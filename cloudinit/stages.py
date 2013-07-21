@@ -360,6 +360,8 @@ class Init(object):
 
         def register_handlers_in_dir(path):
             # Attempts to register any handler modules under the given path.
+            if not path or not os.path.isdir(path):
+                return
             potential_handlers = util.find_modules(path)
             for (fname, mod_name) in potential_handlers.iteritems():
                 try:
