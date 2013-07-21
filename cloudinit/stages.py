@@ -386,12 +386,12 @@ class Init(object):
         def init_handlers():
             # Init the handlers first
             for (_ctype, mod) in c_handlers.iteritems():
-                if 'initialized' in c_handlers.markings[mod]:
+                if mod in c_handlers.initialized:
                     # Avoid initing the same module twice (if said module
                     # is registered to more than one content-type).
                     continue
                 handlers.call_begin(mod, data, frequency)
-                c_handlers.markings[mod].append('initialized')
+                c_handlers.initialized.append(mod)
 
         def walk_handlers():
             # Walk the user data
@@ -413,16 +413,11 @@ class Init(object):
         def finalize_handlers():
             # Give callbacks opportunity to finalize
             for (_ctype, mod) in c_handlers.iteritems():
-                mod_markings = c_handlers.markings[mod]
-                if 'initialized' not in mod_markings:
+                if mod not in c_handlers.initialized:
                     # Said module was never inited in the first place, so lets
                     # not attempt to finalize those that never got called.
                     continue
-                if 'finalized' in mod_markings:
-                    # Avoid finalizing the same module twice (if said module
-                    # is registered to more than one content-type).
-                    continue
-                c_handlers.markings[mod].append('finalized')
+                c_handlers.initialized.remove(mod)
                 try:
                     handlers.call_end(mod, data, frequency)
                 except:
