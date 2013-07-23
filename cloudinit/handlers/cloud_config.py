@@ -49,6 +49,7 @@ MERGE_HEADER = 'Merge-Type'
 #
 # This gets loaded into yaml with final result {'a': 22}
 DEF_MERGERS = mergers.string_extract_mergers('dict(replace)+list()+str()')
+CLOUD_PREFIX = "#cloud-config"
 
 
 class CloudConfigPartHandler(handlers.Handler):
@@ -60,7 +61,7 @@ class CloudConfigPartHandler(handlers.Handler):
 
     def list_types(self):
         return [
-            handlers.type_from_starts_with("#cloud-config"),
+            handlers.type_from_starts_with(CLOUD_PREFIX),
         ]
 
     def _write_cloud_config(self):
@@ -78,7 +79,7 @@ class CloudConfigPartHandler(handlers.Handler):
         if self.cloud_buf is not None:
             # Something was actually gathered....
             lines = [
-                "#cloud-config",
+                CLOUD_PREFIX,
                 '',
             ]
             lines.extend(file_lines)
