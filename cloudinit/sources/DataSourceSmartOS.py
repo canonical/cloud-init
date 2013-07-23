@@ -27,25 +27,37 @@
 #
 
 
-import os
-import os.path
-import serial
 from cloudinit import log as logging
 from cloudinit import sources
 from cloudinit import util
+import os
+import os.path
+import serial
 
 
 DEF_TTY_LOC = '/dev/ttyS1'
-TTY_LOC = None
+DEF_TTY_TIMEOUT = 60
 LOG = logging.getLogger(__name__)
+
+SMARTOS_ATTRIB_MAP = {
+    #Cloud-init Key : (SmartOS Key, Strip line endings)
+    'local-hostname': ('hostname', True),
+    'public-keys': ('root_authorized_keys', True),
+    'user-script': ('user-script', False),
+    'user-data': ('user-data', False),
+    'iptables_disable': ('iptables_disable', True),
+    'motd_sys_info': ('motd_sys_info', True),
+}
 
 
 class DataSourceSmartOS(sources.DataSource):
     def __init__(self, sys_cfg, distro, paths):
         sources.DataSource.__init__(self, sys_cfg, distro, paths)
         self.seed_dir = os.path.join(paths.seed_dir, 'sdc')
-        self.seed = None
         self.is_smartdc = None
+        self.seed = self.sys_cfg.get("serial_device", DEF_TTY_LOC)
+        self.seed_timeout = self.sys_cfg.get("serial_timeout",
+                                             DEF_TTY_TIMEOUT)
 
     def __str__(self):
         root = sources.DataSource.__str__(self)
@@ -55,30 +67,25 @@ class DataSourceSmartOS(sources.DataSource):
         md = {}
         ud = ""
 
-        TTY_LOC = self.sys_cfg.get("serial_device", DEF_TTY_LOC)
-        if not os.path.exists(TTY_LOC):
+        if not os.path.exists(self.seed):
             LOG.debug("Host does not appear to be on SmartOS")
             return False
-        self.seed = TTY_LOC
+        self.seed = self.seed
 
         system_uuid, system_type = dmi_data()
         if 'smartdc' not in system_type.lower():
             LOG.debug("Host is not on SmartOS")
             return False
         self.is_smartdc = True
-
-        hostname = query_data("hostname", strip=True)
-        if not hostname:
-            hostname = system_uuid
-
-        md['local-hostname'] = hostname
         md['instance-id'] = system_uuid
-        md['public-keys'] = query_data("root_authorized_keys", strip=True)
-        md['user-script'] = query_data("user-script")
-        md['user-data'] = query_data("user-script")
-        md['iptables_disable'] = query_data("disable_iptables_flag",
-                                            strip=True)
-        md['motd_sys_info'] = query_data("enable_motd_sys_info", strip=True)
+
+        for ci_noun, attribute in SMARTOS_ATTRIB_MAP.iteritems():
+            smartos_noun, strip = attribute
+            md[ci_noun] = query_data(smartos_noun, self.seed,
+                                     self.seed_timeout, strip=strip)
+
+        if not md['local-hostname']:
+            md['local-hostname'] = system_uuid
 
         if md['user-data']:
             ud = md['user-data']
@@ -93,7 +100,7 @@ class DataSourceSmartOS(sources.DataSource):
         return self.metadata['instance-id']
 
 
-def get_serial():
+def get_serial(seed_device, seed_timeout):
     """This is replaced in unit testing, allowing us to replace
         serial.Serial with a mocked class
 
@@ -102,18 +109,17 @@ def get_serial():
         each line individually up until the single ".", the transfer is
         usually very fast (i.e. microseconds) to get the response.
     """
-    if not TTY_LOC:
-        raise AttributeError("TTY_LOC value is not set")
+    if not seed_device:
+        raise AttributeError("seed_device value is not set")
 
-    _ret = serial.Serial(TTY_LOC, timeout=60)
-    if not _ret.isOpen():
-        raise SystemError("Unable to open %s" % TTY_LOC)
+    ser = serial.Serial(seed_device, timeout=seed_timeout)
+    if not ser.isOpen():
+        raise SystemError("Unable to open %s" % seed_device)
 
-    return _ret
+    return ser
 
 
-
-def query_data(noun, strip=False):
+def query_data(noun, seed_device, seed_timeout, strip=False):
     """Makes a request to via the serial console via "GET <NOUN>"
 
         In the response, the first line is the status, while subsequent lines
@@ -124,7 +130,7 @@ def query_data(noun, strip=False):
     if not noun:
         return False
 
-    ser = get_serial()
+    ser = get_serial(seed_device, seed_timeout)
     ser.write("GET %s\n" % noun.rstrip())
     status = str(ser.readline()).rstrip()
     response = []
