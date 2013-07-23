@@ -35,7 +35,8 @@ from cloudinit import sources
 from cloudinit import util
 
 
-TTY_LOC = '/dev/ttyS1'
+DEF_TTY_LOC = '/dev/ttyS1'
+TTY_LOC = None
 LOG = logging.getLogger(__name__)
 
 
@@ -54,6 +55,7 @@ class DataSourceSmartOS(sources.DataSource):
         md = {}
         ud = ""
 
+        TTY_LOC = self.sys_cfg.get("serial_device", DEF_TTY_LOC)
         if not os.path.exists(TTY_LOC):
             LOG.debug("Host does not appear to be on SmartOS")
             return False
@@ -72,10 +74,16 @@ class DataSourceSmartOS(sources.DataSource):
         md['local-hostname'] = hostname
         md['instance-id'] = system_uuid
         md['public-keys'] = query_data("root_authorized_keys", strip=True)
-        ud = query_data("user-script")
+        md['user-script'] = query_data("user-script")
+        md['user-data'] = query_data("user-script")
         md['iptables_disable'] = query_data("disable_iptables_flag",
                                             strip=True)
         md['motd_sys_info'] = query_data("enable_motd_sys_info", strip=True)
+
+        if md['user-data']:
+            ud = md['user-data']
+        else:
+            ud = md['user-script']
 
         self.metadata = md
         self.userdata_raw = ud
@@ -87,8 +95,22 @@ class DataSourceSmartOS(sources.DataSource):
 
 def get_serial():
     """This is replaced in unit testing, allowing us to replace
-        serial.Serial with a mocked class"""
-    return serial.Serial()
+        serial.Serial with a mocked class
+
+        The timeout value of 60 seconds should never be hit. The value
+        is taken from SmartOS own provisioning tools. Since we are reading
+        each line individually up until the single ".", the transfer is
+        usually very fast (i.e. microseconds) to get the response.
+    """
+    if not TTY_LOC:
+        raise AttributeError("TTY_LOC value is not set")
+
+    _ret = serial.Serial(TTY_LOC, timeout=60)
+    if not _ret.isOpen():
+        raise SystemError("Unable to open %s" % TTY_LOC)
+
+    return _ret
+
 
 
 def query_data(noun, strip=False):
@@ -97,22 +119,12 @@ def query_data(noun, strip=False):
         In the response, the first line is the status, while subsequent lines
         are is the value. A blank line with a "." is used to indicate end of
         response.
+    """
 
-        The timeout value of 60 seconds should never be hit. The value
-        is taken from SmartOS own provisioning tools. Since we are reading
-        each line individually up until the single ".", the transfer is
-        usually very fast (i.e. microseconds) to get the response.
-     """
     if not noun:
         return False
 
     ser = get_serial()
-    ser.port = '/dev/ttyS1'
-    ser.open()
-    if not ser.isOpen():
-        LOG.debug("Serial console is not open")
-        return False
-
     ser.write("GET %s\n" % noun.rstrip())
     status = str(ser.readline()).rstrip()
     response = []
