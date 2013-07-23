@@ -23,8 +23,10 @@
 import os
 
 import email
+
 from email.mime.base import MIMEBase
 from email.mime.multipart import MIMEMultipart
+from email.mime.nonmultipart import MIMENonMultipart
 from email.mime.text import MIMEText
 
 from cloudinit import handlers
@@ -48,12 +50,35 @@ ARCHIVE_TYPES = ["text/cloud-config-archive"]
 UNDEF_TYPE = "text/plain"
 ARCHIVE_UNDEF_TYPE = "text/cloud-config"
 
+# This seems to hit most of the gzip possible content types.
+DECOMP_TYPES = [
+    'application/gzip',
+    'application/gzip-compressed',
+    'application/gzipped',
+    'application/x-compress',
+    'application/x-compressed',
+    'application/x-gunzip',
+    'application/x-gzip',
+    'application/x-gzip-compressed',
+]
+
 # Msg header used to track attachments
 ATTACHMENT_FIELD = 'Number-Attachments'
 
 # Only the following content types can have there launch index examined
 # in there payload, evey other content type can still provide a header
 EXAMINE_FOR_LAUNCH_INDEX = ["text/cloud-config"]
+
+
+def _replace_header(msg, key, value):
+    del msg[key]
+    msg[key] = value
+
+
+def _set_filename(msg, filename):
+    del msg['Content-Disposition']
+    msg.add_header('Content-Disposition',
+                   'attachment', filename=str(filename))
 
 
 class UserDataProcessor(object):
@@ -67,6 +92,10 @@ class UserDataProcessor(object):
         return accumulating_msg
 
     def _process_msg(self, base_msg, append_msg):
+
+        def find_ctype(payload):
+            return handlers.type_from_starts_with(payload)
+
         for part in base_msg.walk():
             if is_skippable(part):
                 continue
@@ -74,21 +103,51 @@ class UserDataProcessor(object):
             ctype = None
             ctype_orig = part.get_content_type()
             payload = part.get_payload(decode=True)
+            was_compressed = False
 
+            # When the message states it is of a gzipped content type ensure
+            # that we attempt to decode said payload so that the decompressed
+            # data can be examined (instead of the compressed data).
+            if ctype_orig in DECOMP_TYPES:
+                try:
+                    payload = util.decomp_gzip(payload, quiet=False)
+                    # At this point we don't know what the content-type is
+                    # since we just decompressed it.
+                    ctype_orig = None
+                    was_compressed = True
+                except util.DecompressionError as e:
+                    LOG.warn("Failed decompressing payload from %s of length"
+                             " %s due to: %s", ctype_orig, len(payload), e)
+                    continue
+
+            # Attempt to figure out the payloads content-type
             if not ctype_orig:
                 ctype_orig = UNDEF_TYPE
-
             if ctype_orig in TYPE_NEEDED:
-                ctype = handlers.type_from_starts_with(payload)
-
+                ctype = find_ctype(payload)
             if ctype is None:
                 ctype = ctype_orig
 
+            # In the case where the data was compressed, we want to make sure
+            # that we create a new message that contains the found content
+            # type with the uncompressed content since later traversals of the
+            # messages will expect a part not compressed.
+            if was_compressed:
+                maintype, subtype = ctype.split("/", 1)
+                n_part = MIMENonMultipart(maintype, subtype)
+                n_part.set_payload(payload)
+                # Copy various headers from the old part to the new one,
+                # but don't include all the headers since some are not useful
+                # after decoding and decompression.
+                if part.get_filename():
+                    _set_filename(n_part, part.get_filename())
+                for h in ('Launch-Index',):
+                    if h in part:
+                        _replace_header(n_part, h, str(part[h]))
+                part = n_part
+
             if ctype != ctype_orig:
-                if CONTENT_TYPE in part:
-                    part.replace_header(CONTENT_TYPE, ctype)
-                else:
-                    part[CONTENT_TYPE] = ctype
+                _replace_header(part, CONTENT_TYPE, ctype)
 
             if ctype in INCLUDE_TYPES:
                 self._do_include(payload, append_msg)
@@ -98,12 +157,9 @@ class UserDataProcessor(object):
                 self._explode_archive(payload, append_msg)
                 continue
 
-            # Should this be happening, shouldn't
+            # TODO(harlowja): Should this be happening, shouldn't
             # the part header be modified and not the base?
-            if CONTENT_TYPE in base_msg:
-                base_msg.replace_header(CONTENT_TYPE, ctype)
-            else:
-                base_msg[CONTENT_TYPE] = ctype
+            _replace_header(base_msg, CONTENT_TYPE, ctype)
 
             self._attach_part(append_msg, part)
 
@@ -138,8 +194,7 @@ class UserDataProcessor(object):
 
     def _process_before_attach(self, msg, attached_id):
         if not msg.get_filename():
-            msg.add_header('Content-Disposition',
-                           'attachment', filename=PART_FN_TPL % (attached_id))
+            _set_filename(msg, PART_FN_TPL % (attached_id))
         self._attach_launch_index(msg)
 
     def _do_include(self, content, append_msg):
@@ -217,13 +272,15 @@ class UserDataProcessor(object):
                 msg.set_payload(content)
 
             if 'filename' in ent:
-                msg.add_header('Content-Disposition',
-                               'attachment', filename=ent['filename'])
+                _set_filename(msg, ent['filename'])
             if 'launch-index' in ent:
                 msg.add_header('Launch-Index', str(ent['launch-index']))
 
             for header in list(ent.keys()):
-                if header in ('content', 'filename', 'type', 'launch-index'):
+                if header.lower() in ('content', 'filename', 'type',
+                                      'launch-index', 'content-disposition',
+                                      ATTACHMENT_FIELD.lower(),
+                                      CONTENT_TYPE.lower()):
                     continue
                 msg.add_header(header, ent[header])
 
@@ -238,13 +295,13 @@ class UserDataProcessor(object):
             outer_msg[ATTACHMENT_FIELD] = '0'
 
         if new_count is not None:
-            outer_msg.replace_header(ATTACHMENT_FIELD, str(new_count))
+            _replace_header(outer_msg, ATTACHMENT_FIELD, str(new_count))
 
         fetched_count = 0
         try:
             fetched_count = int(outer_msg.get(ATTACHMENT_FIELD))
         except (ValueError, TypeError):
-            outer_msg.replace_header(ATTACHMENT_FIELD, str(fetched_count))
+            _replace_header(outer_msg, ATTACHMENT_FIELD, str(fetched_count))
         return fetched_count
 
     def _attach_part(self, outer_msg, part):
@@ -276,10 +333,7 @@ def convert_string(raw_data, headers=None):
     if "mime-version:" in data[0:4096].lower():
         msg = email.message_from_string(data)
         for (key, val) in headers.iteritems():
-            if key in msg:
-                msg.replace_header(key, val)
-            else:
-                msg[key] = val
+            _replace_header(msg, key, val)
     else:
         mtype = headers.get(CONTENT_TYPE, NOT_MULTIPART_TYPE)
         maintype, subtype = mtype.split("/", 1)
