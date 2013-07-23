@@ -31,8 +31,8 @@ import uuid
 mock_returns = {
     'hostname': 'test-host',
     'root_authorized_keys': 'ssh-rsa AAAAB3Nz...aC1yc2E= keyname',
-    'disable_iptables_flag': False,
-    'enable_motd_sys_info': False,
+    'disable_iptables_flag': None,
+    'enable_motd_sys_info': None,
     'system_uuid': str(uuid.uuid4()),
     'smartdc': 'smartdc',
     'userdata': """
@@ -118,7 +118,7 @@ class TestSmartOSDataSource(MockerTestCase):
 
     def _get_ds(self):
 
-        def _get_serial():
+        def _get_serial(*_):
             return MockSerial()
 
         def _dmi_data():
@@ -169,14 +169,14 @@ class TestSmartOSDataSource(MockerTestCase):
         dsrc = self._get_ds()
         ret = dsrc.get_data()
         self.assertTrue(ret)
-        self.assertEquals(str(mock_returns['disable_iptables_flag']),
+        self.assertEquals(mock_returns['disable_iptables_flag'],
                           dsrc.metadata['iptables_disable'])
 
     def test_motd_sys_info(self):
         dsrc = self._get_ds()
         ret = dsrc.get_data()
         self.assertTrue(ret)
-        self.assertEquals(str(mock_returns['enable_motd_sys_info']),
+        self.assertEquals(mock_returns['enable_motd_sys_info'],
                           dsrc.metadata['motd_sys_info'])
 
 

@@ -1744,13 +1744,14 @@ def get_mount_info(path, log=LOG):
     lines = load_file(mountinfo_path).splitlines()
     return parse_mount_info(path, lines, log)
 
+
 def which(program):
     # Return path of program for execution if found in path
     def is_exe(fpath):
         return os.path.isfile(fpath) and os.access(fpath, os.X_OK)
 
-    fpath, fname = os.path.split(program)
-    if fpath:
+    _fpath, _ = os.path.split(program)
+    if _fpath:
         if is_exe(program):
             return program
     else:
