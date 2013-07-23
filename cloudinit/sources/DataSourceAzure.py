@@ -114,7 +114,8 @@ class DataSourceAzureNet(sources.DataSource):
             # claim the datasource even if the command failed
             util.logexc(LOG, "agent command '%s' failed.", mycfg['cmd'])
 
-        wait_for = [os.path.join(mycfg['datadir'], "SharedConfig.xml")]
+        shcfgxml = os.path.join(mycfg['datadir'], "SharedConfig.xml")
+        wait_for = [shcfgxml]
 
         fp_files = []
         for pk in self.cfg.get('_pubkeys', []):
@@ -128,6 +129,14 @@ class DataSourceAzureNet(sources.DataSource):
         else:
             LOG.debug("waited %.3f seconds for %d files to appear",
                       time.time() - start, len(wait_for))
+
+        if shcfgxml in missing:
+            LOG.warn("SharedConfig.xml missing, using static instance-id")
+        else:
+            try:
+                self.metadata['instance-id'] = iid_from_shared_config(shcfgxml)
+            except ValueError as e:
+                LOG.warn("failed to get instance id in %s: %s" % (shcfgxml, e))
 
         pubkeys = pubkeys_from_crt_files(fp_files)
 
@@ -252,6 +261,20 @@ def load_azure_ovf_pubkeys(sshnode):
     return found
 
 
+def single_node_at_path(node, pathlist):
+    curnode = node
+    for tok in pathlist:
+        results = find_child(curnode, lambda n: n.localName == tok)
+        if len(results) == 0:
+            raise ValueError("missing %s token in %s" % (tok, str(pathlist)))
+        if len(results) > 1:
+            raise ValueError("found %s nodes of type %s looking for %s" %
+                             (len(results), tok, str(pathlist)))
+        curnode = results[0]
+
+    return curnode
+
+
 def read_azure_ovf(contents):
     try:
         dom = minidom.parseString(contents)
@@ -360,6 +383,25 @@ def load_azure_ds_dir(source_dir):
 
     md, ud, cfg = read_azure_ovf(contents)
     return (md, ud, cfg, {'ovf-env.xml': contents})
+
+
+def iid_from_shared_config(path):
+    with open(path, "rb") as fp:
+        content = fp.read()
+    return iid_from_shared_config_content(content)
+
+
+def iid_from_shared_config_content(content):
+    """
+    find INSTANCE_ID in:
+    <?xml version="1.0" encoding="utf-8"?>
+    <SharedConfig version="1.0.0.0" goalStateIncarnation="1">
+      <Deployment name="INSTANCE_ID" guid="{...}" incarnation="0">
+        <Service name="..." guid="{00000000-0000-0000-0000-000000000000}" />
+    """
+    dom = minidom.parseString(content)
+    depnode = single_node_at_path(dom, ["SharedConfig", "Deployment"])
+    return depnode.attributes.get('name').value
 
 
 class BrokenAzureDataSource(Exception):
