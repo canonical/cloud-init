@@ -47,14 +47,8 @@ datasource:
     agent_command: [service, walinuxagent, start]
 
   SmartOS:
-    Smart OS provisions via a serial console actings a server. By default,
-    the second serial console is the device. SmartOS also uses a serial
-    timeout of 60 seconds, although that should never be hit.
-
+    # Smart OS datasource works over a serial console interacting with
+    # a server on the other end. By default, the second serial console is the
+    # device. SmartOS also uses a serial timeout of 60 seconds.
     serial device: /dev/ttyS1
     serial timeout: 60
-
-    To change the defaults, you can define it via a cloud-config by creating
-    a .cfg file in /etc/cloud/cloud.cfg.d with the following:
-        serial_device: /dev/ttyS1
-        serial_timeout: 30
