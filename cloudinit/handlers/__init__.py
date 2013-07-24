@@ -62,6 +62,7 @@ INCLUSION_TYPES_MAP = {
     '#part-handler': 'text/part-handler',
     '#cloud-boothook': 'text/cloud-boothook',
     '#cloud-config-archive': 'text/cloud-config-archive',
+    '#cloud-config-jsonp': 'text/cloud-config-jsonp',
 }
 
 # Sorted longest first
