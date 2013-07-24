@@ -45,4 +45,10 @@ datasource:
 
   Azure:
     agent_command: [service, walinuxagent, start]
-        
+
+  SmartOS:
+    # Smart OS datasource works over a serial console interacting with
+    # a server on the other end. By default, the second serial console is the
+    # device. SmartOS also uses a serial timeout of 60 seconds.
+    serial device: /dev/ttyS1
+    serial timeout: 60

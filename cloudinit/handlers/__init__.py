@@ -152,10 +152,9 @@ def walker_handle_handler(pdata, _ctype, _filename, payload):
     try:
         mod = fixup_handler(importer.import_module(modname))
         call_begin(mod, pdata['data'], frequency)
-        # Only register and increment
-        # after the above have worked (so we don't if it
-        # fails)
-        handlers.register(mod)
+        # Only register and increment after the above have worked, so we don't
+        # register if it fails starting.
+        handlers.register(mod, initialized=True)
         pdata['handlercount'] = curcount + 1
     except:
         util.logexc(LOG, "Failed at registering python file: %s (part "

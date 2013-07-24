@@ -99,6 +99,10 @@ class TestAzureDataSource(MockerTestCase):
             data['pubkey_files'] = flist
             return ["pubkey_from: %s" % f for f in flist]
 
+        def _iid_from_shared_config(path):
+            data['iid_from_shared_cfg'] = path
+            return 'i-my-azure-id'
+
         if data.get('ovfcontent') is not None:
             populate_dir(os.path.join(self.paths.seed_dir, "azure"),
                          {'ovf-env.xml': data['ovfcontent']})
@@ -112,7 +116,9 @@ class TestAzureDataSource(MockerTestCase):
                             (mod, 'write_files', _write_files),
                             (mod, 'wait_for_files', _wait_for_files),
                             (mod, 'pubkeys_from_crt_files',
-                             _pubkeys_from_crt_files)])
+                             _pubkeys_from_crt_files),
+                            (mod, 'iid_from_shared_config',
+                             _iid_from_shared_config), ])
 
         dsrc = mod.DataSourceAzureNet(
             data.get('sys_cfg', {}), distro=None, paths=self.paths)
@@ -131,6 +137,7 @@ class TestAzureDataSource(MockerTestCase):
         self.assertEqual(dsrc.metadata['local-hostname'], odata['HostName'])
         self.assertTrue('ovf-env.xml' in data['files'])
         self.assertEqual(0700, data['datadir_mode'])
+        self.assertEqual(dsrc.metadata['instance-id'], 'i-my-azure-id')
 
     def test_user_cfg_set_agent_command(self):
         cfg = {'agent_command': "my_command"}
@@ -225,6 +232,20 @@ class TestReadAzureOvf(MockerTestCase):
         (_md, _ud, cfg) = DataSourceAzure.read_azure_ovf(content)
         for mypk in mypklist:
             self.assertIn(mypk, cfg['_pubkeys'])
+
+
+class TestReadAzureSharedConfig(MockerTestCase):
+    def test_valid_content(self):
+        xml = """<?xml version="1.0" encoding="utf-8"?>
+            <SharedConfig>
+             <Deployment name="MY_INSTANCE_ID">
+              <Service name="myservice"/>
+              <ServiceInstance name="INSTANCE_ID.0" guid="{abcd-uuid}" />
+             </Deployment>
+            <Incarnation number="1"/>
+            </SharedConfig>"""
+        ret = DataSourceAzure.iid_from_shared_config_content(xml)
+        self.assertEqual("MY_INSTANCE_ID", ret)
 
 
 def apply_patches(patches):

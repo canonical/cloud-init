@@ -135,7 +135,8 @@ class DataSource(object):
 
     @property
     def availability_zone(self):
-        return self.metadata.get('availability-zone')
+        return self.metadata.get('availability-zone',
+                                 self.metadata.get('availability_zone'))
 
     def get_instance_id(self):
         if not self.metadata or 'instance-id' not in self.metadata:
