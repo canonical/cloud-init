@@ -1,3 +1,9 @@
+cloud-init (0.7.3~bzr845-0ubuntu2) saucy; urgency=low
+
+  * debian/control: fix dependency python-json-patch.
+
+ -- Scott Moser <smoser@ubuntu.com>  Wed, 24 Jul 2013 15:01:24 -0400
+
 cloud-init (0.7.3~bzr845-0ubuntu1) saucy; urgency=low
 
   * Reads the currently set value in /etc/cloud/cloud.cfg.d/90_dpkg.cfg to
