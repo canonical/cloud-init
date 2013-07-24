@@ -375,8 +375,9 @@ class Init(object):
                     mod = importer.import_module(mod_locs[0])
                     mod = handlers.fixup_handler(mod)
                     types = c_handlers.register(mod)
-                    LOG.debug("Added custom handler for %s from %s", types,
-                              fname)
+                    if types:
+                        LOG.debug("Added custom handler for %s from %s",
+                                  types, fname)
                 except Exception:
                     util.logexc(LOG, "Failed to register handler from %s",
                                 fname)
