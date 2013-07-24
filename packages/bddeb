@@ -36,6 +36,7 @@ PKG_MP = {
     'prettytable': 'python-prettytable',
     'pyyaml': 'python-yaml',
     'requests': 'python-requests',
+    'jsonpatch': 'python-json-patch',
 }
 DEBUILD_ARGS = ["-us", "-S", "-uc", "-d"]
 
