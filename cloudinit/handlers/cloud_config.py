@@ -54,8 +54,9 @@ DEF_MERGERS = mergers.string_extract_mergers('dict(replace)+list()+str()')
 CLOUD_PREFIX = "#cloud-config"
 
 # The file header -> content types this module will handle.
+CC_JSONP_PRE = "#cloud-config-jsonp"
 CC_TYPES = {
-    '#json-patch': handlers.type_from_starts_with("#json-patch"),
+    CC_JSONP_PRE: handlers.type_from_starts_with(CC_JSONP_PRE),
     '#cloud-config': handlers.type_from_starts_with("#cloud-config"),
 }
 
@@ -116,12 +117,12 @@ class CloudConfigPartHandler(handlers.Handler):
 
     def _merge_patch(self, payload):
         payload = payload.lstrip()
-        if payload.lower().startswith("#json-patch"):
+        if payload.lower().startswith(CC_JSONP_PRE):
             # JSON doesn't handle comments in this manner, so ensure that
             # if we started with this 'type' that we remove it before
             # attempting to load it as json (which the jsonpatch library will
             # attempt to do).
-            payload = payload[len("#json-patch"):]
+            payload = payload[CC_JSONP_PRE:]
         patch = jsonpatch.JsonPatch.from_string(payload)
         LOG.debug("Merging by applying json patch %s", patch)
         self.cloud_buf = patch.apply(self.cloud_buf, in_place=False)
@@ -149,7 +150,7 @@ class CloudConfigPartHandler(handlers.Handler):
             # First time through, merge with an empty dict...
             if self.cloud_buf is None or not self.file_names:
                 self.cloud_buf = {}
-            if ctype == CC_TYPES['#json-patch']:
+            if ctype == CC_TYPES[CC_JSONP_PRE]:
                 self._merge_patch(payload)
             else:
                 self._merge_part(payload, headers)
