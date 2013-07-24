@@ -116,13 +116,12 @@ class CloudConfigPartHandler(handlers.Handler):
         return (payload_yaml, all_mergers)
 
     def _merge_patch(self, payload):
+        # JSON doesn't handle comments in this manner, so ensure that
+        # if we started with this 'type' that we remove it before
+        # attempting to load it as json (which the jsonpatch library will
+        # attempt to do).
         payload = payload.lstrip()
-        if payload.lower().startswith(JSONP_PREFIX):
-            # JSON doesn't handle comments in this manner, so ensure that
-            # if we started with this 'type' that we remove it before
-            # attempting to load it as json (which the jsonpatch library will
-            # attempt to do).
-            payload = payload[JSONP_PREFIX:]
+        payload = util.strip_prefix_suffix(payload, prefix=JSONP_PREFIX)
         patch = jsonpatch.JsonPatch.from_string(payload)
         LOG.debug("Merging by applying json patch %s", patch)
         self.cloud_buf = patch.apply(self.cloud_buf, in_place=False)
