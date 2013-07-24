@@ -72,7 +72,12 @@ class DataSourceSmartOS(sources.DataSource):
             return False
         self.seed = self.seed
 
-        system_uuid, system_type = dmi_data()
+        dmi_info = dmi_data()
+        if dmi_info is False:
+            LOG.debug("No dmidata utility found")
+            return False
+
+        system_uuid, system_type = dmi_info
         if 'smartdc' not in system_type.lower():
             LOG.debug("Host is not on SmartOS")
             return False
