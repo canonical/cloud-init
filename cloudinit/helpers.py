@@ -292,11 +292,16 @@ class ContentHandlers(object):
     def is_registered(self, content_type):
         return content_type in self.registered
 
-    def register(self, mod, initialized=False):
+    def register(self, mod, initialized=False, overwrite=True):
         types = set()
         for t in mod.list_types():
+            if overwrite:
+                types.add(t)
+            else:
+                if not self.is_registered(t):
+                    types.add(t)
+        for t in types:
             self.registered[t] = mod
-            types.add(t)
         if initialized and mod not in self.initialized:
             self.initialized.append(mod)
         return types
