@@ -315,15 +315,6 @@ class ContentHandlers(object):
     def iteritems(self):
         return self.registered.iteritems()
 
-    def register_defaults(self, defs):
-        registered = set()
-        for mod in defs:
-            for t in mod.list_types():
-                if not self.is_registered(t):
-                    self.registered[t] = mod
-                    registered.add(t)
-        return registered
-
 
 class Paths(object):
     def __init__(self, path_cfgs, ds=None):
