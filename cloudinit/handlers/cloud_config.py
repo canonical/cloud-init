@@ -51,6 +51,7 @@ MERGE_HEADER = 'Merge-Type'
 #
 # This gets loaded into yaml with final result {'a': 22}
 DEF_MERGERS = mergers.string_extract_mergers('dict(replace)+list()+str()')
+CLOUD_PREFIX = "#cloud-config"
 
 # The file header -> content types this module will handle.
 CC_TYPES = {
@@ -84,7 +85,7 @@ class CloudConfigPartHandler(handlers.Handler):
         if self.cloud_buf is not None:
             # Something was actually gathered....
             lines = [
-                "#cloud-config",
+                CLOUD_PREFIX,
                 '',
             ]
             lines.extend(file_lines)

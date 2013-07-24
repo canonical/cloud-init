@@ -31,6 +31,7 @@ from cloudinit import util
 from cloudinit.settings import (PER_INSTANCE)
 
 LOG = logging.getLogger(__name__)
+UPSTART_PREFIX = "#upstart-job"
 
 
 class UpstartJobPartHandler(handlers.Handler):
@@ -40,7 +41,7 @@ class UpstartJobPartHandler(handlers.Handler):
 
     def list_types(self):
         return [
-            handlers.type_from_starts_with("#upstart-job"),
+            handlers.type_from_starts_with(UPSTART_PREFIX),
         ]
 
     def handle_part(self, _data, ctype, filename,  # pylint: disable=W0221

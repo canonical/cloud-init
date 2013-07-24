@@ -5,6 +5,10 @@
    'initctl reload-configuration' (LP: #1124384).  If so, then invoke it.
  - add Azure datasource.
  - add support for SuSE / SLES [Juerg Haefliger]
+ - add a trailing carriage return to chpasswd input, which reportedly
+   caused a problem on rhel5 if missing.
+ - support individual MIME segments to be gzip compressed (LP: #1203203)
+ - always finalize handlers even if processing failed (LP: #1203368)
 0.7.2:
  - add a debian watch file
  - add 'sudo' entry to ubuntu's default user (LP: #1080717)
