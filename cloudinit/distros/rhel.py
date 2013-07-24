@@ -23,14 +23,11 @@
 import os
 
 from cloudinit import distros
-
-from cloudinit.distros.parsers.resolv_conf import ResolvConf
-from cloudinit.distros.parsers.sys_conf import SysConf
-
 from cloudinit import helpers
 from cloudinit import log as logging
 from cloudinit import util
 
+from cloudinit.distros import rhel_util
 from cloudinit.settings import PER_INSTANCE
 
 LOG = logging.getLogger(__name__)
@@ -67,32 +64,9 @@ class Distro(distros.Distro):
     def install_packages(self, pkglist):
         self.package_command('install', pkgs=pkglist)
 
-    def _adjust_resolve(self, dns_servers, search_servers):
-        try:
-            r_conf = ResolvConf(util.load_file(self.resolve_conf_fn))
-            r_conf.parse()
-        except IOError:
-            util.logexc(LOG, "Failed at parsing %s reverting to an empty "
-                        "instance", self.resolve_conf_fn)
-            r_conf = ResolvConf('')
-            r_conf.parse()
-        if dns_servers:
-            for s in dns_servers:
-                try:
-                    r_conf.add_nameserver(s)
-                except ValueError:
-                    util.logexc(LOG, "Failed at adding nameserver %s", s)
-        if search_servers:
-            for s in search_servers:
-                try:
-                    r_conf.add_search_domain(s)
-                except ValueError:
-                    util.logexc(LOG, "Failed at adding search domain %s", s)
-        util.write_file(self.resolve_conf_fn, str(r_conf), 0644)
-
     def _write_network(self, settings):
         # TODO(harlowja) fix this... since this is the ubuntu format
-        entries = translate_network(settings)
+        entries = rhel_util.translate_network(settings)
         LOG.debug("Translated ubuntu style network settings %s into %s",
                   settings, entries)
         # Make the intermediate format as the rhel format...
@@ -111,40 +85,20 @@ class Distro(distros.Distro):
                 'MACADDR': info.get('hwaddress'),
                 'ONBOOT': _make_sysconfig_bool(info.get('auto')),
             }
-            self._update_sysconfig_file(net_fn, net_cfg)
+            rhel_util.update_sysconfig_file(net_fn, net_cfg)
             if 'dns-nameservers' in info:
                 nameservers.extend(info['dns-nameservers'])
             if 'dns-search' in info:
                 searchservers.extend(info['dns-search'])
         if nameservers or searchservers:
-            self._adjust_resolve(nameservers, searchservers)
+            rhel_util.update_resolve_conf_file(self.resolve_conf_fn,
+                                               nameservers, searchservers)
         if dev_names:
             net_cfg = {
                 'NETWORKING': _make_sysconfig_bool(True),
             }
-            self._update_sysconfig_file(self.network_conf_fn, net_cfg)
+            rhel_util.update_sysconfig_file(self.network_conf_fn, net_cfg)
         return dev_names
-
-    def _update_sysconfig_file(self, fn, adjustments, allow_empty=False):
-        if not adjustments:
-            return
-        (exists, contents) = self._read_conf(fn)
-        updated_am = 0
-        for (k, v) in adjustments.items():
-            if v is None:
-                continue
-            v = str(v)
-            if len(v) == 0 and not allow_empty:
-                continue
-            contents[k] = v
-            updated_am += 1
-        if updated_am:
-            lines = [
-                str(contents),
-            ]
-            if not exists:
-                lines.insert(0, util.make_header())
-            util.write_file(fn, "\n".join(lines) + "\n", 0644)
 
     def _dist_uses_systemd(self):
         # Fedora 18 and RHEL 7 were the first adopters in their series
@@ -164,7 +118,7 @@ class Distro(distros.Distro):
         locale_cfg = {
             'LANG': locale,
         }
-        self._update_sysconfig_file(out_fn, locale_cfg)
+        rhel_util.update_sysconfig_file(out_fn, locale_cfg)
 
     def _write_hostname(self, hostname, out_fn):
         if self._dist_uses_systemd():
@@ -173,7 +127,7 @@ class Distro(distros.Distro):
             host_cfg = {
                 'HOSTNAME': hostname,
             }
-            self._update_sysconfig_file(out_fn, host_cfg)
+            rhel_util.update_sysconfig_file(out_fn, host_cfg)
 
     def _select_hostname(self, hostname, fqdn):
         # See: http://bit.ly/TwitgL
@@ -197,21 +151,11 @@ class Distro(distros.Distro):
             else:
                 return default
         else:
-            (_exists, contents) = self._read_conf(filename)
+            (_exists, contents) = rhel_util.read_sysconfig_file(filename)
             if 'HOSTNAME' in contents:
                 return contents['HOSTNAME']
             else:
                 return default
-
-    def _read_conf(self, fn):
-        exists = False
-        try:
-            contents = util.load_file(fn).splitlines()
-            exists = True
-        except IOError:
-            contents = []
-        return (exists,
-                SysConf(contents))
 
     def _bring_up_interfaces(self, device_names):
         if device_names and 'all' in device_names:
@@ -236,7 +180,7 @@ class Distro(distros.Distro):
             clock_cfg = {
                 'ZONE': str(tz),
             }
-            self._update_sysconfig_file(self.clock_conf_fn, clock_cfg)
+            rhel_util.update_sysconfig_file(self.clock_conf_fn, clock_cfg)
             # This ensures that the correct tz will be used for the system
             util.copy(tz_file, self.tz_local_fn)
 
@@ -271,90 +215,3 @@ class Distro(distros.Distro):
     def update_package_sources(self):
         self._runner.run("update-sources", self.package_command,
                          ["makecache"], freq=PER_INSTANCE)
-
-
-# This is a util function to translate a ubuntu /etc/network/interfaces 'blob'
-# to a rhel equiv. that can then be written to /etc/sysconfig/network-scripts/
-# TODO(harlowja) remove when we have python-netcf active...
-def translate_network(settings):
-    # Get the standard cmd, args from the ubuntu format
-    entries = []
-    for line in settings.splitlines():
-        line = line.strip()
-        if not line or line.startswith("#"):
-            continue
-        split_up = line.split(None, 1)
-        if len(split_up) <= 1:
-            continue
-        entries.append(split_up)
-    # Figure out where each iface section is
-    ifaces = []
-    consume = {}
-    for (cmd, args) in entries:
-        if cmd == 'iface':
-            if consume:
-                ifaces.append(consume)
-                consume = {}
-            consume[cmd] = args
-        else:
-            consume[cmd] = args
-    # Check if anything left over to consume
-    absorb = False
-    for (cmd, args) in consume.iteritems():
-        if cmd == 'iface':
-            absorb = True
-    if absorb:
-        ifaces.append(consume)
-    # Now translate
-    real_ifaces = {}
-    for info in ifaces:
-        if 'iface' not in info:
-            continue
-        iface_details = info['iface'].split(None)
-        dev_name = None
-        if len(iface_details) >= 1:
-            dev = iface_details[0].strip().lower()
-            if dev:
-                dev_name = dev
-        if not dev_name:
-            continue
-        iface_info = {}
-        if len(iface_details) >= 3:
-            proto_type = iface_details[2].strip().lower()
-            # Seems like this can be 'loopback' which we don't
-            # really care about
-            if proto_type in ['dhcp', 'static']:
-                iface_info['bootproto'] = proto_type
-        # These can just be copied over
-        for k in ['netmask', 'address', 'gateway', 'broadcast']:
-            if k in info:
-                val = info[k].strip().lower()
-                if val:
-                    iface_info[k] = val
-        # Name server info provided??
-        if 'dns-nameservers' in info:
-            iface_info['dns-nameservers'] = info['dns-nameservers'].split()
-        # Name server search info provided??
-        if 'dns-search' in info:
-            iface_info['dns-search'] = info['dns-search'].split()
-        # Is any mac address spoofing going on??
-        if 'hwaddress' in info:
-            hw_info = info['hwaddress'].lower().strip()
-            hw_split = hw_info.split(None, 1)
-            if len(hw_split) == 2 and hw_split[0].startswith('ether'):
-                hw_addr = hw_split[1]
-                if hw_addr:
-                    iface_info['hwaddress'] = hw_addr
-        real_ifaces[dev_name] = iface_info
-    # Check for those that should be started on boot via 'auto'
-    for (cmd, args) in entries:
-        if cmd == 'auto':
-            # Seems like auto can be like 'auto eth0 eth0:1' so just get the
-            # first part out as the device name
-            args = args.split(None)
-            if not args:
-                continue
-            dev_name = args[0].strip().lower()
-            if dev_name in real_ifaces:
-                real_ifaces[dev_name]['auto'] = True
-    return real_ifaces

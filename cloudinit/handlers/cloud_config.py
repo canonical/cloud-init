@@ -20,6 +20,8 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+import jsonpatch
+
 from cloudinit import handlers
 from cloudinit import log as logging
 from cloudinit import mergers
@@ -49,6 +51,14 @@ MERGE_HEADER = 'Merge-Type'
 #
 # This gets loaded into yaml with final result {'a': 22}
 DEF_MERGERS = mergers.string_extract_mergers('dict(replace)+list()+str()')
+CLOUD_PREFIX = "#cloud-config"
+JSONP_PREFIX = "#cloud-config-jsonp"
+
+# The file header -> content types this module will handle.
+CC_TYPES = {
+    JSONP_PREFIX: handlers.type_from_starts_with(JSONP_PREFIX),
+    CLOUD_PREFIX: handlers.type_from_starts_with(CLOUD_PREFIX),
+}
 
 
 class CloudConfigPartHandler(handlers.Handler):
@@ -59,9 +69,7 @@ class CloudConfigPartHandler(handlers.Handler):
         self.file_names = []
 
     def list_types(self):
-        return [
-            handlers.type_from_starts_with("#cloud-config"),
-        ]
+        return list(CC_TYPES.values())
 
     def _write_cloud_config(self):
         if not self.cloud_fn:
@@ -78,7 +86,7 @@ class CloudConfigPartHandler(handlers.Handler):
         if self.cloud_buf is not None:
             # Something was actually gathered....
             lines = [
-                "#cloud-config",
+                CLOUD_PREFIX,
                 '',
             ]
             lines.extend(file_lines)
@@ -107,13 +115,21 @@ class CloudConfigPartHandler(handlers.Handler):
             all_mergers = DEF_MERGERS
         return (payload_yaml, all_mergers)
 
+    def _merge_patch(self, payload):
+        # JSON doesn't handle comments in this manner, so ensure that
+        # if we started with this 'type' that we remove it before
+        # attempting to load it as json (which the jsonpatch library will
+        # attempt to do).
+        payload = payload.lstrip()
+        payload = util.strip_prefix_suffix(payload, prefix=JSONP_PREFIX)
+        patch = jsonpatch.JsonPatch.from_string(payload)
+        LOG.debug("Merging by applying json patch %s", patch)
+        self.cloud_buf = patch.apply(self.cloud_buf, in_place=False)
+
     def _merge_part(self, payload, headers):
         (payload_yaml, my_mergers) = self._extract_mergers(payload, headers)
         LOG.debug("Merging by applying %s", my_mergers)
         merger = mergers.construct(my_mergers)
-        if self.cloud_buf is None:
-            # First time through, merge with an empty dict...
-            self.cloud_buf = {}
         self.cloud_buf = merger.merge(self.cloud_buf, payload_yaml)
 
     def _reset(self):
@@ -130,7 +146,13 @@ class CloudConfigPartHandler(handlers.Handler):
             self._reset()
             return
         try:
-            self._merge_part(payload, headers)
+            # First time through, merge with an empty dict...
+            if self.cloud_buf is None or not self.file_names:
+                self.cloud_buf = {}
+            if ctype == CC_TYPES[JSONP_PREFIX]:
+                self._merge_patch(payload)
+            else:
+                self._merge_part(payload, headers)
             # Ensure filename is ok to store
             for i in ("\n", "\r", "\t"):
                 filename = filename.replace(i, " ")

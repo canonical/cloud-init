@@ -146,7 +146,8 @@ class FilesystemMockingTestCase(ResourceUsingTestCase):
                    ('chmod', 1),
                    ('delete_dir_contents', 1),
                    ('del_file', 1),
-                   ('sym_link', -1)],
+                   ('sym_link', -1),
+                   ('copy', -1)],
         }
         for (mod, funcs) in patch_funcs.items():
             for (f, am) in funcs:

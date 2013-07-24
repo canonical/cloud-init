@@ -1,3 +1,18 @@
+cloud-init (0.7.3~bzr845-0ubuntu1) saucy; urgency=low
+
+  * Reads the currently set value in /etc/cloud/cloud.cfg.d/90_dpkg.cfg to
+    db_set the value of cloud-init/datasources. (Closes: #709773)
+  * New upstream snapshot.
+    * azure: use deployment-id rather than static instance-id (LP: #1204190)
+    * config-drive: make 'availability_zone' available. (LP: #1190431)
+    * finalize handlers even on error (LP: #1203368)
+    * azure: fix password based access (LP: #1201969)
+    * add smartos (Joyent cloud) datasource
+    * support patching cloud-config via jsonp (LP: #1200476)
+  * debian/control: add dependency on python-jsonp
+
+ -- Scott Moser <smoser@ubuntu.com>  Wed, 24 Jul 2013 13:47:53 -0400
+
 cloud-init (0.7.3~bzr829-0ubuntu1) saucy; urgency=low
 
   * New upstream snapshot.

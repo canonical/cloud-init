@@ -1530,6 +1530,14 @@ def shellify(cmdlist, add_header=True):
     return content
 
 
+def strip_prefix_suffix(line, prefix=None, suffix=None):
+    if prefix and line.startswith(prefix):
+        line = line[len(prefix):]
+    if suffix and line.endswith(suffix):
+        line = line[:-len(suffix)]
+    return line
+
+
 def is_container():
     """
     Checks to see if this code running in a container of some sort
@@ -1743,3 +1751,22 @@ def get_mount_info(path, log=LOG):
     mountinfo_path = '/proc/%s/mountinfo' % os.getpid()
     lines = load_file(mountinfo_path).splitlines()
     return parse_mount_info(path, lines, log)
+
+
+def which(program):
+    # Return path of program for execution if found in path
+    def is_exe(fpath):
+        return os.path.isfile(fpath) and os.access(fpath, os.X_OK)
+
+    _fpath, _ = os.path.split(program)
+    if _fpath:
+        if is_exe(program):
+            return program
+    else:
+        for path in os.environ["PATH"].split(os.pathsep):
+            path = path.strip('"')
+            exe_file = os.path.join(path, program)
+            if is_exe(exe_file):
+                return exe_file
+
+    return None

@@ -75,7 +75,7 @@ def handle(_name, cfg, cloud, log, args):
             plist_in.append("%s:%s" % (u, p))
             users.append(u)
 
-        ch_in = '\n'.join(plist_in)
+        ch_in = '\n'.join(plist_in) + '\n'
         try:
             log.debug("Changing password for %s:", users)
             util.subp(['chpasswd'], ch_in)
