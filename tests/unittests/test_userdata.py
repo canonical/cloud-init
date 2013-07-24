@@ -6,6 +6,7 @@ import logging
 import os
 
 from email.mime.base import MIMEBase
+from email.mime.multipart import MIMEMultipart
 
 from cloudinit import handlers
 from cloudinit import helpers as c_helpers
@@ -49,6 +50,64 @@ class TestConsumeUserData(helpers.FilesystemMockingTestCase):
         self._log = log.getLogger()
         self._log.addHandler(self._log_handler)
         return log_file
+
+    def test_simple_jsonp(self):
+        blob = '''
+#cloud-config-jsonp
+[
+     { "op": "add", "path": "/baz", "value": "qux" },
+     { "op": "add", "path": "/bar", "value": "qux2" }
+]
+'''
+
+        ci = stages.Init()
+        ci.datasource = FakeDataSource(blob)
+        new_root = self.makeDir()
+        self.patchUtils(new_root)
+        self.patchOS(new_root)
+        ci.fetch()
+        ci.consume_userdata()
+        cc_contents = util.load_file(ci.paths.get_ipath("cloud_config"))
+        cc = util.load_yaml(cc_contents)
+        self.assertEquals(2, len(cc))
+        self.assertEquals('qux', cc['baz'])
+        self.assertEquals('qux2', cc['bar'])
+
+    def test_mixed_cloud_config(self):
+        blob_cc = '''
+#cloud-config
+a: b
+c: d
+'''
+        message_cc = MIMEBase("text", "cloud-config")
+        message_cc.set_payload(blob_cc)
+
+        blob_jp = '''
+#cloud-config-jsonp
+[
+     { "op": "replace", "path": "/a", "value": "c" },
+     { "op": "remove", "path": "/c" }
+]
+'''
+
+        message_jp = MIMEBase('text', "cloud-config-jsonp")
+        message_jp.set_payload(blob_jp)
+
+        message = MIMEMultipart()
+        message.attach(message_cc)
+        message.attach(message_jp)
+
+        ci = stages.Init()
+        ci.datasource = FakeDataSource(str(message))
+        new_root = self.makeDir()
+        self.patchUtils(new_root)
+        self.patchOS(new_root)
+        ci.fetch()
+        ci.consume_userdata()
+        cc_contents = util.load_file(ci.paths.get_ipath("cloud_config"))
+        cc = util.load_yaml(cc_contents)
+        self.assertEquals(1, len(cc))
+        self.assertEquals('c', cc['a'])
 
     def test_merging_cloud_config(self):
         blob = '''
