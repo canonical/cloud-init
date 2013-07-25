@@ -54,7 +54,7 @@ class DataSourceAzureNet(sources.DataSource):
         self.cfg = {}
         self.seed = None
         self.ds_cfg = util.mergemanydict([
-            util.get_cfg_by_path(sys_cfg, DS_CFG_PATH),
+            util.get_cfg_by_path(sys_cfg, DS_CFG_PATH, {}),
             BUILTIN_DS_CONFIG])
 
     def __str__(self):
