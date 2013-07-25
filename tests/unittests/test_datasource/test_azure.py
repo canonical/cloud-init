@@ -170,7 +170,6 @@ class TestAzureDataSource(MockerTestCase):
                 'dscfg': {'text': base64.b64encode(yaml.dump(cfg)),
                           'encoding': 'base64'}}
         data = {'ovfcontent': construct_valid_ovf_env(data=odata)}
-        print data
 
         dsrc = self._get_ds(data)
         ret = dsrc.get_data()
