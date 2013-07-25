@@ -11,6 +11,7 @@
 
 # Authors: Julien Danjou <acid@debian.org>
 #          Juerg Haefliger <juerg.haefliger@hp.com>
+#          Thomas Goirand <zigo@debian.org>
 
 PATH=/sbin:/usr/sbin:/bin:/usr/bin
 DESC="Cloud service"
@@ -29,6 +30,17 @@ SCRIPTNAME=/etc/init.d/$NAME
 # Depend on lsb-base (>= 3.2-14) to ensure that this file is present
 # and status_of_proc is working.
 . /lib/lsb/init-functions
+
+if init_is_upstart; then
+	case "$1" in
+	stop)
+		exit 0
+	;;
+	*)
+		exit 1
+	;;
+	esac
+fi
 
 case "$1" in
 start)

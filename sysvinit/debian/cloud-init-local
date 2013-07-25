@@ -30,6 +30,17 @@ SCRIPTNAME=/etc/init.d/$NAME
 # and status_of_proc is working.
 . /lib/lsb/init-functions
 
+if init_is_upstart; then
+	case "$1" in
+	stop)
+		exit 0
+	;;
+	*)
+		exit 1
+	;;
+	esac
+fi
+
 case "$1" in
 start)
 	log_daemon_msg "Starting $DESC" "$NAME"
