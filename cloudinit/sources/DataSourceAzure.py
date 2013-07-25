@@ -31,9 +31,20 @@ LOG = logging.getLogger(__name__)
 DS_NAME = 'Azure'
 DEFAULT_METADATA = {"instance-id": "iid-AZURE-NODE"}
 AGENT_START = ['service', 'walinuxagent', 'start']
-BUILTIN_DS_CONFIG = {'datasource': {DS_NAME: {
-     'agent_command': AGENT_START,
-     'data_dir': "/var/lib/waagent"}}}
+BOUNCE_COMMAND = ("i=$interface; x=0; ifdown $i || x=$?; "
+                  "ifup $i || x=$?; exit $x")
+BUILTIN_DS_CONFIG = {
+    'agent_command': AGENT_START,
+    'data_dir': "/var/lib/waagent",
+    'set_hostname': True,
+    'hostname_bounce': {
+        'interface': 'eth0',
+        'policy': True,
+        'command': BOUNCE_COMMAND,
+        'hostname_command': 'hostname',
+    }
+}
+DS_CFG_PATH = ['datasource', DS_NAME]
 
 
 class DataSourceAzureNet(sources.DataSource):
@@ -42,19 +53,19 @@ class DataSourceAzureNet(sources.DataSource):
         self.seed_dir = os.path.join(paths.seed_dir, 'azure')
         self.cfg = {}
         self.seed = None
+        self.ds_cfg = util.mergemanydict([
+            util.get_cfg_by_path(sys_cfg, DS_CFG_PATH, {}),
+            BUILTIN_DS_CONFIG])
 
     def __str__(self):
         root = sources.DataSource.__str__(self)
         return "%s [seed=%s]" % (root, self.seed)
 
     def get_data(self):
-        ddir_cfgpath = ['datasource', DS_NAME, 'data_dir']
         # azure removes/ejects the cdrom containing the ovf-env.xml
         # file on reboot.  So, in order to successfully reboot we
         # need to look in the datadir and consider that valid
-        ddir = util.get_cfg_by_path(self.sys_cfg, ddir_cfgpath)
-        if ddir is None:
-            ddir = util.get_cfg_by_path(BUILTIN_DS_CONFIG, ddir_cfgpath)
+        ddir = self.ds_cfg['data_dir']
 
         candidates = [self.seed_dir]
         candidates.extend(list_possible_azure_ds_devs())
@@ -91,36 +102,40 @@ class DataSourceAzureNet(sources.DataSource):
             return False
 
         if found == ddir:
-            LOG.debug("using cached datasource in %s", ddir)
+            LOG.debug("using files cached in %s", ddir)
 
-        fields = [('cmd', ['datasource', DS_NAME, 'agent_command']),
-                  ('datadir', ddir_cfgpath)]
-        mycfg = {}
-        for cfg in (self.cfg, self.sys_cfg, BUILTIN_DS_CONFIG):
-            for name, path in fields:
-                if name in mycfg:
-                    continue
-                value = util.get_cfg_by_path(cfg, keyp=path)
-                if value is not None:
-                    mycfg[name] = value
+        # now update ds_cfg to reflect contents pass in config
+        usercfg = util.get_cfg_by_path(self.cfg, DS_CFG_PATH, {})
+        self.ds_cfg = util.mergemanydict([usercfg, self.ds_cfg])
+        mycfg = self.ds_cfg
 
         # walinux agent writes files world readable, but expects
         # the directory to be protected.
-        write_files(mycfg['datadir'], files, dirmode=0700)
+        write_files(mycfg['data_dir'], files, dirmode=0700)
+
+        # handle the hostname 'publishing'
+        try:
+            handle_set_hostname(mycfg.get('set_hostname'),
+                                self.metadata.get('local-hostname'),
+                                mycfg['hostname_bounce'])
+        except Exception as e:
+            LOG.warn("Failed publishing hostname: %s" % e)
+            util.logexc(LOG, "handling set_hostname failed")
 
         try:
-            invoke_agent(mycfg['cmd'])
+            invoke_agent(mycfg['agent_command'])
         except util.ProcessExecutionError:
             # claim the datasource even if the command failed
-            util.logexc(LOG, "agent command '%s' failed.", mycfg['cmd'])
+            util.logexc(LOG, "agent command '%s' failed.",
+                        mycfg['agent_command'])
 
-        shcfgxml = os.path.join(mycfg['datadir'], "SharedConfig.xml")
+        shcfgxml = os.path.join(mycfg['data_dir'], "SharedConfig.xml")
         wait_for = [shcfgxml]
 
         fp_files = []
         for pk in self.cfg.get('_pubkeys', []):
             bname = pk['fingerprint'] + ".crt"
-            fp_files += [os.path.join(mycfg['datadir'], bname)]
+            fp_files += [os.path.join(mycfg['data_dir'], bname)]
 
         start = time.time()
         missing = wait_for_files(wait_for + fp_files)
@@ -146,6 +161,43 @@ class DataSourceAzureNet(sources.DataSource):
 
     def get_config_obj(self):
         return self.cfg
+
+
+def handle_set_hostname(enabled, hostname, cfg):
+    if not util.is_true(enabled):
+        return
+
+    if not hostname:
+        LOG.warn("set_hostname was true but no local-hostname")
+        return
+
+    apply_hostname_bounce(hostname=hostname, policy=cfg['policy'],
+                          interface=cfg['interface'],
+                          command=cfg['command'],
+                          hostname_command=cfg['hostname_command'])
+
+
+def apply_hostname_bounce(hostname, policy, interface, command,
+                          hostname_command="hostname"):
+    # set the hostname to 'hostname' if it is not already set to that.
+    # then, if policy is not off, bounce the interface using command
+    prev_hostname = util.subp(hostname_command, capture=True)[0].strip()
+
+    util.subp([hostname_command, hostname])
+
+    if util.is_false(policy):
+        return
+
+    if prev_hostname == hostname and policy != "force":
+        return
+
+    env = os.environ.copy()
+    env['interface'] = interface
+
+    if command == "builtin":
+        command = BOUNCE_COMMAND
+
+    util.subp(command, shell=(not isinstance(command, list)), capture=True)
 
 
 def crtfile_to_pubkey(fname):
@@ -319,15 +371,21 @@ def read_azure_ovf(contents):
         name = child.localName.lower()
 
         simple = False
+        value = ""
         if (len(child.childNodes) == 1 and
             child.childNodes[0].nodeType == dom.TEXT_NODE):
             simple = True
             value = child.childNodes[0].wholeText
 
+        attrs = {k: v for k, v in child.attributes.items()}
+
         # we accept either UserData or CustomData.  If both are present
         # then behavior is undefined.
         if (name == "userdata" or name == "customdata"):
-            ud = base64.b64decode(''.join(value.split()))
+            if attrs.get('encoding') in (None, "base64"):
+                ud = base64.b64decode(''.join(value.split()))
+            else:
+                ud = value
         elif name == "username":
             username = value
         elif name == "userpassword":
@@ -335,7 +393,11 @@ def read_azure_ovf(contents):
         elif name == "hostname":
             md['local-hostname'] = value
         elif name == "dscfg":
-            cfg['datasource'] = {DS_NAME: util.load_yaml(value, default={})}
+            if attrs.get('encoding') in (None, "base64"):
+                dscfg = base64.b64decode(''.join(value.split()))
+            else:
+                dscfg = value
+            cfg['datasource'] = {DS_NAME: util.load_yaml(dscfg, default={})}
         elif name == "ssh":
             cfg['_pubkeys'] = load_azure_ovf_pubkeys(child)
         elif name == "disablesshpasswordauthentication":

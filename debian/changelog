@@ -1,3 +1,10 @@
+cloud-init (0.7.3~bzr849-0ubuntu1) saucy; urgency=low
+
+  * New upstream snapshot.
+    * azure: support publishing hostname via bouncing interface (LP: #1202758)
+
+ -- Scott Moser <smoser@ubuntu.com>  Thu, 25 Jul 2013 17:08:30 -0400
+
 cloud-init (0.7.3~bzr845-0ubuntu2) saucy; urgency=low
 
   * debian/control: fix dependency python-json-patch.

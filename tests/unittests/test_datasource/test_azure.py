@@ -26,8 +26,15 @@ def construct_valid_ovf_env(data=None, pubkeys=None, userdata=None):
   xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
   <ConfigurationSetType>LinuxProvisioningConfiguration</ConfigurationSetType>
     """
-    for key, val in data.items():
-        content += "<%s>%s</%s>\n" % (key, val, key)
+    for key, dval in data.items():
+        if isinstance(dval, dict):
+            val = dval.get('text')
+            attrs = ' ' + ' '.join(["%s='%s'" % (k, v) for k, v in dval.items()
+                                    if k != 'text'])
+        else:
+            val = dval
+            attrs = ""
+        content += "<%s%s>%s</%s>\n" % (key, attrs, val, key)
 
     if userdata:
         content += "<UserData>%s</UserData>\n" % (base64.b64encode(userdata))
@@ -103,6 +110,9 @@ class TestAzureDataSource(MockerTestCase):
             data['iid_from_shared_cfg'] = path
             return 'i-my-azure-id'
 
+        def _apply_hostname_bounce(**kwargs):
+            data['apply_hostname_bounce'] = kwargs
+
         if data.get('ovfcontent') is not None:
             populate_dir(os.path.join(self.paths.seed_dir, "azure"),
                          {'ovf-env.xml': data['ovfcontent']})
@@ -118,7 +128,9 @@ class TestAzureDataSource(MockerTestCase):
                             (mod, 'pubkeys_from_crt_files',
                              _pubkeys_from_crt_files),
                             (mod, 'iid_from_shared_config',
-                             _iid_from_shared_config), ])
+                             _iid_from_shared_config),
+                            (mod, 'apply_hostname_bounce',
+                             _apply_hostname_bounce), ])
 
         dsrc = mod.DataSourceAzureNet(
             data.get('sys_cfg', {}), distro=None, paths=self.paths)
@@ -139,10 +151,24 @@ class TestAzureDataSource(MockerTestCase):
         self.assertEqual(0700, data['datadir_mode'])
         self.assertEqual(dsrc.metadata['instance-id'], 'i-my-azure-id')
 
-    def test_user_cfg_set_agent_command(self):
+    def test_user_cfg_set_agent_command_plain(self):
+        # set dscfg in via plaintext
         cfg = {'agent_command': "my_command"}
         odata = {'HostName': "myhost", 'UserName': "myuser",
-                'dscfg': yaml.dump(cfg)}
+                'dscfg': {'text': yaml.dump(cfg), 'encoding': 'plain'}}
+        data = {'ovfcontent': construct_valid_ovf_env(data=odata)}
+
+        dsrc = self._get_ds(data)
+        ret = dsrc.get_data()
+        self.assertTrue(ret)
+        self.assertEqual(data['agent_invoked'], cfg['agent_command'])
+
+    def test_user_cfg_set_agent_command(self):
+        # set dscfg in via base64 encoded yaml
+        cfg = {'agent_command': "my_command"}
+        odata = {'HostName': "myhost", 'UserName': "myuser",
+                'dscfg': {'text': base64.b64encode(yaml.dump(cfg)),
+                          'encoding': 'base64'}}
         data = {'ovfcontent': construct_valid_ovf_env(data=odata)}
 
         dsrc = self._get_ds(data)
@@ -217,6 +243,48 @@ class TestAzureDataSource(MockerTestCase):
         self.assertTrue(ret)
         for mypk in mypklist:
             self.assertIn(mypk, dsrc.cfg['_pubkeys'])
+
+    def test_disabled_bounce(self):
+        pass
+
+    def test_apply_bounce_call_1(self):
+        # hostname needs to get through to apply_hostname_bounce
+        mydata = "FOOBAR"
+        odata = {'HostName': 'my-random-hostname'}
+        data = {'ovfcontent': construct_valid_ovf_env(data=odata)}
+
+        self._get_ds(data).get_data()
+        self.assertIn('hostname', data['apply_hostname_bounce'])
+        self.assertEqual(data['apply_hostname_bounce']['hostname'],
+                         odata['HostName'])
+
+    def test_apply_bounce_call_configurable(self):
+        # hostname_bounce should be configurable in datasource cfg
+        cfg = {'hostname_bounce': {'interface': 'eth1', 'policy': 'off',
+                                   'command': 'my-bounce-command',
+                                   'hostname_command': 'my-hostname-command'}}
+        odata = {'HostName': "xhost",
+                'dscfg': {'text': base64.b64encode(yaml.dump(cfg)),
+                          'encoding': 'base64'}}
+        data = {'ovfcontent': construct_valid_ovf_env(data=odata)}
+        self._get_ds(data).get_data()
+
+        for k in cfg['hostname_bounce']:
+            self.assertIn(k, data['apply_hostname_bounce'])
+
+        for k, v in cfg['hostname_bounce'].items():
+            self.assertEqual(data['apply_hostname_bounce'][k], v)
+
+    def test_set_hostname_disabled(self):
+        # config specifying set_hostname off should not bounce
+        cfg = {'set_hostname': False}
+        odata = {'HostName': "xhost",
+                'dscfg': {'text': base64.b64encode(yaml.dump(cfg)),
+                          'encoding': 'base64'}}
+        data = {'ovfcontent': construct_valid_ovf_env(data=odata)}
+        self._get_ds(data).get_data()
+
+        self.assertEqual(data.get('apply_hostname_bounce', "N/A"), "N/A")
 
 
 class TestReadAzureOvf(MockerTestCase):
