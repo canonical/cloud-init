@@ -44,7 +44,6 @@ class Distro(distros.Distro):
     network_conf_fn = "/etc/network/interfaces"
     tz_conf_fn = "/etc/timezone"
     tz_local_fn = "/etc/localtime"
-    tz_zone_dir = "/usr/share/zoneinfo"
 
     def __init__(self, name, cfg, paths):
         distros.Distro.__init__(self, name, cfg, paths)
@@ -130,12 +129,7 @@ class Distro(distros.Distro):
         return "127.0.1.1"
 
     def set_timezone(self, tz):
-        # TODO(harlowja): move this code into
-        # the parent distro...
-        tz_file = os.path.join(self.tz_zone_dir, str(tz))
-        if not os.path.isfile(tz_file):
-            raise RuntimeError(("Invalid timezone %s,"
-                                " no file found at %s") % (tz, tz_file))
+        tz_file = self._find_tz_file(tz)
         # Note: "" provides trailing newline during join
         tz_lines = [
             util.make_header(),
