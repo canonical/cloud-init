@@ -94,11 +94,19 @@ def main():
                         default=False,
                         action='store_true')
 
+    parser.add_argument("--init-system", dest="init_system",
+                        help=("build deb with INIT_SYSTEM=xxx"
+                              " (default: %(default)s"),
+                        default=os.environ.get("INIT_SYSTEM", "upstart"))
+
+
     for ent in DEBUILD_ARGS:
         parser.add_argument(ent, dest="debuild_args", action='append_const',
             const=ent, help=("pass through '%s' to debuild" % ent))
 
     args = parser.parse_args()
+
+    os.environ['INIT_SYSTEM'] = args.init_system
 
     capture = True
     if args.verbose:
