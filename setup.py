@@ -37,8 +37,8 @@ def is_f(p):
 
 
 INITSYS_FILES = {
-    'sysvinit': [f for f in glob('sysvinit/*') if is_f(f)],
-    'sysvinit_deb': [f for f in glob('sysvinit/*') if is_f(f)],
+    'sysvinit': [f for f in glob('sysvinit/redhat/*') if is_f(f)],
+    'sysvinit_deb': [f for f in glob('sysvinit/debian/*') if is_f(f)],
     'systemd': [f for f in glob('systemd/*') if is_f(f)],
     'upstart': [f for f in glob('upstart/*') if is_f(f)],
 }
