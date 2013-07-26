@@ -1,3 +1,11 @@
+cloud-init (0.7.3~bzr849-0ubuntu2) saucy; urgency=low
+
+  * debian/control: fix bad dependency on python-jsonpatch 
+    by build-depending on python-json-patch, so dh_python2
+    can find the right package (LP: #1205358).
+
+ -- Scott Moser <smoser@ubuntu.com>  Fri, 26 Jul 2013 10:47:59 -0400
+
 cloud-init (0.7.3~bzr849-0ubuntu1) saucy; urgency=low
 
   * New upstream snapshot.
