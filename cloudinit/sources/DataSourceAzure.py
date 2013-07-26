@@ -31,8 +31,9 @@ LOG = logging.getLogger(__name__)
 DS_NAME = 'Azure'
 DEFAULT_METADATA = {"instance-id": "iid-AZURE-NODE"}
 AGENT_START = ['service', 'walinuxagent', 'start']
-BOUNCE_COMMAND = ("i=$interface; x=0; ifdown $i || x=$?; "
-                  "ifup $i || x=$?; exit $x")
+BOUNCE_COMMAND = ['sh', '-xc',
+    "i=$interface; x=0; ifdown $i || x=$?; ifup $i || x=$?; exit $x"]
+
 BUILTIN_DS_CONFIG = {
     'agent_command': AGENT_START,
     'data_dir': "/var/lib/waagent",
@@ -185,19 +186,29 @@ def apply_hostname_bounce(hostname, policy, interface, command,
 
     util.subp([hostname_command, hostname])
 
+    msg = ("phostname=%s hostname=%s policy=%s interface=%s" %
+           (prev_hostname, hostname, policy, interface))
+
     if util.is_false(policy):
+        LOG.debug("pubhname: policy false, skipping [%s]", msg)
         return
 
     if prev_hostname == hostname and policy != "force":
+        LOG.debug("pubhname: no change, policy != force. skipping. [%s]", msg)
         return
 
     env = os.environ.copy()
     env['interface'] = interface
+    env['hostname'] = hostname
+    env['old_hostname'] = prev_hostname
 
     if command == "builtin":
         command = BOUNCE_COMMAND
 
-    util.subp(command, shell=(not isinstance(command, list)), capture=True)
+    LOG.debug("pubhname: publishing hostname [%s]", msg)
+    shell = not isinstance(command, (list, tuple))
+    (output, err) = util.subp(command, shell=shell, capture=True, env=env)
+    LOG.debug("output: %s. err: %s", output, err)
 
 
 def crtfile_to_pubkey(fname):
