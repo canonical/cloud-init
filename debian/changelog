@@ -1,3 +1,12 @@
+cloud-init (0.7.3~bzr850-0ubuntu1) saucy; urgency=low
+
+  * New upstream snapshot.
+    * fix bouncing of interface. environment was not being modified
+      so command invoked did not have access to 'interface'.
+  * debian/README.source: update to read upstream version from trunk
+
+ -- Scott Moser <smoser@ubuntu.com>  Fri, 26 Jul 2013 14:34:02 -0400
+
 cloud-init (0.7.3~bzr849-0ubuntu2) saucy; urgency=low
 
   * debian/control: fix bad dependency on python-jsonpatch 

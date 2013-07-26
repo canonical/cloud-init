@@ -39,8 +39,8 @@ help to cherry pick a single commit from trunk.
 == New snapshot ==
 To import a new snapshot, do:
 
- uver="0.6.3" # this is the *next* upstream version
  trunk="../trunk"
+ uver=$(cd "$trunk" && ./tools/read-version) # the *next* upstream version
  revno=$(cd "$trunk" && bzr revno)
  version=${uver}~bzr${revno}
  tarball=cloud-init-${version}.tar.gz
