@@ -10,6 +10,10 @@ PrettyTable
 # datasource is removed, this is no longer needed
 oauth
 
+# This one is currently used only by the SmartOS datasource. If that
+# datasource is removed, this is no longer needed
+pyserial
+
 # This is only needed for places where we need to support configs in a manner
 # that the built-in config parser is not sufficent (ie
 # when we need to preserve comments, or do not have a top-level
