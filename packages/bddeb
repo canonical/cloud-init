@@ -32,11 +32,12 @@ PKG_MP = {
     'boto': 'python-boto',
     'cheetah': 'python-cheetah',
     'configobj': 'python-configobj',
+    'jsonpatch': 'python-json-patch',
     'oauth': 'python-oauth',
     'prettytable': 'python-prettytable',
+    'pyserial': 'python-serial',
     'pyyaml': 'python-yaml',
     'requests': 'python-requests',
-    'jsonpatch': 'python-json-patch',
 }
 DEBUILD_ARGS = ["-us", "-S", "-uc", "-d"]
 
