@@ -1,3 +1,12 @@
+cloud-init (0.7.3~bzr851-0ubuntu1) saucy; urgency=low
+
+  * New upstream snapshot.
+    * azure: do not wait for output of bouncing interface (ifdown; ifup)
+      as that waits on output of all ifupdown scripts to close all file
+      descriptors.
+
+ -- Scott Moser <smoser@ubuntu.com>  Mon, 29 Jul 2013 12:21:08 -0400
+
 cloud-init (0.7.3~bzr850-0ubuntu1) saucy; urgency=low
 
   * New upstream snapshot.
