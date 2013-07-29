@@ -206,9 +206,11 @@ def apply_hostname_bounce(hostname, policy, interface, command,
         command = BOUNCE_COMMAND
 
     LOG.debug("pubhname: publishing hostname [%s]", msg)
+    start = time.time()
     shell = not isinstance(command, (list, tuple))
-    (output, err) = util.subp(command, shell=shell, capture=True, env=env)
-    LOG.debug("output: %s. err: %s", output, err)
+    # capture=False, see comments in bug 1202758 and bug 1206164.
+    (output, err) = util.subp(command, shell=shell, capture=False, env=env)
+    LOG.debug("publishing hostname took %.3f seconds", time.time() - start)
 
 
 def crtfile_to_pubkey(fname):
