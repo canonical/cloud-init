@@ -10,6 +10,7 @@
  - support individual MIME segments to be gzip compressed (LP: #1203203)
  - always finalize handlers even if processing failed (LP: #1203368)
  - support merging into cloud-config via jsonp. (LP: #1200476)
+ - add datasource 'SmartOS' for Joyent Cloud.  Adds a dependency on serial.
 0.7.2:
  - add a debian watch file
  - add 'sudo' entry to ubuntu's default user (LP: #1080717)
