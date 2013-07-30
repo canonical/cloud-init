@@ -22,6 +22,7 @@
 #   return responses.
 #
 
+import base64
 from cloudinit import helpers
 from cloudinit.sources import DataSourceSmartOS
 
@@ -35,7 +36,7 @@ mock_returns = {
     'enable_motd_sys_info': None,
     'system_uuid': str(uuid.uuid4()),
     'smartdc': 'smartdc',
-    'userdata': """
+    'user-data': """
 #!/bin/sh
 /bin/true
 """,
@@ -48,12 +49,14 @@ class MockSerial(object):
 
     port = None
 
-    def __init__(self):
+    def __init__(self, b64encode=False):
         self.last = None
         self.last = None
         self.new = True
         self.count = 0
         self.mocked_out = []
+        self.b64encode = b64encode
+        self.b64excluded = DataSourceSmartOS.SMARTOS_NO_BASE64
 
     def open(self):
         return True
@@ -87,11 +90,17 @@ class MockSerial(object):
 
     def _format_out(self):
         if self.last in mock_returns:
-            try:
-                for l in mock_returns[self.last].splitlines():
-                    yield "%s\n" % l
-            except:
-                yield "%s\n" % mock_returns[self.last]
+            _mret = mock_returns[self.last]
+            if self.b64encode and \
+               self.last not in self.b64excluded:
+                yield base64.b64encode(_mret)
+
+            else:
+                try:
+                    for l in _mret.splitlines():
+                        yield "%s\n" % l.rstrip()
+                except:
+                    yield "%s\n" % _mret.rstrip()
 
             yield '\n'
             yield '.'
@@ -116,16 +125,19 @@ class TestSmartOSDataSource(MockerTestCase):
         ret = apply_patches(patches)
         self.unapply += ret
 
-    def _get_ds(self):
+    def _get_ds(self, b64encode=False, sys_cfg=None):
+        mod = DataSourceSmartOS
 
         def _get_serial(*_):
-            return MockSerial()
+            return MockSerial(b64encode=b64encode)
 
         def _dmi_data():
             return mock_returns['system_uuid'], 'smartdc'
 
-        data = {'sys_cfg': {}}
-        mod = DataSourceSmartOS
+        if not sys_cfg:
+            sys_cfg = {}
+
+        data = {'sys_cfg': sys_cfg}
         self.apply_patches([(mod, 'get_serial', _get_serial)])
         self.apply_patches([(mod, 'dmi_data', _dmi_data)])
         dsrc = mod.DataSourceSmartOS(
@@ -158,12 +170,45 @@ class TestSmartOSDataSource(MockerTestCase):
         self.assertEquals(mock_returns['root_authorized_keys'],
                           dsrc.metadata['public-keys'])
 
+    def test_hostname_b64(self):
+        dsrc = self._get_ds(b64encode=True)
+        ret = dsrc.get_data()
+        self.assertTrue(ret)
+        self.assertEquals(base64.b64encode(mock_returns['hostname']),
+                          dsrc.metadata['local-hostname'])
+
     def test_hostname(self):
         dsrc = self._get_ds()
         ret = dsrc.get_data()
         self.assertTrue(ret)
         self.assertEquals(mock_returns['hostname'],
                           dsrc.metadata['local-hostname'])
+
+    def test_base64(self):
+        """This tests to make sure that SmartOS system key/value pairs
+            are not interpetted as being base64 encoded, while making
+            sure that the others are when 'decode_base64' is set"""
+        dsrc = self._get_ds(sys_cfg={'decode_base64': True},
+                            b64encode=True)
+        ret = dsrc.get_data()
+        self.assertTrue(ret)
+        self.assertEquals(mock_returns['hostname'],
+                          dsrc.metadata['local-hostname'])
+        self.assertEquals("%s" % mock_returns['user-data'],
+                          dsrc.userdata_raw)
+        self.assertEquals(mock_returns['root_authorized_keys'],
+                          dsrc.metadata['public-keys'])
+        self.assertEquals(mock_returns['disable_iptables_flag'],
+                          dsrc.metadata['iptables_disable'])
+        self.assertEquals(mock_returns['enable_motd_sys_info'],
+                          dsrc.metadata['motd_sys_info'])
+
+    def test_userdata(self):
+        dsrc = self._get_ds()
+        ret = dsrc.get_data()
+        self.assertTrue(ret)
+        self.assertEquals("%s\n" % mock_returns['user-data'],
+                          dsrc.userdata_raw)
 
     def test_disable_iptables_flag(self):
         dsrc = self._get_ds()
