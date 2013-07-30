@@ -503,9 +503,8 @@ def main():
 
     (name, functor) = args.action
 
-    return util.log_time(logfunc=LOG.debug,
-                         msg="cloud-init mode '%s'" % name, uptime=True,
-                         func=functor, args=(name, args))
+    return util.log_time(logfunc=LOG.debug, msg="cloud-init mode '%s'" % name,
+                         get_uptime=True, func=functor, args=(name, args))
 
 
 if __name__ == '__main__':
