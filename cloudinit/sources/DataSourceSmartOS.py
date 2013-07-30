@@ -27,6 +27,7 @@
 #
 
 
+import base64
 from cloudinit import log as logging
 from cloudinit import sources
 from cloudinit import util
@@ -49,6 +50,10 @@ SMARTOS_ATTRIB_MAP = {
     'motd_sys_info': ('motd_sys_info', True),
 }
 
+# These are values which will never be base64 encoded.
+SMARTOS_NO_BASE64 = ['root_authorized_keys', 'motd_sys_info',
+                     'iptables_disable']
+
 
 class DataSourceSmartOS(sources.DataSource):
     def __init__(self, sys_cfg, distro, paths):
@@ -56,6 +61,10 @@ class DataSourceSmartOS(sources.DataSource):
         self.seed_dir = os.path.join(paths.seed_dir, 'sdc')
         self.is_smartdc = None
         self.seed = self.sys_cfg.get("serial_device", DEF_TTY_LOC)
+        self.all_base64 = self.sys_cfg.get("decode_base64", False)
+        self.base_64_encoded = []
+        self.smartos_no_base64 = self.sys_cfg.get("no_base64_decode",
+                                                  SMARTOS_NO_BASE64)
         self.seed_timeout = self.sys_cfg.get("serial_timeout",
                                              DEF_TTY_TIMEOUT)
 
@@ -84,17 +93,41 @@ class DataSourceSmartOS(sources.DataSource):
         self.is_smartdc = True
         md['instance-id'] = system_uuid
 
+        self.base_64_encoded = query_data('base_64_enocded',
+                                          self.seed,
+                                          self.seed_timeout,
+                                          strip=True)
+        if self.base_64_encoded:
+            self.base_64_encoded = str(self.base_64_encoded).split(',')
+        else:
+            self.base_64_encoded = []
+
+        if not self.all_base64:
+            self.all_base64 = util.is_true(query_data('meta_encoded_base64',
+                                                      self.seed,
+                                                      self.seed_timeout,
+                                                      strip=True))
+
         for ci_noun, attribute in SMARTOS_ATTRIB_MAP.iteritems():
             smartos_noun, strip = attribute
+
+            b64encoded = False
+            if self.all_base64 and \
+               (smartos_noun not in self.smartos_no_base64 and \
+                ci_noun not in self.smartos_no_base64):
+                b64encoded = True
+
             md[ci_noun] = query_data(smartos_noun, self.seed,
-                                     self.seed_timeout, strip=strip)
+                                     self.seed_timeout, strip=strip,
+                                     b64encoded=b64encoded)
 
         if not md['local-hostname']:
             md['local-hostname'] = system_uuid
 
+        ud = None
         if md['user-data']:
             ud = md['user-data']
-        else:
+        elif md['user-script']:
             ud = md['user-script']
 
         self.metadata = md
@@ -124,12 +157,17 @@ def get_serial(seed_device, seed_timeout):
     return ser
 
 
-def query_data(noun, seed_device, seed_timeout, strip=False):
+def query_data(noun, seed_device, seed_timeout, strip=False, b64encoded=False):
     """Makes a request to via the serial console via "GET <NOUN>"
 
         In the response, the first line is the status, while subsequent lines
         are is the value. A blank line with a "." is used to indicate end of
         response.
+
+        If the response is expected to be base64 encoded, then set b64encoded
+        to true. Unfortantely, there is no way to know if something is 100%
+        encoded, so this method relies on being told if the data is base64 or
+        not.
     """
 
     if not noun:
@@ -153,12 +191,22 @@ def query_data(noun, seed_device, seed_timeout, strip=False):
             response.append(m)
 
     ser.close()
-    if not strip:
-        return "".join(response)
-    else:
-        return "".join(response).rstrip()
 
-    return None
+    resp = None
+    if not strip:
+        resp = "".join(response)
+    elif b64encoded:
+        resp = "".join(response).rstrip()
+    else:
+        resp = "".join(response).rstrip()
+
+    if b64encoded:
+        try:
+            return base64.b64decode(resp)
+        except TypeError:
+            return resp
+
+    return resp
 
 
 def dmi_data():
