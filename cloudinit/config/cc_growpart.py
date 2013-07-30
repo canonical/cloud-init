@@ -264,7 +264,8 @@ def handle(_name, cfg, _cloud, log, _args):
             raise e
         return
 
-    resized = resize_devices(resizer, devices)
+    resized = util.log_time(logfunc=log.debug, msg="resize_devices",
+                            func=resize_devices, args=(resizer, devices))
     for (entry, action, msg) in resized:
         if action == RESIZE.CHANGED:
             log.info("'%s' resized: %s" % (entry, msg))
