@@ -1772,7 +1772,7 @@ def which(program):
     return None
 
 
-def log_time(logfunc, msg, func, args=None, kwargs=None, get_uptime=True):
+def log_time(logfunc, msg, func, args=None, kwargs=None, get_uptime=False):
     if args is None:
         args = []
     if kwargs is None:
