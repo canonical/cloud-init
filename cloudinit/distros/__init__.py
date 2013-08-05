@@ -47,9 +47,11 @@ LOG = logging.getLogger(__name__)
 
 class Distro(object):
     __metaclass__ = abc.ABCMeta
+
     hosts_fn = "/etc/hosts"
     ci_sudoers_fn = "/etc/sudoers.d/90-cloud-init-users"
     hostname_conf_fn = "/etc/hostname"
+    tz_zone_dir = "/usr/share/zoneinfo"
 
     def __init__(self, name, cfg, paths):
         self._paths = paths
@@ -65,6 +67,13 @@ class Distro(object):
         # In the future use the http://fedorahosted.org/netcf/
         # to write this blob out in a distro format
         raise NotImplementedError()
+
+    def _find_tz_file(self, tz):
+        tz_file = os.path.join(self.tz_zone_dir, str(tz))
+        if not os.path.isfile(tz_file):
+            raise IOError(("Invalid timezone %s,"
+                           " no file found at %s") % (tz, tz_file))
+        return tz_file
 
     def get_option(self, opt_name, default=None):
         return self._cfg.get(opt_name, default)
