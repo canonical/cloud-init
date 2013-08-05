@@ -42,6 +42,7 @@ PKG_MP = {
         'jsonpatch': 'python-jsonpatch',
         'oauth': 'python-oauth',
         'prettytable': 'python-prettytable',
+        'pyserial': 'pyserial',
         'pyyaml': 'PyYAML',
         'requests': 'python-requests',
     },
@@ -53,6 +54,7 @@ PKG_MP = {
         'jsonpatch': 'python-jsonpatch',
         'oauth': 'python-oauth',
         'prettytable': 'python-prettytable',
+        'pyserial': 'python-pyserial',
         'pyyaml': 'python-yaml',
         'requests': 'python-requests',
     }

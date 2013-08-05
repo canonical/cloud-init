@@ -21,7 +21,6 @@
 import errno
 import os
 import stat
-import time
 
 from cloudinit.settings import PER_ALWAYS
 from cloudinit import util
@@ -120,9 +119,12 @@ def handle(name, cfg, _cloud, log, args):
     if resize_root == NOBLOCK:
         # Fork to a child that will run
         # the resize command
-        util.fork_cb(do_resize, resize_cmd, log)
+        util.fork_cb(
+            util.log_time(logfunc=log.debug, msg="backgrounded Resizing",
+                func=do_resize, args=(resize_cmd, log)))
     else:
-        do_resize(resize_cmd, log)
+        util.log_time(logfunc=log.debug, msg="Resizing",
+            func=do_resize, args=(resize_cmd, log))
 
     action = 'Resized'
     if resize_root == NOBLOCK:
@@ -132,13 +134,10 @@ def handle(name, cfg, _cloud, log, args):
 
 
 def do_resize(resize_cmd, log):
-    start = time.time()
     try:
         util.subp(resize_cmd)
     except util.ProcessExecutionError:
         util.logexc(log, "Failed to resize filesystem (cmd=%s)", resize_cmd)
         raise
-    tot_time = time.time() - start
-    log.debug("Resizing took %.3f seconds", tot_time)
     # TODO(harlowja): Should we add a fsck check after this to make
     # sure we didn't corrupt anything?
