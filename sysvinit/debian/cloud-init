@@ -1,0 +1,64 @@
+#! /bin/sh
+### BEGIN INIT INFO
+# Provides:          cloud-init
+# Required-Start:    $local_fs $remote_fs $syslog $network cloud-init-local
+# Required-Stop:     $remote_fs
+# X-Start-Before:    sshd
+# Default-Start:     2 3 4 5
+# Default-Stop:      0 1 6
+# Short-Description: Cloud init
+# Description:       Cloud configuration initialization
+### END INIT INFO
+
+# Authors: Julien Danjou <acid@debian.org>
+#          Thomas Goirand <zigo@debian.org>
+
+PATH=/sbin:/usr/sbin:/bin:/usr/bin
+DESC="Cloud service"
+NAME=cloud-init
+DAEMON=/usr/bin/$NAME
+DAEMON_ARGS="init"
+SCRIPTNAME=/etc/init.d/$NAME
+
+# Exit if the package is not installed
+[ -x "$DAEMON" ] || exit 0
+
+# Read configuration variable file if it is present
+[ -r /etc/default/$NAME ] && . /etc/default/$NAME
+
+# Define LSB log_* functions.
+# Depend on lsb-base (>= 3.2-14) to ensure that this file is present
+# and status_of_proc is working.
+. /lib/lsb/init-functions
+
+if init_is_upstart; then
+	case "$1" in
+	stop)
+		exit 0
+	;;
+	*)
+		exit 1
+	;;
+	esac
+fi
+
+case "$1" in
+    start)
+	log_daemon_msg "Starting $DESC" "$NAME"
+	$DAEMON ${DAEMON_ARGS}
+	case "$?" in
+	    0|1) log_end_msg 0 ;;
+	    2) log_end_msg 1 ;;
+	esac
+	;;
+    stop|restart|force-reload)
+        echo "Error: argument '$1' not supported" >&2
+        exit 3
+        ;;
+    *)
+	echo "Usage: $SCRIPTNAME {start}" >&2
+	exit 3
+	;;
+esac
+
+:
