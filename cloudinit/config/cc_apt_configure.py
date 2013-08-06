@@ -21,7 +21,6 @@
 import glob
 import os
 
-from cloudinit import log as logging
 from cloudinit import templater
 from cloudinit import util
 
