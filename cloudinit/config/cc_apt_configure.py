@@ -25,8 +25,6 @@ from cloudinit import log as logging
 from cloudinit import templater
 from cloudinit import util
 
-LOG = logging.getLogger(__name__)
-
 distros = ['ubuntu', 'debian']
 
 PROXY_TPL = "Acquire::HTTP::Proxy \"%s\";\n"
