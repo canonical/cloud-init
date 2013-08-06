@@ -53,6 +53,9 @@ apt_mirror_search:
 apt_mirror_search_dns: False
 
 # apt_proxy (configure Acquire::HTTP::Proxy)
+# 'apt_http_proxy' is an alias for 'apt_proxy'.
+# Also, available are 'apt_ftp_proxy' and 'apt_https_proxy'.
+# These affect Acquire::FTP::Proxy and Acquire::HTTPS::Proxy respectively
 apt_proxy: http://my.apt.proxy:3128
 
 # apt_pipelining (configure Acquire::http::Pipeline-Depth)
