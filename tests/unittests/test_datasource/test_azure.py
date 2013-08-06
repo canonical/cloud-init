@@ -249,7 +249,6 @@ class TestAzureDataSource(MockerTestCase):
 
     def test_apply_bounce_call_1(self):
         # hostname needs to get through to apply_hostname_bounce
-        mydata = "FOOBAR"
         odata = {'HostName': 'my-random-hostname'}
         data = {'ovfcontent': construct_valid_ovf_env(data=odata)}
 
