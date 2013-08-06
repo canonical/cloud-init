@@ -5,8 +5,6 @@ from cloudinit import util
 
 from cloudinit.config import cc_apt_configure
 
-import errno
-import logging
 import os
 import re
 
