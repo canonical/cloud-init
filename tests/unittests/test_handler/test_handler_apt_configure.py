@@ -1,6 +1,5 @@
 from mocker import MockerTestCase
 
-from cloudinit import cloud
 from cloudinit import util
 
 from cloudinit.config import cc_apt_configure
