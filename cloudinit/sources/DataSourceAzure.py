@@ -17,6 +17,7 @@
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import base64
+import crypt
 import os
 import os.path
 import time
@@ -424,7 +425,7 @@ def read_azure_ovf(contents):
     if username:
         defuser['name'] = username
     if password:
-        defuser['password'] = password
+        defuser['passwd'] = encrypt_pass(password)
         defuser['lock_passwd'] = False
 
     if defuser:
@@ -434,6 +435,10 @@ def read_azure_ovf(contents):
         cfg['ssh_pwauth'] = True
 
     return (md, ud, cfg)
+
+
+def encrypt_pass(password, salt_id="$6$"):
+    return crypt.crypt(password, salt_id + util.rand_str(strlen=16))
 
 
 def list_possible_azure_ds_devs():
