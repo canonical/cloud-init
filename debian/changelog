@@ -1,3 +1,10 @@
+cloud-init (0.7.3~bzr860-0ubuntu1) saucy; urgency=low
+
+  * New upstream snapshot.
+    * fix setting of password for a user on azure. (LP: #1212723)
+
+ -- Scott Moser <smoser@ubuntu.com>  Thu, 15 Aug 2013 16:01:40 -0400
+
 cloud-init (0.7.3~bzr858-0ubuntu1) saucy; urgency=low
 
   * New upstream snapshot.
