@@ -96,7 +96,7 @@ class ResizeParted(object):
     def resize(self, diskdev, partnum, partdev):
         before = get_size(partdev)
         try:
-            util.subp(["parted", "resizepart", diskdev, partnum])
+            util.subp(["parted", diskdev, "resizepart", partnum])
         except util.ProcessExecutionError as e:
             raise ResizeFailedException(e)
 
@@ -272,4 +272,6 @@ def handle(_name, cfg, _cloud, log, _args):
         else:
             log.debug("'%s' %s: %s" % (entry, action, msg))
 
-RESIZERS = (('parted', ResizeParted), ('growpart', ResizeGrowPart))
+# LP: 1212444 FIXME re-order and favor ResizeParted
+#RESIZERS = (('growpart', ResizeGrowPart),)
+RESIZERS = (('growpart', ResizeGrowPart), ('parted', ResizeParted))
