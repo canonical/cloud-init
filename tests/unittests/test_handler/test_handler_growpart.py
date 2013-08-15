@@ -9,6 +9,7 @@ import errno
 import logging
 import os
 import re
+import unittest
 
 # growpart:
 #   mode: auto  # off, on, auto, 'growpart', 'parted'
@@ -121,6 +122,7 @@ class TestConfig(MockerTestCase):
         # Order must be correct
         self.mocker.order()
 
+    @unittest.skip("until LP: #1212444 fixed")
     def test_no_resizers_auto_is_fine(self):
         subp = self.mocker.replace(util.subp, passthrough=False)
         subp(['parted', '--help'], env={'LANG': 'C'})
@@ -142,6 +144,7 @@ class TestConfig(MockerTestCase):
         self.assertRaises(ValueError, self.handle, self.name, config,
                           self.cloud_init, self.log, self.args)
 
+    @unittest.skip("until LP: #1212444 fixed")
     def test_mode_auto_prefers_parted(self):
         subp = self.mocker.replace(util.subp, passthrough=False)
         subp(['parted', '--help'], env={'LANG': 'C'})
