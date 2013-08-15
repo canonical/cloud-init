@@ -14,6 +14,7 @@
  - add 'log_time' helper to util for timing how long things take
    which also reads from uptime. uptime is useful as clock may change during
    boot due to ntp.
+ - prefer growpart resizer to 'parted resizepart' (LP: #1212492)
 0.7.2:
  - add a debian watch file
  - add 'sudo' entry to ubuntu's default user (LP: #1080717)
