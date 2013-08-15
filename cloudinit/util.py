@@ -1770,3 +1770,38 @@ def which(program):
                 return exe_file
 
     return None
+
+
+def log_time(logfunc, msg, func, args=None, kwargs=None, get_uptime=False):
+    if args is None:
+        args = []
+    if kwargs is None:
+        kwargs = {}
+
+    start = time.time()
+
+    ustart = None
+    if get_uptime:
+        try:
+            ustart = float(uptime())
+        except ValueError:
+            pass
+
+    try:
+        ret = func(*args, **kwargs)
+    finally:
+        delta = time.time() - start
+        if ustart is not None:
+            try:
+                udelta = float(uptime()) - ustart
+            except ValueError:
+                udelta = "N/A"
+
+        tmsg = " took %0.3f seconds" % delta
+        if get_uptime:
+            tmsg += "(%0.2f)" % udelta
+        try:
+            logfunc(msg + tmsg)
+        except:
+            pass
+    return ret

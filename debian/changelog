@@ -1,3 +1,13 @@
+cloud-init (0.7.3~bzr858-0ubuntu1) saucy; urgency=low
+
+  * New upstream snapshot.
+    * fix resizing of root partition by preferring the functional 'growpart'
+      support over the broken 'parted resizepart' support (LP: #1212444)
+    * add options for apt_ftp_proxy, apt_https_proxy and apt_config
+      (LP: #1057195)
+
+ -- Scott Moser <smoser@ubuntu.com>  Wed, 14 Aug 2013 21:44:22 -0400
+
 cloud-init (0.7.3~bzr851-0ubuntu1) saucy; urgency=low
 
   * New upstream snapshot.
