@@ -12,8 +12,7 @@ serial console. On Linux, this is /dev/ttyS1. The data is a provided via a
 simple protocol, where something queries for the userdata, where the console
 responds with the status and if "SUCCESS" returns until a single ".\n".
 
-The format is lossy. As such, new versions of the SmartOS tooling will include
-support for base64 encoded data.
+New versions of the SmartOS tooling will include support for base64 encoded data.
 
 Userdata
 --------
@@ -48,15 +47,16 @@ always supercede any user-script data. This is for consistency.
 base64
 ------
 
-In order to provide a lossy format, all data except for:
+The following are excempt from base64 encoding, owing to the fact that they
+are provided by SmartOS:
  * root_authorized_keys
  * enable_motd_sys_info
  * iptables_disable
 
 This means that user-script and user-data as well as other values can be
-base64 encoded to provide a lossy format. Since Cloud-init can only guess
-as to whether or not something is truly base64 encoded, the following
-meta-data keys are hints as to whether or not to base64 decode something:
+base64 encoded. Since Cloud-init can only guess as to whether or not something
+is truly base64 encoded, the following meta-data keys are hints as to whether
+or not to base64 decode something:
   * decode_base64: Except for excluded keys, attempt to base64 decode
         the values. If the value fails to decode properly, it will be
         returned in its text
