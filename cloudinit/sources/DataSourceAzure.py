@@ -209,7 +209,7 @@ def apply_hostname_bounce(hostname, policy, interface, command,
     # capture=False, see comments in bug 1202758 and bug 1206164.
     util.log_time(logfunc=LOG.debug, msg="publishing hostname",
         get_uptime=True, func=util.subp,
-        kwargs={'command': command, 'shell': shell, 'capture': False,
+        kwargs={'args': command, 'shell': shell, 'capture': False,
                 'env': env})
 
 
