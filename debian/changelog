@@ -1,3 +1,10 @@
+cloud-init (0.7.3~bzr861-0ubuntu1) saucy; urgency=low
+
+  * New upstream snapshot.
+    * fix publishing hostname on azure (LP: #1214541)
+
+ -- Scott Moser <smoser@ubuntu.com>  Tue, 20 Aug 2013 16:06:22 -0400
+
 cloud-init (0.7.3~bzr860-0ubuntu1) saucy; urgency=low
 
   * New upstream snapshot.
