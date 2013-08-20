@@ -2,6 +2,7 @@ from cloudinit import helpers
 from cloudinit.sources import DataSourceAzure
 from tests.unittests.helpers import populate_dir
 
+import crypt
 import base64
 from mocker import MockerTestCase
 import os
@@ -207,11 +208,15 @@ class TestAzureDataSource(MockerTestCase):
         self.assertTrue('default_user' in dsrc.cfg['system_info'])
         defuser = dsrc.cfg['system_info']['default_user']
 
-        # default user shoudl be updated for password and username
-        # and should not be locked.
+        # default user should be updated username and should not be locked.
         self.assertEqual(defuser['name'], odata['UserName'])
-        self.assertEqual(defuser['password'], odata['UserPassword'])
         self.assertFalse(defuser['lock_passwd'])
+        # passwd is crypt formated string $id$salt$encrypted
+        # encrypting plaintext with salt value of everything up to final '$'
+        # should equal that after the '$'
+        pos = defuser['passwd'].rfind("$") + 1
+        self.assertEqual(defuser['passwd'],
+            crypt.crypt(odata['UserPassword'], defuser['passwd'][0:pos]))
 
     def test_userdata_found(self):
         mydata = "FOOBAR"
@@ -249,7 +254,6 @@ class TestAzureDataSource(MockerTestCase):
 
     def test_apply_bounce_call_1(self):
         # hostname needs to get through to apply_hostname_bounce
-        mydata = "FOOBAR"
         odata = {'HostName': 'my-random-hostname'}
         data = {'ovfcontent': construct_valid_ovf_env(data=odata)}
 

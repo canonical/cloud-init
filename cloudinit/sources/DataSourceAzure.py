@@ -17,6 +17,7 @@
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import base64
+import crypt
 import os
 import os.path
 import time
@@ -138,13 +139,11 @@ class DataSourceAzureNet(sources.DataSource):
             bname = pk['fingerprint'] + ".crt"
             fp_files += [os.path.join(mycfg['data_dir'], bname)]
 
-        start = time.time()
-        missing = wait_for_files(wait_for + fp_files)
+        missing = util.log_time(logfunc=LOG.debug, msg="waiting for files",
+                                func=wait_for_files,
+                                args=(wait_for + fp_files,))
         if len(missing):
             LOG.warn("Did not find files, but going on: %s", missing)
-        else:
-            LOG.debug("waited %.3f seconds for %d files to appear",
-                      time.time() - start, len(wait_for))
 
         if shcfgxml in missing:
             LOG.warn("SharedConfig.xml missing, using static instance-id")
@@ -206,11 +205,12 @@ def apply_hostname_bounce(hostname, policy, interface, command,
         command = BOUNCE_COMMAND
 
     LOG.debug("pubhname: publishing hostname [%s]", msg)
-    start = time.time()
     shell = not isinstance(command, (list, tuple))
     # capture=False, see comments in bug 1202758 and bug 1206164.
-    (output, err) = util.subp(command, shell=shell, capture=False, env=env)
-    LOG.debug("publishing hostname took %.3f seconds", time.time() - start)
+    util.log_time(logfunc=LOG.debug, msg="publishing hostname",
+        get_uptime=True, func=util.subp,
+        kwargs={'command': command, 'shell': shell, 'capture': False,
+                'env': env})
 
 
 def crtfile_to_pubkey(fname):
@@ -425,7 +425,7 @@ def read_azure_ovf(contents):
     if username:
         defuser['name'] = username
     if password:
-        defuser['password'] = password
+        defuser['passwd'] = encrypt_pass(password)
         defuser['lock_passwd'] = False
 
     if defuser:
@@ -435,6 +435,10 @@ def read_azure_ovf(contents):
         cfg['ssh_pwauth'] = True
 
     return (md, ud, cfg)
+
+
+def encrypt_pass(password, salt_id="$6$"):
+    return crypt.crypt(password, salt_id + util.rand_str(strlen=16))
 
 
 def list_possible_azure_ds_devs():

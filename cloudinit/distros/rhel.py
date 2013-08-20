@@ -20,8 +20,6 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import os
-
 from cloudinit import distros
 from cloudinit import helpers
 from cloudinit import log as logging
@@ -51,7 +49,6 @@ class Distro(distros.Distro):
     network_script_tpl = '/etc/sysconfig/network-scripts/ifcfg-%s'
     resolve_conf_fn = "/etc/resolv.conf"
     tz_local_fn = "/etc/localtime"
-    tz_zone_dir = "/usr/share/zoneinfo"
 
     def __init__(self, name, cfg, paths):
         distros.Distro.__init__(self, name, cfg, paths)
@@ -164,12 +161,7 @@ class Distro(distros.Distro):
         return distros.Distro._bring_up_interfaces(self, device_names)
 
     def set_timezone(self, tz):
-        # TODO(harlowja): move this code into
-        # the parent distro...
-        tz_file = os.path.join(self.tz_zone_dir, str(tz))
-        if not os.path.isfile(tz_file):
-            raise RuntimeError(("Invalid timezone %s,"
-                                " no file found at %s") % (tz, tz_file))
+        tz_file = self._find_tz_file(tz)
         if self._dist_uses_systemd():
             # Currently, timedatectl complains if invoked during startup
             # so for compatibility, create the link manually.

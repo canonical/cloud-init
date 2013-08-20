@@ -27,7 +27,8 @@ from cloudinit import util
 distros = ['ubuntu', 'debian']
 
 PROXY_TPL = "Acquire::HTTP::Proxy \"%s\";\n"
-PROXY_FN = "/etc/apt/apt.conf.d/95cloud-init-proxy"
+APT_CONFIG_FN = "/etc/apt/apt.conf.d/94cloud-init-config"
+APT_PROXY_FN = "/etc/apt/apt.conf.d/95cloud-init-proxy"
 
 # A temporary shell program to get a given gpg key
 # from a given keyserver
@@ -67,18 +68,10 @@ def handle(name, cfg, cloud, log, _args):
                                "security": "security.ubuntu.com/ubuntu"})
         rename_apt_lists(old_mirrors, mirrors)
 
-    # Set up any apt proxy
-    proxy = cfg.get("apt_proxy", None)
-    proxy_filename = PROXY_FN
-    if proxy:
-        try:
-            # See man 'apt.conf'
-            contents = PROXY_TPL % (proxy)
-            util.write_file(proxy_filename, contents)
-        except Exception as e:
-            util.logexc(log, "Failed to write proxy to %s", proxy_filename)
-    elif os.path.isfile(proxy_filename):
-        util.del_file(proxy_filename)
+    try:
+        apply_apt_config(cfg, APT_PROXY_FN, APT_CONFIG_FN)
+    except Exception as e:
+        log.warn("failed to proxy or apt config info: %s", e)
 
     # Process 'apt_sources'
     if 'apt_sources' in cfg:
@@ -256,3 +249,22 @@ def find_apt_mirror_info(cloud, cfg):
         mirror_info.update({'primary': mirror})
 
     return mirror_info
+
+
+def apply_apt_config(cfg, proxy_fname, config_fname):
+    # Set up any apt proxy
+    cfgs = (('apt_proxy', 'Acquire::HTTP::Proxy "%s";'),
+            ('apt_http_proxy', 'Acquire::HTTP::Proxy "%s";'),
+            ('apt_ftp_proxy', 'Acquire::FTP::Proxy "%s";'),
+            ('apt_https_proxy', 'Acquire::HTTPS::Proxy "%s";'))
+
+    proxies = [fmt % cfg.get(name) for (name, fmt) in cfgs if cfg.get(name)]
+    if len(proxies):
+        util.write_file(proxy_fname, '\n'.join(proxies) + '\n')
+    elif os.path.isfile(proxy_fname):
+        util.del_file(proxy_fname)
+
+    if cfg.get('apt_config', None):
+        util.write_file(config_fname, cfg.get('apt_config'))
+    elif os.path.isfile(config_fname):
+        util.del_file(config_fname)
