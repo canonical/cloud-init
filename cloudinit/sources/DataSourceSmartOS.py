@@ -35,7 +35,7 @@ import os
 import os.path
 import serial
 
-
+DS_NAME = 'SmartOS'
 DEF_TTY_LOC = '/dev/ttyS1'
 DEF_TTY_TIMEOUT = 60
 LOG = logging.getLogger(__name__)
@@ -60,13 +60,14 @@ class DataSourceSmartOS(sources.DataSource):
         sources.DataSource.__init__(self, sys_cfg, distro, paths)
         self.seed_dir = os.path.join(paths.seed_dir, 'sdc')
         self.is_smartdc = None
+        self.base_64_encoded = []
         self.seed = self.sys_cfg.get("serial_device", DEF_TTY_LOC)
         self.all_base64 = self.sys_cfg.get("decode_base64", False)
-        self.base_64_encoded = []
-        self.smartos_no_base64 = self.sys_cfg.get("no_base64_decode",
-                                                  SMARTOS_NO_BASE64)
         self.seed_timeout = self.sys_cfg.get("serial_timeout",
                                              DEF_TTY_TIMEOUT)
+        self.smartos_no_base64 = SMARTOS_NO_BASE64
+        if 'no_base64_decode' in self.ds_cfg:
+            self.smartos_no_base64 = self.ds_cfg['no_base64_decode']
 
     def __str__(self):
         root = sources.DataSource.__str__(self)
@@ -137,10 +138,25 @@ class DataSourceSmartOS(sources.DataSource):
     def get_instance_id(self):
         return self.metadata['instance-id']
 
+    def not_b64_var(self, var):
+        """Return true if value is read as b64."""
+        if var in self.smartos_no_base64 or \
+           not self.all_base64:
+            return True
+        return False
+
+    def is_b64_var(self, var):
+        """Return true if value is read as b64."""
+        if self.all_base64 or (
+           var not in self.smartos_no_base64 and
+           var in self.base_64_encoded):
+            return True
+        return False
+
 
 def get_serial(seed_device, seed_timeout):
     """This is replaced in unit testing, allowing us to replace
-        serial.Serial with a mocked class
+        serial.Serial with a mocked class.
 
         The timeout value of 60 seconds should never be hit. The value
         is taken from SmartOS own provisioning tools. Since we are reading

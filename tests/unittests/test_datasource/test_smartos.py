@@ -36,6 +36,7 @@ mock_returns = {
     'enable_motd_sys_info': None,
     'system_uuid': str(uuid.uuid4()),
     'smartdc': 'smartdc',
+    'test-var1': 'some data',
     'user-data': """
 #!/bin/sh
 /bin/true
@@ -155,6 +156,13 @@ class TestSmartOSDataSource(MockerTestCase):
         ret = dsrc.get_data()
         self.assertTrue(ret)
         self.assertTrue(dsrc.is_smartdc)
+
+    def test_no_base64(self):
+        sys_cfg = {'no_base64_decode': ['test_var1'], 'all_base': True}
+        dsrc = self._get_ds(sys_cfg=sys_cfg)
+        ret = dsrc.get_data()
+        self.assertTrue(ret)
+        self.assertTrue(dsrc.not_b64_var('test-var'))
 
     def test_uuid(self):
         dsrc = self._get_ds()
