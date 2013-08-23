@@ -35,7 +35,7 @@ user-script
 
 SmartOS traditionally supports sending over a user-script for execution at the
 rc.local level. Cloud-init supports running user-scripts as if they were
-cloud-init user-data. In this sense, anything with a shell interpetter
+cloud-init user-data. In this sense, anything with a shell interpreter
 directive will run
 
 user-data and user-script
@@ -47,7 +47,7 @@ always supercede any user-script data. This is for consistency.
 base64
 ------
 
-The following are excempt from base64 encoding, owing to the fact that they
+The following are exempt from base64 encoding, owing to the fact that they
 are provided by SmartOS:
  * root_authorized_keys
  * enable_motd_sys_info
@@ -63,4 +63,4 @@ or not to base64 decode something:
   * base_64_encoded: A comma deliminated list of which values are base64
         encoded.
   * no_base64_decode: This is a configuration setting (i.e. /etc/cloud/cloud.cfg.d)
-        that sets which values should not be base64 decoded. 
+        that sets which values should not be base64 decoded.
