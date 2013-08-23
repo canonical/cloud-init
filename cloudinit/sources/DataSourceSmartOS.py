@@ -62,9 +62,12 @@ class DataSourceSmartOS(sources.DataSource):
         self.is_smartdc = None
         self.base_64_encoded = []
         self.seed = self.sys_cfg.get("serial_device", DEF_TTY_LOC)
-        self.all_base64 = self.sys_cfg.get("decode_base64", False)
         self.seed_timeout = self.sys_cfg.get("serial_timeout",
                                              DEF_TTY_TIMEOUT)
+        self.all_base64 = False
+        if 'decode_base64' in self.ds_cfg:
+            self.all_base64 =  self.ds_cfg['decode_base64']
+
         self.smartos_no_base64 = SMARTOS_NO_BASE64
         if 'no_base64_decode' in self.ds_cfg:
             self.smartos_no_base64 = self.ds_cfg['no_base64_decode']
