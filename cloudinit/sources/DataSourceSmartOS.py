@@ -27,13 +27,13 @@
 #
 
 
+import base64
 from cloudinit import log as logging
 from cloudinit import sources
 from cloudinit import util
 import os
 import os.path
 import serial
-
 
 DEF_TTY_LOC = '/dev/ttyS1'
 DEF_TTY_TIMEOUT = 60
@@ -49,15 +49,24 @@ SMARTOS_ATTRIB_MAP = {
     'motd_sys_info': ('motd_sys_info', True),
 }
 
+# These are values which will never be base64 encoded.
+# They come from the cloud platform, not user
+SMARTOS_NO_BASE64 = ['root_authorized_keys', 'motd_sys_info',
+                     'iptables_disable']
+
 
 class DataSourceSmartOS(sources.DataSource):
     def __init__(self, sys_cfg, distro, paths):
         sources.DataSource.__init__(self, sys_cfg, distro, paths)
         self.seed_dir = os.path.join(paths.seed_dir, 'sdc')
         self.is_smartdc = None
-        self.seed = self.sys_cfg.get("serial_device", DEF_TTY_LOC)
-        self.seed_timeout = self.sys_cfg.get("serial_timeout",
-                                             DEF_TTY_TIMEOUT)
+
+        self.seed = self.ds_cfg.get("serial_device", DEF_TTY_LOC)
+        self.seed_timeout = self.ds_cfg.get("serial_timeout", DEF_TTY_TIMEOUT)
+        self.smartos_no_base64 = self.ds_cfg.get('no_base64_decode',
+                                                 SMARTOS_NO_BASE64)
+        self.b64_keys = self.ds_cfg.get('base64_keys', [])
+        self.b64_all = self.ds_cfg.get('base64_all', False)
 
     def __str__(self):
         root = sources.DataSource.__str__(self)
@@ -79,22 +88,30 @@ class DataSourceSmartOS(sources.DataSource):
 
         system_uuid, system_type = dmi_info
         if 'smartdc' not in system_type.lower():
-            LOG.debug("Host is not on SmartOS")
+            LOG.debug("Host is not on SmartOS. system_type=%s", system_type)
             return False
         self.is_smartdc = True
         md['instance-id'] = system_uuid
 
+        b64_keys = self.query('base64_keys', strip=True, b64=False)
+        if b64_keys is not None:
+            self.b64_keys = [k.strip() for k in str(b64_keys).split(',')]
+
+        b64_all = self.query('base64_all', strip=True, b64=False)
+        if b64_all is not None:
+            self.b64_all = util.is_true(b64_all)
+
         for ci_noun, attribute in SMARTOS_ATTRIB_MAP.iteritems():
             smartos_noun, strip = attribute
-            md[ci_noun] = query_data(smartos_noun, self.seed,
-                                     self.seed_timeout, strip=strip)
+            md[ci_noun] = self.query(smartos_noun, strip=strip)
 
         if not md['local-hostname']:
             md['local-hostname'] = system_uuid
 
+        ud = None
         if md['user-data']:
             ud = md['user-data']
-        else:
+        elif md['user-script']:
             ud = md['user-script']
 
         self.metadata = md
@@ -104,10 +121,21 @@ class DataSourceSmartOS(sources.DataSource):
     def get_instance_id(self):
         return self.metadata['instance-id']
 
+    def query(self, noun, strip=False, default=None, b64=None):
+        if b64 is None:
+            if noun in self.smartos_no_base64:
+                b64 = False
+            elif self.b64_all or noun in self.b64_keys:
+                b64 = True
+
+        return query_data(noun=noun, strip=strip, seed_device=self.seed,
+                          seed_timeout=self.seed_timeout, default=default,
+                          b64=b64)
+
 
 def get_serial(seed_device, seed_timeout):
     """This is replaced in unit testing, allowing us to replace
-        serial.Serial with a mocked class
+        serial.Serial with a mocked class.
 
         The timeout value of 60 seconds should never be hit. The value
         is taken from SmartOS own provisioning tools. Since we are reading
@@ -124,12 +152,18 @@ def get_serial(seed_device, seed_timeout):
     return ser
 
 
-def query_data(noun, seed_device, seed_timeout, strip=False):
+def query_data(noun, seed_device, seed_timeout, strip=False, default=None,
+               b64=None):
     """Makes a request to via the serial console via "GET <NOUN>"
 
         In the response, the first line is the status, while subsequent lines
         are is the value. A blank line with a "." is used to indicate end of
         response.
+
+        If the response is expected to be base64 encoded, then set b64encoded
+        to true. Unfortantely, there is no way to know if something is 100%
+        encoded, so this method relies on being told if the data is base64 or
+        not.
     """
 
     if not noun:
@@ -143,7 +177,7 @@ def query_data(noun, seed_device, seed_timeout, strip=False):
 
     if 'SUCCESS' not in status:
         ser.close()
-        return None
+        return default
 
     while not eom_found:
         m = ser.readline()
@@ -153,12 +187,27 @@ def query_data(noun, seed_device, seed_timeout, strip=False):
             response.append(m)
 
     ser.close()
-    if not strip:
-        return "".join(response)
-    else:
-        return "".join(response).rstrip()
 
-    return None
+    if b64 is None:
+        b64 = query_data('b64-%s' % noun, seed_device=seed_device,
+                            seed_timeout=seed_timeout, b64=False,
+                            default=False, strip=True)
+        b64 = util.is_true(b64)
+
+    resp = None
+    if b64 or strip:
+        resp = "".join(response).rstrip()
+    else:
+        resp = "".join(response)
+
+    if b64:
+        try:
+            return base64.b64decode(resp)
+        except TypeError:
+            LOG.warn("Failed base64 decoding key '%s'", noun)
+            return resp
+
+    return resp
 
 
 def dmi_data():
