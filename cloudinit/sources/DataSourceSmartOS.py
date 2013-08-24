@@ -35,7 +35,6 @@ import os
 import os.path
 import serial
 
-DS_NAME = 'SmartOS'
 DEF_TTY_LOC = '/dev/ttyS1'
 DEF_TTY_TIMEOUT = 60
 LOG = logging.getLogger(__name__)
@@ -51,6 +50,7 @@ SMARTOS_ATTRIB_MAP = {
 }
 
 # These are values which will never be base64 encoded.
+# They come from the cloud platform, not user
 SMARTOS_NO_BASE64 = ['root_authorized_keys', 'motd_sys_info',
                      'iptables_disable']
 
@@ -60,17 +60,13 @@ class DataSourceSmartOS(sources.DataSource):
         sources.DataSource.__init__(self, sys_cfg, distro, paths)
         self.seed_dir = os.path.join(paths.seed_dir, 'sdc')
         self.is_smartdc = None
-        self.base_64_encoded = []
-        self.seed = self.sys_cfg.get("serial_device", DEF_TTY_LOC)
-        self.seed_timeout = self.sys_cfg.get("serial_timeout",
-                                             DEF_TTY_TIMEOUT)
-        self.all_base64 = False
-        if 'decode_base64' in self.ds_cfg:
-            self.all_base64 =  self.ds_cfg['decode_base64']
 
-        self.smartos_no_base64 = SMARTOS_NO_BASE64
-        if 'no_base64_decode' in self.ds_cfg:
-            self.smartos_no_base64 = self.ds_cfg['no_base64_decode']
+        self.seed = self.ds_cfg.get("serial_device", DEF_TTY_LOC)
+        self.seed_timeout = self.ds_cfg.get("serial_timeout", DEF_TTY_TIMEOUT)
+        self.smartos_no_base64 = self.ds_cfg.get('no_base64_decode',
+                                                 SMARTOS_NO_BASE64)
+        self.b64_keys = self.ds_cfg.get('base64_keys', [])
+        self.b64_all = self.ds_cfg.get('base64_all', False)
 
     def __str__(self):
         root = sources.DataSource.__str__(self)
@@ -92,38 +88,22 @@ class DataSourceSmartOS(sources.DataSource):
 
         system_uuid, system_type = dmi_info
         if 'smartdc' not in system_type.lower():
-            LOG.debug("Host is not on SmartOS")
+            LOG.debug("Host is not on SmartOS. system_type=%s", system_type)
             return False
         self.is_smartdc = True
         md['instance-id'] = system_uuid
 
-        self.base_64_encoded = query_data('base_64_enocded',
-                                          self.seed,
-                                          self.seed_timeout,
-                                          strip=True)
-        if self.base_64_encoded:
-            self.base_64_encoded = str(self.base_64_encoded).split(',')
-        else:
-            self.base_64_encoded = []
+        b64_keys = self.query('base64_keys', strip=True, b64=False)
+        if b64_keys is not None:
+            self.b64_keys = [k.strip() for k in str(b64_keys).split(',')]
 
-        if not self.all_base64:
-            self.all_base64 = util.is_true(query_data('meta_encoded_base64',
-                                                      self.seed,
-                                                      self.seed_timeout,
-                                                      strip=True))
+        b64_all = self.query('base64_all', strip=True, b64=False)
+        if b64_all is not None:
+            self.b64_all = util.is_true(b64_all)
 
         for ci_noun, attribute in SMARTOS_ATTRIB_MAP.iteritems():
             smartos_noun, strip = attribute
-
-            b64encoded = False
-            if self.all_base64 and \
-               (smartos_noun not in self.smartos_no_base64 and \
-                ci_noun not in self.smartos_no_base64):
-                b64encoded = True
-
-            md[ci_noun] = query_data(smartos_noun, self.seed,
-                                     self.seed_timeout, strip=strip,
-                                     b64encoded=b64encoded)
+            md[ci_noun] = self.query(smartos_noun, strip=strip)
 
         if not md['local-hostname']:
             md['local-hostname'] = system_uuid
@@ -141,20 +121,16 @@ class DataSourceSmartOS(sources.DataSource):
     def get_instance_id(self):
         return self.metadata['instance-id']
 
-    def not_b64_var(self, var):
-        """Return true if value is read as b64."""
-        if var in self.smartos_no_base64 or \
-           not self.all_base64:
-            return True
-        return False
+    def query(self, noun, strip=False, default=None, b64=None):
+        if b64 is None:
+            if noun in self.smartos_no_base64:
+                b64 = False
+            elif self.b64_all or noun in self.b64_keys:
+                b64 = True
 
-    def is_b64_var(self, var):
-        """Return true if value is read as b64."""
-        if self.all_base64 or (
-           var not in self.smartos_no_base64 and
-           var in self.base_64_encoded):
-            return True
-        return False
+        return query_data(noun=noun, strip=strip, seed_device=self.seed,
+                          seed_timeout=self.seed_timeout, default=default,
+                          b64=b64)
 
 
 def get_serial(seed_device, seed_timeout):
@@ -176,7 +152,8 @@ def get_serial(seed_device, seed_timeout):
     return ser
 
 
-def query_data(noun, seed_device, seed_timeout, strip=False, b64encoded=False):
+def query_data(noun, seed_device, seed_timeout, strip=False, default=None,
+               b64=None):
     """Makes a request to via the serial console via "GET <NOUN>"
 
         In the response, the first line is the status, while subsequent lines
@@ -200,7 +177,7 @@ def query_data(noun, seed_device, seed_timeout, strip=False, b64encoded=False):
 
     if 'SUCCESS' not in status:
         ser.close()
-        return None
+        return default
 
     while not eom_found:
         m = ser.readline()
@@ -211,18 +188,23 @@ def query_data(noun, seed_device, seed_timeout, strip=False, b64encoded=False):
 
     ser.close()
 
+    if b64 is None:
+        b64 = query_data('b64-%s' % noun, seed_device=seed_device,
+                            seed_timeout=seed_timeout, b64=False,
+                            default=False, strip=True)
+        b64 = util.is_true(b64)
+
     resp = None
-    if not strip:
-        resp = "".join(response)
-    elif b64encoded:
+    if b64 or strip:
         resp = "".join(response).rstrip()
     else:
-        resp = "".join(response).rstrip()
+        resp = "".join(response)
 
-    if b64encoded:
+    if b64:
         try:
             return base64.b64decode(resp)
         except TypeError:
+            LOG.warn("Failed base64 decoding key '%s'", noun)
             return resp
 
     return resp

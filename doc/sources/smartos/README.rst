@@ -53,14 +53,20 @@ are provided by SmartOS:
  * enable_motd_sys_info
  * iptables_disable
 
+This list can be changed through system config of variable 'no_base64_decode'.
+
 This means that user-script and user-data as well as other values can be
 base64 encoded. Since Cloud-init can only guess as to whether or not something
 is truly base64 encoded, the following meta-data keys are hints as to whether
 or not to base64 decode something:
-  * decode_base64: Except for excluded keys, attempt to base64 decode
+  * base64_all: Except for excluded keys, attempt to base64 decode
         the values. If the value fails to decode properly, it will be
         returned in its text
-  * base_64_encoded: A comma deliminated list of which values are base64
-        encoded.
-  * no_base64_decode: This is a configuration setting (i.e. /etc/cloud/cloud.cfg.d)
-        that sets which values should not be base64 decoded.
+  * base64_keys: A comma deliminated list of which keys are base64 encoded.
+  * b64-<key>:
+    for any key, if there exists an entry in the metadata for 'b64-<key>'
+    Then 'b64-<key>' is expected to be a plaintext boolean indicating whether
+    or not its value is encoded.
+  * no_base64_decode: This is a configuration setting
+        (i.e. /etc/cloud/cloud.cfg.d) that sets which values should not be
+        base64 decoded.
