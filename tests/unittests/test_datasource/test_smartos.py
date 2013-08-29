@@ -22,24 +22,23 @@
 #   return responses.
 #
 
+import base64
 from cloudinit import helpers
 from cloudinit.sources import DataSourceSmartOS
 
 from mocker import MockerTestCase
 import uuid
 
-mock_returns = {
+MOCK_RETURNS = {
     'hostname': 'test-host',
     'root_authorized_keys': 'ssh-rsa AAAAB3Nz...aC1yc2E= keyname',
     'disable_iptables_flag': None,
     'enable_motd_sys_info': None,
-    'system_uuid': str(uuid.uuid4()),
-    'smartdc': 'smartdc',
-    'userdata': """
-#!/bin/sh
-/bin/true
-""",
+    'test-var1': 'some data',
+    'user-data': '\n'.join(['#!/bin/sh', '/bin/true', '']),
 }
+
+DMI_DATA_RETURN = (str(uuid.uuid4()), 'smartdc')
 
 
 class MockSerial(object):
@@ -48,12 +47,13 @@ class MockSerial(object):
 
     port = None
 
-    def __init__(self):
+    def __init__(self, mockdata):
         self.last = None
         self.last = None
         self.new = True
         self.count = 0
         self.mocked_out = []
+        self.mockdata = mockdata
 
     def open(self):
         return True
@@ -71,12 +71,12 @@ class MockSerial(object):
     def readline(self):
         if self.new:
             self.new = False
-            if self.last in mock_returns:
+            if self.last in self.mockdata:
                 return 'SUCCESS\n'
             else:
                 return 'NOTFOUND %s\n' % self.last
 
-        if self.last in mock_returns:
+        if self.last in self.mockdata:
             if not self.mocked_out:
                 self.mocked_out = [x for x in self._format_out()]
                 print self.mocked_out
@@ -86,15 +86,16 @@ class MockSerial(object):
                 return self.mocked_out[self.count - 1]
 
     def _format_out(self):
-        if self.last in mock_returns:
+        if self.last in self.mockdata:
+            _mret = self.mockdata[self.last]
             try:
-                for l in mock_returns[self.last].splitlines():
-                    yield "%s\n" % l
+                for l in _mret.splitlines():
+                    yield "%s\n" % l.rstrip()
             except:
-                yield "%s\n" % mock_returns[self.last]
+                yield "%s\n" % _mret.rstrip()
 
-            yield '\n'
             yield '.'
+            yield '\n'
 
 
 class TestSmartOSDataSource(MockerTestCase):
@@ -116,23 +117,36 @@ class TestSmartOSDataSource(MockerTestCase):
         ret = apply_patches(patches)
         self.unapply += ret
 
-    def _get_ds(self):
+    def _get_ds(self, sys_cfg=None, ds_cfg=None, mockdata=None, dmi_data=None):
+        mod = DataSourceSmartOS
+
+        if mockdata is None:
+            mockdata = MOCK_RETURNS
+
+        if dmi_data is None:
+            dmi_data = DMI_DATA_RETURN
 
         def _get_serial(*_):
-            return MockSerial()
+            return MockSerial(mockdata)
 
         def _dmi_data():
-            return mock_returns['system_uuid'], 'smartdc'
+            return dmi_data
 
-        data = {'sys_cfg': {}}
-        mod = DataSourceSmartOS
+        if sys_cfg is None:
+            sys_cfg = {}
+
+        if ds_cfg is not None:
+            sys_cfg['datasource'] = sys_cfg.get('datasource', {})
+            sys_cfg['datasource']['SmartOS'] = ds_cfg
+
         self.apply_patches([(mod, 'get_serial', _get_serial)])
         self.apply_patches([(mod, 'dmi_data', _dmi_data)])
-        dsrc = mod.DataSourceSmartOS(
-            data.get('sys_cfg', {}), distro=None, paths=self.paths)
+        dsrc = mod.DataSourceSmartOS(sys_cfg, distro=None,
+                                     paths=self.paths)
         return dsrc
 
     def test_seed(self):
+        # default seed should be /dev/ttyS1
         dsrc = self._get_ds()
         ret = dsrc.get_data()
         self.assertTrue(ret)
@@ -144,39 +158,107 @@ class TestSmartOSDataSource(MockerTestCase):
         self.assertTrue(ret)
         self.assertTrue(dsrc.is_smartdc)
 
-    def test_uuid(self):
-        dsrc = self._get_ds()
+    def test_no_base64(self):
+        ds_cfg = {'no_base64_decode': ['test_var1'], 'all_base': True}
+        dsrc = self._get_ds(ds_cfg=ds_cfg)
         ret = dsrc.get_data()
         self.assertTrue(ret)
-        self.assertEquals(mock_returns['system_uuid'],
-                          dsrc.metadata['instance-id'])
+
+    def test_uuid(self):
+        dsrc = self._get_ds(mockdata=MOCK_RETURNS)
+        ret = dsrc.get_data()
+        self.assertTrue(ret)
+        self.assertEquals(DMI_DATA_RETURN[0], dsrc.metadata['instance-id'])
 
     def test_root_keys(self):
-        dsrc = self._get_ds()
+        dsrc = self._get_ds(mockdata=MOCK_RETURNS)
         ret = dsrc.get_data()
         self.assertTrue(ret)
-        self.assertEquals(mock_returns['root_authorized_keys'],
+        self.assertEquals(MOCK_RETURNS['root_authorized_keys'],
                           dsrc.metadata['public-keys'])
 
-    def test_hostname(self):
-        dsrc = self._get_ds()
+    def test_hostname_b64(self):
+        dsrc = self._get_ds(mockdata=MOCK_RETURNS)
         ret = dsrc.get_data()
         self.assertTrue(ret)
-        self.assertEquals(mock_returns['hostname'],
+        self.assertEquals(MOCK_RETURNS['hostname'],
                           dsrc.metadata['local-hostname'])
 
-    def test_disable_iptables_flag(self):
-        dsrc = self._get_ds()
+    def test_hostname(self):
+        dsrc = self._get_ds(mockdata=MOCK_RETURNS)
         ret = dsrc.get_data()
         self.assertTrue(ret)
-        self.assertEquals(mock_returns['disable_iptables_flag'],
+        self.assertEquals(MOCK_RETURNS['hostname'],
+                          dsrc.metadata['local-hostname'])
+
+    def test_base64_all(self):
+        # metadata provided base64_all of true
+        my_returns = MOCK_RETURNS.copy()
+        my_returns['base64_all'] = "true"
+        for k in ('hostname', 'user-data'):
+            my_returns[k] = base64.b64encode(my_returns[k])
+
+        dsrc = self._get_ds(mockdata=my_returns)
+        ret = dsrc.get_data()
+        self.assertTrue(ret)
+        self.assertEquals(MOCK_RETURNS['hostname'],
+                          dsrc.metadata['local-hostname'])
+        self.assertEquals(MOCK_RETURNS['user-data'],
+                          dsrc.userdata_raw)
+        self.assertEquals(MOCK_RETURNS['root_authorized_keys'],
+                          dsrc.metadata['public-keys'])
+        self.assertEquals(MOCK_RETURNS['disable_iptables_flag'],
+                          dsrc.metadata['iptables_disable'])
+        self.assertEquals(MOCK_RETURNS['enable_motd_sys_info'],
+                          dsrc.metadata['motd_sys_info'])
+
+    def test_b64_userdata(self):
+        my_returns = MOCK_RETURNS.copy()
+        my_returns['b64-user-data'] = "true"
+        my_returns['b64-hostname'] = "true"
+        for k in ('hostname', 'user-data'):
+            my_returns[k] = base64.b64encode(my_returns[k])
+
+        dsrc = self._get_ds(mockdata=my_returns)
+        ret = dsrc.get_data()
+        self.assertTrue(ret)
+        self.assertEquals(MOCK_RETURNS['hostname'],
+                          dsrc.metadata['local-hostname'])
+        self.assertEquals(MOCK_RETURNS['user-data'], dsrc.userdata_raw)
+        self.assertEquals(MOCK_RETURNS['root_authorized_keys'],
+                          dsrc.metadata['public-keys'])
+
+    def test_b64_keys(self):
+        my_returns = MOCK_RETURNS.copy()
+        my_returns['base64_keys'] = 'hostname,ignored'
+        for k in ('hostname',):
+            my_returns[k] = base64.b64encode(my_returns[k])
+
+        dsrc = self._get_ds(mockdata=my_returns)
+        ret = dsrc.get_data()
+        self.assertTrue(ret)
+        self.assertEquals(MOCK_RETURNS['hostname'],
+                          dsrc.metadata['local-hostname'])
+        self.assertEquals(MOCK_RETURNS['user-data'], dsrc.userdata_raw)
+
+    def test_userdata(self):
+        dsrc = self._get_ds(mockdata=MOCK_RETURNS)
+        ret = dsrc.get_data()
+        self.assertTrue(ret)
+        self.assertEquals(MOCK_RETURNS['user-data'], dsrc.userdata_raw)
+
+    def test_disable_iptables_flag(self):
+        dsrc = self._get_ds(mockdata=MOCK_RETURNS)
+        ret = dsrc.get_data()
+        self.assertTrue(ret)
+        self.assertEquals(MOCK_RETURNS['disable_iptables_flag'],
                           dsrc.metadata['iptables_disable'])
 
     def test_motd_sys_info(self):
-        dsrc = self._get_ds()
+        dsrc = self._get_ds(mockdata=MOCK_RETURNS)
         ret = dsrc.get_data()
         self.assertTrue(ret)
-        self.assertEquals(mock_returns['enable_motd_sys_info'],
+        self.assertEquals(MOCK_RETURNS['enable_motd_sys_info'],
                           dsrc.metadata['motd_sys_info'])
 
 

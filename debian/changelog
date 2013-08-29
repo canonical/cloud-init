@@ -1,3 +1,10 @@
+cloud-init (0.7.3~bzr862-0ubuntu1) saucy; urgency=low
+
+  * New upstream snapshot.
+    * support base64 encoded data in the smart os datasource
+
+ -- Scott Moser <smoser@ubuntu.com>  Thu, 29 Aug 2013 04:54:39 -0400
+
 cloud-init (0.7.3~bzr861-0ubuntu1) saucy; urgency=low
 
   * New upstream snapshot.
