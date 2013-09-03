@@ -47,6 +47,8 @@ class ConfigDriveHelper(object):
         self.distro = distro
 
     def on_first_boot(self, data):
+        if not data:
+            data = {}
         if 'network_config' in data:
             LOG.debug("Updating network interfaces from config drive")
             self.distro.apply_network(data['network_config'])
