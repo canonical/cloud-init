@@ -171,9 +171,11 @@ class Distro(object):
         return distros
 
     def set_random_seed(self, seed):
-        if self.random_seed_fn:
-            # Ensure we only write 512 bytes worth
-            util.write_file(self.random_seed_fn, seed[0:512], mode=0600)
+        if not self.random_seed_fn:
+            raise IOError("No random seed filename provided for %s"
+                          % (self.name))
+        # Ensure we only write 512 bytes worth
+        util.write_file(self.random_seed_fn, seed[0:512], mode=0600)
 
     def update_hostname(self, hostname, fqdn, prev_hostname_fn):
         applying_hostname = hostname
