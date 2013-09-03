@@ -52,7 +52,7 @@ class Distro(object):
     ci_sudoers_fn = "/etc/sudoers.d/90-cloud-init-users"
     hostname_conf_fn = "/etc/hostname"
     tz_zone_dir = "/usr/share/zoneinfo"
-    random_seed_fn = "/var/lib/random-seed"
+    random_seed_fn = None
 
     def __init__(self, name, cfg, paths):
         self._paths = paths
@@ -172,7 +172,8 @@ class Distro(object):
 
     def set_random_seed(self, seed):
         if self.random_seed_fn:
-            util.write_file(self.random_seed_fn, seed, mode=0600)
+            # Ensure we only write 512 bytes worth
+            util.write_file(self.random_seed_fn, seed[0:512], mode=0600)
 
     def update_hostname(self, hostname, fqdn, prev_hostname_fn):
         applying_hostname = hostname
