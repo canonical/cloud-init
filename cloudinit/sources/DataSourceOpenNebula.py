@@ -239,15 +239,11 @@ def find_candidate_devs():
     """
     Return a list of devices that may contain the context disk.
     """
-    by_fstype = util.find_devs_with("TYPE=iso9660")
-    by_fstype.sort()
-
-    by_label = util.find_devs_with("LABEL=CDROM")
-    by_label.sort()
-
-    # combine list of items by putting by-label items first
-    # followed by fstype items, but with dupes removed
-    combined = (by_label + [d for d in by_fstype if d not in by_label])
+    combined = []
+    for f in ('LABEL=CONTEXT', 'LABEL=CDROM', 'TYPE=iso9660'):
+        for d in util.find_devs_with(f).sort():
+            if d not in combined:
+                combined.append(d)
 
     return combined
 
