@@ -52,7 +52,7 @@ class Distro(object):
     ci_sudoers_fn = "/etc/sudoers.d/90-cloud-init-users"
     hostname_conf_fn = "/etc/hostname"
     tz_zone_dir = "/usr/share/zoneinfo"
-    random_seed_fn = None
+    random_seed_fn = '/dev/urandom'
 
     def __init__(self, name, cfg, paths):
         self._paths = paths
@@ -171,11 +171,13 @@ class Distro(object):
         return distros
 
     def set_random_seed(self, seed):
-        if not self.random_seed_fn:
+        if not self.random_seed_fn or not os.path.exists(self.random_seed_fn):
             raise IOError("No random seed filename provided for %s"
                           % (self.name))
+        if not seed:
+            raise IOError("Unable to set empty random seed")
         # Ensure we only write 512 bytes worth
-        util.write_file(self.random_seed_fn, seed[0:512], mode=0600)
+        util.append_file(self.random_seed_fn, seed[0:512])
 
     def update_hostname(self, hostname, fqdn, prev_hostname_fn):
         applying_hostname = hostname

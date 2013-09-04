@@ -59,13 +59,6 @@ class ConfigDriveHelper(object):
                 write_files(files)
             except IOError:
                 util.logexc(LOG, "Failed writing files")
-        random_seed = util.get_cfg_by_path(data, ('metadata', 'random_seed'))
-        if random_seed is not None:
-            LOG.debug("Writing random seed")
-            try:
-                self.distro.set_random_seed(random_seed)
-            except IOError:
-                util.logexc(LOG, "Failed writing random seed")
 
 
 class DataSourceConfigDrive(sources.DataSource):
