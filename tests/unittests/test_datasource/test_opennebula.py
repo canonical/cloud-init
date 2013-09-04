@@ -19,9 +19,11 @@ SSH_KEY = 'ssh-rsa AAAAB3NzaC1....sIkJhq8wdX+4I3A4cYbYP ubuntu@server-460-%i'
 HOSTNAME = 'foo.example.com'
 PUBLIC_IP = '10.0.0.3'
 
-CMD_IP_OUT = '''\
-1: lo: <LOOPBACK,UP,LOWER_UP> mtu 16436 qdisc noqueue state UNKNOWN \    link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00
-2: eth0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc mq state UP qlen 1000\    link/ether 02:00:0a:12:01:01 brd ff:ff:ff:ff:ff:ff
+CMD_IP_OUT = '''
+1: lo: <LOOPBACK,UP,LOWER_UP> mtu 16436 qdisc noqueue state UNKNOWN
+    link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00
+2: eth0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc mq state UP qlen 1000
+    link/ether 02:00:0a:12:01:01 brd ff:ff:ff:ff:ff:ff
 '''
 
 
@@ -52,7 +54,7 @@ class TestOpenNebulaDataSource(MockerTestCase):
         self.assertEqual(TEST_VARS, results['metadata'])
 
     def test_ssh_key(self):
-        public_keys = []
+        public_keys = ['first key', 'second key']
         for c in range(4):
             for k in ('SSH_KEY', 'SSH_PUBLIC_KEY'):
                 my_d = os.path.join(self.tmp, "%s-%i" % (k, c))
@@ -61,7 +63,8 @@ class TestOpenNebulaDataSource(MockerTestCase):
 
                 self.assertTrue('metadata' in results)
                 self.assertTrue('public-keys' in results['metadata'])
-                self.assertEqual(public_keys, results['metadata']['public-keys'])
+                self.assertEqual(public_keys,
+                                 results['metadata']['public-keys'])
 
             public_keys.append(SSH_KEY % (c + 1,))
 
@@ -96,7 +99,8 @@ class TestOpenNebulaDataSource(MockerTestCase):
         try:
             orig_find_devs_with = util.find_devs_with
             util.find_devs_with = my_devs_with
-            self.assertEqual(["/dev/sr0", "/dev/vdb"], ds.find_candidate_devs())
+            self.assertEqual(["/dev/sr0", "/dev/vdb"],
+                             ds.find_candidate_devs())
         finally:
             util.find_devs_with = orig_find_devs_with
 

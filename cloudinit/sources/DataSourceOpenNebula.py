@@ -24,7 +24,6 @@
 
 import os
 import re
-import subprocess
 
 from cloudinit import log as logging
 from cloudinit import sources
@@ -86,7 +85,7 @@ class DataSourceOpenNebula(sources.DataSource):
         # check for valid user specified dsmode
         user_dsmode = results.get('dsmode', None)
         if user_dsmode not in VALID_DSMODES + (None,):
-            LOG.warn("user specified invalid mode: %s" % user_dsmode)
+            LOG.warn("user specified invalid mode: %s", user_dsmode)
             user_dsmode = None
 
         # decide dsmode
@@ -136,7 +135,9 @@ class NonContextDiskDir(Exception):
 
 
 class OpenNebulaNetwork(object):
-    REG_DEV_MAC = re.compile('^\d+: (eth\d+):.*link\/ether (..:..:..:..:..:..) ')
+    REG_DEV_MAC = re.compile(
+                    r'^\d+: (eth\d+):.*?link\/ether (..:..:..:..:..:..) ?',
+                    re.MULTILINE | re.DOTALL)
 
     def __init__(self, ip, context_sh):
         self.ip = ip
@@ -144,7 +145,7 @@ class OpenNebulaNetwork(object):
         self.ifaces = self.get_ifaces()
 
     def get_ifaces(self):
-        return [self.REG_DEV_MAC.search(f).groups() for f in self.ip.split("\n") if self.REG_DEV_MAC.match(f)]
+        return self.REG_DEV_MAC.findall(self.ip)
 
     def mac2ip(self, mac):
         components = mac.split(':')[2:]
@@ -157,7 +158,7 @@ class OpenNebulaNetwork(object):
         else:
             return '.'.join(components)
 
-    def get_mask(self, dev, components):
+    def get_mask(self, dev):
         var_name = dev + '_mask'
         if var_name in self.context_sh:
             return self.context_sh[var_name]
@@ -171,26 +172,26 @@ class OpenNebulaNetwork(object):
         else:
             return '.'.join(components[:-1]) + '.0'
 
-    def get_gateway(self, dev, components):
+    def get_gateway(self, dev):
         var_name = dev + '_gateway'
         if var_name in self.context_sh:
             return self.context_sh[var_name]
         else:
-            None
+            return None
 
-    def get_dns(self, dev, components):
+    def get_dns(self, dev):
         var_name = dev + '_dns'
         if var_name in self.context_sh:
             return self.context_sh[var_name]
         else:
-            None
+            return None
 
-    def get_domain(self, dev, components):
+    def get_domain(self, dev):
         var_name = dev + '_domain'
         if var_name in self.context_sh:
             return self.context_sh[var_name]
         else:
-            None
+            return None
 
     def gen_conf(self):
         global_dns = []
@@ -211,18 +212,18 @@ class OpenNebulaNetwork(object):
             conf.append('iface ' + dev + ' inet static')
             conf.append('  address ' + self.get_ip(dev, ip_components))
             conf.append('  network ' + self.get_network(dev, ip_components))
-            conf.append('  netmask ' + self.get_mask(dev, ip_components))
+            conf.append('  netmask ' + self.get_mask(dev))
 
-            gateway = self.get_gateway(dev, ip_components)
+            gateway = self.get_gateway(dev)
             if gateway:
                 conf.append('  gateway ' + gateway)
 
-            domain = self.get_domain(dev, ip_components)
+            domain = self.get_domain(dev)
             if domain:
                 conf.append('  dns-search ' + domain)
 
             # add global DNS servers to all interfaces
-            dns = self.get_dns(dev, ip_components)
+            dns = self.get_dns(dev)
             if global_dns or dns:
                 all_dns = global_dns
                 if dns:
@@ -272,51 +273,22 @@ def read_context_disk_dir(source_dir):
 
     if "context.sh" in found:
         try:
-            # Note: context.sh is a "shell" script with defined context
-            # variables, like: X="Y" . It's ready to use as a shell source
-            # e.g.: ". context.sh" and as a shell script it can also reference
-            # to already defined shell variables. So to have same context var.
-            # values as we can have in custom shell script, we use bash itself
-            # to read context.sh and dump variables in easily parsable way.
-            #
-            # normalized variables dump format (get by cmd "set"):
-            # 1. simple single word assignment ........ X=Y
-            # 2. multiword assignment ................. X='Y Z'
-            # 3. assignments with backslash escapes ... X=$'Y\nZ'
-            #
-            # how context variables are read:
-            # 1. list existing ("old") shell variables and store into $VARS
-            # 2. read context variables
-            # 3. use comm to filter "old" variables from all current
-            #    variables and excl. few other vars with grep
-            BASH_CMD = 'VARS=`set | sort -u `;' \
-                'source %s/context.sh;' \
-                'comm -23 <(set | sort -u) <(echo "$VARS") | egrep -v "^(VARS|PIPESTATUS|_)="'
+            f = open('%s/context.sh' % (source_dir), 'r')
+            text = f.read()
+            f.close()
 
-            (out, err) = util.subp(['bash', '--noprofile', '--norc',
-                                   '-c', BASH_CMD % (source_dir)])
+            context_reg = re.compile(r"^([\w_]+)=['\"](.*?[^\\])['\"]$",
+                                     re.MULTILINE | re.DOTALL)
+            variables = context_reg.findall(text)
 
-            for (key, value) in [l.split('=', 1) for l in out.rstrip().split("\n")]:
-                k = key.lower()
+            if not variables:
+                raise NonContextDiskDir("No variables in context")
 
-                # with backslash escapes, e.g.
-                # X=$'Y\nZ'
-                r = re.match("^\$'(.*)'$", value)
-                if r:
-                    context_sh[k] = r.group(1).decode('string_escape')
-                else:
-                    # multiword values, e.g.:
-                    # X='Y Z'
-                    # X='Y'\''Z' for "Y'Z"
-                    r = re.match("^'(.*)'$", value)
-                    if r:
-                        context_sh[k] = r.group(1).replace("'\\''", "'")
-                    else:
-                        # simple values, e.g.:
-                        # X=Y
-                        context_sh[k] = value
+            context_sh = {}
+            for k, v in variables:
+                context_sh[k.lower()] = v
 
-        except util.ProcessExecutionError as e:
+        except (IOError, NonContextDiskDir) as e:
             raise NonContextDiskDir("Error reading context.sh: %s" % (e))
 
         results['metadata'] = context_sh
@@ -353,8 +325,8 @@ def read_context_disk_dir(source_dir):
     # only if there are any required context variables
     # http://opennebula.org/documentation:rel3.8:cong#network_configuration
     for k in context_sh.keys():
-        if re.match('^eth\d+_ip$', k):
-            (out, err) = util.subp(['/sbin/ip', '-o', 'link'])
+        if re.match(r'^eth\d+_ip$', k):
+            (out, _) = util.subp(['/sbin/ip', '-o', 'link'])
             net = OpenNebulaNetwork(out, context_sh)
             results['network-interfaces'] = net.gen_conf()
             break
