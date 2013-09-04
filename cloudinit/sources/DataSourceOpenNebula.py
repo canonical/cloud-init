@@ -277,16 +277,28 @@ def read_context_disk_dir(source_dir):
             text = f.read()
             f.close()
 
-            context_reg = re.compile(r"^([\w_]+)=['\"](.*?[^\\])['\"]$",
-                                     re.MULTILINE | re.DOTALL)
-            variables = context_reg.findall(text)
+            # lame matching:
+            # 1. group = key
+            # 2. group = single quoted value, respect '\''
+            # 3. group = old double quoted value, but doesn't end with \"
+            context_reg = re.compile(
+                r"^([\w_]+)=(?:'((?:[^']|'\\'')*?)'|\"(.*?[^\\])\")$",
+                re.MULTILINE | re.DOTALL)
 
+            variables = context_reg.findall(text)
             if not variables:
                 raise NonContextDiskDir("No variables in context")
 
-            context_sh = {}
-            for k, v in variables:
-                context_sh[k.lower()] = v
+            for k, v1, v2 in variables:
+                k = k.lower()
+                if v1:
+                    # take single quoted variable 'xyz'
+                    # (ON>=4) and unquote '\'' -> '
+                    context_sh[k] = v1.replace(r"'\''", r"'")
+                elif v2:
+                    # take double quoted variable "xyz"
+                    # (old ON<4) and unquote \" -> "
+                    context_sh[k] = v2.replace(r'\"', r'"')
 
         except (IOError, NonContextDiskDir) as e:
             raise NonContextDiskDir("Error reading context.sh: %s" % (e))
@@ -326,7 +338,7 @@ def read_context_disk_dir(source_dir):
     # http://opennebula.org/documentation:rel3.8:cong#network_configuration
     for k in context_sh.keys():
         if re.match(r'^eth\d+_ip$', k):
-            (out, _) = util.subp(['/sbin/ip', '-o', 'link'])
+            (out, _) = util.subp(['/sbin/ip', 'link'])
             net = OpenNebulaNetwork(out, context_sh)
             results['network-interfaces'] = net.gen_conf()
             break
