@@ -27,7 +27,7 @@ import urllib2
 
 from cloudinit import log as logging
 from cloudinit import sources
-from cloudinit import url_helper as uhelp
+from cloudinit import url_helper
 from cloudinit import util
 
 LOG = logging.getLogger(__name__)
@@ -50,7 +50,8 @@ class DataSourceMAAS(sources.DataSource):
         self.oauth_clockskew = None
 
     def __str__(self):
-        return "%s [%s]" % (util.obj_name(self), self.base_url)
+        root = sources.DataSource.__str__(self)
+        return "%s [%s]" % (root, self.base_url)
 
     def get_data(self):
         mcfg = self.ds_cfg
@@ -79,7 +80,8 @@ class DataSourceMAAS(sources.DataSource):
             self.base_url = url
 
             (userdata, metadata) = read_maas_seed_url(self.base_url,
-                                                      self.md_headers)
+                                                      self._md_headers,
+                                                      paths=self.paths)
             self.userdata_raw = userdata
             self.metadata = metadata
             return True
@@ -87,7 +89,7 @@ class DataSourceMAAS(sources.DataSource):
             util.logexc(LOG, "Failed fetching metadata from url %s", url)
             return False
 
-    def md_headers(self, url):
+    def _md_headers(self, url):
         mcfg = self.ds_cfg
 
         # If we are missing token_key, token_secret or consumer_key
@@ -131,36 +133,37 @@ class DataSourceMAAS(sources.DataSource):
         starttime = time.time()
         check_url = "%s/%s/meta-data/instance-id" % (url, MD_VERSION)
         urls = [check_url]
-        url = uhelp.wait_for_url(urls=urls, max_wait=max_wait,
-                                 timeout=timeout, exception_cb=self._except_cb,
-                                 headers_cb=self.md_headers)
+        url = url_helper.wait_for_url(urls=urls, max_wait=max_wait,
+                                      timeout=timeout,
+                                      exception_cb=self._except_cb,
+                                      headers_cb=self._md_headers)
 
         if url:
             LOG.debug("Using metadata source: '%s'", url)
         else:
             LOG.critical("Giving up on md from %s after %i seconds",
-                            urls, int(time.time() - starttime))
+                         urls, int(time.time() - starttime))
 
         return bool(url)
 
     def _except_cb(self, msg, exception):
-        if not (isinstance(exception, urllib2.HTTPError) and
+        if not (isinstance(exception, url_helper.UrlError) and
                 (exception.code == 403 or exception.code == 401)):
             return
+
         if 'date' not in exception.headers:
-            LOG.warn("date field not in %d headers" % exception.code)
+            LOG.warn("Missing header 'date' in %s response", exception.code)
             return
 
         date = exception.headers['date']
-
         try:
             ret_time = time.mktime(parsedate(date))
-        except:
-            LOG.warn("failed to convert datetime '%s'")
+        except Exception as e:
+            LOG.warn("Failed to convert datetime '%s': %s", date, e)
             return
 
         self.oauth_clockskew = int(ret_time - time.time())
-        LOG.warn("set oauth clockskew to %d" % self.oauth_clockskew)
+        LOG.warn("Setting oauth clockskew to %d", self.oauth_clockskew)
         return
 
 
@@ -188,11 +191,11 @@ def read_maas_seed_dir(seed_d):
 
 
 def read_maas_seed_url(seed_url, header_cb=None, timeout=None,
-    version=MD_VERSION):
+                       version=MD_VERSION, paths=None):
     """
     Read the maas datasource at seed_url.
-    header_cb is a method that should return a headers dictionary that will
-    be given to urllib2.Request()
+      - header_cb is a method that should return a headers dictionary for
+        a given url
 
     Expected format of seed_url is are the following files:
       * <seed_url>/<version>/meta-data/instance-id
@@ -215,18 +218,28 @@ def read_maas_seed_url(seed_url, header_cb=None, timeout=None,
     md = {}
     for name in file_order:
         url = files.get(name)
-        if header_cb:
-            headers = header_cb(url)
+        if not header_cb:
+            def _cb(url):
+                return {}
+            header_cb = _cb
+
+        if name == 'user-data':
+            retries = 0
         else:
-            headers = {}
+            retries = None
+
         try:
-            resp = uhelp.readurl(url, headers=headers, timeout=timeout)
+            ssl_details = util.fetch_ssl_details(paths)
+            resp = util.read_file_or_url(url, retries=retries,
+                                         headers_cb=header_cb,
+                                         timeout=timeout,
+                                         ssl_details=ssl_details)
             if resp.ok():
                 md[name] = str(resp)
             else:
                 LOG.warn(("Fetching from %s resulted in"
                           " an invalid http code %s"), url, resp.code)
-        except urllib2.HTTPError as e:
+        except url_helper.UrlError as e:
             if e.code != 404:
                 raise
     return check_seed_contents(md, seed_url)
@@ -369,7 +382,8 @@ if __name__ == "__main__":
         if args.subcmd == "check-seed":
             if args.url.startswith("http"):
                 (userdata, metadata) = read_maas_seed_url(args.url,
-                    header_cb=my_headers, version=args.apiver)
+                                                          header_cb=my_headers,
+                                                          version=args.apiver)
             else:
                 (userdata, metadata) = read_maas_seed_url(args.url)
             print "=== userdata ==="

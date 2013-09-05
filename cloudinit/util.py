@@ -1,7 +1,7 @@
 # vi: ts=4 expandtab
 #
 #    Copyright (C) 2012 Canonical Ltd.
-#    Copyright (C) 2012 Hewlett-Packard Development Company, L.P.
+#    Copyright (C) 2012, 2013 Hewlett-Packard Development Company, L.P.
 #    Copyright (C) 2012 Yahoo! Inc.
 #
 #    Author: Scott Moser <scott.moser@canonical.com>
@@ -43,15 +43,16 @@ import subprocess
 import sys
 import tempfile
 import time
-import types
 import urlparse
 
 import yaml
 
 from cloudinit import importer
 from cloudinit import log as logging
+from cloudinit import mergers
 from cloudinit import safeyaml
-from cloudinit import url_helper as uhelp
+from cloudinit import type_utils
+from cloudinit import url_helper
 from cloudinit import version
 
 from cloudinit.settings import (CFG_BUILTIN)
@@ -68,6 +69,31 @@ FN_ALLOWED = ('_-.()' + string.digits + string.ascii_letters)
 
 # Helper utils to see if running in a container
 CONTAINER_TESTS = ['running-in-container', 'lxc-is-container']
+
+
+# Made to have same accessors as UrlResponse so that the
+# read_file_or_url can return this or that object and the
+# 'user' of those objects will not need to know the difference.
+class StringResponse(object):
+    def __init__(self, contents, code=200):
+        self.code = code
+        self.headers = {}
+        self.contents = contents
+        self.url = None
+
+    def ok(self, *args, **kwargs):  # pylint: disable=W0613
+        if self.code != 200:
+            return False
+        return True
+
+    def __str__(self):
+        return self.contents
+
+
+class FileResponse(StringResponse):
+    def __init__(self, path, contents, code=200):
+        StringResponse.__init__(self, contents, code=code)
+        self.url = path
 
 
 class ProcessExecutionError(IOError):
@@ -193,12 +219,12 @@ def fork_cb(child_cb, *args):
             child_cb(*args)
             os._exit(0)  # pylint: disable=W0212
         except:
-            logexc(LOG, ("Failed forking and"
-                         " calling callback %s"), obj_name(child_cb))
+            logexc(LOG, "Failed forking and calling callback %s",
+                   type_utils.obj_name(child_cb))
             os._exit(1)  # pylint: disable=W0212
     else:
         LOG.debug("Forked child %s who will run callback %s",
-                  fid, obj_name(child_cb))
+                  fid, type_utils.obj_name(child_cb))
 
 
 def is_true(val, addons=None):
@@ -381,6 +407,7 @@ def system_info():
         'release': platform.release(),
         'python': platform.python_version(),
         'uname': platform.uname(),
+        'dist': platform.linux_distribution(),
     }
 
 
@@ -460,7 +487,7 @@ def redirect_output(outfmt, errfmt, o_out=None, o_err=None):
             new_fp = open(arg, owith)
         elif mode == "|":
             proc = subprocess.Popen(arg, shell=True, stdin=subprocess.PIPE)
-            new_fp = proc.stdin
+            new_fp = proc.stdin  # pylint: disable=E1101
         else:
             raise TypeError("Invalid type for output format: %s" % outfmt)
 
@@ -482,7 +509,7 @@ def redirect_output(outfmt, errfmt, o_out=None, o_err=None):
             new_fp = open(arg, owith)
         elif mode == "|":
             proc = subprocess.Popen(arg, shell=True, stdin=subprocess.PIPE)
-            new_fp = proc.stdin
+            new_fp = proc.stdin  # pylint: disable=E1101
         else:
             raise TypeError("Invalid type for error format: %s" % errfmt)
 
@@ -512,38 +539,19 @@ def make_url(scheme, host, port=None,
     return urlparse.urlunparse(pieces)
 
 
-def obj_name(obj):
-    if isinstance(obj, (types.TypeType,
-                        types.ModuleType,
-                        types.FunctionType,
-                        types.LambdaType)):
-        return str(obj.__name__)
-    return obj_name(obj.__class__)
-
-
 def mergemanydict(srcs, reverse=False):
     if reverse:
         srcs = reversed(srcs)
-    m_cfg = {}
-    for a_cfg in srcs:
-        if a_cfg:
-            m_cfg = mergedict(m_cfg, a_cfg)
-    return m_cfg
-
-
-def mergedict(src, cand):
-    """
-    Merge values from C{cand} into C{src}.
-    If C{src} has a key C{cand} will not override.
-    Nested dictionaries are merged recursively.
-    """
-    if isinstance(src, dict) and isinstance(cand, dict):
-        for (k, v) in cand.iteritems():
-            if k not in src:
-                src[k] = v
-            else:
-                src[k] = mergedict(src[k], v)
-    return src
+    merged_cfg = {}
+    for cfg in srcs:
+        if cfg:
+            # Figure out which mergers to apply...
+            mergers_to_apply = mergers.dict_extract_mergers(cfg)
+            if not mergers_to_apply:
+                mergers_to_apply = mergers.default_mergers()
+            merger = mergers.construct(mergers_to_apply)
+            merged_cfg = merger.merge(merged_cfg, cfg)
+    return merged_cfg
 
 
 @contextlib.contextmanager
@@ -618,18 +626,64 @@ def read_optional_seed(fill, base="", ext="", timeout=5):
         fill['user-data'] = ud
         fill['meta-data'] = md
         return True
-    except OSError as e:
+    except IOError as e:
         if e.errno == errno.ENOENT:
             return False
         raise
 
 
-def read_file_or_url(url, timeout=5, retries=10, file_retries=0):
+def fetch_ssl_details(paths=None):
+    ssl_details = {}
+    # Lookup in these locations for ssl key/cert files
+    ssl_cert_paths = [
+        '/var/lib/cloud/data/ssl',
+        '/var/lib/cloud/instance/data/ssl',
+    ]
+    if paths:
+        ssl_cert_paths.extend([
+            os.path.join(paths.get_ipath_cur('data'), 'ssl'),
+            os.path.join(paths.get_cpath('data'), 'ssl'),
+        ])
+    ssl_cert_paths = uniq_merge(ssl_cert_paths)
+    ssl_cert_paths = [d for d in ssl_cert_paths if d and os.path.isdir(d)]
+    cert_file = None
+    for d in ssl_cert_paths:
+        if os.path.isfile(os.path.join(d, 'cert.pem')):
+            cert_file = os.path.join(d, 'cert.pem')
+            break
+    key_file = None
+    for d in ssl_cert_paths:
+        if os.path.isfile(os.path.join(d, 'key.pem')):
+            key_file = os.path.join(d, 'key.pem')
+            break
+    if cert_file and key_file:
+        ssl_details['cert_file'] = cert_file
+        ssl_details['key_file'] = key_file
+    elif cert_file:
+        ssl_details['cert_file'] = cert_file
+    return ssl_details
+
+
+def read_file_or_url(url, timeout=5, retries=10,
+                     headers=None, data=None, sec_between=1, ssl_details=None,
+                     headers_cb=None):
+    url = url.lstrip()
     if url.startswith("/"):
         url = "file://%s" % url
-    if url.startswith("file://"):
-        retries = file_retries
-    return uhelp.readurl(url, timeout=timeout, retries=retries)
+    if url.lower().startswith("file://"):
+        if data:
+            LOG.warn("Unable to post data to file resource %s", url)
+        file_path = url[len("file://"):]
+        return FileResponse(file_path, contents=load_file(file_path))
+    else:
+        return url_helper.readurl(url,
+                                  timeout=timeout,
+                                  retries=retries,
+                                  headers=headers,
+                                  headers_cb=headers_cb,
+                                  data=data,
+                                  sec_between=sec_between,
+                                  ssl_details=ssl_details)
 
 
 def load_yaml(blob, default=None, allowed=(dict,)):
@@ -644,7 +698,7 @@ def load_yaml(blob, default=None, allowed=(dict,)):
             # Yes this will just be caught, but thats ok for now...
             raise TypeError(("Yaml load allows %s root types,"
                              " but got %s instead") %
-                            (allowed, obj_name(converted)))
+                            (allowed, type_utils.obj_name(converted)))
         loaded = converted
     except (yaml.YAMLError, TypeError, ValueError):
         if len(blob) == 0:
@@ -713,7 +767,7 @@ def read_conf_with_confd(cfgfile):
             if not isinstance(confd, (str, basestring)):
                 raise TypeError(("Config file %s contains 'conf_d' "
                                  "with non-string type %s") %
-                                 (cfgfile, obj_name(confd)))
+                                 (cfgfile, type_utils.obj_name(confd)))
             else:
                 confd = str(confd).strip()
     elif os.path.isdir("%s.d" % cfgfile):
@@ -724,7 +778,7 @@ def read_conf_with_confd(cfgfile):
 
     # Conf.d settings override input configuration
     confd_cfg = read_conf_d(confd)
-    return mergedict(confd_cfg, cfg)
+    return mergemanydict([confd_cfg, cfg])
 
 
 def read_cc_from_cmdline(cmdline=None):
@@ -846,7 +900,7 @@ def get_cmdline_url(names=('cloud-config-url', 'url'),
     if not url:
         return (None, None, None)
 
-    resp = uhelp.readurl(url)
+    resp = read_file_or_url(url)
     if resp.contents.startswith(starts) and resp.ok():
         return (key, url, str(resp))
 
@@ -879,7 +933,7 @@ def is_resolvable(name):
                 for (_fam, _stype, _proto, cname, sockaddr) in result:
                     badresults[iname].append("%s: %s" % (cname, sockaddr[0]))
                     badips.add(sockaddr[0])
-            except socket.gaierror:
+            except (socket.gaierror, socket.error):
                 pass
         _DNS_REDIRECT_IP = badips
         if badresults:
@@ -892,7 +946,7 @@ def is_resolvable(name):
         if addr in _DNS_REDIRECT_IP:
             return False
         return True
-    except socket.gaierror:
+    except (socket.gaierror, socket.error):
         return False
 
 
@@ -1428,7 +1482,7 @@ def subp(args, data=None, rcs=None, env=None, capture=True, shell=False,
         (out, err) = sp.communicate(data)
     except OSError as e:
         raise ProcessExecutionError(cmd=args, reason=e)
-    rc = sp.returncode
+    rc = sp.returncode  # pylint: disable=E1101
     if rc not in rcs:
         raise ProcessExecutionError(stdout=out, stderr=err,
                                     exit_code=rc,
@@ -1478,9 +1532,17 @@ def shellify(cmdlist, add_header=True):
         else:
             raise RuntimeError(("Unable to shellify type %s"
                                 " which is not a list or string")
-                               % (obj_name(args)))
+                               % (type_utils.obj_name(args)))
     LOG.debug("Shellified %s commands.", cmds_made)
     return content
+
+
+def strip_prefix_suffix(line, prefix=None, suffix=None):
+    if prefix and line.startswith(prefix):
+        line = line[len(prefix):]
+    if suffix and line.endswith(suffix):
+        line = line[:-len(suffix)]
+    return line
 
 
 def is_container():
@@ -1537,7 +1599,7 @@ def get_proc_env(pid):
     fn = os.path.join("/proc/", str(pid), "environ")
     try:
         contents = load_file(fn)
-        toks = contents.split("\0")
+        toks = contents.split("\x00")
         for tok in toks:
             if tok == "":
                 continue
@@ -1593,3 +1655,160 @@ def expand_package_list(version_fmt, pkgs):
             raise RuntimeError("Invalid package type.")
 
     return pkglist
+
+
+def parse_mount_info(path, mountinfo_lines, log=LOG):
+    """Return the mount information for PATH given the lines from
+    /proc/$$/mountinfo."""
+
+    path_elements = [e for e in path.split('/') if e]
+    devpth = None
+    fs_type = None
+    match_mount_point = None
+    match_mount_point_elements = None
+    for i, line in enumerate(mountinfo_lines):
+        parts = line.split()
+
+        # Completely fail if there is anything in any line that is
+        # unexpected, as continuing to parse past a bad line could
+        # cause an incorrect result to be returned, so it's better
+        # return nothing than an incorrect result.
+
+        # The minimum number of elements in a valid line is 10.
+        if len(parts) < 10:
+            log.debug("Line %d has two few columns (%d): %s",
+                      i + 1, len(parts), line)
+            return None
+
+        mount_point = parts[4]
+        mount_point_elements = [e for e in mount_point.split('/') if e]
+
+        # Ignore mounts deeper than the path in question.
+        if len(mount_point_elements) > len(path_elements):
+            continue
+
+        # Ignore mounts where the common path is not the same.
+        l = min(len(mount_point_elements), len(path_elements))
+        if mount_point_elements[0:l] != path_elements[0:l]:
+            continue
+
+        # Ignore mount points higher than an already seen mount
+        # point.
+        if (match_mount_point_elements is not None and
+            len(match_mount_point_elements) > len(mount_point_elements)):
+            continue
+
+        # Find the '-' which terminates a list of optional columns to
+        # find the filesystem type and the path to the device.  See
+        # man 5 proc for the format of this file.
+        try:
+            i = parts.index('-')
+        except ValueError:
+            log.debug("Did not find column named '-' in line %d: %s",
+                      i + 1, line)
+            return None
+
+        # Get the path to the device.
+        try:
+            fs_type = parts[i + 1]
+            devpth = parts[i + 2]
+        except IndexError:
+            log.debug("Too few columns after '-' column in line %d: %s",
+                      i + 1, line)
+            return None
+
+        match_mount_point = mount_point
+        match_mount_point_elements = mount_point_elements
+
+    if devpth and fs_type and match_mount_point:
+        return (devpth, fs_type, match_mount_point)
+    else:
+        return None
+
+
+def get_mount_info(path, log=LOG):
+    # Use /proc/$$/mountinfo to find the device where path is mounted.
+    # This is done because with a btrfs filesystem using os.stat(path)
+    # does not return the ID of the device.
+    #
+    # Here, / has a device of 18 (decimal).
+    #
+    # $ stat /
+    #   File: '/'
+    #   Size: 234               Blocks: 0          IO Block: 4096   directory
+    # Device: 12h/18d   Inode: 256         Links: 1
+    # Access: (0755/drwxr-xr-x)  Uid: (    0/    root)   Gid: (    0/    root)
+    # Access: 2013-01-13 07:31:04.358011255 +0000
+    # Modify: 2013-01-13 18:48:25.930011255 +0000
+    # Change: 2013-01-13 18:48:25.930011255 +0000
+    #  Birth: -
+    #
+    # Find where / is mounted:
+    #
+    # $ mount | grep ' / '
+    # /dev/vda1 on / type btrfs (rw,subvol=@,compress=lzo)
+    #
+    # And the device ID for /dev/vda1 is not 18:
+    #
+    # $ ls -l /dev/vda1
+    # brw-rw---- 1 root disk 253, 1 Jan 13 08:29 /dev/vda1
+    #
+    # So use /proc/$$/mountinfo to find the device underlying the
+    # input path.
+    mountinfo_path = '/proc/%s/mountinfo' % os.getpid()
+    lines = load_file(mountinfo_path).splitlines()
+    return parse_mount_info(path, lines, log)
+
+
+def which(program):
+    # Return path of program for execution if found in path
+    def is_exe(fpath):
+        return os.path.isfile(fpath) and os.access(fpath, os.X_OK)
+
+    _fpath, _ = os.path.split(program)
+    if _fpath:
+        if is_exe(program):
+            return program
+    else:
+        for path in os.environ["PATH"].split(os.pathsep):
+            path = path.strip('"')
+            exe_file = os.path.join(path, program)
+            if is_exe(exe_file):
+                return exe_file
+
+    return None
+
+
+def log_time(logfunc, msg, func, args=None, kwargs=None, get_uptime=False):
+    if args is None:
+        args = []
+    if kwargs is None:
+        kwargs = {}
+
+    start = time.time()
+
+    ustart = None
+    if get_uptime:
+        try:
+            ustart = float(uptime())
+        except ValueError:
+            pass
+
+    try:
+        ret = func(*args, **kwargs)
+    finally:
+        delta = time.time() - start
+        if ustart is not None:
+            try:
+                udelta = float(uptime()) - ustart
+            except ValueError:
+                udelta = "N/A"
+
+        tmsg = " took %0.3f seconds" % delta
+        if get_uptime:
+            tmsg += "(%0.2f)" % udelta
+        try:
+            logfunc(msg + tmsg)
+        except:
+            pass
+    return ret

@@ -1,0 +1,5 @@
+#cloud-config
+
+run_cmds:
+  - bash
+  - top

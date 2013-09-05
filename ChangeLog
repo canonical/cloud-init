@@ -1,3 +1,20 @@
+0.7.3:
+ - fix omnibus chef installer (LP: #1182265) [Chris Wing]
+ - small fix for OVF datasource for iso transport on non-iso9660 filesystem
+ - determine if upstart version is suitable for
+   'initctl reload-configuration' (LP: #1124384).  If so, then invoke it.
+ - add Azure datasource.
+ - add support for SuSE / SLES [Juerg Haefliger]
+ - add a trailing carriage return to chpasswd input, which reportedly
+   caused a problem on rhel5 if missing.
+ - support individual MIME segments to be gzip compressed (LP: #1203203)
+ - always finalize handlers even if processing failed (LP: #1203368)
+ - support merging into cloud-config via jsonp. (LP: #1200476)
+ - add datasource 'SmartOS' for Joyent Cloud.  Adds a dependency on serial.
+ - add 'log_time' helper to util for timing how long things take
+   which also reads from uptime. uptime is useful as clock may change during
+   boot due to ntp.
+ - prefer growpart resizer to 'parted resizepart' (LP: #1212492)
 0.7.2:
  - add a debian watch file
  - add 'sudo' entry to ubuntu's default user (LP: #1080717)
@@ -40,6 +57,25 @@
  - cloud-init-container.conf: ensure /run/network before running ifquery
  - DataSourceNoCloud: allow user-data and meta-data to be specified
    in config (LP: #1115833).
+ - improve debian support in sysvinit scripts, package build scripts, and
+   split sources.list template to be distro specific.
+ - support for resizing btrfs root filesystems [Blair Zajac]
+ - fix issue when writing ssh keys to .ssh/authorized_keys (LP: #1136343)
+ - upstart: cloud-init-nonet.conf trap the TERM signal, so that dmesg or other
+   output does not get a 'killed by TERM signal' message.
+ - support resizing partitions via growpart or parted (LP: #1136936)
+ - allow specifying apt-get command in distro config ('apt_get_command')
+ - support different and user-suppliable merging algorithms for cloud-config
+   (LP: #1023179)
+ - use python-requests rather than urllib2.  By using recent versions of
+   python-requests, we get https support (LP: #1067888).
+ - make apt-get invoke 'dist-upgrade' rather than 'upgrade' for
+   package_upgrade. (LP: #1164147)
+ - improvements for systemd with Fedora 18
+ - workaround 2.6 kernel issue that stopped blkid from showing /dev/sr0
+ - add new, backwards compatible merging syntax so merging of cloud-config
+   can be more useful.
+
 0.7.1:
  - sysvinit: fix missing dependency in cloud-init job for RHEL 5.6 
  - config-drive: map hostname to local-hostname (LP: #1061964)

@@ -1,0 +1,89 @@
+#!/usr/bin/python
+
+from cloudinit import handlers
+from cloudinit.handlers import cloud_config as cc_part
+from cloudinit import helpers
+from cloudinit import log as logging
+from cloudinit.settings import PER_INSTANCE
+from cloudinit import user_data as ud
+
+import argparse
+import os
+import shutil
+import tempfile
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        description='test cloud-config merging')
+    parser.add_argument("--output", "-o", metavar="file",
+        help="specify output file", default="-")
+    parser.add_argument('--verbose', '-v', action='count', default=0)
+    parser.add_argument('files', nargs='+')
+
+    args = parser.parse_args()
+
+    if args.verbose:
+        level = (logging.WARN, logging.INFO,
+                 logging.DEBUG)[min(args.verbose, 2)]
+        logging.setupBasicLogging(level)
+
+    outfile = args.output
+    if args.output == "-":
+        outfile = "/dev/stdout"
+
+    tempd = tempfile.mkdtemp()
+    handler_dir = os.path.join(tempd, "hdir")
+    data = None  # the 'init' object
+    frequency = PER_INSTANCE
+
+    paths = helpers.Paths({})
+
+    # make a '#include <f1>' style
+    udproc = ud.UserDataProcessor(paths=paths)
+    user_data_msg = udproc.process("#include\n" +
+      '\n'.join([os.path.abspath(f) for f in args.files]))
+
+    ccph = cc_part.CloudConfigPartHandler(paths=paths)
+    ccph.cloud_fn = outfile
+
+    c_handlers = helpers.ContentHandlers()
+    c_handlers.register_defaults([ccph])
+
+    called = []
+    for (_ctype, mod) in c_handlers.iteritems():
+        if mod in called:
+            continue
+        handlers.call_begin(mod, data, frequency)
+        called.append(mod)
+
+    # Walk the user data
+    part_data = {
+        'handlers': c_handlers,
+        # Any new handlers that are encountered get writen here
+        'handlerdir': handler_dir,
+        'data': data,
+        # The default frequency if handlers don't have one
+        'frequency': frequency,
+        # This will be used when new handlers are found
+        # to help write there contents to files with numbered
+        # names...
+        'handlercount': 0,
+    }
+
+    handlers.walk(user_data_msg, handlers.walker_callback, data=part_data)
+
+    # Give callbacks opportunity to finalize
+    called = []
+    for (_ctype, mod) in c_handlers.iteritems():
+        if mod in called:
+            continue
+        handlers.call_end(mod, data, frequency)
+        called.append(mod)
+
+    shutil.rmtree(tempd)
+
+if __name__ == "__main__":
+    main()
+
+# vi: ts=4 expandtab

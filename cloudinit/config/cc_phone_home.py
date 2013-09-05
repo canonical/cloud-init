@@ -1,7 +1,7 @@
 # vi: ts=4 expandtab
 #
 #    Copyright (C) 2011 Canonical Ltd.
-#    Copyright (C) 2012 Hewlett-Packard Development Company, L.P.
+#    Copyright (C) 2012, 2013 Hewlett-Packard Development Company, L.P.
 #
 #    Author: Scott Moser <scott.moser@canonical.com>
 #    Author: Juerg Haefliger <juerg.haefliger@hp.com>
@@ -19,7 +19,6 @@
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 from cloudinit import templater
-from cloudinit import url_helper as uhelp
 from cloudinit import util
 
 from cloudinit.settings import PER_INSTANCE
@@ -66,8 +65,8 @@ def handle(name, cfg, cloud, log, args):
         tries = int(tries)
     except:
         tries = 10
-        util.logexc(log, ("Configuration entry 'tries'"
-                          " is not an integer, using %s instead"), tries)
+        util.logexc(log, "Configuration entry 'tries' is not an integer, "
+                    "using %s instead", tries)
 
     if post_list == "all":
         post_list = POST_LIST_ALL
@@ -86,8 +85,8 @@ def handle(name, cfg, cloud, log, args):
         try:
             all_keys[n] = util.load_file(path)
         except:
-            util.logexc(log, ("%s: failed to open, can not"
-                              " phone home that data!"), path)
+            util.logexc(log, "%s: failed to open, can not phone home that "
+                        "data!", path)
 
     submit_keys = {}
     for k in post_list:
@@ -112,7 +111,9 @@ def handle(name, cfg, cloud, log, args):
     }
     url = templater.render_string(url, url_params)
     try:
-        uhelp.readurl(url, data=real_submit_keys, retries=tries, sec_between=3)
+        util.read_file_or_url(url, data=real_submit_keys,
+                              retries=tries, sec_between=3,
+                              ssl_details=util.fetch_ssl_details(cloud.paths))
     except:
-        util.logexc(log, ("Failed to post phone home data to"
-                          " %s in %s tries"), url, tries)
+        util.logexc(log, "Failed to post phone home data to %s in %s tries",
+                    url, tries)

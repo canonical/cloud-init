@@ -24,6 +24,7 @@ Summary
    topics/examples
    topics/datasources
    topics/modules
+   topics/merging
    topics/moreinfo
    topics/hacking
 

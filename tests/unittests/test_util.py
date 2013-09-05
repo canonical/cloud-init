@@ -1,9 +1,12 @@
+# pylint: disable=C0301
+# the mountinfo data lines are too long
 import os
 import stat
 import yaml
 
 from mocker import MockerTestCase
 from unittest import TestCase
+from tests.unittests import helpers
 
 from cloudinit import importer
 from cloudinit import util
@@ -247,5 +250,61 @@ class TestLoadYaml(TestCase):
                                         default=self.mydefault),
                          myobj)
 
+
+class TestMountinfoParsing(helpers.ResourceUsingTestCase):
+    def test_invalid_mountinfo(self):
+        line = ("20 1 252:1 / / rw,relatime - ext4 /dev/mapper/vg0-root"
+                "rw,errors=remount-ro,data=ordered")
+        elements = line.split()
+        for i in range(len(elements) + 1):
+            lines = [' '.join(elements[0:i])]
+            if i < 10:
+                expected = None
+            else:
+                expected = ('/dev/mapper/vg0-root', 'ext4', '/')
+            self.assertEqual(expected, util.parse_mount_info('/', lines))
+
+    def test_precise_ext4_root(self):
+
+        lines = self.readResource('mountinfo_precise_ext4.txt').splitlines()
+
+        expected = ('/dev/mapper/vg0-root', 'ext4', '/')
+        self.assertEqual(expected, util.parse_mount_info('/', lines))
+        self.assertEqual(expected, util.parse_mount_info('/usr', lines))
+        self.assertEqual(expected, util.parse_mount_info('/usr/bin', lines))
+
+        expected = ('/dev/md0', 'ext4', '/boot')
+        self.assertEqual(expected, util.parse_mount_info('/boot', lines))
+        self.assertEqual(expected, util.parse_mount_info('/boot/grub', lines))
+
+        expected = ('/dev/mapper/vg0-root', 'ext4', '/')
+        self.assertEqual(expected, util.parse_mount_info('/home', lines))
+        self.assertEqual(expected, util.parse_mount_info('/home/me', lines))
+
+        expected = ('tmpfs', 'tmpfs', '/run')
+        self.assertEqual(expected, util.parse_mount_info('/run', lines))
+
+        expected = ('none', 'tmpfs', '/run/lock')
+        self.assertEqual(expected, util.parse_mount_info('/run/lock', lines))
+
+    def test_raring_btrfs_root(self):
+        lines = self.readResource('mountinfo_raring_btrfs.txt').splitlines()
+
+        expected = ('/dev/vda1', 'btrfs', '/')
+        self.assertEqual(expected, util.parse_mount_info('/', lines))
+        self.assertEqual(expected, util.parse_mount_info('/usr', lines))
+        self.assertEqual(expected, util.parse_mount_info('/usr/bin', lines))
+        self.assertEqual(expected, util.parse_mount_info('/boot', lines))
+        self.assertEqual(expected, util.parse_mount_info('/boot/grub', lines))
+
+        expected = ('/dev/vda1', 'btrfs', '/home')
+        self.assertEqual(expected, util.parse_mount_info('/home', lines))
+        self.assertEqual(expected, util.parse_mount_info('/home/me', lines))
+
+        expected = ('tmpfs', 'tmpfs', '/run')
+        self.assertEqual(expected, util.parse_mount_info('/run', lines))
+
+        expected = ('none', 'tmpfs', '/run/lock')
+        self.assertEqual(expected, util.parse_mount_info('/run/lock', lines))
 
 # vi: ts=4 expandtab

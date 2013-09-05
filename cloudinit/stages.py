@@ -1,7 +1,7 @@
 # vi: ts=4 expandtab
 #
 #    Copyright (C) 2012 Canonical Ltd.
-#    Copyright (C) 2012 Hewlett-Packard Development Company, L.P.
+#    Copyright (C) 2012, 2013 Hewlett-Packard Development Company, L.P.
 #    Copyright (C) 2012 Yahoo! Inc.
 #
 #    Author: Scott Moser <scott.moser@canonical.com>
@@ -43,6 +43,7 @@ from cloudinit import helpers
 from cloudinit import importer
 from cloudinit import log as logging
 from cloudinit import sources
+from cloudinit import type_utils
 from cloudinit import util
 
 LOG = logging.getLogger(__name__)
@@ -153,9 +154,8 @@ class Init(object):
                 try:
                     util.chownbyname(log_file, u, g)
                 except OSError:
-                    util.logexc(LOG, ("Unable to change the ownership"
-                                      " of %s to user %s, group %s"),
-                                log_file, u, g)
+                    util.logexc(LOG, "Unable to change the ownership of %s to "
+                                "user %s, group %s", log_file, u, g)
 
     def read_cfg(self, extra_fns=None):
         # None check so that we don't keep on re-loading if empty
@@ -211,7 +211,7 @@ class Init(object):
         # Any config provided???
         pkg_list = self.cfg.get('datasource_pkg_list') or []
         # Add the defaults at the end
-        for n in ['', util.obj_name(sources)]:
+        for n in ['', type_utils.obj_name(sources)]:
             if n not in pkg_list:
                 pkg_list.append(n)
         cfg_list = self.cfg.get('datasource_list') or []
@@ -271,7 +271,7 @@ class Init(object):
         dp = self.paths.get_cpath('data')
 
         # Write what the datasource was and is..
-        ds = "%s: %s" % (util.obj_name(self.datasource), self.datasource)
+        ds = "%s: %s" % (type_utils.obj_name(self.datasource), self.datasource)
         previous_ds = None
         ds_fn = os.path.join(idir, 'datasource')
         try:
@@ -344,12 +344,13 @@ class Init(object):
         cdir = self.paths.get_cpath("handlers")
         idir = self._get_ipath("handlers")
 
-        # Add the path to the plugins dir to the top of our list for import
-        # instance dir should be read before cloud-dir
-        if cdir and cdir not in sys.path:
-            sys.path.insert(0, cdir)
-        if idir and idir not in sys.path:
-            sys.path.insert(0, idir)
+        # Add the path to the plugins dir to the top of our list for importing
+        # new handlers.
+        #
+        # Note(harlowja): instance dir should be read before cloud-dir
+        for d in [cdir, idir]:
+            if d and d not in sys.path:
+                sys.path.insert(0, d)
 
         # Ensure datasource fetched before activation (just incase)
         user_data_msg = self.datasource.get_userdata(True)
@@ -357,24 +358,34 @@ class Init(object):
         # This keeps track of all the active handlers
         c_handlers = helpers.ContentHandlers()
 
-        # Add handlers in cdir
-        potential_handlers = util.find_modules(cdir)
-        for (fname, mod_name) in potential_handlers.iteritems():
-            try:
-                mod_locs = importer.find_module(mod_name, [''],
-                                                ['list_types',
-                                                 'handle_part'])
-                if not mod_locs:
-                    LOG.warn(("Could not find a valid user-data handler"
-                              " named %s in file %s"), mod_name, fname)
-                    continue
-                mod = importer.import_module(mod_locs[0])
-                mod = handlers.fixup_handler(mod)
-                types = c_handlers.register(mod)
-                LOG.debug("Added handler for %s from %s", types, fname)
-            except:
-                util.logexc(LOG, "Failed to register handler from %s", fname)
+        def register_handlers_in_dir(path):
+            # Attempts to register any handler modules under the given path.
+            if not path or not os.path.isdir(path):
+                return
+            potential_handlers = util.find_modules(path)
+            for (fname, mod_name) in potential_handlers.iteritems():
+                try:
+                    mod_locs = importer.find_module(mod_name, [''],
+                                                    ['list_types',
+                                                     'handle_part'])
+                    if not mod_locs:
+                        LOG.warn(("Could not find a valid user-data handler"
+                                  " named %s in file %s"), mod_name, fname)
+                        continue
+                    mod = importer.import_module(mod_locs[0])
+                    mod = handlers.fixup_handler(mod)
+                    types = c_handlers.register(mod)
+                    LOG.debug("Added handler for %s from %s", types, fname)
+                except Exception:
+                    util.logexc(LOG, "Failed to register handler from %s",
+                                fname)
 
+        # Add any handlers in the cloud-dir
+        register_handlers_in_dir(cdir)
+
+        # Register any other handlers that come from the default set. This
+        # is done after the cloud-dir handlers so that the cdir modules can
+        # take over the default user-data handler content-types.
         def_handlers = self._default_userdata_handlers()
         applied_def_handlers = c_handlers.register_defaults(def_handlers)
         if applied_def_handlers:
@@ -383,36 +394,51 @@ class Init(object):
         # Form our cloud interface
         data = self.cloudify()
 
-        # Init the handlers first
-        called = []
-        for (_ctype, mod) in c_handlers.iteritems():
-            if mod in called:
-                continue
-            handlers.call_begin(mod, data, frequency)
-            called.append(mod)
+        def init_handlers():
+            # Init the handlers first
+            for (_ctype, mod) in c_handlers.iteritems():
+                if mod in c_handlers.initialized:
+                    # Avoid initing the same module twice (if said module
+                    # is registered to more than one content-type).
+                    continue
+                handlers.call_begin(mod, data, frequency)
+                c_handlers.initialized.append(mod)
 
-        # Walk the user data
-        part_data = {
-            'handlers': c_handlers,
-            # Any new handlers that are encountered get writen here
-            'handlerdir': idir,
-            'data': data,
-            # The default frequency if handlers don't have one
-            'frequency': frequency,
-            # This will be used when new handlers are found
-            # to help write there contents to files with numbered
-            # names...
-            'handlercount': 0,
-        }
-        handlers.walk(user_data_msg, handlers.walker_callback, data=part_data)
+        def walk_handlers():
+            # Walk the user data
+            part_data = {
+                'handlers': c_handlers,
+                # Any new handlers that are encountered get writen here
+                'handlerdir': idir,
+                'data': data,
+                # The default frequency if handlers don't have one
+                'frequency': frequency,
+                # This will be used when new handlers are found
+                # to help write there contents to files with numbered
+                # names...
+                'handlercount': 0,
+            }
+            handlers.walk(user_data_msg, handlers.walker_callback,
+                          data=part_data)
 
-        # Give callbacks opportunity to finalize
-        called = []
-        for (_ctype, mod) in c_handlers.iteritems():
-            if mod in called:
-                continue
-            handlers.call_end(mod, data, frequency)
-            called.append(mod)
+        def finalize_handlers():
+            # Give callbacks opportunity to finalize
+            for (_ctype, mod) in c_handlers.iteritems():
+                if mod not in c_handlers.initialized:
+                    # Said module was never inited in the first place, so lets
+                    # not attempt to finalize those that never got called.
+                    continue
+                c_handlers.initialized.remove(mod)
+                try:
+                    handlers.call_end(mod, data, frequency)
+                except:
+                    util.logexc(LOG, "Failed to finalize handler: %s", mod)
+
+        try:
+            init_handlers()
+            walk_handlers()
+        finally:
+            finalize_handlers()
 
         # Perform post-consumption adjustments so that
         # modules that run during the init stage reflect
@@ -488,7 +514,7 @@ class Modules(object):
             else:
                 raise TypeError(("Failed to read '%s' item in config,"
                                  " unknown type %s") %
-                                 (item, util.obj_name(item)))
+                                 (item, type_utils.obj_name(item)))
         return module_list
 
     def _fixup_modules(self, raw_mods):
@@ -506,7 +532,7 @@ class Modules(object):
                 # Reset it so when ran it will get set to a known value
                 freq = None
             mod_locs = importer.find_module(mod_name,
-                                            ['', util.obj_name(config)],
+                                            ['', type_utils.obj_name(config)],
                                             ['handle'])
             if not mod_locs:
                 LOG.warn("Could not find module named %s", mod_name)

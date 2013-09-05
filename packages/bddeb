@@ -32,14 +32,17 @@ PKG_MP = {
     'boto': 'python-boto',
     'cheetah': 'python-cheetah',
     'configobj': 'python-configobj',
+    'jsonpatch': 'python-json-patch',
     'oauth': 'python-oauth',
     'prettytable': 'python-prettytable',
+    'pyserial': 'python-serial',
     'pyyaml': 'python-yaml',
+    'requests': 'python-requests',
 }
-DEBUILD_ARGS = ["-us", "-S", "-uc"]
+DEBUILD_ARGS = ["-us", "-S", "-uc", "-d"]
 
 
-def write_debian_folder(root, version, revno):
+def write_debian_folder(root, version, revno, append_requires=[]):
     deb_dir = util.abs_join(root, 'debian')
     os.makedirs(deb_dir)
 
@@ -58,7 +61,7 @@ def write_debian_folder(root, version, revno):
     pkgs = [p.lower().strip() for p in stdout.splitlines()]
 
     # Map to known packages
-    requires = []
+    requires = append_requires
     for p in pkgs:
         tgt_pkg = PKG_MP.get(p)
         if not tgt_pkg:
@@ -87,12 +90,25 @@ def main():
                               " (default: %(default)s)"),
                         default=False,
                         action='store_true')
+    parser.add_argument("--no-cloud-utils", dest="no_cloud_utils",
+                        help=("don't depend on cloud-utils package"
+                              " (default: %(default)s)"),
+                        default=False,
+                        action='store_true')
+
+    parser.add_argument("--init-system", dest="init_system",
+                        help=("build deb with INIT_SYSTEM=xxx"
+                              " (default: %(default)s"),
+                        default=os.environ.get("INIT_SYSTEM", "upstart"))
+
 
     for ent in DEBUILD_ARGS:
         parser.add_argument(ent, dest="debuild_args", action='append_const',
             const=ent, help=("pass through '%s' to debuild" % ent))
 
     args = parser.parse_args()
+
+    os.environ['INIT_SYSTEM'] = args.init_system
 
     capture = True
     if args.verbose:
@@ -128,7 +144,11 @@ def main():
         shutil.move(extracted_name, xdir)
 
         print("Creating a debian/ folder in %r" % (xdir))
-        write_debian_folder(xdir, version, revno)
+        if not args.no_cloud_utils:
+            append_requires=['cloud-utils']
+        else:
+            append_requires=[]
+        write_debian_folder(xdir, version, revno, append_requires)
 
         # The naming here seems to follow some debian standard
         # so it will whine if it is changed...

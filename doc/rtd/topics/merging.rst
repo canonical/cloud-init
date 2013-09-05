@@ -1,0 +1,5 @@
+=========
+Merging
+=========
+
+.. include:: ../../merging.rst

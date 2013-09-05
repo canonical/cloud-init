@@ -33,6 +33,10 @@ from cloudinit.settings import PER_INSTANCE
 
 LOG = logging.getLogger(__name__)
 
+APT_GET_COMMAND = ('apt-get', '--option=Dpkg::Options::=--force-confold',
+                   '--option=Dpkg::options::=--force-unsafe-io',
+                   '--assume-yes', '--quiet')
+
 
 class Distro(distros.Distro):
     hostname_conf_fn = "/etc/hostname"
@@ -40,7 +44,6 @@ class Distro(distros.Distro):
     network_conf_fn = "/etc/network/interfaces"
     tz_conf_fn = "/etc/timezone"
     tz_local_fn = "/etc/localtime"
-    tz_zone_dir = "/usr/share/zoneinfo"
 
     def __init__(self, name, cfg, paths):
         distros.Distro.__init__(self, name, cfg, paths)
@@ -126,12 +129,7 @@ class Distro(distros.Distro):
         return "127.0.1.1"
 
     def set_timezone(self, tz):
-        # TODO(harlowja): move this code into
-        # the parent distro...
-        tz_file = os.path.join(self.tz_zone_dir, str(tz))
-        if not os.path.isfile(tz_file):
-            raise RuntimeError(("Invalid timezone %s,"
-                                " no file found at %s") % (tz, tz_file))
+        tz_file = self._find_tz_file(tz)
         # Note: "" provides trailing newline during join
         tz_lines = [
             util.make_header(),
@@ -142,20 +140,27 @@ class Distro(distros.Distro):
         # This ensures that the correct tz will be used for the system
         util.copy(tz_file, self.tz_local_fn)
 
-    def package_command(self, command, args=None, pkgs=[]):
+    def package_command(self, command, args=None, pkgs=None):
+        if pkgs is None:
+            pkgs = []
+
         e = os.environ.copy()
         # See: http://tiny.cc/kg91fw
         # Or: http://tiny.cc/mh91fw
         e['DEBIAN_FRONTEND'] = 'noninteractive'
-        cmd = ['apt-get', '--option', 'Dpkg::Options::=--force-confold',
-               '--assume-yes', '--quiet']
+        cmd = list(self.get_option("apt_get_command", APT_GET_COMMAND))
 
         if args and isinstance(args, str):
             cmd.append(args)
         elif args and isinstance(args, list):
             cmd.extend(args)
 
-        cmd.append(command)
+        subcmd = command
+        if command == "upgrade":
+            subcmd = self.get_option("apt_get_upgrade_subcommand",
+                                     "dist-upgrade")
+
+        cmd.append(subcmd)
 
         pkglist = util.expand_package_list('%s=%s', pkgs)
         cmd.extend(pkglist)

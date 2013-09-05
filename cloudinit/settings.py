@@ -32,11 +32,13 @@ CFG_BUILTIN = {
         'NoCloud',
         'ConfigDrive',
         'OpenNebula',
+        'Azure',
         'AltCloud',
         'OVF',
         'MAAS',
         'Ec2',
         'CloudStack',
+        'SmartOS',
         # At the end to act as a 'catch' when none of the above work...
         'None',
     ],
