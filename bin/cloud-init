@@ -502,7 +502,9 @@ def main():
     signal_handler.attach_handlers()
 
     (name, functor) = args.action
-    return functor(name, args)
+
+    return util.log_time(logfunc=LOG.debug, msg="cloud-init mode '%s'" % name,
+                         get_uptime=True, func=functor, args=(name, args))
 
 
 if __name__ == '__main__':

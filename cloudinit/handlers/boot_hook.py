@@ -29,6 +29,7 @@ from cloudinit import util
 from cloudinit.settings import (PER_ALWAYS)
 
 LOG = logging.getLogger(__name__)
+BOOTHOOK_PREFIX = "#cloud-boothook"
 
 
 class BootHookPartHandler(handlers.Handler):
@@ -41,22 +42,19 @@ class BootHookPartHandler(handlers.Handler):
 
     def list_types(self):
         return [
-            handlers.type_from_starts_with("#cloud-boothook"),
+            handlers.type_from_starts_with(BOOTHOOK_PREFIX),
         ]
 
     def _write_part(self, payload, filename):
         filename = util.clean_filename(filename)
-        payload = util.dos2unix(payload)
-        prefix = "#cloud-boothook"
-        start = 0
-        if payload.startswith(prefix):
-            start = len(prefix) + 1
         filepath = os.path.join(self.boothook_dir, filename)
-        contents = payload[start:]
-        util.write_file(filepath, contents, 0700)
+        contents = util.strip_prefix_suffix(util.dos2unix(payload),
+                                            prefix=BOOTHOOK_PREFIX)
+        util.write_file(filepath, contents.lstrip(), 0700)
         return filepath
 
-    def _handle_part(self, _data, ctype, filename, payload, _frequency):
+    def handle_part(self, _data, ctype, filename,  # pylint: disable=W0221
+                    payload, frequency):  # pylint: disable=W0613
         if ctype in handlers.CONTENT_SIGNALS:
             return
 
@@ -69,5 +67,5 @@ class BootHookPartHandler(handlers.Handler):
         except util.ProcessExecutionError:
             util.logexc(LOG, "Boothooks script %s execution error", filepath)
         except Exception:
-            util.logexc(LOG, ("Boothooks unknown "
-                              "error when running %s"), filepath)
+            util.logexc(LOG, "Boothooks unknown error when running %s",
+                        filepath)

@@ -20,43 +20,55 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-from contextlib import closing
-
-import errno
-import socket
 import time
-import urllib
-import urllib2
+
+import requests
+from requests import exceptions
+
+from urlparse import (urlparse, urlunparse)
 
 from cloudinit import log as logging
 from cloudinit import version
 
 LOG = logging.getLogger(__name__)
 
+# Check if requests has ssl support (added in requests >= 0.8.8)
+SSL_ENABLED = False
+CONFIG_ENABLED = False  # This was added in 0.7 (but taken out in >=1.0)
+try:
+    from distutils.version import LooseVersion
+    import pkg_resources
+    _REQ = pkg_resources.get_distribution('requests')
+    _REQ_VER = LooseVersion(_REQ.version)  # pylint: disable=E1103
+    if _REQ_VER >= LooseVersion('0.8.8'):
+        SSL_ENABLED = True
+    if _REQ_VER >= LooseVersion('0.7.0') and _REQ_VER < LooseVersion('1.0.0'):
+        CONFIG_ENABLED = True
+except:
+    pass
+
+
+def _cleanurl(url):
+    parsed_url = list(urlparse(url, scheme='http'))  # pylint: disable=E1123
+    if not parsed_url[1] and parsed_url[2]:
+        # Swap these since this seems to be a common
+        # occurrence when given urls like 'www.google.com'
+        parsed_url[1] = parsed_url[2]
+        parsed_url[2] = ''
+    return urlunparse(parsed_url)
+
 
 class UrlResponse(object):
-    def __init__(self, status_code, contents=None, headers=None):
-        self._status_code = status_code
-        self._contents = contents
-        self._headers = headers
-
-    @property
-    def code(self):
-        return self._status_code
+    def __init__(self, response):
+        self._response = response
 
     @property
     def contents(self):
-        return self._contents
+        return self._response.content
 
     @property
-    def headers(self):
-        return self._headers
-
-    def __str__(self):
-        if not self.contents:
-            return ''
-        else:
-            return str(self.contents)
+    def url(self):
+        return self._response.url
 
     def ok(self, redirects_ok=False):
         upper = 300
@@ -67,72 +79,130 @@ class UrlResponse(object):
         else:
             return False
 
+    @property
+    def headers(self):
+        return self._response.headers
 
-def readurl(url, data=None, timeout=None,
-            retries=0, sec_between=1, headers=None):
+    @property
+    def code(self):
+        return self._response.status_code
 
-    req_args = {}
-    req_args['url'] = url
-    if data is not None:
-        req_args['data'] = urllib.urlencode(data)
+    def __str__(self):
+        return self.contents
 
+
+class UrlError(IOError):
+    def __init__(self, cause, code=None, headers=None):
+        IOError.__init__(self, str(cause))
+        self.cause = cause
+        self.code = code
+        self.headers = headers
+        if self.headers is None:
+            self.headers = {}
+
+
+def readurl(url, data=None, timeout=None, retries=0, sec_between=1,
+            headers=None, headers_cb=None, ssl_details=None,
+            check_status=True, allow_redirects=True):
+    url = _cleanurl(url)
+    req_args = {
+        'url': url,
+    }
+    scheme = urlparse(url).scheme  # pylint: disable=E1101
+    if scheme == 'https' and ssl_details:
+        if not SSL_ENABLED:
+            LOG.warn("SSL is not enabled, cert. verification can not occur!")
+        else:
+            if 'ca_certs' in ssl_details and ssl_details['ca_certs']:
+                req_args['verify'] = ssl_details['ca_certs']
+            else:
+                req_args['verify'] = True
+            if 'cert_file' in ssl_details and 'key_file' in ssl_details:
+                req_args['cert'] = [ssl_details['cert_file'],
+                                    ssl_details['key_file']]
+            elif 'cert_file' in ssl_details:
+                req_args['cert'] = str(ssl_details['cert_file'])
+
+    req_args['allow_redirects'] = allow_redirects
+    req_args['method'] = 'GET'
+    if timeout is not None:
+        req_args['timeout'] = max(float(timeout), 0)
+    if data:
+        req_args['method'] = 'POST'
+    # It doesn't seem like config
+    # was added in older library versions (or newer ones either), thus we
+    # need to manually do the retries if it wasn't...
+    if CONFIG_ENABLED:
+        req_config = {
+            'store_cookies': False,
+        }
+        # Don't use the retry support built-in
+        # since it doesn't allow for 'sleep_times'
+        # in between tries....
+        # if retries:
+        #     req_config['max_retries'] = max(int(retries), 0)
+        req_args['config'] = req_config
+    manual_tries = 1
+    if retries:
+        manual_tries = max(int(retries) + 1, 1)
     if not headers:
         headers = {
             'User-Agent': 'Cloud-Init/%s' % (version.version_string()),
         }
+    if not headers_cb:
+        def _cb(url):
+            return headers
+        headers_cb = _cb
 
-    req_args['headers'] = headers
-    req = urllib2.Request(**req_args)
-
-    retries = max(retries, 0)
-    attempts = retries + 1
-
-    excepts = []
-    LOG.debug(("Attempting to open '%s' with %s attempts"
-               " (%s retries, timeout=%s) to be performed"),
-              url, attempts, retries, timeout)
-    open_args = {}
-    if timeout is not None:
-        open_args['timeout'] = int(timeout)
-    for i in range(0, attempts):
+    if data:
+        # Do this after the log (it might be large)
+        req_args['data'] = data
+    if sec_between is None:
+        sec_between = -1
+    excps = []
+    # Handle retrying ourselves since the built-in support
+    # doesn't handle sleeping between tries...
+    for i in range(0, manual_tries):
         try:
-            with closing(urllib2.urlopen(req, **open_args)) as rh:
-                content = rh.read()
-                status = rh.getcode()
-                if status is None:
-                    # This seems to happen when files are read...
-                    status = 200
-                headers = {}
-                if rh.headers:
-                    headers = dict(rh.headers)
-                LOG.debug("Read from %s (%s, %sb) after %s attempts",
-                          url, status, len(content), (i + 1))
-                return UrlResponse(status, content, headers)
-        except urllib2.HTTPError as e:
-            excepts.append(e)
-        except urllib2.URLError as e:
-            # This can be a message string or
-            # another exception instance
-            # (socket.error for remote URLs, OSError for local URLs).
-            if (isinstance(e.reason, (OSError)) and
-                e.reason.errno == errno.ENOENT):
-                excepts.append(e.reason)
+            req_args['headers'] = headers_cb(url)
+            filtered_req_args = {}
+            for (k, v) in req_args.items():
+                if k == 'data':
+                    continue
+                filtered_req_args[k] = v
+
+            LOG.debug("[%s/%s] open '%s' with %s configuration", i,
+                      manual_tries, url, filtered_req_args)
+
+            r = requests.request(**req_args)
+            if check_status:
+                r.raise_for_status()  # pylint: disable=E1103
+            LOG.debug("Read from %s (%s, %sb) after %s attempts", url,
+                      r.status_code, len(r.content),  # pylint: disable=E1103
+                      (i + 1))
+            # Doesn't seem like we can make it use a different
+            # subclass for responses, so add our own backward-compat
+            # attrs
+            return UrlResponse(r)
+        except exceptions.RequestException as e:
+            if (isinstance(e, (exceptions.HTTPError))
+                and hasattr(e, 'response')  # This appeared in v 0.10.8
+                and hasattr(e.response, 'status_code')):
+                excps.append(UrlError(e, code=e.response.status_code,
+                                      headers=e.response.headers))
             else:
-                excepts.append(e)
-        except Exception as e:
-            excepts.append(e)
-        if i + 1 < attempts:
-            LOG.debug("Please wait %s seconds while we wait to try again",
-                     sec_between)
-            time.sleep(sec_between)
-
-    # Didn't work out
-    LOG.debug("Failed reading from %s after %s attempts", url, attempts)
-
-    # It must of errored at least once for code
-    # to get here so re-raise the last error
-    LOG.debug("%s errors occured, re-raising the last one", len(excepts))
-    raise excepts[-1]
+                excps.append(UrlError(e))
+                if SSL_ENABLED and isinstance(e, exceptions.SSLError):
+                    # ssl exceptions are not going to get fixed by waiting a
+                    # few seconds
+                    break
+            if i + 1 < manual_tries and sec_between > 0:
+                LOG.debug("Please wait %s seconds while we wait to try again",
+                          sec_between)
+                time.sleep(sec_between)
+    if excps:
+        raise excps[-1]
+    return None  # Should throw before this...
 
 
 def wait_for_url(urls, max_wait=None, timeout=None,
@@ -143,7 +213,7 @@ def wait_for_url(urls, max_wait=None, timeout=None,
     max_wait:  roughly the maximum time to wait before giving up
                The max time is *actually* len(urls)*timeout as each url will
                be tried once and given the timeout provided.
-    timeout:   the timeout provided to urllib2.urlopen
+    timeout:   the timeout provided to urlopen
     status_cb: call method with string message when a url is not available
     headers_cb: call method with single argument of url to get headers
                 for request.
@@ -190,36 +260,40 @@ def wait_for_url(urls, max_wait=None, timeout=None,
                     timeout = int((start_time + max_wait) - now)
 
             reason = ""
+            e = None
             try:
                 if headers_cb is not None:
                     headers = headers_cb(url)
                 else:
                     headers = {}
 
-                resp = readurl(url, headers=headers, timeout=timeout)
-                if not resp.contents:
-                    reason = "empty response [%s]" % (resp.code)
-                    e = ValueError(reason)
-                elif not resp.ok():
-                    reason = "bad status code [%s]" % (resp.code)
-                    e = ValueError(reason)
+                response = readurl(url, headers=headers, timeout=timeout,
+                                   check_status=False)
+                if not response.contents:
+                    reason = "empty response [%s]" % (response.code)
+                    e = UrlError(ValueError(reason),
+                                 code=response.code, headers=response.headers)
+                elif not response.ok():
+                    reason = "bad status code [%s]" % (response.code)
+                    e = UrlError(ValueError(reason),
+                                 code=response.code, headers=response.headers)
                 else:
                     return url
-            except urllib2.HTTPError as e:
-                reason = "http error [%s]" % e.code
-            except urllib2.URLError as e:
-                reason = "url error [%s]" % e.reason
-            except socket.timeout as e:
-                reason = "socket timeout [%s]" % e
+            except UrlError as e:
+                reason = "request error [%s]" % e
             except Exception as e:
                 reason = "unexpected error [%s]" % e
 
             time_taken = int(time.time() - start_time)
             status_msg = "Calling '%s' failed [%s/%ss]: %s" % (url,
-                                                             time_taken,
-                                                             max_wait, reason)
+                                                               time_taken,
+                                                               max_wait,
+                                                               reason)
             status_cb(status_msg)
             if exception_cb:
+                # This can be used to alter the headers that will be sent
+                # in the future, for example this is what the MAAS datasource
+                # does.
                 exception_cb(msg=status_msg, exception=e)
 
         if timeup(max_wait, start_time):

@@ -1,7 +1,7 @@
 # vi: ts=4 expandtab
 #
 #    Copyright (C) 2009-2010 Canonical Ltd.
-#    Copyright (C) 2012 Hewlett-Packard Development Company, L.P.
+#    Copyright (C) 2012, 2013 Hewlett-Packard Development Company, L.P.
 #
 #    Author: Scott Moser <scott.moser@canonical.com>
 #    Author: Juerg Haefliger <juerg.haefliger@hp.com>
@@ -75,14 +75,14 @@ def handle(_name, cfg, cloud, log, args):
             plist_in.append("%s:%s" % (u, p))
             users.append(u)
 
-        ch_in = '\n'.join(plist_in)
+        ch_in = '\n'.join(plist_in) + '\n'
         try:
             log.debug("Changing password for %s:", users)
             util.subp(['chpasswd'], ch_in)
         except Exception as e:
             errors.append(e)
-            util.logexc(log,
-                        "Failed to set passwords with chpasswd for %s", users)
+            util.logexc(log, "Failed to set passwords with chpasswd for %s",
+                        users)
 
         if len(randlist):
             blurb = ("Set the following 'random' passwords\n",

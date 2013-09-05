@@ -49,9 +49,6 @@ class DataSourceEc2(sources.DataSource):
         self.seed_dir = os.path.join(paths.seed_dir, "ec2")
         self.api_ver = DEF_MD_VERSION
 
-    def __str__(self):
-        return util.obj_name(self)
-
     def get_data(self):
         seed_ret = {}
         if util.read_optional_seed(seed_ret, base=(self.seed_dir + "/")):

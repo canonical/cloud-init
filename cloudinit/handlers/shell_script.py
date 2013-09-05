@@ -29,6 +29,7 @@ from cloudinit import util
 from cloudinit.settings import (PER_ALWAYS)
 
 LOG = logging.getLogger(__name__)
+SHELL_PREFIX = "#!"
 
 
 class ShellScriptPartHandler(handlers.Handler):
@@ -38,10 +39,11 @@ class ShellScriptPartHandler(handlers.Handler):
 
     def list_types(self):
         return [
-            handlers.type_from_starts_with("#!"),
+            handlers.type_from_starts_with(SHELL_PREFIX),
         ]
 
-    def _handle_part(self, _data, ctype, filename, payload, _frequency):
+    def handle_part(self, _data, ctype, filename,  # pylint: disable=W0221
+                    payload, frequency):  # pylint: disable=W0613
         if ctype in handlers.CONTENT_SIGNALS:
             # TODO(harlowja): maybe delete existing things here
             return

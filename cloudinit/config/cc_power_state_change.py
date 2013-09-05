@@ -75,7 +75,7 @@ def load_power_state(cfg):
                         ','.join(opt_map.keys()))
 
     delay = pstate.get("delay", "now")
-    if delay != "now" and not re.match("\+[0-9]+", delay):
+    if delay != "now" and not re.match(r"\+[0-9]+", delay):
         raise TypeError("power_state[delay] must be 'now' or '+m' (minutes).")
 
     args = ["shutdown", opt_map[mode], delay]
@@ -100,7 +100,7 @@ def execmd(exe_args, output=None, data_in=None):
         proc = subprocess.Popen(exe_args, stdin=subprocess.PIPE,
                                 stdout=output, stderr=subprocess.STDOUT)
         proc.communicate(data_in)
-        ret = proc.returncode
+        ret = proc.returncode  # pylint: disable=E1101
     except Exception:
         doexit(EXIT_FAIL)
     doexit(ret)

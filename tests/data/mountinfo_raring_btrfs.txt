@@ -1,0 +1,13 @@
+15 20 0:14 / /sys rw,nosuid,nodev,noexec,relatime - sysfs sysfs rw
+16 20 0:3 / /proc rw,nosuid,nodev,noexec,relatime - proc proc rw
+17 20 0:5 / /dev rw,relatime - devtmpfs udev rw,size=865556k,nr_inodes=216389,mode=755
+18 17 0:11 / /dev/pts rw,nosuid,noexec,relatime - devpts devpts rw,gid=5,mode=620,ptmxmode=000
+19 20 0:15 / /run rw,nosuid,relatime - tmpfs tmpfs rw,size=348196k,mode=755
+20 1 0:16 /@ / rw,relatime - btrfs /dev/vda1 rw,compress=lzo,space_cache
+21 15 0:19 / /sys/fs/fuse/connections rw,relatime - fusectl none rw
+22 15 0:6 / /sys/kernel/debug rw,relatime - debugfs none rw
+23 15 0:10 / /sys/kernel/security rw,relatime - securityfs none rw
+24 19 0:20 / /run/lock rw,nosuid,nodev,noexec,relatime - tmpfs none rw,size=5120k
+25 19 0:21 / /run/shm rw,nosuid,nodev,relatime - tmpfs none rw
+26 19 0:22 / /run/user rw,nosuid,nodev,noexec,relatime - tmpfs none rw,size=102400k,mode=755
+27 20 0:16 /@home /home rw,relatime - btrfs /dev/vda1 rw,compress=lzo,space_cache

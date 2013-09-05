@@ -1,7 +1,7 @@
 from cloudinit import helpers
-from tests.unittests.helpers import populate_dir
 from cloudinit.sources import DataSourceNoCloud
 from cloudinit import util
+from tests.unittests.helpers import populate_dir
 
 from mocker import MockerTestCase
 import os
@@ -22,7 +22,7 @@ class TestNoCloudDataSource(MockerTestCase):
 
     def tearDown(self):
         apply_patches([i for i in reversed(self.unapply)])
-        super(TestNoCloudDataSource, self).setUp()
+        super(TestNoCloudDataSource, self).tearDown()
 
     def apply_patches(self, patches):
         ret = apply_patches(patches)

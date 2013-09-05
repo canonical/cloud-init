@@ -42,3 +42,26 @@ datasource:
     meta-data:
        instance-id: i-87018aed
        local-hostname: myhost.internal
+
+  Azure:
+    agent_command: [service, walinuxagent, start]
+    set_hostname: True
+    hostname_bounce:
+      interface: eth0
+      policy: on # [can be 'on', 'off' or 'force']
+    }
+
+  SmartOS:
+    # Smart OS datasource works over a serial console interacting with
+    # a server on the other end. By default, the second serial console is the
+    # device. SmartOS also uses a serial timeout of 60 seconds.
+    serial_device: /dev/ttyS1
+    serial_timeout: 60
+
+    # a list of keys that will not be base64 decoded even if base64_all
+    no_base64_decode: ['root_authorized_keys', 'motd_sys_info',
+                       'iptables_disable']
+    # a plaintext, comma delimited list of keys whose values are b64 encoded
+    base64_keys: []
+    # a boolean indicating that all keys not in 'no_base64_decode' are encoded
+    base64_all: False

@@ -51,7 +51,9 @@ class DataSourceConfigDrive(sources.DataSource):
         self.ec2_metadata = None
 
     def __str__(self):
-        mstr = "%s [%s,ver=%s]" % (util.obj_name(self), self.dsmode,
+        root = sources.DataSource.__str__(self)
+        mstr = "%s [%s,ver=%s]" % (root,
+                                   self.dsmode,
                                    self.version)
         mstr += "[source=%s]" % (self.source)
         return mstr
@@ -152,7 +154,7 @@ class DataSourceConfigDrive(sources.DataSource):
             return False
 
         md = results['metadata']
-        md = util.mergedict(md, DEFAULT_METADATA)
+        md = util.mergemanydict([md, DEFAULT_METADATA])
 
         # Perform some metadata 'fixups'
         #
@@ -255,6 +257,10 @@ def find_candidate_devs():
         * either vfat or iso9660 formated
         * labeled with 'config-2'
     """
+
+    # Query optical drive to get it in blkid cache for 2.6 kernels
+    util.find_devs_with(path="/dev/sr0")
+    util.find_devs_with(path="/dev/sr1")
 
     by_fstype = (util.find_devs_with("TYPE=vfat") +
                  util.find_devs_with("TYPE=iso9660"))

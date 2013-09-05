@@ -1,7 +1,7 @@
 # vi: ts=4 expandtab
 #
 #    Copyright (C) 2009-2010 Canonical Ltd.
-#    Copyright (C) 2012 Hewlett-Packard Development Company, L.P.
+#    Copyright (C) 2012, 2013 Hewlett-Packard Development Company, L.P.
 #
 #    Author: Scott Moser <scott.moser@canonical.com>
 #    Author: Juerg Haefliger <juerg.haefliger@hp.com>
@@ -71,8 +71,8 @@ def handle(_name, cfg, cloud, log, args):
         try:
             import_ssh_ids(import_ids, user, log)
         except Exception as exc:
-            util.logexc(log, "ssh-import-id failed for: %s %s" %
-                            (user, import_ids), exc)
+            util.logexc(log, "ssh-import-id failed for: %s %s", user,
+                        import_ids)
             elist.append(exc)
 
     if len(elist):

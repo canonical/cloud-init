@@ -37,12 +37,14 @@ def is_f(p):
 
 
 INITSYS_FILES = {
-    'sysvinit': [f for f in glob('sysvinit/*') if is_f(f)],
+    'sysvinit': [f for f in glob('sysvinit/redhat/*') if is_f(f)],
+    'sysvinit_deb': [f for f in glob('sysvinit/debian/*') if is_f(f)],
     'systemd': [f for f in glob('systemd/*') if is_f(f)],
     'upstart': [f for f in glob('upstart/*') if is_f(f)],
 }
 INITSYS_ROOTS = {
     'sysvinit': '/etc/rc.d/init.d',
+    'sysvinit_deb': '/etc/init.d',
     'systemd': '/etc/systemd/system/',
     'upstart': '/etc/init/',
 }
@@ -59,9 +61,10 @@ def tiny_p(cmd, capture=True):
     sp = subprocess.Popen(cmd, stdout=stdout,
                     stderr=stderr, stdin=None)
     (out, err) = sp.communicate()
-    if sp.returncode not in [0]:
+    ret = sp.returncode  # pylint: disable=E1101
+    if ret not in [0]:
         raise RuntimeError("Failed running %s [rc=%s] (%s, %s)" 
-                            % (cmd, sp.returncode, out, err))
+                            % (cmd, ret, out, err))
     return (out, err)
 
 

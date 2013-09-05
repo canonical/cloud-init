@@ -8,6 +8,10 @@ YAML_FILES+=$(shell find doc/examples -name "cloud-config*.txt" -type f )
 CHANGELOG_VERSION=$(shell $(CWD)/tools/read-version)
 CODE_VERSION=$(shell python -c "from cloudinit import version; print version.version_string()")
 
+ifeq ($(distro),)
+  distro = redhat
+endif
+
 all: test check_version
 
 pep8:
@@ -24,9 +28,9 @@ test:
 
 check_version:
 	@if [ "$(CHANGELOG_VERSION)" != "$(CODE_VERSION)" ]; then \
-        echo "Error: ChangeLog version $(CHANGELOG_VERSION)" \
-        	  "not equal to code version $(CODE_VERSION)"; exit 2; \
-    else true; fi
+	    echo "Error: ChangeLog version $(CHANGELOG_VERSION)" \
+	    "not equal to code version $(CODE_VERSION)"; exit 2; \
+	    else true; fi
 
 2to3:
 	2to3 $(PY_FILES)
@@ -37,9 +41,9 @@ clean:
 
 yaml:
 	@$(CWD)/tools/validate-yaml.py $(YAML_FILES)
-		   
+
 rpm:
-	./packages/brpm
+	./packages/brpm --distro $(distro)
 
 deb:
 	./packages/bddeb
