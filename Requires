@@ -34,3 +34,7 @@ boto
 
 # For patching pieces of cloud-config together
 jsonpatch
+
+# For validating that a config modules needed configuration specified
+# in a correct format that the module can understand
+jsonschema
