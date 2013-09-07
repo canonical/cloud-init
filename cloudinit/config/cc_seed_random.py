@@ -63,6 +63,8 @@ def validate(cfg):
     """Method that can be used to ask if the given configuration will be
     accepted as valid by this module, without having to actually activate this
     module."""
+    if not cfg or "random_seed" not in cfg:
+        return
     try:
         jsonschema.validate(cfg, schema)
     except js_exc.ValidationError as e:
