@@ -19,64 +19,18 @@
 import base64
 from StringIO import StringIO
 
-import jsonschema
-from jsonschema import exceptions as js_exc
-
-from cloudinit import exceptions as exc
 from cloudinit.settings import PER_INSTANCE
 from cloudinit import util
 
 frequency = PER_INSTANCE
-schema = {
-    'type': 'object',
-    'properties': {
-        "random_seed": {
-            "type": "object",
-            "oneOf": [
-                {"$ref": "#/definitions/random_seed"},
-            ],
-        },
-    },
-    "required": ["random_seed"],
-    "additionalProperties": True,
-    "definitions": {
-        'random_seed': {
-            'type': 'object',
-            "properties" : {
-                'data': {
-                    'type': "string",
-                },
-                'file': {
-                    'type': 'string',
-                },
-                'encoding': {
-                    "enum": ["base64", 'gzip', 'b64', 'gz', ''],
-                },
-            },
-            "additionalProperties": True,
-        },
-    },
-}
-
-
-def validate(cfg):
-    """Method that can be used to ask if the given configuration will be
-    accepted as valid by this module, without having to actually activate this
-    module."""
-    if not cfg or "random_seed" not in cfg:
-        return
-    try:
-        jsonschema.validate(cfg, schema)
-    except js_exc.ValidationError as e:
-        raise exc.FormatValidationError("Invalid configuration: %s" % str(e))
 
 
 def _decode(data, encoding=None):
-    if not encoding:
-        return data
     if not data:
         return ''
-    if encoding.lower() in ['base64', 'b64']:
+    if not encoding or encoding.lower() in ['raw']:
+        return data
+    elif encoding.lower() in ['base64', 'b64']:
         return base64.b64decode(data)
     elif encoding.lower() in ['gzip', 'gz']:
         return util.decomp_gzip(data, quiet=False)
@@ -90,7 +44,6 @@ def handle(name, cfg, cloud, log, _args):
                    "no 'random_seed' configuration found"), name)
         return
 
-    validate(cfg)
     my_cfg = cfg['random_seed']
     seed_path = my_cfg.get('file', '/dev/urandom')
     seed_buf = StringIO()
