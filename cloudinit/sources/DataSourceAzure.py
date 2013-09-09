@@ -106,13 +106,10 @@ class DataSourceAzureNet(sources.DataSource):
         if found == ddir:
             LOG.debug("using files cached in %s", ddir)
 
-        rseedf = "/sys/firmware/acpi/tables/OEM0"
-        if os.path.isfile(rseedf):
-            try:
-                with open(rseedf, "rb") as fp:
-                    self.metadata['random_seed'] = fp.read()
-            except:
-                LOG.warn("random seed '%s' existed but read failed", rseedf)
+        # azure / hyper-v provides random data here
+        seed = util.load_file("/sys/firmware/acpi/tables/OEM0", quiet=True)
+        if seed:
+            self.metadata['random_seed'] = seed
 
         # now update ds_cfg to reflect contents pass in config
         usercfg = util.get_cfg_by_path(self.cfg, DS_CFG_PATH, {})
