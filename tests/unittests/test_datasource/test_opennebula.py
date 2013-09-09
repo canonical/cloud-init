@@ -6,18 +6,18 @@ from tests.unittests.helpers import populate_dir
 import os
 
 TEST_VARS = {
-    'var1': 'single',
-    'var2': 'double word',
-    'var3': 'multi\nline\n',
-    'var4': "'single'",
-    'var5': "'double word'",
-    'var6': "'multi\nline\n'",
-    'var7': 'single\\t',
-    'var8': 'double\\tword',
-    'var9': 'multi\\t\nline\n',
-    'var10': '\\',  # expect \
-    'var11': '\'',  # expect '
-    'var12': '$',   # expect $
+    'VAR1': 'single',
+    'VAR2': 'double word',
+    'VAR3': 'multi\nline\n',
+    'VAR4': "'single'",
+    'VAR5': "'double word'",
+    'VAR6': "'multi\nline\n'",
+    'VAR7': 'single\\t',
+    'VAR8': 'double\\tword',
+    'VAR9': 'multi\\t\nline\n',
+    'VAR10': '\\',  # expect \
+    'VAR11': '\'',  # expect '
+    'VAR12': '$',   # expect $
 }
 
 USER_DATA = '#cloud-config\napt_upgrade: true'
@@ -135,13 +135,13 @@ iface eth0 inet static
 
     def test_eth0_override(self):
         context = {
-            'dns': '1.2.3.8',
-            'eth0_ip': '1.2.3.4',
-            'eth0_network': '1.2.3.0',
-            'eth0_mask': '255.255.0.0',
-            'eth0_gateway': '1.2.3.5',
-            'eth0_domain': 'example.com',
-            'eth0_dns': '1.2.3.6 1.2.3.7'
+            'DNS': '1.2.3.8',
+            'ETH0_IP': '1.2.3.4',
+            'ETH0_NETWORK': '1.2.3.0',
+            'ETH0_MASK': '255.255.0.0',
+            'ETH0_GATEWAY': '1.2.3.5',
+            'ETH0_DOMAIN': 'example.com',
+            'ETH0_DNS': '1.2.3.6 1.2.3.7'
         }
 
         net = ds.OpenNebulaNetwork(CMD_IP_OUT, context)

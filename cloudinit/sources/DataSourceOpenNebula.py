@@ -24,6 +24,8 @@
 
 import os
 import re
+import string
+import subprocess
 
 from cloudinit import log as logging
 from cloudinit import sources
@@ -50,8 +52,8 @@ class DataSourceOpenNebula(sources.DataSource):
 
     def get_data(self):
         defaults = {
-            "instance-id": DEFAULT_IID,
-            "dsmode": self.dsmode
+            "instance-id": DEFAULT_IID, #TODO:????
+            "DSMODE": self.dsmode
         }
 
         seed = None
@@ -85,7 +87,7 @@ class DataSourceOpenNebula(sources.DataSource):
         md = util.mergemanydict([md, defaults])
 
         # check for valid user specified dsmode
-        user_dsmode = results['metadata'].get('dsmode', None)
+        user_dsmode = results['metadata'].get('DSMODE', None)
         if user_dsmode not in VALID_DSMODES + (None,):
             LOG.warn("user specified invalid mode: %s", user_dsmode)
             user_dsmode = None
@@ -93,7 +95,7 @@ class DataSourceOpenNebula(sources.DataSource):
         # decide dsmode
         if user_dsmode:
             dsmode = user_dsmode
-        elif self.ds_cfg.get('dsmode'):
+        elif self.ds_cfg.get('dsmode'): #TODO: fakt se k tomu nekdy dostane?
             dsmode = self.ds_cfg.get('dsmode')
         else:
             dsmode = DEFAULT_MODE
@@ -153,42 +155,42 @@ class OpenNebulaNetwork(object):
         return [str(int(c, 16)) for c in components]
 
     def get_ip(self, dev, components):
-        var_name = dev + '_ip'
+        var_name = dev.upper() + '_IP'
         if var_name in self.context:
             return self.context[var_name]
         else:
             return '.'.join(components)
 
     def get_mask(self, dev):
-        var_name = dev + '_mask'
+        var_name = dev.upper() + '_MASK'
         if var_name in self.context:
             return self.context[var_name]
         else:
             return '255.255.255.0'
 
     def get_network(self, dev, components):
-        var_name = dev + '_network'
+        var_name = dev.upper() + '_NETWORK'
         if var_name in self.context:
             return self.context[var_name]
         else:
             return '.'.join(components[:-1]) + '.0'
 
     def get_gateway(self, dev):
-        var_name = dev + '_gateway'
+        var_name = dev.upper() + '_GATEWAY'
         if var_name in self.context:
             return self.context[var_name]
         else:
             return None
 
     def get_dns(self, dev):
-        var_name = dev + '_dns'
+        var_name = dev.upper() + '_DNS'
         if var_name in self.context:
             return self.context[var_name]
         else:
             return None
 
     def get_domain(self, dev):
-        var_name = dev + '_domain'
+        var_name = dev.upper() + '_DOMAIN'
         if var_name in self.context:
             return self.context[var_name]
         else:
@@ -196,8 +198,8 @@ class OpenNebulaNetwork(object):
 
     def gen_conf(self):
         global_dns = []
-        if 'dns' in self.context:
-            global_dns.append(self.context['dns'])
+        if 'DNS' in self.context:
+            global_dns.append(self.context['DNS'])
 
         conf = []
         conf.append('auto lo')
@@ -251,37 +253,91 @@ def find_candidate_devs():
     return combined
 
 
-def parse_context_data(data):
-    """
-    parse_context_data(data)
-    parse context.sh variables provided as a single string. Uses
-    very simple matching RE. Returns None if nothing is matched.
-    """
-    # RE groups:
-    # 1: key
-    # 2: single quoted value, respect '\''
-    # 3: old double quoted value, but doesn't end with \"
-    context_reg = re.compile(
-        r"^([\w_]+)=(?:'((?:[^']|'\\'')*?)'|\"(.*?[^\\])\")$",
-        re.MULTILINE | re.DOTALL)
+def parse_shell_config(content, keylist=None, bash=None, asuser=None):
 
-    found = context_reg.findall(data)
-    if not found:
-        return None
+    if isinstance(bash, str):
+        bash = [bash]
+    elif bash is None:
+        bash = ['bash', '-e']
 
-    variables = {}
-    for k, v1, v2 in found:
-        k = k.lower()
-        if v1:
-            # take single quoted variable 'xyz'
-            # (ON>=4) and unquote '\'' -> '
-            variables[k] = v1.replace(r"'\''", r"'")
-        elif v2:
-            # take double quoted variable "xyz"
-            # (old ON<4) and unquote \" -> "
-            variables[k] = v2.replace(r'\"', r'"')
+    # allvars expands to all existing variables by using '${!x*}' notation
+    # where x is lower or upper case letters or '_'
+    allvars = ["${!%s*}" % x for x in string.letters + "_"]
 
-    return variables
+    keylist_in = keylist
+    if keylist is None:
+        keylist = allvars
+        keylist_in = []
+
+    setup = '\n'.join(('__v="";', '',))
+
+    def varprinter(vlist):
+        # output '\0'.join(['_start_', key=value NULL for vars in vlist]
+        return '\n'.join((
+            'printf "%s\\0" _start_',
+            'for __v in %s; do' % ' '.join(vlist),
+            '   printf "%s=%s\\0" "$__v" "${!__v}";',
+            'done',
+            ''
+        ))
+
+    # the rendered 'bcmd' is bash syntax that does
+    # setup: declare variables we use (so they show up in 'all')
+    # varprinter(allvars): print all variables known at beginning
+    # content: execute the provided content
+    # varprinter(keylist): print all variables known after content
+    #
+    # output is then a null terminated array of:
+    #   literal '_start_'
+    #   key=value (for each preset variable)
+    #   literal '_start_'
+    #   key=value (for each post set variable)
+    bcmd = ('unset IFS\n' +
+            setup +
+            varprinter(allvars) +
+            '{\n%s\n\n} > /dev/null\n' % content +
+            'unset IFS\n' +
+            varprinter(keylist) + "\n")
+
+    cmd = []
+    if asuser is not None:
+        cmd = ['sudo', '-u', asuser]
+
+    cmd.extend(bash)
+
+    sp = subprocess.Popen(cmd, stdin=subprocess.PIPE,
+                          stdout=subprocess.PIPE)
+    (output, error) = sp.communicate(input=bcmd)
+
+    if sp.returncode != 0:
+        raise Exception("Process returned %d" % sp.returncode)
+
+    # exclude vars in bash that change on their own or that we used
+    excluded = ("RANDOM", "LINENO", "_", "__v")
+    preset = {}
+    ret = {}
+    target = None
+    output = output[0:-1]  # remove trailing null
+
+    # go through output.  First _start_ is for 'preset', second for 'target'.
+    # Add to target only things were changed and not in volitile
+    for line in output.split("\0"):
+        try:
+            (key, val) = line.split("=", 1)
+            if target is preset:
+                target[key] = val
+            elif (key not in excluded and
+                  (key in keylist_in or preset.get(key) != val)):
+                ret[key] = val
+        except ValueError:
+            if line != "_start_":
+                raise
+            if target is None:
+                target = preset
+            elif target is preset:
+                target = ret
+
+    return ret
 
 
 def read_context_disk_dir(source_dir):
@@ -305,24 +361,26 @@ def read_context_disk_dir(source_dir):
     if "context.sh" in found:
         try:
             with open(os.path.join(source_dir, 'context.sh'), 'r') as f:
-                context = parse_context_data(f.read())
+                content = f.read().strip()  
+                if content:
+                    context = parse_shell_config(content)
                 f.close()
-            if not context:
-                raise NonContextDiskDir("No variables in context")
-
-        except (IOError, NonContextDiskDir) as e:
+        except (IOError, Exception) as e:
             raise NonContextDiskDir("Error reading context.sh: %s" % (e))
-
-        results['metadata'] = context
     else:
         raise NonContextDiskDir("Missing context.sh")
 
+    if not context:
+        raise NonContextDiskDir("No context variables found")
+
+    results['metadata'] = context
+
     # process single or multiple SSH keys
     ssh_key_var = None
-    if "ssh_key" in context:
-        ssh_key_var = "ssh_key"
-    elif "ssh_public_key" in context:
-        ssh_key_var = "ssh_public_key"
+    if "SSH_KEY" in context:
+        ssh_key_var = "SSH_KEY"
+    elif "SSH_PUBLIC_KEY" in context:
+        ssh_key_var = "SSH_PUBLIC_KEY"
 
     if ssh_key_var:
         lines = context.get(ssh_key_var).splitlines()
@@ -331,22 +389,22 @@ def read_context_disk_dir(source_dir):
 
     # custom hostname -- try hostname or leave cloud-init
     # itself create hostname from IP address later
-    for k in ('hostname', 'public_ip', 'ip_public', 'eth0_ip'):
+    for k in ('HOSTNAME', 'PUBLIC_IP', 'IP_PUBLIC', 'ETH0_IP'):
         if k in context:
             results['metadata']['local-hostname'] = context[k]
             break
 
     # raw user data
-    if "user_data" in context:
-        results['userdata'] = context["user_data"]
-    elif "userdata" in context:
-        results['userdata'] = context["userdata"]
+    if "USER_DATA" in context:
+        results['userdata'] = context["USER_DATA"]
+    elif "USERDATA" in context:
+        results['userdata'] = context["USERDATA"]
 
     # generate static /etc/network/interfaces
     # only if there are any required context variables
     # http://opennebula.org/documentation:rel3.8:cong#network_configuration
     for k in context.keys():
-        if re.match(r'^eth\d+_ip$', k):
+        if re.match(r'^ETH\d+_ip$', k):
             (out, _) = util.subp(['/sbin/ip', 'link'])
             net = OpenNebulaNetwork(out, context)
             results['network-interfaces'] = net.gen_conf()
