@@ -173,7 +173,7 @@ class DataSource(object):
                     toks = util.gethostbyaddr(lhost)
 
                 if toks:
-                    toks = toks.split('.')
+                    toks = str(toks).split('.')
                 else:
                     toks = ["ip-%s" % lhost.replace(".", "-")]
             else:
