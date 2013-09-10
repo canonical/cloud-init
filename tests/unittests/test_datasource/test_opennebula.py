@@ -62,11 +62,10 @@ class TestOpenNebulaDataSource(MockerTestCase):
         super(TestOpenNebulaDataSource, self).tearDown()
 
     def test_get_data_non_contextdisk(self):
+        orig_find_devs_with = util.find_devs_with
         try:
             # dont' try to lookup for CDs
-            orig_find_devs_with = util.find_devs_with
             util.find_devs_with = lambda n: []
-
             dsrc = self.ds(sys_cfg=self.sys_cfg, distro=None, paths=self.paths)
             ret = dsrc.get_data()
             self.assertFalse(ret)
@@ -74,11 +73,10 @@ class TestOpenNebulaDataSource(MockerTestCase):
             util.find_devs_with = orig_find_devs_with
 
     def test_get_data_broken_contextdisk(self):
+        orig_find_devs_with = util.find_devs_with
         try:
             # dont' try to lookup for CDs
-            orig_find_devs_with = util.find_devs_with
             util.find_devs_with = lambda n: []
-
             populate_dir(self.seed_dir, {'context.sh': INVALID_CONTEXT})
             dsrc = self.ds(sys_cfg=self.sys_cfg, distro=None, paths=self.paths)
             self.assertRaises(ds.BrokenContextDiskDir, dsrc.get_data)
@@ -86,11 +84,8 @@ class TestOpenNebulaDataSource(MockerTestCase):
             util.find_devs_with = orig_find_devs_with
 
     def test_get_data_invalid_identity(self):
+        orig_find_devs_with = util.find_devs_with
         try:
-            # dont' try to lookup for CDs
-            orig_find_devs_with = util.find_devs_with
-            util.find_devs_with = lambda n: []
-
             # generate non-existing system user name
             sys_cfg = self.sys_cfg
             invalid_user = 'invalid'
@@ -102,6 +97,8 @@ class TestOpenNebulaDataSource(MockerTestCase):
                     sys_cfg['datasource']['OpenNebula']['parseuser'] = \
                         invalid_user
 
+            # dont' try to lookup for CDs
+            util.find_devs_with = lambda n: []
             populate_context_dir(self.seed_dir, {'KEY1': 'val1'})
             dsrc = self.ds(sys_cfg=sys_cfg, distro=None, paths=self.paths)
             self.assertRaises(ds.BrokenContextDiskDir, dsrc.get_data)
@@ -200,8 +197,8 @@ class TestOpenNebulaDataSource(MockerTestCase):
                 "TYPE=iso9660": ["/dev/vdb"],
             }.get(criteria, [])
 
+        orig_find_devs_with = util.find_devs_with
         try:
-            orig_find_devs_with = util.find_devs_with
             util.find_devs_with = my_devs_with
             self.assertEqual(["/dev/sdb", "/dev/sr0", "/dev/vdb"],
                              ds.find_candidate_devs())
