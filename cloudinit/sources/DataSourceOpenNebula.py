@@ -23,9 +23,9 @@
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import os
+import pwd
 import re
-import string
-import subprocess
+import string  # pylint: disable=W0402
 
 from cloudinit import log as logging
 from cloudinit import sources
@@ -58,7 +58,7 @@ class DataSourceOpenNebula(sources.DataSource):
 
         # decide parseuser for context.sh shell reader
         parseuser = DEFAULT_PARSEUSER
-        if self.ds_cfg.get('parseuser'):
+        if 'parseuser' in self.ds_cfg:
             parseuser = self.ds_cfg.get('parseuser')
 
         candidates = [self.seed_dir]
@@ -260,12 +260,20 @@ def find_candidate_devs():
     return combined
 
 
-def parse_shell_config(content, keylist=None, bash=None, asuser=None):
+def switch_user_cmd(user):
+    return ['sudo', '-u', user]
+
+
+def parse_shell_config(content, keylist=None, bash=None, asuser=None,
+                       switch_user_cb=None):
 
     if isinstance(bash, str):
         bash = [bash]
     elif bash is None:
         bash = ['bash', '-e']
+
+    if switch_user_cb is None:
+        switch_user_cb = switch_user_cmd
 
     # allvars expands to all existing variables by using '${!x*}' notation
     # where x is lower or upper case letters or '_'
@@ -302,23 +310,17 @@ def parse_shell_config(content, keylist=None, bash=None, asuser=None):
     bcmd = ('unset IFS\n' +
             setup +
             varprinter(allvars) +
-            '{\n%s\n\n} > /dev/null\n' % content +
+            '{\n%s\n\n:\n} > /dev/null\n' % content +
             'unset IFS\n' +
             varprinter(keylist) + "\n")
 
     cmd = []
     if asuser is not None:
-        cmd = ['sudo', '-u', asuser]
+        cmd = switch_user_cb(asuser)
 
     cmd.extend(bash)
 
-    sp = subprocess.Popen(cmd, stdin=subprocess.PIPE,
-                          stdout=subprocess.PIPE,
-                          stderr=subprocess.PIPE)
-    (output, error) = sp.communicate(input=bcmd)
-
-    if sp.returncode != 0:
-        raise Exception("Process returned %d" % sp.returncode)
+    (output, _error) = util.subp(cmd, data=bcmd)
 
     # exclude vars in bash that change on their own or that we used
     excluded = ("RANDOM", "LINENO", "_", "__v")
@@ -329,7 +331,7 @@ def parse_shell_config(content, keylist=None, bash=None, asuser=None):
 
     # go through output.  First _start_ is for 'preset', second for 'target'.
     # Add to target only things were changed and not in volitile
-    for line in output.split("\0"):
+    for line in output.split("\x00"):
         try:
             (key, val) = line.split("=", 1)
             if target is preset:
@@ -367,21 +369,21 @@ def read_context_disk_dir(source_dir, asuser=None):
     results = {'userdata': None, 'metadata': {}}
 
     if "context.sh" in found:
+        if asuser is not None:
+            try:
+                pwd.getpwnam(asuser)
+            except KeyError as e:
+                raise BrokenContextDiskDir("configured user '%s' "
+                                           "does not exist", asuser)
         try:
             with open(os.path.join(source_dir, 'context.sh'), 'r') as f:
                 content = f.read().strip()
-                f.close()
 
-                # don't pass empty context script
-                # to shell parser
-                non_empty = re.match(r'.*?^\s*([^# ]+)', content,
-                                     re.MULTILINE | re.DOTALL)
-                if non_empty:
-                    context = parse_shell_config(content, asuser=asuser)
+            context = parse_shell_config(content, asuser=asuser)
+        except util.ProcessExecutionError as e:
+            raise BrokenContextDiskDir("Error processing context.sh: %s" % (e))
         except IOError as e:
             raise NonContextDiskDir("Error reading context.sh: %s" % (e))
-        except Exception as e:
-            raise BrokenContextDiskDir("Error processing context.sh: %s" % (e))
     else:
         raise NonContextDiskDir("Missing context.sh")
 
