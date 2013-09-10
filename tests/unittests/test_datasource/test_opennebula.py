@@ -5,6 +5,7 @@ from mocker import MockerTestCase
 from tests.unittests.helpers import populate_dir
 
 import os
+import pwd
 
 TEST_VARS = {
     'VAR1': 'single',
@@ -21,7 +22,6 @@ TEST_VARS = {
     'VAR12': '$',   # expect $
 }
 
-INVALID_PARSEUSER = 'cloud-init-mocker-opennebula-invalid'
 INVALID_CONTEXT = ';'
 USER_DATA = '#cloud-config\napt_upgrade: true'
 SSH_KEY = 'ssh-rsa AAAAB3NzaC1....sIkJhq8wdX+4I3A4cYbYP ubuntu@server-460-%i'
@@ -78,9 +78,16 @@ class TestOpenNebulaDataSource(MockerTestCase):
             orig_find_devs_with = util.find_devs_with
             util.find_devs_with = lambda n: []
 
+            # generate non-existing system user name
             sys_cfg = self.sys_cfg
-            sys_cfg['datasource']['OpenNebula']['parseuser'] = \
-                INVALID_PARSEUSER
+            invalid_user = 'invalid'
+            while not sys_cfg['datasource']['OpenNebula'].get('parseuser'):
+                try:
+                    pwd.getpwnam(invalid_user)
+                    invalid_user += 'X'
+                except KeyError:
+                    sys_cfg['datasource']['OpenNebula']['parseuser'] = \
+                        invalid_user
 
             populate_context_dir(self.seed_dir, {'KEY1': 'val1'})
             dsrc = self.ds(sys_cfg=sys_cfg, distro=None, paths=self.paths)
