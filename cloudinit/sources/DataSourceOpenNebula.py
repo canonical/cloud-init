@@ -35,6 +35,7 @@ LOG = logging.getLogger(__name__)
 
 DEFAULT_IID = "iid-dsopennebula"
 DEFAULT_MODE = 'net'
+DEFAULT_PARSEUSER = 'nobody'
 CONTEXT_DISK_FILES = ["context.sh"]
 VALID_DSMODES = ("local", "net", "disabled")
 
@@ -51,33 +52,35 @@ class DataSourceOpenNebula(sources.DataSource):
         return "%s [seed=%s][dsmode=%s]" % (root, self.seed, self.dsmode)
 
     def get_data(self):
-        defaults = {
-            "instance-id": DEFAULT_IID, #TODO:????
-            "DSMODE": self.dsmode
-        }
-
+        defaults = {"instance-id": DEFAULT_IID}
+        results = None
         seed = None
-        results = {}
 
-        # first try to read local seed_dir
-        if os.path.isdir(self.seed_dir):
+        # decide parseuser for context.sh shell reader
+        parseuser = DEFAULT_PARSEUSER
+        if self.ds_cfg.get('parseuser'):
+            parseuser = self.ds_cfg.get('parseuser')
+
+        candidates = [self.seed_dir]
+        candidates.extend(find_candidate_devs())
+        for cdev in candidates:
             try:
-                results = read_context_disk_dir(self.seed_dir)
-                seed = self.seed_dir
+                if os.path.isdir(self.seed_dir):
+                    results = read_context_disk_dir(cdev, asuser=parseuser)
+                elif cdev.startswith("/dev"):
+                    results = util.mount_cb(cdev, read_context_disk_dir,
+                                            data=parseuser)
             except NonContextDiskDir:
-                util.logexc(LOG, "Failed reading context from %s",
-                            self.seed_dir)
+                continue
+            except BrokenContextDiskDir as exc:
+                raise exc
+            except util.MountFailedError:
+                LOG.warn("%s was not mountable" % cdev)
 
-        if not seed:
-            # then try to detect and mount candidate devices and
-            # read contextualization if present
-            for dev in find_candidate_devs():
-                try:
-                    results = util.mount_cb(dev, read_context_disk_dir)
-                    seed = dev
-                    break
-                except (NonContextDiskDir, util.MountFailedError):
-                    pass
+            if results:
+                seed = cdev
+                LOG.debug("found datasource in %s", cdev)
+                break
 
         if not seed:
             return False
@@ -95,7 +98,7 @@ class DataSourceOpenNebula(sources.DataSource):
         # decide dsmode
         if user_dsmode:
             dsmode = user_dsmode
-        elif self.ds_cfg.get('dsmode'): #TODO: fakt se k tomu nekdy dostane?
+        elif self.ds_cfg.get('dsmode'):
             dsmode = self.ds_cfg.get('dsmode')
         else:
             dsmode = DEFAULT_MODE
@@ -134,6 +137,10 @@ class DataSourceOpenNebulaNet(DataSourceOpenNebula):
 
 
 class NonContextDiskDir(Exception):
+    pass
+
+
+class BrokenContextDiskDir(Exception):
     pass
 
 
@@ -306,7 +313,8 @@ def parse_shell_config(content, keylist=None, bash=None, asuser=None):
     cmd.extend(bash)
 
     sp = subprocess.Popen(cmd, stdin=subprocess.PIPE,
-                          stdout=subprocess.PIPE)
+                          stdout=subprocess.PIPE,
+                          stderr=subprocess.PIPE)
     (output, error) = sp.communicate(input=bcmd)
 
     if sp.returncode != 0:
@@ -340,7 +348,7 @@ def parse_shell_config(content, keylist=None, bash=None, asuser=None):
     return ret
 
 
-def read_context_disk_dir(source_dir):
+def read_context_disk_dir(source_dir, asuser=None):
     """
     read_context_disk_dir(source_dir):
     read source_dir and return a tuple with metadata dict and user-data
@@ -355,23 +363,31 @@ def read_context_disk_dir(source_dir):
     if not found:
         raise NonContextDiskDir("%s: %s" % (source_dir, "no files found"))
 
-    results = {'userdata': None, 'metadata': {}}
     context = {}
+    results = {'userdata': None, 'metadata': {}}
 
     if "context.sh" in found:
         try:
             with open(os.path.join(source_dir, 'context.sh'), 'r') as f:
-                content = f.read().strip()  
-                if content:
-                    context = parse_shell_config(content)
+                content = f.read().strip()
                 f.close()
-        except (IOError, Exception) as e:
+
+                # don't pass empty context script
+                # to shell parser
+                non_empty = re.match(r'.*?^\s*([^# ]+)', content,
+                                     re.MULTILINE | re.DOTALL)
+
+                if non_empty:
+                    context = parse_shell_config(content, asuser=asuser)
+        except IOError as e:
             raise NonContextDiskDir("Error reading context.sh: %s" % (e))
+        except Exception as e:
+            raise BrokenContextDiskDir("Error processing context.sh: %s" % (e))
     else:
         raise NonContextDiskDir("Missing context.sh")
 
     if not context:
-        raise NonContextDiskDir("No context variables found")
+        return results
 
     results['metadata'] = context
 
