@@ -376,7 +376,6 @@ def read_context_disk_dir(source_dir, asuser=None):
                 # to shell parser
                 non_empty = re.match(r'.*?^\s*([^# ]+)', content,
                                      re.MULTILINE | re.DOTALL)
-
                 if non_empty:
                     context = parse_shell_config(content, asuser=asuser)
         except IOError as e:
@@ -420,7 +419,7 @@ def read_context_disk_dir(source_dir, asuser=None):
     # only if there are any required context variables
     # http://opennebula.org/documentation:rel3.8:cong#network_configuration
     for k in context.keys():
-        if re.match(r'^ETH\d+_ip$', k):
+        if re.match(r'^ETH\d+_IP$', k):
             (out, _) = util.subp(['/sbin/ip', 'link'])
             net = OpenNebulaNetwork(out, context)
             results['network-interfaces'] = net.gen_conf()

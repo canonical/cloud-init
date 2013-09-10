@@ -173,6 +173,12 @@ class TestOpenNebulaDataSource(MockerTestCase):
             self.assertTrue('local-hostname' in results['metadata'])
             self.assertEqual(PUBLIC_IP, results['metadata']['local-hostname'])
 
+    def test_network_interfaces(self):
+        populate_context_dir(self.seed_dir, {'ETH0_IP': '1.2.3.4'})
+        results = ds.read_context_disk_dir(self.seed_dir)
+
+        self.assertTrue('network-interfaces' in results)
+
     def test_find_candidates(self):
         def my_devs_with(criteria):
             return {
