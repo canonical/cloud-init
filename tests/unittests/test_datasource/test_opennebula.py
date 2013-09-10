@@ -37,6 +37,7 @@ CMD_IP_OUT = '''\
 
 
 class TestOpenNebulaDataSource(MockerTestCase):
+    parsed_user = None
 
     def setUp(self):
         super(TestOpenNebulaDataSource, self).setUp()
@@ -47,6 +48,18 @@ class TestOpenNebulaDataSource(MockerTestCase):
         self.ds = ds.DataSourceOpenNebula
         self.seed_dir = os.path.join(self.paths.seed_dir, "opennebula")
         self.sys_cfg = {'datasource': {'OpenNebula': {'dsmode': 'local'}}}
+
+        # we don't want 'sudo' called in tests. so we patch switch_user_cmd
+        def my_switch_user_cmd(user):
+            self.parsed_user = user
+            return []
+
+        self.switch_user_cmd_real = ds.switch_user_cmd
+        ds.switch_user_cmd = my_switch_user_cmd
+
+    def tearDown(self):
+        ds.switch_user_cmd = self.switch_user_cmd_real
+        super(TestOpenNebulaDataSource, self).tearDown()
 
     def test_get_data_non_contextdisk(self):
         try:
@@ -96,9 +109,9 @@ class TestOpenNebulaDataSource(MockerTestCase):
             util.find_devs_with = orig_find_devs_with
 
     def test_get_data(self):
+        orig_find_devs_with = util.find_devs_with
         try:
             # dont' try to lookup for CDs
-            orig_find_devs_with = util.find_devs_with
             util.find_devs_with = lambda n: []
             populate_context_dir(self.seed_dir, {'KEY1': 'val1'})
             dsrc = self.ds(sys_cfg=self.sys_cfg, distro=None, paths=self.paths)
