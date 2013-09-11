@@ -26,6 +26,7 @@ if [ ! -e "$REQUIRES" ]; then
 fi
 
 # Filter out comments and empty lines
-DEPS=$(sed -n -e 's,#.*,,' -e '/./p' "$REQUIRES") ||
+DEPS=$(sed -n -e 's,#.*,,' -e '/./p' "$REQUIRES") &&
+   [ -n "$DEPS" ] ||
    fail "failed to read deps from '${REQUIRES}'"
 echo "$DEPS" | sort -d -f
