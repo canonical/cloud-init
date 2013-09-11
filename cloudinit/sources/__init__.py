@@ -53,9 +53,16 @@ class DataSource(object):
         self.userdata = None
         self.metadata = None
         self.userdata_raw = None
+
+        # find the datasource config name.
+        # remove 'DataSource' from classname on front, and remove 'Net' on end.
+        # Both Foo and FooNet sources expect config in cfg['sources']['Foo']
         name = type_utils.obj_name(self)
         if name.startswith(DS_PREFIX):
             name = name[len(DS_PREFIX):]
+        if name.endswith('Net'):
+            name = name[0:-3]
+
         self.ds_cfg = util.get_cfg_by_path(self.sys_cfg,
                                           ("datasource", name), {})
         if not ud_proc:
@@ -144,7 +151,7 @@ class DataSource(object):
             return "iid-datasource"
         return str(self.metadata['instance-id'])
 
-    def get_hostname(self, fqdn=False):
+    def get_hostname(self, fqdn=False, resolve_ip=False):
         defdomain = "localdomain"
         defhost = "localhost"
         domain = defdomain
@@ -168,7 +175,14 @@ class DataSource(object):
             # make up a hostname (LP: #475354) in format ip-xx.xx.xx.xx
             lhost = self.metadata['local-hostname']
             if util.is_ipv4(lhost):
-                toks = ["ip-%s" % lhost.replace(".", "-")]
+                toks = []
+                if resolve_ip:
+                    toks = util.gethostbyaddr(lhost)
+
+                if toks:
+                    toks = str(toks).split('.')
+                else:
+                    toks = ["ip-%s" % lhost.replace(".", "-")]
             else:
                 toks = lhost.split(".")
 
