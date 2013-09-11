@@ -106,6 +106,11 @@ class DataSourceAzureNet(sources.DataSource):
         if found == ddir:
             LOG.debug("using files cached in %s", ddir)
 
+        # azure / hyper-v provides random data here
+        seed = util.load_file("/sys/firmware/acpi/tables/OEM0", quiet=True)
+        if seed:
+            self.metadata['random_seed'] = seed
+
         # now update ds_cfg to reflect contents pass in config
         usercfg = util.get_cfg_by_path(self.cfg, DS_CFG_PATH, {})
         self.ds_cfg = util.mergemanydict([usercfg, self.ds_cfg])

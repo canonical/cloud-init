@@ -18,6 +18,7 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+import base64
 import json
 import os
 
@@ -41,6 +42,25 @@ DEFAULT_METADATA = {
 VALID_DSMODES = ("local", "net", "pass", "disabled")
 
 
+class ConfigDriveHelper(object):
+    def __init__(self, distro):
+        self.distro = distro
+
+    def on_first_boot(self, data):
+        if not data:
+            data = {}
+        if 'network_config' in data:
+            LOG.debug("Updating network interfaces from config drive")
+            self.distro.apply_network(data['network_config'])
+        files = data.get('files')
+        if files:
+            LOG.debug("Writing %s injected files", len(files))
+            try:
+                write_files(files)
+            except IOError:
+                util.logexc(LOG, "Failed writing files")
+
+
 class DataSourceConfigDrive(sources.DataSource):
     def __init__(self, sys_cfg, distro, paths):
         sources.DataSource.__init__(self, sys_cfg, distro, paths)
@@ -49,6 +69,7 @@ class DataSourceConfigDrive(sources.DataSource):
         self.seed_dir = os.path.join(paths.seed_dir, 'config_drive')
         self.version = None
         self.ec2_metadata = None
+        self.helper = ConfigDriveHelper(distro)
 
     def __str__(self):
         root = sources.DataSource.__str__(self)
@@ -187,20 +208,8 @@ class DataSourceConfigDrive(sources.DataSource):
         # instance-id
         prev_iid = get_previous_iid(self.paths)
         cur_iid = md['instance-id']
-
-        if ('network_config' in results and self.dsmode == "local" and
-            prev_iid != cur_iid):
-            LOG.debug("Updating network interfaces from config drive (%s)",
-                      dsmode)
-            self.distro.apply_network(results['network_config'])
-
-        # file writing occurs in local mode (to be as early as possible)
-        if self.dsmode == "local" and prev_iid != cur_iid and results['files']:
-            LOG.debug("writing injected files")
-            try:
-                write_files(results['files'])
-            except:
-                util.logexc(LOG, "Failed writing files")
+        if prev_iid != cur_iid and self.dsmode == "local":
+            self.helper.on_first_boot(results)
 
         # dsmode != self.dsmode here if:
         #  * dsmode = "pass",  pass means it should only copy files and then
@@ -337,6 +346,13 @@ def read_config_drive_dir_v2(source_dir, version="2012-08-10"):
             results['metadata']['instance-id'] = results['metadata']['uuid']
         except KeyError:
             raise BrokenConfigDriveDir("No uuid entry in metadata")
+
+    if 'random_seed' in results['metadata']:
+        random_seed = results['metadata']['random_seed']
+        try:
+            results['metadata']['random_seed'] = base64.b64decode(random_seed)
+        except (ValueError, TypeError) as exc:
+            raise BrokenConfigDriveDir("Badly formatted random_seed: %s" % exc)
 
     def read_content_path(item):
         # do not use os.path.join here, as content_path starts with /
