@@ -955,6 +955,13 @@ def get_hostname():
     return hostname
 
 
+def gethostbyaddr(ip):
+    try:
+        return socket.gethostbyaddr(ip)[0]
+    except socket.herror:
+        return None
+
+
 def is_resolvable_url(url):
     """determine if this url is resolvable (existing or ip)."""
     return (is_resolvable(urlparse.urlparse(url).hostname))
@@ -1791,15 +1798,19 @@ def log_time(logfunc, msg, func, args=None, kwargs=None, get_uptime=False):
         ret = func(*args, **kwargs)
     finally:
         delta = time.time() - start
+        udelta = None
         if ustart is not None:
             try:
                 udelta = float(uptime()) - ustart
             except ValueError:
-                udelta = "N/A"
+                pass
 
         tmsg = " took %0.3f seconds" % delta
         if get_uptime:
-            tmsg += "(%0.2f)" % udelta
+            if isinstance(udelta, (float)):
+                tmsg += " (%0.2f)" % udelta
+            else:
+                tmsg += " (N/A)"
         try:
             logfunc(msg + tmsg)
         except:

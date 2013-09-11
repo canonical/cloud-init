@@ -141,6 +141,12 @@ Config Drive
 .. include:: ../../sources/configdrive/README.rst
 
 ---------------------------
+OpenNebula
+---------------------------
+
+.. include:: ../../sources/opennebula/README.rst
+
+---------------------------
 Alt cloud
 ---------------------------
 

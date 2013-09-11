@@ -12,20 +12,21 @@ find_root() {
    [ $? -eq 0 -a -f "${topd}/setup.py" ] || return
    ROOT_DIR="$topd"
 }
+fail() { echo "$0:" "$@" 1>&2; exit 1; }
 
 if ! find_root; then
-    echo "Unable to locate 'setup.py' file that should" \
-          "exist in the cloud-init root directory." 1>&2
-    exit 1;
+    fail "Unable to locate 'setup.py' file that should " \
+         "exist in the cloud-init root directory."
 fi
 
 REQUIRES="$ROOT_DIR/Requires"
 
 if [ ! -e "$REQUIRES" ]; then
-    echo "Unable to find 'Requires' file located at $REQUIRES"
-    exit 1
+    fail "Unable to find 'Requires' file located at '$REQUIRES'"
 fi
 
-# Filter out comments and empty liens
-DEPS=$(grep -Pv "^\s*#" "$REQUIRES" | grep -Pv '^\s*$')
+# Filter out comments and empty lines
+DEPS=$(sed -n -e 's,#.*,,' -e '/./p' "$REQUIRES") &&
+   [ -n "$DEPS" ] ||
+   fail "failed to read deps from '${REQUIRES}'"
 echo "$DEPS" | sort -d -f

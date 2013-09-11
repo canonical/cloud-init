@@ -292,11 +292,16 @@ class ContentHandlers(object):
     def is_registered(self, content_type):
         return content_type in self.registered
 
-    def register(self, mod, initialized=False):
+    def register(self, mod, initialized=False, overwrite=True):
         types = set()
         for t in mod.list_types():
+            if overwrite:
+                types.add(t)
+            else:
+                if not self.is_registered(t):
+                    types.add(t)
+        for t in types:
             self.registered[t] = mod
-            types.add(t)
         if initialized and mod not in self.initialized:
             self.initialized.append(mod)
         return types
@@ -309,15 +314,6 @@ class ContentHandlers(object):
 
     def iteritems(self):
         return self.registered.iteritems()
-
-    def register_defaults(self, defs):
-        registered = set()
-        for mod in defs:
-            for t in mod.list_types():
-                if not self.is_registered(t):
-                    self.registered[t] = mod
-                    registered.add(t)
-        return registered
 
 
 class Paths(object):

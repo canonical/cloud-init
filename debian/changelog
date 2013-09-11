@@ -1,3 +1,13 @@
+cloud-init (0.7.3~bzr869-0ubuntu1) saucy; urgency=low
+
+  * depend on cloud-utils or cloud-guest-utils (LP: #1224003)
+  * New upstream snapshot.
+    * Add OpenNebula datasource.
+    * Support reading 'random_seed' from metadata and writing to /dev/urandom
+    * fix for bug in log_time.
+
+ -- Scott Moser <smoser@ubuntu.com>  Wed, 11 Sep 2013 17:04:45 -0400
+
 cloud-init (0.7.3~bzr862-0ubuntu1) saucy; urgency=low
 
   * New upstream snapshot.

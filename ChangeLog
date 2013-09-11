@@ -15,6 +15,9 @@
    which also reads from uptime. uptime is useful as clock may change during
    boot due to ntp.
  - prefer growpart resizer to 'parted resizepart' (LP: #1212492)
+ - support random data seed from config drive or azure, and a module
+   'seed_random' to read that and write it to /dev/urandom.
+ - add OpenNebula Datasource [Vlastimil Holer]
 0.7.2:
  - add a debian watch file
  - add 'sudo' entry to ubuntu's default user (LP: #1080717)
