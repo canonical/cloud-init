@@ -25,7 +25,8 @@ if [ ! -e "$CHNG_LOG" ]; then
     fail "Unable to find 'ChangeLog' file located at '$CHNG_LOG'"
 fi
 
-VERSION=$(sed -n '/^[0-9]\+[.][0-9]\+[.][0-9]\+:/ {s/://; p; :a;n; ba}' \
-          "$CHNG_LOG") ||
+VERSION=$(sed -n '/^[0-9]\+[.][0-9]\+[.][0-9]\+:/ \
+                  {s/://; p; :a;n; ba; }' "$CHNG_LOG") &&
+   [ -n "$VERSION" ] ||
    fail "failed to get version from '$CHNG_LOG'"
 echo "$VERSION"
