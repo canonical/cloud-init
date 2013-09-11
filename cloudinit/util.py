@@ -955,6 +955,13 @@ def get_hostname():
     return hostname
 
 
+def gethostbyaddr(ip):
+    try:
+        return socket.gethostbyaddr(ip)[0]
+    except socket.herror:
+        return None
+
+
 def is_resolvable_url(url):
     """determine if this url is resolvable (existing or ip)."""
     return (is_resolvable(urlparse.urlparse(url).hostname))
