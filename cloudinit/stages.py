@@ -375,7 +375,9 @@ class Init(object):
                     mod = importer.import_module(mod_locs[0])
                     mod = handlers.fixup_handler(mod)
                     types = c_handlers.register(mod)
-                    LOG.debug("Added handler for %s from %s", types, fname)
+                    if types:
+                        LOG.debug("Added custom handler for %s from %s",
+                                  types, fname)
                 except Exception:
                     util.logexc(LOG, "Failed to register handler from %s",
                                 fname)
@@ -386,10 +388,10 @@ class Init(object):
         # Register any other handlers that come from the default set. This
         # is done after the cloud-dir handlers so that the cdir modules can
         # take over the default user-data handler content-types.
-        def_handlers = self._default_userdata_handlers()
-        applied_def_handlers = c_handlers.register_defaults(def_handlers)
-        if applied_def_handlers:
-            LOG.debug("Registered default handlers: %s", applied_def_handlers)
+        for mod in self._default_userdata_handlers():
+            types = c_handlers.register(mod, overwrite=False)
+            if types:
+                LOG.debug("Added default handler for %s from %s", types, mod)
 
         # Form our cloud interface
         data = self.cloudify()
