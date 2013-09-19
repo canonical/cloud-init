@@ -5,11 +5,13 @@ SmartOS Datasource
 This datasource finds metadata and user-data from the SmartOS virtualization
 platform (i.e. Joyent).
 
+Please see http://smartos.org/ for information about SmartOS.
+
 SmartOS Platform
 ----------------
-The SmartOS virtualization platform meta-data to the instance via the second
-serial console. On Linux, this is /dev/ttyS1. The data is a provided via a
-simple protocol, where something queries for the userdata, where the console
+The SmartOS virtualization platform uses meta-data to the instance via the
+second serial console. On Linux, this is /dev/ttyS1. The data is a provided
+via a simple protocol: something queries for the data, the console responds
 responds with the status and if "SUCCESS" returns until a single ".\n".
 
 New versions of the SmartOS tooling will include support for base64 encoded data.
@@ -18,7 +20,7 @@ Userdata
 --------
 
 In SmartOS parlance, user-data is a actually meta-data. This userdata can be
-provided a key-value pairs.
+provided as key-value pairs.
 
 Cloud-init supports reading the traditional meta-data fields supported by the
 SmartOS tools. These are:
@@ -36,13 +38,13 @@ user-script
 SmartOS traditionally supports sending over a user-script for execution at the
 rc.local level. Cloud-init supports running user-scripts as if they were
 cloud-init user-data. In this sense, anything with a shell interpreter
-directive will run
+directive will run.
 
 user-data and user-script
 -------------------------
 
 In the event that a user defines the meta-data key of "user-data" it will
-always supercede any user-script data. This is for consistency.
+always supersede any user-script data. This is for consistency.
 
 base64
 ------
@@ -70,3 +72,16 @@ or not to base64 decode something:
   * no_base64_decode: This is a configuration setting
         (i.e. /etc/cloud/cloud.cfg.d) that sets which values should not be
         base64 decoded.
+
+ephemeral_disk:
+---------------
+
+In order to instruct Cloud-init which disk to auto-mount. By default,
+SmartOS only supports a single ephemeral disk.
+
+The default SmartOS configuration will prepare the ephemeral disk and format
+it for you. SmartOS does not, by default, prepare the ephemeral disk for you.
+
+If you change ephemeral_disk, you should also consider changing
+the default disk formatting parameters. See
+doc/examples/cloud-config-disk-setup.txt for information on using this.

@@ -18,13 +18,10 @@
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 from cloudinit import util
 from cloudinit.settings import PER_INSTANCE
-import re
-import traceback
+import logging
+import shlex
 
 frequency = PER_INSTANCE
-
-virtal_devices = ["ephemeral0", "swap"]
-defmnts = ["ephemeral0", "swap"]
 
 # Define the commands to use
 UDEVADM_CMD = util.which('udevadm')
@@ -33,46 +30,47 @@ LSBLK_CMD = util.which("lsblk")
 BLKID_CMD = util.which("blkid")
 BLKDEV_CMD = util.which("blockdev")
 
+LOG = logging.getLogger(__name__)
+
+
 def handle(_name, cfg, cloud, log, _args):
     """
     Call util.prep_disk for disk_setup cloud-config.
-    The format is:
-
-    disk_setup:
-        ephmeral0: {type='mbr', layout='True', overwrite='False'}
-        /dev/xvdj: {type='None'}
-        /dev/xvdh: {type='mbr', layout:[(33,83),66], overwrite='True'}
-
-    fs_setup:
-        ephemeral0: {filesystem='ext3', device='ephemeral0', partition='auto'}
-        mylabel2: {filesystem='ext3', device='/dev/xvda1', partition='None'}
-        special1: {cmd="mkfs -t %(FILESYSTEM)s -L %(LABEL)s %(DEVICE)s", filesystem='btrfs', device='/dev/xvda1'}
-
-
+    See doc/examples/cloud-config_disk-setup.txt for documentation on the
+    format.
     """
-
     disk_setup = cfg.get("disk_setup")
     if isinstance(disk_setup, dict):
         log.info("Partitioning disks.")
         for disk, definition in disk_setup.items():
             if not isinstance(definition, dict):
-                log.debug("Invalid disk definition for %s" % disk)
+                log.warn("Invalid disk definition for %s" % disk)
                 continue
 
-            util.log_time(logfunc=log.info,
+            try:
+                log.debug("Creating new partition table/disk")
+                util.log_time(logfunc=LOG.debug,
                               msg="Creating partition on %s" % disk,
-                              func=mkpart, args=(disk, cloud, definition, log))
+                              func=mkpart, args=(disk, cloud, definition))
+            except Exception as e:
+                util.logexc(LOG, "Failed partitioning operation\n%s" % e)
 
     fs_setup = cfg.get("fs_setup")
-    if isinstance(fs_setup, dict):
-        log.info("Setting up filesystems")
-        for label, definition in fs_setup.items():
+    if isinstance(fs_setup, list):
+        log.info("Creating file systems.")
+        for definition in fs_setup:
             if not isinstance(definition, dict):
-               log.debug("Invalid filesystem definition for %s" % label)
-               continue
+                log.warn("Invalid file system definition: %s" % definition)
+                continue
 
-            util.log_time(logfunc=log.debug, msg="Creating fs for %s" % label,
-                         func=mkfs, args=(label, cloud, definition, log))
+            try:
+                log.debug("Creating new filesystem.")
+                device = definition.get('device')
+                util.log_time(logfunc=LOG.debug,
+                              msg="Creating fs for %s" % device,
+                              func=mkfs, args=(cloud, definition))
+            except Exception as e:
+                util.logexc(LOG, "Failed during filesystem operation\n%s" % e)
 
 
 def is_default_device(name, cloud, fallback=None):
@@ -82,10 +80,11 @@ def is_default_device(name, cloud, fallback=None):
     fallback if so defined.
     """
 
+    _dev = None
     try:
         _dev = cloud.device_name_to_device(name)
     except Exception as e:
-        print e
+        util.logexc(LOG, "Failed to find mapping for %s" % e)
 
     if _dev:
         return _dev
@@ -96,33 +95,18 @@ def is_default_device(name, cloud, fallback=None):
     return name
 
 
-def check_value(key, dct, default=None):
-    """
-    Convience function for getting value out of a dict.
-    """
-
-    if key in dct:
-        return dct[key]
-    if default:
-        return default
-    return None
-
-
 def value_splitter(values, start=None):
     """
     Returns the key/value pairs of output sent as string
     like:  FOO='BAR' HOME='127.0.0.1'
     """
-    _values = values.split()
+    _values = shlex.split(values)
     if start:
         _values = _values[start:]
 
     for key, value in [x.split('=') for x in _values]:
-        if value == '""':
-            value = None
-        elif '"' in value:
-            value = value.replace('"','')
         yield key, value
+
 
 def device_type(device):
     """
@@ -148,7 +132,13 @@ def is_device_valid(name, partition=False):
     """
     Check if the device is a valid device.
     """
-    d_type = device_type(name)
+    d_type = ""
+    try:
+        d_type = device_type(name)
+    except:
+        LOG.warn("Query against device %s failed" % name)
+        return False
+
     if partition and d_type == 'part':
         return True
     elif not partition and d_type == 'disk':
@@ -171,7 +161,6 @@ def check_fs(device):
     try:
         out, _err = util.subp(blkid_cmd, rcs=[0, 2])
     except Exception as e:
-        util.logexc(e)
         raise Exception("Failed during disk check for %s\n%s" % (device, e))
 
     if out:
@@ -195,7 +184,8 @@ def is_filesystem(device):
     return fs_type
 
 
-def find_device_node(device, fs_type=None, label=None, valid_targets=None):
+def find_device_node(device, fs_type=None, label=None, valid_targets=None,
+                     label_match=True):
     """
     Find a device that is either matches the spec, or the first
 
@@ -208,7 +198,8 @@ def find_device_node(device, fs_type=None, label=None, valid_targets=None):
     if not valid_targets:
         valid_targets = ['disk', 'part']
 
-    lsblk_cmd = [LSBLK_CMD, '--pairs', '--out', 'NAME,TYPE,FSTYPE,LABEL', device]
+    lsblk_cmd = [LSBLK_CMD, '--pairs', '--out', 'NAME,TYPE,FSTYPE,LABEL',
+                 device]
     info = None
     try:
         info, _err = util.subp(lsblk_cmd)
@@ -216,7 +207,7 @@ def find_device_node(device, fs_type=None, label=None, valid_targets=None):
         raise Exception("Failed during disk check for %s\n%s" % (device, e))
 
     raw_device_used = False
-    parts = [ x for x in (info.strip()).splitlines() if len(x.split()) > 0 ]
+    parts = [x for x in (info.strip()).splitlines() if len(x.split()) > 0]
 
     for part in parts:
         d = {'name': None,
@@ -228,7 +219,8 @@ def find_device_node(device, fs_type=None, label=None, valid_targets=None):
         for key, value in value_splitter(part):
             d[key.lower()] = value
 
-        if d['fstype'] == fs_type and d['label'] == label:
+        if d['fstype'] == fs_type and \
+            ((label_match and d['label'] == label) or not label_match):
             # If we find a matching device, we return that
             return ('/dev/%s' % d['name'], True)
 
@@ -247,6 +239,7 @@ def find_device_node(device, fs_type=None, label=None, valid_targets=None):
     if not raw_device_used:
         return (device, False)
 
+    LOG.warn("Failed to find device during available device search.")
     return (None, False)
 
 
@@ -262,6 +255,8 @@ def is_disk_used(device):
         info, _err = util.subp(lsblk_cmd)
     except Exception as e:
         # if we error out, we can't use the device
+        util.logexc(LOG,
+                    "Error checking for filesystem on %s\n%s" % (device, e))
         return True
 
     # If there is any output, then the device has something
@@ -313,6 +308,7 @@ def get_dyn_func(*args):
     except KeyError:
         raise Exception("No such function %s to call!" % func_name)
 
+
 def check_partition_mbr_layout(device, layout):
     """
     Returns true if the partition layout matches the one on the disk
@@ -363,7 +359,7 @@ def check_partition_mbr_layout(device, layout):
             # This just makes sure that the number of requested
             # partitions and the type labels are right
             for x in range(1, len(layout) + 1):
-                if isinstance(layout[x-1], tuple):
+                if isinstance(layout[x - 1], tuple):
                     _, part_type = layout[x]
                     if int(found_layout[x]) != int(part_type):
                         return False
@@ -455,10 +451,13 @@ def read_parttbl(device):
     reliable way to probe the partition table.
     """
     blkdev_cmd = [BLKDEV_CMD, '--rereadpt', device]
+    udev_cmd = [UDEVADM_CMD, 'settle']
     try:
+        util.subp(udev_cmd)
         util.subp(blkdev_cmd)
+        util.subp(udev_cmd)
     except Exception as e:
-        raise Exception("Failed on call to partprobe\n%s" % e)
+        util.logexc(LOG, "Failed reading the partition table %s" % e)
 
 
 def exec_mkpart_mbr(device, layout):
@@ -475,6 +474,7 @@ def exec_mkpart_mbr(device, layout):
 
     read_parttbl(device)
 
+
 def exec_mkpart(table_type, device, layout):
     """
     Fetches the function for creating the table type.
@@ -488,7 +488,7 @@ def exec_mkpart(table_type, device, layout):
     return get_dyn_func("exec_mkpart_%s", table_type, device, layout)
 
 
-def mkpart(device, cloud, definition, log):
+def mkpart(device, cloud, definition):
     """
     Creates the partition table.
 
@@ -504,14 +504,14 @@ def mkpart(device, cloud, definition, log):
                 device: the device to work on.
     """
 
-    log.debug("Checking values for %s definition" % device)
-    overwrite = check_value('overwrite', definition, False)
-    layout = check_value('layout', definition, False)
-    table_type = check_value('type', definition, 'mbr')
+    LOG.debug("Checking values for %s definition" % device)
+    overwrite = definition.get('overwrite', False)
+    layout = definition.get('layout', False)
+    table_type = definition.get('table_type', 'mbr')
     _device = is_default_device(device, cloud)
 
     # Check if the default device is a partition or not
-    log.debug("Checking against default devices")
+    LOG.debug("Checking against default devices")
     if _device and (_device != device):
         if not is_device_valid(_device):
             _device = _device[:-1]
@@ -519,40 +519,43 @@ def mkpart(device, cloud, definition, log):
         if not is_device_valid(_device):
             raise Exception("Unable to find backing block device for %s" % \
                             device)
+        else:
+            LOG.debug("Mapped %s to physical device %s" % (device, _device))
+            device = _device
 
     if (isinstance(layout, bool) and not layout) or not layout:
-        log.debug("Device is not to be partitioned, skipping")
+        LOG.debug("Device is not to be partitioned, skipping")
         return  # Device is not to be partitioned
 
     # This prevents you from overwriting the device
-    log.debug("Checking if device %s is a valid device" % device)
+    LOG.debug("Checking if device %s is a valid device" % device)
     if not is_device_valid(device):
         raise Exception("Device %s is not a disk device!" % device)
 
-    log.debug("Checking if device layout matches")
+    LOG.debug("Checking if device layout matches")
     if check_partition_layout(table_type, device, layout):
-        log.debug("Device partitioning layout matches")
+        LOG.debug("Device partitioning layout matches")
         return True
 
-    log.debug("Checking if device is safe to partition")
+    LOG.debug("Checking if device is safe to partition")
     if not overwrite and (is_disk_used(device) or is_filesystem(device)):
-        log.debug("Skipping partitioning on configured device %s" % device)
+        LOG.debug("Skipping partitioning on configured device %s" % device)
         return
 
-    log.debug("Checking for device size")
+    LOG.debug("Checking for device size")
     device_size = get_hdd_size(device)
 
-    log.debug("Calculating partition layout")
+    LOG.debug("Calculating partition layout")
     part_definition = get_partition_layout(table_type, device_size, layout)
-    log.debug("   Layout is: %s" % part_definition)
+    LOG.debug("   Layout is: %s" % part_definition)
 
-    log.debug("Creating partition table on %s" % device)
+    LOG.debug("Creating partition table on %s" % device)
     exec_mkpart(table_type, device, part_definition)
 
-    log.debug("Partition table created for %s" % device)
+    LOG.debug("Partition table created for %s" % device)
 
 
-def mkfs(label, cloud, fs_cfg, log):
+def mkfs(cloud, fs_cfg):
     """
     Create a file system on the device.
 
@@ -568,68 +571,94 @@ def mkfs(label, cloud, fs_cfg, log):
                             first free device or the first device which
                             matches both label and type will be used.
 
+                            'any' means the first filesystem that matches
+                            on the device.
+
             When 'cmd' is provided then no other parameter is required.
     """
-    device = check_value('device', fs_cfg)
-    partition = str(check_value('partition', fs_cfg))
-    fs_type = check_value('filesystem', fs_cfg)
-    fs_cmd = check_value('cmd', fs_cfg, [])
-    fs_opts = check_value('extra_opts', fs_cfg, [])
-    overwrite = check_value('overwrite', fs_cfg, False)
+    fs_cfg['partition'] = 'any'
+    label = fs_cfg.get('label')
+    device = fs_cfg.get('device')
+    partition = str(fs_cfg.get('partition'))
+    fs_type = fs_cfg.get('filesystem')
+    fs_cmd = fs_cfg.get('cmd', [])
+    fs_opts = fs_cfg.get('extra_opts', [])
+    overwrite = fs_cfg.get('overwrite', False)
 
     # This allows you to define the default ephemeral or swap
-    log.debug("Checking %s label against default devices" % label)
-    device = is_default_device(label, cloud, fallback=device)
+    LOG.debug("Checking %s against default devices" % device)
+    _device = is_default_device(label, cloud, fallback=device)
+    if _device and (_device != device):
+        if not is_device_valid(_device):
+            raise Exception("Unable to find backing block device for %s" % \
+                            device)
+        else:
+            LOG.debug("Mapped %s to physical device %s" % (device, _device))
+            device = _device
 
     if not partition or partition.isdigit():
         # Handle manual definition of partition
         if partition.isdigit():
             device = "%s%s" % (device, partition)
-            log.debug("Manual request of partition %s for %s" % (
-                         partition, device))
+            LOG.debug("Manual request of partition %s for %s" % (
+                      partition, device))
 
         # Check to see if the fs already exists
-        log.debug("Checking device %s" % device)
+        LOG.debug("Checking device %s" % device)
         check_label, check_fstype, _ = check_fs(device)
-        log.debug("Device %s has %s %s" % (device, check_label, check_fstype))
+        LOG.debug("Device %s has %s %s" % (device, check_label, check_fstype))
 
         if check_label == label and check_fstype == fs_type:
-            log.debug("Existing file system found at %s" % device)
+            LOG.debug("Existing file system found at %s" % device)
 
             if not overwrite:
-                log.debug("Device %s has required file system" % device)
+                LOG.warn("Device %s has required file system" % device)
                 return
             else:
-                log.debug("Destroying filesystem on %s" % device)
+                LOG.warn("Destroying filesystem on %s" % device)
 
         else:
-            log.debug("Device %s is cleared for formating" % device)
+            LOG.debug("Device %s is cleared for formating" % device)
 
-    elif partition and partition == 'auto':
+    elif partition and str(partition).lower() in ('auto', 'any'):
         # For auto devices, we match if the filesystem does exist
-        log.debug("Identifying device to create %s filesytem on" % label)
-        device, reuse = find_device_node(device, fs_type=fs_type, label=label)
-        log.debug("Device identified as %s" % device)
+        odevice = device
+        LOG.debug("Identifying device to create %s filesytem on" % label)
+
+        # any mean pick the first match on the device with matching fs_type
+        label_match = True
+        if partition.lower() == 'any':
+            label_match = False
+
+        device, reuse = find_device_node(device, fs_type=fs_type, label=label,
+                                         label_match=label_match)
+        LOG.debug("Automatic device for %s identified as %s" % (
+                  odevice, device))
 
         if reuse:
-            log.debug("Found filesystem match, skipping formating.")
+            LOG.debug("Found filesystem match, skipping formating.")
+            return
+
+        if not device:
+            LOG.debug("No device aviable that matches request.")
+            LOG.debug("Skipping fs creation for %s" % fs_cfg)
             return
 
     else:
-        log.debug("Error in device identification handling.")
+        LOG.debug("Error in device identification handling.")
         return
 
-
-    log.debug("File system %s will be created on %s" % (label, device))
+    LOG.debug("File system %s will be created on %s" % (label, device))
 
     # Make sure the device is defined
     if not device:
-        raise Exception("Device identification error for %s" % label)
+        LOG.critical("Device is not known: %s" % fs_cfg)
+        return
 
     # Check that we can create the FS
     if not label or not fs_type:
-        log.debug("Command to create filesystem %s is bad. Skipping." % \
-                     label)
+        LOG.debug("Command to create filesystem %s is bad. Skipping." % \
+                  label)
 
     # Create the commands
     if fs_cmd:
@@ -638,22 +667,26 @@ def mkfs(label, cloud, fs_cfg, log):
                                   'device': device,
                                  }
     else:
+        # Find the mkfs command
         mkfs_cmd = util.which("mkfs.%s" % fs_type)
         if not mkfs_cmd:
             mkfs_cmd = util.which("mk%s" % fs_type)
 
         if not mkfs_cmd:
-            log.debug("Unable to locate command to create filesystem.")
+            LOG.critical("Unable to locate command to create filesystem.")
             return
 
-        fs_cmd = [mkfs_cmd, "-L", label, device]
+        fs_cmd = [mkfs_cmd, device]
+
+        if label:
+            fs_cmd.extend(["-L", label])
 
     # Add the extends FS options
     if fs_opts:
         fs_cmd.extend(fs_opts)
 
-    log.debug("Creating file system %s on %s" % (label, device))
-    print fs_cmd
+    LOG.debug("Creating file system %s on %s" % (label, device))
+    LOG.debug("     Using cmd: %s" % "".join(fs_cmd))
     try:
         util.subp(fs_cmd)
     except Exception as e:
