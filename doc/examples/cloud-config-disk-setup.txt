@@ -1,24 +1,63 @@
-Cloud-init supports the creation of simple partition tables and filesystems
+Cloud-init supports the creation of simple partition tables and file systems
 on devices.
 
-default disk definitions
-------------------------
+Default disk definitions for AWS
+--------------------------------
+(Not implemented yet, but provided for future documentation)
 
  disk_setup:
     ephmeral0:
         type: 'mbr'
         layout: True
         overwrite: False
+
  fs_setup:
-    ephemeral0:
-        filesystem: 'ext3'
-        device: 'ephemeral0'
-        partition: 'auto'
+    - label: None,
+      filesystem: ext3
+      device: ephemeral0
+      partition: auto
+
+Default disk definitions for Windows Azure
+------------------------------------------
+(Not implemented yet due to conflict with WALinuxAgent in Ubuntu)
+
+disk_setup:
+    /dev/sdb:
+         type: mbr
+         layout: True
+         overwrite: False
+
+fs_setup:
+    - label: ephemeral0
+      filesystem: ext3
+      device: ephemeral0
+      partition: any
+
+
+Default disk definitions for SmartOS
+------------------------------------
+
+ephemeral_disk: /dev/vdb
+disk_setup:
+    /dev/vdb:
+         type: mbr
+         layout: True
+         overwrite: False
+
+fs_setup:
+    - label: ephemeral0
+      filesystem: ext3
+      device: /dev/vdb
+      partition: 1
+
+Cavaut for SmartOS: if ephemeral disk is not defined, then the disk will
+    not be automatically added to the mounts.
+
 
 The default definition is used to make sure that the ephemeral storage is
 setup properly.
 
-"disk_setup": disk parititioning
+"disk_setup": disk partitioning
 --------------------------------
 
 The disk_setup directive instructs Cloud-init to partition a disk. The format is:
@@ -36,7 +75,7 @@ The disk_setup directive instructs Cloud-init to partition a disk. The format is
         overwrite: True
 
 The format is a list of dicts of dicts. The first value is the name of the
-device and the subsiquent values define how to create and layout the partition.
+device and the subsequent values define how to create and layout the partition.
 
 The general format is:
     disk_setup:
@@ -113,28 +152,29 @@ fs_setup: Setup the file system
 fs_setup describes the how the file systems are supposed to look.
 
  fs_setup:
-    ephemeral0:
-        filesystem: 'ext3'
-        device: 'ephemeral0'
-        partition: 'auto'
-    mylabl2:
-        filesystem: 'ext4'
-        device: '/dev/xvda1'
-    special:
-        cmd: mkfs -t %(FILESYSTEM)s -L %(LABEL)s %(DEVICE)s
-        filesystem: 'btrfs'
-        device: '/dev/xvdh'
+    - label: ephemeral0
+      filesystem: 'ext3'
+      device: 'ephemeral0'
+      partition: 'auto'
+    - label:  mylabl2
+      filesystem: 'ext4'
+      device: '/dev/xvda1'
+    - special:
+      cmd: mkfs -t %(FILESYSTEM)s -L %(LABEL)s %(DEVICE)s
+      filesystem: 'btrfs'
+      device: '/dev/xvdh'
 
 The general format is:
     fs_setup:
-        <LABEL>:
-            filesystem: <FS_TYPE>
-            device: <DEVICE>
-            partition: <PART_VALUE>
-            overwrite: <OVERWRITE>
+        - label: <LABEL>
+          filesystem: <FS_TYPE>
+          device: <DEVICE>
+          partition: <PART_VALUE>
+          overwrite: <OVERWRITE>
 
 Where:
-    <LABEL>: The file system label to be used.
+    <LABEL>: The file system label to be used. If set to None, no label is
+        used.
 
     <FS_TYPE>: The file system type. It is assumed that the there
         will be a "mkfs.<FS_TYPE>" that behaves likes "mkfs". On a standard
@@ -166,13 +206,5 @@ Where:
 
         "false": If an existing file system exists, skip the creation.
 
-        "force": Recreate the file system, even it already exists
-
-
 Behavior Caveat: The default behavior is to _check_ if the file system exists.
     If a file system matches the specification, then the operation is a no-op.
-
-    For 'ephemeralX' or 'swap' labeled filesystems, the operation will be a
-    no-op if a file system of the same type is present, regardless of the label.
-    This is to accommodate Clouds like EC2 that present a blank file system with
-    out a label.
