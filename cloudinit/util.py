@@ -360,11 +360,11 @@ def multi_log(text, console=True, stderr=True,
     if stderr:
         sys.stderr.write(text)
     if console:
-        # Don't use the write_file since
-        # this might be 'sensitive' info (not debug worthy?)
-        with open('/dev/console', 'wb') as wfh:
-            wfh.write(text)
-            wfh.flush()
+        # Some containers lack /dev/console, so we send output to
+        # stdout and configure upstart with "console output" and
+        # systemd with "journal+console" and let them take care of
+        # getting output to the console.
+        print text
     if log:
         if text[-1] == "\n":
             log.log(log_level, text[:-1])
