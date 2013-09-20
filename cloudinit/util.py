@@ -161,13 +161,13 @@ class SeLinuxGuard(object):
         self.recursive = recursive
 
     def __enter__(self):
-        if self.selinux:
+        if self.selinux and self.selinux.is_selinux_enabled():
             return True
         else:
             return False
 
     def __exit__(self, excp_type, excp_value, excp_traceback):
-        if self.selinux:
+        if self.selinux and self.selinux.is_selinux_enabled():
             path = os.path.realpath(os.path.expanduser(self.path))
             do_restore = False
             try:
