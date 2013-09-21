@@ -261,6 +261,41 @@ class TestSmartOSDataSource(MockerTestCase):
         self.assertEquals(MOCK_RETURNS['enable_motd_sys_info'],
                           dsrc.metadata['motd_sys_info'])
 
+    def test_default_ephemeral(self):
+        # Test to make sure that the builtin config has the ephemeral
+        # configuration.
+        dsrc = self._get_ds()
+        cfg = dsrc.get_config_obj()
+
+        ret = dsrc.get_data()
+        self.assertTrue(ret)
+
+        assert 'disk_setup' in cfg
+        assert 'fs_setup' in cfg
+        self.assertIsInstance(cfg['disk_setup'], dict)
+        self.assertIsInstance(cfg['fs_setup'], list)
+
+    def test_override_builtin_ds(self):
+        # Test to make sure that the built-in DS is overriden
+        data = {}
+        data['disk_setup'] = {'test_dev': {}}
+        data['fs_setup'] = [{'label': 'test_dev'}]
+        data['serial_device'] = '/dev/ttyS2'
+        dsrc = self._get_ds(ds_cfg=data)
+        cfg = dsrc.get_config_obj()
+
+        ret = dsrc.get_data()
+        self.assertTrue(ret)
+
+        assert 'disk_setup' in cfg
+        assert 'fs_setup' in cfg
+        self.assertIsInstance(cfg['disk_setup'], dict)
+        self.assertIsInstance(cfg['fs_setup'], list)
+        assert 'test_dev' in cfg['disk_setup']
+        assert 'test_dev' in cfg['fs_setup'][0]['label']
+
+        self.assertEquals(data['serial_device'], dsrc.seed)
+
 
 def apply_patches(patches):
     ret = []

@@ -35,8 +35,7 @@ import os
 import os.path
 import serial
 
-DEF_TTY_LOC = '/dev/ttyS1'
-DEF_TTY_TIMEOUT = 60
+
 LOG = logging.getLogger(__name__)
 
 SMARTOS_ATTRIB_MAP = {
@@ -49,24 +48,61 @@ SMARTOS_ATTRIB_MAP = {
     'motd_sys_info': ('motd_sys_info', True),
 }
 
-# These are values which will never be base64 encoded.
-# They come from the cloud platform, not user
-SMARTOS_NO_BASE64 = ['root_authorized_keys', 'motd_sys_info',
-                     'iptables_disable']
+DS_NAME = 'SmartOS'
+DS_CFG_PATH = ['datasource', DS_NAME]
+# BUILT-IN DATASOURCE CONFIGURATION
+#  The following is the built-in configuration. If the values
+#  are not set via the system configuration, then these default
+#  will be used:
+#    serial_device: which serial device to use for the meta-data
+#    seed_timeout: how long to wait on the device
+#    no_base64_decode: values which are not base64 encoded and
+#            are fetched directly from SmartOS, not meta-data values
+#    base64_keys: meta-data keys that are delivered in base64
+#    base64_all: with the exclusion of no_base64_decode values,
+#            treat all meta-data as base64 encoded
+#    disk_setup: describes how to partition the ephemeral drive
+#    fs_setup: describes how to format the ephemeral drive
+#
+BUILTIN_DS_CONFIG = {
+    'serial_device': '/dev/ttyS1',
+    'seed_timeout': 60,
+    'no_base64_decode': ['root_authorized_keys',
+                         'motd_sys_info',
+                         'iptables_disable'],
+    'base64_keys': [],
+    'base64_all': False,
+    'ephemeral_disk': '/dev/vdb',
+    'disk_setup': {
+        'ephemeral0': {'table_type': 'mbr',
+                       'layout': True,
+                       'overwrite': False}
+         },
+    'fs_setup': [{'label': 'ephemeral0', 'filesystem': 'ext3',
+                  'device': '/dev/xvdb', 'partition': 'auto'}],
+}
 
 
 class DataSourceSmartOS(sources.DataSource):
     def __init__(self, sys_cfg, distro, paths):
         sources.DataSource.__init__(self, sys_cfg, distro, paths)
-        self.seed_dir = os.path.join(paths.seed_dir, 'sdc')
         self.is_smartdc = None
 
-        self.seed = self.ds_cfg.get("serial_device", DEF_TTY_LOC)
-        self.seed_timeout = self.ds_cfg.get("serial_timeout", DEF_TTY_TIMEOUT)
-        self.smartos_no_base64 = self.ds_cfg.get('no_base64_decode',
-                                                 SMARTOS_NO_BASE64)
-        self.b64_keys = self.ds_cfg.get('base64_keys', [])
-        self.b64_all = self.ds_cfg.get('base64_all', False)
+        self.ds_cfg = util.mergemanydict([
+            self.ds_cfg,
+            util.get_cfg_by_path(sys_cfg, DS_CFG_PATH, {}),
+            BUILTIN_DS_CONFIG])
+
+        self.metadata = {}
+        self.cfg = {}
+        self.cfg['disk_setup'] = self.ds_cfg.get('disk_setup')
+        self.cfg['fs_setup'] = self.ds_cfg.get('fs_setup')
+
+        self.seed = self.ds_cfg.get("serial_device")
+        self.seed_timeout = self.ds_cfg.get("serial_timeout")
+        self.smartos_no_base64 = self.ds_cfg.get('no_base64_decode')
+        self.b64_keys = self.ds_cfg.get('base64_keys')
+        self.b64_all = self.ds_cfg.get('base64_all')
 
     def __str__(self):
         root = sources.DataSource.__str__(self)
@@ -79,7 +115,6 @@ class DataSourceSmartOS(sources.DataSource):
         if not os.path.exists(self.seed):
             LOG.debug("Host does not appear to be on SmartOS")
             return False
-        self.seed = self.seed
 
         dmi_info = dmi_data()
         if dmi_info is False:
@@ -114,9 +149,16 @@ class DataSourceSmartOS(sources.DataSource):
         elif md['user-script']:
             ud = md['user-script']
 
-        self.metadata = md
+        self.metadata = util.mergemanydict([md, self.metadata])
         self.userdata_raw = ud
         return True
+
+    def device_name_to_device(self, name):
+        if 'ephemeral0' in name:
+            return self.ds_cfg['ephemeral_disk']
+
+    def get_config_obj(self):
+        return self.cfg
 
     def get_instance_id(self):
         return self.metadata['instance-id']
