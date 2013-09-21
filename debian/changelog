@@ -1,3 +1,11 @@
+cloud-init (0.7.3~bzr871-0ubuntu1) saucy; urgency=low
+
+  * New upstream snapshot.
+    * add 'disk_setup' config module for partitioning disks and
+      creating filesystems. (LP: #1218506)
+
+ -- Scott Moser <smoser@ubuntu.com>  Fri, 20 Sep 2013 20:46:08 -0400
+
 cloud-init (0.7.3~bzr869-0ubuntu1) saucy; urgency=low
 
   * depend on cloud-utils or cloud-guest-utils (LP: #1224003)
