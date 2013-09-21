@@ -18,6 +18,8 @@
  - support random data seed from config drive or azure, and a module
    'seed_random' to read that and write it to /dev/urandom.
  - add OpenNebula Datasource [Vlastimil Holer]
+ - add 'cc_disk_setup' config module for paritioning disks and creating
+   filesystems.  Useful if attached disks are not formatted (LP: #1218506)
 0.7.2:
  - add a debian watch file
  - add 'sudo' entry to ubuntu's default user (LP: #1080717)
