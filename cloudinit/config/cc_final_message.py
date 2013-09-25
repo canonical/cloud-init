@@ -54,7 +54,7 @@ def handle(_name, cfg, cloud, log, args):
             'datasource': str(cloud.datasource),
         }
         util.multi_log("%s\n" % (templater.render_string(msg_in, subs)),
-                       console=False, stderr=True)
+                       console=False, stderr=True, log=log)
     except Exception:
         util.logexc(log, "Failed to render final message template")
 
