@@ -145,7 +145,7 @@ def main():
 
         print("Creating a debian/ folder in %r" % (xdir))
         if not args.no_cloud_utils:
-            append_requires=['cloud-utils']
+            append_requires=['cloud-utils | cloud-guest-utils']
         else:
             append_requires=[]
         write_debian_folder(xdir, version, revno, append_requires)
