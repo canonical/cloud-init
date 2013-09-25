@@ -360,11 +360,21 @@ def multi_log(text, console=True, stderr=True,
     if stderr:
         sys.stderr.write(text)
     if console:
-        # Some containers lack /dev/console, so we send output to
-        # stdout and configure upstart with "console output" and
-        # systemd with "journal+console" and let them take care of
-        # getting output to the console.
-        print text
+        conpath = "/dev/console"
+        if os.path.exists(conpath):
+            with open(conpath, 'wb') as wfh:
+                wfh.write(text)
+                wfh.flush()
+        else:
+            # A container may lack /dev/console (arguably a container bug).  If
+            # it does not exist, then write output to stdout.  this will result
+            # in duplicate stderr and stdout messages if stderr was True.
+            # 
+            # even though upstart or systemd might have set up output to go to
+            # /dev/console, the user may have configured elsewhere via
+            # cloud-config 'output'.  If there is /dev/console, messages will
+            # still get there.
+            sys.stdout.write(text)
     if log:
         if text[-1] == "\n":
             log.log(log_level, text[:-1])
