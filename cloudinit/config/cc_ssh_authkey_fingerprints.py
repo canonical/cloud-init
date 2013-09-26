@@ -63,7 +63,7 @@ def _is_printable_key(entry):
 def _pprint_key_entries(user, key_fn, key_entries, hash_meth='md5',
                         prefix='ci-info: '):
     if not key_entries:
-        message = ("%sno authorized ssh keys fingerprints found for user %s."
+        message = ("%sno authorized ssh keys fingerprints found for user %s.\n"
                    % (prefix, user))
         util.multi_log(message)
         return

@@ -161,13 +161,13 @@ class SeLinuxGuard(object):
         self.recursive = recursive
 
     def __enter__(self):
-        if self.selinux:
+        if self.selinux and self.selinux.is_selinux_enabled():
             return True
         else:
             return False
 
     def __exit__(self, excp_type, excp_value, excp_traceback):
-        if self.selinux:
+        if self.selinux and self.selinux.is_selinux_enabled():
             path = os.path.realpath(os.path.expanduser(self.path))
             do_restore = False
             try:
@@ -360,11 +360,21 @@ def multi_log(text, console=True, stderr=True,
     if stderr:
         sys.stderr.write(text)
     if console:
-        # Don't use the write_file since
-        # this might be 'sensitive' info (not debug worthy?)
-        with open('/dev/console', 'wb') as wfh:
-            wfh.write(text)
-            wfh.flush()
+        conpath = "/dev/console"
+        if os.path.exists(conpath):
+            with open(conpath, 'wb') as wfh:
+                wfh.write(text)
+                wfh.flush()
+        else:
+            # A container may lack /dev/console (arguably a container bug).  If
+            # it does not exist, then write output to stdout.  this will result
+            # in duplicate stderr and stdout messages if stderr was True.
+            # 
+            # even though upstart or systemd might have set up output to go to
+            # /dev/console, the user may have configured elsewhere via
+            # cloud-config 'output'.  If there is /dev/console, messages will
+            # still get there.
+            sys.stdout.write(text)
     if log:
         if text[-1] == "\n":
             log.log(log_level, text[:-1])
