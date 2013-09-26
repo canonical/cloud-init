@@ -290,6 +290,51 @@ class TestAzureDataSource(MockerTestCase):
 
         self.assertEqual(data.get('apply_hostname_bounce', "N/A"), "N/A")
 
+    def test_default_ephemeral(self):
+        # make sure the ephemeral device works
+        odata = {}
+        data = {'ovfcontent': construct_valid_ovf_env(data=odata),
+                'sys_cfg': {}}
+
+        dsrc = self._get_ds(data)
+        ret = dsrc.get_data()
+        self.assertTrue(ret)
+        cfg = dsrc.get_config_obj()
+
+        self.assertEquals(dsrc.device_name_to_device("ephemeral0"),
+                          "/dev/sdb1")
+        assert 'disk_setup' in cfg
+        assert 'fs_setup' in cfg
+        self.assertIsInstance(cfg['disk_setup'], dict)
+        self.assertIsInstance(cfg['fs_setup'], list)
+
+    def test_overriden_ephemeral(self):
+        # Make sure that the merge happens correctly
+        dscfg = {'ephemeral_disk': '/dev/sdc',
+                 'disk_setup': {'/dev/sdc': {'something': '...'},
+                               'ephemeral0': False,
+                               },
+                 'fs_setup': [{'label': 'something'}]}
+        odata = {'HostName': "myhost", 'UserName': "myuser",
+                'dscfg': {'text': yaml.dump(dscfg), 'encoding': 'plain'}}
+        data = {'ovfcontent': construct_valid_ovf_env(data=odata),
+                'sys_cfg': {}}
+
+        dsrc = self._get_ds(data)
+        ret = dsrc.get_data()
+        cfg = dsrc.get_config_obj()
+        self.assertTrue(ret)
+        self.assertTrue(cfg)
+        self.assertEquals(dsrc.device_name_to_device("ephemeral0"),
+                          "/dev/sdc")
+        assert 'disk_setup' in cfg
+        assert 'fs_setup' in cfg
+        self.assertIsInstance(cfg['disk_setup'], dict)
+        self.assertIsInstance(cfg['fs_setup'], list)
+        assert 'ephemeral0' in cfg['disk_setup']
+        assert '/dev/sdc' in cfg['disk_setup']
+        self.assertFalse(cfg['disk_setup']['ephemeral0'])
+
 
 class TestReadAzureOvf(MockerTestCase):
     def test_invalid_xml_raises_non_azure_ds(self):

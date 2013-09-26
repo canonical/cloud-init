@@ -19,8 +19,8 @@ Default disk definitions for AWS
 
 Default disk definitions for Windows Azure
 ------------------------------------------
-(Not implemented yet due to conflict with WALinuxAgent in Ubuntu)
 
+ephemeral_disk: /dev/sdb1
 disk_setup:
     /dev/sdb:
          type: mbr
@@ -29,15 +29,15 @@ disk_setup:
 
 fs_setup:
     - label: ephemeral0
-      filesystem: ext3
+      filesystem: ext4
       device: ephemeral0
-      partition: any
+      partition: auto
 
 
 Default disk definitions for SmartOS
 ------------------------------------
 
-ephemeral_disk: /dev/vdb
+ephemeral_disk: /dev/vdb1
 disk_setup:
     /dev/vdb:
          type: mbr
