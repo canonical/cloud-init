@@ -120,7 +120,6 @@ class DataSourceAzureNet(sources.DataSource):
         if seed:
             self.metadata['random_seed'] = seed
 
-
         # now update ds_cfg to reflect contents pass in config
         usercfg = util.get_cfg_by_path(self.cfg, DS_CFG_PATH, {})
         self.ds_cfg = util.mergemanydict([usercfg, self.ds_cfg])
