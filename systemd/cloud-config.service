@@ -11,7 +11,7 @@ RemainAfterExit=yes
 TimeoutSec=0
 
 # Output needs to appear in instance console output
-StandardOutput=tty
+StandardOutput=journal+console
 
 [Install]
 WantedBy=multi-user.target
