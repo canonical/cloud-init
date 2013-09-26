@@ -45,7 +45,10 @@ BUILTIN_DS_CONFIG = {
         'command': BOUNCE_COMMAND,
         'hostname_command': 'hostname',
         },
-    'ephemeral_disk': '/dev/sdb1',
+    'disk_aliases': {'ephemeral0': '/dev/sdb1'},
+}
+
+BUILTIN_CLOUD_CONFIG = {
     'disk_setup': {
         'ephemeral0': {'table_type': 'mbr',
                        'layout': True,
@@ -103,7 +106,7 @@ class DataSourceAzureNet(sources.DataSource):
             (md, self.userdata_raw, cfg, files) = ret
             self.seed = cdev
             self.metadata = util.mergemanydict([md, DEFAULT_METADATA])
-            self.cfg = cfg
+            self.cfg = util.mergemanydict([cfg, BUILTIN_CLOUD_CONFIG])
             found = cdev
 
             LOG.debug("found datasource in %s", cdev)
@@ -121,19 +124,9 @@ class DataSourceAzureNet(sources.DataSource):
             self.metadata['random_seed'] = seed
 
         # now update ds_cfg to reflect contents pass in config
-        usercfg = util.get_cfg_by_path(self.cfg, DS_CFG_PATH, {})
-        self.ds_cfg = util.mergemanydict([usercfg, self.ds_cfg])
+        user_ds_cfg = util.get_cfg_by_path(self.cfg, DS_CFG_PATH, {})
+        self.ds_cfg = util.mergemanydict([user_ds_cfg, self.ds_cfg])
         mycfg = self.ds_cfg
-
-        # Put the disk format elements into the config object
-        if 'disk_setup' in mycfg:
-            self.cfg['disk_setup'] = mycfg['disk_setup']
-
-        if 'fs_setup' in mycfg:
-            self.cfg['fs_setup'] = mycfg['fs_setup']
-
-        if 'ephemeral_disk' in mycfg:
-            self.cfg['ephemeral_disk'] = mycfg['ephemeral_disk']
 
         # walinux agent writes files world readable, but expects
         # the directory to be protected.
@@ -183,8 +176,7 @@ class DataSourceAzureNet(sources.DataSource):
         return True
 
     def device_name_to_device(self, name):
-        if 'ephemeral0' in name and 'ephemeral_disk' in self.cfg:
-            return self.cfg['ephemeral_disk']
+        return self.ds_cfg['disk_aliases'].get(name)
 
     def get_config_obj(self):
         return self.cfg
