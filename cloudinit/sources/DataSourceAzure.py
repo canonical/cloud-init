@@ -44,8 +44,17 @@ BUILTIN_DS_CONFIG = {
         'policy': True,
         'command': BOUNCE_COMMAND,
         'hostname_command': 'hostname',
-    }
+        },
+    'ephemeral_disk': '/dev/sdb1',
+    'disk_setup': {
+        'ephemeral0': {'table_type': 'mbr',
+                       'layout': True,
+                       'overwrite': False}
+         },
+    'fs_setup': [{'filesystem': 'ext4', 'device': '/dev/sdb',
+                  'partition': 'auto'}],
 }
+
 DS_CFG_PATH = ['datasource', DS_NAME]
 
 
@@ -111,10 +120,21 @@ class DataSourceAzureNet(sources.DataSource):
         if seed:
             self.metadata['random_seed'] = seed
 
+
         # now update ds_cfg to reflect contents pass in config
         usercfg = util.get_cfg_by_path(self.cfg, DS_CFG_PATH, {})
         self.ds_cfg = util.mergemanydict([usercfg, self.ds_cfg])
         mycfg = self.ds_cfg
+
+        # Put the disk format elements into the config object
+        if 'disk_setup' in mycfg:
+            self.cfg['disk_setup'] = mycfg['disk_setup']
+
+        if 'fs_setup' in mycfg:
+            self.cfg['fs_setup'] = mycfg['fs_setup']
+
+        if 'ephemeral_disk' in mycfg:
+            self.cfg['ephemeral_disk'] = mycfg['ephemeral_disk']
 
         # walinux agent writes files world readable, but expects
         # the directory to be protected.
@@ -161,8 +181,11 @@ class DataSourceAzureNet(sources.DataSource):
         pubkeys = pubkeys_from_crt_files(fp_files)
 
         self.metadata['public-keys'] = pubkeys
-
         return True
+
+    def device_name_to_device(self, name):
+        if 'ephemeral0' in name and 'ephemeral_disk' in self.cfg:
+            return self.cfg['ephemeral_disk']
 
     def get_config_obj(self):
         return self.cfg
