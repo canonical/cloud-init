@@ -304,7 +304,7 @@ class TestAzureDataSource(MockerTestCase):
         cfg = dsrc.get_config_obj()
 
         self.assertEquals(dsrc.device_name_to_device("ephemeral0"),
-                          "/dev/sdb1")
+                          "/dev/sdb")
         assert 'disk_setup' in cfg
         assert 'fs_setup' in cfg
         self.assertIsInstance(cfg['disk_setup'], dict)
