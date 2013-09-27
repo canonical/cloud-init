@@ -650,13 +650,14 @@ def mkfs(fs_cfg):
 
     # Make sure the device is defined
     if not device:
-        LOG.critical("Device is not known: %s" % fs_cfg)
+        LOG.warn("Device is not known: %s", device)
         return
 
     # Check that we can create the FS
-    if not label or not fs_type:
-        LOG.debug("Command to create filesystem %s is bad. Skipping." % \
-                  label)
+    if not (fs_type or fs_cmd):
+        raise Exception("No way to create filesystem '%s'. fs_type or fs_cmd "
+                        "must be set.", label)
+
 
     # Create the commands
     if fs_cmd:
