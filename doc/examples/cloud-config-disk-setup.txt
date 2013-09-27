@@ -41,7 +41,7 @@ device_aliases: {'ephemeral0': '/dev/sdb'}
 disk_setup:
     ephemeral0:
          type: mbr
-         layout: True
+         layout: False
          overwrite: False
 
 fs_setup:
