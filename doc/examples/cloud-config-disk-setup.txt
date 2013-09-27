@@ -204,10 +204,10 @@ Where:
             and then the raw disk. Consider the following:
                 NAME     FSTYPE LABEL
                 xvdb
-                ├─xvdb1  ext4
-                ├─xvdb2
-                ├─xvdb3  btrfs  test
-                └─xvdb4  ext4   test
+                |-xvdb1  ext4
+                |-xvdb2
+                |-xvdb3  btrfs  test
+                \-xvdb4  ext4   test
 
             If you ask for 'auto', label of 'test, and file system of 'ext4'
             then cloud-init will select the 2nd partition, even though there
