@@ -20,9 +20,9 @@ Default disk definitions for AWS
 Default disk definitions for Windows Azure
 ------------------------------------------
 
-ephemeral_disk: /dev/sdb1
+device_aliases: {'ephemeral0': '/dev/sdb'}
 disk_setup:
-    /dev/sdb:
+    ephemeral0:
          type: mbr
          layout: True
          overwrite: False
@@ -37,9 +37,9 @@ fs_setup:
 Default disk definitions for SmartOS
 ------------------------------------
 
-ephemeral_disk: /dev/vdb1
+device_aliases: {'ephemeral0': '/dev/sdb'}
 disk_setup:
-    /dev/vdb:
+    ephemeral0:
          type: mbr
          layout: True
          overwrite: False
@@ -47,8 +47,8 @@ disk_setup:
 fs_setup:
     - label: ephemeral0
       filesystem: ext3
-      device: /dev/vdb
-      partition: 1
+      device: ephemeral0
+      partition: auto
 
 Cavaut for SmartOS: if ephemeral disk is not defined, then the disk will
     not be automatically added to the mounts.
