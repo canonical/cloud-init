@@ -41,6 +41,7 @@ def handle(_name, cfg, cloud, log, _args):
     """
     disk_setup = cfg.get("disk_setup")
     if isinstance(disk_setup, dict):
+        update_disk_setup_devices(disk_setup, cloud.device_name_to_device)
         log.info("Partitioning disks.")
         for disk, definition in disk_setup.items():
             if not isinstance(definition, dict):
@@ -51,13 +52,13 @@ def handle(_name, cfg, cloud, log, _args):
                 log.debug("Creating new partition table/disk")
                 util.log_time(logfunc=LOG.debug,
                               msg="Creating partition on %s" % disk,
-                              func=mkpart, args=(disk, cloud, definition))
+                              func=mkpart, args=(disk, definition))
             except Exception as e:
                 util.logexc(LOG, "Failed partitioning operation\n%s" % e)
 
     fs_setup = cfg.get("fs_setup")
     if isinstance(fs_setup, list):
-        log.info("Creating file systems.")
+        update_fs_setup_devices(fs_setup, cloud.device_name_to_device)
         for definition in fs_setup:
             if not isinstance(definition, dict):
                 log.warn("Invalid file system definition: %s" % definition)
@@ -68,31 +69,48 @@ def handle(_name, cfg, cloud, log, _args):
                 device = definition.get('device')
                 util.log_time(logfunc=LOG.debug,
                               msg="Creating fs for %s" % device,
-                              func=mkfs, args=(cloud, definition))
+                              func=mkfs, args=(definition,))
             except Exception as e:
                 util.logexc(LOG, "Failed during filesystem operation\n%s" % e)
 
 
-def is_default_device(name, cloud, fallback=None):
-    """
-    Ask the cloud datasource if the 'name' maps to a default
-    device. If so, return that value, otherwise return 'name', or
-    fallback if so defined.
-    """
+def update_disk_setup_devices(disk_setup, tformer):
+    # update 'disk_setup' dictionary anywhere were a device may occur
+    # update it with the response from 'tformer'
+    for origname in disk_setup.keys():
+        transformed = tformer(origname)
+        if transformed is None or transformed == origname:
+            continue
+        if transformed in disk_setup:
+            LOG.info("Replacing %s in disk_setup for translation of %s",
+                     origname, transformed)
+            del disk_setup[transformed]
 
-    _dev = None
-    try:
-        _dev = cloud.device_name_to_device(name)
-    except Exception as e:
-        util.logexc(LOG, "Failed to find mapping for %s" % e)
+        disk_setup[transformed] = disk_setup[origname]
+        disk_setup[transformed]['_origname'] = origname
+        del disk_setup[origname]
+        LOG.debug("updated disk_setup device entry '%s' to '%s'",
+                  origname, transformed)
 
-    if _dev:
-        return _dev
 
-    if fallback:
-        return fallback
+def update_fs_setup_devices(disk_setup, tformer):
+    # update 'fs_setup' dictionary anywhere were a device may occur
+    # update it with the response from 'tformer'
+    for definition in disk_setup:
+        if not isinstance(definition, dict):
+            LOG.warn("entry in disk_setup not a dict: %s", definition)
+            continue
 
-    return name
+        origname = definition.get('device')
+        if origname is None:
+            continue
+
+        transformed = tformer(origname)
+        if transformed is None or transformed == origname:
+            continue
+
+        definition['_origname'] = origname
+        definition['device'] = transformed
 
 
 def value_splitter(values, start=None):
@@ -488,12 +506,11 @@ def exec_mkpart(table_type, device, layout):
     return get_dyn_func("exec_mkpart_%s", table_type, device, layout)
 
 
-def mkpart(device, cloud, definition):
+def mkpart(device, definition):
     """
     Creates the partition table.
 
     Parameters:
-        cloud: the cloud object
         definition: dictionary describing how to create the partition.
 
             The following are supported values in the dict:
@@ -508,17 +525,9 @@ def mkpart(device, cloud, definition):
     overwrite = definition.get('overwrite', False)
     layout = definition.get('layout', False)
     table_type = definition.get('table_type', 'mbr')
-    _device = is_default_device(device, cloud)
 
     # Check if the default device is a partition or not
     LOG.debug("Checking against default devices")
-    if _device and (_device != device):
-        if not is_device_valid(_device):
-            raise Exception("Unable to find backing block device for %s" % \
-                            device)
-        else:
-            LOG.debug("Mapped %s to physical device %s" % (device, _device))
-            device = _device
 
     if (isinstance(layout, bool) and not layout) or not layout:
         LOG.debug("Device is not to be partitioned, skipping")
@@ -552,7 +561,7 @@ def mkpart(device, cloud, definition):
     LOG.debug("Partition table created for %s" % device)
 
 
-def mkfs(cloud, fs_cfg):
+def mkfs(fs_cfg):
     """
     Create a file system on the device.
 
@@ -583,14 +592,6 @@ def mkfs(cloud, fs_cfg):
 
     # This allows you to define the default ephemeral or swap
     LOG.debug("Checking %s against default devices" % device)
-    _device = is_default_device(device, cloud, fallback=device)
-    if _device and (_device != device):
-        if not is_device_valid(_device):
-            raise Exception("Unable to find backing block device for %s" % \
-                            device)
-        else:
-            LOG.debug("Mapped %s to physical device %s" % (device, _device))
-            device = _device
 
     if not partition or partition.isdigit():
         # Handle manual definition of partition
