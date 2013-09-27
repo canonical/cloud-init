@@ -44,8 +44,20 @@ BUILTIN_DS_CONFIG = {
         'policy': True,
         'command': BOUNCE_COMMAND,
         'hostname_command': 'hostname',
-    }
+        },
+    'disk_aliases': {'ephemeral0': '/dev/sdb'},
 }
+
+BUILTIN_CLOUD_CONFIG = {
+    'disk_setup': {
+        'ephemeral0': {'table_type': 'mbr',
+                       'layout': True,
+                       'overwrite': False}
+         },
+    'fs_setup': [{'filesystem': 'ext4', 'device': 'ephemeral0',
+                  'partition': 'auto'}],
+}
+
 DS_CFG_PATH = ['datasource', DS_NAME]
 
 
@@ -94,7 +106,7 @@ class DataSourceAzureNet(sources.DataSource):
             (md, self.userdata_raw, cfg, files) = ret
             self.seed = cdev
             self.metadata = util.mergemanydict([md, DEFAULT_METADATA])
-            self.cfg = cfg
+            self.cfg = util.mergemanydict([cfg, BUILTIN_CLOUD_CONFIG])
             found = cdev
 
             LOG.debug("found datasource in %s", cdev)
@@ -112,8 +124,8 @@ class DataSourceAzureNet(sources.DataSource):
             self.metadata['random_seed'] = seed
 
         # now update ds_cfg to reflect contents pass in config
-        usercfg = util.get_cfg_by_path(self.cfg, DS_CFG_PATH, {})
-        self.ds_cfg = util.mergemanydict([usercfg, self.ds_cfg])
+        user_ds_cfg = util.get_cfg_by_path(self.cfg, DS_CFG_PATH, {})
+        self.ds_cfg = util.mergemanydict([user_ds_cfg, self.ds_cfg])
         mycfg = self.ds_cfg
 
         # walinux agent writes files world readable, but expects
@@ -161,8 +173,10 @@ class DataSourceAzureNet(sources.DataSource):
         pubkeys = pubkeys_from_crt_files(fp_files)
 
         self.metadata['public-keys'] = pubkeys
-
         return True
+
+    def device_name_to_device(self, name):
+        return self.ds_cfg['disk_aliases'].get(name)
 
     def get_config_obj(self):
         return self.cfg
@@ -349,7 +363,7 @@ def read_azure_ovf(contents):
     try:
         dom = minidom.parseString(contents)
     except Exception as e:
-        raise NonAzureDataSource("invalid xml: %s" % e)
+        raise BrokenAzureDataSource("invalid xml: %s" % e)
 
     results = find_child(dom.documentElement,
         lambda n: n.localName == "ProvisioningSection")

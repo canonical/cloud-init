@@ -72,14 +72,17 @@ BUILTIN_DS_CONFIG = {
                          'iptables_disable'],
     'base64_keys': [],
     'base64_all': False,
-    'ephemeral_disk': '/dev/vdb',
+    'disk_aliases': {'ephemeral0': '/dev/vdb'},
+}
+
+BUILTIN_CLOUD_CONFIG = {
     'disk_setup': {
         'ephemeral0': {'table_type': 'mbr',
-                       'layout': True,
+                       'layout': False,
                        'overwrite': False}
          },
     'fs_setup': [{'label': 'ephemeral0', 'filesystem': 'ext3',
-                  'device': '/dev/xvdb', 'partition': 'auto'}],
+                  'device': 'ephemeral0', 'partition': 'auto'}],
 }
 
 
@@ -94,9 +97,7 @@ class DataSourceSmartOS(sources.DataSource):
             BUILTIN_DS_CONFIG])
 
         self.metadata = {}
-        self.cfg = {}
-        self.cfg['disk_setup'] = self.ds_cfg.get('disk_setup')
-        self.cfg['fs_setup'] = self.ds_cfg.get('fs_setup')
+        self.cfg = BUILTIN_CLOUD_CONFIG
 
         self.seed = self.ds_cfg.get("serial_device")
         self.seed_timeout = self.ds_cfg.get("serial_timeout")
@@ -154,8 +155,7 @@ class DataSourceSmartOS(sources.DataSource):
         return True
 
     def device_name_to_device(self, name):
-        if 'ephemeral0' in name:
-            return self.ds_cfg['ephemeral_disk']
+        return self.ds_cfg['disk_aliases'].get(name)
 
     def get_config_obj(self):
         return self.cfg
