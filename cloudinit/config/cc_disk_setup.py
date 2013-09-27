@@ -514,9 +514,6 @@ def mkpart(device, cloud, definition):
     LOG.debug("Checking against default devices")
     if _device and (_device != device):
         if not is_device_valid(_device):
-            _device = _device[:-1]
-
-        if not is_device_valid(_device):
             raise Exception("Unable to find backing block device for %s" % \
                             device)
         else:
@@ -586,7 +583,7 @@ def mkfs(cloud, fs_cfg):
 
     # This allows you to define the default ephemeral or swap
     LOG.debug("Checking %s against default devices" % device)
-    _device = is_default_device(label, cloud, fallback=device)
+    _device = is_default_device(device, cloud, fallback=device)
     if _device and (_device != device):
         if not is_device_valid(_device):
             raise Exception("Unable to find backing block device for %s" % \
