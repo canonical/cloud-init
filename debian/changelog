@@ -1,3 +1,11 @@
+cloud-init (0.7.3~bzr879-0ubuntu1) saucy; urgency=low
+
+  * New upstream snapshot.
+    * fixes to disk_setup config module and enabling of partition
+      creation and filesystem creation on Azure.
+
+ -- Scott Moser <smoser@ubuntu.com>  Fri, 27 Sep 2013 19:47:37 -0400
+
 cloud-init (0.7.3~bzr871-0ubuntu1) saucy; urgency=low
 
   * New upstream snapshot.
