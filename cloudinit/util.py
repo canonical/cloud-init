@@ -369,7 +369,7 @@ def multi_log(text, console=True, stderr=True,
             # A container may lack /dev/console (arguably a container bug).  If
             # it does not exist, then write output to stdout.  this will result
             # in duplicate stderr and stdout messages if stderr was True.
-            # 
+            #
             # even though upstart or systemd might have set up output to go to
             # /dev/console, the user may have configured elsewhere via
             # cloud-config 'output'.  If there is /dev/console, messages will
