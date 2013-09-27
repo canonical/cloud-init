@@ -576,10 +576,9 @@ def mkfs(cloud, fs_cfg):
 
             When 'cmd' is provided then no other parameter is required.
     """
-    fs_cfg['partition'] = 'any'
     label = fs_cfg.get('label')
     device = fs_cfg.get('device')
-    partition = str(fs_cfg.get('partition'))
+    partition = str(fs_cfg.get('partition'), 'any')
     fs_type = fs_cfg.get('filesystem')
     fs_cmd = fs_cfg.get('cmd', [])
     fs_opts = fs_cfg.get('extra_opts', [])
