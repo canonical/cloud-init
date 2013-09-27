@@ -238,8 +238,8 @@ def find_device_node(device, fs_type=None, label=None, valid_targets=None,
         for key, value in value_splitter(part):
             d[key.lower()] = value
 
-        if d['fstype'] == fs_type and \
-            ((label_match and d['label'] == label) or not label_match):
+        if (d['fstype'] == fs_type and
+            ((label_match and d['label'] == label) or not label_match)):
             # If we find a matching device, we return that
             return ('/dev/%s' % d['name'], True)
 
@@ -416,8 +416,8 @@ def get_partition_mbr_layout(size, layout):
         # Create a single partition
         return "0,"
 
-    if (len(layout) == 0 and isinstance(layout, list)) or \
-        not isinstance(layout, list):
+    if ((len(layout) == 0 and isinstance(layout, list)) or
+        not isinstance(layout, list)):
         raise Exception("Partition layout is invalid")
 
     last_part_num = len(layout)
@@ -433,8 +433,7 @@ def get_partition_mbr_layout(size, layout):
 
         if isinstance(part, list):
             if len(part) != 2:
-                raise Exception("Partition was incorrectly defined: %s" % \
-                                part)
+                raise Exception("Partition was incorrectly defined: %s" % part)
             percent, part_type = part
 
         part_size = int((float(size) * (float(percent) / 100)) / 1024)
@@ -535,9 +534,9 @@ def mkpart(device, definition):
         return  # Device is not to be partitioned
 
     # This prevents you from overwriting the device
-    LOG.debug("Checking if device %s is a valid device" % device)
+    LOG.debug("Checking if device %s is a valid device", device)
     if not is_device_valid(device):
-        raise Exception("Device %s is not a disk device!" % device)
+        raise Exception("Device %s is not a disk device!", device)
 
     LOG.debug("Checking if device layout matches")
     if check_partition_layout(table_type, device, layout):
@@ -556,10 +555,10 @@ def mkpart(device, definition):
     part_definition = get_partition_layout(table_type, device_size, layout)
     LOG.debug("   Layout is: %s" % part_definition)
 
-    LOG.debug("Creating partition table on %s" % device)
+    LOG.debug("Creating partition table on %s", device)
     exec_mkpart(table_type, device, part_definition)
 
-    LOG.debug("Partition table created for %s" % device)
+    LOG.debug("Partition table created for %s", device)
 
 
 def mkfs(fs_cfg):
@@ -592,36 +591,36 @@ def mkfs(fs_cfg):
     overwrite = fs_cfg.get('overwrite', False)
 
     # This allows you to define the default ephemeral or swap
-    LOG.debug("Checking %s against default devices" % device)
+    LOG.debug("Checking %s against default devices", device)
 
     if not partition or partition.isdigit():
         # Handle manual definition of partition
         if partition.isdigit():
             device = "%s%s" % (device, partition)
-            LOG.debug("Manual request of partition %s for %s" % (
-                      partition, device))
+            LOG.debug("Manual request of partition %s for %s",
+                      partition, device)
 
         # Check to see if the fs already exists
-        LOG.debug("Checking device %s" % device)
+        LOG.debug("Checking device %s", device)
         check_label, check_fstype, _ = check_fs(device)
-        LOG.debug("Device %s has %s %s" % (device, check_label, check_fstype))
+        LOG.debug("Device %s has %s %s", device, check_label, check_fstype)
 
         if check_label == label and check_fstype == fs_type:
-            LOG.debug("Existing file system found at %s" % device)
+            LOG.debug("Existing file system found at %s", device)
 
             if not overwrite:
-                LOG.warn("Device %s has required file system" % device)
+                LOG.debug("Device %s has required file system", device)
                 return
             else:
-                LOG.warn("Destroying filesystem on %s" % device)
+                LOG.warn("Destroying filesystem on %s", device)
 
         else:
-            LOG.debug("Device %s is cleared for formating" % device)
+            LOG.debug("Device %s is cleared for formating", device)
 
     elif partition and str(partition).lower() in ('auto', 'any'):
         # For auto devices, we match if the filesystem does exist
         odevice = device
-        LOG.debug("Identifying device to create %s filesytem on" % label)
+        LOG.debug("Identifying device to create %s filesytem on", label)
 
         # any mean pick the first match on the device with matching fs_type
         label_match = True
@@ -630,23 +629,22 @@ def mkfs(fs_cfg):
 
         device, reuse = find_device_node(device, fs_type=fs_type, label=label,
                                          label_match=label_match)
-        LOG.debug("Automatic device for %s identified as %s" % (
-                  odevice, device))
+        LOG.debug("Automatic device for %s identified as %s", odevice, device)
 
         if reuse:
             LOG.debug("Found filesystem match, skipping formating.")
             return
 
         if not device:
-            LOG.debug("No device aviable that matches request.")
-            LOG.debug("Skipping fs creation for %s" % fs_cfg)
+            LOG.debug("No device aviable that matches request. "
+                      "Skipping fs creation for %s", fs_cfg)
             return
 
     else:
         LOG.debug("Error in device identification handling.")
         return
 
-    LOG.debug("File system %s will be created on %s" % (label, device))
+    LOG.debug("File system %s will be created on %s", label, device)
 
     # Make sure the device is defined
     if not device:
@@ -657,7 +655,6 @@ def mkfs(fs_cfg):
     if not (fs_type or fs_cmd):
         raise Exception("No way to create filesystem '%s'. fs_type or fs_cmd "
                         "must be set.", label)
-
 
     # Create the commands
     if fs_cmd:
@@ -672,7 +669,8 @@ def mkfs(fs_cfg):
             mkfs_cmd = util.which("mk%s" % fs_type)
 
         if not mkfs_cmd:
-            LOG.critical("Unable to locate command to create filesystem.")
+            LOG.warn("Cannot create fstype '%s'.  No mkfs.%s command", fs_type,
+                     fs_type)
             return
 
         fs_cmd = [mkfs_cmd, device]
@@ -684,8 +682,8 @@ def mkfs(fs_cfg):
     if fs_opts:
         fs_cmd.extend(fs_opts)
 
-    LOG.debug("Creating file system %s on %s" % (label, device))
-    LOG.debug("     Using cmd: %s" % "".join(fs_cmd))
+    LOG.debug("Creating file system %s on %s", label, device)
+    LOG.debug("     Using cmd: %s", "".join(fs_cmd))
     try:
         util.subp(fs_cmd)
     except Exception as e:
