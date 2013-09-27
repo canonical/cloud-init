@@ -73,15 +73,21 @@ or not to base64 decode something:
         (i.e. /etc/cloud/cloud.cfg.d) that sets which values should not be
         base64 decoded.
 
-ephemeral_disk:
+disk_aliases and ephemeral disk:
 ---------------
+By default, SmartOS only supports a single ephemeral disk.  That disk is
+completely empty (un-partitioned with no filesystem).
 
-In order to instruct Cloud-init which disk to auto-mount. By default,
-SmartOS only supports a single ephemeral disk.
+The SmartOS datasource has built-in cloud-config which instructs the
+'disk_setup' module to partition and format the ephemeral disk.
 
-The default SmartOS configuration will prepare the ephemeral disk and format
-it for you. SmartOS does not, by default, prepare the ephemeral disk for you.
+You can control the disk_setup then in 2 ways:
+ 1. through the datasource config, you can change the 'alias' of
+    ephermeral0 to reference another device. The default is:
+      'disk_aliases': {'ephemeral0': '/dev/vdb'},
+    Which means anywhere disk_setup sees a device named 'ephemeral0'
+    then /dev/vdb will be substituted.
+ 2. you can provide disk_setup or fs_setup data in user-data to overwrite
+    the datasource's built-in values.
 
-If you change ephemeral_disk, you should also consider changing
-the default disk formatting parameters. See
-doc/examples/cloud-config-disk-setup.txt for information on using this.
+See doc/examples/cloud-config-disk-setup.txt for information on disk_setup.
