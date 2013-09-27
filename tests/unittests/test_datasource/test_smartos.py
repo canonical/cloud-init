@@ -79,7 +79,6 @@ class MockSerial(object):
         if self.last in self.mockdata:
             if not self.mocked_out:
                 self.mocked_out = [x for x in self._format_out()]
-                print self.mocked_out
 
             if len(self.mocked_out) > self.count:
                 self.count += 1
@@ -275,26 +274,25 @@ class TestSmartOSDataSource(MockerTestCase):
         self.assertIsInstance(cfg['disk_setup'], dict)
         self.assertIsInstance(cfg['fs_setup'], list)
 
-    def test_override_builtin_ds(self):
+    def test_override_disk_aliases(self):
         # Test to make sure that the built-in DS is overriden
-        data = {}
-        data['disk_setup'] = {'test_dev': {}}
-        data['fs_setup'] = [{'label': 'test_dev'}]
-        data['serial_device'] = '/dev/ttyS2'
-        dsrc = self._get_ds(ds_cfg=data)
-        cfg = dsrc.get_config_obj()
+        builtin = DataSourceSmartOS.BUILTIN_DS_CONFIG
 
+        mydscfg = {'disk_aliases': {'FOO': '/dev/bar'}}
+
+        # expect that these values are in builtin, or this is pointless
+        for k in mydscfg:
+            self.assertIn(k, builtin)
+
+        dsrc = self._get_ds(ds_cfg=mydscfg)
         ret = dsrc.get_data()
         self.assertTrue(ret)
 
-        assert 'disk_setup' in cfg
-        assert 'fs_setup' in cfg
-        self.assertIsInstance(cfg['disk_setup'], dict)
-        self.assertIsInstance(cfg['fs_setup'], list)
-        assert 'test_dev' in cfg['disk_setup']
-        assert 'test_dev' in cfg['fs_setup'][0]['label']
+        self.assertEqual(mydscfg['disk_aliases']['FOO'],
+                         dsrc.ds_cfg['disk_aliases']['FOO'])
 
-        self.assertEquals(data['serial_device'], dsrc.seed)
+        self.assertEqual(dsrc.device_name_to_device('FOO'),
+                         mydscfg['disk_aliases']['FOO'])
 
 
 def apply_patches(patches):

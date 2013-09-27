@@ -54,7 +54,7 @@ BUILTIN_CLOUD_CONFIG = {
                        'layout': True,
                        'overwrite': False}
          },
-    'fs_setup': [{'filesystem': 'ext4', 'device': '/dev/sdb',
+    'fs_setup': [{'filesystem': 'ext4', 'device': 'ephemeral0',
                   'partition': 'auto'}],
 }
 
@@ -363,7 +363,7 @@ def read_azure_ovf(contents):
     try:
         dom = minidom.parseString(contents)
     except Exception as e:
-        raise NonAzureDataSource("invalid xml: %s" % e)
+        raise BrokenAzureDataSource("invalid xml: %s" % e)
 
     results = find_child(dom.documentElement,
         lambda n: n.localName == "ProvisioningSection")
