@@ -45,7 +45,7 @@ BUILTIN_DS_CONFIG = {
         'command': BOUNCE_COMMAND,
         'hostname_command': 'hostname',
         },
-    'disk_aliases': {'ephemeral0': '/dev/sdb1'},
+    'disk_aliases': {'ephemeral0': '/dev/sdb'},
 }
 
 BUILTIN_CLOUD_CONFIG = {
