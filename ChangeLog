@@ -3,6 +3,7 @@
  - small fix for OVF datasource for iso transport on non-iso9660 filesystem
  - determine if upstart version is suitable for
    'initctl reload-configuration' (LP: #1124384).  If so, then invoke it.
+   supports setting up instance-store disk with partition table and filesystem.
  - add Azure datasource.
  - add support for SuSE / SLES [Juerg Haefliger]
  - add a trailing carriage return to chpasswd input, which reportedly
