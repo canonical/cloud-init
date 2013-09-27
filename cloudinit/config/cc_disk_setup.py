@@ -214,6 +214,10 @@ def find_device_node(device, fs_type=None, label=None, valid_targets=None,
 
     Note: This works with GPT partition tables!
     """
+    # label of None is same as no label
+    if label is None:
+        label = ""
+
     if not valid_targets:
         valid_targets = ['disk', 'part']
 
