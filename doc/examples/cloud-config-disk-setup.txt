@@ -188,13 +188,43 @@ Where:
         of the ephemeral storage layer.
 
     <PART_VALUE>: The valid options are:
-        "auto": auto is a special in the sense that you are telling cloud-init
-            not to care whether there is a partition or not. Auto will put the
-            first partition that does not contain a file system already. In
-            the absence of a partition table, it will put it directly on the
-            disk.
+        "auto|any": tell cloud-init not to care whether there is a partition
+            or not. Auto will use the first partition that does not contain a
+            file system already. In the absence of a partition table, it will
+            put it directly on the disk.
 
-        "none": Put the partition directly on the disk.
+            "auto": If a file system that matches the specification in terms of
+            label, type and device, then cloud-init will skip the creation of
+            the file system.
+
+            "any": If a file system that matches the file system type and device,
+            then cloud-init will skip the creation of the file system.
+
+            Devices are selected based on first-detected, starting with partitions
+            and then the raw disk. Consider the following:
+                NAME     FSTYPE LABEL
+                xvdb
+                ├─xvdb1  ext4
+                ├─xvdb2
+                ├─xvdb3  btrfs  test
+                └─xvdb4  ext4   test
+
+            If you ask for 'auto', label of 'test, and file system of 'ext4'
+            then cloud-init will select the 2nd partition, even though there
+            is a partition match at the 4th partition.
+
+            If you ask for 'any' and a label of 'test', then cloud-init will
+            select the 1st partition.
+
+            If you ask for 'auto' and don't define label, then cloud-init will
+            select the 1st partition.
+
+            In general, if you have a specific partition configuration in mind,
+            you should define either the device or the partition number. 'auto'
+            and 'any' are specifically intended for formating ephemeral storage or
+            for simple schemes.
+
+        "none": Put the file system directly on the device.
 
         <NUM>: where NUM is the actual partition number.
 
