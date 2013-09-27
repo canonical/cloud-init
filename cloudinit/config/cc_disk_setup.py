@@ -42,7 +42,7 @@ def handle(_name, cfg, cloud, log, _args):
     disk_setup = cfg.get("disk_setup")
     if isinstance(disk_setup, dict):
         update_disk_setup_devices(disk_setup, cloud.device_name_to_device)
-        log.info("Partitioning disks.")
+        log.debug("Partitioning disks: %s", str(disk_setup))
         for disk, definition in disk_setup.items():
             if not isinstance(definition, dict):
                 log.warn("Invalid disk definition for %s" % disk)
@@ -58,6 +58,7 @@ def handle(_name, cfg, cloud, log, _args):
 
     fs_setup = cfg.get("fs_setup")
     if isinstance(fs_setup, list):
+        log.debug("setting up filesystems: %s", str(fs_setup))
         update_fs_setup_devices(fs_setup, cloud.device_name_to_device)
         for definition in fs_setup:
             if not isinstance(definition, dict):
