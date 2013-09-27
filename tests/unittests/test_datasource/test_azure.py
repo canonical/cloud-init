@@ -120,8 +120,7 @@ class TestAzureDataSource(MockerTestCase):
 
         mod = DataSourceAzure
 
-        if data.get('dsdevs'):
-            self.apply_patches([(mod, 'list_possible_azure_ds_devs', dsdevs)])
+        self.apply_patches([(mod, 'list_possible_azure_ds_devs', dsdevs)])
 
         self.apply_patches([(mod, 'invoke_agent', _invoke_agent),
                             (mod, 'write_files', _write_files),
@@ -154,9 +153,12 @@ class TestAzureDataSource(MockerTestCase):
 
     def test_user_cfg_set_agent_command_plain(self):
         # set dscfg in via plaintext
-        cfg = {'agent_command': "my_command"}
+        # we must have friendly-to-xml formatted plaintext in yaml_cfg
+        # not all plaintext is expected to work.
+        yaml_cfg = "{agent_command: my_command}\n"
+        cfg = yaml.safe_load(yaml_cfg)
         odata = {'HostName': "myhost", 'UserName': "myuser",
-                'dscfg': {'text': yaml.dump(cfg), 'encoding': 'plain'}}
+                'dscfg': {'text': yaml_cfg, 'encoding': 'plain'}}
         data = {'ovfcontent': construct_valid_ovf_env(data=odata)}
 
         dsrc = self._get_ds(data)
@@ -308,38 +310,41 @@ class TestAzureDataSource(MockerTestCase):
         self.assertIsInstance(cfg['disk_setup'], dict)
         self.assertIsInstance(cfg['fs_setup'], list)
 
-    def test_overriden_ephemeral(self):
-        # Make sure that the merge happens correctly
-        dscfg = {'ephemeral_disk': '/dev/sdc',
-                 'disk_setup': {'/dev/sdc': {'something': '...'},
-                               'ephemeral0': False,
-                               },
-                 'fs_setup': [{'label': 'something'}]}
+    def test_provide_disk_aliases(self):
+        # Make sure that user can affect disk aliases
+        dscfg = {'disk_aliases': {'ephemeral0': '/dev/sdc'}}
         odata = {'HostName': "myhost", 'UserName': "myuser",
-                'dscfg': {'text': yaml.dump(dscfg), 'encoding': 'plain'}}
-        data = {'ovfcontent': construct_valid_ovf_env(data=odata),
-                'sys_cfg': {}}
+                'dscfg': {'text': base64.b64encode(yaml.dump(dscfg)),
+                          'encoding': 'base64'}}
+        usercfg = {'disk_setup': {'/dev/sdc': {'something': '...'},
+                                  'ephemeral0': False}}
+        userdata = '#cloud-config' + yaml.dump(usercfg) + "\n"
+
+        ovfcontent = construct_valid_ovf_env(data=odata, userdata=userdata)
+        data = {'ovfcontent': ovfcontent, 'sys_cfg': {}}
 
         dsrc = self._get_ds(data)
         ret = dsrc.get_data()
-        cfg = dsrc.get_config_obj()
         self.assertTrue(ret)
+        cfg = dsrc.get_config_obj()
         self.assertTrue(cfg)
         self.assertEquals(dsrc.device_name_to_device("ephemeral0"),
                           "/dev/sdc")
-        assert 'disk_setup' in cfg
-        assert 'fs_setup' in cfg
-        self.assertIsInstance(cfg['disk_setup'], dict)
-        self.assertIsInstance(cfg['fs_setup'], list)
-        assert 'ephemeral0' in cfg['disk_setup']
-        assert '/dev/sdc' in cfg['disk_setup']
-        self.assertFalse(cfg['disk_setup']['ephemeral0'])
+
+    def test_userdata_arrives(self):
+        userdata = "This is my user-data"
+        xml = construct_valid_ovf_env(data={}, userdata=userdata)
+        data = {'ovfcontent': xml}
+        dsrc = self._get_ds(data)
+        dsrc.get_data()
+
+        self.assertEqual(userdata, dsrc.userdata_raw)
 
 
 class TestReadAzureOvf(MockerTestCase):
     def test_invalid_xml_raises_non_azure_ds(self):
         invalid_xml = "<foo>" + construct_valid_ovf_env(data={})
-        self.assertRaises(DataSourceAzure.NonAzureDataSource,
+        self.assertRaises(DataSourceAzure.BrokenAzureDataSource,
             DataSourceAzure.read_azure_ovf, invalid_xml)
 
     def test_load_with_pubkeys(self):

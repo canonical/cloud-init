@@ -82,7 +82,7 @@ BUILTIN_CLOUD_CONFIG = {
                        'overwrite': False}
          },
     'fs_setup': [{'label': 'ephemeral0', 'filesystem': 'ext3',
-                  'device': '/dev/xvdb', 'partition': 'auto'}],
+                  'device': 'ephemeral0', 'partition': 'auto'}],
 }
 
 
