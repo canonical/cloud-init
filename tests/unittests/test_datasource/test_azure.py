@@ -2,8 +2,8 @@ from cloudinit import helpers
 from cloudinit.sources import DataSourceAzure
 from tests.unittests.helpers import populate_dir
 
-import crypt
 import base64
+import crypt
 from mocker import MockerTestCase
 import os
 import yaml

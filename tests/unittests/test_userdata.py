@@ -6,9 +6,9 @@ import gzip
 import logging
 import os
 
+from email.mime.application import MIMEApplication
 from email.mime.base import MIMEBase
 from email.mime.multipart import MIMEMultipart
-from email.mime.application import MIMEApplication
 
 from cloudinit import handlers
 from cloudinit import helpers as c_helpers

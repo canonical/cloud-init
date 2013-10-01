@@ -5,8 +5,8 @@ import stat
 import yaml
 
 from mocker import MockerTestCase
-from unittest import TestCase
 from tests.unittests import helpers
+from unittest import TestCase
 
 from cloudinit import importer
 from cloudinit import util
