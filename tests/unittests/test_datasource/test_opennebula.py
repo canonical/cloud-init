@@ -1,5 +1,5 @@
-from cloudinit.sources import DataSourceOpenNebula as ds
 from cloudinit import helpers
+from cloudinit.sources import DataSourceOpenNebula as ds
 from cloudinit import util
 from mocker import MockerTestCase
 from tests.unittests.helpers import populate_dir

@@ -25,6 +25,7 @@
  - multi_log: only write to /dev/console if it exists [Garrett Holmstrom]
  - config/cloud.cfg: add 'sudo' to list groups for the default user 
    (LP: #1228228)
+ - documentation fix for use of 'mkpasswd' [Eric Nordlund]
 0.7.2:
  - add a debian watch file
  - add 'sudo' entry to ubuntu's default user (LP: #1080717)
