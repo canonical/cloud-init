@@ -32,6 +32,7 @@ import grp
 import gzip
 import hashlib
 import os
+import os.path
 import platform
 import pwd
 import random
@@ -1826,3 +1827,78 @@ def log_time(logfunc, msg, func, args=None, kwargs=None, get_uptime=False):
         except:
             pass
     return ret
+
+
+def map_partition(alias):
+    """
+    Return partition number for devices like ephemeral0.0 or ephemeral0.1
+
+    Parameters:
+        alaias: the alias, i.e. ephemeral0 or swap0
+        device: the actual device to markup
+
+    Rules:
+        - anything after a . is a parittion
+        - device.0 is the same as device
+    """
+
+    if len(alias.split('.')) == 1:
+        return None
+
+    suffix = alias.split('.')[-1]
+    try:
+        if int(suffix) == 0:
+            return None
+        return int(suffix)
+    except ValueError:
+        pass
+
+    return None
+
+
+def map_device_alias(device, partition=None, alias=None):
+    """
+    Find the name of the partition. While this might seem rather
+    straight forward, its not since some devices are '<device><partition>'
+    while others are '<device>p<partition>'. For example, /dev/xvda3 on EC2
+    will present as /dev/xvda3p1 for the first partition since /dev/xvda3 is
+    a block device.
+
+    The primary use is to map 'ephemeral0.1' in the datasource to a
+    real device name
+    """
+
+    if not device:
+        return None
+
+    if not partition and not alias:
+        raise Exception("partition or alias is required")
+
+    if alias:
+        partition = map_partition(alias)
+
+        # if the partition doesn't map, return the device
+        if not partition:
+            return device
+
+    short_name = device.split('/')[-1]
+    sys_path = "/sys/block/%s" % short_name
+
+    if not os.path.exists(sys_path):
+        return None
+
+    sys_long_path = sys_path + "/" + short_name
+    valid_mappings = [sys_long_path + "%s" % partition,
+                      sys_long_path + "p%s" % partition]
+
+    for cdisk in valid_mappings:
+        if not os.path.exists(cdisk):
+            continue
+
+        dev_path = "/dev/%s" % cdisk.split('/')[-1]
+        if os.path.exists(dev_path):
+            return dev_path
+
+    return None
+
+

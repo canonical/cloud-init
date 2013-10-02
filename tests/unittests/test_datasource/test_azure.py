@@ -328,8 +328,6 @@ class TestAzureDataSource(MockerTestCase):
         self.assertTrue(ret)
         cfg = dsrc.get_config_obj()
         self.assertTrue(cfg)
-        self.assertEquals(dsrc.device_name_to_device("ephemeral0"),
-                          "/dev/sdc")
 
     def test_userdata_arrives(self):
         userdata = "This is my user-data"

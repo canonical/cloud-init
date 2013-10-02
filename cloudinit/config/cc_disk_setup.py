@@ -16,8 +16,8 @@
 #
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
-from cloudinit.settings import PER_INSTANCE
 from cloudinit import util
+from cloudinit.settings import PER_INSTANCE
 import logging
 import shlex
 
@@ -29,13 +29,13 @@ SFDISK_CMD = util.which("sfdisk")
 LSBLK_CMD = util.which("lsblk")
 BLKID_CMD = util.which("blkid")
 BLKDEV_CMD = util.which("blockdev")
+WIPEFS_CMD = util.which("wipefs")
 
 LOG = logging.getLogger(__name__)
 
 
 def handle(_name, cfg, cloud, log, _args):
     """
-    Call util.prep_disk for disk_setup cloud-config.
     See doc/examples/cloud-config_disk-setup.txt for documentation on the
     format.
     """
@@ -203,8 +203,38 @@ def is_filesystem(device):
     return fs_type
 
 
+def enumerate_disk(device):
+    """
+    Enumerate the elements of a child device. Return a dict of name,
+        type, fstype, and label
+    """
+
+    lsblk_cmd = [LSBLK_CMD, '--pairs', '--out', 'NAME,TYPE,FSTYPE,LABEL',
+                 device]
+    info = None
+    try:
+        info, _err = util.subp(lsblk_cmd)
+    except Exception as e:
+        raise Exception("Failed during disk check for %s\n%s" % (device, e))
+
+    parts = [x for x in (info.strip()).splitlines() if len(x.split()) > 0]
+
+    for part in parts:
+        d = {'name': None,
+             'type': None,
+             'fstype': None,
+             'label': None,
+            }
+
+        for key, value in value_splitter(part):
+            d[key.lower()] = value
+
+        LOG.info(d)
+        yield d
+
+
 def find_device_node(device, fs_type=None, label=None, valid_targets=None,
-                     label_match=True):
+                     label_match=True, replace_fs=None):
     """
     Find a device that is either matches the spec, or the first
 
@@ -221,26 +251,12 @@ def find_device_node(device, fs_type=None, label=None, valid_targets=None,
     if not valid_targets:
         valid_targets = ['disk', 'part']
 
-    lsblk_cmd = [LSBLK_CMD, '--pairs', '--out', 'NAME,TYPE,FSTYPE,LABEL',
-                 device]
-    info = None
-    try:
-        info, _err = util.subp(lsblk_cmd)
-    except Exception as e:
-        raise Exception("Failed during disk check for %s\n%s" % (device, e))
-
     raw_device_used = False
-    parts = [x for x in (info.strip()).splitlines() if len(x.split()) > 0]
+    for d in enumerate_disk(device):
 
-    for part in parts:
-        d = {'name': None,
-             'type': None,
-             'fstype': None,
-             'label': None,
-            }
-
-        for key, value in value_splitter(part):
-            d[key.lower()] = value
+        if d['fstype'] == replace_fs and label_match == False:
+            # We found a device where we want to replace the FS
+            return ('/dev/%s' % d['name'], False)
 
         if (d['fstype'] == fs_type and
             ((label_match and d['label'] == label) or not label_match)):
@@ -454,6 +470,42 @@ def get_partition_mbr_layout(size, layout):
 
     return sfdisk_definition
 
+def purge_disk(device):
+    """
+    Remove parition table entries
+    """
+
+    # wipe any file systems first
+    for d in enumerate_disk(device):
+        LOG.info(d)
+        if d['type'] not in ["disk", "crypt"]:
+            wipefs_cmd = [WIPEFS_CMD, "--all", "/dev/%s" % d['name']]
+            try:
+                LOG.info("Purging filesystem on /dev/%s" % d['name'])
+                util.subp(wipefs_cmd)
+                LOG.info("Purged filesystem on /dev/%s" % d['name'])
+            except Exception as e:
+                raise Exception("Failed FS purge of /dev/%s" % d['name'])
+
+    dd_cmd = util.which("dd")
+    last_seek = int(get_hdd_size(device) / 1024) - 2
+    first_mb = [dd_cmd, "if=/dev/zero", "of=%s" % device, "bs=1M", "count=1"]
+    last_mb = [dd_cmd, "if=/dev/zero", "of=%s" % device, "bs=1M", "seek=%s" % last_seek]
+    try:
+        util.subp(first_mb)
+        LOG.info("Purged MBR/Partition table from %s" % device)
+        util.subp(last_mb, rcs=[0,1])
+        LOG.info("Purged any chance of GPT table from %s" % device)
+
+        # Wipe it for good measure
+        wipefs_cmd = [WIPEFS_CMD, "--all", device]
+        util.subp(wipefs_cmd)
+    except Exception as e:
+        LOG.critical(e)
+        raise Exception("Failed to remove MBR/Part from %s" % device)
+
+    read_parttbl(device)
+
 
 def get_partition_layout(table_type, size, layout):
     """
@@ -542,6 +594,12 @@ def mkpart(device, definition):
     if not is_device_valid(device):
         raise Exception("Device %s is not a disk device!", device)
 
+    # Remove the partition table entries
+    if isinstance(layout, str) and layout.lower() == "remove":
+        LOG.debug("Instructed to remove partition table entries")
+        purge_disk(device)
+        return
+
     LOG.debug("Checking if device layout matches")
     if check_partition_layout(table_type, device, layout):
         LOG.debug("Device partitioning layout matches")
@@ -563,6 +621,26 @@ def mkpart(device, definition):
     exec_mkpart(table_type, device, part_definition)
 
     LOG.debug("Partition table created for %s", device)
+
+
+def lookup_force_flag(fs):
+    """
+    A force flag might be -F or -F, this look it up
+    """
+    flags = {'ext': '-F',
+             'btrfs': '-f',
+             'xfs': '-f',
+             'reiserfs': '-f',
+            }
+
+    if 'ext' in fs.lower():
+       fs = 'ext'
+
+    if fs.lower() in flags:
+        return flags[fs]
+
+    LOG.warn("Force flag for %s is unknown." % fs)
+    return ''
 
 
 def mkfs(fs_cfg):
@@ -592,6 +670,7 @@ def mkfs(fs_cfg):
     fs_type = fs_cfg.get('filesystem')
     fs_cmd = fs_cfg.get('cmd', [])
     fs_opts = fs_cfg.get('extra_opts', [])
+    fs_replace = fs_cfg.get('replace_fs', False)
     overwrite = fs_cfg.get('overwrite', False)
 
     # This allows you to define the default ephemeral or swap
@@ -632,17 +711,23 @@ def mkfs(fs_cfg):
             label_match = False
 
         device, reuse = find_device_node(device, fs_type=fs_type, label=label,
-                                         label_match=label_match)
+                                         label_match=label_match,
+                                         replace_fs=fs_replace)
         LOG.debug("Automatic device for %s identified as %s", odevice, device)
 
         if reuse:
             LOG.debug("Found filesystem match, skipping formating.")
             return
 
+        if not reuse and fs_replace and device:
+            LOG.debug("Replacing file system on %s as instructed." % device)
+
         if not device:
             LOG.debug("No device aviable that matches request. "
                       "Skipping fs creation for %s", fs_cfg)
             return
+    elif not partition or str(partition).lower() == 'none':
+        LOG.debug("Using the raw device to place filesystem %s on" % label)
 
     else:
         LOG.debug("Error in device identification handling.")
@@ -682,12 +767,16 @@ def mkfs(fs_cfg):
         if label:
             fs_cmd.extend(["-L", label])
 
+    # File systems that support the -F flag
+    if not fs_cmd and (overwrite or device_type(device) == "disk"):
+        fs_cmd.append(lookup_force_flag(fs_type))
+
     # Add the extends FS options
     if fs_opts:
         fs_cmd.extend(fs_opts)
 
     LOG.debug("Creating file system %s on %s", label, device)
-    LOG.debug("     Using cmd: %s", "".join(fs_cmd))
+    LOG.debug("     Using cmd: %s", " ".join(fs_cmd))
     try:
         util.subp(fs_cmd)
     except Exception as e:

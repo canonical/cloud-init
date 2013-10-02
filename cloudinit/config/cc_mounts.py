@@ -20,6 +20,7 @@
 
 from string import whitespace  # pylint: disable=W0402
 
+import os.path
 import re
 
 from cloudinit import type_utils
@@ -75,7 +76,9 @@ def handle(_name, cfg, cloud, log, _args):
                        "name from ephemeral to ephemeral0"), (i + 1))
 
         if is_mdname(startname):
-            newname = cloud.device_name_to_device(startname)
+            candidate_name = cloud.device_name_to_device(startname)
+            newname = disk_or_part(candidate_name)
+
             if not newname:
                 log.debug("Ignoring nonexistant named mount %s", startname)
                 cfgmnt[i][1] = None
@@ -119,7 +122,8 @@ def handle(_name, cfg, cloud, log, _args):
     # entry has the same device name
     for defmnt in defmnts:
         startname = defmnt[0]
-        devname = cloud.device_name_to_device(startname)
+        candidate_name = cloud.device_name_to_device(startname)
+        devname = disk_or_part(candidate_name)
         if devname is None:
             log.debug("Ignoring nonexistant named default mount %s", startname)
             continue
@@ -198,3 +202,32 @@ def handle(_name, cfg, cloud, log, _args):
         util.subp(("mount", "-a"))
     except:
         util.logexc(log, "Activating mounts via 'mount -a' failed")
+
+
+def disk_or_part(device):
+    """
+    Find where the file system is on the disk, either on
+    the disk itself or on the first partition. We don't go
+    any deeper than partition 1 though.
+    """
+
+    if not device:
+        return None
+
+    short_name = device.split('/')[-1]
+    sys_path = "/sys/block/%s" % short_name
+
+    if not os.path.exists(sys_path):
+        LOG.warn("Device %s does not exist in sysfs" % device)
+        return None
+
+    sys_long_path = sys_path + "/" + short_name + "%s"
+    valid_mappings = [ sys_long_path % "1",
+                       sys_long_path % "p1",
+                       sys_path ]
+
+    for cdisk in valid_mappings:
+        if not os.path.exists(cdisk):
+            continue
+        return "/dev/%s" % cdisk.split('/')[-1]
+    return None
