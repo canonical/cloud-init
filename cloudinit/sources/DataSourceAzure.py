@@ -54,8 +54,9 @@ BUILTIN_CLOUD_CONFIG = {
                        'layout': True,
                        'overwrite': False}
          },
-    'fs_setup': [{'filesystem': 'ext4', 'device': 'ephemeral0',
-                  'partition': 'auto'}],
+    'fs_setup': [{'filesystem': 'ext4',
+                  'device': 'ephemeral0.1',
+                  'replace_fs': 'ntfs'}]
 }
 
 DS_CFG_PATH = ['datasource', DS_NAME]
@@ -176,7 +177,9 @@ class DataSourceAzureNet(sources.DataSource):
         return True
 
     def device_name_to_device(self, name):
-        return self.ds_cfg['disk_aliases'].get(name)
+        device = name.split('.')[0]
+        return util.map_device_alias(self.ds_cfg['disk_aliases'].get(device),
+                                     alias=name)
 
     def get_config_obj(self):
         return self.cfg

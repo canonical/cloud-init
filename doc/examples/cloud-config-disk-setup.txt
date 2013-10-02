@@ -30,8 +30,8 @@ disk_setup:
 fs_setup:
     - label: ephemeral0
       filesystem: ext4
-      device: ephemeral0
-      partition: auto
+      device: ephemeral0.1
+      replace_fs: ntfs
 
 
 Default disk definitions for SmartOS
@@ -47,8 +47,7 @@ disk_setup:
 fs_setup:
     - label: ephemeral0
       filesystem: ext3
-      device: ephemeral0
-      partition: auto
+      device: ephemeral0.0
 
 Cavaut for SmartOS: if ephemeral disk is not defined, then the disk will
     not be automatically added to the mounts.
@@ -186,6 +185,9 @@ Where:
         When using 'ephemeralX' (i.e. ephemeral0), make sure to leave the
         label as 'ephemeralX' otherwise there may be issues with the mounting
         of the ephemeral storage layer.
+
+        If you define the device as 'ephemeralX.Y' then Y will be interpetted
+        as a partition value. However, ephermalX.0 is the _same_ as ephemeralX.
 
     <PART_VALUE>: The valid options are:
         "auto|any": tell cloud-init not to care whether there is a partition
