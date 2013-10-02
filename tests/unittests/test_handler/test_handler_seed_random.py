@@ -19,8 +19,8 @@
 from cloudinit.config import cc_seed_random
 
 import base64
-import tempfile
 import gzip
+import tempfile
 
 from StringIO import StringIO
 
