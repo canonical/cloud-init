@@ -1903,5 +1903,3 @@ def map_device_alias(device, partition=None, alias=None):
                      partition, device))
 
     return None
-
-
