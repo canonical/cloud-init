@@ -94,6 +94,15 @@ def update_disk_setup_devices(disk_setup, tformer):
         LOG.debug("updated disk_setup device entry '%s' to '%s'",
                   origname, transformed)
 
+def reset_part_definition(definition, value):
+    if not value and 'partition' in definition:
+        definition['opartition'] = definition['partition']
+        del definition['partition']
+
+    else:
+        definition['partition'] = value
+
+    return definition
 
 def update_fs_setup_devices(disk_setup, tformer):
     # update 'fs_setup' dictionary anywhere were a device may occur
@@ -109,17 +118,27 @@ def update_fs_setup_devices(disk_setup, tformer):
             continue
 
         transformed = None
-        if len(origname.split('.')) > 1:
+        if len(origname.split('.')) == 2:
             # this maps ephemeralX.Y to a proper disk name. For example,
             # if the origname is 'ephemeral0.1' and transformed is /dev/sdb
             # then the returned device will be /dev/sdb1 _if_ /dev/sdb1 exists
             # otherwise NONE
-            base_name = origname.split('.')[0]
+            base_name, partition = origname.split('.')
             tformed = tformer(base_name)
             LOG.info("base device for %s is %s" % (origname, tformed))
 
-            transformed = util.map_device_alias(tformed, alias=origname)
-            LOG.info("%s is mapped to %s" % (origname, transformed))
+            if partition == "0":
+                transformed = tformed
+                definition = reset_part_definition(definition, None)
+
+            elif partition in ("auto", "any"):
+                definition = reset_part_definition(definition, partition)
+                transformed = tformed
+
+            else:
+                definition = reset_part_definition(definition, None)
+                transformed = util.map_device_alias(tformed, alias=origname)
+                LOG.info("%s is mapped to %s" % (origname, transformed))
 
         else:
             transformed = tformer(origname)

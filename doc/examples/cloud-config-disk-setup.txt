@@ -170,6 +170,7 @@ The general format is:
           device: <DEVICE>
           partition: <PART_VALUE>
           overwrite: <OVERWRITE>
+          replace_fs: <FS_TYPE>
 
 Where:
     <LABEL>: The file system label to be used. If set to None, no label is
@@ -189,7 +190,10 @@ Where:
         If you define the device as 'ephemeralX.Y' then Y will be interpetted
         as a partition value. However, ephermalX.0 is the _same_ as ephemeralX.
 
-    <PART_VALUE>: The valid options are:
+    <PART_VALUE>:
+        Partition definitions are overwriten if you use the '<DEVICE>.Y' notation.
+
+        The valid options are:
         "auto|any": tell cloud-init not to care whether there is a partition
             or not. Auto will use the first partition that does not contain a
             file system already. In the absence of a partition table, it will
@@ -237,6 +241,11 @@ Where:
             your own peril.
 
         "false": If an existing file system exists, skip the creation.
+
+    <REPLACE_FS>: This is a special directive, used for Windows Azure that
+        instructs cloud-init to replace a file system of <FS_TYPE>. NOTE:
+        unless you define a label, this requires the use of the 'any' partition
+        directive.
 
 Behavior Caveat: The default behavior is to _check_ if the file system exists.
     If a file system matches the specification, then the operation is a no-op.
