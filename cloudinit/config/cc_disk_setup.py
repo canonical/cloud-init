@@ -145,23 +145,55 @@ def value_splitter(values, start=None):
         yield key, value
 
 
-def device_type(device):
+def enumerate_disk(device, nodeps=False):
     """
-    Return the device type of the device by calling lsblk.
+    Enumerate the elements of a child device.
+
+    Parameters:
+        device: the kernel device name
+        nodeps <BOOL>: don't enumerate children devices
+
+    Return a dict describing the disk:
+        type: the entry type, i.e disk or part
+        fstype: the filesystem type, if it exists
+        label: file system label, if it exists
+        name: the device name, i.e. sda
     """
 
-    lsblk_cmd = [LSBLK_CMD, '--pairs', '--nodeps', '--out', 'NAME,TYPE',
+    lsblk_cmd = [LSBLK_CMD, '--pairs', '--out', 'NAME,TYPE,FSTYPE,LABEL',
                  device]
+
+    if nodeps:
+        lsblk_cmd.append('--nodeps')
+
     info = None
     try:
         info, _err = util.subp(lsblk_cmd)
     except Exception as e:
         raise Exception("Failed during disk check for %s\n%s" % (device, e))
 
-    for key, value in value_splitter(info):
-        if key.lower() == "type":
-            return value.lower()
+    parts = [x for x in (info.strip()).splitlines() if len(x.split()) > 0]
 
+    for part in parts:
+        d = {'name': None,
+             'type': None,
+             'fstype': None,
+             'label': None,
+            }
+
+        for key, value in value_splitter(part):
+            d[key.lower()] = value
+
+        yield d
+
+def device_type(device):
+    """
+    Return the device type of the device by calling lsblk.
+    """
+
+    for d in enumerate_disk(device, nodeps=True):
+        if "type" in d:
+           return d["type"].lower()
     return None
 
 
@@ -221,35 +253,6 @@ def is_filesystem(device):
     return fs_type
 
 
-def enumerate_disk(device):
-    """
-    Enumerate the elements of a child device. Return a dict of name,
-        type, fstype, and label
-    """
-
-    lsblk_cmd = [LSBLK_CMD, '--pairs', '--out', 'NAME,TYPE,FSTYPE,LABEL',
-                 device]
-    info = None
-    try:
-        info, _err = util.subp(lsblk_cmd)
-    except Exception as e:
-        raise Exception("Failed during disk check for %s\n%s" % (device, e))
-
-    parts = [x for x in (info.strip()).splitlines() if len(x.split()) > 0]
-
-    for part in parts:
-        d = {'name': None,
-             'type': None,
-             'fstype': None,
-             'label': None,
-            }
-
-        for key, value in value_splitter(part):
-            d[key.lower()] = value
-
-        yield d
-
-
 def find_device_node(device, fs_type=None, label=None, valid_targets=None,
                      label_match=True, replace_fs=None):
     """
@@ -301,22 +304,20 @@ def find_device_node(device, fs_type=None, label=None, valid_targets=None,
 
 def is_disk_used(device):
     """
-    Check if the device is currently used. Returns false if there
+    Check if the device is currently used. Returns true if the device
+    has either a file system or a partition entry
     is no filesystem found on the disk.
     """
-    lsblk_cmd = [LSBLK_CMD, '--pairs', '--out', 'NAME,TYPE',
-                 device]
-    info = None
-    try:
-        info, _err = util.subp(lsblk_cmd)
-    except Exception as e:
-        # if we error out, we can't use the device
-        util.logexc(LOG,
-                    "Error checking for filesystem on %s\n%s" % (device, e))
+
+    # If the child count is higher 1, then there are child nodes
+    # such as partition or device mapper nodes
+    use_count = [x for x in enumerate_disk(device)]
+    if len(use_count.splitlines()) > 1:
         return True
 
-    # If there is any output, then the device has something
-    if len(info.splitlines()) > 1:
+    # If we see a file system, then its used
+    _, check_fstype, _ = check_fs(device)
+    if check_fstype:
         return True
 
     return False
