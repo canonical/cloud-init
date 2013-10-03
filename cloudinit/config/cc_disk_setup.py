@@ -16,8 +16,8 @@
 #
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
-from cloudinit import util
 from cloudinit.settings import PER_INSTANCE
+from cloudinit import util
 import logging
 import shlex
 
@@ -254,7 +254,7 @@ def find_device_node(device, fs_type=None, label=None, valid_targets=None,
     raw_device_used = False
     for d in enumerate_disk(device):
 
-        if d['fstype'] == replace_fs and label_match == False:
+        if d['fstype'] == replace_fs and label_match is False:
             # We found a device where we want to replace the FS
             return ('/dev/%s' % d['name'], False)
 
@@ -470,6 +470,7 @@ def get_partition_mbr_layout(size, layout):
 
     return sfdisk_definition
 
+
 def purge_disk(device):
     """
     Remove parition table entries
@@ -494,7 +495,7 @@ def purge_disk(device):
     try:
         util.subp(first_mb)
         LOG.info("Purged MBR/Partition table from %s" % device)
-        util.subp(last_mb, rcs=[0,1])
+        util.subp(last_mb, rcs=[0, 1])
         LOG.info("Purged any chance of GPT table from %s" % device)
 
         # Wipe it for good measure
@@ -634,7 +635,7 @@ def lookup_force_flag(fs):
             }
 
     if 'ext' in fs.lower():
-       fs = 'ext'
+        fs = 'ext'
 
     if fs.lower() in flags:
         return flags[fs]
