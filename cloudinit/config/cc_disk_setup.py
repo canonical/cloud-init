@@ -19,6 +19,7 @@
 from cloudinit.settings import PER_INSTANCE
 from cloudinit import util
 import logging
+import os
 import shlex
 
 frequency = PER_INSTANCE
@@ -471,6 +472,20 @@ def get_partition_mbr_layout(size, layout):
     return sfdisk_definition
 
 
+def purge_disk_ptable(device):
+    # wipe the first and last megabyte of a disk (or file)
+    # gpt stores partition table both at front and at end.
+    start_len = 1024 * 1024
+    end_len = 1024 * 1024
+    with open(device, "rb+") as fp:
+        fp.write('\0' * (start_len))
+        fp.seek(-end_len, os.SEEK_END)
+        fp.write('\0' * end_len)
+        fp.flush()
+
+    read_parttbl(device)
+
+
 def purge_disk(device):
     """
     Remove parition table entries
@@ -488,24 +503,7 @@ def purge_disk(device):
             except Exception as e:
                 raise Exception("Failed FS purge of /dev/%s" % d['name'])
 
-    dd_cmd = util.which("dd")
-    last_seek = int(get_hdd_size(device) / 1024) - 2
-    first_mb = [dd_cmd, "if=/dev/zero", "of=%s" % device, "bs=1M", "count=1"]
-    last_mb = [dd_cmd, "if=/dev/zero", "of=%s" % device, "bs=1M", "seek=%s" % last_seek]
-    try:
-        util.subp(first_mb)
-        LOG.info("Purged MBR/Partition table from %s" % device)
-        util.subp(last_mb, rcs=[0, 1])
-        LOG.info("Purged any chance of GPT table from %s" % device)
-
-        # Wipe it for good measure
-        wipefs_cmd = [WIPEFS_CMD, "--all", device]
-        util.subp(wipefs_cmd)
-    except Exception as e:
-        LOG.critical(e)
-        raise Exception("Failed to remove MBR/Part from %s" % device)
-
-    read_parttbl(device)
+    purge_disk_ptable(device)
 
 
 def get_partition_layout(table_type, size, layout):
