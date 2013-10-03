@@ -230,7 +230,6 @@ def enumerate_disk(device):
         for key, value in value_splitter(part):
             d[key.lower()] = value
 
-        LOG.info(d)
         yield d
 
 
@@ -493,13 +492,11 @@ def purge_disk(device):
 
     # wipe any file systems first
     for d in enumerate_disk(device):
-        LOG.info(d)
         if d['type'] not in ["disk", "crypt"]:
             wipefs_cmd = [WIPEFS_CMD, "--all", "/dev/%s" % d['name']]
             try:
                 LOG.info("Purging filesystem on /dev/%s" % d['name'])
                 util.subp(wipefs_cmd)
-                LOG.info("Purged filesystem on /dev/%s" % d['name'])
             except Exception as e:
                 raise Exception("Failed FS purge of /dev/%s" % d['name'])
 
