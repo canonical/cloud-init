@@ -186,6 +186,7 @@ def enumerate_disk(device, nodeps=False):
 
         yield d
 
+
 def device_type(device):
     """
     Return the device type of the device by calling lsblk.
@@ -193,7 +194,7 @@ def device_type(device):
 
     for d in enumerate_disk(device, nodeps=True):
         if "type" in d:
-           return d["type"].lower()
+            return d["type"].lower()
     return None
 
 
