@@ -104,13 +104,30 @@ def update_fs_setup_devices(disk_setup, tformer):
             continue
 
         origname = definition.get('device')
+
         if origname is None:
             continue
 
-        transformed = tformer(origname)
+        transformed = None
+        if len(origname.split('.')) > 1:
+            # this maps ephemeralX.Y to a proper disk name. For example,
+            # if the origname is 'ephemeral0.1' and transformed is /dev/sdb
+            # then the returned device will be /dev/sdb1 _if_ /dev/sdb1 exists
+            # otherwise NONE
+            base_name = origname.split('.')[0]
+            tformed = tformer(base_name)
+            LOG.info("base device for %s is %s" % (origname, tformed))
+
+            transformed = util.map_device_alias(tformed, alias=origname)
+            LOG.info("%s is mapped to %s" % (origname, transformed))
+
+        else:
+            transformed = tformer(origname)
+
         if transformed is None or transformed == origname:
             continue
 
+        LOG.info("Mapped %s to physical device %s" % (origname, transformed))
         definition['_origname'] = origname
         definition['device'] = transformed
 
@@ -497,7 +514,7 @@ def purge_disk(device):
             try:
                 LOG.info("Purging filesystem on /dev/%s" % d['name'])
                 util.subp(wipefs_cmd)
-            except Exception as e:
+            except Exception:
                 raise Exception("Failed FS purge of /dev/%s" % d['name'])
 
     purge_disk_ptable(device)
