@@ -19,6 +19,15 @@
 #   examples:
 #     devices: [/, /dev/vdb1]
 #
+# ignore_growroot_disabled:
+#   a boolean, default is false.
+#   if the file /etc/growroot-disabled exists, then cloud-init will not grow
+#   the root partition.  This is to allow a single file to disable both
+#   cloud-initramfs-growroot and cloud-init's growroot support.
+#
+#   true indicates that /etc/growroot-disabled should be ignored
+#
 growpart:
   mode: auto
   devices: ['/']
+  ignore_growroot_disabled: false

@@ -26,6 +26,7 @@
  - config/cloud.cfg: add 'sudo' to list groups for the default user 
    (LP: #1228228)
  - documentation fix for use of 'mkpasswd' [Eric Nordlund]
+ - respect /etc/growroot-disabled file (LP: #1234331)
 0.7.2:
  - add a debian watch file
  - add 'sudo' entry to ubuntu's default user (LP: #1080717)
