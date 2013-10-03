@@ -46,6 +46,7 @@ SMARTOS_ATTRIB_MAP = {
     'user-data': ('user-data', False),
     'iptables_disable': ('iptables_disable', True),
     'motd_sys_info': ('motd_sys_info', True),
+    'availability_zone': ('region', True),
 }
 
 DS_NAME = 'SmartOS'
@@ -174,6 +175,13 @@ class DataSourceSmartOS(sources.DataSource):
         return query_data(noun=noun, strip=strip, seed_device=self.seed,
                           seed_timeout=self.seed_timeout, default=default,
                           b64=b64)
+
+    @property
+    def availability_zone(self):
+        try:
+            return self.metadata['availability-zone']
+        except KeyError:
+            return None
 
 
 def get_serial(seed_device, seed_timeout):
