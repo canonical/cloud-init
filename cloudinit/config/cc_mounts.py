@@ -217,14 +217,15 @@ def disk_or_part(device):
     short_name = device.split('/')[-1]
     sys_path = "/sys/block/%s" % short_name
 
-    if not os.path.exists(sys_path):
-        LOG.warn("Device %s does not exist in sysfs" % device)
-        return None
+    # if the sys path does not exist but the device exists,
+    # then the device is a partition, no sense looking any further
+    if not os.path.exists(sys_path) and os.path.exists(device):
+        return device
 
     sys_long_path = sys_path + "/" + short_name + "%s"
-    valid_mappings = [ sys_long_path % "1",
-                       sys_long_path % "p1",
-                       sys_path ]
+    valid_mappings = [sys_long_path % "1",
+                      sys_long_path % "p1",
+                      sys_path]
 
     for cdisk in valid_mappings:
         if not os.path.exists(cdisk):

@@ -1869,7 +1869,7 @@ def map_device_alias(device, partition=None, alias=None):
     """
 
     if not device:
-        return None
+        raise Exception("Device cannot be undefined!")
 
     if not partition and not alias:
         raise Exception("partition or alias is required")
@@ -1877,9 +1877,9 @@ def map_device_alias(device, partition=None, alias=None):
     if alias:
         partition = map_partition(alias)
 
-        # if the partition doesn't map, return the device
-        if not partition:
-            return device
+    # if the partition doesn't map, return the device
+    if not partition:
+        return device
 
     short_name = device.split('/')[-1]
     sys_path = "/sys/block/%s" % short_name
@@ -1898,6 +1898,9 @@ def map_device_alias(device, partition=None, alias=None):
         dev_path = "/dev/%s" % cdisk.split('/')[-1]
         if os.path.exists(dev_path):
             return dev_path
+        else:
+            LOG.warn("Specificed parition %s does not exist on %s" % (
+                     partition, device))
 
     return None
 

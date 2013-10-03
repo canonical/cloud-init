@@ -177,9 +177,7 @@ class DataSourceAzureNet(sources.DataSource):
         return True
 
     def device_name_to_device(self, name):
-        device = name.split('.')[0]
-        return util.map_device_alias(self.ds_cfg['disk_aliases'].get(device),
-                                     alias=name)
+        return self.ds_cfg['disk_aliases'].get(name)
 
     def get_config_obj(self):
         return self.cfg
