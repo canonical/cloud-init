@@ -1829,62 +1829,33 @@ def log_time(logfunc, msg, func, args=None, kwargs=None, get_uptime=False):
     return ret
 
 
-def map_partition(alias):
-    """
-    Return partition number for devices like ephemeral0.0 or ephemeral0.1
-
-    Parameters:
-        alaias: the alias, i.e. ephemeral0 or swap0
-        device: the actual device to markup
-
-    Rules:
-        - anything after a . is a parittion
-        - device.0 is the same as device
-    """
-
-    if len(alias.split('.')) == 1:
-        return None
-
-    suffix = alias.split('.')[-1]
-    try:
-        if int(suffix) == 0:
-            return None
-        return int(suffix)
-    except ValueError:
-        pass
-
-    return None
+def expand_dotted_devname(dotted):
+    toks = dotted.rsplit(".", 1)
+    if len(toks) > 1:
+        return toks
+    else:
+        return (dotted, None)
 
 
-def map_device_alias(device, partition=None, alias=None):
+def devnode_for_dev_part(device, partition):
     """
     Find the name of the partition. While this might seem rather
     straight forward, its not since some devices are '<device><partition>'
     while others are '<device>p<partition>'. For example, /dev/xvda3 on EC2
     will present as /dev/xvda3p1 for the first partition since /dev/xvda3 is
     a block device.
-
-    The primary use is to map 'ephemeral0.1' in the datasource to a
-    real device name
     """
+    if not os.path.exists(device):
+        return None
 
-    if not device:
-        raise Exception("Device cannot be undefined!")
-
-    if not partition and not alias:
-        raise Exception("partition or alias is required")
-
-    if alias:
-        partition = map_partition(alias)
-
-    # if the partition doesn't map, return the device
     if not partition:
         return device
 
-    short_name = device.split('/')[-1]
+    short_name = os.path.basename(device)
     sys_path = "/sys/block/%s" % short_name
 
     if not os.path.exists(sys_path):
+        LOG.debug("did not find entry for %s in /sys/block", short_name)
         return None
 
     sys_long_path = sys_path + "/" + short_name
@@ -1895,11 +1866,9 @@ def map_device_alias(device, partition=None, alias=None):
         if not os.path.exists(cdisk):
             continue
 
-        dev_path = "/dev/%s" % cdisk.split('/')[-1]
+        dev_path = "/dev/%s" % os.path.basename(cdisk)
         if os.path.exists(dev_path):
             return dev_path
-        else:
-            LOG.warn("Specificed parition %s does not exist on %s" % (
-                     partition, device))
 
+    LOG.debug("Did not fine partition %s for device %s", partition, device)
     return None
