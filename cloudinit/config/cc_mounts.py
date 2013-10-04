@@ -20,6 +20,7 @@
 
 from string import whitespace  # pylint: disable=W0402
 
+import logging
 import os.path
 import re
 
@@ -31,6 +32,8 @@ SHORTNAME_FILTER = r"^([x]{0,1}[shv]d[a-z][0-9]*|sr[0-9]+)$"
 SHORTNAME = re.compile(SHORTNAME_FILTER)
 WS = re.compile("[%s]+" % (whitespace))
 FSTAB_PATH = "/etc/fstab"
+
+LOG = logging.getLogger(__name__)
 
 
 def is_mdname(name):
@@ -146,7 +149,7 @@ def handle(_name, cfg, cloud, log, _args):
 
         if cfgmnt_has:
             log.debug(("Not including %s, already"
-                       " previously included"), startname)
+                       " previously included"), start)
             continue
         cfgmnt.append(defmnt)
 
@@ -230,7 +233,7 @@ def devnode_for_dev_part(device, partition):
         return None
 
     sys_long_path = sys_path + "/" + short_name
-    
+
     if partition is not None:
         partition = str(partition)
 
