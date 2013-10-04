@@ -54,8 +54,9 @@ BUILTIN_CLOUD_CONFIG = {
                        'layout': True,
                        'overwrite': False}
          },
-    'fs_setup': [{'filesystem': 'ext4', 'device': 'ephemeral0',
-                  'partition': 'auto'}],
+    'fs_setup': [{'filesystem': 'ext4',
+                  'device': 'ephemeral0.1',
+                  'replace_fs': 'ntfs'}]
 }
 
 DS_CFG_PATH = ['datasource', DS_NAME]
