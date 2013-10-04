@@ -131,24 +131,10 @@ def handle(_name, cfg, cloud, log, _args):
         start = defmnt[0]
         sanitized = sanitize_devname(start, cloud.device_name_to_device, log)
         if sanitized is None:
-            log.debug("Ignorming nonexistant named mount %s", start)
+            log.debug("Ignoring nonexistant default named mount %s", start)
         if sanitized != start:
-            log.debug("changed %s => %s" % (start, sanitized))
+            log.debug("changed default device %s => %s" % (start, sanitized))
         defmnt[0] = sanitized
-
-        devname = defmnt[0]
-        if candidate_name is not None:
-            dev = candidate_name
-        if devname is None:
-            log.debug("Ignoring nonexistant named default mount %s", startname)
-            continue
-        devname = devnode_for_dev_part(devname, part)
-        if devname.startswith("/"):
-            defmnt[0] = devname
-        else:
-            defmnt[0] = "/dev/%s" % devname
-
-        log.debug("Mapped default device %s to %s", startname, defmnt[0])
 
         cfgmnt_has = False
         for cfgm in cfgmnt:
