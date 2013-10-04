@@ -20,6 +20,8 @@
 
 from string import whitespace  # pylint: disable=W0402
 
+import logging
+import os.path
 import re
 
 from cloudinit import type_utils
@@ -30,6 +32,8 @@ SHORTNAME_FILTER = r"^([x]{0,1}[shv]d[a-z][0-9]*|sr[0-9]+)$"
 SHORTNAME = re.compile(SHORTNAME_FILTER)
 WS = re.compile("[%s]+" % (whitespace))
 FSTAB_PATH = "/etc/fstab"
+
+LOG = logging.getLogger(__name__)
 
 
 def is_mdname(name):
@@ -42,6 +46,33 @@ def is_mdname(name):
         if name.startswith(enumname) and name.find(":") == -1:
             return True
     return False
+
+
+def sanitize_devname(startname, transformer, log):
+    log.debug("Attempting to determine the real name of %s", startname)
+
+    # workaround, allow user to specify 'ephemeral'
+    # rather than more ec2 correct 'ephemeral0'
+    devname = startname
+    if devname == "ephemeral":
+        devname = "ephemeral0"
+        log.debug("Adjusted mount option from ephemeral to ephemeral0")
+
+    (blockdev, part) = util.expand_dotted_devname(devname)
+
+    if is_mdname(blockdev):
+        orig = blockdev
+        blockdev = transformer(blockdev)
+        if not blockdev:
+            return None
+        if not blockdev.startswith("/"):
+            blockdev = "/dev/%s" % blockdev
+        log.debug("Mapped metadata name %s to %s", orig, blockdev)
+    else:
+        if SHORTNAME.match(startname):
+            blockdev = "/dev/%s" % blockdev
+
+    return devnode_for_dev_part(blockdev, part)
 
 
 def handle(_name, cfg, cloud, log, _args):
@@ -64,32 +95,15 @@ def handle(_name, cfg, cloud, log, _args):
                      (i + 1), type_utils.obj_name(cfgmnt[i]))
             continue
 
-        startname = str(cfgmnt[i][0])
-        log.debug("Attempting to determine the real name of %s", startname)
+        start = str(cfgmnt[i][0])
+        sanitized = sanitize_devname(start, cloud.device_name_to_device, log)
+        if sanitized is None:
+            log.debug("Ignorming nonexistant named mount %s", start)
+            continue
 
-        # workaround, allow user to specify 'ephemeral'
-        # rather than more ec2 correct 'ephemeral0'
-        if startname == "ephemeral":
-            cfgmnt[i][0] = "ephemeral0"
-            log.debug(("Adjusted mount option %s "
-                       "name from ephemeral to ephemeral0"), (i + 1))
-
-        if is_mdname(startname):
-            newname = cloud.device_name_to_device(startname)
-            if not newname:
-                log.debug("Ignoring nonexistant named mount %s", startname)
-                cfgmnt[i][1] = None
-            else:
-                renamed = newname
-                if not newname.startswith("/"):
-                    renamed = "/dev/%s" % newname
-                cfgmnt[i][0] = renamed
-                log.debug("Mapped metadata name %s to %s", startname, renamed)
-        else:
-            if SHORTNAME.match(startname):
-                renamed = "/dev/%s" % startname
-                log.debug("Mapped shortname name %s to %s", startname, renamed)
-                cfgmnt[i][0] = renamed
+        if sanitized != start:
+            log.debug("changed %s => %s" % (start, sanitized))
+        cfgmnt[i][0] = sanitized
 
         # in case the user did not quote a field (likely fs-freq, fs_passno)
         # but do not convert None to 'None' (LP: #898365)
@@ -118,17 +132,14 @@ def handle(_name, cfg, cloud, log, _args):
     # for each of the "default" mounts, add them only if no other
     # entry has the same device name
     for defmnt in defmnts:
-        startname = defmnt[0]
-        devname = cloud.device_name_to_device(startname)
-        if devname is None:
-            log.debug("Ignoring nonexistant named default mount %s", startname)
+        start = defmnt[0]
+        sanitized = sanitize_devname(start, cloud.device_name_to_device, log)
+        if sanitized is None:
+            log.debug("Ignoring nonexistant default named mount %s", start)
             continue
-        if devname.startswith("/"):
-            defmnt[0] = devname
-        else:
-            defmnt[0] = "/dev/%s" % devname
-
-        log.debug("Mapped default device %s to %s", startname, defmnt[0])
+        if sanitized != start:
+            log.debug("changed default device %s => %s" % (start, sanitized))
+        defmnt[0] = sanitized
 
         cfgmnt_has = False
         for cfgm in cfgmnt:
@@ -138,7 +149,7 @@ def handle(_name, cfg, cloud, log, _args):
 
         if cfgmnt_has:
             log.debug(("Not including %s, already"
-                       " previously included"), startname)
+                       " previously included"), start)
             continue
         cfgmnt.append(defmnt)
 
@@ -198,3 +209,53 @@ def handle(_name, cfg, cloud, log, _args):
         util.subp(("mount", "-a"))
     except:
         util.logexc(log, "Activating mounts via 'mount -a' failed")
+
+
+def devnode_for_dev_part(device, partition):
+    """
+    Find the name of the partition. While this might seem rather
+    straight forward, its not since some devices are '<device><partition>'
+    while others are '<device>p<partition>'. For example, /dev/xvda3 on EC2
+    will present as /dev/xvda3p1 for the first partition since /dev/xvda3 is
+    a block device.
+    """
+    if not os.path.exists(device):
+        return None
+
+    if not partition:
+        return device
+
+    short_name = os.path.basename(device)
+    sys_path = "/sys/block/%s" % short_name
+
+    if not os.path.exists(sys_path):
+        LOG.debug("did not find entry for %s in /sys/block", short_name)
+        return None
+
+    sys_long_path = sys_path + "/" + short_name
+
+    if partition is not None:
+        partition = str(partition)
+
+    if partition is None:
+        valid_mappings = [sys_long_path + "1",
+                          sys_long_path + "p1" % partition]
+    elif partition != "0":
+        valid_mappings = [sys_long_path + "%s" % partition,
+                          sys_long_path + "p%s" % partition]
+    else:
+        valid_mappings = []
+
+    for cdisk in valid_mappings:
+        if not os.path.exists(cdisk):
+            continue
+
+        dev_path = "/dev/%s" % os.path.basename(cdisk)
+        if os.path.exists(dev_path):
+            return dev_path
+
+    if partition is None or partition == "0":
+        return device
+
+    LOG.debug("Did not fine partition %s for device %s", partition, device)
+    return None

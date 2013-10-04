@@ -19,6 +19,7 @@
 from cloudinit.settings import PER_INSTANCE
 from cloudinit import util
 import logging
+import os
 import shlex
 
 frequency = PER_INSTANCE
@@ -29,13 +30,13 @@ SFDISK_CMD = util.which("sfdisk")
 LSBLK_CMD = util.which("lsblk")
 BLKID_CMD = util.which("blkid")
 BLKDEV_CMD = util.which("blockdev")
+WIPEFS_CMD = util.which("wipefs")
 
 LOG = logging.getLogger(__name__)
 
 
 def handle(_name, cfg, cloud, log, _args):
     """
-    Call util.prep_disk for disk_setup cloud-config.
     See doc/examples/cloud-config_disk-setup.txt for documentation on the
     format.
     """
@@ -103,15 +104,23 @@ def update_fs_setup_devices(disk_setup, tformer):
             continue
 
         origname = definition.get('device')
+
         if origname is None:
             continue
 
-        transformed = tformer(origname)
-        if transformed is None or transformed == origname:
-            continue
+        (dev, part) = util.expand_dotted_devname(origname)
 
-        definition['_origname'] = origname
-        definition['device'] = transformed
+        tformed = tformer(dev)
+        if tformed is not None:
+            dev = tformed
+            LOG.debug("%s is mapped to disk=%s part=%s",
+                      origname, tformed, part)
+            definition['_origname'] = origname
+            definition['device'] = tformed
+
+        if part and 'partition' in definition:
+            definition['_partition'] = definition['partition']
+        definition['partition'] = part
 
 
 def value_splitter(values, start=None):
@@ -127,23 +136,56 @@ def value_splitter(values, start=None):
         yield key, value
 
 
-def device_type(device):
+def enumerate_disk(device, nodeps=False):
     """
-    Return the device type of the device by calling lsblk.
+    Enumerate the elements of a child device.
+
+    Parameters:
+        device: the kernel device name
+        nodeps <BOOL>: don't enumerate children devices
+
+    Return a dict describing the disk:
+        type: the entry type, i.e disk or part
+        fstype: the filesystem type, if it exists
+        label: file system label, if it exists
+        name: the device name, i.e. sda
     """
 
-    lsblk_cmd = [LSBLK_CMD, '--pairs', '--nodeps', '--out', 'NAME,TYPE',
+    lsblk_cmd = [LSBLK_CMD, '--pairs', '--out', 'NAME,TYPE,FSTYPE,LABEL',
                  device]
+
+    if nodeps:
+        lsblk_cmd.append('--nodeps')
+
     info = None
     try:
         info, _err = util.subp(lsblk_cmd)
     except Exception as e:
         raise Exception("Failed during disk check for %s\n%s" % (device, e))
 
-    for key, value in value_splitter(info):
-        if key.lower() == "type":
-            return value.lower()
+    parts = [x for x in (info.strip()).splitlines() if len(x.split()) > 0]
 
+    for part in parts:
+        d = {'name': None,
+             'type': None,
+             'fstype': None,
+             'label': None,
+            }
+
+        for key, value in value_splitter(part):
+            d[key.lower()] = value
+
+        yield d
+
+
+def device_type(device):
+    """
+    Return the device type of the device by calling lsblk.
+    """
+
+    for d in enumerate_disk(device, nodeps=True):
+        if "type" in d:
+            return d["type"].lower()
     return None
 
 
@@ -204,7 +246,7 @@ def is_filesystem(device):
 
 
 def find_device_node(device, fs_type=None, label=None, valid_targets=None,
-                     label_match=True):
+                     label_match=True, replace_fs=None):
     """
     Find a device that is either matches the spec, or the first
 
@@ -221,26 +263,12 @@ def find_device_node(device, fs_type=None, label=None, valid_targets=None,
     if not valid_targets:
         valid_targets = ['disk', 'part']
 
-    lsblk_cmd = [LSBLK_CMD, '--pairs', '--out', 'NAME,TYPE,FSTYPE,LABEL',
-                 device]
-    info = None
-    try:
-        info, _err = util.subp(lsblk_cmd)
-    except Exception as e:
-        raise Exception("Failed during disk check for %s\n%s" % (device, e))
-
     raw_device_used = False
-    parts = [x for x in (info.strip()).splitlines() if len(x.split()) > 0]
+    for d in enumerate_disk(device):
 
-    for part in parts:
-        d = {'name': None,
-             'type': None,
-             'fstype': None,
-             'label': None,
-            }
-
-        for key, value in value_splitter(part):
-            d[key.lower()] = value
+        if d['fstype'] == replace_fs and label_match is False:
+            # We found a device where we want to replace the FS
+            return ('/dev/%s' % d['name'], False)
 
         if (d['fstype'] == fs_type and
             ((label_match and d['label'] == label) or not label_match)):
@@ -268,22 +296,20 @@ def find_device_node(device, fs_type=None, label=None, valid_targets=None,
 
 def is_disk_used(device):
     """
-    Check if the device is currently used. Returns false if there
+    Check if the device is currently used. Returns true if the device
+    has either a file system or a partition entry
     is no filesystem found on the disk.
     """
-    lsblk_cmd = [LSBLK_CMD, '--pairs', '--out', 'NAME,TYPE',
-                 device]
-    info = None
-    try:
-        info, _err = util.subp(lsblk_cmd)
-    except Exception as e:
-        # if we error out, we can't use the device
-        util.logexc(LOG,
-                    "Error checking for filesystem on %s\n%s" % (device, e))
+
+    # If the child count is higher 1, then there are child nodes
+    # such as partition or device mapper nodes
+    use_count = [x for x in enumerate_disk(device)]
+    if len(use_count.splitlines()) > 1:
         return True
 
-    # If there is any output, then the device has something
-    if len(info.splitlines()) > 1:
+    # If we see a file system, then its used
+    _, check_fstype, _ = check_fs(device)
+    if check_fstype:
         return True
 
     return False
@@ -455,6 +481,39 @@ def get_partition_mbr_layout(size, layout):
     return sfdisk_definition
 
 
+def purge_disk_ptable(device):
+    # wipe the first and last megabyte of a disk (or file)
+    # gpt stores partition table both at front and at end.
+    null = '\0'  # pylint: disable=W1401
+    start_len = 1024 * 1024
+    end_len = 1024 * 1024
+    with open(device, "rb+") as fp:
+        fp.write(null * (start_len))
+        fp.seek(-end_len, os.SEEK_END)
+        fp.write(null * end_len)
+        fp.flush()
+
+    read_parttbl(device)
+
+
+def purge_disk(device):
+    """
+    Remove parition table entries
+    """
+
+    # wipe any file systems first
+    for d in enumerate_disk(device):
+        if d['type'] not in ["disk", "crypt"]:
+            wipefs_cmd = [WIPEFS_CMD, "--all", "/dev/%s" % d['name']]
+            try:
+                LOG.info("Purging filesystem on /dev/%s" % d['name'])
+                util.subp(wipefs_cmd)
+            except Exception:
+                raise Exception("Failed FS purge of /dev/%s" % d['name'])
+
+    purge_disk_ptable(device)
+
+
 def get_partition_layout(table_type, size, layout):
     """
     Call the appropriate function for creating the table
@@ -542,6 +601,12 @@ def mkpart(device, definition):
     if not is_device_valid(device):
         raise Exception("Device %s is not a disk device!", device)
 
+    # Remove the partition table entries
+    if isinstance(layout, str) and layout.lower() == "remove":
+        LOG.debug("Instructed to remove partition table entries")
+        purge_disk(device)
+        return
+
     LOG.debug("Checking if device layout matches")
     if check_partition_layout(table_type, device, layout):
         LOG.debug("Device partitioning layout matches")
@@ -563,6 +628,26 @@ def mkpart(device, definition):
     exec_mkpart(table_type, device, part_definition)
 
     LOG.debug("Partition table created for %s", device)
+
+
+def lookup_force_flag(fs):
+    """
+    A force flag might be -F or -F, this look it up
+    """
+    flags = {'ext': '-F',
+             'btrfs': '-f',
+             'xfs': '-f',
+             'reiserfs': '-f',
+            }
+
+    if 'ext' in fs.lower():
+        fs = 'ext'
+
+    if fs.lower() in flags:
+        return flags[fs]
+
+    LOG.warn("Force flag for %s is unknown." % fs)
+    return ''
 
 
 def mkfs(fs_cfg):
@@ -592,6 +677,7 @@ def mkfs(fs_cfg):
     fs_type = fs_cfg.get('filesystem')
     fs_cmd = fs_cfg.get('cmd', [])
     fs_opts = fs_cfg.get('extra_opts', [])
+    fs_replace = fs_cfg.get('replace_fs', False)
     overwrite = fs_cfg.get('overwrite', False)
 
     # This allows you to define the default ephemeral or swap
@@ -632,17 +718,23 @@ def mkfs(fs_cfg):
             label_match = False
 
         device, reuse = find_device_node(device, fs_type=fs_type, label=label,
-                                         label_match=label_match)
+                                         label_match=label_match,
+                                         replace_fs=fs_replace)
         LOG.debug("Automatic device for %s identified as %s", odevice, device)
 
         if reuse:
             LOG.debug("Found filesystem match, skipping formating.")
             return
 
+        if not reuse and fs_replace and device:
+            LOG.debug("Replacing file system on %s as instructed." % device)
+
         if not device:
             LOG.debug("No device aviable that matches request. "
                       "Skipping fs creation for %s", fs_cfg)
             return
+    elif not partition or str(partition).lower() == 'none':
+        LOG.debug("Using the raw device to place filesystem %s on" % label)
 
     else:
         LOG.debug("Error in device identification handling.")
@@ -682,12 +774,16 @@ def mkfs(fs_cfg):
         if label:
             fs_cmd.extend(["-L", label])
 
+    # File systems that support the -F flag
+    if not fs_cmd and (overwrite or device_type(device) == "disk"):
+        fs_cmd.append(lookup_force_flag(fs_type))
+
     # Add the extends FS options
     if fs_opts:
         fs_cmd.extend(fs_opts)
 
     LOG.debug("Creating file system %s on %s", label, device)
-    LOG.debug("     Using cmd: %s", "".join(fs_cmd))
+    LOG.debug("     Using cmd: %s", " ".join(fs_cmd))
     try:
         util.subp(fs_cmd)
     except Exception as e:
