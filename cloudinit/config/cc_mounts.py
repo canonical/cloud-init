@@ -45,7 +45,7 @@ def is_mdname(name):
     return False
 
 
-def sanitize_devname(devname, transformer, log)
+def sanitize_devname(startname, transformer, log):
     log.debug("Attempting to determine the real name of %s", startname)
 
     # workaround, allow user to specify 'ephemeral'
@@ -96,6 +96,7 @@ def handle(_name, cfg, cloud, log, _args):
         sanitized = sanitize_devname(start, cloud.device_name_to_device, log)
         if sanitized is None:
             log.debug("Ignorming nonexistant named mount %s", start)
+            continue
 
         if sanitized != start:
             log.debug("changed %s => %s" % (start, sanitized))
@@ -132,6 +133,7 @@ def handle(_name, cfg, cloud, log, _args):
         sanitized = sanitize_devname(start, cloud.device_name_to_device, log)
         if sanitized is None:
             log.debug("Ignoring nonexistant default named mount %s", start)
+            continue
         if sanitized != start:
             log.debug("changed default device %s => %s" % (start, sanitized))
         defmnt[0] = sanitized
