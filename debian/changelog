@@ -1,3 +1,16 @@
+cloud-init (0.7.3~bzr884-0ubuntu1) saucy; urgency=low
+
+  * New upstream snapshot.
+    * allow disabling of growpart via file /etc/growroot-disabled
+      (LP: #1234331)
+    * add default user to sudo group (LP: #1228228)
+    * fix disk creation on azure (LP: #1233698)
+    * DatasourceSmartOS: allow availabiltity-zone to be fed from the
+      datasource via 'region' (which allows 'mirrors' and other things
+      to make use of it).
+
+ -- Scott Moser <smoser@ubuntu.com>  Fri, 04 Oct 2013 21:08:07 -0400
+
 cloud-init (0.7.3~bzr879-0ubuntu1) saucy; urgency=low
 
   * New upstream snapshot.

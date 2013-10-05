@@ -32,6 +32,7 @@ frequency = PER_ALWAYS
 DEFAULT_CONFIG = {
     'mode': 'auto',
     'devices': ['/'],
+    'ignore_growroot_disabled': False,
 }
 
 
@@ -250,6 +251,12 @@ def handle(_name, cfg, _cloud, log, _args):
     if util.is_false(mode):
         log.debug("growpart disabled: mode=%s" % mode)
         return
+
+    if util.is_false(mycfg.get('ignore_growroot_disabled', False)):
+        if os.path.isfile("/etc/growroot-disabled"):
+            log.debug("growpart disabled: /etc/growroot-disabled exists")
+            log.debug("use ignore_growroot_disabled to ignore")
+            return
 
     devices = util.get_cfg_option_list(cfg, "devices", ["/"])
     if not len(devices):

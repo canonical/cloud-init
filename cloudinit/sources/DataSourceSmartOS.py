@@ -46,6 +46,7 @@ SMARTOS_ATTRIB_MAP = {
     'user-data': ('user-data', False),
     'iptables_disable': ('iptables_disable', True),
     'motd_sys_info': ('motd_sys_info', True),
+    'availability_zone': ('region', True),
 }
 
 DS_NAME = 'SmartOS'
@@ -81,8 +82,9 @@ BUILTIN_CLOUD_CONFIG = {
                        'layout': False,
                        'overwrite': False}
          },
-    'fs_setup': [{'label': 'ephemeral0', 'filesystem': 'ext3',
-                  'device': 'ephemeral0', 'partition': 'auto'}],
+    'fs_setup': [{'label': 'ephemeral0',
+                  'filesystem': 'ext3',
+                  'device': 'ephemeral0'}],
 }
 
 

@@ -32,6 +32,7 @@ import grp
 import gzip
 import hashlib
 import os
+import os.path
 import platform
 import pwd
 import random
@@ -1826,3 +1827,11 @@ def log_time(logfunc, msg, func, args=None, kwargs=None, get_uptime=False):
         except:
             pass
     return ret
+
+
+def expand_dotted_devname(dotted):
+    toks = dotted.rsplit(".", 1)
+    if len(toks) > 1:
+        return toks
+    else:
+        return (dotted, None)

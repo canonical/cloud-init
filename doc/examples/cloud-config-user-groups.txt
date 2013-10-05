@@ -46,8 +46,8 @@ users:
 #   inactive: Create the user as inactive
 #   passwd: The hash -- not the password itself -- of the password you want
 #           to use for this user. You can generate a safe hash via:
-#               mkpasswd -m SHA-512 -s 4096
-#           (the above command would create a password SHA512 password hash
+#               mkpasswd --method=SHA-512 --rounds=4096
+#           (the above command would create from stdin an SHA-512 password hash
 #           with 4096 salt rounds)
 #
 #           Please note: while the use of a hashed password is better than
