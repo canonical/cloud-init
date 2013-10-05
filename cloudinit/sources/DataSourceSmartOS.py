@@ -176,13 +176,6 @@ class DataSourceSmartOS(sources.DataSource):
                           seed_timeout=self.seed_timeout, default=default,
                           b64=b64)
 
-    @property
-    def availability_zone(self):
-        try:
-            return self.metadata['availability-zone']
-        except KeyError:
-            return None
-
 
 def get_serial(seed_device, seed_timeout):
     """This is replaced in unit testing, allowing us to replace
