@@ -274,7 +274,7 @@ def dmi_data():
     except Exception as e:
         util.logexc(LOG, "Failed to get system UUID", e)
 
-    return sys_uuid.lower(), sys_type
+    return (sys_uuid.lower().strip(), sys_type.strip())
 
 
 # Used to match classes to dependencies
