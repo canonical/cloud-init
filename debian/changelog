@@ -1,3 +1,18 @@
+cloud-init (0.7.3-0ubuntu2) saucy; urgency=low
+
+  * fix bug where a mount entry of 'ephemeral0' would only consider
+    the unpartitioned device, not also the first partition (LP: #1236594)
+
+ -- Scott Moser <smoser@ubuntu.com>  Mon, 07 Oct 2013 20:16:02 -0400
+
+cloud-init (0.7.3-0ubuntu1) saucy; urgency=low
+
+  * New upstream release.
+    * Fix for SmartOS datasource when hostname is provided via dmi
+      data (LP: #1236445)
+
+ -- Scott Moser <smoser@ubuntu.com>  Mon, 07 Oct 2013 14:49:56 -0400
+
 cloud-init (0.7.3~bzr884-0ubuntu1) saucy; urgency=low
 
   * New upstream snapshot.
