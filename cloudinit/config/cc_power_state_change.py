@@ -75,6 +75,12 @@ def load_power_state(cfg):
                         ','.join(opt_map.keys()))
 
     delay = pstate.get("delay", "now")
+    # convert integer 30 or string '30' to '+30'
+    try:
+        delay = "+%s" % int(delay)
+    except ValueError:
+        pass
+
     if delay != "now" and not re.match(r"\+[0-9]+", delay):
         raise TypeError("power_state[delay] must be 'now' or '+m' (minutes).")
 
