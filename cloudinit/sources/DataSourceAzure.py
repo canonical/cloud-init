@@ -410,7 +410,7 @@ def read_azure_ovf(contents):
             simple = True
             value = child.childNodes[0].wholeText
 
-        attrs = {k: v for k, v in child.attributes.items()}
+        attrs = dict([(k, v) for k, v in child.attributes.items()])
 
         # we accept either UserData or CustomData.  If both are present
         # then behavior is undefined.
