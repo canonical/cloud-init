@@ -3,6 +3,8 @@
    partitioned block device with target filesystem on ephemeral0.1.
    (LP: #1236594)
  - fix DataSourceAzure incompatibility with 2.6 (LP: #1232175)
+ - fix power_state_change config module so that example works.  Improve
+   its documentation and add reference to 'timeout'
 0.7.3:
  - fix omnibus chef installer (LP: #1182265) [Chris Wing]
  - small fix for OVF datasource for iso transport on non-iso9660 filesystem
