@@ -178,14 +178,14 @@ def add_sources(srclist, template_params=None, aa_repo_match=None):
             continue
 
         source = ent['source']
+        source = templater.render_string(source, template_params)
+
         if aa_repo_match(source):
             try:
                 util.subp(["add-apt-repository", source])
             except:
                 errorlist.append([source, "add-apt-repository failed"])
             continue
-
-        source = templater.render_string(source, template_params)
 
         if 'filename' not in ent:
             ent['filename'] = 'cloud_config_sources.list'
