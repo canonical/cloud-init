@@ -183,8 +183,9 @@ def add_sources(srclist, template_params=None, aa_repo_match=None):
         if aa_repo_match(source):
             try:
                 util.subp(["add-apt-repository", source])
-            except:
-                errorlist.append([source, "add-apt-repository failed"])
+            except util.ProcessExecutionError as e:
+                errorlist.append([source, 
+                                  ("add-apt-repository failed. " + str(e))])
             continue
 
         if 'filename' not in ent:
