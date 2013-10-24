@@ -85,7 +85,7 @@ def handle(name, cfg, cloud, log, _args):
 
         matchcfg = cfg.get('add_apt_repo_match', ADD_APT_REPO_MATCH)
         if matchcfg:
-            matcher = re.compile(matchcfg)
+            matcher = re.compile(matchcfg).search
         else:
             matcher = lambda f: False
 
