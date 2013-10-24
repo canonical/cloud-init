@@ -72,6 +72,10 @@ apt_pipelining: False
 # then apt_mirror above will have no effect
 apt_preserve_sources_list: true
 
+# 'source' entries in apt-sources that match this python regex
+# expression will be passed to add-apt-repository
+add_apt_repo_match = "^[\w-]+:\w"
+
 apt_sources:
  - source: "deb http://ppa.launchpad.net/byobu/ppa/ubuntu karmic main"
    keyid: F430BBA5 # GPG key ID published on a key server
