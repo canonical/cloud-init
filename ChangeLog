@@ -6,6 +6,7 @@
  - fix power_state_change config module so that example works.  Improve
    its documentation and add reference to 'timeout'
  - support apt-add-archive with 'cloud-archive:' format.  (LP: #1244355)
+ - Change SmartOS verb for availability zone (LP: #1249124)
 0.7.3:
  - fix omnibus chef installer (LP: #1182265) [Chris Wing]
  - small fix for OVF datasource for iso transport on non-iso9660 filesystem
