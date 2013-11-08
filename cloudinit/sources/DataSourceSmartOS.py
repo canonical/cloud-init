@@ -46,7 +46,7 @@ SMARTOS_ATTRIB_MAP = {
     'user-data': ('user-data', False),
     'iptables_disable': ('iptables_disable', True),
     'motd_sys_info': ('motd_sys_info', True),
-    'availability_zone': ('region', True),
+    'availability_zone': ('datacenter_name', True),
 }
 
 DS_NAME = 'SmartOS'
