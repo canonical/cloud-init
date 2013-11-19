@@ -184,7 +184,7 @@ def add_sources(srclist, template_params=None, aa_repo_match=None):
             try:
                 util.subp(["add-apt-repository", source])
             except util.ProcessExecutionError as e:
-                errorlist.append([source, 
+                errorlist.append([source,
                                   ("add-apt-repository failed. " + str(e))])
             continue
 
