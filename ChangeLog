@@ -10,6 +10,7 @@
  - documentation fix for boothooks to use 'cloud-init-per'
  - fix resizefs module by supporting kernels that do not have
    /proc/PID/mountinfo.  (LP: #1248625) [Tim Daly Jr.]
+ - fix 'make rpm' by removing 0.6.4 entry from ChangeLog (LP: #1241834)
 0.7.3:
  - fix omnibus chef installer (LP: #1182265) [Chris Wing]
  - small fix for OVF datasource for iso transport on non-iso9660 filesystem
@@ -371,7 +372,6 @@
  - add a openstack/nova based pep8 extension utility ('hacking.py') that allows
    for custom checks (along with the standard pep8 checks) to occur when
    running 'make pep8' and its derivatives
-0.6.4:
  - support relative path in AuthorizedKeysFile (LP: #970071).
  - make apt-get update run with --quiet (suitable for logging) (LP: #1012613)
  - cc_salt_minion: use package 'salt-minion' rather than 'salt' (LP: #996166)
