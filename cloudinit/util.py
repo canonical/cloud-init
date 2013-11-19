@@ -1737,6 +1737,15 @@ def parse_mount_info(path, mountinfo_lines, log=LOG):
         return None
 
 
+def parse_mtab(path):
+    """On older kernels there's no /proc/$$/mountinfo, so use mtab."""
+    for line in load_file("/etc/mtab").splitlines():
+        devpth, mount_point, fs_type = line.split()[:3]
+        if mount_point == path:
+            return devpth, fs_type, mount_point
+    return None
+
+
 def get_mount_info(path, log=LOG):
     # Use /proc/$$/mountinfo to find the device where path is mounted.
     # This is done because with a btrfs filesystem using os.stat(path)
@@ -1767,8 +1776,11 @@ def get_mount_info(path, log=LOG):
     # So use /proc/$$/mountinfo to find the device underlying the
     # input path.
     mountinfo_path = '/proc/%s/mountinfo' % os.getpid()
-    lines = load_file(mountinfo_path).splitlines()
-    return parse_mount_info(path, lines, log)
+    if os.path.exists(mountinfo_path):
+        lines = load_file(mountinfo_path).splitlines()
+        return parse_mount_info(path, lines, log)
+    else:
+        return parse_mtab(path)
 
 
 def which(program):

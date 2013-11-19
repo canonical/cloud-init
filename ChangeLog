@@ -8,6 +8,8 @@
  - support apt-add-archive with 'cloud-archive:' format.  (LP: #1244355)
  - Change SmartOS verb for availability zone (LP: #1249124)
  - documentation fix for boothooks to use 'cloud-init-per'
+ - fix resizefs module by supporting kernels that do not have
+   /proc/PID/mountinfo.  (LP: #1248625) [Tim Daly Jr.]
 0.7.3:
  - fix omnibus chef installer (LP: #1182265) [Chris Wing]
  - small fix for OVF datasource for iso transport on non-iso9660 filesystem
