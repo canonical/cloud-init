@@ -34,6 +34,7 @@ def netdev_info(empty=""):
             continue
         if line[0] not in ("\t", " "):
             curdev = line.split()[0]
+            # TODO: up/down detection fails on FreeBSD
             devs[curdev] = {"up": False}
             for field in fields:
                 devs[curdev][field] = ""
@@ -46,21 +47,32 @@ def netdev_info(empty=""):
             fieldpost = "6"
 
         for i in range(len(toks)):
-            if toks[i] == "hwaddr":
+            if toks[i] == "hwaddr" or toks[i] == "ether":
                 try:
                     devs[curdev]["hwaddr"] = toks[i + 1]
                 except IndexError:
                     pass
-            for field in ("addr", "bcast", "mask"):
+
+            """
+            Couple the different items we're interested in with the correct field
+            since FreeBSD/CentOS/Fedora differ in the output.
+            """
+
+            ifconfigfields = {
+                "addr:":"addr", "inet":"addr",
+                "bcast:":"bcast", "broadcast":"bcast",
+                "mask:":"mask", "netmask":"mask"
+            }
+	    for origfield, field in ifconfigfields.items():
                 target = "%s%s" % (field, fieldpost)
                 if devs[curdev].get(target, ""):
                     continue
-                if toks[i] == "%s:" % field:
+                if toks[i] == "%s" % origfield:
                     try:
                         devs[curdev][target] = toks[i + 1]
                     except IndexError:
                         pass
-                elif toks[i].startswith("%s:" % field):
+                elif toks[i].startswith("%s" % origfield):
                     devs[curdev][target] = toks[i][len(field) + 1:]
 
     if empty != "":
@@ -71,17 +83,38 @@ def netdev_info(empty=""):
 
     return devs
 
+#
+# Use netstat instead of route since that produces more portable output.
+#
 
 def route_info():
-    (route_out, _err) = util.subp(["route", "-n"])
+    (route_out, _err) = util.subp(["netstat", "-rn"])
     routes = []
     entries = route_out.splitlines()[1:]
     for line in entries:
         if not line:
             continue
         toks = line.split()
-        if len(toks) < 8 or toks[0] == "Kernel" or toks[0] == "Destination":
+
+        """
+        FreeBSD shows 6 items in the routing table:
+          Destination        Gateway            Flags    Refs      Use  Netif Expire
+          default            10.65.0.1          UGS         0    34920 vtnet0
+	
+        Linux netstat shows 2 more:
+          Destination     Gateway         Genmask         Flags   MSS Window  irtt Iface
+          0.0.0.0         10.65.0.1       0.0.0.0         UG        0 0          0 eth0
+	"""
+
+        if len(toks) < 6 or toks[0] == "Kernel" or toks[0] == "Destination" or toks[0] == "Internet" or toks[0] == "Internet6" or toks[0] == "Routing":
             continue
+
+        if len(toks) < 8:
+            toks.append("-")
+            toks.append("-")
+            toks[7] = toks[5]
+            toks[5] = "-"
+
         entry = {
             'destination': toks[0],
             'gateway': toks[1],
@@ -92,6 +125,7 @@ def route_info():
             'use': toks[6],
             'iface': toks[7],
         }
+
         routes.append(entry)
     return routes
 

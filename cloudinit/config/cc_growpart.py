@@ -22,6 +22,7 @@ import os
 import os.path
 import re
 import stat
+import sys
 
 from cloudinit import log as logging
 from cloudinit.settings import PER_ALWAYS
@@ -137,6 +138,35 @@ class ResizeGrowPart(object):
 
         return (before, get_size(partdev))
 
+class ResizeGpart(object):
+    def available(self):
+        if not os.path.exists('/usr/local/sbin/gpart'):
+            return False
+        return True
+
+    def resize(self, diskdev, partnum, partdev):
+        """
+        GPT disks store metadata at the beginning (primary) and at the
+        end (secondary) of the disk. When launching an image with a
+        larger disk compared to the original image, the secondary copy
+        is lost. Thus, the metadata will be marked CORRUPT, and need to
+        be recovered.
+        """
+        try:
+            util.subp(["gpart", "recover", diskdev])
+        except util.ProcessExecutionError as e:
+            if e.exit_code != 0:
+                util.logexc(LOG, "Failed: gpart recover %s", diskdev)
+                raise ResizeFailedException(e)
+
+        before = get_size(partdev)
+        try:
+            util.subp(["gpart", "resize", "-i", partnum, diskdev])
+        except util.ProcessExecutionError as e:
+	    util.logexc(LOG, "Failed: gpart resize -i %s %s", partnum, diskdev)
+            raise ResizeFailedException(e)
+
+        return (before, get_size(partdev))
 
 def get_size(filename):
     fd = os.open(filename, os.O_RDONLY)
@@ -155,6 +185,12 @@ def device_part_info(devpath):
 
     bname = os.path.basename(rpath)
     syspath = "/sys/class/block/%s" % bname
+
+    # FreeBSD doesn't know of sysfs so just get everything we need from
+    # the device, like /dev/vtbd0p2.
+    if sys.platform.startswith('freebsd'):
+        m = re.search('^(/dev/.+)p([0-9])$', devpath)
+        return (m.group(1), m.group(2))
 
     if not os.path.exists(syspath):
         raise ValueError("%s had no syspath (%s)" % (devpath, syspath))
@@ -206,7 +242,7 @@ def resize_devices(resizer, devices):
                          "stat of '%s' failed: %s" % (blockdev, e),))
             continue
 
-        if not stat.S_ISBLK(statret.st_mode):
+        if not stat.S_ISBLK(statret.st_mode) and not stat.S_ISCHR(statret.st_mode):
             info.append((devent, RESIZE.SKIPPED,
                          "device '%s' not a block device" % blockdev,))
             continue
@@ -281,4 +317,4 @@ def handle(_name, cfg, _cloud, log, _args):
 
 # LP: 1212444 FIXME re-order and favor ResizeParted
 #RESIZERS = (('growpart', ResizeGrowPart),)
-RESIZERS = (('growpart', ResizeGrowPart), ('parted', ResizeParted))
+RESIZERS = (('growpart', ResizeGrowPart), ('parted', ResizeParted), ('gpart', ResizeGpart))

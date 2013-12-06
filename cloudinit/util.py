@@ -26,6 +26,7 @@ from StringIO import StringIO
 
 import contextlib
 import copy as obj_copy
+import ctypes
 import errno
 import glob
 import grp
@@ -36,6 +37,7 @@ import os.path
 import platform
 import pwd
 import random
+import re
 import shutil
 import socket
 import stat
@@ -1300,11 +1302,25 @@ def mounts():
     mounted = {}
     try:
         # Go through mounts to see what is already mounted
-        mount_locs = load_file("/proc/mounts").splitlines()
+	if os.path.exists("/proc/mounts"):
+            mount_locs = load_file("/proc/mounts").splitlines()
+            method = 'proc'
+	else:
+            (mountoutput, _err) = subp("mount")
+            mount_locs = mountoutput.splitlines()
+            method = 'mount'
         for mpline in mount_locs:
-            # Format at: man fstab
+            # Linux: /dev/sda1 on /boot type ext4 (rw,relatime,data=ordered)
+            # FreeBSD: /dev/vtbd0p2 on / (ufs, local, journaled soft-updates)
             try:
-                (dev, mp, fstype, opts, _freq, _passno) = mpline.split()
+		if method == 'proc' and len(mpline) == 6:
+                    (dev, mp, fstype, opts, _freq, _passno) = mpline.split()
+                elif method == 'mount':
+                    m = re.search('^(/dev/[\S]+) on (/.*) \((.+), .+, (.+)\)$', mpline)
+                    dev = m.group(1)
+                    mp = m.group(2)
+                    fstype = m.group(3)
+                    opts = m.group(4)
             except:
                 continue
             # If the name of the mount point contains spaces these
@@ -1315,9 +1331,9 @@ def mounts():
                 'mountpoint': mp,
                 'opts': opts,
             }
-        LOG.debug("Fetched %s mounts from %s", mounted, "/proc/mounts")
+        LOG.debug("Fetched %s mounts from %s", mounted, method)
     except (IOError, OSError):
-        logexc(LOG, "Failed fetching mount points from /proc/mounts")
+        logexc(LOG, "Failed fetching mount points")
     return mounted
 
 
@@ -1403,11 +1419,22 @@ def time_rfc2822():
 def uptime():
     uptime_str = '??'
     try:
-        contents = load_file("/proc/uptime").strip()
-        if contents:
-            uptime_str = contents.split()[0]
+        if os.path.exists("/proc/uptime"):
+            contents = load_file("/proc/uptime").strip()
+            if contents:
+                uptime_str = contents.split()[0]
+        else:
+            libc = ctypes.CDLL('/lib/libc.so.7')
+            size = ctypes.c_size_t()
+            buf = ctypes.c_int()
+            size.value = ctypes.sizeof(buf)
+            libc.sysctlbyname("kern.boottime", ctypes.byref(buf), ctypes.byref(size), None, 0)
+            now = time.time()
+            bootup = buf.value
+            uptime_str = now - bootup
+
     except:
-        logexc(LOG, "Unable to read uptime from /proc/uptime")
+        logexc(LOG, "Unable to read uptime")
     return uptime_str
 
 
@@ -1746,6 +1773,18 @@ def parse_mtab(path):
     return None
 
 
+def parse_mount(path):
+    (mountoutput, _err) = subp("mount")
+    mount_locs = mountoutput.splitlines()
+    for line in mount_locs:
+        m = re.search('^(/dev/[\S]+) on (/.*) \((.+), .+, (.+)\)$', line)
+        devpth = m.group(1)
+        mount_point = m.group(2)
+        fs_type = m.group(3)
+        if mount_point == path:
+            return devpth, fs_type, mount_point
+    return None
+
 def get_mount_info(path, log=LOG):
     # Use /proc/$$/mountinfo to find the device where path is mounted.
     # This is done because with a btrfs filesystem using os.stat(path)
@@ -1779,8 +1818,10 @@ def get_mount_info(path, log=LOG):
     if os.path.exists(mountinfo_path):
         lines = load_file(mountinfo_path).splitlines()
         return parse_mount_info(path, lines, log)
-    else:
+    elif os.path.exists("/etc/mtab"):
         return parse_mtab(path)
+    else:
+        return parse_mount(path)
 
 
 def which(program):
