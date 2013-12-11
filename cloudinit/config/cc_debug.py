@@ -67,10 +67,10 @@ def handle(name, cfg, cloud, log, args):
     # Now dump it...
     to_print = StringIO()
     to_print.write(_make_header("Config"))
-    to_print.write(_format_yaml(dump_cfg))
+    to_print.write(util.yaml_dumps(dump_cfg))
     to_print.write("\n")
     to_print.write(_make_header("MetaData"))
-    to_print.write(_format_yaml(cloud.datasource.metadata))
+    to_print.write(util.yaml_dumps(cloud.datasource.metadata))
     to_print.write("\n")
     to_print.write(_make_header("Misc"))
     to_print.write("Datasource: %s\n" % (type_utils.obj_name(cloud.datasource)))
@@ -80,9 +80,11 @@ def handle(name, cfg, cloud, log, args):
     to_print.write("Locale: %s\n" % (cloud.get_locale()))
     to_print.write("Launch IDX: %s\n" % (cloud.launch_index))
     contents = to_print.getvalue()
+    content_to_file = []
     for line in contents.splitlines():
         line = "ci-info: %s\n" % (line)
-        if out_file:
-            util.write_file(out_file, line, 0644, "a")
-        else:
-            util.multi_log(line, console=True, stderr=False)
+        content_to_file.append(line)
+    if out_file:
+        util.write_file(out_file, "".join(content_to_file), 0644, "w")
+    else:
+        util.multi_log("".join(content_to_file), console=True, stderr=False)
