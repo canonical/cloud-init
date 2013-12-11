@@ -18,7 +18,6 @@ from StringIO import StringIO
 from cloudinit import util
 from cloudinit import type_utils
 import copy
-import yaml
 
 
 def _make_header(text):
