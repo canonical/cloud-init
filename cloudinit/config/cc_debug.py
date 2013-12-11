@@ -21,19 +21,6 @@ import copy
 import yaml
 
 
-def _format_yaml(obj):
-    try:
-        formatted = yaml.safe_dump(obj,
-                                   line_break="\n",
-                                   indent=4,
-                                   explicit_start=True,
-                                   explicit_end=True,
-                                   default_flow_style=False)
-        return formatted.strip()
-    except:
-        return "???"
-
-
 def _make_header(text):
     header = StringIO()
     header.write("-" * 80)
