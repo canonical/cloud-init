@@ -15,11 +15,9 @@
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 from StringIO import StringIO
-
 from cloudinit import util
-
+from cloudinit import type_utils
 import copy
-
 import yaml
 
 
@@ -47,12 +45,17 @@ def _make_header(text):
     return header.getvalue()
 
 
-def handle(name, cfg, cloud, log, _args):
-    verbose = util.get_cfg_option_bool(cfg, 'verbose', default=True)
+def handle(name, cfg, cloud, log, args):
+    verbose = util.get_cfg_by_path(cfg, ('debug','verbose'), default=True)
     if not verbose:
         log.debug(("Skipping module named %s,"
                    " verbose printing disabled"), name)
         return
+    out_file = None
+    if args:
+        out_file = args[0]
+    else:
+        out_file = util.get_cfg_by_path(cfg, ('debug','output'))
     # Clean out some keys that we just don't care about showing...
     dump_cfg = copy.deepcopy(cfg)
     for k in ['log_cfgs']:
@@ -70,8 +73,8 @@ def handle(name, cfg, cloud, log, _args):
     to_print.write(_format_yaml(cloud.datasource.metadata))
     to_print.write("\n")
     to_print.write(_make_header("Misc"))
-    to_print.write("Datasource: %s\n" % (util.obj_name(cloud.datasource)))
-    to_print.write("Distro: %s\n" % (util.obj_name(cloud.distro)))
+    to_print.write("Datasource: %s\n" % (type_utils.obj_name(cloud.datasource)))
+    to_print.write("Distro: %s\n" % (type_utils.obj_name(cloud.distro)))
     to_print.write("Hostname: %s\n" % (cloud.get_hostname(True)))
     to_print.write("Instance ID: %s\n" % (cloud.get_instance_id()))
     to_print.write("Locale: %s\n" % (cloud.get_locale()))
@@ -79,4 +82,7 @@ def handle(name, cfg, cloud, log, _args):
     contents = to_print.getvalue()
     for line in contents.splitlines():
         line = "ci-info: %s\n" % (line)
-        util.multi_log(line, console=True, stderr=False)
+        if out_file:
+            util.write_file(out_file, line, 0644, "a")
+        else:
+            util.multi_log(line, console=True, stderr=False)
