@@ -33,15 +33,17 @@ def _make_header(text):
 
 def handle(name, cfg, cloud, log, args):
     verbose = util.get_cfg_by_path(cfg, ('debug', 'verbose'), default=True)
+    if args:
+        # if args are provided (from cmdline) then explicitly set verbose
+        out_file = args[0]
+        verbose = True
+    else:
+        out_file = util.get_cfg_by_path(cfg, ('debug', 'output'))
+
     if not verbose:
         log.debug(("Skipping module named %s,"
                    " verbose printing disabled"), name)
         return
-    out_file = None
-    if args:
-        out_file = args[0]
-    else:
-        out_file = util.get_cfg_by_path(cfg, ('debug', 'output'))
     # Clean out some keys that we just don't care about showing...
     dump_cfg = copy.deepcopy(cfg)
     for k in ['log_cfgs']:
