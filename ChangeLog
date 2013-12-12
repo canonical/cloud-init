@@ -1,5 +1,6 @@
 0.7.5:
  - open 0.7.5
+ - Add a debug log message around import failures
 0.7.4:
  - fix issue mounting 'ephemeral0' if ephemeral0 was an alias for a
    partitioned block device with target filesystem on ephemeral0.1.
