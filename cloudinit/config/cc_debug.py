@@ -32,7 +32,7 @@ def _make_header(text):
 
 
 def handle(name, cfg, cloud, log, args):
-    verbose = util.get_cfg_by_path(cfg, ('debug','verbose'), default=True)
+    verbose = util.get_cfg_by_path(cfg, ('debug', 'verbose'), default=True)
     if not verbose:
         log.debug(("Skipping module named %s,"
                    " verbose printing disabled"), name)
@@ -41,7 +41,7 @@ def handle(name, cfg, cloud, log, args):
     if args:
         out_file = args[0]
     else:
-        out_file = util.get_cfg_by_path(cfg, ('debug','output'))
+        out_file = util.get_cfg_by_path(cfg, ('debug', 'output'))
     # Clean out some keys that we just don't care about showing...
     dump_cfg = copy.deepcopy(cfg)
     for k in ['log_cfgs']:
@@ -59,7 +59,8 @@ def handle(name, cfg, cloud, log, args):
     to_print.write(util.yaml_dumps(cloud.datasource.metadata))
     to_print.write("\n")
     to_print.write(_make_header("Misc"))
-    to_print.write("Datasource: %s\n" % (type_utils.obj_name(cloud.datasource)))
+    to_print.write("Datasource: %s\n" %
+                   (type_utils.obj_name(cloud.datasource)))
     to_print.write("Distro: %s\n" % (type_utils.obj_name(cloud.distro)))
     to_print.write("Hostname: %s\n" % (cloud.get_hostname(True)))
     to_print.write("Instance ID: %s\n" % (cloud.get_instance_id()))
