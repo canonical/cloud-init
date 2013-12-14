@@ -22,6 +22,7 @@ from cloudinit import util
 import errno
 import os
 import re
+import signal
 import subprocess
 import time
 
@@ -36,7 +37,7 @@ EXIT_FAIL = 254
 def givecmdline(pid):
     # Check if this pid still exists by sending it the harmless 0 signal.
     try:
-	os.kill(pid, 0)
+        os.kill(pid, signal.SIG_DFL)
     except OSError:
         return None
     else:
