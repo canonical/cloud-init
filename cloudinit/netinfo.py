@@ -21,6 +21,7 @@
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import cloudinit.util as util
+import re
 
 from prettytable import PrettyTable
 
@@ -34,13 +35,17 @@ def netdev_info(empty=""):
             continue
         if line[0] not in ("\t", " "):
             curdev = line.split()[0]
-            # TODO: up/down detection fails on FreeBSD
             devs[curdev] = {"up": False}
             for field in fields:
                 devs[curdev][field] = ""
         toks = line.lower().strip().split()
         if toks[0] == "up":
             devs[curdev]['up'] = True
+        # If the output of ifconfig doesn't contain the required info in the
+        # obvious place, use a regex filter to be sure.
+        elif len(toks) > 1:
+            if re.search("flags=\d+<up,", toks[1]):
+                devs[curdev]['up'] = True
 
         fieldpost = ""
         if toks[0] == "inet6":
