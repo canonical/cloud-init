@@ -165,6 +165,10 @@ class ResizeGpart(object):
 	    util.logexc(LOG, "Failed: gpart resize -i %s %s", partnum, diskdev)
             raise ResizeFailedException(e)
 
+        # Since growing the FS requires a reboot, make sure we reboot
+        # first when this module has finished.
+        open('/var/run/reboot-required', 'a').close()
+
         return (before, get_size(partdev))
 
 def get_size(filename):
