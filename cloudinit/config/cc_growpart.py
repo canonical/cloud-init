@@ -22,7 +22,6 @@ import os
 import os.path
 import re
 import stat
-import sys
 
 from cloudinit import log as logging
 from cloudinit.settings import PER_ALWAYS
@@ -188,7 +187,7 @@ def device_part_info(devpath):
 
     # FreeBSD doesn't know of sysfs so just get everything we need from
     # the device, like /dev/vtbd0p2.
-    if sys.platform.startswith('freebsd'):
+    if util.system_info()["platform"].startswith('FreeBSD'):
         m = re.search('^(/dev/.+)p([0-9])$', devpath)
         return (m.group(1), m.group(2))
 
