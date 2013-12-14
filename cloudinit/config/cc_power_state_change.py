@@ -41,7 +41,7 @@ def givecmdline(pid):
     except OSError:
         return None
     else:
-        # Example output from procstat -c 16357
+        # Example output from procstat -c 1
         #   PID COMM             ARGS
         #     1 init             /bin/init --
         if util.system_info()["platform"].startswith('FreeBSD'):
