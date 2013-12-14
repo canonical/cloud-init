@@ -36,6 +36,10 @@ LOG = logging.getLogger(__name__)
 APT_GET_COMMAND = ('apt-get', '--option=Dpkg::Options::=--force-confold',
                    '--option=Dpkg::options::=--force-unsafe-io',
                    '--assume-yes', '--quiet')
+APT_GET_WRAPPER = {
+    'command': 'eatmydata',
+    'enabled': 'auto',
+}
 
 
 class Distro(distros.Distro):
@@ -148,7 +152,13 @@ class Distro(distros.Distro):
         # See: http://tiny.cc/kg91fw
         # Or: http://tiny.cc/mh91fw
         e['DEBIAN_FRONTEND'] = 'noninteractive'
-        cmd = list(self.get_option("apt_get_command", APT_GET_COMMAND))
+
+        wcfg = self.get_option("apt_get_wrapper", APT_GET_WRAPPER)
+        cmd = _get_wrapper_prefix(
+            wcfg.get('command', APT_GET_WRAPPER['command']),
+            wcfg.get('enabled', APT_GET_WRAPPER['enabled']))
+
+        cmd.extend(list(self.get_option("apt_get_command", APT_GET_COMMAND)))
 
         if args and isinstance(args, str):
             cmd.append(args)
@@ -166,7 +176,9 @@ class Distro(distros.Distro):
         cmd.extend(pkglist)
 
         # Allow the output of this to flow outwards (ie not be captured)
-        util.subp(cmd, env=e, capture=False)
+        util.log_time(logfunc=LOG.debug,
+            msg="apt-%s [%s]" % (command, ' '.join(cmd)), func=util.subp,
+            args=(cmd,), kwargs={'env': e, 'capture': False})
 
     def update_package_sources(self):
         self._runner.run("update-sources", self.package_command,
@@ -175,3 +187,15 @@ class Distro(distros.Distro):
     def get_primary_arch(self):
         (arch, _err) = util.subp(['dpkg', '--print-architecture'])
         return str(arch).strip()
+
+
+def _get_wrapper_prefix(cmd, mode):
+    if isinstance(cmd, str):
+        cmd = [str(cmd)]
+
+    if (util.is_true(mode) or
+        (str(mode).lower() == "auto" and cmd[0] and
+         util.which(cmd[0]))):
+        return cmd
+    else:
+        return []

@@ -147,8 +147,13 @@ apt_sources:
 #     '--option=Dpkg::options::=--force-unsafe-io', '--assume-yes', '--quiet']
 #
 # apt_get_upgrade_subcommand:
-# Specify a different subcommand for 'upgrade. The default is 'dist-upgrade'.
-# This is the subcommand that is invoked if package_upgrade is set to true above.
+#  Specify a different subcommand for 'upgrade. The default is 'dist-upgrade'.
+#  This is the subcommand that is invoked if package_upgrade is set to true above.
+#
+# apt_get_wrapper:
+#   command: eatmydata
+#   enabled: [True, False, "auto"]
+#  
 
 # Install additional packages on first boot
 #
