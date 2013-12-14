@@ -1418,12 +1418,15 @@ def time_rfc2822():
 
 def uptime():
     uptime_str = '??'
+    method = 'unknown'
     try:
         if os.path.exists("/proc/uptime"):
+            method = '/proc/uptime'
             contents = load_file("/proc/uptime").strip()
             if contents:
                 uptime_str = contents.split()[0]
         else:
+            method = 'ctypes'
             libc = ctypes.CDLL('/lib/libc.so.7')
             size = ctypes.c_size_t()
             buf = ctypes.c_int()
@@ -1434,7 +1437,7 @@ def uptime():
             uptime_str = now - bootup
 
     except:
-        logexc(LOG, "Unable to read uptime")
+        logexc(LOG, "Unable to read uptime using method: %s" % method)
     return uptime_str
 
 
