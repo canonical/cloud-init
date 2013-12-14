@@ -40,33 +40,53 @@ class Distro(distros.Distro):
         self._runner = helpers.Runners(paths)
         self.osfamily = 'freebsd'
 
+    # Updates a key in /etc/rc.conf.
     def updatercconf(self, key, value):
 	LOG.debug("updatercconf: %s => %s" % (key, value))
-        conf = {}
+        conf = self.loadrcconf()
 	configchanged = False
-	with open("/etc/rc.conf") as file:
-            for line in file:
-                tok = line.split('=')
-		# TODO: Handle keys with spaces, make this a bit more robust.
-		if tok[0] == key:
-		    if tok[1] != value:
-		        conf[tok[0]] = value 
-			LOG.debug("[rc.conf]: Value %s for key %s needs to be changed" % (value, key))
-			configchanged = True
-		else:
-		    conf[tok[0]] = tok[1].rstrip()
+        for item in conf:
+            if item == key and conf[item] != value:
+                conf[item] = value
+                LOG.debug("[rc.conf]: Value %s for key %s needs to be changed" % (value, key))
+                configchanged = True
 
         if configchanged:
             LOG.debug("Writing new /etc/rc.conf file")
-            with open ('/etc/rc.conf', 'w') as file:
+            with open('/etc/rc.conf', 'w') as file:
                for keyval in conf.items():
                    file.write("%s=%s\n" % keyval)
 
-    def _read_hostname():
-	return
+    # Load the contents of /etc/rc.conf and store all keys in a dict.
+    def loadrcconf(self):
+        conf = {}
+        with open("/etc/rc.conf") as file:
+            for line in file:
+                tok = line.split('=')
+                conf[tok[0]] = tok[1].rstrip()
+        return conf
 
-    def _read_system_hostname():
-	return
+    def readrcconf(self, key):
+        conf = self.loadrcconf()
+        try:
+            val = conf[key]
+	except KeyError:
+            val = None
+        return val
+
+    def _read_system_hostname(self):
+        sys_hostname = self._read_hostname()
+        return ('rc.conf', sys_hostname)
+
+    def _read_hostname(self, default=None):
+        hostname = None
+        try:
+            hostname = self.readrcconf('hostname')
+        except IOError:
+            pass
+        if not hostname:
+            return default
+        return hostname
 
     def _select_hostname(self, hostname, fqdn):
         if not hostname:
