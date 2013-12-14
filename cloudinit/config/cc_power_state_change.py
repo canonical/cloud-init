@@ -23,7 +23,6 @@ import errno
 import os
 import re
 import subprocess
-import sys
 import time
 
 frequency = PER_INSTANCE
@@ -44,7 +43,7 @@ def givecmdline(pid):
         # Example output from procstat -c 16357
         #   PID COMM             ARGS
         #     1 init             /bin/init --
-        if sys.platform.startswith('freebsd'):
+        if util.system_info()["platform"].startswith('FreeBSD'):
             (output, _err) = util.subp(['procstat', '-c', str(pid)])
             line = output.splitlines()[1]
             m = re.search('\d+ (\w|\.|-)+\s+(/\w.+)', line)
