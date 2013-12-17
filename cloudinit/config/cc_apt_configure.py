@@ -20,6 +20,7 @@
 
 import glob
 import os
+import re
 
 from cloudinit import templater
 from cloudinit import util
@@ -29,6 +30,9 @@ distros = ['ubuntu', 'debian']
 PROXY_TPL = "Acquire::HTTP::Proxy \"%s\";\n"
 APT_CONFIG_FN = "/etc/apt/apt.conf.d/94cloud-init-config"
 APT_PROXY_FN = "/etc/apt/apt.conf.d/95cloud-init-proxy"
+
+# this will match 'XXX:YYY' (ie, 'cloud-archive:foo' or 'ppa:bar')
+ADD_APT_REPO_MATCH = r"^[\w-]+:\w"
 
 # A temporary shell program to get a given gpg key
 # from a given keyserver
@@ -78,7 +82,15 @@ def handle(name, cfg, cloud, log, _args):
         params = mirrors
         params['RELEASE'] = release
         params['MIRROR'] = mirror
-        errors = add_sources(cfg['apt_sources'], params)
+
+        matchcfg = cfg.get('add_apt_repo_match', ADD_APT_REPO_MATCH)
+        if matchcfg:
+            matcher = re.compile(matchcfg).search
+        else:
+            matcher = lambda f: False
+
+        errors = add_sources(cfg['apt_sources'], params,
+                             aa_repo_match=matcher)
         for e in errors:
             log.warn("Add source error: %s", ':'.join(e))
 
@@ -147,7 +159,7 @@ def generate_sources_list(codename, mirrors, cloud, log):
     templater.render_to_file(template_fn, '/etc/apt/sources.list', params)
 
 
-def add_sources(srclist, template_params=None):
+def add_sources(srclist, template_params=None, aa_repo_match=None):
     """
     add entries in /etc/apt/sources.list.d for each abbreviated
     sources.list entry in 'srclist'.  When rendering template, also
@@ -156,6 +168,9 @@ def add_sources(srclist, template_params=None):
     if template_params is None:
         template_params = {}
 
+    if aa_repo_match is None:
+        aa_repo_match = lambda f: False
+
     errorlist = []
     for ent in srclist:
         if 'source' not in ent:
@@ -163,14 +178,15 @@ def add_sources(srclist, template_params=None):
             continue
 
         source = ent['source']
-        if source.startswith("ppa:"):
+        source = templater.render_string(source, template_params)
+
+        if aa_repo_match(source):
             try:
                 util.subp(["add-apt-repository", source])
-            except:
-                errorlist.append([source, "add-apt-repository failed"])
+            except util.ProcessExecutionError as e:
+                errorlist.append([source,
+                                  ("add-apt-repository failed. " + str(e))])
             continue
-
-        source = templater.render_string(source, template_params)
 
         if 'filename' not in ent:
             ent['filename'] = 'cloud_config_sources.list'

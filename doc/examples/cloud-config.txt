@@ -72,6 +72,10 @@ apt_pipelining: False
 # then apt_mirror above will have no effect
 apt_preserve_sources_list: true
 
+# 'source' entries in apt-sources that match this python regex
+# expression will be passed to add-apt-repository
+add_apt_repo_match: '^[\w-]+:\w'
+
 apt_sources:
  - source: "deb http://ppa.launchpad.net/byobu/ppa/ubuntu karmic main"
    keyid: F430BBA5 # GPG key ID published on a key server
@@ -143,8 +147,13 @@ apt_sources:
 #     '--option=Dpkg::options::=--force-unsafe-io', '--assume-yes', '--quiet']
 #
 # apt_get_upgrade_subcommand:
-# Specify a different subcommand for 'upgrade. The default is 'dist-upgrade'.
-# This is the subcommand that is invoked if package_upgrade is set to true above.
+#  Specify a different subcommand for 'upgrade. The default is 'dist-upgrade'.
+#  This is the subcommand that is invoked if package_upgrade is set to true above.
+#
+# apt_get_wrapper:
+#   command: eatmydata
+#   enabled: [True, False, "auto"]
+#  
 
 # Install additional packages on first boot
 #
@@ -272,7 +281,7 @@ runcmd:
 # boothook, but possibly with more friendly.
 #  * bootcmd will run on every boot
 #  * the INSTANCE_ID variable will be set to the current instance id.
-#  * you can use 'cloud-init-boot-per' command to help only run once
+#  * you can use 'cloud-init-per' command to help only run once
 bootcmd:
  - echo 192.168.1.130 us.archive.ubuntu.com > /etc/hosts
  - [ cloud-init-per, once, mymkfs, mkfs, /dev/vdb ]

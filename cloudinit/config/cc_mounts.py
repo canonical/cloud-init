@@ -222,9 +222,6 @@ def devnode_for_dev_part(device, partition):
     if not os.path.exists(device):
         return None
 
-    if not partition:
-        return device
-
     short_name = os.path.basename(device)
     sys_path = "/sys/block/%s" % short_name
 
@@ -238,8 +235,7 @@ def devnode_for_dev_part(device, partition):
         partition = str(partition)
 
     if partition is None:
-        valid_mappings = [sys_long_path + "1",
-                          sys_long_path + "p1" % partition]
+        valid_mappings = [sys_long_path + "1", sys_long_path + "p1"]
     elif partition != "0":
         valid_mappings = [sys_long_path + "%s" % partition,
                           sys_long_path + "p%s" % partition]

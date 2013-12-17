@@ -1,3 +1,27 @@
+cloud-init (0.7.5~bzr902-0ubuntu1) trusty; urgency=medium
+
+  * debian/control: Build-Depend on python-jsonpatch as #717916 is now fixed.
+  * debian/control: Recommend eatmydata (LP: #1236531)
+  * New upstream snapshot.
+    * support invoking apt with 'eatmydata' (LP: #1236531)
+    * add a message in log about dynamic import failures
+  * New in '0.7.4' release.
+    * fix reading of mount information on kernels < 2.6.26 (LP: #1248625)
+    * SmartOS: change 'region' to 'datacenter_name' to address change
+      in data provided to instance (LP: #1249124)
+    * support calling 'add-apt-repository' for 'cloud-archive:' entries
+      (LP: #1244355)
+    * DataSourceAzure: fix incompatibility with python 2.6 (LP: #1232175)
+    * fix bug mounting first partition of a alias'd name. (LP: #1236594)
+    * SmartOS: fix bug with hostname due to trailing whitespace (LP: #1236445)
+    * fix creation of partitions on Azure (LP: #1233698)
+    * cc_growpart: respect /etc/growroot-disabled (LP: #1234331)
+    * ubuntu config: add default user to 'sudo' group (LP: #1228228)
+    * Fix usage of libselinux-python when selinux is disabled
+    * add OpenNebula datasource
+
+ -- Scott Moser <smoser@ubuntu.com>  Tue, 17 Dec 2013 16:51:30 -0500
+
 cloud-init (0.7.3-0ubuntu2) saucy; urgency=low
 
   * fix bug where a mount entry of 'ephemeral0' would only consider

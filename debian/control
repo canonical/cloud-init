@@ -12,7 +12,7 @@ Build-Depends: cdbs,
                python-boto,
                python-cheetah,
                python-configobj,
-               python-json-patch,
+               python-jsonpatch | python-json-patch,
                python-mocker,
                python-nose,
                python-oauth,
@@ -33,6 +33,7 @@ Depends: cloud-guest-utils | cloud-utils,
          software-properties-common,
          ${misc:Depends},
          ${python:Depends}
+Recommends: eatmydata
 Provides: ec2-init
 Replaces: ec2-init (<<0.5.3)
 Conflicts: ec2-init (<<0.5.3)
