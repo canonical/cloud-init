@@ -210,10 +210,32 @@ class Distro(distros.Distro):
 
     def _write_network(self, settings):
 	return
-	
-    def apply_locale():
-	return
-	
+
+    def apply_locale(self, locale, out_fn=None):
+        loginconf = '/etc/login.conf'
+        newloginconf = '/tmp/login.conf.new'
+        backupconf = '/etc/login.conf.orig'
+
+        newconf = open(newloginconf, 'w')
+        origconf = open(loginconf, 'r')
+
+        for line in origconf:
+            newconf.write(re.sub('^default:', r'default:lang=%s:' % locale, line))
+        newconf.close()
+        origconf.close()
+        # Make a backup of login.conf.
+        copyfile(loginconf, backupconf)
+        # And copy the new login.conf.
+        copyfile(newloginconf, loginconf)
+
+        try:
+            util.logexc("Running cap_mkdb for %s", locale)
+            util.subp(['cap_mkdb', '/etc/login.conf'])
+        except:
+            # cap_mkdb failed, so restore the backup.
+            util.logexc("Failed to apply locale %s", locale)
+            copyfile(backupconf, loginconf)
+
     def install_packages():
 	return
 
