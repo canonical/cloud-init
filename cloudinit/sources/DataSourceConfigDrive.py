@@ -284,8 +284,10 @@ def find_candidate_devs():
     # followed by fstype items, but with dupes removed
     combined = (by_label + [d for d in by_fstype if d not in by_label])
 
-    # We are looking for block device (sda, not sda1), ignore partitions
-    combined = [d for d in combined if not util.is_partition(d)]
+    # We are looking for a block device or partition with necessary label or
+    # an unpartitioned block device.
+    combined = [d for d in combined
+                    if d in by_label or not util.is_partition(d)]
 
     return combined
 
