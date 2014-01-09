@@ -32,7 +32,7 @@ PKG_MP = {
     'boto': 'python-boto',
     'cheetah': 'python-cheetah',
     'configobj': 'python-configobj',
-    'jsonpatch': 'python-json-patch',
+    'jsonpatch': 'python-jsonpatch | python-json-patch',
     'oauth': 'python-oauth',
     'prettytable': 'python-prettytable',
     'pyserial': 'python-serial',
