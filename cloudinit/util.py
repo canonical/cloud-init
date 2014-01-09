@@ -170,6 +170,8 @@ class SeLinuxGuard(object):
     def __exit__(self, excp_type, excp_value, excp_traceback):
         if self.selinux and self.selinux.is_selinux_enabled():
             path = os.path.realpath(os.path.expanduser(self.path))
+            # path should be a string, not unicode
+            path = str(path)
             do_restore = False
             try:
                 # See if even worth restoring??
