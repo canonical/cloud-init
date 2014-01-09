@@ -35,8 +35,8 @@ class TestMergeRun(helpers.FilesystemMockingTestCase):
         initer.datasource.userdata_raw = ud
         _iid = initer.instancify()
         initer.update()
-        initer.cloudify().run('consume_userdata',
-                              initer.consume_userdata,
+        initer.cloudify().run('consume_data',
+                              initer.consume_data,
                               args=[PER_INSTANCE],
                               freq=PER_INSTANCE)
         mirrors = initer.distro.get_option('package_mirrors')
