@@ -26,7 +26,8 @@ import copy
 import os
 import sys
 
-from cloudinit.settings import (PER_INSTANCE, FREQUENCIES, CLOUD_CONFIG)
+from cloudinit.settings import (PER_ALWAYS, PER_INSTANCE, FREQUENCIES,
+                                CLOUD_CONFIG)
 
 from cloudinit import handlers
 
@@ -123,6 +124,10 @@ class Init(object):
             os.path.join(c_dir, 'scripts', 'per-instance'),
             os.path.join(c_dir, 'scripts', 'per-once'),
             os.path.join(c_dir, 'scripts', 'per-boot'),
+            os.path.join(c_dir, 'scripts', 'vendor'),
+            os.path.join(c_dir, 'scripts', 'vendor', 'per-boot'),
+            os.path.join(c_dir, 'scripts', 'vendor', 'per-instance'),
+            os.path.join(c_dir, 'scripts', 'vendor', 'per-once'),
             os.path.join(c_dir, 'seed'),
             os.path.join(c_dir, 'instances'),
             os.path.join(c_dir, 'handlers'),
@@ -319,6 +324,7 @@ class Init(object):
         if not self._write_to_cache():
             return
         self._store_userdata()
+        self._store_vendordata()
 
     def _store_userdata(self):
         raw_ud = "%s" % (self.datasource.get_userdata_raw())
@@ -326,21 +332,62 @@ class Init(object):
         processed_ud = "%s" % (self.datasource.get_userdata())
         util.write_file(self._get_ipath('userdata'), processed_ud, 0600)
 
-    def _default_userdata_handlers(self):
+    def _store_vendordata(self):
+        raw_vd = "%s" % (self.datasource.get_vendordata_raw())
+        util.write_file(self._get_ipath('vendordata_raw'), raw_vd, 0600)
+        processed_vd = "%s" % (self.datasource.get_vendordata())
+        util.write_file(self._get_ipath('vendordata'), processed_vd, 0600)
+
+    def _get_default_handlers(self, user_data=False, vendor_data=False,
+                              excluded=None):
         opts = {
             'paths': self.paths,
             'datasource': self.datasource,
         }
+
+        def conditional_get(cls, mod):
+            cls_name = cls.__name__.split('.')[-1]
+            _mod = getattr(cls, mod)
+            if not excluded:
+                return _mod(**opts)
+
+            if cls_name not in excluded:
+                _mod = getattr(cls, mod)
+                return _mod(**opts)
+
         # TODO(harlowja) Hmmm, should we dynamically import these??
         def_handlers = [
-            cc_part.CloudConfigPartHandler(**opts),
-            ss_part.ShellScriptPartHandler(**opts),
-            bh_part.BootHookPartHandler(**opts),
-            up_part.UpstartJobPartHandler(**opts),
+            conditional_get(bh_part, 'BootHookPartHandler'),
+            conditional_get(up_part, 'UpstartJobPartHandler'),
         ]
-        return def_handlers
 
-    def consume_userdata(self, frequency=PER_INSTANCE):
+        # Add in the shell script part handler
+        if user_data:
+            def_handlers.extend([
+                conditional_get(cc_part, 'CloudConfigPartHandler'),
+                conditional_get(ss_part, 'ShellScriptPartHandler')])
+
+        # This changes the path for the vendor script execution
+        if vendor_data:
+            opts['script_path'] = "vendor_scripts"
+            opts['cloud_config_path'] = "vendor_cloud_config"
+            def_handlers.extend([
+                conditional_get(cc_part, 'CloudConfigPartHandler'),
+                conditional_get(ss_part, 'ShellScriptPartHandler')])
+
+        return [x for x in def_handlers if x is not None]
+
+    def _default_userdata_handlers(self):
+        return self._get_default_handlers(user_data=True)
+
+    def _default_vendordata_handlers(self, excluded=None):
+        return self._get_default_handlers(vendor_data=True, excluded=excluded)
+
+    def _do_handlers(self, data_msg, c_handlers_list, frequency):
+        """
+        Generalized handlers suitable for use with either vendordata
+        or userdata
+        """
         cdir = self.paths.get_cpath("handlers")
         idir = self._get_ipath("handlers")
 
@@ -351,12 +398,6 @@ class Init(object):
         for d in [cdir, idir]:
             if d and d not in sys.path:
                 sys.path.insert(0, d)
-
-        # Ensure datasource fetched before activation (just incase)
-        user_data_msg = self.datasource.get_userdata(True)
-
-        # This keeps track of all the active handlers
-        c_handlers = helpers.ContentHandlers()
 
         def register_handlers_in_dir(path):
             # Attempts to register any handler modules under the given path.
@@ -382,13 +423,16 @@ class Init(object):
                     util.logexc(LOG, "Failed to register handler from %s",
                                 fname)
 
+        # This keeps track of all the active handlers
+        c_handlers = helpers.ContentHandlers()
+
         # Add any handlers in the cloud-dir
         register_handlers_in_dir(cdir)
 
         # Register any other handlers that come from the default set. This
         # is done after the cloud-dir handlers so that the cdir modules can
         # take over the default user-data handler content-types.
-        for mod in self._default_userdata_handlers():
+        for mod in c_handlers_list:
             types = c_handlers.register(mod, overwrite=False)
             if types:
                 LOG.debug("Added default handler for %s from %s", types, mod)
@@ -420,7 +464,7 @@ class Init(object):
                 # names...
                 'handlercount': 0,
             }
-            handlers.walk(user_data_msg, handlers.walker_callback,
+            handlers.walk(data_msg, handlers.walker_callback,
                           data=part_data)
 
         def finalize_handlers():
@@ -442,6 +486,12 @@ class Init(object):
         finally:
             finalize_handlers()
 
+    def consume_data(self, frequency=PER_INSTANCE):
+        # Consume the userdata first, because we need want to let the part
+        # handlers run first (for merging stuff)
+        self._consume_userdata(frequency)
+        self._consume_vendordata(frequency)
+
         # Perform post-consumption adjustments so that
         # modules that run during the init stage reflect
         # this consumed set.
@@ -452,6 +502,82 @@ class Init(object):
         # references to the previous config, distro, paths
         # objects before the load of the userdata happened,
         # this is expected.
+
+    def _consume_vendordata(self, frequency=PER_ALWAYS):
+        """
+        Consume the vendordata and run the part handlers on it
+        """
+        if not self.datasource.has_vendordata():
+            LOG.info("datasource did not provide vendor data")
+            return
+
+        # User-data should have been consumed first. If it has, then we can
+        # read it and simply parse it. This means that the datasource can
+        # define if the vendordata can be consumed too....i.e this method
+        # gives us a lot of flexibility.
+        _cc_merger = helpers.ConfigMerger(paths=self._paths,
+                                          datasource=self.datasource,
+                                          additional_fns=[],
+                                          base_cfg=self.cfg,
+                                          include_vendor=False)
+        _cc = _cc_merger.cfg
+
+        if not self.datasource.consume_vendordata():
+            if not isinstance(_cc, dict):
+                LOG.info(("userdata does explicitly allow vendordata "
+                          "consumption"))
+                return
+
+            if 'vendor_data' not in _cc:
+                LOG.info(("no 'vendor_data' directive found in the"
+                          "conf files. Skipping consumption of vendordata"))
+                return
+
+        # This allows for the datasource to signal explicit conditions when
+        # when the user has opted in to user-data
+        if self.datasource.consume_vendordata():
+            LOG.info(("datasource has indicated that vendordata that user"
+                      " opted-in via another channel"))
+
+        vdc = _cc.get('vendor_data')
+        no_handlers = None
+        if isinstance(vdc, dict):
+            enabled = vdc.get('enabled')
+            no_handlers = vdc.get('no_run')
+
+            if enabled is None:
+                LOG.info("vendordata will not be consumed: user has not opted-in")
+                return
+            elif util.is_false(enabled):
+                LOG.info("user has requested NO vendordata consumption")
+                return
+
+        LOG.info("vendor data will be consumed")
+
+        # Ensure vendordata source fetched before activation (just incase)
+        vendor_data_msg = self.datasource.get_vendordata(True)
+
+        # This keeps track of all the active handlers, while excluding what the
+        # users doesn't want run, i.e. boot_hook, cloud_config, shell_script
+        c_handlers_list = self._default_vendordata_handlers(
+                                excluded=no_handlers)
+
+        # Run the handlers
+        self._do_handlers(vendor_data_msg, c_handlers_list, frequency)
+
+    def _consume_userdata(self, frequency=PER_INSTANCE):
+        """
+        Consume the userdata and run the part handlers
+        """
+
+        # Ensure datasource fetched before activation (just incase)
+        user_data_msg = self.datasource.get_userdata(True)
+
+        # This keeps track of all the active handlers
+        c_handlers_list = self._default_userdata_handlers()
+
+        # Run the handlers
+        self._do_handlers(user_data_msg, c_handlers_list, frequency)
 
 
 class Modules(object):

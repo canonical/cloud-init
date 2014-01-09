@@ -36,6 +36,8 @@ class ShellScriptPartHandler(handlers.Handler):
     def __init__(self, paths, **_kwargs):
         handlers.Handler.__init__(self, PER_ALWAYS)
         self.script_dir = paths.get_ipath_cur('scripts')
+        if 'script_path' in _kwargs:
+            self.script_dir = paths.get_ipath_cur(_kwargs['script_path'])
 
     def list_types(self):
         return [

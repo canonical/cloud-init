@@ -13,6 +13,7 @@ from email.mime.multipart import MIMEMultipart
 from cloudinit import handlers
 from cloudinit import helpers as c_helpers
 from cloudinit import log
+from cloudinit.settings import (PER_INSTANCE)
 from cloudinit import sources
 from cloudinit import stages
 from cloudinit import util
@@ -24,10 +25,16 @@ from tests.unittests import helpers
 
 class FakeDataSource(sources.DataSource):
 
-    def __init__(self, userdata):
+    def __init__(self, userdata=None, vendordata=None,
+                 consume_vendor=False):
         sources.DataSource.__init__(self, {}, None, None)
         self.metadata = {'instance-id': INSTANCE_ID}
         self.userdata_raw = userdata
+        self.vendordata_raw = vendordata
+        self._consume_vendor = consume_vendor
+
+    def consume_vendordata(self):
+        return self._consume_vendor
 
 
 # FIXME: these tests shouldn't be checking log output??
@@ -44,6 +51,11 @@ class TestConsumeUserData(helpers.FilesystemMockingTestCase):
         helpers.FilesystemMockingTestCase.tearDown(self)
         if self._log_handler and self._log:
             self._log.removeHandler(self._log_handler)
+
+    def _patchIn(self, root):
+        self.restore()
+        self.patchOS(root)
+        self.patchUtils(root)
 
     def capture_log(self, lvl=logging.DEBUG):
         log_file = StringIO.StringIO()
@@ -68,12 +80,88 @@ class TestConsumeUserData(helpers.FilesystemMockingTestCase):
         self.patchUtils(new_root)
         self.patchOS(new_root)
         ci.fetch()
-        ci.consume_userdata()
+        ci.consume_data()
         cc_contents = util.load_file(ci.paths.get_ipath("cloud_config"))
         cc = util.load_yaml(cc_contents)
         self.assertEquals(2, len(cc))
         self.assertEquals('qux', cc['baz'])
         self.assertEquals('qux2', cc['bar'])
+
+    def test_simple_jsonp_vendor_and_user(self):
+        # test that user-data wins over vendor
+        user_blob = '''
+#cloud-config-jsonp
+[
+     { "op": "add", "path": "/baz", "value": "qux" },
+     { "op": "add", "path": "/bar", "value": "qux2" },
+     { "op": "add", "path": "/vendor_data", "value": {"enabled": "true"}}
+]
+'''
+        vendor_blob = '''
+#cloud-config-jsonp
+[
+     { "op": "add", "path": "/baz", "value": "quxA" },
+     { "op": "add", "path": "/bar", "value": "quxB" },
+     { "op": "add", "path": "/foo", "value": "quxC" }
+]
+'''
+        new_root = self.makeDir()
+        self._patchIn(new_root)
+        initer = stages.Init()
+        initer.datasource = FakeDataSource(user_blob, vendordata=vendor_blob)
+        initer.read_cfg()
+        initer.initialize()
+        initer.fetch()
+        _iid = initer.instancify()
+        initer.update()
+        initer.cloudify().run('consume_data',
+                              initer.consume_data,
+                              args=[PER_INSTANCE],
+                              freq=PER_INSTANCE)
+        mods = stages.Modules(initer)
+        (_which_ran, _failures) = mods.run_section('cloud_init_modules')
+        cfg = mods.cfg
+        self.assertIn('vendor_data', cfg)
+        self.assertEquals('qux', cfg['baz'])
+        self.assertEquals('qux2', cfg['bar'])
+        self.assertEquals('quxC', cfg['foo'])
+
+    def test_simple_jsonp_no_vendor_consumed(self):
+        # make sure that vendor data is not consumed
+        user_blob = '''
+#cloud-config-jsonp
+[
+     { "op": "add", "path": "/baz", "value": "qux" },
+     { "op": "add", "path": "/bar", "value": "qux2" }
+]
+'''
+        vendor_blob = '''
+#cloud-config-jsonp
+[
+     { "op": "add", "path": "/baz", "value": "quxA" },
+     { "op": "add", "path": "/bar", "value": "quxB" },
+     { "op": "add", "path": "/foo", "value": "quxC" }
+]
+'''
+        new_root = self.makeDir()
+        self._patchIn(new_root)
+        initer = stages.Init()
+        initer.datasource = FakeDataSource(user_blob, vendordata=vendor_blob)
+        initer.read_cfg()
+        initer.initialize()
+        initer.fetch()
+        _iid = initer.instancify()
+        initer.update()
+        initer.cloudify().run('consume_data',
+                              initer.consume_data,
+                              args=[PER_INSTANCE],
+                              freq=PER_INSTANCE)
+        mods = stages.Modules(initer)
+        (_which_ran, _failures) = mods.run_section('cloud_init_modules')
+        cfg = mods.cfg
+        self.assertEquals('qux', cfg['baz'])
+        self.assertEquals('qux2', cfg['bar'])
+        self.assertNotIn('foo', cfg)
 
     def test_mixed_cloud_config(self):
         blob_cc = '''
@@ -105,11 +193,120 @@ c: d
         self.patchUtils(new_root)
         self.patchOS(new_root)
         ci.fetch()
-        ci.consume_userdata()
+        ci.consume_data()
         cc_contents = util.load_file(ci.paths.get_ipath("cloud_config"))
         cc = util.load_yaml(cc_contents)
         self.assertEquals(1, len(cc))
         self.assertEquals('c', cc['a'])
+
+    def test_vendor_with_datasource_perm(self):
+        vendor_blob = '''
+#cloud-config
+a: b
+name: vendor
+run:
+ - x
+ - y
+'''
+
+        new_root = self.makeDir()
+        self._patchIn(new_root)
+        initer = stages.Init()
+        initer.datasource = FakeDataSource('', vendordata=vendor_blob,
+                                           consume_vendor=True)
+        initer.read_cfg()
+        initer.initialize()
+        initer.fetch()
+        _iid = initer.instancify()
+        initer.update()
+        initer.cloudify().run('consume_data',
+                              initer.consume_data,
+                              args=[PER_INSTANCE],
+                              freq=PER_INSTANCE)
+        mods = stages.Modules(initer)
+        (_which_ran, _failures) = mods.run_section('cloud_init_modules')
+        cfg = mods.cfg
+        self.assertEquals('b', cfg['a'])
+        self.assertEquals('vendor', cfg['name'])
+        self.assertIn('x', cfg['run'])
+        self.assertIn('y', cfg['run'])
+
+    def test_vendor_user_yaml_cloud_config(self):
+        vendor_blob = '''
+#cloud-config
+a: b
+name: vendor
+run:
+ - x
+ - y
+'''
+
+        user_blob = '''
+#cloud-config
+a: c
+vendor_data:
+  enabled: True
+  prefix: /bin/true
+name: user
+run:
+ - z
+'''
+        new_root = self.makeDir()
+        self._patchIn(new_root)
+        initer = stages.Init()
+        initer.datasource = FakeDataSource(user_blob, vendordata=vendor_blob)
+        initer.read_cfg()
+        initer.initialize()
+        initer.fetch()
+        _iid = initer.instancify()
+        initer.update()
+        initer.cloudify().run('consume_data',
+                              initer.consume_data,
+                              args=[PER_INSTANCE],
+                              freq=PER_INSTANCE)
+        mods = stages.Modules(initer)
+        (_which_ran, _failures) = mods.run_section('cloud_init_modules')
+        cfg = mods.cfg
+        self.assertIn('vendor_data', cfg)
+        self.assertEquals('c', cfg['a'])
+        self.assertEquals('user', cfg['name'])
+        self.assertNotIn('x', cfg['run'])
+        self.assertNotIn('y', cfg['run'])
+        self.assertIn('z', cfg['run'])
+
+    def test_vendordata_script(self):
+        vendor_blob = '''
+#!/bin/bash
+echo "test"
+'''
+
+        user_blob = '''
+#cloud-config
+vendor_data:
+  enabled: True
+  prefix: /bin/true
+'''
+        new_root = self.makeDir()
+        self._patchIn(new_root)
+        initer = stages.Init()
+        initer.datasource = FakeDataSource(user_blob, vendordata=vendor_blob)
+        initer.read_cfg()
+        initer.initialize()
+        initer.fetch()
+        _iid = initer.instancify()
+        initer.update()
+        initer.cloudify().run('consume_data',
+                              initer.consume_data,
+                              args=[PER_INSTANCE],
+                              freq=PER_INSTANCE)
+        mods = stages.Modules(initer)
+        (_which_ran, _failures) = mods.run_section('cloud_init_modules')
+        cfg = mods.cfg
+        vendor_script = initer.paths.get_ipath_cur('vendor_scripts')
+        vendor_script_fns = "%s%s/part-001" % (new_root, vendor_script)
+        self.assertTrue(os.path.exists(vendor_script_fns))
+
+
 
     def test_merging_cloud_config(self):
         blob = '''
@@ -185,7 +382,7 @@ p: 1
 
         log_file = self.capture_log(logging.WARNING)
         ci.fetch()
-        ci.consume_userdata()
+        ci.consume_data()
         self.assertIn(
             "Unhandled non-multipart (text/x-not-multipart) userdata:",
             log_file.getvalue())
@@ -221,7 +418,7 @@ c: 4
         self.patchUtils(new_root)
         self.patchOS(new_root)
         ci.fetch()
-        ci.consume_userdata()
+        ci.consume_data()
         contents = util.load_file(ci.paths.get_ipath("cloud_config"))
         contents = util.load_yaml(contents)
         self.assertTrue(isinstance(contents, dict))
@@ -244,7 +441,7 @@ c: 4
 
         log_file = self.capture_log(logging.WARNING)
         ci.fetch()
-        ci.consume_userdata()
+        ci.consume_data()
         self.assertIn(
             "Unhandled unknown content-type (text/plain)",
             log_file.getvalue())
@@ -264,7 +461,7 @@ c: 4
 
         log_file = self.capture_log(logging.WARNING)
         ci.fetch()
-        ci.consume_userdata()
+        ci.consume_data()
         self.assertEqual("", log_file.getvalue())
 
     def test_mime_text_x_shellscript(self):
@@ -284,7 +481,7 @@ c: 4
 
         log_file = self.capture_log(logging.WARNING)
         ci.fetch()
-        ci.consume_userdata()
+        ci.consume_data()
         self.assertEqual("", log_file.getvalue())
 
     def test_mime_text_plain_shell(self):
@@ -304,5 +501,5 @@ c: 4
 
         log_file = self.capture_log(logging.WARNING)
         ci.fetch()
-        ci.consume_userdata()
+        ci.consume_data()
         self.assertEqual("", log_file.getvalue())
