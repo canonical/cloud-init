@@ -28,13 +28,11 @@ from cloudinit import util
 LOG = logging.getLogger(__name__)
 
 
-def maybe_json(text):
+def maybe_json_object(text):
     if not text:
         return False
     text = text.strip()
     if text.startswith("{") and text.endswith("}"):
-        return True
-    if text.startswith("[") and text.endswith("]"):
         return True
     return False
 
@@ -108,7 +106,7 @@ class MetadataMaterializer(object):
     def _decode_leaf_blob(self, field, blob):
         if not blob:
             return blob
-        if maybe_json(blob):
+        if maybe_json_object(blob):
             try:
                 # Assume it's json, unless it fails parsing...
                 return json.loads(blob)
