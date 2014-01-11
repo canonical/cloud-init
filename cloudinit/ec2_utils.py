@@ -81,9 +81,9 @@ class MetadataMaterializer(object):
                 if len(contents) > 1:
                     # What a PITA...
                     (ident, sub_contents) = contents
-                    checked_ident = util.safe_int(ident)
-                    if checked_ident is not None:
-                        resource = "%s/openssh-key" % (checked_ident)
+                    ident = util.safe_int(ident)
+                    if ident is not None:
+                        resource = "%s/openssh-key" % (ident)
                         field_name = sub_contents
                 leaves[field_name] = resource
         return (leaves, children)
@@ -145,7 +145,7 @@ def get_instance_userdata(api_version='latest',
         return str(response)
     except Exception:
         util.logexc(LOG, "Failed fetching userdata from url %s", ud_url)
-        return None
+        return ''
 
 
 def get_instance_metadata(api_version='latest',
