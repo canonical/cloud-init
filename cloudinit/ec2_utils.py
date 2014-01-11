@@ -111,8 +111,8 @@ class MetadataMaterializer(object):
                 # Assume it's json, unless it fails parsing...
                 return json.loads(blob)
             except (ValueError, TypeError) as e:
-                LOG.warn("Field %s looked like json, but it was not: %s",
-                         field, e)
+                LOG.warn("Field %s looked like a json object, but it was"
+                         " not: %s", field, e)
         if blob.find("\n") != -1:
             return blob.splitlines()
         return blob
