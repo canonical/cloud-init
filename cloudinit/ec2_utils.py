@@ -28,6 +28,17 @@ from cloudinit import util
 LOG = logging.getLogger(__name__)
 
 
+def maybe_json(text):
+    if not text:
+        return False
+    text = text.strip()
+    if text.startswith("{") and text.endswith("}"):
+        return True
+    if text.startswith("[") and text.endswith("]"):
+        return True
+    return False
+
+
 def combine_url(base, add_on):
     base_parsed = list(urlparse(base))
     path = base_parsed[2]
@@ -94,16 +105,16 @@ class MetadataMaterializer(object):
         self._md = self._materialize(self._blob, self._base_url)
         return self._md
 
-    def _decode_leaf_blob(self, blob):
+    def _decode_leaf_blob(self, field, blob):
         if not blob:
             return blob
-        stripped_blob = blob.strip()
-        if stripped_blob.startswith("{") and stripped_blob.endswith("}"):
-            # Assume and try with json
+        if maybe_json(blob):
             try:
+                # Assume it's json, unless it fails parsing...
                 return json.loads(blob)
-            except (ValueError, TypeError):
-                pass
+            except (ValueError, TypeError) as e:
+                LOG.warn("Field %s looked like json, but it was not: %s",
+                         field, e)
         if blob.find("\n") != -1:
             return blob.splitlines()
         return blob
@@ -121,7 +132,7 @@ class MetadataMaterializer(object):
         for (field, resource) in leaves.items():
             leaf_url = combine_url(base_url, resource)
             leaf_blob = str(self._caller(leaf_url))
-            leaf_contents[field] = self._decode_leaf_blob(leaf_blob)
+            leaf_contents[field] = self._decode_leaf_blob(field, leaf_blob)
         joined = {}
         joined.update(child_contents)
         for field in leaf_contents.keys():
