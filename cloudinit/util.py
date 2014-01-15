@@ -614,15 +614,22 @@ def runparts(dirp, skip_no_exist=True, exe_prefix=None):
 
     failed = []
     attempted = []
+
+    if exe_prefix is None:
+        prefix = []
+    elif isinstance(exe_prefix, str):
+        prefix = [str(exe_prefix)]
+    elif isinstance(exe_prefix, list):
+        prefix = exe_prefix
+    else:
+        raise TypeError("exe_prefix must be None, str, or list")
+
     for exe_name in sorted(os.listdir(dirp)):
         exe_path = os.path.join(dirp, exe_name)
         if os.path.isfile(exe_path) and os.access(exe_path, os.X_OK):
             attempted.append(exe_path)
             try:
-                exe_cmd = exe_prefix
-                if isinstance(exe_prefix, list):
-                    exe_cmd.extend(exe_path)
-                subp([exe_cmd], capture=False)
+                subp(prefix + [exe_path], capture=False)
             except ProcessExecutionError as e:
                 logexc(LOG, "Failed running %s [%s]", exe_path, e.exit_code)
                 failed.append(e)
@@ -1852,26 +1859,3 @@ def expand_dotted_devname(dotted):
         return toks
     else:
         return (dotted, None)
-
-
-def get_nested_option_as_list(dct, first, second):
-    """
-    Return a nested option from a dict as a list
-    """
-    if not isinstance(dct, dict):
-        raise TypeError("get_nested_option_as_list only works with dicts")
-    root = dct.get(first)
-    if not isinstance(root, dict):
-        return None
-
-    token = root.get(second)
-    if isinstance(token, list):
-        return token
-    elif isinstance(token, dict):
-        ret_list = []
-        for k, v in dct.iteritems():
-            ret_list.append((k, v))
-        return ret_list
-    elif isinstance(token, str):
-        return token.split()
-    return None
