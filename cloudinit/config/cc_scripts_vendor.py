@@ -1,11 +1,8 @@
 # vi: ts=4 expandtab
 #
-#    Copyright (C) 2011-2014 Canonical Ltd.
-#    Copyright (C) 2012 Hewlett-Packard Development Company, L.P.
+#    Copyright (C) 2014 Canonical Ltd.
 #
-#    Author: Scott Moser <scott.moser@canonical.com>
 #    Author: Ben Howard <ben.howard@canonical.com>
-#    Author: Juerg Haefliger <juerg.haefliger@hp.com>
 #
 #    This program is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License version 3, as
@@ -31,9 +28,8 @@ SCRIPT_SUBDIR = 'vendor'
 
 
 def handle(name, _cfg, cloud, log, _args):
-    # This is written to by the user data handlers
-    # Ie, any custom shell scripts that come down
-    # go here...
+    # This is written to by the vendor data handlers
+    # any vendor data shell scripts get placed in runparts_path
     runparts_path = os.path.join(cloud.get_ipath_cur(), 'scripts',
                                  SCRIPT_SUBDIR)
     try:
