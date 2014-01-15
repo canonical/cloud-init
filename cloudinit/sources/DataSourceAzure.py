@@ -154,7 +154,7 @@ class DataSourceAzureNet(sources.DataSource):
 
         fp_files = []
         for pk in self.cfg.get('_pubkeys', []):
-            bname = pk['fingerprint'] + ".crt"
+            bname = str(pk['fingerprint'] + ".crt")
             fp_files += [os.path.join(mycfg['data_dir'], bname)]
 
         missing = util.log_time(logfunc=LOG.debug, msg="waiting for files",
@@ -247,7 +247,7 @@ def pubkeys_from_crt_files(flist):
         try:
             pubkeys.append(crtfile_to_pubkey(fname))
         except util.ProcessExecutionError:
-            errors.extend(fname)
+            errors.append(fname)
 
     if errors:
         LOG.warn("failed to convert the crt files to pubkey: %s" % errors)
