@@ -82,7 +82,7 @@ class DataSource(object):
             return self._filter_xdata(self.userdata)
         return self.userdata
 
-    def get_vendordata(self)
+    def get_vendordata(self):
         if self.vendordata is None:
             self.vendordata = self.ud_proc.process(self.get_vendordata_raw())
         return self.vendordata
