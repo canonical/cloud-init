@@ -82,24 +82,10 @@ class DataSource(object):
             return self._filter_xdata(self.userdata)
         return self.userdata
 
-    def get_vendordata(self, apply_filter=False):
+    def get_vendordata(self)
         if self.vendordata is None:
             self.vendordata = self.ud_proc.process(self.get_vendordata_raw())
-        if apply_filter:
-            return self._filter_xdata(self.vendordata)
         return self.vendordata
-
-    def has_vendordata(self):
-        if self.vendordata_raw is not None:
-            return True
-        return False
-
-    def consume_vendordata(self):
-        """
-        The datasource may allow for consumption of vendordata, but only
-        when the datasource has allowed it. The default is false.
-        """
-        return False
 
     @property
     def launch_index(self):
