@@ -52,6 +52,7 @@ CFG_BUILTIN = {
         },
         'distro': 'ubuntu',
     },
+    'vendor_data': {'enabled': True, 'prefix': []},
 }
 
 # Valid frequencies of handlers/modules
