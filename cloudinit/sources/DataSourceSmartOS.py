@@ -155,7 +155,7 @@ class DataSourceSmartOS(sources.DataSource):
 
         self.metadata = util.mergemanydict([md, self.metadata])
         self.userdata_raw = ud
-        self.vendordata_raw = vendordata
+        self.vendordata_raw = md['vendordata']
         return True
 
     def device_name_to_device(self, name):

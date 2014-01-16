@@ -514,8 +514,8 @@ class Init(object):
             LOG.debug("vendordata consumption is disabled.")
             return
 
-        enabled = vdc.get('enabled')
-        no_handlers = vdc.get('disabled_handlers', None)
+        enabled = vdcfg.get('enabled')
+        no_handlers = vdcfg.get('disabled_handlers', None)
 
         LOG.debug("vendor data will be consumed. disabled_handlers=%s",
                   no_handlers)
