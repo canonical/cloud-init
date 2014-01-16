@@ -93,6 +93,12 @@ class DataSourceAzureNet(sources.DataSource):
             try:
                 if cdev.startswith("/dev/"):
                     ret = util.mount_cb(cdev, load_azure_ds_dir)
+
+                    # If we load the OVF from a device, it means that a
+                    # new ovf-env.xml has been found. (LP: #1269626)
+                    if os.path.exists(ddir):
+                        LOG.info("removing old agent directory %s" % ddir)
+                        util.del_dir(ddir)
                 else:
                     ret = load_azure_ds_dir(cdev)
 
