@@ -350,7 +350,6 @@ class Paths(object):
            "data": "data",
            "vendordata_raw": "vendor-data.txt",
            "vendordata": "vendor-data.txt.i",
-           "mergedvendoruser": "vendor-user-data.txt",
         }
         # Set when a datasource becomes active
         self.datasource = ds
