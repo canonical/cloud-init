@@ -4,7 +4,6 @@
 # REQUIRE: LOGIN cloudinit cloudconfig cloudinitlocal
 # REQUIRE: cron mail sshd swaplate
 
-
 . /etc/rc.subr
 
 name="cloudfinal"
