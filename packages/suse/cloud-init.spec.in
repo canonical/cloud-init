@@ -43,6 +43,7 @@ Requires:       iproute2
 Requires:       e2fsprogs
 Requires:       net-tools
 Requires:       procps
+Requires:       sudo
 
 # Install pypi 'dynamic' requirements
 #for $r in $requires
