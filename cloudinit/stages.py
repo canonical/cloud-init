@@ -26,8 +26,7 @@ import copy
 import os
 import sys
 
-from cloudinit.settings import (PER_ALWAYS, PER_INSTANCE, FREQUENCIES,
-                                CLOUD_CONFIG)
+from cloudinit.settings import (PER_INSTANCE, FREQUENCIES, CLOUD_CONFIG)
 
 from cloudinit import handlers
 
@@ -510,12 +509,12 @@ class Init(object):
             vdcfg = {'enabled': False}
             LOG.warn("invalid 'vendor_data' setting. resetting to: %s", vdcfg)
 
-        if not util.is_true(vdcfg.get('enabled')):
-            LOG.debug("vendordata consumption is disabled.")
-            return
-
         enabled = vdcfg.get('enabled')
         no_handlers = vdcfg.get('disabled_handlers', None)
+
+        if not util.is_true(enabled):
+            LOG.debug("vendordata consumption is disabled.")
+            return
 
         LOG.debug("vendor data will be consumed. disabled_handlers=%s",
                   no_handlers)

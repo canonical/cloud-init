@@ -20,7 +20,7 @@ user can accidently override choices.
 Further, we strongly advise vendors to not 'be evil'. By evil, we
 mean any action that could compromise a system. Since users trust
 you, please take care to make sure that any vendordata is safe,
-atomic, indopenant and does not put your users at risk.
+atomic, idempotent and does not put your users at risk.
 
 cloud-init can read this input and act on it in different ways.
 
