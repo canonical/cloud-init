@@ -49,9 +49,6 @@ def combine_url(base, add_on):
 
 # See: http://bit.ly/TyoUQs
 #
-# Since boto metadata reader uses the old urllib which does not
-# support ssl, we need to ahead and create our own reader which
-# works the same as the boto one (for now).
 class MetadataMaterializer(object):
     def __init__(self, blob, base_url, caller):
         self._blob = blob

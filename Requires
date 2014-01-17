@@ -31,6 +31,3 @@ requests
 
 # For patching pieces of cloud-config together
 jsonpatch
-
-# For http testing (only needed for testing)
-httpretty>=0.7.1
