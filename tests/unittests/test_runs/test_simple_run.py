@@ -66,8 +66,8 @@ class TestSimpleRun(helpers.FilesystemMockingTestCase):
         initer.update()
         self.assertTrue(os.path.islink("var/lib/cloud/instance"))
 
-        initer.cloudify().run('consume_userdata',
-                              initer.consume_userdata,
+        initer.cloudify().run('consume_data',
+                              initer.consume_data,
                               args=[PER_INSTANCE],
                               freq=PER_INSTANCE)
 
