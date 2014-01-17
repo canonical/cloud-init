@@ -14,6 +14,7 @@
  - drop support for resizing partitions with parted entirely (LP: #1212492).
    This was broken as it was anyway.
  - add support for vendordata.
+ - drop dependency on boto for crawling ec2 metadata service.
 0.7.4:
  - fix issue mounting 'ephemeral0' if ephemeral0 was an alias for a
    partitioned block device with target filesystem on ephemeral0.1.
