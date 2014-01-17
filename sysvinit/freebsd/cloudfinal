@@ -26,7 +26,8 @@ cloudinit_override()
 	fi
 }
 
-cloudfinal_start() {
+cloudfinal_start()
+{
 	echo -n "${command} starting"
 	${command} ${cloudinit_config} modules --mode final
 }

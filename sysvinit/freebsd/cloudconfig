@@ -25,7 +25,8 @@ cloudinit_override()
 	fi
 }
 
-cloudconfig_start() {
+cloudconfig_start()
+{
 	echo "${command} starting"
 	${command} ${cloudinit_config} modules --mode config
 }
