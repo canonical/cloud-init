@@ -25,16 +25,11 @@ from tests.unittests import helpers
 
 class FakeDataSource(sources.DataSource):
 
-    def __init__(self, userdata=None, vendordata=None,
-                 consume_vendor=False):
+    def __init__(self, userdata=None, vendordata=None):
         sources.DataSource.__init__(self, {}, None, None)
         self.metadata = {'instance-id': INSTANCE_ID}
         self.userdata_raw = userdata
         self.vendordata_raw = vendordata
-        self._consume_vendor = consume_vendor
-
-    def consume_vendordata(self):
-        return self._consume_vendor
 
 
 # FIXME: these tests shouldn't be checking log output??
@@ -93,8 +88,7 @@ class TestConsumeUserData(helpers.FilesystemMockingTestCase):
 #cloud-config-jsonp
 [
      { "op": "add", "path": "/baz", "value": "qux" },
-     { "op": "add", "path": "/bar", "value": "qux2" },
-     { "op": "add", "path": "/vendor_data", "value": {"enabled": "true"}}
+     { "op": "add", "path": "/bar", "value": "qux2" }
 ]
 '''
         vendor_blob = '''
@@ -132,7 +126,8 @@ class TestConsumeUserData(helpers.FilesystemMockingTestCase):
 #cloud-config-jsonp
 [
      { "op": "add", "path": "/baz", "value": "qux" },
-     { "op": "add", "path": "/bar", "value": "qux2" }
+     { "op": "add", "path": "/bar", "value": "qux2" },
+     { "op": "add", "path": "/vendor_data", "value": {"enabled": "false"}}
 ]
 '''
         vendor_blob = '''
@@ -198,38 +193,6 @@ c: d
         cc = util.load_yaml(cc_contents)
         self.assertEquals(1, len(cc))
         self.assertEquals('c', cc['a'])
-
-    def test_vendor_with_datasource_perm(self):
-        vendor_blob = '''
-#cloud-config
-a: b
-name: vendor
-run:
- - x
- - y
-'''
-
-        new_root = self.makeDir()
-        self._patchIn(new_root)
-        initer = stages.Init()
-        initer.datasource = FakeDataSource('', vendordata=vendor_blob,
-                                           consume_vendor=True)
-        initer.read_cfg()
-        initer.initialize()
-        initer.fetch()
-        _iid = initer.instancify()
-        initer.update()
-        initer.cloudify().run('consume_data',
-                              initer.consume_data,
-                              args=[PER_INSTANCE],
-                              freq=PER_INSTANCE)
-        mods = stages.Modules(initer)
-        (_which_ran, _failures) = mods.run_section('cloud_init_modules')
-        cfg = mods.cfg
-        self.assertEquals('b', cfg['a'])
-        self.assertEquals('vendor', cfg['name'])
-        self.assertIn('x', cfg['run'])
-        self.assertIn('y', cfg['run'])
 
     def test_vendor_user_yaml_cloud_config(self):
         vendor_blob = '''
