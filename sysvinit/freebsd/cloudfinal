@@ -16,7 +16,6 @@ start_cmd="cloudfinal_start"
 
 : ${cloud-init_config}:="/etc/cloud/cloud.cfg"}
 
-
 cloudinit_override()
 {
 	# If there exist sysconfig/default variable override files use it...
