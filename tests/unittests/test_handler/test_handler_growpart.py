@@ -12,49 +12,8 @@ import re
 import unittest
 
 # growpart:
-#   mode: auto  # off, on, auto, 'growpart', 'parted'
+#   mode: auto  # off, on, auto, 'growpart'
 #   devices: ['root']
-
-HELP_PARTED_NO_RESIZE = """
-Usage: parted [OPTION]... [DEVICE [COMMAND [PARAMETERS]...]...]
-Apply COMMANDs with PARAMETERS to DEVICE.  If no COMMAND(s) are given, run in
-interactive mode.
-
-OPTIONs:
-<SNIP>
-
-COMMANDs:
-<SNIP>
-  quit                                     exit program
-  rescue START END                         rescue a lost partition near START
-        and END
-  resize NUMBER START END                  resize partition NUMBER and its file
-        system
-  rm NUMBER                                delete partition NUMBER
-<SNIP>
-Report bugs to bug-parted@gnu.org
-"""
-
-HELP_PARTED_RESIZE = """
-Usage: parted [OPTION]... [DEVICE [COMMAND [PARAMETERS]...]...]
-Apply COMMANDs with PARAMETERS to DEVICE.  If no COMMAND(s) are given, run in
-interactive mode.
-
-OPTIONs:
-<SNIP>
-
-COMMANDs:
-<SNIP>
-  quit                                     exit program
-  rescue START END                         rescue a lost partition near START
-        and END
-  resize NUMBER START END                  resize partition NUMBER and its file
-        system
-  resizepart NUMBER END                    resize partition NUMBER
-  rm NUMBER                                delete partition NUMBER
-<SNIP>
-Report bugs to bug-parted@gnu.org
-"""
 
 HELP_GROWPART_RESIZE = """
 growpart disk partition
@@ -122,11 +81,8 @@ class TestConfig(MockerTestCase):
         # Order must be correct
         self.mocker.order()
 
-    @unittest.skip("until LP: #1212444 fixed")
     def test_no_resizers_auto_is_fine(self):
         subp = self.mocker.replace(util.subp, passthrough=False)
-        subp(['parted', '--help'], env={'LANG': 'C'})
-        self.mocker.result((HELP_PARTED_NO_RESIZE, ""))
         subp(['growpart', '--help'], env={'LANG': 'C'})
         self.mocker.result((HELP_GROWPART_NO_RESIZE, ""))
         self.mocker.replay()
@@ -144,15 +100,14 @@ class TestConfig(MockerTestCase):
         self.assertRaises(ValueError, self.handle, self.name, config,
                           self.cloud_init, self.log, self.args)
 
-    @unittest.skip("until LP: #1212444 fixed")
-    def test_mode_auto_prefers_parted(self):
+    def test_mode_auto_prefers_growpart(self):
         subp = self.mocker.replace(util.subp, passthrough=False)
-        subp(['parted', '--help'], env={'LANG': 'C'})
-        self.mocker.result((HELP_PARTED_RESIZE, ""))
+        subp(['growpart', '--help'], env={'LANG': 'C'})
+        self.mocker.result((HELP_GROWPART_RESIZE, ""))
         self.mocker.replay()
 
         ret = cc_growpart.resizer_factory(mode="auto")
-        self.assertTrue(isinstance(ret, cc_growpart.ResizeParted))
+        self.assertTrue(isinstance(ret, cc_growpart.ResizeGrowPart))
 
     def test_handle_with_no_growpart_entry(self):
         #if no 'growpart' entry in config, then mode=auto should be used
