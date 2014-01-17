@@ -80,30 +80,6 @@ class ResizeFailedException(Exception):
     pass
 
 
-class ResizeParted(object):
-    def available(self):
-        myenv = os.environ.copy()
-        myenv['LANG'] = 'C'
-
-        try:
-            (out, _err) = util.subp(["parted", "--help"], env=myenv)
-            if re.search(r"COMMAND.*resizepart\s+", out, re.DOTALL):
-                return True
-
-        except util.ProcessExecutionError:
-            pass
-        return False
-
-    def resize(self, diskdev, partnum, partdev):
-        before = get_size(partdev)
-        try:
-            util.subp(["parted", diskdev, "resizepart", partnum])
-        except util.ProcessExecutionError as e:
-            raise ResizeFailedException(e)
-
-        return (before, get_size(partdev))
-
-
 class ResizeGrowPart(object):
     def available(self):
         myenv = os.environ.copy()
@@ -279,6 +255,4 @@ def handle(_name, cfg, _cloud, log, _args):
         else:
             log.debug("'%s' %s: %s" % (entry, action, msg))
 
-# LP: 1212444 FIXME re-order and favor ResizeParted
-#RESIZERS = (('growpart', ResizeGrowPart),)
-RESIZERS = (('growpart', ResizeGrowPart), ('parted', ResizeParted))
+RESIZERS = (('growpart', ResizeGrowPart),)
