@@ -262,7 +262,7 @@ class TestParseShellConfig(MockerTestCase):
     def test_no_seconds(self):
         cfg = '\n'.join(["foo=bar", "SECONDS=2", "xx=foo"])
         # we could test 'sleep 2', but that would make the test run slower.
-        ret = ds.parse_shell_config(cfg);
+        ret = ds.parse_shell_config(cfg)
         self.assertEqual(ret, {"foo": "bar", "xx": "foo"})
 
 
