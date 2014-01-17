@@ -88,7 +88,11 @@ class UserDataProcessor(object):
 
     def process(self, blob):
         accumulating_msg = MIMEMultipart()
-        self._process_msg(convert_string(blob), accumulating_msg)
+        if isinstance(blob, list):
+            for b in blob:
+                self._process_msg(convert_string(b), accumulating_msg)
+        else:
+            self._process_msg(convert_string(blob), accumulating_msg)
         return accumulating_msg
 
     def _process_msg(self, base_msg, append_msg):

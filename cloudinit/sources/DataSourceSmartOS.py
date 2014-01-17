@@ -47,6 +47,7 @@ SMARTOS_ATTRIB_MAP = {
     'iptables_disable': ('iptables_disable', True),
     'motd_sys_info': ('motd_sys_info', True),
     'availability_zone': ('datacenter_name', True),
+    'vendordata': ('sdc:operator-script', False),
 }
 
 DS_NAME = 'SmartOS'
@@ -154,6 +155,7 @@ class DataSourceSmartOS(sources.DataSource):
 
         self.metadata = util.mergemanydict([md, self.metadata])
         self.userdata_raw = ud
+        self.vendordata_raw = md['vendordata']
         return True
 
     def device_name_to_device(self, name):

@@ -66,6 +66,8 @@ class CloudConfigPartHandler(handlers.Handler):
         handlers.Handler.__init__(self, PER_ALWAYS, version=3)
         self.cloud_buf = None
         self.cloud_fn = paths.get_ipath("cloud_config")
+        if 'cloud_config_path' in _kwargs:
+            self.cloud_fn = paths.get_ipath(_kwargs["cloud_config_path"])
         self.file_names = []
 
     def list_types(self):
