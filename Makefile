@@ -31,7 +31,7 @@ test-requirements:
 	@echo "Installing cloud-init test dependencies..."
 	sudo pip install -r "$@.txt" -q
 
-test: requirements test-requirements
+test: clean_pyc requirements test-requirements
 	@nosetests $(noseopts) tests/
 
 check_version:
@@ -40,12 +40,14 @@ check_version:
 	    "not equal to code version $(CODE_VERSION)"; exit 2; \
 	    else true; fi
 
+clean_pyc:
+	@find . -type f -name "*.pyc" -delete
+
 2to3:
 	2to3 $(PY_FILES)
 
-clean:
+clean: clean_pyc
 	rm -rf /var/log/cloud-init.log /var/lib/cloud/
-	find . -type f -name "*.pyc" -delete
 
 yaml:
 	@$(CWD)/tools/validate-yaml.py $(YAML_FILES)
@@ -57,5 +59,5 @@ deb:
 	./packages/bddeb
 
 .PHONY: test pylint pyflakes 2to3 clean pep8 rpm deb yaml check_version
-.PHONE: test-requirements requirements
+.PHONE: test-requirements requirements clean_pyc
 
