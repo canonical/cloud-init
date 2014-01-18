@@ -23,7 +23,15 @@ pylint:
 pyflakes:
 	pyflakes $(PY_FILES)
 
-test:
+requirements:
+	@echo "Installing cloud-init dependencies..."
+	sudo pip install -r "$@.txt" -q
+
+test-requirements:
+	@echo "Installing cloud-init test dependencies..."
+	sudo pip install -r "$@.txt" -q
+
+test: requirements test-requirements
 	@nosetests $(noseopts) tests/
 
 check_version:
@@ -36,8 +44,8 @@ check_version:
 	2to3 $(PY_FILES)
 
 clean:
-	rm -rf /var/log/cloud-init.log \
-		   /var/lib/cloud/
+	rm -rf /var/log/cloud-init.log /var/lib/cloud/
+	find . -type f -name "*.pyc" -delete
 
 yaml:
 	@$(CWD)/tools/validate-yaml.py $(YAML_FILES)
@@ -49,4 +57,5 @@ deb:
 	./packages/bddeb
 
 .PHONY: test pylint pyflakes 2to3 clean pep8 rpm deb yaml check_version
+.PHONE: test-requirements requirements
 

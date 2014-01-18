@@ -19,10 +19,10 @@ if ! find_root; then
          "exist in the cloud-init root directory."
 fi
 
-REQUIRES="$ROOT_DIR/Requires"
+REQUIRES="$ROOT_DIR/requirements.txt"
 
 if [ ! -e "$REQUIRES" ]; then
-    fail "Unable to find 'Requires' file located at '$REQUIRES'"
+    fail "Unable to find 'requirements.txt' file located at '$REQUIRES'"
 fi
 
 # Filter out comments and empty lines
