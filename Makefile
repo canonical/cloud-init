@@ -59,5 +59,5 @@ deb:
 	./packages/bddeb
 
 .PHONY: test pylint pyflakes 2to3 clean pep8 rpm deb yaml check_version
-.PHONE: test-requirements requirements clean_pyc
+.PHONY: test-requirements requirements clean_pyc
 
