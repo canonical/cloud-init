@@ -32,6 +32,7 @@ test-requirements:
 	sudo pip install -r "$@.txt" -q
 
 test: clean_pyc requirements test-requirements
+	@echo "Running tests..."
 	@nosetests $(noseopts) tests/
 
 check_version:
