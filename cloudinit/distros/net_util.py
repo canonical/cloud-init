@@ -78,6 +78,7 @@
 #         "gateway": "10.0.0.2"
 #     }
 # }
+
 def translate_network(settings):
     # Get the standard cmd, args from the ubuntu format
     entries = []
