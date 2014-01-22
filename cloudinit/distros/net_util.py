@@ -26,6 +26,58 @@
 # distributions that use other formats.
 #
 # TODO(harlowja) remove when we have python-netcf active...
+#
+# The format is the following:
+# {
+#    <device-name>: {
+#        # All optional (if not existent in original format)
+#        "netmask": <ip>,
+#        "broadcast": <ip>,
+#        "gateway": <ip>,
+#        "address": <ip>,
+#        "bootproto": "static"|"dhcp",
+#        "dns-search": <hostname>,
+#        "hwaddress": <mac-address>,
+#        "auto": True (or non-existent),
+#        "dns-nameservers": [<ip/hostname>, ...],
+#    }
+# }
+#
+# Things to note, comments are removed, if a ubuntu/debian interface is
+# marked as auto then only then first segment (?) is retained, ie
+# 'auto eth0 eth0:1' just marks eth0 as auto (not eth0:1).
+#
+# Example input:
+#
+# auto lo
+# iface lo inet loopback
+# 
+# auto eth0
+# iface eth0 inet static
+#         address 10.0.0.1
+#         netmask 255.255.252.0
+#         broadcast 10.0.0.255
+#         gateway 10.0.0.2
+#         dns-nameservers 98.0.0.1 98.0.0.2
+#
+# Example output:
+# {
+#     "lo": {
+#         "auto": true
+#     }, 
+#     "eth0": {
+#         "auto": true, 
+#         "dns-nameservers": [
+#             "98.0.0.1", 
+#             "98.0.0.2"
+#         ], 
+#         "broadcast": "10.0.0.255", 
+#         "netmask": "255.255.252.0", 
+#         "bootproto": "static", 
+#         "address": "10.0.0.1", 
+#         "gateway": "10.0.0.2"
+#     }
+# }
 def translate_network(settings):
     # Get the standard cmd, args from the ubuntu format
     entries = []
