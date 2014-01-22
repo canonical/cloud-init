@@ -1,32 +1,26 @@
-#!/bin/sh
+#!/usr/bin/env python
 
-set -e
+import os
+import re
+import sys
 
-find_root() {
-   local topd
-   if [ -z "${CLOUD_INIT_TOP_D}" ]; then
-      topd=$(cd "$(dirname "${0}")" && cd .. && pwd)
-   else
-      topd=$(cd "${CLOUD_INIT_TOP_D}" && pwd)
-   fi
-   [ $? -eq 0 -a -f "${topd}/setup.py" ] || return
-   ROOT_DIR="$topd"
-}
-fail() { echo "$0:" "$@" 1>&2; exit 1; }
+if 'CLOUD_INIT_TOP_D' in os.environ:
+    topd = os.path.realpath(os.environ.get('CLOUD_INIT_TOP_D'))
+else:
+    topd = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 
-if ! find_root; then
-    fail "Unable to locate 'setup.py' file that should " \
-         "exist in the cloud-init root directory."
-fi
+for fname in ("setup.py", "ChangeLog"):
+    if not os.path.isfile(os.path.join(topd, fname)):
+        sys.stderr.write("Unable to locate '%s' file that should "
+                         "exist in cloud-init root directory." % fname)
+        sys.exit(1)
 
-CHNG_LOG="$ROOT_DIR/ChangeLog"
+vermatch = re.compile(r"^[0-9]+[.][0-9]+[.][0-9]+:$")
 
-if [ ! -e "$CHNG_LOG" ]; then
-    fail "Unable to find 'ChangeLog' file located at '$CHNG_LOG'"
-fi
+with open(os.path.join(topd, "ChangeLog"), "r") as fp:
+    for line in fp:
+        if vermatch.match(line):
+            sys.stdout.write(line.strip()[:-1] + "\n")
+            break
 
-VERSION=$(sed -n '/^[0-9]\+[.][0-9]\+[.][0-9]\+:/ {s/://; p; :a;n; ba; }' \
-          "$CHNG_LOG") &&
-   [ -n "$VERSION" ] ||
-   fail "failed to get version from '$CHNG_LOG'"
-echo "$VERSION"
+sys.exit(0)
