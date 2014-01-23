@@ -64,11 +64,11 @@ def netdev_info(empty=""):
             """
 
             ifconfigfields = {
-                "addr:":"addr", "inet":"addr",
-                "bcast:":"bcast", "broadcast":"bcast",
-                "mask:":"mask", "netmask":"mask"
+                "addr:": "addr", "inet": "addr",
+                "bcast:": "bcast", "broadcast": "bcast",
+                "mask:": "mask", "netmask": "mask"
             }
-	    for origfield, field in ifconfigfields.items():
+            for origfield, field in ifconfigfields.items():
                 target = "%s%s" % (field, fieldpost)
                 if devs[curdev].get(target, ""):
                     continue
@@ -88,9 +88,6 @@ def netdev_info(empty=""):
 
     return devs
 
-#
-# Use netstat instead of route since that produces more portable output.
-#
 
 def route_info():
     (route_out, _err) = util.subp(["netstat", "-rn"])
@@ -105,11 +102,11 @@ def route_info():
         FreeBSD shows 6 items in the routing table:
           Destination        Gateway            Flags    Refs      Use  Netif Expire
           default            10.65.0.1          UGS         0    34920 vtnet0
-	
+
         Linux netstat shows 2 more:
           Destination     Gateway         Genmask         Flags   MSS Window  irtt Iface
           0.0.0.0         10.65.0.1       0.0.0.0         UG        0 0          0 eth0
-	"""
+        """
 
         if len(toks) < 6 or toks[0] == "Kernel" or toks[0] == "Destination" or toks[0] == "Internet" or toks[0] == "Internet6" or toks[0] == "Routing":
             continue
