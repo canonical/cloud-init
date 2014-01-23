@@ -39,12 +39,14 @@ def is_f(p):
 INITSYS_FILES = {
     'sysvinit': [f for f in glob('sysvinit/redhat/*') if is_f(f)],
     'sysvinit_deb': [f for f in glob('sysvinit/debian/*') if is_f(f)],
+    'sysvinit_gentoo': [f for f in glob('sysvinit/gentoo/*') if is_f(f)],
     'systemd': [f for f in glob('systemd/*') if is_f(f)],
     'upstart': [f for f in glob('upstart/*') if is_f(f)],
 }
 INITSYS_ROOTS = {
     'sysvinit': '/etc/rc.d/init.d',
     'sysvinit_deb': '/etc/init.d',
+    'sysvinit_gentoo': '/etc/init.d',
     'systemd': '/etc/systemd/system/',
     'upstart': '/etc/init/',
 }
@@ -63,7 +65,7 @@ def tiny_p(cmd, capture=True):
     (out, err) = sp.communicate()
     ret = sp.returncode  # pylint: disable=E1101
     if ret not in [0]:
-        raise RuntimeError("Failed running %s [rc=%s] (%s, %s)" 
+        raise RuntimeError("Failed running %s [rc=%s] (%s, %s)"
                             % (cmd, ret, out, err))
     return (out, err)
 
@@ -102,7 +104,7 @@ class InitsysInstallData(install):
                  " specifying a init system!") % (", ".join(INITSYS_TYPES)))
         elif self.init_system:
             self.distribution.data_files.append(
-                (INITSYS_ROOTS[self.init_system], 
+                (INITSYS_ROOTS[self.init_system],
                  INITSYS_FILES[self.init_system]))
             # Force that command to reinitalize (with new file list)
             self.distribution.reinitialize_command('install_data', True)

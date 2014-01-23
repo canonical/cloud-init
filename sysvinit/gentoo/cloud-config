@@ -1,0 +1,14 @@
+#!/sbin/runscript
+
+depend() {
+  after net # remove after nova-agent fix
+  before cloud-init-local
+  before cloud-init
+  before cloud-final
+  provide cloud-config
+}
+
+start() {
+  cloud-init modules --mode config
+  eend 0
+}
