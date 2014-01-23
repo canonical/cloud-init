@@ -141,7 +141,7 @@ class MetadataMaterializer(object):
         return joined
 
 
-def _skip_retry_on_codes(status_codes, request_args, cause):
+def _skip_retry_on_codes(status_codes, _request_args, cause):
     """Returns if a request should retry based on a given set of codes that
     case retrying to be stopped/skipped.
     """
