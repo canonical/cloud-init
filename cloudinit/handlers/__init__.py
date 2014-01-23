@@ -187,6 +187,10 @@ def _escape_string(text):
 
 def walker_callback(data, filename, payload, headers):
     content_type = headers['Content-Type']
+    if content_type in data.get('excluded'):
+        LOG.debug('content_type "%s" is excluded', content_type)
+        return
+
     if content_type in PART_CONTENT_TYPES:
         walker_handle_handler(data, content_type, filename, payload)
         return

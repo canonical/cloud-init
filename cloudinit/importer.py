@@ -36,6 +36,7 @@ def find_module(base_name, search_paths, required_attrs=None):
     found_places = []
     if not required_attrs:
         required_attrs = []
+    # NOTE(harlowja): translate the search paths to include the base name.
     real_paths = []
     for path in search_paths:
         real_path = []
@@ -50,8 +51,9 @@ def find_module(base_name, search_paths, required_attrs=None):
         mod = None
         try:
             mod = import_module(full_path)
-        except ImportError:
-            pass
+        except ImportError as e:
+            LOG.debug("Failed at attempted import of '%s' due to: %s",
+                      full_path, e)
         if not mod:
             continue
         found_attrs = 0
