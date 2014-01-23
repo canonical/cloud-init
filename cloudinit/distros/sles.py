@@ -28,7 +28,6 @@ from cloudinit import util
 
 from cloudinit.distros import net_util
 from cloudinit.distros import rhel_util
-
 from cloudinit.settings import PER_INSTANCE
 
 LOG = logging.getLogger(__name__)
