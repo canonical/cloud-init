@@ -8,6 +8,8 @@ YAML_FILES+=$(shell find doc/examples -name "cloud-config*.txt" -type f )
 CHANGELOG_VERSION=$(shell $(CWD)/tools/read-version)
 CODE_VERSION=$(shell python -c "from cloudinit import version; print version.version_string()")
 
+PIP_INSTALL := pip install
+
 ifeq ($(distro),)
   distro = redhat
 endif
@@ -23,7 +25,16 @@ pylint:
 pyflakes:
 	pyflakes $(PY_FILES)
 
-test:
+pip-requirements:
+	@echo "Installing cloud-init dependencies..."
+	$(PIP_INSTALL) -r "$@.txt" -q
+
+pip-test-requirements:
+	@echo "Installing cloud-init test dependencies..."
+	$(PIP_INSTALL) -r "$@.txt" -q
+
+test: clean_pyc
+	@echo "Running tests..."
 	@nosetests $(noseopts) tests/
 
 check_version:
@@ -32,12 +43,14 @@ check_version:
 	    "not equal to code version $(CODE_VERSION)"; exit 2; \
 	    else true; fi
 
+clean_pyc:
+	@find . -type f -name "*.pyc" -delete
+
 2to3:
 	2to3 $(PY_FILES)
 
-clean:
-	rm -rf /var/log/cloud-init.log \
-		   /var/lib/cloud/
+clean: clean_pyc
+	rm -rf /var/log/cloud-init.log /var/lib/cloud/
 
 yaml:
 	@$(CWD)/tools/validate-yaml.py $(YAML_FILES)
@@ -49,4 +62,4 @@ deb:
 	./packages/bddeb
 
 .PHONY: test pylint pyflakes 2to3 clean pep8 rpm deb yaml check_version
-
+.PHONY: pip-test-requirements pip-requirements clean_pyc

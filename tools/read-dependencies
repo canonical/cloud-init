@@ -1,32 +1,23 @@
-#!/bin/sh
+#!/usr/bin/env python
 
-set -e
+import os
+import sys
 
-find_root() {
-   local topd
-   if [ -z "${CLOUD_INIT_TOP_D}" ]; then
-      topd=$(cd "$(dirname "${0}")" && cd .. && pwd)
-   else
-      topd=$(cd "${CLOUD_INIT_TOP_D}" && pwd)
-   fi
-   [ $? -eq 0 -a -f "${topd}/setup.py" ] || return
-   ROOT_DIR="$topd"
-}
-fail() { echo "$0:" "$@" 1>&2; exit 1; }
+if 'CLOUD_INIT_TOP_D' in os.environ:
+    topd = os.path.realpath(os.environ.get('CLOUD_INIT_TOP_D'))
+else:
+    topd = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 
-if ! find_root; then
-    fail "Unable to locate 'setup.py' file that should " \
-         "exist in the cloud-init root directory."
-fi
+for fname in ("setup.py", "requirements.txt"):
+    if not os.path.isfile(os.path.join(topd, fname)):
+        sys.stderr.write("Unable to locate '%s' file that should "
+                         "exist in cloud-init root directory." % fname)
+        sys.exit(1)
 
-REQUIRES="$ROOT_DIR/Requires"
+with open(os.path.join(topd, "requirements.txt"), "r") as fp:
+    for line in fp:
+        if not line.strip() or line.startswith("#"):
+            continue
+        sys.stdout.write(line)
 
-if [ ! -e "$REQUIRES" ]; then
-    fail "Unable to find 'Requires' file located at '$REQUIRES'"
-fi
-
-# Filter out comments and empty lines
-DEPS=$(sed -n -e 's,#.*,,' -e '/./p' "$REQUIRES") &&
-   [ -n "$DEPS" ] ||
-   fail "failed to read deps from '${REQUIRES}'"
-echo "$DEPS" | sort -d -f
+sys.exit(0)

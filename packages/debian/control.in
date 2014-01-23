@@ -25,7 +25,7 @@ Depends: procps,
 #end for
          python-software-properties | software-properties-common,
          \${misc:Depends},
-         \${python:Depends}
+Recommends: sudo
 XB-Python-Version: \${python:Versions}
 Description: Init scripts for cloud instances
  Cloud instances need special scripts to run during initialisation

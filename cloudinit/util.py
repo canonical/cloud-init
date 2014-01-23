@@ -172,6 +172,8 @@ class SeLinuxGuard(object):
     def __exit__(self, excp_type, excp_value, excp_traceback):
         if self.selinux and self.selinux.is_selinux_enabled():
             path = os.path.realpath(os.path.expanduser(self.path))
+            # path should be a string, not unicode
+            path = str(path)
             do_restore = False
             try:
                 # See if even worth restoring??
@@ -608,18 +610,28 @@ def del_dir(path):
     shutil.rmtree(path)
 
 
-def runparts(dirp, skip_no_exist=True):
+def runparts(dirp, skip_no_exist=True, exe_prefix=None):
     if skip_no_exist and not os.path.isdir(dirp):
         return
 
     failed = []
     attempted = []
+
+    if exe_prefix is None:
+        prefix = []
+    elif isinstance(exe_prefix, str):
+        prefix = [str(exe_prefix)]
+    elif isinstance(exe_prefix, list):
+        prefix = exe_prefix
+    else:
+        raise TypeError("exe_prefix must be None, str, or list")
+
     for exe_name in sorted(os.listdir(dirp)):
         exe_path = os.path.join(dirp, exe_name)
         if os.path.isfile(exe_path) and os.access(exe_path, os.X_OK):
             attempted.append(exe_path)
             try:
-                subp([exe_path], capture=False)
+                subp(prefix + [exe_path], capture=False)
             except ProcessExecutionError as e:
                 logexc(LOG, "Failed running %s [%s]", exe_path, e.exit_code)
                 failed.append(e)
@@ -865,8 +877,8 @@ def get_fqdn_from_hosts(hostname, filename="/etc/hosts"):
         IP_address canonical_hostname [aliases...]
 
       Fields of the entry are separated by any number of  blanks  and/or  tab
-      characters.  Text  from	a "#" character until the end of the line is a
-      comment, and is ignored.	 Host  names  may  contain  only  alphanumeric
+      characters.  Text  from a "#" character until the end of the line is a
+      comment, and is ignored. Host  names  may  contain  only  alphanumeric
       characters, minus signs ("-"), and periods (".").  They must begin with
       an  alphabetic  character  and  end  with  an  alphanumeric  character.
       Optional aliases provide for name changes, alternate spellings, shorter
@@ -1302,10 +1314,10 @@ def mounts():
     mounted = {}
     try:
         # Go through mounts to see what is already mounted
-	if os.path.exists("/proc/mounts"):
+        if os.path.exists("/proc/mounts"):
             mount_locs = load_file("/proc/mounts").splitlines()
             method = 'proc'
-	else:
+        else:
             (mountoutput, _err) = subp("mount")
             mount_locs = mountoutput.splitlines()
             method = 'mount'
@@ -1313,7 +1325,7 @@ def mounts():
             # Linux: /dev/sda1 on /boot type ext4 (rw,relatime,data=ordered)
             # FreeBSD: /dev/vtbd0p2 on / (ufs, local, journaled soft-updates)
             try:
-		if method == 'proc' and len(mpline) == 6:
+                if method == 'proc' and len(mpline) == 6:
                     (dev, mp, fstype, opts, _freq, _passno) = mpline.split()
                 elif method == 'mount':
                     m = re.search('^(/dev/[\S]+) on (/.*) \((.+), .+, (.+)\)$', mpline)
@@ -1787,6 +1799,7 @@ def parse_mount(path):
         if mount_point == path:
             return devpth, fs_type, mount_point
     return None
+
 
 def get_mount_info(path, log=LOG):
     # Use /proc/$$/mountinfo to find the device where path is mounted.
