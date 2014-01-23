@@ -22,12 +22,31 @@ from cloudinit import util
 import errno
 import os
 import re
+import signal
 import subprocess
 import time
 
 frequency = PER_INSTANCE
 
 EXIT_FAIL = 254
+
+
+def givecmdline(pid):
+    # Returns the cmdline for the given process id. In Linux we can use procfs
+    # for this but on BSD there is /usr/bin/procstat.
+    try:
+        # Example output from procstat -c 1
+        #   PID COMM             ARGS
+        #     1 init             /bin/init --
+        if util.system_info()["platform"].startswith('FreeBSD'):
+            (output, _err) = util.subp(['procstat', '-c', str(pid)])
+            line = output.splitlines()[1]
+            m = re.search('\d+ (\w|\.|-)+\s+(/\w.+)', line)
+            return m.group(2)
+        else:
+            return util.load_file("/proc/%s/cmdline" % pid)
+    except IOError:
+        return None
 
 
 def handle(_name, cfg, _cloud, log, _args):
@@ -42,8 +61,8 @@ def handle(_name, cfg, _cloud, log, _args):
         return
 
     mypid = os.getpid()
-    cmdline = util.load_file("/proc/%s/cmdline" % mypid)
 
+    cmdline = givecmdline(mypid)
     if not cmdline:
         log.warn("power_state: failed to get cmdline of current process")
         return
@@ -119,8 +138,6 @@ def run_after_pid_gone(pid, pidcmdline, timeout, log, func, args):
     msg = None
     end_time = time.time() + timeout
 
-    cmdline_f = "/proc/%s/cmdline" % pid
-
     def fatal(msg):
         if log:
             log.warn(msg)
@@ -134,16 +151,14 @@ def run_after_pid_gone(pid, pidcmdline, timeout, log, func, args):
             break
 
         try:
-            cmdline = ""
-            with open(cmdline_f) as fp:
-                cmdline = fp.read()
+            cmdline = givecmdline(pid)
             if cmdline != pidcmdline:
                 msg = "cmdline changed for %s [now: %s]" % (pid, cmdline)
                 break
 
         except IOError as ioerr:
             if ioerr.errno in known_errnos:
-                msg = "pidfile '%s' gone [%d]" % (cmdline_f, ioerr.errno)
+                msg = "pidfile gone [%d]" % ioerr.errno
             else:
                 fatal("IOError during wait: %s" % ioerr)
             break
