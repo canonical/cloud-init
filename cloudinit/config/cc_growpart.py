@@ -113,9 +113,10 @@ class ResizeGrowPart(object):
 
         return (before, get_size(partdev))
 
+
 class ResizeGpart(object):
     def available(self):
-        if not os.path.exists('/usr/local/sbin/gpart'):
+        if not util.which('gpart'):
             return False
         return True
 
@@ -138,7 +139,7 @@ class ResizeGpart(object):
         try:
             util.subp(["gpart", "resize", "-i", partnum, diskdev])
         except util.ProcessExecutionError as e:
-	    util.logexc(LOG, "Failed: gpart resize -i %s %s", partnum, diskdev)
+            util.logexc(LOG, "Failed: gpart resize -i %s %s", partnum, diskdev)
             raise ResizeFailedException(e)
 
         # Since growing the FS requires a reboot, make sure we reboot
@@ -146,6 +147,7 @@ class ResizeGpart(object):
         open('/var/run/reboot-required', 'a').close()
 
         return (before, get_size(partdev))
+
 
 def get_size(filename):
     fd = os.open(filename, os.O_RDONLY)

@@ -30,12 +30,10 @@ frequency = PER_INSTANCE
 
 EXIT_FAIL = 254
 
-#
-# Returns the cmdline for the given process id. In Linux we can use procfs for
-# this but on BSD there is /usr/bin/procstat.
-#
 
 def givecmdline(pid):
+    # Returns the cmdline for the given process id. In Linux we can use procfs
+    # for this but on BSD there is /usr/bin/procstat.
     try:
         # Example output from procstat -c 1
         #   PID COMM             ARGS
@@ -49,6 +47,7 @@ def givecmdline(pid):
             return util.load_file("/proc/%s/cmdline" % pid)
     except IOError:
         return None
+
 
 def handle(_name, cfg, _cloud, log, _args):
 
