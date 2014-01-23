@@ -39,7 +39,8 @@ from cloudinit.distros.parsers import hosts
 OSFAMILIES = {
     'debian': ['debian', 'ubuntu'],
     'redhat': ['fedora', 'rhel'],
-    'suse': ['sles']
+    'suse': ['sles'],
+    'gentoo': ['gentoo'],
 }
 
 LOG = logging.getLogger(__name__)
