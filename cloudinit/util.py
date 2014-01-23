@@ -1325,9 +1325,9 @@ def mounts():
             # Linux: /dev/sda1 on /boot type ext4 (rw,relatime,data=ordered)
             # FreeBSD: /dev/vtbd0p2 on / (ufs, local, journaled soft-updates)
             try:
-                if method == 'proc' and len(mpline) == 6:
+                if method == 'proc':
                     (dev, mp, fstype, opts, _freq, _passno) = mpline.split()
-                elif method == 'mount':
+                else:
                     m = re.search('^(/dev/[\S]+) on (/.*) \((.+), .+, (.+)\)$', mpline)
                     dev = m.group(1)
                     mp = m.group(2)
