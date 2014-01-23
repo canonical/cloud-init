@@ -1,0 +1,34 @@
+#!/bin/sh
+
+# PROVIDE: cloudinit
+# REQUIRE: FILESYSTEMS NETWORKING cloudinitlocal
+# BEFORE:  cloudconfig cloudfinal
+
+. /etc/rc.subr
+
+name="cloudinit"
+command="/usr/bin/cloud_init"
+start_cmd="cloudinit_start"
+stop_cmd=":"
+rcvar="cloudinit_enable"
+start_precmd="cloudinit_override"
+start_cmd="cloudinit_start"
+
+: ${cloudinit_config:="/etc/cloud/cloud.cfg"}
+
+cloudinit_override()
+{
+	# If there exist sysconfig/default variable override files use it...
+	if [ -f /etc/default/cloud-init ]; then
+		. /etc/default/cloud-init
+	fi
+}
+
+cloudinit_start()
+{
+	echo -n "${command} starting"
+	${command} ${cloudinit_config} init
+}
+
+load_rc_config $name
+run_rc_command "$1"
