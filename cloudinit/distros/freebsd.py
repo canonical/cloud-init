@@ -31,6 +31,7 @@ from cloudinit.settings import PER_INSTANCE
 
 LOG = logging.getLogger(__name__)
 
+
 class Distro(distros.Distro):
     def __init__(self, name, cfg, paths):
         distros.Distro.__init__(self, name, cfg, paths)
@@ -42,9 +43,9 @@ class Distro(distros.Distro):
 
     # Updates a key in /etc/rc.conf.
     def updatercconf(self, key, value):
-	LOG.debug("updatercconf: %s => %s" % (key, value))
+        LOG.debug("updatercconf: %s => %s" % (key, value))
         conf = self.loadrcconf()
-	configchanged = False
+        configchanged = False
         for item in conf:
             if item == key and conf[item] != value:
                 conf[item] = value
@@ -54,8 +55,8 @@ class Distro(distros.Distro):
         if configchanged:
             LOG.debug("Writing new /etc/rc.conf file")
             with open('/etc/rc.conf', 'w') as file:
-               for keyval in conf.items():
-                   file.write("%s=%s\n" % keyval)
+                for keyval in conf.items():
+                    file.write("%s=%s\n" % keyval)
 
     # Load the contents of /etc/rc.conf and store all keys in a dict.
     def loadrcconf(self):
@@ -70,7 +71,7 @@ class Distro(distros.Distro):
         conf = self.loadrcconf()
         try:
             val = conf[key]
-	except KeyError:
+        except KeyError:
             val = None
         return val
 
@@ -94,7 +95,7 @@ class Distro(distros.Distro):
         return hostname
 
     def _write_hostname(self, your_hostname, out_fn):
-       self.updatercconf('hostname', your_hostname)
+        self.updatercconf('hostname', your_hostname)
 
     def create_group(self, name, members):
         group_add_cmd = ['pw', '-n', name]
@@ -124,26 +125,26 @@ class Distro(distros.Distro):
         adduser_cmd = ['pw', 'useradd', '-n', name]
         log_adduser_cmd = ['pw', 'useradd', '-n', name]
 
-	adduser_opts = {
-		"homedir": '-d',
-		"gecos": '-c',
-		"primary_group": '-g',
-		"groups": '-G',
-		"passwd": '-h',
-		"shell": '-s',
-		"inactive": '-E',
-	}
-	adduser_flags = {
-		"no_user_group": '--no-user-group',
-		"system": '--system',
-		"no_log_init": '--no-log-init',
-	}
+        adduser_opts = {
+                "homedir": '-d',
+                "gecos": '-c',
+                "primary_group": '-g',
+                "groups": '-G',
+                "passwd": '-h',
+                "shell": '-s',
+                "inactive": '-E',
+        }
+        adduser_flags = {
+                "no_user_group": '--no-user-group',
+                "system": '--system',
+                "no_log_init": '--no-log-init',
+        }
 
-	redact_opts = ['passwd']
+        redact_opts = ['passwd']
 
-	for key, val in kwargs.iteritems():
-	    if key in adduser_opts and val and isinstance(val, str):
-               	adduser_cmd.extend([adduser_opts[key], val])
+        for key, val in kwargs.iteritems():
+            if key in adduser_opts and val and isinstance(val, str):
+                adduser_cmd.extend([adduser_opts[key], val])
 
                 # Redact certain fields from the logs
                 if key in redact_opts:
@@ -160,9 +161,9 @@ class Distro(distros.Distro):
             log_adduser_cmd.append('-d/nonexistent')
         else:
             adduser_cmd.append('-d/usr/home/%s' % name)
-	    adduser_cmd.append('-m')
+            adduser_cmd.append('-m')
             log_adduser_cmd.append('-d/usr/home/%s' % name)
-	    log_adduser_cmd.append('-m')
+            log_adduser_cmd.append('-m')
 
         # Run the command
         LOG.info("Adding user %s", name)
@@ -174,7 +175,7 @@ class Distro(distros.Distro):
 
     # TODO:
     def set_passwd(self, name, **kwargs):
-	return False
+        return False
 
     def lock_passwd(self, name):
         try:
@@ -185,7 +186,7 @@ class Distro(distros.Distro):
 
     # TODO:
     def write_sudo_rules(self, name, rules, sudo_file=None):
-	LOG.debug("[write_sudo_rules] Name: %s" % name)
+        LOG.debug("[write_sudo_rules] Name: %s" % name)
 
     def create_user(self, name, **kwargs):
         self.add_user(name, **kwargs)
@@ -209,7 +210,7 @@ class Distro(distros.Distro):
             ssh_util.setup_user_keys(keys, name, options=None)
 
     def _write_network(self, settings):
-	return
+        return
 
     def apply_locale(self, locale, out_fn=None):
         loginconf = '/etc/login.conf'
@@ -237,14 +238,13 @@ class Distro(distros.Distro):
             copyfile(backupconf, loginconf)
 
     def install_packages():
-	return
+        return
 
     def package_command():
-	return
+        return
 
     def set_timezone():
-	return
+        return
 
     def update_package_sources():
-	return
-
+        return
