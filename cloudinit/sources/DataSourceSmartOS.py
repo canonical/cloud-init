@@ -36,6 +36,7 @@ from cloudinit import util
 import os
 import os.path
 import serial
+import subprocess
 
 
 LOG = logging.getLogger(__name__)
@@ -166,8 +167,8 @@ class DataSourceSmartOS(sources.DataSource):
         u_script = md.get('user-script')
         u_script_f = "%s/99_user_script" % self.user_script_d
         u_script_l = "%s/user-script" % LEGACY_USER_D
-        util.write_content(u_script, u_script_f, link=u_script_l,
-                           executable=True)
+        write_boot_content(u_script, u_script_f, link=u_script_l, shebang=True,
+                           mode=0700)
 
         # @datadictionary:  This key has no defined format, but its value
         # is written to the file /var/db/mdata-user-data on each boot prior
@@ -176,7 +177,7 @@ class DataSourceSmartOS(sources.DataSource):
         # the machine to be consumed by the user-script when it runs.
         u_data = md.get('legacy-user-data')
         u_data_f = "%s/mdata-user-data" % LEGACY_USER_D
-        util.write_content(u_data, u_data_f)
+        write_boot_content(u_data, u_data_f)
 
         # Handle the cloud-init regular meta
         if not md['local-hostname']:
@@ -310,6 +311,62 @@ def dmi_data():
         util.logexc(LOG, "Failed to get system UUID", e)
 
     return (sys_uuid.lower().strip(), sys_type.strip())
+
+
+def write_boot_content(content, content_f, link=None, shebang=False, mode=0400):
+    """
+    Write the content to content_f. Under the following rules:
+        1. If no content, remove the file
+        2. Write the content
+        3. If executable and no file magic, add it
+        4. If there is a link, create it
+
+    @param content: what to write
+    @param content_f: the file name
+    @param backup_d: the directory to save the backup at
+    @param link: if defined, location to create a symlink to
+    @param shebang: if no file magic, set shebang
+    @param mode: file mode
+
+    Becuase of the way that Cloud-init executes scripts (no shell),
+    a script will fail to execute if does not have a magic bit (shebang) set
+    for the file. If shebang=True, then the script will be checked for a magic
+    bit and to the SmartOS default of assuming that bash.
+    """
+
+    if not content and os.path.exists(content_f):
+        os.unlink(content_f)
+    if link and os.path.islink(link):
+        os.unlink(link)
+    if not content:
+        return
+
+    util.write_file(content_f, content, mode=mode)
+
+    if shebang:
+        try:
+            cmd = ["file", "--brief", "--mime-type", content_f]
+            (f_type, _err) = util.subp(cmd)
+            LOG.debug("script %s mime type is %s" % (content_f, f_type))
+            line_one = content.splitlines()[0]
+            if f_type.strip() == "text/plain" and "#!" not in line_one:
+                new_content = "\n".join(["#!/bin/bash", content])
+                util.write_file(content_f, new_content, mode=mode)
+                LOG.debug("added shebang to file %s" % content_f)
+
+        except Exception as e:
+            util.logexc(LOG, ("Failed to identify script type for %s" %
+                             content_f, e))
+
+    if link:
+        try:
+            if os.path.islink(link):
+                os.unlink(link)
+            if content and os.path.exists(content_f):
+                util.ensure_dir(os.path.dirname(link))
+                os.symlink(content_f, link)
+        except IOError as e:
+            util.logexc(LOG, "failed establishing content link", e)
 
 
 # Used to match classes to dependencies
