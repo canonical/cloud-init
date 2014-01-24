@@ -2,7 +2,7 @@
 #
 #    Copyright (C) 2014 Harm Weites
 #
-#    Author: Harm Weites <harm@weites.com> 
+#    Author: Harm Weites <harm@weites.com>
 #
 #    This program is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License version 3, as
