@@ -238,7 +238,7 @@ class Distro(distros.Distro):
             try:
                 util.copy(self.login_conf_fn_bak, self.login_conf_fn)
             except IOError:
-                pass
+                util.logexc("Failed to restore %s backup", self.login_conf_fn)
 
     def install_packages(self, pkglist):
         return
