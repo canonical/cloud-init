@@ -195,7 +195,7 @@ def readurl(url, data=None, timeout=None, retries=0, sec_between=1,
                     # ssl exceptions are not going to get fixed by waiting a
                     # few seconds
                     break
-            if exception_cb and not exception_cb(filtered_req_args, e):
+            if exception_cb and not exception_cb(filtered_req_args, excps[-1]):
                 break
             if i + 1 < manual_tries and sec_between > 0:
                 LOG.debug("Please wait %s seconds while we wait to try again",
