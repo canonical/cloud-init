@@ -1,15 +1,7 @@
 #!/bin/bash
 
-ci_files='cloudinit/*.py cloudinit/config/*.py'
-test_files=$(find tests -name "*.py")
-def_files="$ci_files $test_files"
-
 if [ $# -eq 0 ]; then
-   files=( )
-   for f in $def_files; do
-      [ -f "$f" ] || { echo "failed, $f not a file" 1>&2; exit 1; }
-      files[${#files[@]}]=${f}
-   done
+   files=( bin/cloud-init $(find * -name "*.py" -type f) )
 else
    files=( "$@" );
 fi
@@ -44,4 +36,3 @@ cmd=(
 echo -e "\nRunning 'cloudinit' pep8:"
 echo "${cmd[@]}"
 "${cmd[@]}"
-
