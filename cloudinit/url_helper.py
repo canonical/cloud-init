@@ -103,7 +103,7 @@ class UrlError(IOError):
 
 def readurl(url, data=None, timeout=None, retries=0, sec_between=1,
             headers=None, headers_cb=None, ssl_details=None,
-            check_status=True, allow_redirects=True):
+            check_status=True, allow_redirects=True, exception_cb=None):
     url = _cleanurl(url)
     req_args = {
         'url': url,
@@ -163,14 +163,13 @@ def readurl(url, data=None, timeout=None, retries=0, sec_between=1,
     # Handle retrying ourselves since the built-in support
     # doesn't handle sleeping between tries...
     for i in range(0, manual_tries):
+        req_args['headers'] = headers_cb(url)
+        filtered_req_args = {}
+        for (k, v) in req_args.items():
+            if k == 'data':
+                continue
+            filtered_req_args[k] = v
         try:
-            req_args['headers'] = headers_cb(url)
-            filtered_req_args = {}
-            for (k, v) in req_args.items():
-                if k == 'data':
-                    continue
-                filtered_req_args[k] = v
-
             LOG.debug("[%s/%s] open '%s' with %s configuration", i,
                       manual_tries, url, filtered_req_args)
 
@@ -196,6 +195,8 @@ def readurl(url, data=None, timeout=None, retries=0, sec_between=1,
                     # ssl exceptions are not going to get fixed by waiting a
                     # few seconds
                     break
+            if exception_cb and not exception_cb(filtered_req_args, excps[-1]):
+                break
             if i + 1 < manual_tries and sec_between > 0:
                 LOG.debug("Please wait %s seconds while we wait to try again",
                           sec_between)
