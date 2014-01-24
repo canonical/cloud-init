@@ -53,6 +53,7 @@ class Distro(object):
     ci_sudoers_fn = "/etc/sudoers.d/90-cloud-init-users"
     hostname_conf_fn = "/etc/hostname"
     tz_zone_dir = "/usr/share/zoneinfo"
+    init_cmd = []  # Not implemented
 
     def __init__(self, name, cfg, paths):
         self._paths = paths
