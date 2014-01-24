@@ -16,6 +16,8 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+from StringIO import StringIO
+
 import re
 
 from cloudinit import distros
@@ -28,6 +30,10 @@ LOG = logging.getLogger(__name__)
 
 
 class Distro(distros.Distro):
+    rc_conf_fn = "/etc/rc.conf"
+    login_conf_fn = '/etc/login.conf'
+    login_conf_fn_bak = '/etc/login.conf.orig'
+
     def __init__(self, name, cfg, paths):
         distros.Distro.__init__(self, name, cfg, paths)
         # This will be used to restrict certain
@@ -40,27 +46,28 @@ class Distro(distros.Distro):
     def updatercconf(self, key, value):
         LOG.debug("updatercconf: %s => %s", key, value)
         conf = self.loadrcconf()
-        configchanged = False
+        config_changed = False
         for item in conf:
             if item == key and conf[item] != value:
                 conf[item] = value
                 LOG.debug("[rc.conf]: Value %s for key %s needs to be changed",
                           value, key)
-                configchanged = True
+                config_changed = True
 
-        if configchanged:
-            LOG.debug("Writing new /etc/rc.conf file")
-            with open('/etc/rc.conf', 'w') as fp:
-                for keyval in conf.items():
-                    fp.write("%s=%s\n" % keyval)
+        if config_changed:
+            LOG.debug("Writing new %s file", self.rc_conf_fn)
+            buf = StringIO()
+            for keyval in conf.items():
+                buf.write("%s=%s\n" % keyval)
+            util.write_file(self.rc_conf_fn, buf.getvalue())
 
     # Load the contents of /etc/rc.conf and store all keys in a dict.
     def loadrcconf(self):
         conf = {}
-        with open("/etc/rc.conf") as fp:
-            for line in fp:
-                tok = line.split('=')
-                conf[tok[0]] = tok[1].rstrip()
+        lines = util.load_file(self.rc_conf_fn).splitlines()
+        for line in lines:
+            tok = line.split('=')
+            conf[tok[0]] = tok[1].rstrip()
         return conf
 
     def readrcconf(self, key):
@@ -139,7 +146,7 @@ class Distro(distros.Distro):
         redact_opts = ['passwd']
 
         for key, val in kwargs.iteritems():
-            if key in adduser_opts and val and isinstance(val, str):
+            if key in adduser_opts and val and isinstance(val, basestring):
                 adduser_cmd.extend([adduser_opts[key], val])
 
                 # Redact certain fields from the logs
@@ -209,30 +216,29 @@ class Distro(distros.Distro):
         return
 
     def apply_locale(self, locale, out_fn=None):
-        loginconf = '/etc/login.conf'
-        newloginconf = '/tmp/login.conf.new'
-        backupconf = '/etc/login.conf.orig'
-
-        newconf = open(newloginconf, 'w')
-        origconf = open(loginconf, 'r')
-
-        for line in origconf:
+        # Adjust the locals value to the new value
+        newconf = StringIO()
+        for line in util.load_file(self.login_conf_fn).splitlines():
             newconf.write(re.sub(r'^default:',
                                  r'default:lang=%s:' % locale, line))
-        newconf.close()
-        origconf.close()
+            newconf.write("\n")
+
         # Make a backup of login.conf.
-        copyfile(loginconf, backupconf)
-        # And copy the new login.conf.
-        copyfile(newloginconf, loginconf)
+        util.copy(self.login_conf_fn, self.login_conf_fn_bak)
+
+        # And write the new login.conf.
+        util.write_file(self.login_conf_fn, newconf.getvalue())
 
         try:
             util.logexc("Running cap_mkdb for %s", locale)
-            util.subp(['cap_mkdb', '/etc/login.conf'])
-        except:
+            util.subp(['cap_mkdb', self.login_conf_fn])
+        except util.ProcessExecutionError:
             # cap_mkdb failed, so restore the backup.
             util.logexc("Failed to apply locale %s", locale)
-            copyfile(backupconf, loginconf)
+            try:
+                util.copy(self.login_conf_fn_bak, self.login_conf_fn)
+            except IOError:
+                pass
 
     def install_packages(self, pkglist):
         return
