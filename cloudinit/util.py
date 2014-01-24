@@ -963,7 +963,7 @@ def is_resolvable(name):
                 pass
         _DNS_REDIRECT_IP = badips
         if badresults:
-            LOG.debug("detected dns redirection: %s" % badresults)
+            LOG.debug("detected dns redirection: %s", badresults)
 
     try:
         result = socket.getaddrinfo(name, None)
@@ -1322,6 +1322,7 @@ def mounts():
             (mountoutput, _err) = subp("mount")
             mount_locs = mountoutput.splitlines()
             method = 'mount'
+        mountre = r'^(/dev/[\S]+) on (/.*) \((.+), .+, (.+)\)$'
         for mpline in mount_locs:
             # Linux: /dev/sda1 on /boot type ext4 (rw,relatime,data=ordered)
             # FreeBSD: /dev/vtbd0p2 on / (ufs, local, journaled soft-updates)
@@ -1329,7 +1330,7 @@ def mounts():
                 if method == 'proc':
                     (dev, mp, fstype, opts, _freq, _passno) = mpline.split()
                 else:
-                    m = re.search('^(/dev/[\S]+) on (/.*) \((.+), .+, (.+)\)$', mpline)
+                    m = re.search(mountre, mpline)
                     dev = m.group(1)
                     mp = m.group(2)
                     fstype = m.group(3)
@@ -1403,7 +1404,7 @@ def get_builtin_cfg():
 
 
 def sym_link(source, link):
-    LOG.debug("Creating symbolic link from %r => %r" % (link, source))
+    LOG.debug("Creating symbolic link from %r => %r", link, source)
     os.symlink(source, link)
 
 
@@ -1444,7 +1445,8 @@ def uptime():
             size = ctypes.c_size_t()
             buf = ctypes.c_int()
             size.value = ctypes.sizeof(buf)
-            libc.sysctlbyname("kern.boottime", ctypes.byref(buf), ctypes.byref(size), None, 0)
+            libc.sysctlbyname("kern.boottime", ctypes.byref(buf),
+                              ctypes.byref(size), None, 0)
             now = time.time()
             bootup = buf.value
             uptime_str = now - bootup
@@ -1793,7 +1795,7 @@ def parse_mount(path):
     (mountoutput, _err) = subp("mount")
     mount_locs = mountoutput.splitlines()
     for line in mount_locs:
-        m = re.search('^(/dev/[\S]+) on (/.*) \((.+), .+, (.+)\)$', line)
+        m = re.search(r'^(/dev/[\S]+) on (/.*) \((.+), .+, (.+)\)$', line)
         devpth = m.group(1)
         mount_point = m.group(2)
         fs_type = m.group(3)

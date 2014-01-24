@@ -223,7 +223,8 @@ def resize_devices(resizer, devices):
                          "stat of '%s' failed: %s" % (blockdev, e),))
             continue
 
-        if not stat.S_ISBLK(statret.st_mode) and not stat.S_ISCHR(statret.st_mode):
+        if (not stat.S_ISBLK(statret.st_mode) and
+                not stat.S_ISCHR(statret.st_mode)):
             info.append((devent, RESIZE.SKIPPED,
                          "device '%s' not a block device" % blockdev,))
             continue
