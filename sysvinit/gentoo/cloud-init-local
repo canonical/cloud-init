@@ -1,9 +1,8 @@
 #!/sbin/runscript
 
 depend() {
-  after cloud-config
+  after net # remove after nova-agent fix
   before cloud-init
-  before cloud-final
   provide cloud-init-local
 }
 

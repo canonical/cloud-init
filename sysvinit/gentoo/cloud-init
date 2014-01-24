@@ -2,7 +2,7 @@
 # add depends for network, dns, fs etc
 depend() {
   after cloud-init-local
-  before cloud-final
+  before cloud-config
   provide cloud-init
 }
 
