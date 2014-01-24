@@ -16,6 +16,7 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+import httplib
 from urlparse import (urlparse, urlunparse)
 
 import functools
@@ -23,9 +24,11 @@ import json
 import urllib
 
 from cloudinit import log as logging
+from cloudinit import url_helper
 from cloudinit import util
 
 LOG = logging.getLogger(__name__)
+SKIP_USERDATA_CODES = frozenset([httplib.NOT_FOUND])
 
 
 def maybe_json_object(text):
@@ -138,20 +141,38 @@ class MetadataMaterializer(object):
         return joined
 
 
+def _skip_retry_on_codes(status_codes, _request_args, cause):
+    """Returns if a request should retry based on a given set of codes that
+    case retrying to be stopped/skipped.
+    """
+    if cause.code in status_codes:
+        return False
+    return True
+
+
 def get_instance_userdata(api_version='latest',
                           metadata_address='http://169.254.169.254',
                           ssl_details=None, timeout=5, retries=5):
     ud_url = combine_url(metadata_address, api_version)
     ud_url = combine_url(ud_url, 'user-data')
+    user_data = ''
     try:
+        # It is ok for userdata to not exist (thats why we are stopping if
+        # NOT_FOUND occurs) and just in that case returning an empty string.
+        exception_cb = functools.partial(_skip_retry_on_codes,
+                                         SKIP_USERDATA_CODES)
         response = util.read_file_or_url(ud_url,
                                          ssl_details=ssl_details,
                                          timeout=timeout,
-                                         retries=retries)
-        return str(response)
+                                         retries=retries,
+                                         exception_cb=exception_cb)
+        user_data = str(response)
+    except url_helper.UrlError as e:
+        if e.code not in SKIP_USERDATA_CODES:
+            util.logexc(LOG, "Failed fetching userdata from url %s", ud_url)
     except Exception:
         util.logexc(LOG, "Failed fetching userdata from url %s", ud_url)
-        return ''
+    return user_data
 
 
 def get_instance_metadata(api_version='latest',
