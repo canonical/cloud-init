@@ -60,7 +60,7 @@ class Distro(distros.Distro):
 
     def install_packages(self, pkglist):
         self.update_package_sources()
-        self.package_command('install', pkgs=pkglist)
+        self.package_command('', pkgs=pkglist)
 
     def _write_network(self, settings):
         util.write_file(self.network_conf_fn, settings)
