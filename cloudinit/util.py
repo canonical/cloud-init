@@ -1904,3 +1904,75 @@ def expand_dotted_devname(dotted):
         return toks
     else:
         return (dotted, None)
+
+
+def write_executable_content(script, script_f):
+    """
+    This writes executable content and ensures that the shebang
+    exists.
+    """
+    write_file(script_f, script, mode=0700)
+    try:
+        cmd = ["file", "--brief", "--mime-type", script_f]
+        (f_type, _err) = subp(cmd)
+
+        LOG.debug("script %s mime type is %s" % (script_f, f_type))
+
+        # if the magic is text/plain, re-write with the shebang
+        if f_type.strip() == "text/plain":
+            with open(script_f, 'w') as f:
+                f.write("#!/bin/bash\n")
+                f.write(script)
+                LOG.debug("added shebang to file %s" % script_f)
+
+    except ProcessExecutionError as e:
+        logexc(LOG, "Failed to identify script type for %s" % script_f, e)
+        return False
+
+    except IOError as e:
+        logexc(LOG, "Failed to add shebang to file %s" % script_f, e)
+        return False
+
+    return True
+
+
+def write_content(content, content_f, link=None,
+                  executable=False):
+    """
+    Write the content to content_f. Under the following rules:
+        1. Backup previous content_f
+        2. Write the contente
+        3. If no content, remove the file
+        4. If there is a link, create it
+
+    @param content: what to write
+    @param content_f: the file name
+    @param backup_d: the directory to save the backup at
+    @param link: if defined, location to create a symlink to
+    @param executable: is the file executable
+    """
+
+    if content:
+        if not executable:
+            write_file(content_f, content, mode=0400)
+        else:
+            w = write_executable_content(content, content_f)
+            if not w:
+                LOG.debug("failed to write file to %s" % content_f)
+                return False
+
+    if not content and os.path.exists(content_f):
+        os.unlink(content_f)
+
+    if link:
+        try:
+            if os.path.islink(link):
+                os.unlink(link)
+            if content and os.path.exists(content_f):
+                ensure_dir(os.path.dirname(link))
+                os.symlink(content_f, link)
+        except IOError as e:
+            logexc(LOG, "failed establishing content link", e)
+            return False
+
+    return True
