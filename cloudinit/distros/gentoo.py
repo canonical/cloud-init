@@ -156,7 +156,8 @@ class Distro(distros.Distro):
         elif args and isinstance(args, list):
             cmd.extend(args)
 
-        cmd.append(command)
+        if command:
+            cmd.append(command)
 
         pkglist = util.expand_package_list('%s-%s', pkgs)
         cmd.extend(pkglist)
