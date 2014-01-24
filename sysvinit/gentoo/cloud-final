@@ -1,7 +1,7 @@
 #!/sbin/runscript
-# add depends for network, dns, fs etc
+
 depend() {
-  after cloud-init
+  after cloud-config
   provide cloud-final
 }
 
