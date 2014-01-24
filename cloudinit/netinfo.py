@@ -44,7 +44,7 @@ def netdev_info(empty=""):
         # If the output of ifconfig doesn't contain the required info in the
         # obvious place, use a regex filter to be sure.
         elif len(toks) > 1:
-            if re.search("flags=\d+<up,", toks[1]):
+            if re.search(r"flags=\d+<up,", toks[1]):
                 devs[curdev]['up'] = True
 
         fieldpost = ""
@@ -58,11 +58,8 @@ def netdev_info(empty=""):
                 except IndexError:
                     pass
 
-            """
-            Couple the different items we're interested in with the correct field
-            since FreeBSD/CentOS/Fedora differ in the output.
-            """
-
+            # Couple the different items we're interested in with the correct
+            # field since FreeBSD/CentOS/Fedora differ in the output.
             ifconfigfields = {
                 "addr:": "addr", "inet": "addr",
                 "bcast:": "bcast", "broadcast": "bcast",
@@ -98,17 +95,16 @@ def route_info():
             continue
         toks = line.split()
 
-        """
-        FreeBSD shows 6 items in the routing table:
-          Destination        Gateway            Flags    Refs      Use  Netif Expire
-          default            10.65.0.1          UGS         0    34920 vtnet0
-
-        Linux netstat shows 2 more:
-          Destination     Gateway         Genmask         Flags   MSS Window  irtt Iface
-          0.0.0.0         10.65.0.1       0.0.0.0         UG        0 0          0 eth0
-        """
-
-        if len(toks) < 6 or toks[0] == "Kernel" or toks[0] == "Destination" or toks[0] == "Internet" or toks[0] == "Internet6" or toks[0] == "Routing":
+        # FreeBSD shows 6 items in the routing table:
+        #  Destination  Gateway    Flags Refs    Use  Netif Expire
+        #  default      10.65.0.1  UGS      0  34920 vtnet0
+        #
+        # Linux netstat shows 2 more:
+        #  Destination  Gateway    Genmask  Flags MSS Window irtt Iface
+        #  0.0.0.0      10.65.0.1  0.0.0.0  UG      0 0         0 eth0
+        if (len(toks) < 6 or toks[0] == "Kernel" or
+                toks[0] == "Destination" or toks[0] == "Internet" or
+                toks[0] == "Internet6" or toks[0] == "Routing"):
             continue
 
         if len(toks) < 8:

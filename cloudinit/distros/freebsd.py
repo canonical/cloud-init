@@ -16,14 +16,13 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+import re
+
 from cloudinit import distros
 from cloudinit import helpers
 from cloudinit import log as logging
-from cloudinit import netinfo
 from cloudinit import ssh_util
 from cloudinit import util
-
-from cloudinit.settings import PER_INSTANCE
 
 LOG = logging.getLogger(__name__)
 
@@ -39,26 +38,27 @@ class Distro(distros.Distro):
 
     # Updates a key in /etc/rc.conf.
     def updatercconf(self, key, value):
-        LOG.debug("updatercconf: %s => %s" % (key, value))
+        LOG.debug("updatercconf: %s => %s", key, value)
         conf = self.loadrcconf()
         configchanged = False
         for item in conf:
             if item == key and conf[item] != value:
                 conf[item] = value
-                LOG.debug("[rc.conf]: Value %s for key %s needs to be changed" % (value, key))
+                LOG.debug("[rc.conf]: Value %s for key %s needs to be changed",
+                          value, key)
                 configchanged = True
 
         if configchanged:
             LOG.debug("Writing new /etc/rc.conf file")
-            with open('/etc/rc.conf', 'w') as file:
+            with open('/etc/rc.conf', 'w') as fp:
                 for keyval in conf.items():
-                    file.write("%s=%s\n" % keyval)
+                    fp.write("%s=%s\n" % keyval)
 
     # Load the contents of /etc/rc.conf and store all keys in a dict.
     def loadrcconf(self):
         conf = {}
-        with open("/etc/rc.conf") as file:
-            for line in file:
+        with open("/etc/rc.conf") as fp:
+            for line in fp:
                 tok = line.split('=')
                 conf[tok[0]] = tok[1].rstrip()
         return conf
@@ -75,7 +75,7 @@ class Distro(distros.Distro):
         sys_hostname = self._read_hostname()
         return ('rc.conf', sys_hostname)
 
-    def _read_hostname(self, default=None):
+    def _read_hostname(self, filename, default=None):
         hostname = None
         try:
             hostname = self.readrcconf('hostname')
@@ -90,17 +90,17 @@ class Distro(distros.Distro):
             return fqdn
         return hostname
 
-    def _write_hostname(self, your_hostname, out_fn):
-        self.updatercconf('hostname', your_hostname)
+    def _write_hostname(self, hostname, filename):
+        self.updatercconf('hostname', hostname)
 
     def create_group(self, name, members):
         group_add_cmd = ['pw', '-n', name]
         if util.is_group(name):
-            LOG.warn("Skipping creation of existing group '%s'" % name)
+            LOG.warn("Skipping creation of existing group '%s'", name)
         else:
             try:
                 util.subp(group_add_cmd)
-                LOG.info("Created new group %s" % name)
+                LOG.info("Created new group %s", name)
             except Exception:
                 util.logexc("Failed to create group %s", name)
 
@@ -111,11 +111,11 @@ class Distro(distros.Distro):
                                      "; user does not exist.", member, name)
                     continue
                 util.subp(['pw', 'usermod', '-n', name, '-G', member])
-                LOG.info("Added user '%s' to group '%s'" % (member, name))
+                LOG.info("Added user '%s' to group '%s'", member, name)
 
     def add_user(self, name, **kwargs):
         if util.is_user(name):
-            LOG.info("User %s already exists, skipping." % name)
+            LOG.info("User %s already exists, skipping.", name)
             return False
 
         adduser_cmd = ['pw', 'useradd', '-n', name]
@@ -170,7 +170,7 @@ class Distro(distros.Distro):
             raise e
 
     # TODO:
-    def set_passwd(self, name, **kwargs):
+    def set_passwd(self, user, passwd, hashed=False):
         return False
 
     def lock_passwd(self, name):
@@ -182,7 +182,7 @@ class Distro(distros.Distro):
 
     # TODO:
     def write_sudo_rules(self, name, rules, sudo_file=None):
-        LOG.debug("[write_sudo_rules] Name: %s" % name)
+        LOG.debug("[write_sudo_rules] Name: %s", name)
 
     def create_user(self, name, **kwargs):
         self.add_user(name, **kwargs)
@@ -217,7 +217,8 @@ class Distro(distros.Distro):
         origconf = open(loginconf, 'r')
 
         for line in origconf:
-            newconf.write(re.sub('^default:', r'default:lang=%s:' % locale, line))
+            newconf.write(re.sub(r'^default:',
+                                 r'default:lang=%s:' % locale, line))
         newconf.close()
         origconf.close()
         # Make a backup of login.conf.
@@ -233,14 +234,14 @@ class Distro(distros.Distro):
             util.logexc("Failed to apply locale %s", locale)
             copyfile(backupconf, loginconf)
 
-    def install_packages():
+    def install_packages(self, pkglist):
         return
 
-    def package_command():
+    def package_command(self, cmd, args=None, pkgs=None):
         return
 
-    def set_timezone():
+    def set_timezone(self, tz):
         return
 
-    def update_package_sources():
+    def update_package_sources(self):
         return
