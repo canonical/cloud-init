@@ -51,7 +51,7 @@
 #
 # auto lo
 # iface lo inet loopback
-# 
+#
 # auto eth0
 # iface eth0 inet static
 #         address 10.0.0.1
@@ -64,17 +64,17 @@
 # {
 #     "lo": {
 #         "auto": true
-#     }, 
+#     },
 #     "eth0": {
-#         "auto": true, 
+#         "auto": true,
 #         "dns-nameservers": [
-#             "98.0.0.1", 
+#             "98.0.0.1",
 #             "98.0.0.2"
-#         ], 
-#         "broadcast": "10.0.0.255", 
-#         "netmask": "255.255.252.0", 
-#         "bootproto": "static", 
-#         "address": "10.0.0.1", 
+#         ],
+#         "broadcast": "10.0.0.255",
+#         "netmask": "255.255.252.0",
+#         "bootproto": "static",
+#         "address": "10.0.0.1",
 #         "gateway": "10.0.0.2"
 #     }
 # }

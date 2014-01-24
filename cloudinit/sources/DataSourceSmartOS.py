@@ -159,21 +159,21 @@ class DataSourceSmartOS(sources.DataSource):
             smartos_noun, strip = attribute
             md[ci_noun] = self.query(smartos_noun, strip=strip)
 
-        # @datadictionary:  This key has no defined format, but its value
-        # is written to the file /var/db/mdata-user-data on each boot prior
-        # to the phase that runs user-script. This file is not to be executed.
-        # This allows a configuration file of some kind to be injected into
-        # the machine to be consumed by the user-script when it runs.
+        # @datadictionary: This key may contain a program that is written
+        # to a file in the filesystem of the guest on each boot and then
+        # executed. It may be of any format that would be considered
+        # executable in the guest instance.
         u_script = md.get('user-script')
         u_script_f = "%s/99_user_script" % self.user_script_d
         u_script_l = "%s/user-script" % LEGACY_USER_D
         util.write_content(u_script, u_script_f, link=u_script_l,
                            executable=True)
 
-        # @datadictionary: This key may contain a program that is written
-        # to a file in the filesystem of the guest on each boot and then
-        # executed. It may be of any format that would be considered
-        # executable in the guest instance.
+        # @datadictionary:  This key has no defined format, but its value
+        # is written to the file /var/db/mdata-user-data on each boot prior
+        # to the phase that runs user-script. This file is not to be executed.
+        # This allows a configuration file of some kind to be injected into
+        # the machine to be consumed by the user-script when it runs.
         u_data = md.get('legacy-user-data')
         u_data_f = "%s/mdata-user-data" % LEGACY_USER_D
         util.write_content(u_data, u_data_f)
