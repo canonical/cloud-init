@@ -16,6 +16,7 @@ cmd=(
     --rcfile=$RC_FILE
     --disable=R
     --disable=I
+    --dummy-variables-rgx="_"
     "${files[@]}"
 )
 
