@@ -108,8 +108,9 @@ class Distro(distros.Distro):
             try:
                 util.subp(group_add_cmd)
                 LOG.info("Created new group %s", name)
-            except Exception:
+            except Exception as e:
                 util.logexc(LOG, "Failed to create group %s", name)
+                raise e
 
         if len(members) > 0:
             for member in members:
