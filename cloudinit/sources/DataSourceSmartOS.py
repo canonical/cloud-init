@@ -36,7 +36,6 @@ from cloudinit import util
 import os
 import os.path
 import serial
-import subprocess
 
 
 LOG = logging.getLogger(__name__)
@@ -313,7 +312,8 @@ def dmi_data():
     return (sys_uuid.lower().strip(), sys_type.strip())
 
 
-def write_boot_content(content, content_f, link=None, shebang=False, mode=0400):
+def write_boot_content(content, content_f, link=None, shebang=False,
+                       mode=0400):
     """
     Write the content to content_f. Under the following rules:
         1. If no content, remove the file
@@ -343,16 +343,15 @@ def write_boot_content(content, content_f, link=None, shebang=False, mode=0400):
 
     util.write_file(content_f, content, mode=mode)
 
-    if shebang:
+    if shebang and not content.startswith("#!"):
         try:
             cmd = ["file", "--brief", "--mime-type", content_f]
             (f_type, _err) = util.subp(cmd)
-            LOG.debug("script %s mime type is %s" % (content_f, f_type))
-            line_one = content.splitlines()[0]
-            if f_type.strip() == "text/plain" and "#!" not in line_one:
+            LOG.debug("script %s mime type is %s", content_f, f_type)
+            if f_type.strip() == "text/plain":
                 new_content = "\n".join(["#!/bin/bash", content])
                 util.write_file(content_f, new_content, mode=mode)
-                LOG.debug("added shebang to file %s" % content_f)
+                LOG.debug("added shebang to file %s", content_f)
 
         except Exception as e:
             util.logexc(LOG, ("Failed to identify script type for %s" %
