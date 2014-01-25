@@ -1,3 +1,20 @@
+cloud-init (0.7.5~bzr933-0ubuntu1) trusty; urgency=medium
+
+  * debian/control: bump Standards-Version to 3.9.5
+  * debian/control: drop boto dependency no longer required in trunk.
+  * New upstream snapshot.
+    * ConfigDrive: consider partitions labelled correctly as possible sources.
+    * find root filesystem for resizing in cases where there is no initramfs
+    * removal of dependency on python-boto
+    * vendor-data support, and usage of that in Joyent datasource.
+    * change default output to be logged to /var/log/cloud-init-output.log
+    * SeLinuxGuard: Cast file path to string. (LP: #1260072)
+    * drop support for resizing via parted (LP: #1212492)
+    * SmartOS: changes to address changes in platform (LP: #1272115)
+    * FreeBSD support.
+
+ -- Scott Moser <smoser@ubuntu.com>  Fri, 24 Jan 2014 22:41:57 -0500
+
 cloud-init (0.7.5~bzr902-0ubuntu1) trusty; urgency=medium
 
   * debian/control: Build-Depend on python-jsonpatch as #717916 is now fixed.

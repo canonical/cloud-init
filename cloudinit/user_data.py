@@ -88,7 +88,11 @@ class UserDataProcessor(object):
 
     def process(self, blob):
         accumulating_msg = MIMEMultipart()
-        self._process_msg(convert_string(blob), accumulating_msg)
+        if isinstance(blob, list):
+            for b in blob:
+                self._process_msg(convert_string(b), accumulating_msg)
+        else:
+            self._process_msg(convert_string(blob), accumulating_msg)
         return accumulating_msg
 
     def _process_msg(self, base_msg, append_msg):
@@ -307,7 +311,8 @@ class UserDataProcessor(object):
     def _attach_part(self, outer_msg, part):
         """
         Attach a message to an outer message. outermsg must be a MIMEMultipart.
-        Modifies a header in the outer message to keep track of number of attachments.
+        Modifies a header in the outer message to keep track of number of
+        attachments.
         """
         part_count = self._multi_part_count(outer_msg)
         self._process_before_attach(part, part_count + 1)

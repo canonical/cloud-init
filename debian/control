@@ -9,7 +9,6 @@ Build-Depends: cdbs,
                pylint,
                python (>= 2.6.6-3~),
                python-argparse,
-               python-boto,
                python-cheetah,
                python-configobj,
                python-jsonpatch | python-json-patch,
@@ -21,7 +20,7 @@ Build-Depends: cdbs,
                python-requests,
                python-yaml
 XS-Python-Version: all
-Standards-Version: 3.9.4
+Standards-Version: 3.9.5
 
 Package: cloud-init
 Architecture: all

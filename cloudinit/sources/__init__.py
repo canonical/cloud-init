@@ -53,6 +53,8 @@ class DataSource(object):
         self.userdata = None
         self.metadata = None
         self.userdata_raw = None
+        self.vendordata = None
+        self.vendordata_raw = None
 
         # find the datasource config name.
         # remove 'DataSource' from classname on front, and remove 'Net' on end.
@@ -77,8 +79,13 @@ class DataSource(object):
         if self.userdata is None:
             self.userdata = self.ud_proc.process(self.get_userdata_raw())
         if apply_filter:
-            return self._filter_userdata(self.userdata)
+            return self._filter_xdata(self.userdata)
         return self.userdata
+
+    def get_vendordata(self):
+        if self.vendordata is None:
+            self.vendordata = self.ud_proc.process(self.get_vendordata_raw())
+        return self.vendordata
 
     @property
     def launch_index(self):
@@ -88,7 +95,7 @@ class DataSource(object):
             return self.metadata['launch-index']
         return None
 
-    def _filter_userdata(self, processed_ud):
+    def _filter_xdata(self, processed_ud):
         filters = [
             launch_index.Filter(util.safe_int(self.launch_index)),
         ]
@@ -103,6 +110,9 @@ class DataSource(object):
 
     def get_userdata_raw(self):
         return self.userdata_raw
+
+    def get_vendordata_raw(self):
+        return self.vendordata_raw
 
     # the data sources' config_obj is a cloud-config formated
     # object that came to it from ways other than cloud-config
@@ -119,7 +129,7 @@ class DataSource(object):
         # when the kernel named them 'vda' or 'xvda'
         # we want to return the correct value for what will actually
         # exist in this instance
-        mappings = {"sd": ("vd", "xvd")}
+        mappings = {"sd": ("vd", "xvd", "vtb")}
         for (nfrom, tlist) in mappings.iteritems():
             if not short_name.startswith(nfrom):
                 continue

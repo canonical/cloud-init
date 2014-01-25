@@ -5,6 +5,23 @@
    datasource and cloud-init [Shraddha Pandhe]
  - support running apt with 'eatmydata' via configuration token
    apt_get_wrapper (LP: #1236531).
+ - convert paths provided in config-drive 'files' to string before writing
+   (LP: #1260072).
+ - Azure: minor changes in logging output. ensure filenames are strings (not
+   unicode).
+ - config/cloud.cfg.d/05_logging.cfg: provide a default 'output' setting, to
+   redirect cloud-init stderr and stdout /var/log/cloud-init-output.log.
+ - drop support for resizing partitions with parted entirely (LP: #1212492).
+   This was broken as it was anyway.
+ - add support for vendordata.
+ - drop dependency on boto for crawling ec2 metadata service.
+ - add 'Requires' on sudo (for OpenNebula datasource) in rpm specs, and
+   'Recommends' in the debian/control.in [Vlastimil Holer]
+ - if mount_info reports /dev/root is a device path for /, then convert
+   that to a device via help of kernel cmdline.
+ - configdrive: consider partitions as possible datasources if they have
+   theh correct filesystem label. [Paul Querna]
+ - initial freebsd support [Harm Weites]
 0.7.4:
  - fix issue mounting 'ephemeral0' if ephemeral0 was an alias for a
    partitioned block device with target filesystem on ephemeral0.1.

@@ -261,8 +261,8 @@ def main_init(name, args):
         # Attempt to consume the data per instance.
         # This may run user-data handlers and/or perform
         # url downloads and such as needed.
-        (ran, _results) = init.cloudify().run('consume_userdata',
-                                             init.consume_userdata,
+        (ran, _results) = init.cloudify().run('consume_data',
+                                             init.consume_data,
                                              args=[PER_INSTANCE],
                                              freq=PER_INSTANCE)
         if not ran:
@@ -271,7 +271,7 @@ def main_init(name, args):
             #
             # See: https://bugs.launchpad.net/bugs/819507 for a little
             # reason behind this...
-            init.consume_userdata(PER_ALWAYS)
+            init.consume_data(PER_ALWAYS)
     except Exception:
         util.logexc(LOG, "Consuming user data failed!")
         return 1
