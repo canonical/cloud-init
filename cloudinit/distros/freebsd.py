@@ -109,16 +109,20 @@ class Distro(distros.Distro):
                 util.subp(group_add_cmd)
                 LOG.info("Created new group %s", name)
             except Exception:
-                util.logexc("Failed to create group %s", name)
+                util.logexc(LOG, "Failed to create group %s", name)
 
         if len(members) > 0:
             for member in members:
                 if not util.is_user(member):
                     LOG.warn("Unable to add group member '%s' to group '%s'"
-                                     "; user does not exist.", member, name)
+                             "; user does not exist.", member, name)
                     continue
-                util.subp(['pw', 'usermod', '-n', name, '-G', member])
-                LOG.info("Added user '%s' to group '%s'", member, name)
+                try:
+                    util.subp(['pw', 'usermod', '-n', name, '-G', member])
+                    LOG.info("Added user '%s' to group '%s'", member, name)
+                except Exception:
+                    util.logexc(LOG, "Failed to add user '%s' to group '%s'",
+                                member, name)
 
     def add_user(self, name, **kwargs):
         if util.is_user(name):
@@ -230,15 +234,16 @@ class Distro(distros.Distro):
         util.write_file(self.login_conf_fn, newconf.getvalue())
 
         try:
-            util.logexc("Running cap_mkdb for %s", locale)
+            LOG.debug("Running cap_mkdb for %s", locale)
             util.subp(['cap_mkdb', self.login_conf_fn])
         except util.ProcessExecutionError:
             # cap_mkdb failed, so restore the backup.
-            util.logexc("Failed to apply locale %s", locale)
+            util.logexc(LOG, "Failed to apply locale %s", locale)
             try:
                 util.copy(self.login_conf_fn_bak, self.login_conf_fn)
             except IOError:
-                util.logexc("Failed to restore %s backup", self.login_conf_fn)
+                util.logexc(LOG, "Failed to restore %s backup",
+                            self.login_conf_fn)
 
     def install_packages(self, pkglist):
         return
