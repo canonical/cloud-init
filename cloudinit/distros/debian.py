@@ -48,7 +48,6 @@ class Distro(distros.Distro):
     network_conf_fn = "/etc/network/interfaces"
     tz_conf_fn = "/etc/timezone"
     tz_local_fn = "/etc/localtime"
-    init_cmd = ['service']
 
     def __init__(self, name, cfg, paths):
         distros.Distro.__init__(self, name, cfg, paths)

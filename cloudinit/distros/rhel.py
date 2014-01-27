@@ -49,7 +49,6 @@ class Distro(distros.Distro):
     network_script_tpl = '/etc/sysconfig/network-scripts/ifcfg-%s'
     resolve_conf_fn = "/etc/resolv.conf"
     tz_local_fn = "/etc/localtime"
-    init_cmd = ['service']
 
     def __init__(self, name, cfg, paths):
         distros.Distro.__init__(self, name, cfg, paths)
