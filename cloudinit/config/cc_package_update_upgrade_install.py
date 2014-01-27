@@ -49,8 +49,7 @@ def _fire_reboot(log, wait_attempts=6, initial_sleep=1, backoff=2):
 
 
 def handle(_name, cfg, cloud, log, _args):
-    if cloud.is_excluded(_name):
-        return
+
     # Handle the old style + new config names
     update = _multi_cfg_bool_get(cfg, 'apt_update', 'package_update')
     upgrade = _multi_cfg_bool_get(cfg, 'package_upgrade', 'apt_upgrade')

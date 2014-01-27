@@ -30,7 +30,7 @@ def handle(_name, cfg, _cloud, log, _args):
     idevs = None
     idevs_empty = None
 
-    if _cloud.is_excluded(_name):
+    if _cloud.distro.is_excluded(_name):
         return
     if "grub-dpkg" in cfg:
         idevs = util.get_cfg_option_str(cfg["grub-dpkg"],

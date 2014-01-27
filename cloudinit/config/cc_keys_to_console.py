@@ -30,7 +30,7 @@ HELPER_TOOL = '/usr/lib/cloud-init/write-ssh-key-fingerprints'
 
 
 def handle(name, cfg, _cloud, log, _args):
-    if _cloud.is_excluded(name):
+    if _cloud.distro.is_excluded(name):
         return
     if not os.path.exists(HELPER_TOOL):
         log.warn(("Unable to activate module %s,"
