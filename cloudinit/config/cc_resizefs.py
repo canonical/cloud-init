@@ -52,6 +52,8 @@ NOBLOCK = "noblock"
 
 
 def handle(name, cfg, _cloud, log, args):
+    if _cloud.is_excluded(name):
+        return
     if len(args) != 0:
         resize_root = args[0]
     else:

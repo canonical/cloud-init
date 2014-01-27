@@ -32,7 +32,8 @@ distros = ['ubuntu']
 
 
 def handle(_name, cfg, cloud, log, args):
-
+    if cloud.is_excluded(_name):
+        return
     # import for "user: XXXXX"
     if len(args) != 0:
         user = args[0]

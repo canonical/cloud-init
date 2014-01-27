@@ -27,6 +27,8 @@ frequency = PER_INSTANCE
 
 
 def handle(name, cfg, cloud, _log, _args):
+    if cloud.is_excluded(name):
+        return
     (users, groups) = ds.normalize_users_groups(cfg, cloud.distro)
     for (name, members) in groups.items():
         cloud.distro.create_group(name, members)

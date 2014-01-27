@@ -22,6 +22,8 @@ from cloudinit import util
 
 
 def handle(name, cfg, cloud, log, _args):
+    if cloud.is_excluded(name):
+        return
     # If there isn't a salt key in the configuration don't do anything
     if 'salt_minion' not in cfg:
         log.debug(("Skipping module named %s,"

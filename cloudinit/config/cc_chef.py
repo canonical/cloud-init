@@ -40,7 +40,8 @@ OMNIBUS_URL = "https://www.opscode.com/chef/install.sh"
 
 
 def handle(name, cfg, cloud, log, _args):
-
+    if cloud.is_excluded(name):
+        return
     # If there isn't a chef key in the configuration don't do anything
     if 'chef' not in cfg:
         log.debug(("Skipping module named %s,"

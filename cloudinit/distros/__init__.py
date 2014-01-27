@@ -54,11 +54,19 @@ class Distro(object):
     hostname_conf_fn = "/etc/hostname"
     tz_zone_dir = "/usr/share/zoneinfo"
     init_cmd = ['service']  # systemctl, service etc
+    exclude_modules = []
 
     def __init__(self, name, cfg, paths):
         self._paths = paths
         self._cfg = cfg
         self.name = name
+
+    def is_excluded(self, name):
+        if name in self.excluded_modules:
+            distro = getattr(self, name, None) or getattr(self, 'osfamily')
+            LOG.debug(("Skipping module named %s, distro excluded"), name,
+                    distro)
+            return True
 
     @abc.abstractmethod
     def install_packages(self, pkglist):

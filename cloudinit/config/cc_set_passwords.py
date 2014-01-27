@@ -36,6 +36,8 @@ PW_SET = (letters.translate(None, 'loLOI') +
 
 
 def handle(_name, cfg, cloud, log, args):
+    if cloud.is_excluded(_name):
+        return
     if len(args) != 0:
         # if run from command line, and give args, wipe the chpasswd['list']
         password = args[0]
