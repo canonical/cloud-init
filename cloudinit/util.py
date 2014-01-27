@@ -1889,3 +1889,28 @@ def expand_dotted_devname(dotted):
         return toks
     else:
         return (dotted, None)
+
+
+def pathprefix2dict(base, required=None, optional=None, delim=os.path.sep):
+    # return a dictionary populated with keys in 'required' and 'optional'
+    # by reading files in prefix + delim + entry
+    if required is None:
+        required = []
+    if optional is None:
+        optional = []
+
+    missing = []
+    ret = {}
+    for f in required + optional:
+        try:
+            ret[f] = load_file(base + delim + f, quiet=False)
+        except IOError as e:
+            if e.errno != errno.ENOENT:
+                raise
+            if f in required:
+                missing.append(f)
+
+    if len(missing):
+        raise ValueError("Missing required files: %s", ','.join(missing))
+
+    return ret
