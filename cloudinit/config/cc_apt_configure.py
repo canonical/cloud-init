@@ -51,7 +51,7 @@ EXPORT_GPG_KEYID = """
 
 
 def handle(name, cfg, cloud, log, _args):
-    if cloud.is_excluded(name):
+    if cloud.distro.is_excluded(name):
         return
     release = get_release()
     mirrors = find_apt_mirror_info(cloud, cfg)

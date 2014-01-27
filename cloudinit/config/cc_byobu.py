@@ -29,8 +29,7 @@ distros = ['ubuntu', 'debian']
 
 
 def handle(name, cfg, cloud, log, args):
-    if cloud.is_excluded(name):
-        return
+
     if len(args) != 0:
         value = args[0]
     else:

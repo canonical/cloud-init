@@ -50,8 +50,7 @@ MY_HOOKNAME = 'CLOUD_INIT_REMOTE_HOOK'
 
 
 def handle(name, _cfg, cloud, log, _args):
-    if cloud.is_excluded(name):
-        return
+
     try:
         ud = cloud.get_userdata_raw()
     except:

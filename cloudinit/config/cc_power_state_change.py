@@ -31,8 +31,7 @@ EXIT_FAIL = 254
 
 
 def handle(_name, cfg, _cloud, log, _args):
-    if _cloud.is_excluded(_name):
-        return
+
     try:
         (args, timeout) = load_power_state(cfg)
         if args is None:
