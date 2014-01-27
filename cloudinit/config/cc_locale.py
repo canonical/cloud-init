@@ -22,6 +22,8 @@ from cloudinit import util
 
 
 def handle(name, cfg, cloud, log, args):
+    if cloud.is_excluded(name):
+        return
     if len(args) != 0:
         locale = args[0]
     else:

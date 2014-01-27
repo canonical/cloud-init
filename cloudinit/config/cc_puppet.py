@@ -49,6 +49,8 @@ def _autostart_puppet(log):
 
 
 def handle(name, cfg, cloud, log, _args):
+    if cloud.is_excluded(name):
+        return
     # If there isn't a puppet key in the configuration don't do anything
     if 'puppet' not in cfg:
         log.debug(("Skipping module named %s,"

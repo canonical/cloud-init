@@ -33,7 +33,8 @@ SERVER_CFG = '/etc/mcollective/server.cfg'
 
 
 def handle(name, cfg, cloud, log, _args):
-
+    if cloud.is_excluded(name):
+        return
     # If there isn't a mcollective key in the configuration don't do anything
     if 'mcollective' not in cfg:
         log.debug(("Skipping module named %s, "

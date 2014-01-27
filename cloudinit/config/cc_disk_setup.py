@@ -40,6 +40,8 @@ def handle(_name, cfg, cloud, log, _args):
     See doc/examples/cloud-config_disk-setup.txt for documentation on the
     format.
     """
+    if cloud.is_excluded(_name):
+        return
     disk_setup = cfg.get("disk_setup")
     if isinstance(disk_setup, dict):
         update_disk_setup_devices(disk_setup, cloud.device_name_to_device)

@@ -79,6 +79,8 @@ def handle(name, cfg, _cloud, log, _args):
     @param args: Any module arguments from cloud.cfg
     """
     # If there isn't a ca-certs section in the configuration don't do anything
+    if _cloud.is_excluded(name):
+        return
     if "ca-certs" not in cfg:
         log.debug(("Skipping module named %s,"
                    " no 'ca-certs' key in configuration"), name)
