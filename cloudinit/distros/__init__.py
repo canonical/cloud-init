@@ -64,7 +64,7 @@ class Distro(object):
     def is_excluded(self, name):
         if name in self.exclude_modules:
             distro = getattr(self, name, None) or getattr(self, 'osfamily')
-            LOG.debug(("Skipping module named %s, distro excluded"), name,
+            LOG.debug(("Skipping module named %s, distro %s excluded"), name,
                     distro)
             return True
 
