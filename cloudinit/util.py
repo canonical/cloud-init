@@ -369,11 +369,11 @@ def is_ipv4(instr):
         return False
 
     try:
-        toks = [x for x in toks if (int(x) < 256 and int(x) > 0)]
+        toks = [x for x in toks if int(x) < 256 and int(x) > 0]
     except:
         return False
 
-    return (len(toks) == 4)
+    return len(toks) == 4
 
 
 def get_cfg_option_bool(yobj, key, default=False):
@@ -972,7 +972,7 @@ def gethostbyaddr(ip):
 
 def is_resolvable_url(url):
     """determine if this url is resolvable (existing or ip)."""
-    return (is_resolvable(urlparse.urlparse(url).hostname))
+    return is_resolvable(urlparse.urlparse(url).hostname)
 
 
 def search_for_mirror(candidates):
