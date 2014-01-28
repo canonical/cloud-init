@@ -56,8 +56,7 @@ KEY_FILE_TPL = '/etc/ssh/ssh_host_%s_key'
 
 
 def handle(_name, cfg, cloud, log, _args):
-    if cloud.is_excluded(_name):
-        return
+
     # remove the static keys from the pristine image
     if cfg.get("ssh_deletekeys", True):
         key_pth = os.path.join("/etc/ssh/", "ssh_host_*key*")

@@ -213,8 +213,7 @@ def resize_devices(resizer, devices):
 
 
 def handle(_name, cfg, _cloud, log, _args):
-    if _cloud.is_excluded(_name):
-        return
+
     if 'growpart' not in cfg:
         log.debug("No 'growpart' entry in cfg.  Using default: %s" %
                   DEFAULT_CONFIG)
