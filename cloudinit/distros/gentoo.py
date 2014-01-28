@@ -38,7 +38,7 @@ class Distro(distros.Distro):
     tz_conf_fn = "/etc/timezone"
     tz_local_fn = "/etc/localtime"
     init_cmd = ['']
-    exclude_modules = ['grub_dpkg', 'apt_configure']
+    exclude_modules = ['grub-dpkg', 'apt-configure', 'apt-pipelining']
 
     def __init__(self, name, cfg, paths):
         distros.Distro.__init__(self, name, cfg, paths)
