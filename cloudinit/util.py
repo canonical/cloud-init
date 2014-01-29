@@ -369,11 +369,11 @@ def is_ipv4(instr):
         return False
 
     try:
-        toks = [x for x in toks if (int(x) < 256 and int(x) >= 0)]
+        toks = [x for x in toks if int(x) < 256 and int(x) >= 0]
     except:
         return False
 
-    return (len(toks) == 4)
+    return len(toks) == 4
 
 
 def get_cfg_option_bool(yobj, key, default=False):
@@ -972,7 +972,7 @@ def gethostbyaddr(ip):
 
 def is_resolvable_url(url):
     """determine if this url is resolvable (existing or ip)."""
-    return (is_resolvable(urlparse.urlparse(url).hostname))
+    return is_resolvable(urlparse.urlparse(url).hostname)
 
 
 def search_for_mirror(candidates):
@@ -1889,3 +1889,28 @@ def expand_dotted_devname(dotted):
         return toks
     else:
         return (dotted, None)
+
+
+def pathprefix2dict(base, required=None, optional=None, delim=os.path.sep):
+    # return a dictionary populated with keys in 'required' and 'optional'
+    # by reading files in prefix + delim + entry
+    if required is None:
+        required = []
+    if optional is None:
+        optional = []
+
+    missing = []
+    ret = {}
+    for f in required + optional:
+        try:
+            ret[f] = load_file(base + delim + f, quiet=False)
+        except IOError as e:
+            if e.errno != errno.ENOENT:
+                raise
+            if f in required:
+                missing.append(f)
+
+    if len(missing):
+        raise ValueError("Missing required files: %s", ','.join(missing))
+
+    return ret
