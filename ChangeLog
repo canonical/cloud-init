@@ -13,7 +13,7 @@
    redirect cloud-init stderr and stdout /var/log/cloud-init-output.log.
  - drop support for resizing partitions with parted entirely (LP: #1212492).
    This was broken as it was anyway.
- - add support for vendordata.
+ - add support for vendordata in SmartOS and NoCloud datasources.
  - drop dependency on boto for crawling ec2 metadata service.
  - add 'Requires' on sudo (for OpenNebula datasource) in rpm specs, and
    'Recommends' in the debian/control.in [Vlastimil Holer]

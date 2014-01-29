@@ -97,6 +97,41 @@ class TestNoCloudDataSource(MockerTestCase):
         self.assertEqual(dsrc.metadata.get('instance-id'), 'IID')
         self.assertTrue(ret)
 
+    def test_nocloud_seed_with_vendordata(self):
+        md = {'instance-id': 'IID', 'dsmode': 'local'}
+        ud = "USER_DATA_HERE"
+        vd = "THIS IS MY VENDOR_DATA"
+
+        populate_dir(os.path.join(self.paths.seed_dir, "nocloud"),
+                     {'user-data': ud, 'meta-data': yaml.safe_dump(md),
+                      'vendor-data': vd})
+
+        sys_cfg = {
+            'datasource': {'NoCloud': {'fs_label': None}}
+        }
+
+        ds = DataSourceNoCloud.DataSourceNoCloud
+
+        dsrc = ds(sys_cfg=sys_cfg, distro=None, paths=self.paths)
+        ret = dsrc.get_data()
+        self.assertEqual(dsrc.userdata_raw, ud)
+        self.assertEqual(dsrc.metadata, md)
+        self.assertEqual(dsrc.vendordata, vd)
+        self.assertTrue(ret)
+
+    def test_nocloud_no_vendordata(self):
+        populate_dir(os.path.join(self.paths.seed_dir, "nocloud"),
+                     {'user-data': "ud", 'meta-data': "instance-id: IID\n"})
+
+        sys_cfg = {'datasource': {'NoCloud': {'fs_label': None}}}
+
+        ds = DataSourceNoCloud.DataSourceNoCloud
+
+        dsrc = ds(sys_cfg=sys_cfg, distro=None, paths=self.paths)
+        ret = dsrc.get_data()
+        self.assertEqual(dsrc.userdata_raw, "ud")
+        self.assertFalse(dsrc.vendordata)
+        self.assertTrue(ret)
 
 class TestParseCommandLineData(MockerTestCase):
 
