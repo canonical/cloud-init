@@ -1,0 +1,3 @@
+Cmnd_Alias CI = /bin/bash
+root ALL=(nobody) NOPASSWD: CI
+Defaults!CI !requiretty
