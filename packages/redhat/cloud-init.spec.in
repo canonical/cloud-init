@@ -34,7 +34,7 @@ Requires:       e2fsprogs
 Requires:       net-tools
 Requires:       procps
 Requires:       shadow-utils
-Requires:       sudo
+Requires:       sudo >= 1.7.2p2-3
 
 # Install pypi 'dynamic' requirements
 #for $r in $requires
@@ -91,9 +91,8 @@ rm -rf \$RPM_BUILD_ROOT
 mkdir -p \$RPM_BUILD_ROOT/%{_sysconfdir}/rsyslog.d
 cp -p tools/21-cloudinit.conf \
       \$RPM_BUILD_ROOT/%{_sysconfdir}/rsyslog.d/21-cloudinit.conf
-
-mkdir -p \$RPM_BUILD_ROOT/%{_sysconfdir}/sudoers.d
-cp -p tools/sudo \$RPM_BUILD_ROOT/%{_sysconfdir}/sudoers.d/cloud-init
+install -Dpm 440 tools/sudo \
+      \$RPM_BUILD_ROOT/%{_sysconfdir}/sudoers.d/cloud-init
 
 %clean
 rm -rf \$RPM_BUILD_ROOT
