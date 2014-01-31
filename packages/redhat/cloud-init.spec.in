@@ -92,6 +92,9 @@ mkdir -p \$RPM_BUILD_ROOT/%{_sysconfdir}/rsyslog.d
 cp -p tools/21-cloudinit.conf \
       \$RPM_BUILD_ROOT/%{_sysconfdir}/rsyslog.d/21-cloudinit.conf
 
+mkdir -p \$RPM_BUILD_ROOT/%{_sysconfdir}/sudoers.d
+cp -p tools/sudo \$RPM_BUILD_ROOT/%{_sysconfdir}/sudoers.d/cloud-init
+
 %clean
 rm -rf \$RPM_BUILD_ROOT
 
@@ -180,6 +183,7 @@ fi
 %dir                    %{_sysconfdir}/cloud/templates
 %config(noreplace)      %{_sysconfdir}/cloud/templates/*
 %config(noreplace) %{_sysconfdir}/rsyslog.d/21-cloudinit.conf
+%config(noreplace) %{_sysconfdir}/sudoers.d/cloud-init
 
 # Python code is here...
 %{python_sitelib}/*
