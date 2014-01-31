@@ -169,7 +169,7 @@ fi
 /usr/lib/%{name}/write-ssh-key-fingerprints
 
 # Docs
-%doc TODO LICENSE ChangeLog Requires
+%doc TODO LICENSE ChangeLog requirements.txt
 %doc %{_defaultdocdir}/cloud-init/*
 
 # Configs
