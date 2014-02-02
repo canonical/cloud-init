@@ -21,6 +21,7 @@
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import time
+import urllib
 
 import requests
 from requests import exceptions
@@ -56,6 +57,23 @@ def _cleanurl(url):
         parsed_url[1] = parsed_url[2]
         parsed_url[2] = ''
     return urlunparse(parsed_url)
+
+
+def combine_url(base, *add_ons):
+
+    def combine_single(url, add_on):
+        url_parsed = list(urlparse(url))
+        path = url_parsed[2]
+        if path and not path.endswith("/"):
+            path += "/"
+        path += urllib.quote(str(add_on), safe="/:")
+        url_parsed[2] = path
+        return urlunparse(url_parsed)
+
+    url = base
+    for add_on in add_ons:
+        url = combine_single(url, add_on)
+    return url
 
 
 class UrlResponse(object):
@@ -101,30 +119,52 @@ class UrlError(IOError):
             self.headers = {}
 
 
-def readurl(url, data=None, timeout=None, retries=0, sec_between=1,
-            headers=None, headers_cb=None, ssl_details=None,
-            check_status=True, allow_redirects=True):
-    url = _cleanurl(url)
-    req_args = {
-        'url': url,
-    }
+def _get_ssl_args(url, ssl_details):
+    ssl_args = {}
     scheme = urlparse(url).scheme  # pylint: disable=E1101
     if scheme == 'https' and ssl_details:
         if not SSL_ENABLED:
             LOG.warn("SSL is not enabled, cert. verification can not occur!")
         else:
             if 'ca_certs' in ssl_details and ssl_details['ca_certs']:
-                req_args['verify'] = ssl_details['ca_certs']
+                ssl_args['verify'] = ssl_details['ca_certs']
             else:
-                req_args['verify'] = True
+                ssl_args['verify'] = True
             if 'cert_file' in ssl_details and 'key_file' in ssl_details:
-                req_args['cert'] = [ssl_details['cert_file'],
+                ssl_args['cert'] = [ssl_details['cert_file'],
                                     ssl_details['key_file']]
             elif 'cert_file' in ssl_details:
-                req_args['cert'] = str(ssl_details['cert_file'])
+                ssl_args['cert'] = str(ssl_details['cert_file'])
+    return ssl_args
 
+
+def existsurl(url, ssl_details=None, timeout=None):
+    r = _readurl(url, ssl_details=ssl_details, timeout=timeout,
+                 method='HEAD', check_status=False)
+    return r.ok()
+
+
+def readurl(url, data=None, timeout=None, retries=0, sec_between=1,
+            headers=None, headers_cb=None, ssl_details=None,
+            check_status=True, allow_redirects=True):
+    return _readurl(url, data=data, timeout=timeout, retries=retries,
+                    sec_between=sec_between, headers=headers,
+                    headers_cb=headers_cb, ssl_details=ssl_details,
+                    check_status=check_status,
+                    allow_redirects=allow_redirects)
+
+
+def _readurl(url, data=None, timeout=None, retries=0, sec_between=1,
+             headers=None, headers_cb=None, ssl_details=None,
+             check_status=True, allow_redirects=True, method='GET'):
+    url = _cleanurl(url)
+    req_args = {
+        'url': url,
+    }
+    req_args.update(_get_ssl_args(url, ssl_details))
+    scheme = urlparse(url).scheme  # pylint: disable=E1101
     req_args['allow_redirects'] = allow_redirects
-    req_args['method'] = 'GET'
+    req_args['method'] = method
     if timeout is not None:
         req_args['timeout'] = max(float(timeout), 0)
     if data:
