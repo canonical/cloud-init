@@ -37,8 +37,13 @@ class Distro(distros.Distro):
     network_conf_fn = "/etc/conf.d/net"
     tz_conf_fn = "/etc/timezone"
     tz_local_fn = "/etc/localtime"
-    init_cmd = ['']
-    exclude_modules = ['grub-dpkg', 'apt-configure', 'apt-pipelining']
+    init_cmd = ['']  # init scripts
+    exclude_modules = [
+        'grub-dpkg',
+        'apt-configure',
+        'apt-pipelining',
+        'yum-add-repo',
+    ]
 
     def __init__(self, name, cfg, paths):
         distros.Distro.__init__(self, name, cfg, paths)
@@ -47,6 +52,8 @@ class Distro(distros.Distro):
         # should only happen say once per instance...)
         self._runner = helpers.Runners(paths)
         self.osfamily = 'gentoo'
+        # Fix sshd restarts
+        cfg['system_info']['ssh_svcname'] = '/etc/init.d/sshd'
 
     def apply_locale(self, locale, out_fn=None):
         if not out_fn:
@@ -68,9 +75,8 @@ class Distro(distros.Distro):
         util.write_file(self.network_conf_fn, settings)
         return ['all']
 
-    # TODO(NateH): Update to use init scripts
     def _bring_up_interface(self, device_name):
-        cmd = ['ifup', device_name]
+        cmd = ['/etc/init.d/net.%s' % device_name, 'restart']
         LOG.debug("Attempting to run bring up interface %s using command %s",
                    device_name, cmd)
         try:
@@ -82,14 +88,24 @@ class Distro(distros.Distro):
             util.logexc(LOG, "Running interface command %s failed", cmd)
             return False
 
-    # TODO(NateH): Refactor for gentoo net init scripts
     def _bring_up_interfaces(self, device_names):
         use_all = False
         for d in device_names:
             if d == 'all':
                 use_all = True
         if use_all:
-            return distros.Distro._bring_up_interface(self, '--all')
+            # Grab device names from init scripts
+            cmd = ['ls', '/etc/init.d/net.*']
+            try:
+                (_out, err) = util.subp(cmd)
+                if len(err):
+                    LOG.warn("Running %s resulted in stderr output: %s", cmd,
+                            err)
+            except util.ProcessExecutionError:
+                util.logexc(LOG, "Running interface command %s failed", cmd)
+                return False
+            devices = [x.split('.')[2] for x in _out.split('  ')]
+            return distros.Distro._bring_up_interfaces(self, devices)
         else:
             return distros.Distro._bring_up_interfaces(self, device_names)
 
