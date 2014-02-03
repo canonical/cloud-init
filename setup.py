@@ -39,14 +39,12 @@ def is_f(p):
 INITSYS_FILES = {
     'sysvinit': [f for f in glob('sysvinit/redhat/*') if is_f(f)],
     'sysvinit_deb': [f for f in glob('sysvinit/debian/*') if is_f(f)],
-    'sysvinit_gentoo': [f for f in glob('sysvinit/gentoo/*') if is_f(f)],
     'systemd': [f for f in glob('systemd/*') if is_f(f)],
     'upstart': [f for f in glob('upstart/*') if is_f(f)],
 }
 INITSYS_ROOTS = {
     'sysvinit': '/etc/rc.d/init.d',
     'sysvinit_deb': '/etc/init.d',
-    'sysvinit_gentoo': '/etc/init.d',
     'systemd': '/etc/systemd/system/',
     'upstart': '/etc/init/',
 }
