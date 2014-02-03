@@ -1,7 +1,7 @@
 #!/bin/bash
 
 if [ $# -eq 0 ]; then
-   files=( $(find * -name "*.py" -type f) )
+   files=( bin/cloud-init $(find * -name "*.py" -type f) )
 else
    files=( "$@" );
 fi 
@@ -16,6 +16,7 @@ cmd=(
     --rcfile=$RC_FILE
     --disable=R
     --disable=I
+    --dummy-variables-rgx="_"
     "${files[@]}"
 )
 

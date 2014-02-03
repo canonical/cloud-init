@@ -25,7 +25,9 @@
 #        requests on the console. For example, to get the hostname, you
 #        would send "GET hostname" on /dev/ttyS1.
 #
-
+#   Certain behavior is defined by the DataDictionary
+#       http://us-east.manta.joyent.com/jmc/public/mdata/datadict.html
+#       Comments with "@datadictionary" are snippets of the definition
 
 import base64
 from cloudinit import log as logging
@@ -43,10 +45,11 @@ SMARTOS_ATTRIB_MAP = {
     'local-hostname': ('hostname', True),
     'public-keys': ('root_authorized_keys', True),
     'user-script': ('user-script', False),
-    'user-data': ('user-data', False),
+    'legacy-user-data': ('user-data', False),
+    'user-data': ('cloud-init:user-data', False),
     'iptables_disable': ('iptables_disable', True),
     'motd_sys_info': ('motd_sys_info', True),
-    'availability_zone': ('datacenter_name', True),
+    'availability_zone': ('sdc:datacenter_name', True),
     'vendordata': ('sdc:operator-script', False),
 }
 
@@ -71,7 +74,11 @@ BUILTIN_DS_CONFIG = {
     'seed_timeout': 60,
     'no_base64_decode': ['root_authorized_keys',
                          'motd_sys_info',
-                         'iptables_disable'],
+                         'iptables_disable',
+                         'user-data',
+                         'user-script',
+                         'sdc:datacenter_name',
+                        ],
     'base64_keys': [],
     'base64_all': False,
     'disk_aliases': {'ephemeral0': '/dev/vdb'},
@@ -87,6 +94,11 @@ BUILTIN_CLOUD_CONFIG = {
                   'filesystem': 'ext3',
                   'device': 'ephemeral0'}],
 }
+
+# @datadictionary: this is legacy path for placing files from metadata
+#   per the SmartOS location. It is not preferable, but is done for
+#   legacy reasons
+LEGACY_USER_D = "/var/db"
 
 
 class DataSourceSmartOS(sources.DataSource):
@@ -107,6 +119,9 @@ class DataSourceSmartOS(sources.DataSource):
         self.smartos_no_base64 = self.ds_cfg.get('no_base64_decode')
         self.b64_keys = self.ds_cfg.get('base64_keys')
         self.b64_all = self.ds_cfg.get('base64_all')
+        self.script_base_d = os.path.join(self.paths.get_cpath("scripts"))
+        self.user_script_d = os.path.join(self.paths.get_cpath("scripts"),
+                                          'per-boot')
 
     def __str__(self):
         root = sources.DataSource.__str__(self)
@@ -144,14 +159,32 @@ class DataSourceSmartOS(sources.DataSource):
             smartos_noun, strip = attribute
             md[ci_noun] = self.query(smartos_noun, strip=strip)
 
+        # @datadictionary: This key may contain a program that is written
+        # to a file in the filesystem of the guest on each boot and then
+        # executed. It may be of any format that would be considered
+        # executable in the guest instance.
+        u_script = md.get('user-script')
+        u_script_f = "%s/99_user_script" % self.user_script_d
+        u_script_l = "%s/user-script" % LEGACY_USER_D
+        write_boot_content(u_script, u_script_f, link=u_script_l, shebang=True,
+                           mode=0700)
+
+        # @datadictionary:  This key has no defined format, but its value
+        # is written to the file /var/db/mdata-user-data on each boot prior
+        # to the phase that runs user-script. This file is not to be executed.
+        # This allows a configuration file of some kind to be injected into
+        # the machine to be consumed by the user-script when it runs.
+        u_data = md.get('legacy-user-data')
+        u_data_f = "%s/mdata-user-data" % LEGACY_USER_D
+        write_boot_content(u_data, u_data_f)
+
+        # Handle the cloud-init regular meta
         if not md['local-hostname']:
             md['local-hostname'] = system_uuid
 
         ud = None
         if md['user-data']:
             ud = md['user-data']
-        elif md['user-script']:
-            ud = md['user-script']
 
         self.metadata = util.mergemanydict([md, self.metadata])
         self.userdata_raw = ud
@@ -277,6 +310,62 @@ def dmi_data():
         util.logexc(LOG, "Failed to get system UUID", e)
 
     return (sys_uuid.lower().strip(), sys_type.strip())
+
+
+def write_boot_content(content, content_f, link=None, shebang=False,
+                       mode=0400):
+    """
+    Write the content to content_f. Under the following rules:
+        1. If no content, remove the file
+        2. Write the content
+        3. If executable and no file magic, add it
+        4. If there is a link, create it
+
+    @param content: what to write
+    @param content_f: the file name
+    @param backup_d: the directory to save the backup at
+    @param link: if defined, location to create a symlink to
+    @param shebang: if no file magic, set shebang
+    @param mode: file mode
+
+    Becuase of the way that Cloud-init executes scripts (no shell),
+    a script will fail to execute if does not have a magic bit (shebang) set
+    for the file. If shebang=True, then the script will be checked for a magic
+    bit and to the SmartOS default of assuming that bash.
+    """
+
+    if not content and os.path.exists(content_f):
+        os.unlink(content_f)
+    if link and os.path.islink(link):
+        os.unlink(link)
+    if not content:
+        return
+
+    util.write_file(content_f, content, mode=mode)
+
+    if shebang and not content.startswith("#!"):
+        try:
+            cmd = ["file", "--brief", "--mime-type", content_f]
+            (f_type, _err) = util.subp(cmd)
+            LOG.debug("script %s mime type is %s", content_f, f_type)
+            if f_type.strip() == "text/plain":
+                new_content = "\n".join(["#!/bin/bash", content])
+                util.write_file(content_f, new_content, mode=mode)
+                LOG.debug("added shebang to file %s", content_f)
+
+        except Exception as e:
+            util.logexc(LOG, ("Failed to identify script type for %s" %
+                             content_f, e))
+
+    if link:
+        try:
+            if os.path.islink(link):
+                os.unlink(link)
+            if content and os.path.exists(content_f):
+                util.ensure_dir(os.path.dirname(link))
+                os.symlink(content_f, link)
+        except IOError as e:
+            util.logexc(LOG, "failed establishing content link", e)
 
 
 # Used to match classes to dependencies
