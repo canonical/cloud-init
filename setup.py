@@ -136,7 +136,7 @@ setuptools.setup(name='cloud-init',
                    [f for f in glob('doc/examples/seed/*') if is_f(f)]),
                  ],
       install_requires=read_requires(),
-      cmdclass = {
+      cmdclass={
           # Use a subclass for install that handles
           # adding on the right init system configuration files
           'install': InitsysInstallData,

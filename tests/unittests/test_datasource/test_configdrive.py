@@ -285,10 +285,11 @@ class TestConfigDriveDataSource(MockerTestCase):
             self.assertEqual(["/dev/vdb", "/dev/zdd"],
                              ds.find_candidate_devs())
 
-            # verify that partitions are not considered
+            # verify that partitions are considered, that have correct label.
             devs_with_answers = {"TYPE=vfat": ["/dev/sda1"],
                 "TYPE=iso9660": [], "LABEL=config-2": ["/dev/vdb3"]}
-            self.assertEqual([], ds.find_candidate_devs())
+            self.assertEqual(["/dev/vdb3"],
+                              ds.find_candidate_devs())
 
         finally:
             util.find_devs_with = orig_find_devs_with

@@ -1,0 +1,34 @@
+#!/bin/sh
+
+# PROVIDE: cloudinitlocal
+# REQUIRE: mountcritlocal 
+# BEFORE:  NETWORKING FILESYSTEMS cloudinit cloudconfig cloudfinal
+
+. /etc/rc.subr
+
+name="cloudinitlocal"
+command="/usr/bin/cloud-init"
+start_cmd="cloudlocal_start"
+stop_cmd=":"
+rcvar="cloudinit_enable"
+start_precmd="cloudinit_override"
+start_cmd="cloudlocal_start"
+
+: ${cloudinit_config:="/etc/cloud/cloud.cfg"}
+
+cloudinit_override()
+{
+	# If there exist sysconfig/default variable override files use it...
+	if [ -f /etc/default/cloud-init ]; then
+		. /etc/default/cloud-init
+	fi
+}
+
+cloudlocal_start()
+{
+	echo -n "${command} starting"
+	${command} ${cloudinit_config} init --local
+}
+
+load_rc_config $name
+run_rc_command "$1"
