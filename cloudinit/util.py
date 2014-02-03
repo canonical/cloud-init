@@ -1483,7 +1483,6 @@ def subp(args, data=None, rcs=None, env=None, capture=True, shell=False,
          logstring=False):
     if rcs is None:
         rcs = [0]
-    args = filter(None, args)  # Remove empty arguments
     try:
 
         if not logstring:
