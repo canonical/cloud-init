@@ -1,0 +1,11 @@
+#!/sbin/runscript
+
+depend() {
+  before cloud-init
+  provide cloud-init-local
+}
+
+start() {
+  cloud-init init --local
+  eend 0
+}

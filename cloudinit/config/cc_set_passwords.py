@@ -36,6 +36,7 @@ PW_SET = (letters.translate(None, 'loLOI') +
 
 
 def handle(_name, cfg, cloud, log, args):
+
     if len(args) != 0:
         # if run from command line, and give args, wipe the chpasswd['list']
         password = args[0]
@@ -136,9 +137,12 @@ def handle(_name, cfg, cloud, log, args):
         util.write_file(ssh_util.DEF_SSHD_CFG, "\n".join(lines))
 
         try:
-            cmd = ['service']
+            cmd = cloud.distro.init_cmd  # Default service
             cmd.append(cloud.distro.get_option('ssh_svcname', 'ssh'))
             cmd.append('restart')
+            if 'systemctl' in cmd:  # Switch action ordering
+                cmd[1], cmd[2] = cmd[2], cmd[1]
+            cmd = filter(None, cmd)  # Remove empty arguments
             util.subp(cmd)
             log.debug("Restarted the ssh daemon")
         except:

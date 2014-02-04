@@ -26,6 +26,7 @@ frequency = PER_INSTANCE
 
 
 def handle(name, cfg, cloud, log, args):
+
     if len(args) != 0:
         timezone = args[0]
     else:
