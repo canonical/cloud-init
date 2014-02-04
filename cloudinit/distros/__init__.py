@@ -40,7 +40,8 @@ OSFAMILIES = {
     'debian': ['debian', 'ubuntu'],
     'redhat': ['fedora', 'rhel'],
     'freebsd': ['freebsd'],
-    'suse': ['sles']
+    'suse': ['sles'],
+    'arch': ['arch'],
 }
 
 LOG = logging.getLogger(__name__)
