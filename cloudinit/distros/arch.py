@@ -48,6 +48,7 @@ class Distro(distros.Distro):
         # should only happen say once per instance...)
         self._runner = helpers.Runners(paths)
         self.osfamily = 'arch'
+        cfg['ssh_svcname'] = 'sshd'
 
     def apply_locale(self, locale, out_fn=None):
         if not out_fn:
