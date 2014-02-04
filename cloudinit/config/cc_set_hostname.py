@@ -22,6 +22,7 @@ from cloudinit import util
 
 
 def handle(name, cfg, cloud, log, _args):
+
     if util.get_cfg_option_bool(cfg, "preserve_hostname", False):
         log.debug(("Configuration option 'preserve_hostname' is set,"
                     " not setting the hostname in module %s"), name)
