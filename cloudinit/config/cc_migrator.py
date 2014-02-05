@@ -75,7 +75,6 @@ def _migrate_legacy_sems(cloud, log):
 
 
 def handle(name, cfg, cloud, log, _args):
-
     do_migrate = util.get_cfg_option_str(cfg, "migrate", True)
     if not util.translate_bool(do_migrate):
         log.debug("Skipping module named %s, migration disabled", name)
