@@ -44,7 +44,6 @@ POST_LIST_ALL = [
 #  post: [ pub_key_dsa, pub_key_rsa, pub_key_ecdsa, instance_id
 #
 def handle(name, cfg, cloud, log, args):
-
     if len(args) != 0:
         ph_cfg = util.read_conf(args[0])
     else:

@@ -29,7 +29,6 @@ distros = ['ubuntu', 'debian']
 
 
 def handle(name, cfg, cloud, log, args):
-
     if len(args) != 0:
         value = args[0]
     else:

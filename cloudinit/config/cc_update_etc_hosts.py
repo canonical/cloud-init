@@ -27,7 +27,6 @@ frequency = PER_ALWAYS
 
 
 def handle(name, cfg, cloud, log, _args):
-
     manage_hosts = util.get_cfg_option_str(cfg, "manage_etc_hosts", False)
     if util.translate_bool(manage_hosts, addons=['template']):
         (hostname, fqdn) = util.get_hostname_fqdn(cfg, cloud)

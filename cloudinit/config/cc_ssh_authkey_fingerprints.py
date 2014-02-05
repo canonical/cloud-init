@@ -92,7 +92,6 @@ def _pprint_key_entries(user, key_fn, key_entries, hash_meth='md5',
 
 
 def handle(name, cfg, cloud, log, _args):
-
     if 'no_ssh_fingerprints' in cfg:
         log.debug(("Skipping module named %s, "
                    "logging of ssh fingerprints disabled"), name)

@@ -26,7 +26,6 @@ distros = ['ubuntu', 'debian']
 
 
 def handle(_name, cfg, _cloud, log, _args):
-
     idevs = None
     idevs_empty = None
 

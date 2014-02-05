@@ -1,6 +1,7 @@
 #!/sbin/runscript
 
 depend() {
+  after localmount netmount
   before cloud-init
   provide cloud-init-local
 }

@@ -76,7 +76,6 @@ def sanitize_devname(startname, transformer, log):
 
 
 def handle(_name, cfg, cloud, log, _args):
-
     # fs_spec, fs_file, fs_vfstype, fs_mntops, fs-freq, fs_passno
     defvals = [None, None, "auto", "defaults,nobootwait", "0", "2"]
     defvals = cfg.get("mount_default_fields", defvals)

@@ -39,7 +39,6 @@ def _decode(data, encoding=None):
 
 
 def handle(name, cfg, cloud, log, _args):
-
     if not cfg or "random_seed" not in cfg:
         log.debug(("Skipping module named %s, "
                    "no 'random_seed' configuration found"), name)
