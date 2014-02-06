@@ -38,7 +38,6 @@ class Distro(distros.Distro):
         'grub-dpkg',
         'apt-configure',
         'apt-pipelining',
-        'yum-add-repo',
     ]
 
     def __init__(self, name, cfg, paths):
