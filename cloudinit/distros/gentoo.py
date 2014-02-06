@@ -181,4 +181,4 @@ class Distro(distros.Distro):
 
     def update_package_sources(self):
         self._runner.run("update-sources", self.package_command,
-                         ["-u", "world", "--quiet"], freq=PER_INSTANCE)
+                         ["-u", "world"], freq=PER_INSTANCE)
