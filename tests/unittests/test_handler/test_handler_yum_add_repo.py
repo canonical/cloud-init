@@ -2,7 +2,6 @@ from cloudinit import helpers
 from cloudinit import util
 
 from cloudinit.config import cc_yum_add_repo
-from cloudinit.distros import rhel
 
 from tests.unittests import helpers
 
@@ -19,8 +18,6 @@ class TestConfig(helpers.FilesystemMockingTestCase):
     def setUp(self):
         super(TestConfig, self).setUp()
         self.tmp = self.makeDir(prefix="unittest_")
-        self.cloud = type('', (), {})()
-        self.cloud.distro = rhel.Distro('test', {}, None)
 
     def test_bad_config(self):
         cfg = {
@@ -37,7 +34,7 @@ class TestConfig(helpers.FilesystemMockingTestCase):
             },
         }
         self.patchUtils(self.tmp)
-        cc_yum_add_repo.handle('yum_add_repo', cfg, self.cloud, LOG, [])
+        cc_yum_add_repo.handle('yum_add_repo', cfg, None, LOG, [])
         self.assertRaises(IOError, util.load_file,
                           "/etc/yum.repos.d/epel_testing.repo")
 
@@ -55,7 +52,7 @@ class TestConfig(helpers.FilesystemMockingTestCase):
             },
         }
         self.patchUtils(self.tmp)
-        cc_yum_add_repo.handle('yum_add_repo', cfg, self.cloud, LOG, [])
+        cc_yum_add_repo.handle('yum_add_repo', cfg, None, LOG, [])
         contents = util.load_file("/etc/yum.repos.d/epel_testing.repo")
         contents = configobj.ConfigObj(StringIO(contents))
         expected = {

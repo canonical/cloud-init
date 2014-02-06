@@ -58,8 +58,6 @@ def _format_repository_config(repo_id, repo_config):
 
 
 def handle(name, cfg, _cloud, log, _args):
-    if _cloud.distro.is_excluded(name):
-        return
     repos = cfg.get('yum_repos')
     if not repos:
         log.debug(("Skipping module named %s,"
