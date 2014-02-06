@@ -21,6 +21,7 @@ from cloudinit import helpers
 from cloudinit import log as logging
 from cloudinit import util
 
+from cloudinit.distros import net_util
 from cloudinit.distros.parsers.hostname import HostnameConf
 
 from cloudinit.settings import PER_INSTANCE
@@ -33,6 +34,7 @@ class Distro(distros.Distro):
     network_conf_dir = "/etc/netctl"
     tz_conf_fn = "/etc/timezone"
     tz_local_fn = "/etc/localtime"
+    resolv_conf_fn = "/etc/resolv.conf"
     init_cmd = ['systemctl']  # init scripts
     exclude_modules = [
         'grub-dpkg',
@@ -67,12 +69,46 @@ class Distro(distros.Distro):
         self.package_command('', pkgs=pkglist)
 
     def _write_network(self, settings):
-        util.write_file(self.network_conf_fn, settings)
-        return ['all']
+        entries = net_util.translate_network(settings)
+        LOG.debug("Translated ubuntu style network settings %s into %s",
+                  settings, entries)
+        dev_names = entries.keys()
+        # Format for netctl
+        for (dev, info) in entries.iteritems():
+            nameservers = []
+            net_fn = self.network_conf_dir + dev
+            net_cfg = {
+                'Connection': 'ethernet',
+                'Interface': dev,
+                'IP': info.get('bootproto'),
+                'Address': "('%s/%s')" % (info.get('address'),
+                        info.get('netmask')),
+                'Gateway': info.get('gateway'),
+                'DNS': str(tuple(info.get('dns-nameservers'))).replace(',', '')
+            }
+            util.write_file(net_fn, convert_netctl(net_cfg))
+            if info.get('auto'):
+                self._enable_interface(dev)
+            if 'dns-nameservers' in info:
+                nameservers.extend(info['dns-nameservers'])
 
-    # TODO(NateH): Fix for Arch's multi-file net config
+        if nameservers:
+            util.write_file(self.resolve_conf_fn,
+                    convert_resolv_conf(nameservers))
+
+        return dev_names
+
+    def _enable_interface(self, device_name):
+        cmd = ['netctl', 'reenable', device_name]
+        try:
+            (_out, err) = util.subp(cmd)
+            if len(err):
+                LOG.warn("Running %s resulted in stderr output: %s", cmd, err)
+        except util.ProcessExecutionError:
+            util.logexc(LOG, "Running interface command %s failed", cmd)
+
     def _bring_up_interface(self, device_name):
-        cmd = ['/etc/init.d/net.%s' % device_name, 'restart']
+        cmd = ['netctl', 'restart', device_name]
         LOG.debug("Attempting to run bring up interface %s using command %s",
                    device_name, cmd)
         try:
@@ -84,27 +120,11 @@ class Distro(distros.Distro):
             util.logexc(LOG, "Running interface command %s failed", cmd)
             return False
 
-    # TODO(NateH): Fix for Arch's multi-file net config
     def _bring_up_interfaces(self, device_names):
-        use_all = False
         for d in device_names:
-            if d == 'all':
-                use_all = True
-        if use_all:
-            # Grab device names from init scripts
-            cmd = ['ls', '/etc/init.d/net.*']
-            try:
-                (_out, err) = util.subp(cmd)
-                if len(err):
-                    LOG.warn("Running %s resulted in stderr output: %s", cmd,
-                            err)
-            except util.ProcessExecutionError:
-                util.logexc(LOG, "Running interface command %s failed", cmd)
+            if not self._bring_up_interface(d):
                 return False
-            devices = [x.split('.')[2] for x in _out.split('  ')]
-            return distros.Distro._bring_up_interfaces(self, devices)
-        else:
-            return distros.Distro._bring_up_interfaces(self, device_names)
+        return True
 
     def _select_hostname(self, hostname, fqdn):
         # Prefer the short hostname over the long
@@ -185,3 +205,21 @@ class Distro(distros.Distro):
     def update_package_sources(self):
         self._runner.run("update-sources", self.package_command,
                          ["-y"], freq=PER_INSTANCE)
+
+
+def convert_netctl(settings):
+    """Returns a settings string formatted for netctl."""
+    result = ''
+    if isinstance(settings, dict):
+        for k, v in settings.items():
+            result = result + '%s=%s\n' % (k, v)
+        return result
+
+
+def convert_resolv_conf(settings):
+    """Returns a settings string formatted for resolv.conf."""
+    result = ''
+    if isinstance(settings, list):
+        for ns in list:
+            result = result + 'nameserver %s\n' % ns
+        return result
