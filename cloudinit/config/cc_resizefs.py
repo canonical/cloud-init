@@ -39,6 +39,10 @@ def _resize_ext(mount_point, devpth):  # pylint: disable=W0613
 def _resize_xfs(mount_point, devpth):  # pylint: disable=W0613
     return ('xfs_growfs', devpth)
 
+
+def _resize_ufs(mount_point, devpth):  # pylint: disable=W0613
+    return ('growfs', devpth)
+
 # Do not use a dictionary as these commands should be able to be used
 # for multiple filesystem types if possible, e.g. one command for
 # ext2, ext3 and ext4.
@@ -46,9 +50,29 @@ RESIZE_FS_PREFIXES_CMDS = [
     ('btrfs', _resize_btrfs),
     ('ext', _resize_ext),
     ('xfs', _resize_xfs),
+    ('ufs', _resize_ufs),
 ]
 
 NOBLOCK = "noblock"
+
+
+def rootdev_from_cmdline(cmdline):
+    found = None
+    for tok in cmdline.split():
+        if tok.startswith("root="):
+            found = tok[5:]
+            break
+    if found is None:
+        return None
+
+    if found.startswith("/dev/"):
+        return found
+    if found.startswith("LABEL="):
+        return "/dev/disk/by-label/" + found[len("LABEL="):]
+    if found.startswith("UUID="):
+        return "/dev/disk/by-uuid/" + found[len("UUID="):]
+
+    return "/dev/" + found
 
 
 def handle(name, cfg, _cloud, log, args):
@@ -78,10 +102,20 @@ def handle(name, cfg, _cloud, log, args):
     info = "dev=%s mnt_point=%s path=%s" % (devpth, mount_point, resize_what)
     log.debug("resize_info: %s" % info)
 
+    container = util.is_container()
+
+    if (devpth == "/dev/root" and not os.path.exists(devpth) and
+        not container):
+        devpth = rootdev_from_cmdline(util.get_cmdline())
+        if devpth is None:
+            log.warn("Unable to find device '/dev/root'")
+            return
+        log.debug("Converted /dev/root to '%s' per kernel cmdline", devpth)
+
     try:
         statret = os.stat(devpth)
     except OSError as exc:
-        if util.is_container() and exc.errno == errno.ENOENT:
+        if container and exc.errno == errno.ENOENT:
             log.debug("Device '%s' did not exist in container. "
                       "cannot resize: %s" % (devpth, info))
         elif exc.errno == errno.ENOENT:
@@ -91,8 +125,8 @@ def handle(name, cfg, _cloud, log, args):
             raise exc
         return
 
-    if not stat.S_ISBLK(statret.st_mode):
-        if util.is_container():
+    if not stat.S_ISBLK(statret.st_mode) and not stat.S_ISCHR(statret.st_mode):
+        if container:
             log.debug("device '%s' not a block device in container."
                       " cannot resize: %s" % (devpth, info))
         else:

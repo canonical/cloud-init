@@ -50,40 +50,47 @@ class DataSourceNoCloud(sources.DataSource):
         }
 
         found = []
-        md = {}
-        ud = ""
+        mydata = {'meta-data': {}, 'user-data': "", 'vendor-data': ""}
 
         try:
             # Parse the kernel command line, getting data passed in
+            md = {}
             if parse_cmdline_data(self.cmdline_id, md):
                 found.append("cmdline")
+            mydata.update(md)
         except:
             util.logexc(LOG, "Unable to parse command line data")
             return False
 
         # Check to see if the seed dir has data.
-        seedret = {}
-        if util.read_optional_seed(seedret, base=self.seed_dir + "/"):
-            md = util.mergemanydict([md, seedret['meta-data']])
-            ud = seedret['user-data']
+        pp2d_kwargs = {'required': ['user-data', 'meta-data'],
+                       'optional': ['vendor-data']}
+
+        try:
+            seeded = util.pathprefix2dict(self.seed_dir, **pp2d_kwargs)
             found.append(self.seed_dir)
-            LOG.debug("Using seeded cache data from %s", self.seed_dir)
+            LOG.debug("Using seeded data from %s", self.seed_dir)
+        except ValueError as e:
+            pass
+
+        if self.seed_dir in found:
+            mydata = _merge_new_seed(mydata, seeded)
 
         # If the datasource config had a 'seedfrom' entry, then that takes
         # precedence over a 'seedfrom' that was found in a filesystem
         # but not over external media
-        if 'seedfrom' in self.ds_cfg and self.ds_cfg['seedfrom']:
-            found.append("ds_config")
-            md["seedfrom"] = self.ds_cfg['seedfrom']
+        if self.ds_cfg.get('seedfrom'):
+            found.append("ds_config_seedfrom")
+            mydata['meta-data']["seedfrom"] = self.ds_cfg['seedfrom']
 
-        # if ds_cfg has 'user-data' and 'meta-data'
+        # fields appropriately named can also just come from the datasource
+        # config (ie, 'user-data', 'meta-data', 'vendor-data' there)
         if 'user-data' in self.ds_cfg and 'meta-data' in self.ds_cfg:
-            if self.ds_cfg['user-data']:
-                ud = self.ds_cfg['user-data']
-            if self.ds_cfg['meta-data'] is not False:
-                md = util.mergemanydict([md, self.ds_cfg['meta-data']])
-            if 'ds_config' not in found:
-                found.append("ds_config")
+            mydata = _merge_new_seed(mydata, self.ds_cfg)
+            found.append("ds_config")
+
+        def _pp2d_callback(mp, data):
+            util.pathprefix2dict(mp, **data)
 
         label = self.ds_cfg.get('fs_label', "cidata")
         if label is not None:
@@ -102,15 +109,21 @@ class DataSourceNoCloud(sources.DataSource):
                 try:
                     LOG.debug("Attempting to use data from %s", dev)
 
-                    (newmd, newud) = util.mount_cb(dev, util.read_seeded)
-                    md = util.mergemanydict([newmd, md])
-                    ud = newud
+                    try:
+                        seeded = util.mount_cb(dev, _pp2d_callback)
+                    except ValueError as e:
+                        if dev in label_list:
+                            LOG.warn("device %s with label=%s not a"
+                                     "valid seed.", dev, label)
+                        continue
+
+                    mydata = _merge_new_seed(mydata, seeded)
 
                     # For seed from a device, the default mode is 'net'.
                     # that is more likely to be what is desired.  If they want
                     # dsmode of local, then they must specify that.
-                    if 'dsmode' not in md:
-                        md['dsmode'] = "net"
+                    if 'dsmode' not in mydata['meta-data']:
+                        mydata['meta-data'] = "net"
 
                     LOG.debug("Using data from %s", dev)
                     found.append(dev)
@@ -133,8 +146,8 @@ class DataSourceNoCloud(sources.DataSource):
         # attempt to seed the userdata / metadata from its value
         # its primarily value is in allowing the user to type less
         # on the command line, ie: ds=nocloud;s=http://bit.ly/abcdefg
-        if "seedfrom" in md:
-            seedfrom = md["seedfrom"]
+        if "seedfrom" in mydata['meta-data']:
+            seedfrom = mydata['meta-data']["seedfrom"]
             seedfound = False
             for proto in self.supported_seed_starts:
                 if seedfrom.startswith(proto):
@@ -144,7 +157,7 @@ class DataSourceNoCloud(sources.DataSource):
                 LOG.debug("Seed from %s not supported by %s", seedfrom, self)
                 return False
 
-            if 'network-interfaces' in md:
+            if 'network-interfaces' in mydata['meta-data']:
                 seeded_interfaces = self.dsmode
 
             # This could throw errors, but the user told us to do it
@@ -153,25 +166,30 @@ class DataSourceNoCloud(sources.DataSource):
             LOG.debug("Using seeded cache data from %s", seedfrom)
 
             # Values in the command line override those from the seed
-            md = util.mergemanydict([md, md_seed])
+            mydata['meta-data'] = util.mergemanydict([mydata['meta-data'],
+                                                      md_seed])
+            mydata['user-data'] = ud
             found.append(seedfrom)
 
         # Now that we have exhausted any other places merge in the defaults
-        md = util.mergemanydict([md, defaults])
+        mydata['meta-data'] = util.mergemanydict([mydata['meta-data'],
+                                                  defaults])
 
         # Update the network-interfaces if metadata had 'network-interfaces'
         # entry and this is the local datasource, or 'seedfrom' was used
         # and the source of the seed was self.dsmode
         # ('local' for NoCloud, 'net' for NoCloudNet')
-        if ('network-interfaces' in md and
+        if ('network-interfaces' in mydata['meta-data'] and
             (self.dsmode in ("local", seeded_interfaces))):
             LOG.debug("Updating network interfaces from %s", self)
-            self.distro.apply_network(md['network-interfaces'])
+            self.distro.apply_network(
+                mydata['meta-data']['network-interfaces'])
 
-        if md['dsmode'] == self.dsmode:
+        if mydata['meta-data']['dsmode'] == self.dsmode:
             self.seed = ",".join(found)
-            self.metadata = md
-            self.userdata_raw = ud
+            self.metadata = mydata['meta-data']
+            self.userdata_raw = mydata['user-data']
+            self.vendordata = mydata['vendor-data']
             return True
 
         LOG.debug("%s: not claiming datasource, dsmode=%s", self, md['dsmode'])
@@ -220,6 +238,16 @@ def parse_cmdline_data(ds_id, fill, cmdline=None):
         fill[k] = v
 
     return True
+
+
+def _merge_new_seed(cur, seeded):
+    ret = cur.copy()
+    ret['meta-data'] = util.mergemanydict([cur['meta-data'],
+                                          util.load_yaml(seeded['meta-data'])])
+    ret['user-data'] = seeded['user-data']
+    if 'vendor-data' in seeded:
+        ret['vendor-data'] = seeded['vendor-data']
+    return ret
 
 
 class DataSourceNoCloudNet(DataSourceNoCloud):

@@ -20,6 +20,7 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+import httplib
 import time
 
 import requests
@@ -31,6 +32,8 @@ from cloudinit import log as logging
 from cloudinit import version
 
 LOG = logging.getLogger(__name__)
+
+NOT_FOUND = httplib.NOT_FOUND
 
 # Check if requests has ssl support (added in requests >= 0.8.8)
 SSL_ENABLED = False
@@ -56,6 +59,31 @@ def _cleanurl(url):
         parsed_url[1] = parsed_url[2]
         parsed_url[2] = ''
     return urlunparse(parsed_url)
+
+
+# Made to have same accessors as UrlResponse so that the
+# read_file_or_url can return this or that object and the
+# 'user' of those objects will not need to know the difference.
+class StringResponse(object):
+    def __init__(self, contents, code=200):
+        self.code = code
+        self.headers = {}
+        self.contents = contents
+        self.url = None
+
+    def ok(self, *args, **kwargs):  # pylint: disable=W0613
+        if self.code != 200:
+            return False
+        return True
+
+    def __str__(self):
+        return self.contents
+
+
+class FileResponse(StringResponse):
+    def __init__(self, path, contents, code=200):
+        StringResponse.__init__(self, contents, code=code)
+        self.url = path
 
 
 class UrlResponse(object):
@@ -103,7 +131,7 @@ class UrlError(IOError):
 
 def readurl(url, data=None, timeout=None, retries=0, sec_between=1,
             headers=None, headers_cb=None, ssl_details=None,
-            check_status=True, allow_redirects=True):
+            check_status=True, allow_redirects=True, exception_cb=None):
     url = _cleanurl(url)
     req_args = {
         'url': url,
@@ -163,14 +191,13 @@ def readurl(url, data=None, timeout=None, retries=0, sec_between=1,
     # Handle retrying ourselves since the built-in support
     # doesn't handle sleeping between tries...
     for i in range(0, manual_tries):
+        req_args['headers'] = headers_cb(url)
+        filtered_req_args = {}
+        for (k, v) in req_args.items():
+            if k == 'data':
+                continue
+            filtered_req_args[k] = v
         try:
-            req_args['headers'] = headers_cb(url)
-            filtered_req_args = {}
-            for (k, v) in req_args.items():
-                if k == 'data':
-                    continue
-                filtered_req_args[k] = v
-
             LOG.debug("[%s/%s] open '%s' with %s configuration", i,
                       manual_tries, url, filtered_req_args)
 
@@ -196,6 +223,8 @@ def readurl(url, data=None, timeout=None, retries=0, sec_between=1,
                     # ssl exceptions are not going to get fixed by waiting a
                     # few seconds
                     break
+            if exception_cb and not exception_cb(filtered_req_args, excps[-1]):
+                break
             if i + 1 < manual_tries and sec_between > 0:
                 LOG.debug("Please wait %s seconds while we wait to try again",
                           sec_between)

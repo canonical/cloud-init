@@ -187,7 +187,8 @@ class FilesystemMockingTestCase(ResourceUsingTestCase):
 
 
 def populate_dir(path, files):
-    os.makedirs(path)
+    if not os.path.exists(path):
+        os.makedirs(path)
     for (name, content) in files.iteritems():
         with open(os.path.join(path, name), "w") as fp:
             fp.write(content)

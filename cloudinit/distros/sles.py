@@ -26,6 +26,7 @@ from cloudinit import helpers
 from cloudinit import log as logging
 from cloudinit import util
 
+from cloudinit.distros import net_util
 from cloudinit.distros import rhel_util
 from cloudinit.settings import PER_INSTANCE
 
@@ -54,7 +55,7 @@ class Distro(distros.Distro):
 
     def _write_network(self, settings):
         # Convert debian settings to ifcfg format
-        entries = rhel_util.translate_network(settings)
+        entries = net_util.translate_network(settings)
         LOG.debug("Translated ubuntu style network settings %s into %s",
                   settings, entries)
         # Make the intermediate format as the suse format...
