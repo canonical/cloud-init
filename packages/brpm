@@ -36,7 +36,6 @@ from cloudinit import util
 PKG_MP = {
     'redhat': {
         'argparse': 'python-argparse',
-        'boto': 'python-boto',
         'cheetah': 'python-cheetah',
         'configobj': 'python-configobj',
         'jsonpatch': 'python-jsonpatch',
@@ -48,7 +47,6 @@ PKG_MP = {
     },
     'suse': {
         'argparse': 'python-argparse',
-        'boto': 'python-boto',
         'cheetah': 'python-cheetah',
         'configobj': 'python-configobj',
         'jsonpatch': 'python-jsonpatch',

@@ -29,7 +29,6 @@ import argparse
 # file pypi package name to a debian/ubuntu package name.
 PKG_MP = {
     'argparse': 'python-argparse',
-    'boto': 'python-boto',
     'cheetah': 'python-cheetah',
     'configobj': 'python-configobj',
     'jsonpatch': 'python-jsonpatch | python-json-patch',

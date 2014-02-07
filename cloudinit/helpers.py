@@ -200,11 +200,13 @@ class Runners(object):
 
 class ConfigMerger(object):
     def __init__(self, paths=None, datasource=None,
-                 additional_fns=None, base_cfg=None):
+                 additional_fns=None, base_cfg=None,
+                 include_vendor=True):
         self._paths = paths
         self._ds = datasource
         self._fns = additional_fns
         self._base_cfg = base_cfg
+        self._include_vendor = include_vendor
         # Created on first use
         self._cfg = None
 
@@ -237,13 +239,19 @@ class ConfigMerger(object):
         # a configuration file to use when running...
         if not self._paths:
             return i_cfgs
-        cc_fn = self._paths.get_ipath_cur('cloud_config')
-        if cc_fn and os.path.isfile(cc_fn):
-            try:
-                i_cfgs.append(util.read_conf(cc_fn))
-            except:
-                util.logexc(LOG, 'Failed loading of cloud-config from %s',
-                            cc_fn)
+
+        cc_paths = ['cloud_config']
+        if self._include_vendor:
+            cc_paths.append('vendor_cloud_config')
+
+        for cc_p in cc_paths:
+            cc_fn = self._paths.get_ipath_cur(cc_p)
+            if cc_fn and os.path.isfile(cc_fn):
+                try:
+                    i_cfgs.append(util.read_conf(cc_fn))
+                except:
+                    util.logexc(LOG, 'Failed loading of cloud-config from %s',
+                                cc_fn)
         return i_cfgs
 
     def _read_cfg(self):
@@ -331,13 +339,17 @@ class Paths(object):
         self.lookups = {
            "handlers": "handlers",
            "scripts": "scripts",
+           "vendor_scripts": "scripts/vendor",
            "sem": "sem",
            "boothooks": "boothooks",
            "userdata_raw": "user-data.txt",
            "userdata": "user-data.txt.i",
            "obj_pkl": "obj.pkl",
            "cloud_config": "cloud-config.txt",
+           "vendor_cloud_config": "vendor-cloud-config.txt",
            "data": "data",
+           "vendordata_raw": "vendor-data.txt",
+           "vendordata": "vendor-data.txt.i",
         }
         # Set when a datasource becomes active
         self.datasource = ds

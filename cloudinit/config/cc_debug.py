@@ -14,10 +14,10 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-from StringIO import StringIO
-from cloudinit import util
 from cloudinit import type_utils
+from cloudinit import util
 import copy
+from StringIO import StringIO
 
 
 def _make_header(text):

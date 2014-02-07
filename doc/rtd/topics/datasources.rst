@@ -130,10 +130,6 @@ To see which versions are supported from your cloud provider use the following U
     ...
     latest
         
-**Note:** internally in cloudinit the `boto`_ library used to fetch the instance
-userdata and instance metadata, feel free to check that library out, it provides
-many other useful EC2 functionality.
-
 ---------------------------
 Config Drive
 ---------------------------
