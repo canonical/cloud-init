@@ -16,11 +16,35 @@ responds with the status and if "SUCCESS" returns until a single ".\n".
 
 New versions of the SmartOS tooling will include support for base64 encoded data.
 
-Userdata
---------
+Meta-data channels
+------------------
 
-In SmartOS parlance, user-data is a actually meta-data. This userdata can be
-provided as key-value pairs.
+Cloud-init supports three modes of delivering user/meta-data via the flexible
+channels of SmartOS.
+
+* user-data is written to /var/db/user-data
+  - per the spec, user-data is for consumption by the end-user, not provisioning
+    tools
+  - cloud-init entirely ignores this channel other than writting it to disk
+  - removal of the meta-data key means that /var/db/user-data gets removed
+  - a backup of previous meta-data is maintained as /var/db/user-data.<timestamp>
+    - <timestamp> is the epoch time when cloud-init ran
+
+* user-script is written to /var/lib/cloud/scripts/per-boot/99_user_data
+  - this is executed each boot
+  - a link is created to /var/db/user-script
+  - previous versions of the user-script is written to
+    /var/lib/cloud/scripts/per-boot.backup/99_user_script.<timestamp>.
+    - <timestamp> is the epoch time when cloud-init ran.
+  - when the 'user-script' meta-data key goes missing, the user-script is
+    removed from the file system, although a backup is maintained.
+  - if the script is not shebanged (i.e. starts with #!<executable>), then
+    or is not an executable, cloud-init will add a shebang of "#!/bin/bash"
+
+* cloud-init:user-data is treated like on other Clouds.
+  - this channel is used for delivering _all_ cloud-init instructions
+  - scripts delivered over this channel must be well formed (i.e. must have
+    a shebang)
 
 Cloud-init supports reading the traditional meta-data fields supported by the
 SmartOS tools. These are:
@@ -32,19 +56,49 @@ SmartOS tools. These are:
 Note: At this time iptables_disable and enable_motd_sys_info are read but
     are not actioned.
 
-user-script
------------
+disabling user-script
+---------------------
 
-SmartOS traditionally supports sending over a user-script for execution at the
-rc.local level. Cloud-init supports running user-scripts as if they were
-cloud-init user-data. In this sense, anything with a shell interpreter
-directive will run.
+Cloud-init uses the per-boot script functionality to handle the execution
+of the user-script.  If you want to prevent this use a cloud-config of:
 
-user-data and user-script
--------------------------
+#cloud-config
+cloud_final_modules:
+ - scripts-per-once
+ - scripts-per-instance
+ - scripts-user
+ - ssh-authkey-fingerprints
+ - keys-to-console
+ - phone-home
+ - final-message
+ - power-state-change
 
-In the event that a user defines the meta-data key of "user-data" it will
-always supersede any user-script data. This is for consistency.
+Alternatively you can use the json patch method
+#cloud-config-jsonp
+[
+     { "op": "replace",
+       "path": "/cloud_final_modules",
+       "value": ["scripts-per-once",
+                 "scripts-per-instance",
+                 "scripts-user",
+                 "ssh-authkey-fingerprints",
+                 "keys-to-console",
+                 "phone-home",
+                 "final-message",
+                 "power-state-change"]
+     }
+]
+
+The default cloud-config includes "script-per-boot". Cloud-init will still
+ingest and write the user-data but will not execute it, when you disable
+the per-boot script handling.
+
+Note: Unless you have an explicit use-case, it is recommended that you not
+        disable the per-boot script execution, especially if you are using
+        any of the life-cycle management features of SmartOS.
+
+The cloud-config needs to be delivered over the cloud-init:user-data channel
+in order for cloud-init to ingest it.
 
 base64
 ------
@@ -54,6 +108,8 @@ are provided by SmartOS:
  * root_authorized_keys
  * enable_motd_sys_info
  * iptables_disable
+ * user-data
+ * user-script
 
 This list can be changed through system config of variable 'no_base64_decode'.
 

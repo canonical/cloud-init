@@ -13,10 +13,16 @@
    redirect cloud-init stderr and stdout /var/log/cloud-init-output.log.
  - drop support for resizing partitions with parted entirely (LP: #1212492).
    This was broken as it was anyway.
- - add support for vendordata.
+ - add support for vendordata in SmartOS and NoCloud datasources.
  - drop dependency on boto for crawling ec2 metadata service.
  - add 'Requires' on sudo (for OpenNebula datasource) in rpm specs, and
    'Recommends' in the debian/control.in [Vlastimil Holer]
+ - if mount_info reports /dev/root is a device path for /, then convert
+   that to a device via help of kernel cmdline.
+ - configdrive: consider partitions as possible datasources if they have
+   theh correct filesystem label. [Paul Querna]
+ - initial freebsd support [Harm Weites]
+ - fix in is_ipv4 to accept IP addresses with a '0' in them.
 0.7.4:
  - fix issue mounting 'ephemeral0' if ephemeral0 was an alias for a
    partitioned block device with target filesystem on ephemeral0.1.

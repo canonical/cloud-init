@@ -1,0 +1,34 @@
+#!/bin/sh
+
+# PROVIDE: cloudfinal
+# REQUIRE: LOGIN cloudinit cloudconfig cloudinitlocal
+# REQUIRE: cron mail sshd swaplate
+
+. /etc/rc.subr
+
+name="cloudfinal"
+command="/usr/bin/cloud_init"
+start_cmd="cloudfinal_start"
+stop_cmd=":"
+rcvar="cloudinit_enable"
+start_precmd="cloudinit_override"
+start_cmd="cloudfinal_start"
+
+: ${cloudinit_config:="/etc/cloud/cloud.cfg"}
+
+cloudinit_override()
+{
+	# If there exist sysconfig/default variable override files use it...
+	if [ -f /etc/default/cloud-init ]; then
+		 . /etc/default/cloud-init
+	fi
+}
+
+cloudfinal_start()
+{
+	echo -n "${command} starting"
+	${command} ${cloudinit_config} modules --mode final
+}
+
+load_rc_config $name
+run_rc_command "$1"

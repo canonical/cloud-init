@@ -246,10 +246,13 @@ def find_candidate_devs(probe_optical=True):
 
     # combine list of items by putting by-label items first
     # followed by fstype items, but with dupes removed
-    combined = (by_label + [d for d in by_fstype if d not in by_label])
+    candidates = (by_label + [d for d in by_fstype if d not in by_label])
 
-    # we are looking for block device (sda, not sda1), ignore partitions
-    return [d for d in combined if not util.is_partition(d)]
+    # We are looking for a block device or partition with necessary label or
+    # an unpartitioned block device (ex sda, not sda1)
+    devices = [d for d in candidates
+               if d in by_label or not util.is_partition(d)]
+    return devices
 
 
 # Used to match classes to dependencies

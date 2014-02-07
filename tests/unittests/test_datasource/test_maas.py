@@ -119,9 +119,10 @@ class TestMAASDataSource(mocker.MockerTestCase):
             mock_request(url, headers=None, timeout=mocker.ANY,
                          data=mocker.ANY, sec_between=mocker.ANY,
                          ssl_details=mocker.ANY, retries=mocker.ANY,
-                         headers_cb=my_headers_cb)
+                         headers_cb=my_headers_cb,
+                         exception_cb=mocker.ANY)
             resp = valid.get(key)
-            self.mocker.result(util.StringResponse(resp))
+            self.mocker.result(url_helper.StringResponse(resp))
         self.mocker.replay()
 
         (userdata, metadata) = DataSourceMAAS.read_maas_seed_url(my_seed,

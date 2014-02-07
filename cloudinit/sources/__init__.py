@@ -129,7 +129,7 @@ class DataSource(object):
         # when the kernel named them 'vda' or 'xvda'
         # we want to return the correct value for what will actually
         # exist in this instance
-        mappings = {"sd": ("vd", "xvd")}
+        mappings = {"sd": ("vd", "xvd", "vtb")}
         for (nfrom, tlist) in mappings.iteritems():
             if not short_name.startswith(nfrom):
                 continue
