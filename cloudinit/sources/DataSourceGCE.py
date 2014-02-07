@@ -30,6 +30,16 @@ class DataSourceGCE(sources.DataSource):
         self.metadata_address = MD_URL
         self.metadata = {}
 
+    # GCE takes sshKeys attribute in the format of '<user>:<public_key>'
+    # so we have to trim each key to remove the username part
+    def _trim_key(self, public_key):
+        try:
+            index = public_key.index(':')
+            if index > 0:
+                return public_key[(index + 1):]
+        except:
+            return public_key
+
     def get_data(self):
         # GCE metadata server requires a custom header since v1
         headers = {'X-Google-Metadata-Request': True}
