@@ -84,8 +84,13 @@ class DataSourceAzureNet(sources.DataSource):
 
         candidates = [self.seed_dir]
         candidates.extend(list_possible_azure_ds_devs())
+        previous_ovf_cfg = None
         if ddir:
             candidates.append(ddir)
+
+        previous_ovf_cfg = None
+        if os.path.exists("%s/ovf-env.xml" % ddir):
+            previous_ovf_cfg = load_azure_ds_dir(ddir)
 
         found = None
 
@@ -93,12 +98,6 @@ class DataSourceAzureNet(sources.DataSource):
             try:
                 if cdev.startswith("/dev/"):
                     ret = util.mount_cb(cdev, load_azure_ds_dir)
-
-                    # If we load the OVF from a device, it means that a
-                    # new ovf-env.xml has been found. (LP: #1269626)
-                    if os.path.exists(ddir):
-                        LOG.info("removing old agent directory %s" % ddir)
-                        util.del_dir(ddir)
                 else:
                     ret = load_azure_ds_dir(cdev)
 
@@ -109,6 +108,11 @@ class DataSourceAzureNet(sources.DataSource):
             except util.MountFailedError:
                 LOG.warn("%s was not mountable" % cdev)
                 continue
+
+            if ret != previous_ovf_cfg:
+                LOG.info(("instance configuration has changed, "
+                          "removing old agent directory"))
+                util.del_dir(ddir)
 
             (md, self.userdata_raw, cfg, files) = ret
             self.seed = cdev

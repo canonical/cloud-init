@@ -119,6 +119,10 @@ class TestAzureDataSource(MockerTestCase):
                          {'ovf-env.xml': data['ovfcontent']})
 
         mod = DataSourceAzure
+        ddir = "%s/var/lib/waagent" % self.tmp
+        mod.BUILTIN_DS_CONFIG['data_dir'] = ddir
+        if not os.path.isdir(ddir):
+            os.makedirs(ddir)
 
         self.apply_patches([(mod, 'list_possible_azure_ds_devs', dsdevs)])
 
@@ -337,6 +341,40 @@ class TestAzureDataSource(MockerTestCase):
         dsrc.get_data()
 
         self.assertEqual(userdata, dsrc.userdata_raw)
+
+    def test_existing_ovf_same(self):
+        mydata = "FOOBAR"
+        odata = {'UserData': base64.b64encode(mydata)}
+        data = {'ovfcontent': construct_valid_ovf_env(data=odata)}
+
+        with open("%s/ovf-env.xml" % self.tmp, 'w') as fp:
+            fp.write(construct_valid_ovf_env(data=odata))
+        with open("%s/sem" % self.tmp, 'w') as fp:
+            fp.write("test")
+
+        dsrc = self._get_ds(data)
+        ret = dsrc.get_data()
+        self.assertTrue(ret)
+        self.assertEqual(dsrc.userdata_raw, mydata)
+        self.assertTrue(os.path.exists("%s/sem" % self.tmp))
+
+    def test_existing_ovf_diff(self):
+        mydata = "FOOBAR"
+        odata = {'UserData': base64.b64encode(mydata)}
+        data = {'ovfcontent': construct_valid_ovf_env(data=odata)}
+
+        data_dir = "%s/var/lib/waagent" % self.tmp
+        os.makedirs(data_dir)
+        with open("%s/ovf-env.xml" % data_dir, 'w') as fp:
+            fp.write(construct_valid_ovf_env())
+        with open("%s/sem" % data_dir, 'w') as fp:
+            fp.write("test")
+
+        dsrc = self._get_ds(data)
+        ret = dsrc.get_data()
+        self.assertTrue(ret)
+        self.assertEqual(dsrc.userdata_raw, mydata)
+        self.assertFalse(os.path.exists("%s/sem" % data_dir))
 
 
 class TestReadAzureOvf(MockerTestCase):
