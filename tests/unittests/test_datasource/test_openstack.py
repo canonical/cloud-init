@@ -287,3 +287,26 @@ class TestOpenStackDataSource(test_helpers.TestCase):
         found = ds_os.get_data()
         self.assertFalse(found)
         self.assertIsNone(ds_os.version)
+
+    @hp.activate
+    def test_disabled_datasource(self):
+        os_files = copy.deepcopy(OS_FILES)
+        os_meta = copy.deepcopy(OSTACK_META)
+        os_meta['meta'] = {
+            'dsmode': 'disabled',
+        }
+        for k in list(os_files.keys()):
+            if k.endswith('meta_data.json'):
+                os_files[k] = json.dumps(os_meta)
+        _register_uris(self.VERSION, {}, {}, os_files)
+        ds_os = ds.DataSourceOpenStack(settings.CFG_BUILTIN,
+                                       None,
+                                       helpers.Paths({}))
+        ds_os.ds_cfg = {
+            'max_wait': 0,
+            'timeout': 0,
+        }
+        self.assertIsNone(ds_os.version)
+        found = ds_os.get_data()
+        self.assertFalse(found)
+        self.assertIsNone(ds_os.version)
