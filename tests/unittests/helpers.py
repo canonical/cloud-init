@@ -29,6 +29,12 @@ if (_PY_MAJOR, _PY_MINOR) <= (2, 6):
                 standardMsg = standardMsg % (member, container)
                 self.fail(self._formatMessage(msg, standardMsg))
 
+        def assertIsNone(self, value, msg=None):
+            if value is not None:
+                standardMsg = '%r is not None'
+                standardMsg = standardMsg % (value)
+                self.fail(self._formatMessage(msg, standardMsg))
+
 else:
     class TestCase(unittest.TestCase):
         pass
