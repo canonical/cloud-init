@@ -39,6 +39,7 @@ NOT_FOUND = httplib.NOT_FOUND
 # Check if requests has ssl support (added in requests >= 0.8.8)
 SSL_ENABLED = False
 CONFIG_ENABLED = False  # This was added in 0.7 (but taken out in >=1.0)
+_REQ_VER = None
 try:
     from distutils.version import LooseVersion
     import pkg_resources
@@ -152,7 +153,8 @@ def _get_ssl_args(url, ssl_details):
     scheme = urlparse(url).scheme  # pylint: disable=E1101
     if scheme == 'https' and ssl_details:
         if not SSL_ENABLED:
-            LOG.warn("SSL is not enabled, cert. verification can not occur!")
+            LOG.warn("SSL is not supported in requests v%s, "
+                     "cert. verification can not occur!", _REQ_VER)
         else:
             if 'ca_certs' in ssl_details and ssl_details['ca_certs']:
                 ssl_args['verify'] = ssl_details['ca_certs']
