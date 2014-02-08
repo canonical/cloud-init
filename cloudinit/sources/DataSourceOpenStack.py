@@ -121,7 +121,8 @@ class DataSourceOpenStack(openstack.SourceMixin, sources.DataSource):
                                     'Crawl of openstack metadata service',
                                     read_metadata_service,
                                     args=[self.metadata_address],
-                                    kwargs={'ssl_details': self.ssl_details})
+                                    kwargs={'ssl_details': self.ssl_details,
+                                            'version': openstack.OS_LATEST})
         except openstack.NonReadable:
             return False
         except openstack.BrokenMetadata:
