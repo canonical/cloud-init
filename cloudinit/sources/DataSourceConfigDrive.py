@@ -87,7 +87,7 @@ class DataSourceConfigDrive(openstack.SourceMixin, sources.DataSource):
         md = util.mergemanydict([md, DEFAULT_METADATA])
         user_dsmode = results.get('dsmode', None)
         if user_dsmode not in VALID_DSMODES + (None,):
-            LOG.warn("User specified invalid mode: %s" % user_dsmode)
+            LOG.warn("User specified invalid mode: %s", user_dsmode)
             user_dsmode = None
 
         dsmode = get_ds_mode(cfgdrv_ver=results['version'],
