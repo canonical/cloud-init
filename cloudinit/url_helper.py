@@ -169,8 +169,8 @@ def _get_ssl_args(url, ssl_details):
 
 
 def readurl(url, data=None, timeout=None, retries=0, sec_between=1,
-             headers=None, headers_cb=None, ssl_details=None,
-             check_status=True, allow_redirects=True, exception_cb=None):
+            headers=None, headers_cb=None, ssl_details=None,
+            check_status=True, allow_redirects=True, exception_cb=None):
     url = _cleanurl(url)
     req_args = {
         'url': url,
@@ -206,12 +206,11 @@ def readurl(url, data=None, timeout=None, retries=0, sec_between=1,
         def _cb(url):
             return headers
         headers_cb = _cb
-
     if data:
-        # Do this after the log (it might be large)
         req_args['data'] = data
     if sec_between is None:
         sec_between = -1
+
     excps = []
     # Handle retrying ourselves since the built-in support
     # doesn't handle sleeping between tries...
