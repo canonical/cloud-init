@@ -44,6 +44,7 @@ class DataSourceOpenStack(openstack.SourceMixin, sources.DataSource):
         self.ssl_details = util.fetch_ssl_details(self.paths)
         self.version = None
         self.files = {}
+        self.ec2_metadata = None
 
     def __str__(self):
         root = sources.DataSource.__str__(self)

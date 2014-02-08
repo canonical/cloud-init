@@ -117,19 +117,8 @@ def _register_uris(version, ec2_files, ec2_meta, os_files):
             return (200, headers, os_files.get(path))
         return match_ec2_url(uri, headers)
 
-    def head_request_callback(method, uri, headers):
-        uri = urlparse(uri)
-        path = uri.path.lstrip("/")
-        for key in os_files.keys():
-            if key.startswith(path):
-                return (200, headers, '')
-        return (404, headers, '')
-
     hp.register_uri(hp.GET, re.compile(r'http://169.254.169.254/.*'),
                     body=get_request_callback)
-
-    hp.register_uri(hp.HEAD, re.compile(r'http://169.254.169.254/.*'),
-                    body=head_request_callback)
 
 
 class TestOpenStackDataSource(test_helpers.TestCase):

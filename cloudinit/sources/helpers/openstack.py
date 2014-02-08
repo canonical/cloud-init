@@ -21,7 +21,6 @@
 import abc
 import base64
 import copy
-import functools
 import os
 
 from cloudinit import ec2_utils
@@ -395,26 +394,38 @@ class ConfigDriveReader(BaseReader):
 class MetadataReader(BaseReader):
     def __init__(self, base_url, ssl_details=None, timeout=5, retries=5):
         super(MetadataReader, self).__init__(base_url)
-        self._url_reader = functools.partial(url_helper.readurl,
-                                             retries=retries,
-                                             ssl_details=ssl_details,
-                                             timeout=timeout)
-        self._url_checker = functools.partial(url_helper.existsurl,
-                                              ssl_details=ssl_details,
-                                              timeout=timeout)
-        self._ec2_reader = functools.partial(ec2_utils.get_instance_metadata,
-                                             ssl_details=ssl_details,
-                                             timeout=timeout,
-                                             retries=retries)
+        self.ssl_details = ssl_details
+        self.timeout = float(timeout)
+        self.retries = int(retries)
 
     def _path_read(self, path):
-        return str(self._url_reader(path))
+        response = url_helper.readurl(path,
+                                      retries=self.retries,
+                                      ssl_details=self.ssl_details,
+                                      timeout=self.timeout)
+        return response.contents
 
     def _path_exists(self, path):
-        return self._url_checker(path)
+
+        def should_retry_cb(request, cause):
+            if cause.code >= 400:
+                return False
+            return True
+
+        try:
+            response = url_helper.readurl(path,
+                                          retries=self.retries,
+                                          ssl_details=self.ssl_details,
+                                          timeout=self.timeout,
+                                          exception_cb=should_retry_cb)
+            return response.ok()
+        except IOError:
+            return False
 
     def _path_join(self, base, *add_ons):
         return url_helper.combine_url(base, *add_ons)
 
     def _read_ec2_metadata(self):
-        return self._ec2_reader()
+        return ec2_utils.get_instance_metadata(ssl_details=self.ssl_details,
+                                               timeout=self.timeout,
+                                               retries=self.retries)

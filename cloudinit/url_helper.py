@@ -166,35 +166,16 @@ def _get_ssl_args(url, ssl_details):
     return ssl_args
 
 
-def existsurl(url, ssl_details=None, timeout=None):
-    r = _readurl(url, ssl_details=ssl_details, timeout=timeout,
-                 method='HEAD', check_status=False)
-    return r.ok()
-
-
 def readurl(url, data=None, timeout=None, retries=0, sec_between=1,
-            headers=None, headers_cb=None, ssl_details=None,
-            check_status=True, allow_redirects=True, exception_cb=None):
-    return _readurl(url, data=data, timeout=timeout, retries=retries,
-                    sec_between=sec_between, headers=headers,
-                    headers_cb=headers_cb, ssl_details=ssl_details,
-                    check_status=check_status,
-                    allow_redirects=allow_redirects,
-                    exception_cb=exception_cb)
-
-
-def _readurl(url, data=None, timeout=None, retries=0, sec_between=1,
              headers=None, headers_cb=None, ssl_details=None,
-             check_status=True, allow_redirects=True, exception_cb=None,
-             method='GET'):
+             check_status=True, allow_redirects=True, exception_cb=None):
     url = _cleanurl(url)
     req_args = {
         'url': url,
     }
     req_args.update(_get_ssl_args(url, ssl_details))
-    scheme = urlparse(url).scheme  # pylint: disable=E1101
     req_args['allow_redirects'] = allow_redirects
-    req_args['method'] = method
+    req_args['method'] = 'GET'
     if timeout is not None:
         req_args['timeout'] = max(float(timeout), 0)
     if data:
