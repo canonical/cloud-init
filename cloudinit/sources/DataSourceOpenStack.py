@@ -126,14 +126,14 @@ class DataSourceOpenStack(openstack.SourceMixin, sources.DataSource):
                                             'version': openstack.OS_LATEST})
         except openstack.NonReadable:
             return False
-        except openstack.BrokenMetadata:
+        except (openstack.BrokenMetadata, IOError):
             util.logexc(LOG, "Broken metadata address %s",
                         self.metadata_address)
             return False
 
         user_dsmode = results.get('dsmode', None)
         if user_dsmode not in VALID_DSMODES + (None,):
-            LOG.warn("User specified invalid mode: %s" % user_dsmode)
+            LOG.warn("User specified invalid mode: %s", user_dsmode)
             user_dsmode = None
         if user_dsmode == 'disabled':
             return False
