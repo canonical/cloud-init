@@ -52,7 +52,10 @@ class DataSourceGCE(sources.DataSource):
         }
 
         for mkey in url_map.iterkeys():
-            resp = url_helper.readurl(url=url_map[mkey], headers=headers)
+            try:
+                resp = url_helper.readurl(url=url_map[mkey], headers=headers)
+            except IOError:
+                return False
             if resp.ok():
                 if mkey == 'public-keys':
                     pub_keys = [self._trim_key(k) for k in resp.contents.splitlines()]
