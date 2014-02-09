@@ -408,8 +408,13 @@ class MetadataReader(BaseReader):
     def _path_exists(self, path):
 
         def should_retry_cb(request, cause):
-            if cause.code >= 400:
-                return False
+            try:
+                code = int(cause.code)
+                if code >= 400:
+                    return False
+            except (TypeError, ValueError):
+                # Older versions of requests didn't have a code.
+                pass
             return True
 
         try:
