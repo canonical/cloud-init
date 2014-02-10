@@ -19,4 +19,4 @@ landscape:
     computer_title: footitle
     https_proxy: fooproxy
     registration_key: fookey
-    account_name fooaccount
+    account_name: fooaccount
