@@ -107,7 +107,7 @@ rm -r %{buildroot}/%{python_sitelib}/tests
 # Move documentation
 mkdir -p %{buildroot}/%{_defaultdocdir}
 mv %{buildroot}/usr/share/doc/cloud-init %{buildroot}/%{_defaultdocdir}
-for doc in TODO LICENSE ChangeLog Requires ; do
+for doc in TODO LICENSE ChangeLog requirements.txt; do
    cp \${doc} %{buildroot}/%{_defaultdocdir}/cloud-init
 done
 
