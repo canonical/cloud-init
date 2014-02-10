@@ -92,12 +92,9 @@ class DataSourceEc2(sources.DataSource):
         except Exception:
             util.logexc(LOG, "Failed to get max wait. using %s", max_wait)
 
-        if max_wait == 0:
-            return False
-
         timeout = 50
         try:
-            timeout = int(mcfg.get("timeout", timeout))
+            timeout = max(0, int(mcfg.get("timeout", timeout)))
         except Exception:
             util.logexc(LOG, "Failed to get timeout, using %s", timeout)
 
@@ -109,6 +106,8 @@ class DataSourceEc2(sources.DataSource):
             mcfg = {}
 
         (max_wait, timeout) = self._get_url_settings()
+        if max_wait <= 0:
+            return False
 
         # Remove addresses from the list that wont resolve.
         mdurls = mcfg.get("metadata_urls", DEF_MD_URLS)
