@@ -34,6 +34,7 @@ DEFAULT_METADATA = {"instance-id": "iid-AZURE-NODE"}
 AGENT_START = ['service', 'walinuxagent', 'start']
 BOUNCE_COMMAND = ['sh', '-xc',
     "i=$interface; x=0; ifdown $i || x=$?; ifup $i || x=$?; exit $x"]
+DATA_DIR_CLEAN_LIST = ['SharedConfig.xml']
 
 BUILTIN_DS_CONFIG = {
     'agent_command': AGENT_START,
@@ -101,7 +102,7 @@ class DataSourceAzureNet(sources.DataSource):
             except BrokenAzureDataSource as exc:
                 raise exc
             except util.MountFailedError:
-                LOG.warn("%s was not mountable" % cdev)
+                LOG.warn("%s was not mountable", cdev)
                 continue
 
             (md, self.userdata_raw, cfg, files) = ret
@@ -128,10 +129,26 @@ class DataSourceAzureNet(sources.DataSource):
         user_ds_cfg = util.get_cfg_by_path(self.cfg, DS_CFG_PATH, {})
         self.ds_cfg = util.mergemanydict([user_ds_cfg, self.ds_cfg])
         mycfg = self.ds_cfg
+        ddir = mycfg['data_dir']
+
+        if found != ddir:
+            cached_ovfenv = util.load_file(
+                os.path.join(ddir, 'ovf-env.xml'), quiet=True)
+            if cached_ovfenv != files['ovf-env.xml']:
+                # source was not walinux-agent's datadir, so we have to clean
+                # up so 'wait_for_files' doesn't return early due to stale data
+                cleaned = []
+                for f in [os.path.join(ddir, f) for f in DATA_DIR_CLEAN_LIST]:
+                    if os.path.exists(f):
+                        util.del_file(f)
+                        cleaned.append(f)
+                if cleaned:
+                    LOG.info("removed stale file(s) in '%s': %s",
+                             ddir, str(cleaned))
 
         # walinux agent writes files world readable, but expects
         # the directory to be protected.
-        write_files(mycfg['data_dir'], files, dirmode=0700)
+        write_files(ddir, files, dirmode=0700)
 
         # handle the hostname 'publishing'
         try:
@@ -139,7 +156,7 @@ class DataSourceAzureNet(sources.DataSource):
                                 self.metadata.get('local-hostname'),
                                 mycfg['hostname_bounce'])
         except Exception as e:
-            LOG.warn("Failed publishing hostname: %s" % e)
+            LOG.warn("Failed publishing hostname: %s", e)
             util.logexc(LOG, "handling set_hostname failed")
 
         try:
@@ -149,13 +166,13 @@ class DataSourceAzureNet(sources.DataSource):
             util.logexc(LOG, "agent command '%s' failed.",
                         mycfg['agent_command'])
 
-        shcfgxml = os.path.join(mycfg['data_dir'], "SharedConfig.xml")
+        shcfgxml = os.path.join(ddir, "SharedConfig.xml")
         wait_for = [shcfgxml]
 
         fp_files = []
         for pk in self.cfg.get('_pubkeys', []):
             bname = str(pk['fingerprint'] + ".crt")
-            fp_files += [os.path.join(mycfg['data_dir'], bname)]
+            fp_files += [os.path.join(ddir, bname)]
 
         missing = util.log_time(logfunc=LOG.debug, msg="waiting for files",
                                 func=wait_for_files,
@@ -169,7 +186,7 @@ class DataSourceAzureNet(sources.DataSource):
             try:
                 self.metadata['instance-id'] = iid_from_shared_config(shcfgxml)
             except ValueError as e:
-                LOG.warn("failed to get instance id in %s: %s" % (shcfgxml, e))
+                LOG.warn("failed to get instance id in %s: %s", shcfgxml, e)
 
         pubkeys = pubkeys_from_crt_files(fp_files)
 
@@ -250,7 +267,7 @@ def pubkeys_from_crt_files(flist):
             errors.append(fname)
 
     if errors:
-        LOG.warn("failed to convert the crt files to pubkey: %s" % errors)
+        LOG.warn("failed to convert the crt files to pubkey: %s", errors)
 
     return pubkeys
 
@@ -281,7 +298,7 @@ def write_files(datadir, files, dirmode=None):
 def invoke_agent(cmd):
     # this is a function itself to simplify patching it for test
     if cmd:
-        LOG.debug("invoking agent: %s" % cmd)
+        LOG.debug("invoking agent: %s", cmd)
         util.subp(cmd, shell=(not isinstance(cmd, list)))
     else:
         LOG.debug("not invoking agent")
@@ -328,7 +345,7 @@ def load_azure_ovf_pubkeys(sshnode):
             continue
         cur = {'fingerprint': "", 'path': ""}
         for child in pk_node.childNodes:
-            if (child.nodeType == text_node or not child.localName):
+            if child.nodeType == text_node or not child.localName:
                 continue
 
             name = child.localName.lower()
@@ -414,7 +431,7 @@ def read_azure_ovf(contents):
 
         # we accept either UserData or CustomData.  If both are present
         # then behavior is undefined.
-        if (name == "userdata" or name == "customdata"):
+        if name == "userdata" or name == "customdata":
             if attrs.get('encoding') in (None, "base64"):
                 ud = base64.b64decode(''.join(value.split()))
             else:
