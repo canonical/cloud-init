@@ -84,13 +84,8 @@ class DataSourceAzureNet(sources.DataSource):
 
         candidates = [self.seed_dir]
         candidates.extend(list_possible_azure_ds_devs())
-        previous_ovf_cfg = None
         if ddir:
             candidates.append(ddir)
-
-        previous_ovf_cfg = None
-        if os.path.exists("%s/ovf-env.xml" % ddir):
-            previous_ovf_cfg = load_azure_ds_dir(ddir)
 
         found = None
 
@@ -108,11 +103,6 @@ class DataSourceAzureNet(sources.DataSource):
             except util.MountFailedError:
                 LOG.warn("%s was not mountable" % cdev)
                 continue
-
-            if ret != previous_ovf_cfg:
-                LOG.info(("instance configuration has changed, "
-                          "removing old agent directory"))
-                util.del_dir(ddir)
 
             (md, self.userdata_raw, cfg, files) = ret
             self.seed = cdev
@@ -138,10 +128,27 @@ class DataSourceAzureNet(sources.DataSource):
         user_ds_cfg = util.get_cfg_by_path(self.cfg, DS_CFG_PATH, {})
         self.ds_cfg = util.mergemanydict([user_ds_cfg, self.ds_cfg])
         mycfg = self.ds_cfg
+        ddir = mycfg['data_dir']
+
+        if found != ddir:
+            cached_ovfenv = util.load_file(
+                os.path.join(ddir, 'ovf-env.xml'), quiet=True)
+            if cached_ovfenv != files['ovf-env.xml']:
+                # source was not walinux-agent's datadir, so we have to clean
+                # up so 'wait_for_files' doesn't return early due to stale data
+                toclean = ['SharedConfig.xml']
+                cleaned = []
+                for f in [os.path.join(ddir, f) for f in toclean]:
+                    if os.path.exists(f):
+                        util.del_file(f)
+                        cleaned.append(f)
+                if cleaned:
+                    LOG.info("removed stale file(s) in '%s': %s",
+                             ddir, str(cleaned))
 
         # walinux agent writes files world readable, but expects
         # the directory to be protected.
-        write_files(mycfg['data_dir'], files, dirmode=0700)
+        write_files(ddir, files, dirmode=0700)
 
         # handle the hostname 'publishing'
         try:
@@ -159,13 +166,13 @@ class DataSourceAzureNet(sources.DataSource):
             util.logexc(LOG, "agent command '%s' failed.",
                         mycfg['agent_command'])
 
-        shcfgxml = os.path.join(mycfg['data_dir'], "SharedConfig.xml")
+        shcfgxml = os.path.join(ddir, "SharedConfig.xml")
         wait_for = [shcfgxml]
 
         fp_files = []
         for pk in self.cfg.get('_pubkeys', []):
             bname = str(pk['fingerprint'] + ".crt")
-            fp_files += [os.path.join(mycfg['data_dir'], bname)]
+            fp_files += [os.path.join(ddir, bname)]
 
         missing = util.log_time(logfunc=LOG.debug, msg="waiting for files",
                                 func=wait_for_files,

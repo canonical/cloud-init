@@ -1,4 +1,5 @@
 from cloudinit import helpers
+from cloudinit.util import load_file
 from cloudinit.sources import DataSourceAzure
 from tests.unittests.helpers import populate_dir
 
@@ -6,6 +7,7 @@ import base64
 import crypt
 from mocker import MockerTestCase
 import os
+import stat
 import yaml
 
 
@@ -72,6 +74,7 @@ class TestAzureDataSource(MockerTestCase):
 
         # patch cloud_dir, so our 'seed_dir' is guaranteed empty
         self.paths = helpers.Paths({'cloud_dir': self.tmp})
+        self.waagent_d = os.path.join(self.tmp, 'var', 'lib', 'waagent')
 
         self.unapply = []
         super(TestAzureDataSource, self).setUp()
@@ -91,13 +94,6 @@ class TestAzureDataSource(MockerTestCase):
 
         def _invoke_agent(cmd):
             data['agent_invoked'] = cmd
-
-        def _write_files(datadir, files, dirmode):
-            data['files'] = {}
-            data['datadir'] = datadir
-            data['datadir_mode'] = dirmode
-            for (fname, content) in files.items():
-                data['files'][fname] = content
 
         def _wait_for_files(flist, _maxwait=None, _naplen=None):
             data['waited'] = flist
@@ -119,15 +115,11 @@ class TestAzureDataSource(MockerTestCase):
                          {'ovf-env.xml': data['ovfcontent']})
 
         mod = DataSourceAzure
-        ddir = "%s/var/lib/waagent" % self.tmp
-        mod.BUILTIN_DS_CONFIG['data_dir'] = ddir
-        if not os.path.isdir(ddir):
-            os.makedirs(ddir)
+        mod.BUILTIN_DS_CONFIG['data_dir'] = self.waagent_d
 
         self.apply_patches([(mod, 'list_possible_azure_ds_devs', dsdevs)])
 
         self.apply_patches([(mod, 'invoke_agent', _invoke_agent),
-                            (mod, 'write_files', _write_files),
                             (mod, 'wait_for_files', _wait_for_files),
                             (mod, 'pubkeys_from_crt_files',
                              _pubkeys_from_crt_files),
@@ -151,9 +143,17 @@ class TestAzureDataSource(MockerTestCase):
         self.assertTrue(ret)
         self.assertEqual(dsrc.userdata_raw, "")
         self.assertEqual(dsrc.metadata['local-hostname'], odata['HostName'])
-        self.assertTrue('ovf-env.xml' in data['files'])
-        self.assertEqual(0700, data['datadir_mode'])
+        self.assertTrue(os.path.isfile(
+            os.path.join(self.waagent_d, 'ovf-env.xml')))
         self.assertEqual(dsrc.metadata['instance-id'], 'i-my-azure-id')
+
+    def test_waagent_d_has_0700_perms(self):
+        # we expect /var/lib/waagent to be created 0700
+        dsrc = self._get_ds({'ovfcontent': construct_valid_ovf_env()})
+        ret = dsrc.get_data()
+        self.assertTrue(ret)
+        self.assertTrue(os.path.isdir(self.waagent_d))
+        self.assertEqual(stat.S_IMODE(os.stat(self.waagent_d).st_mode), 0700)
 
     def test_user_cfg_set_agent_command_plain(self):
         # set dscfg in via plaintext
@@ -342,39 +342,64 @@ class TestAzureDataSource(MockerTestCase):
 
         self.assertEqual(userdata, dsrc.userdata_raw)
 
+    def test_ovf_env_arrives_in_waagent_dir(self):
+        xml = construct_valid_ovf_env(data={}, userdata="FOODATA")
+        dsrc = self._get_ds({'ovfcontent': xml})
+        dsrc.get_data()
+
+        # 'data_dir' is '/var/lib/waagent' (walinux-agent's state dir)
+        # we expect that the ovf-env.xml file is copied there.
+        ovf_env_path = os.path.join(self.waagent_d, 'ovf-env.xml')
+        self.assertTrue(os.path.exists(ovf_env_path))
+        self.assertEqual(xml, load_file(ovf_env_path))
+        
     def test_existing_ovf_same(self):
-        mydata = "FOOBAR"
-        odata = {'UserData': base64.b64encode(mydata)}
+        # waagent/SharedConfig left alone if found ovf-env.xml same as cached
+        odata = {'UserData': base64.b64encode("SOMEUSERDATA")}
         data = {'ovfcontent': construct_valid_ovf_env(data=odata)}
 
-        with open("%s/ovf-env.xml" % self.tmp, 'w') as fp:
-            fp.write(construct_valid_ovf_env(data=odata))
-        with open("%s/sem" % self.tmp, 'w') as fp:
-            fp.write("test")
+        populate_dir(self.waagent_d, 
+            {'ovf-env.xml': data['ovfcontent'],
+             'otherfile': 'otherfile-content',
+             'SharedConfig.xml': 'mysharedconfig'})
 
         dsrc = self._get_ds(data)
         ret = dsrc.get_data()
         self.assertTrue(ret)
-        self.assertEqual(dsrc.userdata_raw, mydata)
-        self.assertTrue(os.path.exists("%s/sem" % self.tmp))
+        self.assertTrue(os.path.exists(
+            os.path.join(self.waagent_d, 'ovf-env.xml')))
+        self.assertTrue(os.path.exists(
+            os.path.join(self.waagent_d, 'otherfile')))
+        self.assertTrue(os.path.exists(
+            os.path.join(self.waagent_d, 'SharedConfig.xml')))
 
     def test_existing_ovf_diff(self):
-        mydata = "FOOBAR"
-        odata = {'UserData': base64.b64encode(mydata)}
-        data = {'ovfcontent': construct_valid_ovf_env(data=odata)}
+        # waagent/SharedConfig must be removed if ovfenv is found elsewhere
 
-        data_dir = "%s/var/lib/waagent" % self.tmp
-        os.makedirs(data_dir)
-        with open("%s/ovf-env.xml" % data_dir, 'w') as fp:
-            fp.write(construct_valid_ovf_env())
-        with open("%s/sem" % data_dir, 'w') as fp:
-            fp.write("test")
+        # 'get_data' should remove SharedConfig.xml in /var/lib/waagent
+        # if ovf-env.xml differs.
+        cached_ovfenv = construct_valid_ovf_env(
+            {'userdata': base64.b64encode("FOO_USERDATA")})
+        new_ovfenv = construct_valid_ovf_env(
+            {'userdata': base64.b64encode("NEW_USERDATA")})
 
-        dsrc = self._get_ds(data)
+        populate_dir(self.waagent_d,
+            {'ovf-env.xml': cached_ovfenv,
+             'SharedConfig.xml': "mysharedconfigxml",
+             'otherfile': 'otherfilecontent'})
+
+        dsrc = self._get_ds({'ovfcontent': new_ovfenv})
         ret = dsrc.get_data()
         self.assertTrue(ret)
-        self.assertEqual(dsrc.userdata_raw, mydata)
-        self.assertFalse(os.path.exists("%s/sem" % data_dir))
+        self.assertEqual(dsrc.userdata_raw, "NEW_USERDATA")
+        self.assertTrue(os.path.exists(
+            os.path.join(self.waagent_d, 'otherfile')))
+        self.assertFalse(
+            os.path.exists(os.path.join(self.waagent_d, 'SharedConfig.xml')))
+        self.assertTrue(
+            os.path.exists(os.path.join(self.waagent_d, 'ovf-env.xml')))
+        self.assertEqual(new_ovfenv,
+            load_file(os.path.join(self.waagent_d, 'ovf-env.xml')))
 
 
 class TestReadAzureOvf(MockerTestCase):
