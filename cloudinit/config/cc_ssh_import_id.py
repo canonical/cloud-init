@@ -26,9 +26,8 @@ from cloudinit import distros as ds
 from cloudinit import util
 import pwd
 
-# The ssh-import-id only seems to exist on ubuntu (for now)
 # https://launchpad.net/ssh-import-id
-distros = ['ubuntu']
+distros = ['ubuntu', 'debian']
 
 
 def handle(_name, cfg, cloud, log, args):

@@ -37,6 +37,7 @@ CFG_BUILTIN = {
         'OVF',
         'MAAS',
         'Ec2',
+        'CloudSigma',
         'CloudStack',
         'SmartOS',
         # At the end to act as a 'catch' when none of the above work...

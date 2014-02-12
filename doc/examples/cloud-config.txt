@@ -319,6 +319,16 @@ cloud_config_modules:
  - runcmd
  - byobu
 
+# unverified_modules: []
+# if a config module declares a set of distros as supported then it will be
+# skipped if running on a different distro.  to override this sanity check,
+# provide a list of modules that should be run anyway in 'unverified_modules'.
+# The default is an empty list (ie, trust modules).
+#
+# Example:
+#   unverified_modules: ['apt-update-upgrade']
+#   default: []
+
 # ssh_import_id: [ user1, user2 ]
 # ssh_import_id will feed the list in that variable to
 #  ssh-import-id, so that public keys stored in launchpad
