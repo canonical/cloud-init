@@ -34,7 +34,7 @@ class Distro(distros.Distro):
     network_conf_dir = "/etc/netctl"
     tz_conf_fn = "/etc/timezone"
     tz_local_fn = "/etc/localtime"
-    resolv_conf_fn = "/etc/resolv.conf"
+    resolve_conf_fn = "/etc/resolv.conf"
     init_cmd = ['systemctl']  # init scripts
     exclude_modules = [
         'grub-dpkg',
