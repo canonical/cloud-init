@@ -24,6 +24,9 @@
  - initial freebsd support [Harm Weites]
  - fix in is_ipv4 to accept IP addresses with a '0' in them.
  - Azure: fix issue when stale data in /var/lib/waagent (LP: #1269626)
+ - skip config_modules that declare themselves only verified on a set of
+   distros.  Add them to 'unverified_modules' list to run anyway.
+ - Add CloudSigma datasource [Kiril Vladimiroff]
 0.7.4:
  - fix issue mounting 'ephemeral0' if ephemeral0 was an alias for a
    partitioned block device with target filesystem on ephemeral0.1.

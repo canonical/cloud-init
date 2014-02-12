@@ -632,7 +632,6 @@ class Modules(object):
         return mostly_mods
 
     def _run_modules(self, mostly_mods):
-        d_name = self.init.distro.name
         cc = self.init.cloudify()
         # Return which ones ran
         # and which ones failed + the exception of why it failed
@@ -646,15 +645,6 @@ class Modules(object):
                 if not freq in FREQUENCIES:
                     freq = PER_INSTANCE
 
-                worked_distros = set(mod.distros)
-                worked_distros.update(
-                    distros.Distro.expand_osfamily(mod.osfamilies))
-
-                if (worked_distros and d_name not in worked_distros):
-                    LOG.warn(("Module %s is verified on %s distros"
-                              " but not on %s distro. It may or may not work"
-                              " correctly."), name, list(worked_distros),
-                              d_name)
                 # Use the configs logger and not our own
                 # TODO(harlowja): possibly check the module
                 # for having a LOG attr and just give it back
@@ -686,6 +676,32 @@ class Modules(object):
     def run_section(self, section_name):
         raw_mods = self._read_modules(section_name)
         mostly_mods = self._fixup_modules(raw_mods)
+        d_name = self.init.distro.name
+
+        skipped = []
+        forced = []
+        overridden = self.cfg.get('unverified_modules', [])
+        for (mod, name, _freq, _args) in mostly_mods:
+            worked_distros = set(mod.distros)
+            worked_distros.update(
+                distros.Distro.expand_osfamily(mod.osfamilies))
+
+            # module does not declare 'distros' or lists this distro
+            if not worked_distros or d_name in worked_distros:
+                continue
+
+            if name in overridden:
+                forced.append(name)
+            else:
+                skipped.append(name)
+
+        if skipped:
+            LOG.info("Skipping modules %s because they are not verified "
+                      "on distro '%s'.  To run anyway, add them to "
+                      "'unverified_modules' in config.", skipped, d_name)
+        if forced:
+            LOG.info("running unverified_modules: %s", forced)
+
         return self._run_modules(mostly_mods)
 
 
