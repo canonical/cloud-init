@@ -23,6 +23,7 @@
    theh correct filesystem label. [Paul Querna]
  - initial freebsd support [Harm Weites]
  - fix in is_ipv4 to accept IP addresses with a '0' in them.
+ - Azure: fix issue when stale data in /var/lib/waagent (LP: #1269626)
 0.7.4:
  - fix issue mounting 'ephemeral0' if ephemeral0 was an alias for a
    partitioned block device with target filesystem on ephemeral0.1.
