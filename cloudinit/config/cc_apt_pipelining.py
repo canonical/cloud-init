@@ -35,8 +35,6 @@ APT_PIPE_TPL = ("//Written by cloud-init per 'apt_pipelining'\n"
 
 
 def handle(_name, cfg, _cloud, log, _args):
-    if _cloud.distro.is_excluded(_name):
-        return
     apt_pipe_value = util.get_cfg_option_str(cfg, "apt_pipelining", False)
     apt_pipe_value_s = str(apt_pipe_value).lower().strip()
 

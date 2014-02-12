@@ -36,12 +36,6 @@ class Distro(distros.Distro):
     tz_local_fn = "/etc/localtime"
     resolve_conf_fn = "/etc/resolv.conf"
     init_cmd = ['systemctl']  # init scripts
-    exclude_modules = [
-        'grub-dpkg',
-        'apt-configure',
-        'apt-pipelining',
-        'yum-add-repo',
-    ]
 
     def __init__(self, name, cfg, paths):
         distros.Distro.__init__(self, name, cfg, paths)
