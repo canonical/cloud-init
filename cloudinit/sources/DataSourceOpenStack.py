@@ -45,6 +45,8 @@ class DataSourceOpenStack(openstack.SourceMixin, sources.DataSource):
         self.version = None
         self.files = {}
         self.ec2_metadata = None
+        if not self.ds_cfg:
+            self.ds_cfg = {}
 
     def __str__(self):
         root = sources.DataSource.__str__(self)
@@ -54,27 +56,25 @@ class DataSourceOpenStack(openstack.SourceMixin, sources.DataSource):
     def _get_url_settings(self):
         # TODO(harlowja): this is shared with ec2 datasource, we should just
         # move it to a shared location instead...
-        ds_cfg = self.ds_cfg
-        if not ds_cfg:
-            ds_cfg = {}
-        max_wait = 120
+        # Note: the defaults here are different though.
+
+        # max_wait < 0 indicates do not wait
+        max_wait = -1
+        timeout = 10
+
         try:
-            max_wait = int(ds_cfg.get("max_wait", max_wait))
+            max_wait = int(self.ds_cfg.get("max_wait", max_wait))
         except Exception:
             util.logexc(LOG, "Failed to get max wait. using %s", max_wait)
 
-        timeout = 50
         try:
-            timeout = max(0, int(ds_cfg.get("timeout", timeout)))
+            timeout = max(0, int(self.ds_cfg.get("timeout", timeout)))
         except Exception:
             util.logexc(LOG, "Failed to get timeout, using %s", timeout)
         return (max_wait, timeout)
 
     def wait_for_metadata_service(self):
-        ds_cfg = self.ds_cfg
-        if not ds_cfg:
-            ds_cfg = {}
-        urls = ds_cfg.get("metadata_urls", [DEF_MD_URL])
+        urls = self.ds_cfg.get("metadata_urls", [DEF_MD_URL])
         filtered = [x for x in urls if util.is_resolvable_url(x)]
         if set(filtered) != set(urls):
             LOG.debug("Removed the following from metadata urls: %s",
@@ -95,8 +95,6 @@ class DataSourceOpenStack(openstack.SourceMixin, sources.DataSource):
             url2base[md_url] = url
 
         (max_wait, timeout) = self._get_url_settings()
-        if max_wait <= 0:
-            return False
         start_time = time.time()
         avail_url = url_helper.wait_for_url(urls=md_urls, max_wait=max_wait,
                                             timeout=timeout,
@@ -104,8 +102,8 @@ class DataSourceOpenStack(openstack.SourceMixin, sources.DataSource):
         if avail_url:
             LOG.debug("Using metadata source: '%s'", url2base[avail_url])
         else:
-            LOG.critical("Giving up on md from %s after %s seconds",
-                         md_urls, int(time.time() - start_time))
+            LOG.debug("Giving up on OpenStack md from %s after %s seconds",
+                      md_urls, int(time.time() - start_time))
 
         self.metadata_address = url2base.get(avail_url)
         return bool(avail_url)

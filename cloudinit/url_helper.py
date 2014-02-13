@@ -266,6 +266,7 @@ def wait_for_url(urls, max_wait=None, timeout=None,
     max_wait:  roughly the maximum time to wait before giving up
                The max time is *actually* len(urls)*timeout as each url will
                be tried once and given the timeout provided.
+               a number <= 0 will always result in only one try
     timeout:   the timeout provided to urlopen
     status_cb: call method with string message when a url is not available
     headers_cb: call method with single argument of url to get headers
