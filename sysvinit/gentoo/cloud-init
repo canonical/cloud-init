@@ -1,0 +1,12 @@
+#!/sbin/runscript
+# add depends for network, dns, fs etc
+depend() {
+  after cloud-init-local
+  before cloud-config
+  provide cloud-init
+}
+
+start() {
+  cloud-init init
+  eend 0
+}
