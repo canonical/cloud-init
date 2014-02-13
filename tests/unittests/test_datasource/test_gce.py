@@ -39,7 +39,7 @@ GCE_META_PARTIAL = {
 }
 
 HEADERS = {'X-Google-Metadata-Request': 'True'}
-MD_URL_RE = re.compile(r'http://169.254.169.254/computeMetadata/v1/.*')
+MD_URL_RE = re.compile(r'http://metadata.google.internal./computeMetadata/v1/.*')
 
 
 def _request_callback(method, uri, headers):
@@ -49,7 +49,6 @@ def _request_callback(method, uri, headers):
     else:
         path = None
     if path in GCE_META:
-        #return (200, headers, GCE_META.get(path))
         return (200, headers, GCE_META.get(path))
     else:
         return (404, headers, '')

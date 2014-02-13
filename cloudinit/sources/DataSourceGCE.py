@@ -23,7 +23,7 @@ from cloudinit import url_helper
 LOG = logging.getLogger(__name__)
 
 BUILTIN_DS_CONFIG = {
-    'metadata_url': 'http://169.254.169.254/computeMetadata/v1/'
+    'metadata_url': 'http://metadata.google.internal./computeMetadata/v1/'
 }
 REQUIRED_FIELDS = ('instance-id', 'availability-zone', 'local-hostname')
 
@@ -59,12 +59,9 @@ class DataSourceGCE(sources.DataSource):
             'user-data': self.metadata_address + 'instance/attributes/user-data',
         }
 
-        # try to connect to metadata service or fail otherwise
-        try:
-            url_helper.readurl(url=url_map['instance-id'], headers=headers)
-        except url_helper.UrlError as e:
-            LOG.debug('Failed to connect to metadata service. Reason: {0}'.format(
-                e))
+        # if we cannot resolve the metadata server, then no point in trying
+        if not util.is_resolvable(self.metadata_address):
+            LOG.debug('{0} is not resolvable'.format(self.metadata_address))
             return False
 
         # iterate over url_map keys to get metadata items
