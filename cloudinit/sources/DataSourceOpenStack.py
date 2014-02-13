@@ -97,8 +97,7 @@ class DataSourceOpenStack(openstack.SourceMixin, sources.DataSource):
         (max_wait, timeout) = self._get_url_settings()
         start_time = time.time()
         avail_url = url_helper.wait_for_url(urls=md_urls, max_wait=max_wait,
-                                            timeout=timeout,
-                                            status_cb=LOG.warn)
+                                            timeout=timeout)
         if avail_url:
             LOG.debug("Using metadata source: '%s'", url2base[avail_url])
         else:
