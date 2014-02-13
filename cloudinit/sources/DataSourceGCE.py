@@ -16,19 +16,25 @@
 
 
 from cloudinit import log as logging
+from cloudinit import util
 from cloudinit import sources
 from cloudinit import url_helper
 
 LOG = logging.getLogger(__name__)
 
-MD_URL = 'http://metadata/computeMetadata/v1/'
+BUILTIN_DS_CONFIG = {
+    'metadata_url': 'http://metadata.google.internal./computeMetadata/v1/'
+}
 
 
 class DataSourceGCE(sources.DataSource):
     def __init__(self, sys_cfg, distro, paths):
         sources.DataSource.__init__(self, sys_cfg, distro, paths)
-        self.metadata_address = MD_URL
         self.metadata = {}
+        self.ds_cfg = util.mergemanydict([
+            util.get_cfg_by_path(sys_cfg, ["datasource", "GCE"], {}),
+            BUILTIN_DS_CONFIG])
+        self.metadata_address = self.ds_cfg['metadata_url']
 
     # GCE takes sshKeys attribute in the format of '<user>:<public_key>'
     # so we have to trim each key to remove the username part
@@ -50,6 +56,11 @@ class DataSourceGCE(sources.DataSource):
             'public-keys': self.metadata_address + 'project/attributes/sshKeys',
             'local-hostname': self.metadata_address + 'instance/hostname',
         }
+
+        # if we cannot resolve the metadata server, then no point in trying
+        if not util.is_resolvable(self.metadata_address):
+            LOG.debug("%s is not resolvable", self.metadata_address)
+            return False
 
         for mkey in url_map.iterkeys():
             try:
