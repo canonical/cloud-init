@@ -25,6 +25,7 @@ LOG = logging.getLogger(__name__)
 BUILTIN_DS_CONFIG = {
     'metadata_url': 'http://metadata.google.internal./computeMetadata/v1/'
 }
+REQUIRED_FIELDS = ('instance-id', 'availability-zone', 'local-hostname')
 
 
 class DataSourceGCE(sources.DataSource):
@@ -55,6 +56,7 @@ class DataSourceGCE(sources.DataSource):
             'availability-zone': self.metadata_address + 'instance/zone',
             'public-keys': self.metadata_address + 'project/attributes/sshKeys',
             'local-hostname': self.metadata_address + 'instance/hostname',
+            'user-data': self.metadata_address + 'instance/attributes/user-data',
         }
 
         # if we cannot resolve the metadata server, then no point in trying
@@ -64,7 +66,8 @@ class DataSourceGCE(sources.DataSource):
 
         for mkey in url_map.iterkeys():
             try:
-                resp = url_helper.readurl(url=url_map[mkey], headers=headers)
+                resp = url_helper.readurl(url=url_map[mkey], headers=headers,
+                                          retries=0)
             except IOError:
                 return False
             if resp.ok():
@@ -74,8 +77,15 @@ class DataSourceGCE(sources.DataSource):
                 else:
                     self.metadata[mkey] = resp.contents
             else:
+                if mkey in REQUIRED_FIELDS:
+                    LOG.warn("required metadata '%s' not found in metadata",
+                        url_map[mkey])
+                    return False
+                        
                 self.metadata[mkey] = None
                 return False
+
+        self.user_data_raw = self.metadata['user-data']
         return True
 
     @property
@@ -91,9 +101,6 @@ class DataSourceGCE(sources.DataSource):
 
     def get_hostname(self, fqdn=False):
         return self.metadata['local-hostname']
-
-    def get_userdata_raw(self):
-        return None
 
     @property
     def availability_zone(self):
