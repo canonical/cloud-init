@@ -9,6 +9,7 @@ from mocker import MockerTestCase
 from cloudinit import helpers
 from cloudinit import settings
 from cloudinit.sources import DataSourceConfigDrive as ds
+from cloudinit.sources.helpers import openstack
 from cloudinit import util
 
 from tests.unittests import helpers as unit_helpers
@@ -71,7 +72,7 @@ class TestConfigDriveDataSource(MockerTestCase):
 
     def test_ec2_metadata(self):
         populate_dir(self.tmp, CFG_DRIVE_FILES_V2)
-        found = ds.read_config_drive_dir(self.tmp)
+        found = ds.read_config_drive(self.tmp)
         self.assertTrue('ec2-metadata' in found)
         ec2_md = found['ec2-metadata']
         self.assertEqual(EC2_META, ec2_md)
@@ -81,7 +82,7 @@ class TestConfigDriveDataSource(MockerTestCase):
         cfg_ds = ds.DataSourceConfigDrive(settings.CFG_BUILTIN,
                                           None,
                                           helpers.Paths({}))
-        found = ds.read_config_drive_dir(self.tmp)
+        found = ds.read_config_drive(self.tmp)
         cfg_ds.metadata = found['metadata']
         name_tests = {
             'ami': '/dev/vda1',
@@ -112,7 +113,7 @@ class TestConfigDriveDataSource(MockerTestCase):
         cfg_ds = ds.DataSourceConfigDrive(settings.CFG_BUILTIN,
                                           None,
                                           helpers.Paths({}))
-        found = ds.read_config_drive_dir(self.tmp)
+        found = ds.read_config_drive(self.tmp)
         os_md = found['metadata']
         cfg_ds.metadata = os_md
         name_tests = {
@@ -140,7 +141,7 @@ class TestConfigDriveDataSource(MockerTestCase):
         cfg_ds = ds.DataSourceConfigDrive(settings.CFG_BUILTIN,
                                           None,
                                           helpers.Paths({}))
-        found = ds.read_config_drive_dir(self.tmp)
+        found = ds.read_config_drive(self.tmp)
         ec2_md = found['ec2-metadata']
         os_md = found['metadata']
         cfg_ds.ec2_metadata = ec2_md
@@ -165,13 +166,13 @@ class TestConfigDriveDataSource(MockerTestCase):
                 my_mock.replay()
                 device = cfg_ds.device_name_to_device(name)
                 self.assertEquals(dev_name, device)
-
+ 
     def test_dev_ec2_map(self):
         populate_dir(self.tmp, CFG_DRIVE_FILES_V2)
         cfg_ds = ds.DataSourceConfigDrive(settings.CFG_BUILTIN,
                                           None,
                                           helpers.Paths({}))
-        found = ds.read_config_drive_dir(self.tmp)
+        found = ds.read_config_drive(self.tmp)
         exists_mock = self.mocker.replace(os.path.exists,
                                           spec=False, passthrough=False)
         exists_mock(mocker.ARGS)
@@ -200,10 +201,11 @@ class TestConfigDriveDataSource(MockerTestCase):
 
         populate_dir(self.tmp, CFG_DRIVE_FILES_V2)
 
-        found = ds.read_config_drive_dir(self.tmp)
+        found = ds.read_config_drive(self.tmp)
 
         expected_md = copy(OSTACK_META)
         expected_md['instance-id'] = expected_md['uuid']
+        expected_md['local-hostname'] = expected_md['hostname']
 
         self.assertEqual(USER_DATA, found['userdata'])
         self.assertEqual(expected_md, found['metadata'])
@@ -219,10 +221,11 @@ class TestConfigDriveDataSource(MockerTestCase):
 
         populate_dir(self.tmp, data)
 
-        found = ds.read_config_drive_dir(self.tmp)
+        found = ds.read_config_drive(self.tmp)
 
         expected_md = copy(OSTACK_META)
         expected_md['instance-id'] = expected_md['uuid']
+        expected_md['local-hostname'] = expected_md['hostname']
 
         self.assertEqual(expected_md, found['metadata'])
 
@@ -235,8 +238,8 @@ class TestConfigDriveDataSource(MockerTestCase):
 
         populate_dir(self.tmp, data)
 
-        self.assertRaises(ds.BrokenConfigDriveDir,
-                          ds.read_config_drive_dir, self.tmp)
+        self.assertRaises(openstack.BrokenMetadata,
+                          ds.read_config_drive, self.tmp)
 
     def test_seed_dir_no_configdrive(self):
         """Verify that no metadata raises NonConfigDriveDir."""
@@ -247,14 +250,14 @@ class TestConfigDriveDataSource(MockerTestCase):
         data["openstack/latest/random-file.txt"] = "random-content"
         data["content/foo"] = "foocontent"
 
-        self.assertRaises(ds.NonConfigDriveDir,
-                          ds.read_config_drive_dir, my_d)
+        self.assertRaises(openstack.NonReadable,
+                          ds.read_config_drive, my_d)
 
     def test_seed_dir_missing(self):
         """Verify that missing seed_dir raises NonConfigDriveDir."""
         my_d = os.path.join(self.tmp, "nonexistantdirectory")
-        self.assertRaises(ds.NonConfigDriveDir,
-                          ds.read_config_drive_dir, my_d)
+        self.assertRaises(openstack.NonReadable,
+                          ds.read_config_drive, my_d)
 
     def test_find_candidates(self):
         devs_with_answers = {}
@@ -304,7 +307,7 @@ class TestConfigDriveDataSource(MockerTestCase):
 
 
 def cfg_ds_from_dir(seed_d):
-    found = ds.read_config_drive_dir(seed_d)
+    found = ds.read_config_drive(seed_d)
     cfg_ds = ds.DataSourceConfigDrive(settings.CFG_BUILTIN, None,
                                       helpers.Paths({}))
     populate_ds_from_read_config(cfg_ds, seed_d, found)
@@ -319,7 +322,7 @@ def populate_ds_from_read_config(cfg_ds, source, results):
     cfg_ds.metadata = results.get('metadata')
     cfg_ds.ec2_metadata = results.get('ec2-metadata')
     cfg_ds.userdata_raw = results.get('userdata')
-    cfg_ds.version = results.get('cfgdrive_ver')
+    cfg_ds.version = results.get('version')
 
 
 def populate_dir(seed_dir, files):
