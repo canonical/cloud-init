@@ -23,10 +23,12 @@
 #
 
 import base64
-from cloudinit import helpers
+from cloudinit import helpers as c_helpers
+from cloudinit import stages
+from cloudinit import util
 from cloudinit.sources import DataSourceSmartOS
-
-from mocker import MockerTestCase
+from cloudinit.settings import (PER_INSTANCE)
+from tests.unittests import helpers
 import os
 import os.path
 import re
@@ -105,21 +107,37 @@ class MockSerial(object):
             yield '\n'
 
 
-class TestSmartOSDataSource(MockerTestCase):
+#class TestSmartOSDataSource(MockerTestCase):
+class TestSmartOSDataSource(helpers.FilesystemMockingTestCase):
     def setUp(self):
+        helpers.FilesystemMockingTestCase.setUp(self)
+
         # makeDir comes from MockerTestCase
         self.tmp = self.makeDir()
         self.legacy_user_d = self.makeDir()
 
+        # If you should want to watch the logs...
+        self._log = None
+        self._log_file = None
+        self._log_handler = None
+
         # patch cloud_dir, so our 'seed_dir' is guaranteed empty
-        self.paths = helpers.Paths({'cloud_dir': self.tmp})
+        self.paths = c_helpers.Paths({'cloud_dir': self.tmp})
 
         self.unapply = []
         super(TestSmartOSDataSource, self).setUp()
 
     def tearDown(self):
+        helpers.FilesystemMockingTestCase.tearDown(self)
+        if self._log_handler and self._log:
+            self._log.removeHandler(self._log_handler)
         apply_patches([i for i in reversed(self.unapply)])
         super(TestSmartOSDataSource, self).tearDown()
+
+    def _patchIn(self, root):
+        self.restore()
+        self.patchOS(root)
+        self.patchUtils(root)
 
     def apply_patches(self, patches):
         ret = apply_patches(patches)
@@ -374,6 +392,54 @@ class TestSmartOSDataSource(MockerTestCase):
                     self.assertEquals(permissions, '400')
 
         self.assertFalse(found_new)
+
+    def test_vendor_data_not_default(self):
+        dsrc = self._get_ds(mockdata=MOCK_RETURNS)
+        ret = dsrc.get_data()
+        self.assertTrue(ret)
+        self.assertEquals(MOCK_RETURNS['sdc:operator-script'],
+                          dsrc.metadata['vendordata'])
+
+    def test_default_vendor_data(self):
+        my_returns = MOCK_RETURNS.copy()
+        def_op_script = my_returns['sdc:operator-script']
+        del my_returns['sdc:operator-script']
+        dsrc = self._get_ds(mockdata=my_returns)
+        ret = dsrc.get_data()
+        self.assertTrue(ret)
+        self.assertNotEquals(def_op_script, dsrc.metadata['vendordata'])
+
+        self.replicateTestRoot('simple_ubuntu', self.tmp)
+        cfg = {
+            'cloud_init_modules': ['write-files'],
+        }
+        cloud_cfg = util.yaml_dumps(cfg)
+        util.ensure_dir(os.path.join(self.tmp, 'etc', 'cloud'))
+        util.write_file(os.path.join(self.tmp, 'etc',
+                                     'cloud', 'cloud.cfg'), cloud_cfg)
+
+        self._patchIn(self.tmp)
+
+        initer = stages.Init()
+        initer.read_cfg()
+        initer.datasource = dsrc
+        initer.initialize()
+        initer.fetch()
+        _iid = initer.instancify()
+        initer.update()
+        initer.cloudify().run('consume_data',
+                              initer.consume_data,
+                              args=[PER_INSTANCE],
+                              freq=PER_INSTANCE)
+        mods = stages.Modules(initer)
+        (_which_ran, _failures) = mods.run_section('cloud_init_modules')
+        pb_script_fns = os.path.join(dsrc.paths.get_cpath('scripts'),
+                                     'per-boot', '01_sdc-operator-script.sh')
+        self.assertTrue(os.path.isfile(pb_script_fns))
+        self.assertTrue(os.access(pb_script_fns, os.X_OK))
+
+        with open(pb_script_fns, 'r') as fd:
+            self.assertIn("#!/bin/sh", fd.readlines()[0])
 
     def test_disable_iptables_flag(self):
         dsrc = self._get_ds(mockdata=MOCK_RETURNS)
