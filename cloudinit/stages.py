@@ -234,7 +234,7 @@ class Init(object):
                                                copy.deepcopy(self.ds_deps),
                                                cfg_list,
                                                pkg_list)
-            LOG.debug("Loaded datasource %s - %s", dsname, ds)
+            LOG.info("Loaded datasource %s - %s", dsname, ds)
         self.datasource = ds
         # Ensure we adjust our path members datasource
         # now that we have one (thus allowing ipath to be used)

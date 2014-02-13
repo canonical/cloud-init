@@ -1,6 +1,7 @@
 from tests.unittests import helpers
 
 from cloudinit import ec2_utils as eu
+from cloudinit import url_helper as uh
 
 import httpretty as hp
 
@@ -48,11 +49,11 @@ class TestEc2Util(helpers.TestCase):
                         body="\n".join(['hostname',
                                         'instance-id',
                                         'ami-launch-index']))
-        hp.register_uri(hp.GET, eu.combine_url(base_url, 'hostname'),
+        hp.register_uri(hp.GET, uh.combine_url(base_url, 'hostname'),
                         status=200, body='ec2.fake.host.name.com')
-        hp.register_uri(hp.GET, eu.combine_url(base_url, 'instance-id'),
+        hp.register_uri(hp.GET, uh.combine_url(base_url, 'instance-id'),
                         status=200, body='123')
-        hp.register_uri(hp.GET, eu.combine_url(base_url, 'ami-launch-index'),
+        hp.register_uri(hp.GET, uh.combine_url(base_url, 'ami-launch-index'),
                         status=200, body='1')
         md = eu.get_instance_metadata(self.VERSION, retries=0)
         self.assertEquals(md['hostname'], 'ec2.fake.host.name.com')
@@ -66,14 +67,14 @@ class TestEc2Util(helpers.TestCase):
                         body="\n".join(['hostname',
                                         'instance-id',
                                         'public-keys/']))
-        hp.register_uri(hp.GET, eu.combine_url(base_url, 'hostname'),
+        hp.register_uri(hp.GET, uh.combine_url(base_url, 'hostname'),
                         status=200, body='ec2.fake.host.name.com')
-        hp.register_uri(hp.GET, eu.combine_url(base_url, 'instance-id'),
+        hp.register_uri(hp.GET, uh.combine_url(base_url, 'instance-id'),
                         status=200, body='123')
-        hp.register_uri(hp.GET, eu.combine_url(base_url, 'public-keys/'),
+        hp.register_uri(hp.GET, uh.combine_url(base_url, 'public-keys/'),
                         status=200, body='0=my-public-key')
         hp.register_uri(hp.GET,
-                        eu.combine_url(base_url, 'public-keys/0/openssh-key'),
+                        uh.combine_url(base_url, 'public-keys/0/openssh-key'),
                         status=200, body='ssh-rsa AAAA.....wZEf my-public-key')
         md = eu.get_instance_metadata(self.VERSION, retries=0, timeout=0.1)
         self.assertEquals(md['hostname'], 'ec2.fake.host.name.com')
@@ -87,18 +88,18 @@ class TestEc2Util(helpers.TestCase):
                         body="\n".join(['hostname',
                                         'instance-id',
                                         'public-keys/']))
-        hp.register_uri(hp.GET, eu.combine_url(base_url, 'hostname'),
+        hp.register_uri(hp.GET, uh.combine_url(base_url, 'hostname'),
                         status=200, body='ec2.fake.host.name.com')
-        hp.register_uri(hp.GET, eu.combine_url(base_url, 'instance-id'),
+        hp.register_uri(hp.GET, uh.combine_url(base_url, 'instance-id'),
                         status=200, body='123')
-        hp.register_uri(hp.GET, eu.combine_url(base_url, 'public-keys/'),
+        hp.register_uri(hp.GET, uh.combine_url(base_url, 'public-keys/'),
                         status=200,
                         body="\n".join(['0=my-public-key', '1=my-other-key']))
         hp.register_uri(hp.GET,
-                        eu.combine_url(base_url, 'public-keys/0/openssh-key'),
+                        uh.combine_url(base_url, 'public-keys/0/openssh-key'),
                         status=200, body='ssh-rsa AAAA.....wZEf my-public-key')
         hp.register_uri(hp.GET,
-                        eu.combine_url(base_url, 'public-keys/1/openssh-key'),
+                        uh.combine_url(base_url, 'public-keys/1/openssh-key'),
                         status=200, body='ssh-rsa AAAA.....wZEf my-other-key')
         md = eu.get_instance_metadata(self.VERSION, retries=0, timeout=0.1)
         self.assertEquals(md['hostname'], 'ec2.fake.host.name.com')
@@ -112,20 +113,20 @@ class TestEc2Util(helpers.TestCase):
                         body="\n".join(['hostname',
                                         'instance-id',
                                         'block-device-mapping/']))
-        hp.register_uri(hp.GET, eu.combine_url(base_url, 'hostname'),
+        hp.register_uri(hp.GET, uh.combine_url(base_url, 'hostname'),
                         status=200, body='ec2.fake.host.name.com')
-        hp.register_uri(hp.GET, eu.combine_url(base_url, 'instance-id'),
+        hp.register_uri(hp.GET, uh.combine_url(base_url, 'instance-id'),
                         status=200, body='123')
         hp.register_uri(hp.GET,
-                        eu.combine_url(base_url, 'block-device-mapping/'),
+                        uh.combine_url(base_url, 'block-device-mapping/'),
                         status=200,
                         body="\n".join(['ami', 'ephemeral0']))
         hp.register_uri(hp.GET,
-                        eu.combine_url(base_url, 'block-device-mapping/ami'),
+                        uh.combine_url(base_url, 'block-device-mapping/ami'),
                         status=200,
                         body="sdb")
         hp.register_uri(hp.GET,
-                        eu.combine_url(base_url,
+                        uh.combine_url(base_url,
                                        'block-device-mapping/ephemeral0'),
                         status=200,
                         body="sdc")

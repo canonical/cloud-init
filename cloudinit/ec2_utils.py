@@ -16,12 +16,9 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import httplib
-from urlparse import (urlparse, urlunparse)
-
 import functools
+import httplib
 import json
-import urllib
 
 from cloudinit import log as logging
 from cloudinit import url_helper
@@ -38,16 +35,6 @@ def maybe_json_object(text):
     if text.startswith("{") and text.endswith("}"):
         return True
     return False
-
-
-def combine_url(base, add_on):
-    base_parsed = list(urlparse(base))
-    path = base_parsed[2]
-    if path and not path.endswith("/"):
-        path += "/"
-    path += urllib.quote(str(add_on), safe="/:")
-    base_parsed[2] = path
-    return urlunparse(base_parsed)
 
 
 # See: http://bit.ly/TyoUQs
@@ -121,14 +108,14 @@ class MetadataMaterializer(object):
         (leaves, children) = self._parse(blob)
         child_contents = {}
         for c in children:
-            child_url = combine_url(base_url, c)
+            child_url = url_helper.combine_url(base_url, c)
             if not child_url.endswith("/"):
                 child_url += "/"
             child_blob = str(self._caller(child_url))
             child_contents[c] = self._materialize(child_blob, child_url)
         leaf_contents = {}
         for (field, resource) in leaves.items():
-            leaf_url = combine_url(base_url, resource)
+            leaf_url = url_helper.combine_url(base_url, resource)
             leaf_blob = str(self._caller(leaf_url))
             leaf_contents[field] = self._decode_leaf_blob(field, leaf_blob)
         joined = {}
@@ -153,8 +140,8 @@ def _skip_retry_on_codes(status_codes, _request_args, cause):
 def get_instance_userdata(api_version='latest',
                           metadata_address='http://169.254.169.254',
                           ssl_details=None, timeout=5, retries=5):
-    ud_url = combine_url(metadata_address, api_version)
-    ud_url = combine_url(ud_url, 'user-data')
+    ud_url = url_helper.combine_url(metadata_address, api_version)
+    ud_url = url_helper.combine_url(ud_url, 'user-data')
     user_data = ''
     try:
         # It is ok for userdata to not exist (thats why we are stopping if
@@ -178,8 +165,8 @@ def get_instance_userdata(api_version='latest',
 def get_instance_metadata(api_version='latest',
                           metadata_address='http://169.254.169.254',
                           ssl_details=None, timeout=5, retries=5):
-    md_url = combine_url(metadata_address, api_version)
-    md_url = combine_url(md_url, 'meta-data')
+    md_url = url_helper.combine_url(metadata_address, api_version)
+    md_url = url_helper.combine_url(md_url, 'meta-data')
     caller = functools.partial(util.read_file_or_url,
                                ssl_details=ssl_details, timeout=timeout,
                                retries=retries)
