@@ -95,6 +95,34 @@ BUILTIN_CLOUD_CONFIG = {
                   'device': 'ephemeral0'}],
 }
 
+BUILTIN_VENDOR_DATA = """
+#cloud-config:
+write_files:
+  - encoding: b64
+    owner: root:root
+    path: %(script_d)s/01_sdc-operator-script.sh
+    permissions: '0755'
+    content: |
+        """ + base64.b64encode("""#!/bin/sh
+# This file is written as part of the default vendor data for
+# SmartOS. This script looks for the SmartDC operator script
+# and then executes it. It will be run each boot.
+#
+# This requires the Joyent Metadata client to be installed.
+# On Ubuntu, it is provided via the joyent-mdata-client package
+# Or you can get it via https://github.com/joyent/mdata-client
+
+my_path=$(dirname $0)
+[ -x /usr/sbin/mdata-get ] || exit 1
+
+/usr/sbin/mdata-get sdc:operator-script > \
+    $my_path/operator-script || exit 0
+
+[ -e $my_path/operator-script ] || exit 0
+chmod 0700 $my_path/operator-script
+exec /run/sdc/operator-script
+""")
+
 # @datadictionary: this is legacy path for placing files from metadata
 #   per the SmartOS location. It is not preferable, but is done for
 #   legacy reasons
@@ -185,6 +213,11 @@ class DataSourceSmartOS(sources.DataSource):
         ud = None
         if md['user-data']:
             ud = md['user-data']
+
+        if not md['vendordata']:
+            md['vendordata'] = BUILTIN_VENDOR_DATA % {
+                                'script_d': self.user_script_d
+                               }
 
         self.metadata = util.mergemanydict([md, self.metadata])
         self.userdata_raw = ud
