@@ -23,7 +23,7 @@ from cloudinit import url_helper
 LOG = logging.getLogger(__name__)
 
 BUILTIN_DS_CONFIG = {
-    'metadata_url': 'http://metadata.google.internal./computeMetadata/v1/'
+    'metadata_url': 'http://169.254.169.254/computeMetadata/v1/'
 }
 REQUIRED_FIELDS = ('instance-id', 'availability-zone', 'local-hostname')
 
@@ -31,7 +31,7 @@ REQUIRED_FIELDS = ('instance-id', 'availability-zone', 'local-hostname')
 class DataSourceGCE(sources.DataSource):
     def __init__(self, sys_cfg, distro, paths):
         sources.DataSource.__init__(self, sys_cfg, distro, paths)
-        self.metadata = {}
+        self.metadata = dict()
         self.ds_cfg = util.mergemanydict([
             util.get_cfg_by_path(sys_cfg, ["datasource", "GCE"], {}),
             BUILTIN_DS_CONFIG])
@@ -59,33 +59,31 @@ class DataSourceGCE(sources.DataSource):
             'user-data': self.metadata_address + 'instance/attributes/user-data',
         }
 
-        # if we cannot resolve the metadata server, then no point in trying
-        if not util.is_resolvable(self.metadata_address):
-            LOG.debug("%s is not resolvable", self.metadata_address)
+        # try to connect to metadata service or fail otherwise
+        try:
+            url_helper.readurl(url=url_map['instance-id'], headers=headers)
+        except url_helper.UrlError as e:
+            LOG.debug('Failed to connect to metadata service. Reason: {0}'.format(
+                e))
             return False
 
+        # iterate over url_map keys to get metadata items
         for mkey in url_map.iterkeys():
             try:
-                resp = url_helper.readurl(url=url_map[mkey], headers=headers,
-                                          retries=0)
-            except IOError:
-                return False
-            if resp.ok():
-                if mkey == 'public-keys':
-                    pub_keys = [self._trim_key(k) for k in resp.contents.splitlines()]
-                    self.metadata[mkey] = pub_keys
+                resp = url_helper.readurl(
+                    url=url_map[mkey], headers=headers)
+                if resp.code == 200:
+                    if mkey == 'public-keys':
+                        pub_keys = [self._trim_key(k) for k in resp.contents.splitlines()]
+                        self.metadata[mkey] = pub_keys
+                    else:
+                        self.metadata[mkey] = resp.contents
                 else:
-                    self.metadata[mkey] = resp.contents
-            else:
-                if mkey in REQUIRED_FIELDS:
-                    LOG.warn("required metadata '%s' not found in metadata",
-                        url_map[mkey])
-                    return False
-                        
+                    self.metadata[mkey] = None
+            except url_helper.UrlError as e:
                 self.metadata[mkey] = None
-                return False
-
-        self.user_data_raw = self.metadata['user-data']
+                LOG.warn('Failed to get {0} metadata item. Reason {1}.'.format(
+                    mkey, e))
         return True
 
     @property
@@ -102,9 +100,12 @@ class DataSourceGCE(sources.DataSource):
     def get_hostname(self, fqdn=False):
         return self.metadata['local-hostname']
 
+    def get_userdata_raw(self):
+        return self.metadata['user-data']
+
     @property
     def availability_zone(self):
-        return self.metadata['instance-zone']
+        return self.metadata['availability-zone']
 
 # Used to match classes to dependencies
 datasources = [
