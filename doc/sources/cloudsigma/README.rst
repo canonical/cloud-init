@@ -23,9 +23,9 @@ You can provide user-data to the VM using the dedicated `meta field`_ in the `se
 header could be omitted. However since this is a raw-text field you could provide any of the valid
 `config formats`_.
 
-If your user-data needs an internet connection you have to create a `meta field`_ in the `server context`_
-``cloudinit-dsmode`` and set "net" as value. If this field does not exist the default value is "local".
-
+If your user-data does not need an internet connection you can create a
+`meta field`_ in the `server context`_ ``cloudinit-dsmode`` and set "local" as value.
+If this field does not exist the default value is "net".
 
 
 .. _CloudSigma: http://cloudsigma.com/
