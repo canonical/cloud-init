@@ -18,181 +18,79 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import base64
-import json
 import os
 
 from cloudinit import log as logging
 from cloudinit import sources
 from cloudinit import util
 
+from cloudinit.sources.helpers import openstack
+
 LOG = logging.getLogger(__name__)
 
 # Various defaults/constants...
 DEFAULT_IID = "iid-dsconfigdrive"
 DEFAULT_MODE = 'pass'
-CFG_DRIVE_FILES_V1 = [
-    "etc/network/interfaces",
-    "root/.ssh/authorized_keys",
-    "meta.js",
-]
 DEFAULT_METADATA = {
     "instance-id": DEFAULT_IID,
 }
 VALID_DSMODES = ("local", "net", "pass", "disabled")
+FS_TYPES = ('vfat', 'iso9660')
+LABEL_TYPES = ('config-2',)
+OPTICAL_DEVICES = tuple(('/dev/sr%s' % i for i in range(0, 2)))
 
 
-class ConfigDriveHelper(object):
-    def __init__(self, distro):
-        self.distro = distro
-
-    def on_first_boot(self, data):
-        if not data:
-            data = {}
-        if 'network_config' in data:
-            LOG.debug("Updating network interfaces from config drive")
-            self.distro.apply_network(data['network_config'])
-        files = data.get('files')
-        if files:
-            LOG.debug("Writing %s injected files", len(files))
-            try:
-                write_files(files)
-            except IOError:
-                util.logexc(LOG, "Failed writing files")
-
-
-class DataSourceConfigDrive(sources.DataSource):
+class DataSourceConfigDrive(openstack.SourceMixin, sources.DataSource):
     def __init__(self, sys_cfg, distro, paths):
-        sources.DataSource.__init__(self, sys_cfg, distro, paths)
+        super(DataSourceConfigDrive, self).__init__(sys_cfg, distro, paths)
         self.source = None
         self.dsmode = 'local'
         self.seed_dir = os.path.join(paths.seed_dir, 'config_drive')
         self.version = None
         self.ec2_metadata = None
-        self.helper = ConfigDriveHelper(distro)
+        self.files = {}
 
     def __str__(self):
         root = sources.DataSource.__str__(self)
-        mstr = "%s [%s,ver=%s]" % (root,
-                                   self.dsmode,
-                                   self.version)
+        mstr = "%s [%s,ver=%s]" % (root, self.dsmode, self.version)
         mstr += "[source=%s]" % (self.source)
         return mstr
-
-    def _ec2_name_to_device(self, name):
-        if not self.ec2_metadata:
-            return None
-        bdm = self.ec2_metadata.get('block-device-mapping', {})
-        for (ent_name, device) in bdm.items():
-            if name == ent_name:
-                return device
-        return None
-
-    def _os_name_to_device(self, name):
-        device = None
-        try:
-            criteria = 'LABEL=%s' % (name)
-            if name in ['swap']:
-                criteria = 'TYPE=%s' % (name)
-            dev_entries = util.find_devs_with(criteria)
-            if dev_entries:
-                device = dev_entries[0]
-        except util.ProcessExecutionError:
-            pass
-        return device
-
-    def _validate_device_name(self, device):
-        if not device:
-            return None
-        if not device.startswith("/"):
-            device = "/dev/%s" % device
-        if os.path.exists(device):
-            return device
-        # Durn, try adjusting the mapping
-        remapped = self._remap_device(os.path.basename(device))
-        if remapped:
-            LOG.debug("Remapped device name %s => %s", device, remapped)
-            return remapped
-        return None
-
-    def device_name_to_device(self, name):
-        # Translate a 'name' to a 'physical' device
-        if not name:
-            return None
-        # Try the ec2 mapping first
-        names = [name]
-        if name == 'root':
-            names.insert(0, 'ami')
-        if name == 'ami':
-            names.append('root')
-        device = None
-        LOG.debug("Using ec2 metadata lookup to find device %s", names)
-        for n in names:
-            device = self._ec2_name_to_device(n)
-            device = self._validate_device_name(device)
-            if device:
-                break
-        # Try the openstack way second
-        if not device:
-            LOG.debug("Using os lookup to find device %s", names)
-            for n in names:
-                device = self._os_name_to_device(n)
-                device = self._validate_device_name(device)
-                if device:
-                    break
-        # Ok give up...
-        if not device:
-            return None
-        else:
-            LOG.debug("Using cfg drive lookup mapped to device %s", device)
-            return device
 
     def get_data(self):
         found = None
         md = {}
-
         results = {}
         if os.path.isdir(self.seed_dir):
             try:
-                results = read_config_drive_dir(self.seed_dir)
+                results = read_config_drive(self.seed_dir)
                 found = self.seed_dir
-            except NonConfigDriveDir:
+            except openstack.NonReadable:
                 util.logexc(LOG, "Failed reading config drive from %s",
                             self.seed_dir)
         if not found:
-            devlist = find_candidate_devs()
-            for dev in devlist:
+            for dev in find_candidate_devs():
                 try:
-                    results = util.mount_cb(dev, read_config_drive_dir)
+                    results = util.mount_cb(dev, read_config_drive)
                     found = dev
-                    break
-                except (NonConfigDriveDir, util.MountFailedError):
+                except openstack.NonReadable:
                     pass
-                except BrokenConfigDriveDir:
-                    util.logexc(LOG, "broken config drive: %s", dev)
-
+                except util.MountFailedError:
+                    pass
+                except openstack.BrokenMetadata:
+                    util.logexc(LOG, "Broken config drive: %s", dev)
+                if found:
+                    break
         if not found:
             return False
 
-        md = results['metadata']
+        md = results.get('metadata', {})
         md = util.mergemanydict([md, DEFAULT_METADATA])
-
-        # Perform some metadata 'fixups'
-        #
-        # OpenStack uses the 'hostname' key
-        # while most of cloud-init uses the metadata
-        # 'local-hostname' key instead so if it doesn't
-        # exist we need to make sure its copied over.
-        for (tgt, src) in [('local-hostname', 'hostname')]:
-            if tgt not in md and src in md:
-                md[tgt] = md[src]
-
         user_dsmode = results.get('dsmode', None)
         if user_dsmode not in VALID_DSMODES + (None,):
-            LOG.warn("user specified invalid mode: %s" % user_dsmode)
+            LOG.warn("User specified invalid mode: %s", user_dsmode)
             user_dsmode = None
 
-        dsmode = get_ds_mode(cfgdrv_ver=results['cfgdrive_ver'],
+        dsmode = get_ds_mode(cfgdrv_ver=results['version'],
                              ds_cfg=self.ds_cfg.get('dsmode'),
                              user=user_dsmode)
 
@@ -209,7 +107,7 @@ class DataSourceConfigDrive(sources.DataSource):
         prev_iid = get_previous_iid(self.paths)
         cur_iid = md['instance-id']
         if prev_iid != cur_iid and self.dsmode == "local":
-            self.helper.on_first_boot(results)
+            on_first_boot(results, distro=self.distro)
 
         # dsmode != self.dsmode here if:
         #  * dsmode = "pass",  pass means it should only copy files and then
@@ -225,237 +123,16 @@ class DataSourceConfigDrive(sources.DataSource):
         self.metadata = md
         self.ec2_metadata = results.get('ec2-metadata')
         self.userdata_raw = results.get('userdata')
-        self.version = results['cfgdrive_ver']
-
+        self.version = results['version']
+        self.files.update(results.get('files', {}))
+        self.vendordata_raw = results.get('vendordata')
         return True
-
-    def get_public_ssh_keys(self):
-        name = "public_keys"
-        if self.version == 1:
-            name = "public-keys"
-        return sources.normalize_pubkey_data(self.metadata.get(name))
 
 
 class DataSourceConfigDriveNet(DataSourceConfigDrive):
     def __init__(self, sys_cfg, distro, paths):
         DataSourceConfigDrive.__init__(self, sys_cfg, distro, paths)
         self.dsmode = 'net'
-
-
-class NonConfigDriveDir(Exception):
-    pass
-
-
-class BrokenConfigDriveDir(Exception):
-    pass
-
-
-def find_candidate_devs():
-    """Return a list of devices that may contain the config drive.
-
-    The returned list is sorted by search order where the first item has
-    should be searched first (highest priority)
-
-    config drive v1:
-       Per documentation, this is "associated as the last available disk on the
-       instance", and should be VFAT.
-       Currently, we do not restrict search list to "last available disk"
-
-    config drive v2:
-       Disk should be:
-        * either vfat or iso9660 formated
-        * labeled with 'config-2'
-    """
-
-    # Query optical drive to get it in blkid cache for 2.6 kernels
-    util.find_devs_with(path="/dev/sr0")
-    util.find_devs_with(path="/dev/sr1")
-
-    by_fstype = (util.find_devs_with("TYPE=vfat") +
-                 util.find_devs_with("TYPE=iso9660"))
-    by_label = util.find_devs_with("LABEL=config-2")
-
-    # give preference to "last available disk" (vdb over vda)
-    # note, this is not a perfect rendition of that.
-    by_fstype.sort(reverse=True)
-    by_label.sort(reverse=True)
-
-    # combine list of items by putting by-label items first
-    # followed by fstype items, but with dupes removed
-    combined = (by_label + [d for d in by_fstype if d not in by_label])
-
-    # We are looking for a block device or partition with necessary label or
-    # an unpartitioned block device.
-    combined = [d for d in combined
-                    if d in by_label or not util.is_partition(d)]
-
-    return combined
-
-
-def read_config_drive_dir(source_dir):
-    last_e = NonConfigDriveDir("Not found")
-    for finder in (read_config_drive_dir_v2, read_config_drive_dir_v1):
-        try:
-            data = finder(source_dir)
-            return data
-        except NonConfigDriveDir as exc:
-            last_e = exc
-    raise last_e
-
-
-def read_config_drive_dir_v2(source_dir, version="2012-08-10"):
-
-    if (not os.path.isdir(os.path.join(source_dir, "openstack", version)) and
-        os.path.isdir(os.path.join(source_dir, "openstack", "latest"))):
-        LOG.warn("version '%s' not available, attempting to use 'latest'" %
-                 version)
-        version = "latest"
-
-    datafiles = (
-        ('metadata',
-         "openstack/%s/meta_data.json" % version, True, json.loads),
-        ('userdata', "openstack/%s/user_data" % version, False, None),
-        ('ec2-metadata', "ec2/latest/meta-data.json", False, json.loads),
-    )
-
-    results = {'userdata': None}
-    for (name, path, required, process) in datafiles:
-        fpath = os.path.join(source_dir, path)
-        data = None
-        found = False
-        if os.path.isfile(fpath):
-            try:
-                data = util.load_file(fpath)
-            except IOError:
-                raise BrokenConfigDriveDir("Failed to read: %s" % fpath)
-            found = True
-        elif required:
-            raise NonConfigDriveDir("Missing mandatory path: %s" % fpath)
-
-        if found and process:
-            try:
-                data = process(data)
-            except Exception as exc:
-                raise BrokenConfigDriveDir(("Failed to process "
-                                            "path: %s") % fpath)
-
-        if found:
-            results[name] = data
-
-    # instance-id is 'uuid' for openstack. just copy it to instance-id.
-    if 'instance-id' not in results['metadata']:
-        try:
-            results['metadata']['instance-id'] = results['metadata']['uuid']
-        except KeyError:
-            raise BrokenConfigDriveDir("No uuid entry in metadata")
-
-    if 'random_seed' in results['metadata']:
-        random_seed = results['metadata']['random_seed']
-        try:
-            results['metadata']['random_seed'] = base64.b64decode(random_seed)
-        except (ValueError, TypeError) as exc:
-            raise BrokenConfigDriveDir("Badly formatted random_seed: %s" % exc)
-
-    def read_content_path(item):
-        # do not use os.path.join here, as content_path starts with /
-        cpath = os.path.sep.join((source_dir, "openstack",
-                                  "./%s" % item['content_path']))
-        return util.load_file(cpath)
-
-    files = {}
-    try:
-        for item in results['metadata'].get('files', {}):
-            files[item['path']] = read_content_path(item)
-
-        # the 'network_config' item in metadata is a content pointer
-        # to the network config that should be applied.
-        # in folsom, it is just a '/etc/network/interfaces' file.
-        item = results['metadata'].get("network_config", None)
-        if item:
-            results['network_config'] = read_content_path(item)
-    except Exception as exc:
-        raise BrokenConfigDriveDir("Failed to read file %s: %s" % (item, exc))
-
-    # to openstack, user can specify meta ('nova boot --meta=key=value') and
-    # those will appear under metadata['meta'].
-    # if they specify 'dsmode' they're indicating the mode that they intend
-    # for this datasource to operate in.
-    try:
-        results['dsmode'] = results['metadata']['meta']['dsmode']
-    except KeyError:
-        pass
-
-    results['files'] = files
-    results['cfgdrive_ver'] = 2
-    return results
-
-
-def read_config_drive_dir_v1(source_dir):
-    """
-    read source_dir, and return a tuple with metadata dict, user-data,
-    files and version (1).  If not a valid dir, raise a NonConfigDriveDir
-    """
-
-    found = {}
-    for af in CFG_DRIVE_FILES_V1:
-        fn = os.path.join(source_dir, af)
-        if os.path.isfile(fn):
-            found[af] = fn
-
-    if len(found) == 0:
-        raise NonConfigDriveDir("%s: %s" % (source_dir, "no files found"))
-
-    md = {}
-    keydata = ""
-    if "etc/network/interfaces" in found:
-        fn = found["etc/network/interfaces"]
-        md['network_config'] = util.load_file(fn)
-
-    if "root/.ssh/authorized_keys" in found:
-        fn = found["root/.ssh/authorized_keys"]
-        keydata = util.load_file(fn)
-
-    meta_js = {}
-    if "meta.js" in found:
-        fn = found['meta.js']
-        content = util.load_file(fn)
-        try:
-            # Just check if its really json...
-            meta_js = json.loads(content)
-            if not isinstance(meta_js, (dict)):
-                raise TypeError("Dict expected for meta.js root node")
-        except (ValueError, TypeError) as e:
-            raise NonConfigDriveDir("%s: %s, %s" %
-                (source_dir, "invalid json in meta.js", e))
-        md['meta_js'] = content
-
-    # keydata in meta_js is preferred over "injected"
-    keydata = meta_js.get('public-keys', keydata)
-    if keydata:
-        lines = keydata.splitlines()
-        md['public-keys'] = [l for l in lines
-            if len(l) and not l.startswith("#")]
-
-    # config-drive-v1 has no way for openstack to provide the instance-id
-    # so we copy that into metadata from the user input
-    if 'instance-id' in meta_js:
-        md['instance-id'] = meta_js['instance-id']
-
-    results = {'cfgdrive_ver': 1, 'metadata': md}
-
-    # allow the user to specify 'dsmode' in a meta tag
-    if 'dsmode' in meta_js:
-        results['dsmode'] = meta_js['dsmode']
-
-    # config-drive-v1 has no way of specifying user-data, so the user has
-    # to cheat and stuff it in a meta tag also.
-    results['userdata'] = meta_js.get('user-data')
-
-    # this implementation does not support files
-    # (other than network/interfaces and authorized_keys)
-    results['files'] = []
-
-    return results
 
 
 def get_ds_mode(cfgdrv_ver, ds_cfg=None, user=None):
@@ -483,6 +160,21 @@ def get_ds_mode(cfgdrv_ver, ds_cfg=None, user=None):
     return "net"
 
 
+def read_config_drive(source_dir, version="2012-08-10"):
+    reader = openstack.ConfigDriveReader(source_dir)
+    finders = [
+        (reader.read_v2, [], {'version': version}),
+        (reader.read_v1, [], {}),
+    ]
+    excps = []
+    for (functor, args, kwargs) in finders:
+        try:
+            return functor(*args, **kwargs)
+        except openstack.NonReadable as e:
+            excps.append(e)
+    raise excps[-1]
+
+
 def get_previous_iid(paths):
     # interestingly, for this purpose the "previous" instance-id is the current
     # instance-id.  cloud-init hasn't moved them over yet as this datasource
@@ -494,17 +186,79 @@ def get_previous_iid(paths):
         return None
 
 
-def write_files(files):
-    for (name, content) in files.iteritems():
-        if name[0] != os.sep:
-            name = os.sep + name
-        util.write_file(name, content, mode=0660)
+def on_first_boot(data, distro=None):
+    """Performs any first-boot actions using data read from a config-drive."""
+    if not isinstance(data, dict):
+        raise TypeError("Config-drive data expected to be a dict; not %s"
+                        % (type(data)))
+    net_conf = data.get("network_config", '')
+    if net_conf and distro:
+        LOG.debug("Updating network interfaces from config drive")
+        distro.apply_network(net_conf)
+    files = data.get('files', {})
+    if files:
+        LOG.debug("Writing %s injected files", len(files))
+        for (filename, content) in files.iteritems():
+            if not filename.startswith(os.sep):
+                filename = os.sep + filename
+            try:
+                util.write_file(filename, content, mode=0660)
+            except IOError:
+                util.logexc(LOG, "Failed writing file: %s", filename)
+
+
+def find_candidate_devs(probe_optical=True):
+    """Return a list of devices that may contain the config drive.
+
+    The returned list is sorted by search order where the first item has
+    should be searched first (highest priority)
+
+    config drive v1:
+       Per documentation, this is "associated as the last available disk on the
+       instance", and should be VFAT.
+       Currently, we do not restrict search list to "last available disk"
+
+    config drive v2:
+       Disk should be:
+        * either vfat or iso9660 formated
+        * labeled with 'config-2'
+    """
+    # query optical drive to get it in blkid cache for 2.6 kernels
+    if probe_optical:
+        for device in OPTICAL_DEVICES:
+            try:
+                util.find_devs_with(path=device)
+            except util.ProcessExecutionError:
+                pass
+
+    by_fstype = []
+    for fs_type in FS_TYPES:
+        by_fstype.extend(util.find_devs_with("TYPE=%s" % (fs_type)))
+
+    by_label = []
+    for label in LABEL_TYPES:
+        by_label.extend(util.find_devs_with("LABEL=%s" % (label)))
+
+    # give preference to "last available disk" (vdb over vda)
+    # note, this is not a perfect rendition of that.
+    by_fstype.sort(reverse=True)
+    by_label.sort(reverse=True)
+
+    # combine list of items by putting by-label items first
+    # followed by fstype items, but with dupes removed
+    candidates = (by_label + [d for d in by_fstype if d not in by_label])
+
+    # We are looking for a block device or partition with necessary label or
+    # an unpartitioned block device (ex sda, not sda1)
+    devices = [d for d in candidates
+               if d in by_label or not util.is_partition(d)]
+    return devices
 
 
 # Used to match classes to dependencies
 datasources = [
-  (DataSourceConfigDrive, (sources.DEP_FILESYSTEM, )),
-  (DataSourceConfigDriveNet, (sources.DEP_FILESYSTEM, sources.DEP_NETWORK)),
+    (DataSourceConfigDrive, (sources.DEP_FILESYSTEM, )),
+    (DataSourceConfigDriveNet, (sources.DEP_FILESYSTEM, sources.DEP_NETWORK)),
 ]
 
 

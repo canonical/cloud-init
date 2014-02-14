@@ -32,6 +32,7 @@ import glob
 import grp
 import gzip
 import hashlib
+import json
 import os
 import os.path
 import platform
@@ -360,6 +361,15 @@ def multi_log(text, console=True, stderr=True,
             log.log(log_level, text[:-1])
         else:
             log.log(log_level, text)
+
+
+def load_json(text, root_types=(dict,)):
+    decoded = json.loads(text)
+    if not isinstance(decoded, tuple(root_types)):
+        expected_types = ", ".join([str(t) for t in root_types])
+        raise TypeError("(%s) root types expected, got %s instead"
+                        % (expected_types, type(decoded)))
+    return decoded
 
 
 def is_ipv4(instr):

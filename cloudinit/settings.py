@@ -36,6 +36,8 @@ CFG_BUILTIN = {
         'AltCloud',
         'OVF',
         'MAAS',
+        'GCE',
+        'OpenStack'
         'Ec2',
         'CloudSigma',
         'CloudStack',
