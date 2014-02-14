@@ -45,18 +45,25 @@ class DataSourceCloudSigma(sources.DataSource):
         Metadata is the whole server context and /meta/cloud-config is used
         as userdata.
         """
+        dsmode = None
         try:
             server_context = self.cepko.all().result
             server_meta = server_context['meta']
-            self.userdata_raw = server_meta.get('cloudinit-user-data', "")
-            self.metadata = server_context
-            self.ssh_public_key = server_meta['ssh_public_key']
-
-            if server_meta.get('cloudinit-dsmode') in VALID_DSMODES:
-                self.dsmode = server_meta['cloudinit-dsmode']
         except:
             util.logexc(LOG, "Failed reading from the serial port")
             return False
+
+        dsmode = server_meta.get('cloudinit-dsmode', self.dsmode)
+        if dsmode not in VALID_DSMODES:
+            LOG.warn("Invalid dsmode %s, assuming default of 'net'", dsmode)
+            dsmode = 'net'
+        if dsmode == "disabled" or dsmode != self.dsmode:
+            return False
+
+        self.userdata_raw = server_meta.get('cloudinit-user-data', "")
+        self.metadata = server_context
+        self.ssh_public_key = server_meta['ssh_public_key']
+
         return True
 
     def get_hostname(self, fqdn=False, resolve_ip=False):
@@ -76,11 +83,17 @@ class DataSourceCloudSigma(sources.DataSource):
         return self.metadata['uuid']
 
 
+class DataSourceCloudSigmaNet(DataSourceCloudSigma):
+    def __init__(self, sys_cfg, distro, paths):
+        DataSourceCloudSigma.__init__(self, sys_cfg, distro, paths)
+        self.dsmode = 'net'
+
+
 # Used to match classes to dependencies. Since this datasource uses the serial
 # port network is not really required, so it's okay to load without it, too.
 datasources = [
     (DataSourceCloudSigma, (sources.DEP_FILESYSTEM)),
-    (DataSourceCloudSigma, (sources.DEP_FILESYSTEM, sources.DEP_NETWORK)),
+    (DataSourceCloudSigmaNet, (sources.DEP_FILESYSTEM, sources.DEP_NETWORK)),
 ]
 
 

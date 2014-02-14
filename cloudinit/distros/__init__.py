@@ -39,8 +39,10 @@ from cloudinit.distros.parsers import hosts
 OSFAMILIES = {
     'debian': ['debian', 'ubuntu'],
     'redhat': ['fedora', 'rhel'],
+    'gentoo': ['gentoo'],
     'freebsd': ['freebsd'],
-    'suse': ['sles']
+    'suse': ['sles'],
+    'arch': ['arch'],
 }
 
 LOG = logging.getLogger(__name__)
@@ -53,6 +55,7 @@ class Distro(object):
     ci_sudoers_fn = "/etc/sudoers.d/90-cloud-init-users"
     hostname_conf_fn = "/etc/hostname"
     tz_zone_dir = "/usr/share/zoneinfo"
+    init_cmd = ['service']  # systemctl, service etc
 
     def __init__(self, name, cfg, paths):
         self._paths = paths

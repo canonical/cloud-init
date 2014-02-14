@@ -27,6 +27,10 @@
  - skip config_modules that declare themselves only verified on a set of
    distros.  Add them to 'unverified_modules' list to run anyway.
  - Add CloudSigma datasource [Kiril Vladimiroff]
+ - Add initial support for Gentoo and Arch distributions [Nate House]
+ - Add GCE datasource [Vaidas Jablonskis]
+ - Add native Openstack datasource which reads openstack metadata
+   rather than relying on EC2 data in openstack metadata service.
 0.7.4:
  - fix issue mounting 'ephemeral0' if ephemeral0 was an alias for a
    partitioned block device with target filesystem on ephemeral0.1.
