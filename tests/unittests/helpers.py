@@ -12,10 +12,27 @@ from cloudinit import util
 
 import shutil
 
-# Handle how 2.6 doesn't have the assertIn or assertNotIn
+# Used for detecting different python versions
+PY2 = False
+PY26 = False
+PY27 = False
+PY3 = False
+
 _PY_VER = sys.version_info
 _PY_MAJOR, _PY_MINOR = _PY_VER[0:2]
 if (_PY_MAJOR, _PY_MINOR) <= (2, 6):
+    if (_PY_MAJOR, _PY_MINOR) == (2, 6):
+        PY26 = True
+    if (_PY_MAJOR, _PY_MINOR) >= (2, 0):
+        PY2 = True
+else:
+    if (_PY_MAJOR, _PY_MINOR) == (2, 7):
+        PY27 = True
+        PY2 = True
+    if (_PY_MAJOR, _PY_MINOR) >= (3, 0):
+        PY3 = True
+
+if PY26:
     # For now add these on, taken from python 2.7 + slightly adjusted
     class TestCase(unittest.TestCase):
         def assertIn(self, member, container, msg=None):
@@ -27,6 +44,12 @@ if (_PY_MAJOR, _PY_MINOR) <= (2, 6):
             if member in container:
                 standardMsg = '%r unexpectedly found in %r'
                 standardMsg = standardMsg % (member, container)
+                self.fail(self._formatMessage(msg, standardMsg))
+
+        def assertIsNone(self, value, msg=None):
+            if value is not None:
+                standardMsg = '%r is not None'
+                standardMsg = standardMsg % (value)
                 self.fail(self._formatMessage(msg, standardMsg))
 
 else:
@@ -187,7 +210,8 @@ class FilesystemMockingTestCase(ResourceUsingTestCase):
 
 
 def populate_dir(path, files):
-    os.makedirs(path)
+    if not os.path.exists(path):
+        os.makedirs(path)
     for (name, content) in files.iteritems():
         with open(os.path.join(path, name), "w") as fp:
             fp.write(content)

@@ -34,7 +34,7 @@ Requires:       e2fsprogs
 Requires:       net-tools
 Requires:       procps
 Requires:       shadow-utils
-Requires:       sudo
+Requires:       sudo >= 1.7.2p2-3
 
 # Install pypi 'dynamic' requirements
 #for $r in $requires
@@ -169,7 +169,7 @@ fi
 /usr/lib/%{name}/write-ssh-key-fingerprints
 
 # Docs
-%doc TODO LICENSE ChangeLog Requires
+%doc TODO LICENSE ChangeLog requirements.txt
 %doc %{_defaultdocdir}/cloud-init/*
 
 # Configs
@@ -180,6 +180,7 @@ fi
 %dir                    %{_sysconfdir}/cloud/templates
 %config(noreplace)      %{_sysconfdir}/cloud/templates/*
 %config(noreplace) %{_sysconfdir}/rsyslog.d/21-cloudinit.conf
+%config(noreplace) %{_sysconfdir}/sudoers.d/cloud-init
 
 # Python code is here...
 %{python_sitelib}/*

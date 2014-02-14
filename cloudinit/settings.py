@@ -36,7 +36,10 @@ CFG_BUILTIN = {
         'AltCloud',
         'OVF',
         'MAAS',
+        'GCE',
+        'OpenStack'
         'Ec2',
+        'CloudSigma',
         'CloudStack',
         'SmartOS',
         # At the end to act as a 'catch' when none of the above work...
