@@ -161,7 +161,6 @@ class DataSourceSmartOS(sources.DataSource):
         self.b64_keys = self.ds_cfg.get('base64_keys')
         self.b64_all = self.ds_cfg.get('base64_all')
         self.script_base_d = os.path.join(self.paths.get_cpath("scripts"))
-        self.data_d = os.path.join(self.paths.instance_link, 'data')
 
     def __str__(self):
         root = sources.DataSource.__str__(self)
@@ -207,12 +206,14 @@ class DataSourceSmartOS(sources.DataSource):
         # We write 'user-script' and 'operator-script' into the 
         # instance/data directory. The default vendor-data then handles
         # executing them later.
-        user_script = os.path.join(self.data_d, 'user-script')
+        data_d = os.path.join(self.paths.get_cpath(), 'instances',
+                              md['instance-id'], 'data')
+        user_script = os.path.join(data_d, 'user-script')
         u_script_l = "%s/user-script" % LEGACY_USER_D
         write_boot_content(md.get('user-script'), content_f=user_script,
                            link=u_script_l, shebang=True, mode=0700)
 
-        operator_script = os.path.join(self.data_d, 'operator-script')
+        operator_script = os.path.join(data_d, 'operator-script')
         write_boot_content(md.get('operator-script'),
                            content_f=operator_script, shebang=False, mode=0700)
 
