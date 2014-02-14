@@ -61,7 +61,7 @@ class DataSourceGCE(sources.DataSource):
         ]
 
         # if we cannot resolve the metadata server, then no point in trying
-        if not util.is_resolvable(self.metadata_address):
+        if not util.is_resolvable_url(self.metadata_address):
             LOG.debug("%s is not resolvable", self.metadata_address)
             return False
 
@@ -93,10 +93,7 @@ class DataSourceGCE(sources.DataSource):
                         LOG.warn(msg, path, e)
                     return False
                 msg = "Failed to get %s metadata item: %s."
-                if found:
-                    LOG.warn(msg, path, e)
-                else:
-                    LOG.debug(msg, path, e)
+                LOG.debug(msg, path, e)
 
                 self.metadata[mkey] = None
 
