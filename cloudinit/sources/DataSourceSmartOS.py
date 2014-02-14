@@ -50,7 +50,8 @@ SMARTOS_ATTRIB_MAP = {
     'iptables_disable': ('iptables_disable', True),
     'motd_sys_info': ('motd_sys_info', True),
     'availability_zone': ('sdc:datacenter_name', True),
-    'vendordata': ('sdc:operator-script', False),
+    'vendor-data': ('sdc:vendor-data', False),
+    'operator-script': ('sdc:operator-script', False),
 }
 
 DS_NAME = 'SmartOS'
@@ -95,33 +96,45 @@ BUILTIN_CLOUD_CONFIG = {
                   'device': 'ephemeral0'}],
 }
 
-BUILTIN_VENDOR_DATA = """
-#cloud-config:
-write_files:
-  - encoding: b64
-    owner: root:root
-    path: %(script_d)s/01_sdc-operator-script.sh
-    permissions: '0755'
-    content: |
-        """ + base64.b64encode("""#!/bin/sh
-# This file is written as part of the default vendor data for
-# SmartOS. This script looks for the SmartDC operator script
-# and then executes it. It will be run each boot.
+## builtin vendor-data is a boothook that writes a script into
+## /var/lib/cloud/scripts/per-boot.  *That* script then handles
+## executing the 'operator-script' and 'user-script' files
+## that cloud-init writes into /var/lib/cloud/instance/data/
+## if they exist.
+##
+## This is all very indirect, but its done like this so that at
+## some point in the future, perhaps cloud-init wouldn't do it at
+## all, but rather the vendor actually provide vendor-data that accomplished
+## their desires. (That is the point of vendor-data).
+##
+## cloud-init does cheat a bit, and write the operator-script and user-script
+## itself.  It could have the vendor-script do that, but it seems better
+## to not require the image to contain a tool (mdata-get) to read those
+## keys when we have a perfectly good one inside cloud-init.
+BUILTIN_VENDOR_DATA = """\
+#cloud-boothook
+#!/bin/sh
+fname="%(per_boot_d)s/01_smartos_vendor_data.sh"
+mkdir -p "${fname%%/*}"
+cat > "$fname" <<"END_SCRIPT"
+#!/bin/sh
+##
+# This file is written as part of the default vendor data for SmartOS.
+# The SmartOS datasource writes the listed file from the listed metadata key
+#   sdc:operator-script -> %(operator_script)s
+#   user-script -> %(user_script)s
 #
-# This requires the Joyent Metadata client to be installed.
-# On Ubuntu, it is provided via the joyent-mdata-client package
-# Or you can get it via https://github.com/joyent/mdata-client
+# You can view content with 'mdata-get <key>'
+#
+for script in "%(operator_script)s" "%(user_script)s"; do
+    [ -x "$script" ] || continue
+    echo "executing '$script'" 1>&2
+    "$script"
+done
+END_SCRIPT
+chmod +x "$fname"
+"""
 
-my_path=$(dirname $0)
-[ -x /usr/sbin/mdata-get ] || exit 1
-
-/usr/sbin/mdata-get sdc:operator-script > \
-    $my_path/operator-script || exit 0
-
-[ -e $my_path/operator-script ] || exit 0
-chmod 0700 $my_path/operator-script
-exec /run/sdc/operator-script
-""")
 
 # @datadictionary: this is legacy path for placing files from metadata
 #   per the SmartOS location. It is not preferable, but is done for
@@ -148,8 +161,7 @@ class DataSourceSmartOS(sources.DataSource):
         self.b64_keys = self.ds_cfg.get('base64_keys')
         self.b64_all = self.ds_cfg.get('base64_all')
         self.script_base_d = os.path.join(self.paths.get_cpath("scripts"))
-        self.user_script_d = os.path.join(self.paths.get_cpath("scripts"),
-                                          'per-boot')
+        self.data_d = os.path.join(self.paths.instance_link, 'data')
 
     def __str__(self):
         root = sources.DataSource.__str__(self)
@@ -168,7 +180,7 @@ class DataSourceSmartOS(sources.DataSource):
             LOG.debug("No dmidata utility found")
             return False
 
-        system_uuid, system_type = dmi_info
+        system_uuid, system_type = tuple(dmi_info)
         if 'smartdc' not in system_type.lower():
             LOG.debug("Host is not on SmartOS. system_type=%s", system_type)
             return False
@@ -191,11 +203,18 @@ class DataSourceSmartOS(sources.DataSource):
         # to a file in the filesystem of the guest on each boot and then
         # executed. It may be of any format that would be considered
         # executable in the guest instance.
-        u_script = md.get('user-script')
-        u_script_f = "%s/99_user_script" % self.user_script_d
+        #
+        # We write 'user-script' and 'operator-script' into the 
+        # instance/data directory. The default vendor-data then handles
+        # executing them later.
+        user_script = os.path.join(self.data_d, 'user-script')
         u_script_l = "%s/user-script" % LEGACY_USER_D
-        write_boot_content(u_script, u_script_f, link=u_script_l, shebang=True,
-                           mode=0700)
+        write_boot_content(md.get('user-script'), content_f=user_script,
+                           link=u_script_l, shebang=True, mode=0700)
+
+        operator_script = os.path.join(self.data_d, 'operator-script')
+        write_boot_content(md.get('operator-script'),
+                           content_f=operator_script, shebang=False, mode=0700)
 
         # @datadictionary:  This key has no defined format, but its value
         # is written to the file /var/db/mdata-user-data on each boot prior
@@ -214,14 +233,16 @@ class DataSourceSmartOS(sources.DataSource):
         if md['user-data']:
             ud = md['user-data']
 
-        if not md['vendordata']:
-            md['vendordata'] = BUILTIN_VENDOR_DATA % {
-                                'script_d': self.user_script_d
-                               }
+        if not md['vendor-data']:
+            md['vendor-data'] = BUILTIN_VENDOR_DATA % {
+                'user_script': user_script,
+                'operator_script': operator_script,
+                'per_boot_d': os.path.join(self.paths.get_cpath("scripts"), 'per-boot'),
+            }
 
         self.metadata = util.mergemanydict([md, self.metadata])
         self.userdata_raw = ud
-        self.vendordata_raw = md['vendordata']
+        self.vendordata_raw = md['vendor-data']
         return True
 
     def device_name_to_device(self, name):
