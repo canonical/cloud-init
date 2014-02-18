@@ -90,7 +90,7 @@ class DataSourceNoCloud(sources.DataSource):
             found.append("ds_config")
 
         def _pp2d_callback(mp, data):
-            util.pathprefix2dict(mp, **data)
+            return util.pathprefix2dict(mp, **data)
 
         label = self.ds_cfg.get('fs_label', "cidata")
         if label is not None:
@@ -110,7 +110,8 @@ class DataSourceNoCloud(sources.DataSource):
                     LOG.debug("Attempting to use data from %s", dev)
 
                     try:
-                        seeded = util.mount_cb(dev, _pp2d_callback)
+                        seeded = util.mount_cb(dev, _pp2d_callback,
+                                               pp2d_kwargs)
                     except ValueError as e:
                         if dev in label_list:
                             LOG.warn("device %s with label=%s not a"
@@ -123,7 +124,7 @@ class DataSourceNoCloud(sources.DataSource):
                     # that is more likely to be what is desired.  If they want
                     # dsmode of local, then they must specify that.
                     if 'dsmode' not in mydata['meta-data']:
-                        mydata['meta-data'] = "net"
+                        mydata['dsmode'] = "net"
 
                     LOG.debug("Using data from %s", dev)
                     found.append(dev)
