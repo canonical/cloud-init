@@ -1,3 +1,10 @@
+cloud-init (0.7.5~bzr952-0ubuntu1) trusty; urgency=medium
+
+  * New upstream snapshot.
+    * fix broken seed of DAtaSourceNoCloud via external disk.
+
+ -- Scott Moser <smoser@ubuntu.com>  Tue, 18 Feb 2014 14:10:52 -0500
+
 cloud-init (0.7.5~bzr950-0ubuntu1) trusty; urgency=medium
 
   * New upstream snapshot.
