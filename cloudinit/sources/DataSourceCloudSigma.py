@@ -19,7 +19,6 @@ import re
 
 from cloudinit import log as logging
 from cloudinit import sources
-from cloudinit import util
 from cloudinit.cs_utils import Cepko
 
 LOG = logging.getLogger(__name__)
@@ -50,7 +49,9 @@ class DataSourceCloudSigma(sources.DataSource):
             server_context = self.cepko.all().result
             server_meta = server_context['meta']
         except:
-            util.logexc(LOG, "Failed reading from the serial port")
+            # TODO: check for explicit "config on", and then warn
+            # but since no explicit config is available now, just debug.
+            LOG.debug("CloudSigma: Unable to read from serial port")
             return False
 
         dsmode = server_meta.get('cloudinit-dsmode', self.dsmode)
