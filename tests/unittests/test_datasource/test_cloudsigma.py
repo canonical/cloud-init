@@ -1,4 +1,5 @@
 # coding: utf-8
+import copy
 from unittest import TestCase
 
 from cloudinit.cs_utils import Cepko
@@ -24,7 +25,8 @@ SERVER_CONTEXT = {
 
 
 class CepkoMock(Cepko):
-    result = SERVER_CONTEXT
+    def __init__(self, mocked_context):
+        self.result = mocked_context
 
     def all(self):
         return self
@@ -33,7 +35,7 @@ class CepkoMock(Cepko):
 class DataSourceCloudSigmaTest(TestCase):
     def setUp(self):
         self.datasource = DataSourceCloudSigma.DataSourceCloudSigma("", "", "")
-        self.datasource.cepko = CepkoMock()
+        self.datasource.cepko = CepkoMock(SERVER_CONTEXT)
         self.datasource.get_data()
 
     def test_get_hostname(self):
@@ -57,3 +59,12 @@ class DataSourceCloudSigmaTest(TestCase):
     def test_user_data(self):
         self.assertEqual(self.datasource.userdata_raw,
                          SERVER_CONTEXT['meta']['cloudinit-user-data'])
+
+    def test_encoded_user_data(self):
+        encoded_context = copy.deepcopy(SERVER_CONTEXT)
+        encoded_context['meta']['base64_fields'] = 'cloudinit-user-data'
+        encoded_context['meta']['cloudinit-user-data'] = 'aGkgd29ybGQK'
+        self.datasource.cepko = CepkoMock(encoded_context)
+        self.datasource.get_data()
+
+        self.assertEqual(self.datasource.userdata_raw, b'hi world\n')
