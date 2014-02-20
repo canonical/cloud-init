@@ -418,6 +418,92 @@ def main_single(name, args):
         # Guess it worked
         return 0
 
+def status_wrapper(args):
+    (name, functor) = args.action
+
+    if args.name:
+        if args.local:
+            mode = "init-local"
+        else:
+            mode = "init"
+    elif args.name == "modules":
+        mode = "modules-%s" % args.mode
+
+    modes = ('init', 'init-local', 'modules-config', 'modules-final')
+
+    if mode == 'init':
+        nullstatus = {
+            'errors': []
+            'state': None
+            'start': None
+            'end': None
+        }
+        status = {'v1': {}}
+        for mode in modes:
+            status['v1'][mode] = nullstatus.copy()
+    else:
+        status = load_status()
+    status['stage'] = mode
+
+    v1 = status['v1']
+    v1[mode]['start'] = time.time()
+    update_status(status)
+    # status
+    # {
+    #  'v1': {
+    #   'init': {
+    #     errors: []
+    #     start: 
+    #     end:
+    #   },
+    #   'init-local': {
+    #     errors: []
+    #     start:
+    #     end:
+    #   },
+    #   'modules-final': {
+    #   },
+    #   'modules-config': {
+    #   },
+    #   'datasource': None
+    #   'stage': ('init', 'init-local', 'modules-final', 'modules-config', 'finished')
+    #   'errors': 
+    # }
+    # finished
+    # {
+    #   'datasource': 
+    #   'errors': 
+    # }
+    #  
+    #  
+    exception = None
+    try:
+        ret = func(args)
+    except Exception as e:
+        v1[mode]['errors'] = [str(e)]
+
+    v1[mode]['finished'] = time.time()
+    v1['stage'] = None
+
+
+    if mode in ('init' or 'init-local'):
+        # FIXME(smoser): add the datasource here
+        v1['datasource'] = "~~~datasource~~~"
+
+    update_status(status)
+
+    if mode == "modules-final":
+        # write the 'finished' file
+        errors = []
+        for m in modes:
+            if v1[m]['errors']:
+                errors += v1[m]['errors']
+        
+        finished = {'datasource': v1['datasource'],
+                    'errors': errors}
+
+    return ret
+
 
 def main():
     parser = argparse.ArgumentParser()
@@ -450,7 +536,7 @@ def main():
                              default=False)
     # This is used so that we can know which action is selected +
     # the functor to use to run this subcommand
-    parser_init.set_defaults(action=('init', main_init))
+    parser_init.set_defaults(action=('init', status_wrapper))
 
     # These settings are used for the 'config' and 'final' stages
     parser_mod = subparsers.add_parser('modules',
@@ -461,7 +547,7 @@ def main():
                                     "to use (default: %(default)s)"),
                              default='config',
                              choices=('init', 'config', 'final'))
-    parser_mod.set_defaults(action=('modules', main_modules))
+    parser_mod.set_defaults(action=('modules', status_wrapper))
 
     # These settings are used when you want to query information
     # stored in the cloud-init data objects/directories/files
