@@ -44,12 +44,15 @@ KEY_COPIES = (
     ('local-hostname', 'hostname', False),
     ('instance-id', 'uuid', True),
 )
-OS_VERSIONS = (
-    '2012-08-10',  # folsom
-    '2013-04-04',  # grizzly
-    '2013-10-17',  # havana
-)
 OS_LATEST = 'latest'
+OS_FOLSOM = '2012-08-10'
+OS_GRIZZLY = '2013-04-04'
+OS_HAVANA = '2013-10-17'
+OS_VERSIONS = (
+    OS_FOLSOM,
+    OS_GRIZZLY,
+    OS_HAVANA,
+)
 
 
 class NonReadable(IOError):
@@ -176,12 +179,12 @@ class BaseReader(object):
                                    potential_version)
             if self._path_exists(path):
                 if potential_version != version:
-                    LOG.warn("Version '%s' not available, attempting to use"
-                             " version '%s' instead", version,
-                             potential_version)
+                    LOG.debug("Version '%s' not available, attempting to use"
+                              " version '%s' instead", version,
+                              potential_version)
                 return potential_version
-        LOG.warn("Version '%s' not available, attempting to use '%s'"
-                 " instead", version, OS_LATEST)
+        LOG.debug("Version '%s' not available, attempting to use '%s'"
+                  " instead", version, OS_LATEST)
         return OS_LATEST
 
     def read_v2(self, version=None):
