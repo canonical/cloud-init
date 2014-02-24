@@ -334,33 +334,6 @@ class TestSmartOSDataSource(helpers.FilesystemMockingTestCase):
             shebang = f.readlines()[0].strip()
         self.assertEquals(shebang, "#!/usr/bin/perl")
 
-    def test_scripts_removed(self):
-        """
-            Since SmartOS requires that the user script is fetched
-            each boot, we want to make sure that the information
-            is backed-up for user-review later.
-
-            This tests the behavior of when a script is removed. It makes
-            sure that a) the previous script is backed-up; and 2) that
-            there is no script remaining.
-        """
-
-        script_d = os.path.join(self.tmp, "instance", "data")
-        os.makedirs(script_d)
-
-        test_script_f = os.path.join(script_d, 'user-script')
-        with open(test_script_f, 'w') as f:
-            f.write("TEST DATA")
-
-        my_returns = MOCK_RETURNS.copy()
-        del my_returns['user-script']
-
-        dsrc = self._get_ds(mockdata=my_returns)
-        ret = dsrc.get_data()
-        self.assertTrue(ret)
-        self.assertFalse(dsrc.metadata['user-script'])
-        self.assertFalse(os.path.exists(test_script_f))
-
     def test_userdata_removed(self):
         """
             User-data in the SmartOS world is supposed to be written to a file
