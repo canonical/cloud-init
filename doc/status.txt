@@ -14,17 +14,17 @@ status.json's format is:
     'v1': {
      'init': {
        errors: []      # list of strings for each error that occurred
-       start: integer  # time.time() that this stage started or None
-       end: integer    # time.time() that this stage finished or None
+       start: float # time.time() that this stage started or None
+       end: float # time.time() that this stage finished or None
      },
      'init-local': {
-       'errors': [], 'start': <int>, 'end' <int> # (same as 'init' above)
+       'errors': [], 'start': <float>, 'end' <float> # (same as 'init' above)
      },
      'modules-config': {
-       'errors': [], 'start': <int>, 'end' <int> # (same as 'init' above)
+       'errors': [], 'start': <float>, 'end' <float> # (same as 'init' above)
      },
      'modules-final': {
-       'errors': [], 'start': <int>, 'end' <int> # (same as 'init' above)
+       'errors': [], 'start': <float>, 'end' <float> # (same as 'init' above)
      },
      'datasource': string describing datasource found or None
      'stage': string representing stage that is currently running
