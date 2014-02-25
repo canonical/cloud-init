@@ -26,6 +26,7 @@ import json
 import os
 import sys
 import time
+import tempfile
 import traceback
 
 # This is more just for running from the bin folder so that
@@ -419,8 +420,18 @@ def main_single(name, args):
         return 0
 
 
-def write_json(path, data):
-    util.write_file(path, json.dumps(data, indent=1) + "\n")
+def atomic_write_json(path, data):
+    tf = None
+    try:
+        tf = tempfile.NamedTemporaryFile(dir=os.path.dirname(path),
+                                         delete=False)
+        tf.write(json.dumps(data, indent=1) + "\n")
+        tf.close()
+        os.rename(tf.name, path)
+    except Exception as e:
+        if tf is not None:
+            util.del_file(tf.name)
+        raise e
 
 
 def status_wrapper(name, args, data_d=None, link_d=None):
@@ -471,12 +482,11 @@ def status_wrapper(name, args, data_d=None, link_d=None):
             status['v1'][m] = nullstatus.copy()
         status['v1']['datasource'] = None
 
-
     v1 = status['v1']
     v1['stage'] = mode
     v1[mode]['start'] = time.time()
 
-    write_json(status_path, status)
+    atomic_write_json(status_path, status)
     util.sym_link(os.path.relpath(status_path, link_d), status_link,
                   force=True)
 
@@ -497,7 +507,7 @@ def status_wrapper(name, args, data_d=None, link_d=None):
     v1[mode]['finished'] = time.time()
     v1['stage'] = None
 
-    write_json(status_path, status)
+    atomic_write_json(status_path, status)
 
     if mode == "modules-final":
         # write the 'finished' file
@@ -506,7 +516,7 @@ def status_wrapper(name, args, data_d=None, link_d=None):
             if v1[m]['errors']:
                 errors.extend(v1[m].get('errors', []))
 
-        write_json(result_path, 
+        atomic_write_json(result_path,
             {'datasource': v1['datasource'], 'errors': errors})
         util.sym_link(os.path.relpath(result_path, link_d), result_link,
                       force=True)
