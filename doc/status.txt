@@ -1,0 +1,51 @@
+cloud-init will keep a 'status' file up to date for other applications
+wishing to use it to determine cloud-init status.
+
+It will manage 2 files:
+ status.json
+ finished.json
+
+The files will be written to /var/lib/cloud/data/ .
+A symlink will be created in /run/cloud-init. The link from /run is to ensure
+that if the file exists, it is not stale for this boot.
+
+status.json's format is:
+   {
+    'v1': {
+     'init': {
+       errors: []      # list of strings for each error that occurred
+       start: integer  # time.time() that this stage started or None
+       end: integer    # time.time() that this stage finished or None
+     },
+     'init-local': {
+       'errors': [], 'start': <int>, 'end' <int> # (same as 'init' above)
+     },
+     'modules-config': {
+       'errors': [], 'start': <int>, 'end' <int> # (same as 'init' above)
+     },
+     'modules-final': {
+       'errors': [], 'start': <int>, 'end' <int> # (same as 'init' above)
+     },
+     'datasource': string describing datasource found or None
+     'stage': string representing stage that is currently running
+              ('init', 'init-local', 'modules-final', 'modules-config', None)
+              if None, then no stage is running.  Reader must read the start/end
+              of each of the above stages to determine the state.
+   }
+
+finished.json's format is:
+   {
+     'datasource': string describing the datasource found
+     'errors': [] # list of errors reported
+   }
+
+Thus, to determine if cloud-init is finished:
+ fin = "/run/cloud-init/finished.json"
+ if os.path.exists(fin):
+   ret = json.load(open(fin, "r"))
+   if len(ret):
+     print "Finished with errors:" + "\n".join(ret['errors'])
+   else:
+     print "Finished no errors"
+ else:
+   print "Not Finished"
