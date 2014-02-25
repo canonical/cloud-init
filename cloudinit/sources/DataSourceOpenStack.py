@@ -88,11 +88,11 @@ class DataSourceOpenStack(openstack.SourceMixin, sources.DataSource):
         md_urls = []
         url2base = {}
         for url in urls:
-            md_url = url_helper.combine_url(url, 'openstack',
-                                            openstack.OS_LATEST,
-                                            'meta_data.json')
-            md_urls.append(md_url)
-            url2base[md_url] = url
+            for version in openstack.OS_VERSIONS + (openstack.OS_LATEST,):
+                md_url = url_helper.combine_url(url, 'openstack',
+                                                version, 'meta_data.json')
+                md_urls.append(md_url)
+                url2base[md_url] = url
 
         (max_wait, timeout) = self._get_url_settings()
         start_time = time.time()
@@ -120,7 +120,7 @@ class DataSourceOpenStack(openstack.SourceMixin, sources.DataSource):
                                     read_metadata_service,
                                     args=[self.metadata_address],
                                     kwargs={'ssl_details': self.ssl_details,
-                                            'version': openstack.OS_LATEST})
+                                            'version': openstack.OS_HAVANA})
         except openstack.NonReadable:
             return False
         except (openstack.BrokenMetadata, IOError):
