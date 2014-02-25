@@ -476,7 +476,7 @@ def status_wrapper(name, args, data_d=None, link_d=None):
     v1['stage'] = mode
     v1[mode]['start'] = time.time()
 
-    write_json(status, status_path)
+    write_json(status_path, status)
     util.sym_link(os.path.relpath(status_path, link_d), status_link,
                   force=True)
 
