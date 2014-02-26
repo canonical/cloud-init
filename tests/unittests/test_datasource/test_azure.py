@@ -352,13 +352,13 @@ class TestAzureDataSource(MockerTestCase):
         ovf_env_path = os.path.join(self.waagent_d, 'ovf-env.xml')
         self.assertTrue(os.path.exists(ovf_env_path))
         self.assertEqual(xml, load_file(ovf_env_path))
-        
+
     def test_existing_ovf_same(self):
         # waagent/SharedConfig left alone if found ovf-env.xml same as cached
         odata = {'UserData': base64.b64encode("SOMEUSERDATA")}
         data = {'ovfcontent': construct_valid_ovf_env(data=odata)}
 
-        populate_dir(self.waagent_d, 
+        populate_dir(self.waagent_d,
             {'ovf-env.xml': data['ovfcontent'],
              'otherfile': 'otherfile-content',
              'SharedConfig.xml': 'mysharedconfig'})

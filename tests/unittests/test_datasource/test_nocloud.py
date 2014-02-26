@@ -133,6 +133,7 @@ class TestNoCloudDataSource(MockerTestCase):
         self.assertFalse(dsrc.vendordata)
         self.assertTrue(ret)
 
+
 class TestParseCommandLineData(MockerTestCase):
 
     def test_parse_cmdline_data_valid(self):

@@ -9,7 +9,6 @@ import errno
 import logging
 import os
 import re
-import unittest
 
 # growpart:
 #   mode: auto  # off, on, auto, 'growpart'
@@ -203,7 +202,7 @@ def simple_device_part_info(devpath):
     return x
 
 
-class Bunch:
+class Bunch(object):
     st_mode = None  # fix pylint complaint
 
     def __init__(self, **kwds):
