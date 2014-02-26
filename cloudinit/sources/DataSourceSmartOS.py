@@ -174,6 +174,12 @@ class DataSourceSmartOS(sources.DataSource):
             LOG.debug("Host does not appear to be on SmartOS")
             return False
 
+        uname_arch = os.uname()[4]
+        if uname_arch.startswith("arm") or uname_arch == "aarch64":
+            # Disabling because dmidcode in dmi_data() crashes kvm process
+            LOG.debug("Disabling SmartOS datasource on arm (LP: #1243287)")
+            return False
+
         dmi_info = dmi_data()
         if dmi_info is False:
             LOG.debug("No dmidata utility found")
