@@ -158,6 +158,11 @@ class TestSmartOSDataSource(helpers.FilesystemMockingTestCase):
         def _dmi_data():
             return dmi_data
 
+        def _os_uname():
+            # LP: #1243287. tests assume this runs, but running test on
+            # arm would cause them all to fail.
+            return ('LINUX', 'NODENAME', 'RELEASE', 'VERSION', 'x86_64')
+
         if sys_cfg is None:
             sys_cfg = {}
 
@@ -168,6 +173,7 @@ class TestSmartOSDataSource(helpers.FilesystemMockingTestCase):
         self.apply_patches([(mod, 'LEGACY_USER_D', self.legacy_user_d)])
         self.apply_patches([(mod, 'get_serial', _get_serial)])
         self.apply_patches([(mod, 'dmi_data', _dmi_data)])
+        self.apply_patches([(os, 'uname', _os_uname)])
         dsrc = mod.DataSourceSmartOS(sys_cfg, distro=None,
                                      paths=self.paths)
         return dsrc
