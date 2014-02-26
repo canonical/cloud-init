@@ -52,18 +52,23 @@ def netdev_info(empty=""):
             fieldpost = "6"
 
         for i in range(len(toks)):
-            if toks[i] == "hwaddr" or toks[i] == "ether":
-                try:
-                    devs[curdev]["hwaddr"] = toks[i + 1]
-                except IndexError:
-                    pass
+            # older net-tools (ubuntu) show 'inet addr:xx.yy',
+            # newer (freebsd and fedora) show 'inet xx.yy'
+            # just skip this 'inet' entry. (LP: #1285185)
+            try:
+                if (toks[i] in ("inet", "inet6") and
+                    toks[i + 1].startswith("addr:")):
+                    continue
+            except IndexError:
+                pass
 
             # Couple the different items we're interested in with the correct
             # field since FreeBSD/CentOS/Fedora differ in the output.
             ifconfigfields = {
                 "addr:": "addr", "inet": "addr",
                 "bcast:": "bcast", "broadcast": "bcast",
-                "mask:": "mask", "netmask": "mask"
+                "mask:": "mask", "netmask": "mask",
+                "hwaddr": "hwaddr", "ether": "hwaddr",
             }
             for origfield, field in ifconfigfields.items():
                 target = "%s%s" % (field, fieldpost)
