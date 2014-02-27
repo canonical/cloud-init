@@ -33,6 +33,8 @@ import cloudinit.sources.DataSourceAltCloud
 from cloudinit.sources.DataSourceAltCloud import DataSourceAltCloud
 from cloudinit.sources.DataSourceAltCloud import read_user_data_callback
 
+OS_UNAME_ORIG = getattr(os, 'uname')
+
 
 def _write_cloud_info_file(value):
     '''
@@ -104,11 +106,16 @@ class TestGetCloudType(TestCase):
     def setUp(self):
         '''Set up.'''
         self.paths = helpers.Paths({'cloud_dir': '/tmp'})
+        # We have a different code path for arm to deal with LP1243287
+        # We have to switch arch to x86_64 to avoid test failure
+        force_arch('x86_64')
 
     def tearDown(self):
         # Reset
         cloudinit.sources.DataSourceAltCloud.CMD_DMI_SYSTEM = \
             ['dmidecode', '--string', 'system-product-name']
+        # Return back to original arch
+        force_arch()
 
     def test_rhev(self):
         '''
@@ -238,6 +245,9 @@ class TestGetDataNoCloudInfoFile(TestCase):
         self.paths = helpers.Paths({'cloud_dir': '/tmp'})
         cloudinit.sources.DataSourceAltCloud.CLOUD_INFO_FILE = \
             'no such file'
+        # We have a different code path for arm to deal with LP1243287
+        # We have to switch arch to x86_64 to avoid test failure
+        force_arch('x86_64')
 
     def tearDown(self):
         # Reset
@@ -245,6 +255,8 @@ class TestGetDataNoCloudInfoFile(TestCase):
             '/etc/sysconfig/cloud-info'
         cloudinit.sources.DataSourceAltCloud.CMD_DMI_SYSTEM = \
             ['dmidecode', '--string', 'system-product-name']
+        # Return back to original arch
+        force_arch()
 
     def test_rhev_no_cloud_file(self):
         '''Test No cloud info file module get_data() forcing RHEV.'''
@@ -441,5 +453,17 @@ class TestReadUserDataCallback(TestCase):
 
         _remove_user_data_files(self.mount_dir)
         self.assertEquals(None, read_user_data_callback(self.mount_dir))
+
+
+def force_arch(arch=None):
+
+    def _os_uname():
+        return ('LINUX', 'NODENAME', 'RELEASE', 'VERSION', arch)
+
+    if arch:
+        setattr(os, 'uname', _os_uname)
+    elif arch is None:
+        setattr(os, 'uname', OS_UNAME_ORIG)
+
 
 # vi: ts=4 expandtab
