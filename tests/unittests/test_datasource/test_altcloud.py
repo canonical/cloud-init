@@ -104,11 +104,16 @@ class TestGetCloudType(TestCase):
     def setUp(self):
         '''Set up.'''
         self.paths = helpers.Paths({'cloud_dir': '/tmp'})
+        # We have a different code path for arm to deal with LP1243287
+        # We have to switch arch to x86_64 to avoid test failure
+        force_arch('x86_64')
 
     def tearDown(self):
         # Reset
         cloudinit.sources.DataSourceAltCloud.CMD_DMI_SYSTEM = \
             ['dmidecode', '--string', 'system-product-name']
+        # Return back to original arch
+        force_arch()
 
     def test_rhev(self):
         '''
@@ -238,6 +243,9 @@ class TestGetDataNoCloudInfoFile(TestCase):
         self.paths = helpers.Paths({'cloud_dir': '/tmp'})
         cloudinit.sources.DataSourceAltCloud.CLOUD_INFO_FILE = \
             'no such file'
+        # We have a different code path for arm to deal with LP1243287
+        # We have to switch arch to x86_64 to avoid test failure
+        force_arch('x86_64')
 
     def tearDown(self):
         # Reset
@@ -245,6 +253,8 @@ class TestGetDataNoCloudInfoFile(TestCase):
             '/etc/sysconfig/cloud-info'
         cloudinit.sources.DataSourceAltCloud.CMD_DMI_SYSTEM = \
             ['dmidecode', '--string', 'system-product-name']
+        # Return back to original arch
+        force_arch()
 
     def test_rhev_no_cloud_file(self):
         '''Test No cloud info file module get_data() forcing RHEV.'''
@@ -441,5 +451,20 @@ class TestReadUserDataCallback(TestCase):
 
         _remove_user_data_files(self.mount_dir)
         self.assertEquals(None, read_user_data_callback(self.mount_dir))
+
+def force_arch(arch=None):
+
+    def _os_uname():
+        return ('LINUX', 'NODENAME', 'RELEASE', 'VERSION', arch)
+
+    if arch:
+        orig = getattr(os, 'uname')
+        if not force_arch._orig:
+            force_arch._orig = orig
+        setattr(os, 'uname', _os_uname)
+    elif force_arch._orig:
+        setattr(os, 'uname', force_arch._orig)
+
+force_arch._orig = None 
 
 # vi: ts=4 expandtab
