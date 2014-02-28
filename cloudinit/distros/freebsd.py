@@ -79,7 +79,7 @@ class Distro(distros.Distro):
         return val
 
     def _read_system_hostname(self):
-        sys_hostname = self._read_hostname()
+        sys_hostname = self._read_hostname(filename=None)
         return ('rc.conf', sys_hostname)
 
     def _read_hostname(self, filename, default=None):
