@@ -27,7 +27,13 @@ else
     ARCHIVE_FN="$PWD/cloud-init-$VERSION~bzr$REVNO.tar.gz"
 fi
 
-bzr export --format=tgz --root="cloud-init-$VERSION~bzr$REVNO" \
+export_uncommitted=""
+if [ "${UNCOMMITTED:-0}" != "0" ]; then
+   export_uncommitted="--uncommitted"
+fi
+
+bzr export ${export_uncommitted} \
+   --format=tgz --root="cloud-init-$VERSION~bzr$REVNO" \
     "--revision=${REVNO}" "${ARCHIVE_FN}" "$ROOT_DIR"
 
 echo "$ARCHIVE_FN"
