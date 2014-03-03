@@ -2,6 +2,7 @@
 
 # Used for untemplating any files or strings with parameters.
 cheetah
+mako
 
 # This is used for any pretty printing of tabular data.
 PrettyTable
