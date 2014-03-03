@@ -166,7 +166,7 @@ class TestConfigDriveDataSource(MockerTestCase):
                 my_mock.replay()
                 device = cfg_ds.device_name_to_device(name)
                 self.assertEquals(dev_name, device)
- 
+
     def test_dev_ec2_map(self):
         populate_dir(self.tmp, CFG_DRIVE_FILES_V2)
         cfg_ds = ds.DataSourceConfigDrive(settings.CFG_BUILTIN,

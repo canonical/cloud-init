@@ -158,6 +158,11 @@ class TestSmartOSDataSource(helpers.FilesystemMockingTestCase):
         def _dmi_data():
             return dmi_data
 
+        def _os_uname():
+            # LP: #1243287. tests assume this runs, but running test on
+            # arm would cause them all to fail.
+            return ('LINUX', 'NODENAME', 'RELEASE', 'VERSION', 'x86_64')
+
         if sys_cfg is None:
             sys_cfg = {}
 
@@ -168,6 +173,7 @@ class TestSmartOSDataSource(helpers.FilesystemMockingTestCase):
         self.apply_patches([(mod, 'LEGACY_USER_D', self.legacy_user_d)])
         self.apply_patches([(mod, 'get_serial', _get_serial)])
         self.apply_patches([(mod, 'dmi_data', _dmi_data)])
+        self.apply_patches([(os, 'uname', _os_uname)])
         dsrc = mod.DataSourceSmartOS(sys_cfg, distro=None,
                                      paths=self.paths)
         return dsrc
@@ -333,33 +339,6 @@ class TestSmartOSDataSource(helpers.FilesystemMockingTestCase):
         with open(legacy_script_f, 'r') as f:
             shebang = f.readlines()[0].strip()
         self.assertEquals(shebang, "#!/usr/bin/perl")
-
-    def test_scripts_removed(self):
-        """
-            Since SmartOS requires that the user script is fetched
-            each boot, we want to make sure that the information
-            is backed-up for user-review later.
-
-            This tests the behavior of when a script is removed. It makes
-            sure that a) the previous script is backed-up; and 2) that
-            there is no script remaining.
-        """
-
-        script_d = os.path.join(self.tmp, "instance", "data")
-        os.makedirs(script_d)
-
-        test_script_f = os.path.join(script_d, 'user-script')
-        with open(test_script_f, 'w') as f:
-            f.write("TEST DATA")
-
-        my_returns = MOCK_RETURNS.copy()
-        del my_returns['user-script']
-
-        dsrc = self._get_ds(mockdata=my_returns)
-        ret = dsrc.get_data()
-        self.assertTrue(ret)
-        self.assertFalse(dsrc.metadata['user-script'])
-        self.assertFalse(os.path.exists(test_script_f))
 
     def test_userdata_removed(self):
         """

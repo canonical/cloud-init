@@ -174,6 +174,12 @@ class DataSourceSmartOS(sources.DataSource):
             LOG.debug("Host does not appear to be on SmartOS")
             return False
 
+        uname_arch = os.uname()[4]
+        if uname_arch.startswith("arm") or uname_arch == "aarch64":
+            # Disabling because dmidcode in dmi_data() crashes kvm process
+            LOG.debug("Disabling SmartOS datasource on arm (LP: #1243287)")
+            return False
+
         dmi_info = dmi_data()
         if dmi_info is False:
             LOG.debug("No dmidata utility found")
@@ -203,7 +209,7 @@ class DataSourceSmartOS(sources.DataSource):
         # executed. It may be of any format that would be considered
         # executable in the guest instance.
         #
-        # We write 'user-script' and 'operator-script' into the 
+        # We write 'user-script' and 'operator-script' into the
         # instance/data directory. The default vendor-data then handles
         # executing them later.
         data_d = os.path.join(self.paths.get_cpath(), 'instances',
@@ -238,7 +244,8 @@ class DataSourceSmartOS(sources.DataSource):
             md['vendor-data'] = BUILTIN_VENDOR_DATA % {
                 'user_script': user_script,
                 'operator_script': operator_script,
-                'per_boot_d': os.path.join(self.paths.get_cpath("scripts"), 'per-boot'),
+                'per_boot_d': os.path.join(self.paths.get_cpath("scripts"),
+                                           'per-boot'),
             }
 
         self.metadata = util.mergemanydict([md, self.metadata])

@@ -1,3 +1,16 @@
+cloud-init (0.7.5~bzr964-0ubuntu1) trusty; urgency=medium
+
+  * New upstream snapshot.
+    * SmartOS, AltCloud: disable running on arm systems due to bug
+      (LP: #1243287, #1285686) [Oleg Strikov]
+    * Allow running a command to seed random, default is 'pollinate -q'
+      (LP: #1286316) [Dustin Kirkland]
+    * Write status to /run/cloud-init/status.json for consumption by
+      other programs (LP: #1284439)
+    * fix output of network information to not include 'addr:' (LP: #1285185)
+
+ -- Scott Moser <smoser@ubuntu.com>  Mon, 03 Mar 2014 16:59:27 -0500
+
 cloud-init (0.7.5~bzr952-0ubuntu1) trusty; urgency=medium
 
   * New upstream snapshot.
