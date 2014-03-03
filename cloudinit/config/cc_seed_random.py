@@ -58,7 +58,7 @@ def handle_random_seed_command(command, required, env=None):
         else:
             LOG.debug("command '%s' not found for seed_command", cmd)
             return
-    util.subp(command, env=env)
+    util.subp(command, env=env, capture=False)
 
 
 def handle(name, cfg, cloud, log, _args):
