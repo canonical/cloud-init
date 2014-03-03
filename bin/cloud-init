@@ -517,7 +517,7 @@ def status_wrapper(name, args, data_d=None, link_d=None):
                 errors.extend(v1[m].get('errors', []))
 
         atomic_write_json(result_path,
-            {'datasource': v1['datasource'], 'errors': errors})
+            {'v1': {'datasource': v1['datasource'], 'errors': errors}})
         util.sym_link(os.path.relpath(result_path, link_d), result_link,
                       force=True)
 
