@@ -20,9 +20,36 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-from Cheetah.Template import Template
+import re
 
+from Cheetah.Template import Template as CTemplate
+from mako.template import Template as MTemplate
+
+from cloudinit import log as logging
 from cloudinit import util
+
+LOG = logging.getLogger(__name__)
+DEF_RENDERER = (lambda content, params:
+                CTemplate(content, searchList=[params]).respond())
+RENDERERS = {
+    'mako': lambda content, params: MTemplate(content).render(**params),
+    'cheetah': DEF_RENDERER,
+}
+TYPE_MATCHER = re.compile(r"##\s*template:(.*)", re.I)
+
+
+def detect_template(text):
+    lines = text.splitlines()
+    if not lines:
+        return DEF_RENDERER
+    line = lines[0]
+    type_match = TYPE_MATCHER.match(line)
+    if not type_match:
+        return DEF_RENDERER
+    template_type = type_match.group(1).lower().strip()
+    if template_type not in RENDERERS:
+        LOG.warn("Unknown template type requested: %s", template_type)
+    return RENDERERS.get(template_type, DEF_RENDERER)
 
 
 def render_from_file(fn, params):
@@ -37,4 +64,5 @@ def render_to_file(fn, outfn, params, mode=0644):
 def render_string(content, params):
     if not params:
         params = {}
-    return Template(content, searchList=[params]).respond()
+    renderer = detect_template(content)
+    return renderer(content, params)
