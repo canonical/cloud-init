@@ -35,6 +35,8 @@
    (LP: #1243287, #1285686) [Oleg Strikov]
  - Allow running a command to seed random, default is 'pollinate -q'
    (LP: #1286316) [Dustin Kirkland]
+ - Write status to /run/cloud-init/status.json for consumption by
+   other programs (LP: #1284439)
 0.7.4:
  - fix issue mounting 'ephemeral0' if ephemeral0 was an alias for a
    partitioned block device with target filesystem on ephemeral0.1.
