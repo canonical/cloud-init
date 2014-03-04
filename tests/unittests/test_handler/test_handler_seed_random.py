@@ -61,8 +61,11 @@ class TestRandomSeed(t_help.TestCase):
     def _which(self, program):
         return self.whichdata.get(program)
 
-    def _subp(self, args):
-        self.subp_called.append(tuple(args))
+    def _subp(self, *args, **kwargs):
+        # supports subp calling with cmd as args or kwargs
+        if 'args' not in kwargs:
+            kwargs['args'] = args[0]
+        self.subp_called.append(kwargs)
         return
 
     def _compress(self, text):
@@ -173,7 +176,8 @@ class TestRandomSeed(t_help.TestCase):
         self.whichdata = {'pollinate': '/usr/bin/pollinate'}
         cc_seed_random.handle('test', {}, c, LOG, [])
 
-        self.assertEquals(self.subp_called, [('pollinate', '-q')])
+        subp_args = [f['args'] for f in self.subp_called]
+        self.assertIn(['pollinate', '-q'], subp_args)
 
     def test_seed_command_not_provided_pollinate_not_available(self):
         c = self._get_cloud('ubuntu', {})
@@ -195,15 +199,19 @@ class TestRandomSeed(t_help.TestCase):
         cfg = {'random_seed': {'command_required': True, 'command': ['foo']}}
         cc_seed_random.handle('test', cfg, c, LOG, [])
 
-        self.assertEquals(self.subp_called, [('foo',)])
+        self.assertIn(['foo'], [f['args'] for f in self.subp_called])
 
-    def test_seed_command_non_default(self):
+    def test_file_in_environment_for_command(self):
         c = self._get_cloud('ubuntu', {})
         self.whichdata = {'foo': 'foo'}
-        cfg = {'random_seed': {'command_required': True, 'command': ['foo']}}
+        cfg = {'random_seed': {'command_required': True, 'command': ['foo'],
+                               'file': self._seed_file}}
         cc_seed_random.handle('test', cfg, c, LOG, [])
 
-        self.assertEquals(self.subp_called, [('foo',)])
+        # this just instists that the first time subp was called,
+        # RANDOM_SEED_FILE was in the environment set up correctly
+        subp_env = [f['env'] for f in self.subp_called]
+        self.assertEqual(subp_env[0].get('RANDOM_SEED_FILE'), self._seed_file)
 
 
 def apply_patches(patches):
