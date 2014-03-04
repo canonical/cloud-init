@@ -15,6 +15,7 @@
 #
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+from base64 import b64decode
 import re
 
 from cloudinit import log as logging
@@ -61,7 +62,11 @@ class DataSourceCloudSigma(sources.DataSource):
         if dsmode == "disabled" or dsmode != self.dsmode:
             return False
 
+        base64_fields = server_meta.get('base64_fields', '').split(',')
         self.userdata_raw = server_meta.get('cloudinit-user-data', "")
+        if 'cloudinit-user-data' in base64_fields:
+            self.userdata_raw = b64decode(self.userdata_raw)
+
         self.metadata = server_context
         self.ssh_public_key = server_meta['ssh_public_key']
 

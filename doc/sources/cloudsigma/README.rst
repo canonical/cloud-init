@@ -23,6 +23,10 @@ You can provide user-data to the VM using the dedicated `meta field`_ in the `se
 header could be omitted. However since this is a raw-text field you could provide any of the valid
 `config formats`_.
 
+You have the option to encode your user-data using Base64. In order to do that you have to add the
+``cloudinit-user-data`` field to the ``base64_fields``. The latter is a comma-separated field with
+all the meta fields whit base64 encoded values.
+
 If your user-data does not need an internet connection you can create a
 `meta field`_ in the `server context`_ ``cloudinit-dsmode`` and set "local" as value.
 If this field does not exist the default value is "net".
