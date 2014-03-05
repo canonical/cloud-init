@@ -23,33 +23,41 @@
 import re
 
 from Cheetah.Template import Template as CTemplate
-from mako.template import Template as MTemplate
+
+import jinja2
+from jinja2 import Template as JTemplate
 
 from cloudinit import log as logging
 from cloudinit import util
 
 LOG = logging.getLogger(__name__)
-DEF_RENDERER = (lambda content, params:
-                CTemplate(content, searchList=[params]).respond())
+DEF_RENDERER = 'cheetah'
 RENDERERS = {
-    'mako': lambda content, params: MTemplate(content).render(**params),
-    'cheetah': DEF_RENDERER,
+    'jinja': (lambda content, params:
+              JTemplate(content,
+                        undefined=jinja2.StrictUndefined,
+                        trim_blocks=True).render(**params)),
+    'cheetah': (lambda content, params:
+                CTemplate(content, searchList=[params]).respond()),
 }
 TYPE_MATCHER = re.compile(r"##\s*template:(.*)", re.I)
 
 
 def detect_template(text):
-    lines = text.splitlines()
-    if not lines:
-        return DEF_RENDERER
-    line = lines[0]
-    type_match = TYPE_MATCHER.match(line)
-    if not type_match:
-        return DEF_RENDERER
-    template_type = type_match.group(1).lower().strip()
-    if template_type not in RENDERERS:
-        LOG.warn("Unknown template type requested: %s", template_type)
-    return RENDERERS.get(template_type, DEF_RENDERER)
+    try:
+        ident, rest = text.split("\n", 1)
+    except ValueError:
+        return (DEF_RENDERER, text)
+    else:
+        type_match = TYPE_MATCHER.match(ident)
+        if not type_match:
+            return (DEF_RENDERER, text)
+        template_type = type_match.group(1).lower().strip()
+        if template_type not in RENDERERS:
+            raise ValueError("Unknown template type '%s' requested"
+                             % template_type)
+        else:
+            return (template_type, rest)
 
 
 def render_from_file(fn, params):
@@ -64,5 +72,9 @@ def render_to_file(fn, outfn, params, mode=0644):
 def render_string(content, params):
     if not params:
         params = {}
-    renderer = detect_template(content)
-    return renderer(content, params)
+    try:
+        renderer, content = detect_template(content)
+    except ValueError:
+        renderer = DEF_RENDERER
+    LOG.debug("Rendering %s using renderer '%s'", content, renderer)
+    return RENDERERS[renderer](content, params)
