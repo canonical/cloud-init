@@ -1,39 +1,30 @@
-#
+## template:jinja
 # Your system has been configured with 'manage-resolv-conf' set to true.
 # As a result, cloud-init has written this file with configuration data
 # that it has been provided. Cloud-init, by default, will write this file
 # a single time (PER_ONCE).
 #
+{% if nameservers is defined %}
+{% for server in nameservers %}
+nameserver {{server}}
+{% endfor %}
 
-#if $varExists('nameservers')
-#for $server in $nameservers
-nameserver $server
-#end for
-#end if
-#if $varExists('searchdomains')
-search #slurp
-#for $search in $searchdomains
-$search #slurp
-#end for
+{% endif -%}
+{% if searchdomains is defined %}
+search {% for search in searchdomains %}{{search}} {% endfor %}
 
-#end if
-#if $varExists('domain')
-domain $domain
-#end if
-#if $varExists('sortlist')
-sortlist #slurp
-#for $sort in $sortlist
-$sort #slurp
-#end for
+{% endif %}
+{% if domain is defined %}
+domain {{domain}}
+{% endif %}
+{% if sortlist is defined %}
 
-#end if
-#if $varExists('options') or $varExists('flags')
-options #slurp
-#for $flag in $flags
-$flag #slurp
-#end for
-#for $key, $value in $options.items()
-$key:$value #slurp
-#end for
+sortlist {% for sort in sortlist %}{{sort}} {% endfor %}
+{% endif %}
+{% if options is defined or flags is defined %}
 
-#end if
+options {% for flag in flags %}{{flag}} {% endfor %}
+{% for key, value in options.iteritems() -%}
+ {{key}}:{{value}}
+{% endfor %}
+{% endif %}
