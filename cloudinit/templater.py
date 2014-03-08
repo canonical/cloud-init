@@ -44,21 +44,21 @@ TYPE_MATCHER = re.compile(r"##\s*template:(.*)", re.I)
 
 
 def detect_template(text):
-    try:
+    if text.find("\n") != -1:
         ident, rest = text.split("\n", 1)
-    except ValueError:
-        return (DEF_RENDERER, text)
     else:
-        type_match = TYPE_MATCHER.match(ident)
-        if not type_match:
-            return (DEF_RENDERER, text)
-        template_type = type_match.group(1).lower().strip()
-        if template_type not in RENDERERS:
-            raise ValueError("Unknown template type '%s' requested"
-                             % template_type)
-        else:
-            return (template_type, rest)
-
+        ident = text
+        rest = ''
+    type_match = TYPE_MATCHER.match(ident)
+    if not type_match:
+        return (DEF_RENDERER, text)
+    template_type = type_match.group(1).lower().strip()
+    if template_type not in RENDERERS:
+        raise ValueError("Unknown template type '%s' requested"
+                         % template_type)
+    else:
+        return (template_type, rest)
+    
 
 def render_from_file(fn, params):
     return render_string(util.load_file(fn), params)
@@ -74,7 +74,8 @@ def render_string(content, params):
         params = {}
     try:
         renderer, content = detect_template(content)
-    except ValueError:
+    except ValueError as e:
         renderer = DEF_RENDERER
+        LOG.warn("%s, using renderer %s", e, renderer)
     LOG.debug("Rendering %s using renderer '%s'", content, renderer)
     return RENDERERS[renderer](content, params)
