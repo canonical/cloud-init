@@ -53,6 +53,7 @@ def handle(_name, cfg, cloud, log, args):
             'version': cver,
             'datasource': str(cloud.datasource),
         }
+        subs.update(dict([(k.upper(), v) for k, v in subs.items()]))
         util.multi_log("%s\n" % (templater.render_string(msg_in, subs)),
                        console=False, stderr=True, log=log)
     except Exception:
