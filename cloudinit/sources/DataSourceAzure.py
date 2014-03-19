@@ -269,25 +269,28 @@ def support_new_ephemeral(cfg):
     if file_count >= 1:
         LOG.debug("fabric prepared ephemeral0.1 will be preserved")
         return None
-    else:
-        with util.unmounter(device):
-            LOG.debug("unmounted fabric prepared ephemeral0.1")
+    elif device in util.mounted():
+        try:
+            util.subp(['umount', device])
+        except util.ProcessExecutionError as e:
+            LOG.warn("Failed to unmount %s, will not reformat", device)
+            return None
 
     LOG.debug("cloud-init will format ephemeral0.1 this boot.")
     LOG.debug("setting disk_setup and mounts modules 'always' for this boot")
 
     cc_modules = cfg.get('cloud_config_modules')
-    if cc_modules:
-        mod_list = []
-        for mod in cc_modules:
-            if mod in ("disk_setup", "mounts"):
-                mod_list.append([mod, PER_ALWAYS])
-                LOG.debug("set module '%s' to 'always' for this boot" % mod)
-            else:
-                mod_list.append(mod)
-        return mod_list
+    if not cc_modules:
+        return None
 
-    return None
+    mod_list = []
+    for mod in cc_modules:
+        if mod in ("disk_setup", "mounts"):
+            mod_list.append([mod, PER_ALWAYS])
+            LOG.debug("set module '%s' to 'always' for this boot" % mod)
+        else:
+            mod_list.append(mod)
+    return mod_list
 
 
 def handle_set_hostname(enabled, hostname, cfg):
