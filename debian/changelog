@@ -1,3 +1,15 @@
+cloud-init (0.7.5~bzr969-0ubuntu1) trusty; urgency=medium
+
+  * New upstream snapshot.
+    * Azure: Reformat ephemeral disk if it got re-provisioned
+      by the cloud on any reboot (LP: #1292648)
+    * final_message: fix replacement of upper case keynames (LP: #1286164)
+    * seed_random: do not capture output.  Correctly provide
+      environment variable RANDOM_SEED_FILE to command.
+    * CloudSigma: support base64 encoded user-data
+
+ -- Scott Moser <smoser@ubuntu.com>  Wed, 19 Mar 2014 14:04:34 -0400
+
 cloud-init (0.7.5~bzr964-0ubuntu1) trusty; urgency=medium
 
   * New upstream snapshot.

@@ -20,6 +20,7 @@
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import base64
+import os
 from StringIO import StringIO
 
 from cloudinit.settings import PER_INSTANCE
@@ -43,7 +44,7 @@ def _decode(data, encoding=None):
         raise IOError("Unknown random_seed encoding: %s" % (encoding))
 
 
-def handle_random_seed_command(command, required):
+def handle_random_seed_command(command, required, env=None):
     if not command and required:
         raise ValueError("no command found but required=true")
     elif not command:
@@ -57,7 +58,7 @@ def handle_random_seed_command(command, required):
         else:
             LOG.debug("command '%s' not found for seed_command", cmd)
             return
-    util.subp(command)
+    util.subp(command, env=env, capture=False)
 
 
 def handle(name, cfg, cloud, log, _args):
@@ -84,7 +85,9 @@ def handle(name, cfg, cloud, log, _args):
     command = mycfg.get('command', ['pollinate', '-q'])
     req = mycfg.get('command_required', False)
     try:
-        handle_random_seed_command(command=command, required=req)
+        env = os.environ.copy()
+        env['RANDOM_SEED_FILE'] = seed_path
+        handle_random_seed_command(command=command, required=req, env=env)
     except ValueError as e:
         log.warn("handling random command [%s] failed: %s", command, e)
         raise e
