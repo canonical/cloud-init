@@ -269,7 +269,18 @@ def support_new_ephemeral(cfg):
     if file_count >= 1:
         LOG.debug("fabric prepared ephemeral0.1 will be preserved")
         return None
-    elif device in util.mounted():
+    else:
+        # if device was already mounted, then we need to unmount it
+        # race conditions could allow for a check-then-unmount
+        # to have a false positive. so just unmount and then check.
+        try:
+            util.subp(['umount', device])
+        except util.ProcessExecutionError as e:
+            if device in util.mounts():
+                LOG.warn("Failed to unmount %s, will not reformat", device)
+                return None
+            
+    if device in util.mounts():
         try:
             util.subp(['umount', device])
         except util.ProcessExecutionError as e:
