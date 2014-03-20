@@ -57,7 +57,7 @@ class DataSourceNoCloud(sources.DataSource):
             md = {}
             if parse_cmdline_data(self.cmdline_id, md):
                 found.append("cmdline")
-            mydata.update(md)
+            mydata['meta-data'].update(md)
         except:
             util.logexc(LOG, "Unable to parse command line data")
             return False

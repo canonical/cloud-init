@@ -1,3 +1,10 @@
+cloud-init (0.7.5~bzr970-0ubuntu1) trusty; urgency=medium
+
+  * New upstream snapshot.
+    * fix NoCloud and seedfrom on the kernel command line (LP: #1295223)
+
+ -- Scott Moser <smoser@ubuntu.com>  Thu, 20 Mar 2014 12:35:58 -0400
+
 cloud-init (0.7.5~bzr969-0ubuntu1) trusty; urgency=medium
 
   * New upstream snapshot.
