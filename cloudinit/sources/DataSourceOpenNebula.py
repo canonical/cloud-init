@@ -422,8 +422,9 @@ def read_context_disk_dir(source_dir, asuser=None):
 
     # b64decode user data if necessary (default)
     if 'userdata' in results:
-        userdata_encoding = context.get('USERDATA_ENCODING', None)
-        if userdata_encoding in (None, "base64"):
+        encoding = context.get('USERDATA_ENCODING',
+                               context.get('USER_DATA_ENCODING'))
+        if encoding == "base64":
             try:
                 results['userdata'] = base64.b64decode(results['userdata'])
             except TypeError:

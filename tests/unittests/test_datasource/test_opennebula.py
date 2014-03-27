@@ -175,14 +175,15 @@ class TestOpenNebulaDataSource(MockerTestCase):
             self.assertTrue('userdata' in results)
             self.assertEqual(USER_DATA, results['userdata'])
 
-    def test_user_data_default_encoding(self):
+    def test_user_data_encoding_required_for_decode(self):
+        b64userdata = b64encode(USER_DATA)
         for k in ('USER_DATA', 'USERDATA'):
             my_d = os.path.join(self.tmp, k)
-            populate_context_dir(my_d, {k: b64encode(USER_DATA)})
+            populate_context_dir(my_d, {k: b64userdata})
             results = ds.read_context_disk_dir(my_d)
 
             self.assertTrue('userdata' in results)
-            self.assertEqual(USER_DATA, results['userdata'])
+            self.assertEqual(b64userdata, results['userdata'])
 
     def test_user_data_base64_encoding(self):
         for k in ('USER_DATA', 'USERDATA'):
