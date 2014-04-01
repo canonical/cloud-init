@@ -39,6 +39,8 @@
    other programs (LP: #1284439)
  - Azure: if a reboot causes ephemeral storage to be re-provisioned
    Then we need to re-format it. (LP: #1292648)
+ - OpenNebula: support base64 encoded user-data
+   [Enol Fernandez, Peter Kotcauer]
 0.7.4:
  - fix issue mounting 'ephemeral0' if ephemeral0 was an alias for a
    partitioned block device with target filesystem on ephemeral0.1.

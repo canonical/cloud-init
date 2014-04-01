@@ -1,3 +1,12 @@
+cloud-init (0.7.5-0ubuntu1) trusty; urgency=medium
+
+  * New upstream release.
+    * support base64 encoded user-data in OpenNebula, required
+      to allow arbitrary content in user-data (LP: #1300941)
+    * pep8 and pylint fixes
+
+ -- Scott Moser <smoser@ubuntu.com>  Tue, 01 Apr 2014 14:39:03 -0400
+
 cloud-init (0.7.5~bzr970-0ubuntu1) trusty; urgency=medium
 
   * New upstream snapshot.
