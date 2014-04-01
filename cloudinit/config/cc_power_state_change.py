@@ -22,7 +22,6 @@ from cloudinit import util
 import errno
 import os
 import re
-import signal
 import subprocess
 import time
 

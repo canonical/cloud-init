@@ -24,10 +24,7 @@
 
 import base64
 from cloudinit import helpers as c_helpers
-from cloudinit import stages
-from cloudinit import util
 from cloudinit.sources import DataSourceSmartOS
-from cloudinit.settings import (PER_INSTANCE)
 from tests.unittests import helpers
 import os
 import os.path
