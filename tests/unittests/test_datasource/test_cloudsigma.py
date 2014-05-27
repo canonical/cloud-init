@@ -20,7 +20,11 @@ SERVER_CONTEXT = {
     "smp": 1,
     "tags": ["much server", "very performance"],
     "uuid": "65b2fb23-8c03-4187-a3ba-8b7c919e8890",
-    "vnc_password": "9e84d6cb49e46379"
+    "vnc_password": "9e84d6cb49e46379",
+    "vendor_data": {
+        "location": "zrh",
+        "cloudinit": "#cloud-config\n\n...",
+    }
 }
 
 
@@ -68,3 +72,25 @@ class DataSourceCloudSigmaTest(TestCase):
         self.datasource.get_data()
 
         self.assertEqual(self.datasource.userdata_raw, b'hi world\n')
+
+    def test_vendor_data(self):
+        self.assertEqual(self.datasource.vendordata_raw,
+                         SERVER_CONTEXT['vendor_data']['cloudinit'])
+
+    def test_lack_of_vendor_data(self):
+        stripped_context = copy.deepcopy(SERVER_CONTEXT)
+        del stripped_context["vendor_data"]
+        self.datasource = DataSourceCloudSigma.DataSourceCloudSigma("", "", "")
+        self.datasource.cepko = CepkoMock(stripped_context)
+        self.datasource.get_data()
+
+        self.assertIsNone(self.datasource.vendordata_raw)
+
+    def test_lack_of_cloudinit_key_in_vendor_data(self):
+        stripped_context = copy.deepcopy(SERVER_CONTEXT)
+        del stripped_context["vendor_data"]["cloudinit"]
+        self.datasource = DataSourceCloudSigma.DataSourceCloudSigma("", "", "")
+        self.datasource.cepko = CepkoMock(stripped_context)
+        self.datasource.get_data()
+
+        self.assertIsNone(self.datasource.vendordata_raw)
