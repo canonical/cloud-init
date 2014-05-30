@@ -1,5 +1,6 @@
 0.7.6:
  - open 0.7.6
+ - Enable vendordata on CloudSigma datasource (LP: #1303986)
 0.7.5:
  - open 0.7.5
  - Add a debug log message around import failures
