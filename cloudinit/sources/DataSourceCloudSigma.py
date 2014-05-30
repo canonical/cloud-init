@@ -20,6 +20,7 @@ import re
 
 from cloudinit import log as logging
 from cloudinit import sources
+from cloudinit import util
 from cloudinit.cs_utils import Cepko
 
 LOG = logging.getLogger(__name__)
@@ -40,12 +41,33 @@ class DataSourceCloudSigma(sources.DataSource):
         self.ssh_public_key = ''
         sources.DataSource.__init__(self, sys_cfg, distro, paths)
 
+    def is_running_in_cloudsigma(self):
+        """
+        Uses dmidecode to detect if this instance of cloud-init is running
+        in the CloudSigma's infrastructure.
+        """
+        dmidecode_path = util.which('dmidecode')
+        if not dmidecode_path:
+            return False
+
+        LOG.debug("Determining hypervisor product name via dmidecode")
+        try:
+            system_product_name, _ = util.subp([dmidecode_path, "-s", "system-product-name"])
+            return 'cloudsigma' in system_product_name.lower()
+        except:
+            LOG.exception("Failed to get hypervisor product name")
+
+        return False
+
     def get_data(self):
         """
         Metadata is the whole server context and /meta/cloud-config is used
         as userdata.
         """
         dsmode = None
+        if not self.is_running_in_cloudsigma():
+            return False
+
         try:
             server_context = self.cepko.all().result
             server_meta = server_context['meta']
