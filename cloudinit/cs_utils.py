@@ -35,8 +35,10 @@ import platform
 
 import serial
 
+# these high timeouts are necessary as read may read a lot of data.
 READ_TIMEOUT = 60
 WRITE_TIMEOUT = 10
+
 SERIAL_PORT = '/dev/ttyS1'
 if platform.system() == 'Windows':
     SERIAL_PORT = 'COM2'

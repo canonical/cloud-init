@@ -16,6 +16,7 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 from base64 import b64decode
+import os
 import re
 
 from cloudinit import log as logging
@@ -46,16 +47,23 @@ class DataSourceCloudSigma(sources.DataSource):
         Uses dmidecode to detect if this instance of cloud-init is running
         in the CloudSigma's infrastructure.
         """
+        uname_arch = os.uname()[4]
+        if uname_arch.startswith("arm") or uname_arch == "aarch64":
+            # Disabling because dmidecode in CMD_DMI_SYSTEM crashes kvm process
+            LOG.debug("Disabling CloudSigma datasource on arm (LP: #1243287)")
+            return False
+
         dmidecode_path = util.which('dmidecode')
         if not dmidecode_path:
             return False
 
         LOG.debug("Determining hypervisor product name via dmidecode")
         try:
-            system_product_name, _ = util.subp([dmidecode_path, "-s", "system-product-name"])
+            cmd = [dmidecode_path, "--string", "system-product-name"]
+            system_product_name, _ = util.subp(cmd)
             return 'cloudsigma' in system_product_name.lower()
         except:
-            LOG.exception("Failed to get hypervisor product name")
+            LOG.warn("Failed to get hypervisor product name via dmidecode")
 
         return False
 
