@@ -39,6 +39,7 @@ class CepkoMock(Cepko):
 class DataSourceCloudSigmaTest(TestCase):
     def setUp(self):
         self.datasource = DataSourceCloudSigma.DataSourceCloudSigma("", "", "")
+        self.datasource.is_running_in_cloudsigma = lambda: True
         self.datasource.cepko = CepkoMock(SERVER_CONTEXT)
         self.datasource.get_data()
 
