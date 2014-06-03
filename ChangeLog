@@ -1,3 +1,9 @@
+0.7.6:
+ - open 0.7.6
+ - Enable vendordata on CloudSigma datasource (LP: #1303986)
+ - Poll on /dev/ttyS1 in CloudSigma datasource only if dmidecode says
+   we're running on cloudsigma (LP: #1316475) [Kiril Vladimiroff]
+ - SmartOS test: do not require existance of /dev/ttyS1. [LP: #1316597]
 0.7.5:
  - open 0.7.5
  - Add a debug log message around import failures

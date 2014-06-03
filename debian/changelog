@@ -1,3 +1,14 @@
+cloud-init (0.7.6~bzr976-0ubuntu1) utopic; urgency=medium
+
+  * debian/cloud-init.templates: fix choices so dpkg-reconfigure works as
+    expected (LP: #1325746)
+  * New upstream snapshot.
+    * tests: SmartOS test not depend on /dev/ttyS1 device node (LP: #1316597)
+    * poll ttyS1 only after check for 'cloudsigma' in dmidecode (LP: #1316475)
+    * cloudsigma: support vendor-data (LP: #1303986)
+
+ -- Scott Moser <smoser@ubuntu.com>  Tue, 03 Jun 2014 16:41:07 -0400
+
 cloud-init (0.7.5-0ubuntu1) trusty; urgency=medium
 
   * New upstream release.
