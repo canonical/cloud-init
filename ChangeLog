@@ -4,6 +4,8 @@
  - Poll on /dev/ttyS1 in CloudSigma datasource only if dmidecode says
    we're running on cloudsigma (LP: #1316475) [Kiril Vladimiroff]
  - SmartOS test: do not require existance of /dev/ttyS1. [LP: #1316597]
+ - doc: fix user-groups doc to reference plural ssh-authorized-keys
+   (LP: #1327065) [Joern Heissler]
 0.7.5:
  - open 0.7.5
  - Add a debug log message around import failures
