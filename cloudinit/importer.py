@@ -45,8 +45,6 @@ def find_module(base_name, search_paths, required_attrs=None):
         real_path.append(base_name)
         full_path = '.'.join(real_path)
         real_paths.append(full_path)
-    LOG.debug("Looking for modules %s that have attributes %s",
-              real_paths, required_attrs)
     for full_path in real_paths:
         mod = None
         try:
@@ -62,6 +60,4 @@ def find_module(base_name, search_paths, required_attrs=None):
                 found_attrs += 1
         if found_attrs == len(required_attrs):
             found_places.append(full_path)
-    LOG.debug("Found %s with attributes %s in %s", base_name,
-              required_attrs, found_places)
     return found_places
