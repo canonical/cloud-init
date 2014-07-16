@@ -121,7 +121,11 @@ def detect_template(text):
 
 
 def render_from_file(fn, params):
-    return render_string(util.load_file(fn), params)
+    if not params:
+        params = {}
+    template_type, renderer, content = detect_template(util.load_file(fn))
+    LOG.debug("Rendering content of '%s' using renderer %s", fn, template_type)
+    return renderer(content, params)
 
 
 def render_to_file(fn, outfn, params, mode=0644):
