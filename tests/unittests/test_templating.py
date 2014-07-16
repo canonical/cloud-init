@@ -18,21 +18,35 @@
 
 from tests.unittests import helpers as test_helpers
 
-
 from cloudinit import templater
 
 
 class TestTemplates(test_helpers.TestCase):
+    def test_render_basic(self):
+        in_data = """
+${b}
+
+c = d
+"""
+        in_data = in_data.strip()
+        expected_data = """
+2
+
+c = d
+"""
+        out_data = templater.basic_render(in_data, {'b': 2})
+        self.assertEqual(expected_data.strip(), out_data)
+
     def test_detection(self):
         blob = "## template:cheetah"
 
-        (template_type, contents) = templater.detect_template(blob)
-        self.assertEqual("cheetah", template_type)
+        (template_type, renderer, contents) = templater.detect_template(blob)
+        self.assertIn("cheetah", template_type)
         self.assertEqual("", contents.strip())
 
         blob = "blahblah $blah"
-        (template_type, contents) = templater.detect_template(blob)
-        self.assertEqual("cheetah", template_type)
+        (template_type, renderer, contents) = templater.detect_template(blob)
+        self.assertIn("cheetah", template_type)
         self.assertEquals(blob, contents)
 
         blob = '##template:something-new'

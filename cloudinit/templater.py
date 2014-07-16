@@ -20,30 +20,72 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+import collections
 import re
 
-from Cheetah.Template import Template as CTemplate
+try:
+    from Cheetah.Template import Template as CTemplate
+    CHEETAH_AVAILABLE = True
+except (ImportError, AttributeError):
+    CHEETAH_AVAILABLE = False
 
-import jinja2
-from jinja2 import Template as JTemplate
+try:
+    import jinja2
+    from jinja2 import Template as JTemplate
+    JINJA_AVAILABLE = True
+except (ImportError, AttributeError):
+    JINJA_AVAILABLE = False
 
 from cloudinit import log as logging
+from cloudinit import type_utils as tu
 from cloudinit import util
 
 LOG = logging.getLogger(__name__)
-DEF_RENDERER = 'cheetah'
-RENDERERS = {
-    'jinja': (lambda content, params:
-              JTemplate(content,
-                        undefined=jinja2.StrictUndefined,
-                        trim_blocks=True).render(**params)),
-    'cheetah': (lambda content, params:
-                CTemplate(content, searchList=[params]).respond()),
-}
 TYPE_MATCHER = re.compile(r"##\s*template:(.*)", re.I)
+BASIC_MATCHER = re.compile(r'\$\{([A-Za-z0-9_.]+)\}')
+
+
+def basic_render(content, params):
+    """This does simple replacement of bash variable like templates.
+
+    It identifies patterns like ${a} and can also identify patterns like
+    ${a.b} which will look for a key 'b' in the dictionary rooted by key 'a'.
+    """
+
+    def replacer(match):
+        path = collections.deque(match.group(1).split("."))
+        selected_params = params
+        while len(path) > 1:
+            key = path.popleft()
+            if not isinstance(selected_params, dict):
+                raise TypeError("Can not traverse into"
+                                " non-dictionary '%s' of type %s while"
+                                " looking for subkey '%s'"
+                                % (selected_params,
+                                   tu.obj_name(selected_params),
+                                   key))
+            selected_params = selected_params[key]
+        key = path.popleft()
+        if not isinstance(selected_params, dict):
+            raise TypeError("Can not extract key '%s' from non-dictionary"
+                            " '%s' of type %s"
+                            % (key, selected_params,
+                               tu.obj_name(selected_params)))
+        return str(selected_params[key])
+
+    return BASIC_MATCHER.sub(replacer, content)
 
 
 def detect_template(text):
+
+    def cheetah_render(content, params):
+        return CTemplate(content, searchList=[params]).respond()
+
+    def jinja_render(content, params):
+        return JTemplate(content,
+                         undefined=jinja2.StrictUndefined,
+                         trim_blocks=True).render(**params)
+
     if text.find("\n") != -1:
         ident, rest = text.split("\n", 1)
     else:
@@ -51,14 +93,32 @@ def detect_template(text):
         rest = ''
     type_match = TYPE_MATCHER.match(ident)
     if not type_match:
-        return (DEF_RENDERER, text)
-    template_type = type_match.group(1).lower().strip()
-    if template_type not in RENDERERS:
-        raise ValueError("Unknown template type '%s' requested"
-                         % template_type)
+        if not CHEETAH_AVAILABLE:
+            LOG.warn("Cheetah not available as the default renderer for"
+                     " unknown template, reverting to the basic renderer.")
+            return ('basic', basic_render, text)
+        else:
+            return ('cheetah', cheetah_render, text)
     else:
-        return (template_type, rest)
-    
+        template_type = type_match.group(1).lower().strip()
+        if template_type not in ('jinja', 'cheetah', 'basic'):
+            raise ValueError("Unknown template rendering type '%s' requested"
+                             % template_type)
+        if template_type == 'jinja' and not JINJA_AVAILABLE:
+            LOG.warn("Jinja not available as the selected renderer for"
+                     " desired template, reverting to the basic renderer.")
+            return ('basic', basic_render, rest)
+        elif template_type == 'jinja' and JINJA_AVAILABLE:
+            return ('jinja', jinja_render, rest)
+        if template_type == 'cheetah' and not CHEETAH_AVAILABLE:
+            LOG.warn("Cheetah not available as the selected renderer for"
+                     " desired template, reverting to the basic renderer.")
+            return ('basic', basic_render, rest)
+        elif template_type == 'cheetah' and CHEETAH_AVAILABLE:
+            return ('cheetah', cheetah_render, rest)
+        # Only thing left over is the basic renderer (it is always available).
+        return ('basic', basic_render, rest)
+
 
 def render_from_file(fn, params):
     return render_string(util.load_file(fn), params)
@@ -72,10 +132,5 @@ def render_to_file(fn, outfn, params, mode=0644):
 def render_string(content, params):
     if not params:
         params = {}
-    try:
-        renderer, content = detect_template(content)
-    except ValueError as e:
-        renderer = DEF_RENDERER
-        LOG.warn("%s, using renderer %s", e, renderer)
-    LOG.debug("Rendering %s using renderer '%s'", content, renderer)
-    return RENDERERS[renderer](content, params)
+    template_type, renderer, content = detect_template(content)
+    return renderer(content, params)
