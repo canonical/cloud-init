@@ -1,9 +1,10 @@
 # coding: utf-8
 import copy
-from unittest import TestCase
 
 from cloudinit.cs_utils import Cepko
 from cloudinit.sources import DataSourceCloudSigma
+
+from tests.unittests import helpers as test_helpers
 
 
 SERVER_CONTEXT = {
@@ -36,7 +37,7 @@ class CepkoMock(Cepko):
         return self
 
 
-class DataSourceCloudSigmaTest(TestCase):
+class DataSourceCloudSigmaTest(test_helpers.TestCase):
     def setUp(self):
         self.datasource = DataSourceCloudSigma.DataSourceCloudSigma("", "", "")
         self.datasource.is_running_in_cloudsigma = lambda: True
