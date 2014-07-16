@@ -224,6 +224,9 @@ def main_init(name, args):
             LOG.debug("Exiting early due to the existence of %s files",
                       existing_files)
             return (None, [])
+        else:
+            LOG.debug("Execution continuing, no previous run detected that"
+                      " would allow us to stop early.")
     else:
         # The cache is not instance specific, so it has to be purged
         # but we want 'start' to benefit from a cache if
