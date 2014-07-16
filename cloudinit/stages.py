@@ -397,8 +397,8 @@ class Init(object):
                     mod = handlers.fixup_handler(mod)
                     types = c_handlers.register(mod)
                     if types:
-                        LOG.debug("Added custom handler for %s from %s",
-                                  types, fname)
+                        LOG.debug("Added custom handler for %s [%s] from %s",
+                                  types, mod, fname)
                 except Exception:
                     util.logexc(LOG, "Failed to register handler from %s",
                                 fname)
@@ -644,6 +644,8 @@ class Modules(object):
                     freq = mod.frequency
                 if not freq in FREQUENCIES:
                     freq = PER_INSTANCE
+                LOG.debug("Running module %s (%s) with frequency %s",
+                          name, mod, freq)
 
                 # Use the configs logger and not our own
                 # TODO(harlowja): possibly check the module
@@ -657,7 +659,7 @@ class Modules(object):
                 run_name = "config-%s" % (name)
                 cc.run(run_name, mod.handle, func_args, freq=freq)
             except Exception as e:
-                util.logexc(LOG, "Running %s (%s) failed", name, mod)
+                util.logexc(LOG, "Running module %s (%s) failed", name, mod)
                 failures.append((name, e))
         return (which_ran, failures)
 
