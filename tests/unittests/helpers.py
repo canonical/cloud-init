@@ -52,6 +52,30 @@ if PY26:
                 standardMsg = standardMsg % (value)
                 self.fail(self._formatMessage(msg, standardMsg))
 
+        def assertDictContainsSubset(self, expected, actual, msg=None):
+            missing = []
+            mismatched = []
+            for k, v in expected.iteritems():
+                if k not in actual:
+                    missing.append(k)
+                elif actual[k] != v:
+                    mismatched.append('%r, expected: %r, actual: %r'
+                                      % (k, v, actual[k]))
+
+            if len(missing) == 0 and len(mismatched) == 0:
+                return
+
+            standardMsg = ''
+            if missing:
+                standardMsg = 'Missing: %r' % ','.join(m for m in missing)
+            if mismatched:
+                if standardMsg:
+                    standardMsg += '; '
+                standardMsg += 'Mismatched values: %s' % ','.join(mismatched)
+
+            self.fail(self._formatMessage(msg, standardMsg))
+
+
 else:
     class TestCase(unittest.TestCase):
         pass
