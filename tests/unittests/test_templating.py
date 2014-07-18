@@ -68,3 +68,39 @@ $a,$b'''
         blob = '''$a,$b'''
         c = templater.render_string(blob, {"a": 1, "b": 2})
         self.assertEquals("1,2", c)
+
+    def test_render_basic_deeper(self):
+        hn = 'myfoohost.yahoo.com'
+        expected_data = "h=%s\nc=d\n" % hn
+        in_data = "h=$hostname.canonical_name\nc=d\n"
+        params = {
+            "hostname": {
+                "canonical_name": hn,
+            },
+        }
+        out_data = templater.render_string(in_data, params)
+        self.assertEqual(expected_data, out_data)
+
+    def test_render_basic_no_parens(self):
+        hn = "myfoohost"
+        in_data = "h=$hostname\nc=d\n"
+        expected_data = "h=%s\nc=d\n" % hn
+        out_data = templater.basic_render(in_data, {'hostname': hn})
+        self.assertEqual(expected_data, out_data)
+
+    def test_render_basic_parens(self):
+        hn = "myfoohost"
+        in_data = "h = ${hostname}\nc=d\n"
+        expected_data = "h = %s\nc=d\n" % hn
+        out_data = templater.basic_render(in_data, {'hostname': hn})
+        self.assertEqual(expected_data, out_data)
+
+    def test_render_basic2(self):
+        mirror = "mymirror"
+        codename = "zany"
+        in_data = "deb $mirror $codename-updates main contrib non-free"
+        ex_data = "deb %s %s-updates main contrib non-free" % (mirror, codename)
+
+        out_data = templater.basic_render(in_data,
+        {'mirror': mirror, 'codename': codename})
+        self.assertEqual(ex_data, out_data)

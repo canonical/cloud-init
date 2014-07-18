@@ -42,18 +42,25 @@ from cloudinit import util
 
 LOG = logging.getLogger(__name__)
 TYPE_MATCHER = re.compile(r"##\s*template:(.*)", re.I)
-BASIC_MATCHER = re.compile(r'\$\{([A-Za-z0-9_.]+)\}')
+BASIC_MATCHER = re.compile(r'\$\{([A-Za-z0-9_.]+)\}|\$([A-Za-z0-9_.]+)')
 
 
 def basic_render(content, params):
     """This does simple replacement of bash variable like templates.
 
-    It identifies patterns like ${a} and can also identify patterns like
-    ${a.b} which will look for a key 'b' in the dictionary rooted by key 'a'.
+    It identifies patterns like ${a} or $a and can also identify patterns like
+    ${a.b} or $a.b which will look for a key 'b' in the dictionary rooted
+    by key 'a'.
     """
 
     def replacer(match):
-        path = collections.deque(match.group(1).split("."))
+        # Only 1 of the 2 groups will actually have a valid entry.
+        name = match.group(1)
+        if name is None:
+            name = match.group(2)
+        if name is None:
+            raise RuntimeError("Match encountered but no valid group present")
+        path = collections.deque(name.split("."))
         selected_params = params
         while len(path) > 1:
             key = path.popleft()
