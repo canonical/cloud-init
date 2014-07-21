@@ -1,9 +1,10 @@
-#*
-    This file /etc/cloud/templates/hosts.suse.tmpl is only utilized
-    if enabled in cloud-config.  Specifically, in order to enable it
-    you need to add the following to config:
-      manage_etc_hosts: True
-*#
+## template:jinja
+{#
+This file /etc/cloud/templates/hosts.suse.tmpl is only utilized
+if enabled in cloud-config.  Specifically, in order to enable it
+you need to add the following to config:
+  manage_etc_hosts: True
+-#}
 # Your system has configured 'manage_etc_hosts' as True.
 # As a result, if you wish for changes to this file to persist
 # then you will need to either
@@ -22,3 +23,4 @@ ff00::0 ipv6-mcastprefix
 ff02::1 ipv6-allnodes
 ff02::2 ipv6-allrouters
 ff02::3 ipv6-allhosts
+

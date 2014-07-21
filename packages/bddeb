@@ -31,6 +31,7 @@ PKG_MP = {
     'argparse': 'python-argparse',
     'cheetah': 'python-cheetah',
     'configobj': 'python-configobj',
+    'jinja2': 'python-jinja2',
     'jsonpatch': 'python-jsonpatch | python-json-patch',
     'oauth': 'python-oauth',
     'prettytable': 'python-prettytable',

@@ -7,6 +7,8 @@
  - doc: fix user-groups doc to reference plural ssh-authorized-keys
    (LP: #1327065) [Joern Heissler]
  - fix 'make test' in python 2.6
+ - support jinja2 as a templating engine.  Drop the hard requirement on
+   cheetah.  This helps in python3 effort. (LP: #1219223)
 0.7.5:
  - open 0.7.5
  - Add a debug log message around import failures
