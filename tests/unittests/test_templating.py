@@ -17,23 +17,24 @@
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 from tests.unittests import helpers as test_helpers
+import textwrap
 
 from cloudinit import templater
 
 
 class TestTemplates(test_helpers.TestCase):
     def test_render_basic(self):
-        in_data = """
-${b}
+        in_data = textwrap.dedent("""
+            ${b}
 
-c = d
-"""
+            c = d
+            """)
         in_data = in_data.strip()
-        expected_data = """
-2
+        expected_data = textwrap.dedent("""
+            2
 
-c = d
-"""
+            c = d
+            """)
         out_data = templater.basic_render(in_data, {'b': 2})
         self.assertEqual(expected_data.strip(), out_data)
 
@@ -102,5 +103,5 @@ $a,$b'''
         ex_data = "deb %s %s-updates main contrib non-free" % (mirror, codename)
 
         out_data = templater.basic_render(in_data,
-        {'mirror': mirror, 'codename': codename})
+            {'mirror': mirror, 'codename': codename})
         self.assertEqual(ex_data, out_data)
