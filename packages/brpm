@@ -37,6 +37,7 @@ PKG_MP = {
     'redhat': {
         'argparse': 'python-argparse',
         'cheetah': 'python-cheetah',
+        'jinja2': 'python-jinja2',
         'configobj': 'python-configobj',
         'jsonpatch': 'python-jsonpatch',
         'oauth': 'python-oauth',
