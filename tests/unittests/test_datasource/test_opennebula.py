@@ -4,6 +4,7 @@ from cloudinit import util
 from mocker import MockerTestCase
 from tests.unittests.helpers import populate_dir
 
+from base64 import b64encode
 import os
 import pwd
 
@@ -164,10 +165,31 @@ class TestOpenNebulaDataSource(MockerTestCase):
 
             public_keys.append(SSH_KEY % (c + 1,))
 
-    def test_user_data(self):
+    def test_user_data_plain(self):
         for k in ('USER_DATA', 'USERDATA'):
             my_d = os.path.join(self.tmp, k)
-            populate_context_dir(my_d, {k: USER_DATA})
+            populate_context_dir(my_d, {k: USER_DATA,
+                                        'USERDATA_ENCODING': ''})
+            results = ds.read_context_disk_dir(my_d)
+
+            self.assertTrue('userdata' in results)
+            self.assertEqual(USER_DATA, results['userdata'])
+
+    def test_user_data_encoding_required_for_decode(self):
+        b64userdata = b64encode(USER_DATA)
+        for k in ('USER_DATA', 'USERDATA'):
+            my_d = os.path.join(self.tmp, k)
+            populate_context_dir(my_d, {k: b64userdata})
+            results = ds.read_context_disk_dir(my_d)
+
+            self.assertTrue('userdata' in results)
+            self.assertEqual(b64userdata, results['userdata'])
+
+    def test_user_data_base64_encoding(self):
+        for k in ('USER_DATA', 'USERDATA'):
+            my_d = os.path.join(self.tmp, k)
+            populate_context_dir(my_d, {k: b64encode(USER_DATA),
+                                        'USERDATA_ENCODING': 'base64'})
             results = ds.read_context_disk_dir(my_d)
 
             self.assertTrue('userdata' in results)

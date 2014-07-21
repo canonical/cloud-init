@@ -22,8 +22,11 @@
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import argparse
+import json
 import os
 import sys
+import time
+import tempfile
 import traceback
 
 # This is more just for running from the bin folder so that
@@ -126,11 +129,11 @@ def run_module_section(mods, action_name, section):
                " under section '%s'") % (action_name, full_section_name)
         sys.stderr.write("%s\n" % (msg))
         LOG.debug(msg)
-        return 0
+        return []
     else:
         LOG.debug("Ran %s modules with %s failures",
                   len(which_ran), len(failures))
-        return len(failures)
+        return failures
 
 
 def main_init(name, args):
@@ -220,7 +223,10 @@ def main_init(name, args):
         if existing_files:
             LOG.debug("Exiting early due to the existence of %s files",
                       existing_files)
-            return 0
+            return (None, [])
+        else:
+            LOG.debug("Execution continuing, no previous run detected that"
+                      " would allow us to stop early.")
     else:
         # The cache is not instance specific, so it has to be purged
         # but we want 'start' to benefit from a cache if
@@ -249,9 +255,9 @@ def main_init(name, args):
                               " Likely bad things to come!"))
         if not args.force:
             if args.local:
-                return 0
+                return (None, [])
             else:
-                return 1
+                return (None, ["No instance datasource found."])
     # Stage 6
     iid = init.instancify()
     LOG.debug("%s will now be targeting instance id: %s", name, iid)
@@ -274,7 +280,7 @@ def main_init(name, args):
             init.consume_data(PER_ALWAYS)
     except Exception:
         util.logexc(LOG, "Consuming user data failed!")
-        return 1
+        return (init.datasource, ["Consuming user data failed!"])
 
     # Stage 8 - re-read and apply relevant cloud-config to include user-data
     mods = stages.Modules(init, extract_fns(args))
@@ -291,7 +297,7 @@ def main_init(name, args):
     logging.setupLogging(mods.cfg)
 
     # Stage 10
-    return run_module_section(mods, name, name)
+    return (init.datasource, run_module_section(mods, name, name))
 
 
 def main_modules(action_name, args):
@@ -315,14 +321,12 @@ def main_modules(action_name, args):
         init.fetch()
     except sources.DataSourceNotFoundException:
         # There was no datasource found, theres nothing to do
-        util.logexc(LOG, ('Can not apply stage %s, '
-                          'no datasource found!'
-                          " Likely bad things to come!"), name)
-        print_exc(('Can not apply stage %s, '
-                   'no datasource found!'
-                   " Likely bad things to come!") % (name))
+        msg = ('Can not apply stage %s, no datasource found! Likely bad '
+               'things to come!' % name)
+        util.logexc(LOG, msg)
+        print_exc(msg)
         if not args.force:
-            return 1
+            return [(msg)]
     # Stage 3
     mods = stages.Modules(init, extract_fns(args))
     # Stage 4
@@ -419,6 +423,110 @@ def main_single(name, args):
         return 0
 
 
+def atomic_write_json(path, data):
+    tf = None
+    try:
+        tf = tempfile.NamedTemporaryFile(dir=os.path.dirname(path),
+                                         delete=False)
+        tf.write(json.dumps(data, indent=1) + "\n")
+        tf.close()
+        os.rename(tf.name, path)
+    except Exception as e:
+        if tf is not None:
+            util.del_file(tf.name)
+        raise e
+
+
+def status_wrapper(name, args, data_d=None, link_d=None):
+    if data_d is None:
+        data_d = os.path.normpath("/var/lib/cloud/data")
+    if link_d is None:
+        link_d = os.path.normpath("/run/cloud-init")
+
+    status_path = os.path.join(data_d, "status.json")
+    status_link = os.path.join(link_d, "status.json")
+    result_path = os.path.join(data_d, "result.json")
+    result_link = os.path.join(link_d, "result.json")
+
+    util.ensure_dirs((data_d, link_d,))
+
+    (_name, functor) = args.action
+
+    if name == "init":
+        if args.local:
+            mode = "init-local"
+        else:
+            mode = "init"
+    elif name == "modules":
+        mode = "modules-%s" % args.mode
+    else:
+        raise ValueError("unknown name: %s" % name)
+
+    modes = ('init', 'init-local', 'modules-config', 'modules-final')
+
+    status = None
+    if mode == 'init-local':
+        for f in (status_link, result_link, status_path, result_path):
+            util.del_file(f)
+    else:
+        try:
+            status = json.loads(util.load_file(status_path))
+        except:
+            pass
+
+    if status is None:
+        nullstatus = {
+            'errors': [],
+            'start': None,
+            'end': None,
+        }
+        status = {'v1': {}}
+        for m in modes:
+            status['v1'][m] = nullstatus.copy()
+        status['v1']['datasource'] = None
+
+    v1 = status['v1']
+    v1['stage'] = mode
+    v1[mode]['start'] = time.time()
+
+    atomic_write_json(status_path, status)
+    util.sym_link(os.path.relpath(status_path, link_d), status_link,
+                  force=True)
+
+    try:
+        ret = functor(name, args)
+        if mode in ('init', 'init-local'):
+            (datasource, errors) = ret
+            if datasource is not None:
+                v1['datasource'] = str(datasource)
+        else:
+            errors = ret
+
+        v1[mode]['errors'] = [str(e) for e in errors]
+
+    except Exception as e:
+        v1[mode]['errors'] = [str(e)]
+
+    v1[mode]['finished'] = time.time()
+    v1['stage'] = None
+
+    atomic_write_json(status_path, status)
+
+    if mode == "modules-final":
+        # write the 'finished' file
+        errors = []
+        for m in modes:
+            if v1[m]['errors']:
+                errors.extend(v1[m].get('errors', []))
+
+        atomic_write_json(result_path,
+            {'v1': {'datasource': v1['datasource'], 'errors': errors}})
+        util.sym_link(os.path.relpath(result_path, link_d), result_link,
+                      force=True)
+
+    return len(v1[mode]['errors'])
+
+
 def main():
     parser = argparse.ArgumentParser()
 
@@ -502,6 +610,8 @@ def main():
     signal_handler.attach_handlers()
 
     (name, functor) = args.action
+    if name in ("modules", "init"):
+        functor = status_wrapper
 
     return util.log_time(logfunc=LOG.debug, msg="cloud-init mode '%s'" % name,
                          get_uptime=True, func=functor, args=(name, args))

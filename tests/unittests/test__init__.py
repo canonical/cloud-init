@@ -1,14 +1,10 @@
-import logging
 import os
-import StringIO
-import sys
 
-from mocker import MockerTestCase, ANY, ARGS, KWARGS
+from mocker import MockerTestCase, ARGS, KWARGS
 
 from cloudinit import handlers
 from cloudinit import helpers
 from cloudinit import importer
-from cloudinit import log
 from cloudinit import settings
 from cloudinit import url_helper
 from cloudinit import util

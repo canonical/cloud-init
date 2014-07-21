@@ -15,7 +15,6 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import unittest
 import httpretty
 import re
 
@@ -24,6 +23,8 @@ from urlparse import urlparse
 from cloudinit import settings
 from cloudinit import helpers
 from cloudinit.sources import DataSourceGCE
+
+from tests.unittests import helpers as test_helpers
 
 GCE_META = {
     'instance/id': '123',
@@ -54,7 +55,7 @@ def _request_callback(method, uri, headers):
         return (404, headers, '')
 
 
-class TestDataSourceGCE(unittest.TestCase):
+class TestDataSourceGCE(test_helpers.TestCase):
 
     def setUp(self):
         self.ds = DataSourceGCE.DataSourceGCE(

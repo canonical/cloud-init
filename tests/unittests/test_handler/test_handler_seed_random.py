@@ -42,9 +42,31 @@ class TestRandomSeed(t_help.TestCase):
     def setUp(self):
         super(TestRandomSeed, self).setUp()
         self._seed_file = tempfile.mktemp()
+        self.unapply = []
+
+        # by default 'which' has nothing in its path
+        self.apply_patches([(util, 'which', self._which)])
+        self.apply_patches([(util, 'subp', self._subp)])
+        self.subp_called = []
+        self.whichdata = {}
 
     def tearDown(self):
+        apply_patches([i for i in reversed(self.unapply)])
         util.del_file(self._seed_file)
+
+    def apply_patches(self, patches):
+        ret = apply_patches(patches)
+        self.unapply += ret
+
+    def _which(self, program):
+        return self.whichdata.get(program)
+
+    def _subp(self, *args, **kwargs):
+        # supports subp calling with cmd as args or kwargs
+        if 'args' not in kwargs:
+            kwargs['args'] = args[0]
+        self.subp_called.append(kwargs)
+        return
 
     def _compress(self, text):
         contents = StringIO()
@@ -148,3 +170,56 @@ class TestRandomSeed(t_help.TestCase):
         cc_seed_random.handle('test', cfg, c, LOG, [])
         contents = util.load_file(self._seed_file)
         self.assertEquals('tiny-tim-was-here-so-was-josh', contents)
+
+    def test_seed_command_not_provided_pollinate_available(self):
+        c = self._get_cloud('ubuntu', {})
+        self.whichdata = {'pollinate': '/usr/bin/pollinate'}
+        cc_seed_random.handle('test', {}, c, LOG, [])
+
+        subp_args = [f['args'] for f in self.subp_called]
+        self.assertIn(['pollinate', '-q'], subp_args)
+
+    def test_seed_command_not_provided_pollinate_not_available(self):
+        c = self._get_cloud('ubuntu', {})
+        self.whichdata = {}
+        cc_seed_random.handle('test', {}, c, LOG, [])
+
+        # subp should not have been called as which would say not available
+        self.assertEquals(self.subp_called, list())
+
+    def test_unavailable_seed_command_and_required_raises_error(self):
+        c = self._get_cloud('ubuntu', {})
+        self.whichdata = {}
+        self.assertRaises(ValueError, cc_seed_random.handle,
+            'test', {'random_seed': {'command_required': True}}, c, LOG, [])
+
+    def test_seed_command_and_required(self):
+        c = self._get_cloud('ubuntu', {})
+        self.whichdata = {'foo': 'foo'}
+        cfg = {'random_seed': {'command_required': True, 'command': ['foo']}}
+        cc_seed_random.handle('test', cfg, c, LOG, [])
+
+        self.assertIn(['foo'], [f['args'] for f in self.subp_called])
+
+    def test_file_in_environment_for_command(self):
+        c = self._get_cloud('ubuntu', {})
+        self.whichdata = {'foo': 'foo'}
+        cfg = {'random_seed': {'command_required': True, 'command': ['foo'],
+                               'file': self._seed_file}}
+        cc_seed_random.handle('test', cfg, c, LOG, [])
+
+        # this just instists that the first time subp was called,
+        # RANDOM_SEED_FILE was in the environment set up correctly
+        subp_env = [f['env'] for f in self.subp_called]
+        self.assertEqual(subp_env[0].get('RANDOM_SEED_FILE'), self._seed_file)
+
+
+def apply_patches(patches):
+    ret = []
+    for (ref, name, replace) in patches:
+        if replace is None:
+            continue
+        orig = getattr(ref, name)
+        setattr(ref, name, replace)
+        ret.append((ref, name, orig))
+    return ret
