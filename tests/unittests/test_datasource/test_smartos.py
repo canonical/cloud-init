@@ -24,10 +24,7 @@
 
 import base64
 from cloudinit import helpers as c_helpers
-from cloudinit import stages
-from cloudinit import util
 from cloudinit.sources import DataSourceSmartOS
-from cloudinit.settings import (PER_INSTANCE)
 from tests.unittests import helpers
 import os
 import os.path
@@ -174,6 +171,7 @@ class TestSmartOSDataSource(helpers.FilesystemMockingTestCase):
         self.apply_patches([(mod, 'get_serial', _get_serial)])
         self.apply_patches([(mod, 'dmi_data', _dmi_data)])
         self.apply_patches([(os, 'uname', _os_uname)])
+        self.apply_patches([(mod, 'device_exists', lambda d: True)])
         dsrc = mod.DataSourceSmartOS(sys_cfg, distro=None,
                                      paths=self.paths)
         return dsrc

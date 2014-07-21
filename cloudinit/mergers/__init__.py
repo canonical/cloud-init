@@ -55,9 +55,6 @@ class UnknownMerger(object):
         if not meth:
             meth = self._handle_unknown
             args.insert(0, method_name)
-        LOG.debug("Merging '%s' into '%s' using method '%s' of '%s'",
-                  type_name, type_utils.obj_name(merge_with),
-                  meth.__name__, self)
         return meth(*args)
 
 
@@ -84,8 +81,6 @@ class LookupMerger(UnknownMerger):
                 # First one that has that method/attr gets to be
                 # the one that will be called
                 meth = getattr(merger, meth_wanted)
-                LOG.debug(("Merging using located merger '%s'"
-                            " since it had method '%s'"), merger, meth_wanted)
                 break
         if not meth:
             return UnknownMerger._handle_unknown(self, meth_wanted,

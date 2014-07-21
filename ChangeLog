@@ -1,3 +1,12 @@
+0.7.6:
+ - open 0.7.6
+ - Enable vendordata on CloudSigma datasource (LP: #1303986)
+ - Poll on /dev/ttyS1 in CloudSigma datasource only if dmidecode says
+   we're running on cloudsigma (LP: #1316475) [Kiril Vladimiroff]
+ - SmartOS test: do not require existance of /dev/ttyS1. [LP: #1316597]
+ - doc: fix user-groups doc to reference plural ssh-authorized-keys
+   (LP: #1327065) [Joern Heissler]
+ - fix 'make test' in python 2.6
 0.7.5:
  - open 0.7.5
  - Add a debug log message around import failures
@@ -33,6 +42,14 @@
    rather than relying on EC2 data in openstack metadata service.
  - SmartOS, AltCloud: disable running on arm systems due to bug
    (LP: #1243287, #1285686) [Oleg Strikov]
+ - Allow running a command to seed random, default is 'pollinate -q'
+   (LP: #1286316) [Dustin Kirkland]
+ - Write status to /run/cloud-init/status.json for consumption by
+   other programs (LP: #1284439)
+ - Azure: if a reboot causes ephemeral storage to be re-provisioned
+   Then we need to re-format it. (LP: #1292648)
+ - OpenNebula: support base64 encoded user-data
+   [Enol Fernandez, Peter Kotcauer]
 0.7.4:
  - fix issue mounting 'ephemeral0' if ephemeral0 was an alias for a
    partitioned block device with target filesystem on ephemeral0.1.

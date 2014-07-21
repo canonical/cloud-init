@@ -69,7 +69,7 @@ users:
 #   no-user-group: When set to true, do not create a group named after the user.
 #   no-log-init: When set to true, do not initialize lastlog and faillog database.
 #   ssh-import-id: Optional. Import SSH ids
-#   ssh-authorized-key: Optional. Add key to user's ssh authorized keys file
+#   ssh-authorized-keys: Optional. [list] Add keys to user's authorized keys file
 #   sudo: Defaults to none. Set to the sudo string you want to use, i.e.
 #           ALL=(ALL) NOPASSWD:ALL. To add multiple rules, use the following
 #           format.

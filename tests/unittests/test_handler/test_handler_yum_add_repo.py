@@ -1,4 +1,3 @@
-from cloudinit import helpers
 from cloudinit import util
 
 from cloudinit.config import cc_yum_add_repo

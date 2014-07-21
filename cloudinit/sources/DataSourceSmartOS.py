@@ -170,8 +170,9 @@ class DataSourceSmartOS(sources.DataSource):
         md = {}
         ud = ""
 
-        if not os.path.exists(self.seed):
-            LOG.debug("Host does not appear to be on SmartOS")
+        if not device_exists(self.seed):
+            LOG.debug("No serial device '%s' found for SmartOS datasource",
+                      self.seed)
             return False
 
         uname_arch = os.uname()[4]
@@ -272,6 +273,11 @@ class DataSourceSmartOS(sources.DataSource):
         return query_data(noun=noun, strip=strip, seed_device=self.seed,
                           seed_timeout=self.seed_timeout, default=default,
                           b64=b64)
+
+
+def device_exists(device):
+    """Symplistic method to determine if the device exists or not"""
+    return os.path.exists(device)
 
 
 def get_serial(seed_device, seed_timeout):
