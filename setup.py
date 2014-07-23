@@ -109,13 +109,13 @@ class InitsysInstallData(install):
         if len(bad) != 0:
             raise DistutilsArgError(
                 "Invalid --init-system: %s" % (','.join(bad)))
-        elif self.init_system:
-            for sys in self.init_systems:
-                print("adding %s: %s" % (sys, str(INITSYS_ROOTS[sys])))
-                self.distribution.data_files.append(
-                    (INITSYS_ROOTS[sys], INITSYS_FILES[sys]))
-            # Force that command to reinitalize (with new file list)
-            self.distribution.reinitialize_command('install_data', True)
+
+        for sys in self.init_systems:
+            print("adding %s: %s" % (sys, str(INITSYS_ROOTS[sys])))
+            self.distribution.data_files.append(
+                (INITSYS_ROOTS[sys], INITSYS_FILES[sys]))
+        # Force that command to reinitalize (with new file list)
+        self.distribution.reinitialize_command('install_data', True)
 
 
 setuptools.setup(name='cloud-init',
