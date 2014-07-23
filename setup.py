@@ -93,13 +93,13 @@ class InitsysInstallData(install):
 
     def initialize_options(self):
         install.initialize_options(self)
-        self.init_system = None
+        self.init_system = ""
 
     def finalize_options(self):
         install.finalize_options(self)
 
-        if self.init_systems and isinstance(self.init_systems, str):
-            self.init_systems = self.init_systems.split(",")
+        if self.init_system and isinstance(self.init_system, str):
+            self.init_system = self.init_system.split(",")
 
         if len(self.init_system) == 0:
             raise DistutilsArgError(("You must specify one of (%s) when"
@@ -110,7 +110,7 @@ class InitsysInstallData(install):
             raise DistutilsArgError(
                 "Invalid --init-system: %s" % (','.join(bad)))
 
-        for sys in self.init_systems:
+        for sys in self.init_system:
             print("adding %s: %s" % (sys, str(INITSYS_ROOTS[sys])))
             self.distribution.data_files.append(
                 (INITSYS_ROOTS[sys], INITSYS_FILES[sys]))
