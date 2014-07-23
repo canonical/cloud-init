@@ -35,6 +35,10 @@ import subprocess
 def is_f(p):
     return os.path.isfile(p)
 
+if is_f('/etc/debian_version'):
+    systemd_root = '/lib/systemd/system/'
+else:
+    systemd_root = '/etc/systemd/system/'
 
 INITSYS_FILES = {
     'sysvinit': [f for f in glob('sysvinit/redhat/*') if is_f(f)],
@@ -45,7 +49,7 @@ INITSYS_FILES = {
 INITSYS_ROOTS = {
     'sysvinit': '/etc/rc.d/init.d',
     'sysvinit_deb': '/etc/init.d',
-    'systemd': '/etc/systemd/system/',
+    'systemd': systemd_root,
     'upstart': '/etc/init/',
 }
 INITSYS_TYPES = sorted(list(INITSYS_ROOTS.keys()))
