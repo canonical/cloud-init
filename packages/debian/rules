@@ -4,7 +4,7 @@ DEB_PYTHON2_MODULE_PACKAGES = cloud-init
 INIT_SYSTEM ?= upstart,systemd
 
 %:
-	dh $@ --with python2,systemd --build-system pybuild
+	dh $@ --with python2,systemd --buildsystem pybuild
 
 override_dh_install:
 	dh_install
