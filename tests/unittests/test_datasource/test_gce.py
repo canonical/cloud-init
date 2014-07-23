@@ -55,12 +55,13 @@ def _request_callback(method, uri, headers):
         return (404, headers, '')
 
 
-class TestDataSourceGCE(test_helpers.TestCase):
+class TestDataSourceGCE(test_helpers.HttprettyTestCase):
 
     def setUp(self):
         self.ds = DataSourceGCE.DataSourceGCE(
             settings.CFG_BUILTIN, None,
             helpers.Paths({}))
+        super(TestDataSourceGCE, self).setUp()
 
     @httpretty.activate
     def test_connection(self):
