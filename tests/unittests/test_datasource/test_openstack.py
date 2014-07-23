@@ -121,7 +121,7 @@ def _register_uris(version, ec2_files, ec2_meta, os_files):
                     body=get_request_callback)
 
 
-class TestOpenStackDataSource(test_helpers.TestCase):
+class TestOpenStackDataSource(test_helpers.HttprettyTestCase):
     VERSION = 'latest'
 
     @hp.activate

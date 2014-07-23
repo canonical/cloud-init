@@ -233,6 +233,21 @@ class FilesystemMockingTestCase(ResourceUsingTestCase):
                 self.patched_funcs.append((mod, f, func))
 
 
+class HttprettyTestCase(TestCase):
+    # necessary as http_proxy gets in the way of httpretty
+    # https://github.com/gabrielfalcao/HTTPretty/issues/122
+    def setUp(self):
+        self.restore_proxy = os.environ.get('http_proxy')
+        if self.restore_proxy is not None:
+            del os.environ['http_proxy']
+        super(HttprettyTestCase, self).setUp()
+
+    def tearDown(self):
+        if self.restore_proxy:
+            os.environ['http_proxy'] = self.restore_proxy
+        super(HttprettyTestCase, self).tearDown()
+
+
 def populate_dir(path, files):
     if not os.path.exists(path):
         os.makedirs(path)
