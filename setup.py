@@ -86,7 +86,7 @@ class InitsysInstallData(install):
     user_options = install.user_options + [
         # This will magically show up in member variable 'init_sys'
         ('init-system=', None,
-            ('init system to configure (%s) [default: None]') %
+            ('init system(s) to configure (%s) [default: None]') %
                 (", ".join(INITSYS_TYPES))
         ),
     ]
@@ -97,13 +97,23 @@ class InitsysInstallData(install):
 
     def finalize_options(self):
         install.finalize_options(self)
-        if self.init_system and self.init_system not in INITSYS_TYPES:
+
+        if self.init_systems and isinstance(self.init_systems, str):
+            self.init_systems = self.init_systems.split(",")
+
+        if len(self.init_system) == 0:
             raise DistutilsArgError(("You must specify one of (%s) when"
-                 " specifying a init system!") % (", ".join(INITSYS_TYPES)))
+                 " specifying init system(s)!") % (", ".join(INITSYS_TYPES)))
+
+        bad = [f for f in self.init_system if f not in INITSYS_TYPES]
+        if len(bad) != 0:
+            raise DistutilsArgError(
+                "Invalid --init-system: %s" % (','.join(bad)))
         elif self.init_system:
-            self.distribution.data_files.append(
-                (INITSYS_ROOTS[self.init_system],
-                 INITSYS_FILES[self.init_system]))
+            for sys in self.init_systems:
+                print("adding %s: %s" % (sys, str(INITSYS_ROOTS[sys])))
+                self.distribution.data_files.append(
+                    (INITSYS_ROOTS[sys], INITSYS_FILES[sys]))
             # Force that command to reinitalize (with new file list)
             self.distribution.reinitialize_command('install_data', True)
 
