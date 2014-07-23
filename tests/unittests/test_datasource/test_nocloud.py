@@ -1,7 +1,7 @@
 from cloudinit import helpers
 from cloudinit.sources import DataSourceNoCloud
 from cloudinit import util
-from tests.unittests.helpers import populate_dir
+from ...helpers import populate_dir
 
 from mocker import MockerTestCase
 import os
