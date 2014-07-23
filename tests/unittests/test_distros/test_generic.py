@@ -1,7 +1,7 @@
 from cloudinit import distros
 from cloudinit import util
 
-from tests.unittests import helpers
+from .. import helpers
 
 import os
 
