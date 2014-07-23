@@ -1,7 +1,7 @@
 #!/usr/bin/make -f
 
-DEB_PYTHON2_MODULE_PACKAGES = cloud-init
 INIT_SYSTEM ?= upstart,systemd
+export PYBUILD_INSTALL_ARGS=--init-system=$(INIT_SYSTEM)
 
 %:
 	dh $@ --with python2,systemd --buildsystem pybuild
