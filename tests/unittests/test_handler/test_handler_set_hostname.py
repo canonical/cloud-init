@@ -5,7 +5,7 @@ from cloudinit import distros
 from cloudinit import helpers
 from cloudinit import util
 
-from tests.unittests import helpers as t_help
+from .. import helpers as t_help
 
 import logging
 
