@@ -1,6 +1,7 @@
 #!/usr/bin/make -f
 
 INIT_SYSTEM ?= upstart,systemd
+export PYBUILD_INSTALL_ARGS=--init-system=$(INIT_SYSTEM)
 
 %:
 	dh $@ --with python2,systemd --buildsystem pybuild
@@ -12,6 +13,3 @@ override_dh_install:
 
 override_dh_auto_test:
 	http_proxy= dh_auto_test -- --test-nose
-
-override_dh_auto_install:
-	dh_auto_install -- --init-system=$(INIT_SYSTEM)

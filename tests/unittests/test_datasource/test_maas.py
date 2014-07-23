@@ -3,7 +3,7 @@ import os
 
 from cloudinit.sources import DataSourceMAAS
 from cloudinit import url_helper
-from ...helpers import populate_dir
+from ..helpers import populate_dir
 
 import mocker
 
