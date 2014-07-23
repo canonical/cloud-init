@@ -20,7 +20,7 @@ from cloudinit import util
 
 INSTANCE_ID = "i-testing"
 
-from tests.unittests import helpers
+from . import helpers
 
 
 class FakeDataSource(sources.DataSource):
