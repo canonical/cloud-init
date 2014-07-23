@@ -2,7 +2,7 @@
 
 INIT_SYSTEM ?= upstart,systemd
 export PYBUILD_INSTALL_ARGS=--init-system=$(INIT_SYSTEM)
-export PYBUILD_TEST_ARGS=--test-nose 
+export PYBUILD_TEST_NOSE=1
 
 %:
 	dh $@ --with python2,systemd --buildsystem pybuild
