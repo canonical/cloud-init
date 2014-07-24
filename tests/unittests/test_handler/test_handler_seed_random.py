@@ -1,4 +1,4 @@
-            #    Copyright (C) 2013 Hewlett-Packard Development Company, L.P.
+#    Copyright (C) 2013 Hewlett-Packard Development Company, L.P.
 #
 #    Author: Juerg Haefliger <juerg.haefliger@hp.com>
 #
