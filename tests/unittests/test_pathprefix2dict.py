@@ -1,7 +1,7 @@
 from cloudinit import util
 
 from mocker import MockerTestCase
-from tests.unittests.helpers import populate_dir
+from .helpers import populate_dir
 
 
 class TestPathPrefix2Dict(MockerTestCase):

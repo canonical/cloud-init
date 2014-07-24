@@ -1,6 +1,6 @@
 import copy
 
-from tests.unittests import helpers
+from .. import helpers
 
 import itertools
 

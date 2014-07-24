@@ -1,6 +1,6 @@
 from cloudinit.config import cc_power_state_change as psc
 
-from tests.unittests import helpers as t_help
+from .. import helpers as t_help
 
 
 class TestLoadPowerState(t_help.TestCase):

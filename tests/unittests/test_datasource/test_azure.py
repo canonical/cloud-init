@@ -1,7 +1,7 @@
 from cloudinit import helpers
 from cloudinit.util import load_file
 from cloudinit.sources import DataSourceAzure
-from tests.unittests.helpers import populate_dir
+from ..helpers import populate_dir
 
 import base64
 import crypt

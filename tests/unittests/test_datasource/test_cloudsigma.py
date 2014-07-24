@@ -4,7 +4,7 @@ import copy
 from cloudinit.cs_utils import Cepko
 from cloudinit.sources import DataSourceCloudSigma
 
-from tests.unittests import helpers as test_helpers
+from .. import helpers as test_helpers
 
 
 SERVER_CONTEXT = {
