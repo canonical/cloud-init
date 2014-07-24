@@ -6,7 +6,7 @@ from cloudinit import url_helper as uh
 import httpretty as hp
 
 
-class TestEc2Util(helpers.TestCase):
+class TestEc2Util(helpers.HttprettyTestCase):
     VERSION = 'latest'
 
     @hp.activate
