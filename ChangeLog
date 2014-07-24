@@ -9,6 +9,8 @@
  - fix 'make test' in python 2.6
  - support jinja2 as a templating engine.  Drop the hard requirement on
    cheetah.  This helps in python3 effort. (LP: #1219223)
+ - change install path for systemd files to /lib/systemd/system
+   [Dimitri John Ledkov]
 0.7.5:
  - open 0.7.5
  - Add a debug log message around import failures
