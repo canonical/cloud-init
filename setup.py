@@ -35,6 +35,7 @@ import subprocess
 def is_f(p):
     return os.path.isfile(p)
 
+
 def tiny_p(cmd, capture=True):
     # Darn python 2.6 doesn't have check_output (argggg)
     stdout = subprocess.PIPE
@@ -50,6 +51,7 @@ def tiny_p(cmd, capture=True):
         raise RuntimeError("Failed running %s [rc=%s] (%s, %s)"
                             % (cmd, ret, out, err))
     return (out, err)
+
 
 def systemd_unitdir():
     cmd = ['pkg-config', '--variable=systemdsystemunitdir', 'systemd']
