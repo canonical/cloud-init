@@ -117,7 +117,6 @@ class InitsysInstallData(install):
                 "Invalid --init-system: %s" % (','.join(bad)))
 
         for sys in self.init_system:
-            print("adding %s: %s" % (sys, str(INITSYS_ROOTS[sys])))
             self.distribution.data_files.append(
                 (INITSYS_ROOTS[sys], INITSYS_FILES[sys]))
         # Force that command to reinitalize (with new file list)
