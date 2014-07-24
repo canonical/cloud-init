@@ -24,7 +24,7 @@ from StringIO import StringIO
 
 from urlparse import urlparse
 
-from tests.unittests import helpers as test_helpers
+from .. import helpers as test_helpers
 
 from cloudinit import helpers
 from cloudinit import settings

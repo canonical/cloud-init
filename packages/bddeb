@@ -76,7 +76,7 @@ def write_debian_folder(root, version, revno, append_requires=[]):
                              params={'requires': requires})
 
     # Just copy the following directly
-    for base_fn in ['dirs', 'copyright', 'compat', 'pycompat', 'rules']:
+    for base_fn in ['dirs', 'copyright', 'compat', 'rules']:
         shutil.copy(util.abs_join(find_root(),
                                   'packages', 'debian', base_fn),
                     util.abs_join(deb_dir, base_fn))
@@ -99,7 +99,8 @@ def main():
     parser.add_argument("--init-system", dest="init_system",
                         help=("build deb with INIT_SYSTEM=xxx"
                               " (default: %(default)s"),
-                        default=os.environ.get("INIT_SYSTEM", "upstart"))
+                        default=os.environ.get("INIT_SYSTEM",
+                                               "upstart,systemd"))
 
 
     for ent in DEBUILD_ARGS:

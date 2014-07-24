@@ -12,7 +12,7 @@ from cloudinit.sources import DataSourceConfigDrive as ds
 from cloudinit.sources.helpers import openstack
 from cloudinit import util
 
-from tests.unittests import helpers as unit_helpers
+from .. import helpers as unit_helpers
 
 PUBKEY = u'ssh-rsa AAAAB3NzaC1....sIkJhq8wdX+4I3A4cYbYP ubuntu@server-460\n'
 EC2_META = {

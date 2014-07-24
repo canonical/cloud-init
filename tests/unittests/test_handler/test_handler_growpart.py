@@ -188,8 +188,8 @@ class TestResize(MockerTestCase):
             self.assertEqual(cc_growpart.RESIZE.SKIPPED,
                              find(enoent[0], resized)[1])
             #self.assertEqual(resize_calls,
-                             #[("/dev/XXda", "1", "/dev/XXda1"),
-                              #("/dev/YYda", "2", "/dev/YYda2")])
+            #                 [("/dev/XXda", "1", "/dev/XXda1"),
+            #                  ("/dev/YYda", "2", "/dev/YYda2")])
         finally:
             cc_growpart.device_part_info = opinfo
             os.stat = real_stat

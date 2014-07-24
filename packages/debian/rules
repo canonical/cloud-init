@@ -1,18 +1,17 @@
 #!/usr/bin/make -f
 
-DEB_PYTHON2_MODULE_PACKAGES = cloud-init
-INIT_SYSTEM ?= upstart
+INIT_SYSTEM ?= upstart,systemd
+export PYBUILD_INSTALL_ARGS=--init-system=$(INIT_SYSTEM)
 
-binary-install/cloud-init::cloud-init-fixups
+%:
+	dh $@ --with python2,systemd --buildsystem pybuild
 
-include /usr/share/cdbs/1/rules/debhelper.mk
-include /usr/share/cdbs/1/class/python-distutils.mk
+override_dh_install:
+	dh_install
+	install -d debian/cloud-init/etc/rsyslog.d
+	cp tools/21-cloudinit.conf debian/cloud-init/etc/rsyslog.d/21-cloudinit.conf
 
-DEB_PYTHON_INSTALL_ARGS_ALL += --init-system=$(INIT_SYSTEM)
-
-DEB_DH_INSTALL_SOURCEDIR := debian/tmp
-
-cloud-init-fixups:
-	install -d $(DEB_DESTDIR)/etc/rsyslog.d
-	cp tools/21-cloudinit.conf $(DEB_DESTDIR)/etc/rsyslog.d/21-cloudinit.conf
-	
+override_dh_auto_test:
+	# Becuase setup tools didn't copy data...
+	cp -r tests/data .pybuild/pythonX.Y_2.7/build/tests
+	http_proxy= dh_auto_test -- --test-nose

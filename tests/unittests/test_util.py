@@ -5,7 +5,7 @@ import stat
 import yaml
 
 from mocker import MockerTestCase
-from tests.unittests import helpers
+from . import helpers
 from unittest import TestCase
 
 from cloudinit import importer

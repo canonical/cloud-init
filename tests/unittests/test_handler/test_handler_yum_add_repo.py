@@ -2,7 +2,7 @@ from cloudinit import util
 
 from cloudinit.config import cc_yum_add_repo
 
-from tests.unittests import helpers
+from .. import helpers
 
 import logging
 

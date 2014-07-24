@@ -25,7 +25,7 @@
 import base64
 from cloudinit import helpers as c_helpers
 from cloudinit.sources import DataSourceSmartOS
-from tests.unittests import helpers
+from .. import helpers
 import os
 import os.path
 import re
