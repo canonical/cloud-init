@@ -6,11 +6,17 @@ import yaml
 
 from mocker import MockerTestCase
 from . import helpers
-from unittest import TestCase
+import unittest
 
 from cloudinit import importer
 from cloudinit import util
 
+
+try:
+    import selinux
+    HAS_SELINUX = True
+except ImportError:
+    HAS_SELINUX = False
 
 class FakeSelinux(object):
 
@@ -31,7 +37,7 @@ class FakeSelinux(object):
         self.restored.append(path)
 
 
-class TestGetCfgOptionListOrStr(TestCase):
+class TestGetCfgOptionListOrStr(unittest.TestCase):
     def test_not_found_no_default(self):
         """None is returned if key is not found and no default given."""
         config = {}
@@ -122,6 +128,7 @@ class TestWriteFile(MockerTestCase):
             create_contents = f.read()
             self.assertEqual("LINE1\nHey there", create_contents)
 
+    @unittest.skipIf(not HAS_SELINUX, "selinux not available")
     def test_restorecon_if_possible_is_called(self):
         """Make sure the selinux guard is called correctly."""
         import_mock = self.mocker.replace(importer.import_module,
@@ -201,20 +208,20 @@ class TestDeleteDirContents(MockerTestCase):
         self.assertDirEmpty(self.tmp)
 
 
-class TestKeyValStrings(TestCase):
+class TestKeyValStrings(unittest.TestCase):
     def test_keyval_str_to_dict(self):
         expected = {'1': 'one', '2': 'one+one', 'ro': True}
         cmdline = "1=one ro 2=one+one"
         self.assertEqual(expected, util.keyval_str_to_dict(cmdline))
 
 
-class TestGetCmdline(TestCase):
+class TestGetCmdline(unittest.TestCase):
     def test_cmdline_reads_debug_env(self):
         os.environ['DEBUG_PROC_CMDLINE'] = 'abcd 123'
         self.assertEqual(os.environ['DEBUG_PROC_CMDLINE'], util.get_cmdline())
 
 
-class TestLoadYaml(TestCase):
+class TestLoadYaml(unittest.TestCase):
     mydefault = "7b03a8ebace993d806255121073fed52"
 
     def test_simple(self):
