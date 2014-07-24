@@ -13,6 +13,7 @@
    [Dimitri John Ledkov]
  - change trunk debian packaging to use pybuild and drop cdbs.
    [Dimitri John Ledkov]
+ - SeLinuxGuard: remove invalid check that looked for stat.st_mode in os.lstat.
 0.7.5:
  - open 0.7.5
  - Add a debug log message around import failures

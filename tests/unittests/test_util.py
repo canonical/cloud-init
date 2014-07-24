@@ -12,12 +12,6 @@ from cloudinit import importer
 from cloudinit import util
 
 
-try:
-    import selinux
-    HAS_SELINUX = True
-except ImportError:
-    HAS_SELINUX = False
-
 class FakeSelinux(object):
 
     def __init__(self, match_what):
@@ -128,19 +122,23 @@ class TestWriteFile(MockerTestCase):
             create_contents = f.read()
             self.assertEqual("LINE1\nHey there", create_contents)
 
-    @unittest.skipIf(not HAS_SELINUX, "selinux not available")
     def test_restorecon_if_possible_is_called(self):
         """Make sure the selinux guard is called correctly."""
+        my_file = os.path.join(self.tmp, "my_file")
+        with open(my_file, "w") as fp:
+            fp.write("My Content")
+
         import_mock = self.mocker.replace(importer.import_module,
                                           passthrough=False)
         import_mock('selinux')
-        fake_se = FakeSelinux('/etc/hosts')
+
+        fake_se = FakeSelinux(my_file)
         self.mocker.result(fake_se)
         self.mocker.replay()
-        with util.SeLinuxGuard("/etc/hosts") as is_on:
+        with util.SeLinuxGuard(my_file) as is_on:
             self.assertTrue(is_on)
         self.assertEqual(1, len(fake_se.restored))
-        self.assertEqual('/etc/hosts', fake_se.restored[0])
+        self.assertEqual(my_file, fake_se.restored[0])
 
 
 class TestDeleteDirContents(MockerTestCase):
