@@ -99,7 +99,8 @@ def main():
     parser.add_argument("--init-system", dest="init_system",
                         help=("build deb with INIT_SYSTEM=xxx"
                               " (default: %(default)s"),
-                        default=os.environ.get("INIT_SYSTEM", "upstart"))
+                        default=os.environ.get("INIT_SYSTEM",
+                                               "upstart,systemd"))
 
 
     for ent in DEBUILD_ARGS:
