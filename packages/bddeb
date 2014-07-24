@@ -39,7 +39,7 @@ PKG_MP = {
     'pyyaml': 'python-yaml',
     'requests': 'python-requests',
 }
-DEBUILD_ARGS = ["-us", "-S", "-uc", "-d"]
+DEBUILD_ARGS = ["-S", "-d"]
 
 
 def write_debian_folder(root, version, revno, append_requires=[]):
@@ -105,9 +105,16 @@ def main():
 
     for ent in DEBUILD_ARGS:
         parser.add_argument(ent, dest="debuild_args", action='append_const',
-            const=ent, help=("pass through '%s' to debuild" % ent))
+            const=ent, help=("pass through '%s' to debuild" % ent),
+            default=[])
+
+    parser.add_argument("--sign", default=False, action='store_true',
+                        help="sign result. do not pass -us -uc to debuild")
 
     args = parser.parse_args()
+
+    if not args.sign:
+        args.debuild_args.extend(['-us', '-uc'])
 
     os.environ['INIT_SYSTEM'] = args.init_system
 
@@ -168,7 +175,8 @@ def main():
         print("Copied that archive to %r for local usage (if desired)." %
               (util.abs_join(os.getcwd(), tar_fn)))
 
-        print("Running 'debuild' in %r" % (xdir))
+        print("Running 'debuild %s' in %r" % (' '.join(args.debuild_args),
+                                              xdir))
         with util.chdir(xdir):
             cmd = ['debuild', '--preserve-envvar', 'INIT_SYSTEM']
             if args.debuild_args:
