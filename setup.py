@@ -35,26 +35,6 @@ import subprocess
 def is_f(p):
     return os.path.isfile(p)
 
-if is_f('/etc/debian_version'):
-    systemd_root = '/lib/systemd/system/'
-else:
-    systemd_root = '/etc/systemd/system/'
-
-INITSYS_FILES = {
-    'sysvinit': [f for f in glob('sysvinit/redhat/*') if is_f(f)],
-    'sysvinit_deb': [f for f in glob('sysvinit/debian/*') if is_f(f)],
-    'systemd': [f for f in glob('systemd/*') if is_f(f)],
-    'upstart': [f for f in glob('upstart/*') if is_f(f)],
-}
-INITSYS_ROOTS = {
-    'sysvinit': '/etc/rc.d/init.d',
-    'sysvinit_deb': '/etc/init.d',
-    'systemd': systemd_root,
-    'upstart': '/etc/init/',
-}
-INITSYS_TYPES = sorted(list(INITSYS_ROOTS.keys()))
-
-
 def tiny_p(cmd, capture=True):
     # Darn python 2.6 doesn't have check_output (argggg)
     stdout = subprocess.PIPE
@@ -70,6 +50,30 @@ def tiny_p(cmd, capture=True):
         raise RuntimeError("Failed running %s [rc=%s] (%s, %s)"
                             % (cmd, ret, out, err))
     return (out, err)
+
+def systemd_unitdir():
+    cmd = ['pkg-config', '--variable=systemdsystemunitdir', 'systemd']
+    try:
+        (path, err) = tiny_p(cmd)
+    except:
+        return '/lib/systemd/system'
+    return str(path).strip()
+
+systemd_root = systemd_unitdir()
+
+INITSYS_FILES = {
+    'sysvinit': [f for f in glob('sysvinit/redhat/*') if is_f(f)],
+    'sysvinit_deb': [f for f in glob('sysvinit/debian/*') if is_f(f)],
+    'systemd': [f for f in glob('systemd/*') if is_f(f)],
+    'upstart': [f for f in glob('upstart/*') if is_f(f)],
+}
+INITSYS_ROOTS = {
+    'sysvinit': '/etc/rc.d/init.d',
+    'sysvinit_deb': '/etc/init.d',
+    'systemd': systemd_root,
+    'upstart': '/etc/init/',
+}
+INITSYS_TYPES = sorted(list(INITSYS_ROOTS.keys()))
 
 
 def get_version():
