@@ -146,23 +146,23 @@ class SeLinuxGuard(object):
             return False
 
     def __exit__(self, excp_type, excp_value, excp_traceback):
-        if self.selinux and self.selinux.is_selinux_enabled():
-            path = os.path.realpath(os.path.expanduser(self.path))
-            # path should be a string, not unicode
-            path = str(path)
-            do_restore = False
-            try:
-                # See if even worth restoring??
-                stats = os.lstat(path)
-                if stat.ST_MODE in stats:
-                    self.selinux.matchpathcon(path, stats[stat.ST_MODE])
-                    do_restore = True
-            except OSError:
-                pass
-            if do_restore:
-                LOG.debug("Restoring selinux mode for %s (recursive=%s)",
-                          path, self.recursive)
-                self.selinux.restorecon(path, recursive=self.recursive)
+        if not self.selinux or not self.selinux.is_selinux_enabled():
+            return
+        if not os.path.lexists(self.path):
+            return
+
+        path = os.path.realpath(self.path)
+        # path should be a string, not unicode
+        path = str(path)
+        try:
+            stats = os.lstat(path)
+            self.selinux.matchpathcon(path, stats[stat.ST_MODE])
+        except OSError:
+            return
+
+        LOG.debug("Restoring selinux mode for %s (recursive=%s)",
+                  path, self.recursive)
+        self.selinux.restorecon(path, recursive=self.recursive)
 
 
 class MountFailedError(Exception):
