@@ -2,8 +2,9 @@ Source: cloud-init
 Section: admin
 Priority: extra
 Maintainer: Scott Moser <smoser@ubuntu.com>
-Build-Depends: cdbs,
-               debhelper (>= 5.0.38),
+Build-Depends: debhelper (>= 9),
+               dh-python,
+               dh-systemd,
                po-debconf,
                pyflakes,
                pylint,
@@ -11,12 +12,16 @@ Build-Depends: cdbs,
                python-argparse,
                python-cheetah,
                python-configobj,
+               python-httpretty,
                python-jsonpatch | python-json-patch,
+               python-jinja2,
                python-mocker,
                python-nose,
                python-oauth,
                python-prettytable,
+               python-selinux,
                python-setuptools,
+               python-serial,
                python-requests,
                python-yaml
 XS-Python-Version: all

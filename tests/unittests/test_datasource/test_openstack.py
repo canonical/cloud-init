@@ -24,7 +24,7 @@ from StringIO import StringIO
 
 from urlparse import urlparse
 
-from tests.unittests import helpers as test_helpers
+from .. import helpers as test_helpers
 
 from cloudinit import helpers
 from cloudinit import settings
@@ -121,7 +121,7 @@ def _register_uris(version, ec2_files, ec2_meta, os_files):
                     body=get_request_callback)
 
 
-class TestOpenStackDataSource(test_helpers.TestCase):
+class TestOpenStackDataSource(test_helpers.HttprettyTestCase):
     VERSION = 'latest'
 
     @hp.activate

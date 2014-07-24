@@ -25,7 +25,7 @@ from cloudinit import util
 
 from cloudinit.sources import DataSourceNoCloud
 
-from tests.unittests import helpers as t_help
+from .. import helpers as t_help
 
 from configobj import ConfigObj
 

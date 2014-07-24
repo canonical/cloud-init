@@ -1,4 +1,4 @@
-from tests.unittests import helpers
+from . import helpers
 
 from cloudinit import ec2_utils as eu
 from cloudinit import url_helper as uh
@@ -6,7 +6,7 @@ from cloudinit import url_helper as uh
 import httpretty as hp
 
 
-class TestEc2Util(helpers.TestCase):
+class TestEc2Util(helpers.HttprettyTestCase):
     VERSION = 'latest'
 
     @hp.activate

@@ -31,6 +31,7 @@ PKG_MP = {
     'argparse': 'python-argparse',
     'cheetah': 'python-cheetah',
     'configobj': 'python-configobj',
+    'jinja2': 'python-jinja2',
     'jsonpatch': 'python-jsonpatch | python-json-patch',
     'oauth': 'python-oauth',
     'prettytable': 'python-prettytable',
@@ -38,7 +39,7 @@ PKG_MP = {
     'pyyaml': 'python-yaml',
     'requests': 'python-requests',
 }
-DEBUILD_ARGS = ["-us", "-S", "-uc", "-d"]
+DEBUILD_ARGS = ["-S", "-d"]
 
 
 def write_debian_folder(root, version, revno, append_requires=[]):
@@ -75,7 +76,7 @@ def write_debian_folder(root, version, revno, append_requires=[]):
                              params={'requires': requires})
 
     # Just copy the following directly
-    for base_fn in ['dirs', 'copyright', 'compat', 'pycompat', 'rules']:
+    for base_fn in ['dirs', 'copyright', 'compat', 'rules']:
         shutil.copy(util.abs_join(find_root(),
                                   'packages', 'debian', base_fn),
                     util.abs_join(deb_dir, base_fn))
@@ -98,14 +99,22 @@ def main():
     parser.add_argument("--init-system", dest="init_system",
                         help=("build deb with INIT_SYSTEM=xxx"
                               " (default: %(default)s"),
-                        default=os.environ.get("INIT_SYSTEM", "upstart"))
+                        default=os.environ.get("INIT_SYSTEM",
+                                               "upstart,systemd"))
 
 
     for ent in DEBUILD_ARGS:
         parser.add_argument(ent, dest="debuild_args", action='append_const',
-            const=ent, help=("pass through '%s' to debuild" % ent))
+            const=ent, help=("pass through '%s' to debuild" % ent),
+            default=[])
+
+    parser.add_argument("--sign", default=False, action='store_true',
+                        help="sign result. do not pass -us -uc to debuild")
 
     args = parser.parse_args()
+
+    if not args.sign:
+        args.debuild_args.extend(['-us', '-uc'])
 
     os.environ['INIT_SYSTEM'] = args.init_system
 
@@ -166,7 +175,8 @@ def main():
         print("Copied that archive to %r for local usage (if desired)." %
               (util.abs_join(os.getcwd(), tar_fn)))
 
-        print("Running 'debuild' in %r" % (xdir))
+        print("Running 'debuild %s' in %r" % (' '.join(args.debuild_args),
+                                              xdir))
         with util.chdir(xdir):
             cmd = ['debuild', '--preserve-envvar', 'INIT_SYSTEM']
             if args.debuild_args:

@@ -52,6 +52,30 @@ if PY26:
                 standardMsg = standardMsg % (value)
                 self.fail(self._formatMessage(msg, standardMsg))
 
+        def assertDictContainsSubset(self, expected, actual, msg=None):
+            missing = []
+            mismatched = []
+            for k, v in expected.iteritems():
+                if k not in actual:
+                    missing.append(k)
+                elif actual[k] != v:
+                    mismatched.append('%r, expected: %r, actual: %r'
+                                      % (k, v, actual[k]))
+
+            if len(missing) == 0 and len(mismatched) == 0:
+                return
+
+            standardMsg = ''
+            if missing:
+                standardMsg = 'Missing: %r' % ','.join(m for m in missing)
+            if mismatched:
+                if standardMsg:
+                    standardMsg += '; '
+                standardMsg += 'Mismatched values: %s' % ','.join(mismatched)
+
+            self.fail(self._formatMessage(msg, standardMsg))
+
+
 else:
     class TestCase(unittest.TestCase):
         pass
@@ -207,6 +231,21 @@ class FilesystemMockingTestCase(ResourceUsingTestCase):
                 trap_func = retarget_many_wrapper(new_root, 1, func)
                 setattr(mod, f, trap_func)
                 self.patched_funcs.append((mod, f, func))
+
+
+class HttprettyTestCase(TestCase):
+    # necessary as http_proxy gets in the way of httpretty
+    # https://github.com/gabrielfalcao/HTTPretty/issues/122
+    def setUp(self):
+        self.restore_proxy = os.environ.get('http_proxy')
+        if self.restore_proxy is not None:
+            del os.environ['http_proxy']
+        super(HttprettyTestCase, self).setUp()
+
+    def tearDown(self):
+        if self.restore_proxy:
+            os.environ['http_proxy'] = self.restore_proxy
+        super(HttprettyTestCase, self).tearDown()
 
 
 def populate_dir(path, files):

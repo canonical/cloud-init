@@ -1,6 +1,6 @@
 import os
 
-from tests.unittests import helpers
+from .. import helpers
 
 from cloudinit.settings import (PER_INSTANCE)
 from cloudinit import stages

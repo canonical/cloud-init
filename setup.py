@@ -36,21 +36,6 @@ def is_f(p):
     return os.path.isfile(p)
 
 
-INITSYS_FILES = {
-    'sysvinit': [f for f in glob('sysvinit/redhat/*') if is_f(f)],
-    'sysvinit_deb': [f for f in glob('sysvinit/debian/*') if is_f(f)],
-    'systemd': [f for f in glob('systemd/*') if is_f(f)],
-    'upstart': [f for f in glob('upstart/*') if is_f(f)],
-}
-INITSYS_ROOTS = {
-    'sysvinit': '/etc/rc.d/init.d',
-    'sysvinit_deb': '/etc/init.d',
-    'systemd': '/etc/systemd/system/',
-    'upstart': '/etc/init/',
-}
-INITSYS_TYPES = sorted(list(INITSYS_ROOTS.keys()))
-
-
 def tiny_p(cmd, capture=True):
     # Darn python 2.6 doesn't have check_output (argggg)
     stdout = subprocess.PIPE
@@ -66,6 +51,29 @@ def tiny_p(cmd, capture=True):
         raise RuntimeError("Failed running %s [rc=%s] (%s, %s)"
                             % (cmd, ret, out, err))
     return (out, err)
+
+
+def systemd_unitdir():
+    cmd = ['pkg-config', '--variable=systemdsystemunitdir', 'systemd']
+    try:
+        (path, err) = tiny_p(cmd)
+    except:
+        return '/lib/systemd/system'
+    return str(path).strip()
+
+INITSYS_FILES = {
+    'sysvinit': [f for f in glob('sysvinit/redhat/*') if is_f(f)],
+    'sysvinit_deb': [f for f in glob('sysvinit/debian/*') if is_f(f)],
+    'systemd': [f for f in glob('systemd/*') if is_f(f)],
+    'upstart': [f for f in glob('upstart/*') if is_f(f)],
+}
+INITSYS_ROOTS = {
+    'sysvinit': '/etc/rc.d/init.d',
+    'sysvinit_deb': '/etc/init.d',
+    'systemd': systemd_unitdir(),
+    'upstart': '/etc/init/',
+}
+INITSYS_TYPES = sorted(list(INITSYS_ROOTS.keys()))
 
 
 def get_version():
@@ -86,26 +94,35 @@ class InitsysInstallData(install):
     user_options = install.user_options + [
         # This will magically show up in member variable 'init_sys'
         ('init-system=', None,
-            ('init system to configure (%s) [default: None]') %
+            ('init system(s) to configure (%s) [default: None]') %
                 (", ".join(INITSYS_TYPES))
         ),
     ]
 
     def initialize_options(self):
         install.initialize_options(self)
-        self.init_system = None
+        self.init_system = ""
 
     def finalize_options(self):
         install.finalize_options(self)
-        if self.init_system and self.init_system not in INITSYS_TYPES:
+
+        if self.init_system and isinstance(self.init_system, str):
+            self.init_system = self.init_system.split(",")
+
+        if len(self.init_system) == 0:
             raise DistutilsArgError(("You must specify one of (%s) when"
-                 " specifying a init system!") % (", ".join(INITSYS_TYPES)))
-        elif self.init_system:
+                 " specifying init system(s)!") % (", ".join(INITSYS_TYPES)))
+
+        bad = [f for f in self.init_system if f not in INITSYS_TYPES]
+        if len(bad) != 0:
+            raise DistutilsArgError(
+                "Invalid --init-system: %s" % (','.join(bad)))
+
+        for sys in self.init_system:
             self.distribution.data_files.append(
-                (INITSYS_ROOTS[self.init_system],
-                 INITSYS_FILES[self.init_system]))
-            # Force that command to reinitalize (with new file list)
-            self.distribution.reinitialize_command('install_data', True)
+                (INITSYS_ROOTS[sys], INITSYS_FILES[sys]))
+        # Force that command to reinitalize (with new file list)
+        self.distribution.reinitialize_command('install_data', True)
 
 
 setuptools.setup(name='cloud-init',

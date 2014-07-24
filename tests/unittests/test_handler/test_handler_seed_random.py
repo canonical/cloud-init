@@ -1,4 +1,4 @@
-            #    Copyright (C) 2013 Hewlett-Packard Development Company, L.P.
+#    Copyright (C) 2013 Hewlett-Packard Development Company, L.P.
 #
 #    Author: Juerg Haefliger <juerg.haefliger@hp.com>
 #
@@ -31,7 +31,7 @@ from cloudinit import util
 
 from cloudinit.sources import DataSourceNone
 
-from tests.unittests import helpers as t_help
+from .. import helpers as t_help
 
 import logging
 

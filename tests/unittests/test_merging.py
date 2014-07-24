@@ -1,4 +1,4 @@
-from tests.unittests import helpers
+from . import helpers
 
 from cloudinit.handlers import cloud_config
 from cloudinit.handlers import (CONTENT_START, CONTENT_END)

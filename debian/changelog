@@ -1,3 +1,14 @@
+cloud-init (0.7.6~bzr987-0ubuntu1) utopic; urgency=medium
+
+  * incorporate systemd and build system changes from trunk.
+  * New upstream snapshot.
+    * less noisy logs
+    * allow usage of jinja2 templates (LP: #1219223)
+    * test case cleanups
+    * change build system to be dh and pybuild
+
+ -- Scott Moser <smoser@ubuntu.com>  Thu, 24 Jul 2014 19:55:30 -0400
+
 cloud-init (0.7.6~bzr976-0ubuntu1) utopic; urgency=medium
 
   * debian/cloud-init.templates: fix choices so dpkg-reconfigure works as

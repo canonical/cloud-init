@@ -56,8 +56,8 @@ def netdev_info(empty=""):
             # newer (freebsd and fedora) show 'inet xx.yy'
             # just skip this 'inet' entry. (LP: #1285185)
             try:
-                if (toks[i] in ("inet", "inet6") and
-                    toks[i + 1].startswith("addr:")):
+                if ((toks[i] in ("inet", "inet6") and
+                     toks[i + 1].startswith("addr:"))):
                     continue
             except IndexError:
                 pass

@@ -1,5 +1,4 @@
-etc/kernel/postinst.d/x-grub-legacy-ec2
-etc/kernel/postrm.d/x-grub-legacy-ec2
-usr/sbin/grub-set-default
-usr/sbin/grub-set-default-legacy-ec2
-usr/sbin/update-grub-legacy-ec2
+debian/update-grub-legacy-ec2 usr/sbin
+debian/grub-set-default-legacy-ec2 usr/sbin
+debian/grub-set-default usr/sbin
+debian/kernel etc/kernel/
