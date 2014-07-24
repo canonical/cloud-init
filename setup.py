@@ -59,8 +59,6 @@ def systemd_unitdir():
         return '/lib/systemd/system'
     return str(path).strip()
 
-systemd_root = systemd_unitdir()
-
 INITSYS_FILES = {
     'sysvinit': [f for f in glob('sysvinit/redhat/*') if is_f(f)],
     'sysvinit_deb': [f for f in glob('sysvinit/debian/*') if is_f(f)],
@@ -70,7 +68,7 @@ INITSYS_FILES = {
 INITSYS_ROOTS = {
     'sysvinit': '/etc/rc.d/init.d',
     'sysvinit_deb': '/etc/init.d',
-    'systemd': systemd_root,
+    'systemd': systemd_unitdir(),
     'upstart': '/etc/init/',
 }
 INITSYS_TYPES = sorted(list(INITSYS_ROOTS.keys()))
