@@ -856,3 +856,12 @@ def fetch(name):
     mod = importer.import_module(locs[0])
     cls = getattr(mod, 'Distro')
     return cls
+
+
+def set_etc_timezone(tz, tz_file=None, tz_conf="/etc/timezone",
+                     tz_local="/etc/localtime"):
+    util.write_file(tz_conf, str(tz).rstrip() + "\n")
+    # This ensures that the correct tz will be used for the system
+    if tz_local and tz_file:
+        util.copy(tz_file, self.tz_local_fn)
+    return
