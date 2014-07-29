@@ -46,8 +46,6 @@ class Distro(distros.Distro):
     hostname_conf_fn = "/etc/hostname"
     locale_conf_fn = "/etc/default/locale"
     network_conf_fn = "/etc/network/interfaces"
-    tz_conf_fn = "/etc/timezone"
-    tz_local_fn = "/etc/localtime"
 
     def __init__(self, name, cfg, paths):
         distros.Distro.__init__(self, name, cfg, paths)
@@ -133,16 +131,7 @@ class Distro(distros.Distro):
         return "127.0.1.1"
 
     def set_timezone(self, tz):
-        tz_file = self._find_tz_file(tz)
-        # Note: "" provides trailing newline during join
-        tz_lines = [
-            util.make_header(),
-            str(tz),
-            "",
-        ]
-        util.write_file(self.tz_conf_fn, "\n".join(tz_lines))
-        # This ensures that the correct tz will be used for the system
-        util.copy(tz_file, self.tz_local_fn)
+        set_etc_timezone(tz=tz, tz_file=self._find_tz_file(tz))
 
     def package_command(self, command, args=None, pkgs=None):
         if pkgs is None:
