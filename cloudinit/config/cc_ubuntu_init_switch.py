@@ -63,15 +63,19 @@ fi
 """
 
 
-def handle(name, cfg, cloud, log, _args):
+def handle(name, cfg, cloud, log, args):
 
     if not isinstance(cloud.distro, ubuntu.Distro):
         log.debug("%s: distro is '%s', not ubuntu. returning",
                   name, cloud.distro.__class__)
         return
 
-    cfg = util.mergemanydict(cfg, DEFAULT_CONFIG)
+    cfg = util.mergemanydict([cfg, DEFAULT_CONFIG])
     target = cfg['init_switch']['target']
+
+    if len(args) != 0:
+        target = args[0]
+
     if not target:
         log.debug("%s: target=%s. nothing to do", name, target)
         return
