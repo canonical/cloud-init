@@ -1,3 +1,10 @@
+cloud-init (0.7.6~bzr992-0ubuntu1) utopic; urgency=medium
+
+  * New upstream snapshot.
+    * ubuntu-init-switch: fixes and minor tweaks.
+
+ -- Scott Moser <smoser@ubuntu.com>  Thu, 31 Jul 2014 16:11:27 -0400
+
 cloud-init (0.7.6~bzr990-0ubuntu1) utopic; urgency=medium
 
   * debian/README.source: get changelog from trunk when new snapshot
