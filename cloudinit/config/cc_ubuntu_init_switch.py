@@ -111,7 +111,7 @@ def handle(name, cfg, cloud, log, args):
         log.warn("%s: target set to %s, expected one of: %s",
                  name, target, str(supported))
 
-    if os.path.exists("/run/systemd"):
+    if os.path.exists("/run/systemd/system"):
         current = "systemd"
     else:
         current = "upstart"
