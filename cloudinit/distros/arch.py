@@ -32,8 +32,6 @@ LOG = logging.getLogger(__name__)
 class Distro(distros.Distro):
     locale_conf_fn = "/etc/locale.gen"
     network_conf_dir = "/etc/netctl"
-    tz_conf_fn = "/etc/timezone"
-    tz_local_fn = "/etc/localtime"
     resolve_conf_fn = "/etc/resolv.conf"
     init_cmd = ['systemctl']  # init scripts
 
@@ -161,16 +159,7 @@ class Distro(distros.Distro):
         return hostname
 
     def set_timezone(self, tz):
-        tz_file = self._find_tz_file(tz)
-        # Note: "" provides trailing newline during join
-        tz_lines = [
-            util.make_header(),
-            str(tz),
-            "",
-        ]
-        util.write_file(self.tz_conf_fn, "\n".join(tz_lines))
-        # This ensures that the correct tz will be used for the system
-        util.copy(tz_file, self.tz_local_fn)
+        set_etc_timezone(tz=tz, tz_file=self._find_tz_file(tz))
 
     def package_command(self, command, args=None, pkgs=None):
         if pkgs is None:

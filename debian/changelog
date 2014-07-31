@@ -1,3 +1,12 @@
+cloud-init (0.7.6~bzr990-0ubuntu1) utopic; urgency=medium
+
+  * debian/README.source: get changelog from trunk when new snapshot
+  * New upstream snapshot.
+    * add ubuntu-init-switch module for testing systemd.
+    * do not put comments in /etc/timezone (LP: #1341710)
+
+ -- Scott Moser <smoser@ubuntu.com>  Thu, 31 Jul 2014 15:05:51 -0400
+
 cloud-init (0.7.6~bzr987-0ubuntu2) utopic; urgency=medium
 
   * debian/control: drop build-depends on python-selinux as it is

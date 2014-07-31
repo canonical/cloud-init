@@ -43,8 +43,10 @@ To import a new snapshot, do:
  trunk="../trunk"
  uver=$(cd "$trunk" && ./tools/read-version) # the *next* upstream version
  revno=$(cd "$trunk" && bzr revno)
+ pversion=$(dpkg-parsechangelog --show-field Version) 
+ prevno=$(echo "$pversion" | sed 's,.*bzr\([0-9]\+\)-.*,\1,')
  version=${uver}~bzr${revno}
  tarball=cloud-init-${version}.tar.gz
  bzr export --format=tgz --revision=${revno} "$tarball" "${trunk}"
  bzr merge-upstream "$tarball" --version=${version}
-
+ ( cd "$trunk" && bzr log -r $(($prevno+1)).. ) > new-changes.log
