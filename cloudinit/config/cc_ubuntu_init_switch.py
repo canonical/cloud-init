@@ -102,6 +102,10 @@ def handle(name, cfg, cloud, log, args):
         log.debug("%s: target=%s. nothing to do", name, target)
         return
 
+    if not util.which('dpkg'):
+        log.warn("%s: 'dpkg' not available. Assuming not ubuntu", name)
+        return
+
     supported = ('upstart', 'systemd')
     if target not in supported:
         log.warn("%s: target set to %s, expected one of: %s",
