@@ -16,6 +16,28 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+"""
+ubuntu_init_switch: reboot system into another init
+
+This provides a way for the user to boot with systemd even if the
+image is set to boot with upstart.  It should be run as one of the first
+cloud_init_modules, and will switch the init system and then issue a reboot.
+The next boot will come up in the target init system and no action will
+be taken.
+
+This should be inert on non-ubuntu systems, and also exit quickly.
+
+config is comes under the top level 'init_switch' dictionary.
+
+#cloud-config
+init_switch:
+ target: systemd
+
+'target' can be 'systemd' or 'upstart'.  Best effort is made, but its possible
+this system will break, and probably won't interact well with any other
+mechanism you've used to switch the init system.
+"""
+
 from cloudinit.settings import PER_INSTANCE
 from cloudinit import log as logging
 from cloudinit import util
