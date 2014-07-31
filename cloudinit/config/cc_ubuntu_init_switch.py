@@ -32,10 +32,15 @@ config is comes under the top level 'init_switch' dictionary.
 #cloud-config
 init_switch:
  target: systemd
+ reboot: true
 
 'target' can be 'systemd' or 'upstart'.  Best effort is made, but its possible
 this system will break, and probably won't interact well with any other
 mechanism you've used to switch the init system.
+
+'reboot': [default=true].
+   true: reboot if a change was made.
+   false: do not reboot.
 """
 
 from cloudinit.settings import PER_INSTANCE
@@ -47,10 +52,10 @@ import os
 import time
 
 frequency = PER_INSTANCE
-REBOOT_CMD = ["/sbin/reboot"]
+REBOOT_CMD = ["/sbin/reboot", "--force"]
 
 DEFAULT_CONFIG = {
-    'init_switch': {'target': None}
+    'init_switch': {'target': None, 'reboot': True}
 }
 
 SWITCH_INIT = """
@@ -94,9 +99,12 @@ def handle(name, cfg, cloud, log, args):
 
     cfg = util.mergemanydict([cfg, DEFAULT_CONFIG])
     target = cfg['init_switch']['target']
+    reboot = cfg['init_switch']['reboot']
 
     if len(args) != 0:
         target = args[0]
+        if len(args) > 1:
+            reboot = util.is_true(args[1])
 
     if not target:
         log.debug("%s: target=%s. nothing to do", name, target)
@@ -121,15 +129,21 @@ def handle(name, cfg, cloud, log, args):
         return
 
     try:
-        util.subp(['sh', '-c', SWITCH_INIT, '--', target])
+        util.subp(['sh', '-s', target], data=SWITCH_INIT)
     except util.ProcessExecutionError as e:
         log.warn("%s: Failed to switch to init '%s'. %s", name, target, e)
         return
 
+    if util.is_false(reboot):
+        log.info("%s: switched '%s' to '%s'. reboot=false, not rebooting.",
+                 name, current, target)
+        return
+
     try:
-        log.warn("%s: rebooting from '%s' to '%s'", name, current, target)
+        log.warn("%s: switched '%s' to '%s'. rebooting.",
+                 name, current, target)
         logging.flushLoggers(log)
-        _fire_reboot(log, initial_sleep=4)
+        _fire_reboot(log, wait_attempts=4, initial_sleep=4)
     except Exception as e:
         util.logexc(log, "Requested reboot did not happen!")
         raise
