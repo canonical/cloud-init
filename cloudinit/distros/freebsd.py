@@ -72,6 +72,11 @@ class Distro(distros.Distro):
         conf = {}
         lines = util.load_file(self.rc_conf_fn).splitlines()
         for line in lines:
+            if not re.match(r'^(.+)=(.+)', line):
+                LOG.debug("Skipping line from /etc/rc.conf: %s", line)
+                continue
+
+            # TODO: just use the matches please...
             tok = line.split('=')
             key = tok[0]
             val = re.sub(r'^"|"$', '', tok[1].rstrip())
