@@ -173,3 +173,39 @@ NETWORKING=yes
 '''
         self.assertCfgEquals(expected_buf, str(write_buf))
         self.assertEquals(write_buf.mode, 0644)
+
+    def test_simple_write_freebsd(self):
+        fbsd_distro = self._get_distro('freebsd')
+        util_mock = self.mocker.replace(util.write_file,
+                                        spec=False, passthrough=False)
+        exists_mock = self.mocker.replace(os.path.isfile,
+                                          spec=False, passthrough=False)
+
+        exists_mock(mocker.ARGS)
+        self.mocker.count(0, None)
+        self.mocker.result(False)
+
+        write_bufs = {}
+
+        def replace_write(filename, content, mode=0644, omode="wb"):
+            buf = WriteBuffer()
+            buf.mode = mode
+            buf.omode = omode
+            buf.write(content)
+            write_bufs[filename] = buf
+
+        util_mock(mocker.ARGS)
+        self.mocker.call(replace_write)
+        self.mocker.replay()
+        fbsd_distro.apply_network(BASE_NET_CFG, False)
+
+        self.assertIn('/etc/rc.conf', write_bufs)
+        write_buf = write_bufs['/etc/rc.conf']
+        expected_buf = '''
+ifconfig_eth0="192.168.1.5 netmask 255.255.255.0"
+ifconfig_eth1="DHCP"
+defaultrouter="192.168.1.254"
+'''
+        self.assertCfgEquals(expected_buf, str(write_buf))
+        self.assertEquals(write_buf.mode, 0644)
+
