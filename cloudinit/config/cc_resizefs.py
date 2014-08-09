@@ -41,7 +41,7 @@ def _resize_xfs(mount_point, devpth):  # pylint: disable=W0613
 
 
 def _resize_ufs(mount_point, devpth):  # pylint: disable=W0613
-    return ('growfs', devpth)
+    return ('growfs', '-y', devpth)
 
 # Do not use a dictionary as these commands should be able to be used
 # for multiple filesystem types if possible, e.g. one command for
