@@ -18,9 +18,9 @@ start_cmd="cloudconfig_start"
 
 cloudinit_override()
 {
-	# If there exist sysconfig/default variable override files use it...
-	if [ -f /etc/default/cloud-init ]; then
-		. /etc/default/cloud-init
+	# If there exist sysconfig/defaults variable override files use it...
+	if [ -f /etc/defaults/cloud-init ]; then
+		. /etc/defaults/cloud-init
 	fi
 }
 
