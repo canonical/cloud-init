@@ -7,7 +7,7 @@
 . /etc/rc.subr
 
 name="cloudinitlocal"
-command="/usr/bin/cloud-init"
+command="/usr/local/bin/cloud-init"
 start_cmd="cloudlocal_start"
 stop_cmd=":"
 rcvar="cloudinit_enable"
