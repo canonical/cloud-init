@@ -4,7 +4,7 @@
 # will optionally make a first run at the end.
 
 # Check dependencies:
-[ ! -f /tmp/c-i.dependencieschecked ] && pkg install py27-cheetah py27-Jinja2 py27-prettytable py27-oauth py27-serial py27-configobj py27-yaml py27-argparse py27-requests py27-six
+[ ! -f /tmp/c-i.dependencieschecked ] && pkg install py27-cheetah py27-Jinja2 py27-prettytable py27-oauth py27-serial py27-configobj py27-yaml py27-argparse py27-requests py27-six py27-boto gpart sudo 
 touch /tmp/c-i.dependencieschecked
 
 # Required but unavailable port/pkg: py27-jsonpatch
