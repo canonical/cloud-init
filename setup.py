@@ -63,12 +63,14 @@ def systemd_unitdir():
 
 INITSYS_FILES = {
     'sysvinit': [f for f in glob('sysvinit/redhat/*') if is_f(f)],
+    'sysvinit_freebsd': [f for f in glob('sysvinit/freebsd/*') if is_f(f)],
     'sysvinit_deb': [f for f in glob('sysvinit/debian/*') if is_f(f)],
     'systemd': [f for f in glob('systemd/*') if is_f(f)],
     'upstart': [f for f in glob('upstart/*') if is_f(f)],
 }
 INITSYS_ROOTS = {
     'sysvinit': '/etc/rc.d/init.d',
+    'sysvinit_freebsd': '/usr/local/etc/rc.d',
     'sysvinit_deb': '/etc/init.d',
     'systemd': systemd_unitdir(),
     'upstart': '/etc/init/',
