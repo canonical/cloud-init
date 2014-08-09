@@ -14,7 +14,7 @@ rcvar="cloudinit_enable"
 start_precmd="cloudinit_override"
 start_cmd="cloudlocal_start"
 
-: ${cloudinit_config:="/etc/cloud/cloud.cfg"}
+: ${cloudinit_config:="/usr/local/etc/cloud/cloud.cfg"}
 
 cloudinit_override()
 {
