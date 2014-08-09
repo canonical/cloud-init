@@ -27,7 +27,7 @@ cloudinit_override()
 cloudlocal_start()
 {
 	echo -n "${command} starting"
-	${command} ${cloudinit_config} init --local
+	${command} -f ${cloudinit_config} init --local
 }
 
 load_rc_config $name
