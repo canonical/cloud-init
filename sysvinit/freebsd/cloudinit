@@ -6,6 +6,8 @@
 
 . /etc/rc.subr
 
+export CLOUD_CFG=/usr/local/etc/cloud/cloud.cfg
+
 name="cloudinit"
 command="/usr/local/bin/cloud-init"
 start_cmd="cloudinit_start"
@@ -13,8 +15,6 @@ stop_cmd=":"
 rcvar="cloudinit_enable"
 start_precmd="cloudinit_override"
 start_cmd="cloudinit_start"
-
-: ${cloudinit_config:="/usr/local/etc/cloud/cloud.cfg"}
 
 cloudinit_override()
 {
@@ -27,7 +27,7 @@ cloudinit_override()
 cloudinit_start()
 {
 	echo -n "${command} starting"
-	${command} -f ${cloudinit_config} init
+	${command} init
 }
 
 load_rc_config $name
