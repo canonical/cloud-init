@@ -90,6 +90,42 @@ def read_requires():
     return str(deps).splitlines()
 
 
+# Install everything in the right location and take care of Linux (default) and
+# FreeBSD systems.
+def read_datafiles():
+    sysname = os.uname()[0]
+    if sysname == 'FreeBSD':
+        return [
+            ('/usr/local/etc/cloud', glob('config/*.cfg')),
+            ('/usr/local/etc/cloud/cloud.cfg.d', glob('config/cloud.cfg.d/*')),
+            ('/usr/local/etc/cloud/templates', glob('templates/*')),
+            ('/usr/local/share/cloud-init', []),
+            ('/usr/local/lib/cloud-init',
+                ['tools/uncloud-init', 'tools/write-ssh-key-fingerprints']),
+            ('/usr/local/share/doc/cloud-init',
+                [f for f in glob('doc/*') if is_f(f)]),
+            ('/usr/local/share/doc/cloud-init/examples',
+                [f for f in glob('doc/examples/*') if is_f(f)]),
+            ('/usr/local/share/doc/cloud-init/examples/seed',
+                [f for f in glob('doc/examples/seed/*') if is_f(f)]),
+        ]
+    else:
+        return [
+            ('/etc/cloud', glob('config/*.cfg')),
+            ('/etc/cloud/cloud.cfg.d', glob('config/cloud.cfg.d/*')),
+            ('/etc/cloud/templates', glob('templates/*')),
+            ('/usr/share/cloud-init', []),
+            ('/usr/lib/cloud-init',
+                ['tools/uncloud-init', 'tools/write-ssh-key-fingerprints']),
+            ('/usr/share/doc/cloud-init',
+                [f for f in glob('doc/*') if is_f(f)]),
+            ('/usr/share/doc/cloud-init/examples',
+                [f for f in glob('doc/examples/*') if is_f(f)]),
+            ('/usr/share/doc/cloud-init/examples/seed',
+                [f for f in glob('doc/examples/seed/*') if is_f(f)]),
+        ]
+
+
 # TODO: Is there a better way to do this??
 class InitsysInstallData(install):
     init_system = None
@@ -138,20 +174,7 @@ setuptools.setup(name='cloud-init',
                'tools/cloud-init-per',
                ],
       license='GPLv3',
-      data_files=[('/etc/cloud', glob('config/*.cfg')),
-                  ('/etc/cloud/cloud.cfg.d', glob('config/cloud.cfg.d/*')),
-                  ('/etc/cloud/templates', glob('templates/*')),
-                  ('/usr/share/cloud-init', []),
-                  ('/usr/lib/cloud-init',
-                    ['tools/uncloud-init',
-                     'tools/write-ssh-key-fingerprints']),
-                  ('/usr/share/doc/cloud-init',
-                   [f for f in glob('doc/*') if is_f(f)]),
-                  ('/usr/share/doc/cloud-init/examples',
-                   [f for f in glob('doc/examples/*') if is_f(f)]),
-                  ('/usr/share/doc/cloud-init/examples/seed',
-                   [f for f in glob('doc/examples/seed/*') if is_f(f)]),
-                 ],
+      data_files=read_datafiles(),
       install_requires=read_requires(),
       cmdclass={
           # Use a subclass for install that handles

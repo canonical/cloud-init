@@ -17,9 +17,7 @@ touch /tmp/c-i.dependencieschecked
 python setup.py build
 python setup.py install -O1 --skip-build --prefix /usr/local/ --init-system sysvinit_freebsd
 
-# Move the configdir to /usr/local/ and use freebsd.cfg:
-[ -d /usr/local/etc/cloud ] && rm -rf /usr/local/etc/cloud
-mv /etc/cloud /usr/local/etc/
+# Use the correct config file:
 mv /usr/local/etc/cloud/cloud.freebsd.cfg /usr/local/etc/cloud/cloud.cfg
 
 # Enable cloud-init in /etc/rc.conf:
