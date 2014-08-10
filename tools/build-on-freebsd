@@ -32,6 +32,9 @@ if [ "$1" = "run" ]
 then
 	echo "Ok, now let's see if it works."
 
+	# Backup SSH keys
+	mv /etc/ssh/ssh_host_* /tmp/
+
 	# Remove old metadata
 	rm -rf /var/lib/cloud
 
@@ -40,4 +43,7 @@ then
 
 	# Start:
 	/usr/local/etc/rc.d/cloudinit start
+
+	# Restore SSH keys
+	mv /tmp/ssh_host_* /etc/ssh/
 fi
