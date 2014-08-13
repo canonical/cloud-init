@@ -16,6 +16,7 @@
  - SeLinuxGuard: remove invalid check that looked for stat.st_mode in os.lstat.
  - do not write comments in /etc/timezone (LP: #1341710)
  - ubuntu: provide 'ubuntu-init-switch' module to aid in systemd testing.
+ - status/result json: remove 'end' entry which was always null
 0.7.5:
  - open 0.7.5
  - Add a debug log message around import failures
