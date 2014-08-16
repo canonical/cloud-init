@@ -99,7 +99,6 @@ def read_datafiles():
             ('/usr/local/etc/cloud', glob('config/*.cfg')),
             ('/usr/local/etc/cloud/cloud.cfg.d', glob('config/cloud.cfg.d/*')),
             ('/usr/local/etc/cloud/templates', glob('templates/*')),
-            ('/usr/local/share/cloud-init', []),
             ('/usr/local/lib/cloud-init',
                 ['tools/uncloud-init', 'tools/write-ssh-key-fingerprints']),
             ('/usr/local/share/doc/cloud-init',
