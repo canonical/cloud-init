@@ -1294,12 +1294,16 @@ def ensure_dir(path, mode=None):
 
 
 @contextlib.contextmanager
-def unmounter(umount):
+def unmounter(umount, lazy_support=True):
     try:
         yield umount
     finally:
         if umount:
-            umount_cmd = ["umount", '-l', umount]
+            # Do not use Lazy Mode on some systems (freebsd)
+            if lazy_support:
+                umount_cmd = ["umount", '-l', umount]
+            else:
+                umount_cmd = ["umount", umount]
             subp(umount_cmd)
 
 
@@ -1382,7 +1386,12 @@ def mount_cb(device, callback, data=None, rw=False, mtype=None, sync=True):
         # Be nice and ensure it ends with a slash
         if not mountpoint.endswith("/"):
             mountpoint += "/"
-        with unmounter(umount):
+        # Set lazy_support to false if FreeBSD
+        if device.startswith("/dev/cd"):
+            lazy_support = False
+        else:
+            lazy_support = True
+        with unmounter(umount,lazy_support):
             if data is None:
                 ret = callback(mountpoint)
             else:
