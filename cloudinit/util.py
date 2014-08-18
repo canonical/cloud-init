@@ -1391,7 +1391,7 @@ def mount_cb(device, callback, data=None, rw=False, mtype=None, sync=True):
             lazy_support = False
         else:
             lazy_support = True
-        with unmounter(umount,lazy_support):
+        with unmounter(umount, lazy_support):
             if data is None:
                 ret = callback(mountpoint)
             else:

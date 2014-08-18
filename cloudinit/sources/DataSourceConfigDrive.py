@@ -38,7 +38,7 @@ VALID_DSMODES = ("local", "net", "pass", "disabled")
 FS_TYPES = ('vfat', 'iso9660')
 LABEL_TYPES = ('config-2',)
 POSSIBLE_MOUNTS = ('sr', 'cd')
-OPTICAL_DEVICES = tuple(('/dev/%s%s' % (z,i) for z in POSSIBLE_MOUNTS
+OPTICAL_DEVICES = tuple(('/dev/%s%s' % (z, i) for z in POSSIBLE_MOUNTS
                   for i in range(0, 2)))
 
 
@@ -75,10 +75,10 @@ class DataSourceConfigDrive(openstack.SourceMixin, sources.DataSource):
                     # Set mtype if freebsd and turn off sync
                     if dev.startswith("/dev/cd"):
                         mtype = "cd9660"
-                        sync  = False
+                        sync = False
                     else:
                         mtype = None
-                        sync  = True
+                        sync = True
                     results = util.mount_cb(dev, read_config_drive, mtype=mtype,
                                             sync=sync)
                     found = dev
