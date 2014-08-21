@@ -17,6 +17,8 @@
  - do not write comments in /etc/timezone (LP: #1341710)
  - ubuntu: provide 'ubuntu-init-switch' module to aid in systemd testing.
  - status/result json: remove 'end' entry which was always null
+ - systemd: make cloud-init block ssh service startup to guarantee keys
+   are generated. [Jordan Evans] (LP: #1333920)
 0.7.5:
  - open 0.7.5
  - Add a debug log message around import failures
