@@ -21,7 +21,7 @@ domain {{domain}}
 
 sortlist {% for sort in sortlist %}{{sort}} {% endfor %}
 {% endif %}
-{% if options is defined or flags is defined %}
+{% if options or flags %}
 
 options {% for flag in flags %}{{flag}} {% endfor %}
 {% for key, value in options.iteritems() -%}
