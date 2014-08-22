@@ -22,6 +22,7 @@
  - default settings: fix typo resulting in OpenStack and GCE not working
    unless config explicitly provided (LP: #1329583) [Garrett Holmstrom])
  - fix rendering resolv.conf if no 'options' are provided (LP: #1328953)
+ - docs: fix disk-setup to reference 'table_type' [Rail Aliiev] (LP: #1313114)
 0.7.5:
  - open 0.7.5
  - Add a debug log message around import failures
