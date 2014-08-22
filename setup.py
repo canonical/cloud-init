@@ -77,6 +77,14 @@ INITSYS_ROOTS = {
 }
 INITSYS_TYPES = sorted(list(INITSYS_ROOTS.keys()))
 
+# Install everything in the right location and take care of Linux (default) and
+# FreeBSD systems.
+USR = "/usr"
+ETC = "/etc"
+if os.uname()[0] == 'FreeBSD':
+    USR = "/usr/local"
+    ETC = "/usr/local/etc"
+
 
 def get_version():
     cmd = ['tools/read-version']
@@ -88,41 +96,6 @@ def read_requires():
     cmd = ['tools/read-dependencies']
     (deps, _e) = tiny_p(cmd)
     return str(deps).splitlines()
-
-
-# Install everything in the right location and take care of Linux (default) and
-# FreeBSD systems.
-def read_datafiles():
-    sysname = os.uname()[0]
-    if sysname == 'FreeBSD':
-        return [
-            ('/usr/local/etc/cloud', glob('config/*.cfg')),
-            ('/usr/local/etc/cloud/cloud.cfg.d', glob('config/cloud.cfg.d/*')),
-            ('/usr/local/etc/cloud/templates', glob('templates/*')),
-            ('/usr/local/lib/cloud-init',
-                ['tools/uncloud-init', 'tools/write-ssh-key-fingerprints']),
-            ('/usr/local/share/doc/cloud-init',
-                [f for f in glob('doc/*') if is_f(f)]),
-            ('/usr/local/share/doc/cloud-init/examples',
-                [f for f in glob('doc/examples/*') if is_f(f)]),
-            ('/usr/local/share/doc/cloud-init/examples/seed',
-                [f for f in glob('doc/examples/seed/*') if is_f(f)]),
-        ]
-    else:
-        return [
-            ('/etc/cloud', glob('config/*.cfg')),
-            ('/etc/cloud/cloud.cfg.d', glob('config/cloud.cfg.d/*')),
-            ('/etc/cloud/templates', glob('templates/*')),
-            ('/usr/share/cloud-init', []),
-            ('/usr/lib/cloud-init',
-                ['tools/uncloud-init', 'tools/write-ssh-key-fingerprints']),
-            ('/usr/share/doc/cloud-init',
-                [f for f in glob('doc/*') if is_f(f)]),
-            ('/usr/share/doc/cloud-init/examples',
-                [f for f in glob('doc/examples/*') if is_f(f)]),
-            ('/usr/share/doc/cloud-init/examples/seed',
-                [f for f in glob('doc/examples/seed/*') if is_f(f)]),
-        ]
 
 
 # TODO: Is there a better way to do this??
@@ -173,7 +146,19 @@ setuptools.setup(name='cloud-init',
                'tools/cloud-init-per',
                ],
       license='GPLv3',
-      data_files=read_datafiles(),
+      data_files=[(ETC '/cloud', glob('config/*.cfg')),
+                  (ETC '/cloud/cloud.cfg.d', glob('config/cloud.cfg.d/*')),
+                  (ETC '/cloud/templates', glob('templates/*')),
+                  (USR '/lib/cloud-init',
+                    ['tools/uncloud-init',
+                     'tools/write-ssh-key-fingerprints']),
+                  (USR '/share/doc/cloud-init',
+                   [f for f in glob('doc/*') if is_f(f)]),
+                  (USR '/share/doc/cloud-init/examples',
+                   [f for f in glob('doc/examples/*') if is_f(f)]),
+                  (USR '/share/doc/cloud-init/examples/seed',
+                   [f for f in glob('doc/examples/seed/*') if is_f(f)]),
+                 ],
       install_requires=read_requires(),
       cmdclass={
           # Use a subclass for install that handles
