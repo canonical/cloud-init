@@ -78,7 +78,8 @@ class DataSourceCloudStack(sources.DataSource):
 
         (max_wait, timeout) = self._get_url_settings()
 
-        urls = [self.metadata_address + "/latest/meta-data/instance-id"]
+        urls = [uhelp.combine_url(self.metadata_address,
+                                  'latest/meta-data/instance-id')]
         start_time = time.time()
         url = uhelp.wait_for_url(urls=urls, max_wait=max_wait,
                                 timeout=timeout, status_cb=LOG.warn)

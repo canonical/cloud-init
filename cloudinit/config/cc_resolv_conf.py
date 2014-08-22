@@ -49,23 +49,22 @@
 #
 
 
+from cloudinit import log as logging
 from cloudinit.settings import PER_INSTANCE
 from cloudinit import templater
 from cloudinit import util
+
+LOG = logging.getLogger(__name__)
 
 frequency = PER_INSTANCE
 
 distros = ['fedora', 'rhel', 'sles']
 
 
-def generate_resolv_conf(cloud, log, params):
-    template_fn = cloud.get_template_filename('resolv.conf')
-    if not template_fn:
-        log.warn("No template found, not rendering /etc/resolv.conf")
-        return
-
+def generate_resolv_conf(template_fn, params, target_fname="/etc/resolv.conf"):
     flags = []
     false_flags = []
+
     if 'options' in params:
         for key, val in params['options'].iteritems():
             if type(val) == bool:
@@ -77,12 +76,15 @@ def generate_resolv_conf(cloud, log, params):
     for flag in flags + false_flags:
         del params['options'][flag]
 
+    if not params.get('options'):
+        params['options'] = {}
+
     params['flags'] = flags
-    log.debug("Writing resolv.conf from template %s" % template_fn)
-    templater.render_to_file(template_fn, '/etc/resolv.conf', params)
+    LOG.debug("Writing resolv.conf from template %s" % template_fn)
+    templater.render_to_file(template_fn, target_fname, params)
 
 
-def handle(name, cfg, _cloud, log, _args):
+def handle(name, cfg, cloud, log, _args):
     """
     Handler for resolv.conf
 
@@ -102,8 +104,13 @@ def handle(name, cfg, _cloud, log, _args):
                    " 'manage_resolv_conf' present but set to False"), name)
         return
 
-    if not "resolv_conf" in cfg:
+    if "resolv_conf" not in cfg:
         log.warn("manage_resolv_conf True but no parameters provided!")
 
-    generate_resolv_conf(_cloud, log, cfg["resolv_conf"])
+    template_fn = cloud.get_template_filename('resolv.conf')
+    if not template_fn:
+        log.warn("No template found, not rendering /etc/resolv.conf")
+        return
+
+    generate_resolv_conf(template_fn=template_fn, params=cfg["resolv_conf"])
     return
