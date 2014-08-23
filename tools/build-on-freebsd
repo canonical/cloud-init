@@ -6,7 +6,7 @@
 fail() { echo "FAILED:" "$@" 1>&2; exit 1; }
 
 # Check dependencies:
-depscheck=/tmp/c-i.dependencieschecked
+depschecked=/tmp/c-i.dependencieschecked
 pkgs="
    dmidecode
    py27-argparse
@@ -19,7 +19,7 @@ pkgs="
    python py27-cheetah
 "
 [ -f "$depschecked" ] || pkg install ${pkgs} || fail "install packages"
-touch /tmp/c-i.dependencieschecked
+touch $depschecked
 
 # Required but unavailable port/pkg: py27-jsonpatch py27-jsonpointer
 # Luckily, the install step will take care of this by installing it from pypi...
