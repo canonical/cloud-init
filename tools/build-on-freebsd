@@ -28,8 +28,8 @@ touch $depschecked
 python setup.py build
 python setup.py install -O1 --skip-build --prefix /usr/local/ --init-system sysvinit_freebsd
 
-# Use the correct config file:
-mv /usr/local/etc/cloud/cloud.freebsd.cfg /usr/local/etc/cloud/cloud.cfg
+# Install the correct config file:
+cp config/cloud.cfg-freebsd /usr/local/etc/cloud/cloud.cfg
 
 # Enable cloud-init in /etc/rc.conf:
 sed -i.bak -e "/cloudinit_enable=.*/d" /etc/rc.conf
