@@ -166,7 +166,9 @@ def get_instance_metadata(api_version='latest',
                           metadata_address='http://169.254.169.254',
                           ssl_details=None, timeout=5, retries=5):
     md_url = url_helper.combine_url(metadata_address, api_version)
-    md_url = url_helper.combine_url(md_url, 'meta-data')
+    # Note, 'meta-data' explicitly has trailing /.
+    # this is required for CloudStack (LP: #1356855)
+    md_url = url_helper.combine_url(md_url, 'meta-data/')
     caller = functools.partial(util.read_file_or_url,
                                ssl_details=ssl_details, timeout=timeout,
                                retries=retries)

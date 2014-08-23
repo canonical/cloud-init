@@ -88,7 +88,7 @@ def _register_uris(version, ec2_files, ec2_meta, os_files):
         path = uri.path.lstrip("/")
         if path in ec2_files:
             return (200, headers, ec2_files.get(path))
-        if path == 'latest/meta-data':
+        if path == 'latest/meta-data/':
             buf = StringIO()
             for (k, v) in ec2_meta.items():
                 if isinstance(v, (list, tuple)):
@@ -97,7 +97,7 @@ def _register_uris(version, ec2_files, ec2_meta, os_files):
                     buf.write("%s" % (k))
                 buf.write("\n")
             return (200, headers, buf.getvalue())
-        if path.startswith('latest/meta-data'):
+        if path.startswith('latest/meta-data/'):
             value = None
             pieces = path.split("/")
             if path.endswith("/"):
