@@ -232,12 +232,6 @@ class Distro(distros.Distro):
 
     def _write_network(self, settings):
         entries = net_util.translate_network(settings)
-        LOG.debug("Translated network settings")
-        LOG.debug("\n========== UBUNTU FORMAT START ==========")
-        LOG.debug("%s\n========== UBUNTU FORMAT END ==========", settings)
-        LOG.debug("\n========== GENERIC FORMAT START ==========")
-        LOG.debug("%s\n========== GENERIC FORMAT END ==========", entries)
-
         nameservers = []
         searchdomains = []
         dev_names = entries.keys()
