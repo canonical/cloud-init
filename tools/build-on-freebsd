@@ -3,8 +3,22 @@
 # installing cloud-init. This script takes care of building and installing. It
 # will optionally make a first run at the end.
 
+fail() { echo "FAILED:" "$@" 1>&2; exit 1; }
+
 # Check dependencies:
-[ ! -f /tmp/c-i.dependencieschecked ] && pkg install python py27-cheetah py27-Jinja2 py27-prettytable py27-oauth py27-serial py27-configobj py27-yaml py27-argparse py27-requests py27-six py27-boto gpart sudo dmidecode
+depscheck=/tmp/c-i.dependencieschecked
+pkgs="
+   dmidecode
+   py27-argparse
+   py27-boto gpart sudo
+   py27-configobj py27-yaml
+   py27-Jinja2
+   py27-oauth py27-serial
+   py27-prettytable
+   py27-requests py27-six
+   python py27-cheetah
+"
+[ -f "$depschecked" ] || pkg install ${pkgs} || fail "install packages"
 touch /tmp/c-i.dependencieschecked
 
 # Required but unavailable port/pkg: py27-jsonpatch py27-jsonpointer
@@ -23,8 +37,7 @@ echo 'cloudinit_enable="YES"' >> /etc/rc.conf
 
 echo "Installation completed."
 
-if [ "$1" = "run" ]
-then
+if [ "$1" = "run" ]; then
 	echo "Ok, now let's see if it works."
 
 	# Backup SSH keys
