@@ -28,7 +28,7 @@ import base64
 import os
 import pwd
 import re
-import string  # pylint: disable=W0402
+import string
 
 from cloudinit import log as logging
 from cloudinit import sources

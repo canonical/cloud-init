@@ -26,8 +26,8 @@ package_mirrors = [
     unknown_arch_info
 ]
 
-gpmi = distros._get_package_mirror_info  # pylint: disable=W0212
-gapmi = distros._get_arch_package_mirror_info  # pylint: disable=W0212
+gpmi = distros._get_package_mirror_info
+gapmi = distros._get_arch_package_mirror_info
 
 
 class TestGenericDistro(helpers.FilesystemMockingTestCase):

@@ -46,7 +46,7 @@ def tiny_p(cmd, capture=True):
     sp = subprocess.Popen(cmd, stdout=stdout,
                     stderr=stderr, stdin=None)
     (out, err) = sp.communicate()
-    ret = sp.returncode  # pylint: disable=E1101
+    ret = sp.returncode
     if ret not in [0]:
         raise RuntimeError("Failed running %s [rc=%s] (%s, %s)"
                             % (cmd, ret, out, err))
