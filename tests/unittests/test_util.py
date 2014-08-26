@@ -1,5 +1,3 @@
-# pylint: disable=C0301
-# the mountinfo data lines are too long
 import os
 import stat
 import yaml
@@ -18,7 +16,7 @@ class FakeSelinux(object):
         self.match_what = match_what
         self.restored = []
 
-    def matchpathcon(self, path, mode):  # pylint: disable=W0613
+    def matchpathcon(self, path, mode):
         if path == self.match_what:
             return
         else:
@@ -27,7 +25,7 @@ class FakeSelinux(object):
     def is_selinux_enabled(self):
         return True
 
-    def restorecon(self, path, recursive):  # pylint: disable=W0613
+    def restorecon(self, path, recursive):
         self.restored.append(path)
 
 

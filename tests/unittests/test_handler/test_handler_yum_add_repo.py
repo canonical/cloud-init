@@ -24,7 +24,7 @@ class TestConfig(helpers.FilesystemMockingTestCase):
                 'epel-testing': {
                     'name': 'Extra Packages for Enterprise Linux 5 - Testing',
                     # Missing this should cause the repo not to be written
-                    #'baseurl': 'http://blah.org/pub/epel/testing/5/$basearch',
+                    # 'baseurl': 'http://blah.org/pub/epel/testing/5/$basearch',
                     'enabled': False,
                     'gpgcheck': True,
                     'gpgkey': 'file:///etc/pki/rpm-gpg/RPM-GPG-KEY-EPEL',

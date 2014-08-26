@@ -107,7 +107,7 @@ class DataSourceOVF(sources.DataSource):
         return True
 
     def get_public_ssh_keys(self):
-        if not 'public-keys' in self.metadata:
+        if 'public-keys' not in self.metadata:
             return []
         pks = self.metadata['public-keys']
         if isinstance(pks, (list)):
@@ -205,7 +205,7 @@ def transport_iso9660(require_iso=True):
         fullp = os.path.join("/dev/", dev)
 
         if (fullp in mounts or
-            not cdmatch.match(dev) or os.path.isdir(fullp)):
+                not cdmatch.match(dev) or os.path.isdir(fullp)):
             continue
 
         try:
