@@ -150,10 +150,6 @@ class BaseReader(object):
         pass
 
     @abc.abstractmethod
-    def _path_exists(self, path):
-        pass
-
-    @abc.abstractmethod
     def _path_read(self, path):
         pass
 
@@ -170,22 +166,9 @@ class BaseReader(object):
         path = self._path_join(self.base_path, "openstack", *path_pieces)
         return self._path_read(path)
 
+    @abc.abstractmethod
     def _find_working_version(self, version):
-        search_versions = [version] + list(OS_VERSIONS)
-        for potential_version in search_versions:
-            if not potential_version:
-                continue
-            path = self._path_join(self.base_path, "openstack",
-                                   potential_version)
-            if self._path_exists(path):
-                if potential_version != version:
-                    LOG.debug("Version '%s' not available, attempting to use"
-                              " version '%s' instead", version,
-                              potential_version)
-                return potential_version
-        LOG.debug("Version '%s' not available, attempting to use '%s'"
-                  " instead", version, OS_LATEST)
-        return OS_LATEST
+        pass
 
     def read_v2(self, version=None):
         """Reads a version 2 formatted location.
@@ -228,15 +211,14 @@ class BaseReader(object):
             path = self._path_join(self.base_path, path)
             data = None
             found = False
-            if self._path_exists(path):
-                try:
-                    data = self._path_read(path)
-                except IOError:
-                    raise NonReadable("Failed to read: %s" % path)
-                found = True
+            try:
+                data = self._path_read(path)
+            except IOError:
+                pass
             else:
-                if required:
-                    raise NonReadable("Missing mandatory path: %s" % path)
+                found = True
+            if required and not found:
+                raise NonReadable("Missing mandatory path: %s" % path)
             if found and translator:
                 try:
                     data = translator(data)
@@ -314,6 +296,23 @@ class ConfigDriveReader(BaseReader):
 
     def _path_read(self, path):
         return util.load_file(path)
+
+    def _find_working_version(self, version):
+        search_versions = [version] + list(OS_VERSIONS)
+        for potential_version in search_versions:
+            if not potential_version:
+                continue
+            path = self._path_join(self.base_path, "openstack",
+                                   potential_version)
+            if self._path_exists(path):
+                if potential_version != version:
+                    LOG.debug("Version '%s' not available, attempting to use"
+                              " version '%s' instead", version,
+                              potential_version)
+                return potential_version
+        LOG.debug("Version '%s' not available, attempting to use '%s'"
+                  " instead", version, OS_LATEST)
+        return OS_LATEST
 
     def _read_ec2_metadata(self):
         path = self._path_join(self.base_path,
@@ -401,34 +400,38 @@ class MetadataReader(BaseReader):
         self.timeout = float(timeout)
         self.retries = int(retries)
 
+    def _find_working_version(self, version):
+        search_versions = [version] + list(OS_VERSIONS)
+        version_path = self._path_join(self.base_path, "openstack")
+        versions_available = []
+        try:
+            versions = self._path_read(version_path)
+        except IOError:
+            pass
+        else:
+            for line in versions.splitlines():
+                line = line.strip()
+                if not line:
+                    continue
+                versions_available.append(line)
+        for potential_version in search_versions:
+            if potential_version not in versions_available:
+                continue
+            if potential_version != version:
+                LOG.debug("Version '%s' not available, attempting to use"
+                          " version '%s' instead", version,
+                          potential_version)
+            return potential_version
+        LOG.debug("Version '%s' not available, searched %s, attempting to"
+                  " use '%s' instead", version, search_versions, OS_LATEST)
+        return OS_LATEST
+
     def _path_read(self, path):
         response = url_helper.readurl(path,
                                       retries=self.retries,
                                       ssl_details=self.ssl_details,
                                       timeout=self.timeout)
         return response.contents
-
-    def _path_exists(self, path):
-
-        def should_retry_cb(request, cause):
-            try:
-                code = int(cause.code)
-                if code >= 400:
-                    return False
-            except (TypeError, ValueError):
-                # Older versions of requests didn't have a code.
-                pass
-            return True
-
-        try:
-            response = url_helper.readurl(path,
-                                          retries=self.retries,
-                                          ssl_details=self.ssl_details,
-                                          timeout=self.timeout,
-                                          exception_cb=should_retry_cb)
-            return response.ok()
-        except IOError:
-            return False
 
     def _path_join(self, base, *add_ons):
         return url_helper.combine_url(base, *add_ons)
