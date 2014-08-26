@@ -11,7 +11,7 @@ import glob
 import os
 import random
 import re
-import string  # pylint: disable=W0402
+import string
 
 SOURCE_PAT = "source*.*yaml"
 EXPECTED_PAT = "expected%s.yaml"

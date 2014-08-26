@@ -28,19 +28,19 @@ from cloudinit import util
 frequency = PER_ALWAYS
 
 
-def _resize_btrfs(mount_point, devpth):  # pylint: disable=W0613
+def _resize_btrfs(mount_point, devpth):
     return ('btrfs', 'filesystem', 'resize', 'max', mount_point)
 
 
-def _resize_ext(mount_point, devpth):  # pylint: disable=W0613
+def _resize_ext(mount_point, devpth):
     return ('resize2fs', devpth)
 
 
-def _resize_xfs(mount_point, devpth):  # pylint: disable=W0613
+def _resize_xfs(mount_point, devpth):
     return ('xfs_growfs', devpth)
 
 
-def _resize_ufs(mount_point, devpth):  # pylint: disable=W0613
+def _resize_ufs(mount_point, devpth):
     return ('growfs', devpth)
 
 # Do not use a dictionary as these commands should be able to be used

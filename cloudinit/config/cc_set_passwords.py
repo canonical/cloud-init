@@ -28,7 +28,7 @@ from cloudinit import distros as ds
 from cloudinit import ssh_util
 from cloudinit import util
 
-from string import letters, digits  # pylint: disable=W0402
+from string import letters, digits
 
 # We are removing certain 'painful' letters/numbers
 PW_SET = (letters.translate(None, 'loLOI') +

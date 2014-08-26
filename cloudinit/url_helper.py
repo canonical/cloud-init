@@ -44,7 +44,7 @@ try:
     from distutils.version import LooseVersion
     import pkg_resources
     _REQ = pkg_resources.get_distribution('requests')
-    _REQ_VER = LooseVersion(_REQ.version)  # pylint: disable=E1103
+    _REQ_VER = LooseVersion(_REQ.version)
     if _REQ_VER >= LooseVersion('0.8.8'):
         SSL_ENABLED = True
     if _REQ_VER >= LooseVersion('0.7.0') and _REQ_VER < LooseVersion('1.0.0'):
@@ -54,7 +54,7 @@ except:
 
 
 def _cleanurl(url):
-    parsed_url = list(urlparse(url, scheme='http'))  # pylint: disable=E1123
+    parsed_url = list(urlparse(url, scheme='http'))
     if not parsed_url[1] and parsed_url[2]:
         # Swap these since this seems to be a common
         # occurrence when given urls like 'www.google.com'
@@ -90,7 +90,7 @@ class StringResponse(object):
         self.contents = contents
         self.url = None
 
-    def ok(self, *args, **kwargs):  # pylint: disable=W0613
+    def ok(self, *args, **kwargs):
         if self.code != 200:
             return False
         return True
@@ -150,7 +150,7 @@ class UrlError(IOError):
 
 def _get_ssl_args(url, ssl_details):
     ssl_args = {}
-    scheme = urlparse(url).scheme  # pylint: disable=E1101
+    scheme = urlparse(url).scheme
     if scheme == 'https' and ssl_details:
         if not SSL_ENABLED:
             LOG.warn("SSL is not supported in requests v%s, "
@@ -227,10 +227,9 @@ def readurl(url, data=None, timeout=None, retries=0, sec_between=1,
 
             r = requests.request(**req_args)
             if check_status:
-                r.raise_for_status()  # pylint: disable=E1103
+                r.raise_for_status()
             LOG.debug("Read from %s (%s, %sb) after %s attempts", url,
-                      r.status_code, len(r.content),  # pylint: disable=E1103
-                      (i + 1))
+                      r.status_code, len(r.content), (i + 1))
             # Doesn't seem like we can make it use a different
             # subclass for responses, so add our own backward-compat
             # attrs
