@@ -193,7 +193,7 @@ class TestGenericDistro(helpers.FilesystemMockingTestCase):
                           'security': 'http://security-mirror2-intel'})
 
 
-#def _get_package_mirror_info(mirror_info, availability_zone=None,
+# def _get_package_mirror_info(mirror_info, availability_zone=None,
 #                             mirror_filter=util.search_for_mirror):
 
 

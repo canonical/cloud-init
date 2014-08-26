@@ -1,6 +1,6 @@
 httpretty>=0.7.1
 mocker
 nose
-pep8
+pep8==1.5.7
 pyflakes
 pylint

@@ -55,7 +55,7 @@ def _gen_fingerprint(b64_text, hash_meth='md5'):
 def _is_printable_key(entry):
     if any([entry.keytype, entry.base64, entry.comment, entry.options]):
         if (entry.keytype and
-            entry.keytype.lower().strip() in ['ssh-dss', 'ssh-rsa']):
+                entry.keytype.lower().strip() in ['ssh-dss', 'ssh-rsa']):
             return True
     return False
 

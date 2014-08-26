@@ -423,7 +423,7 @@ def get_cfg_option_list(yobj, key, default=None):
     @return: The configuration option as a list of strings or default if key
         is not found.
     """
-    if not key in yobj:
+    if key not in yobj:
         return default
     if yobj[key] is None:
         return []
@@ -1148,7 +1148,7 @@ def chownbyname(fname, user=None, group=None):
 # this returns the specific 'mode' entry, cleanly formatted, with value
 def get_output_cfg(cfg, mode):
     ret = [None, None]
-    if not cfg or not 'output' in cfg:
+    if cfg or 'output' not in cfg:
         return ret
 
     outcfg = cfg['output']
@@ -1745,7 +1745,7 @@ def parse_mount_info(path, mountinfo_lines, log=LOG):
         # Ignore mount points higher than an already seen mount
         # point.
         if (match_mount_point_elements is not None and
-            len(match_mount_point_elements) > len(mount_point_elements)):
+                len(match_mount_point_elements) > len(mount_point_elements)):
             continue
 
         # Find the '-' which terminates a list of optional columns to

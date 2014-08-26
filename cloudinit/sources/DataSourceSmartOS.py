@@ -41,7 +41,7 @@ import serial
 LOG = logging.getLogger(__name__)
 
 SMARTOS_ATTRIB_MAP = {
-    #Cloud-init Key : (SmartOS Key, Strip line endings)
+    # Cloud-init Key : (SmartOS Key, Strip line endings)
     'local-hostname': ('hostname', True),
     'public-keys': ('root_authorized_keys', True),
     'user-script': ('user-script', False),
@@ -96,21 +96,21 @@ BUILTIN_CLOUD_CONFIG = {
                   'device': 'ephemeral0'}],
 }
 
-## builtin vendor-data is a boothook that writes a script into
-## /var/lib/cloud/scripts/per-boot.  *That* script then handles
-## executing the 'operator-script' and 'user-script' files
-## that cloud-init writes into /var/lib/cloud/instance/data/
-## if they exist.
-##
-## This is all very indirect, but its done like this so that at
-## some point in the future, perhaps cloud-init wouldn't do it at
-## all, but rather the vendor actually provide vendor-data that accomplished
-## their desires. (That is the point of vendor-data).
-##
-## cloud-init does cheat a bit, and write the operator-script and user-script
-## itself.  It could have the vendor-script do that, but it seems better
-## to not require the image to contain a tool (mdata-get) to read those
-## keys when we have a perfectly good one inside cloud-init.
+# builtin vendor-data is a boothook that writes a script into
+# /var/lib/cloud/scripts/per-boot.  *That* script then handles
+# executing the 'operator-script' and 'user-script' files
+# that cloud-init writes into /var/lib/cloud/instance/data/
+# if they exist.
+#
+# This is all very indirect, but its done like this so that at
+# some point in the future, perhaps cloud-init wouldn't do it at
+# all, but rather the vendor actually provide vendor-data that accomplished
+# their desires. (That is the point of vendor-data).
+#
+# cloud-init does cheat a bit, and write the operator-script and user-script
+# itself.  It could have the vendor-script do that, but it seems better
+# to not require the image to contain a tool (mdata-get) to read those
+# keys when we have a perfectly good one inside cloud-init.
 BUILTIN_VENDOR_DATA = """\
 #cloud-boothook
 #!/bin/sh
