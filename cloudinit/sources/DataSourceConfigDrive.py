@@ -126,15 +126,12 @@ class DataSourceConfigDrive(openstack.SourceMixin, sources.DataSource):
         self.version = results['version']
         self.files.update(results.get('files', {}))
 
+        # If there is no vendordata, set vd to an empty dict instead of None
+        vd = results.get('vendordata', {})
         # if vendordata includes 'cloud-init', then read that explicitly
         # for cloud-init (for namespacing).
-        vd = results.get('vendordata')
-        if isinstance(vd, dict):
-            if 'cloud-init' in vd:
-                self.vendordata_raw = vd['cloud-init']
-            else:
-                # TODO(pquerna): this is so wrong.
-                self.vendordata_raw = json.dumps(vd)
+        if 'cloud-init' in vd:
+            self.vendordata_raw = vd['cloud-init']
         else:
             self.vendordata_raw = vd
 
