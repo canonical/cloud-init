@@ -172,10 +172,12 @@ def get_ds_mode(cfgdrv_ver, ds_cfg=None, user=None):
     return "net"
 
 
-def read_config_drive(source_dir, version="2013-10-17"):
+def read_config_drive(source_dir, version=openstack.OS_HAVANA):
     reader = openstack.ConfigDriveReader(source_dir)
     finders = [
         (reader.read_v2, [], {'version': version}),
+        (reader.read_v2, [], {'version': openstack.OS_GRIZZLY}),
+        (reader.read_v2, [], {'version': openstack.OS_FOLSOM}),
         (reader.read_v1, [], {}),
     ]
     excps = []
