@@ -23,6 +23,8 @@
    unless config explicitly provided (LP: #1329583) [Garrett Holmstrom])
  - fix rendering resolv.conf if no 'options' are provided (LP: #1328953)
  - docs: fix disk-setup to reference 'table_type' [Rail Aliiev] (LP: #1313114)
+ - ssh_authkey_fingerprints: fix bug that prevented disabling the module.
+   (LP: #1340903) [Patrick Lucas]
 0.7.5:
  - open 0.7.5
  - Add a debug log message around import failures
