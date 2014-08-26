@@ -19,9 +19,6 @@ all: test check_version
 pep8:
 	@$(CWD)/tools/run-pep8 $(PY_FILES)
 
-pylint:
-	@$(CWD)/tools/run-pylint $(PY_FILES)
-
 pyflakes:
 	pyflakes $(PY_FILES)
 
