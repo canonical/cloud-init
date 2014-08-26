@@ -3,4 +3,3 @@ mocker
 nose
 pep8==1.5.7
 pyflakes
-pylint
