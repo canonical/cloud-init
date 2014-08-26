@@ -166,7 +166,7 @@ class DataSource(object):
         defhost = "localhost"
         domain = defdomain
 
-        if not self.metadata or not 'local-hostname' in self.metadata:
+        if self.metadata or 'local-hostname' not in self.metadata:
             # this is somewhat questionable really.
             # the cloud datasource was asked for a hostname
             # and didn't have one. raising error might be more appropriate

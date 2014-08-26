@@ -642,7 +642,7 @@ class Modules(object):
                 # Try the modules frequency, otherwise fallback to a known one
                 if not freq:
                     freq = mod.frequency
-                if not freq in FREQUENCIES:
+                if freq not in FREQUENCIES:
                     freq = PER_INSTANCE
                 LOG.debug("Running module %s (%s) with frequency %s",
                           name, mod, freq)

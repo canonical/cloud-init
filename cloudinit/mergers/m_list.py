@@ -53,7 +53,7 @@ class Merger(object):
 
     def _on_list(self, value, merge_with):
         if (self._method == 'replace' and
-            not isinstance(merge_with, (tuple, list))):
+                not isinstance(merge_with, (tuple, list))):
             return merge_with
 
         # Ok we now know that what we are merging with is a list or tuple.

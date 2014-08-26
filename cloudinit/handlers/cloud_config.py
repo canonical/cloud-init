@@ -138,8 +138,7 @@ class CloudConfigPartHandler(handlers.Handler):
         self.file_names = []
         self.cloud_buf = None
 
-    def handle_part(self, _data, ctype, filename,  # pylint: disable=W0221
-                    payload, _frequency, headers):  # pylint: disable=W0613
+    def handle_part(self, data, ctype, filename, payload, frequency, headers):
         if ctype == handlers.CONTENT_START:
             self._reset()
             return

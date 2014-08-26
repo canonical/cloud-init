@@ -19,9 +19,6 @@ all: test check_version
 pep8:
 	@$(CWD)/tools/run-pep8 $(PY_FILES)
 
-pylint:
-	@$(CWD)/tools/run-pylint $(PY_FILES)
-
 pyflakes:
 	pyflakes $(PY_FILES)
 
@@ -61,5 +58,5 @@ rpm:
 deb:
 	./packages/bddeb
 
-.PHONY: test pylint pyflakes 2to3 clean pep8 rpm deb yaml check_version
+.PHONY: test pyflakes 2to3 clean pep8 rpm deb yaml check_version
 .PHONY: pip-test-requirements pip-requirements clean_pyc

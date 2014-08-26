@@ -25,6 +25,7 @@
  - docs: fix disk-setup to reference 'table_type' [Rail Aliiev] (LP: #1313114)
  - ssh_authkey_fingerprints: fix bug that prevented disabling the module.
    (LP: #1340903) [Patrick Lucas]
+ - no longer use pylint as a checker, fix pep8 [Jay Faulkner].
 0.7.5:
  - open 0.7.5
  - Add a debug log message around import failures
