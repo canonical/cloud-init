@@ -87,7 +87,8 @@ def handle(name, cfg, cloud, log, _args):
 
     # If chef is not installed, we install chef based on 'install_type'
     if (not os.path.isfile('/usr/bin/chef-client') or
-        util.get_cfg_option_bool(chef_cfg, 'force_install', default=False)):
+            util.get_cfg_option_bool(chef_cfg,
+                'force_install', default=False)):
 
         install_type = util.get_cfg_option_str(chef_cfg, 'install_type',
                                                'packages')

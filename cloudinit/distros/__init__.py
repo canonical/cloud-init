@@ -167,7 +167,7 @@ class Distro(object):
     def expand_osfamily(family_list):
         distros = []
         for family in family_list:
-            if not family in OSFAMILIES:
+            if family not in OSFAMILIES:
                 raise ValueError("No distibutions found for osfamily %s"
                                  % (family))
             distros.extend(OSFAMILIES[family])
@@ -218,7 +218,7 @@ class Distro(object):
                             fn)
 
         if (sys_hostname and prev_hostname and
-            sys_hostname != prev_hostname):
+                sys_hostname != prev_hostname):
             LOG.debug("%s differs from %s, assuming user maintained hostname.",
                        prev_hostname_fn, sys_fn)
 

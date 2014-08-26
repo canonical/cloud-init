@@ -271,7 +271,7 @@ def find_device_node(device, fs_type=None, label=None, valid_targets=None,
             return ('/dev/%s' % d['name'], False)
 
         if (d['fstype'] == fs_type and
-            ((label_match and d['label'] == label) or not label_match)):
+                ((label_match and d['label'] == label) or not label_match)):
             # If we find a matching device, we return that
             return ('/dev/%s' % d['name'], True)
 
@@ -447,7 +447,7 @@ def get_partition_mbr_layout(size, layout):
         return "0,"
 
     if ((len(layout) == 0 and isinstance(layout, list)) or
-        not isinstance(layout, list)):
+            not isinstance(layout, list)):
         raise Exception("Partition layout is invalid")
 
     last_part_num = len(layout)

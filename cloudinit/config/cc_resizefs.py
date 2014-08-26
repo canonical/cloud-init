@@ -105,7 +105,7 @@ def handle(name, cfg, _cloud, log, args):
     container = util.is_container()
 
     if (devpth == "/dev/root" and not os.path.exists(devpth) and
-        not container):
+            not container):
         devpth = rootdev_from_cmdline(util.get_cmdline())
         if devpth is None:
             log.warn("Unable to find device '/dev/root'")

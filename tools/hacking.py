@@ -71,7 +71,7 @@ def cloud_import_alphabetical(physical_line, line_number, lines):
     # with or without "as y"
     length = [2, 4]
     if (len(split_line) in length and len(split_previous) in length and
-        split_line[0] == "import" and split_previous[0] == "import"):
+            split_line[0] == "import" and split_previous[0] == "import"):
         if split_line[1] < split_previous[1]:
             return (0, "N306: imports not in alphabetical order (%s, %s)"
                 % (split_previous[1], split_line[1]))

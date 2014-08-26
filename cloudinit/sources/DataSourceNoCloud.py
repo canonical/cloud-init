@@ -181,7 +181,7 @@ class DataSourceNoCloud(sources.DataSource):
         # and the source of the seed was self.dsmode
         # ('local' for NoCloud, 'net' for NoCloudNet')
         if ('network-interfaces' in mydata['meta-data'] and
-            (self.dsmode in ("local", seeded_interfaces))):
+                (self.dsmode in ("local", seeded_interfaces))):
             LOG.debug("Updating network interfaces from %s", self)
             self.distro.apply_network(
                 mydata['meta-data']['network-interfaces'])
