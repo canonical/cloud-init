@@ -21,6 +21,7 @@
 import abc
 import base64
 import copy
+import httplib
 import os
 
 from cloudinit import ec2_utils
@@ -154,8 +155,29 @@ class BaseReader(object):
         pass
 
     @abc.abstractmethod
+    def _fetch_available_versions(self):
+        pass
+
+    @abc.abstractmethod
     def _read_ec2_metadata(self):
         pass
+
+    def _find_working_version(self, version):
+        search_versions = [version] + list(OS_VERSIONS)
+        available_versions = self._fetch_available_versions()
+        for potential_version in search_versions:
+            if not potential_version:
+                continue
+            if potential_version not in available_versions:
+                continue
+            if potential_version != version:
+                LOG.debug("Version '%s' not available, attempting to use"
+                          " version '%s' instead", version,
+                          potential_version)
+                return potential_version
+        LOG.debug("Version '%s' not available, attempting to use '%s'"
+                  " instead", version, OS_LATEST)
+        return OS_LATEST
 
     def _read_content_path(self, item):
         path = item.get('content_path', '').lstrip("/")
@@ -165,10 +187,6 @@ class BaseReader(object):
             raise BrokenMetadata("Item %s has no valid content path" % (item))
         path = self._path_join(self.base_path, "openstack", *path_pieces)
         return self._path_read(path)
-
-    @abc.abstractmethod
-    def _find_working_version(self, version):
-        pass
 
     def read_v2(self, version=None):
         """Reads a version 2 formatted location.
@@ -290,6 +308,7 @@ class BaseReader(object):
 class ConfigDriveReader(BaseReader):
     def __init__(self, base_path):
         super(ConfigDriveReader, self).__init__(base_path)
+        self._versions = None
 
     def _path_join(self, base, *add_ons):
         components = [base] + list(add_ons)
@@ -298,22 +317,21 @@ class ConfigDriveReader(BaseReader):
     def _path_read(self, path):
         return util.load_file(path)
 
-    def _find_working_version(self, version):
-        search_versions = [version] + list(OS_VERSIONS)
-        for potential_version in search_versions:
-            if not potential_version:
-                continue
-            path = self._path_join(self.base_path, "openstack",
-                                   potential_version)
-            if os.path.exists(path):
-                if potential_version != version:
-                    LOG.debug("Version '%s' not available, attempting to use"
-                              " version '%s' instead", version,
-                              potential_version)
-                return potential_version
-        LOG.debug("Version '%s' not available, attempting to use '%s'"
-                  " instead", version, OS_LATEST)
-        return OS_LATEST
+    def _fetch_available_versions(self):
+        if self._versions is not None:
+            return self._versions
+        else:
+            versions_available = []
+            path = self._path_join(self.base_path, 'openstack')
+            try:
+                for child in os.listdir(path):
+                    child_path = os.path.join(path, child)
+                    if os.path.isdir(child_path):
+                        versions_available.append(child)
+            except (OSError, IOError):
+                pass
+            self._versions = tuple(versions_available)
+            return self._versions
 
     def _read_ec2_metadata(self):
         path = self._path_join(self.base_path,
@@ -400,40 +418,40 @@ class MetadataReader(BaseReader):
         self.ssl_details = ssl_details
         self.timeout = float(timeout)
         self.retries = int(retries)
+        self._versions = None
 
-    def _find_working_version(self, version):
-        search_versions = [version] + list(OS_VERSIONS)
-        version_path = self._path_join(self.base_path, "openstack")
-        versions_available = []
-        try:
-            versions = self._path_read(version_path)
-        except IOError as e:
-            LOG.warn("Unable to read openstack versions from %s due"
-                     " to: %s", version_path, e)
+    def _fetch_available_versions(self):
+        if self._versions is not None:
+            return self._versions
         else:
-            for line in versions.splitlines():
-                line = line.strip()
-                if not line:
-                    continue
-                versions_available.append(line)
-        for potential_version in search_versions:
-            if potential_version not in versions_available:
-                continue
-            if potential_version != version:
-                LOG.debug("Version '%s' not available, attempting to use"
-                          " version '%s' instead", version,
-                          potential_version)
-            return potential_version
-        LOG.debug("Version '%s' not available, searched for %s (with available"
-                  " versions being %s), attempting to use '%s' instead",
-                  version, search_versions, versions_available, OS_LATEST)
-        return OS_LATEST
+            path = self._path_join(self.base_path, "openstack")
+            versions_available = []
+            try:
+                versions = self._path_read(path)
+            except IOError as e:
+                LOG.warn("Unable to read openstack versions from %s due"
+                         " to: %s", path, e)
+            else:
+                for line in versions.splitlines():
+                    line = line.strip()
+                    if not line:
+                        continue
+                    versions_available.append(line)
+            self._versions = tuple(versions_available)
+            return self._versions
 
     def _path_read(self, path):
+
+        def should_retry(_request_args, cause):
+            if cause.code == httplib.NOT_FOUND:
+                return False
+            return True
+
         response = url_helper.readurl(path,
                                       retries=self.retries,
                                       ssl_details=self.ssl_details,
-                                      timeout=self.timeout)
+                                      timeout=self.timeout,
+                                      exception_cb=should_retry)
         return response.contents
 
     def _path_join(self, base, *add_ons):
