@@ -162,21 +162,25 @@ class BaseReader(object):
         pass
 
     def _find_working_version(self, version):
+        try:
+            versions_available = self._fetch_available_versions(self)
+        except Exception as e:
+            LOG.warn("Unable to read openstack versions from %s due to: %s",
+                     self.base_path, e)
+            versions_available = []
+
         search_versions = [version] + list(OS_VERSIONS)
-        available_versions = self._fetch_available_versions()
+        selected_version = OS_LATEST
         for potential_version in search_versions:
-            if not potential_version:
+            if potential_version not in versions_available:
                 continue
-            if potential_version not in available_versions:
-                continue
-            if potential_version != version:
-                LOG.debug("Version '%s' not available, attempting to use"
-                          " version '%s' instead", version,
-                          potential_version)
-                return potential_version
-        LOG.debug("Version '%s' not available, attempting to use '%s'"
-                  " instead", version, OS_LATEST)
-        return OS_LATEST
+            selected_version = potential_version
+            break
+
+        if selected_version != version:
+            LOG.warn("Version '%s' not available, attempting to use"
+                     " version '%s' instead", version, selected_version)
+        return selected_version
 
     def _read_content_path(self, item):
         path = item.get('content_path', '').lstrip("/")
@@ -317,20 +321,12 @@ class ConfigDriveReader(BaseReader):
         return util.load_file(path)
 
     def _fetch_available_versions(self):
-        if self._versions is not None:
-            return self._versions
-        else:
-            versions_available = []
+        if self._versions is None:
             path = self._path_join(self.base_path, 'openstack')
-            try:
-                for child in os.listdir(path):
-                    child_path = os.path.join(path, child)
-                    if os.path.isdir(child_path):
-                        versions_available.append(child)
-            except (OSError, IOError):
-                pass
-            self._versions = tuple(versions_available)
-            return self._versions
+            found = [d for d in os.listdir(path)
+                     if os.path.isdir(os.path.join(path))]
+            self._versions = tuple(found)
+        return self._versions
 
     def _read_ec2_metadata(self):
         path = self._path_join(self.base_path,
@@ -420,24 +416,19 @@ class MetadataReader(BaseReader):
         self._versions = None
 
     def _fetch_available_versions(self):
+        # <baseurl>/openstack/ returns a newline separated list of versions
         if self._versions is not None:
-            return self._versions
-        else:
-            path = self._path_join(self.base_path, "openstack")
-            versions_available = []
-            try:
-                versions = self._path_read(path)
-            except IOError as e:
-                LOG.warn("Unable to read openstack versions from %s due"
-                         " to: %s", path, e)
-            else:
-                for line in versions.splitlines():
-                    line = line.strip()
-                    if not line:
-                        continue
-                    versions_available.append(line)
-            self._versions = tuple(versions_available)
-            return self._versions
+            return self.os_versions
+        found = []
+        content = self._path_read(version_path)
+        for line in content.splitlines():
+            line = line.strip()
+            if not line:
+                continue
+            found.append(line)
+        self._versions = tuple(found)
+        return self._versions
+
 
     def _path_read(self, path):
 
