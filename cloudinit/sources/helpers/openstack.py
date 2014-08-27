@@ -295,9 +295,6 @@ class ConfigDriveReader(BaseReader):
         components = [base] + list(add_ons)
         return os.path.join(*components)
 
-    def _path_exists(self, path):
-        return os.path.exists(path)
-
     def _path_read(self, path):
         return util.load_file(path)
 
@@ -308,7 +305,7 @@ class ConfigDriveReader(BaseReader):
                 continue
             path = self._path_join(self.base_path, "openstack",
                                    potential_version)
-            if self._path_exists(path):
+            if os.path.exists(path):
                 if potential_version != version:
                     LOG.debug("Version '%s' not available, attempting to use"
                               " version '%s' instead", version,
@@ -321,7 +318,7 @@ class ConfigDriveReader(BaseReader):
     def _read_ec2_metadata(self):
         path = self._path_join(self.base_path,
                                'ec2', 'latest', 'meta-data.json')
-        if not self._path_exists(path):
+        if not os.path.exists(path):
             return {}
         else:
             try:
@@ -341,7 +338,7 @@ class ConfigDriveReader(BaseReader):
         found = {}
         for name in FILES_V1.keys():
             path = self._path_join(self.base_path, name)
-            if self._path_exists(path):
+            if os.path.exists(path):
                 found[name] = path
         if len(found) == 0:
             raise NonReadable("%s: no files found" % (self.base_path))
