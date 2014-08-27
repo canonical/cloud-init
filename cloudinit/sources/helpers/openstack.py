@@ -21,7 +21,6 @@
 import abc
 import base64
 import copy
-import httplib
 import os
 
 from cloudinit import ec2_utils
@@ -442,16 +441,21 @@ class MetadataReader(BaseReader):
 
     def _path_read(self, path):
 
-        def should_retry(_request_args, cause):
-            if cause.code == httplib.NOT_FOUND:
-                return False
+        def should_retry_cb(_request_args, cause):
+            try:
+                code = int(cause.code)
+                if code >= 400:
+                    return False
+            except (TypeError, ValueError):
+                # Older versions of requests didn't have a code.
+                pass
             return True
 
         response = url_helper.readurl(path,
                                       retries=self.retries,
                                       ssl_details=self.ssl_details,
                                       timeout=self.timeout,
-                                      exception_cb=should_retry)
+                                      exception_cb=should_retry_cb)
         return response.contents
 
     def _path_join(self, base, *add_ons):
