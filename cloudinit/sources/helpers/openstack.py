@@ -407,8 +407,9 @@ class MetadataReader(BaseReader):
         versions_available = []
         try:
             versions = self._path_read(version_path)
-        except IOError:
-            pass
+        except IOError as e:
+            LOG.warn("Unable to read openstack versions from %s due"
+                     " to: %s", version_path, e)
         else:
             for line in versions.splitlines():
                 line = line.strip()
