@@ -424,8 +424,9 @@ class MetadataReader(BaseReader):
                           " version '%s' instead", version,
                           potential_version)
             return potential_version
-        LOG.debug("Version '%s' not available, searched %s, attempting to"
-                  " use '%s' instead", version, search_versions, OS_LATEST)
+        LOG.debug("Version '%s' not available, searched for %s (with available"
+                  " versions being %s), attempting to use '%s' instead",
+                  version, search_versions, versions_available, OS_LATEST)
         return OS_LATEST
 
     def _path_read(self, path):
