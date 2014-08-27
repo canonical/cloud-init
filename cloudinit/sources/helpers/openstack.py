@@ -213,8 +213,12 @@ class BaseReader(object):
             found = False
             try:
                 data = self._path_read(path)
-            except IOError:
-                pass
+            except IOError as e:
+                if not required:
+                    LOG.debug("Failed reading optional path %s due"
+                              " to: %s", path, e)
+                else:
+                    LOG.exception("Failed reading mandatory path %s", path)
             else:
                 found = True
             if required and not found:
