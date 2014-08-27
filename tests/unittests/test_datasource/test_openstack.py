@@ -79,7 +79,7 @@ EC2_FILES = {
     'latest/user-data': USER_DATA,
 }
 EC2_VERSIONS = [
-    'lastest',
+    'latest',
 ]
 
 
