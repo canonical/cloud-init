@@ -51,12 +51,18 @@ class Distro(distros.Distro):
         LOG.debug("Checking %s for: %s = %s", self.rc_conf_fn, key, value)
         conf = self.loadrcconf()
         config_changed = False
-        for item in conf:
-            if item == key and conf[item] != value:
-                conf[item] = value
-                LOG.debug("Changing key in %s: %s = %s", self.rc_conf_fn, key,
-                            value)
-                config_changed = True
+        if key not in conf:
+            LOG.debug("Adding key in %s: %s = %s", self.rc_conf_fn, key,
+                      value)
+            conf[key] = value
+            config_changed = True
+        else:
+            for item in conf.keys():
+                if item == key and conf[item] != value:
+                    conf[item] = value
+                    LOG.debug("Changing key in %s: %s = %s", self.rc_conf_fn,
+                              key, value)
+                    config_changed = True
 
         if config_changed:
             LOG.info("Writing %s", self.rc_conf_fn)
@@ -69,7 +75,7 @@ class Distro(distros.Distro):
     # quotes are ignored:
     #  hostname="bla"
     def loadrcconf(self):
-        RE_MATCH = re.compile(r'^(\w+)="?(\w+)"?')
+        RE_MATCH = re.compile(r'^(\w+)\s*=\s*(.*)\s*')
         conf = {}
         lines = util.load_file(self.rc_conf_fn).splitlines()
         for line in lines:
@@ -77,9 +83,17 @@ class Distro(distros.Distro):
             if not m:
                 LOG.debug("Skipping line from /etc/rc.conf: %s", line)
                 continue
-
             key = m.group(1).rstrip()
             val = m.group(2).rstrip()
+            # Kill them quotes (not completely correct, aka won't handle
+            # quoted values, but should be ok ...)
+            if val[0] in ('"', "'"):
+                val = val[1:]
+            if val[-1] in ('"', "'"):
+                val = val[0:-1]
+            if len(val) == 0:
+                LOG.debug("Skipping empty value from /etc/rc.conf: %s", line)
+                continue
             conf[key] = val
         return conf
 
@@ -237,7 +251,7 @@ class Distro(distros.Distro):
         dev_names = entries.keys()
         for (dev, info) in entries.iteritems():
             # Skip the loopback interface.
-            if dev == 'lo0':
+            if dev.startswith('lo'):
                 continue
 
             LOG.info('Configuring interface %s', dev)
