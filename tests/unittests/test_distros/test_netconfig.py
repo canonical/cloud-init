@@ -180,12 +180,17 @@ NETWORKING=yes
                                         spec=False, passthrough=False)
         exists_mock = self.mocker.replace(os.path.isfile,
                                           spec=False, passthrough=False)
+        load_mock = self.mocker.replace(util.load_file,
+                                        spec=False, passthrough=False)
 
         exists_mock(mocker.ARGS)
         self.mocker.count(0, None)
         self.mocker.result(False)
 
         write_bufs = {}
+        read_bufs = {
+            '/etc/rc.conf': '',
+        }
 
         def replace_write(filename, content, mode=0644, omode="wb"):
             buf = WriteBuffer()
@@ -194,8 +199,24 @@ NETWORKING=yes
             buf.write(content)
             write_bufs[filename] = buf
 
+        def replace_read(fname, read_cb=None, quiet=False):
+            if fname not in read_bufs:
+                if fname in write_bufs:
+                    return str(write_bufs[fname])
+                raise IOError("%s not found" % fname)
+            else:
+                if fname in write_bufs:
+                    return str(write_bufs[fname])
+                return read_bufs[fname]
+
         util_mock(mocker.ARGS)
         self.mocker.call(replace_write)
+        self.mocker.count(0, None)
+
+        load_mock(mocker.ARGS)
+        self.mocker.call(replace_read)
+        self.mocker.count(0, None)
+
         self.mocker.replay()
         fbsd_distro.apply_network(BASE_NET_CFG, False)
 
