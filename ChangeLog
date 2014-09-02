@@ -27,6 +27,7 @@
    (LP: #1340903) [Patrick Lucas]
  - no longer use pylint as a checker, fix pep8 [Jay Faulkner].
  - Openstack: do not load some urls twice.
+ - FreeBsd: fix initscripts and add working config file [Harm Weites]
 0.7.5:
  - open 0.7.5
  - Add a debug log message around import failures

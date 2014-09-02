@@ -63,17 +63,27 @@ def systemd_unitdir():
 
 INITSYS_FILES = {
     'sysvinit': [f for f in glob('sysvinit/redhat/*') if is_f(f)],
+    'sysvinit_freebsd': [f for f in glob('sysvinit/freebsd/*') if is_f(f)],
     'sysvinit_deb': [f for f in glob('sysvinit/debian/*') if is_f(f)],
     'systemd': [f for f in glob('systemd/*') if is_f(f)],
     'upstart': [f for f in glob('upstart/*') if is_f(f)],
 }
 INITSYS_ROOTS = {
     'sysvinit': '/etc/rc.d/init.d',
+    'sysvinit_freebsd': '/usr/local/etc/rc.d',
     'sysvinit_deb': '/etc/init.d',
     'systemd': systemd_unitdir(),
     'upstart': '/etc/init/',
 }
 INITSYS_TYPES = sorted(list(INITSYS_ROOTS.keys()))
+
+# Install everything in the right location and take care of Linux (default) and
+# FreeBSD systems.
+USR = "/usr"
+ETC = "/etc"
+if os.uname()[0] == 'FreeBSD':
+    USR = "/usr/local"
+    ETC = "/usr/local/etc"
 
 
 def get_version():
@@ -136,18 +146,17 @@ setuptools.setup(name='cloud-init',
                'tools/cloud-init-per',
                ],
       license='GPLv3',
-      data_files=[('/etc/cloud', glob('config/*.cfg')),
-                  ('/etc/cloud/cloud.cfg.d', glob('config/cloud.cfg.d/*')),
-                  ('/etc/cloud/templates', glob('templates/*')),
-                  ('/usr/share/cloud-init', []),
-                  ('/usr/lib/cloud-init',
+      data_files=[(ETC + '/cloud', glob('config/*.cfg')),
+                  (ETC + '/cloud/cloud.cfg.d', glob('config/cloud.cfg.d/*')),
+                  (ETC + '/cloud/templates', glob('templates/*')),
+                  (USR + '/lib/cloud-init',
                     ['tools/uncloud-init',
                      'tools/write-ssh-key-fingerprints']),
-                  ('/usr/share/doc/cloud-init',
+                  (USR + '/share/doc/cloud-init',
                    [f for f in glob('doc/*') if is_f(f)]),
-                  ('/usr/share/doc/cloud-init/examples',
+                  (USR + '/share/doc/cloud-init/examples',
                    [f for f in glob('doc/examples/*') if is_f(f)]),
-                  ('/usr/share/doc/cloud-init/examples/seed',
+                  (USR + '/share/doc/cloud-init/examples/seed',
                    [f for f in glob('doc/examples/seed/*') if is_f(f)]),
                  ],
       install_requires=read_requires(),
