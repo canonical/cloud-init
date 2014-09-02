@@ -66,7 +66,7 @@ class DataSource(object):
             name = name[0:-3]
 
         self.ds_cfg = util.get_cfg_by_path(self.sys_cfg,
-                                          ("datasource", name), {})
+                                           ("datasource", name), {})
         if not ud_proc:
             self.ud_proc = ud.UserDataProcessor(self.paths)
         else:
@@ -166,7 +166,7 @@ class DataSource(object):
         defhost = "localhost"
         domain = defdomain
 
-        if self.metadata or 'local-hostname' not in self.metadata:
+        if not self.metadata or 'local-hostname' not in self.metadata:
             # this is somewhat questionable really.
             # the cloud datasource was asked for a hostname
             # and didn't have one. raising error might be more appropriate
