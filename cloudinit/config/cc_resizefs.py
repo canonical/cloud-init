@@ -28,20 +28,20 @@ from cloudinit import util
 frequency = PER_ALWAYS
 
 
-def _resize_btrfs(mount_point, devpth):  # pylint: disable=W0613
+def _resize_btrfs(mount_point, devpth):
     return ('btrfs', 'filesystem', 'resize', 'max', mount_point)
 
 
-def _resize_ext(mount_point, devpth):  # pylint: disable=W0613
+def _resize_ext(mount_point, devpth):
     return ('resize2fs', devpth)
 
 
-def _resize_xfs(mount_point, devpth):  # pylint: disable=W0613
+def _resize_xfs(mount_point, devpth):
     return ('xfs_growfs', devpth)
 
 
-def _resize_ufs(mount_point, devpth):  # pylint: disable=W0613
-    return ('growfs', '-y', devpth)
+def _resize_ufs(mount_point, devpth):
+    return ('growfs', devpth)
 
 # Do not use a dictionary as these commands should be able to be used
 # for multiple filesystem types if possible, e.g. one command for
@@ -105,7 +105,7 @@ def handle(name, cfg, _cloud, log, args):
     container = util.is_container()
 
     if (devpth == "/dev/root" and not os.path.exists(devpth) and
-        not container):
+            not container):
         devpth = rootdev_from_cmdline(util.get_cmdline())
         if devpth is None:
             log.warn("Unable to find device '/dev/root'")

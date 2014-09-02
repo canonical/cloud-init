@@ -36,7 +36,8 @@ def handle(_name, cfg, _cloud, log, _args):
             "grub-pc/install_devices_empty", None)
 
     if ((os.path.exists("/dev/sda1") and not os.path.exists("/dev/sda")) or
-        (os.path.exists("/dev/xvda1") and not os.path.exists("/dev/xvda"))):
+            (os.path.exists("/dev/xvda1")
+            and not os.path.exists("/dev/xvda"))):
         if idevs is None:
             idevs = ""
         if idevs_empty is None:

@@ -235,7 +235,7 @@ def find_apt_mirror_info(cloud, cfg):
         mirror = util.search_for_mirror(search)
 
     if (not mirror and
-        util.get_cfg_option_bool(cfg, "apt_mirror_search_dns", False)):
+            util.get_cfg_option_bool(cfg, "apt_mirror_search_dns", False)):
         mydom = ""
         doms = []
 

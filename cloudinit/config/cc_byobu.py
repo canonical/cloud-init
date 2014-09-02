@@ -43,7 +43,7 @@ def handle(name, cfg, cloud, log, args):
 
     valid = ("enable-user", "enable-system", "enable",
              "disable-user", "disable-system", "disable")
-    if not value in valid:
+    if value not in valid:
         log.warn("Unknown value %s for byobu_by_default", value)
 
     mod_user = value.endswith("-user")

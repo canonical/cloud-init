@@ -13,7 +13,7 @@ else
     base=`pwd`/tools/
 fi
 
-IGNORE="E501" # Line too long (these are caught by pylint)
+IGNORE=""
 
 # King Arthur: Be quiet! ... Be Quiet! I Order You to Be Quiet.
 IGNORE="$IGNORE,E121" # Continuation line indentation is not a multiple of four

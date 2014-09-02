@@ -235,7 +235,7 @@ class TestAzureDataSource(MockerTestCase):
         self.assertEqual(dsrc.userdata_raw, mydata)
 
     def test_no_datasource_expected(self):
-        #no source should be found if no seed_dir and no devs
+        # no source should be found if no seed_dir and no devs
         data = {}
         dsrc = self._get_ds({})
         ret = dsrc.get_data()

@@ -452,7 +452,7 @@ def load_azure_ovf_pubkeys(sshnode):
                 continue
 
             if (len(child.childNodes) != 1 or
-                child.childNodes[0].nodeType != text_node):
+                    child.childNodes[0].nodeType != text_node):
                 continue
 
             cur[name] = child.childNodes[0].wholeText.strip()
@@ -521,7 +521,7 @@ def read_azure_ovf(contents):
         simple = False
         value = ""
         if (len(child.childNodes) == 1 and
-            child.childNodes[0].nodeType == dom.TEXT_NODE):
+                child.childNodes[0].nodeType == dom.TEXT_NODE):
             simple = True
             value = child.childNodes[0].wholeText
 
