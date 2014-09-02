@@ -67,8 +67,8 @@ OSTACK_META = {
 CONTENT_0 = 'This is contents of /etc/foo.cfg\n'
 CONTENT_1 = '# this is /etc/bar/bar.cfg\n'
 OS_FILES = {
-    'openstack/2012-08-10/meta_data.json': json.dumps(OSTACK_META),
-    'openstack/2012-08-10/user_data': USER_DATA,
+    'openstack/latest/meta_data.json': json.dumps(OSTACK_META),
+    'openstack/latest/user_data': USER_DATA,
     'openstack/content/0000': CONTENT_0,
     'openstack/content/0001': CONTENT_1,
     'openstack/latest/meta_data.json': json.dumps(OSTACK_META),
@@ -78,6 +78,9 @@ OS_FILES = {
 EC2_FILES = {
     'latest/user-data': USER_DATA,
 }
+EC2_VERSIONS = [
+    'latest',
+]
 
 
 def _register_uris(version, ec2_files, ec2_meta, os_files):
@@ -85,6 +88,9 @@ def _register_uris(version, ec2_files, ec2_meta, os_files):
     same data returned by the openstack metadata service (and ec2 service)."""
 
     def match_ec2_url(uri, headers):
+        path = uri.path.strip("/")
+        if len(path) == 0:
+            return (200, headers, "\n".join(EC2_VERSIONS))
         path = uri.path.lstrip("/")
         if path in ec2_files:
             return (200, headers, ec2_files.get(path))
@@ -110,11 +116,20 @@ def _register_uris(version, ec2_files, ec2_meta, os_files):
                 return (200, headers, str(value))
         return (404, headers, '')
 
-    def get_request_callback(method, uri, headers):
-        uri = urlparse(uri)
+    def match_os_uri(uri, headers):
+        path = uri.path.strip("/")
+        if path == 'openstack':
+            return (200, headers, "\n".join([openstack.OS_LATEST]))
         path = uri.path.lstrip("/")
         if path in os_files:
             return (200, headers, os_files.get(path))
+        return (404, headers, '')
+
+    def get_request_callback(method, uri, headers):
+        uri = urlparse(uri)
+        path = uri.path.lstrip("/").split("/")
+        if path[0] == 'openstack':
+            return match_os_uri(uri, headers)
         return match_ec2_url(uri, headers)
 
     hp.register_uri(hp.GET, re.compile(r'http://169.254.169.254/.*'),

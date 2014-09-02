@@ -47,7 +47,7 @@ def handle(name, cfg, cloud, log, args):
     if len(args) != 0:
         ph_cfg = util.read_conf(args[0])
     else:
-        if not 'phone_home' in cfg:
+        if 'phone_home' not in cfg:
             log.debug(("Skipping module named %s, "
                        "no 'phone_home' configuration found"), name)
             return
