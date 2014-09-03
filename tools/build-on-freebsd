@@ -17,6 +17,7 @@ pkgs="
    py27-prettytable
    py27-requests py27-six
    python py27-cheetah
+   py27-jsonpointer py27-jsonpatch
 "
 [ -f "$depschecked" ] || pkg install ${pkgs} || fail "install packages"
 touch $depschecked
