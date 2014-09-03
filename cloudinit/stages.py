@@ -386,12 +386,12 @@ class Init(object):
             potential_handlers = util.find_modules(path)
             for (fname, mod_name) in potential_handlers.iteritems():
                 try:
-                    mod_locs = importer.find_module(mod_name, [''],
-                                                    ['list_types',
-                                                     'handle_part'])
+                    mod_locs, looked_locs = importer.find_module(
+                        mod_name, [''], ['list_types', 'handle_part'])
                     if not mod_locs:
-                        LOG.warn(("Could not find a valid user-data handler"
-                                  " named %s in file %s"), mod_name, fname)
+                        LOG.warn("Could not find a valid user-data handler"
+                                 " named %s in file %s (searched %s)",
+                                 mod_name, fname, looked_locs)
                         continue
                     mod = importer.import_module(mod_locs[0])
                     mod = handlers.fixup_handler(mod)
@@ -621,11 +621,11 @@ class Modules(object):
                           " has an unknown frequency %s"), raw_name, freq)
                 # Reset it so when ran it will get set to a known value
                 freq = None
-            mod_locs = importer.find_module(mod_name,
-                                            ['', type_utils.obj_name(config)],
-                                            ['handle'])
+            mod_locs, looked_locs = importer.find_module(
+                mod_name, ['', type_utils.obj_name(config)], ['handle'])
             if not mod_locs:
-                LOG.warn("Could not find module named %s", mod_name)
+                LOG.warn("Could not find module named %s (searched %s)",
+                         mod_name, looked_locs)
                 continue
             mod = config.fixup_module(importer.import_module(mod_locs[0]))
             mostly_mods.append([mod, raw_name, freq, run_args])

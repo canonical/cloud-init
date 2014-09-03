@@ -272,9 +272,9 @@ def list_sources(cfg_list, depends, pkg_list):
     for ds_name in cfg_list:
         if not ds_name.startswith(DS_PREFIX):
             ds_name = '%s%s' % (DS_PREFIX, ds_name)
-        m_locs = importer.find_module(ds_name,
-                                      pkg_list,
-                                      ['get_datasource_list'])
+        m_locs, _looked_locs = importer.find_module(ds_name,
+                                                    pkg_list,
+                                                    ['get_datasource_list'])
         for m_loc in m_locs:
             mod = importer.import_module(m_loc)
             lister = getattr(mod, "get_datasource_list")
