@@ -30,6 +30,7 @@
  - FreeBsd: fix initscripts and add working config file [Harm Weites]
  - Datasource: fix broken logic to provide hostname if datasource does not
    provide one
+ - Improved and less verbose logging.
 0.7.5:
  - open 0.7.5
  - Add a debug log message around import failures

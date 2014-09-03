@@ -847,12 +847,10 @@ def extract_default(users, default_name=None, default_config=None):
 
 
 def fetch(name):
-    locs = importer.find_module(name,
-                                ['', __name__],
-                                ['Distro'])
+    locs, looked_locs = importer.find_module(name, ['', __name__], ['Distro'])
     if not locs:
-        raise ImportError("No distribution found for distro %s"
-                           % (name))
+        raise ImportError("No distribution found for distro %s (searched %s)"
+                           % (name, looked_locs))
     mod = importer.import_module(locs[0])
     cls = getattr(mod, 'Distro')
     return cls
