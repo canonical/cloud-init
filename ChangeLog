@@ -31,6 +31,7 @@
  - Datasource: fix broken logic to provide hostname if datasource does not
    provide one
  - Improved and less verbose logging.
+ - resizefs: first check that device is writable.
 0.7.5:
  - open 0.7.5
  - Add a debug log message around import failures

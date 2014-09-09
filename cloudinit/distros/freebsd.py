@@ -37,6 +37,7 @@ class Distro(distros.Distro):
     login_conf_fn = '/etc/login.conf'
     login_conf_fn_bak = '/etc/login.conf.orig'
     resolv_conf_fn = '/etc/resolv.conf'
+    ci_sudoers_fn = '/usr/local/etc/sudoers.d/90-cloud-init-users'
 
     def __init__(self, name, cfg, paths):
         distros.Distro.__init__(self, name, cfg, paths)
@@ -218,10 +219,6 @@ class Distro(distros.Distro):
         except Exception as e:
             util.logexc(LOG, "Failed to lock user %s", name)
             raise e
-
-    # TODO:
-    def write_sudo_rules(self, name, rules, sudo_file=None):
-        LOG.debug("[write_sudo_rules] Name: %s", name)
 
     def create_user(self, name, **kwargs):
         self.add_user(name, **kwargs)

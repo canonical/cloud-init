@@ -98,12 +98,12 @@ def handle(name, cfg, _cloud, log, args):
 
     (devpth, fs_type, mount_point) = result
 
-    # Ensure the path is a block device.
     info = "dev=%s mnt_point=%s path=%s" % (devpth, mount_point, resize_what)
     log.debug("resize_info: %s" % info)
 
     container = util.is_container()
 
+    # Ensure the path is a block device.
     if (devpth == "/dev/root" and not os.path.exists(devpth) and
             not container):
         devpth = rootdev_from_cmdline(util.get_cmdline())
@@ -117,12 +117,20 @@ def handle(name, cfg, _cloud, log, args):
     except OSError as exc:
         if container and exc.errno == errno.ENOENT:
             log.debug("Device '%s' did not exist in container. "
-                      "cannot resize: %s" % (devpth, info))
+                      "cannot resize: %s", devpth, info)
         elif exc.errno == errno.ENOENT:
-            log.warn("Device '%s' did not exist. cannot resize: %s" %
-                     (devpth, info))
+            log.warn("Device '%s' did not exist. cannot resize: %s",
+                     devpth, info)
         else:
             raise exc
+        return
+
+    if not os.access(devpth, os.W_OK):
+        if container:
+            log.debug("'%s' not writable in container. cannot resize: %s",
+                      devpth, info)
+        else:
+            log.warn("'%s' not writable. cannot resize: %s", devpth, info)
         return
 
     if not stat.S_ISBLK(statret.st_mode) and not stat.S_ISCHR(statret.st_mode):
