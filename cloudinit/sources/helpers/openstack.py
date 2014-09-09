@@ -48,6 +48,7 @@ OS_LATEST = 'latest'
 OS_FOLSOM = '2012-08-10'
 OS_GRIZZLY = '2013-04-04'
 OS_HAVANA = '2013-10-17'
+# keep this in chronological order by time: add new entries to the end
 OS_VERSIONS = (
     OS_FOLSOM,
     OS_GRIZZLY,
