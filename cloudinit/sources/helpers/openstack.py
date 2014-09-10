@@ -189,7 +189,7 @@ class BaseReader(object):
             LOG.warn("Version '%s' not available, attempting to use "
                      "version '%s' instead", version, selected_version)
         else:
-            LOG.debug("Selected version '%s' from %s", version,
+            LOG.debug("Selected version '%s' from %s", selected_version,
                       versions_available)
         return selected_version
 
