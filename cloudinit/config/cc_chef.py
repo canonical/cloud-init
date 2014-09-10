@@ -36,7 +36,7 @@ CHEF_DIRS = [
     '/var/run/chef',
 ]
 
-OMNIBUS_URL = "https://www.opscode.com/chef/install.sh"
+OMNIBUS_URL = "https://www.getchef.com/chef/install.sh"
 
 
 def handle(name, cfg, cloud, log, _args):
