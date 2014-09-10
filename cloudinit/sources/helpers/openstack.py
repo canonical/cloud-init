@@ -178,8 +178,10 @@ class BaseReader(object):
             break
 
         if selected_version != version:
-            LOG.debug("Version '%s' not available, attempting to use"
-                      " version '%s' instead", version, selected_version)
+            LOG.warn("Version '%s' not available, attempting to use "
+                     "version '%s' instead", version, selected_version)
+        else:
+            LOG.debug("Version '%s' was available.", version)
         return selected_version
 
     def _read_content_path(self, item):
