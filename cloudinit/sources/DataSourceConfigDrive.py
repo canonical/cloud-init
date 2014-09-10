@@ -132,8 +132,6 @@ class DataSourceConfigDrive(openstack.SourceMixin, sources.DataSource):
         # for cloud-init (for namespacing).
         if 'cloud-init' in vd:
             self.vendordata_raw = vd['cloud-init']
-        else:
-            self.vendordata_raw = vd
 
         return True
 
