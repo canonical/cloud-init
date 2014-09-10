@@ -162,7 +162,7 @@ class BaseReader(object):
     def _read_ec2_metadata(self):
         pass
 
-    def _find_working_version(self, version=None):
+    def _find_working_version(self):
         try:
             versions_available = self._fetch_available_versions()
         except Exception as e:
@@ -173,24 +173,16 @@ class BaseReader(object):
         # openstack.OS_VERSIONS is stored in chronological order, so
         # reverse it to check newest first.
         supported = [v for v in reversed(list(OS_VERSIONS))]
-        if version is not None:
-            search_versions = [version] + supported
-        else:
-            search_versions = supported
-
         selected_version = OS_LATEST
-        for potential_version in search_versions:
+
+        for potential_version in supported:
             if potential_version not in versions_available:
                 continue
             selected_version = potential_version
             break
 
-        if version is not None and selected_version != version:
-            LOG.warn("Version '%s' not available, attempting to use "
-                     "version '%s' instead", version, selected_version)
-        else:
-            LOG.debug("Selected version '%s' from %s", selected_version,
-                      versions_available)
+        LOG.debug("Selected version '%s' from %s", selected_version,
+                  versions_available)
         return selected_version
 
     def _read_content_path(self, item):
@@ -202,7 +194,7 @@ class BaseReader(object):
         path = self._path_join(self.base_path, "openstack", *path_pieces)
         return self._path_read(path)
 
-    def read_v2(self, version=None):
+    def read_v2(self):
         """Reads a version 2 formatted location.
 
         Return a dict with metadata, userdata, ec2-metadata, dsmode,
@@ -233,12 +225,11 @@ class BaseReader(object):
             )
             return files
 
-        version = self._find_working_version(version)
         results = {
             'userdata': '',
             'version': 2,
         }
-        data = datafiles(version)
+        data = datafiles(self._find_working_version())
         for (name, (path, required, translator)) in data.iteritems():
             path = self._path_join(self.base_path, path)
             data = None
