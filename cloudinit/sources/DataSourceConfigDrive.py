@@ -167,17 +167,13 @@ def get_ds_mode(cfgdrv_ver, ds_cfg=None, user=None):
     return "net"
 
 
-def read_config_drive(source_dir):
-    excps = []
-    finders = []
+def read_config_drive(source_dir, version=None):
     reader = openstack.ConfigDriveReader(source_dir)
-
-    # openstack.OS_VERSIONS is stored in chronological order, so to check the
-    # newest first, use reversed()
-    for version in reversed(openstack.OS_VERSIONS):
-        finders.append((reader.read_v2, [], {'version': version}))
-    finders.append((reader.read_v1, [], {}))
-
+    finders = [
+        (reader.read_v2, [], {'version': version}),
+        (reader.read_v1, [], {}),
+    ]
+    excps = []
     for (functor, args, kwargs) in finders:
         try:
             return functor(*args, **kwargs)

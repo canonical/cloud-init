@@ -48,7 +48,7 @@ OS_LATEST = 'latest'
 OS_FOLSOM = '2012-08-10'
 OS_GRIZZLY = '2013-04-04'
 OS_HAVANA = '2013-10-17'
-# keep this in chronological order by time: add new entries to the end
+# keep this in chronological order. new supported versions go at the end.
 OS_VERSIONS = (
     OS_FOLSOM,
     OS_GRIZZLY,
@@ -162,7 +162,7 @@ class BaseReader(object):
     def _read_ec2_metadata(self):
         pass
 
-    def _find_working_version(self, version):
+    def _find_working_version(self, version=None):
         try:
             versions_available = self._fetch_available_versions()
         except Exception as e:
@@ -170,7 +170,14 @@ class BaseReader(object):
                       self.base_path, e)
             versions_available = []
 
-        search_versions = [version] + list(OS_VERSIONS)
+        # openstack.OS_VERSIONS is stored in chronological order, so
+        # reverse it to check newest first.
+        supported = [v for v in reversed(list(OS_VERSIONS))]
+        if version is not None:
+            search_versions = [version] + supported
+        else:
+            search_versions = supported
+
         selected_version = OS_LATEST
         for potential_version in search_versions:
             if potential_version not in versions_available:
@@ -178,11 +185,12 @@ class BaseReader(object):
             selected_version = potential_version
             break
 
-        if selected_version != version:
+        if version is not None and selected_version != version:
             LOG.warn("Version '%s' not available, attempting to use "
                      "version '%s' instead", version, selected_version)
         else:
-            LOG.debug("Version '%s' was available.", version)
+            LOG.debug("Selected version '%s' from %s", version,
+                      versions_available)
         return selected_version
 
     def _read_content_path(self, item):
@@ -433,7 +441,6 @@ class MetadataReader(BaseReader):
             found.append(line)
         self._versions = found
         return self._versions
-
 
     def _path_read(self, path):
 
