@@ -328,7 +328,7 @@ class ConfigDriveReader(BaseReader):
             path = self._path_join(self.base_path, 'openstack')
             found = [d for d in os.listdir(path)
                      if os.path.isdir(os.path.join(path))]
-            self._versions = tuple(found)
+            self._versions = found
         return self._versions
 
     def _read_ec2_metadata(self):
@@ -421,7 +421,7 @@ class MetadataReader(BaseReader):
     def _fetch_available_versions(self):
         # <baseurl>/openstack/ returns a newline separated list of versions
         if self._versions is not None:
-            return self.os_versions
+            return self._versions
         found = []
         version_path = self._path_join(self.base_path, "openstack")
         content = self._path_read(version_path)
@@ -430,7 +430,7 @@ class MetadataReader(BaseReader):
             if not line:
                 continue
             found.append(line)
-        self._versions = tuple(found)
+        self._versions = found
         return self._versions
 
 
