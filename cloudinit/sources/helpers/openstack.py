@@ -421,6 +421,7 @@ class MetadataReader(BaseReader):
         if self._versions is not None:
             return self.os_versions
         found = []
+        version_path = self._path_join(self.base_path, "openstack")
         content = self._path_read(version_path)
         for line in content.splitlines():
             line = line.strip()

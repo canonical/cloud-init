@@ -85,7 +85,7 @@ def import_ssh_ids(ids, user, log):
         return
 
     try:
-        _check = pwd.getpwnam(user)
+        pwd.getpwnam(user)
     except KeyError as exc:
         raise exc
 
