@@ -18,8 +18,7 @@ class FakeModule(handlers.Handler):
     def list_types(self):
         return self.types
 
-    def handle_part(self, _data, ctype, filename,  # pylint: disable=W0221
-                    payload, frequency):
+    def handle_part(self, data, ctype, filename, payload, frequency):
         pass
 
 

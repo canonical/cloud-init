@@ -58,5 +58,5 @@ rpm:
 deb:
 	./packages/bddeb
 
-.PHONY: test pylint pyflakes 2to3 clean pep8 rpm deb yaml check_version
+.PHONY: test pyflakes 2to3 clean pep8 rpm deb yaml check_version
 .PHONY: pip-test-requirements pip-requirements clean_pyc

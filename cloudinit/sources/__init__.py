@@ -66,7 +66,7 @@ class DataSource(object):
             name = name[0:-3]
 
         self.ds_cfg = util.get_cfg_by_path(self.sys_cfg,
-                                          ("datasource", name), {})
+                                           ("datasource", name), {})
         if not ud_proc:
             self.ud_proc = ud.UserDataProcessor(self.paths)
         else:
@@ -166,7 +166,7 @@ class DataSource(object):
         defhost = "localhost"
         domain = defdomain
 
-        if self.metadata or 'local-hostname' not in self.metadata:
+        if not self.metadata or 'local-hostname' not in self.metadata:
             # this is somewhat questionable really.
             # the cloud datasource was asked for a hostname
             # and didn't have one. raising error might be more appropriate
@@ -272,9 +272,9 @@ def list_sources(cfg_list, depends, pkg_list):
     for ds_name in cfg_list:
         if not ds_name.startswith(DS_PREFIX):
             ds_name = '%s%s' % (DS_PREFIX, ds_name)
-        m_locs = importer.find_module(ds_name,
-                                      pkg_list,
-                                      ['get_datasource_list'])
+        m_locs, _looked_locs = importer.find_module(ds_name,
+                                                    pkg_list,
+                                                    ['get_datasource_list'])
         for m_loc in m_locs:
             mod = importer.import_module(m_loc)
             lister = getattr(mod, "get_datasource_list")

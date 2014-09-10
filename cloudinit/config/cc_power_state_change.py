@@ -119,7 +119,7 @@ def load_power_state(cfg):
 
 
 def doexit(sysexit):
-    os._exit(sysexit)  # pylint: disable=W0212
+    os._exit(sysexit)
 
 
 def execmd(exe_args, output=None, data_in=None):
@@ -127,7 +127,7 @@ def execmd(exe_args, output=None, data_in=None):
         proc = subprocess.Popen(exe_args, stdin=subprocess.PIPE,
                                 stdout=output, stderr=subprocess.STDOUT)
         proc.communicate(data_in)
-        ret = proc.returncode  # pylint: disable=E1101
+        ret = proc.returncode
     except Exception:
         doexit(EXIT_FAIL)
     doexit(ret)

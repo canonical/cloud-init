@@ -26,6 +26,9 @@ from cloudinit import log as logging
 from cloudinit import ssh_util
 from cloudinit import util
 
+from cloudinit.distros import net_util
+from cloudinit.distros.parsers.resolv_conf import ResolvConf
+
 LOG = logging.getLogger(__name__)
 
 
@@ -33,6 +36,8 @@ class Distro(distros.Distro):
     rc_conf_fn = "/etc/rc.conf"
     login_conf_fn = '/etc/login.conf'
     login_conf_fn_bak = '/etc/login.conf.orig'
+    resolv_conf_fn = '/etc/resolv.conf'
+    ci_sudoers_fn = '/usr/local/etc/sudoers.d/90-cloud-init-users'
 
     def __init__(self, name, cfg, paths):
         distros.Distro.__init__(self, name, cfg, paths)
@@ -44,30 +49,53 @@ class Distro(distros.Distro):
 
     # Updates a key in /etc/rc.conf.
     def updatercconf(self, key, value):
-        LOG.debug("updatercconf: %s => %s", key, value)
+        LOG.debug("Checking %s for: %s = %s", self.rc_conf_fn, key, value)
         conf = self.loadrcconf()
         config_changed = False
-        for item in conf:
-            if item == key and conf[item] != value:
-                conf[item] = value
-                LOG.debug("[rc.conf]: Value %s for key %s needs to be changed",
-                          value, key)
-                config_changed = True
+        if key not in conf:
+            LOG.debug("Adding key in %s: %s = %s", self.rc_conf_fn, key,
+                      value)
+            conf[key] = value
+            config_changed = True
+        else:
+            for item in conf.keys():
+                if item == key and conf[item] != value:
+                    conf[item] = value
+                    LOG.debug("Changing key in %s: %s = %s", self.rc_conf_fn,
+                              key, value)
+                    config_changed = True
 
         if config_changed:
-            LOG.debug("Writing new %s file", self.rc_conf_fn)
+            LOG.info("Writing %s", self.rc_conf_fn)
             buf = StringIO()
             for keyval in conf.items():
-                buf.write("%s=%s\n" % keyval)
+                buf.write('%s="%s"\n' % keyval)
             util.write_file(self.rc_conf_fn, buf.getvalue())
 
-    # Load the contents of /etc/rc.conf and store all keys in a dict.
+    # Load the contents of /etc/rc.conf and store all keys in a dict. Make sure
+    # quotes are ignored:
+    #  hostname="bla"
     def loadrcconf(self):
+        RE_MATCH = re.compile(r'^(\w+)\s*=\s*(.*)\s*')
         conf = {}
         lines = util.load_file(self.rc_conf_fn).splitlines()
         for line in lines:
-            tok = line.split('=')
-            conf[tok[0]] = tok[1].rstrip()
+            m = RE_MATCH.match(line)
+            if not m:
+                LOG.debug("Skipping line from /etc/rc.conf: %s", line)
+                continue
+            key = m.group(1).rstrip()
+            val = m.group(2).rstrip()
+            # Kill them quotes (not completely correct, aka won't handle
+            # quoted values, but should be ok ...)
+            if val[0] in ('"', "'"):
+                val = val[1:]
+            if val[-1] in ('"', "'"):
+                val = val[0:-1]
+            if len(val) == 0:
+                LOG.debug("Skipping empty value from /etc/rc.conf: %s", line)
+                continue
+            conf[key] = val
         return conf
 
     def readrcconf(self, key):
@@ -192,10 +220,6 @@ class Distro(distros.Distro):
             util.logexc(LOG, "Failed to lock user %s", name)
             raise e
 
-    # TODO:
-    def write_sudo_rules(self, name, rules, sudo_file=None):
-        LOG.debug("[write_sudo_rules] Name: %s", name)
-
     def create_user(self, name, **kwargs):
         self.add_user(name, **kwargs)
 
@@ -218,7 +242,60 @@ class Distro(distros.Distro):
             ssh_util.setup_user_keys(keys, name, options=None)
 
     def _write_network(self, settings):
-        return
+        entries = net_util.translate_network(settings)
+        nameservers = []
+        searchdomains = []
+        dev_names = entries.keys()
+        for (dev, info) in entries.iteritems():
+            # Skip the loopback interface.
+            if dev.startswith('lo'):
+                continue
+
+            LOG.info('Configuring interface %s', dev)
+
+            if info.get('bootproto') == 'static':
+                LOG.debug('Configuring dev %s with %s / %s', dev, info.get('address'), info.get('netmask'))
+                # Configure an ipv4 address.
+                ifconfig = info.get('address') + ' netmask ' + info.get('netmask')
+
+                # Configure the gateway.
+                self.updatercconf('defaultrouter', info.get('gateway'))
+
+                if 'dns-nameservers' in info:
+                    nameservers.extend(info['dns-nameservers'])
+                if 'dns-search' in info:
+                    searchdomains.extend(info['dns-search'])
+            else:
+                ifconfig = 'DHCP'
+     
+            self.updatercconf('ifconfig_' + dev, ifconfig)
+
+        # Try to read the /etc/resolv.conf or just start from scratch if that
+        # fails.
+        try:
+            resolvconf = ResolvConf(util.load_file(self.resolv_conf_fn))
+            resolvconf.parse()
+        except IOError:
+            util.logexc(LOG, "Failed to parse %s, use new empty file", self.resolv_conf_fn)
+            resolvconf = ResolvConf('')
+            resolvconf.parse()
+
+        # Add some nameservers
+        for server in nameservers:
+            try:
+                resolvconf.add_nameserver(server)
+            except ValueError:
+                util.logexc(LOG, "Failed to add nameserver %s", server)
+
+        # And add any searchdomains.
+        for domain in searchdomains:
+            try:
+                resolvconf.add_search_domain(domain)
+            except ValueError:
+                util.logexc(LOG, "Failed to add search domain %s", domain)
+        util.write_file(self.resolv_conf_fn, str(resolvconf), 0644)
+
+        return dev_names
 
     def apply_locale(self, locale, out_fn=None):
         # Adjust the locals value to the new value
