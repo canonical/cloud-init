@@ -264,7 +264,7 @@ class Distro(distros.Distro):
                 if 'dns-nameservers' in info:
                     nameservers.extend(info['dns-nameservers'])
                 if 'dns-search' in info:
-                    searchservers.extend(info['dns-search'])
+                    searchdomains.extend(info['dns-search'])
             else:
                 ifconfig = 'DHCP'
      
