@@ -88,11 +88,9 @@ class DataSourceOpenStack(openstack.SourceMixin, sources.DataSource):
         md_urls = []
         url2base = {}
         for url in urls:
-            for version in openstack.OS_VERSIONS + (openstack.OS_LATEST,):
-                md_url = url_helper.combine_url(url, 'openstack',
-                                                version, 'meta_data.json')
-                md_urls.append(md_url)
-                url2base[md_url] = url
+            md_url = url_helper.combine_url(url, 'openstack')
+            md_urls.append(md_url)
+            url2base[md_url] = url
 
         (max_wait, timeout) = self._get_url_settings()
         start_time = time.time()
