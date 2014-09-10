@@ -153,9 +153,9 @@ class DataSourceOpenStack(openstack.SourceMixin, sources.DataSource):
         return True
 
 
-def read_metadata_service(base_url, version=None, ssl_details=None):
+def read_metadata_service(base_url, ssl_details=None):
     reader = openstack.MetadataReader(base_url, ssl_details=ssl_details)
-    return reader.read_v2(version=version)
+    return reader.read_v2()
 
 
 # Used to match classes to dependencies

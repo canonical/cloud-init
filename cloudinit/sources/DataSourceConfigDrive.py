@@ -167,10 +167,10 @@ def get_ds_mode(cfgdrv_ver, ds_cfg=None, user=None):
     return "net"
 
 
-def read_config_drive(source_dir, version=None):
+def read_config_drive(source_dir):
     reader = openstack.ConfigDriveReader(source_dir)
     finders = [
-        (reader.read_v2, [], {'version': version}),
+        (reader.read_v2, [], {}),
         (reader.read_v1, [], {}),
     ]
     excps = []
