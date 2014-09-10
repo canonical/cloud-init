@@ -64,13 +64,13 @@ class DataSourceOpenStack(openstack.SourceMixin, sources.DataSource):
 
         try:
             max_wait = int(self.ds_cfg.get("max_wait", max_wait))
-        except Exception as e:
-            LOG.debug("Failed to get max wait. using %s: %s", max_wait, e)
+        except Exception:
+            util.logexc(LOG, "Failed to get max wait. using %s", max_wait)
 
         try:
             timeout = max(0, int(self.ds_cfg.get("timeout", timeout)))
-        except Exception as e:
-            LOG.debug("Failed to get timeout, using %s: %s", timeout, e)
+        except Exception:
+            util.logexc(LOG, "Failed to get timeout, using %s", timeout)
         return (max_wait, timeout)
 
     def wait_for_metadata_service(self):
@@ -82,7 +82,7 @@ class DataSourceOpenStack(openstack.SourceMixin, sources.DataSource):
         if len(filtered):
             urls = filtered
         else:
-            LOG.debug("Empty metadata url list! using default list")
+            LOG.warn("Empty metadata url list! using default list")
             urls = [DEF_MD_URL]
 
         md_urls = []
@@ -123,9 +123,9 @@ class DataSourceOpenStack(openstack.SourceMixin, sources.DataSource):
                                             'version': openstack.OS_HAVANA})
         except openstack.NonReadable:
             return False
-        except (openstack.BrokenMetadata, IOError) as e:
-            LOG.debug("Broken metadata address %s: %s",
-                      self.metadata_address, e)
+        except (openstack.BrokenMetadata, IOError):
+            util.logexc(LOG, "Broken metadata address %s",
+                        self.metadata_address)
             return False
 
         user_dsmode = results.get('dsmode', None)
