@@ -19,8 +19,6 @@
 #
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
-#
-# pylint: disable=C0302
 
 from StringIO import StringIO
 
@@ -42,7 +40,7 @@ import re
 import shutil
 import socket
 import stat
-import string  # pylint: disable=W0402
+import string
 import subprocess
 import sys
 import tempfile
@@ -198,11 +196,11 @@ def fork_cb(child_cb, *args):
     if fid == 0:
         try:
             child_cb(*args)
-            os._exit(0)  # pylint: disable=W0212
+            os._exit(0)
         except:
             logexc(LOG, "Failed forking and calling callback %s",
                    type_utils.obj_name(child_cb))
-            os._exit(1)  # pylint: disable=W0212
+            os._exit(1)
     else:
         LOG.debug("Forked child %s who will run callback %s",
                   fid, type_utils.obj_name(child_cb))
@@ -487,7 +485,7 @@ def redirect_output(outfmt, errfmt, o_out=None, o_err=None):
             new_fp = open(arg, owith)
         elif mode == "|":
             proc = subprocess.Popen(arg, shell=True, stdin=subprocess.PIPE)
-            new_fp = proc.stdin  # pylint: disable=E1101
+            new_fp = proc.stdin
         else:
             raise TypeError("Invalid type for output format: %s" % outfmt)
 
@@ -509,7 +507,7 @@ def redirect_output(outfmt, errfmt, o_out=None, o_err=None):
             new_fp = open(arg, owith)
         elif mode == "|":
             proc = subprocess.Popen(arg, shell=True, stdin=subprocess.PIPE)
-            new_fp = proc.stdin  # pylint: disable=E1101
+            new_fp = proc.stdin
         else:
             raise TypeError("Invalid type for error format: %s" % errfmt)
 
@@ -937,7 +935,7 @@ def is_resolvable(name):
     should also not exist.  The random entry will be resolved inside
     the search list.
     """
-    global _DNS_REDIRECT_IP  # pylint: disable=W0603
+    global _DNS_REDIRECT_IP
     if _DNS_REDIRECT_IP is None:
         badips = set()
         badnames = ("does-not-exist.example.com.", "example.invalid.",
@@ -1532,7 +1530,7 @@ def subp(args, data=None, rcs=None, env=None, capture=True, shell=False,
         (out, err) = sp.communicate(data)
     except OSError as e:
         raise ProcessExecutionError(cmd=args, reason=e)
-    rc = sp.returncode  # pylint: disable=E1101
+    rc = sp.returncode
     if rc not in rcs:
         raise ProcessExecutionError(stdout=out, stderr=err,
                                     exit_code=rc,

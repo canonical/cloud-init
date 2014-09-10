@@ -41,7 +41,7 @@ def _patch_logging():
     fallback_handler = QuietStreamHandler(sys.stderr)
     fallback_handler.setFormatter(logging.Formatter(FALL_FORMAT))
 
-    def handleError(self, record):  # pylint: disable=W0613
+    def handleError(self, record):
         try:
             fallback_handler.handle(record)
             fallback_handler.flush()
