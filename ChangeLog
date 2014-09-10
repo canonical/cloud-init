@@ -32,6 +32,8 @@
    provide one
  - Improved and less verbose logging.
  - resizefs: first check that device is writable.
+ - configdrive: fix reading of vendor data to be like metadata service reader.
+   [Jay Faulkner]
 0.7.5:
  - open 0.7.5
  - Add a debug log message around import failures

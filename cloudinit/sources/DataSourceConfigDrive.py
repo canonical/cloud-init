@@ -125,7 +125,14 @@ class DataSourceConfigDrive(openstack.SourceMixin, sources.DataSource):
         self.userdata_raw = results.get('userdata')
         self.version = results['version']
         self.files.update(results.get('files', {}))
-        self.vendordata_raw = results.get('vendordata')
+
+        # If there is no vendordata, set vd to an empty dict instead of None
+        vd = results.get('vendordata', {})
+        # if vendordata includes 'cloud-init', then read that explicitly
+        # for cloud-init (for namespacing).
+        if 'cloud-init' in vd:
+            self.vendordata_raw = vd['cloud-init']
+
         return True
 
 
@@ -160,10 +167,10 @@ def get_ds_mode(cfgdrv_ver, ds_cfg=None, user=None):
     return "net"
 
 
-def read_config_drive(source_dir, version="2012-08-10"):
+def read_config_drive(source_dir):
     reader = openstack.ConfigDriveReader(source_dir)
     finders = [
-        (reader.read_v2, [], {'version': version}),
+        (reader.read_v2, [], {}),
         (reader.read_v1, [], {}),
     ]
     excps = []

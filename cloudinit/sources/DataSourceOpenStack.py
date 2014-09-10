@@ -119,8 +119,7 @@ class DataSourceOpenStack(openstack.SourceMixin, sources.DataSource):
                                     'Crawl of openstack metadata service',
                                     read_metadata_service,
                                     args=[self.metadata_address],
-                                    kwargs={'ssl_details': self.ssl_details,
-                                            'version': openstack.OS_HAVANA})
+                                    kwargs={'ssl_details': self.ssl_details})
         except openstack.NonReadable:
             return False
         except (openstack.BrokenMetadata, IOError):
@@ -154,9 +153,9 @@ class DataSourceOpenStack(openstack.SourceMixin, sources.DataSource):
         return True
 
 
-def read_metadata_service(base_url, version=None, ssl_details=None):
+def read_metadata_service(base_url, ssl_details=None):
     reader = openstack.MetadataReader(base_url, ssl_details=ssl_details)
-    return reader.read_v2(version=version)
+    return reader.read_v2()
 
 
 # Used to match classes to dependencies
