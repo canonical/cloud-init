@@ -163,10 +163,10 @@ class BaseReader(object):
 
     def _find_working_version(self, version):
         try:
-            versions_available = self._fetch_available_versions(self)
+            versions_available = self._fetch_available_versions()
         except Exception as e:
-            LOG.warn("Unable to read openstack versions from %s due to: %s",
-                     self.base_path, e)
+            LOG.debug("Unable to read openstack versions from %s due to: %s",
+                      self.base_path, e)
             versions_available = []
 
         search_versions = [version] + list(OS_VERSIONS)
@@ -178,8 +178,8 @@ class BaseReader(object):
             break
 
         if selected_version != version:
-            LOG.warn("Version '%s' not available, attempting to use"
-                     " version '%s' instead", version, selected_version)
+            LOG.debug("Version '%s' not available, attempting to use"
+                      " version '%s' instead", version, selected_version)
         return selected_version
 
     def _read_content_path(self, item):
@@ -239,7 +239,8 @@ class BaseReader(object):
                     LOG.debug("Failed reading optional path %s due"
                               " to: %s", path, e)
                 else:
-                    LOG.exception("Failed reading mandatory path %s", path)
+                    LOG.debug("Failed reading mandatory path %s due"
+                              " to: %s", path, e)
             else:
                 found = True
             if required and not found:
@@ -420,6 +421,7 @@ class MetadataReader(BaseReader):
         if self._versions is not None:
             return self.os_versions
         found = []
+        version_path = self._path_join(self.base_path, "openstack")
         content = self._path_read(version_path)
         for line in content.splitlines():
             line = line.strip()

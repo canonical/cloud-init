@@ -132,7 +132,7 @@ def handle(_name, cfg, cloud, log, args):
                                                      'PasswordAuthentication',
                                                      pw_auth))
 
-        lines = [str(e) for e in new_lines]
+        lines = [str(l) for l in new_lines]
         util.write_file(ssh_util.DEF_SSHD_CFG, "\n".join(lines))
 
         try:
