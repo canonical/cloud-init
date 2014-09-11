@@ -459,3 +459,28 @@ class MetadataReader(BaseReader):
         return ec2_utils.get_instance_metadata(ssl_details=self.ssl_details,
                                                timeout=self.timeout,
                                                retries=self.retries)
+
+
+def convert_vendordata_json(data, recurse=True):
+    """ data: a loaded json *object* (strings, arrays, dicts).
+    return something suitable for cloudinit vendordata_raw.
+
+    if data is:
+       None: return None
+       string: return string
+       list: return data
+             the list is then processed in UserDataProcessor
+       dict: return convert_vendordata_json(data.get('cloud-init'))
+    """
+    if not data:
+        return None
+    if isinstance(data, (str, unicode, basestring)):
+        return data
+    if isinstance(data, list):
+        return copy.deepcopy(data)
+    if isinstance(data, dict):
+        if recurse is True:
+            return convert_vendordata_json(data.get('cloud-init'),
+                                           recurse=False)
+        raise ValueError("vendordata['cloud-init'] cannot be dict")
+    raise ValueError("Unknown data type for vendordata: %s" % type(data))

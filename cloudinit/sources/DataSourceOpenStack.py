@@ -140,13 +140,13 @@ class DataSourceOpenStack(openstack.SourceMixin, sources.DataSource):
         self.version = results['version']
         self.files.update(results.get('files', {}))
 
-        # if vendordata includes 'cloud-init', then read that explicitly
-        # for cloud-init (for namespacing).
         vd = results.get('vendordata')
-        if isinstance(vd, dict) and 'cloud-init' in vd:
-            self.vendordata_raw = vd['cloud-init']
-        else:
-            self.vendordata_raw = vd
+        self.vendordata_pure = vd
+        try:
+            self.vendordata_raw = openstack.convert_vendordata_json(vd)
+        except ValueError as e:
+            LOG.warn("Invalid content in vendor-data: %s", e)
+            self.vendordata_raw = None
 
         return True
 
