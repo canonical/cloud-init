@@ -21,6 +21,7 @@
 import abc
 import base64
 import copy
+import functools
 import os
 
 from cloudinit import ec2_utils
@@ -203,6 +204,9 @@ class BaseReader(object):
         If not a valid location, raise a NonReadable exception.
         """
 
+        load_json_anytype = functools.partial(
+            util.load_json, root_types=(dict, basestring, list))
+
         def datafiles(version):
             files = {}
             files['metadata'] = (
@@ -221,7 +225,7 @@ class BaseReader(object):
             files['vendordata'] = (
                 self._path_join("openstack", version, 'vendor_data.json'),
                 False,
-                util.load_json,
+                load_json_anytype,
             )
             return files
 
