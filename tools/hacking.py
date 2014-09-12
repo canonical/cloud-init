@@ -71,7 +71,7 @@ def cloud_import_alphabetical(physical_line, line_number, lines):
     # with or without "as y"
     length = [2, 4]
     if (len(split_line) in length and len(split_previous) in length and
-        split_line[0] == "import" and split_previous[0] == "import"):
+            split_line[0] == "import" and split_previous[0] == "import"):
         if split_line[1] < split_previous[1]:
             return (0, "N306: imports not in alphabetical order (%s, %s)"
                 % (split_previous[1], split_line[1]))
@@ -154,7 +154,7 @@ def add_cloud():
         if not inspect.isfunction(function):
             continue
         if name.startswith("cloud_"):
-            exec("pep8.%s = %s" % (name, name))  # pylint: disable=W0122
+            exec("pep8.%s = %s" % (name, name))
 
 if __name__ == "__main__":
     # NOVA based 'hacking.py' error codes start with an N
@@ -163,7 +163,7 @@ if __name__ == "__main__":
     pep8.current_file = current_file
     pep8.readlines = readlines
     try:
-        pep8._main()  # pylint: disable=W0212
+        pep8._main()
     finally:
         if len(_missingImport) > 0:
             print >> sys.stderr, ("%i imports missing in this test environment"

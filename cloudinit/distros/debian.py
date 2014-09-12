@@ -131,7 +131,7 @@ class Distro(distros.Distro):
         return "127.0.1.1"
 
     def set_timezone(self, tz):
-        set_etc_timezone(tz=tz, tz_file=self._find_tz_file(tz))
+        distros.set_etc_timezone(tz=tz, tz_file=self._find_tz_file(tz))
 
     def package_command(self, command, args=None, pkgs=None):
         if pkgs is None:

@@ -18,22 +18,22 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-##
-## The purpose of this script is to allow cloud-init to consume
-## rightscale style userdata.  rightscale user data is key-value pairs
-## in a url-query-string like format.
-##
-## for cloud-init support, there will be a key named
-## 'CLOUD_INIT_REMOTE_HOOK'.
-##
-## This cloud-config module will
-## - read the blob of data from raw user data, and parse it as key/value
-## - for each key that is found, download the content to
-##   the local instance/scripts directory and set them executable.
-## - the files in that directory will be run by the user-scripts module
-##   Therefore, this must run before that.
-##
-##
+#
+# The purpose of this script is to allow cloud-init to consume
+# rightscale style userdata.  rightscale user data is key-value pairs
+# in a url-query-string like format.
+#
+# for cloud-init support, there will be a key named
+# 'CLOUD_INIT_REMOTE_HOOK'.
+#
+# This cloud-config module will
+# - read the blob of data from raw user data, and parse it as key/value
+# - for each key that is found, download the content to
+#   the local instance/scripts directory and set them executable.
+# - the files in that directory will be run by the user-scripts module
+#   Therefore, this must run before that.
+#
+#
 
 import os
 
@@ -58,7 +58,7 @@ def handle(name, _cfg, cloud, log, _args):
 
     try:
         mdict = parse_qs(ud)
-        if not mdict or not MY_HOOKNAME in mdict:
+        if mdict or MY_HOOKNAME not in mdict:
             log.debug(("Skipping module %s, "
                        "did not find %s in parsed"
                        " raw userdata"), name, MY_HOOKNAME)

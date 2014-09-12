@@ -16,6 +16,24 @@
  - SeLinuxGuard: remove invalid check that looked for stat.st_mode in os.lstat.
  - do not write comments in /etc/timezone (LP: #1341710)
  - ubuntu: provide 'ubuntu-init-switch' module to aid in systemd testing.
+ - status/result json: remove 'end' entry which was always null
+ - systemd: make cloud-init block ssh service startup to guarantee keys
+   are generated. [Jordan Evans] (LP: #1333920)
+ - default settings: fix typo resulting in OpenStack and GCE not working
+   unless config explicitly provided (LP: #1329583) [Garrett Holmstrom])
+ - fix rendering resolv.conf if no 'options' are provided (LP: #1328953)
+ - docs: fix disk-setup to reference 'table_type' [Rail Aliiev] (LP: #1313114)
+ - ssh_authkey_fingerprints: fix bug that prevented disabling the module.
+   (LP: #1340903) [Patrick Lucas]
+ - no longer use pylint as a checker, fix pep8 [Jay Faulkner].
+ - Openstack: do not load some urls twice.
+ - FreeBsd: fix initscripts and add working config file [Harm Weites]
+ - Datasource: fix broken logic to provide hostname if datasource does not
+   provide one
+ - Improved and less verbose logging.
+ - resizefs: first check that device is writable.
+ - configdrive: fix reading of vendor data to be like metadata service reader.
+   [Jay Faulkner]
 0.7.5:
  - open 0.7.5
  - Add a debug log message around import failures

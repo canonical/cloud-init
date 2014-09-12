@@ -53,8 +53,7 @@ class BootHookPartHandler(handlers.Handler):
         util.write_file(filepath, contents.lstrip(), 0700)
         return filepath
 
-    def handle_part(self, _data, ctype, filename,  # pylint: disable=W0221
-                    payload, frequency):  # pylint: disable=W0613
+    def handle_part(self, data, ctype, filename, payload, frequency):
         if ctype in handlers.CONTENT_SIGNALS:
             return
 

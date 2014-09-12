@@ -1,3 +1,24 @@
+cloud-init (0.7.6~bzr1016-0ubuntu1) utopic; urgency=medium
+
+  * New upstream snapshot.
+    * upstart: block networking from coming up until after
+      cloud-init-local has run. (LP: #1368861)
+    * upstart: ensure /run mounted before cloud-init-local (LP: #1353008)
+    * log failures in route info.
+    * Openstack: do not search redundant urls for openstack datasource.
+      do not load urls just to check if they're present when crawling.
+    * ConfigDrive: fixes for better consumption of vendor-data
+    * resizefs: make sure target is writable before attempting
+      in order to avoid failures in containers. (LP: #1366891)
+    * freebsd fixes.
+    * ssh_authkey_fingerprints: correctly allow disabling (LP: #1340903)
+    * CloudStack: work around bug in metadata service (LP: #1356855)
+    * docs: fix doc about disk-setup 'table_type' (LP: #1313114)
+    * resolv.conf: fix rendering if options not provided (LP: #1328953)
+    * ensure keys exist before running ssh on systemd (LP: #1333920)
+
+ -- Scott Moser <smoser@ubuntu.com>  Fri, 12 Sep 2014 18:12:31 -0400
+
 cloud-init (0.7.6~bzr992-0ubuntu1) utopic; urgency=medium
 
   * New upstream snapshot.

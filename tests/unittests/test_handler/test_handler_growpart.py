@@ -53,7 +53,7 @@ class TestDisabled(MockerTestCase):
         self.handle = cc_growpart.handle
 
     def test_mode_off(self):
-        #Test that nothing is done if mode is off.
+        # Test that nothing is done if mode is off.
 
         # this really only verifies that resizer_factory isn't called
         config = {'growpart': {'mode': 'off'}}
@@ -109,7 +109,7 @@ class TestConfig(MockerTestCase):
         self.assertTrue(isinstance(ret, cc_growpart.ResizeGrowPart))
 
     def test_handle_with_no_growpart_entry(self):
-        #if no 'growpart' entry in config, then mode=auto should be used
+        # if no 'growpart' entry in config, then mode=auto should be used
 
         myresizer = object()
 
@@ -141,7 +141,7 @@ class TestResize(MockerTestCase):
         self.mocker.order()
 
     def test_simple_devices(self):
-        #test simple device list
+        # test simple device list
         # this patches out devent2dev, os.stat, and device_part_info
         # so in the end, doesn't test a lot
         devs = ["/dev/XXda1", "/dev/YYda2"]
@@ -187,7 +187,7 @@ class TestResize(MockerTestCase):
                              find("/dev/YYda2", resized)[1])
             self.assertEqual(cc_growpart.RESIZE.SKIPPED,
                              find(enoent[0], resized)[1])
-            #self.assertEqual(resize_calls,
+            # self.assertEqual(resize_calls,
             #                 [("/dev/XXda", "1", "/dev/XXda1"),
             #                  ("/dev/YYda", "2", "/dev/YYda2")])
         finally:
@@ -203,8 +203,6 @@ def simple_device_part_info(devpath):
 
 
 class Bunch(object):
-    st_mode = None  # fix pylint complaint
-
     def __init__(self, **kwds):
         self.__dict__.update(kwds)
 

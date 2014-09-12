@@ -125,7 +125,15 @@ class DataSourceConfigDrive(openstack.SourceMixin, sources.DataSource):
         self.userdata_raw = results.get('userdata')
         self.version = results['version']
         self.files.update(results.get('files', {}))
-        self.vendordata_raw = results.get('vendordata')
+
+        vd = results.get('vendordata')
+        self.vendordata_pure = vd
+        try:
+            self.vendordata_raw = openstack.convert_vendordata_json(vd)
+        except ValueError as e:
+            LOG.warn("Invalid content in vendor-data: %s", e)
+            self.vendordata_raw = None
+
         return True
 
 
@@ -160,10 +168,10 @@ def get_ds_mode(cfgdrv_ver, ds_cfg=None, user=None):
     return "net"
 
 
-def read_config_drive(source_dir, version="2012-08-10"):
+def read_config_drive(source_dir):
     reader = openstack.ConfigDriveReader(source_dir)
     finders = [
-        (reader.read_v2, [], {'version': version}),
+        (reader.read_v2, [], {}),
         (reader.read_v1, [], {}),
     ]
     excps = []
