@@ -21,6 +21,7 @@
 import abc
 import base64
 import copy
+import functools
 import os
 
 from cloudinit import ec2_utils
@@ -203,6 +204,9 @@ class BaseReader(object):
         If not a valid location, raise a NonReadable exception.
         """
 
+        load_json_anytype = functools.partial(
+            util.load_json, root_types=(dict, basestring, list))
+
         def datafiles(version):
             files = {}
             files['metadata'] = (
@@ -221,7 +225,7 @@ class BaseReader(object):
             files['vendordata'] = (
                 self._path_join("openstack", version, 'vendor_data.json'),
                 False,
-                util.load_json,
+                load_json_anytype,
             )
             return files
 
@@ -459,3 +463,28 @@ class MetadataReader(BaseReader):
         return ec2_utils.get_instance_metadata(ssl_details=self.ssl_details,
                                                timeout=self.timeout,
                                                retries=self.retries)
+
+
+def convert_vendordata_json(data, recurse=True):
+    """ data: a loaded json *object* (strings, arrays, dicts).
+    return something suitable for cloudinit vendordata_raw.
+
+    if data is:
+       None: return None
+       string: return string
+       list: return data
+             the list is then processed in UserDataProcessor
+       dict: return convert_vendordata_json(data.get('cloud-init'))
+    """
+    if not data:
+        return None
+    if isinstance(data, (str, unicode, basestring)):
+        return data
+    if isinstance(data, list):
+        return copy.deepcopy(data)
+    if isinstance(data, dict):
+        if recurse is True:
+            return convert_vendordata_json(data.get('cloud-init'),
+                                           recurse=False)
+        raise ValueError("vendordata['cloud-init'] cannot be dict")
+    raise ValueError("Unknown data type for vendordata: %s" % type(data))

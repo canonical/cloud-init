@@ -19,6 +19,7 @@
 import copy
 import json
 import re
+import unittest
 
 from StringIO import StringIO
 
@@ -256,7 +257,8 @@ class TestOpenStackDataSource(test_helpers.HttprettyTestCase):
         self.assertEquals(EC2_META, ds_os.ec2_metadata)
         self.assertEquals(USER_DATA, ds_os.userdata_raw)
         self.assertEquals(2, len(ds_os.files))
-        self.assertEquals(VENDOR_DATA, ds_os.vendordata_raw)
+        self.assertEquals(VENDOR_DATA, ds_os.vendordata_pure)
+        self.assertEquals(ds_os.vendordata_raw, None)
 
     @hp.activate
     def test_bad_datasource_meta(self):
@@ -314,3 +316,34 @@ class TestOpenStackDataSource(test_helpers.HttprettyTestCase):
         found = ds_os.get_data()
         self.assertFalse(found)
         self.assertIsNone(ds_os.version)
+
+
+class TestVendorDataLoading(unittest.TestCase):
+    def cvj(self, data):
+        return openstack.convert_vendordata_json(data)
+
+    def test_vd_load_none(self):
+        # non-existant vendor-data should return none
+        self.assertIsNone(self.cvj(None))
+
+    def test_vd_load_string(self):
+        self.assertEqual(self.cvj("foobar"), "foobar")
+
+    def test_vd_load_list(self):
+        data = [{'foo': 'bar'}, 'mystring', list(['another', 'list'])]
+        self.assertEqual(self.cvj(data), data)
+
+    def test_vd_load_dict_no_ci(self):
+        self.assertEqual(self.cvj({'foo': 'bar'}), None)
+
+    def test_vd_load_dict_ci_dict(self):
+        self.assertRaises(ValueError, self.cvj,
+                          {'foo': 'bar', 'cloud-init': {'x': 1}})
+
+    def test_vd_load_dict_ci_string(self):
+        data = {'foo': 'bar', 'cloud-init': 'VENDOR_DATA'}
+        self.assertEqual(self.cvj(data), data['cloud-init'])
+
+    def test_vd_load_dict_ci_list(self):
+        data = {'foo': 'bar', 'cloud-init': ['VD_1', 'VD_2']}
+        self.assertEqual(self.cvj(data), data['cloud-init'])
