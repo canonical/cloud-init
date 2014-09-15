@@ -193,11 +193,11 @@ def ExtendedTemporaryFile(**kwargs):
     return fh
 
 
-def fork_cb(child_cb, *args):
+def fork_cb(child_cb, *args, **kwargs):
     fid = os.fork()
     if fid == 0:
         try:
-            child_cb(*args)
+            child_cb(*args, **kwargs)
             os._exit(0)  # pylint: disable=W0212
         except:
             logexc(LOG, "Failed forking and calling callback %s",
