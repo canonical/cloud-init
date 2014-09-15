@@ -198,11 +198,11 @@ def fork_cb(child_cb, *args, **kwargs):
     if fid == 0:
         try:
             child_cb(*args, **kwargs)
-            os._exit(0)  # pylint: disable=W0212
+            os._exit(0)
         except:
             logexc(LOG, "Failed forking and calling callback %s",
                    type_utils.obj_name(child_cb))
-            os._exit(1)  # pylint: disable=W0212
+            os._exit(1)
     else:
         LOG.debug("Forked child %s who will run callback %s",
                   fid, type_utils.obj_name(child_cb))
