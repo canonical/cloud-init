@@ -162,8 +162,8 @@ def handle(name, cfg, _cloud, log, args):
         # Fork to a child that will run
         # the resize command
         util.fork_cb(
-            util.log_time(logfunc=log.debug, msg="backgrounded Resizing",
-                func=do_resize, args=(resize_cmd, log)))
+            util.log_time, logfunc=log.debug, msg="backgrounded Resizing",
+            func=do_resize, args=(resize_cmd, log))
     else:
         util.log_time(logfunc=log.debug, msg="Resizing",
             func=do_resize, args=(resize_cmd, log))

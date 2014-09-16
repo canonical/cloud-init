@@ -34,6 +34,7 @@
  - resizefs: first check that device is writable.
  - configdrive: fix reading of vendor data to be like metadata service reader.
    [Jay Faulkner]
+ - resizefs: fix broken background resizing [Jay Faulkner] (LP: #1338614)
 0.7.5:
  - open 0.7.5
  - Add a debug log message around import failures
