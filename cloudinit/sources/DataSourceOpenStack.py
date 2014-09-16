@@ -88,11 +88,9 @@ class DataSourceOpenStack(openstack.SourceMixin, sources.DataSource):
         md_urls = []
         url2base = {}
         for url in urls:
-            for version in openstack.OS_VERSIONS + (openstack.OS_LATEST,):
-                md_url = url_helper.combine_url(url, 'openstack',
-                                                version, 'meta_data.json')
-                md_urls.append(md_url)
-                url2base[md_url] = url
+            md_url = url_helper.combine_url(url, 'openstack')
+            md_urls.append(md_url)
+            url2base[md_url] = url
 
         (max_wait, timeout) = self._get_url_settings()
         start_time = time.time()
@@ -119,8 +117,7 @@ class DataSourceOpenStack(openstack.SourceMixin, sources.DataSource):
                                     'Crawl of openstack metadata service',
                                     read_metadata_service,
                                     args=[self.metadata_address],
-                                    kwargs={'ssl_details': self.ssl_details,
-                                            'version': openstack.OS_HAVANA})
+                                    kwargs={'ssl_details': self.ssl_details})
         except openstack.NonReadable:
             return False
         except (openstack.BrokenMetadata, IOError):
@@ -143,20 +140,20 @@ class DataSourceOpenStack(openstack.SourceMixin, sources.DataSource):
         self.version = results['version']
         self.files.update(results.get('files', {}))
 
-        # if vendordata includes 'cloud-init', then read that explicitly
-        # for cloud-init (for namespacing).
         vd = results.get('vendordata')
-        if isinstance(vd, dict) and 'cloud-init' in vd:
-            self.vendordata_raw = vd['cloud-init']
-        else:
-            self.vendordata_raw = vd
+        self.vendordata_pure = vd
+        try:
+            self.vendordata_raw = openstack.convert_vendordata_json(vd)
+        except ValueError as e:
+            LOG.warn("Invalid content in vendor-data: %s", e)
+            self.vendordata_raw = None
 
         return True
 
 
-def read_metadata_service(base_url, version=None, ssl_details=None):
+def read_metadata_service(base_url, ssl_details=None):
     reader = openstack.MetadataReader(base_url, ssl_details=ssl_details)
-    return reader.read_v2(version=version)
+    return reader.read_v2()
 
 
 # Used to match classes to dependencies

@@ -57,7 +57,6 @@ class TestNoCloudDataSource(MockerTestCase):
             pass
 
         def my_find_devs_with(*args, **kwargs):
-            _f = (args, kwargs)
             raise PsuedoException
 
         self.apply_patches([(util, 'find_devs_with', my_find_devs_with)])

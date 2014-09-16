@@ -154,7 +154,7 @@ def add_cloud():
         if not inspect.isfunction(function):
             continue
         if name.startswith("cloud_"):
-            exec("pep8.%s = %s" % (name, name))  # pylint: disable=W0122
+            exec("pep8.%s = %s" % (name, name))
 
 if __name__ == "__main__":
     # NOVA based 'hacking.py' error codes start with an N
@@ -163,7 +163,7 @@ if __name__ == "__main__":
     pep8.current_file = current_file
     pep8.readlines = readlines
     try:
-        pep8._main()  # pylint: disable=W0212
+        pep8._main()
     finally:
         if len(_missingImport) > 0:
             print >> sys.stderr, ("%i imports missing in this test environment"

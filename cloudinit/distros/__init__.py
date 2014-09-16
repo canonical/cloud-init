@@ -847,12 +847,10 @@ def extract_default(users, default_name=None, default_config=None):
 
 
 def fetch(name):
-    locs = importer.find_module(name,
-                                ['', __name__],
-                                ['Distro'])
+    locs, looked_locs = importer.find_module(name, ['', __name__], ['Distro'])
     if not locs:
-        raise ImportError("No distribution found for distro %s"
-                           % (name))
+        raise ImportError("No distribution found for distro %s (searched %s)"
+                           % (name, looked_locs))
     mod = importer.import_module(locs[0])
     cls = getattr(mod, 'Distro')
     return cls
@@ -863,5 +861,5 @@ def set_etc_timezone(tz, tz_file=None, tz_conf="/etc/timezone",
     util.write_file(tz_conf, str(tz).rstrip() + "\n")
     # This ensures that the correct tz will be used for the system
     if tz_local and tz_file:
-        util.copy(tz_file, self.tz_local_fn)
+        util.copy(tz_file, tz_local)
     return

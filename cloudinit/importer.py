@@ -22,10 +22,6 @@
 
 import sys
 
-from cloudinit import log as logging
-
-LOG = logging.getLogger(__name__)
-
 
 def import_module(module_name):
     __import__(module_name)
@@ -33,25 +29,24 @@ def import_module(module_name):
 
 
 def find_module(base_name, search_paths, required_attrs=None):
-    found_places = []
     if not required_attrs:
         required_attrs = []
     # NOTE(harlowja): translate the search paths to include the base name.
-    real_paths = []
+    lookup_paths = []
     for path in search_paths:
         real_path = []
         if path:
             real_path.extend(path.split("."))
         real_path.append(base_name)
         full_path = '.'.join(real_path)
-        real_paths.append(full_path)
-    for full_path in real_paths:
+        lookup_paths.append(full_path)
+    found_paths = []
+    for full_path in lookup_paths:
         mod = None
         try:
             mod = import_module(full_path)
-        except ImportError as e:
-            LOG.debug("Failed at attempted import of '%s' due to: %s",
-                      full_path, e)
+        except ImportError:
+            pass
         if not mod:
             continue
         found_attrs = 0
@@ -59,5 +54,5 @@ def find_module(base_name, search_paths, required_attrs=None):
             if hasattr(mod, attr):
                 found_attrs += 1
         if found_attrs == len(required_attrs):
-            found_places.append(full_path)
-    return found_places
+            found_paths.append(full_path)
+    return (found_paths, lookup_paths)

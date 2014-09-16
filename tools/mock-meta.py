@@ -23,7 +23,7 @@ import json
 import logging
 import os
 import random
-import string  # pylint: disable=W0402
+import string
 import sys
 import yaml
 
@@ -306,7 +306,7 @@ class UserDataHandler(object):
             blob = "\n".join(lines)
         return blob.strip()
 
-    def get_data(self, params, who, **kwargs):  # pylint: disable=W0613
+    def get_data(self, params, who, **kwargs):
         if not params:
             return self._get_user_blob(who=who)
         return NOT_IMPL_RESPONSE
@@ -427,8 +427,8 @@ def extract_opts():
 
 
 def setup_fetchers(opts):
-    global meta_fetcher  # pylint: disable=W0603
-    global user_fetcher  # pylint: disable=W0603
+    global meta_fetcher
+    global user_fetcher
     meta_fetcher = MetaDataHandler(opts)
     user_fetcher = UserDataHandler(opts)
 
