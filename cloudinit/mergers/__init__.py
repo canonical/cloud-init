@@ -143,12 +143,14 @@ def construct(parsed_mergers):
     for (m_name, m_ops) in parsed_mergers:
         if not m_name.startswith(MERGER_PREFIX):
             m_name = MERGER_PREFIX + str(m_name)
-        merger_locs = importer.find_module(m_name,
-                                           [__name__],
-                                           [MERGER_ATTR])
+        merger_locs, looked_locs = importer.find_module(m_name,
+                                                        [__name__],
+                                                        [MERGER_ATTR])
         if not merger_locs:
             msg = ("Could not find merger module named '%s' "
-                   "with attribute '%s'") % (m_name, MERGER_ATTR)
+                   "with attribute '%s' (searched %s)") % (m_name,
+                                                           MERGER_ATTR,
+                                                           looked_locs)
             raise ImportError(msg)
         else:
             mod = importer.import_module(merger_locs[0])

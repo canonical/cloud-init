@@ -44,8 +44,7 @@ class ShellScriptPartHandler(handlers.Handler):
             handlers.type_from_starts_with(SHELL_PREFIX),
         ]
 
-    def handle_part(self, _data, ctype, filename,  # pylint: disable=W0221
-                    payload, frequency):  # pylint: disable=W0613
+    def handle_part(self, data, ctype, filename, payload, frequency):
         if ctype in handlers.CONTENT_SIGNALS:
             # TODO(harlowja): maybe delete existing things here
             return

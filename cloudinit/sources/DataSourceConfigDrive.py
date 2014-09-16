@@ -126,12 +126,13 @@ class DataSourceConfigDrive(openstack.SourceMixin, sources.DataSource):
         self.version = results['version']
         self.files.update(results.get('files', {}))
 
-        # If there is no vendordata, set vd to an empty dict instead of None
-        vd = results.get('vendordata', {})
-        # if vendordata includes 'cloud-init', then read that explicitly
-        # for cloud-init (for namespacing).
-        if 'cloud-init' in vd:
-            self.vendordata_raw = vd['cloud-init']
+        vd = results.get('vendordata')
+        self.vendordata_pure = vd
+        try:
+            self.vendordata_raw = openstack.convert_vendordata_json(vd)
+        except ValueError as e:
+            LOG.warn("Invalid content in vendor-data: %s", e)
+            self.vendordata_raw = None
 
         return True
 
@@ -168,16 +169,12 @@ def get_ds_mode(cfgdrv_ver, ds_cfg=None, user=None):
 
 
 def read_config_drive(source_dir):
-    excps = []
-    finders = []
     reader = openstack.ConfigDriveReader(source_dir)
-
-    # openstack.OS_VERSIONS is stored in chronological order, so to check the
-    # newest first, use reversed()
-    for version in reversed(openstack.OS_VERSIONS):
-        finders.append((reader.read_v2, [], {'version': version}))
-    finders.append((reader.read_v1, [], {}))
-
+    finders = [
+        (reader.read_v2, [], {}),
+        (reader.read_v1, [], {}),
+    ]
+    excps = []
     for (functor, args, kwargs) in finders:
         try:
             return functor(*args, **kwargs)
