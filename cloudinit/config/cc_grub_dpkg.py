@@ -47,7 +47,8 @@ def handle(_name, cfg, _cloud, log, _args):
             idevs_empty = "false"
         if idevs is None:
             idevs = "/dev/sda"
-            for dev in ("/dev/sda", "/dev/vda", "/dev/sda1", "/dev/vda1"):
+            for dev in ("/dev/sda", "/dev/vda", "/dev/xvda",
+                        "/dev/sda1", "/dev/vda1", "/dev/xvda1"):
                 if os.path.exists(dev):
                     idevs = dev
                     break
