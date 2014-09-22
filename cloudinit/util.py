@@ -1346,37 +1346,69 @@ def mount_cb(device, callback, data=None, rw=False, mtype=None, sync=True):
     Mount the device, call method 'callback' passing the directory
     in which it was mounted, then unmount.  Return whatever 'callback'
     returned.  If data != None, also pass data to callback.
+
+    mtype is a filesystem type.  it may be a list, string (a single fsname)
+    or a list of fsnames.
     """
+
+    if isinstance(mtype, str):
+        mtypes = [mtype]
+    elif isinstance(mtype, (list, tuple)):
+        mtypes = list(mtype)
+    elif mtype is None:
+        mtypes = None
+
+    # clean up 'mtype' input a bit based on platform.
+    platform = platform.system.lower()
+    if platform == "linux":
+        if mtypes is None:
+            mtypes = ["auto"]
+    elif platform.endswith("bsd"):
+        if mtypes is None:
+            mtypes = ['ufs', 'cd9660', 'vfat']
+        for index, mtype in enumerate(mtypes):
+            if mtype == "iso9660":
+                mtypes[index] = "cd9660"
+    else:
+        mtypes = []
+
     mounted = mounts()
     with tempdir() as tmpd:
         umount = False
         if device in mounted:
             mountpoint = mounted[device]['mountpoint']
         else:
-            try:
-                mountcmd = ['mount']
-                mountopts = []
-                if rw:
-                    mountopts.append('rw')
-                else:
-                    mountopts.append('ro')
-                if sync:
-                    # This seems like the safe approach to do
-                    # (ie where this is on by default)
-                    mountopts.append("sync")
-                if mountopts:
-                    mountcmd.extend(["-o", ",".join(mountopts)])
-                if mtype:
-                    mountcmd.extend(['-t', mtype])
-                mountcmd.append(device)
-                mountcmd.append(tmpd)
-                subp(mountcmd)
-                umount = tmpd  # This forces it to be unmounted (when set)
-                mountpoint = tmpd
-            except (IOError, OSError) as exc:
-                raise MountFailedError(("Failed mounting %s "
-                                        "to %s due to: %s") %
+            for mtype in mtypes:
+                mountpoint = None
+                try:
+                    mountcmd = ['mount']
+                    mountopts = []
+                    if rw:
+                        mountopts.append('rw')
+                    else:
+                        mountopts.append('ro')
+                    if sync:
+                        # This seems like the safe approach to do
+                        # (ie where this is on by default)
+                        mountopts.append("sync")
+                    if mountopts:
+                        mountcmd.extend(["-o", ",".join(mountopts)])
+                    if mtype:
+                        mountcmd.extend(['-t', mtype])
+                    mountcmd.append(device)
+                    mountcmd.append(tmpd)
+                    subp(mountcmd)
+                    umount = tmpd  # This forces it to be unmounted (when set)
+                    mountpoint = tmpd
+                    break
+                except (IOError, OSError) as exc:
+                    LOG.debug("Failed mount of '%s' as '%s': %s",
+                              device, mtype, exc)
+                    pass
+            if not mountpoint:
+                raise MountFailedError("Failed mounting %s to %s due to: %s" %
                                        (device, tmpd, exc))
+
         # Be nice and ensure it ends with a slash
         if not mountpoint.endswith("/"):
             mountpoint += "/"
