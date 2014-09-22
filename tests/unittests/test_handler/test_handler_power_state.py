@@ -67,7 +67,7 @@ def check_lps_ret(psc_return, mode=None):
     cmd = psc_return[0]
     timeout = psc_return[1]
 
-    if not 'shutdown' in psc_return[0][0]:
+    if 'shutdown' not in psc_return[0][0]:
         errs.append("string 'shutdown' not in cmd")
 
     if mode is not None:

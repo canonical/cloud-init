@@ -75,7 +75,7 @@ def handle(_name, cfg, cloud, log, _args):
                 util.write_file(tgt_fn, val, tgt_perms)
 
         for (priv, pub) in PRIV_2_PUB.iteritems():
-            if pub in cfg['ssh_keys'] or not priv in cfg['ssh_keys']:
+            if pub in cfg['ssh_keys'] or priv not in cfg['ssh_keys']:
                 continue
             pair = (KEY_2_FILE[priv][0], KEY_2_FILE[pub][0])
             cmd = ['sh', '-xc', KEY_GEN_TPL % pair]

@@ -7,7 +7,7 @@
 
 disk_setup:
    ephmeral0:
-       type: 'mbr'
+       table_type: 'mbr'
        layout: True
        overwrite: False
 
@@ -23,7 +23,7 @@ fs_setup:
 device_aliases: {'ephemeral0': '/dev/sdb'}
 disk_setup:
     ephemeral0:
-         type: mbr
+         table_type: mbr
          layout: True
          overwrite: False
 
@@ -40,7 +40,7 @@ fs_setup:
 device_aliases: {'ephemeral0': '/dev/sdb'}
 disk_setup:
     ephemeral0:
-         type: mbr
+         table_type: mbr
          layout: False
          overwrite: False
 
@@ -63,10 +63,10 @@ fs_setup:
 
 disk_setup:
    ephmeral0:
-       type: 'mbr'
+       table_type: 'mbr'
        layout: 'auto'
    /dev/xvdh:
-       type: 'mbr'
+       table_type: 'mbr'
        layout:
            - 33
            - [33, 82]
@@ -79,7 +79,7 @@ disk_setup:
 # The general format is:
 #    disk_setup:
 #        <DEVICE>:
-#            type: 'mbr'
+#            table_type: 'mbr'
 #            layout: <LAYOUT|BOOL>
 #            overwrite: <BOOL>
 #
@@ -96,7 +96,7 @@ disk_setup:
 #                Note: At this time, there is no handling or setup of
 #                device mapper targets.
 #
-#    type=<TYPE>: Currently the following are supported:
+#    table_type=<TYPE>: Currently the following are supported:
 #                    'mbr': default and setups a MS-DOS partition table
 #
 #                Note: At this time only 'mbr' partition tables are allowed.
@@ -116,7 +116,7 @@ disk_setup:
 #                partition having a swap label, taking 1/3 of the disk space
 #                and the remainder being used as the second partition.
 #                    /dev/xvdh':
-#                        type: 'mbr'
+#                        table_type: 'mbr'
 #                        layout:
 #                            - [33,82]
 #                            - 66

@@ -35,7 +35,7 @@ def handle(name, cfg, cloud, log, _args):
     #      *.*   @@syslogd.example.com
 
     # process 'rsyslog'
-    if not 'rsyslog' in cfg:
+    if 'rsyslog' not in cfg:
         log.debug(("Skipping module named %s,"
                    " no 'rsyslog' key in configuration"), name)
         return
@@ -46,7 +46,7 @@ def handle(name, cfg, cloud, log, _args):
     files = []
     for i, ent in enumerate(cfg['rsyslog']):
         if isinstance(ent, dict):
-            if not "content" in ent:
+            if "content" not in ent:
                 log.warn("No 'content' entry in config entry %s", i + 1)
                 continue
             content = ent['content']

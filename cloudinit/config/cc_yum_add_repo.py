@@ -42,7 +42,7 @@ def _format_repo_value(val):
     return val
 
 
-## TODO(harlowja): move to distro?
+# TODO(harlowja): move to distro?
 # See man yum.conf
 def _format_repository_config(repo_id, repo_config):
     to_be = configobj.ConfigObj()
@@ -89,7 +89,7 @@ def handle(name, cfg, _cloud, log, _args):
         repo_config = n_repo_config
         missing_required = 0
         for req_field in ['baseurl']:
-            if not req_field in repo_config:
+            if req_field not in repo_config:
                 log.warn(("Repository %s does not contain a %s"
                            " configuration 'required' entry"),
                          repo_id, req_field)

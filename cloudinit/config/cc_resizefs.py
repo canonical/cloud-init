@@ -28,19 +28,19 @@ from cloudinit import util
 frequency = PER_ALWAYS
 
 
-def _resize_btrfs(mount_point, devpth):  # pylint: disable=W0613
+def _resize_btrfs(mount_point, devpth):
     return ('btrfs', 'filesystem', 'resize', 'max', mount_point)
 
 
-def _resize_ext(mount_point, devpth):  # pylint: disable=W0613
+def _resize_ext(mount_point, devpth):
     return ('resize2fs', devpth)
 
 
-def _resize_xfs(mount_point, devpth):  # pylint: disable=W0613
+def _resize_xfs(mount_point, devpth):
     return ('xfs_growfs', devpth)
 
 
-def _resize_ufs(mount_point, devpth):  # pylint: disable=W0613
+def _resize_ufs(mount_point, devpth):
     return ('growfs', devpth)
 
 # Do not use a dictionary as these commands should be able to be used
@@ -98,14 +98,14 @@ def handle(name, cfg, _cloud, log, args):
 
     (devpth, fs_type, mount_point) = result
 
-    # Ensure the path is a block device.
     info = "dev=%s mnt_point=%s path=%s" % (devpth, mount_point, resize_what)
     log.debug("resize_info: %s" % info)
 
     container = util.is_container()
 
+    # Ensure the path is a block device.
     if (devpth == "/dev/root" and not os.path.exists(devpth) and
-        not container):
+            not container):
         devpth = rootdev_from_cmdline(util.get_cmdline())
         if devpth is None:
             log.warn("Unable to find device '/dev/root'")
@@ -117,12 +117,20 @@ def handle(name, cfg, _cloud, log, args):
     except OSError as exc:
         if container and exc.errno == errno.ENOENT:
             log.debug("Device '%s' did not exist in container. "
-                      "cannot resize: %s" % (devpth, info))
+                      "cannot resize: %s", devpth, info)
         elif exc.errno == errno.ENOENT:
-            log.warn("Device '%s' did not exist. cannot resize: %s" %
-                     (devpth, info))
+            log.warn("Device '%s' did not exist. cannot resize: %s",
+                     devpth, info)
         else:
             raise exc
+        return
+
+    if not os.access(devpth, os.W_OK):
+        if container:
+            log.debug("'%s' not writable in container. cannot resize: %s",
+                      devpth, info)
+        else:
+            log.warn("'%s' not writable. cannot resize: %s", devpth, info)
         return
 
     if not stat.S_ISBLK(statret.st_mode) and not stat.S_ISCHR(statret.st_mode):
@@ -154,8 +162,8 @@ def handle(name, cfg, _cloud, log, args):
         # Fork to a child that will run
         # the resize command
         util.fork_cb(
-            util.log_time(logfunc=log.debug, msg="backgrounded Resizing",
-                func=do_resize, args=(resize_cmd, log)))
+            util.log_time, logfunc=log.debug, msg="backgrounded Resizing",
+            func=do_resize, args=(resize_cmd, log))
     else:
         util.log_time(logfunc=log.debug, msg="Resizing",
             func=do_resize, args=(resize_cmd, log))
