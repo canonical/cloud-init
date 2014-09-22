@@ -106,7 +106,7 @@ class TestConsumeUserData(helpers.FilesystemMockingTestCase):
         initer.read_cfg()
         initer.initialize()
         initer.fetch()
-        _iid = initer.instancify()
+        initer.instancify()
         initer.update()
         initer.cloudify().run('consume_data',
                               initer.consume_data,
@@ -145,7 +145,7 @@ class TestConsumeUserData(helpers.FilesystemMockingTestCase):
         initer.read_cfg()
         initer.initialize()
         initer.fetch()
-        _iid = initer.instancify()
+        initer.instancify()
         initer.update()
         initer.cloudify().run('consume_data',
                               initer.consume_data,
@@ -221,7 +221,7 @@ run:
         initer.read_cfg()
         initer.initialize()
         initer.fetch()
-        _iid = initer.instancify()
+        initer.instancify()
         initer.update()
         initer.cloudify().run('consume_data',
                               initer.consume_data,
@@ -256,7 +256,7 @@ vendor_data:
         initer.read_cfg()
         initer.initialize()
         initer.fetch()
-        _iid = initer.instancify()
+        initer.instancify()
         initer.update()
         initer.cloudify().run('consume_data',
                               initer.consume_data,
@@ -264,7 +264,6 @@ vendor_data:
                               freq=PER_INSTANCE)
         mods = stages.Modules(initer)
         (_which_ran, _failures) = mods.run_section('cloud_init_modules')
-        _cfg = mods.cfg
         vendor_script = initer.paths.get_ipath_cur('vendor_scripts')
         vendor_script_fns = "%s%s/part-001" % (new_root, vendor_script)
         self.assertTrue(os.path.exists(vendor_script_fns))

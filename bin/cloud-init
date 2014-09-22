@@ -478,7 +478,7 @@ def status_wrapper(name, args, data_d=None, link_d=None):
         nullstatus = {
             'errors': [],
             'start': None,
-            'end': None,
+            'finished': None,
         }
         status = {'v1': {}}
         for m in modes:

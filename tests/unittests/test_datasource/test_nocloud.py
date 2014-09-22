@@ -50,14 +50,13 @@ class TestNoCloudDataSource(MockerTestCase):
         self.assertTrue(ret)
 
     def test_fs_label(self):
-        #find_devs_with should not be called ff fs_label is None
+        # find_devs_with should not be called ff fs_label is None
         ds = DataSourceNoCloud.DataSourceNoCloud
 
         class PsuedoException(Exception):
             pass
 
         def my_find_devs_with(*args, **kwargs):
-            _f = (args, kwargs)
             raise PsuedoException
 
         self.apply_patches([(util, 'find_devs_with', my_find_devs_with)])
@@ -74,7 +73,7 @@ class TestNoCloudDataSource(MockerTestCase):
         self.assertFalse(ret)
 
     def test_no_datasource_expected(self):
-        #no source should be found if no cmdline, config, and fs_label=None
+        # no source should be found if no cmdline, config, and fs_label=None
         sys_cfg = {'datasource': {'NoCloud': {'fs_label': None}}}
 
         ds = DataSourceNoCloud.DataSourceNoCloud

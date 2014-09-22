@@ -55,7 +55,7 @@ def _gen_fingerprint(b64_text, hash_meth='md5'):
 def _is_printable_key(entry):
     if any([entry.keytype, entry.base64, entry.comment, entry.options]):
         if (entry.keytype and
-            entry.keytype.lower().strip() in ['ssh-dss', 'ssh-rsa']):
+                entry.keytype.lower().strip() in ['ssh-dss', 'ssh-rsa']):
             return True
     return False
 
@@ -92,9 +92,10 @@ def _pprint_key_entries(user, key_fn, key_entries, hash_meth='md5',
 
 
 def handle(name, cfg, cloud, log, _args):
-    if 'no_ssh_fingerprints' in cfg:
+    if util.is_true(cfg.get('no_ssh_fingerprints', False)):
         log.debug(("Skipping module named %s, "
                    "logging of ssh fingerprints disabled"), name)
+        return
 
     hash_meth = util.get_cfg_option_str(cfg, "authkey_hash", "md5")
     (users, _groups) = ds.normalize_users_groups(cfg, cloud.distro)

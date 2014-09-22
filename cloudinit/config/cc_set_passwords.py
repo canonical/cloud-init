@@ -28,7 +28,7 @@ from cloudinit import distros as ds
 from cloudinit import ssh_util
 from cloudinit import util
 
-from string import letters, digits  # pylint: disable=W0402
+from string import letters, digits
 
 # We are removing certain 'painful' letters/numbers
 PW_SET = (letters.translate(None, 'loLOI') +
@@ -132,7 +132,7 @@ def handle(_name, cfg, cloud, log, args):
                                                      'PasswordAuthentication',
                                                      pw_auth))
 
-        lines = [str(e) for e in new_lines]
+        lines = [str(l) for l in new_lines]
         util.write_file(ssh_util.DEF_SSHD_CFG, "\n".join(lines))
 
         try:

@@ -19,9 +19,9 @@ To get changes into cloud-init, the process to follow is:
 
   - ``bzr commit``
 
-* Check pylint and pep8 and test, and address any issues:
+* Check pep8 and test, and address any issues:
 
-  - ``make test pylint pep8``
+  - ``make test pep8``
 
 * Push to launchpad to a personal branch:
 
