@@ -28,23 +28,44 @@ LOG = logging.getLogger(__name__)
 SKIP_USERDATA_CODES = frozenset([httplib.NOT_FOUND])
 
 
-def maybe_json_object(text):
-    if not text:
+class MetadataLeafDecoder(object):
+    """Decodes a leaf blob into something meaningful."""
+
+    def _maybe_json_object(self, text):
+        if not text:
+            return False
+        text = text.strip()
+        if text.startswith("{") and text.endswith("}"):
+            return True
         return False
-    text = text.strip()
-    if text.startswith("{") and text.endswith("}"):
-        return True
-    return False
+
+    def __call__(self, field, blob):
+        if not blob:
+            return blob
+        if self._maybe_json_object(blob):
+            try:
+                # Assume it's json, unless it fails parsing...
+                return json.loads(blob)
+            except (ValueError, TypeError) as e:
+                LOG.warn("Field %s looked like a json object, but it was"
+                         " not: %s", field, e)
+        if blob.find("\n") != -1:
+            return blob.splitlines()
+        return blob
 
 
 # See: http://bit.ly/TyoUQs
 #
 class MetadataMaterializer(object):
-    def __init__(self, blob, base_url, caller):
+    def __init__(self, blob, base_url, caller, leaf_decoder=None):
         self._blob = blob
         self._md = None
         self._base_url = base_url
         self._caller = caller
+        if leaf_decoder is None:
+            self._leaf_decoder = MetadataLeafDecoder()
+        else:
+            self._leaf_decoder = leaf_decoder
 
     def _parse(self, blob):
         leaves = {}
@@ -90,20 +111,6 @@ class MetadataMaterializer(object):
         self._md = self._materialize(self._blob, self._base_url)
         return self._md
 
-    def _decode_leaf_blob(self, field, blob):
-        if not blob:
-            return blob
-        if maybe_json_object(blob):
-            try:
-                # Assume it's json, unless it fails parsing...
-                return json.loads(blob)
-            except (ValueError, TypeError) as e:
-                LOG.warn("Field %s looked like a json object, but it was"
-                         " not: %s", field, e)
-        if blob.find("\n") != -1:
-            return blob.splitlines()
-        return blob
-
     def _materialize(self, blob, base_url):
         (leaves, children) = self._parse(blob)
         child_contents = {}
@@ -117,7 +124,7 @@ class MetadataMaterializer(object):
         for (field, resource) in leaves.items():
             leaf_url = url_helper.combine_url(base_url, resource)
             leaf_blob = str(self._caller(leaf_url))
-            leaf_contents[field] = self._decode_leaf_blob(field, leaf_blob)
+            leaf_contents[field] = self._leaf_decoder(field, leaf_blob)
         joined = {}
         joined.update(child_contents)
         for field in leaf_contents.keys():
@@ -164,7 +171,8 @@ def get_instance_userdata(api_version='latest',
 
 def get_instance_metadata(api_version='latest',
                           metadata_address='http://169.254.169.254',
-                          ssl_details=None, timeout=5, retries=5):
+                          ssl_details=None, timeout=5, retries=5,
+                          leaf_decoder=None):
     md_url = url_helper.combine_url(metadata_address, api_version)
     # Note, 'meta-data' explicitly has trailing /.
     # this is required for CloudStack (LP: #1356855)
@@ -175,7 +183,9 @@ def get_instance_metadata(api_version='latest',
 
     try:
         response = caller(md_url)
-        materializer = MetadataMaterializer(str(response), md_url, caller)
+        materializer = MetadataMaterializer(str(response),
+                                            md_url, caller,
+                                            leaf_decoder=leaf_decoder)
         md = materializer.materialize()
         if not isinstance(md, (dict)):
             md = {}

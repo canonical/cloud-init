@@ -1,3 +1,17 @@
+cloud-init (0.7.6~bzr1020-0ubuntu1) utopic; urgency=medium
+
+  [ Ben Howard ]
+  * Fix for cloud-init misidentifying grub install device (LP: #1336855).
+
+  [ Scott Moser ]
+  * New upstream snapshot.
+    * cc_grub_dpkg: consider /dev/xvda as candidate for grub installation
+      (LP: #1336855)
+    * resizefs: fix backgrounding of resizefs (LP: #1338614) 
+    * cloud-init-blocknet: remove debug code
+
+ -- Scott Moser <smoser@ubuntu.com>  Tue, 23 Sep 2014 14:20:09 -0400
+
 cloud-init (0.7.6~bzr1016-0ubuntu1) utopic; urgency=medium
 
   * New upstream snapshot.
