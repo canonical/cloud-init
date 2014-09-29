@@ -1359,11 +1359,11 @@ def mount_cb(device, callback, data=None, rw=False, mtype=None, sync=True):
         mtypes = None
 
     # clean up 'mtype' input a bit based on platform.
-    platform = platform.system.lower()
-    if platform == "linux":
+    platform_lower = platform.system.lower()
+    if platform_lower == "linux":
         if mtypes is None:
             mtypes = ["auto"]
-    elif platform.endswith("bsd"):
+    elif platform_lower.endswith("bsd"):
         if mtypes is None:
             mtypes = ['ufs', 'cd9660', 'vfat']
         for index, mtype in enumerate(mtypes):
