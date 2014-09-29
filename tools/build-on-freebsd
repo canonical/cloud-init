@@ -8,7 +8,9 @@ fail() { echo "FAILED:" "$@" 1>&2; exit 1; }
 # Check dependencies:
 depschecked=/tmp/c-i.dependencieschecked
 pkgs="
+   blkid
    dmidecode
+   e2fsprogs
    gpart
    py27-Jinja2
    py27-argparse
