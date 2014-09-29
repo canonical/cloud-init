@@ -9,15 +9,22 @@ fail() { echo "FAILED:" "$@" 1>&2; exit 1; }
 depschecked=/tmp/c-i.dependencieschecked
 pkgs="
    dmidecode
-   py27-argparse
-   py27-boto gpart sudo
-   py27-configobj py27-yaml
+   gpart
    py27-Jinja2
-   py27-oauth py27-serial
+   py27-argparse
+   py27-boto
+   py27-cheetah
+   py27-configobj
+   py27-jsonpatch
+   py27-jsonpointer
+   py27-oauth
    py27-prettytable
-   py27-requests py27-six
-   python py27-cheetah
-   py27-jsonpointer py27-jsonpatch
+   py27-requests
+   py27-serial
+   py27-six
+   py27-yaml
+   python
+   sudo
 "
 [ -f "$depschecked" ] || pkg install ${pkgs} || fail "install packages"
 touch $depschecked
