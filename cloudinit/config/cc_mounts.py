@@ -128,6 +128,7 @@ def setup_swapfile(fname, size=None, maxsize=None):
     size: the size to create. set to "auto" for recommended
     maxsize: the maximum size
     """
+    print("fname: %s, size: %s maxsize: %s" % (fname, size, maxsize))
     tdir = os.path.dirname(fname)
     if str(size).lower() == "auto":
         try:
@@ -159,6 +160,32 @@ def setup_swapfile(fname, size=None, maxsize=None):
         raise IOError("Failed %s: %s" % (msg, e))
 
     return fname, size
+
+
+def handle_swapcfg(swapcfg):
+    """handle the swap config, calling setup_swap if necessary.
+       return None or (filename, size)
+    """
+    fname = swapcfg.get('filename', '/swap.img')
+    size = swapcfg.get('size', 0)
+    maxsize = swapcfg.get('maxsize', 0)
+
+    if not (size and fname):
+        LOG.debug("no need to setup swap")
+        return
+
+    try:
+        if isinstance(size, str) and size != "auto":
+            size = util.human2bytes(size)
+        if isinstance(maxsize, str):
+            maxsize = util.human2bytes(maxsize)
+        return setup_swapfile(fname=fname, size=size, maxsize=maxsize)
+
+    except Exception as e:
+        LOG.warn("failed to setup swap: %s", e)
+
+    return None
+
 
 
 def handle(_name, cfg, cloud, log, _args):
@@ -248,19 +275,9 @@ def handle(_name, cfg, cloud, log, _args):
         else:
             actlist.append(x)
 
-    swapcfg = cfg.get('swap', {})
-    swapfile = swapcfg.get('filename', '/swap.img')
-    if swapcfg.get('size') and swapfile:
-        try:
-            sret = setup_swapfile(fpath=swapfile,
-                                        size=swapcfg.get('size'),
-                                        maxsize=swapcfg.get('maxsize'))
-            if sret is not None:
-                actlist.append([sret[0], "none", "swap", "sw", "0", "0"])
-        except Exception as e:
-            log.warn("failed to setup swap: %s", e)
-    else:
-        log.debug("no swap to setup")
+    swapret = handle_swapcfg(cfg.get('swap'))
+    if swapret:
+        actlist.append([swapret[0], "none", "swap", "sw", "0", "0"])
 
     if len(actlist) == 0:
         log.debug("No modifications to fstab needed.")

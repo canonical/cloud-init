@@ -1978,3 +1978,32 @@ def read_meminfo(meminfo="/proc/meminfo", raw=False):
             ret[kmap[key]] = int(value) * mpliers[unit]
 
     return ret
+
+
+def human2bytes(size):
+    """Convert human string or integer to size in bytes
+      10M => 10485760
+      .5G => 536870912
+    """
+    size_in = size
+    if size.endswith("B"):
+        size = size[:-1]
+
+    mpliers = {'B': 1, 'K': 2 ** 10, 'M': 2 ** 20, 'G': 2 ** 30, 'T': 2 ** 40}
+
+    num = size
+    mplier = 'B'
+    for m in mpliers:
+        if size.endswith(m):
+            mplier = m
+            num = size[0:-len(m)]
+
+    try:
+        num = float(num)
+    except ValueError:
+        raise ValueError("'%s' is not valid input." % size_in)
+
+    if num < 0:
+        raise ValueError("'%s': cannot be negative" % size_in)
+
+    return int(num * mpliers[mplier])
