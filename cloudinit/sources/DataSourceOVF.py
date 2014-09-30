@@ -215,8 +215,7 @@ def transport_iso9660(require_iso=True):
             continue
 
         try:
-            (fname, contents) = util.mount_cb(fullp,
-                                               get_ovf_env, mtype=mtype)
+            (fname, contents) = util.mount_cb(fullp, get_ovf_env, mtype=mtype)
         except util.MountFailedError:
             LOG.debug("%s not mountable as iso9660" % fullp)
             continue

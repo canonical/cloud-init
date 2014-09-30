@@ -6,6 +6,7 @@
 
 . /etc/rc.subr
 
+PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 export CLOUD_CFG=/usr/local/etc/cloud/cloud.cfg
 
 name="cloudinit"
