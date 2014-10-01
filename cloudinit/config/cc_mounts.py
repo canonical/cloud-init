@@ -116,10 +116,15 @@ def suggested_swapsize(memsize=None, maxsize=None, fsys=None):
             size = min(func(memsize), maxsize)
             # if less than 1/2 memory and not much, return 0
             if size < (memsize / 2) and size < 4 * GB:
-                return 0
-            return size
+                size = 0
+                break
+            break
 
-    return maxsize
+    if size is not None:
+        size = maxsize
+    LOG.debug("suggest %s for %s memory with %s available disk and max=%s",
+              size, memsize, avail, maxsize)
+    return size
 
 
 def setup_swapfile(fname, size=None, maxsize=None):
