@@ -82,6 +82,9 @@ def suggested_swapsize(memsize=None, maxsize=None, fsys=None):
 
     GB = 2 ** 30
     sugg_max = 8 * GB
+    max_in = maxsize
+
+    info = {'avail': 'na', 'max_in': maxsize, 'mem': memsize}
 
     if fsys is None and maxsize is None:
         # set max to 8GB default if no filesystem given
@@ -89,6 +92,7 @@ def suggested_swapsize(memsize=None, maxsize=None, fsys=None):
     elif fsys:
         statvfs = os.statvfs(fsys)
         avail = statvfs.f_frsize * statvfs.f_bfree
+        info['avail'] = avail
 
         if maxsize is None:
             # set to 25% of filesystem space
@@ -96,6 +100,10 @@ def suggested_swapsize(memsize=None, maxsize=None, fsys=None):
         elif maxsize > ((avail * .9)):
             # set to 90% of available disk space
             maxsize = int(avail * .9)
+    elif maxsize is None:
+        maxsize = sugg_max
+
+    info['max'] = maxsize
 
     formulas = [
         # < 1G: swap = double memory
@@ -122,8 +130,19 @@ def suggested_swapsize(memsize=None, maxsize=None, fsys=None):
 
     if size is not None:
         size = maxsize
-    LOG.debug("suggest %s for %s memory with %s available disk and max=%s",
-              size, memsize, avail, maxsize)
+
+    info['size'] = size
+
+    MB = 2 ** 20
+    pinfo = {}
+    for k, v in info.items():
+        if isinstance(v, int):
+            pinfo[k] = "%s MB" % (v / MB)
+        else:
+            pinfo[k] = v
+
+    LOG.debug("suggest %(size)s swap for %(mem)s memory with '%(avail)s'"
+              " disk given max=%(max_in)s [max=%(max)s]'" % pinfo)
     return size
 
 
@@ -190,7 +209,6 @@ def handle_swapcfg(swapcfg):
         LOG.warn("failed to setup swap: %s", e)
 
     return None
-
 
 
 def handle(_name, cfg, cloud, log, _args):
