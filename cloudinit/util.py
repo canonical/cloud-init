@@ -1957,3 +1957,53 @@ def pathprefix2dict(base, required=None, optional=None, delim=os.path.sep):
         raise ValueError("Missing required files: %s", ','.join(missing))
 
     return ret
+
+
+def read_meminfo(meminfo="/proc/meminfo", raw=False):
+    # read a /proc/meminfo style file and return
+    # a dict with 'total', 'free', and 'available'
+    mpliers = {'kB': 2**10, 'mB': 2 ** 20, 'B': 1, 'gB': 2 ** 30}
+    kmap = {'MemTotal:': 'total', 'MemFree:': 'free',
+            'MemAvailable:': 'available'}
+    ret = {}
+    for line in load_file(meminfo).splitlines():
+        try:
+            key, value, unit = line.split()
+        except ValueError:
+            key, value = line.split()
+            unit = 'B'
+        if raw:
+            ret[key] = int(value) * mpliers[unit]
+        elif key in kmap:
+            ret[kmap[key]] = int(value) * mpliers[unit]
+
+    return ret
+
+
+def human2bytes(size):
+    """Convert human string or integer to size in bytes
+      10M => 10485760
+      .5G => 536870912
+    """
+    size_in = size
+    if size.endswith("B"):
+        size = size[:-1]
+
+    mpliers = {'B': 1, 'K': 2 ** 10, 'M': 2 ** 20, 'G': 2 ** 30, 'T': 2 ** 40}
+
+    num = size
+    mplier = 'B'
+    for m in mpliers:
+        if size.endswith(m):
+            mplier = m
+            num = size[0:-len(m)]
+
+    try:
+        num = float(num)
+    except ValueError:
+        raise ValueError("'%s' is not valid input." % size_in)
+
+    if num < 0:
+        raise ValueError("'%s': cannot be negative" % size_in)
+
+    return int(num * mpliers[mplier])
