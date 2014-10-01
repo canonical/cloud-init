@@ -82,7 +82,6 @@ def suggested_swapsize(memsize=None, maxsize=None, fsys=None):
 
     GB = 2 ** 30
     sugg_max = 8 * GB
-    max_in = maxsize
 
     info = {'avail': 'na', 'max_in': maxsize, 'mem': memsize}
 
