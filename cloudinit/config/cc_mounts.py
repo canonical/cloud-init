@@ -201,6 +201,20 @@ def handle_swapcfg(swapcfg):
         LOG.debug("no need to setup swap")
         return
 
+    if os.path.exists(fname):
+        if not os.path.exists("/proc/swaps"):
+            LOG.debug("swap file %s existed. no /proc/swaps. Being safe.",
+                      fname)
+            return
+        try:
+            for line in util.load_file("/proc/swaps").splitlines():
+                if line.startswith(fname + " "):
+                    LOG.debug("swap file %s already used", fname)
+                    return
+        except:
+            LOG.warn("swap file %s existed. Error reading /proc/swaps", fname)
+            return
+
     try:
         if isinstance(size, str) and size != "auto":
             size = util.human2bytes(size)
