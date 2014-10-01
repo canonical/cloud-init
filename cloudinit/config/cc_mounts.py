@@ -208,8 +208,9 @@ def handle_swapcfg(swapcfg):
         try:
             for line in util.load_file("/proc/swaps").splitlines():
                 if line.startswith(fname + " "):
-                    LOG.debug("swap file %s already used", fname)
+                    LOG.debug("swap file %s already in use.", fname)
                     return
+            LOG.debug("swap file %s existed, but not in /proc/swaps", fname)
         except:
             LOG.warn("swap file %s existed. Error reading /proc/swaps", fname)
             return
