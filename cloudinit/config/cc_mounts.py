@@ -151,7 +151,6 @@ def setup_swapfile(fname, size=None, maxsize=None):
     size: the size to create. set to "auto" for recommended
     maxsize: the maximum size
     """
-    print("fname: %s, size: %s maxsize: %s" % (fname, size, maxsize))
     tdir = os.path.dirname(fname)
     if str(size).lower() == "auto":
         try:
