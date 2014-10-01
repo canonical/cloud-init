@@ -181,7 +181,7 @@ def setup_swapfile(fname, size=None, maxsize=None):
     except Exception as e:
         raise IOError("Failed %s: %s" % (msg, e))
 
-    return fname, size
+    return fname
 
 
 def handle_swapcfg(swapcfg):
@@ -204,16 +204,16 @@ def handle_swapcfg(swapcfg):
         if not os.path.exists("/proc/swaps"):
             LOG.debug("swap file %s existed. no /proc/swaps. Being safe.",
                       fname)
-            return
+            return fname
         try:
             for line in util.load_file("/proc/swaps").splitlines():
                 if line.startswith(fname + " "):
                     LOG.debug("swap file %s already in use.", fname)
-                    return
+                    return fname
             LOG.debug("swap file %s existed, but not in /proc/swaps", fname)
         except:
             LOG.warn("swap file %s existed. Error reading /proc/swaps", fname)
-            return
+            return fname
 
     try:
         if isinstance(size, str) and size != "auto":
@@ -317,7 +317,7 @@ def handle(_name, cfg, cloud, log, _args):
 
     swapret = handle_swapcfg(cfg.get('swap', {}))
     if swapret:
-        actlist.append([swapret[0], "none", "swap", "sw", "0", "0"])
+        actlist.append([swapret, "none", "swap", "sw", "0", "0"])
 
     if len(actlist) == 0:
         log.debug("No modifications to fstab needed.")
