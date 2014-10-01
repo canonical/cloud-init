@@ -168,7 +168,7 @@ def handle_swapcfg(swapcfg):
     """
     fname = swapcfg.get('filename', '/swap.img')
     size = swapcfg.get('size', 0)
-    maxsize = swapcfg.get('maxsize', 0)
+    maxsize = swapcfg.get('maxsize', None)
 
     if not (size and fname):
         LOG.debug("no need to setup swap")
