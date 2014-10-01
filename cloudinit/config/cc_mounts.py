@@ -315,7 +315,7 @@ def handle(_name, cfg, cloud, log, _args):
         else:
             actlist.append(x)
 
-    swapret = handle_swapcfg(cfg.get('swap'), {})
+    swapret = handle_swapcfg(cfg.get('swap', {}))
     if swapret:
         actlist.append([swapret[0], "none", "swap", "sw", "0", "0"])
 
