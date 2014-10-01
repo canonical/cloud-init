@@ -5,7 +5,7 @@ syslog_fix_perms: root:wheel
 
 # This should not be required, but leave it in place until the real cause of
 # not beeing able to find -any- datasources is resolved.
-datasource_list: ['OpenStack']
+datasource_list: ['ConfigDrive', 'OpenStack']
 
 # A set of users which may be applied and/or used by various modules
 # when a 'default' entry is found it will reference the 'default_user'

@@ -1,3 +1,11 @@
+cloud-init (0.7.6~bzr1022-0ubuntu1) utopic; urgency=medium
+
+  * New upstream snapshot.
+    * support for writing swap files per user config (disabled by default).
+    * fixes for freebsd support of config drive.
+
+ -- Scott Moser <smoser@ubuntu.com>  Wed, 01 Oct 2014 16:27:44 -0400
+
 cloud-init (0.7.6~bzr1020-0ubuntu1) utopic; urgency=medium
 
   [ Ben Howard ]

@@ -75,6 +75,159 @@ def sanitize_devname(startname, transformer, log):
     return devnode_for_dev_part(blockdev, part)
 
 
+def suggested_swapsize(memsize=None, maxsize=None, fsys=None):
+    # make a suggestion on the size of swap for this system.
+    if memsize is None:
+        memsize = util.read_meminfo()['total']
+
+    GB = 2 ** 30
+    sugg_max = 8 * GB
+
+    info = {'avail': 'na', 'max_in': maxsize, 'mem': memsize}
+
+    if fsys is None and maxsize is None:
+        # set max to 8GB default if no filesystem given
+        maxsize = sugg_max
+    elif fsys:
+        statvfs = os.statvfs(fsys)
+        avail = statvfs.f_frsize * statvfs.f_bfree
+        info['avail'] = avail
+
+        if maxsize is None:
+            # set to 25% of filesystem space
+            maxsize = min(int(avail / 4), sugg_max)
+        elif maxsize > ((avail * .9)):
+            # set to 90% of available disk space
+            maxsize = int(avail * .9)
+    elif maxsize is None:
+        maxsize = sugg_max
+
+    info['max'] = maxsize
+
+    formulas = [
+        # < 1G: swap = double memory
+        (1 * GB, lambda x: x * 2),
+        # < 2G: swap = 2G
+        (2 * GB, lambda x: 2 * GB),
+        # < 4G: swap = memory
+        (4 * GB, lambda x: x),
+        # < 16G: 4G
+        (16 * GB, lambda x: 4 * GB),
+        # < 64G: 1/2 M up to max
+        (64 * GB, lambda x: x / 2),
+    ]
+
+    size = None
+    for top, func in formulas:
+        if memsize <= top:
+            size = min(func(memsize), maxsize)
+            # if less than 1/2 memory and not much, return 0
+            if size < (memsize / 2) and size < 4 * GB:
+                size = 0
+                break
+            break
+
+    if size is not None:
+        size = maxsize
+
+    info['size'] = size
+
+    MB = 2 ** 20
+    pinfo = {}
+    for k, v in info.items():
+        if isinstance(v, int):
+            pinfo[k] = "%s MB" % (v / MB)
+        else:
+            pinfo[k] = v
+
+    LOG.debug("suggest %(size)s swap for %(mem)s memory with '%(avail)s'"
+              " disk given max=%(max_in)s [max=%(max)s]'" % pinfo)
+    return size
+
+
+def setup_swapfile(fname, size=None, maxsize=None):
+    """
+    fname: full path string of filename to setup
+    size: the size to create. set to "auto" for recommended
+    maxsize: the maximum size
+    """
+    tdir = os.path.dirname(fname)
+    if str(size).lower() == "auto":
+        try:
+            memsize = util.read_meminfo()['total']
+        except IOError as e:
+            LOG.debug("Not creating swap. failed to read meminfo")
+            return
+
+        util.ensure_dir(tdir)
+        size = suggested_swapsize(fsys=tdir, maxsize=maxsize,
+                                  memsize=memsize)
+
+    if not size:
+        LOG.debug("Not creating swap: suggested size was 0")
+        return
+
+    mbsize = str(int(size / (2 ** 20)))
+    msg = "creating swap file '%s' of %sMB" % (fname, mbsize)
+    try:
+        util.ensure_dir(tdir)
+        util.log_time(LOG.debug, msg, func=util.subp,
+            args=[['sh', '-c',
+                   ('rm -f "$1" && umask 0066 && '
+                    'dd if=/dev/zero "of=$1" bs=1M "count=$2" && '
+                    'mkswap "$1" || { r=$?; rm -f "$1"; exit $r; }'),
+                   'setup_swap', fname, mbsize]])
+
+    except Exception as e:
+        raise IOError("Failed %s: %s" % (msg, e))
+
+    return fname
+
+
+def handle_swapcfg(swapcfg):
+    """handle the swap config, calling setup_swap if necessary.
+       return None or (filename, size)
+    """
+    if not isinstance(swapcfg, dict):
+        LOG.warn("input for swap config was not a dict.")
+        return None
+
+    fname = swapcfg.get('filename', '/swap.img')
+    size = swapcfg.get('size', 0)
+    maxsize = swapcfg.get('maxsize', None)
+
+    if not (size and fname):
+        LOG.debug("no need to setup swap")
+        return
+
+    if os.path.exists(fname):
+        if not os.path.exists("/proc/swaps"):
+            LOG.debug("swap file %s existed. no /proc/swaps. Being safe.",
+                      fname)
+            return fname
+        try:
+            for line in util.load_file("/proc/swaps").splitlines():
+                if line.startswith(fname + " "):
+                    LOG.debug("swap file %s already in use.", fname)
+                    return fname
+            LOG.debug("swap file %s existed, but not in /proc/swaps", fname)
+        except:
+            LOG.warn("swap file %s existed. Error reading /proc/swaps", fname)
+            return fname
+
+    try:
+        if isinstance(size, str) and size != "auto":
+            size = util.human2bytes(size)
+        if isinstance(maxsize, str):
+            maxsize = util.human2bytes(maxsize)
+        return setup_swapfile(fname=fname, size=size, maxsize=maxsize)
+
+    except Exception as e:
+        LOG.warn("failed to setup swap: %s", e)
+
+    return None
+
+
 def handle(_name, cfg, cloud, log, _args):
     # fs_spec, fs_file, fs_vfstype, fs_mntops, fs-freq, fs_passno
     defvals = [None, None, "auto", "defaults,nobootwait", "0", "2"]
@@ -161,6 +314,10 @@ def handle(_name, cfg, cloud, log, _args):
             log.debug("Skipping non-existent device named %s", x[0])
         else:
             actlist.append(x)
+
+    swapret = handle_swapcfg(cfg.get('swap', {}))
+    if swapret:
+        actlist.append([swapret, "none", "swap", "sw", "0", "0"])
 
     if len(actlist) == 0:
         log.debug("No modifications to fstab needed.")

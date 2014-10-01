@@ -37,6 +37,8 @@
  - resizefs: fix broken background resizing [Jay Faulkner] (LP: #1338614)
  - cc_grub_dpkg: fix EC2 hvm instances to avoid prompt on grub update.
    (LP: #1336855)
+ - FreeBsd: support config drive datasource [Joseph bajin]
+ - cc_mounts: support creating a swap file
 0.7.5:
  - open 0.7.5
  - Add a debug log message around import failures
