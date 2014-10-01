@@ -190,6 +190,10 @@ def handle_swapcfg(swapcfg):
     """handle the swap config, calling setup_swap if necessary.
        return None or (filename, size)
     """
+    if not isinstance(swapcfg, dict):
+        LOG.warn("input for swap config was not a dict.")
+        return None
+
     fname = swapcfg.get('filename', '/swap.img')
     size = swapcfg.get('size', 0)
     maxsize = swapcfg.get('maxsize', None)
@@ -298,7 +302,7 @@ def handle(_name, cfg, cloud, log, _args):
         else:
             actlist.append(x)
 
-    swapret = handle_swapcfg(cfg.get('swap'))
+    swapret = handle_swapcfg(cfg.get('swap'), {})
     if swapret:
         actlist.append([swapret[0], "none", "swap", "sw", "0", "0"])
 
