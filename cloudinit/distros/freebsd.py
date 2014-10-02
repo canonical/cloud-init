@@ -106,6 +106,15 @@ class Distro(distros.Distro):
             val = None
         return val
 
+    # NOVA will inject something like eth0, rewrite that to use the
+    # virtio-based BSD adapter.
+    def getnetifname(self, dev):
+        LOG.debug("Translating network interface %s", dev)
+        if dev.startswith('lo'):
+            return dev
+        n = re.search('\d+$', dev)
+        return 'vtnet' + n.group(0)
+
     def _read_system_hostname(self):
         sys_hostname = self._read_hostname(filename=None)
         return ('rc.conf', sys_hostname)
@@ -162,18 +171,18 @@ class Distro(distros.Distro):
         log_adduser_cmd = ['pw', 'useradd', '-n', name]
 
         adduser_opts = {
-                "homedir": '-d',
-                "gecos": '-c',
-                "primary_group": '-g',
-                "groups": '-G',
-                "passwd": '-h',
-                "shell": '-s',
-                "inactive": '-E',
+            "homedir": '-d',
+            "gecos": '-c',
+            "primary_group": '-g',
+            "groups": '-G',
+            "passwd": '-h',
+            "shell": '-s',
+            "inactive": '-E',
         }
         adduser_flags = {
-                "no_user_group": '--no-user-group',
-                "system": '--system',
-                "no_log_init": '--no-log-init',
+            "no_user_group": '--no-user-group',
+            "system": '--system',
+            "no_log_init": '--no-log-init',
         }
 
         redact_opts = ['passwd']
@@ -246,17 +255,21 @@ class Distro(distros.Distro):
         nameservers = []
         searchdomains = []
         dev_names = entries.keys()
-        for (dev, info) in entries.iteritems():
+        for (device, info) in entries.iteritems():
             # Skip the loopback interface.
-            if dev.startswith('lo'):
+            if device.startswith('lo'):
                 continue
+
+            dev = self.getnetifname(device)
 
             LOG.info('Configuring interface %s', dev)
 
             if info.get('bootproto') == 'static':
-                LOG.debug('Configuring dev %s with %s / %s', dev, info.get('address'), info.get('netmask'))
+                LOG.debug('Configuring dev %s with %s / %s', dev,
+                          info.get('address'), info.get('netmask'))
                 # Configure an ipv4 address.
-                ifconfig = info.get('address') + ' netmask ' + info.get('netmask')
+                ifconfig = (info.get('address') + ' netmask ' +
+                            info.get('netmask'))
 
                 # Configure the gateway.
                 self.updatercconf('defaultrouter', info.get('gateway'))
@@ -267,7 +280,7 @@ class Distro(distros.Distro):
                     searchdomains.extend(info['dns-search'])
             else:
                 ifconfig = 'DHCP'
-     
+
             self.updatercconf('ifconfig_' + dev, ifconfig)
 
         # Try to read the /etc/resolv.conf or just start from scratch if that
@@ -276,7 +289,8 @@ class Distro(distros.Distro):
             resolvconf = ResolvConf(util.load_file(self.resolv_conf_fn))
             resolvconf.parse()
         except IOError:
-            util.logexc(LOG, "Failed to parse %s, use new empty file", self.resolv_conf_fn)
+            util.logexc(LOG, "Failed to parse %s, use new empty file",
+                        self.resolv_conf_fn)
             resolvconf = ResolvConf('')
             resolvconf.parse()
 
@@ -322,6 +336,19 @@ class Distro(distros.Distro):
             except IOError:
                 util.logexc(LOG, "Failed to restore %s backup",
                             self.login_conf_fn)
+
+    def _bring_up_interface(self, device_name):
+        if device_name.startswith('lo'):
+            return
+        dev = self.getnetifname(device_name)
+        cmd = ['/etc/rc.d/netif', 'start', dev]
+        LOG.debug("Attempting to bring up interface %s using command %s",
+                  dev, cmd)
+        # This could return 1 when the interface has already been put UP by the
+        # OS. This is just fine.
+        (_out, err) = util.subp(cmd, rcs=[0, 1])
+        if len(err):
+            LOG.warn("Error running %s: %s", cmd, err)
 
     def install_packages(self, pkglist):
         return
