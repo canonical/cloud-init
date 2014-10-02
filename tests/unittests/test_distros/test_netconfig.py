@@ -223,8 +223,8 @@ NETWORKING=yes
         self.assertIn('/etc/rc.conf', write_bufs)
         write_buf = write_bufs['/etc/rc.conf']
         expected_buf = '''
-ifconfig_eth0="192.168.1.5 netmask 255.255.255.0"
-ifconfig_eth1="DHCP"
+ifconfig_vtnet0="192.168.1.5 netmask 255.255.255.0"
+ifconfig_vtnet1="DHCP"
 defaultrouter="192.168.1.254"
 '''
         self.assertCfgEquals(expected_buf, str(write_buf))
