@@ -124,7 +124,7 @@ class Distro(distros.Distro):
             m = re.match('^\w+', line)
             if m:
                 if m.group(0).startswith('lo'):
-                    next
+                    continue
                 # Just settle with the first non-lo adapter we find, since it's
                 # rather unlikely there will be multiple nicdrivers involved.
                 bsddev = m.group(0)
