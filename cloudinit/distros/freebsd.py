@@ -106,14 +106,34 @@ class Distro(distros.Distro):
             val = None
         return val
 
-    # NOVA will inject something like eth0, rewrite that to use the
-    # virtio-based BSD adapter.
+    # NOVA will inject something like eth0, rewrite that to use the FreeBSD
+    # adapter. Since this adapter is based on the used driver, we need to
+    # figure out which interfaces are available. On KVM platforms this is
+    # vtnet0, where Xen would use xn0.
     def getnetifname(self, dev):
         LOG.debug("Translating network interface %s", dev)
         if dev.startswith('lo'):
             return dev
+
         n = re.search('\d+$', dev)
-        return 'vtnet' + n.group(0)
+        index = n.group(0)
+
+        (out, err) = util.subp(['ifconfig', '-a'])
+        ifconfigoutput = [x for x in (out.strip()).splitlines() if len(x.split()) > 0]
+        for line in ifconfigoutput:
+            m = re.match('^\w+', line)
+            if m:
+                if m.group(0).startswith('lo'):
+                    next
+                # Just settle with the first non-lo adapter we find, since it's
+                # rather unlikely there will be multiple nicdrivers involved.
+                bsddev = m.group(0)
+                break
+
+        # Replace the index with the one we're after.
+        bsddev = re.sub('\d+$', index, bsddev)
+        LOG.debug("Using network interface %s", bsddev)
+        return bsddev
 
     def _read_system_hostname(self):
         sys_hostname = self._read_hostname(filename=None)
