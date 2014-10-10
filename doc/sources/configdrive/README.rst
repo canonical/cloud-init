@@ -120,4 +120,4 @@ what all can be present here.
 .. _python-novaclient: https://github.com/openstack/python-novaclient
 .. _iso9660: https://en.wikipedia.org/wiki/ISO_9660
 .. _vfat: https://en.wikipedia.org/wiki/File_Allocation_Table
-.. _the config drive extension: http://docs.openstack.org/developer/nova/api_ext/ext_config_drive.html
+.. _the config drive extension: http://docs.openstack.org/user-guide/content/config-drive.html
