@@ -19,7 +19,6 @@
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 from datetime import datetime
-
 import json
 import os
 
@@ -66,6 +65,16 @@ CHEF_RB_TPL_KEYS.extend([
 CHEF_RB_TPL_KEYS = frozenset(CHEF_RB_TPL_KEYS)
 CHEF_RB_PATH = '/etc/chef/client.rb'
 CHEF_FB_PATH = '/etc/chef/firstboot.json'
+CHEF_EXEC_PATH = '/usr/bin/chef-client'
+CHEF_EXEC_CMD = tuple([CHEF_EXEC_PATH, '-d', '-i', '1800', '-s', '20'])
+
+
+def is_installed():
+    if not os.path.isfile(CHEF_EXEC_PATH):
+        return False
+    if not os.access(CHEF_EXEC_PATH, os.X_OK):
+        return False
+    return True
 
 
 def get_template_params(iid, chef_cfg, log):
@@ -106,7 +115,7 @@ def handle(name, cfg, cloud, log, _args):
     chef_cfg = cfg['chef']
 
     # Ensure the chef directories we use exist
-    for d in chef_cfg.get('directories', CHEF_DIRS):
+    for d in list(chef_cfg.get('directories', CHEF_DIRS)):
         util.ensure_dir(d)
 
     # Set the validation key based on the presence of either 'validation_key'
@@ -143,27 +152,27 @@ def handle(name, cfg, cloud, log, _args):
         util.write_file(fb_filename, json.dumps(initial_json))
 
     # Try to install chef, if its not already installed...
-    install_chef(cloud, chef_cfg, log)
+    force_install = util.get_cfg_option_bool(chef_cfg,
+                                             'force_install', default=False)
+    if not is_installed() or force_install:
+        run = install_chef(cloud, chef_cfg, log)
+        if run:
+            log.debug('Running chef-client')
+            util.subp(CHEF_EXEC_CMD, capture=False)
 
 
 def install_chef(cloud, chef_cfg, log):
     # If chef is not installed, we install chef based on 'install_type'
-    if os.path.isfile('/usr/bin/chef-client'):
-        return
-    if not util.get_cfg_option_bool(chef_cfg, 'force_install', default=False):
-        return
     install_type = util.get_cfg_option_str(chef_cfg, 'install_type',
                                            'packages')
+    run_after = False
     if install_type == "gems":
         # This will install and run the chef-client from gems
         chef_version = util.get_cfg_option_str(chef_cfg, 'version', None)
         ruby_version = util.get_cfg_option_str(chef_cfg, 'ruby_version',
                                                RUBY_VERSION_DEFAULT)
         install_chef_from_gems(cloud.distro, ruby_version, chef_version)
-        # And finally, run chef-client
-        log.debug('Running chef-client')
-        util.subp(['/usr/bin/chef-client',
-                   '-d', '-i', '1800', '-s', '20'], capture=False)
+        run_after = True
     elif install_type == 'packages':
         # This will install and run the chef-client from packages
         cloud.distro.install_packages(('chef',))
@@ -178,6 +187,7 @@ def install_chef(cloud, chef_cfg, log):
             util.subp([tmpf], capture=False)
     else:
         log.warn("Unknown chef install type '%s'", install_type)
+    return run_after
 
 
 def get_ruby_packages(version):
