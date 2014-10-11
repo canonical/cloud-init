@@ -191,11 +191,11 @@ def ExtendedTemporaryFile(**kwargs):
     return fh
 
 
-def fork_cb(child_cb, *args, **kwargs):
+def fork_cb(child_cb, *args):
     fid = os.fork()
     if fid == 0:
         try:
-            child_cb(*args, **kwargs)
+            child_cb(*args)
             os._exit(0)
         except:
             logexc(LOG, "Failed forking and calling callback %s",
@@ -1297,7 +1297,7 @@ def unmounter(umount):
         yield umount
     finally:
         if umount:
-            umount_cmd = ["umount", umount]
+            umount_cmd = ["umount", '-l', umount]
             subp(umount_cmd)
 
 
@@ -1346,70 +1346,37 @@ def mount_cb(device, callback, data=None, rw=False, mtype=None, sync=True):
     Mount the device, call method 'callback' passing the directory
     in which it was mounted, then unmount.  Return whatever 'callback'
     returned.  If data != None, also pass data to callback.
-
-    mtype is a filesystem type.  it may be a list, string (a single fsname)
-    or a list of fsnames.
     """
-
-    if isinstance(mtype, str):
-        mtypes = [mtype]
-    elif isinstance(mtype, (list, tuple)):
-        mtypes = list(mtype)
-    elif mtype is None:
-        mtypes = None
-
-    # clean up 'mtype' input a bit based on platform.
-    platsys = platform.system().lower()
-    if platsys == "linux":
-        if mtypes is None:
-            mtypes = ["auto"]
-    elif platsys.endswith("bsd"):
-        if mtypes is None:
-            mtypes = ['ufs', 'cd9660', 'vfat']
-        for index, mtype in enumerate(mtypes):
-            if mtype == "iso9660":
-                mtypes[index] = "cd9660"
-    else:
-        # we cannot do a smart "auto", so just call 'mount' once with no -t
-        mtypes = ['']
-
     mounted = mounts()
     with tempdir() as tmpd:
         umount = False
         if device in mounted:
             mountpoint = mounted[device]['mountpoint']
         else:
-            for mtype in mtypes:
-                mountpoint = None
-                try:
-                    mountcmd = ['mount']
-                    mountopts = []
-                    if rw:
-                        mountopts.append('rw')
-                    else:
-                        mountopts.append('ro')
-                    if sync:
-                        # This seems like the safe approach to do
-                        # (ie where this is on by default)
-                        mountopts.append("sync")
-                    if mountopts:
-                        mountcmd.extend(["-o", ",".join(mountopts)])
-                    if mtype:
-                        mountcmd.extend(['-t', mtype])
-                    mountcmd.append(device)
-                    mountcmd.append(tmpd)
-                    subp(mountcmd)
-                    umount = tmpd  # This forces it to be unmounted (when set)
-                    mountpoint = tmpd
-                    break
-                except (IOError, OSError) as exc:
-                    LOG.debug("Failed mount of '%s' as '%s': %s",
-                              device, mtype, exc)
-                    pass
-            if not mountpoint:
-                raise MountFailedError("Failed mounting %s to %s due to: %s" %
+            try:
+                mountcmd = ['mount']
+                mountopts = []
+                if rw:
+                    mountopts.append('rw')
+                else:
+                    mountopts.append('ro')
+                if sync:
+                    # This seems like the safe approach to do
+                    # (ie where this is on by default)
+                    mountopts.append("sync")
+                if mountopts:
+                    mountcmd.extend(["-o", ",".join(mountopts)])
+                if mtype:
+                    mountcmd.extend(['-t', mtype])
+                mountcmd.append(device)
+                mountcmd.append(tmpd)
+                subp(mountcmd)
+                umount = tmpd  # This forces it to be unmounted (when set)
+                mountpoint = tmpd
+            except (IOError, OSError) as exc:
+                raise MountFailedError(("Failed mounting %s "
+                                        "to %s due to: %s") %
                                        (device, tmpd, exc))
-
         # Be nice and ensure it ends with a slash
         if not mountpoint.endswith("/"):
             mountpoint += "/"
@@ -1957,53 +1924,3 @@ def pathprefix2dict(base, required=None, optional=None, delim=os.path.sep):
         raise ValueError("Missing required files: %s", ','.join(missing))
 
     return ret
-
-
-def read_meminfo(meminfo="/proc/meminfo", raw=False):
-    # read a /proc/meminfo style file and return
-    # a dict with 'total', 'free', and 'available'
-    mpliers = {'kB': 2**10, 'mB': 2 ** 20, 'B': 1, 'gB': 2 ** 30}
-    kmap = {'MemTotal:': 'total', 'MemFree:': 'free',
-            'MemAvailable:': 'available'}
-    ret = {}
-    for line in load_file(meminfo).splitlines():
-        try:
-            key, value, unit = line.split()
-        except ValueError:
-            key, value = line.split()
-            unit = 'B'
-        if raw:
-            ret[key] = int(value) * mpliers[unit]
-        elif key in kmap:
-            ret[kmap[key]] = int(value) * mpliers[unit]
-
-    return ret
-
-
-def human2bytes(size):
-    """Convert human string or integer to size in bytes
-      10M => 10485760
-      .5G => 536870912
-    """
-    size_in = size
-    if size.endswith("B"):
-        size = size[:-1]
-
-    mpliers = {'B': 1, 'K': 2 ** 10, 'M': 2 ** 20, 'G': 2 ** 30, 'T': 2 ** 40}
-
-    num = size
-    mplier = 'B'
-    for m in mpliers:
-        if size.endswith(m):
-            mplier = m
-            num = size[0:-len(m)]
-
-    try:
-        num = float(num)
-    except ValueError:
-        raise ValueError("'%s' is not valid input." % size_in)
-
-    if num < 0:
-        raise ValueError("'%s': cannot be negative" % size_in)
-
-    return int(num * mpliers[mplier])
