@@ -82,3 +82,22 @@ class TestChef(t_help.FilesystemMockingTestCase):
                 'run_list': ['a', 'b', 'c'],
                 'c': 'd',
             }, json.loads(c))
+
+    def test_template_deletes(self):
+        tpl_file = util.load_file('templates/chef_client.rb.tmpl')
+        self.patchUtils(self.tmp)
+        self.patchOS(self.tmp)
+
+        util.write_file('/etc/cloud/templates/chef_client.rb.tmpl', tpl_file)
+        cfg = {
+            'chef': {
+                'server_url': 'localhost',
+                'validation_name': 'bob',
+                'json_attribs': None,
+                'show_time': None,
+            },
+        }
+        cc_chef.handle('chef', cfg, self.fetch_cloud('ubuntu'), LOG, [])
+        c = util.load_file(cc_chef.CHEF_RB_PATH)
+        self.assertNotIn('json_attribs', c)
+        self.assertNotIn('Formatter.show_time', c)
