@@ -142,36 +142,42 @@ def handle(name, cfg, cloud, log, _args):
                 initial_json[k] = initial_attributes[k]
         util.write_file(fb_filename, json.dumps(initial_json))
 
-    # If chef is not installed, we install chef based on 'install_type'
-    if (not os.path.isfile('/usr/bin/chef-client') or
-            util.get_cfg_option_bool(chef_cfg,
-                'force_install', default=False)):
+    # Try to install chef, if its not already installed...
+    install_chef(cloud, chef_cfg, log)
 
-        install_type = util.get_cfg_option_str(chef_cfg, 'install_type',
-                                               'packages')
-        if install_type == "gems":
-            # this will install and run the chef-client from gems
-            chef_version = util.get_cfg_option_str(chef_cfg, 'version', None)
-            ruby_version = util.get_cfg_option_str(chef_cfg, 'ruby_version',
-                                                   RUBY_VERSION_DEFAULT)
-            install_chef_from_gems(cloud.distro, ruby_version, chef_version)
-            # and finally, run chef-client
-            log.debug('Running chef-client')
-            util.subp(['/usr/bin/chef-client',
-                       '-d', '-i', '1800', '-s', '20'], capture=False)
-        elif install_type == 'packages':
-            # this will install and run the chef-client from packages
-            cloud.distro.install_packages(('chef',))
-        elif install_type == 'omnibus':
-            url = util.get_cfg_option_str(chef_cfg, "omnibus_url", OMNIBUS_URL)
-            content = url_helper.readurl(url=url, retries=5)
-            with util.tempdir() as tmpd:
-                # use tmpd over tmpfile to avoid 'Text file busy' on execute
-                tmpf = "%s/chef-omnibus-install" % tmpd
-                util.write_file(tmpf, str(content), mode=0700)
-                util.subp([tmpf], capture=False)
-        else:
-            log.warn("Unknown chef install type %s", install_type)
+
+def install_chef(cloud, chef_cfg, log):
+    # If chef is not installed, we install chef based on 'install_type'
+    if os.path.isfile('/usr/bin/chef-client'):
+        return
+    if not util.get_cfg_option_bool(chef_cfg, 'force_install', default=False):
+        return
+    install_type = util.get_cfg_option_str(chef_cfg, 'install_type',
+                                           'packages')
+    if install_type == "gems":
+        # This will install and run the chef-client from gems
+        chef_version = util.get_cfg_option_str(chef_cfg, 'version', None)
+        ruby_version = util.get_cfg_option_str(chef_cfg, 'ruby_version',
+                                               RUBY_VERSION_DEFAULT)
+        install_chef_from_gems(cloud.distro, ruby_version, chef_version)
+        # And finally, run chef-client
+        log.debug('Running chef-client')
+        util.subp(['/usr/bin/chef-client',
+                   '-d', '-i', '1800', '-s', '20'], capture=False)
+    elif install_type == 'packages':
+        # This will install and run the chef-client from packages
+        cloud.distro.install_packages(('chef',))
+    elif install_type == 'omnibus':
+        # This will install as a omnibus unified package
+        url = util.get_cfg_option_str(chef_cfg, "omnibus_url", OMNIBUS_URL)
+        content = url_helper.readurl(url=url, retries=5)
+        with util.tempdir() as tmpd:
+            # Use tmpdir over tmpfile to avoid 'text file busy' on execute
+            tmpf = "%s/chef-omnibus-install" % tmpd
+            util.write_file(tmpf, str(content), mode=0700)
+            util.subp([tmpf], capture=False)
+    else:
+        log.warn("Unknown chef install type '%s'", install_type)
 
 
 def get_ruby_packages(version):
@@ -190,9 +196,9 @@ def install_chef_from_gems(ruby_version, chef_version, distro):
         util.sym_link('/usr/bin/ruby%s' % ruby_version, '/usr/bin/ruby')
     if chef_version:
         util.subp(['/usr/bin/gem', 'install', 'chef',
-                  '-v %s' % chef_version, '--no-ri',
-                  '--no-rdoc', '--bindir', '/usr/bin', '-q'], capture=False)
+                   '-v %s' % chef_version, '--no-ri',
+                   '--no-rdoc', '--bindir', '/usr/bin', '-q'], capture=False)
     else:
         util.subp(['/usr/bin/gem', 'install', 'chef',
-                  '--no-ri', '--no-rdoc', '--bindir',
-                  '/usr/bin', '-q'], capture=False)
+                   '--no-ri', '--no-rdoc', '--bindir',
+                   '/usr/bin', '-q'], capture=False)
