@@ -79,13 +79,6 @@ def is_installed():
 
 def get_template_params(iid, chef_cfg, log):
     params = CHEF_RB_TPL_DEFAULTS.copy()
-    params.update({
-        'server_url': chef_cfg['server_url'],
-        'node_name': util.get_cfg_option_str(chef_cfg, 'node_name', iid),
-        'environment': util.get_cfg_option_str(chef_cfg, 'environment',
-                                               '_default'),
-        'validation_name': chef_cfg['validation_name'],
-    })
     # Allow users to overwrite any of the keys they want (if they so choose),
     # when a value is None, then the value will be set to None and no boolean
     # or string version will be populated...
@@ -101,7 +94,17 @@ def get_template_params(iid, chef_cfg, log):
                 params[k] = util.get_cfg_option_bool(chef_cfg, k)
             else:
                 params[k] = util.get_cfg_option_str(chef_cfg, k)
-    params['generated_on'] = datetime.now().isoformat()
+    # These ones are overwritten to be exact values...
+    params.update({
+        'generated_by': util.make_header(),
+        'server_url': util.get_cfg_option_str(chef_cfg, 'server_url'),
+        'node_name': util.get_cfg_option_str(chef_cfg, 'node_name',
+                                             default=iid),
+        'environment': util.get_cfg_option_str(chef_cfg, 'environment',
+                                               default='_default'),
+        'validation_name': util.get_cfg_option_str(chef_cfg,
+                                                   'validation_name'),
+    })
     return params
 
 

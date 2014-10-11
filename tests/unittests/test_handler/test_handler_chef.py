@@ -1,5 +1,5 @@
-import os
 import json
+import os
 
 from cloudinit.config import cc_chef
 
@@ -38,6 +38,24 @@ class TestChef(t_help.FilesystemMockingTestCase):
             self.assertFalse(os.path.isdir(d))
 
     def test_basic_config(self):
+        # This should create a file of the format...
+        """
+        # Created by cloud-init v. 0.7.6 on Sat, 11 Oct 2014 23:57:21 +0000
+        log_level              :info
+        ssl_verify_mode        :verify_none
+        log_location           "/var/log/chef/client.log"
+        validation_client_name "bob"
+        validation_key         "/etc/chef/validation.pem"
+        client_key             "/etc/chef/client.pem"
+        chef_server_url        "localhost"
+        environment            "_default"
+        node_name              "iid-datasource-none"
+        json_attribs           "/etc/chef/firstboot.json"
+        file_cache_path        "/var/cache/chef"
+        file_backup_path       "/var/backups/chef"
+        pid_file               "/var/run/chef/client.pid"
+        Chef::Log::Formatter.show_time = true
+        """
         tpl_file = util.load_file('templates/chef_client.rb.tmpl')
         self.patchUtils(self.tmp)
         self.patchOS(self.tmp)
