@@ -18,6 +18,8 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+from datetime import datetime
+
 import json
 import os
 
@@ -38,6 +40,61 @@ CHEF_DIRS = [
 
 OMNIBUS_URL = "https://www.opscode.com/chef/install.sh"
 
+CHEF_RB_TPL_DEFAULTS = {
+    # These are ruby symbols...
+    'ssl_verify_mode': ':verify_none',
+    'log_level': ':info',
+    # These are not symbols...
+    'log_location': '/var/log/chef/client.log',
+    'validation_key': "/etc/chef/validation.pem",
+    'client_key': "/etc/chef/client.pem",
+    'json_attribs': "/etc/chef/firstboot.json",
+    'file_cache_path': "/var/cache/chef",
+    'file_backup_path': "/var/backups/chef",
+    'pid_file': "/var/run/chef/client.pid",
+    'show_time': True,
+}
+CHEF_RB_TPL_BOOL_KEYS = frozenset(['show_time'])
+CHEF_RB_TPL_KEYS = list(CHEF_RB_TPL_DEFAULTS.keys())
+CHEF_RB_TPL_KEYS.extend(CHEF_RB_TPL_BOOL_KEYS)
+CHEF_RB_TPL_KEYS.extend([
+    'server_url',
+    'node_name',
+    'environment',
+    'validation_name',
+])
+CHEF_RB_TPL_KEYS = frozenset(CHEF_RB_TPL_KEYS)
+CHEF_RB_PATH = '/etc/chef/client.rb'
+CHEF_FB_PATH = '/etc/chef/firstboot.json'
+
+
+def get_template_params(iid, chef_cfg, log):
+    params = CHEF_RB_TPL_DEFAULTS.copy()
+    params.update({
+        'server_url': chef_cfg['server_url'],
+        'node_name': util.get_cfg_option_str(chef_cfg, 'node_name', iid),
+        'environment': util.get_cfg_option_str(chef_cfg, 'environment',
+                                               '_default'),
+        'validation_name': chef_cfg['validation_name'],
+    })
+    # Allow users to overwrite any of the keys they want (if they so choose),
+    # when a value is None, then the value will be set to None and no boolean
+    # or string version will be populated...
+    for (k, v) in chef_cfg.items():
+        if k not in CHEF_RB_TPL_KEYS:
+            log.debug("Skipping unknown chef template key '%s'", k)
+            continue
+        if v is None:
+            params[k] = None
+        else:
+            # This will make the value a boolean or string...
+            if k in CHEF_RB_TPL_BOOL_KEYS:
+                params[k] = util.get_cfg_option_bool(chef_cfg, k)
+            else:
+                params[k] = util.get_cfg_option_str(chef_cfg, k)
+    params['generated_on'] = datetime.now().isoformat()
+    return params
+
 
 def handle(name, cfg, cloud, log, _args):
 
@@ -49,7 +106,7 @@ def handle(name, cfg, cloud, log, _args):
     chef_cfg = cfg['chef']
 
     # Ensure the chef directories we use exist
-    for d in CHEF_DIRS:
+    for d in chef_cfg.get('directories', CHEF_DIRS):
         util.ensure_dir(d)
 
     # Set the validation key based on the presence of either 'validation_key'
@@ -64,26 +121,26 @@ def handle(name, cfg, cloud, log, _args):
     template_fn = cloud.get_template_filename('chef_client.rb')
     if template_fn:
         iid = str(cloud.datasource.get_instance_id())
-        params = {
-            'server_url': chef_cfg['server_url'],
-            'node_name': util.get_cfg_option_str(chef_cfg, 'node_name', iid),
-            'environment': util.get_cfg_option_str(chef_cfg, 'environment',
-                                                   '_default'),
-            'validation_name': chef_cfg['validation_name']
-        }
-        templater.render_to_file(template_fn, '/etc/chef/client.rb', params)
+        params = get_template_params(iid, chef_cfg, log)
+        templater.render_to_file(template_fn, CHEF_RB_PATH, params)
     else:
-        log.warn("No template found, not rendering to /etc/chef/client.rb")
+        log.warn("No template found, not rendering to %s",
+                 CHEF_RB_PATH)
 
-    # set the firstboot json
-    initial_json = {}
-    if 'run_list' in chef_cfg:
-        initial_json['run_list'] = chef_cfg['run_list']
-    if 'initial_attributes' in chef_cfg:
-        initial_attributes = chef_cfg['initial_attributes']
-        for k in list(initial_attributes.keys()):
-            initial_json[k] = initial_attributes[k]
-    util.write_file('/etc/chef/firstboot.json', json.dumps(initial_json))
+    # Set the firstboot json
+    fb_filename = util.get_cfg_option_str(chef_cfg, 'firstboot_path',
+                                          default=CHEF_FB_PATH)
+    if not fb_filename:
+        log.info("First boot path empty, not writing first boot json file")
+    else:
+        initial_json = {}
+        if 'run_list' in chef_cfg:
+            initial_json['run_list'] = chef_cfg['run_list']
+        if 'initial_attributes' in chef_cfg:
+            initial_attributes = chef_cfg['initial_attributes']
+            for k in list(initial_attributes.keys()):
+                initial_json[k] = initial_attributes[k]
+        util.write_file(fb_filename, json.dumps(initial_json))
 
     # If chef is not installed, we install chef based on 'install_type'
     if (not os.path.isfile('/usr/bin/chef-client') or
