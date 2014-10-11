@@ -2007,4 +2007,3 @@ def human2bytes(size):
         raise ValueError("'%s': cannot be negative" % size_in)
 
     return int(num * mpliers[mplier])
-
