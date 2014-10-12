@@ -58,8 +58,18 @@ CHEF_RB_TPL_DEFAULTS = {
     'show_time': True,
 }
 CHEF_RB_TPL_BOOL_KEYS = frozenset(['show_time'])
+CHEF_RB_PATH_KEYS = frozenset([
+    'log_location',
+    'validation_key',
+    'client_key',
+    'file_cache_path',
+    'json_attribs',
+    'file_cache_path',
+    'pid_file',
+])
 CHEF_RB_TPL_KEYS = list(CHEF_RB_TPL_DEFAULTS.keys())
 CHEF_RB_TPL_KEYS.extend(CHEF_RB_TPL_BOOL_KEYS)
+CHEF_RB_TPL_KEYS.extend(CHEF_RB_PATH_KEYS)
 CHEF_RB_TPL_KEYS.extend([
     'server_url',
     'node_name',
@@ -109,7 +119,11 @@ def get_template_params(iid, chef_cfg, log):
         'validation_name': util.get_cfg_option_str(chef_cfg,
                                                    'validation_name'),
     })
-    return params
+    paths = set()
+    for (k, v) in params.items():
+        if k in CHEF_RB_PATH_KEYS and v:
+            paths.add(os.path.dirname(v))
+    return params, paths
 
 
 def handle(name, cfg, cloud, log, _args):
@@ -140,7 +154,9 @@ def handle(name, cfg, cloud, log, _args):
     template_fn = cloud.get_template_filename('chef_client.rb')
     if template_fn:
         iid = str(cloud.datasource.get_instance_id())
-        params = get_template_params(iid, chef_cfg, log)
+        params, paths = get_template_params(iid, chef_cfg, log)
+        for d in paths:
+            util.ensure_dir(d)
         templater.render_to_file(template_fn, CHEF_RB_PATH, params)
     else:
         log.warn("No template found, not rendering to %s",
