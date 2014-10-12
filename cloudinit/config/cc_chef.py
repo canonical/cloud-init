@@ -111,13 +111,13 @@ def get_template_params(iid, chef_cfg, log):
     # These ones are overwritten to be exact values...
     params.update({
         'generated_by': util.make_header(),
-        'server_url': util.get_cfg_option_str(chef_cfg, 'server_url'),
         'node_name': util.get_cfg_option_str(chef_cfg, 'node_name',
                                              default=iid),
         'environment': util.get_cfg_option_str(chef_cfg, 'environment',
                                                default='_default'),
-        'validation_name': util.get_cfg_option_str(chef_cfg,
-                                                   'validation_name'),
+        # These two are mandatory...
+        'server_url': chef_cfg['server_url'],
+        'validation_name': chef_cfg['validation_name'],
     })
     return params
 
