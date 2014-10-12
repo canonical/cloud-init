@@ -151,6 +151,9 @@ def handle(name, cfg, cloud, log, _args):
     if template_fn:
         iid = str(cloud.datasource.get_instance_id())
         params = get_template_params(iid, chef_cfg, log)
+        # Do a best effort attempt to ensure that the template values that
+        # are associated with paths have there parent directory created
+        # before they are used by the chef-client itself.
         param_paths = set()
         for (k, v) in params.items():
             if k in CHEF_RB_TPL_PATH_KEYS and v:
