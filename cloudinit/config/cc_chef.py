@@ -58,7 +58,7 @@ CHEF_RB_TPL_DEFAULTS = {
     'show_time': True,
 }
 CHEF_RB_TPL_BOOL_KEYS = frozenset(['show_time'])
-CHEF_RB_PATH_KEYS = frozenset([
+CHEF_RB_TPL_PATH_KEYS = frozenset([
     'log_location',
     'validation_key',
     'client_key',
@@ -69,7 +69,7 @@ CHEF_RB_PATH_KEYS = frozenset([
 ])
 CHEF_RB_TPL_KEYS = list(CHEF_RB_TPL_DEFAULTS.keys())
 CHEF_RB_TPL_KEYS.extend(CHEF_RB_TPL_BOOL_KEYS)
-CHEF_RB_TPL_KEYS.extend(CHEF_RB_PATH_KEYS)
+CHEF_RB_TPL_KEYS.extend(CHEF_RB_TPL_PATH_KEYS)
 CHEF_RB_TPL_KEYS.extend([
     'server_url',
     'node_name',
@@ -153,7 +153,7 @@ def handle(name, cfg, cloud, log, _args):
         params = get_template_params(iid, chef_cfg, log)
         param_paths = set()
         for (k, v) in params.items():
-            if k in CHEF_RB_PATH_KEYS and v:
+            if k in CHEF_RB_TPL_PATH_KEYS and v:
                 param_paths.add(os.path.dirname(v))
         util.ensure_dirs(param_paths)
         templater.render_to_file(template_fn, CHEF_RB_PATH, params)
