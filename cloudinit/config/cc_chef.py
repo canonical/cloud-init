@@ -180,9 +180,13 @@ def handle(name, cfg, cloud, log, _args):
     force_install = util.get_cfg_option_bool(chef_cfg,
                                              'force_install', default=False)
     if not is_installed() or force_install:
-        run_after = install_chef(cloud, chef_cfg, log)
-        if run_after:
-            run_chef(chef_cfg, log)
+        run = install_chef(cloud, chef_cfg, log)
+    elif is_installed():
+        run = util.get_cfg_option_bool(chef_cfg, 'exec', default=False)
+    else:
+        run = False
+    if run:
+        run_chef(chef_cfg, log)
 
 
 def run_chef(chef_cfg, log):
@@ -208,18 +212,16 @@ def install_chef(cloud, chef_cfg, log):
     # If chef is not installed, we install chef based on 'install_type'
     install_type = util.get_cfg_option_str(chef_cfg, 'install_type',
                                            'packages')
-    run_after = util.get_cfg_option_bool(chef_cfg, 'exec_after_install',
-                                         default=False)
+    run = util.get_cfg_option_bool(chef_cfg, 'exec', default=False)
     if install_type == "gems":
         # This will install and run the chef-client from gems
         chef_version = util.get_cfg_option_str(chef_cfg, 'version', None)
         ruby_version = util.get_cfg_option_str(chef_cfg, 'ruby_version',
                                                RUBY_VERSION_DEFAULT)
         install_chef_from_gems(cloud.distro, ruby_version, chef_version)
-        # Retain backwards compat, but preferring True instead of False
+        # Retain backwards compat, by preferring True instead of False
         # when not provided/overriden...
-        run_after = util.get_cfg_option_bool(chef_cfg, 'exec_after_install',
-                                             default=True)
+        run = util.get_cfg_option_bool(chef_cfg, 'exec', default=True)
     elif install_type == 'packages':
         # This will install and run the chef-client from packages
         cloud.distro.install_packages(('chef',))
@@ -237,8 +239,8 @@ def install_chef(cloud, chef_cfg, log):
             util.subp([tmpf], capture=False)
     else:
         log.warn("Unknown chef install type '%s'", install_type)
-        run_after = False
-    return run_after
+        run = False
+    return run
 
 
 def get_ruby_packages(version):
