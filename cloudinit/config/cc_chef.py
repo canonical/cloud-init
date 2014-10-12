@@ -18,6 +18,7 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+import itertools
 import json
 import os
 
@@ -34,6 +35,9 @@ CHEF_DIRS = [
     '/var/cache/chef',
     '/var/backups/chef',
     '/var/run/chef',
+]
+REQUIRED_CHEF_DIRS = [
+    '/etc/chef',
 ]
 
 OMNIBUS_URL = "https://www.opscode.com/chef/install.sh"
@@ -121,7 +125,7 @@ def handle(name, cfg, cloud, log, _args):
     chef_dirs = util.get_cfg_option_list(chef_cfg, 'directories')
     if not chef_dirs:
         chef_dirs = list(CHEF_DIRS)
-    for d in chef_dirs:
+    for d in itertools.chain(chef_dirs, REQUIRED_CHEF_DIRS):
         util.ensure_dir(d)
 
     # Set the validation key based on the presence of either 'validation_key'
