@@ -399,6 +399,10 @@ def get_cfg_option_str(yobj, key, default=None):
     return val
 
 
+def get_cfg_option_int(yobj, key, default=0):
+    return int(get_cfg_option_str(yobj, key, default=default))
+
+
 def system_info():
     return {
         'platform': platform.platform(),
