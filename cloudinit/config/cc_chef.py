@@ -119,11 +119,7 @@ def get_template_params(iid, chef_cfg, log):
         'validation_name': util.get_cfg_option_str(chef_cfg,
                                                    'validation_name'),
     })
-    paths = set()
-    for (k, v) in params.items():
-        if k in CHEF_RB_PATH_KEYS and v:
-            paths.add(os.path.dirname(v))
-    return params, paths
+    return params
 
 
 def handle(name, cfg, cloud, log, _args):
@@ -154,9 +150,12 @@ def handle(name, cfg, cloud, log, _args):
     template_fn = cloud.get_template_filename('chef_client.rb')
     if template_fn:
         iid = str(cloud.datasource.get_instance_id())
-        params, paths = get_template_params(iid, chef_cfg, log)
-        for d in paths:
-            util.ensure_dir(d)
+        params = get_template_params(iid, chef_cfg, log)
+        param_paths = set()
+        for (k, v) in params.items():
+            if k in CHEF_RB_PATH_KEYS and v:
+                param_paths.add(os.path.dirname(v))
+        util.ensure_dirs(param_paths)
         templater.render_to_file(template_fn, CHEF_RB_PATH, params)
     else:
         log.warn("No template found, not rendering to %s",
