@@ -118,7 +118,10 @@ def handle(name, cfg, cloud, log, _args):
     chef_cfg = cfg['chef']
 
     # Ensure the chef directories we use exist
-    for d in list(chef_cfg.get('directories', CHEF_DIRS)):
+    chef_dirs = util.get_cfg_option_list(chef_cfg, 'directories')
+    if not chef_dirs:
+        chef_dirs = list(CHEF_DIRS)
+    for d in chef_dirs:
         util.ensure_dir(d)
 
     # Set the validation key based on the presence of either 'validation_key'
