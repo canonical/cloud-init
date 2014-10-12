@@ -37,6 +37,7 @@ CHEF_DIRS = [
 ]
 
 OMNIBUS_URL = "https://www.opscode.com/chef/install.sh"
+OMNIBUS_URL_RETRIES = 5
 
 CHEF_RB_TPL_DEFAULTS = {
     # These are ruby symbols...
@@ -199,7 +200,10 @@ def install_chef(cloud, chef_cfg, log):
     elif install_type == 'omnibus':
         # This will install as a omnibus unified package
         url = util.get_cfg_option_str(chef_cfg, "omnibus_url", OMNIBUS_URL)
-        content = url_helper.readurl(url=url, retries=5)
+        retries = max(0, util.get_cfg_option_int(chef_cfg,
+                                                 "omnibus_url_retries",
+                                                 default=OMNIBUS_URL_RETRIES))
+        content = url_helper.readurl(url=url, retries=retries)
         with util.tempdir() as tmpd:
             # Use tmpdir over tmpfile to avoid 'text file busy' on execute
             tmpf = "%s/chef-omnibus-install" % tmpd
