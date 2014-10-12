@@ -167,22 +167,26 @@ def handle(name, cfg, cloud, log, _args):
     if not is_installed() or force_install:
         run_after = install_chef(cloud, chef_cfg, log)
         if run_after:
-            log.debug('Running chef-client')
-            cmd = [CHEF_EXEC_PATH]
-            if 'exec_arguments' in chef_cfg:
-                cmd_args = chef_cfg['exec_arguments']
-                if isinstance(cmd_args, (list, tuple)):
-                    cmd.extend(cmd_args)
-                elif isinstance(cmd_args, (str, basestring)):
-                    cmd.append(cmd_args)
-                else:
-                    log.warn("Unknown type %s provided for chef"
-                             " 'exec_arguments' expected list, tuple,"
-                             " or string", type(cmd_args))
-                    cmd.extend(CHEF_EXEC_DEF_ARGS)
-            else:
-                cmd.extend(CHEF_EXEC_DEF_ARGS)
-            util.subp(cmd, capture=False)
+            run_chef(chef_cfg, log)
+
+
+def run_chef(chef_cfg, log):
+    log.debug('Running chef-client')
+    cmd = [CHEF_EXEC_PATH]
+    if 'exec_arguments' in chef_cfg:
+        cmd_args = chef_cfg['exec_arguments']
+        if isinstance(cmd_args, (list, tuple)):
+            cmd.extend(cmd_args)
+        elif isinstance(cmd_args, (str, basestring)):
+            cmd.append(cmd_args)
+        else:
+            log.warn("Unknown type %s provided for chef"
+                     " 'exec_arguments' expected list, tuple,"
+                     " or string", type(cmd_args))
+            cmd.extend(CHEF_EXEC_DEF_ARGS)
+    else:
+        cmd.extend(CHEF_EXEC_DEF_ARGS)
+    util.subp(cmd, capture=False)
 
 
 def install_chef(cloud, chef_cfg, log):
