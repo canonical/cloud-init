@@ -81,7 +81,7 @@ ssh keys and to let the user run various scripts.
 %{__python} setup.py build
 
 %install
-rm -rf \$RPM_BUILD_ROOT
+
 %{__python} setup.py install -O1 \
             --skip-build --root \$RPM_BUILD_ROOT \
             --init-system=${init_sys}
@@ -91,6 +91,9 @@ rm -rf \$RPM_BUILD_ROOT
 mkdir -p \$RPM_BUILD_ROOT/%{_sysconfdir}/rsyslog.d
 cp -p tools/21-cloudinit.conf \
       \$RPM_BUILD_ROOT/%{_sysconfdir}/rsyslog.d/21-cloudinit.conf
+
+rm -rf \$RPM_BUILD_ROOT%{python_sitelib}/tests
+mkdir -p \$RPM_BUILD_ROOT/var/lib/cloud
 
 %clean
 rm -rf \$RPM_BUILD_ROOT
@@ -169,7 +172,7 @@ fi
 /usr/lib/%{name}/write-ssh-key-fingerprints
 
 # Docs
-%doc TODO LICENSE ChangeLog requirements.txt
+%doc LICENSE ChangeLog requirements.txt
 %doc %{_defaultdocdir}/cloud-init/*
 
 # Configs
@@ -180,7 +183,7 @@ fi
 %dir                    %{_sysconfdir}/cloud/templates
 %config(noreplace)      %{_sysconfdir}/cloud/templates/*
 %config(noreplace) %{_sysconfdir}/rsyslog.d/21-cloudinit.conf
-%config(noreplace) %{_sysconfdir}/sudoers.d/cloud-init
+%dir /var/lib/cloud
 
 # Python code is here...
 %{python_sitelib}/*
