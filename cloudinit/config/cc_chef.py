@@ -43,15 +43,17 @@ REQUIRED_CHEF_DIRS = [
 OMNIBUS_URL = "https://www.opscode.com/chef/install.sh"
 OMNIBUS_URL_RETRIES = 5
 
+CHEF_VALIDATION_PEM_PATH = '/etc/chef/validation.pem'
+CHEF_FB_PATH = '/etc/chef/firstboot.json'
 CHEF_RB_TPL_DEFAULTS = {
     # These are ruby symbols...
     'ssl_verify_mode': ':verify_none',
     'log_level': ':info',
     # These are not symbols...
     'log_location': '/var/log/chef/client.log',
-    'validation_key': "/etc/chef/validation.pem",
+    'validation_key': CHEF_VALIDATION_PEM_PATH,
     'client_key': "/etc/chef/client.pem",
-    'json_attribs': "/etc/chef/firstboot.json",
+    'json_attribs': CHEF_FB_PATH,
     'file_cache_path': "/var/cache/chef",
     'file_backup_path': "/var/backups/chef",
     'pid_file': "/var/run/chef/client.pid",
@@ -78,8 +80,6 @@ CHEF_RB_TPL_KEYS.extend([
 ])
 CHEF_RB_TPL_KEYS = frozenset(CHEF_RB_TPL_KEYS)
 CHEF_RB_PATH = '/etc/chef/client.rb'
-CHEF_VALIDATION_PEM_PATH = '/etc/chef/validation.pem'
-CHEF_FB_PATH = '/etc/chef/firstboot.json'
 CHEF_EXEC_PATH = '/usr/bin/chef-client'
 CHEF_EXEC_DEF_ARGS = tuple(['-d', '-i', '1800', '-s', '20'])
 
