@@ -78,6 +78,7 @@ CHEF_RB_TPL_KEYS.extend([
 ])
 CHEF_RB_TPL_KEYS = frozenset(CHEF_RB_TPL_KEYS)
 CHEF_RB_PATH = '/etc/chef/client.rb'
+CHEF_VALIDATION_PEM_PATH = '/etc/chef/validation.pem'
 CHEF_FB_PATH = '/etc/chef/firstboot.json'
 CHEF_EXEC_PATH = '/usr/bin/chef-client'
 CHEF_EXEC_DEF_ARGS = tuple(['-d', '-i', '1800', '-s', '20'])
@@ -89,6 +90,14 @@ def is_installed():
     if not os.access(CHEF_EXEC_PATH, os.X_OK):
         return False
     return True
+
+
+def post_run_chef(chef_cfg, log):
+    delete_pem = util.get_cfg_option_bool(chef_cfg,
+                                          'delete_validation_post_exec',
+                                          default=False)
+    if delete_pem and os.path.isfile(CHEF_VALIDATION_PEM_PATH):
+        os.unlink(CHEF_VALIDATION_PEM_PATH)
 
 
 def get_template_params(iid, chef_cfg, log):
@@ -143,7 +152,7 @@ def handle(name, cfg, cloud, log, _args):
     # takes precedence
     for key in ('validation_key', 'validation_cert'):
         if key in chef_cfg and chef_cfg[key]:
-            util.write_file('/etc/chef/validation.pem', chef_cfg[key])
+            util.write_file(CHEF_VALIDATION_PEM_PATH, chef_cfg[key])
             break
 
     # Create the chef config from template
@@ -190,6 +199,7 @@ def handle(name, cfg, cloud, log, _args):
         run = False
     if run:
         run_chef(chef_cfg, log)
+        post_run_chef(chef_cfg, log)
 
 
 def run_chef(chef_cfg, log):
