@@ -28,17 +28,17 @@ from cloudinit import util
 
 RUBY_VERSION_DEFAULT = "1.8"
 
-CHEF_DIRS = [
+CHEF_DIRS = tuple([
     '/etc/chef',
     '/var/log/chef',
     '/var/lib/chef',
     '/var/cache/chef',
     '/var/backups/chef',
     '/var/run/chef',
-]
-REQUIRED_CHEF_DIRS = [
+])
+REQUIRED_CHEF_DIRS = tuple([
     '/etc/chef',
-]
+])
 
 OMNIBUS_URL = "https://www.opscode.com/chef/install.sh"
 OMNIBUS_URL_RETRIES = 5
