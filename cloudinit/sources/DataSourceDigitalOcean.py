@@ -18,11 +18,14 @@ from cloudinit import log as logging
 from cloudinit import util
 from cloudinit import sources
 from cloudinit import url_helper
+from cloudinit import ec2_utils
+import functools
+
 
 LOG = logging.getLogger(__name__)
 
 BUILTIN_DS_CONFIG = {
-    'metadata_url': 'http://169.254.169.254/metadata/v1',
+    'metadata_url': 'http://169.254.169.254/metadata/v1/',
     'mirrors_url': 'http://mirrors.digitalocean.com/'
 }
 MD_RETRIES = 0
@@ -37,9 +40,9 @@ class DataSourceDigitalOcean(sources.DataSource):
             BUILTIN_DS_CONFIG])
         self.metadata_address = self.ds_cfg['metadata_url']
 
-	if self.ds_cfg.get('retries'):
+        if self.ds_cfg.get('retries'):
             self.retries = self.ds_cfg['retries']
-	else:
+        else:
             self.retries = MD_RETRIES
 
         if self.ds_cfg.get('timeout'):
@@ -48,41 +51,27 @@ class DataSourceDigitalOcean(sources.DataSource):
             self.timeout = MD_TIMEOUT
 
     def get_data(self):
-        url_map = [
-               ('user-data', '/user-data'),
-               ('vendor-data', '/vendor-data'),
-               ('public-keys', '/public-keys'),
-               ('region', '/region'),
-               ('id', '/id'),
-               ('hostname', '/hostname'),
-        ]
+        caller = functools.partial(util.read_file_or_url, timeout=self.timeout, 
+                                   retries=self.retries)
+        md = ec2_utils.MetadataMaterializer(str(caller(self.metadata_address)),
+                                            base_url=self.metadata_address, 
+                                            caller=caller)
 
-        found = False
-        for (key, path) in url_map:
-            try:
-                resp = url_helper.readurl(url=self.metadata_address + path,
-                                          timeout=self.timeout,
-                                          retries=self.retries)
-                if resp.code == 200:
-                    found = True
-                    self.metadata[key] = resp.contents
-                else:
-                    LOG.warn("Path: %s returned %s", path, resp.code)
-                    return False
-            except url_helper.UrlError as e:
-                LOG.warn("Path: %s raised exception: %s", path, e)
-                return False
+        self.metadata = md.materialize()
 
-        return found
+        if self.metadata.get('id'):
+            return True
+        else:
+            return False
 
     def get_userdata_raw(self):
-        return self.metadata['user-data']
+        return "\n".join(self.metadata['user-data'])
 
     def get_vendordata_raw(self):
-	return self.metadata['vendor-data']
+        return "\n".join(self.metadata['vendor-data'])
 
     def get_public_ssh_keys(self):
-	return self.metadata['public-keys'].splitlines()
+        return self.metadata['public-keys'].splitlines()
 
     @property
     def availability_zone(self):
