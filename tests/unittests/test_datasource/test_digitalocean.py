@@ -26,7 +26,16 @@ from cloudinit.sources import DataSourceDigitalOcean
 
 from .. import helpers as test_helpers
 
+# Abbreviated for the test
+DO_INDEX = """id
+           hostname
+           user-data
+           vendor-data
+           public-keys
+           region"""
+
 DO_META = {
+    '': DO_INDEX,
     'user-data': '#!/bin/bash\necho "user-data"',
     'vendor-data': '#!/bin/bash\necho "vendor-data"',
     'public-keys': 'ssh-rsa AAAAB3NzaC1yc2EAAAA... neal@digitalocean.com',
