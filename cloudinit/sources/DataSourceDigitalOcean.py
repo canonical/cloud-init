@@ -25,6 +25,8 @@ BUILTIN_DS_CONFIG = {
     'metadata_url': 'http://169.254.169.254/metadata/v1',
     'mirrors_url': 'http://mirrors.digitalocean.com/'
 }
+MD_RETRIES = 0
+MD_TIMEOUT = 1
 
 class DataSourceDigitalOcean(sources.DataSource):
     def __init__(self, sys_cfg, distro, paths):
@@ -34,8 +36,16 @@ class DataSourceDigitalOcean(sources.DataSource):
             util.get_cfg_by_path(sys_cfg, ["datasource", "DigitalOcean"], {}),
             BUILTIN_DS_CONFIG])
         self.metadata_address = self.ds_cfg['metadata_url']
-        self.retries = 3
-        self.timeout = 1
+
+	if self.ds_cfg.get('retries'):
+            self.retries = self.ds_cfg['retries']
+	else:
+            self.retries = MD_RETRIES
+
+        if self.ds_cfg.get('timeout'):
+            self.timeout = self.ds_cfg['timeout']
+        else:
+            self.timeout = MD_TIMEOUT
 
     def get_data(self):
         url_map = [
