@@ -37,10 +37,11 @@ class TestHostname(t_help.FilesystemMockingTestCase):
         self.patchUtils(self.tmp)
         cc_set_hostname.handle('cc_set_hostname',
                                cfg, cc, LOG, [])
-        contents = util.load_file("/etc/sysconfig/network")
-        n_cfg = ConfigObj(StringIO(contents))
-        self.assertEquals({'HOSTNAME': 'blah.blah.blah.yahoo.com'},
-                          dict(n_cfg))
+        if not distro.uses_systemd():
+            contents = util.load_file("/etc/sysconfig/network")
+            n_cfg = ConfigObj(StringIO(contents))
+            self.assertEquals({'HOSTNAME': 'blah.blah.blah.yahoo.com'},
+                              dict(n_cfg))
 
     def test_write_hostname_debian(self):
         cfg = {
