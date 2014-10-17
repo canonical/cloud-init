@@ -92,6 +92,11 @@ mkdir -p \$RPM_BUILD_ROOT/%{_sysconfdir}/rsyslog.d
 cp -p tools/21-cloudinit.conf \
       \$RPM_BUILD_ROOT/%{_sysconfdir}/rsyslog.d/21-cloudinit.conf
 
+#if $systemd
+mkdir -p         \$RPM_BUILD_ROOT/%{_unitdir}
+cp -p systemd/*  \$RPM_BUILD_ROOT/%{_unitdir}
+#end if
+
 %clean
 rm -rf \$RPM_BUILD_ROOT
 
