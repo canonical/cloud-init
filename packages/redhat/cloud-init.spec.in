@@ -183,7 +183,9 @@ fi
 %dir                    %{_sysconfdir}/cloud/templates
 %config(noreplace)      %{_sysconfdir}/cloud/templates/*
 %config(noreplace) %{_sysconfdir}/rsyslog.d/21-cloudinit.conf
-%dir /var/lib/cloud
+
+%{_libexecdir}/%{name}
+%dir %{_sharedstatedir}/cloud
 
 # Python code is here...
 %{python_sitelib}/*
