@@ -19,7 +19,7 @@ from cloudinit import util
 from cloudinit import sources
 from cloudinit import url_helper
 from cloudinit import ec2_utils
-from types import *
+from types import StringType
 import functools
 
 
