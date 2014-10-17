@@ -19,6 +19,7 @@ from cloudinit import util
 from cloudinit import sources
 from cloudinit import url_helper
 from cloudinit import ec2_utils
+from types import *
 import functools
 
 
@@ -71,7 +72,10 @@ class DataSourceDigitalOcean(sources.DataSource):
         return "\n".join(self.metadata['vendor-data'])
 
     def get_public_ssh_keys(self):
-        return self.metadata['public-keys'].splitlines()
+        if type(self.metadata['public-keys']) is StringType:
+           return [self.metadata['public-keys']]
+        else:
+           return self.metadata['public-keys']
 
     @property
     def availability_zone(self):
