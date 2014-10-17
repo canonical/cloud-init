@@ -92,8 +92,12 @@ mkdir -p \$RPM_BUILD_ROOT/%{_sysconfdir}/rsyslog.d
 cp -p tools/21-cloudinit.conf \
       \$RPM_BUILD_ROOT/%{_sysconfdir}/rsyslog.d/21-cloudinit.conf
 
+# Remove the tests
 rm -rf \$RPM_BUILD_ROOT%{python_sitelib}/tests
-mkdir -p \$RPM_BUILD_ROOT/var/lib/cloud
+
+# Required dirs...
+mkdir -p \$RPM_BUILD_ROOT/%{_sharedstatedir}/cloud
+mkdir -p \$RPM_BUILD_ROOT/%{_libexecdir}/%{name}
 
 %clean
 rm -rf \$RPM_BUILD_ROOT
@@ -164,12 +168,8 @@ fi
 
 # Program binaries
 %{_bindir}/cloud-init*
-
-# There doesn't seem to be an agreed upon place for these
-# although it appears the standard says /usr/lib but rpmbuild
-# will try /usr/lib64 ??
-/usr/lib/%{name}/uncloud-init
-/usr/lib/%{name}/write-ssh-key-fingerprints
+%{_libexecdir}/%{name}/uncloud-init
+%{_libexecdir}/%{name}/write-ssh-key-fingerprints
 
 # Docs
 %doc LICENSE ChangeLog requirements.txt
