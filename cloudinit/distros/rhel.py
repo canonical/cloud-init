@@ -98,7 +98,7 @@ class Distro(distros.Distro):
             rhel_util.update_sysconfig_file(self.network_conf_fn, net_cfg)
         return dev_names
 
-    def _dist_uses_systemd(self):
+    def uses_systemd(self):
         # Fedora 18 and RHEL 7 were the first adopters in their series
         (dist, vers) = util.system_info()['dist'][:2]
         major = (int)(vers.split('.')[0])
@@ -106,7 +106,7 @@ class Distro(distros.Distro):
                 or (dist.startswith('Fedora') and major >= 18))
 
     def apply_locale(self, locale, out_fn=None):
-        if self._dist_uses_systemd():
+        if self.uses_systemd():
             if not out_fn:
                 out_fn = self.systemd_locale_conf_fn
             out_fn = self.systemd_locale_conf_fn
@@ -119,7 +119,7 @@ class Distro(distros.Distro):
         rhel_util.update_sysconfig_file(out_fn, locale_cfg)
 
     def _write_hostname(self, hostname, out_fn):
-        if self._dist_uses_systemd():
+        if self.uses_systemd():
             util.subp(['hostnamectl', 'set-hostname', str(hostname)])
         else:
             host_cfg = {
@@ -135,14 +135,14 @@ class Distro(distros.Distro):
         return hostname
 
     def _read_system_hostname(self):
-        if self._dist_uses_systemd():
+        if self.uses_systemd():
             host_fn = self.systemd_hostname_conf_fn
         else:
             host_fn = self.hostname_conf_fn
         return (host_fn, self._read_hostname(host_fn))
 
     def _read_hostname(self, filename, default=None):
-        if self._dist_uses_systemd():
+        if self.uses_systemd():
             (out, _err) = util.subp(['hostname'])
             if len(out):
                 return out
@@ -163,7 +163,7 @@ class Distro(distros.Distro):
 
     def set_timezone(self, tz):
         tz_file = self._find_tz_file(tz)
-        if self._dist_uses_systemd():
+        if self.uses_systemd():
             # Currently, timedatectl complains if invoked during startup
             # so for compatibility, create the link manually.
             util.del_file(self.tz_local_fn)
