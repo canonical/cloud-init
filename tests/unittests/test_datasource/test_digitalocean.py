@@ -18,6 +18,7 @@
 import httpretty
 import re
 
+from types import *
 from urlparse import urlparse
 
 from cloudinit import settings
@@ -34,11 +35,15 @@ DO_INDEX = """id
            public-keys
            region"""
 
+DO_MULTIPLE_KEYS = """ssh-rsa AAAAB3NzaC1yc2EAAAA... neal@digitalocean.com
+                   ssh-rsa AAAAB3NzaC1yc2EAAAA... neal2@digitalocean.com"""
+DO_SINGLE_KEY = "ssh-rsa AAAAB3NzaC1yc2EAAAA... neal@digitalocean.com"
+
 DO_META = {
     '': DO_INDEX,
     'user-data': '#!/bin/bash\necho "user-data"',
     'vendor-data': '#!/bin/bash\necho "vendor-data"',
-    'public-keys': 'ssh-rsa AAAAB3NzaC1yc2EAAAA... neal@digitalocean.com',
+    'public-keys': DO_SINGLE_KEY,
     'region': 'nyc3',
     'id': '2000000',
     'hostname': 'cloudinit-test',
@@ -88,9 +93,6 @@ class TestDataSourceDigitalOcean(test_helpers.HttprettyTestCase):
         self.assertEqual(DO_META.get('vendor-data'),
                          self.ds.get_vendordata_raw())
 
-        self.assertEqual([DO_META.get('public-keys')],
-                         self.ds.get_public_ssh_keys())
-
         self.assertEqual(DO_META.get('region'),
                          self.ds.availability_zone)
 
@@ -102,3 +104,23 @@ class TestDataSourceDigitalOcean(test_helpers.HttprettyTestCase):
 
         self.assertEqual('http://mirrors.digitalocean.com/',
                          self.ds.get_package_mirror_info())
+
+        # Single key
+        self.assertEqual([DO_META.get('public-keys')],
+                         self.ds.get_public_ssh_keys())
+
+        self.assertIs(type(self.ds.get_public_ssh_keys()), ListType)
+
+    @httpretty.activate
+    def test_multiple_ssh_keys(self):
+        DO_META['public_keys'] = DO_MULTIPLE_KEYS
+        httpretty.register_uri(
+            httpretty.GET, MD_URL_RE,
+            body=_request_callback)
+        self.ds.get_data()
+
+        # Multiple keys
+        self.assertEqual(DO_META.get('public-keys').splitlines(),
+                         self.ds.get_public_ssh_keys())
+
+        self.assertIs(type(self.ds.get_public_ssh_keys()), ListType)
