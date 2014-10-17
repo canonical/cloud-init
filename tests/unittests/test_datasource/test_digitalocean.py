@@ -18,7 +18,7 @@
 import httpretty
 import re
 
-from types import *
+from types import ListType
 from urlparse import urlparse
 
 from cloudinit import settings
