@@ -1270,14 +1270,14 @@ def read_write_cmdline_url(target_fn):
             logexc(LOG, "Failed writing url content to %s", target_fn)
 
 
-def yaml_dumps(obj):
-    formatted = yaml.dump(obj,
-                    line_break="\n",
-                    indent=4,
-                    explicit_start=True,
-                    explicit_end=True,
-                    default_flow_style=False)
-    return formatted
+def yaml_dumps(obj, explicit_start=True, explicit_end=True):
+    return yaml.safe_dump(obj,
+                          line_break="\n",
+                          indent=4,
+                          explicit_start=explicit_start,
+                          explicit_end=explicit_end,
+                          default_flow_style=False,
+                          allow_unicode=True)
 
 
 def ensure_dir(path, mode=None):
