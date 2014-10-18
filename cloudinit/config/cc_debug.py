@@ -14,10 +14,13 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-from cloudinit import type_utils
-from cloudinit import util
 import copy
 from StringIO import StringIO
+
+from cloudinit import type_utils
+from cloudinit import util
+
+SKIP_KEYS = frozenset(['log_cfgs'])
 
 
 def _make_header(text):
@@ -29,6 +32,11 @@ def _make_header(text):
     header.write("-" * 80)
     header.write("\n")
     return header.getvalue()
+
+
+def _dumps(obj):
+    text = util.yaml_dumps(obj, explicit_start=False, explicit_end=False)
+    return text.rstrip()
 
 
 def handle(name, cfg, cloud, log, args):
@@ -46,7 +54,7 @@ def handle(name, cfg, cloud, log, args):
         return
     # Clean out some keys that we just don't care about showing...
     dump_cfg = copy.deepcopy(cfg)
-    for k in ['log_cfgs']:
+    for k in SKIP_KEYS:
         dump_cfg.pop(k, None)
     all_keys = list(dump_cfg.keys())
     for k in all_keys:
@@ -55,10 +63,10 @@ def handle(name, cfg, cloud, log, args):
     # Now dump it...
     to_print = StringIO()
     to_print.write(_make_header("Config"))
-    to_print.write(util.yaml_dumps(dump_cfg))
+    to_print.write(_dumps(dump_cfg))
     to_print.write("\n")
     to_print.write(_make_header("MetaData"))
-    to_print.write(util.yaml_dumps(cloud.datasource.metadata))
+    to_print.write(_dumps(cloud.datasource.metadata))
     to_print.write("\n")
     to_print.write(_make_header("Misc"))
     to_print.write("Datasource: %s\n" %
