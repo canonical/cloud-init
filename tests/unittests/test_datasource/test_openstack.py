@@ -318,7 +318,7 @@ class TestOpenStackDataSource(test_helpers.HttprettyTestCase):
         self.assertIsNone(ds_os.version)
 
 
-class TestVendorDataLoading(unittest.TestCase):
+class TestVendorDataLoading(test_helpers.TestCase):
     def cvj(self, data):
         return openstack.convert_vendordata_json(data)
 

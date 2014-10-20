@@ -182,6 +182,12 @@ NETWORKING=yes
                                           spec=False, passthrough=False)
         load_mock = self.mocker.replace(util.load_file,
                                         spec=False, passthrough=False)
+        subp_mock = self.mocker.replace(util.subp,
+                                        spec=False, passthrough=False)
+
+        subp_mock(['ifconfig', '-a'])
+        self.mocker.count(0, None)
+        self.mocker.result(('vtnet0', ''))
 
         exists_mock(mocker.ARGS)
         self.mocker.count(0, None)
@@ -190,6 +196,7 @@ NETWORKING=yes
         write_bufs = {}
         read_bufs = {
             '/etc/rc.conf': '',
+            '/etc/resolv.conf': '',
         }
 
         def replace_write(filename, content, mode=0644, omode="wb"):
