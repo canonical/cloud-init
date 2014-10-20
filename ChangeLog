@@ -1,6 +1,7 @@
 0.7.7:
  - open 0.7.7
  - Digital Ocean: add datasource for Digital Ocean. [Neal Shrader]
+ - expose uses_systemd as a distro function (fix rhel7)
 0.7.6:
  - open 0.7.6
  - Enable vendordata on CloudSigma datasource (LP: #1303986)
