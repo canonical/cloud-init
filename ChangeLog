@@ -1,3 +1,5 @@
+0.7.7:
+ - open 0.7.7
 0.7.6:
  - open 0.7.6
  - Enable vendordata on CloudSigma datasource (LP: #1303986)
