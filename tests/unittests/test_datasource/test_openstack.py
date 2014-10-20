@@ -19,7 +19,6 @@
 import copy
 import json
 import re
-import unittest
 
 from StringIO import StringIO
 
