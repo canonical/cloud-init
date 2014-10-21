@@ -387,8 +387,17 @@ class Distro(object):
 
         # Import SSH keys
         if 'ssh_authorized_keys' in kwargs:
-            keys = set(kwargs['ssh_authorized_keys']) or []
-            ssh_util.setup_user_keys(keys, name, options=None)
+            # Try to handle this in a smart manner.
+            keys = kwargs['ssh_authorized_keys']
+            if isinstance(keys, (basestring, str)):
+                keys = [keys]
+            if not isinstance(keys, (tuple, list, set)):
+                util.multi_log("Invalid type detected for"
+                               " 'ssh_authorized_keys', expected list, string"
+                               " or set.")
+            else:
+                keys = set(keys) or []
+                ssh_util.setup_user_keys(keys, name, options=None)
 
         return True
 
