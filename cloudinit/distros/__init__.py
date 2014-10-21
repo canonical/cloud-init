@@ -391,10 +391,12 @@ class Distro(object):
             keys = kwargs['ssh_authorized_keys']
             if isinstance(keys, (basestring, str)):
                 keys = [keys]
+            if isinstance(keys, dict):
+                keys = list(keys.values())
             if not isinstance(keys, (tuple, list, set)):
                 util.multi_log("Invalid type detected for"
                                " 'ssh_authorized_keys', expected list, string"
-                               " or set.")
+                               " , dict, or set.")
             else:
                 keys = set(keys) or []
                 ssh_util.setup_user_keys(keys, name, options=None)
