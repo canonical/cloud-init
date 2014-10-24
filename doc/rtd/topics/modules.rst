@@ -303,6 +303,7 @@ Ubuntu Init Switch
 **Internal name:** ``cc_ubuntu_init_switch``
 
 .. automodule:: cloudinit.config.cc_ubuntu_init_switch
+    :members:
 
 Update Etc Hosts
 ----------------
