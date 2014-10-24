@@ -88,6 +88,7 @@ fi
 
 
 def handle(name, cfg, cloud, log, args):
+    """Handler method activated by cloud-init."""
 
     if not isinstance(cloud.distro, ubuntu.Distro):
         log.debug("%s: distro is '%s', not ubuntu. returning",
