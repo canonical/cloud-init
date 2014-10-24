@@ -51,6 +51,8 @@ def _make_header(text):
 
 
 def handle(name, cfg, cloud, log, args):
+    """Handler method activated by cloud-init."""
+
     verbose = util.get_cfg_by_path(cfg, ('debug', 'verbose'), default=True)
     if args:
         # if args are provided (from cmdline) then explicitly set verbose

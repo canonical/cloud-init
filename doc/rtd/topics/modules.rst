@@ -50,6 +50,7 @@ Debug
 *Internal name:* ``cc_debug``
 
 .. automodule:: cloudinit.config.cc_debug
+    :members:
 
 Disable Ec2 Metadata
 --------------------
