@@ -27,6 +27,10 @@ It can be configured with the following option structure::
     debug:
        verbose: (defaulting to true)
        output: (location to write output, defaulting to console + log)
+
+.. note::
+
+    Log configurations are not output.
 """
 
 from cloudinit import type_utils
