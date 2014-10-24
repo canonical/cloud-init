@@ -21,7 +21,7 @@
 
 **Description:** This module provides a way for the user to boot with systemd
 even if the image is set to boot with upstart.  It should be run as one of the
-first cloud_init_modules, and will switch the init system and then issue a
+first ``cloud_init_modules``, and will switch the init system and then issue a
 reboot. The next boot will come up in the target init system and no action will
 be taken.
 
