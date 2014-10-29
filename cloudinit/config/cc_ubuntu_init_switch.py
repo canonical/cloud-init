@@ -17,30 +17,27 @@
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 """
-ubuntu_init_switch: reboot system into another init
+**Summary:** reboot system into another init.
 
-This provides a way for the user to boot with systemd even if the
-image is set to boot with upstart.  It should be run as one of the first
-cloud_init_modules, and will switch the init system and then issue a reboot.
-The next boot will come up in the target init system and no action will
+**Description:** This module provides a way for the user to boot with systemd
+even if the image is set to boot with upstart.  It should be run as one of the
+first ``cloud_init_modules``, and will switch the init system and then issue a
+reboot. The next boot will come up in the target init system and no action will
 be taken.
 
 This should be inert on non-ubuntu systems, and also exit quickly.
 
-config is comes under the top level 'init_switch' dictionary.
+It can be configured with the following option structure::
 
-#cloud-config
-init_switch:
- target: systemd
- reboot: true
+    init_switch:
+      target: systemd (can be 'systemd' or 'upstart')
+      reboot: true (reboot if a change was made, or false to not reboot)
 
-'target' can be 'systemd' or 'upstart'.  Best effort is made, but its possible
-this system will break, and probably won't interact well with any other
-mechanism you've used to switch the init system.
+.. note::
 
-'reboot': [default=true].
-   true: reboot if a change was made.
-   false: do not reboot.
+    Best effort is made, but it's possible
+    this system will break, and probably won't interact well with any other
+    mechanism you've used to switch the init system.
 """
 
 from cloudinit.settings import PER_INSTANCE
@@ -91,6 +88,7 @@ fi
 
 
 def handle(name, cfg, cloud, log, args):
+    """Handler method activated by cloud-init."""
 
     if not isinstance(cloud.distro, ubuntu.Distro):
         log.debug("%s: distro is '%s', not ubuntu. returning",
