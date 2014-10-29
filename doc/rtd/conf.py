@@ -27,6 +27,8 @@ project = 'Cloud-Init'
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom ones.
 extensions = [
     'sphinx.ext.intersphinx',
+    'sphinx.ext.autodoc',
+    'sphinx.ext.viewcode',
 ]
 
 intersphinx_mapping = {
