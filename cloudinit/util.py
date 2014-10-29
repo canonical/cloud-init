@@ -1146,7 +1146,7 @@ def chownbyname(fname, user=None, group=None):
 # this returns the specific 'mode' entry, cleanly formatted, with value
 def get_output_cfg(cfg, mode):
     ret = [None, None]
-    if cfg or 'output' not in cfg:
+    if not cfg or 'output' not in cfg:
         return ret
 
     outcfg = cfg['output']
