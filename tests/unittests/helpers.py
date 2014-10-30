@@ -35,6 +35,11 @@ else:
 if PY26:
     # For now add these on, taken from python 2.7 + slightly adjusted
     class TestCase(unittest.TestCase):
+        def assertIs(self, expr1, expr2, msg=None):
+            if expr1 is not expr2:
+                standardMsg = '%r is not %r' % (expr1, expr2)
+                self.fail(self._formatMessage(msg, standardMsg))
+
         def assertIn(self, member, container, msg=None):
             if member not in container:
                 standardMsg = '%r not found in %r' % (member, container)
