@@ -154,4 +154,18 @@ class TestParseSSHConfig(TestCase):
         self.assertEqual('foo', ret[0].key)
         self.assertEqual('Bar', ret[0].value)
 
+    def test_lower_case_with_equals(self):
+        self.load_file.return_value = 'foo=bar'
+        ret = ssh_util.parse_ssh_config('some real file')
+        self.assertEqual(1, len(ret))
+        self.assertEqual('foo', ret[0].key)
+        self.assertEqual('bar', ret[0].value)
+
+    def test_upper_case_with_equals(self):
+        self.load_file.return_value = 'Foo=bar'
+        ret = ssh_util.parse_ssh_config('some real file')
+        self.assertEqual(1, len(ret))
+        self.assertEqual('foo', ret[0].key)
+        self.assertEqual('bar', ret[0].value)
+
 # vi: ts=4 expandtab
