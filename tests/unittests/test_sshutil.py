@@ -1,7 +1,6 @@
-from unittest import TestCase
-
 from mock import patch
 
+from . import helpers as test_helpers
 from cloudinit import ssh_util
 
 
@@ -38,7 +37,7 @@ TEST_OPTIONS = ("no-port-forwarding,no-agent-forwarding,no-X11-forwarding,"
     'user \"root\".\';echo;sleep 10"')
 
 
-class TestAuthKeyLineParser(TestCase):
+class TestAuthKeyLineParser(test_helpers.TestCase):
     def test_simple_parse(self):
         # test key line with common 3 fields (keytype, base64, comment)
         parser = ssh_util.AuthKeyLineParser()
@@ -101,7 +100,7 @@ class TestAuthKeyLineParser(TestCase):
         self.assertFalse(key.valid())
 
 
-class TestParseSSHConfig(TestCase):
+class TestParseSSHConfig(test_helpers.TestCase):
 
     def setUp(self):
         self.load_file_patch = patch('cloudinit.ssh_util.util.load_file')
