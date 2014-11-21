@@ -30,6 +30,24 @@ auto eth1
 iface eth1 inet dhcp
 '''
 
+BASE_NET_CFG_IPV6 = '''
+auto lo
+iface lo inet loopback
+
+auto eth0
+iface eth0 inet static
+    address 192.168.1.5
+    netmask 255.255.255.0
+    network 192.168.0.0
+    broadcast 192.168.1.0
+    gateway 192.168.1.254
+
+iface eth0 inet6 static
+    address 2607:f0d0:1002:0011::2
+    netmask 64
+    gateway 2607:f0d0:1002:0011::1
+'''
+
 
 class WriteBuffer(object):
     def __init__(self):
@@ -173,6 +191,81 @@ NETWORKING=yes
 '''
         self.assertCfgEquals(expected_buf, str(write_buf))
         self.assertEquals(write_buf.mode, 0644)
+
+    def test_write_ipv6_rhel(self):
+        rh_distro = self._get_distro('rhel')
+        write_mock = self.mocker.replace(util.write_file,
+                                         spec=False, passthrough=False)
+        load_mock = self.mocker.replace(util.load_file,
+                                        spec=False, passthrough=False)
+        exists_mock = self.mocker.replace(os.path.isfile,
+                                          spec=False, passthrough=False)
+
+        write_bufs = {}
+
+        def replace_write(filename, content, mode=0644, omode="wb"):
+            buf = WriteBuffer()
+            buf.mode = mode
+            buf.omode = omode
+            buf.write(content)
+            write_bufs[filename] = buf
+
+        exists_mock(mocker.ARGS)
+        self.mocker.count(0, None)
+        self.mocker.result(False)
+
+        load_mock(mocker.ARGS)
+        self.mocker.count(0, None)
+        self.mocker.result('')
+
+        for _i in range(0, 2):
+            write_mock(mocker.ARGS)
+            self.mocker.call(replace_write)
+
+        write_mock(mocker.ARGS)
+        self.mocker.call(replace_write)
+
+        self.mocker.replay()
+        rh_distro.apply_network(BASE_NET_CFG_IPV6, False)
+
+        self.assertEquals(len(write_bufs), 3)
+        self.assertIn('/etc/sysconfig/network-scripts/ifcfg-lo', write_bufs)
+        write_buf = write_bufs['/etc/sysconfig/network-scripts/ifcfg-lo']
+        expected_buf = '''
+DEVICE="lo"
+ONBOOT=yes
+'''
+        self.assertCfgEquals(expected_buf, str(write_buf))
+        self.assertEquals(write_buf.mode, 0644)
+
+        self.assertIn('/etc/sysconfig/network-scripts/ifcfg-eth0', write_bufs)
+        write_buf = write_bufs['/etc/sysconfig/network-scripts/ifcfg-eth0']
+        expected_buf = '''
+DEVICE="eth0"
+BOOTPROTO="static"
+NETMASK="255.255.255.0"
+IPADDR="192.168.1.5"
+ONBOOT=yes
+GATEWAY="192.168.1.254"
+BROADCAST="192.168.1.0"
+IPV6INIT=yes
+IPV6ADDR="2607:f0d0:1002:0011::2"
+IPV6_DEFAULTGW="2607:f0d0:1002:0011::1"
+'''
+        self.assertCfgEquals(expected_buf, str(write_buf))
+        self.assertEquals(write_buf.mode, 0644)
+
+        self.assertIn('/etc/sysconfig/network', write_bufs)
+        write_buf = write_bufs['/etc/sysconfig/network']
+        expected_buf = '''
+# Created by cloud-init v. 0.7
+NETWORKING=yes
+NETWORKING_IPV6=yes
+IPV6_AUTOCONF=no
+'''
+        self.assertCfgEquals(expected_buf, str(write_buf))
+        self.assertEquals(write_buf.mode, 0644)
+
 
     def test_simple_write_freebsd(self):
         fbsd_distro = self._get_distro('freebsd')
