@@ -6,6 +6,7 @@
  - begin adding cloud config module docs to config modules (LP: #1383510)
  - retain trailing eol from template files (sources.list) when
    rendered with jinja (LP: #1355343)
+ - Only use datafiles and initsys addon outside virtualenvs
 0.7.6:
  - open 0.7.6
  - Enable vendordata on CloudSigma datasource (LP: #1303986)
