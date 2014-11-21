@@ -106,6 +106,7 @@ class Distro(distros.Distro):
             # If IPv6 interface present, enable ipv6 networking
             if use_ipv6:
                 net_cfg['NETWORKING_IPV6'] = _make_sysconfig_bool(True)
+                net_cfg['IPV6_AUTOCONF'] = _make_sysconfig_bool(False)
             rhel_util.update_sysconfig_file(self.network_conf_fn, net_cfg)
         return dev_names
 
