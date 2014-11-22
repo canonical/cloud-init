@@ -11,6 +11,9 @@
  - Increase the usefulness, robustness, configurability of the chef module
    so that it is more useful, more documented and better for users
  - Fix how '=' signs are not handled that well in ssh_utils (LP: #1391303)
+ - Be more tolerant of ssh keys passed into 'ssh_authorized_keys'; allowing
+   for list, tuple, set, dict, string types and warning on other unexpected
+   types
 0.7.6:
  - open 0.7.6
  - Enable vendordata on CloudSigma datasource (LP: #1303986)
