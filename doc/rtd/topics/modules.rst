@@ -43,6 +43,7 @@ Chef
 **Internal name:** ``cc_chef``
 
 .. automodule:: cloudinit.config.cc_chef
+    :members:
 
 Debug
 -----
