@@ -182,6 +182,7 @@ def get_template_params(iid, chef_cfg, log):
 
 
 def handle(name, cfg, cloud, log, _args):
+    """Handler method activated by cloud-init."""
 
     # If there isn't a chef key in the configuration don't do anything
     if 'chef' not in cfg:
