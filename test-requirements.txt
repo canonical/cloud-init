@@ -1,4 +1,5 @@
 httpretty>=0.7.1
+mock
 mocker
 nose
 pep8==1.5.7

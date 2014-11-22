@@ -10,6 +10,7 @@
  - Fix the digital ocean test case on python 2.6
  - Increase the usefulness, robustness, configurability of the chef module
    so that it is more useful, more documented and better for users
+ - Fix how '=' signs are not handled that well in ssh_utils (LP: #1391303)
 0.7.6:
  - open 0.7.6
  - Enable vendordata on CloudSigma datasource (LP: #1303986)
