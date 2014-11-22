@@ -18,6 +18,56 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+"""
+**Summary:** module that configures, starts and installs chef.
+
+**Description:** This module enables chef to be installed (from packages or
+from gems, or from omnibus). Before this occurs chef configurations are
+written to disk (validation.pem, client.pem, firstboot.json, client.rb),
+and needed chef folders/directories are created (/etc/chef and /var/log/chef
+and so-on). Then once installing proceeds correctly if configured chef will
+be started (in daemon mode or in non-daemon mode) and then once that has
+finished (if ran in non-daemon mode this will be when chef finishes
+converging, if ran in daemon mode then no further actions are possible since
+chef will have forked into its own process) then a post run function can
+run that can do finishing activities (such as removing the validation pem
+file).
+
+It can be configured with the following option structure::
+
+    chef:
+       directories: (defaulting to /etc/chef, /var/log/chef, /var/lib/chef,
+                     /var/cache/chef, /var/backups/chef, /var/run/chef)
+       validation_key or validation_cert: (optional string to be written to
+                                           /etc/chef/validation.pem)
+       firstboot_path: (path to write run_list and initial_attributes keys that
+                        should also be present in this configuration, defaults
+                        to /etc/chef/firstboot.json)
+       exec: boolean to run or not run chef (defaults to false, unless
+                                             a gem installed is requested
+                                             where this will then default
+                                             to true)
+
+    chef.rb template keys (if falsey, then will be skipped and not
+                           written to /etc/chef/client.rb)
+
+    chef:
+      client_key:
+      environment:
+      file_backup_path:
+      file_cache_path:
+      json_attribs:
+      log_level:
+      log_location:
+      node_name:
+      pid_file:
+      server_url:
+      show_time:
+      ssl_verify_mode:
+      validation_key:
+      validation_name:
+"""
+
 import itertools
 import json
 import os
