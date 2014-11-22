@@ -90,7 +90,8 @@ REQUIRED_CHEF_DIRS = tuple([
     '/etc/chef',
 ])
 
-OMNIBUS_URL = "https://www.opscode.com/chef/install.sh"
+# Used if fetching chef from a omnibus style package
+OMNIBUS_URL = "https://www.getchef.com/chef/install.sh"
 OMNIBUS_URL_RETRIES = 5
 
 CHEF_VALIDATION_PEM_PATH = '/etc/chef/validation.pem'
