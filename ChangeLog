@@ -14,6 +14,7 @@
  - Be more tolerant of ssh keys passed into 'ssh_authorized_keys'; allowing
    for list, tuple, set, dict, string types and warning on other unexpected
    types
+ - Update to use newer/better OMNIBUS_URL for chef module
 0.7.6:
  - open 0.7.6
  - Enable vendordata on CloudSigma datasource (LP: #1303986)
