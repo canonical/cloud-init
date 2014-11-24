@@ -46,6 +46,18 @@ iface eth0 inet6 static
     address 2607:f0d0:1002:0011::2
     netmask 64
     gateway 2607:f0d0:1002:0011::1
+
+iface eth1 inet static
+    address 192.168.1.6
+    netmask 255.255.255.0
+    network 192.168.0.0
+    broadcast 192.168.1.0
+    gateway 192.168.1.254
+
+iface eth1 inet6 static
+    address 2607:f0d0:1002:0011::3
+    netmask 64
+    gateway 2607:f0d0:1002:0011::1
 '''
 
 
@@ -218,7 +230,7 @@ NETWORKING=yes
         self.mocker.count(0, None)
         self.mocker.result('')
 
-        for _i in range(0, 2):
+        for _i in range(0, 3):
             write_mock(mocker.ARGS)
             self.mocker.call(replace_write)
 
@@ -228,7 +240,7 @@ NETWORKING=yes
         self.mocker.replay()
         rh_distro.apply_network(BASE_NET_CFG_IPV6, False)
 
-        self.assertEquals(len(write_bufs), 3)
+        self.assertEquals(len(write_bufs), 4)
         self.assertIn('/etc/sysconfig/network-scripts/ifcfg-lo', write_bufs)
         write_buf = write_bufs['/etc/sysconfig/network-scripts/ifcfg-lo']
         expected_buf = '''
@@ -250,6 +262,22 @@ GATEWAY="192.168.1.254"
 BROADCAST="192.168.1.0"
 IPV6INIT=yes
 IPV6ADDR="2607:f0d0:1002:0011::2"
+IPV6_DEFAULTGW="2607:f0d0:1002:0011::1"
+'''
+        self.assertCfgEquals(expected_buf, str(write_buf))
+        self.assertEquals(write_buf.mode, 0644)
+        self.assertIn('/etc/sysconfig/network-scripts/ifcfg-eth1', write_bufs)
+        write_buf = write_bufs['/etc/sysconfig/network-scripts/ifcfg-eth1']
+        expected_buf = '''
+DEVICE="eth1"
+BOOTPROTO="static"
+NETMASK="255.255.255.0"
+IPADDR="192.168.1.6"
+ONBOOT=no
+GATEWAY="192.168.1.254"
+BROADCAST="192.168.1.0"
+IPV6INIT=yes
+IPV6ADDR="2607:f0d0:1002:0011::3"
 IPV6_DEFAULTGW="2607:f0d0:1002:0011::1"
 '''
         self.assertCfgEquals(expected_buf, str(write_buf))
