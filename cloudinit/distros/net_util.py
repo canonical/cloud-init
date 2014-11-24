@@ -169,15 +169,16 @@ def translate_network(settings):
             real_ifaces[dev_name] = iface_info
     # Check for those that should be started on boot via 'auto'
     for (cmd, args) in entries:
+        args = args.split(None)
+        if not args:
+            continue
+        dev_name = args[0].strip().lower()
         if cmd == 'auto':
             # Seems like auto can be like 'auto eth0 eth0:1' so just get the
             # first part out as the device name
-            args = args.split(None)
-            if not args:
-                continue
-            dev_name = args[0].strip().lower()
             if dev_name in real_ifaces:
                 real_ifaces[dev_name]['auto'] = True
         if cmd == 'iface' and 'inet6' in args:
-                real_ifaces[dev_name]['inet6'] = True
+            real_ifaces[dev_name]['inet6'] = True
     return real_ifaces
+
