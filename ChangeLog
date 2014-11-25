@@ -1,3 +1,20 @@
+0.7.7:
+ - open 0.7.7
+ - Digital Ocean: add datasource for Digital Ocean. [Neal Shrader]
+ - expose uses_systemd as a distro function (fix rhel7)
+ - fix broken 'output' config (LP: #1387340)
+ - begin adding cloud config module docs to config modules (LP: #1383510)
+ - retain trailing eol from template files (sources.list) when
+   rendered with jinja (LP: #1355343)
+ - Only use datafiles and initsys addon outside virtualenvs
+ - Fix the digital ocean test case on python 2.6
+ - Increase the usefulness, robustness, configurability of the chef module
+   so that it is more useful, more documented and better for users
+ - Fix how '=' signs are not handled that well in ssh_utils (LP: #1391303)
+ - Be more tolerant of ssh keys passed into 'ssh_authorized_keys'; allowing
+   for list, tuple, set, dict, string types and warning on other unexpected
+   types
+ - Update to use newer/better OMNIBUS_URL for chef module
 0.7.6:
  - open 0.7.6
  - Enable vendordata on CloudSigma datasource (LP: #1303986)

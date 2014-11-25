@@ -399,6 +399,10 @@ def get_cfg_option_str(yobj, key, default=None):
     return val
 
 
+def get_cfg_option_int(yobj, key, default=0):
+    return int(get_cfg_option_str(yobj, key, default=default))
+
+
 def system_info():
     return {
         'platform': platform.platform(),
@@ -1146,7 +1150,7 @@ def chownbyname(fname, user=None, group=None):
 # this returns the specific 'mode' entry, cleanly formatted, with value
 def get_output_cfg(cfg, mode):
     ret = [None, None]
-    if cfg or 'output' not in cfg:
+    if not cfg or 'output' not in cfg:
         return ret
 
     outcfg = cfg['output']
@@ -1270,14 +1274,14 @@ def read_write_cmdline_url(target_fn):
             logexc(LOG, "Failed writing url content to %s", target_fn)
 
 
-def yaml_dumps(obj):
-    formatted = yaml.dump(obj,
-                    line_break="\n",
-                    indent=4,
-                    explicit_start=True,
-                    explicit_end=True,
-                    default_flow_style=False)
-    return formatted
+def yaml_dumps(obj, explicit_start=True, explicit_end=True):
+    return yaml.safe_dump(obj,
+                          line_break="\n",
+                          indent=4,
+                          explicit_start=explicit_start,
+                          explicit_end=explicit_end,
+                          default_flow_style=False,
+                          allow_unicode=True)
 
 
 def ensure_dir(path, mode=None):
