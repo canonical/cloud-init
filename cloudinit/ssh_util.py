@@ -293,7 +293,10 @@ def parse_ssh_config(fname):
         if not line or line.startswith("#"):
             lines.append(SshdConfigLine(line))
             continue
-        (key, val) = line.split(None, 1)
+        try:
+            key, val = line.split(None, 1)
+        except ValueError:
+            key, val = line.split('=', 1)
         lines.append(SshdConfigLine(line, key, val))
     return lines
 

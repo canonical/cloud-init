@@ -89,9 +89,11 @@ def detect_template(text):
         return CTemplate(content, searchList=[params]).respond()
 
     def jinja_render(content, params):
+        # keep_trailing_newline is in jinja2 2.7+, not 2.6
+        add = "\n" if content.endswith("\n") else ""
         return JTemplate(content,
                          undefined=jinja2.StrictUndefined,
-                         trim_blocks=True).render(**params)
+                         trim_blocks=True).render(**params) + add
 
     if text.find("\n") != -1:
         ident, rest = text.split("\n", 1)
