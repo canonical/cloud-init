@@ -244,6 +244,7 @@ def main():
     spec_fn = util.abs_join(root_dir, 'cloud-init.spec')
     util.write_file(spec_fn, contents)
     print("Created spec file at %r" % (spec_fn))
+    print(contents)
     for p in args.patches:
         util.copy(p, util.abs_join(arc_dir, os.path.basename(p)))
 

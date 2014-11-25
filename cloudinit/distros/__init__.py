@@ -51,6 +51,7 @@ LOG = logging.getLogger(__name__)
 class Distro(object):
     __metaclass__ = abc.ABCMeta
 
+    usr_lib_exec = "/usr/lib"
     hosts_fn = "/etc/hosts"
     ci_sudoers_fn = "/etc/sudoers.d/90-cloud-init-users"
     hostname_conf_fn = "/etc/hostname"
