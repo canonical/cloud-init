@@ -71,6 +71,7 @@ class Distro(distros.Distro):
         nameservers = []
         searchservers = []
         dev_names = entries.keys()
+        use_ipv6 = False
         for (dev, info) in entries.iteritems():
             net_fn = self.network_script_tpl % (dev)
             net_cfg = {
@@ -83,6 +84,13 @@ class Distro(distros.Distro):
                 'MACADDR': info.get('hwaddress'),
                 'ONBOOT': _make_sysconfig_bool(info.get('auto')),
             }
+            if info.get('inet6'):
+                use_ipv6 = True
+                net_cfg.update({
+                    'IPV6INIT': _make_sysconfig_bool(True),
+                    'IPV6ADDR': info.get('ipv6').get('address'),
+                    'IPV6_DEFAULTGW': info.get('ipv6').get('gateway'),
+            })
             rhel_util.update_sysconfig_file(net_fn, net_cfg)
             if 'dns-nameservers' in info:
                 nameservers.extend(info['dns-nameservers'])
@@ -95,6 +103,10 @@ class Distro(distros.Distro):
             net_cfg = {
                 'NETWORKING': _make_sysconfig_bool(True),
             }
+            # If IPv6 interface present, enable ipv6 networking
+            if use_ipv6:
+                net_cfg['NETWORKING_IPV6'] = _make_sysconfig_bool(True)
+                net_cfg['IPV6_AUTOCONF'] = _make_sysconfig_bool(False)
             rhel_util.update_sysconfig_file(self.network_conf_fn, net_cfg)
         return dev_names
 
