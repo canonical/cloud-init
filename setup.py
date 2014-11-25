@@ -82,9 +82,13 @@ INITSYS_TYPES = sorted(list(INITSYS_ROOTS.keys()))
 # FreeBSD systems.
 USR = "/usr"
 ETC = "/etc"
+USR_LIB_EXEC = "/usr/lib"
 if os.uname()[0] == 'FreeBSD':
     USR = "/usr/local"
+    USR_LIB_EXEC = "/usr/local/lib"
     ETC = "/usr/local/etc"
+elif os.path.isfile('/etc/redhat-release'):
+    USR_LIB_EXEC = "/usr/libexec"
 
 
 # Avoid having datafiles installed in a virtualenv...
@@ -155,8 +159,8 @@ else:
         (ETC + '/cloud', glob('config/*.cfg')),
         (ETC + '/cloud/cloud.cfg.d', glob('config/cloud.cfg.d/*')),
         (ETC + '/cloud/templates', glob('templates/*')),
-        (USR + '/lib/cloud-init', ['tools/uncloud-init',
-                                   'tools/write-ssh-key-fingerprints']),
+        (USR_LIB_EXEC + '/cloud-init', ['tools/uncloud-init',
+                                        'tools/write-ssh-key-fingerprints']),
         (USR + '/share/doc/cloud-init', [f for f in glob('doc/*') if is_f(f)]),
         (USR + '/share/doc/cloud-init/examples',
             [f for f in glob('doc/examples/*') if is_f(f)]),
