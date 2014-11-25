@@ -59,7 +59,7 @@ class TestDebug(t_help.FilesystemMockingTestCase):
         cc_debug.handle('cc_debug', cfg, cc, LOG, [])
         contents = util.load_file('/var/log/cloud-init-debug.log')
         # Some basic sanity tests...
-        self.assertGreater(len(contents), 0)
+        self.assertNotEqual(0, len(contents))
         for k in cfg.keys():
             self.assertIn(k, contents)
 
