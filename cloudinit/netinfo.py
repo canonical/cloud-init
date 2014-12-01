@@ -107,7 +107,6 @@ def route_info():
         if not line:
             continue
         toks = line.split()
-
         # FreeBSD shows 6 items in the routing table:
         #  Destination  Gateway    Flags Refs    Use  Netif Expire
         #  default      10.65.0.1  UGS      0  34920 vtnet0
@@ -119,13 +118,11 @@ def route_info():
                 toks[0] == "Destination" or toks[0] == "Internet" or
                 toks[0] == "Internet6" or toks[0] == "Routing"):
             continue
-
         if len(toks) < 8:
             toks.append("-")
             toks.append("-")
             toks[7] = toks[5]
             toks[5] = "-"
-
         entry = {
             'destination': toks[0],
             'gateway': toks[1],
@@ -136,7 +133,6 @@ def route_info():
             'use': toks[6],
             'iface': toks[7],
         }
-
         routes['ipv4'].append(entry)
 
     try:
@@ -149,7 +145,6 @@ def route_info():
             if not line:
                 continue
             toks = line.split()
-    
             if (len(toks) < 6 or toks[0] == "Kernel" or
                     toks[0] == "Proto" or toks[0] == "Active"):
                 continue
