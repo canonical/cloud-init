@@ -229,8 +229,9 @@ def route_pformat():
                                 r['recv-q'], r['send-q'],
                                 r['local address'], r['foreign address'],
                                 r['state']])
-            header = util.center("Route IPv6 info", "+", max_len)
             route_s = tbl_v6.get_string()
+            max_len = len(max(route_s.splitlines(), key=len))
+            header = util.center("Route IPv6 info", "+", max_len)
             lines.extend([header, route_s])
     return "\n".join(lines)
 
