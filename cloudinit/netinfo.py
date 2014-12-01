@@ -166,14 +166,14 @@ def route_info():
 
 
 def getgateway():
-    routes = []
     try:
         routes = route_info()
     except:
         pass
-    for r in routes:
-        if r['flags'].find("G") >= 0:
-            return "%s[%s]" % (r['gateway'], r['iface'])
+    else:
+        for r in routes.get('ipv4', []):
+            if r['flags'].find("G") >= 0:
+                return "%s[%s]" % (r['gateway'], r['iface'])
     return None
 
 
