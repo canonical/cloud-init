@@ -45,8 +45,6 @@ def handle(_name, cfg, cloud, log, args):
         password = util.get_cfg_option_str(cfg, "password", None)
 
     expire = True
-    pw_auth = "no"
-    change_pwauth = False
     plist = None
 
     if 'chpasswd' in cfg:
@@ -104,11 +102,24 @@ def handle(_name, cfg, cloud, log, args):
     change_pwauth = False
     pw_auth = None
     if 'ssh_pwauth' in cfg:
-        change_pwauth = True
         if util.is_true(cfg['ssh_pwauth']):
+            change_pwauth = True
             pw_auth = 'yes'
-        if util.is_false(cfg['ssh_pwauth']):
+        elif util.is_false(cfg['ssh_pwauth']):
+            change_pwauth = True
             pw_auth = 'no'
+        elif str(cfg['ssh_pwauth']).lower() == 'unchanged':
+            log.debug('Leaving auth line unchanged')
+            change_pwauth = False
+        elif not str(cfg['ssh_pwauth']).strip():
+            log.debug('Leaving auth line unchanged')
+            change_pwauth = False
+        elif not cfg['ssh_pwauth']:
+            log.debug('Leaving auth line unchanged')
+            change_pwauth = False
+        else:
+            util.logexc(log, 'Unrecognized value %r for ssh_pwauth' % cfg['ssh_pwauth'])
+
 
     if change_pwauth:
         replaced_auth = False
