@@ -1751,8 +1751,12 @@ def write_file(filename, content, mode=0o644, omode="wb", copy_mode=False):
     else:
         content = decode_binary(content)
         write_type = 'characters'
+    try:
+        mode_r = "%o" % mode
+    except TypeError:
+        mode_r = "%r" % mode
     LOG.debug("Writing to %s - %s: [%s] %s %s",
-              filename, omode, mode, len(content), write_type)
+              filename, omode, mode_r, len(content), write_type)
     with SeLinuxGuard(path=filename):
         with open(filename, omode) as fh:
             fh.write(content)

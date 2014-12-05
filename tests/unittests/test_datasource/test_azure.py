@@ -263,7 +263,8 @@ fdescfs            /dev/fd          fdescfs rw              0 0
             {}, distro=None, paths=self.paths)
         self.assertFalse(dsrc.get_data())
         self.assertEqual(
-            "Non-Azure DMI asset tag '{0}' discovered.\n".format(nonazure_tag),
+            "DEBUG: Non-Azure DMI asset tag '{0}' discovered.\n".format(
+                nonazure_tag),
             self.logs.getvalue())
 
     def test_basic_seed_dir(self):

@@ -216,7 +216,8 @@ class TestNtp(FilesystemMockingTestCase):
         """When no ntp section is defined handler logs a warning and noops."""
         cc_ntp.handle('cc_ntp', {}, None, None, [])
         self.assertEqual(
-            'Skipping module named cc_ntp, not present or disabled by cfg\n',
+            'DEBUG: Skipping module named cc_ntp, '
+            'not present or disabled by cfg\n',
             self.logs.getvalue())
 
     def test_ntp_handler_schema_validation_allows_empty_ntp_config(self):
