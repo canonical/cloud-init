@@ -48,7 +48,7 @@ def main():
     ccph.cloud_fn = outfile
 
     c_handlers = helpers.ContentHandlers()
-    c_handlers.register_defaults([ccph])
+    c_handlers.register(ccph)
 
     called = []
     for (_ctype, mod) in c_handlers.iteritems():
@@ -69,6 +69,7 @@ def main():
         # to help write there contents to files with numbered
         # names...
         'handlercount': 0,
+        'excluded': [],
     }
 
     handlers.walk(user_data_msg, handlers.walker_callback, data=part_data)
