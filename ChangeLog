@@ -15,6 +15,7 @@
    for list, tuple, set, dict, string types and warning on other unexpected
    types
  - Update to use newer/better OMNIBUS_URL for chef module
+ - GCE: Allow base64 encoded user-data (LP: #1404311) [Wayne Witzell III]
 0.7.6:
  - open 0.7.6
  - Enable vendordata on CloudSigma datasource (LP: #1303986)
