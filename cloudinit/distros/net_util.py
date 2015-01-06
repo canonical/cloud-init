@@ -180,4 +180,3 @@ def translate_network(settings):
         if cmd == 'iface' and 'inet6' in args:
             real_ifaces[dev_name]['inet6'] = True
     return real_ifaces
-

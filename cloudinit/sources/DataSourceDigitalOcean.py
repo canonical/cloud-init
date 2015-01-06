@@ -31,6 +31,7 @@ BUILTIN_DS_CONFIG = {
 MD_RETRIES = 0
 MD_TIMEOUT = 1
 
+
 class DataSourceDigitalOcean(sources.DataSource):
     def __init__(self, sys_cfg, distro, paths):
         sources.DataSource.__init__(self, sys_cfg, distro, paths)
@@ -51,10 +52,10 @@ class DataSourceDigitalOcean(sources.DataSource):
             self.timeout = MD_TIMEOUT
 
     def get_data(self):
-        caller = functools.partial(util.read_file_or_url, timeout=self.timeout, 
-                                   retries=self.retries)
+        caller = functools.partial(util.read_file_or_url,
+                                   timeout=self.timeout, retries=self.retries)
         md = ec2_utils.MetadataMaterializer(str(caller(self.metadata_address)),
-                                            base_url=self.metadata_address, 
+                                            base_url=self.metadata_address,
                                             caller=caller)
 
         self.metadata = md.materialize()
@@ -72,9 +73,9 @@ class DataSourceDigitalOcean(sources.DataSource):
 
     def get_public_ssh_keys(self):
         if type(self.metadata['public-keys']) is StringType:
-           return [self.metadata['public-keys']]
+            return [self.metadata['public-keys']]
         else:
-           return self.metadata['public-keys']
+            return self.metadata['public-keys']
 
     @property
     def availability_zone(self):

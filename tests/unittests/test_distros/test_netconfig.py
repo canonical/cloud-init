@@ -294,7 +294,6 @@ IPV6_AUTOCONF=no
         self.assertCfgEquals(expected_buf, str(write_buf))
         self.assertEquals(write_buf.mode, 0644)
 
-
     def test_simple_write_freebsd(self):
         fbsd_distro = self._get_distro('freebsd')
         util_mock = self.mocker.replace(util.write_file,
@@ -357,4 +356,3 @@ defaultrouter="192.168.1.254"
 '''
         self.assertCfgEquals(expected_buf, str(write_buf))
         self.assertEquals(write_buf.mode, 0644)
-

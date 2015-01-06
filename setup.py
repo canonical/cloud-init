@@ -164,7 +164,7 @@ else:
         (USR + '/share/doc/cloud-init', [f for f in glob('doc/*') if is_f(f)]),
         (USR + '/share/doc/cloud-init/examples',
             [f for f in glob('doc/examples/*') if is_f(f)]),
-        (USR + '/share/doc/cloud-init/examples/seed', 
+        (USR + '/share/doc/cloud-init/examples/seed',
             [f for f in glob('doc/examples/seed/*') if is_f(f)]),
     ]
     # Use a subclass for install that handles
