@@ -33,7 +33,6 @@ GCE_META = {
     'project/attributes/sshKeys': 'user:ssh-rsa AA2..+aRD0fyVw== root@server',
     'instance/hostname': 'server.project-foo.local',
     'instance/attributes/user-data': '/bin/echo foo\n',
-    'instance/attributes/user-data-encoding': '',
 }
 
 GCE_META_PARTIAL = {
