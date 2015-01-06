@@ -100,7 +100,8 @@ $a,$b'''
         mirror = "mymirror"
         codename = "zany"
         in_data = "deb $mirror $codename-updates main contrib non-free"
-        ex_data = "deb %s %s-updates main contrib non-free" % (mirror, codename)
+        ex_data = "deb %s %s-updates main contrib non-free" % (mirror,
+                                                               codename)
 
         out_data = templater.basic_render(in_data,
             {'mirror': mirror, 'codename': codename})

@@ -119,7 +119,8 @@ class Distro(distros.Distro):
         index = n.group(0)
 
         (out, err) = util.subp(['ifconfig', '-a'])
-        ifconfigoutput = [x for x in (out.strip()).splitlines() if len(x.split()) > 0]
+        ifconfigoutput = [x for x in (out.strip()).splitlines()
+                          if len(x.split()) > 0]
         for line in ifconfigoutput:
             m = re.match('^\w+', line)
             if m:

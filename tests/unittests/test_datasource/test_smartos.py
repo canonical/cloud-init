@@ -342,8 +342,8 @@ class TestSmartOSDataSource(helpers.FilesystemMockingTestCase):
         """
             User-data in the SmartOS world is supposed to be written to a file
             each and every boot. This tests to make sure that in the event the
-            legacy user-data is removed, the existing user-data is backed-up and
-            there is no /var/db/user-data left.
+            legacy user-data is removed, the existing user-data is backed-up
+            and there is no /var/db/user-data left.
         """
 
         user_data_f = "%s/mdata-user-data" % self.legacy_user_d

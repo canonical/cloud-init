@@ -79,8 +79,8 @@ class DataSourceConfigDrive(openstack.SourceMixin, sources.DataSource):
                     else:
                         mtype = None
                         sync = True
-                    results = util.mount_cb(dev, read_config_drive, mtype=mtype,
-                                            sync=sync)
+                    results = util.mount_cb(dev, read_config_drive,
+                                            mtype=mtype, sync=sync)
                     found = dev
                 except openstack.NonReadable:
                     pass

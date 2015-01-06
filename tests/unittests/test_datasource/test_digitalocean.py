@@ -51,6 +51,7 @@ DO_META = {
 
 MD_URL_RE = re.compile(r'http://169.254.169.254/metadata/v1/.*')
 
+
 def _request_callback(method, uri, headers):
     url_path = urlparse(uri).path
     if url_path.startswith('/metadata/v1/'):

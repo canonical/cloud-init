@@ -40,7 +40,8 @@ GCE_META_PARTIAL = {
 }
 
 HEADERS = {'X-Google-Metadata-Request': 'True'}
-MD_URL_RE = re.compile(r'http://metadata.google.internal./computeMetadata/v1/.*')
+MD_URL_RE = re.compile(
+    r'http://metadata.google.internal./computeMetadata/v1/.*')
 
 
 def _request_callback(method, uri, headers):

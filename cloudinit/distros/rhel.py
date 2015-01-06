@@ -91,7 +91,7 @@ class Distro(distros.Distro):
                     'IPV6INIT': _make_sysconfig_bool(True),
                     'IPV6ADDR': info.get('ipv6').get('address'),
                     'IPV6_DEFAULTGW': info.get('ipv6').get('gateway'),
-            })
+                })
             rhel_util.update_sysconfig_file(net_fn, net_cfg)
             if 'dns-nameservers' in info:
                 nameservers.extend(info['dns-nameservers'])
