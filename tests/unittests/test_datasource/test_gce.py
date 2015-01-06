@@ -33,7 +33,7 @@ GCE_META = {
     'project/attributes/sshKeys': 'user:ssh-rsa AA2..+aRD0fyVw== root@server',
     'instance/hostname': 'server.project-foo.local',
     'instance/attributes/user-data': '/bin/echo foo\n',
-    'instance/attributes/user-data-encoding':'',
+    'instance/attributes/user-data-encoding': '',
 }
 
 GCE_META_PARTIAL = {
@@ -51,7 +51,8 @@ GCE_META_ENCODING = {
 }
 
 HEADERS = {'X-Google-Metadata-Request': 'True'}
-MD_URL_RE = re.compile(r'http://metadata.google.internal./computeMetadata/v1/.*')
+MD_URL_RE = re.compile(
+    r'http://metadata.google.internal./computeMetadata/v1/.*')
 
 
 def _new_request_callback(gce_meta=None):
@@ -136,5 +137,6 @@ class TestDataSourceGCE(test_helpers.HttprettyTestCase):
             body=_new_request_callback(GCE_META_ENCODING))
         self.ds.get_data()
 
-        decoded = b64decode(GCE_META_ENCODING.get('instance/attributes/user-data'))
+        decoded = b64decode(
+            GCE_META_ENCODING.get('instance/attributes/user-data'))
         self.assertEqual(decoded, self.ds.get_userdata_raw())
