@@ -29,7 +29,6 @@ BUILTIN_DS_CONFIG = {
 }
 REQUIRED_FIELDS = ('instance-id', 'availability-zone', 'local-hostname')
 
-
 class DataSourceGCE(sources.DataSource):
     def __init__(self, sys_cfg, distro, paths):
         sources.DataSource.__init__(self, sys_cfg, distro, paths)
@@ -104,11 +103,12 @@ class DataSourceGCE(sources.DataSource):
             lines = self.metadata['public-keys'].splitlines()
             self.metadata['public-keys'] = [self._trim_key(k) for k in lines]
 
-        if self.metadata.get('user-data-encoding'):
-            if self.metadata['user-data-encoding'] == 'base64':
+        encoding = self.metadata.get('user-data-encoding')
+        if encoding:
+            if encoding == 'base64':
                 self.metadata['user-data'] = b64decode(self.metadata['user-data'])
             else:
-                LOG.warn('user-data-encoding: unknown encoding specified', None, None)
+                LOG.warn('unknown user-data-encoding: %s, ignoring', encoding)
 
         return found
 
