@@ -27,6 +27,7 @@ frequency = PER_INSTANCE
 # Define the commands to use
 UDEVADM_CMD = util.which('udevadm')
 SFDISK_CMD = util.which("sfdisk")
+SGDISK_CMD = util.which("sgdisk")
 LSBLK_CMD = util.which("lsblk")
 BLKID_CMD = util.which("blkid")
 BLKDEV_CMD = util.which("blockdev")
@@ -397,7 +398,7 @@ def check_partition_mbr_layout(device, layout):
 
 
 def check_partition_gpt_layout(device, layout):
-    prt_cmd = ['sgdisk', '-p', device]
+    prt_cmd = [SGDISK_CMD, '-p', device]
     try:
         out, _err = util.subp(prt_cmd)
     except Exception as e:
@@ -499,6 +500,29 @@ def get_partition_mbr_layout(size, layout):
     return sfdisk_definition
 
 
+def get_partition_gpt_layout(size, layout):
+    if isinstance(layout, bool):
+        return [(None, [0, 0])]
+
+    partition_specs = []
+    for partition in layout:
+        if isinstance(partition, list):
+            if len(partition) != 2:
+                raise Exception(
+                    "Partition was incorrectly defined: %s" % partition)
+            percent, partition_type = partition
+        else:
+            percent = partition
+            partition_type = None
+
+        part_size = int(float(size) * (float(percent) / 100))
+        partition_specs.append((partition_type, [0, '+{}'.format(part_size)]))
+
+    # The last partition should use up all remaining space
+    partition_specs[-1][-1][-1] = 0
+    return partition_specs
+
+
 def purge_disk_ptable(device):
     # wipe the first and last megabyte of a disk (or file)
     # gpt stores partition table both at front and at end.
@@ -572,6 +596,22 @@ def exec_mkpart_mbr(device, layout):
         raise Exception("Failed to partition device %s\n%s" % (device, e))
 
     read_parttbl(device)
+
+
+def exec_mkpart_gpt(device, layout):
+    try:
+        util.subp([SGDISK_CMD, '-Z', device])
+        for index, (partition_type, (start, end)) in enumerate(layout):
+            index += 1
+            util.subp([SGDISK_CMD,
+                       '-n', '{}:{}:{}'.format(index, start, end), device])
+            if partition_type is not None:
+                util.subp(
+                    [SGDISK_CMD,
+                     '-t', '{}:{}'.format(index, partition_type), device])
+    except Exception:
+        print "Failed to partition device %s" % (device,)
+        raise
 
 
 def exec_mkpart(table_type, device, layout):
