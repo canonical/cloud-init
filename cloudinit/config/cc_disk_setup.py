@@ -316,22 +316,6 @@ def is_disk_used(device):
     return False
 
 
-def get_hdd_size(device):
-    """
-    Returns the hard disk size.
-    This works with any disk type, including GPT.
-    """
-
-    size_cmd = [SFDISK_CMD, '--show-size', device]
-    size = None
-    try:
-        size, _err = util.subp(size_cmd)
-    except Exception as e:
-        raise Exception("Failed to get %s size\n%s" % (device, e))
-
-    return int(size.strip())
-
-
 def get_dyn_func(*args):
     """
     Call the appropriate function.
@@ -357,6 +341,30 @@ def get_dyn_func(*args):
 
     except KeyError:
         raise Exception("No such function %s to call!" % func_name)
+
+
+def get_mbr_hdd_size(device):
+    size_cmd = [SFDISK_CMD, '--show-size', device]
+    size = None
+    try:
+        size, _err = util.subp(size_cmd)
+    except Exception as e:
+        raise Exception("Failed to get %s size\n%s" % (device, e))
+
+    return int(size.strip())
+
+
+def get_gpt_hdd_size(device):
+    out, _ = util.subp([SGDISK_CMD, '-p', device])
+    return out.splitlines()[0].split()[2]
+
+
+def get_hdd_size(table_type, device):
+    """
+    Returns the hard disk size.
+    This works with any disk type, including GPT.
+    """
+    return get_dyn_func("get_%s_hdd_size", table_type, device)
 
 
 def check_partition_mbr_layout(device, layout):
@@ -676,7 +684,7 @@ def mkpart(device, definition):
         return
 
     LOG.debug("Checking for device size")
-    device_size = get_hdd_size(device)
+    device_size = get_hdd_size(table_type, device)
 
     LOG.debug("Calculating partition layout")
     part_definition = get_partition_layout(table_type, device_size, layout)
