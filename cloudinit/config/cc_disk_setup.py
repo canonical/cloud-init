@@ -151,7 +151,7 @@ def enumerate_disk(device, nodeps=False):
         name: the device name, i.e. sda
     """
 
-    lsblk_cmd = [LSBLK_CMD, '--pairs', '--out', 'NAME,TYPE,FSTYPE,LABEL',
+    lsblk_cmd = [LSBLK_CMD, '--pairs', '--output', 'NAME,TYPE,FSTYPE,LABEL',
                  device]
 
     if nodeps:
