@@ -393,6 +393,36 @@ def check_partition_mbr_layout(device, layout):
                     break
 
             found_layout.append(type_label)
+    return found_layout
+
+
+def check_partition_gpt_layout(device, layout):
+    prt_cmd = ['sgdisk', '-p', device]
+    try:
+        out, _err = util.subp(prt_cmd)
+    except Exception as e:
+        raise Exception("Error running partition command on %s\n%s" % (
+                        device, e))
+
+    out_lines = iter(out.splitlines())
+    # Skip header
+    for line in out_lines:
+        if line.strip().startswith('Number'):
+            break
+
+    return [line.strip().split()[-1] for line in out_lines]
+
+
+def check_partition_layout(table_type, device, layout):
+    """
+    See if the partition lay out matches.
+
+    This is future a future proofing function. In order
+    to add support for other disk layout schemes, add a
+    function called check_partition_%s_layout
+    """
+    found_layout = get_dyn_func(
+        "check_partition_%s_layout", table_type, device, layout)
 
     if isinstance(layout, bool):
         # if we are using auto partitioning, or "True" be happy
@@ -415,18 +445,6 @@ def check_partition_mbr_layout(device, layout):
             return True
 
     return False
-
-
-def check_partition_layout(table_type, device, layout):
-    """
-    See if the partition lay out matches.
-
-    This is future a future proofing function. In order
-    to add support for other disk layout schemes, add a
-    function called check_partition_%s_layout
-    """
-    return get_dyn_func("check_partition_%s_layout", table_type, device,
-                        layout)
 
 
 def get_partition_mbr_layout(size, layout):
