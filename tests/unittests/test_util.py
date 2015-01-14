@@ -310,4 +310,32 @@ class TestMountinfoParsing(helpers.ResourceUsingTestCase):
         expected = ('none', 'tmpfs', '/run/lock')
         self.assertEqual(expected, util.parse_mount_info('/run/lock', lines))
 
+
+class TestReadDMIData(helpers.FilesystemMockingTestCase):
+
+    def _patchIn(self, root):
+        self.restore()
+        self.patchOS(root)
+        self.patchUtils(root)
+
+    def _write_key(self, key, content):
+        new_root = self.makeDir()
+        self._patchIn(new_root)
+        util.ensure_dir(os.path.join('sys', 'class', 'dmi', 'id'))
+
+        dmi_key = "/sys/class/dmi/id/{}".format(key)
+        util.write_file(dmi_key, content)
+
+    def test_key(self):
+        key_content = "TEST-KEY-DATA"
+        self._write_key("key", key_content)
+        self.assertEquals(key_content, util.read_dmi_data("key"))
+
+    def test_key_mismatch(self):
+        self._write_key("test", "ABC")
+        self.assertNotEqual("123",  util.read_dmi_data("test"))
+
+    def test_no_key(self):
+        self.assertFalse(util.read_dmi_data("key"))
+
 # vi: ts=4 expandtab

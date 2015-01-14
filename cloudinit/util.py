@@ -72,6 +72,9 @@ FN_ALLOWED = ('_-.()' + string.digits + string.ascii_letters)
 # Helper utils to see if running in a container
 CONTAINER_TESTS = ['running-in-container', 'lxc-is-container']
 
+# Path for DMI Data
+DMI_SYS_PATH = "/sys/class/dmi/id"
+
 
 class ProcessExecutionError(IOError):
 
@@ -2011,3 +2014,28 @@ def human2bytes(size):
         raise ValueError("'%s': cannot be negative" % size_in)
 
     return int(num * mpliers[mplier])
+
+
+def read_dmi_data(key):
+    """
+    Reads dmi data with from /sys/class/dmi/id
+    """
+
+    dmi_key = "{}/{}".format(DMI_SYS_PATH, key)
+    LOG.debug("querying dmi data {}".format(dmi_key))
+    try:
+        if not os.path.exists(dmi_key):
+            LOG.debug("did not find {}".format(dmi_key))
+            return None
+
+        key_data = load_file(dmi_key)
+        if not key_data:
+            LOG.debug("{} did not return any data".format(key))
+            return None
+
+        LOG.debug("dmi data {} returned {}".format(dmi_key, key_data))
+        return key_data.strip()
+
+    except Exception as e:
+        logexc(LOG, "failed read of {}".format(dmi_key), e)
+        return None
