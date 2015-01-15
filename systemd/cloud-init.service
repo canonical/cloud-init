@@ -1,7 +1,7 @@
 [Unit]
 Description=Initial cloud-init job (metadata service crawler)
 After=local-fs.target network.target cloud-init-local.service
-Before=sshd.service sshd-keygen.service
+Before=sshd.service sshd-keygen.service getty.target
 Requires=network.target
 Wants=local-fs.target cloud-init-local.service sshd.service sshd-keygen.service
 
