@@ -16,6 +16,7 @@
    types
  - Update to use newer/better OMNIBUS_URL for chef module
  - GCE: Allow base64 encoded user-data (LP: #1404311) [Wayne Witzell III]
+ - GCE: use short hostname rather than fqdn (LP: #1383794) [Ben Howard]
 0.7.6:
  - open 0.7.6
  - Enable vendordata on CloudSigma datasource (LP: #1303986)
