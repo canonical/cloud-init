@@ -29,6 +29,7 @@ BUILTIN_DS_CONFIG = {
 }
 REQUIRED_FIELDS = ('instance-id', 'availability-zone', 'local-hostname')
 
+
 class DataSourceGCE(sources.DataSource):
     def __init__(self, sys_cfg, distro, paths):
         sources.DataSource.__init__(self, sys_cfg, distro, paths)
@@ -59,7 +60,8 @@ class DataSourceGCE(sources.DataSource):
             ('local-hostname', 'instance/hostname', True),
             ('public-keys', 'project/attributes/sshKeys', False),
             ('user-data', 'instance/attributes/user-data', False),
-            ('user-data-encoding', 'instance/attributes/user-data-encoding', False),
+            ('user-data-encoding', 'instance/attributes/user-data-encoding',
+             False),
         ]
 
         # if we cannot resolve the metadata server, then no point in trying
@@ -106,7 +108,8 @@ class DataSourceGCE(sources.DataSource):
         encoding = self.metadata.get('user-data-encoding')
         if encoding:
             if encoding == 'base64':
-                self.metadata['user-data'] = b64decode(self.metadata['user-data'])
+                self.metadata['user-data'] = b64decode(
+                    self.metadata['user-data'])
             else:
                 LOG.warn('unknown user-data-encoding: %s, ignoring', encoding)
 
