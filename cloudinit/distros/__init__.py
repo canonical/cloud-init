@@ -86,7 +86,7 @@ class Distro(object):
     def set_hostname(self, hostname, fqdn=None):
         writeable_hostname = self._select_hostname(hostname, fqdn)
         self._write_hostname(writeable_hostname, self.hostname_conf_fn)
-        self._apply_hostname(hostname)
+        self._apply_hostname(writeable_hostname)
 
     @abc.abstractmethod
     def package_command(self, cmd, args=None, pkgs=None):
@@ -160,9 +160,12 @@ class Distro(object):
             util.logexc(LOG, "Failed to non-persistently adjust the system "
                         "hostname to %s", hostname)
 
-    @abc.abstractmethod
     def _select_hostname(self, hostname, fqdn):
-        raise NotImplementedError()
+        # Prefer the short hostname over the long
+        # fully qualified domain name
+        if not hostname:
+            return fqdn
+        return hostname
 
     @staticmethod
     def expand_osfamily(family_list):

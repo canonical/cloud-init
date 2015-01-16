@@ -150,11 +150,6 @@ class Distro(distros.Distro):
             return default
         return hostname
 
-    def _select_hostname(self, hostname, fqdn):
-        if not hostname:
-            return fqdn
-        return hostname
-
     def _write_hostname(self, hostname, filename):
         self.updatercconf('hostname', hostname)
 

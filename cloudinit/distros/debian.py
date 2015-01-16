@@ -86,13 +86,6 @@ class Distro(distros.Distro):
         else:
             return distros.Distro._bring_up_interfaces(self, device_names)
 
-    def _select_hostname(self, hostname, fqdn):
-        # Prefer the short hostname over the long
-        # fully qualified domain name
-        if not hostname:
-            return fqdn
-        return hostname
-
     def _write_hostname(self, your_hostname, out_fn):
         conf = None
         try:
