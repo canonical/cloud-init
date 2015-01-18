@@ -16,6 +16,8 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+import os
+
 from StringIO import StringIO
 
 import re
@@ -28,6 +30,8 @@ from cloudinit import util
 
 from cloudinit.distros import net_util
 from cloudinit.distros.parsers.resolv_conf import ResolvConf
+
+from cloudinit.settings import PER_INSTANCE
 
 LOG = logging.getLogger(__name__)
 
@@ -367,13 +371,34 @@ class Distro(distros.Distro):
             LOG.warn("Error running %s: %s", cmd, err)
 
     def install_packages(self, pkglist):
-        return
+        self.update_package_sources()
+        self.package_command('install', pkgs=pkglist)
 
-    def package_command(self, cmd, args=None, pkgs=None):
-        return
+    def package_command(self, command, args=None, pkgs=None):
+        if pkgs is None:
+            pkgs = []
+
+        e = os.environ.copy()
+        e['ASSUME_ALWAYS_YES'] = 'YES'
+
+        cmd = ['pkg']
+        if args and isinstance(args, str):
+            cmd.append(args)
+        elif args and isinstance(args, list):
+            cmd.extend(args)
+
+        if command:
+            cmd.append(command)
+
+        pkglist = util.expand_package_list('%s-%s', pkgs)
+        cmd.extend(pkglist)
+
+        # Allow the output of this to flow outwards (ie not be captured)
+        util.subp(cmd, env=e, capture=False)	
 
     def set_timezone(self, tz):
         return
 
     def update_package_sources(self):
-        return
+        self._runner.run("update-sources", self.package_command,
+                         ["update"], freq=PER_INSTANCE)
