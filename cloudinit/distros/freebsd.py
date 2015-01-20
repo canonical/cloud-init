@@ -238,9 +238,21 @@ class Distro(distros.Distro):
             util.logexc(LOG, "Failed to create user %s", name)
             raise e
 
-    # TODO:
     def set_passwd(self, user, passwd, hashed=False):
-        return False
+        cmd = ['pw', 'usermod', user]
+
+        if hashed:
+            cmd.append('-H')
+        else:
+            cmd.append('-h')
+
+        cmd.append('0')
+
+        try:
+            util.subp(cmd, passwd, logstring="chpasswd for %s" % user)
+        except Exception as e:
+            util.logexc(LOG, "Failed to set password for %s", user)
+            raise e
 
     def lock_passwd(self, name):
         try:
@@ -394,10 +406,10 @@ class Distro(distros.Distro):
         cmd.extend(pkglist)
 
         # Allow the output of this to flow outwards (ie not be captured)
-        util.subp(cmd, env=e, capture=False)	
+        util.subp(cmd, env=e, capture=False)
 
     def set_timezone(self, tz):
-        return
+        distros.set_etc_timezone(tz=tz, tz_file=self._find_tz_file(tz))
 
     def update_package_sources(self):
         self._runner.run("update-sources", self.package_command,

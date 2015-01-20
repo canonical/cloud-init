@@ -49,10 +49,10 @@ cloud_config_modules:
 # - mounts
  - ssh-import-id
  - locale
-# - set-passwords
-# - package-update-upgrade-install
+ - set-passwords
+ - package-update-upgrade-install
 # - landscape
-# - timezone
+ - timezone
 # - puppet
 # - chef
 # - salt-minion
@@ -80,9 +80,9 @@ cloud_final_modules:
 system_info:
    distro: freebsd
    default_user:
-     name: beastie
+     name: freebsd
      lock_passwd: True
      gecos: FreeBSD
      groups: [wheel]
      sudo: ["ALL=(ALL) NOPASSWD:ALL"]
-     shell: /bin/sh
+     shell: /bin/tcsh
