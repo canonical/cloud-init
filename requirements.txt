@@ -1,34 +1,6 @@
-# Pypi requirements for cloud-init to work
-
-# Used for untemplating any files or strings with parameters.
-cheetah
-jinja2
-
-# This is used for any pretty printing of tabular data.
-PrettyTable
-
-# This one is currently only used by the MAAS datasource. If that
-# datasource is removed, this is no longer needed
-oauth
-
-# This one is currently used only by the CloudSigma and SmartOS datasources.
-# If these datasources are removed, this is no longer needed
-pyserial
-
-# This is only needed for places where we need to support configs in a manner
-# that the built-in config parser is not sufficent (ie
-# when we need to preserve comments, or do not have a top-level
-# section)...
-configobj
-
-# All new style configurations are in the yaml format
+pbr
+six>=1.7.0
 pyyaml
-
-# The new main entrypoint uses argparse instead of optparse
-argparse
-
-# Requests handles ssl correctly!
-requests
-
-# For patching pieces of cloud-config together
 jsonpatch
+requests
+requests-oauthlib
