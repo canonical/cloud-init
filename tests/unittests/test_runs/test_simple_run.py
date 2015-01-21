@@ -41,7 +41,7 @@ class TestSimpleRun(helpers.FilesystemMockingTestCase):
                 {
                     'path': '/etc/blah.ini',
                     'content': 'blah',
-                    'permissions': 0755,
+                    'permissions': 0o755,
                 },
             ],
             'cloud_init_modules': ['write-files'],

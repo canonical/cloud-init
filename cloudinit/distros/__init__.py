@@ -272,7 +272,7 @@ class Distro(object):
             if header:
                 contents.write("%s\n" % (header))
             contents.write("%s\n" % (eh))
-            util.write_file(self.hosts_fn, contents.getvalue(), mode=0644)
+            util.write_file(self.hosts_fn, contents.getvalue(), mode=0o644)
 
     def _bring_up_interface(self, device_name):
         cmd = ['ifup', device_name]

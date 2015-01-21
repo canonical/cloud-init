@@ -79,7 +79,7 @@ class TestWriteFile(MockerTestCase):
             create_contents = f.read()
             self.assertEqual(contents, create_contents)
         file_stat = os.stat(path)
-        self.assertEqual(0644, stat.S_IMODE(file_stat.st_mode))
+        self.assertEqual(0o644, stat.S_IMODE(file_stat.st_mode))
 
     def test_dir_is_created_if_required(self):
         """Verifiy that directories are created is required."""
@@ -97,12 +97,12 @@ class TestWriteFile(MockerTestCase):
         path = os.path.join(self.tmp, "NewFile.txt")
         contents = "Hey there"
 
-        util.write_file(path, contents, mode=0666)
+        util.write_file(path, contents, mode=0o666)
 
         self.assertTrue(os.path.exists(path))
         self.assertTrue(os.path.isfile(path))
         file_stat = os.stat(path)
-        self.assertEqual(0666, stat.S_IMODE(file_stat.st_mode))
+        self.assertEqual(0o666, stat.S_IMODE(file_stat.st_mode))
 
     def test_custom_omode(self):
         """Verify custom omode works properly."""

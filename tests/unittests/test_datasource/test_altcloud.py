@@ -45,7 +45,7 @@ def _write_cloud_info_file(value):
     cifile = open(cloudinit.sources.DataSourceAltCloud.CLOUD_INFO_FILE, 'w')
     cifile.write(value)
     cifile.close()
-    os.chmod(cloudinit.sources.DataSourceAltCloud.CLOUD_INFO_FILE, 0664)
+    os.chmod(cloudinit.sources.DataSourceAltCloud.CLOUD_INFO_FILE, 0o664)
 
 
 def _remove_cloud_info_file():

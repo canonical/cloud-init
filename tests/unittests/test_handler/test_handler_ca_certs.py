@@ -150,7 +150,7 @@ class TestAddCaCerts(MockerTestCase):
         mock_load = self.mocker.replace(util.load_file, passthrough=False)
 
         mock_write("/usr/share/ca-certificates/cloud-init-ca-certs.crt",
-                   cert, mode=0644)
+                   cert, mode=0o644)
 
         mock_load("/etc/ca-certificates.conf")
         self.mocker.result(ca_certs_content)

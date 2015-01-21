@@ -337,7 +337,7 @@ p: 1
 
         mock_write = self.mocker.replace("cloudinit.util.write_file",
                                          passthrough=False)
-        mock_write(ci.paths.get_ipath("cloud_config"), "", 0600)
+        mock_write(ci.paths.get_ipath("cloud_config"), "", 0o600)
         self.mocker.replay()
 
         log_file = self.capture_log(logging.WARNING)

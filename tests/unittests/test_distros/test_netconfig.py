@@ -96,7 +96,7 @@ class TestNetCfgDistro(MockerTestCase):
 
         write_bufs = {}
 
-        def replace_write(filename, content, mode=0644, omode="wb"):
+        def replace_write(filename, content, mode=0o644, omode="wb"):
             buf = WriteBuffer()
             buf.mode = mode
             buf.omode = omode

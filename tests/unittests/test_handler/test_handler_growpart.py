@@ -145,7 +145,7 @@ class TestResize(MockerTestCase):
         # this patches out devent2dev, os.stat, and device_part_info
         # so in the end, doesn't test a lot
         devs = ["/dev/XXda1", "/dev/YYda2"]
-        devstat_ret = Bunch(st_mode=25008, st_ino=6078, st_dev=5L,
+        devstat_ret = Bunch(st_mode=25008, st_ino=6078, st_dev=5,
                             st_nlink=1, st_uid=0, st_gid=6, st_size=0,
                             st_atime=0, st_mtime=0, st_ctime=0)
         enoent = ["/dev/NOENT"]

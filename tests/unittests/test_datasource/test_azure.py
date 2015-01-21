@@ -153,7 +153,7 @@ class TestAzureDataSource(MockerTestCase):
         ret = dsrc.get_data()
         self.assertTrue(ret)
         self.assertTrue(os.path.isdir(self.waagent_d))
-        self.assertEqual(stat.S_IMODE(os.stat(self.waagent_d).st_mode), 0700)
+        self.assertEqual(stat.S_IMODE(os.stat(self.waagent_d).st_mode), 0o700)
 
     def test_user_cfg_set_agent_command_plain(self):
         # set dscfg in via plaintext

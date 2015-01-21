@@ -48,7 +48,7 @@ class TestWalkerHandleHandler(MockerTestCase):
         # Mock the write_file function
         write_file_mock = self.mocker.replace(util.write_file,
                                               passthrough=False)
-        write_file_mock(expected_file_fullname, self.payload, 0600)
+        write_file_mock(expected_file_fullname, self.payload, 0o600)
 
     def test_no_errors(self):
         """Payload gets written to file and added to C{pdata}."""
