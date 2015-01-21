@@ -1,0 +1,32 @@
+#!/bin/sh
+
+error() { echo "$@" 1>&2; }
+fail() { [ $# -eq 0 ] || error "$@"; exit 1; }
+Usage() {
+   cat <<EOF
+Usage: ${0##*/} tox-environment [command [args]]
+   run command with provided arguments in the provided tox environment
+   command defaults to \${SHELL:-/bin/sh}.
+EOF
+}
+
+[ $# -eq 0 ] && { Usage 1>&2; exit 1; }
+[ "$1" = "-h" -o "$1" = "--help" ] && { Usage; exit 0; }
+
+env="$1"
+shift
+tox_d="${0%/*}/../.tox"
+activate="$tox_d/$env/bin/activate"
+
+[ -d "$tox_d" ] || fail "$tox_d: not a dir. maybe run 'tox'?"
+if [ ! -f "$activate" ]; then
+   error "$env: not a valid tox environment?" 1>&1
+   error "try one of:"
+   ( cd "$tox_d" &&
+     for d in *; do [ -f "$d/bin/activate" ] && error "  $d"; done )
+   fail
+fi
+. "$activate"
+
+[ "$#" -gt 0 ] || set -- ${SHELL:-/bin/bash}
+debian_chroot="tox:$env" exec "$@"
