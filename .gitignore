@@ -1,0 +1,3 @@
+.tox/
+cloudinit.egg-info/
+*.pyc
