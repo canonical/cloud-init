@@ -29,7 +29,7 @@ from .. import helpers as t_help
 
 from configobj import ConfigObj
 
-from StringIO import StringIO
+from six import BytesIO
 
 import logging
 
@@ -59,6 +59,6 @@ class TestLocale(t_help.FilesystemMockingTestCase):
         cc = self._get_cloud('sles')
         cc_locale.handle('cc_locale', cfg, cc, LOG, [])
 
-        contents = util.load_file('/etc/sysconfig/language')
-        n_cfg = ConfigObj(StringIO(contents))
+        contents = util.load_file('/etc/sysconfig/language', decode=False)
+        n_cfg = ConfigObj(BytesIO(contents))
         self.assertEquals({'RC_LANG': cfg['locale']}, dict(n_cfg))

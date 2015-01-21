@@ -52,4 +52,4 @@ class ShellScriptPartHandler(handlers.Handler):
         filename = util.clean_filename(filename)
         payload = util.dos2unix(payload)
         path = os.path.join(self.script_dir, filename)
-        util.write_file(path, payload, 0700)
+        util.write_file(path, payload, 0o700)

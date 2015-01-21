@@ -20,8 +20,6 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-from StringIO import StringIO
-
 import contextlib
 import copy as obj_copy
 import ctypes
@@ -45,8 +43,10 @@ import subprocess
 import sys
 import tempfile
 import time
-import urlparse
 
+from six.moves.urllib import parse as urlparse
+
+import six
 import yaml
 
 from cloudinit import importer
@@ -69,8 +69,26 @@ FN_REPLACEMENTS = {
 }
 FN_ALLOWED = ('_-.()' + string.digits + string.ascii_letters)
 
+TRUE_STRINGS = ('true', '1', 'on', 'yes')
+FALSE_STRINGS = ('off', '0', 'no', 'false')
+
+
 # Helper utils to see if running in a container
-CONTAINER_TESTS = ['running-in-container', 'lxc-is-container']
+CONTAINER_TESTS = ('running-in-container', 'lxc-is-container')
+
+
+def decode_binary(blob, encoding='utf-8'):
+    # Converts a binary type into a text type using given encoding.
+    if isinstance(blob, six.text_type):
+        return blob
+    return blob.decode(encoding)
+
+
+def encode_text(text, encoding='utf-8'):
+    # Converts a text string into a binary type using given encoding.
+    if isinstance(text, six.binary_type):
+        return text
+    return text.encode(encoding)
 
 
 class ProcessExecutionError(IOError):
@@ -95,7 +113,7 @@ class ProcessExecutionError(IOError):
         else:
             self.description = description
 
-        if not isinstance(exit_code, (long, int)):
+        if not isinstance(exit_code, six.integer_types):
             self.exit_code = '-'
         else:
             self.exit_code = exit_code
@@ -151,7 +169,8 @@ class SeLinuxGuard(object):
 
         path = os.path.realpath(self.path)
         # path should be a string, not unicode
-        path = str(path)
+        if six.PY2:
+            path = str(path)
         try:
             stats = os.lstat(path)
             self.selinux.matchpathcon(path, stats[stat.ST_MODE])
@@ -209,10 +228,10 @@ def fork_cb(child_cb, *args, **kwargs):
 def is_true(val, addons=None):
     if isinstance(val, (bool)):
         return val is True
-    check_set = ['true', '1', 'on', 'yes']
+    check_set = TRUE_STRINGS
     if addons:
-        check_set = check_set + addons
-    if str(val).lower().strip() in check_set:
+        check_set = list(check_set) + addons
+    if six.text_type(val).lower().strip() in check_set:
         return True
     return False
 
@@ -220,10 +239,10 @@ def is_true(val, addons=None):
 def is_false(val, addons=None):
     if isinstance(val, (bool)):
         return val is False
-    check_set = ['off', '0', 'no', 'false']
+    check_set = FALSE_STRINGS
     if addons:
-        check_set = check_set + addons
-    if str(val).lower().strip() in check_set:
+        check_set = list(check_set) + addons
+    if six.text_type(val).lower().strip() in check_set:
         return True
     return False
 
@@ -273,7 +292,7 @@ def uniq_merge_sorted(*lists):
 def uniq_merge(*lists):
     combined_list = []
     for a_list in lists:
-        if isinstance(a_list, (str, basestring)):
+        if isinstance(a_list, six.string_types):
             a_list = a_list.strip().split(",")
             # Kickout the empty ones
             a_list = [a for a in a_list if len(a)]
@@ -282,7 +301,7 @@ def uniq_merge(*lists):
 
 
 def clean_filename(fn):
-    for (k, v) in FN_REPLACEMENTS.iteritems():
+    for (k, v) in FN_REPLACEMENTS.items():
         fn = fn.replace(k, v)
     removals = []
     for k in fn:
@@ -296,14 +315,14 @@ def clean_filename(fn):
 
 def decomp_gzip(data, quiet=True):
     try:
-        buf = StringIO(str(data))
+        buf = six.BytesIO(encode_text(data))
         with contextlib.closing(gzip.GzipFile(None, "rb", 1, buf)) as gh:
-            return gh.read()
+            return decode_binary(gh.read())
     except Exception as e:
         if quiet:
             return data
         else:
-            raise DecompressionError(str(e))
+            raise DecompressionError(six.text_type(e))
 
 
 def extract_usergroup(ug_pair):
@@ -362,7 +381,7 @@ def multi_log(text, console=True, stderr=True,
 
 
 def load_json(text, root_types=(dict,)):
-    decoded = json.loads(text)
+    decoded = json.loads(decode_binary(text))
     if not isinstance(decoded, tuple(root_types)):
         expected_types = ", ".join([str(t) for t in root_types])
         raise TypeError("(%s) root types expected, got %s instead"
@@ -394,7 +413,7 @@ def get_cfg_option_str(yobj, key, default=None):
     if key not in yobj:
         return default
     val = yobj[key]
-    if not isinstance(val, (str, basestring)):
+    if not isinstance(val, six.string_types):
         val = str(val)
     return val
 
@@ -433,7 +452,7 @@ def get_cfg_option_list(yobj, key, default=None):
     if isinstance(val, (list)):
         cval = [v for v in val]
         return cval
-    if not isinstance(val, (basestring)):
+    if not isinstance(val, six.string_types):
         val = str(val)
     return [val]
 
@@ -708,10 +727,10 @@ def read_file_or_url(url, timeout=5, retries=10,
 
 def load_yaml(blob, default=None, allowed=(dict,)):
     loaded = default
+    blob = decode_binary(blob)
     try:
-        blob = str(blob)
-        LOG.debug(("Attempting to load yaml from string "
-                 "of length %s with allowed root types %s"),
+        LOG.debug("Attempting to load yaml from string "
+                 "of length %s with allowed root types %s",
                  len(blob), allowed)
         converted = safeyaml.load(blob)
         if not isinstance(converted, allowed):
@@ -746,14 +765,12 @@ def read_seeded(base="", ext="", timeout=5, retries=10, file_retries=0):
     md_resp = read_file_or_url(md_url, timeout, retries, file_retries)
     md = None
     if md_resp.ok():
-        md_str = str(md_resp)
-        md = load_yaml(md_str, default={})
+        md = load_yaml(md_resp.contents, default={})
 
     ud_resp = read_file_or_url(ud_url, timeout, retries, file_retries)
     ud = None
     if ud_resp.ok():
-        ud_str = str(ud_resp)
-        ud = ud_str
+        ud = ud_resp.contents
 
     return (md, ud)
 
@@ -784,7 +801,7 @@ def read_conf_with_confd(cfgfile):
     if "conf_d" in cfg:
         confd = cfg['conf_d']
         if confd:
-            if not isinstance(confd, (str, basestring)):
+            if not isinstance(confd, six.string_types):
                 raise TypeError(("Config file %s contains 'conf_d' "
                                  "with non-string type %s") %
                                  (cfgfile, type_utils.obj_name(confd)))
@@ -921,8 +938,8 @@ def get_cmdline_url(names=('cloud-config-url', 'url'),
         return (None, None, None)
 
     resp = read_file_or_url(url)
-    if resp.contents.startswith(starts) and resp.ok():
-        return (key, url, str(resp))
+    if resp.ok() and resp.contents.startswith(starts):
+        return (key, url, resp.contents)
 
     return (key, url, None)
 
@@ -1076,9 +1093,9 @@ def uniq_list(in_list):
     return out_list
 
 
-def load_file(fname, read_cb=None, quiet=False):
+def load_file(fname, read_cb=None, quiet=False, decode=True):
     LOG.debug("Reading from %s (quiet=%s)", fname, quiet)
-    ofh = StringIO()
+    ofh = six.BytesIO()
     try:
         with open(fname, 'rb') as ifh:
             pipe_in_out(ifh, ofh, chunk_cb=read_cb)
@@ -1089,7 +1106,10 @@ def load_file(fname, read_cb=None, quiet=False):
             raise
     contents = ofh.getvalue()
     LOG.debug("Read %s bytes from %s", len(contents), fname)
-    return contents
+    if decode:
+        return decode_binary(contents)
+    else:
+        return contents
 
 
 def get_cmdline():
@@ -1219,7 +1239,7 @@ def logexc(log, msg, *args):
 
 def hash_blob(blob, routine, mlen=None):
     hasher = hashlib.new(routine)
-    hasher.update(blob)
+    hasher.update(encode_text(blob))
     digest = hasher.hexdigest()
     # Don't get to long now
     if mlen is not None:
@@ -1280,8 +1300,7 @@ def yaml_dumps(obj, explicit_start=True, explicit_end=True):
                           indent=4,
                           explicit_start=explicit_start,
                           explicit_end=explicit_end,
-                          default_flow_style=False,
-                          allow_unicode=True)
+                          default_flow_style=False)
 
 
 def ensure_dir(path, mode=None):
@@ -1515,11 +1534,17 @@ def write_file(filename, content, mode=0o644, omode="wb"):
     @param filename: The full path of the file to write.
     @param content: The content to write to the file.
     @param mode: The filesystem mode to set on the file.
-    @param omode: The open mode used when opening the file (r, rb, a, etc.)
+    @param omode: The open mode used when opening the file (w, wb, a, etc.)
     """
     ensure_dir(os.path.dirname(filename))
-    LOG.debug("Writing to %s - %s: [%s] %s bytes",
-               filename, omode, mode, len(content))
+    if 'b' in omode.lower():
+        content = encode_text(content)
+        write_type = 'bytes'
+    else:
+        content = decode_binary(content)
+        write_type = 'characters'
+    LOG.debug("Writing to %s - %s: [%s] %s %s",
+               filename, omode, mode, len(content), write_type)
     with SeLinuxGuard(path=filename):
         with open(filename, omode) as fh:
             fh.write(content)
@@ -1608,10 +1633,10 @@ def shellify(cmdlist, add_header=True):
         if isinstance(args, list):
             fixed = []
             for f in args:
-                fixed.append("'%s'" % (str(f).replace("'", escaped)))
+                fixed.append("'%s'" % (six.text_type(f).replace("'", escaped)))
             content = "%s%s\n" % (content, ' '.join(fixed))
             cmds_made += 1
-        elif isinstance(args, (str, basestring)):
+        elif isinstance(args, six.string_types):
             content = "%s%s\n" % (content, args)
             cmds_made += 1
         else:
@@ -1722,7 +1747,7 @@ def expand_package_list(version_fmt, pkgs):
 
     pkglist = []
     for pkg in pkgs:
-        if isinstance(pkg, basestring):
+        if isinstance(pkg, six.string_types):
             pkglist.append(pkg)
             continue
 

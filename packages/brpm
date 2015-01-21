@@ -45,6 +45,7 @@ PKG_MP = {
         'pyserial': 'pyserial',
         'pyyaml': 'PyYAML',
         'requests': 'python-requests',
+        'six': 'python-six',
     },
     'suse': {
         'argparse': 'python-argparse',
@@ -56,6 +57,7 @@ PKG_MP = {
         'pyserial': 'python-pyserial',
         'pyyaml': 'python-yaml',
         'requests': 'python-requests',
+        'six': 'python-six',
     }
 }
 

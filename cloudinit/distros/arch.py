@@ -66,7 +66,7 @@ class Distro(distros.Distro):
                   settings, entries)
         dev_names = entries.keys()
         # Format for netctl
-        for (dev, info) in entries.iteritems():
+        for (dev, info) in entries.items():
             nameservers = []
             net_fn = self.network_conf_dir + dev
             net_cfg = {

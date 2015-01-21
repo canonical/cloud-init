@@ -18,7 +18,7 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-from StringIO import StringIO
+from six import StringIO
 
 import os
 import socket
@@ -81,13 +81,13 @@ def handle(name, cfg, cloud, log, _args):
         cleaned_contents = '\n'.join(cleaned_lines)
         puppet_config.readfp(StringIO(cleaned_contents),
                              filename=PUPPET_CONF_PATH)
-        for (cfg_name, cfg) in puppet_cfg['conf'].iteritems():
+        for (cfg_name, cfg) in puppet_cfg['conf'].items():
             # Cert configuration is a special case
             # Dump the puppet master ca certificate in the correct place
             if cfg_name == 'ca_cert':
                 # Puppet ssl sub-directory isn't created yet
                 # Create it with the proper permissions and ownership
-                util.ensure_dir(PUPPET_SSL_DIR, 0771)
+                util.ensure_dir(PUPPET_SSL_DIR, 0o771)
                 util.chownbyname(PUPPET_SSL_DIR, 'puppet', 'root')
                 util.ensure_dir(PUPPET_SSL_CERT_DIR)
                 util.chownbyname(PUPPET_SSL_CERT_DIR, 'puppet', 'root')
@@ -96,7 +96,7 @@ def handle(name, cfg, cloud, log, _args):
             else:
                 # Iterate throug the config items, we'll use ConfigParser.set
                 # to overwrite or create new items as needed
-                for (o, v) in cfg.iteritems():
+                for (o, v) in cfg.items():
                     if o == 'certname':
                         # Expand %f as the fqdn
                         # TODO(harlowja) should this use the cloud fqdn??

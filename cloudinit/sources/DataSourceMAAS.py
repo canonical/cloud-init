@@ -262,7 +262,7 @@ def check_seed_contents(content, seed):
 
     userdata = content.get('user-data', "")
     md = {}
-    for (key, val) in content.iteritems():
+    for (key, val) in content.items():
         if key == 'user-data':
             continue
         md[key] = val

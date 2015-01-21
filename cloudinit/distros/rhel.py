@@ -73,7 +73,7 @@ class Distro(distros.Distro):
         searchservers = []
         dev_names = entries.keys()
         use_ipv6 = False
-        for (dev, info) in entries.iteritems():
+        for (dev, info) in entries.items():
             net_fn = self.network_script_tpl % (dev)
             net_cfg = {
                 'DEVICE': dev,

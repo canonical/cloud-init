@@ -4,14 +4,14 @@ import mocker
 
 import os
 
+from six import StringIO
+
 from cloudinit import distros
 from cloudinit import helpers
 from cloudinit import settings
 from cloudinit import util
 
 from cloudinit.distros.parsers.sys_conf import SysConf
-
-from StringIO import StringIO
 
 
 BASE_NET_CFG = '''

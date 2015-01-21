@@ -216,11 +216,11 @@ def on_first_boot(data, distro=None):
     files = data.get('files', {})
     if files:
         LOG.debug("Writing %s injected files", len(files))
-        for (filename, content) in files.iteritems():
+        for (filename, content) in files.items():
             if not filename.startswith(os.sep):
                 filename = os.sep + filename
             try:
-                util.write_file(filename, content, mode=0660)
+                util.write_file(filename, content, mode=0o660)
             except IOError:
                 util.logexc(LOG, "Failed writing file: %s", filename)
 

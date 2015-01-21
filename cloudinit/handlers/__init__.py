@@ -147,7 +147,7 @@ def walker_handle_handler(pdata, _ctype, _filename, payload):
     if not modfname.endswith(".py"):
         modfname = "%s.py" % (modfname)
     # TODO(harlowja): Check if path exists??
-    util.write_file(modfname, payload, 0600)
+    util.write_file(modfname, payload, 0o600)
     handlers = pdata['handlers']
     try:
         mod = fixup_handler(importer.import_module(modname))

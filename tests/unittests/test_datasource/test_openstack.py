@@ -20,11 +20,10 @@ import copy
 import json
 import re
 
-from StringIO import StringIO
-
-from urlparse import urlparse
-
 from .. import helpers as test_helpers
+
+from six import StringIO
+from six.moves.urllib.parse import urlparse
 
 from cloudinit import helpers
 from cloudinit import settings

@@ -34,12 +34,12 @@ DISABLE_ROOT_OPTS = ("no-port-forwarding,no-agent-forwarding,"
 "rather than the user \\\"root\\\".\';echo;sleep 10\"")
 
 KEY_2_FILE = {
-    "rsa_private": ("/etc/ssh/ssh_host_rsa_key", 0600),
-    "rsa_public": ("/etc/ssh/ssh_host_rsa_key.pub", 0644),
-    "dsa_private": ("/etc/ssh/ssh_host_dsa_key", 0600),
-    "dsa_public": ("/etc/ssh/ssh_host_dsa_key.pub", 0644),
-    "ecdsa_private": ("/etc/ssh/ssh_host_ecdsa_key", 0600),
-    "ecdsa_public": ("/etc/ssh/ssh_host_ecdsa_key.pub", 0644),
+    "rsa_private": ("/etc/ssh/ssh_host_rsa_key", 0o600),
+    "rsa_public": ("/etc/ssh/ssh_host_rsa_key.pub", 0o644),
+    "dsa_private": ("/etc/ssh/ssh_host_dsa_key", 0o600),
+    "dsa_public": ("/etc/ssh/ssh_host_dsa_key.pub", 0o644),
+    "ecdsa_private": ("/etc/ssh/ssh_host_ecdsa_key", 0o600),
+    "ecdsa_public": ("/etc/ssh/ssh_host_ecdsa_key.pub", 0o644),
 }
 
 PRIV_2_PUB = {
@@ -68,13 +68,13 @@ def handle(_name, cfg, cloud, log, _args):
 
     if "ssh_keys" in cfg:
         # if there are keys in cloud-config, use them
-        for (key, val) in cfg["ssh_keys"].iteritems():
+        for (key, val) in cfg["ssh_keys"].items():
             if key in KEY_2_FILE:
                 tgt_fn = KEY_2_FILE[key][0]
                 tgt_perms = KEY_2_FILE[key][1]
                 util.write_file(tgt_fn, val, tgt_perms)
 
-        for (priv, pub) in PRIV_2_PUB.iteritems():
+        for (priv, pub) in PRIV_2_PUB.items():
             if pub in cfg['ssh_keys'] or priv not in cfg['ssh_keys']:
                 continue
             pair = (KEY_2_FILE[priv][0], KEY_2_FILE[pub][0])

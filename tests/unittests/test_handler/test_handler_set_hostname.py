@@ -9,7 +9,7 @@ from .. import helpers as t_help
 
 import logging
 
-from StringIO import StringIO
+from six import BytesIO
 
 from configobj import ConfigObj
 
@@ -38,8 +38,8 @@ class TestHostname(t_help.FilesystemMockingTestCase):
         cc_set_hostname.handle('cc_set_hostname',
                                cfg, cc, LOG, [])
         if not distro.uses_systemd():
-            contents = util.load_file("/etc/sysconfig/network")
-            n_cfg = ConfigObj(StringIO(contents))
+            contents = util.load_file("/etc/sysconfig/network", decode=False)
+            n_cfg = ConfigObj(BytesIO(contents))
             self.assertEquals({'HOSTNAME': 'blah.blah.blah.yahoo.com'},
                               dict(n_cfg))
 

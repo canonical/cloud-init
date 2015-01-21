@@ -85,7 +85,7 @@ class TestNoCloudDataSource(MockerTestCase):
 
         data = {
             'fs_label': None,
-            'meta-data': {'instance-id': 'IID'},
+            'meta-data': yaml.safe_dump({'instance-id': 'IID'}),
             'user-data': "USER_DATA_RAW",
         }
 

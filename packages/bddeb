@@ -38,6 +38,7 @@ PKG_MP = {
     'pyserial': 'python-serial',
     'pyyaml': 'python-yaml',
     'requests': 'python-requests',
+    'six': 'python-six',
 }
 DEBUILD_ARGS = ["-S", "-d"]
 

@@ -1,10 +1,10 @@
 """Tests for handling of userdata within cloud init."""
 
-import StringIO
-
 import gzip
 import logging
 import os
+
+from six import BytesIO, StringIO
 
 from email.mime.application import MIMEApplication
 from email.mime.base import MIMEBase
@@ -53,7 +53,7 @@ class TestConsumeUserData(helpers.FilesystemMockingTestCase):
         self.patchUtils(root)
 
     def capture_log(self, lvl=logging.DEBUG):
-        log_file = StringIO.StringIO()
+        log_file = StringIO()
         self._log_handler = logging.StreamHandler(log_file)
         self._log_handler.setLevel(lvl)
         self._log = log.getLogger()
@@ -351,9 +351,9 @@ p: 1
         """Tests that individual message gzip encoding works."""
 
         def gzip_part(text):
-            contents = StringIO.StringIO()
-            f = gzip.GzipFile(fileobj=contents, mode='w')
-            f.write(str(text))
+            contents = BytesIO()
+            f = gzip.GzipFile(fileobj=contents, mode='wb')
+            f.write(util.encode_text(text))
             f.flush()
             f.close()
             return MIMEApplication(contents.getvalue(), 'gzip')

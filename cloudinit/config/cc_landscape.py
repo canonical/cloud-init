@@ -20,7 +20,7 @@
 
 import os
 
-from StringIO import StringIO
+from six import StringIO
 
 from configobj import ConfigObj
 

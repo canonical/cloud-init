@@ -50,7 +50,7 @@ class BootHookPartHandler(handlers.Handler):
         filepath = os.path.join(self.boothook_dir, filename)
         contents = util.strip_prefix_suffix(util.dos2unix(payload),
                                             prefix=BOOTHOOK_PREFIX)
-        util.write_file(filepath, contents.lstrip(), 0700)
+        util.write_file(filepath, contents.lstrip(), 0o700)
         return filepath
 
     def handle_part(self, data, ctype, filename, payload, frequency):

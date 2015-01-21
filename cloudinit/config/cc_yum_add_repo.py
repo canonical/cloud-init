@@ -18,9 +18,10 @@
 
 import os
 
-from cloudinit import util
-
 import configobj
+import six
+
+from cloudinit import util
 
 
 def _canonicalize_id(repo_id):
@@ -37,7 +38,7 @@ def _format_repo_value(val):
         # Can handle 'lists' in certain cases
         # See: http://bit.ly/Qqrf1t
         return "\n    ".join([_format_repo_value(v) for v in val])
-    if not isinstance(val, (basestring, str)):
+    if not isinstance(val, six.string_types):
         return str(val)
     return val
 

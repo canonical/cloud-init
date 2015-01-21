@@ -21,7 +21,8 @@
 
 import base64
 import os
-from StringIO import StringIO
+
+from six import StringIO
 
 from cloudinit.settings import PER_INSTANCE
 from cloudinit import log as logging

@@ -126,7 +126,7 @@ def mirror2lists_fileprefix(mirror):
 
 
 def rename_apt_lists(old_mirrors, new_mirrors, lists_d="/var/lib/apt/lists"):
-    for (name, omirror) in old_mirrors.iteritems():
+    for (name, omirror) in old_mirrors.items():
         nmirror = new_mirrors.get(name)
         if not nmirror:
             continue

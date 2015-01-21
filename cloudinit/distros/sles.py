@@ -62,7 +62,7 @@ class Distro(distros.Distro):
         nameservers = []
         searchservers = []
         dev_names = entries.keys()
-        for (dev, info) in entries.iteritems():
+        for (dev, info) in entries.items():
             net_fn = self.network_script_tpl % (dev)
             mode = info.get('auto')
             if mode and mode.lower() == 'true':

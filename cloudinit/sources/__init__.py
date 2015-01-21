@@ -23,6 +23,8 @@
 import abc
 import os
 
+import six
+
 from cloudinit import importer
 from cloudinit import log as logging
 from cloudinit import type_utils
@@ -130,7 +132,7 @@ class DataSource(object):
         # we want to return the correct value for what will actually
         # exist in this instance
         mappings = {"sd": ("vd", "xvd", "vtb")}
-        for (nfrom, tlist) in mappings.iteritems():
+        for (nfrom, tlist) in mappings.items():
             if not short_name.startswith(nfrom):
                 continue
             for nto in tlist:
@@ -218,18 +220,18 @@ def normalize_pubkey_data(pubkey_data):
     if not pubkey_data:
         return keys
 
-    if isinstance(pubkey_data, (basestring, str)):
+    if isinstance(pubkey_data, six.string_types):
         return str(pubkey_data).splitlines()
 
     if isinstance(pubkey_data, (list, set)):
         return list(pubkey_data)
 
     if isinstance(pubkey_data, (dict)):
-        for (_keyname, klist) in pubkey_data.iteritems():
+        for (_keyname, klist) in pubkey_data.items():
             # lp:506332 uec metadata service responds with
             # data that makes boto populate a string for 'klist' rather
             # than a list.
-            if isinstance(klist, (str, basestring)):
+            if isinstance(klist, six.string_types):
                 klist = [klist]
             if isinstance(klist, (list, set)):
                 for pkey in klist:

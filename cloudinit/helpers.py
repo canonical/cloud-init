@@ -23,10 +23,11 @@
 from time import time
 
 import contextlib
-import io
 import os
 
-from ConfigParser import (NoSectionError, NoOptionError, RawConfigParser)
+import six
+from six.moves.configparser import (
+    NoSectionError, NoOptionError, RawConfigParser)
 
 from cloudinit.settings import (PER_INSTANCE, PER_ALWAYS, PER_ONCE,
                                 CFG_ENV_NAME)
@@ -318,10 +319,10 @@ class ContentHandlers(object):
         return self.registered[content_type]
 
     def items(self):
-        return self.registered.items()
+        return list(self.registered.items())
 
-    def iteritems(self):
-        return self.registered.iteritems()
+    # XXX This should really go away.
+    iteritems = items
 
 
 class Paths(object):
@@ -449,7 +450,7 @@ class DefaultingConfigParser(RawConfigParser):
 
     def stringify(self, header=None):
         contents = ''
-        with io.BytesIO() as outputstream:
+        with six.StringIO() as outputstream:
             self.write(outputstream)
             outputstream.flush()
             contents = outputstream.getvalue()

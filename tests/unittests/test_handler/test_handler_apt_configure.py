@@ -16,12 +16,12 @@ class TestAptProxyConfig(MockerTestCase):
         self.cfile = os.path.join(self.tmp, "config.cfg")
 
     def _search_apt_config(self, contents, ptype, value):
-        print(
+        ## print(
+        ##     r"acquire::%s::proxy\s+[\"']%s[\"'];\n" % (ptype, value),
+        ##     contents, "flags=re.IGNORECASE")
+        return re.search(
             r"acquire::%s::proxy\s+[\"']%s[\"'];\n" % (ptype, value),
-            contents, "flags=re.IGNORECASE")
-        return(re.search(
-            r"acquire::%s::proxy\s+[\"']%s[\"'];\n" % (ptype, value),
-            contents, flags=re.IGNORECASE))
+            contents, flags=re.IGNORECASE)
 
     def test_apt_proxy_written(self):
         cfg = {'apt_proxy': 'myproxy'}

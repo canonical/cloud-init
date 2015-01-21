@@ -22,7 +22,7 @@ import base64
 import gzip
 import tempfile
 
-from StringIO import StringIO
+from six import StringIO
 
 from cloudinit import cloud
 from cloudinit import distros

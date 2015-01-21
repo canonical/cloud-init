@@ -6,7 +6,7 @@ from .. import helpers
 
 import logging
 
-from StringIO import StringIO
+from six import BytesIO
 
 import configobj
 
@@ -52,8 +52,9 @@ class TestConfig(helpers.FilesystemMockingTestCase):
         }
         self.patchUtils(self.tmp)
         cc_yum_add_repo.handle('yum_add_repo', cfg, None, LOG, [])
-        contents = util.load_file("/etc/yum.repos.d/epel_testing.repo")
-        contents = configobj.ConfigObj(StringIO(contents))
+        contents = util.load_file("/etc/yum.repos.d/epel_testing.repo",
+                                  decode=False)
+        contents = configobj.ConfigObj(BytesIO(contents))
         expected = {
             'epel_testing': {
                 'name': 'Extra Packages for Enterprise Linux 5 - Testing',
