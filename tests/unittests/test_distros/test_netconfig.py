@@ -112,7 +112,7 @@ class TestNetCfgDistro(MockerTestCase):
         self.assertIn('/etc/network/interfaces', write_bufs)
         write_buf = write_bufs['/etc/network/interfaces']
         self.assertEquals(str(write_buf).strip(), BASE_NET_CFG.strip())
-        self.assertEquals(write_buf.mode, 0644)
+        self.assertEquals(write_buf.mode, 0o644)
 
     def assertCfgEquals(self, blob1, blob2):
         b1 = dict(SysConf(blob1.strip().splitlines()))
@@ -136,7 +136,7 @@ class TestNetCfgDistro(MockerTestCase):
 
         write_bufs = {}
 
-        def replace_write(filename, content, mode=0644, omode="wb"):
+        def replace_write(filename, content, mode=0o644, omode="wb"):
             buf = WriteBuffer()
             buf.mode = mode
             buf.omode = omode
@@ -169,7 +169,7 @@ DEVICE="lo"
 ONBOOT=yes
 '''
         self.assertCfgEquals(expected_buf, str(write_buf))
-        self.assertEquals(write_buf.mode, 0644)
+        self.assertEquals(write_buf.mode, 0o644)
 
         self.assertIn('/etc/sysconfig/network-scripts/ifcfg-eth0', write_bufs)
         write_buf = write_bufs['/etc/sysconfig/network-scripts/ifcfg-eth0']
@@ -183,7 +183,7 @@ GATEWAY="192.168.1.254"
 BROADCAST="192.168.1.0"
 '''
         self.assertCfgEquals(expected_buf, str(write_buf))
-        self.assertEquals(write_buf.mode, 0644)
+        self.assertEquals(write_buf.mode, 0o644)
 
         self.assertIn('/etc/sysconfig/network-scripts/ifcfg-eth1', write_bufs)
         write_buf = write_bufs['/etc/sysconfig/network-scripts/ifcfg-eth1']
@@ -193,7 +193,7 @@ BOOTPROTO="dhcp"
 ONBOOT=yes
 '''
         self.assertCfgEquals(expected_buf, str(write_buf))
-        self.assertEquals(write_buf.mode, 0644)
+        self.assertEquals(write_buf.mode, 0o644)
 
         self.assertIn('/etc/sysconfig/network', write_bufs)
         write_buf = write_bufs['/etc/sysconfig/network']
@@ -202,7 +202,7 @@ ONBOOT=yes
 NETWORKING=yes
 '''
         self.assertCfgEquals(expected_buf, str(write_buf))
-        self.assertEquals(write_buf.mode, 0644)
+        self.assertEquals(write_buf.mode, 0o644)
 
     def test_write_ipv6_rhel(self):
         rh_distro = self._get_distro('rhel')
@@ -215,7 +215,7 @@ NETWORKING=yes
 
         write_bufs = {}
 
-        def replace_write(filename, content, mode=0644, omode="wb"):
+        def replace_write(filename, content, mode=0o644, omode="wb"):
             buf = WriteBuffer()
             buf.mode = mode
             buf.omode = omode
@@ -248,7 +248,7 @@ DEVICE="lo"
 ONBOOT=yes
 '''
         self.assertCfgEquals(expected_buf, str(write_buf))
-        self.assertEquals(write_buf.mode, 0644)
+        self.assertEquals(write_buf.mode, 0o644)
 
         self.assertIn('/etc/sysconfig/network-scripts/ifcfg-eth0', write_bufs)
         write_buf = write_bufs['/etc/sysconfig/network-scripts/ifcfg-eth0']
@@ -265,7 +265,7 @@ IPV6ADDR="2607:f0d0:1002:0011::2"
 IPV6_DEFAULTGW="2607:f0d0:1002:0011::1"
 '''
         self.assertCfgEquals(expected_buf, str(write_buf))
-        self.assertEquals(write_buf.mode, 0644)
+        self.assertEquals(write_buf.mode, 0o644)
         self.assertIn('/etc/sysconfig/network-scripts/ifcfg-eth1', write_bufs)
         write_buf = write_bufs['/etc/sysconfig/network-scripts/ifcfg-eth1']
         expected_buf = '''
@@ -281,7 +281,7 @@ IPV6ADDR="2607:f0d0:1002:0011::3"
 IPV6_DEFAULTGW="2607:f0d0:1002:0011::1"
 '''
         self.assertCfgEquals(expected_buf, str(write_buf))
-        self.assertEquals(write_buf.mode, 0644)
+        self.assertEquals(write_buf.mode, 0o644)
 
         self.assertIn('/etc/sysconfig/network', write_bufs)
         write_buf = write_bufs['/etc/sysconfig/network']
@@ -292,7 +292,7 @@ NETWORKING_IPV6=yes
 IPV6_AUTOCONF=no
 '''
         self.assertCfgEquals(expected_buf, str(write_buf))
-        self.assertEquals(write_buf.mode, 0644)
+        self.assertEquals(write_buf.mode, 0o644)
 
     def test_simple_write_freebsd(self):
         fbsd_distro = self._get_distro('freebsd')
@@ -319,7 +319,7 @@ IPV6_AUTOCONF=no
             '/etc/resolv.conf': '',
         }
 
-        def replace_write(filename, content, mode=0644, omode="wb"):
+        def replace_write(filename, content, mode=0o644, omode="wb"):
             buf = WriteBuffer()
             buf.mode = mode
             buf.omode = omode
@@ -355,4 +355,4 @@ ifconfig_vtnet1="DHCP"
 defaultrouter="192.168.1.254"
 '''
         self.assertCfgEquals(expected_buf, str(write_buf))
-        self.assertEquals(write_buf.mode, 0644)
+        self.assertEquals(write_buf.mode, 0o644)

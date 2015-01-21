@@ -66,12 +66,12 @@ def _write_user_data_files(mount_dir, value):
     udfile = open(deltacloud_user_data_file, 'w')
     udfile.write(value)
     udfile.close()
-    os.chmod(deltacloud_user_data_file, 0664)
+    os.chmod(deltacloud_user_data_file, 0o664)
 
     udfile = open(user_data_file, 'w')
     udfile.write(value)
     udfile.close()
-    os.chmod(user_data_file, 0664)
+    os.chmod(user_data_file, 0o664)
 
 
 def _remove_user_data_files(mount_dir,

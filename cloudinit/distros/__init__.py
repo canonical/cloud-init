@@ -468,7 +468,7 @@ class Distro(object):
                              util.make_header(base="added"),
                              "#includedir %s" % (path), '']
                     sudoers_contents = "\n".join(lines)
-                    util.write_file(sudo_base, sudoers_contents, 0440)
+                    util.write_file(sudo_base, sudoers_contents, 0o440)
                 else:
                     lines = ['', util.make_header(base="added"),
                              "#includedir %s" % (path), '']
@@ -478,7 +478,7 @@ class Distro(object):
             except IOError as e:
                 util.logexc(LOG, "Failed to write %s", sudo_base)
                 raise e
-        util.ensure_dir(path, 0750)
+        util.ensure_dir(path, 0o750)
 
     def write_sudo_rules(self, user, rules, sudo_file=None):
         if not sudo_file:
@@ -506,7 +506,7 @@ class Distro(object):
                 content,
             ]
             try:
-                util.write_file(sudo_file, "\n".join(contents), 0440)
+                util.write_file(sudo_file, "\n".join(contents), 0o440)
             except IOError as e:
                 util.logexc(LOG, "Failed to write sudoers file %s", sudo_file)
                 raise e

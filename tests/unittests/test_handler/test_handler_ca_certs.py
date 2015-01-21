@@ -171,7 +171,7 @@ class TestAddCaCerts(MockerTestCase):
         mock_load = self.mocker.replace(util.load_file, passthrough=False)
 
         mock_write("/usr/share/ca-certificates/cloud-init-ca-certs.crt",
-                   cert, mode=0644)
+                   cert, mode=0o644)
 
         mock_load("/etc/ca-certificates.conf")
         self.mocker.result(ca_certs_content)
@@ -192,7 +192,7 @@ class TestAddCaCerts(MockerTestCase):
         mock_load = self.mocker.replace(util.load_file, passthrough=False)
 
         mock_write("/usr/share/ca-certificates/cloud-init-ca-certs.crt",
-                   expected_cert_file, mode=0644)
+                   expected_cert_file, mode=0o644)
 
         ca_certs_content = "line1\nline2\nline3"
         mock_load("/etc/ca-certificates.conf")
@@ -233,7 +233,7 @@ class TestRemoveDefaultCaCerts(MockerTestCase):
 
         mock_delete_dir_contents("/usr/share/ca-certificates/")
         mock_delete_dir_contents("/etc/ssl/certs/")
-        mock_write("/etc/ca-certificates.conf", "", mode=0644)
+        mock_write("/etc/ca-certificates.conf", "", mode=0o644)
         mock_subp(('debconf-set-selections', '-'),
                   "ca-certificates ca-certificates/trust_new_crts select no")
         self.mocker.replay()
