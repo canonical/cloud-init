@@ -319,12 +319,31 @@ class TestReadDMIData(helpers.FilesystemMockingTestCase):
         self.patchUtils(root)
 
     def _write_key(self, key, content):
+        """Mocks the sys path found on Linux systems."""
         new_root = self.makeDir()
         self._patchIn(new_root)
         util.ensure_dir(os.path.join('sys', 'class', 'dmi', 'id'))
 
         dmi_key = "/sys/class/dmi/id/{}".format(key)
         util.write_file(dmi_key, content)
+
+    def _no_syspath(self, key, content):
+        """
+        In order to test a missing sys path and call outs to dmidecode, this
+        function fakes the results of dmidecode to test the results.
+        """
+        new_root = self.makeDir()
+        self._patchIn(new_root)
+        self.real_which = util.which
+        self.real_subp = util.subp
+
+        def _which(key):
+            return True
+        util.which = _which
+
+        def _cdd(_key, error=None):
+            return (content, error)
+        util.subp = _cdd
 
     def test_key(self):
         key_content = "TEST-KEY-DATA"
@@ -333,9 +352,18 @@ class TestReadDMIData(helpers.FilesystemMockingTestCase):
 
     def test_key_mismatch(self):
         self._write_key("test", "ABC")
-        self.assertNotEqual("123",  util.read_dmi_data("test"))
+        self.assertNotEqual("123", util.read_dmi_data("test"))
 
     def test_no_key(self):
+        self._no_syspath(None, None)
         self.assertFalse(util.read_dmi_data("key"))
+
+    def test_callout_dmidecode(self):
+        """test to make sure that dmidecode is used when no syspath"""
+        self._no_syspath("key", "stuff")
+        self.assertEquals("stuff", util.read_dmi_data("key"))
+        self._no_syspath("key", None)
+        self.assertFalse(None, util.read_dmi_data("key"))
+
 
 # vi: ts=4 expandtab

@@ -2016,7 +2016,7 @@ def human2bytes(size):
     return int(num * mpliers[mplier])
 
 
-def read_dmi_data(key):
+def _read_dmi_syspath(key):
     """
     Reads dmi data with from /sys/class/dmi/id
     """
@@ -2039,3 +2039,36 @@ def read_dmi_data(key):
     except Exception as e:
         logexc(LOG, "failed read of {}".format(dmi_key), e)
         return None
+
+
+def _call_dmidecode(key, dmidecode_path):
+    """
+    Calls out to dmidecode to get the data out. This is mostly for supporting
+    OS's without /sys/class/dmi/id support.
+    """
+    try:
+        cmd = [dmidecode_path, "--string", key]
+        (result, _err) = subp(cmd)
+        LOG.debug("dmidecode returned '{}' for '{}'".format(result, key))
+        return result
+    except OSError, _err:
+        LOG.debug('failed dmidecode cmd: {}\n{}'.format(cmd, _err.message))
+        return None
+
+
+def read_dmi_data(key):
+    """
+    Wrapper for reading DMI data. This tries to determine whether the DMI
+    Data can be read directly, otherwise it will fallback to using dmidecode.
+    """
+    if os.path.exists(DMI_SYS_PATH):
+        return _read_dmi_syspath(key)
+
+    dmidecode_path = which('dmidecode')
+    if dmidecode_path:
+        return _call_dmidecode(key, dmidecode_path)
+
+    LOG.warn("did not find either path {} or dmidecode command".format(
+             DMI_SYS_PATH))
+
+    return None
