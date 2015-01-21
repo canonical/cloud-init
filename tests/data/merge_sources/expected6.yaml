@@ -1,9 +1,0 @@
-#cloud-config
-
-run_cmds:
-   - bash
-   - top
-   - ps
-   - vi
-   - emacs
-

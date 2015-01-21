@@ -1,6 +1,0 @@
-#cloud-config
-Blah:
-  b: null
-
-
-merge_how: 'dict(allow_delete,no_replace)+list()'

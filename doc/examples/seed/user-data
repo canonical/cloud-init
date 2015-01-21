@@ -1,3 +1,0 @@
-#cloud-config
-runcmd:
- - [ sh, -c, 'echo ==== $(date) ====; echo HI WORLD; echo =======' ]

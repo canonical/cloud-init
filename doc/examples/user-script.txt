@@ -1,8 +1,0 @@
-#!/bin/sh
-
-cat <<EOF
-============================
-My name is ${0}
-I was input via user data
-============================
-EOF

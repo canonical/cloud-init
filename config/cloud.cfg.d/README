@@ -1,3 +1,0 @@
-# All files in this directory will be read by cloud-init
-# They are read in lexical order.  Later files overwrite values in
-# earlier files.

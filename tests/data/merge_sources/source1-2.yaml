@@ -1,5 +1,0 @@
-#cloud-config
-
-Blah: ['b']
-
-merge_how: 'dict(recurse_array,no_replace)+list(append)'
