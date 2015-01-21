@@ -1,0 +1,3 @@
+.tox
+dist
+cloud_init.egg-info
