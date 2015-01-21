@@ -1,7 +1,6 @@
 # Pypi requirements for cloud-init to work
 
 # Used for untemplating any files or strings with parameters.
-cheetah
 jinja2
 
 # This is used for any pretty printing of tabular data.
@@ -32,3 +31,6 @@ requests
 
 # For patching pieces of cloud-config together
 jsonpatch
+
+# For Python 2/3 compatibility
+six

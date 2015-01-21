@@ -175,6 +175,11 @@ else:
     }
 
 
+requirements = read_requires()
+if sys.version_info < (3,):
+    requirements.append('cheetah')
+
+
 setuptools.setup(name='cloud-init',
       version=get_version(),
       description='EC2 initialisation magic',
@@ -187,6 +192,6 @@ setuptools.setup(name='cloud-init',
                ],
       license='GPLv3',
       data_files=data_files,
-      install_requires=read_requires(),
+      install_requires=requirements,
       cmdclass=cmdclass,
       )

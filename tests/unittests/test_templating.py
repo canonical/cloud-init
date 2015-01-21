@@ -16,6 +16,9 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+import six
+import unittest
+
 from . import helpers as test_helpers
 import textwrap
 
@@ -38,6 +41,7 @@ class TestTemplates(test_helpers.TestCase):
         out_data = templater.basic_render(in_data, {'b': 2})
         self.assertEqual(expected_data.strip(), out_data)
 
+    @unittest.skipIf(six.PY3, 'Cheetah is not compatible with Python 3')
     def test_detection(self):
         blob = "## template:cheetah"
 
