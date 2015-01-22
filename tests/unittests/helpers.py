@@ -1,6 +1,16 @@
 import os
 import sys
+import tempfile
 import unittest
+
+try:
+    from unittest import mock
+except ImportError:
+    import mock
+try:
+    from contextlib import ExitStack
+except ImportError:
+    from contextlib2 import ExitStack
 
 from cloudinit import helpers as ch
 from cloudinit import util
@@ -111,7 +121,11 @@ def retarget_many_wrapper(new_base, am, old_func):
 
 
 class ResourceUsingTestCase(unittest.TestCase):
-    def __init__(self, methodName="runTest"):
+    ## def __init__(self, methodName="runTest"):
+    ##     self.resource_path = None
+
+    def setUp(self):
+        unittest.TestCase.setUp(self)
         self.resource_path = None
 
     def resourceLocation(self, subname=None):
@@ -139,17 +153,23 @@ class ResourceUsingTestCase(unittest.TestCase):
             return fh.read()
 
     def getCloudPaths(self):
+        tmpdir = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, tmpdir)
         cp = ch.Paths({
-            'cloud_dir': self.makeDir(),
+            'cloud_dir': tmpdir,
             'templates_dir': self.resourceLocation(),
         })
         return cp
 
 
 class FilesystemMockingTestCase(ResourceUsingTestCase):
-    def __init__(self, methodName="runTest"):
-        ResourceUsingTestCase.__init__(self, methodName)
-        self.patched_funcs = []
+    ## def __init__(self, methodName="runTest"):
+    ##     ResourceUsingTestCase.__init__(self, methodName)
+
+    def setUp(self):
+        ResourceUsingTestCase.setUp(self)
+        self.patched_funcs = ExitStack()
+        self.addCleanup(self.patched_funcs.close)
 
     def replicateTestRoot(self, example_root, target_root):
         real_root = self.resourceLocation()
@@ -162,15 +182,6 @@ class FilesystemMockingTestCase(ResourceUsingTestCase):
                 real_path = util.abs_join(real_path, f)
                 make_path = util.abs_join(make_path, f)
                 shutil.copy(real_path, make_path)
-
-    def tearDown(self):
-        self.restore()
-        ResourceUsingTestCase.tearDown(self)
-
-    def restore(self):
-        for (mod, f, func) in self.patched_funcs:
-            setattr(mod, f, func)
-        self.patched_funcs = []
 
     def patchUtils(self, new_root):
         patch_funcs = {
@@ -188,8 +199,8 @@ class FilesystemMockingTestCase(ResourceUsingTestCase):
             for (f, am) in funcs:
                 func = getattr(mod, f)
                 trap_func = retarget_many_wrapper(new_root, am, func)
-                setattr(mod, f, trap_func)
-                self.patched_funcs.append((mod, f, func))
+                self.patched_funcs.enter_context(
+                    mock.patch.object(mod, f, trap_func))
 
         # Handle subprocess calls
         func = getattr(util, 'subp')
@@ -197,16 +208,15 @@ class FilesystemMockingTestCase(ResourceUsingTestCase):
         def nsubp(*_args, **_kwargs):
             return ('', '')
 
-        setattr(util, 'subp', nsubp)
-        self.patched_funcs.append((util, 'subp', func))
+        self.patched_funcs.enter_context(
+            mock.patch.object(util, 'subp', nsubp))
 
         def null_func(*_args, **_kwargs):
             return None
 
         for f in ['chownbyid', 'chownbyname']:
-            func = getattr(util, f)
-            setattr(util, f, null_func)
-            self.patched_funcs.append((util, f, func))
+            self.patched_funcs.enter_context(
+                mock.patch.object(util, f, null_func))
 
     def patchOS(self, new_root):
         patch_funcs = {
@@ -217,8 +227,8 @@ class FilesystemMockingTestCase(ResourceUsingTestCase):
             for f in funcs:
                 func = getattr(mod, f)
                 trap_func = retarget_many_wrapper(new_root, 1, func)
-                setattr(mod, f, trap_func)
-                self.patched_funcs.append((mod, f, func))
+                self.patched_funcs.enter_context(
+                    mock.patch.object(mod, f, trap_func))
 
 
 class HttprettyTestCase(TestCase):
