@@ -57,13 +57,10 @@ class TestWalkerHandleHandler(unittest.TestCase):
 
         # Mock the write_file() function.  We'll assert that it got called as
         # expected in each of the individual tests.
-        self.resources = ExitStack()
-        self.write_file_mock = self.resources.enter_context(
+        resources = ExitStack()
+        self.addCleanup(resources.close)
+        self.write_file_mock = resources.enter_context(
             mock.patch('cloudinit.util.write_file'))
-
-    def tearDown(self):
-        self.resources.close()
-        unittest.TestCase.tearDown(self)
 
     def test_no_errors(self):
         """Payload gets written to file and added to C{pdata}."""

@@ -3,12 +3,23 @@ from cloudinit.util import load_file
 from cloudinit.sources import DataSourceAzure
 from ..helpers import populate_dir
 
+try:
+    from unittest import mock
+except ImportError:
+    import mock
+try:
+    from contextlib import ExitStack
+except ImportError:
+    from contextlib2 import ExitStack
+
 import base64
 import crypt
-from mocker import MockerTestCase
 import os
 import stat
 import yaml
+import shutil
+import tempfile
+import unittest
 
 
 def construct_valid_ovf_env(data=None, pubkeys=None, userdata=None):
@@ -66,26 +77,24 @@ def construct_valid_ovf_env(data=None, pubkeys=None, userdata=None):
     return content
 
 
-class TestAzureDataSource(MockerTestCase):
+class TestAzureDataSource(unittest.TestCase):
 
     def setUp(self):
-        # makeDir comes from MockerTestCase
-        self.tmp = self.makeDir()
+        self.tmp = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, self.tmp)
 
         # patch cloud_dir, so our 'seed_dir' is guaranteed empty
         self.paths = helpers.Paths({'cloud_dir': self.tmp})
         self.waagent_d = os.path.join(self.tmp, 'var', 'lib', 'waagent')
 
-        self.unapply = []
+        self.patches = ExitStack()
+        self.addCleanup(self.patches.close)
+
         super(TestAzureDataSource, self).setUp()
 
-    def tearDown(self):
-        apply_patches([i for i in reversed(self.unapply)])
-        super(TestAzureDataSource, self).tearDown()
-
     def apply_patches(self, patches):
-        ret = apply_patches(patches)
-        self.unapply += ret
+        for module, name, new in patches:
+            self.patches.enter_context(mock.patch.object(module, name, new))
 
     def _get_ds(self, data):
 
@@ -117,16 +126,14 @@ class TestAzureDataSource(MockerTestCase):
         mod = DataSourceAzure
         mod.BUILTIN_DS_CONFIG['data_dir'] = self.waagent_d
 
-        self.apply_patches([(mod, 'list_possible_azure_ds_devs', dsdevs)])
-
-        self.apply_patches([(mod, 'invoke_agent', _invoke_agent),
-                            (mod, 'wait_for_files', _wait_for_files),
-                            (mod, 'pubkeys_from_crt_files',
-                             _pubkeys_from_crt_files),
-                            (mod, 'iid_from_shared_config',
-                             _iid_from_shared_config),
-                            (mod, 'apply_hostname_bounce',
-                             _apply_hostname_bounce), ])
+        self.apply_patches([
+            (mod, 'list_possible_azure_ds_devs', dsdevs),
+            (mod, 'invoke_agent', _invoke_agent),
+            (mod, 'wait_for_files', _wait_for_files),
+            (mod, 'pubkeys_from_crt_files', _pubkeys_from_crt_files),
+            (mod, 'iid_from_shared_config', _iid_from_shared_config),
+            (mod, 'apply_hostname_bounce', _apply_hostname_bounce),
+            ])
 
         dsrc = mod.DataSourceAzureNet(
             data.get('sys_cfg', {}), distro=None, paths=self.paths)
@@ -402,7 +409,7 @@ class TestAzureDataSource(MockerTestCase):
             load_file(os.path.join(self.waagent_d, 'ovf-env.xml')))
 
 
-class TestReadAzureOvf(MockerTestCase):
+class TestReadAzureOvf(unittest.TestCase):
     def test_invalid_xml_raises_non_azure_ds(self):
         invalid_xml = "<foo>" + construct_valid_ovf_env(data={})
         self.assertRaises(DataSourceAzure.BrokenAzureDataSource,
@@ -417,7 +424,7 @@ class TestReadAzureOvf(MockerTestCase):
             self.assertIn(mypk, cfg['_pubkeys'])
 
 
-class TestReadAzureSharedConfig(MockerTestCase):
+class TestReadAzureSharedConfig(unittest.TestCase):
     def test_valid_content(self):
         xml = """<?xml version="1.0" encoding="utf-8"?>
             <SharedConfig>
@@ -429,14 +436,3 @@ class TestReadAzureSharedConfig(MockerTestCase):
             </SharedConfig>"""
         ret = DataSourceAzure.iid_from_shared_config_content(xml)
         self.assertEqual("MY_INSTANCE_ID", ret)
-
-
-def apply_patches(patches):
-    ret = []
-    for (ref, name, replace) in patches:
-        if replace is None:
-            continue
-        orig = getattr(ref, name)
-        setattr(ref, name, replace)
-        ret.append((ref, name, orig))
-    return ret
