@@ -99,7 +99,8 @@ class TestDataSourceGCE(test_helpers.HttprettyTestCase):
             body=_new_request_callback())
         self.ds.get_data()
 
-        self.assertEqual(GCE_META.get('instance/hostname'),
+        shostname = GCE_META.get('instance/hostname').split('.')[0]
+        self.assertEqual(shostname,
                          self.ds.get_hostname())
 
         self.assertEqual(GCE_META.get('instance/id'),
@@ -126,8 +127,8 @@ class TestDataSourceGCE(test_helpers.HttprettyTestCase):
         self.assertEqual(GCE_META_PARTIAL.get('instance/id'),
                          self.ds.get_instance_id())
 
-        self.assertEqual(GCE_META_PARTIAL.get('instance/hostname'),
-                         self.ds.get_hostname())
+        shostname = GCE_META_PARTIAL.get('instance/hostname').split('.')[0]
+        self.assertEqual(shostname, self.ds.get_hostname())
 
     @httpretty.activate
     def test_metadata_encoding(self):
