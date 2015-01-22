@@ -12,6 +12,8 @@ from cloudinit.sources import DataSourceNone
 from .. import helpers as t_help
 
 import logging
+import shutil
+import tempfile
 
 LOG = logging.getLogger(__name__)
 
@@ -19,7 +21,8 @@ LOG = logging.getLogger(__name__)
 class TestChef(t_help.FilesystemMockingTestCase):
     def setUp(self):
         super(TestChef, self).setUp()
-        self.tmp = self.makeDir(prefix="unittest_")
+        self.tmp = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, self.tmp)
 
     def fetch_cloud(self, distro_kind):
         cls = distros.fetch(distro_kind)

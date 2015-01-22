@@ -1,4 +1,6 @@
 import os
+import shutil
+import tempfile
 
 from .. import helpers
 
@@ -33,7 +35,8 @@ class TestSimpleRun(helpers.FilesystemMockingTestCase):
             self._patchIn(root)
 
     def test_none_ds(self):
-        new_root = self.makeDir()
+        new_root = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, new_root)
         self.replicateTestRoot('simple_ubuntu', new_root)
         cfg = {
             'datasource_list': ['None'],

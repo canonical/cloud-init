@@ -1,18 +1,24 @@
 from copy import copy
 import json
 import os
-import os.path
+import shutil
+import tempfile
+import unittest
 
-import mocker
-from mocker import MockerTestCase
+try:
+    from unittest import mock
+except ImportError:
+    import mock
+try:
+    from contextlib import ExitStack
+except ImportError:
+    from contextlib2 import ExitStack
 
 from cloudinit import helpers
 from cloudinit import settings
 from cloudinit.sources import DataSourceConfigDrive as ds
 from cloudinit.sources.helpers import openstack
 from cloudinit import util
-
-from .. import helpers as unit_helpers
 
 PUBKEY = u'ssh-rsa AAAAB3NzaC1....sIkJhq8wdX+4I3A4cYbYP ubuntu@server-460\n'
 EC2_META = {
@@ -64,11 +70,12 @@ CFG_DRIVE_FILES_V2 = {
   'openstack/latest/user_data': USER_DATA}
 
 
-class TestConfigDriveDataSource(MockerTestCase):
+class TestConfigDriveDataSource(unittest.TestCase):
 
     def setUp(self):
         super(TestConfigDriveDataSource, self).setUp()
-        self.tmp = self.makeDir()
+        self.tmp = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, self.tmp)
 
     def test_ec2_metadata(self):
         populate_dir(self.tmp, CFG_DRIVE_FILES_V2)
@@ -91,22 +98,27 @@ class TestConfigDriveDataSource(MockerTestCase):
             'swap': '/dev/vda3',
         }
         for name, dev_name in name_tests.items():
-            with unit_helpers.mocker() as my_mock:
-                find_mock = my_mock.replace(util.find_devs_with,
-                                            spec=False, passthrough=False)
+            with ExitStack() as mocks:
                 provided_name = dev_name[len('/dev/'):]
                 provided_name = "s" + provided_name[1:]
-                find_mock(mocker.ARGS)
-                my_mock.result([provided_name])
-                exists_mock = my_mock.replace(os.path.exists,
-                                              spec=False, passthrough=False)
-                exists_mock(mocker.ARGS)
-                my_mock.result(False)
-                exists_mock(mocker.ARGS)
-                my_mock.result(True)
-                my_mock.replay()
+                find_mock = mocks.enter_context(
+                    mock.patch.object(util, 'find_devs_with',
+                                      return_value=[provided_name]))
+                # We want os.path.exists() to return False on its first call,
+                # and True on its second call.  We use a handy generator as
+                # the mock side effect for this.  The mocked function returns
+                # what the side effect returns.
+                def exists_side_effect():
+                    yield False
+                    yield True
+                exists_mock = mocks.enter_context(
+                    mock.patch.object(os.path, 'exists',
+                                      side_effect=exists_side_effect()))
                 device = cfg_ds.device_name_to_device(name)
                 self.assertEquals(dev_name, device)
+
+                find_mock.assert_called_once_with(mock.ANY)
+                self.assertEqual(exists_mock.call_count, 2)
 
     def test_dev_os_map(self):
         populate_dir(self.tmp, CFG_DRIVE_FILES_V2)
@@ -123,18 +135,18 @@ class TestConfigDriveDataSource(MockerTestCase):
             'swap': '/dev/vda3',
         }
         for name, dev_name in name_tests.items():
-            with unit_helpers.mocker() as my_mock:
-                find_mock = my_mock.replace(util.find_devs_with,
-                                            spec=False, passthrough=False)
-                find_mock(mocker.ARGS)
-                my_mock.result([dev_name])
-                exists_mock = my_mock.replace(os.path.exists,
-                                              spec=False, passthrough=False)
-                exists_mock(mocker.ARGS)
-                my_mock.result(True)
-                my_mock.replay()
+            with ExitStack() as mocks:
+                find_mock = mocks.enter_context(
+                    mock.patch.object(util, 'find_devs_with',
+                                      return_value=[dev_name]))
+                exists_mock = mocks.enter_context(
+                    mock.patch.object(os.path, 'exists',
+                                      return_value=True))
                 device = cfg_ds.device_name_to_device(name)
                 self.assertEquals(dev_name, device)
+
+                find_mock.assert_called_once_with(mock.ANY)
+                exists_mock.assert_called_once_with(mock.ANY)
 
     def test_dev_ec2_remap(self):
         populate_dir(self.tmp, CFG_DRIVE_FILES_V2)
@@ -156,16 +168,21 @@ class TestConfigDriveDataSource(MockerTestCase):
             'root2k': None,
         }
         for name, dev_name in name_tests.items():
-            with unit_helpers.mocker(verify_calls=False) as my_mock:
-                exists_mock = my_mock.replace(os.path.exists,
-                                              spec=False, passthrough=False)
-                exists_mock(mocker.ARGS)
-                my_mock.result(False)
-                exists_mock(mocker.ARGS)
-                my_mock.result(True)
-                my_mock.replay()
+            # We want os.path.exists() to return False on its first call,
+            # and True on its second call.  We use a handy generator as
+            # the mock side effect for this.  The mocked function returns
+            # what the side effect returns.
+            def exists_side_effect():
+                yield False
+                yield True
+            with mock.patch.object(os.path, 'exists',
+                                   side_effect=exists_side_effect()):
                 device = cfg_ds.device_name_to_device(name)
                 self.assertEquals(dev_name, device)
+                # We don't assert the call count for os.path.exists() because
+                # not all of the entries in name_tests results in two calls to
+                # that function.  Specifically, 'root2k' doesn't seem to call
+                # it at all.
 
     def test_dev_ec2_map(self):
         populate_dir(self.tmp, CFG_DRIVE_FILES_V2)
@@ -173,12 +190,6 @@ class TestConfigDriveDataSource(MockerTestCase):
                                           None,
                                           helpers.Paths({}))
         found = ds.read_config_drive(self.tmp)
-        exists_mock = self.mocker.replace(os.path.exists,
-                                          spec=False, passthrough=False)
-        exists_mock(mocker.ARGS)
-        self.mocker.count(0, None)
-        self.mocker.result(True)
-        self.mocker.replay()
         ec2_md = found['ec2-metadata']
         os_md = found['metadata']
         cfg_ds.ec2_metadata = ec2_md
@@ -193,8 +204,9 @@ class TestConfigDriveDataSource(MockerTestCase):
             'root2k': None,
         }
         for name, dev_name in name_tests.items():
-            device = cfg_ds.device_name_to_device(name)
-            self.assertEquals(dev_name, device)
+            with mock.patch.object(os.path, 'exists', return_value=True):
+                device = cfg_ds.device_name_to_device(name)
+                self.assertEquals(dev_name, device)
 
     def test_dir_valid(self):
         """Verify a dir is read as such."""

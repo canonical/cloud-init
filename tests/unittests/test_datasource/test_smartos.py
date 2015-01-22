@@ -29,8 +29,11 @@ from .. import helpers
 import os
 import os.path
 import re
+import shutil
+import tempfile
 import stat
 import uuid
+
 
 MOCK_RETURNS = {
     'hostname': 'test-host',
@@ -109,9 +112,10 @@ class TestSmartOSDataSource(helpers.FilesystemMockingTestCase):
     def setUp(self):
         helpers.FilesystemMockingTestCase.setUp(self)
 
-        # makeDir comes from MockerTestCase
-        self.tmp = self.makeDir()
-        self.legacy_user_d = self.makeDir()
+        self.tmp = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, self.tmp)
+        self.legacy_user_d = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, self.legacy_user_d)
 
         # If you should want to watch the logs...
         self._log = None

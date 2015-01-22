@@ -1,6 +1,8 @@
 import os
 import stat
 import yaml
+import shutil
+import tempfile
 
 from . import helpers
 import unittest
@@ -63,7 +65,8 @@ class TestGetCfgOptionListOrStr(unittest.TestCase):
 class TestWriteFile(unittest.TestCase):
     def setUp(self):
         super(TestWriteFile, self).setUp()
-        self.tmp = self.makeDir(prefix="unittest_")
+        self.tmp = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, self.tmp)
 
     def test_basic_usage(self):
         """Verify basic usage with default args."""

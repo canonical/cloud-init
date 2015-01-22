@@ -4,6 +4,8 @@ from cloudinit.config import cc_yum_add_repo
 
 from .. import helpers
 
+import shutil
+import tempfile
 import logging
 
 from six import BytesIO
@@ -16,7 +18,8 @@ LOG = logging.getLogger(__name__)
 class TestConfig(helpers.FilesystemMockingTestCase):
     def setUp(self):
         super(TestConfig, self).setUp()
-        self.tmp = self.makeDir(prefix="unittest_")
+        self.tmp = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, self.tmp)
 
     def test_bad_config(self):
         cfg = {

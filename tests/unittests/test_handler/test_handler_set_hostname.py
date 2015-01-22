@@ -7,6 +7,8 @@ from cloudinit import util
 
 from .. import helpers as t_help
 
+import shutil
+import tempfile
 import logging
 
 from six import BytesIO
@@ -19,7 +21,8 @@ LOG = logging.getLogger(__name__)
 class TestHostname(t_help.FilesystemMockingTestCase):
     def setUp(self):
         super(TestHostname, self).setUp()
-        self.tmp = self.makeDir(prefix="unittest_")
+        self.tmp = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, self.tmp)
 
     def _fetch_distro(self, kind):
         cls = distros.fetch(kind)

@@ -32,6 +32,8 @@ from configobj import ConfigObj
 from six import BytesIO
 
 import logging
+import shutil
+import tempfile
 
 LOG = logging.getLogger(__name__)
 
@@ -39,7 +41,8 @@ LOG = logging.getLogger(__name__)
 class TestLocale(t_help.FilesystemMockingTestCase):
     def setUp(self):
         super(TestLocale, self).setUp()
-        self.new_root = self.makeDir(prefix="unittest_")
+        self.new_root = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, self.new_root)
 
     def _get_cloud(self, distro):
         self.patchUtils(self.new_root)

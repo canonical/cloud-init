@@ -55,7 +55,6 @@ class TestConsumeUserData(helpers.FilesystemMockingTestCase):
         helpers.FilesystemMockingTestCase.tearDown(self)
 
     def _patchIn(self, root):
-        self.restore()
         self.patchOS(root)
         self.patchUtils(root)
 
@@ -349,17 +348,17 @@ p: 1
         data = "arbitrary text\n"
         ci.datasource = FakeDataSource(data)
 
-        mock_write = self.mocker.replace("cloudinit.util.write_file",
-                                         passthrough=False)
-        mock_write(ci.paths.get_ipath("cloud_config"), "", 0o600)
-        self.mocker.replay()
+        with mock.patch('cloudinit.util.write_file') as mockobj:
+            log_file = self.capture_log(logging.WARNING)
+            ci.fetch()
+            ci.consume_data()
+            self.assertIn(
+                "Unhandled non-multipart (text/x-not-multipart) userdata:",
+                log_file.getvalue())
 
-        log_file = self.capture_log(logging.WARNING)
-        ci.fetch()
-        ci.consume_data()
-        self.assertIn(
-            "Unhandled non-multipart (text/x-not-multipart) userdata:",
-            log_file.getvalue())
+        mockobj.assert_called_once_with(
+            ci.paths.get_ipath("cloud_config"), "", 0o600)
+
 
     def test_mime_gzip_compressed(self):
         """Tests that individual message gzip encoding works."""

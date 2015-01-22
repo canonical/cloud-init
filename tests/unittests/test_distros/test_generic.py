@@ -4,6 +4,8 @@ from cloudinit import util
 from .. import helpers
 
 import os
+import shutil
+import tempfile
 
 unknown_arch_info = {
     'arches': ['default'],
@@ -53,7 +55,8 @@ class TestGenericDistro(helpers.FilesystemMockingTestCase):
     def setUp(self):
         super(TestGenericDistro, self).setUp()
         # Make a temp directoy for tests to use.
-        self.tmp = self.makeDir()
+        self.tmp = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, self.tmp)
 
     def _write_load_sudoers(self, _user, rules):
         cls = distros.fetch("ubuntu")
