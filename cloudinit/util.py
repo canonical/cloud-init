@@ -72,6 +72,9 @@ FN_ALLOWED = ('_-.()' + string.digits + string.ascii_letters)
 # Helper utils to see if running in a container
 CONTAINER_TESTS = ['running-in-container', 'lxc-is-container']
 
+# Path for DMI Data
+DMI_SYS_PATH = "/sys/class/dmi/id"
+
 
 class ProcessExecutionError(IOError):
 
@@ -2011,3 +2014,61 @@ def human2bytes(size):
         raise ValueError("'%s': cannot be negative" % size_in)
 
     return int(num * mpliers[mplier])
+
+
+def _read_dmi_syspath(key):
+    """
+    Reads dmi data with from /sys/class/dmi/id
+    """
+
+    dmi_key = "{}/{}".format(DMI_SYS_PATH, key)
+    LOG.debug("querying dmi data {}".format(dmi_key))
+    try:
+        if not os.path.exists(dmi_key):
+            LOG.debug("did not find {}".format(dmi_key))
+            return None
+
+        key_data = load_file(dmi_key)
+        if not key_data:
+            LOG.debug("{} did not return any data".format(key))
+            return None
+
+        LOG.debug("dmi data {} returned {}".format(dmi_key, key_data))
+        return key_data.strip()
+
+    except Exception as e:
+        logexc(LOG, "failed read of {}".format(dmi_key), e)
+        return None
+
+
+def _call_dmidecode(key, dmidecode_path):
+    """
+    Calls out to dmidecode to get the data out. This is mostly for supporting
+    OS's without /sys/class/dmi/id support.
+    """
+    try:
+        cmd = [dmidecode_path, "--string", key]
+        (result, _err) = subp(cmd)
+        LOG.debug("dmidecode returned '{}' for '{}'".format(result, key))
+        return result
+    except OSError, _err:
+        LOG.debug('failed dmidecode cmd: {}\n{}'.format(cmd, _err.message))
+        return None
+
+
+def read_dmi_data(key):
+    """
+    Wrapper for reading DMI data. This tries to determine whether the DMI
+    Data can be read directly, otherwise it will fallback to using dmidecode.
+    """
+    if os.path.exists(DMI_SYS_PATH):
+        return _read_dmi_syspath(key)
+
+    dmidecode_path = which('dmidecode')
+    if dmidecode_path:
+        return _call_dmidecode(key, dmidecode_path)
+
+    LOG.warn("did not find either path {} or dmidecode command".format(
+             DMI_SYS_PATH))
+
+    return None
