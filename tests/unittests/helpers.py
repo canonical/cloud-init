@@ -121,9 +121,6 @@ def retarget_many_wrapper(new_base, am, old_func):
 
 
 class ResourceUsingTestCase(unittest.TestCase):
-    ## def __init__(self, methodName="runTest"):
-    ##     self.resource_path = None
-
     def setUp(self):
         unittest.TestCase.setUp(self)
         self.resource_path = None
@@ -163,9 +160,6 @@ class ResourceUsingTestCase(unittest.TestCase):
 
 
 class FilesystemMockingTestCase(ResourceUsingTestCase):
-    ## def __init__(self, methodName="runTest"):
-    ##     ResourceUsingTestCase.__init__(self, methodName)
-
     def setUp(self):
         ResourceUsingTestCase.setUp(self)
         self.patched_funcs = ExitStack()
