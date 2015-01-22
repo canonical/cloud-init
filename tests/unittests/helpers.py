@@ -2,11 +2,6 @@ import os
 import sys
 import unittest
 
-from contextlib import contextmanager
-
-from mocker import Mocker
-from mocker import MockerTestCase
-
 from cloudinit import helpers as ch
 from cloudinit import util
 
@@ -86,17 +81,6 @@ else:
         pass
 
 
-@contextmanager
-def mocker(verify_calls=True):
-    m = Mocker()
-    try:
-        yield m
-    finally:
-        m.restore()
-        if verify_calls:
-            m.verify()
-
-
 # Makes the old path start
 # with new base instead of whatever
 # it previously had
@@ -126,9 +110,8 @@ def retarget_many_wrapper(new_base, am, old_func):
     return wrapper
 
 
-class ResourceUsingTestCase(MockerTestCase):
+class ResourceUsingTestCase(unittest.TestCase):
     def __init__(self, methodName="runTest"):
-        MockerTestCase.__init__(self, methodName)
         self.resource_path = None
 
     def resourceLocation(self, subname=None):

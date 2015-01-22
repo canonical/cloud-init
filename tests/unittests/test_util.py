@@ -2,7 +2,6 @@ import os
 import stat
 import yaml
 
-from mocker import MockerTestCase
 from . import helpers
 import unittest
 
@@ -61,7 +60,7 @@ class TestGetCfgOptionListOrStr(unittest.TestCase):
         self.assertEqual([], result)
 
 
-class TestWriteFile(MockerTestCase):
+class TestWriteFile(unittest.TestCase):
     def setUp(self):
         super(TestWriteFile, self).setUp()
         self.tmp = self.makeDir(prefix="unittest_")
