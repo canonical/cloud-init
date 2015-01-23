@@ -1,5 +1,3 @@
-from mocker import MockerTestCase
-
 from cloudinit import cloud
 from cloudinit import util
 
@@ -9,6 +7,16 @@ import errno
 import logging
 import os
 import re
+import unittest
+
+try:
+    from unittest import mock
+except ImportError:
+    import mock
+try:
+    from contextlib import ExitStack
+except ImportError:
+    from contextlib2 import ExitStack
 
 # growpart:
 #   mode: auto  # off, on, auto, 'growpart'
@@ -42,7 +50,7 @@ growpart disk partition
 """
 
 
-class TestDisabled(MockerTestCase):
+class TestDisabled(unittest.TestCase):
     def setUp(self):
         super(TestDisabled, self).setUp()
         self.name = "growpart"
@@ -57,14 +65,14 @@ class TestDisabled(MockerTestCase):
 
         # this really only verifies that resizer_factory isn't called
         config = {'growpart': {'mode': 'off'}}
-        self.mocker.replace(cc_growpart.resizer_factory,
-                            passthrough=False)
-        self.mocker.replay()
 
-        self.handle(self.name, config, self.cloud_init, self.log, self.args)
+        with mock.patch.object(cc_growpart, 'resizer_factory') as mockobj:
+            self.handle(self.name, config, self.cloud_init, self.log,
+                        self.args)
+            self.assertEqual(mockobj.call_count, 0)
 
 
-class TestConfig(MockerTestCase):
+class TestConfig(unittest.TestCase):
     def setUp(self):
         super(TestConfig, self).setUp()
         self.name = "growpart"
@@ -77,68 +85,69 @@ class TestConfig(MockerTestCase):
         self.cloud_init = None
         self.handle = cc_growpart.handle
 
-        # Order must be correct
-        self.mocker.order()
-
     def test_no_resizers_auto_is_fine(self):
-        subp = self.mocker.replace(util.subp, passthrough=False)
-        subp(['growpart', '--help'], env={'LANG': 'C'})
-        self.mocker.result((HELP_GROWPART_NO_RESIZE, ""))
-        self.mocker.replay()
+        with mock.patch.object(
+                util, 'subp',
+                return_value=(HELP_GROWPART_NO_RESIZE, "")) as mockobj:
 
-        config = {'growpart': {'mode': 'auto'}}
-        self.handle(self.name, config, self.cloud_init, self.log, self.args)
+            config = {'growpart': {'mode': 'auto'}}
+            self.handle(self.name, config, self.cloud_init, self.log,
+                        self.args)
+
+            mockobj.assert_called_once_with(
+                ['growpart', '--help'], env={'LANG': 'C'})
 
     def test_no_resizers_mode_growpart_is_exception(self):
-        subp = self.mocker.replace(util.subp, passthrough=False)
-        subp(['growpart', '--help'], env={'LANG': 'C'})
-        self.mocker.result((HELP_GROWPART_NO_RESIZE, ""))
-        self.mocker.replay()
+        with mock.patch.object(
+                util, 'subp',
+                return_value=(HELP_GROWPART_NO_RESIZE, "")) as mockobj:
+            config = {'growpart': {'mode': "growpart"}}
+            self.assertRaises(
+                ValueError, self.handle, self.name, config,
+                self.cloud_init, self.log, self.args)
 
-        config = {'growpart': {'mode': "growpart"}}
-        self.assertRaises(ValueError, self.handle, self.name, config,
-                          self.cloud_init, self.log, self.args)
+            mockobj.assert_called_once_with(
+                ['growpart', '--help'], env={'LANG': 'C'})
 
     def test_mode_auto_prefers_growpart(self):
-        subp = self.mocker.replace(util.subp, passthrough=False)
-        subp(['growpart', '--help'], env={'LANG': 'C'})
-        self.mocker.result((HELP_GROWPART_RESIZE, ""))
-        self.mocker.replay()
+        with mock.patch.object(
+                util, 'subp',
+                return_value=(HELP_GROWPART_RESIZE, "")) as mockobj:
+            ret = cc_growpart.resizer_factory(mode="auto")
+            self.assertIsInstance(ret, cc_growpart.ResizeGrowPart)
 
-        ret = cc_growpart.resizer_factory(mode="auto")
-        self.assertTrue(isinstance(ret, cc_growpart.ResizeGrowPart))
+            mockobj.assert_called_once_with(
+                ['growpart', '--help'], env={'LANG': 'C'})
 
     def test_handle_with_no_growpart_entry(self):
         # if no 'growpart' entry in config, then mode=auto should be used
 
         myresizer = object()
+        retval = (("/", cc_growpart.RESIZE.CHANGED, "my-message",),)
 
-        factory = self.mocker.replace(cc_growpart.resizer_factory,
-                                      passthrough=False)
-        rsdevs = self.mocker.replace(cc_growpart.resize_devices,
-                                     passthrough=False)
-        factory("auto")
-        self.mocker.result(myresizer)
-        rsdevs(myresizer, ["/"])
-        self.mocker.result((("/", cc_growpart.RESIZE.CHANGED, "my-message",),))
-        self.mocker.replay()
+        with ExitStack() as mocks:
+            factory = mocks.enter_context(
+                mock.patch.object(cc_growpart, 'resizer_factory',
+                                  return_value=myresizer))
+            rsdevs = mocks.enter_context(
+                mock.patch.object(cc_growpart, 'resize_devices',
+                                  return_value=retval))
+            mocks.enter_context(
+                mock.patch.object(cc_growpart, 'RESIZERS',
+                                  (('mysizer', object),)
+                                  ))
 
-        try:
-            orig_resizers = cc_growpart.RESIZERS
-            cc_growpart.RESIZERS = (('mysizer', object),)
             self.handle(self.name, {}, self.cloud_init, self.log, self.args)
-        finally:
-            cc_growpart.RESIZERS = orig_resizers
+
+            factory.assert_called_once_with('auto')
+            rsdevs.assert_called_once_with(myresizer, ['/'])
 
 
-class TestResize(MockerTestCase):
+class TestResize(unittest.TestCase):
     def setUp(self):
         super(TestResize, self).setUp()
         self.name = "growpart"
         self.log = logging.getLogger("TestResize")
-
-        # Order must be correct
-        self.mocker.order()
 
     def test_simple_devices(self):
         # test simple device list

@@ -4,19 +4,17 @@ import tempfile
 
 from .. import helpers
 
-from cloudinit.settings import (PER_INSTANCE)
+from cloudinit.settings import PER_INSTANCE
 from cloudinit import stages
 from cloudinit import util
 
 
 class TestSimpleRun(helpers.FilesystemMockingTestCase):
     def _patchIn(self, root):
-        self.restore()
         self.patchOS(root)
         self.patchUtils(root)
 
     def _pp_root(self, root, repatch=True):
-        self.restore()
         for (dirpath, dirnames, filenames) in os.walk(root):
             print(dirpath)
             for f in filenames:

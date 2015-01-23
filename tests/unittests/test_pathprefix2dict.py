@@ -1,13 +1,17 @@
 from cloudinit import util
 
-from mocker import MockerTestCase
 from .helpers import populate_dir
 
+import shutil
+import tempfile
+import unittest
 
-class TestPathPrefix2Dict(MockerTestCase):
+
+class TestPathPrefix2Dict(unittest.TestCase):
 
     def setUp(self):
-        self.tmp = self.makeDir()
+        self.tmp = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, self.tmp)
 
     def test_required_only(self):
         dirdata = {'f1': 'f1content', 'f2': 'f2content'}

@@ -4,14 +4,13 @@ import tempfile
 
 from .. import helpers
 
-from cloudinit.settings import (PER_INSTANCE)
+from cloudinit.settings import PER_INSTANCE
 from cloudinit import stages
 from cloudinit import util
 
 
 class TestMergeRun(helpers.FilesystemMockingTestCase):
     def _patchIn(self, root):
-        self.restore()
         self.patchOS(root)
         self.patchUtils(root)
 

@@ -6,6 +6,12 @@ import tempfile
 
 from . import helpers
 import unittest
+import six
+
+try:
+    from unittest import mock
+except ImportError:
+    import mock
 
 from cloudinit import importer
 from cloudinit import util
@@ -128,23 +134,24 @@ class TestWriteFile(unittest.TestCase):
         with open(my_file, "w") as fp:
             fp.write("My Content")
 
-        import_mock = self.mocker.replace(importer.import_module,
-                                          passthrough=False)
-        import_mock('selinux')
-
         fake_se = FakeSelinux(my_file)
-        self.mocker.result(fake_se)
-        self.mocker.replay()
-        with util.SeLinuxGuard(my_file) as is_on:
-            self.assertTrue(is_on)
+
+        with mock.patch.object(importer, 'import_module',
+                               return_value=fake_se) as mockobj:
+            with util.SeLinuxGuard(my_file) as is_on:
+                self.assertTrue(is_on)
+
         self.assertEqual(1, len(fake_se.restored))
         self.assertEqual(my_file, fake_se.restored[0])
 
+        mockobj.assert_called_once_with('selinux')
 
-class TestDeleteDirContents(MockerTestCase):
+
+class TestDeleteDirContents(unittest.TestCase):
     def setUp(self):
         super(TestDeleteDirContents, self).setUp()
-        self.tmp = self.makeDir(prefix="unittest_")
+        self.tmp = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, self.tmp)
 
     def assertDirEmpty(self, dirname):
         self.assertEqual([], os.listdir(dirname))
@@ -248,8 +255,8 @@ class TestLoadYaml(unittest.TestCase):
                          self.mydefault)
 
     def test_python_unicode(self):
-        # complex type of python/unicde is explicitly allowed
-        myobj = {'1': unicode("FOOBAR")}
+        # complex type of python/unicode is explicitly allowed
+        myobj = {'1': six.text_type("FOOBAR")}
         safe_yaml = yaml.dump(myobj)
         self.assertEqual(util.load_yaml(blob=safe_yaml,
                                         default=self.mydefault),
