@@ -1589,9 +1589,12 @@ def subp(args, data=None, rcs=None, env=None, capture=True, shell=False,
             stdout = subprocess.PIPE
             stderr = subprocess.PIPE
         stdin = subprocess.PIPE
-        sp = subprocess.Popen(args, stdout=stdout,
-                        stderr=stderr, stdin=stdin,
-                        env=env, shell=shell)
+        kws = dict(stdout=stdout, stderr=stderr, stdin=stdin,
+                   env=env, shell=shell)
+        if six.PY3:
+            # Use this so subprocess output will be (Python 3) str, not bytes.
+            kws['universal_newlines'] = True
+        sp = subprocess.Popen(args, **kws)
         (out, err) = sp.communicate(data)
     except OSError as e:
         raise ProcessExecutionError(cmd=args, reason=e)

@@ -36,14 +36,6 @@ from cloudinit import util
 
 from cloudinit.distros.parsers import hosts
 
-try:
-    # Python 3
-    from six import filter
-except ImportError:
-    # Python 2
-    from itertools import ifilter as filter
-
-
 
 OSFAMILIES = {
     'debian': ['debian', 'ubuntu'],
