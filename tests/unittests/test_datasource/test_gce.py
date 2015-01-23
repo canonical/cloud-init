@@ -19,7 +19,7 @@ import httpretty
 import re
 
 from base64 import b64encode, b64decode
-from urlparse import urlparse
+from six.moves.urllib_parse import urlparse
 
 from cloudinit import settings
 from cloudinit import helpers

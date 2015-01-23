@@ -338,7 +338,7 @@ def populate_ds_from_read_config(cfg_ds, source, results):
 
 
 def populate_dir(seed_dir, files):
-    for (name, content) in files.iteritems():
+    for (name, content) in files.items():
         path = os.path.join(seed_dir, name)
         dirname = os.path.dirname(path)
         if not os.path.isdir(dirname):

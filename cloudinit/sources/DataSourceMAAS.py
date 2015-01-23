@@ -18,6 +18,8 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+from __future__ import print_function
+
 from email.utils import parsedate
 import errno
 import oauth.oauth as oauth
@@ -361,7 +363,7 @@ if __name__ == "__main__":
             return (urllib2.urlopen(req).read())
 
         def printurl(url, headers_cb):
-            print "== %s ==\n%s\n" % (url, geturl(url, headers_cb))
+            print("== %s ==\n%s\n" % (url, geturl(url, headers_cb)))
 
         def crawl(url, headers_cb=None):
             if url.endswith("/"):
@@ -386,9 +388,9 @@ if __name__ == "__main__":
                                                           version=args.apiver)
             else:
                 (userdata, metadata) = read_maas_seed_url(args.url)
-            print "=== userdata ==="
-            print userdata
-            print "=== metadata ==="
+            print("=== userdata ===")
+            print(userdata)
+            print("=== metadata ===")
             pprint.pprint(metadata)
 
         elif args.subcmd == "get":

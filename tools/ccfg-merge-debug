@@ -51,7 +51,7 @@ def main():
     c_handlers.register(ccph)
 
     called = []
-    for (_ctype, mod) in c_handlers.iteritems():
+    for (_ctype, mod) in c_handlers.items():
         if mod in called:
             continue
         handlers.call_begin(mod, data, frequency)
@@ -76,7 +76,7 @@ def main():
 
     # Give callbacks opportunity to finalize
     called = []
-    for (_ctype, mod) in c_handlers.iteritems():
+    for (_ctype, mod) in c_handlers.items():
         if mod in called:
             continue
         handlers.call_end(mod, data, frequency)

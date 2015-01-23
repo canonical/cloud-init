@@ -18,8 +18,7 @@
 import httpretty
 import re
 
-from types import ListType
-from urlparse import urlparse
+from six.moves.urllib_parse import urlparse
 
 from cloudinit import settings
 from cloudinit import helpers
@@ -110,7 +109,7 @@ class TestDataSourceDigitalOcean(test_helpers.HttprettyTestCase):
         self.assertEqual([DO_META.get('public-keys')],
                          self.ds.get_public_ssh_keys())
 
-        self.assertIs(type(self.ds.get_public_ssh_keys()), ListType)
+        self.assertIsInstance(self.ds.get_public_ssh_keys(), list)
 
     @httpretty.activate
     def test_multiple_ssh_keys(self):
@@ -124,4 +123,4 @@ class TestDataSourceDigitalOcean(test_helpers.HttprettyTestCase):
         self.assertEqual(DO_META.get('public-keys').splitlines(),
                          self.ds.get_public_ssh_keys())
 
-        self.assertIs(type(self.ds.get_public_ssh_keys()), ListType)
+        self.assertIsInstance(self.ds.get_public_ssh_keys(), list)

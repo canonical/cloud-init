@@ -62,7 +62,7 @@ class TestAptProxyConfig(unittest.TestCase):
 
         contents = str(util.read_file_or_url(self.pfile))
 
-        for ptype, pval in values.iteritems():
+        for ptype, pval in values.items():
             self.assertTrue(self._search_apt_config(contents, ptype, pval))
 
     def test_proxy_deleted(self):

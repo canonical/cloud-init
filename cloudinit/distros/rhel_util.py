@@ -50,7 +50,7 @@ def update_sysconfig_file(fn, adjustments, allow_empty=False):
         ]
         if not exists:
             lines.insert(0, util.make_header())
-        util.write_file(fn, "\n".join(lines) + "\n", 0644)
+        util.write_file(fn, "\n".join(lines) + "\n", 0o644)
 
 
 # Helper function to read a RHEL/SUSE /etc/sysconfig/* file
@@ -86,4 +86,4 @@ def update_resolve_conf_file(fn, dns_servers, search_servers):
                 r_conf.add_search_domain(s)
             except ValueError:
                 util.logexc(LOG, "Failed at adding search domain %s", s)
-    util.write_file(fn, str(r_conf), 0644)
+    util.write_file(fn, str(r_conf), 0o644)

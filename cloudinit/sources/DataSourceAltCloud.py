@@ -124,11 +124,11 @@ class DataSourceAltCloud(sources.DataSource):
         cmd = CMD_DMI_SYSTEM
         try:
             (cmd_out, _err) = util.subp(cmd)
-        except ProcessExecutionError, _err:
+        except ProcessExecutionError as _err:
             LOG.debug(('Failed command: %s\n%s') % \
                 (' '.join(cmd), _err.message))
             return 'UNKNOWN'
-        except OSError, _err:
+        except OSError as _err:
             LOG.debug(('Failed command: %s\n%s') % \
                 (' '.join(cmd), _err.message))
             return 'UNKNOWN'
@@ -211,11 +211,11 @@ class DataSourceAltCloud(sources.DataSource):
             cmd = CMD_PROBE_FLOPPY
             (cmd_out, _err) = util.subp(cmd)
             LOG.debug(('Command: %s\nOutput%s') % (' '.join(cmd), cmd_out))
-        except ProcessExecutionError, _err:
+        except ProcessExecutionError as _err:
             util.logexc(LOG, 'Failed command: %s\n%s', ' '.join(cmd),
                         _err.message)
             return False
-        except OSError, _err:
+        except OSError as _err:
             util.logexc(LOG, 'Failed command: %s\n%s', ' '.join(cmd),
                         _err.message)
             return False
@@ -228,11 +228,11 @@ class DataSourceAltCloud(sources.DataSource):
             cmd.append('--exit-if-exists=' + floppy_dev)
             (cmd_out, _err) = util.subp(cmd)
             LOG.debug(('Command: %s\nOutput%s') % (' '.join(cmd), cmd_out))
-        except ProcessExecutionError, _err:
+        except ProcessExecutionError as _err:
             util.logexc(LOG, 'Failed command: %s\n%s', ' '.join(cmd),
                         _err.message)
             return False
-        except OSError, _err:
+        except OSError as _err:
             util.logexc(LOG, 'Failed command: %s\n%s', ' '.join(cmd),
                         _err.message)
             return False

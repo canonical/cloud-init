@@ -142,6 +142,9 @@ class ProcessExecutionError(IOError):
             'reason': self.reason,
         }
         IOError.__init__(self, message)
+        # For backward compatibility with Python 2.
+        if not hasattr(self, 'message'):
+            self.message = message
 
 
 class SeLinuxGuard(object):
@@ -260,7 +263,7 @@ def translate_bool(val, addons=None):
 
 def rand_str(strlen=32, select_from=None):
     if not select_from:
-        select_from = string.letters + string.digits
+        select_from = string.ascii_letters + string.digits
     return "".join([random.choice(select_from) for _x in range(0, strlen)])
 
 
@@ -1127,7 +1130,7 @@ def pipe_in_out(in_fh, out_fh, chunk_size=1024, chunk_cb=None):
     bytes_piped = 0
     while True:
         data = in_fh.read(chunk_size)
-        if data == '':
+        if len(data) == 0:
             break
         else:
             out_fh.write(data)

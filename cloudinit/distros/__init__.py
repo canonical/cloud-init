@@ -25,7 +25,6 @@ import six
 from six import StringIO
 
 import abc
-import itertools
 import os
 import re
 
@@ -36,6 +35,15 @@ from cloudinit import type_utils
 from cloudinit import util
 
 from cloudinit.distros.parsers import hosts
+
+try:
+    # Python 3
+    from six import filter
+except ImportError:
+    # Python 2
+    from itertools import ifilter as filter
+
+
 
 OSFAMILIES = {
     'debian': ['debian', 'ubuntu'],
@@ -853,7 +861,7 @@ def extract_default(users, default_name=None, default_config=None):
             return config['default']
 
     tmp_users = users.items()
-    tmp_users = dict(itertools.ifilter(safe_find, tmp_users))
+    tmp_users = dict(filter(safe_find, tmp_users))
     if not tmp_users:
         return (default_name, default_config)
     else:

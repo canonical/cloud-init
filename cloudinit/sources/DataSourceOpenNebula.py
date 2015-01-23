@@ -280,7 +280,7 @@ def parse_shell_config(content, keylist=None, bash=None, asuser=None,
 
     # allvars expands to all existing variables by using '${!x*}' notation
     # where x is lower or upper case letters or '_'
-    allvars = ["${!%s*}" % x for x in string.letters + "_"]
+    allvars = ["${!%s*}" % x for x in string.ascii_letters + "_"]
 
     keylist_in = keylist
     if keylist is None:

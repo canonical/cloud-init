@@ -65,7 +65,7 @@ if PY26:
         def assertDictContainsSubset(self, expected, actual, msg=None):
             missing = []
             mismatched = []
-            for k, v in expected.iteritems():
+            for k, v in expected.items():
                 if k not in actual:
                     missing.append(k)
                 elif actual[k] != v:
@@ -243,7 +243,7 @@ class HttprettyTestCase(TestCase):
 def populate_dir(path, files):
     if not os.path.exists(path):
         os.makedirs(path)
-    for (name, content) in files.iteritems():
+    for (name, content) in files.items():
         with open(os.path.join(path, name), "w") as fp:
             fp.write(content)
             fp.close()

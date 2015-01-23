@@ -22,6 +22,8 @@
 #   return responses.
 #
 
+from __future__ import print_function
+
 import base64
 from cloudinit import helpers as c_helpers
 from cloudinit.sources import DataSourceSmartOS
@@ -369,7 +371,7 @@ class TestSmartOSDataSource(helpers.FilesystemMockingTestCase):
                 permissions = oct(os.stat(name_f)[stat.ST_MODE])[-3:]
                 if re.match(r'.*\/mdata-user-data$', name_f):
                     found_new = True
-                    print name_f
+                    print(name_f)
                     self.assertEquals(permissions, '400')
 
         self.assertFalse(found_new)
