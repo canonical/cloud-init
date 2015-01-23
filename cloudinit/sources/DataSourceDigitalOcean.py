@@ -84,7 +84,7 @@ class DataSourceDigitalOcean(sources.DataSource):
     def get_instance_id(self):
         return self.metadata['id']
 
-    def get_hostname(self, fqdn=False):
+    def get_hostname(self, fqdn=False, resolve_ip=False):
         return self.metadata['hostname']
 
     def get_package_mirror_info(self):
