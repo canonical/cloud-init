@@ -1,6 +1,5 @@
-from mocker import MockerTestCase
-
 import re
+import unittest
 
 from cloudinit.distros.parsers.sys_conf import SysConf
 
@@ -8,7 +7,7 @@ from cloudinit.distros.parsers.sys_conf import SysConf
 # Lots of good examples @
 # http://content.hccfl.edu/pollock/AUnix1/SysconfigFilesDesc.txt
 
-class TestSysConfHelper(MockerTestCase):
+class TestSysConfHelper(unittest.TestCase):
     # This function was added in 2.7, make it work for 2.6
     def assertRegMatches(self, text, regexp):
         regexp = re.compile(regexp)

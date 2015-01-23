@@ -1,4 +1,4 @@
-from mocker import MockerTestCase
+import unittest
 
 from cloudinit import distros
 from cloudinit import helpers
@@ -15,7 +15,7 @@ bcfg = {
 }
 
 
-class TestUGNormalize(MockerTestCase):
+class TestUGNormalize(unittest.TestCase):
 
     def _make_distro(self, dtype, def_user=None):
         cfg = dict(settings.CFG_BUILTIN)

@@ -1,17 +1,19 @@
-from mocker import MockerTestCase
-
 from cloudinit import util
 
 from cloudinit.config import cc_apt_configure
 
 import os
 import re
+import shutil
+import tempfile
+import unittest
 
 
-class TestAptProxyConfig(MockerTestCase):
+class TestAptProxyConfig(unittest.TestCase):
     def setUp(self):
         super(TestAptProxyConfig, self).setUp()
-        self.tmp = self.makeDir()
+        self.tmp = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, self.tmp)
         self.pfile = os.path.join(self.tmp, "proxy.cfg")
         self.cfile = os.path.join(self.tmp, "config.cfg")
 

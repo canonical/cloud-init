@@ -1,8 +1,7 @@
-from mocker import MockerTestCase
-
 from cloudinit.distros.parsers import resolv_conf
 
 import re
+import unittest
 
 
 BASE_RESOLVE = '''
@@ -14,7 +13,7 @@ nameserver 10.15.30.92
 BASE_RESOLVE = BASE_RESOLVE.strip()
 
 
-class TestResolvHelper(MockerTestCase):
+class TestResolvHelper(unittest.TestCase):
     def test_parse_same(self):
         rp = resolv_conf.ResolvConf(BASE_RESOLVE)
         rp_r = str(rp).strip()
