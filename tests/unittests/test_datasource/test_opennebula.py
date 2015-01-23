@@ -1,12 +1,15 @@
 from cloudinit import helpers
 from cloudinit.sources import DataSourceOpenNebula as ds
 from cloudinit import util
-from mocker import MockerTestCase
 from ..helpers import populate_dir
 
 from base64 import b64encode
 import os
 import pwd
+import shutil
+import tempfile
+import unittest
+
 
 TEST_VARS = {
     'VAR1': 'single',
@@ -37,12 +40,13 @@ CMD_IP_OUT = '''\
 '''
 
 
-class TestOpenNebulaDataSource(MockerTestCase):
+class TestOpenNebulaDataSource(unittest.TestCase):
     parsed_user = None
 
     def setUp(self):
         super(TestOpenNebulaDataSource, self).setUp()
-        self.tmp = self.makeDir()
+        self.tmp = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, self.tmp)
         self.paths = helpers.Paths({'cloud_dir': self.tmp})
 
         # defaults for few tests
@@ -228,7 +232,7 @@ class TestOpenNebulaDataSource(MockerTestCase):
             util.find_devs_with = orig_find_devs_with
 
 
-class TestOpenNebulaNetwork(MockerTestCase):
+class TestOpenNebulaNetwork(unittest.TestCase):
 
     def setUp(self):
         super(TestOpenNebulaNetwork, self).setUp()
@@ -280,7 +284,7 @@ iface eth0 inet static
 ''')
 
 
-class TestParseShellConfig(MockerTestCase):
+class TestParseShellConfig(unittest.TestCase):
     def test_no_seconds(self):
         cfg = '\n'.join(["foo=bar", "SECONDS=2", "xx=foo"])
         # we could test 'sleep 2', but that would make the test run slower.

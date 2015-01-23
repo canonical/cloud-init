@@ -67,7 +67,6 @@ class TestGenericDistro(helpers.FilesystemMockingTestCase):
         self.patchUtils(self.tmp)
         d.write_sudo_rules("harlowja", rules)
         contents = util.load_file(d.ci_sudoers_fn)
-        self.restore()
         return contents
 
     def _count_in(self, lines_look_for, text_content):
