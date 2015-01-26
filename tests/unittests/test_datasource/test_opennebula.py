@@ -33,7 +33,7 @@ TEST_VARS = {
 }
 
 INVALID_CONTEXT = ';'
-USER_DATA = '#cloud-config\napt_upgrade: true'
+USER_DATA = b'#cloud-config\napt_upgrade: true'
 SSH_KEY = 'ssh-rsa AAAAB3NzaC1....sIkJhq8wdX+4I3A4cYbYP ubuntu@server-460-%i'
 HOSTNAME = 'foo.example.com'
 PUBLIC_IP = '10.0.0.3'
