@@ -4,7 +4,11 @@ import shutil
 import tempfile
 import unittest
 
-from cloudinit.sources import DataSourceMAAS
+# XXX DataSourceMAAS must be ported to oauthlib for Python 3
+import six
+if not six.PY3:
+    from cloudinit.sources import DataSourceMAAS
+
 from cloudinit import url_helper
 from ..helpers import populate_dir
 
@@ -14,6 +18,7 @@ except ImportError:
     import mock
 
 
+@unittest.skipIf(six.PY3, 'DataSourceMAAS must be ported to oauthlib')
 class TestMAASDataSource(unittest.TestCase):
 
     def setUp(self):

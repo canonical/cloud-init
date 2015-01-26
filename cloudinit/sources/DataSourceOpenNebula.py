@@ -379,7 +379,8 @@ def read_context_disk_dir(source_dir, asuser=None):
                 raise BrokenContextDiskDir("configured user '%s' "
                                            "does not exist", asuser)
         try:
-            with open(os.path.join(source_dir, 'context.sh'), 'r') as f:
+            path = os.path.join(source_dir, 'context.sh')
+            with open(path, 'r', encoding='utf-8') as f:
                 content = f.read().strip()
 
             context = parse_shell_config(content, asuser=asuser)
@@ -426,14 +427,19 @@ def read_context_disk_dir(source_dir, asuser=None):
                                context.get('USER_DATA_ENCODING'))
         if encoding == "base64":
             try:
-                results['userdata'] = base64.b64decode(results['userdata'])
+                userdata = base64.b64decode(results['userdata'])
+                # In Python 3 we still expect a str, but b64decode will return
+                # bytes.  Convert to str.
+                if isinstance(userdata, bytes):
+                    userdata = userdata.decode('utf-8')
+                results['userdata'] = userdata
             except TypeError:
                 LOG.warn("Failed base64 decoding of userdata")
 
     # generate static /etc/network/interfaces
     # only if there are any required context variables
     # http://opennebula.org/documentation:rel3.8:cong#network_configuration
-    for k in context.keys():
+    for k in context:
         if re.match(r'^ETH\d+_IP$', k):
             (out, _) = util.subp(['/sbin/ip', 'link'])
             net = OpenNebulaNetwork(out, context)

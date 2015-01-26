@@ -30,6 +30,7 @@
 #       Comments with "@datadictionary" are snippets of the definition
 
 import base64
+import binascii
 import os
 import serial
 
@@ -350,8 +351,18 @@ def query_data(noun, seed_device, seed_timeout, strip=False, default=None,
 
     if b64:
         try:
-            return base64.b64decode(resp)
-        except TypeError:
+            # Generally, we want native strings in the values.  Python 3's
+            # b64decode will return bytes though, so decode them to utf-8 if
+            # possible.  If that fails, return the bytes.
+            decoded = base64.b64decode(resp)
+            try:
+                if isinstance(decoded, bytes):
+                    return decoded.decode('utf-8')
+            except UnicodeDecodeError:
+                pass
+            return decoded
+        # Bogus input produces different errors in Python 2 and 3; catch both.
+        except (TypeError, binascii.Error):
             LOG.warn("Failed base64 decoding key '%s'", noun)
             return resp
 
