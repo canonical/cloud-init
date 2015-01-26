@@ -108,6 +108,7 @@ class UserDataProcessor(object):
 
             ctype = None
             ctype_orig = part.get_content_type()
+            ctype_main = part.get_content_maintype()
             payload = part.get_payload(decode=True)
             # In Python 3, decoding the payload will ironically hand us a
             # bytes object.  'decode' means to decode according to
@@ -115,7 +116,7 @@ class UserDataProcessor(object):
             # Content-Type.  So, if we end up with bytes, first try to decode
             # to str via CT charset, and failing that, try utf-8 using
             # surrogate escapes.
-            if six.PY3 and isinstance(payload, bytes):
+            if six.PY3 and ctype_main == 'text' and isinstance(payload, bytes):
                 charset = part.get_charset() or 'utf-8'
                 payload = payload.decode(charset, errors='surrogateescape')
             was_compressed = False
@@ -131,6 +132,7 @@ class UserDataProcessor(object):
                     ctype_orig = None
                     was_compressed = True
                 except util.DecompressionError as e:
+                    import pdb; pdb.set_trace()
                     LOG.warn("Failed decompressing payload from %s of length"
                              " %s due to: %s", ctype_orig, len(payload), e)
                     continue
