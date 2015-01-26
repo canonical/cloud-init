@@ -169,7 +169,10 @@ class FilesystemMockingTestCase(ResourceUsingTestCase):
     def setUp(self):
         ResourceUsingTestCase.setUp(self)
         self.patched_funcs = ExitStack()
-        self.addCleanup(self.patched_funcs.close)
+
+    def tearDown(self):
+        self.patched_funcs.close()
+        ResourceUsingTestCase.tearDown(self)
 
     def replicateTestRoot(self, example_root, target_root):
         real_root = self.resourceLocation()

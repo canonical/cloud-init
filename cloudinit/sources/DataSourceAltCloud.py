@@ -40,7 +40,6 @@ LOG = logging.getLogger(__name__)
 CLOUD_INFO_FILE = '/etc/sysconfig/cloud-info'
 
 # Shell command lists
-CMD_DMI_SYSTEM = ['/usr/sbin/dmidecode', '--string', 'system-product-name']
 CMD_PROBE_FLOPPY = ['/sbin/modprobe', 'floppy']
 CMD_UDEVADM_SETTLE = ['/sbin/udevadm', 'settle', '--quiet', '--timeout=5']
 
@@ -100,11 +99,7 @@ class DataSourceAltCloud(sources.DataSource):
         '''
         Description:
             Get the type for the cloud back end this instance is running on
-            by examining the string returned by:
-            dmidecode --string system-product-name
-
-            On VMWare/vSphere dmidecode returns: RHEV Hypervisor
-            On VMWare/vSphere dmidecode returns: VMware Virtual Platform
+            by examining the string returned by reading the dmi data.
 
         Input:
             None
@@ -117,26 +112,20 @@ class DataSourceAltCloud(sources.DataSource):
 
         uname_arch = os.uname()[4]
         if uname_arch.startswith("arm") or uname_arch == "aarch64":
-            # Disabling because dmidecode in CMD_DMI_SYSTEM crashes kvm process
+            # Disabling because dmi data is not available on ARM processors
             LOG.debug("Disabling AltCloud datasource on arm (LP: #1243287)")
             return 'UNKNOWN'
 
-        cmd = CMD_DMI_SYSTEM
-        try:
-            (cmd_out, _err) = util.subp(cmd)
-        except ProcessExecutionError as _err:
-            LOG.debug(('Failed command: %s\n%s') % \
-                (' '.join(cmd), _err.message))
-            return 'UNKNOWN'
-        except OSError as _err:
-            LOG.debug(('Failed command: %s\n%s') % \
-                (' '.join(cmd), _err.message))
+        system_name = util.read_dmi_data("system-product-name")
+        if not system_name:
             return 'UNKNOWN'
 
-        if cmd_out.upper().startswith('RHEV'):
+        sys_name = system_name.upper()
+
+        if sys_name.startswith('RHEV'):
             return 'RHEV'
 
-        if cmd_out.upper().startswith('VMWARE'):
+        if sys_name.startswith('VMWARE'):
             return 'VSPHERE'
 
         return 'UNKNOWN'

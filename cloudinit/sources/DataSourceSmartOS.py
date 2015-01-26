@@ -370,26 +370,13 @@ def query_data(noun, seed_device, seed_timeout, strip=False, default=None,
 
 
 def dmi_data():
-    sys_uuid, sys_type = None, None
-    dmidecode_path = util.which('dmidecode')
-    if not dmidecode_path:
-        return False
+    sys_uuid = util.read_dmi_data("system-uuid")
+    sys_type = util.read_dmi_data("system-product-name")
 
-    sys_uuid_cmd = [dmidecode_path, "-s", "system-uuid"]
-    try:
-        LOG.debug("Getting hostname from dmidecode")
-        (sys_uuid, _err) = util.subp(sys_uuid_cmd)
-    except Exception as e:
-        util.logexc(LOG, "Failed to get system UUID", e)
+    if not sys_uuid or not sys_type:
+        return None
 
-    sys_type_cmd = [dmidecode_path, "-s", "system-product-name"]
-    try:
-        LOG.debug("Determining hypervisor product name via dmidecode")
-        (sys_type, _err) = util.subp(sys_type_cmd)
-    except Exception as e:
-        util.logexc(LOG, "Failed to get system UUID", e)
-
-    return (sys_uuid.lower().strip(), sys_type.strip())
+    return (sys_uuid.lower(), sys_type)
 
 
 def write_boot_content(content, content_f, link=None, shebang=False,
