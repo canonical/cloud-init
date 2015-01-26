@@ -22,6 +22,7 @@
 
 import abc
 import os
+import six
 
 from cloudinit.settings import (PER_ALWAYS, PER_INSTANCE, FREQUENCIES)
 
@@ -174,11 +175,11 @@ def _extract_first_or_bytes(blob, size):
 
 def _escape_string(text):
     try:
-        return text.encode("string-escape")
-    except TypeError:
+        return text.encode("string_escape")
+    except (LookupError, TypeError):
         try:
-            # Unicode doesn't support string-escape...
-            return text.encode('unicode-escape')
+            # Unicode (and Python 3's str) doesn't support string_escape...
+            return text.encode('unicode_escape')
         except TypeError:
             # Give up...
             pass
@@ -232,7 +233,17 @@ def walk(msg, callback, data):
         headers = dict(part)
         LOG.debug(headers)
         headers['Content-Type'] = ctype
-        callback(data, filename, part.get_payload(decode=True), headers)
+        payload = part.get_payload(decode=True)
+        # In Python 3, decoding the payload will ironically hand us a bytes
+        # object.  'decode' means to decode according to
+        # Content-Transfer-Encoding, not according to any charset in the
+        # Content-Type.  So, if we end up with bytes, first try to decode to
+        # str via CT charset, and failing that, try utf-8 using surrogate
+        # escapes.
+        if six.PY3 and isinstance(payload, bytes):
+            charset = part.get_charset() or 'utf-8'
+            payload = payload.decode(charset, errors='surrogateescape')
+        callback(data, filename, payload, headers)
         partnum = partnum + 1
 
 
