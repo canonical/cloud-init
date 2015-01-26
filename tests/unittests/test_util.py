@@ -166,7 +166,7 @@ class TestDeleteDirContents(unittest.TestCase):
     def test_deletes_files(self):
         """Single file should be deleted."""
         with open(os.path.join(self.tmp, "new_file.txt"), "wb") as f:
-            f.write("DELETE ME")
+            f.write(b"DELETE ME")
 
         util.delete_dir_contents(self.tmp)
 

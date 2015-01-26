@@ -22,7 +22,7 @@ import base64
 import gzip
 import tempfile
 
-from six import StringIO
+from six import BytesIO
 
 from cloudinit import cloud
 from cloudinit import distros
@@ -76,7 +76,7 @@ class TestRandomSeed(t_help.TestCase):
         return
 
     def _compress(self, text):
-        contents = StringIO()
+        contents = BytesIO()
         gz_fh = gzip.GzipFile(mode='wb', fileobj=contents)
         gz_fh.write(text)
         gz_fh.close()
@@ -103,7 +103,7 @@ class TestRandomSeed(t_help.TestCase):
         self.assertEquals("tiny-tim-was-here", contents)
 
     def test_append_random_unknown_encoding(self):
-        data = self._compress("tiny-toe")
+        data = self._compress(b"tiny-toe")
         cfg = {
             'random_seed': {
                 'file': self._seed_file,
@@ -115,7 +115,7 @@ class TestRandomSeed(t_help.TestCase):
                           self._get_cloud('ubuntu'), LOG, [])
 
     def test_append_random_gzip(self):
-        data = self._compress("tiny-toe")
+        data = self._compress(b"tiny-toe")
         cfg = {
             'random_seed': {
                 'file': self._seed_file,
@@ -128,7 +128,7 @@ class TestRandomSeed(t_help.TestCase):
         self.assertEquals("tiny-toe", contents)
 
     def test_append_random_gz(self):
-        data = self._compress("big-toe")
+        data = self._compress(b"big-toe")
         cfg = {
             'random_seed': {
                 'file': self._seed_file,
