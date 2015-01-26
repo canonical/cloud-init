@@ -119,7 +119,7 @@ class TestWriteFile(unittest.TestCase):
 
         # Create file first with basic content
         with open(path, "wb") as f:
-            f.write("LINE1\n")
+            f.write(b"LINE1\n")
         util.write_file(path, contents, omode="a")
 
         self.assertTrue(os.path.exists(path))
@@ -194,7 +194,7 @@ class TestDeleteDirContents(unittest.TestCase):
         os.mkdir(os.path.join(self.tmp, "new_dir"))
         f_name = os.path.join(self.tmp, "new_dir", "new_file.txt")
         with open(f_name, "wb") as f:
-            f.write("DELETE ME")
+            f.write(b"DELETE ME")
 
         util.delete_dir_contents(self.tmp)
 
@@ -205,7 +205,7 @@ class TestDeleteDirContents(unittest.TestCase):
         file_name = os.path.join(self.tmp, "new_file.txt")
         link_name = os.path.join(self.tmp, "new_file_link.txt")
         with open(file_name, "wb") as f:
-            f.write("DELETE ME")
+            f.write(b"DELETE ME")
         os.symlink(file_name, link_name)
 
         util.delete_dir_contents(self.tmp)

@@ -857,7 +857,7 @@ def extract_default(users, default_name=None, default_config=None):
     if not tmp_users:
         return (default_name, default_config)
     else:
-        name = tmp_users.keys()[0]
+        name = list(tmp_users)[0]
         config = tmp_users[name]
         config.pop('default', None)
         return (name, config)

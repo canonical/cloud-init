@@ -21,7 +21,6 @@ from cloudinit.settings import (PER_ALWAYS, PER_INSTANCE)
 
 
 class TestBuiltins(test_helpers.FilesystemMockingTestCase):
-
     def test_upstart_frequency_no_out(self):
         c_root = tempfile.mkdtemp()
         self.addCleanup(shutil.rmtree, c_root)

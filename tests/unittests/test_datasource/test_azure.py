@@ -22,6 +22,13 @@ import tempfile
 import unittest
 
 
+def b64(source):
+    # In Python 3, b64encode only accepts bytes and returns bytes.
+    if not isinstance(source, bytes):
+        source = source.encode('utf-8')
+    return base64.b64encode(source).decode('us-ascii')
+
+
 def construct_valid_ovf_env(data=None, pubkeys=None, userdata=None):
     if data is None:
         data = {'HostName': 'FOOHOST'}
@@ -51,7 +58,7 @@ def construct_valid_ovf_env(data=None, pubkeys=None, userdata=None):
         content += "<%s%s>%s</%s>\n" % (key, attrs, val, key)
 
     if userdata:
-        content += "<UserData>%s</UserData>\n" % (base64.b64encode(userdata))
+        content += "<UserData>%s</UserData>\n" % (b64(userdata))
 
     if pubkeys:
         content += "<SSH><PublicKeys>\n"
@@ -181,7 +188,7 @@ class TestAzureDataSource(unittest.TestCase):
         # set dscfg in via base64 encoded yaml
         cfg = {'agent_command': "my_command"}
         odata = {'HostName': "myhost", 'UserName': "myuser",
-                'dscfg': {'text': base64.b64encode(yaml.dump(cfg)),
+                'dscfg': {'text': b64(yaml.dump(cfg)),
                           'encoding': 'base64'}}
         data = {'ovfcontent': construct_valid_ovf_env(data=odata)}
 
@@ -233,13 +240,13 @@ class TestAzureDataSource(unittest.TestCase):
 
     def test_userdata_found(self):
         mydata = "FOOBAR"
-        odata = {'UserData': base64.b64encode(mydata)}
+        odata = {'UserData': b64(mydata)}
         data = {'ovfcontent': construct_valid_ovf_env(data=odata)}
 
         dsrc = self._get_ds(data)
         ret = dsrc.get_data()
         self.assertTrue(ret)
-        self.assertEqual(dsrc.userdata_raw, mydata)
+        self.assertEqual(dsrc.userdata_raw, mydata.encode('utf-8'))
 
     def test_no_datasource_expected(self):
         # no source should be found if no seed_dir and no devs
@@ -281,7 +288,7 @@ class TestAzureDataSource(unittest.TestCase):
                                    'command': 'my-bounce-command',
                                    'hostname_command': 'my-hostname-command'}}
         odata = {'HostName': "xhost",
-                'dscfg': {'text': base64.b64encode(yaml.dump(cfg)),
+                'dscfg': {'text': b64(yaml.dump(cfg)),
                           'encoding': 'base64'}}
         data = {'ovfcontent': construct_valid_ovf_env(data=odata)}
         self._get_ds(data).get_data()
@@ -296,7 +303,7 @@ class TestAzureDataSource(unittest.TestCase):
         # config specifying set_hostname off should not bounce
         cfg = {'set_hostname': False}
         odata = {'HostName': "xhost",
-                'dscfg': {'text': base64.b64encode(yaml.dump(cfg)),
+                'dscfg': {'text': b64(yaml.dump(cfg)),
                           'encoding': 'base64'}}
         data = {'ovfcontent': construct_valid_ovf_env(data=odata)}
         self._get_ds(data).get_data()
@@ -325,7 +332,7 @@ class TestAzureDataSource(unittest.TestCase):
         # Make sure that user can affect disk aliases
         dscfg = {'disk_aliases': {'ephemeral0': '/dev/sdc'}}
         odata = {'HostName': "myhost", 'UserName': "myuser",
-                'dscfg': {'text': base64.b64encode(yaml.dump(dscfg)),
+                'dscfg': {'text': b64(yaml.dump(dscfg)),
                           'encoding': 'base64'}}
         usercfg = {'disk_setup': {'/dev/sdc': {'something': '...'},
                                   'ephemeral0': False}}
@@ -347,7 +354,7 @@ class TestAzureDataSource(unittest.TestCase):
         dsrc = self._get_ds(data)
         dsrc.get_data()
 
-        self.assertEqual(userdata, dsrc.userdata_raw)
+        self.assertEqual(userdata.encode('us-ascii'), dsrc.userdata_raw)
 
     def test_ovf_env_arrives_in_waagent_dir(self):
         xml = construct_valid_ovf_env(data={}, userdata="FOODATA")
@@ -362,7 +369,7 @@ class TestAzureDataSource(unittest.TestCase):
 
     def test_existing_ovf_same(self):
         # waagent/SharedConfig left alone if found ovf-env.xml same as cached
-        odata = {'UserData': base64.b64encode("SOMEUSERDATA")}
+        odata = {'UserData': b64("SOMEUSERDATA")}
         data = {'ovfcontent': construct_valid_ovf_env(data=odata)}
 
         populate_dir(self.waagent_d,
@@ -386,9 +393,9 @@ class TestAzureDataSource(unittest.TestCase):
         # 'get_data' should remove SharedConfig.xml in /var/lib/waagent
         # if ovf-env.xml differs.
         cached_ovfenv = construct_valid_ovf_env(
-            {'userdata': base64.b64encode("FOO_USERDATA")})
+            {'userdata': b64("FOO_USERDATA")})
         new_ovfenv = construct_valid_ovf_env(
-            {'userdata': base64.b64encode("NEW_USERDATA")})
+            {'userdata': b64("NEW_USERDATA")})
 
         populate_dir(self.waagent_d,
             {'ovf-env.xml': cached_ovfenv,
@@ -398,7 +405,7 @@ class TestAzureDataSource(unittest.TestCase):
         dsrc = self._get_ds({'ovfcontent': new_ovfenv})
         ret = dsrc.get_data()
         self.assertTrue(ret)
-        self.assertEqual(dsrc.userdata_raw, "NEW_USERDATA")
+        self.assertEqual(dsrc.userdata_raw, b"NEW_USERDATA")
         self.assertTrue(os.path.exists(
             os.path.join(self.waagent_d, 'otherfile')))
         self.assertFalse(

@@ -1,7 +1,10 @@
 import os
 import sys
+import shutil
 import tempfile
 import unittest
+
+import six
 
 try:
     from unittest import mock
@@ -14,8 +17,6 @@ except ImportError:
 
 from cloudinit import helpers as ch
 from cloudinit import util
-
-import shutil
 
 # Used for detecting different python versions
 PY2 = False
@@ -115,7 +116,12 @@ def retarget_many_wrapper(new_base, am, old_func):
             nam = len(n_args)
         for i in range(0, nam):
             path = args[i]
-            n_args[i] = rebase_path(path, new_base)
+            # patchOS() wraps various os and os.path functions, however in
+            # Python 3 some of these now accept file-descriptors (integers).
+            # That breaks rebase_path() so in lieu of a better solution, just
+            # don't rebase if we get a fd.
+            if isinstance(path, six.string_types):
+                n_args[i] = rebase_path(path, new_base)
         return old_func(*n_args, **kwds)
     return wrapper
 

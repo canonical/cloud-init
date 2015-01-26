@@ -38,6 +38,13 @@ import logging
 LOG = logging.getLogger(__name__)
 
 
+def b64(source):
+    # In Python 3, b64encode only accepts bytes and returns bytes.
+    if not isinstance(source, bytes):
+        source = source.encode('utf-8')
+    return base64.b64encode(source).decode('us-ascii')
+
+
 class TestRandomSeed(t_help.TestCase):
     def setUp(self):
         super(TestRandomSeed, self).setUp()
@@ -134,7 +141,7 @@ class TestRandomSeed(t_help.TestCase):
         self.assertEquals("big-toe", contents)
 
     def test_append_random_base64(self):
-        data = base64.b64encode('bubbles')
+        data = b64('bubbles')
         cfg = {
             'random_seed': {
                 'file': self._seed_file,
@@ -147,7 +154,7 @@ class TestRandomSeed(t_help.TestCase):
         self.assertEquals("bubbles", contents)
 
     def test_append_random_b64(self):
-        data = base64.b64encode('kit-kat')
+        data = b64('kit-kat')
         cfg = {
             'random_seed': {
                 'file': self._seed_file,

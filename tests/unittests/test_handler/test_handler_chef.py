@@ -11,6 +11,7 @@ from cloudinit.sources import DataSourceNone
 
 from .. import helpers as t_help
 
+import six
 import logging
 import shutil
 import tempfile
@@ -77,7 +78,7 @@ class TestChef(t_help.FilesystemMockingTestCase):
         for k, v in cfg['chef'].items():
             self.assertIn(v, c)
         for k, v in cc_chef.CHEF_RB_TPL_DEFAULTS.items():
-            if isinstance(v, basestring):
+            if isinstance(v, six.string_types):
                 self.assertIn(v, c)
         c = util.load_file(cc_chef.CHEF_FB_PATH)
         self.assertEqual({}, json.loads(c))
