@@ -1236,8 +1236,15 @@ def logexc(log, msg, *args):
     # coming out to a non-debug stream
     if msg:
         log.warn(msg, *args)
-    # Debug gets the full trace
-    log.debug(msg, exc_info=1, *args)
+    # Debug gets the full trace.  However, nose has a bug whereby its
+    # logcapture plugin doesn't properly handle the case where there is no
+    # actual exception.  To avoid tracebacks during the test suite then, we'll
+    # do the actual exc_info extraction here, and if there is no exception in
+    # flight, we'll just pass in None.
+    exc_info = sys.exc_info()
+    if exc_info == (None, None, None):
+        exc_info = None
+    log.debug(msg, exc_info=exc_info, *args)
 
 
 def hash_blob(blob, routine, mlen=None):
