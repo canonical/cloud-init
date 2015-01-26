@@ -22,10 +22,11 @@ from __future__ import print_function
 
 from email.utils import parsedate
 import errno
-import oauth.oauth as oauth
+import oauthlib
 import os
 import time
-import urllib2
+
+from six.moves.urllib_request import Request, urlopen
 
 from cloudinit import log as logging
 from cloudinit import sources
@@ -274,25 +275,34 @@ def check_seed_contents(content, seed):
 
 def oauth_headers(url, consumer_key, token_key, token_secret, consumer_secret,
                   timestamp=None):
-    consumer = oauth.OAuthConsumer(consumer_key, consumer_secret)
-    token = oauth.OAuthToken(token_key, token_secret)
+    client = oauthlib.oauth1.Client(
+        consumer_key,
+        client_secret=consumer_secret,
+        resource_owner_key=token_key,
+        resource_owner_secret=token_secret,
+        signature_method=oauthlib.SIGNATURE_PLAINTEXT)
+    uri, signed_headers, body = client.sign(url)
+    return signed_headers
 
-    if timestamp is None:
-        ts = int(time.time())
-    else:
-        ts = timestamp
+    ## consumer = oauth.OAuthConsumer(consumer_key, consumer_secret)
+    ## token = oauth.OAuthToken(token_key, token_secret)
 
-    params = {
-        'oauth_version': "1.0",
-        'oauth_nonce': oauth.generate_nonce(),
-        'oauth_timestamp': ts,
-        'oauth_token': token.key,
-        'oauth_consumer_key': consumer.key,
-    }
-    req = oauth.OAuthRequest(http_url=url, parameters=params)
-    req.sign_request(oauth.OAuthSignatureMethod_PLAINTEXT(),
-                     consumer, token)
-    return req.to_header()
+    ## if timestamp is None:
+    ##     ts = int(time.time())
+    ## else:
+    ##     ts = timestamp
+
+    ## params = {
+    ##     'oauth_version': "1.0",
+    ##     'oauth_nonce': oauth.generate_nonce(),
+    ##     'oauth_timestamp': ts,
+    ##     'oauth_token': token.key,
+    ##     'oauth_consumer_key': consumer.key,
+    ## }
+    ## req = oauth.OAuthRequest(http_url=url, parameters=params)
+    ## req.sign_request(oauth.OAuthSignatureMethod_PLAINTEXT(),
+    ##                  consumer, token)
+    ## return req.to_header()
 
 
 class MAASSeedDirNone(Exception):
@@ -359,8 +369,8 @@ if __name__ == "__main__":
                     creds[key] = cfg[key]
 
         def geturl(url, headers_cb):
-            req = urllib2.Request(url, data=None, headers=headers_cb(url))
-            return (urllib2.urlopen(req).read())
+            req = Request(url, data=None, headers=headers_cb(url))
+            return urlopen(req).read()
 
         def printurl(url, headers_cb):
             print("== %s ==\n%s\n" % (url, geturl(url, headers_cb)))
