@@ -110,6 +110,21 @@ def b64e(source):
     return b64encode(source).decode('utf-8')
 
 
+def fully_decoded_payload(part):
+    # In Python 3, decoding the payload will ironically hand us a bytes object.
+    # 'decode' means to decode according to Content-Transfer-Encoding, not
+    # according to any charset in the Content-Type.  So, if we end up with
+    # bytes, first try to decode to str via CT charset, and failing that, try
+    # utf-8 using surrogate escapes.
+    cte_payload = part.get_payload(decode=True)
+    if (    six.PY3 and
+            part.get_content_maintype() == 'text' and
+            isinstance(cte_payload, bytes)):
+        charset = part.get_charset() or 'utf-8'
+        return cte_payload.decode(charset, errors='surrogateescape')
+    return cte_payload
+
+
 # Path for DMI Data
 DMI_SYS_PATH = "/sys/class/dmi/id"
 
