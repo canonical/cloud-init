@@ -321,9 +321,6 @@ class ContentHandlers(object):
     def items(self):
         return list(self.registered.items())
 
-    # XXX This should really go away.
-    iteritems = items
-
 
 class Paths(object):
     def __init__(self, path_cfgs, ds=None):
