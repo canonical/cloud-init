@@ -25,7 +25,6 @@
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import base64
-import codecs
 import os
 import pwd
 import re
@@ -35,7 +34,6 @@ from cloudinit import log as logging
 from cloudinit import sources
 from cloudinit import util
 
-import six
 
 LOG = logging.getLogger(__name__)
 
@@ -44,12 +42,6 @@ DEFAULT_MODE = 'net'
 DEFAULT_PARSEUSER = 'nobody'
 CONTEXT_DISK_FILES = ["context.sh"]
 VALID_DSMODES = ("local", "net", "disabled")
-
-
-def utf8_open(path):
-    if six.PY3:
-        return open(path, 'r', encoding='utf-8')
-    return codecs.open(path, 'r', encoding='utf-8')
 
 
 class DataSourceOpenNebula(sources.DataSource):
@@ -389,9 +381,7 @@ def read_context_disk_dir(source_dir, asuser=None):
                                            "does not exist", asuser)
         try:
             path = os.path.join(source_dir, 'context.sh')
-            with utf8_open(path) as f:
-                content = f.read().strip()
-
+            content = util.load_file(path)
             context = parse_shell_config(content, asuser=asuser)
         except util.ProcessExecutionError as e:
             raise BrokenContextDiskDir("Error processing context.sh: %s" % (e))
