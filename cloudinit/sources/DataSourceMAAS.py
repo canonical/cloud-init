@@ -284,26 +284,6 @@ def oauth_headers(url, consumer_key, token_key, token_secret, consumer_secret,
     uri, signed_headers, body = client.sign(url)
     return signed_headers
 
-    ## consumer = oauth.OAuthConsumer(consumer_key, consumer_secret)
-    ## token = oauth.OAuthToken(token_key, token_secret)
-
-    ## if timestamp is None:
-    ##     ts = int(time.time())
-    ## else:
-    ##     ts = timestamp
-
-    ## params = {
-    ##     'oauth_version': "1.0",
-    ##     'oauth_nonce': oauth.generate_nonce(),
-    ##     'oauth_timestamp': ts,
-    ##     'oauth_token': token.key,
-    ##     'oauth_consumer_key': consumer.key,
-    ## }
-    ## req = oauth.OAuthRequest(http_url=url, parameters=params)
-    ## req.sign_request(oauth.OAuthSignatureMethod_PLAINTEXT(),
-    ##                  consumer, token)
-    ## return req.to_header()
-
 
 class MAASSeedDirNone(Exception):
     pass
