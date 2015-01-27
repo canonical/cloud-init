@@ -108,7 +108,7 @@ class Distro(distros.Distro):
         if not conf:
             conf = HostnameConf('')
         conf.set_hostname(your_hostname)
-        util.write_file(out_fn, str(conf), 0644)
+        util.write_file(out_fn, conf, 0o644)
 
     def _read_system_hostname(self):
         sys_hostname = self._read_hostname(self.hostname_conf_fn)

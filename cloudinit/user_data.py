@@ -248,7 +248,7 @@ class UserDataProcessor(object):
                 resp = util.read_file_or_url(include_url,
                                              ssl_details=self.ssl_details)
                 if include_once_on and resp.ok():
-                    util.write_file(include_once_fn, str(resp), mode=0o600)
+                    util.write_file(include_once_fn, resp, mode=0o600)
                 if resp.ok():
                     content = str(resp)
                 else:

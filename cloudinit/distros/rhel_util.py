@@ -86,4 +86,4 @@ def update_resolve_conf_file(fn, dns_servers, search_servers):
                 r_conf.add_search_domain(s)
             except ValueError:
                 util.logexc(LOG, "Failed at adding search domain %s", s)
-    util.write_file(fn, str(r_conf), 0o644)
+    util.write_file(fn, r_conf, 0o644)

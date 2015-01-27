@@ -33,6 +33,6 @@ def handle(name, cfg, cloud, log, _args):
     cmd = cfg["runcmd"]
     try:
         content = util.shellify(cmd)
-        util.write_file(out_fn, content, 0700)
+        util.write_file(out_fn, content, 0o700)
     except:
         util.logexc(log, "Failed to shellify %s into file %s", cmd, out_fn)

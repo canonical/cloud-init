@@ -91,7 +91,7 @@ def handle(name, cfg, cloud, log, _args):
                 util.chownbyname(PUPPET_SSL_DIR, 'puppet', 'root')
                 util.ensure_dir(PUPPET_SSL_CERT_DIR)
                 util.chownbyname(PUPPET_SSL_CERT_DIR, 'puppet', 'root')
-                util.write_file(PUPPET_SSL_CERT_PATH, str(cfg))
+                util.write_file(PUPPET_SSL_CERT_PATH, cfg)
                 util.chownbyname(PUPPET_SSL_CERT_PATH, 'puppet', 'root')
             else:
                 # Iterate throug the config items, we'll use ConfigParser.set
