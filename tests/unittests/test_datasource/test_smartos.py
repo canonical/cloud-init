@@ -118,7 +118,7 @@ class MockSerial(object):
 
 class TestSmartOSDataSource(helpers.FilesystemMockingTestCase):
     def setUp(self):
-        helpers.FilesystemMockingTestCase.setUp(self)
+        super(TestSmartOSDataSource, self).setUp()
 
         self.tmp = tempfile.mkdtemp()
         self.addCleanup(shutil.rmtree, self.tmp)

@@ -44,7 +44,7 @@ class FakeDataSource(sources.DataSource):
 class TestConsumeUserData(helpers.FilesystemMockingTestCase):
 
     def setUp(self):
-        helpers.FilesystemMockingTestCase.setUp(self)
+        super(TestConsumeUserData, self).setUp()
         self._log = None
         self._log_file = None
         self._log_handler = None

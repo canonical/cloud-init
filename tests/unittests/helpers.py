@@ -43,7 +43,7 @@ if PY26:
     # all this once Python 2.6 is dropped as a minimum requirement.
     class TestCase(unittest.TestCase):
         def setUp(self):
-            unittest.TestCase.setUp(self)
+            super(TestCase, self).setUp()
             self.__all_cleanups = ExitStack()
 
         def tearDown(self):
@@ -147,7 +147,7 @@ def retarget_many_wrapper(new_base, am, old_func):
 
 class ResourceUsingTestCase(TestCase):
     def setUp(self):
-        TestCase.setUp(self)
+        super(ResourceUsingTestCase, self).setUp()
         self.resource_path = None
 
     def resourceLocation(self, subname=None):
@@ -186,7 +186,7 @@ class ResourceUsingTestCase(TestCase):
 
 class FilesystemMockingTestCase(ResourceUsingTestCase):
     def setUp(self):
-        ResourceUsingTestCase.setUp(self)
+        super(FilesystemMockingTestCase, self).setUp()
         self.patched_funcs = ExitStack()
 
     def tearDown(self):

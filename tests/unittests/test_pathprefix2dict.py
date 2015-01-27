@@ -9,7 +9,7 @@ import tempfile
 class TestPathPrefix2Dict(TestCase):
 
     def setUp(self):
-        TestCase.setUp(self)
+        super(TestPathPrefix2Dict, self).setUp()
         self.tmp = tempfile.mkdtemp()
         self.addCleanup(shutil.rmtree, self.tmp)
 
