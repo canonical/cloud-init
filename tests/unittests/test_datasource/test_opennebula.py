@@ -1,7 +1,7 @@
 from cloudinit import helpers
 from cloudinit.sources import DataSourceOpenNebula as ds
 from cloudinit import util
-from ..helpers import populate_dir
+from ..helpers import TestCase, populate_dir
 
 from base64 import b64encode
 import os
@@ -46,7 +46,7 @@ CMD_IP_OUT = '''\
 '''
 
 
-class TestOpenNebulaDataSource(unittest.TestCase):
+class TestOpenNebulaDataSource(TestCase):
     parsed_user = None
 
     def setUp(self):

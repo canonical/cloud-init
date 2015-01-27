@@ -1,7 +1,7 @@
 from cloudinit import helpers
 from cloudinit.sources import DataSourceNoCloud
 from cloudinit import util
-from ..helpers import populate_dir
+from ..helpers import TestCase, populate_dir
 
 import os
 import yaml
@@ -19,9 +19,10 @@ except ImportError:
     from contextlib2 import ExitStack
 
 
-class TestNoCloudDataSource(unittest.TestCase):
+class TestNoCloudDataSource(TestCase):
 
     def setUp(self):
+        super(TestNoCloudDataSource, self).setUp()
         self.tmp = tempfile.mkdtemp()
         self.addCleanup(shutil.rmtree, self.tmp)
         self.paths = helpers.Paths({'cloud_dir': self.tmp})
@@ -33,8 +34,6 @@ class TestNoCloudDataSource(unittest.TestCase):
 
         self.mocks.enter_context(
             mock.patch.object(util, 'get_cmdline', return_value=self.cmdline))
-
-        super(TestNoCloudDataSource, self).setUp()
 
     def test_nocloud_seed_dir(self):
         md = {'instance-id': 'IID', 'dsmode': 'local'}

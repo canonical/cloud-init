@@ -1,6 +1,7 @@
 from cloudinit import util
 
 from cloudinit.config import cc_apt_configure
+from ..helpers import TestCase
 
 import os
 import re
@@ -9,7 +10,7 @@ import tempfile
 import unittest
 
 
-class TestAptProxyConfig(unittest.TestCase):
+class TestAptProxyConfig(TestCase):
     def setUp(self):
         super(TestAptProxyConfig, self).setUp()
         self.tmp = tempfile.mkdtemp()

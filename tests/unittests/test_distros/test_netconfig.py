@@ -1,5 +1,4 @@
 import os
-import unittest
 
 try:
     from unittest import mock
@@ -11,6 +10,7 @@ except ImportError:
     from contextlib2 import ExitStack
 
 from six import StringIO
+from ..helpers import TestCase
 
 from cloudinit import distros
 from cloudinit import helpers
@@ -80,7 +80,7 @@ class WriteBuffer(object):
         return self.buffer.getvalue()
 
 
-class TestNetCfgDistro(unittest.TestCase):
+class TestNetCfgDistro(TestCase):
 
     def _get_distro(self, dname):
         cls = distros.fetch(dname)

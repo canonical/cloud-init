@@ -1,8 +1,9 @@
-import unittest
-
 from cloudinit import distros
 from cloudinit import helpers
 from cloudinit import settings
+
+from ..helpers import TestCase
+
 
 bcfg = {
    'name': 'bob',
@@ -15,7 +16,7 @@ bcfg = {
 }
 
 
-class TestUGNormalize(unittest.TestCase):
+class TestUGNormalize(TestCase):
 
     def _make_distro(self, dtype, def_user=None):
         cfg = dict(settings.CFG_BUILTIN)

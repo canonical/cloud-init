@@ -1,7 +1,7 @@
 from cloudinit import helpers
 from cloudinit.util import load_file
 from cloudinit.sources import DataSourceAzure
-from ..helpers import populate_dir
+from ..helpers import TestCase, populate_dir
 
 try:
     from unittest import mock
@@ -84,9 +84,10 @@ def construct_valid_ovf_env(data=None, pubkeys=None, userdata=None):
     return content
 
 
-class TestAzureDataSource(unittest.TestCase):
+class TestAzureDataSource(TestCase):
 
     def setUp(self):
+        super(TestAzureDataSource, self).setUp()
         self.tmp = tempfile.mkdtemp()
         self.addCleanup(shutil.rmtree, self.tmp)
 
@@ -416,7 +417,7 @@ class TestAzureDataSource(unittest.TestCase):
             load_file(os.path.join(self.waagent_d, 'ovf-env.xml')))
 
 
-class TestReadAzureOvf(unittest.TestCase):
+class TestReadAzureOvf(TestCase):
     def test_invalid_xml_raises_non_azure_ds(self):
         invalid_xml = "<foo>" + construct_valid_ovf_env(data={})
         self.assertRaises(DataSourceAzure.BrokenAzureDataSource,

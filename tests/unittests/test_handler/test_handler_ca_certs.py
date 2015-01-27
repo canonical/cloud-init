@@ -3,6 +3,7 @@ from cloudinit import helpers
 from cloudinit import util
 
 from cloudinit.config import cc_ca_certs
+from ..helpers import TestCase
 
 import logging
 import shutil
@@ -45,7 +46,7 @@ class TestNoConfig(unittest.TestCase):
             self.assertEqual(certs_mock.call_count, 0)
 
 
-class TestConfig(unittest.TestCase):
+class TestConfig(TestCase):
     def setUp(self):
         super(TestConfig, self).setUp()
         self.name = "ca-certs"
@@ -139,7 +140,7 @@ class TestConfig(unittest.TestCase):
         self.assertEqual(self.mock_remove.call_count, 1)
 
 
-class TestAddCaCerts(unittest.TestCase):
+class TestAddCaCerts(TestCase):
 
     def setUp(self):
         super(TestAddCaCerts, self).setUp()
@@ -241,7 +242,7 @@ class TestUpdateCaCerts(unittest.TestCase):
                 ["update-ca-certificates"], capture=False)
 
 
-class TestRemoveDefaultCaCerts(unittest.TestCase):
+class TestRemoveDefaultCaCerts(TestCase):
 
     def setUp(self):
         super(TestRemoveDefaultCaCerts, self).setUp()

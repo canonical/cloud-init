@@ -2,6 +2,7 @@ from cloudinit import cloud
 from cloudinit import util
 
 from cloudinit.config import cc_growpart
+from ..helpers import TestCase
 
 import errno
 import logging
@@ -72,7 +73,7 @@ class TestDisabled(unittest.TestCase):
             self.assertEqual(mockobj.call_count, 0)
 
 
-class TestConfig(unittest.TestCase):
+class TestConfig(TestCase):
     def setUp(self):
         super(TestConfig, self).setUp()
         self.name = "growpart"

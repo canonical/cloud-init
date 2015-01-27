@@ -1,7 +1,7 @@
 from cloudinit.distros.parsers import resolv_conf
 
 import re
-import unittest
+from ..helpers import TestCase
 
 
 BASE_RESOLVE = '''
@@ -13,7 +13,7 @@ nameserver 10.15.30.92
 BASE_RESOLVE = BASE_RESOLVE.strip()
 
 
-class TestResolvHelper(unittest.TestCase):
+class TestResolvHelper(TestCase):
     def test_parse_same(self):
         rp = resolv_conf.ResolvConf(BASE_RESOLVE)
         rp_r = str(rp).strip()

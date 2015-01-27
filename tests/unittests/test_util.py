@@ -7,7 +7,6 @@ import shutil
 import tempfile
 
 from . import helpers
-import unittest
 import six
 
 try:
@@ -38,7 +37,7 @@ class FakeSelinux(object):
         self.restored.append(path)
 
 
-class TestGetCfgOptionListOrStr(unittest.TestCase):
+class TestGetCfgOptionListOrStr(helpers.TestCase):
     def test_not_found_no_default(self):
         """None is returned if key is not found and no default given."""
         config = {}
@@ -70,7 +69,7 @@ class TestGetCfgOptionListOrStr(unittest.TestCase):
         self.assertEqual([], result)
 
 
-class TestWriteFile(unittest.TestCase):
+class TestWriteFile(helpers.TestCase):
     def setUp(self):
         super(TestWriteFile, self).setUp()
         self.tmp = tempfile.mkdtemp()
@@ -149,7 +148,7 @@ class TestWriteFile(unittest.TestCase):
         mockobj.assert_called_once_with('selinux')
 
 
-class TestDeleteDirContents(unittest.TestCase):
+class TestDeleteDirContents(helpers.TestCase):
     def setUp(self):
         super(TestDeleteDirContents, self).setUp()
         self.tmp = tempfile.mkdtemp()
@@ -215,20 +214,20 @@ class TestDeleteDirContents(unittest.TestCase):
         self.assertDirEmpty(self.tmp)
 
 
-class TestKeyValStrings(unittest.TestCase):
+class TestKeyValStrings(helpers.TestCase):
     def test_keyval_str_to_dict(self):
         expected = {'1': 'one', '2': 'one+one', 'ro': True}
         cmdline = "1=one ro 2=one+one"
         self.assertEqual(expected, util.keyval_str_to_dict(cmdline))
 
 
-class TestGetCmdline(unittest.TestCase):
+class TestGetCmdline(helpers.TestCase):
     def test_cmdline_reads_debug_env(self):
         os.environ['DEBUG_PROC_CMDLINE'] = 'abcd 123'
         self.assertEqual(os.environ['DEBUG_PROC_CMDLINE'], util.get_cmdline())
 
 
-class TestLoadYaml(unittest.TestCase):
+class TestLoadYaml(helpers.TestCase):
     mydefault = "7b03a8ebace993d806255121073fed52"
 
     def test_simple(self):
@@ -335,7 +334,7 @@ class TestReadDMIData(helpers.FilesystemMockingTestCase):
         self._patchIn(new_root)
         util.ensure_dir(os.path.join('sys', 'class', 'dmi', 'id'))
 
-        dmi_key = "/sys/class/dmi/id/{}".format(key)
+        dmi_key = "/sys/class/dmi/id/{0}".format(key)
         util.write_file(dmi_key, content)
 
     def _no_syspath(self, key, content):

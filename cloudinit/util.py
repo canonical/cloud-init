@@ -2059,23 +2059,23 @@ def _read_dmi_syspath(key):
     Reads dmi data with from /sys/class/dmi/id
     """
 
-    dmi_key = "{}/{}".format(DMI_SYS_PATH, key)
-    LOG.debug("querying dmi data {}".format(dmi_key))
+    dmi_key = "{0}/{1}".format(DMI_SYS_PATH, key)
+    LOG.debug("querying dmi data {0}".format(dmi_key))
     try:
         if not os.path.exists(dmi_key):
-            LOG.debug("did not find {}".format(dmi_key))
+            LOG.debug("did not find {0}".format(dmi_key))
             return None
 
         key_data = load_file(dmi_key)
         if not key_data:
-            LOG.debug("{} did not return any data".format(key))
+            LOG.debug("{0} did not return any data".format(key))
             return None
 
-        LOG.debug("dmi data {} returned {}".format(dmi_key, key_data))
+        LOG.debug("dmi data {0} returned {0}".format(dmi_key, key_data))
         return key_data.strip()
 
     except Exception as e:
-        logexc(LOG, "failed read of {}".format(dmi_key), e)
+        logexc(LOG, "failed read of {0}".format(dmi_key), e)
         return None
 
 
@@ -2087,10 +2087,10 @@ def _call_dmidecode(key, dmidecode_path):
     try:
         cmd = [dmidecode_path, "--string", key]
         (result, _err) = subp(cmd)
-        LOG.debug("dmidecode returned '{}' for '{}'".format(result, key))
+        LOG.debug("dmidecode returned '{0}' for '{0}'".format(result, key))
         return result
     except OSError as _err:
-        LOG.debug('failed dmidecode cmd: {}\n{}'.format(cmd, _err.message))
+        LOG.debug('failed dmidecode cmd: {0}\n{0}'.format(cmd, _err.message))
         return None
 
 
@@ -2106,7 +2106,7 @@ def read_dmi_data(key):
     if dmidecode_path:
         return _call_dmidecode(key, dmidecode_path)
 
-    LOG.warn("did not find either path {} or dmidecode command".format(
+    LOG.warn("did not find either path {0} or dmidecode command".format(
              DMI_SYS_PATH))
 
     return None

@@ -1,6 +1,20 @@
+from __future__ import print_function
+
+import sys
 import unittest
 
 from cloudinit.cs_utils import Cepko
+
+try:
+    skip = unittest.skip
+except AttributeError:
+    # Python 2.6.  Doesn't have to be high fidelity.
+    def skip(reason):
+        def decorator(func):
+            def wrapper(*args, **kws):
+                print(reason, file=sys.stderr)
+            return wrapper
+        return decorator
 
 
 SERVER_CONTEXT = {
@@ -29,7 +43,7 @@ class CepkoMock(Cepko):
 # 2015-01-22 BAW: This test is completely useless because it only ever tests
 # the CepkoMock object.  Even in its original form, I don't think it ever
 # touched the underlying Cepko class methods.
-@unittest.skip('This test is completely useless')
+@skip('This test is completely useless')
 class CepkoResultTests(unittest.TestCase):
     def setUp(self):
         pass

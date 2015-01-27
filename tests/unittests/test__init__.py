@@ -18,6 +18,8 @@ from cloudinit import settings
 from cloudinit import url_helper
 from cloudinit import util
 
+from .helpers import TestCase
+
 
 class FakeModule(handlers.Handler):
     def __init__(self):
@@ -31,10 +33,10 @@ class FakeModule(handlers.Handler):
         pass
 
 
-class TestWalkerHandleHandler(unittest.TestCase):
+class TestWalkerHandleHandler(TestCase):
 
     def setUp(self):
-        unittest.TestCase.setUp(self)
+        super(TestWalkerHandleHandler, self).setUp()
         tmpdir = tempfile.mkdtemp()
         self.addCleanup(shutil.rmtree, tmpdir)
 

@@ -39,8 +39,20 @@ else:
         PY3 = True
 
 if PY26:
-    # For now add these on, taken from python 2.7 + slightly adjusted
+    # For now add these on, taken from python 2.7 + slightly adjusted.  Drop
+    # all this once Python 2.6 is dropped as a minimum requirement.
     class TestCase(unittest.TestCase):
+        def setUp(self):
+            unittest.TestCase.setUp(self)
+            self.__all_cleanups = ExitStack()
+
+        def tearDown(self):
+            self.__all_cleanups.close()
+            unittest.TestCase.tearDown(self)
+
+        def addCleanup(self, function, *args, **kws):
+            self.__all_cleanups.callback(function, *args, **kws)
+
         def assertIs(self, expr1, expr2, msg=None):
             if expr1 is not expr2:
                 standardMsg = '%r is not %r' % (expr1, expr2)
@@ -61,6 +73,13 @@ if PY26:
             if value is not None:
                 standardMsg = '%r is not None'
                 standardMsg = standardMsg % (value)
+                self.fail(self._formatMessage(msg, standardMsg))
+
+        def assertIsInstance(self, obj, cls, msg=None):
+            """Same as self.assertTrue(isinstance(obj, cls)), with a nicer
+            default message."""
+            if not isinstance(obj, cls):
+                standardMsg = '%s is not an instance of %r' % (repr(obj), cls)
                 self.fail(self._formatMessage(msg, standardMsg))
 
         def assertDictContainsSubset(self, expected, actual, msg=None):
@@ -126,9 +145,9 @@ def retarget_many_wrapper(new_base, am, old_func):
     return wrapper
 
 
-class ResourceUsingTestCase(unittest.TestCase):
+class ResourceUsingTestCase(TestCase):
     def setUp(self):
-        unittest.TestCase.setUp(self)
+        TestCase.setUp(self)
         self.resource_path = None
 
     def resourceLocation(self, subname=None):

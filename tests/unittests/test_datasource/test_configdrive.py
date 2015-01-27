@@ -3,7 +3,6 @@ import json
 import os
 import shutil
 import tempfile
-import unittest
 
 try:
     from unittest import mock
@@ -19,6 +18,9 @@ from cloudinit import settings
 from cloudinit.sources import DataSourceConfigDrive as ds
 from cloudinit.sources.helpers import openstack
 from cloudinit import util
+
+from ..helpers import TestCase
+
 
 PUBKEY = u'ssh-rsa AAAAB3NzaC1....sIkJhq8wdX+4I3A4cYbYP ubuntu@server-460\n'
 EC2_META = {
@@ -70,7 +72,7 @@ CFG_DRIVE_FILES_V2 = {
   'openstack/latest/user_data': USER_DATA}
 
 
-class TestConfigDriveDataSource(unittest.TestCase):
+class TestConfigDriveDataSource(TestCase):
 
     def setUp(self):
         super(TestConfigDriveDataSource, self).setUp()

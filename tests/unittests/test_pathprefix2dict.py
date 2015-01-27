@@ -1,15 +1,15 @@
 from cloudinit import util
 
-from .helpers import populate_dir
+from .helpers import TestCase, populate_dir
 
 import shutil
 import tempfile
-import unittest
 
 
-class TestPathPrefix2Dict(unittest.TestCase):
+class TestPathPrefix2Dict(TestCase):
 
     def setUp(self):
+        TestCase.setUp(self)
         self.tmp = tempfile.mkdtemp()
         self.addCleanup(shutil.rmtree, self.tmp)
 

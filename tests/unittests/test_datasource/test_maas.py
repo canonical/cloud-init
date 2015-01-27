@@ -2,11 +2,10 @@ from copy import copy
 import os
 import shutil
 import tempfile
-import unittest
 
 from cloudinit.sources import DataSourceMAAS
 from cloudinit import url_helper
-from ..helpers import populate_dir
+from ..helpers import TestCase, populate_dir
 
 try:
     from unittest import mock
@@ -14,7 +13,7 @@ except ImportError:
     import mock
 
 
-class TestMAASDataSource(unittest.TestCase):
+class TestMAASDataSource(TestCase):
 
     def setUp(self):
         super(TestMAASDataSource, self).setUp()
