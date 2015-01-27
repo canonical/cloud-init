@@ -122,7 +122,6 @@ class UserDataProcessor(object):
                     ctype_orig = None
                     was_compressed = True
                 except util.DecompressionError as e:
-                    import pdb; pdb.set_trace()
                     LOG.warn("Failed decompressing payload from %s of length"
                              " %s due to: %s", ctype_orig, len(payload), e)
                     continue
