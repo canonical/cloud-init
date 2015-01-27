@@ -24,9 +24,9 @@
 
 from __future__ import print_function
 
-import base64
 from cloudinit import helpers as c_helpers
 from cloudinit.sources import DataSourceSmartOS
+from cloudinit.util import b64e
 from .. import helpers
 import os
 import os.path
@@ -35,12 +35,6 @@ import shutil
 import tempfile
 import stat
 import uuid
-
-def b64(source):
-    # In Python 3, b64encode only accepts bytes and returns bytes.
-    if not isinstance(source, bytes):
-        source = source.encode('utf-8')
-    return base64.b64encode(source).decode('us-ascii')
 
 
 MOCK_RETURNS = {
@@ -239,7 +233,7 @@ class TestSmartOSDataSource(helpers.FilesystemMockingTestCase):
         my_returns = MOCK_RETURNS.copy()
         my_returns['base64_all'] = "true"
         for k in ('hostname', 'cloud-init:user-data'):
-            my_returns[k] = b64(my_returns[k])
+            my_returns[k] = b64e(my_returns[k])
 
         dsrc = self._get_ds(mockdata=my_returns)
         ret = dsrc.get_data()
@@ -260,7 +254,7 @@ class TestSmartOSDataSource(helpers.FilesystemMockingTestCase):
         my_returns['b64-cloud-init:user-data'] = "true"
         my_returns['b64-hostname'] = "true"
         for k in ('hostname', 'cloud-init:user-data'):
-            my_returns[k] = b64(my_returns[k])
+            my_returns[k] = b64e(my_returns[k])
 
         dsrc = self._get_ds(mockdata=my_returns)
         ret = dsrc.get_data()
@@ -276,7 +270,7 @@ class TestSmartOSDataSource(helpers.FilesystemMockingTestCase):
         my_returns = MOCK_RETURNS.copy()
         my_returns['base64_keys'] = 'hostname,ignored'
         for k in ('hostname',):
-            my_returns[k] = b64(my_returns[k])
+            my_returns[k] = b64e(my_returns[k])
 
         dsrc = self._get_ds(mockdata=my_returns)
         ret = dsrc.get_data()

@@ -38,13 +38,7 @@ def _decode(data, encoding=None):
     if not encoding or encoding.lower() in ['raw']:
         return data
     elif encoding.lower() in ['base64', 'b64']:
-        # Try to give us a native string in both Python 2 and 3, and remember
-        # that b64decode() returns bytes in Python 3.
-        decoded = base64.b64decode(data)
-        try:
-            return decoded.decode('utf-8')
-        except UnicodeDecodeError:
-            return decoded
+        return util.b64d(data)
     elif encoding.lower() in ['gzip', 'gz']:
         return util.decomp_gzip(data, quiet=False)
     else:

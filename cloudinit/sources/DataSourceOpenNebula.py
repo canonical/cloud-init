@@ -426,12 +426,7 @@ def read_context_disk_dir(source_dir, asuser=None):
                                context.get('USER_DATA_ENCODING'))
         if encoding == "base64":
             try:
-                userdata = base64.b64decode(results['userdata'])
-                # In Python 3 we still expect a str, but b64decode will return
-                # bytes.  Convert to str.
-                if isinstance(userdata, bytes):
-                    userdata = userdata.decode('utf-8')
-                results['userdata'] = userdata
+                results['userdata'] = util.b64d(results['userdata'])
             except TypeError:
                 LOG.warn("Failed base64 decoding of userdata")
 

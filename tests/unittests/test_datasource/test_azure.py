@@ -1,5 +1,5 @@
 from cloudinit import helpers
-from cloudinit.util import load_file
+from cloudinit.util import b64e, load_file
 from cloudinit.sources import DataSourceAzure
 from ..helpers import TestCase, populate_dir
 
@@ -12,7 +12,6 @@ try:
 except ImportError:
     from contextlib2 import ExitStack
 
-import base64
 import crypt
 import os
 import stat
@@ -20,13 +19,6 @@ import yaml
 import shutil
 import tempfile
 import unittest
-
-
-def b64(source):
-    # In Python 3, b64encode only accepts bytes and returns bytes.
-    if not isinstance(source, bytes):
-        source = source.encode('utf-8')
-    return base64.b64encode(source).decode('us-ascii')
 
 
 def construct_valid_ovf_env(data=None, pubkeys=None, userdata=None):
@@ -58,7 +50,7 @@ def construct_valid_ovf_env(data=None, pubkeys=None, userdata=None):
         content += "<%s%s>%s</%s>\n" % (key, attrs, val, key)
 
     if userdata:
-        content += "<UserData>%s</UserData>\n" % (b64(userdata))
+        content += "<UserData>%s</UserData>\n" % (b64e(userdata))
 
     if pubkeys:
         content += "<SSH><PublicKeys>\n"
@@ -189,7 +181,7 @@ class TestAzureDataSource(TestCase):
         # set dscfg in via base64 encoded yaml
         cfg = {'agent_command': "my_command"}
         odata = {'HostName': "myhost", 'UserName': "myuser",
-                'dscfg': {'text': b64(yaml.dump(cfg)),
+                'dscfg': {'text': b64e(yaml.dump(cfg)),
                           'encoding': 'base64'}}
         data = {'ovfcontent': construct_valid_ovf_env(data=odata)}
 
@@ -241,7 +233,7 @@ class TestAzureDataSource(TestCase):
 
     def test_userdata_found(self):
         mydata = "FOOBAR"
-        odata = {'UserData': b64(mydata)}
+        odata = {'UserData': b64e(mydata)}
         data = {'ovfcontent': construct_valid_ovf_env(data=odata)}
 
         dsrc = self._get_ds(data)
@@ -289,7 +281,7 @@ class TestAzureDataSource(TestCase):
                                    'command': 'my-bounce-command',
                                    'hostname_command': 'my-hostname-command'}}
         odata = {'HostName': "xhost",
-                'dscfg': {'text': b64(yaml.dump(cfg)),
+                'dscfg': {'text': b64e(yaml.dump(cfg)),
                           'encoding': 'base64'}}
         data = {'ovfcontent': construct_valid_ovf_env(data=odata)}
         self._get_ds(data).get_data()
@@ -304,7 +296,7 @@ class TestAzureDataSource(TestCase):
         # config specifying set_hostname off should not bounce
         cfg = {'set_hostname': False}
         odata = {'HostName': "xhost",
-                'dscfg': {'text': b64(yaml.dump(cfg)),
+                'dscfg': {'text': b64e(yaml.dump(cfg)),
                           'encoding': 'base64'}}
         data = {'ovfcontent': construct_valid_ovf_env(data=odata)}
         self._get_ds(data).get_data()
@@ -333,7 +325,7 @@ class TestAzureDataSource(TestCase):
         # Make sure that user can affect disk aliases
         dscfg = {'disk_aliases': {'ephemeral0': '/dev/sdc'}}
         odata = {'HostName': "myhost", 'UserName': "myuser",
-                'dscfg': {'text': b64(yaml.dump(dscfg)),
+                'dscfg': {'text': b64e(yaml.dump(dscfg)),
                           'encoding': 'base64'}}
         usercfg = {'disk_setup': {'/dev/sdc': {'something': '...'},
                                   'ephemeral0': False}}
@@ -370,7 +362,7 @@ class TestAzureDataSource(TestCase):
 
     def test_existing_ovf_same(self):
         # waagent/SharedConfig left alone if found ovf-env.xml same as cached
-        odata = {'UserData': b64("SOMEUSERDATA")}
+        odata = {'UserData': b64e("SOMEUSERDATA")}
         data = {'ovfcontent': construct_valid_ovf_env(data=odata)}
 
         populate_dir(self.waagent_d,
@@ -394,9 +386,9 @@ class TestAzureDataSource(TestCase):
         # 'get_data' should remove SharedConfig.xml in /var/lib/waagent
         # if ovf-env.xml differs.
         cached_ovfenv = construct_valid_ovf_env(
-            {'userdata': b64("FOO_USERDATA")})
+            {'userdata': b64e("FOO_USERDATA")})
         new_ovfenv = construct_valid_ovf_env(
-            {'userdata': b64("NEW_USERDATA")})
+            {'userdata': b64e("NEW_USERDATA")})
 
         populate_dir(self.waagent_d,
             {'ovf-env.xml': cached_ovfenv,

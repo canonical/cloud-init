@@ -3,18 +3,11 @@ from cloudinit.sources import DataSourceOpenNebula as ds
 from cloudinit import util
 from ..helpers import TestCase, populate_dir
 
-from base64 import b64encode
 import os
 import pwd
 import shutil
 import tempfile
 import unittest
-
-def b64(source):
-    # In Python 3, b64encode only accepts bytes and returns bytes.
-    if not isinstance(source, bytes):
-        source = source.encode('utf-8')
-    return b64encode(source).decode('us-ascii')
 
 
 TEST_VARS = {
@@ -186,7 +179,7 @@ class TestOpenNebulaDataSource(TestCase):
             self.assertEqual(USER_DATA, results['userdata'])
 
     def test_user_data_encoding_required_for_decode(self):
-        b64userdata = b64(USER_DATA)
+        b64userdata = util.b64e(USER_DATA)
         for k in ('USER_DATA', 'USERDATA'):
             my_d = os.path.join(self.tmp, k)
             populate_context_dir(my_d, {k: b64userdata})
@@ -198,7 +191,7 @@ class TestOpenNebulaDataSource(TestCase):
     def test_user_data_base64_encoding(self):
         for k in ('USER_DATA', 'USERDATA'):
             my_d = os.path.join(self.tmp, k)
-            populate_context_dir(my_d, {k: b64(USER_DATA),
+            populate_context_dir(my_d, {k: util.b64e(USER_DATA),
                                         'USERDATA_ENCODING': 'base64'})
             results = ds.read_context_disk_dir(my_d)
 

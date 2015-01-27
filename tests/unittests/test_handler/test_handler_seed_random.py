@@ -18,7 +18,6 @@
 
 from cloudinit.config import cc_seed_random
 
-import base64
 import gzip
 import tempfile
 
@@ -36,13 +35,6 @@ from .. import helpers as t_help
 import logging
 
 LOG = logging.getLogger(__name__)
-
-
-def b64(source):
-    # In Python 3, b64encode only accepts bytes and returns bytes.
-    if not isinstance(source, bytes):
-        source = source.encode('utf-8')
-    return base64.b64encode(source).decode('us-ascii')
 
 
 class TestRandomSeed(t_help.TestCase):
@@ -141,7 +133,7 @@ class TestRandomSeed(t_help.TestCase):
         self.assertEquals("big-toe", contents)
 
     def test_append_random_base64(self):
-        data = b64('bubbles')
+        data = util.b64e('bubbles')
         cfg = {
             'random_seed': {
                 'file': self._seed_file,
@@ -154,7 +146,7 @@ class TestRandomSeed(t_help.TestCase):
         self.assertEquals("bubbles", contents)
 
     def test_append_random_b64(self):
-        data = b64('kit-kat')
+        data = util.b64e('kit-kat')
         cfg = {
             'random_seed': {
                 'file': self._seed_file,

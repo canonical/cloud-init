@@ -44,6 +44,7 @@ import sys
 import tempfile
 import time
 
+from base64 import b64decode, b64encode
 from six.moves.urllib import parse as urlparse
 
 import six
@@ -89,6 +90,25 @@ def encode_text(text, encoding='utf-8'):
     if isinstance(text, six.binary_type):
         return text
     return text.encode(encoding)
+
+
+def b64d(source):
+    # Base64 decode some data, accepting bytes or unicode/str, and returning
+    # str/unicode if the result is utf-8 compatible, otherwise returning bytes.
+    decoded = b64decode(source)
+    if isinstance(decoded, bytes):
+        try:
+            return decoded.decode('utf-8')
+        except UnicodeDecodeError:
+            return decoded
+
+def b64e(source):
+    # Base64 encode some data, accepting bytes or unicode/str, and returning
+    # str/unicode if the result is utf-8 compatible, otherwise returning bytes.
+    if not isinstance(source, bytes):
+        source = source.encode('utf-8')
+    return b64encode(source).decode('utf-8')
+
 
 # Path for DMI Data
 DMI_SYS_PATH = "/sys/class/dmi/id"

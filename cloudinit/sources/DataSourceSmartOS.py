@@ -351,16 +351,7 @@ def query_data(noun, seed_device, seed_timeout, strip=False, default=None,
 
     if b64:
         try:
-            # Generally, we want native strings in the values.  Python 3's
-            # b64decode will return bytes though, so decode them to utf-8 if
-            # possible.  If that fails, return the bytes.
-            decoded = base64.b64decode(resp)
-            try:
-                if isinstance(decoded, bytes):
-                    return decoded.decode('utf-8')
-            except UnicodeDecodeError:
-                pass
-            return decoded
+            return util.b64d(resp)
         # Bogus input produces different errors in Python 2 and 3; catch both.
         except (TypeError, binascii.Error):
             LOG.warn("Failed base64 decoding key '%s'", noun)
