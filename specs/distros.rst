@@ -9,9 +9,9 @@ should be established, so that the API could be pythonic, easy to
 comprehend and extend. We have the following examples of how an object
 should look, depending on its state and behaviour:
 
- - Use ``.attribute`` if it the attribute is not changeable
+ - Use ``.attribute`` if the attribute is not changeable
    throughout the life of the object.
-   For instance, the name of a name of a device.
+   For instance, the name of a device.
 
  - Use ``.method()`` for obtaining a variant attribute, which can be
    different throughout the execution of the object and not modifiable
@@ -19,13 +19,7 @@ should look, depending on its state and behaviour:
    set a new size and it can vary throughout the life of the device.
 
  - For attributes which are modifiable by us and which aren't changing
-   throughout the life of the object, we could use two approaches,
-   a property-based approach or a method based approach.
-
-   The first one is more Pythonic, but can
-   hide from the user of that object the fact that the property does
-   more than it says, the second one is more in-your-face,
-   but feels too much like Java's setters and getters and so on:
+   throughout the life of the object, we could use a property-based approach.
 
        >>> device.mtu
        1500
@@ -33,16 +27,6 @@ should look, depending on its state and behaviour:
        >>> device.mtu = 1400
        1400
 
-       vs
-
-       >>> device.mtu()
-       1500
-       >>> device.set_mtu(1400)
-       >>>
-
- - similar to the previous point, we could have ``is_something`` or
-   ``is_something()``. We must choose one of this variants and use it
-   consistently accross the project.
 
 
 Proposed distro hierarchy
@@ -94,29 +78,21 @@ The distros location is proposed, with the following structure and attributes:
 
     - The base class for a distro is found in ``distros.base``.
 
-    - There are sub-namespaces for specific interaction with the OS,
-      such as network, users.
+    - There are specific submodules for interaction with the OS,
+      such as network, users. The submodules are part of distros namespaces,
+      e.g. ``distros.windows`` should contain the modules ``network``,
+      ``users`` etc.
 
-    - More namespaces can be added, if we identify a group of interactions that can
-      be categorized in a namespace.
+    - More modules can be added, if we identify a group of interactions that can
+      be categorized in one.
 
-    - There is a ``general`` namespace, which contains general utilities that can't be moved
-      in another namespace.
+    - There should be ``general`` module, which contains general utilities that can't be moved
+      in another module.
 
-    - Each subnamespace has its own abstract base class, which must be implemented
-      by different distros. Code reuse between distros is recommended.
+    - Each submodule has its own abstract base class, which must be implemented
+      by each distro. Code reuse between distros is recommended.
 
-    - Each subnamespace exposes a way to obtain an instance of that namespace for
-      the underlying distro. This can be exposed in namespace.factory.
-      Thus, the following are equivalent:
-
-        >>> from cloudinit import distro
-        >>> network = distro.get_distro().network
-
-        >>> from cloudinit.distro.network import factory
-        >>> network = factory.get_network()
-
-    - Each subnamespace can expose additional behaviour that might not exist in
+    - Each submodule can expose additional behaviour that might not exist in
       the base class, if that behaviour does not make sense or if there is no
       equivalent on other platforms. But don't expose leaky abstraction, this
       specific code must be written in an abstract way, so that possible alternatives
@@ -127,55 +103,27 @@ The distros location is proposed, with the following structure and attributes:
 
       cloudinit/distros/__init__.py
                         base.py
-                        factory.py
 
-                        network/
-                          factory.py
-                          base.py
-                          windows.py
-                          freebsd.py
-                          debian.py
+                        freebsd/
+                          __init__.py
+                          network.py
+                          users.py
+                          general.py
+                          filesystem.py                          
+                        windows/
+                          __init__.py
+                          network.py
+                          users.py
+                          general.py
+                       ubuntu/
+                          __init__.py
+                          network.py
                           ....
-                          __init__.py
-
-                        users
-                          factory.py
-                          base.py
-                          freebsd.py
-                          debian.py
-                          ....
-                          __init__.py
-
-                        filesystem
-                          factory.py
-                          base.py
-                          freebsd.py
-                          ...
-                          __init__.py
-
-                        packaging
-                          factory.py
-                          base.py
-                          freebsd.py
-                          debian.py
-                          ....
-                          __init__.py
-
-                        general
-                          base.py
-                          windows.py
-                          debian.py
-                          ....
-                          __init__.py
 
 
-The base class for the Distro specific implementation must provide
-an accessor member for each namespace, so that it will be sufficient
-to obtain the distro in order to have each namespace.
-
->>> from cloudinit.distros import factory
->>> distro = factory.get_distro()
->>> distro.network # the actual object, not the subpackage
+>>> from cloudinit.distros.base import get_distro
+>>> distro = get_distro()
+>>> distro.network # the actual object, not the submodule
 <WindowsNetwork:/distro/network/windows>
 >>> distro.users
 <WindowsUsers:/distro/users/windows>
@@ -190,8 +138,8 @@ distro can use a combination of `platform.system`_ and `platform.linux_distribut
 In the following, I'll try to emphasize some possible APIs for each namespace.
 
 
-Network subnamespace
-----------------------
+Network module
+--------------
 
     The abstract class can look like this:
 
@@ -203,13 +151,35 @@ Network subnamespace
              Each route should be an object encapsulating the inner workings
              of each variant.
 
-             So :meth:`routes` returns ``RouteContainer([Route(...), Route(...), Route(...))``
-             See the description for :class:`RouteContainer` for more details,
-             as well as the description of :class:`Route` for the API of the route object.
+             :meth:`routes` returns an object with behaviour similar to that
+             of a sequence (it could be implemented using collections.Sequence
+             or something similar, as long as it guarantees an interface).
+             See the description of :class:`Route` for the API of the route object.
 
-             Using ``route in network.routes()`` and ``network.routes().add(route)
-             removes the need for ``cloudbaseinit.osutils.check_static_route_exists``
-             and ``cloudbaseinit.osutils.add_static_route``.
+            The following behaviour should be supported by the object returned by
+            :meth:`routes`.
+
+            def __iter__(self):
+               """Support iteration."""
+
+            def __contains__(self, item):
+                """Support containment."""
+
+            def __getitem__(self, item):
+                """Support element access"""
+
+            Some API usages:
+
+            >>> routes = network.routes()
+            >>> route_object in routes
+            True
+            >>> '192.168.70.14' in routes
+            False
+            >>> route = Route.from_route_entry(
+                       "0.0.0.0         192.168.60.2    "
+                       "0.0.0.0         UG        0 0          "
+                       "0 eth0")
+            >>> route.delete()               
              """
 
           def default_gateway(self):
@@ -222,7 +192,7 @@ Network subnamespace
              """Get the network interfaces
 
              This can be implemented in the same vein as :meth:`routes`, e.g.
-             ``InterfaceContainer([Interface(...), Interface(...), Interface(...)])``
+             ``sequence(Interface(...), Interface(...), ...)``
              """
 
          def firewall_rules(self):
@@ -233,12 +203,12 @@ Network subnamespace
              The same behaviour as for :meth:`routes` can be used, that is:
 
                  >>> rules = distro.network.firewall_rules()
+                 # Creating a new rule.
                  >>> rule = distro.network.FirewallRule(name=..., port=..., protocol=...)
-                 >>> rules.add(rule)
-                 >>> rules.delete(rule)
+                 # Deleting a rule
+                 >>> rule.delete()
                  >>> rule in rules
                  >>> for rule in rules: print(rules)
-                 >>> del rules[i]
                  >>> rule = rules[0]
                  >>> rule.name, rule.port, rule.protocol, rule.allow
 
@@ -264,8 +234,11 @@ Network subnamespace
 
 
              >>> hosts = distro.network.hosts()
-             >>> list(hosts) # support iteration and index access
+             # Add a new entry in the hosts file, as well
+             # in the object container itself
              >>> hosts.add(ipaddress, hostname, alias)
+             # Delete an entry from the hosts file and from
+             # the object container itself
              >>> hosts.delete(ipaddress, hostname, alias)
 
              This gets rid of ``cloudinit.distros.Distro.update_etc_hosts``
@@ -286,6 +259,10 @@ Network subnamespace
                   route.expire
                   route.static -> 'S' in self.flags
                   route.usable -> 'U' in self.flag
+
+             This can use a namedtuple as a base, but this should
+             be considered an implementation detail by the users
+             of this class.
              """
 
           @classmethod
@@ -295,57 +272,6 @@ Network subnamespace
               the output of `netstat` or what will be used on Posix or
               from `GetIpForwardTable`.
               """
-
-        class RouteContainer(object):
-            """A wrapper over the result from :meth:`NetworkBase.routes()`,
-            which provides some OO interaction with the underlying routes.
-
-
-            >>> routes = network.routes() # a RouteContainer
-            >>> route_object in routes
-            True
-            >>> '192.168.70.14' in routes
-            False
-            >>> route = Route.from_route_entry(
-                       "0.0.0.0         192.168.60.2    "
-                       "0.0.0.0         UG        0 0          "
-                       "0 eth0")
-            >>> routes.add(route)
-            >>> routes.delete(route)
-            """
-
-            def __iter__(self):
-               """Support iteration."""
-
-            def __contains__(self, item):
-                """Support containment."""
-
-            def __getitem__(self, item):
-                """Support element access"""
-
-            def __delitem__(self, item):
-                """Delete a route, equivalent to :meth:`delete_route`."""
-
-            def __iadd__(self, item):
-                """Add route, equivalent to :meth:``add_route``."""
-
-            def add(self, route):
-                """Add a new route."""
-
-            def delete(self, destination, mask, metric, ...):
-                """Delete a route."""
-
-      class InterfaceContainer(object):
-            """Container for interfaces, with similar API as for RouteContainer."""
-
-            def __iter__(self):
-               """Support iteration."""
-
-            def __contains__(self, item):
-                """Support containment."""
-
-            def __getitem__(self, item):
-                """Support element access"""
 
       class Interface(object):
             """Encapsulation for the state and behaviour of an interface.
@@ -369,10 +295,10 @@ Network subnamespace
             obtain a :class:`Interface` instance from it.
 
             >>> interface = distro.network.Interface.from_name('eth0')
-            >>> nterface = distro.network.Interface.from_mac( u'00:50:56:C0:00:01')
+            >>> interface = distro.network.Interface.from_mac( u'00:50:56:C0:00:01')
 
             Each Distro specific implementation of :class:`Interface` should
-            be exported in the `network` namespace as the `Interface` attribute,
+            be exported in the `network` module as the `Interface` attribute,
             so that the underlying OS is completely hidden from an API point-of-view.
             """
 
@@ -415,8 +341,8 @@ Network subnamespace
        TODO: finish this section with APis for set_hostname, _read_hostname, update_hostname
 
 
-Users subnamespace
-------------------
+Users module
+------------
 
 The base class for this namespace can look like this
 
@@ -429,20 +355,18 @@ The base class for this namespace can look like this
              Similar with network.routes() et al, that is
 
              >>> groups = distro.users.groups()
-             GroupContainer(Group(...), Group(....), ...)
+             sequence(Group(...), Group(....), ...)
              # create a new group
              >>> group = distro.users.Group.create(name)
              # Add new members to a group
              >>> group.add(member)
-             # Add a new group
-             >>> groups.add(group)
              # Remove a group
-             >>> groups.delete(group)
+             >>> group.delete()
              # Iterate groups
              >>> list(groups)
 
              This gets rid of ``cloudinit.distros.Distro.create_group``,
-             which creates a group and adds member to it as well and it get rids of
+             which creates a group and adds members to it as well and it get rids of
              ``cloudbaseinit.osutils.add_user_to_local``.
              """
 
@@ -456,13 +380,13 @@ The base class for this namespace can look like this
              >>> user in users
              # Iteration
              >>> for i in user: print(user)
-             # Add a new user
-             >>> user = users.create(username, password, password_expires=False)
              """
 
      class User:
          """ Abstracts away user interaction.
 
+         # Creating a new user.
+         >>> User.create(username=..., password=..., ...)
          # get the home dir of an user
          >>> user.home()
          # Get the password (?)
@@ -484,8 +408,8 @@ The base class for this namespace can look like this
 
    TODO: what is cloudinit.distros.get_default_user?
 
-Packaging namespace
--------------------
+Packaging module
+----------------
 
 This object is a thin layer over Distro specific packaging utilities,
 used in cloudinit through ``distro.Distro.package_command``.
@@ -504,8 +428,8 @@ we could have a more OO approach:
  On Windows side, this can be implemented with OneGet.
 
 
-Filesystem namespace
---------------------
+Filesystem module
+-----------------
 
 Layer over filesystem interaction specific for each OS.
 Most of the uses encountered are related to the concept of devices and partitions.
@@ -552,8 +476,8 @@ class FilesystemBase(ABC):
            >>> partition = DevicePartition.from_name('sda1')
          """
 
-General namespace
------------------
+General module
+--------------
 
 Here we could have other general OS utilities: terminate, apply_locale,
 set_timezone, execute_process etc. If some utilities can be grouped
