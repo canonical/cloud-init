@@ -41,7 +41,7 @@ from cloudinit.settings import PER_INSTANCE
 from cloudinit import url_helper as uhelp
 from cloudinit import util
 
-from urlparse import parse_qs
+from six.moves.urllib_parse import parse_qs
 
 frequency = PER_INSTANCE
 
