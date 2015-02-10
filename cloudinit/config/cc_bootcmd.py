@@ -36,7 +36,7 @@ def handle(name, cfg, cloud, log, _args):
     with util.ExtendedTemporaryFile(suffix=".sh") as tmpf:
         try:
             content = util.shellify(cfg["bootcmd"])
-            tmpf.write(content)
+            tmpf.write(util.encode_text(content))
             tmpf.flush()
         except:
             util.logexc(log, "Failed to shellify bootcmd")
