@@ -27,6 +27,12 @@ import textwrap
 
 from cloudinit import templater
 
+try:
+    import Cheetah
+    HAS_CHEETAH = True
+except ImportError:
+    HAS_CHEETAH = False
+
 
 class TestTemplates(test_helpers.TestCase):
     def test_render_basic(self):
@@ -44,7 +50,7 @@ class TestTemplates(test_helpers.TestCase):
         out_data = templater.basic_render(in_data, {'b': 2})
         self.assertEqual(expected_data.strip(), out_data)
 
-    @test_helpers.skipIf(six.PY3, 'Cheetah is not compatible with Python 3')
+    @test_helpers.skipIf(not HAS_CHEETAH, 'cheetah renderer not available')
     def test_detection(self):
         blob = "## template:cheetah"
 
