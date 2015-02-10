@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python3
 
 import os
 import shutil
@@ -27,23 +27,35 @@ import argparse
 # Package names that will showup in requires to what we can actually
 # use in our debian 'control' file, this is a translation of the 'requires'
 # file pypi package name to a debian/ubuntu package name.
-PKG_MP = {
-    'argparse': 'python-argparse',
-    'cheetah': 'python-cheetah',
-    'configobj': 'python-configobj',
-    'jinja2': 'python-jinja2',
-    'jsonpatch': 'python-jsonpatch | python-json-patch',
-    'oauth': 'python-oauth',
-    'prettytable': 'python-prettytable',
-    'pyserial': 'python-serial',
-    'pyyaml': 'python-yaml',
-    'requests': 'python-requests',
-    'six': 'python-six',
+STD_NAMED_PACKAGES = [
+    'configobj',
+    'jinja2',
+    'jsonpatch',
+    'oauthlib',
+    'prettytable',
+    'requests',
+    'six',
+    'httpretty',
+    'mock',
+    'nose',
+    'setuptools',
+]
+NONSTD_NAMED_PACKAGES = {
+    'argparse': ('python-argparse', None),
+    'contextlib2': ('python-contextlib2', None),
+    'cheetah': ('python-cheetah', None),
+    'pyserial': ('python-serial', 'python3-serial'),
+    'pyyaml': ('python-yaml', 'python3-yaml'),
+    'six': ('python-six', 'python3-six'),
+    'pep8': ('pep8', 'python3-pep8'),
+    'pyflakes': ('pyflakes', 'pyflakes'),
 }
+
 DEBUILD_ARGS = ["-S", "-d"]
 
 
-def write_debian_folder(root, version, revno, append_requires=[]):
+def write_debian_folder(root, version, revno, pkgmap,
+                        pyver="3", append_requires=[]):
     deb_dir = util.abs_join(root, 'debian')
     os.makedirs(deb_dir)
 
@@ -59,25 +71,42 @@ def write_debian_folder(root, version, revno, append_requires=[]):
     # Write out the control file template
     cmd = [util.abs_join(find_root(), 'tools', 'read-dependencies')]
     (stdout, _stderr) = util.subp(cmd)
-    pkgs = [p.lower().strip() for p in stdout.splitlines()]
+    pypi_pkgs = [p.lower().strip() for p in stdout.splitlines()]
+
+    (stdout, _stderr) = util.subp(cmd + ['test-requirements.txt'])
+    pypi_test_pkgs = [p.lower().strip() for p in stdout.splitlines()]
 
     # Map to known packages
     requires = append_requires
-    for p in pkgs:
-        tgt_pkg = PKG_MP.get(p)
-        if not tgt_pkg:
-            raise RuntimeError(("Do not know how to translate pypi dependency"
-                                " %r to a known package") % (p))
-        else:
-            requires.append(tgt_pkg)
+    test_requires = []
+    lists = ((pypi_pkgs, requires), (pypi_test_pkgs, test_requires))
+    for pypilist, target in lists:
+        for p in pypilist:
+            if p not in pkgmap:
+                raise RuntimeError(("Do not know how to translate pypi "
+                                    "dependency %r to a known package") % (p))
+            elif pkgmap[p]:
+                target.append(pkgmap[p])
+
+    if pyver == "3":
+        python = "python3"
+    else:
+        python = "python"
 
     templater.render_to_file(util.abs_join(find_root(),
                                            'packages', 'debian', 'control.in'),
                              util.abs_join(deb_dir, 'control'),
-                             params={'requires': requires})
+                             params={'requires': ','.join(requires),
+                                     'test_requires': ','.join(test_requires),
+                                     'python': python})
+
+    templater.render_to_file(util.abs_join(find_root(),
+                                           'packages', 'debian', 'rules.in'),
+                             util.abs_join(deb_dir, 'rules'),
+                             params={'python': python, 'pyver': pyver})
 
     # Just copy the following directly
-    for base_fn in ['dirs', 'copyright', 'compat', 'rules']:
+    for base_fn in ['dirs', 'copyright', 'compat']:
         shutil.copy(util.abs_join(find_root(),
                                   'packages', 'debian', base_fn),
                     util.abs_join(deb_dir, base_fn))
@@ -91,11 +120,15 @@ def main():
                               " (default: %(default)s)"),
                         default=False,
                         action='store_true')
-    parser.add_argument("--no-cloud-utils", dest="no_cloud_utils",
-                        help=("don't depend on cloud-utils package"
+    parser.add_argument("--cloud-utils", dest="cloud_utils",
+                        help=("depend on cloud-utils package"
                               " (default: %(default)s)"),
                         default=False,
                         action='store_true')
+
+    parser.add_argument("--python2", dest="python2",
+                        help=("build debs for python2 rather than python3"),
+                        default=False, action='store_true')
 
     parser.add_argument("--init-system", dest="init_system",
                         help=("build deb with INIT_SYSTEM=xxx"
@@ -122,6 +155,18 @@ def main():
     capture = True
     if args.verbose:
         capture = False
+
+    pkgmap = {}
+    for p in NONSTD_NAMED_PACKAGES:
+        pkgmap[p] = NONSTD_NAMED_PACKAGES[p][int(not args.python2)]
+
+    for p in STD_NAMED_PACKAGES:
+        if args.python2:
+            pkgmap[p] = "python-" + p
+            pyver = "2"
+        else:
+            pkgmap[p] = "python3-" + p
+            pyver = "3"
 
     with util.tempdir() as tdir:
 
@@ -153,11 +198,12 @@ def main():
         shutil.move(extracted_name, xdir)
 
         print("Creating a debian/ folder in %r" % (xdir))
-        if not args.no_cloud_utils:
+        if args.cloud_utils:
             append_requires=['cloud-utils | cloud-guest-utils']
         else:
             append_requires=[]
-        write_debian_folder(xdir, version, revno, append_requires)
+        write_debian_folder(xdir, version, revno, pkgmap,
+                            pyver=pyver, append_requires=append_requires)
 
         # The naming here seems to follow some debian standard
         # so it will whine if it is changed...

@@ -1,3 +1,5 @@
+from __future__ import print_function
+
 import os
 import sys
 import shutil
@@ -275,3 +277,17 @@ def populate_dir(path, files):
         with open(os.path.join(path, name), "w") as fp:
             fp.write(content)
             fp.close()
+
+try:
+    skipIf = unittest.skipIf
+except AttributeError:
+    # Python 2.6.  Doesn't have to be high fidelity.
+    def skipIf(condition, reason):
+        def decorator(func):
+            def wrapper(*args, **kws):
+                if condition:
+                    return func(*args, **kws)
+                else:
+                    print(reason, file=sys.stderr)
+            return wrapper
+        return decorator

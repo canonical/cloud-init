@@ -27,20 +27,6 @@ import textwrap
 
 from cloudinit import templater
 
-try:
-    skipIf = unittest.skipIf
-except AttributeError:
-    # Python 2.6.  Doesn't have to be high fidelity.
-    def skipIf(condition, reason):
-        def decorator(func):
-            def wrapper(*args, **kws):
-                if condition:
-                    return func(*args, **kws)
-                else:
-                    print(reason, file=sys.stderr)
-            return wrapper
-        return decorator
-
 
 class TestTemplates(test_helpers.TestCase):
     def test_render_basic(self):
@@ -58,7 +44,7 @@ class TestTemplates(test_helpers.TestCase):
         out_data = templater.basic_render(in_data, {'b': 2})
         self.assertEqual(expected_data.strip(), out_data)
 
-    @skipIf(six.PY3, 'Cheetah is not compatible with Python 3')
+    @test_helpers.skipIf(six.PY3, 'Cheetah is not compatible with Python 3')
     def test_detection(self):
         blob = "## template:cheetah"
 

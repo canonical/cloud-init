@@ -18,6 +18,8 @@ import tempfile
 
 LOG = logging.getLogger(__name__)
 
+CLIENT_TEMPL = os.path.sep.join(["templates", "chef_client.rb.tmpl"])
+
 
 class TestChef(t_help.FilesystemMockingTestCase):
     def setUp(self):
@@ -41,9 +43,13 @@ class TestChef(t_help.FilesystemMockingTestCase):
         for d in cc_chef.CHEF_DIRS:
             self.assertFalse(os.path.isdir(d))
 
+    @t_help.skipIf(not os.path.isfile(CLIENT_TEMPL),
+                   CLIENT_TEMPL + " is not available")
     def test_basic_config(self):
-        # This should create a file of the format...
         """
+        test basic config looks sane
+
+        # This should create a file of the format...
         # Created by cloud-init v. 0.7.6 on Sat, 11 Oct 2014 23:57:21 +0000
         log_level              :info
         ssl_verify_mode        :verify_none
@@ -105,6 +111,8 @@ class TestChef(t_help.FilesystemMockingTestCase):
                 'c': 'd',
             }, json.loads(c))
 
+    @t_help.skipIf(not os.path.isfile(CLIENT_TEMPL),
+                   CLIENT_TEMPL + " is not available")
     def test_template_deletes(self):
         tpl_file = util.load_file('templates/chef_client.rb.tmpl')
         self.patchUtils(self.tmp)
