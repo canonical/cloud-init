@@ -428,7 +428,7 @@ def atomic_write_json(path, data):
     try:
         tf = tempfile.NamedTemporaryFile(dir=os.path.dirname(path),
                                          delete=False)
-        tf.write(json.dumps(data, indent=1) + "\n")
+        tf.write((json.dumps(data, indent=1) + "\n").encode())
         tf.close()
         os.rename(tf.name, path)
     except Exception as e:
