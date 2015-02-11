@@ -1,5 +1,6 @@
 from __future__ import print_function
 
+import logging
 import os
 import shutil
 import stat
@@ -375,6 +376,73 @@ class TestReadDMIData(helpers.FilesystemMockingTestCase):
         self.assertEquals("stuff", util.read_dmi_data("key"))
         self._no_syspath("key", None)
         self.assertFalse(None, util.read_dmi_data("key"))
+
+
+class TestMultiLog(helpers.FilesystemMockingTestCase):
+
+    def _createConsole(self, root):
+        os.mkdir(os.path.join(root, 'dev'))
+        open(os.path.join(root, 'dev', 'console'), 'a').close()
+
+    def setUp(self):
+        super(TestMultiLog, self).setUp()
+        self.root = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, self.root)
+        self.patchOS(self.root)
+        self.patchUtils(self.root)
+        self.patchOpen(self.root)
+        self.stdout = six.StringIO()
+        self.stderr = six.StringIO()
+        self.patchStdoutAndStderr(self.stdout, self.stderr)
+
+    def test_stderr_used_by_default(self):
+        logged_string = 'test stderr output'
+        util.multi_log(logged_string)
+        self.assertEqual(logged_string, self.stderr.getvalue())
+
+    def test_stderr_not_used_if_false(self):
+        util.multi_log('should not see this', stderr=False)
+        self.assertEqual('', self.stderr.getvalue())
+
+    def test_logs_go_to_console_by_default(self):
+        self._createConsole(self.root)
+        logged_string = 'something very important'
+        util.multi_log(logged_string)
+        self.assertEqual(logged_string, open('/dev/console').read())
+
+    def test_logs_dont_go_to_stdout_if_console_exists(self):
+        self._createConsole(self.root)
+        util.multi_log('something')
+        self.assertEqual('', self.stdout.getvalue())
+
+    def test_logs_go_to_stdout_if_console_does_not_exist(self):
+        logged_string = 'something very important'
+        util.multi_log(logged_string)
+        self.assertEqual(logged_string, self.stdout.getvalue())
+
+    def test_logs_go_to_log_if_given(self):
+        log = mock.MagicMock()
+        logged_string = 'something very important'
+        util.multi_log(logged_string, log=log)
+        self.assertEqual([((mock.ANY, logged_string), {})],
+                         log.log.call_args_list)
+
+    def test_newlines_stripped_from_log_call(self):
+        log = mock.MagicMock()
+        expected_string = 'something very important'
+        util.multi_log('{0}\n'.format(expected_string), log=log)
+        self.assertEqual((mock.ANY, expected_string), log.log.call_args[0])
+
+    def test_log_level_defaults_to_debug(self):
+        log = mock.MagicMock()
+        util.multi_log('message', log=log)
+        self.assertEqual((logging.DEBUG, mock.ANY), log.log.call_args[0])
+
+    def test_given_log_level_used(self):
+        log = mock.MagicMock()
+        log_level = mock.Mock()
+        util.multi_log('message', log=log, log_level=log_level)
+        self.assertEqual((log_level, mock.ANY), log.log.call_args[0])
 
 
 # vi: ts=4 expandtab
