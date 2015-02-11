@@ -1481,8 +1481,8 @@ def mount_cb(device, callback, data=None, rw=False, mtype=None, sync=True):
                               device, mtype, exc)
                     pass
             if not mountpoint:
-                raise MountFailedError("Failed mounting %s to %s due to: %s" %
-                                       (device, tmpd, exc))
+                raise MountFailedError(
+                    "Failed mounting %s to %s".format(device, tmpd))
 
         # Be nice and ensure it ends with a slash
         if not mountpoint.endswith("/"):
