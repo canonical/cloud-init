@@ -254,6 +254,19 @@ class FilesystemMockingTestCase(ResourceUsingTestCase):
                 self.patched_funcs.enter_context(
                     mock.patch.object(mod, f, trap_func))
 
+    def patchOpen(self, new_root):
+        trap_func = retarget_many_wrapper(new_root, 1, open)
+        name = 'builtins.open' if PY3 else '__builtin__.open'
+        self.patched_funcs.enter_context(mock.patch(name, trap_func))
+
+    def patchStdoutAndStderr(self, stdout=None, stderr=None):
+        if stdout is not None:
+            self.patched_funcs.enter_context(
+                mock.patch.object(sys, 'stdout', stdout))
+        if stderr is not None:
+            self.patched_funcs.enter_context(
+                mock.patch.object(sys, 'stderr', stderr))
+
 
 class HttprettyTestCase(TestCase):
     # necessary as http_proxy gets in the way of httpretty
