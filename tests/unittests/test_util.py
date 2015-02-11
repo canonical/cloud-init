@@ -444,5 +444,4 @@ class TestMultiLog(helpers.FilesystemMockingTestCase):
         util.multi_log('message', log=log, log_level=log_level)
         self.assertEqual((log_level, mock.ANY), log.log.call_args[0])
 
-
 # vi: ts=4 expandtab
