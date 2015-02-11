@@ -1,21 +1,21 @@
 from __future__ import print_function
 
 import os
-import stat
-import yaml
 import shutil
+import stat
 import tempfile
 
-from . import helpers
 import six
+import yaml
+
+from cloudinit import importer, util
+from . import helpers
 
 try:
     from unittest import mock
 except ImportError:
     import mock
 
-from cloudinit import importer
-from cloudinit import util
 
 
 class FakeSelinux(object):
