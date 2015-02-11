@@ -29,8 +29,10 @@ from .. import helpers as t_help
 
 from configobj import ConfigObj
 
-from StringIO import StringIO
+from six import BytesIO
 
+import shutil
+import tempfile
 import logging
 
 LOG = logging.getLogger(__name__)
@@ -39,7 +41,8 @@ LOG = logging.getLogger(__name__)
 class TestTimezone(t_help.FilesystemMockingTestCase):
     def setUp(self):
         super(TestTimezone, self).setUp()
-        self.new_root = self.makeDir(prefix="unittest_")
+        self.new_root = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, self.new_root)
 
     def _get_cloud(self, distro):
         self.patchUtils(self.new_root)
@@ -67,8 +70,8 @@ class TestTimezone(t_help.FilesystemMockingTestCase):
 
         cc_timezone.handle('cc_timezone', cfg, cc, LOG, [])
 
-        contents = util.load_file('/etc/sysconfig/clock')
-        n_cfg = ConfigObj(StringIO(contents))
+        contents = util.load_file('/etc/sysconfig/clock', decode=False)
+        n_cfg = ConfigObj(BytesIO(contents))
         self.assertEquals({'TIMEZONE': cfg['timezone']}, dict(n_cfg))
 
         contents = util.load_file('/etc/localtime')

@@ -45,7 +45,8 @@ def tiny_p(cmd, capture=True):
         stdout = None
         stderr = None
     sp = subprocess.Popen(cmd, stdout=stdout,
-                    stderr=stderr, stdin=None)
+                    stderr=stderr, stdin=None,
+                    universal_newlines=True)
     (out, err) = sp.communicate()
     ret = sp.returncode
     if ret not in [0]:
@@ -144,9 +145,9 @@ class InitsysInstallData(install):
             raise DistutilsArgError(
                 "Invalid --init-system: %s" % (','.join(bad)))
 
-        for sys in self.init_system:
+        for system in self.init_system:
             self.distribution.data_files.append(
-                (INITSYS_ROOTS[sys], INITSYS_FILES[sys]))
+                (INITSYS_ROOTS[system], INITSYS_FILES[system]))
         # Force that command to reinitalize (with new file list)
         self.distribution.reinitialize_command('install_data', True)
 
@@ -174,6 +175,11 @@ else:
     }
 
 
+requirements = read_requires()
+if sys.version_info < (3,):
+    requirements.append('cheetah')
+
+
 setuptools.setup(name='cloud-init',
       version=get_version(),
       description='EC2 initialisation magic',
@@ -186,6 +192,6 @@ setuptools.setup(name='cloud-init',
                ],
       license='GPLv3',
       data_files=data_files,
-      install_requires=read_requires(),
+      install_requires=requirements,
       cmdclass=cmdclass,
       )

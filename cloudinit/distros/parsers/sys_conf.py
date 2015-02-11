@@ -16,7 +16,8 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-from StringIO import StringIO
+import six
+from six import StringIO
 
 import pipes
 import re
@@ -69,7 +70,7 @@ class SysConf(configobj.ConfigObj):
         return out_contents.getvalue()
 
     def _quote(self, value, multiline=False):
-        if not isinstance(value, (str, basestring)):
+        if not isinstance(value, six.string_types):
             raise ValueError('Value "%s" is not a string' % (value))
         if len(value) == 0:
             return ''

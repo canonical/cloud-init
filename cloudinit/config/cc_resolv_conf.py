@@ -66,8 +66,8 @@ def generate_resolv_conf(template_fn, params, target_fname="/etc/resolv.conf"):
     false_flags = []
 
     if 'options' in params:
-        for key, val in params['options'].iteritems():
-            if type(val) == bool:
+        for key, val in params['options'].items():
+            if isinstance(val, bool):
                 if val:
                     flags.append(key)
                 else:

@@ -29,6 +29,8 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.nonmultipart import MIMENonMultipart
 from email.mime.text import MIMEText
 
+import six
+
 from cloudinit import handlers
 from cloudinit import log as logging
 from cloudinit import util
@@ -106,7 +108,7 @@ class UserDataProcessor(object):
 
             ctype = None
             ctype_orig = part.get_content_type()
-            payload = part.get_payload(decode=True)
+            payload = util.fully_decoded_payload(part)
             was_compressed = False
 
             # When the message states it is of a gzipped content type ensure
@@ -235,7 +237,7 @@ class UserDataProcessor(object):
                 resp = util.read_file_or_url(include_url,
                                              ssl_details=self.ssl_details)
                 if include_once_on and resp.ok():
-                    util.write_file(include_once_fn, str(resp), mode=0600)
+                    util.write_file(include_once_fn, resp, mode=0o600)
                 if resp.ok():
                     content = str(resp)
                 else:
@@ -256,7 +258,7 @@ class UserDataProcessor(object):
             #    filename and type not be present
             # or
             #  scalar(payload)
-            if isinstance(ent, (str, basestring)):
+            if isinstance(ent, six.string_types):
                 ent = {'content': ent}
             if not isinstance(ent, (dict)):
                 # TODO(harlowja) raise?
@@ -337,7 +339,7 @@ def convert_string(raw_data, headers=None):
     data = util.decomp_gzip(raw_data)
     if "mime-version:" in data[0:4096].lower():
         msg = email.message_from_string(data)
-        for (key, val) in headers.iteritems():
+        for (key, val) in headers.items():
             _replace_header(msg, key, val)
     else:
         mtype = headers.get(CONTENT_TYPE, NOT_MULTIPART_TYPE)

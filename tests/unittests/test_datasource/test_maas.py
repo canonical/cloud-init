@@ -1,19 +1,25 @@
 from copy import copy
 import os
+import shutil
+import tempfile
 
 from cloudinit.sources import DataSourceMAAS
 from cloudinit import url_helper
-from ..helpers import populate_dir
+from ..helpers import TestCase, populate_dir
 
-import mocker
+try:
+    from unittest import mock
+except ImportError:
+    import mock
 
 
-class TestMAASDataSource(mocker.MockerTestCase):
+class TestMAASDataSource(TestCase):
 
     def setUp(self):
         super(TestMAASDataSource, self).setUp()
         # Make a temp directoy for tests to use.
-        self.tmp = self.makeDir()
+        self.tmp = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, self.tmp)
 
     def test_seed_dir_valid(self):
         """Verify a valid seeddir is read as such."""
@@ -93,16 +99,18 @@ class TestMAASDataSource(mocker.MockerTestCase):
 
     def test_seed_url_valid(self):
         """Verify that valid seed_url is read as such."""
-        valid = {'meta-data/instance-id': 'i-instanceid',
+        valid = {
+            'meta-data/instance-id': 'i-instanceid',
             'meta-data/local-hostname': 'test-hostname',
             'meta-data/public-keys': 'test-hostname',
-            'user-data': 'foodata'}
+            'user-data': 'foodata',
+            }
         valid_order = [
             'meta-data/local-hostname',
             'meta-data/instance-id',
             'meta-data/public-keys',
             'user-data',
-        ]
+            ]
         my_seed = "http://example.com/xmeta"
         my_ver = "1999-99-99"
         my_headers = {'header1': 'value1', 'header2': 'value2'}
@@ -110,28 +118,38 @@ class TestMAASDataSource(mocker.MockerTestCase):
         def my_headers_cb(url):
             return my_headers
 
-        mock_request = self.mocker.replace(url_helper.readurl,
-            passthrough=False)
+        # Each time url_helper.readurl() is called, something different is
+        # returned based on the canned data above.  We need to build up a list
+        # of side effect return values, which the mock will return.  At the
+        # same time, we'll build up a list of expected call arguments for
+        # asserting after the code under test is run.
+        calls = []
 
-        for key in valid_order:
-            url = "%s/%s/%s" % (my_seed, my_ver, key)
-            mock_request(url, headers=None, timeout=mocker.ANY,
-                         data=mocker.ANY, sec_between=mocker.ANY,
-                         ssl_details=mocker.ANY, retries=mocker.ANY,
-                         headers_cb=my_headers_cb,
-                         exception_cb=mocker.ANY)
-            resp = valid.get(key)
-            self.mocker.result(url_helper.StringResponse(resp))
-        self.mocker.replay()
+        def side_effect():
+            for key in valid_order:
+                resp = valid.get(key)
+                url = "%s/%s/%s" % (my_seed, my_ver, key)
+                calls.append(
+                    mock.call(url, headers=None, timeout=mock.ANY,
+                              data=mock.ANY, sec_between=mock.ANY,
+                              ssl_details=mock.ANY, retries=mock.ANY,
+                              headers_cb=my_headers_cb,
+                              exception_cb=mock.ANY))
+                yield url_helper.StringResponse(resp)
 
-        (userdata, metadata) = DataSourceMAAS.read_maas_seed_url(my_seed,
-            header_cb=my_headers_cb, version=my_ver)
+        # Now do the actual call of the code under test.
+        with mock.patch.object(url_helper, 'readurl',
+                               side_effect=side_effect()) as mockobj:
+            userdata, metadata = DataSourceMAAS.read_maas_seed_url(
+                my_seed, header_cb=my_headers_cb, version=my_ver)
 
-        self.assertEqual("foodata", userdata)
-        self.assertEqual(metadata['instance-id'],
-            valid['meta-data/instance-id'])
-        self.assertEqual(metadata['local-hostname'],
-            valid['meta-data/local-hostname'])
+            self.assertEqual("foodata", userdata)
+            self.assertEqual(metadata['instance-id'],
+                             valid['meta-data/instance-id'])
+            self.assertEqual(metadata['local-hostname'],
+                             valid['meta-data/local-hostname'])
+
+            mockobj.has_calls(calls)
 
     def test_seed_url_invalid(self):
         """Verify that invalid seed_url raises MAASSeedDirMalformed."""

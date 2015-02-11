@@ -22,15 +22,20 @@
 #   return responses.
 #
 
-import base64
+from __future__ import print_function
+
 from cloudinit import helpers as c_helpers
 from cloudinit.sources import DataSourceSmartOS
+from cloudinit.util import b64e
 from .. import helpers
 import os
 import os.path
 import re
+import shutil
+import tempfile
 import stat
 import uuid
+
 
 MOCK_RETURNS = {
     'hostname': 'test-host',
@@ -107,11 +112,12 @@ class MockSerial(object):
 
 class TestSmartOSDataSource(helpers.FilesystemMockingTestCase):
     def setUp(self):
-        helpers.FilesystemMockingTestCase.setUp(self)
+        super(TestSmartOSDataSource, self).setUp()
 
-        # makeDir comes from MockerTestCase
-        self.tmp = self.makeDir()
-        self.legacy_user_d = self.makeDir()
+        self.tmp = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, self.tmp)
+        self.legacy_user_d = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, self.legacy_user_d)
 
         # If you should want to watch the logs...
         self._log = None
@@ -227,7 +233,7 @@ class TestSmartOSDataSource(helpers.FilesystemMockingTestCase):
         my_returns = MOCK_RETURNS.copy()
         my_returns['base64_all'] = "true"
         for k in ('hostname', 'cloud-init:user-data'):
-            my_returns[k] = base64.b64encode(my_returns[k])
+            my_returns[k] = b64e(my_returns[k])
 
         dsrc = self._get_ds(mockdata=my_returns)
         ret = dsrc.get_data()
@@ -248,7 +254,7 @@ class TestSmartOSDataSource(helpers.FilesystemMockingTestCase):
         my_returns['b64-cloud-init:user-data'] = "true"
         my_returns['b64-hostname'] = "true"
         for k in ('hostname', 'cloud-init:user-data'):
-            my_returns[k] = base64.b64encode(my_returns[k])
+            my_returns[k] = b64e(my_returns[k])
 
         dsrc = self._get_ds(mockdata=my_returns)
         ret = dsrc.get_data()
@@ -264,7 +270,7 @@ class TestSmartOSDataSource(helpers.FilesystemMockingTestCase):
         my_returns = MOCK_RETURNS.copy()
         my_returns['base64_keys'] = 'hostname,ignored'
         for k in ('hostname',):
-            my_returns[k] = base64.b64encode(my_returns[k])
+            my_returns[k] = b64e(my_returns[k])
 
         dsrc = self._get_ds(mockdata=my_returns)
         ret = dsrc.get_data()
@@ -365,7 +371,7 @@ class TestSmartOSDataSource(helpers.FilesystemMockingTestCase):
                 permissions = oct(os.stat(name_f)[stat.ST_MODE])[-3:]
                 if re.match(r'.*\/mdata-user-data$', name_f):
                     found_new = True
-                    print name_f
+                    print(name_f)
                     self.assertEquals(permissions, '400')
 
         self.assertFalse(found_new)

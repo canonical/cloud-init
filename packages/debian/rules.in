@@ -1,10 +1,12 @@
+## template:basic
 #!/usr/bin/make -f
 
 INIT_SYSTEM ?= upstart,systemd
+PYVER ?= python${pyver}
 export PYBUILD_INSTALL_ARGS=--init-system=$(INIT_SYSTEM)
 
 %:
-	dh $@ --with python2,systemd --buildsystem pybuild
+	dh $@ --with $(PYVER),systemd --buildsystem pybuild
 
 override_dh_install:
 	dh_install
@@ -12,6 +14,6 @@ override_dh_install:
 	cp tools/21-cloudinit.conf debian/cloud-init/etc/rsyslog.d/21-cloudinit.conf
 
 override_dh_auto_test:
-	# Becuase setup tools didn't copy data...
-	cp -r tests/data .pybuild/pythonX.Y_2.7/build/tests
+	# Because setup tools didn't copy data...
+	[ ! -d .pybuild/pythonX.Y_?.?/build/tests ] || cp -r tests/data .pybuild/pythonX.Y_?.?/build/tests
 	http_proxy= dh_auto_test -- --test-nose

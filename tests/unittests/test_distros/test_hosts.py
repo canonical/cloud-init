@@ -1,4 +1,4 @@
-from mocker import MockerTestCase
+import unittest
 
 from cloudinit.distros.parsers import hosts
 
@@ -14,7 +14,7 @@ BASE_ETC = '''
 BASE_ETC = BASE_ETC.strip()
 
 
-class TestHostsHelper(MockerTestCase):
+class TestHostsHelper(unittest.TestCase):
     def test_parse(self):
         eh = hosts.HostsConf(BASE_ETC)
         self.assertEquals(eh.get_entry('127.0.0.1'), [['localhost']])

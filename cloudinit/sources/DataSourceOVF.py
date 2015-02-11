@@ -66,7 +66,7 @@ class DataSourceOVF(sources.DataSource):
             np = {'iso': transport_iso9660,
                   'vmware-guestd': transport_vmware_guestd, }
             name = None
-            for (name, transfunc) in np.iteritems():
+            for (name, transfunc) in np.items():
                 (contents, _dev, _fname) = transfunc()
                 if contents:
                     break
@@ -138,7 +138,7 @@ def read_ovf_environment(contents):
     ud = ""
     cfg_props = ['password']
     md_props = ['seedfrom', 'local-hostname', 'public-keys', 'instance-id']
-    for (prop, val) in props.iteritems():
+    for (prop, val) in props.items():
         if prop == 'hostname':
             prop = "local-hostname"
         if prop in md_props:
@@ -183,7 +183,7 @@ def transport_iso9660(require_iso=True):
 
     # Go through mounts to see if it was already mounted
     mounts = util.mounts()
-    for (dev, info) in mounts.iteritems():
+    for (dev, info) in mounts.items():
         fstype = info['fstype']
         if fstype != "iso9660" and require_iso:
             continue

@@ -16,6 +16,8 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+import six
+
 DEF_MERGE_TYPE = 'replace'
 MERGE_TYPES = ('append', 'prepend', DEF_MERGE_TYPE, 'no_replace')
 
@@ -73,7 +75,7 @@ class Merger(object):
                 return old_v
             if isinstance(new_v, (list, tuple)) and self._recurse_array:
                 return self._merger.merge(old_v, new_v)
-            if isinstance(new_v, (str, basestring)) and self._recurse_str:
+            if isinstance(new_v, six.string_types) and self._recurse_str:
                 return self._merger.merge(old_v, new_v)
             if isinstance(new_v, (dict)) and self._recurse_dict:
                 return self._merger.merge(old_v, new_v)
@@ -82,6 +84,6 @@ class Merger(object):
         # Ok now we are replacing same indexes
         merged_list.extend(value)
         common_len = min(len(merged_list), len(merge_with))
-        for i in xrange(0, common_len):
+        for i in range(0, common_len):
             merged_list[i] = merge_same_index(merged_list[i], merge_with[i])
         return merged_list

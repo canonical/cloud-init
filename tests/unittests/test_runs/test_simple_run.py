@@ -1,20 +1,20 @@
 import os
+import shutil
+import tempfile
 
 from .. import helpers
 
-from cloudinit.settings import (PER_INSTANCE)
+from cloudinit.settings import PER_INSTANCE
 from cloudinit import stages
 from cloudinit import util
 
 
 class TestSimpleRun(helpers.FilesystemMockingTestCase):
     def _patchIn(self, root):
-        self.restore()
         self.patchOS(root)
         self.patchUtils(root)
 
     def _pp_root(self, root, repatch=True):
-        self.restore()
         for (dirpath, dirnames, filenames) in os.walk(root):
             print(dirpath)
             for f in filenames:
@@ -33,7 +33,8 @@ class TestSimpleRun(helpers.FilesystemMockingTestCase):
             self._patchIn(root)
 
     def test_none_ds(self):
-        new_root = self.makeDir()
+        new_root = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, new_root)
         self.replicateTestRoot('simple_ubuntu', new_root)
         cfg = {
             'datasource_list': ['None'],
@@ -41,7 +42,7 @@ class TestSimpleRun(helpers.FilesystemMockingTestCase):
                 {
                     'path': '/etc/blah.ini',
                     'content': 'blah',
-                    'permissions': 0755,
+                    'permissions': 0o755,
                 },
             ],
             'cloud_init_modules': ['write-files'],

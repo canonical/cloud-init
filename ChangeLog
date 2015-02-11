@@ -21,6 +21,7 @@
  - hostname: on first boot apply hostname to be same as is written for
    persistent hostname.  (LP: #1246485)
  - remove usage of dmidecode on linux in favor of /sys interface [Ben Howard]
+ - python3 support [Barry Warsaw] (LP: #1247132)
 0.7.6:
  - open 0.7.6
  - Enable vendordata on CloudSigma datasource (LP: #1303986)

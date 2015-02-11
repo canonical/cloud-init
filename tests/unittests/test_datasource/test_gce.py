@@ -19,7 +19,7 @@ import httpretty
 import re
 
 from base64 import b64encode, b64decode
-from urlparse import urlparse
+from six.moves.urllib_parse import urlparse
 
 from cloudinit import settings
 from cloudinit import helpers
@@ -45,7 +45,7 @@ GCE_META_ENCODING = {
     'instance/id': '12345',
     'instance/hostname': 'server.project-baz.local',
     'instance/zone': 'baz/bang',
-    'instance/attributes/user-data': b64encode('/bin/echo baz\n'),
+    'instance/attributes/user-data': b64encode(b'/bin/echo baz\n'),
     'instance/attributes/user-data-encoding': 'base64',
 }
 

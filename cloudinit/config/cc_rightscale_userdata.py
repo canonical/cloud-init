@@ -41,7 +41,7 @@ from cloudinit.settings import PER_INSTANCE
 from cloudinit import url_helper as uhelp
 from cloudinit import util
 
-from urlparse import parse_qs
+from six.moves.urllib_parse import parse_qs
 
 frequency = PER_INSTANCE
 
@@ -82,7 +82,7 @@ def handle(name, _cfg, cloud, log, _args):
             resp = uhelp.readurl(url)
             # Ensure its a valid http response (and something gotten)
             if resp.ok() and resp.contents:
-                util.write_file(fname, str(resp), mode=0700)
+                util.write_file(fname, resp, mode=0o700)
                 wrote_fns.append(fname)
         except Exception as e:
             captured_excps.append(e)

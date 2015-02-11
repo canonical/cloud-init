@@ -1,14 +1,24 @@
 from cloudinit import helpers
-from cloudinit.util import load_file
+from cloudinit.util import b64e, load_file
 from cloudinit.sources import DataSourceAzure
-from ..helpers import populate_dir
+from ..helpers import TestCase, populate_dir
 
-import base64
+try:
+    from unittest import mock
+except ImportError:
+    import mock
+try:
+    from contextlib import ExitStack
+except ImportError:
+    from contextlib2 import ExitStack
+
 import crypt
-from mocker import MockerTestCase
 import os
 import stat
 import yaml
+import shutil
+import tempfile
+import unittest
 
 
 def construct_valid_ovf_env(data=None, pubkeys=None, userdata=None):
@@ -40,7 +50,7 @@ def construct_valid_ovf_env(data=None, pubkeys=None, userdata=None):
         content += "<%s%s>%s</%s>\n" % (key, attrs, val, key)
 
     if userdata:
-        content += "<UserData>%s</UserData>\n" % (base64.b64encode(userdata))
+        content += "<UserData>%s</UserData>\n" % (b64e(userdata))
 
     if pubkeys:
         content += "<SSH><PublicKeys>\n"
@@ -66,26 +76,25 @@ def construct_valid_ovf_env(data=None, pubkeys=None, userdata=None):
     return content
 
 
-class TestAzureDataSource(MockerTestCase):
+class TestAzureDataSource(TestCase):
 
     def setUp(self):
-        # makeDir comes from MockerTestCase
-        self.tmp = self.makeDir()
+        super(TestAzureDataSource, self).setUp()
+        self.tmp = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, self.tmp)
 
         # patch cloud_dir, so our 'seed_dir' is guaranteed empty
         self.paths = helpers.Paths({'cloud_dir': self.tmp})
         self.waagent_d = os.path.join(self.tmp, 'var', 'lib', 'waagent')
 
-        self.unapply = []
+        self.patches = ExitStack()
+        self.addCleanup(self.patches.close)
+
         super(TestAzureDataSource, self).setUp()
 
-    def tearDown(self):
-        apply_patches([i for i in reversed(self.unapply)])
-        super(TestAzureDataSource, self).tearDown()
-
     def apply_patches(self, patches):
-        ret = apply_patches(patches)
-        self.unapply += ret
+        for module, name, new in patches:
+            self.patches.enter_context(mock.patch.object(module, name, new))
 
     def _get_ds(self, data):
 
@@ -117,16 +126,14 @@ class TestAzureDataSource(MockerTestCase):
         mod = DataSourceAzure
         mod.BUILTIN_DS_CONFIG['data_dir'] = self.waagent_d
 
-        self.apply_patches([(mod, 'list_possible_azure_ds_devs', dsdevs)])
-
-        self.apply_patches([(mod, 'invoke_agent', _invoke_agent),
-                            (mod, 'wait_for_files', _wait_for_files),
-                            (mod, 'pubkeys_from_crt_files',
-                             _pubkeys_from_crt_files),
-                            (mod, 'iid_from_shared_config',
-                             _iid_from_shared_config),
-                            (mod, 'apply_hostname_bounce',
-                             _apply_hostname_bounce), ])
+        self.apply_patches([
+            (mod, 'list_possible_azure_ds_devs', dsdevs),
+            (mod, 'invoke_agent', _invoke_agent),
+            (mod, 'wait_for_files', _wait_for_files),
+            (mod, 'pubkeys_from_crt_files', _pubkeys_from_crt_files),
+            (mod, 'iid_from_shared_config', _iid_from_shared_config),
+            (mod, 'apply_hostname_bounce', _apply_hostname_bounce),
+            ])
 
         dsrc = mod.DataSourceAzureNet(
             data.get('sys_cfg', {}), distro=None, paths=self.paths)
@@ -153,7 +160,7 @@ class TestAzureDataSource(MockerTestCase):
         ret = dsrc.get_data()
         self.assertTrue(ret)
         self.assertTrue(os.path.isdir(self.waagent_d))
-        self.assertEqual(stat.S_IMODE(os.stat(self.waagent_d).st_mode), 0700)
+        self.assertEqual(stat.S_IMODE(os.stat(self.waagent_d).st_mode), 0o700)
 
     def test_user_cfg_set_agent_command_plain(self):
         # set dscfg in via plaintext
@@ -174,7 +181,7 @@ class TestAzureDataSource(MockerTestCase):
         # set dscfg in via base64 encoded yaml
         cfg = {'agent_command': "my_command"}
         odata = {'HostName': "myhost", 'UserName': "myuser",
-                'dscfg': {'text': base64.b64encode(yaml.dump(cfg)),
+                'dscfg': {'text': b64e(yaml.dump(cfg)),
                           'encoding': 'base64'}}
         data = {'ovfcontent': construct_valid_ovf_env(data=odata)}
 
@@ -226,13 +233,13 @@ class TestAzureDataSource(MockerTestCase):
 
     def test_userdata_found(self):
         mydata = "FOOBAR"
-        odata = {'UserData': base64.b64encode(mydata)}
+        odata = {'UserData': b64e(mydata)}
         data = {'ovfcontent': construct_valid_ovf_env(data=odata)}
 
         dsrc = self._get_ds(data)
         ret = dsrc.get_data()
         self.assertTrue(ret)
-        self.assertEqual(dsrc.userdata_raw, mydata)
+        self.assertEqual(dsrc.userdata_raw, mydata.encode('utf-8'))
 
     def test_no_datasource_expected(self):
         # no source should be found if no seed_dir and no devs
@@ -274,7 +281,7 @@ class TestAzureDataSource(MockerTestCase):
                                    'command': 'my-bounce-command',
                                    'hostname_command': 'my-hostname-command'}}
         odata = {'HostName': "xhost",
-                'dscfg': {'text': base64.b64encode(yaml.dump(cfg)),
+                'dscfg': {'text': b64e(yaml.dump(cfg)),
                           'encoding': 'base64'}}
         data = {'ovfcontent': construct_valid_ovf_env(data=odata)}
         self._get_ds(data).get_data()
@@ -289,7 +296,7 @@ class TestAzureDataSource(MockerTestCase):
         # config specifying set_hostname off should not bounce
         cfg = {'set_hostname': False}
         odata = {'HostName': "xhost",
-                'dscfg': {'text': base64.b64encode(yaml.dump(cfg)),
+                'dscfg': {'text': b64e(yaml.dump(cfg)),
                           'encoding': 'base64'}}
         data = {'ovfcontent': construct_valid_ovf_env(data=odata)}
         self._get_ds(data).get_data()
@@ -318,7 +325,7 @@ class TestAzureDataSource(MockerTestCase):
         # Make sure that user can affect disk aliases
         dscfg = {'disk_aliases': {'ephemeral0': '/dev/sdc'}}
         odata = {'HostName': "myhost", 'UserName': "myuser",
-                'dscfg': {'text': base64.b64encode(yaml.dump(dscfg)),
+                'dscfg': {'text': b64e(yaml.dump(dscfg)),
                           'encoding': 'base64'}}
         usercfg = {'disk_setup': {'/dev/sdc': {'something': '...'},
                                   'ephemeral0': False}}
@@ -340,7 +347,7 @@ class TestAzureDataSource(MockerTestCase):
         dsrc = self._get_ds(data)
         dsrc.get_data()
 
-        self.assertEqual(userdata, dsrc.userdata_raw)
+        self.assertEqual(userdata.encode('us-ascii'), dsrc.userdata_raw)
 
     def test_ovf_env_arrives_in_waagent_dir(self):
         xml = construct_valid_ovf_env(data={}, userdata="FOODATA")
@@ -355,7 +362,7 @@ class TestAzureDataSource(MockerTestCase):
 
     def test_existing_ovf_same(self):
         # waagent/SharedConfig left alone if found ovf-env.xml same as cached
-        odata = {'UserData': base64.b64encode("SOMEUSERDATA")}
+        odata = {'UserData': b64e("SOMEUSERDATA")}
         data = {'ovfcontent': construct_valid_ovf_env(data=odata)}
 
         populate_dir(self.waagent_d,
@@ -379,9 +386,9 @@ class TestAzureDataSource(MockerTestCase):
         # 'get_data' should remove SharedConfig.xml in /var/lib/waagent
         # if ovf-env.xml differs.
         cached_ovfenv = construct_valid_ovf_env(
-            {'userdata': base64.b64encode("FOO_USERDATA")})
+            {'userdata': b64e("FOO_USERDATA")})
         new_ovfenv = construct_valid_ovf_env(
-            {'userdata': base64.b64encode("NEW_USERDATA")})
+            {'userdata': b64e("NEW_USERDATA")})
 
         populate_dir(self.waagent_d,
             {'ovf-env.xml': cached_ovfenv,
@@ -391,7 +398,7 @@ class TestAzureDataSource(MockerTestCase):
         dsrc = self._get_ds({'ovfcontent': new_ovfenv})
         ret = dsrc.get_data()
         self.assertTrue(ret)
-        self.assertEqual(dsrc.userdata_raw, "NEW_USERDATA")
+        self.assertEqual(dsrc.userdata_raw, b"NEW_USERDATA")
         self.assertTrue(os.path.exists(
             os.path.join(self.waagent_d, 'otherfile')))
         self.assertFalse(
@@ -402,7 +409,7 @@ class TestAzureDataSource(MockerTestCase):
             load_file(os.path.join(self.waagent_d, 'ovf-env.xml')))
 
 
-class TestReadAzureOvf(MockerTestCase):
+class TestReadAzureOvf(TestCase):
     def test_invalid_xml_raises_non_azure_ds(self):
         invalid_xml = "<foo>" + construct_valid_ovf_env(data={})
         self.assertRaises(DataSourceAzure.BrokenAzureDataSource,
@@ -417,7 +424,7 @@ class TestReadAzureOvf(MockerTestCase):
             self.assertIn(mypk, cfg['_pubkeys'])
 
 
-class TestReadAzureSharedConfig(MockerTestCase):
+class TestReadAzureSharedConfig(unittest.TestCase):
     def test_valid_content(self):
         xml = """<?xml version="1.0" encoding="utf-8"?>
             <SharedConfig>
@@ -429,14 +436,3 @@ class TestReadAzureSharedConfig(MockerTestCase):
             </SharedConfig>"""
         ret = DataSourceAzure.iid_from_shared_config_content(xml)
         self.assertEqual("MY_INSTANCE_ID", ret)
-
-
-def apply_patches(patches):
-    ret = []
-    for (ref, name, replace) in patches:
-        if replace is None:
-            continue
-        orig = getattr(ref, name)
-        setattr(ref, name, replace)
-        ret.append((ref, name, orig))
-    return ret

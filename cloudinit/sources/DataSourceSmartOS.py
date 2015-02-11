@@ -30,12 +30,13 @@
 #       Comments with "@datadictionary" are snippets of the definition
 
 import base64
+import binascii
+import os
+import serial
+
 from cloudinit import log as logging
 from cloudinit import sources
 from cloudinit import util
-import os
-import os.path
-import serial
 
 
 LOG = logging.getLogger(__name__)
@@ -201,7 +202,7 @@ class DataSourceSmartOS(sources.DataSource):
         if b64_all is not None:
             self.b64_all = util.is_true(b64_all)
 
-        for ci_noun, attribute in SMARTOS_ATTRIB_MAP.iteritems():
+        for ci_noun, attribute in SMARTOS_ATTRIB_MAP.items():
             smartos_noun, strip = attribute
             md[ci_noun] = self.query(smartos_noun, strip=strip)
 
@@ -218,11 +219,12 @@ class DataSourceSmartOS(sources.DataSource):
         user_script = os.path.join(data_d, 'user-script')
         u_script_l = "%s/user-script" % LEGACY_USER_D
         write_boot_content(md.get('user-script'), content_f=user_script,
-                           link=u_script_l, shebang=True, mode=0700)
+                           link=u_script_l, shebang=True, mode=0o700)
 
         operator_script = os.path.join(data_d, 'operator-script')
         write_boot_content(md.get('operator-script'),
-                           content_f=operator_script, shebang=False, mode=0700)
+                           content_f=operator_script, shebang=False,
+                           mode=0o700)
 
         # @datadictionary:  This key has no defined format, but its value
         # is written to the file /var/db/mdata-user-data on each boot prior
@@ -349,8 +351,9 @@ def query_data(noun, seed_device, seed_timeout, strip=False, default=None,
 
     if b64:
         try:
-            return base64.b64decode(resp)
-        except TypeError:
+            return util.b64d(resp)
+        # Bogus input produces different errors in Python 2 and 3; catch both.
+        except (TypeError, binascii.Error):
             LOG.warn("Failed base64 decoding key '%s'", noun)
             return resp
 
@@ -368,7 +371,7 @@ def dmi_data():
 
 
 def write_boot_content(content, content_f, link=None, shebang=False,
-                       mode=0400):
+                       mode=0o400):
     """
     Write the content to content_f. Under the following rules:
         1. If no content, remove the file

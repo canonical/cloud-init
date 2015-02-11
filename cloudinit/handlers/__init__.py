@@ -22,6 +22,7 @@
 
 import abc
 import os
+import six
 
 from cloudinit.settings import (PER_ALWAYS, PER_INSTANCE, FREQUENCIES)
 
@@ -147,7 +148,7 @@ def walker_handle_handler(pdata, _ctype, _filename, payload):
     if not modfname.endswith(".py"):
         modfname = "%s.py" % (modfname)
     # TODO(harlowja): Check if path exists??
-    util.write_file(modfname, payload, 0600)
+    util.write_file(modfname, payload, 0o600)
     handlers = pdata['handlers']
     try:
         mod = fixup_handler(importer.import_module(modname))
@@ -174,11 +175,11 @@ def _extract_first_or_bytes(blob, size):
 
 def _escape_string(text):
     try:
-        return text.encode("string-escape")
-    except TypeError:
+        return text.encode("string_escape")
+    except (LookupError, TypeError):
         try:
-            # Unicode doesn't support string-escape...
-            return text.encode('unicode-escape')
+            # Unicode (and Python 3's str) doesn't support string_escape...
+            return text.encode('unicode_escape')
         except TypeError:
             # Give up...
             pass
@@ -232,7 +233,8 @@ def walk(msg, callback, data):
         headers = dict(part)
         LOG.debug(headers)
         headers['Content-Type'] = ctype
-        callback(data, filename, part.get_payload(decode=True), headers)
+        payload = util.fully_decoded_payload(part)
+        callback(data, filename, payload, headers)
         partnum = partnum + 1
 
 

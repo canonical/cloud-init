@@ -124,7 +124,8 @@ class DataSourceAzureNet(sources.DataSource):
             LOG.debug("using files cached in %s", ddir)
 
         # azure / hyper-v provides random data here
-        seed = util.load_file("/sys/firmware/acpi/tables/OEM0", quiet=True)
+        seed = util.load_file("/sys/firmware/acpi/tables/OEM0",
+                              quiet=True, decode=False)
         if seed:
             self.metadata['random_seed'] = seed
 
@@ -151,7 +152,7 @@ class DataSourceAzureNet(sources.DataSource):
 
         # walinux agent writes files world readable, but expects
         # the directory to be protected.
-        write_files(ddir, files, dirmode=0700)
+        write_files(ddir, files, dirmode=0o700)
 
         # handle the hostname 'publishing'
         try:
@@ -390,7 +391,7 @@ def write_files(datadir, files, dirmode=None):
     util.ensure_dir(datadir, dirmode)
     for (name, content) in files.items():
         util.write_file(filename=os.path.join(datadir, name),
-                        content=content, mode=0600)
+                        content=content, mode=0o600)
 
 
 def invoke_agent(cmd):

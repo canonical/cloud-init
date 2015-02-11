@@ -46,7 +46,7 @@ def _write_cloud_info_file(value):
     cifile = open(cloudinit.sources.DataSourceAltCloud.CLOUD_INFO_FILE, 'w')
     cifile.write(value)
     cifile.close()
-    os.chmod(cloudinit.sources.DataSourceAltCloud.CLOUD_INFO_FILE, 0664)
+    os.chmod(cloudinit.sources.DataSourceAltCloud.CLOUD_INFO_FILE, 0o664)
 
 
 def _remove_cloud_info_file():
@@ -67,12 +67,12 @@ def _write_user_data_files(mount_dir, value):
     udfile = open(deltacloud_user_data_file, 'w')
     udfile.write(value)
     udfile.close()
-    os.chmod(deltacloud_user_data_file, 0664)
+    os.chmod(deltacloud_user_data_file, 0o664)
 
     udfile = open(user_data_file, 'w')
     udfile.write(value)
     udfile.close()
-    os.chmod(user_data_file, 0664)
+    os.chmod(user_data_file, 0o664)
 
 
 def _remove_user_data_files(mount_dir,
