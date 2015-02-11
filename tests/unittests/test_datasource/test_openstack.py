@@ -19,13 +19,11 @@
 import copy
 import json
 import re
-import unittest
-
-from StringIO import StringIO
-
-from urlparse import urlparse
 
 from .. import helpers as test_helpers
+
+from six import StringIO
+from six.moves.urllib.parse import urlparse
 
 from cloudinit import helpers
 from cloudinit import settings
@@ -318,7 +316,7 @@ class TestOpenStackDataSource(test_helpers.HttprettyTestCase):
         self.assertIsNone(ds_os.version)
 
 
-class TestVendorDataLoading(unittest.TestCase):
+class TestVendorDataLoading(test_helpers.TestCase):
     def cvj(self, data):
         return openstack.convert_vendordata_json(data)
 

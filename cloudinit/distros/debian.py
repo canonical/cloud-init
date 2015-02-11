@@ -86,13 +86,6 @@ class Distro(distros.Distro):
         else:
             return distros.Distro._bring_up_interfaces(self, device_names)
 
-    def _select_hostname(self, hostname, fqdn):
-        # Prefer the short hostname over the long
-        # fully qualified domain name
-        if not hostname:
-            return fqdn
-        return hostname
-
     def _write_hostname(self, your_hostname, out_fn):
         conf = None
         try:
@@ -104,7 +97,7 @@ class Distro(distros.Distro):
         if not conf:
             conf = HostnameConf('')
         conf.set_hostname(your_hostname)
-        util.write_file(out_fn, str(conf), 0644)
+        util.write_file(out_fn, str(conf), 0o644)
 
     def _read_system_hostname(self):
         sys_hostname = self._read_hostname(self.hostname_conf_fn)

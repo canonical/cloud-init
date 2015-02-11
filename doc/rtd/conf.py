@@ -12,8 +12,8 @@ sys.path.insert(0, os.path.abspath('.'))
 from cloudinit import version
 
 # Supress warnings for docs that aren't used yet
-#unused_docs = [
-#]
+# unused_docs = [
+# ]
 
 # General information about the project.
 project = 'Cloud-Init'
@@ -21,12 +21,14 @@ project = 'Cloud-Init'
 # -- General configuration ----------------------------------------------------
 
 # If your documentation needs a minimal Sphinx version, state it here.
-#needs_sphinx = '1.0'
+# needs_sphinx = '1.0'
 
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom ones.
 extensions = [
     'sphinx.ext.intersphinx',
+    'sphinx.ext.autodoc',
+    'sphinx.ext.viewcode',
 ]
 
 intersphinx_mapping = {

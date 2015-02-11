@@ -17,7 +17,6 @@
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import functools
-import httplib
 import json
 
 from cloudinit import log as logging
@@ -25,7 +24,7 @@ from cloudinit import url_helper
 from cloudinit import util
 
 LOG = logging.getLogger(__name__)
-SKIP_USERDATA_CODES = frozenset([httplib.NOT_FOUND])
+SKIP_USERDATA_CODES = frozenset([url_helper.NOT_FOUND])
 
 
 class MetadataLeafDecoder(object):
@@ -123,7 +122,7 @@ class MetadataMaterializer(object):
         leaf_contents = {}
         for (field, resource) in leaves.items():
             leaf_url = url_helper.combine_url(base_url, resource)
-            leaf_blob = str(self._caller(leaf_url))
+            leaf_blob = self._caller(leaf_url).contents
             leaf_contents[field] = self._leaf_decoder(field, leaf_blob)
         joined = {}
         joined.update(child_contents)
@@ -160,7 +159,7 @@ def get_instance_userdata(api_version='latest',
                                          timeout=timeout,
                                          retries=retries,
                                          exception_cb=exception_cb)
-        user_data = str(response)
+        user_data = response.contents
     except url_helper.UrlError as e:
         if e.code not in SKIP_USERDATA_CODES:
             util.logexc(LOG, "Failed fetching userdata from url %s", ud_url)
@@ -183,7 +182,7 @@ def get_instance_metadata(api_version='latest',
 
     try:
         response = caller(md_url)
-        materializer = MetadataMaterializer(str(response),
+        materializer = MetadataMaterializer(response.contents,
                                             md_url, caller,
                                             leaf_decoder=leaf_decoder)
         md = materializer.materialize()

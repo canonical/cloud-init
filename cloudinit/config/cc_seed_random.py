@@ -21,7 +21,8 @@
 
 import base64
 import os
-from StringIO import StringIO
+
+from six import BytesIO
 
 from cloudinit.settings import PER_INSTANCE
 from cloudinit import log as logging
@@ -33,13 +34,13 @@ LOG = logging.getLogger(__name__)
 
 def _decode(data, encoding=None):
     if not data:
-        return ''
+        return b''
     if not encoding or encoding.lower() in ['raw']:
-        return data
+        return util.encode_text(data)
     elif encoding.lower() in ['base64', 'b64']:
         return base64.b64decode(data)
     elif encoding.lower() in ['gzip', 'gz']:
-        return util.decomp_gzip(data, quiet=False)
+        return util.decomp_gzip(data, quiet=False, decode=None)
     else:
         raise IOError("Unknown random_seed encoding: %s" % (encoding))
 
@@ -64,9 +65,9 @@ def handle_random_seed_command(command, required, env=None):
 def handle(name, cfg, cloud, log, _args):
     mycfg = cfg.get('random_seed', {})
     seed_path = mycfg.get('file', '/dev/urandom')
-    seed_data = mycfg.get('data', '')
+    seed_data = mycfg.get('data', b'')
 
-    seed_buf = StringIO()
+    seed_buf = BytesIO()
     if seed_data:
         seed_buf.write(_decode(seed_data, encoding=mycfg.get('encoding')))
 
@@ -74,7 +75,7 @@ def handle(name, cfg, cloud, log, _args):
     # openstack meta_data.json
     metadata = cloud.datasource.metadata
     if metadata and 'random_seed' in metadata:
-        seed_buf.write(metadata['random_seed'])
+        seed_buf.write(util.encode_text(metadata['random_seed']))
 
     seed_data = seed_buf.getvalue()
     if len(seed_data):

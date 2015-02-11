@@ -15,6 +15,8 @@
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 
+from base64 import b64decode
+
 from cloudinit import log as logging
 from cloudinit import util
 from cloudinit import sources
@@ -58,6 +60,8 @@ class DataSourceGCE(sources.DataSource):
             ('local-hostname', 'instance/hostname', True),
             ('public-keys', 'project/attributes/sshKeys', False),
             ('user-data', 'instance/attributes/user-data', False),
+            ('user-data-encoding', 'instance/attributes/user-data-encoding',
+             False),
         ]
 
         # if we cannot resolve the metadata server, then no point in trying
@@ -101,6 +105,14 @@ class DataSourceGCE(sources.DataSource):
             lines = self.metadata['public-keys'].splitlines()
             self.metadata['public-keys'] = [self._trim_key(k) for k in lines]
 
+        encoding = self.metadata.get('user-data-encoding')
+        if encoding:
+            if encoding == 'base64':
+                self.metadata['user-data'] = b64decode(
+                    self.metadata['user-data'])
+            else:
+                LOG.warn('unknown user-data-encoding: %s, ignoring', encoding)
+
         return found
 
     @property
@@ -115,7 +127,8 @@ class DataSourceGCE(sources.DataSource):
         return self.metadata['public-keys']
 
     def get_hostname(self, fqdn=False, _resolve_ip=False):
-        return self.metadata['local-hostname']
+        # GCE has long FDQN's and has asked for short hostnames
+        return self.metadata['local-hostname'].split('.')[0]
 
     def get_userdata_raw(self):
         return self.metadata['user-data']

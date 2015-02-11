@@ -5,7 +5,7 @@ Source: https://launchpad.net/cloud-init
 
 This package was debianized by Soren Hansen <soren@ubuntu.com> on
 Thu, 04 Sep 2008 12:49:15 +0200 as ec2-init.  It was later renamed to
-cloud-utils by Scott Moser <scott.moser@canonical.com>
+cloud-init by Scott Moser <scott.moser@canonical.com>
 
 Upstream Author: Scott Moser <smoser@canonical.com>
     Soren Hansen <soren@canonical.com>

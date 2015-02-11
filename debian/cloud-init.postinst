@@ -9,7 +9,7 @@ update_cfg() {
    # takes filename, header, new object (in yaml), optionally 'remover'
    # and merges new into existing object in filename, and then updates file
    # remover a string that means "delete existing entry"
-   python -c '
+   python3 -c '
 import sys, yaml
 
 def update(src, cand):
@@ -56,7 +56,8 @@ handle_preseed_maas() {
 
    # change a url query string format into : delimited
    if [ -n "$creds_all" -a "${creds_all#*&}" != "${creds_all}" ]; then
-      creds_all=$(python -c 'from urlparse import parse_qs; import sys;
+      creds_all=$(python -c 'from six.moves.urllib.parse import parse_qs;
+import sys;
 keys = parse_qs(sys.argv[1])
 for k in sys.argv[2:]:
    sys.stdout.write("%s:" % keys.get(k,[""])[0])' "$creds_all" \

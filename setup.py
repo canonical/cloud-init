@@ -23,6 +23,7 @@
 from glob import glob
 
 import os
+import sys
 
 import setuptools
 from setuptools.command.install import install
@@ -44,7 +45,8 @@ def tiny_p(cmd, capture=True):
         stdout = None
         stderr = None
     sp = subprocess.Popen(cmd, stdout=stdout,
-                    stderr=stderr, stdin=None)
+                    stderr=stderr, stdin=None,
+                    universal_newlines=True)
     (out, err) = sp.communicate()
     ret = sp.returncode
     if ret not in [0]:
@@ -81,9 +83,24 @@ INITSYS_TYPES = sorted(list(INITSYS_ROOTS.keys()))
 # FreeBSD systems.
 USR = "/usr"
 ETC = "/etc"
+USR_LIB_EXEC = "/usr/lib"
 if os.uname()[0] == 'FreeBSD':
     USR = "/usr/local"
+    USR_LIB_EXEC = "/usr/local/lib"
     ETC = "/usr/local/etc"
+elif os.path.isfile('/etc/redhat-release'):
+    USR_LIB_EXEC = "/usr/libexec"
+
+
+# Avoid having datafiles installed in a virtualenv...
+def in_virtualenv():
+    try:
+        if sys.real_prefix == sys.prefix:
+            return False
+        else:
+            return True
+    except AttributeError:
+        return False
 
 
 def get_version():
@@ -128,11 +145,39 @@ class InitsysInstallData(install):
             raise DistutilsArgError(
                 "Invalid --init-system: %s" % (','.join(bad)))
 
-        for sys in self.init_system:
+        for system in self.init_system:
             self.distribution.data_files.append(
-                (INITSYS_ROOTS[sys], INITSYS_FILES[sys]))
+                (INITSYS_ROOTS[system], INITSYS_FILES[system]))
         # Force that command to reinitalize (with new file list)
         self.distribution.reinitialize_command('install_data', True)
+
+
+if in_virtualenv():
+    data_files = []
+    cmdclass = {}
+else:
+    data_files = [
+        (ETC + '/cloud', glob('config/*.cfg')),
+        (ETC + '/cloud/cloud.cfg.d', glob('config/cloud.cfg.d/*')),
+        (ETC + '/cloud/templates', glob('templates/*')),
+        (USR_LIB_EXEC + '/cloud-init', ['tools/uncloud-init',
+                                        'tools/write-ssh-key-fingerprints']),
+        (USR + '/share/doc/cloud-init', [f for f in glob('doc/*') if is_f(f)]),
+        (USR + '/share/doc/cloud-init/examples',
+            [f for f in glob('doc/examples/*') if is_f(f)]),
+        (USR + '/share/doc/cloud-init/examples/seed',
+            [f for f in glob('doc/examples/seed/*') if is_f(f)]),
+    ]
+    # Use a subclass for install that handles
+    # adding on the right init system configuration files
+    cmdclass = {
+        'install': InitsysInstallData,
+    }
+
+
+requirements = read_requires()
+if sys.version_info < (3,):
+    requirements.append('cheetah')
 
 
 setuptools.setup(name='cloud-init',
@@ -146,23 +191,7 @@ setuptools.setup(name='cloud-init',
                'tools/cloud-init-per',
                ],
       license='GPLv3',
-      data_files=[(ETC + '/cloud', glob('config/*.cfg')),
-                  (ETC + '/cloud/cloud.cfg.d', glob('config/cloud.cfg.d/*')),
-                  (ETC + '/cloud/templates', glob('templates/*')),
-                  (USR + '/lib/cloud-init',
-                    ['tools/uncloud-init',
-                     'tools/write-ssh-key-fingerprints']),
-                  (USR + '/share/doc/cloud-init',
-                   [f for f in glob('doc/*') if is_f(f)]),
-                  (USR + '/share/doc/cloud-init/examples',
-                   [f for f in glob('doc/examples/*') if is_f(f)]),
-                  (USR + '/share/doc/cloud-init/examples/seed',
-                   [f for f in glob('doc/examples/seed/*') if is_f(f)]),
-                 ],
-      install_requires=read_requires(),
-      cmdclass={
-          # Use a subclass for install that handles
-          # adding on the right init system configuration files
-          'install': InitsysInstallData,
-      },
+      data_files=data_files,
+      install_requires=requirements,
+      cmdclass=cmdclass,
       )

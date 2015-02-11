@@ -26,9 +26,12 @@ from cloudinit.settings import PER_ALWAYS
 
 frequency = PER_ALWAYS
 
-# Cheetah formated default message
-FINAL_MESSAGE_DEF = ("Cloud-init v. ${version} finished at ${timestamp}."
-                     " Datasource ${datasource}.  Up ${uptime} seconds")
+# Jinja formated default message
+FINAL_MESSAGE_DEF = (
+  "## template: jinja\n"
+  "Cloud-init v. {{version}} finished at {{timestamp}}."
+  " Datasource {{datasource}}.  Up {{uptime}} seconds"
+)
 
 
 def handle(_name, cfg, cloud, log, args):

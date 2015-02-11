@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 import os
+import re
 import sys
 
 if 'CLOUD_INIT_TOP_D' in os.environ:
@@ -14,10 +15,15 @@ for fname in ("setup.py", "requirements.txt"):
                          "exist in cloud-init root directory." % fname)
         sys.exit(1)
 
-with open(os.path.join(topd, "requirements.txt"), "r") as fp:
+if len(sys.argv) > 1:
+   reqfile = sys.argv[1]
+else:
+   reqfile = "requirements.txt"
+   
+with open(os.path.join(topd, reqfile), "r") as fp:
     for line in fp:
         if not line.strip() or line.startswith("#"):
             continue
-        sys.stdout.write(line)
+        sys.stdout.write(re.split("[>=.<]*", line)[0].strip() + "\n")
 
 sys.exit(0)

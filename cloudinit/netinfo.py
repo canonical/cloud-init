@@ -72,6 +72,7 @@ def netdev_info(empty=""):
                 "bcast:": "bcast", "broadcast": "bcast",
                 "mask:": "mask", "netmask": "mask",
                 "hwaddr": "hwaddr", "ether": "hwaddr",
+                "scope": "scope",
             }
             for origfield, field in ifconfigfields.items():
                 target = "%s%s" % (field, fieldpost)
@@ -86,7 +87,7 @@ def netdev_info(empty=""):
                     devs[curdev][target] = toks[i][len(field) + 1:]
 
     if empty != "":
-        for (_devname, dev) in devs.iteritems():
+        for (_devname, dev) in devs.items():
             for field in dev:
                 if dev[field] == "":
                     dev[field] = empty
@@ -96,13 +97,16 @@ def netdev_info(empty=""):
 
 def route_info():
     (route_out, _err) = util.subp(["netstat", "-rn"])
-    routes = []
+
+    routes = {}
+    routes['ipv4'] = []
+    routes['ipv6'] = []
+
     entries = route_out.splitlines()[1:]
     for line in entries:
         if not line:
             continue
         toks = line.split()
-
         # FreeBSD shows 6 items in the routing table:
         #  Destination  Gateway    Flags Refs    Use  Netif Expire
         #  default      10.65.0.1  UGS      0  34920 vtnet0
@@ -114,13 +118,11 @@ def route_info():
                 toks[0] == "Destination" or toks[0] == "Internet" or
                 toks[0] == "Internet6" or toks[0] == "Routing"):
             continue
-
         if len(toks) < 8:
             toks.append("-")
             toks.append("-")
             toks[7] = toks[5]
             toks[5] = "-"
-
         entry = {
             'destination': toks[0],
             'gateway': toks[1],
@@ -131,20 +133,42 @@ def route_info():
             'use': toks[6],
             'iface': toks[7],
         }
+        routes['ipv4'].append(entry)
 
-        routes.append(entry)
+    try:
+        (route_out6, _err6) = util.subp(["netstat", "-A", "inet6", "-n"])
+    except util.ProcessExecutionError:
+        pass
+    else:
+        entries6 = route_out6.splitlines()[1:]
+        for line in entries6:
+            if not line:
+                continue
+            toks = line.split()
+            if (len(toks) < 6 or toks[0] == "Kernel" or
+                    toks[0] == "Proto" or toks[0] == "Active"):
+                continue
+            entry = {
+                'proto': toks[0],
+                'recv-q': toks[1],
+                'send-q': toks[2],
+                'local address': toks[3],
+                'foreign address': toks[4],
+                'state': toks[5],
+            }
+            routes['ipv6'].append(entry)
     return routes
 
 
 def getgateway():
-    routes = []
     try:
         routes = route_info()
     except:
         pass
-    for r in routes:
-        if r['flags'].find("G") >= 0:
-            return "%s[%s]" % (r['gateway'], r['iface'])
+    else:
+        for r in routes.get('ipv4', []):
+            if r['flags'].find("G") >= 0:
+                return "%s[%s]" % (r['gateway'], r['iface'])
     return None
 
 
@@ -154,12 +178,14 @@ def netdev_pformat():
         netdev = netdev_info(empty=".")
     except Exception:
         lines.append(util.center("Net device info failed", '!', 80))
-        netdev = None
-    if netdev is not None:
-        fields = ['Device', 'Up', 'Address', 'Mask', 'Hw-Address']
+    else:
+        fields = ['Device', 'Up', 'Address', 'Mask', 'Scope', 'Hw-Address']
         tbl = PrettyTable(fields)
-        for (dev, d) in netdev.iteritems():
-            tbl.add_row([dev, d["up"], d["addr"], d["mask"], d["hwaddr"]])
+        for (dev, d) in netdev.items():
+            tbl.add_row([dev, d["up"], d["addr"], d["mask"], ".", d["hwaddr"]])
+            if d.get('addr6'):
+                tbl.add_row([dev, d["up"],
+                             d["addr6"], ".", d.get("scope6"), d["hwaddr"]])
         netdev_s = tbl.get_string()
         max_len = len(max(netdev_s.splitlines(), key=len))
         header = util.center("Net device info", "+", max_len)
@@ -174,20 +200,34 @@ def route_pformat():
     except Exception as e:
         lines.append(util.center('Route info failed', '!', 80))
         util.logexc(LOG, "Route info failed: %s" % e)
-        routes = None
-    if routes is not None:
-        fields = ['Route', 'Destination', 'Gateway',
-                  'Genmask', 'Interface', 'Flags']
-        tbl = PrettyTable(fields)
-        for (n, r) in enumerate(routes):
-            route_id = str(n)
-            tbl.add_row([route_id, r['destination'],
-                        r['gateway'], r['genmask'],
-                        r['iface'], r['flags']])
-        route_s = tbl.get_string()
-        max_len = len(max(route_s.splitlines(), key=len))
-        header = util.center("Route info", "+", max_len)
-        lines.extend([header, route_s])
+    else:
+        if routes.get('ipv4'):
+            fields_v4 = ['Route', 'Destination', 'Gateway',
+                         'Genmask', 'Interface', 'Flags']
+            tbl_v4 = PrettyTable(fields_v4)
+            for (n, r) in enumerate(routes.get('ipv4')):
+                route_id = str(n)
+                tbl_v4.add_row([route_id, r['destination'],
+                                r['gateway'], r['genmask'],
+                                r['iface'], r['flags']])
+            route_s = tbl_v4.get_string()
+            max_len = len(max(route_s.splitlines(), key=len))
+            header = util.center("Route IPv4 info", "+", max_len)
+            lines.extend([header, route_s])
+        if routes.get('ipv6'):
+            fields_v6 = ['Route', 'Proto', 'Recv-Q', 'Send-Q',
+                         'Local Address', 'Foreign Address', 'State']
+            tbl_v6 = PrettyTable(fields_v6)
+            for (n, r) in enumerate(routes.get('ipv6')):
+                route_id = str(n)
+                tbl_v6.add_row([route_id, r['proto'],
+                                r['recv-q'], r['send-q'],
+                                r['local address'], r['foreign address'],
+                                r['state']])
+            route_s = tbl_v6.get_string()
+            max_len = len(max(route_s.splitlines(), key=len))
+            header = util.center("Route IPv6 info", "+", max_len)
+            lines.extend([header, route_s])
     return "\n".join(lines)
 
 

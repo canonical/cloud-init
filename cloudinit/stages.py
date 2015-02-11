@@ -20,11 +20,12 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import cPickle as pickle
-
 import copy
 import os
 import sys
+
+import six
+from six.moves import cPickle as pickle
 
 from cloudinit.settings import (PER_INSTANCE, FREQUENCIES, CLOUD_CONFIG)
 
@@ -179,9 +180,12 @@ class Init(object):
         pickled_fn = self.paths.get_ipath_cur('obj_pkl')
         pickle_contents = None
         try:
-            pickle_contents = util.load_file(pickled_fn)
-        except Exception:
+            pickle_contents = util.load_file(pickled_fn, decode=False)
+        except Exception as e:
+            if os.path.isfile(pickled_fn):
+                LOG.warn("failed loading pickle in %s: %s" % (pickled_fn, e))
             pass
+
         # This is expected so just return nothing
         # successfully loaded...
         if not pickle_contents:
@@ -202,7 +206,7 @@ class Init(object):
             util.logexc(LOG, "Failed pickling datasource %s", self.datasource)
             return False
         try:
-            util.write_file(pickled_fn, pk_contents, mode=0400)
+            util.write_file(pickled_fn, pk_contents, omode="wb", mode=0o400)
         except Exception:
             util.logexc(LOG, "Failed pickling datasource to %s", pickled_fn)
             return False
@@ -324,15 +328,15 @@ class Init(object):
 
     def _store_userdata(self):
         raw_ud = "%s" % (self.datasource.get_userdata_raw())
-        util.write_file(self._get_ipath('userdata_raw'), raw_ud, 0600)
+        util.write_file(self._get_ipath('userdata_raw'), raw_ud, 0o600)
         processed_ud = "%s" % (self.datasource.get_userdata())
-        util.write_file(self._get_ipath('userdata'), processed_ud, 0600)
+        util.write_file(self._get_ipath('userdata'), processed_ud, 0o600)
 
     def _store_vendordata(self):
         raw_vd = "%s" % (self.datasource.get_vendordata_raw())
-        util.write_file(self._get_ipath('vendordata_raw'), raw_vd, 0600)
+        util.write_file(self._get_ipath('vendordata_raw'), raw_vd, 0o600)
         processed_vd = "%s" % (self.datasource.get_vendordata())
-        util.write_file(self._get_ipath('vendordata'), processed_vd, 0600)
+        util.write_file(self._get_ipath('vendordata'), processed_vd, 0o600)
 
     def _default_handlers(self, opts=None):
         if opts is None:
@@ -384,7 +388,7 @@ class Init(object):
             if not path or not os.path.isdir(path):
                 return
             potential_handlers = util.find_modules(path)
-            for (fname, mod_name) in potential_handlers.iteritems():
+            for (fname, mod_name) in potential_handlers.items():
                 try:
                     mod_locs, looked_locs = importer.find_module(
                         mod_name, [''], ['list_types', 'handle_part'])
@@ -422,7 +426,7 @@ class Init(object):
 
         def init_handlers():
             # Init the handlers first
-            for (_ctype, mod) in c_handlers.iteritems():
+            for (_ctype, mod) in c_handlers.items():
                 if mod in c_handlers.initialized:
                     # Avoid initing the same module twice (if said module
                     # is registered to more than one content-type).
@@ -449,7 +453,7 @@ class Init(object):
 
         def finalize_handlers():
             # Give callbacks opportunity to finalize
-            for (_ctype, mod) in c_handlers.iteritems():
+            for (_ctype, mod) in c_handlers.items():
                 if mod not in c_handlers.initialized:
                     # Said module was never inited in the first place, so lets
                     # not attempt to finalize those that never got called.
@@ -574,7 +578,7 @@ class Modules(object):
         for item in cfg_mods:
             if not item:
                 continue
-            if isinstance(item, (str, basestring)):
+            if isinstance(item, six.string_types):
                 module_list.append({
                     'mod': item.strip(),
                 })

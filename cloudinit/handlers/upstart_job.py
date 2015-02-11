@@ -65,7 +65,7 @@ class UpstartJobPartHandler(handlers.Handler):
 
         payload = util.dos2unix(payload)
         path = os.path.join(self.upstart_dir, filename)
-        util.write_file(path, payload, 0644)
+        util.write_file(path, payload, 0o644)
 
         if SUITABLE_UPSTART:
             util.subp(["initctl", "reload-configuration"], capture=False)

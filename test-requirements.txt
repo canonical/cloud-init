@@ -1,5 +1,7 @@
 httpretty>=0.7.1
-mocker
+mock
 nose
 pep8==1.5.7
 pyflakes
+contextlib2
+setuptools

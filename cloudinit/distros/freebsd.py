@@ -16,7 +16,8 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-from StringIO import StringIO
+import six
+from six import StringIO
 
 import re
 
@@ -106,6 +107,36 @@ class Distro(distros.Distro):
             val = None
         return val
 
+    # NOVA will inject something like eth0, rewrite that to use the FreeBSD
+    # adapter. Since this adapter is based on the used driver, we need to
+    # figure out which interfaces are available. On KVM platforms this is
+    # vtnet0, where Xen would use xn0.
+    def getnetifname(self, dev):
+        LOG.debug("Translating network interface %s", dev)
+        if dev.startswith('lo'):
+            return dev
+
+        n = re.search('\d+$', dev)
+        index = n.group(0)
+
+        (out, err) = util.subp(['ifconfig', '-a'])
+        ifconfigoutput = [x for x in (out.strip()).splitlines()
+                          if len(x.split()) > 0]
+        for line in ifconfigoutput:
+            m = re.match('^\w+', line)
+            if m:
+                if m.group(0).startswith('lo'):
+                    continue
+                # Just settle with the first non-lo adapter we find, since it's
+                # rather unlikely there will be multiple nicdrivers involved.
+                bsddev = m.group(0)
+                break
+
+        # Replace the index with the one we're after.
+        bsddev = re.sub('\d+$', index, bsddev)
+        LOG.debug("Using network interface %s", bsddev)
+        return bsddev
+
     def _read_system_hostname(self):
         sys_hostname = self._read_hostname(filename=None)
         return ('rc.conf', sys_hostname)
@@ -118,11 +149,6 @@ class Distro(distros.Distro):
             pass
         if not hostname:
             return default
-        return hostname
-
-    def _select_hostname(self, hostname, fqdn):
-        if not hostname:
-            return fqdn
         return hostname
 
     def _write_hostname(self, hostname, filename):
@@ -162,24 +188,25 @@ class Distro(distros.Distro):
         log_adduser_cmd = ['pw', 'useradd', '-n', name]
 
         adduser_opts = {
-                "homedir": '-d',
-                "gecos": '-c',
-                "primary_group": '-g',
-                "groups": '-G',
-                "passwd": '-h',
-                "shell": '-s',
-                "inactive": '-E',
+            "homedir": '-d',
+            "gecos": '-c',
+            "primary_group": '-g',
+            "groups": '-G',
+            "passwd": '-h',
+            "shell": '-s',
+            "inactive": '-E',
         }
         adduser_flags = {
-                "no_user_group": '--no-user-group',
-                "system": '--system',
-                "no_log_init": '--no-log-init',
+            "no_user_group": '--no-user-group',
+            "system": '--system',
+            "no_log_init": '--no-log-init',
         }
 
         redact_opts = ['passwd']
 
-        for key, val in kwargs.iteritems():
-            if key in adduser_opts and val and isinstance(val, basestring):
+        for key, val in kwargs.items():
+            if (key in adduser_opts and val
+                    and isinstance(val, six.string_types)):
                 adduser_cmd.extend([adduser_opts[key], val])
 
                 # Redact certain fields from the logs
@@ -246,17 +273,21 @@ class Distro(distros.Distro):
         nameservers = []
         searchdomains = []
         dev_names = entries.keys()
-        for (dev, info) in entries.iteritems():
+        for (device, info) in entries.items():
             # Skip the loopback interface.
-            if dev.startswith('lo'):
+            if device.startswith('lo'):
                 continue
+
+            dev = self.getnetifname(device)
 
             LOG.info('Configuring interface %s', dev)
 
             if info.get('bootproto') == 'static':
-                LOG.debug('Configuring dev %s with %s / %s', dev, info.get('address'), info.get('netmask'))
+                LOG.debug('Configuring dev %s with %s / %s', dev,
+                          info.get('address'), info.get('netmask'))
                 # Configure an ipv4 address.
-                ifconfig = info.get('address') + ' netmask ' + info.get('netmask')
+                ifconfig = (info.get('address') + ' netmask ' +
+                            info.get('netmask'))
 
                 # Configure the gateway.
                 self.updatercconf('defaultrouter', info.get('gateway'))
@@ -267,7 +298,7 @@ class Distro(distros.Distro):
                     searchdomains.extend(info['dns-search'])
             else:
                 ifconfig = 'DHCP'
-     
+
             self.updatercconf('ifconfig_' + dev, ifconfig)
 
         # Try to read the /etc/resolv.conf or just start from scratch if that
@@ -276,7 +307,8 @@ class Distro(distros.Distro):
             resolvconf = ResolvConf(util.load_file(self.resolv_conf_fn))
             resolvconf.parse()
         except IOError:
-            util.logexc(LOG, "Failed to parse %s, use new empty file", self.resolv_conf_fn)
+            util.logexc(LOG, "Failed to parse %s, use new empty file",
+                        self.resolv_conf_fn)
             resolvconf = ResolvConf('')
             resolvconf.parse()
 
@@ -293,7 +325,7 @@ class Distro(distros.Distro):
                 resolvconf.add_search_domain(domain)
             except ValueError:
                 util.logexc(LOG, "Failed to add search domain %s", domain)
-        util.write_file(self.resolv_conf_fn, str(resolvconf), 0644)
+        util.write_file(self.resolv_conf_fn, str(resolvconf), 0o644)
 
         return dev_names
 
@@ -322,6 +354,19 @@ class Distro(distros.Distro):
             except IOError:
                 util.logexc(LOG, "Failed to restore %s backup",
                             self.login_conf_fn)
+
+    def _bring_up_interface(self, device_name):
+        if device_name.startswith('lo'):
+            return
+        dev = self.getnetifname(device_name)
+        cmd = ['/etc/rc.d/netif', 'start', dev]
+        LOG.debug("Attempting to bring up interface %s using command %s",
+                  dev, cmd)
+        # This could return 1 when the interface has already been put UP by the
+        # OS. This is just fine.
+        (_out, err) = util.subp(cmd, rcs=[0, 1])
+        if len(err):
+            LOG.warn("Error running %s: %s", cmd, err)
 
     def install_packages(self, pkglist):
         return

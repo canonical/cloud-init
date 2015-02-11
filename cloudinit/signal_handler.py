@@ -22,7 +22,7 @@ import inspect
 import signal
 import sys
 
-from StringIO import StringIO
+from six import StringIO
 
 from cloudinit import log as logging
 from cloudinit import util

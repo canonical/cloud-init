@@ -81,7 +81,7 @@ ssh keys and to let the user run various scripts.
 %{__python} setup.py build
 
 %install
-rm -rf \$RPM_BUILD_ROOT
+
 %{__python} setup.py install -O1 \
             --skip-build --root \$RPM_BUILD_ROOT \
             --init-system=${init_sys}
@@ -91,6 +91,18 @@ rm -rf \$RPM_BUILD_ROOT
 mkdir -p \$RPM_BUILD_ROOT/%{_sysconfdir}/rsyslog.d
 cp -p tools/21-cloudinit.conf \
       \$RPM_BUILD_ROOT/%{_sysconfdir}/rsyslog.d/21-cloudinit.conf
+
+# Remove the tests
+rm -rf \$RPM_BUILD_ROOT%{python_sitelib}/tests
+
+# Required dirs...
+mkdir -p \$RPM_BUILD_ROOT/%{_sharedstatedir}/cloud
+mkdir -p \$RPM_BUILD_ROOT/%{_libexecdir}/%{name}
+
+#if $systemd
+mkdir -p         \$RPM_BUILD_ROOT/%{_unitdir}
+cp -p systemd/*  \$RPM_BUILD_ROOT/%{_unitdir}
+#end if
 
 %clean
 rm -rf \$RPM_BUILD_ROOT
@@ -161,15 +173,11 @@ fi
 
 # Program binaries
 %{_bindir}/cloud-init*
-
-# There doesn't seem to be an agreed upon place for these
-# although it appears the standard says /usr/lib but rpmbuild
-# will try /usr/lib64 ??
-/usr/lib/%{name}/uncloud-init
-/usr/lib/%{name}/write-ssh-key-fingerprints
+%{_libexecdir}/%{name}/uncloud-init
+%{_libexecdir}/%{name}/write-ssh-key-fingerprints
 
 # Docs
-%doc TODO LICENSE ChangeLog requirements.txt
+%doc LICENSE ChangeLog TODO.rst requirements.txt
 %doc %{_defaultdocdir}/cloud-init/*
 
 # Configs
@@ -180,7 +188,9 @@ fi
 %dir                    %{_sysconfdir}/cloud/templates
 %config(noreplace)      %{_sysconfdir}/cloud/templates/*
 %config(noreplace) %{_sysconfdir}/rsyslog.d/21-cloudinit.conf
-%config(noreplace) %{_sysconfdir}/sudoers.d/cloud-init
+
+%{_libexecdir}/%{name}
+%dir %{_sharedstatedir}/cloud
 
 # Python code is here...
 %{python_sitelib}/*

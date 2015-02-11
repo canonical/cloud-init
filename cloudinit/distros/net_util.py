@@ -103,7 +103,7 @@ def translate_network(settings):
             consume[cmd] = args
     # Check if anything left over to consume
     absorb = False
-    for (cmd, args) in consume.iteritems():
+    for (cmd, args) in consume.items():
         if cmd == 'iface':
             absorb = True
     if absorb:
@@ -114,6 +114,10 @@ def translate_network(settings):
         if 'iface' not in info:
             continue
         iface_details = info['iface'].split(None)
+        # Check if current device *may* have an ipv6 IP
+        use_ipv6 = False
+        if 'inet6' in iface_details:
+            use_ipv6 = True
         dev_name = None
         if len(iface_details) >= 1:
             dev = iface_details[0].strip().lower()
@@ -122,6 +126,7 @@ def translate_network(settings):
         if not dev_name:
             continue
         iface_info = {}
+        iface_info['ipv6'] = {}
         if len(iface_details) >= 3:
             proto_type = iface_details[2].strip().lower()
             # Seems like this can be 'loopback' which we don't
@@ -129,35 +134,49 @@ def translate_network(settings):
             if proto_type in ['dhcp', 'static']:
                 iface_info['bootproto'] = proto_type
         # These can just be copied over
-        for k in ['netmask', 'address', 'gateway', 'broadcast']:
-            if k in info:
-                val = info[k].strip().lower()
-                if val:
-                    iface_info[k] = val
-        # Name server info provided??
-        if 'dns-nameservers' in info:
-            iface_info['dns-nameservers'] = info['dns-nameservers'].split()
-        # Name server search info provided??
-        if 'dns-search' in info:
-            iface_info['dns-search'] = info['dns-search'].split()
-        # Is any mac address spoofing going on??
-        if 'hwaddress' in info:
-            hw_info = info['hwaddress'].lower().strip()
-            hw_split = hw_info.split(None, 1)
-            if len(hw_split) == 2 and hw_split[0].startswith('ether'):
-                hw_addr = hw_split[1]
-                if hw_addr:
-                    iface_info['hwaddress'] = hw_addr
-        real_ifaces[dev_name] = iface_info
+        if use_ipv6:
+            for k in ['address', 'gateway']:
+                if k in info:
+                    val = info[k].strip().lower()
+                    if val:
+                        iface_info['ipv6'][k] = val
+        else:
+            for k in ['netmask', 'address', 'gateway', 'broadcast']:
+                if k in info:
+                    val = info[k].strip().lower()
+                    if val:
+                        iface_info[k] = val
+            # Name server info provided??
+            if 'dns-nameservers' in info:
+                iface_info['dns-nameservers'] = info['dns-nameservers'].split()
+            # Name server search info provided??
+            if 'dns-search' in info:
+                iface_info['dns-search'] = info['dns-search'].split()
+            # Is any mac address spoofing going on??
+            if 'hwaddress' in info:
+                hw_info = info['hwaddress'].lower().strip()
+                hw_split = hw_info.split(None, 1)
+                if len(hw_split) == 2 and hw_split[0].startswith('ether'):
+                    hw_addr = hw_split[1]
+                    if hw_addr:
+                        iface_info['hwaddress'] = hw_addr
+        # If ipv6 is enabled, device will have multiple IPs, so we need to
+        # update the dictionary instead of overwriting it...
+        if dev_name in real_ifaces:
+            real_ifaces[dev_name].update(iface_info)
+        else:
+            real_ifaces[dev_name] = iface_info
     # Check for those that should be started on boot via 'auto'
     for (cmd, args) in entries:
+        args = args.split(None)
+        if not args:
+            continue
+        dev_name = args[0].strip().lower()
         if cmd == 'auto':
             # Seems like auto can be like 'auto eth0 eth0:1' so just get the
             # first part out as the device name
-            args = args.split(None)
-            if not args:
-                continue
-            dev_name = args[0].strip().lower()
             if dev_name in real_ifaces:
                 real_ifaces[dev_name]['auto'] = True
+        if cmd == 'iface' and 'inet6' in args:
+            real_ifaces[dev_name]['inet6'] = True
     return real_ifaces

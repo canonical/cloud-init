@@ -32,7 +32,7 @@ from cloudinit import util
 
 def _split_hash(bin_hash):
     split_up = []
-    for i in xrange(0, len(bin_hash), 2):
+    for i in range(0, len(bin_hash), 2):
         split_up.append(bin_hash[i:i + 2])
     return split_up
 

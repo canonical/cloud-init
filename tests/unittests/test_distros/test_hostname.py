@@ -1,4 +1,4 @@
-from mocker import MockerTestCase
+import unittest
 
 from cloudinit.distros.parsers import hostname
 
@@ -12,7 +12,7 @@ blahblah
 BASE_HOSTNAME = BASE_HOSTNAME.strip()
 
 
-class TestHostnameHelper(MockerTestCase):
+class TestHostnameHelper(unittest.TestCase):
     def test_parse_same(self):
         hn = hostname.HostnameConf(BASE_HOSTNAME)
         self.assertEquals(str(hn).strip(), BASE_HOSTNAME)

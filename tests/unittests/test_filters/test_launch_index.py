@@ -2,7 +2,7 @@ import copy
 
 from .. import helpers
 
-import itertools
+from six.moves import filterfalse
 
 from cloudinit.filters import launch_index
 from cloudinit import user_data as ud
@@ -36,11 +36,9 @@ class TestLaunchFilter(helpers.ResourceUsingTestCase):
             return False
         # Do some basic payload checking
         msg1_msgs = [m for m in msg1.walk()]
-        msg1_msgs = [m for m in
-                     itertools.ifilterfalse(ud.is_skippable, msg1_msgs)]
+        msg1_msgs = [m for m in filterfalse(ud.is_skippable, msg1_msgs)]
         msg2_msgs = [m for m in msg2.walk()]
-        msg2_msgs = [m for m in
-                     itertools.ifilterfalse(ud.is_skippable, msg2_msgs)]
+        msg2_msgs = [m for m in filterfalse(ud.is_skippable, msg2_msgs)]
         for i in range(0, len(msg2_msgs)):
             m1_msg = msg1_msgs[i]
             m2_msg = msg2_msgs[i]

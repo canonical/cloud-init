@@ -20,7 +20,7 @@ from distutils import version as vr
 
 
 def version():
-    return vr.StrictVersion("0.7.6")
+    return vr.StrictVersion("0.7.7")
 
 
 def version_string():

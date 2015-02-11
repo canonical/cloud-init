@@ -1,5 +1,7 @@
+from mock import patch
+
+from . import helpers as test_helpers
 from cloudinit import ssh_util
-from unittest import TestCase
 
 
 VALID_CONTENT = {
@@ -35,7 +37,7 @@ TEST_OPTIONS = ("no-port-forwarding,no-agent-forwarding,no-X11-forwarding,"
     'user \"root\".\';echo;sleep 10"')
 
 
-class TestAuthKeyLineParser(TestCase):
+class TestAuthKeyLineParser(test_helpers.TestCase):
     def test_simple_parse(self):
         # test key line with common 3 fields (keytype, base64, comment)
         parser = ssh_util.AuthKeyLineParser()
@@ -97,5 +99,72 @@ class TestAuthKeyLineParser(TestCase):
 
         self.assertFalse(key.valid())
 
+
+class TestParseSSHConfig(test_helpers.TestCase):
+
+    def setUp(self):
+        self.load_file_patch = patch('cloudinit.ssh_util.util.load_file')
+        self.load_file = self.load_file_patch.start()
+        self.isfile_patch = patch('cloudinit.ssh_util.os.path.isfile')
+        self.isfile = self.isfile_patch.start()
+        self.isfile.return_value = True
+
+    def tearDown(self):
+        self.load_file_patch.stop()
+        self.isfile_patch.stop()
+
+    def test_not_a_file(self):
+        self.isfile.return_value = False
+        self.load_file.side_effect = IOError
+        ret = ssh_util.parse_ssh_config('not a real file')
+        self.assertEqual([], ret)
+
+    def test_empty_file(self):
+        self.load_file.return_value = ''
+        ret = ssh_util.parse_ssh_config('some real file')
+        self.assertEqual([], ret)
+
+    def test_comment_line(self):
+        comment_line = '# This is a comment'
+        self.load_file.return_value = comment_line
+        ret = ssh_util.parse_ssh_config('some real file')
+        self.assertEqual(1, len(ret))
+        self.assertEqual(comment_line, ret[0].line)
+
+    def test_blank_lines(self):
+        lines = ['', '\t', ' ']
+        self.load_file.return_value = '\n'.join(lines)
+        ret = ssh_util.parse_ssh_config('some real file')
+        self.assertEqual(len(lines), len(ret))
+        for line in ret:
+            self.assertEqual('', line.line)
+
+    def test_lower_case_config(self):
+        self.load_file.return_value = 'foo bar'
+        ret = ssh_util.parse_ssh_config('some real file')
+        self.assertEqual(1, len(ret))
+        self.assertEqual('foo', ret[0].key)
+        self.assertEqual('bar', ret[0].value)
+
+    def test_upper_case_config(self):
+        self.load_file.return_value = 'Foo Bar'
+        ret = ssh_util.parse_ssh_config('some real file')
+        self.assertEqual(1, len(ret))
+        self.assertEqual('foo', ret[0].key)
+        self.assertEqual('Bar', ret[0].value)
+
+    def test_lower_case_with_equals(self):
+        self.load_file.return_value = 'foo=bar'
+        ret = ssh_util.parse_ssh_config('some real file')
+        self.assertEqual(1, len(ret))
+        self.assertEqual('foo', ret[0].key)
+        self.assertEqual('bar', ret[0].value)
+
+    def test_upper_case_with_equals(self):
+        self.load_file.return_value = 'Foo=bar'
+        ret = ssh_util.parse_ssh_config('some real file')
+        self.assertEqual(1, len(ret))
+        self.assertEqual('foo', ret[0].key)
+        self.assertEqual('bar', ret[0].value)
 
 # vi: ts=4 expandtab

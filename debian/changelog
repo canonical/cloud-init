@@ -1,3 +1,24 @@
+cloud-init (0.7.7~bzr1055-0ubuntu1) vivid; urgency=medium
+
+  * New upstream snapshot.
+    * move to python3 (LP: #1247132)
+    * systemd: run cloud-init before systemd-user-sessions.service
+    * Use the GCE short hostname. (LP: #1383794)
+    * Enable user-data encoding support for GCE. (LP: #1404311)
+    * Update to use a newer and better OMNIBUS_URL
+    * Be more tolerant of 'ssh_authorized_keys' types
+    * Fix parse_ssh_config failing in ssh_util.py
+    * Increase the robustness/configurability of the chef module.
+    * retain trailing newline from template files when using
+      jinja2 (LP: #1355343)
+    * fix broken output handling (LP: #1387340)
+    * digital ocean datasource
+    * update url in config drive documentation
+    * freebsd: enable correct behavior on Ec2.
+    * freebsd: Use the proper virtio FreeBSD network interface name.
+
+ -- Scott Moser <smoser@ubuntu.com>  Wed, 11 Feb 2015 15:55:58 -0500
+
 cloud-init (0.7.6~bzr1022-0ubuntu1) utopic; urgency=medium
 
   * New upstream snapshot.
