@@ -101,6 +101,7 @@ def b64d(source):
     except UnicodeDecodeError:
         return decoded
 
+
 def b64e(source):
     # Base64 encode some data, accepting bytes or unicode/str, and returning
     # str/unicode if the result is utf-8 compatible, otherwise returning bytes.
@@ -116,7 +117,7 @@ def fully_decoded_payload(part):
     # bytes, first try to decode to str via CT charset, and failing that, try
     # utf-8 using surrogate escapes.
     cte_payload = part.get_payload(decode=True)
-    if (    six.PY3 and
+    if (six.PY3 and
             part.get_content_maintype() == 'text' and
             isinstance(cte_payload, bytes)):
         charset = part.get_charset() or 'utf-8'

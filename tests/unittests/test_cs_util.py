@@ -47,14 +47,14 @@ class CepkoMock(Cepko):
 class CepkoResultTests(unittest.TestCase):
     def setUp(self):
         pass
-        ## self.mocked = self.mocker.replace("cloudinit.cs_utils.Cepko",
-        ##                     spec=CepkoMock,
-        ##                     count=False,
-        ##                     passthrough=False)
-        ## self.mocked()
-        ## self.mocker.result(CepkoMock())
-        ## self.mocker.replay()
-        ## self.c = Cepko()
+        # self.mocked = self.mocker.replace("cloudinit.cs_utils.Cepko",
+        #                     spec=CepkoMock,
+        #                     count=False,
+        #                     passthrough=False)
+        # self.mocked()
+        # self.mocker.result(CepkoMock())
+        # self.mocker.replay()
+        # self.c = Cepko()
 
     def test_getitem(self):
         result = self.c.all()
