@@ -180,9 +180,12 @@ class Init(object):
         pickled_fn = self.paths.get_ipath_cur('obj_pkl')
         pickle_contents = None
         try:
-            pickle_contents = util.load_file(pickled_fn)
-        except Exception:
+            pickle_contents = util.load_file(pickled_fn, decode=False)
+        except Exception as e:
+            if os.path.isfile(pickled_fn):
+                LOG.warn("failed loading pickle in %s: %s" % (pickled_fn, e))
             pass
+
         # This is expected so just return nothing
         # successfully loaded...
         if not pickle_contents:
@@ -203,7 +206,7 @@ class Init(object):
             util.logexc(LOG, "Failed pickling datasource %s", self.datasource)
             return False
         try:
-            util.write_file(pickled_fn, pk_contents, mode=0o400)
+            util.write_file(pickled_fn, pk_contents, omode="wb", mode=0o400)
         except Exception:
             util.logexc(LOG, "Failed pickling datasource to %s", pickled_fn)
             return False
