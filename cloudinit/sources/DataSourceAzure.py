@@ -124,7 +124,8 @@ class DataSourceAzureNet(sources.DataSource):
             LOG.debug("using files cached in %s", ddir)
 
         # azure / hyper-v provides random data here
-        seed = util.load_file("/sys/firmware/acpi/tables/OEM0", quiet=True)
+        seed = util.load_file("/sys/firmware/acpi/tables/OEM0",
+                              quiet=True, decode=False)
         if seed:
             self.metadata['random_seed'] = seed
 

@@ -96,11 +96,10 @@ def b64d(source):
     # Base64 decode some data, accepting bytes or unicode/str, and returning
     # str/unicode if the result is utf-8 compatible, otherwise returning bytes.
     decoded = b64decode(source)
-    if isinstance(decoded, bytes):
-        try:
-            return decoded.decode('utf-8')
-        except UnicodeDecodeError:
-            return decoded
+    try:
+        return decoded.decode('utf-8')
+    except UnicodeDecodeError:
+        return decoded
 
 def b64e(source):
     # Base64 encode some data, accepting bytes or unicode/str, and returning
@@ -354,11 +353,14 @@ def clean_filename(fn):
     return fn
 
 
-def decomp_gzip(data, quiet=True):
+def decomp_gzip(data, quiet=True, decode=True):
     try:
         buf = six.BytesIO(encode_text(data))
         with contextlib.closing(gzip.GzipFile(None, "rb", 1, buf)) as gh:
-            return decode_binary(gh.read())
+            if decode:
+                return decode_binary(gh.read())
+            else:
+                return gh.read()
     except Exception as e:
         if quiet:
             return data
