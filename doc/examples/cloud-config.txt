@@ -484,7 +484,9 @@ resize_rootfs: True
 # final_message
 # default: cloud-init boot finished at $TIMESTAMP. Up $UPTIME seconds
 # this message is written by cloud-final when the system is finished
-# its first boot
+# its first boot.
+# This message is rendered as if it were a template.  If you
+# want jinja, you have to start the line with '## template:jinja\n'
 final_message: "The system is finally up, after $UPTIME seconds"
 
 # configure where output will go
