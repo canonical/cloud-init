@@ -404,8 +404,8 @@ def multi_log(text, console=True, stderr=True,
     if console:
         conpath = "/dev/console"
         if os.path.exists(conpath):
-            with open(conpath, 'wb') as wfh:
-                wfh.write(text.encode('utf-8'))
+            with open(conpath, 'w') as wfh:
+                wfh.write(text)
                 wfh.flush()
         else:
             # A container may lack /dev/console (arguably a container bug).  If
