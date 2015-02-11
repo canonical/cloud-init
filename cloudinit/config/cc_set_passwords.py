@@ -31,7 +31,7 @@ from cloudinit import util
 from string import ascii_letters, digits
 
 # We are removing certain 'painful' letters/numbers
-PW_SET = (''.join([x for x in ascii_letters + digits 
+PW_SET = (''.join([x for x in ascii_letters + digits
                    if x not in 'loLOI01']))
 
 
