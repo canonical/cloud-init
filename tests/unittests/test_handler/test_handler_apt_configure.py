@@ -19,9 +19,6 @@ class TestAptProxyConfig(TestCase):
         self.cfile = os.path.join(self.tmp, "config.cfg")
 
     def _search_apt_config(self, contents, ptype, value):
-        ## print(
-        ##     r"acquire::%s::proxy\s+[\"']%s[\"'];\n" % (ptype, value),
-        ##     contents, "flags=re.IGNORECASE")
         return re.search(
             r"acquire::%s::proxy\s+[\"']%s[\"'];\n" % (ptype, value),
             contents, flags=re.IGNORECASE)

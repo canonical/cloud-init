@@ -359,7 +359,6 @@ p: 1
         mockobj.assert_called_once_with(
             ci.paths.get_ipath("cloud_config"), "", 0o600)
 
-
     def test_mime_gzip_compressed(self):
         """Tests that individual message gzip encoding works."""
 

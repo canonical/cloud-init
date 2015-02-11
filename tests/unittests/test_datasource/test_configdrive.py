@@ -110,6 +110,7 @@ class TestConfigDriveDataSource(TestCase):
                 # and True on its second call.  We use a handy generator as
                 # the mock side effect for this.  The mocked function returns
                 # what the side effect returns.
+
                 def exists_side_effect():
                     yield False
                     yield True
