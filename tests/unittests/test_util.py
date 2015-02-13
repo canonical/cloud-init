@@ -18,7 +18,6 @@ except ImportError:
     import mock
 
 
-
 class FakeSelinux(object):
 
     def __init__(self, match_what):
