@@ -21,7 +21,9 @@
  - hostname: on first boot apply hostname to be same as is written for
    persistent hostname.  (LP: #1246485)
  - remove usage of dmidecode on linux in favor of /sys interface [Ben Howard]
- - python3 support [Barry Warsaw, Daniel Watson, Josh Harlow] (LP: #1247132)
+ - python3 support [Barry Warsaw, Daniel Watkins, Josh Harlow] (LP: #1247132)
+ - support managing gpt partitions in disk config [Daniel Watkins]
+ - Azure: utilze gpt support for ephemeral formating [Daniel Watkins]
 0.7.6:
  - open 0.7.6
  - Enable vendordata on CloudSigma datasource (LP: #1303986)

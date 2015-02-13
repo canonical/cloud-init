@@ -53,9 +53,9 @@ BUILTIN_DS_CONFIG = {
 
 BUILTIN_CLOUD_CONFIG = {
     'disk_setup': {
-        'ephemeral0': {'table_type': 'mbr',
-                       'layout': True,
-                       'overwrite': False},
+        'ephemeral0': {'table_type': 'gpt',
+                       'layout': [100],
+                       'overwrite': True},
         },
     'fs_setup': [{'filesystem': 'ext4',
                   'device': 'ephemeral0.1',
