@@ -1453,6 +1453,7 @@ def mount_cb(device, callback, data=None, rw=False, mtype=None, sync=True):
         if device in mounted:
             mountpoint = mounted[device]['mountpoint']
         else:
+            failure_reason = None
             for mtype in mtypes:
                 mountpoint = None
                 try:
@@ -1479,10 +1480,10 @@ def mount_cb(device, callback, data=None, rw=False, mtype=None, sync=True):
                 except (IOError, OSError) as exc:
                     LOG.debug("Failed mount of '%s' as '%s': %s",
                               device, mtype, exc)
-                    pass
+                    failure_reason = exc
             if not mountpoint:
                 raise MountFailedError("Failed mounting %s to %s due to: %s" %
-                                       (device, tmpd, exc))
+                                       (device, tmpd, failure_reason))
 
         # Be nice and ensure it ends with a slash
         if not mountpoint.endswith("/"):
