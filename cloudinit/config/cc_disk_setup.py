@@ -618,7 +618,7 @@ def exec_mkpart_gpt(device, layout):
                     [SGDISK_CMD,
                      '-t', '{}:{}'.format(index, partition_type), device])
     except Exception:
-        print "Failed to partition device %s" % (device,)
+        LOG.warn("Failed to partition device %s" % device)
         raise
 
 
