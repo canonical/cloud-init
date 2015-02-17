@@ -132,6 +132,9 @@ class DataSourceCloudStack(sources.DataSource):
 
     def get_password(self):
         def _do_request(req_string):
+            # We have to provide a valid HTTP request, but a valid HTTP
+            # response is not returned. This means that getresponse() chokes,
+            # so we use the socket directly to read off the password.
             conn = http_client.HTTPConnection(self.vr_addr, 8080)
             conn.request('GET', '', headers={'DomU_Request': req_string})
             output = conn.sock.recv(1024).decode('utf-8').strip()
