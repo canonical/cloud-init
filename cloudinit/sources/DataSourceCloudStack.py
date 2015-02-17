@@ -26,14 +26,13 @@
 
 import os
 import time
+from socket import inet_ntoa
+from struct import pack
 
 from cloudinit import ec2_utils as ec2
 from cloudinit import log as logging
-from cloudinit import sources
 from cloudinit import url_helper as uhelp
-from cloudinit import util
-from socket import inet_ntoa
-from struct import pack
+from cloudinit import sources, util
 
 LOG = logging.getLogger(__name__)
 
