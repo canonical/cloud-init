@@ -29,6 +29,8 @@ import time
 from socket import inet_ntoa
 from struct import pack
 
+from six.moves import http_client
+
 from cloudinit import ec2_utils as ec2
 from cloudinit import log as logging
 from cloudinit import url_helper as uhelp
@@ -44,10 +46,11 @@ class DataSourceCloudStack(sources.DataSource):
         # Cloudstack has its metadata/userdata URLs located at
         # http://<virtual-router-ip>/latest/
         self.api_ver = 'latest'
-        vr_addr = get_vr_address()
-        if not vr_addr:
+        self.vr_addr = get_vr_address()
+        if not self.vr_addr:
             raise RuntimeError("No virtual router found!")
-        self.metadata_address = "http://%s/" % (vr_addr)
+        self.metadata_address = "http://%s/" % (self.vr_addr,)
+        self.cfg = {}
 
     def _get_url_settings(self):
         mcfg = self.ds_cfg
@@ -92,6 +95,9 @@ class DataSourceCloudStack(sources.DataSource):
 
         return bool(url)
 
+    def get_config_obj(self):
+        return self.cfg
+
     def get_data(self):
         seed_ret = {}
         if util.read_optional_seed(seed_ret, base=(self.seed_dir + "/")):
@@ -109,11 +115,35 @@ class DataSourceCloudStack(sources.DataSource):
                                                       self.metadata_address)
             LOG.debug("Crawl of metadata service took %s seconds",
                       int(time.time() - start_time))
+            set_password = self.get_password()
+            if set_password:
+                self.cfg = {
+                    'ssh_pwauth': True,
+                    'password': set_password,
+                    'chpasswd': {
+                        'expire': False,
+                    },
+                }
             return True
         except Exception:
             util.logexc(LOG, 'Failed fetching from metadata service %s',
                         self.metadata_address)
             return False
+
+    def get_password(self):
+        def _do_request(req_string):
+            conn = http_client.HTTPConnection(self.vr_addr, 8080)
+            conn.request('GET', '', headers={'DomU_Request': req_string})
+            output = conn.sock.recv(1024).decode('utf-8').strip()
+            conn.close()
+            return output
+        password = _do_request('send_my_password')
+        if password in ['', 'saved_password']:
+            return None
+        if password == 'bad_request':
+            raise RuntimeError('Error when attempting to fetch root password.')
+        _do_request('saved_password')
+        return password
 
     def get_instance_id(self):
         return self.metadata['instance-id']
