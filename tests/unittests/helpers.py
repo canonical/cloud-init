@@ -287,9 +287,10 @@ def populate_dir(path, files):
     if not os.path.exists(path):
         os.makedirs(path)
     for (name, content) in files.items():
-        with open(os.path.join(path, name), "w") as fp:
-            fp.write(content)
+        with open(os.path.join(path, name), "wb") as fp:
+            fp.write(content.encode('utf-8'))
             fp.close()
+
 
 try:
     skipIf = unittest.skipIf

@@ -360,6 +360,12 @@ class TestAzureDataSource(TestCase):
         self.assertTrue(os.path.exists(ovf_env_path))
         self.assertEqual(xml, load_file(ovf_env_path))
 
+    def test_ovf_can_include_unicode(self):
+        xml = construct_valid_ovf_env(data={})
+        xml = u'\ufeff{0}'.format(xml)
+        dsrc = self._get_ds({'ovfcontent': xml})
+        dsrc.get_data()
+
     def test_existing_ovf_same(self):
         # waagent/SharedConfig left alone if found ovf-env.xml same as cached
         odata = {'UserData': b64e("SOMEUSERDATA")}
