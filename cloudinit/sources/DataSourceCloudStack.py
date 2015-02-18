@@ -143,6 +143,7 @@ class DataSourceCloudStack(sources.DataSource):
             # so we use the socket directly to read off the password.
             conn = http_client.HTTPConnection(self.vr_addr, 8080)
             conn.request('GET', '', headers={'DomU_Request': req_string})
+            conn.sock.settimeout(30)
             output = conn.sock.recv(1024).decode('utf-8').strip()
             conn.close()
             return output
