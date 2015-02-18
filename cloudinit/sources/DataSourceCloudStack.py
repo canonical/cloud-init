@@ -115,15 +115,21 @@ class DataSourceCloudStack(sources.DataSource):
                                                       self.metadata_address)
             LOG.debug("Crawl of metadata service took %s seconds",
                       int(time.time() - start_time))
-            set_password = self.get_password()
-            if set_password:
-                self.cfg = {
-                    'ssh_pwauth': True,
-                    'password': set_password,
-                    'chpasswd': {
-                        'expire': False,
-                    },
-                }
+            try:
+                set_password = self.get_password()
+            except Exception:
+                util.logexc(LOG,
+                            'Failed to fetch password from virtual router %s',
+                            self.vr_addr)
+            else:
+                if set_password:
+                    self.cfg = {
+                        'ssh_pwauth': True,
+                        'password': set_password,
+                        'chpasswd': {
+                            'expire': False,
+                        },
+                    }
             return True
         except Exception:
             util.logexc(LOG, 'Failed fetching from metadata service %s',
