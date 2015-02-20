@@ -1,3 +1,10 @@
+cloud-init (0.7.7~bzr1060-0ubuntu1) vivid; urgency=medium
+
+  * New upstream snapshot.
+    * Fix for ascii decode in DataSourceAzure (LP: #1422993).
+
+ -- Scott Moser <smoser@ubuntu.com>  Fri, 20 Feb 2015 08:05:20 -0500
+
 cloud-init (0.7.7~bzr1059-0ubuntu1) vivid; urgency=medium
 
   * New upstream snapshot.

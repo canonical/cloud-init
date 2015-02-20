@@ -137,7 +137,7 @@ class DataSourceAzureNet(sources.DataSource):
 
         if found != ddir:
             cached_ovfenv = util.load_file(
-                os.path.join(ddir, 'ovf-env.xml'), quiet=True)
+                os.path.join(ddir, 'ovf-env.xml'), quiet=True, decode=False)
             if cached_ovfenv != files['ovf-env.xml']:
                 # source was not walinux-agent's datadir, so we have to clean
                 # up so 'wait_for_files' doesn't return early due to stale data
@@ -593,7 +593,7 @@ def load_azure_ds_dir(source_dir):
     if not os.path.isfile(ovf_file):
         raise NonAzureDataSource("No ovf-env file found")
 
-    with open(ovf_file, "r") as fp:
+    with open(ovf_file, "rb") as fp:
         contents = fp.read()
 
     md, ud, cfg = read_azure_ovf(contents)
