@@ -39,6 +39,49 @@ from cloudinit import sources, util
 LOG = logging.getLogger(__name__)
 
 
+class CloudStackPasswordServerClient(object):
+    """
+    Implements password fetching from the CloudStack password server.
+
+    http://cloudstack-administration.readthedocs.org/en/latest/templates.html#adding-password-management-to-your-templates
+    has documentation about the system.  This implementation is following that
+    found at
+    https://github.com/shankerbalan/cloudstack-scripts/blob/master/cloud-set-guest-password-debian
+
+    The CloudStack password server is, essentially, a broken HTTP
+    server. It requires us to provide a valid HTTP request (including a
+    DomU_Request header, which is the meat of the request), but just
+    writes the text of its response on to the socket, without a status
+    line or any HTTP headers.  This makes HTTP libraries sad, which
+    explains the screwiness of the implementation of this class.
+    """
+
+    def __init__(self, virtual_router_address):
+        self.virtual_router_address = virtual_router_address
+
+    def _do_request(self, domu_request):
+        # We have to provide a valid HTTP request, but a valid HTTP
+        # response is not returned. This means that getresponse() chokes,
+        # so we use the socket directly to read off the response.
+        # Because we're reading off the socket directly, we can't re-use the
+        # connection.
+        conn = http_client.HTTPConnection(self.virtual_router_address, 8080)
+        conn.request('GET', '', headers={'DomU_Request': domu_request})
+        conn.sock.settimeout(30)
+        output = conn.sock.recv(1024).decode('utf-8').strip()
+        conn.close()
+        return output
+
+    def get_password(self):
+        password = self._do_request('send_my_password')
+        if password in ['', 'saved_password']:
+            return None
+        if password == 'bad_request':
+            raise RuntimeError('Error when attempting to fetch root password.')
+        self._do_request('saved_password')
+        return password
+
+
 class DataSourceCloudStack(sources.DataSource):
     def __init__(self, sys_cfg, distro, paths):
         sources.DataSource.__init__(self, sys_cfg, distro, paths)
@@ -115,8 +158,9 @@ class DataSourceCloudStack(sources.DataSource):
                                                       self.metadata_address)
             LOG.debug("Crawl of metadata service took %s seconds",
                       int(time.time() - start_time))
+            password_client = CloudStackPasswordServerClient(self.vr_addr)
             try:
-                set_password = self.get_password()
+                set_password = password_client.get_password()
             except Exception:
                 util.logexc(LOG,
                             'Failed to fetch password from virtual router %s',
@@ -135,25 +179,6 @@ class DataSourceCloudStack(sources.DataSource):
             util.logexc(LOG, 'Failed fetching from metadata service %s',
                         self.metadata_address)
             return False
-
-    def get_password(self):
-        def _do_request(req_string):
-            # We have to provide a valid HTTP request, but a valid HTTP
-            # response is not returned. This means that getresponse() chokes,
-            # so we use the socket directly to read off the password.
-            conn = http_client.HTTPConnection(self.vr_addr, 8080)
-            conn.request('GET', '', headers={'DomU_Request': req_string})
-            conn.sock.settimeout(30)
-            output = conn.sock.recv(1024).decode('utf-8').strip()
-            conn.close()
-            return output
-        password = _do_request('send_my_password')
-        if password in ['', 'saved_password']:
-            return None
-        if password == 'bad_request':
-            raise RuntimeError('Error when attempting to fetch root password.')
-        _do_request('saved_password')
-        return password
 
     def get_instance_id(self):
         return self.metadata['instance-id']
