@@ -84,14 +84,14 @@ class DataSourceCloudStack(sources.DataSource):
                                   'latest/meta-data/instance-id')]
         start_time = time.time()
         url = uhelp.wait_for_url(urls=urls, max_wait=max_wait,
-                                timeout=timeout, status_cb=LOG.warn)
+                                 timeout=timeout, status_cb=LOG.warn)
 
         if url:
             LOG.debug("Using metadata source: '%s'", url)
         else:
             LOG.critical(("Giving up on waiting for the metadata from %s"
                           " after %s seconds"),
-                          urls, int(time.time() - start_time))
+                         urls, int(time.time() - start_time))
 
         return bool(url)
 
@@ -109,8 +109,8 @@ class DataSourceCloudStack(sources.DataSource):
             if not self.wait_for_metadata_service():
                 return False
             start_time = time.time()
-            self.userdata_raw = ec2.get_instance_userdata(self.api_ver,
-                self.metadata_address)
+            self.userdata_raw = ec2.get_instance_userdata(
+                self.api_ver, self.metadata_address)
             self.metadata = ec2.get_instance_metadata(self.api_ver,
                                                       self.metadata_address)
             LOG.debug("Crawl of metadata service took %s seconds",
@@ -231,7 +231,7 @@ def get_vr_address():
 
 # Used to match classes to dependencies
 datasources = [
-  (DataSourceCloudStack, (sources.DEP_FILESYSTEM, sources.DEP_NETWORK)),
+    (DataSourceCloudStack, (sources.DEP_FILESYSTEM, sources.DEP_NETWORK)),
 ]
 
 
