@@ -66,10 +66,12 @@ class CloudStackPasswordServerClient(object):
         # Because we're reading off the socket directly, we can't re-use the
         # connection.
         conn = http_client.HTTPConnection(self.virtual_router_address, 8080)
-        conn.request('GET', '', headers={'DomU_Request': domu_request})
-        conn.sock.settimeout(30)
-        output = conn.sock.recv(1024).decode('utf-8').strip()
-        conn.close()
+        try:
+            conn.request('GET', '', headers={'DomU_Request': domu_request})
+            conn.sock.settimeout(30)
+            output = conn.sock.recv(1024).decode('utf-8').strip()
+        finally:
+            conn.close()
         return output
 
     def get_password(self):
