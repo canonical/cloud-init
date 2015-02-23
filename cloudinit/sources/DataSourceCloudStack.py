@@ -54,6 +54,9 @@ class CloudStackPasswordServerClient(object):
     writes the text of its response on to the socket, without a status
     line or any HTTP headers.  This makes HTTP libraries sad, which
     explains the screwiness of the implementation of this class.
+
+    This should be fixed in CloudStack by commit
+    a72f14ea9cb832faaac946b3cf9f56856b50142a in December 2014.
     """
 
     def __init__(self, virtual_router_address):
