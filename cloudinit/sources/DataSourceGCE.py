@@ -126,7 +126,7 @@ class DataSourceGCE(sources.DataSource):
     def get_public_ssh_keys(self):
         return self.metadata['public-keys']
 
-    def get_hostname(self, fqdn=False, _resolve_ip=False):
+    def get_hostname(self, fqdn=False, resolve_ip=False):
         # GCE has long FDQN's and has asked for short hostnames
         return self.metadata['local-hostname'].split('.')[0]
 

@@ -65,6 +65,7 @@
    (LP: #1336855)
  - FreeBsd: support config drive datasource [Joseph bajin]
  - cc_mounts: support creating a swap file
+ - DigitalOcean & GCE: fix get_hostname consistency
 0.7.5:
  - open 0.7.5
  - Add a debug log message around import failures
