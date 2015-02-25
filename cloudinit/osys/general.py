@@ -15,3 +15,11 @@
 #    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 #    License for the specific language governing permissions and limitations
 #    under the License.
+
+
+class General(object):
+    """Base class for the general namespace.
+
+    This class should contain common functions between all OSes,
+    which can't be grouped in a domain-specific namespace.
+    """

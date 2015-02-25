@@ -15,3 +15,26 @@
 #    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 #    License for the specific language governing permissions and limitations
 #    under the License.
+
+from cloudinit.osys import base
+from cloudinit.osys.windows import filesystem as filesystem_module
+from cloudinit.osys.windows import general as general_module
+from cloudinit.osys.windows import network as network_module
+from cloudinit.osys.windows import users as users_module
+
+
+__all__ = ('OSUtils', )
+
+
+class OSUtils(base.OSUtils):
+    """The OS utils namespace for the Windows platform."""
+
+    name = "windows"
+
+    network = network_module.Network()
+    filesystem = filesystem_module.Filesystem()
+    users = users_module.Users()
+    general = general_module.General()
+    user_class = users_module.User
+    route_class = network_module.Route
+    interface_class = network_module.Interface
