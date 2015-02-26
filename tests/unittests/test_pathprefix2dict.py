@@ -14,28 +14,28 @@ class TestPathPrefix2Dict(TestCase):
         self.addCleanup(shutil.rmtree, self.tmp)
 
     def test_required_only(self):
-        dirdata = {'f1': 'f1content', 'f2': 'f2content'}
+        dirdata = {'f1': b'f1content', 'f2': b'f2content'}
         populate_dir(self.tmp, dirdata)
 
         ret = util.pathprefix2dict(self.tmp, required=['f1', 'f2'])
         self.assertEqual(dirdata, ret)
 
     def test_required_missing(self):
-        dirdata = {'f1': 'f1content'}
+        dirdata = {'f1': b'f1content'}
         populate_dir(self.tmp, dirdata)
         kwargs = {'required': ['f1', 'f2']}
         self.assertRaises(ValueError, util.pathprefix2dict, self.tmp, **kwargs)
 
     def test_no_required_and_optional(self):
-        dirdata = {'f1': 'f1c', 'f2': 'f2c'}
+        dirdata = {'f1': b'f1c', 'f2': b'f2c'}
         populate_dir(self.tmp, dirdata)
 
         ret = util.pathprefix2dict(self.tmp, required=None,
-                                  optional=['f1', 'f2'])
+                                   optional=['f1', 'f2'])
         self.assertEqual(dirdata, ret)
 
     def test_required_and_optional(self):
-        dirdata = {'f1': 'f1c', 'f2': 'f2c'}
+        dirdata = {'f1': b'f1c', 'f2': b'f2c'}
         populate_dir(self.tmp, dirdata)
 
         ret = util.pathprefix2dict(self.tmp, required=['f1'], optional=['f2'])

@@ -26,6 +26,7 @@
  - Azure: utilze gpt support for ephemeral formating [Daniel Watkins]
  - CloudStack: support fetching password from virtual router [Daniel Watkins]
    (LP: #1422388)
+ - readurl, read_file_or_url returns bytes, user must convert as necessary
 0.7.6:
  - open 0.7.6
  - Enable vendordata on CloudSigma datasource (LP: #1303986)

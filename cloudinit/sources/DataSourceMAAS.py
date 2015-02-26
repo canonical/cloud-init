@@ -36,6 +36,8 @@ from cloudinit import util
 LOG = logging.getLogger(__name__)
 MD_VERSION = "2012-03-01"
 
+BINARY_FIELDS = ('user-data',)
+
 
 class DataSourceMAAS(sources.DataSource):
     """
@@ -185,7 +187,9 @@ def read_maas_seed_dir(seed_d):
     md = {}
     for fname in files:
         try:
-            md[fname] = util.load_file(os.path.join(seed_d, fname))
+            print("fname: %s / %s" % (fname, fname not in BINARY_FIELDS))
+            md[fname] = util.load_file(os.path.join(seed_d, fname),
+                                       decode=fname not in BINARY_FIELDS)
         except IOError as e:
             if e.errno != errno.ENOENT:
                 raise
@@ -218,6 +222,7 @@ def read_maas_seed_url(seed_url, header_cb=None, timeout=None,
         'public-keys': "%s/%s" % (base_url, 'meta-data/public-keys'),
         'user-data': "%s/%s" % (base_url, 'user-data'),
     }
+
     md = {}
     for name in file_order:
         url = files.get(name)
@@ -238,7 +243,10 @@ def read_maas_seed_url(seed_url, header_cb=None, timeout=None,
                                          timeout=timeout,
                                          ssl_details=ssl_details)
             if resp.ok():
-                md[name] = str(resp)
+                if name in BINARY_FIELDS:
+                    md[name] = resp.contents
+                else:
+                    md[name] = util.decode_binary(resp.contents)
             else:
                 LOG.warn(("Fetching from %s resulted in"
                           " an invalid http code %s"), url, resp.code)
@@ -263,7 +271,7 @@ def check_seed_contents(content, seed):
     if len(missing):
         raise MAASSeedDirMalformed("%s: missing files %s" % (seed, missing))
 
-    userdata = content.get('user-data', "")
+    userdata = content.get('user-data', b"")
     md = {}
     for (key, val) in content.items():
         if key == 'user-data':

@@ -26,7 +26,7 @@ class TestMAASDataSource(TestCase):
 
         data = {'instance-id': 'i-valid01',
             'local-hostname': 'valid01-hostname',
-            'user-data': 'valid01-userdata',
+            'user-data': b'valid01-userdata',
             'public-keys': 'ssh-rsa AAAAB3Nz...aC1yc2E= keyname'}
 
         my_d = os.path.join(self.tmp, "valid")
@@ -46,7 +46,7 @@ class TestMAASDataSource(TestCase):
 
         data = {'instance-id': 'i-valid-extra',
             'local-hostname': 'valid-extra-hostname',
-            'user-data': 'valid-extra-userdata', 'foo': 'bar'}
+            'user-data': b'valid-extra-userdata', 'foo': 'bar'}
 
         my_d = os.path.join(self.tmp, "valid_extra")
         populate_dir(my_d, data)
@@ -103,7 +103,7 @@ class TestMAASDataSource(TestCase):
             'meta-data/instance-id': 'i-instanceid',
             'meta-data/local-hostname': 'test-hostname',
             'meta-data/public-keys': 'test-hostname',
-            'user-data': 'foodata',
+            'user-data': b'foodata',
             }
         valid_order = [
             'meta-data/local-hostname',
@@ -143,7 +143,7 @@ class TestMAASDataSource(TestCase):
             userdata, metadata = DataSourceMAAS.read_maas_seed_url(
                 my_seed, header_cb=my_headers_cb, version=my_ver)
 
-            self.assertEqual("foodata", userdata)
+            self.assertEqual(b"foodata", userdata)
             self.assertEqual(metadata['instance-id'],
                              valid['meta-data/instance-id'])
             self.assertEqual(metadata['local-hostname'],

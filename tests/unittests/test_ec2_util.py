@@ -16,7 +16,7 @@ class TestEc2Util(helpers.HttprettyTestCase):
                         body='stuff',
                         status=200)
         userdata = eu.get_instance_userdata(self.VERSION)
-        self.assertEquals('stuff', userdata)
+        self.assertEquals('stuff', userdata.decode('utf-8'))
 
     @hp.activate
     def test_userdata_fetch_fail_not_found(self):

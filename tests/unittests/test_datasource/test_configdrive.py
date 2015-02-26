@@ -2,6 +2,7 @@ from copy import copy
 import json
 import os
 import shutil
+import six
 import tempfile
 
 try:
@@ -45,7 +46,7 @@ EC2_META = {
     'reservation-id': 'r-iru5qm4m',
     'security-groups': ['default']
 }
-USER_DATA = '#!/bin/sh\necho This is user data\n'
+USER_DATA = b'#!/bin/sh\necho This is user data\n'
 OSTACK_META = {
     'availability_zone': 'nova',
     'files': [{'content_path': '/content/0000', 'path': '/etc/foo.cfg'},
@@ -56,8 +57,8 @@ OSTACK_META = {
     'public_keys': {'mykey': PUBKEY},
     'uuid': 'b0fa911b-69d4-4476-bbe2-1c92bff6535c'}
 
-CONTENT_0 = 'This is contents of /etc/foo.cfg\n'
-CONTENT_1 = '# this is /etc/bar/bar.cfg\n'
+CONTENT_0 = b'This is contents of /etc/foo.cfg\n'
+CONTENT_1 = b'# this is /etc/bar/bar.cfg\n'
 
 CFG_DRIVE_FILES_V2 = {
   'ec2/2009-04-04/meta-data.json': json.dumps(EC2_META),
@@ -346,8 +347,12 @@ def populate_dir(seed_dir, files):
         dirname = os.path.dirname(path)
         if not os.path.isdir(dirname):
             os.makedirs(dirname)
-        with open(path, "w") as fp:
+        if isinstance(content, six.text_type):
+            mode = "w"
+        else:
+            mode = "wb"
+
+        with open(path, mode) as fp:
             fp.write(content)
-            fp.close()
 
 # vi: ts=4 expandtab
