@@ -24,6 +24,9 @@
  - python3 support [Barry Warsaw, Daniel Watkins, Josh Harlow] (LP: #1247132)
  - support managing gpt partitions in disk config [Daniel Watkins]
  - Azure: utilze gpt support for ephemeral formating [Daniel Watkins]
+ - CloudStack: support fetching password from virtual router [Daniel Watkins]
+   (LP: #1422388)
+ - readurl, read_file_or_url returns bytes, user must convert as necessary
 0.7.6:
  - open 0.7.6
  - Enable vendordata on CloudSigma datasource (LP: #1303986)
@@ -65,6 +68,7 @@
    (LP: #1336855)
  - FreeBsd: support config drive datasource [Joseph bajin]
  - cc_mounts: support creating a swap file
+ - DigitalOcean & GCE: fix get_hostname consistency
 0.7.5:
  - open 0.7.5
  - Add a debug log message around import failures

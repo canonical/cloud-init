@@ -327,16 +327,26 @@ class Init(object):
         self._store_vendordata()
 
     def _store_userdata(self):
-        raw_ud = "%s" % (self.datasource.get_userdata_raw())
+        raw_ud = self.datasource.get_userdata_raw()
+        if raw_ud is None:
+            raw_ud = b''
         util.write_file(self._get_ipath('userdata_raw'), raw_ud, 0o600)
-        processed_ud = "%s" % (self.datasource.get_userdata())
-        util.write_file(self._get_ipath('userdata'), processed_ud, 0o600)
+        # processed userdata is a Mime message, so write it as string.
+        processed_ud = self.datasource.get_userdata()
+        if processed_ud is None:
+            raw_ud = ''
+        util.write_file(self._get_ipath('userdata'), str(processed_ud), 0o600)
 
     def _store_vendordata(self):
-        raw_vd = "%s" % (self.datasource.get_vendordata_raw())
+        raw_vd = self.datasource.get_vendordata_raw()
+        if raw_vd is None:
+            raw_vd = b''
         util.write_file(self._get_ipath('vendordata_raw'), raw_vd, 0o600)
-        processed_vd = "%s" % (self.datasource.get_vendordata())
-        util.write_file(self._get_ipath('vendordata'), processed_vd, 0o600)
+        # processed vendor data is a Mime message, so write it as string.
+        processed_vd = str(self.datasource.get_vendordata())
+        if processed_vd is None:
+            processed_vd = ''
+        util.write_file(self._get_ipath('vendordata'), str(processed_vd), 0o600)
 
     def _default_handlers(self, opts=None):
         if opts is None:

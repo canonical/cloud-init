@@ -37,7 +37,7 @@ class TestNoCloudDataSource(TestCase):
 
     def test_nocloud_seed_dir(self):
         md = {'instance-id': 'IID', 'dsmode': 'local'}
-        ud = "USER_DATA_HERE"
+        ud = b"USER_DATA_HERE"
         populate_dir(os.path.join(self.paths.seed_dir, "nocloud"),
                      {'user-data': ud, 'meta-data': yaml.safe_dump(md)})
 
@@ -92,20 +92,20 @@ class TestNoCloudDataSource(TestCase):
         data = {
             'fs_label': None,
             'meta-data': yaml.safe_dump({'instance-id': 'IID'}),
-            'user-data': "USER_DATA_RAW",
+            'user-data': b"USER_DATA_RAW",
         }
 
         sys_cfg = {'datasource': {'NoCloud': data}}
         dsrc = ds(sys_cfg=sys_cfg, distro=None, paths=self.paths)
         ret = dsrc.get_data()
-        self.assertEqual(dsrc.userdata_raw, "USER_DATA_RAW")
+        self.assertEqual(dsrc.userdata_raw, b"USER_DATA_RAW")
         self.assertEqual(dsrc.metadata.get('instance-id'), 'IID')
         self.assertTrue(ret)
 
     def test_nocloud_seed_with_vendordata(self):
         md = {'instance-id': 'IID', 'dsmode': 'local'}
-        ud = "USER_DATA_HERE"
-        vd = "THIS IS MY VENDOR_DATA"
+        ud = b"USER_DATA_HERE"
+        vd = b"THIS IS MY VENDOR_DATA"
 
         populate_dir(os.path.join(self.paths.seed_dir, "nocloud"),
                      {'user-data': ud, 'meta-data': yaml.safe_dump(md),
@@ -126,7 +126,7 @@ class TestNoCloudDataSource(TestCase):
 
     def test_nocloud_no_vendordata(self):
         populate_dir(os.path.join(self.paths.seed_dir, "nocloud"),
-                     {'user-data': "ud", 'meta-data': "instance-id: IID\n"})
+                     {'user-data': b"ud", 'meta-data': "instance-id: IID\n"})
 
         sys_cfg = {'datasource': {'NoCloud': {'fs_label': None}}}
 
@@ -134,7 +134,7 @@ class TestNoCloudDataSource(TestCase):
 
         dsrc = ds(sys_cfg=sys_cfg, distro=None, paths=self.paths)
         ret = dsrc.get_data()
-        self.assertEqual(dsrc.userdata_raw, "ud")
+        self.assertEqual(dsrc.userdata_raw, b"ud")
         self.assertFalse(dsrc.vendordata)
         self.assertTrue(ret)
 

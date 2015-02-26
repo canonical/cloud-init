@@ -237,9 +237,9 @@ class UserDataProcessor(object):
                 resp = util.read_file_or_url(include_url,
                                              ssl_details=self.ssl_details)
                 if include_once_on and resp.ok():
-                    util.write_file(include_once_fn, resp, mode=0o600)
+                    util.write_file(include_once_fn, resp.contents, mode=0o600)
                 if resp.ok():
-                    content = str(resp)
+                    content = resp.contents
                 else:
                     LOG.warn(("Fetching from %s resulted in"
                               " a invalid http code of %s"),
@@ -336,7 +336,7 @@ def convert_string(raw_data, headers=None):
         raw_data = ''
     if not headers:
         headers = {}
-    data = util.decomp_gzip(raw_data)
+    data = util.decode_binary(util.decomp_gzip(raw_data))
     if "mime-version:" in data[0:4096].lower():
         msg = email.message_from_string(data)
         for (key, val) in headers.items():

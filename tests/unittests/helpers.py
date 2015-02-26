@@ -288,7 +288,10 @@ def populate_dir(path, files):
         os.makedirs(path)
     for (name, content) in files.items():
         with open(os.path.join(path, name), "wb") as fp:
-            fp.write(content.encode('utf-8'))
+            if isinstance(content, six.binary_type):
+                fp.write(content)
+            else:
+                fp.write(content.encode('utf-8'))
             fp.close()
 
 

@@ -1,5 +1,5 @@
 from cloudinit import helpers
-from cloudinit.util import b64e, load_file
+from cloudinit.util import b64e, decode_binary, load_file
 from cloudinit.sources import DataSourceAzure
 from ..helpers import TestCase, populate_dir
 
@@ -231,9 +231,19 @@ class TestAzureDataSource(TestCase):
         self.assertEqual(defuser['passwd'],
             crypt.crypt(odata['UserPassword'], defuser['passwd'][0:pos]))
 
+    def test_userdata_plain(self):
+        mydata = "FOOBAR"
+        odata = {'UserData': {'text': mydata, 'encoding': 'plain'}}
+        data = {'ovfcontent': construct_valid_ovf_env(data=odata)}
+
+        dsrc = self._get_ds(data)
+        ret = dsrc.get_data()
+        self.assertTrue(ret)
+        self.assertEqual(decode_binary(dsrc.userdata_raw), mydata)
+
     def test_userdata_found(self):
         mydata = "FOOBAR"
-        odata = {'UserData': b64e(mydata)}
+        odata = {'UserData': {'text': b64e(mydata), 'encoding': 'base64'}}
         data = {'ovfcontent': construct_valid_ovf_env(data=odata)}
 
         dsrc = self._get_ds(data)

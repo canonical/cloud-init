@@ -53,15 +53,15 @@ class DataSourceGCE(sources.DataSource):
         # GCE metadata server requires a custom header since v1
         headers = {'X-Google-Metadata-Request': True}
 
-        # url_map: (our-key, path, required)
+        # url_map: (our-key, path, required, is_text)
         url_map = [
-            ('instance-id', 'instance/id', True),
-            ('availability-zone', 'instance/zone', True),
-            ('local-hostname', 'instance/hostname', True),
-            ('public-keys', 'project/attributes/sshKeys', False),
-            ('user-data', 'instance/attributes/user-data', False),
+            ('instance-id', 'instance/id', True, True),
+            ('availability-zone', 'instance/zone', True, True),
+            ('local-hostname', 'instance/hostname', True, True),
+            ('public-keys', 'project/attributes/sshKeys', False, True),
+            ('user-data', 'instance/attributes/user-data', False, False),
             ('user-data-encoding', 'instance/attributes/user-data-encoding',
-             False),
+             False, True),
         ]
 
         # if we cannot resolve the metadata server, then no point in trying
@@ -71,13 +71,16 @@ class DataSourceGCE(sources.DataSource):
 
         # iterate over url_map keys to get metadata items
         found = False
-        for (mkey, path, required) in url_map:
+        for (mkey, path, required, is_text) in url_map:
             try:
                 resp = url_helper.readurl(url=self.metadata_address + path,
                                           headers=headers)
                 if resp.code == 200:
                     found = True
-                    self.metadata[mkey] = resp.contents
+                    if is_text:
+                        self.metadata[mkey] = util.decode_binary(resp.contents)
+                    else:
+                        self.metadata[mkey] = resp.contents
                 else:
                     if required:
                         msg = "required url %s returned code %s. not GCE"
@@ -126,7 +129,7 @@ class DataSourceGCE(sources.DataSource):
     def get_public_ssh_keys(self):
         return self.metadata['public-keys']
 
-    def get_hostname(self, fqdn=False, _resolve_ip=False):
+    def get_hostname(self, fqdn=False, resolve_ip=False):
         # GCE has long FDQN's and has asked for short hostnames
         return self.metadata['local-hostname'].split('.')[0]
 

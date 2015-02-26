@@ -26,16 +26,65 @@
 
 import os
 import time
-
-from cloudinit import ec2_utils as ec2
-from cloudinit import log as logging
-from cloudinit import sources
-from cloudinit import url_helper as uhelp
-from cloudinit import util
 from socket import inet_ntoa
 from struct import pack
 
+from six.moves import http_client
+
+from cloudinit import ec2_utils as ec2
+from cloudinit import log as logging
+from cloudinit import url_helper as uhelp
+from cloudinit import sources, util
+
 LOG = logging.getLogger(__name__)
+
+
+class CloudStackPasswordServerClient(object):
+    """
+    Implements password fetching from the CloudStack password server.
+
+    http://cloudstack-administration.readthedocs.org/en/latest/templates.html#adding-password-management-to-your-templates
+    has documentation about the system.  This implementation is following that
+    found at
+    https://github.com/shankerbalan/cloudstack-scripts/blob/master/cloud-set-guest-password-debian
+
+    The CloudStack password server is, essentially, a broken HTTP
+    server. It requires us to provide a valid HTTP request (including a
+    DomU_Request header, which is the meat of the request), but just
+    writes the text of its response on to the socket, without a status
+    line or any HTTP headers.  This makes HTTP libraries sad, which
+    explains the screwiness of the implementation of this class.
+
+    This should be fixed in CloudStack by commit
+    a72f14ea9cb832faaac946b3cf9f56856b50142a in December 2014.
+    """
+
+    def __init__(self, virtual_router_address):
+        self.virtual_router_address = virtual_router_address
+
+    def _do_request(self, domu_request):
+        # We have to provide a valid HTTP request, but a valid HTTP
+        # response is not returned. This means that getresponse() chokes,
+        # so we use the socket directly to read off the response.
+        # Because we're reading off the socket directly, we can't re-use the
+        # connection.
+        conn = http_client.HTTPConnection(self.virtual_router_address, 8080)
+        try:
+            conn.request('GET', '', headers={'DomU_Request': domu_request})
+            conn.sock.settimeout(30)
+            output = conn.sock.recv(1024).decode('utf-8').strip()
+        finally:
+            conn.close()
+        return output
+
+    def get_password(self):
+        password = self._do_request('send_my_password')
+        if password in ['', 'saved_password']:
+            return None
+        if password == 'bad_request':
+            raise RuntimeError('Error when attempting to fetch root password.')
+        self._do_request('saved_password')
+        return password
 
 
 class DataSourceCloudStack(sources.DataSource):
@@ -45,10 +94,11 @@ class DataSourceCloudStack(sources.DataSource):
         # Cloudstack has its metadata/userdata URLs located at
         # http://<virtual-router-ip>/latest/
         self.api_ver = 'latest'
-        vr_addr = get_vr_address()
-        if not vr_addr:
+        self.vr_addr = get_vr_address()
+        if not self.vr_addr:
             raise RuntimeError("No virtual router found!")
-        self.metadata_address = "http://%s/" % (vr_addr)
+        self.metadata_address = "http://%s/" % (self.vr_addr,)
+        self.cfg = {}
 
     def _get_url_settings(self):
         mcfg = self.ds_cfg
@@ -82,16 +132,19 @@ class DataSourceCloudStack(sources.DataSource):
                                   'latest/meta-data/instance-id')]
         start_time = time.time()
         url = uhelp.wait_for_url(urls=urls, max_wait=max_wait,
-                                timeout=timeout, status_cb=LOG.warn)
+                                 timeout=timeout, status_cb=LOG.warn)
 
         if url:
             LOG.debug("Using metadata source: '%s'", url)
         else:
             LOG.critical(("Giving up on waiting for the metadata from %s"
                           " after %s seconds"),
-                          urls, int(time.time() - start_time))
+                         urls, int(time.time() - start_time))
 
         return bool(url)
+
+    def get_config_obj(self):
+        return self.cfg
 
     def get_data(self):
         seed_ret = {}
@@ -104,12 +157,28 @@ class DataSourceCloudStack(sources.DataSource):
             if not self.wait_for_metadata_service():
                 return False
             start_time = time.time()
-            self.userdata_raw = ec2.get_instance_userdata(self.api_ver,
-                self.metadata_address)
+            self.userdata_raw = ec2.get_instance_userdata(
+                self.api_ver, self.metadata_address)
             self.metadata = ec2.get_instance_metadata(self.api_ver,
                                                       self.metadata_address)
             LOG.debug("Crawl of metadata service took %s seconds",
                       int(time.time() - start_time))
+            password_client = CloudStackPasswordServerClient(self.vr_addr)
+            try:
+                set_password = password_client.get_password()
+            except Exception:
+                util.logexc(LOG,
+                            'Failed to fetch password from virtual router %s',
+                            self.vr_addr)
+            else:
+                if set_password:
+                    self.cfg = {
+                        'ssh_pwauth': True,
+                        'password': set_password,
+                        'chpasswd': {
+                            'expire': False,
+                        },
+                    }
             return True
         except Exception:
             util.logexc(LOG, 'Failed fetching from metadata service %s',
@@ -192,7 +261,7 @@ def get_vr_address():
 
 # Used to match classes to dependencies
 datasources = [
-  (DataSourceCloudStack, (sources.DEP_FILESYSTEM, sources.DEP_NETWORK)),
+    (DataSourceCloudStack, (sources.DEP_FILESYSTEM, sources.DEP_NETWORK)),
 ]
 
 

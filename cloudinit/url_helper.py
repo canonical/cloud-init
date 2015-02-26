@@ -119,7 +119,7 @@ class UrlResponse(object):
 
     @property
     def contents(self):
-        return self._response.text
+        return self._response.content
 
     @property
     def url(self):
