@@ -739,6 +739,10 @@ def fetch_ssl_details(paths=None):
     return ssl_details
 
 
+def load_tfile_or_url(*args, **kwargs):
+    return(decode_binary(read_file_or_url(*args, **kwargs).contents))
+
+
 def read_file_or_url(url, timeout=5, retries=10,
                      headers=None, data=None, sec_between=1, ssl_details=None,
                      headers_cb=None, exception_cb=None):
@@ -750,7 +754,7 @@ def read_file_or_url(url, timeout=5, retries=10,
             LOG.warn("Unable to post data to file resource %s", url)
         file_path = url[len("file://"):]
         try:
-            contents = load_file(file_path)
+            contents = load_file(file_path, decode=False)
         except IOError as e:
             code = e.errno
             if e.errno == errno.ENOENT:
@@ -806,7 +810,7 @@ def read_seeded(base="", ext="", timeout=5, retries=10, file_retries=0):
         ud_url = "%s%s%s" % (base, "user-data", ext)
         md_url = "%s%s%s" % (base, "meta-data", ext)
 
-    md_resp = read_file_or_url(md_url, timeout, retries, file_retries)
+    md_resp = load_tfile_or_url(md_url, timeout, retries, file_retries)
     md = None
     if md_resp.ok():
         md = load_yaml(md_resp.contents, default={})
@@ -815,6 +819,7 @@ def read_seeded(base="", ext="", timeout=5, retries=10, file_retries=0):
     ud = None
     if ud_resp.ok():
         ud = ud_resp.contents
+    print("returning %s (%s)" % (ud_resp.contents.__class__, ud_resp.contents))
 
     return (md, ud)
 
@@ -2030,7 +2035,7 @@ def pathprefix2dict(base, required=None, optional=None, delim=os.path.sep):
     ret = {}
     for f in required + optional:
         try:
-            ret[f] = load_file(base + delim + f, quiet=False)
+            ret[f] = load_file(base + delim + f, quiet=False, decode=False)
         except IOError as e:
             if e.errno != errno.ENOENT:
                 raise

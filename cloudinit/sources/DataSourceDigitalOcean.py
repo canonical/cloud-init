@@ -54,9 +54,13 @@ class DataSourceDigitalOcean(sources.DataSource):
     def get_data(self):
         caller = functools.partial(util.read_file_or_url,
                                    timeout=self.timeout, retries=self.retries)
-        md = ec2_utils.MetadataMaterializer(str(caller(self.metadata_address)),
+
+        def mcaller(url):
+            return caller(url).contents
+
+        md = ec2_utils.MetadataMaterializer(mcaller(self.metadata_address),
                                             base_url=self.metadata_address,
-                                            caller=caller)
+                                            caller=mcaller)
 
         self.metadata = md.materialize()
 
