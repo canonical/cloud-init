@@ -819,7 +819,6 @@ def read_seeded(base="", ext="", timeout=5, retries=10, file_retries=0):
     ud = None
     if ud_resp.ok():
         ud = ud_resp.contents
-    print("returning %s (%s)" % (ud_resp.contents.__class__, ud_resp.contents))
 
     return (md, ud)
 
