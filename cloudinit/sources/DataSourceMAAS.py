@@ -22,7 +22,7 @@ from __future__ import print_function
 
 from email.utils import parsedate
 import errno
-import oauthlib
+import oauthlib.oauth1 as oauth1
 import os
 import time
 
@@ -283,12 +283,12 @@ def check_seed_contents(content, seed):
 
 def oauth_headers(url, consumer_key, token_key, token_secret, consumer_secret,
                   timestamp=None):
-    client = oauthlib.oauth1.Client(
+    client = oauth1.Client(
         consumer_key,
         client_secret=consumer_secret,
         resource_owner_key=token_key,
         resource_owner_secret=token_secret,
-        signature_method=oauthlib.SIGNATURE_PLAINTEXT)
+        signature_method=oauth1.SIGNATURE_PLAINTEXT)
     uri, signed_headers, body = client.sign(url)
     return signed_headers
 

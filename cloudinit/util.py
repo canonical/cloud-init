@@ -970,7 +970,7 @@ def get_fqdn_from_hosts(hostname, filename="/etc/hosts"):
 
 
 def get_cmdline_url(names=('cloud-config-url', 'url'),
-                    starts="#cloud-config", cmdline=None):
+                    starts=b"#cloud-config", cmdline=None):
     if cmdline is None:
         cmdline = get_cmdline()
 
@@ -986,6 +986,8 @@ def get_cmdline_url(names=('cloud-config-url', 'url'),
         return (None, None, None)
 
     resp = read_file_or_url(url)
+    # allow callers to pass starts as text when comparing to bytes contents
+    starts = encode_text(starts)
     if resp.ok() and resp.contents.startswith(starts):
         return (key, url, resp.contents)
 

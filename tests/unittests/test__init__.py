@@ -181,7 +181,7 @@ class TestCmdlineUrl(unittest.TestCase):
     def test_invalid_content(self):
         url = "http://example.com/foo"
         key = "mykey"
-        payload = "0"
+        payload = b"0"
         cmdline = "ro %s=%s bar=1" % (key, url)
 
         with mock.patch('cloudinit.url_helper.readurl',
@@ -194,13 +194,13 @@ class TestCmdlineUrl(unittest.TestCase):
     def test_valid_content(self):
         url = "http://example.com/foo"
         key = "mykey"
-        payload = "xcloud-config\nmydata: foo\nbar: wark\n"
+        payload = b"xcloud-config\nmydata: foo\nbar: wark\n"
         cmdline = "ro %s=%s bar=1" % (key, url)
 
         with mock.patch('cloudinit.url_helper.readurl',
                         return_value=url_helper.StringResponse(payload)):
             self.assertEqual(
-                util.get_cmdline_url(names=[key], starts="xcloud-config",
+                util.get_cmdline_url(names=[key], starts=b"xcloud-config",
                                      cmdline=cmdline),
                 (key, url, payload))
 
@@ -210,7 +210,7 @@ class TestCmdlineUrl(unittest.TestCase):
         cmdline = "ro %s=%s bar=1" % (key, url)
 
         with mock.patch('cloudinit.url_helper.readurl',
-                        return_value=url_helper.StringResponse('')):
+                        return_value=url_helper.StringResponse(b'')):
             self.assertEqual(
                 util.get_cmdline_url(names=["does-not-appear"],
                                      starts="#cloud-config", cmdline=cmdline),
