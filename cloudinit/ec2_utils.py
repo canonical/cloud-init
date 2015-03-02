@@ -185,6 +185,7 @@ def get_instance_metadata(api_version='latest',
     caller = functools.partial(util.read_file_or_url,
                                ssl_details=ssl_details, timeout=timeout,
                                retries=retries)
+
     def mcaller(url):
         return caller(url).contents
 

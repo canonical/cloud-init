@@ -58,7 +58,6 @@ def gzip_text(text):
     return contents.getvalue()
 
 
-
 # FIXME: these tests shouldn't be checking log output??
 # Weirddddd...
 class TestConsumeUserData(helpers.FilesystemMockingTestCase):

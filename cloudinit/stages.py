@@ -346,7 +346,8 @@ class Init(object):
         processed_vd = str(self.datasource.get_vendordata())
         if processed_vd is None:
             processed_vd = ''
-        util.write_file(self._get_ipath('vendordata'), str(processed_vd), 0o600)
+        util.write_file(self._get_ipath('vendordata'), str(processed_vd),
+                        0o600)
 
     def _default_handlers(self, opts=None):
         if opts is None:
