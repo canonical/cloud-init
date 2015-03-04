@@ -3,7 +3,7 @@ from . import helpers
 from cloudinit import ec2_utils as eu
 from cloudinit import url_helper as uh
 
-import httpretty as hp
+hp = helpers.import_httpretty()
 
 
 class TestEc2Util(helpers.HttprettyTestCase):

@@ -31,7 +31,7 @@ from cloudinit.sources import DataSourceOpenStack as ds
 from cloudinit.sources.helpers import openstack
 from cloudinit import util
 
-import httpretty as hp
+hp = test_helpers.import_httpretty()
 
 BASE_URL = "http://169.254.169.254"
 PUBKEY = u'ssh-rsa AAAAB3NzaC1....sIkJhq8wdX+4I3A4cYbYP ubuntu@server-460\n'

@@ -22,8 +22,6 @@
 
 import os
 
-import email
-
 from email.mime.base import MIMEBase
 from email.mime.multipart import MIMEMultipart
 from email.mime.nonmultipart import MIMENonMultipart
@@ -338,7 +336,7 @@ def convert_string(raw_data, headers=None):
         headers = {}
     data = util.decode_binary(util.decomp_gzip(raw_data))
     if "mime-version:" in data[0:4096].lower():
-        msg = email.message_from_string(data)
+        msg = util.message_from_string(data)
         for (key, val) in headers.items():
             _replace_header(msg, key, val)
     else:

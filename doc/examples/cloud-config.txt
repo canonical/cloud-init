@@ -536,6 +536,8 @@ timezone: US/Eastern
 # 
 # to remedy this situation, 'def_log_file' can be set to a filename
 # and syslog_fix_perms to a string containing "<user>:<group>"
+# if syslog_fix_perms is a list, it will iterate through and use the
+# first pair that does not raise error.
 #
 # the default values are '/var/log/cloud-init.log' and 'syslog:adm'
 # the value of 'def_log_file' should match what is configured in logging

@@ -1,3 +1,13 @@
+cloud-init (0.7.7~bzr1076-0ubuntu1) vivid; urgency=medium
+
+  * New upstream snapshot.
+    * test case fixes for http_pretty
+    * python2.6 fixes
+    * Convert dmidecode values to sysfs names before looking. (LP: #1427687)
+    * add snappy support (LP: #1428139)
+
+ -- Scott Moser <smoser@ubuntu.com>  Wed, 04 Mar 2015 17:13:55 -0500
+
 cloud-init (0.7.7~bzr1072-0ubuntu1) vivid; urgency=medium
 
   * d/control: move software-properties-common to Recommends
