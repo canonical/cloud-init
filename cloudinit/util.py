@@ -819,7 +819,6 @@ def read_seeded(base="", ext="", timeout=5, retries=10, file_retries=0):
     ud = None
     if ud_resp.ok():
         ud = ud_resp.contents
-    print("returning %s (%s)" % (ud_resp.contents.__class__, ud_resp.contents))
 
     return (md, ud)
 
@@ -971,7 +970,7 @@ def get_fqdn_from_hosts(hostname, filename="/etc/hosts"):
 
 
 def get_cmdline_url(names=('cloud-config-url', 'url'),
-                    starts="#cloud-config", cmdline=None):
+                    starts=b"#cloud-config", cmdline=None):
     if cmdline is None:
         cmdline = get_cmdline()
 
@@ -987,6 +986,8 @@ def get_cmdline_url(names=('cloud-config-url', 'url'),
         return (None, None, None)
 
     resp = read_file_or_url(url)
+    # allow callers to pass starts as text when comparing to bytes contents
+    starts = encode_text(starts)
     if resp.ok() and resp.contents.startswith(starts):
         return (key, url, resp.contents)
 

@@ -1,3 +1,12 @@
+cloud-init (0.7.7~bzr1072-0ubuntu1) vivid; urgency=medium
+
+  * d/control: move software-properties-common to Recommends
+    this helps reduce snappy builds
+  * New upstream snapshot.
+    * fix MAAS datasource (LP: #1427263)
+
+ -- Scott Moser <smoser@ubuntu.com>  Tue, 03 Mar 2015 20:46:41 -0500
+
 cloud-init (0.7.7~bzr1067-0ubuntu1) vivid; urgency=medium
 
   * New upstream snapshot.

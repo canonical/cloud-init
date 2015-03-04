@@ -321,7 +321,7 @@ def wait_for_url(urls, max_wait=None, timeout=None,
                     timeout = int((start_time + max_wait) - now)
 
             reason = ""
-            e = None
+            url_exc = None
             try:
                 if headers_cb is not None:
                     headers = headers_cb(url)
@@ -332,18 +332,20 @@ def wait_for_url(urls, max_wait=None, timeout=None,
                                    check_status=False)
                 if not response.contents:
                     reason = "empty response [%s]" % (response.code)
-                    e = UrlError(ValueError(reason),
-                                 code=response.code, headers=response.headers)
+                    url_exc = UrlError(ValueError(reason), code=response.code,
+                                       headers=response.headers)
                 elif not response.ok():
                     reason = "bad status code [%s]" % (response.code)
-                    e = UrlError(ValueError(reason),
-                                 code=response.code, headers=response.headers)
+                    url_exc = UrlError(ValueError(reason), code=response.code,
+                                       headers=response.headers)
                 else:
                     return url
             except UrlError as e:
                 reason = "request error [%s]" % e
+                url_exc = e
             except Exception as e:
                 reason = "unexpected error [%s]" % e
+                url_exc = e
 
             time_taken = int(time.time() - start_time)
             status_msg = "Calling '%s' failed [%s/%ss]: %s" % (url,
@@ -355,7 +357,7 @@ def wait_for_url(urls, max_wait=None, timeout=None,
                 # This can be used to alter the headers that will be sent
                 # in the future, for example this is what the MAAS datasource
                 # does.
-                exception_cb(msg=status_msg, exception=e)
+                exception_cb(msg=status_msg, exception=url_exc)
 
         if timeup(max_wait, start_time):
             break
