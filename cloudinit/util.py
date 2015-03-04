@@ -128,6 +128,28 @@ def fully_decoded_payload(part):
 # Path for DMI Data
 DMI_SYS_PATH = "/sys/class/dmi/id"
 
+# dmidecode and /sys/class/dmi/id/* use different names for the same value,
+# this allows us to refer to them by one canonical name
+DMIDECODE_TO_DMI_SYS_MAPPING = {
+    'baseboard-asset-tag': 'board_asset_tag',
+    'baseboard-manufacturer': 'board_vendor',
+    'baseboard-product-name': 'board_name',
+    'baseboard-serial-number': 'board_serial',
+    'baseboard-version': 'board_version',
+    'bios-release-date': 'bios_date',
+    'bios-vendor': 'bios_vendor',
+    'bios-version': 'bios_version',
+    'chassis-asset-tag': 'chassis_asset_tag',
+    'chassis-manufacturer': 'chassis_vendor',
+    'chassis-serial-number': 'chassis_serial',
+    'chassis-version': 'chassis_version',
+    'system-manufacturer': 'sys_vendor',
+    'system-product-name': 'product_name',
+    'system-serial-number': 'product_serial',
+    'system-uuid': 'product_uuid',
+    'system-version': 'product_version',
+}
+
 
 class ProcessExecutionError(IOError):
 
@@ -2103,24 +2125,26 @@ def _read_dmi_syspath(key):
     """
     Reads dmi data with from /sys/class/dmi/id
     """
-
-    dmi_key = "{0}/{1}".format(DMI_SYS_PATH, key)
-    LOG.debug("querying dmi data {0}".format(dmi_key))
+    if key not in DMIDECODE_TO_DMI_SYS_MAPPING:
+        return None
+    mapped_key = DMIDECODE_TO_DMI_SYS_MAPPING[key]
+    dmi_key_path = "{0}/{1}".format(DMI_SYS_PATH, mapped_key)
+    LOG.debug("querying dmi data %s", dmi_key_path)
     try:
-        if not os.path.exists(dmi_key):
-            LOG.debug("did not find {0}".format(dmi_key))
+        if not os.path.exists(dmi_key_path):
+            LOG.debug("did not find %s", dmi_key_path)
             return None
 
-        key_data = load_file(dmi_key)
+        key_data = load_file(dmi_key_path)
         if not key_data:
-            LOG.debug("{0} did not return any data".format(key))
+            LOG.debug("%s did not return any data", dmi_key_path)
             return None
 
-        LOG.debug("dmi data {0} returned {0}".format(dmi_key, key_data))
+        LOG.debug("dmi data %s returned %s", dmi_key_path, key_data)
         return key_data.strip()
 
     except Exception as e:
-        logexc(LOG, "failed read of {0}".format(dmi_key), e)
+        logexc(LOG, "failed read of %s", dmi_key_path, e)
         return None
 
 
@@ -2132,26 +2156,34 @@ def _call_dmidecode(key, dmidecode_path):
     try:
         cmd = [dmidecode_path, "--string", key]
         (result, _err) = subp(cmd)
-        LOG.debug("dmidecode returned '{0}' for '{0}'".format(result, key))
+        LOG.debug("dmidecode returned '%s' for '%s'", result, key)
         return result
-    except OSError as _err:
-        LOG.debug('failed dmidecode cmd: {0}\n{0}'.format(cmd, _err.message))
+    except (IOError, OSError) as _err:
+        LOG.debug('failed dmidecode cmd: %s\n%s', cmd, _err.message)
         return None
 
 
 def read_dmi_data(key):
     """
-    Wrapper for reading DMI data. This tries to determine whether the DMI
-    Data can be read directly, otherwise it will fallback to using dmidecode.
+    Wrapper for reading DMI data.
+
+    This will do the following (returning the first that produces a
+    result):
+        1) Use a mapping to translate `key` from dmidecode naming to
+           sysfs naming and look in /sys/class/dmi/... for a value.
+        2) Use `key` as a sysfs key directly and look in /sys/class/dmi/...
+        3) Fall-back to passing `key` to `dmidecode --string`.
+
+    If all of the above fail to find a value, None will be returned.
     """
-    if os.path.exists(DMI_SYS_PATH):
-        return _read_dmi_syspath(key)
+    syspath_value = _read_dmi_syspath(key)
+    if syspath_value is not None:
+        return syspath_value
 
     dmidecode_path = which('dmidecode')
     if dmidecode_path:
         return _call_dmidecode(key, dmidecode_path)
 
-    LOG.warn("did not find either path {0} or dmidecode command".format(
-             DMI_SYS_PATH))
-
+    LOG.warn("did not find either path %s or dmidecode command",
+             DMI_SYS_PATH)
     return None
