@@ -23,6 +23,7 @@
 import contextlib
 import copy as obj_copy
 import ctypes
+import email
 import errno
 import glob
 import grp
@@ -2187,3 +2188,9 @@ def read_dmi_data(key):
     LOG.warn("did not find either path %s or dmidecode command",
              DMI_SYS_PATH)
     return None
+
+
+def message_from_string(string):
+    if sys.version_info[:2] < (2, 7):
+        return email.message_from_file(six.StringIO(string))
+    return email.message_from_string(string)
