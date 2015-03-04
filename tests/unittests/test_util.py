@@ -452,4 +452,11 @@ class TestMultiLog(helpers.FilesystemMockingTestCase):
         util.multi_log('message', log=log, log_level=log_level)
         self.assertEqual((log_level, mock.ANY), log.log.call_args[0])
 
+
+class TestMessageFromString(helpers.TestCase):
+
+    def test_unicode_not_messed_up(self):
+        roundtripped = util.message_from_string(u'\n').as_string()
+        self.assertNotIn('\x00', roundtripped)
+
 # vi: ts=4 expandtab
