@@ -15,7 +15,6 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import httpretty
 import re
 
 from base64 import b64encode, b64decode
@@ -26,6 +25,8 @@ from cloudinit import helpers
 from cloudinit.sources import DataSourceGCE
 
 from .. import helpers as test_helpers
+
+httpretty = test_helpers.import_httpretty()
 
 GCE_META = {
     'instance/id': '123',
