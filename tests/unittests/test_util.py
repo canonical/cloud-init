@@ -323,58 +323,67 @@ class TestMountinfoParsing(helpers.ResourceUsingTestCase):
 
 class TestReadDMIData(helpers.FilesystemMockingTestCase):
 
-    def _patchIn(self, root):
-        self.patchOS(root)
-        self.patchUtils(root)
+    def setUp(self):
+        super(TestReadDMIData, self).setUp()
+        self.new_root = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, self.new_root)
+        self.patchOS(self.new_root)
+        self.patchUtils(self.new_root)
 
-    def _write_key(self, key, content):
-        """Mocks the sys path found on Linux systems."""
-        new_root = tempfile.mkdtemp()
-        self.addCleanup(shutil.rmtree, new_root)
-        self._patchIn(new_root)
+    def _create_sysfs_parent_directory(self):
         util.ensure_dir(os.path.join('sys', 'class', 'dmi', 'id'))
 
+    def _create_sysfs_file(self, key, content):
+        """Mocks the sys path found on Linux systems."""
+        self._create_sysfs_parent_directory()
         dmi_key = "/sys/class/dmi/id/{0}".format(key)
         util.write_file(dmi_key, content)
 
-    def _no_syspath(self, key, content):
+    def _configure_dmidecode_return(self, key, content, error=None):
         """
         In order to test a missing sys path and call outs to dmidecode, this
         function fakes the results of dmidecode to test the results.
         """
-        new_root = tempfile.mkdtemp()
-        self.addCleanup(shutil.rmtree, new_root)
-        self._patchIn(new_root)
-        self.real_which = util.which
-        self.real_subp = util.subp
-
-        def _which(key):
-            return True
-        util.which = _which
-
-        def _cdd(_key, error=None):
+        def _dmidecode_subp(cmd):
+            if cmd[-1] != key:
+                raise util.ProcessExecutionError()
             return (content, error)
-        util.subp = _cdd
 
-    def test_key(self):
-        key_content = "TEST-KEY-DATA"
-        self._write_key("key", key_content)
-        self.assertEquals(key_content, util.read_dmi_data("key"))
+        self.patched_funcs.enter_context(
+            mock.patch.object(util, 'which', lambda _: True))
+        self.patched_funcs.enter_context(
+            mock.patch.object(util, 'subp', _dmidecode_subp))
 
-    def test_key_mismatch(self):
-        self._write_key("test", "ABC")
-        self.assertNotEqual("123", util.read_dmi_data("test"))
+    def patch_mapping(self, new_mapping):
+        self.patched_funcs.enter_context(
+            mock.patch('cloudinit.util.DMIDECODE_TO_DMI_SYS_MAPPING',
+                       new_mapping))
 
-    def test_no_key(self):
-        self._no_syspath(None, None)
-        self.assertFalse(util.read_dmi_data("key"))
+    def test_sysfs_used_with_key_in_mapping_and_file_on_disk(self):
+        self.patch_mapping({'mapped-key': 'mapped-value'})
+        expected_dmi_value = 'sys-used-correctly'
+        self._create_sysfs_file('mapped-value', expected_dmi_value)
+        self._configure_dmidecode_return('mapped-key', 'wrong-wrong-wrong')
+        self.assertEqual(expected_dmi_value, util.read_dmi_data('mapped-key'))
 
-    def test_callout_dmidecode(self):
-        """test to make sure that dmidecode is used when no syspath"""
-        self._no_syspath("key", "stuff")
-        self.assertEquals("stuff", util.read_dmi_data("key"))
-        self._no_syspath("key", None)
-        self.assertFalse(None, util.read_dmi_data("key"))
+    def test_dmidecode_used_if_no_sysfs_file_on_disk(self):
+        self.patch_mapping({})
+        self._create_sysfs_parent_directory()
+        expected_dmi_value = 'dmidecode-used'
+        self._configure_dmidecode_return('use-dmidecode', expected_dmi_value)
+        self.assertEqual(expected_dmi_value,
+                         util.read_dmi_data('use-dmidecode'))
+
+    def test_none_returned_if_neither_source_has_data(self):
+        self.patch_mapping({})
+        self._configure_dmidecode_return('key', 'value')
+        self.assertEqual(None, util.read_dmi_data('expect-fail'))
+
+    def test_none_returned_if_dmidecode_not_in_path(self):
+        self.patched_funcs.enter_context(
+            mock.patch.object(util, 'which', lambda _: False))
+        self.patch_mapping({})
+        self.assertEqual(None, util.read_dmi_data('expect-fail'))
 
 
 class TestMultiLog(helpers.FilesystemMockingTestCase):
