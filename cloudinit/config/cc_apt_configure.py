@@ -51,6 +51,10 @@ EXPORT_GPG_KEYID = """
 
 
 def handle(name, cfg, cloud, log, _args):
+    if util.is_false(cfg.get('apt_configure_enabled', True)):
+        log.debug("Skipping module named %s, disabled by config.", name)
+        return
+
     release = get_release()
     mirrors = find_apt_mirror_info(cloud, cfg)
     if not mirrors or "primary" not in mirrors:

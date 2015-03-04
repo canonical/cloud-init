@@ -25,15 +25,20 @@ from cloudinit import util
 distros = ['ubuntu', 'debian']
 
 
-def handle(_name, cfg, _cloud, log, _args):
-    idevs = None
-    idevs_empty = None
+def handle(name, cfg, _cloud, log, _args):
 
-    if "grub-dpkg" in cfg:
-        idevs = util.get_cfg_option_str(cfg["grub-dpkg"],
-            "grub-pc/install_devices", None)
-        idevs_empty = util.get_cfg_option_str(cfg["grub-dpkg"],
-            "grub-pc/install_devices_empty", None)
+    mycfg = cfg.get("grub_dpkg", cfg.get("grub-dpkg", {}))
+    if not mycfg:
+        mycfg = {}
+
+    enabled = mycfg.get('enabled', True)
+    if util.is_false(enabled):
+        log.debug("%s disabled by config grub_dpkg/enabled=%s", name, enabled)
+        return
+
+    idevs = util.get_cfg_option_str(mycfg, "grub-pc/install_devices", None)
+    idevs_empty = util.get_cfg_option_str(mycfg,
+        "grub-pc/install_devices_empty", None)
 
     if ((os.path.exists("/dev/sda1") and not os.path.exists("/dev/sda")) or
             (os.path.exists("/dev/xvda1")
