@@ -148,16 +148,25 @@ class Init(object):
     def _initialize_filesystem(self):
         util.ensure_dirs(self._initial_subdirs())
         log_file = util.get_cfg_option_str(self.cfg, 'def_log_file')
-        perms = util.get_cfg_option_str(self.cfg, 'syslog_fix_perms')
         if log_file:
             util.ensure_file(log_file)
-            if perms:
-                u, g = util.extract_usergroup(perms)
+            perms = self.cfg.get('syslog_fix_perms')
+            if not perms:
+                perms = {}
+            if not isinstance(perms, list):
+                perms = [perms]
+
+            error = None
+            for perm in perms:
+                u, g = util.extract_usergroup(perm)
                 try:
                     util.chownbyname(log_file, u, g)
-                except OSError:
-                    util.logexc(LOG, "Unable to change the ownership of %s to "
-                                "user %s, group %s", log_file, u, g)
+                    return
+                except OSError as e:
+                    error = e
+
+            LOG.warn("Failed changing perms on '%s'. tried: %s. %s",
+                     log_file, ','.join(perms), error)
 
     def read_cfg(self, extra_fns=None):
         # None check so that we don't keep on re-loading if empty
