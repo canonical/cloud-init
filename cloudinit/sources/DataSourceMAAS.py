@@ -288,7 +288,8 @@ def oauth_headers(url, consumer_key, token_key, token_secret, consumer_secret,
         client_secret=consumer_secret,
         resource_owner_key=token_key,
         resource_owner_secret=token_secret,
-        signature_method=oauth1.SIGNATURE_PLAINTEXT)
+        signature_method=oauth1.SIGNATURE_PLAINTEXT,
+        timestamp=timestamp)
     uri, signed_headers, body = client.sign(url)
     return signed_headers
 
