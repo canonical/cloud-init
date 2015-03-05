@@ -1,3 +1,11 @@
+cloud-init (0.7.7~bzr1078-0ubuntu1) vivid; urgency=medium
+
+  * New upstream snapshot.
+    * run snappy module only on snappy (LP: #1428495)
+    * MAAS: adjust timestamp on oauthlib when needed (LP: #1427939)
+
+ -- Scott Moser <smoser@ubuntu.com>  Thu, 05 Mar 2015 15:22:53 -0500
+
 cloud-init (0.7.7~bzr1076-0ubuntu1) vivid; urgency=medium
 
   * New upstream snapshot.
