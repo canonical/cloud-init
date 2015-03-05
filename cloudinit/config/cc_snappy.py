@@ -84,7 +84,7 @@ def system_is_snappy():
     # channel.ini is configparser loadable.
     # snappy will move to using /etc/system-image/config.d/*.ini
     # this is certainly not a perfect test, but good enough for now.
-    content = util.load_file("/etc/system-image/channel.ini")
+    content = util.load_file("/etc/system-image/channel.ini", quiet=True)
     if 'ubuntu-core' in content.lower():
         return True
     if os.path.isdir("/etc/system-image/config.d/"):
