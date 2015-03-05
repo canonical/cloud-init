@@ -96,9 +96,9 @@ def handle(name, cfg, cloud, log, args):
     cfgin = cfg.get('snappy')
     if not cfgin:
         cfgin = {}
-    mycfg = util.mergemanydict([BUILTIN_CFG, cfgin])
+    mycfg = util.mergemanydict([cfgin, BUILTIN_CFG])
 
-    sys_snappy = mycfg.get("system_snappy", "auto")
+    sys_snappy = str(mycfg.get("system_snappy", "auto"))
     if util.is_false(sys_snappy):
         LOG.debug("%s: System is not snappy. disabling", name)
         return
@@ -107,7 +107,7 @@ def handle(name, cfg, cloud, log, args):
         LOG.debug("%s: 'auto' mode, and system not snappy", name)
         return
 
-    install_packages(ci_cfg['packages_dir'],
-                     ci_cfg['packages'])
+    install_packages(mycfg['packages_dir'],
+                     mycfg['packages'])
 
-    disable_enable_ssh(ci_cfg.get('ssh_enabled', False))
+    disable_enable_ssh(mycfg.get('ssh_enabled', False))
