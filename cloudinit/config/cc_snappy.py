@@ -14,39 +14,21 @@ LOG = logging.getLogger(__name__)
 frequency = PER_INSTANCE
 SNAPPY_ENV_PATH = "/writable/system-data/etc/snappy.env"
 
-CI_SNAPPY_CFG = {
-    'env_file_path': SNAPPY_ENV_PATH,
+BUILTIN_CFG = {
     'packages': [],
     'packages_dir': '/writable/user-data/cloud-init/click_packages',
-    'ssh_enabled': False
+    'ssh_enabled': False,
+    'system_snappy': "auto"
 }
 
 """
 snappy:
+  system_snappy: auto
   ssh_enabled: True
   packages:
     - etcd
     - {'name': 'pkg1', 'config': "wark"}
 """
-
-
-def flatten(data, fill=None, tok="_", prefix='', recurse=True):
-    if fill is None:
-        fill = {}
-    for key, val in data.items():
-        key = key.replace("-", "_")
-        if isinstance(val, dict) and recurse:
-            flatten(val, fill, tok=tok, prefix=prefix + key + tok,
-                    recurse=recurse)
-        elif isinstance(key, str):
-            fill[prefix + key] = val
-    return fill
-
-
-def render2env(data, tok="_", prefix=''):
-    flat = flatten(data, tok=tok, prefix=prefix)
-    ret = ["%s='%s'" % (key, val) for key, val in flat.items()]
-    return '\n'.join(ret) + '\n'
 
 
 def install_package(pkg_name, config=None):
@@ -98,34 +80,32 @@ def disable_enable_ssh(enabled):
         util.write_file(not_to_be_run, "cloud-init\n")
 
 
-def handle(name, cfg, cloud, log, args):
-    mycfg = cfg.get('snappy', {'ssh_enabled': False})
+def system_is_snappy():
+    # channel.ini is configparser loadable.
+    # snappy will move to using /etc/system-image/config.d/*.ini
+    # this is certainly not a perfect test, but good enough for now.
+    content = util.load_file("/etc/system-image/channel.ini")
+    if 'ubuntu-core' in content.lower():
+        return True
+    if os.path.isdir("/etc/system-image/config.d/"):
+        return True
+    return False
 
-    if not mycfg:
-        LOG.debug("%s: no top level found", name)
+
+def handle(name, cfg, cloud, log, args):
+    cfgin = cfg.get('snappy')
+    if not cfgin:
+        cfgin = {}
+    mycfg = util.mergemanydict([BUILTIN_CFG, cfgin])
+
+    sys_snappy = mycfg.get("system_snappy", "auto")
+    if util.is_false(sys_snappy):
+        LOG.debug("%s: System is not snappy. disabling", name)
         return
 
-    # take out of 'cfg' the cfg keys that cloud-init uses, so
-    # mycfg has only content external to cloud-init.
-    ci_cfg = CI_SNAPPY_CFG.copy()
-    for i in ci_cfg:
-        if i in mycfg:
-            ci_cfg[i] = mycfg[i]
-            del mycfg[i]
-
-    # render the flattened environment variable style file to a path
-    # this was useful for systemd config environment files.  given:
-    # snappy:
-    #   foo:
-    #     bar: wark
-    #     cfg1:
-    #       key1: value
-    # you get the following in env_file_path.
-    #   foo_bar=wark
-    #   foo_cfg1_key1=value
-    contents = render2env(mycfg)
-    header = '# for internal use only, not a guaranteed interface\n'
-    util.write_file(ci_cfg['env_file_path'], header + render2env(mycfg))
+    if sys_snappy.lower() == "auto" and not(system_is_snappy()):
+        LOG.debug("%s: 'auto' mode, and system not snappy", name)
+        return
 
     install_packages(ci_cfg['packages_dir'],
                      ci_cfg['packages'])
