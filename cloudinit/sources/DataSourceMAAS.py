@@ -282,6 +282,11 @@ def check_seed_contents(content, seed):
 
 def oauth_headers(url, consumer_key, token_key, token_secret, consumer_secret,
                   timestamp=None):
+    if timestamp:
+        timestamp = str(timestamp)
+    else:
+        timestamp = None
+
     client = oauth1.Client(
         consumer_key,
         client_secret=consumer_secret,
