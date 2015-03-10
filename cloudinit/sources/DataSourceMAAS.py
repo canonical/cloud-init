@@ -187,7 +187,6 @@ def read_maas_seed_dir(seed_d):
     md = {}
     for fname in files:
         try:
-            print("fname: %s / %s" % (fname, fname not in BINARY_FIELDS))
             md[fname] = util.load_file(os.path.join(seed_d, fname),
                                        decode=fname not in BINARY_FIELDS)
         except IOError as e:
