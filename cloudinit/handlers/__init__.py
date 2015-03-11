@@ -163,12 +163,19 @@ def walker_handle_handler(pdata, _ctype, _filename, payload):
 
 
 def _extract_first_or_bytes(blob, size):
-    # Extract the first line upto X bytes or X bytes from more than the
-    # first line if the first line does not contain enough bytes
-    first_line = blob.split("\n", 1)[0]
-    if len(first_line) >= size:
-        start = first_line[:size]
-    else:
+    # Extract the first line or upto X symbols for text objects
+    # Extract first X bytes for binary objects
+    try:
+        if isinstance(blob, six.string_types):
+            start = blob.split("\n", 1)[0]
+        else:
+            # We want to avoid decoding the whole blob (it might be huge)
+            # By taking 4*size bytes we have a guarantee to decode size utf8 chars
+            start = blob[:4*size].decode(errors='ignore').split("\n", 1)[0]
+        if len(start) >= size:
+            start = start[:size]
+    except UnicodeDecodeError:
+        # Bytes array doesn't contain a text object -- return chunk of raw bytes
         start = blob[0:size]
     return start
 
@@ -183,6 +190,11 @@ def _escape_string(text):
         except TypeError:
             # Give up...
             pass
+    except AttributeError:
+        # We're in Python3 and received blob as text
+        # No escaping is needed because bytes are printed
+        # as 'b\xAA\xBB' automatically in Python3
+        pass
     return text
 
 

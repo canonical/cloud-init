@@ -13,6 +13,7 @@ except ImportError:
 
 from six import BytesIO, StringIO
 
+from email import encoders
 from email.mime.application import MIMEApplication
 from email.mime.base import MIMEBase
 from email.mime.multipart import MIMEMultipart
@@ -492,6 +493,23 @@ c: 4
             mock.call(ci.paths.get_ipath("cloud_config"), "", 0o600),
             ])
 
+    def test_mime_application_octet_stream(self):
+        """Mime message of type application/octet-stream is ignored but shows warning."""
+        ci = stages.Init()
+        message = MIMEBase("application", "octet-stream")
+        message.set_payload(b'\xbf\xe6\xb2\xc3\xd3\xba\x13\xa4\xd8\xa1\xcc\xbf')
+        encoders.encode_base64(message)
+        ci.datasource = FakeDataSource(message.as_string().encode())
+
+        with mock.patch('cloudinit.util.write_file') as mockobj:
+            log_file = self.capture_log(logging.WARNING)
+            ci.fetch()
+            ci.consume_data()
+            self.assertIn(
+                "Unhandled unknown content-type (application/octet-stream)",
+                log_file.getvalue())
+        mockobj.assert_called_once_with(
+            ci.paths.get_ipath("cloud_config"), "", 0o600)
 
 class TestUDProcess(helpers.ResourceUsingTestCase):
 

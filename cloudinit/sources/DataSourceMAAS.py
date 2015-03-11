@@ -187,7 +187,6 @@ def read_maas_seed_dir(seed_d):
     md = {}
     for fname in files:
         try:
-            print("fname: %s / %s" % (fname, fname not in BINARY_FIELDS))
             md[fname] = util.load_file(os.path.join(seed_d, fname),
                                        decode=fname not in BINARY_FIELDS)
         except IOError as e:
@@ -283,6 +282,11 @@ def check_seed_contents(content, seed):
 
 def oauth_headers(url, consumer_key, token_key, token_secret, consumer_secret,
                   timestamp=None):
+    if timestamp:
+        timestamp = str(timestamp)
+    else:
+        timestamp = None
+
     client = oauth1.Client(
         consumer_key,
         client_secret=consumer_secret,

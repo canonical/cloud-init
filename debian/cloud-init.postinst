@@ -15,7 +15,7 @@ import sys, yaml
 def update(src, cand):
     if not (isinstance(src, dict) and isinstance(cand, dict)):
         return cand
-    for k, v in cand.iteritems():
+    for k, v in cand.items():
         # if the candidate has _ as value, delete source
         if v == REMOVER:
             if k in src:

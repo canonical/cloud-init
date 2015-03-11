@@ -1,3 +1,12 @@
+cloud-init (0.7.7~bzr1081-0ubuntu1) vivid; urgency=medium
+
+  * fix failure of configure due to postinst usage of iteritems with python3
+  * New upstream snapshot.
+    * better python3 handling of ignored binary mime parts
+    * DataSourceMAAS: fix usage of oauthlib and 'timestamp'
+
+ -- Scott Moser <smoser@ubuntu.com>  Wed, 11 Mar 2015 13:52:04 -0400
+
 cloud-init (0.7.7~bzr1078-0ubuntu1) vivid; urgency=medium
 
   * New upstream snapshot.
