@@ -36,6 +36,8 @@ import tempfile
 import stat
 import uuid
 
+import six
+
 
 MOCK_RETURNS = {
     'hostname': 'test-host',
@@ -78,24 +80,27 @@ class MockSerial(object):
         return True
 
     def write(self, line):
-        line = line.replace('GET ', '')
+        if not isinstance(line, six.binary_type):
+            raise TypeError("Should be writing binary lines.")
+        line = line.decode('ascii').replace('GET ', '')
         self.last = line.rstrip()
 
     def readline(self):
         if self.new:
             self.new = False
             if self.last in self.mockdata:
-                return 'SUCCESS\n'
+                line = 'SUCCESS\n'
             else:
-                return 'NOTFOUND %s\n' % self.last
+                line = 'NOTFOUND %s\n' % self.last
 
-        if self.last in self.mockdata:
+        elif self.last in self.mockdata:
             if not self.mocked_out:
                 self.mocked_out = [x for x in self._format_out()]
 
             if len(self.mocked_out) > self.count:
                 self.count += 1
-                return self.mocked_out[self.count - 1]
+                line = self.mocked_out[self.count - 1]
+        return line.encode('ascii')
 
     def _format_out(self):
         if self.last in self.mockdata:

@@ -319,7 +319,8 @@ def query_data(noun, seed_device, seed_timeout, strip=False, default=None,
         return False
 
     ser = get_serial(seed_device, seed_timeout)
-    ser.write("GET %s\n" % noun.rstrip())
+    request_line = "GET %s\n" % noun.rstrip()
+    ser.write(request_line.encode('ascii'))
     status = str(ser.readline()).rstrip()
     response = []
     eom_found = False
@@ -329,7 +330,7 @@ def query_data(noun, seed_device, seed_timeout, strip=False, default=None,
         return default
 
     while not eom_found:
-        m = ser.readline()
+        m = ser.readline().decode('ascii')
         if m.rstrip() == ".":
             eom_found = True
         else:
