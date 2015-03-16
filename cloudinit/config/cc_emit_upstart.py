@@ -32,8 +32,7 @@ LOG = logging.getLogger(__name__)
 
 def is_upstart_system():
     if not os.path.isfile("/sbin/initctl"):
-        LOG.debug(("Skipping module named %s,"
-                   " no /sbin/initctl located"), name)
+        LOG.debug("no /sbin/initctl located")
         return False
 
     myenv = os.environ.copy()
