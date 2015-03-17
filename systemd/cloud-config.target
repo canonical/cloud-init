@@ -7,4 +7,5 @@
 
 [Unit]
 Description=Cloud-config availability
-Requires=cloud-init-local.service cloud-init.service
+Wants=cloud-init-local.service cloud-init.service
+After=cloud-init-local.service cloud-init.service
