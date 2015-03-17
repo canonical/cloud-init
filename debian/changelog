@@ -1,3 +1,13 @@
+cloud-init (0.7.7~bzr1084-0ubuntu1) vivid; urgency=medium
+
+  * New upstream snapshot.
+    * systemd: update config and final to run even if init jobs fail
+      (LP: #1432758)
+    * emit_upstart: fix use of undeclared variable
+    * SmartOS: fixes for python3 reading from serial device.
+
+ -- Scott Moser <smoser@ubuntu.com>  Tue, 17 Mar 2015 16:48:42 -0400
+
 cloud-init (0.7.7~bzr1081-0ubuntu1) vivid; urgency=medium
 
   * fix failure of configure due to postinst usage of iteritems with python3
