@@ -315,6 +315,10 @@ class JoyentMetadataClient(object):
     The full specification can be found at
     http://eng.joyent.com/mdata/protocol.html
     """
+    line_regex = re.compile(
+        r'V2 (?P<length>\d+) (?P<checksum>[0-9a-f]+)'
+        r' (?P<body>(?P<request_id>[0-9a-f]+) (?P<status>SUCCESS|NOTFOUND)'
+        r'( (?P<payload>.+))?)')
 
     def __init__(self, serial):
         self.serial = serial
@@ -324,11 +328,7 @@ class JoyentMetadataClient(object):
             binascii.crc32(body.encode('utf-8')) & 0xffffffff)
 
     def _get_value_from_frame(self, expected_request_id, frame):
-        regex = (
-            r'V2 (?P<length>\d+) (?P<checksum>[0-9a-f]+)'
-            r' (?P<body>(?P<request_id>[0-9a-f]+) (?P<status>SUCCESS|NOTFOUND)'
-            r'( (?P<payload>.+))?)')
-        frame_data = re.match(regex, frame).groupdict()
+        frame_data = self.line_regex.match(frame).groupdict()
         if int(frame_data['length']) != len(frame_data['body']):
             raise JoyentMetadataFetchException(
                 'Incorrect frame length given ({0} != {1}).'.format(
