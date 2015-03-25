@@ -335,17 +335,23 @@ class JoyentMetadataClient(object):
                 'Request ID mismatch (expected: {0}; got {1}).'.format(
                     expected_request_id, frame_data['request_id']))
         if not frame_data.get('payload', None):
+            LOG.info('No value found.')
             return None
-        return util.b64d(frame_data['payload'])
+        value = util.b64d(frame_data['payload'])
+        LOG.info('Value "%s" found.', value)
+        return value
 
     def get_metadata(self, metadata_key):
+        LOG.info('Fetching metadata key "%s"...', metadata_key)
         request_id = '{0:08x}'.format(random.randint(0, 0xffffffff))
         message_body = '{0} GET {1}'.format(request_id,
                                             util.b64e(metadata_key))
         msg = 'V2 {0} {1} {2}\n'.format(
             len(message_body), self._checksum(message_body), message_body)
+        LOG.debug('Writing "%s" to serial port.', msg)
         self.serial.write(msg.encode('ascii'))
         response = self.serial.readline().decode('ascii')
+        LOG.debug('Read "%s" from serial port.', response)
         return self._get_value_from_frame(request_id, response)
 
 
