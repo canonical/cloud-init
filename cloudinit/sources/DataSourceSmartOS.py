@@ -29,9 +29,10 @@
 #       http://us-east.manta.joyent.com/jmc/public/mdata/datadict.html
 #       Comments with "@datadictionary" are snippets of the definition
 
-import base64
 import binascii
 import os
+import random
+import re
 import serial
 
 from cloudinit import log as logging
@@ -301,6 +302,53 @@ def get_serial(seed_device, seed_timeout):
     return ser
 
 
+class JoyentMetadataFetchException(Exception):
+    pass
+
+
+class JoyentMetadataClient(object):
+
+    def __init__(self, serial):
+        self.serial = serial
+
+    def _checksum(self, body):
+        return '{0:08x}'.format(
+            binascii.crc32(body.encode('utf-8')) & 0xffffffff)
+
+    def _get_value_from_frame(self, expected_request_id, frame):
+        regex = (
+            r'V2 (?P<length>\d+) (?P<checksum>[0-9a-f]+)'
+            r' (?P<body>(?P<request_id>[0-9a-f]+) (?P<status>SUCCESS|NOTFOUND)'
+            r'( (?P<payload>.+))?)')
+        frame_data = re.match(regex, frame).groupdict()
+        if int(frame_data['length']) != len(frame_data['body']):
+            raise JoyentMetadataFetchException(
+                'Incorrect frame length given ({0} != {1}).'.format(
+                    frame_data['length'], len(frame_data['body'])))
+        expected_checksum = self._checksum(frame_data['body'])
+        if frame_data['checksum'] != expected_checksum:
+            raise JoyentMetadataFetchException(
+                'Invalid checksum (expected: {0}; got {1}).'.format(
+                    expected_checksum, frame_data['checksum']))
+        if frame_data['request_id'] != expected_request_id:
+            raise JoyentMetadataFetchException(
+                'Request ID mismatch (expected: {0}; got {1}).'.format(
+                    expected_request_id, frame_data['request_id']))
+        if not frame_data.get('payload', None):
+            return None
+        return util.b64d(frame_data['payload'])
+
+    def get_metadata(self, metadata_key):
+        request_id = '{0:08x}'.format(random.randint(0, 0xffffffff))
+        message_body = '{0} GET {1}'.format(request_id,
+                                            util.b64e(metadata_key))
+        msg = 'V2 {0} {1} {2}\n'.format(
+            len(message_body), self._checksum(message_body), message_body)
+        self.serial.write(msg.encode('ascii'))
+        response = self.serial.readline().decode('ascii')
+        return self._get_value_from_frame(request_id, response)
+
+
 def query_data(noun, seed_device, seed_timeout, strip=False, default=None,
                b64=None):
     """Makes a request to via the serial console via "GET <NOUN>"
@@ -314,34 +362,21 @@ def query_data(noun, seed_device, seed_timeout, strip=False, default=None,
         encoded, so this method relies on being told if the data is base64 or
         not.
     """
-
     if not noun:
         return False
 
     ser = get_serial(seed_device, seed_timeout)
-    request_line = "GET %s\n" % noun.rstrip()
-    ser.write(request_line.encode('ascii'))
-    status = str(ser.readline()).rstrip()
-    response = []
-    eom_found = False
 
-    if 'SUCCESS' not in status:
-        ser.close()
-        return default
-
-    while not eom_found:
-        m = ser.readline().decode('ascii')
-        if m.rstrip() == ".":
-            eom_found = True
-        else:
-            response.append(m)
-
+    client = JoyentMetadataClient(ser)
+    response = client.get_metadata(noun)
     ser.close()
+    if response is None:
+        return default
 
     if b64 is None:
         b64 = query_data('b64-%s' % noun, seed_device=seed_device,
-                            seed_timeout=seed_timeout, b64=False,
-                            default=False, strip=True)
+                         seed_timeout=seed_timeout, b64=False,
+                         default=False, strip=True)
         b64 = util.is_true(b64)
 
     resp = None
