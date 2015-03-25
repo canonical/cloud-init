@@ -20,7 +20,7 @@ activate="$tox_d/$env/bin/activate"
 
 [ -d "$tox_d" ] || fail "$tox_d: not a dir. maybe run 'tox'?"
 if [ ! -f "$activate" ]; then
-   error "$env: not a valid tox environment?" 1>&1
+   error "$env: not a valid tox environment?"
    error "try one of:"
    ( cd "$tox_d" &&
      for d in *; do [ -f "$d/bin/activate" ] && error "  $d"; done )
