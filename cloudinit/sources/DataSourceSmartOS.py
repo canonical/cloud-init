@@ -309,6 +309,12 @@ class JoyentMetadataFetchException(Exception):
 
 
 class JoyentMetadataClient(object):
+    """
+    A client implementing v2 of the Joyent Metadata Protocol Specification.
+
+    The full specification can be found at
+    http://eng.joyent.com/mdata/protocol.html
+    """
 
     def __init__(self, serial):
         self.serial = serial
