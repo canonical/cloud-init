@@ -1,0 +1,3 @@
+cloud-init is dual licensed under Apache License 2.0 and GPL version 3.
+Complete text of these licenses is available in LICENSE and LICENSE-GPLv3
+files respectively in this source distribution.

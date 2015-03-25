@@ -14,7 +14,7 @@ Release:        ${release}${subrelease}%{?dist}
 Summary:        Cloud instance init scripts
 
 Group:          System/Management
-License:        GPLv3
+License:        ASL 2.0
 URL:            http://launchpad.net/cloud-init
 
 Source0:        ${archive_name}
