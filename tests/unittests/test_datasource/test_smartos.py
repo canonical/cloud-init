@@ -409,6 +409,18 @@ class TestSmartOSDataSource(helpers.FilesystemMockingTestCase):
         self.assertEqual(dsrc.device_name_to_device('FOO'),
                          mydscfg['disk_aliases']['FOO'])
 
+    @mock.patch('cloudinit.sources.DataSourceSmartOS.JoyentMetadataClient')
+    @mock.patch('cloudinit.sources.DataSourceSmartOS.get_serial')
+    def test_serial_console_closed_on_error(self, get_serial, metadata_client):
+        class OurException(Exception):
+            pass
+        metadata_client.side_effect = OurException
+        try:
+            DataSourceSmartOS.query_data('noun', 'device', 0)
+        except OurException:
+            pass
+        self.assertEqual(1, get_serial.return_value.close.call_count)
+
 
 def apply_patches(patches):
     ret = []

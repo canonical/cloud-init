@@ -30,9 +30,11 @@
 #       Comments with "@datadictionary" are snippets of the definition
 
 import binascii
+import contextlib
 import os
 import random
 import re
+
 import serial
 
 from cloudinit import log as logging
@@ -371,11 +373,10 @@ def query_data(noun, seed_device, seed_timeout, strip=False, default=None,
     if not noun:
         return False
 
-    ser = get_serial(seed_device, seed_timeout)
+    with contextlib.closing(get_serial(seed_device, seed_timeout)) as ser:
+        client = JoyentMetadataClient(ser)
+        response = client.get_metadata(noun)
 
-    client = JoyentMetadataClient(ser)
-    response = client.get_metadata(noun)
-    ser.close()
     if response is None:
         return default
 
