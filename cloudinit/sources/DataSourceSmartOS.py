@@ -337,14 +337,14 @@ class JoyentMetadataClient(object):
                 'Request ID mismatch (expected: {0}; got {1}).'.format(
                     expected_request_id, frame_data['request_id']))
         if not frame_data.get('payload', None):
-            LOG.info('No value found.')
+            LOG.debug('No value found.')
             return None
         value = util.b64d(frame_data['payload'])
-        LOG.info('Value "%s" found.', value)
+        LOG.debug('Value "%s" found.', value)
         return value
 
     def get_metadata(self, metadata_key):
-        LOG.info('Fetching metadata key "%s"...', metadata_key)
+        LOG.debug('Fetching metadata key "%s"...', metadata_key)
         request_id = '{0:08x}'.format(random.randint(0, 0xffffffff))
         message_body = '{0} GET {1}'.format(request_id,
                                             util.b64e(metadata_key))
