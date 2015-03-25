@@ -24,20 +24,21 @@
 
 from __future__ import print_function
 
-from cloudinit import helpers as c_helpers
-from cloudinit.sources import DataSourceSmartOS
-from cloudinit.util import b64e
-from .. import helpers
 import os
 import os.path
 import re
 import shutil
-import tempfile
 import stat
+import tempfile
 import uuid
 
 import six
 
+from cloudinit import helpers as c_helpers
+from cloudinit.sources import DataSourceSmartOS
+from cloudinit.util import b64e
+
+from .. import helpers
 
 MOCK_RETURNS = {
     'hostname': 'test-host',
