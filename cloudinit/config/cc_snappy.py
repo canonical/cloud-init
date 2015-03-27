@@ -99,26 +99,25 @@ def render_snap_op(op, name, path=None, cfgfile=None, config=None):
             if isinstance(config, six.binary_type):
                 cfg_bytes = config
             elif isinstance(config, six.text_type):
-                cfg_bytes = config_data.encode()
+                cfg_bytes = config.encode()
             else:
                 cfg_bytes = yaml.safe_dump(config).encode()
 
             (fd, cfg_tmpf) = tempfile.mkstemp()
-            os.write(fd, config_data)
+            os.write(fd, cfg_bytes)
             os.close(fd)
             cfgfile = cfg_tmpf
 
         cmd = [SNAPPY_CMD, op]
-        if op == 'install' and cfgfile:
-            cmd.append('--config=' + cfgfile)
-        elif op == 'config':
-            cmd.append(cfgfile)
-
         if op == 'install':
+            if cfgfile:
+                cmd.append('--config=' + cfgfile)
             if path:
                 cmd.append(path)
             else:
                 cmd.append(name)
+        elif op == 'config':
+            cmd += [name, cfgfile]
 
         util.subp(cmd)
 

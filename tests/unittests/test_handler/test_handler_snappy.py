@@ -4,7 +4,9 @@ from cloudinit import util
 from .. import helpers as t_help
 
 import os
+import shutil
 import tempfile
+
 
 class TestInstallPackages(t_help.TestCase):
     def setUp(self):
@@ -15,14 +17,18 @@ class TestInstallPackages(t_help.TestCase):
         self.apply_patches([(util, 'subp', self._subp)])
         self.subp_called = []
         self.snapcmds = []
-        self.tmp = tempfile.mkdtemp()
+        self.tmp = tempfile.mkdtemp(prefix="TestInstallPackages")
 
     def tearDown(self):
         apply_patches([i for i in reversed(self.unapply)])
+        shutil.rmtree(self.tmp)
 
     def apply_patches(self, patches):
         ret = apply_patches(patches)
         self.unapply += ret
+
+    def populate_tmp(self, files):
+        return t_help.populate_dir(self.tmp, files)
 
     def _subp(self, *args, **kwargs):
         # supports subp calling with cmd as args or kwargs
@@ -31,6 +37,8 @@ class TestInstallPackages(t_help.TestCase):
         self.subp_called.append(kwargs)
         snap_cmds = []
         args = kwargs['args']
+        # here we basically parse the snappy command invoked
+        # and append to snapcmds a list of (mode, pkg, config)
         if args[0:2] == ['snappy', 'config']:
             if args[3] == "-":
                 config = kwargs.get('data', '')
@@ -39,8 +47,6 @@ class TestInstallPackages(t_help.TestCase):
                     config = fp.read()
             self.snapcmds.append(['config', args[2], config])
         elif args[0:2] == ['snappy', 'install']:
-            # basically parse the snappy command and add
-            # to snap_installs a tuple (pkg, config)
             config = None
             pkg = None
             for arg in args[2:]:
@@ -59,72 +65,88 @@ class TestInstallPackages(t_help.TestCase):
         ret = get_package_ops(
             packages=['pkg1', 'pkg2', 'pkg3'],
             configs={'pkg2': b'mycfg2'}, installed=[])
-        self.assertEqual(ret,
-            [makeop('install', 'pkg1', None, None),
-             makeop('install', 'pkg2', b'mycfg2', None),
-             makeop('install', 'pkg3', None, None)])
+        self.assertEqual(
+            ret, [makeop('install', 'pkg1', None, None),
+                  makeop('install', 'pkg2', b'mycfg2', None),
+                  makeop('install', 'pkg3', None, None)])
 
     def test_package_ops_config_only(self):
         ret = get_package_ops(
             packages=None,
             configs={'pkg2': b'mycfg2'}, installed=['pkg1', 'pkg2'])
-        self.assertEqual(ret,
-            [makeop('config', 'pkg2', b'mycfg2')])
+        self.assertEqual(
+            ret, [makeop('config', 'pkg2', b'mycfg2')])
 
     def test_package_ops_install_and_config(self):
         ret = get_package_ops(
             packages=['pkg3', 'pkg2'],
             configs={'pkg2': b'mycfg2', 'xinstalled': b'xcfg'},
             installed=['xinstalled'])
-        self.assertEqual(ret,
-            [makeop('install', 'pkg3'),
-             makeop('install', 'pkg2', b'mycfg2'),
-             makeop('config', 'xinstalled', b'xcfg')])
+        self.assertEqual(
+            ret, [makeop('install', 'pkg3'),
+                  makeop('install', 'pkg2', b'mycfg2'),
+                  makeop('config', 'xinstalled', b'xcfg')])
 
     def test_package_ops_with_file(self):
-        t_help.populate_dir(self.tmp,
+        self.populate_tmp(
             {"snapf1.snap": b"foo1", "snapf1.config": b"snapf1cfg",
              "snapf2.snap": b"foo2", "foo.bar": "ignored"})
         ret = get_package_ops(
             packages=['pkg1'], configs={}, installed=[], fspath=self.tmp)
-        self.assertEqual(ret,
+        self.assertEqual(
+            ret,
             [makeop_tmpd(self.tmp, 'install', 'snapf1', path="snapf1.snap",
                          cfgfile="snapf1.config"),
              makeop_tmpd(self.tmp, 'install', 'snapf2', path="snapf2.snap"),
              makeop('install', 'pkg1')])
 
-    #def render_snap_op(op, name, path=None, cfgfile=None, config=None):
+    def test_package_ops_config_overrides_file(self):
+        # config data overrides local file .config
+        self.populate_tmp(
+            {"snapf1.snap": b"foo1", "snapf1.config": b"snapf1cfg"})
+        ret = get_package_ops(
+            packages=[], configs={'snapf1': 'snapf1cfg-config'},
+            installed=[], fspath=self.tmp)
+        self.assertEqual(
+            ret, [makeop_tmpd(self.tmp, 'install', 'snapf1',
+                              path="snapf1.snap", config="snapf1cfg-config")])
+
     def test_render_op_localsnap(self):
-        t_help.populate_dir(self.tmp, {"snapf1.snap": b"foo1"})
+        self.populate_tmp({"snapf1.snap": b"foo1"})
         op = makeop_tmpd(self.tmp, 'install', 'snapf1',
                          path='snapf1.snap')
         render_snap_op(**op)
-        self.assertEqual(self.snapcmds,
-            [['install', op['path'], None]])
+        self.assertEqual(
+            self.snapcmds, [['install', op['path'], None]])
 
     def test_render_op_localsnap_localconfig(self):
-        t_help.populate_dir(self.tmp,
+        self.populate_tmp(
             {"snapf1.snap": b"foo1", 'snapf1.config': b'snapf1cfg'})
         op = makeop_tmpd(self.tmp, 'install', 'snapf1',
                          path='snapf1.snap', cfgfile='snapf1.config')
         render_snap_op(**op)
-        self.assertEqual(self.snapcmds,
-            [['install', op['path'], b'snapf1cfg']])
-
-    def test_render_op_localsnap_config(self):
-        pass
+        self.assertEqual(
+            self.snapcmds, [['install', op['path'], b'snapf1cfg']])
 
     def test_render_op_snap(self):
-        pass
+        op = makeop('install', 'snapf1')
+        render_snap_op(**op)
+        self.assertEqual(
+            self.snapcmds, [['install', 'snapf1', None]])
 
     def test_render_op_snap_config(self):
-        pass
+        op = makeop('install', 'snapf1', config=b'myconfig')
+        render_snap_op(**op)
+        self.assertEqual(
+            self.snapcmds, [['install', 'snapf1', b'myconfig']])
 
     def test_render_op_config(self):
-        pass
+        op = makeop('config', 'snapf1', config=b'myconfig')
+        render_snap_op(**op)
+        self.assertEqual(
+            self.snapcmds, [['config', 'snapf1', b'myconfig']])
 
 
-        
 def makeop_tmpd(tmpd, op, name, config=None, path=None, cfgfile=None):
     if cfgfile:
         cfgfile = os.path.sep.join([tmpd, cfgfile])
@@ -132,56 +154,6 @@ def makeop_tmpd(tmpd, op, name, config=None, path=None, cfgfile=None):
         path = os.path.sep.join([tmpd, path])
     return(makeop(op=op, name=name, config=config, path=path, cfgfile=cfgfile))
 
-#    def test_local_snaps_no_config(self):
-#        t_help.populate_dir(self.tmp,
-#            {"snap1.snap": b"foo", "snap2.snap": b"foo", "foosnap.txt": b"foo"})
-#        cc_snappy.install_packages(self.tmp, None)
-#        self.assertEqual(self.snap_installs,
-#            [("snap1.snap", None), ("snap2.snap", None)])
-#
-#    def test_local_snaps_mixed_config(self):
-#        t_help.populate_dir(self.tmp,
-#            {"snap1.snap": b"foo", "snap2.snap": b"snap2",
-#             "snap1.config": b"snap1config"})
-#        cc_snappy.install_packages(self.tmp, None)
-#        self.assertEqual(self.snap_installs,
-#            [("snap1.snap", b"snap1config"), ("snap2.snap", None)])
-#
-#    def test_local_snaps_all_config(self):
-#        t_help.populate_dir(self.tmp,
-#            {"snap1.snap": "foo", "snap1.config": b"snap1config",
-#             "snap2.snap": "snap2", "snap2.config": b"snap2config"})
-#        cc_snappy.install_packages(self.tmp, None)
-#        self.assertEqual(self.snap_installs,
-#            [("snap1.snap", b"snap1config"), ("snap2.snap", b"snap2config")])
-#
-#    def test_local_snaps_and_packages(self):
-#        t_help.populate_dir(self.tmp,
-#            {"snap1.snap": "foo", "snap1.config": b"snap1config"})
-#        cc_snappy.install_packages(self.tmp, ["snap-in-store"])
-#        self.assertEqual(self.snap_installs,
-#            [("snap1.snap", b"snap1config"), ("snap-in-store", None)])
-#
-#    def test_packages_no_config(self):
-#        cc_snappy.install_packages(self.tmp, ["snap-in-store"])
-#        self.assertEqual(self.snap_installs,
-#            [("snap-in-store", None)])
-#
-#    def test_packages_mixed_config(self):
-#        cc_snappy.install_packages(self.tmp,
-#            ["snap-in-store",
-#             {'name': 'snap2-in-store', 'config': b"foo"}])
-#        self.assertEqual(self.snap_installs,
-#            [("snap-in-store", None), ("snap2-in-store", b"foo")])
-#
-#    def test_packages_all_config(self):
-#        cc_snappy.install_packages(self.tmp,
-#            [{'name': 'snap1-in-store', 'config': b"boo"},
-#             {'name': 'snap2-in-store', 'config': b"wark"}])
-#        self.assertEqual(self.snap_installs,
-#            [("snap1-in-store", b"boo"), ("snap2-in-store", b"wark")])
-#
-#
 
 def apply_patches(patches):
     ret = []
@@ -192,4 +164,3 @@ def apply_patches(patches):
         setattr(ref, name, replace)
         ret.append((ref, name, orig))
     return ret
-
