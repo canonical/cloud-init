@@ -132,7 +132,6 @@ class TestInstallPackages(t_help.TestCase):
 
         ret = get_package_ops(
             packages=[], configs={}, installed=[], fspath=self.tmp)
-        raise Exception("ret: %s" % ret)
         self.assertEqual(
             ret,
             [makeop_tmpd(self.tmp, 'install', 'pkg-ws.smoser',
