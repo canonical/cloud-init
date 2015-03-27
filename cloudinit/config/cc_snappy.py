@@ -132,6 +132,7 @@ def read_installed_packages():
 
 def read_pkg_data():
     out, err = util.subp([SNAPPY_CMD, "list"])
+    pkg_data = []
     for line in out.splitlines()[1:]:
         toks = line.split(sep=None, maxsplit=3)
         if len(toks) == 3:
@@ -139,7 +140,8 @@ def read_pkg_data():
             dev = None
         else:
             (name, date, version, dev) = toks
-        pkgs.append((name, date, version, dev,))
+        pkg_data.append((name, date, version, dev,))
+    return pkg_data
 
 
 def disable_enable_ssh(enabled):
