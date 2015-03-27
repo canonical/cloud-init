@@ -7,18 +7,21 @@ from cloudinit import util
 from cloudinit.settings import PER_INSTANCE
 
 import glob
+import six
+import tempfile
 import os
 
 LOG = logging.getLogger(__name__)
 
 frequency = PER_INSTANCE
-SNAPPY_ENV_PATH = "/writable/system-data/etc/snappy.env"
+SNAPPY_CMD = "snappy"
 
 BUILTIN_CFG = {
     'packages': [],
     'packages_dir': '/writable/user-data/cloud-init/click_packages',
     'ssh_enabled': False,
-    'system_snappy': "auto"
+    'system_snappy': "auto",
+    'configs': {},
 }
 
 """
@@ -27,43 +30,111 @@ snappy:
   ssh_enabled: True
   packages:
     - etcd
-    - {'name': 'pkg1', 'config': "wark"}
+    - pkg2
+  configs:
+    pkgname: config-blob
+    pkgname2: config-blob
 """
 
 
-def install_package(pkg_name, config=None):
-    cmd = ["snappy", "install"]
-    if config:
-        if os.path.isfile(config):
-            cmd.append("--config-file=" + config)
+def get_fs_package_ops(fspath):
+    if not fspath:
+        return []
+    ops = []
+    for snapfile in glob.glob(os.path.sep.join([fspath, '*.snap'])):
+        cfg = snapfile.rpartition(".")[0] + ".config"
+        name = os.path.basename(snapfile).rpartition(".")[0]
+        if not os.path.isfile(cfg):
+            cfg = None
+        ops.append(makeop('install', name, config=None,
+                    path=snapfile, cfgfile=cfg))
+    return ops
+
+
+def makeop(op, name, config=None, path=None, cfgfile=None):
+    return({'op': op, 'name': name, 'config': config, 'path': path,
+            'cfgfile': cfgfile})
+
+
+def get_package_ops(packages, configs, installed=None, fspath=None):
+    # get the install an config operations that should be done
+    if installed is None:
+        installed = read_installed_packages()
+
+    if not packages:
+        packages = []
+    if not configs:
+        configs = {}
+
+    ops = []
+    ops += get_fs_package_ops(fspath)
+
+    for name in packages:
+        ops.append(makeop('install', name, configs.get('name')))
+
+    to_install = [f['name'] for f in ops]
+
+    for name in configs:
+        if name in installed and name not in to_install:
+            ops.append(makeop('config', name, config=configs[name]))
+
+    # prefer config entries to filepath entries
+    for op in ops:
+        name = op['name']
+        if name in configs and op['op'] == 'install' and 'cfgfile' in op:
+            LOG.debug("preferring configs[%s] over '%s'", name, op['cfgfile'])
+            op['cfgfile'] = None
+            op['config'] = configs[op['name']]
+
+    return ops
+
+
+def render_snap_op(op, name, path=None, cfgfile=None, config=None):
+    if op not in ('install', 'config'):
+        raise ValueError("cannot render op '%s'" % op)
+
+    try:
+        cfg_tmpf = None
+        if config is not None:
+            if isinstance(config, six.binary_type):
+                cfg_bytes = config
+            elif isinstance(config, six.text_type):
+                cfg_bytes = config_data.encode()
+            else:
+                cfg_bytes = yaml.safe_dump(config).encode()
+
+            (fd, cfg_tmpf) = tempfile.mkstemp()
+            os.write(fd, config_data)
+            os.close(fd)
+            cfgfile = cfg_tmpf
+
+        cmd = [SNAPPY_CMD, op]
+        if op == 'install' and cfgfile:
+            cmd.append('--config=' + cfgfile)
+        elif op == 'config':
+            cmd.append(cfgfile)
+
+        util.subp(cmd)
+
+    finally:
+        if tmpfile:
+            os.unlink(tmpfile)
+
+
+def read_installed_packages():
+    return [p[0] for p in read_pkg_data()]
+
+
+def read_pkg_data():
+    out, err = util.subp([SNAPPY_CMD, "list"])
+    for line in out.splitlines()[1:]:
+        toks = line.split(sep=None, maxsplit=3)
+        if len(toks) == 3:
+            (name, date, version) = toks
+            dev = None
         else:
-            cmd.append("--config=" + config)
-    cmd.append(pkg_name)
-    util.subp(cmd)
-
-
-def install_packages(package_dir, packages):
-    local_pkgs = glob.glob(os.path.sep.join([package_dir, '*.click']))
-    LOG.debug("installing local packages %s" % local_pkgs)
-    if local_pkgs:
-        for pkg in local_pkgs:
-            cfg = pkg.replace(".click", ".config")
-            if not os.path.isfile(cfg):
-                cfg = None
-            install_package(pkg, config=cfg)
-
-    LOG.debug("installing click packages")
-    if packages:
-        for pkg in packages:
-            if not pkg:
-                continue
-            if isinstance(pkg, str):
-                name = pkg
-                config = None
-            elif pkg:
-                name = pkg.get('name', pkg)
-                config = pkg.get('config')
-            install_package(pkg_name=name, config=config)
+            (name, date, version, dev) = toks
+        pkgs.append((name, date, version, dev,))
 
 
 def disable_enable_ssh(enabled):
@@ -107,7 +178,21 @@ def handle(name, cfg, cloud, log, args):
         LOG.debug("%s: 'auto' mode, and system not snappy", name)
         return
 
-    install_packages(mycfg['packages_dir'],
-                     mycfg['packages'])
+    pkg_ops = get_package_ops(packages=mycfg['packages'],
+                              configs=mycfg['configs'],
+                              fspath=mycfg['packages_dir'])
+
+    fails = []
+    for pkg_op in pkg_ops:
+        try:
+            render_snap_op(op=pkg_op['op'], name=pkg_op['name'],
+                           cfgfile=pkg_op['cfgfile'], config=pkg_op['config'])
+        except Exception as e:
+            fails.append((pkg_op, e,))
+            LOG.warn("'%s' failed for '%s': %s",
+                     pkg_op['op'], pkg_op['name'], e)
 
     disable_enable_ssh(mycfg.get('ssh_enabled', False))
+
+    if fails:
+        raise Exception("failed to install/configure snaps")
