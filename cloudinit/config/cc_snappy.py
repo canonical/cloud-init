@@ -67,15 +67,26 @@ BUILTIN_CFG = {
 }
 
 
+def parse_filename(fname):
+    fname = os.path.basename(fname)
+    fname_noext = fname.rpartition(".")[0]
+    name = fname_noext.partition("_")[0]
+    shortname = name.partition(".")[0]
+    return(name, shortname, fname_noext)
+    
+
 def get_fs_package_ops(fspath):
     if not fspath:
         return []
     ops = []
-    for snapfile in glob.glob(os.path.sep.join([fspath, '*.snap'])):
-        cfg = snapfile.rpartition(".")[0] + ".config"
-        name = os.path.basename(snapfile).rpartition(".")[0]
-        if not os.path.isfile(cfg):
-            cfg = None
+    for snapfile in sorted(glob.glob(os.path.sep.join([fspath, '*.snap']))):
+        (name, shortname, fname_noext) = parse_filename(snapfile)
+        cfg = None
+        for cand in set((fname_noext, name, shortname,)):
+            fpcand = os.path.sep.join([fspath, cand]) + ".config"
+            if os.path.isfile(fpcand):
+                cfg = fpcand
+                break
         ops.append(makeop('install', name, config=None,
                    path=snapfile, cfgfile=cfg))
     return ops

@@ -112,6 +112,40 @@ class TestInstallPackages(t_help.TestCase):
              makeop_tmpd(self.tmp, 'install', 'snapf2', path="snapf2.snap"),
              makeop('install', 'pkg1')])
 
+    def test_package_ops_common_filename(self):
+        # fish package name from filename
+        # package names likely look like: pkgname.namespace_version_arch.snap
+        fname = "xkcd-webserver.canonical_0.3.4_all.snap"
+        name = "xkcd-webserver.canonical"
+        shortname = "xkcd-webserver"
+
+        # find filenames
+        self.populate_tmp(
+            {"pkg-ws.smoser_0.3.4_all.snap": "pkg-ws-snapdata",
+             "pkg-ws.config": "pkg-ws-config",
+             "pkg1.smoser_1.2.3_all.snap": "pkg1.snapdata",
+             "pkg1.smoser.config": "pkg1.smoser.config-data",
+             "pkg1.config": "pkg1.config-data",
+             "pkg2.smoser_0.0_amd64.snap": "pkg2-snapdata",
+             "pkg2.smoser_0.0_amd64.config": "pkg2.config",
+            })
+
+        ret = get_package_ops(
+            packages=[], configs={}, installed=[], fspath=self.tmp)
+        raise Exception("ret: %s" % ret)
+        self.assertEqual(
+            ret,
+            [makeop_tmpd(self.tmp, 'install', 'pkg-ws.smoser',
+                         path="pkg-ws.smoser_0.3.4_all.snap",
+                         cfgfile="pkg-ws.config"),
+             makeop_tmpd(self.tmp, 'install', 'pkg1.smoser',
+                         path="pkg1.smoser_1.2.3_all.snap",
+                         cfgfile="pkg1.smoser.config"),
+             makeop_tmpd(self.tmp, 'install', 'pkg2.smoser',
+                         path="pkg2.smoser_0.0_amd64.snap",
+                         cfgfile="pkg2.smoser_0.0_amd64.config"),
+             ])
+
     def test_package_ops_config_overrides_file(self):
         # config data overrides local file .config
         self.populate_tmp(
