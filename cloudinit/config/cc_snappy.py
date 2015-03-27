@@ -47,7 +47,7 @@ def get_fs_package_ops(fspath):
         if not os.path.isfile(cfg):
             cfg = None
         ops.append(makeop('install', name, config=None,
-                    path=snapfile, cfgfile=cfg))
+                   path=snapfile, cfgfile=cfg))
     return ops
 
 
