@@ -30,6 +30,10 @@ Example config:
      snappy install "--config=<packages_dir>/foo.config" \
          <packages_dir>/foo.snap
      snappy install <packages_dir>/bar.snap
+
+   Note, that if provided a 'configs' entry for 'ubuntu-core', then
+   cloud-init will invoke: snappy config ubuntu-core <config>
+   Allowing you to configure ubuntu-core in this way.
 """
 
 from cloudinit import log as logging
