@@ -1,5 +1,46 @@
 # vi: ts=4 expandtab
 #
+"""
+snappy modules allows configuration of snappy.
+Example config:
+  #cloud-config
+  snappy:
+    system_snappy: auto
+    ssh_enabled: False
+    packages: [etcd, pkg2.smoser]
+    config:
+      pkgname:
+        key2: value2
+      pkg2:
+        key1: value1
+    packages_dir: '/writable/user-data/cloud-init/snaps'
+
+ - ssh_enabled:
+   This defaults to 'False'.  Set to a non-false value to enable ssh service
+ - snap installation and config
+   The above would install 'etcd', and then install 'pkg2.smoser' with a
+   '--config=<file>' argument where 'file' as 'config-blob' inside it.
+   If 'pkgname' is installed already, then 'snappy config pkgname <file>'
+   will be called where 'file' has 'pkgname-config-blob' as its content.
+
+   Entries in 'config' can be namespaced or non-namespaced for a package.
+   In either case, the config provided to snappy command is non-namespaced.
+   The package name is provided as it appears.
+
+   If 'packages_dir' has files in it that end in '.snap', then they are
+   installed.  Given 3 files:
+     <packages_dir>/foo.snap
+     <packages_dir>/foo.config
+     <packages_dir>/bar.snap
+   cloud-init will invoke:
+     snappy install "--config=<packages_dir>/foo.config" \
+         <packages_dir>/foo.snap
+     snappy install <packages_dir>/bar.snap
+
+   Note, that if provided a 'config' entry for 'ubuntu-core', then
+   cloud-init will invoke: snappy config ubuntu-core <config>
+   Allowing you to configure ubuntu-core in this way.
+"""
 
 from cloudinit import log as logging
 from cloudinit import templater
@@ -7,63 +48,168 @@ from cloudinit import util
 from cloudinit.settings import PER_INSTANCE
 
 import glob
+import six
+import tempfile
 import os
 
 LOG = logging.getLogger(__name__)
 
 frequency = PER_INSTANCE
-SNAPPY_ENV_PATH = "/writable/system-data/etc/snappy.env"
+SNAPPY_CMD = "snappy"
+NAMESPACE_DELIM = '.'
 
 BUILTIN_CFG = {
     'packages': [],
-    'packages_dir': '/writable/user-data/cloud-init/click_packages',
+    'packages_dir': '/writable/user-data/cloud-init/snaps',
     'ssh_enabled': False,
-    'system_snappy': "auto"
+    'system_snappy': "auto",
+    'config': {},
 }
 
-"""
-snappy:
-  system_snappy: auto
-  ssh_enabled: True
-  packages:
-    - etcd
-    - {'name': 'pkg1', 'config': "wark"}
-"""
+
+def parse_filename(fname):
+    fname = os.path.basename(fname)
+    fname_noext = fname.rpartition(".")[0]
+    name = fname_noext.partition("_")[0]
+    shortname = name.partition(".")[0]
+    return(name, shortname, fname_noext)
+    
+
+def get_fs_package_ops(fspath):
+    if not fspath:
+        return []
+    ops = []
+    for snapfile in sorted(glob.glob(os.path.sep.join([fspath, '*.snap']))):
+        (name, shortname, fname_noext) = parse_filename(snapfile)
+        cfg = None
+        for cand in (fname_noext, name, shortname):
+            fpcand = os.path.sep.join([fspath, cand]) + ".config"
+            if os.path.isfile(fpcand):
+                cfg = fpcand
+                break
+        ops.append(makeop('install', name, config=None,
+                   path=snapfile, cfgfile=cfg))
+    return ops
 
 
-def install_package(pkg_name, config=None):
-    cmd = ["snappy", "install"]
-    if config:
-        if os.path.isfile(config):
-            cmd.append("--config-file=" + config)
+def makeop(op, name, config=None, path=None, cfgfile=None):
+    return({'op': op, 'name': name, 'config': config, 'path': path,
+            'cfgfile': cfgfile})
+
+
+def get_package_config(configs, name):
+    # load the package's config from the configs dict.
+    # prefer full-name entry (config-example.canonical) 
+    # over short name entry (config-example)
+    if name in configs:
+        return configs[name]
+    return configs.get(name.partition(NAMESPACE_DELIM)[0])
+
+
+def get_package_ops(packages, configs, installed=None, fspath=None):
+    # get the install an config operations that should be done
+    if installed is None:
+        installed = read_installed_packages()
+    short_installed = [p.partition(NAMESPACE_DELIM)[0] for p in installed]
+
+    if not packages:
+        packages = []
+    if not configs:
+        configs = {}
+
+    ops = []
+    ops += get_fs_package_ops(fspath)
+
+    for name in packages:
+        ops.append(makeop('install', name, get_package_config(configs, name)))
+
+    to_install = [f['name'] for f in ops]
+    short_to_install = [f['name'].partition(NAMESPACE_DELIM)[0] for f in ops]
+
+    for name in configs:
+        if name in to_install:
+            continue
+        shortname = name.partition(NAMESPACE_DELIM)[0]
+        if shortname in short_to_install:
+            continue
+        if name in installed or shortname in short_installed:
+            ops.append(makeop('config', name,
+                              config=get_package_config(configs, name)))
+
+    # prefer config entries to filepath entries
+    for op in ops:
+        if op['op'] != 'install' or not op['cfgfile']:
+            continue
+        name = op['name']
+        fromcfg = get_package_config(configs, op['name'])
+        if fromcfg:
+            LOG.debug("preferring configs[%(name)s] over '%(cfgfile)s'", op)
+            op['cfgfile'] = None
+            op['config'] = fromcfg
+
+    return ops
+
+
+def render_snap_op(op, name, path=None, cfgfile=None, config=None):
+    if op not in ('install', 'config'):
+        raise ValueError("cannot render op '%s'" % op)
+
+    shortname = name.partition(NAMESPACE_DELIM)[0]
+    try:
+        cfg_tmpf = None
+        if config is not None:
+            # input to 'snappy config packagename' must have nested data. odd.
+            # config:
+            #   packagename:
+            #      config
+            # Note, however, we do not touch config files on disk.
+            nested_cfg = {'config': {shortname: config}}
+            (fd, cfg_tmpf) = tempfile.mkstemp()
+            os.write(fd, util.yaml_dumps(nested_cfg).encode())
+            os.close(fd)
+            cfgfile = cfg_tmpf
+
+        cmd = [SNAPPY_CMD, op]
+        if op == 'install':
+            if cfgfile:
+                cmd.append('--config=' + cfgfile)
+            if path:
+                cmd.append("--allow-unauthenticated")
+                cmd.append(path)
+            else:
+                cmd.append(name)
+        elif op == 'config':
+            cmd += [name, cfgfile]
+
+        util.subp(cmd)
+
+    finally:
+        if cfg_tmpf:
+            os.unlink(cfg_tmpf)
+
+
+def read_installed_packages():
+    ret = []
+    for (name, date, version, dev) in read_pkg_data():
+        if dev:
+            ret.append(NAMESPACE_DELIM.join([name, dev]))
         else:
-            cmd.append("--config=" + config)
-    cmd.append(pkg_name)
-    util.subp(cmd)
+            ret.append(name)
+    return ret
 
 
-def install_packages(package_dir, packages):
-    local_pkgs = glob.glob(os.path.sep.join([package_dir, '*.click']))
-    LOG.debug("installing local packages %s" % local_pkgs)
-    if local_pkgs:
-        for pkg in local_pkgs:
-            cfg = pkg.replace(".click", ".config")
-            if not os.path.isfile(cfg):
-                cfg = None
-            install_package(pkg, config=cfg)
-
-    LOG.debug("installing click packages")
-    if packages:
-        for pkg in packages:
-            if not pkg:
-                continue
-            if isinstance(pkg, str):
-                name = pkg
-                config = None
-            elif pkg:
-                name = pkg.get('name', pkg)
-                config = pkg.get('config')
-            install_package(pkg_name=name, config=config)
+def read_pkg_data():
+    out, err = util.subp([SNAPPY_CMD, "list"])
+    pkg_data = []
+    for line in out.splitlines()[1:]:
+        toks = line.split(sep=None, maxsplit=3)
+        if len(toks) == 3:
+            (name, date, version) = toks
+            dev = None
+        else:
+            (name, date, version, dev) = toks
+        pkg_data.append((name, date, version, dev,))
+    return pkg_data
 
 
 def disable_enable_ssh(enabled):
@@ -92,6 +238,15 @@ def system_is_snappy():
     return False
 
 
+def set_snappy_command():
+    global SNAPPY_CMD
+    if util.which("snappy-go"):
+        SNAPPY_CMD = "snappy-go"
+    else:
+        SNAPPY_CMD = "snappy"
+    LOG.debug("snappy command is '%s'", SNAPPY_CMD)
+
+
 def handle(name, cfg, cloud, log, args):
     cfgin = cfg.get('snappy')
     if not cfgin:
@@ -107,7 +262,22 @@ def handle(name, cfg, cloud, log, args):
         LOG.debug("%s: 'auto' mode, and system not snappy", name)
         return
 
-    install_packages(mycfg['packages_dir'],
-                     mycfg['packages'])
+    set_snappy_command()
+
+    pkg_ops = get_package_ops(packages=mycfg['packages'],
+                              configs=mycfg['config'],
+                              fspath=mycfg['packages_dir'])
+
+    fails = []
+    for pkg_op in pkg_ops:
+        try:
+            render_snap_op(**pkg_op)
+        except Exception as e:
+            fails.append((pkg_op, e,))
+            LOG.warn("'%s' failed for '%s': %s",
+                     pkg_op['op'], pkg_op['name'], e)
 
     disable_enable_ssh(mycfg.get('ssh_enabled', False))
+
+    if fails:
+        raise Exception("failed to install/configure snaps")
