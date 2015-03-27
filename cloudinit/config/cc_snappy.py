@@ -194,11 +194,12 @@ def system_is_snappy():
 
 
 def set_snappy_command():
+    global SNAPPY_CMD
     if util.which("snappy-go"):
-        SNAPPY_COMMAND = "snappy-go"
+        SNAPPY_CMD = "snappy-go"
     else:
-        SNAPPY_COMMAND = "snappy"
-    LOG.debug("snappy command is '%s'", SNAPPY_COMMAND)
+        SNAPPY_CMD = "snappy"
+    LOG.debug("snappy command is '%s'", SNAPPY_CMD)
 
 
 def handle(name, cfg, cloud, log, args):
