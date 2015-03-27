@@ -114,11 +114,17 @@ def render_snap_op(op, name, path=None, cfgfile=None, config=None):
         elif op == 'config':
             cmd.append(cfgfile)
 
+        if op == 'install':
+            if path:
+                cmd.append(path)
+            else:
+                cmd.append(name)
+
         util.subp(cmd)
 
     finally:
-        if tmpfile:
-            os.unlink(tmpfile)
+        if cfg_tmpf:
+            os.unlink(cfg_tmpf)
 
 
 def read_installed_packages():

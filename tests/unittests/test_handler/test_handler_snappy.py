@@ -1,4 +1,5 @@
-from cloudinit.config.cc_snappy import (makeop, get_package_ops)
+from cloudinit.config.cc_snappy import (
+    makeop, get_package_ops, render_snap_op)
 from cloudinit import util
 from .. import helpers as t_help
 
@@ -36,7 +37,7 @@ class TestInstallPackages(t_help.TestCase):
             else:
                 with open(args[3], "rb") as fp:
                     config = fp.read()
-            snap_cmds.append(('config', args[2], config,))
+            self.snapcmds.append(['config', args[2], config])
         elif args[0:2] == ['snappy', 'install']:
             # basically parse the snappy command and add
             # to snap_installs a tuple (pkg, config)
@@ -51,8 +52,8 @@ class TestInstallPackages(t_help.TestCase):
                         with open(cfgfile, "rb") as fp:
                             config = fp.read()
                 elif not pkg and not arg.startswith("-"):
-                    pkg = os.path.basename(arg)
-            self.snap_installs.append(('install', pkg, config,))
+                    pkg = arg
+            self.snapcmds.append(['install', pkg, config])
 
     def test_package_ops_1(self):
         ret = get_package_ops(
@@ -91,6 +92,37 @@ class TestInstallPackages(t_help.TestCase):
                          cfgfile="snapf1.config"),
              makeop_tmpd(self.tmp, 'install', 'snapf2', path="snapf2.snap"),
              makeop('install', 'pkg1')])
+
+    #def render_snap_op(op, name, path=None, cfgfile=None, config=None):
+    def test_render_op_localsnap(self):
+        t_help.populate_dir(self.tmp, {"snapf1.snap": b"foo1"})
+        op = makeop_tmpd(self.tmp, 'install', 'snapf1',
+                         path='snapf1.snap')
+        render_snap_op(**op)
+        self.assertEqual(self.snapcmds,
+            [['install', op['path'], None]])
+
+    def test_render_op_localsnap_localconfig(self):
+        t_help.populate_dir(self.tmp,
+            {"snapf1.snap": b"foo1", 'snapf1.config': b'snapf1cfg'})
+        op = makeop_tmpd(self.tmp, 'install', 'snapf1',
+                         path='snapf1.snap', cfgfile='snapf1.config')
+        render_snap_op(**op)
+        self.assertEqual(self.snapcmds,
+            [['install', op['path'], b'snapf1cfg']])
+
+    def test_render_op_localsnap_config(self):
+        pass
+
+    def test_render_op_snap(self):
+        pass
+
+    def test_render_op_snap_config(self):
+        pass
+
+    def test_render_op_config(self):
+        pass
+
 
         
 def makeop_tmpd(tmpd, op, name, config=None, path=None, cfgfile=None):
