@@ -140,11 +140,44 @@ class TestInstallPackages(t_help.TestCase):
         self.assertEqual(
             self.snapcmds, [['install', 'snapf1', b'myconfig']])
 
-    def test_render_op_config(self):
+    def test_render_op_config_bytes(self):
         op = makeop('config', 'snapf1', config=b'myconfig')
         render_snap_op(**op)
         self.assertEqual(
             self.snapcmds, [['config', 'snapf1', b'myconfig']])
+
+    def test_render_op_config_string(self):
+        mycfg = 'myconfig: foo\nhisconfig: bar\n'
+        op = makeop('config', 'snapf1', config=mycfg)
+        render_snap_op(**op)
+        self.assertEqual(
+            self.snapcmds, [['config', 'snapf1', mycfg.encode()]])
+
+    def test_render_op_config_dict(self):
+        # config entry for package can be a dict, not a string blob
+        mycfg = {'foo': 'bar'}
+        op = makeop('config', 'snapf1', config=mycfg)
+        render_snap_op(**op)
+        # snapcmds is a list of 3-entry lists. data_found will be the
+        # blob of data in the file in 'snappy install --config=<file>'
+        data_found = self.snapcmds[0][2]
+        self.assertEqual(mycfg, util.load_yaml(data_found))
+
+    def test_render_op_config_list(self):
+        # config entry for package can be a list, not a string blob
+        mycfg = ['foo', 'bar', 'wark', {'f1': 'b1'}]
+        op = makeop('config', 'snapf1', config=mycfg)
+        render_snap_op(**op)
+        data_found = self.snapcmds[0][2]
+        self.assertEqual(mycfg, util.load_yaml(data_found, allowed=(list,)))
+
+    def test_render_op_config_int(self):
+        # config entry for package can be a list, not a string blob
+        mycfg = 1
+        op = makeop('config', 'snapf1', config=mycfg)
+        render_snap_op(**op)
+        data_found = self.snapcmds[0][2]
+        self.assertEqual(mycfg, util.load_yaml(data_found, allowed=(int,)))
 
 
 def makeop_tmpd(tmpd, op, name, config=None, path=None, cfgfile=None):
