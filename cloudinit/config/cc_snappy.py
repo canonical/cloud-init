@@ -218,11 +218,11 @@ def handle(name, cfg, cloud, log, args):
         LOG.debug("%s: 'auto' mode, and system not snappy", name)
         return
 
+    set_snappy_command()
+
     pkg_ops = get_package_ops(packages=mycfg['packages'],
                               configs=mycfg['config'],
                               fspath=mycfg['packages_dir'])
-
-    set_snappy_command()
 
     fails = []
     for pkg_op in pkg_ops:
