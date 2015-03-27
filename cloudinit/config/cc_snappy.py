@@ -101,7 +101,7 @@ def render_snap_op(op, name, path=None, cfgfile=None, config=None):
             elif isinstance(config, six.text_type):
                 cfg_bytes = config.encode()
             else:
-                cfg_bytes = util.yaml_dumps(config)
+                cfg_bytes = util.yaml_dumps(config).encode()
 
             (fd, cfg_tmpf) = tempfile.mkstemp()
             os.write(fd, cfg_bytes)
