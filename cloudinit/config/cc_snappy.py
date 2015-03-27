@@ -8,9 +8,11 @@ Example config:
     system_snappy: auto
     ssh_enabled: False
     packages: [etcd, pkg2]
-    configs:
-      pkgname: pkgname-config-blob
-      pkg2: config-blob
+    config:
+      pkgname:
+        key2: value2
+      pkg2:
+        key1: value1
     packages_dir: '/writable/user-data/cloud-init/snaps'
 
  - ssh_enabled:
@@ -31,7 +33,7 @@ Example config:
          <packages_dir>/foo.snap
      snappy install <packages_dir>/bar.snap
 
-   Note, that if provided a 'configs' entry for 'ubuntu-core', then
+   Note, that if provided a 'config' entry for 'ubuntu-core', then
    cloud-init will invoke: snappy config ubuntu-core <config>
    Allowing you to configure ubuntu-core in this way.
 """
@@ -56,7 +58,7 @@ BUILTIN_CFG = {
     'packages_dir': '/writable/user-data/cloud-init/snaps',
     'ssh_enabled': False,
     'system_snappy': "auto",
-    'configs': {},
+    'config': {},
 }
 
 
@@ -119,15 +121,14 @@ def render_snap_op(op, name, path=None, cfgfile=None, config=None):
     try:
         cfg_tmpf = None
         if config is not None:
-            if isinstance(config, six.binary_type):
-                cfg_bytes = config
-            elif isinstance(config, six.text_type):
-                cfg_bytes = config.encode()
-            else:
-                cfg_bytes = util.yaml_dumps(config).encode()
-
+            # input to 'snappy config packagename' must have nested data. odd.
+            # config:
+            #   packagename:
+            #      config
+            # Note, however, we do not touch config files on disk.
+            nested_cfg = {'config': {name: config}}
             (fd, cfg_tmpf) = tempfile.mkstemp()
-            os.write(fd, cfg_bytes)
+            os.write(fd, util.yaml_dumps(nested_cfg).encode())
             os.close(fd)
             cfgfile = cfg_tmpf
 
@@ -218,7 +219,7 @@ def handle(name, cfg, cloud, log, args):
         return
 
     pkg_ops = get_package_ops(packages=mycfg['packages'],
-                              configs=mycfg['configs'],
+                              configs=mycfg['config'],
                               fspath=mycfg['packages_dir'])
 
     set_snappy_command()
