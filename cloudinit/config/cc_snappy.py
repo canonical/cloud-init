@@ -7,7 +7,7 @@ Example config:
   snappy:
     system_snappy: auto
     ssh_enabled: False
-    packages: [etcd, pkg2]
+    packages: [etcd, pkg2.smoser]
     config:
       pkgname:
         key2: value2
@@ -18,10 +18,14 @@ Example config:
  - ssh_enabled:
    This defaults to 'False'.  Set to a non-false value to enable ssh service
  - snap installation and config
-   The above would install 'etcd', and then install 'pkg2' with a
+   The above would install 'etcd', and then install 'pkg2.smoser' with a
    '--config=<file>' argument where 'file' as 'config-blob' inside it.
    If 'pkgname' is installed already, then 'snappy config pkgname <file>'
    will be called where 'file' has 'pkgname-config-blob' as its content.
+
+   Entries in 'config' can be namespaced or non-namespaced for a package.
+   In either case, the config provided to snappy command is non-namespaced.
+   The package name is provided as it appears.
 
    If 'packages_dir' has files in it that end in '.snap', then they are
    installed.  Given 3 files:
@@ -52,6 +56,7 @@ LOG = logging.getLogger(__name__)
 
 frequency = PER_INSTANCE
 SNAPPY_CMD = "snappy"
+NAMESPACE_DELIM = '.'
 
 BUILTIN_CFG = {
     'packages': [],
@@ -81,10 +86,20 @@ def makeop(op, name, config=None, path=None, cfgfile=None):
             'cfgfile': cfgfile})
 
 
+def get_package_config(configs, name):
+    # load the package's config from the configs dict.
+    # prefer full-name entry (config-example.canonical) 
+    # over short name entry (config-example)
+    if name in configs:
+        return configs[name]
+    return configs.get(name.partition(NAMESPACE_DELIM)[0])
+
+
 def get_package_ops(packages, configs, installed=None, fspath=None):
     # get the install an config operations that should be done
     if installed is None:
         installed = read_installed_packages()
+    short_installed = [p.partition(NAMESPACE_DELIM)[0] for p in installed]
 
     if not packages:
         packages = []
@@ -95,21 +110,31 @@ def get_package_ops(packages, configs, installed=None, fspath=None):
     ops += get_fs_package_ops(fspath)
 
     for name in packages:
-        ops.append(makeop('install', name, configs.get('name')))
+        ops.append(makeop('install', name, get_package_config(configs, name)))
 
     to_install = [f['name'] for f in ops]
+    short_to_install = [f['name'].partition(NAMESPACE_DELIM)[0] for f in ops]
 
     for name in configs:
-        if name in installed and name not in to_install:
-            ops.append(makeop('config', name, config=configs[name]))
+        if name in to_install:
+            continue
+        shortname = name.partition(NAMESPACE_DELIM)[0]
+        if shortname in short_to_install:
+            continue
+        if name in installed or shortname in short_installed:
+            ops.append(makeop('config', name,
+                              config=get_package_config(configs, name)))
 
     # prefer config entries to filepath entries
     for op in ops:
+        if op['op'] != 'install' or not op['cfgfile']:
+            continue
         name = op['name']
-        if name in configs and op['op'] == 'install' and 'cfgfile' in op:
-            LOG.debug("preferring configs[%s] over '%s'", name, op['cfgfile'])
+        fromcfg = get_package_config(configs, op['name'])
+        if fromcfg:
+            LOG.debug("preferring configs[%(name)s] over '%(cfgfile)s'", op)
             op['cfgfile'] = None
-            op['config'] = configs[op['name']]
+            op['config'] = fromcfg
 
     return ops
 
@@ -118,6 +143,7 @@ def render_snap_op(op, name, path=None, cfgfile=None, config=None):
     if op not in ('install', 'config'):
         raise ValueError("cannot render op '%s'" % op)
 
+    shortname = name.partition(NAMESPACE_DELIM)[0]
     try:
         cfg_tmpf = None
         if config is not None:
@@ -126,7 +152,7 @@ def render_snap_op(op, name, path=None, cfgfile=None, config=None):
             #   packagename:
             #      config
             # Note, however, we do not touch config files on disk.
-            nested_cfg = {'config': {name: config}}
+            nested_cfg = {'config': {shortname: config}}
             (fd, cfg_tmpf) = tempfile.mkstemp()
             os.write(fd, util.yaml_dumps(nested_cfg).encode())
             os.close(fd)
@@ -151,7 +177,13 @@ def render_snap_op(op, name, path=None, cfgfile=None, config=None):
 
 
 def read_installed_packages():
-    return [p[0] for p in read_pkg_data()]
+    ret = []
+    for (name, date, version, dev) in read_pkg_data():
+        if dev:
+            ret.append(NAMESPACE_DELIM.join(name, dev))
+        else:
+            ret.append(name)
+    return ret
 
 
 def read_pkg_data():

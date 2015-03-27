@@ -90,6 +90,15 @@ class TestInstallPackages(t_help.TestCase):
                   makeop('install', 'pkg2', b'mycfg2'),
                   makeop('config', 'xinstalled', b'xcfg')])
 
+    def test_package_ops_install_long_config_short(self):
+        # a package can be installed by full name, but have config by short
+        cfg = {'k1': 'k2'}
+        ret = get_package_ops(
+            packages=['config-example.canonical'],
+            configs={'config-example': cfg}, installed=[])
+        self.assertEqual(
+            ret, [makeop('install', 'config-example.canonical', cfg)])
+
     def test_package_ops_with_file(self):
         self.populate_tmp(
             {"snapf1.snap": b"foo1", "snapf1.config": b"snapf1cfg",
@@ -113,6 +122,34 @@ class TestInstallPackages(t_help.TestCase):
         self.assertEqual(
             ret, [makeop_tmpd(self.tmp, 'install', 'snapf1',
                               path="snapf1.snap", config="snapf1cfg-config")])
+
+    def test_package_ops_namespacing(self):
+        cfgs = {
+            'config-example': {'k1': 'v1'},
+            'pkg1': {'p1': 'p2'},
+            'ubuntu-core': {'c1': 'c2'},
+            'notinstalled.smoser': {'s1': 's2'},
+        }
+        cfg = {'config-example-k1': 'config-example-k2'}
+        ret = get_package_ops(
+            packages=['config-example.canonical'], configs=cfgs,
+            installed=['config-example.smoser', 'pkg1.canonical',
+                       'ubuntu-core'])
+
+        expected_configs = [
+            makeop('config', 'pkg1', config=cfgs['pkg1']),
+            makeop('config', 'ubuntu-core', config=cfgs['ubuntu-core'])]
+        expected_installs = [
+            makeop('install', 'config-example.canonical',
+                   config=cfgs['config-example'])]
+
+        installs = [i for i in ret if i['op'] == 'install']
+        configs = [c for c in ret if c['op'] == 'config']
+
+        self.assertEqual(installs, expected_installs)
+        # configs are not ordered
+        self.assertEqual(len(configs), len(expected_configs))
+        self.assertTrue(all(found in expected_configs for found in configs))
 
     def test_render_op_localsnap(self):
         self.populate_tmp({"snapf1.snap": b"foo1"})
@@ -186,6 +223,15 @@ class TestInstallPackages(t_help.TestCase):
         mycfg = 1
         name = 'snapf1'
         op = makeop('config', name, config=mycfg)
+        render_snap_op(**op)
+        data_found = self.snapcmds[0][2]
+        self.assertEqual(mycfg, data_found['config'][name])
+
+    def test_render_long_configs_short(self):
+        # install a namespaced package should have un-namespaced config
+        mycfg = {'k1': 'k2'}
+        name = 'snapf1'
+        op = makeop('install', name + ".smoser", config=mycfg)
         render_snap_op(**op)
         data_found = self.snapcmds[0][2]
         self.assertEqual(mycfg, data_found['config'][name])
