@@ -168,6 +168,14 @@ def system_is_snappy():
     return False
 
 
+def set_snappy_command():
+    if util.which("snappy-go"):
+        SNAPPY_COMMAND = "snappy-go"
+    else:
+        SNAPPY_COMMAND = "snappy"
+    LOG.debug("snappy command is '%s'", SNAPPY_COMMAND)
+
+
 def handle(name, cfg, cloud, log, args):
     cfgin = cfg.get('snappy')
     if not cfgin:
@@ -187,11 +195,12 @@ def handle(name, cfg, cloud, log, args):
                               configs=mycfg['configs'],
                               fspath=mycfg['packages_dir'])
 
+    set_snappy_command()
+
     fails = []
     for pkg_op in pkg_ops:
         try:
-            render_snap_op(op=pkg_op['op'], name=pkg_op['name'],
-                           cfgfile=pkg_op['cfgfile'], config=pkg_op['config'])
+            render_snap_op(**pkg_op)
         except Exception as e:
             fails.append((pkg_op, e,))
             LOG.warn("'%s' failed for '%s': %s",
