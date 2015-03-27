@@ -82,7 +82,7 @@ def get_fs_package_ops(fspath):
     for snapfile in sorted(glob.glob(os.path.sep.join([fspath, '*.snap']))):
         (name, shortname, fname_noext) = parse_filename(snapfile)
         cfg = None
-        for cand in set((fname_noext, name, shortname,)):
+        for cand in (fname_noext, name, shortname):
             fpcand = os.path.sep.join([fspath, cand]) + ".config"
             if os.path.isfile(fpcand):
                 cfg = fpcand
