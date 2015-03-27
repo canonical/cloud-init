@@ -174,6 +174,7 @@ def render_snap_op(op, name, path=None, cfgfile=None, config=None):
             if cfgfile:
                 cmd.append('--config=' + cfgfile)
             if path:
+                cmd.append("--allow-unauthenticated")
                 cmd.append(path)
             else:
                 cmd.append(name)
