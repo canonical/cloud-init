@@ -28,6 +28,7 @@
    (LP: #1422388)
  - readurl, read_file_or_url returns bytes, user must convert as necessary
  - SmartOS: use v2 metadata service (LP: #1436417) [Daniel Watkins]
+ - NoCloud: fix local datasource claiming found without explicit dsmode
 0.7.6:
  - open 0.7.6
  - Enable vendordata on CloudSigma datasource (LP: #1303986)

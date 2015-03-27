@@ -124,7 +124,7 @@ class DataSourceNoCloud(sources.DataSource):
                     # that is more likely to be what is desired.  If they want
                     # dsmode of local, then they must specify that.
                     if 'dsmode' not in mydata['meta-data']:
-                        mydata['dsmode'] = "net"
+                        mydata['meta-data']['dsmode'] = "net"
 
                     LOG.debug("Using data from %s", dev)
                     found.append(dev)
@@ -193,7 +193,8 @@ class DataSourceNoCloud(sources.DataSource):
             self.vendordata = mydata['vendor-data']
             return True
 
-        LOG.debug("%s: not claiming datasource, dsmode=%s", self, md['dsmode'])
+        LOG.debug("%s: not claiming datasource, dsmode=%s", self,
+                  mydata['meta-data']['dsmode'])
         return False
 
 
