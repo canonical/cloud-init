@@ -180,7 +180,7 @@ def read_installed_packages():
     ret = []
     for (name, date, version, dev) in read_pkg_data():
         if dev:
-            ret.append(NAMESPACE_DELIM.join(name, dev))
+            ret.append(NAMESPACE_DELIM.join([name, dev]))
         else:
             ret.append(name)
     return ret
