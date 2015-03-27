@@ -1,5 +1,36 @@
 # vi: ts=4 expandtab
 #
+"""
+snappy modules allows configuration of snappy.
+Example config:
+  #cloud-config
+  snappy:
+    system_snappy: auto
+    ssh_enabled: False
+    packages: [etcd, pkg2]
+    configs:
+      pkgname: pkgname-config-blob
+      pkg2: config-blob
+    packages_dir: '/writable/user-data/cloud-init/snaps'
+
+ - ssh_enabled:
+   This defaults to 'False'.  Set to a non-false value to enable ssh service
+ - snap installation and config
+   The above would install 'etcd', and then install 'pkg2' with a
+   '--config=<file>' argument where 'file' as 'config-blob' inside it.
+   If 'pkgname' is installed already, then 'snappy config pkgname <file>'
+   will be called where 'file' has 'pkgname-config-blob' as its content.
+
+   If 'packages_dir' has files in it that end in '.snap', then they are
+   installed.  Given 3 files:
+     <packages_dir>/foo.snap
+     <packages_dir>/foo.config
+     <packages_dir>/bar.snap
+   cloud-init will invoke:
+     snappy install "--config=<packages_dir>/foo.config" \
+         <packages_dir>/foo.snap
+     snappy install <packages_dir>/bar.snap
+"""
 
 from cloudinit import log as logging
 from cloudinit import templater
@@ -18,23 +49,11 @@ SNAPPY_CMD = "snappy"
 
 BUILTIN_CFG = {
     'packages': [],
-    'packages_dir': '/writable/user-data/cloud-init/click_packages',
+    'packages_dir': '/writable/user-data/cloud-init/snaps',
     'ssh_enabled': False,
     'system_snappy': "auto",
     'configs': {},
 }
-
-"""
-snappy:
-  system_snappy: auto
-  ssh_enabled: True
-  packages:
-    - etcd
-    - pkg2
-  configs:
-    pkgname: config-blob
-    pkgname2: config-blob
-"""
 
 
 def get_fs_package_ops(fspath):
