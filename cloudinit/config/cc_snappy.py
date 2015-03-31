@@ -19,7 +19,7 @@ Example config:
    This defaults to 'False'.  Set to a non-false value to enable ssh service
  - snap installation and config
    The above would install 'etcd', and then install 'pkg2.smoser' with a
-   '--config=<file>' argument where 'file' as 'config-blob' inside it.
+   '<config-file>' argument where 'config-file' has 'config-blob' inside it.
    If 'pkgname' is installed already, then 'snappy config pkgname <file>'
    will be called where 'file' has 'pkgname-config-blob' as its content.
 
@@ -33,8 +33,7 @@ Example config:
      <packages_dir>/foo.config
      <packages_dir>/bar.snap
    cloud-init will invoke:
-     snappy install "--config=<packages_dir>/foo.config" \
-         <packages_dir>/foo.snap
+     snappy install <packages_dir>/foo.snap <packages_dir>/foo.config
      snappy install <packages_dir>/bar.snap
 
    Note, that if provided a 'config' entry for 'ubuntu-core', then
@@ -171,13 +170,13 @@ def render_snap_op(op, name, path=None, cfgfile=None, config=None):
 
         cmd = [SNAPPY_CMD, op]
         if op == 'install':
-            if cfgfile:
-                cmd.append('--config=' + cfgfile)
             if path:
                 cmd.append("--allow-unauthenticated")
                 cmd.append(path)
             else:
                 cmd.append(name)
+            if cfgfile:
+                cmd.append(cfgfile)
         elif op == 'config':
             cmd += [name, cfgfile]
 

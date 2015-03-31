@@ -53,15 +53,17 @@ class TestInstallPackages(t_help.TestCase):
             config = None
             pkg = None
             for arg in args[2:]:
-                if arg.startswith("--config="):
-                    cfgfile = arg.partition("=")[2]
+                if arg.startswith("-"):
+                    continue
+                if not pkg:
+                    pkg = arg
+                elif not config:
+                    cfgfile = arg
                     if cfgfile == "-":
                         config = kwargs.get('data', '')
                     elif cfgfile:
                         with open(cfgfile, "rb") as fp:
                             config = yaml.safe_load(fp.read())
-                elif not pkg and not arg.startswith("-"):
-                    pkg = arg
             self.snapcmds.append(['install', pkg, config])
 
     def test_package_ops_1(self):
