@@ -1,3 +1,11 @@
+cloud-init (0.7.7~bzr1088-0ubuntu1) vivid; urgency=medium
+
+  * New upstream snapshot.
+    * adjust cc_snappy for snappy install package with config. (LP: #1438836)
+      snappy install takes config as argument rather than '--config' flag.
+
+ -- Scott Moser <smoser@ubuntu.com>  Tue, 31 Mar 2015 14:21:48 -0400
+
 cloud-init (0.7.7~bzr1087-0ubuntu1) vivid; urgency=medium
 
   * New upstream snapshot.
