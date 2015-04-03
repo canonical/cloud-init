@@ -11,3 +11,7 @@ override_dh_auto_test:
 	# We set http_proxy because of httpretty issue 122 trunk has worked
 	# around that but to support cloud-init that has not.
 	http_proxy= dh_auto_test -- --test-nose
+
+override_dh_systemd_start:
+	dh_systemd_start --no-restart-on-upgrade --no-start
+

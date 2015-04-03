@@ -1,3 +1,16 @@
+cloud-init (0.7.7~bzr1088-0ubuntu2) vivid; urgency=medium
+
+  [ Didier Roche ]
+  * Don't start or restart cloud-init services on install and upgrade
+    (LP: #1438520)
+
+  [ Scott Moser ]
+  * d/control: Build-Depends on iproute2 (tests)
+  * d/control: Only Recommend (not both Depend and Recommend)
+    software-properties-common
+
+ -- Scott Moser <smoser@ubuntu.com>  Fri, 03 Apr 2015 11:13:28 -0400
+
 cloud-init (0.7.7~bzr1088-0ubuntu1) vivid; urgency=medium
 
   * New upstream snapshot.

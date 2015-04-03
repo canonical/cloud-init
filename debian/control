@@ -5,6 +5,7 @@ Maintainer: Scott Moser <smoser@ubuntu.com>
 Build-Depends: debhelper (>= 9),
                dh-python,
                dh-systemd,
+               iproute2,
                po-debconf,
                pyflakes,
                python3,
@@ -33,7 +34,6 @@ Depends: cloud-guest-utils | cloud-utils,
          procps,
          python3,
          python3-requests (>= 0.8.2),
-         software-properties-common,
          ${misc:Depends},
          ${python3:Depends}
 Recommends: eatmydata, software-properties-common
