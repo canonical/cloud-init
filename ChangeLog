@@ -30,6 +30,8 @@
  - SmartOS: use v2 metadata service (LP: #1436417) [Daniel Watkins]
  - NoCloud: fix local datasource claiming found without explicit dsmode
  - Snappy: add support for installing snappy packages and configuring.
+ - systemd: use network-online instead of network.target (LP: #1440180)
+   [Steve Langasek]
 0.7.6:
  - open 0.7.6
  - Enable vendordata on CloudSigma datasource (LP: #1303986)

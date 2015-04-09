@@ -1,7 +1,7 @@
 [Unit]
 Description=Execute cloud user/final scripts
-After=network.target cloud-config.service syslog.target rc-local.service
-Wants=network.target cloud-config.service
+After=network-online.target cloud-config.service syslog.target rc-local.service
+Wants=network-online.target cloud-config.service
 
 [Service]
 Type=oneshot
