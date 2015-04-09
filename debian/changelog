@@ -1,3 +1,12 @@
+cloud-init (0.7.7~bzr1088-0ubuntu3) vivid; urgency=medium
+
+  * systemd/*.service: don't declare a Wants/Requires on network.target; this
+    is a passive target that should only be pulled in by implementors of the
+    networking service.  The requirement for network needs to be 
+    expressed as a dependency on network-online.target.  LP: #1440180.
+
+ -- Steve Langasek <steve.langasek@ubuntu.com>  Thu, 09 Apr 2015 07:35:55 -0700
+
 cloud-init (0.7.7~bzr1088-0ubuntu2) vivid; urgency=medium
 
   [ Didier Roche ]
