@@ -318,6 +318,7 @@ class Distro(object):
             "gecos": '--comment',
             "homedir": '--home',
             "primary_group": '--gid',
+            "uid": '--uid',
             "groups": '--groups',
             "passwd": '--password',
             "shell": '--shell',
