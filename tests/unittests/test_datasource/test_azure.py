@@ -439,12 +439,24 @@ class TestAzureBounce(TestCase):
         }
         return construct_valid_ovf_env(data=odata)
 
+    def test_disabled_bounce_does_not_change_hostname(self):
+        cfg = {'hostname_bounce': {'policy': 'off'}}
+        self._get_ds(self.get_ovf_env_with_dscfg('test-host', cfg)).get_data()
+        self.assertEqual(0, self.set_hostname.call_count)
+
     @mock.patch('cloudinit.sources.DataSourceAzure.perform_hostname_bounce')
     def test_disabled_bounce_does_not_perform_bounce(
             self, perform_hostname_bounce):
         cfg = {'hostname_bounce': {'policy': 'off'}}
         self._get_ds(self.get_ovf_env_with_dscfg('test-host', cfg)).get_data()
         self.assertEqual(0, perform_hostname_bounce.call_count)
+
+    def test_same_hostname_does_not_change_hostname(self):
+        host_name = 'unchanged-host-name'
+        self.get_hostname.return_value = host_name
+        cfg = {'hostname_bounce': {'policy': 'yes'}}
+        self._get_ds(self.get_ovf_env_with_dscfg(host_name, cfg)).get_data()
+        self.assertEqual(0, self.set_hostname.call_count)
 
     @mock.patch('cloudinit.sources.DataSourceAzure.perform_hostname_bounce')
     def test_unchanged_hostname_does_not_perform_bounce(
@@ -479,6 +491,25 @@ class TestAzureBounce(TestCase):
         self._get_ds(
             self.get_ovf_env_with_dscfg(expected_hostname, {})).get_data()
         self.assertEqual(1, perform_hostname_bounce.call_count)
+
+    def test_different_hostnames_sets_hostname_back(self):
+        initial_host_name = 'default-host-name'
+        self.get_hostname.return_value = initial_host_name
+        self._get_ds(
+            self.get_ovf_env_with_dscfg('some-host-name', {})).get_data()
+        self.assertEqual(initial_host_name,
+                         self.set_hostname.call_args_list[-1][0][0])
+
+    @mock.patch('cloudinit.sources.DataSourceAzure.perform_hostname_bounce')
+    def test_failure_in_bounce_still_resets_host_name(
+            self, perform_hostname_bounce):
+        perform_hostname_bounce.side_effect = Exception
+        initial_host_name = 'default-host-name'
+        self.get_hostname.return_value = initial_host_name
+        self._get_ds(
+            self.get_ovf_env_with_dscfg('some-host-name', {})).get_data()
+        self.assertEqual(initial_host_name,
+                         self.set_hostname.call_args_list[-1][0][0])
 
     def test_environment_correct_for_bounce_command(self):
         interface = 'int0'
