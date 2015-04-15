@@ -66,6 +66,14 @@ DS_CFG_PATH = ['datasource', DS_NAME]
 DEF_EPHEMERAL_LABEL = 'Temporary Storage'
 
 
+def get_hostname(hostname_command='hostname'):
+    return util.subp(hostname_command, capture=True)[0].strip()
+
+
+def set_hostname(hostname, hostname_command='hostname'):
+    util.subp([hostname_command, hostname])
+
+
 class DataSourceAzureNet(sources.DataSource):
     def __init__(self, sys_cfg, distro, paths):
         sources.DataSource.__init__(self, sys_cfg, distro, paths)
@@ -313,13 +321,22 @@ def handle_set_hostname(enabled, hostname, cfg):
                           hostname_command=cfg['hostname_command'])
 
 
+def perform_hostname_bounce(command, env):
+    shell = not isinstance(command, (list, tuple))
+    # capture=False, see comments in bug 1202758 and bug 1206164.
+    util.log_time(logfunc=LOG.debug, msg="publishing hostname",
+                  get_uptime=True, func=util.subp,
+                  kwargs={'args': command, 'shell': shell, 'capture': False,
+                          'env': env})
+
+
 def apply_hostname_bounce(hostname, policy, interface, command,
                           hostname_command="hostname"):
     # set the hostname to 'hostname' if it is not already set to that.
     # then, if policy is not off, bounce the interface using command
-    prev_hostname = util.subp(hostname_command, capture=True)[0].strip()
+    prev_hostname = get_hostname()
 
-    util.subp([hostname_command, hostname])
+    set_hostname(hostname, hostname_command)
 
     msg = ("phostname=%s hostname=%s policy=%s interface=%s" %
            (prev_hostname, hostname, policy, interface))
@@ -341,12 +358,7 @@ def apply_hostname_bounce(hostname, policy, interface, command,
         command = BOUNCE_COMMAND
 
     LOG.debug("pubhname: publishing hostname [%s]", msg)
-    shell = not isinstance(command, (list, tuple))
-    # capture=False, see comments in bug 1202758 and bug 1206164.
-    util.log_time(logfunc=LOG.debug, msg="publishing hostname",
-        get_uptime=True, func=util.subp,
-        kwargs={'args': command, 'shell': shell, 'capture': False,
-                'env': env})
+    perform_hostname_bounce(command, env)
 
 
 def crtfile_to_pubkey(fname):
