@@ -49,6 +49,7 @@ INCLUDE_TYPES = ['text/x-include-url', 'text/x-include-once-url']
 ARCHIVE_TYPES = ["text/cloud-config-archive"]
 UNDEF_TYPE = "text/plain"
 ARCHIVE_UNDEF_TYPE = "text/cloud-config"
+ARCHIVE_UNDEF_BINARY_TYPE = "application/octet-stream"
 
 # This seems to hit most of the gzip possible content types.
 DECOMP_TYPES = [
@@ -265,11 +266,15 @@ class UserDataProcessor(object):
             content = ent.get('content', '')
             mtype = ent.get('type')
             if not mtype:
-                mtype = handlers.type_from_starts_with(content,
-                                                       ARCHIVE_UNDEF_TYPE)
+                default = ARCHIVE_UNDEF_TYPE
+                if isinstance(content, six.binary_type):
+                    default = ARCHIVE_UNDEF_BINARY_TYPE
+                mtype = handlers.type_from_starts_with(content, default)
 
             maintype, subtype = mtype.split('/', 1)
             if maintype == "text":
+                if isinstance(content, six.binary_type):
+                    content = content.decode()
                 msg = MIMEText(content, _subtype=subtype)
             else:
                 msg = MIMEBase(maintype, subtype)

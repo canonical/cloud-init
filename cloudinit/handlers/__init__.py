@@ -263,7 +263,10 @@ def fixup_handler(mod, def_freq=PER_INSTANCE):
 
 
 def type_from_starts_with(payload, default=None):
-    payload_lc = payload.lower()
+    try:
+        payload_lc = util.decode_binary(payload).lower()
+    except UnicodeDecodeError:
+        return default
     payload_lc = payload_lc.lstrip()
     for text in INCLUSION_SRCH:
         if payload_lc.startswith(text):
