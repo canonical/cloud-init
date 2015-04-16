@@ -72,7 +72,7 @@ def parse_filename(fname):
     name = fname_noext.partition("_")[0]
     shortname = name.partition(".")[0]
     return(name, shortname, fname_noext)
-    
+
 
 def get_fs_package_ops(fspath):
     if not fspath:
@@ -98,7 +98,7 @@ def makeop(op, name, config=None, path=None, cfgfile=None):
 
 def get_package_config(configs, name):
     # load the package's config from the configs dict.
-    # prefer full-name entry (config-example.canonical) 
+    # prefer full-name entry (config-example.canonical)
     # over short name entry (config-example)
     if name in configs:
         return configs[name]

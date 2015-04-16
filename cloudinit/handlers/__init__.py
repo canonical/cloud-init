@@ -170,12 +170,12 @@ def _extract_first_or_bytes(blob, size):
             start = blob.split("\n", 1)[0]
         else:
             # We want to avoid decoding the whole blob (it might be huge)
-            # By taking 4*size bytes we have a guarantee to decode size utf8 chars
-            start = blob[:4*size].decode(errors='ignore').split("\n", 1)[0]
+            # By taking 4*size bytes we guarantee to decode size utf8 chars
+            start = blob[:4 * size].decode(errors='ignore').split("\n", 1)[0]
         if len(start) >= size:
             start = start[:size]
     except UnicodeDecodeError:
-        # Bytes array doesn't contain a text object -- return chunk of raw bytes
+        # Bytes array doesn't contain text so return chunk of raw bytes
         start = blob[0:size]
     return start
 
