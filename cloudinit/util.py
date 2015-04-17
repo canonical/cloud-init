@@ -121,8 +121,12 @@ def fully_decoded_payload(part):
     if (six.PY3 and
             part.get_content_maintype() == 'text' and
             isinstance(cte_payload, bytes)):
-        charset = part.get_charset() or 'utf-8'
-        return cte_payload.decode(charset, errors='surrogateescape')
+        charset = part.get_charset()
+        if charset and charset.input_codec:
+            encoding = charset.input_codec
+        else:
+            encoding = 'utf-8'
+        return cte_payload.decode(encoding, errors='surrogateescape')
     return cte_payload
 
 

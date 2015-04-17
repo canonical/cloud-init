@@ -494,10 +494,10 @@ c: 4
             ])
 
     def test_mime_application_octet_stream(self):
-        """Mime message of type application/octet-stream is ignored but shows warning."""
+        """Mime type application/octet-stream is ignored but shows warning."""
         ci = stages.Init()
         message = MIMEBase("application", "octet-stream")
-        message.set_payload(b'\xbf\xe6\xb2\xc3\xd3\xba\x13\xa4\xd8\xa1\xcc\xbf')
+        message.set_payload(b'\xbf\xe6\xb2\xc3\xd3\xba\x13\xa4\xd8\xa1\xcc')
         encoders.encode_base64(message)
         ci.datasource = FakeDataSource(message.as_string().encode())
 
@@ -510,6 +510,34 @@ c: 4
                 log_file.getvalue())
         mockobj.assert_called_once_with(
             ci.paths.get_ipath("cloud_config"), "", 0o600)
+
+
+    def test_cloud_config_archive(self):
+        non_decodable = b'\x11\xc9\xb4gTH\xee\x12'
+        data = [{'content': '#cloud-config\npassword: gocubs\n'},
+                {'content': '#cloud-config\nlocale: chicago\n'},
+                {'content': non_decodable}]
+        message = b'#cloud-config-archive\n' + util.yaml_dumps(data).encode()
+
+        ci = stages.Init()
+        ci.datasource = FakeDataSource(message)
+
+        fs = {}
+
+        def fsstore(filename, content, mode=0o0644, omode="wb"):
+            fs[filename] = content
+
+        # consuming the user-data provided should write 'cloud_config' file
+        # which will have our yaml in it.
+        with mock.patch('cloudinit.util.write_file') as mockobj:
+            mockobj.side_effect = fsstore
+            ci.fetch()
+            ci.consume_data()
+
+        cfg = util.load_yaml(fs[ci.paths.get_ipath("cloud_config")])
+        self.assertEqual(cfg.get('password'), 'gocubs')
+        self.assertEqual(cfg.get('locale'), 'chicago')
+
 
 class TestUDProcess(helpers.ResourceUsingTestCase):
 

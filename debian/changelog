@@ -1,3 +1,10 @@
+cloud-init (0.7.7~bzr1091-0ubuntu1) vivid; urgency=medium
+
+  * New upstream snapshot.
+    * fix processing of user-data in cloud-config-archive format (LP: #1445143)
+
+ -- Scott Moser <smoser@ubuntu.com>  Fri, 17 Apr 2015 12:04:16 -0400
+
 cloud-init (0.7.7~bzr1088-0ubuntu3) vivid; urgency=medium
 
   * systemd/*.service: don't declare a Wants/Requires on network.target; this

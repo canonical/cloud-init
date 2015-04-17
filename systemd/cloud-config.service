@@ -1,7 +1,7 @@
 [Unit]
 Description=Apply the settings specified in cloud-config
-After=network.target cloud-config.target syslog.target
-Wants=network.target cloud-config.target
+After=network-online.target cloud-config.target syslog.target
+Wants=network-online.target cloud-config.target
 
 [Service]
 Type=oneshot
