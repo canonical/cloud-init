@@ -93,14 +93,14 @@ class DataSourceGCE(sources.DataSource):
 
         metadata_fetcher = GoogleMetadataFetcher(self.metadata_address)
         # iterate over url_map keys to get metadata items
-        found = False
+        running_on_gce = False
         for (mkey, path, required, is_text) in url_map:
             value = metadata_fetcher.get_value(path, is_text)
             if value:
-                found = True
+                running_on_gce = True
             if required and value is None:
                 msg = "required url %s returned nothing. not GCE"
-                if not found:
+                if not running_on_gce:
                     LOG.debug(msg, path)
                 else:
                     LOG.warn(msg, path)
@@ -119,7 +119,7 @@ class DataSourceGCE(sources.DataSource):
             else:
                 LOG.warn('unknown user-data-encoding: %s, ignoring', encoding)
 
-        return found
+        return running_on_gce
 
     @property
     def launch_index(self):
