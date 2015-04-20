@@ -141,3 +141,14 @@ class TestDataSourceGCE(test_helpers.HttprettyTestCase):
         decoded = b64decode(
             GCE_META_ENCODING.get('instance/attributes/user-data'))
         self.assertEqual(decoded, self.ds.get_userdata_raw())
+
+    @httpretty.activate
+    def test_missing_required_keys_return_false(self):
+        for required_key in ['instance/id', 'instance/zone',
+                             'instance/hostname']:
+            meta = GCE_META_PARTIAL.copy()
+            del meta[required_key]
+            httpretty.register_uri(httpretty.GET, MD_URL_RE,
+                                   body=_new_request_callback(meta))
+            self.assertEqual(False, self.ds.get_data())
+            httpretty.reset()
