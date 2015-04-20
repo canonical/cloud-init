@@ -77,12 +77,12 @@ class DataSourceGCE(sources.DataSource):
     def get_data(self):
         # url_map: (our-key, path, required, is_text)
         url_map = [
-            ('instance-id', 'instance/id', True, True),
-            ('availability-zone', 'instance/zone', True, True),
-            ('local-hostname', 'instance/hostname', True, True),
-            ('public-keys', 'project/attributes/sshKeys', False, True),
-            ('user-data', 'instance/attributes/user-data', False, False),
-            ('user-data-encoding', 'instance/attributes/user-data-encoding',
+            ('instance-id', ('instance/id',), True, True),
+            ('availability-zone', ('instance/zone',), True, True),
+            ('local-hostname', ('instance/hostname',), True, True),
+            ('public-keys', ('project/attributes/sshKeys',), False, True),
+            ('user-data', ('instance/attributes/user-data',), False, False),
+            ('user-data-encoding', ('instance/attributes/user-data-encoding',),
              False, True),
         ]
 
@@ -94,16 +94,20 @@ class DataSourceGCE(sources.DataSource):
         metadata_fetcher = GoogleMetadataFetcher(self.metadata_address)
         # iterate over url_map keys to get metadata items
         running_on_gce = False
-        for (mkey, path, required, is_text) in url_map:
-            value = metadata_fetcher.get_value(path, is_text)
+        for (mkey, paths, required, is_text) in url_map:
+            value = None
+            for path in paths:
+                new_value = metadata_fetcher.get_value(path, is_text)
+                if new_value is not None:
+                    value = new_value
             if value:
                 running_on_gce = True
             if required and value is None:
-                msg = "required url %s returned nothing. not GCE"
+                msg = "required key %s returned nothing. not GCE"
                 if not running_on_gce:
-                    LOG.debug(msg, path)
+                    LOG.debug(msg, mkey)
                 else:
-                    LOG.warn(msg, path)
+                    LOG.warn(msg, mkey)
                 return False
             self.metadata[mkey] = value
 
