@@ -113,10 +113,6 @@ class TestDataSourceGCE(test_helpers.HttprettyTestCase):
         self.assertEqual(GCE_META.get('instance/attributes/user-data'),
                          self.ds.get_userdata_raw())
 
-        # we expect a list of public ssh keys with user names stripped
-        self.assertEqual(['ssh-rsa AA2..+aRD0fyVw== root@server'],
-                         self.ds.get_public_ssh_keys())
-
     # test partial metadata (missing user-data in particular)
     @httpretty.activate
     def test_metadata_partial(self):
@@ -152,3 +148,37 @@ class TestDataSourceGCE(test_helpers.HttprettyTestCase):
                                    body=_new_request_callback(meta))
             self.assertEqual(False, self.ds.get_data())
             httpretty.reset()
+
+    @httpretty.activate
+    def test_project_level_ssh_keys_are_used(self):
+        httpretty.register_uri(httpretty.GET, MD_URL_RE,
+                               body=_new_request_callback())
+        self.ds.get_data()
+
+        # we expect a list of public ssh keys with user names stripped
+        self.assertEqual(['ssh-rsa AA2..+aRD0fyVw== root@server'],
+                         self.ds.get_public_ssh_keys())
+
+    @httpretty.activate
+    def test_instance_level_ssh_keys_are_used(self):
+        key_content = 'ssh-rsa JustAUser root@server'
+        meta = GCE_META.copy()
+        meta['instance/attributes/sshKeys'] = 'user:{0}'.format(key_content)
+
+        httpretty.register_uri(httpretty.GET, MD_URL_RE,
+                               body=_new_request_callback(meta))
+        self.ds.get_data()
+
+        self.assertIn(key_content, self.ds.get_public_ssh_keys())
+
+    @httpretty.activate
+    def test_instance_level_keys_replace_project_level_keys(self):
+        key_content = 'ssh-rsa JustAUser root@server'
+        meta = GCE_META.copy()
+        meta['instance/attributes/sshKeys'] = 'user:{0}'.format(key_content)
+
+        httpretty.register_uri(httpretty.GET, MD_URL_RE,
+                               body=_new_request_callback(meta))
+        self.ds.get_data()
+
+        self.assertEqual([key_content], self.ds.get_public_ssh_keys())
