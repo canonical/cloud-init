@@ -30,6 +30,31 @@ BUILTIN_DS_CONFIG = {
 REQUIRED_FIELDS = ('instance-id', 'availability-zone', 'local-hostname')
 
 
+class GoogleMetadataFetcher(object):
+    headers = {'X-Google-Metadata-Request': True}
+
+    def __init__(self, metadata_address):
+        self.metadata_address = metadata_address
+
+    def get_value(self, path, is_text):
+        value = None
+        try:
+            resp = url_helper.readurl(url=self.metadata_address + path,
+                                      headers=self.headers)
+        except url_helper.UrlError as exc:
+            msg = "url %s raised exception %s"
+            LOG.debug(msg, path, exc)
+        else:
+            if resp.code == 200:
+                if is_text:
+                    value = util.decode_binary(resp.contents)
+                else:
+                    value = resp.contents
+            else:
+                LOG.debug("url %s returned code %s", path, resp.code)
+        return value
+
+
 class DataSourceGCE(sources.DataSource):
     def __init__(self, sys_cfg, distro, paths):
         sources.DataSource.__init__(self, sys_cfg, distro, paths)
@@ -50,9 +75,6 @@ class DataSourceGCE(sources.DataSource):
             return public_key
 
     def get_data(self):
-        # GCE metadata server requires a custom header since v1
-        headers = {'X-Google-Metadata-Request': True}
-
         # url_map: (our-key, path, required, is_text)
         url_map = [
             ('instance-id', 'instance/id', True, True),
@@ -69,40 +91,21 @@ class DataSourceGCE(sources.DataSource):
             LOG.debug("%s is not resolvable", self.metadata_address)
             return False
 
+        metadata_fetcher = GoogleMetadataFetcher(self.metadata_address)
         # iterate over url_map keys to get metadata items
         found = False
         for (mkey, path, required, is_text) in url_map:
-            try:
-                resp = url_helper.readurl(url=self.metadata_address + path,
-                                          headers=headers)
-                if resp.code == 200:
-                    found = True
-                    if is_text:
-                        self.metadata[mkey] = util.decode_binary(resp.contents)
-                    else:
-                        self.metadata[mkey] = resp.contents
+            value = metadata_fetcher.get_value(path, is_text)
+            if value:
+                found = True
+            if required and value is None:
+                msg = "required url %s returned nothing. not GCE"
+                if not found:
+                    LOG.debug(msg, path)
                 else:
-                    if required:
-                        msg = "required url %s returned code %s. not GCE"
-                        if not found:
-                            LOG.debug(msg, path, resp.code)
-                        else:
-                            LOG.warn(msg, path, resp.code)
-                        return False
-                    else:
-                        self.metadata[mkey] = None
-            except url_helper.UrlError as e:
-                if required:
-                    msg = "required url %s raised exception %s. not GCE"
-                    if not found:
-                        LOG.debug(msg, path, e)
-                    else:
-                        LOG.warn(msg, path, e)
-                    return False
-                msg = "Failed to get %s metadata item: %s."
-                LOG.debug(msg, path, e)
-
-                self.metadata[mkey] = None
+                    LOG.warn(msg, path)
+                return False
+            self.metadata[mkey] = value
 
         if self.metadata['public-keys']:
             lines = self.metadata['public-keys'].splitlines()
