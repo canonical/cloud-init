@@ -32,6 +32,8 @@
  - Snappy: add support for installing snappy packages and configuring.
  - systemd: use network-online instead of network.target (LP: #1440180)
    [Steve Langasek]
+ - Add functionality to fixate the uid of a newly added user.
+ - Don't overwrite the hostname if the user has changed it after we set it.
 0.7.6:
  - open 0.7.6
  - Enable vendordata on CloudSigma datasource (LP: #1303986)
