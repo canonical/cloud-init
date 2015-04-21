@@ -34,6 +34,7 @@
    [Steve Langasek]
  - Add functionality to fixate the uid of a newly added user.
  - Don't overwrite the hostname if the user has changed it after we set it.
+ - GCE datasource does not handle instance ssh keys (LP: 1403617)
 0.7.6:
  - open 0.7.6
  - Enable vendordata on CloudSigma datasource (LP: #1303986)
