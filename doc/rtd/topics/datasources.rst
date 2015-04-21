@@ -166,7 +166,7 @@ For now see: http://maas.ubuntu.com/
 CloudStack
 ---------------------------
 
-*TODO*
+.. include:: ../../sources/cloudstack/README.rst
 
 ---------------------------
 OVF
