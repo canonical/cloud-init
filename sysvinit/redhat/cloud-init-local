@@ -23,9 +23,12 @@
 # See: http://www.novell.com/coolsolutions/feature/15380.html
 # Also based on dhcpd in RHEL (for comparison)
 
+# Bring this up before network, S10
+#chkconfig: 2345 09 91
+
 ### BEGIN INIT INFO
 # Provides:          cloud-init-local
-# Required-Start:    $local_fs $remote_fs
+# Required-Start:    $local_fs
 # Should-Start:      $time
 # Required-Stop:
 # Should-Stop:

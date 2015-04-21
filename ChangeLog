@@ -35,6 +35,8 @@
  - Add functionality to fixate the uid of a newly added user.
  - Don't overwrite the hostname if the user has changed it after we set it.
  - GCE datasource does not handle instance ssh keys (LP: 1403617)
+ - sysvinit: make cloud-init-local run before network (LP: #1275098)
+   [Surojit Pathak]
 0.7.6:
  - open 0.7.6
  - Enable vendordata on CloudSigma datasource (LP: #1303986)

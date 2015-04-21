@@ -40,7 +40,7 @@ PKG_MP = {
         'jinja2': 'python-jinja2',
         'configobj': 'python-configobj',
         'jsonpatch': 'python-jsonpatch',
-        'oauth': 'python-oauth',
+        'oauthlib': 'python-oauth',
         'prettytable': 'python-prettytable',
         'pyserial': 'pyserial',
         'pyyaml': 'PyYAML',
