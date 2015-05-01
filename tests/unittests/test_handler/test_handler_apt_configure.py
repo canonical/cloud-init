@@ -7,7 +7,6 @@ import os
 import re
 import shutil
 import tempfile
-import unittest
 
 
 class TestAptProxyConfig(TestCase):

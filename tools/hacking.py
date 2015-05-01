@@ -128,7 +128,7 @@ def cloud_docstring_multiline_end(physical_line):
     """
     pos = max([physical_line.find(i) for i in DOCSTRING_TRIPLE])  # start
     if (pos != -1 and len(physical_line) == pos):
-        print physical_line
+        print(physical_line)
         if (physical_line[pos + 3] == ' '):
             return (pos, "N403: multi line docstring end on new line")
 

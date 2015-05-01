@@ -18,10 +18,6 @@
 
 from __future__ import print_function
 
-import sys
-import six
-import unittest
-
 from . import helpers as test_helpers
 import textwrap
 
@@ -30,6 +26,7 @@ from cloudinit import templater
 try:
     import Cheetah
     HAS_CHEETAH = True
+    Cheetah  # make pyflakes happy, as Cheetah is not used here
 except ImportError:
     HAS_CHEETAH = False
 
