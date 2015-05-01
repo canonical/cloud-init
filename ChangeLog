@@ -37,6 +37,7 @@
  - GCE datasource does not handle instance ssh keys (LP: 1403617)
  - sysvinit: make cloud-init-local run before network (LP: #1275098)
    [Surojit Pathak]
+ - Azure: do not re-set hostname if user has changed it (LP: #1375252)
 0.7.6:
  - open 0.7.6
  - Enable vendordata on CloudSigma datasource (LP: #1303986)

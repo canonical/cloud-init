@@ -17,6 +17,7 @@
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import base64
+import contextlib
 import crypt
 import fnmatch
 import os
@@ -64,6 +65,36 @@ BUILTIN_CLOUD_CONFIG = {
 
 DS_CFG_PATH = ['datasource', DS_NAME]
 DEF_EPHEMERAL_LABEL = 'Temporary Storage'
+
+
+def get_hostname(hostname_command='hostname'):
+    return util.subp(hostname_command, capture=True)[0].strip()
+
+
+def set_hostname(hostname, hostname_command='hostname'):
+    util.subp([hostname_command, hostname])
+
+
+@contextlib.contextmanager
+def temporary_hostname(temp_hostname, cfg, hostname_command='hostname'):
+    """
+    Set a temporary hostname, restoring the previous hostname on exit.
+
+    Will have the value of the previous hostname when used as a context
+    manager, or None if the hostname was not changed.
+    """
+    policy = cfg['hostname_bounce']['policy']
+    previous_hostname = get_hostname(hostname_command)
+    if (not util.is_true(cfg.get('set_hostname'))
+            or util.is_false(policy)
+            or (previous_hostname == temp_hostname and policy != 'force')):
+        yield None
+        return
+    set_hostname(temp_hostname, hostname_command)
+    try:
+        yield previous_hostname
+    finally:
+        set_hostname(previous_hostname, hostname_command)
 
 
 class DataSourceAzureNet(sources.DataSource):
@@ -154,33 +185,40 @@ class DataSourceAzureNet(sources.DataSource):
         # the directory to be protected.
         write_files(ddir, files, dirmode=0o700)
 
-        # handle the hostname 'publishing'
-        try:
-            handle_set_hostname(mycfg.get('set_hostname'),
-                                self.metadata.get('local-hostname'),
-                                mycfg['hostname_bounce'])
-        except Exception as e:
-            LOG.warn("Failed publishing hostname: %s", e)
-            util.logexc(LOG, "handling set_hostname failed")
+        temp_hostname = self.metadata.get('local-hostname')
+        hostname_command = mycfg['hostname_bounce']['hostname_command']
+        with temporary_hostname(temp_hostname, mycfg,
+                                hostname_command=hostname_command) \
+                as previous_hostname:
+            if (previous_hostname is not None
+                    and util.is_true(mycfg.get('set_hostname'))):
+                cfg = mycfg['hostname_bounce']
+                try:
+                    perform_hostname_bounce(hostname=temp_hostname,
+                                            cfg=cfg,
+                                            prev_hostname=previous_hostname)
+                except Exception as e:
+                    LOG.warn("Failed publishing hostname: %s", e)
+                    util.logexc(LOG, "handling set_hostname failed")
 
-        try:
-            invoke_agent(mycfg['agent_command'])
-        except util.ProcessExecutionError:
-            # claim the datasource even if the command failed
-            util.logexc(LOG, "agent command '%s' failed.",
-                        mycfg['agent_command'])
+            try:
+                invoke_agent(mycfg['agent_command'])
+            except util.ProcessExecutionError:
+                # claim the datasource even if the command failed
+                util.logexc(LOG, "agent command '%s' failed.",
+                            mycfg['agent_command'])
 
-        shcfgxml = os.path.join(ddir, "SharedConfig.xml")
-        wait_for = [shcfgxml]
+            shcfgxml = os.path.join(ddir, "SharedConfig.xml")
+            wait_for = [shcfgxml]
 
-        fp_files = []
-        for pk in self.cfg.get('_pubkeys', []):
-            bname = str(pk['fingerprint'] + ".crt")
-            fp_files += [os.path.join(ddir, bname)]
+            fp_files = []
+            for pk in self.cfg.get('_pubkeys', []):
+                bname = str(pk['fingerprint'] + ".crt")
+                fp_files += [os.path.join(ddir, bname)]
 
-        missing = util.log_time(logfunc=LOG.debug, msg="waiting for files",
-                                func=wait_for_files,
-                                args=(wait_for + fp_files,))
+            missing = util.log_time(logfunc=LOG.debug, msg="waiting for files",
+                                    func=wait_for_files,
+                                    args=(wait_for + fp_files,))
         if len(missing):
             LOG.warn("Did not find files, but going on: %s", missing)
 
@@ -299,39 +337,15 @@ def support_new_ephemeral(cfg):
     return mod_list
 
 
-def handle_set_hostname(enabled, hostname, cfg):
-    if not util.is_true(enabled):
-        return
-
-    if not hostname:
-        LOG.warn("set_hostname was true but no local-hostname")
-        return
-
-    apply_hostname_bounce(hostname=hostname, policy=cfg['policy'],
-                          interface=cfg['interface'],
-                          command=cfg['command'],
-                          hostname_command=cfg['hostname_command'])
-
-
-def apply_hostname_bounce(hostname, policy, interface, command,
-                          hostname_command="hostname"):
+def perform_hostname_bounce(hostname, cfg, prev_hostname):
     # set the hostname to 'hostname' if it is not already set to that.
     # then, if policy is not off, bounce the interface using command
-    prev_hostname = util.subp(hostname_command, capture=True)[0].strip()
+    command = cfg['command']
+    interface = cfg['interface']
+    policy = cfg['policy']
 
-    util.subp([hostname_command, hostname])
-
-    msg = ("phostname=%s hostname=%s policy=%s interface=%s" %
-           (prev_hostname, hostname, policy, interface))
-
-    if util.is_false(policy):
-        LOG.debug("pubhname: policy false, skipping [%s]", msg)
-        return
-
-    if prev_hostname == hostname and policy != "force":
-        LOG.debug("pubhname: no change, policy != force. skipping. [%s]", msg)
-        return
-
+    msg = ("hostname=%s policy=%s interface=%s" %
+           (hostname, policy, interface))
     env = os.environ.copy()
     env['interface'] = interface
     env['hostname'] = hostname
@@ -344,9 +358,9 @@ def apply_hostname_bounce(hostname, policy, interface, command,
     shell = not isinstance(command, (list, tuple))
     # capture=False, see comments in bug 1202758 and bug 1206164.
     util.log_time(logfunc=LOG.debug, msg="publishing hostname",
-        get_uptime=True, func=util.subp,
-        kwargs={'args': command, 'shell': shell, 'capture': False,
-                'env': env})
+                  get_uptime=True, func=util.subp,
+                  kwargs={'args': command, 'shell': shell, 'capture': False,
+                          'env': env})
 
 
 def crtfile_to_pubkey(fname):
