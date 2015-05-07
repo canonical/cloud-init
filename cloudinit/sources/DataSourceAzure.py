@@ -22,8 +22,14 @@ import crypt
 import fnmatch
 import os
 import os.path
+import re
+import socket
+import struct
+import tempfile
 import time
+from contextlib import contextmanager
 from xml.dom import minidom
+from xml.etree import ElementTree
 
 from cloudinit import log as logging
 from cloudinit.settings import PER_ALWAYS
@@ -34,13 +40,11 @@ LOG = logging.getLogger(__name__)
 
 DS_NAME = 'Azure'
 DEFAULT_METADATA = {"instance-id": "iid-AZURE-NODE"}
-AGENT_START = ['service', 'walinuxagent', 'start']
 BOUNCE_COMMAND = ['sh', '-xc',
     "i=$interface; x=0; ifdown $i || x=$?; ifup $i || x=$?; exit $x"]
 DATA_DIR_CLEAN_LIST = ['SharedConfig.xml']
 
 BUILTIN_DS_CONFIG = {
-    'agent_command': AGENT_START,
     'data_dir': "/var/lib/waagent",
     'set_hostname': True,
     'hostname_bounce': {
@@ -65,6 +69,231 @@ BUILTIN_CLOUD_CONFIG = {
 
 DS_CFG_PATH = ['datasource', DS_NAME]
 DEF_EPHEMERAL_LABEL = 'Temporary Storage'
+
+REPORT_READY_XML_TEMPLATE = """\
+<?xml version=\"1.0\" encoding=\"utf-8\"?>
+<Health xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xmlns:xsd=\"http://www.w3.org/2001/XMLSchema\">
+  <GoalStateIncarnation>{incarnation}</GoalStateIncarnation>
+  <Container>
+    <ContainerId>{container_id}</ContainerId>
+    <RoleInstanceList>
+      <Role>
+        <InstanceId>{instance_id}</InstanceId>
+        <Health>
+          <State>Ready</State>
+        </Health>
+      </Role>
+    </RoleInstanceList>
+  </Container>
+</Health>"""
+
+
+@contextmanager
+def cd(newdir):
+    prevdir = os.getcwd()
+    os.chdir(os.path.expanduser(newdir))
+    try:
+        yield
+    finally:
+        os.chdir(prevdir)
+
+
+class AzureEndpointHttpClient(object):
+
+    headers = {
+        'x-ms-agent-name': 'WALinuxAgent',
+        'x-ms-version': '2012-11-30',
+    }
+
+    def __init__(self, certificate):
+        self.extra_secure_headers = {
+            "x-ms-cipher-name": "DES_EDE3_CBC",
+            "x-ms-guest-agent-public-x509-cert": certificate,
+        }
+
+    def get(self, url, secure=False):
+        headers = self.headers
+        if secure:
+            headers = self.headers.copy()
+            headers.update(self.extra_secure_headers)
+        return util.read_file_or_url(url, headers=headers)
+
+    def post(self, url, data=None, extra_headers=None):
+        headers = self.headers
+        if extra_headers is not None:
+            headers = self.headers.copy()
+            headers.update(extra_headers)
+        return util.read_file_or_url(url, data=data, headers=headers)
+
+
+def find_endpoint():
+    content = util.load_file('/var/lib/dhcp/dhclient.eth0.leases')
+    value = None
+    for line in content.splitlines():
+        if 'unknown-245' in line:
+            value = line.strip(' ').split(' ', 2)[-1].strip(';\n"')
+    if value is None:
+        raise Exception('No endpoint found in DHCP config.')
+    if ':' in value:
+        hex_string = ''
+        for hex_pair in value.split(':'):
+            if len(hex_pair) == 1:
+                hex_pair = '0' + hex_pair
+            hex_string += hex_pair
+        value = struct.pack('>L', int(hex_string.replace(':', ''), 16))
+    else:
+        value = value.encode('utf-8')
+    return socket.inet_ntoa(value)
+
+
+class GoalState(object):
+
+    def __init__(self, xml, http_client):
+        self.http_client = http_client
+        self.root = ElementTree.fromstring(xml)
+
+    def _text_from_xpath(self, xpath):
+        element = self.root.find(xpath)
+        if element is not None:
+            return element.text
+        return None
+
+    @property
+    def container_id(self):
+        return self._text_from_xpath('./Container/ContainerId')
+
+    @property
+    def incarnation(self):
+        return self._text_from_xpath('./Incarnation')
+
+    @property
+    def instance_id(self):
+        return self._text_from_xpath(
+            './Container/RoleInstanceList/RoleInstance/InstanceId')
+
+    @property
+    def shared_config_xml(self):
+        url = self._text_from_xpath('./Container/RoleInstanceList/RoleInstance'
+                                    '/Configuration/SharedConfig')
+        return self.http_client.get(url).contents
+
+    @property
+    def certificates_xml(self):
+        url = self._text_from_xpath('./Container/RoleInstanceList/RoleInstance'
+                                    '/Configuration/Certificates')
+        if url is not None:
+            return self.http_client.get(url, secure=True).contents
+        return None
+
+
+class OpenSSLManager(object):
+
+    certificate_names = {
+        'private_key': 'TransportPrivate.pem',
+        'certificate': 'TransportCert.pem',
+    }
+
+    def __init__(self):
+        self.tmpdir = tempfile.TemporaryDirectory()
+        self.certificate = None
+        self.generate_certificate()
+
+    def generate_certificate(self):
+        if self.certificate is not None:
+            return
+        with cd(self.tmpdir.name):
+            util.subp([
+                'openssl', 'req', '-x509', '-nodes', '-subj',
+                '/CN=LinuxTransport', '-days', '32768', '-newkey', 'rsa:2048',
+                '-keyout', self.certificate_names['private_key'],
+                '-out', self.certificate_names['certificate'],
+            ])
+            certificate = ''
+            for line in open(self.certificate_names['certificate']):
+                if "CERTIFICATE" not in line:
+                    certificate += line.rstrip()
+            self.certificate = certificate
+
+    def parse_certificates(self, certificates_xml):
+        tag = ElementTree.fromstring(certificates_xml).find(
+            './/Data')
+        certificates_content = tag.text
+        lines = [
+            b'MIME-Version: 1.0',
+            b'Content-Disposition: attachment; filename="Certificates.p7m"',
+            b'Content-Type: application/x-pkcs7-mime; name="Certificates.p7m"',
+            b'Content-Transfer-Encoding: base64',
+            b'',
+            certificates_content.encode('utf-8'),
+        ]
+        with cd(self.tmpdir.name):
+            with open('Certificates.p7m', 'wb') as f:
+                f.write(b'\n'.join(lines))
+            out, _ = util.subp(
+                'openssl cms -decrypt -in Certificates.p7m -inkey'
+                ' {private_key} -recip {certificate} | openssl pkcs12 -nodes'
+                ' -password pass:'.format(**self.certificate_names),
+                shell=True)
+        private_keys, certificates = [], []
+        current = []
+        for line in out.splitlines():
+            current.append(line)
+            if re.match(r'[-]+END .*?KEY[-]+$', line):
+                private_keys.append('\n'.join(current))
+                current = []
+            elif re.match(r'[-]+END .*?CERTIFICATE[-]+$', line):
+                certificates.append('\n'.join(current))
+                current = []
+        keys = []
+        for certificate in certificates:
+            with cd(self.tmpdir.name):
+                public_key, _ = util.subp(
+                    'openssl x509 -noout -pubkey |'
+                    'ssh-keygen -i -m PKCS8 -f /dev/stdin',
+                    data=certificate,
+                    shell=True)
+            keys.append(public_key)
+        return keys
+
+
+class WALinuxAgentShim(object):
+
+    def __init__(self):
+        self.endpoint = find_endpoint()
+        self.goal_state = None
+        self.openssl_manager = OpenSSLManager()
+        self.http_client = AzureEndpointHttpClient(
+            self.openssl_manager.certificate)
+        self.values = {}
+
+    def register_with_azure_and_fetch_data(self):
+        LOG.info('Registering with Azure...')
+        for i in range(10):
+            try:
+                response = self.http_client.get(
+                    'http://{}/machine/?comp=goalstate'.format(self.endpoint))
+            except Exception:
+                time.sleep(i + 1)
+            else:
+                break
+        self.goal_state = GoalState(response.contents, self.http_client)
+        self.public_keys = []
+        if self.goal_state.certificates_xml is not None:
+            self.public_keys = self.openssl_manager.parse_certificates(
+                self.goal_state.certificates_xml)
+        self._report_ready()
+
+    def _report_ready(self):
+        document = REPORT_READY_XML_TEMPLATE.format(
+            incarnation=self.goal_state.incarnation,
+            container_id=self.goal_state.container_id,
+            instance_id=self.goal_state.instance_id,
+        )
+        self.http_client.post(
+            "http://{}/machine?comp=health".format(self.endpoint),
+            data=document,
+            extra_headers={'Content-Type': 'text/xml; charset=utf-8'},
+        )
 
 
 def get_hostname(hostname_command='hostname'):
@@ -185,53 +414,17 @@ class DataSourceAzureNet(sources.DataSource):
         # the directory to be protected.
         write_files(ddir, files, dirmode=0o700)
 
-        temp_hostname = self.metadata.get('local-hostname')
-        hostname_command = mycfg['hostname_bounce']['hostname_command']
-        with temporary_hostname(temp_hostname, mycfg,
-                                hostname_command=hostname_command) \
-                as previous_hostname:
-            if (previous_hostname is not None
-                    and util.is_true(mycfg.get('set_hostname'))):
-                cfg = mycfg['hostname_bounce']
-                try:
-                    perform_hostname_bounce(hostname=temp_hostname,
-                                            cfg=cfg,
-                                            prev_hostname=previous_hostname)
-                except Exception as e:
-                    LOG.warn("Failed publishing hostname: %s", e)
-                    util.logexc(LOG, "handling set_hostname failed")
+        shim = WALinuxAgentShim()
+        shim.register_with_azure_and_fetch_data()
 
-            try:
-                invoke_agent(mycfg['agent_command'])
-            except util.ProcessExecutionError:
-                # claim the datasource even if the command failed
-                util.logexc(LOG, "agent command '%s' failed.",
-                            mycfg['agent_command'])
+        try:
+            self.metadata['instance-id'] = iid_from_shared_config_content(
+                shim.goal_state.shared_config_xml)
+        except ValueError as e:
+            LOG.warn(
+                "failed to get instance id in %s: %s", shim.shared_config, e)
 
-            shcfgxml = os.path.join(ddir, "SharedConfig.xml")
-            wait_for = [shcfgxml]
-
-            fp_files = []
-            for pk in self.cfg.get('_pubkeys', []):
-                bname = str(pk['fingerprint'] + ".crt")
-                fp_files += [os.path.join(ddir, bname)]
-
-            missing = util.log_time(logfunc=LOG.debug, msg="waiting for files",
-                                    func=wait_for_files,
-                                    args=(wait_for + fp_files,))
-        if len(missing):
-            LOG.warn("Did not find files, but going on: %s", missing)
-
-        if shcfgxml in missing:
-            LOG.warn("SharedConfig.xml missing, using static instance-id")
-        else:
-            try:
-                self.metadata['instance-id'] = iid_from_shared_config(shcfgxml)
-            except ValueError as e:
-                LOG.warn("failed to get instance id in %s: %s", shcfgxml, e)
-
-        pubkeys = pubkeys_from_crt_files(fp_files)
-        self.metadata['public-keys'] = pubkeys
+        self.metadata['public-keys'] = shim.public_keys
 
         found_ephemeral = find_ephemeral_disk()
         if found_ephemeral:
@@ -363,10 +556,11 @@ def perform_hostname_bounce(hostname, cfg, prev_hostname):
                           'env': env})
 
 
-def crtfile_to_pubkey(fname):
+def crtfile_to_pubkey(fname, data=None):
     pipeline = ('openssl x509 -noout -pubkey < "$0" |'
                 'ssh-keygen -i -m PKCS8 -f /dev/stdin')
-    (out, _err) = util.subp(['sh', '-c', pipeline, fname], capture=True)
+    (out, _err) = util.subp(['sh', '-c', pipeline, fname],
+                            capture=True, data=data)
     return out.rstrip()
 
 
