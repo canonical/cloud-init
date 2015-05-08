@@ -246,7 +246,7 @@ class WALinuxAgentShim(object):
         while True:
             try:
                 response = http_client.get(
-                    'http://{}/machine/?comp=goalstate'.format(self.endpoint))
+                    'http://{0}/machine/?comp=goalstate'.format(self.endpoint))
             except Exception:
                 if attempts < 10:
                     time.sleep(attempts + 1)
@@ -278,7 +278,7 @@ class WALinuxAgentShim(object):
             instance_id=goal_state.instance_id,
         )
         http_client.post(
-            "http://{}/machine?comp=health".format(self.endpoint),
+            "http://{0}/machine?comp=health".format(self.endpoint),
             data=document,
             extra_headers={'Content-Type': 'text/xml; charset=utf-8'},
         )
