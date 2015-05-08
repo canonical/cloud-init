@@ -42,7 +42,7 @@ BOUNCE_COMMAND = ['sh', '-xc',
 DATA_DIR_CLEAN_LIST = ['SharedConfig.xml']
 
 BUILTIN_DS_CONFIG = {
-    'agent_command': '__builtin__',
+    'agent_command': AGENT_START,
     'data_dir': "/var/lib/waagent",
     'set_hostname': True,
     'hostname_bounce': {
