@@ -154,6 +154,7 @@ class GoalState(object):
     def __init__(self, xml, http_client):
         self.http_client = http_client
         self.root = ElementTree.fromstring(xml)
+        self._certificates_xml = None
 
     def _text_from_xpath(self, xpath):
         element = self.root.find(xpath)
@@ -182,11 +183,14 @@ class GoalState(object):
 
     @property
     def certificates_xml(self):
-        url = self._text_from_xpath('./Container/RoleInstanceList/RoleInstance'
-                                    '/Configuration/Certificates')
-        if url is not None:
-            return self.http_client.get(url, secure=True).contents
-        return None
+        if self._certificates_xml is None:
+            url = self._text_from_xpath(
+                './Container/RoleInstanceList/RoleInstance'
+                '/Configuration/Certificates')
+            if url is not None:
+                self._certificates_xml = self.http_client.get(
+                    url, secure=True).contents
+        return self._certificates_xml
 
 
 class OpenSSLManager(object):
