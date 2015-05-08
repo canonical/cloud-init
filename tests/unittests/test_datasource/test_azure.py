@@ -160,6 +160,12 @@ class TestAzureDataSource(TestCase):
         mod = DataSourceAzure
         mod.BUILTIN_DS_CONFIG['data_dir'] = self.waagent_d
 
+        fake_shim = mock.MagicMock()
+        fake_shim().register_with_azure_and_fetch_data.return_value = {
+            'instance-id': 'i-my-azure-id',
+            'public-keys': [],
+        }
+
         self.apply_patches([
             (mod, 'list_possible_azure_ds_devs', dsdevs),
             (mod, 'invoke_agent', _invoke_agent),
@@ -169,7 +175,8 @@ class TestAzureDataSource(TestCase):
             (mod, 'perform_hostname_bounce', mock.MagicMock()),
             (mod, 'get_hostname', mock.MagicMock()),
             (mod, 'set_hostname', mock.MagicMock()),
-            ])
+            (mod, 'WALinuxAgentShim', fake_shim),
+        ])
 
         dsrc = mod.DataSourceAzureNet(
             data.get('sys_cfg', {}), distro=None, paths=self.paths)
@@ -852,6 +859,9 @@ class TestWALinuxAgentShim(TestCase):
             mock.patch.object(DataSourceAzure, 'find_endpoint'))
         self.GoalState = patches.enter_context(
             mock.patch.object(DataSourceAzure, 'GoalState'))
+        self.iid_from_shared_config_content = patches.enter_context(
+            mock.patch.object(DataSourceAzure,
+                              'iid_from_shared_config_content'))
         self.OpenSSLManager = patches.enter_context(
             mock.patch.object(DataSourceAzure, 'OpenSSLManager'))
 
@@ -877,19 +887,28 @@ class TestWALinuxAgentShim(TestCase):
 
     def test_certificates_used_to_determine_public_keys(self):
         shim = DataSourceAzure.WALinuxAgentShim()
-        shim.register_with_azure_and_fetch_data()
+        data = shim.register_with_azure_and_fetch_data()
         self.assertEqual(
             [mock.call(self.GoalState.return_value.certificates_xml)],
             self.OpenSSLManager.return_value.parse_certificates.call_args_list)
         self.assertEqual(
             self.OpenSSLManager.return_value.parse_certificates.return_value,
-            shim.public_keys)
+            data['public-keys'])
 
     def test_absent_certificates_produces_empty_public_keys(self):
         self.GoalState.return_value.certificates_xml = None
         shim = DataSourceAzure.WALinuxAgentShim()
-        shim.register_with_azure_and_fetch_data()
-        self.assertEqual([], shim.public_keys)
+        data = shim.register_with_azure_and_fetch_data()
+        self.assertEqual([], data['public-keys'])
+
+    def test_instance_id_returned_in_data(self):
+        shim = DataSourceAzure.WALinuxAgentShim()
+        data = shim.register_with_azure_and_fetch_data()
+        self.assertEqual(
+            [mock.call(self.GoalState.return_value.shared_config_xml)],
+            self.iid_from_shared_config_content.call_args_list)
+        self.assertEqual(self.iid_from_shared_config_content.return_value,
+                         data['instance-id'])
 
     def test_correct_url_used_for_report_ready(self):
         self.find_endpoint.return_value = 'test_endpoint'

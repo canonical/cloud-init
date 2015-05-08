@@ -260,7 +260,6 @@ class WALinuxAgentShim(object):
 
     def __init__(self):
         self.endpoint = find_endpoint()
-        self.goal_state = None
         self.openssl_manager = OpenSSLManager()
         self.http_client = AzureEndpointHttpClient(
             self.openssl_manager.certificate)
@@ -276,18 +275,24 @@ class WALinuxAgentShim(object):
                 time.sleep(i + 1)
             else:
                 break
-        self.goal_state = GoalState(response.contents, self.http_client)
-        self.public_keys = []
-        if self.goal_state.certificates_xml is not None:
-            self.public_keys = self.openssl_manager.parse_certificates(
-                self.goal_state.certificates_xml)
-        self._report_ready()
+        goal_state = GoalState(response.contents, self.http_client)
+        public_keys = []
+        if goal_state.certificates_xml is not None:
+            public_keys = self.openssl_manager.parse_certificates(
+                goal_state.certificates_xml)
+        data = {
+            'instance-id': iid_from_shared_config_content(
+                goal_state.shared_config_xml),
+            'public-keys': public_keys,
+        }
+        self._report_ready(goal_state)
+        return data
 
-    def _report_ready(self):
+    def _report_ready(self, goal_state):
         document = REPORT_READY_XML_TEMPLATE.format(
-            incarnation=self.goal_state.incarnation,
-            container_id=self.goal_state.container_id,
-            instance_id=self.goal_state.instance_id,
+            incarnation=goal_state.incarnation,
+            container_id=goal_state.container_id,
+            instance_id=goal_state.instance_id,
         )
         self.http_client.post(
             "http://{}/machine?comp=health".format(self.endpoint),
@@ -414,17 +419,16 @@ class DataSourceAzureNet(sources.DataSource):
         # the directory to be protected.
         write_files(ddir, files, dirmode=0o700)
 
-        shim = WALinuxAgentShim()
-        shim.register_with_azure_and_fetch_data()
-
         try:
-            self.metadata['instance-id'] = iid_from_shared_config_content(
-                shim.goal_state.shared_config_xml)
-        except ValueError as e:
-            LOG.warn(
-                "failed to get instance id in %s: %s", shim.shared_config, e)
+            shim = WALinuxAgentShim()
+            data = shim.register_with_azure_and_fetch_data()
+        except Exception as exc:
+            LOG.info("Error communicating with Azure fabric; assume we aren't"
+                     " on Azure.", exc_info=True)
+            return False
 
-        self.metadata['public-keys'] = shim.public_keys
+        self.metadata['instance-id'] = data['instance-id']
+        self.metadata['public-keys'] = data['public-keys']
 
         found_ephemeral = find_ephemeral_disk()
         if found_ephemeral:
