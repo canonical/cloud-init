@@ -273,15 +273,20 @@ class TestOpenSSLManager(TestCase):
 
         self.subp = patches.enter_context(
             mock.patch.object(azure_helper.util, 'subp'))
+        try:
+            self.open = patches.enter_context(
+                mock.patch('__builtin__.open'))
+        except ImportError:
+            self.open = patches.enter_context(
+                mock.patch('builtins.open'))
 
     @mock.patch.object(azure_helper, 'cd', mock.MagicMock())
-    @mock.patch.object(azure_helper.tempfile, 'TemporaryDirectory')
-    def test_openssl_manager_creates_a_tmpdir(self, TemporaryDirectory):
+    @mock.patch.object(azure_helper.tempfile, 'mkdtemp')
+    def test_openssl_manager_creates_a_tmpdir(self, mkdtemp):
         manager = azure_helper.OpenSSLManager()
-        self.assertEqual(TemporaryDirectory.return_value, manager.tmpdir)
+        self.assertEqual(mkdtemp.return_value, manager.tmpdir)
 
-    @mock.patch('builtins.open')
-    def test_generate_certificate_uses_tmpdir(self, open):
+    def test_generate_certificate_uses_tmpdir(self):
         subp_directory = {}
 
         def capture_directory(*args, **kwargs):
@@ -289,7 +294,7 @@ class TestOpenSSLManager(TestCase):
 
         self.subp.side_effect = capture_directory
         manager = azure_helper.OpenSSLManager()
-        self.assertEqual(manager.tmpdir.name, subp_directory['path'])
+        self.assertEqual(manager.tmpdir, subp_directory['path'])
 
 
 class TestWALinuxAgentShim(TestCase):

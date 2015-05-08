@@ -104,7 +104,7 @@ class OpenSSLManager(object):
     }
 
     def __init__(self):
-        self.tmpdir = tempfile.TemporaryDirectory()
+        self.tmpdir = tempfile.mkdtemp()
         self.certificate = None
         self.generate_certificate()
 
@@ -113,7 +113,7 @@ class OpenSSLManager(object):
         if self.certificate is not None:
             LOG.debug('Certificate already generated.')
             return
-        with cd(self.tmpdir.name):
+        with cd(self.tmpdir):
             util.subp([
                 'openssl', 'req', '-x509', '-nodes', '-subj',
                 '/CN=LinuxTransport', '-days', '32768', '-newkey', 'rsa:2048',
@@ -139,7 +139,7 @@ class OpenSSLManager(object):
             b'',
             certificates_content.encode('utf-8'),
         ]
-        with cd(self.tmpdir.name):
+        with cd(self.tmpdir):
             with open('Certificates.p7m', 'wb') as f:
                 f.write(b'\n'.join(lines))
             out, _ = util.subp(
@@ -159,7 +159,7 @@ class OpenSSLManager(object):
                 current = []
         keys = []
         for certificate in certificates:
-            with cd(self.tmpdir.name):
+            with cd(self.tmpdir):
                 public_key, _ = util.subp(
                     'openssl x509 -noout -pubkey |'
                     'ssh-keygen -i -m PKCS8 -f /dev/stdin',
