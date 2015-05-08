@@ -323,6 +323,8 @@ class TestWALinuxAgentShim(TestCase):
             mock.patch.object(azure_helper, 'iid_from_shared_config_content'))
         self.OpenSSLManager = patches.enter_context(
             mock.patch.object(azure_helper, 'OpenSSLManager'))
+        patches.enter_context(
+            mock.patch.object(azure_helper.time, 'sleep', mock.MagicMock()))
 
     def test_http_client_uses_certificate(self):
         shim = azure_helper.WALinuxAgentShim()
@@ -401,6 +403,15 @@ class TestWALinuxAgentShim(TestCase):
         shim.clean_up()
         self.assertEqual(
             1, self.OpenSSLManager.return_value.clean_up.call_count)
+
+    def test_failure_to_fetch_goalstate_bubbles_up(self):
+        class SentinelException(Exception):
+            pass
+        self.AzureEndpointHttpClient.return_value.get.side_effect = (
+            SentinelException)
+        shim = azure_helper.WALinuxAgentShim()
+        self.assertRaises(SentinelException,
+                          shim.register_with_azure_and_fetch_data)
 
 
 class TestGetMetadataFromFabric(TestCase):

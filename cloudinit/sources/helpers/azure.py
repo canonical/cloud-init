@@ -242,14 +242,19 @@ class WALinuxAgentShim(object):
         self.openssl_manager = OpenSSLManager()
         http_client = AzureEndpointHttpClient(self.openssl_manager.certificate)
         LOG.info('Registering with Azure...')
-        for i in range(10):
+        attempts = 0
+        while True:
             try:
                 response = http_client.get(
                     'http://{}/machine/?comp=goalstate'.format(self.endpoint))
             except Exception:
-                time.sleep(i + 1)
+                if attempts < 10:
+                    time.sleep(attempts + 1)
+                else:
+                    raise
             else:
                 break
+            attempts += 1
         LOG.debug('Successfully fetched GoalState XML.')
         goal_state = GoalState(response.contents, http_client)
         public_keys = []
