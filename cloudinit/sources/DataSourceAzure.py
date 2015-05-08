@@ -17,7 +17,6 @@
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import base64
-import contextlib
 import crypt
 import fnmatch
 import os
