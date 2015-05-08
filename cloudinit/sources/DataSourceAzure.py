@@ -70,22 +70,6 @@ BUILTIN_CLOUD_CONFIG = {
 DS_CFG_PATH = ['datasource', DS_NAME]
 DEF_EPHEMERAL_LABEL = 'Temporary Storage'
 
-REPORT_READY_XML_TEMPLATE = """\
-<?xml version=\"1.0\" encoding=\"utf-8\"?>
-<Health xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xmlns:xsd=\"http://www.w3.org/2001/XMLSchema\">
-  <GoalStateIncarnation>{incarnation}</GoalStateIncarnation>
-  <Container>
-    <ContainerId>{container_id}</ContainerId>
-    <RoleInstanceList>
-      <Role>
-        <InstanceId>{instance_id}</InstanceId>
-        <Health>
-          <State>Ready</State>
-        </Health>
-      </Role>
-    </RoleInstanceList>
-  </Container>
-</Health>"""
 
 
 @contextmanager
@@ -124,29 +108,6 @@ class AzureEndpointHttpClient(object):
             headers = self.headers.copy()
             headers.update(extra_headers)
         return util.read_file_or_url(url, data=data, headers=headers)
-
-
-def find_endpoint():
-    LOG.debug('Finding Azure endpoint...')
-    content = util.load_file('/var/lib/dhcp/dhclient.eth0.leases')
-    value = None
-    for line in content.splitlines():
-        if 'unknown-245' in line:
-            value = line.strip(' ').split(' ', 2)[-1].strip(';\n"')
-    if value is None:
-        raise Exception('No endpoint found in DHCP config.')
-    if ':' in value:
-        hex_string = ''
-        for hex_pair in value.split(':'):
-            if len(hex_pair) == 1:
-                hex_pair = '0' + hex_pair
-            hex_string += hex_pair
-        value = struct.pack('>L', int(hex_string.replace(':', ''), 16))
-    else:
-        value = value.encode('utf-8')
-    endpoint_ip_address = socket.inet_ntoa(value)
-    LOG.debug('Azure endpoint found at %s', endpoint_ip_address)
-    return endpoint_ip_address
 
 
 class GoalState(object):
@@ -268,13 +229,54 @@ class OpenSSLManager(object):
 
 class WALinuxAgentShim(object):
 
+    REPORT_READY_XML_TEMPLATE = '\n'.join([
+        '<?xml version="1.0" encoding="utf-8"?>',
+        '<Health xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"'
+        ' xmlns:xsd="http://www.w3.org/2001/XMLSchema">',
+        '  <GoalStateIncarnation>{incarnation}</GoalStateIncarnation>',
+        '  <Container>',
+        '    <ContainerId>{container_id}</ContainerId>',
+        '    <RoleInstanceList>',
+        '      <Role>',
+        '        <InstanceId>{instance_id}</InstanceId>',
+        '        <Health>',
+        '          <State>Ready</State>',
+        '        </Health>',
+        '      </Role>',
+        '    </RoleInstanceList>',
+        '  </Container>',
+        '</Health>'])
+
     def __init__(self):
         LOG.debug('WALinuxAgentShim instantiated...')
-        self.endpoint = find_endpoint()
+        self.endpoint = self.find_endpoint()
         self.openssl_manager = OpenSSLManager()
         self.http_client = AzureEndpointHttpClient(
             self.openssl_manager.certificate)
         self.values = {}
+
+    @staticmethod
+    def find_endpoint():
+        LOG.debug('Finding Azure endpoint...')
+        content = util.load_file('/var/lib/dhcp/dhclient.eth0.leases')
+        value = None
+        for line in content.splitlines():
+            if 'unknown-245' in line:
+                value = line.strip(' ').split(' ', 2)[-1].strip(';\n"')
+        if value is None:
+            raise Exception('No endpoint found in DHCP config.')
+        if ':' in value:
+            hex_string = ''
+            for hex_pair in value.split(':'):
+                if len(hex_pair) == 1:
+                    hex_pair = '0' + hex_pair
+                hex_string += hex_pair
+            value = struct.pack('>L', int(hex_string.replace(':', ''), 16))
+        else:
+            value = value.encode('utf-8')
+        endpoint_ip_address = socket.inet_ntoa(value)
+        LOG.debug('Azure endpoint found at %s', endpoint_ip_address)
+        return endpoint_ip_address
 
     def register_with_azure_and_fetch_data(self):
         LOG.info('Registering with Azure...')
@@ -303,7 +305,7 @@ class WALinuxAgentShim(object):
 
     def _report_ready(self, goal_state):
         LOG.debug('Reporting ready to Azure fabric.')
-        document = REPORT_READY_XML_TEMPLATE.format(
+        document = self.REPORT_READY_XML_TEMPLATE.format(
             incarnation=goal_state.incarnation,
             container_id=goal_state.container_id,
             instance_id=goal_state.instance_id,

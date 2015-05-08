@@ -637,11 +637,13 @@ class TestFindEndpoint(TestCase):
 
     def test_missing_file(self):
         self.load_file.side_effect = IOError
-        self.assertRaises(IOError, DataSourceAzure.find_endpoint)
+        self.assertRaises(IOError,
+                          DataSourceAzure.WALinuxAgentShim.find_endpoint)
 
     def test_missing_special_azure_line(self):
         self.load_file.return_value = ''
-        self.assertRaises(Exception, DataSourceAzure.find_endpoint)
+        self.assertRaises(Exception,
+                          DataSourceAzure.WALinuxAgentShim.find_endpoint)
 
     def _build_lease_content(self, ip_address, use_hex=True):
         ip_address_repr = ':'.join(
@@ -661,26 +663,30 @@ class TestFindEndpoint(TestCase):
         ip_address = '98.76.54.32'
         file_content = self._build_lease_content(ip_address)
         self.load_file.return_value = file_content
-        self.assertEqual(ip_address, DataSourceAzure.find_endpoint())
+        self.assertEqual(ip_address,
+                         DataSourceAzure.WALinuxAgentShim.find_endpoint())
 
     def test_hex_string_with_single_character_part(self):
         ip_address = '4.3.2.1'
         file_content = self._build_lease_content(ip_address)
         self.load_file.return_value = file_content
-        self.assertEqual(ip_address, DataSourceAzure.find_endpoint())
+        self.assertEqual(ip_address,
+                         DataSourceAzure.WALinuxAgentShim.find_endpoint())
 
     def test_packed_string(self):
         ip_address = '98.76.54.32'
         file_content = self._build_lease_content(ip_address, use_hex=False)
         self.load_file.return_value = file_content
-        self.assertEqual(ip_address, DataSourceAzure.find_endpoint())
+        self.assertEqual(ip_address,
+                         DataSourceAzure.WALinuxAgentShim.find_endpoint())
 
     def test_latest_lease_used(self):
         ip_addresses = ['4.3.2.1', '98.76.54.32']
         file_content = '\n'.join([self._build_lease_content(ip_address)
                                   for ip_address in ip_addresses])
         self.load_file.return_value = file_content
-        self.assertEqual(ip_addresses[-1], DataSourceAzure.find_endpoint())
+        self.assertEqual(ip_addresses[-1],
+                         DataSourceAzure.WALinuxAgentShim.find_endpoint())
 
 
 class TestGoalStateParsing(TestCase):
@@ -856,7 +862,8 @@ class TestWALinuxAgentShim(TestCase):
         self.AzureEndpointHttpClient = patches.enter_context(
             mock.patch.object(DataSourceAzure, 'AzureEndpointHttpClient'))
         self.find_endpoint = patches.enter_context(
-            mock.patch.object(DataSourceAzure, 'find_endpoint'))
+            mock.patch.object(
+                DataSourceAzure.WALinuxAgentShim, 'find_endpoint'))
         self.GoalState = patches.enter_context(
             mock.patch.object(DataSourceAzure, 'GoalState'))
         self.iid_from_shared_config_content = patches.enter_context(
