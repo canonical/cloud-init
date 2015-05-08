@@ -29,7 +29,7 @@ from cloudinit.settings import PER_ALWAYS
 from cloudinit import sources
 from cloudinit import util
 from cloudinit.sources.helpers.azure import (
-    iid_from_shared_config_content, WALinuxAgentShim)
+    get_metadata_from_fabric, iid_from_shared_config_content)
 
 LOG = logging.getLogger(__name__)
 
@@ -185,15 +185,13 @@ class DataSourceAzureNet(sources.DataSource):
         write_files(ddir, files, dirmode=0o700)
 
         try:
-            shim = WALinuxAgentShim()
-            data = shim.register_with_azure_and_fetch_data()
+            fabric_data = get_metadata_from_fabric()
         except Exception as exc:
             LOG.info("Error communicating with Azure fabric; assume we aren't"
                      " on Azure.", exc_info=True)
             return False
 
-        self.metadata['instance-id'] = data['instance-id']
-        self.metadata['public-keys'] = data['public-keys']
+        self.metadata.update(fabric_data)
 
         found_ephemeral = find_ephemeral_disk()
         if found_ephemeral:

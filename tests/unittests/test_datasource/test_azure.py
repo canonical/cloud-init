@@ -122,11 +122,10 @@ class TestAzureDataSource(TestCase):
         mod = DataSourceAzure
         mod.BUILTIN_DS_CONFIG['data_dir'] = self.waagent_d
 
-        fake_shim = mock.MagicMock()
-        fake_shim().register_with_azure_and_fetch_data.return_value = {
+        self.get_metadata_from_fabric = mock.MagicMock(return_value={
             'instance-id': 'i-my-azure-id',
             'public-keys': [],
-        }
+        })
 
         self.apply_patches([
             (mod, 'list_possible_azure_ds_devs', dsdevs),
@@ -137,7 +136,7 @@ class TestAzureDataSource(TestCase):
             (mod, 'perform_hostname_bounce', mock.MagicMock()),
             (mod, 'get_hostname', mock.MagicMock()),
             (mod, 'set_hostname', mock.MagicMock()),
-            (mod, 'WALinuxAgentShim', fake_shim),
+            (mod, 'get_metadata_from_fabric', self.get_metadata_from_fabric),
         ])
 
         dsrc = mod.DataSourceAzureNet(
@@ -387,6 +386,18 @@ class TestAzureDataSource(TestCase):
             os.path.exists(os.path.join(self.waagent_d, 'ovf-env.xml')))
         self.assertEqual(new_ovfenv,
             load_file(os.path.join(self.waagent_d, 'ovf-env.xml')))
+
+    def test_exception_fetching_fabric_data_doesnt_propagate(self):
+        ds = self._get_ds({'ovfcontent': construct_valid_ovf_env()})
+        self.get_metadata_from_fabric.side_effect = Exception
+        self.assertFalse(ds.get_data())
+
+    def test_fabric_data_included_in_metadata(self):
+        ds = self._get_ds({'ovfcontent': construct_valid_ovf_env()})
+        self.get_metadata_from_fabric.return_value = {'test': 'value'}
+        ret = ds.get_data()
+        self.assertTrue(ret)
+        self.assertEqual('value', ds.metadata['test'])
 
 
 class TestAzureBounce(TestCase):

@@ -296,6 +296,14 @@ class TestOpenSSLManager(TestCase):
         manager = azure_helper.OpenSSLManager()
         self.assertEqual(manager.tmpdir, subp_directory['path'])
 
+    @mock.patch.object(azure_helper, 'cd', mock.MagicMock())
+    @mock.patch.object(azure_helper.tempfile, 'mkdtemp', mock.MagicMock())
+    @mock.patch.object(azure_helper.util, 'del_dir')
+    def test_clean_up(self, del_dir):
+        manager = azure_helper.OpenSSLManager()
+        manager.clean_up()
+        self.assertEqual([mock.call(manager.tmpdir)], del_dir.call_args_list)
+
 
 class TestWALinuxAgentShim(TestCase):
 
@@ -318,11 +326,10 @@ class TestWALinuxAgentShim(TestCase):
 
     def test_http_client_uses_certificate(self):
         shim = azure_helper.WALinuxAgentShim()
+        shim.register_with_azure_and_fetch_data()
         self.assertEqual(
             [mock.call(self.OpenSSLManager.return_value.certificate)],
             self.AzureEndpointHttpClient.call_args_list)
-        self.assertEqual(self.AzureEndpointHttpClient.return_value,
-                         shim.http_client)
 
     def test_correct_url_used_for_goalstate(self):
         self.find_endpoint.return_value = 'test_endpoint'
@@ -333,7 +340,8 @@ class TestWALinuxAgentShim(TestCase):
             [mock.call('http://test_endpoint/machine/?comp=goalstate')],
             get.call_args_list)
         self.assertEqual(
-            [mock.call(get.return_value.contents, shim.http_client)],
+            [mock.call(get.return_value.contents,
+                       self.AzureEndpointHttpClient.return_value)],
             self.GoalState.call_args_list)
 
     def test_certificates_used_to_determine_public_keys(self):
@@ -368,7 +376,7 @@ class TestWALinuxAgentShim(TestCase):
         expected_url = 'http://test_endpoint/machine?comp=health'
         self.assertEqual(
             [mock.call(expected_url, data=mock.ANY, extra_headers=mock.ANY)],
-            shim.http_client.post.call_args_list)
+            self.AzureEndpointHttpClient.return_value.post.call_args_list)
 
     def test_goal_state_values_used_for_report_ready(self):
         self.GoalState.return_value.incarnation = 'TestIncarnation'
@@ -376,7 +384,45 @@ class TestWALinuxAgentShim(TestCase):
         self.GoalState.return_value.instance_id = 'TestInstanceId'
         shim = azure_helper.WALinuxAgentShim()
         shim.register_with_azure_and_fetch_data()
-        posted_document = shim.http_client.post.call_args[1]['data']
+        posted_document = (
+            self.AzureEndpointHttpClient.return_value.post.call_args[1]['data']
+        )
         self.assertIn('TestIncarnation', posted_document)
         self.assertIn('TestContainerId', posted_document)
         self.assertIn('TestInstanceId', posted_document)
+
+    def test_clean_up_can_be_called_at_any_time(self):
+        shim = azure_helper.WALinuxAgentShim()
+        shim.clean_up()
+
+    def test_clean_up_will_clean_up_openssl_manager_if_instantiated(self):
+        shim = azure_helper.WALinuxAgentShim()
+        shim.register_with_azure_and_fetch_data()
+        shim.clean_up()
+        self.assertEqual(
+            1, self.OpenSSLManager.return_value.clean_up.call_count)
+
+
+class TestGetMetadataFromFabric(TestCase):
+
+    @mock.patch.object(azure_helper, 'WALinuxAgentShim')
+    def test_data_from_shim_returned(self, shim):
+        ret = azure_helper.get_metadata_from_fabric()
+        self.assertEqual(
+            shim.return_value.register_with_azure_and_fetch_data.return_value,
+            ret)
+
+    @mock.patch.object(azure_helper, 'WALinuxAgentShim')
+    def test_success_calls_clean_up(self, shim):
+        azure_helper.get_metadata_from_fabric()
+        self.assertEqual(1, shim.return_value.clean_up.call_count)
+
+    @mock.patch.object(azure_helper, 'WALinuxAgentShim')
+    def test_failure_in_registration_calls_clean_up(self, shim):
+        class SentinelException(Exception):
+            pass
+        shim.return_value.register_with_azure_and_fetch_data.side_effect = (
+            SentinelException)
+        self.assertRaises(SentinelException,
+                          azure_helper.get_metadata_from_fabric)
+        self.assertEqual(1, shim.return_value.clean_up.call_count)

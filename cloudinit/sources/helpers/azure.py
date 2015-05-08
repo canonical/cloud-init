@@ -108,6 +108,9 @@ class OpenSSLManager(object):
         self.certificate = None
         self.generate_certificate()
 
+    def clean_up(self):
+        util.del_dir(self.tmpdir)
+
     def generate_certificate(self):
         LOG.debug('Generating certificate for communication with fabric...')
         if self.certificate is not None:
@@ -205,10 +208,12 @@ class WALinuxAgentShim(object):
     def __init__(self):
         LOG.debug('WALinuxAgentShim instantiated...')
         self.endpoint = self.find_endpoint()
-        self.openssl_manager = OpenSSLManager()
-        self.http_client = AzureEndpointHttpClient(
-            self.openssl_manager.certificate)
+        self.openssl_manager = None
         self.values = {}
+
+    def clean_up(self):
+        if self.openssl_manager is not None:
+            self.openssl_manager.clean_up()
 
     @staticmethod
     def find_endpoint():
@@ -234,17 +239,19 @@ class WALinuxAgentShim(object):
         return endpoint_ip_address
 
     def register_with_azure_and_fetch_data(self):
+        self.openssl_manager = OpenSSLManager()
+        http_client = AzureEndpointHttpClient(self.openssl_manager.certificate)
         LOG.info('Registering with Azure...')
         for i in range(10):
             try:
-                response = self.http_client.get(
+                response = http_client.get(
                     'http://{}/machine/?comp=goalstate'.format(self.endpoint))
             except Exception:
                 time.sleep(i + 1)
             else:
                 break
         LOG.debug('Successfully fetched GoalState XML.')
-        goal_state = GoalState(response.contents, self.http_client)
+        goal_state = GoalState(response.contents, http_client)
         public_keys = []
         if goal_state.certificates_xml is not None:
             LOG.debug('Certificate XML found; parsing out public keys.')
@@ -255,19 +262,27 @@ class WALinuxAgentShim(object):
                 goal_state.shared_config_xml),
             'public-keys': public_keys,
         }
-        self._report_ready(goal_state)
+        self._report_ready(goal_state, http_client)
         return data
 
-    def _report_ready(self, goal_state):
+    def _report_ready(self, goal_state, http_client):
         LOG.debug('Reporting ready to Azure fabric.')
         document = self.REPORT_READY_XML_TEMPLATE.format(
             incarnation=goal_state.incarnation,
             container_id=goal_state.container_id,
             instance_id=goal_state.instance_id,
         )
-        self.http_client.post(
+        http_client.post(
             "http://{}/machine?comp=health".format(self.endpoint),
             data=document,
             extra_headers={'Content-Type': 'text/xml; charset=utf-8'},
         )
         LOG.info('Reported ready to Azure fabric.')
+
+
+def get_metadata_from_fabric():
+    shim = WALinuxAgentShim()
+    try:
+        return shim.register_with_azure_and_fetch_data()
+    finally:
+        shim.clean_up()
