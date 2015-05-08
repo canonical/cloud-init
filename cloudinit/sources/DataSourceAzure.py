@@ -127,6 +127,7 @@ class AzureEndpointHttpClient(object):
 
 
 def find_endpoint():
+    LOG.debug('Finding Azure endpoint...')
     content = util.load_file('/var/lib/dhcp/dhclient.eth0.leases')
     value = None
     for line in content.splitlines():
@@ -143,7 +144,9 @@ def find_endpoint():
         value = struct.pack('>L', int(hex_string.replace(':', ''), 16))
     else:
         value = value.encode('utf-8')
-    return socket.inet_ntoa(value)
+    endpoint_ip_address = socket.inet_ntoa(value)
+    LOG.debug('Azure endpoint found at %s', endpoint_ip_address)
+    return endpoint_ip_address
 
 
 class GoalState(object):
@@ -199,7 +202,9 @@ class OpenSSLManager(object):
         self.generate_certificate()
 
     def generate_certificate(self):
+        LOG.debug('Generating certificate for communication with fabric...')
         if self.certificate is not None:
+            LOG.debug('Certificate already generated.')
             return
         with cd(self.tmpdir.name):
             util.subp([
@@ -213,6 +218,7 @@ class OpenSSLManager(object):
                 if "CERTIFICATE" not in line:
                     certificate += line.rstrip()
             self.certificate = certificate
+        LOG.debug('New certificate generated.')
 
     def parse_certificates(self, certificates_xml):
         tag = ElementTree.fromstring(certificates_xml).find(
@@ -259,6 +265,7 @@ class OpenSSLManager(object):
 class WALinuxAgentShim(object):
 
     def __init__(self):
+        LOG.debug('WALinuxAgentShim instantiated...')
         self.endpoint = find_endpoint()
         self.openssl_manager = OpenSSLManager()
         self.http_client = AzureEndpointHttpClient(
@@ -275,9 +282,11 @@ class WALinuxAgentShim(object):
                 time.sleep(i + 1)
             else:
                 break
+        LOG.debug('Successfully fetched GoalState XML.')
         goal_state = GoalState(response.contents, self.http_client)
         public_keys = []
         if goal_state.certificates_xml is not None:
+            LOG.debug('Certificate XML found; parsing out public keys.')
             public_keys = self.openssl_manager.parse_certificates(
                 goal_state.certificates_xml)
         data = {
@@ -289,6 +298,7 @@ class WALinuxAgentShim(object):
         return data
 
     def _report_ready(self, goal_state):
+        LOG.debug('Reporting ready to Azure fabric.')
         document = REPORT_READY_XML_TEMPLATE.format(
             incarnation=goal_state.incarnation,
             container_id=goal_state.container_id,
@@ -299,6 +309,7 @@ class WALinuxAgentShim(object):
             data=document,
             extra_headers={'Content-Type': 'text/xml; charset=utf-8'},
         )
+        LOG.info('Reported ready to Azure fabric.')
 
 
 def get_hostname(hostname_command='hostname'):
