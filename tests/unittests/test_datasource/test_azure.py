@@ -389,11 +389,13 @@ class TestAzureDataSource(TestCase):
 
     def test_exception_fetching_fabric_data_doesnt_propagate(self):
         ds = self._get_ds({'ovfcontent': construct_valid_ovf_env()})
+        ds.ds_cfg['agent_command'] = '__builtin__'
         self.get_metadata_from_fabric.side_effect = Exception
         self.assertFalse(ds.get_data())
 
     def test_fabric_data_included_in_metadata(self):
         ds = self._get_ds({'ovfcontent': construct_valid_ovf_env()})
+        ds.ds_cfg['agent_command'] = '__builtin__'
         self.get_metadata_from_fabric.return_value = {'test': 'value'}
         ret = ds.get_data()
         self.assertTrue(ret)
@@ -419,6 +421,9 @@ class TestAzureBounce(TestCase):
         self.patches.enter_context(
             mock.patch.object(DataSourceAzure, 'find_ephemeral_part',
                               mock.MagicMock(return_value=None)))
+        self.patches.enter_context(
+            mock.patch.object(DataSourceAzure, 'get_metadata_from_fabric',
+                              mock.MagicMock(return_value={})))
 
     def setUp(self):
         super(TestAzureBounce, self).setUp()
