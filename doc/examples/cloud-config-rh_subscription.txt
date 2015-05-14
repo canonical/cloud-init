@@ -1,0 +1,49 @@
+#cloud-config
+
+# register your Red Hat Enterprise Linux based operating system
+#
+# this cloud-init plugin is capable of registering by username 
+# and password *or* activation and org.  Following a successfully
+# registration you can:
+#   - auto-attach subscriptions
+#   - set the service level
+#   - add subscriptions based on its pool ID
+#   - enable yum repositories based on its repo id
+#   - disable yum repositories based on its repo id
+#   - alter the rhsm_baseurl and server-hostname in the
+#     /etc/rhsm/rhs.conf file
+
+rh_subscription:
+    username: joe@foo.bar
+
+    ## Quote your password if it has symbols to be safe
+    password: '1234abcd'
+
+    ## If you prefer, you can use the activation key and 
+    ## org instead of username and password. Be sure to
+    ## comment out username and password
+
+    #activation-key: foobar
+    #org: 12345
+
+    ## Uncomment to auto-attach subscriptions to your system 
+    #auto-attach: True
+
+    ## Uncomment to set the service level for your 
+    ##   subscriptions
+    #service-level: self-support
+
+    ## Uncomment to add pools (needs to be a list of IDs)
+    #add-pool: []
+
+    ## Uncomment to add or remove yum repos
+    ##   (needs to be a list of repo IDs)
+    #enable-repo: []
+    #disable-repo: []
+
+    ## Uncomment to alter the baseurl in /etc/rhsm/rhsm.conf
+    #rhsm-baseurl: http://url
+
+    ## Uncomment to alter the server hostname in 
+    ##  /etc/rhsm/rhsm.conf
+    #server-hostname: foo.bar.com
