@@ -8,6 +8,9 @@ import re
 import shutil
 import tempfile
 
+def load_tfile_or_url(*args, **kwargs):
+    return(util.decode_binary(util.read_file_or_url(*args, **kwargs).contents))
+
 
 class TestAptProxyConfig(TestCase):
     def setUp(self):
@@ -29,7 +32,7 @@ class TestAptProxyConfig(TestCase):
         self.assertTrue(os.path.isfile(self.pfile))
         self.assertFalse(os.path.isfile(self.cfile))
 
-        contents = util.load_tfile_or_url(self.pfile)
+        contents = load_tfile_or_url(self.pfile)
         self.assertTrue(self._search_apt_config(contents, "http", "myproxy"))
 
     def test_apt_http_proxy_written(self):
@@ -39,7 +42,7 @@ class TestAptProxyConfig(TestCase):
         self.assertTrue(os.path.isfile(self.pfile))
         self.assertFalse(os.path.isfile(self.cfile))
 
-        contents = util.load_tfile_or_url(self.pfile)
+        contents = load_tfile_or_url(self.pfile)
         self.assertTrue(self._search_apt_config(contents, "http", "myproxy"))
 
     def test_apt_all_proxy_written(self):
@@ -57,7 +60,7 @@ class TestAptProxyConfig(TestCase):
         self.assertTrue(os.path.isfile(self.pfile))
         self.assertFalse(os.path.isfile(self.cfile))
 
-        contents = util.load_tfile_or_url(self.pfile)
+        contents = load_tfile_or_url(self.pfile)
 
         for ptype, pval in values.items():
             self.assertTrue(self._search_apt_config(contents, ptype, pval))
@@ -73,7 +76,7 @@ class TestAptProxyConfig(TestCase):
         cc_apt_configure.apply_apt_config({'apt_proxy': "foo"},
                                           self.pfile, self.cfile)
         self.assertTrue(os.path.isfile(self.pfile))
-        contents = util.load_tfile_or_url(self.pfile)
+        contents = load_tfile_or_url(self.pfile)
         self.assertTrue(self._search_apt_config(contents, "http", "foo"))
 
     def test_config_written(self):
@@ -85,14 +88,14 @@ class TestAptProxyConfig(TestCase):
         self.assertTrue(os.path.isfile(self.cfile))
         self.assertFalse(os.path.isfile(self.pfile))
 
-        self.assertEqual(util.load_tfile_or_url(self.cfile), payload)
+        self.assertEqual(load_tfile_or_url(self.cfile), payload)
 
     def test_config_replaced(self):
         util.write_file(self.pfile, "content doesnt matter")
         cc_apt_configure.apply_apt_config({'apt_config': "foo"},
                                           self.pfile, self.cfile)
         self.assertTrue(os.path.isfile(self.cfile))
-        self.assertEqual(util.load_tfile_or_url(self.cfile), "foo")
+        self.assertEqual(load_tfile_or_url(self.cfile), "foo")
 
     def test_config_deleted(self):
         # if no 'apt_config' is provided, delete any previously written file
