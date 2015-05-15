@@ -1,3 +1,17 @@
+cloud-init (0.7.7~bzr1106-0ubuntu1) wily; urgency=medium
+
+  * New upstream snapshot.
+    * Azure: remove strict dependency on walinux-agent, but still utilize
+      it for the time being.
+    * fix read_seeded that is used in seeding user-data and meta-data
+      from additional locations (LP: #1455233)
+    * fix bug preventing partitioning of disks in many cases. (LP: #1311463)
+    * Azure: do not override hostname if user has set it (LP: #1375252)
+    * Fix GCE datasource not handling per-instance SSH keys (LP: #1403617)
+    * Allow specifying of uid in user/group config.
+
+ -- Scott Moser <smoser@ubuntu.com>  Fri, 15 May 2015 17:04:19 -0400
+
 cloud-init (0.7.7~bzr1091-0ubuntu1) vivid; urgency=medium
 
   * New upstream snapshot.

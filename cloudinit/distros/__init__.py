@@ -208,6 +208,15 @@ class Distro(object):
                                   and sys_hostname != hostname):
             update_files.append(sys_fn)
 
+        # If something else has changed the hostname after we set it
+        # initially, we should not overwrite those changes (we should
+        # only be setting the hostname once per instance)
+        if (sys_hostname and prev_hostname and
+                sys_hostname != prev_hostname):
+            LOG.info("%s differs from %s, assuming user maintained hostname.",
+                       prev_hostname_fn, sys_fn)
+            return
+
         # Remove duplicates (incase the previous config filename)
         # is the same as the system config filename, don't bother
         # doing it twice
@@ -221,11 +230,6 @@ class Distro(object):
             except IOError:
                 util.logexc(LOG, "Failed to write hostname %s to %s", hostname,
                             fn)
-
-        if (sys_hostname and prev_hostname and
-                sys_hostname != prev_hostname):
-            LOG.debug("%s differs from %s, assuming user maintained hostname.",
-                       prev_hostname_fn, sys_fn)
 
         # If the system hostname file name was provided set the
         # non-fqdn as the transient hostname.
@@ -318,6 +322,7 @@ class Distro(object):
             "gecos": '--comment',
             "homedir": '--home',
             "primary_group": '--gid',
+            "uid": '--uid',
             "groups": '--groups',
             "passwd": '--password',
             "shell": '--shell',

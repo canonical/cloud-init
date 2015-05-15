@@ -36,8 +36,6 @@ from binascii import crc32
 import serial
 import six
 
-import six
-
 from cloudinit import helpers as c_helpers
 from cloudinit.sources import DataSourceSmartOS
 from cloudinit.util import b64e

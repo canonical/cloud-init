@@ -32,6 +32,15 @@
  - Snappy: add support for installing snappy packages and configuring.
  - systemd: use network-online instead of network.target (LP: #1440180)
    [Steve Langasek]
+ - Add functionality to fixate the uid of a newly added user.
+ - Don't overwrite the hostname if the user has changed it after we set it.
+ - GCE datasource does not handle instance ssh keys (LP: 1403617)
+ - sysvinit: make cloud-init-local run before network (LP: #1275098)
+   [Surojit Pathak]
+ - Azure: do not re-set hostname if user has changed it (LP: #1375252)
+ - Fix exception when running with no arguments on Python 3. [Daniel Watkins]
+ - Centos: detect/expect use of systemd on centos 7. [Brian Rak]
+ - Azure: remove dependency on walinux-agent [Daniel Watkins]
 0.7.6:
  - open 0.7.6
  - Enable vendordata on CloudSigma datasource (LP: #1303986)

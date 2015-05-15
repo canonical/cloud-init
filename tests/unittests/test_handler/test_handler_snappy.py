@@ -38,7 +38,6 @@ class TestInstallPackages(t_help.TestCase):
         if 'args' not in kwargs:
             kwargs['args'] = args[0]
         self.subp_called.append(kwargs)
-        snap_cmds = []
         args = kwargs['args']
         # here we basically parse the snappy command invoked
         # and append to snapcmds a list of (mode, pkg, config)
@@ -117,9 +116,6 @@ class TestInstallPackages(t_help.TestCase):
     def test_package_ops_common_filename(self):
         # fish package name from filename
         # package names likely look like: pkgname.namespace_version_arch.snap
-        fname = "xkcd-webserver.canonical_0.3.4_all.snap"
-        name = "xkcd-webserver.canonical"
-        shortname = "xkcd-webserver"
 
         # find filenames
         self.populate_tmp(
@@ -165,7 +161,6 @@ class TestInstallPackages(t_help.TestCase):
             'ubuntu-core': {'c1': 'c2'},
             'notinstalled.smoser': {'s1': 's2'},
         }
-        cfg = {'config-example-k1': 'config-example-k2'}
         ret = get_package_ops(
             packages=['config-example.canonical'], configs=cfgs,
             installed=['config-example.smoser', 'pkg1.canonical',

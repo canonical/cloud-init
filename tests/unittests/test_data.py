@@ -511,7 +511,6 @@ c: 4
         mockobj.assert_called_once_with(
             ci.paths.get_ipath("cloud_config"), "", 0o600)
 
-
     def test_cloud_config_archive(self):
         non_decodable = b'\x11\xc9\xb4gTH\xee\x12'
         data = [{'content': '#cloud-config\npassword: gocubs\n'},

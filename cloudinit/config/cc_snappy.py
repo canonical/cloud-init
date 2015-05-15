@@ -42,12 +42,10 @@ Example config:
 """
 
 from cloudinit import log as logging
-from cloudinit import templater
 from cloudinit import util
 from cloudinit.settings import PER_INSTANCE
 
 import glob
-import six
 import tempfile
 import os
 

@@ -611,6 +611,8 @@ def main():
     # Setup signal handlers before running
     signal_handler.attach_handlers()
 
+    if not hasattr(args, 'action'):
+        parser.error('too few arguments')
     (name, functor) = args.action
     if name in ("modules", "init"):
         functor = status_wrapper

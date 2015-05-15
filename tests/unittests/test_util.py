@@ -459,4 +459,21 @@ class TestMessageFromString(helpers.TestCase):
         roundtripped = util.message_from_string(u'\n').as_string()
         self.assertNotIn('\x00', roundtripped)
 
+
+class TestReadSeeded(helpers.TestCase):
+    def setUp(self):
+        super(TestReadSeeded, self).setUp()
+        self.tmp = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, self.tmp)
+
+    def test_unicode_not_messed_up(self):
+        ud = b"userdatablob"
+        helpers.populate_dir(
+            self.tmp, {'meta-data': "key1: val1", 'user-data': ud})
+        sdir = self.tmp + os.path.sep
+        (found_md, found_ud) = util.read_seeded(sdir)
+
+        self.assertEqual(found_md, {'key1': 'val1'})
+        self.assertEqual(found_ud, ud)
+
 # vi: ts=4 expandtab

@@ -20,7 +20,7 @@ pep8:
 	@$(CWD)/tools/run-pep8 $(PY_FILES)
 
 pyflakes:
-	pyflakes $(PY_FILES)
+	@$(CWD)/tools/tox-venv py34 pyflakes $(PY_FILES)
 
 pip-requirements:
 	@echo "Installing cloud-init dependencies..."

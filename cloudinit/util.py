@@ -766,10 +766,6 @@ def fetch_ssl_details(paths=None):
     return ssl_details
 
 
-def load_tfile_or_url(*args, **kwargs):
-    return(decode_binary(read_file_or_url(*args, **kwargs).contents))
-
-
 def read_file_or_url(url, timeout=5, retries=10,
                      headers=None, data=None, sec_between=1, ssl_details=None,
                      headers_cb=None, exception_cb=None):
@@ -837,10 +833,10 @@ def read_seeded(base="", ext="", timeout=5, retries=10, file_retries=0):
         ud_url = "%s%s%s" % (base, "user-data", ext)
         md_url = "%s%s%s" % (base, "meta-data", ext)
 
-    md_resp = load_tfile_or_url(md_url, timeout, retries, file_retries)
+    md_resp = read_file_or_url(md_url, timeout, retries, file_retries)
     md = None
     if md_resp.ok():
-        md = load_yaml(md_resp.contents, default={})
+        md = load_yaml(decode_binary(md_resp.contents), default={})
 
     ud_resp = read_file_or_url(ud_url, timeout, retries, file_retries)
     ud = None
