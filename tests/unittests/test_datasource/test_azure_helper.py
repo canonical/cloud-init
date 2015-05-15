@@ -18,7 +18,8 @@ except ImportError:
 
 GOAL_STATE_TEMPLATE = """\
 <?xml version="1.0" encoding="utf-8"?>
-<GoalState xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="goalstate10.xsd">
+<GoalState xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+ xsi:noNamespaceSchemaLocation="goalstate10.xsd">
   <Version>2012-11-30</Version>
   <Incarnation>{incarnation}</Incarnation>
   <Machine>
@@ -36,12 +37,16 @@ GOAL_STATE_TEMPLATE = """\
         <InstanceId>{instance_id}</InstanceId>
         <State>Started</State>
         <Configuration>
-          <HostingEnvironmentConfig>http://100.86.192.70:80/machine/46504ebc-f968-4f23-b9aa-cd2b3e4d470c/68ce47b32ea94952be7b20951c383628.utl%2Dtrusty%2D%2D292258?comp=config&amp;type=hostingEnvironmentConfig&amp;incarnation=1</HostingEnvironmentConfig>
+          <HostingEnvironmentConfig>
+            http://100.86.192.70:80/...hostingEnvironmentConfig...
+          </HostingEnvironmentConfig>
           <SharedConfig>{shared_config_url}</SharedConfig>
-          <ExtensionsConfig>http://100.86.192.70:80/machine/46504ebc-f968-4f23-b9aa-cd2b3e4d470c/68ce47b32ea94952be7b20951c383628.utl%2Dtrusty%2D%2D292258?comp=config&amp;type=extensionsConfig&amp;incarnation=1</ExtensionsConfig>
-          <FullConfig>http://100.86.192.70:80/machine/46504ebc-f968-4f23-b9aa-cd2b3e4d470c/68ce47b32ea94952be7b20951c383628.utl%2Dtrusty%2D%2D292258?comp=config&amp;type=fullConfig&amp;incarnation=1</FullConfig>
+          <ExtensionsConfig>
+            http://100.86.192.70:80/...extensionsConfig...
+          </ExtensionsConfig>
+          <FullConfig>http://100.86.192.70:80/...fullConfig...</FullConfig>
           <Certificates>{certificates_url}</Certificates>
-          <ConfigName>68ce47b32ea94952be7b20951c383628.0.68ce47b32ea94952be7b20951c383628.0.utl-trusty--292258.1.xml</ConfigName>
+          <ConfigName>68ce47.0.68ce47.0.utl-trusty--292258.1.xml</ConfigName>
         </Configuration>
       </RoleInstance>
     </RoleInstanceList>

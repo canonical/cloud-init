@@ -587,4 +587,3 @@ class TestReadAzureOvf(TestCase):
         (_md, _ud, cfg) = DataSourceAzure.read_azure_ovf(content)
         for mypk in mypklist:
             self.assertIn(mypk, cfg['_pubkeys'])
-

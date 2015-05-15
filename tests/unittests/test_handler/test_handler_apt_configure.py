@@ -8,6 +8,7 @@ import re
 import shutil
 import tempfile
 
+
 def load_tfile_or_url(*args, **kwargs):
     return(util.decode_binary(util.read_file_or_url(*args, **kwargs).contents))
 
