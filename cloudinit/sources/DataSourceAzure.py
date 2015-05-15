@@ -29,6 +29,8 @@ from cloudinit import log as logging
 from cloudinit.settings import PER_ALWAYS
 from cloudinit import sources
 from cloudinit import util
+from cloudinit.sources.helpers.azure import (
+    get_metadata_from_fabric, iid_from_shared_config_content)
 
 LOG = logging.getLogger(__name__)
 
@@ -111,6 +113,56 @@ class DataSourceAzureNet(sources.DataSource):
         root = sources.DataSource.__str__(self)
         return "%s [seed=%s]" % (root, self.seed)
 
+    def get_metadata_from_agent(self):
+        temp_hostname = self.metadata.get('local-hostname')
+        hostname_command = self.ds_cfg['hostname_bounce']['hostname_command']
+        with temporary_hostname(temp_hostname, self.ds_cfg,
+                                hostname_command=hostname_command) \
+                as previous_hostname:
+            if (previous_hostname is not None
+                    and util.is_true(self.ds_cfg.get('set_hostname'))):
+                cfg = self.ds_cfg['hostname_bounce']
+                try:
+                    perform_hostname_bounce(hostname=temp_hostname,
+                                            cfg=cfg,
+                                            prev_hostname=previous_hostname)
+                except Exception as e:
+                    LOG.warn("Failed publishing hostname: %s", e)
+                    util.logexc(LOG, "handling set_hostname failed")
+
+            try:
+                invoke_agent(self.ds_cfg['agent_command'])
+            except util.ProcessExecutionError:
+                # claim the datasource even if the command failed
+                util.logexc(LOG, "agent command '%s' failed.",
+                            self.ds_cfg['agent_command'])
+
+            ddir = self.ds_cfg['data_dir']
+            shcfgxml = os.path.join(ddir, "SharedConfig.xml")
+            wait_for = [shcfgxml]
+
+            fp_files = []
+            for pk in self.cfg.get('_pubkeys', []):
+                bname = str(pk['fingerprint'] + ".crt")
+                fp_files += [os.path.join(ddir, bname)]
+
+            missing = util.log_time(logfunc=LOG.debug, msg="waiting for files",
+                                    func=wait_for_files,
+                                    args=(wait_for + fp_files,))
+        if len(missing):
+            LOG.warn("Did not find files, but going on: %s", missing)
+
+        metadata = {}
+        if shcfgxml in missing:
+            LOG.warn("SharedConfig.xml missing, using static instance-id")
+        else:
+            try:
+                metadata['instance-id'] = iid_from_shared_config(shcfgxml)
+            except ValueError as e:
+                LOG.warn("failed to get instance id in %s: %s", shcfgxml, e)
+        metadata['public-keys'] = pubkeys_from_crt_files(fp_files)
+        return metadata
+
     def get_data(self):
         # azure removes/ejects the cdrom containing the ovf-env.xml
         # file on reboot.  So, in order to successfully reboot we
@@ -163,8 +215,6 @@ class DataSourceAzureNet(sources.DataSource):
         # now update ds_cfg to reflect contents pass in config
         user_ds_cfg = util.get_cfg_by_path(self.cfg, DS_CFG_PATH, {})
         self.ds_cfg = util.mergemanydict([user_ds_cfg, self.ds_cfg])
-        mycfg = self.ds_cfg
-        ddir = mycfg['data_dir']
 
         if found != ddir:
             cached_ovfenv = util.load_file(
@@ -185,53 +235,18 @@ class DataSourceAzureNet(sources.DataSource):
         # the directory to be protected.
         write_files(ddir, files, dirmode=0o700)
 
-        temp_hostname = self.metadata.get('local-hostname')
-        hostname_command = mycfg['hostname_bounce']['hostname_command']
-        with temporary_hostname(temp_hostname, mycfg,
-                                hostname_command=hostname_command) \
-                as previous_hostname:
-            if (previous_hostname is not None
-                    and util.is_true(mycfg.get('set_hostname'))):
-                cfg = mycfg['hostname_bounce']
-                try:
-                    perform_hostname_bounce(hostname=temp_hostname,
-                                            cfg=cfg,
-                                            prev_hostname=previous_hostname)
-                except Exception as e:
-                    LOG.warn("Failed publishing hostname: %s", e)
-                    util.logexc(LOG, "handling set_hostname failed")
-
-            try:
-                invoke_agent(mycfg['agent_command'])
-            except util.ProcessExecutionError:
-                # claim the datasource even if the command failed
-                util.logexc(LOG, "agent command '%s' failed.",
-                            mycfg['agent_command'])
-
-            shcfgxml = os.path.join(ddir, "SharedConfig.xml")
-            wait_for = [shcfgxml]
-
-            fp_files = []
-            for pk in self.cfg.get('_pubkeys', []):
-                bname = str(pk['fingerprint'] + ".crt")
-                fp_files += [os.path.join(ddir, bname)]
-
-            missing = util.log_time(logfunc=LOG.debug, msg="waiting for files",
-                                    func=wait_for_files,
-                                    args=(wait_for + fp_files,))
-        if len(missing):
-            LOG.warn("Did not find files, but going on: %s", missing)
-
-        if shcfgxml in missing:
-            LOG.warn("SharedConfig.xml missing, using static instance-id")
+        if self.ds_cfg['agent_command'] == '__builtin__':
+            metadata_func = get_metadata_from_fabric
         else:
-            try:
-                self.metadata['instance-id'] = iid_from_shared_config(shcfgxml)
-            except ValueError as e:
-                LOG.warn("failed to get instance id in %s: %s", shcfgxml, e)
+            metadata_func = self.get_metadata_from_agent
+        try:
+            fabric_data = metadata_func()
+        except Exception as exc:
+            LOG.info("Error communicating with Azure fabric; assume we aren't"
+                     " on Azure.", exc_info=True)
+            return False
 
-        pubkeys = pubkeys_from_crt_files(fp_files)
-        self.metadata['public-keys'] = pubkeys
+        self.metadata.update(fabric_data)
 
         found_ephemeral = find_ephemeral_disk()
         if found_ephemeral:
@@ -363,10 +378,11 @@ def perform_hostname_bounce(hostname, cfg, prev_hostname):
                           'env': env})
 
 
-def crtfile_to_pubkey(fname):
+def crtfile_to_pubkey(fname, data=None):
     pipeline = ('openssl x509 -noout -pubkey < "$0" |'
                 'ssh-keygen -i -m PKCS8 -f /dev/stdin')
-    (out, _err) = util.subp(['sh', '-c', pipeline, fname], capture=True)
+    (out, _err) = util.subp(['sh', '-c', pipeline, fname],
+                            capture=True, data=data)
     return out.rstrip()
 
 
@@ -474,20 +490,6 @@ def load_azure_ovf_pubkeys(sshnode):
         found.append(cur)
 
     return found
-
-
-def single_node_at_path(node, pathlist):
-    curnode = node
-    for tok in pathlist:
-        results = find_child(curnode, lambda n: n.localName == tok)
-        if len(results) == 0:
-            raise ValueError("missing %s token in %s" % (tok, str(pathlist)))
-        if len(results) > 1:
-            raise ValueError("found %s nodes of type %s looking for %s" %
-                             (len(results), tok, str(pathlist)))
-        curnode = results[0]
-
-    return curnode
 
 
 def read_azure_ovf(contents):
@@ -618,19 +620,6 @@ def iid_from_shared_config(path):
     with open(path, "rb") as fp:
         content = fp.read()
     return iid_from_shared_config_content(content)
-
-
-def iid_from_shared_config_content(content):
-    """
-    find INSTANCE_ID in:
-    <?xml version="1.0" encoding="utf-8"?>
-    <SharedConfig version="1.0.0.0" goalStateIncarnation="1">
-      <Deployment name="INSTANCE_ID" guid="{...}" incarnation="0">
-        <Service name="..." guid="{00000000-0000-0000-0000-000000000000}" />
-    """
-    dom = minidom.parseString(content)
-    depnode = single_node_at_path(dom, ["SharedConfig", "Deployment"])
-    return depnode.attributes.get('name').value
 
 
 class BrokenAzureDataSource(Exception):

@@ -40,6 +40,7 @@
  - Azure: do not re-set hostname if user has changed it (LP: #1375252)
  - Fix exception when running with no arguments on Python 3. [Daniel Watkins]
  - Centos: detect/expect use of systemd on centos 7. [Brian Rak]
+ - Azure: remove dependency on walinux-agent [Daniel Watkins]
 0.7.6:
  - open 0.7.6
  - Enable vendordata on CloudSigma datasource (LP: #1303986)

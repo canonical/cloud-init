@@ -18,7 +18,6 @@ import stat
 import yaml
 import shutil
 import tempfile
-import unittest
 
 
 def construct_valid_ovf_env(data=None, pubkeys=None, userdata=None):
@@ -123,6 +122,11 @@ class TestAzureDataSource(TestCase):
         mod = DataSourceAzure
         mod.BUILTIN_DS_CONFIG['data_dir'] = self.waagent_d
 
+        self.get_metadata_from_fabric = mock.MagicMock(return_value={
+            'instance-id': 'i-my-azure-id',
+            'public-keys': [],
+        })
+
         self.apply_patches([
             (mod, 'list_possible_azure_ds_devs', dsdevs),
             (mod, 'invoke_agent', _invoke_agent),
@@ -132,7 +136,8 @@ class TestAzureDataSource(TestCase):
             (mod, 'perform_hostname_bounce', mock.MagicMock()),
             (mod, 'get_hostname', mock.MagicMock()),
             (mod, 'set_hostname', mock.MagicMock()),
-            ])
+            (mod, 'get_metadata_from_fabric', self.get_metadata_from_fabric),
+        ])
 
         dsrc = mod.DataSourceAzureNet(
             data.get('sys_cfg', {}), distro=None, paths=self.paths)
@@ -382,6 +387,20 @@ class TestAzureDataSource(TestCase):
         self.assertEqual(new_ovfenv,
             load_file(os.path.join(self.waagent_d, 'ovf-env.xml')))
 
+    def test_exception_fetching_fabric_data_doesnt_propagate(self):
+        ds = self._get_ds({'ovfcontent': construct_valid_ovf_env()})
+        ds.ds_cfg['agent_command'] = '__builtin__'
+        self.get_metadata_from_fabric.side_effect = Exception
+        self.assertFalse(ds.get_data())
+
+    def test_fabric_data_included_in_metadata(self):
+        ds = self._get_ds({'ovfcontent': construct_valid_ovf_env()})
+        ds.ds_cfg['agent_command'] = '__builtin__'
+        self.get_metadata_from_fabric.return_value = {'test': 'value'}
+        ret = ds.get_data()
+        self.assertTrue(ret)
+        self.assertEqual('value', ds.metadata['test'])
+
 
 class TestAzureBounce(TestCase):
 
@@ -402,6 +421,9 @@ class TestAzureBounce(TestCase):
         self.patches.enter_context(
             mock.patch.object(DataSourceAzure, 'find_ephemeral_part',
                               mock.MagicMock(return_value=None)))
+        self.patches.enter_context(
+            mock.patch.object(DataSourceAzure, 'get_metadata_from_fabric',
+                              mock.MagicMock(return_value={})))
 
     def setUp(self):
         super(TestAzureBounce, self).setUp()
@@ -566,16 +588,3 @@ class TestReadAzureOvf(TestCase):
         for mypk in mypklist:
             self.assertIn(mypk, cfg['_pubkeys'])
 
-
-class TestReadAzureSharedConfig(unittest.TestCase):
-    def test_valid_content(self):
-        xml = """<?xml version="1.0" encoding="utf-8"?>
-            <SharedConfig>
-             <Deployment name="MY_INSTANCE_ID">
-              <Service name="myservice"/>
-              <ServiceInstance name="INSTANCE_ID.0" guid="{abcd-uuid}" />
-             </Deployment>
-            <Incarnation number="1"/>
-            </SharedConfig>"""
-        ret = DataSourceAzure.iid_from_shared_config_content(xml)
-        self.assertEqual("MY_INSTANCE_ID", ret)
