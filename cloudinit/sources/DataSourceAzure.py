@@ -23,6 +23,8 @@ import fnmatch
 import os
 import os.path
 import time
+import xml.etree.ElementTree as ET
+
 from xml.dom import minidom
 
 from cloudinit import log as logging
@@ -67,6 +69,10 @@ BUILTIN_CLOUD_CONFIG = {
 
 DS_CFG_PATH = ['datasource', DS_NAME]
 DEF_EPHEMERAL_LABEL = 'Temporary Storage'
+
+# The redacted password fails to meet password complexity requirements
+# so we can safely use this to mask/redact the password in the ovf-env.xml
+DEF_PASSWD_REDACTION = 'REDACTED'
 
 
 def get_hostname(hostname_command='hostname'):
@@ -414,14 +420,30 @@ def wait_for_files(flist, maxwait=60, naplen=.5):
 
 
 def write_files(datadir, files, dirmode=None):
+
+    def _redact_password(cnt, fname):
+        """Azure provides the UserPassword in plain text. So we redact it"""
+        try:
+            root = ET.fromstring(cnt)
+            for elem in root.iter():
+                if ('UserPassword' in elem.tag and
+                   elem.text != DEF_PASSWD_REDACTION):
+                    elem.text = DEF_PASSWD_REDACTION
+            return ET.tostring(root)
+        except Exception as e:
+            LOG.critical("failed to redact userpassword in {}".format(fname))
+            return cnt
+
     if not datadir:
         return
     if not files:
         files = {}
     util.ensure_dir(datadir, dirmode)
     for (name, content) in files.items():
-        util.write_file(filename=os.path.join(datadir, name),
-                        content=content, mode=0o600)
+        fname = os.path.join(datadir, name)
+        if 'ovf-env.xml' in name:
+            content = _redact_password(content, fname)
+        util.write_file(filename=fname, content=content, mode=0o600)
 
 
 def invoke_agent(cmd):
@@ -576,7 +598,7 @@ def read_azure_ovf(contents):
     defuser = {}
     if username:
         defuser['name'] = username
-    if password:
+    if password and DEF_PASSWD_REDACTION != password:
         defuser['passwd'] = encrypt_pass(password)
         defuser['lock_passwd'] = False
 

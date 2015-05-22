@@ -42,6 +42,7 @@
  - Centos: detect/expect use of systemd on centos 7. [Brian Rak]
  - Azure: remove dependency on walinux-agent [Daniel Watkins]
  - EC2: know about eu-central-1 availability-zone (LP: #1456684)
+ - Azure: remove password from on-disk ovf-env.xml (LP: #1443311) [Ben Howard]
 0.7.6:
  - open 0.7.6
  - Enable vendordata on CloudSigma datasource (LP: #1303986)

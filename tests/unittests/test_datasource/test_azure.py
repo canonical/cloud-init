@@ -18,6 +18,7 @@ import stat
 import yaml
 import shutil
 import tempfile
+import xml.etree.ElementTree as ET
 
 
 def construct_valid_ovf_env(data=None, pubkeys=None, userdata=None):
@@ -143,6 +144,39 @@ class TestAzureDataSource(TestCase):
             data.get('sys_cfg', {}), distro=None, paths=self.paths)
 
         return dsrc
+
+    def xml_equals(self, oxml, nxml):
+        """Compare two sets of XML to make sure they are equal"""
+
+        def create_tag_index(xml):
+            et = ET.fromstring(xml)
+            ret = {}
+            for x in et.iter():
+                ret[x.tag] = x
+            return ret
+
+        def tags_exists(x, y):
+            for tag in x.keys():
+                self.assertIn(tag, y)
+            for tag in y.keys():
+                self.assertIn(tag, x)
+
+        def tags_equal(x, y):
+            for x_tag, x_val in x.items():
+                y_val = y.get(x_val.tag)
+                self.assertEquals(x_val.text, y_val.text)
+
+        old_cnt = create_tag_index(oxml)
+        new_cnt = create_tag_index(nxml)
+        tags_exists(old_cnt, new_cnt)
+        tags_equal(old_cnt, new_cnt)
+
+    def xml_notequals(self, oxml, nxml):
+        try:
+            self.xml_equals(oxml, nxml)
+        except AssertionError as e:
+            return
+        raise AssertionError("XML is the same")
 
     def test_basic_seed_dir(self):
         odata = {'HostName': "myhost", 'UserName': "myuser"}
@@ -322,6 +356,31 @@ class TestAzureDataSource(TestCase):
 
         self.assertEqual(userdata.encode('us-ascii'), dsrc.userdata_raw)
 
+    def test_password_redacted_in_ovf(self):
+        odata = {'HostName': "myhost", 'UserName': "myuser",
+                 'UserPassword': "mypass"}
+        data = {'ovfcontent': construct_valid_ovf_env(data=odata)}
+        dsrc = self._get_ds(data)
+        ret = dsrc.get_data()
+
+        self.assertTrue(ret)
+        ovf_env_path = os.path.join(self.waagent_d, 'ovf-env.xml')
+
+        # The XML should not be same since the user password is redacted
+        on_disk_ovf = load_file(ovf_env_path)
+        self.xml_notequals(data['ovfcontent'], on_disk_ovf)
+
+        # Make sure that the redacted password on disk is not used by CI
+        self.assertNotEquals(dsrc.cfg.get('password'),
+                             DataSourceAzure.DEF_PASSWD_REDACTION)
+
+        # Make sure that the password was really encrypted
+        et = ET.fromstring(on_disk_ovf)
+        for elem in et.iter():
+            if 'UserPassword' in elem.tag:
+                self.assertEquals(DataSourceAzure.DEF_PASSWD_REDACTION,
+                                  elem.text)
+
     def test_ovf_env_arrives_in_waagent_dir(self):
         xml = construct_valid_ovf_env(data={}, userdata="FOODATA")
         dsrc = self._get_ds({'ovfcontent': xml})
@@ -331,7 +390,7 @@ class TestAzureDataSource(TestCase):
         # we expect that the ovf-env.xml file is copied there.
         ovf_env_path = os.path.join(self.waagent_d, 'ovf-env.xml')
         self.assertTrue(os.path.exists(ovf_env_path))
-        self.assertEqual(xml, load_file(ovf_env_path))
+        self.xml_equals(xml, load_file(ovf_env_path))
 
     def test_ovf_can_include_unicode(self):
         xml = construct_valid_ovf_env(data={})
@@ -380,12 +439,12 @@ class TestAzureDataSource(TestCase):
         self.assertEqual(dsrc.userdata_raw, b"NEW_USERDATA")
         self.assertTrue(os.path.exists(
             os.path.join(self.waagent_d, 'otherfile')))
-        self.assertFalse(
-            os.path.exists(os.path.join(self.waagent_d, 'SharedConfig.xml')))
-        self.assertTrue(
-            os.path.exists(os.path.join(self.waagent_d, 'ovf-env.xml')))
-        self.assertEqual(new_ovfenv,
-            load_file(os.path.join(self.waagent_d, 'ovf-env.xml')))
+        self.assertFalse(os.path.exists(
+                        os.path.join(self.waagent_d, 'SharedConfig.xml')))
+        self.assertTrue(os.path.exists(
+                        os.path.join(self.waagent_d, 'ovf-env.xml')))
+        new_xml = load_file(os.path.join(self.waagent_d, 'ovf-env.xml'))
+        self.xml_equals(new_ovfenv, new_xml)
 
     def test_exception_fetching_fabric_data_doesnt_propagate(self):
         ds = self._get_ds({'ovfcontent': construct_valid_ovf_env()})
