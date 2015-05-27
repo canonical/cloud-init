@@ -34,34 +34,33 @@ class GoodTests(unittest.TestCase):
         Emulates a system that is already registered. Ensure it gets
         a non-ProcessExecution error from is_registered()
         '''
-        good_message = 'System is already registered'
         with mock.patch.object(cc_rh_subscription.SubscriptionManager,
                                '_sub_man_cli') as mockobj:
-            self.log.info = mock.MagicMock(wraps=self.log.info)
+            self.SM.log_sucess = mock.MagicMock()
             self.handle(self.name, self.config, self.cloud_init,
                         self.log, self.args)
+            self.assertEqual(self.SM.log_sucess.call_count, 1)
             self.assertEqual(mockobj.call_count, 1)
-            self.log.info.assert_called_with(good_message)
 
     def test_simple_registration(self):
         '''
         Simple registration with username and password
         '''
-        good_message = 'rh_subscription plugin completed successfully'
-        self.log.info = mock.MagicMock(wraps=self.log.info)
+        self.SM.log_sucess = mock.MagicMock()
         reg = "The system has been registered with ID:" \
               " 12345678-abde-abcde-1234-1234567890abc"
         self.SM._sub_man_cli = mock.MagicMock(
             side_effect=[util.ProcessExecutionError, (reg, 'bar')])
         self.handle(self.name, self.config, self.cloud_init,
                     self.log, self.args)
-        self.SM._sub_man_cli.assert_called_with_once(['subscription-manager',
-                                                      'identity'])
-        self.SM._sub_man_cli.assert_called_with_once(
-            ['subscription-manager', 'register', '--username=scooby@do.com',
-             '--password=scooby-snacks'], logstring_val=True)
+        self.assertIn(mock.call(['identity']),
+                      self.SM._sub_man_cli.call_args_list)
+        self.assertIn(mock.call(['register', '--username=scooby@do.com',
+                                 '--password=scooby-snacks'],
+                                logstring_val=True),
+                      self.SM._sub_man_cli.call_args_list)
 
-        self.log.info.assert_called_with(good_message)
+        self.assertEqual(self.SM.log_sucess.call_count, 1)
         self.assertEqual(self.SM._sub_man_cli.call_count, 2)
 
     def test_full_registration(self):
@@ -69,12 +68,12 @@ class GoodTests(unittest.TestCase):
         Registration with auto-attach, service-level, adding pools,
         and enabling and disabling yum repos
         '''
-        pool_message = 'Pool pool2 is not available'
-        repo_message1 = 'Repo repo1 is already enabled'
-        repo_message2 = 'Enabled the following repos: repo2, repo3'
-        good_message = 'rh_subscription plugin completed successfully'
-        self.log.warn = mock.MagicMock(wraps=self.log.warn)
-        self.log.debug = mock.MagicMock(wraps=self.log.debug)
+        call_lists = []
+        call_lists.append(['attach', '--pool=pool1', '--pool=pool3'])
+        call_lists.append(['repos', '--enable=repo2', '--enable=repo3',
+                           '--disable=repo5'])
+        call_lists.append(['attach', '--auto', '--servicelevel=self-support'])
+        self.SM.log_sucess = mock.MagicMock()
         reg = "The system has been registered with ID:" \
               " 12345678-abde-abcde-1234-1234567890abc"
         self.SM._sub_man_cli = mock.MagicMock(
@@ -87,145 +86,123 @@ class GoodTests(unittest.TestCase):
                          ('', '')])
         self.handle(self.name, self.config_full, self.cloud_init,
                     self.log, self.args)
-        self.log.warn.assert_any_call(pool_message)
-        self.log.debug.assert_any_call(repo_message1)
-        self.log.debug.assert_any_call(repo_message2)
-        self.log.info.assert_any_call(good_message)
-        self.SM._sub_man_cli.assert_called_with_once(['subscription-manager',
-                                                      'attach', '-pool=pool1',
-                                                      '--pool=pool33'])
+        for call in call_lists:
+            self.assertIn(mock.call(call), self.SM._sub_man_cli.call_args_list)
+        self.assertEqual(self.SM.log_sucess.call_count, 1)
         self.assertEqual(self.SM._sub_man_cli.call_count, 9)
 
 
-class BadTests(unittest.TestCase):
+class TestBadInput(unittest.TestCase):
+    name = "cc_rh_subscription"
+    cloud_init = None
+    log = logging.getLogger("bad_tests")
+    args = []
+    SM = cc_rh_subscription.SubscriptionManager
+    reg = "The system has been registered with ID:" \
+          " 12345678-abde-abcde-1234-1234567890abc"
+
+    config_no_password = {'rh_subscription':
+                          {'username': 'scooby@do.com'
+                           }}
+
+    config_no_key = {'rh_subscription':
+                     {'activation-key': '1234abcde',
+                      }}
+
+    config_service = {'rh_subscription':
+                      {'username': 'scooby@do.com',
+                       'password': 'scooby-snacks',
+                       'service-level': 'self-support'
+                       }}
+
+    config_badpool = {'rh_subscription':
+                      {'username': 'scooby@do.com',
+                       'password': 'scooby-snacks',
+                       'add-pool': 'not_a_list'
+                       }}
+    config_badrepo = {'rh_subscription':
+                      {'username': 'scooby@do.com',
+                       'password': 'scooby-snacks',
+                       'enable-repo': 'not_a_list'
+                       }}
+    config_badkey = {'rh_subscription':
+                     {'activation_key': 'abcdef1234',
+                      'org': '123',
+                      }}
+
     def setUp(self):
-        super(BadTests, self).setUp()
-        self.name = "cc_rh_subscription"
-        self.cloud_init = None
-        self.log = logging.getLogger("bad_tests")
-        self.orig = self.log
-        self.args = []
+        super(TestBadInput, self).setUp()
         self.handle = cc_rh_subscription.handle
-        self.SM = cc_rh_subscription.SubscriptionManager
-        self.reg = "The system has been registered with ID:" \
-                   " 12345678-abde-abcde-1234-1234567890abc"
-
-        self.config_no_password = {'rh_subscription':
-                                   {'username': 'scooby@do.com'
-                                    }}
-
-        self.config_no_key = {'rh_subscription':
-                              {'activation-key': '1234abcde',
-                               }}
-
-        self.config_service = {'rh_subscription':
-                               {'username': 'scooby@do.com',
-                                'password': 'scooby-snacks',
-                                'service-level': 'self-support'
-                                }}
-
-        self.config_badpool = {'rh_subscription':
-                               {'username': 'scooby@do.com',
-                                'password': 'scooby-snacks',
-                                'add-pool': 'not_a_list'
-                                }}
-        self.config_badrepo = {'rh_subscription':
-                               {'username': 'scooby@do.com',
-                                'password': 'scooby-snacks',
-                                'enable-repo': 'not_a_list'
-                                }}
-        self.config_badkey = {'rh_subscription':
-                              {'activation_key': 'abcdef1234',
-                               'org': '123',
-                               }}
 
     def test_no_password(self):
         '''
         Attempt to register without the password key/value
         '''
-        self.missing_info(self.config_no_password)
+        self.input_is_missing_data(self.config_no_password)
 
     def test_no_org(self):
         '''
         Attempt to register without the org key/value
         '''
-        self.missing_info(self.config_no_key)
+        self.input_is_missing_data(self.config_no_key)
 
     def test_service_level_without_auto(self):
         '''
         Attempt to register using service-level without the auto-attach key
         '''
-        good_message = 'The service-level key must be used in conjunction'\
-                       ' with the auto-attach key.  Please re-run with '\
-                       'auto-attach: True'
-
-        self.log.warn = mock.MagicMock(wraps=self.log.warn)
+        self.SM.log_warn = mock.MagicMock()
         self.SM._sub_man_cli = mock.MagicMock(
             side_effect=[util.ProcessExecutionError, (self.reg, 'bar')])
         self.handle(self.name, self.config_service, self.cloud_init,
                     self.log, self.args)
-        self.log.warn.assert_any_call(good_message)
-        self.assertRaises(cc_rh_subscription.SubscriptionError)
         self.assertEqual(self.SM._sub_man_cli.call_count, 1)
+        self.assertEqual(self.SM.log_warn.call_count, 2)
 
     def test_pool_not_a_list(self):
         '''
         Register with pools that are not in the format of a list
         '''
-        good_message = "Pools must in the format of a list"
-        self.log.warn = mock.MagicMock(wraps=self.log.warn)
+        self.SM.log_warn = mock.MagicMock()
         self.SM._sub_man_cli = mock.MagicMock(
             side_effect=[util.ProcessExecutionError, (self.reg, 'bar')])
         self.handle(self.name, self.config_badpool, self.cloud_init,
                     self.log, self.args)
-        self.log.warn.assert_any_call(good_message)
-        self.assertRaises(cc_rh_subscription.SubscriptionError)
         self.assertEqual(self.SM._sub_man_cli.call_count, 2)
+        self.assertEqual(self.SM.log_warn.call_count, 2)
 
     def test_repo_not_a_list(self):
         '''
         Register with repos that are not in the format of a list
         '''
-        good_message = "Repo IDs must in the format of a list."
-        self.log.warn = mock.MagicMock(wraps=self.log.warn)
+        self.SM.log_warn = mock.MagicMock()
         self.SM._sub_man_cli = mock.MagicMock(
             side_effect=[util.ProcessExecutionError, (self.reg, 'bar')])
         self.handle(self.name, self.config_badrepo, self.cloud_init,
                     self.log, self.args)
-        self.log.warn.assert_any_call(good_message)
-        self.assertRaises(cc_rh_subscription.SubscriptionError)
+        self.assertEqual(self.SM.log_warn.call_count, 3)
         self.assertEqual(self.SM._sub_man_cli.call_count, 2)
 
     def test_bad_key_value(self):
         '''
         Attempt to register with a key that we don't know
         '''
-        good_message = 'activation_key is not a valid key for rh_subscription.'\
-                       ' Valid keys are: org, activation-key, username, '\
-                       'password, disable-repo, enable-repo, add-pool,'\
-                       ' rhsm-baseurl, server-hostname, auto-attach, '\
-                       'service-level'
-        self.log.warn = mock.MagicMock(wraps=self.log.warn)
+        self.SM.log_warn = mock.MagicMock()
         self.SM._sub_man_cli = mock.MagicMock(
             side_effect=[util.ProcessExecutionError, (self.reg, 'bar')])
         self.handle(self.name, self.config_badkey, self.cloud_init,
                     self.log, self.args)
-        self.assertRaises(cc_rh_subscription.SubscriptionError)
-        self.log.warn.assert_any_call(good_message)
+        self.assertEqual(self.SM.log_warn.call_count, 2)
         self.assertEqual(self.SM._sub_man_cli.call_count, 1)
 
-    def missing_info(self, config):
+    def input_is_missing_data(self, config):
         '''
         Helper def for tests that having missing information
         '''
-        good_message = "Unable to register system due to incomplete "\
-                       "information."
-        self.log.warn = mock.MagicMock(wraps=self.log.warn)
+        self.SM.log_warn = mock.MagicMock()
         self.SM._sub_man_cli = mock.MagicMock(
             side_effect=[util.ProcessExecutionError])
         self.handle(self.name, config, self.cloud_init,
                     self.log, self.args)
-        self.SM._sub_man_cli.assert_called_with(['subscription-manager',
-                                                 'identity'])
-        self.log.warn.assert_any_call(good_message)
+        self.SM._sub_man_cli.assert_called_with(['identity'])
+        self.assertEqual(self.SM.log_warn.call_count, 4)
         self.assertEqual(self.SM._sub_man_cli.call_count, 1)

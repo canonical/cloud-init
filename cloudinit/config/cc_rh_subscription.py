@@ -1,6 +1,6 @@
 # vi: ts=4 expandtab
 #
-#    Copyright (C) Red Hat, Inc.
+#    Copyright (C) 2015 Red Hat, Inc.
 #
 #    Author: Brent Baude <bbaude@redhat.com>
 #
@@ -16,7 +16,6 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import itertools
 from cloudinit import util
 
 
@@ -51,10 +50,10 @@ def handle(_name, cfg, _cloud, log, _args):
                     sm.log.debug("Completed auto-attach")
 
             if sm.pools is not None:
-                if type(sm.pools) is not list:
+                if not isinstance(sm.pools, (list)):
                     pool_fail = "Pools must in the format of a list"
                     raise SubscriptionError(pool_fail)
-                                            
+
                 return_stat = sm.addPool(sm.pools)
                 if not return_stat:
                     raise SubscriptionError("Unable to attach pools {0}"
@@ -63,12 +62,12 @@ def handle(_name, cfg, _cloud, log, _args):
                 return_stat = sm.update_repos(sm.enable_repo, sm.disable_repo)
                 if not return_stat:
                     raise SubscriptionError("Unable to add or remove repos")
-            sm.log.info("rh_subscription plugin completed successfully")
+            sm.log_sucess("rh_subscription plugin completed successfully")
         except SubscriptionError as e:
-            sm.log.warn(str(e))
-            sm.log.warn("rh_subscription plugin did not complete successfully")
+            sm.log_warn(str(e))
+            sm.log_warn("rh_subscription plugin did not complete successfully")
     else:
-        sm.log.info("System is already registered")
+        sm.log_sucess("System is already registered")
 
 
 class SubscriptionError(Exception):
@@ -76,6 +75,11 @@ class SubscriptionError(Exception):
 
 
 class SubscriptionManager(object):
+    valid_rh_keys = ['org', 'activation-key', 'username', 'password',
+                     'disable-repo', 'enable-repo', 'add-pool',
+                     'rhsm-baseurl', 'server-hostname',
+                     'auto-attach', 'service-level']
+
     def __init__(self, cfg):
         self.cfg = cfg
         self.rhel_cfg = self.cfg.get('rh_subscription', {})
@@ -91,11 +95,15 @@ class SubscriptionManager(object):
         self.disable_repo = self.rhel_cfg.get('disable-repo')
         self.servicelevel = self.rhel_cfg.get('service-level')
         self.subman = ['subscription-manager']
-        self.valid_rh_keys = ['org', 'activation-key', 'username', 'password',
-                              'disable-repo', 'enable-repo', 'add-pool',
-                              'rhsm-baseurl', 'server-hostname',
-                              'auto-attach', 'service-level']
         self.is_registered = self._is_registered()
+
+    def log_sucess(self, msg):
+        '''Simple wrapper for logging info messages. Useful for unittests'''
+        self.log.info(msg)
+
+    def log_warn(self, msg):
+        '''Simple wrapper for logging warning messages. Useful for unittests'''
+        self.log.warn(msg)
 
     def _verify_keys(self):
         '''
@@ -112,14 +120,15 @@ class SubscriptionManager(object):
 
         # Check for bad auto-attach value
         if (self.auto_attach is not None) and \
-                (str(self.auto_attach).upper() not in ['TRUE', 'FALSE']):
+                not (util.is_true(self.auto_attach) or
+                     util.is_false(self.auto_attach)):
             not_bool = "The key auto-attach must be a value of "\
                        "either True or False"
             return False, not_bool
 
         if (self.servicelevel is not None) and \
-            ((not self.auto_attach) or
-                (str(self.auto_attach).upper() == "FALSE")):
+                ((not self.auto_attach)
+                 or (util.is_false(str(self.auto_attach)))):
 
             no_auto = "The service-level key must be used in conjunction with "\
                       "the auto-attach key.  Please re-run with auto-attach: "\
@@ -132,7 +141,7 @@ class SubscriptionManager(object):
         Checks if the system is already registered and returns
         True if so, else False
         '''
-        cmd = list(itertools.chain(self.subman, ['identity']))
+        cmd = ['identity']
 
         try:
             self._sub_man_cli(cmd)
@@ -147,9 +156,8 @@ class SubscriptionManager(object):
         and runs subscription-manager.  Breaking this to a
         separate function for later use in mocking and unittests
         '''
-        return_out, return_err = util.subp(cmd, logstring=logstring_val)
-
-        return return_out, return_err
+        cmd = self.subman + cmd
+        return util.subp(cmd, logstring=logstring_val)
 
     def rhn_register(self):
         '''
@@ -159,10 +167,8 @@ class SubscriptionManager(object):
 
         if (self.activation_key is not None) and (self.org is not None):
             # register by activation key
-            cmd = list(itertools.chain(self.subman, ['register',
-                                       '--activationkey={0}'.
-                       format(self.activation_key),
-                       '--org={0}'.format(self.org)]))
+            cmd = ['register', '--activationkey={0}'.
+                   format(self.activation_key), '--org={0}'.format(self.org)]
 
             # If the baseurl and/or server url are passed in, we register
             # with them.
@@ -178,15 +184,14 @@ class SubscriptionManager(object):
                                                            logstring_val=True)
             except util.ProcessExecutionError as e:
                 if e.stdout == "":
-                    self.log.warn("Registration failed due "
+                    self.log_warn("Registration failed due "
                                   "to: {0}".format(e.stderr))
                 return False
 
         elif (self.userid is not None) and (self.password is not None):
             # register by username and password
-            cmd = list(itertools.chain(self.subman, ['register',
-                       '--username={0}'.format(self.userid),
-                       '--password={0}'.format(self.password)]))
+            cmd = ['register', '--username={0}'.format(self.userid),
+                   '--password={0}'.format(self.password)]
 
             # If the baseurl and/or server url are passed in, we register
             # with them.
@@ -203,14 +208,14 @@ class SubscriptionManager(object):
                                                            logstring_val=True)
             except util.ProcessExecutionError as e:
                 if e.stdout == "":
-                    self.log.warn("Registration failed due "
+                    self.log_warn("Registration failed due "
                                   "to: {0}".format(e.stderr))
                 return False
 
         else:
-            self.log.warn("Unable to register system due to incomplete "
+            self.log_warn("Unable to register system due to incomplete "
                           "information.")
-            self.log.warn("Use either activationkey and org *or* userid "
+            self.log_warn("Use either activationkey and org *or* userid "
                           "and password")
             return False
 
@@ -219,9 +224,8 @@ class SubscriptionManager(object):
         return True
 
     def _set_service_level(self):
-        cmd = list(itertools.chain(self.subman,
-                                   ['attach', '--auto', '--servicelevel={0}'
-                                    .format(self.servicelevel)]))
+        cmd = ['attach', '--auto', '--servicelevel={0}'
+               .format(self.servicelevel)]
 
         try:
             return_out, return_err = self._sub_man_cli(cmd)
@@ -229,9 +233,9 @@ class SubscriptionManager(object):
             if e.stdout.rstrip() != '':
                 for line in e.stdout.split("\n"):
                     if line is not '':
-                        self.log.warn(line)
+                        self.log_warn(line)
             else:
-                self.log.warn("Setting the service level failed with: "
+                self.log_warn("Setting the service level failed with: "
                               "{0}".format(e.stderr.strip()))
             return False
         for line in return_out.split("\n"):
@@ -240,11 +244,11 @@ class SubscriptionManager(object):
         return True
 
     def _set_auto_attach(self):
-        cmd = list(itertools.chain(self.subman, ['attach', '--auto']))
+        cmd = ['attach', '--auto']
         try:
             return_out, return_err = self._sub_man_cli(cmd)
         except util.ProcessExecutionError:
-            self.log.warn("Auto-attach failed with: "
+            self.log_warn("Auto-attach failed with: "
                           "{0}]".format(return_err.strip()))
             return False
         for line in return_out.split("\n"):
@@ -261,14 +265,12 @@ class SubscriptionManager(object):
         consumed = []
 
         # Get all available pools
-        cmd = list(itertools.chain(self.subman, ['list', '--available',
-                                                 '--pool-only']))
+        cmd = ['list', '--available', '--pool-only']
         results, errors = self._sub_man_cli(cmd)
         available = (results.rstrip()).split("\n")
 
         # Get all consumed pools
-        cmd = list(itertools.chain(self.subman, ['list', '--consumed',
-                                                 '--pool-only']))
+        cmd = ['list', '--consumed', '--pool-only']
         results, errors = self._sub_man_cli(cmd)
         consumed = (results.rstrip()).split("\n")
 
@@ -280,14 +282,14 @@ class SubscriptionManager(object):
         them in list form.
         '''
 
-        cmd = list(itertools.chain(self.subman, ['repos', '--list-enabled']))
+        cmd = ['repos', '--list-enabled']
         return_out, return_err = self._sub_man_cli(cmd)
         active_repos = []
         for repo in return_out.split("\n"):
             if "Repo ID:" in repo:
                 active_repos.append((repo.split(':')[1]).strip())
 
-        cmd = list(itertools.chain(self.subman, ['repos', '--list-disabled']))
+        cmd = ['repos', '--list-disabled']
         return_out, return_err = self._sub_man_cli(cmd)
 
         inactive_repos = []
@@ -309,12 +311,12 @@ class SubscriptionManager(object):
 
         pool_available, pool_consumed = self._getPools()
         pool_list = []
-        cmd = list(itertools.chain(self.subman, ['attach']))
+        cmd = ['attach']
         for pool in pools:
             if (pool not in pool_consumed) and (pool in pool_available):
                 pool_list.append('--pool={0}'.format(pool))
             else:
-                self.log.warn("Pool {0} is not available".format(pool))
+                self.log_warn("Pool {0} is not available".format(pool))
         if len(pool_list) > 0:
             cmd.extend(pool_list)
             try:
@@ -324,7 +326,7 @@ class SubscriptionManager(object):
                                .replace('--pool=', ''))
                 return True
             except util.ProcessExecutionError as e:
-                self.log.warn("Unable to attach pool {0} "
+                self.log_warn("Unable to attach pool {0} "
                               "due to {1}".format(pool, e))
                 return False
 
@@ -335,12 +337,12 @@ class SubscriptionManager(object):
         executes the action to disable or enable
         '''
 
-        if (erepos is not None) and (type(erepos) is not list):
-            self.log.warn("Repo IDs must in the format of a list.")
+        if (erepos is not None) and (not isinstance(erepos, (list))):
+            self.log_warn("Repo IDs must in the format of a list.")
             return False
 
-        if (drepos is not None) and (type(drepos) is not list):
-            self.log.warn("Repo IDs must in the format of a list.")
+        if (drepos is not None) and (not isinstance(drepos, (list))):
+            self.log_warn("Repo IDs must in the format of a list.")
             return False
 
         # Bail if both lists are not populated
@@ -374,14 +376,14 @@ class SubscriptionManager(object):
                 if fail in active_repos:
                     self.log.debug("Repo {0} is already enabled".format(fail))
                 else:
-                    self.log.warn("Repo {0} does not appear to "
+                    self.log_warn("Repo {0} does not appear to "
                                   "exist".format(fail))
         if len(disable_list_fail) > 0:
             for fail in disable_list_fail:
                 self.log.debug("Repo {0} not disabled "
                                "because it is not enabled".format(fail))
 
-        cmd = list(itertools.chain(self.subman, ['repos']))
+        cmd = ['repos']
         if enable_list > 0:
             cmd.extend(enable_list)
         if disable_list > 0:
@@ -390,7 +392,7 @@ class SubscriptionManager(object):
         try:
             self._sub_man_cli(cmd)
         except util.ProcessExecutionError as e:
-            self.log.warn("Unable to alter repos due to {0}".format(e))
+            self.log_warn("Unable to alter repos due to {0}".format(e))
             return False
 
         if enable_list > 0:
