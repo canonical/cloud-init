@@ -1,3 +1,12 @@
+cloud-init (0.7.7~bzr1109-0ubuntu1) wily; urgency=medium
+
+  * New upstream snapshot.
+    * Azure: Redact on-disk user password in /var/lib/ovf-env.xml
+      (LP: #1311827)
+    * EC2: be aware of eu-central-1 availability zone (LP: #1456684)
+
+ -- Scott Moser <smoser@ubuntu.com>  Thu, 28 May 2015 10:54:45 -0400
+
 cloud-init (0.7.7~bzr1106-0ubuntu1) wily; urgency=medium
 
   * New upstream snapshot.

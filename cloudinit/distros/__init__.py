@@ -556,8 +556,12 @@ def _get_package_mirror_info(mirror_info, availability_zone=None,
     if not mirror_info:
         mirror_info = {}
 
-    ec2_az_re = ("^[a-z][a-z]-(%s)-[1-9][0-9]*[a-z]$" %
-        "north|northeast|east|southeast|south|southwest|west|northwest")
+    # ec2 availability zones are named cc-direction-[0-9][a-d] (us-east-1b)
+    # the region is us-east-1. so region = az[0:-1]
+    directions_re = '|'.join([
+        'central', 'east', 'north', 'northeast', 'northwest',
+        'south', 'southeast', 'southwest', 'west'])
+    ec2_az_re = ("^[a-z][a-z]-(%s)-[1-9][0-9]*[a-z]$" % directions_re)
 
     subst = {}
     if availability_zone:
