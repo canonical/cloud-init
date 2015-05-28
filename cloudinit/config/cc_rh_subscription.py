@@ -50,7 +50,7 @@ def handle(_name, cfg, _cloud, log, _args):
                     sm.log.debug("Completed auto-attach")
 
             if sm.pools is not None:
-                if not isinstance(sm.pools, (list)):
+                if not isinstance(sm.pools, list):
                     pool_fail = "Pools must in the format of a list"
                     raise SubscriptionError(pool_fail)
 
@@ -122,8 +122,8 @@ class SubscriptionManager(object):
         if (self.auto_attach is not None) and \
                 not (util.is_true(self.auto_attach) or
                      util.is_false(self.auto_attach)):
-            not_bool = "The key auto-attach must be a value of "\
-                       "either True or False"
+            not_bool = "The key auto-attach must be a boolean value "\
+                       "(True/False "
             return False, not_bool
 
         if (self.servicelevel is not None) and \
@@ -337,11 +337,11 @@ class SubscriptionManager(object):
         executes the action to disable or enable
         '''
 
-        if (erepos is not None) and (not isinstance(erepos, (list))):
+        if (erepos is not None) and (not isinstance(erepos, list)):
             self.log_warn("Repo IDs must in the format of a list.")
             return False
 
-        if (drepos is not None) and (not isinstance(drepos, (list))):
+        if (drepos is not None) and (not isinstance(drepos, list)):
             self.log_warn("Repo IDs must in the format of a list.")
             return False
 
