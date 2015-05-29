@@ -36,17 +36,17 @@ class GoodTests(unittest.TestCase):
         '''
         with mock.patch.object(cc_rh_subscription.SubscriptionManager,
                                '_sub_man_cli') as mockobj:
-            self.SM.log_sucess = mock.MagicMock()
+            self.SM.log_success = mock.MagicMock()
             self.handle(self.name, self.config, self.cloud_init,
                         self.log, self.args)
-            self.assertEqual(self.SM.log_sucess.call_count, 1)
+            self.assertEqual(self.SM.log_success.call_count, 1)
             self.assertEqual(mockobj.call_count, 1)
 
     def test_simple_registration(self):
         '''
         Simple registration with username and password
         '''
-        self.SM.log_sucess = mock.MagicMock()
+        self.SM.log_success = mock.MagicMock()
         reg = "The system has been registered with ID:" \
               " 12345678-abde-abcde-1234-1234567890abc"
         self.SM._sub_man_cli = mock.MagicMock(
@@ -60,7 +60,7 @@ class GoodTests(unittest.TestCase):
                                 logstring_val=True),
                       self.SM._sub_man_cli.call_args_list)
 
-        self.assertEqual(self.SM.log_sucess.call_count, 1)
+        self.assertEqual(self.SM.log_success.call_count, 1)
         self.assertEqual(self.SM._sub_man_cli.call_count, 2)
 
     def test_full_registration(self):
@@ -73,7 +73,7 @@ class GoodTests(unittest.TestCase):
         call_lists.append(['repos', '--enable=repo2', '--enable=repo3',
                            '--disable=repo5'])
         call_lists.append(['attach', '--auto', '--servicelevel=self-support'])
-        self.SM.log_sucess = mock.MagicMock()
+        self.SM.log_success = mock.MagicMock()
         reg = "The system has been registered with ID:" \
               " 12345678-abde-abcde-1234-1234567890abc"
         self.SM._sub_man_cli = mock.MagicMock(
@@ -88,7 +88,7 @@ class GoodTests(unittest.TestCase):
                     self.log, self.args)
         for call in call_lists:
             self.assertIn(mock.call(call), self.SM._sub_man_cli.call_args_list)
-        self.assertEqual(self.SM.log_sucess.call_count, 1)
+        self.assertEqual(self.SM.log_success.call_count, 1)
         self.assertEqual(self.SM._sub_man_cli.call_count, 9)
 
 

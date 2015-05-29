@@ -62,12 +62,12 @@ def handle(_name, cfg, _cloud, log, _args):
                 return_stat = sm.update_repos(sm.enable_repo, sm.disable_repo)
                 if not return_stat:
                     raise SubscriptionError("Unable to add or remove repos")
-            sm.log_sucess("rh_subscription plugin completed successfully")
+            sm.log_success("rh_subscription plugin completed successfully")
         except SubscriptionError as e:
             sm.log_warn(str(e))
             sm.log_warn("rh_subscription plugin did not complete successfully")
     else:
-        sm.log_sucess("System is already registered")
+        sm.log_success("System is already registered")
 
 
 class SubscriptionError(Exception):
@@ -97,7 +97,7 @@ class SubscriptionManager(object):
         self.subman = ['subscription-manager']
         self.is_registered = self._is_registered()
 
-    def log_sucess(self, msg):
+    def log_success(self, msg):
         '''Simple wrapper for logging info messages. Useful for unittests'''
         self.log.info(msg)
 
