@@ -43,6 +43,7 @@
  - Azure: remove dependency on walinux-agent [Daniel Watkins]
  - EC2: know about eu-central-1 availability-zone (LP: #1456684)
  - Azure: remove password from on-disk ovf-env.xml (LP: #1443311) [Ben Howard]
+ - Doc: include information on user-data in OpenStack [Daniel Watkins]
 0.7.6:
  - open 0.7.6
  - Enable vendordata on CloudSigma datasource (LP: #1303986)

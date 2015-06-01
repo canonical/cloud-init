@@ -177,6 +177,12 @@ OVF
 For now see: https://bazaar.launchpad.net/~cloud-init-dev/cloud-init/trunk/files/head:/doc/sources/ovf/
 
 ---------------------------
+OpenStack
+---------------------------
+
+.. include:: ../../sources/openstack/README.rst
+
+---------------------------
 Fallback/None
 ---------------------------
 
