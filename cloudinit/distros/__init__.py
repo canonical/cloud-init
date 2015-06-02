@@ -27,6 +27,7 @@ from six import StringIO
 import abc
 import os
 import re
+import stat
 
 from cloudinit import importer
 from cloudinit import log as logging
@@ -88,6 +89,13 @@ class Distro(object):
         writeable_hostname = self._select_hostname(hostname, fqdn)
         self._write_hostname(writeable_hostname, self.hostname_conf_fn)
         self._apply_hostname(writeable_hostname)
+
+    def uses_systemd(self):
+        try:
+            res = os.lstat('/run/systemd/system')
+            return stat.S_ISDIR(res.st_mode)
+        except:
+            return False
 
     @abc.abstractmethod
     def package_command(self, cmd, args=None, pkgs=None):
