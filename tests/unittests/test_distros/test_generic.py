@@ -194,6 +194,29 @@ class TestGenericDistro(helpers.FilesystemMockingTestCase):
                          {'primary': 'http://fs-primary-intel',
                           'security': 'http://security-mirror2-intel'})
 
+    def test_systemd_in_use(self):
+        cls = distros.fetch("ubuntu")
+        d = cls("ubuntu", {}, None)
+        self.patchOS(self.tmp)
+        self.patchUtils(self.tmp)
+        os.makedirs('/run/systemd/system')
+        self.assertTrue(d.uses_systemd())
+
+    def test_systemd_not_in_use(self):
+        cls = distros.fetch("ubuntu")
+        d = cls("ubuntu", {}, None)
+        self.patchOS(self.tmp)
+        self.patchUtils(self.tmp)
+        self.assertFalse(d.uses_systemd())
+
+    def test_systemd_symlink(self):
+        cls = distros.fetch("ubuntu")
+        d = cls("ubuntu", {}, None)
+        self.patchOS(self.tmp)
+        self.patchUtils(self.tmp)
+        os.makedirs('/run/systemd')
+        os.symlink('/', '/run/systemd/system')
+        self.assertFalse(d.uses_systemd())
 
 # def _get_package_mirror_info(mirror_info, availability_zone=None,
 #                             mirror_filter=util.search_for_mirror):
