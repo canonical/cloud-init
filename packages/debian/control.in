@@ -19,7 +19,7 @@ Depends: procps,
          ${python},
          ${requires},
          ${misc:Depends},
-Recommends: eatmydata, sudo, software-properties-common
+Recommends: eatmydata, sudo, software-properties-common, gdisk
 XB-Python-Version: ${python:Versions}
 Description: Init scripts for cloud instances
  Cloud instances need special scripts to run during initialisation
