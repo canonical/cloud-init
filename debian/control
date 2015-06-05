@@ -36,7 +36,7 @@ Depends: cloud-guest-utils | cloud-utils,
          python3-requests (>= 0.8.2),
          ${misc:Depends},
          ${python3:Depends}
-Recommends: eatmydata, software-properties-common
+Recommends: eatmydata, gdisk, software-properties-common
 Provides: ec2-init
 Replaces: ec2-init (<<0.5.3)
 Conflicts: ec2-init (<<0.5.3)

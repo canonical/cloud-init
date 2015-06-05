@@ -1,3 +1,9 @@
+cloud-init (0.7.7~bzr1109-0ubuntu2) wily; urgency=medium
+
+  * d/control: cloud-init Recommends gdisk (LP: #1462521)
+
+ -- Scott Moser <smoser@ubuntu.com>  Fri, 05 Jun 2015 16:33:38 -0400
+
 cloud-init (0.7.7~bzr1109-0ubuntu1) wily; urgency=medium
 
   * New upstream snapshot.
