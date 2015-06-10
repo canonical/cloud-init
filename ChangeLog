@@ -46,6 +46,8 @@
  - Doc: include information on user-data in OpenStack [Daniel Watkins]
  - Systemd: check for systemd using sd_booted symantics (LP: #1461201)
    [Lars Kellogg-Stedman]
+ - Add an rh_subscription module to handle registration of Red Hat instances.
+   [Brent Baude]
 0.7.6:
  - open 0.7.6
  - Enable vendordata on CloudSigma datasource (LP: #1303986)
