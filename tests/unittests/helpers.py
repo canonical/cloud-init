@@ -248,13 +248,15 @@ class FilesystemMockingTestCase(ResourceUsingTestCase):
 
     def patchOS(self, new_root):
         patch_funcs = {
-            os.path: ['isfile', 'exists', 'islink', 'isdir'],
-            os: ['listdir'],
+            os.path: [('isfile', 1), ('exists', 1),
+                      ('islink', 1), ('isdir', 1)],
+            os: [('listdir', 1), ('mkdir', 1),
+                 ('lstat', 1), ('symlink', 2)],
         }
         for (mod, funcs) in patch_funcs.items():
-            for f in funcs:
+            for f, nargs in funcs:
                 func = getattr(mod, f)
-                trap_func = retarget_many_wrapper(new_root, 1, func)
+                trap_func = retarget_many_wrapper(new_root, nargs, func)
                 self.patched_funcs.enter_context(
                     mock.patch.object(mod, f, trap_func))
 
