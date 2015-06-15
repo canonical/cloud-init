@@ -384,9 +384,9 @@ class SubscriptionManager(object):
                                "because it is not enabled".format(fail))
 
         cmd = ['repos']
-        if enable_list > 0:
+        if len(enable_list) > 0:
             cmd.extend(enable_list)
-        if disable_list > 0:
+        if len(disable_list) > 0:
             cmd.extend(disable_list)
 
         try:
@@ -395,10 +395,10 @@ class SubscriptionManager(object):
             self.log_warn("Unable to alter repos due to {0}".format(e))
             return False
 
-        if enable_list > 0:
+        if len(enable_list) > 0:
             self.log.debug("Enabled the following repos: %s" %
                            (", ".join(enable_list)).replace('--enable=', ''))
-        if disable_list > 0:
+        if len(disable_list) > 0:
             self.log.debug("Disabled the following repos: %s" %
                            (", ".join(disable_list)).replace('--disable=', ''))
         return True
