@@ -23,13 +23,11 @@ class TestCloudStackPasswordFetching(TestCase):
         self.patches.enter_context(mock.patch('{0}.uhelp'.format(mod_name)))
 
     def _set_password_server_response(self, response_string):
-        http_client = mock.MagicMock()
-        http_client.HTTPConnection.return_value.sock.recv.return_value = \
-            response_string.encode('utf-8')
+        subp = mock.MagicMock(return_value=(response_string, ''))
         self.patches.enter_context(
-            mock.patch('cloudinit.sources.DataSourceCloudStack.http_client',
-                       http_client))
-        return http_client
+            mock.patch('cloudinit.sources.DataSourceCloudStack.util.subp',
+                       subp))
+        return subp
 
     def test_empty_password_doesnt_create_config(self):
         self._set_password_server_response('')
@@ -55,26 +53,28 @@ class TestCloudStackPasswordFetching(TestCase):
         ds = DataSourceCloudStack({}, None, helpers.Paths({}))
         self.assertTrue(ds.get_data())
 
-    def assertRequestTypesSent(self, http_client, expected_request_types):
-        request_types = [
-            kwargs['headers']['DomU_Request']
-            for _, kwargs
-            in http_client.HTTPConnection.return_value.request.call_args_list]
+    def assertRequestTypesSent(self, subp, expected_request_types):
+        request_types = []
+        for call in subp.call_args_list:
+            args = call[0][0]
+            for arg in args:
+                if arg.startswith('DomU_Request'):
+                    request_types.append(arg.split()[1])
         self.assertEqual(expected_request_types, request_types)
 
     def test_valid_response_means_password_marked_as_saved(self):
         password = 'SekritSquirrel'
-        http_client = self._set_password_server_response(password)
+        subp = self._set_password_server_response(password)
         ds = DataSourceCloudStack({}, None, helpers.Paths({}))
         ds.get_data()
-        self.assertRequestTypesSent(http_client,
+        self.assertRequestTypesSent(subp,
                                     ['send_my_password', 'saved_password'])
 
     def _check_password_not_saved_for(self, response_string):
-        http_client = self._set_password_server_response(response_string)
+        subp = self._set_password_server_response(response_string)
         ds = DataSourceCloudStack({}, None, helpers.Paths({}))
         ds.get_data()
-        self.assertRequestTypesSent(http_client, ['send_my_password'])
+        self.assertRequestTypesSent(subp, ['send_my_password'])
 
     def test_password_not_saved_if_empty(self):
         self._check_password_not_saved_for('')

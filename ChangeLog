@@ -50,6 +50,7 @@
    [Brent Baude]
  - cc_apt_configure: fix importing keys under python3 (LP: #1463373)
  - cc_growpart: fix specification of 'devices' list (LP: #1465436)
+ - CloudStack: fix password setting on cloudstack > 4.5.1 (LP: #1464253)
 0.7.6:
  - open 0.7.6
  - Enable vendordata on CloudSigma datasource (LP: #1303986)
