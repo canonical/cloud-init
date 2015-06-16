@@ -276,7 +276,7 @@ def handle(_name, cfg, _cloud, log, _args):
             log.debug("use ignore_growroot_disabled to ignore")
             return
 
-    devices = util.get_cfg_option_list(cfg, "devices", ["/"])
+    devices = util.get_cfg_option_list(mycfg, "devices", ["/"])
     if not len(devices):
         log.debug("growpart: empty device list")
         return

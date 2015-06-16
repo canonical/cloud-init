@@ -49,6 +49,7 @@
  - Add an rh_subscription module to handle registration of Red Hat instances.
    [Brent Baude]
  - cc_apt_configure: fix importing keys under python3 (LP: #1463373)
+ - cc_growpart: fix specification of 'devices' list (LP: #1465436)
 0.7.6:
  - open 0.7.6
  - Enable vendordata on CloudSigma datasource (LP: #1303986)
