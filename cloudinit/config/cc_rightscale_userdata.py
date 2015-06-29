@@ -58,7 +58,7 @@ def handle(name, _cfg, cloud, log, _args):
 
     try:
         mdict = parse_qs(ud)
-        if mdict or MY_HOOKNAME not in mdict:
+        if not mdict or MY_HOOKNAME not in mdict:
             log.debug(("Skipping module %s, "
                        "did not find %s in parsed"
                        " raw userdata"), name, MY_HOOKNAME)
