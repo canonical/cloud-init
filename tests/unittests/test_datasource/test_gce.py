@@ -159,3 +159,8 @@ class TestDataSourceGCE(test_helpers.HttprettyTestCase):
         self.ds.get_data()
 
         self.assertEqual([key_content], self.ds.get_public_ssh_keys())
+
+    def test_only_last_part_of_zone_used_for_availability_zone(self):
+        _set_mock_metadata()
+        self.ds.get_data()
+        self.assertEqual('bar', self.ds.availability_zone)

@@ -116,6 +116,10 @@ class DataSourceGCE(sources.DataSource):
             lines = self.metadata['public-keys'].splitlines()
             self.metadata['public-keys'] = [self._trim_key(k) for k in lines]
 
+        if self.metadata['availability-zone']:
+            self.metadata['availability-zone'] = self.metadata[
+                'availability-zone'].split('/')[-1]
+
         encoding = self.metadata.get('user-data-encoding')
         if encoding:
             if encoding == 'base64':
