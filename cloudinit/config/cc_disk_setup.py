@@ -648,6 +648,8 @@ def mkpart(device, definition):
                 table_type: Which partition table to use, defaults to MBR
                 device: the device to work on.
     """
+    LOG.debug('Ensuring that we have a real device, not a symbolic link')
+    device = os.path.realpath(device)
 
     LOG.debug("Checking values for %s definition" % device)
     overwrite = definition.get('overwrite', False)
@@ -744,6 +746,9 @@ def mkfs(fs_cfg):
     fs_opts = fs_cfg.get('extra_opts', [])
     fs_replace = fs_cfg.get('replace_fs', False)
     overwrite = fs_cfg.get('overwrite', False)
+
+    LOG.debug('Ensuring that we have a real device, not a symbolic link')
+    device = os.path.realpath(device)
 
     # This allows you to define the default ephemeral or swap
     LOG.debug("Checking %s against default devices", device)

@@ -49,7 +49,8 @@ def is_meta_device_name(name):
 
 
 def _get_nth_partition_for_device(device_path, partition_number):
-    potential_suffixes = [str(partition_number), 'p%s' % (partition_number,)]
+    potential_suffixes = [str(partition_number), 'p%s' % (partition_number,),
+                          '-part%s' % (partition_number,)]
     for suffix in potential_suffixes:
         potential_partition_device = '%s%s' % (device_path, suffix)
         if os.path.exists(potential_partition_device):
@@ -58,10 +59,11 @@ def _get_nth_partition_for_device(device_path, partition_number):
 
 
 def _is_block_device(device_path, partition_path=None):
-    device_name = device_path.split('/')[-1]
+    device_name = os.path.realpath(device_path).split('/')[-1]
     sys_path = os.path.join('/sys/block/', device_name)
     if partition_path is not None:
-        sys_path = os.path.join(sys_path, partition_path.split('/')[-1])
+        sys_path = os.path.join(
+            sys_path, os.path.realpath(partition_path).split('/')[-1])
     return os.path.exists(sys_path)
 
 
