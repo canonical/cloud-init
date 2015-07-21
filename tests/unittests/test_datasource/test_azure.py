@@ -174,7 +174,7 @@ class TestAzureDataSource(TestCase):
     def xml_notequals(self, oxml, nxml):
         try:
             self.xml_equals(oxml, nxml)
-        except AssertionError as e:
+        except AssertionError:
             return
         raise AssertionError("XML is the same")
 
