@@ -70,8 +70,8 @@ class TestWalkerHandleHandler(TestCase):
                         return_value=self.module_fake) as mockobj:
             handlers.walker_handle_handler(self.data, self.ctype,
                                            self.filename, self.payload)
-            mockobj.assert_called_with_once(self.expected_module_name)
-        self.write_file_mock.assert_called_with_once(
+            mockobj.assert_called_once_with(self.expected_module_name)
+        self.write_file_mock.assert_called_once_with(
             self.expected_file_fullname, self.payload, 0o600)
         self.assertEqual(self.data['handlercount'], 1)
 
@@ -81,8 +81,8 @@ class TestWalkerHandleHandler(TestCase):
                         side_effect=ImportError) as mockobj:
             handlers.walker_handle_handler(self.data, self.ctype,
                                            self.filename, self.payload)
-            mockobj.assert_called_with_once(self.expected_module_name)
-        self.write_file_mock.assert_called_with_once(
+            mockobj.assert_called_once_with(self.expected_module_name)
+        self.write_file_mock.assert_called_once_with(
             self.expected_file_fullname, self.payload, 0o600)
         self.assertEqual(self.data['handlercount'], 0)
 
@@ -93,8 +93,8 @@ class TestWalkerHandleHandler(TestCase):
                         return_value=self.module_fake) as mockobj:
             handlers.walker_handle_handler(self.data, self.ctype,
                                            self.filename, self.payload)
-            mockobj.assert_called_with_once(self.expected_module_name)
-        self.write_file_mock.assert_called_with_once(
+            mockobj.assert_called_once_with(self.expected_module_name)
+        self.write_file_mock.assert_called_once_with(
             self.expected_file_fullname, self.payload, 0o600)
         self.assertEqual(self.data['handlercount'], 0)
 
@@ -122,7 +122,7 @@ class TestHandlerHandlePart(unittest.TestCase):
                           self.frequency, self.headers)
         # Assert that the handle_part() method of the mock object got
         # called with the expected arguments.
-        mod_mock.handle_part.assert_called_with_once(
+        mod_mock.handle_part.assert_called_once_with(
             self.data, self.ctype, self.filename, self.payload)
 
     def test_normal_version_2(self):
@@ -136,8 +136,9 @@ class TestHandlerHandlePart(unittest.TestCase):
                           self.frequency, self.headers)
         # Assert that the handle_part() method of the mock object got
         # called with the expected arguments.
-        mod_mock.handle_part.assert_called_with_once(
-            self.data, self.ctype, self.filename, self.payload)
+        mod_mock.handle_part.assert_called_once_with(
+            self.data, self.ctype, self.filename, self.payload,
+            settings.PER_INSTANCE)
 
     def test_modfreq_per_always(self):
         """
@@ -150,7 +151,7 @@ class TestHandlerHandlePart(unittest.TestCase):
                           self.frequency, self.headers)
         # Assert that the handle_part() method of the mock object got
         # called with the expected arguments.
-        mod_mock.handle_part.assert_called_with_once(
+        mod_mock.handle_part.assert_called_once_with(
             self.data, self.ctype, self.filename, self.payload)
 
     def test_no_handle_when_modfreq_once(self):
@@ -159,21 +160,20 @@ class TestHandlerHandlePart(unittest.TestCase):
         mod_mock = mock.Mock(frequency=settings.PER_ONCE)
         handlers.run_part(mod_mock, self.data, self.filename, self.payload,
                           self.frequency, self.headers)
-        # Assert that the handle_part() method of the mock object got
-        # called with the expected arguments.
-        mod_mock.handle_part.assert_called_with_once(
-            self.data, self.ctype, self.filename, self.payload)
+        self.assertEqual(0, mod_mock.handle_part.call_count)
 
     def test_exception_is_caught(self):
         """Exceptions within C{handle_part} are caught and logged."""
         mod_mock = mock.Mock(frequency=settings.PER_INSTANCE,
                              handler_version=1)
-        handlers.run_part(mod_mock, self.data, self.filename, self.payload,
-                          self.frequency, self.headers)
         mod_mock.handle_part.side_effect = Exception
-        handlers.run_part(mod_mock, self.data, self.filename, self.payload,
-                          self.frequency, self.headers)
-        mod_mock.handle_part.assert_called_with_once(
+        try:
+            handlers.run_part(mod_mock, self.data, self.filename,
+                              self.payload, self.frequency, self.headers)
+        except Exception:
+            self.fail("Exception was not caught in handle_part")
+
+        mod_mock.handle_part.assert_called_once_with(
             self.data, self.ctype, self.filename, self.payload)
 
 
