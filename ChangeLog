@@ -52,6 +52,7 @@
  - cc_growpart: fix specification of 'devices' list (LP: #1465436)
  - CloudStack: fix password setting on cloudstack > 4.5.1 (LP: #1464253)
  - GCE: fix determination of availability zone (LP: #1470880)
+ - ssh: generate ed25519 host keys (LP: #1461242)
 0.7.6:
  - open 0.7.6
  - Enable vendordata on CloudSigma datasource (LP: #1303986)
