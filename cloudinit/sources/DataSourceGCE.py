@@ -116,6 +116,10 @@ class DataSourceGCE(sources.DataSource):
             lines = self.metadata['public-keys'].splitlines()
             self.metadata['public-keys'] = [self._trim_key(k) for k in lines]
 
+        if self.metadata['availability-zone']:
+            self.metadata['availability-zone'] = self.metadata[
+                'availability-zone'].split('/')[-1]
+
         encoding = self.metadata.get('user-data-encoding')
         if encoding:
             if encoding == 'base64':
@@ -147,6 +151,10 @@ class DataSourceGCE(sources.DataSource):
     @property
     def availability_zone(self):
         return self.metadata['availability-zone']
+
+    @property
+    def region(self):
+        return self.availability_zone.rsplit('-', 1)[0]
 
 # Used to match classes to dependencies
 datasources = [

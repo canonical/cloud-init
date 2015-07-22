@@ -29,8 +29,6 @@ import time
 from socket import inet_ntoa
 from struct import pack
 
-from six.moves import http_client
-
 from cloudinit import ec2_utils as ec2
 from cloudinit import log as logging
 from cloudinit import url_helper as uhelp
@@ -47,35 +45,22 @@ class CloudStackPasswordServerClient(object):
     has documentation about the system.  This implementation is following that
     found at
     https://github.com/shankerbalan/cloudstack-scripts/blob/master/cloud-set-guest-password-debian
-
-    The CloudStack password server is, essentially, a broken HTTP
-    server. It requires us to provide a valid HTTP request (including a
-    DomU_Request header, which is the meat of the request), but just
-    writes the text of its response on to the socket, without a status
-    line or any HTTP headers.  This makes HTTP libraries sad, which
-    explains the screwiness of the implementation of this class.
-
-    This should be fixed in CloudStack by commit
-    a72f14ea9cb832faaac946b3cf9f56856b50142a in December 2014.
     """
 
     def __init__(self, virtual_router_address):
         self.virtual_router_address = virtual_router_address
 
     def _do_request(self, domu_request):
-        # We have to provide a valid HTTP request, but a valid HTTP
-        # response is not returned. This means that getresponse() chokes,
-        # so we use the socket directly to read off the response.
-        # Because we're reading off the socket directly, we can't re-use the
-        # connection.
-        conn = http_client.HTTPConnection(self.virtual_router_address, 8080)
-        try:
-            conn.request('GET', '', headers={'DomU_Request': domu_request})
-            conn.sock.settimeout(30)
-            output = conn.sock.recv(1024).decode('utf-8').strip()
-        finally:
-            conn.close()
-        return output
+        # The password server was in the past, a broken HTTP server, but is now
+        # fixed.  wget handles this seamlessly, so it's easier to shell out to
+        # that rather than write our own handling code.
+        output, _ = util.subp([
+            'wget', '--quiet', '--tries', '3', '--timeout', '20',
+            '--output-document', '-', '--header',
+            'DomU_Request: {0}'.format(domu_request),
+            '{0}:8080'.format(self.virtual_router_address)
+        ])
+        return output.strip()
 
     def get_password(self):
         password = self._do_request('send_my_password')

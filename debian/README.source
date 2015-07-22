@@ -34,7 +34,7 @@ To cherry pick revisions 391 to tip from from trunk, do something like:
 You can set 'e' (end) to not go to tip.
 
 == Cherry pick single patch ==
-There is a utility in debian/patches named 'cherry-pick-revno' that will
+There is a utility in debian/cherry-pick-rev that will
 help to cherry pick a single commit from trunk.
 
 == New snapshot ==
@@ -48,5 +48,7 @@ To import a new snapshot, do:
  version=${uver}~bzr${revno}
  tarball=cloud-init-${version}.tar.gz
  bzr export --format=tgz --revision=${revno} "$tarball" "${trunk}"
+ t=../cloud-init_${version}.orig.tar.gz && [ -f $t ] && tarball=$t
+ [ -f "$t" ] || bzr export --format=tgz --revision=${revno} "$tarball" "${trunk}"
  bzr merge-upstream "$tarball" --version=${version}
  ( cd "$trunk" && bzr log -r $(($prevno+1)).. ) > new-changes.log

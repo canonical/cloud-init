@@ -28,15 +28,15 @@ from cloudinit import type_utils
 from cloudinit import util
 
 # Shortname matches 'sda', 'sda1', 'xvda', 'hda', 'sdb', xvdb, vda, vdd1, sr0
-SHORTNAME_FILTER = r"^([x]{0,1}[shv]d[a-z][0-9]*|sr[0-9]+)$"
-SHORTNAME = re.compile(SHORTNAME_FILTER)
+DEVICE_NAME_FILTER = r"^([x]{0,1}[shv]d[a-z][0-9]*|sr[0-9]+)$"
+DEVICE_NAME_RE = re.compile(DEVICE_NAME_FILTER)
 WS = re.compile("[%s]+" % (whitespace))
 FSTAB_PATH = "/etc/fstab"
 
 LOG = logging.getLogger(__name__)
 
 
-def is_mdname(name):
+def is_meta_device_name(name):
     # return true if this is a metadata service name
     if name in ["ami", "root", "swap"]:
         return True
@@ -46,6 +46,25 @@ def is_mdname(name):
         if name.startswith(enumname) and name.find(":") == -1:
             return True
     return False
+
+
+def _get_nth_partition_for_device(device_path, partition_number):
+    potential_suffixes = [str(partition_number), 'p%s' % (partition_number,),
+                          '-part%s' % (partition_number,)]
+    for suffix in potential_suffixes:
+        potential_partition_device = '%s%s' % (device_path, suffix)
+        if os.path.exists(potential_partition_device):
+            return potential_partition_device
+    return None
+
+
+def _is_block_device(device_path, partition_path=None):
+    device_name = os.path.realpath(device_path).split('/')[-1]
+    sys_path = os.path.join('/sys/block/', device_name)
+    if partition_path is not None:
+        sys_path = os.path.join(
+            sys_path, os.path.realpath(partition_path).split('/')[-1])
+    return os.path.exists(sys_path)
 
 
 def sanitize_devname(startname, transformer, log):
@@ -58,21 +77,34 @@ def sanitize_devname(startname, transformer, log):
         devname = "ephemeral0"
         log.debug("Adjusted mount option from ephemeral to ephemeral0")
 
-    (blockdev, part) = util.expand_dotted_devname(devname)
+    device_path, partition_number = util.expand_dotted_devname(devname)
 
-    if is_mdname(blockdev):
-        orig = blockdev
-        blockdev = transformer(blockdev)
-        if not blockdev:
+    if is_meta_device_name(device_path):
+        orig = device_path
+        device_path = transformer(device_path)
+        if not device_path:
             return None
-        if not blockdev.startswith("/"):
-            blockdev = "/dev/%s" % blockdev
-        log.debug("Mapped metadata name %s to %s", orig, blockdev)
+        if not device_path.startswith("/"):
+            device_path = "/dev/%s" % (device_path,)
+        log.debug("Mapped metadata name %s to %s", orig, device_path)
     else:
-        if SHORTNAME.match(startname):
-            blockdev = "/dev/%s" % blockdev
+        if DEVICE_NAME_RE.match(startname):
+            device_path = "/dev/%s" % (device_path,)
 
-    return devnode_for_dev_part(blockdev, part)
+    partition_path = None
+    if partition_number is None:
+        partition_path = _get_nth_partition_for_device(device_path, 1)
+    else:
+        partition_path = _get_nth_partition_for_device(device_path,
+                                                       partition_number)
+        if partition_path is None:
+            return None
+
+    if _is_block_device(device_path, partition_path):
+        if partition_path is not None:
+            return partition_path
+        return device_path
+    return None
 
 
 def suggested_swapsize(memsize=None, maxsize=None, fsys=None):
@@ -366,49 +398,3 @@ def handle(_name, cfg, cloud, log, _args):
         util.subp(("mount", "-a"))
     except:
         util.logexc(log, "Activating mounts via 'mount -a' failed")
-
-
-def devnode_for_dev_part(device, partition):
-    """
-    Find the name of the partition. While this might seem rather
-    straight forward, its not since some devices are '<device><partition>'
-    while others are '<device>p<partition>'. For example, /dev/xvda3 on EC2
-    will present as /dev/xvda3p1 for the first partition since /dev/xvda3 is
-    a block device.
-    """
-    if not os.path.exists(device):
-        return None
-
-    short_name = os.path.basename(device)
-    sys_path = "/sys/block/%s" % short_name
-
-    if not os.path.exists(sys_path):
-        LOG.debug("did not find entry for %s in /sys/block", short_name)
-        return None
-
-    sys_long_path = sys_path + "/" + short_name
-
-    if partition is not None:
-        partition = str(partition)
-
-    if partition is None:
-        valid_mappings = [sys_long_path + "1", sys_long_path + "p1"]
-    elif partition != "0":
-        valid_mappings = [sys_long_path + "%s" % partition,
-                          sys_long_path + "p%s" % partition]
-    else:
-        valid_mappings = []
-
-    for cdisk in valid_mappings:
-        if not os.path.exists(cdisk):
-            continue
-
-        dev_path = "/dev/%s" % os.path.basename(cdisk)
-        if os.path.exists(dev_path):
-            return dev_path
-
-    if partition is None or partition == "0":
-        return device
-
-    LOG.debug("Did not fine partition %s for device %s", partition, device)
-    return None

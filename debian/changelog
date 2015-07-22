@@ -1,3 +1,29 @@
+cloud-init (0.7.7~bzr1127-0ubuntu1) wily; urgency=medium
+
+  [ Scott Moser ]
+  * d/README.source, debian/cherry-pick-rev: improve packaging tool
+
+  [ Daniel Watkins ]
+  * d/cloud-init.templates: Include SmartOS data source in the default list
+    and choices. (LP: #1398997)
+
+  [ Scott Moser ]
+  * New upstream snapshot.
+    * check for systemd using sd_booted symantics (LP: #1461201)
+    * fix importing of gpg keys in python3 (LP: #1463373)
+    * fix specification of devices to growpart (LP: #1465436)
+    * reliably detect and use Azure disks using udev rules (LP: #1411582)
+    * support selection of Ubuntu mirrors on GCE (LP: #1470890)
+    * ssh: generate ed25519 host keys if supported (LP: #1461242)
+    * test fixes and cleanups
+    * fix reading of availability-zone on GCE (LP: #1470880)
+    * fix cloudsigma datasource with python3 (LP: #1475215)
+    * fix rightscale user-data
+    * fix consumption of CloudStack passwords on newer CloudStack platforms
+      (LP: #1440263, #1464253)
+
+ -- Scott Moser <smoser@ubuntu.com>  Wed, 22 Jul 2015 17:06:18 -0400
+
 cloud-init (0.7.7~bzr1109-0ubuntu2) wily; urgency=medium
 
   * d/control: cloud-init Recommends gdisk (LP: #1462521)

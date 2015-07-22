@@ -197,6 +197,13 @@ class DataSourceEc2(sources.DataSource):
         except KeyError:
             return None
 
+    @property
+    def region(self):
+        az = self.availability_zone
+        if az is not None:
+            return az[:-1]
+        return None
+
 # Used to match classes to dependencies
 datasources = [
   (DataSourceEc2, (sources.DEP_FILESYSTEM, sources.DEP_NETWORK)),

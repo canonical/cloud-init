@@ -23,7 +23,7 @@ name=${3}
 name=${name%.patch}
 name=${name%.diff}
 
-fname="${revno}-${name}.patch"
+fname="${name}.patch"
 
 ( cd "${repo}" && bzr log -r${revno}..${revno} &&
   bzr diff -p1 -r$((${revno}-1))..${revno} ) |
@@ -36,8 +36,9 @@ cat <<EOF
 now,
   quilt push
   quilt refresh
-  files="\$(quilt files ${fname}) debian/patches/series debian/patches/${fname} .pc/${fname} .pc/applied-patches)"
-  bzr add $files
+  rm -f .pc/${fname}/.timestamp
+  files="\$(quilt files ${fname}) debian/patches/series debian/patches/${fname} .pc/${fname} .pc/applied-patches"
+  bzr add \$files
   dch --append "${name} (cherry pick $revno)"
   dch --edit # improve the entry
   debcommit $files

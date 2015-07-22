@@ -174,7 +174,7 @@ class TestAzureDataSource(TestCase):
     def xml_notequals(self, oxml, nxml):
         try:
             self.xml_equals(oxml, nxml)
-        except AssertionError as e:
+        except AssertionError:
             return
         raise AssertionError("XML is the same")
 
@@ -475,10 +475,12 @@ class TestAzureBounce(TestCase):
             mock.patch.object(DataSourceAzure, 'list_possible_azure_ds_devs',
                               mock.MagicMock(return_value=[])))
         self.patches.enter_context(
-            mock.patch.object(DataSourceAzure, 'find_ephemeral_disk',
+            mock.patch.object(DataSourceAzure,
+                              'find_fabric_formatted_ephemeral_disk',
                               mock.MagicMock(return_value=None)))
         self.patches.enter_context(
-            mock.patch.object(DataSourceAzure, 'find_ephemeral_part',
+            mock.patch.object(DataSourceAzure,
+                              'find_fabric_formatted_ephemeral_part',
                               mock.MagicMock(return_value=None)))
         self.patches.enter_context(
             mock.patch.object(DataSourceAzure, 'get_metadata_from_fabric',

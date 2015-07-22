@@ -109,7 +109,7 @@ def handle(name, cfg, cloud, log, _args):
 
 # get gpg keyid from keyserver
 def getkeybyid(keyid, keyserver):
-    with util.ExtendedTemporaryFile(suffix='.sh') as fh:
+    with util.ExtendedTemporaryFile(suffix='.sh', mode="w+", ) as fh:
         fh.write(EXPORT_GPG_KEYID)
         fh.flush()
         cmd = ['/bin/sh', fh.name, keyid, keyserver]
