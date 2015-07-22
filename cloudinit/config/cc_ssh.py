@@ -20,6 +20,7 @@
 
 import glob
 import os
+import sys
 
 # Ensure this is aliased to a name not 'distros'
 # since the module attribute 'distros'
@@ -33,26 +34,17 @@ DISABLE_ROOT_OPTS = ("no-port-forwarding,no-agent-forwarding,"
 "no-X11-forwarding,command=\"echo \'Please login as the user \\\"$USER\\\" "
 "rather than the user \\\"root\\\".\';echo;sleep 10\"")
 
-KEY_2_FILE = {
-    "rsa_private": ("/etc/ssh/ssh_host_rsa_key", 0o600),
-    "rsa_public": ("/etc/ssh/ssh_host_rsa_key.pub", 0o644),
-    "dsa_private": ("/etc/ssh/ssh_host_dsa_key", 0o600),
-    "dsa_public": ("/etc/ssh/ssh_host_dsa_key.pub", 0o644),
-    "ecdsa_private": ("/etc/ssh/ssh_host_ecdsa_key", 0o600),
-    "ecdsa_public": ("/etc/ssh/ssh_host_ecdsa_key.pub", 0o644),
-}
+GENERATE_KEY_NAMES = ['rsa', 'dsa', 'ecdsa', 'ed25519']
+KEY_FILE_TPL = '/etc/ssh/ssh_host_%s_key'
 
-PRIV_2_PUB = {
-    'rsa_private': 'rsa_public',
-    'dsa_private': 'dsa_public',
-    'ecdsa_private': 'ecdsa_public',
-}
+KEY_2_FILE = {}
+PRIV_2_PUB = {}
+for k in GENERATE_KEY_NAMES:
+    KEY_2_FILE.update({"%s_private" % k: (KEY_FILE_TPL % k, 0o600)})
+    KEY_2_FILE.update({"%s_public" % k: (KEY_FILE_TPL % k + ".pub", 0o600)})
+    PRIV_2_PUB["%s_private" % k] = "%s_public" % k
 
 KEY_GEN_TPL = 'o=$(ssh-keygen -yf "%s") && echo "$o" root@localhost > "%s"'
-
-GENERATE_KEY_NAMES = ['rsa', 'dsa', 'ecdsa']
-
-KEY_FILE_TPL = '/etc/ssh/ssh_host_%s_key'
 
 
 def handle(_name, cfg, cloud, log, _args):
@@ -92,18 +84,27 @@ def handle(_name, cfg, cloud, log, _args):
         genkeys = util.get_cfg_option_list(cfg,
                                            'ssh_genkeytypes',
                                            GENERATE_KEY_NAMES)
+        lang_c = os.environ.copy()
+        lang_c['LANG'] = 'C'
         for keytype in genkeys:
             keyfile = KEY_FILE_TPL % (keytype)
+            if os.path.exists(keyfile):
+                continue
             util.ensure_dir(os.path.dirname(keyfile))
-            if not os.path.exists(keyfile):
-                cmd = ['ssh-keygen', '-t', keytype, '-N', '', '-f', keyfile]
+            cmd = ['ssh-keygen', '-t', keytype, '-N', '', '-f', keyfile]
+
+            # TODO(harlowja): Is this guard needed?
+            with util.SeLinuxGuard("/etc/ssh", recursive=True):
                 try:
-                    # TODO(harlowja): Is this guard needed?
-                    with util.SeLinuxGuard("/etc/ssh", recursive=True):
-                        util.subp(cmd, capture=False)
-                except:
-                    util.logexc(log, "Failed generating key type %s to "
-                                "file %s", keytype, keyfile)
+                    out, err = util.subp(cmd, capture=True, rcs=[0, 1], env=lang_c)
+                    sys.stdout.write(util.encode_text(out))
+                except util.ProcessExecutionError as e:
+                    err = util.decode_binary(e.stderr).lower()
+                    if err.lower().startswith("unknown key"):
+                        log.debug("unknown key type %s" % keytype)
+                    else:
+                        util.logexc(log, "Failed generating key type %s to "
+                                    "file %s", keytype, keyfile)
 
     try:
         (users, _groups) = ds.normalize_users_groups(cfg, cloud.distro)
