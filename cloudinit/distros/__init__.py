@@ -577,6 +577,9 @@ def _get_package_mirror_info(mirror_info, data_source=None,
         if re.match(ec2_az_re, data_source.availability_zone):
             subst['ec2_region'] = "%s" % data_source.availability_zone[0:-1]
 
+    if data_source and data_source.region:
+        subst['region'] = data_source.region
+
     results = {}
     for (name, mirror) in mirror_info.get('failsafe', {}).items():
         results[name] = mirror
