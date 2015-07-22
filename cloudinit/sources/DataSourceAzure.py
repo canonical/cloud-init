@@ -430,7 +430,7 @@ def write_files(datadir, files, dirmode=None):
                    elem.text != DEF_PASSWD_REDACTION):
                     elem.text = DEF_PASSWD_REDACTION
             return ET.tostring(root)
-        except Exception as e:
+        except Exception:
             LOG.critical("failed to redact userpassword in {}".format(fname))
             return cnt
 
