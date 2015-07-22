@@ -101,7 +101,7 @@ def handle(_name, cfg, cloud, log, _args):
                 except util.ProcessExecutionError as e:
                     err = util.decode_binary(e.stderr).lower()
                     if e.exit_code == 1 and err.lower().startswith("unknown key"):
-                        log.debug("unknown key type %s" % keytype)
+                        log.debug("ssh-keygen: unknown key type '%s'", keytype)
                     else:
                         util.logexc(log, "Failed generating key type %s to "
                                     "file %s", keytype, keyfile)
