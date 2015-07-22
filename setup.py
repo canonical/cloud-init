@@ -84,6 +84,7 @@ INITSYS_TYPES = sorted(list(INITSYS_ROOTS.keys()))
 USR = "/usr"
 ETC = "/etc"
 USR_LIB_EXEC = "/usr/lib"
+LIB = "/lib"
 if os.uname()[0] == 'FreeBSD':
     USR = "/usr/local"
     USR_LIB_EXEC = "/usr/local/lib"
@@ -167,6 +168,7 @@ else:
             [f for f in glob('doc/examples/*') if is_f(f)]),
         (USR + '/share/doc/cloud-init/examples/seed',
             [f for f in glob('doc/examples/seed/*') if is_f(f)]),
+        (LIB + '/udev/rules.d', ['udev/66-azure-ephemeral.rules']),
     ]
     # Use a subclass for install that handles
     # adding on the right init system configuration files

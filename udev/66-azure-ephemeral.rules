@@ -1,0 +1,18 @@
+# Azure specific rules
+ACTION!="add|change", GOTO="cloud_init_end"
+SUBSYSTEM!="block", GOTO="cloud_init_end"
+ATTRS{ID_VENDOR}!="Msft", GOTO="cloud_init_end"
+ATTRS{ID_MODEL}!="Virtual_Disk", GOTO="cloud_init_end"
+
+# Root has a GUID of 0000 as the second value
+# The resource/resource has GUID of 0001 as the second value
+ATTRS{device_id}=="?00000000-0000-*", ENV{fabric_name}="azure_root", GOTO="ci_azure_names"
+ATTRS{device_id}=="?00000000-0001-*", ENV{fabric_name}="azure_resource", GOTO="ci_azure_names"
+GOTO="cloud_init_end"
+
+# Create the symlinks
+LABEL="ci_azure_names"
+ENV{DEVTYPE}=="disk", SYMLINK+="disk/cloud/$env{fabric_name}"
+ENV{DEVTYPE}=="partition", SYMLINK+="disk/cloud/$env{fabric_name}-part%n"
+
+LABEL="cloud_init_end"
