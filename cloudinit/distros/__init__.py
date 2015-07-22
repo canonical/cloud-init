@@ -117,12 +117,11 @@ class Distro(object):
             arch = self.get_primary_arch()
         return _get_arch_package_mirror_info(mirror_info, arch)
 
-    def get_package_mirror_info(self, arch=None,
-                                availability_zone=None):
+    def get_package_mirror_info(self, arch=None, data_source=None):
         # This resolves the package_mirrors config option
         # down to a single dict of {mirror_name: mirror_url}
         arch_info = self._get_arch_package_mirror_info(arch)
-        return _get_package_mirror_info(availability_zone=availability_zone,
+        return _get_package_mirror_info(data_source=data_source,
                                         mirror_info=arch_info)
 
     def apply_network(self, settings, bring_up=True):
@@ -556,7 +555,7 @@ class Distro(object):
                 LOG.info("Added user '%s' to group '%s'" % (member, name))
 
 
-def _get_package_mirror_info(mirror_info, availability_zone=None,
+def _get_package_mirror_info(mirror_info, data_source=None,
                              mirror_filter=util.search_for_mirror):
     # given a arch specific 'mirror_info' entry (from package_mirrors)
     # search through the 'search' entries, and fallback appropriately
@@ -572,11 +571,11 @@ def _get_package_mirror_info(mirror_info, availability_zone=None,
     ec2_az_re = ("^[a-z][a-z]-(%s)-[1-9][0-9]*[a-z]$" % directions_re)
 
     subst = {}
-    if availability_zone:
-        subst['availability_zone'] = availability_zone
+    if data_source and data_source.availability_zone:
+        subst['availability_zone'] = data_source.availability_zone
 
-    if availability_zone and re.match(ec2_az_re, availability_zone):
-        subst['ec2_region'] = "%s" % availability_zone[0:-1]
+        if re.match(ec2_az_re, data_source.availability_zone):
+            subst['ec2_region'] = "%s" % data_source.availability_zone[0:-1]
 
     results = {}
     for (name, mirror) in mirror_info.get('failsafe', {}).items():

@@ -210,8 +210,7 @@ class DataSource(object):
             return hostname
 
     def get_package_mirror_info(self):
-        return self.distro.get_package_mirror_info(
-            availability_zone=self.availability_zone)
+        return self.distro.get_package_mirror_info(data_source=self)
 
 
 def normalize_pubkey_data(pubkey_data):
