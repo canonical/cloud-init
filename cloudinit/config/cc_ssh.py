@@ -37,12 +37,12 @@ DISABLE_ROOT_OPTS = ("no-port-forwarding,no-agent-forwarding,"
 GENERATE_KEY_NAMES = ['rsa', 'dsa', 'ecdsa', 'ed25519']
 KEY_FILE_TPL = '/etc/ssh/ssh_host_%s_key'
 
-KEY_2_FILE = {}
-PRIV_2_PUB = {}
+CONFIG_KEY_TO_FILE = {}
+PRIV_TO_PUB = {}
 for k in GENERATE_KEY_NAMES:
-    KEY_2_FILE.update({"%s_private" % k: (KEY_FILE_TPL % k, 0o600)})
-    KEY_2_FILE.update({"%s_public" % k: (KEY_FILE_TPL % k + ".pub", 0o600)})
-    PRIV_2_PUB["%s_private" % k] = "%s_public" % k
+    CONFIG_KEY_TO_FILE.update({"%s_private" % k: (KEY_FILE_TPL % k, 0o600)})
+    CONFIG_KEY_TO_FILE.update({"%s_public" % k: (KEY_FILE_TPL % k + ".pub", 0o600)})
+    PRIV_TO_PUB["%s_private" % k] = "%s_public" % k
 
 KEY_GEN_TPL = 'o=$(ssh-keygen -yf "%s") && echo "$o" root@localhost > "%s"'
 
@@ -61,15 +61,15 @@ def handle(_name, cfg, cloud, log, _args):
     if "ssh_keys" in cfg:
         # if there are keys in cloud-config, use them
         for (key, val) in cfg["ssh_keys"].items():
-            if key in KEY_2_FILE:
-                tgt_fn = KEY_2_FILE[key][0]
-                tgt_perms = KEY_2_FILE[key][1]
+            if key in CONFIG_KEY_TO_FILE:
+                tgt_fn = CONFIG_KEY_TO_FILE[key][0]
+                tgt_perms = CONFIG_KEY_TO_FILE[key][1]
                 util.write_file(tgt_fn, val, tgt_perms)
 
-        for (priv, pub) in PRIV_2_PUB.items():
+        for (priv, pub) in PRIV_TO_PUB.items():
             if pub in cfg['ssh_keys'] or priv not in cfg['ssh_keys']:
                 continue
-            pair = (KEY_2_FILE[priv][0], KEY_2_FILE[pub][0])
+            pair = (CONFIG_KEY_TO_FILE[priv][0], CONFIG_KEY_TO_FILE[pub][0])
             cmd = ['sh', '-xc', KEY_GEN_TPL % pair]
             try:
                 # TODO(harlowja): Is this guard needed?
