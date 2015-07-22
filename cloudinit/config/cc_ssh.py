@@ -96,7 +96,8 @@ def handle(_name, cfg, cloud, log, _args):
             # TODO(harlowja): Is this guard needed?
             with util.SeLinuxGuard("/etc/ssh", recursive=True):
                 try:
-                    out, err = util.subp(cmd, capture=True, rcs=[0, 1], env=lang_c)
+                    out, err = util.subp(cmd, capture=True, rcs=[0, 1],
+                                         env=lang_c)
                     sys.stdout.write(util.encode_text(out))
                 except util.ProcessExecutionError as e:
                     err = util.decode_binary(e.stderr).lower()
