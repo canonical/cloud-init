@@ -96,12 +96,11 @@ def handle(_name, cfg, cloud, log, _args):
             # TODO(harlowja): Is this guard needed?
             with util.SeLinuxGuard("/etc/ssh", recursive=True):
                 try:
-                    out, err = util.subp(cmd, capture=True, rcs=[0, 1],
-                                         env=lang_c)
-                    sys.stdout.write(util.encode_text(out))
+                    out, err = util.subp(cmd, capture=True, env=lang_c)
+                    sys.stdout.write(util.decode_binary(out))
                 except util.ProcessExecutionError as e:
                     err = util.decode_binary(e.stderr).lower()
-                    if err.lower().startswith("unknown key"):
+                    if e.exit_code == 1 and err.lower().startswith("unknown key"):
                         log.debug("unknown key type %s" % keytype)
                     else:
                         util.logexc(log, "Failed generating key type %s to "
