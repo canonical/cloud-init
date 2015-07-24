@@ -1,0 +1,30 @@
+## syslog module allows you to configure the systems syslog.
+## configuration of syslog is under the top level cloud-config
+## entry 'syslog'.
+##
+## "remotes"
+## remotes is a dictionary. items are of 'name: remote_info'
+## name is simply a name (example 'maas'). It has no importance other than
+## for cloud-init merging configs
+##
+## remote_info is of the format
+## * optional filter for log messages
+## default if not present: *.*
+## * optional leading '@' or '@@' (indicates udp or tcp).
+## default if not present (udp): @
+## This is rsyslog format for that. if not present, is '@' which is udp
+## * ipv4 or ipv6 or hostname
+## ipv6 addresses must be encoded in [::1] format. example: @[fd00::1]:514
+## * optional port
+## port defaults to 514
+##
+## Example:
+#cloud-config
+syslog:
+ remotes:
+  # udp to host 'maas.mydomain' port 514
+  maashost: maas.mydomain
+  # udp to ipv4 host on port 514
+  maas: "@[10.5.1.56]:514"
+  # tcp to host ipv6 host on port 555
+  maasipv6: "*.* @@[FE80::0202:B3FF:FE1E:8329]:555"
