@@ -41,7 +41,8 @@ CONFIG_KEY_TO_FILE = {}
 PRIV_TO_PUB = {}
 for k in GENERATE_KEY_NAMES:
     CONFIG_KEY_TO_FILE.update({"%s_private" % k: (KEY_FILE_TPL % k, 0o600)})
-    CONFIG_KEY_TO_FILE.update({"%s_public" % k: (KEY_FILE_TPL % k + ".pub", 0o600)})
+    CONFIG_KEY_TO_FILE.update(
+        {"%s_public" % k: (KEY_FILE_TPL % k + ".pub", 0o600)})
     PRIV_TO_PUB["%s_private" % k] = "%s_public" % k
 
 KEY_GEN_TPL = 'o=$(ssh-keygen -yf "%s") && echo "$o" root@localhost > "%s"'
@@ -100,7 +101,8 @@ def handle(_name, cfg, cloud, log, _args):
                     sys.stdout.write(util.decode_binary(out))
                 except util.ProcessExecutionError as e:
                     err = util.decode_binary(e.stderr).lower()
-                    if e.exit_code == 1 and err.lower().startswith("unknown key"):
+                    if (e.exit_code == 1 and
+                            err.lower().startswith("unknown key")):
                         log.debug("ssh-keygen: unknown key type '%s'", keytype)
                     else:
                         util.logexc(log, "Failed generating key type %s to "

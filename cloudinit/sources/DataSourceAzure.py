@@ -254,7 +254,7 @@ class DataSourceAzureNet(sources.DataSource):
 
         self.metadata.update(fabric_data)
 
-        found_ephemeral = find_ephemeral_disk()
+        found_ephemeral = find_fabric_formatted_ephemeral_disk()
         if found_ephemeral:
             self.ds_cfg['disk_aliases']['ephemeral0'] = found_ephemeral
             LOG.debug("using detected ephemeral0 of %s", found_ephemeral)
@@ -276,30 +276,33 @@ def count_files(mp):
     return len(fnmatch.filter(os.listdir(mp), '*[!cdrom]*'))
 
 
-def find_ephemeral_part():
+def find_fabric_formatted_ephemeral_part():
     """
-    Locate the default ephmeral0.1 device. This will be the first device
-    that has a LABEL of DEF_EPHEMERAL_LABEL and is a NTFS device. If Azure
-    gets more ephemeral devices, this logic will only identify the first
-    such device.
+    Locate the first fabric formatted ephemeral device.
     """
-    c_label_devs = util.find_devs_with("LABEL=%s" % DEF_EPHEMERAL_LABEL)
-    c_fstype_devs = util.find_devs_with("TYPE=ntfs")
-    for dev in c_label_devs:
-        if dev in c_fstype_devs:
-            return dev
+    potential_locations = ['/dev/disk/cloud/azure_resource-part1',
+                           '/dev/disk/azure/resource-part1']
+    device_location = None
+    for potential_location in potential_locations:
+        if os.path.exists(potential_location):
+            device_location = potential_location
+            break
+    if device_location is None:
+        return None
+    ntfs_devices = util.find_devs_with("TYPE=ntfs")
+    real_device = os.path.realpath(device_location)
+    if real_device in ntfs_devices:
+        return device_location
     return None
 
 
-def find_ephemeral_disk():
+def find_fabric_formatted_ephemeral_disk():
     """
     Get the ephemeral disk.
     """
-    part_dev = find_ephemeral_part()
-    if part_dev and str(part_dev[-1]).isdigit():
-        return part_dev[:-1]
-    elif part_dev:
-        return part_dev
+    part_dev = find_fabric_formatted_ephemeral_part()
+    if part_dev:
+        return part_dev.split('-')[0]
     return None
 
 
@@ -313,7 +316,7 @@ def support_new_ephemeral(cfg):
     new ephemeral device is detected, cloud-init overrides the default
     frequency for both disk-setup and mounts for the current boot only.
     """
-    device = find_ephemeral_part()
+    device = find_fabric_formatted_ephemeral_part()
     if not device:
         LOG.debug("no default fabric formated ephemeral0.1 found")
         return None

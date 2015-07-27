@@ -475,10 +475,12 @@ class TestAzureBounce(TestCase):
             mock.patch.object(DataSourceAzure, 'list_possible_azure_ds_devs',
                               mock.MagicMock(return_value=[])))
         self.patches.enter_context(
-            mock.patch.object(DataSourceAzure, 'find_ephemeral_disk',
+            mock.patch.object(DataSourceAzure,
+                              'find_fabric_formatted_ephemeral_disk',
                               mock.MagicMock(return_value=None)))
         self.patches.enter_context(
-            mock.patch.object(DataSourceAzure, 'find_ephemeral_part',
+            mock.patch.object(DataSourceAzure,
+                              'find_fabric_formatted_ephemeral_part',
                               mock.MagicMock(return_value=None)))
         self.patches.enter_context(
             mock.patch.object(DataSourceAzure, 'get_metadata_from_fabric',
