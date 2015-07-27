@@ -17,37 +17,129 @@
 #
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+"""
+rsyslog module allows configuration of syslog logging via rsyslog
+Configuration is done under the cloud-config top level 'rsyslog'.
+
+Under 'rsyslog' you can define:
+  - configs:  [default=[]]
+    this is a list.  entries in it are a string or a dictionary.
+    each entry has 2 parts:
+       * content
+       * filename
+    if the entry is a string, then it is assigned to 'content'.
+    for each entry, content is written to the provided filename.
+    if filename is not provided, its default is read from 'config_filename'
+
+    Content here can be any valid rsyslog configuration.  No format
+    specific format is enforced.
+
+    For simply logging to an existing remote syslog server, via udp:
+      configs: ["*.* @192.168.1.1"]
+
+  - config_filename: [default=20-cloud-config.conf]
+    this is the file name to use if none is provided in a config entry.
+  - config_dir: [default=/etc/rsyslog.d]
+    this directory is used for filenames that are not absolute paths.
+  - service_reload_command: [default="auto"]
+    this command is executed if files have been written and thus the syslog
+    daemon needs to be told.
+
+Note, since cloud-init 0.5 a legacy version of rsyslog config has been
+present and is still supported. See below for the mappings between old
+value and new value:
+   old value           -> new value
+   'rsyslog'           -> rsyslog/configs
+   'rsyslog_filename'  -> rsyslog/config_filename
+   'rsyslog_dir'       -> rsyslog/config_dir
+
+the legacy config does not support 'service_reload_command'.
+
+Example config:
+  #cloud-config
+  rsyslog:
+    configs:
+      - "*.* @@192.158.1.1"
+      - content: "*.*   @@192.0.2.1:10514"
+      - filename: 01-examplecom.conf
+      - content: |
+        *.*   @@syslogd.example.com
+    config_dir: config_dir
+    config_filename: config_filename
+    service_reload_command: [your, syslog, restart, command]
+
+Example Legacy config:
+  #cloud-config
+  rsyslog:
+    - "*.* @@192.158.1.1"
+  rsyslog_dir: /etc/rsyslog-config.d/
+  rsyslog_filename: 99-local.conf
+"""
 
 import os
+import six
 
+from cloudinit import log as logging
 from cloudinit import util
 
 DEF_FILENAME = "20-cloud-config.conf"
 DEF_DIR = "/etc/rsyslog.d"
+DEF_RELOAD = "auto"
+
+KEYNAME_CONFIGS = 'configs'
+KEYNAME_FILENAME = 'config_filename'
+KEYNAME_DIR = 'config_dir'
+KEYNAME_RELOAD = 'service_reload_command'
+KEYNAME_LEGACY_FILENAME = 'rsyslog_filename'
+KEYNAME_LEGACY_DIR = 'rsyslog_dir'
+
+LOG = logging.getLogger(__name__)
 
 
-def handle(name, cfg, cloud, log, _args):
-    # rsyslog:
-    #  - "*.* @@192.158.1.1"
-    #  - content: "*.*   @@192.0.2.1:10514"
-    #  - filename: 01-examplecom.conf
-    #    content: |
-    #      *.*   @@syslogd.example.com
+def reload_syslog(command=DEF_RELOAD, systemd=False):
+    service = 'rsyslog'
+    if command == DEF_RELOAD:
+        if systemd:
+            cmd = ['systemctl', 'reload-or-try-restart', service]
+        else:
+            cmd = ['service', service, 'reload']
+    else:
+        cmd = command
+    util.subp(cmd, capture=True)
 
-    # process 'rsyslog'
-    if 'rsyslog' not in cfg:
-        log.debug(("Skipping module named %s,"
-                   " no 'rsyslog' key in configuration"), name)
-        return
 
-    def_dir = cfg.get('rsyslog_dir', DEF_DIR)
-    def_fname = cfg.get('rsyslog_filename', DEF_FILENAME)
+def load_config(cfg):
+    # return an updated config with entries of the correct type
+    # support converting the old top level format into new format
+    mycfg = cfg.get('rsyslog', {})
 
+    if isinstance(mycfg, list):
+        mycfg[KEYNAME_CONFIGS] = mycfg
+        if KEYNAME_LEGACY_FILENAME in cfg:
+            mycfg[KEYNAME_FILENAME] = cfg[KEYNAME_LEGACY_FILENAME]
+        if KEYNAME_LEGACY_DIR in cfg:
+            mycfg[KEYNAME_DIR] = cfg[KEYNAME_DIR]
+
+    fillup = (
+        (KEYNAME_DIR, DEF_DIR, six.text_type),
+        (KEYNAME_FILENAME, DEF_FILENAME, six.text_type)
+        (KEYNAME_RELOAD, DEF_RELOAD, (six.text_type, list)))
+
+    for key, default, vtypes in fillup:
+        if key not in mycfg or not isinstance(mycfg[key], vtypes):
+            mycfg[key] = default
+
+    return mycfg
+
+
+def apply_rsyslog_changes(configs, def_fname, cfg_dir):
+    # apply the changes in 'configs' to the paths in def_fname and cfg_dir
+    # return a list of the files changed
     files = []
-    for i, ent in enumerate(cfg['rsyslog']):
+    for cur_pos, ent in enumerate(configs):
         if isinstance(ent, dict):
             if "content" not in ent:
-                log.warn("No 'content' entry in config entry %s", i + 1)
+                LOG.warn("No 'content' entry in config entry %s", cur_pos + 1)
                 continue
             content = ent['content']
             filename = ent.get("filename", def_fname)
@@ -57,15 +149,14 @@ def handle(name, cfg, cloud, log, _args):
 
         filename = filename.strip()
         if not filename:
-            log.warn("Entry %s has an empty filename", i + 1)
+            LOG.warn("Entry %s has an empty filename", cur_pos + 1)
             continue
 
         if not filename.startswith("/"):
-            filename = os.path.join(def_dir, filename)
+            filename = os.path.join(cfg_dir, filename)
 
         # Truncate filename first time you see it
-        omode = "ab"
-        if filename not in files:
+        omode = "ab" if filename not in files:
             omode = "wb"
             files.append(filename)
 
@@ -73,24 +164,49 @@ def handle(name, cfg, cloud, log, _args):
             contents = "%s\n" % (content)
             util.write_file(filename, contents, omode=omode)
         except Exception:
-            util.logexc(log, "Failed to write to %s", filename)
+            util.logexc(LOG, "Failed to write to %s", filename)
 
-    # Attempt to restart syslogd
-    restarted = False
+    return files
+
+
+def handle(name, cfg, cloud, log, _args):
+    # rsyslog:
+    #  configs:
+    #   - "*.* @@192.158.1.1"
+    #   - content: "*.*   @@192.0.2.1:10514"
+    #   - filename: 01-examplecom.conf
+    #     content: |
+    #       *.*   @@syslogd.example.com
+    #  config_dir: DEF_DIR
+    #  config_filename: DEF_FILENAME
+    #  service_reload: "auto"
+
+    if 'rsyslog' not in cfg:
+        log.debug(("Skipping module named %s,"
+                   " no 'rsyslog' key in configuration"), name)
+        return
+
+    mycfg = load_config(cfg)
+    if not mycfg['configs']:
+        log.debug("Empty config rsyslog['configs'], nothing to do")
+        return
+
+    changes = apply_rsyslog_changes(
+        configs=mycfg[KEYNAME_CONFIGS],
+        def_fname=mycfg[KEYNAME_FILENAME],
+        cfg_dir=mycfg[KEYNAME_DIR])
+
+    if not changes:
+        log.debug("restart of syslog not necessary, no changes made")
+        return
+
     try:
-        # If this config module is running at cloud-init time
-        # (before rsyslog is running) we don't actually have to
-        # restart syslog.
-        #
-        # Upstart actually does what we want here, in that it doesn't
-        # start a service that wasn't running already on 'restart'
-        # it will also return failure on the attempt, so 'restarted'
-        # won't get set.
-        log.debug("Restarting rsyslog")
-        util.subp(['service', 'rsyslog', 'restart'])
-        restarted = True
-    except Exception:
-        util.logexc(log, "Failed restarting rsyslog")
+        restarted = reload_syslog(
+            service=mycfg[KEYNAME_RELOAD],
+            systemd=cloud.distro.uses_systemd()),
+    except util.ProcessExecutionError as e:
+        restarted = False
+        log.warn("Failed to reload syslog", e)
 
     if restarted:
         # This only needs to run if we *actually* restarted
@@ -98,4 +214,4 @@ def handle(name, cfg, cloud, log, _args):
         cloud.cycle_logging()
         # This should now use rsyslog if
         # the logging was setup to use it...
-        log.debug("%s configured %s files", name, files)
+        log.debug("%s configured %s files", name, changes)
