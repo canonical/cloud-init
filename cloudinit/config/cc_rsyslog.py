@@ -113,17 +113,18 @@ def load_config(cfg):
     # support converting the old top level format into new format
     mycfg = cfg.get('rsyslog', {})
 
-    if isinstance(mycfg, list):
-        mycfg[KEYNAME_CONFIGS] = mycfg
+    if isinstance(cfg.get('rsyslog'), list):
+        mycfg = {KEYNAME_CONFIGS: cfg.get('rsyslog')}
         if KEYNAME_LEGACY_FILENAME in cfg:
             mycfg[KEYNAME_FILENAME] = cfg[KEYNAME_LEGACY_FILENAME]
         if KEYNAME_LEGACY_DIR in cfg:
-            mycfg[KEYNAME_DIR] = cfg[KEYNAME_DIR]
+            mycfg[KEYNAME_DIR] = cfg[KEYNAME_LEGACY_DIR]
 
     fillup = (
-        (KEYNAME_DIR, DEF_DIR, six.text_type),
-        (KEYNAME_FILENAME, DEF_FILENAME, six.text_type)
-        (KEYNAME_RELOAD, DEF_RELOAD, (six.text_type, list)))
+        (KEYNAME_CONFIGS, [], list),
+        (KEYNAME_DIR, DEF_DIR, six.string_types),
+        (KEYNAME_FILENAME, DEF_FILENAME, six.string_types),
+        (KEYNAME_RELOAD, DEF_RELOAD, six.string_types + (list,)))
 
     for key, default, vtypes in fillup:
         if key not in mycfg or not isinstance(mycfg[key], vtypes):
@@ -156,7 +157,8 @@ def apply_rsyslog_changes(configs, def_fname, cfg_dir):
             filename = os.path.join(cfg_dir, filename)
 
         # Truncate filename first time you see it
-        omode = "ab" if filename not in files:
+        omode = "ab"
+        if filename not in files:
             omode = "wb"
             files.append(filename)
 
@@ -170,17 +172,6 @@ def apply_rsyslog_changes(configs, def_fname, cfg_dir):
 
 
 def handle(name, cfg, cloud, log, _args):
-    # rsyslog:
-    #  configs:
-    #   - "*.* @@192.158.1.1"
-    #   - content: "*.*   @@192.0.2.1:10514"
-    #   - filename: 01-examplecom.conf
-    #     content: |
-    #       *.*   @@syslogd.example.com
-    #  config_dir: DEF_DIR
-    #  config_filename: DEF_FILENAME
-    #  service_reload: "auto"
-
     if 'rsyslog' not in cfg:
         log.debug(("Skipping module named %s,"
                    " no 'rsyslog' key in configuration"), name)
