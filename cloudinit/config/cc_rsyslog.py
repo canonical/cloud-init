@@ -193,7 +193,7 @@ def handle(name, cfg, cloud, log, _args):
 
     try:
         restarted = reload_syslog(
-            service=mycfg[KEYNAME_RELOAD],
+            command=mycfg[KEYNAME_RELOAD],
             systemd=cloud.distro.uses_systemd()),
     except util.ProcessExecutionError as e:
         restarted = False
