@@ -251,6 +251,8 @@ class SyslogRemotesLine(object):
             match = "*.*"
         self.name = name
         self.match = match
+        if not proto:
+            proto = "udp"
         if proto == "@":
             proto = "udp"
         elif proto == "@@":
@@ -281,9 +283,9 @@ class SyslogRemotesLine(object):
     def __str__(self):
         buf = self.match + " "
         if self.proto == "udp":
-            buf += " @"
+            buf += "@"
         elif self.proto == "tcp":
-            buf += " @@"
+            buf += "@@"
 
         if ":" in self.addr:
             buf += "[" + self.addr + "]"
