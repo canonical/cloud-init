@@ -35,3 +35,12 @@ rsyslog:
 #    *.*   @@syslogd.example.com
 # rsyslog_filename: 20-cloud-config.conf
 # rsyslog_dir: /etc/rsyslog.d
+
+## to configure rsyslog to accept remote logging on Ubuntu
+## write the following into /etc/rsyslog.d/20-remote-udp.conf
+##   $ModLoad imudp
+##   $UDPServerRun 514
+##   $template LogRemote,"/var/log/maas/rsyslog/%HOSTNAME%/messages"
+##   :fromhost-ip, !isequal, "127.0.0.1" ?LogRemote
+## then:
+## sudo service rsyslog restart
