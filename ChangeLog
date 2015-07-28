@@ -56,6 +56,7 @@
  - distro mirrors: provide datasource to mirror selection code to support
    GCE regional mirrors. (LP: #1470890)
  - add udev rules that identify ephemeral device on Azure (LP: #1411582)
+ - _read_dmi_syspath: fix bad log message causing unintended exception
 0.7.6:
  - open 0.7.6
  - Enable vendordata on CloudSigma datasource (LP: #1303986)
