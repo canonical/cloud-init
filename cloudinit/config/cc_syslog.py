@@ -168,7 +168,7 @@ def handle(name, cfg, cloud, log, args):
         LOG.debug("syslog/remotes_file empty, doing nothing")
         return
 
-    remotes = mycfg.get('remotes_dict', {})
+    remotes = mycfg.get('remotes', {})
     if remotes and not isinstance(remotes, dict):
         LOG.warn("syslog/remotes: content is not a dictionary")
         return

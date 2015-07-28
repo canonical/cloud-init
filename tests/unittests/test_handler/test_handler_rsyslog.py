@@ -3,7 +3,8 @@ import shutil
 import tempfile
 
 from cloudinit.config.cc_rsyslog import (
-    load_config, DEF_FILENAME, DEF_DIR, DEF_RELOAD, apply_rsyslog_changes)
+    apply_rsyslog_changes, DEF_DIR, DEF_FILENAME, DEF_RELOAD, load_config,
+    parse_remotes_line)
 from cloudinit import util
 
 from .. import helpers as t_help
@@ -17,6 +18,7 @@ class TestLoadConfig(t_help.TestCase):
             'config_dir': DEF_DIR,
             'service_reload_command': DEF_RELOAD,
             'configs': [],
+            'remotes': {},
         }
 
     def test_legacy_full(self):
@@ -24,12 +26,14 @@ class TestLoadConfig(t_help.TestCase):
             'rsyslog': ['*.* @192.168.1.1'],
             'rsyslog_dir': "mydir",
             'rsyslog_filename': "myfilename"})
-        expected = {
+        self.basecfg.update({
             'configs': ['*.* @192.168.1.1'],
             'config_dir': "mydir",
             'config_filename': 'myfilename',
             'service_reload_command': 'auto'}
-        self.assertEqual(found, expected)
+            )
+
+        self.assertEqual(found, self.basecfg)
 
     def test_legacy_defaults(self):
         found = load_config({
@@ -111,3 +115,31 @@ class TestApplyChanges(t_help.TestCase):
         expected_content = '\n'.join([c for c in configs]) + '\n'
         found_content = util.load_file(fname)
         self.assertEqual(expected_content, found_content)
+
+
+class TestParseRemotesLine(t_help.TestCase):
+    def test_valid_port(self):
+        r = parse_remotes_line("foo:9")
+        self.assertEqual(9, r.port)
+
+    def test_invalid_port(self):
+        with self.assertRaises(ValueError):
+            parse_remotes_line("*.* foo:abc")
+
+    def test_valid_ipv6(self):
+        r = parse_remotes_line("*.* [::1]")
+        self.assertEqual("*.* [::1]", str(r))
+
+    def test_valid_ipv6_with_port(self):
+        r = parse_remotes_line("*.* [::1]:100")
+        self.assertEqual(r.port, 100)
+        self.assertEqual(r.addr, "::1")
+        self.assertEqual("*.* [::1]:100", str(r))
+
+    def test_invalid_multiple_colon(self):
+        with self.assertRaises(ValueError):
+            parse_remotes_line("*.* ::1:100")
+
+    def test_name_in_string(self):
+        r = parse_remotes_line("syslog.host", name="foobar")
+        self.assertEqual("*.* syslog.host # foobar", str(r))
