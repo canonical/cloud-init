@@ -102,7 +102,7 @@ def reload_syslog(command=DEF_RELOAD, systemd=False):
         if systemd:
             cmd = ['systemctl', 'reload-or-try-restart', service]
         else:
-            cmd = ['service', service, 'reload']
+            cmd = ['service', service, 'restart']
     else:
         cmd = command
     util.subp(cmd, capture=True)
