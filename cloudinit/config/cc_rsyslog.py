@@ -188,8 +188,7 @@ def apply_rsyslog_changes(configs, def_fname, cfg_dir):
             LOG.warn("Entry %s has an empty filename", cur_pos + 1)
             continue
 
-        if not filename.startswith("/"):
-            filename = os.path.join(cfg_dir, filename)
+        filename = os.path.join(cfg_dir, filename)
 
         # Truncate filename first time you see it
         omode = "ab"
@@ -198,8 +197,10 @@ def apply_rsyslog_changes(configs, def_fname, cfg_dir):
             files.append(filename)
 
         try:
-            contents = "%s\n" % (content)
-            util.write_file(filename, contents, omode=omode)
+            endl = ""
+            if not content.endswith("\n"):
+                endl = "\n"
+            util.write_file(filename, content + endl, omode=omode)
         except Exception:
             util.logexc(LOG, "Failed to write to %s", filename)
 

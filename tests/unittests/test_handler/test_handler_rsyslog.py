@@ -112,7 +112,7 @@ class TestApplyChanges(t_help.TestCase):
             configs=configs, def_fname="default.cfg", cfg_dir=self.tmp)
 
         fname = os.path.join(self.tmp, "default.cfg")
-        expected_content = '\n'.join([c for c in configs]) + '\n'
+        expected_content = '\n'.join([c for c in configs])
         found_content = util.load_file(fname)
         self.assertEqual(expected_content, found_content)
 
