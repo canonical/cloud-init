@@ -305,12 +305,12 @@ def remotes_to_rsyslog_cfg(remotes, header=None, footer=None):
         lines.append(header)
     for name, line in remotes.items():
         try:
-            lines.append(parse_remotes_line(line, name=name))
+            lines.append(str(parse_remotes_line(line, name=name)))
         except ValueError as e:
             LOG.warn("failed loading remote %s: %s [%s]", name, line, e)
     if footer is not None:
         lines.append(footer)
-    return '\n'.join(str(lines)) + '\n'
+    return '\n'.join(lines) + "\n"
 
 
 def handle(name, cfg, cloud, log, _args):

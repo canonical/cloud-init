@@ -4,7 +4,7 @@ import tempfile
 
 from cloudinit.config.cc_rsyslog import (
     apply_rsyslog_changes, DEF_DIR, DEF_FILENAME, DEF_RELOAD, load_config,
-    parse_remotes_line)
+    parse_remotes_line, remotes_to_rsyslog_cfg)
 from cloudinit import util
 
 from .. import helpers as t_help
@@ -80,10 +80,10 @@ class TestApplyChanges(t_help.TestCase):
             configs=configs, def_fname="default.cfg", cfg_dir=self.tmp)
 
         expected = [
-           (os.path.join(self.tmp, "default.cfg"),
-            "*.* foohost\n"),
-           (os.path.join(self.tmp, "my.cfg"), "abc\n"),
-           (os.path.join(self.tmp, "mydir/mycfg"), "filefoo-content\n"),
+            (os.path.join(self.tmp, "default.cfg"),
+             "*.* foohost\n"),
+            (os.path.join(self.tmp, "my.cfg"), "abc\n"),
+            (os.path.join(self.tmp, "mydir/mycfg"), "filefoo-content\n"),
         ]
         self.assertEqual([f[0] for f in expected], changed)
         actual = []
@@ -108,7 +108,7 @@ class TestApplyChanges(t_help.TestCase):
     def test_multiline_content(self):
         configs = ['line1', 'line2\nline3\n']
 
-        changed = apply_rsyslog_changes(
+        apply_rsyslog_changes(
             configs=configs, def_fname="default.cfg", cfg_dir=self.tmp)
 
         fname = os.path.join(self.tmp, "default.cfg")
@@ -143,3 +143,23 @@ class TestParseRemotesLine(t_help.TestCase):
     def test_name_in_string(self):
         r = parse_remotes_line("syslog.host", name="foobar")
         self.assertEqual("*.* syslog.host # foobar", str(r))
+
+
+class TestRemotesToSyslog(t_help.TestCase):
+    def test_simple(self):
+        # str rendered line must appear in remotes_to_ryslog_cfg return
+        mycfg = "*.* myhost"
+        myline = str(parse_remotes_line(mycfg, name="myname"))
+        r = remotes_to_rsyslog_cfg({'myname': mycfg})
+        lines = r.splitlines()
+        self.assertEqual(1, len(lines))
+        self.assertTrue(myline in r.splitlines())
+
+    def test_header_footer(self):
+        header = "#foo head"
+        footer = "#foo foot"
+        r = remotes_to_rsyslog_cfg(
+            {'myname': "*.* myhost"}, header=header, footer=footer)
+        lines = r.splitlines()
+        self.assertTrue(header, lines[0])
+        self.assertTrue(footer, lines[-1])
