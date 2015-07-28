@@ -307,6 +307,8 @@ def remotes_to_rsyslog_cfg(remotes, header=None, footer=None):
     if header is not None:
         lines.append(header)
     for name, line in remotes.items():
+        if not line:
+            continue
         try:
             lines.append(str(parse_remotes_line(line, name=name)))
         except ValueError as e:

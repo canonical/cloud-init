@@ -163,3 +163,12 @@ class TestRemotesToSyslog(t_help.TestCase):
         lines = r.splitlines()
         self.assertTrue(header, lines[0])
         self.assertTrue(footer, lines[-1])
+
+    def test_with_empty_or_null(self):
+        mycfg = "*.* myhost"
+        myline = str(parse_remotes_line(mycfg, name="myname"))
+        r = remotes_to_rsyslog_cfg(
+            {'myname': mycfg, 'removed': None, 'removed2': ""})
+        lines = r.splitlines()
+        self.assertEqual(1, len(lines))
+        self.assertTrue(myline in r.splitlines())
