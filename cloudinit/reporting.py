@@ -20,8 +20,17 @@ START_EVENT_TYPE = 'start'
 
 DEFAULT_CONFIG = {
     'logging': {'type': 'log'},
+    'print': {'type': 'print'},
 }
 
+
+class _nameset(set):
+    def __getattr__(self, name):
+        if name in self:
+            return name
+        raise AttributeError
+
+status = _nameset(("SUCCESS", "WARN", "FAIL"))
 
 instantiated_handler_registry = DictRegistry()
 available_handlers = DictRegistry()
@@ -43,17 +52,18 @@ class ReportingEvent(object):
 
 class FinishReportingEvent(ReportingEvent):
 
-    def __init__(self, name, description, successful=None):
+    def __init__(self, name, description, result=None):
         super(FinishReportingEvent, self).__init__(
             FINISH_EVENT_TYPE, name, description)
-        self.successful = successful
+        if result is None:
+            result = status.SUCCESS
+        self.result = result
+        if result not in status:
+            raise ValueError("Invalid result: %s" % result)
 
     def as_string(self):
-        if self.successful is None:
-            return super(FinishReportingEvent, self).as_string()
-        success_string = 'success' if self.successful else 'fail'
         return '{0}: {1}: {2}: {3}'.format(
-            self.event_type, self.name, success_string, self.description)
+            self.event_type, self.name, self.result, self.description)
 
 
 class ReportingHandler(object):
@@ -71,6 +81,11 @@ class LogHandler(ReportingHandler):
         logger = logging.getLogger(
             '.'.join([__name__, event.event_type, event.name]))
         logger.info(event.as_string())
+
+
+class PrintHandler(ReportingHandler):
+    def publish_event(self, event):
+        print(event.as_string())
 
 
 def add_configuration(config):
@@ -95,12 +110,12 @@ def report_event(event):
         handler.publish_event(event)
 
 
-def report_finish_event(event_name, event_description, successful=None):
+def report_finish_event(event_name, event_description, result):
     """Report a "finish" event.
 
     See :py:func:`.report_event` for parameter details.
     """
-    event = FinishReportingEvent(event_name, event_description, successful)
+    event = FinishReportingEvent(event_name, event_description, result)
     return report_event(event)
 
 
@@ -118,5 +133,65 @@ def report_start_event(event_name, event_description):
     return report_event(event)
 
 
+class ReportStack(object):
+    def __init__(self, name, description, parent=None, reporting=None,
+                 exc_result=None):
+        self.parent = parent
+        self.reporting = reporting
+        self.name = name
+        self.description = description
+
+        if exc_result is None:
+            exc_result = status.FAIL
+        self.exc_result = exc_result
+
+        if reporting is None:
+            # if reporting is specified respect it, otherwise use parent's value
+            if parent:
+                reporting = parent.reporting
+            else:
+                reporting = True
+        if parent:
+            self.fullname = '/'.join((name, parent.fullname,))
+        else:
+            self.fullname = self.name
+        self.children = {}
+
+    def __enter__(self):
+        self.exception = None
+        if self.reporting:
+            report_start_event(self.fullname, self.description)
+        if self.parent:
+            self.parent.children[self.name] = (None, None)
+        return self
+
+    def childrens_finish_info(self, result=None, description=None):
+        for result in (status.FAIL, status.WARN):
+            for name, (value, msg) in self.children.items():
+                if value == result:
+                    return (result, "[" + name + "]" + msg)
+        if result is None:
+            result = status.SUCCESS
+        if description is None:
+            description = self.description
+        return (result, description)
+
+    def finish_info(self, exc):
+        # return tuple of description, and value
+        if exc:
+            # by default, exceptions are fatal
+            return (self.exc_result, self.description)
+        return self.childrens_finish_info()
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        self.exception = exc_value
+        (result, msg) = self.finish_info(exc_value)
+        if self.parent:
+            self.parent.children[self.name] = (result, msg)
+        if self.reporting:
+            report_finish_event(self.fullname, msg, result)
+
+        
 available_handlers.register_item('log', LogHandler)
+available_handlers.register_item('print', PrintHandler)
 add_configuration(DEFAULT_CONFIG)

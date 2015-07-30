@@ -46,6 +46,7 @@ from cloudinit import log as logging
 from cloudinit import sources
 from cloudinit import type_utils
 from cloudinit import util
+from cloudinit import reporting
 
 LOG = logging.getLogger(__name__)
 
@@ -53,7 +54,7 @@ NULL_DATA_SOURCE = None
 
 
 class Init(object):
-    def __init__(self, ds_deps=None):
+    def __init__(self, reporter=None, ds_deps=None):
         if ds_deps is not None:
             self.ds_deps = ds_deps
         else:
@@ -64,6 +65,11 @@ class Init(object):
         self._distro = None
         # Changed only when a fetch occurs
         self.datasource = NULL_DATA_SOURCE
+
+        if reporter is None:
+            reporter = reporting.ReportStack(
+                name="init-reporter", description="init-desc", reporting=False)
+        self.reporter = reporter
 
     def _reset(self, reset_ds=False):
         # Recreated on access
@@ -246,7 +252,7 @@ class Init(object):
                                                self.paths,
                                                copy.deepcopy(self.ds_deps),
                                                cfg_list,
-                                               pkg_list)
+                                               pkg_list, self.reporter)
             LOG.info("Loaded datasource %s - %s", dsname, ds)
         self.datasource = ds
         # Ensure we adjust our path members datasource

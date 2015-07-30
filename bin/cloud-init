@@ -46,6 +46,7 @@ from cloudinit import sources
 from cloudinit import stages
 from cloudinit import templater
 from cloudinit import util
+from cloudinit import reporting
 from cloudinit import version
 
 from cloudinit.settings import (PER_INSTANCE, PER_ALWAYS, PER_ONCE,
@@ -313,7 +314,7 @@ def main_modules(action_name, args):
     # 5. Run the modules for the given stage name
     # 6. Done!
     w_msg = welcome_format("%s:%s" % (action_name, name))
-    init = stages.Init(ds_deps=[])
+    init = stages.Init(ds_deps=[], reporter=args.reporter)
     # Stage 1
     init.read_cfg(extract_fns(args))
     # Stage 2
@@ -549,6 +550,8 @@ def main():
                               ' found (use at your own risk)'),
                         dest='force',
                         default=False)
+
+    parser.set_defaults(reporter=None)
     subparsers = parser.add_subparsers()
 
     # Each action and its sub-options (if any)
@@ -595,6 +598,9 @@ def main():
                               help=("frequency of the module"),
                               required=False,
                               choices=list(FREQ_SHORT_NAMES.keys()))
+    parser_single.add_argument("--report", action="store_true",
+                               help="enable reporting",
+                               required=False)
     parser_single.add_argument("module_args", nargs="*",
                               metavar='argument',
                               help=('any additional arguments to'
@@ -617,8 +623,24 @@ def main():
     if name in ("modules", "init"):
         functor = status_wrapper
 
-    return util.log_time(logfunc=LOG.debug, msg="cloud-init mode '%s'" % name,
-                         get_uptime=True, func=functor, args=(name, args))
+    reporting = True
+    if name == "init":
+        if args.local:
+            rname, rdesc = ("init-local", "searching for local datasources")
+        else:
+            rname, rdesc = ("init-network", "searching for network datasources")
+    elif name == "modules":
+        rname, rdesc = ("modules-%s" % args.mode, "running modules for %s")
+    elif name == "single":
+        rname, rdesc = ("single/%s" % args.name,
+                        "running single module %s" % args.name)
+        reporting = args.report
+
+    reporter = reporting.ReportStack(rname, rdesc, reporting=reporting)
+    with reporter:
+        return util.log_time(
+            logfunc=LOG.debug, msg="cloud-init mode '%s'" % name,
+            get_uptime=True, func=functor, args=(name, args))
 
 
 if __name__ == '__main__':
