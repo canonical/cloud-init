@@ -623,7 +623,7 @@ def main():
     if name in ("modules", "init"):
         functor = status_wrapper
 
-    reporting = True
+    report_on = True
     if name == "init":
         if args.local:
             rname, rdesc = ("init-local", "searching for local datasources")
@@ -634,9 +634,9 @@ def main():
     elif name == "single":
         rname, rdesc = ("single/%s" % args.name,
                         "running single module %s" % args.name)
-        reporting = args.report
+        report_on = args.report
 
-    reporter = reporting.ReportStack(rname, rdesc, reporting=reporting)
+    reporter = reporting.ReportStack(rname, rdesc, reporting=report_on)
     with reporter:
         return util.log_time(
             logfunc=LOG.debug, msg="cloud-init mode '%s'" % name,
