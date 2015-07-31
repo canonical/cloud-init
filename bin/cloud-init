@@ -284,7 +284,7 @@ def main_init(name, args):
         return (init.datasource, ["Consuming user data failed!"])
 
     # Stage 8 - re-read and apply relevant cloud-config to include user-data
-    mods = stages.Modules(init, extract_fns(args))
+    mods = stages.Modules(init, extract_fns(args), reporter=args.reporter)
     # Stage 9
     try:
         outfmt_orig = outfmt
@@ -329,7 +329,7 @@ def main_modules(action_name, args):
         if not args.force:
             return [(msg)]
     # Stage 3
-    mods = stages.Modules(init, extract_fns(args))
+    mods = stages.Modules(init, extract_fns(args), reporter=args.reporter)
     # Stage 4
     try:
         LOG.debug("Closing stdin")
@@ -384,7 +384,7 @@ def main_single(name, args):
         if not args.force:
             return 1
     # Stage 3
-    mods = stages.Modules(init, extract_fns(args))
+    mods = stages.Modules(init, extract_fns(args), reporter=args.reporter)
     mod_args = args.module_args
     if mod_args:
         LOG.debug("Using passed in arguments %s", mod_args)
@@ -630,7 +630,8 @@ def main():
         else:
             rname, rdesc = ("init-network", "searching for network datasources")
     elif name == "modules":
-        rname, rdesc = ("modules-%s" % args.mode, "running modules for %s")
+        rname, rdesc = ("modules-%s" % args.mode,
+                        "running modules for %s" % args.mode)
     elif name == "single":
         rname, rdesc = ("single/%s" % args.name,
                         "running single module %s" % args.name)

@@ -341,7 +341,8 @@ class Init(object):
         # Form the needed options to cloudify our members
         return cloud.Cloud(self.datasource,
                            self.paths, self.cfg,
-                           self.distro, helpers.Runners(self.paths))
+                           self.distro, helpers.Runners(self.paths),
+                           reporter=self.reporter)
 
     def update(self):
         if not self._write_to_cache():
@@ -507,8 +508,14 @@ class Init(object):
     def consume_data(self, frequency=PER_INSTANCE):
         # Consume the userdata first, because we need want to let the part
         # handlers run first (for merging stuff)
-        self._consume_userdata(frequency)
-        self._consume_vendordata(frequency)
+        with reporting.ReportStack(
+            "consume-user-data", "reading and applying user-data",
+            parent=self.reporter):
+                self._consume_userdata(frequency)
+        with reporting.ReportStack(
+            "consume-vendor-data", "reading and applying vendor-data",
+            parent=self.reporter):
+                self._consume_userdata(frequency)
 
         # Perform post-consumption adjustments so that
         # modules that run during the init stage reflect
@@ -581,11 +588,12 @@ class Init(object):
 
 
 class Modules(object):
-    def __init__(self, init, cfg_files=None):
+    def __init__(self, init, cfg_files=None, reporter=None):
         self.init = init
         self.cfg_files = cfg_files
         # Created on first use
         self._cached_cfg = None
+        self.reporter = reporter
 
     @property
     def cfg(self):
@@ -695,7 +703,18 @@ class Modules(object):
                 which_ran.append(name)
                 # This name will affect the semaphore name created
                 run_name = "config-%s" % (name)
-                cc.run(run_name, mod.handle, func_args, freq=freq)
+
+                desc="running %s with frequency %s" % (run_name, freq)
+                myrep = reporting.ReportStack(
+                    name=run_name, description=desc, parent=self.reporter)
+
+                with myrep:
+                    ran, _r = cc.run(run_name, mod.handle, func_args, freq=freq)
+                    if ran:
+                        myrep.message = "%s ran successfully" % run_name
+                    else:
+                        myrep.message = "%s previously ran" % run_name
+                    
             except Exception as e:
                 util.logexc(LOG, "Running module %s (%s) failed", name, mod)
                 failures.append((name, e))

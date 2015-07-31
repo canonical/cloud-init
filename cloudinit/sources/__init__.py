@@ -247,29 +247,6 @@ def normalize_pubkey_data(pubkey_data):
     return keys
 
 
-class SearchReportStack(reporting.ReportStack):
-    def __init__(self, source, mode, parent):
-        self.source = source.replace("DataSource", "")
-        name = "check-%s" % self.source
-        self.found = False
-        self.mode = mode
-        description = "searching for %s data from %s" % (mode, self.source)
-        super(SearchReportStack, self).__init__(
-            name=name, description=description, parent=parent,
-            result_on_exception=reporting.status.WARN)
-
-    def finish_info(self, exc):
-        # return tuple of description, and value
-        if exc:
-            # by default, exceptions are fatal
-            return (self.exc_result, self.description)
-        if self.found:
-            description = "found %s data from %s" % (self.mode, self.source)
-        else:
-            description = "no %s data found from %s" % (self.mode, self.source)
-        return self.childrens_finish_info(description=description)
-
-
 def find_source(sys_cfg, distro, paths, ds_deps, cfg_list, pkg_list, reporter):
     ds_list = list_sources(cfg_list, ds_deps, pkg_list)
     ds_names = [type_utils.obj_name(f) for f in ds_list]
@@ -277,12 +254,17 @@ def find_source(sys_cfg, distro, paths, ds_deps, cfg_list, pkg_list, reporter):
     LOG.debug("Searching for %s data source in: %s", mode, ds_names)
 
     for name, cls in zip(ds_names, ds_list):
+        myrep = reporting.ReportStack(
+            name="search-%s-%s" % (mode, name.replace("DataSource", "")),
+            description="searching for %s data from %s" % (mode, name),
+            message = "no %s data found from %s" % (mode, name),
+            parent=reporter)
         try:
-            with SearchReportStack(name, mode, reporter) as rep:
+            with myrep:
                 LOG.debug("Seeing if we can get any data from %s", cls)
                 s = cls(sys_cfg, distro, paths)
                 if s.get_data():
-                    rep.found = True
+                    myrep.message = "found %s data from %s" % (mode, name)
                     return (s, type_utils.obj_name(cls))
         except Exception:
             util.logexc(LOG, "Getting data from %s failed", cls)

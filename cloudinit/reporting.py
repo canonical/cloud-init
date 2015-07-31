@@ -86,7 +86,8 @@ class LogHandler(ReportingHandler):
 
 class StderrHandler(ReportingHandler):
     def publish_event(self, event):
-        sys.stderr.write(event.as_string() + "\n")
+        #sys.stderr.write(event.as_string() + "\n")
+        print(event.as_string())
 
 
 def add_configuration(config):
@@ -135,12 +136,14 @@ def report_start_event(event_name, event_description):
 
 
 class ReportStack(object):
-    def __init__(self, name, description, parent=None,
+    def __init__(self, name, description, message=None, parent=None,
                  reporting_enabled=None, result_on_exception=status.FAIL):
         self.parent = parent
         self.name = name
         self.description = description
+        self.message = message
         self.result_on_exception = result_on_exception
+        self.result = None
 
         # use parents reporting value if not provided
         if reporting_enabled is None:
@@ -160,28 +163,35 @@ class ReportStack(object):
         return ("%s reporting=%s" % (self.fullname, self.reporting_enabled))
 
     def __enter__(self):
+        self.result = None
         if self.reporting_enabled:
             report_start_event(self.fullname, self.description)
         if self.parent:
             self.parent.children[self.name] = (None, None)
         return self
 
-    def childrens_finish_info(self, result=None, description=None):
+    def childrens_finish_info(self):
         for cand_result in (status.FAIL, status.WARN):
             for name, (value, msg) in self.children.items():
                 if value == cand_result:
                     return (value, "[" + name + "]" + msg)
-        if result is None:
-            result = status.SUCCESS
-        if description is None:
-            description = self.description
-        return (result, description)
+        return (self.result, self.message)
 
+    @property
+    def message(self):
+        if self._message is not None:
+            return self._message
+        return self.description
+
+    @message.setter
+    def message(self, value):
+        self._message = value
+       
+        
     def finish_info(self, exc):
         # return tuple of description, and value
         if exc:
-            # by default, exceptions are fatal
-            return (self.result_on_exception, self.description)
+            return (self.result_on_exception, self.message)
         return self.childrens_finish_info()
 
     def __exit__(self, exc_type, exc_value, traceback):
