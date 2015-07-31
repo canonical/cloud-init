@@ -172,7 +172,7 @@ def main_init(name, args):
         w_msg = welcome_format(name)
     else:
         w_msg = welcome_format("%s-local" % (name))
-    init = stages.Init(deps)
+    init = stages.Init(ds_deps=deps, reporter=args.reporter)
     # Stage 1
     init.read_cfg(extract_fns(args))
     # Stage 2

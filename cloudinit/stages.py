@@ -54,7 +54,7 @@ NULL_DATA_SOURCE = None
 
 
 class Init(object):
-    def __init__(self, reporter=None, ds_deps=None):
+    def __init__(self, ds_deps=None, reporter=None):
         if ds_deps is not None:
             self.ds_deps = ds_deps
         else:
