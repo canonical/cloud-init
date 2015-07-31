@@ -137,7 +137,6 @@ class ReportStack(object):
     def __init__(self, name, description, parent=None, reporting=None,
                  exc_result=None):
         self.parent = parent
-        self.reporting = reporting
         self.name = name
         self.description = description
 
@@ -145,17 +144,22 @@ class ReportStack(object):
             exc_result = status.FAIL
         self.exc_result = exc_result
 
+        # use parents reporting value if not provided
         if reporting is None:
-            # if reporting is specified respect it, otherwise use parent's value
             if parent:
                 reporting = parent.reporting
             else:
                 reporting = True
+        self.reporting = reporting
+
         if parent:
-            self.fullname = '/'.join((name, parent.fullname,))
+            self.fullname = '/'.join((parent.fullname, name,))
         else:
             self.fullname = self.name
         self.children = {}
+
+    def __repr__(self):
+        return ("%s reporting=%s" % (self.fullname, self.reporting))
 
     def __enter__(self):
         self.exception = None
@@ -166,10 +170,10 @@ class ReportStack(object):
         return self
 
     def childrens_finish_info(self, result=None, description=None):
-        for result in (status.FAIL, status.WARN):
+        for cand_result in (status.FAIL, status.WARN):
             for name, (value, msg) in self.children.items():
-                if value == result:
-                    return (result, "[" + name + "]" + msg)
+                if value == cand_result:
+                    return (value, "[" + name + "]" + msg)
         if result is None:
             result = status.SUCCESS
         if description is None:

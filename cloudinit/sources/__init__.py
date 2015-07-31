@@ -252,9 +252,10 @@ def find_source(sys_cfg, distro, paths, ds_deps, cfg_list, pkg_list, reporter):
     ds_names = [type_utils.obj_name(f) for f in ds_list]
     LOG.debug("Searching for data source in: %s", ds_names)
 
-    for cls in ds_list:
+    for i, cls in enumerate(ds_list):
+        name=ds_names[i].replace("DataSource", "")
         myreporter = reporting.ReportStack(
-            "check-%s" % cls, "searching for %s" % cls,
+            "check-%s" % name, "searching for %s" % name,
             parent=reporter, exc_result=reporting.status.WARN)
             
         try:
