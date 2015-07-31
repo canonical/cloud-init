@@ -247,22 +247,43 @@ def normalize_pubkey_data(pubkey_data):
     return keys
 
 
+class SearchReportStack(reporting.ReportStack):
+    def __init__(self, source, ds_deps, parent):
+        self.source = source.replace("DataSource", "")
+        name = "check-%s" % self.source
+        self.found = False
+        self.mode = "network" if DEP_NETWORK in ds_deps else "local"
+        description = "searching for %s data from %s" % (
+            self.mode, self.source)
+        super(SearchReportStack, self).__init__(
+            name=name, description=description, parent=parent,
+            exc_result=reporting.status.WARN)
+
+    def finish_info(self, exc):
+        # return tuple of description, and value
+        if exc:
+            # by default, exceptions are fatal
+            return (self.exc_result, self.description)
+        if self.found:
+            description = "found %s data from %s" % (self.mode, self.source)
+        else:
+            description = "no %s data found from %s" % (self.mode, self.source)
+        return self.childrens_finish_info(description=description)
+
+
 def find_source(sys_cfg, distro, paths, ds_deps, cfg_list, pkg_list, reporter):
     ds_list = list_sources(cfg_list, ds_deps, pkg_list)
     ds_names = [type_utils.obj_name(f) for f in ds_list]
     LOG.debug("Searching for data source in: %s", ds_names)
 
     for i, cls in enumerate(ds_list):
-        name=ds_names[i].replace("DataSource", "")
-        myreporter = reporting.ReportStack(
-            "check-%s" % name, "searching for %s" % name,
-            parent=reporter, exc_result=reporting.status.WARN)
-            
+        srcname=ds_names[i]
         try:
-            with myreporter:
+            with SearchReportStack(srcname, ds_deps, reporter) as rep:
                 LOG.debug("Seeing if we can get any data from %s", cls)
                 s = cls(sys_cfg, distro, paths)
                 if s.get_data():
+                    rep.found = True
                     return (s, type_utils.obj_name(cls))
         except Exception:
             util.logexc(LOG, "Getting data from %s failed", cls)
