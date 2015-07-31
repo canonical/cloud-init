@@ -241,9 +241,16 @@ class Init(object):
     def _get_data_source(self):
         if self.datasource is not NULL_DATA_SOURCE:
             return self.datasource
-        ds = self._restore_from_cache()
-        if ds:
-            LOG.debug("Restored from cache, datasource: %s", ds)
+
+        with reporting.ReportStack(
+            name="check-cache", description="attempting to read from cache",
+            parent=self.reporter) as myrep:
+                ds = self._restore_from_cache()
+                if ds:
+                    LOG.debug("Restored from cache, datasource: %s", ds)
+                    myrep.description = "restored from cache"
+                else:
+                    myrep.description = "no cache found"
         if not ds:
             (cfg_list, pkg_list) = self._get_datasources()
             # Deep copy so that user-data handlers can not modify
