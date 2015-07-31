@@ -506,7 +506,7 @@ def status_wrapper(name, args, data_d=None, link_d=None):
 
     except Exception as e:
         util.logexc(LOG, "failed of stage %s", mode)
-        print_exc("failed run of stage %s" mode)
+        print_exc("failed run of stage %s" % mode)
         v1[mode]['errors'] = [str(e)]
 
     v1[mode]['finished'] = time.time()
