@@ -248,13 +248,12 @@ def normalize_pubkey_data(pubkey_data):
 
 
 class SearchReportStack(reporting.ReportStack):
-    def __init__(self, source, ds_deps, parent):
+    def __init__(self, source, mode, parent):
         self.source = source.replace("DataSource", "")
         name = "check-%s" % self.source
         self.found = False
-        self.mode = "network" if DEP_NETWORK in ds_deps else "local"
-        description = "searching for %s data from %s" % (
-            self.mode, self.source)
+        self.mode = mode
+        description = "searching for %s data from %s" % (mode, self.source)
         super(SearchReportStack, self).__init__(
             name=name, description=description, parent=parent,
             result_on_exception=reporting.status.WARN)
@@ -274,11 +273,12 @@ class SearchReportStack(reporting.ReportStack):
 def find_source(sys_cfg, distro, paths, ds_deps, cfg_list, pkg_list, reporter):
     ds_list = list_sources(cfg_list, ds_deps, pkg_list)
     ds_names = [type_utils.obj_name(f) for f in ds_list]
-    LOG.debug("Searching for data source in: %s", ds_names)
+    mode = "network" if DEP_NETWORK in ds_deps else "local"
+    LOG.debug("Searching for %s data source in: %s", mode, ds_names)
 
     for name, cls in zip(ds_names, ds_list):
         try:
-            with SearchReportStack(name, ds_deps, reporter) as rep:
+            with SearchReportStack(name, mode, reporter) as rep:
                 LOG.debug("Seeing if we can get any data from %s", cls)
                 s = cls(sys_cfg, distro, paths)
                 if s.get_data():
