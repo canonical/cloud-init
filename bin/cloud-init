@@ -367,7 +367,7 @@ def main_single(name, args):
     # 6. Done!
     mod_name = args.name
     w_msg = welcome_format(name)
-    init = stages.Init(ds_deps=[])
+    init = stages.Init(ds_deps=[], reporter=args.reporter)
     # Stage 1
     init.read_cfg(extract_fns(args))
     # Stage 2
