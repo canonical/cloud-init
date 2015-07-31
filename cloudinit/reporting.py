@@ -11,6 +11,7 @@ report events in a structured manner.
 
 import abc
 import logging
+import sys
 
 from cloudinit.registry import DictRegistry
 
@@ -83,9 +84,9 @@ class LogHandler(ReportingHandler):
         logger.info(event.as_string())
 
 
-class PrintHandler(ReportingHandler):
+class StderrHandler(ReportingHandler):
     def publish_event(self, event):
-        print(event.as_string())
+        sys.stderr.write(event.as_string() + "\n")
 
 
 def add_configuration(config):
@@ -134,23 +135,20 @@ def report_start_event(event_name, event_description):
 
 
 class ReportStack(object):
-    def __init__(self, name, description, parent=None, reporting=None,
-                 exc_result=None):
+    def __init__(self, name, description, parent=None,
+                 reporting_enabled=None, result_on_exception=status.FAIL):
         self.parent = parent
         self.name = name
         self.description = description
-
-        if exc_result is None:
-            exc_result = status.FAIL
-        self.exc_result = exc_result
+        self.result_on_exception = result_on_exception
 
         # use parents reporting value if not provided
-        if reporting is None:
+        if reporting_enabled is None:
             if parent:
-                reporting = parent.reporting
+                reporting_enabled = parent.reporting_enabled
             else:
-                reporting = True
-        self.reporting = reporting
+                reporting_enabled = True
+        self.reporting_enabled = reporting_enabled
 
         if parent:
             self.fullname = '/'.join((parent.fullname, name,))
@@ -159,11 +157,10 @@ class ReportStack(object):
         self.children = {}
 
     def __repr__(self):
-        return ("%s reporting=%s" % (self.fullname, self.reporting))
+        return ("%s reporting=%s" % (self.fullname, self.reporting_enabled))
 
     def __enter__(self):
-        self.exception = None
-        if self.reporting:
+        if self.reporting_enabled:
             report_start_event(self.fullname, self.description)
         if self.parent:
             self.parent.children[self.name] = (None, None)
@@ -184,18 +181,17 @@ class ReportStack(object):
         # return tuple of description, and value
         if exc:
             # by default, exceptions are fatal
-            return (self.exc_result, self.description)
+            return (self.result_on_exception, self.description)
         return self.childrens_finish_info()
 
     def __exit__(self, exc_type, exc_value, traceback):
-        self.exception = exc_value
         (result, msg) = self.finish_info(exc_value)
         if self.parent:
             self.parent.children[self.name] = (result, msg)
-        if self.reporting:
+        if self.reporting_enabled:
             report_finish_event(self.fullname, msg, result)
 
         
 available_handlers.register_item('log', LogHandler)
-available_handlers.register_item('print', PrintHandler)
+available_handlers.register_item('print', StderrHandler)
 add_configuration(DEFAULT_CONFIG)

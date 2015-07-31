@@ -257,7 +257,7 @@ class SearchReportStack(reporting.ReportStack):
             self.mode, self.source)
         super(SearchReportStack, self).__init__(
             name=name, description=description, parent=parent,
-            exc_result=reporting.status.WARN)
+            result_on_exception=reporting.status.WARN)
 
     def finish_info(self, exc):
         # return tuple of description, and value
@@ -276,10 +276,9 @@ def find_source(sys_cfg, distro, paths, ds_deps, cfg_list, pkg_list, reporter):
     ds_names = [type_utils.obj_name(f) for f in ds_list]
     LOG.debug("Searching for data source in: %s", ds_names)
 
-    for i, cls in enumerate(ds_list):
-        srcname=ds_names[i]
+    for name, cls in zip(ds_names, ds_list):
         try:
-            with SearchReportStack(srcname, ds_deps, reporter) as rep:
+            with SearchReportStack(name, ds_deps, reporter) as rep:
                 LOG.debug("Seeing if we can get any data from %s", cls)
                 s = cls(sys_cfg, distro, paths)
                 if s.get_data():

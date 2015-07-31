@@ -68,7 +68,8 @@ class Init(object):
 
         if reporter is None:
             reporter = reporting.ReportStack(
-                name="init-reporter", description="init-desc", reporting=False)
+                name="init-reporter", description="init-desc",
+                reporting_enabled=False)
         self.reporter = reporter
 
     def _reset(self, reset_ds=False):

@@ -636,7 +636,8 @@ def main():
                         "running single module %s" % args.name)
         report_on = args.report
 
-    args.reporter = reporting.ReportStack(rname, rdesc, reporting=report_on)
+    args.reporter = reporting.ReportStack(
+        rname, rdesc, reporting_enabled=report_on)
     with args.reporter:
         return util.log_time(
             logfunc=LOG.debug, msg="cloud-init mode '%s'" % name,
