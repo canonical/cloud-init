@@ -254,7 +254,7 @@ def find_source(sys_cfg, distro, paths, ds_deps, cfg_list, pkg_list, reporter):
     LOG.debug("Searching for %s data source in: %s", mode, ds_names)
 
     for name, cls in zip(ds_names, ds_list):
-        myrep = reporting.ReportStack(
+        myrep = reporting.ReportEventStack(
             name="search-%s-%s" % (mode, name.replace("DataSource", "")),
             description="searching for %s data from %s" % (mode, name),
             message = "no %s data found from %s" % (mode, name),

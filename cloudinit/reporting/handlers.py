@@ -21,5 +21,12 @@ class LogHandler(ReportingHandler):
         logger.info(event.as_string())
 
 
+class StderrHandler(ReportingHandler):
+    def publish_event(self, event):
+        #sys.stderr.write(event.as_string() + "\n")
+        print(event.as_string())
+
+
 available_handlers = DictRegistry()
 available_handlers.register_item('log', LogHandler)
+available_handlers.register_item('print', StderrHandler)

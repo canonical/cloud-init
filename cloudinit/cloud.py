@@ -47,7 +47,7 @@ class Cloud(object):
         self._cfg = cfg
         self._runners = runners
         if reporter is None:
-            reporter = reporting.ReportStack(
+            reporter = reporting.ReportEventStack(
                 name="unnamed-cloud-reporter",
                 description="unnamed-cloud-reporter",
                 reporting_enabled=False)

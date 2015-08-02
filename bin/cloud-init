@@ -637,7 +637,8 @@ def main():
                         "running single module %s" % args.name)
         report_on = args.report
 
-    args.reporter = reporting.ReportStack(
+    reporting.add_configuration({'print': {'type': 'print'}})
+    args.reporter = reporting.ReportEventStack(
         rname, rdesc, reporting_enabled=report_on)
     with args.reporter:
         return util.log_time(

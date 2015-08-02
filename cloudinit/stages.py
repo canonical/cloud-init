@@ -67,7 +67,7 @@ class Init(object):
         self.datasource = NULL_DATA_SOURCE
 
         if reporter is None:
-            reporter = reporting.ReportStack(
+            reporter = reporting.ReportEventStack(
                 name="init-reporter", description="init-desc",
                 reporting_enabled=False)
         self.reporter = reporter
@@ -242,7 +242,7 @@ class Init(object):
         if self.datasource is not NULL_DATA_SOURCE:
             return self.datasource
 
-        with reporting.ReportStack(
+        with reporting.ReportEventStack(
             name="check-cache", description="attempting to read from cache",
             parent=self.reporter) as myrep:
                 ds = self._restore_from_cache()
@@ -508,11 +508,11 @@ class Init(object):
     def consume_data(self, frequency=PER_INSTANCE):
         # Consume the userdata first, because we need want to let the part
         # handlers run first (for merging stuff)
-        with reporting.ReportStack(
+        with reporting.ReportEventStack(
             "consume-user-data", "reading and applying user-data",
             parent=self.reporter):
                 self._consume_userdata(frequency)
-        with reporting.ReportStack(
+        with reporting.ReportEventStack(
             "consume-vendor-data", "reading and applying vendor-data",
             parent=self.reporter):
                 self._consume_userdata(frequency)
@@ -705,7 +705,7 @@ class Modules(object):
                 run_name = "config-%s" % (name)
 
                 desc="running %s with frequency %s" % (run_name, freq)
-                myrep = reporting.ReportStack(
+                myrep = reporting.ReportEventStack(
                     name=run_name, description=desc, parent=self.reporter)
 
                 with myrep:
