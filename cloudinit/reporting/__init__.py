@@ -22,6 +22,7 @@ DEFAULT_CONFIG = {
 
 instantiated_handler_registry = DictRegistry()
 
+
 class _nameset(set):
     def __getattr__(self, name):
         if name in self:
@@ -107,6 +108,36 @@ def report_start_event(event_name, event_description):
 
 
 class ReportEventStack(object):
+    """Context Manager for using :py:func:`report_event`
+
+    This enables calling :py:func:`report_start_event` and
+    :py:func:`report_finish_event` through a context manager.
+
+    :param name:
+        the name of the event
+
+    :param description:
+        the event's description, passed on to :py:func:`report_start_event`
+
+    :param message:
+        the description to use for the finish event. defaults to
+        :param:description.
+
+    :param parent:
+    :type parent: :py:class:ReportEventStack or None
+        The parent of this event.  The parent is populated with
+        results of all its children.  The name used in reporting
+        is <parent.name>/<name>
+
+    :param reporting_enabled:
+        Indicates if reporting events should be generated.
+        If not provided, defaults to the parent's value, or True if no parent
+        is provided.
+
+    :param result_on_exception:
+        The result value to set if an exception is caught. default
+        value is FAIL.
+    """
     def __init__(self, name, description, message=None, parent=None,
                  reporting_enabled=None, result_on_exception=status.FAIL):
         self.parent = parent
@@ -131,7 +162,8 @@ class ReportEventStack(object):
         self.children = {}
 
     def __repr__(self):
-        return ("%s reporting=%s" % (self.fullname, self.reporting_enabled))
+        return ("ReportEventStack(%s, %s, reporting_enabled=%s)" %
+                (self.name, self.description, self.reporting_enabled))
 
     def __enter__(self):
         self.result = status.SUCCESS
@@ -141,12 +173,22 @@ class ReportEventStack(object):
             self.parent.children[self.name] = (None, None)
         return self
 
-    def childrens_finish_info(self):
+    def _childrens_finish_info(self):
         for cand_result in (status.FAIL, status.WARN):
             for name, (value, msg) in self.children.items():
                 if value == cand_result:
-                    return (value, "[" + name + "]" + msg)
+                    return (value, self.message)
         return (self.result, self.message)
+
+    @property
+    def result(self):
+        return self._result
+
+    @result.setter
+    def result(self, value):
+        if value not in status:
+            raise ValueError("'%s' not a valid result" % value)
+        self._result = value
 
     @property
     def message(self):
@@ -157,15 +199,15 @@ class ReportEventStack(object):
     @message.setter
     def message(self, value):
         self._message = value
-       
-    def finish_info(self, exc):
+
+    def _finish_info(self, exc):
         # return tuple of description, and value
         if exc:
             return (self.result_on_exception, self.message)
-        return self.childrens_finish_info()
+        return self._childrens_finish_info()
 
     def __exit__(self, exc_type, exc_value, traceback):
-        (result, msg) = self.finish_info(exc_value)
+        (result, msg) = self._finish_info(exc_value)
         if self.parent:
             self.parent.children[self.name] = (result, msg)
         if self.reporting_enabled:
