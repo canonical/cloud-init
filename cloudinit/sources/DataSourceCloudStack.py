@@ -41,10 +41,12 @@ class CloudStackPasswordServerClient(object):
     """
     Implements password fetching from the CloudStack password server.
 
-    http://cloudstack-administration.readthedocs.org/en/latest/templates.html#adding-password-management-to-your-templates
+    http://cloudstack-administration.readthedocs.org/
+       en/latest/templates.html#adding-password-management-to-your-templates
     has documentation about the system.  This implementation is following that
     found at
-    https://github.com/shankerbalan/cloudstack-scripts/blob/master/cloud-set-guest-password-debian
+    https://github.com/shankerbalan/cloudstack-scripts/
+       blob/master/cloud-set-guest-password-debian
     """
 
     def __init__(self, virtual_router_address):

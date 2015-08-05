@@ -130,6 +130,7 @@ HOST_PORT_RE = re.compile(
     '(([[](?P<bracket_addr>[^\]]*)[\]])|(?P<addr>[^:]*))'
     '([:](?P<port>[0-9]+))?$')
 
+
 def reload_syslog(command=DEF_RELOAD, systemd=False):
     service = 'rsyslog'
     if command == DEF_RELOAD:
