@@ -243,14 +243,14 @@ class Init(object):
             return self.datasource
 
         with reporting.ReportEventStack(
-            name="check-cache", description="attempting to read from cache",
-            parent=self.reporter) as myrep:
-                ds = self._restore_from_cache()
-                if ds:
-                    LOG.debug("Restored from cache, datasource: %s", ds)
-                    myrep.description = "restored from cache"
-                else:
-                    myrep.description = "no cache found"
+                name="check-cache", description="attempting to read from cache",
+                parent=self.reporter) as myrep:
+            ds = self._restore_from_cache()
+            if ds:
+                LOG.debug("Restored from cache, datasource: %s", ds)
+                myrep.description = "restored from cache"
+            else:
+                myrep.description = "no cache found"
         if not ds:
             (cfg_list, pkg_list) = self._get_datasources()
             # Deep copy so that user-data handlers can not modify
@@ -515,7 +515,7 @@ class Init(object):
         with reporting.ReportEventStack(
             "consume-vendor-data", "reading and applying vendor-data",
             parent=self.reporter):
-                self._consume_userdata(frequency)
+                self._consume_vendordata(frequency)
 
         # Perform post-consumption adjustments so that
         # modules that run during the init stage reflect
@@ -593,6 +593,10 @@ class Modules(object):
         self.cfg_files = cfg_files
         # Created on first use
         self._cached_cfg = None
+        if reporter is None:
+            reporter = reporting.ReportEventStack(
+                name="module-reporter", description="module-desc",
+                reporting_enabled=False)
         self.reporter = reporter
 
     @property
