@@ -243,7 +243,8 @@ class Init(object):
             return self.datasource
 
         with reporting.ReportEventStack(
-                name="check-cache", description="attempting to read from cache",
+                name="check-cache",
+                description="attempting to read from cache",
                 parent=self.reporter) as myrep:
             ds = self._restore_from_cache()
             if ds:
@@ -708,17 +709,18 @@ class Modules(object):
                 # This name will affect the semaphore name created
                 run_name = "config-%s" % (name)
 
-                desc="running %s with frequency %s" % (run_name, freq)
+                desc = "running %s with frequency %s" % (run_name, freq)
                 myrep = reporting.ReportEventStack(
                     name=run_name, description=desc, parent=self.reporter)
 
                 with myrep:
-                    ran, _r = cc.run(run_name, mod.handle, func_args, freq=freq)
+                    ran, _r = cc.run(run_name, mod.handle, func_args,
+                                     freq=freq)
                     if ran:
                         myrep.message = "%s ran successfully" % run_name
                     else:
                         myrep.message = "%s previously ran" % run_name
-                    
+
             except Exception as e:
                 util.logexc(LOG, "Running module %s (%s) failed", name, mod)
                 failures.append((name, e))

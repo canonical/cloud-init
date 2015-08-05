@@ -51,7 +51,8 @@ class TestReportFinishEvent(TestCase):
             self, instantiated_handler_registry):
         event_name, event_description = self._report_finish_event()
         expected_string_representation = ': '.join(
-            ['finish', event_name, reporting.status.SUCCESS, event_description])
+            ['finish', event_name, reporting.status.SUCCESS,
+             event_description])
         self.assertHandlersPassedObjectWithAsString(
             instantiated_handler_registry.registered_items,
             expected_string_representation)
@@ -63,7 +64,8 @@ class TestReportFinishEvent(TestCase):
         event_name, event_description = self._report_finish_event(
             result=reporting.status.SUCCESS)
         expected_string_representation = ': '.join(
-            ['finish', event_name, reporting.status.SUCCESS, event_description])
+            ['finish', event_name, reporting.status.SUCCESS,
+             event_description])
         self.assertHandlersPassedObjectWithAsString(
             instantiated_handler_registry.registered_items,
             expected_string_representation)

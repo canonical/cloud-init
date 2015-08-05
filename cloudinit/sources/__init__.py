@@ -257,7 +257,7 @@ def find_source(sys_cfg, distro, paths, ds_deps, cfg_list, pkg_list, reporter):
         myrep = reporting.ReportEventStack(
             name="search-%s" % name.replace("DataSource", ""),
             description="searching for %s data from %s" % (mode, name),
-            message = "no %s data found from %s" % (mode, name),
+            message="no %s data found from %s" % (mode, name),
             parent=reporter)
         try:
             with myrep:

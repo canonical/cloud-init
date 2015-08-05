@@ -628,7 +628,8 @@ def main():
         if args.local:
             rname, rdesc = ("init-local", "searching for local datasources")
         else:
-            rname, rdesc = ("init-network", "searching for network datasources")
+            rname, rdesc = ("init-network",
+                            "searching for network datasources")
     elif name == "modules":
         rname, rdesc = ("modules-%s" % args.mode,
                         "running modules for %s" % args.mode)
