@@ -82,6 +82,9 @@ class TestReportFinishEvent(TestCase):
             instantiated_handler_registry.registered_items,
             expected_string_representation)
 
+    def test_invalid_result_raises_attribute_error(self):
+        self.assertRaises(ValueError, self._report_finish_event, ("BOGUS",))
+
 
 class TestReportingEvent(TestCase):
 
@@ -193,3 +196,131 @@ class TestReportingConfiguration(TestCase):
         expected_handler_config = handler_config.copy()
         reporting.add_configuration({'my_test_handler': handler_config})
         self.assertEqual(expected_handler_config, handler_config)
+
+
+class TestReportingEventStack(TestCase):
+    @mock.patch('cloudinit.reporting.report_finish_event')
+    @mock.patch('cloudinit.reporting.report_start_event')
+    def test_start_and_finish_success(self, report_start, report_finish):
+        with reporting.ReportEventStack(name="myname", description="mydesc"):
+            pass
+        self.assertEqual(
+            [mock.call('myname', 'mydesc')], report_start.call_args_list)
+        self.assertEqual(
+            [mock.call('myname', 'mydesc', reporting.status.SUCCESS)],
+            report_finish.call_args_list)
+
+    @mock.patch('cloudinit.reporting.report_finish_event')
+    @mock.patch('cloudinit.reporting.report_start_event')
+    def test_finish_exception_defaults_fail(self, report_start, report_finish):
+        name = "myname"
+        desc = "mydesc"
+        try:
+            with reporting.ReportEventStack(name, description=desc):
+                raise ValueError("This didnt work")
+        except ValueError:
+            pass
+        self.assertEqual([mock.call(name, desc)], report_start.call_args_list)
+        self.assertEqual(
+            [mock.call(name, desc, reporting.status.FAIL)],
+            report_finish.call_args_list)
+
+    @mock.patch('cloudinit.reporting.report_finish_event')
+    @mock.patch('cloudinit.reporting.report_start_event')
+    def test_result_on_exception_used(self, report_start, report_finish):
+        name = "myname"
+        desc = "mydesc"
+        try:
+            with reporting.ReportEventStack(
+                    name, desc, result_on_exception=reporting.status.WARN):
+                raise ValueError("This didnt work")
+        except ValueError:
+            pass
+        self.assertEqual([mock.call(name, desc)], report_start.call_args_list)
+        self.assertEqual(
+            [mock.call(name, desc, reporting.status.WARN)],
+            report_finish.call_args_list)
+
+    @mock.patch('cloudinit.reporting.report_start_event')
+    def test_child_fullname_respects_parent(self, report_start):
+        parent_name = "topname"
+        c1_name = "c1name"
+        c2_name = "c2name"
+        c2_expected_fullname = '/'.join([parent_name, c1_name, c2_name])
+        c1_expected_fullname = '/'.join([parent_name, c1_name])
+
+        parent = reporting.ReportEventStack(parent_name, "topdesc")
+        c1 = reporting.ReportEventStack(c1_name, "c1desc", parent=parent)
+        c2 = reporting.ReportEventStack(c2_name, "c2desc", parent=c1)
+        with c1:
+            report_start.assert_called_with(c1_expected_fullname, "c1desc")
+            with c2:
+                report_start.assert_called_with(c2_expected_fullname, "c2desc")
+
+    @mock.patch('cloudinit.reporting.report_finish_event')
+    @mock.patch('cloudinit.reporting.report_start_event')
+    def test_child_result_bubbles_up(self, report_start, report_finish):
+        parent = reporting.ReportEventStack("topname", "topdesc")
+        child = reporting.ReportEventStack("c_name", "c_desc", parent=parent)
+        with parent:
+            with child:
+                child.result = reporting.status.WARN
+
+        report_finish.assert_called_with(
+            "topname", "topdesc", reporting.status.WARN)
+
+    @mock.patch('cloudinit.reporting.report_finish_event')
+    def test_message_used_in_finish(self, report_finish):
+        with reporting.ReportEventStack("myname", "mydesc",
+                                        message="mymessage"):
+            pass
+        self.assertEqual(
+            [mock.call("myname", "mymessage", reporting.status.SUCCESS)],
+            report_finish.call_args_list)
+
+    @mock.patch('cloudinit.reporting.report_finish_event')
+    def test_message_updatable(self, report_finish):
+        with reporting.ReportEventStack("myname", "mydesc") as c:
+            c.message = "all good"
+        self.assertEqual(
+            [mock.call("myname", "all good", reporting.status.SUCCESS)],
+            report_finish.call_args_list)
+
+    @mock.patch('cloudinit.reporting.report_start_event')
+    @mock.patch('cloudinit.reporting.report_finish_event')
+    def test_reporting_disabled_does_not_report_events(
+            self, report_start, report_finish):
+        with reporting.ReportEventStack("a", "b", reporting_enabled=False):
+            pass
+        self.assertEqual(report_start.call_count, 0)
+        self.assertEqual(report_finish.call_count, 0)
+
+    @mock.patch('cloudinit.reporting.report_start_event')
+    @mock.patch('cloudinit.reporting.report_finish_event')
+    def test_reporting_child_default_to_parent(
+            self, report_start, report_finish):
+        parent = reporting.ReportEventStack(
+            "pname", "pdesc", reporting_enabled=False)
+        child = reporting.ReportEventStack("cname", "cdesc", parent=parent)
+        with parent:
+            with child:
+                pass
+            pass
+        self.assertEqual(report_start.call_count, 0)
+        self.assertEqual(report_finish.call_count, 0)
+
+    def test_reporting_event_has_sane_repr(self):
+        myrep = reporting.ReportEventStack("fooname", "foodesc",
+                                           reporting_enabled=True).__repr__()
+        self.assertIn("fooname", myrep)
+        self.assertIn("foodesc", myrep)
+        self.assertIn("True", myrep)
+
+    def test_set_invalid_result_raises_value_error(self):
+        f = reporting.ReportEventStack("myname", "mydesc")
+        self.assertRaises(ValueError, setattr, f, "result", "BOGUS")
+
+
+class TestStatusAccess(TestCase):
+    def test_invalid_status_access_raises_value_error(self):
+        self.assertRaises(AttributeError, getattr, reporting.status, "BOGUS")
