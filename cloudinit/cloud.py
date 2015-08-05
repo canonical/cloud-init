@@ -24,6 +24,7 @@ import copy
 import os
 
 from cloudinit import log as logging
+from cloudinit import reporting
 
 LOG = logging.getLogger(__name__)
 
