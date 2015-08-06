@@ -1,14 +1,27 @@
+# vi: ts=4 expandtab
+
 import abc
 import logging
+import oauthlib.oauth1 as oauth1
+
+import six
 
 from cloudinit.registry import DictRegistry
+from cloudinit import url_helper
+from cloudinit import util
 
 
+@six.add_metaclass(abc.ABCMeta)
 class ReportingHandler(object):
+    """Base class for report handlers.
+
+    Implement :meth:`~publish_event` for controlling what
+    the handler does with an event.
+    """
 
     @abc.abstractmethod
     def publish_event(self, event):
-        raise NotImplementedError
+        """Publish an event to the ``INFO`` log level."""
 
 
 class LogHandler(ReportingHandler):
