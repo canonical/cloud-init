@@ -137,6 +137,11 @@ def run_module_section(mods, action_name, section):
         return failures
 
 
+def apply_reporting_cfg(cfg):
+    reporting.reset_configuration()
+    reporting.update_configuration(cfg.get('reporting'), {})
+
+
 def main_init(name, args):
     deps = [sources.DEP_FILESYSTEM, sources.DEP_NETWORK]
     if args.local:
@@ -191,6 +196,7 @@ def main_init(name, args):
                     " longer be active shortly"))
         logging.resetLogging()
     logging.setupLogging(init.cfg)
+    apply_reporting_cfg(init.cfg)
 
     # Any log usage prior to setupLogging above did not have local user log
     # config applied.  We send the welcome message now, as stderr/out have
@@ -283,6 +289,8 @@ def main_init(name, args):
         util.logexc(LOG, "Consuming user data failed!")
         return (init.datasource, ["Consuming user data failed!"])
 
+    apply_reporting_cfg(init.cfg)
+
     # Stage 8 - re-read and apply relevant cloud-config to include user-data
     mods = stages.Modules(init, extract_fns(args), reporter=args.reporter)
     # Stage 9
@@ -343,6 +351,7 @@ def main_modules(action_name, args):
                     " longer be active shortly"))
         logging.resetLogging()
     logging.setupLogging(mods.cfg)
+    apply_reporting_cfg(init.cfg)
 
     # now that logging is setup and stdout redirected, send welcome
     welcome(name, msg=w_msg)
@@ -405,6 +414,7 @@ def main_single(name, args):
                    " longer be active shortly"))
         logging.resetLogging()
     logging.setupLogging(mods.cfg)
+    apply_reporting_cfg(init.cfg)
 
     # now that logging is setup and stdout redirected, send welcome
     welcome(name, msg=w_msg)

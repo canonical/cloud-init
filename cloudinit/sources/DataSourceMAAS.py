@@ -52,7 +52,20 @@ class DataSourceMAAS(sources.DataSource):
         sources.DataSource.__init__(self, sys_cfg, distro, paths)
         self.base_url = None
         self.seed_dir = os.path.join(paths.seed_dir, 'maas')
-        self.oauth_clockskew = None
+        self.oauth_helper = self._get_helper()
+
+    def _get_helper(self):
+        mcfg = self.ds_cfg
+        # If we are missing token_key, token_secret or consumer_key
+        # then just do non-authed requests
+        for required in ('token_key', 'token_secret', 'consumer_key'):
+            if required not in mcfg:
+                return url_helper.OauthUrlHelper()
+
+        return url_helper.OauthHelper(
+            consumer_key=mcfg['consumer_key'], token_key=mcfg['token_key'],
+            token_secret=mcfg['token_secret'],
+            consumer_secret=mcfg.get('consumer_secret'))
 
     def __str__(self):
         root = sources.DataSource.__str__(self)
@@ -84,9 +97,9 @@ class DataSourceMAAS(sources.DataSource):
 
             self.base_url = url
 
-            (userdata, metadata) = read_maas_seed_url(self.base_url,
-                                                      self._md_headers,
-                                                      paths=self.paths)
+            (userdata, metadata) = read_maas_seed_url(
+                self.base_url, self.oauth_helper.md_headers,
+                paths=self.paths)
             self.userdata_raw = userdata
             self.metadata = metadata
             return True
@@ -94,31 +107,8 @@ class DataSourceMAAS(sources.DataSource):
             util.logexc(LOG, "Failed fetching metadata from url %s", url)
             return False
 
-    def _md_headers(self, url):
-        mcfg = self.ds_cfg
-
-        # If we are missing token_key, token_secret or consumer_key
-        # then just do non-authed requests
-        for required in ('token_key', 'token_secret', 'consumer_key'):
-            if required not in mcfg:
-                return {}
-
-        consumer_secret = mcfg.get('consumer_secret', "")
-
-        timestamp = None
-        if self.oauth_clockskew:
-            timestamp = int(time.time()) + self.oauth_clockskew
-
-        return oauth_headers(url=url,
-                             consumer_key=mcfg['consumer_key'],
-                             token_key=mcfg['token_key'],
-                             token_secret=mcfg['token_secret'],
-                             consumer_secret=consumer_secret,
-                             timestamp=timestamp)
-
     def wait_for_metadata_service(self, url):
         mcfg = self.ds_cfg
-
         max_wait = 120
         try:
             max_wait = int(mcfg.get("max_wait", max_wait))
@@ -138,10 +128,8 @@ class DataSourceMAAS(sources.DataSource):
         starttime = time.time()
         check_url = "%s/%s/meta-data/instance-id" % (url, MD_VERSION)
         urls = [check_url]
-        url = url_helper.wait_for_url(urls=urls, max_wait=max_wait,
-                                      timeout=timeout,
-                                      exception_cb=self._except_cb,
-                                      headers_cb=self._md_headers)
+        url = self.oauth_helper.wait_for_url(
+            urls=urls, max_wait=max_wait, timeout=timeout)
 
         if url:
             LOG.debug("Using metadata source: '%s'", url)
@@ -150,26 +138,6 @@ class DataSourceMAAS(sources.DataSource):
                          urls, int(time.time() - starttime))
 
         return bool(url)
-
-    def _except_cb(self, msg, exception):
-        if not (isinstance(exception, url_helper.UrlError) and
-                (exception.code == 403 or exception.code == 401)):
-            return
-
-        if 'date' not in exception.headers:
-            LOG.warn("Missing header 'date' in %s response", exception.code)
-            return
-
-        date = exception.headers['date']
-        try:
-            ret_time = time.mktime(parsedate(date))
-        except Exception as e:
-            LOG.warn("Failed to convert datetime '%s': %s", date, e)
-            return
-
-        self.oauth_clockskew = int(ret_time - time.time())
-        LOG.warn("Setting oauth clockskew to %d", self.oauth_clockskew)
-        return
 
 
 def read_maas_seed_dir(seed_d):
@@ -278,24 +246,6 @@ def check_seed_contents(content, seed):
         md[key] = val
 
     return (userdata, md)
-
-
-def oauth_headers(url, consumer_key, token_key, token_secret, consumer_secret,
-                  timestamp=None):
-    if timestamp:
-        timestamp = str(timestamp)
-    else:
-        timestamp = None
-
-    client = oauth1.Client(
-        consumer_key,
-        client_secret=consumer_secret,
-        resource_owner_key=token_key,
-        resource_owner_secret=token_secret,
-        signature_method=oauth1.SIGNATURE_PLAINTEXT,
-        timestamp=timestamp)
-    uri, signed_headers, body = client.sign(url)
-    return signed_headers
 
 
 class MAASSeedDirNone(Exception):

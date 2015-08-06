@@ -34,5 +34,33 @@ class LogHandler(ReportingHandler):
         logger.info(event.as_string())
 
 
+class WebHookHandler(ReportingHandler):
+    def __init__(self, endpoint, consumer_key=None, token_key=None,
+                 token_secret=None, consumer_secret=None, timeout=None,
+                 retries=None):
+        super(WebHookHandler, self).__init__()
+
+        if any(consumer_key, token_key, token_secret, consumer_secret):
+            self.oauth_helper = url_helper.OauthHelper(
+                consumer_key=consumer_key, token_key=token_key,
+                token_secret=token_secret, consumer_secret=consumer_secret)
+        else:
+            self.oauth_helper = None
+        self.endpoint = endpoint
+        self.timeout = timeout
+        self.retries = retries
+        self.ssl_details = util.fetch_ssl_details()
+
+    def publish_event(self, event):
+        if self.oauth_helper:
+            readurl = self.oauth_helper.readurl
+        else:
+            readurl = url_helper.readurl
+        return readurl(
+            self.endpoint, data=event.as_dict(),
+            timeout=self.timeout,
+            retries=self.retries, ssl_details=self.ssl_details)
+
+
 available_handlers = DictRegistry()
 available_handlers.register_item('log', LogHandler)
