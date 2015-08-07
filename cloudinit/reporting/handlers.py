@@ -46,7 +46,7 @@ class WebHookHandler(ReportingHandler):
         super(WebHookHandler, self).__init__()
 
         if any([consumer_key, token_key, token_secret, consumer_secret]):
-            self.oauth_helper = url_helper.OauthHelper(
+            self.oauth_helper = url_helper.OauthUrlHelper(
                 consumer_key=consumer_key, token_key=token_key,
                 token_secret=token_secret, consumer_secret=consumer_secret)
         else:

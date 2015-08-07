@@ -385,7 +385,6 @@ class OauthUrlHelper(object):
         self.token_key = token_key
         self.token_secret = token_secret
         self.skew_data_file = skew_data_file
-        self.skew_data = {}
         self._do_oauth = True
         self.skew_change_limit = 5
         required = (self.token_key, self.token_secret, self.consumer_key)
@@ -445,7 +444,7 @@ class OauthUrlHelper(object):
 
         timestamp = None
         host = urlparse(url).netloc
-        if host in self.skew_data:
+        if self.skew_data and host in self.skew_data:
             timestamp = int(time.time()) + self.skew_data[host]
 
         return oauth_headers(
@@ -466,21 +465,20 @@ class OauthUrlHelper(object):
     def readurl(self, *args, **kwargs):
         return self._wrapped(readurl, args, kwargs)
 
-    def _exception_cb(self, extra_exception_cb, url, msg, exception):
+    def _exception_cb(self, extra_exception_cb, msg, exception):
         ret = None
         try:
             if extra_exception_cb:
                 ret = extra_exception_cb(msg, exception)
         finally:
-                self.exception_cb(self, msg, exception)
+                self.exception_cb(msg, exception)
         return ret
 
     def _headers_cb(self, extra_headers_cb, url):
         headers = {}
         if extra_headers_cb:
             headers = extra_headers_cb(url)
-        if headers:
-            headers.update(self.headers_cb(url))
+        headers.update(self.headers_cb(url))
         return headers
 
 
