@@ -141,7 +141,7 @@ class TestMAASDataSource(TestCase):
         with mock.patch.object(url_helper, 'readurl',
                                side_effect=side_effect()) as mockobj:
             userdata, metadata = DataSourceMAAS.read_maas_seed_url(
-                my_seed, header_cb=my_headers_cb, version=my_ver)
+                my_seed, version=my_ver)
 
             self.assertEqual(b"foodata", userdata)
             self.assertEqual(metadata['instance-id'],

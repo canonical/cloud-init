@@ -164,12 +164,12 @@ def read_maas_seed_dir(seed_d):
     return check_seed_contents(md, seed_d)
 
 
-def read_maas_seed_url(seed_url, header_cb=None, timeout=None,
+def read_maas_seed_url(seed_url, read_file_or_url=None, timeout=None,
                        version=MD_VERSION, paths=None):
     """
     Read the maas datasource at seed_url.
-      - header_cb is a method that should return a headers dictionary for
-        a given url
+      read_file_or_url is a method that should provide an interface
+      like util.read_file_or_url
 
     Expected format of seed_url is are the following files:
       * <seed_url>/<version>/meta-data/instance-id
@@ -190,14 +190,12 @@ def read_maas_seed_url(seed_url, header_cb=None, timeout=None,
         'user-data': "%s/%s" % (base_url, 'user-data'),
     }
 
+    if read_file_or_url is None:
+        read_file_or_url = util.read_file_or_url
+
     md = {}
     for name in file_order:
         url = files.get(name)
-        if not header_cb:
-            def _cb(url):
-                return {}
-            header_cb = _cb
-
         if name == 'user-data':
             retries = 0
         else:
@@ -205,10 +203,8 @@ def read_maas_seed_url(seed_url, header_cb=None, timeout=None,
 
         try:
             ssl_details = util.fetch_ssl_details(paths)
-            resp = util.read_file_or_url(url, retries=retries,
-                                         headers_cb=header_cb,
-                                         timeout=timeout,
-                                         ssl_details=ssl_details)
+            resp = read_file_or_url(url, retries=retries,
+                                    timeout=timeout, ssl_details=ssl_details)
             if resp.ok():
                 if name in BINARY_FIELDS:
                     md[name] = resp.contents
@@ -311,47 +307,39 @@ if __name__ == "__main__":
                 if key in cfg and creds[key] is None:
                     creds[key] = cfg[key]
 
-        def geturl(url, headers_cb):
-            req = Request(url, data=None, headers=headers_cb(url))
-            return urlopen(req).read()
+        oauth_helper = url_helper.OauthUrlHelper(**creds)
+
+        def geturl(url):
+            return oauth_helper.readurl(url).contents
 
         def printurl(url, headers_cb):
-            print("== %s ==\n%s\n" % (url, geturl(url, headers_cb)))
+            print("== %s ==\n%s\n" % (url, geturl(url)))
 
-        def crawl(url, headers_cb=None):
+        def crawl(url):
             if url.endswith("/"):
-                for line in geturl(url, headers_cb).splitlines():
+                for line in geturl(url).splitlines():
                     if line.endswith("/"):
-                        crawl("%s%s" % (url, line), headers_cb)
+                        crawl("%s%s" % (url, line))
                     else:
-                        printurl("%s%s" % (url, line), headers_cb)
+                        printurl("%s%s" % (url, line))
             else:
-                printurl(url, headers_cb)
-
-        def my_headers(url):
-            headers = {}
-            if creds.get('consumer_key', None) is not None:
-                headers = oauth_headers(url, **creds)
-            return headers
+                printurl(url)
 
         if args.subcmd == "check-seed":
-            if args.url.startswith("http"):
-                (userdata, metadata) = read_maas_seed_url(args.url,
-                                                          header_cb=my_headers,
-                                                          version=args.apiver)
-            else:
-                (userdata, metadata) = read_maas_seed_url(args.url)
+            (userdata, metadata) = read_maas_seed_url(
+                args.url, read_file_or_url=oauth_helper.read_file_or_url,
+                version=args.apiver)
             print("=== userdata ===")
             print(userdata)
             print("=== metadata ===")
             pprint.pprint(metadata)
 
         elif args.subcmd == "get":
-            printurl(args.url, my_headers)
+            printurl(args.url)
 
         elif args.subcmd == "crawl":
             if not args.url.endswith("/"):
                 args.url = "%s/" % args.url
-            crawl(args.url, my_headers)
+            crawl(args.url)
 
     main()
