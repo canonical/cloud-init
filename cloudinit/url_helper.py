@@ -431,7 +431,7 @@ class OauthUrlHelper(object):
         skew = int(remote_time - time.time())
         host = urlparse(exception.url).netloc
         old_skew = self.skew_data.get(host, 0)
-        if (abs(old_skew - skew) > self.skew_change_limit:
+        if abs(old_skew - skew) > self.skew_change_limit:
             self.update_skew_file(host, skew)
             LOG.warn("Setting oauth clockskew for %s to %d", host, skew)
         skew_data[host] = skew
