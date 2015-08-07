@@ -87,11 +87,7 @@ def update_configuration(config):
         registered = instantiated_handler_registry.registered_items
         handler_config = handler_config.copy()
         cls = available_handlers.registered_items[handler_config.pop('type')]
-        if (handler_name in registered and
-                (registered[handler_name] == handler_config)):
-            continue
-        else:
-            instantiated_handler_registry.unregister_item(handler_name)
+        instantiated_handler_registry.unregister_item(handler_name)
         instance = cls(**handler_config)
         instantiated_handler_registry.register_item(handler_name, instance)
 
