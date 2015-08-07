@@ -28,17 +28,29 @@ class ReportingHandler(object):
 class LogHandler(ReportingHandler):
     """Publishes events to the cloud-init log at the ``INFO`` log level."""
 
+    def __init__(self, level="DEBUG"):
+        super(LogHandler, self).__init__()
+        if isinstance(level, int):
+            pass
+        else:
+            input_level = level
+            try:
+                level = gettattr(logging, level.upper())
+            except:
+                LOG.warn("invalid level '%s', using WARN", input_level)
+                level = logging.WARN
+        self.level = level
+
     def publish_event(self, event):
         """Publish an event to the ``INFO`` log level."""
         logger = logging.getLogger(
             '.'.join(['cloudinit', 'reporting', event.event_type, event.name]))
-        logger.info(event.as_string())
+        logger.log(self.level, event.as_string())
 
 
 class PrintHandler(ReportingHandler):
     def publish_event(self, event):
         """Publish an event to the ``INFO`` log level."""
-        print(event.as_string())
 
 
 class WebHookHandler(ReportingHandler):

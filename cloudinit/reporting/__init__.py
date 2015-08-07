@@ -18,7 +18,6 @@ START_EVENT_TYPE = 'start'
 
 DEFAULT_CONFIG = {
     'logging': {'type': 'log'},
-    'print': {'type': 'print'},
 }
 
 

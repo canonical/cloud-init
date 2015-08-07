@@ -648,7 +648,6 @@ def main():
                         "running single module %s" % args.name)
         report_on = args.report
 
-    reporting.update_configuration({'print': {'type': 'print'}})
     args.reporter = reporting.ReportEventStack(
         rname, rdesc, reporting_enabled=report_on)
     with args.reporter:
