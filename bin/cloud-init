@@ -138,8 +138,8 @@ def run_module_section(mods, action_name, section):
 
 
 def apply_reporting_cfg(cfg):
-    reporting.reset_configuration()
-    reporting.update_configuration(cfg.get('reporting'), {})
+    if cfg.get('reporting'):
+        reporting.update_configuration(cfg.get('reporting'))
 
 
 def main_init(name, args):
@@ -648,7 +648,7 @@ def main():
                         "running single module %s" % args.name)
         report_on = args.report
 
-    reporting.add_configuration({'print': {'type': 'print'}})
+    reporting.update_configuration({'print': {'type': 'print'}})
     args.reporter = reporting.ReportEventStack(
         rname, rdesc, reporting_enabled=report_on)
     with args.reporter:

@@ -6,9 +6,8 @@ import oauthlib.oauth1 as oauth1
 
 import six
 
-from cloudinit.registry import DictRegistry
-from cloudinit import url_helper
-from cloudinit import util
+from ..registry import DictRegistry
+from .. import (url_helper, util)
 
 
 @six.add_metaclass(abc.ABCMeta)
@@ -34,13 +33,19 @@ class LogHandler(ReportingHandler):
         logger.info(event.as_string())
 
 
+class PrintHandler(ReportingHandler):
+    def publish_event(self, event):
+        """Publish an event to the ``INFO`` log level."""
+        print(event.as_string())
+
+
 class WebHookHandler(ReportingHandler):
     def __init__(self, endpoint, consumer_key=None, token_key=None,
                  token_secret=None, consumer_secret=None, timeout=None,
                  retries=None):
         super(WebHookHandler, self).__init__()
 
-        if any(consumer_key, token_key, token_secret, consumer_secret):
+        if any([consumer_key, token_key, token_secret, consumer_secret]):
             self.oauth_helper = url_helper.OauthHelper(
                 consumer_key=consumer_key, token_key=token_key,
                 token_secret=token_secret, consumer_secret=consumer_secret)
@@ -64,3 +69,5 @@ class WebHookHandler(ReportingHandler):
 
 available_handlers = DictRegistry()
 available_handlers.register_item('log', LogHandler)
+available_handlers.register_item('print', PrintHandler)
+available_handlers.register_item('webhook', WebHookHandler)
