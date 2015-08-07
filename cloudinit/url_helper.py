@@ -394,7 +394,8 @@ class OauthUrlHelper(object):
             raise ValueError("all or none of token_key, token_secret, or "
                              "consumer_key can be set")
 
-        self.skew_data = self.read_skew_file()
+        old = self.read_skew_file()
+        self.skew_data = old or {}
 
     def read_skew_file(self):
         if self.skew_data_file and os.path.isfile(self.skew_data_file):
@@ -404,9 +405,9 @@ class OauthUrlHelper(object):
 
     def update_skew_file(self, host, value):
         # this is not atomic
-        cur = self.read_skew_file()
-        if cur is None or not self.skew_data_file:
+        if not self.skew_data_file:
             return
+        cur = self.read_skew_file()
         cur[host] = value
         with open(self.skew_data_file, mode="w") as fp:
             fp.write(json.dumps(cur))
@@ -422,18 +423,17 @@ class OauthUrlHelper(object):
 
         date = exception.headers['date']
         try:
-            ret_time = time.mktime(parsedate(date))
+            remote_time = time.mktime(parsedate(date))
         except Exception as e:
             LOG.warn("Failed to convert datetime '%s': %s", date, e)
             return
 
+        skew = int(remote_time - time.time())
         host = urlparse(exception.url).netloc
-        skew = int(ret_time - time.time())
-        old_skew = self.skew_data.get(host)
-        if abs(old_skew - skew) > self.skew_change_limit:
+        old_skew = self.skew_data.get(host, 0)
+        if (abs(old_skew - skew) > self.skew_change_limit:
             self.update_skew_file(host, skew)
-            LOG.warn("Setting oauth clockskew for %s to %d",
-                     host, skew)
+            LOG.warn("Setting oauth clockskew for %s to %d", host, skew)
         skew_data[host] = skew
 
         return
