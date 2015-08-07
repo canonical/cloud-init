@@ -1,3 +1,12 @@
+cloud-init (0.7.7~bzr1135-0ubuntu1) wily; urgency=medium
+
+  * New upstream snapshot.
+    * some stack traces fixed.
+    * improved rsyslog/syslog config format
+    * add reporting module for webhook or log reporting of events.
+
+ -- Scott Moser <smoser@ubuntu.com>  Fri, 07 Aug 2015 17:16:51 -0400
+
 cloud-init (0.7.7~bzr1127-0ubuntu1) wily; urgency=medium
 
   [ Scott Moser ]

@@ -46,6 +46,7 @@ from cloudinit import sources
 from cloudinit import stages
 from cloudinit import templater
 from cloudinit import util
+from cloudinit import reporting
 from cloudinit import version
 
 from cloudinit.settings import (PER_INSTANCE, PER_ALWAYS, PER_ONCE,
@@ -136,6 +137,11 @@ def run_module_section(mods, action_name, section):
         return failures
 
 
+def apply_reporting_cfg(cfg):
+    if cfg.get('reporting'):
+        reporting.update_configuration(cfg.get('reporting'))
+
+
 def main_init(name, args):
     deps = [sources.DEP_FILESYSTEM, sources.DEP_NETWORK]
     if args.local:
@@ -171,7 +177,7 @@ def main_init(name, args):
         w_msg = welcome_format(name)
     else:
         w_msg = welcome_format("%s-local" % (name))
-    init = stages.Init(deps)
+    init = stages.Init(ds_deps=deps, reporter=args.reporter)
     # Stage 1
     init.read_cfg(extract_fns(args))
     # Stage 2
@@ -190,6 +196,7 @@ def main_init(name, args):
                     " longer be active shortly"))
         logging.resetLogging()
     logging.setupLogging(init.cfg)
+    apply_reporting_cfg(init.cfg)
 
     # Any log usage prior to setupLogging above did not have local user log
     # config applied.  We send the welcome message now, as stderr/out have
@@ -282,8 +289,10 @@ def main_init(name, args):
         util.logexc(LOG, "Consuming user data failed!")
         return (init.datasource, ["Consuming user data failed!"])
 
+    apply_reporting_cfg(init.cfg)
+
     # Stage 8 - re-read and apply relevant cloud-config to include user-data
-    mods = stages.Modules(init, extract_fns(args))
+    mods = stages.Modules(init, extract_fns(args), reporter=args.reporter)
     # Stage 9
     try:
         outfmt_orig = outfmt
@@ -313,7 +322,7 @@ def main_modules(action_name, args):
     # 5. Run the modules for the given stage name
     # 6. Done!
     w_msg = welcome_format("%s:%s" % (action_name, name))
-    init = stages.Init(ds_deps=[])
+    init = stages.Init(ds_deps=[], reporter=args.reporter)
     # Stage 1
     init.read_cfg(extract_fns(args))
     # Stage 2
@@ -328,7 +337,7 @@ def main_modules(action_name, args):
         if not args.force:
             return [(msg)]
     # Stage 3
-    mods = stages.Modules(init, extract_fns(args))
+    mods = stages.Modules(init, extract_fns(args), reporter=args.reporter)
     # Stage 4
     try:
         LOG.debug("Closing stdin")
@@ -342,6 +351,7 @@ def main_modules(action_name, args):
                     " longer be active shortly"))
         logging.resetLogging()
     logging.setupLogging(mods.cfg)
+    apply_reporting_cfg(init.cfg)
 
     # now that logging is setup and stdout redirected, send welcome
     welcome(name, msg=w_msg)
@@ -366,7 +376,7 @@ def main_single(name, args):
     # 6. Done!
     mod_name = args.name
     w_msg = welcome_format(name)
-    init = stages.Init(ds_deps=[])
+    init = stages.Init(ds_deps=[], reporter=args.reporter)
     # Stage 1
     init.read_cfg(extract_fns(args))
     # Stage 2
@@ -383,7 +393,7 @@ def main_single(name, args):
         if not args.force:
             return 1
     # Stage 3
-    mods = stages.Modules(init, extract_fns(args))
+    mods = stages.Modules(init, extract_fns(args), reporter=args.reporter)
     mod_args = args.module_args
     if mod_args:
         LOG.debug("Using passed in arguments %s", mod_args)
@@ -404,6 +414,7 @@ def main_single(name, args):
                    " longer be active shortly"))
         logging.resetLogging()
     logging.setupLogging(mods.cfg)
+    apply_reporting_cfg(init.cfg)
 
     # now that logging is setup and stdout redirected, send welcome
     welcome(name, msg=w_msg)
@@ -506,7 +517,7 @@ def status_wrapper(name, args, data_d=None, link_d=None):
 
     except Exception as e:
         util.logexc(LOG, "failed of stage %s", mode)
-        print_exc("failed run of stage %s", mode)
+        print_exc("failed run of stage %s" % mode)
         v1[mode]['errors'] = [str(e)]
 
     v1[mode]['finished'] = time.time()
@@ -549,6 +560,8 @@ def main():
                               ' found (use at your own risk)'),
                         dest='force',
                         default=False)
+
+    parser.set_defaults(reporter=None)
     subparsers = parser.add_subparsers()
 
     # Each action and its sub-options (if any)
@@ -595,6 +608,9 @@ def main():
                               help=("frequency of the module"),
                               required=False,
                               choices=list(FREQ_SHORT_NAMES.keys()))
+    parser_single.add_argument("--report", action="store_true",
+                               help="enable reporting",
+                               required=False)
     parser_single.add_argument("module_args", nargs="*",
                               metavar='argument',
                               help=('any additional arguments to'
@@ -617,8 +633,27 @@ def main():
     if name in ("modules", "init"):
         functor = status_wrapper
 
-    return util.log_time(logfunc=LOG.debug, msg="cloud-init mode '%s'" % name,
-                         get_uptime=True, func=functor, args=(name, args))
+    report_on = True
+    if name == "init":
+        if args.local:
+            rname, rdesc = ("init-local", "searching for local datasources")
+        else:
+            rname, rdesc = ("init-network",
+                            "searching for network datasources")
+    elif name == "modules":
+        rname, rdesc = ("modules-%s" % args.mode,
+                        "running modules for %s" % args.mode)
+    elif name == "single":
+        rname, rdesc = ("single/%s" % args.name,
+                        "running single module %s" % args.name)
+        report_on = args.report
+
+    args.reporter = reporting.ReportEventStack(
+        rname, rdesc, reporting_enabled=report_on)
+    with args.reporter:
+        return util.log_time(
+            logfunc=LOG.debug, msg="cloud-init mode '%s'" % name,
+            get_uptime=True, func=functor, args=(name, args))
 
 
 if __name__ == '__main__':

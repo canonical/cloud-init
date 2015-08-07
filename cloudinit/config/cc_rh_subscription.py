@@ -130,9 +130,9 @@ class SubscriptionManager(object):
                 ((not self.auto_attach)
                  or (util.is_false(str(self.auto_attach)))):
 
-            no_auto = "The service-level key must be used in conjunction with "\
-                      "the auto-attach key.  Please re-run with auto-attach: "\
-                      "True"
+            no_auto = ("The service-level key must be used in conjunction "
+                       "with the auto-attach key.  Please re-run with "
+                       "auto-attach: True")
             return False, no_auto
         return True, None
 
