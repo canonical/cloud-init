@@ -782,7 +782,8 @@ def read_file_or_url(url, timeout=5, retries=10,
             code = e.errno
             if e.errno == errno.ENOENT:
                 code = url_helper.NOT_FOUND
-            raise url_helper.UrlError(cause=e, code=code, headers=None)
+            raise url_helper.UrlError(cause=e, code=code, headers=None,
+                                      url=url)
         return url_helper.FileResponse(file_path, contents=contents)
     else:
         return url_helper.readurl(url,

@@ -27,6 +27,7 @@ import six
 
 from cloudinit import importer
 from cloudinit import log as logging
+from cloudinit import reporting
 from cloudinit import type_utils
 from cloudinit import user_data as ud
 from cloudinit import util
@@ -246,17 +247,25 @@ def normalize_pubkey_data(pubkey_data):
     return keys
 
 
-def find_source(sys_cfg, distro, paths, ds_deps, cfg_list, pkg_list):
+def find_source(sys_cfg, distro, paths, ds_deps, cfg_list, pkg_list, reporter):
     ds_list = list_sources(cfg_list, ds_deps, pkg_list)
     ds_names = [type_utils.obj_name(f) for f in ds_list]
-    LOG.debug("Searching for data source in: %s", ds_names)
+    mode = "network" if DEP_NETWORK in ds_deps else "local"
+    LOG.debug("Searching for %s data source in: %s", mode, ds_names)
 
-    for cls in ds_list:
+    for name, cls in zip(ds_names, ds_list):
+        myrep = reporting.ReportEventStack(
+            name="search-%s" % name.replace("DataSource", ""),
+            description="searching for %s data from %s" % (mode, name),
+            message="no %s data found from %s" % (mode, name),
+            parent=reporter)
         try:
-            LOG.debug("Seeing if we can get any data from %s", cls)
-            s = cls(sys_cfg, distro, paths)
-            if s.get_data():
-                return (s, type_utils.obj_name(cls))
+            with myrep:
+                LOG.debug("Seeing if we can get any data from %s", cls)
+                s = cls(sys_cfg, distro, paths)
+                if s.get_data():
+                    myrep.message = "found %s data from %s" % (mode, name)
+                    return (s, type_utils.obj_name(cls))
         except Exception:
             util.logexc(LOG, "Getting data from %s failed", cls)
 

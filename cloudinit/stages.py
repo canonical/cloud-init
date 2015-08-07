@@ -46,6 +46,7 @@ from cloudinit import log as logging
 from cloudinit import sources
 from cloudinit import type_utils
 from cloudinit import util
+from cloudinit import reporting
 
 LOG = logging.getLogger(__name__)
 
@@ -53,7 +54,7 @@ NULL_DATA_SOURCE = None
 
 
 class Init(object):
-    def __init__(self, ds_deps=None):
+    def __init__(self, ds_deps=None, reporter=None):
         if ds_deps is not None:
             self.ds_deps = ds_deps
         else:
@@ -64,6 +65,12 @@ class Init(object):
         self._distro = None
         # Changed only when a fetch occurs
         self.datasource = NULL_DATA_SOURCE
+
+        if reporter is None:
+            reporter = reporting.ReportEventStack(
+                name="init-reporter", description="init-desc",
+                reporting_enabled=False)
+        self.reporter = reporter
 
     def _reset(self, reset_ds=False):
         # Recreated on access
@@ -234,9 +241,17 @@ class Init(object):
     def _get_data_source(self):
         if self.datasource is not NULL_DATA_SOURCE:
             return self.datasource
-        ds = self._restore_from_cache()
-        if ds:
-            LOG.debug("Restored from cache, datasource: %s", ds)
+
+        with reporting.ReportEventStack(
+                name="check-cache",
+                description="attempting to read from cache",
+                parent=self.reporter) as myrep:
+            ds = self._restore_from_cache()
+            if ds:
+                LOG.debug("Restored from cache, datasource: %s", ds)
+                myrep.description = "restored from cache"
+            else:
+                myrep.description = "no cache found"
         if not ds:
             (cfg_list, pkg_list) = self._get_datasources()
             # Deep copy so that user-data handlers can not modify
@@ -246,7 +261,7 @@ class Init(object):
                                                self.paths,
                                                copy.deepcopy(self.ds_deps),
                                                cfg_list,
-                                               pkg_list)
+                                               pkg_list, self.reporter)
             LOG.info("Loaded datasource %s - %s", dsname, ds)
         self.datasource = ds
         # Ensure we adjust our path members datasource
@@ -327,7 +342,8 @@ class Init(object):
         # Form the needed options to cloudify our members
         return cloud.Cloud(self.datasource,
                            self.paths, self.cfg,
-                           self.distro, helpers.Runners(self.paths))
+                           self.distro, helpers.Runners(self.paths),
+                           reporter=self.reporter)
 
     def update(self):
         if not self._write_to_cache():
@@ -493,8 +509,14 @@ class Init(object):
     def consume_data(self, frequency=PER_INSTANCE):
         # Consume the userdata first, because we need want to let the part
         # handlers run first (for merging stuff)
-        self._consume_userdata(frequency)
-        self._consume_vendordata(frequency)
+        with reporting.ReportEventStack(
+            "consume-user-data", "reading and applying user-data",
+            parent=self.reporter):
+                self._consume_userdata(frequency)
+        with reporting.ReportEventStack(
+            "consume-vendor-data", "reading and applying vendor-data",
+            parent=self.reporter):
+                self._consume_vendordata(frequency)
 
         # Perform post-consumption adjustments so that
         # modules that run during the init stage reflect
@@ -567,11 +589,16 @@ class Init(object):
 
 
 class Modules(object):
-    def __init__(self, init, cfg_files=None):
+    def __init__(self, init, cfg_files=None, reporter=None):
         self.init = init
         self.cfg_files = cfg_files
         # Created on first use
         self._cached_cfg = None
+        if reporter is None:
+            reporter = reporting.ReportEventStack(
+                name="module-reporter", description="module-desc",
+                reporting_enabled=False)
+        self.reporter = reporter
 
     @property
     def cfg(self):
@@ -681,7 +708,19 @@ class Modules(object):
                 which_ran.append(name)
                 # This name will affect the semaphore name created
                 run_name = "config-%s" % (name)
-                cc.run(run_name, mod.handle, func_args, freq=freq)
+
+                desc = "running %s with frequency %s" % (run_name, freq)
+                myrep = reporting.ReportEventStack(
+                    name=run_name, description=desc, parent=self.reporter)
+
+                with myrep:
+                    ran, _r = cc.run(run_name, mod.handle, func_args,
+                                     freq=freq)
+                    if ran:
+                        myrep.message = "%s ran successfully" % run_name
+                    else:
+                        myrep.message = "%s previously ran" % run_name
+
             except Exception as e:
                 util.logexc(LOG, "Running module %s (%s) failed", name, mod)
                 failures.append((name, e))
