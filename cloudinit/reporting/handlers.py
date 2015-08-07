@@ -35,7 +35,7 @@ class LogHandler(ReportingHandler):
         else:
             input_level = level
             try:
-                level = gettattr(logging, level.upper())
+                level = getattr(logging, level.upper())
             except:
                 LOG.warn("invalid level '%s', using WARN", input_level)
                 level = logging.WARN

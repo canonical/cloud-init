@@ -137,14 +137,14 @@ class TestLogHandler(TestCase):
     def test_single_log_message_at_info_published(self, getLogger):
         event = reporting.ReportingEvent('type', 'name', 'description')
         reporting.handlers.LogHandler().publish_event(event)
-        self.assertEqual(1, getLogger.return_value.info.call_count)
+        self.assertEqual(1, getLogger.return_value.log.call_count)
 
     @mock.patch.object(reporting.handlers.logging, 'getLogger')
     def test_log_message_uses_event_as_string(self, getLogger):
         event = reporting.ReportingEvent('type', 'name', 'description')
-        reporting.handlers.LogHandler().publish_event(event)
+        reporting.handlers.LogHandler(level="INFO").publish_event(event)
         self.assertIn(event.as_string(),
-                      getLogger.return_value.info.call_args[0][0])
+                      getLogger.return_value.log.call_args[0][1])
 
 
 class TestDefaultRegisteredHandler(TestCase):
