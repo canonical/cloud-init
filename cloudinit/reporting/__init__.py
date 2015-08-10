@@ -83,7 +83,6 @@ def update_configuration(config):
             instantiated_handler_registry.unregister_item(
                 handler_name, force=True)
             continue
-        registered = instantiated_handler_registry.registered_items
         handler_config = handler_config.copy()
         cls = available_handlers.registered_items[handler_config.pop('type')]
         instantiated_handler_registry.unregister_item(handler_name)

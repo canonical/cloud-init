@@ -23,6 +23,7 @@ class ReportingHandler(object):
     @abc.abstractmethod
     def publish_event(self, event):
         """Publish an event to the ``INFO`` log level."""
+        print(event.as_string())
 
 
 class LogHandler(ReportingHandler):
