@@ -1,3 +1,11 @@
+cloud-init (0.7.7~bzr1137-0ubuntu1) wily; urgency=medium
+
+  * New upstream snapshot.
+    * swap: use fallocate to create swapfile for speedup. (LP: #1482994)
+    * reporting: print handler fix.
+
+ -- Scott Moser <smoser@ubuntu.com>  Wed, 12 Aug 2015 12:54:51 -0400
+
 cloud-init (0.7.7~bzr1135-0ubuntu1) wily; urgency=medium
 
   * New upstream snapshot.
