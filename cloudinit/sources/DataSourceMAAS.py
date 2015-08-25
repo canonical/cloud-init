@@ -20,13 +20,9 @@
 
 from __future__ import print_function
 
-from email.utils import parsedate
 import errno
-import oauthlib.oauth1 as oauth1
 import os
 import time
-
-from six.moves.urllib_request import Request, urlopen
 
 from cloudinit import log as logging
 from cloudinit import sources
@@ -62,7 +58,7 @@ class DataSourceMAAS(sources.DataSource):
             if required not in mcfg:
                 return url_helper.OauthUrlHelper()
 
-        return url_helper.OauthHelper(
+        return url_helper.OauthUrlHelper(
             consumer_key=mcfg['consumer_key'], token_key=mcfg['token_key'],
             token_secret=mcfg['token_secret'],
             consumer_secret=mcfg.get('consumer_secret'))
@@ -98,7 +94,7 @@ class DataSourceMAAS(sources.DataSource):
             self.base_url = url
 
             (userdata, metadata) = read_maas_seed_url(
-                self.base_url, self.oauth_helper.md_headers,
+                self.base_url, read_file_or_url=self.oauth_helper.readurl,
                 paths=self.paths)
             self.userdata_raw = userdata
             self.metadata = metadata
@@ -312,25 +308,30 @@ if __name__ == "__main__":
         def geturl(url):
             return oauth_helper.readurl(url).contents
 
-        def printurl(url, headers_cb):
-            print("== %s ==\n%s\n" % (url, geturl(url)))
+        def printurl(url):
+            print("== %s ==\n%s\n" % (url, geturl(url).decode()))
 
         def crawl(url):
             if url.endswith("/"):
-                for line in geturl(url).splitlines():
+                for line in geturl(url).decode().splitlines():
                     if line.endswith("/"):
                         crawl("%s%s" % (url, line))
+                    elif line == "meta-data":
+                        # meta-data is a dir, it *should* end in a /
+                        crawl("%s%s" % (url, "meta-data/"))
                     else:
                         printurl("%s%s" % (url, line))
             else:
                 printurl(url)
 
         if args.subcmd == "check-seed":
+            readurl = oauth_helper.readurl
+            if args.url[0] == "/" or args.url.startswith("file://"):
+                readurl = None
             (userdata, metadata) = read_maas_seed_url(
-                args.url, read_file_or_url=oauth_helper.read_file_or_url,
-                version=args.apiver)
+                args.url, version=args.apiver, read_file_or_url=readurl)
             print("=== userdata ===")
-            print(userdata)
+            print(userdata.decode())
             print("=== metadata ===")
             pprint.pprint(metadata)
 

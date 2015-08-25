@@ -20,16 +20,16 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+import json
+import os
+import requests
+import six
 import time
 
-import six
-
-import requests
-import oauthlib.oauth1 as oauth1
-import os
-import json
+from email.utils import parsedate
 from functools import partial
 from requests import exceptions
+import oauthlib.oauth1 as oauth1
 
 from six.moves.urllib.parse import (
     urlparse, urlunparse,
@@ -434,7 +434,7 @@ class OauthUrlHelper(object):
         if abs(old_skew - skew) > self.skew_change_limit:
             self.update_skew_file(host, skew)
             LOG.warn("Setting oauth clockskew for %s to %d", host, skew)
-        skew_data[host] = skew
+        self.skew_data[host] = skew
 
         return
 

@@ -1,3 +1,10 @@
+cloud-init (0.7.7~bzr1138-0ubuntu1) wily; urgency=medium
+
+  * New upstream snapshot.
+    * MAAS: fixes to data source and OauthUrlHelper (LP: #1488507)
+
+ -- Scott Moser <smoser@ubuntu.com>  Tue, 25 Aug 2015 15:28:06 -0400
+
 cloud-init (0.7.7~bzr1137-0ubuntu1) wily; urgency=medium
 
   * New upstream snapshot.
