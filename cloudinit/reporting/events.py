@@ -2,16 +2,21 @@
 # This file is part of cloud-init.  See LICENCE file for license information.
 #
 """
-cloud-init events
+events for reporting.
 
-Report events in a structured manner.
-The events here are most likely used via reporting.
+The events here are designed to be used with reporting.
+They can be published to registered handlers with report_event.
 """
+import base64
+import os.path
+import time
 
 from . import instantiated_handler_registry
 
 FINISH_EVENT_TYPE = 'finish'
 START_EVENT_TYPE = 'start'
+
+DEFAULT_EVENT_ORIGIN = 'cloudinit'
 
 
 class _nameset(set):
@@ -27,10 +32,13 @@ status = _nameset(("SUCCESS", "WARN", "FAIL"))
 class ReportingEvent(object):
     """Encapsulation of event formatting."""
 
-    def __init__(self, event_type, name, description):
+    def __init__(self, event_type, name, description,
+                 origin=DEFAULT_EVENT_ORIGIN, timestamp=time.time()):
         self.event_type = event_type
         self.name = name
         self.description = description
+        self.origin = origin
+        self.timestamp = timestamp
 
     def as_string(self):
         """The event represented as a string."""
@@ -40,15 +48,20 @@ class ReportingEvent(object):
     def as_dict(self):
         """The event represented as a dictionary."""
         return {'name': self.name, 'description': self.description,
-                'event_type': self.event_type}
+                'event_type': self.event_type, 'origin': self.origin,
+                'timestamp': self.timestamp}
 
 
 class FinishReportingEvent(ReportingEvent):
 
-    def __init__(self, name, description, result=status.SUCCESS):
+    def __init__(self, name, description, result=status.SUCCESS,
+                 post_files=None):
         super(FinishReportingEvent, self).__init__(
             FINISH_EVENT_TYPE, name, description)
         self.result = result
+        if post_files is None:
+            post_files = []
+        self.post_files = post_files
         if result not in status:
             raise ValueError("Invalid result: %s" % result)
 
@@ -60,6 +73,8 @@ class FinishReportingEvent(ReportingEvent):
         """The event represented as json friendly."""
         data = super(FinishReportingEvent, self).as_dict()
         data['result'] = self.result
+        if self.post_files:
+            data['files'] = _collect_file_info(self.post_files)
         return data
 
 
@@ -78,12 +93,13 @@ def report_event(event):
 
 
 def report_finish_event(event_name, event_description,
-                        result=status.SUCCESS):
+                        result=status.SUCCESS, post_files=None):
     """Report a "finish" event.
 
     See :py:func:`.report_event` for parameter details.
     """
-    event = FinishReportingEvent(event_name, event_description, result)
+    event = FinishReportingEvent(event_name, event_description, result,
+                                 post_files=post_files)
     return report_event(event)
 
 
@@ -133,13 +149,17 @@ class ReportEventStack(object):
         value is FAIL.
     """
     def __init__(self, name, description, message=None, parent=None,
-                 reporting_enabled=None, result_on_exception=status.FAIL):
+                 reporting_enabled=None, result_on_exception=status.FAIL,
+                 post_files=None):
         self.parent = parent
         self.name = name
         self.description = description
         self.message = message
         self.result_on_exception = result_on_exception
         self.result = status.SUCCESS
+        if post_files is None:
+            post_files = []
+        self.post_files = post_files
 
         # use parents reporting value if not provided
         if reporting_enabled is None:
@@ -205,6 +225,22 @@ class ReportEventStack(object):
         if self.parent:
             self.parent.children[self.name] = (result, msg)
         if self.reporting_enabled:
-            report_finish_event(self.fullname, msg, result)
+            report_finish_event(self.fullname, msg, result,
+                                post_files=self.post_files)
 
-# vi: ts=4 expandtab
+
+def _collect_file_info(files):
+    if not files:
+        return None
+    ret = []
+    for fname in files:
+        if not os.path.isfile(fname):
+            content = None
+        else:
+            with open(fname, "rb") as fp:
+                content = base64.b64encode(fp.read()).decode()
+        ret.append({'path': fname, 'content': content,
+                    'encoding': 'base64'})
+    return ret
+
+# vi: ts=4 expandtab syntax=python

@@ -241,7 +241,8 @@ class TestReportingEventStack(TestCase):
         self.assertEqual(
             [mock.call('myname', 'mydesc')], report_start.call_args_list)
         self.assertEqual(
-            [mock.call('myname', 'mydesc', events.status.SUCCESS)],
+            [mock.call('myname', 'mydesc', events.status.SUCCESS,
+                       post_files=[])],
             report_finish.call_args_list)
 
     @mock.patch('cloudinit.reporting.events.report_finish_event')
@@ -256,7 +257,7 @@ class TestReportingEventStack(TestCase):
             pass
         self.assertEqual([mock.call(name, desc)], report_start.call_args_list)
         self.assertEqual(
-            [mock.call(name, desc, events.status.FAIL)],
+            [mock.call(name, desc, events.status.FAIL, post_files=[])],
             report_finish.call_args_list)
 
     @mock.patch('cloudinit.reporting.events.report_finish_event')
@@ -272,7 +273,7 @@ class TestReportingEventStack(TestCase):
             pass
         self.assertEqual([mock.call(name, desc)], report_start.call_args_list)
         self.assertEqual(
-            [mock.call(name, desc, events.status.WARN)],
+            [mock.call(name, desc, events.status.WARN, post_files=[])],
             report_finish.call_args_list)
 
     @mock.patch('cloudinit.reporting.events.report_start_event')
@@ -301,7 +302,7 @@ class TestReportingEventStack(TestCase):
                 child.result = events.status.WARN
 
         report_finish.assert_called_with(
-            "topname", "topdesc", events.status.WARN)
+            "topname", "topdesc", events.status.WARN, post_files=[])
 
     @mock.patch('cloudinit.reporting.events.report_finish_event')
     def test_message_used_in_finish(self, report_finish):
@@ -309,7 +310,8 @@ class TestReportingEventStack(TestCase):
                                      message="mymessage"):
             pass
         self.assertEqual(
-            [mock.call("myname", "mymessage", events.status.SUCCESS)],
+            [mock.call("myname", "mymessage", events.status.SUCCESS,
+                       post_files=[])],
             report_finish.call_args_list)
 
     @mock.patch('cloudinit.reporting.events.report_finish_event')
@@ -317,7 +319,8 @@ class TestReportingEventStack(TestCase):
         with events.ReportEventStack("myname", "mydesc") as c:
             c.message = "all good"
         self.assertEqual(
-            [mock.call("myname", "all good", events.status.SUCCESS)],
+            [mock.call("myname", "all good", events.status.SUCCESS,
+                       post_files=[])],
             report_finish.call_args_list)
 
     @mock.patch('cloudinit.reporting.events.report_start_event')
