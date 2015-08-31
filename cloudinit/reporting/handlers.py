@@ -1,7 +1,6 @@
 # vi: ts=4 expandtab
 
 import abc
-import oauthlib.oauth1 as oauth1
 import six
 
 from ..registry import DictRegistry
