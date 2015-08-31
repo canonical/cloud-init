@@ -22,12 +22,11 @@ class ReportingHandler(object):
 
     @abc.abstractmethod
     def publish_event(self, event):
-        """Publish an event to the ``INFO`` log level."""
-        print(event.as_string())
+        """Publish an event."""
 
 
 class LogHandler(ReportingHandler):
-    """Publishes events to the cloud-init log at the ``INFO`` log level."""
+    """Publishes events to the cloud-init log at the ``DEBUG`` log level."""
 
     def __init__(self, level="DEBUG"):
         super(LogHandler, self).__init__()
@@ -43,15 +42,16 @@ class LogHandler(ReportingHandler):
         self.level = level
 
     def publish_event(self, event):
-        """Publish an event to the ``INFO`` log level."""
         logger = logging.getLogger(
             '.'.join(['cloudinit', 'reporting', event.event_type, event.name]))
         logger.log(self.level, event.as_string())
 
 
 class PrintHandler(ReportingHandler):
+    """Print the event as a string."""
+
     def publish_event(self, event):
-        """Publish an event to the ``INFO`` log level."""
+        print(event.as_string())
 
 
 class WebHookHandler(ReportingHandler):
