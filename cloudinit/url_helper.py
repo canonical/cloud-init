@@ -211,10 +211,14 @@ def readurl(url, data=None, timeout=None, retries=0, sec_between=1,
     manual_tries = 1
     if retries:
         manual_tries = max(int(retries) + 1, 1)
-    if not headers:
-        headers = {
-            'User-Agent': 'Cloud-Init/%s' % (version.version_string()),
-        }
+
+    def_headers = {
+        'User-Agent': 'Cloud-Init/%s' % (version.version_string()),
+    }
+    if headers:
+        def_headers.update(headers)
+    headers = def_headers
+
     if not headers_cb:
         def _cb(url):
             return headers

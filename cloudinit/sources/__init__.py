@@ -27,12 +27,12 @@ import six
 
 from cloudinit import importer
 from cloudinit import log as logging
-from cloudinit import reporting
 from cloudinit import type_utils
 from cloudinit import user_data as ud
 from cloudinit import util
 
 from cloudinit.filters import launch_index
+from cloudinit.reporting import events
 
 DEP_FILESYSTEM = "FILESYSTEM"
 DEP_NETWORK = "NETWORK"
@@ -254,7 +254,7 @@ def find_source(sys_cfg, distro, paths, ds_deps, cfg_list, pkg_list, reporter):
     LOG.debug("Searching for %s data source in: %s", mode, ds_names)
 
     for name, cls in zip(ds_names, ds_list):
-        myrep = reporting.ReportEventStack(
+        myrep = events.ReportEventStack(
             name="search-%s" % name.replace("DataSource", ""),
             description="searching for %s data from %s" % (mode, name),
             message="no %s data found from %s" % (mode, name),
