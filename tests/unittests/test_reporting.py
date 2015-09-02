@@ -100,9 +100,15 @@ class TestReportingEvent(TestCase):
     def test_as_dict(self):
         event_type, name, desc = 'test_type', 'test_name', 'test_desc'
         event = events.ReportingEvent(event_type, name, desc)
-        self.assertEqual(
-            {'event_type': event_type, 'name': name, 'description': desc},
-            event.as_dict())
+        expected = {'event_type': event_type, 'name': name,
+                    'description': desc, 'origin': 'cloudinit'}
+
+        # allow for timestamp to differ, but must be present
+        as_dict = event.as_dict()
+        self.assertIn('timestamp', as_dict)
+        del as_dict['timestamp']
+
+        self.assertEqual(expected, as_dict)
 
 
 class TestFinishReportingEvent(TestCase):
