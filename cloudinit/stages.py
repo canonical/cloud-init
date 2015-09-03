@@ -46,7 +46,7 @@ from cloudinit import log as logging
 from cloudinit import sources
 from cloudinit import type_utils
 from cloudinit import util
-from cloudinit import reporting
+from cloudinit.reporting import events
 
 LOG = logging.getLogger(__name__)
 
@@ -67,7 +67,7 @@ class Init(object):
         self.datasource = NULL_DATA_SOURCE
 
         if reporter is None:
-            reporter = reporting.ReportEventStack(
+            reporter = events.ReportEventStack(
                 name="init-reporter", description="init-desc",
                 reporting_enabled=False)
         self.reporter = reporter
@@ -242,7 +242,7 @@ class Init(object):
         if self.datasource is not NULL_DATA_SOURCE:
             return self.datasource
 
-        with reporting.ReportEventStack(
+        with events.ReportEventStack(
                 name="check-cache",
                 description="attempting to read from cache",
                 parent=self.reporter) as myrep:
@@ -509,11 +509,11 @@ class Init(object):
     def consume_data(self, frequency=PER_INSTANCE):
         # Consume the userdata first, because we need want to let the part
         # handlers run first (for merging stuff)
-        with reporting.ReportEventStack(
+        with events.ReportEventStack(
             "consume-user-data", "reading and applying user-data",
             parent=self.reporter):
                 self._consume_userdata(frequency)
-        with reporting.ReportEventStack(
+        with events.ReportEventStack(
             "consume-vendor-data", "reading and applying vendor-data",
             parent=self.reporter):
                 self._consume_vendordata(frequency)
@@ -595,7 +595,7 @@ class Modules(object):
         # Created on first use
         self._cached_cfg = None
         if reporter is None:
-            reporter = reporting.ReportEventStack(
+            reporter = events.ReportEventStack(
                 name="module-reporter", description="module-desc",
                 reporting_enabled=False)
         self.reporter = reporter
@@ -710,7 +710,7 @@ class Modules(object):
                 run_name = "config-%s" % (name)
 
                 desc = "running %s with frequency %s" % (run_name, freq)
-                myrep = reporting.ReportEventStack(
+                myrep = events.ReportEventStack(
                     name=run_name, description=desc, parent=self.reporter)
 
                 with myrep:

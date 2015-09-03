@@ -24,7 +24,7 @@ import copy
 import os
 
 from cloudinit import log as logging
-from cloudinit import reporting
+from cloudinit.reporting import events
 
 LOG = logging.getLogger(__name__)
 
@@ -48,7 +48,7 @@ class Cloud(object):
         self._cfg = cfg
         self._runners = runners
         if reporter is None:
-            reporter = reporting.ReportEventStack(
+            reporter = events.ReportEventStack(
                 name="unnamed-cloud-reporter",
                 description="unnamed-cloud-reporter",
                 reporting_enabled=False)

@@ -1,3 +1,18 @@
+cloud-init (0.7.7~bzr1141-0ubuntu1) wily; urgency=medium
+
+  * New upstream snapshot.
+    * fix bug in cloud-init main preventing any usage.
+
+ -- Scott Moser <smoser@ubuntu.com>  Thu, 03 Sep 2015 11:36:37 -0400
+
+cloud-init (0.7.7~bzr1140-0ubuntu1) wily; urgency=medium
+
+  * New upstream snapshot.
+    * Handle symlink mount points in mount_cb (LP: #1490796).
+    * sync curtin reporting changes back to cloud-init.
+
+ -- Scott Moser <smoser@ubuntu.com>  Wed, 02 Sep 2015 16:50:54 -0400
+
 cloud-init (0.7.7~bzr1138-0ubuntu1) wily; urgency=medium
 
   * New upstream snapshot.

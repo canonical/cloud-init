@@ -47,6 +47,7 @@ from cloudinit import stages
 from cloudinit import templater
 from cloudinit import util
 from cloudinit import reporting
+from cloudinit.reporting import events
 from cloudinit import version
 
 from cloudinit.settings import (PER_INSTANCE, PER_ALWAYS, PER_ONCE,
@@ -648,7 +649,7 @@ def main():
                         "running single module %s" % args.name)
         report_on = args.report
 
-    args.reporter = reporting.ReportEventStack(
+    args.reporter = events.ReportEventStack(
         rname, rdesc, reporting_enabled=report_on)
     with args.reporter:
         return util.log_time(

@@ -1480,8 +1480,8 @@ def mount_cb(device, callback, data=None, rw=False, mtype=None, sync=True):
     mounted = mounts()
     with tempdir() as tmpd:
         umount = False
-        if device in mounted:
-            mountpoint = mounted[device]['mountpoint']
+        if os.path.realpath(device) in mounted:
+            mountpoint = mounted[os.path.realpath(device)]['mountpoint']
         else:
             failure_reason = None
             for mtype in mtypes:
