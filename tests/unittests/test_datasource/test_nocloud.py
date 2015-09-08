@@ -121,7 +121,7 @@ class TestNoCloudDataSource(TestCase):
         ret = dsrc.get_data()
         self.assertEqual(dsrc.userdata_raw, ud)
         self.assertEqual(dsrc.metadata, md)
-        self.assertEqual(dsrc.vendordata, vd)
+        self.assertEqual(dsrc.vendordata_raw, vd)
         self.assertTrue(ret)
 
     def test_nocloud_no_vendordata(self):
