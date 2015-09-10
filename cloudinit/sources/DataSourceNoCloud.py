@@ -190,7 +190,7 @@ class DataSourceNoCloud(sources.DataSource):
             self.seed = ",".join(found)
             self.metadata = mydata['meta-data']
             self.userdata_raw = mydata['user-data']
-            self.vendordata = mydata['vendor-data']
+            self.vendordata_raw = mydata['vendor-data']
             return True
 
         LOG.debug("%s: not claiming datasource, dsmode=%s", self,

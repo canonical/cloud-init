@@ -1,3 +1,11 @@
+cloud-init (0.7.7~bzr1143-0ubuntu1) wily; urgency=medium
+
+  * New upstream snapshot.
+    * NoCloud: fix consumption of vendor-data (LP: #1493453)
+    * power_state: support power change only on 'condition'
+
+ -- Scott Moser <smoser@ubuntu.com>  Thu, 10 Sep 2015 16:20:44 -0400
+
 cloud-init (0.7.7~bzr1141-0ubuntu1) wily; urgency=medium
 
   * New upstream snapshot.

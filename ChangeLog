@@ -60,6 +60,8 @@
  - rsyslog: add additional configuration mode (LP: #1478103)
  - status_wrapper in main: fix use of print_exc when handling exception
  - reporting: add reporting module for web hook or logging of events.
+ - NoCloud: fix consumption of vendordata (LP: #1493453)
+ - power_state_change: support 'condition' to disable or enable poweroff
 0.7.6:
  - open 0.7.6
  - Enable vendordata on CloudSigma datasource (LP: #1303986)
