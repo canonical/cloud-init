@@ -274,7 +274,20 @@ def handle(name, cfg, cloud, log, args):
             LOG.warn("'%s' failed for '%s': %s",
                      pkg_op['op'], pkg_op['name'], e)
 
-    disable_enable_ssh(mycfg.get('ssh_enabled', False))
+    # Default to disabling SSH
+    ssh_enabled = mycfg.get('ssh_enabled', False)
+
+    # If the user has not explicitly enabled or disabled SSH, then enable it
+    # when password SSH authentication is requested or there are SSH keys
+    if mycfg.get('ssh_enabled', None) is not False:
+        if len(mycfg.get('public-keys', [])) > 0:
+            LOG.debug("Enabling SSH, user SSH keys provided")
+            ssh_enabled = True
+        elif mycfg.get('ssh_pwauth', False):
+            LOG.debug("Enabling SSH, password authentication requested")
+            ssh_enabled = True
+
+    disable_enable_ssh(ssh_enabled)
 
     if fails:
         raise Exception("failed to install/configure snaps")
