@@ -280,10 +280,12 @@ def handle(name, cfg, cloud, log, args):
     # If the user has not explicitly enabled or disabled SSH, then enable it
     # when password SSH authentication is requested or there are SSH keys
     if mycfg.get('ssh_enabled', None) is not False:
-        if len(mycfg.get('public-keys', [])) > 0:
+        user_ssh_keys = cloud.get_public_ssh_keys() or None
+        password_auth_enabled = cfg.get('ssh_pwauth', False)
+        if user_ssh_keys:
             LOG.debug("Enabling SSH, user SSH keys provided")
             ssh_enabled = True
-        elif mycfg.get('ssh_pwauth', False):
+        elif password_auth_enabled:
             LOG.debug("Enabling SSH, password authentication requested")
             ssh_enabled = True
 
