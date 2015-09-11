@@ -6,7 +6,7 @@ Example config:
   #cloud-config
   snappy:
     system_snappy: auto
-    ssh_enabled: False
+    ssh_enabled: auto
     packages: [etcd, pkg2.smoser]
     config:
       pkgname:
@@ -16,7 +16,12 @@ Example config:
     packages_dir: '/writable/user-data/cloud-init/snaps'
 
  - ssh_enabled:
-   This defaults to 'False'.  Set to a non-false value to enable ssh service
+   This controls the system's ssh service.  The default value is 'auto'.
+     True:  enable ssh service
+     False: disable ssh service
+     auto:  enable ssh service if either ssh keys have been provided
+            or user has requested password authentication (ssh_pwauth).
+
  - snap installation and config
    The above would install 'etcd', and then install 'pkg2.smoser' with a
    '<config-file>' argument where 'config-file' has 'config-blob' inside it.
@@ -274,7 +279,26 @@ def handle(name, cfg, cloud, log, args):
             LOG.warn("'%s' failed for '%s': %s",
                      pkg_op['op'], pkg_op['name'], e)
 
-    disable_enable_ssh(mycfg.get('ssh_enabled', False))
+    # Default to disabling SSH
+    ssh_enabled = mycfg.get('ssh_enabled', "auto")
+
+    # If the user has not explicitly enabled or disabled SSH, then enable it
+    # when password SSH authentication is requested or there are SSH keys
+    if ssh_enabled == "auto":
+        user_ssh_keys = cloud.get_public_ssh_keys() or None
+        password_auth_enabled = cfg.get('ssh_pwauth', False)
+        if user_ssh_keys:
+            LOG.debug("Enabling SSH, ssh keys found in datasource")
+            ssh_enabled = True
+        elif cfg.get('ssh_authorized_keys'):
+            LOG.debug("Enabling SSH, ssh keys found in config")
+        elif password_auth_enabled:
+            LOG.debug("Enabling SSH, password authentication requested")
+            ssh_enabled = True
+    elif ssh_enabled not in (True, False):
+        LOG.warn("Unknown value '%s' in ssh_enabled", ssh_enabled)
+
+    disable_enable_ssh(ssh_enabled)
 
     if fails:
         raise Exception("failed to install/configure snaps")

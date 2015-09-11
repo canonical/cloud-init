@@ -1,3 +1,12 @@
+cloud-init (0.7.7~bzr1144-0ubuntu1) wily; urgency=medium
+
+  * New upstream snapshot.
+    [ Ben Howard ]
+    * snappy: enable ssh on snappy if ssh keys are provided or
+      password authentication is requested (LP: #1494816)
+
+ -- Scott Moser <smoser@ubuntu.com>  Fri, 11 Sep 2015 17:00:16 -0400
+
 cloud-init (0.7.7~bzr1143-0ubuntu1) wily; urgency=medium
 
   * New upstream snapshot.
