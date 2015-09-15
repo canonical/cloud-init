@@ -63,7 +63,7 @@ NAMESPACE_DELIM = '.'
 BUILTIN_CFG = {
     'packages': [],
     'packages_dir': '/writable/user-data/cloud-init/snaps',
-    'ssh_enabled': False,
+    'ssh_enabled': "auto",
     'system_snappy': "auto",
     'config': {},
 }

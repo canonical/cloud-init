@@ -1,3 +1,10 @@
+cloud-init (0.7.7~bzr1145-0ubuntu1) wily; urgency=medium
+
+  * New upstream snapshot.
+    * fix default builtin config of snappy to set ssh_enabled=auto.
+
+ -- Scott Moser <smoser@ubuntu.com>  Tue, 15 Sep 2015 15:33:19 -0400
+
 cloud-init (0.7.7~bzr1144-0ubuntu1) wily; urgency=medium
 
   * New upstream snapshot.
