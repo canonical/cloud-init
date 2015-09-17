@@ -1,3 +1,11 @@
+cloud-init (0.7.7~bzr1146-0ubuntu1) wily; urgency=medium
+
+  * New upstream snapshot.
+    * make the webhook reporter post json data rather than
+      urlencoded data (LP: #1496960)
+
+ -- Scott Moser <smoser@ubuntu.com>  Thu, 17 Sep 2015 15:59:35 -0400
+
 cloud-init (0.7.7~bzr1145-0ubuntu1) wily; urgency=medium
 
   * New upstream snapshot.

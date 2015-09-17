@@ -1,6 +1,7 @@
 # vi: ts=4 expandtab
 
 import abc
+import json
 import six
 
 from ..registry import DictRegistry
@@ -77,7 +78,7 @@ class WebHookHandler(ReportingHandler):
             readurl = url_helper.readurl
         try:
             return readurl(
-                self.endpoint, data=event.as_dict(),
+                self.endpoint, data=json.dumps(event.as_dict()),
                 timeout=self.timeout,
                 retries=self.retries, ssl_details=self.ssl_details)
         except:
