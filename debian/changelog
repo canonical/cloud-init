@@ -1,3 +1,9 @@
+cloud-init (0.7.7~bzr1146-0ubuntu2) wily; urgency=medium
+
+  * replace usage of python with python3 in postinst (LP: #1498493)
+
+ -- Scott Moser <smoser@ubuntu.com>  Tue, 22 Sep 2015 09:49:01 -0400
+
 cloud-init (0.7.7~bzr1146-0ubuntu1) wily; urgency=medium
 
   * New upstream snapshot.

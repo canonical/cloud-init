@@ -56,7 +56,10 @@ handle_preseed_maas() {
 
    # change a url query string format into : delimited
    if [ -n "$creds_all" -a "${creds_all#*&}" != "${creds_all}" ]; then
-      creds_all=$(python -c 'from six.moves.urllib.parse import parse_qs;
+      # the command here ends up looking like:
+      # python3 -c '...' 'oauth_consumer_key=v1&oauth_token_key=v2...' \
+      #   oauth_consumer_key oauth_token_key oauth_token_secret
+      creds_all=$(python3 -c 'from six.moves.urllib.parse import parse_qs;
 import sys;
 keys = parse_qs(sys.argv[1])
 for k in sys.argv[2:]:
