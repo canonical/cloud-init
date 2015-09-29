@@ -88,6 +88,10 @@ class DataSourceMAAS(sources.DataSource):
             return False
 
         try:
+            # doing this here actually has a side affect of
+            # getting oauth time-fix in place.  As no where else would
+            # retry by default, so even if we could fix the timestamp
+            # we would not.
             if not self.wait_for_metadata_service(url):
                 return False
 
@@ -95,7 +99,7 @@ class DataSourceMAAS(sources.DataSource):
 
             (userdata, metadata) = read_maas_seed_url(
                 self.base_url, read_file_or_url=self.oauth_helper.readurl,
-                paths=self.paths)
+                paths=self.paths, retries=1)
             self.userdata_raw = userdata
             self.metadata = metadata
             return True
@@ -161,7 +165,7 @@ def read_maas_seed_dir(seed_d):
 
 
 def read_maas_seed_url(seed_url, read_file_or_url=None, timeout=None,
-                       version=MD_VERSION, paths=None):
+                       version=MD_VERSION, paths=None, retries=None):
     """
     Read the maas datasource at seed_url.
       read_file_or_url is a method that should provide an interface
@@ -193,13 +197,13 @@ def read_maas_seed_url(seed_url, read_file_or_url=None, timeout=None,
     for name in file_order:
         url = files.get(name)
         if name == 'user-data':
-            retries = 0
+            item_retries = 0
         else:
-            retries = None
+            item_retries = retries
 
         try:
             ssl_details = util.fetch_ssl_details(paths)
-            resp = read_file_or_url(url, retries=retries,
+            resp = read_file_or_url(url, retries=item_retries,
                                     timeout=timeout, ssl_details=ssl_details)
             if resp.ok():
                 if name in BINARY_FIELDS:
@@ -306,7 +310,8 @@ if __name__ == "__main__":
         oauth_helper = url_helper.OauthUrlHelper(**creds)
 
         def geturl(url):
-            return oauth_helper.readurl(url).contents
+            # the retry is to ensure that oauth timestamp gets fixed
+            return oauth_helper.readurl(url, retries=1).contents
 
         def printurl(url):
             print("== %s ==\n%s\n" % (url, geturl(url).decode()))
@@ -329,7 +334,8 @@ if __name__ == "__main__":
             if args.url[0] == "/" or args.url.startswith("file://"):
                 readurl = None
             (userdata, metadata) = read_maas_seed_url(
-                args.url, version=args.apiver, read_file_or_url=readurl)
+                args.url, version=args.apiver, read_file_or_url=readurl,
+                retries=2)
             print("=== userdata ===")
             print(userdata.decode())
             print("=== metadata ===")
