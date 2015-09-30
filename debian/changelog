@@ -1,3 +1,10 @@
+cloud-init (0.7.7~bzr1147-0ubuntu1) wily; urgency=medium
+
+  * New upstream snapshot.
+    * MAAS: fix oauth when system clock is bad (LP: #1499869)
+
+ -- Scott Moser <smoser@ubuntu.com>  Tue, 29 Sep 2015 20:16:57 -0400
+
 cloud-init (0.7.7~bzr1146-0ubuntu2) wily; urgency=medium
 
   * replace usage of python with python3 in postinst (LP: #1498493)
