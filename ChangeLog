@@ -62,6 +62,7 @@
  - reporting: add reporting module for web hook or logging of events.
  - NoCloud: fix consumption of vendordata (LP: #1493453)
  - power_state_change: support 'condition' to disable or enable poweroff
+ - ubuntu fan: support for config and installing of ubuntu fan (LP: #1504604)
 0.7.6:
  - open 0.7.6
  - Enable vendordata on CloudSigma datasource (LP: #1303986)

@@ -1,3 +1,10 @@
+cloud-init (0.7.7~bzr1148-0ubuntu1) wily; urgency=medium
+
+  * New upstream snapshot.
+    * support configuring and installing the Ubuntu fan driver (LP: #1504604)
+
+ -- Scott Moser <smoser@ubuntu.com>  Fri, 09 Oct 2015 13:00:12 -0400
+
 cloud-init (0.7.7~bzr1147-0ubuntu1) wily; urgency=medium
 
   * New upstream snapshot.
