@@ -133,6 +133,13 @@ class TestFindEndpoint(TestCase):
         self.assertEqual(ip_address,
                          azure_helper.WALinuxAgentShim.find_endpoint())
 
+    def test_packed_string_containing_a_colon(self):
+        ip_address = '100.72.58.108'
+        file_content = self._build_lease_content(ip_address, use_hex=False)
+        self.load_file.return_value = file_content
+        self.assertEqual(ip_address,
+                         azure_helper.WALinuxAgentShim.find_endpoint())
+
     def test_latest_lease_used(self):
         ip_addresses = ['4.3.2.1', '98.76.54.32']
         file_content = '\n'.join([self._build_lease_content(ip_address)

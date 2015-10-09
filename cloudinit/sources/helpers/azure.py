@@ -225,16 +225,18 @@ class WALinuxAgentShim(object):
                 value = line.strip(' ').split(' ', 2)[-1].strip(';\n"')
         if value is None:
             raise Exception('No endpoint found in DHCP config.')
-        if ':' in value:
+        unescaped_value = value.replace('\\', '')
+        if len(unescaped_value) > 4:
             hex_string = ''
-            for hex_pair in value.split(':'):
+            for hex_pair in unescaped_value.split(':'):
                 if len(hex_pair) == 1:
                     hex_pair = '0' + hex_pair
                 hex_string += hex_pair
-            value = struct.pack('>L', int(hex_string.replace(':', ''), 16))
+            packed_bytes = struct.pack(
+                '>L', int(hex_string.replace(':', ''), 16))
         else:
-            value = value.replace('\\', '').encode('utf-8')
-        endpoint_ip_address = socket.inet_ntoa(value)
+            packed_bytes = unescaped_value.encode('utf-8')
+        endpoint_ip_address = socket.inet_ntoa(packed_bytes)
         LOG.debug('Azure endpoint found at %s', endpoint_ip_address)
         return endpoint_ip_address
 
