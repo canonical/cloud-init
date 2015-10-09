@@ -233,7 +233,7 @@ class WALinuxAgentShim(object):
                 hex_string += hex_pair
             value = struct.pack('>L', int(hex_string.replace(':', ''), 16))
         else:
-            value = value.encode('utf-8')
+            value = value.replace('\\', '').encode('utf-8')
         endpoint_ip_address = socket.inet_ntoa(value)
         LOG.debug('Azure endpoint found at %s', endpoint_ip_address)
         return endpoint_ip_address

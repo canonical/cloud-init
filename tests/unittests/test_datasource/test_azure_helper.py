@@ -97,7 +97,8 @@ class TestFindEndpoint(TestCase):
         if not use_hex:
             ip_address_repr = struct.pack(
                 '>L', int(ip_address_repr.replace(':', ''), 16))
-            ip_address_repr = '"{0}"'.format(ip_address_repr.decode('utf-8'))
+            ip_address_repr = '"{0}"'.format(
+                ip_address_repr.decode('utf-8').replace('"', '\\"'))
         return '\n'.join([
             'lease {',
             ' interface "eth0";',
@@ -120,6 +121,13 @@ class TestFindEndpoint(TestCase):
 
     def test_packed_string(self):
         ip_address = '98.76.54.32'
+        file_content = self._build_lease_content(ip_address, use_hex=False)
+        self.load_file.return_value = file_content
+        self.assertEqual(ip_address,
+                         azure_helper.WALinuxAgentShim.find_endpoint())
+
+    def test_packed_string_with_escaped_quote(self):
+        ip_address = '100.72.34.108'
         file_content = self._build_lease_content(ip_address, use_hex=False)
         self.load_file.return_value = file_content
         self.assertEqual(ip_address,
