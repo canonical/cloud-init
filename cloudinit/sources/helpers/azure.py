@@ -216,16 +216,8 @@ class WALinuxAgentShim(object):
             self.openssl_manager.clean_up()
 
     @staticmethod
-    def find_endpoint():
-        LOG.debug('Finding Azure endpoint...')
-        content = util.load_file('/var/lib/dhcp/dhclient.eth0.leases')
-        value = None
-        for line in content.splitlines():
-            if 'unknown-245' in line:
-                value = line.strip(' ').split(' ', 2)[-1].strip(';\n"')
-        if value is None:
-            raise Exception('No endpoint found in DHCP config.')
-        unescaped_value = value.replace('\\', '')
+    def get_ip_from_lease_value(lease_value):
+        unescaped_value = lease_value.replace('\\', '')
         if len(unescaped_value) > 4:
             hex_string = ''
             for hex_pair in unescaped_value.split(':'):
@@ -236,7 +228,19 @@ class WALinuxAgentShim(object):
                 '>L', int(hex_string.replace(':', ''), 16))
         else:
             packed_bytes = unescaped_value.encode('utf-8')
-        endpoint_ip_address = socket.inet_ntoa(packed_bytes)
+        return socket.inet_ntoa(packed_bytes)
+
+    @staticmethod
+    def find_endpoint():
+        LOG.debug('Finding Azure endpoint...')
+        content = util.load_file('/var/lib/dhcp/dhclient.eth0.leases')
+        value = None
+        for line in content.splitlines():
+            if 'unknown-245' in line:
+                value = line.strip(' ').split(' ', 2)[-1].strip(';\n"')
+        if value is None:
+            raise Exception('No endpoint found in DHCP config.')
+        endpoint_ip_address = WALinuxAgentShim.get_ip_from_lease_value(value)
         LOG.debug('Azure endpoint found at %s', endpoint_ip_address)
         return endpoint_ip_address
 
