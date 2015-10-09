@@ -90,7 +90,8 @@ class TestFindEndpoint(TestCase):
         self.assertRaises(Exception,
                           azure_helper.WALinuxAgentShim.find_endpoint)
 
-    def _build_lease_content(self, ip_address, use_hex=True):
+    @staticmethod
+    def _build_lease_content(ip_address, use_hex=True):
         ip_address_repr = ':'.join(
             [hex(int(part)).replace('0x', '')
              for part in ip_address.split('.')])
