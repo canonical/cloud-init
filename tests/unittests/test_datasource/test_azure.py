@@ -54,10 +54,13 @@ def construct_valid_ovf_env(data=None, pubkeys=None, userdata=None):
 
     if pubkeys:
         content += "<SSH><PublicKeys>\n"
-        for fp, path in pubkeys:
+        for fp, path, value in pubkeys:
             content += " <PublicKey>"
-            content += ("<Fingerprint>%s</Fingerprint><Path>%s</Path>" %
-                        (fp, path))
+            if fp and path:
+                content += ("<Fingerprint>%s</Fingerprint><Path>%s</Path>" %
+                            (fp, path))
+            if value:
+                content += "<Value>%s</Value>" % value
             content += "</PublicKey>\n"
         content += "</PublicKeys></SSH>"
     content += """
@@ -297,10 +300,10 @@ class TestAzureDataSource(TestCase):
         self.assertFalse(ret)
         self.assertFalse('agent_invoked' in data)
 
-    def test_cfg_has_pubkeys(self):
+    def test_cfg_has_pubkeys_fingerprint(self):
         odata = {'HostName': "myhost", 'UserName': "myuser"}
-        mypklist = [{'fingerprint': 'fp1', 'path': 'path1'}]
-        pubkeys = [(x['fingerprint'], x['path']) for x in mypklist]
+        mypklist = [{'fingerprint': 'fp1', 'path': 'path1', 'value': ''}]
+        pubkeys = [(x['fingerprint'], x['path'], x['value']) for x in mypklist]
         data = {'ovfcontent': construct_valid_ovf_env(data=odata,
                                                       pubkeys=pubkeys)}
 
@@ -309,6 +312,39 @@ class TestAzureDataSource(TestCase):
         self.assertTrue(ret)
         for mypk in mypklist:
             self.assertIn(mypk, dsrc.cfg['_pubkeys'])
+            self.assertIn('pubkey_from', dsrc.metadata['public-keys'][-1])
+
+    def test_cfg_has_pubkeys_value(self):
+        # make sure that provided key is used over fingerprint
+        odata = {'HostName': "myhost", 'UserName': "myuser"}
+        mypklist = [{'fingerprint': 'fp1', 'path': 'path1', 'value': 'value1'}]
+        pubkeys = [(x['fingerprint'], x['path'], x['value']) for x in mypklist]
+        data = {'ovfcontent': construct_valid_ovf_env(data=odata,
+                                                      pubkeys=pubkeys)}
+
+        dsrc = self._get_ds(data)
+        ret = dsrc.get_data()
+        self.assertTrue(ret)
+
+        for mypk in mypklist:
+            self.assertIn(mypk, dsrc.cfg['_pubkeys'])
+            self.assertIn(mypk['value'], dsrc.metadata['public-keys'])
+
+    def test_cfg_has_no_fingerprint_has_value(self):
+        # test value is used when fingerprint not provided
+        odata = {'HostName': "myhost", 'UserName': "myuser"}
+        mypklist = [{'fingerprint': None, 'path': 'path1', 'value': 'value1'}]
+        pubkeys = [(x['fingerprint'], x['path'], x['value']) for x in mypklist]
+        data = {'ovfcontent': construct_valid_ovf_env(data=odata,
+                                                      pubkeys=pubkeys)}
+
+        dsrc = self._get_ds(data)
+        ret = dsrc.get_data()
+        self.assertTrue(ret)
+
+        for mypk in mypklist:
+            self.assertIn(mypk['value'], dsrc.metadata['public-keys'])
+
 
     def test_default_ephemeral(self):
         # make sure the ephemeral device works
@@ -642,8 +678,8 @@ class TestReadAzureOvf(TestCase):
             DataSourceAzure.read_azure_ovf, invalid_xml)
 
     def test_load_with_pubkeys(self):
-        mypklist = [{'fingerprint': 'fp1', 'path': 'path1'}]
-        pubkeys = [(x['fingerprint'], x['path']) for x in mypklist]
+        mypklist = [{'fingerprint': 'fp1', 'path': 'path1', 'value': ''}]
+        pubkeys = [(x['fingerprint'], x['path'], x['value']) for x in mypklist]
         content = construct_valid_ovf_env(pubkeys=pubkeys)
         (_md, _ud, cfg) = DataSourceAzure.read_azure_ovf(content)
         for mypk in mypklist:

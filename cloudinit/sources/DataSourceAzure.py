@@ -148,9 +148,15 @@ class DataSourceAzureNet(sources.DataSource):
             wait_for = [shcfgxml]
 
             fp_files = []
+            key_value = None
             for pk in self.cfg.get('_pubkeys', []):
-                bname = str(pk['fingerprint'] + ".crt")
-                fp_files += [os.path.join(ddir, bname)]
+                if pk.get('value', None):
+                    key_value = pk['value']
+                    LOG.info("ssh authentication: using value from fabric")
+                else:
+                    bname = str(pk['fingerprint'] + ".crt")
+                    fp_files += [os.path.join(ddir, bname)]
+                    LOG.info("ssh authentication: using fingerprint from fabirc")
 
             missing = util.log_time(logfunc=LOG.debug, msg="waiting for files",
                                     func=wait_for_files,
@@ -166,7 +172,8 @@ class DataSourceAzureNet(sources.DataSource):
                 metadata['instance-id'] = iid_from_shared_config(shcfgxml)
             except ValueError as e:
                 LOG.warn("failed to get instance id in %s: %s", shcfgxml, e)
-        metadata['public-keys'] = pubkeys_from_crt_files(fp_files)
+
+        metadata['public-keys'] = key_value or pubkeys_from_crt_files(fp_files)
         return metadata
 
     def get_data(self):
@@ -497,7 +504,8 @@ def load_azure_ovf_pubkeys(sshnode):
     for pk_node in pubkeys:
         if not pk_node.hasChildNodes():
             continue
-        cur = {'fingerprint': "", 'path': ""}
+
+        cur = {'fingerprint': "", 'path': "", 'value': ""}
         for child in pk_node.childNodes:
             if child.nodeType == text_node or not child.localName:
                 continue
