@@ -1,3 +1,10 @@
+cloud-init (0.7.7~bzr1149-0ubuntu1) wily; urgency=medium
+
+  * New upstream snapshot.
+    azure: support extracting SSH key values from ovf-env.xml (LP: #1506244)
+
+ -- Scott Moser <smoser@ubuntu.com>  Wed, 14 Oct 2015 20:38:45 -0400
+
 cloud-init (0.7.7~bzr1148-0ubuntu1) wily; urgency=medium
 
   * New upstream snapshot.
