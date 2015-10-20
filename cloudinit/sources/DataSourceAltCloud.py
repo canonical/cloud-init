@@ -41,7 +41,7 @@ CLOUD_INFO_FILE = '/etc/sysconfig/cloud-info'
 
 # Shell command lists
 CMD_PROBE_FLOPPY = ['/sbin/modprobe', 'floppy']
-CMD_UDEVADM_SETTLE = ['/sbin/udevadm', 'settle', '--quiet', '--timeout=5']
+CMD_UDEVADM_SETTLE = ['/sbin/udevadm', 'settle', '--timeout=5']
 
 META_DATA_NOT_SUPPORTED = {
     'block-device-mapping': {},

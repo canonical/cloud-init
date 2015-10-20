@@ -64,6 +64,7 @@
  - power_state_change: support 'condition' to disable or enable poweroff
  - ubuntu fan: support for config and installing of ubuntu fan (LP: #1504604)
  - Azure: support extracting SSH key values from ovf-env.xml (LP: #1506244)
+ - AltCloud: fix call to udevadm settle (LP: #1507526)
 0.7.6:
  - open 0.7.6
  - Enable vendordata on CloudSigma datasource (LP: #1303986)
