@@ -31,8 +31,7 @@ from cloudinit import log as logging
 from cloudinit.settings import PER_ALWAYS
 from cloudinit import sources
 from cloudinit import util
-from cloudinit.sources.helpers.azure import (
-    get_metadata_from_fabric, iid_from_shared_config_content)
+from cloudinit.sources.helpers.azure import get_metadata_from_fabric
 
 LOG = logging.getLogger(__name__)
 
@@ -41,7 +40,6 @@ DEFAULT_METADATA = {"instance-id": "iid-AZURE-NODE"}
 AGENT_START = ['service', 'walinuxagent', 'start']
 BOUNCE_COMMAND = ['sh', '-xc',
     "i=$interface; x=0; ifdown $i || x=$?; ifup $i || x=$?; exit $x"]
-DATA_DIR_CLEAN_LIST = ['SharedConfig.xml']
 
 BUILTIN_DS_CONFIG = {
     'agent_command': AGENT_START,
@@ -144,8 +142,6 @@ class DataSourceAzureNet(sources.DataSource):
                             self.ds_cfg['agent_command'])
 
             ddir = self.ds_cfg['data_dir']
-            shcfgxml = os.path.join(ddir, "SharedConfig.xml")
-            wait_for = [shcfgxml]
 
             fp_files = []
             key_value = None
@@ -160,19 +156,11 @@ class DataSourceAzureNet(sources.DataSource):
 
             missing = util.log_time(logfunc=LOG.debug, msg="waiting for files",
                                     func=wait_for_files,
-                                    args=(wait_for + fp_files,))
+                                    args=(fp_files,))
         if len(missing):
             LOG.warn("Did not find files, but going on: %s", missing)
 
         metadata = {}
-        if shcfgxml in missing:
-            LOG.warn("SharedConfig.xml missing, using static instance-id")
-        else:
-            try:
-                metadata['instance-id'] = iid_from_shared_config(shcfgxml)
-            except ValueError as e:
-                LOG.warn("failed to get instance id in %s: %s", shcfgxml, e)
-
         metadata['public-keys'] = key_value or pubkeys_from_crt_files(fp_files)
         return metadata
 
@@ -229,21 +217,6 @@ class DataSourceAzureNet(sources.DataSource):
         user_ds_cfg = util.get_cfg_by_path(self.cfg, DS_CFG_PATH, {})
         self.ds_cfg = util.mergemanydict([user_ds_cfg, self.ds_cfg])
 
-        if found != ddir:
-            cached_ovfenv = util.load_file(
-                os.path.join(ddir, 'ovf-env.xml'), quiet=True, decode=False)
-            if cached_ovfenv != files['ovf-env.xml']:
-                # source was not walinux-agent's datadir, so we have to clean
-                # up so 'wait_for_files' doesn't return early due to stale data
-                cleaned = []
-                for f in [os.path.join(ddir, f) for f in DATA_DIR_CLEAN_LIST]:
-                    if os.path.exists(f):
-                        util.del_file(f)
-                        cleaned.append(f)
-                if cleaned:
-                    LOG.info("removed stale file(s) in '%s': %s",
-                             ddir, str(cleaned))
-
         # walinux agent writes files world readable, but expects
         # the directory to be protected.
         write_files(ddir, files, dirmode=0o700)
@@ -259,6 +232,7 @@ class DataSourceAzureNet(sources.DataSource):
                      " on Azure.", exc_info=True)
             return False
 
+        self.metadata['instance-id'] = util.read_dmi_data('system-uuid')
         self.metadata.update(fabric_data)
 
         found_ephemeral = find_fabric_formatted_ephemeral_disk()
@@ -647,12 +621,6 @@ def load_azure_ds_dir(source_dir):
 
     md, ud, cfg = read_azure_ovf(contents)
     return (md, ud, cfg, {'ovf-env.xml': contents})
-
-
-def iid_from_shared_config(path):
-    with open(path, "rb") as fp:
-        content = fp.read()
-    return iid_from_shared_config_content(content)
 
 
 class BrokenAzureDataSource(Exception):
