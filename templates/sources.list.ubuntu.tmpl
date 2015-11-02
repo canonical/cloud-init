@@ -35,15 +35,22 @@ deb-src {{mirror}} {{codename}}-updates universe
 # deb {{mirror}} {{codename}}-updates multiverse
 # deb-src {{mirror}} {{codename}}-updates multiverse
 
-## Uncomment the following two lines to add software from the 'backports'
-## repository.
 ## N.B. software from this repository may not have been tested as
 ## extensively as that contained in the main release, although it includes
 ## newer versions of some applications which may provide useful features.
 ## Also, please note that software in backports WILL NOT receive any review
 ## or updates from the Ubuntu security team.
-# deb {{mirror}} {{codename}}-backports main restricted universe multiverse
-# deb-src {{mirror}} {{codename}}-backports main restricted universe multiverse
+deb {{mirror}} {{codename}}-backports main
+deb-src {{mirror}} {{codename}}-backports universe
+deb {{mirror}} {{codename}}-backports universe
+deb-src {{mirror}} {{codename}}-backports main universe
+
+## Uncomment the following two to add software from the 'backports'
+## multiverse and restricted repositories.
+# deb {{mirror}} {{codename}}-backports multiverse
+# deb-src {{mirror}} {{codename}}-backports multiverse
+# deb {{mirror}} {{codename}}-backports restricted
+# deb-src {{mirror}} {{codename}}-backports restricted
 
 ## Uncomment the following two lines to add software from Canonical's
 ## 'partner' repository.
