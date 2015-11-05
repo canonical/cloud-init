@@ -1,3 +1,12 @@
+cloud-init (0.7.7~bzr1154-0ubuntu1) xenial; urgency=medium
+
+  * New upstream snapshot.
+    * create the same /etc/apt/sources.list that is present in default server
+      ISO installs.  This change adds restricted, multiverse, and -backports
+      (LP: #1177432).
+
+ -- Scott Moser <smoser@ubuntu.com>  Thu, 05 Nov 2015 12:10:00 -0500
+
 cloud-init (0.7.7~bzr1149-0ubuntu1) wily; urgency=medium
 
   * New upstream snapshot.
