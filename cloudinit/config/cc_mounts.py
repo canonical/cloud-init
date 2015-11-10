@@ -263,7 +263,11 @@ def handle_swapcfg(swapcfg):
 
 def handle(_name, cfg, cloud, log, _args):
     # fs_spec, fs_file, fs_vfstype, fs_mntops, fs-freq, fs_passno
-    defvals = [None, None, "auto", "defaults,nobootwait", "0", "2"]
+    def_mnt_opts = "defaults,nobootwait"
+    if cloud.distro.uses_systemd():
+        def_mnt_opts = "defaults,nofail"
+
+    defvals = [None, None, "auto", def_mnt_opts, "0", "2"]
     defvals = cfg.get("mount_default_fields", defvals)
 
     # these are our default set of mounts
