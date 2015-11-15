@@ -68,8 +68,8 @@ html_theme = 'default'
 # further.  For a list of options available for each theme, see the
 # documentation.
 html_theme_options = {
-    "bodyfont": "Arial, sans-serif",
-    "headfont": "Arial, sans-serif"
+    "bodyfont": "Ubuntu, Arial, sans-serif",
+    "headfont": "Ubuntu, Arial, sans-serif"
 }
 
 # The name of an image file (relative to this directory) to place at the top
