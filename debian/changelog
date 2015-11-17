@@ -1,3 +1,11 @@
+cloud-init (0.7.7~bzr1156-0ubuntu1) xenial; urgency=medium
+
+  * New upstream snapshot.
+  * d/cloud-init.preinst: migrate Azure instance ID from old ID to stable
+    ID (LP: #1506187).
+
+ -- Ben Howard <ben.howard@ubuntu.com>  Tue, 17 Nov 2015 11:59:49 -0700
+
 cloud-init (0.7.7~bzr1155-0ubuntu1) xenial; urgency=medium
 
   * New upstream snapshot.

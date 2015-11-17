@@ -40,7 +40,7 @@ GOAL_STATE_TEMPLATE = """\
           <HostingEnvironmentConfig>
             http://100.86.192.70:80/...hostingEnvironmentConfig...
           </HostingEnvironmentConfig>
-          <SharedConfig>{shared_config_url}</SharedConfig>
+          <SharedConfig>http://100.86.192.70:80/..SharedConfig..</SharedConfig>
           <ExtensionsConfig>
             http://100.86.192.70:80/...extensionsConfig...
           </ExtensionsConfig>
@@ -53,21 +53,6 @@ GOAL_STATE_TEMPLATE = """\
   </Container>
 </GoalState>
 """
-
-
-class TestReadAzureSharedConfig(unittest.TestCase):
-
-    def test_valid_content(self):
-        xml = """<?xml version="1.0" encoding="utf-8"?>
-            <SharedConfig>
-             <Deployment name="MY_INSTANCE_ID">
-              <Service name="myservice"/>
-              <ServiceInstance name="INSTANCE_ID.0" guid="{abcd-uuid}" />
-             </Deployment>
-            <Incarnation number="1"/>
-            </SharedConfig>"""
-        ret = azure_helper.iid_from_shared_config_content(xml)
-        self.assertEqual("MY_INSTANCE_ID", ret)
 
 
 class TestFindEndpoint(TestCase):
@@ -140,7 +125,6 @@ class TestGoalStateParsing(TestCase):
         'incarnation': 1,
         'container_id': 'MyContainerId',
         'instance_id': 'MyInstanceId',
-        'shared_config_url': 'MySharedConfigUrl',
         'certificates_url': 'MyCertificatesUrl',
     }
 
@@ -174,20 +158,9 @@ class TestGoalStateParsing(TestCase):
         goal_state = self._get_goal_state(instance_id=instance_id)
         self.assertEqual(instance_id, goal_state.instance_id)
 
-    def test_shared_config_xml_parsed_and_fetched_correctly(self):
-        http_client = mock.MagicMock()
-        shared_config_url = 'TestSharedConfigUrl'
-        goal_state = self._get_goal_state(
-            http_client=http_client, shared_config_url=shared_config_url)
-        shared_config_xml = goal_state.shared_config_xml
-        self.assertEqual(1, http_client.get.call_count)
-        self.assertEqual(shared_config_url, http_client.get.call_args[0][0])
-        self.assertEqual(http_client.get.return_value.contents,
-                         shared_config_xml)
-
     def test_certificates_xml_parsed_and_fetched_correctly(self):
         http_client = mock.MagicMock()
-        certificates_url = 'TestSharedConfigUrl'
+        certificates_url = 'TestCertificatesUrl'
         goal_state = self._get_goal_state(
             http_client=http_client, certificates_url=certificates_url)
         certificates_xml = goal_state.certificates_xml
@@ -324,8 +297,6 @@ class TestWALinuxAgentShim(TestCase):
                 azure_helper.WALinuxAgentShim, 'find_endpoint'))
         self.GoalState = patches.enter_context(
             mock.patch.object(azure_helper, 'GoalState'))
-        self.iid_from_shared_config_content = patches.enter_context(
-            mock.patch.object(azure_helper, 'iid_from_shared_config_content'))
         self.OpenSSLManager = patches.enter_context(
             mock.patch.object(azure_helper, 'OpenSSLManager'))
         patches.enter_context(
@@ -366,15 +337,6 @@ class TestWALinuxAgentShim(TestCase):
         shim = azure_helper.WALinuxAgentShim()
         data = shim.register_with_azure_and_fetch_data()
         self.assertEqual([], data['public-keys'])
-
-    def test_instance_id_returned_in_data(self):
-        shim = azure_helper.WALinuxAgentShim()
-        data = shim.register_with_azure_and_fetch_data()
-        self.assertEqual(
-            [mock.call(self.GoalState.return_value.shared_config_xml)],
-            self.iid_from_shared_config_content.call_args_list)
-        self.assertEqual(self.iid_from_shared_config_content.return_value,
-                         data['instance-id'])
 
     def test_correct_url_used_for_report_ready(self):
         self.find_endpoint.return_value = 'test_endpoint'
