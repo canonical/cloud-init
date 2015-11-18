@@ -68,6 +68,7 @@
  - Ubuntu templates: modify sources.list template to provide same sources
    as install from server or desktop ISO. (LP: #1177432)
  - cc_mounts: use 'nofail' if system uses systemd. (LP: #1514485)
+ - Azure: get instance id from dmi instead of SharedConfig (LP: #1506187)
 0.7.6:
  - open 0.7.6
  - Enable vendordata on CloudSigma datasource (LP: #1303986)

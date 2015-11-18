@@ -115,10 +115,6 @@ class TestAzureDataSource(TestCase):
             data['pubkey_files'] = flist
             return ["pubkey_from: %s" % f for f in flist]
 
-        def _iid_from_shared_config(path):
-            data['iid_from_shared_cfg'] = path
-            return 'i-my-azure-id'
-
         if data.get('ovfcontent') is not None:
             populate_dir(os.path.join(self.paths.seed_dir, "azure"),
                          {'ovf-env.xml': data['ovfcontent']})
@@ -127,20 +123,22 @@ class TestAzureDataSource(TestCase):
         mod.BUILTIN_DS_CONFIG['data_dir'] = self.waagent_d
 
         self.get_metadata_from_fabric = mock.MagicMock(return_value={
-            'instance-id': 'i-my-azure-id',
             'public-keys': [],
         })
+
+        self.instance_id = 'test-instance-id'
 
         self.apply_patches([
             (mod, 'list_possible_azure_ds_devs', dsdevs),
             (mod, 'invoke_agent', _invoke_agent),
             (mod, 'wait_for_files', _wait_for_files),
             (mod, 'pubkeys_from_crt_files', _pubkeys_from_crt_files),
-            (mod, 'iid_from_shared_config', _iid_from_shared_config),
             (mod, 'perform_hostname_bounce', mock.MagicMock()),
             (mod, 'get_hostname', mock.MagicMock()),
             (mod, 'set_hostname', mock.MagicMock()),
             (mod, 'get_metadata_from_fabric', self.get_metadata_from_fabric),
+            (mod.util, 'read_dmi_data', mock.MagicMock(
+                return_value=self.instance_id)),
         ])
 
         dsrc = mod.DataSourceAzureNet(
@@ -193,7 +191,6 @@ class TestAzureDataSource(TestCase):
         self.assertEqual(dsrc.metadata['local-hostname'], odata['HostName'])
         self.assertTrue(os.path.isfile(
             os.path.join(self.waagent_d, 'ovf-env.xml')))
-        self.assertEqual(dsrc.metadata['instance-id'], 'i-my-azure-id')
 
     def test_waagent_d_has_0700_perms(self):
         # we expect /var/lib/waagent to be created 0700
@@ -345,7 +342,6 @@ class TestAzureDataSource(TestCase):
         for mypk in mypklist:
             self.assertIn(mypk['value'], dsrc.metadata['public-keys'])
 
-
     def test_default_ephemeral(self):
         # make sure the ephemeral device works
         odata = {}
@@ -434,54 +430,6 @@ class TestAzureDataSource(TestCase):
         dsrc = self._get_ds({'ovfcontent': xml})
         dsrc.get_data()
 
-    def test_existing_ovf_same(self):
-        # waagent/SharedConfig left alone if found ovf-env.xml same as cached
-        odata = {'UserData': b64e("SOMEUSERDATA")}
-        data = {'ovfcontent': construct_valid_ovf_env(data=odata)}
-
-        populate_dir(self.waagent_d,
-            {'ovf-env.xml': data['ovfcontent'],
-             'otherfile': 'otherfile-content',
-             'SharedConfig.xml': 'mysharedconfig'})
-
-        dsrc = self._get_ds(data)
-        ret = dsrc.get_data()
-        self.assertTrue(ret)
-        self.assertTrue(os.path.exists(
-            os.path.join(self.waagent_d, 'ovf-env.xml')))
-        self.assertTrue(os.path.exists(
-            os.path.join(self.waagent_d, 'otherfile')))
-        self.assertTrue(os.path.exists(
-            os.path.join(self.waagent_d, 'SharedConfig.xml')))
-
-    def test_existing_ovf_diff(self):
-        # waagent/SharedConfig must be removed if ovfenv is found elsewhere
-
-        # 'get_data' should remove SharedConfig.xml in /var/lib/waagent
-        # if ovf-env.xml differs.
-        cached_ovfenv = construct_valid_ovf_env(
-            {'userdata': b64e("FOO_USERDATA")})
-        new_ovfenv = construct_valid_ovf_env(
-            {'userdata': b64e("NEW_USERDATA")})
-
-        populate_dir(self.waagent_d,
-            {'ovf-env.xml': cached_ovfenv,
-             'SharedConfig.xml': "mysharedconfigxml",
-             'otherfile': 'otherfilecontent'})
-
-        dsrc = self._get_ds({'ovfcontent': new_ovfenv})
-        ret = dsrc.get_data()
-        self.assertTrue(ret)
-        self.assertEqual(dsrc.userdata_raw, b"NEW_USERDATA")
-        self.assertTrue(os.path.exists(
-            os.path.join(self.waagent_d, 'otherfile')))
-        self.assertFalse(os.path.exists(
-                        os.path.join(self.waagent_d, 'SharedConfig.xml')))
-        self.assertTrue(os.path.exists(
-                        os.path.join(self.waagent_d, 'ovf-env.xml')))
-        new_xml = load_file(os.path.join(self.waagent_d, 'ovf-env.xml'))
-        self.xml_equals(new_ovfenv, new_xml)
-
     def test_exception_fetching_fabric_data_doesnt_propagate(self):
         ds = self._get_ds({'ovfcontent': construct_valid_ovf_env()})
         ds.ds_cfg['agent_command'] = '__builtin__'
@@ -496,6 +444,17 @@ class TestAzureDataSource(TestCase):
         self.assertTrue(ret)
         self.assertEqual('value', ds.metadata['test'])
 
+    def test_instance_id_from_dmidecode_used(self):
+        ds = self._get_ds({'ovfcontent': construct_valid_ovf_env()})
+        ds.get_data()
+        self.assertEqual(self.instance_id, ds.metadata['instance-id'])
+
+    def test_instance_id_from_dmidecode_used_for_builtin(self):
+        ds = self._get_ds({'ovfcontent': construct_valid_ovf_env()})
+        ds.ds_cfg['agent_command'] = '__builtin__'
+        ds.get_data()
+        self.assertEqual(self.instance_id, ds.metadata['instance-id'])
+
 
 class TestAzureBounce(TestCase):
 
@@ -504,9 +463,6 @@ class TestAzureBounce(TestCase):
             mock.patch.object(DataSourceAzure, 'invoke_agent'))
         self.patches.enter_context(
             mock.patch.object(DataSourceAzure, 'wait_for_files'))
-        self.patches.enter_context(
-            mock.patch.object(DataSourceAzure, 'iid_from_shared_config',
-                              mock.MagicMock(return_value='i-my-azure-id')))
         self.patches.enter_context(
             mock.patch.object(DataSourceAzure, 'list_possible_azure_ds_devs',
                               mock.MagicMock(return_value=[])))
@@ -521,6 +477,9 @@ class TestAzureBounce(TestCase):
         self.patches.enter_context(
             mock.patch.object(DataSourceAzure, 'get_metadata_from_fabric',
                               mock.MagicMock(return_value={})))
+        self.patches.enter_context(
+            mock.patch.object(DataSourceAzure.util, 'read_dmi_data',
+                              mock.MagicMock(return_value='test-instance-id')))
 
     def setUp(self):
         super(TestAzureBounce, self).setUp()
