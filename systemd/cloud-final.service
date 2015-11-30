@@ -8,6 +8,7 @@ Type=oneshot
 ExecStart=/usr/bin/cloud-init modules --mode=final
 RemainAfterExit=yes
 TimeoutSec=0
+KillMode=process
 
 # Output needs to appear in instance console output
 StandardOutput=journal+console
