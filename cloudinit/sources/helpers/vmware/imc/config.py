@@ -1,122 +1,90 @@
-from cloudinit.sources.helpers.vmware.imc.nic import Nic
+# vi: ts=4 expandtab
+#
+#    Copyright (C) 2015 Canonical Ltd.
+#    Copyright (C) 2015 VMware Inc.
+#
+#    Author: Sankar Tanguturi <stanguturi@vmware.com>
+#
+#    This program is free software: you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License version 3, as
+#    published by the Free Software Foundation.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License
+#    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+from .nic import Nic
 
 
 class Config:
+    """
+    Stores the Contents specified in the Customization
+    Specification file.
+    """
+
     DNS = 'DNS|NAMESERVER|'
     SUFFIX = 'DNS|SUFFIX|'
     PASS = 'PASSWORD|-PASS'
     TIMEZONE = 'DATETIME|TIMEZONE'
     UTC = 'DATETIME|UTC'
     HOSTNAME = 'NETWORK|HOSTNAME'
-    OMAINNAME = 'NETWORK|DOMAINNAME'
+    DOMAINNAME = 'NETWORK|DOMAINNAME'
 
     def __init__(self, configFile):
         self._configFile = configFile
 
-    # Retrieves hostname.
-    #
-    # Args:
-    #   None
-    # Results:
-    #   string: hostname
-    # Throws:
-    #   None
     @property
-    def hostName(self):
+    def host_name(self):
+        """Return the hostname."""
         return self._configFile.get(Config.HOSTNAME, None)
 
-    # Retrieves domainName.
-    #
-    # Args:
-    #   None
-    # Results:
-    #   string: domainName
-    # Throws:
-    #   None
     @property
-    def domainName(self):
+    def domain_name(self):
+        """Return the domain name."""
         return self._configFile.get(Config.DOMAINNAME, None)
 
-    # Retrieves timezone.
-    #
-    # Args:
-    #   None
-    # Results:
-    #   string: timezone
-    # Throws:
-    #   None
     @property
-    def timeZone(self):
+    def timezone(self):
+        """Return the timezone."""
         return self._configFile.get(Config.TIMEZONE, None)
 
-    # Retrieves whether to set time to UTC or Local.
-    #
-    # Args:
-    #   None
-    # Results:
-    #   boolean: True for yes/YES, True for no/NO, otherwise - None
-    # Throws:
-    #   None
     @property
     def utc(self):
+        """Retrieves whether to set time to UTC or Local."""
         return self._configFile.get(Config.UTC, None)
 
-    # Retrieves root password to be set.
-    #
-    # Args:
-    #   None
-    # Results:
-    #   string: base64-encoded root password or None
-    # Throws:
-    #   None
     @property
-    def adminPassword(self):
+    def admin_password(self):
+        """Return the root password to be set."""
         return self._configFile.get(Config.PASS, None)
 
-    # Retrieves DNS Servers.
-    #
-    # Args:
-    #   None
-    # Results:
-    #   integer: count or 0
-    # Throws:
-    #   None
     @property
-    def nameServers(self):
+    def name_servers(self):
+        """Return the list of DNS servers."""
         res = []
-        for i in range(1, self._configFile.getCnt(Config.DNS) + 1):
+        for i in range(1, self._configFile.get_count(Config.DNS) + 1):
             key = Config.DNS + str(i)
             res.append(self._configFile[key])
 
         return res
 
-    # Retrieves DNS Suffixes.
-    #
-    # Args:
-    #   None
-    # Results:
-    #   integer: count or 0
-    # Throws:
-    #   None
     @property
-    def dnsSuffixes(self):
+    def dns_suffixes(self):
+        """Return the list of DNS Suffixes."""
         res = []
-        for i in range(1, self._configFile.getCnt(Config.SUFFIX) + 1):
+        for i in range(1, self._configFile.get_count(Config.SUFFIX) + 1):
             key = Config.SUFFIX + str(i)
             res.append(self._configFile[key])
 
         return res
 
-    # Retrieves NICs.
-    #
-    # Args:
-    #   None
-    # Results:
-    #   integer: count
-    # Throws:
-    #   None
     @property
     def nics(self):
+        """Return the list of associated NICs."""
         res = []
         nics = self._configFile['NIC-CONFIG|NICS']
         for nic in nics.split(','):

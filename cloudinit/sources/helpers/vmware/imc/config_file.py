@@ -1,47 +1,49 @@
-import logging
-import re
+# vi: ts=4 expandtab
+#
+#    Copyright (C) 2015 Canonical Ltd.
+#    Copyright (C) 2015 VMware Inc.
+#
+#    Author: Sankar Tanguturi <stanguturi@vmware.com>
+#
+#    This program is free software: you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License version 3, as
+#    published by the Free Software Foundation.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License
+#    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-from cloudinit.sources.helpers.vmware.imc.config_source import ConfigSource
+import logging
+
+try:
+    import configparser
+except ImportError:
+    import ConfigParser as configparser
+
+from .config_source import ConfigSource
 
 logger = logging.getLogger(__name__)
 
 
-class ConfigFile(ConfigSource):
+class ConfigFile(ConfigSource, dict):
+    """ConfigFile module to load the content from a specified source."""
+
     def __init__(self):
-        self._configData = {}
+        pass
 
-    def __getitem__(self, key):
-        return self._configData[key]
-
-    def get(self, key, default=None):
-        return self._configData.get(key, default)
-
-    # Removes all the properties.
-    #
-    # Args:
-    #   None
-    # Results:
-    #   None
-    # Throws:
-    #   None
-    def clear(self):
-        self._configData.clear()
-
-    # Inserts k/v pair.
-    #
-    # Does not do any key/cross-key validation.
-    #
-    # Args:
-    #   key: string: key
-    #   val: string: value
-    # Results:
-    #   None
-    # Throws:
-    #   None
     def _insertKey(self, key, val):
-        # cleaning up on all "input" path
+        """
+        Inserts a Key Value pair.
 
-        # remove end char \n (chomp)
+        Keyword arguments:
+        key -- The key to insert
+        val -- The value to insert for the key
+
+        """
         key = key.strip()
         val = val.strip()
 
@@ -56,166 +58,94 @@ class ConfigFile(ConfigSource):
         else:
             logger.debug("ADDED KEY-VAL :: '%s' = '*****************'" % key)
 
-        self._configData[key] = val
+        self[key] = val
 
-    # Determines properties count.
-    #
-    # Args:
-    #   None
-    # Results:
-    #   integer: properties count
-    # Throws:
-    #   None
     def size(self):
-        return len(self._configData)
+        """Return the number of properties present."""
+        return len(self)
 
-    # Parses properties from a .cfg file content.
-    #
-    # Any previously available properties will be removed.
-    #
-    # Sensitive data will not be logged in case key starts from '-'.
-    #
-    # Args:
-    #   content: string: e.g. content of config/cust.cfg
-    # Results:
-    #   None
-    # Throws:
-    #   None
-    def loadConfigContent(self, content):
+    def loadConfigFile(self, filename):
+        """
+        Parses properties from the specified config file.
+
+        Any previously available properties will be removed.
+        Sensitive data will not be logged in case the key starts
+        from '-'.
+
+        Keyword arguments:
+        filename - The full path to the config file.
+        """
+        logger.info('Parsing the config file %s.' % filename)
+
+        config = configparser.ConfigParser()
+        config.optionxform = str
+        config.read(filename)
+
         self.clear()
 
-        # remove end char \n (chomp)
-        for line in content.split('\n'):
-            # TODO validate against allowed characters (not done in Perl)
+        for category in config.sections():
+            logger.debug("FOUND CATEGORY = '%s'" % category)
 
-            # spaces at the end are not allowed, things like passwords must be
-            # at least base64-encoded
-            line = line.strip()
-
-            # "sensitive" settings shall not be logged
-            if line.startswith('-'):
-                canLog = 0
-            else:
-                canLog = 1
-
-            if canLog:
-                logger.debug("Processing line: '%s'" % line)
-            else:
-                logger.debug("Processing line: '***********************'")
-
-            if not line:
-                logger.debug("Empty line. Ignored.")
-                continue
-
-            if line.startswith('#'):
-                logger.debug("Comment found. Line ignored.")
-                continue
-
-            matchObj = re.match(r'\[(.+)\]', line)
-            if matchObj:
-                category = matchObj.group(1)
-                logger.debug("FOUND CATEGORY = '%s'" % category)
-            else:
-                # POSIX.2 regex doesn't support non-greedy like in (.+?)=(.*)
-                # key value pair (non-eager '=' for base64)
-                matchObj = re.match(r'([^=]+)=(.*)', line)
-                if matchObj:
-                    # cleaning up on all "input" paths
-                    key = category + "|" + matchObj.group(1).strip()
-                    val = matchObj.group(2).strip()
-
-                    self._insertKey(key, val)
+            for (key, value) in config.items(category):
+                # "sensitive" settings shall not be logged
+                if key.startswith('-'):
+                    canLog = 0
                 else:
-                    # TODO document
-                    raise Exception("Unrecognizable line: '%s'" % line)
+                    canLog = 1
 
-        self.validate()
+                if canLog:
+                    logger.debug("Processing key, value: '%s':'%s'" %
+                                 (key, value))
+                else:
+                    logger.debug("Processing key, value : "
+                                 "'*********************'")
 
-    # Parses properties from a .cfg file
-    #
-    # Any previously available properties will be removed.
-    #
-    # Sensitive data will not be logged in case key starts from '-'.
-    #
-    # Args:
-    #   filename: string: full path to a .cfg file
-    # Results:
-    #   None
-    # Throws:
-    #   None
-    def loadConfigFile(self, filename):
-        logger.info("Opening file name %s." % filename)
-        # TODO what throws?
-        with open(filename, "r") as myfile:
-            self.loadConfigContent(myfile.read())
+                self._insertKey(category + '|' + key, value)
 
-    # Determines whether a property with a given key exists.
-    #
-    # Args:
-    #   key: string: key
-    # Results:
-    #   boolean: True if such property exists, otherwise - False.
-    # Throws:
-    #   None
-    def hasKey(self, key):
-        return key in self._configData
+    def keep_current_value(self, key):
+        """
+        Determines whether a value for a property must be kept.
 
-    # Determines whether a value for a property must be kept.
-    #
-    # If the property is missing, it's treated as it should be not changed by
-    # the engine.
-    #
-    # Args:
-    #   key: string: key
-    # Results:
-    #   boolean: True if property must be kept, otherwise - False.
-    # Throws:
-    #   None
-    def keepCurrentValue(self, key):
+        If the propery is missing, it is treated as it should be not
+        changed by the engine.
+
+        Keyword arguments:
+        key -- The key to search for.
+        """
         # helps to distinguish from "empty" value which is used to indicate
         # "removal"
-        return not self.hasKey(key)
+        return not key in self
 
-    # Determines whether a value for a property must be removed.
-    #
-    # If the property is empty, it's treated as it should be removed by the
-    # engine.
-    #
-    # Args:
-    #   key: string: key
-    # Results:
-    #   boolean: True if property must be removed, otherwise - False.
-    # Throws:
-    #   None
-    def removeCurrentValue(self, key):
+    def remove_current_value(self, key):
+        """
+        Determines whether a value for the property must be removed.
+
+        If the specified key is empty, it is treated as it should be
+        removed by the engine.
+
+        Return true if the value can be removed, false otherwise.
+
+        Keyword arguments:
+        key -- The key to search for.
+        """
         # helps to distinguish from "missing" value which is used to indicate
         # "keeping unchanged"
-        if self.hasKey(key):
-            return not bool(self._configData[key])
+        if key in self:
+            return not bool(self[key])
         else:
             return False
 
-    # TODO
-    def getCnt(self, prefix):
+    def get_count(self, prefix):
+        """
+        Return the total number of keys that start with the
+        specified prefix.
+
+        Keyword arguments:
+        prefix -- prefix of the key
+        """
         res = 0
-        for key in self._configData.keys():
+        for key in self.keys():
             if key.startswith(prefix):
                 res += 1
 
         return res
-
-    # TODO
-    # TODO pass base64
-    # Throws:
-    #   Dies in case timezone is present but empty.
-    #   Dies in case password is present but empty.
-    #   Dies in case hostname is present but empty or greater than 63 chars.
-    #   Dies in case UTC is present, but is not yes/YES or no/NO.
-    #   Dies in case NICS is not present.
-    def validate(self):
-        # TODO must log all the errors
-        keyValidators = {'NIC1|IPv6GATEWAY|': None}
-        crossValidators = {}
-
-        for key in self._configData.keys():
-            pass
