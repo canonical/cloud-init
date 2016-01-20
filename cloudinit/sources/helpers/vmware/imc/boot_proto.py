@@ -18,7 +18,7 @@
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 
-class BootProto:
+class BootProtoEnum:
     """Specifies the NIC Boot Settings."""
 
     DHCP = 'dhcp'

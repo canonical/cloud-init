@@ -66,7 +66,8 @@ class Config:
     def name_servers(self):
         """Return the list of DNS servers."""
         res = []
-        for i in range(1, self._configFile.get_count(Config.DNS) + 1):
+        cnt = self._configFile.get_count_with_prefix(Config.DNS)
+        for i in range(1, cnt + 1):
             key = Config.DNS + str(i)
             res.append(self._configFile[key])
 
@@ -76,7 +77,8 @@ class Config:
     def dns_suffixes(self):
         """Return the list of DNS Suffixes."""
         res = []
-        for i in range(1, self._configFile.get_count(Config.SUFFIX) + 1):
+        cnt = self._configFile.get_count_with_prefix(Config.SUFFIX)
+        for i in range(1, cnt + 1):
             key = Config.SUFFIX + str(i)
             res.append(self._configFile[key])
 

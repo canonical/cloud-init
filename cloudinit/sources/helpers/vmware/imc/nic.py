@@ -17,10 +17,11 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-from .boot_proto import BootProto
+from .boot_proto import BootProtoEnum
+from .nic_base import NicBase, StaticIpv4Base, StaticIpv6Base
 
 
-class Nic:
+class Nic(NicBase):
     """
     Holds the information about each NIC specified
     in the customization specification file
@@ -31,10 +32,10 @@ class Nic:
         self._configFile = configFile
 
     def _get(self, what):
-        return self._configFile.get(self.name + what, None)
+        return self._configFile.get(self.name + '|' + what, None)
 
-    def _get_count(self, prefix):
-        return self._configFile.get_count(self.name + prefix)
+    def _get_count_with_prefix(self, prefix):
+        return self._configFile.get_count_with_prefix(self.name + prefix)
 
     @property
     def name(self):
@@ -42,41 +43,52 @@ class Nic:
 
     @property
     def mac(self):
-        return self._get('|MACADDR').lower()
+        return self._get('MACADDR').lower()
+
+    @property
+    def primary(self):
+        value = self._get('PRIMARY').lower()
+        return value == 'yes' or value == 'true'
+
+    @property
+    def onboot(self):
+        value = self._get('ONBOOT').lower()
+        return value == 'yes' or value == 'true'
 
     @property
     def bootProto(self):
-        return self._get('|BOOTPROTO').lower()
+        return self._get('BOOTPROTO').lower()
 
     @property
-    def ipv4(self):
-        """
-        Retrieves the DHCP or Static IPv6 configuration
-        based on the BOOTPROTO property associated with the NIC
-        """
-        if self.bootProto == BootProto.STATIC:
-            return StaticIpv4Conf(self)
-
-        return DhcpIpv4Conf(self)
+    def ipv4_mode(self):
+        return self._get('IPv4_MODE').lower()
 
     @property
-    def ipv6(self):
-        cnt = self._get_count("|IPv6ADDR|")
+    def staticIpv4(self):
+        """
+        Checks the BOOTPROTO property and returns StaticIPv4Addr
+        configuration object if STATIC configuration is set.
+        """
+        if self.bootProto == BootProtoEnum.STATIC:
+            return [StaticIpv4Addr(self)]
+        else:
+            return None
 
-        if cnt != 0:
-            return StaticIpv6Conf(self)
+    @property
+    def staticIpv6(self):
+        cnt = self._get_count_with_prefix('|IPv6ADDR|')
 
-        return DhcpIpv6Conf(self)
+        if not cnt:
+            return None
+
+        result = []
+        for index in range(1, cnt + 1):
+            result.append(StaticIpv6Addr(self, index))
+
+        return result
 
 
-class DhcpIpv4Conf:
-    """DHCP Configuration Setting."""
-
-    def __init__(self, nic):
-        self._nic = nic
-
-
-class StaticIpv4Addr:
+class StaticIpv4Addr(StaticIpv4Base):
     """Static IPV4  Setting."""
 
     def __init__(self, nic):
@@ -84,34 +96,22 @@ class StaticIpv4Addr:
 
     @property
     def ip(self):
-        return self._nic._get('|IPADDR')
+        return self._nic._get('IPADDR')
 
     @property
     def netmask(self):
-        return self._nic._get('|NETMASK')
+        return self._nic._get('NETMASK')
 
     @property
-    def gateway(self):
-        return self._nic._get('|GATEWAY')
+    def gateways(self):
+        value = self._nic._get('GATEWAY')
+        if value:
+            return [x.strip() for x in value.split(',')]
+        else:
+            return None
 
 
-class StaticIpv4Conf(DhcpIpv4Conf):
-    """Static IPV4 Configuration."""
-
-    @property
-    def addrs(self):
-        """Return the list of associated IPv4 addresses."""
-        return [StaticIpv4Addr(self._nic)]
-
-
-class DhcpIpv6Conf:
-    """DHCP IPV6 Configuration."""
-
-    def __init__(self, nic):
-        self._nic = nic
-
-
-class StaticIpv6Addr:
+class StaticIpv6Addr(StaticIpv6Base):
     """Static IPV6 Address."""
 
     def __init__(self, nic, index):
@@ -120,28 +120,12 @@ class StaticIpv6Addr:
 
     @property
     def ip(self):
-        return self._nic._get("|IPv6ADDR|" + str(self._index))
+        return self._nic._get('IPv6ADDR|' + str(self._index))
 
     @property
-    def prefix(self):
-        return self._nic._get("|IPv6NETMASK|" + str(self._index))
+    def netmask(self):
+        return self._nic._get('IPv6NETMASK|' + str(self._index))
 
     @property
     def gateway(self):
-        return self._nic._get("|IPv6GATEWAY|" + str(self._index))
-
-
-class StaticIpv6Conf(DhcpIpv6Conf):
-    """Static IPV6 Configuration."""
-
-    @property
-    def addrs(self):
-        """Return the list Associated IPV6 addresses."""
-        cnt = self._nic._get_count("|IPv6ADDR|")
-
-        res = []
-
-        for i in range(1, cnt + 1):
-            res.append(StaticIpv6Addr(self._nic, i))
-
-        return res
+        return self._nic._get('IPv6GATEWAY|' + str(self._index))

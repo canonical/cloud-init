@@ -32,7 +32,8 @@ logger = logging.getLogger(__name__)
 class ConfigFile(ConfigSource, dict):
     """ConfigFile module to load the content from a specified source."""
 
-    def __init__(self):
+    def __init__(self, filename):
+        self._loadConfigFile(filename)
         pass
 
     def _insertKey(self, key, val):
@@ -48,9 +49,9 @@ class ConfigFile(ConfigSource, dict):
         val = val.strip()
 
         if key.startswith('-') or '|-' in key:
-            canLog = 0
+            canLog = False
         else:
-            canLog = 1
+            canLog = True
 
         # "sensitive" settings shall not be logged
         if canLog:
@@ -64,7 +65,7 @@ class ConfigFile(ConfigSource, dict):
         """Return the number of properties present."""
         return len(self)
 
-    def loadConfigFile(self, filename):
+    def _loadConfigFile(self, filename):
         """
         Parses properties from the specified config file.
 
@@ -87,22 +88,9 @@ class ConfigFile(ConfigSource, dict):
             logger.debug("FOUND CATEGORY = '%s'" % category)
 
             for (key, value) in config.items(category):
-                # "sensitive" settings shall not be logged
-                if key.startswith('-'):
-                    canLog = 0
-                else:
-                    canLog = 1
-
-                if canLog:
-                    logger.debug("Processing key, value: '%s':'%s'" %
-                                 (key, value))
-                else:
-                    logger.debug("Processing key, value : "
-                                 "'*********************'")
-
                 self._insertKey(category + '|' + key, value)
 
-    def keep_current_value(self, key):
+    def should_keep_current_value(self, key):
         """
         Determines whether a value for a property must be kept.
 
@@ -114,9 +102,9 @@ class ConfigFile(ConfigSource, dict):
         """
         # helps to distinguish from "empty" value which is used to indicate
         # "removal"
-        return not key in self
+        return key not in self
 
-    def remove_current_value(self, key):
+    def should_remove_current_value(self, key):
         """
         Determines whether a value for the property must be removed.
 
@@ -135,17 +123,11 @@ class ConfigFile(ConfigSource, dict):
         else:
             return False
 
-    def get_count(self, prefix):
+    def get_count_with_prefix(self, prefix):
         """
-        Return the total number of keys that start with the
-        specified prefix.
+        Return the total count of keys that start with the specified prefix.
 
         Keyword arguments:
         prefix -- prefix of the key
         """
-        res = 0
-        for key in self.keys():
-            if key.startswith(prefix):
-                res += 1
-
-        return res
+        return len([key for key in self if key.startswith(prefix)])
