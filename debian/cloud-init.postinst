@@ -162,9 +162,9 @@ fix_1336855() {
   [ "$(stat -c %d:%i /)" != "$(stat -c %d:%i /proc/1/root/.)" ] && return 0
 
   # Check if we are in a container, i.e. LXC
-  for t in running-in-container lxc-is-container; do
-       command -v $t && $t && return 0
-  done >/dev/null 2>&1
+  if systemd-detect-virt --quiet --container || lxc-is-container 2>/dev/null; then
+      return 0
+  fi
 
   # Find out where grub thinks the root device is. Only continue if
   # grub postinst would install/reinstall grub
