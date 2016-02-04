@@ -71,6 +71,7 @@
  - Azure: get instance id from dmi instead of SharedConfig (LP: #1506187)
  - systemd/power_state: fix power_state to work even if cloud-final
    exited non-zero (LP: #1449318)
+ - lxd: add support for setting up lxd using 'lxd init'
 0.7.6:
  - open 0.7.6
  - Enable vendordata on CloudSigma datasource (LP: #1303986)
