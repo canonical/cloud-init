@@ -76,7 +76,9 @@ FALSE_STRINGS = ('off', '0', 'no', 'false')
 
 
 # Helper utils to see if running in a container
-CONTAINER_TESTS = ('running-in-container', 'lxc-is-container')
+CONTAINER_TESTS = (['systemd-detect-virt', '--quiet', '--container'],
+                   ['running-in-container'],
+                   ['lxc-is-container'])
 
 
 def decode_binary(blob, encoding='utf-8'):
@@ -1749,7 +1751,7 @@ def is_container():
         try:
             # try to run a helper program. if it returns true/zero
             # then we're inside a container. otherwise, no
-            subp([helper])
+            subp(helper)
             return True
         except (IOError, OSError):
             pass
