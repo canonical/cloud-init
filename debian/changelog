@@ -1,3 +1,12 @@
+cloud-init (0.7.7~bzr1160-0ubuntu1) xenial; urgency=medium
+
+  * New upstream snapshot.
+    * SmartOS: Add support for Joyent LX-Brand Zones (LP: #1540965)
+    * systemd/power_state: fix power_state when cloud-final exited failure
+      (LP: #1449318)
+
+ -- Scott Moser <smoser@ubuntu.com>  Thu, 04 Feb 2016 17:22:36 -0500
+
 cloud-init (0.7.7~bzr1156-0ubuntu2) xenial; urgency=medium
 
   * debian/cloud-init.postinst, systemd_detect_virt.patch: Call
