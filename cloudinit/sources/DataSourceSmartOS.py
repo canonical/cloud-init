@@ -20,10 +20,13 @@
 #    Datasource for provisioning on SmartOS. This works on Joyent
 #        and public/private Clouds using SmartOS.
 #
-#    SmartOS hosts use a serial console (/dev/ttyS1) on Linux Guests.
+#    SmartOS hosts use a serial console (/dev/ttyS1) on KVM Linux Guests
 #        The meta-data is transmitted via key/value pairs made by
 #        requests on the console. For example, to get the hostname, you
 #        would send "GET hostname" on /dev/ttyS1.
+#        For Linux Guests running in LX-Brand Zones on SmartOS hosts
+#        a socket (/native/.zonecontrol/metadata.sock) is used instead
+#        of a serial console.
 #
 #   Certain behavior is defined by the DataDictionary
 #       http://us-east.manta.joyent.com/jmc/public/mdata/datadict.html
@@ -34,6 +37,8 @@ import contextlib
 import os
 import random
 import re
+import socket
+import stat
 
 import serial
 
@@ -46,6 +51,7 @@ LOG = logging.getLogger(__name__)
 
 SMARTOS_ATTRIB_MAP = {
     # Cloud-init Key : (SmartOS Key, Strip line endings)
+    'instance-id': ('sdc:uuid', True),
     'local-hostname': ('hostname', True),
     'public-keys': ('root_authorized_keys', True),
     'user-script': ('user-script', False),
@@ -76,6 +82,7 @@ DS_CFG_PATH = ['datasource', DS_NAME]
 #
 BUILTIN_DS_CONFIG = {
     'serial_device': '/dev/ttyS1',
+    'metadata_sockfile': '/native/.zonecontrol/metadata.sock',
     'seed_timeout': 60,
     'no_base64_decode': ['root_authorized_keys',
                          'motd_sys_info',
@@ -83,6 +90,7 @@ BUILTIN_DS_CONFIG = {
                          'user-data',
                          'user-script',
                          'sdc:datacenter_name',
+                         'sdc:uuid',
                         ],
     'base64_keys': [],
     'base64_all': False,
@@ -150,17 +158,27 @@ class DataSourceSmartOS(sources.DataSource):
     def __init__(self, sys_cfg, distro, paths):
         sources.DataSource.__init__(self, sys_cfg, distro, paths)
         self.is_smartdc = None
-
         self.ds_cfg = util.mergemanydict([
             self.ds_cfg,
             util.get_cfg_by_path(sys_cfg, DS_CFG_PATH, {}),
             BUILTIN_DS_CONFIG])
 
         self.metadata = {}
-        self.cfg = BUILTIN_CLOUD_CONFIG
 
-        self.seed = self.ds_cfg.get("serial_device")
-        self.seed_timeout = self.ds_cfg.get("serial_timeout")
+        # SDC LX-Brand Zones lack dmidecode (no /dev/mem) but
+        # report 'BrandZ virtual linux' as the kernel version
+        if os.uname()[3].lower() == 'brandz virtual linux':
+            LOG.debug("Host is SmartOS, guest in Zone")
+            self.is_smartdc = True
+            self.smartos_type = 'lx-brand'
+            self.cfg = {}
+            self.seed = self.ds_cfg.get("metadata_sockfile")
+        else:
+            self.is_smartdc = True
+            self.smartos_type = 'kvm'
+            self.seed = self.ds_cfg.get("serial_device")
+            self.cfg = BUILTIN_CLOUD_CONFIG
+            self.seed_timeout = self.ds_cfg.get("serial_timeout")
         self.smartos_no_base64 = self.ds_cfg.get('no_base64_decode')
         self.b64_keys = self.ds_cfg.get('base64_keys')
         self.b64_all = self.ds_cfg.get('base64_all')
@@ -170,12 +188,49 @@ class DataSourceSmartOS(sources.DataSource):
         root = sources.DataSource.__str__(self)
         return "%s [seed=%s]" % (root, self.seed)
 
+    def _get_seed_file_object(self):
+        if not self.seed:
+            raise AttributeError("seed device is not set")
+
+        if self.smartos_type == 'lx-brand':
+            if not stat.S_ISSOCK(os.stat(self.seed).st_mode):
+                LOG.debug("Seed %s is not a socket", self.seed)
+                return None
+            sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+            sock.connect(self.seed)
+            return sock.makefile('rwb')
+        else:
+            if not stat.S_ISCHR(os.stat(self.seed).st_mode):
+                LOG.debug("Seed %s is not a character device")
+                return None
+            ser = serial.Serial(self.seed, timeout=self.seed_timeout)
+            if not ser.isOpen():
+                raise SystemError("Unable to open %s" % self.seed)
+            return ser
+        return None
+
+    def _set_provisioned(self):
+        '''Mark the instance provisioning state as successful.
+
+        When run in a zone, the host OS will look for /var/svc/provisioning
+        to be renamed as /var/svc/provision_success.   This should be done
+        after meta-data is successfully retrieved and from this point
+        the host considers the provision of the zone to be a success and
+        keeps the zone running.
+        '''
+
+        LOG.debug('Instance provisioning state set as successful')
+        svc_path = '/var/svc'
+        if os.path.exists('/'.join([svc_path, 'provisioning'])):
+            os.rename('/'.join([svc_path, 'provisioning']),
+                      '/'.join([svc_path, 'provision_success']))
+
     def get_data(self):
         md = {}
         ud = ""
 
         if not device_exists(self.seed):
-            LOG.debug("No serial device '%s' found for SmartOS datasource",
+            LOG.debug("No metadata device '%s' found for SmartOS datasource",
                       self.seed)
             return False
 
@@ -185,29 +240,36 @@ class DataSourceSmartOS(sources.DataSource):
             LOG.debug("Disabling SmartOS datasource on arm (LP: #1243287)")
             return False
 
-        dmi_info = dmi_data()
-        if dmi_info is False:
-            LOG.debug("No dmidata utility found")
+        # SDC KVM instances will provide dmi data, LX-brand does not
+        if self.smartos_type == 'kvm':
+            dmi_info = dmi_data()
+            if dmi_info is False:
+                LOG.debug("No dmidata utility found")
+                return False
+
+            system_type = dmi_info
+            if 'smartdc' not in system_type.lower():
+                LOG.debug("Host is not on SmartOS. system_type=%s",
+                          system_type)
+                return False
+            LOG.debug("Host is SmartOS, guest in KVM")
+
+        seed_obj = self._get_seed_file_object()
+        if seed_obj is None:
+            LOG.debug('Seed file object not found.')
             return False
+        with contextlib.closing(seed_obj) as seed:
+            b64_keys = self.query('base64_keys', seed, strip=True, b64=False)
+            if b64_keys is not None:
+                self.b64_keys = [k.strip() for k in str(b64_keys).split(',')]
 
-        system_uuid, system_type = tuple(dmi_info)
-        if 'smartdc' not in system_type.lower():
-            LOG.debug("Host is not on SmartOS. system_type=%s", system_type)
-            return False
-        self.is_smartdc = True
-        md['instance-id'] = system_uuid
+            b64_all = self.query('base64_all', seed, strip=True, b64=False)
+            if b64_all is not None:
+                self.b64_all = util.is_true(b64_all)
 
-        b64_keys = self.query('base64_keys', strip=True, b64=False)
-        if b64_keys is not None:
-            self.b64_keys = [k.strip() for k in str(b64_keys).split(',')]
-
-        b64_all = self.query('base64_all', strip=True, b64=False)
-        if b64_all is not None:
-            self.b64_all = util.is_true(b64_all)
-
-        for ci_noun, attribute in SMARTOS_ATTRIB_MAP.items():
-            smartos_noun, strip = attribute
-            md[ci_noun] = self.query(smartos_noun, strip=strip)
+            for ci_noun, attribute in SMARTOS_ATTRIB_MAP.items():
+                smartos_noun, strip = attribute
+                md[ci_noun] = self.query(smartos_noun, seed, strip=strip)
 
         # @datadictionary: This key may contain a program that is written
         # to a file in the filesystem of the guest on each boot and then
@@ -240,7 +302,7 @@ class DataSourceSmartOS(sources.DataSource):
 
         # Handle the cloud-init regular meta
         if not md['local-hostname']:
-            md['local-hostname'] = system_uuid
+            md['local-hostname'] = md['instance-id']
 
         ud = None
         if md['user-data']:
@@ -257,6 +319,8 @@ class DataSourceSmartOS(sources.DataSource):
         self.metadata = util.mergemanydict([md, self.metadata])
         self.userdata_raw = ud
         self.vendordata_raw = md['vendor-data']
+
+        self._set_provisioned()
         return True
 
     def device_name_to_device(self, name):
@@ -268,40 +332,64 @@ class DataSourceSmartOS(sources.DataSource):
     def get_instance_id(self):
         return self.metadata['instance-id']
 
-    def query(self, noun, strip=False, default=None, b64=None):
+    def query(self, noun, seed_file, strip=False, default=None, b64=None):
         if b64 is None:
             if noun in self.smartos_no_base64:
                 b64 = False
             elif self.b64_all or noun in self.b64_keys:
                 b64 = True
 
-        return query_data(noun=noun, strip=strip, seed_device=self.seed,
-                          seed_timeout=self.seed_timeout, default=default,
-                          b64=b64)
+        return self._query_data(noun, seed_file, strip=strip,
+                                default=default, b64=b64)
+
+    def _query_data(self, noun, seed_file, strip=False,
+                    default=None, b64=None):
+        """Makes a request via "GET <NOUN>"
+
+           In the response, the first line is the status, while subsequent
+           lines are is the value. A blank line with a "." is used to
+           indicate end of response.
+
+           If the response is expected to be base64 encoded, then set
+           b64encoded to true. Unfortantely, there is no way to know if
+           something is 100% encoded, so this method relies on being told
+           if the data is base64 or not.
+        """
+
+        if not noun:
+            return False
+
+        response = JoyentMetadataClient(seed_file).get_metadata(noun)
+
+        if response is None:
+            return default
+
+        if b64 is None:
+            b64 = self._query_data('b64-%s' % noun, seed_file, b64=False,
+                                   default=False, strip=True)
+            b64 = util.is_true(b64)
+
+        resp = None
+        if b64 or strip:
+            resp = "".join(response).rstrip()
+        else:
+            resp = "".join(response)
+
+        if b64:
+            try:
+                return util.b64d(resp)
+            # Bogus input produces different errors in Python 2 and 3;
+            # catch both.
+            except (TypeError, binascii.Error):
+                LOG.warn("Failed base64 decoding key '%s'", noun)
+                return resp
+
+        return resp
 
 
 def device_exists(device):
     """Symplistic method to determine if the device exists or not"""
     return os.path.exists(device)
-
-
-def get_serial(seed_device, seed_timeout):
-    """This is replaced in unit testing, allowing us to replace
-        serial.Serial with a mocked class.
-
-        The timeout value of 60 seconds should never be hit. The value
-        is taken from SmartOS own provisioning tools. Since we are reading
-        each line individually up until the single ".", the transfer is
-        usually very fast (i.e. microseconds) to get the response.
-    """
-    if not seed_device:
-        raise AttributeError("seed_device value is not set")
-
-    ser = serial.Serial(seed_device, timeout=seed_timeout)
-    if not ser.isOpen():
-        raise SystemError("Unable to open %s" % seed_device)
-
-    return ser
 
 
 class JoyentMetadataFetchException(Exception):
@@ -320,8 +408,8 @@ class JoyentMetadataClient(object):
         r' (?P<body>(?P<request_id>[0-9a-f]+) (?P<status>SUCCESS|NOTFOUND)'
         r'( (?P<payload>.+))?)')
 
-    def __init__(self, serial):
-        self.serial = serial
+    def __init__(self, metasource):
+        self.metasource = metasource
 
     def _checksum(self, body):
         return '{0:08x}'.format(
@@ -356,67 +444,30 @@ class JoyentMetadataClient(object):
                                             util.b64e(metadata_key))
         msg = 'V2 {0} {1} {2}\n'.format(
             len(message_body), self._checksum(message_body), message_body)
-        LOG.debug('Writing "%s" to serial port.', msg)
-        self.serial.write(msg.encode('ascii'))
-        response = self.serial.readline().decode('ascii')
-        LOG.debug('Read "%s" from serial port.', response)
+        LOG.debug('Writing "%s" to metadata transport.', msg)
+        self.metasource.write(msg.encode('ascii'))
+        self.metasource.flush()
+
+        response = bytearray()
+        response.extend(self.metasource.read(1))
+        while response[-1:] !=  b'\n':
+            response.extend(self.metasource.read(1))
+        response = response.rstrip().decode('ascii')
+        LOG.debug('Read "%s" from metadata transport.', response)
+
+        if 'SUCCESS' not in response:
+            return None
+
         return self._get_value_from_frame(request_id, response)
 
 
-def query_data(noun, seed_device, seed_timeout, strip=False, default=None,
-               b64=None):
-    """Makes a request to via the serial console via "GET <NOUN>"
-
-        In the response, the first line is the status, while subsequent lines
-        are is the value. A blank line with a "." is used to indicate end of
-        response.
-
-        If the response is expected to be base64 encoded, then set b64encoded
-        to true. Unfortantely, there is no way to know if something is 100%
-        encoded, so this method relies on being told if the data is base64 or
-        not.
-    """
-    if not noun:
-        return False
-
-    with contextlib.closing(get_serial(seed_device, seed_timeout)) as ser:
-        client = JoyentMetadataClient(ser)
-        response = client.get_metadata(noun)
-
-    if response is None:
-        return default
-
-    if b64 is None:
-        b64 = query_data('b64-%s' % noun, seed_device=seed_device,
-                         seed_timeout=seed_timeout, b64=False,
-                         default=False, strip=True)
-        b64 = util.is_true(b64)
-
-    resp = None
-    if b64 or strip:
-        resp = "".join(response).rstrip()
-    else:
-        resp = "".join(response)
-
-    if b64:
-        try:
-            return util.b64d(resp)
-        # Bogus input produces different errors in Python 2 and 3; catch both.
-        except (TypeError, binascii.Error):
-            LOG.warn("Failed base64 decoding key '%s'", noun)
-            return resp
-
-    return resp
-
-
 def dmi_data():
-    sys_uuid = util.read_dmi_data("system-uuid")
     sys_type = util.read_dmi_data("system-product-name")
 
-    if not sys_uuid or not sys_type:
+    if not sys_type:
         return None
 
-    return (sys_uuid.lower(), sys_type)
+    return sys_type
 
 
 def write_boot_content(content, content_f, link=None, shebang=False,
