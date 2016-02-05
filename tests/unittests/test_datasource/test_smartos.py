@@ -31,6 +31,7 @@ import shutil
 import stat
 import tempfile
 import uuid
+import unittest
 from binascii import crc32
 
 import serial
@@ -56,12 +57,13 @@ MOCK_RETURNS = {
     'cloud-init:user-data': '\n'.join(['#!/bin/sh', '/bin/true', '']),
     'sdc:datacenter_name': 'somewhere2',
     'sdc:operator-script': '\n'.join(['bin/true', '']),
+    'sdc:uuid': str(uuid.uuid4()),
     'sdc:vendor-data': '\n'.join(['VENDOR_DATA', '']),
     'user-data': '\n'.join(['something', '']),
     'user-script': '\n'.join(['/bin/true', '']),
 }
 
-DMI_DATA_RETURN = (str(uuid.uuid4()), 'smartdc')
+DMI_DATA_RETURN = 'smartdc'
 
 
 def get_mock_client(mockdata):
@@ -111,7 +113,8 @@ class TestSmartOSDataSource(helpers.FilesystemMockingTestCase):
         ret = apply_patches(patches)
         self.unapply += ret
 
-    def _get_ds(self, sys_cfg=None, ds_cfg=None, mockdata=None, dmi_data=None):
+    def _get_ds(self, sys_cfg=None, ds_cfg=None, mockdata=None, dmi_data=None,
+                is_lxbrand=False):
         mod = DataSourceSmartOS
 
         if mockdata is None:
@@ -124,9 +127,13 @@ class TestSmartOSDataSource(helpers.FilesystemMockingTestCase):
             return dmi_data
 
         def _os_uname():
-            # LP: #1243287. tests assume this runs, but running test on
-            # arm would cause them all to fail.
-            return ('LINUX', 'NODENAME', 'RELEASE', 'VERSION', 'x86_64')
+            if not is_lxbrand:
+                # LP: #1243287. tests assume this runs, but running test on
+                # arm would cause them all to fail.
+                return ('LINUX', 'NODENAME', 'RELEASE', 'VERSION', 'x86_64')
+            else:
+                return ('LINUX', 'NODENAME', 'RELEASE', 'BRANDZ VIRTUAL LINUX',
+                        'X86_64')
 
         if sys_cfg is None:
             sys_cfg = {}
@@ -136,7 +143,6 @@ class TestSmartOSDataSource(helpers.FilesystemMockingTestCase):
             sys_cfg['datasource']['SmartOS'] = ds_cfg
 
         self.apply_patches([(mod, 'LEGACY_USER_D', self.legacy_user_d)])
-        self.apply_patches([(mod, 'get_serial', mock.MagicMock())])
         self.apply_patches([
             (mod, 'JoyentMetadataClient', get_mock_client(mockdata))])
         self.apply_patches([(mod, 'dmi_data', _dmi_data)])
@@ -144,6 +150,7 @@ class TestSmartOSDataSource(helpers.FilesystemMockingTestCase):
         self.apply_patches([(mod, 'device_exists', lambda d: True)])
         dsrc = mod.DataSourceSmartOS(sys_cfg, distro=None,
                                      paths=self.paths)
+        self.apply_patches([(dsrc, '_get_seed_file_object', mock.MagicMock())])
         return dsrc
 
     def test_seed(self):
@@ -151,10 +158,25 @@ class TestSmartOSDataSource(helpers.FilesystemMockingTestCase):
         dsrc = self._get_ds()
         ret = dsrc.get_data()
         self.assertTrue(ret)
+        self.assertEquals('kvm', dsrc.smartos_type)
         self.assertEquals('/dev/ttyS1', dsrc.seed)
+
+    def test_seed_lxbrand(self):
+        # default seed should be /dev/ttyS1
+        dsrc = self._get_ds(is_lxbrand=True)
+        ret = dsrc.get_data()
+        self.assertTrue(ret)
+        self.assertEquals('lx-brand', dsrc.smartos_type)
+        self.assertEquals('/native/.zonecontrol/metadata.sock', dsrc.seed)
 
     def test_issmartdc(self):
         dsrc = self._get_ds()
+        ret = dsrc.get_data()
+        self.assertTrue(ret)
+        self.assertTrue(dsrc.is_smartdc)
+
+    def test_issmartdc_lxbrand(self):
+        dsrc = self._get_ds(is_lxbrand=True)
         ret = dsrc.get_data()
         self.assertTrue(ret)
         self.assertTrue(dsrc.is_smartdc)
@@ -169,7 +191,8 @@ class TestSmartOSDataSource(helpers.FilesystemMockingTestCase):
         dsrc = self._get_ds(mockdata=MOCK_RETURNS)
         ret = dsrc.get_data()
         self.assertTrue(ret)
-        self.assertEquals(DMI_DATA_RETURN[0], dsrc.metadata['instance-id'])
+        self.assertEquals(MOCK_RETURNS['sdc:uuid'],
+                          dsrc.metadata['instance-id'])
 
     def test_root_keys(self):
         dsrc = self._get_ds(mockdata=MOCK_RETURNS)
@@ -407,18 +430,6 @@ class TestSmartOSDataSource(helpers.FilesystemMockingTestCase):
         self.assertEqual(dsrc.device_name_to_device('FOO'),
                          mydscfg['disk_aliases']['FOO'])
 
-    @mock.patch('cloudinit.sources.DataSourceSmartOS.JoyentMetadataClient')
-    @mock.patch('cloudinit.sources.DataSourceSmartOS.get_serial')
-    def test_serial_console_closed_on_error(self, get_serial, metadata_client):
-        class OurException(Exception):
-            pass
-        metadata_client.side_effect = OurException
-        try:
-            DataSourceSmartOS.query_data('noun', 'device', 0)
-        except OurException:
-            pass
-        self.assertEqual(1, get_serial.return_value.close.call_count)
-
 
 def apply_patches(patches):
     ret = []
@@ -447,14 +458,25 @@ class TestJoyentMetadataClient(helpers.FilesystemMockingTestCase):
         }
 
         def make_response():
-            payload = ''
-            if self.response_parts['payload']:
-                payload = ' {0}'.format(self.response_parts['payload'])
-            del self.response_parts['payload']
-            return (
-                'V2 {length} {crc} {request_id} {command}{payload}\n'.format(
-                    payload=payload, **self.response_parts).encode('ascii'))
-        self.serial.readline.side_effect = make_response
+            payloadstr = ''
+            if 'payload' in self.response_parts:
+                payloadstr = ' {0}'.format(self.response_parts['payload'])
+            return ('V2 {length} {crc} {request_id} '
+                    '{command}{payloadstr}\n'.format(
+                    payloadstr=payloadstr,
+                    **self.response_parts).encode('ascii'))
+
+        self.metasource_data = None
+
+        def read_response(length):
+            if not self.metasource_data:
+                self.metasource_data = make_response()
+                self.metasource_data_len = len(self.metasource_data)
+            resp = self.metasource_data[:length]
+            self.metasource_data = self.metasource_data[length:]
+            return resp
+
+        self.serial.read.side_effect = read_response
         self.patched_funcs.enter_context(
             mock.patch('cloudinit.sources.DataSourceSmartOS.random.randint',
                        mock.Mock(return_value=self.request_id)))
@@ -477,7 +499,9 @@ class TestJoyentMetadataClient(helpers.FilesystemMockingTestCase):
         client.get_metadata('some_key')
         self.assertEqual(1, self.serial.write.call_count)
         written_line = self.serial.write.call_args[0][0]
-        self.assertEndsWith(written_line, b'\n')
+        print(type(written_line))
+        self.assertEndsWith(written_line.decode('ascii'),
+            b'\n'.decode('ascii'))
         self.assertEqual(1, written_line.count(b'\n'))
 
     def _get_written_line(self, key='some_key'):
@@ -489,7 +513,8 @@ class TestJoyentMetadataClient(helpers.FilesystemMockingTestCase):
         self.assertIsInstance(self._get_written_line(), six.binary_type)
 
     def test_get_metadata_line_starts_with_v2(self):
-        self.assertStartsWith(self._get_written_line(), b'V2')
+        foo = self._get_written_line()
+        self.assertStartsWith(foo.decode('ascii'), b'V2'.decode('ascii'))
 
     def test_get_metadata_uses_get_command(self):
         parts = self._get_written_line().decode('ascii').strip().split(' ')
@@ -526,7 +551,7 @@ class TestJoyentMetadataClient(helpers.FilesystemMockingTestCase):
     def test_get_metadata_reads_a_line(self):
         client = self._get_client()
         client.get_metadata('some_key')
-        self.assertEqual(1, self.serial.readline.call_count)
+        self.assertEqual(self.metasource_data_len, self.serial.read.call_count)
 
     def test_get_metadata_returns_valid_value(self):
         client = self._get_client()
