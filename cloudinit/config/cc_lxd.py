@@ -36,15 +36,31 @@ from cloudinit import util
 
 
 def handle(name, cfg, cloud, log, args):
-    if not cfg.get('lxd') and cfg['lxd'].get('init'):
+    # Get config
+    lxd_cfg = cfg.get('lxd')
+    if not lxd_cfg and isinstance(lxd_cfg, dict):
         log.debug("Skipping module named %s, not present or disabled by cfg")
         return
-    lxd_conf = cfg['lxd']['init']
-    keys = ('network_address', 'network_port', 'storage_backend',
-            'storage_create_device', 'storage_create_loop', 'storage_pool',
-            'trust_password')
-    cmd = ['lxd', 'init', '--auto']
-    for k in keys:
-        if lxd_conf.get(k):
-            cmd.extend(["--%s" % k.replace('_', '-'), lxd_conf[k]])
-    util.subp(cmd)
+
+    # Ensure lxd is installed
+    if not util.which("lxd"):
+        try:
+            cloud.distro.install_packages(("lxd",))
+        except util.ProcessExecutionError as e:
+            log.warn("no lxd executable and could not install lxd: '%s'" % e)
+            return
+
+    # Set up lxd if init config is given
+    init_cfg = lxd_cfg.get('init')
+    if init_cfg:
+        if not isinstance(init_cfg, dict):
+            log.warn("lxd init config must be a dict of flag: val pairs")
+            return
+        init_keys = ('network_address', 'network_port', 'storage_backend',
+                     'storage_create_device', 'storage_create_loop',
+                     'storage_pool', 'trust_password')
+        cmd = ['lxd', 'init', '--auto']
+        for k in init_keys:
+            if init_cfg.get(k):
+                cmd.extend(["--%s" % k.replace('_', '-'), init_cfg[k]])
+        util.subp(cmd)
