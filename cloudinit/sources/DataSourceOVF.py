@@ -24,11 +24,16 @@ from xml.dom import minidom
 
 import base64
 import os
+import shutil
 import re
+import time
 
 from cloudinit import log as logging
 from cloudinit import sources
 from cloudinit import util
+from cloudinit.sources.helpers.vmware.imc.config import Config
+from cloudinit.sources.helpers.vmware.imc.config_file import ConfigFile
+from cloudinit.sources.helpers.vmware.imc.config_nic import NicConfigurator
 
 LOG = logging.getLogger(__name__)
 
@@ -50,13 +55,51 @@ class DataSourceOVF(sources.DataSource):
         found = []
         md = {}
         ud = ""
+        vmwarePlatformFound = False
+        vmwareImcConfigFilePath = ''
 
         defaults = {
             "instance-id": "iid-dsovf",
         }
 
         (seedfile, contents) = get_ovf_env(self.paths.seed_dir)
-        if seedfile:
+        dmi_info = dmi_data()
+        system_uuid = ""
+        system_type = ""
+
+        if dmi_info is False:
+           LOG.debug("No dmidata utility found")
+        else:
+           system_uuid, system_type = tuple(dmi_info)
+
+        if 'vmware' in system_type.lower():
+            LOG.debug("VMware Virtual Platform found")
+            deployPkgPluginPath = search_file("/usr/lib/vmware-tools", "libdeployPkgPlugin.so")
+            if deployPkgPluginPath:
+                vmwareImcConfigFilePath = util.log_time(logfunc=LOG.debug,
+                                  msg="waiting for configuration file",
+                                  func=wait_for_imc_cfg_file,
+                                  args=("/tmp", "cust.cfg"))
+
+            if vmwareImcConfigFilePath:
+                LOG.debug("Found VMware DeployPkg Config File Path at %s" % vmwareImcConfigFilePath)
+            else:
+                LOG.debug("Didn't find VMware DeployPkg Config File Path")
+
+        if vmwareImcConfigFilePath:
+            try:
+                cf = ConfigFile(vmwareImcConfigFilePath)
+                conf = Config(cf)
+                (md, ud, cfg) = read_vmware_imc(conf)
+                nicConfigurator = NicConfigurator(conf.nics)
+                nicConfigurator.configure()
+                vmwarePlatformFound = True
+            except Exception as inst:
+                LOG.debug("Error while parsing the Customization Config File")
+            finally:
+                dirPath = os.path.dirname(vmwareImcConfigFilePath)
+                shutil.rmtree(dirPath)
+        elif seedfile:
             # Found a seed dir
             seed = os.path.join(self.paths.seed_dir, seedfile)
             (md, ud, cfg) = read_ovf_environment(contents)
@@ -76,7 +119,7 @@ class DataSourceOVF(sources.DataSource):
                 found.append(name)
 
         # There was no OVF transports found
-        if len(found) == 0:
+        if len(found) == 0 and not vmwarePlatformFound:
             return False
 
         if 'seedfrom' in md and md['seedfrom']:
@@ -108,7 +151,7 @@ class DataSourceOVF(sources.DataSource):
 
     def get_public_ssh_keys(self):
         if 'public-keys' not in self.metadata:
-            return []
+           return []
         pks = self.metadata['public-keys']
         if isinstance(pks, (list)):
             return pks
@@ -128,6 +171,31 @@ class DataSourceOVFNet(DataSourceOVF):
         self.seed_dir = os.path.join(paths.seed_dir, 'ovf-net')
         self.supported_seed_starts = ("http://", "https://", "ftp://")
 
+
+def wait_for_imc_cfg_file(directoryPath, filename, maxwait=180, naplen=5):
+    waited = 0
+    
+    while waited < maxwait:
+        fileFullPath = search_file(directoryPath, filename)
+        if fileFullPath:
+            return fileFullPath
+        time.sleep(naplen)
+        waited += naplen
+    return None
+
+# This will return a dict with some content
+#  meta-data, user-data, some config
+def read_vmware_imc(config):
+    md = {}
+    cfg = {}
+    ud = ""
+    if config.host_name:
+       if config.domain_name:
+          md['local-hostname'] = config.host_name + "." + config.domain_name
+       else:
+          md['local-hostname'] = config.host_name
+
+    return (md, ud, cfg)
 
 # This will return a dict with some content
 #  meta-data, user-data, some config
@@ -280,6 +348,39 @@ def get_properties(contents):
 
     return props
 
+def dmi_data():
+    sys_uuid = util.read_dmi_data("system-uuid")
+    sys_type = util.read_dmi_data("system-product-name")
+
+    if not sys_uuid or not sys_type:
+        return None
+
+    return (sys_uuid.lower(), sys_type)
+
+def search_file(directoryPath, filename):
+    if not directoryPath or not filename:
+       return None
+
+    dirs = []
+
+    if os.path.isdir(directoryPath):
+       dirs.append(directoryPath)
+
+    while dirs:
+        dir = dirs.pop()
+        children = []
+        try:
+            children.extend(os.listdir(dir))
+        except:
+            LOG.debug("Ignoring the error while searching the directory %s" % dir)
+        for child in children: 
+            childFullPath = os.path.join(dir, child)
+            if os.path.isdir(childFullPath):
+                dirs.append(childFullPath)
+            elif child == filename: 
+                return childFullPath
+
+    return None
 
 class XmlError(Exception):
     pass

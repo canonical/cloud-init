@@ -47,21 +47,37 @@ class Nic(NicBase):
 
     @property
     def primary(self):
-        value = self._get('PRIMARY').lower()
-        return value == 'yes' or value == 'true'
+        value = self._get('PRIMARY')
+        if value:
+           value = value.lower()
+           return value == 'yes' or value == 'true'
+        else:
+           return False
 
     @property
     def onboot(self):
-        value = self._get('ONBOOT').lower()
-        return value == 'yes' or value == 'true'
+        value = self._get('ONBOOT')
+        if value:
+           value = value.lower()
+           return value == 'yes' or value == 'true'
+        else:
+           return False
 
     @property
     def bootProto(self):
-        return self._get('BOOTPROTO').lower()
+        value = self._get('BOOTPROTO')
+        if value:
+           return value.lower()
+        else:
+           return ""
 
     @property
     def ipv4_mode(self):
-        return self._get('IPv4_MODE').lower()
+        value = self._get('IPv4_MODE')
+        if value:
+           return value.lower()
+        else:
+           return ""
 
     @property
     def staticIpv4(self):
