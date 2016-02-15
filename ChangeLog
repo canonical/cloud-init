@@ -75,6 +75,7 @@
    [Robert C Jennings]
  - systemd: support using systemd-detect-virt to detect container
    (LP: #1539016) [Martin Pitt]
+ - docs: fix lock_passwd documentation [Robert C Jennings]
 0.7.6:
  - open 0.7.6
  - Enable vendordata on CloudSigma datasource (LP: #1303986)
