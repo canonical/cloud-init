@@ -76,6 +76,9 @@
  - systemd: support using systemd-detect-virt to detect container
    (LP: #1539016) [Martin Pitt]
  - docs: fix lock_passwd documentation [Robert C Jennings]
+ - Azure: Handle escaped quotes in WALinuxAgentShim.find_endpoint.
+   (LP: #1488891) [Dan Watkins]
+
 0.7.6:
  - open 0.7.6
  - Enable vendordata on CloudSigma datasource (LP: #1303986)
