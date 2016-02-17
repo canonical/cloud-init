@@ -64,13 +64,12 @@ class DataSourceOVF(sources.DataSource):
 
         (seedfile, contents) = get_ovf_env(self.paths.seed_dir)
         dmi_info = dmi_data()
-        system_uuid = ""
         system_type = ""
 
-        if dmi_info is False:
+        if dmi_info is None:
            LOG.debug("No dmidata utility found")
         else:
-           system_uuid, system_type = tuple(dmi_info)
+           (_, system_type) = dmi_info
 
         if 'vmware' in system_type.lower():
             LOG.debug("VMware Virtual Platform found")
@@ -172,11 +171,11 @@ class DataSourceOVFNet(DataSourceOVF):
         self.supported_seed_starts = ("http://", "https://", "ftp://")
 
 
-def wait_for_imc_cfg_file(directoryPath, filename, maxwait=180, naplen=5):
+def wait_for_imc_cfg_file(dirpath, filename, maxwait=180, naplen=5):
     waited = 0
     
     while waited < maxwait:
-        fileFullPath = search_file(directoryPath, filename)
+        fileFullPath = search_file(dirpath, filename)
         if fileFullPath:
             return fileFullPath
         time.sleep(naplen)
@@ -357,28 +356,13 @@ def dmi_data():
 
     return (sys_uuid.lower(), sys_type)
 
-def search_file(directoryPath, filename):
-    if not directoryPath or not filename:
+def search_file(dirpath, filename):
+    if not dirpath or not filename:
        return None
 
-    dirs = []
-
-    if os.path.isdir(directoryPath):
-       dirs.append(directoryPath)
-
-    while dirs:
-        dir = dirs.pop()
-        children = []
-        try:
-            children.extend(os.listdir(dir))
-        except:
-            LOG.debug("Ignoring the error while searching the directory %s" % dir)
-        for child in children: 
-            childFullPath = os.path.join(dir, child)
-            if os.path.isdir(childFullPath):
-                dirs.append(childFullPath)
-            elif child == filename: 
-                return childFullPath
+    for root, dirs, files in os.walk(dirpath):
+        if filename in files:
+            return os.path.join(root, filename)
 
     return None
 

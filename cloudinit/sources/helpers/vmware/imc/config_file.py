@@ -61,10 +61,6 @@ class ConfigFile(ConfigSource, dict):
 
         self[key] = val
 
-    def size(self):
-        """Return the number of properties present."""
-        return len(self)
-
     def _loadConfigFile(self, filename):
         """
         Parses properties from the specified config file.

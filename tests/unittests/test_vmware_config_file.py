@@ -36,12 +36,12 @@ class TestVmwareConfigFile(unittest.TestCase):
 
         cf.clear()
 
-        self.assertEqual(0, cf.size(), "clear size")
+        self.assertEqual(0, len(cf), "clear size")
 
         cf._insertKey("  PASSWORD|-PASS ", "  foo  ")
         cf._insertKey("BAR", "   ")
 
-        self.assertEqual(2, cf.size(), "insert size")
+        self.assertEqual(2, len(cf), "insert size")
         self.assertEqual('foo', cf["PASSWORD|-PASS"], "password")
         self.assertTrue("PASSWORD|-PASS" in cf, "hasPassword")
         self.assertFalse(cf.should_keep_current_value("PASSWORD|-PASS"),
