@@ -63,15 +63,11 @@ class DataSourceOVF(sources.DataSource):
         }
 
         (seedfile, contents) = get_ovf_env(self.paths.seed_dir)
-        dmi_info = dmi_data()
-        system_type = ""
 
-        if dmi_info is None:
-           LOG.debug("No dmidata utility found")
-        else:
-           (_, system_type) = dmi_info
-
-        if 'vmware' in system_type.lower():
+        system_type = util.read_dmi_data("system-product-name")
+        if system_type is None:
+           LOG.debug("No system-product-name found")
+        elif 'vmware' in system_type.lower():
             LOG.debug("VMware Virtual Platform found")
             deployPkgPluginPath = search_file("/usr/lib/vmware-tools", "libdeployPkgPlugin.so")
             if deployPkgPluginPath:
@@ -347,14 +343,6 @@ def get_properties(contents):
 
     return props
 
-def dmi_data():
-    sys_uuid = util.read_dmi_data("system-uuid")
-    sys_type = util.read_dmi_data("system-product-name")
-
-    if not sys_uuid or not sys_type:
-        return None
-
-    return (sys_uuid.lower(), sys_type)
 
 def search_file(dirpath, filename):
     if not dirpath or not filename:

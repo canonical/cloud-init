@@ -22,6 +22,8 @@ import os
 import subprocess
 import re
 
+from cloudinit import util
+
 logger = logging.getLogger(__name__)
 
 
@@ -43,32 +45,30 @@ class NicConfigurator:
         Retrieve the primary nic if it exists
         @return (NicBase): the primary nic if exists, None otherwise
         """
-        primaryNic = None
-
-        for nic in self.nics:
-            if nic.primary:
-                if primaryNic:
-                    raise Exception('There can only be one primary nic',
-                                    primaryNic.mac, nic.mac)
-            primaryNic = nic
-
-        return primaryNic
+        primary_nics = [nic for nic in self.nics if nic.primary]
+        if not primary_nics:
+           return None
+        elif len(primary_nics) > 1:
+           raise Exception('There can only be one primary nic',
+                            [nic.mac for nic in primary_nics])
+        else:
+           return primary_nics[0]
 
     def find_devices(self):
         """
         Create the mac2Name dictionary
         The mac address(es) are in the lower case
         """
-        cmd = 'ip addr show'
-        outText = subprocess.check_output(cmd, shell=True).decode()
-        sections = re.split(r'\n\d+: ', '\n' + outText)[1:]
+        cmd = ['ip', 'addr', 'show']
+        (output, err) = util.subp(cmd)
+        sections = re.split(r'\n\d+: ', '\n' + output)[1:]
 
         macPat = r'link/ether (([0-9A-Fa-f]{2}[:]){5}([0-9A-Fa-f]{2}))'
         for section in sections:
-            matcher = re.search(macPat, section)
-            if not matcher:  # Only keep info about nics
+            match = re.search(macPat, section)
+            if not match:  # Only keep info about nics
                 continue
-            mac = matcher.group(1).lower()
+            mac = match.group(1).lower()
             name = section.split(':', 1)[0]
             self.mac2Name[mac] = name
 
@@ -206,8 +206,8 @@ class NicConfigurator:
     def clear_dhcp(self):
         logger.info('Clearing DHCP leases')
 
-        subprocess.call('pkill dhclient', shell=True)
-        subprocess.check_call('rm -f /var/lib/dhcp/*', shell=True)
+        util.subp(["pkill", "dhclient"])
+        util.subp(["rm", "-f", "/var/lib/dhcp/*"])
 
     def if_down_up(self):
         names = []
@@ -217,13 +217,13 @@ class NicConfigurator:
 
         for name in names:
             logger.info('Bring down interface %s' % name)
-            subprocess.check_call('ifdown %s' % name, shell=True)
+            util.subp(["ifdown", "%s" % name])
 
         self.clear_dhcp()
 
         for name in names:
             logger.info('Bring up interface %s' % name)
-            subprocess.check_call('ifup %s' % name, shell=True)
+            util.subp(["ifup", "%s" % name])
 
     def configure(self):
         """
