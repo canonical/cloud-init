@@ -78,6 +78,7 @@
  - docs: fix lock_passwd documentation [Robert C Jennings]
  - Azure: Handle escaped quotes in WALinuxAgentShim.find_endpoint.
    (LP: #1488891) [Dan Watkins]
+ - lxd: add support for setting up lxd using 'lxd init' (LP: #1522879)
 
 0.7.6:
  - open 0.7.6
