@@ -47,18 +47,20 @@ def handle(name, cfg, cloud, log, args):
         try:
             cloud.distro.install_packages(("lxd",))
         except util.ProcessExecutionError as e:
-            log.warn("no lxd executable and could not install lxd: '%s'" % e)
+            log.warn("no lxd executable and could not install lxd:", e)
             return
 
     # Set up lxd if init config is given
+    init_keys = (
+        'network_address', 'network_port', 'storage_backend',
+        'storage_create_device', 'storage_create_loop',
+        'storage_pool', 'trust_password')
     init_cfg = lxd_cfg.get('init')
     if init_cfg:
         if not isinstance(init_cfg, dict):
-            log.warn("lxd init config must be a dict of flag: val pairs")
+            log.warn("lxd/init config must be a dictionary. found a '%s'",
+                      type(f))
             return
-        init_keys = ('network_address', 'network_port', 'storage_backend',
-                     'storage_create_device', 'storage_create_loop',
-                     'storage_pool', 'trust_password')
         cmd = ['lxd', 'init', '--auto']
         for k in init_keys:
             if init_cfg.get(k):
