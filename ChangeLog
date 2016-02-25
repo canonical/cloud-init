@@ -72,10 +72,14 @@
  - systemd/power_state: fix power_state to work even if cloud-final
    exited non-zero (LP: #1449318)
  - SmartOS: Add support for Joyent LX-Brand Zones (LP: #1540965)
- - lxd: add support for setting up lxd using 'lxd init' (LP: #1522879)
    [Robert C Jennings]
  - systemd: support using systemd-detect-virt to detect container
    (LP: #1539016) [Martin Pitt]
+ - docs: fix lock_passwd documentation [Robert C Jennings]
+ - Azure: Handle escaped quotes in WALinuxAgentShim.find_endpoint.
+   (LP: #1488891) [Dan Watkins]
+ - lxd: add support for setting up lxd using 'lxd init' (LP: #1522879)
+
 0.7.6:
  - open 0.7.6
  - Enable vendordata on CloudSigma datasource (LP: #1303986)
