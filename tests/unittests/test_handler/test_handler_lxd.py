@@ -43,9 +43,10 @@ class TestLxd(t_help.TestCase):
         self.assertTrue(mock_util.which.called)
         init_call = mock_util.subp.call_args_list[0][0][0]
         self.assertEquals(init_call,
-                          ['lxd', 'init', '--auto', '--network-address',
-                           '0.0.0.0', '--storage-backend', 'zfs',
-                           '--storage-pool', 'poolname'])
+                          ['lxd', 'init', '--auto',
+                           '--network-address=0.0.0.0',
+                           '--storage-backend=zfs',
+                           '--storage-pool=poolname'])
 
     @mock.patch("cloudinit.config.cc_lxd.util")
     def test_lxd_install(self, mock_util):
@@ -55,4 +56,4 @@ class TestLxd(t_help.TestCase):
         cc_lxd.handle('cc_lxd', self.lxd_cfg, cc, LOG, [])
         self.assertTrue(cc.distro.install_packages.called)
         install_pkg = cc.distro.install_packages.call_args_list[0][0][0]
-        self.assertEquals(install_pkg, ('lxd',))
+        self.assertEquals(sorted(install_pkg), ['lxd', 'zfs'])

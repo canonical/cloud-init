@@ -19,3 +19,10 @@ lxd:
     network_port: 8443
     storage_backend: zfs
     storage_pool: datapool
+    storage_create_loop: 10
+
+
+# The simplist working configuration is
+# lxd:
+#  init:
+#   storage_backend: dir

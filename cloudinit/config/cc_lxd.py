@@ -38,16 +38,36 @@ from cloudinit import util
 def handle(name, cfg, cloud, log, args):
     # Get config
     lxd_cfg = cfg.get('lxd')
-    if not lxd_cfg and isinstance(lxd_cfg, dict):
+    if not lxd_cfg:
         log.debug("Skipping module named %s, not present or disabled by cfg")
         return
+    if not isinstance(lxd_cfg, dict):
+        log.warn("lxd config must be a dictionary. found a '%s'",
+                 type(lxd_cfg))
+        return
+
+    init_cfg = lxd_cfg.get('init')
+    if not init_cfg:
+        init_cfg = {}
+
+    if not isinstance(init_cfg, dict):
+        log.warn("lxd/init config must be a dictionary. found a '%s'",
+                  type(init_cfg))
+        init_cfg = {}
+
+    packages = []
+    if (init_cfg.get("storage_backend") == "zfs" and not util.which('zfs')):
+       packages.append('zfs')
 
     # Ensure lxd is installed
     if not util.which("lxd"):
+        packages.append('lxd')
+    
+    if len(packages):
         try:
-            cloud.distro.install_packages(("lxd",))
+            cloud.distro.install_packages(packages)
         except util.ProcessExecutionError as e:
-            log.warn("no lxd executable and could not install lxd:", e)
+            log.warn("failed to install packages %s: %s", packages, e)
             return
 
     # Set up lxd if init config is given
@@ -55,14 +75,11 @@ def handle(name, cfg, cloud, log, args):
         'network_address', 'network_port', 'storage_backend',
         'storage_create_device', 'storage_create_loop',
         'storage_pool', 'trust_password')
-    init_cfg = lxd_cfg.get('init')
+
     if init_cfg:
-        if not isinstance(init_cfg, dict):
-            log.warn("lxd/init config must be a dictionary. found a '%s'",
-                      type(f))
-            return
         cmd = ['lxd', 'init', '--auto']
         for k in init_keys:
             if init_cfg.get(k):
-                cmd.extend(["--%s" % k.replace('_', '-'), init_cfg[k]])
+                cmd.extend(["--%s=%s" %
+                            (k.replace('_', '-'), str(init_cfg[k]))])
         util.subp(cmd)
