@@ -897,5 +897,9 @@ def set_etc_timezone(tz, tz_file=None, tz_conf="/etc/timezone",
     util.write_file(tz_conf, str(tz).rstrip() + "\n")
     # This ensures that the correct tz will be used for the system
     if tz_local and tz_file:
-        util.copy(tz_file, tz_local)
+        # use a symlink if there exists a symlink or tz_local is not present
+        if os.path.islink(tz_local) or not os.path.exists(tz_local):
+            os.symlink(tz_file, tz_local)
+        else:
+            util.copy(tz_file, tz_local)
     return
