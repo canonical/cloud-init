@@ -45,13 +45,13 @@ def tiny_p(cmd, capture=True):
         stdout = None
         stderr = None
     sp = subprocess.Popen(cmd, stdout=stdout,
-                    stderr=stderr, stdin=None,
-                    universal_newlines=True)
+                          stderr=stderr, stdin=None,
+                          universal_newlines=True)
     (out, err) = sp.communicate()
     ret = sp.returncode
     if ret not in [0]:
-        raise RuntimeError("Failed running %s [rc=%s] (%s, %s)"
-                            % (cmd, ret, out, err))
+        raise RuntimeError("Failed running %s [rc=%s] (%s, %s)" %
+                           (cmd, ret, out, err))
     return (out, err)
 
 
@@ -122,9 +122,8 @@ class InitsysInstallData(install):
     user_options = install.user_options + [
         # This will magically show up in member variable 'init_sys'
         ('init-system=', None,
-            ('init system(s) to configure (%s) [default: None]') %
-                (", ".join(INITSYS_TYPES))
-        ),
+         ('init system(s) to configure (%s) [default: None]' %
+          (", ".join(INITSYS_TYPES)))),
     ]
 
     def initialize_options(self):
@@ -138,7 +137,8 @@ class InitsysInstallData(install):
             self.init_system = self.init_system.split(",")
 
         if len(self.init_system) == 0:
-            raise DistutilsArgError(("You must specify one of (%s) when"
+            raise DistutilsArgError(
+                ("You must specify one of (%s) when"
                  " specifying init system(s)!") % (", ".join(INITSYS_TYPES)))
 
         bad = [f for f in self.init_system if f not in INITSYS_TYPES]
@@ -182,18 +182,18 @@ if sys.version_info < (3,):
     requirements.append('cheetah')
 
 
-setuptools.setup(name='cloud-init',
-      version=get_version(),
-      description='EC2 initialisation magic',
-      author='Scott Moser',
-      author_email='scott.moser@canonical.com',
-      url='http://launchpad.net/cloud-init/',
-      packages=setuptools.find_packages(exclude=['tests']),
-      scripts=['bin/cloud-init',
-               'tools/cloud-init-per',
-               ],
-      license='GPLv3',
-      data_files=data_files,
-      install_requires=requirements,
-      cmdclass=cmdclass,
-      )
+setuptools.setup(
+    name='cloud-init',
+    version=get_version(),
+    description='EC2 initialisation magic',
+    author='Scott Moser',
+    author_email='scott.moser@canonical.com',
+    url='http://launchpad.net/cloud-init/',
+    packages=setuptools.find_packages(exclude=['tests']),
+    scripts=['bin/cloud-init',
+             'tools/cloud-init-per'],
+    license='GPLv3',
+    data_files=data_files,
+    install_requires=requirements,
+    cmdclass=cmdclass,
+    )
