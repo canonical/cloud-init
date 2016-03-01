@@ -30,7 +30,6 @@ etc_file() {
 }
 
 read_proc_cmdline() {
-    local out=""
     if [ "$container" = "lxc" ]; then
         _RET=""
         return 0
