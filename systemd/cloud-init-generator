@@ -2,7 +2,7 @@
 set -f
 
 LOG=""
-DEBUG_LEVEL=2
+DEBUG_LEVEL=1
 LOG_D="/run"
 ENABLE="enabled"
 DISABLE="disabled"
@@ -71,7 +71,6 @@ main() {
     local target_name="multi-user.target" gen_d="$early_d"
     local link_path="$gen_d/${target_name}.wants/${CLOUD_TARGET_NAME}"
 
-    #LOG_D="${gen_d:-${LOG_D}}"
     debug 1 "$0 normal=$normal_d early=$early_d late=$late_d"
     debug 2 "$0 $*"
 
