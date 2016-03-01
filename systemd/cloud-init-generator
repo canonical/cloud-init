@@ -24,8 +24,8 @@ debug() {
 etc_file() {
     local pprefix="${1:-/etc/cloud/cloud-init.}"
     _RET="unset"
-    [ -f "${pprefix}.$ENABLE" ] && _RET="$ENABLE" && return 0
-    [ -f "${pprefix}.$DISABLE" ] && _RET="$DISABLE" && return 0
+    [ -f "${pprefix}$ENABLE" ] && _RET="$ENABLE" && return 0
+    [ -f "${pprefix}$DISABLE" ] && _RET="$DISABLE" && return 0
     return 0
 }
 
@@ -77,7 +77,8 @@ main() {
     for search in kernel_cmdline etc_file default; do
         if $search; then
             debug 1 "$search found $_RET"
-            [ "$_RET" = "$ENABLE" -o "$_RET" = "$DISABLE" ] && result=$_RET
+            [ "$_RET" = "$ENABLE" -o "$_RET" = "$DISABLE" ] &&
+                result=$_RET && break
         else
             ret=$?
             debug 0 "search $search returned $ret"
