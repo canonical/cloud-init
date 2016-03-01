@@ -55,29 +55,40 @@ def tiny_p(cmd, capture=True):
     return (out, err)
 
 
-def systemd_unitdir():
-    cmd = ['pkg-config', '--variable=systemdsystemunitdir', 'systemd']
+def pkg_config_read(library, var):
+    fallbacks = {
+       'systemd': {
+           'systemdsystemunitdir': '/lib/systemd/system',
+           'systemdsystemgeneratordir': '/lib/systemd/system-generators',
+       }
+    }
+    cmd = ['pkg-config', '--variable=%s' % var, library]
     try:
         (path, err) = tiny_p(cmd)
     except:
-        return '/lib/systemd/system'
+        return fallbacks[library][var]
     return str(path).strip()
+
 
 INITSYS_FILES = {
     'sysvinit': [f for f in glob('sysvinit/redhat/*') if is_f(f)],
     'sysvinit_freebsd': [f for f in glob('sysvinit/freebsd/*') if is_f(f)],
     'sysvinit_deb': [f for f in glob('sysvinit/debian/*') if is_f(f)],
-    'systemd': [f for f in glob('systemd/*') if is_f(f)],
+    'systemd': [f for f in (glob('systemd/*.service') +
+                            glob('systemd/*.target')) if is_f(f)],
+    'systemd.generators': [f for f in glob('systemd/*-generator') if is_f(f)],
     'upstart': [f for f in glob('upstart/*') if is_f(f)],
 }
 INITSYS_ROOTS = {
     'sysvinit': '/etc/rc.d/init.d',
     'sysvinit_freebsd': '/usr/local/etc/rc.d',
     'sysvinit_deb': '/etc/init.d',
-    'systemd': systemd_unitdir(),
+    'systemd': pkg_config_read('systemd', 'systemdsystemunitdir'),
+    'systemd.generators': pkg_config_read('systemd',
+                                          'systemdsystemgeneratordir'),
     'upstart': '/etc/init/',
 }
-INITSYS_TYPES = sorted(list(INITSYS_ROOTS.keys()))
+INITSYS_TYPES = sorted([f.partition(".")[0] for f in INITSYS_ROOTS.keys()])
 
 # Install everything in the right location and take care of Linux (default) and
 # FreeBSD systems.
@@ -147,8 +158,12 @@ class InitsysInstallData(install):
                 "Invalid --init-system: %s" % (','.join(bad)))
 
         for system in self.init_system:
-            self.distribution.data_files.append(
-                (INITSYS_ROOTS[system], INITSYS_FILES[system]))
+            # add data files for anything that starts with '<system>.'
+            datakeys = [k for k in INITSYS_ROOTS
+                        if k.partition(".")[0] == system]
+            for k in datakeys:
+                self.distribution.data_files.append(
+                    (INITSYS_ROOTS[k], INITSYS_FILES[k]))
         # Force that command to reinitalize (with new file list)
         self.distribution.reinitialize_command('install_data', True)
 
