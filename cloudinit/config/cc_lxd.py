@@ -38,7 +38,7 @@ from cloudinit import util
 def handle(name, cfg, cloud, log, args):
     # Get config
     lxd_cfg = cfg.get('lxd')
-    if not lxd_cfg and isinstance(lxd_cfg, dict):
+    if not lxd_cfg and not isinstance(lxd_cfg, dict):
         log.debug("Skipping module named %s, not present or disabled by cfg")
         return
 
@@ -59,7 +59,7 @@ def handle(name, cfg, cloud, log, args):
     if init_cfg:
         if not isinstance(init_cfg, dict):
             log.warn("lxd/init config must be a dictionary. found a '%s'",
-                      type(f))
+                      type(init_cfg))
             return
         cmd = ['lxd', 'init', '--auto']
         for k in init_keys:
