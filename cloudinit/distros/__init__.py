@@ -395,7 +395,7 @@ class Distro(object):
 
         # Set password if hashed password is provided and non-empty
         if 'hashed_passwd' in kwargs and kwargs['hashed_passwd']:
-            self.set_passwd(name, kwargs['hashed_passwd'], True)
+            self.set_passwd(name, kwargs['hashed_passwd'], hashed=True)
 
         # Default locking down the account.  'lock_passwd' defaults to True.
         # lock account unless lock_password is False.
