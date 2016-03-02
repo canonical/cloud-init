@@ -68,18 +68,23 @@ class DataSourceOVF(sources.DataSource):
         if system_type is None:
            LOG.debug("No system-product-name found")
         elif 'vmware' in system_type.lower():
-            LOG.debug("VMware Virtual Platform found")
-            deployPkgPluginPath = search_file("/usr/lib/vmware-tools", "libdeployPkgPlugin.so")
-            if deployPkgPluginPath:
-                vmwareImcConfigFilePath = util.log_time(logfunc=LOG.debug,
-                                  msg="waiting for configuration file",
-                                  func=wait_for_imc_cfg_file,
-                                  args=("/tmp", "cust.cfg"))
+            LOG.debug("VMware Virtualization Platform found")
+            if not util.get_cfg_option_bool(self.sys_cfg,
+                                        "disable_vmware_customization",
+                                        True):
+                deployPkgPluginPath = search_file("/usr/lib/vmware-tools", "libdeployPkgPlugin.so")
+                if deployPkgPluginPath:
+                    vmwareImcConfigFilePath = util.log_time(logfunc=LOG.debug,
+                                      msg="waiting for configuration file",
+                                      func=wait_for_imc_cfg_file,
+                                      args=("/tmp", "cust.cfg"))
 
-            if vmwareImcConfigFilePath:
-                LOG.debug("Found VMware DeployPkg Config File Path at %s" % vmwareImcConfigFilePath)
+                if vmwareImcConfigFilePath:
+                    LOG.debug("Found VMware DeployPkg Config File Path at %s" % vmwareImcConfigFilePath)
+                else:
+                    LOG.debug("Did not find VMware DeployPkg Config File Path")
             else:
-                LOG.debug("Didn't find VMware DeployPkg Config File Path")
+                LOG.debug("Customization for VMware platform is disabled.")
 
         if vmwareImcConfigFilePath:
             try:
