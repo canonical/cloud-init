@@ -21,7 +21,6 @@ class DataSourceBigstep(sources.DataSource):
         self.vendordata_raw = ""
         self.userdata_raw = ""
 
-
     def get_data(self, apply_filter=False):
         url = get_url_from_file()
         response = url_helper.readurl(url)
@@ -45,4 +44,3 @@ datasources = [
 # Return a list of data sources that match this set of dependencies
 def get_datasource_list(depends):
     return sources.list_from_depends(depends, datasources)
-
