@@ -1,6 +1,7 @@
 CWD=$(shell pwd)
 PY_FILES=$(shell find cloudinit bin tests tools -name "*.py" -type f )
 PY_FILES+="bin/cloud-init"
+noseopts ?= -v
 
 YAML_FILES=$(shell find cloudinit bin tests tools -name "*.yaml" -type f )
 YAML_FILES+=$(shell find doc/examples -name "cloud-config*.txt" -type f )
@@ -33,8 +34,7 @@ pip-test-requirements:
 	$(PIP_INSTALL) -r "$@.txt" -q
 
 test: clean_pyc
-	@echo "Running tests..."
-	@nosetests $(noseopts) tests/
+	@n=$$(which nosetests3) || n=nosetests; set -- $$n $(noseopts) tests/; echo "Running $$*"; "$$@"
 
 check_version:
 	@if [ "$(CHANGELOG_VERSION)" != "$(CODE_VERSION)" ]; then \
