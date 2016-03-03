@@ -8,6 +8,8 @@ ENABLE="enabled"
 DISABLE="disabled"
 CLOUD_SYSTEM_TARGET="/lib/systemd/system/cloud-init.target"
 CLOUD_TARGET_NAME="cloud-init.target"
+# lxc sets 'container', but lets make that explicitly a global
+CONTAINER="${container}"
 
 debug() {
     local lvl="$1"
@@ -30,7 +32,7 @@ etc_file() {
 }
 
 read_proc_cmdline() {
-    if [ "$container" = "lxc" ]; then
+    if [ "$CONTAINER" = "lxc" ]; then
         _RET=""
         return 0
     fi
@@ -45,7 +47,8 @@ read_proc_cmdline() {
 
 kernel_cmdline() {
     local cmdline="" tok=""
-    if [ -n "${KERNEL_CMDLINE+$KERNEL_CMDLINE}" ]; then
+    if [ -n "${KERNEL_CMDLINE+x}" ]; then
+        # use KERNEL_CMDLINE if present in environment even if empty
         cmdline=${KERNEL_CMDLINE}
         debug 1 "kernel command line from env KERNEL_CMDLINE: $cmdline"
     elif read_proc_cmdline; then
