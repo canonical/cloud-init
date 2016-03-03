@@ -33,15 +33,18 @@ etc_file() {
 
 read_proc_cmdline() {
     if [ "$CONTAINER" = "lxc" ]; then
+        _RET_MSG="ignored: \$container=$CONTAINER"
         _RET=""
         return 0
     fi
 
     if systemd-detect-virt --container --quiet; then
+        _RET_MSG="ignored: detect-virt is container"
         _RET=""
         return 0
     fi
 
+    _RET_MSG="/proc/cmdline"
     read _RET < /proc/cmdline
 }
 
@@ -53,7 +56,7 @@ kernel_cmdline() {
         debug 1 "kernel command line from env KERNEL_CMDLINE: $cmdline"
     elif read_proc_cmdline; then
         read_proc_cmdline && cmdline="$_RET"
-        debug 1 "kernel command line from /proc/cmdline: $cmdline"
+        debug 1 "kernel command line ($_RET_MSG): $cmdline"
     fi
     _RET="unset"
     cmdline=" $cmdline "
