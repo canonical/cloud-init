@@ -14,13 +14,15 @@ ifeq ($(distro),)
   distro = redhat
 endif
 
-all: test check_version
+all: check
+
+check: test check_version pyflakes
 
 pep8:
 	@$(CWD)/tools/run-pep8 $(PY_FILES)
 
 pyflakes:
-	@$(CWD)/tools/tox-venv py34 pyflakes $(PY_FILES)
+	@pyflakes $(PY_FILES)
 
 pip-requirements:
 	@echo "Installing cloud-init dependencies..."

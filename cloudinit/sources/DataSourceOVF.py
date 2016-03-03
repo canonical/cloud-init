@@ -90,7 +90,8 @@ class DataSourceOVF(sources.DataSource):
                 nicConfigurator.configure()
                 vmwarePlatformFound = True
             except Exception as inst:
-                LOG.debug("Error while parsing the Customization Config File")
+                LOG.debug("Error while parsing the Customization "
+                          "Config File: %s", inst)
             finally:
                 dirPath = os.path.dirname(vmwareImcConfigFilePath)
                 shutil.rmtree(dirPath)
