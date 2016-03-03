@@ -167,11 +167,12 @@ def enumerate_disk(device, nodeps=False):
     parts = [x for x in (info.strip()).splitlines() if len(x.split()) > 0]
 
     for part in parts:
-        d = {'name': None,
-             'type': None,
-             'fstype': None,
-             'label': None,
-            }
+        d = {
+            'name': None,
+            'type': None,
+            'fstype': None,
+            'label': None,
+        }
 
         for key, value in value_splitter(part):
             d[key.lower()] = value
@@ -701,11 +702,12 @@ def lookup_force_flag(fs):
     """
     A force flag might be -F or -F, this look it up
     """
-    flags = {'ext': '-F',
-             'btrfs': '-f',
-             'xfs': '-f',
-             'reiserfs': '-f',
-            }
+    flags = {
+        'ext': '-F',
+        'btrfs': '-f',
+        'xfs': '-f',
+        'reiserfs': '-f',
+    }
 
     if 'ext' in fs.lower():
         fs = 'ext'
@@ -824,10 +826,11 @@ def mkfs(fs_cfg):
 
     # Create the commands
     if fs_cmd:
-        fs_cmd = fs_cfg['cmd'] % {'label': label,
-                                  'filesystem': fs_type,
-                                  'device': device,
-                                 }
+        fs_cmd = fs_cfg['cmd'] % {
+            'label': label,
+            'filesystem': fs_type,
+            'device': device,
+        }
     else:
         # Find the mkfs command
         mkfs_cmd = util.which("mkfs.%s" % fs_type)

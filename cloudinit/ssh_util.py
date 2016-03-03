@@ -31,7 +31,8 @@ LOG = logging.getLogger(__name__)
 DEF_SSHD_CFG = "/etc/ssh/sshd_config"
 
 # taken from openssh source key.c/key_type_from_name
-VALID_KEY_TYPES = ("rsa", "dsa", "ssh-rsa", "ssh-dss", "ecdsa",
+VALID_KEY_TYPES = (
+    "rsa", "dsa", "ssh-rsa", "ssh-dss", "ecdsa",
     "ssh-rsa-cert-v00@openssh.com", "ssh-dss-cert-v00@openssh.com",
     "ssh-rsa-cert-v00@openssh.com", "ssh-dss-cert-v00@openssh.com",
     "ssh-rsa-cert-v01@openssh.com", "ssh-dss-cert-v01@openssh.com",

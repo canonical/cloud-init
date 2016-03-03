@@ -293,9 +293,8 @@ class TestConfigDriveDataSource(TestCase):
             util.is_partition = my_is_partition
 
             devs_with_answers = {"TYPE=vfat": [],
-                "TYPE=iso9660": ["/dev/vdb"],
-                "LABEL=config-2": ["/dev/vdb"],
-            }
+                                 "TYPE=iso9660": ["/dev/vdb"],
+                                 "LABEL=config-2": ["/dev/vdb"]}
             self.assertEqual(["/dev/vdb"], ds.find_candidate_devs())
 
             # add a vfat item
@@ -306,9 +305,10 @@ class TestConfigDriveDataSource(TestCase):
 
             # verify that partitions are considered, that have correct label.
             devs_with_answers = {"TYPE=vfat": ["/dev/sda1"],
-                "TYPE=iso9660": [], "LABEL=config-2": ["/dev/vdb3"]}
+                                 "TYPE=iso9660": [],
+                                 "LABEL=config-2": ["/dev/vdb3"]}
             self.assertEqual(["/dev/vdb3"],
-                              ds.find_candidate_devs())
+                             ds.find_candidate_devs())
 
         finally:
             util.find_devs_with = orig_find_devs_with
@@ -319,7 +319,7 @@ class TestConfigDriveDataSource(TestCase):
         populate_dir(self.tmp, CFG_DRIVE_FILES_V2)
         myds = cfg_ds_from_dir(self.tmp)
         self.assertEqual(myds.get_public_ssh_keys(),
-           [OSTACK_META['public_keys']['mykey']])
+                         [OSTACK_META['public_keys']['mykey']])
 
 
 def cfg_ds_from_dir(seed_d):

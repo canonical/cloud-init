@@ -66,18 +66,21 @@ class DataSourceOVF(sources.DataSource):
 
         system_type = util.read_dmi_data("system-product-name")
         if system_type is None:
-           LOG.debug("No system-product-name found")
+            LOG.debug("No system-product-name found")
         elif 'vmware' in system_type.lower():
             LOG.debug("VMware Virtual Platform found")
-            deployPkgPluginPath = search_file("/usr/lib/vmware-tools", "libdeployPkgPlugin.so")
+            deployPkgPluginPath = search_file("/usr/lib/vmware-tools",
+                                              "libdeployPkgPlugin.so")
             if deployPkgPluginPath:
-                vmwareImcConfigFilePath = util.log_time(logfunc=LOG.debug,
+                vmwareImcConfigFilePath = \
+                    util.log_time(logfunc=LOG.debug,
                                   msg="waiting for configuration file",
                                   func=wait_for_imc_cfg_file,
                                   args=("/tmp", "cust.cfg"))
 
             if vmwareImcConfigFilePath:
-                LOG.debug("Found VMware DeployPkg Config File Path at %s" % vmwareImcConfigFilePath)
+                LOG.debug("Found VMware DeployPkg Config File Path at %s" %
+                          vmwareImcConfigFilePath)
             else:
                 LOG.debug("Didn't find VMware DeployPkg Config File Path")
 
@@ -147,7 +150,7 @@ class DataSourceOVF(sources.DataSource):
 
     def get_public_ssh_keys(self):
         if 'public-keys' not in self.metadata:
-           return []
+            return []
         pks = self.metadata['public-keys']
         if isinstance(pks, (list)):
             return pks
@@ -170,7 +173,7 @@ class DataSourceOVFNet(DataSourceOVF):
 
 def wait_for_imc_cfg_file(dirpath, filename, maxwait=180, naplen=5):
     waited = 0
-    
+
     while waited < maxwait:
         fileFullPath = search_file(dirpath, filename)
         if fileFullPath:
@@ -179,6 +182,7 @@ def wait_for_imc_cfg_file(dirpath, filename, maxwait=180, naplen=5):
         waited += naplen
     return None
 
+
 # This will return a dict with some content
 #  meta-data, user-data, some config
 def read_vmware_imc(config):
@@ -186,12 +190,13 @@ def read_vmware_imc(config):
     cfg = {}
     ud = ""
     if config.host_name:
-       if config.domain_name:
-          md['local-hostname'] = config.host_name + "." + config.domain_name
-       else:
-          md['local-hostname'] = config.host_name
+        if config.domain_name:
+            md['local-hostname'] = config.host_name + "." + config.domain_name
+        else:
+            md['local-hostname'] = config.host_name
 
     return (md, ud, cfg)
+
 
 # This will return a dict with some content
 #  meta-data, user-data, some config
@@ -328,14 +333,14 @@ def get_properties(contents):
     # could also check here that elem.namespaceURI ==
     #   "http://schemas.dmtf.org/ovf/environment/1"
     propSections = find_child(dom.documentElement,
-        lambda n: n.localName == "PropertySection")
+                              lambda n: n.localName == "PropertySection")
 
     if len(propSections) == 0:
         raise XmlError("No 'PropertySection's")
 
     props = {}
     propElems = find_child(propSections[0],
-                            (lambda n: n.localName == "Property"))
+                           (lambda n: n.localName == "Property"))
 
     for elem in propElems:
         key = elem.attributes.getNamedItemNS(envNsURI, "key").value
@@ -347,13 +352,14 @@ def get_properties(contents):
 
 def search_file(dirpath, filename):
     if not dirpath or not filename:
-       return None
+        return None
 
     for root, dirs, files in os.walk(dirpath):
         if filename in files:
             return os.path.join(root, filename)
 
     return None
+
 
 class XmlError(Exception):
     pass
