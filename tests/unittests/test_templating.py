@@ -114,5 +114,6 @@ $a,$b'''
                                                                codename)
 
         out_data = templater.basic_render(in_data,
-            {'mirror': mirror, 'codename': codename})
+                                          {'mirror': mirror,
+                                           'codename': codename})
         self.assertEqual(ex_data, out_data)

@@ -77,8 +77,7 @@ class SysConf(configobj.ConfigObj):
         quot_func = None
         if value[0] in ['"', "'"] and value[-1] in ['"', "'"]:
             if len(value) == 1:
-                quot_func = (lambda x:
-                                self._get_single_quote(x) % x)
+                quot_func = (lambda x: self._get_single_quote(x) % x)
         else:
             # Quote whitespace if it isn't the start + end of a shell command
             if value.strip().startswith("$(") and value.strip().endswith(")"):
@@ -91,10 +90,10 @@ class SysConf(configobj.ConfigObj):
                         # to use single quotes which won't get expanded...
                         if re.search(r"[\n\"']", value):
                             quot_func = (lambda x:
-                                            self._get_triple_quote(x) % x)
+                                         self._get_triple_quote(x) % x)
                         else:
                             quot_func = (lambda x:
-                                            self._get_single_quote(x) % x)
+                                         self._get_single_quote(x) % x)
                     else:
                         quot_func = pipes.quote
         if not quot_func:

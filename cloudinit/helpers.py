@@ -139,9 +139,10 @@ class FileSemaphores(object):
         # but the item had run before we did canon_sem_name.
         if cname != name and os.path.exists(self._get_path(name, freq)):
             LOG.warn("%s has run without canonicalized name [%s].\n"
-                "likely the migrator has not yet run. It will run next boot.\n"
-                "run manually with: cloud-init single --name=migrator"
-                % (name, cname))
+                     "likely the migrator has not yet run. "
+                     "It will run next boot.\n"
+                     "run manually with: cloud-init single --name=migrator"
+                     % (name, cname))
             return True
 
         return False

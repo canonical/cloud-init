@@ -38,7 +38,8 @@ LOG = logging.getLogger(__name__)
 DS_NAME = 'Azure'
 DEFAULT_METADATA = {"instance-id": "iid-AZURE-NODE"}
 AGENT_START = ['service', 'walinuxagent', 'start']
-BOUNCE_COMMAND = ['sh', '-xc',
+BOUNCE_COMMAND = [
+    'sh', '-xc',
     "i=$interface; x=0; ifdown $i || x=$?; ifup $i || x=$?; exit $x"]
 
 BUILTIN_DS_CONFIG = {
@@ -91,9 +92,9 @@ def temporary_hostname(temp_hostname, cfg, hostname_command='hostname'):
     """
     policy = cfg['hostname_bounce']['policy']
     previous_hostname = get_hostname(hostname_command)
-    if (not util.is_true(cfg.get('set_hostname'))
-            or util.is_false(policy)
-            or (previous_hostname == temp_hostname and policy != 'force')):
+    if (not util.is_true(cfg.get('set_hostname')) or
+       util.is_false(policy) or
+       (previous_hostname == temp_hostname and policy != 'force')):
         yield None
         return
     set_hostname(temp_hostname, hostname_command)
@@ -123,8 +124,8 @@ class DataSourceAzureNet(sources.DataSource):
         with temporary_hostname(temp_hostname, self.ds_cfg,
                                 hostname_command=hostname_command) \
                 as previous_hostname:
-            if (previous_hostname is not None
-                    and util.is_true(self.ds_cfg.get('set_hostname'))):
+            if (previous_hostname is not None and
+               util.is_true(self.ds_cfg.get('set_hostname'))):
                 cfg = self.ds_cfg['hostname_bounce']
                 try:
                     perform_hostname_bounce(hostname=temp_hostname,
@@ -152,7 +153,8 @@ class DataSourceAzureNet(sources.DataSource):
                 else:
                     bname = str(pk['fingerprint'] + ".crt")
                     fp_files += [os.path.join(ddir, bname)]
-                    LOG.debug("ssh authentication: using fingerprint from fabirc")
+                    LOG.debug("ssh authentication: "
+                              "using fingerprint from fabirc")
 
             missing = util.log_time(logfunc=LOG.debug, msg="waiting for files",
                                     func=wait_for_files,
@@ -506,7 +508,7 @@ def read_azure_ovf(contents):
         raise BrokenAzureDataSource("invalid xml: %s" % e)
 
     results = find_child(dom.documentElement,
-        lambda n: n.localName == "ProvisioningSection")
+                         lambda n: n.localName == "ProvisioningSection")
 
     if len(results) == 0:
         raise NonAzureDataSource("No ProvisioningSection")
@@ -516,7 +518,8 @@ def read_azure_ovf(contents):
     provSection = results[0]
 
     lpcs_nodes = find_child(provSection,
-        lambda n: n.localName == "LinuxProvisioningConfigurationSet")
+                            lambda n:
+                            n.localName == "LinuxProvisioningConfigurationSet")
 
     if len(results) == 0:
         raise NonAzureDataSource("No LinuxProvisioningConfigurationSet")

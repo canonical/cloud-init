@@ -612,7 +612,7 @@ def redirect_output(outfmt, errfmt, o_out=None, o_err=None):
 
 
 def make_url(scheme, host, port=None,
-                path='', params='', query='', fragment=''):
+             path='', params='', query='', fragment=''):
 
     pieces = []
     pieces.append(scheme or '')
@@ -804,8 +804,8 @@ def load_yaml(blob, default=None, allowed=(dict,)):
     blob = decode_binary(blob)
     try:
         LOG.debug("Attempting to load yaml from string "
-                 "of length %s with allowed root types %s",
-                 len(blob), allowed)
+                  "of length %s with allowed root types %s",
+                  len(blob), allowed)
         converted = safeyaml.load(blob)
         if not isinstance(converted, allowed):
             # Yes this will just be caught, but thats ok for now...
@@ -878,7 +878,7 @@ def read_conf_with_confd(cfgfile):
             if not isinstance(confd, six.string_types):
                 raise TypeError(("Config file %s contains 'conf_d' "
                                  "with non-string type %s") %
-                                 (cfgfile, type_utils.obj_name(confd)))
+                                (cfgfile, type_utils.obj_name(confd)))
             else:
                 confd = str(confd).strip()
     elif os.path.isdir("%s.d" % cfgfile):
@@ -1041,7 +1041,8 @@ def is_resolvable(name):
         for iname in badnames:
             try:
                 result = socket.getaddrinfo(iname, None, 0, 0,
-                    socket.SOCK_STREAM, socket.AI_CANONNAME)
+                                            socket.SOCK_STREAM,
+                                            socket.AI_CANONNAME)
                 badresults[iname] = []
                 for (_fam, _stype, _proto, cname, sockaddr) in result:
                     badresults[iname].append("%s: %s" % (cname, sockaddr[0]))
@@ -1109,7 +1110,7 @@ def close_stdin():
 
 
 def find_devs_with(criteria=None, oformat='device',
-                    tag=None, no_cache=False, path=None):
+                   tag=None, no_cache=False, path=None):
     """
     find devices matching given criteria (via blkid)
     criteria can be *one* of:
@@ -1628,7 +1629,7 @@ def write_file(filename, content, mode=0o644, omode="wb"):
         content = decode_binary(content)
         write_type = 'characters'
     LOG.debug("Writing to %s - %s: [%s] %s %s",
-               filename, omode, mode, len(content), write_type)
+              filename, omode, mode, len(content), write_type)
     with SeLinuxGuard(path=filename):
         with open(filename, omode) as fh:
             fh.write(content)

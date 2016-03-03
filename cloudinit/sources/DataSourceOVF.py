@@ -264,14 +264,14 @@ def get_properties(contents):
     # could also check here that elem.namespaceURI ==
     #   "http://schemas.dmtf.org/ovf/environment/1"
     propSections = find_child(dom.documentElement,
-        lambda n: n.localName == "PropertySection")
+                              lambda n: n.localName == "PropertySection")
 
     if len(propSections) == 0:
         raise XmlError("No 'PropertySection's")
 
     props = {}
     propElems = find_child(propSections[0],
-                            (lambda n: n.localName == "Property"))
+                           (lambda n: n.localName == "Property"))
 
     for elem in propElems:
         key = elem.attributes.getNamedItemNS(envNsURI, "key").value

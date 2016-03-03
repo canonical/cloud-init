@@ -211,8 +211,8 @@ class Distro(object):
 
         # If the system hostname is different than the previous
         # one or the desired one lets update it as well
-        if (not sys_hostname) or (sys_hostname == prev_hostname
-                                  and sys_hostname != hostname):
+        if ((not sys_hostname) or (sys_hostname == prev_hostname and
+           sys_hostname != hostname)):
             update_files.append(sys_fn)
 
         # If something else has changed the hostname after we set it
@@ -221,7 +221,7 @@ class Distro(object):
         if (sys_hostname and prev_hostname and
                 sys_hostname != prev_hostname):
             LOG.info("%s differs from %s, assuming user maintained hostname.",
-                       prev_hostname_fn, sys_fn)
+                     prev_hostname_fn, sys_fn)
             return
 
         # Remove duplicates (incase the previous config filename)
@@ -289,7 +289,7 @@ class Distro(object):
     def _bring_up_interface(self, device_name):
         cmd = ['ifup', device_name]
         LOG.debug("Attempting to run bring up interface %s using command %s",
-                   device_name, cmd)
+                  device_name, cmd)
         try:
             (_out, err) = util.subp(cmd)
             if len(err):
@@ -548,7 +548,7 @@ class Distro(object):
             for member in members:
                 if not util.is_user(member):
                     LOG.warn("Unable to add group member '%s' to group '%s'"
-                            "; user does not exist.", member, name)
+                             "; user does not exist.", member, name)
                     continue
 
                 util.subp(['usermod', '-a', '-G', name, member])
@@ -886,7 +886,7 @@ def fetch(name):
     locs, looked_locs = importer.find_module(name, ['', __name__], ['Distro'])
     if not locs:
         raise ImportError("No distribution found for distro %s (searched %s)"
-                           % (name, looked_locs))
+                          % (name, looked_locs))
     mod = importer.import_module(locs[0])
     cls = getattr(mod, 'Distro')
     return cls

@@ -463,8 +463,8 @@ class TestJoyentMetadataClient(helpers.FilesystemMockingTestCase):
                 payloadstr = ' {0}'.format(self.response_parts['payload'])
             return ('V2 {length} {crc} {request_id} '
                     '{command}{payloadstr}\n'.format(
-                    payloadstr=payloadstr,
-                    **self.response_parts).encode('ascii'))
+                     payloadstr=payloadstr,
+                     **self.response_parts).encode('ascii'))
 
         self.metasource_data = None
 
@@ -501,7 +501,7 @@ class TestJoyentMetadataClient(helpers.FilesystemMockingTestCase):
         written_line = self.serial.write.call_args[0][0]
         print(type(written_line))
         self.assertEndsWith(written_line.decode('ascii'),
-            b'\n'.decode('ascii'))
+                            b'\n'.decode('ascii'))
         self.assertEqual(1, written_line.count(b'\n'))
 
     def _get_written_line(self, key='some_key'):

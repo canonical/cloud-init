@@ -74,7 +74,7 @@ class TestLoadPowerState(t_help.TestCase):
 class TestCheckCondition(t_help.TestCase):
     def cmd_with_exit(self, rc):
         return([sys.executable, '-c', 'import sys; sys.exit(%s)' % rc])
-        
+
     def test_true_is_true(self):
         self.assertEqual(psc.check_condition(True), True)
 
@@ -92,7 +92,6 @@ class TestCheckCondition(t_help.TestCase):
         self.assertEqual(
             psc.check_condition(self.cmd_with_exit(2), mocklog), False)
         self.assertEqual(mocklog.warn.call_count, 1)
-
 
 
 def check_lps_ret(psc_return, mode=None):

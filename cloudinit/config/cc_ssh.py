@@ -30,9 +30,10 @@ from cloudinit import distros as ds
 from cloudinit import ssh_util
 from cloudinit import util
 
-DISABLE_ROOT_OPTS = ("no-port-forwarding,no-agent-forwarding,"
-"no-X11-forwarding,command=\"echo \'Please login as the user \\\"$USER\\\" "
-"rather than the user \\\"root\\\".\';echo;sleep 10\"")
+DISABLE_ROOT_OPTS = (
+    "no-port-forwarding,no-agent-forwarding,"
+    "no-X11-forwarding,command=\"echo \'Please login as the user \\\"$USER\\\""
+    " rather than the user \\\"root\\\".\';echo;sleep 10\"")
 
 GENERATE_KEY_NAMES = ['rsa', 'dsa', 'ecdsa', 'ed25519']
 KEY_FILE_TPL = '/etc/ssh/ssh_host_%s_key'

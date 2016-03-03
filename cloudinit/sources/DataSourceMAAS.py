@@ -275,17 +275,18 @@ if __name__ == "__main__":
 
         parser = argparse.ArgumentParser(description='Interact with MAAS DS')
         parser.add_argument("--config", metavar="file",
-            help="specify DS config file", default=None)
+                            help="specify DS config file", default=None)
         parser.add_argument("--ckey", metavar="key",
-            help="the consumer key to auth with", default=None)
+                            help="the consumer key to auth with", default=None)
         parser.add_argument("--tkey", metavar="key",
-            help="the token key to auth with", default=None)
+                            help="the token key to auth with", default=None)
         parser.add_argument("--csec", metavar="secret",
-            help="the consumer secret (likely '')", default="")
+                            help="the consumer secret (likely '')", default="")
         parser.add_argument("--tsec", metavar="secret",
-            help="the token secret to auth with", default=None)
+                            help="the token secret to auth with", default=None)
         parser.add_argument("--apiver", metavar="version",
-            help="the apiver to use ("" can be used)", default=MD_VERSION)
+                            help="the apiver to use ("" can be used)",
+                            default=MD_VERSION)
 
         subcmds = parser.add_subparsers(title="subcommands", dest="subcmd")
         subcmds.add_parser('crawl', help="crawl the datasource")
@@ -297,7 +298,7 @@ if __name__ == "__main__":
         args = parser.parse_args()
 
         creds = {'consumer_key': args.ckey, 'token_key': args.tkey,
-            'token_secret': args.tsec, 'consumer_secret': args.csec}
+                 'token_secret': args.tsec, 'consumer_secret': args.csec}
 
         if args.config:
             cfg = util.read_conf(args.config)

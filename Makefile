@@ -20,13 +20,14 @@ all: test check_version
 check: pep8 pyflakes pyflakes3 unittest
 
 pep8:
-	@$(CWD)/tools/run-pep8 $(PY_FILES)
+	@$(CWD)/tools/run-pep8
 
 pyflakes:
-	@$(CWD)/tools/tox-venv py27 pyflakes $(PY_FILES)
+	@$(CWD)/tools/run-pyflakes
 
-pyflakes:
-	@$(CWD)/tools/tox-venv py34 pyflakes $(PY_FILES)
+pyflakes3:
+	@$(CWD)/tools/run-pyflakes3
+	
 
 unittest:
 	nosetests $(noseopts) tests/unittests

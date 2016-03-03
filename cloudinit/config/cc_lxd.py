@@ -59,7 +59,7 @@ def handle(name, cfg, cloud, log, args):
     if init_cfg:
         if not isinstance(init_cfg, dict):
             log.warn("lxd/init config must be a dictionary. found a '%s'",
-                      type(init_cfg))
+                     type(init_cfg))
             return
         cmd = ['lxd', 'init', '--auto']
         for k in init_keys:

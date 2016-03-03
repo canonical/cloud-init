@@ -204,12 +204,12 @@ def setup_swapfile(fname, size=None, maxsize=None):
     try:
         util.ensure_dir(tdir)
         util.log_time(LOG.debug, msg, func=util.subp,
-            args=[['sh', '-c',
-                   ('rm -f "$1" && umask 0066 && '
-                    '{ fallocate -l "${2}M" "$1" || '
-                    '  dd if=/dev/zero "of=$1" bs=1M "count=$2"; } && '
-                    'mkswap "$1" || { r=$?; rm -f "$1"; exit $r; }'),
-                   'setup_swap', fname, mbsize]])
+                      args=[['sh', '-c',
+                            ('rm -f "$1" && umask 0066 && '
+                             '{ fallocate -l "${2}M" "$1" || '
+                             ' dd if=/dev/zero "of=$1" bs=1M "count=$2"; } && '
+                             'mkswap "$1" || { r=$?; rm -f "$1"; exit $r; }'),
+                             'setup_swap', fname, mbsize]])
 
     except Exception as e:
         raise IOError("Failed %s: %s" % (msg, e))
