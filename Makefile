@@ -7,6 +7,7 @@ YAML_FILES+=$(shell find doc/examples -name "cloud-config*.txt" -type f )
 
 CHANGELOG_VERSION=$(shell $(CWD)/tools/read-version)
 CODE_VERSION=$(shell python -c "from cloudinit import version; print version.version_string()")
+noseopts ?= -vv --nologcapture
 
 PIP_INSTALL := pip install
 
@@ -16,11 +17,20 @@ endif
 
 all: test check_version
 
+check: pep8 pyflakes pyflakes3 unittest
+
 pep8:
 	@$(CWD)/tools/run-pep8 $(PY_FILES)
 
 pyflakes:
+	@$(CWD)/tools/tox-venv py27 pyflakes $(PY_FILES)
+
+pyflakes:
 	@$(CWD)/tools/tox-venv py34 pyflakes $(PY_FILES)
+
+unittest:
+	nosetests $(noseopts) tests/unittests
+	nosetests3 $(noseopts) tests/unittests
 
 pip-requirements:
 	@echo "Installing cloud-init dependencies..."
