@@ -16,7 +16,7 @@ debug() {
     shift
     [ "$lvl" -gt "$DEBUG_LEVEL" ] && return
     if [ -z "$LOG" ]; then
-        local log="$LOG_D/${0##*/}-generator.log"
+        local log="$LOG_D/${0##*/}.log"
         { : > "$log"; } >/dev/null 2>&1 && LOG="$log" ||
             LOG="/dev/kmsg"
     fi
