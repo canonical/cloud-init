@@ -47,22 +47,24 @@ def handle(name, cfg, cloud, log, args):
         return
 
     init_cfg = lxd_cfg.get('init')
-    if not init_cfg:
-        init_cfg = {}
-
     if not isinstance(init_cfg, dict):
         log.warn("lxd/init config must be a dictionary. found a '%s'",
                   type(init_cfg))
         init_cfg = {}
 
-    packages = []
-    if (init_cfg.get("storage_backend") == "zfs" and not util.which('zfs')):
-       packages.append('zfs')
+    if not init_cfg:
+        log.debug("no lxd/init config. disabled.")
+        return
 
+    packages = []
     # Ensure lxd is installed
     if not util.which("lxd"):
         packages.append('lxd')
-    
+
+    # if using zfs, get the utils
+    if (init_cfg.get("storage_backend") == "zfs" and not util.which('zfs')):
+        packages.append('zfs')
+
     if len(packages):
         try:
             cloud.distro.install_packages(packages)
@@ -75,11 +77,9 @@ def handle(name, cfg, cloud, log, args):
         'network_address', 'network_port', 'storage_backend',
         'storage_create_device', 'storage_create_loop',
         'storage_pool', 'trust_password')
-
-    if init_cfg:
-        cmd = ['lxd', 'init', '--auto']
-        for k in init_keys:
-            if init_cfg.get(k):
-                cmd.extend(["--%s=%s" %
-                            (k.replace('_', '-'), str(init_cfg[k]))])
-        util.subp(cmd)
+    cmd = ['lxd', 'init', '--auto']
+    for k in init_keys:
+        if init_cfg.get(k):
+            cmd.extend(["--%s=%s" %
+                        (k.replace('_', '-'), str(init_cfg[k]))])
+    util.subp(cmd)
