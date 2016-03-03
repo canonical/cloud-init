@@ -28,7 +28,6 @@ pyflakes:
 pyflakes3:
 	@$(CWD)/tools/run-pyflakes3
 	
-
 unittest:
 	nosetests $(noseopts) tests/unittests
 	nosetests3 $(noseopts) tests/unittests

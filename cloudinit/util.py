@@ -2148,7 +2148,7 @@ def _read_dmi_syspath(key):
         LOG.debug("dmi data %s returned %s", dmi_key_path, key_data)
         return key_data.strip()
 
-    except Exception as e:
+    except Exception:
         logexc(LOG, "failed read of %s", dmi_key_path)
         return None
 
