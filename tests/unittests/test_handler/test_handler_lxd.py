@@ -57,3 +57,19 @@ class TestLxd(t_help.TestCase):
         self.assertTrue(cc.distro.install_packages.called)
         install_pkg = cc.distro.install_packages.call_args_list[0][0][0]
         self.assertEquals(sorted(install_pkg), ['lxd', 'zfs'])
+
+    @mock.patch("cloudinit.config.cc_lxd.util")
+    def test_no_init_does_nothing(self, mock_util):
+        cc = self._get_cloud('ubuntu')
+        cc.distro = mock.MagicMock()
+        cc_lxd.handle('cc_lxd', {'lxd': {}}, cc, LOG, [])
+        self.assertFalse(cc.distro.install_packages.called)
+        self.assertFalse(mock_util.subp.called)
+
+    @mock.patch("cloudinit.config.cc_lxd.util")
+    def test_no_lxd_does_nothing(self, mock_util):
+        cc = self._get_cloud('ubuntu')
+        cc.distro = mock.MagicMock()
+        cc_lxd.handle('cc_lxd', {'package_update': True}, cc, LOG, [])
+        self.assertFalse(cc.distro.install_packages.called)
+        self.assertFalse(mock_util.subp.called)
