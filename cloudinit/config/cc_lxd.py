@@ -49,7 +49,7 @@ def handle(name, cfg, cloud, log, args):
     init_cfg = lxd_cfg.get('init')
     if not isinstance(init_cfg, dict):
         log.warn("lxd/init config must be a dictionary. found a '%s'",
-                  type(init_cfg))
+                 type(init_cfg))
         init_cfg = {}
 
     if not init_cfg:
@@ -62,14 +62,14 @@ def handle(name, cfg, cloud, log, args):
         packages.append('lxd')
 
     # if using zfs, get the utils
-    if (init_cfg.get("storage_backend") == "zfs" and not util.which('zfs')):
+    if init_cfg.get("storage_backend") == "zfs" and not util.which('zfs'):
         packages.append('zfs')
 
     if len(packages):
         try:
             cloud.distro.install_packages(packages)
-        except util.ProcessExecutionError as e:
-            log.warn("failed to install packages %s: %s", packages, e)
+        except util.ProcessExecutionError as exc:
+            log.warn("failed to install packages %s: %s", packages, exc)
             return
 
     # Set up lxd if init config is given
