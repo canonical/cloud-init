@@ -1,6 +1,7 @@
 CWD=$(shell pwd)
 PY_FILES=$(shell find cloudinit bin tests tools -name "*.py" -type f )
 PY_FILES+="bin/cloud-init"
+noseopts ?= -v
 
 YAML_FILES=$(shell find cloudinit bin tests tools -name "*.yaml" -type f )
 YAML_FILES+=$(shell find doc/examples -name "cloud-config*.txt" -type f )
@@ -14,13 +15,15 @@ ifeq ($(distro),)
   distro = redhat
 endif
 
-all: test check_version
+all: check
+
+check: test check_version pyflakes
 
 pep8:
 	@$(CWD)/tools/run-pep8 $(PY_FILES)
 
 pyflakes:
-	@$(CWD)/tools/tox-venv py34 pyflakes $(PY_FILES)
+	@pyflakes $(PY_FILES)
 
 pip-requirements:
 	@echo "Installing cloud-init dependencies..."
@@ -31,8 +34,7 @@ pip-test-requirements:
 	$(PIP_INSTALL) -r "$@.txt" -q
 
 test: clean_pyc
-	@echo "Running tests..."
-	@nosetests $(noseopts) tests/
+	@n=$$(which nosetests3) || n=nosetests; set -- $$n $(noseopts) tests/; echo "Running $$*"; "$$@"
 
 check_version:
 	@if [ "$(CHANGELOG_VERSION)" != "$(CODE_VERSION)" ]; then \

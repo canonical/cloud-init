@@ -16,4 +16,4 @@ override_dh_install:
 override_dh_auto_test:
 	# Because setup tools didn't copy data...
 	[ ! -d .pybuild/pythonX.Y_?.?/build/tests ] || cp -r tests/data .pybuild/pythonX.Y_?.?/build/tests
-	http_proxy= dh_auto_test -- --test-nose
+	http_proxy= make check

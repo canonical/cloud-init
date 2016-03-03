@@ -19,7 +19,6 @@
 
 import logging
 import os
-import subprocess
 import re
 
 from cloudinit import util
