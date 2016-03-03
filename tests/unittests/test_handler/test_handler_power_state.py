@@ -107,7 +107,7 @@ def check_lps_ret(psc_return, mode=None):
     if 'shutdown' not in psc_return[0][0]:
         errs.append("string 'shutdown' not in cmd")
 
-    if 'condition' is None:
+    if condition is None:
         errs.append("condition was not returned")
 
     if mode is not None:

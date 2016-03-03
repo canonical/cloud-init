@@ -79,6 +79,10 @@
  - Azure: Handle escaped quotes in WALinuxAgentShim.find_endpoint.
    (LP: #1488891) [Dan Watkins]
  - lxd: add support for setting up lxd using 'lxd init' (LP: #1522879)
+ - Add Image Customization Parser for VMware vSphere Hypervisor
+   Support. [Sankar Tanguturi]
+ - timezone: use a symlink rather than copy for /etc/localtime
+   unless it is already a file (LP: #1543025).
 
 0.7.6:
  - open 0.7.6

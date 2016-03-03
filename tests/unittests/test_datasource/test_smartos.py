@@ -31,7 +31,6 @@ import shutil
 import stat
 import tempfile
 import uuid
-import unittest
 from binascii import crc32
 
 import serial
