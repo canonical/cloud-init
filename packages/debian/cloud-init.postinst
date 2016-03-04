@@ -1,5 +1,4 @@
 #!/bin/sh
-set -x
 cleanup_lp1552999() {
     local oldver="$1" last_bad_ver="0.7.7~bzr1178"
     dpkg --compare-versions "$oldver" le "$last_bad_ver" || return 0

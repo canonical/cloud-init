@@ -1,7 +1,6 @@
 #!/bin/sh
 # vi: ts=4 expandtab
 
-set -x
 cleanup_lp1552999() {
     local oldver="$1" last_bad_ver="0.7.7~bzr1178"
     dpkg --compare-versions "$oldver" le "$last_bad_ver" || return 0
@@ -17,6 +16,5 @@ if [ "$1" = "upgrade" ]; then
    oldver="$2"
    cleanup_lp1552999 "$oldver"
 fi
-set +x
 
 #DEBHELPER#
