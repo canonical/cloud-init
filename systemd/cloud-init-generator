@@ -114,7 +114,7 @@ main() {
                 debug 0 "[$ret] disable failed, remove $link_path"
             fi
         else
-            debug 1 "already disabled: no change needed"
+            debug 1 "already disabled: no change needed [no $link_path]"
         fi
     else
         debug 0 "unexpected result '$result'"
