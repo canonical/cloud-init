@@ -205,8 +205,8 @@ class Distro(distros.Distro):
         redact_opts = ['passwd']
 
         for key, val in kwargs.items():
-            if (key in adduser_opts and val
-                    and isinstance(val, six.string_types)):
+            if (key in adduser_opts and val and
+               isinstance(val, six.string_types)):
                 adduser_cmd.extend([adduser_opts[key], val])
 
                 # Redact certain fields from the logs

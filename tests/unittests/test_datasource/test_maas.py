@@ -25,9 +25,9 @@ class TestMAASDataSource(TestCase):
         """Verify a valid seeddir is read as such."""
 
         data = {'instance-id': 'i-valid01',
-            'local-hostname': 'valid01-hostname',
-            'user-data': b'valid01-userdata',
-            'public-keys': 'ssh-rsa AAAAB3Nz...aC1yc2E= keyname'}
+                'local-hostname': 'valid01-hostname',
+                'user-data': b'valid01-userdata',
+                'public-keys': 'ssh-rsa AAAAB3Nz...aC1yc2E= keyname'}
 
         my_d = os.path.join(self.tmp, "valid")
         populate_dir(my_d, data)
@@ -45,8 +45,8 @@ class TestMAASDataSource(TestCase):
         """Verify extra files do not affect seed_dir validity."""
 
         data = {'instance-id': 'i-valid-extra',
-            'local-hostname': 'valid-extra-hostname',
-            'user-data': b'valid-extra-userdata', 'foo': 'bar'}
+                'local-hostname': 'valid-extra-hostname',
+                'user-data': b'valid-extra-userdata', 'foo': 'bar'}
 
         my_d = os.path.join(self.tmp, "valid_extra")
         populate_dir(my_d, data)
@@ -64,7 +64,7 @@ class TestMAASDataSource(TestCase):
         """Verify that invalid seed_dir raises MAASSeedDirMalformed."""
 
         valid = {'instance-id': 'i-instanceid',
-            'local-hostname': 'test-hostname', 'user-data': ''}
+                 'local-hostname': 'test-hostname', 'user-data': ''}
 
         my_based = os.path.join(self.tmp, "valid_extra")
 
@@ -94,8 +94,8 @@ class TestMAASDataSource(TestCase):
     def test_seed_dir_missing(self):
         """Verify that missing seed_dir raises MAASSeedDirNone."""
         self.assertRaises(DataSourceMAAS.MAASSeedDirNone,
-            DataSourceMAAS.read_maas_seed_dir,
-            os.path.join(self.tmp, "nonexistantdirectory"))
+                          DataSourceMAAS.read_maas_seed_dir,
+                          os.path.join(self.tmp, "nonexistantdirectory"))
 
     def test_seed_url_valid(self):
         """Verify that valid seed_url is read as such."""

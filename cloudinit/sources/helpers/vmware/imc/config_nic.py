@@ -19,7 +19,6 @@
 
 import logging
 import os
-import subprocess
 import re
 
 from cloudinit import util
@@ -47,12 +46,12 @@ class NicConfigurator:
         """
         primary_nics = [nic for nic in self.nics if nic.primary]
         if not primary_nics:
-           return None
+            return None
         elif len(primary_nics) > 1:
-           raise Exception('There can only be one primary nic',
+            raise Exception('There can only be one primary nic',
                             [nic.mac for nic in primary_nics])
         else:
-           return primary_nics[0]
+            return primary_nics[0]
 
     def find_devices(self):
         """
@@ -186,8 +185,8 @@ class NicConfigurator:
         lines = []
 
         for addr in addrs:
-            lines.append('    up route -A inet6 add default gw %s metric 10000' %
-                         addr.gateway)
+            lines.append('    up route -A inet6 add default gw '
+                         '%s metric 10000' % addr.gateway)
 
         return lines
 

@@ -126,11 +126,11 @@ class WebException(Exception):
 
 def yamlify(data):
     formatted = yaml.dump(data,
-        line_break="\n",
-        indent=4,
-        explicit_start=True,
-        explicit_end=True,
-        default_flow_style=False)
+                          line_break="\n",
+                          indent=4,
+                          explicit_start=True,
+                          explicit_end=True,
+                          default_flow_style=False)
     return formatted
 
 
@@ -282,7 +282,7 @@ class MetaDataHandler(object):
         else:
             log.warn(("Did not implement action %s, "
                       "returning empty response: %r"),
-                      action, NOT_IMPL_RESPONSE)
+                     action, NOT_IMPL_RESPONSE)
             return NOT_IMPL_RESPONSE
 
 
@@ -404,14 +404,17 @@ def setup_logging(log_level, fmt='%(levelname)s: @%(name)s : %(message)s'):
 def extract_opts():
     parser = OptionParser()
     parser.add_option("-p", "--port", dest="port", action="store", type=int,
-        default=80, metavar="PORT",
-        help="port from which to serve traffic (default: %default)")
+                      default=80, metavar="PORT",
+                      help=("port from which to serve traffic"
+                            " (default: %default)"))
     parser.add_option("-a", "--addr", dest="address", action="store", type=str,
-        default='0.0.0.0', metavar="ADDRESS",
-        help="address from which to serve traffic (default: %default)")
+                      default='0.0.0.0', metavar="ADDRESS",
+                      help=("address from which to serve traffic"
+                            " (default: %default)"))
     parser.add_option("-f", '--user-data-file', dest='user_data_file',
-        action='store', metavar='FILE',
-        help="user data filename to serve back to incoming requests")
+                      action='store', metavar='FILE',
+                      help=("user data filename to serve back to"
+                            "incoming requests"))
     (options, args) = parser.parse_args()
     out = dict()
     out['extra'] = args

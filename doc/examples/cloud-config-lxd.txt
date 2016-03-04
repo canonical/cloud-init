@@ -1,0 +1,28 @@
+#cloud-config
+
+# configure lxd
+# default: none
+# all options default to none if not specified
+# lxd: config sections for lxd
+#   init: dict of options for lxd init, see 'man lxd'
+#     network_address: address for lxd to listen on
+#     network_port: port for lxd to listen on
+#     storage_backend: either 'zfs' or 'dir'
+#     storage_create_device: device based storage using specified device
+#     storage_create_loop: set up loop based storage with size in GB
+#     storage_pool: name of storage pool to use or create
+#     trust_password: password required to add new clients
+
+lxd:
+  init:
+    network_address: 0.0.0.0
+    network_port: 8443
+    storage_backend: zfs
+    storage_pool: datapool
+    storage_create_loop: 10
+
+
+# The simplist working configuration is
+# lxd:
+#  init:
+#   storage_backend: dir

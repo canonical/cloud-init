@@ -36,8 +36,8 @@ def _autostart_puppet(log):
     # Set puppet to automatically start
     if os.path.exists('/etc/default/puppet'):
         util.subp(['sed', '-i',
-                  '-e', 's/^START=.*/START=yes/',
-                  '/etc/default/puppet'], capture=False)
+                   '-e', 's/^START=.*/START=yes/',
+                   '/etc/default/puppet'], capture=False)
     elif os.path.exists('/bin/systemctl'):
         util.subp(['/bin/systemctl', 'enable', 'puppet.service'],
                   capture=False)
@@ -65,7 +65,7 @@ def handle(name, cfg, cloud, log, _args):
                   " doing nothing."))
     elif install:
         log.debug(("Attempting to install puppet %s,"),
-                   version if version else 'latest')
+                  version if version else 'latest')
         cloud.distro.install_packages(('puppet', version))
 
     # ... and then update the puppet configuration

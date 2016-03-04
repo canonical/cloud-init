@@ -159,8 +159,9 @@ class Distro(distros.Distro):
 
         # Allow the output of this to flow outwards (ie not be captured)
         util.log_time(logfunc=LOG.debug,
-            msg="apt-%s [%s]" % (command, ' '.join(cmd)), func=util.subp,
-            args=(cmd,), kwargs={'env': e, 'capture': False})
+                      msg="apt-%s [%s]" % (command, ' '.join(cmd)),
+                      func=util.subp,
+                      args=(cmd,), kwargs={'env': e, 'capture': False})
 
     def update_package_sources(self):
         self._runner.run("update-sources", self.package_command,

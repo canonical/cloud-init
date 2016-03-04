@@ -69,16 +69,15 @@ class DataSourceOVF(sources.DataSource):
             LOG.debug("No system-product-name found")
         elif 'vmware' in system_type.lower():
             LOG.debug("VMware Virtualization Platform found")
-            if not util.get_cfg_option_bool(self.sys_cfg,
-                                        "disable_vmware_customization",
-                                        True):
+            if not util.get_cfg_option_bool(
+                    self.sys_cfg, "disable_vmware_customization", True):
                 deployPkgPluginPath = search_file("/usr/lib/vmware-tools",
                                                   "libdeployPkgPlugin.so")
                 if deployPkgPluginPath:
-                    vmwareImcConfigFilePath = util.log_time(logfunc=LOG.debug,
-                                      msg="waiting for configuration file",
-                                      func=wait_for_imc_cfg_file,
-                                      args=("/tmp", "cust.cfg"))
+                    vmwareImcConfigFilePath = util.log_time(
+                        logfunc=LOG.debug,
+                        msg="waiting for configuration file",
+                        func=wait_for_imc_cfg_file, args=("/tmp", "cust.cfg"))
 
                 if vmwareImcConfigFilePath:
                     LOG.debug("Found VMware DeployPkg Config File at %s" %
@@ -97,7 +96,8 @@ class DataSourceOVF(sources.DataSource):
                 nicConfigurator.configure()
                 vmwarePlatformFound = True
             except Exception as inst:
-                LOG.debug("Error while parsing the Customization Config File")
+                LOG.debug("Error while parsing the Customization "
+                          "Config File: %s", inst)
             finally:
                 dirPath = os.path.dirname(vmwareImcConfigFilePath)
                 shutil.rmtree(dirPath)
@@ -336,14 +336,14 @@ def get_properties(contents):
     # could also check here that elem.namespaceURI ==
     #   "http://schemas.dmtf.org/ovf/environment/1"
     propSections = find_child(dom.documentElement,
-        lambda n: n.localName == "PropertySection")
+                              lambda n: n.localName == "PropertySection")
 
     if len(propSections) == 0:
         raise XmlError("No 'PropertySection's")
 
     props = {}
     propElems = find_child(propSections[0],
-                            (lambda n: n.localName == "Property"))
+                           (lambda n: n.localName == "Property"))
 
     for elem in propElems:
         key = elem.attributes.getNamedItemNS(envNsURI, "key").value
@@ -370,8 +370,8 @@ class XmlError(Exception):
 
 # Used to match classes to dependencies
 datasources = (
-  (DataSourceOVF, (sources.DEP_FILESYSTEM, )),
-  (DataSourceOVFNet, (sources.DEP_FILESYSTEM, sources.DEP_NETWORK)),
+    (DataSourceOVF, (sources.DEP_FILESYSTEM, )),
+    (DataSourceOVFNet, (sources.DEP_FILESYSTEM, sources.DEP_NETWORK)),
 )
 
 
