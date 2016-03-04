@@ -14,7 +14,7 @@ override_dh_install:
 
 ifeq (,$(findstring nocheck,$(DEB_BUILD_OPTIONS)))
 override_dh_auto_test:
-   http_proxy= make check
+	http_proxy= make check
 endif
 
 override_dh_systemd_start:
