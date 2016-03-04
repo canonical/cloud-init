@@ -75,6 +75,17 @@
    [Robert C Jennings]
  - systemd: support using systemd-detect-virt to detect container
    (LP: #1539016) [Martin Pitt]
+ - docs: fix lock_passwd documentation [Robert C Jennings]
+ - Azure: Handle escaped quotes in WALinuxAgentShim.find_endpoint.
+   (LP: #1488891) [Dan Watkins]
+ - lxd: add support for setting up lxd using 'lxd init' (LP: #1522879)
+ - Add Image Customization Parser for VMware vSphere Hypervisor
+   Support. [Sankar Tanguturi]
+ - timezone: use a symlink rather than copy for /etc/localtime
+   unless it is already a file (LP: #1543025).
+ - Enable password changing via a hashed string [Alex Sirbu]
+ - Added BigStep datasource [Alex Sirbu]
+
 0.7.6:
  - open 0.7.6
  - Enable vendordata on CloudSigma datasource (LP: #1303986)

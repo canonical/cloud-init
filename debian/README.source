@@ -38,17 +38,6 @@ There is a utility in debian/cherry-pick-rev that will
 help to cherry pick a single commit from trunk.
 
 == New snapshot ==
-To import a new snapshot, do:
+To pull a new upstream snapshot, given lp:cloud-init in ../trunk:
 
- trunk="../trunk"
- uver=$(cd "$trunk" && ./tools/read-version) # the *next* upstream version
- revno=$(cd "$trunk" && bzr revno)
- pversion=$(dpkg-parsechangelog --show-field Version) 
- prevno=$(echo "$pversion" | sed 's,.*bzr\([0-9]\+\)-.*,\1,')
- version=${uver}~bzr${revno}
- tarball=cloud-init-${version}.tar.gz
- bzr export --format=tgz --revision=${revno} "$tarball" "${trunk}"
- t=../cloud-init_${version}.orig.tar.gz && [ -f $t ] && tarball=$t
- [ -f "$t" ] || bzr export --format=tgz --revision=${revno} "$tarball" "${trunk}"
- bzr merge-upstream "$tarball" --version=${version}
- ( cd "$trunk" && bzr log -r $(($prevno+1)).. ) > new-changes.log
+ ./debian/new-upstream-snapshot ../trunk

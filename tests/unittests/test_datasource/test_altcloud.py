@@ -134,8 +134,7 @@ class TestGetCloudType(TestCase):
         '''
         util.read_dmi_data = _dmi_data('RHEV')
         dsrc = DataSourceAltCloud({}, None, self.paths)
-        self.assertEquals('RHEV', \
-            dsrc.get_cloud_type())
+        self.assertEquals('RHEV', dsrc.get_cloud_type())
 
     def test_vsphere(self):
         '''
@@ -144,8 +143,7 @@ class TestGetCloudType(TestCase):
         '''
         util.read_dmi_data = _dmi_data('VMware Virtual Platform')
         dsrc = DataSourceAltCloud({}, None, self.paths)
-        self.assertEquals('VSPHERE', \
-            dsrc.get_cloud_type())
+        self.assertEquals('VSPHERE', dsrc.get_cloud_type())
 
     def test_unknown(self):
         '''
@@ -154,8 +152,7 @@ class TestGetCloudType(TestCase):
         '''
         util.read_dmi_data = _dmi_data('Unrecognized Platform')
         dsrc = DataSourceAltCloud({}, None, self.paths)
-        self.assertEquals('UNKNOWN', \
-            dsrc.get_cloud_type())
+        self.assertEquals('UNKNOWN', dsrc.get_cloud_type())
 
 
 class TestGetDataCloudInfoFile(TestCase):
@@ -412,27 +409,27 @@ class TestReadUserDataCallback(TestCase):
         '''Test read_user_data_callback() with both files.'''
 
         self.assertEquals('test user data',
-            read_user_data_callback(self.mount_dir))
+                          read_user_data_callback(self.mount_dir))
 
     def test_callback_dc(self):
         '''Test read_user_data_callback() with only DC file.'''
 
         _remove_user_data_files(self.mount_dir,
-            dc_file=False,
-            non_dc_file=True)
+                                dc_file=False,
+                                non_dc_file=True)
 
         self.assertEquals('test user data',
-            read_user_data_callback(self.mount_dir))
+                          read_user_data_callback(self.mount_dir))
 
     def test_callback_non_dc(self):
         '''Test read_user_data_callback() with only non-DC file.'''
 
         _remove_user_data_files(self.mount_dir,
-            dc_file=True,
-            non_dc_file=False)
+                                dc_file=True,
+                                non_dc_file=False)
 
         self.assertEquals('test user data',
-            read_user_data_callback(self.mount_dir))
+                          read_user_data_callback(self.mount_dir))
 
     def test_callback_none(self):
         '''Test read_user_data_callback() no files are found.'''

@@ -48,7 +48,7 @@ def handle(name, cfg, cloud, log, _args):
                                             "ssh_fp_console_blacklist", [])
     key_blacklist = util.get_cfg_option_list(cfg,
                                              "ssh_key_console_blacklist",
-                                              ["ssh-dss"])
+                                             ["ssh-dss"])
 
     try:
         cmd = [helper_path]

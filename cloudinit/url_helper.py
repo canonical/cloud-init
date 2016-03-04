@@ -252,9 +252,9 @@ def readurl(url, data=None, timeout=None, retries=0, sec_between=1,
             # attrs
             return UrlResponse(r)
         except exceptions.RequestException as e:
-            if (isinstance(e, (exceptions.HTTPError))
-                    and hasattr(e, 'response')  # This appeared in v 0.10.8
-                    and hasattr(e.response, 'status_code')):
+            if (isinstance(e, (exceptions.HTTPError)) and
+               hasattr(e, 'response') and  # This appeared in v 0.10.8
+               hasattr(e.response, 'status_code')):
                 excps.append(UrlError(e, code=e.response.status_code,
                                       headers=e.response.headers,
                                       url=url))

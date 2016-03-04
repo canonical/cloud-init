@@ -284,7 +284,7 @@ class DataSourceAltCloud(sources.DataSource):
 # In the future 'dsmode' like behavior can be added to offer user
 # the ability to run before networking.
 datasources = [
-  (DataSourceAltCloud, (sources.DEP_FILESYSTEM, sources.DEP_NETWORK)),
+    (DataSourceAltCloud, (sources.DEP_FILESYSTEM, sources.DEP_NETWORK)),
 ]
 
 

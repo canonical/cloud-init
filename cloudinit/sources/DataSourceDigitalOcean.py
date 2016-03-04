@@ -101,8 +101,8 @@ class DataSourceDigitalOcean(sources.DataSource):
 
 # Used to match classes to dependencies
 datasources = [
-  (DataSourceDigitalOcean, (sources.DEP_FILESYSTEM, sources.DEP_NETWORK)),
-  ]
+    (DataSourceDigitalOcean, (sources.DEP_FILESYSTEM, sources.DEP_NETWORK)),
+]
 
 
 # Return a list of data sources that match this set of dependencies
