@@ -1,6 +1,5 @@
 CWD=$(shell pwd)
-PY_FILES=$(shell find cloudinit bin tests tools -name "*.py" -type f )
-PY_FILES+="bin/cloud-init"
+PYVER ?= 3
 noseopts ?= -v
 
 YAML_FILES=$(shell find cloudinit bin tests tools -name "*.yaml" -type f )
@@ -11,19 +10,42 @@ CODE_VERSION=$(shell python -c "from cloudinit import version; print version.ver
 
 PIP_INSTALL := pip install
 
+ifeq ($(PYVER),3)
+  pyflakes = pyflakes3
+  unittests = unittest3
+  yaml = yaml
+else
+ifeq ($(PYVER),2)
+  pyflakes = pyflakes
+  unittests = unittest
+else
+  pyflakes = pyflakes pyflakes3
+  unittests = unittest unittest3
+endif
+endif
+
 ifeq ($(distro),)
   distro = redhat
 endif
 
 all: check
 
-check: test check_version pyflakes
+check: check_version pep8 $(pyflakes) test $(yaml)
 
 pep8:
-	@$(CWD)/tools/run-pep8 $(PY_FILES)
+	@$(CWD)/tools/run-pep8
 
 pyflakes:
-	@pyflakes $(PY_FILES)
+	@$(CWD)/tools/run-pyflakes
+
+pyflakes3:
+	@$(CWD)/tools/run-pyflakes3
+	
+unittest: clean_pyc
+	nosetests $(noseopts) tests/unittests
+
+unittest3: clean_pyc
+	nosetests3 $(noseopts) tests/unittests
 
 pip-requirements:
 	@echo "Installing cloud-init dependencies..."
@@ -33,8 +55,7 @@ pip-test-requirements:
 	@echo "Installing cloud-init test dependencies..."
 	$(PIP_INSTALL) -r "$@.txt" -q
 
-test: clean_pyc
-	@n=$$(which nosetests3) || n=nosetests; set -- $$n $(noseopts) tests/; echo "Running $$*"; "$$@"
+test: $(unittests)
 
 check_version:
 	@if [ "$(CHANGELOG_VERSION)" != "$(CODE_VERSION)" ]; then \
@@ -44,9 +65,6 @@ check_version:
 
 clean_pyc:
 	@find . -type f -name "*.pyc" -delete
-
-2to3:
-	2to3 $(PY_FILES)
 
 clean: clean_pyc
 	rm -rf /var/log/cloud-init.log /var/lib/cloud/
@@ -60,5 +78,5 @@ rpm:
 deb:
 	./packages/bddeb
 
-.PHONY: test pyflakes 2to3 clean pep8 rpm deb yaml check_version
-.PHONY: pip-test-requirements pip-requirements clean_pyc
+.PHONY: test pyflakes pyflakes3 clean pep8 rpm deb yaml check_version
+.PHONY: pip-test-requirements pip-requirements clean_pyc unittest unittest3

@@ -190,7 +190,8 @@ class TestRandomSeed(t_help.TestCase):
         c = self._get_cloud('ubuntu', {})
         self.whichdata = {}
         self.assertRaises(ValueError, cc_seed_random.handle,
-            'test', {'random_seed': {'command_required': True}}, c, LOG, [])
+                          'test', {'random_seed': {'command_required': True}},
+                          c, LOG, [])
 
     def test_seed_command_and_required(self):
         c = self._get_cloud('ubuntu', {})

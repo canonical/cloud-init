@@ -91,7 +91,8 @@ def handle(name, cfg, cloud, log, _args):
         if matchcfg:
             matcher = re.compile(matchcfg).search
         else:
-            matcher = lambda f: False
+            def matcher(x):
+                return False
 
         errors = add_sources(cfg['apt_sources'], params,
                              aa_repo_match=matcher)
@@ -173,7 +174,8 @@ def add_sources(srclist, template_params=None, aa_repo_match=None):
         template_params = {}
 
     if aa_repo_match is None:
-        aa_repo_match = lambda f: False
+        def aa_repo_match(x):
+            return False
 
     errorlist = []
     for ent in srclist:

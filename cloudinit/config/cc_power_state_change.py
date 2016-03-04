@@ -105,7 +105,7 @@ def handle(_name, cfg, _cloud, log, _args):
 
     log.debug("After pid %s ends, will execute: %s" % (mypid, ' '.join(args)))
 
-    util.fork_cb(run_after_pid_gone, mypid, cmdline, timeout, log, 
+    util.fork_cb(run_after_pid_gone, mypid, cmdline, timeout, log,
                  condition, execmd, [args, devnull_fp])
 
 

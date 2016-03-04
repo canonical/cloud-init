@@ -14,7 +14,7 @@ override_dh_install:
 
 override_dh_auto_test:
 ifeq (,$(findstring nocheck,$(DEB_BUILD_OPTIONS)))
-	http_proxy= make check
+	http_proxy= make PYVER=${pyver} check
 else
 	@echo check disabled by DEB_BUILD_OPTIONS=$(DEB_BUILD_OPTIONS)
 endif

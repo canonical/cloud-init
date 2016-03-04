@@ -263,8 +263,8 @@ class DataSourceNoCloudNet(DataSourceNoCloud):
 
 # Used to match classes to dependencies
 datasources = [
-  (DataSourceNoCloud, (sources.DEP_FILESYSTEM, )),
-  (DataSourceNoCloudNet, (sources.DEP_FILESYSTEM, sources.DEP_NETWORK)),
+    (DataSourceNoCloud, (sources.DEP_FILESYSTEM, )),
+    (DataSourceNoCloudNet, (sources.DEP_FILESYSTEM, sources.DEP_NETWORK)),
 ]
 
 

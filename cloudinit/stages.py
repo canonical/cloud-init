@@ -509,13 +509,13 @@ class Init(object):
     def consume_data(self, frequency=PER_INSTANCE):
         # Consume the userdata first, because we need want to let the part
         # handlers run first (for merging stuff)
-        with events.ReportEventStack(
-            "consume-user-data", "reading and applying user-data",
-            parent=self.reporter):
+        with events.ReportEventStack("consume-user-data",
+                                     "reading and applying user-data",
+                                     parent=self.reporter):
                 self._consume_userdata(frequency)
-        with events.ReportEventStack(
-            "consume-vendor-data", "reading and applying vendor-data",
-            parent=self.reporter):
+        with events.ReportEventStack("consume-vendor-data",
+                                     "reading and applying vendor-data",
+                                     parent=self.reporter):
                 self._consume_vendordata(frequency)
 
         # Perform post-consumption adjustments so that
@@ -655,7 +655,7 @@ class Modules(object):
             else:
                 raise TypeError(("Failed to read '%s' item in config,"
                                  " unknown type %s") %
-                                 (item, type_utils.obj_name(item)))
+                                (item, type_utils.obj_name(item)))
         return module_list
 
     def _fixup_modules(self, raw_mods):
@@ -762,8 +762,8 @@ class Modules(object):
 
         if skipped:
             LOG.info("Skipping modules %s because they are not verified "
-                      "on distro '%s'.  To run anyway, add them to "
-                      "'unverified_modules' in config.", skipped, d_name)
+                     "on distro '%s'.  To run anyway, add them to "
+                     "'unverified_modules' in config.", skipped, d_name)
         if forced:
             LOG.info("running unverified_modules: %s", forced)
 

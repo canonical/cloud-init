@@ -149,8 +149,8 @@ class BrokenContextDiskDir(Exception):
 
 class OpenNebulaNetwork(object):
     REG_DEV_MAC = re.compile(
-                    r'^\d+: (eth\d+):.*?link\/ether (..:..:..:..:..:..) ?',
-                    re.MULTILINE | re.DOTALL)
+        r'^\d+: (eth\d+):.*?link\/ether (..:..:..:..:..:..) ?',
+        re.MULTILINE | re.DOTALL)
 
     def __init__(self, ip, context):
         self.ip = ip
@@ -404,7 +404,8 @@ def read_context_disk_dir(source_dir, asuser=None):
     if ssh_key_var:
         lines = context.get(ssh_key_var).splitlines()
         results['metadata']['public-keys'] = [l for l in lines
-            if len(l) and not l.startswith("#")]
+                                              if len(l) and not
+                                              l.startswith("#")]
 
     # custom hostname -- try hostname or leave cloud-init
     # itself create hostname from IP address later

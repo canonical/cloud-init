@@ -6,13 +6,13 @@ from ..helpers import TestCase
 
 
 bcfg = {
-   'name': 'bob',
-   'plain_text_passwd': 'ubuntu',
-   'home': "/home/ubuntu",
-   'shell': "/bin/bash",
-   'lock_passwd': True,
-   'gecos': "Ubuntu",
-   'groups': ["foo"]
+    'name': 'bob',
+    'plain_text_passwd': 'ubuntu',
+    'home': "/home/ubuntu",
+    'shell': "/bin/bash",
+    'lock_passwd': True,
+    'gecos': "Ubuntu",
+    'groups': ["foo"]
 }
 
 
@@ -34,16 +34,11 @@ class TestUGNormalize(TestCase):
     def test_group_dict(self):
         distro = self._make_distro('ubuntu')
         g = {'groups': [
-                {
-                    'ubuntu': ['foo', 'bar'],
-                    'bob': 'users',
-                },
-                'cloud-users',
-                {
-                    'bob': 'users2',
-                },
-            ]
-        }
+            {'ubuntu': ['foo', 'bar'],
+             'bob': 'users'},
+            'cloud-users',
+            {'bob': 'users2'}
+            ]}
         (_users, groups) = self._norm(g, distro)
         self.assertIn('ubuntu', groups)
         ub_members = groups['ubuntu']

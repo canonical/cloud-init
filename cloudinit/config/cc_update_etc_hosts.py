@@ -41,10 +41,10 @@ def handle(name, cfg, cloud, log, _args):
         if not tpl_fn_name:
             raise RuntimeError(("No hosts template could be"
                                 " found for distro %s") %
-                                (cloud.distro.osfamily))
+                               (cloud.distro.osfamily))
 
         templater.render_to_file(tpl_fn_name, '/etc/hosts',
-                                {'hostname': hostname, 'fqdn': fqdn})
+                                 {'hostname': hostname, 'fqdn': fqdn})
 
     elif manage_hosts == "localhost":
         (hostname, fqdn) = util.get_hostname_fqdn(cfg, cloud)
@@ -57,4 +57,4 @@ def handle(name, cfg, cloud, log, _args):
         cloud.distro.update_etc_hosts(hostname, fqdn)
     else:
         log.debug(("Configuration option 'manage_etc_hosts' is not set,"
-                    " not managing /etc/hosts in module %s"), name)
+                   " not managing /etc/hosts in module %s"), name)
