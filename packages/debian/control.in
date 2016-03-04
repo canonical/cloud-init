@@ -18,8 +18,8 @@ Package: cloud-init
 Architecture: all
 Depends: procps,
          ${python},
-         ${requires},
          ${misc:Depends},
+         ${${python}:Depends}
 Recommends: eatmydata, sudo, software-properties-common, gdisk
 XB-Python-Version: ${python:Versions}
 Description: Init scripts for cloud instances
