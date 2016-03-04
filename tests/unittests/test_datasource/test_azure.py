@@ -268,7 +268,7 @@ class TestAzureDataSource(TestCase):
         pos = defuser['passwd'].rfind("$") + 1
         self.assertEqual(defuser['passwd'],
                          crypt.crypt(odata['UserPassword'],
-                         defuser['passwd'][0:pos]))
+                                     defuser['passwd'][0:pos]))
 
     def test_userdata_plain(self):
         mydata = "FOOBAR"

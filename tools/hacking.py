@@ -49,8 +49,8 @@ def import_normalize(line):
     if (line.startswith("from ") and "," not in line and
        split_line[2] == "import" and split_line[3] != "*" and
        split_line[1] != "__future__" and
-       (len(split_line) == 4 or
-       (len(split_line) == 6 and split_line[4] == "as"))):
+       (len(split_line) == 4 or (len(split_line) == 6 and
+                                 split_line[4] == "as"))):
         return "import %s.%s" % (split_line[1], split_line[3])
     else:
         return line
