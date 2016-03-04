@@ -126,10 +126,8 @@ class SubscriptionManager(object):
                        "(True/False "
             return False, not_bool
 
-        if (self.servicelevel is not None) and \
-           ((not self.auto_attach) or
+        if (self.servicelevel is not None) and ((not self.auto_attach) or
            (util.is_false(str(self.auto_attach)))):
-
             no_auto = ("The service-level key must be used in conjunction "
                        "with the auto-attach key.  Please re-run with "
                        "auto-attach: True")
