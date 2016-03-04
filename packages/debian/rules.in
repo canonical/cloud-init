@@ -12,8 +12,13 @@ override_dh_install:
 	install -d debian/cloud-init/etc/rsyslog.d
 	cp tools/21-cloudinit.conf debian/cloud-init/etc/rsyslog.d/21-cloudinit.conf
 
+ifeq (,$(findstring nocheck,$(DEB_BUILD_OPTIONS)))
 override_dh_auto_test:
-	http_proxy= make check
+   http_proxy= make check
+endif
+
+override_dh_systemd_enable:
+	dh_systemd_enable --no-enable
 
 override_dh_systemd_start:
 	dh_systemd_start --no-restart-on-upgrade --no-start
