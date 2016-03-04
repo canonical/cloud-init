@@ -13,4 +13,4 @@ TimeoutSec=0
 StandardOutput=journal+console
 
 [Install]
-WantedBy=multi-user.target
+WantedBy=cloud-init.target

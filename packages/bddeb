@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import glob
 import os
 import shutil
 import sys
@@ -105,11 +106,11 @@ def write_debian_folder(root, version, revno, pkgmap,
                              util.abs_join(deb_dir, 'rules'),
                              params={'python': python, 'pyver': pyver})
 
-    # Just copy the following directly
-    for base_fn in ['dirs', 'copyright', 'compat']:
-        shutil.copy(util.abs_join(find_root(),
-                                  'packages', 'debian', base_fn),
-                    util.abs_join(deb_dir, base_fn))
+    # Just copy any other files directly (including .in)
+    pdeb_d = util.abs_join(find_root(), 'packages', 'debian')
+    for f in [os.path.join(pdeb_d, f) for f in os.listdir(pdeb_d)]:
+        if os.path.isfile(f):
+            shutil.copy(f, util.abs_join(deb_dir, os.path.basename(f)))
 
 
 def main():
