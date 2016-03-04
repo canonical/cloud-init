@@ -83,6 +83,7 @@
    Support. [Sankar Tanguturi]
  - timezone: use a symlink rather than copy for /etc/localtime
    unless it is already a file (LP: #1543025).
+ - Enable password changing via a hashed string [Alex Sirbu]
 
 0.7.6:
  - open 0.7.6
