@@ -5,6 +5,7 @@
 #
 
 import json
+import errno
 
 from cloudinit import log as logging
 from cloudinit import sources
@@ -22,7 +23,13 @@ class DataSourceBigstep(sources.DataSource):
         self.userdata_raw = ""
 
     def get_data(self, apply_filter=False):
-        url = get_url_from_file()
+        try:
+            url = get_url_from_file()
+        except IOError as e:
+            if e.errno == errno.ENOENT:
+                return False
+            else:
+                raise
         response = url_helper.readurl(url)
         decoded = json.loads(response.contents)
         self.metadata = decoded["metadata"]
