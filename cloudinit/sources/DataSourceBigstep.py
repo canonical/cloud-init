@@ -5,6 +5,7 @@
 #
 
 import json
+import errno
 
 from cloudinit import log as logging
 from cloudinit import sources
@@ -23,6 +24,8 @@ class DataSourceBigstep(sources.DataSource):
 
     def get_data(self, apply_filter=False):
         url = get_url_from_file()
+        if url is None:
+            return False
         response = url_helper.readurl(url)
         decoded = json.loads(response.contents)
         self.metadata = decoded["metadata"]
@@ -32,7 +35,15 @@ class DataSourceBigstep(sources.DataSource):
 
 
 def get_url_from_file():
-    content = util.load_file("/var/lib/cloud/data/seed/bigstep/url")
+    try:
+        content = util.load_file("/var/lib/cloud/data/seed/bigstep/url")
+    except IOError as e:
+        # If the file doesn't exist, then the server probably isn't a Bigstep
+        # instance; otherwise, another problem exists which needs investigation
+        if e.errno == errno.ENOENT:
+            return None
+        else:
+            raise
     return content
 
 # Used to match classes to dependencies
