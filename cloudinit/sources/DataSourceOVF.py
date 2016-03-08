@@ -34,6 +34,14 @@ from cloudinit import util
 from cloudinit.sources.helpers.vmware.imc.config import Config
 from cloudinit.sources.helpers.vmware.imc.config_file import ConfigFile
 from cloudinit.sources.helpers.vmware.imc.config_nic import NicConfigurator
+from cloudinit.sources.helpers.vmware.imc.guestcust_event import \
+    GuestCustEventEnum
+from cloudinit.sources.helpers.vmware.imc.guestcust_state import \
+    GuestCustStateEnum
+from cloudinit.sources.helpers.vmware.imc.guestcust_error import \
+    GuestCustErrorEnum
+from cloudinit.sources.helpers.vmware.imc.guestcust_util import \
+    set_customization_status
 
 LOG = logging.getLogger(__name__)
 
@@ -74,6 +82,9 @@ class DataSourceOVF(sources.DataSource):
                                         True):
                 deployPkgPluginPath = search_file("/usr/lib/vmware-tools",
                                                   "libdeployPkgPlugin.so")
+                if not deployPkgPluginPath:
+                    deployPkgPluginPath = search_file("/usr/lib/open-vm-tools",
+                                                      "libdeployPkgPlugin.so")
                 if deployPkgPluginPath:
                     vmwareImcConfigFilePath = util.log_time(logfunc=LOG.debug,
                                       msg="waiting for configuration file",
@@ -93,14 +104,33 @@ class DataSourceOVF(sources.DataSource):
                 cf = ConfigFile(vmwareImcConfigFilePath)
                 conf = Config(cf)
                 (md, ud, cfg) = read_vmware_imc(conf)
-                nicConfigurator = NicConfigurator(conf.nics)
-                nicConfigurator.configure()
-                vmwarePlatformFound = True
-            except Exception as inst:
-                LOG.debug("Error while parsing the Customization Config File")
+            except Exception as e:
+                LOG.debug("Error parsing the customization Config File")
+                LOG.exception(e)
+                set_customization_status(
+                    GuestCustStateEnum.GUESTCUST_STATE_RUNNING,
+                    GuestCustEventEnum.GUESTCUST_EVENT_CUSTOMIZE_FAILED)
+                return False
             finally:
                 dirPath = os.path.dirname(vmwareImcConfigFilePath)
                 shutil.rmtree(dirPath)
+
+            try:
+                LOG.debug("Applying the Network customization")
+                nicConfigurator = NicConfigurator(conf.nics)
+                nicConfigurator.configure()
+            except Exception as e:
+                LOG.debug("Error applying the Network Configuration")
+                LOG.exception(e)
+                set_customization_status(
+                    GuestCustStateEnum.GUESTCUST_STATE_RUNNING,
+                    GuestCustEventEnum.GUESTCUST_EVENT_NETWORK_SETUP_FAILED)
+                return False
+
+            vmwarePlatformFound = True
+            set_customization_status(
+                 GuestCustStateEnum.GUESTCUST_STATE_DONE,
+                 GuestCustErrorEnum.GUESTCUST_ERROR_SUCCESS)
         elif seedfile:
             # Found a seed dir
             seed = os.path.join(self.paths.seed_dir, seedfile)
