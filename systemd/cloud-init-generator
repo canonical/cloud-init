@@ -32,15 +32,16 @@ etc_file() {
 }
 
 read_proc_cmdline() {
-    if [ "$CONTAINER" = "lxc" ]; then
-        _RET_MSG="ignored: \$container=$CONTAINER"
+    # return /proc/cmdline for non-container, and /proc/1/cmdline for container
+    local ctname="systemd"
+    if [ -n "$CONTAINER" ] && ctname=$CONTAINER || systemd-detect-virt --container --quiet; then
+        local 
+        if _RET=$(tr '\0' ' ' < /proc/1/cmdline) >/dev/null 2>&1; then
+            _RET_MSG="container[$ctname]: pid 1 cmdline"
+            return
+        fi
         _RET=""
-        return 0
-    fi
-
-    if systemd-detect-virt --container --quiet; then
-        _RET_MSG="ignored: detect-virt is container"
-        _RET=""
+        _RET_MSG="container[$ctname]: pid 1 cmdline not available"
         return 0
     fi
 
