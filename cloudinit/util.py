@@ -2140,13 +2140,20 @@ def _read_dmi_syspath(key):
             LOG.debug("did not find %s", dmi_key_path)
             return None
 
-        key_data = load_file(dmi_key_path)
+        key_data = load_file(dmi_key_path, decode=False)
         if not key_data:
             LOG.debug("%s did not return any data", dmi_key_path)
             return None
 
-        LOG.debug("dmi data %s returned %s", dmi_key_path, key_data)
-        return key_data.strip()
+        # in the event that this is all \xff and a carriage return
+        # then return '.' in its place.
+        if key_data == b'\xff' * (len(key_data) - 1) + b'\n':
+            key_data = b'.' * (len(key_data) - 1) + b'\n'
+
+        str_data = key_data.decode('utf8').strip()
+
+        LOG.debug("dmi data %s returned %s", dmi_key_path, str_data)
+        return str_data
 
     except Exception:
         logexc(LOG, "failed read of %s", dmi_key_path)
