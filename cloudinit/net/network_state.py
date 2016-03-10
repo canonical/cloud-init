@@ -15,8 +15,11 @@
 #   You should have received a copy of the GNU Affero General Public License
 #   along with Curtin.  If not, see <http://www.gnu.org/licenses/>.
 
-from curtin.log import LOG
-import curtin.config as curtin_config
+from cloudinit import log as logging
+from cloudinit import util
+from cloudinit.util import yaml_dumps as dump_config
+
+LOG = logging.getLogger(__name__)
 
 NETWORK_STATE_VERSION = 1
 NETWORK_STATE_REQUIRED_KEYS = {
@@ -26,7 +29,7 @@ NETWORK_STATE_REQUIRED_KEYS = {
 
 def from_state_file(state_file):
     network_state = None
-    state = curtin_config.load_config(state_file)
+    state = util.read_conf(state_file)
     network_state = NetworkState()
     network_state.load(state)
 
@@ -64,7 +67,7 @@ class NetworkState:
             'config': self.config,
             'network_state': self.network_state,
         }
-        return curtin_config.dump_config(state)
+        return dump_config(state)
 
     def load(self, state):
         if 'version' not in state:
@@ -83,7 +86,7 @@ class NetworkState:
         self.command_handlers = self.get_command_handlers()
 
     def dump_network_state(self):
-        return curtin_config.dump_config(self.network_state)
+        return dump_config(self.network_state)
 
     def parse_config(self):
         # rebuild network state
@@ -335,7 +338,7 @@ def cidr2mask(cidr):
 if __name__ == '__main__':
     import sys
     import random
-    from curtin import net
+    from cloudinit import net
 
     def load_config(nc):
         version = nc.get('version')
@@ -393,7 +396,7 @@ if __name__ == '__main__':
         print("eni_1 == eni_2 ?=> {}".format(
             eni_1 == eni_2))
 
-    y = curtin_config.load_config(sys.argv[1])
+    y = util.read_conf(sys.argv[1])
     network_config = y.get('network')
     test_parse(network_config)
     test_dump_and_load(network_config)

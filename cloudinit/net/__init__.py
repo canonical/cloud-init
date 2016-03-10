@@ -21,11 +21,12 @@ import glob
 import os
 import re
 
-from curtin.log import LOG
-from curtin.udev import generate_udev_rule
-import curtin.util as util
-import curtin.config as config
+from cloudinit import log as logging
+from cloudinit import util
+from .udev import generate_udev_rule
 from . import network_state
+
+LOG = logging.getLogger(__name__)
 
 SYS_CLASS_NET = "/sys/class/net/"
 
@@ -272,7 +273,7 @@ def parse_net_config(path):
     """Parses a curtin network configuration file and
        return network state"""
     ns = None
-    net_config = config.load_config(path)
+    net_config = util.read_conf(path)
     if 'network' in net_config:
         ns = parse_net_config_data(net_config.get('network'))
 
