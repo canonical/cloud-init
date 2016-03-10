@@ -88,6 +88,7 @@
  - No longer run pollinate in seed_random (LP: #1554152)
  - groups: add defalt user to 'lxd' group.  Create groups listed
    for a user if they do not exist. (LP: #1539317)
+ - dmi data: fix failure of reading dmi data for unset dmi values
 
 0.7.6:
  - open 0.7.6
