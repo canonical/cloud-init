@@ -40,8 +40,11 @@ from cloudinit.sources.helpers.vmware.imc.guestcust_state import \
     GuestCustStateEnum
 from cloudinit.sources.helpers.vmware.imc.guestcust_error import \
     GuestCustErrorEnum
-from cloudinit.sources.helpers.vmware.imc.guestcust_util import \
-    set_customization_status
+from cloudinit.sources.helpers.vmware.imc.guestcust_util import (
+    set_customization_status,
+    get_nics_to_enable,
+    enable_nics
+)
 
 LOG = logging.getLogger(__name__)
 
@@ -100,10 +103,13 @@ class DataSourceOVF(sources.DataSource):
                 LOG.debug("Customization for VMware platform is disabled.")
 
         if vmwareImcConfigFilePath:
+            nics = ""
             try:
                 cf = ConfigFile(vmwareImcConfigFilePath)
                 conf = Config(cf)
                 (md, ud, cfg) = read_vmware_imc(conf)
+                dirpath = os.path.dirname(vmwareImcConfigFilePath)
+                nics = get_nics_to_enable(dirpath)
             except Exception as e:
                 LOG.debug("Error parsing the customization Config File")
                 LOG.exception(e)
@@ -128,6 +134,7 @@ class DataSourceOVF(sources.DataSource):
                 return False
 
             vmwarePlatformFound = True
+            enable_nics(nics)
             set_customization_status(
                  GuestCustStateEnum.GUESTCUST_STATE_DONE,
                  GuestCustErrorEnum.GUESTCUST_ERROR_SUCCESS)
