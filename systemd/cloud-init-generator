@@ -3,7 +3,7 @@ set -f
 
 LOG=""
 DEBUG_LEVEL=1
-LOG_D="/run"
+LOG_D="/run/cloud-init"
 ENABLE="enabled"
 DISABLE="disabled"
 CLOUD_SYSTEM_TARGET="/lib/systemd/system/cloud-init.target"
@@ -17,7 +17,8 @@ debug() {
     [ "$lvl" -gt "$DEBUG_LEVEL" ] && return
     if [ -z "$LOG" ]; then
         local log="$LOG_D/${0##*/}.log"
-        { : > "$log"; } >/dev/null 2>&1 && LOG="$log" ||
+        { [ -d "$LOG_D" ] || mkdir -p "$LOG_D"; } &&
+            { : > "$log"; } >/dev/null 2>&1 && LOG="$log" ||
             LOG="/dev/kmsg"
     fi
     echo "$@" >> "$LOG"
