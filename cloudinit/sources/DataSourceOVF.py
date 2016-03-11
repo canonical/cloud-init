@@ -31,16 +31,13 @@ import time
 from cloudinit import log as logging
 from cloudinit import sources
 from cloudinit import util
-from cloudinit.sources.helpers.vmware.imc.config import Config
-from cloudinit.sources.helpers.vmware.imc.config_file import ConfigFile
-from cloudinit.sources.helpers.vmware.imc.config_nic import NicConfigurator
-from cloudinit.sources.helpers.vmware.imc.guestcust_event import \
-    GuestCustEventEnum
-from cloudinit.sources.helpers.vmware.imc.guestcust_state import \
-    GuestCustStateEnum
-from cloudinit.sources.helpers.vmware.imc.guestcust_error import \
-    GuestCustErrorEnum
-from cloudinit.sources.helpers.vmware.imc.guestcust_util import (
+from .helpers.vmware.imc.config import Config
+from .helpers.vmware.imc.config_file import ConfigFile
+from .helpers.vmware.imc.config_nic import NicConfigurator
+from .helpers.vmware.imc.guestcust_event import GuestCustEventEnum
+from .helpers.vmware.imc.guestcust_state import GuestCustStateEnum
+from .helpers.vmware.imc.guestcust_error import GuestCustErrorEnum
+from .helpers.vmware.imc.guestcust_util import (
     set_customization_status,
     get_nics_to_enable,
     enable_nics
@@ -135,8 +132,8 @@ class DataSourceOVF(sources.DataSource):
             vmwarePlatformFound = True
             enable_nics(nics)
             set_customization_status(
-                 GuestCustStateEnum.GUESTCUST_STATE_DONE,
-                 GuestCustErrorEnum.GUESTCUST_ERROR_SUCCESS)
+                GuestCustStateEnum.GUESTCUST_STATE_DONE,
+                GuestCustErrorEnum.GUESTCUST_ERROR_SUCCESS)
         elif seedfile:
             # Found a seed dir
             seed = os.path.join(self.paths.seed_dir, seedfile)

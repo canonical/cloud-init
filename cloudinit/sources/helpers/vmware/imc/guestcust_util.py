@@ -24,7 +24,6 @@ import time
 from cloudinit import util
 
 from .guestcust_state import GuestCustStateEnum
-from .guestcust_error import GuestCustErrorEnum
 from .guestcust_event import GuestCustEventEnum
 
 logger = logging.getLogger(__name__)
@@ -103,9 +102,9 @@ def enable_nics(nics):
     for attempt in range(0, enableNicsWaitRetries):
         logger.debug("Trying to connect interfaces, attempt %d", attempt)
         (out, err) = set_customization_status(
-                         GuestCustStateEnum.GUESTCUST_STATE_RUNNING,
-                         GuestCustEventEnum.GUESTCUST_EVENT_ENABLE_NICS,
-                         nics)
+            GuestCustStateEnum.GUESTCUST_STATE_RUNNING,
+            GuestCustEventEnum.GUESTCUST_EVENT_ENABLE_NICS,
+            nics)
         if not out:
             time.sleep(enableNicsWaitCount * enableNicsWaitSeconds)
             continue
@@ -116,9 +115,9 @@ def enable_nics(nics):
 
         for count in range(0, enableNicsWaitCount):
             (out, err) = set_customization_status(
-                             GuestCustStateEnum.GUESTCUST_STATE_RUNNING,
-                             GuestCustEventEnum.GUESTCUST_EVENT_QUERY_NICS,
-                             nics)
+                GuestCustStateEnum.GUESTCUST_STATE_RUNNING,
+                GuestCustEventEnum.GUESTCUST_EVENT_QUERY_NICS,
+                nics)
             if out and out == NICS_STATUS_CONNECTED:
                 logger.info("NICS are connected on %d second", count)
                 return
