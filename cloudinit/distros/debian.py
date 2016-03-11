@@ -27,7 +27,6 @@ from cloudinit import helpers
 from cloudinit import log as logging
 from cloudinit import util
 from cloudinit import net
-from cloudinit.net import network_state
 
 from cloudinit.distros.parsers.hostname import HostnameConf
 
