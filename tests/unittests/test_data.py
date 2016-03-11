@@ -27,9 +27,10 @@ from cloudinit import stages
 from cloudinit import user_data as ud
 from cloudinit import util
 
-INSTANCE_ID = "i-testing"
-
 from . import helpers
+
+
+INSTANCE_ID = "i-testing"
 
 
 class FakeDataSource(sources.DataSource):

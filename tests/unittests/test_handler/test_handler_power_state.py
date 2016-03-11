@@ -74,7 +74,7 @@ class TestLoadPowerState(t_help.TestCase):
 class TestCheckCondition(t_help.TestCase):
     def cmd_with_exit(self, rc):
         return([sys.executable, '-c', 'import sys; sys.exit(%s)' % rc])
-        
+
     def test_true_is_true(self):
         self.assertEqual(psc.check_condition(True), True)
 
@@ -94,7 +94,6 @@ class TestCheckCondition(t_help.TestCase):
         self.assertEqual(mocklog.warn.call_count, 1)
 
 
-
 def check_lps_ret(psc_return, mode=None):
     if len(psc_return) != 3:
         raise TypeError("length returned = %d" % len(psc_return))
@@ -107,7 +106,7 @@ def check_lps_ret(psc_return, mode=None):
     if 'shutdown' not in psc_return[0][0]:
         errs.append("string 'shutdown' not in cmd")
 
-    if 'condition' is None:
+    if condition is None:
         errs.append("condition was not returned")
 
     if mode is not None:

@@ -83,7 +83,7 @@ def handle(name, cfg, cloud, log, _args):
                   len(seed_data), seed_path)
         util.append_file(seed_path, seed_data)
 
-    command = mycfg.get('command', ['pollinate', '-q'])
+    command = mycfg.get('command', None)
     req = mycfg.get('command_required', False)
     try:
         env = os.environ.copy()

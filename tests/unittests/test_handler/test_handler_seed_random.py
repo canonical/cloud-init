@@ -170,27 +170,30 @@ class TestRandomSeed(t_help.TestCase):
         contents = util.load_file(self._seed_file)
         self.assertEquals('tiny-tim-was-here-so-was-josh', contents)
 
-    def test_seed_command_not_provided_pollinate_available(self):
+    def test_seed_command_provided_and_available(self):
         c = self._get_cloud('ubuntu', {})
         self.whichdata = {'pollinate': '/usr/bin/pollinate'}
-        cc_seed_random.handle('test', {}, c, LOG, [])
+        cfg = {'random_seed': {'command': ['pollinate', '-q']}}
+        cc_seed_random.handle('test', cfg, c, LOG, [])
 
         subp_args = [f['args'] for f in self.subp_called]
         self.assertIn(['pollinate', '-q'], subp_args)
 
-    def test_seed_command_not_provided_pollinate_not_available(self):
+    def test_seed_command_not_provided(self):
         c = self._get_cloud('ubuntu', {})
         self.whichdata = {}
         cc_seed_random.handle('test', {}, c, LOG, [])
 
         # subp should not have been called as which would say not available
-        self.assertEquals(self.subp_called, list())
+        self.assertFalse(self.subp_called)
 
     def test_unavailable_seed_command_and_required_raises_error(self):
         c = self._get_cloud('ubuntu', {})
         self.whichdata = {}
+        cfg = {'random_seed': {'command': ['THIS_NO_COMMAND'],
+                               'command_required': True}}
         self.assertRaises(ValueError, cc_seed_random.handle,
-            'test', {'random_seed': {'command_required': True}}, c, LOG, [])
+                          'test', cfg, c, LOG, [])
 
     def test_seed_command_and_required(self):
         c = self._get_cloud('ubuntu', {})

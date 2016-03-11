@@ -37,12 +37,11 @@ def handle(name, cfg, _cloud, log, _args):
         return
 
     idevs = util.get_cfg_option_str(mycfg, "grub-pc/install_devices", None)
-    idevs_empty = util.get_cfg_option_str(mycfg,
-        "grub-pc/install_devices_empty", None)
+    idevs_empty = util.get_cfg_option_str(
+        mycfg, "grub-pc/install_devices_empty", None)
 
     if ((os.path.exists("/dev/sda1") and not os.path.exists("/dev/sda")) or
-            (os.path.exists("/dev/xvda1")
-            and not os.path.exists("/dev/xvda"))):
+       (os.path.exists("/dev/xvda1") and not os.path.exists("/dev/xvda"))):
         if idevs is None:
             idevs = ""
         if idevs_empty is None:
@@ -66,7 +65,7 @@ def handle(name, cfg, _cloud, log, _args):
                  (idevs, idevs_empty))
 
     log.debug("Setting grub debconf-set-selections with '%s','%s'" %
-        (idevs, idevs_empty))
+              (idevs, idevs_empty))
 
     try:
         util.subp(['debconf-set-selections'], dconf_sel)

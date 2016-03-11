@@ -1,6 +1,4 @@
 import os
-import struct
-import unittest
 
 from cloudinit.sources.helpers import azure as azure_helper
 from ..helpers import TestCase
@@ -75,48 +73,64 @@ class TestFindEndpoint(TestCase):
         self.assertRaises(Exception,
                           azure_helper.WALinuxAgentShim.find_endpoint)
 
-    def _build_lease_content(self, ip_address, use_hex=True):
-        ip_address_repr = ':'.join(
-            [hex(int(part)).replace('0x', '')
-             for part in ip_address.split('.')])
-        if not use_hex:
-            ip_address_repr = struct.pack(
-                '>L', int(ip_address_repr.replace(':', ''), 16))
-            ip_address_repr = '"{0}"'.format(ip_address_repr.decode('utf-8'))
+    @staticmethod
+    def _build_lease_content(encoded_address):
         return '\n'.join([
             'lease {',
             ' interface "eth0";',
-            ' option unknown-245 {0};'.format(ip_address_repr),
+            ' option unknown-245 {0};'.format(encoded_address),
             '}'])
 
-    def test_hex_string(self):
-        ip_address = '98.76.54.32'
-        file_content = self._build_lease_content(ip_address)
+    def test_latest_lease_used(self):
+        encoded_addresses = ['5:4:3:2', '4:3:2:1']
+        file_content = '\n'.join([self._build_lease_content(encoded_address)
+                                  for encoded_address in encoded_addresses])
         self.load_file.return_value = file_content
-        self.assertEqual(ip_address,
+        self.assertEqual(encoded_addresses[-1].replace(':', '.'),
                          azure_helper.WALinuxAgentShim.find_endpoint())
+
+
+class TestExtractIpAddressFromLeaseValue(TestCase):
+
+    def test_hex_string(self):
+        ip_address, encoded_address = '98.76.54.32', '62:4c:36:20'
+        self.assertEqual(
+            ip_address,
+            azure_helper.WALinuxAgentShim.get_ip_from_lease_value(
+                encoded_address
+            ))
 
     def test_hex_string_with_single_character_part(self):
-        ip_address = '4.3.2.1'
-        file_content = self._build_lease_content(ip_address)
-        self.load_file.return_value = file_content
-        self.assertEqual(ip_address,
-                         azure_helper.WALinuxAgentShim.find_endpoint())
+        ip_address, encoded_address = '4.3.2.1', '4:3:2:1'
+        self.assertEqual(
+            ip_address,
+            azure_helper.WALinuxAgentShim.get_ip_from_lease_value(
+                encoded_address
+            ))
 
     def test_packed_string(self):
-        ip_address = '98.76.54.32'
-        file_content = self._build_lease_content(ip_address, use_hex=False)
-        self.load_file.return_value = file_content
-        self.assertEqual(ip_address,
-                         azure_helper.WALinuxAgentShim.find_endpoint())
+        ip_address, encoded_address = '98.76.54.32', 'bL6 '
+        self.assertEqual(
+            ip_address,
+            azure_helper.WALinuxAgentShim.get_ip_from_lease_value(
+                encoded_address
+            ))
 
-    def test_latest_lease_used(self):
-        ip_addresses = ['4.3.2.1', '98.76.54.32']
-        file_content = '\n'.join([self._build_lease_content(ip_address)
-                                  for ip_address in ip_addresses])
-        self.load_file.return_value = file_content
-        self.assertEqual(ip_addresses[-1],
-                         azure_helper.WALinuxAgentShim.find_endpoint())
+    def test_packed_string_with_escaped_quote(self):
+        ip_address, encoded_address = '100.72.34.108', 'dH\\"l'
+        self.assertEqual(
+            ip_address,
+            azure_helper.WALinuxAgentShim.get_ip_from_lease_value(
+                encoded_address
+            ))
+
+    def test_packed_string_containing_a_colon(self):
+        ip_address, encoded_address = '100.72.58.108', 'dH:l'
+        self.assertEqual(
+            ip_address,
+            azure_helper.WALinuxAgentShim.get_ip_from_lease_value(
+                encoded_address
+            ))
 
 
 class TestGoalStateParsing(TestCase):

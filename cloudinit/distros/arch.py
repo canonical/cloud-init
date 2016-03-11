@@ -74,7 +74,7 @@ class Distro(distros.Distro):
                 'Interface': dev,
                 'IP': info.get('bootproto'),
                 'Address': "('%s/%s')" % (info.get('address'),
-                        info.get('netmask')),
+                                          info.get('netmask')),
                 'Gateway': info.get('gateway'),
                 'DNS': str(tuple(info.get('dns-nameservers'))).replace(',', '')
             }
@@ -86,7 +86,7 @@ class Distro(distros.Distro):
 
         if nameservers:
             util.write_file(self.resolve_conf_fn,
-                    convert_resolv_conf(nameservers))
+                            convert_resolv_conf(nameservers))
 
         return dev_names
 
@@ -102,7 +102,7 @@ class Distro(distros.Distro):
     def _bring_up_interface(self, device_name):
         cmd = ['netctl', 'restart', device_name]
         LOG.debug("Attempting to run bring up interface %s using command %s",
-                   device_name, cmd)
+                  device_name, cmd)
         try:
             (_out, err) = util.subp(cmd)
             if len(err):

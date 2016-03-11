@@ -38,12 +38,12 @@ distros = ['ubuntu']
 
 # defaults taken from stock client.conf in landscape-client 11.07.1.1-0ubuntu2
 LSC_BUILTIN_CFG = {
-  'client': {
-    'log_level': "info",
-    'url': "https://landscape.canonical.com/message-system",
-    'ping_url': "http://landscape.canonical.com/ping",
-    'data_path': "/var/lib/landscape/client",
-  }
+    'client': {
+        'log_level': "info",
+        'url': "https://landscape.canonical.com/message-system",
+        'ping_url': "http://landscape.canonical.com/ping",
+        'data_path': "/var/lib/landscape/client",
+    }
 }
 
 

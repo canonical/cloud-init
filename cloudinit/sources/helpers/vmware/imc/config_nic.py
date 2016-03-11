@@ -19,7 +19,6 @@
 
 import logging
 import os
-import subprocess
 import re
 
 from cloudinit import util
@@ -186,9 +185,8 @@ class NicConfigurator:
         lines = []
 
         for addr in addrs:
-            lines.append(
-                     '    up route -A inet6 add default gw %s metric 10000' %
-                     addr.gateway)
+            lines.append('    up route -A inet6 add default gw '
+                         '%s metric 10000' % addr.gateway)
 
         return lines
 

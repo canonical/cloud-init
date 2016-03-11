@@ -29,7 +29,7 @@ frequency = PER_ALWAYS
 def handle(name, cfg, cloud, log, _args):
     if util.get_cfg_option_bool(cfg, "preserve_hostname", False):
         log.debug(("Configuration option 'preserve_hostname' is set,"
-                    " not updating the hostname in module %s"), name)
+                   " not updating the hostname in module %s"), name)
         return
 
     (hostname, fqdn) = util.get_hostname_fqdn(cfg, cloud)

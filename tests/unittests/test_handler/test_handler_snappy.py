@@ -125,8 +125,7 @@ class TestInstallPackages(t_help.TestCase):
              "pkg1.smoser.config": "pkg1.smoser.config-data",
              "pkg1.config": "pkg1.config-data",
              "pkg2.smoser_0.0_amd64.snap": "pkg2-snapdata",
-             "pkg2.smoser_0.0_amd64.config": "pkg2.config",
-            })
+             "pkg2.smoser_0.0_amd64.config": "pkg2.config"})
 
         ret = get_package_ops(
             packages=[], configs={}, installed=[], fspath=self.tmp)
