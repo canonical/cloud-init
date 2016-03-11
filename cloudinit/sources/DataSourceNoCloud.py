@@ -50,21 +50,22 @@ class DataSourceNoCloud(sources.DataSource):
         }
 
         found = []
-        mydata = {'meta-data': {}, 'user-data': "", 'vendor-data': ""}
+        mydata = {'meta-data': {}, 'user-data': "", 'vendor-data': "",
+                  'network-config': {}}
 
         try:
             # Parse the kernel command line, getting data passed in
             md = {}
             if parse_cmdline_data(self.cmdline_id, md):
                 found.append("cmdline")
-            mydata['meta-data'].update(md)
+                mydata = _merge_new_seed({'meta-data': md})
         except:
             util.logexc(LOG, "Unable to parse command line data")
             return False
 
         # Check to see if the seed dir has data.
         pp2d_kwargs = {'required': ['user-data', 'meta-data'],
-                       'optional': ['vendor-data']}
+                       'optional': ['vendor-data', 'network-config']}
 
         try:
             seeded = util.pathprefix2dict(self.seed_dir, **pp2d_kwargs)
@@ -141,8 +142,7 @@ class DataSourceNoCloud(sources.DataSource):
         if len(found) == 0:
             return False
 
-        seeded_interfaces = None
-
+        seeded_network = None
         # The special argument "seedfrom" indicates we should
         # attempt to seed the userdata / metadata from its value
         # its primarily value is in allowing the user to type less
@@ -158,8 +158,9 @@ class DataSourceNoCloud(sources.DataSource):
                 LOG.debug("Seed from %s not supported by %s", seedfrom, self)
                 return False
 
-            if 'network-interfaces' in mydata['meta-data']:
-                seeded_interfaces = self.dsmode
+            if (mydata['meta-data'].get('network-interfaces') or
+                    mydata.get('network-config')):
+                seeded_network = self.dsmode
 
             # This could throw errors, but the user told us to do it
             # so if errors are raised, let them raise
@@ -176,15 +177,25 @@ class DataSourceNoCloud(sources.DataSource):
         mydata['meta-data'] = util.mergemanydict([mydata['meta-data'],
                                                   defaults])
 
-        # Update the network-interfaces if metadata had 'network-interfaces'
-        # entry and this is the local datasource, or 'seedfrom' was used
-        # and the source of the seed was self.dsmode
-        # ('local' for NoCloud, 'net' for NoCloudNet')
-        if ('network-interfaces' in mydata['meta-data'] and
-                (self.dsmode in ("local", seeded_interfaces))):
-            LOG.debug("Updating network interfaces from %s", self)
-            self.distro.apply_network(
-                mydata['meta-data']['network-interfaces'])
+        netdata = {'format': None, 'data': None}
+        if mydata['meta-data'].get('network-interfaces'):
+            netdata['format'] = 'interfaces'
+            netdata['data'] = mydata['meta-data']['network-interfaces']
+        elif mydata.get('network-config'):
+            netdata['format'] = 'network-config'
+            netdata['data'] = mydata['network-config']
+
+        # if this is the local datasource or 'seedfrom' was used
+        # and the source of the seed was self.dsmode.
+        # Then see if there is network config to apply.
+        if self.dsmode in ("local", seeded_network):
+            if mydata['meta-data'].get('network-interfaces'):
+                LOG.debug("Updating network interfaces from %s", self)
+                self.distro.apply_network(
+                    mydata['meta-data']['network-interfaces'])
+            elif mydata.get('network-config'):
+                LOG.debug("Updating network config from %s", self)
+                self.distro.apply_network_config(mydata['network-config'])
 
         if mydata['meta-data']['dsmode'] == self.dsmode:
             self.seed = ",".join(found)
@@ -246,7 +257,11 @@ def _merge_new_seed(cur, seeded):
     ret = cur.copy()
     ret['meta-data'] = util.mergemanydict([cur['meta-data'],
                                           util.load_yaml(seeded['meta-data'])])
-    ret['user-data'] = seeded['user-data']
+    if seeded.get('network-config'):
+        ret['network-config'] = util.load_yaml(seeded['network-config'])
+
+    if 'user-data' in seeded:
+        ret['user-data'] = seeded['user-data']
     if 'vendor-data' in seeded:
         ret['vendor-data'] = seeded['vendor-data']
     return ret

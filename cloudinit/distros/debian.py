@@ -26,6 +26,8 @@ from cloudinit import distros
 from cloudinit import helpers
 from cloudinit import log as logging
 from cloudinit import util
+from cloudinit import net
+from cloudinit.net import network_state
 
 from cloudinit.distros.parsers.hostname import HostnameConf
 
@@ -74,6 +76,14 @@ class Distro(distros.Distro):
 
     def _write_network(self, settings):
         util.write_file(self.network_conf_fn, settings)
+        return ['all']
+
+    def _write_network_config(self, netconfig):
+        # TODO: THIS IS NOT TESTED
+        state = network_state.NetworkState()
+        state.load(netconfig)
+        state.parse_config()
+        net.render_network_state("/", state)
         return ['all']
 
     def _bring_up_interfaces(self, device_names):
