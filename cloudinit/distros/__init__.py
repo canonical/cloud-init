@@ -330,6 +330,11 @@ class Distro(object):
             LOG.info("User %s already exists, skipping." % name)
             return
 
+        if 'create_groups' in kwargs:
+            create_groups = kwargs.pop('create_groups')
+        else:
+            create_groups = True
+
         adduser_cmd = ['useradd', name]
         log_adduser_cmd = ['useradd', name]
 
@@ -356,6 +361,19 @@ class Distro(object):
         }
 
         redact_opts = ['passwd']
+
+        groups = kwargs.get('groups')
+        if groups:
+            if isinstance(groups, (list, tuple)):
+                kwargs['groups'] = ",".join(groups)
+            else:
+                groups = groups.split(",")
+
+        if create_groups:
+            for group in kwargs.get('groups').split(","):
+                if not util.is_group(group):
+                    self.create_group(group)
+                    LOG.debug("created group %s for user %s", name, group)
 
         # Check the values and create the command
         for key, val in kwargs.items():
@@ -545,8 +563,10 @@ class Distro(object):
                 util.logexc(LOG, "Failed to append sudoers file %s", sudo_file)
                 raise e
 
-    def create_group(self, name, members):
+    def create_group(self, name, members=None):
         group_add_cmd = ['groupadd', name]
+        if not members:
+            members = []
 
         # Check if group exists, and then add it doesn't
         if util.is_group(name):
@@ -556,7 +576,7 @@ class Distro(object):
                 util.subp(group_add_cmd)
                 LOG.info("Created new group %s" % name)
             except Exception:
-                util.logexc("Failed to create group %s", name)
+                util.logexc(LOG, "Failed to create group %s", name)
 
         # Add members to the group, if so defined
         if len(members) > 0:
