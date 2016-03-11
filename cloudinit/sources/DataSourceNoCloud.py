@@ -195,7 +195,8 @@ class DataSourceNoCloud(sources.DataSource):
                     mydata['meta-data']['network-interfaces'])
             elif mydata.get('network-config'):
                 LOG.debug("Updating network config from %s", self)
-                self.distro.apply_network_config(mydata['network-config'])
+                self.distro.apply_network_config(mydata['network-config'],
+                                                 bring_up=False)
 
         if mydata['meta-data']['dsmode'] == self.dsmode:
             self.seed = ",".join(found)
