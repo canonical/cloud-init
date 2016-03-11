@@ -44,6 +44,14 @@ APT_GET_WRAPPER = {
 }
 
 
+def render_network_config(config, target="/"):
+    version = config['version']
+    config = config['config']
+    ns = network_state.NetworkState(version=version, config=config)
+    ns.parse_config()
+    net.render_network_state(target, ns.network_state)
+
+
 class Distro(distros.Distro):
     hostname_conf_fn = "/etc/hostname"
     locale_conf_fn = "/etc/default/locale"
@@ -80,10 +88,7 @@ class Distro(distros.Distro):
 
     def _write_network_config(self, netconfig):
         # TODO: THIS IS NOT TESTED
-        state = network_state.NetworkState()
-        state.load(netconfig)
-        state.parse_config()
-        net.render_network_state("/", state)
+        render_network_config(netconfig)
         return ['all']
 
     def _bring_up_interfaces(self, device_names):
