@@ -389,7 +389,7 @@ class TestReadDMIData(helpers.FilesystemMockingTestCase):
         # uninitialized dmi values show as \xff, return those as .
         my_len = 32
         dmi_value = b'\xff' * my_len + b'\n'
-        expected = '.' * my_len
+        expected = ""
         dmi_key = 'system-product-name'
         sysfs_key = 'product_name'
         self._create_sysfs_file(sysfs_key, dmi_value)
