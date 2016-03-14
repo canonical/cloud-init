@@ -89,6 +89,7 @@
  - groups: add defalt user to 'lxd' group.  Create groups listed
    for a user if they do not exist. (LP: #1539317)
  - dmi data: fix failure of reading dmi data for unset dmi values
+ - doc: mention label for nocloud datasource must be 'cidata' [Peter Hurley]
 
 0.7.6:
  - open 0.7.6
