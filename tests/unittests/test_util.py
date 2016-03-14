@@ -388,7 +388,7 @@ class TestReadDMIData(helpers.FilesystemMockingTestCase):
     def test_dots_returned_instead_of_foxfox(self):
         my_len = 32
         dmi_value = b'\xff' * my_len + b'\n'
-        expected = '.' * my_len
+        expected = ""
         dmi_key = 'system-product-name'
         sysfs_key = 'product_name'
         self._create_sysfs_file(sysfs_key, dmi_value)
