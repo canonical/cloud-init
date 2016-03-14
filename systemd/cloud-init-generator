@@ -35,9 +35,9 @@ etc_file() {
 read_proc_cmdline() {
     # return /proc/cmdline for non-container, and /proc/1/cmdline for container
     local ctname="systemd"
-    if [ -n "$CONTAINER" ] && ctname=$CONTAINER || systemd-detect-virt --container --quiet; then
-        local 
-        if _RET=$(tr '\0' ' ' < /proc/1/cmdline) >/dev/null 2>&1; then
+    if [ -n "$CONTAINER" ] && ctname=$CONTAINER ||
+        systemd-detect-virt --container --quiet; then
+        if { _RET=$(tr '\0' ' ' < /proc/1/cmdline); } 2>/dev/null; then
             _RET_MSG="container[$ctname]: pid 1 cmdline"
             return
         fi
