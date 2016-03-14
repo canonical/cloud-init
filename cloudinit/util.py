@@ -2168,6 +2168,8 @@ def _call_dmidecode(key, dmidecode_path):
         cmd = [dmidecode_path, "--string", key]
         (result, _err) = subp(cmd)
         LOG.debug("dmidecode returned '%s' for '%s'", result, key)
+        if result.replace(".", "") == "":
+            return ""
         return result
     except (IOError, OSError) as _err:
         LOG.debug('failed dmidecode cmd: %s\n%s', cmd, _err.message)
@@ -2193,10 +2195,7 @@ def read_dmi_data(key):
 
     dmidecode_path = which('dmidecode')
     if dmidecode_path:
-        ret = _call_dmidecode(key, dmidecode_path)
-        if ret is not None and ret.replace(".", "") == "":
-            return ""
-        return ret
+        return _call_dmidecode(key, dmidecode_path)
 
     LOG.warn("did not find either path %s or dmidecode command",
              DMI_SYS_PATH)
