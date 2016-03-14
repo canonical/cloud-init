@@ -118,8 +118,8 @@ def handle(_name, cfg, cloud, log, args):
             log.debug('Leaving auth line unchanged')
             change_pwauth = False
         else:
-            util.logexc(log, 'Unrecognized value %r for ssh_pwauth' % cfg['ssh_pwauth'])
-
+            msg = 'Unrecognized value %s for ssh_pwauth' % cfg['ssh_pwauth']
+            util.logexc(log, msg)
 
     if change_pwauth:
         replaced_auth = False
