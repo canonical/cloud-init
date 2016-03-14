@@ -1,0 +1,46 @@
+## the rsyslog module allows you to configure the systems syslog.
+## configuration of syslog is under the top level cloud-config
+## entry 'rsyslog'.
+##
+## Example:
+#cloud-config
+rsyslog:
+ remotes:
+  # udp to host 'maas.mydomain' port 514
+  maashost: maas.mydomain
+  # udp to ipv4 host on port 514
+  maas: "@[10.5.1.56]:514"
+  # tcp to host ipv6 host on port 555
+  maasipv6: "*.* @@[FE80::0202:B3FF:FE1E:8329]:555"
+ configs:
+   - "*.* @@192.158.1.1"
+   - content: "*.*   @@192.0.2.1:10514"
+     filename: 01-example.conf
+   - content: |
+      *.*   @@syslogd.example.com
+ config_dir: /etc/rsyslog.d
+ config_filename: 20-cloud-config.conf
+ service_reload_command: [your, syslog, reload, command]
+
+## Additionally the following legacy format is supported
+## it is converted into the format above before use.
+##  rsyslog_filename -> rsyslog/config_filename
+##  rsyslog_dir -> rsyslog/config_dir
+##  rsyslog -> rsyslog/configs
+# rsyslog:
+#  - "*.* @@192.158.1.1"
+#  - content: "*.*   @@192.0.2.1:10514"
+#    filename: 01-example.conf
+#  - content: |
+#     *.*   @@syslogd.example.com
+# rsyslog_filename: 20-cloud-config.conf
+# rsyslog_dir: /etc/rsyslog.d
+
+## to configure rsyslog to accept remote logging on Ubuntu
+## write the following into /etc/rsyslog.d/20-remote-udp.conf
+##   $ModLoad imudp
+##   $UDPServerRun 514
+##   $template LogRemote,"/var/log/maas/rsyslog/%HOSTNAME%/messages"
+##   :fromhost-ip, !isequal, "127.0.0.1" ?LogRemote
+## then:
+## sudo service rsyslog restart

@@ -39,7 +39,7 @@ FS_TYPES = ('vfat', 'iso9660')
 LABEL_TYPES = ('config-2',)
 POSSIBLE_MOUNTS = ('sr', 'cd')
 OPTICAL_DEVICES = tuple(('/dev/%s%s' % (z, i) for z in POSSIBLE_MOUNTS
-                  for i in range(0, 2)))
+                        for i in range(0, 2)))
 
 
 class DataSourceConfigDrive(openstack.SourceMixin, sources.DataSource):
@@ -79,8 +79,8 @@ class DataSourceConfigDrive(openstack.SourceMixin, sources.DataSource):
                     else:
                         mtype = None
                         sync = True
-                    results = util.mount_cb(dev, read_config_drive, mtype=mtype,
-                                            sync=sync)
+                    results = util.mount_cb(dev, read_config_drive,
+                                            mtype=mtype, sync=sync)
                     found = dev
                 except openstack.NonReadable:
                     pass
@@ -216,11 +216,11 @@ def on_first_boot(data, distro=None):
     files = data.get('files', {})
     if files:
         LOG.debug("Writing %s injected files", len(files))
-        for (filename, content) in files.iteritems():
+        for (filename, content) in files.items():
             if not filename.startswith(os.sep):
                 filename = os.sep + filename
             try:
-                util.write_file(filename, content, mode=0660)
+                util.write_file(filename, content, mode=0o660)
             except IOError:
                 util.logexc(LOG, "Failed writing file: %s", filename)
 

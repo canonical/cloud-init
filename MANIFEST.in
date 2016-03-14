@@ -1,0 +1,8 @@
+include *.py MANIFEST.in ChangeLog
+global-include *.txt *.rst *.ini *.in *.conf *.cfg *.sh
+graft tools
+prune build
+prune dist
+prune .tox
+prune .bzr
+exclude .bzrignore

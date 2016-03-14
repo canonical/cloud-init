@@ -1,38 +1,22 @@
 #!/bin/bash
 
-if [ $# -eq 0 ]; then
-   files=( bin/cloud-init $(find * -name "*.py" -type f) )
+pycheck_dirs=( "cloudinit/" "bin/" "tests/" "tools/" )
+# FIXME: cloud-init modifies sys module path, pep8 does not like
+# bin_files=( "bin/cloud-init" )
+CR="
+"
+[ "$1" = "-v" ] && { verbose="$1"; shift; } || verbose=""
+
+set -f
+if [ $# -eq 0 ]; then unset IFS
+   IFS="$CR"
+   files=( "${bin_files[@]}" "${pycheck_dirs[@]}" )
+   unset IFS
 else
-   files=( "$@" );
+   files=( "$@" )
 fi
 
-if [ -f 'hacking.py' ]
-then
-    base=`pwd`
-else
-    base=`pwd`/tools/
-fi
-
-IGNORE=""
-
-# King Arthur: Be quiet! ... Be Quiet! I Order You to Be Quiet.
-IGNORE="$IGNORE,E121" # Continuation line indentation is not a multiple of four
-IGNORE="$IGNORE,E123" # Closing bracket does not match indentation of opening bracket's line
-IGNORE="$IGNORE,E124" # Closing bracket missing visual indentation
-IGNORE="$IGNORE,E125" # Continuation line does not distinguish itself from next logical line
-IGNORE="$IGNORE,E126" # Continuation line over-indented for hanging indent
-IGNORE="$IGNORE,E127" # Continuation line over-indented for visual indent
-IGNORE="$IGNORE,E128" # Continuation line under-indented for visual indent
-IGNORE="$IGNORE,E502" # The backslash is redundant between brackets
-
-cmd=(
-    ${base}/hacking.py
-
-    --ignore="$IGNORE"
-
-    "${files[@]}"
-)
-
-echo -e "\nRunning 'cloudinit' pep8:"
-echo "${cmd[@]}"
-"${cmd[@]}"
+myname=${0##*/}
+cmd=( "${myname#run-}" $verbose "${files[@]}" )
+echo "Running: " "${cmd[@]}" 1>&2
+exec "${cmd[@]}"

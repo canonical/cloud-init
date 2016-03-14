@@ -23,9 +23,18 @@
 # message: provided as the message argument to 'shutdown'. default is none.
 # timeout: the amount of time to give the cloud-init process to finish
 #          before executing shutdown.
+# condition: apply state change only if condition is met.
+#            May be boolean True (always met), or False (never met),
+#            or a command string or list to be executed.
+#            command's exit code indicates:
+#               0: condition met
+#               1: condition not met
+#            other exit codes will result in 'not met', but are reserved
+#            for future use.
 #
 power_state:
  delay: "+30"
  mode: poweroff
  message: Bye Bye
  timeout: 30
+ condition: True

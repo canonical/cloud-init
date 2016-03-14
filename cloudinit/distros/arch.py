@@ -66,7 +66,7 @@ class Distro(distros.Distro):
                   settings, entries)
         dev_names = entries.keys()
         # Format for netctl
-        for (dev, info) in entries.iteritems():
+        for (dev, info) in entries.items():
             nameservers = []
             net_fn = self.network_conf_dir + dev
             net_cfg = {
@@ -74,7 +74,7 @@ class Distro(distros.Distro):
                 'Interface': dev,
                 'IP': info.get('bootproto'),
                 'Address': "('%s/%s')" % (info.get('address'),
-                        info.get('netmask')),
+                                          info.get('netmask')),
                 'Gateway': info.get('gateway'),
                 'DNS': str(tuple(info.get('dns-nameservers'))).replace(',', '')
             }
@@ -86,7 +86,7 @@ class Distro(distros.Distro):
 
         if nameservers:
             util.write_file(self.resolve_conf_fn,
-                    convert_resolv_conf(nameservers))
+                            convert_resolv_conf(nameservers))
 
         return dev_names
 
@@ -102,7 +102,7 @@ class Distro(distros.Distro):
     def _bring_up_interface(self, device_name):
         cmd = ['netctl', 'restart', device_name]
         LOG.debug("Attempting to run bring up interface %s using command %s",
-                   device_name, cmd)
+                  device_name, cmd)
         try:
             (_out, err) = util.subp(cmd)
             if len(err):
@@ -118,13 +118,6 @@ class Distro(distros.Distro):
                 return False
         return True
 
-    def _select_hostname(self, hostname, fqdn):
-        # Prefer the short hostname over the long
-        # fully qualified domain name
-        if not hostname:
-            return fqdn
-        return hostname
-
     def _write_hostname(self, your_hostname, out_fn):
         conf = None
         try:
@@ -136,7 +129,7 @@ class Distro(distros.Distro):
         if not conf:
             conf = HostnameConf('')
         conf.set_hostname(your_hostname)
-        util.write_file(out_fn, str(conf), 0644)
+        util.write_file(out_fn, conf, 0o644)
 
     def _read_system_hostname(self):
         sys_hostname = self._read_hostname(self.hostname_conf_fn)

@@ -1,27 +1,30 @@
-from mocker import MockerTestCase
-
 from cloudinit import util
 
 from cloudinit.config import cc_apt_configure
+from ..helpers import TestCase
 
 import os
 import re
+import shutil
+import tempfile
 
 
-class TestAptProxyConfig(MockerTestCase):
+def load_tfile_or_url(*args, **kwargs):
+    return(util.decode_binary(util.read_file_or_url(*args, **kwargs).contents))
+
+
+class TestAptProxyConfig(TestCase):
     def setUp(self):
         super(TestAptProxyConfig, self).setUp()
-        self.tmp = self.makeDir()
+        self.tmp = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, self.tmp)
         self.pfile = os.path.join(self.tmp, "proxy.cfg")
         self.cfile = os.path.join(self.tmp, "config.cfg")
 
     def _search_apt_config(self, contents, ptype, value):
-        print(
+        return re.search(
             r"acquire::%s::proxy\s+[\"']%s[\"'];\n" % (ptype, value),
-            contents, "flags=re.IGNORECASE")
-        return(re.search(
-            r"acquire::%s::proxy\s+[\"']%s[\"'];\n" % (ptype, value),
-            contents, flags=re.IGNORECASE))
+            contents, flags=re.IGNORECASE)
 
     def test_apt_proxy_written(self):
         cfg = {'apt_proxy': 'myproxy'}
@@ -30,7 +33,7 @@ class TestAptProxyConfig(MockerTestCase):
         self.assertTrue(os.path.isfile(self.pfile))
         self.assertFalse(os.path.isfile(self.cfile))
 
-        contents = str(util.read_file_or_url(self.pfile))
+        contents = load_tfile_or_url(self.pfile)
         self.assertTrue(self._search_apt_config(contents, "http", "myproxy"))
 
     def test_apt_http_proxy_written(self):
@@ -40,7 +43,7 @@ class TestAptProxyConfig(MockerTestCase):
         self.assertTrue(os.path.isfile(self.pfile))
         self.assertFalse(os.path.isfile(self.cfile))
 
-        contents = str(util.read_file_or_url(self.pfile))
+        contents = load_tfile_or_url(self.pfile)
         self.assertTrue(self._search_apt_config(contents, "http", "myproxy"))
 
     def test_apt_all_proxy_written(self):
@@ -58,9 +61,9 @@ class TestAptProxyConfig(MockerTestCase):
         self.assertTrue(os.path.isfile(self.pfile))
         self.assertFalse(os.path.isfile(self.cfile))
 
-        contents = str(util.read_file_or_url(self.pfile))
+        contents = load_tfile_or_url(self.pfile)
 
-        for ptype, pval in values.iteritems():
+        for ptype, pval in values.items():
             self.assertTrue(self._search_apt_config(contents, ptype, pval))
 
     def test_proxy_deleted(self):
@@ -74,7 +77,7 @@ class TestAptProxyConfig(MockerTestCase):
         cc_apt_configure.apply_apt_config({'apt_proxy': "foo"},
                                           self.pfile, self.cfile)
         self.assertTrue(os.path.isfile(self.pfile))
-        contents = str(util.read_file_or_url(self.pfile))
+        contents = load_tfile_or_url(self.pfile)
         self.assertTrue(self._search_apt_config(contents, "http", "foo"))
 
     def test_config_written(self):
@@ -86,14 +89,14 @@ class TestAptProxyConfig(MockerTestCase):
         self.assertTrue(os.path.isfile(self.cfile))
         self.assertFalse(os.path.isfile(self.pfile))
 
-        self.assertEqual(str(util.read_file_or_url(self.cfile)), payload)
+        self.assertEqual(load_tfile_or_url(self.cfile), payload)
 
     def test_config_replaced(self):
         util.write_file(self.pfile, "content doesnt matter")
         cc_apt_configure.apply_apt_config({'apt_config': "foo"},
                                           self.pfile, self.cfile)
         self.assertTrue(os.path.isfile(self.cfile))
-        self.assertEqual(str(util.read_file_or_url(self.cfile)), "foo")
+        self.assertEqual(load_tfile_or_url(self.cfile), "foo")
 
     def test_config_deleted(self):
         # if no 'apt_config' is provided, delete any previously written file

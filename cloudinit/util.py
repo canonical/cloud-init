@@ -20,11 +20,10 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-from StringIO import StringIO
-
 import contextlib
 import copy as obj_copy
 import ctypes
+import email
 import errno
 import glob
 import grp
@@ -45,8 +44,11 @@ import subprocess
 import sys
 import tempfile
 import time
-import urlparse
 
+from base64 import b64decode, b64encode
+from six.moves.urllib import parse as urlparse
+
+import six
 import yaml
 
 from cloudinit import importer
@@ -69,8 +71,91 @@ FN_REPLACEMENTS = {
 }
 FN_ALLOWED = ('_-.()' + string.digits + string.ascii_letters)
 
+TRUE_STRINGS = ('true', '1', 'on', 'yes')
+FALSE_STRINGS = ('off', '0', 'no', 'false')
+
+
 # Helper utils to see if running in a container
-CONTAINER_TESTS = ['running-in-container', 'lxc-is-container']
+CONTAINER_TESTS = (['systemd-detect-virt', '--quiet', '--container'],
+                   ['running-in-container'],
+                   ['lxc-is-container'])
+
+
+def decode_binary(blob, encoding='utf-8'):
+    # Converts a binary type into a text type using given encoding.
+    if isinstance(blob, six.text_type):
+        return blob
+    return blob.decode(encoding)
+
+
+def encode_text(text, encoding='utf-8'):
+    # Converts a text string into a binary type using given encoding.
+    if isinstance(text, six.binary_type):
+        return text
+    return text.encode(encoding)
+
+
+def b64d(source):
+    # Base64 decode some data, accepting bytes or unicode/str, and returning
+    # str/unicode if the result is utf-8 compatible, otherwise returning bytes.
+    decoded = b64decode(source)
+    try:
+        return decoded.decode('utf-8')
+    except UnicodeDecodeError:
+        return decoded
+
+
+def b64e(source):
+    # Base64 encode some data, accepting bytes or unicode/str, and returning
+    # str/unicode if the result is utf-8 compatible, otherwise returning bytes.
+    if not isinstance(source, bytes):
+        source = source.encode('utf-8')
+    return b64encode(source).decode('utf-8')
+
+
+def fully_decoded_payload(part):
+    # In Python 3, decoding the payload will ironically hand us a bytes object.
+    # 'decode' means to decode according to Content-Transfer-Encoding, not
+    # according to any charset in the Content-Type.  So, if we end up with
+    # bytes, first try to decode to str via CT charset, and failing that, try
+    # utf-8 using surrogate escapes.
+    cte_payload = part.get_payload(decode=True)
+    if (six.PY3 and
+            part.get_content_maintype() == 'text' and
+            isinstance(cte_payload, bytes)):
+        charset = part.get_charset()
+        if charset and charset.input_codec:
+            encoding = charset.input_codec
+        else:
+            encoding = 'utf-8'
+        return cte_payload.decode(encoding, errors='surrogateescape')
+    return cte_payload
+
+
+# Path for DMI Data
+DMI_SYS_PATH = "/sys/class/dmi/id"
+
+# dmidecode and /sys/class/dmi/id/* use different names for the same value,
+# this allows us to refer to them by one canonical name
+DMIDECODE_TO_DMI_SYS_MAPPING = {
+    'baseboard-asset-tag': 'board_asset_tag',
+    'baseboard-manufacturer': 'board_vendor',
+    'baseboard-product-name': 'board_name',
+    'baseboard-serial-number': 'board_serial',
+    'baseboard-version': 'board_version',
+    'bios-release-date': 'bios_date',
+    'bios-vendor': 'bios_vendor',
+    'bios-version': 'bios_version',
+    'chassis-asset-tag': 'chassis_asset_tag',
+    'chassis-manufacturer': 'chassis_vendor',
+    'chassis-serial-number': 'chassis_serial',
+    'chassis-version': 'chassis_version',
+    'system-manufacturer': 'sys_vendor',
+    'system-product-name': 'product_name',
+    'system-serial-number': 'product_serial',
+    'system-uuid': 'product_uuid',
+    'system-version': 'product_version',
+}
 
 
 class ProcessExecutionError(IOError):
@@ -95,7 +180,7 @@ class ProcessExecutionError(IOError):
         else:
             self.description = description
 
-        if not isinstance(exit_code, (long, int)):
+        if not isinstance(exit_code, six.integer_types):
             self.exit_code = '-'
         else:
             self.exit_code = exit_code
@@ -124,6 +209,9 @@ class ProcessExecutionError(IOError):
             'reason': self.reason,
         }
         IOError.__init__(self, message)
+        # For backward compatibility with Python 2.
+        if not hasattr(self, 'message'):
+            self.message = message
 
 
 class SeLinuxGuard(object):
@@ -151,7 +239,8 @@ class SeLinuxGuard(object):
 
         path = os.path.realpath(self.path)
         # path should be a string, not unicode
-        path = str(path)
+        if six.PY2:
+            path = str(path)
         try:
             stats = os.lstat(path)
             self.selinux.matchpathcon(path, stats[stat.ST_MODE])
@@ -209,10 +298,10 @@ def fork_cb(child_cb, *args, **kwargs):
 def is_true(val, addons=None):
     if isinstance(val, (bool)):
         return val is True
-    check_set = ['true', '1', 'on', 'yes']
+    check_set = TRUE_STRINGS
     if addons:
-        check_set = check_set + addons
-    if str(val).lower().strip() in check_set:
+        check_set = list(check_set) + addons
+    if six.text_type(val).lower().strip() in check_set:
         return True
     return False
 
@@ -220,10 +309,10 @@ def is_true(val, addons=None):
 def is_false(val, addons=None):
     if isinstance(val, (bool)):
         return val is False
-    check_set = ['off', '0', 'no', 'false']
+    check_set = FALSE_STRINGS
     if addons:
-        check_set = check_set + addons
-    if str(val).lower().strip() in check_set:
+        check_set = list(check_set) + addons
+    if six.text_type(val).lower().strip() in check_set:
         return True
     return False
 
@@ -241,7 +330,7 @@ def translate_bool(val, addons=None):
 
 def rand_str(strlen=32, select_from=None):
     if not select_from:
-        select_from = string.letters + string.digits
+        select_from = string.ascii_letters + string.digits
     return "".join([random.choice(select_from) for _x in range(0, strlen)])
 
 
@@ -273,7 +362,7 @@ def uniq_merge_sorted(*lists):
 def uniq_merge(*lists):
     combined_list = []
     for a_list in lists:
-        if isinstance(a_list, (str, basestring)):
+        if isinstance(a_list, six.string_types):
             a_list = a_list.strip().split(",")
             # Kickout the empty ones
             a_list = [a for a in a_list if len(a)]
@@ -282,7 +371,7 @@ def uniq_merge(*lists):
 
 
 def clean_filename(fn):
-    for (k, v) in FN_REPLACEMENTS.iteritems():
+    for (k, v) in FN_REPLACEMENTS.items():
         fn = fn.replace(k, v)
     removals = []
     for k in fn:
@@ -294,16 +383,19 @@ def clean_filename(fn):
     return fn
 
 
-def decomp_gzip(data, quiet=True):
+def decomp_gzip(data, quiet=True, decode=True):
     try:
-        buf = StringIO(str(data))
+        buf = six.BytesIO(encode_text(data))
         with contextlib.closing(gzip.GzipFile(None, "rb", 1, buf)) as gh:
-            return gh.read()
+            if decode:
+                return decode_binary(gh.read())
+            else:
+                return gh.read()
     except Exception as e:
         if quiet:
             return data
         else:
-            raise DecompressionError(str(e))
+            raise DecompressionError(six.text_type(e))
 
 
 def extract_usergroup(ug_pair):
@@ -341,7 +433,7 @@ def multi_log(text, console=True, stderr=True,
     if console:
         conpath = "/dev/console"
         if os.path.exists(conpath):
-            with open(conpath, 'wb') as wfh:
+            with open(conpath, 'w') as wfh:
                 wfh.write(text)
                 wfh.flush()
         else:
@@ -362,7 +454,7 @@ def multi_log(text, console=True, stderr=True,
 
 
 def load_json(text, root_types=(dict,)):
-    decoded = json.loads(text)
+    decoded = json.loads(decode_binary(text))
     if not isinstance(decoded, tuple(root_types)):
         expected_types = ", ".join([str(t) for t in root_types])
         raise TypeError("(%s) root types expected, got %s instead"
@@ -394,7 +486,7 @@ def get_cfg_option_str(yobj, key, default=None):
     if key not in yobj:
         return default
     val = yobj[key]
-    if not isinstance(val, (str, basestring)):
+    if not isinstance(val, six.string_types):
         val = str(val)
     return val
 
@@ -433,7 +525,7 @@ def get_cfg_option_list(yobj, key, default=None):
     if isinstance(val, (list)):
         cval = [v for v in val]
         return cval
-    if not isinstance(val, (basestring)):
+    if not isinstance(val, six.string_types):
         val = str(val)
     return [val]
 
@@ -520,7 +612,7 @@ def redirect_output(outfmt, errfmt, o_out=None, o_err=None):
 
 
 def make_url(scheme, host, port=None,
-                path='', params='', query='', fragment=''):
+             path='', params='', query='', fragment=''):
 
     pieces = []
     pieces.append(scheme or '')
@@ -687,12 +779,13 @@ def read_file_or_url(url, timeout=5, retries=10,
             LOG.warn("Unable to post data to file resource %s", url)
         file_path = url[len("file://"):]
         try:
-            contents = load_file(file_path)
+            contents = load_file(file_path, decode=False)
         except IOError as e:
             code = e.errno
             if e.errno == errno.ENOENT:
                 code = url_helper.NOT_FOUND
-            raise url_helper.UrlError(cause=e, code=code, headers=None)
+            raise url_helper.UrlError(cause=e, code=code, headers=None,
+                                      url=url)
         return url_helper.FileResponse(file_path, contents=contents)
     else:
         return url_helper.readurl(url,
@@ -708,11 +801,11 @@ def read_file_or_url(url, timeout=5, retries=10,
 
 def load_yaml(blob, default=None, allowed=(dict,)):
     loaded = default
+    blob = decode_binary(blob)
     try:
-        blob = str(blob)
-        LOG.debug(("Attempting to load yaml from string "
-                 "of length %s with allowed root types %s"),
-                 len(blob), allowed)
+        LOG.debug("Attempting to load yaml from string "
+                  "of length %s with allowed root types %s",
+                  len(blob), allowed)
         converted = safeyaml.load(blob)
         if not isinstance(converted, allowed):
             # Yes this will just be caught, but thats ok for now...
@@ -746,14 +839,12 @@ def read_seeded(base="", ext="", timeout=5, retries=10, file_retries=0):
     md_resp = read_file_or_url(md_url, timeout, retries, file_retries)
     md = None
     if md_resp.ok():
-        md_str = str(md_resp)
-        md = load_yaml(md_str, default={})
+        md = load_yaml(decode_binary(md_resp.contents), default={})
 
     ud_resp = read_file_or_url(ud_url, timeout, retries, file_retries)
     ud = None
     if ud_resp.ok():
-        ud_str = str(ud_resp)
-        ud = ud_str
+        ud = ud_resp.contents
 
     return (md, ud)
 
@@ -784,10 +875,10 @@ def read_conf_with_confd(cfgfile):
     if "conf_d" in cfg:
         confd = cfg['conf_d']
         if confd:
-            if not isinstance(confd, (str, basestring)):
+            if not isinstance(confd, six.string_types):
                 raise TypeError(("Config file %s contains 'conf_d' "
                                  "with non-string type %s") %
-                                 (cfgfile, type_utils.obj_name(confd)))
+                                (cfgfile, type_utils.obj_name(confd)))
             else:
                 confd = str(confd).strip()
     elif os.path.isdir("%s.d" % cfgfile):
@@ -905,7 +996,7 @@ def get_fqdn_from_hosts(hostname, filename="/etc/hosts"):
 
 
 def get_cmdline_url(names=('cloud-config-url', 'url'),
-                    starts="#cloud-config", cmdline=None):
+                    starts=b"#cloud-config", cmdline=None):
     if cmdline is None:
         cmdline = get_cmdline()
 
@@ -921,8 +1012,10 @@ def get_cmdline_url(names=('cloud-config-url', 'url'),
         return (None, None, None)
 
     resp = read_file_or_url(url)
-    if resp.contents.startswith(starts) and resp.ok():
-        return (key, url, str(resp))
+    # allow callers to pass starts as text when comparing to bytes contents
+    starts = encode_text(starts)
+    if resp.ok() and resp.contents.startswith(starts):
+        return (key, url, resp.contents)
 
     return (key, url, None)
 
@@ -948,7 +1041,8 @@ def is_resolvable(name):
         for iname in badnames:
             try:
                 result = socket.getaddrinfo(iname, None, 0, 0,
-                    socket.SOCK_STREAM, socket.AI_CANONNAME)
+                                            socket.SOCK_STREAM,
+                                            socket.AI_CANONNAME)
                 badresults[iname] = []
                 for (_fam, _stype, _proto, cname, sockaddr) in result:
                     badresults[iname].append("%s: %s" % (cname, sockaddr[0]))
@@ -1016,7 +1110,7 @@ def close_stdin():
 
 
 def find_devs_with(criteria=None, oformat='device',
-                    tag=None, no_cache=False, path=None):
+                   tag=None, no_cache=False, path=None):
     """
     find devices matching given criteria (via blkid)
     criteria can be *one* of:
@@ -1076,9 +1170,9 @@ def uniq_list(in_list):
     return out_list
 
 
-def load_file(fname, read_cb=None, quiet=False):
+def load_file(fname, read_cb=None, quiet=False, decode=True):
     LOG.debug("Reading from %s (quiet=%s)", fname, quiet)
-    ofh = StringIO()
+    ofh = six.BytesIO()
     try:
         with open(fname, 'rb') as ifh:
             pipe_in_out(ifh, ofh, chunk_cb=read_cb)
@@ -1089,7 +1183,10 @@ def load_file(fname, read_cb=None, quiet=False):
             raise
     contents = ofh.getvalue()
     LOG.debug("Read %s bytes from %s", len(contents), fname)
-    return contents
+    if decode:
+        return decode_binary(contents)
+    else:
+        return contents
 
 
 def get_cmdline():
@@ -1107,7 +1204,7 @@ def pipe_in_out(in_fh, out_fh, chunk_size=1024, chunk_cb=None):
     bytes_piped = 0
     while True:
         data = in_fh.read(chunk_size)
-        if data == '':
+        if len(data) == 0:
             break
         else:
             out_fh.write(data)
@@ -1213,13 +1310,20 @@ def logexc(log, msg, *args):
     # coming out to a non-debug stream
     if msg:
         log.warn(msg, *args)
-    # Debug gets the full trace
-    log.debug(msg, exc_info=1, *args)
+    # Debug gets the full trace.  However, nose has a bug whereby its
+    # logcapture plugin doesn't properly handle the case where there is no
+    # actual exception.  To avoid tracebacks during the test suite then, we'll
+    # do the actual exc_info extraction here, and if there is no exception in
+    # flight, we'll just pass in None.
+    exc_info = sys.exc_info()
+    if exc_info == (None, None, None):
+        exc_info = None
+    log.debug(msg, exc_info=exc_info, *args)
 
 
 def hash_blob(blob, routine, mlen=None):
     hasher = hashlib.new(routine)
-    hasher.update(blob)
+    hasher.update(encode_text(blob))
     digest = hasher.hexdigest()
     # Don't get to long now
     if mlen is not None:
@@ -1250,7 +1354,7 @@ def rename(src, dest):
     os.rename(src, dest)
 
 
-def ensure_dirs(dirlist, mode=0755):
+def ensure_dirs(dirlist, mode=0o755):
     for d in dirlist:
         ensure_dir(d, mode)
 
@@ -1264,7 +1368,7 @@ def read_write_cmdline_url(target_fn):
             return
         try:
             if key and content:
-                write_file(target_fn, content, mode=0600)
+                write_file(target_fn, content, mode=0o600)
                 LOG.debug(("Wrote to %s with contents of command line"
                           " url %s (len=%s)"), target_fn, url, len(content))
             elif key and not content:
@@ -1280,8 +1384,7 @@ def yaml_dumps(obj, explicit_start=True, explicit_end=True):
                           indent=4,
                           explicit_start=explicit_start,
                           explicit_end=explicit_end,
-                          default_flow_style=False,
-                          allow_unicode=True)
+                          default_flow_style=False)
 
 
 def ensure_dir(path, mode=None):
@@ -1380,9 +1483,10 @@ def mount_cb(device, callback, data=None, rw=False, mtype=None, sync=True):
     mounted = mounts()
     with tempdir() as tmpd:
         umount = False
-        if device in mounted:
-            mountpoint = mounted[device]['mountpoint']
+        if os.path.realpath(device) in mounted:
+            mountpoint = mounted[os.path.realpath(device)]['mountpoint']
         else:
+            failure_reason = None
             for mtype in mtypes:
                 mountpoint = None
                 try:
@@ -1409,10 +1513,10 @@ def mount_cb(device, callback, data=None, rw=False, mtype=None, sync=True):
                 except (IOError, OSError) as exc:
                     LOG.debug("Failed mount of '%s' as '%s': %s",
                               device, mtype, exc)
-                    pass
+                    failure_reason = exc
             if not mountpoint:
                 raise MountFailedError("Failed mounting %s to %s due to: %s" %
-                                       (device, tmpd, exc))
+                                       (device, tmpd, failure_reason))
 
         # Be nice and ensure it ends with a slash
         if not mountpoint.endswith("/"):
@@ -1489,7 +1593,7 @@ def append_file(path, content):
     write_file(path, content, omode="ab", mode=None)
 
 
-def ensure_file(path, mode=0644):
+def ensure_file(path, mode=0o644):
     write_file(path, content='', omode="ab", mode=mode)
 
 
@@ -1507,7 +1611,7 @@ def chmod(path, mode):
             os.chmod(path, real_mode)
 
 
-def write_file(filename, content, mode=0644, omode="wb"):
+def write_file(filename, content, mode=0o644, omode="wb"):
     """
     Writes a file with the given content and sets the file mode as specified.
     Resotres the SELinux context if possible.
@@ -1515,11 +1619,17 @@ def write_file(filename, content, mode=0644, omode="wb"):
     @param filename: The full path of the file to write.
     @param content: The content to write to the file.
     @param mode: The filesystem mode to set on the file.
-    @param omode: The open mode used when opening the file (r, rb, a, etc.)
+    @param omode: The open mode used when opening the file (w, wb, a, etc.)
     """
     ensure_dir(os.path.dirname(filename))
-    LOG.debug("Writing to %s - %s: [%s] %s bytes",
-               filename, omode, mode, len(content))
+    if 'b' in omode.lower():
+        content = encode_text(content)
+        write_type = 'bytes'
+    else:
+        content = decode_binary(content)
+        write_type = 'characters'
+    LOG.debug("Writing to %s - %s: [%s] %s %s",
+              filename, omode, mode, len(content), write_type)
     with SeLinuxGuard(path=filename):
         with open(filename, omode) as fh:
             fh.write(content)
@@ -1561,9 +1671,12 @@ def subp(args, data=None, rcs=None, env=None, capture=True, shell=False,
             stdout = subprocess.PIPE
             stderr = subprocess.PIPE
         stdin = subprocess.PIPE
-        sp = subprocess.Popen(args, stdout=stdout,
-                        stderr=stderr, stdin=stdin,
-                        env=env, shell=shell)
+        kws = dict(stdout=stdout, stderr=stderr, stdin=stdin,
+                   env=env, shell=shell)
+        if six.PY3:
+            # Use this so subprocess output will be (Python 3) str, not bytes.
+            kws['universal_newlines'] = True
+        sp = subprocess.Popen(args, **kws)
         (out, err) = sp.communicate(data)
     except OSError as e:
         raise ProcessExecutionError(cmd=args, reason=e)
@@ -1608,10 +1721,10 @@ def shellify(cmdlist, add_header=True):
         if isinstance(args, list):
             fixed = []
             for f in args:
-                fixed.append("'%s'" % (str(f).replace("'", escaped)))
+                fixed.append("'%s'" % (six.text_type(f).replace("'", escaped)))
             content = "%s%s\n" % (content, ' '.join(fixed))
             cmds_made += 1
-        elif isinstance(args, (str, basestring)):
+        elif isinstance(args, six.string_types):
             content = "%s%s\n" % (content, args)
             cmds_made += 1
         else:
@@ -1639,7 +1752,7 @@ def is_container():
         try:
             # try to run a helper program. if it returns true/zero
             # then we're inside a container. otherwise, no
-            subp([helper])
+            subp(helper)
             return True
         except (IOError, OSError):
             pass
@@ -1722,7 +1835,7 @@ def expand_package_list(version_fmt, pkgs):
 
     pkglist = []
     for pkg in pkgs:
-        if isinstance(pkg, basestring):
+        if isinstance(pkg, six.string_types):
             pkglist.append(pkg)
             continue
 
@@ -1950,7 +2063,7 @@ def pathprefix2dict(base, required=None, optional=None, delim=os.path.sep):
     ret = {}
     for f in required + optional:
         try:
-            ret[f] = load_file(base + delim + f, quiet=False)
+            ret[f] = load_file(base + delim + f, quiet=False, decode=False)
         except IOError as e:
             if e.errno != errno.ENOENT:
                 raise
@@ -1966,7 +2079,7 @@ def pathprefix2dict(base, required=None, optional=None, delim=os.path.sep):
 def read_meminfo(meminfo="/proc/meminfo", raw=False):
     # read a /proc/meminfo style file and return
     # a dict with 'total', 'free', and 'available'
-    mpliers = {'kB': 2**10, 'mB': 2 ** 20, 'B': 1, 'gB': 2 ** 30}
+    mpliers = {'kB': 2 ** 10, 'mB': 2 ** 20, 'B': 1, 'gB': 2 ** 30}
     kmap = {'MemTotal:': 'total', 'MemFree:': 'free',
             'MemAvailable:': 'available'}
     ret = {}
@@ -2011,3 +2124,86 @@ def human2bytes(size):
         raise ValueError("'%s': cannot be negative" % size_in)
 
     return int(num * mpliers[mplier])
+
+
+def _read_dmi_syspath(key):
+    """
+    Reads dmi data with from /sys/class/dmi/id
+    """
+    if key not in DMIDECODE_TO_DMI_SYS_MAPPING:
+        return None
+    mapped_key = DMIDECODE_TO_DMI_SYS_MAPPING[key]
+    dmi_key_path = "{0}/{1}".format(DMI_SYS_PATH, mapped_key)
+    LOG.debug("querying dmi data %s", dmi_key_path)
+    try:
+        if not os.path.exists(dmi_key_path):
+            LOG.debug("did not find %s", dmi_key_path)
+            return None
+
+        key_data = load_file(dmi_key_path, decode=False)
+        if not key_data:
+            LOG.debug("%s did not return any data", dmi_key_path)
+            return None
+
+        # uninitialized dmi values show as all \xff and /sys appends a '\n'.
+        # in that event, return a string of '.' in the same length.
+        if key_data == b'\xff' * (len(key_data) - 1) + b'\n':
+            key_data = b""
+
+        str_data = key_data.decode('utf8').strip()
+        LOG.debug("dmi data %s returned %s", dmi_key_path, str_data)
+        return str_data
+
+    except Exception:
+        logexc(LOG, "failed read of %s", dmi_key_path)
+        return None
+
+
+def _call_dmidecode(key, dmidecode_path):
+    """
+    Calls out to dmidecode to get the data out. This is mostly for supporting
+    OS's without /sys/class/dmi/id support.
+    """
+    try:
+        cmd = [dmidecode_path, "--string", key]
+        (result, _err) = subp(cmd)
+        LOG.debug("dmidecode returned '%s' for '%s'", result, key)
+        result = result.strip()
+        if result.replace(".", "") == "":
+            return ""
+        return result
+    except (IOError, OSError) as _err:
+        LOG.debug('failed dmidecode cmd: %s\n%s', cmd, _err.message)
+        return None
+
+
+def read_dmi_data(key):
+    """
+    Wrapper for reading DMI data.
+
+    This will do the following (returning the first that produces a
+    result):
+        1) Use a mapping to translate `key` from dmidecode naming to
+           sysfs naming and look in /sys/class/dmi/... for a value.
+        2) Use `key` as a sysfs key directly and look in /sys/class/dmi/...
+        3) Fall-back to passing `key` to `dmidecode --string`.
+
+    If all of the above fail to find a value, None will be returned.
+    """
+    syspath_value = _read_dmi_syspath(key)
+    if syspath_value is not None:
+        return syspath_value
+
+    dmidecode_path = which('dmidecode')
+    if dmidecode_path:
+        return _call_dmidecode(key, dmidecode_path)
+
+    LOG.warn("did not find either path %s or dmidecode command",
+             DMI_SYS_PATH)
+    return None
+
+
+def message_from_string(string):
+    if sys.version_info[:2] < (2, 7):
+        return email.message_from_file(six.StringIO(string))
+    return email.message_from_string(string)

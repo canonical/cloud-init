@@ -18,6 +18,7 @@
 
 import base64
 import os
+import six
 
 from cloudinit.settings import PER_INSTANCE
 from cloudinit import util
@@ -25,7 +26,7 @@ from cloudinit import util
 frequency = PER_INSTANCE
 
 DEFAULT_OWNER = "root:root"
-DEFAULT_PERMS = 0644
+DEFAULT_PERMS = 0o644
 UNKNOWN_ENC = 'text/plain'
 
 
@@ -79,7 +80,7 @@ def write_files(name, files, log):
 
 def decode_perms(perm, default, log):
     try:
-        if isinstance(perm, (int, long, float)):
+        if isinstance(perm, six.integer_types + (float,)):
             # Just 'downcast' it (if a float)
             return int(perm)
         else:

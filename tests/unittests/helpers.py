@@ -1,25 +1,35 @@
+from __future__ import print_function
+
+import functools
 import os
 import sys
+import shutil
+import tempfile
 import unittest
 
-from contextlib import contextmanager
+import six
 
-from mocker import Mocker
-from mocker import MockerTestCase
+try:
+    from unittest import mock
+except ImportError:
+    import mock
+try:
+    from contextlib import ExitStack
+except ImportError:
+    from contextlib2 import ExitStack
 
 from cloudinit import helpers as ch
 from cloudinit import util
-
-import shutil
 
 # Used for detecting different python versions
 PY2 = False
 PY26 = False
 PY27 = False
 PY3 = False
+FIX_HTTPRETTY = False
 
 _PY_VER = sys.version_info
-_PY_MAJOR, _PY_MINOR = _PY_VER[0:2]
+_PY_MAJOR, _PY_MINOR, _PY_MICRO = _PY_VER[0:3]
 if (_PY_MAJOR, _PY_MINOR) <= (2, 6):
     if (_PY_MAJOR, _PY_MINOR) == (2, 6):
         PY26 = True
@@ -31,10 +41,24 @@ else:
         PY2 = True
     if (_PY_MAJOR, _PY_MINOR) >= (3, 0):
         PY3 = True
+        if _PY_MINOR == 4 and _PY_MICRO < 3:
+            FIX_HTTPRETTY = True
 
 if PY26:
-    # For now add these on, taken from python 2.7 + slightly adjusted
+    # For now add these on, taken from python 2.7 + slightly adjusted.  Drop
+    # all this once Python 2.6 is dropped as a minimum requirement.
     class TestCase(unittest.TestCase):
+        def setUp(self):
+            super(TestCase, self).setUp()
+            self.__all_cleanups = ExitStack()
+
+        def tearDown(self):
+            self.__all_cleanups.close()
+            unittest.TestCase.tearDown(self)
+
+        def addCleanup(self, function, *args, **kws):
+            self.__all_cleanups.callback(function, *args, **kws)
+
         def assertIs(self, expr1, expr2, msg=None):
             if expr1 is not expr2:
                 standardMsg = '%r is not %r' % (expr1, expr2)
@@ -57,10 +81,17 @@ if PY26:
                 standardMsg = standardMsg % (value)
                 self.fail(self._formatMessage(msg, standardMsg))
 
+        def assertIsInstance(self, obj, cls, msg=None):
+            """Same as self.assertTrue(isinstance(obj, cls)), with a nicer
+            default message."""
+            if not isinstance(obj, cls):
+                standardMsg = '%s is not an instance of %r' % (repr(obj), cls)
+                self.fail(self._formatMessage(msg, standardMsg))
+
         def assertDictContainsSubset(self, expected, actual, msg=None):
             missing = []
             mismatched = []
-            for k, v in expected.iteritems():
+            for k, v in expected.items():
                 if k not in actual:
                     missing.append(k)
                 elif actual[k] != v:
@@ -84,17 +115,6 @@ if PY26:
 else:
     class TestCase(unittest.TestCase):
         pass
-
-
-@contextmanager
-def mocker(verify_calls=True):
-    m = Mocker()
-    try:
-        yield m
-    finally:
-        m.restore()
-        if verify_calls:
-            m.verify()
 
 
 # Makes the old path start
@@ -121,14 +141,19 @@ def retarget_many_wrapper(new_base, am, old_func):
             nam = len(n_args)
         for i in range(0, nam):
             path = args[i]
-            n_args[i] = rebase_path(path, new_base)
+            # patchOS() wraps various os and os.path functions, however in
+            # Python 3 some of these now accept file-descriptors (integers).
+            # That breaks rebase_path() so in lieu of a better solution, just
+            # don't rebase if we get a fd.
+            if isinstance(path, six.string_types):
+                n_args[i] = rebase_path(path, new_base)
         return old_func(*n_args, **kwds)
     return wrapper
 
 
-class ResourceUsingTestCase(MockerTestCase):
-    def __init__(self, methodName="runTest"):
-        MockerTestCase.__init__(self, methodName)
+class ResourceUsingTestCase(TestCase):
+    def setUp(self):
+        super(ResourceUsingTestCase, self).setUp()
         self.resource_path = None
 
     def resourceLocation(self, subname=None):
@@ -156,17 +181,23 @@ class ResourceUsingTestCase(MockerTestCase):
             return fh.read()
 
     def getCloudPaths(self):
+        tmpdir = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, tmpdir)
         cp = ch.Paths({
-            'cloud_dir': self.makeDir(),
+            'cloud_dir': tmpdir,
             'templates_dir': self.resourceLocation(),
         })
         return cp
 
 
 class FilesystemMockingTestCase(ResourceUsingTestCase):
-    def __init__(self, methodName="runTest"):
-        ResourceUsingTestCase.__init__(self, methodName)
-        self.patched_funcs = []
+    def setUp(self):
+        super(FilesystemMockingTestCase, self).setUp()
+        self.patched_funcs = ExitStack()
+
+    def tearDown(self):
+        self.patched_funcs.close()
+        ResourceUsingTestCase.tearDown(self)
 
     def replicateTestRoot(self, example_root, target_root):
         real_root = self.resourceLocation()
@@ -179,15 +210,6 @@ class FilesystemMockingTestCase(ResourceUsingTestCase):
                 real_path = util.abs_join(real_path, f)
                 make_path = util.abs_join(make_path, f)
                 shutil.copy(real_path, make_path)
-
-    def tearDown(self):
-        self.restore()
-        ResourceUsingTestCase.tearDown(self)
-
-    def restore(self):
-        for (mod, f, func) in self.patched_funcs:
-            setattr(mod, f, func)
-        self.patched_funcs = []
 
     def patchUtils(self, new_root):
         patch_funcs = {
@@ -205,8 +227,8 @@ class FilesystemMockingTestCase(ResourceUsingTestCase):
             for (f, am) in funcs:
                 func = getattr(mod, f)
                 trap_func = retarget_many_wrapper(new_root, am, func)
-                setattr(mod, f, trap_func)
-                self.patched_funcs.append((mod, f, func))
+                self.patched_funcs.enter_context(
+                    mock.patch.object(mod, f, trap_func))
 
         # Handle subprocess calls
         func = getattr(util, 'subp')
@@ -214,28 +236,73 @@ class FilesystemMockingTestCase(ResourceUsingTestCase):
         def nsubp(*_args, **_kwargs):
             return ('', '')
 
-        setattr(util, 'subp', nsubp)
-        self.patched_funcs.append((util, 'subp', func))
+        self.patched_funcs.enter_context(
+            mock.patch.object(util, 'subp', nsubp))
 
         def null_func(*_args, **_kwargs):
             return None
 
         for f in ['chownbyid', 'chownbyname']:
-            func = getattr(util, f)
-            setattr(util, f, null_func)
-            self.patched_funcs.append((util, f, func))
+            self.patched_funcs.enter_context(
+                mock.patch.object(util, f, null_func))
 
     def patchOS(self, new_root):
         patch_funcs = {
-            os.path: ['isfile', 'exists', 'islink', 'isdir'],
-            os: ['listdir'],
+            os.path: [('isfile', 1), ('exists', 1),
+                      ('islink', 1), ('isdir', 1)],
+            os: [('listdir', 1), ('mkdir', 1),
+                 ('lstat', 1), ('symlink', 2)],
         }
         for (mod, funcs) in patch_funcs.items():
-            for f in funcs:
+            for f, nargs in funcs:
                 func = getattr(mod, f)
-                trap_func = retarget_many_wrapper(new_root, 1, func)
-                setattr(mod, f, trap_func)
-                self.patched_funcs.append((mod, f, func))
+                trap_func = retarget_many_wrapper(new_root, nargs, func)
+                self.patched_funcs.enter_context(
+                    mock.patch.object(mod, f, trap_func))
+
+    def patchOpen(self, new_root):
+        trap_func = retarget_many_wrapper(new_root, 1, open)
+        name = 'builtins.open' if PY3 else '__builtin__.open'
+        self.patched_funcs.enter_context(mock.patch(name, trap_func))
+
+    def patchStdoutAndStderr(self, stdout=None, stderr=None):
+        if stdout is not None:
+            self.patched_funcs.enter_context(
+                mock.patch.object(sys, 'stdout', stdout))
+        if stderr is not None:
+            self.patched_funcs.enter_context(
+                mock.patch.object(sys, 'stderr', stderr))
+
+
+def import_httpretty():
+    """Import HTTPretty and monkey patch Python 3.4 issue.
+    See https://github.com/gabrielfalcao/HTTPretty/pull/193 and
+    as well as https://github.com/gabrielfalcao/HTTPretty/issues/221.
+
+    Lifted from
+    https://github.com/inveniosoftware/datacite/blob/master/tests/helpers.py
+    """
+    if not FIX_HTTPRETTY:
+        import httpretty
+    else:
+        import socket
+        old_SocketType = socket.SocketType
+
+        import httpretty
+        from httpretty import core
+
+        def sockettype_patch(f):
+            @functools.wraps(f)
+            def inner(*args, **kwargs):
+                f(*args, **kwargs)
+                socket.SocketType = old_SocketType
+                socket.__dict__['SocketType'] = old_SocketType
+            return inner
+
+        core.httpretty.disable = sockettype_patch(
+            httpretty.httpretty.disable
+        )
+    return httpretty
 
 
 class HttprettyTestCase(TestCase):
@@ -256,7 +323,25 @@ class HttprettyTestCase(TestCase):
 def populate_dir(path, files):
     if not os.path.exists(path):
         os.makedirs(path)
-    for (name, content) in files.iteritems():
-        with open(os.path.join(path, name), "w") as fp:
-            fp.write(content)
+    for (name, content) in files.items():
+        with open(os.path.join(path, name), "wb") as fp:
+            if isinstance(content, six.binary_type):
+                fp.write(content)
+            else:
+                fp.write(content.encode('utf-8'))
             fp.close()
+
+
+try:
+    skipIf = unittest.skipIf
+except AttributeError:
+    # Python 2.6.  Doesn't have to be high fidelity.
+    def skipIf(condition, reason):
+        def decorator(func):
+            def wrapper(*args, **kws):
+                if condition:
+                    return func(*args, **kws)
+                else:
+                    print(reason, file=sys.stderr)
+            return wrapper
+        return decorator

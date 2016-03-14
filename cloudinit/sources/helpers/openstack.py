@@ -24,6 +24,8 @@ import copy
 import functools
 import os
 
+import six
+
 from cloudinit import ec2_utils
 from cloudinit import log as logging
 from cloudinit import sources
@@ -205,7 +207,7 @@ class BaseReader(object):
         """
 
         load_json_anytype = functools.partial(
-            util.load_json, root_types=(dict, basestring, list))
+            util.load_json, root_types=(dict, list) + six.string_types)
 
         def datafiles(version):
             files = {}
@@ -234,7 +236,7 @@ class BaseReader(object):
             'version': 2,
         }
         data = datafiles(self._find_working_version())
-        for (name, (path, required, translator)) in data.iteritems():
+        for (name, (path, required, translator)) in data.items():
             path = self._path_join(self.base_path, path)
             data = None
             found = False
@@ -325,7 +327,7 @@ class ConfigDriveReader(BaseReader):
         return os.path.join(*components)
 
     def _path_read(self, path):
-        return util.load_file(path)
+        return util.load_file(path, decode=False)
 
     def _fetch_available_versions(self):
         if self._versions is None:
@@ -364,7 +366,7 @@ class ConfigDriveReader(BaseReader):
             raise NonReadable("%s: no files found" % (self.base_path))
 
         md = {}
-        for (name, (key, translator, default)) in FILES_V1.iteritems():
+        for (name, (key, translator, default)) in FILES_V1.items():
             if name in found:
                 path = found[name]
                 try:
@@ -478,7 +480,7 @@ def convert_vendordata_json(data, recurse=True):
     """
     if not data:
         return None
-    if isinstance(data, (str, unicode, basestring)):
+    if isinstance(data, six.string_types):
         return data
     if isinstance(data, list):
         return copy.deepcopy(data)

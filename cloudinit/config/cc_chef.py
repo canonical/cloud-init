@@ -76,6 +76,8 @@ from cloudinit import templater
 from cloudinit import url_helper
 from cloudinit import util
 
+import six
+
 RUBY_VERSION_DEFAULT = "1.8"
 
 CHEF_DIRS = tuple([
@@ -261,7 +263,7 @@ def run_chef(chef_cfg, log):
         cmd_args = chef_cfg['exec_arguments']
         if isinstance(cmd_args, (list, tuple)):
             cmd.extend(cmd_args)
-        elif isinstance(cmd_args, (str, basestring)):
+        elif isinstance(cmd_args, six.string_types):
             cmd.append(cmd_args)
         else:
             log.warn("Unknown type %s provided for chef"
@@ -300,7 +302,7 @@ def install_chef(cloud, chef_cfg, log):
         with util.tempdir() as tmpd:
             # Use tmpdir over tmpfile to avoid 'text file busy' on execute
             tmpf = "%s/chef-omnibus-install" % tmpd
-            util.write_file(tmpf, str(content), mode=0700)
+            util.write_file(tmpf, content, mode=0o700)
             util.subp([tmpf], capture=False)
     else:
         log.warn("Unknown chef install type '%s'", install_type)

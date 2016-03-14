@@ -20,11 +20,12 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import cPickle as pickle
-
 import copy
 import os
 import sys
+
+import six
+from six.moves import cPickle as pickle
 
 from cloudinit.settings import (PER_INSTANCE, FREQUENCIES, CLOUD_CONFIG)
 
@@ -45,6 +46,7 @@ from cloudinit import log as logging
 from cloudinit import sources
 from cloudinit import type_utils
 from cloudinit import util
+from cloudinit.reporting import events
 
 LOG = logging.getLogger(__name__)
 
@@ -52,7 +54,7 @@ NULL_DATA_SOURCE = None
 
 
 class Init(object):
-    def __init__(self, ds_deps=None):
+    def __init__(self, ds_deps=None, reporter=None):
         if ds_deps is not None:
             self.ds_deps = ds_deps
         else:
@@ -63,6 +65,12 @@ class Init(object):
         self._distro = None
         # Changed only when a fetch occurs
         self.datasource = NULL_DATA_SOURCE
+
+        if reporter is None:
+            reporter = events.ReportEventStack(
+                name="init-reporter", description="init-desc",
+                reporting_enabled=False)
+        self.reporter = reporter
 
     def _reset(self, reset_ds=False):
         # Recreated on access
@@ -147,16 +155,25 @@ class Init(object):
     def _initialize_filesystem(self):
         util.ensure_dirs(self._initial_subdirs())
         log_file = util.get_cfg_option_str(self.cfg, 'def_log_file')
-        perms = util.get_cfg_option_str(self.cfg, 'syslog_fix_perms')
         if log_file:
             util.ensure_file(log_file)
-            if perms:
-                u, g = util.extract_usergroup(perms)
+            perms = self.cfg.get('syslog_fix_perms')
+            if not perms:
+                perms = {}
+            if not isinstance(perms, list):
+                perms = [perms]
+
+            error = None
+            for perm in perms:
+                u, g = util.extract_usergroup(perm)
                 try:
                     util.chownbyname(log_file, u, g)
-                except OSError:
-                    util.logexc(LOG, "Unable to change the ownership of %s to "
-                                "user %s, group %s", log_file, u, g)
+                    return
+                except OSError as e:
+                    error = e
+
+            LOG.warn("Failed changing perms on '%s'. tried: %s. %s",
+                     log_file, ','.join(perms), error)
 
     def read_cfg(self, extra_fns=None):
         # None check so that we don't keep on re-loading if empty
@@ -179,9 +196,12 @@ class Init(object):
         pickled_fn = self.paths.get_ipath_cur('obj_pkl')
         pickle_contents = None
         try:
-            pickle_contents = util.load_file(pickled_fn)
-        except Exception:
+            pickle_contents = util.load_file(pickled_fn, decode=False)
+        except Exception as e:
+            if os.path.isfile(pickled_fn):
+                LOG.warn("failed loading pickle in %s: %s" % (pickled_fn, e))
             pass
+
         # This is expected so just return nothing
         # successfully loaded...
         if not pickle_contents:
@@ -202,7 +222,7 @@ class Init(object):
             util.logexc(LOG, "Failed pickling datasource %s", self.datasource)
             return False
         try:
-            util.write_file(pickled_fn, pk_contents, mode=0400)
+            util.write_file(pickled_fn, pk_contents, omode="wb", mode=0o400)
         except Exception:
             util.logexc(LOG, "Failed pickling datasource to %s", pickled_fn)
             return False
@@ -221,9 +241,17 @@ class Init(object):
     def _get_data_source(self):
         if self.datasource is not NULL_DATA_SOURCE:
             return self.datasource
-        ds = self._restore_from_cache()
-        if ds:
-            LOG.debug("Restored from cache, datasource: %s", ds)
+
+        with events.ReportEventStack(
+                name="check-cache",
+                description="attempting to read from cache",
+                parent=self.reporter) as myrep:
+            ds = self._restore_from_cache()
+            if ds:
+                LOG.debug("Restored from cache, datasource: %s", ds)
+                myrep.description = "restored from cache"
+            else:
+                myrep.description = "no cache found"
         if not ds:
             (cfg_list, pkg_list) = self._get_datasources()
             # Deep copy so that user-data handlers can not modify
@@ -233,7 +261,7 @@ class Init(object):
                                                self.paths,
                                                copy.deepcopy(self.ds_deps),
                                                cfg_list,
-                                               pkg_list)
+                                               pkg_list, self.reporter)
             LOG.info("Loaded datasource %s - %s", dsname, ds)
         self.datasource = ds
         # Ensure we adjust our path members datasource
@@ -314,7 +342,8 @@ class Init(object):
         # Form the needed options to cloudify our members
         return cloud.Cloud(self.datasource,
                            self.paths, self.cfg,
-                           self.distro, helpers.Runners(self.paths))
+                           self.distro, helpers.Runners(self.paths),
+                           reporter=self.reporter)
 
     def update(self):
         if not self._write_to_cache():
@@ -323,16 +352,27 @@ class Init(object):
         self._store_vendordata()
 
     def _store_userdata(self):
-        raw_ud = "%s" % (self.datasource.get_userdata_raw())
-        util.write_file(self._get_ipath('userdata_raw'), raw_ud, 0600)
-        processed_ud = "%s" % (self.datasource.get_userdata())
-        util.write_file(self._get_ipath('userdata'), processed_ud, 0600)
+        raw_ud = self.datasource.get_userdata_raw()
+        if raw_ud is None:
+            raw_ud = b''
+        util.write_file(self._get_ipath('userdata_raw'), raw_ud, 0o600)
+        # processed userdata is a Mime message, so write it as string.
+        processed_ud = self.datasource.get_userdata()
+        if processed_ud is None:
+            raw_ud = ''
+        util.write_file(self._get_ipath('userdata'), str(processed_ud), 0o600)
 
     def _store_vendordata(self):
-        raw_vd = "%s" % (self.datasource.get_vendordata_raw())
-        util.write_file(self._get_ipath('vendordata_raw'), raw_vd, 0600)
-        processed_vd = "%s" % (self.datasource.get_vendordata())
-        util.write_file(self._get_ipath('vendordata'), processed_vd, 0600)
+        raw_vd = self.datasource.get_vendordata_raw()
+        if raw_vd is None:
+            raw_vd = b''
+        util.write_file(self._get_ipath('vendordata_raw'), raw_vd, 0o600)
+        # processed vendor data is a Mime message, so write it as string.
+        processed_vd = str(self.datasource.get_vendordata())
+        if processed_vd is None:
+            processed_vd = ''
+        util.write_file(self._get_ipath('vendordata'), str(processed_vd),
+                        0o600)
 
     def _default_handlers(self, opts=None):
         if opts is None:
@@ -384,7 +424,7 @@ class Init(object):
             if not path or not os.path.isdir(path):
                 return
             potential_handlers = util.find_modules(path)
-            for (fname, mod_name) in potential_handlers.iteritems():
+            for (fname, mod_name) in potential_handlers.items():
                 try:
                     mod_locs, looked_locs = importer.find_module(
                         mod_name, [''], ['list_types', 'handle_part'])
@@ -422,7 +462,7 @@ class Init(object):
 
         def init_handlers():
             # Init the handlers first
-            for (_ctype, mod) in c_handlers.iteritems():
+            for (_ctype, mod) in c_handlers.items():
                 if mod in c_handlers.initialized:
                     # Avoid initing the same module twice (if said module
                     # is registered to more than one content-type).
@@ -449,7 +489,7 @@ class Init(object):
 
         def finalize_handlers():
             # Give callbacks opportunity to finalize
-            for (_ctype, mod) in c_handlers.iteritems():
+            for (_ctype, mod) in c_handlers.items():
                 if mod not in c_handlers.initialized:
                     # Said module was never inited in the first place, so lets
                     # not attempt to finalize those that never got called.
@@ -469,8 +509,14 @@ class Init(object):
     def consume_data(self, frequency=PER_INSTANCE):
         # Consume the userdata first, because we need want to let the part
         # handlers run first (for merging stuff)
-        self._consume_userdata(frequency)
-        self._consume_vendordata(frequency)
+        with events.ReportEventStack("consume-user-data",
+                                     "reading and applying user-data",
+                                     parent=self.reporter):
+                self._consume_userdata(frequency)
+        with events.ReportEventStack("consume-vendor-data",
+                                     "reading and applying vendor-data",
+                                     parent=self.reporter):
+                self._consume_vendordata(frequency)
 
         # Perform post-consumption adjustments so that
         # modules that run during the init stage reflect
@@ -543,11 +589,16 @@ class Init(object):
 
 
 class Modules(object):
-    def __init__(self, init, cfg_files=None):
+    def __init__(self, init, cfg_files=None, reporter=None):
         self.init = init
         self.cfg_files = cfg_files
         # Created on first use
         self._cached_cfg = None
+        if reporter is None:
+            reporter = events.ReportEventStack(
+                name="module-reporter", description="module-desc",
+                reporting_enabled=False)
+        self.reporter = reporter
 
     @property
     def cfg(self):
@@ -574,7 +625,7 @@ class Modules(object):
         for item in cfg_mods:
             if not item:
                 continue
-            if isinstance(item, (str, basestring)):
+            if isinstance(item, six.string_types):
                 module_list.append({
                     'mod': item.strip(),
                 })
@@ -604,7 +655,7 @@ class Modules(object):
             else:
                 raise TypeError(("Failed to read '%s' item in config,"
                                  " unknown type %s") %
-                                 (item, type_utils.obj_name(item)))
+                                (item, type_utils.obj_name(item)))
         return module_list
 
     def _fixup_modules(self, raw_mods):
@@ -657,7 +708,19 @@ class Modules(object):
                 which_ran.append(name)
                 # This name will affect the semaphore name created
                 run_name = "config-%s" % (name)
-                cc.run(run_name, mod.handle, func_args, freq=freq)
+
+                desc = "running %s with frequency %s" % (run_name, freq)
+                myrep = events.ReportEventStack(
+                    name=run_name, description=desc, parent=self.reporter)
+
+                with myrep:
+                    ran, _r = cc.run(run_name, mod.handle, func_args,
+                                     freq=freq)
+                    if ran:
+                        myrep.message = "%s ran successfully" % run_name
+                    else:
+                        myrep.message = "%s previously ran" % run_name
+
             except Exception as e:
                 util.logexc(LOG, "Running module %s (%s) failed", name, mod)
                 failures.append((name, e))
@@ -699,8 +762,8 @@ class Modules(object):
 
         if skipped:
             LOG.info("Skipping modules %s because they are not verified "
-                      "on distro '%s'.  To run anyway, add them to "
-                      "'unverified_modules' in config.", skipped, d_name)
+                     "on distro '%s'.  To run anyway, add them to "
+                     "'unverified_modules' in config.", skipped, d_name)
         if forced:
             LOG.info("running unverified_modules: %s", forced)
 

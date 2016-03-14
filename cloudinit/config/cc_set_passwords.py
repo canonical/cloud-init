@@ -28,11 +28,11 @@ from cloudinit import distros as ds
 from cloudinit import ssh_util
 from cloudinit import util
 
-from string import letters, digits
+from string import ascii_letters, digits
 
 # We are removing certain 'painful' letters/numbers
-PW_SET = (letters.translate(None, 'loLOI') +
-          digits.translate(None, '01'))
+PW_SET = (''.join([x for x in ascii_letters + digits
+                   if x not in 'loLOI01']))
 
 
 def handle(_name, cfg, cloud, log, args):

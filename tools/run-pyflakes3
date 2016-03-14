@@ -1,0 +1,2 @@
+#!/bin/sh
+PYTHON_VERSION=3 exec "${0%/*}/run-pyflakes" "$@"

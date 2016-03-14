@@ -24,6 +24,7 @@ import copy
 import os
 
 from cloudinit import log as logging
+from cloudinit.reporting import events
 
 LOG = logging.getLogger(__name__)
 
@@ -40,12 +41,18 @@ LOG = logging.getLogger(__name__)
 
 
 class Cloud(object):
-    def __init__(self, datasource, paths, cfg, distro, runners):
+    def __init__(self, datasource, paths, cfg, distro, runners, reporter=None):
         self.datasource = datasource
         self.paths = paths
         self.distro = distro
         self._cfg = cfg
         self._runners = runners
+        if reporter is None:
+            reporter = events.ReportEventStack(
+                name="unnamed-cloud-reporter",
+                description="unnamed-cloud-reporter",
+                reporting_enabled=False)
+        self.reporter = reporter
 
     # If a 'user' manipulates logging or logging services
     # it is typically useful to cause the logging to be

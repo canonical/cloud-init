@@ -1,10 +1,9 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 """Try to read a YAML file and report any errors.
 """
 
 import sys
-
 import yaml
 
 
@@ -17,7 +16,7 @@ if __name__ == "__main__":
             yaml.safe_load(fh.read())
             fh.close()
             sys.stdout.write(" - ok\n")
-        except Exception, e:
+        except Exception as e:
             sys.stdout.write(" - bad (%s)\n" % (e))
             bads += 1
     if bads > 0:

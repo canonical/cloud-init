@@ -73,7 +73,7 @@ class Distro(distros.Distro):
         searchservers = []
         dev_names = entries.keys()
         use_ipv6 = False
-        for (dev, info) in entries.iteritems():
+        for (dev, info) in entries.items():
             net_fn = self.network_script_tpl % (dev)
             net_cfg = {
                 'DEVICE': dev,
@@ -91,7 +91,7 @@ class Distro(distros.Distro):
                     'IPV6INIT': _make_sysconfig_bool(True),
                     'IPV6ADDR': info.get('ipv6').get('address'),
                     'IPV6_DEFAULTGW': info.get('ipv6').get('gateway'),
-            })
+                })
             rhel_util.update_sysconfig_file(net_fn, net_cfg)
             if 'dns-nameservers' in info:
                 nameservers.extend(info['dns-nameservers'])
@@ -111,13 +111,6 @@ class Distro(distros.Distro):
             rhel_util.update_sysconfig_file(self.network_conf_fn, net_cfg)
         return dev_names
 
-    def uses_systemd(self):
-        # Fedora 18 and RHEL 7 were the first adopters in their series
-        (dist, vers) = util.system_info()['dist'][:2]
-        major = (int)(vers.split('.')[0])
-        return ((dist.startswith('Red Hat Enterprise Linux') and major >= 7)
-                or (dist.startswith('Fedora') and major >= 18))
-
     def apply_locale(self, locale, out_fn=None):
         if self.uses_systemd():
             if not out_fn:
@@ -132,7 +125,11 @@ class Distro(distros.Distro):
         rhel_util.update_sysconfig_file(out_fn, locale_cfg)
 
     def _write_hostname(self, hostname, out_fn):
-        if self.uses_systemd():
+        # systemd will never update previous-hostname for us, so
+        # we need to do it ourselves
+        if self.uses_systemd() and out_fn.endswith('/previous-hostname'):
+            util.write_file(out_fn, hostname)
+        elif self.uses_systemd():
             util.subp(['hostnamectl', 'set-hostname', str(hostname)])
         else:
             host_cfg = {
@@ -155,7 +152,9 @@ class Distro(distros.Distro):
         return (host_fn, self._read_hostname(host_fn))
 
     def _read_hostname(self, filename, default=None):
-        if self.uses_systemd():
+        if self.uses_systemd() and filename.endswith('/previous-hostname'):
+            return util.load_file(filename).strip()
+        elif self.uses_systemd():
             (out, _err) = util.subp(['hostname'])
             if len(out):
                 return out

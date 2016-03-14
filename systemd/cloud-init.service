@@ -1,8 +1,8 @@
 [Unit]
 Description=Initial cloud-init job (metadata service crawler)
-After=local-fs.target network.target cloud-init-local.service
-Before=sshd.service sshd-keygen.service
-Requires=network.target
+After=cloud-init-local.service networking.service
+Before=network-online.target sshd.service sshd-keygen.service systemd-user-sessions.service
+Requires=networking.service
 Wants=local-fs.target cloud-init-local.service sshd.service sshd-keygen.service
 
 [Service]
@@ -15,4 +15,4 @@ TimeoutSec=0
 StandardOutput=journal+console
 
 [Install]
-WantedBy=multi-user.target
+WantedBy=cloud-init.target

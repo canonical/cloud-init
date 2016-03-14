@@ -1,39 +1,43 @@
 from cloudinit import helpers
 from cloudinit.sources import DataSourceNoCloud
 from cloudinit import util
-from ..helpers import populate_dir
+from ..helpers import TestCase, populate_dir
 
-from mocker import MockerTestCase
 import os
 import yaml
+import shutil
+import tempfile
+import unittest
+
+try:
+    from unittest import mock
+except ImportError:
+    import mock
+try:
+    from contextlib import ExitStack
+except ImportError:
+    from contextlib2 import ExitStack
 
 
-class TestNoCloudDataSource(MockerTestCase):
+class TestNoCloudDataSource(TestCase):
 
     def setUp(self):
-        self.tmp = self.makeDir()
+        super(TestNoCloudDataSource, self).setUp()
+        self.tmp = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, self.tmp)
         self.paths = helpers.Paths({'cloud_dir': self.tmp})
 
         self.cmdline = "root=TESTCMDLINE"
 
-        self.unapply = []
-        self.apply_patches([(util, 'get_cmdline', self._getcmdline)])
-        super(TestNoCloudDataSource, self).setUp()
+        self.mocks = ExitStack()
+        self.addCleanup(self.mocks.close)
 
-    def tearDown(self):
-        apply_patches([i for i in reversed(self.unapply)])
-        super(TestNoCloudDataSource, self).tearDown()
-
-    def apply_patches(self, patches):
-        ret = apply_patches(patches)
-        self.unapply += ret
-
-    def _getcmdline(self):
-        return self.cmdline
+        self.mocks.enter_context(
+            mock.patch.object(util, 'get_cmdline', return_value=self.cmdline))
 
     def test_nocloud_seed_dir(self):
         md = {'instance-id': 'IID', 'dsmode': 'local'}
-        ud = "USER_DATA_HERE"
+        ud = b"USER_DATA_HERE"
         populate_dir(os.path.join(self.paths.seed_dir, "nocloud"),
                      {'user-data': ud, 'meta-data': yaml.safe_dump(md)})
 
@@ -59,7 +63,9 @@ class TestNoCloudDataSource(MockerTestCase):
         def my_find_devs_with(*args, **kwargs):
             raise PsuedoException
 
-        self.apply_patches([(util, 'find_devs_with', my_find_devs_with)])
+        self.mocks.enter_context(
+            mock.patch.object(util, 'find_devs_with',
+                              side_effect=PsuedoException))
 
         # by default, NoCloud should search for filesystems by label
         sys_cfg = {'datasource': {'NoCloud': {}}}
@@ -85,21 +91,21 @@ class TestNoCloudDataSource(MockerTestCase):
 
         data = {
             'fs_label': None,
-            'meta-data': {'instance-id': 'IID'},
-            'user-data': "USER_DATA_RAW",
+            'meta-data': yaml.safe_dump({'instance-id': 'IID'}),
+            'user-data': b"USER_DATA_RAW",
         }
 
         sys_cfg = {'datasource': {'NoCloud': data}}
         dsrc = ds(sys_cfg=sys_cfg, distro=None, paths=self.paths)
         ret = dsrc.get_data()
-        self.assertEqual(dsrc.userdata_raw, "USER_DATA_RAW")
+        self.assertEqual(dsrc.userdata_raw, b"USER_DATA_RAW")
         self.assertEqual(dsrc.metadata.get('instance-id'), 'IID')
         self.assertTrue(ret)
 
     def test_nocloud_seed_with_vendordata(self):
         md = {'instance-id': 'IID', 'dsmode': 'local'}
-        ud = "USER_DATA_HERE"
-        vd = "THIS IS MY VENDOR_DATA"
+        ud = b"USER_DATA_HERE"
+        vd = b"THIS IS MY VENDOR_DATA"
 
         populate_dir(os.path.join(self.paths.seed_dir, "nocloud"),
                      {'user-data': ud, 'meta-data': yaml.safe_dump(md),
@@ -115,12 +121,12 @@ class TestNoCloudDataSource(MockerTestCase):
         ret = dsrc.get_data()
         self.assertEqual(dsrc.userdata_raw, ud)
         self.assertEqual(dsrc.metadata, md)
-        self.assertEqual(dsrc.vendordata, vd)
+        self.assertEqual(dsrc.vendordata_raw, vd)
         self.assertTrue(ret)
 
     def test_nocloud_no_vendordata(self):
         populate_dir(os.path.join(self.paths.seed_dir, "nocloud"),
-                     {'user-data': "ud", 'meta-data': "instance-id: IID\n"})
+                     {'user-data': b"ud", 'meta-data': "instance-id: IID\n"})
 
         sys_cfg = {'datasource': {'NoCloud': {'fs_label': None}}}
 
@@ -128,12 +134,12 @@ class TestNoCloudDataSource(MockerTestCase):
 
         dsrc = ds(sys_cfg=sys_cfg, distro=None, paths=self.paths)
         ret = dsrc.get_data()
-        self.assertEqual(dsrc.userdata_raw, "ud")
+        self.assertEqual(dsrc.userdata_raw, b"ud")
         self.assertFalse(dsrc.vendordata)
         self.assertTrue(ret)
 
 
-class TestParseCommandLineData(MockerTestCase):
+class TestParseCommandLineData(unittest.TestCase):
 
     def test_parse_cmdline_data_valid(self):
         ds_id = "ds=nocloud"
@@ -176,17 +182,6 @@ class TestParseCommandLineData(MockerTestCase):
                                                        cmdline=cmdline)
             self.assertEqual(fill, {})
             self.assertFalse(ret)
-
-
-def apply_patches(patches):
-    ret = []
-    for (ref, name, replace) in patches:
-        if replace is None:
-            continue
-        orig = getattr(ref, name)
-        setattr(ref, name, replace)
-        ret.append((ref, name, orig))
-    return ret
 
 
 # vi: ts=4 expandtab

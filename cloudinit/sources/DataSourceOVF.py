@@ -24,11 +24,16 @@ from xml.dom import minidom
 
 import base64
 import os
+import shutil
 import re
+import time
 
 from cloudinit import log as logging
 from cloudinit import sources
 from cloudinit import util
+from cloudinit.sources.helpers.vmware.imc.config import Config
+from cloudinit.sources.helpers.vmware.imc.config_file import ConfigFile
+from cloudinit.sources.helpers.vmware.imc.config_nic import NicConfigurator
 
 LOG = logging.getLogger(__name__)
 
@@ -50,13 +55,53 @@ class DataSourceOVF(sources.DataSource):
         found = []
         md = {}
         ud = ""
+        vmwarePlatformFound = False
+        vmwareImcConfigFilePath = ''
 
         defaults = {
             "instance-id": "iid-dsovf",
         }
 
         (seedfile, contents) = get_ovf_env(self.paths.seed_dir)
-        if seedfile:
+
+        system_type = util.read_dmi_data("system-product-name")
+        if system_type is None:
+            LOG.debug("No system-product-name found")
+        elif 'vmware' in system_type.lower():
+            LOG.debug("VMware Virtualization Platform found")
+            if not util.get_cfg_option_bool(
+                    self.sys_cfg, "disable_vmware_customization", True):
+                deployPkgPluginPath = search_file("/usr/lib/vmware-tools",
+                                                  "libdeployPkgPlugin.so")
+                if deployPkgPluginPath:
+                    vmwareImcConfigFilePath = util.log_time(
+                        logfunc=LOG.debug,
+                        msg="waiting for configuration file",
+                        func=wait_for_imc_cfg_file, args=("/tmp", "cust.cfg"))
+
+                if vmwareImcConfigFilePath:
+                    LOG.debug("Found VMware DeployPkg Config File at %s" %
+                              vmwareImcConfigFilePath)
+                else:
+                    LOG.debug("Did not find VMware DeployPkg Config File Path")
+            else:
+                LOG.debug("Customization for VMware platform is disabled.")
+
+        if vmwareImcConfigFilePath:
+            try:
+                cf = ConfigFile(vmwareImcConfigFilePath)
+                conf = Config(cf)
+                (md, ud, cfg) = read_vmware_imc(conf)
+                nicConfigurator = NicConfigurator(conf.nics)
+                nicConfigurator.configure()
+                vmwarePlatformFound = True
+            except Exception as inst:
+                LOG.debug("Error while parsing the Customization "
+                          "Config File: %s", inst)
+            finally:
+                dirPath = os.path.dirname(vmwareImcConfigFilePath)
+                shutil.rmtree(dirPath)
+        elif seedfile:
             # Found a seed dir
             seed = os.path.join(self.paths.seed_dir, seedfile)
             (md, ud, cfg) = read_ovf_environment(contents)
@@ -66,7 +111,7 @@ class DataSourceOVF(sources.DataSource):
             np = {'iso': transport_iso9660,
                   'vmware-guestd': transport_vmware_guestd, }
             name = None
-            for (name, transfunc) in np.iteritems():
+            for (name, transfunc) in np.items():
                 (contents, _dev, _fname) = transfunc()
                 if contents:
                     break
@@ -76,7 +121,7 @@ class DataSourceOVF(sources.DataSource):
                 found.append(name)
 
         # There was no OVF transports found
-        if len(found) == 0:
+        if len(found) == 0 and not vmwarePlatformFound:
             return False
 
         if 'seedfrom' in md and md['seedfrom']:
@@ -129,6 +174,33 @@ class DataSourceOVFNet(DataSourceOVF):
         self.supported_seed_starts = ("http://", "https://", "ftp://")
 
 
+def wait_for_imc_cfg_file(dirpath, filename, maxwait=180, naplen=5):
+    waited = 0
+
+    while waited < maxwait:
+        fileFullPath = search_file(dirpath, filename)
+        if fileFullPath:
+            return fileFullPath
+        time.sleep(naplen)
+        waited += naplen
+    return None
+
+
+# This will return a dict with some content
+#  meta-data, user-data, some config
+def read_vmware_imc(config):
+    md = {}
+    cfg = {}
+    ud = ""
+    if config.host_name:
+        if config.domain_name:
+            md['local-hostname'] = config.host_name + "." + config.domain_name
+        else:
+            md['local-hostname'] = config.host_name
+
+    return (md, ud, cfg)
+
+
 # This will return a dict with some content
 #  meta-data, user-data, some config
 def read_ovf_environment(contents):
@@ -138,7 +210,7 @@ def read_ovf_environment(contents):
     ud = ""
     cfg_props = ['password']
     md_props = ['seedfrom', 'local-hostname', 'public-keys', 'instance-id']
-    for (prop, val) in props.iteritems():
+    for (prop, val) in props.items():
         if prop == 'hostname':
             prop = "local-hostname"
         if prop in md_props:
@@ -183,7 +255,7 @@ def transport_iso9660(require_iso=True):
 
     # Go through mounts to see if it was already mounted
     mounts = util.mounts()
-    for (dev, info) in mounts.iteritems():
+    for (dev, info) in mounts.items():
         fstype = info['fstype']
         if fstype != "iso9660" and require_iso:
             continue
@@ -264,14 +336,14 @@ def get_properties(contents):
     # could also check here that elem.namespaceURI ==
     #   "http://schemas.dmtf.org/ovf/environment/1"
     propSections = find_child(dom.documentElement,
-        lambda n: n.localName == "PropertySection")
+                              lambda n: n.localName == "PropertySection")
 
     if len(propSections) == 0:
         raise XmlError("No 'PropertySection's")
 
     props = {}
     propElems = find_child(propSections[0],
-                            (lambda n: n.localName == "Property"))
+                           (lambda n: n.localName == "Property"))
 
     for elem in propElems:
         key = elem.attributes.getNamedItemNS(envNsURI, "key").value
@@ -281,14 +353,25 @@ def get_properties(contents):
     return props
 
 
+def search_file(dirpath, filename):
+    if not dirpath or not filename:
+        return None
+
+    for root, dirs, files in os.walk(dirpath):
+        if filename in files:
+            return os.path.join(root, filename)
+
+    return None
+
+
 class XmlError(Exception):
     pass
 
 
 # Used to match classes to dependencies
 datasources = (
-  (DataSourceOVF, (sources.DEP_FILESYSTEM, )),
-  (DataSourceOVFNet, (sources.DEP_FILESYSTEM, sources.DEP_NETWORK)),
+    (DataSourceOVF, (sources.DEP_FILESYSTEM, )),
+    (DataSourceOVFNet, (sources.DEP_FILESYSTEM, sources.DEP_NETWORK)),
 )
 
 

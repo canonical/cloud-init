@@ -15,17 +15,17 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import httpretty
 import re
 
-from types import ListType
-from urlparse import urlparse
+from six.moves.urllib_parse import urlparse
 
 from cloudinit import settings
 from cloudinit import helpers
 from cloudinit.sources import DataSourceDigitalOcean
 
 from .. import helpers as test_helpers
+
+httpretty = test_helpers.import_httpretty()
 
 # Abbreviated for the test
 DO_INDEX = """id
@@ -50,6 +50,7 @@ DO_META = {
 }
 
 MD_URL_RE = re.compile(r'http://169.254.169.254/metadata/v1/.*')
+
 
 def _request_callback(method, uri, headers):
     url_path = urlparse(uri).path
@@ -109,7 +110,7 @@ class TestDataSourceDigitalOcean(test_helpers.HttprettyTestCase):
         self.assertEqual([DO_META.get('public-keys')],
                          self.ds.get_public_ssh_keys())
 
-        self.assertIs(type(self.ds.get_public_ssh_keys()), ListType)
+        self.assertIsInstance(self.ds.get_public_ssh_keys(), list)
 
     @httpretty.activate
     def test_multiple_ssh_keys(self):
@@ -123,4 +124,4 @@ class TestDataSourceDigitalOcean(test_helpers.HttprettyTestCase):
         self.assertEqual(DO_META.get('public-keys').splitlines(),
                          self.ds.get_public_ssh_keys())
 
-        self.assertIs(type(self.ds.get_public_ssh_keys()), ListType)
+        self.assertIsInstance(self.ds.get_public_ssh_keys(), list)

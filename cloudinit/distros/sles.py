@@ -62,7 +62,7 @@ class Distro(distros.Distro):
         nameservers = []
         searchservers = []
         dev_names = entries.keys()
-        for (dev, info) in entries.iteritems():
+        for (dev, info) in entries.items():
             net_fn = self.network_script_tpl % (dev)
             mode = info.get('auto')
             if mode and mode.lower() == 'true':
@@ -113,14 +113,7 @@ class Distro(distros.Distro):
         if not conf:
             conf = HostnameConf('')
         conf.set_hostname(hostname)
-        util.write_file(out_fn, str(conf), 0644)
-
-    def _select_hostname(self, hostname, fqdn):
-        # Prefer the short hostname over the long
-        # fully qualified domain name
-        if not hostname:
-            return fqdn
-        return hostname
+        util.write_file(out_fn, str(conf), 0o644)
 
     def _read_system_hostname(self):
         host_fn = self.hostname_conf_fn

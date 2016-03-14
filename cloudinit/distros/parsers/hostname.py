@@ -16,7 +16,7 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-from StringIO import StringIO
+from six import StringIO
 
 from cloudinit.distros.parsers import chop_comment
 
@@ -84,5 +84,5 @@ class HostnameConf(object):
             hostnames_found.add(head)
         if len(hostnames_found) > 1:
             raise IOError("Multiple hostnames (%s) found!"
-                           % (hostnames_found))
+                          % (hostnames_found))
         return entries

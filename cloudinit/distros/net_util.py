@@ -103,7 +103,7 @@ def translate_network(settings):
             consume[cmd] = args
     # Check if anything left over to consume
     absorb = False
-    for (cmd, args) in consume.iteritems():
+    for (cmd, args) in consume.items():
         if cmd == 'iface':
             absorb = True
     if absorb:
@@ -180,4 +180,3 @@ def translate_network(settings):
         if cmd == 'iface' and 'inet6' in args:
             real_ifaces[dev_name]['inet6'] = True
     return real_ifaces
-

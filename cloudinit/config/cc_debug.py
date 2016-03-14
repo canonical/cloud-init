@@ -34,7 +34,8 @@ It can be configured with the following option structure::
 """
 
 import copy
-from StringIO import StringIO
+
+from six import StringIO
 
 from cloudinit import type_utils
 from cloudinit import util
@@ -77,7 +78,7 @@ def handle(name, cfg, cloud, log, args):
     dump_cfg = copy.deepcopy(cfg)
     for k in SKIP_KEYS:
         dump_cfg.pop(k, None)
-    all_keys = list(dump_cfg.keys())
+    all_keys = list(dump_cfg)
     for k in all_keys:
         if k.startswith("_"):
             dump_cfg.pop(k, None)
@@ -103,6 +104,6 @@ def handle(name, cfg, cloud, log, args):
         line = "ci-info: %s\n" % (line)
         content_to_file.append(line)
     if out_file:
-        util.write_file(out_file, "".join(content_to_file), 0644, "w")
+        util.write_file(out_file, "".join(content_to_file), 0o644, "w")
     else:
         util.multi_log("".join(content_to_file), console=True, stderr=False)

@@ -31,7 +31,8 @@ LOG = logging.getLogger(__name__)
 DEF_SSHD_CFG = "/etc/ssh/sshd_config"
 
 # taken from openssh source key.c/key_type_from_name
-VALID_KEY_TYPES = ("rsa", "dsa", "ssh-rsa", "ssh-dss", "ecdsa",
+VALID_KEY_TYPES = (
+    "rsa", "dsa", "ssh-rsa", "ssh-dss", "ecdsa",
     "ssh-rsa-cert-v00@openssh.com", "ssh-dss-cert-v00@openssh.com",
     "ssh-rsa-cert-v00@openssh.com", "ssh-dss-cert-v00@openssh.com",
     "ssh-rsa-cert-v01@openssh.com", "ssh-dss-cert-v01@openssh.com",
@@ -239,7 +240,7 @@ def setup_user_keys(keys, username, options=None):
     # Make sure the users .ssh dir is setup accordingly
     (ssh_dir, pwent) = users_ssh_info(username)
     if not os.path.isdir(ssh_dir):
-        util.ensure_dir(ssh_dir, mode=0700)
+        util.ensure_dir(ssh_dir, mode=0o700)
         util.chownbyid(ssh_dir, pwent.pw_uid, pwent.pw_gid)
 
     # Turn the 'update' keys given into actual entries
@@ -252,8 +253,8 @@ def setup_user_keys(keys, username, options=None):
     (auth_key_fn, auth_key_entries) = extract_authorized_keys(username)
     with util.SeLinuxGuard(ssh_dir, recursive=True):
         content = update_authorized_keys(auth_key_entries, key_entries)
-        util.ensure_dir(os.path.dirname(auth_key_fn), mode=0700)
-        util.write_file(auth_key_fn, content, mode=0600)
+        util.ensure_dir(os.path.dirname(auth_key_fn), mode=0o700)
+        util.write_file(auth_key_fn, content, mode=0o600)
         util.chownbyid(auth_key_fn, pwent.pw_uid, pwent.pw_gid)
 
 

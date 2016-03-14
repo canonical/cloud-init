@@ -83,8 +83,8 @@ class CepkoResult(object):
         connection = serial.Serial(port=SERIAL_PORT,
                                    timeout=READ_TIMEOUT,
                                    writeTimeout=WRITE_TIMEOUT)
-        connection.write(self.request)
-        return connection.readline().strip('\x04\n')
+        connection.write(self.request.encode('ascii'))
+        return connection.readline().strip(b'\x04\n').decode('ascii')
 
     def _marshal(self, raw_result):
         try:

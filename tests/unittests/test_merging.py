@@ -11,11 +11,13 @@ import glob
 import os
 import random
 import re
+import six
 import string
 
 SOURCE_PAT = "source*.*yaml"
 EXPECTED_PAT = "expected%s.yaml"
-TYPES = [long, int, dict, str, list, tuple, None]
+TYPES = [dict, str, list, tuple, None]
+TYPES.extend(six.integer_types)
 
 
 def _old_mergedict(src, cand):
@@ -25,7 +27,7 @@ def _old_mergedict(src, cand):
     Nested dictionaries are merged recursively.
     """
     if isinstance(src, dict) and isinstance(cand, dict):
-        for (k, v) in cand.iteritems():
+        for (k, v) in cand.items():
             if k not in src:
                 src[k] = v
             else:
@@ -42,8 +44,8 @@ def _old_mergemanydict(*args):
 
 def _random_str(rand):
     base = ''
-    for _i in xrange(rand.randint(1, 2 ** 8)):
-        base += rand.choice(string.letters + string.digits)
+    for _i in range(rand.randint(1, 2 ** 8)):
+        base += rand.choice(string.ascii_letters + string.digits)
     return base
 
 
@@ -64,7 +66,7 @@ def _make_dict(current_depth, max_depth, rand):
     if t in [dict, list, tuple]:
         if t in [dict]:
             amount = rand.randint(0, 5)
-            keys = [_random_str(rand) for _i in xrange(0, amount)]
+            keys = [_random_str(rand) for _i in range(0, amount)]
             base = {}
             for k in keys:
                 try:
@@ -74,14 +76,14 @@ def _make_dict(current_depth, max_depth, rand):
         elif t in [list, tuple]:
             base = []
             amount = rand.randint(0, 5)
-            for _i in xrange(0, amount):
+            for _i in range(0, amount):
                 try:
                     base.append(_make_dict(current_depth + 1, max_depth, rand))
                 except _NoMoreException:
                     pass
             if t in [tuple]:
                 base = tuple(base)
-    elif t in [long, int]:
+    elif t in six.integer_types:
         base = rand.randint(0, 2 ** 8)
     elif t in [str]:
         base = _random_str(rand)

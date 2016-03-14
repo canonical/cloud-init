@@ -15,6 +15,82 @@
    for list, tuple, set, dict, string types and warning on other unexpected
    types
  - Update to use newer/better OMNIBUS_URL for chef module
+ - GCE: Allow base64 encoded user-data (LP: #1404311) [Wayne Witzell III]
+ - GCE: use short hostname rather than fqdn (LP: #1383794) [Ben Howard]
+ - systemd: make init stage run before login prompts shown [Steve Langasek]
+ - hostname: on first boot apply hostname to be same as is written for
+   persistent hostname.  (LP: #1246485)
+ - remove usage of dmidecode on linux in favor of /sys interface [Ben Howard]
+ - python3 support [Barry Warsaw, Daniel Watkins, Josh Harlow] (LP: #1247132)
+ - support managing gpt partitions in disk config [Daniel Watkins]
+ - Azure: utilze gpt support for ephemeral formating [Daniel Watkins]
+ - CloudStack: support fetching password from virtual router [Daniel Watkins]
+   (LP: #1422388)
+ - readurl, read_file_or_url returns bytes, user must convert as necessary
+ - SmartOS: use v2 metadata service (LP: #1436417) [Daniel Watkins]
+ - NoCloud: fix local datasource claiming found without explicit dsmode
+ - Snappy: add support for installing snappy packages and configuring.
+ - systemd: use network-online instead of network.target (LP: #1440180)
+   [Steve Langasek]
+ - Add functionality to fixate the uid of a newly added user.
+ - Don't overwrite the hostname if the user has changed it after we set it.
+ - GCE datasource does not handle instance ssh keys (LP: 1403617)
+ - sysvinit: make cloud-init-local run before network (LP: #1275098)
+   [Surojit Pathak]
+ - Azure: do not re-set hostname if user has changed it (LP: #1375252)
+ - Fix exception when running with no arguments on Python 3. [Daniel Watkins]
+ - Centos: detect/expect use of systemd on centos 7. [Brian Rak]
+ - Azure: remove dependency on walinux-agent [Daniel Watkins]
+ - EC2: know about eu-central-1 availability-zone (LP: #1456684)
+ - Azure: remove password from on-disk ovf-env.xml (LP: #1443311) [Ben Howard]
+ - Doc: include information on user-data in OpenStack [Daniel Watkins]
+ - Systemd: check for systemd using sd_booted symantics (LP: #1461201)
+   [Lars Kellogg-Stedman]
+ - Add an rh_subscription module to handle registration of Red Hat instances.
+   [Brent Baude]
+ - cc_apt_configure: fix importing keys under python3 (LP: #1463373)
+ - cc_growpart: fix specification of 'devices' list (LP: #1465436)
+ - CloudStack: fix password setting on cloudstack > 4.5.1 (LP: #1464253)
+ - GCE: fix determination of availability zone (LP: #1470880)
+ - ssh: generate ed25519 host keys (LP: #1461242)
+ - distro mirrors: provide datasource to mirror selection code to support
+   GCE regional mirrors. (LP: #1470890)
+ - add udev rules that identify ephemeral device on Azure (LP: #1411582)
+ - _read_dmi_syspath: fix bad log message causing unintended exception
+ - rsyslog: add additional configuration mode (LP: #1478103)
+ - status_wrapper in main: fix use of print_exc when handling exception
+ - reporting: add reporting module for web hook or logging of events.
+ - NoCloud: fix consumption of vendordata (LP: #1493453)
+ - power_state_change: support 'condition' to disable or enable poweroff
+ - ubuntu fan: support for config and installing of ubuntu fan (LP: #1504604)
+ - Azure: support extracting SSH key values from ovf-env.xml (LP: #1506244)
+ - AltCloud: fix call to udevadm settle (LP: #1507526)
+ - Ubuntu templates: modify sources.list template to provide same sources
+   as install from server or desktop ISO. (LP: #1177432)
+ - cc_mounts: use 'nofail' if system uses systemd. (LP: #1514485)
+ - Azure: get instance id from dmi instead of SharedConfig (LP: #1506187)
+ - systemd/power_state: fix power_state to work even if cloud-final
+   exited non-zero (LP: #1449318)
+ - SmartOS: Add support for Joyent LX-Brand Zones (LP: #1540965)
+   [Robert C Jennings]
+ - systemd: support using systemd-detect-virt to detect container
+   (LP: #1539016) [Martin Pitt]
+ - docs: fix lock_passwd documentation [Robert C Jennings]
+ - Azure: Handle escaped quotes in WALinuxAgentShim.find_endpoint.
+   (LP: #1488891) [Dan Watkins]
+ - lxd: add support for setting up lxd using 'lxd init' (LP: #1522879)
+ - Add Image Customization Parser for VMware vSphere Hypervisor
+   Support. [Sankar Tanguturi]
+ - timezone: use a symlink rather than copy for /etc/localtime
+   unless it is already a file (LP: #1543025).
+ - Enable password changing via a hashed string [Alex Sirbu]
+ - Added BigStep datasource [Alex Sirbu]
+ - No longer run pollinate in seed_random (LP: #1554152)
+ - groups: add defalt user to 'lxd' group.  Create groups listed
+   for a user if they do not exist. (LP: #1539317)
+ - dmi data: fix failure of reading dmi data for unset dmi values
+ - doc: mention label for nocloud datasource must be 'cidata' [Peter Hurley]
+
 0.7.6:
  - open 0.7.6
  - Enable vendordata on CloudSigma datasource (LP: #1303986)
@@ -56,6 +132,7 @@
    (LP: #1336855)
  - FreeBsd: support config drive datasource [Joseph bajin]
  - cc_mounts: support creating a swap file
+ - DigitalOcean & GCE: fix get_hostname consistency
 0.7.5:
  - open 0.7.5
  - Add a debug log message around import failures
