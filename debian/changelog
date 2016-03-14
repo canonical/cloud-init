@@ -1,3 +1,17 @@
+cloud-init (0.7.7~bzr1182-0ubuntu1) xenial; urgency=medium
+
+  * New upstream snapshot.
+    * systemd changes enforcing intended ordering (cloud-init-local.service
+      before networking and cloud-init.service before it comes up).
+    * when reading dmidecode data, return found but unset value as "" rather
+      than failing to decode that value.
+    * add default user to 'lxd' group and create groups when necessary
+      (LP: #1539317)
+    * No longer run pollinate in seed_random (LP: #1554152)
+    * Enable BigStep data source.
+
+ -- Scott Moser <smoser@ubuntu.com>  Mon, 14 Mar 2016 09:58:56 -0400
+
 cloud-init (0.7.7~bzr1176-0ubuntu1) xenial; urgency=medium
 
   * d/README.source, d/new-upstream-snapshot: simplify the README.source
