@@ -2148,7 +2148,7 @@ def _read_dmi_syspath(key):
         # uninitialized dmi values show as all \xff and /sys appends a '\n'.
         # in that event, return a string of '.' in the same length.
         if key_data == b'\xff' * (len(key_data) - 1) + b'\n':
-            key_data = b'.' * (len(key_data) - 1) + b'\n'
+            key_data = b""
 
         str_data = key_data.decode('utf8').strip()
         LOG.debug("dmi data %s returned %s", dmi_key_path, str_data)
@@ -2168,6 +2168,9 @@ def _call_dmidecode(key, dmidecode_path):
         cmd = [dmidecode_path, "--string", key]
         (result, _err) = subp(cmd)
         LOG.debug("dmidecode returned '%s' for '%s'", result, key)
+        result = result.strip()
+        if result.replace(".", "") == "":
+            return ""
         return result
     except (IOError, OSError) as _err:
         LOG.debug('failed dmidecode cmd: %s\n%s', cmd, _err.message)
