@@ -3,7 +3,7 @@ set -f
 
 LOG=""
 DEBUG_LEVEL=1
-LOG_D="/run"
+LOG_D="/run/cloud-init"
 ENABLE="enabled"
 DISABLE="disabled"
 CLOUD_SYSTEM_TARGET="/lib/systemd/system/cloud-init.target"
@@ -17,7 +17,8 @@ debug() {
     [ "$lvl" -gt "$DEBUG_LEVEL" ] && return
     if [ -z "$LOG" ]; then
         local log="$LOG_D/${0##*/}.log"
-        { : > "$log"; } >/dev/null 2>&1 && LOG="$log" ||
+        { [ -d "$LOG_D" ] || mkdir -p "$LOG_D"; } &&
+            { : > "$log"; } >/dev/null 2>&1 && LOG="$log" ||
             LOG="/dev/kmsg"
     fi
     echo "$@" >> "$LOG"
@@ -32,15 +33,16 @@ etc_file() {
 }
 
 read_proc_cmdline() {
-    if [ "$CONTAINER" = "lxc" ]; then
-        _RET_MSG="ignored: \$container=$CONTAINER"
+    # return /proc/cmdline for non-container, and /proc/1/cmdline for container
+    local ctname="systemd"
+    if [ -n "$CONTAINER" ] && ctname=$CONTAINER ||
+        systemd-detect-virt --container --quiet; then
+        if { _RET=$(tr '\0' ' ' < /proc/1/cmdline); } 2>/dev/null; then
+            _RET_MSG="container[$ctname]: pid 1 cmdline"
+            return
+        fi
         _RET=""
-        return 0
-    fi
-
-    if systemd-detect-virt --container --quiet; then
-        _RET_MSG="ignored: detect-virt is container"
-        _RET=""
+        _RET_MSG="container[$ctname]: pid 1 cmdline not available"
         return 0
     fi
 
