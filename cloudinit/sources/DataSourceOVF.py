@@ -231,6 +231,9 @@ def read_vmware_imc(config):
         else:
             md['local-hostname'] = config.host_name
 
+    if config.timezone:
+        cfg['timezone'] = config.timezone
+
     return (md, ud, cfg)
 
 
