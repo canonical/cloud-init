@@ -79,6 +79,7 @@ class Distro(distros.Distro):
 
     def _write_network_config(self, netconfig):
         ns = net.parse_net_config_data(netconfig)
+        ns = net.merge_from_cmdline_config(ns)
         net.render_network_state(network_state=ns, target="/")
         return []
 
