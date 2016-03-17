@@ -58,7 +58,7 @@ class DataSourceNoCloud(sources.DataSource):
             md = {}
             if parse_cmdline_data(self.cmdline_id, md):
                 found.append("cmdline")
-                mydata = _merge_new_seed({'meta-data': md})
+                mydata = _merge_new_seed(mydata, {'meta-data': md})
         except:
             util.logexc(LOG, "Unable to parse command line data")
             return False
@@ -256,8 +256,12 @@ def parse_cmdline_data(ds_id, fill, cmdline=None):
 
 def _merge_new_seed(cur, seeded):
     ret = cur.copy()
-    ret['meta-data'] = util.mergemanydict([cur['meta-data'],
-                                          util.load_yaml(seeded['meta-data'])])
+
+    newmd = seeded.get('meta-data', {})
+    if not isinstance(seeded['meta-data'], dict):
+        newmd = util.load_yaml(seeded['meta-data'])
+    ret['meta-data'] = util.mergemanydict([cur['meta-data'], newmd])
+
     if seeded.get('network-config'):
         ret['network-config'] = util.load_yaml(seeded['network-config'])
 
