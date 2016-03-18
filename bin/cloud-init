@@ -435,18 +435,22 @@ def main_single(name, args):
         return 0
 
 
-def atomic_write_json(path, data):
+def atomic_write_file(path, content, mode='w'):
     tf = None
     try:
         tf = tempfile.NamedTemporaryFile(dir=os.path.dirname(path),
-                                         delete=False)
-        tf.write(util.encode_text(json.dumps(data, indent=1) + "\n"))
+                                         delete=False, mode=mode)
+        tf.write(content)u
         tf.close()
         os.rename(tf.name, path)
     except Exception as e:
         if tf is not None:
-            util.del_file(tf.name)
+            os.unlink(tf.name)
         raise e
+
+
+def atomic_write_json(path, data):
+    return atomic_write_file(path, json.dumps(data, indent=1) + "\n")
 
 
 def status_wrapper(name, args, data_d=None, link_d=None):
