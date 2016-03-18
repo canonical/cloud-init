@@ -303,6 +303,9 @@ def load_klibc_net_cfg(data_mapping):
             entry_ns['subnets'].append({'type': 'dhcp4'})
         if data_mapping.get('IPV6ADDR'):
             entry_ns['subnets'].append({'type': 'dhcp6'})
+    elif data_mapping.get('PROTO') in ['static', 'none']:
+        entry_ns['subnets'].append(
+                {'type': 'static', 'address': data_mapping.get('IPV4ADDR')})
 
     if data_mapping.get('IPV4ADDR'):
         entry_ns['address'] = data_mapping['IPV4ADDR']
