@@ -280,6 +280,62 @@ def parse_net_config(path):
     return ns
 
 
+def load_key_value_pair_net_cfg(data_mapping):
+    """Process key value pairs from files written because of the ip parameter
+       on the kernel cmdline"""
+    subnets = []
+    entry_ns = {
+        'mtu': None, 'name': data_mapping['DEVICE'], 'type': 'physical',
+        'mode': 'manual', 'inet': 'inet', 'gateway': None, 'address': None
+    }
+
+    if data_mapping.get('PROTO') == 'dhcp':
+        if 'IPV4ADDR' in data_mapping:
+            subnets.append({'type': 'dhcp4'})
+        if 'IPV6ADDR' in data_mapping:
+            subnets.append({'type': 'dhcp6'})
+    entry_ns['subnets'] = subnets
+
+    return entry_ns
+
+
+def merge_from_cmdline_config(ns):
+    """If ip parameter passed on kernel cmdline then some initial network
+       configuration may have been done in initramfs. Files from the result of
+       this may have been written into /run. If any are present they should be
+       merged into network state"""
+
+    if 'interfaces' not in ns:
+        ns['interfaces'] = {}
+
+    for cfg_file in glob.glob('/run/net*.conf'):
+        with open(cfg_file, 'r') as fp:
+            data = [l.replace("'", "") for l in fp.readlines()]
+        try:
+            parsed = dict([l.strip().split('=') for l in data])
+        except:
+            # if split did not work then this is likely not a netcfg file
+            continue
+
+        dev_name = parsed.get('DEVICE')
+        if not dev_name:
+            # Not a net cfg file
+            continue
+
+        loaded_ns = load_key_value_pair_net_cfg(parsed)
+
+        if dev_name in ns['interfaces']:
+            if 'subnets' not in ns['interfaces'][dev_name]:
+                ns['interfaces'][dev_name]['subnets'] = []
+            for newsubnet in loaded_ns['subnets']:
+                if newsubnet not in ns['interfaces'][dev_name]['subnets']:
+                    ns['interfaces'][dev_name]['subnets'].append(newsubnet)
+        else:
+            ns['interfaces'][dev_name] = loaded_ns
+
+    return ns
+
+
 def render_persistent_net(network_state):
     ''' Given state, emit udev rules to map
         mac to ifname
