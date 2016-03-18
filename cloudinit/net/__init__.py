@@ -282,7 +282,9 @@ def parse_net_config(path):
 
 def load_klibc_net_cfg(data_mapping):
     """Process key value pairs from files written because of the ip parameter
-       on the kernel cmdline"""
+       on the kernel cmdline, note that mode: manual is used because the
+       interface should already have been brought up by the kernel and
+       cloud-initramfs-tools"""
     entry_ns = {
         'mtu': None, 'name': data_mapping['DEVICE'], 'type': 'physical',
         'mode': 'manual', 'inet': 'inet', 'gateway': None, 'address': None,
@@ -304,6 +306,8 @@ def load_klibc_net_cfg(data_mapping):
         if data_mapping.get('IPV6ADDR'):
             entry_ns['subnets'].append({'type': 'dhcp6'})
     elif data_mapping.get('PROTO') in ['static', 'none']:
+        # It appears that specifying ipv6 static addrs does not work, so only
+        # check for ipv4 addr
         entry_ns['subnets'].append(
                 {'type': 'static', 'address': data_mapping.get('IPV4ADDR')})
 
