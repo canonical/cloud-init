@@ -289,6 +289,15 @@ def load_klibc_net_cfg(data_mapping):
         'subnets': []
     }
 
+    # ipconfig on precise does not write PROTO
+    # (lp:cloud-initramfs-tools/dyn-netconf/scripts/init-bottom/
+    #  cloud-initramfs-dyn-netconf)
+    if not data_mapping.get('PROTO'):
+        if data_mapping.get('filename'):
+            data_mapping['PROTO'] = 'dhcp'
+        else:
+            data_mapping['PROTO'] = 'static'
+
     if data_mapping.get('PROTO') == 'dhcp':
         if data_mapping.get('IPV4ADDR'):
             entry_ns['subnets'].append({'type': 'dhcp4'})
