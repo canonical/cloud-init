@@ -280,21 +280,39 @@ def parse_net_config(path):
     return ns
 
 
-def load_key_value_pair_net_cfg(data_mapping):
+def load_klibc_net_cfg(data_mapping):
     """Process key value pairs from files written because of the ip parameter
        on the kernel cmdline"""
-    subnets = []
     entry_ns = {
         'mtu': None, 'name': data_mapping['DEVICE'], 'type': 'physical',
-        'mode': 'manual', 'inet': 'inet', 'gateway': None, 'address': None
+        'mode': 'manual', 'inet': 'inet', 'gateway': None, 'address': None,
+        'subnets': []
     }
 
     if data_mapping.get('PROTO') == 'dhcp':
-        if 'IPV4ADDR' in data_mapping:
-            subnets.append({'type': 'dhcp4'})
-        if 'IPV6ADDR' in data_mapping:
-            subnets.append({'type': 'dhcp6'})
-    entry_ns['subnets'] = subnets
+        if data_mapping.get('IPV4ADDR'):
+            entry_ns['subnets'].append({'type': 'dhcp4'})
+        if data_mapping.get('IPV6ADDR'):
+            entry_ns['subnets'].append({'type': 'dhcp6'})
+
+    if data_mapping.get('IPV4ADDR'):
+        entry_ns['address'] = data_mapping['IPV4ADDR']
+    if data_mapping.get('IPV6ADDR'):
+        entry_ns['address'] = data_mapping['IPV6ADDR']
+    if data_mapping.get('IPV4BROADCAST'):
+        entry_ns['broadcast'] = data_mapping['IPV4BROADCAST']
+    if data_mapping.get('IPV6BROADCAST'):
+        entry_ns['broadcast'] = data_mapping['IPV6BROADCAST']
+    if data_mapping.get('IPV4NETMASK'):
+        entry_ns['netmask'] = data_mapping['IPV4NETMASK']
+    if data_mapping.get('IPV6NETMASK'):
+        entry_ns['netmask'] = data_mapping['IPV6NETMASK']
+    if data_mapping.get('IPV4GATEWAY'):
+        entry_ns['gateway'] = data_mapping['IPV4GATEWAY']
+    if data_mapping.get('IPV6GATEWAY'):
+        entry_ns['gateway'] = data_mapping['IPV6GATEWAY']
+    if data_mapping.get('HOSTNAME'):
+        entry_ns['hostname'] = data_mapping['HOSTNAME']
 
     return entry_ns
 
@@ -322,7 +340,7 @@ def merge_from_cmdline_config(ns):
             # Not a net cfg file
             continue
 
-        loaded_ns = load_key_value_pair_net_cfg(parsed)
+        loaded_ns = load_klibc_net_cfg(parsed)
 
         if dev_name in ns['interfaces']:
             if 'subnets' not in ns['interfaces'][dev_name]:
