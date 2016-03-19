@@ -1,0 +1,18 @@
+# cloud-init rules to apply 
+
+SUBSYSTEM!="net", GOTO="cloudinit_naming_end"
+
+IMPORT{builtin}="path_id"
+
+ACTION!="add", GOTO="cloudinit_naming_end"
+
+# net_setup_link provides us with systemd names for reference
+IMPORT{builtin}="net_setup_link"
+ATTR{address}!="", ENV{MAC_ADDRESS}="$attr{address}"
+IMPORT{program}="/lib/udev/cloud-init-name-device"
+
+ENV{CLOUDINIT_NET_NAME}!="", NAME="$env{CLOUDINIT_NET_NAME}"
+
+LABEL="cloudinit_naming_end"
+
+# vi: ts=4 expandtab syntax=udevrules
