@@ -5,20 +5,6 @@ LOG="/run/cloud-init/${0##*/}.log"
 LOG_INIT=0
 DEBUG=0
 
-find_name() {
-    local match="" name="" none="_UNSET" pound="#"
-    while read match name; do
-        [ "${match#${pound}}" = "$match" ] || continue
-        case "$match" in
-            ID_NET_NAME=${ID_NET_NAME:-$none}) _RET="$name"; return 0;;
-            ID_NET_NAME_PATH=${ID_NET_NAME_PATH:-$none}) _RET="$name"; return 0;;
-            MAC_ADDRESS=${MAC_ADDRESS:-$none}) _RET="$name"; return 0;;
-            INTERFACE=${INTERFACE:-$none}) _RET="$name"; return 0;;
-        esac
-     done
-     return 0
-}
-
 block_until_ready() {
     local fname="$1"
     local naplen="$2" max="$3" n=0
@@ -69,11 +55,7 @@ main() {
     block_until_ready "$readyfile" .1 600 ||
        { log "failed waiting for ready on $INTERFACE"; return 1; }
 
-    #find_name < "$CI_NET_RULES" && name="$_RET" ||
-    #   { log "failed to find match for $INTERFACE"; return 0; }
-
     log "net config ready"
-    #[ -z "$name" ] || echo "CLOUDINIT_NET_NAME=$name"
 }
 
 main "$@"
