@@ -2,6 +2,7 @@
 Description=Initial cloud-init job (pre-networking)
 DefaultDependencies=no
 Wants=local-fs.target
+Wants=network-pre.target
 After=local-fs.target
 Conflicts=shutdown.target
 Before=network-pre.target
