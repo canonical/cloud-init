@@ -52,6 +52,10 @@ main() {
         return 0
     fi
 
+    if [ "${INTERFACE#lo}" != "$INTERFACE" ]; then
+        return 0
+    fi
+
     block_until_ready "$readyfile" .1 600 ||
        { log "failed waiting for ready on $INTERFACE"; return 1; }
 

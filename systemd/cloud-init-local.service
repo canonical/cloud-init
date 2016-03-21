@@ -10,9 +10,7 @@ Before=shutdown.target
 [Service]
 Type=oneshot
 ExecStart=/usr/bin/cloud-init init --local
-## FIXME: remove this when cloud-initn local does it itself
-## or otherwise better signals any blocking udev events
-ExecStopPost=touch /run/cloud-init/network-config-ready
+ExecStart=/bin/touch /run/cloud-init/network-config-ready
 RemainAfterExit=yes
 TimeoutSec=0
 
