@@ -75,7 +75,14 @@ class DataSourceOVF(sources.DataSource):
         system_type = util.read_dmi_data("system-product-name")
         if system_type is None:
             LOG.debug("No system-product-name found")
-        elif 'vmware' in system_type.lower():
+
+        if seedfile:
+            # Found a seed dir
+            seed = os.path.join(self.paths.seed_dir, seedfile)
+            (md, ud, cfg) = read_ovf_environment(contents)
+            self.environment = contents
+            found.append(seed)
+        elif system_type and 'vmware' in system_type.lower():
             LOG.debug("VMware Virtualization Platform found")
             if not util.get_cfg_option_bool(
                     self.sys_cfg, "disable_vmware_customization", True):
@@ -88,7 +95,8 @@ class DataSourceOVF(sources.DataSource):
                     vmwareImcConfigFilePath = util.log_time(
                         logfunc=LOG.debug,
                         msg="waiting for configuration file",
-                        func=wait_for_imc_cfg_file, args=("/tmp", "cust.cfg"))
+                        func=wait_for_imc_cfg_file,
+                        args=("/var/run/vmware-imc", "cust.cfg"))
 
                 if vmwareImcConfigFilePath:
                     LOG.debug("Found VMware DeployPkg Config File at %s" %
@@ -134,12 +142,6 @@ class DataSourceOVF(sources.DataSource):
             set_customization_status(
                 GuestCustStateEnum.GUESTCUST_STATE_DONE,
                 GuestCustErrorEnum.GUESTCUST_ERROR_SUCCESS)
-        elif seedfile:
-            # Found a seed dir
-            seed = os.path.join(self.paths.seed_dir, seedfile)
-            (md, ud, cfg) = read_ovf_environment(contents)
-            self.environment = contents
-            found.append(seed)
         else:
             np = {'iso': transport_iso9660,
                   'vmware-guestd': transport_vmware_guestd, }
