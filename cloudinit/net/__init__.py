@@ -287,8 +287,11 @@ def generate_fallback_config():
     """Determine which attached net dev is most likely to have a connection and
        generate network state to run dhcp on that interface"""
     # by default use eth0 as primary interface
-    ns = {'interfaces': {}, 'dns': {'search': [], 'nameservers': []},
-          'routes': []}
+    nconf = {'config': {'interfaces': {},
+                        'dns': {'search': [], 'nameservers': []}, 'routes': []
+                        },
+             'version': 1
+             }
 
     # get list of interfaces that could have connections
     invalid_interfaces = set(['lo'])
@@ -351,13 +354,13 @@ def generate_fallback_config():
     target_name = name
 
     # generate net config for interface
-    ns['interfaces'][target_name] = {
+    nconf['config']['interfaces'][target_name] = {
         'mac_address': mac, 'name': target_name, 'type': 'physical',
         'mode': 'manual', 'inet': 'inet',
         'subnets': [{'type': 'dhcp4'}, {'type': 'dhcp6'}]
     }
 
-    return ns
+    return nconf
 
 
 def render_persistent_net(network_state):
