@@ -849,6 +849,15 @@ def read_seeded(base="", ext="", timeout=5, retries=10, file_retries=0):
     return (md, ud)
 
 
+def disable_conf_file(conf):
+    # disable .cfg file by renaming it if it exists
+    if not os.path.exists(conf):
+        return None
+    target_path = os.path.join(conf, '.disabled')
+    rename(conf, target_path)
+    return target_path
+
+
 def read_conf_d(confd):
     # Get reverse sorted list (later trumps newer)
     confs = sorted(os.listdir(confd), reverse=True)
