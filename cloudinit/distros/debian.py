@@ -82,15 +82,6 @@ class Distro(distros.Distro):
         net.render_network_state(network_state=ns, target="/")
         return []
 
-    def _write_network_fallback(self):
-        # old fallback configuration is obsolete, disable it
-        util.disable_conf_file('/etc/network/interfaces.d/eth0.cfg')
-        nconf = net.generate_fallback_config()
-        if nconf is not None:
-            ns = nconf['config']
-            net.render_network_state(network_state=ns, target="/")
-        return []
-
     def _bring_up_interfaces(self, device_names):
         use_all = False
         for d in device_names:

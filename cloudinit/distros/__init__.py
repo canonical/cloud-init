@@ -78,10 +78,6 @@ class Distro(object):
     def _write_network_config(self, settings):
         raise NotImplementedError()
 
-    @abc.abstractmethod
-    def _write_network_fallback(self):
-        raise NotImplementedError()
-
     def _find_tz_file(self, tz):
         tz_file = os.path.join(self.tz_zone_dir, str(tz))
         if not os.path.isfile(tz_file):
@@ -142,14 +138,6 @@ class Distro(object):
     def apply_network_config(self, netconfig, bring_up=True):
         # Write it out
         dev_names = self._write_network_config(netconfig)
-        # Now try to bring them up
-        if bring_up:
-            return self._bring_up_interfaces(dev_names)
-        return False
-
-    def apply_fallback_network(self, bring_up=True):
-        # Write it out
-        dev_names = self._write_network_fallback()
         # Now try to bring them up
         if bring_up:
             return self._bring_up_interfaces(dev_names)

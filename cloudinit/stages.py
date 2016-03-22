@@ -567,17 +567,6 @@ class Init(object):
         # Run the handlers
         self._do_handlers(user_data_msg, c_handlers_list, frequency)
 
-    def apply_networking(self):
-        """Attempt to apply network configuration, either using network
-           configuration from datasource or fallback configuration if that is
-           not available"""
-        if self.datasource and self.datasource.network_config:
-            ds_net_conf = self.datasource.network_config
-            res = self.distro.apply_network_config(ds_net_conf, bring_up=True)
-        else:
-            res = self.distro.apply_fallback_network(bring_up=True)
-        return res
-
 
 class Modules(object):
     def __init__(self, init, cfg_files=None, reporter=None):
