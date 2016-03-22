@@ -20,7 +20,6 @@ import errno
 import glob
 import os
 import re
-import string
 
 from cloudinit import log as logging
 from cloudinit import util
@@ -30,6 +29,7 @@ from . import network_state
 LOG = logging.getLogger(__name__)
 
 SYS_CLASS_NET = "/sys/class/net/"
+LINKS_FNAME_PREFIX = "etc/systemd/network/50-cloud-init-"
 
 NET_CONFIG_OPTIONS = [
     "address", "netmask", "broadcast", "network", "metric", "gateway",
@@ -423,19 +423,45 @@ def render_interfaces(network_state):
     return content
 
 
-def render_network_state(target, network_state):
-    eni = 'etc/network/interfaces'
-    netrules = 'etc/udev/rules.d/70-persistent-net.rules'
+def render_network_state(target, network_state, eni="etc/network/interfaces",
+                         links_prefix=LINKS_FNAME_PREFIX,
+                         netrules='etc/udev/rules.d/70-persistent-net.rules'):
 
-    eni = os.path.sep.join((target, eni,))
-    util.ensure_dir(os.path.dirname(eni))
-    with open(eni, 'w+') as f:
+    fpeni = os.path.sep.join((target, eni,))
+    util.ensure_dir(os.path.dirname(fpeni))
+    with open(fpeni, 'w+') as f:
         f.write(render_interfaces(network_state))
 
-    netrules = os.path.sep.join((target, netrules,))
-    util.ensure_dir(os.path.dirname(netrules))
-    with open(netrules, 'w+') as f:
-        f.write(render_persistent_net(network_state))
+    if netrules:
+        netrules = os.path.sep.join((target, netrules,))
+        util.ensure_dir(os.path.dirname(netrules))
+        with open(netrules, 'w+') as f:
+            f.write(render_persistent_net(network_state))
+
+    if links_prefix:
+        render_systemd_links(target, network_state, links_prefix)
+
+
+def render_systemd_links(target, network_state,
+                         links_prefix=LINKS_FNAME_PREFIX):
+    fp_prefix = os.path.sep.join((target, links_prefix))
+    for f in glob.glob(fp_prefix + "*"):
+        os.unlink(f)
+
+    interfaces = network_state.get('interfaces')
+    for iface in interfaces.values():
+        if (iface['type'] == 'physical' and 'name' in iface and
+                'mac_address' in iface):
+            fname = fp_prefix + iface['name'] + ".link"
+            with open(fname, "w") as fp:
+                fp.write("\n".join([
+                    "[Match]",
+                    "MACAddress=" + iface['mac_address'],
+                    "",
+                    "[Link]",
+                    "Name=" + iface['name'],
+                    ""
+                ]))
 
 
 def is_disabled_cfg(cfg):
