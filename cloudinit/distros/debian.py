@@ -89,7 +89,7 @@ class Distro(distros.Distro):
         if link_file is not None:
             util.write_file(syslink_name, link_file)
         if ns is not None:
-            net.render_network_stat(network_state=ns, target="/")
+            net.render_network_state(network_state=ns, target="/")
         return []
 
     def _bring_up_interfaces(self, device_names):
