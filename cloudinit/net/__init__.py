@@ -306,24 +306,34 @@ def find_fallback_network_device():
     connected = []
     possibly_connected = []
     for interface in potential_interfaces:
-        sysfs_carrier = os.path.join(SYS_CLASS_NET, interface, 'carrier')
-        carrier = int(util.load_file(sysfs_carrier).strip())
-        if carrier:
-            connected.append(interface)
-            continue
+        try:
+            sysfs_carrier = os.path.join(SYS_CLASS_NET, interface, 'carrier')
+            carrier = int(util.load_file(sysfs_carrier).strip())
+            if carrier:
+                connected.append(interface)
+                continue
+        except OSError:
+            pass
         # check if nic is dormant or down, as this may make a nick appear to
         # not have a carrier even though it could acquire one when brought
         # online by dhclient
-        sysfs_dormant = os.path.join(SYS_CLASS_NET, interface, 'dormant')
-        dormant = int(util.load_file(sysfs_dormant).strip())
-        if dormant:
-            possibly_connected.append(interface)
-            continue
-        sysfs_operstate = os.path.join(SYS_CLASS_NET, interface, 'operstate')
-        operstate = util.load_file(sysfs_operstate).strip()
-        if operstate in ['dormant', 'down', 'lowerlayerdown', 'unknown']:
-            possibly_connected.append(interface)
-            continue
+        try:
+            sysfs_dormant = os.path.join(SYS_CLASS_NET, interface, 'dormant')
+            dormant = int(util.load_file(sysfs_dormant).strip())
+            if dormant:
+                possibly_connected.append(interface)
+                continue
+        except OSError:
+            pass
+        try:
+            sysfs_operstate = os.path.join(SYS_CLASS_NET, interface,
+                                           'operstate')
+            operstate = util.load_file(sysfs_operstate).strip()
+            if operstate in ['dormant', 'down', 'lowerlayerdown', 'unknown']:
+                possibly_connected.append(interface)
+                continue
+        except OSError:
+            pass
 
     # don't bother with interfaces that might not be connected if there are
     # some that definitely are
