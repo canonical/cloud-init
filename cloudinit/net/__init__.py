@@ -351,8 +351,9 @@ def find_fallback_network_device():
     if 'eth0' in potential_interfaces:
         name = 'eth0'
     else:
-        name = potential_interfaces.sort(
-                key=lambda x: int(x.strip(string.ascii_letters)))[0]
+        potential_interfaces.sort(
+                key=lambda x: int(x.strip(string.ascii_letters)))
+        name = potential_interfaces[0]
 
     sysfs_mac = os.path.join(SYS_CLASS_NET, name, 'address')
     mac = util.load_file(sysfs_mac).strip()
