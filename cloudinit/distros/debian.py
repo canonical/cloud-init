@@ -85,9 +85,7 @@ class Distro(distros.Distro):
     def _write_network_fallback(self):
         # old fallback configuration is obsolete, disable it
         util.disable_conf_file('/etc/network/interfaces.d/eth0.cfg')
-        (ns, link_file, syslink_name) = net.find_fallback_network_device()
-        if link_file is not None:
-            util.write_file(syslink_name, link_file)
+        ns = net.generate_fallback_config()
         if ns is not None:
             net.render_network_state(network_state=ns, target="/")
         return []
