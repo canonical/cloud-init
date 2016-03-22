@@ -217,6 +217,10 @@ class DataSource(object):
     def get_package_mirror_info(self):
         return self.distro.get_package_mirror_info(data_source=self)
 
+    @property
+    def network_config(self):
+        return self.metadata.network_config
+
 
 def normalize_pubkey_data(pubkey_data):
     keys = []

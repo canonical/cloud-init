@@ -251,6 +251,7 @@ def main_init(name, args):
     # Stage 5
     try:
         init.fetch()
+        init.apply_networking()
     except sources.DataSourceNotFoundException:
         # In the case of 'cloud-init init' without '--local' it is a bit
         # more likely that the user would consider it failure if nothing was
@@ -261,6 +262,7 @@ def main_init(name, args):
         else:
             util.logexc(LOG, ("No instance datasource found!"
                               " Likely bad things to come!"))
+        init.apply_networking()
         if not args.force:
             if args.local:
                 return (None, [])
