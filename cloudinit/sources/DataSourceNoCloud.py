@@ -197,6 +197,41 @@ class DataSourceNoCloud(sources.DataSource):
                   mydata['meta-data']['dsmode'])
         return False
 
+    def check_instance_id(self):
+        # quickly (local check only) if self.instance_id is still valid
+        # we check kernel command line or files.
+        current = self.get_instance_id()
+        if not current:
+            return None
+
+        quick_id = _quick_read_instance_id(cmdline_id=self.cmdline_id,
+                                           dirs=[self.seed_dir])
+        if not quick_id:
+            return None
+        return quick_id == current
+
+
+def _quick_read_instance_id(cmdline_id, dirs=None):
+    if dirs is None:
+        dirs = []
+
+    iid_key = 'instance-id'
+    if cmdline_id is None:
+        fill = {}
+        if parse_cmdline_data(cmdline_id, fill) and iid_key in fill:
+            return fill[iid_key]
+
+    for d in dirs:
+        try:
+            data = util.pathprefix2dict(d, required=['meta-data'])
+            md = util.load_yaml(data['meta-data'])
+            if iid_key in md:
+                return md[iid_key]
+        except ValueError:
+            pass
+
+    return None
+
 
 # Returns true or false indicating if cmdline indicated
 # that this module should be used
