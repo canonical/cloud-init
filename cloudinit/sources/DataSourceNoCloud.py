@@ -217,7 +217,7 @@ class DataSourceNoCloud(sources.DataSource):
             return None
 
         quick_id = _quick_read_instance_id(cmdline_id=self.cmdline_id,
-                                           dirs=[self.seed_dir])
+                                           dirs=self.seed_dirs)
         if not quick_id:
             return None
         return quick_id == current
