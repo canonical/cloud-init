@@ -263,6 +263,10 @@ def main_init(name, args):
                 return (None, [])
             else:
                 return (None, ["No instance datasource found."])
+
+    if args.local:
+        init.apply_network_config()
+
     # Stage 6
     iid = init.instancify()
     LOG.debug("%s will now be targeting instance id: %s", name, iid)

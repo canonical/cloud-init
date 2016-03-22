@@ -221,6 +221,10 @@ class DataSource(object):
         # quickly (local check only) if self.instance_id is still
         return False
 
+    @property
+    def network_config(self):
+        return None
+
 
 def normalize_pubkey_data(pubkey_data):
     keys = []

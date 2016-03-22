@@ -135,7 +135,7 @@ class Distro(object):
             return self._bring_up_interfaces(dev_names)
         return False
 
-    def apply_network_config(self, netconfig, bring_up=True):
+    def apply_network_config(self, netconfig, bring_up=False):
         # Write it out
         dev_names = self._write_network_config(netconfig)
         # Now try to bring them up

@@ -43,6 +43,7 @@ from cloudinit import distros
 from cloudinit import helpers
 from cloudinit import importer
 from cloudinit import log as logging
+from cloudinit import net
 from cloudinit import sources
 from cloudinit import type_utils
 from cloudinit import util
@@ -566,6 +567,29 @@ class Init(object):
 
         # Run the handlers
         self._do_handlers(user_data_msg, c_handlers_list, frequency)
+
+    def _find_networking_config(self):
+        cmdline_cfg = ('cmdline', net.read_kernel_cmdline_config())
+        dscfg = ('ds', None)
+        if self.datasource and hasattr(self.datasource, 'network_config'):
+            dscfg = ('ds', self.datasource.network_config)
+        sys_cfg = ('system_cfg', self.cfg.get('network'))
+
+        for loc, ncfg in (cmdline_cfg, dscfg, sys_cfg):
+            if net.is_disabled_cfg(ncfg):
+                LOG.debug("network config disabled by %s", loc)
+                return None
+            if ncfg:
+                return ncfg
+        return net.generate_fallback_config()
+
+    def apply_network_config(self):
+        netcfg = self._find_networking_config()
+        if netcfg is None:
+            LOG.info("network config is disabled")
+            return
+
+        return self.distro.apply_network_config(netcfg)
 
 
 class Modules(object):

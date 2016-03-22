@@ -434,4 +434,21 @@ def render_network_state(target, network_state):
     with open(netrules, 'w+') as f:
         f.write(render_persistent_net(network_state))
 
+
+def is_disabled_cfg(cfg):
+    if not cfg or not isinstance(cfg, dict):
+        return False
+    return cfg.get('config') == "disabled"
+
+
+def generate_fallback_config():
+    # FIXME: add implementation here
+    return None
+
+
+def read_kernel_cmdline_config():
+    # FIXME: add implementation here
+    return None
+
+
 # vi: ts=4 expandtab syntax=python
