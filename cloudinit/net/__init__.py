@@ -303,7 +303,6 @@ def find_fallback_network_device(rename_to_default=False):
     invalid_interfaces = set(['lo'])
     potential_interfaces = set(os.listdir(SYS_CLASS_NET))
     potential_interfaces = potential_interfaces.difference(invalid_interfaces)
-
     # sort into interfaces with carrier, interfaces which could have carrier,
     # and ignore interfaces that are definitely disconnected
     connected = []
@@ -344,11 +343,9 @@ def find_fallback_network_device(rename_to_default=False):
         potential_interfaces = connected
     else:
         potential_interfaces = possibly_connected
-
     # if there are no interfaces, give up
     if not potential_interfaces:
         return
-
     # if eth0 exists use it above anything else, otherwise get the interface
     # that looks 'first'
     if DEFAULT_PRIMARY_INTERFACE in potential_interfaces:
@@ -360,11 +357,9 @@ def find_fallback_network_device(rename_to_default=False):
 
     sysfs_mac = os.path.join(SYS_CLASS_NET, name, 'address')
     mac = util.load_file(sysfs_mac).strip()
-
     target_name = name
     if rename_to_default:
         target_name = DEFAULT_PRIMARY_INTERFACE
-
     # generate net config for interface, rename interface to eth0 for backwards
     # compatibility, and attempt both dhcp4 and dhcp6
     ns['interfaces'][target_name] = {
@@ -372,10 +367,8 @@ def find_fallback_network_device(rename_to_default=False):
         'mode': 'manual', 'inet': 'inet',
         'subnets': [{'type': 'dhcp4'}, {'type': 'dhcp6'}]
     }
-
     # insert params into link file
     link_file = default_link_file.format(name=target_name, mac=mac)
-
     syslink_name = "/etc/systemd/network/50-cloud-init-{}.link".format(
             target_name)
 
