@@ -589,6 +589,7 @@ class Init(object):
             LOG.info("network config is disabled")
             return
 
+        LOG.info("Applying configuration: %s", netcfg)
         return self.distro.apply_network_config(netcfg)
 
 

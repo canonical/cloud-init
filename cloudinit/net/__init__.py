@@ -448,11 +448,7 @@ def generate_fallback_config():
     """Determine which attached net dev is most likely to have a connection and
        generate network state to run dhcp on that interface"""
     # by default use eth0 as primary interface
-    nconf = {'config': {'interfaces': {},
-                        'dns': {'search': [], 'nameservers': []}, 'routes': []
-                        },
-             'version': 1
-             }
+    nconf = {'config': [], 'version': 1}
 
     # get list of interfaces that could have connections
     invalid_interfaces = set(['lo'])
@@ -506,21 +502,15 @@ def generate_fallback_config():
     if DEFAULT_PRIMARY_INTERFACE in potential_interfaces:
         name = DEFAULT_PRIMARY_INTERFACE
     else:
-        potential_interfaces.sort(
-                key=lambda x: int(''.join(i for i in x if i in string.digits)))
-        name = potential_interfaces[0]
+        name = sorted(potential_interfaces)[0]
 
     sysfs_mac = os.path.join(SYS_CLASS_NET, name, 'address')
     mac = util.load_file(sysfs_mac).strip()
     target_name = name
 
-    # generate net config for interface
-    nconf['config']['interfaces'][target_name] = {
-        'mac_address': mac, 'name': target_name, 'type': 'physical',
-        'mode': 'manual', 'inet': 'inet',
-        'subnets': [{'type': 'dhcp4'}, {'type': 'dhcp6'}]
-    }
-
+    nconf['config'].append(
+        {'type': 'physical', 'name': target_name,
+         'mac_address': mac, 'subnets': [{'type': 'dhcp4'}]})
     return nconf
 
 
