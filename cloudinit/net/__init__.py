@@ -20,6 +20,7 @@ import errno
 import glob
 import os
 import re
+import string
 
 from cloudinit import log as logging
 from cloudinit import util
@@ -45,6 +46,8 @@ NET_CONFIG_BRIDGE_OPTIONS = [
     "bridge_ageing", "bridge_bridgeprio", "bridge_fd", "bridge_gcinit",
     "bridge_hello", "bridge_maxage", "bridge_maxwait", "bridge_stp",
     ]
+
+DEFAULT_PRIMARY_INTERFACE = 'eth0'
 
 
 def sys_dev_path(devname, path=""):
@@ -442,8 +445,83 @@ def is_disabled_cfg(cfg):
 
 
 def generate_fallback_config():
-    # FIXME: add implementation here
-    return None
+    """Determine which attached net dev is most likely to have a connection and
+       generate network state to run dhcp on that interface"""
+    # by default use eth0 as primary interface
+    nconf = {'config': {'interfaces': {},
+                        'dns': {'search': [], 'nameservers': []}, 'routes': []
+                        },
+             'version': 1
+             }
+
+    # get list of interfaces that could have connections
+    invalid_interfaces = set(['lo'])
+    potential_interfaces = set(os.listdir(SYS_CLASS_NET))
+    potential_interfaces = potential_interfaces.difference(invalid_interfaces)
+    # sort into interfaces with carrier, interfaces which could have carrier,
+    # and ignore interfaces that are definitely disconnected
+    connected = []
+    possibly_connected = []
+    for interface in potential_interfaces:
+        try:
+            sysfs_carrier = os.path.join(SYS_CLASS_NET, interface, 'carrier')
+            carrier = int(util.load_file(sysfs_carrier).strip())
+            if carrier:
+                connected.append(interface)
+                continue
+        except OSError:
+            pass
+        # check if nic is dormant or down, as this may make a nick appear to
+        # not have a carrier even though it could acquire one when brought
+        # online by dhclient
+        try:
+            sysfs_dormant = os.path.join(SYS_CLASS_NET, interface, 'dormant')
+            dormant = int(util.load_file(sysfs_dormant).strip())
+            if dormant:
+                possibly_connected.append(interface)
+                continue
+        except OSError:
+            pass
+        try:
+            sysfs_operstate = os.path.join(SYS_CLASS_NET, interface,
+                                           'operstate')
+            operstate = util.load_file(sysfs_operstate).strip()
+            if operstate in ['dormant', 'down', 'lowerlayerdown', 'unknown']:
+                possibly_connected.append(interface)
+                continue
+        except OSError:
+            pass
+
+    # don't bother with interfaces that might not be connected if there are
+    # some that definitely are
+    if connected:
+        potential_interfaces = connected
+    else:
+        potential_interfaces = possibly_connected
+    # if there are no interfaces, give up
+    if not potential_interfaces:
+        return
+    # if eth0 exists use it above anything else, otherwise get the interface
+    # that looks 'first'
+    if DEFAULT_PRIMARY_INTERFACE in potential_interfaces:
+        name = DEFAULT_PRIMARY_INTERFACE
+    else:
+        potential_interfaces.sort(
+                key=lambda x: int(''.join(i for i in x if i in string.digits)))
+        name = potential_interfaces[0]
+
+    sysfs_mac = os.path.join(SYS_CLASS_NET, name, 'address')
+    mac = util.load_file(sysfs_mac).strip()
+    target_name = name
+
+    # generate net config for interface
+    nconf['config']['interfaces'][target_name] = {
+        'mac_address': mac, 'name': target_name, 'type': 'physical',
+        'mode': 'manual', 'inet': 'inet',
+        'subnets': [{'type': 'dhcp4'}, {'type': 'dhcp6'}]
+    }
+
+    return nconf
 
 
 def read_kernel_cmdline_config():
