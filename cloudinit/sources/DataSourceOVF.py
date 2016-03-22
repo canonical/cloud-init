@@ -24,7 +24,6 @@ from xml.dom import minidom
 
 import base64
 import os
-import shutil
 import re
 import time
 
@@ -120,10 +119,10 @@ class DataSourceOVF(sources.DataSource):
                 set_customization_status(
                     GuestCustStateEnum.GUESTCUST_STATE_RUNNING,
                     GuestCustEventEnum.GUESTCUST_EVENT_CUSTOMIZE_FAILED)
+                enable_nics(nics)
                 return False
             finally:
-                dirPath = os.path.dirname(vmwareImcConfigFilePath)
-                shutil.rmtree(dirPath)
+                util.del_dir(os.path.dirname(vmwareImcConfigFilePath))
 
             try:
                 LOG.debug("Applying the Network customization")
@@ -135,13 +134,14 @@ class DataSourceOVF(sources.DataSource):
                 set_customization_status(
                     GuestCustStateEnum.GUESTCUST_STATE_RUNNING,
                     GuestCustEventEnum.GUESTCUST_EVENT_NETWORK_SETUP_FAILED)
+                enable_nics(nics)
                 return False
 
             vmwarePlatformFound = True
-            enable_nics(nics)
             set_customization_status(
                 GuestCustStateEnum.GUESTCUST_STATE_DONE,
                 GuestCustErrorEnum.GUESTCUST_ERROR_SUCCESS)
+            enable_nics(nics)
         else:
             np = {'iso': transport_iso9660,
                   'vmware-guestd': transport_vmware_guestd, }
