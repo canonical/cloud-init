@@ -853,7 +853,7 @@ def disable_conf_file(conf):
     # disable .cfg file by renaming it if it exists
     if not os.path.exists(conf):
         return None
-    target_path = os.path.join(conf, '.disabled')
+    target_path = conf + '.disabled'
     rename(conf, target_path)
     return target_path
 
