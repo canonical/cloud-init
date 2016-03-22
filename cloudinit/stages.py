@@ -140,7 +140,7 @@ class Init(object):
         ]
         return initial_dirs
 
-    def purge_cache(self, rm_instance_lnk=True):
+    def purge_cache(self, rm_instance_lnk=False):
         rm_list = []
         rm_list.append(self.paths.boot_finished)
         if rm_instance_lnk:
@@ -238,21 +238,29 @@ class Init(object):
         cfg_list = self.cfg.get('datasource_list') or []
         return (cfg_list, pkg_list)
 
-    def _get_data_source(self):
+    def _get_data_source(self, existing):
         if self.datasource is not NULL_DATA_SOURCE:
             return self.datasource
 
         with events.ReportEventStack(
                 name="check-cache",
-                description="attempting to read from cache",
+                description="attempting to read from cache [%s]" % existing,
                 parent=self.reporter) as myrep:
             ds = self._restore_from_cache()
-            if ds:
-                LOG.debug("Restored from cache, datasource: %s", ds)
-                myrep.description = "restored from cache"
+            if ds and existing == "trust":
+                myrep.description = "restored from cache: %s" % ds
+            elif ds and existing == "check":
+                if hasattr(ds, 'check_instance_id') and ds.check_instance_id():
+                    myrep.description = "restored from checked cache: %s" % ds
+                else:
+                    myrep.description = "cache invalid in datasource: %s" % ds
+                    ds = None
             else:
                 myrep.description = "no cache found"
+            LOG.debug(myrep.description)
+
         if not ds:
+            util.del_file(self.paths.instance_link)
             (cfg_list, pkg_list) = self._get_datasources()
             # Deep copy so that user-data handlers can not modify
             # (which will affect user-data handlers down the line...)
@@ -332,8 +340,8 @@ class Init(object):
         self._reset()
         return iid
 
-    def fetch(self):
-        return self._get_data_source()
+    def fetch(self, existing="check"):
+        return self._get_data_source(existing=existing)
 
     def instancify(self):
         return self._reflect_cur_instance()
