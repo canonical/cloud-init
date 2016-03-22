@@ -205,7 +205,8 @@ class NicConfigurator:
     def clear_dhcp(self):
         logger.info('Clearing DHCP leases')
 
-        util.subp(["pkill", "dhclient"])
+        # Ignore the return code 1.
+        util.subp(["pkill", "dhclient"], rcs=[0, 1])
         util.subp(["rm", "-f", "/var/lib/dhcp/*"])
 
     def if_down_up(self):

@@ -31,9 +31,17 @@ import time
 from cloudinit import log as logging
 from cloudinit import sources
 from cloudinit import util
-from cloudinit.sources.helpers.vmware.imc.config import Config
-from cloudinit.sources.helpers.vmware.imc.config_file import ConfigFile
-from cloudinit.sources.helpers.vmware.imc.config_nic import NicConfigurator
+from .helpers.vmware.imc.config import Config
+from .helpers.vmware.imc.config_file import ConfigFile
+from .helpers.vmware.imc.config_nic import NicConfigurator
+from .helpers.vmware.imc.guestcust_event import GuestCustEventEnum
+from .helpers.vmware.imc.guestcust_state import GuestCustStateEnum
+from .helpers.vmware.imc.guestcust_error import GuestCustErrorEnum
+from .helpers.vmware.imc.guestcust_util import (
+    set_customization_status,
+    get_nics_to_enable,
+    enable_nics
+)
 
 LOG = logging.getLogger(__name__)
 
@@ -73,6 +81,9 @@ class DataSourceOVF(sources.DataSource):
                     self.sys_cfg, "disable_vmware_customization", True):
                 deployPkgPluginPath = search_file("/usr/lib/vmware-tools",
                                                   "libdeployPkgPlugin.so")
+                if not deployPkgPluginPath:
+                    deployPkgPluginPath = search_file("/usr/lib/open-vm-tools",
+                                                      "libdeployPkgPlugin.so")
                 if deployPkgPluginPath:
                     vmwareImcConfigFilePath = util.log_time(
                         logfunc=LOG.debug,
@@ -88,19 +99,41 @@ class DataSourceOVF(sources.DataSource):
                 LOG.debug("Customization for VMware platform is disabled.")
 
         if vmwareImcConfigFilePath:
+            nics = ""
             try:
                 cf = ConfigFile(vmwareImcConfigFilePath)
                 conf = Config(cf)
                 (md, ud, cfg) = read_vmware_imc(conf)
-                nicConfigurator = NicConfigurator(conf.nics)
-                nicConfigurator.configure()
-                vmwarePlatformFound = True
-            except Exception as inst:
-                LOG.debug("Error while parsing the Customization "
-                          "Config File: %s", inst)
+                dirpath = os.path.dirname(vmwareImcConfigFilePath)
+                nics = get_nics_to_enable(dirpath)
+            except Exception as e:
+                LOG.debug("Error parsing the customization Config File")
+                LOG.exception(e)
+                set_customization_status(
+                    GuestCustStateEnum.GUESTCUST_STATE_RUNNING,
+                    GuestCustEventEnum.GUESTCUST_EVENT_CUSTOMIZE_FAILED)
+                return False
             finally:
                 dirPath = os.path.dirname(vmwareImcConfigFilePath)
                 shutil.rmtree(dirPath)
+
+            try:
+                LOG.debug("Applying the Network customization")
+                nicConfigurator = NicConfigurator(conf.nics)
+                nicConfigurator.configure()
+            except Exception as e:
+                LOG.debug("Error applying the Network Configuration")
+                LOG.exception(e)
+                set_customization_status(
+                    GuestCustStateEnum.GUESTCUST_STATE_RUNNING,
+                    GuestCustEventEnum.GUESTCUST_EVENT_NETWORK_SETUP_FAILED)
+                return False
+
+            vmwarePlatformFound = True
+            enable_nics(nics)
+            set_customization_status(
+                GuestCustStateEnum.GUESTCUST_STATE_DONE,
+                GuestCustErrorEnum.GUESTCUST_ERROR_SUCCESS)
         elif seedfile:
             # Found a seed dir
             seed = os.path.join(self.paths.seed_dir, seedfile)
@@ -197,6 +230,9 @@ def read_vmware_imc(config):
             md['local-hostname'] = config.host_name + "." + config.domain_name
         else:
             md['local-hostname'] = config.host_name
+
+    if config.timezone:
+        cfg['timezone'] = config.timezone
 
     return (md, ud, cfg)
 

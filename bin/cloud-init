@@ -212,6 +212,7 @@ def main_init(name, args):
     # Stage 4
     path_helper = init.paths
     if not args.local:
+        existing = "trust"
         sys.stderr.write("%s\n" % (netinfo.debug_info()))
         LOG.debug(("Checking to see if files that we need already"
                    " exist from a previous run that would allow us"
@@ -236,22 +237,17 @@ def main_init(name, args):
             LOG.debug("Execution continuing, no previous run detected that"
                       " would allow us to stop early.")
     else:
-        # The cache is not instance specific, so it has to be purged
-        # but we want 'start' to benefit from a cache if
-        # a previous start-local populated one...
-        manual_clean = util.get_cfg_option_bool(init.cfg,
-                                                'manual_cache_clean', False)
-        if manual_clean:
-            LOG.debug("Not purging instance link, manual cleaning enabled")
-            init.purge_cache(False)
-        else:
-            init.purge_cache()
+        existing = "check"
+        if util.get_cfg_option_bool(init.cfg, 'manual_cache_clean', False):
+            existing = "trust"
+
+        init.purge_cache()
         # Delete the non-net file as well
         util.del_file(os.path.join(path_helper.get_cpath("data"), "no-net"))
+
     # Stage 5
     try:
-        init.fetch()
-        init.apply_networking()
+        init.fetch(existing=existing)
     except sources.DataSourceNotFoundException:
         # In the case of 'cloud-init init' without '--local' it is a bit
         # more likely that the user would consider it failure if nothing was
@@ -262,7 +258,6 @@ def main_init(name, args):
         else:
             util.logexc(LOG, ("No instance datasource found!"
                               " Likely bad things to come!"))
-        init.apply_networking()
         if not args.force:
             if args.local:
                 return (None, [])
