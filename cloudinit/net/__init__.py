@@ -20,6 +20,8 @@ import errno
 import glob
 import os
 import re
+import string
+import textwrap
 
 from cloudinit import log as logging
 from cloudinit import util
@@ -278,6 +280,87 @@ def parse_net_config(path):
         ns = parse_net_config_data(net_config.get('network'))
 
     return ns
+
+
+def find_fallback_network_device():
+    """Determine which attached net dev is most likely to have a connection and
+       generate network state to run dhcp on that interface"""
+    ns = {'interfaces': {}, 'dns': {'search': [], 'nameservers': []},
+          'routes': []}
+    default_link_file = textwrap.dedent("""
+        #cloud-init
+        [Match]
+        MACAddress={mac}
+
+        [Link]
+        Name={name}
+    """)
+
+    # get list of interfaces that could have connections
+    invalid_interfaces = set(['lo'])
+    potential_interfaces = set(os.listdir(SYS_CLASS_NET))
+    potential_interfaces = potential_interfaces.difference(invalid_interfaces)
+
+    # sort into interfaces with carrier, interfaces which could have carrier,
+    # and ignore interfaces that are definitely disconnected
+    connected = []
+    possibly_connected = []
+    for interface in potential_interfaces:
+        sysfs_carrier = os.path.join(SYS_CLASS_NET, interface, 'carrier')
+        carrier = int(util.load_file(sysfs_carrier).strip())
+        if carrier:
+            connected.append(interface)
+            continue
+        # check if nic is dormant or down, as this may make a nick appear to
+        # not have a carrier even though it could acquire one when brought
+        # online by dhclient
+        sysfs_dormant = os.path.join(SYS_CLASS_NET, interface, 'dormant')
+        dormant = int(util.load_file(sysfs_dormant).strip())
+        if dormant:
+            possibly_connected.append(interface)
+            continue
+        sysfs_operstate = os.path.join(SYS_CLASS_NET, interface, 'operstate')
+        operstate = util.load_file(sysfs_operstate).strip()
+        if operstate in ['dormant', 'down', 'lowerlayerdown', 'unknown']:
+            possibly_connected.append(interface)
+            continue
+
+    # don't bother with interfaces that might not be connected if there are
+    # some that definitely are
+    if connected:
+        potential_interfaces = connected
+    else:
+        potential_interfaces = possibly_connected
+
+    # if there are no interfaces, give up
+    if not potential_interfaces:
+        return
+
+    # if eth0 exists use it above anything else, otherwise get the interface
+    # that looks 'first'
+    if 'eth0' in potential_interfaces:
+        name = 'eth0'
+    else:
+        name = potential_interfaces.sort(
+                key=lambda x: int(x.strip(string.ascii_letters)))[0]
+
+    sysfs_mac = os.path.join(SYS_CLASS_NET, name, 'address')
+    mac = util.load_file(sysfs_mac).strip()
+
+    # generate net config for interface, rename interface to eth0 for backwards
+    # compatibility, and attempt both dhcp4 and dhcp6
+    ns['interfaces']['eth0'] = {
+        'mac_address': mac, 'name': 'eth0', 'type': 'physical',
+        'mode': 'manual', 'inet': 'inet',
+        'subnets': [{'type': 'dhcp4'}, {'type': 'dhcp6'}]
+    }
+
+    # insert params into link file
+    link_file = default_link_file.format(name=name, mac=mac)
+
+    syslink_name = "/etc/systemd/network/50-cloud-init-{}.link".format(name)
+
+    return (ns, link_file, syslink_name)
 
 
 def render_persistent_net(network_state):
