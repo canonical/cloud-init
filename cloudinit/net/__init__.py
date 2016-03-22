@@ -48,6 +48,8 @@ NET_CONFIG_BRIDGE_OPTIONS = [
     "bridge_hello", "bridge_maxage", "bridge_maxwait", "bridge_stp",
     ]
 
+DEFAULT_PRIMARY_INTERFACE = 'eth0'
+
 
 def sys_dev_path(devname, path=""):
     return SYS_CLASS_NET + devname + "/" + path
@@ -282,9 +284,10 @@ def parse_net_config(path):
     return ns
 
 
-def find_fallback_network_device():
+def find_fallback_network_device(rename_to_default=False):
     """Determine which attached net dev is most likely to have a connection and
        generate network state to run dhcp on that interface"""
+    # by default use eth0 as primary interface
     ns = {'interfaces': {}, 'dns': {'search': [], 'nameservers': []},
           'routes': []}
     default_link_file = textwrap.dedent("""
@@ -348,8 +351,8 @@ def find_fallback_network_device():
 
     # if eth0 exists use it above anything else, otherwise get the interface
     # that looks 'first'
-    if 'eth0' in potential_interfaces:
-        name = 'eth0'
+    if DEFAULT_PRIMARY_INTERFACE in potential_interfaces:
+        name = DEFAULT_PRIMARY_INTERFACE
     else:
         potential_interfaces.sort(
                 key=lambda x: int(x.strip(string.ascii_letters)))
@@ -358,18 +361,23 @@ def find_fallback_network_device():
     sysfs_mac = os.path.join(SYS_CLASS_NET, name, 'address')
     mac = util.load_file(sysfs_mac).strip()
 
+    target_name = name
+    if rename_to_default:
+        target_name = DEFAULT_PRIMARY_INTERFACE
+
     # generate net config for interface, rename interface to eth0 for backwards
     # compatibility, and attempt both dhcp4 and dhcp6
-    ns['interfaces']['eth0'] = {
-        'mac_address': mac, 'name': 'eth0', 'type': 'physical',
+    ns['interfaces'][target_name] = {
+        'mac_address': mac, 'name': target_name, 'type': 'physical',
         'mode': 'manual', 'inet': 'inet',
         'subnets': [{'type': 'dhcp4'}, {'type': 'dhcp6'}]
     }
 
     # insert params into link file
-    link_file = default_link_file.format(name=name, mac=mac)
+    link_file = default_link_file.format(name=target_name, mac=mac)
 
-    syslink_name = "/etc/systemd/network/50-cloud-init-{}.link".format(name)
+    syslink_name = "/etc/systemd/network/50-cloud-init-{}.link".format(
+            target_name)
 
     return (ns, link_file, syslink_name)
 
