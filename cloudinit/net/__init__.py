@@ -346,7 +346,7 @@ def generate_fallback_config():
         name = DEFAULT_PRIMARY_INTERFACE
     else:
         potential_interfaces.sort(
-                key=lambda x: int(x.strip(string.ascii_letters)))
+                key=lambda x: int(''.join(i for i in x if i in string.digits)))
         name = potential_interfaces[0]
 
     sysfs_mac = os.path.join(SYS_CLASS_NET, name, 'address')
