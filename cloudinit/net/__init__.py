@@ -647,9 +647,11 @@ def generate_fallback_config():
     return nconf
 
 
-def read_kernel_cmdline_config():
-    # FIXME: add implementation here
-    return None
+def read_kernel_cmdline_config(files=None, mac_addrs=None):
+    if mac_addrs is None:
+        mac_addrs = {k: sys_netdev_info(k, 'address')
+                     for k in get_devicelist()}
+    return config_from_klibc_net_cfg(files=files, mac_addrs=mac_addrs)
 
 
 # vi: ts=4 expandtab syntax=python
