@@ -36,7 +36,9 @@ class DataSourceNoCloud(sources.DataSource):
         self.dsmode = 'local'
         self.seed = None
         self.cmdline_id = "ds=nocloud"
-        self.seed_dir = os.path.join(paths.seed_dir, 'nocloud')
+        self.seed_dirs = [os.path.join(paths.seed_dir, 'nocloud'),
+                          os.path.join(paths.seed_dir, 'nocloud-net')]
+        self.seed_dir = None
         self.supported_seed_starts = ("/", "file://")
 
     def __str__(self):
@@ -58,7 +60,7 @@ class DataSourceNoCloud(sources.DataSource):
             md = {}
             if parse_cmdline_data(self.cmdline_id, md):
                 found.append("cmdline")
-                mydata = _merge_new_seed({'meta-data': md})
+                mydata = _merge_new_seed(mydata, {'meta-data': md})
         except:
             util.logexc(LOG, "Unable to parse command line data")
             return False
@@ -67,15 +69,15 @@ class DataSourceNoCloud(sources.DataSource):
         pp2d_kwargs = {'required': ['user-data', 'meta-data'],
                        'optional': ['vendor-data', 'network-config']}
 
-        try:
-            seeded = util.pathprefix2dict(self.seed_dir, **pp2d_kwargs)
-            found.append(self.seed_dir)
-            LOG.debug("Using seeded data from %s", self.seed_dir)
-        except ValueError as e:
-            pass
-
-        if self.seed_dir in found:
-            mydata = _merge_new_seed(mydata, seeded)
+        for path in self.seed_dirs:
+            try:
+                seeded = util.pathprefix2dict(path, **pp2d_kwargs)
+                found.append(path)
+                LOG.debug("Using seeded data from %s", path)
+                mydata = _merge_new_seed(mydata, seeded)
+                break
+            except ValueError as e:
+                pass
 
         # If the datasource config had a 'seedfrom' entry, then that takes
         # precedence over a 'seedfrom' that was found in a filesystem
@@ -188,21 +190,19 @@ class DataSourceNoCloud(sources.DataSource):
         # if this is the local datasource or 'seedfrom' was used
         # and the source of the seed was self.dsmode.
         # Then see if there is network config to apply.
+        # note this is obsolete network-interfaces style seeding.
         if self.dsmode in ("local", seeded_network):
             if mydata['meta-data'].get('network-interfaces'):
                 LOG.debug("Updating network interfaces from %s", self)
                 self.distro.apply_network(
                     mydata['meta-data']['network-interfaces'])
-            elif mydata.get('network-config'):
-                LOG.debug("Updating network config from %s", self)
-                self.distro.apply_network_config(mydata['network-config'],
-                                                 bring_up=False)
 
         if mydata['meta-data']['dsmode'] == self.dsmode:
             self.seed = ",".join(found)
             self.metadata = mydata['meta-data']
             self.userdata_raw = mydata['user-data']
             self.vendordata_raw = mydata['vendor-data']
+            self._network_config = mydata['network-config']
             return True
 
         LOG.debug("%s: not claiming datasource, dsmode=%s", self,
@@ -217,10 +217,14 @@ class DataSourceNoCloud(sources.DataSource):
             return None
 
         quick_id = _quick_read_instance_id(cmdline_id=self.cmdline_id,
-                                           dirs=[self.seed_dir])
+                                           dirs=self.seed_dirs)
         if not quick_id:
             return None
         return quick_id == current
+
+    @property
+    def network_config(self):
+        return self._network_config
 
 
 def _quick_read_instance_id(cmdline_id, dirs=None):
@@ -291,8 +295,12 @@ def parse_cmdline_data(ds_id, fill, cmdline=None):
 
 def _merge_new_seed(cur, seeded):
     ret = cur.copy()
-    ret['meta-data'] = util.mergemanydict([cur['meta-data'],
-                                          util.load_yaml(seeded['meta-data'])])
+
+    newmd = seeded.get('meta-data', {})
+    if not isinstance(seeded['meta-data'], dict):
+        newmd = util.load_yaml(seeded['meta-data'])
+    ret['meta-data'] = util.mergemanydict([cur['meta-data'], newmd])
+
     if seeded.get('network-config'):
         ret['network-config'] = util.load_yaml(seeded['network-config'])
 
@@ -308,7 +316,7 @@ class DataSourceNoCloudNet(DataSourceNoCloud):
         DataSourceNoCloud.__init__(self, sys_cfg, distro, paths)
         self.cmdline_id = "ds=nocloud-net"
         self.supported_seed_starts = ("http://", "https://", "ftp://")
-        self.seed_dir = os.path.join(paths.seed_dir, 'nocloud-net')
+        self.seed_dirs = [os.path.join(paths.seed_dir, 'nocloud-net')]
         self.dsmode = "net"
 
 

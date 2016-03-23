@@ -43,6 +43,7 @@ from cloudinit import distros
 from cloudinit import helpers
 from cloudinit import importer
 from cloudinit import log as logging
+from cloudinit import net
 from cloudinit import sources
 from cloudinit import type_utils
 from cloudinit import util
@@ -193,40 +194,12 @@ class Init(object):
         # We try to restore from a current link and static path
         # by using the instance link, if purge_cache was called
         # the file wont exist.
-        pickled_fn = self.paths.get_ipath_cur('obj_pkl')
-        pickle_contents = None
-        try:
-            pickle_contents = util.load_file(pickled_fn, decode=False)
-        except Exception as e:
-            if os.path.isfile(pickled_fn):
-                LOG.warn("failed loading pickle in %s: %s" % (pickled_fn, e))
-            pass
-
-        # This is expected so just return nothing
-        # successfully loaded...
-        if not pickle_contents:
-            return None
-        try:
-            return pickle.loads(pickle_contents)
-        except Exception:
-            util.logexc(LOG, "Failed loading pickled blob from %s", pickled_fn)
-            return None
+        return _pkl_load(self.paths.get_ipath_cur('obj_pkl'))
 
     def _write_to_cache(self):
         if self.datasource is NULL_DATA_SOURCE:
             return False
-        pickled_fn = self.paths.get_ipath_cur("obj_pkl")
-        try:
-            pk_contents = pickle.dumps(self.datasource)
-        except Exception:
-            util.logexc(LOG, "Failed pickling datasource %s", self.datasource)
-            return False
-        try:
-            util.write_file(pickled_fn, pk_contents, omode="wb", mode=0o400)
-        except Exception:
-            util.logexc(LOG, "Failed pickling datasource to %s", pickled_fn)
-            return False
-        return True
+        return _pkl_store(self.datasource, self.paths.get_ipath_cur("obj_pkl"))
 
     def _get_datasources(self):
         # Any config provided???
@@ -595,6 +568,30 @@ class Init(object):
         # Run the handlers
         self._do_handlers(user_data_msg, c_handlers_list, frequency)
 
+    def _find_networking_config(self):
+        cmdline_cfg = ('cmdline', net.read_kernel_cmdline_config())
+        dscfg = ('ds', None)
+        if self.datasource and hasattr(self.datasource, 'network_config'):
+            dscfg = ('ds', self.datasource.network_config)
+        sys_cfg = ('system_cfg', self.cfg.get('network'))
+
+        for loc, ncfg in (cmdline_cfg, dscfg, sys_cfg):
+            if net.is_disabled_cfg(ncfg):
+                LOG.debug("network config disabled by %s", loc)
+                return (None, loc)
+            if ncfg:
+                return (ncfg, loc)
+        return (net.generate_fallback_config(), "fallback")
+
+    def apply_network_config(self):
+        netcfg, src = self._find_networking_config()
+        if netcfg is None:
+            LOG.info("network config is disabled by %s", src)
+            return
+
+        LOG.info("Applying network configuration from %s: %s", src, netcfg)
+        return self.distro.apply_network_config(netcfg)
+
 
 class Modules(object):
     def __init__(self, init, cfg_files=None, reporter=None):
@@ -796,3 +793,36 @@ def fetch_base_config():
         base_cfgs.append(default_cfg)
 
     return util.mergemanydict(base_cfgs)
+
+
+def _pkl_store(obj, fname):
+    try:
+        pk_contents = pickle.dumps(obj)
+    except Exception:
+        util.logexc(LOG, "Failed pickling datasource %s", obj)
+        return False
+    try:
+        util.write_file(fname, pk_contents, omode="wb", mode=0o400)
+    except Exception:
+        util.logexc(LOG, "Failed pickling datasource to %s", fname)
+        return False
+    return True
+
+
+def _pkl_load(fname):
+    pickle_contents = None
+    try:
+        pickle_contents = util.load_file(fname, decode=False)
+    except Exception as e:
+        if os.path.isfile(fname):
+            LOG.warn("failed loading pickle in %s: %s" % (fname, e))
+        pass
+
+    # This is allowed so just return nothing successfully loaded...
+    if not pickle_contents:
+        return None
+    try:
+        return pickle.loads(pickle_contents)
+    except Exception:
+        util.logexc(LOG, "Failed loading pickled blob from %s", fname)
+        return None
