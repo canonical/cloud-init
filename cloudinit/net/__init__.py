@@ -336,7 +336,7 @@ def iface_add_attrs(iface):
         'index',
         'subnets',
     ]
-    if iface['type'] not in ['bond', 'bridge']:
+    if iface['type'] not in ['bond', 'bridge', 'vlan']:
         ignore_map.append('mac_address')
 
     for key, value in iface.items():
@@ -348,19 +348,34 @@ def iface_add_attrs(iface):
     return content
 
 
-def render_route(route):
-    content = "up route add"
+def render_route(route, indent=""):
+    content = ""
+    up = indent + "post-up route add"
+    down = indent + "pre-down route del"
+    eol = " || true\n"
     mapping = {
         'network': '-net',
         'netmask': 'netmask',
         'gateway': 'gw',
         'metric': 'metric',
     }
-    for k in ['network', 'netmask', 'gateway', 'metric']:
-        if k in route:
-            content += " %s %s" % (mapping[k], route[k])
+    if route['network'] == '0.0.0.0' and route['netmask'] == '0.0.0.0':
+        default_gw = " default gw %s" % route['gateway']
+        content += up + default_gw + eol
+        content += down + default_gw + eol
+    elif route['network'] == '::' and route['netmask'] == 0:
+        # ipv6!
+        default_gw = " -A inet6 default gw %s" % route['gateway']
+        content += up + default_gw + eol
+        content += down + default_gw + eol
+    else:
+        route_line = ""
+        for k in ['network', 'netmask', 'gateway', 'metric']:
+            if k in route:
+                route_line += " %s %s" % (mapping[k], route[k])
+        content += up + route_line + eol
+        content += down + route_line + eol
 
-    content += '\n'
     return content
 
 
@@ -384,6 +399,7 @@ def render_interfaces(network_state):
         if len(value):
             content += "    dns-{} {}\n".format(dnskey, " ".join(value))
 
+    content += "\n"
     for iface in sorted(interfaces.values(),
                         key=lambda k: (order[k['type']], k['name'])):
         content += "auto {name}\n".format(**iface)
@@ -409,6 +425,8 @@ def render_interfaces(network_state):
 
                 content += iface_add_subnet(iface, subnet)
                 content += iface_add_attrs(iface)
+                for route in subnet.get('routes', []):
+                    content += render_route(route, indent="    ")
                 content += "\n"
         else:
             content += "iface {name} {inet} {mode}\n".format(**iface)
@@ -419,7 +437,7 @@ def render_interfaces(network_state):
         content += render_route(route)
 
     # global replacements until v2 format
-    content = content.replace('mac_address', 'hwaddress')
+    content = content.replace('mac_address', 'hwaddress ether')
     return content
 
 
