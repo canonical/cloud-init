@@ -283,6 +283,7 @@ class TestConfigDriveDataSource(TestCase):
         data = copy(CFG_DRIVE_FILES_V2)
 
         data["openstack/2012-08-10/meta_data.json"] = "non-json garbage {}"
+        data["openstack/2015-10-15/meta_data.json"] = "non-json garbage {}"
         data["openstack/latest/meta_data.json"] = "non-json garbage {}"
 
         populate_dir(self.tmp, data)
