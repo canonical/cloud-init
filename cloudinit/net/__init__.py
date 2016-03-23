@@ -16,6 +16,7 @@
 #   You should have received a copy of the GNU Affero General Public License
 #   along with Curtin.  If not, see <http://www.gnu.org/licenses/>.
 
+import base64
 import errno
 import glob
 import os
@@ -646,10 +647,25 @@ def generate_fallback_config():
     return nconf
 
 
-def read_kernel_cmdline_config(files=None, mac_addrs=None):
+def read_kernel_cmdline_config(files=None, mac_addrs=None, cmdline=None):
+    if cmdline is None:
+        cmdline = util.get_cmdline()
+
+    if 'network-config=' in cmdline:
+        data64 = None
+        for tok in cmdline.split():
+            if tok.startswith("network-config="):
+                data64 = tok.split("=", 1)[1]
+        if data64:
+            return util.load_yaml(base64.b64decode(data64))
+
+    if 'ip=' not in cmdline:
+        return None
+
     if mac_addrs is None:
         mac_addrs = {k: sys_netdev_info(k, 'address')
                      for k in get_devicelist()}
+
     return config_from_klibc_net_cfg(files=files, mac_addrs=mac_addrs)
 
 
