@@ -298,7 +298,10 @@ def _load_shell_content(content, add_empty=False, empty_val=None):
     return data
 
 
-def _klibc_to_config_entry(content):
+def _klibc_to_config_entry(content, mac_addrs=None):
+    if mac_addrs is None:
+        mac_addrs = {}
+
     data = _load_shell_content(content)
     try:
         name = data['DEVICE']
@@ -321,14 +324,17 @@ def _klibc_to_config_entry(content):
         'name': name,
         'subnets': [],
     }
-    subnets = {}
 
-    for v, pre in (('ipv4', 'IPV4'), ('ipv6', 'IPV6')):
+    if name in mac_addrs:
+        iface['mac_address'] = mac_addrs[name]
+
+    # originally believed there might be IPV6* values
+    for v, pre in (('ipv4', 'IPV4'),):
         # if no IPV4ADDR or IPV6ADDR, then go on.
         if pre + "ADDR" not in data:
             continue
         subnet = {'type': proto}
-        
+
         # these fields go right on the subnet
         for key in ('NETMASK', 'BROADCAST', 'GATEWAY'):
             if pre + key in data:
@@ -353,13 +359,10 @@ def _klibc_to_config_entry(content):
 
         iface['subnets'].append(subnet)
 
-    for subnet in subnets:
-        iface[subnet].append(subnet)
-
     return name, iface
 
 
-def config_from_klibc_net_cfg(files=None):
+def config_from_klibc_net_cfg(files=None, mac_addrs=None):
     if files is None:
         files = glob.glob('/run/net*.conf')
 
@@ -367,13 +370,13 @@ def config_from_klibc_net_cfg(files=None):
     entries = []
     names = {}
     for cfg_file in files:
-        name, entry = _klibc_to_config_entry(util.load_file(cfg_file))
-        print("name: %s file: %s" % (name, cfg_file))
+        name, entry = _klibc_to_config_entry(util.load_file(cfg_file),
+                                             mac_addrs=mac_addrs)
         if name in names:
             raise ValueError(
                 "device '%s' defined multiple times: %s and %s" % (
-                    name, names[name], cfg_file
-                ))
+                    name, names[name], cfg_file))
+
         names[name] = cfg_file
         entries.append(entry)
     return {'config': entries, 'version': 1}
@@ -566,6 +569,19 @@ def is_disabled_cfg(cfg):
     return cfg.get('config') == "disabled"
 
 
+def sys_netdev_info(name, field):
+    if not os.path.exists(os.path.join(SYS_CLASS_NET, name)):
+        raise OSError("%s: interface does not exist in /sys" % name)
+
+    fname = os.path.join(SYS_CLASS_NET, name, field)
+    if not os.path.exists(fname):
+        raise OSError("%s: %s does not exist in /sys" % (name, fname))
+    data = util.load_file(fname)
+    if data[-1] == '\n':
+        data = data[:-1]
+    return data
+
+
 def generate_fallback_config():
     """Determine which attached net dev is most likely to have a connection and
        generate network state to run dhcp on that interface"""
@@ -574,7 +590,7 @@ def generate_fallback_config():
 
     # get list of interfaces that could have connections
     invalid_interfaces = set(['lo'])
-    potential_interfaces = set(os.listdir(SYS_CLASS_NET))
+    potential_interfaces = set(get_devicelist())
     potential_interfaces = potential_interfaces.difference(invalid_interfaces)
     # sort into interfaces with carrier, interfaces which could have carrier,
     # and ignore interfaces that are definitely disconnected
@@ -582,8 +598,7 @@ def generate_fallback_config():
     possibly_connected = []
     for interface in potential_interfaces:
         try:
-            sysfs_carrier = os.path.join(SYS_CLASS_NET, interface, 'carrier')
-            carrier = int(util.load_file(sysfs_carrier).strip())
+            carrier = int(sys_netdev_info(interface, 'carrier'))
             if carrier:
                 connected.append(interface)
                 continue
@@ -593,17 +608,14 @@ def generate_fallback_config():
         # not have a carrier even though it could acquire one when brought
         # online by dhclient
         try:
-            sysfs_dormant = os.path.join(SYS_CLASS_NET, interface, 'dormant')
-            dormant = int(util.load_file(sysfs_dormant).strip())
+            dormant = int(sys_netdev_info(interface, 'dormant'))
             if dormant:
                 possibly_connected.append(interface)
                 continue
         except OSError:
             pass
         try:
-            sysfs_operstate = os.path.join(SYS_CLASS_NET, interface,
-                                           'operstate')
-            operstate = util.load_file(sysfs_operstate).strip()
+            operstate = sys_netdev_info(interface, 'operstate')
             if operstate in ['dormant', 'down', 'lowerlayerdown', 'unknown']:
                 possibly_connected.append(interface)
                 continue
@@ -626,8 +638,7 @@ def generate_fallback_config():
     else:
         name = sorted(potential_interfaces)[0]
 
-    sysfs_mac = os.path.join(SYS_CLASS_NET, name, 'address')
-    mac = util.load_file(sysfs_mac).strip()
+    mac = sys_netdev_info(name, 'address')
     target_name = name
 
     nconf['config'].append(
