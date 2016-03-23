@@ -329,7 +329,7 @@ def main_modules(action_name, args):
     init.read_cfg(extract_fns(args))
     # Stage 2
     try:
-        init.fetch()
+        init.fetch(existing="trust")
     except sources.DataSourceNotFoundException:
         # There was no datasource found, theres nothing to do
         msg = ('Can not apply stage %s, no datasource found! Likely bad '
@@ -383,7 +383,7 @@ def main_single(name, args):
     init.read_cfg(extract_fns(args))
     # Stage 2
     try:
-        init.fetch()
+        init.fetch(existing="trust")
     except sources.DataSourceNotFoundException:
         # There was no datasource found,
         # that might be bad (or ok) depending on
