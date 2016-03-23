@@ -60,6 +60,7 @@ STATIC_EXPECTED_1 = {
                  'dns_nameservers': ['10.0.1.1']}],
 }
 
+
 class TestNetConfigParsing(TestCase):
     def test_klibc_convert_dhcp(self):
         found = net._klibc_to_config_entry(DHCP_CONTENT_1)
