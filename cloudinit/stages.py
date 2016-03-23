@@ -578,18 +578,18 @@ class Init(object):
         for loc, ncfg in (cmdline_cfg, dscfg, sys_cfg):
             if net.is_disabled_cfg(ncfg):
                 LOG.debug("network config disabled by %s", loc)
-                return None
+                return (None, loc)
             if ncfg:
-                return ncfg
-        return net.generate_fallback_config()
+                return (ncfg, loc)
+        return (net.generate_fallback_config(), "fallback")
 
     def apply_network_config(self):
-        netcfg = self._find_networking_config()
+        netcfg, src = self._find_networking_config()
         if netcfg is None:
-            LOG.info("network config is disabled")
+            LOG.info("network config is disabled by %s", src)
             return
 
-        LOG.info("Applying configuration: %s", netcfg)
+        LOG.info("Applying network configuration from %s: %s", src, netcfg)
         return self.distro.apply_network_config(netcfg)
 
 
