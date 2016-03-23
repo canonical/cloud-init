@@ -51,13 +51,13 @@ OS_LATEST = 'latest'
 OS_FOLSOM = '2012-08-10'
 OS_GRIZZLY = '2013-04-04'
 OS_HAVANA = '2013-10-17'
-OS_KILO = '2015-10-15'
+OS_LIBERTY = '2015-10-15'
 # keep this in chronological order. new supported versions go at the end.
 OS_VERSIONS = (
     OS_FOLSOM,
     OS_GRIZZLY,
     OS_HAVANA,
-    OS_KILO,
+    OS_LIBERTY,
 )
 
 
@@ -497,28 +497,3 @@ def convert_vendordata_json(data, recurse=True):
                                            recurse=False)
         raise ValueError("vendordata['cloud-init'] cannot be dict")
     raise ValueError("Unknown data type for vendordata: %s" % type(data))
-
-
-def convert_networkdata_json(data, recurse=True):
-    """ data: a loaded json *object* (strings, arrays, dicts).
-    return something suitable for cloudinit networkdata_raw.
-
-    if data is:
-       None: return None
-       string: return string
-       list: return data
-             the list is then processed in UserDataProcessor
-       dict: return convert_networkdata_json(data.get('cloud-init'))
-    """
-    if not data:
-        return None
-    if isinstance(data, six.string_types):
-        return data
-    if isinstance(data, list):
-        return copy.deepcopy(data)
-    if isinstance(data, dict):
-        if recurse is True:
-            return convert_networkdata_json(data.get('cloud-init'),
-                                            recurse=False)
-        raise ValueError("networkdata['cloud-init'] cannot be dict")
-    raise ValueError("Unknown data type for networkdata: %s" % type(data))

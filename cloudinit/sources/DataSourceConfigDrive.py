@@ -150,7 +150,7 @@ class DataSourceConfigDrive(openstack.SourceMixin, sources.DataSource):
         nd = results.get('networkdata')
         self.networkdata_pure = nd
         try:
-            self.network_json = openstack.convert_networkdata_json(nd)
+            self.network_json = util.load_json(nd)
         except ValueError as e:
             LOG.warn("Invalid content in network-data: %s", e)
             self.network_json = None
