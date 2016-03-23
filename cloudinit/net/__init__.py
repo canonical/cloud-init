@@ -20,6 +20,7 @@ import errno
 import glob
 import os
 import re
+import shlex
 
 from cloudinit import log as logging
 from cloudinit import util
@@ -283,94 +284,99 @@ def parse_net_config(path):
     return ns
 
 
-def load_klibc_net_cfg(data_mapping):
-    """Process key value pairs from files written because of the ip parameter
-       on the kernel cmdline, note that mode: manual is used because the
-       interface should already have been brought up by the kernel and
-       cloud-initramfs-tools"""
-    entry_ns = {
-        'mtu': None, 'name': data_mapping['DEVICE'], 'type': 'physical',
-        'mode': 'manual', 'inet': 'inet', 'gateway': None, 'address': None,
-        'subnets': []
-    }
+def _load_shell_content(content, add_empty=False, empty_val=None):
+    """Given the content of a klibc created /run/net*.conf file, return
+       its data in dictionary form."""
+    data = {}
+    for line in shlex.split(content):
+        key, value = line.split("=", maxsplit=1)
+        if not value:
+            value = empty_val
+        if add_empty or value:
+            data[key] = value
+
+    return data
+
+
+def _klibc_to_config_entry(content):
+    data = _load_shell_content(content)
+    try:
+        name = data['DEVICE']
+    except KeyError:
+        raise ValueError("no 'DEVICE' entry in data")
 
     # ipconfig on precise does not write PROTO
-    # (lp:cloud-initramfs-tools/dyn-netconf/scripts/init-bottom/
-    #  cloud-initramfs-dyn-netconf)
-    if not data_mapping.get('PROTO'):
-        if data_mapping.get('filename'):
-            data_mapping['PROTO'] = 'dhcp'
+    proto = data.get('PROTO')
+    if not proto:
+        if data.get('filename'):
+            proto = 'dhcp'
         else:
-            data_mapping['PROTO'] = 'static'
+            proto = 'static'
 
-    if data_mapping.get('PROTO') == 'dhcp':
-        if data_mapping.get('IPV4ADDR'):
-            entry_ns['subnets'].append({'type': 'dhcp4'})
-        if data_mapping.get('IPV6ADDR'):
-            entry_ns['subnets'].append({'type': 'dhcp6'})
-    elif data_mapping.get('PROTO') in ['static', 'none']:
-        # It appears that specifying ipv6 static addrs does not work, so only
-        # check for ipv4 addr
-        entry_ns['subnets'].append(
-                {'type': 'static', 'address': data_mapping.get('IPV4ADDR')})
+    if proto not in ('static', 'dhcp'):
+        raise ValueError("Unexpected value for PROTO: %s" % proto)
 
-    if data_mapping.get('IPV4ADDR'):
-        entry_ns['address'] = data_mapping['IPV4ADDR']
-    if data_mapping.get('IPV6ADDR'):
-        entry_ns['address'] = data_mapping['IPV6ADDR']
-    if data_mapping.get('IPV4BROADCAST'):
-        entry_ns['broadcast'] = data_mapping['IPV4BROADCAST']
-    if data_mapping.get('IPV6BROADCAST'):
-        entry_ns['broadcast'] = data_mapping['IPV6BROADCAST']
-    if data_mapping.get('IPV4NETMASK'):
-        entry_ns['netmask'] = data_mapping['IPV4NETMASK']
-    if data_mapping.get('IPV6NETMASK'):
-        entry_ns['netmask'] = data_mapping['IPV6NETMASK']
-    if data_mapping.get('IPV4GATEWAY'):
-        entry_ns['gateway'] = data_mapping['IPV4GATEWAY']
-    if data_mapping.get('IPV6GATEWAY'):
-        entry_ns['gateway'] = data_mapping['IPV6GATEWAY']
-    if data_mapping.get('HOSTNAME'):
-        entry_ns['hostname'] = data_mapping['HOSTNAME']
+    iface = {
+        'type': 'physical',
+        'name': name,
+        'subnets': [],
+    }
+    subnets = {}
 
-    return entry_ns
-
-
-def merge_from_cmdline_config(ns):
-    """If ip parameter passed on kernel cmdline then some initial network
-       configuration may have been done in initramfs. Files from the result of
-       this may have been written into /run. If any are present they should be
-       merged into network state"""
-
-    if 'interfaces' not in ns:
-        ns['interfaces'] = {}
-
-    for cfg_file in glob.glob('/run/net*.conf'):
-        with open(cfg_file, 'r') as fp:
-            data = [l.replace("'", "") for l in fp.readlines()]
-        try:
-            parsed = dict([l.strip().split('=') for l in data])
-        except:
-            # if split did not work then this is likely not a netcfg file
+    for v, pre in (('ipv4', 'IPV4'), ('ipv6', 'IPV6')):
+        # if no IPV4ADDR or IPV6ADDR, then go on.
+        if pre + "ADDR" not in data:
             continue
+        subnet = {'type': proto}
+        
+        # these fields go right on the subnet
+        for key in ('NETMASK', 'BROADCAST', 'GATEWAY'):
+            if pre + key in data:
+                subnet[key.lower()] = data[pre + key]
 
-        dev_name = parsed.get('DEVICE')
-        if not dev_name:
-            # Not a net cfg file
-            continue
+        dns = []
+        # handle IPV4DNS0 or IPV6DNS0
+        for nskey in ('DNS0', 'DNS1'):
+            ns = data.get(pre + nskey)
+            # verify it has something other than 0.0.0.0 (or ipv6)
+            if ns and len(ns.strip(":.0")):
+                dns.append(data[pre + nskey])
+        if dns:
+            subnet['dns_nameservers'] = dns
+            # add search to both ipv4 and ipv6, as it has no namespace
+            search = data.get('DOMAINSEARCH')
+            if search:
+                if ',' in search:
+                    subnet['dns_search'] = search.split(",")
+                else:
+                    subnet['dns_search'] = search.split()
 
-        loaded_ns = load_klibc_net_cfg(parsed)
+        iface['subnets'].append(subnet)
 
-        if dev_name in ns['interfaces']:
-            if 'subnets' not in ns['interfaces'][dev_name]:
-                ns['interfaces'][dev_name]['subnets'] = []
-            for newsubnet in loaded_ns['subnets']:
-                if newsubnet not in ns['interfaces'][dev_name]['subnets']:
-                    ns['interfaces'][dev_name]['subnets'].append(newsubnet)
-        else:
-            ns['interfaces'][dev_name] = loaded_ns
+    for subnet in subnets:
+        iface[subnet].append(subnet)
 
-    return ns
+    return name, iface
+
+
+def config_from_klibc_net_cfg(files=None):
+    if files is None:
+        files = glob.glob('/run/net*.conf')
+
+    devs = {}
+    entries = []
+    names = {}
+    for cfg_file in files:
+        name, entry = _klibc_to_config_entry(util.load_file(cfg_file))
+        print("name: %s file: %s" % (name, cfg_file))
+        if name in names:
+            raise ValueError(
+                "device '%s' defined multiple times: %s and %s" % (
+                    name, names[name], cfg_file
+                ))
+        names[name] = cfg_file
+        entries.append(entry)
+    return {'config': entries, 'version': 1}
 
 
 def render_persistent_net(network_state):
