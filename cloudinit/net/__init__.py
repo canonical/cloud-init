@@ -289,7 +289,7 @@ def _load_shell_content(content, add_empty=False, empty_val=None):
        its data in dictionary form."""
     data = {}
     for line in shlex.split(content):
-        key, value = line.split("=", maxsplit=1)
+        key, value = line.split("=", 1)
         if not value:
             value = empty_val
         if add_empty or value:
@@ -366,7 +366,6 @@ def config_from_klibc_net_cfg(files=None, mac_addrs=None):
     if files is None:
         files = glob.glob('/run/net*.conf')
 
-    devs = {}
     entries = []
     names = {}
     for cfg_file in files:
