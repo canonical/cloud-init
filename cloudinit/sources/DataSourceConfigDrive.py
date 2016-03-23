@@ -147,10 +147,8 @@ class DataSourceConfigDrive(openstack.SourceMixin, sources.DataSource):
             LOG.warn("Invalid content in vendor-data: %s", e)
             self.vendordata_raw = None
 
-        nd = results.get('networkdata')
-        self.networkdata_pure = nd
         try:
-            self.network_json = util.load_json(nd)
+            self.network_json = results.get('networkdata')
         except ValueError as e:
             LOG.warn("Invalid content in network-data: %s", e)
             self.network_json = None
@@ -389,7 +387,7 @@ def convert_network_data(network_json=None):
                 })
             subnets.append(subnet)
         cfg.update({'subnets': subnets})
-        if link['type'] in ['ethernet', 'vif', 'ovs']:
+        if link['type'] in ['ethernet', 'vif', 'ovs', 'phy']:
             cfg.update({
                 'type': 'physical',
                 'mac_address': link['ethernet_mac_address']})
