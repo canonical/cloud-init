@@ -288,8 +288,10 @@ def parse_net_config(path):
 
 
 def _load_shell_content(content, add_empty=False, empty_val=None):
-    """Given the content of a klibc created /run/net*.conf file, return
-       its data in dictionary form."""
+    """Given shell like syntax (key=value\nkey2=value2\n) in content
+       return the data in dictionary form.  If 'add_empty' is True
+       then add entries in to the returned dictionary for 'VAR='
+       variables.  Set their value to empty_val."""
     data = {}
     for line in shlex.split(content):
         key, value = line.split("=", 1)
