@@ -36,7 +36,9 @@ class DataSourceNoCloud(sources.DataSource):
         self.dsmode = 'local'
         self.seed = None
         self.cmdline_id = "ds=nocloud"
-        self.seed_dir = os.path.join(paths.seed_dir, 'nocloud')
+        self.seed_dirs = [os.path.join(paths.seed_dir, 'nocloud'),
+                          os.path.join(paths.seed_dir, 'nocloud-net')]
+        self.seed_dir = None
         self.supported_seed_starts = ("/", "file://")
 
     def __str__(self):
@@ -50,31 +52,32 @@ class DataSourceNoCloud(sources.DataSource):
         }
 
         found = []
-        mydata = {'meta-data': {}, 'user-data': "", 'vendor-data': ""}
+        mydata = {'meta-data': {}, 'user-data': "", 'vendor-data': "",
+                  'network-config': {}}
 
         try:
             # Parse the kernel command line, getting data passed in
             md = {}
             if parse_cmdline_data(self.cmdline_id, md):
                 found.append("cmdline")
-            mydata['meta-data'].update(md)
+                mydata = _merge_new_seed(mydata, {'meta-data': md})
         except:
             util.logexc(LOG, "Unable to parse command line data")
             return False
 
         # Check to see if the seed dir has data.
         pp2d_kwargs = {'required': ['user-data', 'meta-data'],
-                       'optional': ['vendor-data']}
+                       'optional': ['vendor-data', 'network-config']}
 
-        try:
-            seeded = util.pathprefix2dict(self.seed_dir, **pp2d_kwargs)
-            found.append(self.seed_dir)
-            LOG.debug("Using seeded data from %s", self.seed_dir)
-        except ValueError as e:
-            pass
-
-        if self.seed_dir in found:
-            mydata = _merge_new_seed(mydata, seeded)
+        for path in self.seed_dirs:
+            try:
+                seeded = util.pathprefix2dict(path, **pp2d_kwargs)
+                found.append(path)
+                LOG.debug("Using seeded data from %s", path)
+                mydata = _merge_new_seed(mydata, seeded)
+                break
+            except ValueError as e:
+                pass
 
         # If the datasource config had a 'seedfrom' entry, then that takes
         # precedence over a 'seedfrom' that was found in a filesystem
@@ -141,8 +144,7 @@ class DataSourceNoCloud(sources.DataSource):
         if len(found) == 0:
             return False
 
-        seeded_interfaces = None
-
+        seeded_network = None
         # The special argument "seedfrom" indicates we should
         # attempt to seed the userdata / metadata from its value
         # its primarily value is in allowing the user to type less
@@ -158,8 +160,9 @@ class DataSourceNoCloud(sources.DataSource):
                 LOG.debug("Seed from %s not supported by %s", seedfrom, self)
                 return False
 
-            if 'network-interfaces' in mydata['meta-data']:
-                seeded_interfaces = self.dsmode
+            if (mydata['meta-data'].get('network-interfaces') or
+                    mydata.get('network-config')):
+                seeded_network = self.dsmode
 
             # This could throw errors, but the user told us to do it
             # so if errors are raised, let them raise
@@ -176,28 +179,37 @@ class DataSourceNoCloud(sources.DataSource):
         mydata['meta-data'] = util.mergemanydict([mydata['meta-data'],
                                                   defaults])
 
-        # Update the network-interfaces if metadata had 'network-interfaces'
-        # entry and this is the local datasource, or 'seedfrom' was used
-        # and the source of the seed was self.dsmode
-        # ('local' for NoCloud, 'net' for NoCloudNet')
-        if ('network-interfaces' in mydata['meta-data'] and
-                (self.dsmode in ("local", seeded_interfaces))):
-            LOG.debug("Updating network interfaces from %s", self)
-            self.distro.apply_network(
-                mydata['meta-data']['network-interfaces'])
+        netdata = {'format': None, 'data': None}
+        if mydata['meta-data'].get('network-interfaces'):
+            netdata['format'] = 'interfaces'
+            netdata['data'] = mydata['meta-data']['network-interfaces']
+        elif mydata.get('network-config'):
+            netdata['format'] = 'network-config'
+            netdata['data'] = mydata['network-config']
+
+        # if this is the local datasource or 'seedfrom' was used
+        # and the source of the seed was self.dsmode.
+        # Then see if there is network config to apply.
+        # note this is obsolete network-interfaces style seeding.
+        if self.dsmode in ("local", seeded_network):
+            if mydata['meta-data'].get('network-interfaces'):
+                LOG.debug("Updating network interfaces from %s", self)
+                self.distro.apply_network(
+                    mydata['meta-data']['network-interfaces'])
 
         if mydata['meta-data']['dsmode'] == self.dsmode:
             self.seed = ",".join(found)
             self.metadata = mydata['meta-data']
             self.userdata_raw = mydata['user-data']
             self.vendordata_raw = mydata['vendor-data']
+            self._network_config = mydata['network-config']
             return True
 
         LOG.debug("%s: not claiming datasource, dsmode=%s", self,
                   mydata['meta-data']['dsmode'])
         return False
 
-    def check_instance_id(self):
+    def check_instance_id(self, sys_cfg):
         # quickly (local check only) if self.instance_id is still valid
         # we check kernel command line or files.
         current = self.get_instance_id()
@@ -205,10 +217,14 @@ class DataSourceNoCloud(sources.DataSource):
             return None
 
         quick_id = _quick_read_instance_id(cmdline_id=self.cmdline_id,
-                                           dirs=[self.seed_dir])
+                                           dirs=self.seed_dirs)
         if not quick_id:
             return None
         return quick_id == current
+
+    @property
+    def network_config(self):
+        return self._network_config
 
 
 def _quick_read_instance_id(cmdline_id, dirs=None):
@@ -279,9 +295,17 @@ def parse_cmdline_data(ds_id, fill, cmdline=None):
 
 def _merge_new_seed(cur, seeded):
     ret = cur.copy()
-    ret['meta-data'] = util.mergemanydict([cur['meta-data'],
-                                          util.load_yaml(seeded['meta-data'])])
-    ret['user-data'] = seeded['user-data']
+
+    newmd = seeded.get('meta-data', {})
+    if not isinstance(seeded['meta-data'], dict):
+        newmd = util.load_yaml(seeded['meta-data'])
+    ret['meta-data'] = util.mergemanydict([cur['meta-data'], newmd])
+
+    if seeded.get('network-config'):
+        ret['network-config'] = util.load_yaml(seeded['network-config'])
+
+    if 'user-data' in seeded:
+        ret['user-data'] = seeded['user-data']
     if 'vendor-data' in seeded:
         ret['vendor-data'] = seeded['vendor-data']
     return ret
@@ -292,7 +316,6 @@ class DataSourceNoCloudNet(DataSourceNoCloud):
         DataSourceNoCloud.__init__(self, sys_cfg, distro, paths)
         self.cmdline_id = "ds=nocloud-net"
         self.supported_seed_starts = ("http://", "https://", "ftp://")
-        self.seed_dir = os.path.join(paths.seed_dir, 'nocloud-net')
         self.dsmode = "net"
 
 

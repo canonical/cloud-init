@@ -59,6 +59,34 @@ OSTACK_META = {
 
 CONTENT_0 = b'This is contents of /etc/foo.cfg\n'
 CONTENT_1 = b'# this is /etc/bar/bar.cfg\n'
+NETWORK_DATA = {
+    'services': [
+        {'type': 'dns', 'address': '199.204.44.24'},
+        {'type': 'dns', 'address': '199.204.47.54'}
+    ],
+    'links': [
+        {'vif_id': '2ecc7709-b3f7-4448-9580-e1ec32d75bbd',
+         'ethernet_mac_address': 'fa:16:3e:69:b0:58',
+         'type': 'ovs', 'mtu': None, 'id': 'tap2ecc7709-b3'},
+        {'vif_id': '2f88d109-5b57-40e6-af32-2472df09dc33',
+         'ethernet_mac_address': 'fa:16:3e:d4:57:ad',
+         'type': 'ovs', 'mtu': None, 'id': 'tap2f88d109-5b'},
+        {'vif_id': '1a5382f8-04c5-4d75-ab98-d666c1ef52cc',
+         'ethernet_mac_address': 'fa:16:3e:05:30:fe',
+         'type': 'ovs', 'mtu': None, 'id': 'tap1a5382f8-04'}
+    ],
+    'networks': [
+        {'link': 'tap2ecc7709-b3', 'type': 'ipv4_dhcp',
+         'network_id': '6d6357ac-0f70-4afa-8bd7-c274cc4ea235',
+         'id': 'network0'},
+        {'link': 'tap2f88d109-5b', 'type': 'ipv4_dhcp',
+         'network_id': 'd227a9b3-6960-4d94-8976-ee5788b44f54',
+         'id': 'network1'},
+        {'link': 'tap1a5382f8-04', 'type': 'ipv4_dhcp',
+         'network_id': 'dab2ba57-cae2-4311-a5ed-010b263891f5',
+         'id': 'network2'}
+    ]
+}
 
 CFG_DRIVE_FILES_V2 = {
     'ec2/2009-04-04/meta-data.json': json.dumps(EC2_META),
@@ -70,7 +98,11 @@ CFG_DRIVE_FILES_V2 = {
     'openstack/content/0000': CONTENT_0,
     'openstack/content/0001': CONTENT_1,
     'openstack/latest/meta_data.json': json.dumps(OSTACK_META),
-    'openstack/latest/user_data': USER_DATA}
+    'openstack/latest/user_data': USER_DATA,
+    'openstack/latest/network_data.json': json.dumps(NETWORK_DATA),
+    'openstack/2015-10-15/meta_data.json': json.dumps(OSTACK_META),
+    'openstack/2015-10-15/user_data': USER_DATA,
+    'openstack/2015-10-15/network_data.json': json.dumps(NETWORK_DATA)}
 
 
 class TestConfigDriveDataSource(TestCase):
@@ -225,6 +257,7 @@ class TestConfigDriveDataSource(TestCase):
 
         self.assertEqual(USER_DATA, found['userdata'])
         self.assertEqual(expected_md, found['metadata'])
+        self.assertEqual(NETWORK_DATA, found['networkdata'])
         self.assertEqual(found['files']['/etc/foo.cfg'], CONTENT_0)
         self.assertEqual(found['files']['/etc/bar/bar.cfg'], CONTENT_1)
 
@@ -250,6 +283,7 @@ class TestConfigDriveDataSource(TestCase):
         data = copy(CFG_DRIVE_FILES_V2)
 
         data["openstack/2012-08-10/meta_data.json"] = "non-json garbage {}"
+        data["openstack/2015-10-15/meta_data.json"] = "non-json garbage {}"
         data["openstack/latest/meta_data.json"] = "non-json garbage {}"
 
         populate_dir(self.tmp, data)
@@ -321,6 +355,19 @@ class TestConfigDriveDataSource(TestCase):
         self.assertEqual(myds.get_public_ssh_keys(),
                          [OSTACK_META['public_keys']['mykey']])
 
+    def test_network_data_is_found(self):
+        """Verify that network_data is present in ds in config-drive-v2."""
+        populate_dir(self.tmp, CFG_DRIVE_FILES_V2)
+        myds = cfg_ds_from_dir(self.tmp)
+        self.assertEqual(myds.network_json, NETWORK_DATA)
+
+    def test_network_config_is_converted(self):
+        """Verify that network_data is converted and present on ds object."""
+        populate_dir(self.tmp, CFG_DRIVE_FILES_V2)
+        myds = cfg_ds_from_dir(self.tmp)
+        network_config = ds.convert_network_data(NETWORK_DATA)
+        self.assertEqual(myds.network_config, network_config)
+
 
 def cfg_ds_from_dir(seed_d):
     found = ds.read_config_drive(seed_d)
@@ -339,6 +386,8 @@ def populate_ds_from_read_config(cfg_ds, source, results):
     cfg_ds.ec2_metadata = results.get('ec2-metadata')
     cfg_ds.userdata_raw = results.get('userdata')
     cfg_ds.version = results.get('version')
+    cfg_ds.network_json = results.get('networkdata')
+    cfg_ds._network_config = ds.convert_network_data(cfg_ds.network_json)
 
 
 def populate_dir(seed_dir, files):

@@ -263,6 +263,10 @@ def main_init(name, args):
                 return (None, [])
             else:
                 return (None, ["No instance datasource found."])
+
+    if args.local:
+        init.apply_network_config()
+
     # Stage 6
     iid = init.instancify()
     LOG.debug("%s will now be targeting instance id: %s", name, iid)
@@ -325,7 +329,7 @@ def main_modules(action_name, args):
     init.read_cfg(extract_fns(args))
     # Stage 2
     try:
-        init.fetch()
+        init.fetch(existing="trust")
     except sources.DataSourceNotFoundException:
         # There was no datasource found, theres nothing to do
         msg = ('Can not apply stage %s, no datasource found! Likely bad '
@@ -379,7 +383,7 @@ def main_single(name, args):
     init.read_cfg(extract_fns(args))
     # Stage 2
     try:
-        init.fetch()
+        init.fetch(existing="trust")
     except sources.DataSourceNotFoundException:
         # There was no datasource found,
         # that might be bad (or ok) depending on
@@ -432,18 +436,22 @@ def main_single(name, args):
         return 0
 
 
-def atomic_write_json(path, data):
+def atomic_write_file(path, content, mode='w'):
     tf = None
     try:
         tf = tempfile.NamedTemporaryFile(dir=os.path.dirname(path),
-                                         delete=False)
-        tf.write(util.encode_text(json.dumps(data, indent=1) + "\n"))
+                                         delete=False, mode=mode)
+        tf.write(content)
         tf.close()
         os.rename(tf.name, path)
     except Exception as e:
         if tf is not None:
-            util.del_file(tf.name)
+            os.unlink(tf.name)
         raise e
+
+
+def atomic_write_json(path, data):
+    return atomic_write_file(path, json.dumps(data, indent=1) + "\n")
 
 
 def status_wrapper(name, args, data_d=None, link_d=None):

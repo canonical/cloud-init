@@ -26,6 +26,7 @@ from cloudinit import distros
 from cloudinit import helpers
 from cloudinit import log as logging
 from cloudinit import util
+from cloudinit import net
 
 from cloudinit.distros.parsers.hostname import HostnameConf
 
@@ -45,7 +46,8 @@ APT_GET_WRAPPER = {
 class Distro(distros.Distro):
     hostname_conf_fn = "/etc/hostname"
     locale_conf_fn = "/etc/default/locale"
-    network_conf_fn = "/etc/network/interfaces"
+    network_conf_fn = "/etc/network/interfaces.d/50-cloud-init.cfg"
+    links_prefix = "/etc/systemd/network/50-cloud-init-"
 
     def __init__(self, name, cfg, paths):
         distros.Distro.__init__(self, name, cfg, paths)
@@ -75,6 +77,14 @@ class Distro(distros.Distro):
     def _write_network(self, settings):
         util.write_file(self.network_conf_fn, settings)
         return ['all']
+
+    def _write_network_config(self, netconfig):
+        ns = net.parse_net_config_data(netconfig)
+        net.render_network_state(target="/", network_state=ns,
+                                 eni=self.network_conf_fn,
+                                 links_prefix=self.links_prefix)
+        util.del_file("/etc/network/interfaces.d/eth0.cfg")
+        return []
 
     def _bring_up_interfaces(self, device_names):
         use_all = False

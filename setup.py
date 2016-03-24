@@ -183,7 +183,8 @@ else:
             [f for f in glob('doc/examples/*') if is_f(f)]),
         (USR + '/share/doc/cloud-init/examples/seed',
             [f for f in glob('doc/examples/seed/*') if is_f(f)]),
-        (LIB + '/udev/rules.d', ['udev/66-azure-ephemeral.rules']),
+        (LIB + '/udev/rules.d', [f for f in glob('udev/*.rules')]),
+        (LIB + '/udev', ['udev/cloud-init-wait']),
     ]
     # Use a subclass for install that handles
     # adding on the right init system configuration files
