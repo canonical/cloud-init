@@ -306,7 +306,7 @@ def _load_shell_content(content, add_empty=False, empty_val=None):
 def _klibc_to_config_entry(content, mac_addrs=None):
     """Convert a klibc writtent shell content file to a 'config' entry
     When ip= is seen on the kernel command line in debian initramfs
-    and networking is brought up, ipconfig will populate 
+    and networking is brought up, ipconfig will populate
     /run/net-<name>.cfg.
 
     The files are shell style syntax, and examples are in the tests
@@ -315,8 +315,7 @@ def _klibc_to_config_entry(content, mac_addrs=None):
     DEVICE=<name> is expected/required and PROTO should indicate if
     this is 'static' or 'dhcp'.
     """
-    
-  
+
     if mac_addrs is None:
         mac_addrs = {}
 
