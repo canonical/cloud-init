@@ -1,3 +1,19 @@
+cloud-init (0.7.7~bzr1189-0ubuntu1) xenial; urgency=medium
+
+  * d/control: adjust build dependency as python3-pyflakes in xenial
+    now provides python3 modules for pyflakes.
+  * d/cloud-init.install, d/control, d/dirs, d/grub-legacy-ec2.install:
+    run wrap-and-sort
+  * d/cloud-init.install: add lib/udev/ files.
+  * d/cloud-init.postinst: touch /var/lib/cloud/data/upgraded-network
+    if upgrading from version that did not have network support.
+  * New upstream snapshot.
+    * initial support for support network configuration in cloud-init --local
+    * do not rely on network metadata service on every boot for 
+      ConfigDrive Openstack Azure (LP: #1553815)
+
+ -- Scott Moser <smoser@ubuntu.com>  Thu, 24 Mar 2016 17:36:40 -0400
+
 cloud-init (0.7.7~bzr1182-0ubuntu1) xenial; urgency=medium
 
   * New upstream snapshot.

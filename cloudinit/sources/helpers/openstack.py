@@ -51,11 +51,13 @@ OS_LATEST = 'latest'
 OS_FOLSOM = '2012-08-10'
 OS_GRIZZLY = '2013-04-04'
 OS_HAVANA = '2013-10-17'
+OS_LIBERTY = '2015-10-15'
 # keep this in chronological order. new supported versions go at the end.
 OS_VERSIONS = (
     OS_FOLSOM,
     OS_GRIZZLY,
     OS_HAVANA,
+    OS_LIBERTY,
 )
 
 
@@ -229,6 +231,11 @@ class BaseReader(object):
                 False,
                 load_json_anytype,
             )
+            files['networkdata'] = (
+                self._path_join("openstack", version, 'network_data.json'),
+                False,
+                load_json_anytype,
+            )
             return files
 
         results = {
@@ -334,7 +341,7 @@ class ConfigDriveReader(BaseReader):
             path = self._path_join(self.base_path, 'openstack')
             found = [d for d in os.listdir(path)
                      if os.path.isdir(os.path.join(path))]
-            self._versions = found
+            self._versions = sorted(found)
         return self._versions
 
     def _read_ec2_metadata(self):

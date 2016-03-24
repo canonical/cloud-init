@@ -1,10 +1,11 @@
+./tools/21-cloudinit.conf etc/rsyslog.d/
+./tools/Z99-cloud-locale-test.sh etc/profile.d/
 etc/cloud
 etc/init/*.conf
 lib/systemd/*
+lib/udev/*
 usr/bin
 usr/lib/cloud-init
 usr/lib/python*/*-packages/*egg-info
 usr/lib/python*/*-packages/cloudinit
 usr/share/doc/cloud-init
-./tools/21-cloudinit.conf etc/rsyslog.d/
-./tools/Z99-cloud-locale-test.sh etc/profile.d/

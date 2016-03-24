@@ -1,0 +1,10 @@
+# cloud-init cold/hot-plug blocking mechanism
+# this file blocks further processing of network events
+# until cloud-init local has had a chance to read and apply network
+SUBSYSTEM!="net", GOTO="cloudinit_naming_end"
+ACTION!="add", GOTO="cloudinit_naming_end"
+
+IMPORT{program}="/lib/udev/cloud-init-wait"
+
+LABEL="cloudinit_naming_end"
+# vi: ts=4 expandtab syntax=udevrules
