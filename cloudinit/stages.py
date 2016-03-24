@@ -570,6 +570,11 @@ class Init(object):
         self._do_handlers(user_data_msg, c_handlers_list, frequency)
 
     def _find_networking_config(self):
+        disable_file = os.path.join(
+            self.paths.get_cpath('data'), 'upgraded-network')
+        if os.path.exists(disable_file):
+            return (None, disable_file)
+
         cmdline_cfg = ('cmdline', net.read_kernel_cmdline_config())
         dscfg = ('ds', None)
         if self.datasource and hasattr(self.datasource, 'network_config'):

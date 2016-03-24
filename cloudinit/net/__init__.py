@@ -407,7 +407,7 @@ def render_persistent_net(network_state):
     for iface in interfaces.values():
         # for physical interfaces write out a persist net udev rule
         if iface['type'] == 'physical' and \
-           'name' in iface and 'mac_address' in iface:
+           'name' in iface and iface.get('mac_address'):
             content += generate_udev_rule(iface['name'],
                                           iface['mac_address'])
 
@@ -598,7 +598,7 @@ def render_systemd_links(target, network_state,
     interfaces = network_state.get('interfaces')
     for iface in interfaces.values():
         if (iface['type'] == 'physical' and 'name' in iface and
-                'mac_address' in iface):
+                iface.get('mac_address')):
             fname = fp_prefix + iface['name'] + ".link"
             with open(fname, "w") as fp:
                 fp.write("\n".join([

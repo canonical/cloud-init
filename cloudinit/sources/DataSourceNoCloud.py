@@ -316,7 +316,6 @@ class DataSourceNoCloudNet(DataSourceNoCloud):
         DataSourceNoCloud.__init__(self, sys_cfg, distro, paths)
         self.cmdline_id = "ds=nocloud-net"
         self.supported_seed_starts = ("http://", "https://", "ftp://")
-        self.seed_dirs = [os.path.join(paths.seed_dir, 'nocloud-net')]
         self.dsmode = "net"
 
 
