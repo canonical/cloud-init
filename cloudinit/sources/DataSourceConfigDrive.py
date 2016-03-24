@@ -153,9 +153,6 @@ class DataSourceConfigDrive(openstack.SourceMixin, sources.DataSource):
             LOG.warn("Invalid content in network-data: %s", e)
             self.network_json = None
 
-        if self.network_json:
-            self._network_config = convert_network_data(self.network_json)
-
         return True
 
     def check_instance_id(self):
@@ -164,6 +161,9 @@ class DataSourceConfigDrive(openstack.SourceMixin, sources.DataSource):
 
     @property
     def network_config(self):
+        if self._network_config is None:
+            if self.network_json is not None:
+                self._network_config = convert_network_data(self.network_json)
         return self._network_config
 
 

@@ -349,6 +349,20 @@ def iface_add_attrs(iface):
 
 
 def render_route(route, indent=""):
+    """ When rendering routes for an iface, in some cases applying a route
+    may result in the route command returning non-zero which produces
+    some confusing output for users manually using ifup/ifdown[1].  To
+    that end, we will optionally include an '|| true' postfix to each
+    route line allowing users to work with ifup/ifdown without using
+    --force option.
+
+    We may at somepoint not want to emit this additional postfix, and
+    add a 'strict' flag to this function.  When called with strict=True,
+    then we will not append the postfix.
+
+    1. http://askubuntu.com/questions/168033/
+             how-to-set-static-routes-in-ubuntu-server
+    """
     content = ""
     up = indent + "post-up route add"
     down = indent + "pre-down route del"
