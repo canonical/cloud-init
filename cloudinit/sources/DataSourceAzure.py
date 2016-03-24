@@ -254,7 +254,7 @@ class DataSourceAzureNet(sources.DataSource):
     def get_config_obj(self):
         return self.cfg
 
-    def check_instance_id(self):
+    def check_instance_id(self, sys_cfg):
         # quickly (local check only) if self.instance_id is still valid
         return sources.instance_id_matches_system_uuid(self.get_instance_id())
 

@@ -217,7 +217,7 @@ class DataSource(object):
     def get_package_mirror_info(self):
         return self.distro.get_package_mirror_info(data_source=self)
 
-    def check_instance_id(self):
+    def check_instance_id(self, sys_cfg):
         # quickly (local check only) if self.instance_id is still
         return False
 

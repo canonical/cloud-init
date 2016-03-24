@@ -150,7 +150,7 @@ class DataSourceOpenStack(openstack.SourceMixin, sources.DataSource):
 
         return True
 
-    def check_instance_id(self):
+    def check_instance_id(self, sys_cfg):
         # quickly (local check only) if self.instance_id is still valid
         return sources.instance_id_matches_system_uuid(self.get_instance_id())
 

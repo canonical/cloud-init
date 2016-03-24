@@ -209,13 +209,14 @@ class DataSourceNoCloud(sources.DataSource):
                   mydata['meta-data']['dsmode'])
         return False
 
-    def check_instance_id(self):
+    def check_instance_id(self, sys_cfg):
         # quickly (local check only) if self.instance_id is still valid
         # we check kernel command line or files.
         current = self.get_instance_id()
         if not current:
             return None
 
+        LOG.info("Hi, I got some system config: %s", sys_cfg)
         quick_id = _quick_read_instance_id(cmdline_id=self.cmdline_id,
                                            dirs=self.seed_dirs)
         if not quick_id:

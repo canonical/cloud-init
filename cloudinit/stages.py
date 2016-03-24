@@ -223,7 +223,8 @@ class Init(object):
             if ds and existing == "trust":
                 myrep.description = "restored from cache: %s" % ds
             elif ds and existing == "check":
-                if hasattr(ds, 'check_instance_id') and ds.check_instance_id():
+                if (hasattr(ds, 'check_instance_id') and
+                        ds.check_instance_id(self.cfg)):
                     myrep.description = "restored from checked cache: %s" % ds
                 else:
                     myrep.description = "cache invalid in datasource: %s" % ds
