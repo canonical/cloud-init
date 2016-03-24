@@ -216,7 +216,6 @@ class DataSourceNoCloud(sources.DataSource):
         if not current:
             return None
 
-        LOG.info("Hi, I got some system config: %s", sys_cfg)
         quick_id = _quick_read_instance_id(cmdline_id=self.cmdline_id,
                                            dirs=self.seed_dirs)
         if not quick_id:
