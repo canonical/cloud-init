@@ -80,6 +80,8 @@ CONTAINER_TESTS = (['systemd-detect-virt', '--quiet', '--container'],
                    ['running-in-container'],
                    ['lxc-is-container'])
 
+PROC_CMDLINE = None
+
 
 def decode_binary(blob, encoding='utf-8'):
     # Converts a binary type into a text type using given encoding.
@@ -1191,12 +1193,27 @@ def load_file(fname, read_cb=None, quiet=False, decode=True):
 
 def get_cmdline():
     if 'DEBUG_PROC_CMDLINE' in os.environ:
-        cmdline = os.environ["DEBUG_PROC_CMDLINE"]
+        return os.environ["DEBUG_PROC_CMDLINE"]
+
+    global PROC_CMDLINE
+    if PROC_CMDLINE is not None:
+        return PROC_CMDLINE
+
+    if is_container():
+        try:
+            contents = load_file("/proc/1/cmdline")
+            # replace nulls with space and drop trailing null
+            cmdline = contents.replace("\x00", " ")[:-1]
+        except Exception as e:
+            LOG.warn("failed reading /proc/1/cmdline: %s", e)
+            cmdline = ""
     else:
         try:
             cmdline = load_file("/proc/cmdline").strip()
         except:
             cmdline = ""
+
+    PROC_CMDLINE = cmdline
     return cmdline
 
 
@@ -1569,7 +1586,7 @@ def uptime():
     try:
         if os.path.exists("/proc/uptime"):
             method = '/proc/uptime'
-            contents = load_file("/proc/uptime").strip()
+            contents = load_file("/proc/uptime")
             if contents:
                 uptime_str = contents.split()[0]
         else:

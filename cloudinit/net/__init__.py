@@ -16,10 +16,14 @@
 #   You should have received a copy of the GNU Affero General Public License
 #   along with Curtin.  If not, see <http://www.gnu.org/licenses/>.
 
+import base64
 import errno
 import glob
+import gzip
+import io
 import os
 import re
+import shlex
 
 from cloudinit import log as logging
 from cloudinit import util
@@ -283,6 +287,118 @@ def parse_net_config(path):
     return ns
 
 
+def _load_shell_content(content, add_empty=False, empty_val=None):
+    """Given shell like syntax (key=value\nkey2=value2\n) in content
+       return the data in dictionary form.  If 'add_empty' is True
+       then add entries in to the returned dictionary for 'VAR='
+       variables.  Set their value to empty_val."""
+    data = {}
+    for line in shlex.split(content):
+        key, value = line.split("=", 1)
+        if not value:
+            value = empty_val
+        if add_empty or value:
+            data[key] = value
+
+    return data
+
+
+def _klibc_to_config_entry(content, mac_addrs=None):
+    """Convert a klibc writtent shell content file to a 'config' entry
+    When ip= is seen on the kernel command line in debian initramfs
+    and networking is brought up, ipconfig will populate 
+    /run/net-<name>.cfg.
+
+    The files are shell style syntax, and examples are in the tests
+    provided here.  There is no good documentation on this unfortunately.
+
+    DEVICE=<name> is expected/required and PROTO should indicate if
+    this is 'static' or 'dhcp'.
+    """
+    
+  
+    if mac_addrs is None:
+        mac_addrs = {}
+
+    data = _load_shell_content(content)
+    try:
+        name = data['DEVICE']
+    except KeyError:
+        raise ValueError("no 'DEVICE' entry in data")
+
+    # ipconfig on precise does not write PROTO
+    proto = data.get('PROTO')
+    if not proto:
+        if data.get('filename'):
+            proto = 'dhcp'
+        else:
+            proto = 'static'
+
+    if proto not in ('static', 'dhcp'):
+        raise ValueError("Unexpected value for PROTO: %s" % proto)
+
+    iface = {
+        'type': 'physical',
+        'name': name,
+        'subnets': [],
+    }
+
+    if name in mac_addrs:
+        iface['mac_address'] = mac_addrs[name]
+
+    # originally believed there might be IPV6* values
+    for v, pre in (('ipv4', 'IPV4'),):
+        # if no IPV4ADDR or IPV6ADDR, then go on.
+        if pre + "ADDR" not in data:
+            continue
+        subnet = {'type': proto}
+
+        # these fields go right on the subnet
+        for key in ('NETMASK', 'BROADCAST', 'GATEWAY'):
+            if pre + key in data:
+                subnet[key.lower()] = data[pre + key]
+
+        dns = []
+        # handle IPV4DNS0 or IPV6DNS0
+        for nskey in ('DNS0', 'DNS1'):
+            ns = data.get(pre + nskey)
+            # verify it has something other than 0.0.0.0 (or ipv6)
+            if ns and len(ns.strip(":.0")):
+                dns.append(data[pre + nskey])
+        if dns:
+            subnet['dns_nameservers'] = dns
+            # add search to both ipv4 and ipv6, as it has no namespace
+            search = data.get('DOMAINSEARCH')
+            if search:
+                if ',' in search:
+                    subnet['dns_search'] = search.split(",")
+                else:
+                    subnet['dns_search'] = search.split()
+
+        iface['subnets'].append(subnet)
+
+    return name, iface
+
+
+def config_from_klibc_net_cfg(files=None, mac_addrs=None):
+    if files is None:
+        files = glob.glob('/run/net*.conf')
+
+    entries = []
+    names = {}
+    for cfg_file in files:
+        name, entry = _klibc_to_config_entry(util.load_file(cfg_file),
+                                             mac_addrs=mac_addrs)
+        if name in names:
+            raise ValueError(
+                "device '%s' defined multiple times: %s and %s" % (
+                    name, names[name], cfg_file))
+
+        names[name] = cfg_file
+        entries.append(entry)
+    return {'config': entries, 'version': 1}
+
+
 def render_persistent_net(network_state):
     ''' Given state, emit udev rules to map
         mac to ifname
@@ -502,6 +618,20 @@ def is_disabled_cfg(cfg):
     return cfg.get('config') == "disabled"
 
 
+def sys_netdev_info(name, field):
+    if not os.path.exists(os.path.join(SYS_CLASS_NET, name)):
+        raise OSError("%s: interface does not exist in %s" %
+                      (name, SYS_CLASS_NET))
+
+    fname = os.path.join(SYS_CLASS_NET, name, field)
+    if not os.path.exists(fname):
+        raise OSError("%s: could not find sysfs entry: %s" % (name, fname))
+    data = util.load_file(fname)
+    if data[-1] == '\n':
+        data = data[:-1]
+    return data
+
+
 def generate_fallback_config():
     """Determine which attached net dev is most likely to have a connection and
        generate network state to run dhcp on that interface"""
@@ -510,7 +640,7 @@ def generate_fallback_config():
 
     # get list of interfaces that could have connections
     invalid_interfaces = set(['lo'])
-    potential_interfaces = set(os.listdir(SYS_CLASS_NET))
+    potential_interfaces = set(get_devicelist())
     potential_interfaces = potential_interfaces.difference(invalid_interfaces)
     # sort into interfaces with carrier, interfaces which could have carrier,
     # and ignore interfaces that are definitely disconnected
@@ -518,8 +648,7 @@ def generate_fallback_config():
     possibly_connected = []
     for interface in potential_interfaces:
         try:
-            sysfs_carrier = os.path.join(SYS_CLASS_NET, interface, 'carrier')
-            carrier = int(util.load_file(sysfs_carrier).strip())
+            carrier = int(sys_netdev_info(interface, 'carrier'))
             if carrier:
                 connected.append(interface)
                 continue
@@ -529,17 +658,14 @@ def generate_fallback_config():
         # not have a carrier even though it could acquire one when brought
         # online by dhclient
         try:
-            sysfs_dormant = os.path.join(SYS_CLASS_NET, interface, 'dormant')
-            dormant = int(util.load_file(sysfs_dormant).strip())
+            dormant = int(sys_netdev_info(interface, 'dormant'))
             if dormant:
                 possibly_connected.append(interface)
                 continue
         except OSError:
             pass
         try:
-            sysfs_operstate = os.path.join(SYS_CLASS_NET, interface,
-                                           'operstate')
-            operstate = util.load_file(sysfs_operstate).strip()
+            operstate = sys_netdev_info(interface, 'operstate')
             if operstate in ['dormant', 'down', 'lowerlayerdown', 'unknown']:
                 possibly_connected.append(interface)
                 continue
@@ -562,19 +688,65 @@ def generate_fallback_config():
     else:
         name = sorted(potential_interfaces)[0]
 
-    sysfs_mac = os.path.join(SYS_CLASS_NET, name, 'address')
-    mac = util.load_file(sysfs_mac).strip()
+    mac = sys_netdev_info(name, 'address')
     target_name = name
 
     nconf['config'].append(
         {'type': 'physical', 'name': target_name,
-         'mac_address': mac, 'subnets': [{'type': 'dhcp4'}]})
+         'mac_address': mac, 'subnets': [{'type': 'dhcp'}]})
     return nconf
 
 
-def read_kernel_cmdline_config():
-    # FIXME: add implementation here
-    return None
+def _decomp_gzip(blob, strict=True):
+    # decompress blob. raise exception if not compressed unless strict=False.
+    with io.BytesIO(blob) as iobuf:
+        gzfp = None
+        try:
+            gzfp = gzip.GzipFile(mode="rb", fileobj=iobuf)
+            return gzfp.read()
+        except IOError:
+            if strict:
+                raise
+            return blob
+        finally:
+            if gzfp:
+                gzfp.close()
+
+
+def _b64dgz(b64str, gzipped="try"):
+    # decode a base64 string.  If gzipped is true, transparently uncompresss
+    # if gzipped is 'try', then try gunzip, returning the original on fail.
+    try:
+        blob = base64.b64decode(b64str)
+    except TypeError:
+        raise ValueError("Invalid base64 text: %s" % b64str)
+
+    if not gzipped:
+        return blob
+
+    return _decomp_gzip(blob, strict=gzipped != "try")
+
+
+def read_kernel_cmdline_config(files=None, mac_addrs=None, cmdline=None):
+    if cmdline is None:
+        cmdline = util.get_cmdline()
+
+    if 'network-config=' in cmdline:
+        data64 = None
+        for tok in cmdline.split():
+            if tok.startswith("network-config="):
+                data64 = tok.split("=", 1)[1]
+        if data64:
+            return util.load_yaml(_b64dgz(data64))
+
+    if 'ip=' not in cmdline:
+        return None
+
+    if mac_addrs is None:
+        mac_addrs = {k: sys_netdev_info(k, 'address')
+                     for k in get_devicelist()}
+
+    return config_from_klibc_net_cfg(files=files, mac_addrs=mac_addrs)
 
 
 # vi: ts=4 expandtab syntax=python
