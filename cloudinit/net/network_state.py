@@ -124,6 +124,17 @@ class NetworkState:
         iface = interfaces.get(command['name'], {})
         for param, val in command.get('params', {}).items():
             iface.update({param: val})
+
+        # convert subnet ipv6 netmask to cidr as needed
+        subnets = command.get('subnets')
+        if subnets:
+            for subnet in subnets:
+                if subnet['type'] == 'static':
+                    if 'netmask' in subnet and ':' in subnet['address']:
+                        subnet['netmask'] = mask2cidr(subnet['netmask'])
+                        for route in subnet.get('routes', []):
+                            if 'netmask' in route:
+                                route['netmask'] = mask2cidr(route['netmask'])
         iface.update({
             'name': command.get('name'),
             'type': command.get('type'),
@@ -133,7 +144,7 @@ class NetworkState:
             'mtu': command.get('mtu'),
             'address': None,
             'gateway': None,
-            'subnets': command.get('subnets'),
+            'subnets': subnets,
         })
         self.network_state['interfaces'].update({command.get('name'): iface})
         self.dump_network_state()
@@ -144,6 +155,7 @@ class NetworkState:
             iface eth0.222 inet static
                     address 10.10.10.1
                     netmask 255.255.255.0
+                    hwaddress ether BC:76:4E:06:96:B3
                     vlan-raw-device eth0
         '''
         required_keys = [
@@ -333,6 +345,37 @@ def cidr2mask(cidr):
         idx = int(i / 8)
         mask[idx] = mask[idx] + (1 << (7 - i % 8))
     return ".".join([str(x) for x in mask])
+
+
+def ipv4mask2cidr(mask):
+    if '.' not in mask:
+        return mask
+    return sum([bin(int(x)).count('1') for x in mask.split('.')])
+
+
+def ipv6mask2cidr(mask):
+    if ':' not in mask:
+        return mask
+
+    bitCount = [0, 0x8000, 0xc000, 0xe000, 0xf000, 0xf800, 0xfc00, 0xfe00,
+                0xff00, 0xff80, 0xffc0, 0xffe0, 0xfff0, 0xfff8, 0xfffc,
+                0xfffe, 0xffff]
+    cidr = 0
+    for word in mask.split(':'):
+        if not word or int(word, 16) == 0:
+            break
+        cidr += bitCount.index(int(word, 16))
+
+    return cidr
+
+
+def mask2cidr(mask):
+    if ':' in mask:
+        return ipv6mask2cidr(mask)
+    elif '.' in mask:
+        return ipv4mask2cidr(mask)
+    else:
+        return mask
 
 
 if __name__ == '__main__':
