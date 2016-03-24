@@ -382,8 +382,8 @@ def convert_network_data(network_json=None):
                 })
             else:
                 subnet.update({
-                   'type': 'static',
-                   'address': network.get('ip_address'),
+                    'type': 'static',
+                    'address': network.get('ip_address'),
                 })
             subnets.append(subnet)
         cfg.update({'subnets': subnets})
@@ -412,7 +412,7 @@ def convert_network_data(network_json=None):
             })
         else:
             raise ValueError(
-                    'Unknown network_data link type: %s' % link['type'])
+                'Unknown network_data link type: %s' % link['type'])
 
         config.append(cfg)
 
