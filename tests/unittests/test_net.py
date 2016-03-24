@@ -1,7 +1,12 @@
 from cloudinit import util
 from cloudinit import net
 from .helpers import TestCase
+
+import base64
 import copy
+import io
+import gzip
+import json
 import os
 
 DHCP_CONTENT_1 = """
@@ -62,6 +67,11 @@ STATIC_EXPECTED_1 = {
 
 
 class TestNetConfigParsing(TestCase):
+    simple_cfg = {
+        'config': [{"type": "physical", "name": "eth0",
+                    "mac_address": "c0:d6:9f:2c:e8:80",
+                    "subnets": [{"type": "dhcp4"}]}]}
+
     def test_klibc_convert_dhcp(self):
         found = net._klibc_to_config_entry(DHCP_CONTENT_1)
         self.assertEqual(found, ('eth0', DHCP_EXPECTED_1))
@@ -93,3 +103,25 @@ class TestNetConfigParsing(TestCase):
 
             found = net.config_from_klibc_net_cfg(files=files, mac_addrs=macs)
             self.assertEqual(found, expected)
+
+    def test_cmdline_with_b64(self):
+        data = base64.b64encode(json.dumps(self.simple_cfg).encode())
+        encoded_text = data.decode()
+        cmdline = 'ro network-config=' + encoded_text + ' root=foo'
+        found = net.read_kernel_cmdline_config(cmdline=cmdline)
+        self.assertEqual(found, self.simple_cfg)
+
+    def test_cmdline_with_b64_gz(self):
+        data = _gzip_data(json.dumps(self.simple_cfg).encode())
+        encoded_text = base64.b64encode(data).decode()
+        cmdline = 'ro network-config=' + encoded_text + ' root=foo'
+        found = net.read_kernel_cmdline_config(cmdline=cmdline)
+        self.assertEqual(found, self.simple_cfg)
+
+
+def _gzip_data(data):
+    with io.BytesIO() as iobuf:
+        gzfp = gzip.GzipFile(mode="wb", fileobj=iobuf)
+        gzfp.write(data)
+        gzfp.close()
+        return iobuf.getvalue()

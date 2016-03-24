@@ -19,6 +19,8 @@
 import base64
 import errno
 import glob
+import gzip
+import io
 import os
 import re
 import shlex
@@ -647,6 +649,36 @@ def generate_fallback_config():
     return nconf
 
 
+def _decomp_gzip(blob, strict=True):
+    # decompress blob. raise exception if not compressed unless strict=False.
+    with io.BytesIO(blob) as iobuf:
+        gzfp = None
+        try:
+            gzfp = gzip.GzipFile(mode="rb", fileobj=iobuf)
+            return gzfp.read()
+        except IOError:
+            if strict:
+                raise
+            return blob
+        finally:
+            if gzfp:
+                gzfp.close()
+
+
+def _b64dgz(b64str, gzipped="try"):
+    # decode a base64 string.  If gzipped is true, transparently uncompresss
+    # if gzipped is 'try', then try gunzip, returning the original on fail.
+    try:
+        blob = base64.b64decode(b64str)
+    except TypeError:
+        raise ValueError("Invalid base64 text: %s" % b64str)
+
+    if not gzipped:
+        return blob
+
+    return _decomp_gzip(blob, strict=gzipped != "try")
+
+
 def read_kernel_cmdline_config(files=None, mac_addrs=None, cmdline=None):
     if cmdline is None:
         cmdline = util.get_cmdline()
@@ -657,7 +689,7 @@ def read_kernel_cmdline_config(files=None, mac_addrs=None, cmdline=None):
             if tok.startswith("network-config="):
                 data64 = tok.split("=", 1)[1]
         if data64:
-            return util.load_yaml(base64.b64decode(data64))
+            return util.load_yaml(_b64dgz(data64))
 
     if 'ip=' not in cmdline:
         return None
