@@ -70,7 +70,7 @@ class TestNetConfigParsing(TestCase):
     simple_cfg = {
         'config': [{"type": "physical", "name": "eth0",
                     "mac_address": "c0:d6:9f:2c:e8:80",
-                    "subnets": [{"type": "dhcp4"}]}]}
+                    "subnets": [{"type": "dhcp"}]}]}
 
     def test_klibc_convert_dhcp(self):
         found = net._klibc_to_config_entry(DHCP_CONTENT_1)

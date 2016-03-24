@@ -304,6 +304,19 @@ def _load_shell_content(content, add_empty=False, empty_val=None):
 
 
 def _klibc_to_config_entry(content, mac_addrs=None):
+    """Convert a klibc writtent shell content file to a 'config' entry
+    When ip= is seen on the kernel command line in debian initramfs
+    and networking is brought up, ipconfig will populate 
+    /run/net-<name>.cfg.
+
+    The files are shell style syntax, and examples are in the tests
+    provided here.  There is no good documentation on this unfortunately.
+
+    DEVICE=<name> is expected/required and PROTO should indicate if
+    this is 'static' or 'dhcp'.
+    """
+    
+  
     if mac_addrs is None:
         mac_addrs = {}
 
@@ -575,11 +588,12 @@ def is_disabled_cfg(cfg):
 
 def sys_netdev_info(name, field):
     if not os.path.exists(os.path.join(SYS_CLASS_NET, name)):
-        raise OSError("%s: interface does not exist in /sys" % name)
+        raise OSError("%s: interface does not exist in %s" %
+                      (name, SYS_CLASS_NET))
 
     fname = os.path.join(SYS_CLASS_NET, name, field)
     if not os.path.exists(fname):
-        raise OSError("%s: %s does not exist in /sys" % (name, fname))
+        raise OSError("%s: could not find sysfs entry: %s" % (name, fname))
     data = util.load_file(fname)
     if data[-1] == '\n':
         data = data[:-1]
@@ -647,7 +661,7 @@ def generate_fallback_config():
 
     nconf['config'].append(
         {'type': 'physical', 'name': target_name,
-         'mac_address': mac, 'subnets': [{'type': 'dhcp4'}]})
+         'mac_address': mac, 'subnets': [{'type': 'dhcp'}]})
     return nconf
 
 
