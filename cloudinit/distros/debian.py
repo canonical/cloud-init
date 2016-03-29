@@ -82,7 +82,8 @@ class Distro(distros.Distro):
         ns = net.parse_net_config_data(netconfig)
         net.render_network_state(target="/", network_state=ns,
                                  eni=self.network_conf_fn,
-                                 links_prefix=self.links_prefix)
+                                 links_prefix=self.links_prefix,
+                                 netrules=None)
         util.del_file("/etc/network/interfaces.d/eth0.cfg")
         return []
 
