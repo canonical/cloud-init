@@ -259,6 +259,7 @@ def main_init(name, args):
             util.logexc(LOG, ("No instance datasource found!"
                               " Likely bad things to come!"))
         if not args.force:
+            init.apply_network_config()
             if args.local:
                 return (None, [])
             else:
