@@ -91,6 +91,10 @@ class DataSourceOVF(sources.DataSource):
                     deployPkgPluginPath = search_file("/usr/lib/open-vm-tools",
                                                       "libdeployPkgPlugin.so")
                 if deployPkgPluginPath:
+                    # When the VM is powered on, the "VMware Tools" daemon
+                    # copies the customization specification file to
+                    # /var/run/vmware-imc directory. cloud-init code needs
+                    # to search for the file in that directory.
                     vmwareImcConfigFilePath = util.log_time(
                         logfunc=LOG.debug,
                         msg="waiting for configuration file",
