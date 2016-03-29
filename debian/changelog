@@ -1,3 +1,17 @@
+cloud-init (0.7.7~bzr1192-0ubuntu1) xenial; urgency=medium
+
+  * New upstream snapshot.
+    - Misc fixes for VMware Support.
+    - network config improvements:
+      - do not raise exception on non-debian if network config is found.
+      - apply network config in 'cloud-init --local' even if there is
+        no datasource found.
+      - do not write 70-persistent-net.rules only systemd .link files.
+    - improve how cloud-init-wait waits: remove the check and sleep
+      loop and replace it with 'udevadm settle'.
+
+ -- Scott Moser <smoser@ubuntu.com>  Tue, 29 Mar 2016 16:34:25 -0400
+
 cloud-init (0.7.7~bzr1189-0ubuntu1) xenial; urgency=medium
 
   * d/control: adjust build dependency as python3-pyflakes in xenial
