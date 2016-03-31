@@ -362,15 +362,18 @@ class Distro(object):
 
         redact_opts = ['passwd']
 
+        # support kwargs having groups=[list] or groups="g1,g2"
         groups = kwargs.get('groups')
         if groups:
             if isinstance(groups, (list, tuple)):
+                # kwargs.items loop below wants a comma delimeted string
+                # that can go right through to the command.
                 kwargs['groups'] = ",".join(groups)
             else:
                 groups = groups.split(",")
 
-        if create_groups:
-            for group in kwargs.get('groups').split(","):
+        if create_groups and groups:
+            for group in groups:
                 if not util.is_group(group):
                     self.create_group(group)
                     LOG.debug("created group %s for user %s", name, group)
