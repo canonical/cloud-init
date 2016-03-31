@@ -203,7 +203,7 @@ cleanup_lp1552999() {
 
 disable_network_config_on_upgrade() {
     local oldver="$1" last_without_net="0.7.7~bzr1182-0ubuntu1"
-    if ! -f /var/lib/cloud/instance/obj.pkl ; then
+    if [ ! -f /var/lib/cloud/instance/obj.pkl ]; then
         # this is a fresh system not one that has been booted.
         return 0
     fi

@@ -1,3 +1,10 @@
+cloud-init (0.7.7~bzr1192-0ubuntu2) xenial; urgency=medium
+
+  [Logan Rosen]
+  * debian/cloud-init.postinst: fix shell syntax in upgrade (LP: #1564187)
+
+ -- Scott Moser <smoser@ubuntu.com>  Thu, 31 Mar 2016 10:09:09 -0400
+
 cloud-init (0.7.7~bzr1192-0ubuntu1) xenial; urgency=medium
 
   * New upstream snapshot.
