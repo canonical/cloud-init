@@ -98,6 +98,7 @@
    device naming via systemd.link.
  - FreeBSD: add support for installing packages, setting password and
    timezone.  Change default user to 'freebsd'. [Ben Arblaster]
+ - locale: list unsupported environment settings in warning (LP: #1558069)
 
 0.7.6:
  - open 0.7.6
