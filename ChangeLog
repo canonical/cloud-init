@@ -96,6 +96,8 @@
    avoid dependency on network metadata service on every boot (LP: #1553815)
  - support network configuration in cloud-init --local with support
    device naming via systemd.link.
+ - FreeBSD: add support for installing packages, setting password and
+   timezone.  Change default user to 'freebsd'. [Ben Arblaster]
 
 0.7.6:
  - open 0.7.6
