@@ -61,7 +61,7 @@ class Filter(object):
                     discarded += 1
             LOG.debug(("Discarding %s multipart messages "
                        "which do not match launch index %s"),
-                       discarded, self.wanted_idx)
+                      discarded, self.wanted_idx)
             new_message = copy.copy(message)
             new_message.set_payload(new_msgs)
             new_message[ud.ATTACHMENT_FIELD] = str(len(new_msgs))

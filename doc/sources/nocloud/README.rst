@@ -3,7 +3,7 @@ and meta-data to the instance without running a network service (or even without
 having a network at all).
 
 You can provide meta-data and user-data to a local vm boot via files on a `vfat`_
-or `iso9660`_ filesystem.  
+or `iso9660`_ filesystem. The filesystem volume label must be ``cidata``.
 
 These user-data and meta-data files are expected to be
 in the following format.

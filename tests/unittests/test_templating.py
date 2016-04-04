@@ -16,10 +16,19 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+from __future__ import print_function
+
 from . import helpers as test_helpers
 import textwrap
 
 from cloudinit import templater
+
+try:
+    import Cheetah
+    HAS_CHEETAH = True
+    Cheetah  # make pyflakes happy, as Cheetah is not used here
+except ImportError:
+    HAS_CHEETAH = False
 
 
 class TestTemplates(test_helpers.TestCase):
@@ -38,6 +47,7 @@ class TestTemplates(test_helpers.TestCase):
         out_data = templater.basic_render(in_data, {'b': 2})
         self.assertEqual(expected_data.strip(), out_data)
 
+    @test_helpers.skipIf(not HAS_CHEETAH, 'cheetah renderer not available')
     def test_detection(self):
         blob = "## template:cheetah"
 
@@ -104,5 +114,6 @@ $a,$b'''
                                                                codename)
 
         out_data = templater.basic_render(in_data,
-            {'mirror': mirror, 'codename': codename})
+                                          {'mirror': mirror,
+                                           'codename': codename})
         self.assertEqual(ex_data, out_data)

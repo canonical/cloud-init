@@ -15,11 +15,10 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import httpretty
 import re
 
 from base64 import b64encode, b64decode
-from urlparse import urlparse
+from six.moves.urllib_parse import urlparse
 
 from cloudinit import settings
 from cloudinit import helpers
@@ -27,12 +26,14 @@ from cloudinit.sources import DataSourceGCE
 
 from .. import helpers as test_helpers
 
+httpretty = test_helpers.import_httpretty()
+
 GCE_META = {
     'instance/id': '123',
     'instance/zone': 'foo/bar',
     'project/attributes/sshKeys': 'user:ssh-rsa AA2..+aRD0fyVw== root@server',
     'instance/hostname': 'server.project-foo.local',
-    'instance/attributes/user-data': '/bin/echo foo\n',
+    'instance/attributes/user-data': b'/bin/echo foo\n',
 }
 
 GCE_META_PARTIAL = {
@@ -45,7 +46,7 @@ GCE_META_ENCODING = {
     'instance/id': '12345',
     'instance/hostname': 'server.project-baz.local',
     'instance/zone': 'baz/bang',
-    'instance/attributes/user-data': b64encode('/bin/echo baz\n'),
+    'instance/attributes/user-data': b64encode(b'/bin/echo baz\n'),
     'instance/attributes/user-data-encoding': 'base64',
 }
 
@@ -54,8 +55,8 @@ MD_URL_RE = re.compile(
     r'http://metadata.google.internal./computeMetadata/v1/.*')
 
 
-def _new_request_callback(gce_meta=None):
-    if not gce_meta:
+def _set_mock_metadata(gce_meta=None):
+    if gce_meta is None:
         gce_meta = GCE_META
 
     def _request_callback(method, uri, headers):
@@ -69,9 +70,10 @@ def _new_request_callback(gce_meta=None):
         else:
             return (404, headers, '')
 
-    return _request_callback
+    httpretty.register_uri(httpretty.GET, MD_URL_RE, body=_request_callback)
 
 
+@httpretty.activate
 class TestDataSourceGCE(test_helpers.HttprettyTestCase):
 
     def setUp(self):
@@ -80,23 +82,16 @@ class TestDataSourceGCE(test_helpers.HttprettyTestCase):
             helpers.Paths({}))
         super(TestDataSourceGCE, self).setUp()
 
-    @httpretty.activate
     def test_connection(self):
-        httpretty.register_uri(
-            httpretty.GET, MD_URL_RE,
-            body=_new_request_callback())
-
+        _set_mock_metadata()
         success = self.ds.get_data()
         self.assertTrue(success)
 
         req_header = httpretty.last_request().headers
         self.assertDictContainsSubset(HEADERS, req_header)
 
-    @httpretty.activate
     def test_metadata(self):
-        httpretty.register_uri(
-            httpretty.GET, MD_URL_RE,
-            body=_new_request_callback())
+        _set_mock_metadata()
         self.ds.get_data()
 
         shostname = GCE_META.get('instance/hostname').split('.')[0]
@@ -106,22 +101,12 @@ class TestDataSourceGCE(test_helpers.HttprettyTestCase):
         self.assertEqual(GCE_META.get('instance/id'),
                          self.ds.get_instance_id())
 
-        self.assertEqual(GCE_META.get('instance/zone'),
-                         self.ds.availability_zone)
-
         self.assertEqual(GCE_META.get('instance/attributes/user-data'),
                          self.ds.get_userdata_raw())
 
-        # we expect a list of public ssh keys with user names stripped
-        self.assertEqual(['ssh-rsa AA2..+aRD0fyVw== root@server'],
-                         self.ds.get_public_ssh_keys())
-
     # test partial metadata (missing user-data in particular)
-    @httpretty.activate
     def test_metadata_partial(self):
-        httpretty.register_uri(
-            httpretty.GET, MD_URL_RE,
-            body=_new_request_callback(GCE_META_PARTIAL))
+        _set_mock_metadata(GCE_META_PARTIAL)
         self.ds.get_data()
 
         self.assertEqual(GCE_META_PARTIAL.get('instance/id'),
@@ -130,13 +115,52 @@ class TestDataSourceGCE(test_helpers.HttprettyTestCase):
         shostname = GCE_META_PARTIAL.get('instance/hostname').split('.')[0]
         self.assertEqual(shostname, self.ds.get_hostname())
 
-    @httpretty.activate
     def test_metadata_encoding(self):
-        httpretty.register_uri(
-            httpretty.GET, MD_URL_RE,
-            body=_new_request_callback(GCE_META_ENCODING))
+        _set_mock_metadata(GCE_META_ENCODING)
         self.ds.get_data()
 
         decoded = b64decode(
             GCE_META_ENCODING.get('instance/attributes/user-data'))
         self.assertEqual(decoded, self.ds.get_userdata_raw())
+
+    def test_missing_required_keys_return_false(self):
+        for required_key in ['instance/id', 'instance/zone',
+                             'instance/hostname']:
+            meta = GCE_META_PARTIAL.copy()
+            del meta[required_key]
+            _set_mock_metadata(meta)
+            self.assertEqual(False, self.ds.get_data())
+            httpretty.reset()
+
+    def test_project_level_ssh_keys_are_used(self):
+        _set_mock_metadata()
+        self.ds.get_data()
+
+        # we expect a list of public ssh keys with user names stripped
+        self.assertEqual(['ssh-rsa AA2..+aRD0fyVw== root@server'],
+                         self.ds.get_public_ssh_keys())
+
+    def test_instance_level_ssh_keys_are_used(self):
+        key_content = 'ssh-rsa JustAUser root@server'
+        meta = GCE_META.copy()
+        meta['instance/attributes/sshKeys'] = 'user:{0}'.format(key_content)
+
+        _set_mock_metadata(meta)
+        self.ds.get_data()
+
+        self.assertIn(key_content, self.ds.get_public_ssh_keys())
+
+    def test_instance_level_keys_replace_project_level_keys(self):
+        key_content = 'ssh-rsa JustAUser root@server'
+        meta = GCE_META.copy()
+        meta['instance/attributes/sshKeys'] = 'user:{0}'.format(key_content)
+
+        _set_mock_metadata(meta)
+        self.ds.get_data()
+
+        self.assertEqual([key_content], self.ds.get_public_ssh_keys())
+
+    def test_only_last_part_of_zone_used_for_availability_zone(self):
+        _set_mock_metadata()
+        self.ds.get_data()
+        self.assertEqual('bar', self.ds.availability_zone)

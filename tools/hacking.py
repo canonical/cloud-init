@@ -47,10 +47,10 @@ def import_normalize(line):
     # handle "from x import y as z" to "import x.y as z"
     split_line = line.split()
     if (line.startswith("from ") and "," not in line and
-           split_line[2] == "import" and split_line[3] != "*" and
-           split_line[1] != "__future__" and
-           (len(split_line) == 4 or
-           (len(split_line) == 6 and split_line[4] == "as"))):
+       split_line[2] == "import" and split_line[3] != "*" and
+       split_line[1] != "__future__" and
+       (len(split_line) == 4 or (len(split_line) == 6 and
+                                 split_line[4] == "as"))):
         return "import %s.%s" % (split_line[1], split_line[3])
     else:
         return line
@@ -74,7 +74,7 @@ def cloud_import_alphabetical(physical_line, line_number, lines):
             split_line[0] == "import" and split_previous[0] == "import"):
         if split_line[1] < split_previous[1]:
             return (0, "N306: imports not in alphabetical order (%s, %s)"
-                % (split_previous[1], split_line[1]))
+                    % (split_previous[1], split_line[1]))
 
 
 def cloud_docstring_start_space(physical_line):
@@ -87,8 +87,8 @@ def cloud_docstring_start_space(physical_line):
     pos = max([physical_line.find(i) for i in DOCSTRING_TRIPLE])  # start
     if (pos != -1 and len(physical_line) > pos + 1):
         if (physical_line[pos + 3] == ' '):
-            return (pos, "N401: one line docstring should not start with"
-                " a space")
+            return (pos,
+                    "N401: one line docstring should not start with a space")
 
 
 def cloud_todo_format(physical_line):
@@ -128,7 +128,7 @@ def cloud_docstring_multiline_end(physical_line):
     """
     pos = max([physical_line.find(i) for i in DOCSTRING_TRIPLE])  # start
     if (pos != -1 and len(physical_line) == pos):
-        print physical_line
+        print(physical_line)
         if (physical_line[pos + 3] == ' '):
             return (pos, "N403: multi line docstring end on new line")
 
@@ -167,4 +167,4 @@ if __name__ == "__main__":
     finally:
         if len(_missingImport) > 0:
             print >> sys.stderr, ("%i imports missing in this test environment"
-                    % len(_missingImport))
+                                  % len(_missingImport))

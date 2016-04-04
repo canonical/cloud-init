@@ -23,6 +23,8 @@
 import abc
 import os
 
+import six
+
 from cloudinit import importer
 from cloudinit import log as logging
 from cloudinit import type_utils
@@ -30,6 +32,7 @@ from cloudinit import user_data as ud
 from cloudinit import util
 
 from cloudinit.filters import launch_index
+from cloudinit.reporting import events
 
 DEP_FILESYSTEM = "FILESYSTEM"
 DEP_NETWORK = "NETWORK"
@@ -130,7 +133,7 @@ class DataSource(object):
         # we want to return the correct value for what will actually
         # exist in this instance
         mappings = {"sd": ("vd", "xvd", "vtb")}
-        for (nfrom, tlist) in mappings.iteritems():
+        for (nfrom, tlist) in mappings.items():
             if not short_name.startswith(nfrom):
                 continue
             for nto in tlist:
@@ -154,6 +157,10 @@ class DataSource(object):
     def availability_zone(self):
         return self.metadata.get('availability-zone',
                                  self.metadata.get('availability_zone'))
+
+    @property
+    def region(self):
+        return self.metadata.get('region')
 
     def get_instance_id(self):
         if not self.metadata or 'instance-id' not in self.metadata:
@@ -208,8 +215,15 @@ class DataSource(object):
             return hostname
 
     def get_package_mirror_info(self):
-        return self.distro.get_package_mirror_info(
-            availability_zone=self.availability_zone)
+        return self.distro.get_package_mirror_info(data_source=self)
+
+    def check_instance_id(self, sys_cfg):
+        # quickly (local check only) if self.instance_id is still
+        return False
+
+    @property
+    def network_config(self):
+        return None
 
 
 def normalize_pubkey_data(pubkey_data):
@@ -218,18 +232,18 @@ def normalize_pubkey_data(pubkey_data):
     if not pubkey_data:
         return keys
 
-    if isinstance(pubkey_data, (basestring, str)):
+    if isinstance(pubkey_data, six.string_types):
         return str(pubkey_data).splitlines()
 
     if isinstance(pubkey_data, (list, set)):
         return list(pubkey_data)
 
     if isinstance(pubkey_data, (dict)):
-        for (_keyname, klist) in pubkey_data.iteritems():
+        for (_keyname, klist) in pubkey_data.items():
             # lp:506332 uec metadata service responds with
             # data that makes boto populate a string for 'klist' rather
             # than a list.
-            if isinstance(klist, (str, basestring)):
+            if isinstance(klist, six.string_types):
                 klist = [klist]
             if isinstance(klist, (list, set)):
                 for pkey in klist:
@@ -241,17 +255,25 @@ def normalize_pubkey_data(pubkey_data):
     return keys
 
 
-def find_source(sys_cfg, distro, paths, ds_deps, cfg_list, pkg_list):
+def find_source(sys_cfg, distro, paths, ds_deps, cfg_list, pkg_list, reporter):
     ds_list = list_sources(cfg_list, ds_deps, pkg_list)
     ds_names = [type_utils.obj_name(f) for f in ds_list]
-    LOG.debug("Searching for data source in: %s", ds_names)
+    mode = "network" if DEP_NETWORK in ds_deps else "local"
+    LOG.debug("Searching for %s data source in: %s", mode, ds_names)
 
-    for cls in ds_list:
+    for name, cls in zip(ds_names, ds_list):
+        myrep = events.ReportEventStack(
+            name="search-%s" % name.replace("DataSource", ""),
+            description="searching for %s data from %s" % (mode, name),
+            message="no %s data found from %s" % (mode, name),
+            parent=reporter)
         try:
-            LOG.debug("Seeing if we can get any data from %s", cls)
-            s = cls(sys_cfg, distro, paths)
-            if s.get_data():
-                return (s, type_utils.obj_name(cls))
+            with myrep:
+                LOG.debug("Seeing if we can get any data from %s", cls)
+                s = cls(sys_cfg, distro, paths)
+                if s.get_data():
+                    myrep.message = "found %s data from %s" % (mode, name)
+                    return (s, type_utils.obj_name(cls))
         except Exception:
             util.logexc(LOG, "Getting data from %s failed", cls)
 
@@ -283,6 +305,18 @@ def list_sources(cfg_list, depends, pkg_list):
                 src_list.extend(matches)
                 break
     return src_list
+
+
+def instance_id_matches_system_uuid(instance_id, field='system-uuid'):
+    # quickly (local check only) if self.instance_id is still valid
+    # we check kernel command line or files.
+    if not instance_id:
+        return False
+
+    dmi_value = util.read_dmi_data(field)
+    if not dmi_value:
+        return False
+    return instance_id.lower() == dmi_value.lower()
 
 
 # 'depends' is a list of dependencies (DEP_FILESYSTEM)

@@ -22,12 +22,12 @@
 
 import os
 
-import email
-
 from email.mime.base import MIMEBase
 from email.mime.multipart import MIMEMultipart
 from email.mime.nonmultipart import MIMENonMultipart
 from email.mime.text import MIMEText
+
+import six
 
 from cloudinit import handlers
 from cloudinit import log as logging
@@ -49,6 +49,7 @@ INCLUDE_TYPES = ['text/x-include-url', 'text/x-include-once-url']
 ARCHIVE_TYPES = ["text/cloud-config-archive"]
 UNDEF_TYPE = "text/plain"
 ARCHIVE_UNDEF_TYPE = "text/cloud-config"
+ARCHIVE_UNDEF_BINARY_TYPE = "application/octet-stream"
 
 # This seems to hit most of the gzip possible content types.
 DECOMP_TYPES = [
@@ -106,7 +107,7 @@ class UserDataProcessor(object):
 
             ctype = None
             ctype_orig = part.get_content_type()
-            payload = part.get_payload(decode=True)
+            payload = util.fully_decoded_payload(part)
             was_compressed = False
 
             # When the message states it is of a gzipped content type ensure
@@ -235,9 +236,9 @@ class UserDataProcessor(object):
                 resp = util.read_file_or_url(include_url,
                                              ssl_details=self.ssl_details)
                 if include_once_on and resp.ok():
-                    util.write_file(include_once_fn, str(resp), mode=0600)
+                    util.write_file(include_once_fn, resp.contents, mode=0o600)
                 if resp.ok():
-                    content = str(resp)
+                    content = resp.contents
                 else:
                     LOG.warn(("Fetching from %s resulted in"
                               " a invalid http code of %s"),
@@ -256,7 +257,7 @@ class UserDataProcessor(object):
             #    filename and type not be present
             # or
             #  scalar(payload)
-            if isinstance(ent, (str, basestring)):
+            if isinstance(ent, six.string_types):
                 ent = {'content': ent}
             if not isinstance(ent, (dict)):
                 # TODO(harlowja) raise?
@@ -265,11 +266,15 @@ class UserDataProcessor(object):
             content = ent.get('content', '')
             mtype = ent.get('type')
             if not mtype:
-                mtype = handlers.type_from_starts_with(content,
-                                                       ARCHIVE_UNDEF_TYPE)
+                default = ARCHIVE_UNDEF_TYPE
+                if isinstance(content, six.binary_type):
+                    default = ARCHIVE_UNDEF_BINARY_TYPE
+                mtype = handlers.type_from_starts_with(content, default)
 
             maintype, subtype = mtype.split('/', 1)
             if maintype == "text":
+                if isinstance(content, six.binary_type):
+                    content = content.decode()
                 msg = MIMEText(content, _subtype=subtype)
             else:
                 msg = MIMEBase(maintype, subtype)
@@ -334,10 +339,10 @@ def convert_string(raw_data, headers=None):
         raw_data = ''
     if not headers:
         headers = {}
-    data = util.decomp_gzip(raw_data)
+    data = util.decode_binary(util.decomp_gzip(raw_data))
     if "mime-version:" in data[0:4096].lower():
-        msg = email.message_from_string(data)
-        for (key, val) in headers.iteritems():
+        msg = util.message_from_string(data)
+        for (key, val) in headers.items():
             _replace_header(msg, key, val)
     else:
         mtype = headers.get(CONTENT_TYPE, NOT_MULTIPART_TYPE)

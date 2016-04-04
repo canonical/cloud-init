@@ -1,21 +1,22 @@
-from mocker import MockerTestCase
-
 from cloudinit import distros
 from cloudinit import helpers
 from cloudinit import settings
 
+from ..helpers import TestCase
+
+
 bcfg = {
-   'name': 'bob',
-   'plain_text_passwd': 'ubuntu',
-   'home': "/home/ubuntu",
-   'shell': "/bin/bash",
-   'lock_passwd': True,
-   'gecos': "Ubuntu",
-   'groups': ["foo"]
+    'name': 'bob',
+    'plain_text_passwd': 'ubuntu',
+    'home': "/home/ubuntu",
+    'shell': "/bin/bash",
+    'lock_passwd': True,
+    'gecos': "Ubuntu",
+    'groups': ["foo"]
 }
 
 
-class TestUGNormalize(MockerTestCase):
+class TestUGNormalize(TestCase):
 
     def _make_distro(self, dtype, def_user=None):
         cfg = dict(settings.CFG_BUILTIN)
@@ -33,16 +34,11 @@ class TestUGNormalize(MockerTestCase):
     def test_group_dict(self):
         distro = self._make_distro('ubuntu')
         g = {'groups': [
-                {
-                    'ubuntu': ['foo', 'bar'],
-                    'bob': 'users',
-                },
-                'cloud-users',
-                {
-                    'bob': 'users2',
-                },
-            ]
-        }
+            {'ubuntu': ['foo', 'bar'],
+             'bob': 'users'},
+            'cloud-users',
+            {'bob': 'users2'}
+            ]}
         (_users, groups) = self._norm(g, distro)
         self.assertIn('ubuntu', groups)
         ub_members = groups['ubuntu']

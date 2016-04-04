@@ -24,7 +24,7 @@ sortlist {% for sort in sortlist %}{{sort}} {% endfor %}
 {% if options or flags %}
 
 options {% for flag in flags %}{{flag}} {% endfor %}
-{% for key, value in options.iteritems() -%}
+{% for key, value in options.items() -%}
  {{key}}:{{value}}
 {% endfor %}
 {% endif %}

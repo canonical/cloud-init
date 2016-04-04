@@ -166,7 +166,7 @@ For now see: http://maas.ubuntu.com/
 CloudStack
 ---------------------------
 
-*TODO*
+.. include:: ../../sources/cloudstack/README.rst
 
 ---------------------------
 OVF
@@ -175,6 +175,12 @@ OVF
 *TODO*
 
 For now see: https://bazaar.launchpad.net/~cloud-init-dev/cloud-init/trunk/files/head:/doc/sources/ovf/
+
+---------------------------
+OpenStack
+---------------------------
+
+.. include:: ../../sources/openstack/README.rst
 
 ---------------------------
 Fallback/None

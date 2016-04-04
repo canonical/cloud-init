@@ -81,7 +81,7 @@ def handle(name, cfg, cloud, log, args):
         'pub_key_ecdsa': '/etc/ssh/ssh_host_ecdsa_key.pub',
     }
 
-    for (n, path) in pubkeys.iteritems():
+    for (n, path) in pubkeys.items():
         try:
             all_keys[n] = util.load_file(path)
         except:
@@ -99,7 +99,7 @@ def handle(name, cfg, cloud, log, args):
 
     # Get them read to be posted
     real_submit_keys = {}
-    for (k, v) in submit_keys.iteritems():
+    for (k, v) in submit_keys.items():
         if v is None:
             real_submit_keys[k] = 'N/A'
         else:

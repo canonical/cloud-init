@@ -66,7 +66,7 @@ class Distro(distros.Distro):
     def _bring_up_interface(self, device_name):
         cmd = ['/etc/init.d/net.%s' % device_name, 'restart']
         LOG.debug("Attempting to run bring up interface %s using command %s",
-                   device_name, cmd)
+                  device_name, cmd)
         try:
             (_out, err) = util.subp(cmd)
             if len(err):
@@ -88,7 +88,7 @@ class Distro(distros.Distro):
                 (_out, err) = util.subp(cmd)
                 if len(err):
                     LOG.warn("Running %s resulted in stderr output: %s", cmd,
-                            err)
+                             err)
             except util.ProcessExecutionError:
                 util.logexc(LOG, "Running interface command %s failed", cmd)
                 return False
@@ -108,7 +108,7 @@ class Distro(distros.Distro):
         if not conf:
             conf = HostnameConf('')
         conf.set_hostname(your_hostname)
-        util.write_file(out_fn, str(conf), 0644)
+        util.write_file(out_fn, conf, 0o644)
 
     def _read_system_hostname(self):
         sys_hostname = self._read_hostname(self.hostname_conf_fn)

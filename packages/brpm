@@ -40,22 +40,24 @@ PKG_MP = {
         'jinja2': 'python-jinja2',
         'configobj': 'python-configobj',
         'jsonpatch': 'python-jsonpatch',
-        'oauth': 'python-oauth',
+        'oauthlib': 'python-oauthlib',
         'prettytable': 'python-prettytable',
         'pyserial': 'pyserial',
         'pyyaml': 'PyYAML',
         'requests': 'python-requests',
+        'six': 'python-six',
     },
     'suse': {
         'argparse': 'python-argparse',
         'cheetah': 'python-cheetah',
         'configobj': 'python-configobj',
         'jsonpatch': 'python-jsonpatch',
-        'oauth': 'python-oauth',
+        'oauthlib': 'python-oauthlib',
         'prettytable': 'python-prettytable',
         'pyserial': 'python-pyserial',
         'pyyaml': 'python-yaml',
         'requests': 'python-requests',
+        'six': 'python-six',
     }
 }
 

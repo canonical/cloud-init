@@ -1,8 +1,7 @@
 [Unit]
 Description=Apply the settings specified in cloud-config
-After=network.target syslog.target cloud-config.target
-Requires=cloud-config.target
-Wants=network.target
+After=network-online.target cloud-config.target syslog.target
+Wants=network-online.target cloud-config.target
 
 [Service]
 Type=oneshot
@@ -14,4 +13,4 @@ TimeoutSec=0
 StandardOutput=journal+console
 
 [Install]
-WantedBy=multi-user.target
+WantedBy=cloud-init.target

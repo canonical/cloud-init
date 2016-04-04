@@ -45,44 +45,57 @@ def tiny_p(cmd, capture=True):
         stdout = None
         stderr = None
     sp = subprocess.Popen(cmd, stdout=stdout,
-                    stderr=stderr, stdin=None)
+                          stderr=stderr, stdin=None,
+                          universal_newlines=True)
     (out, err) = sp.communicate()
     ret = sp.returncode
     if ret not in [0]:
-        raise RuntimeError("Failed running %s [rc=%s] (%s, %s)"
-                            % (cmd, ret, out, err))
+        raise RuntimeError("Failed running %s [rc=%s] (%s, %s)" %
+                           (cmd, ret, out, err))
     return (out, err)
 
 
-def systemd_unitdir():
-    cmd = ['pkg-config', '--variable=systemdsystemunitdir', 'systemd']
+def pkg_config_read(library, var):
+    fallbacks = {
+       'systemd': {
+           'systemdsystemunitdir': '/lib/systemd/system',
+           'systemdsystemgeneratordir': '/lib/systemd/system-generators',
+       }
+    }
+    cmd = ['pkg-config', '--variable=%s' % var, library]
     try:
         (path, err) = tiny_p(cmd)
     except:
-        return '/lib/systemd/system'
+        return fallbacks[library][var]
     return str(path).strip()
+
 
 INITSYS_FILES = {
     'sysvinit': [f for f in glob('sysvinit/redhat/*') if is_f(f)],
     'sysvinit_freebsd': [f for f in glob('sysvinit/freebsd/*') if is_f(f)],
     'sysvinit_deb': [f for f in glob('sysvinit/debian/*') if is_f(f)],
-    'systemd': [f for f in glob('systemd/*') if is_f(f)],
+    'systemd': [f for f in (glob('systemd/*.service') +
+                            glob('systemd/*.target')) if is_f(f)],
+    'systemd.generators': [f for f in glob('systemd/*-generator') if is_f(f)],
     'upstart': [f for f in glob('upstart/*') if is_f(f)],
 }
 INITSYS_ROOTS = {
     'sysvinit': '/etc/rc.d/init.d',
     'sysvinit_freebsd': '/usr/local/etc/rc.d',
     'sysvinit_deb': '/etc/init.d',
-    'systemd': systemd_unitdir(),
+    'systemd': pkg_config_read('systemd', 'systemdsystemunitdir'),
+    'systemd.generators': pkg_config_read('systemd',
+                                          'systemdsystemgeneratordir'),
     'upstart': '/etc/init/',
 }
-INITSYS_TYPES = sorted(list(INITSYS_ROOTS.keys()))
+INITSYS_TYPES = sorted([f.partition(".")[0] for f in INITSYS_ROOTS.keys()])
 
 # Install everything in the right location and take care of Linux (default) and
 # FreeBSD systems.
 USR = "/usr"
 ETC = "/etc"
 USR_LIB_EXEC = "/usr/lib"
+LIB = "/lib"
 if os.uname()[0] == 'FreeBSD':
     USR = "/usr/local"
     USR_LIB_EXEC = "/usr/local/lib"
@@ -120,9 +133,8 @@ class InitsysInstallData(install):
     user_options = install.user_options + [
         # This will magically show up in member variable 'init_sys'
         ('init-system=', None,
-            ('init system(s) to configure (%s) [default: None]') %
-                (", ".join(INITSYS_TYPES))
-        ),
+         ('init system(s) to configure (%s) [default: None]' %
+          (", ".join(INITSYS_TYPES)))),
     ]
 
     def initialize_options(self):
@@ -136,7 +148,8 @@ class InitsysInstallData(install):
             self.init_system = self.init_system.split(",")
 
         if len(self.init_system) == 0:
-            raise DistutilsArgError(("You must specify one of (%s) when"
+            raise DistutilsArgError(
+                ("You must specify one of (%s) when"
                  " specifying init system(s)!") % (", ".join(INITSYS_TYPES)))
 
         bad = [f for f in self.init_system if f not in INITSYS_TYPES]
@@ -144,9 +157,13 @@ class InitsysInstallData(install):
             raise DistutilsArgError(
                 "Invalid --init-system: %s" % (','.join(bad)))
 
-        for sys in self.init_system:
-            self.distribution.data_files.append(
-                (INITSYS_ROOTS[sys], INITSYS_FILES[sys]))
+        for system in self.init_system:
+            # add data files for anything that starts with '<system>.'
+            datakeys = [k for k in INITSYS_ROOTS
+                        if k.partition(".")[0] == system]
+            for k in datakeys:
+                self.distribution.data_files.append(
+                    (INITSYS_ROOTS[k], INITSYS_FILES[k]))
         # Force that command to reinitalize (with new file list)
         self.distribution.reinitialize_command('install_data', True)
 
@@ -166,6 +183,8 @@ else:
             [f for f in glob('doc/examples/*') if is_f(f)]),
         (USR + '/share/doc/cloud-init/examples/seed',
             [f for f in glob('doc/examples/seed/*') if is_f(f)]),
+        (LIB + '/udev/rules.d', [f for f in glob('udev/*.rules')]),
+        (LIB + '/udev', ['udev/cloud-init-wait']),
     ]
     # Use a subclass for install that handles
     # adding on the right init system configuration files
@@ -174,18 +193,23 @@ else:
     }
 
 
-setuptools.setup(name='cloud-init',
-      version=get_version(),
-      description='EC2 initialisation magic',
-      author='Scott Moser',
-      author_email='scott.moser@canonical.com',
-      url='http://launchpad.net/cloud-init/',
-      packages=setuptools.find_packages(exclude=['tests']),
-      scripts=['bin/cloud-init',
-               'tools/cloud-init-per',
-               ],
-      license='GPLv3',
-      data_files=data_files,
-      install_requires=read_requires(),
-      cmdclass=cmdclass,
-      )
+requirements = read_requires()
+if sys.version_info < (3,):
+    requirements.append('cheetah')
+
+
+setuptools.setup(
+    name='cloud-init',
+    version=get_version(),
+    description='EC2 initialisation magic',
+    author='Scott Moser',
+    author_email='scott.moser@canonical.com',
+    url='http://launchpad.net/cloud-init/',
+    packages=setuptools.find_packages(exclude=['tests']),
+    scripts=['bin/cloud-init',
+             'tools/cloud-init-per'],
+    license='GPLv3',
+    data_files=data_files,
+    install_requires=requirements,
+    cmdclass=cmdclass,
+    )

@@ -1,0 +1,70 @@
+#!/bin/sh
+
+CI_NET_READY="/run/cloud-init/network-config-ready"
+LOG="/run/cloud-init/${0##*/}.log"
+LOG_INIT=0
+MAX_WAIT=60
+DEBUG=0
+
+block_until_ready() {
+    local fname="$1" max="$2"
+    [ -f "$fname" ] && return 0
+    # udevadm settle below will exit at the first of 3 conditions
+    #  1.) timeout 2.) file exists 3.) all in-flight udev events are processed
+    # since this is being run from a udev event, the 3 wont happen.
+    # thus, this is essentially a inotify wait or timeout on a file in /run
+    # that is created by cloud-init-local.
+    udevadm settle "--timeout=$max" "--exit-if-exists=$fname"
+}
+
+log() {
+    [ -n "${LOG}" ] || return
+    [ "${DEBUG:-0}" = "0" ] && return
+
+    if [ $LOG_INIT = 0 ]; then
+        if [ -d "${LOG%/*}" ] || mkdir -p "${LOG%/*}"; then
+            LOG_INIT=1
+        else
+            echo "${0##*/}: WARN: log init to ${LOG%/*}" 1>&2
+            return
+        fi
+    elif [ "$LOG_INIT" = "-1" ]; then
+        return
+    fi
+    local info="$$ $INTERFACE"
+    if [ "$DEBUG" -gt 1 ]; then
+       local up idle
+       read up idle < /proc/uptime
+       info="$$ $INTERFACE $up"
+    fi
+    echo "[$info]" "$@" >> "$LOG"
+}
+
+main() {
+    local name="" readyfile="$CI_NET_READY"
+    local info="INTERFACE=${INTERFACE} ID_NET_NAME=${ID_NET_NAME}"
+    info="$info ID_NET_NAME_PATH=${ID_NET_NAME_PATH}"
+    info="$info MAC_ADDRESS=${MAC_ADDRESS}"
+    log "$info"
+
+    ## Check to see if cloud-init.target is set.  If cloud-init is 
+    ## disabled we do not want to do anything.
+    if [ ! -f "/run/cloud-init/enabled" ]; then
+        log "cloud-init disabled"
+        return 0
+    fi
+
+    if [ "${INTERFACE#lo}" != "$INTERFACE" ]; then
+        return 0
+    fi
+
+    block_until_ready "$readyfile" "$MAX_WAIT" ||
+       { log "failed waiting for ready on $INTERFACE"; return 1; }
+
+    log "net config ready"
+}
+
+main "$@"
+exit
+
+# vi: ts=4 expandtab

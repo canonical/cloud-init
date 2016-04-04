@@ -3,7 +3,7 @@ from . import helpers
 from cloudinit import ec2_utils as eu
 from cloudinit import url_helper as uh
 
-import httpretty as hp
+hp = helpers.import_httpretty()
 
 
 class TestEc2Util(helpers.HttprettyTestCase):
@@ -16,7 +16,7 @@ class TestEc2Util(helpers.HttprettyTestCase):
                         body='stuff',
                         status=200)
         userdata = eu.get_instance_userdata(self.VERSION)
-        self.assertEquals('stuff', userdata)
+        self.assertEquals('stuff', userdata.decode('utf-8'))
 
     @hp.activate
     def test_userdata_fetch_fail_not_found(self):

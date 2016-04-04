@@ -51,6 +51,10 @@ EXPORT_GPG_KEYID = """
 
 
 def handle(name, cfg, cloud, log, _args):
+    if util.is_false(cfg.get('apt_configure_enabled', True)):
+        log.debug("Skipping module named %s, disabled by config.", name)
+        return
+
     release = get_release()
     mirrors = find_apt_mirror_info(cloud, cfg)
     if not mirrors or "primary" not in mirrors:
@@ -87,7 +91,8 @@ def handle(name, cfg, cloud, log, _args):
         if matchcfg:
             matcher = re.compile(matchcfg).search
         else:
-            matcher = lambda f: False
+            def matcher(x):
+                return False
 
         errors = add_sources(cfg['apt_sources'], params,
                              aa_repo_match=matcher)
@@ -105,7 +110,7 @@ def handle(name, cfg, cloud, log, _args):
 
 # get gpg keyid from keyserver
 def getkeybyid(keyid, keyserver):
-    with util.ExtendedTemporaryFile(suffix='.sh') as fh:
+    with util.ExtendedTemporaryFile(suffix='.sh', mode="w+", ) as fh:
         fh.write(EXPORT_GPG_KEYID)
         fh.flush()
         cmd = ['/bin/sh', fh.name, keyid, keyserver]
@@ -126,7 +131,7 @@ def mirror2lists_fileprefix(mirror):
 
 
 def rename_apt_lists(old_mirrors, new_mirrors, lists_d="/var/lib/apt/lists"):
-    for (name, omirror) in old_mirrors.iteritems():
+    for (name, omirror) in old_mirrors.items():
         nmirror = new_mirrors.get(name)
         if not nmirror:
             continue
@@ -169,7 +174,8 @@ def add_sources(srclist, template_params=None, aa_repo_match=None):
         template_params = {}
 
     if aa_repo_match is None:
-        aa_repo_match = lambda f: False
+        def aa_repo_match(x):
+            return False
 
     errorlist = []
     for ent in srclist:

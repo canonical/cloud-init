@@ -137,7 +137,7 @@ def render_from_file(fn, params):
     return renderer(content, params)
 
 
-def render_to_file(fn, outfn, params, mode=0644):
+def render_to_file(fn, outfn, params, mode=0o644):
     contents = render_from_file(fn, params)
     util.write_file(outfn, contents, mode=mode)
 

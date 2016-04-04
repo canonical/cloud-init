@@ -22,6 +22,7 @@ from cloudinit import util
 import errno
 import os
 import re
+import six
 import subprocess
 import time
 
@@ -48,15 +49,49 @@ def givecmdline(pid):
         return None
 
 
+def check_condition(cond, log=None):
+    if isinstance(cond, bool):
+        if log:
+            log.debug("Static Condition: %s" % cond)
+        return cond
+
+    pre = "check_condition command (%s): " % cond
+    try:
+        proc = subprocess.Popen(cond, shell=not isinstance(cond, list))
+        proc.communicate()
+        ret = proc.returncode
+        if ret == 0:
+            if log:
+                log.debug(pre + "exited 0. condition met.")
+            return True
+        elif ret == 1:
+            if log:
+                log.debug(pre + "exited 1. condition not met.")
+            return False
+        else:
+            if log:
+                log.warn(pre + "unexpected exit %s. " % ret +
+                         "do not apply change.")
+            return False
+    except Exception as e:
+        if log:
+            log.warn(pre + "Unexpected error: %s" % e)
+        return False
+
+
 def handle(_name, cfg, _cloud, log, _args):
 
     try:
-        (args, timeout) = load_power_state(cfg)
+        (args, timeout, condition) = load_power_state(cfg)
         if args is None:
             log.debug("no power_state provided. doing nothing")
             return
     except Exception as e:
         log.warn("%s Not performing power state change!" % str(e))
+        return
+
+    if condition is False:
+        log.debug("Condition was false. Will not perform state change.")
         return
 
     mypid = os.getpid()
@@ -70,8 +105,8 @@ def handle(_name, cfg, _cloud, log, _args):
 
     log.debug("After pid %s ends, will execute: %s" % (mypid, ' '.join(args)))
 
-    util.fork_cb(run_after_pid_gone, mypid, cmdline, timeout, log, execmd,
-                 [args, devnull_fp])
+    util.fork_cb(run_after_pid_gone, mypid, cmdline, timeout, log,
+                 condition, execmd, [args, devnull_fp])
 
 
 def load_power_state(cfg):
@@ -80,7 +115,7 @@ def load_power_state(cfg):
     pstate = cfg.get('power_state')
 
     if pstate is None:
-        return (None, None)
+        return (None, None, None)
 
     if not isinstance(pstate, dict):
         raise TypeError("power_state is not a dict.")
@@ -115,7 +150,10 @@ def load_power_state(cfg):
         raise ValueError("failed to convert timeout '%s' to float." %
                          pstate['timeout'])
 
-    return (args, timeout)
+    condition = pstate.get("condition", True)
+    if not isinstance(condition, six.string_types + (list, bool)):
+        raise TypeError("condition type %s invalid. must be list, bool, str")
+    return (args, timeout, condition)
 
 
 def doexit(sysexit):
@@ -133,7 +171,7 @@ def execmd(exe_args, output=None, data_in=None):
     doexit(ret)
 
 
-def run_after_pid_gone(pid, pidcmdline, timeout, log, func, args):
+def run_after_pid_gone(pid, pidcmdline, timeout, log, condition, func, args):
     # wait until pid, with /proc/pid/cmdline contents of pidcmdline
     # is no longer alive.  After it is gone, or timeout has passed
     # execute func(args)
@@ -175,4 +213,11 @@ def run_after_pid_gone(pid, pidcmdline, timeout, log, func, args):
 
     if log:
         log.debug(msg)
+
+    try:
+        if not check_condition(condition, log):
+            return
+    except Exception as e:
+        fatal("Unexpected Exception when checking condition: %s" % e)
+
     func(*args)

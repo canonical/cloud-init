@@ -44,7 +44,7 @@ def add_ca_certs(certs):
     if certs:
         # First ensure they are strings...
         cert_file_contents = "\n".join([str(c) for c in certs])
-        util.write_file(CA_CERT_FULL_PATH, cert_file_contents, mode=0644)
+        util.write_file(CA_CERT_FULL_PATH, cert_file_contents, mode=0o644)
 
         # Append cert filename to CA_CERT_CONFIG file.
         # We have to strip the content because blank lines in the file
@@ -63,7 +63,7 @@ def remove_default_ca_certs():
     """
     util.delete_dir_contents(CA_CERT_PATH)
     util.delete_dir_contents(CA_CERT_SYSTEM_PATH)
-    util.write_file(CA_CERT_CONFIG, "", mode=0644)
+    util.write_file(CA_CERT_CONFIG, "", mode=0o644)
     debconf_sel = "ca-certificates ca-certificates/trust_new_crts select no"
     util.subp(('debconf-set-selections', '-'), debconf_sel)
 

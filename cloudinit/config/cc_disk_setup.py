@@ -27,6 +27,7 @@ frequency = PER_INSTANCE
 # Define the commands to use
 UDEVADM_CMD = util.which('udevadm')
 SFDISK_CMD = util.which("sfdisk")
+SGDISK_CMD = util.which("sgdisk")
 LSBLK_CMD = util.which("lsblk")
 BLKID_CMD = util.which("blkid")
 BLKDEV_CMD = util.which("blockdev")
@@ -151,7 +152,7 @@ def enumerate_disk(device, nodeps=False):
         name: the device name, i.e. sda
     """
 
-    lsblk_cmd = [LSBLK_CMD, '--pairs', '--out', 'NAME,TYPE,FSTYPE,LABEL',
+    lsblk_cmd = [LSBLK_CMD, '--pairs', '--output', 'NAME,TYPE,FSTYPE,LABEL',
                  device]
 
     if nodeps:
@@ -166,11 +167,12 @@ def enumerate_disk(device, nodeps=False):
     parts = [x for x in (info.strip()).splitlines() if len(x.split()) > 0]
 
     for part in parts:
-        d = {'name': None,
-             'type': None,
-             'fstype': None,
-             'label': None,
-            }
+        d = {
+            'name': None,
+            'type': None,
+            'fstype': None,
+            'label': None,
+        }
 
         for key, value in value_splitter(part):
             d[key.lower()] = value
@@ -303,8 +305,7 @@ def is_disk_used(device):
 
     # If the child count is higher 1, then there are child nodes
     # such as partition or device mapper nodes
-    use_count = [x for x in enumerate_disk(device)]
-    if len(use_count.splitlines()) > 1:
+    if len(list(enumerate_disk(device))) > 1:
         return True
 
     # If we see a file system, then its used
@@ -313,22 +314,6 @@ def is_disk_used(device):
         return True
 
     return False
-
-
-def get_hdd_size(device):
-    """
-    Returns the hard disk size.
-    This works with any disk type, including GPT.
-    """
-
-    size_cmd = [SFDISK_CMD, '--show-size', device]
-    size = None
-    try:
-        size, _err = util.subp(size_cmd)
-    except Exception as e:
-        raise Exception("Failed to get %s size\n%s" % (device, e))
-
-    return int(size.strip())
 
 
 def get_dyn_func(*args):
@@ -356,6 +341,30 @@ def get_dyn_func(*args):
 
     except KeyError:
         raise Exception("No such function %s to call!" % func_name)
+
+
+def get_mbr_hdd_size(device):
+    size_cmd = [SFDISK_CMD, '--show-size', device]
+    size = None
+    try:
+        size, _err = util.subp(size_cmd)
+    except Exception as e:
+        raise Exception("Failed to get %s size\n%s" % (device, e))
+
+    return int(size.strip())
+
+
+def get_gpt_hdd_size(device):
+    out, _ = util.subp([SGDISK_CMD, '-p', device])
+    return out.splitlines()[0].split()[2]
+
+
+def get_hdd_size(table_type, device):
+    """
+    Returns the hard disk size.
+    This works with any disk type, including GPT.
+    """
+    return get_dyn_func("get_%s_hdd_size", table_type, device)
 
 
 def check_partition_mbr_layout(device, layout):
@@ -393,6 +402,36 @@ def check_partition_mbr_layout(device, layout):
                     break
 
             found_layout.append(type_label)
+    return found_layout
+
+
+def check_partition_gpt_layout(device, layout):
+    prt_cmd = [SGDISK_CMD, '-p', device]
+    try:
+        out, _err = util.subp(prt_cmd)
+    except Exception as e:
+        raise Exception("Error running partition command on %s\n%s" % (
+                        device, e))
+
+    out_lines = iter(out.splitlines())
+    # Skip header
+    for line in out_lines:
+        if line.strip().startswith('Number'):
+            break
+
+    return [line.strip().split()[-1] for line in out_lines]
+
+
+def check_partition_layout(table_type, device, layout):
+    """
+    See if the partition lay out matches.
+
+    This is future a future proofing function. In order
+    to add support for other disk layout schemes, add a
+    function called check_partition_%s_layout
+    """
+    found_layout = get_dyn_func(
+        "check_partition_%s_layout", table_type, device, layout)
 
     if isinstance(layout, bool):
         # if we are using auto partitioning, or "True" be happy
@@ -415,18 +454,6 @@ def check_partition_mbr_layout(device, layout):
             return True
 
     return False
-
-
-def check_partition_layout(table_type, device, layout):
-    """
-    See if the partition lay out matches.
-
-    This is future a future proofing function. In order
-    to add support for other disk layout schemes, add a
-    function called check_partition_%s_layout
-    """
-    return get_dyn_func("check_partition_%s_layout", table_type, device,
-                        layout)
 
 
 def get_partition_mbr_layout(size, layout):
@@ -479,6 +506,29 @@ def get_partition_mbr_layout(size, layout):
                         sfdisk_definition)
 
     return sfdisk_definition
+
+
+def get_partition_gpt_layout(size, layout):
+    if isinstance(layout, bool):
+        return [(None, [0, 0])]
+
+    partition_specs = []
+    for partition in layout:
+        if isinstance(partition, list):
+            if len(partition) != 2:
+                raise Exception(
+                    "Partition was incorrectly defined: %s" % partition)
+            percent, partition_type = partition
+        else:
+            percent = partition
+            partition_type = None
+
+        part_size = int(float(size) * (float(percent) / 100))
+        partition_specs.append((partition_type, [0, '+{}'.format(part_size)]))
+
+    # The last partition should use up all remaining space
+    partition_specs[-1][-1][-1] = 0
+    return partition_specs
 
 
 def purge_disk_ptable(device):
@@ -556,6 +606,22 @@ def exec_mkpart_mbr(device, layout):
     read_parttbl(device)
 
 
+def exec_mkpart_gpt(device, layout):
+    try:
+        util.subp([SGDISK_CMD, '-Z', device])
+        for index, (partition_type, (start, end)) in enumerate(layout):
+            index += 1
+            util.subp([SGDISK_CMD,
+                       '-n', '{}:{}:{}'.format(index, start, end), device])
+            if partition_type is not None:
+                util.subp(
+                    [SGDISK_CMD,
+                     '-t', '{}:{}'.format(index, partition_type), device])
+    except Exception:
+        LOG.warn("Failed to partition device %s" % device)
+        raise
+
+
 def exec_mkpart(table_type, device, layout):
     """
     Fetches the function for creating the table type.
@@ -583,6 +649,8 @@ def mkpart(device, definition):
                 table_type: Which partition table to use, defaults to MBR
                 device: the device to work on.
     """
+    # ensure that we get a real device rather than a symbolic link
+    device = os.path.realpath(device)
 
     LOG.debug("Checking values for %s definition" % device)
     overwrite = definition.get('overwrite', False)
@@ -618,7 +686,7 @@ def mkpart(device, definition):
         return
 
     LOG.debug("Checking for device size")
-    device_size = get_hdd_size(device)
+    device_size = get_hdd_size(table_type, device)
 
     LOG.debug("Calculating partition layout")
     part_definition = get_partition_layout(table_type, device_size, layout)
@@ -634,11 +702,12 @@ def lookup_force_flag(fs):
     """
     A force flag might be -F or -F, this look it up
     """
-    flags = {'ext': '-F',
-             'btrfs': '-f',
-             'xfs': '-f',
-             'reiserfs': '-f',
-            }
+    flags = {
+        'ext': '-F',
+        'btrfs': '-f',
+        'xfs': '-f',
+        'reiserfs': '-f',
+    }
 
     if 'ext' in fs.lower():
         fs = 'ext'
@@ -679,6 +748,9 @@ def mkfs(fs_cfg):
     fs_opts = fs_cfg.get('extra_opts', [])
     fs_replace = fs_cfg.get('replace_fs', False)
     overwrite = fs_cfg.get('overwrite', False)
+
+    # ensure that we get a real device rather than a symbolic link
+    device = os.path.realpath(device)
 
     # This allows you to define the default ephemeral or swap
     LOG.debug("Checking %s against default devices", device)
@@ -754,10 +826,11 @@ def mkfs(fs_cfg):
 
     # Create the commands
     if fs_cmd:
-        fs_cmd = fs_cfg['cmd'] % {'label': label,
-                                  'filesystem': fs_type,
-                                  'device': device,
-                                 }
+        fs_cmd = fs_cfg['cmd'] % {
+            'label': label,
+            'filesystem': fs_type,
+            'device': device,
+        }
     else:
         # Find the mkfs command
         mkfs_cmd = util.which("mkfs.%s" % fs_type)

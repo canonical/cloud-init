@@ -1,8 +1,16 @@
-from mocker import MockerTestCase
-
-import mocker
-
 import os
+
+try:
+    from unittest import mock
+except ImportError:
+    import mock
+try:
+    from contextlib import ExitStack
+except ImportError:
+    from contextlib2 import ExitStack
+
+from six import StringIO
+from ..helpers import TestCase
 
 from cloudinit import distros
 from cloudinit import helpers
@@ -10,8 +18,6 @@ from cloudinit import settings
 from cloudinit import util
 
 from cloudinit.distros.parsers.sys_conf import SysConf
-
-from StringIO import StringIO
 
 
 BASE_NET_CFG = '''
@@ -74,7 +80,7 @@ class WriteBuffer(object):
         return self.buffer.getvalue()
 
 
-class TestNetCfgDistro(MockerTestCase):
+class TestNetCfgDistro(TestCase):
 
     def _get_distro(self, dname):
         cls = distros.fetch(dname)
@@ -85,34 +91,29 @@ class TestNetCfgDistro(MockerTestCase):
 
     def test_simple_write_ub(self):
         ub_distro = self._get_distro('ubuntu')
-        util_mock = self.mocker.replace(util.write_file,
-                                        spec=False, passthrough=False)
-        exists_mock = self.mocker.replace(os.path.isfile,
-                                          spec=False, passthrough=False)
+        with ExitStack() as mocks:
+            write_bufs = {}
 
-        exists_mock(mocker.ARGS)
-        self.mocker.count(0, None)
-        self.mocker.result(False)
+            def replace_write(filename, content, mode=0o644, omode="wb"):
+                buf = WriteBuffer()
+                buf.mode = mode
+                buf.omode = omode
+                buf.write(content)
+                write_bufs[filename] = buf
 
-        write_bufs = {}
+            mocks.enter_context(
+                mock.patch.object(util, 'write_file', replace_write))
+            mocks.enter_context(
+                mock.patch.object(os.path, 'isfile', return_value=False))
 
-        def replace_write(filename, content, mode=0644, omode="wb"):
-            buf = WriteBuffer()
-            buf.mode = mode
-            buf.omode = omode
-            buf.write(content)
-            write_bufs[filename] = buf
+            ub_distro.apply_network(BASE_NET_CFG, False)
 
-        util_mock(mocker.ARGS)
-        self.mocker.call(replace_write)
-        self.mocker.replay()
-        ub_distro.apply_network(BASE_NET_CFG, False)
-
-        self.assertEquals(len(write_bufs), 1)
-        self.assertIn('/etc/network/interfaces', write_bufs)
-        write_buf = write_bufs['/etc/network/interfaces']
-        self.assertEquals(str(write_buf).strip(), BASE_NET_CFG.strip())
-        self.assertEquals(write_buf.mode, 0644)
+            self.assertEquals(len(write_bufs), 1)
+            eni_name = '/etc/network/interfaces.d/50-cloud-init.cfg'
+            self.assertIn(eni_name, write_bufs)
+            write_buf = write_bufs[eni_name]
+            self.assertEquals(str(write_buf).strip(), BASE_NET_CFG.strip())
+            self.assertEquals(write_buf.mode, 0o644)
 
     def assertCfgEquals(self, blob1, blob2):
         b1 = dict(SysConf(blob1.strip().splitlines()))
@@ -127,53 +128,41 @@ class TestNetCfgDistro(MockerTestCase):
 
     def test_simple_write_rh(self):
         rh_distro = self._get_distro('rhel')
-        write_mock = self.mocker.replace(util.write_file,
-                                         spec=False, passthrough=False)
-        load_mock = self.mocker.replace(util.load_file,
-                                        spec=False, passthrough=False)
-        exists_mock = self.mocker.replace(os.path.isfile,
-                                          spec=False, passthrough=False)
 
         write_bufs = {}
 
-        def replace_write(filename, content, mode=0644, omode="wb"):
+        def replace_write(filename, content, mode=0o644, omode="wb"):
             buf = WriteBuffer()
             buf.mode = mode
             buf.omode = omode
             buf.write(content)
             write_bufs[filename] = buf
 
-        exists_mock(mocker.ARGS)
-        self.mocker.count(0, None)
-        self.mocker.result(False)
+        with ExitStack() as mocks:
+            mocks.enter_context(
+                mock.patch.object(util, 'write_file', replace_write))
+            mocks.enter_context(
+                mock.patch.object(util, 'load_file', return_value=''))
+            mocks.enter_context(
+                mock.patch.object(os.path, 'isfile', return_value=False))
 
-        load_mock(mocker.ARGS)
-        self.mocker.count(0, None)
-        self.mocker.result('')
+            rh_distro.apply_network(BASE_NET_CFG, False)
 
-        for _i in range(0, 3):
-            write_mock(mocker.ARGS)
-            self.mocker.call(replace_write)
-
-        write_mock(mocker.ARGS)
-        self.mocker.call(replace_write)
-
-        self.mocker.replay()
-        rh_distro.apply_network(BASE_NET_CFG, False)
-
-        self.assertEquals(len(write_bufs), 4)
-        self.assertIn('/etc/sysconfig/network-scripts/ifcfg-lo', write_bufs)
-        write_buf = write_bufs['/etc/sysconfig/network-scripts/ifcfg-lo']
-        expected_buf = '''
+            self.assertEquals(len(write_bufs), 4)
+            self.assertIn('/etc/sysconfig/network-scripts/ifcfg-lo',
+                          write_bufs)
+            write_buf = write_bufs['/etc/sysconfig/network-scripts/ifcfg-lo']
+            expected_buf = '''
 DEVICE="lo"
 ONBOOT=yes
 '''
-        self.assertCfgEquals(expected_buf, str(write_buf))
-        self.assertEquals(write_buf.mode, 0644)
+            self.assertCfgEquals(expected_buf, str(write_buf))
+            self.assertEquals(write_buf.mode, 0o644)
 
-        self.assertIn('/etc/sysconfig/network-scripts/ifcfg-eth0', write_bufs)
-        write_buf = write_bufs['/etc/sysconfig/network-scripts/ifcfg-eth0']
-        expected_buf = '''
+            self.assertIn('/etc/sysconfig/network-scripts/ifcfg-eth0',
+                          write_bufs)
+            write_buf = write_bufs['/etc/sysconfig/network-scripts/ifcfg-eth0']
+            expected_buf = '''
 DEVICE="eth0"
 BOOTPROTO="static"
 NETMASK="255.255.255.0"
@@ -182,77 +171,66 @@ ONBOOT=yes
 GATEWAY="192.168.1.254"
 BROADCAST="192.168.1.0"
 '''
-        self.assertCfgEquals(expected_buf, str(write_buf))
-        self.assertEquals(write_buf.mode, 0644)
+            self.assertCfgEquals(expected_buf, str(write_buf))
+            self.assertEquals(write_buf.mode, 0o644)
 
-        self.assertIn('/etc/sysconfig/network-scripts/ifcfg-eth1', write_bufs)
-        write_buf = write_bufs['/etc/sysconfig/network-scripts/ifcfg-eth1']
-        expected_buf = '''
+            self.assertIn('/etc/sysconfig/network-scripts/ifcfg-eth1',
+                          write_bufs)
+            write_buf = write_bufs['/etc/sysconfig/network-scripts/ifcfg-eth1']
+            expected_buf = '''
 DEVICE="eth1"
 BOOTPROTO="dhcp"
 ONBOOT=yes
 '''
-        self.assertCfgEquals(expected_buf, str(write_buf))
-        self.assertEquals(write_buf.mode, 0644)
+            self.assertCfgEquals(expected_buf, str(write_buf))
+            self.assertEquals(write_buf.mode, 0o644)
 
-        self.assertIn('/etc/sysconfig/network', write_bufs)
-        write_buf = write_bufs['/etc/sysconfig/network']
-        expected_buf = '''
+            self.assertIn('/etc/sysconfig/network', write_bufs)
+            write_buf = write_bufs['/etc/sysconfig/network']
+            expected_buf = '''
 # Created by cloud-init v. 0.7
 NETWORKING=yes
 '''
-        self.assertCfgEquals(expected_buf, str(write_buf))
-        self.assertEquals(write_buf.mode, 0644)
+            self.assertCfgEquals(expected_buf, str(write_buf))
+            self.assertEquals(write_buf.mode, 0o644)
 
     def test_write_ipv6_rhel(self):
         rh_distro = self._get_distro('rhel')
-        write_mock = self.mocker.replace(util.write_file,
-                                         spec=False, passthrough=False)
-        load_mock = self.mocker.replace(util.load_file,
-                                        spec=False, passthrough=False)
-        exists_mock = self.mocker.replace(os.path.isfile,
-                                          spec=False, passthrough=False)
 
         write_bufs = {}
 
-        def replace_write(filename, content, mode=0644, omode="wb"):
+        def replace_write(filename, content, mode=0o644, omode="wb"):
             buf = WriteBuffer()
             buf.mode = mode
             buf.omode = omode
             buf.write(content)
             write_bufs[filename] = buf
 
-        exists_mock(mocker.ARGS)
-        self.mocker.count(0, None)
-        self.mocker.result(False)
+        with ExitStack() as mocks:
+            mocks.enter_context(
+                mock.patch.object(util, 'write_file', replace_write))
+            mocks.enter_context(
+                mock.patch.object(util, 'load_file', return_value=''))
+            mocks.enter_context(
+                mock.patch.object(os.path, 'isfile', return_value=False))
 
-        load_mock(mocker.ARGS)
-        self.mocker.count(0, None)
-        self.mocker.result('')
+            rh_distro.apply_network(BASE_NET_CFG_IPV6, False)
 
-        for _i in range(0, 3):
-            write_mock(mocker.ARGS)
-            self.mocker.call(replace_write)
-
-        write_mock(mocker.ARGS)
-        self.mocker.call(replace_write)
-
-        self.mocker.replay()
-        rh_distro.apply_network(BASE_NET_CFG_IPV6, False)
-
-        self.assertEquals(len(write_bufs), 4)
-        self.assertIn('/etc/sysconfig/network-scripts/ifcfg-lo', write_bufs)
-        write_buf = write_bufs['/etc/sysconfig/network-scripts/ifcfg-lo']
-        expected_buf = '''
+            self.assertEquals(len(write_bufs), 4)
+            self.assertIn('/etc/sysconfig/network-scripts/ifcfg-lo',
+                          write_bufs)
+            write_buf = write_bufs['/etc/sysconfig/network-scripts/ifcfg-lo']
+            expected_buf = '''
 DEVICE="lo"
 ONBOOT=yes
 '''
-        self.assertCfgEquals(expected_buf, str(write_buf))
-        self.assertEquals(write_buf.mode, 0644)
+            self.assertCfgEquals(expected_buf, str(write_buf))
+            self.assertEquals(write_buf.mode, 0o644)
 
-        self.assertIn('/etc/sysconfig/network-scripts/ifcfg-eth0', write_bufs)
-        write_buf = write_bufs['/etc/sysconfig/network-scripts/ifcfg-eth0']
-        expected_buf = '''
+            self.assertIn('/etc/sysconfig/network-scripts/ifcfg-eth0',
+                          write_bufs)
+            write_buf = write_bufs['/etc/sysconfig/network-scripts/ifcfg-eth0']
+            expected_buf = '''
 DEVICE="eth0"
 BOOTPROTO="static"
 NETMASK="255.255.255.0"
@@ -264,11 +242,12 @@ IPV6INIT=yes
 IPV6ADDR="2607:f0d0:1002:0011::2"
 IPV6_DEFAULTGW="2607:f0d0:1002:0011::1"
 '''
-        self.assertCfgEquals(expected_buf, str(write_buf))
-        self.assertEquals(write_buf.mode, 0644)
-        self.assertIn('/etc/sysconfig/network-scripts/ifcfg-eth1', write_bufs)
-        write_buf = write_bufs['/etc/sysconfig/network-scripts/ifcfg-eth1']
-        expected_buf = '''
+            self.assertCfgEquals(expected_buf, str(write_buf))
+            self.assertEquals(write_buf.mode, 0o644)
+            self.assertIn('/etc/sysconfig/network-scripts/ifcfg-eth1',
+                          write_bufs)
+            write_buf = write_bufs['/etc/sysconfig/network-scripts/ifcfg-eth1']
+            expected_buf = '''
 DEVICE="eth1"
 BOOTPROTO="static"
 NETMASK="255.255.255.0"
@@ -280,38 +259,22 @@ IPV6INIT=yes
 IPV6ADDR="2607:f0d0:1002:0011::3"
 IPV6_DEFAULTGW="2607:f0d0:1002:0011::1"
 '''
-        self.assertCfgEquals(expected_buf, str(write_buf))
-        self.assertEquals(write_buf.mode, 0644)
+            self.assertCfgEquals(expected_buf, str(write_buf))
+            self.assertEquals(write_buf.mode, 0o644)
 
-        self.assertIn('/etc/sysconfig/network', write_bufs)
-        write_buf = write_bufs['/etc/sysconfig/network']
-        expected_buf = '''
+            self.assertIn('/etc/sysconfig/network', write_bufs)
+            write_buf = write_bufs['/etc/sysconfig/network']
+            expected_buf = '''
 # Created by cloud-init v. 0.7
 NETWORKING=yes
 NETWORKING_IPV6=yes
 IPV6_AUTOCONF=no
 '''
-        self.assertCfgEquals(expected_buf, str(write_buf))
-        self.assertEquals(write_buf.mode, 0644)
+            self.assertCfgEquals(expected_buf, str(write_buf))
+            self.assertEquals(write_buf.mode, 0o644)
 
     def test_simple_write_freebsd(self):
         fbsd_distro = self._get_distro('freebsd')
-        util_mock = self.mocker.replace(util.write_file,
-                                        spec=False, passthrough=False)
-        exists_mock = self.mocker.replace(os.path.isfile,
-                                          spec=False, passthrough=False)
-        load_mock = self.mocker.replace(util.load_file,
-                                        spec=False, passthrough=False)
-        subp_mock = self.mocker.replace(util.subp,
-                                        spec=False, passthrough=False)
-
-        subp_mock(['ifconfig', '-a'])
-        self.mocker.count(0, None)
-        self.mocker.result(('vtnet0', ''))
-
-        exists_mock(mocker.ARGS)
-        self.mocker.count(0, None)
-        self.mocker.result(False)
 
         write_bufs = {}
         read_bufs = {
@@ -319,7 +282,7 @@ IPV6_AUTOCONF=no
             '/etc/resolv.conf': '',
         }
 
-        def replace_write(filename, content, mode=0644, omode="wb"):
+        def replace_write(filename, content, mode=0o644, omode="wb"):
             buf = WriteBuffer()
             buf.mode = mode
             buf.omode = omode
@@ -336,23 +299,24 @@ IPV6_AUTOCONF=no
                     return str(write_bufs[fname])
                 return read_bufs[fname]
 
-        util_mock(mocker.ARGS)
-        self.mocker.call(replace_write)
-        self.mocker.count(0, None)
+        with ExitStack() as mocks:
+            mocks.enter_context(
+                mock.patch.object(util, 'subp', return_value=('vtnet0', '')))
+            mocks.enter_context(
+                mock.patch.object(os.path, 'exists', return_value=False))
+            mocks.enter_context(
+                mock.patch.object(util, 'write_file', replace_write))
+            mocks.enter_context(
+                mock.patch.object(util, 'load_file', replace_read))
 
-        load_mock(mocker.ARGS)
-        self.mocker.call(replace_read)
-        self.mocker.count(0, None)
+            fbsd_distro.apply_network(BASE_NET_CFG, False)
 
-        self.mocker.replay()
-        fbsd_distro.apply_network(BASE_NET_CFG, False)
-
-        self.assertIn('/etc/rc.conf', write_bufs)
-        write_buf = write_bufs['/etc/rc.conf']
-        expected_buf = '''
+            self.assertIn('/etc/rc.conf', write_bufs)
+            write_buf = write_bufs['/etc/rc.conf']
+            expected_buf = '''
 ifconfig_vtnet0="192.168.1.5 netmask 255.255.255.0"
 ifconfig_vtnet1="DHCP"
 defaultrouter="192.168.1.254"
 '''
-        self.assertCfgEquals(expected_buf, str(write_buf))
-        self.assertEquals(write_buf.mode, 0644)
+            self.assertCfgEquals(expected_buf, str(write_buf))
+            self.assertEquals(write_buf.mode, 0o644)

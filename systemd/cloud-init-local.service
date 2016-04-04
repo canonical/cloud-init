@@ -1,11 +1,17 @@
 [Unit]
 Description=Initial cloud-init job (pre-networking)
+DefaultDependencies=no
 Wants=local-fs.target
+Wants=network-pre.target
 After=local-fs.target
+Conflicts=shutdown.target
+Before=network-pre.target
+Before=shutdown.target
 
 [Service]
 Type=oneshot
 ExecStart=/usr/bin/cloud-init init --local
+ExecStart=/bin/touch /run/cloud-init/network-config-ready
 RemainAfterExit=yes
 TimeoutSec=0
 
@@ -13,4 +19,4 @@ TimeoutSec=0
 StandardOutput=journal+console
 
 [Install]
-WantedBy=multi-user.target
+WantedBy=cloud-init.target

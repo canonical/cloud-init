@@ -17,7 +17,6 @@
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import functools
-import httplib
 import json
 
 from cloudinit import log as logging
@@ -25,7 +24,7 @@ from cloudinit import url_helper
 from cloudinit import util
 
 LOG = logging.getLogger(__name__)
-SKIP_USERDATA_CODES = frozenset([httplib.NOT_FOUND])
+SKIP_USERDATA_CODES = frozenset([url_helper.NOT_FOUND])
 
 
 class MetadataLeafDecoder(object):
@@ -41,6 +40,10 @@ class MetadataLeafDecoder(object):
 
     def __call__(self, field, blob):
         if not blob:
+            return blob
+        try:
+            blob = util.decode_binary(blob)
+        except UnicodeDecodeError:
             return blob
         if self._maybe_json_object(blob):
             try:
@@ -70,6 +73,8 @@ class MetadataMaterializer(object):
     def _parse(self, blob):
         leaves = {}
         children = []
+        blob = util.decode_binary(blob)
+
         if not blob:
             return (leaves, children)
 
@@ -118,12 +123,12 @@ class MetadataMaterializer(object):
             child_url = url_helper.combine_url(base_url, c)
             if not child_url.endswith("/"):
                 child_url += "/"
-            child_blob = str(self._caller(child_url))
+            child_blob = self._caller(child_url)
             child_contents[c] = self._materialize(child_blob, child_url)
         leaf_contents = {}
         for (field, resource) in leaves.items():
             leaf_url = url_helper.combine_url(base_url, resource)
-            leaf_blob = str(self._caller(leaf_url))
+            leaf_blob = self._caller(leaf_url)
             leaf_contents[field] = self._leaf_decoder(field, leaf_blob)
         joined = {}
         joined.update(child_contents)
@@ -160,7 +165,7 @@ def get_instance_userdata(api_version='latest',
                                          timeout=timeout,
                                          retries=retries,
                                          exception_cb=exception_cb)
-        user_data = str(response)
+        user_data = response.contents
     except url_helper.UrlError as e:
         if e.code not in SKIP_USERDATA_CODES:
             util.logexc(LOG, "Failed fetching userdata from url %s", ud_url)
@@ -181,10 +186,13 @@ def get_instance_metadata(api_version='latest',
                                ssl_details=ssl_details, timeout=timeout,
                                retries=retries)
 
+    def mcaller(url):
+        return caller(url).contents
+
     try:
         response = caller(md_url)
-        materializer = MetadataMaterializer(str(response),
-                                            md_url, caller,
+        materializer = MetadataMaterializer(response.contents,
+                                            md_url, mcaller,
                                             leaf_decoder=leaf_decoder)
         md = materializer.materialize()
         if not isinstance(md, (dict)):

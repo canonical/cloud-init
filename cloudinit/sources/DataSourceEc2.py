@@ -61,12 +61,12 @@ class DataSourceEc2(sources.DataSource):
             if not self.wait_for_metadata_service():
                 return False
             start_time = time.time()
-            self.userdata_raw = ec2.get_instance_userdata(self.api_ver,
-                self.metadata_address)
+            self.userdata_raw = \
+                ec2.get_instance_userdata(self.api_ver, self.metadata_address)
             self.metadata = ec2.get_instance_metadata(self.api_ver,
                                                       self.metadata_address)
             LOG.debug("Crawl of metadata service took %s seconds",
-                       int(time.time() - start_time))
+                      int(time.time() - start_time))
             return True
         except Exception:
             util.logexc(LOG, "Failed reading from metadata address %s",
@@ -132,13 +132,13 @@ class DataSourceEc2(sources.DataSource):
 
         start_time = time.time()
         url = uhelp.wait_for_url(urls=urls, max_wait=max_wait,
-                                timeout=timeout, status_cb=LOG.warn)
+                                 timeout=timeout, status_cb=LOG.warn)
 
         if url:
             LOG.debug("Using metadata source: '%s'", url2base[url])
         else:
             LOG.critical("Giving up on md from %s after %s seconds",
-                            urls, int(time.time() - start_time))
+                         urls, int(time.time() - start_time))
 
         self.metadata_address = url2base.get(url)
         return bool(url)
@@ -156,8 +156,8 @@ class DataSourceEc2(sources.DataSource):
         # 'ephemeral0': '/dev/sdb',
         # 'root': '/dev/sda1'}
         found = None
-        bdm_items = self.metadata['block-device-mapping'].iteritems()
-        for (entname, device) in bdm_items:
+        bdm = self.metadata['block-device-mapping']
+        for (entname, device) in bdm.items():
             if entname == name:
                 found = device
                 break
@@ -197,9 +197,16 @@ class DataSourceEc2(sources.DataSource):
         except KeyError:
             return None
 
+    @property
+    def region(self):
+        az = self.availability_zone
+        if az is not None:
+            return az[:-1]
+        return None
+
 # Used to match classes to dependencies
 datasources = [
-  (DataSourceEc2, (sources.DEP_FILESYSTEM, sources.DEP_NETWORK)),
+    (DataSourceEc2, (sources.DEP_FILESYSTEM, sources.DEP_NETWORK)),
 ]
 
 

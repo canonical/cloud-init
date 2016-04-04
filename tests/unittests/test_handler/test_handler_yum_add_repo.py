@@ -4,9 +4,11 @@ from cloudinit.config import cc_yum_add_repo
 
 from .. import helpers
 
+import shutil
+import tempfile
 import logging
 
-from StringIO import StringIO
+from six import BytesIO
 
 import configobj
 
@@ -16,7 +18,8 @@ LOG = logging.getLogger(__name__)
 class TestConfig(helpers.FilesystemMockingTestCase):
     def setUp(self):
         super(TestConfig, self).setUp()
-        self.tmp = self.makeDir(prefix="unittest_")
+        self.tmp = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, self.tmp)
 
     def test_bad_config(self):
         cfg = {
@@ -52,8 +55,9 @@ class TestConfig(helpers.FilesystemMockingTestCase):
         }
         self.patchUtils(self.tmp)
         cc_yum_add_repo.handle('yum_add_repo', cfg, None, LOG, [])
-        contents = util.load_file("/etc/yum.repos.d/epel_testing.repo")
-        contents = configobj.ConfigObj(StringIO(contents))
+        contents = util.load_file("/etc/yum.repos.d/epel_testing.repo",
+                                  decode=False)
+        contents = configobj.ConfigObj(BytesIO(contents))
         expected = {
             'epel_testing': {
                 'name': 'Extra Packages for Enterprise Linux 5 - Testing',

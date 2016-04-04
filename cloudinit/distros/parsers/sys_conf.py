@@ -16,7 +16,8 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-from StringIO import StringIO
+import six
+from six import StringIO
 
 import pipes
 import re
@@ -69,15 +70,14 @@ class SysConf(configobj.ConfigObj):
         return out_contents.getvalue()
 
     def _quote(self, value, multiline=False):
-        if not isinstance(value, (str, basestring)):
+        if not isinstance(value, six.string_types):
             raise ValueError('Value "%s" is not a string' % (value))
         if len(value) == 0:
             return ''
         quot_func = None
         if value[0] in ['"', "'"] and value[-1] in ['"', "'"]:
             if len(value) == 1:
-                quot_func = (lambda x:
-                                self._get_single_quote(x) % x)
+                quot_func = (lambda x: self._get_single_quote(x) % x)
         else:
             # Quote whitespace if it isn't the start + end of a shell command
             if value.strip().startswith("$(") and value.strip().endswith(")"):
@@ -90,10 +90,10 @@ class SysConf(configobj.ConfigObj):
                         # to use single quotes which won't get expanded...
                         if re.search(r"[\n\"']", value):
                             quot_func = (lambda x:
-                                            self._get_triple_quote(x) % x)
+                                         self._get_triple_quote(x) % x)
                         else:
                             quot_func = (lambda x:
-                                            self._get_single_quote(x) % x)
+                                         self._get_single_quote(x) % x)
                     else:
                         quot_func = pipes.quote
         if not quot_func:

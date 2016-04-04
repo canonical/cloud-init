@@ -27,9 +27,9 @@ def handle(name, cfg, cloud, log, args):
     else:
         locale = util.get_cfg_option_str(cfg, "locale", cloud.get_locale())
 
-    if not locale:
-        log.debug(("Skipping module named %s, "
-                   "no 'locale' configuration found"), name)
+    if util.is_false(locale):
+        log.debug("Skipping module named %s, disabled by config: %s",
+                  name, locale)
         return
 
     log.debug("Setting locale to %s", locale)

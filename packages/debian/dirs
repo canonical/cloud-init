@@ -3,3 +3,4 @@ usr/bin
 etc/init
 usr/share/doc/cloud
 etc/cloud
+lib/udev/rules.d

@@ -19,7 +19,8 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-from StringIO import StringIO
+import six
+from six import StringIO
 
 # Used since this can maintain comments
 # and doesn't need a top level section
@@ -51,17 +52,17 @@ def handle(name, cfg, cloud, log, _args):
         # original file in order to be able to mix the rest up
         mcollective_config = ConfigObj(SERVER_CFG)
         # See: http://tiny.cc/jh9agw
-        for (cfg_name, cfg) in mcollective_cfg['conf'].iteritems():
+        for (cfg_name, cfg) in mcollective_cfg['conf'].items():
             if cfg_name == 'public-cert':
-                util.write_file(PUBCERT_FILE, cfg, mode=0644)
+                util.write_file(PUBCERT_FILE, cfg, mode=0o644)
                 mcollective_config['plugin.ssl_server_public'] = PUBCERT_FILE
                 mcollective_config['securityprovider'] = 'ssl'
             elif cfg_name == 'private-cert':
-                util.write_file(PRICERT_FILE, cfg, mode=0600)
+                util.write_file(PRICERT_FILE, cfg, mode=0o600)
                 mcollective_config['plugin.ssl_server_private'] = PRICERT_FILE
                 mcollective_config['securityprovider'] = 'ssl'
             else:
-                if isinstance(cfg, (basestring, str)):
+                if isinstance(cfg, six.string_types):
                     # Just set it in the 'main' section
                     mcollective_config[cfg_name] = cfg
                 elif isinstance(cfg, (dict)):
@@ -69,7 +70,7 @@ def handle(name, cfg, cloud, log, _args):
                     # if it is needed and then add/or create items as needed
                     if cfg_name not in mcollective_config.sections:
                         mcollective_config[cfg_name] = {}
-                    for (o, v) in cfg.iteritems():
+                    for (o, v) in cfg.items():
                         mcollective_config[cfg_name][o] = v
                 else:
                     # Otherwise just try to convert it to a string
@@ -81,7 +82,7 @@ def handle(name, cfg, cloud, log, _args):
         contents = StringIO()
         mcollective_config.write(contents)
         contents = contents.getvalue()
-        util.write_file(SERVER_CFG, contents, mode=0644)
+        util.write_file(SERVER_CFG, contents, mode=0o644)
 
     # Start mcollective
     util.subp(['service', 'mcollective', 'start'], capture=False)

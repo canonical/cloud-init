@@ -95,7 +95,7 @@ class CloudConfigPartHandler(handlers.Handler):
             lines.append(util.yaml_dumps(self.cloud_buf))
         else:
             lines = []
-        util.write_file(self.cloud_fn, "\n".join(lines), 0600)
+        util.write_file(self.cloud_fn, "\n".join(lines), 0o600)
 
     def _extract_mergers(self, payload, headers):
         merge_header_headers = ''

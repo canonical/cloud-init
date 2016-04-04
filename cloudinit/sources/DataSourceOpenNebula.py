@@ -24,7 +24,6 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import base64
 import os
 import pwd
 import re
@@ -33,6 +32,7 @@ import string
 from cloudinit import log as logging
 from cloudinit import sources
 from cloudinit import util
+
 
 LOG = logging.getLogger(__name__)
 
@@ -149,8 +149,8 @@ class BrokenContextDiskDir(Exception):
 
 class OpenNebulaNetwork(object):
     REG_DEV_MAC = re.compile(
-                    r'^\d+: (eth\d+):.*?link\/ether (..:..:..:..:..:..) ?',
-                    re.MULTILINE | re.DOTALL)
+        r'^\d+: (eth\d+):.*?link\/ether (..:..:..:..:..:..) ?',
+        re.MULTILINE | re.DOTALL)
 
     def __init__(self, ip, context):
         self.ip = ip
@@ -280,7 +280,7 @@ def parse_shell_config(content, keylist=None, bash=None, asuser=None,
 
     # allvars expands to all existing variables by using '${!x*}' notation
     # where x is lower or upper case letters or '_'
-    allvars = ["${!%s*}" % x for x in string.letters + "_"]
+    allvars = ["${!%s*}" % x for x in string.ascii_letters + "_"]
 
     keylist_in = keylist
     if keylist is None:
@@ -379,9 +379,8 @@ def read_context_disk_dir(source_dir, asuser=None):
                 raise BrokenContextDiskDir("configured user '%s' "
                                            "does not exist", asuser)
         try:
-            with open(os.path.join(source_dir, 'context.sh'), 'r') as f:
-                content = f.read().strip()
-
+            path = os.path.join(source_dir, 'context.sh')
+            content = util.load_file(path)
             context = parse_shell_config(content, asuser=asuser)
         except util.ProcessExecutionError as e:
             raise BrokenContextDiskDir("Error processing context.sh: %s" % (e))
@@ -405,7 +404,8 @@ def read_context_disk_dir(source_dir, asuser=None):
     if ssh_key_var:
         lines = context.get(ssh_key_var).splitlines()
         results['metadata']['public-keys'] = [l for l in lines
-            if len(l) and not l.startswith("#")]
+                                              if len(l) and not
+                                              l.startswith("#")]
 
     # custom hostname -- try hostname or leave cloud-init
     # itself create hostname from IP address later
@@ -426,14 +426,14 @@ def read_context_disk_dir(source_dir, asuser=None):
                                context.get('USER_DATA_ENCODING'))
         if encoding == "base64":
             try:
-                results['userdata'] = base64.b64decode(results['userdata'])
+                results['userdata'] = util.b64d(results['userdata'])
             except TypeError:
                 LOG.warn("Failed base64 decoding of userdata")
 
     # generate static /etc/network/interfaces
     # only if there are any required context variables
     # http://opennebula.org/documentation:rel3.8:cong#network_configuration
-    for k in context.keys():
+    for k in context:
         if re.match(r'^ETH\d+_IP$', k):
             (out, _) = util.subp(['/sbin/ip', 'link'])
             net = OpenNebulaNetwork(out, context)

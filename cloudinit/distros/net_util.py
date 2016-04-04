@@ -103,7 +103,7 @@ def translate_network(settings):
             consume[cmd] = args
     # Check if anything left over to consume
     absorb = False
-    for (cmd, args) in consume.iteritems():
+    for (cmd, args) in consume.items():
         if cmd == 'iface':
             absorb = True
     if absorb:

@@ -1,0 +1,17 @@
+#cloud-config
+##
+## The following sets up 2 reporting end points.
+## A 'webhook' and a 'log' type.
+## It also disables the built in default 'log'
+reporting:
+   smtest:
+     type: webhook
+     endpoint: "http://myhost:8000/"
+     consumer_key: "ckey_foo"
+     consumer_secret: "csecret_foo"
+     token_key: "tkey_foo"
+     token_secret: "tkey_foo"
+   smlogger:
+     type: log
+     level: WARN
+   log: null

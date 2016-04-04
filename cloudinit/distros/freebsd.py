@@ -17,8 +17,8 @@
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import os
-
-from StringIO import StringIO
+import six
+from six import StringIO
 
 import re
 
@@ -207,8 +207,9 @@ class Distro(distros.Distro):
 
         redact_opts = ['passwd']
 
-        for key, val in kwargs.iteritems():
-            if key in adduser_opts and val and isinstance(val, basestring):
+        for key, val in kwargs.items():
+            if (key in adduser_opts and val and
+               isinstance(val, six.string_types)):
                 adduser_cmd.extend([adduser_opts[key], val])
 
                 # Redact certain fields from the logs
@@ -287,7 +288,7 @@ class Distro(distros.Distro):
         nameservers = []
         searchdomains = []
         dev_names = entries.keys()
-        for (device, info) in entries.iteritems():
+        for (device, info) in entries.items():
             # Skip the loopback interface.
             if device.startswith('lo'):
                 continue
@@ -339,7 +340,7 @@ class Distro(distros.Distro):
                 resolvconf.add_search_domain(domain)
             except ValueError:
                 util.logexc(LOG, "Failed to add search domain %s", domain)
-        util.write_file(self.resolv_conf_fn, str(resolvconf), 0644)
+        util.write_file(self.resolv_conf_fn, str(resolvconf), 0o644)
 
         return dev_names
 

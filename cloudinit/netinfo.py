@@ -87,7 +87,7 @@ def netdev_info(empty=""):
                     devs[curdev][target] = toks[i][len(field) + 1:]
 
     if empty != "":
-        for (_devname, dev) in devs.iteritems():
+        for (_devname, dev) in devs.items():
             for field in dev:
                 if dev[field] == "":
                     dev[field] = empty
@@ -181,7 +181,7 @@ def netdev_pformat():
     else:
         fields = ['Device', 'Up', 'Address', 'Mask', 'Scope', 'Hw-Address']
         tbl = PrettyTable(fields)
-        for (dev, d) in netdev.iteritems():
+        for (dev, d) in netdev.items():
             tbl.add_row([dev, d["up"], d["addr"], d["mask"], ".", d["hwaddr"]])
             if d.get('addr6'):
                 tbl.add_row([dev, d["up"],

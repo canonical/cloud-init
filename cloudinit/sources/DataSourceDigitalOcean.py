@@ -18,7 +18,7 @@ from cloudinit import log as logging
 from cloudinit import util
 from cloudinit import sources
 from cloudinit import ec2_utils
-from types import StringType
+
 import functools
 
 
@@ -54,9 +54,13 @@ class DataSourceDigitalOcean(sources.DataSource):
     def get_data(self):
         caller = functools.partial(util.read_file_or_url,
                                    timeout=self.timeout, retries=self.retries)
-        md = ec2_utils.MetadataMaterializer(str(caller(self.metadata_address)),
+
+        def mcaller(url):
+            return caller(url).contents
+
+        md = ec2_utils.MetadataMaterializer(mcaller(self.metadata_address),
                                             base_url=self.metadata_address,
-                                            caller=caller)
+                                            caller=mcaller)
 
         self.metadata = md.materialize()
 
@@ -72,10 +76,11 @@ class DataSourceDigitalOcean(sources.DataSource):
         return "\n".join(self.metadata['vendor-data'])
 
     def get_public_ssh_keys(self):
-        if type(self.metadata['public-keys']) is StringType:
-            return [self.metadata['public-keys']]
+        public_keys = self.metadata['public-keys']
+        if isinstance(public_keys, list):
+            return public_keys
         else:
-            return self.metadata['public-keys']
+            return [public_keys]
 
     @property
     def availability_zone(self):
@@ -84,7 +89,7 @@ class DataSourceDigitalOcean(sources.DataSource):
     def get_instance_id(self):
         return self.metadata['id']
 
-    def get_hostname(self, fqdn=False):
+    def get_hostname(self, fqdn=False, resolve_ip=False):
         return self.metadata['hostname']
 
     def get_package_mirror_info(self):
@@ -96,8 +101,8 @@ class DataSourceDigitalOcean(sources.DataSource):
 
 # Used to match classes to dependencies
 datasources = [
-  (DataSourceDigitalOcean, (sources.DEP_FILESYSTEM, sources.DEP_NETWORK)),
-  ]
+    (DataSourceDigitalOcean, (sources.DEP_FILESYSTEM, sources.DEP_NETWORK)),
+]
 
 
 # Return a list of data sources that match this set of dependencies

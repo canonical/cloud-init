@@ -26,6 +26,8 @@ from cloudinit.sources import DataSourceNone
 from .. import helpers as t_help
 
 import logging
+import shutil
+import tempfile
 
 LOG = logging.getLogger(__name__)
 
@@ -33,7 +35,8 @@ LOG = logging.getLogger(__name__)
 class TestDebug(t_help.FilesystemMockingTestCase):
     def setUp(self):
         super(TestDebug, self).setUp()
-        self.new_root = self.makeDir(prefix="unittest_")
+        self.new_root = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, self.new_root)
 
     def _get_cloud(self, distro, metadata=None):
         self.patchUtils(self.new_root)

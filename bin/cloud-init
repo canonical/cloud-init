@@ -46,6 +46,8 @@ from cloudinit import sources
 from cloudinit import stages
 from cloudinit import templater
 from cloudinit import util
+from cloudinit import reporting
+from cloudinit.reporting import events
 from cloudinit import version
 
 from cloudinit.settings import (PER_INSTANCE, PER_ALWAYS, PER_ONCE,
@@ -136,6 +138,11 @@ def run_module_section(mods, action_name, section):
         return failures
 
 
+def apply_reporting_cfg(cfg):
+    if cfg.get('reporting'):
+        reporting.update_configuration(cfg.get('reporting'))
+
+
 def main_init(name, args):
     deps = [sources.DEP_FILESYSTEM, sources.DEP_NETWORK]
     if args.local:
@@ -171,7 +178,7 @@ def main_init(name, args):
         w_msg = welcome_format(name)
     else:
         w_msg = welcome_format("%s-local" % (name))
-    init = stages.Init(deps)
+    init = stages.Init(ds_deps=deps, reporter=args.reporter)
     # Stage 1
     init.read_cfg(extract_fns(args))
     # Stage 2
@@ -187,9 +194,10 @@ def main_init(name, args):
     if args.debug:
         # Reset so that all the debug handlers are closed out
         LOG.debug(("Logging being reset, this logger may no"
-                    " longer be active shortly"))
+                   " longer be active shortly"))
         logging.resetLogging()
     logging.setupLogging(init.cfg)
+    apply_reporting_cfg(init.cfg)
 
     # Any log usage prior to setupLogging above did not have local user log
     # config applied.  We send the welcome message now, as stderr/out have
@@ -204,6 +212,7 @@ def main_init(name, args):
     # Stage 4
     path_helper = init.paths
     if not args.local:
+        existing = "trust"
         sys.stderr.write("%s\n" % (netinfo.debug_info()))
         LOG.debug(("Checking to see if files that we need already"
                    " exist from a previous run that would allow us"
@@ -228,21 +237,17 @@ def main_init(name, args):
             LOG.debug("Execution continuing, no previous run detected that"
                       " would allow us to stop early.")
     else:
-        # The cache is not instance specific, so it has to be purged
-        # but we want 'start' to benefit from a cache if
-        # a previous start-local populated one...
-        manual_clean = util.get_cfg_option_bool(init.cfg,
-                                                'manual_cache_clean', False)
-        if manual_clean:
-            LOG.debug("Not purging instance link, manual cleaning enabled")
-            init.purge_cache(False)
-        else:
-            init.purge_cache()
+        existing = "check"
+        if util.get_cfg_option_bool(init.cfg, 'manual_cache_clean', False):
+            existing = "trust"
+
+        init.purge_cache()
         # Delete the non-net file as well
         util.del_file(os.path.join(path_helper.get_cpath("data"), "no-net"))
+
     # Stage 5
     try:
-        init.fetch()
+        init.fetch(existing=existing)
     except sources.DataSourceNotFoundException:
         # In the case of 'cloud-init init' without '--local' it is a bit
         # more likely that the user would consider it failure if nothing was
@@ -254,10 +259,15 @@ def main_init(name, args):
             util.logexc(LOG, ("No instance datasource found!"
                               " Likely bad things to come!"))
         if not args.force:
+            init.apply_network_config()
             if args.local:
                 return (None, [])
             else:
                 return (None, ["No instance datasource found."])
+
+    if args.local:
+        init.apply_network_config()
+
     # Stage 6
     iid = init.instancify()
     LOG.debug("%s will now be targeting instance id: %s", name, iid)
@@ -268,9 +278,9 @@ def main_init(name, args):
         # This may run user-data handlers and/or perform
         # url downloads and such as needed.
         (ran, _results) = init.cloudify().run('consume_data',
-                                             init.consume_data,
-                                             args=[PER_INSTANCE],
-                                             freq=PER_INSTANCE)
+                                              init.consume_data,
+                                              args=[PER_INSTANCE],
+                                              freq=PER_INSTANCE)
         if not ran:
             # Just consume anything that is set to run per-always
             # if nothing ran in the per-instance code
@@ -282,8 +292,10 @@ def main_init(name, args):
         util.logexc(LOG, "Consuming user data failed!")
         return (init.datasource, ["Consuming user data failed!"])
 
+    apply_reporting_cfg(init.cfg)
+
     # Stage 8 - re-read and apply relevant cloud-config to include user-data
-    mods = stages.Modules(init, extract_fns(args))
+    mods = stages.Modules(init, extract_fns(args), reporter=args.reporter)
     # Stage 9
     try:
         outfmt_orig = outfmt
@@ -313,12 +325,12 @@ def main_modules(action_name, args):
     # 5. Run the modules for the given stage name
     # 6. Done!
     w_msg = welcome_format("%s:%s" % (action_name, name))
-    init = stages.Init(ds_deps=[])
+    init = stages.Init(ds_deps=[], reporter=args.reporter)
     # Stage 1
     init.read_cfg(extract_fns(args))
     # Stage 2
     try:
-        init.fetch()
+        init.fetch(existing="trust")
     except sources.DataSourceNotFoundException:
         # There was no datasource found, theres nothing to do
         msg = ('Can not apply stage %s, no datasource found! Likely bad '
@@ -328,7 +340,7 @@ def main_modules(action_name, args):
         if not args.force:
             return [(msg)]
     # Stage 3
-    mods = stages.Modules(init, extract_fns(args))
+    mods = stages.Modules(init, extract_fns(args), reporter=args.reporter)
     # Stage 4
     try:
         LOG.debug("Closing stdin")
@@ -339,9 +351,10 @@ def main_modules(action_name, args):
     if args.debug:
         # Reset so that all the debug handlers are closed out
         LOG.debug(("Logging being reset, this logger may no"
-                    " longer be active shortly"))
+                   " longer be active shortly"))
         logging.resetLogging()
     logging.setupLogging(mods.cfg)
+    apply_reporting_cfg(init.cfg)
 
     # now that logging is setup and stdout redirected, send welcome
     welcome(name, msg=w_msg)
@@ -366,12 +379,12 @@ def main_single(name, args):
     # 6. Done!
     mod_name = args.name
     w_msg = welcome_format(name)
-    init = stages.Init(ds_deps=[])
+    init = stages.Init(ds_deps=[], reporter=args.reporter)
     # Stage 1
     init.read_cfg(extract_fns(args))
     # Stage 2
     try:
-        init.fetch()
+        init.fetch(existing="trust")
     except sources.DataSourceNotFoundException:
         # There was no datasource found,
         # that might be bad (or ok) depending on
@@ -383,7 +396,7 @@ def main_single(name, args):
         if not args.force:
             return 1
     # Stage 3
-    mods = stages.Modules(init, extract_fns(args))
+    mods = stages.Modules(init, extract_fns(args), reporter=args.reporter)
     mod_args = args.module_args
     if mod_args:
         LOG.debug("Using passed in arguments %s", mod_args)
@@ -404,6 +417,7 @@ def main_single(name, args):
                    " longer be active shortly"))
         logging.resetLogging()
     logging.setupLogging(mods.cfg)
+    apply_reporting_cfg(init.cfg)
 
     # now that logging is setup and stdout redirected, send welcome
     welcome(name, msg=w_msg)
@@ -423,18 +437,22 @@ def main_single(name, args):
         return 0
 
 
-def atomic_write_json(path, data):
+def atomic_write_file(path, content, mode='w'):
     tf = None
     try:
         tf = tempfile.NamedTemporaryFile(dir=os.path.dirname(path),
-                                         delete=False)
-        tf.write(json.dumps(data, indent=1) + "\n")
+                                         delete=False, mode=mode)
+        tf.write(content)
         tf.close()
         os.rename(tf.name, path)
     except Exception as e:
         if tf is not None:
-            util.del_file(tf.name)
+            os.unlink(tf.name)
         raise e
+
+
+def atomic_write_json(path, data):
+    return atomic_write_file(path, json.dumps(data, indent=1) + "\n")
 
 
 def status_wrapper(name, args, data_d=None, link_d=None):
@@ -505,6 +523,8 @@ def status_wrapper(name, args, data_d=None, link_d=None):
         v1[mode]['errors'] = [str(e) for e in errors]
 
     except Exception as e:
+        util.logexc(LOG, "failed of stage %s", mode)
+        print_exc("failed run of stage %s" % mode)
         v1[mode]['errors'] = [str(e)]
 
     v1[mode]['finished'] = time.time()
@@ -520,7 +540,8 @@ def status_wrapper(name, args, data_d=None, link_d=None):
                 errors.extend(v1[m].get('errors', []))
 
         atomic_write_json(result_path,
-            {'v1': {'datasource': v1['datasource'], 'errors': errors}})
+                          {'v1': {'datasource': v1['datasource'],
+                                  'errors': errors}})
         util.sym_link(os.path.relpath(result_path, link_d), result_link,
                       force=True)
 
@@ -547,6 +568,8 @@ def main():
                               ' found (use at your own risk)'),
                         dest='force',
                         default=False)
+
+    parser.set_defaults(reporter=None)
     subparsers = parser.add_subparsers()
 
     # Each action and its sub-options (if any)
@@ -562,13 +585,13 @@ def main():
 
     # These settings are used for the 'config' and 'final' stages
     parser_mod = subparsers.add_parser('modules',
-                                      help=('activates modules '
-                                            'using a given configuration key'))
+                                       help=('activates modules using '
+                                             'a given configuration key'))
     parser_mod.add_argument("--mode", '-m', action='store',
-                             help=("module configuration name "
-                                    "to use (default: %(default)s)"),
-                             default='config',
-                             choices=('init', 'config', 'final'))
+                            help=("module configuration name "
+                                  "to use (default: %(default)s)"),
+                            default='config',
+                            choices=('init', 'config', 'final'))
     parser_mod.set_defaults(action=('modules', main_modules))
 
     # These settings are used when you want to query information
@@ -584,19 +607,22 @@ def main():
 
     # This subcommand allows you to run a single module
     parser_single = subparsers.add_parser('single',
-                                         help=('run a single module '))
+                                          help=('run a single module '))
     parser_single.set_defaults(action=('single', main_single))
     parser_single.add_argument("--name", '-n', action="store",
-                              help="module name to run",
-                              required=True)
+                               help="module name to run",
+                               required=True)
     parser_single.add_argument("--frequency", action="store",
-                              help=("frequency of the module"),
-                              required=False,
-                              choices=list(FREQ_SHORT_NAMES.keys()))
+                               help=("frequency of the module"),
+                               required=False,
+                               choices=list(FREQ_SHORT_NAMES.keys()))
+    parser_single.add_argument("--report", action="store_true",
+                               help="enable reporting",
+                               required=False)
     parser_single.add_argument("module_args", nargs="*",
-                              metavar='argument',
-                              help=('any additional arguments to'
-                                    ' pass to this module'))
+                               metavar='argument',
+                               help=('any additional arguments to'
+                                     ' pass to this module'))
     parser_single.set_defaults(action=('single', main_single))
 
     args = parser.parse_args()
@@ -609,12 +635,33 @@ def main():
     # Setup signal handlers before running
     signal_handler.attach_handlers()
 
+    if not hasattr(args, 'action'):
+        parser.error('too few arguments')
     (name, functor) = args.action
     if name in ("modules", "init"):
         functor = status_wrapper
 
-    return util.log_time(logfunc=LOG.debug, msg="cloud-init mode '%s'" % name,
-                         get_uptime=True, func=functor, args=(name, args))
+    report_on = True
+    if name == "init":
+        if args.local:
+            rname, rdesc = ("init-local", "searching for local datasources")
+        else:
+            rname, rdesc = ("init-network",
+                            "searching for network datasources")
+    elif name == "modules":
+        rname, rdesc = ("modules-%s" % args.mode,
+                        "running modules for %s" % args.mode)
+    elif name == "single":
+        rname, rdesc = ("single/%s" % args.name,
+                        "running single module %s" % args.name)
+        report_on = args.report
+
+    args.reporter = events.ReportEventStack(
+        rname, rdesc, reporting_enabled=report_on)
+    with args.reporter:
+        return util.log_time(
+            logfunc=LOG.debug, msg="cloud-init mode '%s'" % name,
+            get_uptime=True, func=functor, args=(name, args))
 
 
 if __name__ == '__main__':
