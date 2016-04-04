@@ -99,6 +99,7 @@
  - FreeBSD: add support for installing packages, setting password and
    timezone.  Change default user to 'freebsd'. [Ben Arblaster]
  - locale: list unsupported environment settings in warning (LP: #1558069)
+ - disk_setup: correctly send --force to mkfs on block devices (LP: #1548772)
 
 0.7.6:
  - open 0.7.6

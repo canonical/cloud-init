@@ -847,9 +847,9 @@ def mkfs(fs_cfg):
         if label:
             fs_cmd.extend(["-L", label])
 
-    # File systems that support the -F flag
-    if not fs_cmd and (overwrite or device_type(device) == "disk"):
-        fs_cmd.append(lookup_force_flag(fs_type))
+        # File systems that support the -F flag
+        if overwrite or device_type(device) == "disk":
+            fs_cmd.append(lookup_force_flag(fs_type))
 
     # Add the extends FS options
     if fs_opts:
