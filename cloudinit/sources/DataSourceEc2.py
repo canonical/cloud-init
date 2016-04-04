@@ -84,8 +84,6 @@ class DataSourceEc2(sources.DataSource):
 
     def _get_url_settings(self):
         mcfg = self.ds_cfg
-        if not mcfg:
-            mcfg = {}
         max_wait = 120
         try:
             max_wait = int(mcfg.get("max_wait", max_wait))
@@ -102,8 +100,6 @@ class DataSourceEc2(sources.DataSource):
 
     def wait_for_metadata_service(self):
         mcfg = self.ds_cfg
-        if not mcfg:
-            mcfg = {}
 
         (max_wait, timeout) = self._get_url_settings()
         if max_wait <= 0:

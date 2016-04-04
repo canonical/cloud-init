@@ -89,8 +89,6 @@ class DataSourceCloudStack(sources.DataSource):
 
     def _get_url_settings(self):
         mcfg = self.ds_cfg
-        if not mcfg:
-            mcfg = {}
         max_wait = 120
         try:
             max_wait = int(mcfg.get("max_wait", max_wait))
@@ -109,10 +107,6 @@ class DataSourceCloudStack(sources.DataSource):
         return (max_wait, timeout)
 
     def wait_for_metadata_service(self):
-        mcfg = self.ds_cfg
-        if not mcfg:
-            mcfg = {}
-
         (max_wait, timeout) = self._get_url_settings()
 
         urls = [uhelp.combine_url(self.metadata_address,
