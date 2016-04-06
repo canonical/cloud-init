@@ -102,6 +102,7 @@
  - disk_setup: correctly send --force to mkfs on block devices (LP: #1548772)
  - chef: fix chef install from gems (LP: #1553345)
  - systemd: do not specify After of obsolete syslog.target (LP: #1536964)
+ - centos: Ensure that resolve conf object is written as a str (LP: #1479988)
 
 0.7.6:
  - open 0.7.6
