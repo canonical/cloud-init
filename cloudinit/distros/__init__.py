@@ -371,6 +371,10 @@ class Distro(object):
                 kwargs['groups'] = ",".join(groups)
             else:
                 groups = groups.split(",")
+            
+            primary_group = kwargs.get('primary_group')
+            if primary_group:
+                groups.append(primary_group)
 
         if create_groups and groups:
             for group in groups:
