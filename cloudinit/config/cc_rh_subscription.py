@@ -19,9 +19,14 @@
 from cloudinit import util
 
 
-def handle(_name, cfg, _cloud, log, _args):
+def handle(name, cfg, _cloud, log, _args):
     sm = SubscriptionManager(cfg)
     sm.log = log
+    if not sm.is_configured():
+        log.debug("Activation key not provided, config module %s disabled.",
+                  _name)
+        return None
+
     if not sm.is_registered:
         try:
             verify, verify_msg = sm._verify_keys()
@@ -95,7 +100,6 @@ class SubscriptionManager(object):
         self.disable_repo = self.rhel_cfg.get('disable-repo')
         self.servicelevel = self.rhel_cfg.get('service-level')
         self.subman = ['subscription-manager']
-        self.is_registered = self._is_registered()
 
     def log_success(self, msg):
         '''Simple wrapper for logging info messages. Useful for unittests'''
@@ -134,7 +138,7 @@ class SubscriptionManager(object):
             return False, no_auto
         return True, None
 
-    def _is_registered(self):
+    def is_registered(self):
         '''
         Checks if the system is already registered and returns
         True if so, else False
@@ -400,3 +404,6 @@ class SubscriptionManager(object):
             self.log.debug("Disabled the following repos: %s" %
                            (", ".join(disable_list)).replace('--disable=', ''))
         return True
+
+    def is_configured(self):
+        return (self.userid and self.password) or self.activation_key
