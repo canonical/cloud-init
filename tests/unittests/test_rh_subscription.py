@@ -126,7 +126,8 @@ class TestBadInput(unittest.TestCase):
                        'enable-repo': 'not_a_list'
                        }}
     config_badkey = {'rh_subscription':
-                     {'activation_key': 'abcdef1234',
+                     {'activation-key': 'abcdef1234',
+                      'fookey': 'bar',
                       'org': '123',
                       }}
 
@@ -138,7 +139,11 @@ class TestBadInput(unittest.TestCase):
         '''
         Attempt to register without the password key/value
         '''
-        self.input_is_missing_data(self.config_no_password)
+        self.SM._sub_man_cli = mock.MagicMock(
+            side_effect=[util.ProcessExecutionError, (self.reg, 'bar')])
+        self.handle(self.name, self.config_no_password, self.cloud_init,
+                    self.log, self.args)
+        self.assertEqual(self.SM._sub_man_cli.call_count, 0)
 
     def test_no_org(self):
         '''

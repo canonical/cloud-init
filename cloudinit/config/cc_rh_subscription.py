@@ -23,11 +23,10 @@ def handle(name, cfg, _cloud, log, _args):
     sm = SubscriptionManager(cfg)
     sm.log = log
     if not sm.is_configured():
-        log.debug("Activation key not provided, config module %s disabled.",
-                  _name)
+        log.debug("%s: module not configured.", name)
         return None
 
-    if not sm.is_registered:
+    if not sm.is_registered():
         try:
             verify, verify_msg = sm._verify_keys()
             if verify is not True:
@@ -406,4 +405,4 @@ class SubscriptionManager(object):
         return True
 
     def is_configured(self):
-        return (self.userid and self.password) or self.activation_key
+        return bool((self.userid and self.password) or self.activation_key)
