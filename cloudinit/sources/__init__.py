@@ -70,6 +70,9 @@ class DataSource(object):
 
         self.ds_cfg = util.get_cfg_by_path(self.sys_cfg,
                                            ("datasource", name), {})
+        if not self.ds_cfg:
+            self.ds_cfg = {}
+
         if not ud_proc:
             self.ud_proc = ud.UserDataProcessor(self.paths)
         else:

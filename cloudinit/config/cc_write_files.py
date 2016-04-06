@@ -92,10 +92,10 @@ def decode_perms(perm, default, log):
 
 
 def extract_contents(contents, extraction_types):
-    result = str(contents)
+    result = contents
     for t in extraction_types:
         if t == 'application/x-gzip':
-            result = util.decomp_gzip(result, quiet=False)
+            result = util.decomp_gzip(result, quiet=False, decode=False)
         elif t == 'application/base64':
             result = base64.b64decode(result)
         elif t == UNKNOWN_ENC:

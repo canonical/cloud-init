@@ -362,15 +362,22 @@ class Distro(object):
 
         redact_opts = ['passwd']
 
+        # support kwargs having groups=[list] or groups="g1,g2"
         groups = kwargs.get('groups')
         if groups:
             if isinstance(groups, (list, tuple)):
+                # kwargs.items loop below wants a comma delimeted string
+                # that can go right through to the command.
                 kwargs['groups'] = ",".join(groups)
             else:
                 groups = groups.split(",")
 
-        if create_groups:
-            for group in kwargs.get('groups').split(","):
+            primary_group = kwargs.get('primary_group')
+            if primary_group:
+                groups.append(primary_group)
+
+        if create_groups and groups:
+            for group in groups:
                 if not util.is_group(group):
                     self.create_group(group)
                     LOG.debug("created group %s for user %s", name, group)
@@ -933,7 +940,10 @@ def set_etc_timezone(tz, tz_file=None, tz_conf="/etc/timezone",
     # This ensures that the correct tz will be used for the system
     if tz_local and tz_file:
         # use a symlink if there exists a symlink or tz_local is not present
-        if os.path.islink(tz_local) or not os.path.exists(tz_local):
+        islink = os.path.islink(tz_local)
+        if islink or not os.path.exists(tz_local):
+            if islink:
+                util.del_file(tz_local)
             os.symlink(tz_file, tz_local)
         else:
             util.copy(tz_file, tz_local)
