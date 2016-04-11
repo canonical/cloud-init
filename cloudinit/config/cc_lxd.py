@@ -46,7 +46,6 @@ Example config:
 """
 
 from cloudinit import util
-import os
 
 
 def handle(name, cfg, cloud, log, args):
@@ -102,26 +101,29 @@ def handle(name, cfg, cloud, log, args):
         util.subp(cmd)
 
     # Set up lxd-bridge if bridge config is given
-    if bridge_cfg:
+    dconf_comm = "debconf-communicate"
+    if bridge_cfg and util.which(dconf_comm):
         debconf = bridge_to_debconf(bridge_cfg)
 
         # Update debconf database
         try:
-            log.debug("Setting lxd debconf-set-selections")
+            log.debug("Setting lxd debconf via " + dconf_comm)
             data = "\n".join(["set %s %s" % (k, v)
-                              for k, v in debconf.items()])
+                              for k, v in debconf.items()]) + "\n"
             util.subp(['debconf-communicate'], data)
         except:
-            util.logexc(log, "Failed to run debconf-communicate for lxd")
+            util.logexc(log, "Failed to run '%s' for lxd with" % dconf_comm)
 
         # Remove the existing configuration file (forces re-generation)
-        if os.path.exists("/etc/default/lxd-bridge"):
-            os.remove("/etc/default/lxd-bridge")
+        util.del_file("/etc/default/lxd-bridge")
 
         # Run reconfigure
         log.debug("Running dpkg-reconfigure for lxd")
         util.subp(['dpkg-reconfigure', 'lxd',
                    '--frontend=noninteractive'])
+    elif bridge_cfg:
+        raise RuntimeError(
+            "Unable to configure lxd bridge without %s." + dconf_comm)
 
 
 def bridge_to_debconf(bridge_cfg):
