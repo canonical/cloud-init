@@ -103,53 +103,14 @@ def handle(name, cfg, cloud, log, args):
 
     # Set up lxd-bridge if bridge config is given
     if bridge_cfg:
-        debconf = {}
-
-        if bridge_cfg.get("mode") == "none":
-            debconf["lxd/setup-bridge"] = "false"
-            debconf["lxd/bridge-name"] = ""
-
-        elif bridge_cfg.get("mode") == "existing":
-            debconf["lxd/setup-bridge"] = "false"
-            debconf["lxd/use-existing-bridge"] = "true"
-            debconf["lxd/bridge-name"] = bridge_cfg.get("name")
-
-        elif bridge_cfg.get("mode") == "new":
-            debconf["lxd/setup-bridge"] = "true"
-            debconf["lxd/bridge-name"] = bridge_cfg.get("name", "lxdbr0")
-            if bridge_cfg.get("ipv4_address"):
-                debconf["lxd/bridge-ipv4"] = "true"
-                debconf["lxd/bridge-ipv4-address"] = \
-                    bridge_cfg.get("ipv4_address")
-                debconf["lxd/bridge-ipv4-netmask"] = \
-                    bridge_cfg.get("ipv4_netmask")
-                debconf["lxd/bridge-ipv4-dhcp-first"] = \
-                    bridge_cfg.get("ipv4_dhcp_first")
-                debconf["lxd/bridge-ipv4-dhcp-last"] = \
-                    bridge_cfg.get("ipv4_dhcp_last")
-                debconf["lxd/bridge-ipv4-dhcp-leases"] = \
-                    bridge_cfg.get("ipv4_dhcp_leases")
-                debconf["lxd/bridge-ipv4-nat"] = \
-                    bridge_cfg.get("ipv4_nat", "true")
-
-            if bridge_cfg.get("ipv6_address"):
-                debconf["lxd/bridge-ipv6"] = "true"
-                debconf["lxd/bridge-ipv6-address"] = \
-                    bridge_cfg.get("ipv6_address")
-                debconf["lxd/bridge-ipv6-netmask"] = \
-                    bridge_cfg.get("ipv6_netmask")
-                debconf["lxd/bridge-ipv6-nat"] = \
-                    bridge_cfg.get("ipv6_nat", "false")
-
-        else:
-            log.warn("invalid bridge mode \"%s\"" % bridge_cfg.get("mode"))
-            return
+        debconf = bridge_to_debconf(bridge_cfg)
 
         # Update debconf database
         try:
             log.debug("Setting lxd debconf-set-selections")
-            for k, v in debconf.items():
-                util.subp(['debconf-communicate'], "set %s %s\n" % (k, v))
+            data = "\n".join(["set %s %s" % (k, v)
+                              for k, v in debconf.items()])
+            util.subp(['debconf-communicate'], data)
         except:
             util.logexc(log, "Failed to run debconf-communicate for lxd")
 
@@ -158,9 +119,51 @@ def handle(name, cfg, cloud, log, args):
             os.remove("/etc/default/lxd-bridge")
 
         # Run reconfigure
-        try:
-            log.debug("Running dpkg-reconfigure for lxd")
-            util.subp(['dpkg-reconfigure', 'lxd',
-                       '--frontend=noninteractive'])
-        except:
-            util.logexc(log, "Failed to run dpkg-reconfigure for lxd")
+        log.debug("Running dpkg-reconfigure for lxd")
+        util.subp(['dpkg-reconfigure', 'lxd',
+                   '--frontend=noninteractive'])
+
+
+def bridge_to_debconf(bridge_cfg):
+    debconf = {}
+
+    if bridge_cfg.get("mode") == "none":
+        debconf["lxd/setup-bridge"] = "false"
+        debconf["lxd/bridge-name"] = ""
+
+    elif bridge_cfg.get("mode") == "existing":
+        debconf["lxd/setup-bridge"] = "false"
+        debconf["lxd/use-existing-bridge"] = "true"
+        debconf["lxd/bridge-name"] = bridge_cfg.get("name")
+
+    elif bridge_cfg.get("mode") == "new":
+        debconf["lxd/setup-bridge"] = "true"
+        debconf["lxd/bridge-name"] = bridge_cfg.get("name", "lxdbr0")
+        if bridge_cfg.get("ipv4_address"):
+            debconf["lxd/bridge-ipv4"] = "true"
+            debconf["lxd/bridge-ipv4-address"] = \
+                bridge_cfg.get("ipv4_address")
+            debconf["lxd/bridge-ipv4-netmask"] = \
+                bridge_cfg.get("ipv4_netmask")
+            debconf["lxd/bridge-ipv4-dhcp-first"] = \
+                bridge_cfg.get("ipv4_dhcp_first")
+            debconf["lxd/bridge-ipv4-dhcp-last"] = \
+                bridge_cfg.get("ipv4_dhcp_last")
+            debconf["lxd/bridge-ipv4-dhcp-leases"] = \
+                bridge_cfg.get("ipv4_dhcp_leases")
+            debconf["lxd/bridge-ipv4-nat"] = \
+                bridge_cfg.get("ipv4_nat", "true")
+
+        if bridge_cfg.get("ipv6_address"):
+            debconf["lxd/bridge-ipv6"] = "true"
+            debconf["lxd/bridge-ipv6-address"] = \
+                bridge_cfg.get("ipv6_address")
+            debconf["lxd/bridge-ipv6-netmask"] = \
+                bridge_cfg.get("ipv6_netmask")
+            debconf["lxd/bridge-ipv6-nat"] = \
+                bridge_cfg.get("ipv6_nat", "false")
+
+    else:
+        raise Exception("invalid bridge mode \"%s\"" % bridge_cfg.get("mode"))
+
+    return debconf
