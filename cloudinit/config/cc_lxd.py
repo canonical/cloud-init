@@ -138,7 +138,9 @@ def bridge_to_debconf(bridge_cfg):
 
     elif bridge_cfg.get("mode") == "new":
         debconf["lxd/setup-bridge"] = "true"
-        debconf["lxd/bridge-name"] = bridge_cfg.get("name", "lxdbr0")
+        if bridge_cfg.get("name"):
+            debconf["lxd/bridge-name"] = bridge_cfg.get("name")
+
         if bridge_cfg.get("ipv4_address"):
             debconf["lxd/bridge-ipv4"] = "true"
             debconf["lxd/bridge-ipv4-address"] = \
@@ -162,6 +164,9 @@ def bridge_to_debconf(bridge_cfg):
                 bridge_cfg.get("ipv6_netmask")
             debconf["lxd/bridge-ipv6-nat"] = \
                 bridge_cfg.get("ipv6_nat", "false")
+
+        if bridge_cfg.get("domain"):
+            debconf["lxd/bridge-domain"] = bridge_cfg.get("domain")
 
     else:
         raise Exception("invalid bridge mode \"%s\"" % bridge_cfg.get("mode"))
