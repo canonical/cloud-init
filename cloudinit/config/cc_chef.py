@@ -209,8 +209,13 @@ def handle(name, cfg, cloud, log, _args):
     vcert = chef_cfg.get('validation_cert')
     # special value 'system' means do not overwrite the file
     # but still render the template to contain 'validation_key'
-    if vcert and vcert != "system":
-        util.write_file(vkey_path, vcert)
+    if vcert:
+        if vcert != "system":
+            util.write_file(vkey_path, vcert)
+        elif not os.path.isfile(vkey_path):
+            log.warn("chef validation_cert provided as 'system', but " 
+                     "validation_key path '%s' does not exist.",
+                     vkey_path)
 
     # Create the chef config from template
     template_fn = cloud.get_template_filename('chef_client.rb')
