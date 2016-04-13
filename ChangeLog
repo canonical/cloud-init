@@ -103,6 +103,7 @@
  - chef: fix chef install from gems (LP: #1553345)
  - systemd: do not specify After of obsolete syslog.target (LP: #1536964)
  - centos: Ensure that resolve conf object is written as a str (LP: #1479988)
+ - chef: straighten out validation_cert and validation_key (LP: #1568940)
 
 0.7.6:
  - open 0.7.6
