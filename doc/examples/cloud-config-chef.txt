@@ -67,7 +67,9 @@ chef:
 
  # Default validation name is chef-validator
  validation_name: "yourorg-validator"
- validation_key: |
+ # if validation_cert's value is "system" then it is expected
+ # that the file already exists on the system.
+ validation_cert: |
      -----BEGIN RSA PRIVATE KEY-----
      YOUR-ORGS-VALIDATION-KEY-HERE
      -----END RSA PRIVATE KEY-----

@@ -38,8 +38,10 @@ It can be configured with the following option structure::
     chef:
        directories: (defaulting to /etc/chef, /var/log/chef, /var/lib/chef,
                      /var/cache/chef, /var/backups/chef, /var/run/chef)
-       validation_key or validation_cert: (optional string to be written to
-                                           /etc/chef/validation.pem)
+       validation_cert: (optional string to be written to file validation_key)
+                        special value 'system' means set use existing file
+       validation_key: (optional the path for validation_cert. default
+                        /etc/chef/validation.pem)
        firstboot_path: (path to write run_list and initial_attributes keys that
                         should also be present in this configuration, defaults
                         to /etc/chef/firstboot.json)
@@ -64,6 +66,7 @@ It can be configured with the following option structure::
       server_url:
       show_time:
       ssl_verify_mode:
+      validation_cert:
       validation_key:
       validation_name:
 """
@@ -105,6 +108,7 @@ CHEF_RB_TPL_DEFAULTS = {
     # These are not symbols...
     'log_location': '/var/log/chef/client.log',
     'validation_key': CHEF_VALIDATION_PEM_PATH,
+    'validation_cert': None,
     'client_key': "/etc/chef/client.pem",
     'json_attribs': CHEF_FB_PATH,
     'file_cache_path': "/var/cache/chef",
@@ -201,13 +205,17 @@ def handle(name, cfg, cloud, log, _args):
     for d in itertools.chain(chef_dirs, REQUIRED_CHEF_DIRS):
         util.ensure_dir(d)
 
-    # Set the validation key based on the presence of either 'validation_key'
-    # or 'validation_cert'. In the case where both exist, 'validation_key'
-    # takes precedence
-    for key in ('validation_key', 'validation_cert'):
-        if key in chef_cfg and chef_cfg[key]:
-            util.write_file(CHEF_VALIDATION_PEM_PATH, chef_cfg[key])
-            break
+    vkey_path = chef_cfg.get('validation_key', CHEF_VALIDATION_PEM_PATH)
+    vcert = chef_cfg.get('validation_cert')
+    # special value 'system' means do not overwrite the file
+    # but still render the template to contain 'validation_key'
+    if vcert:
+        if vcert != "system":
+            util.write_file(vkey_path, vcert)
+        elif not os.path.isfile(vkey_path):
+            log.warn("chef validation_cert provided as 'system', but "
+                     "validation_key path '%s' does not exist.",
+                     vkey_path)
 
     # Create the chef config from template
     template_fn = cloud.get_template_filename('chef_client.rb')

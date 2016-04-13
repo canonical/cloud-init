@@ -242,7 +242,7 @@ class DataSourceSmartOS(sources.DataSource):
         # SDC KVM instances will provide dmi data, LX-brand does not
         if self.smartos_type == 'kvm':
             dmi_info = dmi_data()
-            if dmi_info is False:
+            if dmi_info is None:
                 LOG.debug("No dmidata utility found")
                 return False
 

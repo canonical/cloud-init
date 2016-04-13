@@ -216,8 +216,11 @@ class DataSourceNoCloud(sources.DataSource):
         if not current:
             return None
 
+        # LP: #1568150 need getattr in the case that an old class object
+        # has been loaded from a pickled file and now executing new source.
+        dirs = getattr(self, 'seed_dirs', [self.seed_dir])
         quick_id = _quick_read_instance_id(cmdline_id=self.cmdline_id,
-                                           dirs=self.seed_dirs)
+                                           dirs=dirs)
         if not quick_id:
             return None
         return quick_id == current
@@ -238,6 +241,8 @@ def _quick_read_instance_id(cmdline_id, dirs=None):
             return fill[iid_key]
 
     for d in dirs:
+        if d is None:
+            continue
         try:
             data = util.pathprefix2dict(d, required=['meta-data'])
             md = util.load_yaml(data['meta-data'])

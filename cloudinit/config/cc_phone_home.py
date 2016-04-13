@@ -30,7 +30,8 @@ POST_LIST_ALL = [
     'pub_key_rsa',
     'pub_key_ecdsa',
     'instance_id',
-    'hostname'
+    'hostname',
+    'fdqn'
 ]
 
 
@@ -41,7 +42,8 @@ POST_LIST_ALL = [
 #
 # phone_home:
 #  url: http://my.foo.bar/$INSTANCE_ID/
-#  post: [ pub_key_dsa, pub_key_rsa, pub_key_ecdsa, instance_id
+#  post: [ pub_key_dsa, pub_key_rsa, pub_key_ecdsa, instance_id, hostname,
+#          fqdn ]
 #
 def handle(name, cfg, cloud, log, args):
     if len(args) != 0:
@@ -74,6 +76,7 @@ def handle(name, cfg, cloud, log, args):
     all_keys = {}
     all_keys['instance_id'] = cloud.get_instance_id()
     all_keys['hostname'] = cloud.get_hostname()
+    all_keys['fqdn'] = cloud.get_hostname(fqdn=True)
 
     pubkeys = {
         'pub_key_dsa': '/etc/ssh/ssh_host_dsa_key.pub',
