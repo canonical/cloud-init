@@ -1,3 +1,11 @@
+cloud-init (0.7.7~bzr1209-0ubuntu1) xenial; urgency=medium
+
+  * New upstream snapshot.
+    - fallback net config: do not consider devices starting with 
+      'veth' (LP: #1569064)
+
+ -- Scott Moser <smoser@ubuntu.com>  Thu, 14 Apr 2016 16:24:38 -0400
+
 cloud-init (0.7.7~bzr1208-0ubuntu1) xenial; urgency=medium
 
   * New upstream snapshot.
