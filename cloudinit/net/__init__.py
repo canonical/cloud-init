@@ -646,6 +646,8 @@ def generate_fallback_config():
     connected = []
     possibly_connected = []
     for interface in potential_interfaces:
+        if interface.startswith("veth"):
+            continue
         if os.path.exists(sys_dev_path(interface, "bridge")):
             # skip any bridges
             continue
