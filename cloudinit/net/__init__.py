@@ -528,14 +528,16 @@ def render_interfaces(network_state):
         if len(value):
             content += "    dns-{} {}\n".format(dnskey, " ".join(value))
 
-    content += "\n"
     for iface in sorted(interfaces.values(),
                         key=lambda k: (order[k['type']], k['name'])):
-        content += "auto {name}\n".format(**iface)
 
+        if content[-2:] != "\n\n":
+            content += "\n"
         subnets = iface.get('subnets', {})
         if subnets:
             for index, subnet in zip(range(0, len(subnets)), subnets):
+                if content[-2:] != "\n\n":
+                    content += "\n"
                 iface['index'] = index
                 iface['mode'] = subnet['type']
                 if iface['mode'].endswith('6'):
@@ -546,27 +548,28 @@ def render_interfaces(network_state):
                     iface['mode'] = 'dhcp'
 
                 if index == 0:
+                    if subnet['type'] != 'manual':
+                        content += "auto {name}\n".format(**iface)
                     content += "iface {name} {inet} {mode}\n".format(**iface)
                 else:
-                    content += "auto {name}:{index}\n".format(**iface)
+                    if subnet['type'] != 'manual':
+                        content += "auto {name}:{index}\n".format(**iface)
                     content += \
                         "iface {name}:{index} {inet} {mode}\n".format(**iface)
 
                 content += iface_add_subnet(iface, subnet)
                 content += iface_add_attrs(iface)
-                for route in subnet.get('routes', []):
-                    content += render_route(route, indent="    ")
-                content += "\n"
         else:
+            if 'bond-master' in iface:
+                content += "auto {name}\n".format(**iface)
             content += "iface {name} {inet} {mode}\n".format(**iface)
             content += iface_add_attrs(iface)
-            content += "\n"
 
     for route in network_state.get('routes'):
         content += render_route(route)
 
     # global replacements until v2 format
-    content = content.replace('mac_address', 'hwaddress ether')
+    content = content.replace('mac_address', 'hwaddress')
     return content
 
 
