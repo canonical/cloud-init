@@ -33,6 +33,7 @@ DHCP_EXPECTED_1 = {
     'name': 'eth0',
     'type': 'physical',
     'subnets': [{'broadcast': '192.168.122.255',
+                 'control': 'manual',
                  'gateway': '192.168.122.1',
                  'dns_search': ['foo.com'],
                  'type': 'dhcp',
@@ -59,7 +60,8 @@ DOMAINSEARCH='foo.com'
 STATIC_EXPECTED_1 = {
     'name': 'eth1',
     'type': 'physical',
-    'subnets': [{'broadcast': '10.0.0.255', 'gateway': '10.0.0.1',
+    'subnets': [{'broadcast': '10.0.0.255', 'control': 'manual',
+                 'gateway': '10.0.0.1',
                  'dns_search': ['foo.com'], 'type': 'static',
                  'netmask': '255.255.255.0',
                  'dns_nameservers': ['10.0.1.1']}],
