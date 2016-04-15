@@ -350,7 +350,7 @@ def _klibc_to_config_entry(content, mac_addrs=None):
         # if no IPV4ADDR or IPV6ADDR, then go on.
         if pre + "ADDR" not in data:
             continue
-        subnet = {'type': proto}
+        subnet = {'type': proto, 'control': 'manual'}
 
         # these fields go right on the subnet
         for key in ('NETMASK', 'BROADCAST', 'GATEWAY'):
@@ -444,12 +444,13 @@ def iface_add_subnet(iface, subnet):
 def iface_add_attrs(iface):
     content = ""
     ignore_map = [
-        'type',
-        'name',
+        'control',
+        'index',
         'inet',
         'mode',
-        'index',
+        'name',
         'subnets',
+        'type',
     ]
     if iface['type'] not in ['bond', 'bridge', 'vlan']:
         ignore_map.append('mac_address')
@@ -540,6 +541,7 @@ def render_interfaces(network_state):
                     content += "\n"
                 iface['index'] = index
                 iface['mode'] = subnet['type']
+                iface['control'] = subnet.get('control', 'auto')
                 if iface['mode'].endswith('6'):
                     iface['inet'] += '6'
                 elif iface['mode'] == 'static' and ":" in subnet['address']:
@@ -548,11 +550,11 @@ def render_interfaces(network_state):
                     iface['mode'] = 'dhcp'
 
                 if index == 0:
-                    if subnet['type'] != 'manual':
-                        content += "auto {name}\n".format(**iface)
+                    if iface['control'] != 'manual':
+                        content += "allow-{control} {name}\n".format(**iface)
                     content += "iface {name} {inet} {mode}\n".format(**iface)
                 else:
-                    if subnet['type'] != 'manual':
+                    if iface['control'] != 'manual':
                         content += "auto {name}:{index}\n".format(**iface)
                     content += \
                         "iface {name}:{index} {inet} {mode}\n".format(**iface)
@@ -560,6 +562,7 @@ def render_interfaces(network_state):
                 content += iface_add_subnet(iface, subnet)
                 content += iface_add_attrs(iface)
         else:
+            # ifenslave docs say to auto the slave devices
             if 'bond-master' in iface:
                 content += "auto {name}\n".format(**iface)
             content += "iface {name} {inet} {mode}\n".format(**iface)
