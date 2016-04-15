@@ -265,7 +265,9 @@ def main_init(name, args):
             else:
                 return (None, ["No instance datasource found."])
 
-    if args.local:
+    if args.local and not init.ds_restored:
+        # if local mode and the datasource was not restored from cache
+        # (this is not first boot) then apply networking.
         init.apply_network_config()
 
     # Stage 6
