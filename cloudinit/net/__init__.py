@@ -509,6 +509,26 @@ def render_route(route, indent=""):
     return content
 
 
+def iface_start_entry(iface, index):
+    fullname = iface['name']
+    if index != 0:
+        fullname += ":%s" % index
+                  
+    control = iface['control']
+    if control == "auto":
+        cverb = "auto"
+    elif control in ("hotplug",):
+        cverb = "allow-" + control
+    else:         
+        cverb = "# control-" + control
+                  
+    subst = iface.copy()
+    subst.update({'fullname': fullname, 'cverb': cverb})
+
+    return ("{cverb} {fullname}\n"
+            "iface {fullname} {inet} {mode}\n").format(**subst)
+
+
 def render_interfaces(network_state):
     ''' Given state, emit etc/network/interfaces content '''
 
@@ -549,16 +569,7 @@ def render_interfaces(network_state):
                 if iface['mode'].startswith('dhcp'):
                     iface['mode'] = 'dhcp'
 
-                if index == 0:
-                    if iface['control'] != 'manual':
-                        content += "allow-{control} {name}\n".format(**iface)
-                    content += "iface {name} {inet} {mode}\n".format(**iface)
-                else:
-                    if iface['control'] != 'manual':
-                        content += "auto {name}:{index}\n".format(**iface)
-                    content += \
-                        "iface {name}:{index} {inet} {mode}\n".format(**iface)
-
+                content += iface_start_entry(iface, index)
                 content += iface_add_subnet(iface, subnet)
                 content += iface_add_attrs(iface)
         else:
