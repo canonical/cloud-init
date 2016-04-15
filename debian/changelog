@@ -1,3 +1,15 @@
+cloud-init (0.7.7~bzr1212-0ubuntu1) xenial; urgency=medium
+
+  * New upstream snapshot.
+    - fix iscsi root by not writing interface as 'auto' when networking
+      information comes from kernel command line (LP: #1568637)
+    - apply networking less often, when possible only on first
+      instance boot (LP: #1571004).
+    - no longer delete /etc/network/interfaces.d/eth0.cfg on
+      ubuntu (LP: #1563487)
+
+ -- Scott Moser <smoser@ubuntu.com>  Fri, 15 Apr 2016 16:25:43 -0400
+
 cloud-init (0.7.7~bzr1209-0ubuntu1) xenial; urgency=medium
 
   * New upstream snapshot.

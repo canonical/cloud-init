@@ -84,7 +84,8 @@ class Distro(distros.Distro):
                                  eni=self.network_conf_fn,
                                  links_prefix=self.links_prefix,
                                  netrules=None)
-        util.del_file("/etc/network/interfaces.d/eth0.cfg")
+        _maybe_remove_legacy_eth0()
+
         return []
 
     def _bring_up_interfaces(self, device_names):
@@ -193,3 +194,34 @@ def _get_wrapper_prefix(cmd, mode):
         return cmd
     else:
         return []
+
+
+def _maybe_remove_legacy_eth0(path="/etc/network/interfaces.d/eth0.cfg"):
+    """Ubuntu cloud images previously included a 'eth0.cfg' that had
+       hard coded content.  That file would interfere with the rendered
+       configuration if it was present.
+
+       if the file does not exist do nothing.
+       If the file exists:
+         - with known content, remove it and warn
+         - with unknown content, leave it and warn
+    """
+
+    if not os.path.exists(path):
+        return
+
+    bmsg = "Dynamic networking config may not apply."
+    try:
+        contents = util.load_file(path)
+        known_contents = ["auto eth0", "iface eth0 inet dhcp"]
+        lines = [f.strip() for f in contents.splitlines()
+                 if not f.startswith("#")]
+        if lines == known_contents:
+            util.del_file(path)
+            msg = "removed %s with known contents" % path
+        else:
+            msg = (bmsg + " '%s' exists with user configured content." % path)
+    except:
+        msg = bmsg + " %s exists, but could not be read." % path
+
+    LOG.warn(msg)

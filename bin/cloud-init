@@ -266,7 +266,12 @@ def main_init(name, args):
                 return (None, ["No instance datasource found."])
 
     if args.local:
-        init.apply_network_config()
+        if not init.ds_restored:
+            # if local mode and the datasource was not restored from cache
+            # (this is not first boot) then apply networking.
+            init.apply_network_config()
+        else:
+            LOG.debug("skipping networking config from restored datasource.")
 
     # Stage 6
     iid = init.instancify()
