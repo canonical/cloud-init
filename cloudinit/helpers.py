@@ -375,7 +375,7 @@ class Paths(object):
     def _get_ipath(self, name=None):
         if not self.datasource:
             return None
-        iid = self.datasource.get_instance_id().lstrip(os.sep)
+        iid = self.datasource.get_instance_id().replace(os.sep, '_')
         if iid is None:
             return None
         ipath = os.path.join(self.cloud_dir, 'instances', str(iid))
