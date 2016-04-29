@@ -378,7 +378,8 @@ class Paths(object):
         iid = self.datasource.get_instance_id()
         if iid is None:
             return None
-        ipath = os.path.join(self.cloud_dir, 'instances', str(iid))
+        path_safe_iid = str(iid).replace(os.sep, '_')
+        ipath = os.path.join(self.cloud_dir, 'instances', path_safe_iid)
         add_on = self.lookups.get(name)
         if add_on:
             ipath = os.path.join(ipath, add_on)

@@ -180,13 +180,12 @@ class ResourceUsingTestCase(TestCase):
         with open(where, 'r') as fh:
             return fh.read()
 
-    def getCloudPaths(self):
+    def getCloudPaths(self, ds=None):
         tmpdir = tempfile.mkdtemp()
         self.addCleanup(shutil.rmtree, tmpdir)
-        cp = ch.Paths({
-            'cloud_dir': tmpdir,
-            'templates_dir': self.resourceLocation(),
-        })
+        cp = ch.Paths({'cloud_dir': tmpdir,
+                       'templates_dir': self.resourceLocation()},
+                      ds=ds)
         return cp
 
 

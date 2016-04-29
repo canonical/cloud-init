@@ -105,6 +105,10 @@
  - centos: Ensure that resolve conf object is written as a str (LP: #1479988)
  - chef: straighten out validation_cert and validation_key (LP: #1568940)
  - phone_home: allow usage of fqdn (LP: #1566824) [Ollie Armstrong]
+ - cloudstack: Only use DHCPv4 lease files as a datasource (LP: #1576273)
+   [Wido den Hollander]
+ - Paths: fix instance path if datasource's id has a '/'. (LP: #1575938)
+   [Robert Jennings]
 
 0.7.6:
  - open 0.7.6

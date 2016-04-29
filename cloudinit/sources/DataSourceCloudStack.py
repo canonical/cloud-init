@@ -206,7 +206,8 @@ def get_latest_lease():
     latest_mtime = -1
     latest_file = None
     for file_name in lease_files:
-        if file_name.endswith(".lease") or file_name.endswith(".leases"):
+        if file_name.startswith("dhclient.") and \
+           (file_name.endswith(".lease") or file_name.endswith(".leases")):
             abs_path = os.path.join(lease_d, file_name)
             mtime = os.path.getmtime(abs_path)
             if mtime > latest_mtime:
