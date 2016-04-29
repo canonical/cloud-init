@@ -107,6 +107,8 @@
  - phone_home: allow usage of fqdn (LP: #1566824) [Ollie Armstrong]
  - cloudstack: Only use DHCPv4 lease files as a datasource (LP: #1576273)
    [Wido den Hollander]
+ - Paths: fix instance path if datasource's id has a '/'. (LP: #1575938)
+   [Robert Jennings]
 
 0.7.6:
  - open 0.7.6
