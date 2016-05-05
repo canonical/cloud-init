@@ -262,7 +262,7 @@ def parse_deb_config(path):
 
 
 def parse_net_config_data(net_config):
-    """Parses the config, returns NetworkState dictionary
+    """Parses the config, returns NetworkState object
 
     :param net_config: curtin network config dict
     """

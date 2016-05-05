@@ -15,6 +15,8 @@
 #   You should have received a copy of the GNU Affero General Public License
 #   along with Curtin.  If not, see <http://www.gnu.org/licenses/>.
 
+import six
+
 from cloudinit import log as logging
 from cloudinit import util
 from cloudinit.util import yaml_dumps as dump_config
@@ -32,11 +34,31 @@ def from_state_file(state_file):
     state = util.read_conf(state_file)
     network_state = NetworkState()
     network_state.load(state)
-
     return network_state
 
 
-class NetworkState:
+class CommandHandlerMeta(type):
+    """Metaclass that dynamically creates a 'command_handlers' attribute.
+
+    This will scan the to-be-created class for methods that start with
+    'handle_' and on finding those will populate a class attribute mapping
+    so that those methods can be quickly located and called.
+    """
+    def __new__(cls, name, parents, dct):
+        command_handlers = {}
+        for attr_name, attr in six.iteritems(dct):
+            if six.callable(attr) and attr_name.startswith('handle_'):
+                handles_what = attr_name[len('handle_'):]
+                if handles_what:
+                    command_handlers[handles_what] = attr
+        dct['command_handlers'] = command_handlers
+        return super(CommandHandlerMeta, cls).__new__(cls, name,
+                                                      parents, dct)
+
+
+@six.add_metaclass(CommandHandlerMeta)
+class NetworkState(object):
+
     def __init__(self, version=NETWORK_STATE_VERSION, config=None):
         self.version = version
         self.config = config
@@ -48,18 +70,6 @@ class NetworkState:
                 'search': [],
             }
         }
-        self.command_handlers = self.get_command_handlers()
-
-    def get_command_handlers(self):
-        METHOD_PREFIX = 'handle_'
-        methods = filter(lambda x: callable(getattr(self, x)) and
-                         x.startswith(METHOD_PREFIX),  dir(self))
-        handlers = {}
-        for m in methods:
-            key = m.replace(METHOD_PREFIX, '')
-            handlers[key] = getattr(self, m)
-
-        return handlers
 
     def dump(self):
         state = {
@@ -83,7 +93,6 @@ class NetworkState:
         # v1 - direct attr mapping, except version
         for key in [k for k in required_keys if k not in ['version']]:
             setattr(self, key, state[key])
-        self.command_handlers = self.get_command_handlers()
 
     def dump_network_state(self):
         return dump_config(self.network_state)

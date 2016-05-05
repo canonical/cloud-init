@@ -576,6 +576,11 @@ def convert_net_json(network_json):
                 'vlan_id': link['vlan_id'],
                 'mac_address': link['vlan_mac_address'],
             })
+        elif link['type'] in ['bridge']:
+            cfg.update({
+                'type': 'bridge',
+                'mac_address': link['ethernet_mac_address'],
+                'mtu': link['mtu']})
         else:
             raise ValueError(
                 'Unknown network_data link type: %s' % link['type'])
