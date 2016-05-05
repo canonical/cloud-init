@@ -121,6 +121,7 @@ class TestNetConfigParsing(TestCase):
         self.assertEqual(found, self.simple_cfg)
 
 
+
 def _gzip_data(data):
     with io.BytesIO() as iobuf:
         gzfp = gzip.GzipFile(mode="wb", fileobj=iobuf)

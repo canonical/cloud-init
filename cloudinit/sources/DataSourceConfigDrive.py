@@ -61,7 +61,7 @@ class DataSourceConfigDrive(openstack.SourceMixin, sources.DataSource):
         mstr += "[source=%s]" % (self.source)
         return mstr
 
-    def get_data(self):
+    def get_data(self, skip_first_boot=False):
         found = None
         md = {}
         results = {}
@@ -119,7 +119,8 @@ class DataSourceConfigDrive(openstack.SourceMixin, sources.DataSource):
         # instance-id
         prev_iid = get_previous_iid(self.paths)
         cur_iid = md['instance-id']
-        if prev_iid != cur_iid and self.dsmode == "local":
+        if prev_iid != cur_iid and \
+           self.dsmode == "local" and not skip_first_boot:
             on_first_boot(results, distro=self.distro)
 
         # dsmode != self.dsmode here if:
@@ -163,7 +164,8 @@ class DataSourceConfigDrive(openstack.SourceMixin, sources.DataSource):
     def network_config(self):
         if self._network_config is None:
             if self.network_json is not None:
-                self._network_config = convert_network_data(self.network_json)
+                self._network_config = openstack.convert_net_json(
+                    self.network_json)
         return self._network_config
 
 
@@ -303,122 +305,3 @@ datasources = [
 # Return a list of data sources that match this set of dependencies
 def get_datasource_list(depends):
     return sources.list_from_depends(depends, datasources)
-
-
-# Convert OpenStack ConfigDrive NetworkData json to network_config yaml
-def convert_network_data(network_json=None):
-    """Return a dictionary of network_config by parsing provided
-       OpenStack ConfigDrive NetworkData json format
-
-    OpenStack network_data.json provides a 3 element dictionary
-      - "links" (links are network devices, physical or virtual)
-      - "networks" (networks are ip network configurations for one or more
-                    links)
-      -  services (non-ip services, like dns)
-
-    networks and links are combined via network items referencing specific
-    links via a 'link_id' which maps to a links 'id' field.
-
-    To convert this format to network_config yaml, we first iterate over the
-    links and then walk the network list to determine if any of the networks
-    utilize the current link; if so we generate a subnet entry for the device
-
-    We also need to map network_data.json fields to network_config fields. For
-    example, the network_data links 'id' field is equivalent to network_config
-    'name' field for devices.  We apply more of this mapping to the various
-    link types that we encounter.
-
-    There are additional fields that are populated in the network_data.json
-    from OpenStack that are not relevant to network_config yaml, so we
-    enumerate a dictionary of valid keys for network_yaml and apply filtering
-    to drop these superflous keys from the network_config yaml.
-    """
-    if network_json is None:
-        return None
-
-    # dict of network_config key for filtering network_json
-    valid_keys = {
-        'physical': [
-            'name',
-            'type',
-            'mac_address',
-            'subnets',
-            'params',
-        ],
-        'subnet': [
-            'type',
-            'address',
-            'netmask',
-            'broadcast',
-            'metric',
-            'gateway',
-            'pointopoint',
-            'mtu',
-            'scope',
-            'dns_nameservers',
-            'dns_search',
-            'routes',
-        ],
-    }
-
-    links = network_json.get('links', [])
-    networks = network_json.get('networks', [])
-    services = network_json.get('services', [])
-
-    config = []
-    for link in links:
-        subnets = []
-        cfg = {k: v for k, v in link.items()
-               if k in valid_keys['physical']}
-        cfg.update({'name': link['id']})
-        for network in [net for net in networks
-                        if net['link'] == link['id']]:
-            subnet = {k: v for k, v in network.items()
-                      if k in valid_keys['subnet']}
-            if 'dhcp' in network['type']:
-                t = 'dhcp6' if network['type'].startswith('ipv6') else 'dhcp4'
-                subnet.update({
-                    'type': t,
-                })
-            else:
-                subnet.update({
-                    'type': 'static',
-                    'address': network.get('ip_address'),
-                })
-            subnets.append(subnet)
-        cfg.update({'subnets': subnets})
-        if link['type'] in ['ethernet', 'vif', 'ovs', 'phy']:
-            cfg.update({
-                'type': 'physical',
-                'mac_address': link['ethernet_mac_address']})
-        elif link['type'] in ['bond']:
-            params = {}
-            for k, v in link.items():
-                if k == 'bond_links':
-                    continue
-                elif k.startswith('bond'):
-                    params.update({k: v})
-            cfg.update({
-                'bond_interfaces': copy.deepcopy(link['bond_links']),
-                'params': params,
-            })
-        elif link['type'] in ['vlan']:
-            cfg.update({
-                'name': "%s.%s" % (link['vlan_link'],
-                                   link['vlan_id']),
-                'vlan_link': link['vlan_link'],
-                'vlan_id': link['vlan_id'],
-                'mac_address': link['vlan_mac_address'],
-            })
-        else:
-            raise ValueError(
-                'Unknown network_data link type: %s' % link['type'])
-
-        config.append(cfg)
-
-    for service in services:
-        cfg = service
-        cfg.update({'type': 'nameserver'})
-        config.append(cfg)
-
-    return {'version': 1, 'config': config}
