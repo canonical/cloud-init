@@ -441,7 +441,25 @@ class TestNetJson(TestCase):
                 'config': [
                     {
                         'name': 'tap1a81968a-79',
-
+                        'mac_address': 'fa:16:3e:ed:9a:59',
+                        'mtu': None,
+                        'type': 'bridge',
+                        'subnets': [
+                            {
+                                'address': '172.19.1.34',
+                                'netmask': '255.255.252.0',
+                                'type': 'static',
+                                'routes': [{
+                                    'gateway': '172.19.3.254',
+                                    'netmask': '0.0.0.0',
+                                    'network': '0.0.0.0',
+                                }],
+                            }
+                        ]
+                    },
+                    {
+                        'type': 'nameserver',
+                        'address': '172.19.0.12',
                     }
                 ],
             },
