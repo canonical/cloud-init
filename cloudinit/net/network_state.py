@@ -15,6 +15,8 @@
 #   You should have received a copy of the GNU Affero General Public License
 #   along with Curtin.  If not, see <http://www.gnu.org/licenses/>.
 
+import copy
+
 import six
 
 from cloudinit import log as logging
@@ -35,6 +37,37 @@ def from_state_file(state_file):
     network_state = NetworkState()
     network_state.load(state)
     return network_state
+
+
+class InvalidCommand(Exception):
+    pass
+
+
+def ensure_command_keys(required_keys):
+    required_keys = frozenset(required_keys)
+
+    def extract_missing(command):
+        missing_keys = set()
+        for key in required_keys:
+            if key not in command:
+                missing_keys.add(key)
+        return missing_keys
+
+    def wrapper(func):
+
+        @six.wraps(func)
+        def decorator(self, command, *args, **kwargs):
+            if required_keys:
+                missing_keys = extract_missing(command)
+                if missing_keys:
+                    raise InvalidCommand("Command missing %s of required"
+                                         " keys %s" % (missing_keys,
+                                                       required_keys))
+            return func(self, command, *args, **kwargs)
+
+        return decorator
+
+    return wrapper
 
 
 class CommandHandlerMeta(type):
@@ -59,17 +92,19 @@ class CommandHandlerMeta(type):
 @six.add_metaclass(CommandHandlerMeta)
 class NetworkState(object):
 
+    initial_network_state = {
+        'interfaces': {},
+        'routes': [],
+        'dns': {
+            'nameservers': [],
+            'search': [],
+        }
+    }
+
     def __init__(self, version=NETWORK_STATE_VERSION, config=None):
         self.version = version
         self.config = config
-        self.network_state = {
-            'interfaces': {},
-            'routes': [],
-            'dns': {
-                'nameservers': [],
-                'search': [],
-            }
-        }
+        self.network_state = copy.deepcopy(self.initial_network_state)
 
     def dump(self):
         state = {
@@ -97,19 +132,26 @@ class NetworkState(object):
     def dump_network_state(self):
         return dump_config(self.network_state)
 
-    def parse_config(self):
+    def parse_config(self, skip_broken=True):
         # rebuild network state
         for command in self.config:
-            handler = self.command_handlers.get(command['type'])
-            handler(command)
+            command_type = command['type']
+            try:
+                handler = self.command_handlers[command_type]
+            except KeyError:
+                raise RuntimeError("No handler found for"
+                                   " command '%s'" % command_type)
+            try:
+                handler(command)
+            except InvalidCommand:
+                if not skip_broken:
+                    raise
+                else:
+                    LOG.warn("Skipping invalid command: %s", command,
+                             exc_info=True)
+                    LOG.debug(self.dump_network_state())
 
-    def valid_command(self, command, required_keys):
-        if not required_keys:
-            return False
-
-        found_keys = [key for key in command.keys() if key in required_keys]
-        return len(found_keys) == len(required_keys)
-
+    @ensure_command_keys(['name'])
     def handle_physical(self, command):
         '''
         command = {
@@ -121,13 +163,6 @@ class NetworkState(object):
              ]
         }
         '''
-        required_keys = [
-            'name',
-        ]
-        if not self.valid_command(command, required_keys):
-            LOG.warn('Skipping Invalid command: {}'.format(command))
-            LOG.debug(self.dump_network_state())
-            return
 
         interfaces = self.network_state.get('interfaces')
         iface = interfaces.get(command['name'], {})
@@ -158,6 +193,7 @@ class NetworkState(object):
         self.network_state['interfaces'].update({command.get('name'): iface})
         self.dump_network_state()
 
+    @ensure_command_keys(['name', 'vlan_id', 'vlan_link'])
     def handle_vlan(self, command):
         '''
             auto eth0.222
@@ -167,16 +203,6 @@ class NetworkState(object):
                     hwaddress ether BC:76:4E:06:96:B3
                     vlan-raw-device eth0
         '''
-        required_keys = [
-            'name',
-            'vlan_link',
-            'vlan_id',
-        ]
-        if not self.valid_command(command, required_keys):
-            print('Skipping Invalid command: {}'.format(command))
-            print(self.dump_network_state())
-            return
-
         interfaces = self.network_state.get('interfaces')
         self.handle_physical(command)
         iface = interfaces.get(command.get('name'), {})
@@ -184,6 +210,7 @@ class NetworkState(object):
         iface['vlan_id'] = command.get('vlan_id')
         interfaces.update({iface['name']: iface})
 
+    @ensure_command_keys(['name', 'bond_interfaces', 'params'])
     def handle_bond(self, command):
         '''
     #/etc/network/interfaces
@@ -209,15 +236,6 @@ class NetworkState(object):
          bond-updelay 200
          bond-lacp-rate 4
         '''
-        required_keys = [
-            'name',
-            'bond_interfaces',
-            'params',
-        ]
-        if not self.valid_command(command, required_keys):
-            print('Skipping Invalid command: {}'.format(command))
-            print(self.dump_network_state())
-            return
 
         self.handle_physical(command)
         interfaces = self.network_state.get('interfaces')
@@ -245,6 +263,7 @@ class NetworkState(object):
                 bond_if.update({param: val})
             self.network_state['interfaces'].update({ifname: bond_if})
 
+    @ensure_command_keys(['name', 'bridge_interfaces', 'params'])
     def handle_bridge(self, command):
         '''
             auto br0
@@ -272,15 +291,6 @@ class NetworkState(object):
             "bridge_waitport",
         ]
         '''
-        required_keys = [
-            'name',
-            'bridge_interfaces',
-            'params',
-        ]
-        if not self.valid_command(command, required_keys):
-            print('Skipping Invalid command: {}'.format(command))
-            print(self.dump_network_state())
-            return
 
         # find one of the bridge port ifaces to get mac_addr
         # handle bridge_slaves
@@ -304,15 +314,8 @@ class NetworkState(object):
 
         interfaces.update({iface['name']: iface})
 
+    @ensure_command_keys(['address'])
     def handle_nameserver(self, command):
-        required_keys = [
-            'address',
-        ]
-        if not self.valid_command(command, required_keys):
-            print('Skipping Invalid command: {}'.format(command))
-            print(self.dump_network_state())
-            return
-
         dns = self.network_state.get('dns')
         if 'address' in command:
             addrs = command['address']
@@ -327,15 +330,8 @@ class NetworkState(object):
             for path in paths:
                 dns['search'].append(path)
 
+    @ensure_command_keys(['destination'])
     def handle_route(self, command):
-        required_keys = [
-            'destination',
-        ]
-        if not self.valid_command(command, required_keys):
-            print('Skipping Invalid command: {}'.format(command))
-            print(self.dump_network_state())
-            return
-
         routes = self.network_state.get('routes')
         network, cidr = command['destination'].split("/")
         netmask = cidr2mask(int(cidr))
