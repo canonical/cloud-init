@@ -258,7 +258,7 @@ class Renderer(object):
 
         return content
 
-    def render_routes(self, route, indent=""):
+    def render_route(self, route, indent=""):
         """ When rendering routes for an iface, in some cases applying a route
         may result in the route command returning non-zero which produces
         some confusing output for users manually using ifup/ifdown[1].  To

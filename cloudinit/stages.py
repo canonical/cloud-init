@@ -43,7 +43,7 @@ from cloudinit import distros
 from cloudinit import helpers
 from cloudinit import importer
 from cloudinit import log as logging
-from cloudinit import net
+from cloudinit.net import klibc
 from cloudinit import sources
 from cloudinit import type_utils
 from cloudinit import util
@@ -579,7 +579,7 @@ class Init(object):
         if os.path.exists(disable_file):
             return (None, disable_file)
 
-        cmdline_cfg = ('cmdline', net.read_kernel_cmdline_config())
+        cmdline_cfg = ('cmdline', klibc.read_kernel_cmdline_config())
         dscfg = ('ds', None)
         if self.datasource and hasattr(self.datasource, 'network_config'):
             dscfg = ('ds', self.datasource.network_config)
