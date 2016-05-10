@@ -62,14 +62,31 @@ class TestAptSourceConfig(TestCase):
         params['MIRROR'] = "http://archive.ubuntu.com/ubuntu"
         return params
 
-    @staticmethod
-    def _search_apt_source(contents, params, pre, post):
-        return re.search(r"%s %s %s %s\n" %
-                         (pre, params['MIRROR'], params['RELEASE'], post),
-                         contents, flags=re.IGNORECASE)
 
-    def test_apt_source_release(self):
-        """ test_apt_source_release
+    def test_apt_source_basic(self):
+        """ test_apt_source_basic
+        Test Fix deb source string, has to overwrite mirror conf in params
+        """
+        params = self._get_default_params()
+        cfg = {'source': ('deb http://archive.ubuntu.com/ubuntu'
+                          ' karmic-backports'
+                          ' main universe multiverse restricted'),
+               'filename': self.aptlistfile}
+
+        cc_apt_configure.add_sources([cfg], params)
+
+        self.assertTrue(os.path.isfile(self.aptlistfile))
+
+        contents = load_tfile_or_url(self.aptlistfile)
+        self.assertTrue(re.search(r"%s %s %s %s\n" %
+                                  ("deb", "http://archive.ubuntu.com/ubuntu",
+                                   "karmic-backports",
+                                   "main universe multiverse restricted"),
+                                  contents, flags=re.IGNORECASE))
+
+
+    def test_apt_source_replacement(self):
+        """ test_apt_source_replace
         Test Autoreplacement of MIRROR and RELEASE in source specs
         """
         params = self._get_default_params()
@@ -81,7 +98,9 @@ class TestAptSourceConfig(TestCase):
         self.assertTrue(os.path.isfile(self.aptlistfile))
 
         contents = load_tfile_or_url(self.aptlistfile)
-        self.assertTrue(self._search_apt_source(contents, params,
-                                                "deb", "multiverse"))
+        self.assertTrue(re.search(r"%s %s %s %s\n" %
+                                  ("deb", params['MIRROR'], params['RELEASE'],
+                                   "multiverse"),
+                                  contents, flags=re.IGNORECASE))
 
 # vi: ts=4 expandtab
