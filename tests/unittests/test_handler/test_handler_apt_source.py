@@ -103,4 +103,25 @@ class TestAptSourceConfig(TestCase):
                                    "multiverse"),
                                   contents, flags=re.IGNORECASE))
 
+
+    def test_apt_source_ppa(self):
+        """ test_apt_source_ppa
+        Test specification of a ppa
+        """
+        params = self._get_default_params()
+        cfg = {'source': 'ppa:smoser/cloud-init-test',
+               'filename': self.aptlistfile}
+
+        cc_apt_configure.add_sources([cfg], params)
+
+        self.assertTrue(os.path.isfile(self.aptlistfile))
+
+        # report content before making regex
+        # FAIL ? goes in "untranslated"
+        # should become e.g. deb http://ppa.launchpad.net/smoser/cloud-init-test/ubuntu xenial main
+        contents = load_tfile_or_url(self.aptlistfile)
+        print(contents)
+        self.assertTrue(1 == 2)
+
+
 # vi: ts=4 expandtab
