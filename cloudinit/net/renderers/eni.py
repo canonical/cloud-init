@@ -241,12 +241,10 @@ def _parse_deb_config(path):
 
 
 class Renderer(object):
-    """Renders network information in a debian format."""
+    """Renders network information in a /etc/network/interfaces format."""
 
     def render_persistent_net(self, network_state):
-        ''' Given state, emit udev rules to map
-            mac to ifname
-        '''
+        """Given state, emit udev rules to map mac to ifname."""
         content = ""
         interfaces = network_state.get('interfaces')
         for iface in interfaces.values():
