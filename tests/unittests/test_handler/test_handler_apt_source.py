@@ -144,14 +144,21 @@ class TestAptSourceConfig(TestCase):
         cfg = {'source': 'ppa:smoser/cloud-init-test',
                'filename': self.aptlistfile}
 
-        cc_apt_configure.add_sources([cfg], params)
+        # default matcher needed for ppa
+        matcher = re.compile(r'^[\w-]+:\w').search
 
-        self.assertTrue(os.path.isfile(self.aptlistfile))
+        cc_apt_configure.add_sources([cfg], params, aa_repo_match=matcher)
 
-        # report content before making regex
-        # FAIL ? goes in "untranslated"
-        # should become e.g. deb http://ppa.launchpad.net/smoser/cloud-init-test/ubuntu xenial main
-        contents = load_tfile_or_url(self.aptlistfile)
+        # adding ppa should ignore filename (uses add-apt-repository)
+        self.assertFalse(os.path.isfile(self.aptlistfile))
+        expected_sources_fn=('/etc/apt/sources.list.d/'
+                 'smoser-ubuntu-cloud-init-test-%s.list'
+                 % params['RELEASE'])
+        print("filename: %s" % expected_sources_fn)
+        self.assertTrue(os.path.isfile(expected_sources_fn))
+
+        # file gets not created, might be permission or env detail
+        contents = load_tfile_or_url(expected_sources_fn)
         print(contents)
         self.assertTrue(1 == 2)
 
