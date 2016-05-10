@@ -132,8 +132,7 @@ class TestAptSourceConfig(TestCase):
         try:
             util.subp(('apt-key', 'list', '03683F77'))
         except util.ProcessExecutionError as err:
-            print("apt-key failed. " + str(err))
-            self.assertTrue(1 == 2)
+            self.assertRaises(err, "apt-key failed failed")
 
 
     def test_apt_source_ppa(self):
@@ -160,7 +159,8 @@ class TestAptSourceConfig(TestCase):
         # file gets not created, might be permission or env detail
         contents = load_tfile_or_url(expected_sources_fn)
         print(contents)
-        self.assertTrue(1 == 2)
+        # intentional debug exit
+        self.assertRaises(ValueError)
 
 
 # vi: ts=4 expandtab
