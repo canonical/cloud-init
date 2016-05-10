@@ -27,7 +27,7 @@ from cloudinit import helpers
 from cloudinit import log as logging
 from cloudinit import util
 from cloudinit import net
-from cloudinit.net.renderers import eni
+from cloudinit.net import eni
 
 from cloudinit.distros.parsers.hostname import HostnameConf
 
