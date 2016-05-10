@@ -104,6 +104,38 @@ class TestAptSourceConfig(TestCase):
                                   contents, flags=re.IGNORECASE))
 
 
+    def test_apt_source_key(self):
+        """ test_apt_source_key
+        Test specification of a source + key
+        """
+        params = self._get_default_params()
+        cfg = {'source': ('deb '
+                          'http://ppa.launchpad.net/'
+                          'smoser/cloud-init-test/ubuntu'
+                          ' xenial main'),
+               'keyid:': "03683F77",
+               'filename': self.aptlistfile}
+
+        cc_apt_configure.add_sources([cfg], params)
+
+        self.assertTrue(os.path.isfile(self.aptlistfile))
+
+        # report content before making regex
+        contents = load_tfile_or_url(self.aptlistfile)
+        self.assertTrue(re.search(r"%s %s %s %s\n" %
+                                  ("deb",
+                                   ('http://ppa.launchpad.net/smoser/'
+                                    'cloud-init-test/ubuntu'),
+                                   "xenial", "main"),
+                                  contents, flags=re.IGNORECASE))
+        # check if key was imported
+        try:
+            util.subp(('apt-key', 'list', '03683F77'))
+        except util.ProcessExecutionError as err:
+            print("apt-key failed. " + str(err))
+            self.assertTrue(1 == 2)
+
+
     def test_apt_source_ppa(self):
         """ test_apt_source_ppa
         Test specification of a ppa
