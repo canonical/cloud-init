@@ -1,7 +1,9 @@
 from cloudinit import util
 from cloudinit import net
 from cloudinit.net import cmdline
+from cloudinit.net import eni
 from .helpers import TestCase
+from .helpers import mock
 
 import base64
 import copy
@@ -9,6 +11,8 @@ import io
 import gzip
 import json
 import os
+import shutil
+import tempfile
 
 DHCP_CONTENT_1 = """
 DEVICE='eth0'
@@ -67,6 +71,70 @@ STATIC_EXPECTED_1 = {
                  'netmask': '255.255.255.0',
                  'dns_nameservers': ['10.0.1.1']}],
 }
+
+
+class TestEniNetRendering(TestCase):
+
+    @mock.patch("cloudinit.net.sys_dev_path")
+    @mock.patch("cloudinit.net.sys_netdev_info")
+    @mock.patch("cloudinit.net.get_devicelist")
+    def test_generation(self, mock_get_devicelist, mock_sys_netdev_info,
+                        mock_sys_dev_path):
+        mock_get_devicelist.return_value = ['eth1000', 'lo']
+
+        dev_characteristics = {
+            'eth1000': {
+                "bridge": False,
+                "carrier": False,
+                "dormant": False,
+                "operstate": "down",
+                "address": "07-1C-C6-75-A4-BE",
+            }
+        }
+
+        def netdev_info(name, field):
+            return dev_characteristics[name][field]
+
+        mock_sys_netdev_info.side_effect = netdev_info
+
+        tmp_dir = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, tmp_dir)
+
+        def sys_dev_path(devname, path=""):
+            return tmp_dir + devname + "/" + path
+
+        for dev in dev_characteristics:
+            os.makedirs(os.path.join(tmp_dir, dev))
+            with open(os.path.join(tmp_dir, dev, 'operstate'), 'w') as fh:
+                fh.write("down")
+
+        mock_sys_dev_path.side_effect = sys_dev_path
+
+        network_cfg = net.generate_fallback_config()
+        network_state = net.parse_net_config_data(network_cfg,
+                                                  skip_broken=False)
+
+        render_dir = os.path.join(tmp_dir, "render")
+        os.makedirs(render_dir)
+
+        renderer = eni.Renderer()
+        renderer.render_network_state(render_dir, network_state,
+                                      eni="interfaces",
+                                      links_prefix=None,
+                                      netrules=None)
+
+        self.assertTrue(os.path.exists(os.path.join(render_dir,
+                                                    'interfaces')))
+        with open(os.path.join(render_dir, 'interfaces')) as fh:
+            contents = fh.read()
+
+        expected = """auto lo
+iface lo inet loopback
+
+auto eth1000
+iface eth1000 inet dhcp
+"""
+        self.assertEqual(expected, contents)
 
 
 class TestNetConfigParsing(TestCase):

@@ -142,7 +142,7 @@ class NetworkState(object):
                 raise RuntimeError("No handler found for"
                                    " command '%s'" % command_type)
             try:
-                handler(command)
+                handler(self, command)
             except InvalidCommand:
                 if not skip_broken:
                     raise

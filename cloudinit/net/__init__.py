@@ -107,7 +107,7 @@ class ParserError(Exception):
     """Raised when parser has issue parsing the interfaces file."""
 
 
-def parse_net_config_data(net_config):
+def parse_net_config_data(net_config, skip_broken=True):
     """Parses the config, returns NetworkState object
 
     :param net_config: curtin network config dict
@@ -116,20 +116,19 @@ def parse_net_config_data(net_config):
     if 'version' in net_config and 'config' in net_config:
         ns = network_state.NetworkState(version=net_config.get('version'),
                                         config=net_config.get('config'))
-        ns.parse_config()
+        ns.parse_config(skip_broken=skip_broken)
         state = ns.network_state
-
     return state
 
 
-def parse_net_config(path):
+def parse_net_config(path, skip_broken=True):
     """Parses a curtin network configuration file and
        return network state"""
     ns = None
     net_config = util.read_conf(path)
     if 'network' in net_config:
-        ns = parse_net_config_data(net_config.get('network'))
-
+        ns = parse_net_config_data(net_config.get('network'),
+                                   skip_broken=skip_broken)
     return ns
 
 
