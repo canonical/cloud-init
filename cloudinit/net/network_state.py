@@ -39,26 +39,25 @@ def from_state_file(state_file):
     return network_state
 
 
+def diff_keys(expected, actual):
+    missing = set(expected)
+    for key in actual:
+        missing.discard(key)
+    return missing
+
+
 class InvalidCommand(Exception):
     pass
 
 
 def ensure_command_keys(required_keys):
-    required_keys = frozenset(required_keys)
-
-    def extract_missing(command):
-        missing_keys = set()
-        for key in required_keys:
-            if key not in command:
-                missing_keys.add(key)
-        return missing_keys
 
     def wrapper(func):
 
         @six.wraps(func)
         def decorator(self, command, *args, **kwargs):
             if required_keys:
-                missing_keys = extract_missing(command)
+                missing_keys = diff_keys(required_keys, command)
                 if missing_keys:
                     raise InvalidCommand("Command missing %s of required"
                                          " keys %s" % (missing_keys,
@@ -120,10 +119,11 @@ class NetworkState(object):
             raise Exception('Invalid state, missing version field')
 
         required_keys = NETWORK_STATE_REQUIRED_KEYS[state['version']]
-        if not self.valid_command(state, required_keys):
-            msg = 'Invalid state, missing keys: {}'.format(required_keys)
+        missing_keys = diff_keys(required_keys, state)
+        if missing_keys:
+            msg = 'Invalid state, missing keys: %s'.format(missing_keys)
             LOG.error(msg)
-            raise Exception(msg)
+            raise ValueError(msg)
 
         # v1 - direct attr mapping, except version
         for key in [k for k in required_keys if k not in ['version']]:
