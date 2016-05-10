@@ -128,13 +128,14 @@ class TestEniNetRendering(TestCase):
         with open(os.path.join(render_dir, 'interfaces')) as fh:
             contents = fh.read()
 
-        expected = """auto lo
+        expected = """
+auto lo
 iface lo inet loopback
 
 auto eth1000
 iface eth1000 inet dhcp
 """
-        self.assertEqual(expected, contents)
+        self.assertEqual(expected.lstrip(), contents.lstrip())
 
 
 class TestNetConfigParsing(TestCase):
