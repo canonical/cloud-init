@@ -1,5 +1,6 @@
 from cloudinit import util
 from cloudinit import net
+from cloudinit.net import cmdline
 from .helpers import TestCase
 
 import base64
@@ -74,15 +75,15 @@ class TestNetConfigParsing(TestCase):
                     "mac_address": "c0:d6:9f:2c:e8:80",
                     "subnets": [{"type": "dhcp"}]}]}
 
-    def test_klibc_convert_dhcp(self):
-        found = net._klibc_to_config_entry(DHCP_CONTENT_1)
+    def test_cmdline_convert_dhcp(self):
+        found = cmdline._klibc_to_config_entry(DHCP_CONTENT_1)
         self.assertEqual(found, ('eth0', DHCP_EXPECTED_1))
 
-    def test_klibc_convert_static(self):
-        found = net._klibc_to_config_entry(STATIC_CONTENT_1)
+    def test_cmdline_convert_static(self):
+        found = cmdline._klibc_to_config_entry(STATIC_CONTENT_1)
         self.assertEqual(found, ('eth1', STATIC_EXPECTED_1))
 
-    def test_config_from_klibc_net_cfg(self):
+    def test_config_from_cmdline_net_cfg(self):
         files = []
         pairs = (('net-eth0.cfg', DHCP_CONTENT_1),
                  ('net-eth1.cfg', STATIC_CONTENT_1))
@@ -103,23 +104,23 @@ class TestNetConfigParsing(TestCase):
                 files.append(fp)
                 util.write_file(fp, content)
 
-            found = net.config_from_klibc_net_cfg(files=files, mac_addrs=macs)
+            found = cmdline.config_from_klibc_net_cfg(files=files,
+                                                      mac_addrs=macs)
             self.assertEqual(found, expected)
 
     def test_cmdline_with_b64(self):
         data = base64.b64encode(json.dumps(self.simple_cfg).encode())
         encoded_text = data.decode()
-        cmdline = 'ro network-config=' + encoded_text + ' root=foo'
-        found = net.read_kernel_cmdline_config(cmdline=cmdline)
+        raw_cmdline = 'ro network-config=' + encoded_text + ' root=foo'
+        found = cmdline.read_kernel_cmdline_config(cmdline=raw_cmdline)
         self.assertEqual(found, self.simple_cfg)
 
     def test_cmdline_with_b64_gz(self):
         data = _gzip_data(json.dumps(self.simple_cfg).encode())
         encoded_text = base64.b64encode(data).decode()
-        cmdline = 'ro network-config=' + encoded_text + ' root=foo'
-        found = net.read_kernel_cmdline_config(cmdline=cmdline)
+        raw_cmdline = 'ro network-config=' + encoded_text + ' root=foo'
+        found = cmdline.read_kernel_cmdline_config(cmdline=raw_cmdline)
         self.assertEqual(found, self.simple_cfg)
-
 
 
 def _gzip_data(data):

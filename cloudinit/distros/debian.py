@@ -27,7 +27,7 @@ from cloudinit import helpers
 from cloudinit import log as logging
 from cloudinit import util
 from cloudinit import net
-from cloudinit.net.distros import debian
+from cloudinit.net.renderers import eni
 
 from cloudinit.distros.parsers.hostname import HostnameConf
 
@@ -57,7 +57,7 @@ class Distro(distros.Distro):
         # should only happen say once per instance...)
         self._runner = helpers.Runners(paths)
         self.osfamily = 'debian'
-        self._net_renderer = debian.Renderer()
+        self._net_renderer = eni.Renderer()
 
     def apply_locale(self, locale, out_fn=None):
         if not out_fn:
