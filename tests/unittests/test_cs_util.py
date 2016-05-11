@@ -2,13 +2,7 @@ from __future__ import print_function
 
 from . import helpers as test_helpers
 
-import unittest2
-
-try:
-    from cloudinit.cs_utils import Cepko
-    WILL_WORK = True
-except ImportError:
-    WILL_WORK = False
+from cloudinit.cs_utils import Cepko
 
 
 SERVER_CONTEXT = {
@@ -26,13 +20,12 @@ SERVER_CONTEXT = {
 }
 
 
-if WILL_WORK:
-    class CepkoMock(Cepko):
-        def all(self):
-            return SERVER_CONTEXT
+class CepkoMock(Cepko):
+    def all(self):
+        return SERVER_CONTEXT
 
-        def get(self, key="", request_pattern=None):
-            return SERVER_CONTEXT['tags']
+    def get(self, key="", request_pattern=None):
+        return SERVER_CONTEXT['tags']
 
 
 # 2015-01-22 BAW: This test is completely useless because it only ever tests
@@ -40,7 +33,7 @@ if WILL_WORK:
 # touched the underlying Cepko class methods.
 class CepkoResultTests(test_helpers.TestCase):
     def setUp(self):
-        raise unittest2.SkipTest('This test is completely useless')
+        raise test_helpers.SkipTest('This test is completely useless')
 
     def test_getitem(self):
         result = self.c.all()

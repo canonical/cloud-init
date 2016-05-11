@@ -2,14 +2,8 @@
 
 import copy
 
-try:
-    # Serial does not work on py2.6 (anymore)
-    import pyserial
-    from cloudinit.cs_utils import Cepko
-    from cloudinit.sources import DataSourceCloudSigma
-    WILL_WORK = True
-except ImportError:
-    WILL_WORK = False
+from cloudinit.cs_utils import Cepko
+from cloudinit.sources import DataSourceCloudSigma
 
 from .. import helpers as test_helpers
 from ..helpers import SkipTest
@@ -36,20 +30,17 @@ SERVER_CONTEXT = {
 }
 
 
-if WILL_WORK:
-    class CepkoMock(Cepko):
-        def __init__(self, mocked_context):
-            self.result = mocked_context
+class CepkoMock(Cepko):
+    def __init__(self, mocked_context):
+        self.result = mocked_context
 
-        def all(self):
-            return self
+    def all(self):
+        return self
 
 
 class DataSourceCloudSigmaTest(test_helpers.TestCase):
     def setUp(self):
         super(DataSourceCloudSigmaTest, self).setUp()
-        if not WILL_WORK:
-            raise SkipTest("Datasource testing not supported")
         self.datasource = DataSourceCloudSigma.DataSourceCloudSigma("", "", "")
         self.datasource.is_running_in_cloudsigma = lambda: True
         self.datasource.cepko = CepkoMock(SERVER_CONTEXT)
