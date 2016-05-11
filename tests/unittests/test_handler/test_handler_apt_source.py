@@ -148,21 +148,13 @@ class TestAptSourceConfig(TestCase):
         # default matcher needed for ppa
         matcher = re.compile(r'^[\w-]+:\w').search
 
-        cc_apt_configure.add_sources([cfg], params, aa_repo_match=matcher)
+        with mock.patch.object(util, 'subp') as mockobj:
+            cc_apt_configure.add_sources([cfg], params, aa_repo_match=matcher)
+        mockobj.assert_called_once_with(['add-apt-repository',
+                                   'ppa:smoser/cloud-init-test'])
 
         # adding ppa should ignore filename (uses add-apt-repository)
         self.assertFalse(os.path.isfile(self.aptlistfile))
-        expected_sources_fn=('/etc/apt/sources.list.d/'
-                 'smoser-ubuntu-cloud-init-test-%s.list'
-                 % params['RELEASE'])
-        print("filename: %s" % expected_sources_fn)
-        self.assertTrue(os.path.isfile(expected_sources_fn))
-
-        # file gets not created, might be permission or env detail
-        contents = load_tfile_or_url(expected_sources_fn)
-        print(contents)
-        # intentional debug exit
-        self.assertRaises(ValueError)
 
 
 # vi: ts=4 expandtab
