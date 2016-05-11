@@ -63,9 +63,6 @@ def _klibc_to_config_entry(content, mac_addrs=None):
     if mac_addrs is None:
         mac_addrs = {}
 
-    print("Reading content")
-    print(content)
-
     data = _load_shell_content(content)
     try:
         name = data['DEVICE']
