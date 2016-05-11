@@ -40,11 +40,13 @@ PACKAGE_MIRRORS = [
 
 GAPMI = distros._get_arch_package_mirror_info
 
+
 def load_tfile_or_url(*args, **kwargs):
     """ load_tfile_or_url
     load file and return content after decoding
     """
     return util.decode_binary(util.read_file_or_url(*args, **kwargs).contents)
+
 
 class TestAptSourceConfig(TestCase):
     """ TestAptSourceConfig
@@ -56,7 +58,6 @@ class TestAptSourceConfig(TestCase):
         self.addCleanup(shutil.rmtree, self.tmp)
         self.aptlistfile = os.path.join(self.tmp, "single-deb.list")
 
-
     @staticmethod
     def _get_default_params():
         """ get_default_params
@@ -66,7 +67,6 @@ class TestAptSourceConfig(TestCase):
         params['RELEASE'] = cc_apt_configure.get_release()
         params['MIRROR'] = "http://archive.ubuntu.com/ubuntu"
         return params
-
 
     def test_apt_source_basic(self):
         """ test_apt_source_basic
@@ -89,7 +89,6 @@ class TestAptSourceConfig(TestCase):
                                    "main universe multiverse restricted"),
                                   contents, flags=re.IGNORECASE))
 
-
     def test_apt_source_replacement(self):
         """ test_apt_source_replace
         Test Autoreplacement of MIRROR and RELEASE in source specs
@@ -108,7 +107,6 @@ class TestAptSourceConfig(TestCase):
                                    "multiverse"),
                                   contents, flags=re.IGNORECASE))
 
-
     def test_apt_source_key(self):
         """ test_apt_source_key
         Test specification of a source + key
@@ -121,7 +119,8 @@ class TestAptSourceConfig(TestCase):
                'keyid': "03683F77",
                'filename': self.aptlistfile}
 
-        with mock.patch.object(util, 'subp', return_value=('fakekey 1234', '')) as mockobj:
+        with mock.patch.object(util, 'subp',
+                               return_value=('fakekey 1234', '')) as mockobj:
             cc_apt_configure.add_sources([cfg], params)
 
         mockobj.assert_called_with(('apt-key', 'add', '-'), 'fakekey 1234')
@@ -135,7 +134,6 @@ class TestAptSourceConfig(TestCase):
                                     'cloud-init-test/ubuntu'),
                                    "xenial", "main"),
                                   contents, flags=re.IGNORECASE))
-
 
     def test_apt_source_ppa(self):
         """ test_apt_source_ppa
@@ -151,7 +149,7 @@ class TestAptSourceConfig(TestCase):
         with mock.patch.object(util, 'subp') as mockobj:
             cc_apt_configure.add_sources([cfg], params, aa_repo_match=matcher)
         mockobj.assert_called_once_with(['add-apt-repository',
-                                   'ppa:smoser/cloud-init-test'])
+                                         'ppa:smoser/cloud-init-test'])
 
         # adding ppa should ignore filename (uses add-apt-repository)
         self.assertFalse(os.path.isfile(self.aptlistfile))
