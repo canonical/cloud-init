@@ -163,6 +163,22 @@ class TestAptSourceConfig(TestCase):
                                    "xenial", "main"),
                                   contents, flags=re.IGNORECASE))
 
+    def test_apt_source_keyonly(self):
+        """ test_apt_source_keyonly
+        Test specification key without source (not yet supported)
+        """
+        params = self._get_default_params()
+        cfg = {'key': "fakekey 4242",
+               'filename': self.aptlistfile}
+
+        with mock.patch.object(util, 'subp') as mockobj:
+            cc_apt_configure.add_sources([cfg], params)
+
+        mockobj.assert_called_once_with(('apt-key', 'add', '-'), 'fakekey 4242')
+
+        # filename should be ignored on key only
+        self.assertFalse(os.path.isfile(self.aptlistfile))
+
     def test_apt_source_ppa(self):
         """ test_apt_source_ppa
         Test specification of a ppa
