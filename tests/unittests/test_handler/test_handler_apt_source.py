@@ -107,9 +107,9 @@ class TestAptSourceConfig(TestCase):
                                    "multiverse"),
                                   contents, flags=re.IGNORECASE))
 
-    def test_apt_source_key(self):
-        """ test_apt_source_key
-        Test specification of a source + key
+    def test_apt_source_keyid(self):
+        """ test_apt_source_keyid
+        Test specification of a source + keyid
         """
         params = self._get_default_params()
         cfg = {'source': ('deb '
@@ -124,6 +124,34 @@ class TestAptSourceConfig(TestCase):
             cc_apt_configure.add_sources([cfg], params)
 
         mockobj.assert_called_with(('apt-key', 'add', '-'), 'fakekey 1234')
+
+        self.assertTrue(os.path.isfile(self.aptlistfile))
+
+        contents = load_tfile_or_url(self.aptlistfile)
+        self.assertTrue(re.search(r"%s %s %s %s\n" %
+                                  ("deb",
+                                   ('http://ppa.launchpad.net/smoser/'
+                                    'cloud-init-test/ubuntu'),
+                                   "xenial", "main"),
+                                  contents, flags=re.IGNORECASE))
+
+    def test_apt_source_key(self):
+        """ test_apt_source_key
+        Test specification of a source + key
+        """
+        params = self._get_default_params()
+        cfg = {'source': ('deb '
+                          'http://ppa.launchpad.net/'
+                          'smoser/cloud-init-test/ubuntu'
+                          ' xenial main'),
+               'key': "fakekey 4321",
+               'filename': self.aptlistfile}
+
+        with mock.patch.object(util, 'subp',
+                               return_value=('fakekey 1234', '')) as mockobj:
+            cc_apt_configure.add_sources([cfg], params)
+
+        mockobj.assert_called_with(('apt-key', 'add', '-'), 'fakekey 4321')
 
         self.assertTrue(os.path.isfile(self.aptlistfile))
 
