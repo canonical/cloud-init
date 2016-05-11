@@ -6,6 +6,11 @@ import shutil
 import tempfile
 import re
 
+try:
+    from unittest import mock
+except ImportError:
+    import mock
+
 from cloudinit import distros
 from cloudinit import util
 from cloudinit.config import cc_apt_configure
@@ -116,11 +121,13 @@ class TestAptSourceConfig(TestCase):
                'keyid:': "03683F77",
                'filename': self.aptlistfile}
 
-        cc_apt_configure.add_sources([cfg], params)
+        with mock.patch.object(util, 'subp', return_value=('fakekey 1234', '')) as mockobj:
+            cc_apt_configure.add_sources([cfg], params)
+
+        mockobj.assert_called_with(('apt-key', 'add', '-'), 'fakekey 1234')
 
         self.assertTrue(os.path.isfile(self.aptlistfile))
 
-        # report content before making regex
         contents = load_tfile_or_url(self.aptlistfile)
         self.assertTrue(re.search(r"%s %s %s %s\n" %
                                   ("deb",
@@ -128,11 +135,6 @@ class TestAptSourceConfig(TestCase):
                                     'cloud-init-test/ubuntu'),
                                    "xenial", "main"),
                                   contents, flags=re.IGNORECASE))
-        # check if key was imported
-        try:
-            util.subp(('apt-key', 'list', '03683F77'))
-        except util.ProcessExecutionError as err:
-            self.assertRaises(err, "apt-key failed failed")
 
 
     def test_apt_source_ppa(self):
