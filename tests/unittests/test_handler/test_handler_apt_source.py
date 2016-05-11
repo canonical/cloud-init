@@ -118,7 +118,7 @@ class TestAptSourceConfig(TestCase):
                           'http://ppa.launchpad.net/'
                           'smoser/cloud-init-test/ubuntu'
                           ' xenial main'),
-               'keyid:': "03683F77",
+               'keyid': "03683F77",
                'filename': self.aptlistfile}
 
         with mock.patch.object(util, 'subp', return_value=('fakekey 1234', '')) as mockobj:
