@@ -178,6 +178,23 @@ class TestAptSourceConfig(TestCase):
         # filename should be ignored on key only
         self.assertFalse(os.path.isfile(self.aptlistfile))
 
+    def test_apt_source_keyidonly(self):
+        """ test_apt_source_keyidonly
+        Test specification of a keyid without source (not yet supported)
+        """
+        params = self._get_default_params()
+        cfg = {'keyid': "03683F77",
+               'filename': self.aptlistfile}
+
+        with mock.patch.object(util, 'subp',
+                               return_value=('fakekey 1212', '')) as mockobj:
+            cc_apt_configure.add_sources([cfg], params)
+
+        mockobj.assert_called_with(('apt-key', 'add', '-'), 'fakekey 1212')
+
+        # filename should be ignored on key only
+        self.assertFalse(os.path.isfile(self.aptlistfile))
+
     def test_apt_source_ppa(self):
         """ test_apt_source_ppa
         Test specification of a ppa
