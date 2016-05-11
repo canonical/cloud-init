@@ -20,7 +20,6 @@ import base64
 import glob
 import gzip
 import io
-import shlex
 
 from cloudinit.net import get_devicelist
 from cloudinit.net import sys_netdev_info
@@ -34,13 +33,17 @@ def _load_shell_content(content, add_empty=False, empty_val=None):
        then add entries in to the returned dictionary for 'VAR='
        variables.  Set their value to empty_val."""
     data = {}
-    for line in shlex.split(content):
-        key, value = line.split("=", 1)
-        if not value:
-            value = empty_val
-        if add_empty or value:
-            data[key] = value
-
+    for line in util.shlex_split(content):
+        try:
+            key, value = line.split("=", 1)
+        except ValueError:
+            # Unsplittable line, skip it...
+            pass
+        else:
+            if not value:
+                value = empty_val
+            if add_empty or value:
+                data[key] = value
     return data
 
 
@@ -59,6 +62,9 @@ def _klibc_to_config_entry(content, mac_addrs=None):
 
     if mac_addrs is None:
         mac_addrs = {}
+
+    print("Reading content")
+    print(content)
 
     data = _load_shell_content(content)
     try:
@@ -185,7 +191,7 @@ def read_kernel_cmdline_config(files=None, mac_addrs=None, cmdline=None):
         return None
 
     if mac_addrs is None:
-        mac_addrs = {k: sys_netdev_info(k, 'address')
-                     for k in get_devicelist()}
+        mac_addrs = dict((k, sys_netdev_info(k, 'address'))
+                         for k in get_devicelist())
 
     return config_from_klibc_net_cfg(files=files, mac_addrs=mac_addrs)

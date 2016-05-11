@@ -33,19 +33,21 @@ import tempfile
 import uuid
 from binascii import crc32
 
-import serial
+try:
+    # Serial does not work on py2.6 (anymore)
+    import serial
+    from cloudinit.sources import DataSourceSmartOS
+    WILL_WORK = True
+except ImportError:
+    WILL_WORK = False
+
 import six
 
 from cloudinit import helpers as c_helpers
-from cloudinit.sources import DataSourceSmartOS
 from cloudinit.util import b64e
 
 from .. import helpers
-
-try:
-    from unittest import mock
-except ImportError:
-    import mock
+from ..helpers import mock, SkipTest
 
 MOCK_RETURNS = {
     'hostname': 'test-host',
@@ -79,7 +81,8 @@ def get_mock_client(mockdata):
 class TestSmartOSDataSource(helpers.FilesystemMockingTestCase):
     def setUp(self):
         super(TestSmartOSDataSource, self).setUp()
-
+        if not WILL_WORK:
+            raise SkipTest("This test will not work")
         self.tmp = tempfile.mkdtemp()
         self.addCleanup(shutil.rmtree, self.tmp)
         self.legacy_user_d = tempfile.mkdtemp()
@@ -445,6 +448,8 @@ class TestJoyentMetadataClient(helpers.FilesystemMockingTestCase):
 
     def setUp(self):
         super(TestJoyentMetadataClient, self).setUp()
+        if not WILL_WORK:
+            raise SkipTest("This test will not work")
         self.serial = mock.MagicMock(spec=serial.Serial)
         self.request_id = 0xabcdef12
         self.metadata_value = 'value'

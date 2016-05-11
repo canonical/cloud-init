@@ -534,13 +534,13 @@ def convert_net_json(network_json):
     config = []
     for link in links:
         subnets = []
-        cfg = {k: v for k, v in link.items()
-               if k in valid_keys['physical']}
+        cfg = dict((k, v) for k, v in link.items()
+                   if k in valid_keys['physical'])
         cfg.update({'name': link['id']})
         for network in [net for net in networks
                         if net['link'] == link['id']]:
-            subnet = {k: v for k, v in network.items()
-                      if k in valid_keys['subnet']}
+            subnet = dict((k, v) for k, v in network.items()
+                          if k in valid_keys['subnet'])
             if 'dhcp' in network['type']:
                 t = 'dhcp6' if network['type'].startswith('ipv6') else 'dhcp4'
                 subnet.update({

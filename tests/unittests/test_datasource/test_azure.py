@@ -1,16 +1,8 @@
 from cloudinit import helpers
 from cloudinit.util import b64e, decode_binary, load_file
 from cloudinit.sources import DataSourceAzure
-from ..helpers import TestCase, populate_dir
 
-try:
-    from unittest import mock
-except ImportError:
-    import mock
-try:
-    from contextlib import ExitStack
-except ImportError:
-    from contextlib2 import ExitStack
+from ..helpers import TestCase, populate_dir, mock, ExitStack, PY26, SkipTest
 
 import crypt
 import os
@@ -83,6 +75,8 @@ class TestAzureDataSource(TestCase):
 
     def setUp(self):
         super(TestAzureDataSource, self).setUp()
+        if PY26:
+            raise SkipTest("Does not work on python 2.6")
         self.tmp = tempfile.mkdtemp()
         self.addCleanup(shutil.rmtree, self.tmp)
 

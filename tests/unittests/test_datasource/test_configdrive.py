@@ -5,22 +5,13 @@ import shutil
 import six
 import tempfile
 
-try:
-    from unittest import mock
-except ImportError:
-    import mock
-try:
-    from contextlib import ExitStack
-except ImportError:
-    from contextlib2 import ExitStack
-
 from cloudinit import helpers
 from cloudinit import settings
 from cloudinit.sources import DataSourceConfigDrive as ds
 from cloudinit.sources.helpers import openstack
 from cloudinit import util
 
-from ..helpers import TestCase
+from ..helpers import TestCase, ExitStack, mock
 
 
 PUBKEY = u'ssh-rsa AAAAB3NzaC1....sIkJhq8wdX+4I3A4cYbYP ubuntu@server-460\n'

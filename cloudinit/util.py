@@ -37,6 +37,7 @@ import pwd
 import random
 import re
 import shutil
+import shlex
 import socket
 import stat
 import string
@@ -81,6 +82,7 @@ CONTAINER_TESTS = (['systemd-detect-virt', '--quiet', '--container'],
                    ['lxc-is-container'])
 
 PROC_CMDLINE = None
+PY26 = sys.version_info[0:2] == (2, 6)
 
 
 def decode_binary(blob, encoding='utf-8'):
@@ -171,7 +173,8 @@ class ProcessExecutionError(IOError):
 
     def __init__(self, stdout=None, stderr=None,
                  exit_code=None, cmd=None,
-                 description=None, reason=None):
+                 description=None, reason=None,
+                 errno=None):
         if not cmd:
             self.cmd = '-'
         else:
@@ -202,6 +205,7 @@ class ProcessExecutionError(IOError):
         else:
             self.reason = '-'
 
+        self.errno = errno
         message = self.MESSAGE_TMPL % {
             'description': self.description,
             'cmd': self.cmd,
@@ -1147,7 +1151,14 @@ def find_devs_with(criteria=None, oformat='device',
         options.append(path)
     cmd = blk_id_cmd + options
     # See man blkid for why 2 is added
-    (out, _err) = subp(cmd, rcs=[0, 2])
+    try:
+        (out, _err) = subp(cmd, rcs=[0, 2])
+    except ProcessExecutionError as e:
+        if e.errno == errno.ENOENT:
+            # blkid not found...
+            out = ""
+        else:
+            raise
     entries = []
     for line in out.splitlines():
         line = line.strip()
@@ -1189,6 +1200,13 @@ def load_file(fname, read_cb=None, quiet=False, decode=True):
         return decode_binary(contents)
     else:
         return contents
+
+
+def shlex_split(blob):
+    if PY26 and isinstance(blob, six.text_type):
+        # Older versions don't support unicode input
+        blob = blob.encode("utf8")
+    return shlex.split(blob)
 
 
 def get_cmdline():
@@ -1696,7 +1714,8 @@ def subp(args, data=None, rcs=None, env=None, capture=True, shell=False,
         sp = subprocess.Popen(args, **kws)
         (out, err) = sp.communicate(data)
     except OSError as e:
-        raise ProcessExecutionError(cmd=args, reason=e)
+        raise ProcessExecutionError(cmd=args, reason=e,
+                                    errno=e.errno)
     rc = sp.returncode
     if rc not in rcs:
         raise ProcessExecutionError(stdout=out, stderr=err,

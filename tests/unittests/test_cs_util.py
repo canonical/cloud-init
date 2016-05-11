@@ -1,20 +1,14 @@
 from __future__ import print_function
 
-import sys
-import unittest
+from . import helpers as test_helpers
 
-from cloudinit.cs_utils import Cepko
+import unittest2
 
 try:
-    skip = unittest.skip
-except AttributeError:
-    # Python 2.6.  Doesn't have to be high fidelity.
-    def skip(reason):
-        def decorator(func):
-            def wrapper(*args, **kws):
-                print(reason, file=sys.stderr)
-            return wrapper
-        return decorator
+    from cloudinit.cs_utils import Cepko
+    WILL_WORK = True
+except ImportError:
+    WILL_WORK = False
 
 
 SERVER_CONTEXT = {
@@ -32,29 +26,21 @@ SERVER_CONTEXT = {
 }
 
 
-class CepkoMock(Cepko):
-    def all(self):
-        return SERVER_CONTEXT
+if WILL_WORK:
+    class CepkoMock(Cepko):
+        def all(self):
+            return SERVER_CONTEXT
 
-    def get(self, key="", request_pattern=None):
-        return SERVER_CONTEXT['tags']
+        def get(self, key="", request_pattern=None):
+            return SERVER_CONTEXT['tags']
 
 
 # 2015-01-22 BAW: This test is completely useless because it only ever tests
 # the CepkoMock object.  Even in its original form, I don't think it ever
 # touched the underlying Cepko class methods.
-@skip('This test is completely useless')
-class CepkoResultTests(unittest.TestCase):
+class CepkoResultTests(test_helpers.TestCase):
     def setUp(self):
-        pass
-        # self.mocked = self.mocker.replace("cloudinit.cs_utils.Cepko",
-        #                     spec=CepkoMock,
-        #                     count=False,
-        #                     passthrough=False)
-        # self.mocked()
-        # self.mocker.result(CepkoMock())
-        # self.mocker.replay()
-        # self.c = Cepko()
+        raise unittest2.SkipTest('This test is completely useless')
 
     def test_getitem(self):
         result = self.c.all()

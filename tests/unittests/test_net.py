@@ -78,8 +78,9 @@ class TestEniNetRendering(TestCase):
     @mock.patch("cloudinit.net.sys_dev_path")
     @mock.patch("cloudinit.net.sys_netdev_info")
     @mock.patch("cloudinit.net.get_devicelist")
-    def test_generation(self, mock_get_devicelist, mock_sys_netdev_info,
-                        mock_sys_dev_path):
+    def test_default_generation(self, mock_get_devicelist,
+                                mock_sys_netdev_info,
+                                mock_sys_dev_path):
         mock_get_devicelist.return_value = ['eth1000', 'lo']
 
         dev_characteristics = {
@@ -138,7 +139,7 @@ iface eth1000 inet dhcp
         self.assertEqual(expected.lstrip(), contents.lstrip())
 
 
-class TestNetConfigParsing(TestCase):
+class TestCmdlineConfigParsing(TestCase):
     simple_cfg = {
         'config': [{"type": "physical", "name": "eth0",
                     "mac_address": "c0:d6:9f:2c:e8:80",
