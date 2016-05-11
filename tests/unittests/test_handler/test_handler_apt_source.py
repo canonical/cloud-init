@@ -173,7 +173,8 @@ class TestAptSourceConfig(TestCase):
         with mock.patch.object(util, 'subp') as mockobj:
             cc_apt_configure.add_sources([cfg], params)
 
-        mockobj.assert_called_once_with(('apt-key', 'add', '-'), 'fakekey 4242')
+        mockobj.assert_called_once_with(('apt-key', 'add', '-'),
+                                        'fakekey 4242')
 
         # filename should be ignored on key only
         self.assertFalse(os.path.isfile(self.aptlistfile))
