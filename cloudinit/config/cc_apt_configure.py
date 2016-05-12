@@ -21,6 +21,7 @@
 import glob
 import os
 import re
+import tempfile
 
 from cloudinit import templater
 from cloudinit import util
@@ -70,7 +71,7 @@ def handle(name, cfg, cloud, log, _args):
 
     if not util.get_cfg_option_bool(cfg,
                                     'apt_preserve_sources_list', False):
-        generate_sources_list(release, mirrors, cloud, log)
+        generate_sources_list(cfg, release, mirrors, cloud, log)
         old_mirrors = cfg.get('apt_old_mirrors',
                               {"primary": "archive.ubuntu.com/ubuntu",
                                "security": "security.ubuntu.com/ubuntu"})
@@ -149,7 +150,17 @@ def get_release():
     return stdout.strip()
 
 
-def generate_sources_list(codename, mirrors, cloud, log):
+def generate_sources_list(cfg, codename, mirrors, cloud, log):
+    params = {'codename': codename}
+    for k in mirrors:
+        params[k] = mirrors[k]
+
+    custtmpl = cfg.get('apt_custom_sources_list', None)
+    if custtmpl is not None:
+        templater.render_string_to_file(custtmpl,
+                                        '/etc/apt/sources.list', params)
+        return
+
     template_fn = cloud.get_template_filename('sources.list.%s' %
                                               (cloud.distro.name))
     if not template_fn:
@@ -158,9 +169,6 @@ def generate_sources_list(codename, mirrors, cloud, log):
             log.warn("No template found, not rendering /etc/apt/sources.list")
             return
 
-    params = {'codename': codename}
-    for k in mirrors:
-        params[k] = mirrors[k]
     templater.render_to_file(template_fn, '/etc/apt/sources.list', params)
 
 
