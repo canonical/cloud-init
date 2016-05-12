@@ -1,7 +1,7 @@
 from cloudinit import cloud
+from cloudinit.config import cc_growpart
 from cloudinit import util
 
-from cloudinit.config import cc_growpart
 from ..helpers import TestCase
 
 import errno

@@ -64,4 +64,4 @@ class TestLocale(t_help.FilesystemMockingTestCase):
 
         contents = util.load_file('/etc/sysconfig/language', decode=False)
         n_cfg = ConfigObj(BytesIO(contents))
-        self.assertEquals({'RC_LANG': cfg['locale']}, dict(n_cfg))
+        self.assertEqual({'RC_LANG': cfg['locale']}, dict(n_cfg))

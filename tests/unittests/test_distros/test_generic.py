@@ -87,13 +87,13 @@ class TestGenericDistro(helpers.FilesystemMockingTestCase):
         rules = 'ALL=(ALL:ALL) ALL'
         contents = self._write_load_sudoers('harlowja', rules)
         expected = ['harlowja ALL=(ALL:ALL) ALL']
-        self.assertEquals(len(expected), self._count_in(expected, contents))
+        self.assertEqual(len(expected), self._count_in(expected, contents))
         not_expected = [
             'harlowja A',
             'harlowja L',
             'harlowja L',
         ]
-        self.assertEquals(0, self._count_in(not_expected, contents))
+        self.assertEqual(0, self._count_in(not_expected, contents))
 
     def test_sudoers_ensure_rules_list(self):
         rules = [
@@ -107,13 +107,13 @@ class TestGenericDistro(helpers.FilesystemMockingTestCase):
             'harlowja B-ALL=(ALL:ALL) ALL',
             'harlowja C-ALL=(ALL:ALL) ALL',
         ]
-        self.assertEquals(len(expected), self._count_in(expected, contents))
+        self.assertEqual(len(expected), self._count_in(expected, contents))
         not_expected = [
             'harlowja A',
             'harlowja L',
             'harlowja L',
         ]
-        self.assertEquals(0, self._count_in(not_expected, contents))
+        self.assertEqual(0, self._count_in(not_expected, contents))
 
     def test_sudoers_ensure_new(self):
         cls = distros.fetch("ubuntu")
@@ -136,7 +136,7 @@ class TestGenericDistro(helpers.FilesystemMockingTestCase):
         self.assertIn("includedir /b", contents)
         self.assertTrue(os.path.isdir("/b"))
         self.assertIn("josh", contents)
-        self.assertEquals(2, contents.count("josh"))
+        self.assertEqual(2, contents.count("josh"))
 
     def test_arch_package_mirror_info_unknown(self):
         """for an unknown arch, we should get back that with arch 'default'."""

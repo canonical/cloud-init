@@ -151,7 +151,7 @@ class TestConfigDriveDataSource(TestCase):
                     mock.patch.object(os.path, 'exists',
                                       side_effect=exists_side_effect()))
                 device = cfg_ds.device_name_to_device(name)
-                self.assertEquals(dev_name, device)
+                self.assertEqual(dev_name, device)
 
                 find_mock.assert_called_once_with(mock.ANY)
                 self.assertEqual(exists_mock.call_count, 2)
@@ -179,7 +179,7 @@ class TestConfigDriveDataSource(TestCase):
                     mock.patch.object(os.path, 'exists',
                                       return_value=True))
                 device = cfg_ds.device_name_to_device(name)
-                self.assertEquals(dev_name, device)
+                self.assertEqual(dev_name, device)
 
                 find_mock.assert_called_once_with(mock.ANY)
                 exists_mock.assert_called_once_with(mock.ANY)
@@ -214,7 +214,7 @@ class TestConfigDriveDataSource(TestCase):
             with mock.patch.object(os.path, 'exists',
                                    side_effect=exists_side_effect()):
                 device = cfg_ds.device_name_to_device(name)
-                self.assertEquals(dev_name, device)
+                self.assertEqual(dev_name, device)
                 # We don't assert the call count for os.path.exists() because
                 # not all of the entries in name_tests results in two calls to
                 # that function.  Specifically, 'root2k' doesn't seem to call
@@ -242,7 +242,7 @@ class TestConfigDriveDataSource(TestCase):
         for name, dev_name in name_tests.items():
             with mock.patch.object(os.path, 'exists', return_value=True):
                 device = cfg_ds.device_name_to_device(name)
-                self.assertEquals(dev_name, device)
+                self.assertEqual(dev_name, device)
 
     def test_dir_valid(self):
         """Verify a dir is read as such."""

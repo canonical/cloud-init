@@ -24,6 +24,7 @@
 
 from __future__ import print_function
 
+from binascii import crc32
 import os
 import os.path
 import re
@@ -31,7 +32,6 @@ import shutil
 import stat
 import tempfile
 import uuid
-from binascii import crc32
 
 import serial
 import six
@@ -157,16 +157,16 @@ class TestSmartOSDataSource(helpers.FilesystemMockingTestCase):
         dsrc = self._get_ds()
         ret = dsrc.get_data()
         self.assertTrue(ret)
-        self.assertEquals('kvm', dsrc.smartos_type)
-        self.assertEquals('/dev/ttyS1', dsrc.seed)
+        self.assertEqual('kvm', dsrc.smartos_type)
+        self.assertEqual('/dev/ttyS1', dsrc.seed)
 
     def test_seed_lxbrand(self):
         # default seed should be /dev/ttyS1
         dsrc = self._get_ds(is_lxbrand=True)
         ret = dsrc.get_data()
         self.assertTrue(ret)
-        self.assertEquals('lx-brand', dsrc.smartos_type)
-        self.assertEquals('/native/.zonecontrol/metadata.sock', dsrc.seed)
+        self.assertEqual('lx-brand', dsrc.smartos_type)
+        self.assertEqual('/native/.zonecontrol/metadata.sock', dsrc.seed)
 
     def test_issmartdc(self):
         dsrc = self._get_ds()
@@ -190,29 +190,29 @@ class TestSmartOSDataSource(helpers.FilesystemMockingTestCase):
         dsrc = self._get_ds(mockdata=MOCK_RETURNS)
         ret = dsrc.get_data()
         self.assertTrue(ret)
-        self.assertEquals(MOCK_RETURNS['sdc:uuid'],
-                          dsrc.metadata['instance-id'])
+        self.assertEqual(MOCK_RETURNS['sdc:uuid'],
+                         dsrc.metadata['instance-id'])
 
     def test_root_keys(self):
         dsrc = self._get_ds(mockdata=MOCK_RETURNS)
         ret = dsrc.get_data()
         self.assertTrue(ret)
-        self.assertEquals(MOCK_RETURNS['root_authorized_keys'],
-                          dsrc.metadata['public-keys'])
+        self.assertEqual(MOCK_RETURNS['root_authorized_keys'],
+                         dsrc.metadata['public-keys'])
 
     def test_hostname_b64(self):
         dsrc = self._get_ds(mockdata=MOCK_RETURNS)
         ret = dsrc.get_data()
         self.assertTrue(ret)
-        self.assertEquals(MOCK_RETURNS['hostname'],
-                          dsrc.metadata['local-hostname'])
+        self.assertEqual(MOCK_RETURNS['hostname'],
+                         dsrc.metadata['local-hostname'])
 
     def test_hostname(self):
         dsrc = self._get_ds(mockdata=MOCK_RETURNS)
         ret = dsrc.get_data()
         self.assertTrue(ret)
-        self.assertEquals(MOCK_RETURNS['hostname'],
-                          dsrc.metadata['local-hostname'])
+        self.assertEqual(MOCK_RETURNS['hostname'],
+                         dsrc.metadata['local-hostname'])
 
     def test_base64_all(self):
         # metadata provided base64_all of true
@@ -224,16 +224,16 @@ class TestSmartOSDataSource(helpers.FilesystemMockingTestCase):
         dsrc = self._get_ds(mockdata=my_returns)
         ret = dsrc.get_data()
         self.assertTrue(ret)
-        self.assertEquals(MOCK_RETURNS['hostname'],
-                          dsrc.metadata['local-hostname'])
-        self.assertEquals(MOCK_RETURNS['cloud-init:user-data'],
-                          dsrc.userdata_raw)
-        self.assertEquals(MOCK_RETURNS['root_authorized_keys'],
-                          dsrc.metadata['public-keys'])
-        self.assertEquals(MOCK_RETURNS['disable_iptables_flag'],
-                          dsrc.metadata['iptables_disable'])
-        self.assertEquals(MOCK_RETURNS['enable_motd_sys_info'],
-                          dsrc.metadata['motd_sys_info'])
+        self.assertEqual(MOCK_RETURNS['hostname'],
+                         dsrc.metadata['local-hostname'])
+        self.assertEqual(MOCK_RETURNS['cloud-init:user-data'],
+                         dsrc.userdata_raw)
+        self.assertEqual(MOCK_RETURNS['root_authorized_keys'],
+                         dsrc.metadata['public-keys'])
+        self.assertEqual(MOCK_RETURNS['disable_iptables_flag'],
+                         dsrc.metadata['iptables_disable'])
+        self.assertEqual(MOCK_RETURNS['enable_motd_sys_info'],
+                         dsrc.metadata['motd_sys_info'])
 
     def test_b64_userdata(self):
         my_returns = MOCK_RETURNS.copy()
@@ -245,12 +245,12 @@ class TestSmartOSDataSource(helpers.FilesystemMockingTestCase):
         dsrc = self._get_ds(mockdata=my_returns)
         ret = dsrc.get_data()
         self.assertTrue(ret)
-        self.assertEquals(MOCK_RETURNS['hostname'],
-                          dsrc.metadata['local-hostname'])
-        self.assertEquals(MOCK_RETURNS['cloud-init:user-data'],
-                          dsrc.userdata_raw)
-        self.assertEquals(MOCK_RETURNS['root_authorized_keys'],
-                          dsrc.metadata['public-keys'])
+        self.assertEqual(MOCK_RETURNS['hostname'],
+                         dsrc.metadata['local-hostname'])
+        self.assertEqual(MOCK_RETURNS['cloud-init:user-data'],
+                         dsrc.userdata_raw)
+        self.assertEqual(MOCK_RETURNS['root_authorized_keys'],
+                         dsrc.metadata['public-keys'])
 
     def test_b64_keys(self):
         my_returns = MOCK_RETURNS.copy()
@@ -261,39 +261,39 @@ class TestSmartOSDataSource(helpers.FilesystemMockingTestCase):
         dsrc = self._get_ds(mockdata=my_returns)
         ret = dsrc.get_data()
         self.assertTrue(ret)
-        self.assertEquals(MOCK_RETURNS['hostname'],
-                          dsrc.metadata['local-hostname'])
-        self.assertEquals(MOCK_RETURNS['cloud-init:user-data'],
-                          dsrc.userdata_raw)
+        self.assertEqual(MOCK_RETURNS['hostname'],
+                         dsrc.metadata['local-hostname'])
+        self.assertEqual(MOCK_RETURNS['cloud-init:user-data'],
+                         dsrc.userdata_raw)
 
     def test_userdata(self):
         dsrc = self._get_ds(mockdata=MOCK_RETURNS)
         ret = dsrc.get_data()
         self.assertTrue(ret)
-        self.assertEquals(MOCK_RETURNS['user-data'],
-                          dsrc.metadata['legacy-user-data'])
-        self.assertEquals(MOCK_RETURNS['cloud-init:user-data'],
-                          dsrc.userdata_raw)
+        self.assertEqual(MOCK_RETURNS['user-data'],
+                         dsrc.metadata['legacy-user-data'])
+        self.assertEqual(MOCK_RETURNS['cloud-init:user-data'],
+                         dsrc.userdata_raw)
 
     def test_sdc_scripts(self):
         dsrc = self._get_ds(mockdata=MOCK_RETURNS)
         ret = dsrc.get_data()
         self.assertTrue(ret)
-        self.assertEquals(MOCK_RETURNS['user-script'],
-                          dsrc.metadata['user-script'])
+        self.assertEqual(MOCK_RETURNS['user-script'],
+                         dsrc.metadata['user-script'])
 
         legacy_script_f = "%s/user-script" % self.legacy_user_d
         self.assertTrue(os.path.exists(legacy_script_f))
         self.assertTrue(os.path.islink(legacy_script_f))
         user_script_perm = oct(os.stat(legacy_script_f)[stat.ST_MODE])[-3:]
-        self.assertEquals(user_script_perm, '700')
+        self.assertEqual(user_script_perm, '700')
 
     def test_scripts_shebanged(self):
         dsrc = self._get_ds(mockdata=MOCK_RETURNS)
         ret = dsrc.get_data()
         self.assertTrue(ret)
-        self.assertEquals(MOCK_RETURNS['user-script'],
-                          dsrc.metadata['user-script'])
+        self.assertEqual(MOCK_RETURNS['user-script'],
+                         dsrc.metadata['user-script'])
 
         legacy_script_f = "%s/user-script" % self.legacy_user_d
         self.assertTrue(os.path.exists(legacy_script_f))
@@ -301,9 +301,9 @@ class TestSmartOSDataSource(helpers.FilesystemMockingTestCase):
         shebang = None
         with open(legacy_script_f, 'r') as f:
             shebang = f.readlines()[0].strip()
-        self.assertEquals(shebang, "#!/bin/bash")
+        self.assertEqual(shebang, "#!/bin/bash")
         user_script_perm = oct(os.stat(legacy_script_f)[stat.ST_MODE])[-3:]
-        self.assertEquals(user_script_perm, '700')
+        self.assertEqual(user_script_perm, '700')
 
     def test_scripts_shebang_not_added(self):
         """
@@ -319,8 +319,8 @@ class TestSmartOSDataSource(helpers.FilesystemMockingTestCase):
         dsrc = self._get_ds(mockdata=my_returns)
         ret = dsrc.get_data()
         self.assertTrue(ret)
-        self.assertEquals(my_returns['user-script'],
-                          dsrc.metadata['user-script'])
+        self.assertEqual(my_returns['user-script'],
+                         dsrc.metadata['user-script'])
 
         legacy_script_f = "%s/user-script" % self.legacy_user_d
         self.assertTrue(os.path.exists(legacy_script_f))
@@ -328,7 +328,7 @@ class TestSmartOSDataSource(helpers.FilesystemMockingTestCase):
         shebang = None
         with open(legacy_script_f, 'r') as f:
             shebang = f.readlines()[0].strip()
-        self.assertEquals(shebang, "#!/usr/bin/perl")
+        self.assertEqual(shebang, "#!/usr/bin/perl")
 
     def test_userdata_removed(self):
         """
@@ -358,7 +358,7 @@ class TestSmartOSDataSource(helpers.FilesystemMockingTestCase):
                 if re.match(r'.*\/mdata-user-data$', name_f):
                     found_new = True
                     print(name_f)
-                    self.assertEquals(permissions, '400')
+                    self.assertEqual(permissions, '400')
 
         self.assertFalse(found_new)
 
@@ -366,8 +366,8 @@ class TestSmartOSDataSource(helpers.FilesystemMockingTestCase):
         dsrc = self._get_ds(mockdata=MOCK_RETURNS)
         ret = dsrc.get_data()
         self.assertTrue(ret)
-        self.assertEquals(MOCK_RETURNS['sdc:vendor-data'],
-                          dsrc.metadata['vendor-data'])
+        self.assertEqual(MOCK_RETURNS['sdc:vendor-data'],
+                         dsrc.metadata['vendor-data'])
 
     def test_default_vendor_data(self):
         my_returns = MOCK_RETURNS.copy()
@@ -376,7 +376,7 @@ class TestSmartOSDataSource(helpers.FilesystemMockingTestCase):
         dsrc = self._get_ds(mockdata=my_returns)
         ret = dsrc.get_data()
         self.assertTrue(ret)
-        self.assertNotEquals(def_op_script, dsrc.metadata['vendor-data'])
+        self.assertNotEqual(def_op_script, dsrc.metadata['vendor-data'])
 
         # we expect default vendor-data is a boothook
         self.assertTrue(dsrc.vendordata_raw.startswith("#cloud-boothook"))
@@ -385,15 +385,15 @@ class TestSmartOSDataSource(helpers.FilesystemMockingTestCase):
         dsrc = self._get_ds(mockdata=MOCK_RETURNS)
         ret = dsrc.get_data()
         self.assertTrue(ret)
-        self.assertEquals(MOCK_RETURNS['disable_iptables_flag'],
-                          dsrc.metadata['iptables_disable'])
+        self.assertEqual(MOCK_RETURNS['disable_iptables_flag'],
+                         dsrc.metadata['iptables_disable'])
 
     def test_motd_sys_info(self):
         dsrc = self._get_ds(mockdata=MOCK_RETURNS)
         ret = dsrc.get_data()
         self.assertTrue(ret)
-        self.assertEquals(MOCK_RETURNS['enable_motd_sys_info'],
-                          dsrc.metadata['motd_sys_info'])
+        self.assertEqual(MOCK_RETURNS['enable_motd_sys_info'],
+                         dsrc.metadata['motd_sys_info'])
 
     def test_default_ephemeral(self):
         # Test to make sure that the builtin config has the ephemeral

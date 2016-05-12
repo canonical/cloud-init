@@ -1,6 +1,7 @@
 from cloudinit.config.cc_snappy import (
     makeop, get_package_ops, render_snap_op)
 from cloudinit import util
+
 from .. import helpers as t_help
 
 import os

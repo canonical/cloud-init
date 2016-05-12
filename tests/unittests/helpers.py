@@ -2,8 +2,8 @@ from __future__ import print_function
 
 import functools
 import os
-import sys
 import shutil
+import sys
 import tempfile
 import unittest
 

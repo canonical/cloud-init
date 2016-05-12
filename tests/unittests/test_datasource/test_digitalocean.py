@@ -19,8 +19,8 @@ import re
 
 from six.moves.urllib_parse import urlparse
 
-from cloudinit import settings
 from cloudinit import helpers
+from cloudinit import settings
 from cloudinit.sources import DataSourceDigitalOcean
 
 from .. import helpers as test_helpers

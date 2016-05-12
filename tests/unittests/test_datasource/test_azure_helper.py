@@ -1,6 +1,7 @@
 import os
 
 from cloudinit.sources.helpers import azure as azure_helper
+
 from ..helpers import TestCase
 
 try:

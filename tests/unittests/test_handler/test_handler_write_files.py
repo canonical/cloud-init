@@ -1,6 +1,6 @@
-from cloudinit import util
-from cloudinit import log as logging
 from cloudinit.config.cc_write_files import write_files
+from cloudinit import log as logging
+from cloudinit import util
 
 from ..helpers import FilesystemMockingTestCase
 
