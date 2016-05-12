@@ -71,7 +71,7 @@ class TestFindEndpoint(TestCase):
 
     def test_missing_special_azure_line(self):
         self.load_file.return_value = ''
-        self.assertRaises(Exception,
+        self.assertRaises(ValueError,
                           azure_helper.WALinuxAgentShim.find_endpoint)
 
     @staticmethod
