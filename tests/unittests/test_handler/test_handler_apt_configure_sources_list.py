@@ -44,6 +44,22 @@ apt_custom_sources_list: |
     # FIND_SOMETHING_SPECIAL
 """
 
+EXPECTED_CONVERTED_CONTENT = (
+    """## Note, this file is written by cloud-init on first boot of an instance
+## modifications made here will not survive a re-bundle.
+## if you wish to make changes you can:
+## a.) add 'apt_preserve_sources_list: true' to /etc/cloud/cloud.cfg
+##     or do the same in user-data
+## b.) add sources in /etc/apt/sources.list.d
+## c.) make changes to template file /etc/cloud/templates/sources.list.tmpl
+
+# See http://help.ubuntu.com/community/UpgradeNotes for how to upgrade to
+# newer versions of the distribution.
+deb http://archive.ubuntu.com/ubuntu/ xenial main restricted
+deb-src http://archive.ubuntu.com/ubuntu/ xenial main restricted
+# FIND_SOMETHING_SPECIAL
+""")
+
 
 def load_tfile_or_url(*args, **kwargs):
     """ load_tfile_or_url
@@ -141,17 +157,7 @@ class TestAptSourceConfigSourceList(t_help.FilesystemMockingTestCase):
 
         mockwrite.assert_called_once_with(
             '/etc/apt/sources.list',
-            ("## Note, this file is written by cloud-init on first boot of an"
-             " instance\n## modifications made here will not survive a re-bun"
-             "dle.\n## if you wish to make changes you can:\n## a.) add 'apt_"
-             "preserve_sources_list: true' to /etc/cloud/cloud.cfg\n##     or"
-             " do the same in user-data\n## b.) add sources in /etc/apt/sourc"
-             "es.list.d\n## c.) make changes to template file /etc/cloud/temp"
-             "lates/sources.list.tmpl\n\n# See http://help.ubuntu.com/communi"
-             "ty/UpgradeNotes for how to upgrade to\n# newer versions of the "
-             "distribution.\ndeb http://archive.ubuntu.com/ubuntu/ xenial mai"
-             "n restricted\ndeb-src http://archive.ubuntu.com/ubuntu/ xenial "
-             "main restricted\n# FIND_SOMETHING_SPECIAL\n"),
+            EXPECTED_CONVERTED_CONTENT,
             mode=420)
 
 
