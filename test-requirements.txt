@@ -6,3 +6,4 @@ pyflakes
 contextlib2
 setuptools
 flake8>=2.5.4
+hacking
