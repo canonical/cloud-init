@@ -17,6 +17,19 @@ from cloudinit.config import cc_apt_configure
 
 from ..helpers import TestCase
 
+EXPECTEDKEY = """-----BEGIN PGP PUBLIC KEY BLOCK-----
+Version: GnuPG v1
+
+mI0ESuZLUgEEAKkqq3idtFP7g9hzOu1a8+v8ImawQN4TrvlygfScMU1TIS1eC7UQ
+NUA8Qqgr9iUaGnejb0VciqftLrU9D6WYHSKz+EITefgdyJ6SoQxjoJdsCpJ7o9Jy
+8PQnpRttiFm4qHu6BVnKnBNxw/z3ST9YMqW5kbMQpfxbGe+obRox59NpABEBAAG0
+HUxhdW5jaHBhZCBQUEEgZm9yIFNjb3R0IE1vc2VyiLYEEwECACAFAkrmS1ICGwMG
+CwkIBwMCBBUCCAMEFgIDAQIeAQIXgAAKCRAGILvPA2g/d3aEA/9tVjc10HOZwV29
+OatVuTeERjjrIbxflO586GLA8cp0C9RQCwgod/R+cKYdQcHjbqVcP0HqxveLg0RZ
+FJpWLmWKamwkABErwQLGlM/Hwhjfade8VvEQutH5/0JgKHmzRsoqfR+LMO6OS+Sm
+S0ORP6HXET3+jC8BMG4tBWCTK/XEZw==
+=ACB2
+-----END PGP PUBLIC KEY BLOCK-----"""
 
 def load_tfile_or_url(*args, **kwargs):
     """ load_tfile_or_url
@@ -169,6 +182,42 @@ class TestAptSourceConfig(TestCase):
             cc_apt_configure.add_sources([cfg], params)
 
         mockobj.assert_called_with(('apt-key', 'add', '-'), 'fakekey 1212')
+
+        # filename should be ignored on key only
+        self.assertFalse(os.path.isfile(self.aptlistfile))
+
+    def test_apt_source_keyid_real(self):
+        """ test_apt_source_keyid_real
+        Test specification of a keyid without source incl
+        up to addition of the key (nothing but add_key_raw mocked)
+        """
+        keyid = "03683F77"
+        params = self._get_default_params()
+        cfg = {'keyid': keyid,
+               'filename': self.aptlistfile}
+
+        with mock.patch.object(cc_apt_configure, 'add_key_raw') as mockobj:
+            cc_apt_configure.add_sources([cfg], params)
+
+        mockobj.assert_called_with(EXPECTEDKEY)
+
+        # filename should be ignored on key only
+        self.assertFalse(os.path.isfile(self.aptlistfile))
+
+    def test_apt_source_longkeyid_real(self):
+        """ test_apt_source_keyid_real
+        Test specification of a long key fingerprint without source incl
+        up to addition of the key (nothing but add_key_raw mocked)
+        """
+        keyid = "B59D 5F15 97A5 04B7 E230  6DCA 0620 BBCF 0368 3F77"
+        params = self._get_default_params()
+        cfg = {'keyid': keyid,
+               'filename': self.aptlistfile}
+
+        with mock.patch.object(cc_apt_configure, 'add_key_raw') as mockobj:
+            cc_apt_configure.add_sources([cfg], params)
+
+        mockobj.assert_called_with(EXPECTEDKEY)
 
         # filename should be ignored on key only
         self.assertFalse(os.path.isfile(self.aptlistfile))
