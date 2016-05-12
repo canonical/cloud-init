@@ -17,29 +17,6 @@ from cloudinit.config import cc_apt_configure
 
 from ..helpers import TestCase
 
-UNKNOWN_ARCH_INFO = {
-    'arches': ['default'],
-    'failsafe': {'primary': 'http://fs-primary-default',
-                 'security': 'http://fs-security-default'}
-}
-
-PACKAGE_MIRRORS = [
-    {'arches': ['i386', 'amd64'],
-     'failsafe': {'primary': 'http://fs-primary-intel',
-                  'security': 'http://fs-security-intel'},
-     'search': {
-         'primary': ['http://%(ec2_region)s.ec2/',
-                     'http://%(availability_zone)s.clouds/'],
-         'security': ['http://security-mirror1-intel',
-                      'http://security-mirror2-intel']}},
-    {'arches': ['armhf', 'armel'],
-     'failsafe': {'primary': 'http://fs-primary-arm',
-                  'security': 'http://fs-security-arm'}},
-    UNKNOWN_ARCH_INFO
-]
-
-GAPMI = distros._get_arch_package_mirror_info
-
 
 def load_tfile_or_url(*args, **kwargs):
     """ load_tfile_or_url
