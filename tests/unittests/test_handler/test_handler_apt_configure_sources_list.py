@@ -106,6 +106,15 @@ class TestAptSourceConfigSourceList(t_help.FilesystemMockingTestCase):
         self.apt_source_list('ubuntu', 'http://archive.ubuntu.com/ubuntu/')
 
 
+    def test_apt_srcl_debian_mirrorfail(self):
+        """ test_apt_source_list_debian_mirrorfail
+        Test rendering of a source.list from template for debian
+        """
+        self.apt_source_list('debian', ['http://does.not.exist',
+                                        'ftp.us.debian.org'],
+                             'ftp.us.debian.org')
+
+
     def test_apt_srcl_ubuntu_mirrorfail(self):
         """ test_apt_source_list_ubuntu_mirrorfail
         Test rendering of a source.list from template for ubuntu
