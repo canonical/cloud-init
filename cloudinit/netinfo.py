@@ -22,7 +22,7 @@
 
 import re
 
-from cloudinit import logging
+from cloudinit import log as logging
 from cloudinit import util
 
 from prettytable import PrettyTable
