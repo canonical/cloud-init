@@ -171,6 +171,7 @@ def generate_sources_list(cfg, codename, mirrors, cloud, log):
 
     templater.render_to_file(template_fn, '/etc/apt/sources.list', params)
 
+
 def add_key_raw(key):
     """
     actual adding of a key as defined in key argument
@@ -180,6 +181,7 @@ def add_key_raw(key):
         util.subp(('apt-key', 'add', '-'), key)
     except:
         raise Exception('failed add key')
+
 
 def add_key(ent):
     """

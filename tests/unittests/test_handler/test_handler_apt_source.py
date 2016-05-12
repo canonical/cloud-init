@@ -30,6 +30,7 @@ S0ORP6HXET3+jC8BMG4tBWCTK/XEZw==
 =ACB2
 -----END PGP PUBLIC KEY BLOCK-----"""
 
+
 def load_tfile_or_url(*args, **kwargs):
     """ load_tfile_or_url
     load file and return content after decoding
