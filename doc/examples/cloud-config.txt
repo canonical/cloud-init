@@ -150,7 +150,7 @@ apt_sources:
  # Custom apt repository:
  #  * The apt signing key can also be specified
  #    by providing a pgp public key block
- #  * Providing the PBG key here is the most robust method for
+ #  * Providing the PGP key here is the most robust method for
  #    specifying a key, as it removes dependency on a remote key server
  - source: deb http://ppa.launchpad.net/alestic/ppa/ubuntu karmic main 
    key: | # The value needs to start with -----BEGIN PGP PUBLIC KEY BLOCK-----
