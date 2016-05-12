@@ -2,6 +2,7 @@
 httpretty>=0.7.1
 mock
 nose
+nose-timer
 
 # Only really needed on older versions of python
 contextlib2
