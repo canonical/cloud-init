@@ -1,12 +1,11 @@
 """ test_handler_apt_configure_sources_list
 Test templating of sources list
 """
+import logging
 import os
+import re
 import shutil
 import tempfile
-import re
-
-import logging
 
 try:
     from unittest import mock
@@ -15,12 +14,12 @@ except ImportError:
 
 from cloudinit import cloud
 from cloudinit import distros
-from cloudinit import util
 from cloudinit import helpers
 from cloudinit import templater
+from cloudinit import util
 
-from cloudinit.sources import DataSourceNone
 from cloudinit.config import cc_apt_configure
+from cloudinit.sources import DataSourceNone
 
 from .. import helpers as t_help
 
