@@ -43,7 +43,7 @@ EXPORT_GPG_KEYID = """
     [ -n "$k" ] || exit 1;
     armour=$(gpg --list-keys --armour "${k}")
     if [ -z "${armour}" ]; then
-       gpg --keyserver ${ks} --recv $k >/dev/null &&
+       gpg --keyserver ${ks} --recv "${k}" >/dev/null &&
           armour=$(gpg --export --armour "${k}") &&
           gpg --batch --yes --delete-keys "${k}"
     fi
