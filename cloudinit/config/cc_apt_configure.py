@@ -57,6 +57,7 @@ def handle(name, cfg, cloud, log, _args):
 
     release = get_release()
     mirrors = find_apt_mirror_info(cloud, cfg)
+    print(mirrors)
     if not mirrors or "primary" not in mirrors:
         log.debug(("Skipping module named %s,"
                    " no package 'mirror' located"), name)

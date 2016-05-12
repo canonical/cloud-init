@@ -58,14 +58,20 @@ class TestAptSourceConfigSourceList(t_help.FilesystemMockingTestCase):
 # TODO Later - custom template filename
 # TODO Later - custom template raw
 
-    def apt_source_list(self, distro, mirror):
+    def apt_source_list(self, distro, mirror, mirrorcheck=None):
         """ apt_source_list
         Test rendering of a source.list from template for a given distro
         """
         self.patchOS(self.new_root)
         self.patchUtils(self.new_root)
 
-        cfg = {'apt_mirror': mirror}
+        if mirrorcheck is None:
+            mirrorcheck = mirror
+
+        if isinstance(mirror, list):
+            cfg = {'apt_mirror_search': mirror}
+        else:
+            cfg = {'apt_mirror': mirror}
         mycloud = self._get_cloud(distro)
 
         with mock.patch.object(templater, 'render_to_file') as mocktmpl:
@@ -81,9 +87,9 @@ class TestAptSourceConfigSourceList(t_help.FilesystemMockingTestCase):
                                          '/etc/apt/sources.list',
                                          {'codename': '',
                                           'primary':
-                                          mirror,
+                                          mirrorcheck,
                                           'mirror':
-                                          mirror})
+                                          mirrorcheck})
 
 
     def test_apt_source_list_ubuntu(self):
@@ -98,6 +104,15 @@ class TestAptSourceConfigSourceList(t_help.FilesystemMockingTestCase):
         Test rendering of a source.list from template for debian
         """
         self.apt_source_list('debian', 'ftp.us.debian.org')
+
+
+    def test_apt_srcl_ubuntu_mirrorfail(self):
+        """ test_apt_source_list_ubuntu_mirrorfail
+        Test rendering of a source.list from template for ubuntu
+        """
+        self.apt_source_list('ubuntu', ['http://does.not.exist',
+                                        'http://archive.ubuntu.com/ubuntu/'],
+                             'http://archive.ubuntu.com/ubuntu/')
 
 
 # vi: ts=4 expandtab
