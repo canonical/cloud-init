@@ -172,7 +172,7 @@ def generate_sources_list(cfg, codename, mirrors, cloud, log):
     templater.render_to_file(template_fn, '/etc/apt/sources.list', params)
 
 
-def add_key(ent, errorlist):
+def add_key(ent):
     """
     add key to the system as defiend in entry (if any)
     suppords raw keys or keyid's
@@ -185,14 +185,13 @@ def add_key(ent, errorlist):
         try:
             ent['key'] = getkeybyid(ent['keyid'], keyserver)
         except:
-            errorlist.append([ent, "failed to get key from %s" % keyserver])
-            return
+            raise Exception('failed to get key from %s' % keyserver)
 
     if 'key' in ent:
         try:
             util.subp(('apt-key', 'add', '-'), ent['key'])
         except:
-            errorlist.append([ent, "failed add key"])
+            raise Exception('failed add key')
 
 
 def add_sources(srclist, template_params=None, aa_repo_match=None):
@@ -211,7 +210,10 @@ def add_sources(srclist, template_params=None, aa_repo_match=None):
     errorlist = []
     for ent in srclist:
         # keys can be added without specifying a source
-        add_key(ent, errorlist)
+        try:
+            add_key(ent)
+        except Exception as detail:
+            errorlist.append([ent, detail])
 
         if 'source' not in ent:
             errorlist.append(["", "missing source"])
