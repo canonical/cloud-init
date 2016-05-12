@@ -11,7 +11,6 @@ try:
 except ImportError:
     import mock
 
-from cloudinit import distros
 from cloudinit import util
 from cloudinit.config import cc_apt_configure
 
