@@ -45,6 +45,7 @@ apt_custom_sources_list: |
     # FIND_SOMETHING_SPECIAL
 """
 
+
 def load_tfile_or_url(*args, **kwargs):
     """ load_tfile_or_url
     load file and return content after decoding
@@ -102,20 +103,17 @@ class TestAptSourceConfigSourceList(t_help.FilesystemMockingTestCase):
                                           'mirror':
                                           mirrorcheck})
 
-
     def test_apt_source_list_debian(self):
         """ test_apt_source_list_debian
         Test rendering of a source.list from template for debian
         """
         self.apt_source_list('debian', 'http://httpredir.debian.org/debian')
 
-
     def test_apt_source_list_ubuntu(self):
         """ test_apt_source_list_ubuntu
         Test rendering of a source.list from template for ubuntu
         """
         self.apt_source_list('ubuntu', 'http://archive.ubuntu.com/ubuntu/')
-
 
     def test_apt_srcl_debian_mirrorfail(self):
         """ test_apt_source_list_debian_mirrorfail
@@ -125,7 +123,6 @@ class TestAptSourceConfigSourceList(t_help.FilesystemMockingTestCase):
                                         'http://httpredir.debian.org/debian'],
                              'http://httpredir.debian.org/debian')
 
-
     def test_apt_srcl_ubuntu_mirrorfail(self):
         """ test_apt_source_list_ubuntu_mirrorfail
         Test rendering of a source.list from template for ubuntu
@@ -133,7 +130,6 @@ class TestAptSourceConfigSourceList(t_help.FilesystemMockingTestCase):
         self.apt_source_list('ubuntu', ['http://does.not.exist',
                                         'http://archive.ubuntu.com/ubuntu/'],
                              'http://archive.ubuntu.com/ubuntu/')
-
 
     def test_apt_srcl_custom(self):
         """ test_apt_srcl_custom
@@ -143,10 +139,10 @@ class TestAptSourceConfigSourceList(t_help.FilesystemMockingTestCase):
         mycloud = self._get_cloud('ubuntu')
 
         # the second mock restores the original subp
-        with mock.patch.object(util, 'write_file') as mockwrite, \
-             mock.patch.object(util, 'subp', self.subp) as mocksubp:
-            cc_apt_configure.handle("notimportant", cfg, mycloud,
-                                    LOG, None)
+        with mock.patch.object(util, 'write_file') as mockwrite:
+            with mock.patch.object(util, 'subp', self.subp) as mocksubp:
+                cc_apt_configure.handle("notimportant", cfg, mycloud,
+                                        LOG, None)
 
         mockwrite.assert_called_once_with(
             '/etc/apt/sources.list',
