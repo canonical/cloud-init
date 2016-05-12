@@ -26,6 +26,24 @@ from .. import helpers as t_help
 
 LOG = logging.getLogger(__name__)
 
+YAML_TEXT_CUSTOM_SL = """
+apt_mirror: http://archive.ubuntu.com/ubuntu/
+apt_custom_sources_list: |
+    ## template:jinja
+    ## Note, this file is written by cloud-init on first boot of an instance
+    ## modifications made here will not survive a re-bundle.
+    ## if you wish to make changes you can:
+    ## a.) add 'apt_preserve_sources_list: true' to /etc/cloud/cloud.cfg
+    ##     or do the same in user-data
+    ## b.) add sources in /etc/apt/sources.list.d
+    ## c.) make changes to template file /etc/cloud/templates/sources.list.tmpl
+
+    # See http://help.ubuntu.com/community/UpgradeNotes for how to upgrade to
+    # newer versions of the distribution.
+    deb {{mirror}} {{codename}} main restricted
+    deb-src {{mirror}} {{codename}} main restricted
+    # FIND_SOMETHING_SPECIAL
+"""
 
 def load_tfile_or_url(*args, **kwargs):
     """ load_tfile_or_url
@@ -52,11 +70,6 @@ class TestAptSourceConfigSourceList(t_help.FilesystemMockingTestCase):
         if metadata:
             myds.metadata.update(metadata)
         return cloud.Cloud(myds, paths, {}, mydist, None)
-
-# TODO - Ubuntu template
-# TODO - Debian template
-# TODO Later - custom template filename
-# TODO Later - custom template raw
 
     def apt_source_list(self, distro, mirror, mirrorcheck=None):
         """ apt_source_list
@@ -123,5 +136,31 @@ class TestAptSourceConfigSourceList(t_help.FilesystemMockingTestCase):
                                         'http://archive.ubuntu.com/ubuntu/'],
                              'http://archive.ubuntu.com/ubuntu/')
 
+
+    def test_apt_srcl_custom(self):
+        """ test_apt_srcl_custom
+        Test rendering from a custom source.list template
+        """
+        self.patchOS(self.new_root)
+        self.patchUtils(self.new_root)
+
+        cfg = util.load_yaml(YAML_TEXT_CUSTOM_SL)
+        mycloud = self._get_cloud('ubuntu')
+        mirrorcheck = 'http://archive.ubuntu.com/ubuntu/'
+
+        with mock.patch.object(templater, 'render_to_file') as mocktmpl:
+            with mock.patch.object(os.path, 'isfile',
+                                   return_value=True) as mockisfile:
+                cc_apt_configure.handle("notimportant", cfg, mycloud,
+                                        LOG, None)
+
+        mockisfile.assert_any_call(('/etc/cloud/templates/sources.list.ubuntu.tmpl'))
+        mocktmpl.assert_called_once_with(('/etc/cloud/templates/sources.list.ubuntu.tmpl'),
+                                         '/etc/apt/sources.list',
+                                         {'codename': '',
+                                          'primary':
+                                          mirrorcheck,
+                                          'mirror':
+                                          mirrorcheck})
 
 # vi: ts=4 expandtab
