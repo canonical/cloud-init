@@ -92,18 +92,18 @@ class TestAptSourceConfigSourceList(t_help.FilesystemMockingTestCase):
                                           mirrorcheck})
 
 
-    def test_apt_source_list_ubuntu(self):
-        """ test_apt_source_list_ubuntu
-        Test rendering of a source.list from template for ubuntu
-        """
-        self.apt_source_list('ubuntu', 'http://archive.ubuntu.com/ubuntu/')
-
-
     def test_apt_source_list_debian(self):
         """ test_apt_source_list_debian
         Test rendering of a source.list from template for debian
         """
         self.apt_source_list('debian', 'ftp.us.debian.org')
+
+
+    def test_apt_source_list_ubuntu(self):
+        """ test_apt_source_list_ubuntu
+        Test rendering of a source.list from template for ubuntu
+        """
+        self.apt_source_list('ubuntu', 'http://archive.ubuntu.com/ubuntu/')
 
 
     def test_apt_srcl_ubuntu_mirrorfail(self):
