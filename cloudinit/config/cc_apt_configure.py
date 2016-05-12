@@ -178,7 +178,7 @@ def add_key(ent):
     suppords raw keys or keyid's
     The latter will as a first step fetched to get the raw key
     """
-    if ('keyid' in ent and 'key' not in ent):
+    if 'keyid' in ent and 'key' not in ent:
         keyserver = "keyserver.ubuntu.com"
         if 'keyserver' in ent:
             keyserver = ent['keyserver']
