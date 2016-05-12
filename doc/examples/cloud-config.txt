@@ -144,6 +144,9 @@ apt_sources:
  # this would only import the key without adding a ppa or other source spec
  - keyid: F430BBA5 # GPG key ID published on a key server
 
+ # In general keyid's can also be specified via their long fingerprints
+ - keyid: B59D 5F15 97A5 04B7 E230  6DCA 0620 BBCF 0368 3F77
+
  # Custom apt repository:
  #  * The apt signing key can also be specified
  #    by providing a pgp public key block

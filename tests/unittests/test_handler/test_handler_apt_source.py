@@ -2,17 +2,17 @@
 Testing various config variations of the apt_source config
 """
 import os
+import re
 import shutil
 import tempfile
-import re
 
 try:
     from unittest import mock
 except ImportError:
     import mock
 
-from cloudinit import util
 from cloudinit.config import cc_apt_configure
+from cloudinit import util
 
 from ..helpers import TestCase
 
