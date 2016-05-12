@@ -20,7 +20,7 @@
 from .nic import Nic
 
 
-class Config:
+class Config(object):
     """
     Stores the Contents specified in the Customization
     Specification file.

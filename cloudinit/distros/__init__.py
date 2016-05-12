@@ -50,8 +50,8 @@ OSFAMILIES = {
 LOG = logging.getLogger(__name__)
 
 
+@six.add_metaclass(abc.ABCMeta)
 class Distro(object):
-    __metaclass__ = abc.ABCMeta
 
     usr_lib_exec = "/usr/lib"
     hosts_fn = "/etc/hosts"
@@ -97,7 +97,7 @@ class Distro(object):
         try:
             res = os.lstat('/run/systemd/system')
             return stat.S_ISDIR(res.st_mode)
-        except:
+        except Exception:
             return False
 
     @abc.abstractmethod

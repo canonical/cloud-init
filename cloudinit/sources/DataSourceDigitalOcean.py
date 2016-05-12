@@ -14,10 +14,10 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-from cloudinit import log as logging
-from cloudinit import util
-from cloudinit import sources
 from cloudinit import ec2_utils
+from cloudinit import log as logging
+from cloudinit import sources
+from cloudinit import util
 
 import functools
 

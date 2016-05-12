@@ -45,9 +45,8 @@ class DataSourceNotFoundException(Exception):
     pass
 
 
+@six.add_metaclass(abc.ABCMeta)
 class DataSource(object):
-
-    __metaclass__ = abc.ABCMeta
 
     def __init__(self, sys_cfg, distro, paths, ud_proc=None):
         self.sys_cfg = sys_cfg

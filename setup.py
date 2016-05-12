@@ -57,15 +57,15 @@ def tiny_p(cmd, capture=True):
 
 def pkg_config_read(library, var):
     fallbacks = {
-       'systemd': {
-           'systemdsystemunitdir': '/lib/systemd/system',
-           'systemdsystemgeneratordir': '/lib/systemd/system-generators',
-       }
+        'systemd': {
+            'systemdsystemunitdir': '/lib/systemd/system',
+            'systemdsystemgeneratordir': '/lib/systemd/system-generators',
+        }
     }
     cmd = ['pkg-config', '--variable=%s' % var, library]
     try:
         (path, err) = tiny_p(cmd)
-    except:
+    except Exception:
         return fallbacks[library][var]
     return str(path).strip()
 
@@ -212,4 +212,4 @@ setuptools.setup(
     data_files=data_files,
     install_requires=requirements,
     cmdclass=cmdclass,
-    )
+)

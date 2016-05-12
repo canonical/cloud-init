@@ -1,6 +1,6 @@
+from cloudinit.config import cc_apt_configure
 from cloudinit import util
 
-from cloudinit.config import cc_apt_configure
 from ..helpers import TestCase
 
 import os

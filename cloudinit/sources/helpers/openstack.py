@@ -145,8 +145,8 @@ class SourceMixin(object):
             return device
 
 
+@six.add_metaclass(abc.ABCMeta)
 class BaseReader(object):
-    __metaclass__ = abc.ABCMeta
 
     def __init__(self, base_path):
         self.base_path = base_path
@@ -475,7 +475,7 @@ class MetadataReader(BaseReader):
 
 
 def convert_vendordata_json(data, recurse=True):
-    """ data: a loaded json *object* (strings, arrays, dicts).
+    """data: a loaded json *object* (strings, arrays, dicts).
     return something suitable for cloudinit vendordata_raw.
 
     if data is:

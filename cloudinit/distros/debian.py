@@ -25,8 +25,8 @@ import os
 from cloudinit import distros
 from cloudinit import helpers
 from cloudinit import log as logging
-from cloudinit import util
 from cloudinit import net
+from cloudinit import util
 
 from cloudinit.distros.parsers.hostname import HostnameConf
 
@@ -221,7 +221,7 @@ def _maybe_remove_legacy_eth0(path="/etc/network/interfaces.d/eth0.cfg"):
             msg = "removed %s with known contents" % path
         else:
             msg = (bmsg + " '%s' exists with user configured content." % path)
-    except:
+    except Exception:
         msg = bmsg + " %s exists, but could not be read." % path
 
     LOG.warn(msg)

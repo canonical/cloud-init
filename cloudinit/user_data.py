@@ -178,7 +178,7 @@ class UserDataProcessor(object):
                 payload = util.load_yaml(msg.get_payload(decode=True))
                 if payload:
                     payload_idx = payload.get('launch-index')
-            except:
+            except Exception:
                 pass
         # Header overrides contents, for now (?) or the other way around?
         if header_idx is not None:

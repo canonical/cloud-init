@@ -26,7 +26,7 @@ from cloudinit import util
 logger = logging.getLogger(__name__)
 
 
-class NicConfigurator:
+class NicConfigurator(object):
     def __init__(self, nics):
         """
         Initialize the Nic Configurator

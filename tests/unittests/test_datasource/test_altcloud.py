@@ -134,7 +134,7 @@ class TestGetCloudType(TestCase):
         '''
         util.read_dmi_data = _dmi_data('RHEV')
         dsrc = DataSourceAltCloud({}, None, self.paths)
-        self.assertEquals('RHEV', dsrc.get_cloud_type())
+        self.assertEqual('RHEV', dsrc.get_cloud_type())
 
     def test_vsphere(self):
         '''
@@ -143,7 +143,7 @@ class TestGetCloudType(TestCase):
         '''
         util.read_dmi_data = _dmi_data('VMware Virtual Platform')
         dsrc = DataSourceAltCloud({}, None, self.paths)
-        self.assertEquals('VSPHERE', dsrc.get_cloud_type())
+        self.assertEqual('VSPHERE', dsrc.get_cloud_type())
 
     def test_unknown(self):
         '''
@@ -152,7 +152,7 @@ class TestGetCloudType(TestCase):
         '''
         util.read_dmi_data = _dmi_data('Unrecognized Platform')
         dsrc = DataSourceAltCloud({}, None, self.paths)
-        self.assertEquals('UNKNOWN', dsrc.get_cloud_type())
+        self.assertEqual('UNKNOWN', dsrc.get_cloud_type())
 
 
 class TestGetDataCloudInfoFile(TestCase):
@@ -187,7 +187,7 @@ class TestGetDataCloudInfoFile(TestCase):
         _write_cloud_info_file('RHEV')
         dsrc = DataSourceAltCloud({}, None, self.paths)
         dsrc.user_data_rhevm = lambda: True
-        self.assertEquals(True, dsrc.get_data())
+        self.assertEqual(True, dsrc.get_data())
 
     def test_vsphere(self):
         '''Success Test module get_data() forcing VSPHERE.'''
@@ -195,7 +195,7 @@ class TestGetDataCloudInfoFile(TestCase):
         _write_cloud_info_file('VSPHERE')
         dsrc = DataSourceAltCloud({}, None, self.paths)
         dsrc.user_data_vsphere = lambda: True
-        self.assertEquals(True, dsrc.get_data())
+        self.assertEqual(True, dsrc.get_data())
 
     def test_fail_rhev(self):
         '''Failure Test module get_data() forcing RHEV.'''
@@ -203,7 +203,7 @@ class TestGetDataCloudInfoFile(TestCase):
         _write_cloud_info_file('RHEV')
         dsrc = DataSourceAltCloud({}, None, self.paths)
         dsrc.user_data_rhevm = lambda: False
-        self.assertEquals(False, dsrc.get_data())
+        self.assertEqual(False, dsrc.get_data())
 
     def test_fail_vsphere(self):
         '''Failure Test module get_data() forcing VSPHERE.'''
@@ -211,14 +211,14 @@ class TestGetDataCloudInfoFile(TestCase):
         _write_cloud_info_file('VSPHERE')
         dsrc = DataSourceAltCloud({}, None, self.paths)
         dsrc.user_data_vsphere = lambda: False
-        self.assertEquals(False, dsrc.get_data())
+        self.assertEqual(False, dsrc.get_data())
 
     def test_unrecognized(self):
         '''Failure Test module get_data() forcing unrecognized.'''
 
         _write_cloud_info_file('unrecognized')
         dsrc = DataSourceAltCloud({}, None, self.paths)
-        self.assertEquals(False, dsrc.get_data())
+        self.assertEqual(False, dsrc.get_data())
 
 
 class TestGetDataNoCloudInfoFile(TestCase):
@@ -250,7 +250,7 @@ class TestGetDataNoCloudInfoFile(TestCase):
         util.read_dmi_data = _dmi_data('RHEV Hypervisor')
         dsrc = DataSourceAltCloud({}, None, self.paths)
         dsrc.user_data_rhevm = lambda: True
-        self.assertEquals(True, dsrc.get_data())
+        self.assertEqual(True, dsrc.get_data())
 
     def test_vsphere_no_cloud_file(self):
         '''Test No cloud info file module get_data() forcing VSPHERE.'''
@@ -258,14 +258,14 @@ class TestGetDataNoCloudInfoFile(TestCase):
         util.read_dmi_data = _dmi_data('VMware Virtual Platform')
         dsrc = DataSourceAltCloud({}, None, self.paths)
         dsrc.user_data_vsphere = lambda: True
-        self.assertEquals(True, dsrc.get_data())
+        self.assertEqual(True, dsrc.get_data())
 
     def test_failure_no_cloud_file(self):
         '''Test No cloud info file module get_data() forcing unrecognized.'''
 
         util.read_dmi_data = _dmi_data('Unrecognized Platform')
         dsrc = DataSourceAltCloud({}, None, self.paths)
-        self.assertEquals(False, dsrc.get_data())
+        self.assertEqual(False, dsrc.get_data())
 
 
 class TestUserDataRhevm(TestCase):
@@ -305,7 +305,7 @@ class TestUserDataRhevm(TestCase):
 
         dsrc = DataSourceAltCloud({}, None, self.paths)
 
-        self.assertEquals(False, dsrc.user_data_rhevm())
+        self.assertEqual(False, dsrc.user_data_rhevm())
 
     def test_modprobe_fails(self):
         '''Test user_data_rhevm() where modprobe fails.'''
@@ -315,7 +315,7 @@ class TestUserDataRhevm(TestCase):
 
         dsrc = DataSourceAltCloud({}, None, self.paths)
 
-        self.assertEquals(False, dsrc.user_data_rhevm())
+        self.assertEqual(False, dsrc.user_data_rhevm())
 
     def test_no_modprobe_cmd(self):
         '''Test user_data_rhevm() with no modprobe command.'''
@@ -325,7 +325,7 @@ class TestUserDataRhevm(TestCase):
 
         dsrc = DataSourceAltCloud({}, None, self.paths)
 
-        self.assertEquals(False, dsrc.user_data_rhevm())
+        self.assertEqual(False, dsrc.user_data_rhevm())
 
     def test_udevadm_fails(self):
         '''Test user_data_rhevm() where udevadm fails.'''
@@ -335,7 +335,7 @@ class TestUserDataRhevm(TestCase):
 
         dsrc = DataSourceAltCloud({}, None, self.paths)
 
-        self.assertEquals(False, dsrc.user_data_rhevm())
+        self.assertEqual(False, dsrc.user_data_rhevm())
 
     def test_no_udevadm_cmd(self):
         '''Test user_data_rhevm() with no udevadm command.'''
@@ -345,7 +345,7 @@ class TestUserDataRhevm(TestCase):
 
         dsrc = DataSourceAltCloud({}, None, self.paths)
 
-        self.assertEquals(False, dsrc.user_data_rhevm())
+        self.assertEqual(False, dsrc.user_data_rhevm())
 
 
 class TestUserDataVsphere(TestCase):
@@ -380,7 +380,7 @@ class TestUserDataVsphere(TestCase):
 
         dsrc = DataSourceAltCloud({}, None, self.paths)
 
-        self.assertEquals(False, dsrc.user_data_vsphere())
+        self.assertEqual(False, dsrc.user_data_vsphere())
 
 
 class TestReadUserDataCallback(TestCase):
@@ -408,8 +408,8 @@ class TestReadUserDataCallback(TestCase):
     def test_callback_both(self):
         '''Test read_user_data_callback() with both files.'''
 
-        self.assertEquals('test user data',
-                          read_user_data_callback(self.mount_dir))
+        self.assertEqual('test user data',
+                         read_user_data_callback(self.mount_dir))
 
     def test_callback_dc(self):
         '''Test read_user_data_callback() with only DC file.'''
@@ -418,8 +418,8 @@ class TestReadUserDataCallback(TestCase):
                                 dc_file=False,
                                 non_dc_file=True)
 
-        self.assertEquals('test user data',
-                          read_user_data_callback(self.mount_dir))
+        self.assertEqual('test user data',
+                         read_user_data_callback(self.mount_dir))
 
     def test_callback_non_dc(self):
         '''Test read_user_data_callback() with only non-DC file.'''
@@ -428,14 +428,14 @@ class TestReadUserDataCallback(TestCase):
                                 dc_file=True,
                                 non_dc_file=False)
 
-        self.assertEquals('test user data',
-                          read_user_data_callback(self.mount_dir))
+        self.assertEqual('test user data',
+                         read_user_data_callback(self.mount_dir))
 
     def test_callback_none(self):
         '''Test read_user_data_callback() no files are found.'''
 
         _remove_user_data_files(self.mount_dir)
-        self.assertEquals(None, read_user_data_callback(self.mount_dir))
+        self.assertEqual(None, read_user_data_callback(self.mount_dir))
 
 
 def force_arch(arch=None):

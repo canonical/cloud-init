@@ -18,7 +18,7 @@
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 
-class GuestCustEventEnum:
+class GuestCustEventEnum(object):
     """Specifies different types of Guest Customization Events"""
 
     GUESTCUST_EVENT_CUSTOMIZE_FAILED = 100

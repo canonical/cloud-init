@@ -22,8 +22,8 @@ import re
 
 from .. import helpers as test_helpers
 
-from six import StringIO
 from six.moves.urllib.parse import urlparse
+from six import StringIO
 
 from cloudinit import helpers
 from cloudinit import settings
@@ -142,34 +142,34 @@ class TestOpenStackDataSource(test_helpers.HttprettyTestCase):
     def test_successful(self):
         _register_uris(self.VERSION, EC2_FILES, EC2_META, OS_FILES)
         f = ds.read_metadata_service(BASE_URL)
-        self.assertEquals(VENDOR_DATA, f.get('vendordata'))
-        self.assertEquals(CONTENT_0, f['files']['/etc/foo.cfg'])
-        self.assertEquals(CONTENT_1, f['files']['/etc/bar/bar.cfg'])
-        self.assertEquals(2, len(f['files']))
-        self.assertEquals(USER_DATA, f.get('userdata'))
-        self.assertEquals(EC2_META, f.get('ec2-metadata'))
-        self.assertEquals(2, f.get('version'))
+        self.assertEqual(VENDOR_DATA, f.get('vendordata'))
+        self.assertEqual(CONTENT_0, f['files']['/etc/foo.cfg'])
+        self.assertEqual(CONTENT_1, f['files']['/etc/bar/bar.cfg'])
+        self.assertEqual(2, len(f['files']))
+        self.assertEqual(USER_DATA, f.get('userdata'))
+        self.assertEqual(EC2_META, f.get('ec2-metadata'))
+        self.assertEqual(2, f.get('version'))
         metadata = f['metadata']
-        self.assertEquals('nova', metadata.get('availability_zone'))
-        self.assertEquals('sm-foo-test.novalocal', metadata.get('hostname'))
-        self.assertEquals('sm-foo-test.novalocal',
-                          metadata.get('local-hostname'))
-        self.assertEquals('sm-foo-test', metadata.get('name'))
-        self.assertEquals('b0fa911b-69d4-4476-bbe2-1c92bff6535c',
-                          metadata.get('uuid'))
-        self.assertEquals('b0fa911b-69d4-4476-bbe2-1c92bff6535c',
-                          metadata.get('instance-id'))
+        self.assertEqual('nova', metadata.get('availability_zone'))
+        self.assertEqual('sm-foo-test.novalocal', metadata.get('hostname'))
+        self.assertEqual('sm-foo-test.novalocal',
+                         metadata.get('local-hostname'))
+        self.assertEqual('sm-foo-test', metadata.get('name'))
+        self.assertEqual('b0fa911b-69d4-4476-bbe2-1c92bff6535c',
+                         metadata.get('uuid'))
+        self.assertEqual('b0fa911b-69d4-4476-bbe2-1c92bff6535c',
+                         metadata.get('instance-id'))
 
     @hp.activate
     def test_no_ec2(self):
         _register_uris(self.VERSION, {}, {}, OS_FILES)
         f = ds.read_metadata_service(BASE_URL)
-        self.assertEquals(VENDOR_DATA, f.get('vendordata'))
-        self.assertEquals(CONTENT_0, f['files']['/etc/foo.cfg'])
-        self.assertEquals(CONTENT_1, f['files']['/etc/bar/bar.cfg'])
-        self.assertEquals(USER_DATA, f.get('userdata'))
-        self.assertEquals({}, f.get('ec2-metadata'))
-        self.assertEquals(2, f.get('version'))
+        self.assertEqual(VENDOR_DATA, f.get('vendordata'))
+        self.assertEqual(CONTENT_0, f['files']['/etc/foo.cfg'])
+        self.assertEqual(CONTENT_1, f['files']['/etc/bar/bar.cfg'])
+        self.assertEqual(USER_DATA, f.get('userdata'))
+        self.assertEqual({}, f.get('ec2-metadata'))
+        self.assertEqual(2, f.get('version'))
 
     @hp.activate
     def test_bad_metadata(self):
@@ -201,9 +201,9 @@ class TestOpenStackDataSource(test_helpers.HttprettyTestCase):
                 os_files.pop(k, None)
         _register_uris(self.VERSION, {}, {}, os_files)
         f = ds.read_metadata_service(BASE_URL)
-        self.assertEquals(VENDOR_DATA, f.get('vendordata'))
-        self.assertEquals(CONTENT_0, f['files']['/etc/foo.cfg'])
-        self.assertEquals(CONTENT_1, f['files']['/etc/bar/bar.cfg'])
+        self.assertEqual(VENDOR_DATA, f.get('vendordata'))
+        self.assertEqual(CONTENT_0, f['files']['/etc/foo.cfg'])
+        self.assertEqual(CONTENT_1, f['files']['/etc/bar/bar.cfg'])
         self.assertFalse(f.get('userdata'))
 
     @hp.activate
@@ -214,8 +214,8 @@ class TestOpenStackDataSource(test_helpers.HttprettyTestCase):
                 os_files.pop(k, None)
         _register_uris(self.VERSION, {}, {}, os_files)
         f = ds.read_metadata_service(BASE_URL)
-        self.assertEquals(CONTENT_0, f['files']['/etc/foo.cfg'])
-        self.assertEquals(CONTENT_1, f['files']['/etc/bar/bar.cfg'])
+        self.assertEqual(CONTENT_0, f['files']['/etc/foo.cfg'])
+        self.assertEqual(CONTENT_1, f['files']['/etc/bar/bar.cfg'])
         self.assertFalse(f.get('vendordata'))
 
     @hp.activate
@@ -247,16 +247,16 @@ class TestOpenStackDataSource(test_helpers.HttprettyTestCase):
         self.assertIsNone(ds_os.version)
         found = ds_os.get_data()
         self.assertTrue(found)
-        self.assertEquals(2, ds_os.version)
+        self.assertEqual(2, ds_os.version)
         md = dict(ds_os.metadata)
         md.pop('instance-id', None)
         md.pop('local-hostname', None)
-        self.assertEquals(OSTACK_META, md)
-        self.assertEquals(EC2_META, ds_os.ec2_metadata)
-        self.assertEquals(USER_DATA, ds_os.userdata_raw)
-        self.assertEquals(2, len(ds_os.files))
-        self.assertEquals(VENDOR_DATA, ds_os.vendordata_pure)
-        self.assertEquals(ds_os.vendordata_raw, None)
+        self.assertEqual(OSTACK_META, md)
+        self.assertEqual(EC2_META, ds_os.ec2_metadata)
+        self.assertEqual(USER_DATA, ds_os.userdata_raw)
+        self.assertEqual(2, len(ds_os.files))
+        self.assertEqual(VENDOR_DATA, ds_os.vendordata_pure)
+        self.assertEqual(ds_os.vendordata_raw, None)
 
     @hp.activate
     def test_bad_datasource_meta(self):

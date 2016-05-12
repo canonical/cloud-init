@@ -42,13 +42,13 @@ class TestMergeRun(helpers.FilesystemMockingTestCase):
                               args=[PER_INSTANCE],
                               freq=PER_INSTANCE)
         mirrors = initer.distro.get_option('package_mirrors')
-        self.assertEquals(1, len(mirrors))
+        self.assertEqual(1, len(mirrors))
         mirror = mirrors[0]
-        self.assertEquals(mirror['arches'], ['i386', 'amd64', 'blah'])
+        self.assertEqual(mirror['arches'], ['i386', 'amd64', 'blah'])
         mods = stages.Modules(initer)
         (which_ran, failures) = mods.run_section('cloud_init_modules')
         self.assertTrue(len(failures) == 0)
         self.assertTrue(os.path.exists('/etc/blah.ini'))
         self.assertIn('write-files', which_ran)
         contents = util.load_file('/etc/blah.ini')
-        self.assertEquals(contents, 'blah')
+        self.assertEqual(contents, 'blah')

@@ -1,5 +1,6 @@
-from cloudinit import util
 from cloudinit.config import cc_rh_subscription
+from cloudinit import util
+
 import logging
 import mock
 import unittest

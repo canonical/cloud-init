@@ -65,7 +65,7 @@ def handle(name, cfg, cloud, log, args):
     tries = ph_cfg.get('tries')
     try:
         tries = int(tries)
-    except:
+    except Exception:
         tries = 10
         util.logexc(log, "Configuration entry 'tries' is not an integer, "
                     "using %s instead", tries)
@@ -87,7 +87,7 @@ def handle(name, cfg, cloud, log, args):
     for (n, path) in pubkeys.items():
         try:
             all_keys[n] = util.load_file(path)
-        except:
+        except Exception:
             util.logexc(log, "%s: failed to open, can not phone home that "
                         "data!", path)
 
@@ -117,6 +117,6 @@ def handle(name, cfg, cloud, log, args):
         util.read_file_or_url(url, data=real_submit_keys,
                               retries=tries, sec_between=3,
                               ssl_details=util.fetch_ssl_details(cloud.paths))
-    except:
+    except Exception:
         util.logexc(log, "Failed to post phone home data to %s in %s tries",
                     url, tries)
