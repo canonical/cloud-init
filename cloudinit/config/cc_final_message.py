@@ -66,7 +66,7 @@ def handle(_name, cfg, cloud, log, args):
     try:
         contents = "%s - %s - v. %s\n" % (uptime, ts, cver)
         util.write_file(boot_fin_fn, contents)
-    except:
+    except Exception:
         util.logexc(log, "Failed to write boot finished file %s", boot_fin_fn)
 
     if cloud.datasource.is_disconnected:

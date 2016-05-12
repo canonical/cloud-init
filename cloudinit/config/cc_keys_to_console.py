@@ -57,6 +57,6 @@ def handle(name, cfg, cloud, log, _args):
         (stdout, _stderr) = util.subp(cmd)
         util.multi_log("%s\n" % (stdout.strip()),
                        stderr=False, console=True)
-    except:
+    except Exception:
         log.warn("Writing keys to the system console failed!")
         raise

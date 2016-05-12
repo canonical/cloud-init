@@ -1,7 +1,8 @@
 httpretty>=0.7.1
 mock
 nose
-pep8==1.5.7
+pep8>=1.5.7
 pyflakes
 contextlib2
 setuptools
+flake8>=2.5.4

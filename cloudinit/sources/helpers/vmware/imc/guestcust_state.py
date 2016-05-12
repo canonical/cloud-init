@@ -18,7 +18,7 @@
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 
-class GuestCustStateEnum:
+class GuestCustStateEnum(object):
     """Specifies different states of Guest Customization engine"""
 
     GUESTCUST_STATE_RUNNING = 4

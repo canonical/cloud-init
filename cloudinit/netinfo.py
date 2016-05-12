@@ -20,9 +20,10 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import cloudinit.util as util
-from cloudinit.log import logging
 import re
+
+from cloudinit import logging
+from cloudinit import util
 
 from prettytable import PrettyTable
 
@@ -163,7 +164,7 @@ def route_info():
 def getgateway():
     try:
         routes = route_info()
-    except:
+    except Exception:
         pass
     else:
         for r in routes.get('ipv4', []):

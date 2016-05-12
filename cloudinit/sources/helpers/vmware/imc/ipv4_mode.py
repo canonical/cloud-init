@@ -18,7 +18,7 @@
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 
-class Ipv4ModeEnum:
+class Ipv4ModeEnum(object):
     """
     The IPv4 configuration mode which directly represents the user's goal.
 

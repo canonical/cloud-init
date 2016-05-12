@@ -61,7 +61,7 @@ class DataSourceNoCloud(sources.DataSource):
             if parse_cmdline_data(self.cmdline_id, md):
                 found.append("cmdline")
                 mydata = _merge_new_seed(mydata, {'meta-data': md})
-        except:
+        except Exception:
             util.logexc(LOG, "Unable to parse command line data")
             return False
 
@@ -288,7 +288,7 @@ def parse_cmdline_data(ds_id, fill, cmdline=None):
             continue
         try:
             (k, v) = item.split("=", 1)
-        except:
+        except Exception:
             k = item
             v = None
         if k in s2l:

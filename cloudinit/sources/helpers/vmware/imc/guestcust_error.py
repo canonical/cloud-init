@@ -18,7 +18,7 @@
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 
-class GuestCustErrorEnum:
+class GuestCustErrorEnum(object):
     """Specifies different errors of Guest Customization engine"""
 
     GUESTCUST_ERROR_SUCCESS = 0

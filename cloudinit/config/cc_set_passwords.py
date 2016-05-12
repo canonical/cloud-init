@@ -155,7 +155,7 @@ def handle(_name, cfg, cloud, log, args):
             cmd = filter(None, cmd)  # Remove empty arguments
             util.subp(cmd)
             log.debug("Restarted the ssh daemon")
-        except:
+        except Exception:
             util.logexc(log, "Restarting of the ssh daemon failed")
 
     if len(errors):

@@ -18,7 +18,7 @@
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 
-class BootProtoEnum:
+class BootProtoEnum(object):
     """Specifies the NIC Boot Settings."""
 
     DHCP = 'dhcp'

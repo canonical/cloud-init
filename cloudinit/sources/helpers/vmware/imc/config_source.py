@@ -18,6 +18,6 @@
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 
-class ConfigSource:
+class ConfigSource(object):
     """Specifies a source for the Config Content."""
     pass

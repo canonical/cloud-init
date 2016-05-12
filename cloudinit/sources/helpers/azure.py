@@ -5,6 +5,7 @@ import socket
 import struct
 import tempfile
 import time
+
 from contextlib import contextmanager
 from xml.etree import ElementTree
 
