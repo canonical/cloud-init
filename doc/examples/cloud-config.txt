@@ -72,6 +72,36 @@ apt_pipelining: False
 # then apt_mirror above will have no effect
 apt_preserve_sources_list: true
 
+# Provide a custom template for rednering sources.list
+# Default: a default template for Ubuntu/Debain will be used as packaged in
+#  Ubuntu: /etc/cloud/templates/sources.list.ubuntu.tmpl
+#  Debian: /etc/cloud/templates/sources.list.debian.tmpl
+#  Others: n/a
+# This will follow the normal mirror/codename replacement rules before
+# being written to disk.
+apt_custom_sources_list: |
+    ## template:jinja
+    ## Note, this file is written by cloud-init on first boot of an instance
+    ## modifications made here will not survive a re-bundle.
+    ## if you wish to make changes you can:
+    ## a.) add 'apt_preserve_sources_list: true' to /etc/cloud/cloud.cfg
+    ##     or do the same in user-data
+    ## b.) add sources in /etc/apt/sources.list.d
+    ## c.) make changes to template file /etc/cloud/templates/sources.list.tmpl
+    deb {{mirror}} {{codename}} main restricted
+    deb-src {{mirror}} {{codename}} main restricted
+
+    # could drop some of the usually used entries
+
+    # could refer to other mirrors
+    deb http://ddebs.ubuntu.com {{codename}} main restricted universe multiverse
+    deb http://ddebs.ubuntu.com {{codename}}-updates main restricted universe multiverse
+    deb http://ddebs.ubuntu.com {{codename}}-proposed main restricted universe multiverse
+
+    # or even more uncommon examples like local or NFS mounted repos,
+    # eventually whatever is compatible with sources.list syntax
+    deb file:/home/apt/debian unstable main contrib non-free
+
 # 'source' entries in apt-sources that match this python regex
 # expression will be passed to add-apt-repository
 add_apt_repo_match: '^[\w-]+:\w'
