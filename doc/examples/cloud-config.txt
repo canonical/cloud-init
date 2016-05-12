@@ -111,12 +111,14 @@ apt_sources:
    keyid: F430BBA5 # GPG key ID published on a key server
    filename: byobu-ppa.list
 
+ # this would only import the key without adding a ppa or other source spec
+ - keyid: F430BBA5 # GPG key ID published on a key server
+
  # Custom apt repository:
  #  * The apt signing key can also be specified
  #    by providing a pgp public key block
  #  * Providing the PBG key here is the most robust method for
  #    specifying a key, as it removes dependency on a remote key server
-
  - source: deb http://ppa.launchpad.net/alestic/ppa/ubuntu karmic main 
    key: | # The value needs to start with -----BEGIN PGP PUBLIC KEY BLOCK-----
       -----BEGIN PGP PUBLIC KEY BLOCK-----
@@ -131,6 +133,24 @@ apt_sources:
       uBJKQOZm5iltJp15cgyIkBkGe8Mx18VFyVglAZey
       =Y2oI
       -----END PGP PUBLIC KEY BLOCK-----
+
+ # Custom gpg key:
+ #  * As the keyid also a key can be specified withut a related source
+ #  * all other facts mentioned above still apply
+ - key: | # The value needs to start with -----BEGIN PGP PUBLIC KEY BLOCK-----
+      -----BEGIN PGP PUBLIC KEY BLOCK-----
+      Version: SKS 1.0.10
+
+      mI0ESpA3UQEEALdZKVIMq0j6qWAXAyxSlF63SvPVIgxHPb9Nk0DZUixn+akqytxG4zKCONz6
+      qLjoBBfHnynyVLfT4ihg9an1PqxRnTO+JKQxl8NgKGz6Pon569GtAOdWNKw15XKinJTDLjnj
+      9y96ljJqRcpV9t/WsIcdJPcKFR5voHTEoABE2aEXABEBAAG0GUxhdW5jaHBhZCBQUEEgZm9y
+      IEFsZXN0aWOItgQTAQIAIAUCSpA3UQIbAwYLCQgHAwIEFQIIAwQWAgMBAh4BAheAAAoJEA7H
+      5Qi+CcVxWZ8D/1MyYvfj3FJPZUm2Yo1zZsQ657vHI9+pPouqflWOayRR9jbiyUFIn0VdQBrP
+      t0FwvnOFArUovUWoKAEdqR8hPy3M3APUZjl5K4cMZR/xaMQeQRZ5CHpS4DBKURKAHC0ltS5o
+      uBJKQOZm5iltJp15cgyIkBkGe8Mx18VFyVglAZey
+      =Y2oI
+      -----END PGP PUBLIC KEY BLOCK-----
+
 
 ## apt config via system_info:
 # under the 'system_info', you can further customize cloud-init's interaction
