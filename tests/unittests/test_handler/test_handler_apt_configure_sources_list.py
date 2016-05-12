@@ -58,6 +58,7 @@ class TestAptSourceConfigSourceList(t_help.FilesystemMockingTestCase):
     """
     def setUp(self):
         super(TestAptSourceConfigSourceList, self).setUp()
+        self.subp = util.subp
         self.new_root = tempfile.mkdtemp()
         self.addCleanup(shutil.rmtree, self.new_root)
 
@@ -75,9 +76,6 @@ class TestAptSourceConfigSourceList(t_help.FilesystemMockingTestCase):
         """ apt_source_list
         Test rendering of a source.list from template for a given distro
         """
-        self.patchOS(self.new_root)
-        self.patchUtils(self.new_root)
-
         if mirrorcheck is None:
             mirrorcheck = mirror
 
@@ -141,26 +139,29 @@ class TestAptSourceConfigSourceList(t_help.FilesystemMockingTestCase):
         """ test_apt_srcl_custom
         Test rendering from a custom source.list template
         """
-        self.patchOS(self.new_root)
-        self.patchUtils(self.new_root)
-
         cfg = util.load_yaml(YAML_TEXT_CUSTOM_SL)
         mycloud = self._get_cloud('ubuntu')
-        mirrorcheck = 'http://archive.ubuntu.com/ubuntu/'
 
-        with mock.patch.object(templater, 'render_to_file') as mocktmpl:
-            with mock.patch.object(os.path, 'isfile',
-                                   return_value=True) as mockisfile:
-                cc_apt_configure.handle("notimportant", cfg, mycloud,
-                                        LOG, None)
+        # the second mock restores the original subp
+        with mock.patch.object(util, 'write_file') as mockwrite, \
+             mock.patch.object(util, 'subp', self.subp) as mocksubp:
+            cc_apt_configure.handle("notimportant", cfg, mycloud,
+                                    LOG, None)
 
-        mockisfile.assert_any_call(('/etc/cloud/templates/sources.list.ubuntu.tmpl'))
-        mocktmpl.assert_called_once_with(('/etc/cloud/templates/sources.list.ubuntu.tmpl'),
-                                         '/etc/apt/sources.list',
-                                         {'codename': '',
-                                          'primary':
-                                          mirrorcheck,
-                                          'mirror':
-                                          mirrorcheck})
+        mockwrite.assert_called_once_with(
+            '/etc/apt/sources.list',
+            ("## Note, this file is written by cloud-init on first boot of an"
+             " instance\n## modifications made here will not survive a re-bun"
+             "dle.\n## if you wish to make changes you can:\n## a.) add 'apt_"
+             "preserve_sources_list: true' to /etc/cloud/cloud.cfg\n##     or"
+             " do the same in user-data\n## b.) add sources in /etc/apt/sourc"
+             "es.list.d\n## c.) make changes to template file /etc/cloud/temp"
+             "lates/sources.list.tmpl\n\n# See http://help.ubuntu.com/communi"
+             "ty/UpgradeNotes for how to upgrade to\n# newer versions of the "
+             "distribution.\ndeb http://archive.ubuntu.com/ubuntu/ xenial mai"
+             "n restricted\ndeb-src http://archive.ubuntu.com/ubuntu/ xenial "
+             "main restricted\n# FIND_SOMETHING_SPECIAL\n"),
+            mode=420)
+
 
 # vi: ts=4 expandtab
