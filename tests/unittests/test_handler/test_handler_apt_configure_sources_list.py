@@ -91,16 +91,12 @@ class TestAptSourceConfigSourceList(t_help.FilesystemMockingTestCase):
                 cc_apt_configure.handle("notimportant", cfg, mycloud,
                                         LOG, None)
 
-        mockisfile.assert_any_call(('/etc/cloud/templates/'
-                                    'sources.list.%s.tmpl' % distro))
-        mocktmpl.assert_called_once_with(('/etc/cloud/templates/'
-                                          'sources.list.%s.tmpl' % distro),
-                                         '/etc/apt/sources.list',
-                                         {'codename': '',
-                                          'primary':
-                                          mirrorcheck,
-                                          'mirror':
-                                          mirrorcheck})
+        mockisfile.assert_any_call(
+            ('/etc/cloud/templates/sources.list.%s.tmpl' % distro))
+        mocktmpl.assert_called_once_with(
+            ('/etc/cloud/templates/sources.list.%s.tmpl' % distro),
+            '/etc/apt/sources.list',
+            {'codename': '', 'primary': mirrorcheck, 'mirror': mirrorcheck})
 
     def test_apt_source_list_debian(self):
         """ test_apt_source_list_debian
