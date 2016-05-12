@@ -58,15 +58,15 @@ class TestAptSourceConfigSourceList(t_help.FilesystemMockingTestCase):
 # TODO Later - custom template filename
 # TODO Later - custom template raw
 
-    def test_apt_source_list_ubuntu(self):
-        """ test_apt_source_list
-        Test rendering of a source.list from template for ubuntu
+    def apt_source_list(self, distro, mirror):
+        """ apt_source_list
+        Test rendering of a source.list from template for a given distro
         """
         self.patchOS(self.new_root)
         self.patchUtils(self.new_root)
 
-        cfg = {'apt_mirror': 'http://archive.ubuntu.com/ubuntu/'}
-        mycloud = self._get_cloud('ubuntu')
+        cfg = {'apt_mirror': mirror}
+        mycloud = self._get_cloud(distro)
 
         with mock.patch.object(templater, 'render_to_file') as mocktmpl:
             with mock.patch.object(os.path, 'isfile',
@@ -75,15 +75,29 @@ class TestAptSourceConfigSourceList(t_help.FilesystemMockingTestCase):
                                         LOG, None)
 
         mockisfile.assert_any_call(('/etc/cloud/templates/'
-                                    'sources.list.ubuntu.tmpl'))
+                                    'sources.list.%s.tmpl' % distro))
         mocktmpl.assert_called_once_with(('/etc/cloud/templates/'
-                                          'sources.list.ubuntu.tmpl'),
+                                          'sources.list.%s.tmpl' % distro),
                                          '/etc/apt/sources.list',
                                          {'codename': '',
                                           'primary':
-                                          'http://archive.ubuntu.com/ubuntu/',
+                                          mirror,
                                           'mirror':
-                                          'http://archive.ubuntu.com/ubuntu/'})
+                                          mirror})
+
+
+    def test_apt_source_list_ubuntu(self):
+        """ test_apt_source_list_ubuntu
+        Test rendering of a source.list from template for ubuntu
+        """
+        self.apt_source_list('ubuntu', 'http://archive.ubuntu.com/ubuntu/')
+
+
+    def test_apt_source_list_debian(self):
+        """ test_apt_source_list_debian
+        Test rendering of a source.list from template for debian
+        """
+        self.apt_source_list('debian', 'ftp.us.debian.org')
 
 
 # vi: ts=4 expandtab
