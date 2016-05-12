@@ -164,6 +164,29 @@ def generate_sources_list(codename, mirrors, cloud, log):
     templater.render_to_file(template_fn, '/etc/apt/sources.list', params)
 
 
+def add_key(ent, errorlist):
+    """
+    add key to the system as defiend in entry (if any)
+    suppords raw keys or keyid's
+    The latter will as a first step fetched to get the raw key
+    """
+    if ('keyid' in ent and 'key' not in ent):
+        keyserver = "keyserver.ubuntu.com"
+        if 'keyserver' in ent:
+            keyserver = ent['keyserver']
+        try:
+            ent['key'] = getkeybyid(ent['keyid'], keyserver)
+        except:
+            errorlist.append([ent, "failed to get key from %s" % keyserver])
+            return
+
+    if 'key' in ent:
+        try:
+            util.subp(('apt-key', 'add', '-'), ent['key'])
+        except:
+            errorlist.append([ent, "failed add key"])
+
+
 def add_sources(srclist, template_params=None, aa_repo_match=None):
     """
     add entries in /etc/apt/sources.list.d for each abbreviated
@@ -179,6 +202,9 @@ def add_sources(srclist, template_params=None, aa_repo_match=None):
 
     errorlist = []
     for ent in srclist:
+        # keys can be added without specifying a source
+        add_key(ent, errorlist)
+
         if 'source' not in ent:
             errorlist.append(["", "missing source"])
             continue
@@ -200,22 +226,6 @@ def add_sources(srclist, template_params=None, aa_repo_match=None):
         if not ent['filename'].startswith("/"):
             ent['filename'] = os.path.join("/etc/apt/sources.list.d/",
                                            ent['filename'])
-
-        if ('keyid' in ent and 'key' not in ent):
-            ks = "keyserver.ubuntu.com"
-            if 'keyserver' in ent:
-                ks = ent['keyserver']
-            try:
-                ent['key'] = getkeybyid(ent['keyid'], ks)
-            except:
-                errorlist.append([source, "failed to get key from %s" % ks])
-                continue
-
-        if 'key' in ent:
-            try:
-                util.subp(('apt-key', 'add', '-'), ent['key'])
-            except:
-                errorlist.append([source, "failed add key"])
 
         try:
             contents = "%s\n" % (source)
