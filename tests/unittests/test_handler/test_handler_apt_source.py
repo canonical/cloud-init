@@ -141,7 +141,7 @@ class TestAptSourceConfig(TestCase):
 
     def test_apt_source_keyonly(self):
         """ test_apt_source_keyonly
-        Test specification key without source (not yet supported)
+        Test specification key without source
         """
         params = self._get_default_params()
         cfg = {'key': "fakekey 4242",
@@ -158,7 +158,7 @@ class TestAptSourceConfig(TestCase):
 
     def test_apt_source_keyidonly(self):
         """ test_apt_source_keyidonly
-        Test specification of a keyid without source (not yet supported)
+        Test specification of a keyid without source
         """
         params = self._get_default_params()
         cfg = {'keyid': "03683F77",
