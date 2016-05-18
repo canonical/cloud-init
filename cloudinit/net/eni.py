@@ -243,7 +243,7 @@ def _parse_deb_config(path):
 class Renderer(object):
     """Renders network information in a /etc/network/interfaces format."""
 
-    def render_persistent_net(self, network_state):
+    def _render_persistent_net(self, network_state):
         """Given state, emit udev rules to map mac to ifname."""
         content = ""
         interfaces = network_state.get('interfaces')
@@ -256,7 +256,7 @@ class Renderer(object):
 
         return content
 
-    def render_route(self, route, indent=""):
+    def _render_route(self, route, indent=""):
         """ When rendering routes for an iface, in some cases applying a route
         may result in the route command returning non-zero which produces
         some confusing output for users manually using ifup/ifdown[1].  To
@@ -300,7 +300,7 @@ class Renderer(object):
 
         return content
 
-    def render_interfaces(self, network_state):
+    def _render_interfaces(self, network_state):
         ''' Given state, emit etc/network/interfaces content '''
 
         content = ""
@@ -352,7 +352,7 @@ class Renderer(object):
                 content += _iface_add_attrs(iface)
 
         for route in network_state.get('routes'):
-            content += self.render_route(route)
+            content += self._render_route(route)
 
         # global replacements until v2 format
         content = content.replace('mac_address', 'hwaddress')
@@ -366,19 +366,19 @@ class Renderer(object):
         fpeni = os.path.sep.join((target, eni,))
         util.ensure_dir(os.path.dirname(fpeni))
         with open(fpeni, 'w+') as f:
-            f.write(self.render_interfaces(network_state))
+            f.write(self._render_interfaces(network_state))
 
         if netrules:
             netrules = os.path.sep.join((target, netrules,))
             util.ensure_dir(os.path.dirname(netrules))
             with open(netrules, 'w+') as f:
-                f.write(self.render_persistent_net(network_state))
+                f.write(self._render_persistent_net(network_state))
 
         if links_prefix:
-            self.render_systemd_links(target, network_state, links_prefix)
+            self._render_systemd_links(target, network_state, links_prefix)
 
-    def render_systemd_links(self, target, network_state,
-                             links_prefix=LINKS_FNAME_PREFIX):
+    def _render_systemd_links(self, target, network_state,
+                              links_prefix=LINKS_FNAME_PREFIX):
         fp_prefix = os.path.sep.join((target, links_prefix))
         for f in glob.glob(fp_prefix + "*"):
             os.unlink(f)
