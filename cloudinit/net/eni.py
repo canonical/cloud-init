@@ -16,10 +16,11 @@ import glob
 import os
 import re
 
+from cloudinit import net
+
 from cloudinit.net import LINKS_FNAME_PREFIX
 from cloudinit.net import ParserError
 from cloudinit.net.udev import generate_udev_rule
-from cloudinit import util
 
 
 NET_CONFIG_COMMANDS = [
@@ -363,16 +364,13 @@ class Renderer(object):
         links_prefix=LINKS_FNAME_PREFIX,
         netrules='etc/udev/rules.d/70-persistent-net.rules'):
 
-        fpeni = os.path.sep.join((target, eni,))
-        util.ensure_dir(os.path.dirname(fpeni))
-        with open(fpeni, 'w+') as f:
-            f.write(self._render_interfaces(network_state))
+        fpeni = os.path.join(target, eni)
+        net.write_file(fpeni, self._render_interfaces(network_state))
 
         if netrules:
-            netrules = os.path.sep.join((target, netrules,))
-            util.ensure_dir(os.path.dirname(netrules))
-            with open(netrules, 'w+') as f:
-                f.write(self._render_persistent_net(network_state))
+            netrules = os.path.join(target, netrules)
+            net.write_file(netrules,
+                           self._render_persistent_net(network_state))
 
         if links_prefix:
             self._render_systemd_links(target, network_state, links_prefix)
@@ -382,18 +380,17 @@ class Renderer(object):
         fp_prefix = os.path.sep.join((target, links_prefix))
         for f in glob.glob(fp_prefix + "*"):
             os.unlink(f)
-
         interfaces = network_state.get('interfaces')
         for iface in interfaces.values():
             if (iface['type'] == 'physical' and 'name' in iface and
                     iface.get('mac_address')):
                 fname = fp_prefix + iface['name'] + ".link"
-                with open(fname, "w") as fp:
-                    fp.write("\n".join([
-                        "[Match]",
-                        "MACAddress=" + iface['mac_address'],
-                        "",
-                        "[Link]",
-                        "Name=" + iface['name'],
-                        ""
-                    ]))
+                content = "\n".join([
+                    "[Match]",
+                    "MACAddress=" + iface['mac_address'],
+                    "",
+                    "[Link]",
+                    "Name=" + iface['name'],
+                    ""
+                ])
+                net.write_file(fname, content)

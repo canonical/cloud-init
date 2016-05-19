@@ -551,6 +551,10 @@ def convert_net_json(network_json):
                     'type': 'static',
                     'address': network.get('ip_address'),
                 })
+                if network['type'] == 'ipv6':
+                    subnet['ipv6'] = True
+                else:
+                    subnet['ipv4'] = True
             subnets.append(subnet)
         cfg.update({'subnets': subnets})
         if link['type'] in ['ethernet', 'vif', 'ovs', 'phy']:

@@ -2,6 +2,7 @@ from cloudinit import util
 from cloudinit import net
 from cloudinit.net import cmdline
 from cloudinit.net import eni
+from cloudinit.net import network_state
 from .helpers import TestCase
 from .helpers import mock
 
@@ -112,14 +113,14 @@ class TestEniNetRendering(TestCase):
         mock_sys_dev_path.side_effect = sys_dev_path
 
         network_cfg = net.generate_fallback_config()
-        network_state = net.parse_net_config_data(network_cfg,
-                                                  skip_broken=False)
+        ns = network_state.parse_net_config_data(network_cfg,
+                                                 skip_broken=False)
 
         render_dir = os.path.join(tmp_dir, "render")
         os.makedirs(render_dir)
 
         renderer = eni.Renderer()
-        renderer.render_network_state(render_dir, network_state,
+        renderer.render_network_state(render_dir, ns,
                                       eni="interfaces",
                                       links_prefix=None,
                                       netrules=None)

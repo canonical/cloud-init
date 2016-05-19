@@ -17,18 +17,62 @@
 #   along with Curtin.  If not, see <http://www.gnu.org/licenses/>.
 
 import errno
+import logging
 import os
 
-
-from cloudinit import log as logging
-from cloudinit.net import network_state
-from cloudinit import util
-
+import six
+import yaml
 
 LOG = logging.getLogger(__name__)
 SYS_CLASS_NET = "/sys/class/net/"
 LINKS_FNAME_PREFIX = "etc/systemd/network/50-cloud-init-"
 DEFAULT_PRIMARY_INTERFACE = 'eth0'
+
+# NOTE(harlowja): some of these are similar to what is in cloudinit main
+# source or utils tree/module but the reason that is done is so that this
+# whole module can be easily extracted and placed into other
+# code-bases (curtin for example).
+
+def write_file(path, content):
+    """Simple writing a file helper."""
+    base_path = os.path.dirname(path)
+    if not os.path.isdir(base_path):
+        os.makedirs(base_path)
+    with open(path, "wb+") as fh:
+        if isinstance(content, six.text_type):
+            content = content.encode("utf8")
+        fh.write(content)
+
+
+def read_file(path, decode='utf8', enoent=None):
+    try:
+        with open(path, "rb") as fh:
+            contents = fh.load()
+    except OSError as e:
+        if e.errno == errno.ENOENT and enoent is not None:
+            return enoent
+        raise
+    if decode:
+        return contents.decode(decode)
+    return contents
+
+
+def dump_yaml(obj):
+    return yaml.safe_dump(obj,
+                          line_break="\n",
+                          indent=4,
+                          explicit_start=True,
+                          explicit_end=True,
+                          default_flow_style=False)
+
+
+def read_yaml_file(path):
+    val = yaml.safe_load(read_file(path))
+    if not isinstance(val, dict):
+        gotten_type_name = type(val).__name__
+        raise TypeError("Expected dict to be loaded from %s, got"
+                        " '%s' instead" % (path, gotten_type_name))
+    return val
 
 
 def sys_dev_path(devname, path=""):
@@ -36,24 +80,17 @@ def sys_dev_path(devname, path=""):
 
 
 def read_sys_net(devname, path, translate=None, enoent=None, keyerror=None):
+    contents = read_file(sys_dev_path(devname, path), enoent=enoent)
+    contents = contents.strip()
+    if translate is None:
+        return contents
     try:
-        contents = ""
-        with open(sys_dev_path(devname, path), "r") as fp:
-            contents = fp.read().strip()
-        if translate is None:
-            return contents
-
-        try:
-            return translate.get(contents)
-        except KeyError:
-            LOG.debug("found unexpected value '%s' in '%s/%s'", contents,
-                      devname, path)
-            if keyerror is not None:
-                return keyerror
-            raise
-    except OSError as e:
-        if e.errno == errno.ENOENT and enoent is not None:
-            return enoent
+        return translate.get(contents)
+    except KeyError:
+        LOG.debug("found unexpected value '%s' in '%s/%s'", contents,
+                  devname, path)
+        if keyerror is not None:
+            return keyerror
         raise
 
 
@@ -107,31 +144,6 @@ class ParserError(Exception):
     """Raised when parser has issue parsing the interfaces file."""
 
 
-def parse_net_config_data(net_config, skip_broken=True):
-    """Parses the config, returns NetworkState object
-
-    :param net_config: curtin network config dict
-    """
-    state = None
-    if 'version' in net_config and 'config' in net_config:
-        ns = network_state.NetworkState(version=net_config.get('version'),
-                                        config=net_config.get('config'))
-        ns.parse_config(skip_broken=skip_broken)
-        state = ns.network_state
-    return state
-
-
-def parse_net_config(path, skip_broken=True):
-    """Parses a curtin network configuration file and
-       return network state"""
-    ns = None
-    net_config = util.read_conf(path)
-    if 'network' in net_config:
-        ns = parse_net_config_data(net_config.get('network'),
-                                   skip_broken=skip_broken)
-    return ns
-
-
 def is_disabled_cfg(cfg):
     if not cfg or not isinstance(cfg, dict):
         return False
@@ -146,7 +158,7 @@ def sys_netdev_info(name, field):
     fname = os.path.join(SYS_CLASS_NET, name, field)
     if not os.path.exists(fname):
         raise OSError("%s: could not find sysfs entry: %s" % (name, fname))
-    data = util.load_file(fname)
+    data = read_file(fname)
     if data[-1] == '\n':
         data = data[:-1]
     return data

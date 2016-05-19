@@ -16,12 +16,11 @@
 #   along with Curtin.  If not, see <http://www.gnu.org/licenses/>.
 
 import copy
+import logging
 
 import six
 
-from cloudinit import log as logging
-from cloudinit import util
-from cloudinit.util import yaml_dumps as dump_config
+from cloudinit import net
 
 LOG = logging.getLogger(__name__)
 
@@ -31,9 +30,34 @@ NETWORK_STATE_REQUIRED_KEYS = {
 }
 
 
+def parse_net_config_data(net_config, skip_broken=True):
+    """Parses the config, returns NetworkState object
+
+    :param net_config: curtin network config dict
+    """
+    state = None
+    if 'version' in net_config and 'config' in net_config:
+        ns = NetworkState(version=net_config.get('version'),
+                          config=net_config.get('config'))
+        ns.parse_config(skip_broken=skip_broken)
+        state = ns.network_state
+    return state
+
+
+def parse_net_config(path, skip_broken=True):
+    """Parses a curtin network configuration file and
+       return network state"""
+    ns = None
+    net_config = net.read_yaml_file(path)
+    if 'network' in net_config:
+        ns = parse_net_config_data(net_config.get('network'),
+                                   skip_broken=skip_broken)
+    return ns
+
+
 def from_state_file(state_file):
     network_state = None
-    state = util.read_conf(state_file)
+    state = net.read_yaml_file(state_file)
     network_state = NetworkState()
     network_state.load(state)
     return network_state
@@ -111,7 +135,7 @@ class NetworkState(object):
             'config': self.config,
             'network_state': self.network_state,
         }
-        return dump_config(state)
+        return net.dump_yaml(state)
 
     def load(self, state):
         if 'version' not in state:
@@ -121,7 +145,7 @@ class NetworkState(object):
         required_keys = NETWORK_STATE_REQUIRED_KEYS[state['version']]
         missing_keys = diff_keys(required_keys, state)
         if missing_keys:
-            msg = 'Invalid state, missing keys: %s'.format(missing_keys)
+            msg = 'Invalid state, missing keys: %s' % (missing_keys)
             LOG.error(msg)
             raise ValueError(msg)
 
@@ -130,7 +154,7 @@ class NetworkState(object):
             setattr(self, key, state[key])
 
     def dump_network_state(self):
-        return dump_config(self.network_state)
+        return net.dump_yaml(self.network_state)
 
     def parse_config(self, skip_broken=True):
         # rebuild network state

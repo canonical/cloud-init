@@ -37,7 +37,6 @@ import pwd
 import random
 import re
 import shutil
-import shlex
 import socket
 import stat
 import string
@@ -82,7 +81,6 @@ CONTAINER_TESTS = (['systemd-detect-virt', '--quiet', '--container'],
                    ['lxc-is-container'])
 
 PROC_CMDLINE = None
-PY26 = sys.version_info[0:2] == (2, 6)
 
 
 def decode_binary(blob, encoding='utf-8'):
@@ -1200,13 +1198,6 @@ def load_file(fname, read_cb=None, quiet=False, decode=True):
         return decode_binary(contents)
     else:
         return contents
-
-
-def shlex_split(blob):
-    if PY26 and isinstance(blob, six.text_type):
-        # Older versions don't support unicode input
-        blob = blob.encode("utf8")
-    return shlex.split(blob)
 
 
 def get_cmdline():
