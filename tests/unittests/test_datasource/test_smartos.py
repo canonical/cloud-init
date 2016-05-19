@@ -33,19 +33,16 @@ import stat
 import tempfile
 import uuid
 
-import serial
+from cloudinit import serial
+from cloudinit.sources import DataSourceSmartOS
+
 import six
 
 from cloudinit import helpers as c_helpers
-from cloudinit.sources import DataSourceSmartOS
 from cloudinit.util import b64e
 
 from .. import helpers
-
-try:
-    from unittest import mock
-except ImportError:
-    import mock
+from ..helpers import mock, SkipTest
 
 MOCK_RETURNS = {
     'hostname': 'test-host',
@@ -445,6 +442,7 @@ class TestJoyentMetadataClient(helpers.FilesystemMockingTestCase):
 
     def setUp(self):
         super(TestJoyentMetadataClient, self).setUp()
+
         self.serial = mock.MagicMock(spec=serial.Serial)
         self.request_id = 0xabcdef12
         self.metadata_value = 'value'

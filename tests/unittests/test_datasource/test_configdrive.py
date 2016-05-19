@@ -5,22 +5,13 @@ import shutil
 import six
 import tempfile
 
-try:
-    from unittest import mock
-except ImportError:
-    import mock
-try:
-    from contextlib import ExitStack
-except ImportError:
-    from contextlib2 import ExitStack
-
 from cloudinit import helpers
 from cloudinit import settings
 from cloudinit.sources import DataSourceConfigDrive as ds
 from cloudinit.sources.helpers import openstack
 from cloudinit import util
 
-from ..helpers import TestCase
+from ..helpers import TestCase, ExitStack, mock
 
 
 PUBKEY = u'ssh-rsa AAAAB3NzaC1....sIkJhq8wdX+4I3A4cYbYP ubuntu@server-460\n'
@@ -355,6 +346,14 @@ class TestConfigDriveDataSource(TestCase):
         self.assertEqual(myds.get_public_ssh_keys(),
                          [OSTACK_META['public_keys']['mykey']])
 
+
+class TestNetJson(TestCase):
+    def setUp(self):
+        super(TestNetJson, self).setUp()
+        self.tmp = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, self.tmp)
+        self.maxDiff = None
+
     def test_network_data_is_found(self):
         """Verify that network_data is present in ds in config-drive-v2."""
         populate_dir(self.tmp, CFG_DRIVE_FILES_V2)
@@ -365,29 +364,110 @@ class TestConfigDriveDataSource(TestCase):
         """Verify that network_data is converted and present on ds object."""
         populate_dir(self.tmp, CFG_DRIVE_FILES_V2)
         myds = cfg_ds_from_dir(self.tmp)
-        network_config = ds.convert_network_data(NETWORK_DATA)
+        network_config = openstack.convert_net_json(NETWORK_DATA)
         self.assertEqual(myds.network_config, network_config)
+
+    def test_network_config_conversions(self):
+        """Tests a bunch of input network json and checks the expected conversions."""
+        in_datas = [
+            NETWORK_DATA,
+            {
+                'services': [{'type': 'dns', 'address': '172.19.0.12'}],
+                'networks': [
+                    {'network_id': 'dacd568d-5be6-4786-91fe-750c374b78b4',
+                     'type': 'ipv4', 'netmask': '255.255.252.0', 
+                     'link': 'tap1a81968a-79', 
+                     'routes': [
+                        {
+                            'netmask': '0.0.0.0',
+                            'network': '0.0.0.0', 
+                            'gateway': '172.19.3.254'
+                        },
+                      ],
+                      'ip_address': '172.19.1.34', 
+                      'id': 'network0',
+                }],
+                'links': [
+                    {'type': 'bridge',
+                     'vif_id': '1a81968a-797a-400f-8a80-567f997eb93f', 
+                     'ethernet_mac_address': 'fa:16:3e:ed:9a:59', 
+                     'id': 'tap1a81968a-79', 'mtu': None}]
+            },
+        ]
+        out_datas = [
+            {
+                'version': 1,
+                'config': [
+                    {
+                        'subnets': [{'type': 'dhcp4'}],
+                        'type': 'physical',
+                        'mac_address': 'fa:16:3e:69:b0:58',
+                        'name': 'tap2ecc7709-b3',
+                    },
+                    {
+                        'subnets': [{'type': 'dhcp4'}],
+                        'type': 'physical',
+                        'mac_address': 'fa:16:3e:d4:57:ad',
+                        'name': 'tap2f88d109-5b',
+                    },
+                    {
+                        'subnets': [{'type': 'dhcp4'}],
+                        'type': 'physical',
+                        'mac_address': 'fa:16:3e:05:30:fe',
+                        'name': 'tap1a5382f8-04',
+                    },
+                    {
+                        'type': 'nameserver',
+                        'address': '199.204.44.24',
+                    },
+                    {
+                        'type': 'nameserver',
+                        'address': '199.204.47.54',
+                    }
+                ],
+
+            },
+            {
+                'version': 1,
+                'config': [
+                    {
+                        'name': 'tap1a81968a-79',
+                        'mac_address': 'fa:16:3e:ed:9a:59',
+                        'mtu': None,
+                        'type': 'bridge',
+                        'subnets': [
+                            {
+                                'address': '172.19.1.34',
+                                'netmask': '255.255.252.0',
+                                'type': 'static',
+                                'routes': [{
+                                    'gateway': '172.19.3.254',
+                                    'netmask': '0.0.0.0',
+                                    'network': '0.0.0.0',
+                                }],
+                            }
+                        ]
+                    },
+                    {
+                        'type': 'nameserver',
+                        'address': '172.19.0.12',
+                    }
+                ],
+            },
+        ]
+        for in_data, out_data in zip(in_datas, out_datas):
+            self.assertEqual(openstack.convert_net_json(in_data),
+                             out_data)
 
 
 def cfg_ds_from_dir(seed_d):
-    found = ds.read_config_drive(seed_d)
     cfg_ds = ds.DataSourceConfigDrive(settings.CFG_BUILTIN, None,
                                       helpers.Paths({}))
-    populate_ds_from_read_config(cfg_ds, seed_d, found)
+    cfg_ds.seed_dir = seed_d
+    if not cfg_ds.get_data(skip_first_boot=True):
+        raise RuntimeError("Data source did not extract itself from"
+                           " seed directory %s" % seed_d)
     return cfg_ds
-
-
-def populate_ds_from_read_config(cfg_ds, source, results):
-    """Patch the DataSourceConfigDrive from the results of
-    read_config_drive_dir hopefully in line with what it would have
-    if cfg_ds.get_data had been successfully called"""
-    cfg_ds.source = source
-    cfg_ds.metadata = results.get('metadata')
-    cfg_ds.ec2_metadata = results.get('ec2-metadata')
-    cfg_ds.userdata_raw = results.get('userdata')
-    cfg_ds.version = results.get('version')
-    cfg_ds.network_json = results.get('networkdata')
-    cfg_ds._network_config = ds.convert_network_data(cfg_ds.network_json)
 
 
 def populate_dir(seed_dir, files):
@@ -400,7 +480,6 @@ def populate_dir(seed_dir, files):
             mode = "w"
         else:
             mode = "wb"
-
         with open(path, mode) as fp:
             fp.write(content)
 

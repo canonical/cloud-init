@@ -1,11 +1,12 @@
 # coding: utf-8
+
 import copy
 
 from cloudinit.cs_utils import Cepko
 from cloudinit.sources import DataSourceCloudSigma
 
 from .. import helpers as test_helpers
-
+from ..helpers import SkipTest
 
 SERVER_CONTEXT = {
     "cpu": 1000,

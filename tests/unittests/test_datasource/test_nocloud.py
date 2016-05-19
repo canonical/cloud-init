@@ -1,22 +1,11 @@
 from cloudinit import helpers
 from cloudinit.sources import DataSourceNoCloud
 from cloudinit import util
-from ..helpers import TestCase, populate_dir
+from ..helpers import TestCase, populate_dir, mock, ExitStack
 
 import os
 import shutil
 import tempfile
-import unittest
-import yaml
-
-try:
-    from unittest import mock
-except ImportError:
-    import mock
-try:
-    from contextlib import ExitStack
-except ImportError:
-    from contextlib2 import ExitStack
 
 
 class TestNoCloudDataSource(TestCase):
@@ -139,7 +128,7 @@ class TestNoCloudDataSource(TestCase):
         self.assertTrue(ret)
 
 
-class TestParseCommandLineData(unittest.TestCase):
+class TestParseCommandLineData(TestCase):
 
     def test_parse_cmdline_data_valid(self):
         ds_id = "ds=nocloud"

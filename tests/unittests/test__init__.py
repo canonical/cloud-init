@@ -1,16 +1,7 @@
 import os
 import shutil
 import tempfile
-import unittest
-
-try:
-    from unittest import mock
-except ImportError:
-    import mock
-try:
-    from contextlib import ExitStack
-except ImportError:
-    from contextlib2 import ExitStack
+import unittest2
 
 from cloudinit import handlers
 from cloudinit import helpers
@@ -18,7 +9,7 @@ from cloudinit import settings
 from cloudinit import url_helper
 from cloudinit import util
 
-from .helpers import TestCase
+from .helpers import TestCase, ExitStack, mock
 
 
 class FakeModule(handlers.Handler):
@@ -99,9 +90,10 @@ class TestWalkerHandleHandler(TestCase):
         self.assertEqual(self.data['handlercount'], 0)
 
 
-class TestHandlerHandlePart(unittest.TestCase):
+class TestHandlerHandlePart(TestCase):
 
     def setUp(self):
+        super(TestHandlerHandlePart, self).setUp()
         self.data = "fake data"
         self.ctype = "fake ctype"
         self.filename = "fake filename"
@@ -177,7 +169,7 @@ class TestHandlerHandlePart(unittest.TestCase):
             self.data, self.ctype, self.filename, self.payload)
 
 
-class TestCmdlineUrl(unittest.TestCase):
+class TestCmdlineUrl(TestCase):
     def test_invalid_content(self):
         url = "http://example.com/foo"
         key = "mykey"

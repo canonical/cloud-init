@@ -1,7 +1,13 @@
 from cloudinit import net
 from cloudinit import util
 
+from cloudinit import net
+from cloudinit.net import cmdline
+from cloudinit.net import eni
+from cloudinit.net import network_state
+
 from .helpers import TestCase
+from .helpers import mock
 
 import base64
 import copy
@@ -9,6 +15,8 @@ import gzip
 import io
 import json
 import os
+import shutil
+import tempfile
 
 DHCP_CONTENT_1 = """
 DEVICE='eth0'
@@ -69,21 +77,87 @@ STATIC_EXPECTED_1 = {
 }
 
 
-class TestNetConfigParsing(TestCase):
+class TestEniNetRendering(TestCase):
+
+    @mock.patch("cloudinit.net.sys_dev_path")
+    @mock.patch("cloudinit.net.sys_netdev_info")
+    @mock.patch("cloudinit.net.get_devicelist")
+    def test_default_generation(self, mock_get_devicelist,
+                                mock_sys_netdev_info,
+                                mock_sys_dev_path):
+        mock_get_devicelist.return_value = ['eth1000', 'lo']
+
+        dev_characteristics = {
+            'eth1000': {
+                "bridge": False,
+                "carrier": False,
+                "dormant": False,
+                "operstate": "down",
+                "address": "07-1C-C6-75-A4-BE",
+            }
+        }
+
+        def netdev_info(name, field):
+            return dev_characteristics[name][field]
+
+        mock_sys_netdev_info.side_effect = netdev_info
+
+        tmp_dir = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, tmp_dir)
+
+        def sys_dev_path(devname, path=""):
+            return tmp_dir + devname + "/" + path
+
+        for dev in dev_characteristics:
+            os.makedirs(os.path.join(tmp_dir, dev))
+            with open(os.path.join(tmp_dir, dev, 'operstate'), 'w') as fh:
+                fh.write("down")
+
+        mock_sys_dev_path.side_effect = sys_dev_path
+
+        network_cfg = net.generate_fallback_config()
+        ns = network_state.parse_net_config_data(network_cfg,
+                                                 skip_broken=False)
+
+        render_dir = os.path.join(tmp_dir, "render")
+        os.makedirs(render_dir)
+
+        renderer = eni.Renderer()
+        renderer.render_network_state(render_dir, ns,
+                                      eni="interfaces",
+                                      links_prefix=None,
+                                      netrules=None)
+
+        self.assertTrue(os.path.exists(os.path.join(render_dir,
+                                                    'interfaces')))
+        with open(os.path.join(render_dir, 'interfaces')) as fh:
+            contents = fh.read()
+
+        expected = """
+auto lo
+iface lo inet loopback
+
+auto eth1000
+iface eth1000 inet dhcp
+"""
+        self.assertEqual(expected.lstrip(), contents.lstrip())
+
+
+class TestCmdlineConfigParsing(TestCase):
     simple_cfg = {
         'config': [{"type": "physical", "name": "eth0",
                     "mac_address": "c0:d6:9f:2c:e8:80",
                     "subnets": [{"type": "dhcp"}]}]}
 
-    def test_klibc_convert_dhcp(self):
-        found = net._klibc_to_config_entry(DHCP_CONTENT_1)
+    def test_cmdline_convert_dhcp(self):
+        found = cmdline._klibc_to_config_entry(DHCP_CONTENT_1)
         self.assertEqual(found, ('eth0', DHCP_EXPECTED_1))
 
-    def test_klibc_convert_static(self):
-        found = net._klibc_to_config_entry(STATIC_CONTENT_1)
+    def test_cmdline_convert_static(self):
+        found = cmdline._klibc_to_config_entry(STATIC_CONTENT_1)
         self.assertEqual(found, ('eth1', STATIC_EXPECTED_1))
 
-    def test_config_from_klibc_net_cfg(self):
+    def test_config_from_cmdline_net_cfg(self):
         files = []
         pairs = (('net-eth0.cfg', DHCP_CONTENT_1),
                  ('net-eth1.cfg', STATIC_CONTENT_1))
@@ -104,21 +178,22 @@ class TestNetConfigParsing(TestCase):
                 files.append(fp)
                 util.write_file(fp, content)
 
-            found = net.config_from_klibc_net_cfg(files=files, mac_addrs=macs)
+            found = cmdline.config_from_klibc_net_cfg(files=files,
+                                                      mac_addrs=macs)
             self.assertEqual(found, expected)
 
     def test_cmdline_with_b64(self):
         data = base64.b64encode(json.dumps(self.simple_cfg).encode())
         encoded_text = data.decode()
-        cmdline = 'ro network-config=' + encoded_text + ' root=foo'
-        found = net.read_kernel_cmdline_config(cmdline=cmdline)
+        raw_cmdline = 'ro network-config=' + encoded_text + ' root=foo'
+        found = cmdline.read_kernel_cmdline_config(cmdline=raw_cmdline)
         self.assertEqual(found, self.simple_cfg)
 
     def test_cmdline_with_b64_gz(self):
         data = _gzip_data(json.dumps(self.simple_cfg).encode())
         encoded_text = base64.b64encode(data).decode()
-        cmdline = 'ro network-config=' + encoded_text + ' root=foo'
-        found = net.read_kernel_cmdline_config(cmdline=cmdline)
+        raw_cmdline = 'ro network-config=' + encoded_text + ' root=foo'
+        found = cmdline.read_kernel_cmdline_config(cmdline=raw_cmdline)
         self.assertEqual(found, self.simple_cfg)
 
 
