@@ -45,6 +45,7 @@ else:
         if _PY_MINOR == 4 and _PY_MICRO < 3:
             FIX_HTTPRETTY = True
 
+
 # Makes the old path start
 # with new base instead of whatever
 # it previously had

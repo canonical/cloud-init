@@ -49,8 +49,8 @@ DEFAULT_PRIMARY_INTERFACE = 'eth0'
 # whole module can be easily extracted and placed into other
 # code-bases (curtin for example).
 
+
 def write_file(path, content):
-    """Simple writing a file helper."""
     base_path = os.path.dirname(path)
     if not os.path.isdir(base_path):
         os.makedirs(base_path)

@@ -368,30 +368,32 @@ class TestNetJson(TestCase):
         self.assertEqual(myds.network_config, network_config)
 
     def test_network_config_conversions(self):
-        """Tests a bunch of input network json and checks the expected conversions."""
+        """Tests a bunch of input network json and checks the
+           expected conversions."""
         in_datas = [
             NETWORK_DATA,
             {
                 'services': [{'type': 'dns', 'address': '172.19.0.12'}],
-                'networks': [
-                    {'network_id': 'dacd568d-5be6-4786-91fe-750c374b78b4',
-                     'type': 'ipv4', 'netmask': '255.255.252.0', 
-                     'link': 'tap1a81968a-79', 
-                     'routes': [
-                        {
-                            'netmask': '0.0.0.0',
-                            'network': '0.0.0.0', 
-                            'gateway': '172.19.3.254'
-                        },
-                      ],
-                      'ip_address': '172.19.1.34', 
-                      'id': 'network0',
+                'networks': [{
+                    'network_id': 'dacd568d-5be6-4786-91fe-750c374b78b4',
+                    'type': 'ipv4',
+                    'netmask': '255.255.252.0',
+                    'link': 'tap1a81968a-79',
+                    'routes': [{
+                        'netmask': '0.0.0.0',
+                        'network': '0.0.0.0',
+                        'gateway': '172.19.3.254',
+                    }],
+                    'ip_address': '172.19.1.34',
+                    'id': 'network0',
                 }],
-                'links': [
-                    {'type': 'bridge',
-                     'vif_id': '1a81968a-797a-400f-8a80-567f997eb93f', 
-                     'ethernet_mac_address': 'fa:16:3e:ed:9a:59', 
-                     'id': 'tap1a81968a-79', 'mtu': None}]
+                'links': [{
+                    'type': 'bridge',
+                    'vif_id': '1a81968a-797a-400f-8a80-567f997eb93f',
+                    'ethernet_mac_address': 'fa:16:3e:ed:9a:59',
+                    'id': 'tap1a81968a-79',
+                    'mtu': None,
+                }],
             },
         ]
         out_datas = [
@@ -440,6 +442,7 @@ class TestNetJson(TestCase):
                                 'address': '172.19.1.34',
                                 'netmask': '255.255.252.0',
                                 'type': 'static',
+                                'ipv4': True,
                                 'routes': [{
                                     'gateway': '172.19.3.254',
                                     'netmask': '0.0.0.0',

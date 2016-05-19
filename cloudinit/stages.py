@@ -44,8 +44,8 @@ from cloudinit import helpers
 from cloudinit import importer
 from cloudinit import log as logging
 from cloudinit import net
-from cloudinit.reporting import events
 from cloudinit.net import cmdline
+from cloudinit.reporting import events
 from cloudinit import sources
 from cloudinit import type_utils
 from cloudinit import util

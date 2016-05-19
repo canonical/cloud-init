@@ -1,13 +1,11 @@
 from cloudinit import net
-from cloudinit import util
-
-from cloudinit import net
 from cloudinit.net import cmdline
 from cloudinit.net import eni
 from cloudinit.net import network_state
+from cloudinit import util
 
-from .helpers import TestCase
 from .helpers import mock
+from .helpers import TestCase
 
 import base64
 import copy

@@ -42,7 +42,7 @@ from cloudinit import helpers as c_helpers
 from cloudinit.util import b64e
 
 from .. import helpers
-from ..helpers import mock, SkipTest
+from ..helpers import mock
 
 MOCK_RETURNS = {
     'hostname': 'test-host',

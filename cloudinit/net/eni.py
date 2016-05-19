@@ -258,7 +258,7 @@ class Renderer(object):
         return content
 
     def _render_route(self, route, indent=""):
-        """ When rendering routes for an iface, in some cases applying a route
+        """When rendering routes for an iface, in some cases applying a route
         may result in the route command returning non-zero which produces
         some confusing output for users manually using ifup/ifdown[1].  To
         that end, we will optionally include an '|| true' postfix to each
@@ -302,7 +302,7 @@ class Renderer(object):
         return content
 
     def _render_interfaces(self, network_state):
-        ''' Given state, emit etc/network/interfaces content '''
+        '''Given state, emit etc/network/interfaces content'''
 
         content = ""
         interfaces = network_state.get('interfaces')
@@ -336,8 +336,8 @@ class Renderer(object):
                     iface['control'] = subnet.get('control', 'auto')
                     if iface['mode'].endswith('6'):
                         iface['inet'] += '6'
-                    elif iface['mode'] == 'static' \
-                         and ":" in subnet['address']:
+                    elif (iface['mode'] == 'static'
+                            and ":" in subnet['address']):
                         iface['inet'] += '6'
                     if iface['mode'].startswith('dhcp'):
                         iface['mode'] = 'dhcp'
@@ -359,10 +359,10 @@ class Renderer(object):
         content = content.replace('mac_address', 'hwaddress')
         return content
 
-    def render_network_state(self,
-        target, network_state, eni="etc/network/interfaces",
-        links_prefix=LINKS_FNAME_PREFIX,
-        netrules='etc/udev/rules.d/70-persistent-net.rules'):
+    def render_network_state(
+            self, target, network_state,
+            eni="etc/network/interfaces", links_prefix=LINKS_FNAME_PREFIX,
+            netrules='etc/udev/rules.d/70-persistent-net.rules'):
 
         fpeni = os.path.join(target, eni)
         net.write_file(fpeni, self._render_interfaces(network_state))

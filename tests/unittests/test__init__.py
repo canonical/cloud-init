@@ -1,7 +1,6 @@
 import os
 import shutil
 import tempfile
-import unittest2
 
 from cloudinit import handlers
 from cloudinit import helpers

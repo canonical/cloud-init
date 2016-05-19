@@ -10,13 +10,10 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-
 import logging
-import mock
-import unittest
-
 
 from cloudinit.config import cc_rh_subscription
+from cloudinit import util
 
 from .helpers import TestCase, mock
 
