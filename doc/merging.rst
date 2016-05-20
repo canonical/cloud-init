@@ -19,13 +19,13 @@ For example.
    run_cmd:
      - bash1
      - bash2
-   
+
    #cloud-config (2)
    run_cmd:
      - bash3
      - bash4
 
-The previous way of merging the following 2 objects would result in a final 
+The previous way of merging the following 2 objects would result in a final
 cloud-config object that contains the following.
 
 .. code-block:: yaml
@@ -56,7 +56,7 @@ Customizability
 Since the above merging algorithm may not always be the desired merging
 algorithm (like how the previous merging algorithm was not always the preferred
 one) the concept of customizing how merging can be done was introduced through
-a new concept call 'merge classes'. 
+a new concept call 'merge classes'.
 
 A merge class is a class defintion which provides functions that can be used
 to merge a given type with another given type.
@@ -69,7 +69,7 @@ An example of one of these merging classes is the following:
        def __init__(self, merger, opts):
            self._merger = merger
            self._overwrite = 'overwrite' in opts
-   
+
        # This merging algorithm will attempt to merge with
        # another dictionary, on encountering any other type of object
        # it will not merge with said object, but will instead return
@@ -129,12 +129,12 @@ for your own usage.
    definition are the following (in order), 'merge_how', 'merge_type'.
 
 String format
-********
+*************
 
 The string format that is expected is the following.
 
 ::
-    
+
    classname1(option1,option2)+classname2(option3,option4)....
 
 The class name there will be connected to class names used when looking for the
@@ -144,11 +144,11 @@ on construction of that class.
 For example, the default string that is used when none is provided is the following:
 
 ::
-    
+
    list()+dict()+str()
 
 Dictionary format
-********
+*****************
 
 In cases where a dictionary can be used to specify the same information as the
 string format (ie option #2 of above) it can be used, for example.
@@ -171,7 +171,7 @@ for every cloud-config that I provide, what exactly happens?
 The answer is that when merging, a stack of 'merging classes' is kept, the
 first one on that stack is the default merging classes, this set of mergers
 will be used when the first cloud-config is merged with the initial empty
-cloud-config dictionary. If the cloud-config that was just merged provided a 
+cloud-config dictionary. If the cloud-config that was just merged provided a
 set of merging classes (via the above formats) then those merging classes will
 be pushed onto the stack. Now if there is a second cloud-config to be merged then
 the merging classes from the cloud-config before the first will be used (not the
