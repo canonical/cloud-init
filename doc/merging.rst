@@ -1,15 +1,16 @@
 Overview
 --------
 
-This was done because it has been a common feature request that there be a
-way to specify how cloud-config yaml "dictionaries" are merged together when
-there are multiple yamls to merge together (say when performing an #include).
+This was implemented because it has been a common feature request that there be
+a way to specify how cloud-config yaml "dictionaries" provided as user-data are
+merged together when there are multiple yamls to merge together (say when
+performing an #include).
 
 Since previously the merging algorithm was very simple and would only overwrite
 and not append lists, or strings, and so on it was decided to create a new and
 improved way to merge dictionaries (and there contained objects) together in a
-way that is customizable, thus allowing for users who provide cloud-config data
-to determine exactly how there objects will be merged.
+way that is customizable, thus allowing for users who provide cloud-config
+user-data to determine exactly how there objects will be merged.
 
 For example.
 
@@ -181,8 +182,13 @@ cloud-config dictionary coming after it.
 Other uses
 ----------
 
-The default merging algorithm for merging 'conf.d' yaml files (which form a initial
-yaml config for cloud-init) was also changed to use this mechanism so its full
+In addition to being used for merging user-data sections, the default merging
+algorithm for merging 'conf.d' yaml files (which form an initial yaml config
+for cloud-init) was also changed to use this mechanism so its full
 benefits (and customization) can also be used there as well. Other places that
-used the previous merging are also similar now extensible (metadata merging for
-example).
+used the previous merging are also, similarly, now extensible (metadata
+merging, for example).
+
+Note, however, that merge algorithms are not used *across* types of
+configuration.  As was previously the case, merged user-data will still
+overwrite conf.d configuration.
