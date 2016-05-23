@@ -219,7 +219,7 @@ class TestAptSourceConfig(TestCase):
 
         # check if it added the right ammount of keys
         calls = []
-        for i in range(keynum):
+        for _ in range(keynum):
             calls.append(call(('apt-key', 'add', '-'), 'fakekey 1234'))
         mockobj.assert_has_calls(calls, any_order=True)
 
