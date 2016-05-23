@@ -215,8 +215,28 @@ def add_sources(srclist, template_params=None, aa_repo_match=None):
         def aa_repo_match(x):
             return False
 
+    # convert old list format to new dict based format
+    if isinstance(srclist, list):
+        srcdict = {}
+        for srcent in srclist:
+            if 'filename' not in srcent:
+                # file collides for multiple !filename cases for compatibility
+                # yet we need them all processed, so not same dictionary key
+                srcent['filename'] = "cloud_config_sources.list"
+                key = util.rand_dict_key(srcdict, "cloud_config_sources.list")
+            else:
+                # all with filename use that as key (matching new format)
+                key = srcent['filename']
+            srcdict[key] = srcent
+    else:
+        srcdict = srclist
+
     errorlist = []
-    for ent in srclist:
+    for filename in srcdict:
+        ent = srcdict[filename]
+        if 'filename' not in ent:
+            ent[filename] = filename
+
         # keys can be added without specifying a source
         try:
             add_key(ent)
@@ -226,9 +246,12 @@ def add_sources(srclist, template_params=None, aa_repo_match=None):
         if 'source' not in ent:
             errorlist.append(["", "missing source"])
             continue
-
         source = ent['source']
         source = templater.render_string(source, template_params)
+
+        if not ent['filename'].startswith("/"):
+            ent['filename'] = os.path.join("/etc/apt/sources.list.d/",
+                                           ent['filename'])
 
         if aa_repo_match(source):
             try:
@@ -237,13 +260,6 @@ def add_sources(srclist, template_params=None, aa_repo_match=None):
                 errorlist.append([source,
                                   ("add-apt-repository failed. " + str(e))])
             continue
-
-        if 'filename' not in ent:
-            ent['filename'] = 'cloud_config_sources.list'
-
-        if not ent['filename'].startswith("/"):
-            ent['filename'] = os.path.join("/etc/apt/sources.list.d/",
-                                           ent['filename'])
 
         try:
             contents = "%s\n" % (source)
