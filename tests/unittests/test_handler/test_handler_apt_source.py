@@ -55,7 +55,6 @@ class TestAptSourceConfig(TestCase):
         self.fallbackfn = os.path.join(self.tmp, "etc/apt/sources.list.d/",
                                        "cloud_config_sources.list")
 
-
     @staticmethod
     def _get_default_params():
         """ get_default_params
@@ -68,9 +67,9 @@ class TestAptSourceConfig(TestCase):
 
     def myjoin(self, *args, **kwargs):
         """ myjoin - redir into writable tmpdir"""
-        if (args[0] == "/etc/apt/sources.list.d/"
-                and args[1] == "cloud_config_sources.list"
-                and len(args) == 2):
+        if (args[0] == "/etc/apt/sources.list.d/" and
+                args[1] == "cloud_config_sources.list" and
+                len(args) == 2):
             return self.join(self.tmp, args[0].lstrip("/"), args[1])
         else:
             return self.join(*args, **kwargs)
@@ -136,7 +135,6 @@ class TestAptSourceConfig(TestCase):
                                    "lucid-backports",
                                    "main universe multiverse restricted"),
                                   contents, flags=re.IGNORECASE))
-
 
     def test_apt_src_basic_tri(self):
         """ test_apt_src_basic_tri
@@ -231,7 +229,6 @@ class TestAptSourceConfig(TestCase):
                                   ("deb", params['MIRROR'], params['RELEASE'],
                                    "universe"),
                                   contents, flags=re.IGNORECASE))
-
 
     def test_apt_src_replace_tri(self):
         """ test_apt_src_replace_tri

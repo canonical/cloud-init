@@ -335,6 +335,7 @@ def rand_str(strlen=32, select_from=None):
         select_from = string.ascii_letters + string.digits
     return "".join([random.choice(select_from) for _x in range(0, strlen)])
 
+
 def rand_dict_key(dictionary, postfix=None):
     if not postfix:
         postfix = ""
@@ -343,6 +344,7 @@ def rand_dict_key(dictionary, postfix=None):
         if newkey not in dictionary:
             break
     return newkey
+
 
 def read_conf(fname):
     try:
