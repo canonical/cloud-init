@@ -246,6 +246,20 @@ class TestAptSourceConfig(TestCase):
                 'filename': self.aptlistfile3}
         self.apt_src_replace_tri([cfg1, cfg2, cfg3])
 
+    def test_apt_src_replace_dict_tri(self):
+        """ test_apt_src_replace_dict_tri
+        Test three autoreplacements of MIRROR and RELEASE in source specs with
+        Filename being set
+        Provided in a dictionary with filename being the key (new format)
+        We also test a new special conditions of the new format that allows
+        filenames to be overwritten inside the directory entry.
+        """
+        cfg = {self.aptlistfile: {'source': 'deb $MIRROR $RELEASE multiverse'},
+               'notused':        {'source': 'deb $MIRROR $RELEASE main',
+                                  'filename': self.aptlistfile2},
+               self.aptlistfile3: {'source': 'deb $MIRROR $RELEASE universe'}}
+        self.apt_src_replace_tri(cfg)
+
     def test_apt_src_replace_nofn(self):
         """ test_apt_src_replace_nofn
         Test Autoreplacement of MIRROR and RELEASE in source specs with
