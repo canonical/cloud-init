@@ -48,6 +48,10 @@ class TestAptSourceConfig(TestCase):
         self.addCleanup(shutil.rmtree, self.tmp)
         self.aptlistfile = os.path.join(self.tmp, "single-deb.list")
         self.join = os.path.join
+        # mock fallback filename into writable tmp dir
+        self.fallbackfn = os.path.join(self.tmp, "etc/apt/sources.list.d/",
+                                       "cloud_config_sources.list")
+
 
     @staticmethod
     def _get_default_params():
@@ -104,12 +108,8 @@ class TestAptSourceConfig(TestCase):
         cfg = {'source': ('deb http://archive.ubuntu.com/ubuntu'
                           ' karmic-backports'
                           ' main universe multiverse restricted')}
-        # mock into writable tmp dir and check path/content there
-        filename = os.path.join(self.tmp, "etc/apt/sources.list.d/",
-                                "cloud_config_sources.list")
-
         with mock.patch.object(os.path, 'join', side_effect=self.myjoin):
-            self.apt_source_basic(filename, cfg)
+            self.apt_source_basic(self.fallbackfn, cfg)
 
     def apt_source_replacement(self, filename, cfg):
         """ apt_source_replace
@@ -141,12 +141,8 @@ class TestAptSourceConfig(TestCase):
         No filename being set
         """
         cfg = {'source': 'deb $MIRROR $RELEASE multiverse'}
-        # mock into writable tmp dir and check path/content there
-        filename = os.path.join(self.tmp, "etc/apt/sources.list.d/",
-                                "cloud_config_sources.list")
-
         with mock.patch.object(os.path, 'join', side_effect=self.myjoin):
-            self.apt_source_replacement(filename, cfg)
+            self.apt_source_replacement(self.fallbackfn, cfg)
 
     def apt_source_keyid(self, filename, cfg):
         """ apt_source_keyid
@@ -191,11 +187,8 @@ class TestAptSourceConfig(TestCase):
                           'smoser/cloud-init-test/ubuntu'
                           ' xenial main'),
                'keyid': "03683F77"}
-        # mock into writable tmp dir and check path/content there
-        filename = os.path.join(self.tmp, "etc/apt/sources.list.d/",
-                                "cloud_config_sources.list")
         with mock.patch.object(os.path, 'join', side_effect=self.myjoin):
-            self.apt_source_keyid(filename, cfg)
+            self.apt_source_keyid(self.fallbackfn, cfg)
 
     def test_apt_source_key(self):
         """ test_apt_source_key
