@@ -179,7 +179,7 @@ class TestAptSourceConfig(TestCase):
         self.apt_source_keyid(self.aptlistfile, cfg)
 
     def test_apt_source_keyid_nofn(self):
-        """ test_apt_source_keyid
+        """ test_apt_source_keyid_nofn
         Test specification of a source + keyid without filename being set
         """
         cfg = {'source': ('deb '
@@ -224,7 +224,7 @@ class TestAptSourceConfig(TestCase):
         self.apt_source_key(self.aptlistfile, cfg)
 
     def test_apt_source_key_nofn(self):
-        """ test_apt_source_key
+        """ test_apt_source_key_nofn
         Test specification of a source + key without filename being set
         """
         cfg = {'source': ('deb '
