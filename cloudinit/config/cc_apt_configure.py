@@ -241,7 +241,7 @@ def add_sources(srclist, template_params=None, aa_repo_match=None):
     for filename in srcdict:
         ent = srcdict[filename]
         if 'filename' not in ent:
-            ent[filename] = filename
+            ent['filename'] = filename
 
         # keys can be added without specifying a source
         try:
