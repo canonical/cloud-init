@@ -47,6 +47,8 @@ class TestAptSourceConfig(TestCase):
         self.tmp = tempfile.mkdtemp()
         self.addCleanup(shutil.rmtree, self.tmp)
         self.aptlistfile = os.path.join(self.tmp, "single-deb.list")
+        self.aptlistfile2 = os.path.join(self.tmp, "single-deb2.list")
+        self.aptlistfile3 = os.path.join(self.tmp, "single-deb3.list")
         self.join = os.path.join
         # mock fallback filename into writable tmp dir
         self.fallbackfn = os.path.join(self.tmp, "etc/apt/sources.list.d/",
@@ -78,7 +80,7 @@ class TestAptSourceConfig(TestCase):
         """
         params = self._get_default_params()
 
-        cc_apt_configure.add_sources([cfg], params)
+        cc_apt_configure.add_sources(cfg, params)
 
         self.assertTrue(os.path.isfile(filename))
 
@@ -98,7 +100,40 @@ class TestAptSourceConfig(TestCase):
                           ' karmic-backports'
                           ' main universe multiverse restricted'),
                'filename': self.aptlistfile}
-        self.apt_source_basic(self.aptlistfile, cfg)
+        self.apt_source_basic(self.aptlistfile, [cfg])
+
+    def test_apt_source_basic_triple(self):
+        """ test_apt_source_basic_triple
+        Test Fix three deb source string, has to overwrite mirror conf in
+        params. Test with filenames provided in config.
+        """
+        cfg1 = {'source': ('deb http://archive.ubuntu.com/ubuntu'
+                           ' karmic-backports'
+                           ' main universe multiverse restricted'),
+                'filename': self.aptlistfile}
+        cfg2 = {'source': ('deb http://archive.ubuntu.com/ubuntu'
+                           ' precise-backports'
+                           ' main universe multiverse restricted'),
+                'filename': self.aptlistfile2}
+        cfg3 = {'source': ('deb http://archive.ubuntu.com/ubuntu'
+                           ' lucid-backports'
+                           ' main universe multiverse restricted'),
+                'filename': self.aptlistfile3}
+        self.apt_source_basic(self.aptlistfile, [cfg1, cfg2, cfg3])
+
+        # extra verify on two extra files of this test
+        contents = load_tfile_or_url(self.aptlistfile2)
+        self.assertTrue(re.search(r"%s %s %s %s\n" %
+                                  ("deb", "http://archive.ubuntu.com/ubuntu",
+                                   "precise-backports",
+                                   "main universe multiverse restricted"),
+                                  contents, flags=re.IGNORECASE))
+        contents = load_tfile_or_url(self.aptlistfile3)
+        self.assertTrue(re.search(r"%s %s %s %s\n" %
+                                  ("deb", "http://archive.ubuntu.com/ubuntu",
+                                   "lucid-backports",
+                                   "main universe multiverse restricted"),
+                                  contents, flags=re.IGNORECASE))
 
     def test_apt_source_basic_nofn(self):
         """ test_apt_source_basic_nofn
@@ -109,14 +144,14 @@ class TestAptSourceConfig(TestCase):
                           ' karmic-backports'
                           ' main universe multiverse restricted')}
         with mock.patch.object(os.path, 'join', side_effect=self.myjoin):
-            self.apt_source_basic(self.fallbackfn, cfg)
+            self.apt_source_basic(self.fallbackfn, [cfg])
 
     def apt_source_replacement(self, filename, cfg):
         """ apt_source_replace
         Test Autoreplacement of MIRROR and RELEASE in source specs
         """
         params = self._get_default_params()
-        cc_apt_configure.add_sources([cfg], params)
+        cc_apt_configure.add_sources(cfg, params)
 
         self.assertTrue(os.path.isfile(filename))
 
@@ -133,7 +168,34 @@ class TestAptSourceConfig(TestCase):
         """
         cfg = {'source': 'deb $MIRROR $RELEASE multiverse',
                'filename': self.aptlistfile}
-        self.apt_source_replacement(self.aptlistfile, cfg)
+        self.apt_source_replacement(self.aptlistfile, [cfg])
+
+    def test_apt_source_replace_triple(self):
+        """ test_apt_source_replace_triple
+        Test three autoreplacements of MIRROR and RELEASE in source specs with
+        Filename being set
+        """
+        cfg1 = {'source': 'deb $MIRROR $RELEASE multiverse',
+                'filename': self.aptlistfile}
+        cfg2 = {'source': 'deb $MIRROR $RELEASE main',
+                'filename': self.aptlistfile2}
+        cfg3 = {'source': 'deb $MIRROR $RELEASE universe',
+                'filename': self.aptlistfile3}
+        self.apt_source_replacement(self.aptlistfile, [cfg1, cfg2, cfg3])
+
+        # extra verify on two extra files of this test
+        params = self._get_default_params()
+        contents = load_tfile_or_url(self.aptlistfile2)
+        self.assertTrue(re.search(r"%s %s %s %s\n" %
+                                  ("deb", params['MIRROR'], params['RELEASE'],
+                                   "main"),
+                                  contents, flags=re.IGNORECASE))
+        contents = load_tfile_or_url(self.aptlistfile3)
+        self.assertTrue(re.search(r"%s %s %s %s\n" %
+                                  ("deb", params['MIRROR'], params['RELEASE'],
+                                   "universe"),
+                                  contents, flags=re.IGNORECASE))
+
 
     def test_apt_source_replace_nofn(self):
         """ test_apt_source_replace_nofn
@@ -142,7 +204,7 @@ class TestAptSourceConfig(TestCase):
         """
         cfg = {'source': 'deb $MIRROR $RELEASE multiverse'}
         with mock.patch.object(os.path, 'join', side_effect=self.myjoin):
-            self.apt_source_replacement(self.fallbackfn, cfg)
+            self.apt_source_replacement(self.fallbackfn, [cfg])
 
     def apt_source_keyid(self, filename, cfg):
         """ apt_source_keyid
