@@ -106,10 +106,52 @@ apt_custom_sources_list: |
 # expression will be passed to add-apt-repository
 add_apt_repo_match: '^[\w-]+:\w'
 
+# 'apt_sources' is a dictionary
+# The key is the filename and will be prepended by /etc/apt/sources.list.d/ if
+# it doesn't start with a '/'.
+# There are certain cases - where no content is written into a source.list file
+# where the filename will be ignored - yet it can still be used as index for
+# merging.
+# The value it maps to is a dictionary with the following optional entries:
+#   'source': a sources.list entry (some variable replacements apply)
+#   'keyid': providing a key to import via shortid or fingerprint
+#   'key': providing a raw PGP key
+#   'filename': for compatibility with the older format (now the key to this
+#               dictionary is the filename). If specified this overwrites the
+#               filename given as key.
+
+# the new "filename: {specification-dictionary}, filename2: ..." format allows
+# better merging between multiple input files than a list like:
+# cloud-config1
+# sources:
+    s1: {'key': 'key1', 'source': 'source1'}
+# cloud-config2
+# sources:
+    s2: {'key': 'key2'}
+    s1: {filename: 'foo'}
+# this would be merged to
+#sources:
+#    s1:
+#        filename: foo
+#        key: key1
+#        source: source1
+#    s2:
+#        key: key2
+# Be aware that this style of merging is not the default (for backward
+# compatibility reasons). You should specify the following merge_how to get
+# this more complete and modern merging behaviour:
+#   merge_how: "list()+dict()+str()"
+# This would then also be equivalent to the config merging used in curtin
+# (https://launchpad.net/curtin).
+
+# for more details see below in the various examples
+
 apt_sources:
- - source: "deb http://ppa.launchpad.net/byobu/ppa/ubuntu karmic main"
+ byobu-ppa.list:
+   source: "deb http://ppa.launchpad.net/byobu/ppa/ubuntu karmic main"
    keyid: F430BBA5 # GPG key ID published on a key server
-   filename: byobu-ppa.list
+ # adding a source.list line, importing a gpg key for a given key id and
+ # storing it in the file /etc/apt/sources.list.d/byobu-ppa.list
 
  # PPA shortcut:
  #  * Setup correct apt sources.list line
@@ -117,7 +159,9 @@ apt_sources:
  #
  #  See https://help.launchpad.net/Packaging/PPA for more information
  #  this requires 'add-apt-repository'
- - source: "ppa:smoser/ppa"    # Quote the string
+ #  due to that the filename key is ignored in this case
+ ignored1:
+   source: "ppa:smoser/ppa"    # Quote the string
 
  # Custom apt repository:
  #  * all that is required is 'source'
@@ -128,31 +172,39 @@ apt_sources:
  #    + filename: cloud_config_sources.list
  #
  #    See sources.list man page for more information about the format
- - source: deb http://archive.ubuntu.com/ubuntu karmic-backports main universe multiverse restricted
+ my-repo.list:
+   source: deb http://archive.ubuntu.com/ubuntu karmic-backports main universe multiverse restricted
 
  # sources can use $MIRROR and $RELEASE and they will be replaced
  # with the local mirror for this cloud, and the running release
  # the entry below would be possibly turned into:
- # - source: deb http://us-east-1.ec2.archive.ubuntu.com/ubuntu natty multiverse
- - source: deb $MIRROR $RELEASE multiverse
+ # source: deb http://us-east-1.ec2.archive.ubuntu.com/ubuntu natty multiverse
+ my-repo.list:
+   source: deb $MIRROR $RELEASE multiverse
 
  # this would have the same end effect as 'ppa:byobu/ppa'
- - source: "deb http://ppa.launchpad.net/byobu/ppa/ubuntu karmic main"
+ my-repo.list:
+   source: "deb http://ppa.launchpad.net/byobu/ppa/ubuntu karmic main"
    keyid: F430BBA5 # GPG key ID published on a key server
    filename: byobu-ppa.list
 
  # this would only import the key without adding a ppa or other source spec
- - keyid: F430BBA5 # GPG key ID published on a key server
+ # since this doesn't generate a source.list file the filename key is ignored
+ ignored2:
+   keyid: F430BBA5 # GPG key ID published on a key server
 
  # In general keyid's can also be specified via their long fingerprints
- - keyid: B59D 5F15 97A5 04B7 E230  6DCA 0620 BBCF 0368 3F77
+ # since this doesn't generate a source.list file the filename key is ignored
+ ignored3:
+   keyid: B59D 5F15 97A5 04B7 E230  6DCA 0620 BBCF 0368 3F77
 
  # Custom apt repository:
  #  * The apt signing key can also be specified
  #    by providing a pgp public key block
  #  * Providing the PGP key here is the most robust method for
  #    specifying a key, as it removes dependency on a remote key server
- - source: deb http://ppa.launchpad.net/alestic/ppa/ubuntu karmic main 
+ my-repo.list:
+   source: deb http://ppa.launchpad.net/alestic/ppa/ubuntu karmic main 
    key: | # The value needs to start with -----BEGIN PGP PUBLIC KEY BLOCK-----
       -----BEGIN PGP PUBLIC KEY BLOCK-----
       Version: SKS 1.0.10
@@ -170,7 +222,9 @@ apt_sources:
  # Custom gpg key:
  #  * As the keyid also a key can be specified withut a related source
  #  * all other facts mentioned above still apply
- - key: | # The value needs to start with -----BEGIN PGP PUBLIC KEY BLOCK-----
+ # since this doesn't generate a source.list file the filename key is ignored
+ ignored4:
+   key: | # The value needs to start with -----BEGIN PGP PUBLIC KEY BLOCK-----
       -----BEGIN PGP PUBLIC KEY BLOCK-----
       Version: SKS 1.0.10
 
