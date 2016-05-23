@@ -115,6 +115,29 @@ class TestAptSourceConfig(TestCase):
                                    ' main universe multiverse restricted')}}
         self.apt_source_basic(self.aptlistfile, cfg)
 
+    def apt_source_basic_triple(self, cfg):
+        """ apt_source_basic_triple
+        Test Fix three deb source string, has to overwrite mirror conf in
+        params. Test with filenames provided in config.
+        generic part to check three files with different content
+        """
+        self.apt_source_basic(self.aptlistfile, cfg)
+
+        # extra verify on two extra files of this test
+        contents = load_tfile_or_url(self.aptlistfile2)
+        self.assertTrue(re.search(r"%s %s %s %s\n" %
+                                  ("deb", "http://archive.ubuntu.com/ubuntu",
+                                   "precise-backports",
+                                   "main universe multiverse restricted"),
+                                  contents, flags=re.IGNORECASE))
+        contents = load_tfile_or_url(self.aptlistfile3)
+        self.assertTrue(re.search(r"%s %s %s %s\n" %
+                                  ("deb", "http://archive.ubuntu.com/ubuntu",
+                                   "lucid-backports",
+                                   "main universe multiverse restricted"),
+                                  contents, flags=re.IGNORECASE))
+
+
     def test_apt_source_basic_triple(self):
         """ test_apt_source_basic_triple
         Test Fix three deb source string, has to overwrite mirror conf in
@@ -132,21 +155,27 @@ class TestAptSourceConfig(TestCase):
                            ' lucid-backports'
                            ' main universe multiverse restricted'),
                 'filename': self.aptlistfile3}
-        self.apt_source_basic(self.aptlistfile, [cfg1, cfg2, cfg3])
+        self.apt_source_basic_triple([cfg1, cfg2, cfg3])
 
-        # extra verify on two extra files of this test
-        contents = load_tfile_or_url(self.aptlistfile2)
-        self.assertTrue(re.search(r"%s %s %s %s\n" %
-                                  ("deb", "http://archive.ubuntu.com/ubuntu",
-                                   "precise-backports",
-                                   "main universe multiverse restricted"),
-                                  contents, flags=re.IGNORECASE))
-        contents = load_tfile_or_url(self.aptlistfile3)
-        self.assertTrue(re.search(r"%s %s %s %s\n" %
-                                  ("deb", "http://archive.ubuntu.com/ubuntu",
-                                   "lucid-backports",
-                                   "main universe multiverse restricted"),
-                                  contents, flags=re.IGNORECASE))
+    def test_apt_src_basic_dict_triple(self):
+        """ test_apt_src_basic_dict_triple
+        Test Fix three deb source string, has to overwrite mirror conf in
+        params. Test with filenames provided in config.
+        Provided in a dictionary with filename being the key (new format)
+        """
+        cfg = {self.aptlistfile: {'source':
+                                  ('deb http://archive.ubuntu.com/ubuntu'
+                                   ' karmic-backports'
+                                   ' main universe multiverse restricted')},
+               self.aptlistfile2: {'source':
+                                   ('deb http://archive.ubuntu.com/ubuntu'
+                                    ' precise-backports'
+                                    ' main universe multiverse restricted')},
+               self.aptlistfile3: {'source':
+                                   ('deb http://archive.ubuntu.com/ubuntu'
+                                    ' lucid-backports'
+                                    ' main universe multiverse restricted')}}
+        self.apt_source_basic_triple(cfg)
 
     def test_apt_source_basic_nofn(self):
         """ test_apt_source_basic_nofn
