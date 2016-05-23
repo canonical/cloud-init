@@ -75,8 +75,8 @@ class TestAptSourceConfig(TestCase):
         else:
             return self.join(*args, **kwargs)
 
-    def apt_source_basic(self, filename, cfg):
-        """ apt_source_basic
+    def apt_src_basic(self, filename, cfg):
+        """ apt_src_basic
         Test Fix deb source string, has to overwrite mirror conf in params
         """
         params = self._get_default_params()
@@ -92,8 +92,8 @@ class TestAptSourceConfig(TestCase):
                                    "main universe multiverse restricted"),
                                   contents, flags=re.IGNORECASE))
 
-    def test_apt_source_basic(self):
-        """ test_apt_source_basic
+    def test_apt_src_basic(self):
+        """ test_apt_src_basic
         Test Fix deb source string, has to overwrite mirror conf in params.
         Test with a filename provided in config.
         """
@@ -101,10 +101,10 @@ class TestAptSourceConfig(TestCase):
                           ' karmic-backports'
                           ' main universe multiverse restricted'),
                'filename': self.aptlistfile}
-        self.apt_source_basic(self.aptlistfile, [cfg])
+        self.apt_src_basic(self.aptlistfile, [cfg])
 
-    def test_apt_source_basic_dict(self):
-        """ test_apt_source_basic_dict
+    def test_apt_src_basic_dict(self):
+        """ test_apt_src_basic_dict
         Test Fix deb source string, has to overwrite mirror conf in params.
         Test with a filename provided in config.
         Provided in a dictionary with filename being the key (new format)
@@ -113,15 +113,15 @@ class TestAptSourceConfig(TestCase):
                                   ('deb http://archive.ubuntu.com/ubuntu'
                                    ' karmic-backports'
                                    ' main universe multiverse restricted')}}
-        self.apt_source_basic(self.aptlistfile, cfg)
+        self.apt_src_basic(self.aptlistfile, cfg)
 
-    def apt_source_basic_triple(self, cfg):
-        """ apt_source_basic_triple
+    def apt_src_basic_tri(self, cfg):
+        """ apt_src_basic_tri
         Test Fix three deb source string, has to overwrite mirror conf in
         params. Test with filenames provided in config.
         generic part to check three files with different content
         """
-        self.apt_source_basic(self.aptlistfile, cfg)
+        self.apt_src_basic(self.aptlistfile, cfg)
 
         # extra verify on two extra files of this test
         contents = load_tfile_or_url(self.aptlistfile2)
@@ -138,8 +138,8 @@ class TestAptSourceConfig(TestCase):
                                   contents, flags=re.IGNORECASE))
 
 
-    def test_apt_source_basic_triple(self):
-        """ test_apt_source_basic_triple
+    def test_apt_src_basic_tri(self):
+        """ test_apt_src_basic_tri
         Test Fix three deb source string, has to overwrite mirror conf in
         params. Test with filenames provided in config.
         """
@@ -155,10 +155,10 @@ class TestAptSourceConfig(TestCase):
                            ' lucid-backports'
                            ' main universe multiverse restricted'),
                 'filename': self.aptlistfile3}
-        self.apt_source_basic_triple([cfg1, cfg2, cfg3])
+        self.apt_src_basic_tri([cfg1, cfg2, cfg3])
 
-    def test_apt_src_basic_dict_triple(self):
-        """ test_apt_src_basic_dict_triple
+    def test_apt_src_basic_dict_tri(self):
+        """ test_apt_src_basic_dict_tri
         Test Fix three deb source string, has to overwrite mirror conf in
         params. Test with filenames provided in config.
         Provided in a dictionary with filename being the key (new format)
@@ -175,10 +175,10 @@ class TestAptSourceConfig(TestCase):
                                    ('deb http://archive.ubuntu.com/ubuntu'
                                     ' lucid-backports'
                                     ' main universe multiverse restricted')}}
-        self.apt_source_basic_triple(cfg)
+        self.apt_src_basic_tri(cfg)
 
-    def test_apt_source_basic_nofn(self):
-        """ test_apt_source_basic_nofn
+    def test_apt_src_basic_nofn(self):
+        """ test_apt_src_basic_nofn
         Test Fix deb source string, has to overwrite mirror conf in params.
         Test without a filename provided in config and test for known fallback.
         """
@@ -186,10 +186,10 @@ class TestAptSourceConfig(TestCase):
                           ' karmic-backports'
                           ' main universe multiverse restricted')}
         with mock.patch.object(os.path, 'join', side_effect=self.myjoin):
-            self.apt_source_basic(self.fallbackfn, [cfg])
+            self.apt_src_basic(self.fallbackfn, [cfg])
 
-    def apt_source_replacement(self, filename, cfg):
-        """ apt_source_replace
+    def apt_src_replacement(self, filename, cfg):
+        """ apt_src_replace
         Test Autoreplacement of MIRROR and RELEASE in source specs
         """
         params = self._get_default_params()
@@ -203,27 +203,21 @@ class TestAptSourceConfig(TestCase):
                                    "multiverse"),
                                   contents, flags=re.IGNORECASE))
 
-    def test_apt_source_replace(self):
-        """ test_apt_source_replace
+    def test_apt_src_replace(self):
+        """ test_apt_src_replace
         Test Autoreplacement of MIRROR and RELEASE in source specs with
         Filename being set
         """
         cfg = {'source': 'deb $MIRROR $RELEASE multiverse',
                'filename': self.aptlistfile}
-        self.apt_source_replacement(self.aptlistfile, [cfg])
+        self.apt_src_replacement(self.aptlistfile, [cfg])
 
-    def test_apt_source_replace_triple(self):
-        """ test_apt_source_replace_triple
+    def apt_src_replace_tri(self, cfg):
+        """ apt_src_replace_tri
         Test three autoreplacements of MIRROR and RELEASE in source specs with
-        Filename being set
+        generic part
         """
-        cfg1 = {'source': 'deb $MIRROR $RELEASE multiverse',
-                'filename': self.aptlistfile}
-        cfg2 = {'source': 'deb $MIRROR $RELEASE main',
-                'filename': self.aptlistfile2}
-        cfg3 = {'source': 'deb $MIRROR $RELEASE universe',
-                'filename': self.aptlistfile3}
-        self.apt_source_replacement(self.aptlistfile, [cfg1, cfg2, cfg3])
+        self.apt_src_replacement(self.aptlistfile, cfg)
 
         # extra verify on two extra files of this test
         params = self._get_default_params()
@@ -239,17 +233,30 @@ class TestAptSourceConfig(TestCase):
                                   contents, flags=re.IGNORECASE))
 
 
-    def test_apt_source_replace_nofn(self):
-        """ test_apt_source_replace_nofn
+    def test_apt_src_replace_tri(self):
+        """ test_apt_src_replace_tri
+        Test three autoreplacements of MIRROR and RELEASE in source specs with
+        Filename being set
+        """
+        cfg1 = {'source': 'deb $MIRROR $RELEASE multiverse',
+                'filename': self.aptlistfile}
+        cfg2 = {'source': 'deb $MIRROR $RELEASE main',
+                'filename': self.aptlistfile2}
+        cfg3 = {'source': 'deb $MIRROR $RELEASE universe',
+                'filename': self.aptlistfile3}
+        self.apt_src_replace_tri([cfg1, cfg2, cfg3])
+
+    def test_apt_src_replace_nofn(self):
+        """ test_apt_src_replace_nofn
         Test Autoreplacement of MIRROR and RELEASE in source specs with
         No filename being set
         """
         cfg = {'source': 'deb $MIRROR $RELEASE multiverse'}
         with mock.patch.object(os.path, 'join', side_effect=self.myjoin):
-            self.apt_source_replacement(self.fallbackfn, [cfg])
+            self.apt_src_replacement(self.fallbackfn, [cfg])
 
-    def apt_source_keyid(self, filename, cfg, keynum):
-        """ apt_source_keyid
+    def apt_src_keyid(self, filename, cfg, keynum):
+        """ apt_src_keyid
         Test specification of a source + keyid
         """
         params = self._get_default_params()
@@ -274,8 +281,8 @@ class TestAptSourceConfig(TestCase):
                                    "xenial", "main"),
                                   contents, flags=re.IGNORECASE))
 
-    def test_apt_source_keyid(self):
-        """ test_apt_source_keyid
+    def test_apt_src_keyid(self):
+        """ test_apt_src_keyid
         Test specification of a source + keyid with filename being set
         """
         cfg = {'source': ('deb '
@@ -284,10 +291,10 @@ class TestAptSourceConfig(TestCase):
                           ' xenial main'),
                'keyid': "03683F77",
                'filename': self.aptlistfile}
-        self.apt_source_keyid(self.aptlistfile, [cfg], 1)
+        self.apt_src_keyid(self.aptlistfile, [cfg], 1)
 
-    def test_apt_source_keyid_triple(self):
-        """ test_apt_source_keyid_triple
+    def test_apt_src_keyid_tri(self):
+        """ test_apt_src_keyid_tri
         Test specification of a source + keyid with filename being set
         Setting three of such, check for content and keys
         """
@@ -310,7 +317,7 @@ class TestAptSourceConfig(TestCase):
                 'keyid': "03683F77",
                 'filename': self.aptlistfile3}
 
-        self.apt_source_keyid(self.aptlistfile, [cfg1, cfg2, cfg3], 3)
+        self.apt_src_keyid(self.aptlistfile, [cfg1, cfg2, cfg3], 3)
         contents = load_tfile_or_url(self.aptlistfile2)
         self.assertTrue(re.search(r"%s %s %s %s\n" %
                                   ("deb",
@@ -326,8 +333,8 @@ class TestAptSourceConfig(TestCase):
                                    "xenial", "multiverse"),
                                   contents, flags=re.IGNORECASE))
 
-    def test_apt_source_keyid_nofn(self):
-        """ test_apt_source_keyid_nofn
+    def test_apt_src_keyid_nofn(self):
+        """ test_apt_src_keyid_nofn
         Test specification of a source + keyid without filename being set
         """
         cfg = {'source': ('deb '
@@ -336,10 +343,10 @@ class TestAptSourceConfig(TestCase):
                           ' xenial main'),
                'keyid': "03683F77"}
         with mock.patch.object(os.path, 'join', side_effect=self.myjoin):
-            self.apt_source_keyid(self.fallbackfn, [cfg], 1)
+            self.apt_src_keyid(self.fallbackfn, [cfg], 1)
 
-    def apt_source_key(self, filename, cfg):
-        """ apt_source_key
+    def apt_src_key(self, filename, cfg):
+        """ apt_src_key
         Test specification of a source + key
         """
         params = self._get_default_params()
@@ -359,8 +366,8 @@ class TestAptSourceConfig(TestCase):
                                    "xenial", "main"),
                                   contents, flags=re.IGNORECASE))
 
-    def test_apt_source_key(self):
-        """ test_apt_source_key
+    def test_apt_src_key(self):
+        """ test_apt_src_key
         Test specification of a source + key with filename being set
         """
         cfg = {'source': ('deb '
@@ -369,10 +376,10 @@ class TestAptSourceConfig(TestCase):
                           ' xenial main'),
                'key': "fakekey 4321",
                'filename': self.aptlistfile}
-        self.apt_source_key(self.aptlistfile, cfg)
+        self.apt_src_key(self.aptlistfile, cfg)
 
-    def test_apt_source_key_nofn(self):
-        """ test_apt_source_key_nofn
+    def test_apt_src_key_nofn(self):
+        """ test_apt_src_key_nofn
         Test specification of a source + key without filename being set
         """
         cfg = {'source': ('deb '
@@ -381,10 +388,10 @@ class TestAptSourceConfig(TestCase):
                           ' xenial main'),
                'key': "fakekey 4321"}
         with mock.patch.object(os.path, 'join', side_effect=self.myjoin):
-            self.apt_source_key(self.fallbackfn, cfg)
+            self.apt_src_key(self.fallbackfn, cfg)
 
-    def test_apt_source_keyonly(self):
-        """ test_apt_source_keyonly
+    def test_apt_src_keyonly(self):
+        """ test_apt_src_keyonly
         Test specification key without source
         """
         params = self._get_default_params()
@@ -400,8 +407,8 @@ class TestAptSourceConfig(TestCase):
         # filename should be ignored on key only
         self.assertFalse(os.path.isfile(self.aptlistfile))
 
-    def test_apt_source_keyidonly(self):
-        """ test_apt_source_keyidonly
+    def test_apt_src_keyidonly(self):
+        """ test_apt_src_keyidonly
         Test specification of a keyid without source
         """
         params = self._get_default_params()
@@ -417,8 +424,8 @@ class TestAptSourceConfig(TestCase):
         # filename should be ignored on key only
         self.assertFalse(os.path.isfile(self.aptlistfile))
 
-    def test_apt_source_keyid_real(self):
-        """ test_apt_source_keyid_real
+    def test_apt_src_keyid_real(self):
+        """ test_apt_src_keyid_real
         Test specification of a keyid without source incl
         up to addition of the key (nothing but add_key_raw mocked)
         """
@@ -435,8 +442,8 @@ class TestAptSourceConfig(TestCase):
         # filename should be ignored on key only
         self.assertFalse(os.path.isfile(self.aptlistfile))
 
-    def test_apt_source_longkeyid_real(self):
-        """ test_apt_source_keyid_real
+    def test_apt_src_longkeyid_real(self):
+        """ test_apt_src_keyid_real
         Test specification of a long key fingerprint without source incl
         up to addition of the key (nothing but add_key_raw mocked)
         """
@@ -453,8 +460,8 @@ class TestAptSourceConfig(TestCase):
         # filename should be ignored on key only
         self.assertFalse(os.path.isfile(self.aptlistfile))
 
-    def test_apt_source_ppa(self):
-        """ test_apt_source_ppa
+    def test_apt_src_ppa(self):
+        """ test_apt_src_ppa
         Test specification of a ppa
         """
         params = self._get_default_params()
@@ -472,8 +479,8 @@ class TestAptSourceConfig(TestCase):
         # adding ppa should ignore filename (uses add-apt-repository)
         self.assertFalse(os.path.isfile(self.aptlistfile))
 
-    def test_apt_source_ppa_triple(self):
-        """ test_apt_source_ppa_triple
+    def test_apt_src_ppa_tri(self):
+        """ test_apt_src_ppa_tri
         Test specification of a ppa
         """
         params = self._get_default_params()
