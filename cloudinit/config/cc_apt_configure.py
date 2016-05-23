@@ -215,15 +215,22 @@ def add_sources(srclist, template_params=None, aa_repo_match=None):
         def aa_repo_match(x):
             return False
 
+    errorlist = []
     # convert old list format to new dict based format
     if isinstance(srclist, list):
         srcdict = {}
+        fnfallbackused = None
         for srcent in srclist:
             if 'filename' not in srcent:
                 # file collides for multiple !filename cases for compatibility
                 # yet we need them all processed, so not same dictionary key
                 srcent['filename'] = "cloud_config_sources.list"
                 key = util.rand_dict_key(srcdict, "cloud_config_sources.list")
+                if fnfallbackused is not None:
+                    errorlist.append(["multiple apt_source entries without",
+                                      "filename will conflict: %s vs %s" %
+                                      (srcent, fnfallbackused)])
+                fnfallbackused = srcent
             else:
                 # all with filename use that as key (matching new format)
                 key = srcent['filename']
@@ -231,7 +238,6 @@ def add_sources(srclist, template_params=None, aa_repo_match=None):
     else:
         srcdict = srclist
 
-    errorlist = []
     for filename in srcdict:
         ent = srcdict[filename]
         if 'filename' not in ent:
