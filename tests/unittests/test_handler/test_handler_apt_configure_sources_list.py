@@ -151,7 +151,7 @@ class TestAptSourceConfigSourceList(t_help.FilesystemMockingTestCase):
 
         # the second mock restores the original subp
         with mock.patch.object(util, 'write_file') as mockwrite:
-            with mock.patch.object(util, 'subp', self.subp) as mocksubp:
+            with mock.patch.object(util, 'subp', self.subp):
                 cc_apt_configure.handle("notimportant", cfg, mycloud,
                                         LOG, None)
 
