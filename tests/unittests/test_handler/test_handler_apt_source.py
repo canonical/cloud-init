@@ -47,6 +47,7 @@ class TestAptSourceConfig(TestCase):
         self.tmp = tempfile.mkdtemp()
         self.addCleanup(shutil.rmtree, self.tmp)
         self.aptlistfile = os.path.join(self.tmp, "single-deb.list")
+        self.join = os.path.join
 
     @staticmethod
     def _get_default_params():
@@ -85,6 +86,30 @@ class TestAptSourceConfig(TestCase):
                           ' main universe multiverse restricted'),
                'filename': self.aptlistfile}
         self.apt_source_basic(self.aptlistfile, cfg)
+
+    def test_apt_source_basic_nofn(self):
+        """ test_apt_source_basic_nofn
+        Test Fix deb source string, has to overwrite mirror conf in params.
+        Test without a filename provided in config and test for known fallback.
+        """
+        cfg = {'source': ('deb http://archive.ubuntu.com/ubuntu'
+                          ' karmic-backports'
+                          ' main universe multiverse restricted')}
+        # mock into writable tmp dir and check path/content there
+        filename = os.path.join(self.tmp, "etc/apt/sources.list.d/",
+                                "cloud_config_sources.list")
+
+        def myjoin(*args, **kwargs):
+            """ myjoin - redir into writable tmpdir"""
+            if (args[0] == "/etc/apt/sources.list.d/"
+                    and args[1] == "cloud_config_sources.list"
+                    and len(args) == 2):
+                return self.join(self.tmp, args[0].lstrip("/"), args[1])
+            else:
+                return self.join(*args, **kwargs)
+
+        with mock.patch.object(os.path, 'join', side_effect=myjoin):
+            self.apt_source_basic(filename, cfg)
 
     def test_apt_source_replacement(self):
         """ test_apt_source_replace
