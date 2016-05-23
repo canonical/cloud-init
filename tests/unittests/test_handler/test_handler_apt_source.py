@@ -103,6 +103,18 @@ class TestAptSourceConfig(TestCase):
                'filename': self.aptlistfile}
         self.apt_source_basic(self.aptlistfile, [cfg])
 
+    def test_apt_source_basic_dict(self):
+        """ test_apt_source_basic_dict
+        Test Fix deb source string, has to overwrite mirror conf in params.
+        Test with a filename provided in config.
+        Provided in a dictionary with filename being the key (new format)
+        """
+        cfg = {self.aptlistfile: {'source':
+                                  ('deb http://archive.ubuntu.com/ubuntu'
+                                   ' karmic-backports'
+                                   ' main universe multiverse restricted')}}
+        self.apt_source_basic(self.aptlistfile, cfg)
+
     def test_apt_source_basic_triple(self):
         """ test_apt_source_basic_triple
         Test Fix three deb source string, has to overwrite mirror conf in
