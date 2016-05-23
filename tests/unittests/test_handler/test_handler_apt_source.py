@@ -10,6 +10,7 @@ try:
     from unittest import mock
 except ImportError:
     import mock
+from mock import call
 
 from cloudinit.config import cc_apt_configure
 from cloudinit import util
@@ -206,7 +207,7 @@ class TestAptSourceConfig(TestCase):
         with mock.patch.object(os.path, 'join', side_effect=self.myjoin):
             self.apt_source_replacement(self.fallbackfn, [cfg])
 
-    def apt_source_keyid(self, filename, cfg):
+    def apt_source_keyid(self, filename, cfg, keynum):
         """ apt_source_keyid
         Test specification of a source + keyid
         """
@@ -214,9 +215,13 @@ class TestAptSourceConfig(TestCase):
 
         with mock.patch.object(util, 'subp',
                                return_value=('fakekey 1234', '')) as mockobj:
-            cc_apt_configure.add_sources([cfg], params)
+            cc_apt_configure.add_sources(cfg, params)
 
-        mockobj.assert_called_with(('apt-key', 'add', '-'), 'fakekey 1234')
+        # check if it added the right ammount of keys
+        calls = []
+        for i in range(keynum):
+            calls.append(call(('apt-key', 'add', '-'), 'fakekey 1234'))
+        mockobj.assert_has_calls(calls, any_order=True)
 
         self.assertTrue(os.path.isfile(filename))
 
@@ -238,7 +243,47 @@ class TestAptSourceConfig(TestCase):
                           ' xenial main'),
                'keyid': "03683F77",
                'filename': self.aptlistfile}
-        self.apt_source_keyid(self.aptlistfile, cfg)
+        self.apt_source_keyid(self.aptlistfile, [cfg], 1)
+
+    def test_apt_source_keyid_triple(self):
+        """ test_apt_source_keyid_triple
+        Test specification of a source + keyid with filename being set
+        Setting three of such, check for content and keys
+        """
+        cfg1 = {'source': ('deb '
+                           'http://ppa.launchpad.net/'
+                           'smoser/cloud-init-test/ubuntu'
+                           ' xenial main'),
+                'keyid': "03683F77",
+                'filename': self.aptlistfile}
+        cfg2 = {'source': ('deb '
+                           'http://ppa.launchpad.net/'
+                           'smoser/cloud-init-test/ubuntu'
+                           ' xenial universe'),
+                'keyid': "03683F77",
+                'filename': self.aptlistfile2}
+        cfg3 = {'source': ('deb '
+                           'http://ppa.launchpad.net/'
+                           'smoser/cloud-init-test/ubuntu'
+                           ' xenial multiverse'),
+                'keyid': "03683F77",
+                'filename': self.aptlistfile3}
+
+        self.apt_source_keyid(self.aptlistfile, [cfg1, cfg2, cfg3], 3)
+        contents = load_tfile_or_url(self.aptlistfile2)
+        self.assertTrue(re.search(r"%s %s %s %s\n" %
+                                  ("deb",
+                                   ('http://ppa.launchpad.net/smoser/'
+                                    'cloud-init-test/ubuntu'),
+                                   "xenial", "universe"),
+                                  contents, flags=re.IGNORECASE))
+        contents = load_tfile_or_url(self.aptlistfile3)
+        self.assertTrue(re.search(r"%s %s %s %s\n" %
+                                  ("deb",
+                                   ('http://ppa.launchpad.net/smoser/'
+                                    'cloud-init-test/ubuntu'),
+                                   "xenial", "multiverse"),
+                                  contents, flags=re.IGNORECASE))
 
     def test_apt_source_keyid_nofn(self):
         """ test_apt_source_keyid_nofn
@@ -250,7 +295,7 @@ class TestAptSourceConfig(TestCase):
                           ' xenial main'),
                'keyid': "03683F77"}
         with mock.patch.object(os.path, 'join', side_effect=self.myjoin):
-            self.apt_source_keyid(self.fallbackfn, cfg)
+            self.apt_source_keyid(self.fallbackfn, [cfg], 1)
 
     def apt_source_key(self, filename, cfg):
         """ apt_source_key
