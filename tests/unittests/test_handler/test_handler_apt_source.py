@@ -59,6 +59,15 @@ class TestAptSourceConfig(TestCase):
         params['MIRROR'] = "http://archive.ubuntu.com/ubuntu"
         return params
 
+    def myjoin(self, *args, **kwargs):
+        """ myjoin - redir into writable tmpdir"""
+        if (args[0] == "/etc/apt/sources.list.d/"
+                and args[1] == "cloud_config_sources.list"
+                and len(args) == 2):
+            return self.join(self.tmp, args[0].lstrip("/"), args[1])
+        else:
+            return self.join(*args, **kwargs)
+
     def apt_source_basic(self, filename, cfg):
         """ apt_source_basic
         Test Fix deb source string, has to overwrite mirror conf in params
@@ -99,35 +108,45 @@ class TestAptSourceConfig(TestCase):
         filename = os.path.join(self.tmp, "etc/apt/sources.list.d/",
                                 "cloud_config_sources.list")
 
-        def myjoin(*args, **kwargs):
-            """ myjoin - redir into writable tmpdir"""
-            if (args[0] == "/etc/apt/sources.list.d/"
-                    and args[1] == "cloud_config_sources.list"
-                    and len(args) == 2):
-                return self.join(self.tmp, args[0].lstrip("/"), args[1])
-            else:
-                return self.join(*args, **kwargs)
-
-        with mock.patch.object(os.path, 'join', side_effect=myjoin):
+        with mock.patch.object(os.path, 'join', side_effect=self.myjoin):
             self.apt_source_basic(filename, cfg)
 
-    def test_apt_source_replacement(self):
-        """ test_apt_source_replace
+    def apt_source_replacement(self, filename, cfg):
+        """ apt_source_replace
         Test Autoreplacement of MIRROR and RELEASE in source specs
         """
         params = self._get_default_params()
-        cfg = {'source': 'deb $MIRROR $RELEASE multiverse',
-               'filename': self.aptlistfile}
-
         cc_apt_configure.add_sources([cfg], params)
 
-        self.assertTrue(os.path.isfile(self.aptlistfile))
+        self.assertTrue(os.path.isfile(filename))
 
-        contents = load_tfile_or_url(self.aptlistfile)
+        contents = load_tfile_or_url(filename)
         self.assertTrue(re.search(r"%s %s %s %s\n" %
                                   ("deb", params['MIRROR'], params['RELEASE'],
                                    "multiverse"),
                                   contents, flags=re.IGNORECASE))
+
+    def test_apt_source_replace(self):
+        """ test_apt_source_replace
+        Test Autoreplacement of MIRROR and RELEASE in source specs with
+        Filename being set
+        """
+        cfg = {'source': 'deb $MIRROR $RELEASE multiverse',
+               'filename': self.aptlistfile}
+        self.apt_source_replacement(self.aptlistfile, cfg)
+
+    def test_apt_source_replace_nofn(self):
+        """ test_apt_source_replace_nofn
+        Test Autoreplacement of MIRROR and RELEASE in source specs with
+        No filename being set
+        """
+        cfg = {'source': 'deb $MIRROR $RELEASE multiverse'}
+        # mock into writable tmp dir and check path/content there
+        filename = os.path.join(self.tmp, "etc/apt/sources.list.d/",
+                                "cloud_config_sources.list")
+
+        with mock.patch.object(os.path, 'join', side_effect=self.myjoin):
+            self.apt_source_replacement(filename, cfg)
 
     def test_apt_source_keyid(self):
         """ test_apt_source_keyid
