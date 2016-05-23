@@ -217,8 +217,8 @@ def add_sources(srclist, template_params=None, aa_repo_match=None):
 
     errorlist = []
     # convert old list format to new dict based format
+    srcdict = {}
     if isinstance(srclist, list):
-        srcdict = {}
         fnfallbackused = None
         for srcent in srclist:
             if 'filename' not in srcent:
@@ -235,8 +235,10 @@ def add_sources(srclist, template_params=None, aa_repo_match=None):
                 # all with filename use that as key (matching new format)
                 key = srcent['filename']
             srcdict[key] = srcent
-    else:
+    elif isinstance(srclist, dict):
         srcdict = srclist
+    else:
+        errorlist.append(["srclist", "unknown apt_sources format"])
 
     for filename in srcdict:
         ent = srcdict[filename]
