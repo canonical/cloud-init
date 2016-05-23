@@ -148,17 +148,11 @@ class TestAptSourceConfig(TestCase):
         with mock.patch.object(os.path, 'join', side_effect=self.myjoin):
             self.apt_source_replacement(filename, cfg)
 
-    def test_apt_source_keyid(self):
-        """ test_apt_source_keyid
+    def apt_source_keyid(self, filename, cfg):
+        """ apt_source_keyid
         Test specification of a source + keyid
         """
         params = self._get_default_params()
-        cfg = {'source': ('deb '
-                          'http://ppa.launchpad.net/'
-                          'smoser/cloud-init-test/ubuntu'
-                          ' xenial main'),
-               'keyid': "03683F77",
-               'filename': self.aptlistfile}
 
         with mock.patch.object(util, 'subp',
                                return_value=('fakekey 1234', '')) as mockobj:
@@ -166,15 +160,42 @@ class TestAptSourceConfig(TestCase):
 
         mockobj.assert_called_with(('apt-key', 'add', '-'), 'fakekey 1234')
 
-        self.assertTrue(os.path.isfile(self.aptlistfile))
+        self.assertTrue(os.path.isfile(filename))
 
-        contents = load_tfile_or_url(self.aptlistfile)
+        contents = load_tfile_or_url(filename)
         self.assertTrue(re.search(r"%s %s %s %s\n" %
                                   ("deb",
                                    ('http://ppa.launchpad.net/smoser/'
                                     'cloud-init-test/ubuntu'),
                                    "xenial", "main"),
                                   contents, flags=re.IGNORECASE))
+
+    def test_apt_source_keyid(self):
+        """ test_apt_source_keyid
+        Test specification of a source + keyid with filename being set
+        """
+        cfg = {'source': ('deb '
+                          'http://ppa.launchpad.net/'
+                          'smoser/cloud-init-test/ubuntu'
+                          ' xenial main'),
+               'keyid': "03683F77",
+               'filename': self.aptlistfile}
+        self.apt_source_keyid(self.aptlistfile, cfg)
+
+    def test_apt_source_keyid_nofn(self):
+        """ test_apt_source_keyid
+        Test specification of a source + keyid without filename being set
+        """
+        cfg = {'source': ('deb '
+                          'http://ppa.launchpad.net/'
+                          'smoser/cloud-init-test/ubuntu'
+                          ' xenial main'),
+               'keyid': "03683F77"}
+        # mock into writable tmp dir and check path/content there
+        filename = os.path.join(self.tmp, "etc/apt/sources.list.d/",
+                                "cloud_config_sources.list")
+        with mock.patch.object(os.path, 'join', side_effect=self.myjoin):
+            self.apt_source_keyid(filename, cfg)
 
     def test_apt_source_key(self):
         """ test_apt_source_key
