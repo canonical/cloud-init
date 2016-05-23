@@ -58,26 +58,33 @@ class TestAptSourceConfig(TestCase):
         params['MIRROR'] = "http://archive.ubuntu.com/ubuntu"
         return params
 
-    def test_apt_source_basic(self):
-        """ test_apt_source_basic
+    def apt_source_basic(self, filename, cfg):
+        """ apt_source_basic
         Test Fix deb source string, has to overwrite mirror conf in params
         """
         params = self._get_default_params()
-        cfg = {'source': ('deb http://archive.ubuntu.com/ubuntu'
-                          ' karmic-backports'
-                          ' main universe multiverse restricted'),
-               'filename': self.aptlistfile}
 
         cc_apt_configure.add_sources([cfg], params)
 
-        self.assertTrue(os.path.isfile(self.aptlistfile))
+        self.assertTrue(os.path.isfile(filename))
 
-        contents = load_tfile_or_url(self.aptlistfile)
+        contents = load_tfile_or_url(filename)
         self.assertTrue(re.search(r"%s %s %s %s\n" %
                                   ("deb", "http://archive.ubuntu.com/ubuntu",
                                    "karmic-backports",
                                    "main universe multiverse restricted"),
                                   contents, flags=re.IGNORECASE))
+
+    def test_apt_source_basic(self):
+        """ test_apt_source_basic
+        Test Fix deb source string, has to overwrite mirror conf in params.
+        Test with a filename provided in config.
+        """
+        cfg = {'source': ('deb http://archive.ubuntu.com/ubuntu'
+                          ' karmic-backports'
+                          ' main universe multiverse restricted'),
+               'filename': self.aptlistfile}
+        self.apt_source_basic(self.aptlistfile, cfg)
 
     def test_apt_source_replacement(self):
         """ test_apt_source_replace
