@@ -431,5 +431,32 @@ class TestAptSourceConfig(TestCase):
         # adding ppa should ignore filename (uses add-apt-repository)
         self.assertFalse(os.path.isfile(self.aptlistfile))
 
+    def test_apt_source_ppa_triple(self):
+        """ test_apt_source_ppa_triple
+        Test specification of a ppa
+        """
+        params = self._get_default_params()
+        cfg1 = {'source': 'ppa:smoser/cloud-init-test',
+                'filename': self.aptlistfile}
+        cfg2 = {'source': 'ppa:smoser/cloud-init-test2',
+                'filename': self.aptlistfile2}
+        cfg3 = {'source': 'ppa:smoser/cloud-init-test3',
+                'filename': self.aptlistfile3}
+
+        # default matcher needed for ppa
+        matcher = re.compile(r'^[\w-]+:\w').search
+
+        with mock.patch.object(util, 'subp') as mockobj:
+            cc_apt_configure.add_sources([cfg1, cfg2, cfg3], params,
+                                         aa_repo_match=matcher)
+        calls = [call(['add-apt-repository', 'ppa:smoser/cloud-init-test']),
+                 call(['add-apt-repository', 'ppa:smoser/cloud-init-test2']),
+                 call(['add-apt-repository', 'ppa:smoser/cloud-init-test3'])]
+        mockobj.assert_has_calls(calls, any_order=True)
+
+        # adding ppa should ignore all filenames (uses add-apt-repository)
+        self.assertFalse(os.path.isfile(self.aptlistfile))
+        self.assertFalse(os.path.isfile(self.aptlistfile2))
+        self.assertFalse(os.path.isfile(self.aptlistfile3))
 
 # vi: ts=4 expandtab
