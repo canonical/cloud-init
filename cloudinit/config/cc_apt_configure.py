@@ -272,7 +272,7 @@ def add_sources(srclist, template_params=None, aa_repo_match=None):
         try:
             contents = "%s\n" % (source)
             util.write_file(ent['filename'], contents, omode="ab")
-        except:
+        except Exception:
             errorlist.append([source,
                              "failed write to file %s" % ent['filename']])
 

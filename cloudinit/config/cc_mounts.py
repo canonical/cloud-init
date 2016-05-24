@@ -244,7 +244,7 @@ def handle_swapcfg(swapcfg):
                     LOG.debug("swap file %s already in use.", fname)
                     return fname
             LOG.debug("swap file %s existed, but not in /proc/swaps", fname)
-        except:
+        except Exception:
             LOG.warn("swap file %s existed. Error reading /proc/swaps", fname)
             return fname
 
@@ -379,7 +379,7 @@ def handle(_name, cfg, cloud, log, _args):
             toks = WS.split(line)
             if toks[3].find(comment) != -1:
                 continue
-        except:
+        except Exception:
             pass
         fstab_lines.append(line)
 
@@ -390,16 +390,16 @@ def handle(_name, cfg, cloud, log, _args):
     if needswap:
         try:
             util.subp(("swapon", "-a"))
-        except:
+        except Exception:
             util.logexc(log, "Activating swap via 'swapon -a' failed")
 
     for d in dirs:
         try:
             util.ensure_dir(d)
-        except:
+        except Exception:
             util.logexc(log, "Failed to make '%s' config-mount", d)
 
     try:
         util.subp(("mount", "-a"))
-    except:
+    except Exception:
         util.logexc(log, "Activating mounts via 'mount -a' failed")

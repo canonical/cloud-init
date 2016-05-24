@@ -4,10 +4,10 @@ from cloudinit import util
 from ..helpers import TestCase, populate_dir
 
 import os
-import yaml
 import shutil
 import tempfile
 import unittest
+import yaml
 
 try:
     from unittest import mock

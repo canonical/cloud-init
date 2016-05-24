@@ -25,7 +25,7 @@ class TestLaunchFilter(helpers.ResourceUsingTestCase):
         for (index, count) in expected_counts.items():
             index = util.safe_int(index)
             filtered_message = launch_index.Filter(index).apply(message)
-            self.assertEquals(count_messages(filtered_message), count)
+            self.assertEqual(count_messages(filtered_message), count)
         # Ensure original message still ok/not modified
         self.assertTrue(self.equivalentMessage(message, orig_message))
 

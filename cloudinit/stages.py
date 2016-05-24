@@ -44,10 +44,10 @@ from cloudinit import helpers
 from cloudinit import importer
 from cloudinit import log as logging
 from cloudinit import net
+from cloudinit.reporting import events
 from cloudinit import sources
 from cloudinit import type_utils
 from cloudinit import util
-from cloudinit.reporting import events
 
 LOG = logging.getLogger(__name__)
 
@@ -483,7 +483,7 @@ class Init(object):
                 c_handlers.initialized.remove(mod)
                 try:
                     handlers.call_end(mod, data, frequency)
-                except:
+                except Exception:
                     util.logexc(LOG, "Failed to finalize handler: %s", mod)
 
         try:

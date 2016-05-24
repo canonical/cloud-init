@@ -119,7 +119,7 @@ def check_lps_ret(psc_return, mode=None):
 
     try:
         float(timeout)
-    except:
+    except Exception:
         errs.append("timeout failed convert to float")
 
     if len(errs):

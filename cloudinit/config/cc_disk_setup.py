@@ -198,7 +198,7 @@ def is_device_valid(name, partition=False):
     d_type = ""
     try:
         d_type = device_type(name)
-    except:
+    except Exception:
         LOG.warn("Query against device %s failed" % name)
         return False
 

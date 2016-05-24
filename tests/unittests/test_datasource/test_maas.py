@@ -104,13 +104,13 @@ class TestMAASDataSource(TestCase):
             'meta-data/local-hostname': 'test-hostname',
             'meta-data/public-keys': 'test-hostname',
             'user-data': b'foodata',
-            }
+        }
         valid_order = [
             'meta-data/local-hostname',
             'meta-data/instance-id',
             'meta-data/public-keys',
             'user-data',
-            ]
+        ]
         my_seed = "http://example.com/xmeta"
         my_ver = "1999-99-99"
         my_headers = {'header1': 'value1', 'header2': 'value2'}

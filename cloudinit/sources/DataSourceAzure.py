@@ -27,11 +27,12 @@ import xml.etree.ElementTree as ET
 
 from xml.dom import minidom
 
+from cloudinit.sources.helpers.azure import get_metadata_from_fabric
+
 from cloudinit import log as logging
 from cloudinit.settings import PER_ALWAYS
 from cloudinit import sources
 from cloudinit import util
-from cloudinit.sources.helpers.azure import get_metadata_from_fabric
 
 LOG = logging.getLogger(__name__)
 
@@ -40,7 +41,8 @@ DEFAULT_METADATA = {"instance-id": "iid-AZURE-NODE"}
 AGENT_START = ['service', 'walinuxagent', 'start']
 BOUNCE_COMMAND = [
     'sh', '-xc',
-    "i=$interface; x=0; ifdown $i || x=$?; ifup $i || x=$?; exit $x"]
+    "i=$interface; x=0; ifdown $i || x=$?; ifup $i || x=$?; exit $x"
+]
 
 BUILTIN_DS_CONFIG = {
     'agent_command': AGENT_START,
@@ -51,7 +53,7 @@ BUILTIN_DS_CONFIG = {
         'policy': True,
         'command': BOUNCE_COMMAND,
         'hostname_command': 'hostname',
-        },
+    },
     'disk_aliases': {'ephemeral0': '/dev/sdb'},
 }
 
@@ -60,7 +62,7 @@ BUILTIN_CLOUD_CONFIG = {
         'ephemeral0': {'table_type': 'gpt',
                        'layout': [100],
                        'overwrite': True},
-        },
+    },
     'fs_setup': [{'filesystem': 'ext4',
                   'device': 'ephemeral0.1',
                   'replace_fs': 'ntfs'}],
@@ -312,7 +314,7 @@ def support_new_ephemeral(cfg):
     file_count = 0
     try:
         file_count = util.mount_cb(device, count_files)
-    except:
+    except Exception:
         return None
     LOG.debug("fabric prepared ephmeral0.1 has %s files on it", file_count)
 

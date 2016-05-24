@@ -16,7 +16,7 @@ class TestEc2Util(helpers.HttprettyTestCase):
                         body='stuff',
                         status=200)
         userdata = eu.get_instance_userdata(self.VERSION)
-        self.assertEquals('stuff', userdata.decode('utf-8'))
+        self.assertEqual('stuff', userdata.decode('utf-8'))
 
     @hp.activate
     def test_userdata_fetch_fail_not_found(self):
@@ -24,7 +24,7 @@ class TestEc2Util(helpers.HttprettyTestCase):
                         'http://169.254.169.254/%s/user-data' % (self.VERSION),
                         status=404)
         userdata = eu.get_instance_userdata(self.VERSION, retries=0)
-        self.assertEquals('', userdata)
+        self.assertEqual('', userdata)
 
     @hp.activate
     def test_userdata_fetch_fail_server_dead(self):
@@ -32,7 +32,7 @@ class TestEc2Util(helpers.HttprettyTestCase):
                         'http://169.254.169.254/%s/user-data' % (self.VERSION),
                         status=500)
         userdata = eu.get_instance_userdata(self.VERSION, retries=0)
-        self.assertEquals('', userdata)
+        self.assertEqual('', userdata)
 
     @hp.activate
     def test_userdata_fetch_fail_server_not_found(self):
@@ -40,7 +40,7 @@ class TestEc2Util(helpers.HttprettyTestCase):
                         'http://169.254.169.254/%s/user-data' % (self.VERSION),
                         status=404)
         userdata = eu.get_instance_userdata(self.VERSION)
-        self.assertEquals('', userdata)
+        self.assertEqual('', userdata)
 
     @hp.activate
     def test_metadata_fetch_no_keys(self):
@@ -56,9 +56,9 @@ class TestEc2Util(helpers.HttprettyTestCase):
         hp.register_uri(hp.GET, uh.combine_url(base_url, 'ami-launch-index'),
                         status=200, body='1')
         md = eu.get_instance_metadata(self.VERSION, retries=0)
-        self.assertEquals(md['hostname'], 'ec2.fake.host.name.com')
-        self.assertEquals(md['instance-id'], '123')
-        self.assertEquals(md['ami-launch-index'], '1')
+        self.assertEqual(md['hostname'], 'ec2.fake.host.name.com')
+        self.assertEqual(md['instance-id'], '123')
+        self.assertEqual(md['ami-launch-index'], '1')
 
     @hp.activate
     def test_metadata_fetch_key(self):
@@ -77,9 +77,9 @@ class TestEc2Util(helpers.HttprettyTestCase):
                         uh.combine_url(base_url, 'public-keys/0/openssh-key'),
                         status=200, body='ssh-rsa AAAA.....wZEf my-public-key')
         md = eu.get_instance_metadata(self.VERSION, retries=0, timeout=0.1)
-        self.assertEquals(md['hostname'], 'ec2.fake.host.name.com')
-        self.assertEquals(md['instance-id'], '123')
-        self.assertEquals(1, len(md['public-keys']))
+        self.assertEqual(md['hostname'], 'ec2.fake.host.name.com')
+        self.assertEqual(md['instance-id'], '123')
+        self.assertEqual(1, len(md['public-keys']))
 
     @hp.activate
     def test_metadata_fetch_with_2_keys(self):
@@ -102,9 +102,9 @@ class TestEc2Util(helpers.HttprettyTestCase):
                         uh.combine_url(base_url, 'public-keys/1/openssh-key'),
                         status=200, body='ssh-rsa AAAA.....wZEf my-other-key')
         md = eu.get_instance_metadata(self.VERSION, retries=0, timeout=0.1)
-        self.assertEquals(md['hostname'], 'ec2.fake.host.name.com')
-        self.assertEquals(md['instance-id'], '123')
-        self.assertEquals(2, len(md['public-keys']))
+        self.assertEqual(md['hostname'], 'ec2.fake.host.name.com')
+        self.assertEqual(md['instance-id'], '123')
+        self.assertEqual(2, len(md['public-keys']))
 
     @hp.activate
     def test_metadata_fetch_bdm(self):
@@ -131,9 +131,9 @@ class TestEc2Util(helpers.HttprettyTestCase):
                         status=200,
                         body="sdc")
         md = eu.get_instance_metadata(self.VERSION, retries=0, timeout=0.1)
-        self.assertEquals(md['hostname'], 'ec2.fake.host.name.com')
-        self.assertEquals(md['instance-id'], '123')
+        self.assertEqual(md['hostname'], 'ec2.fake.host.name.com')
+        self.assertEqual(md['instance-id'], '123')
         bdm = md['block-device-mapping']
-        self.assertEquals(2, len(bdm))
-        self.assertEquals(bdm['ami'], 'sdb')
-        self.assertEquals(bdm['ephemeral0'], 'sdc')
+        self.assertEqual(2, len(bdm))
+        self.assertEqual(bdm['ami'], 'sdb')
+        self.assertEqual(bdm['ephemeral0'], 'sdc')

@@ -47,12 +47,12 @@ Example config:
 """
 
 from cloudinit import log as logging
-from cloudinit import util
 from cloudinit.settings import PER_INSTANCE
+from cloudinit import util
 
 import glob
-import tempfile
 import os
+import tempfile
 
 LOG = logging.getLogger(__name__)
 

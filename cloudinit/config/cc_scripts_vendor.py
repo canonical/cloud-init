@@ -37,7 +37,7 @@ def handle(name, cfg, cloud, log, _args):
 
     try:
         util.runparts(runparts_path, exe_prefix=prefix)
-    except:
+    except Exception:
         log.warn("Failed to run module %s (%s in %s)",
                  name, SCRIPT_SUBDIR, runparts_path)
         raise

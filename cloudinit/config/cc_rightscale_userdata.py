@@ -52,7 +52,7 @@ MY_HOOKNAME = 'CLOUD_INIT_REMOTE_HOOK'
 def handle(name, _cfg, cloud, log, _args):
     try:
         ud = cloud.get_userdata_raw()
-    except:
+    except Exception:
         log.debug("Failed to get raw userdata in module %s", name)
         return
 
@@ -63,7 +63,7 @@ def handle(name, _cfg, cloud, log, _args):
                        "did not find %s in parsed"
                        " raw userdata"), name, MY_HOOKNAME)
             return
-    except:
+    except Exception:
         util.logexc(log, "Failed to parse query string %s into a dictionary",
                     ud)
         raise

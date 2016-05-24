@@ -38,7 +38,7 @@ def handle(name, cfg, cloud, log, _args):
             content = util.shellify(cfg["bootcmd"])
             tmpf.write(util.encode_text(content))
             tmpf.flush()
-        except:
+        except Exception:
             util.logexc(log, "Failed to shellify bootcmd")
             raise
 
@@ -49,6 +49,6 @@ def handle(name, cfg, cloud, log, _args):
                 env['INSTANCE_ID'] = str(iid)
             cmd = ['/bin/sh', tmpf.name]
             util.subp(cmd, env=env, capture=False)
-        except:
+        except Exception:
             util.logexc(log, "Failed to run bootcmd module %s", name)
             raise

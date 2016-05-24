@@ -86,7 +86,7 @@ class FileSemaphores(object):
         name = canon_sem_name(name)
         try:
             yield self._acquire(name, freq)
-        except:
+        except Exception:
             if clear_on_fail:
                 self.clear(name, freq)
             raise
@@ -219,7 +219,7 @@ class ConfigMerger(object):
                 ds_cfg = self._ds.get_config_obj()
                 if ds_cfg and isinstance(ds_cfg, (dict)):
                     d_cfgs.append(ds_cfg)
-            except:
+            except Exception:
                 util.logexc(LOG, "Failed loading of datasource config object "
                             "from %s", self._ds)
         return d_cfgs
@@ -230,7 +230,7 @@ class ConfigMerger(object):
             e_fn = os.environ[CFG_ENV_NAME]
             try:
                 e_cfgs.append(util.read_conf(e_fn))
-            except:
+            except Exception:
                 util.logexc(LOG, 'Failed loading of env. config from %s',
                             e_fn)
         return e_cfgs
@@ -251,7 +251,7 @@ class ConfigMerger(object):
             if cc_fn and os.path.isfile(cc_fn):
                 try:
                     i_cfgs.append(util.read_conf(cc_fn))
-                except:
+                except Exception:
                     util.logexc(LOG, 'Failed loading of cloud-config from %s',
                                 cc_fn)
         return i_cfgs
@@ -268,7 +268,7 @@ class ConfigMerger(object):
             for c_fn in self._fns:
                 try:
                     cfgs.append(util.read_conf(c_fn))
-                except:
+                except Exception:
                     util.logexc(LOG, "Failed loading of configuration from %s",
                                 c_fn)
 

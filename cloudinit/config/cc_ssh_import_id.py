@@ -52,14 +52,14 @@ def handle(_name, cfg, cloud, log, args):
         else:
             try:
                 import_ids = user_cfg['ssh_import_id']
-            except:
+            except Exception:
                 log.debug("User %s is not configured for ssh_import_id", user)
                 continue
 
         try:
             import_ids = util.uniq_merge(import_ids)
             import_ids = [str(i) for i in import_ids]
-        except:
+        except Exception:
             log.debug("User %s is not correctly configured for ssh_import_id",
                       user)
             continue

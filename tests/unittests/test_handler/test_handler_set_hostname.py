@@ -7,13 +7,11 @@ from cloudinit import util
 
 from .. import helpers as t_help
 
-import shutil
-import tempfile
-import logging
-
-from six import BytesIO
-
 from configobj import ConfigObj
+import logging
+import shutil
+from six import BytesIO
+import tempfile
 
 LOG = logging.getLogger(__name__)
 
@@ -43,8 +41,8 @@ class TestHostname(t_help.FilesystemMockingTestCase):
         if not distro.uses_systemd():
             contents = util.load_file("/etc/sysconfig/network", decode=False)
             n_cfg = ConfigObj(BytesIO(contents))
-            self.assertEquals({'HOSTNAME': 'blah.blah.blah.yahoo.com'},
-                              dict(n_cfg))
+            self.assertEqual({'HOSTNAME': 'blah.blah.blah.yahoo.com'},
+                             dict(n_cfg))
 
     def test_write_hostname_debian(self):
         cfg = {
@@ -58,7 +56,7 @@ class TestHostname(t_help.FilesystemMockingTestCase):
         cc_set_hostname.handle('cc_set_hostname',
                                cfg, cc, LOG, [])
         contents = util.load_file("/etc/hostname")
-        self.assertEquals('blah', contents.strip())
+        self.assertEqual('blah', contents.strip())
 
     def test_write_hostname_sles(self):
         cfg = {
@@ -71,4 +69,4 @@ class TestHostname(t_help.FilesystemMockingTestCase):
         self.patchUtils(self.tmp)
         cc_set_hostname.handle('cc_set_hostname', cfg, cc, LOG, [])
         contents = util.load_file("/etc/HOSTNAME")
-        self.assertEquals('blah', contents.strip())
+        self.assertEqual('blah', contents.strip())

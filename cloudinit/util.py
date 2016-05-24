@@ -288,7 +288,7 @@ def fork_cb(child_cb, *args, **kwargs):
         try:
             child_cb(*args, **kwargs)
             os._exit(0)
-        except:
+        except Exception:
             logexc(LOG, "Failed forking and calling callback %s",
                    type_utils.obj_name(child_cb))
             os._exit(1)
@@ -482,7 +482,7 @@ def is_ipv4(instr):
 
     try:
         toks = [x for x in toks if int(x) < 256 and int(x) >= 0]
-    except:
+    except Exception:
         return False
 
     return len(toks) == 4
@@ -1220,7 +1220,7 @@ def get_cmdline():
     else:
         try:
             cmdline = load_file("/proc/cmdline").strip()
-        except:
+        except Exception:
             cmdline = ""
 
     PROC_CMDLINE = cmdline
@@ -1390,7 +1390,7 @@ def read_write_cmdline_url(target_fn):
     if not os.path.exists(target_fn):
         try:
             (key, url, content) = get_cmdline_url()
-        except:
+        except Exception:
             logexc(LOG, "Failed fetching command line url")
             return
         try:
@@ -1401,7 +1401,7 @@ def read_write_cmdline_url(target_fn):
             elif key and not content:
                 LOG.debug(("Command line key %s with url"
                           " %s had no contents"), key, url)
-        except:
+        except Exception:
             logexc(LOG, "Failed writing url content to %s", target_fn)
 
 
@@ -1459,7 +1459,7 @@ def mounts():
                     mp = m.group(2)
                     fstype = m.group(3)
                     opts = m.group(4)
-            except:
+            except Exception:
                 continue
             # If the name of the mount point contains spaces these
             # can be escaped as '\040', so undo that..
@@ -1585,7 +1585,7 @@ def copy(src, dest):
 def time_rfc2822():
     try:
         ts = time.strftime("%a, %d %b %Y %H:%M:%S %z", time.gmtime())
-    except:
+    except Exception:
         ts = "??"
     return ts
 
@@ -1611,7 +1611,7 @@ def uptime():
             bootup = buf.value
             uptime_str = now - bootup
 
-    except:
+    except Exception:
         logexc(LOG, "Unable to read uptime using method: %s" % method)
     return uptime_str
 
@@ -2065,7 +2065,7 @@ def log_time(logfunc, msg, func, args=None, kwargs=None, get_uptime=False):
                 tmsg += " (N/A)"
         try:
             logfunc(msg + tmsg)
-        except:
+        except Exception:
             pass
     return ret
 

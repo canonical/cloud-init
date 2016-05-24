@@ -111,7 +111,7 @@ def handle(name, cfg, cloud, log, args):
             data = "\n".join(["set %s %s" % (k, v)
                               for k, v in debconf.items()]) + "\n"
             util.subp(['debconf-communicate'], data)
-        except:
+        except Exception:
             util.logexc(log, "Failed to run '%s' for lxd with" % dconf_comm)
 
         # Remove the existing configuration file (forces re-generation)
