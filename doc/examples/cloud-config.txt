@@ -113,10 +113,11 @@ add_apt_repo_match: '^[\w-]+:\w'
 # where the filename will be ignored - yet it can still be used as index for
 # merging.
 # The value it maps to is a dictionary with the following optional entries:
-#   'source': a sources.list entry (some variable replacements apply)
-#   'keyid': providing a key to import via shortid or fingerprint
-#   'key': providing a raw PGP key
-#   'filename': for compatibility with the older format (now the key to this
+#   source: a sources.list entry (some variable replacements apply)
+#   keyid: providing a key to import via shortid or fingerprint
+#   key: providing a raw PGP key
+#   keyserver: keyserver to fetch keys from, default is keyserver.ubuntu.com
+#   filename: for compatibility with the older format (now the key to this
 #               dictionary is the filename). If specified this overwrites the
 #               filename given as key.
 
@@ -169,7 +170,6 @@ apt_sources:
  #  * [optional] Import the apt signing key from the keyserver 
  #  * Defaults:
  #    + keyserver: keyserver.ubuntu.com
- #    + filename: cloud_config_sources.list
  #
  #    See sources.list man page for more information about the format
  my-repo.list:
