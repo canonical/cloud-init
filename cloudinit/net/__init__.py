@@ -63,7 +63,7 @@ def write_file(path, content):
 def read_file(path, decode='utf8', enoent=None):
     try:
         with open(path, "rb") as fh:
-            contents = fh.load()
+            contents = fh.read()
     except OSError as e:
         if e.errno == errno.ENOENT and enoent is not None:
             return enoent
