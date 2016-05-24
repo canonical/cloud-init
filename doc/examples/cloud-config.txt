@@ -72,7 +72,7 @@ apt_pipelining: False
 # then apt_mirror above will have no effect
 apt_preserve_sources_list: true
 
-# Provide a custom template for rednering sources.list
+# Provide a custom template for rendering sources.list
 # Default: a default template for Ubuntu/Debain will be used as packaged in
 #  Ubuntu: /etc/cloud/templates/sources.list.ubuntu.tmpl
 #  Debian: /etc/cloud/templates/sources.list.debian.tmpl
