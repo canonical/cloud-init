@@ -2,7 +2,9 @@
 httpretty>=0.7.1
 mock
 nose
-nose-timer
+
+# Only needed if u want to know the test times
+# nose-timer
 
 # Only really needed on older versions of python
 contextlib2
