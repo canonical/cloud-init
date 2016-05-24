@@ -21,7 +21,6 @@
 import glob
 import os
 import re
-import tempfile
 
 from cloudinit import templater
 from cloudinit import util
@@ -179,44 +178,29 @@ def add_key_raw(key):
     """
     try:
         util.subp(('apt-key', 'add', '-'), key)
-    except:
+    except util.ProcessExecutionError:
         raise Exception('failed add key')
 
 
 def add_key(ent):
     """
-    add key to the system as defiend in ent (if any)
-    suppords raw keys or keyid's
-    The latter will as a first step fetched to get the raw key
+    add key to the system as defined in ent (if any)
+    supports raw keys or keyid's
+    The latter will as a first step fetch the raw key from a keyserver
     """
     if 'keyid' in ent and 'key' not in ent:
         keyserver = "keyserver.ubuntu.com"
         if 'keyserver' in ent:
             keyserver = ent['keyserver']
-        try:
-            ent['key'] = getkeybyid(ent['keyid'], keyserver)
-        except:
-            raise Exception('failed to get key from %s' % keyserver)
+        ent['key'] = getkeybyid(ent['keyid'], keyserver)
 
     if 'key' in ent:
         add_key_raw(ent['key'])
 
-
-def add_sources(srclist, template_params=None, aa_repo_match=None):
+def convert_to_new_format(srclist, errorlist):
+    """ convert_to_new_format
+        convert the old list based format to the new dict based one
     """
-    add entries in /etc/apt/sources.list.d for each abbreviated
-    sources.list entry in 'srclist'.  When rendering template, also
-    include the values in dictionary searchList
-    """
-    if template_params is None:
-        template_params = {}
-
-    if aa_repo_match is None:
-        def aa_repo_match(x):
-            return False
-
-    errorlist = []
-    # convert old list format to new dict based format
     srcdict = {}
     if isinstance(srclist, list):
         fnfallbackused = None
@@ -240,6 +224,24 @@ def add_sources(srclist, template_params=None, aa_repo_match=None):
     else:
         errorlist.append(["srclist", "unknown apt_sources format"])
 
+    return srcdict
+
+def add_sources(srclist, template_params=None, aa_repo_match=None):
+    """
+    add entries in /etc/apt/sources.list.d for each abbreviated
+    sources.list entry in 'srclist'.  When rendering template, also
+    include the values in dictionary searchList
+    """
+    if template_params is None:
+        template_params = {}
+
+    if aa_repo_match is None:
+        def aa_repo_match(x):
+            return False
+
+    errorlist = []
+    srcdict = convert_to_new_format(srclist, errorlist)
+
     for filename in srcdict:
         ent = srcdict[filename]
         if 'filename' not in ent:
@@ -257,7 +259,7 @@ def add_sources(srclist, template_params=None, aa_repo_match=None):
         source = ent['source']
         source = templater.render_string(source, template_params)
 
-        if not ent['filename'].startswith("/"):
+        if not ent['filename'].startswith(os.path.sep):
             ent['filename'] = os.path.join("/etc/apt/sources.list.d/",
                                            ent['filename'])
 
