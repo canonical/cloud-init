@@ -103,7 +103,7 @@ class DataSourceOpenStack(openstack.SourceMixin, sources.DataSource):
         self.metadata_address = url2base.get(avail_url)
         return bool(avail_url)
 
-    def get_data(self):
+    def get_data(self, retries=5, timeout=5):
         try:
             if not self.wait_for_metadata_service():
                 return False
@@ -115,7 +115,9 @@ class DataSourceOpenStack(openstack.SourceMixin, sources.DataSource):
                                     'Crawl of openstack metadata service',
                                     read_metadata_service,
                                     args=[self.metadata_address],
-                                    kwargs={'ssl_details': self.ssl_details})
+                                    kwargs={'ssl_details': self.ssl_details,
+                                            'retries': retries,
+                                            'timeout': timeout})
         except openstack.NonReadable:
             return False
         except (openstack.BrokenMetadata, IOError):
@@ -153,8 +155,10 @@ class DataSourceOpenStack(openstack.SourceMixin, sources.DataSource):
         return sources.instance_id_matches_system_uuid(self.get_instance_id())
 
 
-def read_metadata_service(base_url, ssl_details=None):
-    reader = openstack.MetadataReader(base_url, ssl_details=ssl_details)
+def read_metadata_service(base_url, ssl_details=None,
+                          timeout=5, retries=5):
+    reader = openstack.MetadataReader(base_url, ssl_details=ssl_details,
+                                      timeout=timeout, retries=retries)
     return reader.read_v2()
 
 
