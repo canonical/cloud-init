@@ -109,6 +109,7 @@
    [Wido den Hollander]
  - Paths: fix instance path if datasource's id has a '/'. (LP: #1575938)
    [Robert Jennings]
+ - Ec2: do not retry requests for user-data path on 404.
 
 0.7.6:
  - open 0.7.6
