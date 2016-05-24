@@ -197,6 +197,7 @@ def add_key(ent):
     if 'key' in ent:
         add_key_raw(ent['key'])
 
+
 def convert_to_new_format(srclist, errorlist):
     """ convert_to_new_format
         convert the old list based format to the new dict based one
@@ -225,6 +226,7 @@ def convert_to_new_format(srclist, errorlist):
         errorlist.append(["srclist", "unknown apt_sources format"])
 
     return srcdict
+
 
 def add_sources(srclist, template_params=None, aa_repo_match=None):
     """
