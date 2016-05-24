@@ -20,7 +20,8 @@ import errno
 import logging
 import os
 
-import six
+from .import compat
+
 import yaml
 
 LOG = logging.getLogger(__name__)
@@ -55,7 +56,7 @@ def write_file(path, content):
     if not os.path.isdir(base_path):
         os.makedirs(base_path)
     with open(path, "wb+") as fh:
-        if isinstance(content, six.text_type):
+        if isinstance(content, compat.text_type):
             content = content.encode("utf8")
         fh.write(content)
 

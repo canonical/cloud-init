@@ -16,11 +16,11 @@ import glob
 import os
 import re
 
-from cloudinit import net
+from . import LINKS_FNAME_PREFIX
+from . import ParserError
+from . import write_file
 
-from cloudinit.net import LINKS_FNAME_PREFIX
-from cloudinit.net import ParserError
-from cloudinit.net.udev import generate_udev_rule
+from .udev import generate_udev_rule
 
 
 NET_CONFIG_COMMANDS = [
@@ -365,12 +365,11 @@ class Renderer(object):
             netrules='etc/udev/rules.d/70-persistent-net.rules'):
 
         fpeni = os.path.join(target, eni)
-        net.write_file(fpeni, self._render_interfaces(network_state))
+        write_file(fpeni, self._render_interfaces(network_state))
 
         if netrules:
             netrules = os.path.join(target, netrules)
-            net.write_file(netrules,
-                           self._render_persistent_net(network_state))
+            write_file(netrules, self._render_persistent_net(network_state))
 
         if links_prefix:
             self._render_systemd_links(target, network_state, links_prefix)
@@ -393,4 +392,4 @@ class Renderer(object):
                     "Name=" + iface['name'],
                     ""
                 ])
-                net.write_file(fname, content)
+                write_file(fname, content)

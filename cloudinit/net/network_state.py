@@ -16,11 +16,12 @@
 #   along with Curtin.  If not, see <http://www.gnu.org/licenses/>.
 
 import copy
+import functools
 import logging
 
-import six
-
-from cloudinit import net
+from . import compat
+from . import dump_yaml
+from . import read_yaml_file
 
 LOG = logging.getLogger(__name__)
 
@@ -48,7 +49,7 @@ def parse_net_config(path, skip_broken=True):
     """Parses a curtin network configuration file and
        return network state"""
     ns = None
-    net_config = net.read_yaml_file(path)
+    net_config = read_yaml_file(path)
     if 'network' in net_config:
         ns = parse_net_config_data(net_config.get('network'),
                                    skip_broken=skip_broken)
@@ -57,7 +58,7 @@ def parse_net_config(path, skip_broken=True):
 
 def from_state_file(state_file):
     network_state = None
-    state = net.read_yaml_file(state_file)
+    state = read_yaml_file(state_file)
     network_state = NetworkState()
     network_state.load(state)
     return network_state
@@ -78,7 +79,7 @@ def ensure_command_keys(required_keys):
 
     def wrapper(func):
 
-        @six.wraps(func)
+        @functools.wraps(func)
         def decorator(self, command, *args, **kwargs):
             if required_keys:
                 missing_keys = diff_keys(required_keys, command)
@@ -102,8 +103,8 @@ class CommandHandlerMeta(type):
     """
     def __new__(cls, name, parents, dct):
         command_handlers = {}
-        for attr_name, attr in six.iteritems(dct):
-            if six.callable(attr) and attr_name.startswith('handle_'):
+        for attr_name, attr in dct.items():
+            if callable(attr) and attr_name.startswith('handle_'):
                 handles_what = attr_name[len('handle_'):]
                 if handles_what:
                     command_handlers[handles_what] = attr
@@ -112,7 +113,7 @@ class CommandHandlerMeta(type):
                                                       parents, dct)
 
 
-@six.add_metaclass(CommandHandlerMeta)
+@compat.add_metaclass(CommandHandlerMeta)
 class NetworkState(object):
 
     initial_network_state = {
@@ -135,7 +136,7 @@ class NetworkState(object):
             'config': self.config,
             'network_state': self.network_state,
         }
-        return net.dump_yaml(state)
+        return dump_yaml(state)
 
     def load(self, state):
         if 'version' not in state:
@@ -154,7 +155,7 @@ class NetworkState(object):
             setattr(self, key, state[key])
 
     def dump_network_state(self):
-        return net.dump_yaml(self.network_state)
+        return dump_yaml(self.network_state)
 
     def parse_config(self, skip_broken=True):
         # rebuild network state

@@ -21,20 +21,17 @@ import glob
 import gzip
 import io
 import shlex
-import sys
 
-import six
-
-from cloudinit.net import get_devicelist
-from cloudinit.net import sys_netdev_info
+from . import compat
+from . import get_devicelist
+from . import read_file
+from . import sys_netdev_info
 
 from cloudinit import util
 
-PY26 = sys.version_info[0:2] == (2, 6)
-
 
 def _shlex_split(blob):
-    if PY26 and isinstance(blob, six.text_type):
+    if compat.PY26 and isinstance(blob, compat.text_type):
         # Older versions don't support unicode input
         blob = blob.encode("utf8")
     return shlex.split(blob)
@@ -143,7 +140,7 @@ def config_from_klibc_net_cfg(files=None, mac_addrs=None):
     entries = []
     names = {}
     for cfg_file in files:
-        name, entry = _klibc_to_config_entry(util.load_file(cfg_file),
+        name, entry = _klibc_to_config_entry(read_file(cfg_file),
                                              mac_addrs=mac_addrs)
         if name in names:
             raise ValueError(
