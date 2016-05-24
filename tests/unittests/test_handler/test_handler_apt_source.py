@@ -518,4 +518,33 @@ class TestAptSourceConfig(TestCase):
         self.assertFalse(os.path.isfile(self.aptlistfile2))
         self.assertFalse(os.path.isfile(self.aptlistfile3))
 
+    def test_convert_to_new_format(self):
+        """ test_convert_to_new_format
+        Test the conversion of old to new format
+        And the noop conversion of new to new format as well
+        """
+        cfg1 = {'source': 'deb $MIRROR $RELEASE multiverse',
+                'filename': self.aptlistfile}
+        cfg2 = {'source': 'deb $MIRROR $RELEASE main',
+                'filename': self.aptlistfile2}
+        cfg3 = {'source': 'deb $MIRROR $RELEASE universe',
+                'filename': self.aptlistfile3}
+        errorlist = []
+        checkcfg = {self.aptlistfile: {'filename': self.aptlistfile,
+                                       'source': 'deb $MIRROR $RELEASE '
+                                                 'multiverse'},
+                    self.aptlistfile2: {'filename': self.aptlistfile2,
+                                        'source': 'deb $MIRROR $RELEASE main'},
+                    self.aptlistfile3: {'filename': self.aptlistfile3,
+                                        'source': 'deb $MIRROR $RELEASE '
+                                                  'universe'}}
+
+        newcfg = cc_apt_configure.convert_to_new_format([cfg1, cfg2, cfg3],
+                                                        errorlist)
+        self.assertEqual(newcfg, checkcfg)
+
+        newcfg2 = cc_apt_configure.convert_to_new_format(newcfg, errorlist)
+        self.assertEqual(newcfg2, checkcfg)
+
+
 # vi: ts=4 expandtab
