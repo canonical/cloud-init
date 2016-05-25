@@ -144,9 +144,6 @@ def _skip_retry_on_codes(status_codes, _request_args, cause):
     """Returns if a request should retry based on a given set of codes that
     case retrying to be stopped/skipped.
     """
-    print("status_codes=%s" % status_codes)
-    print("_request_args=%s" % _request_args)
-    print("cause=%s" % cause)
     return cause.code in status_codes
 
 
