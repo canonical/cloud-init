@@ -768,4 +768,49 @@ def read_kernel_cmdline_config(files=None, mac_addrs=None, cmdline=None):
     return config_from_klibc_net_cfg(files=files, mac_addrs=mac_addrs)
 
 
+def convert_eni_data(eni_data):
+    # return a network config representation of what is in eni_data
+    ifaces = {}
+    parse_deb_config_data(ifaces, eni_data, src_dir=None, src_path=None)
+    return _ifaces_to_net_config_data(ifaces)
+
+
+def _ifaces_to_net_config_data(ifaces):
+    """Return network config that represents the ifaces data provided.
+    ifaces = parse_deb_config("/etc/network/interfaces")
+    config = ifaces_to_net_config_data(ifaces)
+    state = parse_net_config_data(config)."""
+    devs = {}
+    for name, data in ifaces.items():
+        # devname is 'eth0' for name='eth0:1'
+        devname = name.partition(":")[0]
+        if devname not in devs:
+            devs[devname] = {'type': 'physical', 'name': devname,
+                             'subnets': []}
+            # this isnt strictly correct, but some might specify
+            # hwaddress on a nic for matching / declaring name.
+            if 'hwaddress' in data:
+                devs[devname]['mac_address'] = data['hwaddress']
+        subnet = {'_orig_eni_name': name, 'type': data['method']}
+        if data.get('auto'):
+            subnet['control'] = 'auto'
+        else:
+            subnet['control'] = 'manual'
+
+        if data.get('method') == 'static':
+            subnet['address'] = data['address']
+
+        if 'gateway' in data:
+            subnet['gateway'] = data['gateway']
+
+        if 'dns' in data:
+            for n in ('nameservers', 'search'):
+                if n in data['dns'] and data['dns'][n]:
+                    subnet['dns_' + n] = data['dns'][n]
+        devs[devname]['subnets'].append(subnet)
+
+    return {'version': 1,
+            'config': [devs[d] for d in sorted(devs)]}
+
+
 # vi: ts=4 expandtab syntax=python

@@ -67,6 +67,7 @@ class Init(object):
         # Changed only when a fetch occurs
         self.datasource = NULL_DATA_SOURCE
         self.ds_restored = False
+        self._previous_iid = None
 
         if reporter is None:
             reporter = events.ReportEventStack(
@@ -213,6 +214,31 @@ class Init(object):
         cfg_list = self.cfg.get('datasource_list') or []
         return (cfg_list, pkg_list)
 
+    def _restore_from_checked_cache(self, existing):
+        if existing not in ("check", "trust"):
+            raise ValueError("Unexpected value for existing: %s" % existing)
+
+        ds = self._restore_from_cache()
+        if not ds:
+            return (None, "no cache found")
+
+        run_iid_fn = self.paths.get_runpath('instance-id')
+        if os.path.exists(run_iid_fn):
+            run_iid = util.load_file(run_iid_fn).strip()
+        else:
+            run_iid = None
+
+        if run_iid == ds.get_instance_id:
+            return (ds, "restored from cache with run check: %s" % ds)
+        elif existing == "trust":
+            return (ds, "restored from cache: %s" % ds)
+        else:
+            if (hasattr(ds, 'check_instance_id') and
+                    ds.check_instance_id(self.cfg)):
+                return (ds, "restored from checked cache: %s" % ds)
+            else:
+                return (None, "cache invalid in datasource: %s" % ds)
+
     def _get_data_source(self, existing):
         if self.datasource is not NULL_DATA_SOURCE:
             return self.datasource
@@ -221,19 +247,9 @@ class Init(object):
                 name="check-cache",
                 description="attempting to read from cache [%s]" % existing,
                 parent=self.reporter) as myrep:
-            ds = self._restore_from_cache()
-            if ds and existing == "trust":
-                myrep.description = "restored from cache: %s" % ds
-            elif ds and existing == "check":
-                if (hasattr(ds, 'check_instance_id') and
-                        ds.check_instance_id(self.cfg)):
-                    myrep.description = "restored from checked cache: %s" % ds
-                else:
-                    myrep.description = "cache invalid in datasource: %s" % ds
-                    ds = None
-            else:
-                myrep.description = "no cache found"
 
+            ds, desc = self._restore_from_checked_cache(existing)
+            myrep.description = desc
             self.ds_restored = bool(ds)
             LOG.debug(myrep.description)
 
@@ -301,15 +317,15 @@ class Init(object):
 
         # What the instance id was and is...
         iid = self.datasource.get_instance_id()
-        previous_iid = None
         iid_fn = os.path.join(dp, 'instance-id')
         try:
             previous_iid = util.load_file(iid_fn).strip()
         except Exception:
-            pass
+            previous_iid = None
         if not previous_iid:
             previous_iid = iid
         util.write_file(iid_fn, "%s\n" % iid)
+        util.write_file(self.paths.get_runpath('instance-id'), "%s\n" % iid)
         util.write_file(os.path.join(dp, 'previous-instance-id'),
                         "%s\n" % (previous_iid))
         # Ensure needed components are regenerated
@@ -317,6 +333,21 @@ class Init(object):
         # change of configuration
         self._reset()
         return iid
+
+    def previous_iid(self):
+        if self._previous_iid is not None:
+            return self._previous_iid
+
+        dp = self.paths.get_cpath('data')
+        iid_fn = os.path.join(dp, 'instance-id')
+        try:
+            self._previous_iid = util.load_file(iid_fn).strip()
+        except Exception:
+            pass
+        return self._previous_iid
+
+    def is_new_instance(self):
+        return self.datasource.get_instance_id() == self.previous_iid()
 
     def fetch(self, existing="check"):
         return self._get_data_source(existing=existing)
@@ -593,15 +624,16 @@ class Init(object):
                 return (ncfg, loc)
         return (net.generate_fallback_config(), "fallback")
 
-    def apply_network_config(self):
+    def apply_network_config(self, bringup):
         netcfg, src = self._find_networking_config()
         if netcfg is None:
             LOG.info("network config is disabled by %s", src)
             return
 
-        LOG.info("Applying network configuration from %s: %s", src, netcfg)
+        LOG.info("Applying network configuration from %s bringup=%s: %s",
+                 src, bringup, netcfg)
         try:
-            return self.distro.apply_network_config(netcfg)
+            return self.distro.apply_network_config(netcfg, bringup=bringup)
         except NotImplementedError:
             LOG.warn("distro '%s' does not implement apply_network_config. "
                      "networking may not be configured properly." %

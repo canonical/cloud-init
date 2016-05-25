@@ -128,6 +128,8 @@ class Distro(object):
                                         mirror_info=arch_info)
 
     def apply_network(self, settings, bring_up=True):
+        # this applies network where 'settings' is interfaces(5) style
+        # it is obsolete compared to apply_network_config
         # Write it out
         dev_names = self._write_network(settings)
         # Now try to bring them up

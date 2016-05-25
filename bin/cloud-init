@@ -236,6 +236,7 @@ def main_init(name, args):
         else:
             LOG.debug("Execution continuing, no previous run detected that"
                       " would allow us to stop early.")
+
     else:
         existing = "check"
         if util.get_cfg_option_bool(init.cfg, 'manual_cache_clean', False):
@@ -265,17 +266,20 @@ def main_init(name, args):
             else:
                 return (None, ["No instance datasource found."])
 
-    if args.local:
-        if not init.ds_restored:
-            # if local mode and the datasource was not restored from cache
-            # (this is not first boot) then apply networking.
-            init.apply_network_config()
-        else:
-            LOG.debug("skipping networking config from restored datasource.")
-
     # Stage 6
     iid = init.instancify()
     LOG.debug("%s will now be targeting instance id: %s", name, iid)
+
+    if init.is_new_instance():
+        # on new instance, apply network config.  if not in local mode,
+        # then we just bring up new networking as the OS has already
+        # brought up the configured networking.
+        init.apply_network_config(bringup=not args.local)
+
+    if args.local and init.datasource.dsmode != sources.DSMODE_LOCAL:
+        return (init.datasource, [])
+
+    # update fully realizes user-data (pulling in #include if necessary)
     init.update()
     # Stage 7
     try:
