@@ -55,8 +55,8 @@ EXPECTED_CONVERTED_CONTENT = (
 
 # See http://help.ubuntu.com/community/UpgradeNotes for how to upgrade to
 # newer versions of the distribution.
-deb http://archive.ubuntu.com/ubuntu/ xenial main restricted
-deb-src http://archive.ubuntu.com/ubuntu/ xenial main restricted
+deb http://archive.ubuntu.com/ubuntu/ fakerelease main restricted
+deb-src http://archive.ubuntu.com/ubuntu/ fakerelease main restricted
 # FIND_SOMETHING_SPECIAL
 """)
 
@@ -152,8 +152,10 @@ class TestAptSourceConfigSourceList(t_help.FilesystemMockingTestCase):
         # the second mock restores the original subp
         with mock.patch.object(util, 'write_file') as mockwrite:
             with mock.patch.object(util, 'subp', self.subp):
-                cc_apt_configure.handle("notimportant", cfg, mycloud,
-                                        LOG, None)
+                with mock.patch.object(cc_apt_configure, 'get_release',
+                                       return_value='fakerelease'):
+                    cc_apt_configure.handle("notimportant", cfg, mycloud,
+                                            LOG, None)
 
         mockwrite.assert_called_once_with(
             '/etc/apt/sources.list',
