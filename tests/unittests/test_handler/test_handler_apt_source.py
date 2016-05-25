@@ -454,7 +454,7 @@ class TestAptSourceConfig(TestCase):
         self.assertFalse(os.path.isfile(self.aptlistfile))
 
     def test_apt_src_longkeyid_real(self):
-        """ test_apt_src_keyid_real
+        """ test_apt_src_longkeyid_real
         Test specification of a long key fingerprint without source incl
         up to addition of the key (nothing but add_key_raw mocked)
         """
