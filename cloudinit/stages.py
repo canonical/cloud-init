@@ -349,7 +349,7 @@ class Init(object):
         return self._previous_iid
 
     def is_new_instance(self):
-        return self.datasource.get_instance_id() == self.previous_iid()
+        return self.datasource.get_instance_id() != self.previous_iid()
 
     def fetch(self, existing="check"):
         return self._get_data_source(existing=existing)
