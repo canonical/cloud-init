@@ -222,7 +222,7 @@ class Init(object):
         if not ds:
             return (None, "no cache found")
 
-        run_iid_fn = self.paths.get_runpath('instance-id')
+        run_iid_fn = self.paths.get_runpath('instance_id')
         if os.path.exists(run_iid_fn):
             run_iid = util.load_file(run_iid_fn).strip()
         else:
@@ -325,9 +325,11 @@ class Init(object):
         if not previous_iid:
             previous_iid = iid
         util.write_file(iid_fn, "%s\n" % iid)
-        util.write_file(self.paths.get_runpath('instance-id'), "%s\n" % iid)
+        util.write_file(self.paths.get_runpath('instance_id'), "%s\n" % iid)
         util.write_file(os.path.join(dp, 'previous-instance-id'),
                         "%s\n" % (previous_iid))
+
+        self._write_to_cache()
         # Ensure needed components are regenerated
         # after change of instance which may cause
         # change of configuration
@@ -363,8 +365,6 @@ class Init(object):
                            reporter=self.reporter)
 
     def update(self):
-        if not self._write_to_cache():
-            return
         self._store_userdata()
         self._store_vendordata()
 
