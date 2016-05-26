@@ -64,6 +64,7 @@ SMARTOS_ATTRIB_MAP = {
     'availability_zone': ('sdc:datacenter_name', True),
     'vendor-data': ('sdc:vendor-data', False),
     'operator-script': ('sdc:operator-script', False),
+    'network-data': ('sdc:nics', False),
 }
 
 DS_NAME = 'SmartOS'
@@ -176,6 +177,8 @@ class DataSourceSmartOS(sources.DataSource):
             BUILTIN_DS_CONFIG])
 
         self.metadata = {}
+        self.network_data = None
+        self._network_config = None
 
         self.script_base_d = os.path.join(self.paths.get_cpath("scripts"))
 
@@ -194,7 +197,6 @@ class DataSourceSmartOS(sources.DataSource):
                 metadata_sockfile=self.ds_cfg['metadata_sockfile'],
                 serial_device=self.ds_cfg['serial_device'],
                 serial_timeout=self.ds_cfg['serial_timeout'])
-
 
     def _set_provisioned(self):
         '''Mark the instance provisioning state as successful.
@@ -221,7 +223,7 @@ class DataSourceSmartOS(sources.DataSource):
         if not self.smartos_env:
             LOG.debug("Not running on smartos")
             return False
-      
+
         if not self.md_client.exists():
             LOG.debug("No metadata device '%r' found for SmartOS datasource",
                       self.md_client)
@@ -279,6 +281,11 @@ class DataSourceSmartOS(sources.DataSource):
         self.metadata = util.mergemanydict([md, self.metadata])
         self.userdata_raw = ud
         self.vendordata_raw = md['vendor-data']
+        if not md['network-data']:
+            smartos_noun, strip = SMARTOS_ATTRIB_MAP.get('network-data')
+            self.network_data = self.md_client.get_json(smartos_noun,
+                                                        strip=strip)
+            md['network-data'] = self.network_data
 
         self._set_provisioned()
         return True
@@ -291,6 +298,14 @@ class DataSourceSmartOS(sources.DataSource):
 
     def get_instance_id(self):
         return self.metadata['instance-id']
+
+    @property
+    def network_config(self):
+        if self._network_config is None:
+            if self.network_data is not None:
+                self._network_config = (
+                    convert_smartos_network_data(self.network_data))
+        return self._network_config
 
 
 class JoyentMetadataFetchException(Exception):
@@ -386,8 +401,8 @@ class JoyentMetadataClient(object):
             result = result.strip()
         return result
 
-    def get_json(self, key, default=None):
-        result = self.get(key)
+    def get_json(self, key, default=None, strip=False):
+        result = self.get(key, default=default, strip=strip)
         if result is None:
             return default
         return json.loads(result)
@@ -652,6 +667,78 @@ datasources = [
 # Return a list of data sources that match this set of dependencies
 def get_datasource_list(depends):
     return sources.list_from_depends(depends, datasources)
+
+
+# Covert SMARTOS 'sdc:nics' data to network_config yaml
+def convert_smartos_network_data(network_data=None):
+    """Return a dictionary of network_config by parsing provided
+       SMARTOS sdc:nics configuration data
+
+    sdc:nics data is a dictionary of properties of a nic and the ip
+    configuration desired.  Additional nic dictionaries are appended
+    to the list.
+
+    Converting the format is straightforward though it does include
+    duplicate information as well as data which appears to be relevant
+    to the hostOS rather than the guest.
+
+    For each entry in the nics list returned from query sdc:nics, we
+    create a type: physical entry, and extract the interface properties:
+    'mac' -> 'mac_address', 'mtu', 'interface' -> 'name'.  The remaining
+    keys are related to ip configuration.  For each ip in the 'ips' list
+    we create a subnet entry under 'subnets' pairing the ip to a one in
+    the 'gateways' list.
+    """
+
+    valid_keys = {
+        'physical': [
+            'mac_address',
+            'mtu',
+            'name',
+            'params',
+            'subnets',
+            'type',
+        ],
+        'subnet': [
+            'address',
+            'broadcast',
+            'dns_nameservers',
+            'dns_search',
+            'gateway',
+            'metric',
+            'netmask',
+            'pointopoint',
+            'routes',
+            'scope',
+            'type',
+        ],
+    }
+
+    config = []
+    for nic in network_data:
+        cfg = {k: v for k, v in nic.items()
+               if k in valid_keys['physical']}
+        cfg.update({
+            'type': 'physical',
+            'name': nic['interface']
+            })
+        if 'mac' in nic:
+            cfg.update({'mac_address': nic['mac']})
+
+        subnets = []
+        for ip, gw in zip(nic['ips'], nic['gateways']):
+            subnet = {k: v for k, v in nic.items()
+                      if k in valid_keys['subnet']}
+            subnet.update({
+                'type': 'static',
+                'address': ip,
+                'gateway': gw,
+            })
+            subnets.append(subnet)
+        cfg.update({'subnets': subnets})
+        config.append(cfg)
+
+    return {'version': 1, 'config': config}
 
 
 if __name__ == "__main__":
