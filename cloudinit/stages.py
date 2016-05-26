@@ -624,16 +624,16 @@ class Init(object):
                 return (ncfg, loc)
         return (net.generate_fallback_config(), "fallback")
 
-    def apply_network_config(self, bringup):
+    def apply_network_config(self, bring_up):
         netcfg, src = self._find_networking_config()
         if netcfg is None:
             LOG.info("network config is disabled by %s", src)
             return
 
         LOG.info("Applying network configuration from %s bringup=%s: %s",
-                 src, bringup, netcfg)
+                 src, bring_up, netcfg)
         try:
-            return self.distro.apply_network_config(netcfg, bringup=bringup)
+            return self.distro.apply_network_config(netcfg, bring_up=bring_up)
         except NotImplementedError:
             LOG.warn("distro '%s' does not implement apply_network_config. "
                      "networking may not be configured properly." %
