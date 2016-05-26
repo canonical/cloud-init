@@ -35,8 +35,8 @@ from cloudinit.filters import launch_index
 from cloudinit.reporting import events
 
 DSMODE_DISABLED = "disabled"
-DSMODE_LOCAL = "net"
-DSMODE_NETWORK = "local"
+DSMODE_LOCAL = "local"
+DSMODE_NETWORK = "net"
 DSMODE_PASS = "pass"
 
 VALID_DSMODES = [DSMODE_DISABLED, DSMODE_LOCAL, DSMODE_NETWORK]
