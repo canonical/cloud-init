@@ -40,6 +40,8 @@ STD_NAMED_PACKAGES = [
     'mock',
     'nose',
     'setuptools',
+    'flake8',
+    'hacking',
 ]
 NONSTD_NAMED_PACKAGES = {
     'argparse': ('python-argparse', None),
