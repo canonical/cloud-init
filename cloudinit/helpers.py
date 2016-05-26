@@ -392,10 +392,9 @@ class Paths(object):
             return ipath
 
     def _get_path(self, base, name=None):
-        add_on = self.lookups.get(name)
-        if not add_on:
+        if name is None:
             return base
-        return os.path.join(base, add_on)
+        return os.path.join(base, self.lookups[name])
 
     def get_runpath(self, name=None):
         return self._get_path(self.run_dir, name)
