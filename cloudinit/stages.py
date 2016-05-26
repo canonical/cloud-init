@@ -228,7 +228,7 @@ class Init(object):
         else:
             run_iid = None
 
-        if run_iid == ds.get_instance_id:
+        if run_iid == ds.get_instance_id():
             return (ds, "restored from cache with run check: %s" % ds)
         elif existing == "trust":
             return (ds, "restored from cache: %s" % ds)
