@@ -271,9 +271,9 @@ def main_init(name, args):
     LOG.debug("%s will now be targeting instance id: %s", name, iid)
 
     if init.is_new_instance():
-        # on new instance, apply network config.  if not in local mode,
-        # then we just bring up new networking as the OS has already
-        # brought up the configured networking.
+        # on new instance, apply network config.
+        # in network mode 'bring_up' must be passed in as the OS
+        # has already brought up networking.
         init.apply_network_config(bring_up=not args.local)
 
     if args.local and init.datasource.dsmode != sources.DSMODE_LOCAL:
