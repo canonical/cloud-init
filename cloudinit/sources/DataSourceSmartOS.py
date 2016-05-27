@@ -302,7 +302,7 @@ class DataSourceSmartOS(sources.DataSource):
     def get_config_obj(self):
         if self.smartos_type == SMARTOS_ENV_KVM:
             return BUILTIN_CLOUD_CONFIG
-        return None
+        return {}
 
     def get_instance_id(self):
         return self.metadata['instance-id']
