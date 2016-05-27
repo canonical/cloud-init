@@ -350,7 +350,7 @@ class Paths(object):
             "data": "data",
             "vendordata_raw": "vendor-data.txt",
             "vendordata": "vendor-data.txt.i",
-            "instance_id": "instance-id",
+            "instance_id": ".instance-id",
         }
         # Set when a datasource becomes active
         self.datasource = ds
