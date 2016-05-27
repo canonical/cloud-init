@@ -332,11 +332,11 @@ class JoyentMetadataClient(object):
         r' (?P<body>(?P<request_id>[0-9a-f]+) (?P<status>SUCCESS|NOTFOUND)'
         r'( (?P<payload>.+))?)')
 
-    def __init__(self, smartos_type=None):
+    def __init__(self, smartos_type=None, fp=None):
         if smartos_type is None:
             smartos_type = get_smartos_environ()
         self.smartos_type = smartos_type
-        self.fp = None
+        self.fp = fp
 
     def _checksum(self, body):
         return '{0:08x}'.format(
