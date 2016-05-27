@@ -69,6 +69,9 @@ SMARTOS_ATTRIB_JSON = {
     'network-data': 'sdc:nics',
 }
 
+SMARTOS_ENV_LX_BRAND = "lx-brand"
+SMARTOS_ENV_KVM = "kvm"
+
 DS_NAME = 'SmartOS'
 DS_CFG_PATH = ['datasource', DS_NAME]
 NO_BASE64_DECODE = [
@@ -183,6 +186,7 @@ class DataSourceSmartOS(sources.DataSource):
         self._network_config = None
 
         self.script_base_d = os.path.join(self.paths.get_cpath("scripts"))
+        self.smartos_env = None
 
         self._init()
 
@@ -295,7 +299,9 @@ class DataSourceSmartOS(sources.DataSource):
         return self.ds_cfg['disk_aliases'].get(name)
 
     def get_config_obj(self):
-        return self.cfg
+        if self.smartos_env == SMARTOS_ENV_KVM:
+            return BUILTIN_CLOUD_CONFIG
+        return None
 
     def get_instance_id(self):
         return self.metadata['instance-id']
@@ -434,6 +440,9 @@ class JoyentMetadataClient(object):
         self.close_transport()
         return
 
+    def open_transport(self):
+        raise NotImplementedError
+
 
 class JoyentMetadataSocketClient(JoyentMetadataClient):
     def __init__(self, socketpath):
@@ -519,7 +528,7 @@ class JoyentMetadataLegacySerialClient(JoyentMetadataSerialClient):
             # now add any b64-<keyname> that has a true value
             for key in [k[3:] for k in keys if k.startswith("b64-")]:
                 if util.is_true(self._get(key)):
-                    b64_keys.append(key)
+                    b64_keys.add(key)
                 else:
                     if key in b64_keys:
                         b64_keys.remove(key)
@@ -572,7 +581,7 @@ def jmc_client_factory(
             device=serial_device, timeout=serial_timeout,
             smartos_type=smartos_type)
     elif smartos_type == 'lx-brand':
-        return JoyentMetadataSerialClient(socketpath=metadata_sockfile)
+        return JoyentMetadataSocketClient(socketpath=metadata_sockfile)
 
     raise ValueError("Unknown value for smartos_type: %s" % smartos_type)
 
@@ -647,11 +656,15 @@ def get_smartos_environ(uname_version=None, product_name=None,
     if uname_version is None:
         uname_version = uname[3]
     if uname_version.lower() == 'brandz virtual linux':
-        return 'lx-brand'
+        return SMARTOS_ENV_LX_BRAND
 
-    system_type = util.read_dmi_data("system-product-name")
+    if product_name is None:
+        system_type = util.read_dmi_data("system-product-name")
+    else:
+        system_type = product_name
+
     if system_type and 'smartdc' in system_type.lower():
-        return 'kvm'
+        return SMARTOS_ENV_KVM
 
     return None
 
@@ -742,4 +755,4 @@ def get_datasource_list(depends):
 if __name__ == "__main__":
     import sys
     jmc = jmc_client_factory()
-    jmc.get_metadata(sys.argv[1])
+    jmc.get(sys.argv[1])
