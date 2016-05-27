@@ -186,7 +186,7 @@ class DataSourceSmartOS(sources.DataSource):
         self._network_config = None
 
         self.script_base_d = os.path.join(self.paths.get_cpath("scripts"))
-        self.smartos_env = None
+        self.smartos_type = None
 
         self._init()
 
@@ -196,10 +196,11 @@ class DataSourceSmartOS(sources.DataSource):
 
     def _init(self):
         if self.smartos_environ == self._unset:
-            self.smartos_env = get_smartos_environ()
+            self.smartos_type = get_smartos_environ()
 
         if self.md_client == self._unset:
             self.md_client = jmc_client_factory(
+                smartos_type=self.smartos_type,
                 metadata_sockfile=self.ds_cfg['metadata_sockfile'],
                 serial_device=self.ds_cfg['serial_device'],
                 serial_timeout=self.ds_cfg['serial_timeout'])
@@ -226,7 +227,7 @@ class DataSourceSmartOS(sources.DataSource):
         md = {}
         ud = ""
 
-        if not self.smartos_env:
+        if not self.smartos_type:
             LOG.debug("Not running on smartos")
             return False
 
@@ -299,7 +300,7 @@ class DataSourceSmartOS(sources.DataSource):
         return self.ds_cfg['disk_aliases'].get(name)
 
     def get_config_obj(self):
-        if self.smartos_env == SMARTOS_ENV_KVM:
+        if self.smartos_type == SMARTOS_ENV_KVM:
             return BUILTIN_CLOUD_CONFIG
         return None
 
@@ -608,6 +609,7 @@ def write_boot_content(content, content_f, link=None, shebang=False,
     bit and to the SmartOS default of assuming that bash.
     """
 
+    print("content_f=%s" % content_f)
     if not content and os.path.exists(content_f):
         os.unlink(content_f)
     if link and os.path.islink(link):
@@ -639,7 +641,7 @@ def write_boot_content(content, content_f, link=None, shebang=False,
                 util.ensure_dir(os.path.dirname(link))
                 os.symlink(content_f, link)
         except IOError as e:
-            util.logexc(LOG, "failed establishing content link", e)
+            util.logexc(LOG, "failed establishing content link: %s", e)
 
 
 def get_smartos_environ(uname_version=None, product_name=None,
