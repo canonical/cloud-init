@@ -609,7 +609,6 @@ def write_boot_content(content, content_f, link=None, shebang=False,
     bit and to the SmartOS default of assuming that bash.
     """
 
-    print("content_f=%s" % content_f)
     if not content and os.path.exists(content_f):
         os.unlink(content_f)
     if link and os.path.islink(link):
