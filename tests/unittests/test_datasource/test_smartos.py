@@ -24,6 +24,7 @@
 
 from __future__ import print_function
 
+import json
 import os
 import os.path
 import re
@@ -47,6 +48,48 @@ try:
 except ImportError:
     import mock
 
+SDC_NICS = json.loads("""
+[
+    {
+        "nic_tag": "external",
+        "primary": true,
+        "mtu": 1500,
+        "model": "virtio",
+        "gateway": "8.12.42.1",
+        "netmask": "255.255.255.0",
+        "ip": "8.12.42.102",
+        "network_uuid": "992fc7ce-6aac-4b74-aed6-7b9d2c6c0bfe",
+        "gateways": [
+            "8.12.42.1"
+        ],
+        "vlan_id": 324,
+        "mac": "90:b8:d0:f5:e4:f5",
+        "interface": "net0",
+        "ips": [
+            "8.12.42.102/24"
+        ]
+    },
+    {
+        "nic_tag": "sdc_overlay/16187209",
+        "gateway": "192.168.128.1",
+        "model": "virtio",
+        "mac": "90:b8:d0:a5:ff:cd",
+        "netmask": "255.255.252.0",
+        "ip": "192.168.128.93",
+        "network_uuid": "4cad71da-09bc-452b-986d-03562a03a0a9",
+        "gateways": [
+            "192.168.128.1"
+        ],
+        "vlan_id": 2,
+        "mtu": 8500,
+        "interface": "net1",
+        "ips": [
+            "192.168.128.93/22"
+        ]
+    }
+]
+""")
+
 MOCK_RETURNS = {
     'hostname': 'test-host',
     'root_authorized_keys': 'ssh-rsa AAAAB3Nz...aC1yc2E= keyname',
@@ -60,6 +103,7 @@ MOCK_RETURNS = {
     'sdc:vendor-data': '\n'.join(['VENDOR_DATA', '']),
     'user-data': '\n'.join(['something', '']),
     'user-script': '\n'.join(['/bin/true', '']),
+    'sdc:nics': SDC_NICS,
 }
 
 DMI_DATA_RETURN = 'smartdc'
@@ -274,6 +318,13 @@ class TestSmartOSDataSource(helpers.FilesystemMockingTestCase):
                           dsrc.metadata['legacy-user-data'])
         self.assertEquals(MOCK_RETURNS['cloud-init:user-data'],
                           dsrc.userdata_raw)
+
+    def test_sdc_nics(self):
+        dsrc = self._get_ds(mockdata=MOCK_RETURNS)
+        ret = dsrc.get_data()
+        self.assertTrue(ret)
+        self.assertEquals(MOCK_RETURNS['sdc:nics'],
+                          dsrc.metadata['network-data'])
 
     def test_sdc_scripts(self):
         dsrc = self._get_ds(mockdata=MOCK_RETURNS)

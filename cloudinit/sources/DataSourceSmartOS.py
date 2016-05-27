@@ -64,7 +64,11 @@ SMARTOS_ATTRIB_MAP = {
     'availability_zone': ('sdc:datacenter_name', True),
     'vendor-data': ('sdc:vendor-data', False),
     'operator-script': ('sdc:operator-script', False),
-    'network-data': ('sdc:nics', False),
+}
+
+SMARTOS_ATTRIB_JSON = {
+    # Cloud-init Key : (SmartOS Key known JSON)
+    'network-data': 'sdc:nics',
 }
 
 DS_NAME = 'SmartOS'
@@ -233,6 +237,9 @@ class DataSourceSmartOS(sources.DataSource):
             smartos_noun, strip = attribute
             md[ci_noun] = self.md_client.get(smartos_noun, strip=strip)
 
+        for ci_noun, smartos_noun in SMARTOS_ATTRIB_JSON.items():
+            md[ci_noun] = self.md_client.get_json(smartos_noun)
+
         # @datadictionary: This key may contain a program that is written
         # to a file in the filesystem of the guest on each boot and then
         # executed. It may be of any format that would be considered
@@ -281,11 +288,7 @@ class DataSourceSmartOS(sources.DataSource):
         self.metadata = util.mergemanydict([md, self.metadata])
         self.userdata_raw = ud
         self.vendordata_raw = md['vendor-data']
-        if not md['network-data']:
-            smartos_noun, strip = SMARTOS_ATTRIB_MAP.get('network-data')
-            self.network_data = self.md_client.get_json(smartos_noun,
-                                                        strip=strip)
-            md['network-data'] = self.network_data
+        self.network_data = md['network-data']
 
         self._set_provisioned()
         return True
@@ -401,8 +404,8 @@ class JoyentMetadataClient(object):
             result = result.strip()
         return result
 
-    def get_json(self, key, default=None, strip=False):
-        result = self.get(key, default=default, strip=strip)
+    def get_json(self, key, default=None):
+        result = self.get(key, default=default)
         if result is None:
             return default
         return json.loads(result)
