@@ -52,6 +52,7 @@ from cloudinit import util
 LOG = logging.getLogger(__name__)
 
 NULL_DATA_SOURCE = None
+NO_PREVIOUS_INSTANCE_ID = "NO_PREVIOUS_INSTANCE_ID"
 
 
 class Init(object):
@@ -68,6 +69,8 @@ class Init(object):
         self.datasource = NULL_DATA_SOURCE
         self.ds_restored = False
         self._previous_iid = None
+        # simply ensure this gets set
+        self.previous_iid()
 
         if reporter is None:
             reporter = events.ReportEventStack(
@@ -345,11 +348,15 @@ class Init(object):
         try:
             self._previous_iid = util.load_file(iid_fn).strip()
         except Exception:
+            self._previous_iid = NO_PREVIOUS_INSTANCE_ID
             pass
         return self._previous_iid
 
     def is_new_instance(self):
-        return self.datasource.get_instance_id() != self.previous_iid()
+        previous = self.previous_iid()
+        ret = (previous == NO_PREVIOUS_INSTANCE_ID or
+               previous != self.datasource.get_instance_id())
+        return ret
 
     def fetch(self, existing="check"):
         return self._get_data_source(existing=existing)
