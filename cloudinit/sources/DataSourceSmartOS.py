@@ -34,13 +34,11 @@
 
 import base64
 import binascii
-import contextlib
 import json
 import os
 import random
 import re
 import socket
-import stat
 
 import serial
 
@@ -391,9 +389,6 @@ class JoyentMetadataClient(object):
             return None
 
         value = self._get_value_from_frame(request_id, response)
-        if value is None:
-            return default
-
         return value
 
     def get(self, key, default=None, strip=False):
@@ -442,11 +437,11 @@ class JoyentMetadataClient(object):
 
 class JoyentMetadataSocketClient(JoyentMetadataClient):
     def __init__(self, socketpath):
-        self.socketpath = metadata_socketfile
+        self.socketpath = socketpath
 
     def open_transport(self):
         sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-        sock.connect(path)
+        sock.connect(self.socketpath)
         self.fp = sock.makefile('rwb')
 
     def exists(self):
@@ -577,7 +572,7 @@ def jmc_client_factory(
             device=serial_device, timeout=serial_timeout,
             smartos_type=smartos_type)
     elif smartos_type == 'lx-brand':
-        return JoyentMetadataSerialClient(socketpath=metadata_socketfile)
+        return JoyentMetadataSerialClient(socketpath=metadata_sockfile)
 
     raise ValueError("Unknown value for smartos_type: %s" % smartos_type)
 
@@ -661,17 +656,6 @@ def get_smartos_environ(uname_version=None, product_name=None,
     return None
 
 
-# Used to match classes to dependencies
-datasources = [
-    (DataSourceSmartOS, (sources.DEP_FILESYSTEM, sources.DEP_NETWORK)),
-]
-
-
-# Return a list of data sources that match this set of dependencies
-def get_datasource_list(depends):
-    return sources.list_from_depends(depends, datasources)
-
-
 # Covert SMARTOS 'sdc:nics' data to network_config yaml
 def convert_smartos_network_data(network_data=None):
     """Return a dictionary of network_config by parsing provided
@@ -744,5 +728,18 @@ def convert_smartos_network_data(network_data=None):
     return {'version': 1, 'config': config}
 
 
+# Used to match classes to dependencies
+datasources = [
+    (DataSourceSmartOS, (sources.DEP_FILESYSTEM, sources.DEP_NETWORK)),
+]
+
+
+# Return a list of data sources that match this set of dependencies
+def get_datasource_list(depends):
+    return sources.list_from_depends(depends, datasources)
+
+
 if __name__ == "__main__":
-    jmc = JoyentMetadataClient(seed_file).get_metadata(noun)
+    import sys
+    jmc = jmc_client_factory()
+    jmc.get_metadata(sys.argv[1])
