@@ -1,7 +1,7 @@
 import imp
 import os
-import sys
 import six
+import sys
 
 from . import helpers as test_helpers
 
@@ -31,7 +31,7 @@ class TestCLI(test_helpers.FilesystemMockingTestCase):
             'cli', open(BIN_CLOUDINIT), '', ('', 'r', imp.PY_SOURCE))
         try:
             return cli.main()
-        except:
+        except Exception:
             pass
 
     @test_helpers.skipIf(not os.path.isfile(BIN_CLOUDINIT), "no bin/cloudinit")

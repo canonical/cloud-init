@@ -28,8 +28,9 @@ import time
 
 from email.utils import parsedate
 from functools import partial
-from requests import exceptions
+
 import oauthlib.oauth1 as oauth1
+from requests import exceptions
 
 from six.moves.urllib.parse import (
     urlparse, urlunparse,
@@ -61,7 +62,7 @@ try:
         SSL_ENABLED = True
     if _REQ_VER >= LooseVersion('0.7.0') and _REQ_VER < LooseVersion('1.0.0'):
         CONFIG_ENABLED = True
-except:
+except ImportError:
     pass
 
 

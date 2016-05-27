@@ -80,7 +80,7 @@ def _has_suitable_upstart():
         return False
     try:
         (version_out, _err) = util.subp(["initctl", "version"])
-    except:
+    except Exception:
         util.logexc(LOG, "initctl version failed")
         return False
 

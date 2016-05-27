@@ -106,9 +106,9 @@ class TestConsumeUserData(helpers.FilesystemMockingTestCase):
         ci.consume_data()
         cc_contents = util.load_file(ci.paths.get_ipath("cloud_config"))
         cc = util.load_yaml(cc_contents)
-        self.assertEquals(2, len(cc))
-        self.assertEquals('qux', cc['baz'])
-        self.assertEquals('qux2', cc['bar'])
+        self.assertEqual(2, len(cc))
+        self.assertEqual('qux', cc['baz'])
+        self.assertEqual('qux2', cc['bar'])
 
     def test_simple_jsonp_vendor_and_user(self):
         # test that user-data wins over vendor
@@ -145,9 +145,9 @@ class TestConsumeUserData(helpers.FilesystemMockingTestCase):
         (_which_ran, _failures) = mods.run_section('cloud_init_modules')
         cfg = mods.cfg
         self.assertIn('vendor_data', cfg)
-        self.assertEquals('qux', cfg['baz'])
-        self.assertEquals('qux2', cfg['bar'])
-        self.assertEquals('quxC', cfg['foo'])
+        self.assertEqual('qux', cfg['baz'])
+        self.assertEqual('qux2', cfg['bar'])
+        self.assertEqual('quxC', cfg['foo'])
 
     def test_simple_jsonp_no_vendor_consumed(self):
         # make sure that vendor data is not consumed
@@ -184,8 +184,8 @@ class TestConsumeUserData(helpers.FilesystemMockingTestCase):
         mods = stages.Modules(initer)
         (_which_ran, _failures) = mods.run_section('cloud_init_modules')
         cfg = mods.cfg
-        self.assertEquals('qux', cfg['baz'])
-        self.assertEquals('qux2', cfg['bar'])
+        self.assertEqual('qux', cfg['baz'])
+        self.assertEqual('qux2', cfg['bar'])
         self.assertNotIn('foo', cfg)
 
     def test_mixed_cloud_config(self):
@@ -222,8 +222,8 @@ c: d
         ci.consume_data()
         cc_contents = util.load_file(ci.paths.get_ipath("cloud_config"))
         cc = util.load_yaml(cc_contents)
-        self.assertEquals(1, len(cc))
-        self.assertEquals('c', cc['a'])
+        self.assertEqual(1, len(cc))
+        self.assertEqual('c', cc['a'])
 
     def test_vendor_user_yaml_cloud_config(self):
         vendor_blob = '''
@@ -263,8 +263,8 @@ run:
         (_which_ran, _failures) = mods.run_section('cloud_init_modules')
         cfg = mods.cfg
         self.assertIn('vendor_data', cfg)
-        self.assertEquals('c', cfg['a'])
-        self.assertEquals('user', cfg['name'])
+        self.assertEqual('c', cfg['a'])
+        self.assertEqual('user', cfg['name'])
         self.assertNotIn('x', cfg['run'])
         self.assertNotIn('y', cfg['run'])
         self.assertIn('z', cfg['run'])
@@ -358,10 +358,10 @@ p: 1
                               None)
         contents = util.load_file(paths.get_ipath('cloud_config'))
         contents = util.load_yaml(contents)
-        self.assertEquals(contents['run'], ['b', 'c', 'stuff', 'morestuff'])
-        self.assertEquals(contents['a'], 'be')
-        self.assertEquals(contents['e'], [1, 2, 3])
-        self.assertEquals(contents['p'], 1)
+        self.assertEqual(contents['run'], ['b', 'c', 'stuff', 'morestuff'])
+        self.assertEqual(contents['a'], 'be')
+        self.assertEqual(contents['e'], [1, 2, 3])
+        self.assertEqual(contents['p'], 1)
 
     def test_unhandled_type_warning(self):
         """Raw text without magic is ignored but shows warning."""
@@ -411,10 +411,10 @@ c: 4
         contents = util.load_file(ci.paths.get_ipath("cloud_config"))
         contents = util.load_yaml(contents)
         self.assertTrue(isinstance(contents, dict))
-        self.assertEquals(3, len(contents))
-        self.assertEquals(2, contents['a'])
-        self.assertEquals(3, contents['b'])
-        self.assertEquals(4, contents['c'])
+        self.assertEqual(3, len(contents))
+        self.assertEqual(2, contents['a'])
+        self.assertEqual(3, contents['b'])
+        self.assertEqual(4, contents['c'])
 
     def test_mime_text_plain(self):
         """Mime message of type text/plain is ignored but shows warning."""
@@ -449,8 +449,7 @@ c: 4
 
         mockobj.assert_has_calls([
             mock.call(outpath, script, 0o700),
-            mock.call(ci.paths.get_ipath("cloud_config"), "", 0o600),
-            ])
+            mock.call(ci.paths.get_ipath("cloud_config"), "", 0o600)])
 
     def test_mime_text_x_shellscript(self):
         """Mime message of type text/x-shellscript is treated as script."""
@@ -470,8 +469,7 @@ c: 4
 
         mockobj.assert_has_calls([
             mock.call(outpath, script, 0o700),
-            mock.call(ci.paths.get_ipath("cloud_config"), "", 0o600),
-            ])
+            mock.call(ci.paths.get_ipath("cloud_config"), "", 0o600)])
 
     def test_mime_text_plain_shell(self):
         """Mime type text/plain starting #!/bin/sh is treated as script."""
@@ -491,8 +489,7 @@ c: 4
 
         mockobj.assert_has_calls([
             mock.call(outpath, script, 0o700),
-            mock.call(ci.paths.get_ipath("cloud_config"), "", 0o600),
-            ])
+            mock.call(ci.paths.get_ipath("cloud_config"), "", 0o600)])
 
     def test_mime_application_octet_stream(self):
         """Mime type application/octet-stream is ignored but shows warning."""

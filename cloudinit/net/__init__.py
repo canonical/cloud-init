@@ -26,9 +26,9 @@ import re
 import shlex
 
 from cloudinit import log as logging
+from cloudinit.net import network_state
+from cloudinit.net.udev import generate_udev_rule
 from cloudinit import util
-from .udev import generate_udev_rule
-from . import network_state
 
 LOG = logging.getLogger(__name__)
 
@@ -40,16 +40,16 @@ NET_CONFIG_OPTIONS = [
     "pointtopoint", "media", "mtu", "hostname", "leasehours", "leasetime",
     "vendor", "client", "bootfile", "server", "hwaddr", "provider", "frame",
     "netnum", "endpoint", "local", "ttl",
-    ]
+]
 
 NET_CONFIG_COMMANDS = [
     "pre-up", "up", "post-up", "down", "pre-down", "post-down",
-    ]
+]
 
 NET_CONFIG_BRIDGE_OPTIONS = [
     "bridge_ageing", "bridge_bridgeprio", "bridge_fd", "bridge_gcinit",
     "bridge_hello", "bridge_maxage", "bridge_maxwait", "bridge_stp",
-    ]
+]
 
 DEFAULT_PRIMARY_INTERFACE = 'eth0'
 
@@ -399,9 +399,7 @@ def config_from_klibc_net_cfg(files=None, mac_addrs=None):
 
 
 def render_persistent_net(network_state):
-    ''' Given state, emit udev rules to map
-        mac to ifname
-    '''
+    '''Given state, emit udev rules to map mac to ifname.'''
     content = ""
     interfaces = network_state.get('interfaces')
     for iface in interfaces.values():
@@ -465,7 +463,7 @@ def iface_add_attrs(iface):
 
 
 def render_route(route, indent=""):
-    """ When rendering routes for an iface, in some cases applying a route
+    """When rendering routes for an iface, in some cases applying a route
     may result in the route command returning non-zero which produces
     some confusing output for users manually using ifup/ifdown[1].  To
     that end, we will optionally include an '|| true' postfix to each
@@ -530,7 +528,7 @@ def iface_start_entry(iface, index):
 
 
 def render_interfaces(network_state):
-    ''' Given state, emit etc/network/interfaces content '''
+    '''Given state, emit etc/network/interfaces content.'''
 
     content = ""
     interfaces = network_state.get('interfaces')

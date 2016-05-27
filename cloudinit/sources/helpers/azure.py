@@ -5,6 +5,7 @@ import socket
 import struct
 import tempfile
 import time
+
 from contextlib import contextmanager
 from xml.etree import ElementTree
 
@@ -220,7 +221,7 @@ class WALinuxAgentShim(object):
             if 'unknown-245' in line:
                 value = line.strip(' ').split(' ', 2)[-1].strip(';\n"')
         if value is None:
-            raise Exception('No endpoint found in DHCP config.')
+            raise ValueError('No endpoint found in DHCP config.')
         endpoint_ip_address = WALinuxAgentShim.get_ip_from_lease_value(value)
         LOG.debug('Azure endpoint found at %s', endpoint_ip_address)
         return endpoint_ip_address

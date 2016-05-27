@@ -25,14 +25,15 @@
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import os
-import time
 from socket import inet_ntoa
 from struct import pack
+import time
 
 from cloudinit import ec2_utils as ec2
 from cloudinit import log as logging
+from cloudinit import sources
 from cloudinit import url_helper as uhelp
-from cloudinit import sources, util
+from cloudinit import util
 
 LOG = logging.getLogger(__name__)
 

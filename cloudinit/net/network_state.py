@@ -36,7 +36,7 @@ def from_state_file(state_file):
     return network_state
 
 
-class NetworkState:
+class NetworkState(object):
     def __init__(self, version=NETWORK_STATE_VERSION, config=None):
         self.version = version
         self.config = config
@@ -53,7 +53,7 @@ class NetworkState:
     def get_command_handlers(self):
         METHOD_PREFIX = 'handle_'
         methods = filter(lambda x: callable(getattr(self, x)) and
-                         x.startswith(METHOD_PREFIX),  dir(self))
+                         x.startswith(METHOD_PREFIX), dir(self))
         handlers = {}
         for m in methods:
             key = m.replace(METHOD_PREFIX, '')
@@ -379,8 +379,9 @@ def mask2cidr(mask):
 
 
 if __name__ == '__main__':
-    import sys
     import random
+    import sys
+
     from cloudinit import net
 
     def load_config(nc):

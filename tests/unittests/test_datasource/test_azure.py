@@ -14,11 +14,11 @@ except ImportError:
 
 import crypt
 import os
-import stat
-import yaml
 import shutil
+import stat
 import tempfile
 import xml.etree.ElementTree as ET
+import yaml
 
 
 def construct_valid_ovf_env(data=None, pubkeys=None, userdata=None):
@@ -165,7 +165,7 @@ class TestAzureDataSource(TestCase):
         def tags_equal(x, y):
             for x_tag, x_val in x.items():
                 y_val = y.get(x_val.tag)
-                self.assertEquals(x_val.text, y_val.text)
+                self.assertEqual(x_val.text, y_val.text)
 
         old_cnt = create_tag_index(oxml)
         new_cnt = create_tag_index(nxml)
@@ -354,8 +354,8 @@ class TestAzureDataSource(TestCase):
         self.assertTrue(ret)
         cfg = dsrc.get_config_obj()
 
-        self.assertEquals(dsrc.device_name_to_device("ephemeral0"),
-                          "/dev/sdb")
+        self.assertEqual(dsrc.device_name_to_device("ephemeral0"),
+                         "/dev/sdb")
         assert 'disk_setup' in cfg
         assert 'fs_setup' in cfg
         self.assertIsInstance(cfg['disk_setup'], dict)
@@ -404,15 +404,15 @@ class TestAzureDataSource(TestCase):
         self.xml_notequals(data['ovfcontent'], on_disk_ovf)
 
         # Make sure that the redacted password on disk is not used by CI
-        self.assertNotEquals(dsrc.cfg.get('password'),
-                             DataSourceAzure.DEF_PASSWD_REDACTION)
+        self.assertNotEqual(dsrc.cfg.get('password'),
+                            DataSourceAzure.DEF_PASSWD_REDACTION)
 
         # Make sure that the password was really encrypted
         et = ET.fromstring(on_disk_ovf)
         for elem in et.iter():
             if 'UserPassword' in elem.tag:
-                self.assertEquals(DataSourceAzure.DEF_PASSWD_REDACTION,
-                                  elem.text)
+                self.assertEqual(DataSourceAzure.DEF_PASSWD_REDACTION,
+                                 elem.text)
 
     def test_ovf_env_arrives_in_waagent_dir(self):
         xml = construct_valid_ovf_env(data={}, userdata="FOODATA")

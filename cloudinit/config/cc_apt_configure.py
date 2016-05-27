@@ -207,20 +207,20 @@ def add_sources(srclist, template_params=None, aa_repo_match=None):
                 ks = ent['keyserver']
             try:
                 ent['key'] = getkeybyid(ent['keyid'], ks)
-            except:
+            except Exception:
                 errorlist.append([source, "failed to get key from %s" % ks])
                 continue
 
         if 'key' in ent:
             try:
                 util.subp(('apt-key', 'add', '-'), ent['key'])
-            except:
+            except Exception:
                 errorlist.append([source, "failed add key"])
 
         try:
             contents = "%s\n" % (source)
             util.write_file(ent['filename'], contents, omode="ab")
-        except:
+        except Exception:
             errorlist.append([source,
                              "failed write to file %s" % ent['filename']])
 

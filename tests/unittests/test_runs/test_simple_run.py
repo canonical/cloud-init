@@ -63,7 +63,7 @@ class TestSimpleRun(helpers.FilesystemMockingTestCase):
 
         initer.fetch()
         iid = initer.instancify()
-        self.assertEquals(iid, 'iid-datasource-none')
+        self.assertEqual(iid, 'iid-datasource-none')
         initer.update()
         self.assertTrue(os.path.islink("var/lib/cloud/instance"))
 
@@ -78,4 +78,4 @@ class TestSimpleRun(helpers.FilesystemMockingTestCase):
         self.assertTrue(os.path.exists('/etc/blah.ini'))
         self.assertIn('write-files', which_ran)
         contents = util.load_file('/etc/blah.ini')
-        self.assertEquals(contents, 'blah')
+        self.assertEqual(contents, 'blah')

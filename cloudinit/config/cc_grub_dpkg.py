@@ -69,5 +69,5 @@ def handle(name, cfg, _cloud, log, _args):
 
     try:
         util.subp(['debconf-set-selections'], dconf_sel)
-    except:
+    except Exception:
         util.logexc(log, "Failed to run debconf-set-selections for grub-dpkg")

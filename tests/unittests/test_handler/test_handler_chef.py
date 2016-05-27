@@ -1,20 +1,18 @@
 import json
+import logging
 import os
-
-from cloudinit.config import cc_chef
+import shutil
+import six
+import tempfile
 
 from cloudinit import cloud
+from cloudinit.config import cc_chef
 from cloudinit import distros
 from cloudinit import helpers
-from cloudinit import util
 from cloudinit.sources import DataSourceNone
+from cloudinit import util
 
 from .. import helpers as t_help
-
-import six
-import logging
-import shutil
-import tempfile
 
 LOG = logging.getLogger(__name__)
 

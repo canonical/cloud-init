@@ -109,6 +109,9 @@
    [Wido den Hollander]
  - Paths: fix instance path if datasource's id has a '/'. (LP: #1575938)
    [Robert Jennings]
+ - Ec2: do not retry requests for user-data path on 404.
+ - settings on the kernel command line (cc:) override all local settings
+   rather than only those in /etc/cloud/cloud.cfg (LP: #1582323)
 
 0.7.6:
  - open 0.7.6

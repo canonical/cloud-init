@@ -1,4 +1,5 @@
 import os
+from six import StringIO
 
 try:
     from unittest import mock
@@ -9,15 +10,13 @@ try:
 except ImportError:
     from contextlib2 import ExitStack
 
-from six import StringIO
 from ..helpers import TestCase
 
 from cloudinit import distros
+from cloudinit.distros.parsers.sys_conf import SysConf
 from cloudinit import helpers
 from cloudinit import settings
 from cloudinit import util
-
-from cloudinit.distros.parsers.sys_conf import SysConf
 
 
 BASE_NET_CFG = '''
@@ -108,23 +107,23 @@ class TestNetCfgDistro(TestCase):
 
             ub_distro.apply_network(BASE_NET_CFG, False)
 
-            self.assertEquals(len(write_bufs), 1)
+            self.assertEqual(len(write_bufs), 1)
             eni_name = '/etc/network/interfaces.d/50-cloud-init.cfg'
             self.assertIn(eni_name, write_bufs)
             write_buf = write_bufs[eni_name]
-            self.assertEquals(str(write_buf).strip(), BASE_NET_CFG.strip())
-            self.assertEquals(write_buf.mode, 0o644)
+            self.assertEqual(str(write_buf).strip(), BASE_NET_CFG.strip())
+            self.assertEqual(write_buf.mode, 0o644)
 
     def assertCfgEquals(self, blob1, blob2):
         b1 = dict(SysConf(blob1.strip().splitlines()))
         b2 = dict(SysConf(blob2.strip().splitlines()))
-        self.assertEquals(b1, b2)
+        self.assertEqual(b1, b2)
         for (k, v) in b1.items():
             self.assertIn(k, b2)
         for (k, v) in b2.items():
             self.assertIn(k, b1)
         for (k, v) in b1.items():
-            self.assertEquals(v, b2[k])
+            self.assertEqual(v, b2[k])
 
     def test_simple_write_rh(self):
         rh_distro = self._get_distro('rhel')
@@ -148,7 +147,7 @@ class TestNetCfgDistro(TestCase):
 
             rh_distro.apply_network(BASE_NET_CFG, False)
 
-            self.assertEquals(len(write_bufs), 4)
+            self.assertEqual(len(write_bufs), 4)
             self.assertIn('/etc/sysconfig/network-scripts/ifcfg-lo',
                           write_bufs)
             write_buf = write_bufs['/etc/sysconfig/network-scripts/ifcfg-lo']
@@ -157,7 +156,7 @@ DEVICE="lo"
 ONBOOT=yes
 '''
             self.assertCfgEquals(expected_buf, str(write_buf))
-            self.assertEquals(write_buf.mode, 0o644)
+            self.assertEqual(write_buf.mode, 0o644)
 
             self.assertIn('/etc/sysconfig/network-scripts/ifcfg-eth0',
                           write_bufs)
@@ -172,7 +171,7 @@ GATEWAY="192.168.1.254"
 BROADCAST="192.168.1.0"
 '''
             self.assertCfgEquals(expected_buf, str(write_buf))
-            self.assertEquals(write_buf.mode, 0o644)
+            self.assertEqual(write_buf.mode, 0o644)
 
             self.assertIn('/etc/sysconfig/network-scripts/ifcfg-eth1',
                           write_bufs)
@@ -183,7 +182,7 @@ BOOTPROTO="dhcp"
 ONBOOT=yes
 '''
             self.assertCfgEquals(expected_buf, str(write_buf))
-            self.assertEquals(write_buf.mode, 0o644)
+            self.assertEqual(write_buf.mode, 0o644)
 
             self.assertIn('/etc/sysconfig/network', write_bufs)
             write_buf = write_bufs['/etc/sysconfig/network']
@@ -192,7 +191,7 @@ ONBOOT=yes
 NETWORKING=yes
 '''
             self.assertCfgEquals(expected_buf, str(write_buf))
-            self.assertEquals(write_buf.mode, 0o644)
+            self.assertEqual(write_buf.mode, 0o644)
 
     def test_write_ipv6_rhel(self):
         rh_distro = self._get_distro('rhel')
@@ -216,7 +215,7 @@ NETWORKING=yes
 
             rh_distro.apply_network(BASE_NET_CFG_IPV6, False)
 
-            self.assertEquals(len(write_bufs), 4)
+            self.assertEqual(len(write_bufs), 4)
             self.assertIn('/etc/sysconfig/network-scripts/ifcfg-lo',
                           write_bufs)
             write_buf = write_bufs['/etc/sysconfig/network-scripts/ifcfg-lo']
@@ -225,7 +224,7 @@ DEVICE="lo"
 ONBOOT=yes
 '''
             self.assertCfgEquals(expected_buf, str(write_buf))
-            self.assertEquals(write_buf.mode, 0o644)
+            self.assertEqual(write_buf.mode, 0o644)
 
             self.assertIn('/etc/sysconfig/network-scripts/ifcfg-eth0',
                           write_bufs)
@@ -243,7 +242,7 @@ IPV6ADDR="2607:f0d0:1002:0011::2"
 IPV6_DEFAULTGW="2607:f0d0:1002:0011::1"
 '''
             self.assertCfgEquals(expected_buf, str(write_buf))
-            self.assertEquals(write_buf.mode, 0o644)
+            self.assertEqual(write_buf.mode, 0o644)
             self.assertIn('/etc/sysconfig/network-scripts/ifcfg-eth1',
                           write_bufs)
             write_buf = write_bufs['/etc/sysconfig/network-scripts/ifcfg-eth1']
@@ -260,7 +259,7 @@ IPV6ADDR="2607:f0d0:1002:0011::3"
 IPV6_DEFAULTGW="2607:f0d0:1002:0011::1"
 '''
             self.assertCfgEquals(expected_buf, str(write_buf))
-            self.assertEquals(write_buf.mode, 0o644)
+            self.assertEqual(write_buf.mode, 0o644)
 
             self.assertIn('/etc/sysconfig/network', write_bufs)
             write_buf = write_bufs['/etc/sysconfig/network']
@@ -271,7 +270,7 @@ NETWORKING_IPV6=yes
 IPV6_AUTOCONF=no
 '''
             self.assertCfgEquals(expected_buf, str(write_buf))
-            self.assertEquals(write_buf.mode, 0o644)
+            self.assertEqual(write_buf.mode, 0o644)
 
     def test_simple_write_freebsd(self):
         fbsd_distro = self._get_distro('freebsd')
@@ -319,4 +318,4 @@ ifconfig_vtnet1="DHCP"
 defaultrouter="192.168.1.254"
 '''
             self.assertCfgEquals(expected_buf, str(write_buf))
-            self.assertEquals(write_buf.mode, 0o644)
+            self.assertEqual(write_buf.mode, 0o644)
