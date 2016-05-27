@@ -743,7 +743,7 @@ def convert_smartos_network_data(network_data=None):
 
 # Used to match classes to dependencies
 datasources = [
-    (DataSourceSmartOS, (sources.DEP_FILESYSTEM, sources.DEP_NETWORK)),
+    (DataSourceConfigDrive, (sources.DEP_FILESYSTEM, )),
 ]
 
 
