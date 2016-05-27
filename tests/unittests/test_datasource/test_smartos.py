@@ -536,4 +536,4 @@ class TestNetworkConversion(TestCase):
                               'address': '192.168.128.93/22'}],
                  'mtu': 8500, 'mac_address': '90:b8:d0:a5:ff:cd'}]}
         found = DataSourceSmartOS.convert_smartos_network_data(SDC_NICS)
-        self.assertEqual(expected, found)
+        self.assertEquals(expected, found)
