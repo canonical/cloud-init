@@ -722,8 +722,7 @@ def convert_smartos_network_data(network_data=None):
                if k in valid_keys['physical']}
         cfg.update({
             'type': 'physical',
-            'name': nic['interface']
-            })
+            'name': nic['interface']})
         if 'mac' in nic:
             cfg.update({'mac_address': nic['mac']})
 

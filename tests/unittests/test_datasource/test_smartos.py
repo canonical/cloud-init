@@ -40,9 +40,8 @@ import six
 from cloudinit import helpers as c_helpers
 from cloudinit.sources import DataSourceSmartOS
 from cloudinit.util import b64e
-from cloudinit import util
 
-from ..helpers import mock, TestCase, FilesystemMockingTestCase
+from ..helpers import mock, FilesystemMockingTestCase
 
 SDC_NICS = json.loads("""
 [
@@ -111,7 +110,7 @@ class PsuedoJoyentClient(object):
             data = MOCK_RETURNS.copy()
         self.data = data
         return
-        
+
     def get(self, key, default=None, strip=False):
         if key in self.data:
             r = self.data[key]
@@ -169,10 +168,6 @@ class TestSmartOSDataSource(FilesystemMockingTestCase):
 
         return DataSourceSmartOS.DataSourceSmartOS(
             sys_cfg, distro=None, paths=self.paths)
-        
-    def test_it_got_here(self):
-        dsrc = self._get_ds()
-        ret = dsrc.get_data()
 
     def test_no_base64(self):
         ds_cfg = {'no_base64_decode': ['test_var1'], 'all_base': True}
@@ -377,7 +372,6 @@ class TestSmartOSDataSource(FilesystemMockingTestCase):
 
         self.assertEqual(dsrc.device_name_to_device('FOO'),
                          mydscfg['disk_aliases']['FOO'])
-
 
 
 class TestJoyentMetadataClient(FilesystemMockingTestCase):
