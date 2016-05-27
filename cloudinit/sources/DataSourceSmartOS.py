@@ -755,4 +755,23 @@ def get_datasource_list(depends):
 if __name__ == "__main__":
     import sys
     jmc = jmc_client_factory()
-    jmc.get(sys.argv[1])
+    if len(sys.argv) == 1:
+        keys = (list(SMARTOS_ATTRIB_JSON.keys()) +
+                list(SMARTOS_ATTRIB_MAP.keys()))
+    else:
+        keys = sys.argv[1:]
+
+    data = {}
+    for key in keys:
+        if key in SMARTOS_ATTRIB_JSON:
+            keyname = SMARTOS_ATTRIB_JSON[key]
+            data[key] = jmc.get_json(keyname)
+        else:
+            if key in SMARTOS_ATTRIB_MAP:
+                keyname, strip = SMARTOS_ATTRIB_MAP[key]
+            else:
+                keyname, strip = (key, False)
+            val = jmc.get(keyname, strip=strip)
+            data[key] = jmc.get(keyname, strip=strip)
+
+    print(json.dumps(data, indent=1))
