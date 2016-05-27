@@ -69,8 +69,6 @@ class Init(object):
         self.datasource = NULL_DATA_SOURCE
         self.ds_restored = False
         self._previous_iid = None
-        # simply ensure this gets set
-        self.previous_iid()
 
         if reporter is None:
             reporter = events.ReportEventStack(
@@ -321,12 +319,8 @@ class Init(object):
         # What the instance id was and is...
         iid = self.datasource.get_instance_id()
         iid_fn = os.path.join(dp, 'instance-id')
-        try:
-            previous_iid = util.load_file(iid_fn).strip()
-        except Exception:
-            previous_iid = None
-        if not previous_iid:
-            previous_iid = iid
+
+        previous_iid = self.previous_iid()
         util.write_file(iid_fn, "%s\n" % iid)
         util.write_file(self.paths.get_runpath('instance_id'), "%s\n" % iid)
         util.write_file(os.path.join(dp, 'previous-instance-id'),
@@ -349,7 +343,8 @@ class Init(object):
             self._previous_iid = util.load_file(iid_fn).strip()
         except Exception:
             self._previous_iid = NO_PREVIOUS_INSTANCE_ID
-            pass
+
+        LOG.debug("previous iid found to be %s", self._previous_iid)
         return self._previous_iid
 
     def is_new_instance(self):
