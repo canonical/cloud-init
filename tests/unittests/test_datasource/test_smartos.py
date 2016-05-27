@@ -41,7 +41,7 @@ from cloudinit import helpers as c_helpers
 from cloudinit.sources import DataSourceSmartOS
 from cloudinit.util import b64e
 
-from ..helpers import mock, FilesystemMockingTestCase
+from ..helpers import mock, FilesystemMockingTestCase, TestCase
 
 SDC_NICS = json.loads("""
 [
@@ -517,3 +517,23 @@ class TestJoyentMetadataClient(FilesystemMockingTestCase):
         client = self._get_client()
         client._checksum = lambda _: self.response_parts['crc']
         self.assertIsNone(client.get('some_key'))
+
+
+class TestNetworkConversion(TestCase):
+
+    def test_convert_simple(self):
+        expected = {
+            'version': 1,
+            'config': [
+                {'name': 'net0', 'type': 'physical',
+                 'subnets': [{'type': 'static', 'gateway': '8.12.42.1',
+                              'netmask': '255.255.255.0',
+                              'address': '8.12.42.102/24'}],
+                 'mtu': 1500, 'mac_address': '90:b8:d0:f5:e4:f5'},
+                {'name': 'net1', 'type': 'physical',
+                 'subnets': [{'type': 'static', 'gateway': '192.168.128.1',
+                              'netmask': '255.255.252.0',
+                              'address': '192.168.128.93/22'}],
+                 'mtu': 8500, 'mac_address': '90:b8:d0:a5:ff:cd'}]}
+        found = DataSourceSmartOS.convert_smartos_network_data(SDC_NICS)
+        self.assertEqual(expected, found)
