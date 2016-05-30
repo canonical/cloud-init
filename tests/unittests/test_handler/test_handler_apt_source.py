@@ -529,7 +529,6 @@ class TestAptSourceConfig(TestCase):
                 'filename': self.aptlistfile2}
         cfg3 = {'source': 'deb $MIRROR $RELEASE universe',
                 'filename': self.aptlistfile3}
-        errorlist = []
         checkcfg = {self.aptlistfile: {'filename': self.aptlistfile,
                                        'source': 'deb $MIRROR $RELEASE '
                                                  'multiverse'},
@@ -539,11 +538,10 @@ class TestAptSourceConfig(TestCase):
                                         'source': 'deb $MIRROR $RELEASE '
                                                   'universe'}}
 
-        newcfg = cc_apt_configure.convert_to_new_format([cfg1, cfg2, cfg3],
-                                                        errorlist)
+        newcfg = cc_apt_configure.convert_to_new_format([cfg1, cfg2, cfg3])
         self.assertEqual(newcfg, checkcfg)
 
-        newcfg2 = cc_apt_configure.convert_to_new_format(newcfg, errorlist)
+        newcfg2 = cc_apt_configure.convert_to_new_format(newcfg)
         self.assertEqual(newcfg2, checkcfg)
 
 

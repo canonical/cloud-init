@@ -198,24 +198,18 @@ def add_key(ent):
         add_key_raw(ent['key'])
 
 
-def convert_to_new_format(srclist, errorlist):
+def convert_to_new_format(srclist):
     """ convert_to_new_format
         convert the old list based format to the new dict based one
     """
     srcdict = {}
     if isinstance(srclist, list):
-        fnfallbackused = None
         for srcent in srclist:
             if 'filename' not in srcent:
                 # file collides for multiple !filename cases for compatibility
                 # yet we need them all processed, so not same dictionary key
                 srcent['filename'] = "cloud_config_sources.list"
                 key = util.rand_dict_key(srcdict, "cloud_config_sources.list")
-                if fnfallbackused is not None:
-                    errorlist.append(["multiple apt_source entries without",
-                                      "filename will conflict: %s vs %s" %
-                                      (srcent, fnfallbackused)])
-                fnfallbackused = srcent
             else:
                 # all with filename use that as key (matching new format)
                 key = srcent['filename']
@@ -223,7 +217,7 @@ def convert_to_new_format(srclist, errorlist):
     elif isinstance(srclist, dict):
         srcdict = srclist
     else:
-        errorlist.append(["srclist", "unknown apt_sources format"])
+        raise ValueError("unknown apt_sources format")
 
     return srcdict
 
@@ -242,7 +236,7 @@ def add_sources(srclist, template_params=None, aa_repo_match=None):
             return False
 
     errorlist = []
-    srcdict = convert_to_new_format(srclist, errorlist)
+    srcdict = convert_to_new_format(srclist)
 
     for filename in srcdict:
         ent = srcdict[filename]
