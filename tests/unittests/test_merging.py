@@ -125,9 +125,9 @@ class TestSimpleRun(helpers.ResourceUsingTestCase):
 
     def test_seed_runs(self):
         test_dicts = []
-        for i in range(1, 50):
+        for i in range(1, 10):
             base_dicts = []
-            for j in range(1, 50):
+            for j in range(1, 10):
                 base_dicts.append(make_dict(5, i * j))
             test_dicts.append(base_dicts)
         for test in test_dicts:

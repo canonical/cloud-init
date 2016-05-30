@@ -794,15 +794,15 @@ class Modules(object):
 def fetch_base_config():
     base_cfgs = []
     default_cfg = util.get_builtin_cfg()
-    kern_contents = util.read_cc_from_cmdline()
-
-    # Kernel/cmdline parameters override system config
-    if kern_contents:
-        base_cfgs.append(util.load_yaml(kern_contents, default={}))
 
     # Anything in your conf.d location??
     # or the 'default' cloud.cfg location???
     base_cfgs.append(util.read_conf_with_confd(CLOUD_CONFIG))
+
+    # Kernel/cmdline parameters override system config
+    kern_contents = util.read_cc_from_cmdline()
+    if kern_contents:
+        base_cfgs.append(util.load_yaml(kern_contents, default={}))
 
     # And finally the default gets to play
     if default_cfg:
