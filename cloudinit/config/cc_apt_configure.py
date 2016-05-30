@@ -40,7 +40,7 @@ EXPORT_GPG_KEYID = """
     k=${1} ks=${2};
     exec 2>/dev/null
     [ -n "$k" ] || exit 1;
-    armour=$(gpg --list-keys --armour "${k}")
+    armour=$(gpg --export --armour "${k}")
     if [ -z "${armour}" ]; then
        gpg --keyserver ${ks} --recv "${k}" >/dev/null &&
           armour=$(gpg --export --armour "${k}") &&
