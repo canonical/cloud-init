@@ -220,7 +220,7 @@ apt_sources:
       -----END PGP PUBLIC KEY BLOCK-----
 
  # Custom gpg key:
- #  * As the keyid also a key can be specified withut a related source
+ #  * As with keyid, a key may also be specified without a related source.
  #  * all other facts mentioned above still apply
  # since this doesn't generate a source.list file the filename key is ignored
  ignored4:
