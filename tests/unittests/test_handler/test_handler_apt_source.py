@@ -544,5 +544,8 @@ class TestAptSourceConfig(TestCase):
         newcfg2 = cc_apt_configure.convert_to_new_format(newcfg)
         self.assertEqual(newcfg2, checkcfg)
 
+        with self.assertRaises(ValueError):
+            cc_apt_configure.convert_to_new_format(5)
+
 
 # vi: ts=4 expandtab
