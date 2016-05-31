@@ -632,6 +632,16 @@ class Init(object):
             LOG.info("network config is disabled by %s", src)
             return
 
+        try:
+            LOG.debug("applying net config names for %s" % netcfg)
+            self.distro.apply_network_config_names(netcfg)
+        except Exception as e:
+            LOG.warn("Failed to rename devices: %s", e)
+
+        if not self.is_new_instance():
+            LOG.debug("not a new instance. network config is not applied.")
+            return
+
         LOG.info("Applying network configuration from %s bringup=%s: %s",
                  src, bring_up, netcfg)
         try:

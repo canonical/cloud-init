@@ -813,4 +813,90 @@ def _ifaces_to_net_config_data(ifaces):
             'config': [devs[d] for d in sorted(devs)]}
 
 
+def apply_network_config_names(netcfg, strict_present=True, strict_busy=True):
+    """read the network config and rename devices accordingly.
+    if strict_present is false, then do not raise exception if no devices
+    match.  if strict_busy is false, then do not raise exception if the
+    device cannot be renamed because it is currently configured."""
+    renames = []
+    for ent in netcfg.get('config', {}):
+        if ent.get('type') != 'physical':
+            continue
+        mac = ent.get('mac_address')
+        name = ent.get('name')
+        if not mac:
+            continue
+        renames.append([mac, name])
+
+    return rename_interfaces(renames)
+
+
+def rename_interfaces(renames, strict_present=True, strict_busy=True):
+    cur_bymac = {get_interface_mac(n): n for n in get_devicelist()}
+    expected = {mac: name for mac, name in renames}
+    cur_byname = {v: k for k, v in cur_bymac.items()}
+
+    tmpname_fmt = "cirename%d"
+    tmpi = -1
+
+    moves = []
+    changes = []
+    errors = []
+    for mac, new_name in expected.items():
+        cur_name = cur_bymac.get(mac)
+        if cur_name == new_name:
+            # nothing to do
+            continue
+
+        if not cur_name:
+            if strict_present:
+                errors.append(
+                    "[nic not present] Cannot rename mac=%s to %s"
+                    ", not available." % (mac, new_name))
+        elif is_up(cur_name):
+            if strict_busy:
+                errors.append("[busy] Error renaming mac=%s from %s to %s." %
+                              (mac, cur_name, new_name))
+        elif new_name in cur_byname:
+            if is_up(new_name):
+                if strict_busy:
+                    errors.append(
+                        "[busy-target] Error renaming mac=%s from %s to %s." %
+                        (mac, cur_name, new_name))
+            else:
+                tmp_name = None
+                while tmp_name is None or tmp_name in cur_byname:
+                    tmpi += 1
+                    tmp_name = tmpname_fmt % tmpi
+                moves.append((mac, cur_name, tmp_name))
+                changes.append((mac, tmp_name, new_name))
+        else:
+            changes.append((mac, cur_name, new_name))
+
+    def rename_dev(cur, new):
+        cmd = ["ip", "link", "set", cur, "name", new]
+        util.subp(cmd)
+
+    for mac, cur, new in moves + changes:
+        try:
+            rename_dev(cur, new)
+        except util.ProcessExecutionError as e:
+            errors.append(
+                "[unknown] Error renaming mac=%s from %s to %s. (%s)" %
+                (mac, cur, new, e))
+
+    if len(errors):
+        raise Exception('\n'.join(errors))
+
+
+def get_interface_mac(ifname):
+    """Returns the string value of an interface's MAC Address"""
+    return read_sys_net(ifname, "address", enoent=False)
+
+
+def get_ifname_mac_pairs():
+    """Build a list of tuples (ifname, mac)"""
+    return [(ifname, get_interface_mac(ifname)) for ifname in get_devicelist()]
+
+
 # vi: ts=4 expandtab syntax=python
