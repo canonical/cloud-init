@@ -577,11 +577,11 @@ def jmc_client_factory(
     if smartos_type is None:
         smartos_type = get_smartos_environ(uname_version)
 
-    if smartos_type == 'kvm':
+    if smartos_type == SMARTOS_ENV_KVM:
         return JoyentMetadataLegacySerialClient(
             device=serial_device, timeout=serial_timeout,
             smartos_type=smartos_type)
-    elif smartos_type == 'lx-brand':
+    elif smartos_type == SMARTOS_ENV_LX_BRAND:
         return JoyentMetadataSocketClient(socketpath=metadata_sockfile)
 
     raise ValueError("Unknown value for smartos_type: %s" % smartos_type)
