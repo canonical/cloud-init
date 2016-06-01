@@ -638,7 +638,8 @@ class Init(object):
         except Exception as e:
             LOG.warn("Failed to rename devices: %s", e)
 
-        if not self.is_new_instance():
+        if (self.datasource is not NULL_DATA_SOURCE and
+                not self.is_new_instance()):
             LOG.debug("not a new instance. network config is not applied.")
             return
 
