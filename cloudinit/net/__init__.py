@@ -831,19 +831,65 @@ def apply_network_config_names(netcfg, strict_present=True, strict_busy=True):
     return rename_interfaces(renames)
 
 
-def rename_interfaces(renames, strict_present=True, strict_busy=True):
-    cur_bymac = {get_interface_mac(n): n for n in get_devicelist()}
-    expected = {mac: name for mac, name in renames}
-    cur_byname = {v: k for k, v in cur_bymac.items()}
+def _get_current_rename_info(check_downable=True):
+    """Collect information necessary for rename_interfaces."""
+    names = get_devicelist()
+    bymac = {}
+    for n in names:
+        bymac[get_interface_mac(n)] = {
+            'name': n, 'up': is_up(n), 'downable': None}
 
+    if check_downable:
+        nmatch = re.compile(r"[0-9]+:\s+(\w+)[@:]")
+        ipv6, _err = util.subp(['ip', '-6', 'addr', 'show', 'permanent',
+                                'scope', 'global'], capture=True)
+        ipv4, _err = util.subp(['ip', '-4', 'addr', 'show'], capture=True)
+
+        nics_with_addresses = set()
+        for bytes_out in (ipv6, ipv4):
+            nics_with_addresses.update(nmatch.findall(bytes_out))
+
+        for d in bymac.values():
+            d['downable'] = (d['up'] is False or
+                             d['name'] not in nics_with_addresses)
+
+    return bymac
+
+
+def rename_interfaces(renames, strict_present=True, strict_busy=True,
+                      current_info=None):
+    if current_info is None:
+        current_info = _get_current_rename_info()
+
+    cur_bymac = {}
+    for mac, data in current_info.items():
+        cur = data.copy()
+        cur['mac'] = mac
+        cur_bymac[mac] = cur
+
+    def update_byname(bymac):
+        return {data['name']: data for data in bymac.values()}
+
+    def rename(cur, new):
+        util.subp(["ip", "link", "set", cur, "name", new], capture=True)
+
+    def down(name):
+        util.subp(["ip", "link", "set", name, "down"], capture=True)
+
+    def up(name):
+        util.subp(["ip", "link", "set", name, "up"], capture=True)
+
+    ops = []
+    errors = []
+    ups = []
+    cur_byname = update_byname(cur_bymac)
     tmpname_fmt = "cirename%d"
     tmpi = -1
 
-    moves = []
-    changes = []
-    errors = []
-    for mac, new_name in expected.items():
-        cur_name = cur_bymac.get(mac)
+    for mac, new_name in renames:
+        cur = cur_bymac.get(mac, {})
+        cur_name = cur.get('name')
+        cur_ops = []
         if cur_name == new_name:
             # nothing to do
             continue
@@ -853,37 +899,54 @@ def rename_interfaces(renames, strict_present=True, strict_busy=True):
                 errors.append(
                     "[nic not present] Cannot rename mac=%s to %s"
                     ", not available." % (mac, new_name))
-        elif is_up(cur_name):
-            if strict_busy:
-                errors.append("[busy] Error renaming mac=%s from %s to %s." %
-                              (mac, cur_name, new_name))
-        elif new_name in cur_byname:
-            if is_up(new_name):
+            continue
+
+        if cur['up']:
+            msg = "[busy] Error renaming mac=%s from %s to %s"
+            if not cur['downable']:
                 if strict_busy:
-                    errors.append(
-                        "[busy-target] Error renaming mac=%s from %s to %s." %
-                        (mac, cur_name, new_name))
-            else:
-                tmp_name = None
-                while tmp_name is None or tmp_name in cur_byname:
-                    tmpi += 1
-                    tmp_name = tmpname_fmt % tmpi
-                moves.append((mac, cur_name, tmp_name))
-                changes.append((mac, tmp_name, new_name))
-        else:
-            changes.append((mac, cur_name, new_name))
+                    errors.append(msg % (mac, cur_name, new_name))
+                continue
+            cur['up'] = False
+            cur_ops.append((down, mac, new_name, (cur_name,)))
+            ups.append((up, mac, new_name, (new_name,)))
 
-    def rename_dev(cur, new):
-        cmd = ["ip", "link", "set", cur, "name", new]
-        util.subp(cmd)
+        if new_name in cur_byname:
+            target = cur_byname[new_name]
+            if target['up']:
+                msg = "[busy-target] Error renaming mac=%s from %s to %s."
+                if not target['downable']:
+                    if strict_busy:
+                        errors.append(msg % (mac, cur_name, new_name))
+                    continue
+                else:
+                    cur_ops.append((down, mac, new_name, (new_name,)))
 
-    for mac, cur, new in moves + changes:
+            tmp_name = None
+            while tmp_name is None or tmp_name in cur_byname:
+                tmpi += 1
+                tmp_name = tmpname_fmt % tmpi
+
+            cur_ops.append((rename, mac, new_name, (new_name, tmp_name)))
+            target['name'] = tmp_name
+            cur_byname = update_byname(cur_bymac)
+            if target['up']:
+                ups.append((up, mac, new_name, (tmp_name,)))
+
+        cur_ops.append((rename, mac, new_name, (cur['name'], new_name)))
+        cur['name'] = new_name
+        cur_byname = update_byname(cur_bymac)
+        ops += cur_ops
+
+    LOG.debug("achieving renaming of %s with ops %s", renames, ops + ups)
+
+    for op, mac, new_name, params in ops + ups:
         try:
-            rename_dev(cur, new)
-        except util.ProcessExecutionError as e:
+            op(*params)
+        except Exception as e:
             errors.append(
-                "[unknown] Error renaming mac=%s from %s to %s. (%s)" %
-                (mac, cur, new, e))
+                "[unknown] Error performing %s%s for %s, %s: %s" %
+                (op.__name__, params, mac, new_name, e))
 
     if len(errors):
         raise Exception('\n'.join(errors))
