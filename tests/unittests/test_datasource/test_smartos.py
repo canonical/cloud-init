@@ -217,7 +217,7 @@ class TestSmartOSDataSource(FilesystemMockingTestCase):
         ret = dsrc.get_data()
         self.assertTrue(ret)
         self.assertEqual(json.loads(MOCK_RETURNS['sdc:nics']),
-                          dsrc.metadata['network-data'])
+                         dsrc.metadata['network-data'])
 
     def test_sdc_scripts(self):
         dsrc = self._get_ds(mockdata=MOCK_RETURNS)
