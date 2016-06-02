@@ -186,7 +186,6 @@ class DataSourceSmartOS(sources.DataSource):
         self._network_config = None
 
         self.script_base_d = os.path.join(self.paths.get_cpath("scripts"))
-        self.smartos_type = None
 
         self._init()
 
