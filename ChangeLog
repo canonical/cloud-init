@@ -112,6 +112,7 @@
  - Ec2: do not retry requests for user-data path on 404.
  - settings on the kernel command line (cc:) override all local settings
    rather than only those in /etc/cloud/cloud.cfg (LP: #1582323)
+ - Improve merging documentation [Daniel Watkins]
 
 0.7.6:
  - open 0.7.6
