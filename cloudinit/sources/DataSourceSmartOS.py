@@ -171,7 +171,7 @@ LEGACY_USER_D = "/var/db"
 
 class DataSourceSmartOS(sources.DataSource):
     _unset = "_unset"
-    smartos_environ = _unset
+    smartos_type = _unset
     md_client = _unset
 
     def __init__(self, sys_cfg, distro, paths):
@@ -195,8 +195,10 @@ class DataSourceSmartOS(sources.DataSource):
         return "%s [client=%s]" % (root, self.md_client)
 
     def _init(self):
-        if self.smartos_environ == self._unset:
+        if self.smartos_type == self._unset:
             self.smartos_type = get_smartos_environ()
+            if self.smartos_type is None:
+                self.md_client = None
 
         if self.md_client == self._unset:
             self.md_client = jmc_client_factory(
@@ -577,7 +579,9 @@ def jmc_client_factory(
     if smartos_type is None:
         smartos_type = get_smartos_environ(uname_version)
 
-    if smartos_type == SMARTOS_ENV_KVM:
+    if smartos_type is None:
+        return None
+    elif smartos_type == SMARTOS_ENV_KVM:
         return JoyentMetadataLegacySerialClient(
             device=serial_device, timeout=serial_timeout,
             smartos_type=smartos_type)
@@ -755,6 +759,9 @@ def get_datasource_list(depends):
 if __name__ == "__main__":
     import sys
     jmc = jmc_client_factory()
+    if jmc is None:
+        print("Do not appear to be on smartos.")
+        sys.exit(1)
     if len(sys.argv) == 1:
         keys = (list(SMARTOS_ATTRIB_JSON.keys()) +
                 list(SMARTOS_ATTRIB_MAP.keys()))
