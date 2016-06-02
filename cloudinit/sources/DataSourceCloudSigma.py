@@ -115,6 +115,9 @@ class DataSourceCloudSigma(sources.DataSource):
         return self.metadata['uuid']
 
 
+# Legacy: Must be present in case we load an old pkl object
+DataSourceCloudSigmaNet = DataSourceCloudSigma
+
 # Used to match classes to dependencies. Since this datasource uses the serial
 # port network is not really required, so it's okay to load without it, too.
 datasources = [

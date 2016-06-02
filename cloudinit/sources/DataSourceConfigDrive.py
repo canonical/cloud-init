@@ -254,17 +254,6 @@ def find_candidate_devs(probe_optical=True):
     return devices
 
 
-# Used to match classes to dependencies
-datasources = [
-    (DataSourceConfigDrive, (sources.DEP_FILESYSTEM, )),
-]
-
-
-# Return a list of data sources that match this set of dependencies
-def get_datasource_list(depends):
-    return sources.list_from_depends(depends, datasources)
-
-
 # Convert OpenStack ConfigDrive NetworkData json to network_config yaml
 def convert_network_data(network_json=None):
     """Return a dictionary of network_config by parsing provided
@@ -382,3 +371,17 @@ def convert_network_data(network_json=None):
         config.append(cfg)
 
     return {'version': 1, 'config': config}
+
+
+# Legacy: Must be present in case we load an old pkl object
+DataSourceConfigDriveNet = DataSourceConfigDrive
+
+# Used to match classes to dependencies
+datasources = [
+    (DataSourceConfigDrive, (sources.DEP_FILESYSTEM, )),
+]
+
+
+# Return a list of data sources that match this set of dependencies
+def get_datasource_list(depends):
+    return sources.list_from_depends(depends, datasources)

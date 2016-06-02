@@ -415,6 +415,9 @@ def read_context_disk_dir(source_dir, asuser=None):
     return results
 
 
+# Legacy: Must be present in case we load an old pkl object
+DataSourceOpenNebulaNet = DataSourceOpenNebula
+
 # Used to match classes to dependencies
 datasources = [
     (DataSourceOpenNebula, (sources.DEP_FILESYSTEM, )),
