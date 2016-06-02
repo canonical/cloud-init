@@ -908,8 +908,8 @@ def rename_interfaces(renames, strict_present=True, strict_busy=True,
                     errors.append(msg % (mac, cur_name, new_name))
                 continue
             cur['up'] = False
-            cur_ops.append((down, mac, new_name, (cur_name,)))
-            ups.append((up, mac, new_name, (new_name,)))
+            cur_ops.append(("down", mac, new_name, (cur_name,)))
+            ups.append(("up", mac, new_name, (new_name,)))
 
         if new_name in cur_byname:
             target = cur_byname[new_name]
@@ -920,33 +920,41 @@ def rename_interfaces(renames, strict_present=True, strict_busy=True,
                         errors.append(msg % (mac, cur_name, new_name))
                     continue
                 else:
-                    cur_ops.append((down, mac, new_name, (new_name,)))
+                    cur_ops.append(("down", mac, new_name, (new_name,)))
 
             tmp_name = None
             while tmp_name is None or tmp_name in cur_byname:
                 tmpi += 1
                 tmp_name = tmpname_fmt % tmpi
 
-            cur_ops.append((rename, mac, new_name, (new_name, tmp_name)))
+            cur_ops.append(("rename", mac, new_name, (new_name, tmp_name)))
             target['name'] = tmp_name
             cur_byname = update_byname(cur_bymac)
             if target['up']:
-                ups.append((up, mac, new_name, (tmp_name,)))
+                ups.append(("up", mac, new_name, (tmp_name,)))
 
-        cur_ops.append((rename, mac, new_name, (cur['name'], new_name)))
+        cur_ops.append(("rename", mac, new_name, (cur['name'], new_name)))
         cur['name'] = new_name
         cur_byname = update_byname(cur_bymac)
         ops += cur_ops
 
-    LOG.debug("achieving renaming of %s with ops %s", renames, ops + ups)
+    opmap = {'rename': rename, 'down': down, 'up': up}
 
-    for op, mac, new_name, params in ops + ups:
-        try:
-            op(*params)
-        except Exception as e:
-            errors.append(
-                "[unknown] Error performing %s%s for %s, %s: %s" %
-                (op.__name__, params, mac, new_name, e))
+    if len(ops) + len(ups) == 0:
+        if len(errors):
+            LOG.debug("unable to do any work for renaming of %s", renames)
+        else:
+            LOG.debug("no work necessary for renaming of %s", renames)
+    else:
+        LOG.debug("achieving renaming of %s with ops %s", renames, ops + ups)
+
+        for op, mac, new_name, params in ops + ups:
+            try:
+                opmap.get(op)(*params)
+            except Exception as e:
+                errors.append(
+                    "[unknown] Error performing %s%s for %s, %s: %s" %
+                    (op, params, mac, new_name, e))
 
     if len(errors):
         raise Exception('\n'.join(errors))
