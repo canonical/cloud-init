@@ -190,5 +190,5 @@ used the previous merging are also, similarly, now extensible (metadata
 merging, for example).
 
 Note, however, that merge algorithms are not used *across* types of
-configuration.  As was previously the case, merged user-data will still
-overwrite conf.d configuration.
+configuration.  As was the case before merging was implemented,
+user-data will overwrite conf.d configuration without merging.
