@@ -201,7 +201,11 @@ def parse_deb_config_data(ifaces, contents, src_dir, src_path):
             ifaces[iface]['method'] = method
             currif = iface
         elif option == "hwaddress":
-            ifaces[currif]['hwaddress'] = split[1]
+            if split[1] == "ether":
+                val = split[2]
+            else:
+                val = split[1]
+            ifaces[currif]['hwaddress'] = val
         elif option in NET_CONFIG_OPTIONS:
             ifaces[currif][option] = split[1]
         elif option in NET_CONFIG_COMMANDS:
@@ -800,8 +804,9 @@ def _ifaces_to_net_config_data(ifaces):
         if data.get('method') == 'static':
             subnet['address'] = data['address']
 
-        if 'gateway' in data:
-            subnet['gateway'] = data['gateway']
+        for copy_key in ('netmask', 'gateway', 'broadcast'):
+            if copy_key in data:
+                subnet[copy_key] = data[copy_key]
 
         if 'dns' in data:
             for n in ('nameservers', 'search'):
