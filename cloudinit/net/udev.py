@@ -48,7 +48,7 @@ def generate_udev_rule(interface, mac):
         compose_udev_equality('DRIVERS', '?*'),
         compose_udev_attr_equality('address', mac),
         compose_udev_setting('NAME', interface),
-        ])
+    ])
     return '%s\n' % rule
 
 # vi: ts=4 expandtab syntax=python

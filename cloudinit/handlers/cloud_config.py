@@ -158,6 +158,6 @@ class CloudConfigPartHandler(handlers.Handler):
             for i in ("\n", "\r", "\t"):
                 filename = filename.replace(i, " ")
             self.file_names.append(filename.strip())
-        except:
+        except Exception:
             util.logexc(LOG, "Failed at merging in cloud config part from %s",
                         filename)

@@ -32,13 +32,13 @@
 #       http://us-east.manta.joyent.com/jmc/public/mdata/datadict.html
 #       Comments with "@datadictionary" are snippets of the definition
 
+import base64
 import binascii
-import contextlib
+import json
 import os
 import random
 import re
 import socket
-import stat
 
 import serial
 
@@ -64,14 +64,36 @@ SMARTOS_ATTRIB_MAP = {
     'operator-script': ('sdc:operator-script', False),
 }
 
+SMARTOS_ATTRIB_JSON = {
+    # Cloud-init Key : (SmartOS Key known JSON)
+    'network-data': 'sdc:nics',
+}
+
+SMARTOS_ENV_LX_BRAND = "lx-brand"
+SMARTOS_ENV_KVM = "kvm"
+
 DS_NAME = 'SmartOS'
 DS_CFG_PATH = ['datasource', DS_NAME]
+NO_BASE64_DECODE = [
+    'iptables_disable',
+    'motd_sys_info',
+    'root_authorized_keys',
+    'sdc:datacenter_name',
+    'sdc:uuid'
+    'user-data',
+    'user-script',
+]
+
+METADATA_SOCKFILE = '/native/.zonecontrol/metadata.sock'
+SERIAL_DEVICE = '/dev/ttyS1'
+SERIAL_TIMEOUT = 60
+
 # BUILT-IN DATASOURCE CONFIGURATION
 #  The following is the built-in configuration. If the values
 #  are not set via the system configuration, then these default
 #  will be used:
 #    serial_device: which serial device to use for the meta-data
-#    seed_timeout: how long to wait on the device
+#    serial_timeout: how long to wait on the device
 #    no_base64_decode: values which are not base64 encoded and
 #            are fetched directly from SmartOS, not meta-data values
 #    base64_keys: meta-data keys that are delivered in base64
@@ -81,16 +103,10 @@ DS_CFG_PATH = ['datasource', DS_NAME]
 #    fs_setup: describes how to format the ephemeral drive
 #
 BUILTIN_DS_CONFIG = {
-    'serial_device': '/dev/ttyS1',
-    'metadata_sockfile': '/native/.zonecontrol/metadata.sock',
-    'seed_timeout': 60,
-    'no_base64_decode': ['root_authorized_keys',
-                         'motd_sys_info',
-                         'iptables_disable',
-                         'user-data',
-                         'user-script',
-                         'sdc:datacenter_name',
-                         'sdc:uuid'],
+    'serial_device': SERIAL_DEVICE,
+    'serial_timeout': SERIAL_TIMEOUT,
+    'metadata_sockfile': METADATA_SOCKFILE,
+    'no_base64_decode': NO_BASE64_DECODE,
     'base64_keys': [],
     'base64_all': False,
     'disk_aliases': {'ephemeral0': '/dev/vdb'},
@@ -154,59 +170,41 @@ LEGACY_USER_D = "/var/db"
 
 
 class DataSourceSmartOS(sources.DataSource):
+    _unset = "_unset"
+    smartos_type = _unset
+    md_client = _unset
+
     def __init__(self, sys_cfg, distro, paths):
         sources.DataSource.__init__(self, sys_cfg, distro, paths)
-        self.is_smartdc = None
         self.ds_cfg = util.mergemanydict([
             self.ds_cfg,
             util.get_cfg_by_path(sys_cfg, DS_CFG_PATH, {}),
             BUILTIN_DS_CONFIG])
 
         self.metadata = {}
+        self.network_data = None
+        self._network_config = None
 
-        # SDC LX-Brand Zones lack dmidecode (no /dev/mem) but
-        # report 'BrandZ virtual linux' as the kernel version
-        if os.uname()[3].lower() == 'brandz virtual linux':
-            LOG.debug("Host is SmartOS, guest in Zone")
-            self.is_smartdc = True
-            self.smartos_type = 'lx-brand'
-            self.cfg = {}
-            self.seed = self.ds_cfg.get("metadata_sockfile")
-        else:
-            self.is_smartdc = True
-            self.smartos_type = 'kvm'
-            self.seed = self.ds_cfg.get("serial_device")
-            self.cfg = BUILTIN_CLOUD_CONFIG
-            self.seed_timeout = self.ds_cfg.get("serial_timeout")
-        self.smartos_no_base64 = self.ds_cfg.get('no_base64_decode')
-        self.b64_keys = self.ds_cfg.get('base64_keys')
-        self.b64_all = self.ds_cfg.get('base64_all')
         self.script_base_d = os.path.join(self.paths.get_cpath("scripts"))
+
+        self._init()
 
     def __str__(self):
         root = sources.DataSource.__str__(self)
-        return "%s [seed=%s]" % (root, self.seed)
+        return "%s [client=%s]" % (root, self.md_client)
 
-    def _get_seed_file_object(self):
-        if not self.seed:
-            raise AttributeError("seed device is not set")
+    def _init(self):
+        if self.smartos_type == self._unset:
+            self.smartos_type = get_smartos_environ()
+            if self.smartos_type is None:
+                self.md_client = None
 
-        if self.smartos_type == 'lx-brand':
-            if not stat.S_ISSOCK(os.stat(self.seed).st_mode):
-                LOG.debug("Seed %s is not a socket", self.seed)
-                return None
-            sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-            sock.connect(self.seed)
-            return sock.makefile('rwb')
-        else:
-            if not stat.S_ISCHR(os.stat(self.seed).st_mode):
-                LOG.debug("Seed %s is not a character device")
-                return None
-            ser = serial.Serial(self.seed, timeout=self.seed_timeout)
-            if not ser.isOpen():
-                raise SystemError("Unable to open %s" % self.seed)
-            return ser
-        return None
+        if self.md_client == self._unset:
+            self.md_client = jmc_client_factory(
+                smartos_type=self.smartos_type,
+                metadata_sockfile=self.ds_cfg['metadata_sockfile'],
+                serial_device=self.ds_cfg['serial_device'],
+                serial_timeout=self.ds_cfg['serial_timeout'])
 
     def _set_provisioned(self):
         '''Mark the instance provisioning state as successful.
@@ -225,50 +223,26 @@ class DataSourceSmartOS(sources.DataSource):
                       '/'.join([svc_path, 'provision_success']))
 
     def get_data(self):
+        self._init()
+
         md = {}
         ud = ""
 
-        if not device_exists(self.seed):
-            LOG.debug("No metadata device '%s' found for SmartOS datasource",
-                      self.seed)
+        if not self.smartos_type:
+            LOG.debug("Not running on smartos")
             return False
 
-        uname_arch = os.uname()[4]
-        if uname_arch.startswith("arm") or uname_arch == "aarch64":
-            # Disabling because dmidcode in dmi_data() crashes kvm process
-            LOG.debug("Disabling SmartOS datasource on arm (LP: #1243287)")
+        if not self.md_client.exists():
+            LOG.debug("No metadata device '%r' found for SmartOS datasource",
+                      self.md_client)
             return False
 
-        # SDC KVM instances will provide dmi data, LX-brand does not
-        if self.smartos_type == 'kvm':
-            dmi_info = dmi_data()
-            if dmi_info is None:
-                LOG.debug("No dmidata utility found")
-                return False
+        for ci_noun, attribute in SMARTOS_ATTRIB_MAP.items():
+            smartos_noun, strip = attribute
+            md[ci_noun] = self.md_client.get(smartos_noun, strip=strip)
 
-            system_type = dmi_info
-            if 'smartdc' not in system_type.lower():
-                LOG.debug("Host is not on SmartOS. system_type=%s",
-                          system_type)
-                return False
-            LOG.debug("Host is SmartOS, guest in KVM")
-
-        seed_obj = self._get_seed_file_object()
-        if seed_obj is None:
-            LOG.debug('Seed file object not found.')
-            return False
-        with contextlib.closing(seed_obj) as seed:
-            b64_keys = self.query('base64_keys', seed, strip=True, b64=False)
-            if b64_keys is not None:
-                self.b64_keys = [k.strip() for k in str(b64_keys).split(',')]
-
-            b64_all = self.query('base64_all', seed, strip=True, b64=False)
-            if b64_all is not None:
-                self.b64_all = util.is_true(b64_all)
-
-            for ci_noun, attribute in SMARTOS_ATTRIB_MAP.items():
-                smartos_noun, strip = attribute
-                md[ci_noun] = self.query(smartos_noun, seed, strip=strip)
+        for ci_noun, smartos_noun in SMARTOS_ATTRIB_JSON.items():
+            md[ci_noun] = self.md_client.get_json(smartos_noun)
 
         # @datadictionary: This key may contain a program that is written
         # to a file in the filesystem of the guest on each boot and then
@@ -318,6 +292,7 @@ class DataSourceSmartOS(sources.DataSource):
         self.metadata = util.mergemanydict([md, self.metadata])
         self.userdata_raw = ud
         self.vendordata_raw = md['vendor-data']
+        self.network_data = md['network-data']
 
         self._set_provisioned()
         return True
@@ -326,69 +301,20 @@ class DataSourceSmartOS(sources.DataSource):
         return self.ds_cfg['disk_aliases'].get(name)
 
     def get_config_obj(self):
-        return self.cfg
+        if self.smartos_type == SMARTOS_ENV_KVM:
+            return BUILTIN_CLOUD_CONFIG
+        return {}
 
     def get_instance_id(self):
         return self.metadata['instance-id']
 
-    def query(self, noun, seed_file, strip=False, default=None, b64=None):
-        if b64 is None:
-            if noun in self.smartos_no_base64:
-                b64 = False
-            elif self.b64_all or noun in self.b64_keys:
-                b64 = True
-
-        return self._query_data(noun, seed_file, strip=strip,
-                                default=default, b64=b64)
-
-    def _query_data(self, noun, seed_file, strip=False,
-                    default=None, b64=None):
-        """Makes a request via "GET <NOUN>"
-
-           In the response, the first line is the status, while subsequent
-           lines are is the value. A blank line with a "." is used to
-           indicate end of response.
-
-           If the response is expected to be base64 encoded, then set
-           b64encoded to true. Unfortantely, there is no way to know if
-           something is 100% encoded, so this method relies on being told
-           if the data is base64 or not.
-        """
-
-        if not noun:
-            return False
-
-        response = JoyentMetadataClient(seed_file).get_metadata(noun)
-
-        if response is None:
-            return default
-
-        if b64 is None:
-            b64 = self._query_data('b64-%s' % noun, seed_file, b64=False,
-                                   default=False, strip=True)
-            b64 = util.is_true(b64)
-
-        resp = None
-        if b64 or strip:
-            resp = "".join(response).rstrip()
-        else:
-            resp = "".join(response)
-
-        if b64:
-            try:
-                return util.b64d(resp)
-            # Bogus input produces different errors in Python 2 and 3;
-            # catch both.
-            except (TypeError, binascii.Error):
-                LOG.warn("Failed base64 decoding key '%s'", noun)
-                return resp
-
-        return resp
-
-
-def device_exists(device):
-    """Symplistic method to determine if the device exists or not"""
-    return os.path.exists(device)
+    @property
+    def network_config(self):
+        if self._network_config is None:
+            if self.network_data is not None:
+                self._network_config = (
+                    convert_smartos_network_data(self.network_data))
+        return self._network_config
 
 
 class JoyentMetadataFetchException(Exception):
@@ -407,8 +333,11 @@ class JoyentMetadataClient(object):
         r' (?P<body>(?P<request_id>[0-9a-f]+) (?P<status>SUCCESS|NOTFOUND)'
         r'( (?P<payload>.+))?)')
 
-    def __init__(self, metasource):
-        self.metasource = metasource
+    def __init__(self, smartos_type=None, fp=None):
+        if smartos_type is None:
+            smartos_type = get_smartos_environ()
+        self.smartos_type = smartos_type
+        self.fp = fp
 
     def _checksum(self, body):
         return '{0:08x}'.format(
@@ -436,37 +365,229 @@ class JoyentMetadataClient(object):
         LOG.debug('Value "%s" found.', value)
         return value
 
-    def get_metadata(self, metadata_key):
-        LOG.debug('Fetching metadata key "%s"...', metadata_key)
+    def request(self, rtype, param=None):
         request_id = '{0:08x}'.format(random.randint(0, 0xffffffff))
-        message_body = '{0} GET {1}'.format(request_id,
-                                            util.b64e(metadata_key))
+        message_body = ' '.join((request_id, rtype,))
+        if param:
+            message_body += ' ' + base64.b64encode(param.encode()).decode()
         msg = 'V2 {0} {1} {2}\n'.format(
             len(message_body), self._checksum(message_body), message_body)
         LOG.debug('Writing "%s" to metadata transport.', msg)
-        self.metasource.write(msg.encode('ascii'))
-        self.metasource.flush()
+
+        need_close = False
+        if not self.fp:
+            self.open_transport()
+            need_close = True
+
+        self.fp.write(msg.encode('ascii'))
+        self.fp.flush()
 
         response = bytearray()
-        response.extend(self.metasource.read(1))
+        response.extend(self.fp.read(1))
         while response[-1:] != b'\n':
-            response.extend(self.metasource.read(1))
+            response.extend(self.fp.read(1))
+
+        if need_close:
+            self.close_transport()
+
         response = response.rstrip().decode('ascii')
         LOG.debug('Read "%s" from metadata transport.', response)
 
         if 'SUCCESS' not in response:
             return None
 
-        return self._get_value_from_frame(request_id, response)
+        value = self._get_value_from_frame(request_id, response)
+        return value
+
+    def get(self, key, default=None, strip=False):
+        result = self.request(rtype='GET', param=key)
+        if result is None:
+            return default
+        if result and strip:
+            result = result.strip()
+        return result
+
+    def get_json(self, key, default=None):
+        result = self.get(key, default=default)
+        if result is None:
+            return default
+        return json.loads(result)
+
+    def list(self):
+        result = self.request(rtype='KEYS')
+        if result:
+            result = result.split('\n')
+        return result
+
+    def put(self, key, val):
+        param = b' '.join([base64.b64encode(i.encode())
+                           for i in (key, val)]).decode()
+        return self.request(rtype='PUT', param=param)
+
+    def delete(self, key):
+        return self.request(rtype='DELETE', param=key)
+
+    def close_transport(self):
+        if self.fp:
+            self.fp.close()
+            self.fp = None
+
+    def __enter__(self):
+        if self.fp:
+            return self
+        self.open_transport()
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        self.close_transport()
+        return
+
+    def open_transport(self):
+        raise NotImplementedError
 
 
-def dmi_data():
-    sys_type = util.read_dmi_data("system-product-name")
+class JoyentMetadataSocketClient(JoyentMetadataClient):
+    def __init__(self, socketpath):
+        self.socketpath = socketpath
 
-    if not sys_type:
+    def open_transport(self):
+        sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        sock.connect(self.socketpath)
+        self.fp = sock.makefile('rwb')
+
+    def exists(self):
+        return os.path.exists(self.socketpath)
+
+    def __repr__(self):
+        return "%s(socketpath=%s)" % (self.__class__.__name__, self.socketpath)
+
+
+class JoyentMetadataSerialClient(JoyentMetadataClient):
+    def __init__(self, device, timeout=10, smartos_type=None):
+        super(JoyentMetadataSerialClient, self).__init__(smartos_type)
+        self.device = device
+        self.timeout = timeout
+
+    def exists(self):
+        return os.path.exists(self.device)
+
+    def open_transport(self):
+        ser = serial.Serial(self.device, timeout=self.timeout)
+        if not ser.isOpen():
+            raise SystemError("Unable to open %s" % self.device)
+        self.fp = ser
+
+    def __repr__(self):
+        return "%s(device=%s, timeout=%s)" % (
+            self.__class__.__name__, self.device, self.timeout)
+
+
+class JoyentMetadataLegacySerialClient(JoyentMetadataSerialClient):
+    """V1 of the protocol was not safe for all values.
+    Thus, we allowed the user to pass values in as base64 encoded.
+    Users may still reasonably expect to be able to send base64 data
+    and have it transparently decoded.  So even though the V2 format is
+    now used, and is safe (using base64 itself), we keep legacy support.
+
+    The way for a user to do this was:
+      a.) specify 'base64_keys' key whose value is a comma delimited
+          list of keys that were base64 encoded.
+      b.) base64_all: string interpreted as a boolean that indicates
+          if all keys are base64 encoded.
+      c.) set a key named b64-<keyname> with a boolean indicating that
+          <keyname> is base64 encoded."""
+
+    def __init__(self, device, timeout=10, smartos_type=None):
+        s = super(JoyentMetadataLegacySerialClient, self)
+        s.__init__(device, timeout, smartos_type)
+        self.base64_keys = None
+        self.base64_all = None
+
+    def _init_base64_keys(self, reset=False):
+        if reset:
+            self.base64_keys = None
+            self.base64_all = None
+
+        keys = None
+        if self.base64_all is None:
+            keys = self.list()
+            if 'base64_all' in keys:
+                self.base64_all = util.is_true(self._get("base64_all"))
+            else:
+                self.base64_all = False
+
+        if self.base64_all:
+            # short circuit if base64_all is true
+            return
+
+        if self.base64_keys is None:
+            if keys is None:
+                keys = self.list()
+            b64_keys = set()
+            if 'base64_keys' in keys:
+                b64_keys = set(self._get("base64_keys").split(","))
+
+            # now add any b64-<keyname> that has a true value
+            for key in [k[3:] for k in keys if k.startswith("b64-")]:
+                if util.is_true(self._get(key)):
+                    b64_keys.add(key)
+                else:
+                    if key in b64_keys:
+                        b64_keys.remove(key)
+
+            self.base64_keys = b64_keys
+
+    def _get(self, key, default=None, strip=False):
+        return (super(JoyentMetadataLegacySerialClient, self).
+                get(key, default=default, strip=strip))
+
+    def is_b64_encoded(self, key, reset=False):
+        if key in NO_BASE64_DECODE:
+            return False
+
+        self._init_base64_keys(reset=reset)
+        if self.base64_all:
+            return True
+
+        return key in self.base64_keys
+
+    def get(self, key, default=None, strip=False):
+        mdefault = object()
+        val = self._get(key, strip=False, default=mdefault)
+        if val is mdefault:
+            return default
+
+        if self.is_b64_encoded(key):
+            try:
+                val = base64.b64decode(val.encode()).decode()
+            # Bogus input produces different errors in Python 2 and 3
+            except (TypeError, binascii.Error):
+                LOG.warn("Failed base64 decoding key '%s': %s", key, val)
+
+        if strip:
+            val = val.strip()
+
+        return val
+
+
+def jmc_client_factory(
+        smartos_type=None, metadata_sockfile=METADATA_SOCKFILE,
+        serial_device=SERIAL_DEVICE, serial_timeout=SERIAL_TIMEOUT,
+        uname_version=None):
+
+    if smartos_type is None:
+        smartos_type = get_smartos_environ(uname_version)
+
+    if smartos_type is None:
         return None
+    elif smartos_type == SMARTOS_ENV_KVM:
+        return JoyentMetadataLegacySerialClient(
+            device=serial_device, timeout=serial_timeout,
+            smartos_type=smartos_type)
+    elif smartos_type == SMARTOS_ENV_LX_BRAND:
+        return JoyentMetadataSocketClient(socketpath=metadata_sockfile)
 
-    return sys_type
+    raise ValueError("Unknown value for smartos_type: %s" % smartos_type)
 
 
 def write_boot_content(content, content_f, link=None, shebang=False,
@@ -522,15 +643,141 @@ def write_boot_content(content, content_f, link=None, shebang=False,
                 util.ensure_dir(os.path.dirname(link))
                 os.symlink(content_f, link)
         except IOError as e:
-            util.logexc(LOG, "failed establishing content link", e)
+            util.logexc(LOG, "failed establishing content link: %s", e)
+
+
+def get_smartos_environ(uname_version=None, product_name=None,
+                        uname_arch=None):
+    uname = os.uname()
+    if uname_arch is None:
+        uname_arch = uname[4]
+
+    if uname_arch.startswith("arm") or uname_arch == "aarch64":
+        return None
+
+    # SDC LX-Brand Zones lack dmidecode (no /dev/mem) but
+    # report 'BrandZ virtual linux' as the kernel version
+    if uname_version is None:
+        uname_version = uname[3]
+    if uname_version.lower() == 'brandz virtual linux':
+        return SMARTOS_ENV_LX_BRAND
+
+    if product_name is None:
+        system_type = util.read_dmi_data("system-product-name")
+    else:
+        system_type = product_name
+
+    if system_type and 'smartdc' in system_type.lower():
+        return SMARTOS_ENV_KVM
+
+    return None
+
+
+# Covert SMARTOS 'sdc:nics' data to network_config yaml
+def convert_smartos_network_data(network_data=None):
+    """Return a dictionary of network_config by parsing provided
+       SMARTOS sdc:nics configuration data
+
+    sdc:nics data is a dictionary of properties of a nic and the ip
+    configuration desired.  Additional nic dictionaries are appended
+    to the list.
+
+    Converting the format is straightforward though it does include
+    duplicate information as well as data which appears to be relevant
+    to the hostOS rather than the guest.
+
+    For each entry in the nics list returned from query sdc:nics, we
+    create a type: physical entry, and extract the interface properties:
+    'mac' -> 'mac_address', 'mtu', 'interface' -> 'name'.  The remaining
+    keys are related to ip configuration.  For each ip in the 'ips' list
+    we create a subnet entry under 'subnets' pairing the ip to a one in
+    the 'gateways' list.
+    """
+
+    valid_keys = {
+        'physical': [
+            'mac_address',
+            'mtu',
+            'name',
+            'params',
+            'subnets',
+            'type',
+        ],
+        'subnet': [
+            'address',
+            'broadcast',
+            'dns_nameservers',
+            'dns_search',
+            'gateway',
+            'metric',
+            'netmask',
+            'pointopoint',
+            'routes',
+            'scope',
+            'type',
+        ],
+    }
+
+    config = []
+    for nic in network_data:
+        cfg = {k: v for k, v in nic.items()
+               if k in valid_keys['physical']}
+        cfg.update({
+            'type': 'physical',
+            'name': nic['interface']})
+        if 'mac' in nic:
+            cfg.update({'mac_address': nic['mac']})
+
+        subnets = []
+        for ip, gw in zip(nic['ips'], nic['gateways']):
+            subnet = {k: v for k, v in nic.items()
+                      if k in valid_keys['subnet']}
+            subnet.update({
+                'type': 'static',
+                'address': ip,
+                'gateway': gw,
+            })
+            subnets.append(subnet)
+        cfg.update({'subnets': subnets})
+        config.append(cfg)
+
+    return {'version': 1, 'config': config}
 
 
 # Used to match classes to dependencies
 datasources = [
-    (DataSourceSmartOS, (sources.DEP_FILESYSTEM, sources.DEP_NETWORK)),
+    (DataSourceSmartOS, (sources.DEP_FILESYSTEM, )),
 ]
 
 
 # Return a list of data sources that match this set of dependencies
 def get_datasource_list(depends):
     return sources.list_from_depends(depends, datasources)
+
+
+if __name__ == "__main__":
+    import sys
+    jmc = jmc_client_factory()
+    if jmc is None:
+        print("Do not appear to be on smartos.")
+        sys.exit(1)
+    if len(sys.argv) == 1:
+        keys = (list(SMARTOS_ATTRIB_JSON.keys()) +
+                list(SMARTOS_ATTRIB_MAP.keys()))
+    else:
+        keys = sys.argv[1:]
+
+    data = {}
+    for key in keys:
+        if key in SMARTOS_ATTRIB_JSON:
+            keyname = SMARTOS_ATTRIB_JSON[key]
+            data[key] = jmc.get_json(keyname)
+        else:
+            if key in SMARTOS_ATTRIB_MAP:
+                keyname, strip = SMARTOS_ATTRIB_MAP[key]
+            else:
+                keyname, strip = (key, False)
+            val = jmc.get(keyname, strip=strip)
+            data[key] = jmc.get(keyname, strip=strip)
+
+    print(json.dumps(data, indent=1))

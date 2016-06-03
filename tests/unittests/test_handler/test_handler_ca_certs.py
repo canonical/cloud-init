@@ -1,8 +1,8 @@
 from cloudinit import cloud
+from cloudinit.config import cc_ca_certs
 from cloudinit import helpers
 from cloudinit import util
 
-from cloudinit.config import cc_ca_certs
 from ..helpers import TestCase
 
 import logging
@@ -176,8 +176,7 @@ class TestAddCaCerts(TestCase):
             mock_write.assert_has_calls([
                 mock.call("/usr/share/ca-certificates/cloud-init-ca-certs.crt",
                           cert, mode=0o644),
-                mock.call("/etc/ca-certificates.conf", expected, omode="wb"),
-                ])
+                mock.call("/etc/ca-certificates.conf", expected, omode="wb")])
             mock_load.assert_called_once_with("/etc/ca-certificates.conf")
 
     def test_single_cert_no_trailing_cr(self):
@@ -202,8 +201,7 @@ class TestAddCaCerts(TestCase):
                 mock.call("/etc/ca-certificates.conf",
                           "%s\n%s\n" % (ca_certs_content,
                                         "cloud-init-ca-certs.crt"),
-                          omode="wb"),
-                ])
+                          omode="wb")])
 
             mock_load.assert_called_once_with("/etc/ca-certificates.conf")
 
@@ -228,8 +226,7 @@ class TestAddCaCerts(TestCase):
                 mock.call("/etc/ca-certificates.conf",
                           "%s\n%s\n" % (ca_certs_content,
                                         "cloud-init-ca-certs.crt"),
-                          omode='wb'),
-                ])
+                          omode='wb')])
 
             mock_load.assert_called_once_with("/etc/ca-certificates.conf")
 
@@ -264,8 +261,7 @@ class TestRemoveDefaultCaCerts(TestCase):
 
             mock_delete.assert_has_calls([
                 mock.call("/usr/share/ca-certificates/"),
-                mock.call("/etc/ssl/certs/"),
-                ])
+                mock.call("/etc/ssl/certs/")])
 
             mock_write.assert_called_once_with(
                 "/etc/ca-certificates.conf", "", mode=0o644)

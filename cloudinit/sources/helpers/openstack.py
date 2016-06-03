@@ -145,8 +145,8 @@ class SourceMixin(object):
             return device
 
 
+@six.add_metaclass(abc.ABCMeta)
 class BaseReader(object):
-    __metaclass__ = abc.ABCMeta
 
     def __init__(self, base_path):
         self.base_path = base_path
@@ -190,14 +190,14 @@ class BaseReader(object):
                   versions_available)
         return selected_version
 
-    def _read_content_path(self, item):
+    def _read_content_path(self, item, decode=False):
         path = item.get('content_path', '').lstrip("/")
         path_pieces = path.split("/")
         valid_pieces = [p for p in path_pieces if len(p)]
         if not valid_pieces:
             raise BrokenMetadata("Item %s has no valid content path" % (item))
         path = self._path_join(self.base_path, "openstack", *path_pieces)
-        return self._path_read(path)
+        return self._path_read(path, decode=decode)
 
     def read_v2(self):
         """Reads a version 2 formatted location.
@@ -298,7 +298,8 @@ class BaseReader(object):
         net_item = metadata.get("network_config", None)
         if net_item:
             try:
-                results['network_config'] = self._read_content_path(net_item)
+                content = self._read_content_path(net_item, decode=True)
+                results['network_config'] = content
             except IOError as e:
                 raise BrokenMetadata("Failed to read network"
                                      " configuration: %s" % (e))
@@ -333,8 +334,8 @@ class ConfigDriveReader(BaseReader):
         components = [base] + list(add_ons)
         return os.path.join(*components)
 
-    def _path_read(self, path):
-        return util.load_file(path, decode=False)
+    def _path_read(self, path, decode=False):
+        return util.load_file(path, decode=decode)
 
     def _fetch_available_versions(self):
         if self._versions is None:
@@ -446,7 +447,7 @@ class MetadataReader(BaseReader):
         self._versions = found
         return self._versions
 
-    def _path_read(self, path):
+    def _path_read(self, path, decode=False):
 
         def should_retry_cb(_request_args, cause):
             try:
@@ -463,7 +464,10 @@ class MetadataReader(BaseReader):
                                       ssl_details=self.ssl_details,
                                       timeout=self.timeout,
                                       exception_cb=should_retry_cb)
-        return response.contents
+        if decode:
+            return response.contents.decode()
+        else:
+            return response.contents
 
     def _path_join(self, base, *add_ons):
         return url_helper.combine_url(base, *add_ons)
@@ -475,7 +479,7 @@ class MetadataReader(BaseReader):
 
 
 def convert_vendordata_json(data, recurse=True):
-    """ data: a loaded json *object* (strings, arrays, dicts).
+    """data: a loaded json *object* (strings, arrays, dicts).
     return something suitable for cloudinit vendordata_raw.
 
     if data is:

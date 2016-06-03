@@ -1,9 +1,10 @@
 from cloudinit.distros.parsers import resolv_conf
 from cloudinit.distros import rhel_util
 
+from ..helpers import TestCase
+
 import re
 import tempfile
-from ..helpers import TestCase
 
 
 BASE_RESOLVE = '''
@@ -19,7 +20,7 @@ class TestResolvHelper(TestCase):
     def test_parse_same(self):
         rp = resolv_conf.ResolvConf(BASE_RESOLVE)
         rp_r = str(rp).strip()
-        self.assertEquals(BASE_RESOLVE, rp_r)
+        self.assertEqual(BASE_RESOLVE, rp_r)
 
     def test_write_works(self):
         with tempfile.NamedTemporaryFile() as fh:
@@ -27,10 +28,10 @@ class TestResolvHelper(TestCase):
 
     def test_local_domain(self):
         rp = resolv_conf.ResolvConf(BASE_RESOLVE)
-        self.assertEquals(None, rp.local_domain)
+        self.assertEqual(None, rp.local_domain)
 
         rp.local_domain = "bob"
-        self.assertEquals('bob', rp.local_domain)
+        self.assertEqual('bob', rp.local_domain)
         self.assertIn('domain bob', str(rp))
 
     def test_nameservers(self):
@@ -41,7 +42,7 @@ class TestResolvHelper(TestCase):
         self.assertIn('10.2', rp.nameservers)
         self.assertIn('nameserver 10.2', str(rp))
         self.assertNotIn('10.3', rp.nameservers)
-        self.assertEquals(len(rp.nameservers), 3)
+        self.assertEqual(len(rp.nameservers), 3)
         rp.add_nameserver('10.2')
         self.assertRaises(ValueError, rp.add_nameserver, '10.3')
         self.assertNotIn('10.3', rp.nameservers)
@@ -55,12 +56,12 @@ class TestResolvHelper(TestCase):
         self.assertTrue(re.search(r'search(.*)bbb.y.com(.*)', str(rp)))
         self.assertIn('bbb.y.com', rp.search_domains)
         rp.add_search_domain('bbb.y.com')
-        self.assertEquals(len(rp.search_domains), 3)
+        self.assertEqual(len(rp.search_domains), 3)
         rp.add_search_domain('bbb2.y.com')
-        self.assertEquals(len(rp.search_domains), 4)
+        self.assertEqual(len(rp.search_domains), 4)
         rp.add_search_domain('bbb3.y.com')
-        self.assertEquals(len(rp.search_domains), 5)
+        self.assertEqual(len(rp.search_domains), 5)
         rp.add_search_domain('bbb4.y.com')
-        self.assertEquals(len(rp.search_domains), 6)
+        self.assertEqual(len(rp.search_domains), 6)
         self.assertRaises(ValueError, rp.add_search_domain, 'bbb5.y.com')
-        self.assertEquals(len(rp.search_domains), 6)
+        self.assertEqual(len(rp.search_domains), 6)

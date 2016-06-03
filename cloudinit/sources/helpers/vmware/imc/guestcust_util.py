@@ -23,8 +23,8 @@ import time
 
 from cloudinit import util
 
-from .guestcust_state import GuestCustStateEnum
 from .guestcust_event import GuestCustEventEnum
+from .guestcust_state import GuestCustStateEnum
 
 logger = logging.getLogger(__name__)
 

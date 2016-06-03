@@ -40,9 +40,9 @@ EXPORT_GPG_KEYID = """
     k=${1} ks=${2};
     exec 2>/dev/null
     [ -n "$k" ] || exit 1;
-    armour=$(gpg --list-keys --armour "${k}")
+    armour=$(gpg --export --armour "${k}")
     if [ -z "${armour}" ]; then
-       gpg --keyserver ${ks} --recv $k >/dev/null &&
+       gpg --keyserver ${ks} --recv "${k}" >/dev/null &&
           armour=$(gpg --export --armour "${k}") &&
           gpg --batch --yes --delete-keys "${k}"
     fi
@@ -70,7 +70,7 @@ def handle(name, cfg, cloud, log, _args):
 
     if not util.get_cfg_option_bool(cfg,
                                     'apt_preserve_sources_list', False):
-        generate_sources_list(release, mirrors, cloud, log)
+        generate_sources_list(cfg, release, mirrors, cloud, log)
         old_mirrors = cfg.get('apt_old_mirrors',
                               {"primary": "archive.ubuntu.com/ubuntu",
                                "security": "security.ubuntu.com/ubuntu"})
@@ -149,7 +149,17 @@ def get_release():
     return stdout.strip()
 
 
-def generate_sources_list(codename, mirrors, cloud, log):
+def generate_sources_list(cfg, codename, mirrors, cloud, log):
+    params = {'codename': codename}
+    for k in mirrors:
+        params[k] = mirrors[k]
+
+    custtmpl = cfg.get('apt_custom_sources_list', None)
+    if custtmpl is not None:
+        templater.render_string_to_file(custtmpl,
+                                        '/etc/apt/sources.list', params)
+        return
+
     template_fn = cloud.get_template_filename('sources.list.%s' %
                                               (cloud.distro.name))
     if not template_fn:
@@ -158,10 +168,58 @@ def generate_sources_list(codename, mirrors, cloud, log):
             log.warn("No template found, not rendering /etc/apt/sources.list")
             return
 
-    params = {'codename': codename}
-    for k in mirrors:
-        params[k] = mirrors[k]
     templater.render_to_file(template_fn, '/etc/apt/sources.list', params)
+
+
+def add_key_raw(key):
+    """
+    actual adding of a key as defined in key argument
+    to the system
+    """
+    try:
+        util.subp(('apt-key', 'add', '-'), key)
+    except util.ProcessExecutionError:
+        raise Exception('failed add key')
+
+
+def add_key(ent):
+    """
+    add key to the system as defined in ent (if any)
+    supports raw keys or keyid's
+    The latter will as a first step fetch the raw key from a keyserver
+    """
+    if 'keyid' in ent and 'key' not in ent:
+        keyserver = "keyserver.ubuntu.com"
+        if 'keyserver' in ent:
+            keyserver = ent['keyserver']
+        ent['key'] = getkeybyid(ent['keyid'], keyserver)
+
+    if 'key' in ent:
+        add_key_raw(ent['key'])
+
+
+def convert_to_new_format(srclist):
+    """convert_to_new_format
+       convert the old list based format to the new dict based one
+    """
+    srcdict = {}
+    if isinstance(srclist, list):
+        for srcent in srclist:
+            if 'filename' not in srcent:
+                # file collides for multiple !filename cases for compatibility
+                # yet we need them all processed, so not same dictionary key
+                srcent['filename'] = "cloud_config_sources.list"
+                key = util.rand_dict_key(srcdict, "cloud_config_sources.list")
+            else:
+                # all with filename use that as key (matching new format)
+                key = srcent['filename']
+            srcdict[key] = srcent
+    elif isinstance(srclist, dict):
+        srcdict = srclist
+    else:
+        raise ValueError("unknown apt_sources format")
+
+    return srcdict
 
 
 def add_sources(srclist, template_params=None, aa_repo_match=None):
@@ -178,13 +236,28 @@ def add_sources(srclist, template_params=None, aa_repo_match=None):
             return False
 
     errorlist = []
-    for ent in srclist:
+    srcdict = convert_to_new_format(srclist)
+
+    for filename in srcdict:
+        ent = srcdict[filename]
+        if 'filename' not in ent:
+            ent['filename'] = filename
+
+        # keys can be added without specifying a source
+        try:
+            add_key(ent)
+        except Exception as detail:
+            errorlist.append([ent, detail])
+
         if 'source' not in ent:
             errorlist.append(["", "missing source"])
             continue
-
         source = ent['source']
         source = templater.render_string(source, template_params)
+
+        if not ent['filename'].startswith(os.path.sep):
+            ent['filename'] = os.path.join("/etc/apt/sources.list.d/",
+                                           ent['filename'])
 
         if aa_repo_match(source):
             try:
@@ -194,33 +267,10 @@ def add_sources(srclist, template_params=None, aa_repo_match=None):
                                   ("add-apt-repository failed. " + str(e))])
             continue
 
-        if 'filename' not in ent:
-            ent['filename'] = 'cloud_config_sources.list'
-
-        if not ent['filename'].startswith("/"):
-            ent['filename'] = os.path.join("/etc/apt/sources.list.d/",
-                                           ent['filename'])
-
-        if ('keyid' in ent and 'key' not in ent):
-            ks = "keyserver.ubuntu.com"
-            if 'keyserver' in ent:
-                ks = ent['keyserver']
-            try:
-                ent['key'] = getkeybyid(ent['keyid'], ks)
-            except:
-                errorlist.append([source, "failed to get key from %s" % ks])
-                continue
-
-        if 'key' in ent:
-            try:
-                util.subp(('apt-key', 'add', '-'), ent['key'])
-            except:
-                errorlist.append([source, "failed add key"])
-
         try:
             contents = "%s\n" % (source)
             util.write_file(ent['filename'], contents, omode="ab")
-        except:
+        except Exception:
             errorlist.append([source,
                              "failed write to file %s" % ent['filename']])
 

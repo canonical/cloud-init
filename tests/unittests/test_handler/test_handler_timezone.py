@@ -28,12 +28,10 @@ from cloudinit.sources import DataSourceNoCloud
 from .. import helpers as t_help
 
 from configobj import ConfigObj
-
-from six import BytesIO
-
-import shutil
-import tempfile
 import logging
+import shutil
+from six import BytesIO
+import tempfile
 
 LOG = logging.getLogger(__name__)
 
@@ -72,7 +70,7 @@ class TestTimezone(t_help.FilesystemMockingTestCase):
 
         contents = util.load_file('/etc/sysconfig/clock', decode=False)
         n_cfg = ConfigObj(BytesIO(contents))
-        self.assertEquals({'TIMEZONE': cfg['timezone']}, dict(n_cfg))
+        self.assertEqual({'TIMEZONE': cfg['timezone']}, dict(n_cfg))
 
         contents = util.load_file('/etc/localtime')
-        self.assertEquals(dummy_contents, contents.strip())
+        self.assertEqual(dummy_contents, contents.strip())

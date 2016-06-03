@@ -1,3 +1,18 @@
+cloud-init (0.7.7~bzr1225-0ubuntu1) yakkety; urgency=medium
+
+  * debian/cloud-init.templates fix capitalisation in template so
+    dpkg-reconfigure works to select OpenStack. (LP: #1575727)
+  * New upstream snapshot.
+    - improve network configuration.  Support DreamCompute, RDO openstack
+      and SmartOS networking
+    - remove blocking udev rules (LP: #1577844, LP: #1571761)
+    - support for renaming devices in a container (LP: #1579130).
+    - Apt sources configuration improvements (LP: #1574113)
+    - kernel command line: override all local settings (LP: #1582323)
+    - fix timestamp in reporting events.
+
+ -- Scott Moser <smoser@ubuntu.com>  Fri, 03 Jun 2016 16:38:55 -0400
+
 cloud-init (0.7.7~bzr1215-0ubuntu1) yakkety; urgency=medium
 
   * debian/new-upstream-snapshot: minor change supporting revision

@@ -57,7 +57,7 @@ def handle(_name, cfg, cloud, log, _args):
         for f in glob.glob(key_pth):
             try:
                 util.del_file(f)
-            except:
+            except Exception:
                 util.logexc(log, "Failed deleting key file %s", f)
 
     if "ssh_keys" in cfg:
@@ -78,7 +78,7 @@ def handle(_name, cfg, cloud, log, _args):
                 with util.SeLinuxGuard("/etc/ssh", recursive=True):
                     util.subp(cmd, capture=False)
                 log.debug("Generated a key for %s from %s", pair[0], pair[1])
-            except:
+            except Exception:
                 util.logexc(log, "Failed generated a key for %s from %s",
                             pair[0], pair[1])
     else:
@@ -122,7 +122,7 @@ def handle(_name, cfg, cloud, log, _args):
             keys.extend(cfgkeys)
 
         apply_credentials(keys, user, disable_root, disable_root_opts)
-    except:
+    except Exception:
         util.logexc(log, "Applying ssh credentials failed!")
 
 

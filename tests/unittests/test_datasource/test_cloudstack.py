@@ -1,5 +1,6 @@
 from cloudinit import helpers
 from cloudinit.sources.DataSourceCloudStack import DataSourceCloudStack
+
 from ..helpers import TestCase
 
 try:

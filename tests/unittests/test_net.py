@@ -1,11 +1,12 @@
-from cloudinit import util
 from cloudinit import net
+from cloudinit import util
+
 from .helpers import TestCase
 
 import base64
 import copy
-import io
 import gzip
+import io
 import json
 import os
 

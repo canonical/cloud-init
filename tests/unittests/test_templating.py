@@ -58,7 +58,7 @@ class TestTemplates(test_helpers.TestCase):
         blob = "blahblah $blah"
         (template_type, renderer, contents) = templater.detect_template(blob)
         self.assertIn("cheetah", template_type)
-        self.assertEquals(blob, contents)
+        self.assertEqual(blob, contents)
 
         blob = '##template:something-new'
         self.assertRaises(ValueError, templater.detect_template, blob)
@@ -67,18 +67,18 @@ class TestTemplates(test_helpers.TestCase):
         blob = '''## template:cheetah
 $a,$b'''
         c = templater.render_string(blob, {"a": 1, "b": 2})
-        self.assertEquals("1,2", c)
+        self.assertEqual("1,2", c)
 
     def test_render_jinja(self):
         blob = '''## template:jinja
 {{a}},{{b}}'''
         c = templater.render_string(blob, {"a": 1, "b": 2})
-        self.assertEquals("1,2", c)
+        self.assertEqual("1,2", c)
 
     def test_render_default(self):
         blob = '''$a,$b'''
         c = templater.render_string(blob, {"a": 1, "b": 2})
-        self.assertEquals("1,2", c)
+        self.assertEqual("1,2", c)
 
     def test_render_basic_deeper(self):
         hn = 'myfoohost.yahoo.com'

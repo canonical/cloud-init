@@ -15,6 +15,7 @@ except ImportError:
     from contextlib2 import ExitStack
 
 from cloudinit import helpers
+from cloudinit import net
 from cloudinit import settings
 from cloudinit.sources import DataSourceConfigDrive as ds
 from cloudinit.sources.helpers import openstack
@@ -73,7 +74,7 @@ NETWORK_DATA = {
          'type': 'ovs', 'mtu': None, 'id': 'tap2f88d109-5b'},
         {'vif_id': '1a5382f8-04c5-4d75-ab98-d666c1ef52cc',
          'ethernet_mac_address': 'fa:16:3e:05:30:fe',
-         'type': 'ovs', 'mtu': None, 'id': 'tap1a5382f8-04'}
+         'type': 'ovs', 'mtu': None, 'id': 'tap1a5382f8-04', 'name': 'nic0'}
     ],
     'networks': [
         {'link': 'tap2ecc7709-b3', 'type': 'ipv4_dhcp',
@@ -86,6 +87,34 @@ NETWORK_DATA = {
          'network_id': 'dab2ba57-cae2-4311-a5ed-010b263891f5',
          'id': 'network2'}
     ]
+}
+
+NETWORK_DATA_2 = {
+    "services": [
+        {"type": "dns", "address": "1.1.1.191"},
+        {"type": "dns", "address": "1.1.1.4"}],
+    "networks": [
+        {"network_id": "d94bbe94-7abc-48d4-9c82-4628ea26164a", "type": "ipv4",
+         "netmask": "255.255.255.248", "link": "eth0",
+         "routes": [{"netmask": "0.0.0.0", "network": "0.0.0.0",
+                     "gateway": "2.2.2.9"}],
+         "ip_address": "2.2.2.10", "id": "network0-ipv4"},
+        {"network_id": "ca447c83-6409-499b-aaef-6ad1ae995348", "type": "ipv4",
+         "netmask": "255.255.255.224", "link": "eth1",
+         "routes": [], "ip_address": "3.3.3.24", "id": "network1-ipv4"}],
+    "links": [
+        {"ethernet_mac_address": "fa:16:3e:dd:50:9a", "mtu": 1500,
+         "type": "vif", "id": "eth0", "vif_id": "vif-foo1"},
+        {"ethernet_mac_address": "fa:16:3e:a8:14:69", "mtu": 1500,
+         "type": "vif", "id": "eth1", "vif_id": "vif-foo2"}]
+}
+
+
+KNOWN_MACS = {
+    'fa:16:3e:69:b0:58': 'enp0s1',
+    'fa:16:3e:d4:57:ad': 'enp0s2',
+    'fa:16:3e:dd:50:9a': 'foo1',
+    'fa:16:3e:a8:14:69': 'foo2',
 }
 
 CFG_DRIVE_FILES_V2 = {
@@ -151,7 +180,7 @@ class TestConfigDriveDataSource(TestCase):
                     mock.patch.object(os.path, 'exists',
                                       side_effect=exists_side_effect()))
                 device = cfg_ds.device_name_to_device(name)
-                self.assertEquals(dev_name, device)
+                self.assertEqual(dev_name, device)
 
                 find_mock.assert_called_once_with(mock.ANY)
                 self.assertEqual(exists_mock.call_count, 2)
@@ -179,7 +208,7 @@ class TestConfigDriveDataSource(TestCase):
                     mock.patch.object(os.path, 'exists',
                                       return_value=True))
                 device = cfg_ds.device_name_to_device(name)
-                self.assertEquals(dev_name, device)
+                self.assertEqual(dev_name, device)
 
                 find_mock.assert_called_once_with(mock.ANY)
                 exists_mock.assert_called_once_with(mock.ANY)
@@ -214,7 +243,7 @@ class TestConfigDriveDataSource(TestCase):
             with mock.patch.object(os.path, 'exists',
                                    side_effect=exists_side_effect()):
                 device = cfg_ds.device_name_to_device(name)
-                self.assertEquals(dev_name, device)
+                self.assertEqual(dev_name, device)
                 # We don't assert the call count for os.path.exists() because
                 # not all of the entries in name_tests results in two calls to
                 # that function.  Specifically, 'root2k' doesn't seem to call
@@ -242,7 +271,7 @@ class TestConfigDriveDataSource(TestCase):
         for name, dev_name in name_tests.items():
             with mock.patch.object(os.path, 'exists', return_value=True):
                 device = cfg_ds.device_name_to_device(name)
-                self.assertEquals(dev_name, device)
+                self.assertEqual(dev_name, device)
 
     def test_dir_valid(self):
         """Verify a dir is read as such."""
@@ -365,8 +394,52 @@ class TestConfigDriveDataSource(TestCase):
         """Verify that network_data is converted and present on ds object."""
         populate_dir(self.tmp, CFG_DRIVE_FILES_V2)
         myds = cfg_ds_from_dir(self.tmp)
-        network_config = ds.convert_network_data(NETWORK_DATA)
+        network_config = ds.convert_network_data(NETWORK_DATA,
+                                                 known_macs=KNOWN_MACS)
         self.assertEqual(myds.network_config, network_config)
+
+
+class TestConvertNetworkData(TestCase):
+    def _getnames_in_config(self, ncfg):
+        return set([n['name'] for n in ncfg['config']
+                    if n['type'] == 'physical'])
+
+    def test_conversion_fills_names(self):
+        ncfg = ds.convert_network_data(NETWORK_DATA, known_macs=KNOWN_MACS)
+        expected = set(['nic0', 'enp0s1', 'enp0s2'])
+        found = self._getnames_in_config(ncfg)
+        self.assertEqual(found, expected)
+
+    @mock.patch('cloudinit.net.get_interfaces_by_mac')
+    def test_convert_reads_system_prefers_name(self, get_interfaces_by_mac):
+        macs = KNOWN_MACS.copy()
+        macs.update({'fa:16:3e:05:30:fe': 'foonic1',
+                     'fa:16:3e:69:b0:58': 'ens1'})
+        get_interfaces_by_mac.return_value = macs
+
+        ncfg = ds.convert_network_data(NETWORK_DATA)
+        expected = set(['nic0', 'ens1', 'enp0s2'])
+        found = self._getnames_in_config(ncfg)
+        self.assertEqual(found, expected)
+
+    def test_convert_raises_value_error_on_missing_name(self):
+        macs = {'aa:aa:aa:aa:aa:00': 'ens1'}
+        self.assertRaises(ValueError, ds.convert_network_data,
+                          NETWORK_DATA, known_macs=macs)
+
+    def test_conversion_with_route(self):
+        ncfg = ds.convert_network_data(NETWORK_DATA_2, known_macs=KNOWN_MACS)
+        # not the best test, but see that we get a route in the
+        # network config and that it gets rendered to an ENI file
+        routes = []
+        for n in ncfg['config']:
+            for s in n.get('subnets', []):
+                routes.extend(s.get('routes', []))
+        self.assertIn(
+            {'network': '0.0.0.0', 'netmask': '0.0.0.0', 'gateway': '2.2.2.9'},
+            routes)
+        eni = net.render_interfaces(net.parse_net_config_data(ncfg))
+        self.assertIn("route add default gw 2.2.2.9", eni)
 
 
 def cfg_ds_from_dir(seed_d):
@@ -387,7 +460,8 @@ def populate_ds_from_read_config(cfg_ds, source, results):
     cfg_ds.userdata_raw = results.get('userdata')
     cfg_ds.version = results.get('version')
     cfg_ds.network_json = results.get('networkdata')
-    cfg_ds._network_config = ds.convert_network_data(cfg_ds.network_json)
+    cfg_ds._network_config = ds.convert_network_data(
+        cfg_ds.network_json, known_macs=KNOWN_MACS)
 
 
 def populate_dir(seed_dir, files):

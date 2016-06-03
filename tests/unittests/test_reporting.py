@@ -4,8 +4,8 @@
 # vi: ts=4 expandtab
 
 from cloudinit import reporting
-from cloudinit.reporting import handlers
 from cloudinit.reporting import events
+from cloudinit.reporting import handlers
 
 from .helpers import (mock, TestCase)
 

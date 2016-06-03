@@ -57,15 +57,15 @@ def tiny_p(cmd, capture=True):
 
 def pkg_config_read(library, var):
     fallbacks = {
-       'systemd': {
-           'systemdsystemunitdir': '/lib/systemd/system',
-           'systemdsystemgeneratordir': '/lib/systemd/system-generators',
-       }
+        'systemd': {
+            'systemdsystemunitdir': '/lib/systemd/system',
+            'systemdsystemgeneratordir': '/lib/systemd/system-generators',
+        }
     }
     cmd = ['pkg-config', '--variable=%s' % var, library]
     try:
         (path, err) = tiny_p(cmd)
-    except:
+    except Exception:
         return fallbacks[library][var]
     return str(path).strip()
 
@@ -184,7 +184,6 @@ else:
         (USR + '/share/doc/cloud-init/examples/seed',
             [f for f in glob('doc/examples/seed/*') if is_f(f)]),
         (LIB + '/udev/rules.d', [f for f in glob('udev/*.rules')]),
-        (LIB + '/udev', ['udev/cloud-init-wait']),
     ]
     # Use a subclass for install that handles
     # adding on the right init system configuration files
@@ -212,4 +211,4 @@ setuptools.setup(
     data_files=data_files,
     install_requires=requirements,
     cmdclass=cmdclass,
-    )
+)

@@ -125,15 +125,15 @@ class TestSimpleRun(helpers.ResourceUsingTestCase):
 
     def test_seed_runs(self):
         test_dicts = []
-        for i in range(1, 50):
+        for i in range(1, 10):
             base_dicts = []
-            for j in range(1, 50):
+            for j in range(1, 10):
                 base_dicts.append(make_dict(5, i * j))
             test_dicts.append(base_dicts)
         for test in test_dicts:
             c = _old_mergemanydict(*test)
             d = util.mergemanydict(test)
-            self.assertEquals(c, d)
+            self.assertEqual(c, d)
 
     def test_merge_cc_samples(self):
         tests = self._load_merge_files()
@@ -155,7 +155,7 @@ class TestSimpleRun(helpers.ResourceUsingTestCase):
             fail_msg = fail_msg % (expected_fn,
                                    ",".join(merging_fns), merged_buf,
                                    expected_merge)
-            self.assertEquals(expected_merge, merged_buf, msg=fail_msg)
+            self.assertEqual(expected_merge, merged_buf, msg=fail_msg)
 
     def test_compat_merges_dict(self):
         a = {
@@ -167,7 +167,7 @@ class TestSimpleRun(helpers.ResourceUsingTestCase):
         }
         c = _old_mergedict(a, b)
         d = util.mergemanydict([a, b])
-        self.assertEquals(c, d)
+        self.assertEqual(c, d)
 
     def test_compat_merges_dict2(self):
         a = {
@@ -182,7 +182,7 @@ class TestSimpleRun(helpers.ResourceUsingTestCase):
         }
         c = _old_mergedict(a, b)
         d = util.mergemanydict([a, b])
-        self.assertEquals(c, d)
+        self.assertEqual(c, d)
 
     def test_compat_merges_list(self):
         a = {'b': [1, 2, 3]}
@@ -190,7 +190,7 @@ class TestSimpleRun(helpers.ResourceUsingTestCase):
         c = {'b': [6, 7]}
         e = _old_mergemanydict(a, b, c)
         f = util.mergemanydict([a, b, c])
-        self.assertEquals(e, f)
+        self.assertEqual(e, f)
 
     def test_compat_merges_str(self):
         a = {'b': "hi"}
@@ -198,7 +198,7 @@ class TestSimpleRun(helpers.ResourceUsingTestCase):
         c = {'b': "hallo"}
         e = _old_mergemanydict(a, b, c)
         f = util.mergemanydict([a, b, c])
-        self.assertEquals(e, f)
+        self.assertEqual(e, f)
 
     def test_compat_merge_sub_dict(self):
         a = {
@@ -222,7 +222,7 @@ class TestSimpleRun(helpers.ResourceUsingTestCase):
         }
         c = _old_mergedict(a, b)
         d = util.mergemanydict([a, b])
-        self.assertEquals(c, d)
+        self.assertEqual(c, d)
 
     def test_compat_merge_sub_dict2(self):
         a = {
@@ -238,7 +238,7 @@ class TestSimpleRun(helpers.ResourceUsingTestCase):
         }
         c = _old_mergedict(a, b)
         d = util.mergemanydict([a, b])
-        self.assertEquals(c, d)
+        self.assertEqual(c, d)
 
     def test_compat_merge_sub_list(self):
         a = {
@@ -254,4 +254,4 @@ class TestSimpleRun(helpers.ResourceUsingTestCase):
         }
         c = _old_mergedict(a, b)
         d = util.mergemanydict([a, b])
-        self.assertEquals(c, d)
+        self.assertEqual(c, d)

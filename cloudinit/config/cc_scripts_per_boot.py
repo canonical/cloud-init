@@ -35,7 +35,7 @@ def handle(name, _cfg, cloud, log, _args):
     runparts_path = os.path.join(cloud.get_cpath(), 'scripts', SCRIPT_SUBDIR)
     try:
         util.runparts(runparts_path)
-    except:
+    except Exception:
         log.warn("Failed to run module %s (%s in %s)",
                  name, SCRIPT_SUBDIR, runparts_path)
         raise

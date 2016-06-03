@@ -71,8 +71,8 @@ INCLUSION_SRCH = sorted(list(INCLUSION_TYPES_MAP.keys()),
                         key=(lambda e: 0 - len(e)))
 
 
+@six.add_metaclass(abc.ABCMeta)
 class Handler(object):
-    __metaclass__ = abc.ABCMeta
 
     def __init__(self, frequency, version=2):
         self.handler_version = version
@@ -118,7 +118,7 @@ def run_part(mod, data, filename, payload, frequency, headers):
             mod.handle_part(data, content_type, filename, payload)
         else:
             raise ValueError("Unknown module version %s" % (mod_ver))
-    except:
+    except Exception:
         util.logexc(LOG, "Failed calling handler %s (%s, %s, %s) with "
                     "frequency %s", mod, content_type, filename, mod_ver,
                     frequency)
@@ -157,7 +157,7 @@ def walker_handle_handler(pdata, _ctype, _filename, payload):
         # register if it fails starting.
         handlers.register(mod, initialized=True)
         pdata['handlercount'] = curcount + 1
-    except:
+    except Exception:
         util.logexc(LOG, "Failed at registering python file: %s (part "
                     "handler %s)", modfname, curcount)
 
