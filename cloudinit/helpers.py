@@ -328,6 +328,7 @@ class Paths(object):
         self.cfgs = path_cfgs
         # Populate all the initial paths
         self.cloud_dir = path_cfgs.get('cloud_dir', '/var/lib/cloud')
+        self.run_dir = path_cfgs.get('run_dir', '/run/cloud-init')
         self.instance_link = os.path.join(self.cloud_dir, 'instance')
         self.boot_finished = os.path.join(self.instance_link, "boot-finished")
         self.upstart_conf_d = path_cfgs.get('upstart_dir')
@@ -349,26 +350,19 @@ class Paths(object):
             "data": "data",
             "vendordata_raw": "vendor-data.txt",
             "vendordata": "vendor-data.txt.i",
+            "instance_id": ".instance-id",
         }
         # Set when a datasource becomes active
         self.datasource = ds
 
     # get_ipath_cur: get the current instance path for an item
     def get_ipath_cur(self, name=None):
-        ipath = self.instance_link
-        add_on = self.lookups.get(name)
-        if add_on:
-            ipath = os.path.join(ipath, add_on)
-        return ipath
+        return self._get_path(self.instance_link, name)
 
     # get_cpath : get the "clouddir" (/var/lib/cloud/<name>)
     # for a name in dirmap
     def get_cpath(self, name=None):
-        cpath = self.cloud_dir
-        add_on = self.lookups.get(name)
-        if add_on:
-            cpath = os.path.join(cpath, add_on)
-        return cpath
+        return self._get_path(self.cloud_dir, name)
 
     # _get_ipath : get the instance path for a name in pathmap
     # (/var/lib/cloud/instances/<instance>/<name>)
@@ -396,6 +390,14 @@ class Paths(object):
             return None
         else:
             return ipath
+
+    def _get_path(self, base, name=None):
+        if name is None:
+            return base
+        return os.path.join(base, self.lookups[name])
+
+    def get_runpath(self, name=None):
+        return self._get_path(self.run_dir, name)
 
 
 # This config parser will not throw when sections don't exist

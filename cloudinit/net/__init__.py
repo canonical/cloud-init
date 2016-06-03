@@ -201,7 +201,11 @@ def parse_deb_config_data(ifaces, contents, src_dir, src_path):
             ifaces[iface]['method'] = method
             currif = iface
         elif option == "hwaddress":
-            ifaces[currif]['hwaddress'] = split[1]
+            if split[1] == "ether":
+                val = split[2]
+            else:
+                val = split[1]
+            ifaces[currif]['hwaddress'] = val
         elif option in NET_CONFIG_OPTIONS:
             ifaces[currif][option] = split[1]
         elif option in NET_CONFIG_COMMANDS:
@@ -570,6 +574,8 @@ def render_interfaces(network_state):
                 content += iface_start_entry(iface, index)
                 content += iface_add_subnet(iface, subnet)
                 content += iface_add_attrs(iface)
+                for route in subnet.get('routes', []):
+                    content += render_route(route, indent="    ")
         else:
             # ifenslave docs say to auto the slave devices
             if 'bond-master' in iface:
@@ -767,5 +773,219 @@ def read_kernel_cmdline_config(files=None, mac_addrs=None, cmdline=None):
 
     return config_from_klibc_net_cfg(files=files, mac_addrs=mac_addrs)
 
+
+def convert_eni_data(eni_data):
+    # return a network config representation of what is in eni_data
+    ifaces = {}
+    parse_deb_config_data(ifaces, eni_data, src_dir=None, src_path=None)
+    return _ifaces_to_net_config_data(ifaces)
+
+
+def _ifaces_to_net_config_data(ifaces):
+    """Return network config that represents the ifaces data provided.
+    ifaces = parse_deb_config("/etc/network/interfaces")
+    config = ifaces_to_net_config_data(ifaces)
+    state = parse_net_config_data(config)."""
+    devs = {}
+    for name, data in ifaces.items():
+        # devname is 'eth0' for name='eth0:1'
+        devname = name.partition(":")[0]
+        if devname == "lo":
+            # currently provding 'lo' in network config results in duplicate
+            # entries. in rendered interfaces file. so skip it.
+            continue
+        if devname not in devs:
+            devs[devname] = {'type': 'physical', 'name': devname,
+                             'subnets': []}
+            # this isnt strictly correct, but some might specify
+            # hwaddress on a nic for matching / declaring name.
+            if 'hwaddress' in data:
+                devs[devname]['mac_address'] = data['hwaddress']
+        subnet = {'_orig_eni_name': name, 'type': data['method']}
+        if data.get('auto'):
+            subnet['control'] = 'auto'
+        else:
+            subnet['control'] = 'manual'
+
+        if data.get('method') == 'static':
+            subnet['address'] = data['address']
+
+        for copy_key in ('netmask', 'gateway', 'broadcast'):
+            if copy_key in data:
+                subnet[copy_key] = data[copy_key]
+
+        if 'dns' in data:
+            for n in ('nameservers', 'search'):
+                if n in data['dns'] and data['dns'][n]:
+                    subnet['dns_' + n] = data['dns'][n]
+        devs[devname]['subnets'].append(subnet)
+
+    return {'version': 1,
+            'config': [devs[d] for d in sorted(devs)]}
+
+
+def apply_network_config_names(netcfg, strict_present=True, strict_busy=True):
+    """read the network config and rename devices accordingly.
+    if strict_present is false, then do not raise exception if no devices
+    match.  if strict_busy is false, then do not raise exception if the
+    device cannot be renamed because it is currently configured."""
+    renames = []
+    for ent in netcfg.get('config', {}):
+        if ent.get('type') != 'physical':
+            continue
+        mac = ent.get('mac_address')
+        name = ent.get('name')
+        if not mac:
+            continue
+        renames.append([mac, name])
+
+    return rename_interfaces(renames)
+
+
+def _get_current_rename_info(check_downable=True):
+    """Collect information necessary for rename_interfaces."""
+    names = get_devicelist()
+    bymac = {}
+    for n in names:
+        bymac[get_interface_mac(n)] = {
+            'name': n, 'up': is_up(n), 'downable': None}
+
+    if check_downable:
+        nmatch = re.compile(r"[0-9]+:\s+(\w+)[@:]")
+        ipv6, _err = util.subp(['ip', '-6', 'addr', 'show', 'permanent',
+                                'scope', 'global'], capture=True)
+        ipv4, _err = util.subp(['ip', '-4', 'addr', 'show'], capture=True)
+
+        nics_with_addresses = set()
+        for bytes_out in (ipv6, ipv4):
+            nics_with_addresses.update(nmatch.findall(bytes_out))
+
+        for d in bymac.values():
+            d['downable'] = (d['up'] is False or
+                             d['name'] not in nics_with_addresses)
+
+    return bymac
+
+
+def rename_interfaces(renames, strict_present=True, strict_busy=True,
+                      current_info=None):
+    if current_info is None:
+        current_info = _get_current_rename_info()
+
+    cur_bymac = {}
+    for mac, data in current_info.items():
+        cur = data.copy()
+        cur['mac'] = mac
+        cur_bymac[mac] = cur
+
+    def update_byname(bymac):
+        return {data['name']: data for data in bymac.values()}
+
+    def rename(cur, new):
+        util.subp(["ip", "link", "set", cur, "name", new], capture=True)
+
+    def down(name):
+        util.subp(["ip", "link", "set", name, "down"], capture=True)
+
+    def up(name):
+        util.subp(["ip", "link", "set", name, "up"], capture=True)
+
+    ops = []
+    errors = []
+    ups = []
+    cur_byname = update_byname(cur_bymac)
+    tmpname_fmt = "cirename%d"
+    tmpi = -1
+
+    for mac, new_name in renames:
+        cur = cur_bymac.get(mac, {})
+        cur_name = cur.get('name')
+        cur_ops = []
+        if cur_name == new_name:
+            # nothing to do
+            continue
+
+        if not cur_name:
+            if strict_present:
+                errors.append(
+                    "[nic not present] Cannot rename mac=%s to %s"
+                    ", not available." % (mac, new_name))
+            continue
+
+        if cur['up']:
+            msg = "[busy] Error renaming mac=%s from %s to %s"
+            if not cur['downable']:
+                if strict_busy:
+                    errors.append(msg % (mac, cur_name, new_name))
+                continue
+            cur['up'] = False
+            cur_ops.append(("down", mac, new_name, (cur_name,)))
+            ups.append(("up", mac, new_name, (new_name,)))
+
+        if new_name in cur_byname:
+            target = cur_byname[new_name]
+            if target['up']:
+                msg = "[busy-target] Error renaming mac=%s from %s to %s."
+                if not target['downable']:
+                    if strict_busy:
+                        errors.append(msg % (mac, cur_name, new_name))
+                    continue
+                else:
+                    cur_ops.append(("down", mac, new_name, (new_name,)))
+
+            tmp_name = None
+            while tmp_name is None or tmp_name in cur_byname:
+                tmpi += 1
+                tmp_name = tmpname_fmt % tmpi
+
+            cur_ops.append(("rename", mac, new_name, (new_name, tmp_name)))
+            target['name'] = tmp_name
+            cur_byname = update_byname(cur_bymac)
+            if target['up']:
+                ups.append(("up", mac, new_name, (tmp_name,)))
+
+        cur_ops.append(("rename", mac, new_name, (cur['name'], new_name)))
+        cur['name'] = new_name
+        cur_byname = update_byname(cur_bymac)
+        ops += cur_ops
+
+    opmap = {'rename': rename, 'down': down, 'up': up}
+
+    if len(ops) + len(ups) == 0:
+        if len(errors):
+            LOG.debug("unable to do any work for renaming of %s", renames)
+        else:
+            LOG.debug("no work necessary for renaming of %s", renames)
+    else:
+        LOG.debug("achieving renaming of %s with ops %s", renames, ops + ups)
+
+        for op, mac, new_name, params in ops + ups:
+            try:
+                opmap.get(op)(*params)
+            except Exception as e:
+                errors.append(
+                    "[unknown] Error performing %s%s for %s, %s: %s" %
+                    (op, params, mac, new_name, e))
+
+    if len(errors):
+        raise Exception('\n'.join(errors))
+
+
+def get_interface_mac(ifname):
+    """Returns the string value of an interface's MAC Address"""
+    return read_sys_net(ifname, "address", enoent=False)
+
+
+def get_interfaces_by_mac(devs=None):
+    """Build a dictionary of tuples {mac: name}"""
+    if devs is None:
+        devs = get_devicelist()
+    ret = {}
+    for name in devs:
+        mac = get_interface_mac(name)
+        # some devices may not have a mac (tun0)
+        if mac:
+            ret[mac] = name
+    return ret
 
 # vi: ts=4 expandtab syntax=python

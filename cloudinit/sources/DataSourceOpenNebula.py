@@ -37,16 +37,13 @@ from cloudinit import util
 LOG = logging.getLogger(__name__)
 
 DEFAULT_IID = "iid-dsopennebula"
-DEFAULT_MODE = 'net'
 DEFAULT_PARSEUSER = 'nobody'
 CONTEXT_DISK_FILES = ["context.sh"]
-VALID_DSMODES = ("local", "net", "disabled")
 
 
 class DataSourceOpenNebula(sources.DataSource):
     def __init__(self, sys_cfg, distro, paths):
         sources.DataSource.__init__(self, sys_cfg, distro, paths)
-        self.dsmode = 'local'
         self.seed = None
         self.seed_dir = os.path.join(paths.seed_dir, 'opennebula')
 
@@ -93,50 +90,25 @@ class DataSourceOpenNebula(sources.DataSource):
         md = util.mergemanydict([md, defaults])
 
         # check for valid user specified dsmode
-        user_dsmode = results['metadata'].get('DSMODE', None)
-        if user_dsmode not in VALID_DSMODES + (None,):
-            LOG.warn("user specified invalid mode: %s", user_dsmode)
-            user_dsmode = None
+        self.dsmode = self._determine_dsmode(
+            [results.get('DSMODE'), self.ds_cfg.get('dsmode')])
 
-        # decide dsmode
-        if user_dsmode:
-            dsmode = user_dsmode
-        elif self.ds_cfg.get('dsmode'):
-            dsmode = self.ds_cfg.get('dsmode')
-        else:
-            dsmode = DEFAULT_MODE
-
-        if dsmode == "disabled":
-            # most likely user specified
-            return False
-
-        # apply static network configuration only in 'local' dsmode
-        if ('network-interfaces' in results and self.dsmode == "local"):
-            LOG.debug("Updating network interfaces from %s", self)
-            self.distro.apply_network(results['network-interfaces'])
-
-        if dsmode != self.dsmode:
-            LOG.debug("%s: not claiming datasource, dsmode=%s", self, dsmode)
+        if self.dsmode == sources.DSMODE_DISABLED:
             return False
 
         self.seed = seed
+        self.network_eni = results.get("network_config")
         self.metadata = md
         self.userdata_raw = results.get('userdata')
         return True
 
     def get_hostname(self, fqdn=False, resolve_ip=None):
         if resolve_ip is None:
-            if self.dsmode == 'net':
+            if self.dsmode == sources.DSMODE_NET:
                 resolve_ip = True
             else:
                 resolve_ip = False
         return sources.DataSource.get_hostname(self, fqdn, resolve_ip)
-
-
-class DataSourceOpenNebulaNet(DataSourceOpenNebula):
-    def __init__(self, sys_cfg, distro, paths):
-        DataSourceOpenNebula.__init__(self, sys_cfg, distro, paths)
-        self.dsmode = 'net'
 
 
 class NonContextDiskDir(Exception):
@@ -443,10 +415,12 @@ def read_context_disk_dir(source_dir, asuser=None):
     return results
 
 
+# Legacy: Must be present in case we load an old pkl object
+DataSourceOpenNebulaNet = DataSourceOpenNebula
+
 # Used to match classes to dependencies
 datasources = [
     (DataSourceOpenNebula, (sources.DEP_FILESYSTEM, )),
-    (DataSourceOpenNebulaNet, (sources.DEP_FILESYSTEM, sources.DEP_NETWORK)),
 ]
 
 

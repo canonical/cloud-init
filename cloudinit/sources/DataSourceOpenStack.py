@@ -33,13 +33,11 @@ DEFAULT_IID = "iid-dsopenstack"
 DEFAULT_METADATA = {
     "instance-id": DEFAULT_IID,
 }
-VALID_DSMODES = ("net", "disabled")
 
 
 class DataSourceOpenStack(openstack.SourceMixin, sources.DataSource):
     def __init__(self, sys_cfg, distro, paths):
         super(DataSourceOpenStack, self).__init__(sys_cfg, distro, paths)
-        self.dsmode = 'net'
         self.metadata_address = None
         self.ssl_details = util.fetch_ssl_details(self.paths)
         self.version = None
@@ -125,11 +123,8 @@ class DataSourceOpenStack(openstack.SourceMixin, sources.DataSource):
                         self.metadata_address)
             return False
 
-        user_dsmode = results.get('dsmode', None)
-        if user_dsmode not in VALID_DSMODES + (None,):
-            LOG.warn("User specified invalid mode: %s", user_dsmode)
-            user_dsmode = None
-        if user_dsmode == 'disabled':
+        self.dsmode = self._determine_dsmode([results.get('dsmode')])
+        if self.dsmode == sources.DSMODE_DISABLED:
             return False
 
         md = results.get('metadata', {})

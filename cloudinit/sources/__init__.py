@@ -34,6 +34,13 @@ from cloudinit import util
 from cloudinit.filters import launch_index
 from cloudinit.reporting import events
 
+DSMODE_DISABLED = "disabled"
+DSMODE_LOCAL = "local"
+DSMODE_NETWORK = "net"
+DSMODE_PASS = "pass"
+
+VALID_DSMODES = [DSMODE_DISABLED, DSMODE_LOCAL, DSMODE_NETWORK]
+
 DEP_FILESYSTEM = "FILESYSTEM"
 DEP_NETWORK = "NETWORK"
 DS_PREFIX = 'DataSource'
@@ -57,6 +64,7 @@ class DataSource(object):
         self.userdata_raw = None
         self.vendordata = None
         self.vendordata_raw = None
+        self.dsmode = DSMODE_NETWORK
 
         # find the datasource config name.
         # remove 'DataSource' from classname on front, and remove 'Net' on end.
@@ -223,9 +231,34 @@ class DataSource(object):
         # quickly (local check only) if self.instance_id is still
         return False
 
+    @staticmethod
+    def _determine_dsmode(candidates, default=None, valid=None):
+        # return the first candidate that is non None, warn if not valid
+        if default is None:
+            default = DSMODE_NETWORK
+
+        if valid is None:
+            valid = VALID_DSMODES
+
+        for candidate in candidates:
+            if candidate is None:
+                continue
+            if candidate in valid:
+                return candidate
+            else:
+                LOG.warn("invalid dsmode '%s', using default=%s",
+                         candidate, default)
+                return default
+
+        return default
+
     @property
     def network_config(self):
         return None
+
+    @property
+    def first_instance_boot(self):
+        return
 
 
 def normalize_pubkey_data(pubkey_data):

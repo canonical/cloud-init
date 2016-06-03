@@ -22,6 +22,7 @@ import copy
 import os
 
 from cloudinit import log as logging
+from cloudinit import net
 from cloudinit import sources
 from cloudinit import util
 
@@ -35,7 +36,6 @@ DEFAULT_MODE = 'pass'
 DEFAULT_METADATA = {
     "instance-id": DEFAULT_IID,
 }
-VALID_DSMODES = ("local", "net", "pass", "disabled")
 FS_TYPES = ('vfat', 'iso9660')
 LABEL_TYPES = ('config-2',)
 POSSIBLE_MOUNTS = ('sr', 'cd')
@@ -47,12 +47,12 @@ class DataSourceConfigDrive(openstack.SourceMixin, sources.DataSource):
     def __init__(self, sys_cfg, distro, paths):
         super(DataSourceConfigDrive, self).__init__(sys_cfg, distro, paths)
         self.source = None
-        self.dsmode = 'local'
         self.seed_dir = os.path.join(paths.seed_dir, 'config_drive')
         self.version = None
         self.ec2_metadata = None
         self._network_config = None
         self.network_json = None
+        self.network_eni = None
         self.files = {}
 
     def __str__(self):
@@ -98,38 +98,22 @@ class DataSourceConfigDrive(openstack.SourceMixin, sources.DataSource):
 
         md = results.get('metadata', {})
         md = util.mergemanydict([md, DEFAULT_METADATA])
-        user_dsmode = results.get('dsmode', None)
-        if user_dsmode not in VALID_DSMODES + (None,):
-            LOG.warn("User specified invalid mode: %s", user_dsmode)
-            user_dsmode = None
 
-        dsmode = get_ds_mode(cfgdrv_ver=results['version'],
-                             ds_cfg=self.ds_cfg.get('dsmode'),
-                             user=user_dsmode)
+        self.dsmode = self._determine_dsmode(
+            [results.get('dsmode'), self.ds_cfg.get('dsmode'),
+             sources.DSMODE_PASS if results['version'] == 1 else None])
 
-        if dsmode == "disabled":
-            # most likely user specified
+        if self.dsmode == sources.DSMODE_DISABLED:
             return False
 
-        # TODO(smoser): fix this, its dirty.
-        # we want to do some things (writing files and network config)
-        # only on first boot, and even then, we want to do so in the
-        # local datasource (so they happen earlier) even if the configured
-        # dsmode is 'net' or 'pass'. To do this, we check the previous
-        # instance-id
+        # This is legacy and sneaky.  If dsmode is 'pass' then write
+        # 'injected files' and apply legacy ENI network format.
         prev_iid = get_previous_iid(self.paths)
         cur_iid = md['instance-id']
-        if prev_iid != cur_iid and self.dsmode == "local":
+        if prev_iid != cur_iid and self.dsmode == sources.DSMODE_PASS:
             on_first_boot(results, distro=self.distro)
-
-        # dsmode != self.dsmode here if:
-        #  * dsmode = "pass",  pass means it should only copy files and then
-        #    pass to another datasource
-        #  * dsmode = "net" and self.dsmode = "local"
-        #    so that user boothooks would be applied with network, the
-        #    local datasource just gets out of the way, and lets the net claim
-        if dsmode != self.dsmode:
-            LOG.debug("%s: not claiming datasource, dsmode=%s", self, dsmode)
+            LOG.debug("%s: not claiming datasource, dsmode=%s", self,
+                      self.dsmode)
             return False
 
         self.source = found
@@ -147,12 +131,11 @@ class DataSourceConfigDrive(openstack.SourceMixin, sources.DataSource):
             LOG.warn("Invalid content in vendor-data: %s", e)
             self.vendordata_raw = None
 
-        try:
-            self.network_json = results.get('networkdata')
-        except ValueError as e:
-            LOG.warn("Invalid content in network-data: %s", e)
-            self.network_json = None
-
+        # network_config is an /etc/network/interfaces formated file and is
+        # obsolete compared to networkdata (from network_data.json) but both
+        # might be present.
+        self.network_eni = results.get("network_config")
+        self.network_json = results.get('networkdata')
         return True
 
     def check_instance_id(self, sys_cfg):
@@ -163,39 +146,14 @@ class DataSourceConfigDrive(openstack.SourceMixin, sources.DataSource):
     def network_config(self):
         if self._network_config is None:
             if self.network_json is not None:
+                LOG.debug("network config provided via network_json")
                 self._network_config = convert_network_data(self.network_json)
+            elif self.network_eni is not None:
+                self._network_config = net.convert_eni_data(self.network_eni)
+                LOG.debug("network config provided via converted eni data")
+            else:
+                LOG.debug("no network configuration available")
         return self._network_config
-
-
-class DataSourceConfigDriveNet(DataSourceConfigDrive):
-    def __init__(self, sys_cfg, distro, paths):
-        DataSourceConfigDrive.__init__(self, sys_cfg, distro, paths)
-        self.dsmode = 'net'
-
-
-def get_ds_mode(cfgdrv_ver, ds_cfg=None, user=None):
-    """Determine what mode should be used.
-    valid values are 'pass', 'disabled', 'local', 'net'
-    """
-    # user passed data trumps everything
-    if user is not None:
-        return user
-
-    if ds_cfg is not None:
-        return ds_cfg
-
-    # at config-drive version 1, the default behavior was pass.  That
-    # meant to not use use it as primary data source, but expect a ec2 metadata
-    # source. for version 2, we default to 'net', which means
-    # the DataSourceConfigDriveNet, would be used.
-    #
-    # this could change in the future.  If there was definitive metadata
-    # that indicated presense of an openstack metadata service, then
-    # we could change to 'pass' by default also. The motivation for that
-    # would be 'cloud-init query' as the web service could be more dynamic
-    if cfgdrv_ver == 1:
-        return "pass"
-    return "net"
 
 
 def read_config_drive(source_dir):
@@ -231,9 +189,12 @@ def on_first_boot(data, distro=None):
                         % (type(data)))
     net_conf = data.get("network_config", '')
     if net_conf and distro:
-        LOG.debug("Updating network interfaces from config drive")
+        LOG.warn("Updating network interfaces from config drive")
         distro.apply_network(net_conf)
-    files = data.get('files', {})
+    write_injected_files(data.get('files'))
+
+
+def write_injected_files(files):
     if files:
         LOG.debug("Writing %s injected files", len(files))
         for (filename, content) in files.items():
@@ -293,20 +254,8 @@ def find_candidate_devs(probe_optical=True):
     return devices
 
 
-# Used to match classes to dependencies
-datasources = [
-    (DataSourceConfigDrive, (sources.DEP_FILESYSTEM, )),
-    (DataSourceConfigDriveNet, (sources.DEP_FILESYSTEM, sources.DEP_NETWORK)),
-]
-
-
-# Return a list of data sources that match this set of dependencies
-def get_datasource_list(depends):
-    return sources.list_from_depends(depends, datasources)
-
-
 # Convert OpenStack ConfigDrive NetworkData json to network_config yaml
-def convert_network_data(network_json=None):
+def convert_network_data(network_json=None, known_macs=None):
     """Return a dictionary of network_config by parsing provided
        OpenStack ConfigDrive NetworkData json format
 
@@ -344,6 +293,7 @@ def convert_network_data(network_json=None):
             'mac_address',
             'subnets',
             'params',
+            'mtu',
         ],
         'subnet': [
             'type',
@@ -353,7 +303,6 @@ def convert_network_data(network_json=None):
             'metric',
             'gateway',
             'pointopoint',
-            'mtu',
             'scope',
             'dns_nameservers',
             'dns_search',
@@ -370,9 +319,15 @@ def convert_network_data(network_json=None):
         subnets = []
         cfg = {k: v for k, v in link.items()
                if k in valid_keys['physical']}
-        cfg.update({'name': link['id']})
-        for network in [net for net in networks
-                        if net['link'] == link['id']]:
+        # 'name' is not in openstack spec yet, but we will support it if it is
+        # present.  The 'id' in the spec is currently implemented as the host
+        # nic's name, meaning something like 'tap-adfasdffd'.  We do not want
+        # to name guest devices with such ugly names.
+        if 'name' in link:
+            cfg['name'] = link['name']
+
+        for network in [n for n in networks
+                        if n['link'] == link['id']]:
             subnet = {k: v for k, v in network.items()
                       if k in valid_keys['subnet']}
             if 'dhcp' in network['type']:
@@ -387,7 +342,7 @@ def convert_network_data(network_json=None):
                 })
             subnets.append(subnet)
         cfg.update({'subnets': subnets})
-        if link['type'] in ['ethernet', 'vif', 'ovs', 'phy']:
+        if link['type'] in ['ethernet', 'vif', 'ovs', 'phy', 'bridge']:
             cfg.update({
                 'type': 'physical',
                 'mac_address': link['ethernet_mac_address']})
@@ -416,9 +371,38 @@ def convert_network_data(network_json=None):
 
         config.append(cfg)
 
+    need_names = [d for d in config
+                  if d.get('type') == 'physical' and 'name' not in d]
+
+    if need_names:
+        if known_macs is None:
+            known_macs = net.get_interfaces_by_mac()
+
+        for d in need_names:
+            mac = d.get('mac_address')
+            if not mac:
+                raise ValueError("No mac_address or name entry for %s" % d)
+            if mac not in known_macs:
+                raise ValueError("Unable to find a system nic for %s" % d)
+            d['name'] = known_macs[mac]
+
     for service in services:
         cfg = service
         cfg.update({'type': 'nameserver'})
         config.append(cfg)
 
     return {'version': 1, 'config': config}
+
+
+# Legacy: Must be present in case we load an old pkl object
+DataSourceConfigDriveNet = DataSourceConfigDrive
+
+# Used to match classes to dependencies
+datasources = [
+    (DataSourceConfigDrive, (sources.DEP_FILESYSTEM, )),
+]
+
+
+# Return a list of data sources that match this set of dependencies
+def get_datasource_list(depends):
+    return sources.list_from_depends(depends, datasources)
