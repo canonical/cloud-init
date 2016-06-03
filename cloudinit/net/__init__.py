@@ -788,6 +788,10 @@ def _ifaces_to_net_config_data(ifaces):
     for name, data in ifaces.items():
         # devname is 'eth0' for name='eth0:1'
         devname = name.partition(":")[0]
+        if devname == "lo":
+            # currently provding 'lo' in network config results in duplicate
+            # entries. in rendered interfaces file. so skip it.
+            continue
         if devname not in devs:
             devs[devname] = {'type': 'physical', 'name': devname,
                              'subnets': []}
