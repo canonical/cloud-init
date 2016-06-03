@@ -73,7 +73,7 @@ NETWORK_DATA = {
          'type': 'ovs', 'mtu': None, 'id': 'tap2f88d109-5b'},
         {'vif_id': '1a5382f8-04c5-4d75-ab98-d666c1ef52cc',
          'ethernet_mac_address': 'fa:16:3e:05:30:fe',
-         'type': 'ovs', 'mtu': None, 'id': 'tap1a5382f8-04'}
+         'type': 'ovs', 'mtu': None, 'id': 'tap1a5382f8-04', 'name': 'nic0'}
     ],
     'networks': [
         {'link': 'tap2ecc7709-b3', 'type': 'ipv4_dhcp',
@@ -87,6 +87,10 @@ NETWORK_DATA = {
          'id': 'network2'}
     ]
 }
+
+KNOWN_MACS = {
+    'fa:16:3e:69:b0:58': 'enp0s1',
+    'fa:16:3e:d4:57:ad': 'enp0s2'}
 
 CFG_DRIVE_FILES_V2 = {
     'ec2/2009-04-04/meta-data.json': json.dumps(EC2_META),
@@ -365,8 +369,38 @@ class TestConfigDriveDataSource(TestCase):
         """Verify that network_data is converted and present on ds object."""
         populate_dir(self.tmp, CFG_DRIVE_FILES_V2)
         myds = cfg_ds_from_dir(self.tmp)
-        network_config = ds.convert_network_data(NETWORK_DATA)
+        network_config = ds.convert_network_data(NETWORK_DATA,
+                                                 known_macs=KNOWN_MACS)
         self.assertEqual(myds.network_config, network_config)
+
+
+class TestConvertNetworkData(TestCase):
+    def _getnames_in_config(self, ncfg):
+        return set([n['name'] for n in ncfg['config']
+                    if n['type'] == 'physical'])
+
+    def test_conversion_fills_names(self):
+        ncfg = ds.convert_network_data(NETWORK_DATA, known_macs=KNOWN_MACS)
+        expected = set(['nic0', 'enp0s1', 'enp0s2'])
+        found = self._getnames_in_config(ncfg)
+        self.assertEqual(found, expected)
+
+    @mock.patch('cloudinit.net.get_interfaces_by_mac')
+    def test_convert_reads_system_prefers_name(self, get_interfaces_by_mac):
+        macs = KNOWN_MACS.copy()
+        macs.update({'fa:16:3e:05:30:fe': 'foonic1',
+                     'fa:16:3e:69:b0:58': 'ens1'})
+        get_interfaces_by_mac.return_value = macs
+
+        ncfg = ds.convert_network_data(NETWORK_DATA)
+        expected = set(['nic0', 'ens1', 'enp0s2'])
+        found = self._getnames_in_config(ncfg)
+        self.assertEqual(found, expected)
+
+    def test_convert_raises_value_error_on_missing_name(self):
+        macs = {'aa:aa:aa:aa:aa:00': 'ens1'}
+        self.assertRaises(ValueError, ds.convert_network_data,
+                          NETWORK_DATA, known_macs=macs)
 
 
 def cfg_ds_from_dir(seed_d):
@@ -387,7 +421,8 @@ def populate_ds_from_read_config(cfg_ds, source, results):
     cfg_ds.userdata_raw = results.get('userdata')
     cfg_ds.version = results.get('version')
     cfg_ds.network_json = results.get('networkdata')
-    cfg_ds._network_config = ds.convert_network_data(cfg_ds.network_json)
+    cfg_ds._network_config = ds.convert_network_data(
+        cfg_ds.network_json, known_macs=KNOWN_MACS)
 
 
 def populate_dir(seed_dir, files):

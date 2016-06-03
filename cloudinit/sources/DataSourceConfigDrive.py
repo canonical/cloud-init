@@ -255,7 +255,7 @@ def find_candidate_devs(probe_optical=True):
 
 
 # Convert OpenStack ConfigDrive NetworkData json to network_config yaml
-def convert_network_data(network_json=None):
+def convert_network_data(network_json=None, known_macs=None):
     """Return a dictionary of network_config by parsing provided
        OpenStack ConfigDrive NetworkData json format
 
@@ -319,9 +319,15 @@ def convert_network_data(network_json=None):
         subnets = []
         cfg = {k: v for k, v in link.items()
                if k in valid_keys['physical']}
-        cfg.update({'name': link['id']})
-        for network in [net for net in networks
-                        if net['link'] == link['id']]:
+        # 'name' is not in openstack spec yet, but we will support it if it is
+        # present.  The 'id' in the spec is currently implemented as the host
+        # nic's name, meaning something like 'tap-adfasdffd'.  We do not want
+        # to name guest devices with such ugly names.
+        if 'name' in link:
+            cfg['name'] = link['name']
+
+        for network in [n for n in networks
+                        if n['link'] == link['id']]:
             subnet = {k: v for k, v in network.items()
                       if k in valid_keys['subnet']}
             if 'dhcp' in network['type']:
@@ -364,6 +370,21 @@ def convert_network_data(network_json=None):
                 'Unknown network_data link type: %s' % link['type'])
 
         config.append(cfg)
+
+    need_names = [d for d in config
+                  if d.get('type') == 'physical' and 'name' not in d]
+
+    if need_names:
+        if known_macs is None:
+            known_macs = net.get_interfaces_by_mac()
+
+        for d in need_names:
+            mac = d.get('mac_address')
+            if not mac:
+                raise ValueError("No mac_address or name entry for %s" % d)
+            if mac not in known_macs:
+                raise ValueError("Unable to find a system nic for %s" % d)
+            d['name'] = known_macs[mac]
 
     for service in services:
         cfg = service

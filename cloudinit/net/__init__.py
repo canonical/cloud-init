@@ -970,9 +970,16 @@ def get_interface_mac(ifname):
     return read_sys_net(ifname, "address", enoent=False)
 
 
-def get_ifname_mac_pairs():
-    """Build a list of tuples (ifname, mac)"""
-    return [(ifname, get_interface_mac(ifname)) for ifname in get_devicelist()]
-
+def get_interfaces_by_mac(devs=None):
+    """Build a dictionary of tuples {mac: name}"""
+    if devs is None:
+        devs = get_devicelist()
+    ret = {}
+    for name in devs:
+        mac = get_interface_mac(name)
+        # some devices may not have a mac (tun0)
+        if mac:
+            ret[mac] = name
+    return ret
 
 # vi: ts=4 expandtab syntax=python
