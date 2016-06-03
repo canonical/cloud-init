@@ -52,7 +52,8 @@ def handle(name, cfg, cloud, log, args):
     # Get config
     lxd_cfg = cfg.get('lxd')
     if not lxd_cfg:
-        log.debug("Skipping module named %s, not present or disabled by cfg")
+        log.debug("Skipping module named %s, not present or disabled by cfg",
+                  name)
         return
     if not isinstance(lxd_cfg, dict):
         log.warn("lxd config must be a dictionary. found a '%s'",
