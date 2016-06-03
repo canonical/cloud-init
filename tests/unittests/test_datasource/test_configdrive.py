@@ -15,6 +15,7 @@ except ImportError:
     from contextlib2 import ExitStack
 
 from cloudinit import helpers
+from cloudinit import net
 from cloudinit import settings
 from cloudinit.sources import DataSourceConfigDrive as ds
 from cloudinit.sources.helpers import openstack
@@ -88,9 +89,33 @@ NETWORK_DATA = {
     ]
 }
 
+NETWORK_DATA_2 = {
+    "services": [
+        {"type": "dns", "address": "1.1.1.191"},
+        {"type": "dns", "address": "1.1.1.4"}],
+    "networks": [
+        {"network_id": "d94bbe94-7abc-48d4-9c82-4628ea26164a", "type": "ipv4",
+         "netmask": "255.255.255.248", "link": "eth0",
+         "routes": [{"netmask": "0.0.0.0", "network": "0.0.0.0",
+                     "gateway": "2.2.2.9"}],
+         "ip_address": "2.2.2.10", "id": "network0-ipv4"},
+        {"network_id": "ca447c83-6409-499b-aaef-6ad1ae995348", "type": "ipv4",
+         "netmask": "255.255.255.224", "link": "eth1",
+         "routes": [], "ip_address": "3.3.3.24", "id": "network1-ipv4"}],
+    "links": [
+        {"ethernet_mac_address": "fa:16:3e:dd:50:9a", "mtu": 1500,
+         "type": "vif", "id": "eth0", "vif_id": "vif-foo1"},
+        {"ethernet_mac_address": "fa:16:3e:a8:14:69", "mtu": 1500,
+         "type": "vif", "id": "eth1", "vif_id": "vif-foo2"}]
+}
+
+
 KNOWN_MACS = {
     'fa:16:3e:69:b0:58': 'enp0s1',
-    'fa:16:3e:d4:57:ad': 'enp0s2'}
+    'fa:16:3e:d4:57:ad': 'enp0s2',
+    'fa:16:3e:dd:50:9a': 'foo1',
+    'fa:16:3e:a8:14:69': 'foo2',
+}
 
 CFG_DRIVE_FILES_V2 = {
     'ec2/2009-04-04/meta-data.json': json.dumps(EC2_META),
@@ -401,6 +426,20 @@ class TestConvertNetworkData(TestCase):
         macs = {'aa:aa:aa:aa:aa:00': 'ens1'}
         self.assertRaises(ValueError, ds.convert_network_data,
                           NETWORK_DATA, known_macs=macs)
+
+    def test_conversion_with_route(self):
+        ncfg = ds.convert_network_data(NETWORK_DATA_2, known_macs=KNOWN_MACS)
+        # not the best test, but see that we get a route in the
+        # network config and that it gets rendered to an ENI file
+        routes = []
+        for n in ncfg['config']:
+            for s in n.get('subnets', []):
+                routes.extend(s.get('routes', []))
+        self.assertIn(
+            {'network': '0.0.0.0', 'netmask': '0.0.0.0', 'gateway': '2.2.2.9'},
+            routes)
+        eni = net.render_interfaces(net.parse_net_config_data(ncfg))
+        self.assertIn("route add default gw 2.2.2.9", eni)
 
 
 def cfg_ds_from_dir(seed_d):

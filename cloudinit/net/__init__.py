@@ -574,6 +574,8 @@ def render_interfaces(network_state):
                 content += iface_start_entry(iface, index)
                 content += iface_add_subnet(iface, subnet)
                 content += iface_add_attrs(iface)
+                for route in subnet.get('routes', []):
+                    content += render_route(route, indent="    ")
         else:
             # ifenslave docs say to auto the slave devices
             if 'bond-master' in iface:
