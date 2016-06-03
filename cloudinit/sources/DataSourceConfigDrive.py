@@ -293,6 +293,7 @@ def convert_network_data(network_json=None, known_macs=None):
             'mac_address',
             'subnets',
             'params',
+            'mtu',
         ],
         'subnet': [
             'type',
@@ -302,7 +303,6 @@ def convert_network_data(network_json=None, known_macs=None):
             'metric',
             'gateway',
             'pointopoint',
-            'mtu',
             'scope',
             'dns_nameservers',
             'dns_search',
@@ -342,7 +342,7 @@ def convert_network_data(network_json=None, known_macs=None):
                 })
             subnets.append(subnet)
         cfg.update({'subnets': subnets})
-        if link['type'] in ['ethernet', 'vif', 'ovs', 'phy']:
+        if link['type'] in ['ethernet', 'vif', 'ovs', 'phy', 'bridge']:
             cfg.update({
                 'type': 'physical',
                 'mac_address': link['ethernet_mac_address']})
