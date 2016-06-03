@@ -336,6 +336,16 @@ def rand_str(strlen=32, select_from=None):
     return "".join([random.choice(select_from) for _x in range(0, strlen)])
 
 
+def rand_dict_key(dictionary, postfix=None):
+    if not postfix:
+        postfix = ""
+    while True:
+        newkey = rand_str(strlen=8) + "_" + postfix
+        if newkey not in dictionary:
+            break
+    return newkey
+
+
 def read_conf(fname):
     try:
         return load_yaml(load_file(fname), default={})
