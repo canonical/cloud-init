@@ -17,6 +17,7 @@
 #   along with Curtin.  If not, see <http://www.gnu.org/licenses/>.
 
 import base64
+import copy
 import errno
 import glob
 import gzip
@@ -418,7 +419,7 @@ def render_persistent_net(network_state):
 
 # TODO: switch valid_map based on mode inet/inet6
 def iface_add_subnet(iface, subnet):
-    content = ""
+    content = []
     valid_map = [
         'address',
         'netmask',
@@ -437,14 +438,14 @@ def iface_add_subnet(iface, subnet):
                 value = " ".join(value)
             if '_' in key:
                 key = key.replace('_', '-')
-            content += "    {} {}\n".format(key, value)
+            content.append("    {} {}".format(key, value))
 
     return content
 
 
 # TODO: switch to valid_map for attrs
 def iface_add_attrs(iface):
-    content = ""
+    content = []
     ignore_map = [
         'control',
         'index',
@@ -461,7 +462,7 @@ def iface_add_attrs(iface):
         if value and key not in ignore_map:
             if type(value) == list:
                 value = " ".join(value)
-            content += "    {} {}\n".format(key, value)
+            content.append("    {} {}".format(key, value))
 
     return content
 
@@ -481,10 +482,10 @@ def render_route(route, indent=""):
     1. http://askubuntu.com/questions/168033/
              how-to-set-static-routes-in-ubuntu-server
     """
-    content = ""
+    content = []
     up = indent + "post-up route add"
     down = indent + "pre-down route del"
-    eol = " || true\n"
+    eol = " || true"
     mapping = {
         'network': '-net',
         'netmask': 'netmask',
@@ -493,20 +494,20 @@ def render_route(route, indent=""):
     }
     if route['network'] == '0.0.0.0' and route['netmask'] == '0.0.0.0':
         default_gw = " default gw %s" % route['gateway']
-        content += up + default_gw + eol
-        content += down + default_gw + eol
+        content.append(up + default_gw + eol)
+        content.append(down + default_gw + eol)
     elif route['network'] == '::' and route['netmask'] == 0:
         # ipv6!
         default_gw = " -A inet6 default gw %s" % route['gateway']
-        content += up + default_gw + eol
-        content += down + default_gw + eol
+        content.append(up + default_gw + eol)
+        content.append(down + default_gw + eol)
     else:
         route_line = ""
         for k in ['network', 'netmask', 'gateway', 'metric']:
             if k in route:
                 route_line += " %s %s" % (mapping[k], route[k])
-        content += up + route_line + eol
-        content += down + route_line + eol
+        content.append(up + route_line + eol)
+        content.append(down + route_line + eol)
 
     return content
 
@@ -527,8 +528,38 @@ def iface_start_entry(iface, index):
     subst = iface.copy()
     subst.update({'fullname': fullname, 'cverb': cverb})
 
-    return ("{cverb} {fullname}\n"
-            "iface {fullname} {inet} {mode}\n").format(**subst)
+    if 'inet' not in subst:
+        print("bug....iface: %s" % iface)
+    return ["{cverb} {fullname}".format(**subst),
+            "iface {fullname} {inet} {mode}".format(**subst)]
+
+
+def _render_iface(iface):
+    lines = []
+    subnets = iface.get('subnets', {})
+    if subnets:
+        for index, subnet in zip(range(0, len(subnets)), subnets):
+            iface['index'] = index
+            iface['mode'] = subnet['type']
+            iface['control'] = subnet.get('control', 'auto')
+            if iface['mode'].endswith('6'):
+                iface['inet'] += '6'
+            elif iface['mode'] == 'static' and ":" in subnet['address']:
+                iface['inet'] += '6'
+            if iface['mode'].startswith('dhcp'):
+                iface['mode'] = 'dhcp'
+
+            lines.extend(iface_start_entry(iface, index))
+            lines.extend(iface_add_subnet(iface, subnet))
+            lines.extend(iface_add_attrs(iface))
+            lines.append("")
+    else:
+        # ifenslave docs say to auto the slave devices
+        if 'bond-master' in iface:
+            lines.append("auto {name}".format(**iface))
+        lines.append("iface {name} {inet} {mode}".format(**iface))
+        lines.extend(iface_add_attrs(iface))
+    return lines
 
 
 def render_interfaces(network_state):
@@ -546,44 +577,30 @@ def render_interfaces(network_state):
         'bridge': 2,
         'vlan': 3,
     }
-    content += "auto lo\niface lo inet loopback\n"
+
+    # handle 'lo' specifically as we need to insert the global dns entries
+    # there (as that is the only interface) that will be always up.
+    lo = {'name': 'lo', 'type': 'physical', 'inet': 'inet',
+          'subnets': [{'type': 'loopback', 'control': 'auto'}]}
+    for iface in interfaces.values():
+        if iface.get('name') == "lo":
+            lo = copy.deepcopy(iface)
     for dnskey, value in network_state.get('dns', {}).items():
         if len(value):
-            content += "    dns-{} {}\n".format(dnskey, " ".join(value))
+            lo['subnets'][0]["dns_" + dnskey] = value
+
+    sections = [_render_iface(lo)]
 
     for iface in sorted(interfaces.values(),
                         key=lambda k: (order[k['type']], k['name'])):
-
-        if content[-2:] != "\n\n":
-            content += "\n"
-        subnets = iface.get('subnets', {})
-        if subnets:
-            for index, subnet in zip(range(0, len(subnets)), subnets):
-                if content[-2:] != "\n\n":
-                    content += "\n"
-                iface['index'] = index
-                iface['mode'] = subnet['type']
-                iface['control'] = subnet.get('control', 'auto')
-                if iface['mode'].endswith('6'):
-                    iface['inet'] += '6'
-                elif iface['mode'] == 'static' and ":" in subnet['address']:
-                    iface['inet'] += '6'
-                if iface['mode'].startswith('dhcp'):
-                    iface['mode'] = 'dhcp'
-
-                content += iface_start_entry(iface, index)
-                content += iface_add_subnet(iface, subnet)
-                content += iface_add_attrs(iface)
-        else:
-            # ifenslave docs say to auto the slave devices
-            if 'bond-master' in iface:
-                content += "auto {name}\n".format(**iface)
-            content += "iface {name} {inet} {mode}\n".format(**iface)
-            content += iface_add_attrs(iface)
+        if iface.get('name') == "lo":
+            continue
+        sections.append(_render_iface(iface))
 
     for route in network_state.get('routes'):
-        content += render_route(route)
+        sections.append(render_route(route))
 
+    content = ''.join(['\n'.join(s) + '\n\n' for s in sections])
     # global replacements until v2 format
     content = content.replace('mac_address', 'hwaddress')
     return content

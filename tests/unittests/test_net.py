@@ -9,6 +9,8 @@ import gzip
 import io
 import json
 import os
+import yaml
+
 
 DHCP_CONTENT_1 = """
 DEVICE='eth0'
@@ -68,6 +70,163 @@ STATIC_EXPECTED_1 = {
                  'dns_nameservers': ['10.0.1.1']}],
 }
 
+EXAMPLE_ENI = """
+auto lo
+iface lo inet loopback
+   dns-nameservers 10.0.0.1
+   dns-search foo.com
+
+auto eth0
+iface eth0 inet static
+        address 1.2.3.12
+        netmask 255.255.255.248
+        broadcast 1.2.3.15
+        gateway 1.2.3.9
+        dns-nameservers 69.9.160.191 69.9.191.4
+auto eth1
+iface eth1 inet static
+        address 10.248.2.4
+        netmask 255.255.255.248
+        broadcast 10.248.2.7
+"""
+
+NETWORK_YAML_SMALL = """
+version: 1
+config:
+    # Physical interfaces.
+    - type: physical
+      name: eth0
+      mac_address: "c0:d6:9f:2c:e8:80"
+      subnets:
+          - type: dhcp4
+          - type: static
+            address: 192.168.21.3/24
+            dns_nameservers:
+              - 8.8.8.8
+              - 8.8.4.4
+            dns_search: barley.maas sach.maas
+    - type: physical
+      name: eth1
+      mac_address: "cf:d6:af:48:e8:80"
+    - type: nameserver
+      address:
+        - 1.2.3.4
+        - 5.6.7.8
+      search:
+        - wark.maas
+"""
+NETWORK_YAML_ALL = """
+version: 1
+config:
+    # Physical interfaces.
+    - type: physical
+      name: eth0
+      mac_address: "c0:d6:9f:2c:e8:80"
+    - type: physical
+      name: eth1
+      mac_address: "aa:d6:9f:2c:e8:80"
+    - type: physical
+      name: eth2
+      mac_address: "c0:bb:9f:2c:e8:80"
+    - type: physical
+      name: eth3
+      mac_address: "66:bb:9f:2c:e8:80"
+    - type: physical
+      name: eth4
+      mac_address: "98:bb:9f:2c:e8:80"
+    # specify how ifupdown should treat iface
+    # control is one of ['auto', 'hotplug', 'manual']
+    # with manual meaning ifup/ifdown should not affect the iface
+    # useful for things like iscsi root + dhcp
+    - type: physical
+      name: eth5
+      mac_address: "98:bb:9f:2c:e8:8a"
+      subnets:
+        - type: dhcp
+          control: manual
+    # VLAN interface.
+    - type: vlan
+      name: eth0.101
+      vlan_link: eth0
+      vlan_id: 101
+      mtu: 1500
+      subnets:
+        - type: static
+          address: 192.168.0.2/24
+          gateway: 192.168.0.1
+          dns_nameservers:
+            - 192.168.0.10
+            - 10.23.23.134
+          dns_search:
+            - barley.maas
+            - sacchromyces.maas
+            - brettanomyces.maas
+        - type: static
+          address: 192.168.2.10/24
+    # Bond.
+    - type: bond
+      name: bond0
+      # if 'mac_address' is omitted, the MAC is taken from
+      # the first slave.
+      mac_address: "aa:bb:cc:dd:ee:ff"
+      bond_interfaces:
+        - eth1
+        - eth2
+      params:
+        bond-mode: active-backup
+      subnets:
+        - type: dhcp6
+    # A Bond VLAN.
+    - type: vlan
+      name: bond0.200
+      vlan_link: bond0
+      vlan_id: 200
+      subnets:
+          - type: dhcp4
+    # A bridge.
+    - type: bridge
+      name: br0
+      bridge_interfaces:
+          - eth3
+          - eth4
+      ipv4_conf:
+          rp_filter: 1
+          proxy_arp: 0
+          forwarding: 1
+      ipv6_conf:
+          autoconf: 1
+          disable_ipv6: 1
+          use_tempaddr: 1
+          forwarding: 1
+          # basically anything in /proc/sys/net/ipv6/conf/.../
+      params:
+          bridge_stp: 'off'
+          bridge_fd: 0
+          bridge_maxwait: 0
+      subnets:
+          - type: static
+            address: 192.168.14.2/24
+          - type: static
+            address: 2001:1::1/64 # default to /64
+    # A global nameserver.
+    - type: nameserver
+      address: 8.8.8.8
+      search: barley.maas
+    # global nameservers and search in list form
+    - type: nameserver
+      address:
+        - 4.4.4.4
+        - 8.8.4.4
+      search:
+        - wark.maas
+        - foobar.maas
+    # A global route.
+    - type: route
+      destination: 10.0.0.0/8
+      gateway: 11.0.0.1
+      metric: 3
+"""
+
 
 class TestNetConfigParsing(TestCase):
     simple_cfg = {
@@ -120,6 +279,29 @@ class TestNetConfigParsing(TestCase):
         cmdline = 'ro network-config=' + encoded_text + ' root=foo'
         found = net.read_kernel_cmdline_config(cmdline=cmdline)
         self.assertEqual(found, self.simple_cfg)
+
+
+class TestEniRoundTrip(TestCase):
+    def testsimple_convert_and_render(self):
+        network_config = net.convert_eni_data(EXAMPLE_ENI)
+        ns = net.parse_net_config_data(network_config)
+        eni = net.render_interfaces(ns)
+        print("Eni looks like:\n%s" % eni)
+        raise Exception("FOO")
+
+    def testsimple_render_all(self):
+        network_config = yaml.load(NETWORK_YAML_ALL)
+        ns = net.parse_net_config_data(network_config)
+        eni = net.render_interfaces(ns)
+        print("Eni looks like:\n%s" % eni)
+        raise Exception("FOO")
+
+    def testsimple_render_small(self):
+        network_config = yaml.load(NETWORK_YAML_SMALL)
+        ns = net.parse_net_config_data(network_config)
+        eni = net.render_interfaces(ns)
+        print("Eni looks like:\n%s" % eni)
+        raise Exception("FOO")
 
 
 def _gzip_data(data):
