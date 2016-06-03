@@ -33,14 +33,14 @@ S0ORP6HXET3+jC8BMG4tBWCTK/XEZw==
 
 
 def load_tfile_or_url(*args, **kwargs):
-    """ load_tfile_or_url
+    """load_tfile_or_url
     load file and return content after decoding
     """
     return util.decode_binary(util.read_file_or_url(*args, **kwargs).contents)
 
 
 class TestAptSourceConfig(TestCase):
-    """ TestAptSourceConfig
+    """TestAptSourceConfig
     Main Class to test apt_source configs
     """
     def setUp(self):
@@ -57,7 +57,7 @@ class TestAptSourceConfig(TestCase):
 
     @staticmethod
     def _get_default_params():
-        """ get_default_params
+        """get_default_params
         Get the most basic default mrror and release info to be used in tests
         """
         params = {}
@@ -66,7 +66,7 @@ class TestAptSourceConfig(TestCase):
         return params
 
     def myjoin(self, *args, **kwargs):
-        """ myjoin - redir into writable tmpdir"""
+        """myjoin - redir into writable tmpdir"""
         if (args[0] == "/etc/apt/sources.list.d/" and
                 args[1] == "cloud_config_sources.list" and
                 len(args) == 2):
@@ -75,7 +75,7 @@ class TestAptSourceConfig(TestCase):
             return self.join(*args, **kwargs)
 
     def apt_src_basic(self, filename, cfg):
-        """ apt_src_basic
+        """apt_src_basic
         Test Fix deb source string, has to overwrite mirror conf in params
         """
         params = self._get_default_params()
@@ -92,7 +92,7 @@ class TestAptSourceConfig(TestCase):
                                   contents, flags=re.IGNORECASE))
 
     def test_apt_src_basic(self):
-        """ test_apt_src_basic
+        """test_apt_src_basic
         Test Fix deb source string, has to overwrite mirror conf in params.
         Test with a filename provided in config.
         """
@@ -103,7 +103,7 @@ class TestAptSourceConfig(TestCase):
         self.apt_src_basic(self.aptlistfile, [cfg])
 
     def test_apt_src_basic_dict(self):
-        """ test_apt_src_basic_dict
+        """test_apt_src_basic_dict
         Test Fix deb source string, has to overwrite mirror conf in params.
         Test with a filename provided in config.
         Provided in a dictionary with filename being the key (new format)
@@ -115,7 +115,7 @@ class TestAptSourceConfig(TestCase):
         self.apt_src_basic(self.aptlistfile, cfg)
 
     def apt_src_basic_tri(self, cfg):
-        """ apt_src_basic_tri
+        """apt_src_basic_tri
         Test Fix three deb source string, has to overwrite mirror conf in
         params. Test with filenames provided in config.
         generic part to check three files with different content
@@ -137,7 +137,7 @@ class TestAptSourceConfig(TestCase):
                                   contents, flags=re.IGNORECASE))
 
     def test_apt_src_basic_tri(self):
-        """ test_apt_src_basic_tri
+        """test_apt_src_basic_tri
         Test Fix three deb source string, has to overwrite mirror conf in
         params. Test with filenames provided in config.
         """
@@ -156,7 +156,7 @@ class TestAptSourceConfig(TestCase):
         self.apt_src_basic_tri([cfg1, cfg2, cfg3])
 
     def test_apt_src_basic_dict_tri(self):
-        """ test_apt_src_basic_dict_tri
+        """test_apt_src_basic_dict_tri
         Test Fix three deb source string, has to overwrite mirror conf in
         params. Test with filenames provided in config.
         Provided in a dictionary with filename being the key (new format)
@@ -176,7 +176,7 @@ class TestAptSourceConfig(TestCase):
         self.apt_src_basic_tri(cfg)
 
     def test_apt_src_basic_nofn(self):
-        """ test_apt_src_basic_nofn
+        """test_apt_src_basic_nofn
         Test Fix deb source string, has to overwrite mirror conf in params.
         Test without a filename provided in config and test for known fallback.
         """
@@ -187,7 +187,7 @@ class TestAptSourceConfig(TestCase):
             self.apt_src_basic(self.fallbackfn, [cfg])
 
     def apt_src_replacement(self, filename, cfg):
-        """ apt_src_replace
+        """apt_src_replace
         Test Autoreplacement of MIRROR and RELEASE in source specs
         """
         params = self._get_default_params()
@@ -202,7 +202,7 @@ class TestAptSourceConfig(TestCase):
                                   contents, flags=re.IGNORECASE))
 
     def test_apt_src_replace(self):
-        """ test_apt_src_replace
+        """test_apt_src_replace
         Test Autoreplacement of MIRROR and RELEASE in source specs with
         Filename being set
         """
@@ -211,7 +211,7 @@ class TestAptSourceConfig(TestCase):
         self.apt_src_replacement(self.aptlistfile, [cfg])
 
     def apt_src_replace_tri(self, cfg):
-        """ apt_src_replace_tri
+        """apt_src_replace_tri
         Test three autoreplacements of MIRROR and RELEASE in source specs with
         generic part
         """
@@ -231,7 +231,7 @@ class TestAptSourceConfig(TestCase):
                                   contents, flags=re.IGNORECASE))
 
     def test_apt_src_replace_tri(self):
-        """ test_apt_src_replace_tri
+        """test_apt_src_replace_tri
         Test three autoreplacements of MIRROR and RELEASE in source specs with
         Filename being set
         """
@@ -244,7 +244,7 @@ class TestAptSourceConfig(TestCase):
         self.apt_src_replace_tri([cfg1, cfg2, cfg3])
 
     def test_apt_src_replace_dict_tri(self):
-        """ test_apt_src_replace_dict_tri
+        """test_apt_src_replace_dict_tri
         Test three autoreplacements of MIRROR and RELEASE in source specs with
         Filename being set
         Provided in a dictionary with filename being the key (new format)
@@ -252,13 +252,13 @@ class TestAptSourceConfig(TestCase):
         filenames to be overwritten inside the directory entry.
         """
         cfg = {self.aptlistfile: {'source': 'deb $MIRROR $RELEASE multiverse'},
-               'notused':        {'source': 'deb $MIRROR $RELEASE main',
-                                  'filename': self.aptlistfile2},
+               'notused': {'source': 'deb $MIRROR $RELEASE main',
+                           'filename': self.aptlistfile2},
                self.aptlistfile3: {'source': 'deb $MIRROR $RELEASE universe'}}
         self.apt_src_replace_tri(cfg)
 
     def test_apt_src_replace_nofn(self):
-        """ test_apt_src_replace_nofn
+        """test_apt_src_replace_nofn
         Test Autoreplacement of MIRROR and RELEASE in source specs with
         No filename being set
         """
@@ -267,7 +267,7 @@ class TestAptSourceConfig(TestCase):
             self.apt_src_replacement(self.fallbackfn, [cfg])
 
     def apt_src_keyid(self, filename, cfg, keynum):
-        """ apt_src_keyid
+        """apt_src_keyid
         Test specification of a source + keyid
         """
         params = self._get_default_params()
@@ -293,7 +293,7 @@ class TestAptSourceConfig(TestCase):
                                   contents, flags=re.IGNORECASE))
 
     def test_apt_src_keyid(self):
-        """ test_apt_src_keyid
+        """test_apt_src_keyid
         Test specification of a source + keyid with filename being set
         """
         cfg = {'source': ('deb '
@@ -305,7 +305,7 @@ class TestAptSourceConfig(TestCase):
         self.apt_src_keyid(self.aptlistfile, [cfg], 1)
 
     def test_apt_src_keyid_tri(self):
-        """ test_apt_src_keyid_tri
+        """test_apt_src_keyid_tri
         Test specification of a source + keyid with filename being set
         Setting three of such, check for content and keys
         """
@@ -345,7 +345,7 @@ class TestAptSourceConfig(TestCase):
                                   contents, flags=re.IGNORECASE))
 
     def test_apt_src_keyid_nofn(self):
-        """ test_apt_src_keyid_nofn
+        """test_apt_src_keyid_nofn
         Test specification of a source + keyid without filename being set
         """
         cfg = {'source': ('deb '
@@ -357,7 +357,7 @@ class TestAptSourceConfig(TestCase):
             self.apt_src_keyid(self.fallbackfn, [cfg], 1)
 
     def apt_src_key(self, filename, cfg):
-        """ apt_src_key
+        """apt_src_key
         Test specification of a source + key
         """
         params = self._get_default_params()
@@ -378,7 +378,7 @@ class TestAptSourceConfig(TestCase):
                                   contents, flags=re.IGNORECASE))
 
     def test_apt_src_key(self):
-        """ test_apt_src_key
+        """test_apt_src_key
         Test specification of a source + key with filename being set
         """
         cfg = {'source': ('deb '
@@ -390,7 +390,7 @@ class TestAptSourceConfig(TestCase):
         self.apt_src_key(self.aptlistfile, cfg)
 
     def test_apt_src_key_nofn(self):
-        """ test_apt_src_key_nofn
+        """test_apt_src_key_nofn
         Test specification of a source + key without filename being set
         """
         cfg = {'source': ('deb '
@@ -402,7 +402,7 @@ class TestAptSourceConfig(TestCase):
             self.apt_src_key(self.fallbackfn, cfg)
 
     def test_apt_src_keyonly(self):
-        """ test_apt_src_keyonly
+        """test_apt_src_keyonly
         Test specification key without source
         """
         params = self._get_default_params()
@@ -419,7 +419,7 @@ class TestAptSourceConfig(TestCase):
         self.assertFalse(os.path.isfile(self.aptlistfile))
 
     def test_apt_src_keyidonly(self):
-        """ test_apt_src_keyidonly
+        """test_apt_src_keyidonly
         Test specification of a keyid without source
         """
         params = self._get_default_params()
@@ -436,7 +436,7 @@ class TestAptSourceConfig(TestCase):
         self.assertFalse(os.path.isfile(self.aptlistfile))
 
     def test_apt_src_keyid_real(self):
-        """ test_apt_src_keyid_real
+        """test_apt_src_keyid_real
         Test specification of a keyid without source incl
         up to addition of the key (nothing but add_key_raw mocked)
         """
@@ -454,7 +454,7 @@ class TestAptSourceConfig(TestCase):
         self.assertFalse(os.path.isfile(self.aptlistfile))
 
     def test_apt_src_longkeyid_real(self):
-        """ test_apt_src_longkeyid_real
+        """test_apt_src_longkeyid_real
         Test specification of a long key fingerprint without source incl
         up to addition of the key (nothing but add_key_raw mocked)
         """
@@ -472,7 +472,7 @@ class TestAptSourceConfig(TestCase):
         self.assertFalse(os.path.isfile(self.aptlistfile))
 
     def test_apt_src_ppa(self):
-        """ test_apt_src_ppa
+        """test_apt_src_ppa
         Test specification of a ppa
         """
         params = self._get_default_params()
@@ -491,7 +491,7 @@ class TestAptSourceConfig(TestCase):
         self.assertFalse(os.path.isfile(self.aptlistfile))
 
     def test_apt_src_ppa_tri(self):
-        """ test_apt_src_ppa_tri
+        """test_apt_src_ppa_tri
         Test specification of a ppa
         """
         params = self._get_default_params()
@@ -519,7 +519,7 @@ class TestAptSourceConfig(TestCase):
         self.assertFalse(os.path.isfile(self.aptlistfile3))
 
     def test_convert_to_new_format(self):
-        """ test_convert_to_new_format
+        """test_convert_to_new_format
         Test the conversion of old to new format
         And the noop conversion of new to new format as well
         """

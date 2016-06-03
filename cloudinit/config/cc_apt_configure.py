@@ -199,8 +199,8 @@ def add_key(ent):
 
 
 def convert_to_new_format(srclist):
-    """ convert_to_new_format
-        convert the old list based format to the new dict based one
+    """convert_to_new_format
+       convert the old list based format to the new dict based one
     """
     srcdict = {}
     if isinstance(srclist, list):
