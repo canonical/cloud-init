@@ -1,3 +1,10 @@
+cloud-init (0.7.7~bzr1226-0ubuntu1) yakkety; urgency=medium
+
+  * New upstream snapshot.
+    - fix unit tests to run inside buildd.
+
+ -- Scott Moser <smoser@ubuntu.com>  Fri, 03 Jun 2016 23:01:16 -0400
+
 cloud-init (0.7.7~bzr1225-0ubuntu1) yakkety; urgency=medium
 
   * debian/cloud-init.templates fix capitalisation in template so

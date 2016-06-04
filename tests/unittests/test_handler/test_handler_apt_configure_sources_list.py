@@ -103,8 +103,9 @@ class TestAptSourceConfigSourceList(t_help.FilesystemMockingTestCase):
         with mock.patch.object(templater, 'render_to_file') as mocktmpl:
             with mock.patch.object(os.path, 'isfile',
                                    return_value=True) as mockisfile:
-                cc_apt_configure.handle("notimportant", cfg, mycloud,
-                                        LOG, None)
+                with mock.patch.object(util, 'rename'):
+                    cc_apt_configure.handle("notimportant", cfg, mycloud,
+                                            LOG, None)
 
         mockisfile.assert_any_call(
             ('/etc/cloud/templates/sources.list.%s.tmpl' % distro))

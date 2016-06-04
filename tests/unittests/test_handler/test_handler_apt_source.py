@@ -43,6 +43,8 @@ class TestAptSourceConfig(TestCase):
     """TestAptSourceConfig
     Main Class to test apt_source configs
     """
+    release = "fantastic"
+
     def setUp(self):
         super(TestAptSourceConfig, self).setUp()
         self.tmp = tempfile.mkdtemp()
@@ -55,8 +57,12 @@ class TestAptSourceConfig(TestCase):
         self.fallbackfn = os.path.join(self.tmp, "etc/apt/sources.list.d/",
                                        "cloud_config_sources.list")
 
-    @staticmethod
-    def _get_default_params():
+        patcher = mock.patch("cloudinit.config.cc_apt_configure.get_release")
+        get_rel = patcher.start()
+        get_rel.return_value = self.release
+        self.addCleanup(patcher.stop)
+
+    def _get_default_params(self):
         """get_default_params
         Get the most basic default mrror and release info to be used in tests
         """
@@ -438,7 +444,7 @@ class TestAptSourceConfig(TestCase):
     def test_apt_src_keyid_real(self):
         """test_apt_src_keyid_real
         Test specification of a keyid without source incl
-        up to addition of the key (nothing but add_key_raw mocked)
+        up to addition of the key (add_key_raw, getkeybyid mocked)
         """
         keyid = "03683F77"
         params = self._get_default_params()
@@ -446,7 +452,9 @@ class TestAptSourceConfig(TestCase):
                'filename': self.aptlistfile}
 
         with mock.patch.object(cc_apt_configure, 'add_key_raw') as mockobj:
-            cc_apt_configure.add_sources([cfg], params)
+            with mock.patch.object(cc_apt_configure, 'getkeybyid') as gkbi:
+                gkbi.return_value = EXPECTEDKEY
+                cc_apt_configure.add_sources([cfg], params)
 
         mockobj.assert_called_with(EXPECTEDKEY)
 
@@ -464,7 +472,9 @@ class TestAptSourceConfig(TestCase):
                'filename': self.aptlistfile}
 
         with mock.patch.object(cc_apt_configure, 'add_key_raw') as mockobj:
-            cc_apt_configure.add_sources([cfg], params)
+            with mock.patch.object(cc_apt_configure, 'getkeybyid') as gkbi:
+                gkbi.return_value = EXPECTEDKEY
+                cc_apt_configure.add_sources([cfg], params)
 
         mockobj.assert_called_with(EXPECTEDKEY)
 

@@ -125,11 +125,11 @@ add_apt_repo_match: '^[\w-]+:\w'
 # better merging between multiple input files than a list like:
 # cloud-config1
 # sources:
-    s1: {'key': 'key1', 'source': 'source1'}
+#    s1: {'key': 'key1', 'source': 'source1'}
 # cloud-config2
 # sources:
-    s2: {'key': 'key2'}
-    s1: {filename: 'foo'}
+#    s2: {'key': 'key2'}
+#    s1: {filename: 'foo'}
 # this would be merged to
 #sources:
 #    s1:
