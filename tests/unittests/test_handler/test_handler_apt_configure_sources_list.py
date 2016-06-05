@@ -126,6 +126,7 @@ class TestAptSourceConfigSourceList(t_help.FilesystemMockingTestCase):
         """
         self.apt_source_list('ubuntu', 'http://archive.ubuntu.com/ubuntu/')
 
+    @t_help.skipIf(True, "LP: #1589174")
     def test_apt_srcl_debian_mirrorfail(self):
         """test_apt_source_list_debian_mirrorfail
         Test rendering of a source.list from template for debian

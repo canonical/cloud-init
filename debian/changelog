@@ -1,3 +1,10 @@
+cloud-init (0.7.7~bzr1227-0ubuntu1) yakkety; urgency=medium
+
+  * New upstream snapshot.
+    - fix one more unit test to run inside buildd.
+
+ -- Scott Moser <smoser@ubuntu.com>  Sat, 04 Jun 2016 20:55:07 -0400
+
 cloud-init (0.7.7~bzr1226-0ubuntu1) yakkety; urgency=medium
 
   * New upstream snapshot.
