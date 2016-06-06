@@ -154,7 +154,7 @@ def add_key_raw(key):
     try:
         util.subp(('apt-key', 'add', '-'), key)
     except util.ProcessExecutionError:
-        raise Exception('failed add key')
+        raise ValueError('failed to add apt GPG Key to apt keyring')
 
 
 def add_key(ent):
@@ -221,7 +221,7 @@ def add_sources(srclist, template_params=None, aa_repo_match=None):
         # keys can be added without specifying a source
         try:
             add_key(ent)
-        except Exception as detail:
+        except ValueError as detail:
             errorlist.append([ent, detail])
 
         if 'source' not in ent:

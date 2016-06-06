@@ -2244,6 +2244,7 @@ def gpg_export_armour(key):
 
 def gpg_recv_key(key, keyserver):
     """Receive gpg key from the specified keyserver"""
+    print("ORIGINAL gpg_recv_key")
     try:
         subp(["gpg", "--keyserver", keyserver, "--recv", key],
              capture=True)

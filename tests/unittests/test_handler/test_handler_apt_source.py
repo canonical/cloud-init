@@ -4,6 +4,7 @@ Testing various config variations of the apt_source config
 import os
 import re
 import shutil
+import socket
 import tempfile
 
 try:
@@ -56,6 +57,7 @@ class TestAptSourceConfig(TestCase):
         # mock fallback filename into writable tmp dir
         self.fallbackfn = os.path.join(self.tmp, "etc/apt/sources.list.d/",
                                        "cloud_config_sources.list")
+        self.orig_gpg_recv_key = util.gpg_recv_key
 
         patcher = mock.patch("cloudinit.config.cc_apt_configure.get_release")
         get_rel = patcher.start()
@@ -445,14 +447,40 @@ class TestAptSourceConfig(TestCase):
     def apt_src_keyid_real(self, cfg, expectedkey):
         """apt_src_keyid_real
         Test specification of a keyid without source including
-        up to addition of the key (nothing but add_key_raw mocked to keep the
+        up to addition of the key (add_key_raw mocked to keep the
         environment as is)
         """
         params = self._get_default_params()
-        with mock.patch.object(cc_apt_configure, 'add_key_raw') as mockobj:
-            cc_apt_configure.add_sources([cfg], params)
 
-        mockobj.assert_called_with(expectedkey)
+        def fake_gpg_recv_key(self, key, keyserver):
+            """try original gpg_recv_key, but allow fall back"""
+            try:
+                print("Try orig orig_gpg_recv_key")
+                self.orig_gpg_recv_key(key, keyserver)
+            except ValueError:
+                print("Fail, test net")
+                # if this is a networking issue mock it's effect
+                testsock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                try:
+                    testsock.connect((keyserver, 80))
+                    testsock.close()
+                except socket.error:
+                    # as fallback add the known key as a working recv would
+                    print("Fallback import expectedkey")
+                    util.subp(("gpg", "--import", "-"), EXPECTEDKEY)
+
+        print("FOO")
+        with mock.patch.object(cc_apt_configure, 'add_key_raw') as mockkey:
+            with mock.patch.object(util, 'gpg_recv_key',
+                                   side_effect=fake_gpg_recv_key) as mockrecv:
+                cc_apt_configure.add_sources([cfg], params)
+
+        # since we might mock the recv path ensure it is called right
+        mockrecv.assert_called_with(cfg['keyid'],
+                                    keyserver=cfg.get('keyserver',
+                                                      'keyserver.ubuntu.com'))
+        # no matter if really imported or faked, ensure we add the right key
+        mockkey.assert_called_with(expectedkey)
 
         # filename should be ignored on key only
         self.assertFalse(os.path.isfile(self.aptlistfile))
@@ -477,7 +505,7 @@ class TestAptSourceConfig(TestCase):
         """test_apt_src_longkeyid_ks_real - Test long keyid from other ks"""
         keyid = "B59D 5F15 97A5 04B7 E230  6DCA 0620 BBCF 0368 3F77"
         cfg = {'keyid': keyid,
-               'keyserver': 'keys.gnupg.net',
+               'keyserver': 'knorz.gnupg.net',
                'filename': self.aptlistfile}
 
         self.apt_src_keyid_real(cfg, EXPECTEDKEY)
