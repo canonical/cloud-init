@@ -461,7 +461,7 @@ class TestAptSourceConfig(TestCase):
             """try original gpg_recv_key, but allow fall back"""
             try:
                 self.orig_gpg_recv_key(key, keyserver)
-            except ValueError as error:
+            except ValueError:
                 # if this is a networking issue mock it's effect
                 testsock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                 try:
