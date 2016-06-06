@@ -34,21 +34,6 @@ APT_PROXY_FN = "/etc/apt/apt.conf.d/95cloud-init-proxy"
 # this will match 'XXX:YYY' (ie, 'cloud-archive:foo' or 'ppa:bar')
 ADD_APT_REPO_MATCH = r"^[\w-]+:\w"
 
-# A temporary shell program to get a given gpg key
-# from a given keyserver
-EXPORT_GPG_KEYID = """
-    k=${1} ks=${2};
-    exec 2>/dev/null
-    [ -n "$k" ] || exit 1;
-    armour=$(gpg --export --armour "${k}")
-    if [ -z "${armour}" ]; then
-       gpg --keyserver ${ks} --recv "${k}" >/dev/null &&
-          armour=$(gpg --export --armour "${k}") &&
-          gpg --batch --yes --delete-keys "${k}"
-    fi
-    [ -n "${armour}" ] && echo "${armour}"
-"""
-
 
 def handle(name, cfg, cloud, log, _args):
     if util.is_false(cfg.get('apt_configure_enabled', True)):
@@ -106,16 +91,6 @@ def handle(name, cfg, cloud, log, _args):
             util.subp(('debconf-set-selections', '-'), dconf_sel)
         except Exception:
             util.logexc(log, "Failed to run debconf-set-selections")
-
-
-# get gpg keyid from keyserver
-def getkeybyid(keyid, keyserver):
-    with util.ExtendedTemporaryFile(suffix='.sh', mode="w+", ) as fh:
-        fh.write(EXPORT_GPG_KEYID)
-        fh.flush()
-        cmd = ['/bin/sh', fh.name, keyid, keyserver]
-        (stdout, _stderr) = util.subp(cmd)
-        return stdout.strip()
 
 
 def mirror2lists_fileprefix(mirror):
@@ -192,7 +167,7 @@ def add_key(ent):
         keyserver = "keyserver.ubuntu.com"
         if 'keyserver' in ent:
             keyserver = ent['keyserver']
-        ent['key'] = getkeybyid(ent['keyid'], keyserver)
+        ent['key'] = util.getkeybyid(ent['keyid'], keyserver)
 
     if 'key' in ent:
         add_key_raw(ent['key'])
