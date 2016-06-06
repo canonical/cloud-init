@@ -24,6 +24,8 @@ from .. import helpers as t_help
 
 LOG = logging.getLogger(__name__)
 
+BIN_APT = "/usr/bin/apt"
+
 YAML_TEXT_CUSTOM_SL = """
 apt_mirror: http://archive.ubuntu.com/ubuntu/
 apt_custom_sources_list: |
@@ -67,6 +69,8 @@ def load_tfile_or_url(*args, **kwargs):
     return util.decode_binary(util.read_file_or_url(*args, **kwargs).contents)
 
 
+# This feature is apt specific and thereby is disabled in environments without
+@t_help.skipIf(not os.path.isfile(BIN_APT), "no apt")
 class TestAptSourceConfigSourceList(t_help.FilesystemMockingTestCase):
     """TestAptSourceConfigSourceList
     Main Class to test sources list rendering
