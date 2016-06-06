@@ -506,7 +506,7 @@ class TestAptSourceConfig(TestCase):
         """test_apt_src_longkeyid_ks_real - Test long keyid from other ks"""
         keyid = "B59D 5F15 97A5 04B7 E230  6DCA 0620 BBCF 0368 3F77"
         cfg = {'keyid': keyid,
-               'keyserver': 'knorz.gnupg.net',
+               'keyserver': 'keys.gnupg.net',
                'filename': self.aptlistfile}
 
         self.apt_src_keyid_real(cfg, EXPECTEDKEY)
