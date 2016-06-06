@@ -452,13 +452,11 @@ class TestAptSourceConfig(TestCase):
         """
         params = self._get_default_params()
 
-        def fake_gpg_recv_key(self, key, keyserver):
+        def fake_gpg_recv_key(key, keyserver):
             """try original gpg_recv_key, but allow fall back"""
             try:
-                print("Try orig orig_gpg_recv_key")
                 self.orig_gpg_recv_key(key, keyserver)
-            except ValueError:
-                print("Fail, test net")
+            except ValueError as error:
                 # if this is a networking issue mock it's effect
                 testsock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                 try:
@@ -466,10 +464,8 @@ class TestAptSourceConfig(TestCase):
                     testsock.close()
                 except socket.error:
                     # as fallback add the known key as a working recv would
-                    print("Fallback import expectedkey")
                     util.subp(("gpg", "--import", "-"), EXPECTEDKEY)
 
-        print("FOO")
         with mock.patch.object(cc_apt_configure, 'add_key_raw') as mockkey:
             with mock.patch.object(util, 'gpg_recv_key',
                                    side_effect=fake_gpg_recv_key) as mockrecv:
