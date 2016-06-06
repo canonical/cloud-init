@@ -473,6 +473,15 @@ class TestAptSourceConfig(TestCase):
 
         self.apt_src_keyid_real(cfg, EXPECTEDKEY)
 
+    def test_apt_src_longkeyid_ks_real(self):
+        """test_apt_src_longkeyid_ks_real - Test long keyid from other ks"""
+        keyid = "B59D 5F15 97A5 04B7 E230  6DCA 0620 BBCF 0368 3F77"
+        cfg = {'keyid': keyid,
+               'keyserver': 'keys.gnupg.net',
+               'filename': self.aptlistfile}
+
+        self.apt_src_keyid_real(cfg, EXPECTEDKEY)
+
     def test_apt_src_ppa(self):
         """test_apt_src_ppa
         Test specification of a ppa
