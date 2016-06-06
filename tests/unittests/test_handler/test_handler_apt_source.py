@@ -473,13 +473,9 @@ class TestAptSourceConfig(TestCase):
 
         with mock.patch.object(cc_apt_configure, 'add_apt_key_raw') as mockkey:
             with mock.patch.object(util, 'gpg_recv_key',
-                                   side_effect=fake_gpg_recv_key) as mockrecv:
+                                   side_effect=fake_gpg_recv_key):
                 cc_apt_configure.add_apt_sources([cfg], params)
 
-        # since we might mock the recv path ensure it is called right
-        mockrecv.assert_called_with(cfg['keyid'],
-                                    keyserver=cfg.get('keyserver',
-                                                      'keyserver.ubuntu.com'))
         # no matter if really imported or faked, ensure we add the right key
         mockkey.assert_called_with(expectedkey)
 
