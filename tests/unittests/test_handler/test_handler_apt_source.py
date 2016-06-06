@@ -89,7 +89,7 @@ class TestAptSourceConfig(TestCase):
         """
         params = self._get_default_params()
 
-        cc_apt_configure.add_sources(cfg, params)
+        cc_apt_configure.add_apt_sources(cfg, params)
 
         self.assertTrue(os.path.isfile(filename))
 
@@ -200,7 +200,7 @@ class TestAptSourceConfig(TestCase):
         Test Autoreplacement of MIRROR and RELEASE in source specs
         """
         params = self._get_default_params()
-        cc_apt_configure.add_sources(cfg, params)
+        cc_apt_configure.add_apt_sources(cfg, params)
 
         self.assertTrue(os.path.isfile(filename))
 
@@ -283,7 +283,7 @@ class TestAptSourceConfig(TestCase):
 
         with mock.patch.object(util, 'subp',
                                return_value=('fakekey 1234', '')) as mockobj:
-            cc_apt_configure.add_sources(cfg, params)
+            cc_apt_configure.add_apt_sources(cfg, params)
 
         # check if it added the right ammount of keys
         calls = []
@@ -372,7 +372,7 @@ class TestAptSourceConfig(TestCase):
         params = self._get_default_params()
 
         with mock.patch.object(util, 'subp') as mockobj:
-            cc_apt_configure.add_sources([cfg], params)
+            cc_apt_configure.add_apt_sources([cfg], params)
 
         mockobj.assert_called_with(('apt-key', 'add', '-'), 'fakekey 4321')
 
@@ -419,7 +419,7 @@ class TestAptSourceConfig(TestCase):
                'filename': self.aptlistfile}
 
         with mock.patch.object(util, 'subp') as mockobj:
-            cc_apt_configure.add_sources([cfg], params)
+            cc_apt_configure.add_apt_sources([cfg], params)
 
         mockobj.assert_called_once_with(('apt-key', 'add', '-'),
                                         'fakekey 4242')
@@ -437,7 +437,7 @@ class TestAptSourceConfig(TestCase):
 
         with mock.patch.object(util, 'subp',
                                return_value=('fakekey 1212', '')) as mockobj:
-            cc_apt_configure.add_sources([cfg], params)
+            cc_apt_configure.add_apt_sources([cfg], params)
 
         mockobj.assert_called_with(('apt-key', 'add', '-'), 'fakekey 1212')
 
@@ -447,7 +447,7 @@ class TestAptSourceConfig(TestCase):
     def apt_src_keyid_real(self, cfg, expectedkey):
         """apt_src_keyid_real
         Test specification of a keyid without source including
-        up to addition of the key (add_key_raw mocked to keep the
+        up to addition of the key (add_apt_key_raw mocked to keep the
         environment as is)
         """
         params = self._get_default_params()
@@ -466,10 +466,10 @@ class TestAptSourceConfig(TestCase):
                     # as fallback add the known key as a working recv would
                     util.subp(("gpg", "--import", "-"), EXPECTEDKEY)
 
-        with mock.patch.object(cc_apt_configure, 'add_key_raw') as mockkey:
+        with mock.patch.object(cc_apt_configure, 'add_apt_key_raw') as mockkey:
             with mock.patch.object(util, 'gpg_recv_key',
                                    side_effect=fake_gpg_recv_key) as mockrecv:
-                cc_apt_configure.add_sources([cfg], params)
+                cc_apt_configure.add_apt_sources([cfg], params)
 
         # since we might mock the recv path ensure it is called right
         mockrecv.assert_called_with(cfg['keyid'],
@@ -518,7 +518,8 @@ class TestAptSourceConfig(TestCase):
         matcher = re.compile(r'^[\w-]+:\w').search
 
         with mock.patch.object(util, 'subp') as mockobj:
-            cc_apt_configure.add_sources([cfg], params, aa_repo_match=matcher)
+            cc_apt_configure.add_apt_sources([cfg], params,
+                                             aa_repo_match=matcher)
         mockobj.assert_called_once_with(['add-apt-repository',
                                          'ppa:smoser/cloud-init-test'])
 
@@ -541,8 +542,8 @@ class TestAptSourceConfig(TestCase):
         matcher = re.compile(r'^[\w-]+:\w').search
 
         with mock.patch.object(util, 'subp') as mockobj:
-            cc_apt_configure.add_sources([cfg1, cfg2, cfg3], params,
-                                         aa_repo_match=matcher)
+            cc_apt_configure.add_apt_sources([cfg1, cfg2, cfg3], params,
+                                             aa_repo_match=matcher)
         calls = [call(['add-apt-repository', 'ppa:smoser/cloud-init-test']),
                  call(['add-apt-repository', 'ppa:smoser/cloud-init-test2']),
                  call(['add-apt-repository', 'ppa:smoser/cloud-init-test3'])]

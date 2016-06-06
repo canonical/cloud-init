@@ -79,8 +79,8 @@ def handle(name, cfg, cloud, log, _args):
             def matcher(x):
                 return False
 
-        errors = add_sources(cfg['apt_sources'], params,
-                             aa_repo_match=matcher)
+        errors = add_apt_sources(cfg['apt_sources'], params,
+                                 aa_repo_match=matcher)
         for e in errors:
             log.warn("Add source error: %s", ':'.join(e))
 
@@ -146,7 +146,7 @@ def generate_sources_list(cfg, codename, mirrors, cloud, log):
     templater.render_to_file(template_fn, '/etc/apt/sources.list', params)
 
 
-def add_key_raw(key):
+def add_apt_key_raw(key):
     """
     actual adding of a key as defined in key argument
     to the system
@@ -157,7 +157,7 @@ def add_key_raw(key):
         raise ValueError('failed to add apt GPG Key to apt keyring')
 
 
-def add_key(ent):
+def add_apt_key(ent):
     """
     add key to the system as defined in ent (if any)
     supports raw keys or keyid's
@@ -170,7 +170,7 @@ def add_key(ent):
         ent['key'] = util.getkeybyid(ent['keyid'], keyserver)
 
     if 'key' in ent:
-        add_key_raw(ent['key'])
+        add_apt_key_raw(ent['key'])
 
 
 def convert_to_new_format(srclist):
@@ -197,7 +197,7 @@ def convert_to_new_format(srclist):
     return srcdict
 
 
-def add_sources(srclist, template_params=None, aa_repo_match=None):
+def add_apt_sources(srclist, template_params=None, aa_repo_match=None):
     """
     add entries in /etc/apt/sources.list.d for each abbreviated
     sources.list entry in 'srclist'.  When rendering template, also
@@ -220,7 +220,7 @@ def add_sources(srclist, template_params=None, aa_repo_match=None):
 
         # keys can be added without specifying a source
         try:
-            add_key(ent)
+            add_apt_key(ent)
         except ValueError as detail:
             errorlist.append([ent, detail])
 
