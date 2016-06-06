@@ -62,7 +62,8 @@ class TestAptSourceConfig(TestCase):
         get_rel.return_value = self.release
         self.addCleanup(patcher.stop)
 
-    def _get_default_params(self):
+    @staticmethod
+    def _get_default_params():
         """get_default_params
         Get the most basic default mrror and release info to be used in tests
         """
