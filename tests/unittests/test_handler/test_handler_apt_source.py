@@ -469,7 +469,8 @@ class TestAptSourceConfig(TestCase):
                     testsock.close()
                 except socket.error:
                     # as fallback add the known key as a working recv would
-                    util.subp(("gpg", "--import", "-"), EXPECTEDKEY)
+                    util.subp(("gpg", "--import", "-"), EXPECTEDKEY,
+                              capture=True)
 
         with mock.patch.object(cc_apt_configure, 'add_apt_key_raw') as mockkey:
             with mock.patch.object(util, 'gpg_recv_key',

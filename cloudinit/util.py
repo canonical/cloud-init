@@ -2254,7 +2254,7 @@ def gpg_recv_key(key, keyserver):
 
 def gpg_delete_key(key):
     """Delete the specified key from the local gpg ring"""
-    subp(["gpg", "--batch", "--yes", "--delete-keys", key], capture=False)
+    subp(["gpg", "--batch", "--yes", "--delete-keys", key], capture=True)
 
 
 def getkeybyid(keyid, keyserver):
