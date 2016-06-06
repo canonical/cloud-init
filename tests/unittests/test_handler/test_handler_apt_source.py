@@ -441,45 +441,36 @@ class TestAptSourceConfig(TestCase):
         # filename should be ignored on key only
         self.assertFalse(os.path.isfile(self.aptlistfile))
 
-    def test_apt_src_keyid_real(self):
-        """test_apt_src_keyid_real
-        Test specification of a keyid without source incl
-        up to addition of the key (add_key_raw, getkeybyid mocked)
+    def apt_src_keyid_real(self, cfg, expectedkey):
+        """apt_src_keyid_real
+        Test specification of a keyid without source including
+        up to addition of the key (nothing but add_key_raw mocked to keep the
+        environment as is)
         """
-        keyid = "03683F77"
         params = self._get_default_params()
-        cfg = {'keyid': keyid,
-               'filename': self.aptlistfile}
-
         with mock.patch.object(cc_apt_configure, 'add_key_raw') as mockobj:
-            with mock.patch.object(cc_apt_configure, 'getkeybyid') as gkbi:
-                gkbi.return_value = EXPECTEDKEY
-                cc_apt_configure.add_sources([cfg], params)
+            cc_apt_configure.add_sources([cfg], params)
 
-        mockobj.assert_called_with(EXPECTEDKEY)
+        mockobj.assert_called_with(expectedkey)
 
         # filename should be ignored on key only
         self.assertFalse(os.path.isfile(self.aptlistfile))
+
+    def test_apt_src_keyid_real(self):
+        """test_apt_src_keyid_real - Test keyid including key add"""
+        keyid = "03683F77"
+        cfg = {'keyid': keyid,
+               'filename': self.aptlistfile}
+
+        self.apt_src_keyid_real(cfg, EXPECTEDKEY)
 
     def test_apt_src_longkeyid_real(self):
-        """test_apt_src_longkeyid_real
-        Test specification of a long key fingerprint without source incl
-        up to addition of the key (nothing but add_key_raw mocked)
-        """
+        """test_apt_src_longkeyid_real - Test long keyid including key add"""
         keyid = "B59D 5F15 97A5 04B7 E230  6DCA 0620 BBCF 0368 3F77"
-        params = self._get_default_params()
         cfg = {'keyid': keyid,
                'filename': self.aptlistfile}
 
-        with mock.patch.object(cc_apt_configure, 'add_key_raw') as mockobj:
-            with mock.patch.object(cc_apt_configure, 'getkeybyid') as gkbi:
-                gkbi.return_value = EXPECTEDKEY
-                cc_apt_configure.add_sources([cfg], params)
-
-        mockobj.assert_called_with(EXPECTEDKEY)
-
-        # filename should be ignored on key only
-        self.assertFalse(os.path.isfile(self.aptlistfile))
+        self.apt_src_keyid_real(cfg, EXPECTEDKEY)
 
     def test_apt_src_ppa(self):
         """test_apt_src_ppa
