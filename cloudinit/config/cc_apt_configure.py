@@ -93,7 +93,7 @@ def handle(name, cfg, cloud, log, _args):
             util.logexc(log, "Failed to run debconf-set-selections")
 
 
-def mirror2lists_fileprefix(mirror):
+def mirrorurl_to_apt_fileprefix(mirror):
     string = mirror
     # take off http:// or ftp://
     if string.endswith("/"):
@@ -110,8 +110,8 @@ def rename_apt_lists(old_mirrors, new_mirrors, lists_d="/var/lib/apt/lists"):
         nmirror = new_mirrors.get(name)
         if not nmirror:
             continue
-        oprefix = os.path.join(lists_d, mirror2lists_fileprefix(omirror))
-        nprefix = os.path.join(lists_d, mirror2lists_fileprefix(nmirror))
+        oprefix = os.path.join(lists_d, mirrorurl_to_apt_fileprefix(omirror))
+        nprefix = os.path.join(lists_d, mirrorurl_to_apt_fileprefix(nmirror))
         if oprefix == nprefix:
             continue
         olen = len(oprefix)
