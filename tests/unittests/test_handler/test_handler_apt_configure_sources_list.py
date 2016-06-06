@@ -119,37 +119,27 @@ class TestAptSourceConfigSourceList(t_help.FilesystemMockingTestCase):
             {'codename': '', 'primary': mirrorcheck, 'mirror': mirrorcheck})
 
     def test_apt_source_list_debian(self):
-        """test_apt_source_list_debian
-        Test rendering of a source.list from template for debian
-        """
+        """Test rendering of a source.list from template for debian"""
         self.apt_source_list('debian', 'http://httpredir.debian.org/debian')
 
     def test_apt_source_list_ubuntu(self):
-        """test_apt_source_list_ubuntu
-        Test rendering of a source.list from template for ubuntu
-        """
+        """Test rendering of a source.list from template for ubuntu"""
         self.apt_source_list('ubuntu', 'http://archive.ubuntu.com/ubuntu/')
 
     def test_apt_srcl_debian_mirrorfail(self):
-        """test_apt_source_list_debian_mirrorfail
-        Test rendering of a source.list from template for debian
-        """
+        """Test rendering of a source.list from template for debian"""
         self.apt_source_list('debian', ['http://does.not.exist',
                                         'http://httpredir.debian.org/debian'],
                              'http://httpredir.debian.org/debian')
 
     def test_apt_srcl_ubuntu_mirrorfail(self):
-        """test_apt_source_list_ubuntu_mirrorfail
-        Test rendering of a source.list from template for ubuntu
-        """
+        """Test rendering of a source.list from template for ubuntu"""
         self.apt_source_list('ubuntu', ['http://does.not.exist',
                                         'http://archive.ubuntu.com/ubuntu/'],
                              'http://archive.ubuntu.com/ubuntu/')
 
     def test_apt_srcl_custom(self):
-        """test_apt_srcl_custom
-        Test rendering from a custom source.list template
-        """
+        """Test rendering from a custom source.list template"""
         cfg = util.load_yaml(YAML_TEXT_CUSTOM_SL)
         mycloud = self._get_cloud('ubuntu')
 
