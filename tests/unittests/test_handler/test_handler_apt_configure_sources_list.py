@@ -5,6 +5,24 @@ import logging
 import os
 import shutil
 import tempfile
+import socket
+
+# on SkipTest:
+#  - unittest SkipTest is first preference, but it's only available
+#    for >= 2.7
+#  - unittest2 SkipTest is second preference for older pythons.  This
+#    mirrors logic for choosing SkipTest exception in testtools
+#  - if none of the above, provide custom class
+try:
+    from unittest.case import SkipTest
+except ImportError:
+    try:
+        from unittest2.case import SkipTest
+    except ImportError:
+        class SkipTest(Exception):
+            """Raise this exception to mark a test as skipped.
+            """
+            pass
 
 try:
     from unittest import mock
@@ -126,14 +144,28 @@ class TestAptSourceConfigSourceList(t_help.FilesystemMockingTestCase):
         """Test rendering of a source.list from template for ubuntu"""
         self.apt_source_list('ubuntu', 'http://archive.ubuntu.com/ubuntu/')
 
+    @staticmethod
+    def check_connectivity(target):
+        """try original gpg_recv_key, but allow fall back"""
+        testsock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        testsock.settimeout(10)
+        try:
+            testsock.connect((target, 80))
+            testsock.close()
+        except socket.error:
+            raise SkipTest("Test skipped: no network connectivity to %s"
+                           % target)
+
     def test_apt_srcl_debian_mirrorfail(self):
         """Test rendering of a source.list from template for debian"""
+        self.check_connectivity('httpredir.debian.org')
         self.apt_source_list('debian', ['http://does.not.exist',
                                         'http://httpredir.debian.org/debian'],
                              'http://httpredir.debian.org/debian')
 
     def test_apt_srcl_ubuntu_mirrorfail(self):
         """Test rendering of a source.list from template for ubuntu"""
+        self.check_connectivity('archive.ubuntu.com')
         self.apt_source_list('ubuntu', ['http://does.not.exist',
                                         'http://archive.ubuntu.com/ubuntu/'],
                              'http://archive.ubuntu.com/ubuntu/')
