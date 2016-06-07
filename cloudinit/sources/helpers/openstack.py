@@ -28,6 +28,7 @@ import six
 
 from cloudinit import ec2_utils
 from cloudinit import log as logging
+from cloudinit import net
 from cloudinit import sources
 from cloudinit import url_helper
 from cloudinit import util
@@ -190,14 +191,14 @@ class BaseReader(object):
                   versions_available)
         return selected_version
 
-    def _read_content_path(self, item):
+    def _read_content_path(self, item, decode=False):
         path = item.get('content_path', '').lstrip("/")
         path_pieces = path.split("/")
         valid_pieces = [p for p in path_pieces if len(p)]
         if not valid_pieces:
             raise BrokenMetadata("Item %s has no valid content path" % (item))
         path = self._path_join(self.base_path, "openstack", *path_pieces)
-        return self._path_read(path)
+        return self._path_read(path, decode=decode)
 
     def read_v2(self):
         """Reads a version 2 formatted location.
@@ -298,7 +299,8 @@ class BaseReader(object):
         net_item = metadata.get("network_config", None)
         if net_item:
             try:
-                results['network_config'] = self._read_content_path(net_item)
+                content = self._read_content_path(net_item, decode=True)
+                results['network_config'] = content
             except IOError as e:
                 raise BrokenMetadata("Failed to read network"
                                      " configuration: %s" % (e))
@@ -333,8 +335,8 @@ class ConfigDriveReader(BaseReader):
         components = [base] + list(add_ons)
         return os.path.join(*components)
 
-    def _path_read(self, path):
-        return util.load_file(path, decode=False)
+    def _path_read(self, path, decode=False):
+        return util.load_file(path, decode=decode)
 
     def _fetch_available_versions(self):
         if self._versions is None:
@@ -446,7 +448,7 @@ class MetadataReader(BaseReader):
         self._versions = found
         return self._versions
 
-    def _path_read(self, path):
+    def _path_read(self, path, decode=False):
 
         def should_retry_cb(_request_args, cause):
             try:
@@ -463,7 +465,10 @@ class MetadataReader(BaseReader):
                                       ssl_details=self.ssl_details,
                                       timeout=self.timeout,
                                       exception_cb=should_retry_cb)
-        return response.contents
+        if decode:
+            return response.contents.decode()
+        else:
+            return response.contents
 
     def _path_join(self, base, *add_ons):
         return url_helper.combine_url(base, *add_ons)
@@ -474,7 +479,8 @@ class MetadataReader(BaseReader):
                                                retries=self.retries)
 
 
-def convert_net_json(network_json):
+# Convert OpenStack ConfigDrive NetworkData json to network_config yaml
+def convert_net_json(network_json=None, known_macs=None):
     """Return a dictionary of network_config by parsing provided
        OpenStack ConfigDrive NetworkData json format
 
@@ -501,8 +507,10 @@ def convert_net_json(network_json):
     enumerate a dictionary of valid keys for network_yaml and apply filtering
     to drop these superflous keys from the network_config yaml.
     """
+    if network_json is None:
+        return None
 
-    # Dict of network_config key for filtering network_json
+    # dict of network_config key for filtering network_json
     valid_keys = {
         'physical': [
             'name',
@@ -510,6 +518,7 @@ def convert_net_json(network_json):
             'mac_address',
             'subnets',
             'params',
+            'mtu',
         ],
         'subnet': [
             'type',
@@ -519,7 +528,6 @@ def convert_net_json(network_json):
             'metric',
             'gateway',
             'pointopoint',
-            'mtu',
             'scope',
             'dns_nameservers',
             'dns_search',
@@ -534,13 +542,19 @@ def convert_net_json(network_json):
     config = []
     for link in links:
         subnets = []
-        cfg = dict((k, v) for k, v in link.items()
-                   if k in valid_keys['physical'])
-        cfg.update({'name': link['id']})
-        for network in [net for net in networks
-                        if net['link'] == link['id']]:
-            subnet = dict((k, v) for k, v in network.items()
-                          if k in valid_keys['subnet'])
+        cfg = {k: v for k, v in link.items()
+               if k in valid_keys['physical']}
+        # 'name' is not in openstack spec yet, but we will support it if it is
+        # present.  The 'id' in the spec is currently implemented as the host
+        # nic's name, meaning something like 'tap-adfasdffd'.  We do not want
+        # to name guest devices with such ugly names.
+        if 'name' in link:
+            cfg['name'] = link['name']
+
+        for network in [n for n in networks
+                        if n['link'] == link['id']]:
+            subnet = {k: v for k, v in network.items()
+                      if k in valid_keys['subnet']}
             if 'dhcp' in network['type']:
                 t = 'dhcp6' if network['type'].startswith('ipv6') else 'dhcp4'
                 subnet.update({
@@ -551,13 +565,13 @@ def convert_net_json(network_json):
                     'type': 'static',
                     'address': network.get('ip_address'),
                 })
-                if network['type'] == 'ipv6':
-                    subnet['ipv6'] = True
-                else:
-                    subnet['ipv4'] = True
+            if network['type'] == 'ipv4':
+                subnet['ipv4'] = True
+            if network['type'] == 'ipv6':
+                subnet['ipv6'] = True
             subnets.append(subnet)
         cfg.update({'subnets': subnets})
-        if link['type'] in ['ethernet', 'vif', 'ovs', 'phy']:
+        if link['type'] in ['ethernet', 'vif', 'ovs', 'phy', 'bridge']:
             cfg.update({
                 'type': 'physical',
                 'mac_address': link['ethernet_mac_address']})
@@ -580,19 +594,29 @@ def convert_net_json(network_json):
                 'vlan_id': link['vlan_id'],
                 'mac_address': link['vlan_mac_address'],
             })
-        elif link['type'] in ['bridge']:
-            cfg.update({
-                'type': 'bridge',
-                'mac_address': link['ethernet_mac_address'],
-                'mtu': link['mtu']})
         else:
             raise ValueError(
                 'Unknown network_data link type: %s' % link['type'])
 
         config.append(cfg)
 
+    need_names = [d for d in config
+                  if d.get('type') == 'physical' and 'name' not in d]
+
+    if need_names:
+        if known_macs is None:
+            known_macs = net.get_interfaces_by_mac()
+
+        for d in need_names:
+            mac = d.get('mac_address')
+            if not mac:
+                raise ValueError("No mac_address or name entry for %s" % d)
+            if mac not in known_macs:
+                raise ValueError("Unable to find a system nic for %s" % d)
+            d['name'] = known_macs[mac]
+
     for service in services:
-        cfg = copy.deepcopy(service)
+        cfg = service
         cfg.update({'type': 'nameserver'})
         config.append(cfg)
 

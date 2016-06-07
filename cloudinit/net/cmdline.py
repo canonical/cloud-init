@@ -43,17 +43,13 @@ def _load_shell_content(content, add_empty=False, empty_val=None):
        then add entries in to the returned dictionary for 'VAR='
        variables.  Set their value to empty_val."""
     data = {}
-    for line in _shlex_split(content):
-        try:
-            key, value = line.split("=", 1)
-        except ValueError:
-            # Unsplittable line, skip it...
-            pass
-        else:
-            if not value:
-                value = empty_val
-            if add_empty or value:
-                data[key] = value
+    for line in shlex.split(content):
+        key, value = line.split("=", 1)
+        if not value:
+            value = empty_val
+        if add_empty or value:
+            data[key] = value
+
     return data
 
 

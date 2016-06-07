@@ -27,8 +27,6 @@ from cloudinit import util
 
 LOG = logging.getLogger(__name__)
 
-VALID_DSMODES = ("local", "net", "disabled")
-
 
 class DataSourceCloudSigma(sources.DataSource):
     """
@@ -38,7 +36,6 @@ class DataSourceCloudSigma(sources.DataSource):
     http://cloudsigma-docs.readthedocs.org/en/latest/server_context.html
     """
     def __init__(self, sys_cfg, distro, paths):
-        self.dsmode = 'local'
         self.cepko = Cepko()
         self.ssh_public_key = ''
         sources.DataSource.__init__(self, sys_cfg, distro, paths)
@@ -84,11 +81,9 @@ class DataSourceCloudSigma(sources.DataSource):
             LOG.debug("CloudSigma: Unable to read from serial port")
             return False
 
-        dsmode = server_meta.get('cloudinit-dsmode', self.dsmode)
-        if dsmode not in VALID_DSMODES:
-            LOG.warn("Invalid dsmode %s, assuming default of 'net'", dsmode)
-            dsmode = 'net'
-        if dsmode == "disabled" or dsmode != self.dsmode:
+        self.dsmode = self._determine_dsmode(
+            [server_meta.get('cloudinit-dsmode')])
+        if dsmode == sources.DSMODE_DISABLED:
             return False
 
         base64_fields = server_meta.get('base64_fields', '').split(',')
@@ -120,17 +115,13 @@ class DataSourceCloudSigma(sources.DataSource):
         return self.metadata['uuid']
 
 
-class DataSourceCloudSigmaNet(DataSourceCloudSigma):
-    def __init__(self, sys_cfg, distro, paths):
-        DataSourceCloudSigma.__init__(self, sys_cfg, distro, paths)
-        self.dsmode = 'net'
-
+# Legacy: Must be present in case we load an old pkl object
+DataSourceCloudSigmaNet = DataSourceCloudSigma
 
 # Used to match classes to dependencies. Since this datasource uses the serial
 # port network is not really required, so it's okay to load without it, too.
 datasources = [
     (DataSourceCloudSigma, (sources.DEP_FILESYSTEM)),
-    (DataSourceCloudSigmaNet, (sources.DEP_FILESYSTEM, sources.DEP_NETWORK)),
 ]
 
 

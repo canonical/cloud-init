@@ -135,13 +135,17 @@ def _register_uris(version, ec2_files, ec2_meta, os_files):
                     body=get_request_callback)
 
 
+def _read_metadata_service():
+    return ds.read_metadata_service(BASE_URL, retries=0, timeout=0.1)
+
+
 class TestOpenStackDataSource(test_helpers.HttprettyTestCase):
     VERSION = 'latest'
 
     @hp.activate
     def test_successful(self):
         _register_uris(self.VERSION, EC2_FILES, EC2_META, OS_FILES)
-        f = ds.read_metadata_service(BASE_URL)
+        f = _read_metadata_service()
         self.assertEqual(VENDOR_DATA, f.get('vendordata'))
         self.assertEqual(CONTENT_0, f['files']['/etc/foo.cfg'])
         self.assertEqual(CONTENT_1, f['files']['/etc/bar/bar.cfg'])
@@ -163,7 +167,7 @@ class TestOpenStackDataSource(test_helpers.HttprettyTestCase):
     @hp.activate
     def test_no_ec2(self):
         _register_uris(self.VERSION, {}, {}, OS_FILES)
-        f = ds.read_metadata_service(BASE_URL)
+        f = _read_metadata_service()
         self.assertEqual(VENDOR_DATA, f.get('vendordata'))
         self.assertEqual(CONTENT_0, f['files']['/etc/foo.cfg'])
         self.assertEqual(CONTENT_1, f['files']['/etc/bar/bar.cfg'])
@@ -178,8 +182,7 @@ class TestOpenStackDataSource(test_helpers.HttprettyTestCase):
             if k.endswith('meta_data.json'):
                 os_files.pop(k, None)
         _register_uris(self.VERSION, {}, {}, os_files)
-        self.assertRaises(openstack.NonReadable, ds.read_metadata_service,
-                          BASE_URL)
+        self.assertRaises(openstack.NonReadable, _read_metadata_service)
 
     @hp.activate
     def test_bad_uuid(self):
@@ -190,8 +193,7 @@ class TestOpenStackDataSource(test_helpers.HttprettyTestCase):
             if k.endswith('meta_data.json'):
                 os_files[k] = json.dumps(os_meta)
         _register_uris(self.VERSION, {}, {}, os_files)
-        self.assertRaises(openstack.BrokenMetadata, ds.read_metadata_service,
-                          BASE_URL)
+        self.assertRaises(openstack.BrokenMetadata, _read_metadata_service)
 
     @hp.activate
     def test_userdata_empty(self):
@@ -200,7 +202,7 @@ class TestOpenStackDataSource(test_helpers.HttprettyTestCase):
             if k.endswith('user_data'):
                 os_files.pop(k, None)
         _register_uris(self.VERSION, {}, {}, os_files)
-        f = ds.read_metadata_service(BASE_URL)
+        f = _read_metadata_service()
         self.assertEqual(VENDOR_DATA, f.get('vendordata'))
         self.assertEqual(CONTENT_0, f['files']['/etc/foo.cfg'])
         self.assertEqual(CONTENT_1, f['files']['/etc/bar/bar.cfg'])
@@ -213,7 +215,7 @@ class TestOpenStackDataSource(test_helpers.HttprettyTestCase):
             if k.endswith('vendor_data.json'):
                 os_files.pop(k, None)
         _register_uris(self.VERSION, {}, {}, os_files)
-        f = ds.read_metadata_service(BASE_URL)
+        f = _read_metadata_service()
         self.assertEqual(CONTENT_0, f['files']['/etc/foo.cfg'])
         self.assertEqual(CONTENT_1, f['files']['/etc/bar/bar.cfg'])
         self.assertFalse(f.get('vendordata'))
@@ -225,8 +227,7 @@ class TestOpenStackDataSource(test_helpers.HttprettyTestCase):
             if k.endswith('vendor_data.json'):
                 os_files[k] = '{'  # some invalid json
         _register_uris(self.VERSION, {}, {}, os_files)
-        self.assertRaises(openstack.BrokenMetadata, ds.read_metadata_service,
-                          BASE_URL)
+        self.assertRaises(openstack.BrokenMetadata, _read_metadata_service)
 
     @hp.activate
     def test_metadata_invalid(self):
@@ -235,8 +236,7 @@ class TestOpenStackDataSource(test_helpers.HttprettyTestCase):
             if k.endswith('meta_data.json'):
                 os_files[k] = '{'  # some invalid json
         _register_uris(self.VERSION, {}, {}, os_files)
-        self.assertRaises(openstack.BrokenMetadata, ds.read_metadata_service,
-                          BASE_URL)
+        self.assertRaises(openstack.BrokenMetadata, _read_metadata_service)
 
     @hp.activate
     def test_datasource(self):
@@ -245,7 +245,7 @@ class TestOpenStackDataSource(test_helpers.HttprettyTestCase):
                                        None,
                                        helpers.Paths({}))
         self.assertIsNone(ds_os.version)
-        found = ds_os.get_data()
+        found = ds_os.get_data(timeout=0.1, retries=0)
         self.assertTrue(found)
         self.assertEqual(2, ds_os.version)
         md = dict(ds_os.metadata)
@@ -269,7 +269,7 @@ class TestOpenStackDataSource(test_helpers.HttprettyTestCase):
                                        None,
                                        helpers.Paths({}))
         self.assertIsNone(ds_os.version)
-        found = ds_os.get_data()
+        found = ds_os.get_data(timeout=0.1, retries=0)
         self.assertFalse(found)
         self.assertIsNone(ds_os.version)
 
@@ -288,7 +288,7 @@ class TestOpenStackDataSource(test_helpers.HttprettyTestCase):
             'timeout': 0,
         }
         self.assertIsNone(ds_os.version)
-        found = ds_os.get_data()
+        found = ds_os.get_data(timeout=0.1, retries=0)
         self.assertFalse(found)
         self.assertIsNone(ds_os.version)
 
@@ -311,7 +311,7 @@ class TestOpenStackDataSource(test_helpers.HttprettyTestCase):
             'timeout': 0,
         }
         self.assertIsNone(ds_os.version)
-        found = ds_os.get_data()
+        found = ds_os.get_data(timeout=0.1, retries=0)
         self.assertFalse(found)
         self.assertIsNone(ds_os.version)
 

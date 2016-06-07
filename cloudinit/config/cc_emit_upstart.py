@@ -56,7 +56,7 @@ def handle(name, _cfg, cloud, log, args):
         event_names = ['cloud-config']
 
     if not is_upstart_system():
-        log.debug("not upstart system, '%s' disabled")
+        log.debug("not upstart system, '%s' disabled", name)
         return
 
     cfgpath = cloud.paths.get_ipath_cur("cloud_config")

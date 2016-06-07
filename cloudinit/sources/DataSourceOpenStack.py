@@ -33,13 +33,11 @@ DEFAULT_IID = "iid-dsopenstack"
 DEFAULT_METADATA = {
     "instance-id": DEFAULT_IID,
 }
-VALID_DSMODES = ("net", "disabled")
 
 
 class DataSourceOpenStack(openstack.SourceMixin, sources.DataSource):
     def __init__(self, sys_cfg, distro, paths):
         super(DataSourceOpenStack, self).__init__(sys_cfg, distro, paths)
-        self.dsmode = 'net'
         self.metadata_address = None
         self.ssl_details = util.fetch_ssl_details(self.paths)
         self.version = None
@@ -103,7 +101,7 @@ class DataSourceOpenStack(openstack.SourceMixin, sources.DataSource):
         self.metadata_address = url2base.get(avail_url)
         return bool(avail_url)
 
-    def get_data(self):
+    def get_data(self, retries=5, timeout=5):
         try:
             if not self.wait_for_metadata_service():
                 return False
@@ -115,7 +113,9 @@ class DataSourceOpenStack(openstack.SourceMixin, sources.DataSource):
                                     'Crawl of openstack metadata service',
                                     read_metadata_service,
                                     args=[self.metadata_address],
-                                    kwargs={'ssl_details': self.ssl_details})
+                                    kwargs={'ssl_details': self.ssl_details,
+                                            'retries': retries,
+                                            'timeout': timeout})
         except openstack.NonReadable:
             return False
         except (openstack.BrokenMetadata, IOError):
@@ -123,11 +123,8 @@ class DataSourceOpenStack(openstack.SourceMixin, sources.DataSource):
                         self.metadata_address)
             return False
 
-        user_dsmode = results.get('dsmode', None)
-        if user_dsmode not in VALID_DSMODES + (None,):
-            LOG.warn("User specified invalid mode: %s", user_dsmode)
-            user_dsmode = None
-        if user_dsmode == 'disabled':
+        self.dsmode = self._determine_dsmode([results.get('dsmode')])
+        if self.dsmode == sources.DSMODE_DISABLED:
             return False
 
         md = results.get('metadata', {})
@@ -153,8 +150,10 @@ class DataSourceOpenStack(openstack.SourceMixin, sources.DataSource):
         return sources.instance_id_matches_system_uuid(self.get_instance_id())
 
 
-def read_metadata_service(base_url, ssl_details=None):
-    reader = openstack.MetadataReader(base_url, ssl_details=ssl_details)
+def read_metadata_service(base_url, ssl_details=None,
+                          timeout=5, retries=5):
+    reader = openstack.MetadataReader(base_url, ssl_details=ssl_details,
+                                      timeout=timeout, retries=retries)
     return reader.read_v2()
 
 

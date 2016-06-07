@@ -31,6 +31,7 @@ import stat
 
 from cloudinit import importer
 from cloudinit import log as logging
+from cloudinit import net
 from cloudinit import ssh_util
 from cloudinit import type_utils
 from cloudinit import util
@@ -128,6 +129,8 @@ class Distro(object):
                                         mirror_info=arch_info)
 
     def apply_network(self, settings, bring_up=True):
+        # this applies network where 'settings' is interfaces(5) style
+        # it is obsolete compared to apply_network_config
         # Write it out
         dev_names = self._write_network(settings)
         # Now try to bring them up
@@ -142,6 +145,9 @@ class Distro(object):
         if bring_up:
             return self._bring_up_interfaces(dev_names)
         return False
+
+    def apply_network_config_names(self, netconfig):
+        net.apply_network_config_names(netconfig)
 
     @abc.abstractmethod
     def apply_locale(self, locale, out_fn=None):

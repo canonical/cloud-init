@@ -4,6 +4,9 @@ mock
 nose
 unittest2
 
+# Only needed if you want to know the test times
+# nose-timer
+
 # Only really needed on older versions of python
 contextlib2
 setuptools

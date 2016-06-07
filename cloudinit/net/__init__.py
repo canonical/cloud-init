@@ -19,77 +19,14 @@
 import errno
 import logging
 import os
+import re
 
-from .import compat
-
-import yaml
+from cloudinit import util
 
 LOG = logging.getLogger(__name__)
 SYS_CLASS_NET = "/sys/class/net/"
-LINKS_FNAME_PREFIX = "etc/systemd/network/50-cloud-init-"
-
-NET_CONFIG_OPTIONS = [
-    "address", "netmask", "broadcast", "network", "metric", "gateway",
-    "pointtopoint", "media", "mtu", "hostname", "leasehours", "leasetime",
-    "vendor", "client", "bootfile", "server", "hwaddr", "provider", "frame",
-    "netnum", "endpoint", "local", "ttl",
-]
-
-NET_CONFIG_COMMANDS = [
-    "pre-up", "up", "post-up", "down", "pre-down", "post-down",
-]
-
-NET_CONFIG_BRIDGE_OPTIONS = [
-    "bridge_ageing", "bridge_bridgeprio", "bridge_fd", "bridge_gcinit",
-    "bridge_hello", "bridge_maxage", "bridge_maxwait", "bridge_stp",
-]
 DEFAULT_PRIMARY_INTERFACE = 'eth0'
-
-# NOTE(harlowja): some of these are similar to what is in cloudinit main
-# source or utils tree/module but the reason that is done is so that this
-# whole module can be easily extracted and placed into other
-# code-bases (curtin for example).
-
-
-def write_file(path, content):
-    base_path = os.path.dirname(path)
-    if not os.path.isdir(base_path):
-        os.makedirs(base_path)
-    with open(path, "wb+") as fh:
-        if isinstance(content, compat.text_type):
-            content = content.encode("utf8")
-        fh.write(content)
-
-
-def read_file(path, decode='utf8', enoent=None):
-    try:
-        with open(path, "rb") as fh:
-            contents = fh.read()
-    except OSError as e:
-        if e.errno == errno.ENOENT and enoent is not None:
-            return enoent
-        raise
-    if decode:
-        return contents.decode(decode)
-    return contents
-
-
-def dump_yaml(obj):
-    return yaml.safe_dump(obj,
-                          line_break="\n",
-                          indent=4,
-                          explicit_start=True,
-                          explicit_end=True,
-                          default_flow_style=False)
-
-
-def read_yaml_file(path):
-    val = yaml.safe_load(read_file(path))
-    if not isinstance(val, dict):
-        gotten_type_name = type(val).__name__
-        raise TypeError("Expected dict to be loaded from %s, got"
-                        " '%s' instead" % (path, gotten_type_name))
-    return val
+LINKS_FNAME_PREFIX = "etc/systemd/network/50-cloud-init-"
 
 
 def sys_dev_path(devname, path=""):
@@ -97,7 +34,13 @@ def sys_dev_path(devname, path=""):
 
 
 def read_sys_net(devname, path, translate=None, enoent=None, keyerror=None):
-    contents = read_file(sys_dev_path(devname, path), enoent=enoent)
+    try:
+        contents = util.load_file(sys_dev_path(devname, path))
+    except (OSError, IOError) as e:
+        if getattr(e, 'errno', None) == errno.ENOENT:
+            if enoent is not None:
+                return enoent
+        raise
     contents = contents.strip()
     if translate is None:
         return contents
@@ -158,7 +101,7 @@ def get_devicelist():
 
 
 class ParserError(Exception):
-    """Raised when parser has issue parsing the interfaces file."""
+    """Raised when a parser has issue parsing a file/content."""
 
 
 def is_disabled_cfg(cfg):
@@ -171,11 +114,10 @@ def sys_netdev_info(name, field):
     if not os.path.exists(os.path.join(SYS_CLASS_NET, name)):
         raise OSError("%s: interface does not exist in %s" %
                       (name, SYS_CLASS_NET))
-
     fname = os.path.join(SYS_CLASS_NET, name, field)
     if not os.path.exists(fname):
         raise OSError("%s: could not find sysfs entry: %s" % (name, fname))
-    data = read_file(fname)
+    data = util.load_file(fname)
     if data[-1] == '\n':
         data = data[:-1]
     return data
@@ -250,5 +192,175 @@ def generate_fallback_config():
          'mac_address': mac, 'subnets': [{'type': 'dhcp'}]})
     return nconf
 
+
+def apply_network_config_names(netcfg, strict_present=True, strict_busy=True):
+    """read the network config and rename devices accordingly.
+    if strict_present is false, then do not raise exception if no devices
+    match.  if strict_busy is false, then do not raise exception if the
+    device cannot be renamed because it is currently configured."""
+    renames = []
+    for ent in netcfg.get('config', {}):
+        if ent.get('type') != 'physical':
+            continue
+        mac = ent.get('mac_address')
+        name = ent.get('name')
+        if not mac:
+            continue
+        renames.append([mac, name])
+
+    return _rename_interfaces(renames)
+
+
+def _get_current_rename_info(check_downable=True):
+    """Collect information necessary for rename_interfaces."""
+    names = get_devicelist()
+    bymac = {}
+    for n in names:
+        bymac[get_interface_mac(n)] = {
+            'name': n, 'up': is_up(n), 'downable': None}
+
+    if check_downable:
+        nmatch = re.compile(r"[0-9]+:\s+(\w+)[@:]")
+        ipv6, _err = util.subp(['ip', '-6', 'addr', 'show', 'permanent',
+                                'scope', 'global'], capture=True)
+        ipv4, _err = util.subp(['ip', '-4', 'addr', 'show'], capture=True)
+
+        nics_with_addresses = set()
+        for bytes_out in (ipv6, ipv4):
+            nics_with_addresses.update(nmatch.findall(bytes_out))
+
+        for d in bymac.values():
+            d['downable'] = (d['up'] is False or
+                             d['name'] not in nics_with_addresses)
+
+    return bymac
+
+
+def _rename_interfaces(renames, strict_present=True, strict_busy=True,
+                       current_info=None):
+    if current_info is None:
+        current_info = _get_current_rename_info()
+
+    cur_bymac = {}
+    for mac, data in current_info.items():
+        cur = data.copy()
+        cur['mac'] = mac
+        cur_bymac[mac] = cur
+
+    def update_byname(bymac):
+        return {data['name']: data for data in bymac.values()}
+
+    def rename(cur, new):
+        util.subp(["ip", "link", "set", cur, "name", new], capture=True)
+
+    def down(name):
+        util.subp(["ip", "link", "set", name, "down"], capture=True)
+
+    def up(name):
+        util.subp(["ip", "link", "set", name, "up"], capture=True)
+
+    ops = []
+    errors = []
+    ups = []
+    cur_byname = update_byname(cur_bymac)
+    tmpname_fmt = "cirename%d"
+    tmpi = -1
+
+    for mac, new_name in renames:
+        cur = cur_bymac.get(mac, {})
+        cur_name = cur.get('name')
+        cur_ops = []
+        if cur_name == new_name:
+            # nothing to do
+            continue
+
+        if not cur_name:
+            if strict_present:
+                errors.append(
+                    "[nic not present] Cannot rename mac=%s to %s"
+                    ", not available." % (mac, new_name))
+            continue
+
+        if cur['up']:
+            msg = "[busy] Error renaming mac=%s from %s to %s"
+            if not cur['downable']:
+                if strict_busy:
+                    errors.append(msg % (mac, cur_name, new_name))
+                continue
+            cur['up'] = False
+            cur_ops.append(("down", mac, new_name, (cur_name,)))
+            ups.append(("up", mac, new_name, (new_name,)))
+
+        if new_name in cur_byname:
+            target = cur_byname[new_name]
+            if target['up']:
+                msg = "[busy-target] Error renaming mac=%s from %s to %s."
+                if not target['downable']:
+                    if strict_busy:
+                        errors.append(msg % (mac, cur_name, new_name))
+                    continue
+                else:
+                    cur_ops.append(("down", mac, new_name, (new_name,)))
+
+            tmp_name = None
+            while tmp_name is None or tmp_name in cur_byname:
+                tmpi += 1
+                tmp_name = tmpname_fmt % tmpi
+
+            cur_ops.append(("rename", mac, new_name, (new_name, tmp_name)))
+            target['name'] = tmp_name
+            cur_byname = update_byname(cur_bymac)
+            if target['up']:
+                ups.append(("up", mac, new_name, (tmp_name,)))
+
+        cur_ops.append(("rename", mac, new_name, (cur['name'], new_name)))
+        cur['name'] = new_name
+        cur_byname = update_byname(cur_bymac)
+        ops += cur_ops
+
+    opmap = {'rename': rename, 'down': down, 'up': up}
+
+    if len(ops) + len(ups) == 0:
+        if len(errors):
+            LOG.debug("unable to do any work for renaming of %s", renames)
+        else:
+            LOG.debug("no work necessary for renaming of %s", renames)
+    else:
+        LOG.debug("achieving renaming of %s with ops %s", renames, ops + ups)
+
+        for op, mac, new_name, params in ops + ups:
+            try:
+                opmap.get(op)(*params)
+            except Exception as e:
+                errors.append(
+                    "[unknown] Error performing %s%s for %s, %s: %s" %
+                    (op, params, mac, new_name, e))
+
+    if len(errors):
+        raise Exception('\n'.join(errors))
+
+
+def get_interface_mac(ifname):
+    """Returns the string value of an interface's MAC Address"""
+    return read_sys_net(ifname, "address", enoent=False)
+
+
+def get_interfaces_by_mac(devs=None):
+    """Build a dictionary of tuples {mac: name}"""
+    if devs is None:
+        try:
+            devs = get_devicelist()
+        except OSError as e:
+            if e.errno == errno.ENOENT:
+                devs = []
+            else:
+                raise
+    ret = {}
+    for name in devs:
+        mac = get_interface_mac(name)
+        # some devices may not have a mac (tun0)
+        if mac:
+            ret[mac] = name
+    return ret
 
 # vi: ts=4 expandtab syntax=python

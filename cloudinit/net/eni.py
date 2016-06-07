@@ -18,9 +18,10 @@ import re
 
 from . import LINKS_FNAME_PREFIX
 from . import ParserError
-from . import write_file
 
 from .udev import generate_udev_rule
+
+from cloudinit import util
 
 
 NET_CONFIG_COMMANDS = [
@@ -67,6 +68,7 @@ def _iface_add_subnet(iface, subnet):
 
 
 # TODO: switch to valid_map for attrs
+
 def _iface_add_attrs(iface):
     content = ""
     ignore_map = [
@@ -181,7 +183,11 @@ def _parse_deb_config_data(ifaces, contents, src_dir, src_path):
             ifaces[iface]['method'] = method
             currif = iface
         elif option == "hwaddress":
-            ifaces[currif]['hwaddress'] = split[1]
+            if split[1] == "ether":
+                val = split[2]
+            else:
+                val = split[1]
+            ifaces[currif]['hwaddress'] = val
         elif option in NET_CONFIG_OPTIONS:
             ifaces[currif][option] = split[1]
         elif option in NET_CONFIG_COMMANDS:
@@ -229,7 +235,7 @@ def _parse_deb_config_data(ifaces, contents, src_dir, src_path):
             ifaces[iface]['auto'] = False
 
 
-def _parse_deb_config(path):
+def parse_deb_config(path):
     """Parses a debian network configuration file."""
     ifaces = {}
     with open(path, "r") as fp:
@@ -239,6 +245,56 @@ def _parse_deb_config(path):
         ifaces, contents,
         os.path.dirname(abs_path), abs_path)
     return ifaces
+
+
+def convert_eni_data(eni_data):
+    # return a network config representation of what is in eni_data
+    ifaces = {}
+    _parse_deb_config_data(ifaces, eni_data, src_dir=None, src_path=None)
+    return _ifaces_to_net_config_data(ifaces)
+
+
+def _ifaces_to_net_config_data(ifaces):
+    """Return network config that represents the ifaces data provided.
+    ifaces = parse_deb_config("/etc/network/interfaces")
+    config = ifaces_to_net_config_data(ifaces)
+    state = parse_net_config_data(config)."""
+    devs = {}
+    for name, data in ifaces.items():
+        # devname is 'eth0' for name='eth0:1'
+        devname = name.partition(":")[0]
+        if devname == "lo":
+            # currently provding 'lo' in network config results in duplicate
+            # entries. in rendered interfaces file. so skip it.
+            continue
+        if devname not in devs:
+            devs[devname] = {'type': 'physical', 'name': devname,
+                             'subnets': []}
+            # this isnt strictly correct, but some might specify
+            # hwaddress on a nic for matching / declaring name.
+            if 'hwaddress' in data:
+                devs[devname]['mac_address'] = data['hwaddress']
+        subnet = {'_orig_eni_name': name, 'type': data['method']}
+        if data.get('auto'):
+            subnet['control'] = 'auto'
+        else:
+            subnet['control'] = 'manual'
+
+        if data.get('method') == 'static':
+            subnet['address'] = data['address']
+
+        for copy_key in ('netmask', 'gateway', 'broadcast'):
+            if copy_key in data:
+                subnet[copy_key] = data[copy_key]
+
+        if 'dns' in data:
+            for n in ('nameservers', 'search'):
+                if n in data['dns'] and data['dns'][n]:
+                    subnet['dns_' + n] = data['dns'][n]
+        devs[devname]['subnets'].append(subnet)
+
+    return {'version': 1,
+            'config': [devs[d] for d in sorted(devs)]}
 
 
 class Renderer(object):
@@ -298,11 +354,10 @@ class Renderer(object):
                     route_line += " %s %s" % (mapping[k], route[k])
             content += up + route_line + eol
             content += down + route_line + eol
-
         return content
 
     def _render_interfaces(self, network_state):
-        '''Given state, emit etc/network/interfaces content'''
+        '''Given state, emit etc/network/interfaces content.'''
 
         content = ""
         interfaces = network_state.get('interfaces')
@@ -345,6 +400,8 @@ class Renderer(object):
                     content += _iface_start_entry(iface, index)
                     content += _iface_add_subnet(iface, subnet)
                     content += _iface_add_attrs(iface)
+                    for route in subnet.get('routes', []):
+                        content += self._render_route(route, indent="    ")
             else:
                 # ifenslave docs say to auto the slave devices
                 if 'bond-master' in iface:
@@ -360,19 +417,24 @@ class Renderer(object):
         return content
 
     def render_network_state(
-            self, target, network_state,
-            eni="etc/network/interfaces", links_prefix=LINKS_FNAME_PREFIX,
-            netrules='etc/udev/rules.d/70-persistent-net.rules'):
+        self, target, network_state, eni="etc/network/interfaces",
+            links_prefix=LINKS_FNAME_PREFIX,
+            netrules='etc/udev/rules.d/70-persistent-net.rules',
+            writer=None):
 
-        fpeni = os.path.join(target, eni)
-        write_file(fpeni, self._render_interfaces(network_state))
+        fpeni = os.path.sep.join((target, eni,))
+        util.ensure_dir(os.path.dirname(fpeni))
+        util.write_file(fpeni, self._render_interfaces(network_state))
 
         if netrules:
-            netrules = os.path.join(target, netrules)
-            write_file(netrules, self._render_persistent_net(network_state))
+            netrules = os.path.sep.join((target, netrules,))
+            util.ensure_dir(os.path.dirname(netrules))
+            util.write_file(netrules,
+                            self._render_persistent_net(network_state))
 
         if links_prefix:
-            self._render_systemd_links(target, network_state, links_prefix)
+            self._render_systemd_links(target, network_state,
+                                       links_prefix=links_prefix)
 
     def _render_systemd_links(self, target, network_state,
                               links_prefix=LINKS_FNAME_PREFIX):
@@ -392,4 +454,4 @@ class Renderer(object):
                     "Name=" + iface['name'],
                     ""
                 ])
-                write_file(fname, content)
+                util.write_file(fname, content)
