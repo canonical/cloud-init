@@ -618,7 +618,7 @@ class Init(object):
             dscfg = ('ds', self.datasource.network_config)
         sys_cfg = ('system_cfg', self.cfg.get('network'))
 
-        for loc, ncfg in (cmdline_cfg, dscfg, sys_cfg):
+        for loc, ncfg in (cmdline_cfg, sys_cfg, dscfg):
             if net.is_disabled_cfg(ncfg):
                 LOG.debug("network config disabled by %s", loc)
                 return (None, loc)
