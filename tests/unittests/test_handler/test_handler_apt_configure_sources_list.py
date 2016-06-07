@@ -38,6 +38,8 @@ from cloudinit import util
 from cloudinit.config import cc_apt_configure
 from cloudinit.sources import DataSourceNone
 
+from cloudinit.distros.debian import Distro
+
 from .. import helpers as t_help
 
 LOG = logging.getLogger(__name__)
@@ -87,8 +89,6 @@ def load_tfile_or_url(*args, **kwargs):
     return util.decode_binary(util.read_file_or_url(*args, **kwargs).contents)
 
 
-# This feature is apt specific and thereby is disabled in environments without
-@t_help.skipIf(not os.path.isfile(BIN_APT), "no apt")
 class TestAptSourceConfigSourceList(t_help.FilesystemMockingTestCase):
     """TestAptSourceConfigSourceList
     Main Class to test sources list rendering
@@ -180,8 +180,10 @@ class TestAptSourceConfigSourceList(t_help.FilesystemMockingTestCase):
             with mock.patch.object(util, 'subp', self.subp):
                 with mock.patch.object(cc_apt_configure, 'get_release',
                                        return_value='fakerelease'):
-                    cc_apt_configure.handle("notimportant", cfg, mycloud,
-                                            LOG, None)
+                    with mock.patch.object(Distro, 'get_primary_arch',
+                                           return_value='amd64'):
+                        cc_apt_configure.handle("notimportant", cfg, mycloud,
+                                                LOG, None)
 
         mockwrite.assert_called_once_with(
             '/etc/apt/sources.list',
