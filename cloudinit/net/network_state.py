@@ -19,7 +19,7 @@ import copy
 import functools
 import logging
 
-from . import compat
+import six
 
 from cloudinit import util
 
@@ -113,7 +113,7 @@ class CommandHandlerMeta(type):
                                                       parents, dct)
 
 
-@compat.add_metaclass(CommandHandlerMeta)
+@six.add_metaclass(CommandHandlerMeta)
 class NetworkState(object):
 
     initial_network_state = {

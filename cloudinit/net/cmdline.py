@@ -21,16 +21,20 @@ import glob
 import gzip
 import io
 import shlex
+import sys
 
-from . import compat
+import six
+
 from . import get_devicelist
 from . import sys_netdev_info
 
 from cloudinit import util
 
+PY26 = sys.version_info[0:2] == (2, 6)
+
 
 def _shlex_split(blob):
-    if compat.PY26 and isinstance(blob, compat.text_type):
+    if PY26 and isinstance(blob, six.text_type):
         # Older versions don't support unicode input
         blob = blob.encode("utf8")
     return shlex.split(blob)
@@ -42,7 +46,7 @@ def _load_shell_content(content, add_empty=False, empty_val=None):
        then add entries in to the returned dictionary for 'VAR='
        variables.  Set their value to empty_val."""
     data = {}
-    for line in shlex.split(content):
+    for line in _shlex_split(content):
         key, value = line.split("=", 1)
         if not value:
             value = empty_val
