@@ -24,7 +24,6 @@ import shlex
 
 from . import compat
 from . import get_devicelist
-from . import read_file
 from . import sys_netdev_info
 
 from cloudinit import util
@@ -136,7 +135,7 @@ def config_from_klibc_net_cfg(files=None, mac_addrs=None):
     entries = []
     names = {}
     for cfg_file in files:
-        name, entry = _klibc_to_config_entry(read_file(cfg_file),
+        name, entry = _klibc_to_config_entry(util.load_file(cfg_file),
                                              mac_addrs=mac_addrs)
         if name in names:
             raise ValueError(
