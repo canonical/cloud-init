@@ -4,7 +4,6 @@ Testing various config variations of the apt_source config
 import os
 import re
 import shutil
-import socket
 import tempfile
 
 try:
@@ -410,27 +409,14 @@ class TestAptSourceConfig(TestCase):
         """
         params = self._get_default_params()
 
-        def fake_gpg_recv_key(key, keyserver):
-            """try original gpg_recv_key, but allow fall back"""
-            try:
-                self.orig_gpg_recv_key(key, keyserver)
-            except ValueError:
-                # if this is a networking issue mock it's effect
-                testsock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                try:
-                    testsock.connect((keyserver, 80))
-                    testsock.close()
-                except socket.error:
-                    # as fallback add the known key as a working recv would
-                    util.subp(("gpg", "--import", "-"), EXPECTEDKEY,
-                              capture=True)
-
         with mock.patch.object(cc_apt_configure, 'add_apt_key_raw') as mockkey:
-            with mock.patch.object(util, 'gpg_recv_key',
-                                   side_effect=fake_gpg_recv_key):
+            with mock.patch.object(util, 'getkeybyid',
+                                   return_value=expectedkey) as mockgetkey:
                 cc_apt_configure.add_apt_sources([cfg], params)
 
-        # no matter if really imported or faked, ensure we add the right key
+        mockgetkey.assert_called_with(cfg['keyid'],
+                                      cfg.get('keyserver',
+                                              'keyserver.ubuntu.com'))
         mockkey.assert_called_with(expectedkey)
 
         # filename should be ignored on key only
