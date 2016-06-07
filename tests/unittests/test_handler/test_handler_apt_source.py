@@ -16,7 +16,6 @@ from cloudinit.config import cc_apt_configure
 from cloudinit import util
 
 from ..helpers import TestCase
-from .. import helpers as t_help
 
 BIN_APT = "/usr/bin/apt"
 
@@ -42,8 +41,6 @@ def load_tfile_or_url(*args, **kwargs):
     return util.decode_binary(util.read_file_or_url(*args, **kwargs).contents)
 
 
-# This feature is apt specific and thereby is disabled in environments without
-@t_help.skipIf(not os.path.isfile(BIN_APT), "no apt")
 class TestAptSourceConfig(TestCase):
     """TestAptSourceConfig
     Main Class to test apt_source configs
