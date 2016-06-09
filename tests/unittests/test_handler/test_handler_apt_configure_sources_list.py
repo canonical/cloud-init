@@ -7,23 +7,6 @@ import shutil
 import tempfile
 import socket
 
-# on SkipTest:
-#  - unittest SkipTest is first preference, but it's only available
-#    for >= 2.7
-#  - unittest2 SkipTest is second preference for older pythons.  This
-#    mirrors logic for choosing SkipTest exception in testtools
-#  - if none of the above, provide custom class
-try:
-    from unittest.case import SkipTest
-except ImportError:
-    try:
-        from unittest2.case import SkipTest
-    except ImportError:
-        class SkipTest(Exception):
-            """Raise this exception to mark a test as skipped.
-            """
-            pass
-
 try:
     from unittest import mock
 except ImportError:
@@ -153,8 +136,8 @@ class TestAptSourceConfigSourceList(t_help.FilesystemMockingTestCase):
             testsock.connect((target, 80))
             testsock.close()
         except socket.error:
-            raise SkipTest("Test skipped: no network connectivity to %s"
-                           % target)
+            raise t_help.SkipTest("Test skipped: no network connectivity to %s"
+                                  % target)
 
     def test_apt_srcl_debian_mirrorfail(self):
         """Test rendering of a source.list from template for debian"""
