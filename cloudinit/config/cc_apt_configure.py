@@ -24,6 +24,7 @@ import re
 
 from cloudinit import templater
 from cloudinit import util
+from cloudinit import gpg
 
 distros = ['ubuntu', 'debian']
 
@@ -167,7 +168,7 @@ def add_apt_key(ent):
         keyserver = "keyserver.ubuntu.com"
         if 'keyserver' in ent:
             keyserver = ent['keyserver']
-        ent['key'] = util.getkeybyid(ent['keyid'], keyserver)
+        ent['key'] = gpg.gpg_getkeybyid(ent['keyid'], keyserver)
 
     if 'key' in ent:
         add_apt_key_raw(ent['key'])

@@ -14,6 +14,7 @@ from mock import call
 
 from cloudinit.config import cc_apt_configure
 from cloudinit import util
+from cloudinit import gpg
 
 from ..helpers import TestCase
 
@@ -58,7 +59,6 @@ class TestAptSourceConfig(TestCase):
         # mock fallback filename into writable tmp dir
         self.fallbackfn = os.path.join(self.tmp, "etc/apt/sources.list.d/",
                                        "cloud_config_sources.list")
-        self.orig_gpg_recv_key = util.gpg_recv_key
 
         patcher = mock.patch("cloudinit.config.cc_apt_configure.get_release")
         get_rel = patcher.start()
@@ -407,7 +407,7 @@ class TestAptSourceConfig(TestCase):
         params = self._get_default_params()
 
         with mock.patch.object(cc_apt_configure, 'add_apt_key_raw') as mockkey:
-            with mock.patch.object(util, 'getkeybyid',
+            with mock.patch.object(gpg, 'gpg_getkeybyid',
                                    return_value=expectedkey) as mockgetkey:
                 cc_apt_configure.add_apt_sources([cfg], params)
 
