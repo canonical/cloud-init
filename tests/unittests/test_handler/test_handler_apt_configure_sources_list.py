@@ -5,7 +5,6 @@ import logging
 import os
 import shutil
 import tempfile
-import socket
 
 try:
     from unittest import mock
@@ -126,30 +125,36 @@ class TestAptSourceConfigSourceList(t_help.FilesystemMockingTestCase):
         self.apt_source_list('ubuntu', 'http://archive.ubuntu.com/ubuntu/')
 
     @staticmethod
-    def check_connectivity(target):
-        """Check for required connectivity, if not skip this test"""
-        testsock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        testsock.settimeout(10)
-        try:
-            testsock.connect((target, 80))
-            testsock.close()
-        except socket.error:
-            raise t_help.SkipTest("Test skipped: no network connectivity to %s"
-                                  % target)
+    def myresolve(name):
+        """Fake util.is_resolvable for mirrorfail tests"""
+        if name == "does.not.exist":
+            print("Faking FAIL for '%s'" % name)
+            return False
+        else:
+            print("Faking SUCCESS for '%s'" % name)
+            return True
 
     def test_apt_srcl_debian_mirrorfail(self):
         """Test rendering of a source.list from template for debian"""
-        self.check_connectivity('httpredir.debian.org')
-        self.apt_source_list('debian', ['http://does.not.exist',
-                                        'http://httpredir.debian.org/debian'],
-                             'http://httpredir.debian.org/debian')
+        with mock.patch.object(util, 'is_resolvable',
+                               side_effect=self.myresolve) as mockresolve:
+            self.apt_source_list('debian',
+                                 ['http://does.not.exist',
+                                  'http://httpredir.debian.org/debian'],
+                                 'http://httpredir.debian.org/debian')
+        mockresolve.assert_any_call("does.not.exist")
+        mockresolve.assert_any_call("httpredir.debian.org")
 
     def test_apt_srcl_ubuntu_mirrorfail(self):
         """Test rendering of a source.list from template for ubuntu"""
-        self.check_connectivity('archive.ubuntu.com')
-        self.apt_source_list('ubuntu', ['http://does.not.exist',
-                                        'http://archive.ubuntu.com/ubuntu/'],
-                             'http://archive.ubuntu.com/ubuntu/')
+        with mock.patch.object(util, 'is_resolvable',
+                               side_effect=self.myresolve) as mockresolve:
+            self.apt_source_list('ubuntu',
+                                 ['http://does.not.exist',
+                                  'http://archive.ubuntu.com/ubuntu/'],
+                                 'http://archive.ubuntu.com/ubuntu/')
+        mockresolve.assert_any_call("does.not.exist")
+        mockresolve.assert_any_call("archive.ubuntu.com")
 
     def test_apt_srcl_custom(self):
         """Test rendering from a custom source.list template"""
