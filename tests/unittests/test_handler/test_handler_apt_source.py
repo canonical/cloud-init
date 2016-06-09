@@ -18,8 +18,6 @@ from cloudinit import gpg
 
 from ..helpers import TestCase
 
-BIN_APT = "/usr/bin/apt"
-
 EXPECTEDKEY = """-----BEGIN PGP PUBLIC KEY BLOCK-----
 Version: GnuPG v1
 

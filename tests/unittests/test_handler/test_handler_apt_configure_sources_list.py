@@ -27,8 +27,6 @@ from .. import helpers as t_help
 
 LOG = logging.getLogger(__name__)
 
-BIN_APT = "/usr/bin/apt"
-
 YAML_TEXT_CUSTOM_SL = """
 apt_mirror: http://archive.ubuntu.com/ubuntu/
 apt_custom_sources_list: |
