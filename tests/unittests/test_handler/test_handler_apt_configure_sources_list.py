@@ -127,7 +127,7 @@ class TestAptSourceConfigSourceList(t_help.FilesystemMockingTestCase):
 
     @staticmethod
     def check_connectivity(target):
-        """try original gpg_recv_key, but allow fall back"""
+        """Check for required connectivity, if not skip this test"""
         testsock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         testsock.settimeout(10)
         try:
