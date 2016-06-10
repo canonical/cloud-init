@@ -4,8 +4,6 @@
 #    Copyright (C) 2016 Canonical Ltd.
 #
 #    Author: Scott Moser <scott.moser@canonical.com>
-#    Author: Juerg Haefliger <juerg.haefliger@hp.com>
-#    Author: Joshua Harlow <harlowja@yahoo-inc.com>
 #    Author: Christian Ehrhardt <christian.ehrhardt@canonical.com>
 #
 #    This program is free software: you can redistribute it and/or modify
@@ -20,13 +18,13 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-from cloudinit import util
 from cloudinit import log as logging
+from cloudinit import util
 
 LOG = logging.getLogger(__name__)
 
 
-def gpg_export_armour(key):
+def export_armour(key):
     """Export gpg key, armoured key gets returned"""
     try:
         (armour, _) = util.subp(["gpg", "--export", "--armour", key],
@@ -38,11 +36,11 @@ def gpg_export_armour(key):
     return armour
 
 
-def gpg_recv_key(key, keyserver):
+def receive_key(key, keyserver):
     """Receive gpg key from the specified keyserver"""
     LOG.debug('Receive gpg key "%s"', key)
     try:
-        util.subp(["gpg", "--keyserver", keyserver, "--recv", key],
+        util.subp(["gpg", "--keyserver", keyserver, "--recv-keys", key],
                   capture=True)
     except util.ProcessExecutionError as error:
         raise ValueError(('Failed to import key "%s" '
@@ -50,7 +48,7 @@ def gpg_recv_key(key, keyserver):
                          (key, keyserver, error))
 
 
-def gpg_delete_key(key):
+def delete_key(key):
     """Delete the specified key from the local gpg ring"""
     try:
         util.subp(["gpg", "--batch", "--yes", "--delete-keys", key],
@@ -59,18 +57,18 @@ def gpg_delete_key(key):
         LOG.warn('Failed delete key "%s": %s', key, error)
 
 
-def gpg_getkeybyid(keyid, keyserver):
+def get_key_by_id(keyid, keyserver="keyserver.ubuntu.com"):
     """get gpg keyid from keyserver"""
-    armour = gpg_export_armour(keyid)
+    armour = export_armour(keyid)
     if not armour:
         try:
-            gpg_recv_key(keyid, keyserver=keyserver)
-            armour = gpg_export_armour(keyid)
+            receive_key(keyid, keyserver=keyserver)
+            armour = export_armour(keyid)
         except ValueError:
             LOG.exception('Failed to obtain gpg key %s', keyid)
             raise
         finally:
             # delete just imported key to leave environment as it was before
-            gpg_delete_key(keyid)
+            delete_key(keyid)
 
-    return armour.rstrip('\n')
+    return armour

@@ -13,8 +13,8 @@ except ImportError:
 from mock import call
 
 from cloudinit.config import cc_apt_configure
-from cloudinit import util
 from cloudinit import gpg
+from cloudinit import util
 
 from ..helpers import TestCase
 
@@ -405,7 +405,7 @@ class TestAptSourceConfig(TestCase):
         params = self._get_default_params()
 
         with mock.patch.object(cc_apt_configure, 'add_apt_key_raw') as mockkey:
-            with mock.patch.object(gpg, 'gpg_getkeybyid',
+            with mock.patch.object(gpg, 'get_key_by_id',
                                    return_value=expectedkey) as mockgetkey:
                 cc_apt_configure.add_apt_sources([cfg], params)
 
