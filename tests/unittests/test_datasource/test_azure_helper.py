@@ -1,4 +1,5 @@
 import os
+import shutil
 
 from cloudinit.sources.helpers import azure as azure_helper
 
@@ -288,6 +289,7 @@ class TestOpenSSLManager(TestCase):
         self.subp.side_effect = capture_directory
         manager = azure_helper.OpenSSLManager()
         self.assertEqual(manager.tmpdir, subp_directory['path'])
+        manager.clean_up()
 
     @mock.patch.object(azure_helper, 'cd', mock.MagicMock())
     @mock.patch.object(azure_helper.tempfile, 'mkdtemp', mock.MagicMock())
