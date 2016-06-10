@@ -370,7 +370,8 @@ class TestConfigDriveDataSource(TestCase):
             util.find_devs_with = orig_find_devs_with
             util.is_partition = orig_is_partition
 
-    def test_pubkeys_v2(self):
+    @mock.patch('cloudinit.sources.DataSourceConfigDrive.on_first_boot')
+    def test_pubkeys_v2(self, on_first_boot):
         """Verify that public-keys work in config-drive-v2."""
         populate_dir(self.tmp, CFG_DRIVE_FILES_V2)
         myds = cfg_ds_from_dir(self.tmp)
@@ -385,13 +386,15 @@ class TestNetJson(TestCase):
         self.addCleanup(shutil.rmtree, self.tmp)
         self.maxDiff = None
 
-    def test_network_data_is_found(self):
+    @mock.patch('cloudinit.sources.DataSourceConfigDrive.on_first_boot')
+    def test_network_data_is_found(self, on_first_boot):
         """Verify that network_data is present in ds in config-drive-v2."""
         populate_dir(self.tmp, CFG_DRIVE_FILES_V2)
         myds = cfg_ds_from_dir(self.tmp)
         self.assertIsNotNone(myds.network_json)
 
-    def test_network_config_is_converted(self):
+    @mock.patch('cloudinit.sources.DataSourceConfigDrive.on_first_boot')
+    def test_network_config_is_converted(self, on_first_boot):
         """Verify that network_data is converted and present on ds object."""
         populate_dir(self.tmp, CFG_DRIVE_FILES_V2)
         myds = cfg_ds_from_dir(self.tmp)
@@ -558,7 +561,7 @@ def cfg_ds_from_dir(seed_d):
                                       helpers.Paths({}))
     cfg_ds.seed_dir = seed_d
     cfg_ds.known_macs = KNOWN_MACS.copy()
-    if not cfg_ds.get_data(skip_first_boot=True):
+    if not cfg_ds.get_data():
         raise RuntimeError("Data source did not extract itself from"
                            " seed directory %s" % seed_d)
     return cfg_ds

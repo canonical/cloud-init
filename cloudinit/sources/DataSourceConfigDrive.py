@@ -62,7 +62,7 @@ class DataSourceConfigDrive(openstack.SourceMixin, sources.DataSource):
         mstr += "[source=%s]" % (self.source)
         return mstr
 
-    def get_data(self, skip_first_boot=False):
+    def get_data(self):
         found = None
         md = {}
         results = {}
@@ -111,8 +111,7 @@ class DataSourceConfigDrive(openstack.SourceMixin, sources.DataSource):
         # 'injected files' and apply legacy ENI network format.
         prev_iid = get_previous_iid(self.paths)
         cur_iid = md['instance-id']
-        if (prev_iid != cur_iid and self.dsmode == sources.DSMODE_PASS
-                and not skip_first_boot):
+        if prev_iid != cur_iid and self.dsmode == sources.DSMODE_PASS:
             on_first_boot(results, distro=self.distro)
             LOG.debug("%s: not claiming datasource, dsmode=%s", self,
                       self.dsmode)
