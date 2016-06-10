@@ -42,6 +42,7 @@ STD_NAMED_PACKAGES = [
     'setuptools',
     'flake8',
     'hacking',
+    'unittest2',
 ]
 NONSTD_NAMED_PACKAGES = {
     'argparse': ('python-argparse', None),

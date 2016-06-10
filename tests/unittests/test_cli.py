@@ -4,12 +4,7 @@ import six
 import sys
 
 from . import helpers as test_helpers
-
-try:
-    from unittest import mock
-except ImportError:
-    import mock
-
+mock = test_helpers.mock
 
 BIN_CLOUDINIT = "bin/cloud-init"
 

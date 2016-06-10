@@ -44,6 +44,7 @@ from cloudinit import helpers
 from cloudinit import importer
 from cloudinit import log as logging
 from cloudinit import net
+from cloudinit.net import cmdline
 from cloudinit.reporting import events
 from cloudinit import sources
 from cloudinit import type_utils
@@ -612,7 +613,7 @@ class Init(object):
         if os.path.exists(disable_file):
             return (None, disable_file)
 
-        cmdline_cfg = ('cmdline', net.read_kernel_cmdline_config())
+        cmdline_cfg = ('cmdline', cmdline.read_kernel_cmdline_config())
         dscfg = ('ds', None)
         if self.datasource and hasattr(self.datasource, 'network_config'):
             dscfg = ('ds', self.datasource.network_config)

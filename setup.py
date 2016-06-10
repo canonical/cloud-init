@@ -196,7 +196,6 @@ requirements = read_requires()
 if sys.version_info < (3,):
     requirements.append('cheetah')
 
-
 setuptools.setup(
     name='cloud-init',
     version=get_version(),
