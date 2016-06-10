@@ -1,5 +1,4 @@
 import os
-import shutil
 
 from cloudinit.sources.helpers import azure as azure_helper
 
