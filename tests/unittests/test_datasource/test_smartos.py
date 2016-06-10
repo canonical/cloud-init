@@ -146,7 +146,9 @@ class TestSmartOSDataSource(FilesystemMockingTestCase):
         self.addCleanup(shutil.rmtree, self.tmp)
         self.paths = c_helpers.Paths({'cloud_dir': self.tmp})
 
-        self.legacy_user_d = tempfile.mkdtemp()
+        self.legacy_user_d = os.path.join(self.tmp, 'legacy_user_tmp')
+        os.mkdir(self.legacy_user_d)
+
         self.orig_lud = DataSourceSmartOS.LEGACY_USER_D
         DataSourceSmartOS.LEGACY_USER_D = self.legacy_user_d
 
