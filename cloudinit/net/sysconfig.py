@@ -24,6 +24,19 @@ from . import network_state
 from .udev import generate_udev_rule
 
 
+def _make_header(sep='#'):
+    lines = [
+        "Created by cloud-init on instance boot automatically, do not edit.",
+        "",
+    ]
+    for i in range(0, len(lines)):
+        if lines[i]:
+            lines[i] = sep + " " + lines[i]
+        else:
+            lines[i] = sep
+    return "\n".join(lines)
+
+
 def _filter_by_type(match_type):
     return lambda iface: match_type == iface['type']
 
@@ -80,9 +93,6 @@ class NetworkStateHelper(object):
 class ConfigMap(object):
     """Sysconfig like dictionary object."""
 
-    default_header = ('# Created by cloud-init on instance'
-                      ' boot automatically, do not edit.\n#')
-
     # Why does redhat prefer yes/no to true/false??
     _bool_map = {
         True: 'yes',
@@ -103,7 +113,7 @@ class ConfigMap(object):
 
     def to_string(self):
         buf = six.StringIO()
-        buf.write(self.default_header)
+        buf.write(_make_header())
         if self._conf:
             buf.write("\n")
         for key in sorted(self._conf.keys()):
@@ -365,7 +375,7 @@ class Renderer(object):
             content.add_nameserver(ns)
         for d in network_state.dns_searchdomains:
             content.add_search_domain(d)
-        return str(content)
+        return "\n".join([_make_header(';'), str(content)])
 
     @classmethod
     def _render_bridge_interfaces(cls, network_state, iface_contents):
