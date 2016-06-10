@@ -121,6 +121,7 @@
    to "pass" if modules_init should be executed with network access.
  - ConfigDrive: improved support for networking information from
    a network_data.json or older interfaces formated network_config.
+ - Change missing Cheetah log warning to debug [Andrew Jorgensen]
 
 0.7.6:
  - open 0.7.6
