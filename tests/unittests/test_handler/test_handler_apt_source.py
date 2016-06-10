@@ -13,6 +13,7 @@ except ImportError:
 from mock import call
 
 from cloudinit.config import cc_apt_configure
+from cloudinit import gpg
 from cloudinit import util
 
 from ..helpers import TestCase
@@ -62,7 +63,8 @@ class TestAptSourceConfig(TestCase):
         get_rel.return_value = self.release
         self.addCleanup(patcher.stop)
 
-    def _get_default_params(self):
+    @staticmethod
+    def _get_default_params():
         """get_default_params
         Get the most basic default mrror and release info to be used in tests
         """
@@ -86,7 +88,7 @@ class TestAptSourceConfig(TestCase):
         """
         params = self._get_default_params()
 
-        cc_apt_configure.add_sources(cfg, params)
+        cc_apt_configure.add_apt_sources(cfg, params)
 
         self.assertTrue(os.path.isfile(filename))
 
@@ -98,10 +100,7 @@ class TestAptSourceConfig(TestCase):
                                   contents, flags=re.IGNORECASE))
 
     def test_apt_src_basic(self):
-        """test_apt_src_basic
-        Test Fix deb source string, has to overwrite mirror conf in params.
-        Test with a filename provided in config.
-        """
+        """Test deb source string, overwrite mirror and filename"""
         cfg = {'source': ('deb http://archive.ubuntu.com/ubuntu'
                           ' karmic-backports'
                           ' main universe multiverse restricted'),
@@ -109,11 +108,7 @@ class TestAptSourceConfig(TestCase):
         self.apt_src_basic(self.aptlistfile, [cfg])
 
     def test_apt_src_basic_dict(self):
-        """test_apt_src_basic_dict
-        Test Fix deb source string, has to overwrite mirror conf in params.
-        Test with a filename provided in config.
-        Provided in a dictionary with filename being the key (new format)
-        """
+        """Test deb source string, overwrite mirror and filename (dict)"""
         cfg = {self.aptlistfile: {'source':
                                   ('deb http://archive.ubuntu.com/ubuntu'
                                    ' karmic-backports'
@@ -143,10 +138,7 @@ class TestAptSourceConfig(TestCase):
                                   contents, flags=re.IGNORECASE))
 
     def test_apt_src_basic_tri(self):
-        """test_apt_src_basic_tri
-        Test Fix three deb source string, has to overwrite mirror conf in
-        params. Test with filenames provided in config.
-        """
+        """Test Fix three deb source string with filenames"""
         cfg1 = {'source': ('deb http://archive.ubuntu.com/ubuntu'
                            ' karmic-backports'
                            ' main universe multiverse restricted'),
@@ -162,11 +154,7 @@ class TestAptSourceConfig(TestCase):
         self.apt_src_basic_tri([cfg1, cfg2, cfg3])
 
     def test_apt_src_basic_dict_tri(self):
-        """test_apt_src_basic_dict_tri
-        Test Fix three deb source string, has to overwrite mirror conf in
-        params. Test with filenames provided in config.
-        Provided in a dictionary with filename being the key (new format)
-        """
+        """Test Fix three deb source string with filenames (dict)"""
         cfg = {self.aptlistfile: {'source':
                                   ('deb http://archive.ubuntu.com/ubuntu'
                                    ' karmic-backports'
@@ -182,10 +170,7 @@ class TestAptSourceConfig(TestCase):
         self.apt_src_basic_tri(cfg)
 
     def test_apt_src_basic_nofn(self):
-        """test_apt_src_basic_nofn
-        Test Fix deb source string, has to overwrite mirror conf in params.
-        Test without a filename provided in config and test for known fallback.
-        """
+        """Test Fix three deb source string without filenames (dict)"""
         cfg = {'source': ('deb http://archive.ubuntu.com/ubuntu'
                           ' karmic-backports'
                           ' main universe multiverse restricted')}
@@ -197,7 +182,7 @@ class TestAptSourceConfig(TestCase):
         Test Autoreplacement of MIRROR and RELEASE in source specs
         """
         params = self._get_default_params()
-        cc_apt_configure.add_sources(cfg, params)
+        cc_apt_configure.add_apt_sources(cfg, params)
 
         self.assertTrue(os.path.isfile(filename))
 
@@ -208,10 +193,7 @@ class TestAptSourceConfig(TestCase):
                                   contents, flags=re.IGNORECASE))
 
     def test_apt_src_replace(self):
-        """test_apt_src_replace
-        Test Autoreplacement of MIRROR and RELEASE in source specs with
-        Filename being set
-        """
+        """Test Autoreplacement of MIRROR and RELEASE in source specs"""
         cfg = {'source': 'deb $MIRROR $RELEASE multiverse',
                'filename': self.aptlistfile}
         self.apt_src_replacement(self.aptlistfile, [cfg])
@@ -237,10 +219,7 @@ class TestAptSourceConfig(TestCase):
                                   contents, flags=re.IGNORECASE))
 
     def test_apt_src_replace_tri(self):
-        """test_apt_src_replace_tri
-        Test three autoreplacements of MIRROR and RELEASE in source specs with
-        Filename being set
-        """
+        """Test triple Autoreplacement of MIRROR and RELEASE in source specs"""
         cfg1 = {'source': 'deb $MIRROR $RELEASE multiverse',
                 'filename': self.aptlistfile}
         cfg2 = {'source': 'deb $MIRROR $RELEASE main',
@@ -250,13 +229,7 @@ class TestAptSourceConfig(TestCase):
         self.apt_src_replace_tri([cfg1, cfg2, cfg3])
 
     def test_apt_src_replace_dict_tri(self):
-        """test_apt_src_replace_dict_tri
-        Test three autoreplacements of MIRROR and RELEASE in source specs with
-        Filename being set
-        Provided in a dictionary with filename being the key (new format)
-        We also test a new special conditions of the new format that allows
-        filenames to be overwritten inside the directory entry.
-        """
+        """Test triple Autoreplacement in source specs (dict)"""
         cfg = {self.aptlistfile: {'source': 'deb $MIRROR $RELEASE multiverse'},
                'notused': {'source': 'deb $MIRROR $RELEASE main',
                            'filename': self.aptlistfile2},
@@ -264,10 +237,7 @@ class TestAptSourceConfig(TestCase):
         self.apt_src_replace_tri(cfg)
 
     def test_apt_src_replace_nofn(self):
-        """test_apt_src_replace_nofn
-        Test Autoreplacement of MIRROR and RELEASE in source specs with
-        No filename being set
-        """
+        """Test Autoreplacement of MIRROR and RELEASE in source specs nofile"""
         cfg = {'source': 'deb $MIRROR $RELEASE multiverse'}
         with mock.patch.object(os.path, 'join', side_effect=self.myjoin):
             self.apt_src_replacement(self.fallbackfn, [cfg])
@@ -280,7 +250,7 @@ class TestAptSourceConfig(TestCase):
 
         with mock.patch.object(util, 'subp',
                                return_value=('fakekey 1234', '')) as mockobj:
-            cc_apt_configure.add_sources(cfg, params)
+            cc_apt_configure.add_apt_sources(cfg, params)
 
         # check if it added the right ammount of keys
         calls = []
@@ -299,9 +269,7 @@ class TestAptSourceConfig(TestCase):
                                   contents, flags=re.IGNORECASE))
 
     def test_apt_src_keyid(self):
-        """test_apt_src_keyid
-        Test specification of a source + keyid with filename being set
-        """
+        """Test specification of a source + keyid with filename being set"""
         cfg = {'source': ('deb '
                           'http://ppa.launchpad.net/'
                           'smoser/cloud-init-test/ubuntu'
@@ -311,10 +279,7 @@ class TestAptSourceConfig(TestCase):
         self.apt_src_keyid(self.aptlistfile, [cfg], 1)
 
     def test_apt_src_keyid_tri(self):
-        """test_apt_src_keyid_tri
-        Test specification of a source + keyid with filename being set
-        Setting three of such, check for content and keys
-        """
+        """Test 3x specification of a source + keyid with filename being set"""
         cfg1 = {'source': ('deb '
                            'http://ppa.launchpad.net/'
                            'smoser/cloud-init-test/ubuntu'
@@ -351,9 +316,7 @@ class TestAptSourceConfig(TestCase):
                                   contents, flags=re.IGNORECASE))
 
     def test_apt_src_keyid_nofn(self):
-        """test_apt_src_keyid_nofn
-        Test specification of a source + keyid without filename being set
-        """
+        """Test specification of a source + keyid without filename being set"""
         cfg = {'source': ('deb '
                           'http://ppa.launchpad.net/'
                           'smoser/cloud-init-test/ubuntu'
@@ -369,7 +332,7 @@ class TestAptSourceConfig(TestCase):
         params = self._get_default_params()
 
         with mock.patch.object(util, 'subp') as mockobj:
-            cc_apt_configure.add_sources([cfg], params)
+            cc_apt_configure.add_apt_sources([cfg], params)
 
         mockobj.assert_called_with(('apt-key', 'add', '-'), 'fakekey 4321')
 
@@ -384,9 +347,7 @@ class TestAptSourceConfig(TestCase):
                                   contents, flags=re.IGNORECASE))
 
     def test_apt_src_key(self):
-        """test_apt_src_key
-        Test specification of a source + key with filename being set
-        """
+        """Test specification of a source + key with filename being set"""
         cfg = {'source': ('deb '
                           'http://ppa.launchpad.net/'
                           'smoser/cloud-init-test/ubuntu'
@@ -396,9 +357,7 @@ class TestAptSourceConfig(TestCase):
         self.apt_src_key(self.aptlistfile, cfg)
 
     def test_apt_src_key_nofn(self):
-        """test_apt_src_key_nofn
-        Test specification of a source + key without filename being set
-        """
+        """Test specification of a source + key without filename being set"""
         cfg = {'source': ('deb '
                           'http://ppa.launchpad.net/'
                           'smoser/cloud-init-test/ubuntu'
@@ -408,15 +367,13 @@ class TestAptSourceConfig(TestCase):
             self.apt_src_key(self.fallbackfn, cfg)
 
     def test_apt_src_keyonly(self):
-        """test_apt_src_keyonly
-        Test specification key without source
-        """
+        """Test specifying key without source"""
         params = self._get_default_params()
         cfg = {'key': "fakekey 4242",
                'filename': self.aptlistfile}
 
         with mock.patch.object(util, 'subp') as mockobj:
-            cc_apt_configure.add_sources([cfg], params)
+            cc_apt_configure.add_apt_sources([cfg], params)
 
         mockobj.assert_called_once_with(('apt-key', 'add', '-'),
                                         'fakekey 4242')
@@ -425,66 +382,68 @@ class TestAptSourceConfig(TestCase):
         self.assertFalse(os.path.isfile(self.aptlistfile))
 
     def test_apt_src_keyidonly(self):
-        """test_apt_src_keyidonly
-        Test specification of a keyid without source
-        """
+        """Test specification of a keyid without source"""
         params = self._get_default_params()
         cfg = {'keyid': "03683F77",
                'filename': self.aptlistfile}
 
         with mock.patch.object(util, 'subp',
                                return_value=('fakekey 1212', '')) as mockobj:
-            cc_apt_configure.add_sources([cfg], params)
+            cc_apt_configure.add_apt_sources([cfg], params)
 
         mockobj.assert_called_with(('apt-key', 'add', '-'), 'fakekey 1212')
 
         # filename should be ignored on key only
         self.assertFalse(os.path.isfile(self.aptlistfile))
 
-    def test_apt_src_keyid_real(self):
-        """test_apt_src_keyid_real
-        Test specification of a keyid without source incl
-        up to addition of the key (add_key_raw, getkeybyid mocked)
+    def apt_src_keyid_real(self, cfg, expectedkey):
+        """apt_src_keyid_real
+        Test specification of a keyid without source including
+        up to addition of the key (add_apt_key_raw mocked to keep the
+        environment as is)
         """
-        keyid = "03683F77"
         params = self._get_default_params()
-        cfg = {'keyid': keyid,
-               'filename': self.aptlistfile}
 
-        with mock.patch.object(cc_apt_configure, 'add_key_raw') as mockobj:
-            with mock.patch.object(cc_apt_configure, 'getkeybyid') as gkbi:
-                gkbi.return_value = EXPECTEDKEY
-                cc_apt_configure.add_sources([cfg], params)
+        with mock.patch.object(cc_apt_configure, 'add_apt_key_raw') as mockkey:
+            with mock.patch.object(gpg, 'get_key_by_id',
+                                   return_value=expectedkey) as mockgetkey:
+                cc_apt_configure.add_apt_sources([cfg], params)
 
-        mockobj.assert_called_with(EXPECTEDKEY)
+        mockgetkey.assert_called_with(cfg['keyid'],
+                                      cfg.get('keyserver',
+                                              'keyserver.ubuntu.com'))
+        mockkey.assert_called_with(expectedkey)
 
         # filename should be ignored on key only
         self.assertFalse(os.path.isfile(self.aptlistfile))
+
+    def test_apt_src_keyid_real(self):
+        """test_apt_src_keyid_real - Test keyid including key add"""
+        keyid = "03683F77"
+        cfg = {'keyid': keyid,
+               'filename': self.aptlistfile}
+
+        self.apt_src_keyid_real(cfg, EXPECTEDKEY)
 
     def test_apt_src_longkeyid_real(self):
-        """test_apt_src_longkeyid_real
-        Test specification of a long key fingerprint without source incl
-        up to addition of the key (nothing but add_key_raw mocked)
-        """
+        """test_apt_src_longkeyid_real - Test long keyid including key add"""
         keyid = "B59D 5F15 97A5 04B7 E230  6DCA 0620 BBCF 0368 3F77"
-        params = self._get_default_params()
         cfg = {'keyid': keyid,
                'filename': self.aptlistfile}
 
-        with mock.patch.object(cc_apt_configure, 'add_key_raw') as mockobj:
-            with mock.patch.object(cc_apt_configure, 'getkeybyid') as gkbi:
-                gkbi.return_value = EXPECTEDKEY
-                cc_apt_configure.add_sources([cfg], params)
+        self.apt_src_keyid_real(cfg, EXPECTEDKEY)
 
-        mockobj.assert_called_with(EXPECTEDKEY)
+    def test_apt_src_longkeyid_ks_real(self):
+        """test_apt_src_longkeyid_ks_real - Test long keyid from other ks"""
+        keyid = "B59D 5F15 97A5 04B7 E230  6DCA 0620 BBCF 0368 3F77"
+        cfg = {'keyid': keyid,
+               'keyserver': 'keys.gnupg.net',
+               'filename': self.aptlistfile}
 
-        # filename should be ignored on key only
-        self.assertFalse(os.path.isfile(self.aptlistfile))
+        self.apt_src_keyid_real(cfg, EXPECTEDKEY)
 
     def test_apt_src_ppa(self):
-        """test_apt_src_ppa
-        Test specification of a ppa
-        """
+        """Test adding a ppa"""
         params = self._get_default_params()
         cfg = {'source': 'ppa:smoser/cloud-init-test',
                'filename': self.aptlistfile}
@@ -493,7 +452,8 @@ class TestAptSourceConfig(TestCase):
         matcher = re.compile(r'^[\w-]+:\w').search
 
         with mock.patch.object(util, 'subp') as mockobj:
-            cc_apt_configure.add_sources([cfg], params, aa_repo_match=matcher)
+            cc_apt_configure.add_apt_sources([cfg], params,
+                                             aa_repo_match=matcher)
         mockobj.assert_called_once_with(['add-apt-repository',
                                          'ppa:smoser/cloud-init-test'])
 
@@ -501,9 +461,7 @@ class TestAptSourceConfig(TestCase):
         self.assertFalse(os.path.isfile(self.aptlistfile))
 
     def test_apt_src_ppa_tri(self):
-        """test_apt_src_ppa_tri
-        Test specification of a ppa
-        """
+        """Test adding three ppa's"""
         params = self._get_default_params()
         cfg1 = {'source': 'ppa:smoser/cloud-init-test',
                 'filename': self.aptlistfile}
@@ -516,8 +474,8 @@ class TestAptSourceConfig(TestCase):
         matcher = re.compile(r'^[\w-]+:\w').search
 
         with mock.patch.object(util, 'subp') as mockobj:
-            cc_apt_configure.add_sources([cfg1, cfg2, cfg3], params,
-                                         aa_repo_match=matcher)
+            cc_apt_configure.add_apt_sources([cfg1, cfg2, cfg3], params,
+                                             aa_repo_match=matcher)
         calls = [call(['add-apt-repository', 'ppa:smoser/cloud-init-test']),
                  call(['add-apt-repository', 'ppa:smoser/cloud-init-test2']),
                  call(['add-apt-repository', 'ppa:smoser/cloud-init-test3'])]
@@ -529,10 +487,7 @@ class TestAptSourceConfig(TestCase):
         self.assertFalse(os.path.isfile(self.aptlistfile3))
 
     def test_convert_to_new_format(self):
-        """test_convert_to_new_format
-        Test the conversion of old to new format
-        And the noop conversion of new to new format as well
-        """
+        """Test the conversion of old to new format"""
         cfg1 = {'source': 'deb $MIRROR $RELEASE multiverse',
                 'filename': self.aptlistfile}
         cfg2 = {'source': 'deb $MIRROR $RELEASE main',
