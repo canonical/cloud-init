@@ -102,7 +102,7 @@ class ConfigMap(object):
         return len(self._conf)
 
     def to_string(self):
-        buf = compat.StringIO()
+        buf = six.StringIO()
         buf.write(self.default_header)
         if self._conf:
             buf.write("\n")
@@ -110,7 +110,7 @@ class ConfigMap(object):
             value = self._conf[key]
             if isinstance(value, bool):
                 value = self._bool_map[value]
-            if not isinstance(value, compat.string_types):
+            if not isinstance(value, six.string_types):
                 value = str(value)
             buf.write("%s=%s\n" % (key, _quote_value(value)))
         return buf.getvalue()
@@ -229,7 +229,7 @@ class Renderer(object):
         """Given state, emit udev rules to map mac to ifname."""
         # TODO(harlowja): this seems shared between eni renderer and
         # this, so move it to a shared location.
-        content = compat.StringIO()
+        content = six.StringIO()
         for iface in network_state.iter_interfaces(_filter_by_physical):
             # for physical interfaces write out a persist net udev rule
             if 'name' in iface and iface.get('mac_address'):
@@ -253,7 +253,7 @@ class Renderer(object):
             iface_cfg['DHCPV6C'] = True
             iface_cfg['IPV6INIT'] = True
             iface_cfg['BOOTPROTO'] = 'dhcp'
-        elif subnet_type == 'dhcp4':
+        elif subnet_type in ['dhcp4', 'dhcp']:
             iface_cfg['BOOTPROTO'] = 'dhcp'
         elif subnet_type == 'static':
             iface_cfg['BOOTPROTO'] = 'static'
@@ -414,6 +414,7 @@ class Renderer(object):
             self, target, network_state, sysconf_dir="etc/sysconfig/",
             netrules='etc/udev/rules.d/70-persistent-net.rules',
             dns='etc/resolv.conf'):
+        network_state = NetworkStateHelper(network_state)
         if target:
             base_sysconf_dir = os.path.join(target, sysconf_dir)
         else:

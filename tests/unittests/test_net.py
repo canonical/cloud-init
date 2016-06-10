@@ -2,6 +2,7 @@ from cloudinit import net
 from cloudinit.net import cmdline
 from cloudinit.net import eni
 from cloudinit.net import network_state
+from cloudinit.net import sysconfig
 from cloudinit import util
 
 from .helpers import mock
@@ -75,6 +76,75 @@ STATIC_EXPECTED_1 = {
 }
 
 
+def _setup_test(tmp_dir, mock_get_devicelist, mock_sys_netdev_info,
+                mock_sys_dev_path):
+    mock_get_devicelist.return_value = ['eth1000']
+    dev_characteristics = {
+        'eth1000': {
+            "bridge": False,
+            "carrier": False,
+            "dormant": False,
+            "operstate": "down",
+            "address": "07-1C-C6-75-A4-BE",
+        }
+    }
+
+    def netdev_info(name, field):
+        return dev_characteristics[name][field]
+
+    mock_sys_netdev_info.side_effect = netdev_info
+
+    def sys_dev_path(devname, path=""):
+        return tmp_dir + devname + "/" + path
+
+    for dev in dev_characteristics:
+        os.makedirs(os.path.join(tmp_dir, dev))
+        with open(os.path.join(tmp_dir, dev, 'operstate'), 'w') as fh:
+            fh.write("down")
+
+    mock_sys_dev_path.side_effect = sys_dev_path
+
+
+class TestSysConfigRendering(TestCase):
+
+    @mock.patch("cloudinit.net.sys_dev_path")
+    @mock.patch("cloudinit.net.sys_netdev_info")
+    @mock.patch("cloudinit.net.get_devicelist")
+    def test_default_generation(self, mock_get_devicelist,
+                                mock_sys_netdev_info,
+                                mock_sys_dev_path):
+        tmp_dir = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, tmp_dir)
+        _setup_test(tmp_dir, mock_get_devicelist,
+                    mock_sys_netdev_info, mock_sys_dev_path)
+
+        network_cfg = net.generate_fallback_config()
+        ns = network_state.parse_net_config_data(network_cfg,
+                                                 skip_broken=False)
+
+        render_dir = os.path.join(tmp_dir, "render")
+        os.makedirs(render_dir)
+
+        renderer = sysconfig.Renderer()
+        renderer.render_network_state(render_dir, ns)
+
+        render_file = 'etc/sysconfig/network-scripts/ifcfg-eth1000'
+        with open(os.path.join(render_dir, render_file)) as fh:
+            content = fh.read()
+            expected_content = """
+# Created by cloud-init on instance boot automatically, do not edit.
+#
+BOOTPROTO=dhcp
+DEVICE=eth1000
+HWADDR=07-1C-C6-75-A4-BE
+NM_CONTROLLED=no
+ONBOOT=yes
+TYPE=Ethernet
+USERCTL=no
+""".lstrip()
+            self.assertEqual(expected_content, content)
+
+
 class TestEniNetRendering(TestCase):
 
     @mock.patch("cloudinit.net.sys_dev_path")
@@ -83,35 +153,10 @@ class TestEniNetRendering(TestCase):
     def test_default_generation(self, mock_get_devicelist,
                                 mock_sys_netdev_info,
                                 mock_sys_dev_path):
-        mock_get_devicelist.return_value = ['eth1000', 'lo']
-
-        dev_characteristics = {
-            'eth1000': {
-                "bridge": False,
-                "carrier": False,
-                "dormant": False,
-                "operstate": "down",
-                "address": "07-1C-C6-75-A4-BE",
-            }
-        }
-
-        def netdev_info(name, field):
-            return dev_characteristics[name][field]
-
-        mock_sys_netdev_info.side_effect = netdev_info
-
         tmp_dir = tempfile.mkdtemp()
         self.addCleanup(shutil.rmtree, tmp_dir)
-
-        def sys_dev_path(devname, path=""):
-            return tmp_dir + devname + "/" + path
-
-        for dev in dev_characteristics:
-            os.makedirs(os.path.join(tmp_dir, dev))
-            with open(os.path.join(tmp_dir, dev, 'operstate'), 'w') as fh:
-                fh.write("down")
-
-        mock_sys_dev_path.side_effect = sys_dev_path
+        _setup_test(tmp_dir, mock_get_devicelist,
+                    mock_sys_netdev_info, mock_sys_dev_path)
 
         network_cfg = net.generate_fallback_config()
         ns = network_state.parse_net_config_data(network_cfg,
