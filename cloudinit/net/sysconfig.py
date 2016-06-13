@@ -67,29 +67,6 @@ def _quote_value(value):
         return value
 
 
-class NetworkStateHelper(object):
-    def __init__(self, network_state):
-        self._network_state = network_state.copy()
-
-    @property
-    def dns_nameservers(self):
-        return self._network_state['dns']['nameservers']
-
-    @property
-    def dns_searchdomains(self):
-        return self._network_state['dns']['search']
-
-    def iter_interfaces(self, filter_func=None):
-        ifaces = self._network_state.get('interfaces')
-        if ifaces:
-            for iface in ifaces.values():
-                if filter_func is None:
-                    yield iface
-                else:
-                    if filter_func(iface):
-                        yield iface
-
-
 class ConfigMap(object):
     """Sysconfig like dictionary object."""
 
@@ -424,7 +401,6 @@ class Renderer(object):
             self, target, network_state, sysconf_dir="etc/sysconfig/",
             netrules='etc/udev/rules.d/70-persistent-net.rules',
             dns='etc/resolv.conf'):
-        network_state = NetworkStateHelper(network_state)
         if target:
             base_sysconf_dir = os.path.join(target, sysconf_dir)
         else:
@@ -480,7 +456,7 @@ def main():
     net_state = network_state.parse_net_config_data(
         openstack.convert_net_json(network_json), skip_broken=False)
     r = Renderer()
-    r.render_network_state(args.dir, NetworkStateHelper(net_state))
+    r.render_network_state(args.dir, net_state)
 
 
 if __name__ == '__main__':

@@ -38,10 +38,10 @@ def parse_net_config_data(net_config, skip_broken=True):
     """
     state = None
     if 'version' in net_config and 'config' in net_config:
-        ns = NetworkState(version=net_config.get('version'),
-                          config=net_config.get('config'))
-        ns.parse_config(skip_broken=skip_broken)
-        state = ns.network_state
+        nsi = NetworkStateInterpreter(version=net_config.get('version'),
+                                      config=net_config.get('config'))
+        nsi.parse_config(skip_broken=skip_broken)
+        state = nsi.network_state
     return state
 
 
@@ -57,11 +57,10 @@ def parse_net_config(path, skip_broken=True):
 
 
 def from_state_file(state_file):
-    network_state = None
     state = util.read_conf(state_file)
-    network_state = NetworkState()
-    network_state.load(state)
-    return network_state
+    nsi = NetworkStateInterpreter()
+    nsi.load(state)
+    return nsi
 
 
 def diff_keys(expected, actual):
@@ -113,8 +112,50 @@ class CommandHandlerMeta(type):
                                                       parents, dct)
 
 
-@six.add_metaclass(CommandHandlerMeta)
 class NetworkState(object):
+
+    def __init__(self, network_state, version=NETWORK_STATE_VERSION):
+        self._network_state = copy.deepcopy(network_state)
+        self._version = version
+
+    @property
+    def version(self):
+        return self._version
+
+    def iter_routes(self, filter_func=None):
+        for route in self._network_state.get('routes', []):
+            if filter_func is not None:
+                if filter_func(route):
+                    yield route
+            else:
+                yield route
+
+    @property
+    def dns_nameservers(self):
+        try:
+            return self._network_state['dns']['nameservers']
+        except KeyError:
+            return []
+
+    @property
+    def dns_searchdomains(self):
+        try:
+            return self._network_state['dns']['search']
+        except KeyError:
+            return []
+
+    def iter_interfaces(self, filter_func=None):
+        ifaces = self._network_state.get('interfaces', {})
+        for iface in six.itervalues(ifaces):
+            if filter_func is None:
+                yield iface
+            else:
+                if filter_func(iface):
+                    yield iface
+
+
+@six.add_metaclass(CommandHandlerMeta)
+class NetworkStateInterpreter(object):
 
     initial_network_state = {
         'interfaces': {},
@@ -126,22 +167,26 @@ class NetworkState(object):
     }
 
     def __init__(self, version=NETWORK_STATE_VERSION, config=None):
-        self.version = version
-        self.config = config
-        self.network_state = copy.deepcopy(self.initial_network_state)
+        self._version = version
+        self._config = config
+        self._network_state = copy.deepcopy(self.initial_network_state)
+
+    @property
+    def network_state(self):
+        return NetworkState(self._network_state, version=self._version)
 
     def dump(self):
         state = {
-            'version': self.version,
-            'config': self.config,
-            'network_state': self.network_state,
+            'version': self._version,
+            'config': self._config,
+            'network_state': self._network_state,
         }
         return util.yaml_dumps(state)
 
     def load(self, state):
         if 'version' not in state:
             LOG.error('Invalid state, missing version field')
-            raise Exception('Invalid state, missing version field')
+            raise ValueError('Invalid state, missing version field')
 
         required_keys = NETWORK_STATE_REQUIRED_KEYS[state['version']]
         missing_keys = diff_keys(required_keys, state)
@@ -155,11 +200,11 @@ class NetworkState(object):
             setattr(self, key, state[key])
 
     def dump_network_state(self):
-        return util.yaml_dumps(self.network_state)
+        return util.yaml_dumps(self._network_state)
 
     def parse_config(self, skip_broken=True):
         # rebuild network state
-        for command in self.config:
+        for command in self._config:
             command_type = command['type']
             try:
                 handler = self.command_handlers[command_type]
@@ -189,7 +234,7 @@ class NetworkState(object):
         }
         '''
 
-        interfaces = self.network_state.get('interfaces')
+        interfaces = self._network_state.get('interfaces', {})
         iface = interfaces.get(command['name'], {})
         for param, val in command.get('params', {}).items():
             iface.update({param: val})
@@ -215,7 +260,7 @@ class NetworkState(object):
             'gateway': None,
             'subnets': subnets,
         })
-        self.network_state['interfaces'].update({command.get('name'): iface})
+        self._network_state['interfaces'].update({command.get('name'): iface})
         self.dump_network_state()
 
     @ensure_command_keys(['name', 'vlan_id', 'vlan_link'])
@@ -228,7 +273,7 @@ class NetworkState(object):
                     hwaddress ether BC:76:4E:06:96:B3
                     vlan-raw-device eth0
         '''
-        interfaces = self.network_state.get('interfaces')
+        interfaces = self._network_state.get('interfaces', {})
         self.handle_physical(command)
         iface = interfaces.get(command.get('name'), {})
         iface['vlan-raw-device'] = command.get('vlan_link')
@@ -263,12 +308,12 @@ class NetworkState(object):
         '''
 
         self.handle_physical(command)
-        interfaces = self.network_state.get('interfaces')
+        interfaces = self._network_state.get('interfaces')
         iface = interfaces.get(command.get('name'), {})
         for param, val in command.get('params').items():
             iface.update({param: val})
         iface.update({'bond-slaves': 'none'})
-        self.network_state['interfaces'].update({iface['name']: iface})
+        self._network_state['interfaces'].update({iface['name']: iface})
 
         # handle bond slaves
         for ifname in command.get('bond_interfaces'):
@@ -280,13 +325,13 @@ class NetworkState(object):
                 # inject placeholder
                 self.handle_physical(cmd)
 
-            interfaces = self.network_state.get('interfaces')
+            interfaces = self._network_state.get('interfaces', {})
             bond_if = interfaces.get(ifname)
             bond_if['bond-master'] = command.get('name')
             # copy in bond config into slave
             for param, val in command.get('params').items():
                 bond_if.update({param: val})
-            self.network_state['interfaces'].update({ifname: bond_if})
+            self._network_state['interfaces'].update({ifname: bond_if})
 
     @ensure_command_keys(['name', 'bridge_interfaces', 'params'])
     def handle_bridge(self, command):
@@ -319,7 +364,7 @@ class NetworkState(object):
 
         # find one of the bridge port ifaces to get mac_addr
         # handle bridge_slaves
-        interfaces = self.network_state.get('interfaces')
+        interfaces = self._network_state.get('interfaces', {})
         for ifname in command.get('bridge_interfaces'):
             if ifname in interfaces:
                 continue
@@ -330,7 +375,7 @@ class NetworkState(object):
             # inject placeholder
             self.handle_physical(cmd)
 
-        interfaces = self.network_state.get('interfaces')
+        interfaces = self._network_state.get('interfaces', {})
         self.handle_physical(command)
         iface = interfaces.get(command.get('name'), {})
         iface['bridge_ports'] = command['bridge_interfaces']
@@ -341,7 +386,7 @@ class NetworkState(object):
 
     @ensure_command_keys(['address'])
     def handle_nameserver(self, command):
-        dns = self.network_state.get('dns')
+        dns = self._network_state.get('dns')
         if 'address' in command:
             addrs = command['address']
             if not type(addrs) == list:
@@ -357,7 +402,7 @@ class NetworkState(object):
 
     @ensure_command_keys(['destination'])
     def handle_route(self, command):
-        routes = self.network_state.get('routes')
+        routes = self._network_state.get('routes', [])
         network, cidr = command['destination'].split("/")
         netmask = cidr2mask(int(cidr))
         route = {

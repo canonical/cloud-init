@@ -360,7 +360,15 @@ class Renderer(object):
         '''Given state, emit etc/network/interfaces content.'''
 
         content = ""
-        interfaces = network_state.get('interfaces')
+        content += "auto lo\niface lo inet loopback\n"
+
+        nameservers = network_state.dns_nameservers
+        if nameservers:
+            content += "    dns-nameservers %s\n" % (" ".join(nameservers))
+        searchdomains = network_state.dns_searchdomains
+        if searchdomains:
+            content += "    dns-search %s\n" % (" ".join(searchdomains))
+
         ''' Apply a sort order to ensure that we write out
             the physical interfaces first; this is critical for
             bonding
@@ -371,12 +379,7 @@ class Renderer(object):
             'bridge': 2,
             'vlan': 3,
         }
-        content += "auto lo\niface lo inet loopback\n"
-        for dnskey, value in network_state.get('dns', {}).items():
-            if len(value):
-                content += "    dns-{} {}\n".format(dnskey, " ".join(value))
-
-        for iface in sorted(interfaces.values(),
+        for iface in sorted(network_state.iter_interfaces(),
                             key=lambda k: (order[k['type']], k['name'])):
 
             if content[-2:] != "\n\n":
@@ -409,7 +412,7 @@ class Renderer(object):
                 content += "iface {name} {inet} {mode}\n".format(**iface)
                 content += _iface_add_attrs(iface)
 
-        for route in network_state.get('routes'):
+        for route in network_state.iter_routes():
             content += self._render_route(route)
 
         # global replacements until v2 format
@@ -441,8 +444,7 @@ class Renderer(object):
         fp_prefix = os.path.sep.join((target, links_prefix))
         for f in glob.glob(fp_prefix + "*"):
             os.unlink(f)
-        interfaces = network_state.get('interfaces')
-        for iface in interfaces.values():
+        for iface in network_state.iter_interfaces():
             if (iface['type'] == 'physical' and 'name' in iface and
                     iface.get('mac_address')):
                 fname = fp_prefix + iface['name'] + ".link"
