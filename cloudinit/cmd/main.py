@@ -25,16 +25,9 @@ import argparse
 import json
 import os
 import sys
-import time
 import tempfile
+import time
 import traceback
-
-# This is more just for running from the bin folder so that
-# cloud-init binary can find the cloudinit module
-possible_topdir = os.path.normpath(os.path.join(os.path.abspath(
-        sys.argv[0]), os.pardir, os.pardir))
-if os.path.exists(os.path.join(possible_topdir, "cloudinit", "__init__.py")):
-    sys.path.insert(0, possible_topdir)
 
 from cloudinit import patcher
 patcher.patch()
@@ -46,9 +39,10 @@ from cloudinit import sources
 from cloudinit import stages
 from cloudinit import templater
 from cloudinit import util
+from cloudinit import version
+
 from cloudinit import reporting
 from cloudinit.reporting import events
-from cloudinit import version
 
 from cloudinit.settings import (PER_INSTANCE, PER_ALWAYS, PER_ONCE,
                                 CLOUD_CONFIG)
@@ -188,7 +182,7 @@ def main_init(name, args):
         LOG.debug("Closing stdin")
         util.close_stdin()
         (outfmt, errfmt) = util.fixup_output(init.cfg, name)
-    except:
+    except Exception:
         util.logexc(LOG, "Failed to setup output redirection!")
         print_exc("Failed to setup output redirection!")
     if args.debug:
@@ -325,7 +319,7 @@ def main_init(name, args):
         if outfmt_orig != outfmt or errfmt_orig != errfmt:
             LOG.warn("Stdout, stderr changing to (%s, %s)", outfmt, errfmt)
             (outfmt, errfmt) = util.fixup_output(mods.cfg, name)
-    except:
+    except Exception:
         util.logexc(LOG, "Failed to re-adjust output redirection!")
     logging.setupLogging(mods.cfg)
 
@@ -367,7 +361,7 @@ def main_modules(action_name, args):
         LOG.debug("Closing stdin")
         util.close_stdin()
         util.fixup_output(mods.cfg, name)
-    except:
+    except Exception:
         util.logexc(LOG, "Failed to setup output redirection!")
     if args.debug:
         # Reset so that all the debug handlers are closed out
@@ -430,7 +424,7 @@ def main_single(name, args):
         LOG.debug("Closing stdin")
         util.close_stdin()
         util.fixup_output(mods.cfg, None)
-    except:
+    except Exception:
         util.logexc(LOG, "Failed to setup output redirection!")
     if args.debug:
         # Reset so that all the debug handlers are closed out
@@ -510,7 +504,7 @@ def status_wrapper(name, args, data_d=None, link_d=None):
     else:
         try:
             status = json.loads(util.load_file(status_path))
-        except:
+        except Exception:
             pass
 
     if status is None:
@@ -569,8 +563,12 @@ def status_wrapper(name, args, data_d=None, link_d=None):
     return len(v1[mode]['errors'])
 
 
-def main():
-    parser = argparse.ArgumentParser()
+def main(sysv_args=None):
+    if sysv_args is not None:
+        parser = argparse.ArgumentParser(prog=sysv_args[0])
+        sysv_args = sysv_args[1:]
+    else:
+        parser = argparse.ArgumentParser()
 
     # Top level args
     parser.add_argument('--version', '-v', action='version',
@@ -646,7 +644,7 @@ def main():
                                      ' pass to this module'))
     parser_single.set_defaults(action=('single', main_single))
 
-    args = parser.parse_args()
+    args = parser.parse_args(args=sysv_args)
 
     # Setup basic logging to start (until reinitialized)
     # iff in debug mode...
@@ -656,9 +654,8 @@ def main():
     # Setup signal handlers before running
     signal_handler.attach_handlers()
 
-    if not hasattr(args, 'action'):
-        parser.error('too few arguments')
     (name, functor) = args.action
+
     if name in ("modules", "init"):
         functor = status_wrapper
 
@@ -683,7 +680,3 @@ def main():
         return util.log_time(
             logfunc=LOG.debug, msg="cloud-init mode '%s'" % name,
             get_uptime=True, func=functor, args=(name, args))
-
-
-if __name__ == '__main__':
-    sys.exit(main())

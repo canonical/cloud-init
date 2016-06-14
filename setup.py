@@ -204,10 +204,14 @@ setuptools.setup(
     author_email='scott.moser@canonical.com',
     url='http://launchpad.net/cloud-init/',
     packages=setuptools.find_packages(exclude=['tests']),
-    scripts=['bin/cloud-init',
-             'tools/cloud-init-per'],
+    scripts=['tools/cloud-init-per'],
     license='GPLv3',
     data_files=data_files,
     install_requires=requirements,
     cmdclass=cmdclass,
+    entry_points={
+        'console_scripts': [
+            'cloud-init = cloudinit.cmd.main:main'
+        ],
+    }
 )
