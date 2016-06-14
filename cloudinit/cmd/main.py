@@ -654,7 +654,10 @@ def main(sysv_args=None):
     # Setup signal handlers before running
     signal_handler.attach_handlers()
 
-    (name, functor) = args.action
+    try:
+        (name, functor) = args.action
+    except AttributeError:
+        parser.error('too few arguments')
 
     if name in ("modules", "init"):
         functor = status_wrapper
