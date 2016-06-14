@@ -646,6 +646,11 @@ def main(sysv_args=None):
 
     args = parser.parse_args(args=sysv_args)
 
+    try:
+        (name, functor) = args.action
+    except AttributeError:
+        parser.error('too few arguments')
+
     # Setup basic logging to start (until reinitialized)
     # iff in debug mode...
     if args.debug:
@@ -653,11 +658,6 @@ def main(sysv_args=None):
 
     # Setup signal handlers before running
     signal_handler.attach_handlers()
-
-    try:
-        (name, functor) = args.action
-    except AttributeError:
-        parser.error('too few arguments')
 
     if name in ("modules", "init"):
         functor = status_wrapper
