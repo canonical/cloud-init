@@ -170,6 +170,7 @@ class NetworkStateInterpreter(object):
         self._version = version
         self._config = config
         self._network_state = copy.deepcopy(self.initial_network_state)
+        self._parsed = False
 
     @property
     def network_state(self):

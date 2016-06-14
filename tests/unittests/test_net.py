@@ -76,6 +76,71 @@ STATIC_EXPECTED_1 = {
                  'dns_nameservers': ['10.0.1.1']}],
 }
 
+# Examples (and expected outputs for various renderers).
+OS_SAMPLES = [
+    {
+        'in_data': {
+            "services": [{"type": "dns", "address": "172.19.0.12"}],
+            "networks": [{
+                "network_id": "dacd568d-5be6-4786-91fe-750c374b78b4",
+                "type": "ipv4", "netmask": "255.255.252.0",
+                "link": "tap1a81968a-79",
+                "routes": [{
+                    "netmask": "0.0.0.0",
+                    "network": "0.0.0.0",
+                    "gateway": "172.19.3.254",
+                }],
+                "ip_address": "172.19.1.34", "id": "network0"
+            }],
+            "links": [
+                {
+                    "ethernet_mac_address": "fa:16:3e:ed:9a:59",
+                    "mtu": None, "type": "bridge", "id":
+                    "tap1a81968a-79",
+                    "vif_id": "1a81968a-797a-400f-8a80-567f997eb93f"
+                },
+            ],
+        },
+        'in_macs': {
+            'fa:16:3e:ed:9a:59': 'eth0',
+        },
+        'out_sysconfig': [
+            ('etc/sysconfig/network-scripts/ifcfg-eth0',
+             """
+# Created by cloud-init on instance boot automatically, do not edit.
+#
+BOOTPROTO=static
+DEFROUTE=yes
+DEVICE=eth0
+GATEWAY=172.19.3.254
+HWADDR=fa:16:3e:ed:9a:59
+IPADDR=172.19.1.34
+NETMASK=255.255.252.0
+NM_CONTROLLED=no
+ONBOOT=yes
+TYPE=Ethernet
+USERCTL=no
+""".lstrip()),
+            ('etc/sysconfig/network-scripts/route-eth0',
+             """
+# Created by cloud-init on instance boot automatically, do not edit.
+#
+ADDRESS0=0.0.0.0
+GATEWAY0=172.19.3.254
+NETMASK0=0.0.0.0
+""".lstrip()),
+            ('etc/resolv.conf',
+             """
+; Created by cloud-init on instance boot automatically, do not edit.
+;
+nameserver 172.19.0.12
+""".lstrip()),
+            ('etc/udev/rules.d/70-persistent-net.rules',
+             "".join(['SUBSYSTEM=="net", ACTION=="add", DRIVERS=="?*", ',
+                      'ATTR{address}=="fa:16:3e:ed:9a:59", NAME="eth0"\n']))]
+    }
+]
+
 
 def _setup_test(tmp_dir, mock_get_devicelist, mock_sys_netdev_info,
                 mock_sys_dev_path):
@@ -145,84 +210,22 @@ USERCTL=no
 """.lstrip()
             self.assertEqual(expected_content, content)
 
-    def test_openstack_rendering_sample(self):
-        ex_input = {
-            "services": [{"type": "dns", "address": "172.19.0.12"}],
-            "networks": [
-                {"network_id": "dacd568d-5be6-4786-91fe-750c374b78b4",
-                 "type": "ipv4", "netmask": "255.255.252.0",
-                 "link": "tap1a81968a-79",
-                 "routes": [{"netmask": "0.0.0.0",
-                             "network": "0.0.0.0",
-                             "gateway": "172.19.3.254"}],
-                 "ip_address": "172.19.1.34", "id": "network0"}],
-            "links": [{"ethernet_mac_address": "fa:16:3e:ed:9a:59",
-                       "mtu": None, "type": "bridge", "id":
-                       "tap1a81968a-79",
-                       "vif_id": "1a81968a-797a-400f-8a80-567f997eb93f"}]}
-        ex_mac_addrs = {
-            'fa:16:3e:ed:9a:59': 'eth0',
-        }
-        network_cfg = openstack.convert_net_json(
-            ex_input, known_macs=ex_mac_addrs)
-        ns = network_state.parse_net_config_data(network_cfg,
-                                                 skip_broken=False)
-
+    def test_openstack_rendering_samples(self):
         tmp_dir = tempfile.mkdtemp()
         self.addCleanup(shutil.rmtree, tmp_dir)
         render_dir = os.path.join(tmp_dir, "render")
-        renderer = sysconfig.Renderer()
-        renderer.render_network_state(render_dir, ns)
-
-        render_file = 'etc/sysconfig/network-scripts/ifcfg-eth0'
-        with open(os.path.join(render_dir, render_file)) as fh:
-            content = fh.read()
-            expected_content = """
-# Created by cloud-init on instance boot automatically, do not edit.
-#
-BOOTPROTO=static
-DEFROUTE=yes
-DEVICE=eth0
-GATEWAY=172.19.3.254
-HWADDR=fa:16:3e:ed:9a:59
-IPADDR=172.19.1.34
-NETMASK=255.255.252.0
-NM_CONTROLLED=no
-ONBOOT=yes
-TYPE=Ethernet
-USERCTL=no
-""".lstrip()
-            self.assertEqual(expected_content, content)
-
-        route_render_file = 'etc/sysconfig/network-scripts/route-eth0'
-        with open(os.path.join(render_dir, route_render_file)) as fh:
-            content = fh.read()
-            expected_content = """
-# Created by cloud-init on instance boot automatically, do not edit.
-#
-ADDRESS0=0.0.0.0
-GATEWAY0=172.19.3.254
-NETMASK0=0.0.0.0
-""".lstrip()
-            self.assertEqual(expected_content, content)
-
-        resolv_render_file = 'etc/resolv.conf'
-        with open(os.path.join(render_dir, resolv_render_file)) as fh:
-            content = fh.read()
-            expected_content = """
-; Created by cloud-init on instance boot automatically, do not edit.
-;
-nameserver 172.19.0.12
-""".lstrip()
-            self.assertEqual(expected_content, content)
-
-        rules_render_file = 'etc/udev/rules.d/70-persistent-net.rules'
-        with open(os.path.join(render_dir, rules_render_file)) as fh:
-            content = fh.read()
-            expected_content = "".join([
-                'SUBSYSTEM=="net", ACTION=="add", DRIVERS=="?*", ',
-                'ATTR{address}=="fa:16:3e:ed:9a:59", NAME="eth0"\n'])
-            self.assertEqual(expected_content, content)
+        for os_sample in OS_SAMPLES:
+            ex_input = os_sample['in_data']
+            ex_mac_addrs = os_sample['in_macs']
+            network_cfg = openstack.convert_net_json(
+                ex_input, known_macs=ex_mac_addrs)
+            ns = network_state.parse_net_config_data(network_cfg,
+                                                     skip_broken=False)
+            renderer = sysconfig.Renderer()
+            renderer.render_network_state(render_dir, ns)
+            for fn, expected_content in os_sample.get('out_sysconfig', []):
+                with open(os.path.join(render_dir, fn)) as fh:
+                    self.assertEqual(expected_content, fh.read())
 
 
 class TestEniNetRendering(TestCase):
