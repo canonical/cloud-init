@@ -4,9 +4,10 @@ import six
 import sys
 
 from . import helpers as test_helpers
-mock = test_helpers.mock
 
 from cloudinit.cmd import main as cli
+
+mock = test_helpers.mock
 
 
 class TestCLI(test_helpers.FilesystemMockingTestCase):
