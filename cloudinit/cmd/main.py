@@ -30,7 +30,7 @@ import time
 import traceback
 
 from cloudinit import patcher
-patcher.patch()
+patcher.patch()  # noqa
 
 from cloudinit import log as logging
 from cloudinit import netinfo
