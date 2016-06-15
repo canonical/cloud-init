@@ -308,19 +308,6 @@ class Renderer(renderer.Renderer):
         self.netrules_path = config.get(
             'netrules_path', 'etc/udev/rules.d/70-persistent-net.rules')
 
-    def _render_persistent_net(self, network_state):
-        """Given state, emit udev rules to map mac to ifname."""
-        content = ""
-        interfaces = network_state.get('interfaces')
-        for iface in interfaces.values():
-            # for physical interfaces write out a persist net udev rule
-            if iface['type'] == 'physical' and \
-               'name' in iface and iface.get('mac_address'):
-                content += generate_udev_rule(iface['name'],
-                                              iface['mac_address'])
-
-        return content
-
     def _render_route(self, route, indent=""):
         """When rendering routes for an iface, in some cases applying a route
         may result in the route command returning non-zero which produces

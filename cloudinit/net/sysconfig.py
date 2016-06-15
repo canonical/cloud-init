@@ -20,8 +20,6 @@ import six
 from cloudinit.distros.parsers import resolv_conf
 from cloudinit import util
 
-from .udev import generate_udev_rule
-
 from . import renderer
 
 
@@ -287,7 +285,8 @@ class Renderer(renderer.Renderer):
 
     @classmethod
     def _render_physical_interfaces(cls, network_state, iface_contents):
-        for iface in network_state.iter_interfaces(renderer.filter_by_physical):
+        physical_filter = renderer.filter_by_physical
+        for iface in network_state.iter_interfaces(physical_filter):
             iface_name = iface['name']
             iface_subnets = iface.get("subnets", [])
             iface_cfg = iface_contents[iface_name]
@@ -304,7 +303,8 @@ class Renderer(renderer.Renderer):
 
     @classmethod
     def _render_bond_interfaces(cls, network_state, iface_contents):
-        for iface in network_state.iter_interfaces(renderer.filter_by_type('bond')):
+        bond_filter = renderer.filter_by_type('bond')
+        for iface in network_state.iter_interfaces(bond_filter):
             iface_name = iface['name']
             iface_cfg = iface_contents[iface_name]
             cls._render_bonding_opts(iface_cfg, iface)
@@ -322,7 +322,8 @@ class Renderer(renderer.Renderer):
 
     @staticmethod
     def _render_vlan_interfaces(network_state, iface_contents):
-        for iface in network_state.iter_interfaces(renderer.filter_by_type('vlan')):
+        vlan_filter = renderer.filter_by_type('vlan')
+        for iface in network_state.iter_interfaces(vlan_filter):
             iface_name = iface['name']
             iface_cfg = iface_contents[iface_name]
             iface_cfg['VLAN'] = True
@@ -341,7 +342,8 @@ class Renderer(renderer.Renderer):
 
     @classmethod
     def _render_bridge_interfaces(cls, network_state, iface_contents):
-        for iface in network_state.iter_interfaces(renderer.filter_by_type('bridge')):
+        bridge_filter = renderer.filter_by_type('bridge')
+        for iface in network_state.iter_interfaces(bridge_filter):
             iface_name = iface['name']
             iface_cfg = iface_contents[iface_name]
             iface_cfg.kind = 'bridge'
