@@ -67,8 +67,8 @@ class Distro(distros.Distro):
         self.package_command('install', pkgs=pkglist)
 
     def _write_network_config(self, netconfig):
-        self._net_renderer.render_network_state(
-            target="/", parse_net_config_data(netconfig))
+        ns = parse_net_config_data(netconfig)
+        self._net_renderer.render_network_state("/", ns)
         return []
 
     def _write_network(self, settings):

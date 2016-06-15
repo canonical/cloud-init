@@ -26,7 +26,6 @@ from cloudinit import util
 LOG = logging.getLogger(__name__)
 SYS_CLASS_NET = "/sys/class/net/"
 DEFAULT_PRIMARY_INTERFACE = 'eth0'
-LINKS_FNAME_PREFIX = "etc/systemd/network/50-cloud-init-"
 
 
 def sys_dev_path(devname, path=""):

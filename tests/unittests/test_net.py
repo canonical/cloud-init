@@ -248,11 +248,11 @@ class TestEniNetRendering(TestCase):
         render_dir = os.path.join(tmp_dir, "render")
         os.makedirs(render_dir)
 
-        renderer = eni.Renderer()
-        renderer.render_network_state(render_dir, ns,
-                                      eni="interfaces",
-                                      links_prefix=None,
-                                      netrules=None)
+        renderer = eni.Renderer(
+            {'links_path_prefix': None,
+             'eni_path': 'interfaces', 'netrules_path': None,
+             })
+        renderer.render_network_state(render_dir, ns)
 
         self.assertTrue(os.path.exists(os.path.join(render_dir,
                                                     'interfaces')))

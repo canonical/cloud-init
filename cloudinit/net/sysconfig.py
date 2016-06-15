@@ -20,8 +20,9 @@ import six
 from cloudinit.distros.parsers import resolv_conf
 from cloudinit import util
 
-from . import network_state
 from .udev import generate_udev_rule
+
+from . import renderer
 
 
 def _make_header(sep='#'):
@@ -35,17 +36,6 @@ def _make_header(sep='#'):
         else:
             lines[i] = sep
     return "\n".join(lines)
-
-
-def _filter_by_type(match_type):
-    return lambda iface: match_type == iface['type']
-
-
-def _filter_by_name(match_name):
-    return lambda iface: match_name == iface['name']
-
-
-_filter_by_physical = _filter_by_type('physical')
 
 
 def _is_default_route(route):
@@ -182,7 +172,7 @@ class NetInterface(ConfigMap):
         return c
 
 
-class Renderer(object):
+class Renderer(renderer.Renderer):
     """Renders network information in a /etc/sysconfig format."""
 
     # See: https://access.redhat.com/documentation/en-US/\
@@ -211,18 +201,13 @@ class Renderer(object):
         ('bridge_bridgeprio', 'PRIO'),
     ])
 
-    @staticmethod
-    def _render_persistent_net(network_state):
-        """Given state, emit udev rules to map mac to ifname."""
-        # TODO(harlowja): this seems shared between eni renderer and
-        # this, so move it to a shared location.
-        content = six.StringIO()
-        for iface in network_state.iter_interfaces(_filter_by_physical):
-            # for physical interfaces write out a persist net udev rule
-            if 'name' in iface and iface.get('mac_address'):
-                content.write(generate_udev_rule(iface['name'],
-                                                 iface['mac_address']))
-        return content.getvalue()
+    def __init__(self, config=None):
+        if not config:
+            config = {}
+        self.sysconf_dir = config.get('sysconf_dir', 'etc/sysconfig/')
+        self.netrules_path = config.get(
+            'netrules_path', 'etc/udev/rules.d/70-persistent-net.rules')
+        self.dns_path = config.get('dns_path', 'etc/resolv.conf')
 
     @classmethod
     def _render_iface_shared(cls, iface, iface_cfg):
@@ -302,7 +287,7 @@ class Renderer(object):
 
     @classmethod
     def _render_physical_interfaces(cls, network_state, iface_contents):
-        for iface in network_state.iter_interfaces(_filter_by_physical):
+        for iface in network_state.iter_interfaces(renderer.filter_by_physical):
             iface_name = iface['name']
             iface_subnets = iface.get("subnets", [])
             iface_cfg = iface_contents[iface_name]
@@ -319,7 +304,7 @@ class Renderer(object):
 
     @classmethod
     def _render_bond_interfaces(cls, network_state, iface_contents):
-        for iface in network_state.iter_interfaces(_filter_by_type('bond')):
+        for iface in network_state.iter_interfaces(renderer.filter_by_type('bond')):
             iface_name = iface['name']
             iface_cfg = iface_contents[iface_name]
             cls._render_bonding_opts(iface_cfg, iface)
@@ -337,7 +322,7 @@ class Renderer(object):
 
     @staticmethod
     def _render_vlan_interfaces(network_state, iface_contents):
-        for iface in network_state.iter_interfaces(_filter_by_type('vlan')):
+        for iface in network_state.iter_interfaces(renderer.filter_by_type('vlan')):
             iface_name = iface['name']
             iface_cfg = iface_contents[iface_name]
             iface_cfg['VLAN'] = True
@@ -348,15 +333,15 @@ class Renderer(object):
         content = resolv_conf.ResolvConf("")
         if existing_dns_path and os.path.isfile(existing_dns_path):
             content = resolv_conf.ResolvConf(util.load_file(existing_dns_path))
-        for ns in network_state.dns_nameservers:
-            content.add_nameserver(ns)
-        for d in network_state.dns_searchdomains:
-            content.add_search_domain(d)
+        for nameserver in network_state.dns_nameservers:
+            content.add_nameserver(nameserver)
+        for searchdomain in network_state.dns_searchdomains:
+            content.add_search_domain(searchdomain)
         return "\n".join([_make_header(';'), str(content)])
 
     @classmethod
     def _render_bridge_interfaces(cls, network_state, iface_contents):
-        for iface in network_state.iter_interfaces(_filter_by_type('bridge')):
+        for iface in network_state.iter_interfaces(renderer.filter_by_type('bridge')):
             iface_name = iface['name']
             iface_cfg = iface_contents[iface_name]
             iface_cfg.kind = 'bridge'
@@ -397,67 +382,17 @@ class Renderer(object):
                 contents[iface_cfg.routes.path] = iface_cfg.routes.to_string()
         return contents
 
-    def render_network_state(
-            self, target, network_state, sysconf_dir="etc/sysconfig/",
-            netrules='etc/udev/rules.d/70-persistent-net.rules',
-            dns='etc/resolv.conf'):
-        if target:
-            base_sysconf_dir = os.path.join(target, sysconf_dir)
-        else:
-            base_sysconf_dir = sysconf_dir
+    def render_network_state(self, target, network_state):
+        base_sysconf_dir = os.path.join(target, self.sysconf_dir)
         for path, data in self._render_sysconfig(base_sysconf_dir,
                                                  network_state).items():
-            if target:
-                util.write_file(path, data)
-            else:
-                print("File to be at: %s" % path)
-                print(data)
-        if dns:
-            if target:
-                dns_path = os.path.join(target, dns)
-                resolv_content = self._render_dns(network_state,
-                                                  existing_dns_path=dns_path)
-                util.write_file(dns_path, resolv_content)
-            else:
-                resolv_content = self._render_dns(network_state)
-                dns_path = dns
-                print("File to be at: %s" % dns_path)
-                print(resolv_content)
-        if netrules:
+            util.write_file(path, data)
+        if self.dns_path:
+            dns_path = os.path.join(target, self.dns_path)
+            resolv_content = self._render_dns(network_state,
+                                              existing_dns_path=dns_path)
+            util.write_file(dns_path, resolv_content)
+        if self.netrules_path:
             netrules_content = self._render_persistent_net(network_state)
-            if target:
-                netrules_path = os.path.join(target, netrules)
-                util.write_file(netrules_path, netrules_content)
-            else:
-                netrules_path = netrules
-                print("File to be at: %s" % netrules_path)
-                print(netrules_content)
-
-
-def main():
-    """Reads a os network state json file and outputs what would be written."""
-    from cloudinit.sources.helpers import openstack
-
-    import argparse
-    import json
-
-    parser = argparse.ArgumentParser()
-    parser.add_argument("-f", "--file", metavar="FILE",
-                        help=("openstack network json file"
-                              " to read (required)"),
-                        required=True)
-    parser.add_argument("-d", "--dir", metavar="DIR",
-                        help=("directory to write output into (if"
-                              " not provided then written to stdout)"),
-                        default=None)
-    args = parser.parse_args()
-
-    network_json = json.loads(util.load_file(args.file))
-    net_state = network_state.parse_net_config_data(
-        openstack.convert_net_json(network_json), skip_broken=False)
-    r = Renderer()
-    r.render_network_state(args.dir, net_state)
-
-
-if __name__ == '__main__':
-    main()
+            netrules_path = os.path.join(target, self.netrules_path)
+            util.write_file(netrules_path, netrules_content)
