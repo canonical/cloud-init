@@ -1,7 +1,4 @@
-import imp
-import os
 import six
-import sys
 
 from . import helpers as test_helpers
 
