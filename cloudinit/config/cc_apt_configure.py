@@ -208,8 +208,9 @@ def add_apt_sources(srclist, template_params=None, aa_repo_match=None):
         template_params = {}
 
     if aa_repo_match is None:
-        def aa_repo_match(x):
+        def _aa_repo_match(x):
             return False
+        aa_repo_match = _aa_repo_match
 
     errorlist = []
     srcdict = convert_to_new_format(srclist)

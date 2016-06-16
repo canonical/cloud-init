@@ -157,7 +157,7 @@ class BaseReader(object):
         pass
 
     @abc.abstractmethod
-    def _path_read(self, path):
+    def _path_read(self, path, decode=False):
         pass
 
     @abc.abstractmethod
