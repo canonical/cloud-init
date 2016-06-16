@@ -1,8 +1,7 @@
 #!/bin/bash
 
-pycheck_dirs=( "cloudinit/" "bin/" "tests/" "tools/" )
-# FIXME: cloud-init modifies sys module path, pep8 does not like
-# bin_files=( "bin/cloud-init" )
+pycheck_dirs=( "cloudinit/" "tests/" "tools/" )
+
 CR="
 "
 [ "$1" = "-v" ] && { verbose="$1"; shift; } || verbose=""

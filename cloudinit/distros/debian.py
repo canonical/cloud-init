@@ -25,8 +25,8 @@ import os
 from cloudinit import distros
 from cloudinit import helpers
 from cloudinit import log as logging
-from cloudinit import net
 from cloudinit.net import eni
+from cloudinit.net.network_state import parse_net_config_data
 from cloudinit import util
 
 from cloudinit.distros.parsers.hostname import HostnameConf
@@ -85,7 +85,7 @@ class Distro(distros.Distro):
         return ['all']
 
     def _write_network_config(self, netconfig):
-        ns = net.parse_net_config_data(netconfig)
+        ns = parse_net_config_data(netconfig)
         self._net_renderer.render_network_state("/", ns)
         _maybe_remove_legacy_eth0()
         return []

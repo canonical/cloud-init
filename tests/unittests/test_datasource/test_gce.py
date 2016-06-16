@@ -52,7 +52,7 @@ GCE_META_ENCODING = {
 
 HEADERS = {'X-Google-Metadata-Request': 'True'}
 MD_URL_RE = re.compile(
-    r'http://metadata.google.internal./computeMetadata/v1/.*')
+    r'http://metadata.google.internal/computeMetadata/v1/.*')
 
 
 def _set_mock_metadata(gce_meta=None):
