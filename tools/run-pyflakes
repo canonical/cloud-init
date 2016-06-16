@@ -3,7 +3,7 @@
 PYTHON_VERSION=${PYTHON_VERSION:-2}
 CR="
 "
-pycheck_dirs=( "cloudinit/" "bin/" "tests/" "tools/" )
+pycheck_dirs=( "cloudinit/" "tests/" "tools/" )
 
 set -f
 if [ $# -eq 0 ]; then
