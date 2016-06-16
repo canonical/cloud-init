@@ -122,6 +122,7 @@
  - ConfigDrive: improved support for networking information from
    a network_data.json or older interfaces formated network_config.
  - Change missing Cheetah log warning to debug [Andrew Jorgensen]
+ - Remove trailing dot from GCE metadata URL (LP: #1581200) [Phil Roche]
 
 0.7.6:
  - open 0.7.6
