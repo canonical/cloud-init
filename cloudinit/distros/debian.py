@@ -57,7 +57,11 @@ class Distro(distros.Distro):
         # should only happen say once per instance...)
         self._runner = helpers.Runners(paths)
         self.osfamily = 'debian'
-        self._net_renderer = eni.Renderer()
+        self._net_renderer = eni.Renderer({
+            'eni_path': self.network_conf_fn,
+            'links_prefix_path': self.links_prefix,
+            'netrules_path': None,
+        })
 
     def apply_locale(self, locale, out_fn=None):
         if not out_fn:
@@ -82,12 +86,8 @@ class Distro(distros.Distro):
 
     def _write_network_config(self, netconfig):
         ns = parse_net_config_data(netconfig)
-        self._net_renderer.render_network_state(
-            target="/", network_state=ns,
-            eni=self.network_conf_fn, links_prefix=self.links_prefix,
-            netrules=None)
+        self._net_renderer.render_network_state("/", ns)
         _maybe_remove_legacy_eth0()
-
         return []
 
     def _bring_up_interfaces(self, device_names):

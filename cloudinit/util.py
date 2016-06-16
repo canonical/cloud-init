@@ -2210,7 +2210,7 @@ def _call_dmidecode(key, dmidecode_path):
             return ""
         return result
     except (IOError, OSError) as _err:
-        LOG.debug('failed dmidecode cmd: %s\n%s', cmd, _err.message)
+        LOG.debug('failed dmidecode cmd: %s\n%s', cmd, _err)
         return None
 
 

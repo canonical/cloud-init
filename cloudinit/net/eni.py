@@ -16,10 +16,9 @@ import glob
 import os
 import re
 
-from . import LINKS_FNAME_PREFIX
 from . import ParserError
 
-from .udev import generate_udev_rule
+from . import renderer
 
 from cloudinit import util
 
@@ -297,21 +296,17 @@ def _ifaces_to_net_config_data(ifaces):
             'config': [devs[d] for d in sorted(devs)]}
 
 
-class Renderer(object):
+class Renderer(renderer.Renderer):
     """Renders network information in a /etc/network/interfaces format."""
 
-    def _render_persistent_net(self, network_state):
-        """Given state, emit udev rules to map mac to ifname."""
-        content = ""
-        interfaces = network_state.get('interfaces')
-        for iface in interfaces.values():
-            # for physical interfaces write out a persist net udev rule
-            if iface['type'] == 'physical' and \
-               'name' in iface and iface.get('mac_address'):
-                content += generate_udev_rule(iface['name'],
-                                              iface['mac_address'])
-
-        return content
+    def __init__(self, config=None):
+        if not config:
+            config = {}
+        self.eni_path = config.get('eni_path', 'etc/network/interfaces')
+        self.links_path_prefix = config.get(
+            'links_path_prefix', 'etc/systemd/network/50-cloud-init-')
+        self.netrules_path = config.get(
+            'netrules_path', 'etc/udev/rules.d/70-persistent-net.rules')
 
     def _render_route(self, route, indent=""):
         """When rendering routes for an iface, in some cases applying a route
@@ -360,7 +355,15 @@ class Renderer(object):
         '''Given state, emit etc/network/interfaces content.'''
 
         content = ""
-        interfaces = network_state.get('interfaces')
+        content += "auto lo\niface lo inet loopback\n"
+
+        nameservers = network_state.dns_nameservers
+        if nameservers:
+            content += "    dns-nameservers %s\n" % (" ".join(nameservers))
+        searchdomains = network_state.dns_searchdomains
+        if searchdomains:
+            content += "    dns-search %s\n" % (" ".join(searchdomains))
+
         ''' Apply a sort order to ensure that we write out
             the physical interfaces first; this is critical for
             bonding
@@ -371,12 +374,7 @@ class Renderer(object):
             'bridge': 2,
             'vlan': 3,
         }
-        content += "auto lo\niface lo inet loopback\n"
-        for dnskey, value in network_state.get('dns', {}).items():
-            if len(value):
-                content += "    dns-{} {}\n".format(dnskey, " ".join(value))
-
-        for iface in sorted(interfaces.values(),
+        for iface in sorted(network_state.iter_interfaces(),
                             key=lambda k: (order[k['type']], k['name'])):
 
             if content[-2:] != "\n\n":
@@ -409,40 +407,33 @@ class Renderer(object):
                 content += "iface {name} {inet} {mode}\n".format(**iface)
                 content += _iface_add_attrs(iface)
 
-        for route in network_state.get('routes'):
+        for route in network_state.iter_routes():
             content += self._render_route(route)
 
         # global replacements until v2 format
         content = content.replace('mac_address', 'hwaddress')
         return content
 
-    def render_network_state(
-        self, target, network_state, eni="etc/network/interfaces",
-            links_prefix=LINKS_FNAME_PREFIX,
-            netrules='etc/udev/rules.d/70-persistent-net.rules',
-            writer=None):
-
-        fpeni = os.path.sep.join((target, eni,))
+    def render_network_state(self, target, network_state):
+        fpeni = os.path.join(target, self.eni_path)
         util.ensure_dir(os.path.dirname(fpeni))
         util.write_file(fpeni, self._render_interfaces(network_state))
 
-        if netrules:
-            netrules = os.path.sep.join((target, netrules,))
+        if self.netrules_path:
+            netrules = os.path.join(target, self.netrules_path)
             util.ensure_dir(os.path.dirname(netrules))
             util.write_file(netrules,
                             self._render_persistent_net(network_state))
 
-        if links_prefix:
+        if self.links_path_prefix:
             self._render_systemd_links(target, network_state,
-                                       links_prefix=links_prefix)
+                                       links_prefix=self.links_path_prefix)
 
-    def _render_systemd_links(self, target, network_state,
-                              links_prefix=LINKS_FNAME_PREFIX):
-        fp_prefix = os.path.sep.join((target, links_prefix))
+    def _render_systemd_links(self, target, network_state, links_prefix):
+        fp_prefix = os.path.join(target, links_prefix)
         for f in glob.glob(fp_prefix + "*"):
             os.unlink(f)
-        interfaces = network_state.get('interfaces')
-        for iface in interfaces.values():
+        for iface in network_state.iter_interfaces():
             if (iface['type'] == 'physical' and 'name' in iface and
                     iface.get('mac_address')):
                 fname = fp_prefix + iface['name'] + ".link"
