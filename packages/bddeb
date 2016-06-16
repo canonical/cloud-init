@@ -42,6 +42,7 @@ STD_NAMED_PACKAGES = [
     'setuptools',
     'flake8',
     'hacking',
+    'unittest2',
 ]
 NONSTD_NAMED_PACKAGES = {
     'argparse': ('python-argparse', None),
@@ -148,10 +149,16 @@ def main():
     parser.add_argument("--sign", default=False, action='store_true',
                         help="sign result. do not pass -us -uc to debuild")
 
+    parser.add_argument("--signuser", default=False, action='store',
+                        help="user to sign, see man dpkg-genchanges")
+
     args = parser.parse_args()
 
     if not args.sign:
         args.debuild_args.extend(['-us', '-uc'])
+
+    if args.signuser:
+        args.debuild_args.extend(['-e%s' % args.signuser])
 
     os.environ['INIT_SYSTEM'] = args.init_system
 

@@ -1,3 +1,20 @@
+cloud-init (0.7.7~bzr1242-0ubuntu1) yakkety; urgency=medium
+
+  * d/control: Build-Depends on python3-unittest2
+  * New upstream snapshot.
+    - DataSourceNoCloud: fix stack trace on reboot, default to dsmode=net 
+      (LP: #1592505)
+    - support network rendering to sysconfig (for centos and RHEL)
+    - fix errors reported by pylint
+    - move 'main' into cloudinit.cmd for easier testing. use
+      setuptools entry_points for creating executable.
+    - Remove trailing dot from GCE metadata URL (LP: #1581200)
+    - Change missing Cheetah log warning to debug [Andrew Jorgensen]
+    - make networking config provided in system config override datasource.
+      (LP: #1590104)
+
+ -- Scott Moser <smoser@ubuntu.com>  Thu, 16 Jun 2016 00:07:12 -0400
+
 cloud-init (0.7.7~bzr1227-0ubuntu1) yakkety; urgency=medium
 
   * New upstream snapshot.

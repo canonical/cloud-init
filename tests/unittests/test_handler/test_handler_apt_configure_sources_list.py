@@ -20,6 +20,8 @@ from cloudinit import util
 from cloudinit.config import cc_apt_configure
 from cloudinit.sources import DataSourceNone
 
+from cloudinit.distros.debian import Distro
+
 from .. import helpers as t_help
 
 LOG = logging.getLogger(__name__)
@@ -115,38 +117,47 @@ class TestAptSourceConfigSourceList(t_help.FilesystemMockingTestCase):
             {'codename': '', 'primary': mirrorcheck, 'mirror': mirrorcheck})
 
     def test_apt_source_list_debian(self):
-        """test_apt_source_list_debian
-        Test rendering of a source.list from template for debian
-        """
+        """Test rendering of a source.list from template for debian"""
         self.apt_source_list('debian', 'http://httpredir.debian.org/debian')
 
     def test_apt_source_list_ubuntu(self):
-        """test_apt_source_list_ubuntu
-        Test rendering of a source.list from template for ubuntu
-        """
+        """Test rendering of a source.list from template for ubuntu"""
         self.apt_source_list('ubuntu', 'http://archive.ubuntu.com/ubuntu/')
 
-    @t_help.skipIf(True, "LP: #1589174")
+    @staticmethod
+    def myresolve(name):
+        """Fake util.is_resolvable for mirrorfail tests"""
+        if name == "does.not.exist":
+            print("Faking FAIL for '%s'" % name)
+            return False
+        else:
+            print("Faking SUCCESS for '%s'" % name)
+            return True
+
     def test_apt_srcl_debian_mirrorfail(self):
-        """test_apt_source_list_debian_mirrorfail
-        Test rendering of a source.list from template for debian
-        """
-        self.apt_source_list('debian', ['http://does.not.exist',
-                                        'http://httpredir.debian.org/debian'],
-                             'http://httpredir.debian.org/debian')
+        """Test rendering of a source.list from template for debian"""
+        with mock.patch.object(util, 'is_resolvable',
+                               side_effect=self.myresolve) as mockresolve:
+            self.apt_source_list('debian',
+                                 ['http://does.not.exist',
+                                  'http://httpredir.debian.org/debian'],
+                                 'http://httpredir.debian.org/debian')
+        mockresolve.assert_any_call("does.not.exist")
+        mockresolve.assert_any_call("httpredir.debian.org")
 
     def test_apt_srcl_ubuntu_mirrorfail(self):
-        """test_apt_source_list_ubuntu_mirrorfail
-        Test rendering of a source.list from template for ubuntu
-        """
-        self.apt_source_list('ubuntu', ['http://does.not.exist',
-                                        'http://archive.ubuntu.com/ubuntu/'],
-                             'http://archive.ubuntu.com/ubuntu/')
+        """Test rendering of a source.list from template for ubuntu"""
+        with mock.patch.object(util, 'is_resolvable',
+                               side_effect=self.myresolve) as mockresolve:
+            self.apt_source_list('ubuntu',
+                                 ['http://does.not.exist',
+                                  'http://archive.ubuntu.com/ubuntu/'],
+                                 'http://archive.ubuntu.com/ubuntu/')
+        mockresolve.assert_any_call("does.not.exist")
+        mockresolve.assert_any_call("archive.ubuntu.com")
 
     def test_apt_srcl_custom(self):
-        """test_apt_srcl_custom
-        Test rendering from a custom source.list template
-        """
+        """Test rendering from a custom source.list template"""
         cfg = util.load_yaml(YAML_TEXT_CUSTOM_SL)
         mycloud = self._get_cloud('ubuntu')
 
@@ -155,8 +166,10 @@ class TestAptSourceConfigSourceList(t_help.FilesystemMockingTestCase):
             with mock.patch.object(util, 'subp', self.subp):
                 with mock.patch.object(cc_apt_configure, 'get_release',
                                        return_value='fakerelease'):
-                    cc_apt_configure.handle("notimportant", cfg, mycloud,
-                                            LOG, None)
+                    with mock.patch.object(Distro, 'get_primary_arch',
+                                           return_value='amd64'):
+                        cc_apt_configure.handle("notimportant", cfg, mycloud,
+                                                LOG, None)
 
         mockwrite.assert_called_once_with(
             '/etc/apt/sources.list',

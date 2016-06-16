@@ -1,12 +1,24 @@
+#    This program is free software: you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License version 3, as
+#    published by the Free Software Foundation.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License
+#    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+import logging
+
 from cloudinit.config import cc_rh_subscription
 from cloudinit import util
 
-import logging
-import mock
-import unittest
+from .helpers import TestCase, mock
 
 
-class GoodTests(unittest.TestCase):
+class GoodTests(TestCase):
     def setUp(self):
         super(GoodTests, self).setUp()
         self.name = "cc_rh_subscription"
@@ -93,7 +105,7 @@ class GoodTests(unittest.TestCase):
         self.assertEqual(self.SM._sub_man_cli.call_count, 9)
 
 
-class TestBadInput(unittest.TestCase):
+class TestBadInput(TestCase):
     name = "cc_rh_subscription"
     cloud_init = None
     log = logging.getLogger("bad_tests")

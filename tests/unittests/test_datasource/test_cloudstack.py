@@ -1,16 +1,7 @@
 from cloudinit import helpers
 from cloudinit.sources.DataSourceCloudStack import DataSourceCloudStack
 
-from ..helpers import TestCase
-
-try:
-    from unittest import mock
-except ImportError:
-    import mock
-try:
-    from contextlib import ExitStack
-except ImportError:
-    from contextlib2 import ExitStack
+from ..helpers import TestCase, mock, ExitStack
 
 
 class TestCloudStackPasswordFetching(TestCase):

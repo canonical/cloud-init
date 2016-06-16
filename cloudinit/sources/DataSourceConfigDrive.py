@@ -18,13 +18,13 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import copy
 import os
 
 from cloudinit import log as logging
-from cloudinit import net
 from cloudinit import sources
 from cloudinit import util
+
+from cloudinit.net import eni
 
 from cloudinit.sources.helpers import openstack
 
@@ -53,6 +53,7 @@ class DataSourceConfigDrive(openstack.SourceMixin, sources.DataSource):
         self._network_config = None
         self.network_json = None
         self.network_eni = None
+        self.known_macs = None
         self.files = {}
 
     def __str__(self):
@@ -147,9 +148,10 @@ class DataSourceConfigDrive(openstack.SourceMixin, sources.DataSource):
         if self._network_config is None:
             if self.network_json is not None:
                 LOG.debug("network config provided via network_json")
-                self._network_config = convert_network_data(self.network_json)
+                self._network_config = openstack.convert_net_json(
+                    self.network_json, known_macs=self.known_macs)
             elif self.network_eni is not None:
-                self._network_config = net.convert_eni_data(self.network_eni)
+                self._network_config = eni.convert_eni_data(self.network_eni)
                 LOG.debug("network config provided via converted eni data")
             else:
                 LOG.debug("no network configuration available")
@@ -254,152 +256,12 @@ def find_candidate_devs(probe_optical=True):
     return devices
 
 
-# Convert OpenStack ConfigDrive NetworkData json to network_config yaml
-def convert_network_data(network_json=None, known_macs=None):
-    """Return a dictionary of network_config by parsing provided
-       OpenStack ConfigDrive NetworkData json format
-
-    OpenStack network_data.json provides a 3 element dictionary
-      - "links" (links are network devices, physical or virtual)
-      - "networks" (networks are ip network configurations for one or more
-                    links)
-      -  services (non-ip services, like dns)
-
-    networks and links are combined via network items referencing specific
-    links via a 'link_id' which maps to a links 'id' field.
-
-    To convert this format to network_config yaml, we first iterate over the
-    links and then walk the network list to determine if any of the networks
-    utilize the current link; if so we generate a subnet entry for the device
-
-    We also need to map network_data.json fields to network_config fields. For
-    example, the network_data links 'id' field is equivalent to network_config
-    'name' field for devices.  We apply more of this mapping to the various
-    link types that we encounter.
-
-    There are additional fields that are populated in the network_data.json
-    from OpenStack that are not relevant to network_config yaml, so we
-    enumerate a dictionary of valid keys for network_yaml and apply filtering
-    to drop these superflous keys from the network_config yaml.
-    """
-    if network_json is None:
-        return None
-
-    # dict of network_config key for filtering network_json
-    valid_keys = {
-        'physical': [
-            'name',
-            'type',
-            'mac_address',
-            'subnets',
-            'params',
-            'mtu',
-        ],
-        'subnet': [
-            'type',
-            'address',
-            'netmask',
-            'broadcast',
-            'metric',
-            'gateway',
-            'pointopoint',
-            'scope',
-            'dns_nameservers',
-            'dns_search',
-            'routes',
-        ],
-    }
-
-    links = network_json.get('links', [])
-    networks = network_json.get('networks', [])
-    services = network_json.get('services', [])
-
-    config = []
-    for link in links:
-        subnets = []
-        cfg = {k: v for k, v in link.items()
-               if k in valid_keys['physical']}
-        # 'name' is not in openstack spec yet, but we will support it if it is
-        # present.  The 'id' in the spec is currently implemented as the host
-        # nic's name, meaning something like 'tap-adfasdffd'.  We do not want
-        # to name guest devices with such ugly names.
-        if 'name' in link:
-            cfg['name'] = link['name']
-
-        for network in [n for n in networks
-                        if n['link'] == link['id']]:
-            subnet = {k: v for k, v in network.items()
-                      if k in valid_keys['subnet']}
-            if 'dhcp' in network['type']:
-                t = 'dhcp6' if network['type'].startswith('ipv6') else 'dhcp4'
-                subnet.update({
-                    'type': t,
-                })
-            else:
-                subnet.update({
-                    'type': 'static',
-                    'address': network.get('ip_address'),
-                })
-            subnets.append(subnet)
-        cfg.update({'subnets': subnets})
-        if link['type'] in ['ethernet', 'vif', 'ovs', 'phy', 'bridge']:
-            cfg.update({
-                'type': 'physical',
-                'mac_address': link['ethernet_mac_address']})
-        elif link['type'] in ['bond']:
-            params = {}
-            for k, v in link.items():
-                if k == 'bond_links':
-                    continue
-                elif k.startswith('bond'):
-                    params.update({k: v})
-            cfg.update({
-                'bond_interfaces': copy.deepcopy(link['bond_links']),
-                'params': params,
-            })
-        elif link['type'] in ['vlan']:
-            cfg.update({
-                'name': "%s.%s" % (link['vlan_link'],
-                                   link['vlan_id']),
-                'vlan_link': link['vlan_link'],
-                'vlan_id': link['vlan_id'],
-                'mac_address': link['vlan_mac_address'],
-            })
-        else:
-            raise ValueError(
-                'Unknown network_data link type: %s' % link['type'])
-
-        config.append(cfg)
-
-    need_names = [d for d in config
-                  if d.get('type') == 'physical' and 'name' not in d]
-
-    if need_names:
-        if known_macs is None:
-            known_macs = net.get_interfaces_by_mac()
-
-        for d in need_names:
-            mac = d.get('mac_address')
-            if not mac:
-                raise ValueError("No mac_address or name entry for %s" % d)
-            if mac not in known_macs:
-                raise ValueError("Unable to find a system nic for %s" % d)
-            d['name'] = known_macs[mac]
-
-    for service in services:
-        cfg = service
-        cfg.update({'type': 'nameserver'})
-        config.append(cfg)
-
-    return {'version': 1, 'config': config}
-
-
 # Legacy: Must be present in case we load an old pkl object
 DataSourceConfigDriveNet = DataSourceConfigDrive
 
 # Used to match classes to dependencies
 datasources = [
-    (DataSourceConfigDrive, (sources.DEP_FILESYSTEM, )),
+    (DataSourceConfigDrive, (sources.DEP_FILESYSTEM,)),
 ]
 
 

@@ -24,7 +24,7 @@ import errno
 import os
 
 from cloudinit import log as logging
-from cloudinit import net
+from cloudinit.net import eni
 from cloudinit import sources
 from cloudinit import util
 
@@ -34,7 +34,6 @@ LOG = logging.getLogger(__name__)
 class DataSourceNoCloud(sources.DataSource):
     def __init__(self, sys_cfg, distro, paths):
         sources.DataSource.__init__(self, sys_cfg, distro, paths)
-        self.dsmode = 'local'
         self.seed = None
         self.seed_dirs = [os.path.join(paths.seed_dir, 'nocloud'),
                           os.path.join(paths.seed_dir, 'nocloud-net')]
@@ -194,8 +193,7 @@ class DataSourceNoCloud(sources.DataSource):
         # LP: #1568150 need getattr in the case that an old class object
         # has been loaded from a pickled file and now executing new source.
         dirs = getattr(self, 'seed_dirs', [self.seed_dir])
-        quick_id = _quick_read_instance_id(cmdline_id=self.cmdline_id,
-                                           dirs=dirs)
+        quick_id = _quick_read_instance_id(dirs=dirs)
         if not quick_id:
             return None
         return quick_id == current
@@ -203,20 +201,19 @@ class DataSourceNoCloud(sources.DataSource):
     @property
     def network_config(self):
         if self._network_config is None:
-            if self.network_eni is not None:
-                self._network_config = net.convert_eni_data(self.network_eni)
+            if self._network_eni is not None:
+                self._network_config = eni.convert_eni_data(self._network_eni)
         return self._network_config
 
 
-def _quick_read_instance_id(cmdline_id, dirs=None):
+def _quick_read_instance_id(dirs=None):
     if dirs is None:
         dirs = []
 
     iid_key = 'instance-id'
-    if cmdline_id is None:
-        fill = {}
-        if parse_cmdline_data(cmdline_id, fill) and iid_key in fill:
-            return fill[iid_key]
+    fill = {}
+    if load_cmdline_data(fill) and iid_key in fill:
+        return fill[iid_key]
 
     for d in dirs:
         if d is None:

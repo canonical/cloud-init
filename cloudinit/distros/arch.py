@@ -196,6 +196,6 @@ def convert_resolv_conf(settings):
     """Returns a settings string formatted for resolv.conf."""
     result = ''
     if isinstance(settings, list):
-        for ns in list:
+        for ns in settings:
             result = result + 'nameserver %s\n' % ns
-        return result
+    return result

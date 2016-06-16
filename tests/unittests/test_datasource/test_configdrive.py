@@ -5,23 +5,15 @@ import shutil
 import six
 import tempfile
 
-try:
-    from unittest import mock
-except ImportError:
-    import mock
-try:
-    from contextlib import ExitStack
-except ImportError:
-    from contextlib2 import ExitStack
-
 from cloudinit import helpers
-from cloudinit import net
+from cloudinit.net import eni
+from cloudinit.net import network_state
 from cloudinit import settings
 from cloudinit.sources import DataSourceConfigDrive as ds
 from cloudinit.sources.helpers import openstack
 from cloudinit import util
 
-from ..helpers import TestCase
+from ..helpers import TestCase, ExitStack, mock
 
 
 PUBKEY = u'ssh-rsa AAAAB3NzaC1....sIkJhq8wdX+4I3A4cYbYP ubuntu@server-460\n'
@@ -115,6 +107,7 @@ KNOWN_MACS = {
     'fa:16:3e:d4:57:ad': 'enp0s2',
     'fa:16:3e:dd:50:9a': 'foo1',
     'fa:16:3e:a8:14:69': 'foo2',
+    'fa:16:3e:ed:9a:59': 'foo3',
 }
 
 CFG_DRIVE_FILES_V2 = {
@@ -377,35 +370,150 @@ class TestConfigDriveDataSource(TestCase):
             util.find_devs_with = orig_find_devs_with
             util.is_partition = orig_is_partition
 
-    def test_pubkeys_v2(self):
+    @mock.patch('cloudinit.sources.DataSourceConfigDrive.on_first_boot')
+    def test_pubkeys_v2(self, on_first_boot):
         """Verify that public-keys work in config-drive-v2."""
         populate_dir(self.tmp, CFG_DRIVE_FILES_V2)
         myds = cfg_ds_from_dir(self.tmp)
         self.assertEqual(myds.get_public_ssh_keys(),
                          [OSTACK_META['public_keys']['mykey']])
 
-    def test_network_data_is_found(self):
+
+class TestNetJson(TestCase):
+    def setUp(self):
+        super(TestNetJson, self).setUp()
+        self.tmp = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, self.tmp)
+        self.maxDiff = None
+
+    @mock.patch('cloudinit.sources.DataSourceConfigDrive.on_first_boot')
+    def test_network_data_is_found(self, on_first_boot):
         """Verify that network_data is present in ds in config-drive-v2."""
         populate_dir(self.tmp, CFG_DRIVE_FILES_V2)
         myds = cfg_ds_from_dir(self.tmp)
-        self.assertEqual(myds.network_json, NETWORK_DATA)
+        self.assertIsNotNone(myds.network_json)
 
-    def test_network_config_is_converted(self):
+    @mock.patch('cloudinit.sources.DataSourceConfigDrive.on_first_boot')
+    def test_network_config_is_converted(self, on_first_boot):
         """Verify that network_data is converted and present on ds object."""
         populate_dir(self.tmp, CFG_DRIVE_FILES_V2)
         myds = cfg_ds_from_dir(self.tmp)
-        network_config = ds.convert_network_data(NETWORK_DATA,
-                                                 known_macs=KNOWN_MACS)
+        network_config = openstack.convert_net_json(NETWORK_DATA,
+                                                    known_macs=KNOWN_MACS)
         self.assertEqual(myds.network_config, network_config)
+
+    def test_network_config_conversions(self):
+        """Tests a bunch of input network json and checks the
+           expected conversions."""
+        in_datas = [
+            NETWORK_DATA,
+            {
+                'services': [{'type': 'dns', 'address': '172.19.0.12'}],
+                'networks': [{
+                    'network_id': 'dacd568d-5be6-4786-91fe-750c374b78b4',
+                    'type': 'ipv4',
+                    'netmask': '255.255.252.0',
+                    'link': 'tap1a81968a-79',
+                    'routes': [{
+                        'netmask': '0.0.0.0',
+                        'network': '0.0.0.0',
+                        'gateway': '172.19.3.254',
+                    }],
+                    'ip_address': '172.19.1.34',
+                    'id': 'network0',
+                }],
+                'links': [{
+                    'type': 'bridge',
+                    'vif_id': '1a81968a-797a-400f-8a80-567f997eb93f',
+                    'ethernet_mac_address': 'fa:16:3e:ed:9a:59',
+                    'id': 'tap1a81968a-79',
+                    'mtu': None,
+                }],
+            },
+        ]
+        out_datas = [
+            {
+                'version': 1,
+                'config': [
+                    {
+                        'subnets': [{'type': 'dhcp4'}],
+                        'type': 'physical',
+                        'mac_address': 'fa:16:3e:69:b0:58',
+                        'name': 'enp0s1',
+                        'mtu': None,
+                    },
+                    {
+                        'subnets': [{'type': 'dhcp4'}],
+                        'type': 'physical',
+                        'mac_address': 'fa:16:3e:d4:57:ad',
+                        'name': 'enp0s2',
+                        'mtu': None,
+                    },
+                    {
+                        'subnets': [{'type': 'dhcp4'}],
+                        'type': 'physical',
+                        'mac_address': 'fa:16:3e:05:30:fe',
+                        'name': 'nic0',
+                        'mtu': None,
+                    },
+                    {
+                        'type': 'nameserver',
+                        'address': '199.204.44.24',
+                    },
+                    {
+                        'type': 'nameserver',
+                        'address': '199.204.47.54',
+                    }
+                ],
+
+            },
+            {
+                'version': 1,
+                'config': [
+                    {
+                        'name': 'foo3',
+                        'mac_address': 'fa:16:3e:ed:9a:59',
+                        'mtu': None,
+                        'type': 'physical',
+                        'subnets': [
+                            {
+                                'address': '172.19.1.34',
+                                'netmask': '255.255.252.0',
+                                'type': 'static',
+                                'ipv4': True,
+                                'routes': [{
+                                    'gateway': '172.19.3.254',
+                                    'netmask': '0.0.0.0',
+                                    'network': '0.0.0.0',
+                                }],
+                            }
+                        ]
+                    },
+                    {
+                        'type': 'nameserver',
+                        'address': '172.19.0.12',
+                    }
+                ],
+            },
+        ]
+        for in_data, out_data in zip(in_datas, out_datas):
+            conv_data = openstack.convert_net_json(in_data,
+                                                   known_macs=KNOWN_MACS)
+            self.assertEqual(out_data, conv_data)
 
 
 class TestConvertNetworkData(TestCase):
+    def setUp(self):
+        super(TestConvertNetworkData, self).setUp()
+        self.tmp = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, self.tmp)
+
     def _getnames_in_config(self, ncfg):
         return set([n['name'] for n in ncfg['config']
                     if n['type'] == 'physical'])
 
     def test_conversion_fills_names(self):
-        ncfg = ds.convert_network_data(NETWORK_DATA, known_macs=KNOWN_MACS)
+        ncfg = openstack.convert_net_json(NETWORK_DATA, known_macs=KNOWN_MACS)
         expected = set(['nic0', 'enp0s1', 'enp0s2'])
         found = self._getnames_in_config(ncfg)
         self.assertEqual(found, expected)
@@ -417,18 +525,19 @@ class TestConvertNetworkData(TestCase):
                      'fa:16:3e:69:b0:58': 'ens1'})
         get_interfaces_by_mac.return_value = macs
 
-        ncfg = ds.convert_network_data(NETWORK_DATA)
+        ncfg = openstack.convert_net_json(NETWORK_DATA)
         expected = set(['nic0', 'ens1', 'enp0s2'])
         found = self._getnames_in_config(ncfg)
         self.assertEqual(found, expected)
 
     def test_convert_raises_value_error_on_missing_name(self):
         macs = {'aa:aa:aa:aa:aa:00': 'ens1'}
-        self.assertRaises(ValueError, ds.convert_network_data,
+        self.assertRaises(ValueError, openstack.convert_net_json,
                           NETWORK_DATA, known_macs=macs)
 
     def test_conversion_with_route(self):
-        ncfg = ds.convert_network_data(NETWORK_DATA_2, known_macs=KNOWN_MACS)
+        ncfg = openstack.convert_net_json(NETWORK_DATA_2,
+                                          known_macs=KNOWN_MACS)
         # not the best test, but see that we get a route in the
         # network config and that it gets rendered to an ENI file
         routes = []
@@ -438,15 +547,23 @@ class TestConvertNetworkData(TestCase):
         self.assertIn(
             {'network': '0.0.0.0', 'netmask': '0.0.0.0', 'gateway': '2.2.2.9'},
             routes)
-        eni = net.render_interfaces(net.parse_net_config_data(ncfg))
-        self.assertIn("route add default gw 2.2.2.9", eni)
+        eni_renderer = eni.Renderer()
+        eni_renderer.render_network_state(
+            self.tmp, network_state.parse_net_config_data(ncfg))
+        with open(os.path.join(self.tmp, "etc",
+                               "network", "interfaces"), 'r') as f:
+            eni_rendering = f.read()
+            self.assertIn("route add default gw 2.2.2.9", eni_rendering)
 
 
 def cfg_ds_from_dir(seed_d):
-    found = ds.read_config_drive(seed_d)
     cfg_ds = ds.DataSourceConfigDrive(settings.CFG_BUILTIN, None,
                                       helpers.Paths({}))
-    populate_ds_from_read_config(cfg_ds, seed_d, found)
+    cfg_ds.seed_dir = seed_d
+    cfg_ds.known_macs = KNOWN_MACS.copy()
+    if not cfg_ds.get_data():
+        raise RuntimeError("Data source did not extract itself from"
+                           " seed directory %s" % seed_d)
     return cfg_ds
 
 
@@ -460,7 +577,7 @@ def populate_ds_from_read_config(cfg_ds, source, results):
     cfg_ds.userdata_raw = results.get('userdata')
     cfg_ds.version = results.get('version')
     cfg_ds.network_json = results.get('networkdata')
-    cfg_ds._network_config = ds.convert_network_data(
+    cfg_ds._network_config = openstack.convert_net_json(
         cfg_ds.network_json, known_macs=KNOWN_MACS)
 
 
@@ -474,7 +591,6 @@ def populate_dir(seed_dir, files):
             mode = "w"
         else:
             mode = "wb"
-
         with open(path, mode) as fp:
             fp.write(content)
 
