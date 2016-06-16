@@ -34,7 +34,6 @@ LOG = logging.getLogger(__name__)
 class DataSourceNoCloud(sources.DataSource):
     def __init__(self, sys_cfg, distro, paths):
         sources.DataSource.__init__(self, sys_cfg, distro, paths)
-        self.dsmode = 'local'
         self.seed = None
         self.seed_dirs = [os.path.join(paths.seed_dir, 'nocloud'),
                           os.path.join(paths.seed_dir, 'nocloud-net')]
