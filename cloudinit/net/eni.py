@@ -391,8 +391,8 @@ class Renderer(object):
                     iface['control'] = subnet.get('control', 'auto')
                     if iface['mode'].endswith('6'):
                         iface['inet'] += '6'
-                    elif (iface['mode'] == 'static'
-                            and ":" in subnet['address']):
+                    elif (iface['mode'] == 'static' and
+                          ":" in subnet['address']):
                         iface['inet'] += '6'
                     if iface['mode'].startswith('dhcp'):
                         iface['mode'] = 'dhcp'
