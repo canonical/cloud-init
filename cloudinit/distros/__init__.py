@@ -454,7 +454,7 @@ class Distro(object):
             keys = kwargs['ssh_authorized_keys']
             if isinstance(keys, six.string_types):
                 keys = [keys]
-            if isinstance(keys, dict):
+            elif isinstance(keys, dict):
                 keys = list(keys.values())
             if keys is not None:
                 if not isinstance(keys, (tuple, list, set)):

@@ -104,7 +104,7 @@ class DataSourceOpenNebula(sources.DataSource):
 
     def get_hostname(self, fqdn=False, resolve_ip=None):
         if resolve_ip is None:
-            if self.dsmode == sources.DSMODE_NET:
+            if self.dsmode == sources.DSMODE_NETWORK:
                 resolve_ip = True
             else:
                 resolve_ip = False

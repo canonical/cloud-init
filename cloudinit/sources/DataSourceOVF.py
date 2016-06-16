@@ -37,16 +37,16 @@ from cloudinit.sources.helpers.vmware.imc.config_file \
     import ConfigFile
 from cloudinit.sources.helpers.vmware.imc.config_nic \
     import NicConfigurator
+from cloudinit.sources.helpers.vmware.imc.guestcust_error \
+    import GuestCustErrorEnum
 from cloudinit.sources.helpers.vmware.imc.guestcust_event \
     import GuestCustEventEnum
 from cloudinit.sources.helpers.vmware.imc.guestcust_state \
     import GuestCustStateEnum
-from cloudinit.sourceshelpers.vmware.imc.guestcust_error \
-    import GuestCustErrorEnum
-from cloudinit.sourceshelpers.vmware.imc.guestcust_util import (
-    set_customization_status,
+from cloudinit.sources.helpers.vmware.imc.guestcust_util import (
+    enable_nics,
     get_nics_to_enable,
-    enable_nics
+    set_customization_status
 )
 
 LOG = logging.getLogger(__name__)
