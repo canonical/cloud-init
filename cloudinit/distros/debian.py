@@ -59,7 +59,7 @@ class Distro(distros.Distro):
         self.osfamily = 'debian'
         self._net_renderer = eni.Renderer({
             'eni_path': self.network_conf_fn,
-            'links_prefix_path': self.links_prefix,
+            'links_prefix_path': None,
             'netrules_path': None,
         })
 
