@@ -43,6 +43,13 @@ APT_GET_WRAPPER = {
     'enabled': 'auto',
 }
 
+ENI_HEADER = """# This file is generated from information provided by
+# the datasource.  Changes to it will not persist across an instance.
+# To disable cloud-init's network configuration capabilities, write a file
+# /etc/cloud/cloud.cfg.d/99-disable-network-config.cfg with the following:
+# network: {config: disabled}
+"""
+
 
 class Distro(distros.Distro):
     hostname_conf_fn = "/etc/hostname"
@@ -59,6 +66,7 @@ class Distro(distros.Distro):
         self.osfamily = 'debian'
         self._net_renderer = eni.Renderer({
             'eni_path': self.network_conf_fn,
+            'eni_header': ENI_HEADER,
             'links_prefix_path': None,
             'netrules_path': None,
         })

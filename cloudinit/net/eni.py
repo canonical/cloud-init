@@ -303,6 +303,7 @@ class Renderer(renderer.Renderer):
         if not config:
             config = {}
         self.eni_path = config.get('eni_path', 'etc/network/interfaces')
+        self.eni_header = config.get('eni_header', None)
         self.links_path_prefix = config.get(
             'links_path_prefix', 'etc/systemd/network/50-cloud-init-')
         self.netrules_path = config.get(
@@ -417,7 +418,8 @@ class Renderer(renderer.Renderer):
     def render_network_state(self, target, network_state):
         fpeni = os.path.join(target, self.eni_path)
         util.ensure_dir(os.path.dirname(fpeni))
-        util.write_file(fpeni, self._render_interfaces(network_state))
+        header = self.eni_header if self.eni_header else ""
+        util.write_file(fpeni, header + self._render_interfaces(network_state))
 
         if self.netrules_path:
             netrules = os.path.join(target, self.netrules_path)
