@@ -1,3 +1,10 @@
+cloud-init (0.7.7~bzr1243-0ubuntu1) yakkety; urgency=medium
+
+  * New upstream snapshot.
+    - do not render systemd.link files (LP: #1594546)
+
+ -- Scott Moser <smoser@ubuntu.com>  Mon, 20 Jun 2016 17:14:34 -0400
+
 cloud-init (0.7.7~bzr1242-0ubuntu1) yakkety; urgency=medium
 
   * d/control: Build-Depends on python3-unittest2
