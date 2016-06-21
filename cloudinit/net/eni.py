@@ -400,7 +400,7 @@ class Renderer(renderer.Renderer):
         content = ""
 
         # handle 'lo' specifically as we need to insert the global dns entries
-        # there (as that is the only interface) that will be always up.
+        # there (as that is the only interface that will be always up).
         lo = {'name': 'lo', 'type': 'physical', 'inet': 'inet',
               'subnets': [{'type': 'loopback', 'control': 'auto'}]}
         for iface in network_state.iter_interfaces():
