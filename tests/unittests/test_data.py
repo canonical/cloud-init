@@ -557,3 +557,15 @@ class TestUDProcess(helpers.ResourceUsingTestCase):
         ud_proc = ud.UserDataProcessor(self.getCloudPaths())
         message = ud_proc.process(msg)
         self.assertTrue(count_messages(message) == 1)
+
+
+class TestConvert(helpers.TestCase):
+    def test_handles_binary(self):
+        blob = b'\x32\x99'
+        msg = ud.convert_string(blob)
+        self.assertEqual(blob, msg.get_payload(decode=True))
+
+    def test_handle_headers(self):
+        text = "hi mom"
+        msg = ud.convert_string(text)
+        self.assertEqual(text, msg.get_payload(decode=False))
