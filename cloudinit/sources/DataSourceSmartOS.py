@@ -40,12 +40,10 @@ import random
 import re
 import socket
 
-import serial
-
 from cloudinit import log as logging
+from cloudinit import serial
 from cloudinit import sources
 from cloudinit import util
-
 
 LOG = logging.getLogger(__name__)
 

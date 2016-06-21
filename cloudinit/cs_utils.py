@@ -33,7 +33,8 @@ API Docs: http://cloudsigma-docs.readthedocs.org/en/latest/server_context.html
 import json
 import platform
 
-import serial
+from cloudinit import serial
+
 
 # these high timeouts are necessary as read may read a lot of data.
 READ_TIMEOUT = 60

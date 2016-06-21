@@ -34,11 +34,12 @@ import stat
 import tempfile
 import uuid
 
-import serial
+from cloudinit import serial
+from cloudinit.sources import DataSourceSmartOS
+
 import six
 
 from cloudinit import helpers as c_helpers
-from cloudinit.sources import DataSourceSmartOS
 from cloudinit.util import b64e
 
 from ..helpers import mock, FilesystemMockingTestCase, TestCase
@@ -146,7 +147,9 @@ class TestSmartOSDataSource(FilesystemMockingTestCase):
         self.addCleanup(shutil.rmtree, self.tmp)
         self.paths = c_helpers.Paths({'cloud_dir': self.tmp})
 
-        self.legacy_user_d = tempfile.mkdtemp()
+        self.legacy_user_d = os.path.join(self.tmp, 'legacy_user_tmp')
+        os.mkdir(self.legacy_user_d)
+
         self.orig_lud = DataSourceSmartOS.LEGACY_USER_D
         DataSourceSmartOS.LEGACY_USER_D = self.legacy_user_d
 
@@ -378,6 +381,7 @@ class TestJoyentMetadataClient(FilesystemMockingTestCase):
 
     def setUp(self):
         super(TestJoyentMetadataClient, self).setUp()
+
         self.serial = mock.MagicMock(spec=serial.Serial)
         self.request_id = 0xabcdef12
         self.metadata_value = 'value'

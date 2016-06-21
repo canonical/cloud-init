@@ -2,17 +2,7 @@ import os
 
 from cloudinit.sources.helpers import azure as azure_helper
 
-from ..helpers import TestCase
-
-try:
-    from unittest import mock
-except ImportError:
-    import mock
-
-try:
-    from contextlib import ExitStack
-except ImportError:
-    from contextlib2 import ExitStack
+from ..helpers import ExitStack, mock, TestCase
 
 
 GOAL_STATE_TEMPLATE = """\
@@ -288,6 +278,7 @@ class TestOpenSSLManager(TestCase):
         self.subp.side_effect = capture_directory
         manager = azure_helper.OpenSSLManager()
         self.assertEqual(manager.tmpdir, subp_directory['path'])
+        manager.clean_up()
 
     @mock.patch.object(azure_helper, 'cd', mock.MagicMock())
     @mock.patch.object(azure_helper.tempfile, 'mkdtemp', mock.MagicMock())

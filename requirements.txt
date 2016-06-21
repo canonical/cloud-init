@@ -11,8 +11,12 @@ PrettyTable
 oauthlib
 
 # This one is currently used only by the CloudSigma and SmartOS datasources.
-# If these datasources are removed, this is no longer needed
-pyserial
+# If these datasources are removed, this is no longer needed.
+#
+# This will not work in py2.6 so it is only optionally installed on
+# python 2.7 and later.
+#
+# pyserial
 
 # This is only needed for places where we need to support configs in a manner
 # that the built-in config parser is not sufficent (ie

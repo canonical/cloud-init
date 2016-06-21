@@ -113,8 +113,17 @@
  - settings on the kernel command line (cc:) override all local settings
    rather than only those in /etc/cloud/cloud.cfg (LP: #1582323)
  - Improve merging documentation [Daniel Watkins]
+ - apt sources: support inserting key/key-id only, custom sources.list,
+   long gpg key fingerprints with spaces, and dictionary format (LP: #1574113)
  - SmartOS: datasource improvements and support for metadata service
    providing networking information.
+ - Datasources: centrally handle 'dsmode' and no longer require datasources
+   to "pass" if modules_init should be executed with network access.
+ - ConfigDrive: improved support for networking information from
+   a network_data.json or older interfaces formated network_config.
+ - Change missing Cheetah log warning to debug [Andrew Jorgensen]
+ - Remove trailing dot from GCE metadata URL (LP: #1581200) [Phil Roche]
+ - support network rendering to sysconfig (for centos and RHEL)
 
 0.7.6:
  - open 0.7.6

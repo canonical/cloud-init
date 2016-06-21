@@ -205,8 +205,7 @@ class DataSourceAltCloud(sources.DataSource):
                         _err.message)
             return False
         except OSError as _err:
-            util.logexc(LOG, 'Failed command: %s\n%s', ' '.join(cmd),
-                        _err.message)
+            util.logexc(LOG, 'Failed command: %s\n%s', ' '.join(cmd), _err)
             return False
 
         floppy_dev = '/dev/fd0'
