@@ -124,6 +124,7 @@
  - Change missing Cheetah log warning to debug [Andrew Jorgensen]
  - Remove trailing dot from GCE metadata URL (LP: #1581200) [Phil Roche]
  - support network rendering to sysconfig (for centos and RHEL)
+ - write_files: if no permissions are given, just use default without warn.
 
 0.7.6:
  - open 0.7.6
