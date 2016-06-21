@@ -379,7 +379,7 @@ class Renderer(renderer.Renderer):
                 iface['inet'] = subnet_inet
                 if iface['mode'].startswith('dhcp'):
                     iface['mode'] = 'dhcp'
-    
+
                 lines = list(
                     _iface_start_entry(iface, index) +
                     _iface_add_subnet(iface, subnet) +
@@ -406,8 +406,6 @@ class Renderer(renderer.Renderer):
 
     def _render_interfaces(self, network_state):
         '''Given state, emit etc/network/interfaces content.'''
-
-        content = ""
 
         # handle 'lo' specifically as we need to insert the global dns entries
         # there (as that is the only interface that will be always up).

@@ -6,9 +6,9 @@ from cloudinit.net import sysconfig
 from cloudinit.sources.helpers import openstack
 from cloudinit import util
 
+from .helpers import dir2dict
 from .helpers import mock
 from .helpers import TestCase
-from .helpers import dir2dict
 
 import base64
 import copy
@@ -626,9 +626,6 @@ class TestEniRoundTrip(TestCase):
                     'netrules_path': netrules_path})
 
         renderer.render_network_state(self.tmp_dir, ns)
-        #for f, c in dir2dict(self.tmp_dir).items():
-        #    print("=== %s ===" % f)
-        #    print(c)
         return dir2dict(self.tmp_dir)
 
     def testsimple_convert_and_render(self):
@@ -641,7 +638,6 @@ class TestEniRoundTrip(TestCase):
     def testsimple_render_all(self):
         entry = NETWORK_CONFIGS['all']
         files = self._render_and_read(network_config=yaml.load(entry['yaml']))
-        for f in files: print(f)
         self.assertEqual(
             entry['expected_eni'].splitlines(),
             files['/etc/network/interfaces'].splitlines())
