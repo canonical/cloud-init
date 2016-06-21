@@ -369,11 +369,20 @@ class Renderer(renderer.Renderer):
                 if iface['mode'].startswith('dhcp'):
                     iface['mode'] = 'dhcp'
     
-                sections.append(
+                lines = list(
                     _iface_start_entry(iface, index) +
                     _iface_add_subnet(iface, subnet) +
                     _iface_add_attrs(iface)
                 )
+                for route in subnet.get('routes', []):
+                    lines.extend(self._render_route(route, indent="    "))
+
+                if len(subnets) > 1 and index == 0:
+                    tmpl = "    post-up ifup %s:%s\n"
+                    for i in range(1, len(subnets)):
+                        lines.append(tmpl % (iface['name'], i))
+
+                sections.append(lines)
         else:
             # ifenslave docs say to auto the slave devices
             lines = []

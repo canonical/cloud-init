@@ -168,7 +168,7 @@ version: 1
 config:
     # Physical interfaces.
     - type: physical
-      name: eth0
+      name: eth99
       mac_address: "c0:d6:9f:2c:e8:80"
       subnets:
           - type: dhcp4
@@ -178,6 +178,11 @@ config:
               - 8.8.8.8
               - 8.8.4.4
             dns_search: barley.maas sach.maas
+            routes:
+              - gateway: 65.61.151.37
+                netmask: 0.0.0.0
+                network: 0.0.0.0
+                metric: 2
     - type: physical
       name: eth1
       mac_address: "cf:d6:af:48:e8:80"
@@ -188,6 +193,7 @@ config:
       search:
         - wark.maas
 """
+
 NETWORK_YAML_ALL = """
 version: 1
 config:
@@ -520,7 +526,7 @@ class TestEniRoundTrip(TestCase):
             network_config=yaml.load(NETWORK_YAML_ALL))
         raise Exception("FOO2")
 
-    def skiptestsimple_render_small(self):
+    def testsimple_render_small(self):
         files = self._render_and_read(
             network_config=yaml.load(NETWORK_YAML_SMALL))
         raise Exception("FOO3")
