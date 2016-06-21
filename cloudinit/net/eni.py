@@ -353,10 +353,11 @@ class Renderer(renderer.Renderer):
         return content
 
     def _render_iface(self, iface):
-        lines = []
+        sections = []
         subnets = iface.get('subnets', {})
         if subnets:
             for index, subnet in zip(range(0, len(subnets)), subnets):
+                lines = []
                 iface['index'] = index
                 iface['mode'] = subnet['type']
                 iface['control'] = subnet.get('control', 'auto')
@@ -370,14 +371,17 @@ class Renderer(renderer.Renderer):
                 lines.extend(_iface_start_entry(iface, index))
                 lines.extend(_iface_add_subnet(iface, subnet))
                 lines.extend(_iface_add_attrs(iface))
-                lines.append("")
+
+                sections.append(lines)
         else:
             # ifenslave docs say to auto the slave devices
+            lines = []
             if 'bond-master' in iface:
                 lines.append("auto {name}".format(**iface))
             lines.append("iface {name} {inet} {mode}".format(**iface))
             lines.extend(_iface_add_attrs(iface))
-        return lines
+            sections.append(lines)
+        return sections
 
     def _render_interfaces(self, network_state):
         '''Given state, emit etc/network/interfaces content.'''
@@ -411,20 +415,19 @@ class Renderer(renderer.Renderer):
             'vlan': 3,
         }
 
-        sections = [self._render_iface(lo)]
+        sections = []
+        sections.extend(self._render_iface(lo))
         for iface in sorted(network_state.iter_interfaces(),
                             key=lambda k: (order[k['type']], k['name'])):
 
             if iface.get('name') == "lo":
                 continue
-            sections.append(self._render_iface(iface))
+            sections.extend(self._render_iface(iface))
 
         for route in network_state.iter_routes():
             sections.append(self._render_route(route))
 
-        # global replacements until v2 format
-        content = ''.join(['\n'.join(s) + '\n\n' for s in sections])
-        return content
+        return '\n\n'.join(['\n'.join(s) for s in sections])
 
     def render_network_state(self, target, network_state):
         fpeni = os.path.join(target, self.eni_path)
