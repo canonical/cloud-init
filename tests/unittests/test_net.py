@@ -505,29 +505,24 @@ class TestEniRoundTrip(TestCase):
                     'netrules_path': netrules_path})
 
         renderer.render_network_state(self.tmp_dir, ns)
+        for f, c in dir2dict(self.tmp_dir).items():
+            print("=== %s ===" % f)
+            print(c)
         return dir2dict(self.tmp_dir)
 
     def testsimple_convert_and_render(self):
         network_config = eni.convert_eni_data(EXAMPLE_ENI)
-        ns = network_state.parse_net_config_data(network_config)
-        eni_path = 'etc/network/interfaces.d/my.interfaces'
-        eni_full_path = os.path.join(self.tmp_dir, eni_path)
-        renderer = eni.Renderer(config={'eni_path': eni_path})
-        renderer.render_network_state(self.tmp_dir, ns)
-        eni_content = util.load_file(eni_full_path)
-        print("Eni looks like: %s" % eni_content)
+        files = self._render_and_read(network_config=network_config)
         raise Exception("FOO1")
 
     def testsimple_render_all(self):
-        files = self._render_and_read(network_config=yaml.load(NETWORK_YAML_ALL))
-        print("files: %s" % files)
+        files = self._render_and_read(
+            network_config=yaml.load(NETWORK_YAML_ALL))
         raise Exception("FOO2")
 
     def skiptestsimple_render_small(self):
-        network_config = yaml.load(NETWORK_YAML_SMALL)
-        ns = network_state.parse_net_config_data(network_config)
-        eni = net.render_interfaces(ns)
-        print("Eni looks like:\n%s" % eni)
+        files = self._render_and_read(
+            network_config=yaml.load(NETWORK_YAML_SMALL))
         raise Exception("FOO3")
 
 
