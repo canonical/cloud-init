@@ -68,8 +68,14 @@ def _iface_add_subnet(iface, subnet):
 
 
 # TODO: switch to valid_map for attrs
-
-def _iface_add_attrs(iface):
+def _iface_add_attrs(iface, index):
+    # If the index is non-zero, this is an alias interface. Alias interfaces
+    # represent additional interface addresses, and should not have additional
+    # attributes. (extra attributes here are almost always either incorrect,
+    # or are applied to the parent interface.) So if this is an alias, stop
+    # right here.
+    if index != 0:
+        return []
     content = []
     ignore_map = [
         'control',
@@ -363,17 +369,21 @@ class Renderer(renderer.Renderer):
                 iface['index'] = index
                 iface['mode'] = subnet['type']
                 iface['control'] = subnet.get('control', 'auto')
+                subnet_inet = 'inet'
                 if iface['mode'].endswith('6'):
-                    iface['inet'] += '6'
+                    # This is a request for DHCPv6.
+                    subnet_inet += '6'
                 elif iface['mode'] == 'static' and ":" in subnet['address']:
-                    iface['inet'] += '6'
+                    # This is a static IPv6 address.
+                    subnet_inet += '6'
+                iface['inet'] = subnet_inet
                 if iface['mode'].startswith('dhcp'):
                     iface['mode'] = 'dhcp'
     
                 lines = list(
                     _iface_start_entry(iface, index) +
                     _iface_add_subnet(iface, subnet) +
-                    _iface_add_attrs(iface)
+                    _iface_add_attrs(iface, index)
                 )
                 for route in subnet.get('routes', []):
                     lines.extend(self._render_route(route, indent="    "))
@@ -390,7 +400,7 @@ class Renderer(renderer.Renderer):
             if 'bond-master' in iface:
                 lines.append("auto {name}".format(**iface))
             lines.append("iface {name} {inet} {mode}".format(**iface))
-            lines.extend(_iface_add_attrs(iface))
+            lines.extend(_iface_add_attrs(iface, index=0))
             sections.append(lines)
         return sections
 
