@@ -64,7 +64,7 @@ def _iface_add_subnet(iface, subnet):
                 key = key.replace('_', '-')
             content.append("    {} {}".format(key, value))
 
-    return content
+    return sorted(content)
 
 
 # TODO: switch to valid_map for attrs
@@ -80,16 +80,18 @@ def _iface_add_attrs(iface):
         'subnets',
         'type',
     ]
+    renames = {'mac_address': 'hwaddress'}
     if iface['type'] not in ['bond', 'bridge', 'vlan']:
         ignore_map.append('mac_address')
 
     for key, value in iface.items():
-        if value and key not in ignore_map:
-            if type(value) == list:
-                value = " ".join(value)
-            content.append("    {} {}".format(key, value))
+        if not value or key in ignore_map:
+            continue
+        if type(value) == list:
+            value = " ".join(value)
+        content.append("    {} {}".format(renames.get(key, key), value))
 
-    return content
+    return sorted(content)
 
 
 def _iface_start_entry(iface, index):
