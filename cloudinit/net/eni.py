@@ -448,7 +448,7 @@ class Renderer(renderer.Renderer):
         for route in network_state.iter_routes():
             sections.append(self._render_route(route))
 
-        return '\n\n'.join(['\n'.join(s) for s in sections])
+        return '\n\n'.join(['\n'.join(s) for s in sections]) + "\n"
 
     def render_network_state(self, target, network_state):
         fpeni = os.path.join(target, self.eni_path)
