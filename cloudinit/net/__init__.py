@@ -237,6 +237,11 @@ def _get_current_rename_info(check_downable=True):
 
 def _rename_interfaces(renames, strict_present=True, strict_busy=True,
                        current_info=None):
+
+    if not len(renames):
+        LOG.debug("no interfaces to rename")
+        return
+
     if current_info is None:
         current_info = _get_current_rename_info()
 
