@@ -167,8 +167,8 @@ iface eth1 inet static
 RENDERED_ENI = """
 auto lo
 iface lo inet loopback
-   dns-nameservers 10.0.0.1
-   dns-search foo.com
+    dns-nameservers 10.0.0.1
+    dns-search foo.com
 
 auto eth0
 iface eth0 inet static
