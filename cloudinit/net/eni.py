@@ -357,7 +357,6 @@ class Renderer(renderer.Renderer):
         subnets = iface.get('subnets', {})
         if subnets:
             for index, subnet in zip(range(0, len(subnets)), subnets):
-                lines = []
                 iface['index'] = index
                 iface['mode'] = subnet['type']
                 iface['control'] = subnet.get('control', 'auto')
@@ -368,11 +367,11 @@ class Renderer(renderer.Renderer):
                 if iface['mode'].startswith('dhcp'):
                     iface['mode'] = 'dhcp'
     
-                lines.extend(_iface_start_entry(iface, index))
-                lines.extend(_iface_add_subnet(iface, subnet))
-                lines.extend(_iface_add_attrs(iface))
-
-                sections.append(lines)
+                sections.append(
+                    _iface_start_entry(iface, index) +
+                    _iface_add_subnet(iface, subnet) +
+                    _iface_add_attrs(iface)
+                )
         else:
             # ifenslave docs say to auto the slave devices
             lines = []
