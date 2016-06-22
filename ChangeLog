@@ -125,6 +125,7 @@
  - Remove trailing dot from GCE metadata URL (LP: #1581200) [Phil Roche]
  - support network rendering to sysconfig (for centos and RHEL)
  - write_files: if no permissions are given, just use default without warn.
+ - user_data: fix error when user-data is not utf-8 decodable (LP: #1532072)
 
 0.7.6:
  - open 0.7.6
