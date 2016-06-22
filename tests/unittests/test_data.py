@@ -559,9 +559,14 @@ class TestUDProcess(helpers.ResourceUsingTestCase):
         self.assertTrue(count_messages(message) == 1)
 
 
-class TestConvert(helpers.TestCase):
-    def test_handles_binary(self):
+class TestConvertString(helpers.TestCase):
+    def test_handles_binary_non_utf8_decodable(self):
         blob = b'\x32\x99'
+        msg = ud.convert_string(blob)
+        self.assertEqual(blob, msg.get_payload(decode=True))
+
+    def test_handles_binary_utf8_decodable(self):
+        blob = b'\x32\x32'
         msg = ud.convert_string(blob)
         self.assertEqual(blob, msg.get_payload(decode=True))
 
