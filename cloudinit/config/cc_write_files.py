@@ -79,6 +79,8 @@ def write_files(name, files, log):
 
 
 def decode_perms(perm, default, log):
+    if perm is None:
+        return default
     try:
         if isinstance(perm, six.integer_types + (float,)):
             # Just 'downcast' it (if a float)
