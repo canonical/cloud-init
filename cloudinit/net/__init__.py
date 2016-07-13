@@ -252,7 +252,8 @@ def _rename_interfaces(renames, strict_present=True, strict_busy=True,
         cur_bymac[mac] = cur
 
     def update_byname(bymac):
-        return {data['name']: data for data in bymac.values()}
+        return dict((data['name'], data)
+                    for data in bymac.values())
 
     def rename(cur, new):
         util.subp(["ip", "link", "set", cur, "name", new], capture=True)
