@@ -542,8 +542,8 @@ def convert_net_json(network_json=None, known_macs=None):
     config = []
     for link in links:
         subnets = []
-        cfg = {k: v for k, v in link.items()
-               if k in valid_keys['physical']}
+        cfg = dict((k, v) for k, v in link.items()
+                   if k in valid_keys['physical'])
         # 'name' is not in openstack spec yet, but we will support it if it is
         # present.  The 'id' in the spec is currently implemented as the host
         # nic's name, meaning something like 'tap-adfasdffd'.  We do not want
