@@ -718,8 +718,8 @@ def convert_smartos_network_data(network_data=None):
 
     config = []
     for nic in network_data:
-        cfg = {k: v for k, v in nic.items()
-               if k in valid_keys['physical']}
+        cfg = dict((k, v) for k, v in nic.items()
+                   if k in valid_keys['physical'])
         cfg.update({
             'type': 'physical',
             'name': nic['interface']})
@@ -728,8 +728,8 @@ def convert_smartos_network_data(network_data=None):
 
         subnets = []
         for ip, gw in zip(nic['ips'], nic['gateways']):
-            subnet = {k: v for k, v in nic.items()
-                      if k in valid_keys['subnet']}
+            subnet = dict((k, v) for k, v in nic.items()
+                          if k in valid_keys['subnet'])
             subnet.update({
                 'type': 'static',
                 'address': ip,
