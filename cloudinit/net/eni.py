@@ -62,7 +62,7 @@ def _iface_add_subnet(iface, subnet):
                 value = " ".join(value)
             if '_' in key:
                 key = key.replace('_', '-')
-            content.append("    {} {}".format(key, value))
+            content.append("    {0} {1}".format(key, value))
 
     return sorted(content)
 
@@ -95,7 +95,7 @@ def _iface_add_attrs(iface, index):
             continue
         if type(value) == list:
             value = " ".join(value)
-        content.append("    {} {}".format(renames.get(key, key), value))
+        content.append("    {0} {1}".format(renames.get(key, key), value))
 
     return sorted(content)
 

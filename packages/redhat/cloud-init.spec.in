@@ -160,6 +160,8 @@ fi
 
 %files
 
+/lib/udev/rules.d/66-azure-ephemeral.rules
+
 #if $sysvinit
 %attr(0755, root, root) %{_initddir}/cloud-config
 %attr(0755, root, root) %{_initddir}/cloud-final
@@ -168,6 +170,8 @@ fi
 #end if
 
 #if $systemd
+/usr/lib/systemd/system-generators/cloud-init-generator
+%{_unitdir}/cloud-*
 %{_unitdir}/cloud-*
 #end if
 
