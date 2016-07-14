@@ -352,7 +352,7 @@ class Renderer(renderer.Renderer):
             content += down + route_line + eol
         return content
 
-    def _render_interfaces(self, network_state):
+    def _render_interfaces(self, network_state, render_hwaddress=False):
         '''Given state, emit etc/network/interfaces content.'''
 
         content = ""
@@ -397,6 +397,8 @@ class Renderer(renderer.Renderer):
                         iface['mode'] = 'dhcp'
 
                     content += _iface_start_entry(iface, index)
+                    if render_hwaddress and iface.get('mac_address'):
+                        content += "    hwaddress %s" % iface['mac_address']
                     content += _iface_add_subnet(iface, subnet)
                     content += _iface_add_attrs(iface)
                     for route in subnet.get('routes', []):
@@ -411,8 +413,6 @@ class Renderer(renderer.Renderer):
         for route in network_state.iter_routes():
             content += self._render_route(route)
 
-        # global replacements until v2 format
-        content = content.replace('mac_address', 'hwaddress')
         return content
 
     def render_network_state(self, target, network_state):
@@ -448,3 +448,21 @@ class Renderer(renderer.Renderer):
                     ""
                 ])
                 util.write_file(fname, content)
+
+
+def network_state_to_eni(network_state, header=None, render_hwaddress=False):
+    # render the provided network state, return a string of equivalent eni
+    eni_path = 'etc/network/interfaces'
+    renderer = Renderer({
+        'eni_path': eni_path,
+        'eni_header': header,
+        'links_path_prefix': None,
+        'netrules_path': None,
+    })
+    if not header:
+        header = ""
+    if not header.endswith("\n"):
+        header += "\n"
+    contents = renderer._render_interfaces(
+        network_state, render_hwaddress=render_hwaddress)
+    return header + contents
