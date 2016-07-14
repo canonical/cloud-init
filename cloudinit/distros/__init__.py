@@ -141,17 +141,18 @@ class Distro(object):
         return False
 
     def _apply_network_from_network_config(self, netconfig, bring_up=True):
+        distro = self.__class__
         LOG.warn("apply_network_config is not currently implemented "
-                 "for distribution '%s'.  Attempting to use "
-                 "apply_network", self.__class__)
+                 "for distribution '%s'.  Attempting to use apply_network",
+                 distro)
         header = '\n'.join([
-            "# Converted from network_config for distro %s" % self.__class__,
+            "# Converted from network_config for distro %s" % distro,
             "# Implmentation of _write_network_config is needed."
         ])
         ns = network_state.parse_net_config_data(netconfig)
         contents = eni.network_state_to_eni(
             ns, header=header, render_hwaddress=True)
-        self.apply_network(contents, bring_up=bring_up)
+        return self.apply_network(contents, bring_up=bring_up)
 
     def apply_network_config(self, netconfig, bring_up=False):
         # apply network config netconfig
