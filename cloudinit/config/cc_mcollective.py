@@ -26,8 +26,8 @@ from six import BytesIO
 # and doesn't need a top level section
 from configobj import ConfigObj
 
-from cloudinit import util
 from cloudinit import log as logging
+from cloudinit import util
 
 PUBCERT_FILE = "/etc/mcollective/ssl/server-public.pem"
 PRICERT_FILE = "/etc/mcollective/ssl/server-private.pem"

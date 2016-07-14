@@ -43,18 +43,18 @@ class TestConfig(helpers.FilesystemMockingTestCase):
         contents = util.load_file("/etc/mcollective/server.cfg", decode=False)
         contents = configobj.ConfigObj(BytesIO(contents))
         expected = {
-                'loglevel': 'debug',
-                'connector': 'rabbitmq',
-                'logfile': '/var/log/mcollective.log',
-                'ttl': '4294957',
-                'collectives': 'mcollective',
-                'main_collective': 'mcollective',
-                'securityprovider': 'psk',
-                'daemonize': '1',
-                'factsource': 'yaml',
-                'direct_addressing': '1',
-                'plugin.psk': 'unset',
-                'libdir': '/usr/share/mcollective/plugins',
-                'identity': '1',
-                }
+            'loglevel': 'debug',
+            'connector': 'rabbitmq',
+            'logfile': '/var/log/mcollective.log',
+            'ttl': '4294957',
+            'collectives': 'mcollective',
+            'main_collective': 'mcollective',
+            'securityprovider': 'psk',
+            'daemonize': '1',
+            'factsource': 'yaml',
+            'direct_addressing': '1',
+            'plugin.psk': 'unset',
+            'libdir': '/usr/share/mcollective/plugins',
+            'identity': '1',
+        }
         self.assertEqual(expected, dict(contents))
