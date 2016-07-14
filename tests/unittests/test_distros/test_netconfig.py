@@ -379,4 +379,3 @@ ifconfig_vtnet0="DHCP"
 '''
             self.assertCfgEquals(expected_buf, str(write_buf))
             self.assertEqual(write_buf.mode, 0o644)
-        
