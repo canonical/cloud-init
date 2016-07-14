@@ -319,3 +319,64 @@ defaultrouter="192.168.1.254"
 '''
             self.assertCfgEquals(expected_buf, str(write_buf))
             self.assertEqual(write_buf.mode, 0o644)
+
+    def test_apply_network_config_fallback(self):
+        fbsd_distro = self._get_distro('freebsd')
+
+        # a weak attempt to verify that we don't have an implementation
+        # of _write_network_config or apply_network_config in fbsd now,
+        # which would make this test not actually test the fallback.
+        self.assertRaises(
+            NotImplementedError, fbsd_distro._write_network_config,
+            BASE_NET_CFG)
+
+        # now run
+        mynetcfg = {
+            'config': [{"type": "physical", "name": "eth0",
+                        "mac_address": "c0:d6:9f:2c:e8:80",
+                        "subnets": [{"type": "dhcp"}]}],
+            'version': 1}
+
+        write_bufs = {}
+        read_bufs = {
+            '/etc/rc.conf': '',
+            '/etc/resolv.conf': '',
+        }
+
+        def replace_write(filename, content, mode=0o644, omode="wb"):
+            buf = WriteBuffer()
+            buf.mode = mode
+            buf.omode = omode
+            buf.write(content)
+            write_bufs[filename] = buf
+
+        def replace_read(fname, read_cb=None, quiet=False):
+            if fname not in read_bufs:
+                if fname in write_bufs:
+                    return str(write_bufs[fname])
+                raise IOError("%s not found" % fname)
+            else:
+                if fname in write_bufs:
+                    return str(write_bufs[fname])
+                return read_bufs[fname]
+
+        with ExitStack() as mocks:
+            mocks.enter_context(
+                mock.patch.object(util, 'subp', return_value=('vtnet0', '')))
+            mocks.enter_context(
+                mock.patch.object(os.path, 'exists', return_value=False))
+            mocks.enter_context(
+                mock.patch.object(util, 'write_file', replace_write))
+            mocks.enter_context(
+                mock.patch.object(util, 'load_file', replace_read))
+
+            fbsd_distro.apply_network_config(mynetcfg, bring_up=False)
+
+            self.assertIn('/etc/rc.conf', write_bufs)
+            write_buf = write_bufs['/etc/rc.conf']
+            expected_buf = '''
+ifconfig_vtnet0="DHCP"
+'''
+            self.assertCfgEquals(expected_buf, str(write_buf))
+            self.assertEqual(write_buf.mode, 0o644)
+        
