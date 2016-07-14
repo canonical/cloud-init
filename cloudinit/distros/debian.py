@@ -55,7 +55,6 @@ class Distro(distros.Distro):
     hostname_conf_fn = "/etc/hostname"
     locale_conf_fn = "/etc/default/locale"
     network_conf_fn = "/etc/network/interfaces.d/50-cloud-init.cfg"
-    links_prefix = "/etc/systemd/network/50-cloud-init-"
 
     def __init__(self, name, cfg, paths):
         distros.Distro.__init__(self, name, cfg, paths)

@@ -61,7 +61,7 @@ def _iface_add_subnet(iface, subnet):
                 value = " ".join(value)
             if '_' in key:
                 key = key.replace('_', '-')
-            content += "    {} {}\n".format(key, value)
+            content += "    {0} {1}\n".format(key, value)
 
     return content
 
@@ -86,7 +86,7 @@ def _iface_add_attrs(iface):
         if value and key not in ignore_map:
             if type(value) == list:
                 value = " ".join(value)
-            content += "    {} {}\n".format(key, value)
+            content += "    {0} {1}\n".format(key, value)
 
     return content
 
