@@ -55,6 +55,8 @@ class DataSourceNotFoundException(Exception):
 @six.add_metaclass(abc.ABCMeta)
 class DataSource(object):
 
+    dsmode = DSMODE_NETWORK
+
     def __init__(self, sys_cfg, distro, paths, ud_proc=None):
         self.sys_cfg = sys_cfg
         self.distro = distro
@@ -64,7 +66,6 @@ class DataSource(object):
         self.userdata_raw = None
         self.vendordata = None
         self.vendordata_raw = None
-        self.dsmode = DSMODE_NETWORK
 
         # find the datasource config name.
         # remove 'DataSource' from classname on front, and remove 'Net' on end.
