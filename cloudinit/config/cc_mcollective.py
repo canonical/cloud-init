@@ -20,17 +20,65 @@
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import six
-from six import StringIO
+from six import BytesIO
 
 # Used since this can maintain comments
 # and doesn't need a top level section
 from configobj import ConfigObj
 
+from cloudinit import log as logging
 from cloudinit import util
 
 PUBCERT_FILE = "/etc/mcollective/ssl/server-public.pem"
 PRICERT_FILE = "/etc/mcollective/ssl/server-private.pem"
 SERVER_CFG = '/etc/mcollective/server.cfg'
+
+LOG = logging.getLogger(__name__)
+
+
+def configure(config):
+    # Read server.cfg values from the
+    # original file in order to be able to mix the rest up
+    try:
+        mcollective_config = ConfigObj(SERVER_CFG, file_error=True)
+    except IOError:
+        LOG.warn("Did not find file %s", SERVER_CFG)
+        mcollective_config = ConfigObj(config)
+    else:
+        for (cfg_name, cfg) in config.items():
+            if cfg_name == 'public-cert':
+                util.write_file(PUBCERT_FILE, cfg, mode=0o644)
+                mcollective_config[
+                    'plugin.ssl_server_public'] = PUBCERT_FILE
+                mcollective_config['securityprovider'] = 'ssl'
+            elif cfg_name == 'private-cert':
+                util.write_file(PRICERT_FILE, cfg, mode=0o600)
+                mcollective_config[
+                    'plugin.ssl_server_private'] = PRICERT_FILE
+                mcollective_config['securityprovider'] = 'ssl'
+            else:
+                if isinstance(cfg, six.string_types):
+                    # Just set it in the 'main' section
+                    mcollective_config[cfg_name] = cfg
+                elif isinstance(cfg, (dict)):
+                    # Iterate through the config items, create a section if
+                    # it is needed and then add/or create items as needed
+                    if cfg_name not in mcollective_config.sections:
+                        mcollective_config[cfg_name] = {}
+                    for (o, v) in cfg.items():
+                        mcollective_config[cfg_name][o] = v
+                else:
+                    # Otherwise just try to convert it to a string
+                    mcollective_config[cfg_name] = str(cfg)
+        # We got all our config as wanted we'll rename
+        # the previous server.cfg and create our new one
+        util.rename(SERVER_CFG, "%s.old" % (SERVER_CFG))
+
+    # Now we got the whole file, write to disk...
+    contents = BytesIO()
+    mcollective_config.write(contents)
+    contents = contents.getvalue()
+    util.write_file(SERVER_CFG, contents, mode=0o644)
 
 
 def handle(name, cfg, cloud, log, _args):
@@ -48,41 +96,7 @@ def handle(name, cfg, cloud, log, _args):
 
     # ... and then update the mcollective configuration
     if 'conf' in mcollective_cfg:
-        # Read server.cfg values from the
-        # original file in order to be able to mix the rest up
-        mcollective_config = ConfigObj(SERVER_CFG)
-        # See: http://tiny.cc/jh9agw
-        for (cfg_name, cfg) in mcollective_cfg['conf'].items():
-            if cfg_name == 'public-cert':
-                util.write_file(PUBCERT_FILE, cfg, mode=0o644)
-                mcollective_config['plugin.ssl_server_public'] = PUBCERT_FILE
-                mcollective_config['securityprovider'] = 'ssl'
-            elif cfg_name == 'private-cert':
-                util.write_file(PRICERT_FILE, cfg, mode=0o600)
-                mcollective_config['plugin.ssl_server_private'] = PRICERT_FILE
-                mcollective_config['securityprovider'] = 'ssl'
-            else:
-                if isinstance(cfg, six.string_types):
-                    # Just set it in the 'main' section
-                    mcollective_config[cfg_name] = cfg
-                elif isinstance(cfg, (dict)):
-                    # Iterate through the config items, create a section
-                    # if it is needed and then add/or create items as needed
-                    if cfg_name not in mcollective_config.sections:
-                        mcollective_config[cfg_name] = {}
-                    for (o, v) in cfg.items():
-                        mcollective_config[cfg_name][o] = v
-                else:
-                    # Otherwise just try to convert it to a string
-                    mcollective_config[cfg_name] = str(cfg)
-        # We got all our config as wanted we'll rename
-        # the previous server.cfg and create our new one
-        util.rename(SERVER_CFG, "%s.old" % (SERVER_CFG))
-        # Now we got the whole file, write to disk...
-        contents = StringIO()
-        mcollective_config.write(contents)
-        contents = contents.getvalue()
-        util.write_file(SERVER_CFG, contents, mode=0o644)
+        configure(config=mcollective_cfg['conf'])
 
     # Start mcollective
     util.subp(['service', 'mcollective', 'start'], capture=False)
