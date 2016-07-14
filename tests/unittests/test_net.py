@@ -6,6 +6,7 @@ from cloudinit.net import sysconfig
 from cloudinit.sources.helpers import openstack
 from cloudinit import util
 
+from .helpers import dir2dict
 from .helpers import mock
 from .helpers import TestCase
 
@@ -17,6 +18,8 @@ import json
 import os
 import shutil
 import tempfile
+import textwrap
+import yaml
 
 DHCP_CONTENT_1 = """
 DEVICE='eth0'
@@ -140,6 +143,283 @@ nameserver 172.19.0.12
                       'ATTR{address}=="fa:16:3e:ed:9a:59", NAME="eth0"\n']))]
     }
 ]
+
+EXAMPLE_ENI = """
+auto lo
+iface lo inet loopback
+   dns-nameservers 10.0.0.1
+   dns-search foo.com
+
+auto eth0
+iface eth0 inet static
+        address 1.2.3.12
+        netmask 255.255.255.248
+        broadcast 1.2.3.15
+        gateway 1.2.3.9
+        dns-nameservers 69.9.160.191 69.9.191.4
+auto eth1
+iface eth1 inet static
+        address 10.248.2.4
+        netmask 255.255.255.248
+        broadcast 10.248.2.7
+"""
+
+RENDERED_ENI = """
+auto lo
+iface lo inet loopback
+    dns-nameservers 10.0.0.1
+    dns-search foo.com
+
+auto eth0
+iface eth0 inet static
+    address 1.2.3.12
+    broadcast 1.2.3.15
+    dns-nameservers 69.9.160.191 69.9.191.4
+    gateway 1.2.3.9
+    netmask 255.255.255.248
+
+auto eth1
+iface eth1 inet static
+    address 10.248.2.4
+    broadcast 10.248.2.7
+    netmask 255.255.255.248
+""".lstrip()
+
+NETWORK_CONFIGS = {
+    'small': {
+        'expected_eni': textwrap.dedent("""\
+            auto lo
+            iface lo inet loopback
+                dns-nameservers 1.2.3.4 5.6.7.8
+                dns-search wark.maas
+
+            iface eth1 inet manual
+
+            auto eth99
+            iface eth99 inet dhcp
+                post-up ifup eth99:1
+
+
+            auto eth99:1
+            iface eth99:1 inet static
+                address 192.168.21.3/24
+                dns-nameservers 8.8.8.8 8.8.4.4
+                dns-search barley.maas sach.maas
+                post-up route add default gw 65.61.151.37 || true
+                pre-down route del default gw 65.61.151.37 || true
+        """).rstrip(' '),
+        'yaml': textwrap.dedent("""
+            version: 1
+            config:
+                # Physical interfaces.
+                - type: physical
+                  name: eth99
+                  mac_address: "c0:d6:9f:2c:e8:80"
+                  subnets:
+                      - type: dhcp4
+                      - type: static
+                        address: 192.168.21.3/24
+                        dns_nameservers:
+                          - 8.8.8.8
+                          - 8.8.4.4
+                        dns_search: barley.maas sach.maas
+                        routes:
+                          - gateway: 65.61.151.37
+                            netmask: 0.0.0.0
+                            network: 0.0.0.0
+                            metric: 2
+                - type: physical
+                  name: eth1
+                  mac_address: "cf:d6:af:48:e8:80"
+                - type: nameserver
+                  address:
+                    - 1.2.3.4
+                    - 5.6.7.8
+                  search:
+                    - wark.maas
+        """),
+    },
+    'all': {
+        'expected_eni': ("""\
+auto lo
+iface lo inet loopback
+    dns-nameservers 8.8.8.8 4.4.4.4 8.8.4.4
+    dns-search barley.maas wark.maas foobar.maas
+
+iface eth0 inet manual
+
+auto eth1
+iface eth1 inet manual
+    bond-master bond0
+    bond-mode active-backup
+
+auto eth2
+iface eth2 inet manual
+    bond-master bond0
+    bond-mode active-backup
+
+iface eth3 inet manual
+
+iface eth4 inet manual
+
+# control-manual eth5
+iface eth5 inet dhcp
+
+auto bond0
+iface bond0 inet6 dhcp
+    bond-mode active-backup
+    bond-slaves none
+    hwaddress aa:bb:cc:dd:ee:ff
+
+auto br0
+iface br0 inet static
+    address 192.168.14.2/24
+    bridge_ports eth3 eth4
+    bridge_stp off
+    post-up ifup br0:1
+
+
+auto br0:1
+iface br0:1 inet6 static
+    address 2001:1::1/64
+
+auto bond0.200
+iface bond0.200 inet dhcp
+    vlan-raw-device bond0
+    vlan_id 200
+
+auto eth0.101
+iface eth0.101 inet static
+    address 192.168.0.2/24
+    dns-nameservers 192.168.0.10 10.23.23.134
+    dns-search barley.maas sacchromyces.maas brettanomyces.maas
+    gateway 192.168.0.1
+    mtu 1500
+    vlan-raw-device eth0
+    vlan_id 101
+    post-up ifup eth0.101:1
+
+
+auto eth0.101:1
+iface eth0.101:1 inet static
+    address 192.168.2.10/24
+
+post-up route add -net 10.0.0.0 netmask 255.0.0.0 gw 11.0.0.1 metric 3 || true
+pre-down route del -net 10.0.0.0 netmask 255.0.0.0 gw 11.0.0.1 metric 3 || true
+"""),
+        'yaml': textwrap.dedent("""
+            version: 1
+            config:
+                # Physical interfaces.
+                - type: physical
+                  name: eth0
+                  mac_address: "c0:d6:9f:2c:e8:80"
+                - type: physical
+                  name: eth1
+                  mac_address: "aa:d6:9f:2c:e8:80"
+                - type: physical
+                  name: eth2
+                  mac_address: "c0:bb:9f:2c:e8:80"
+                - type: physical
+                  name: eth3
+                  mac_address: "66:bb:9f:2c:e8:80"
+                - type: physical
+                  name: eth4
+                  mac_address: "98:bb:9f:2c:e8:80"
+                # specify how ifupdown should treat iface
+                # control is one of ['auto', 'hotplug', 'manual']
+                # with manual meaning ifup/ifdown should not affect the iface
+                # useful for things like iscsi root + dhcp
+                - type: physical
+                  name: eth5
+                  mac_address: "98:bb:9f:2c:e8:8a"
+                  subnets:
+                    - type: dhcp
+                      control: manual
+                # VLAN interface.
+                - type: vlan
+                  name: eth0.101
+                  vlan_link: eth0
+                  vlan_id: 101
+                  mtu: 1500
+                  subnets:
+                    - type: static
+                      address: 192.168.0.2/24
+                      gateway: 192.168.0.1
+                      dns_nameservers:
+                        - 192.168.0.10
+                        - 10.23.23.134
+                      dns_search:
+                        - barley.maas
+                        - sacchromyces.maas
+                        - brettanomyces.maas
+                    - type: static
+                      address: 192.168.2.10/24
+                # Bond.
+                - type: bond
+                  name: bond0
+                  # if 'mac_address' is omitted, the MAC is taken from
+                  # the first slave.
+                  mac_address: "aa:bb:cc:dd:ee:ff"
+                  bond_interfaces:
+                    - eth1
+                    - eth2
+                  params:
+                    bond-mode: active-backup
+                  subnets:
+                    - type: dhcp6
+                # A Bond VLAN.
+                - type: vlan
+                  name: bond0.200
+                  vlan_link: bond0
+                  vlan_id: 200
+                  subnets:
+                      - type: dhcp4
+                # A bridge.
+                - type: bridge
+                  name: br0
+                  bridge_interfaces:
+                      - eth3
+                      - eth4
+                  ipv4_conf:
+                      rp_filter: 1
+                      proxy_arp: 0
+                      forwarding: 1
+                  ipv6_conf:
+                      autoconf: 1
+                      disable_ipv6: 1
+                      use_tempaddr: 1
+                      forwarding: 1
+                      # basically anything in /proc/sys/net/ipv6/conf/.../
+                  params:
+                      bridge_stp: 'off'
+                      bridge_fd: 0
+                      bridge_maxwait: 0
+                  subnets:
+                      - type: static
+                        address: 192.168.14.2/24
+                      - type: static
+                        address: 2001:1::1/64 # default to /64
+                # A global nameserver.
+                - type: nameserver
+                  address: 8.8.8.8
+                  search: barley.maas
+                # global nameservers and search in list form
+                - type: nameserver
+                  address:
+                    - 4.4.4.4
+                    - 8.8.4.4
+                  search:
+                    - wark.maas
+                    - foobar.maas
+                # A global route.
+                - type: route
+                  destination: 10.0.0.0/8
+                  gateway: 11.0.0.1
+                  metric: 3
+        """).lstrip(),
+    }
+}
 
 
 def _setup_test(tmp_dir, mock_get_devicelist, mock_sys_netdev_info,
@@ -352,6 +632,53 @@ class TestCmdlineConfigParsing(TestCase):
         raw_cmdline = 'ro network-config=' + encoded_text + ' root=foo'
         found = cmdline.read_kernel_cmdline_config(cmdline=raw_cmdline)
         self.assertEqual(found, self.simple_cfg)
+
+
+class TestEniRoundTrip(TestCase):
+    def setUp(self):
+        super(TestCase, self).setUp()
+        self.tmp_dir = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, self.tmp_dir)
+
+    def _render_and_read(self, network_config=None, state=None, eni_path=None,
+                         links_prefix=None, netrules_path=None):
+        if network_config:
+            ns = network_state.parse_net_config_data(network_config)
+        elif state:
+            ns = state
+        else:
+            raise ValueError("Expected data or state, got neither")
+
+        if eni_path is None:
+            eni_path = 'etc/network/interfaces'
+
+        renderer = eni.Renderer(
+            config={'eni_path': eni_path, 'links_path_prefix': links_prefix,
+                    'netrules_path': netrules_path})
+
+        renderer.render_network_state(self.tmp_dir, ns)
+        return dir2dict(self.tmp_dir)
+
+    def testsimple_convert_and_render(self):
+        network_config = eni.convert_eni_data(EXAMPLE_ENI)
+        files = self._render_and_read(network_config=network_config)
+        self.assertEqual(
+            RENDERED_ENI.splitlines(),
+            files['/etc/network/interfaces'].splitlines())
+
+    def testsimple_render_all(self):
+        entry = NETWORK_CONFIGS['all']
+        files = self._render_and_read(network_config=yaml.load(entry['yaml']))
+        self.assertEqual(
+            entry['expected_eni'].splitlines(),
+            files['/etc/network/interfaces'].splitlines())
+
+    def testsimple_render_small(self):
+        entry = NETWORK_CONFIGS['small']
+        files = self._render_and_read(network_config=yaml.load(entry['yaml']))
+        self.assertEqual(
+            entry['expected_eni'].splitlines(),
+            files['/etc/network/interfaces'].splitlines())
 
 
 def _gzip_data(data):

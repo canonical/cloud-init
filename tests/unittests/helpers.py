@@ -264,6 +264,18 @@ def populate_dir(path, files):
             fp.close()
 
 
+def dir2dict(startdir, prefix=None):
+    flist = {}
+    if prefix is None:
+        prefix = startdir
+    for root, dirs, files in os.walk(startdir):
+        for fname in files:
+            fpath = os.path.join(root, fname)
+            key = fpath[len(prefix):]
+            flist[key] = util.load_file(fpath)
+    return flist
+
+
 try:
     skipIf = unittest.skipIf
 except AttributeError:
