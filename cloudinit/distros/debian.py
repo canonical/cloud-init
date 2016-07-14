@@ -67,7 +67,7 @@ class Distro(distros.Distro):
         self._net_renderer = eni.Renderer({
             'eni_path': self.network_conf_fn,
             'eni_header': ENI_HEADER,
-            'links_prefix_path': None,
+            'links_path_prefix': None,
             'netrules_path': None,
         })
 
