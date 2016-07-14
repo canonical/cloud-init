@@ -12,6 +12,7 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+import copy
 import glob
 import os
 import re
@@ -42,7 +43,7 @@ NET_CONFIG_OPTIONS = [
 
 # TODO: switch valid_map based on mode inet/inet6
 def _iface_add_subnet(iface, subnet):
-    content = ""
+    content = []
     valid_map = [
         'address',
         'netmask',
@@ -61,15 +62,21 @@ def _iface_add_subnet(iface, subnet):
                 value = " ".join(value)
             if '_' in key:
                 key = key.replace('_', '-')
-            content += "    {} {}\n".format(key, value)
+            content.append("    {0} {1}".format(key, value))
 
-    return content
+    return sorted(content)
 
 
 # TODO: switch to valid_map for attrs
-
-def _iface_add_attrs(iface):
-    content = ""
+def _iface_add_attrs(iface, index):
+    # If the index is non-zero, this is an alias interface. Alias interfaces
+    # represent additional interface addresses, and should not have additional
+    # attributes. (extra attributes here are almost always either incorrect,
+    # or are applied to the parent interface.) So if this is an alias, stop
+    # right here.
+    if index != 0:
+        return []
+    content = []
     ignore_map = [
         'control',
         'index',
@@ -79,19 +86,21 @@ def _iface_add_attrs(iface):
         'subnets',
         'type',
     ]
+    renames = {'mac_address': 'hwaddress'}
     if iface['type'] not in ['bond', 'bridge', 'vlan']:
         ignore_map.append('mac_address')
 
     for key, value in iface.items():
-        if value and key not in ignore_map:
-            if type(value) == list:
-                value = " ".join(value)
-            content += "    {} {}\n".format(key, value)
+        if not value or key in ignore_map:
+            continue
+        if type(value) == list:
+            value = " ".join(value)
+        content.append("    {0} {1}".format(renames.get(key, key), value))
 
-    return content
+    return sorted(content)
 
 
-def _iface_start_entry(iface, index):
+def _iface_start_entry(iface, index, render_hwaddress=False):
     fullname = iface['name']
     if index != 0:
         fullname += ":%s" % index
@@ -107,8 +116,13 @@ def _iface_start_entry(iface, index):
     subst = iface.copy()
     subst.update({'fullname': fullname, 'cverb': cverb})
 
-    return ("{cverb} {fullname}\n"
-            "iface {fullname} {inet} {mode}\n").format(**subst)
+    lines = [
+        "{cverb} {fullname}".format(**subst),
+        "iface {fullname} {inet} {mode}".format(**subst)]
+    if render_hwaddress and iface.get('mac_address'):
+        lines.append("    hwaddress {mac_address}".format(**subst))
+
+    return lines
 
 
 def _parse_deb_config_data(ifaces, contents, src_dir, src_path):
@@ -262,10 +276,6 @@ def _ifaces_to_net_config_data(ifaces):
     for name, data in ifaces.items():
         # devname is 'eth0' for name='eth0:1'
         devname = name.partition(":")[0]
-        if devname == "lo":
-            # currently provding 'lo' in network config results in duplicate
-            # entries. in rendered interfaces file. so skip it.
-            continue
         if devname not in devs:
             devs[devname] = {'type': 'physical', 'name': devname,
                              'subnets': []}
@@ -324,10 +334,10 @@ class Renderer(renderer.Renderer):
         1. http://askubuntu.com/questions/168033/
                  how-to-set-static-routes-in-ubuntu-server
         """
-        content = ""
+        content = []
         up = indent + "post-up route add"
         down = indent + "pre-down route del"
-        eol = " || true\n"
+        or_true = " || true"
         mapping = {
             'network': '-net',
             'netmask': 'netmask',
@@ -336,34 +346,84 @@ class Renderer(renderer.Renderer):
         }
         if route['network'] == '0.0.0.0' and route['netmask'] == '0.0.0.0':
             default_gw = " default gw %s" % route['gateway']
-            content += up + default_gw + eol
-            content += down + default_gw + eol
+            content.append(up + default_gw + or_true)
+            content.append(down + default_gw + or_true)
         elif route['network'] == '::' and route['netmask'] == 0:
             # ipv6!
             default_gw = " -A inet6 default gw %s" % route['gateway']
-            content += up + default_gw + eol
-            content += down + default_gw + eol
+            content.append(up + default_gw + or_true)
+            content.append(down + default_gw + or_true)
         else:
             route_line = ""
             for k in ['network', 'netmask', 'gateway', 'metric']:
                 if k in route:
                     route_line += " %s %s" % (mapping[k], route[k])
-            content += up + route_line + eol
-            content += down + route_line + eol
+            content.append(up + route_line + or_true)
+            content.append(down + route_line + or_true)
         return content
 
-    def _render_interfaces(self, network_state):
+    def _render_iface(self, iface, render_hwaddress=False):
+        sections = []
+        subnets = iface.get('subnets', {})
+        if subnets:
+            for index, subnet in zip(range(0, len(subnets)), subnets):
+                iface['index'] = index
+                iface['mode'] = subnet['type']
+                iface['control'] = subnet.get('control', 'auto')
+                subnet_inet = 'inet'
+                if iface['mode'].endswith('6'):
+                    # This is a request for DHCPv6.
+                    subnet_inet += '6'
+                elif iface['mode'] == 'static' and ":" in subnet['address']:
+                    # This is a static IPv6 address.
+                    subnet_inet += '6'
+                iface['inet'] = subnet_inet
+                if iface['mode'].startswith('dhcp'):
+                    iface['mode'] = 'dhcp'
+
+                lines = list(
+                    _iface_start_entry(
+                        iface, index, render_hwaddress=render_hwaddress) +
+                    _iface_add_subnet(iface, subnet) +
+                    _iface_add_attrs(iface, index)
+                )
+                for route in subnet.get('routes', []):
+                    lines.extend(self._render_route(route, indent="    "))
+
+                if len(subnets) > 1 and index == 0:
+                    tmpl = "    post-up ifup %s:%s\n"
+                    for i in range(1, len(subnets)):
+                        lines.append(tmpl % (iface['name'], i))
+
+                sections.append(lines)
+        else:
+            # ifenslave docs say to auto the slave devices
+            lines = []
+            if 'bond-master' in iface:
+                lines.append("auto {name}".format(**iface))
+            lines.append("iface {name} {inet} {mode}".format(**iface))
+            lines.extend(_iface_add_attrs(iface, index=0))
+            sections.append(lines)
+        return sections
+
+    def _render_interfaces(self, network_state, render_hwaddress=False):
         '''Given state, emit etc/network/interfaces content.'''
 
-        content = ""
-        content += "auto lo\niface lo inet loopback\n"
+        # handle 'lo' specifically as we need to insert the global dns entries
+        # there (as that is the only interface that will be always up).
+        lo = {'name': 'lo', 'type': 'physical', 'inet': 'inet',
+              'subnets': [{'type': 'loopback', 'control': 'auto'}]}
+        for iface in network_state.iter_interfaces():
+            if iface.get('name') == "lo":
+                lo = copy.deepcopy(iface)
 
         nameservers = network_state.dns_nameservers
         if nameservers:
-            content += "    dns-nameservers %s\n" % (" ".join(nameservers))
+            lo['subnets'][0]["dns_nameservers"] = (" ".join(nameservers))
+
         searchdomains = network_state.dns_searchdomains
         if searchdomains:
-            content += "    dns-search %s\n" % (" ".join(searchdomains))
+            lo['subnets'][0]["dns_search"] = (" ".join(searchdomains))
 
         ''' Apply a sort order to ensure that we write out
             the physical interfaces first; this is critical for
@@ -375,45 +435,21 @@ class Renderer(renderer.Renderer):
             'bridge': 2,
             'vlan': 3,
         }
+
+        sections = []
+        sections.extend(self._render_iface(lo))
         for iface in sorted(network_state.iter_interfaces(),
                             key=lambda k: (order[k['type']], k['name'])):
 
-            if content[-2:] != "\n\n":
-                content += "\n"
-            subnets = iface.get('subnets', {})
-            if subnets:
-                for index, subnet in zip(range(0, len(subnets)), subnets):
-                    if content[-2:] != "\n\n":
-                        content += "\n"
-                    iface['index'] = index
-                    iface['mode'] = subnet['type']
-                    iface['control'] = subnet.get('control', 'auto')
-                    if iface['mode'].endswith('6'):
-                        iface['inet'] += '6'
-                    elif (iface['mode'] == 'static' and
-                          ":" in subnet['address']):
-                        iface['inet'] += '6'
-                    if iface['mode'].startswith('dhcp'):
-                        iface['mode'] = 'dhcp'
-
-                    content += _iface_start_entry(iface, index)
-                    content += _iface_add_subnet(iface, subnet)
-                    content += _iface_add_attrs(iface)
-                    for route in subnet.get('routes', []):
-                        content += self._render_route(route, indent="    ")
-            else:
-                # ifenslave docs say to auto the slave devices
-                if 'bond-master' in iface:
-                    content += "auto {name}\n".format(**iface)
-                content += "iface {name} {inet} {mode}\n".format(**iface)
-                content += _iface_add_attrs(iface)
+            if iface.get('name') == "lo":
+                continue
+            sections.extend(
+                self._render_iface(iface, render_hwaddress=render_hwaddress))
 
         for route in network_state.iter_routes():
-            content += self._render_route(route)
+            sections.append(self._render_route(route))
 
-        # global replacements until v2 format
-        content = content.replace('mac_address', 'hwaddress')
-        return content
+        return '\n\n'.join(['\n'.join(s) for s in sections]) + "\n"
 
     def render_network_state(self, target, network_state):
         fpeni = os.path.join(target, self.eni_path)
@@ -448,3 +484,21 @@ class Renderer(renderer.Renderer):
                     ""
                 ])
                 util.write_file(fname, content)
+
+
+def network_state_to_eni(network_state, header=None, render_hwaddress=False):
+    # render the provided network state, return a string of equivalent eni
+    eni_path = 'etc/network/interfaces'
+    renderer = Renderer({
+        'eni_path': eni_path,
+        'eni_header': header,
+        'links_path_prefix': None,
+        'netrules_path': None,
+    })
+    if not header:
+        header = ""
+    if not header.endswith("\n"):
+        header += "\n"
+    contents = renderer._render_interfaces(
+        network_state, render_hwaddress=render_hwaddress)
+    return header + contents

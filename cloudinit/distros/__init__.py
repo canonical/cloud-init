@@ -32,6 +32,8 @@ import stat
 from cloudinit import importer
 from cloudinit import log as logging
 from cloudinit import net
+from cloudinit.net import eni
+from cloudinit.net import network_state
 from cloudinit import ssh_util
 from cloudinit import type_utils
 from cloudinit import util
@@ -138,9 +140,31 @@ class Distro(object):
             return self._bring_up_interfaces(dev_names)
         return False
 
+    def _apply_network_from_network_config(self, netconfig, bring_up=True):
+        distro = self.__class__
+        LOG.warn("apply_network_config is not currently implemented "
+                 "for distribution '%s'.  Attempting to use apply_network",
+                 distro)
+        header = '\n'.join([
+            "# Converted from network_config for distro %s" % distro,
+            "# Implmentation of _write_network_config is needed."
+        ])
+        ns = network_state.parse_net_config_data(netconfig)
+        contents = eni.network_state_to_eni(
+            ns, header=header, render_hwaddress=True)
+        return self.apply_network(contents, bring_up=bring_up)
+
     def apply_network_config(self, netconfig, bring_up=False):
-        # Write it out
-        dev_names = self._write_network_config(netconfig)
+        # apply network config netconfig
+        # This method is preferred to apply_network which only takes
+        # a much less complete network config format (interfaces(5)).
+        try:
+            dev_names = self._write_network_config(netconfig)
+        except NotImplementedError:
+            # backwards compat until all distros have apply_network_config
+            return self._apply_network_from_network_config(
+                netconfig, bring_up=bring_up)
+
         # Now try to bring them up
         if bring_up:
             return self._bring_up_interfaces(dev_names)
