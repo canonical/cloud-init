@@ -100,7 +100,7 @@ def _iface_add_attrs(iface, index):
     return sorted(content)
 
 
-def _iface_start_entry(iface, index):
+def _iface_start_entry(iface, index, render_hwaddress=False):
     fullname = iface['name']
     if index != 0:
         fullname += ":%s" % index
@@ -116,8 +116,13 @@ def _iface_start_entry(iface, index):
     subst = iface.copy()
     subst.update({'fullname': fullname, 'cverb': cverb})
 
-    return ["{cverb} {fullname}".format(**subst),
-            "iface {fullname} {inet} {mode}".format(**subst)]
+    lines = [
+        "{cverb} {fullname}".format(**subst),
+        "iface {fullname} {inet} {mode}".format(**subst)]
+    if render_hwaddress and iface.get('mac_address'):
+        lines.append("    hwaddress {mac_address}".format(**subst))
+
+    return lines
 
 
 def _parse_deb_config_data(ifaces, contents, src_dir, src_path):
@@ -357,7 +362,7 @@ class Renderer(renderer.Renderer):
             content.append(down + route_line + or_true)
         return content
 
-    def _render_iface(self, iface):
+    def _render_iface(self, iface, render_hwaddress=False):
         sections = []
         subnets = iface.get('subnets', {})
         if subnets:
@@ -377,7 +382,8 @@ class Renderer(renderer.Renderer):
                     iface['mode'] = 'dhcp'
 
                 lines = list(
-                    _iface_start_entry(iface, index) +
+                    _iface_start_entry(
+                        iface, index, render_hwaddress=render_hwaddress) +
                     _iface_add_subnet(iface, subnet) +
                     _iface_add_attrs(iface, index)
                 )
@@ -400,7 +406,7 @@ class Renderer(renderer.Renderer):
             sections.append(lines)
         return sections
 
-    def _render_interfaces(self, network_state):
+    def _render_interfaces(self, network_state, render_hwaddress=False):
         '''Given state, emit etc/network/interfaces content.'''
 
         # handle 'lo' specifically as we need to insert the global dns entries
@@ -437,7 +443,8 @@ class Renderer(renderer.Renderer):
 
             if iface.get('name') == "lo":
                 continue
-            sections.extend(self._render_iface(iface))
+            sections.extend(
+                self._render_iface(iface, render_hwaddress=render_hwaddress))
 
         for route in network_state.iter_routes():
             sections.append(self._render_route(route))
@@ -477,3 +484,21 @@ class Renderer(renderer.Renderer):
                     ""
                 ])
                 util.write_file(fname, content)
+
+
+def network_state_to_eni(network_state, header=None, render_hwaddress=False):
+    # render the provided network state, return a string of equivalent eni
+    eni_path = 'etc/network/interfaces'
+    renderer = Renderer({
+        'eni_path': eni_path,
+        'eni_header': header,
+        'links_path_prefix': None,
+        'netrules_path': None,
+    })
+    if not header:
+        header = ""
+    if not header.endswith("\n"):
+        header += "\n"
+    contents = renderer._render_interfaces(
+        network_state, render_hwaddress=render_hwaddress)
+    return header + contents

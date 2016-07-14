@@ -107,12 +107,19 @@ class DataSourceConfigDrive(openstack.SourceMixin, sources.DataSource):
         if self.dsmode == sources.DSMODE_DISABLED:
             return False
 
-        # This is legacy and sneaky.  If dsmode is 'pass' then write
-        # 'injected files' and apply legacy ENI network format.
         prev_iid = get_previous_iid(self.paths)
         cur_iid = md['instance-id']
-        if prev_iid != cur_iid and self.dsmode == sources.DSMODE_PASS:
-            on_first_boot(results, distro=self.distro)
+        if prev_iid != cur_iid:
+            # better would be to handle this centrally, allowing
+            # the datasource to do something on new instance id
+            # note, networking is only rendered here if dsmode is DSMODE_PASS
+            # which means "DISABLED, but render files and networking"
+            on_first_boot(results, distro=self.distro,
+                          network=self.dsmode == sources.DSMODE_PASS)
+
+        # This is legacy and sneaky.  If dsmode is 'pass' then do not claim
+        # the datasource was used, even though we did run on_first_boot above.
+        if self.dsmode == sources.DSMODE_PASS:
             LOG.debug("%s: not claiming datasource, dsmode=%s", self,
                       self.dsmode)
             return False
@@ -184,15 +191,16 @@ def get_previous_iid(paths):
         return None
 
 
-def on_first_boot(data, distro=None):
+def on_first_boot(data, distro=None, network=True):
     """Performs any first-boot actions using data read from a config-drive."""
     if not isinstance(data, dict):
         raise TypeError("Config-drive data expected to be a dict; not %s"
                         % (type(data)))
-    net_conf = data.get("network_config", '')
-    if net_conf and distro:
-        LOG.warn("Updating network interfaces from config drive")
-        distro.apply_network(net_conf)
+    if network:
+        net_conf = data.get("network_config", '')
+        if net_conf and distro:
+            LOG.warn("Updating network interfaces from config drive")
+            distro.apply_network(net_conf)
     write_injected_files(data.get('files'))
 
 

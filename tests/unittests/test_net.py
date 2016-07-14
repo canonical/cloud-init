@@ -549,6 +549,37 @@ iface eth1000 inet dhcp
         self.assertEqual(expected.lstrip(), contents.lstrip())
 
 
+class TestEniNetworkStateToEni(TestCase):
+    mycfg = {
+        'config': [{"type": "physical", "name": "eth0",
+                    "mac_address": "c0:d6:9f:2c:e8:80",
+                    "subnets": [{"type": "dhcp"}]}],
+        'version': 1}
+    my_mac = 'c0:d6:9f:2c:e8:80'
+
+    def test_no_header(self):
+        rendered = eni.network_state_to_eni(
+            network_state=network_state.parse_net_config_data(self.mycfg),
+            render_hwaddress=True)
+        self.assertIn(self.my_mac, rendered)
+        self.assertIn("hwaddress", rendered)
+
+    def test_with_header(self):
+        header = "# hello world\n"
+        rendered = eni.network_state_to_eni(
+            network_state=network_state.parse_net_config_data(self.mycfg),
+            header=header, render_hwaddress=True)
+        self.assertIn(header, rendered)
+        self.assertIn(self.my_mac, rendered)
+
+    def test_no_hwaddress(self):
+        rendered = eni.network_state_to_eni(
+            network_state=network_state.parse_net_config_data(self.mycfg),
+            render_hwaddress=False)
+        self.assertNotIn(self.my_mac, rendered)
+        self.assertNotIn("hwaddress", rendered)
+
+
 class TestCmdlineConfigParsing(TestCase):
     simple_cfg = {
         'config': [{"type": "physical", "name": "eth0",
