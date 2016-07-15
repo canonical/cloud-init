@@ -137,6 +137,9 @@ def generate_spec_contents(args, tmpl_fn, top_dir, arc_fn):
     # Map to known packages
     requires = []
     for p in pkgs:
+        if p == 'argparse' and sys.version_info[0:2] >= (2, 7):
+            # Not needed on anything but 2.6 or older.
+            continue
         tgt_pkg = PKG_MP[args.distro].get(p)
         if not tgt_pkg:
             raise RuntimeError(("Do not know how to translate pypi dependency"
