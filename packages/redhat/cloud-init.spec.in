@@ -1,17 +1,13 @@
-## This is a cheetah template
+## template: cheetah
 %{!?python_sitelib: %global python_sitelib %(%{__python} -c "from distutils.sysconfig import get_python_lib; print get_python_lib()")}
 
 # See: http://www.zarb.org/~jasonc/macros.php
 # Or: http://fedoraproject.org/wiki/Packaging:ScriptletSnippets
 # Or: http://www.rpm.org/max-rpm/ch-rpm-inside.html
 
-#for $d in $defines
-%define ${d}
-#end for
-
 Name:           cloud-init
 Version:        ${version}
-Release:        ${release}${subrelease}%{?dist}
+Release:        1${subrelease}%{?dist}
 Summary:        Cloud instance init scripts
 
 Group:          System Environment/Base
@@ -22,9 +18,9 @@ Source0:        ${archive_name}
 BuildArch:      noarch
 BuildRoot:      %{_tmppath}
 
-BuildRequires:        python-devel
-BuildRequires:        python-setuptools
-BuildRequires:        python-cheetah
+BuildRequires:  python-devel
+BuildRequires:  python-setuptools
+BuildRequires:  python-cheetah
 
 # System util packages needed
 Requires:       shadow-utils
@@ -68,7 +64,7 @@ need special scripts to run during initialization to retrieve and install
 ssh keys and to let the user run various scripts.
 
 %prep
-%setup -q -n %{name}-%{version}~${release}
+%setup -q -n ${source_name}
 
 # Custom patches activation
 #set $size = 0
@@ -198,7 +194,3 @@ fi
 
 # Python code is here...
 %{python_sitelib}/*
-
-%changelog
-
-${changelog}

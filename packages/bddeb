@@ -180,13 +180,10 @@ def main():
 
     with util.tempdir() as tdir:
 
-        cmd = [util.abs_join(find_root(), 'tools', 'read-version')]
+        # output like 0.7.6-1022-g36e92d3
+        cmd = ['git', 'describe', '--long']
         (sysout, _stderr) = util.subp(cmd)
-        version = sysout.strip()
-
-        cmd = ['bzr', 'revno']
-        (sysout, _stderr) = util.subp(cmd)
-        revno = sysout.strip()
+        version, extra = sysout.strip().split("-", 1)
 
         # This is really only a temporary archive
         # since we will extract it then add in the debian
@@ -212,12 +209,12 @@ def main():
             append_requires=['cloud-utils | cloud-guest-utils']
         else:
             append_requires=[]
-        write_debian_folder(xdir, version, revno, pkgmap,
+        write_debian_folder(xdir, version, extra, pkgmap,
                             pyver=pyver, append_requires=append_requires)
 
         # The naming here seems to follow some debian standard
         # so it will whine if it is changed...
-        tar_fn = "cloud-init_%s~bzr%s.orig.tar.gz" % (version, revno)
+        tar_fn = "cloud-init_%s+%s~bddeb.orig.tar.gz" % (version, extra)
         print("Archiving the adjusted source into %r" %
               (util.abs_join(tdir, tar_fn)))
         cmd = ['tar', '-czvf',

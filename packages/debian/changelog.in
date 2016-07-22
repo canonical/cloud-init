@@ -1,5 +1,5 @@
 ## template:basic
-cloud-init (${version}~bzr${revision}-1) UNRELEASED; urgency=low
+cloud-init (${version}+${revision}~bddeb-1) UNRELEASED; urgency=low
 
   * build
 

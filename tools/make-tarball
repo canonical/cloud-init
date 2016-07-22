@@ -1,39 +1,33 @@
 #!/bin/sh
 set -e
 
-find_root() {
-   local topd
-   if [ -z "${CLOUD_INIT_TOP_D}" ]; then
-      topd=$(cd "$(dirname "${0}")" && cd .. && pwd)
-   else
-      topd=$(cd "${CLOUD_INIT_TOP_D}" && pwd)
-   fi
-   [ $? -eq 0 -a -f "${topd}/setup.py" ] || return
-   ROOT_DIR="$topd"
-}
+rev=${1:-HEAD}
+revname=$(git describe $rev)
 
-if ! find_root; then
-    echo "Unable to locate 'setup.py' file that should" \
-          "exist in the cloud-init root directory." 1>&2
-    exit 1;
+# revname could be 0.7.5 or 0.7.5-NNN-gHASH
+# turn that into 0.7.5 or 0.7.5+NNN.gHASH
+case "$revname" in
+   *-*) revname=$(echo "$revname" | sed -e 's/-/+/' -e 's/-/./')
+esac
+
+archive_base="cloud-init-$revname"
+
+# when building an archiving from HEAD, ensure that there aren't any
+# uncomitted changes in the working directory (because these would not
+# end up in the archive).
+if [ "$rev" = HEAD ] && ! git diff-index --quiet HEAD --; then
+    if [ -z "$SKIP_UNCOMITTED_CHANGES_CHECK" ]; then
+        echo "ERROR: There are uncommitted changes in your working directory." >&2
+        exit 1
+    else
+        echo "WARNING: There are uncommitted changes in your working directory." >&2
+        echo "         This changes will not be included in the archive." >&2
+    fi
 fi
 
-REVNO=$(bzr revno "$ROOT_DIR")
+git archive \
+    --format=tar.gz \
+    --prefix="$archive_base/" "$rev" \
+    "--output=$archive_base.tar.gz"
 
-if [ ! -z "$1" ]; then
-    ARCHIVE_FN="$1"
-else
-    VERSION=$("$ROOT_DIR/tools/read-version")
-    ARCHIVE_FN="$PWD/cloud-init-$VERSION~bzr$REVNO.tar.gz"
-fi
-
-export_uncommitted=""
-if [ "${UNCOMMITTED:-0}" != "0" ]; then
-   export_uncommitted="--uncommitted"
-fi
-
-bzr export ${export_uncommitted} \
-   --format=tgz --root="cloud-init-$VERSION~bzr$REVNO" \
-    "--revision=${REVNO}" "${ARCHIVE_FN}" "$ROOT_DIR"
-
-echo "$ARCHIVE_FN"
+echo "${archive_base}.tar.gz"
