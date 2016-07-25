@@ -47,6 +47,8 @@ Example config:
 
 from cloudinit import util
 
+distros = ['ubuntu']
+
 
 def handle(name, cfg, cloud, log, args):
     # Get config

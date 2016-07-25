@@ -18,6 +18,8 @@
 
 from cloudinit import util
 
+distros = ['fedora', 'rhel']
+
 
 def handle(name, cfg, _cloud, log, _args):
     sm = SubscriptionManager(cfg)
