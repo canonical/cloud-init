@@ -49,7 +49,7 @@ class TestConfig(t_help.FilesystemMockingTestCase):
             self.tmp, "./" + cc_mcollective.SERVER_CFG)
         self.pubcert_file = os.path.join(
             self.tmp, "./" + cc_mcollective.PUBCERT_FILE)
-        self.pricert_file= os.path.join(
+        self.pricert_file = os.path.join(
             self.tmp, self.tmp, "./" + cc_mcollective.PRICERT_FILE)
 
     def test_basic_config(self):
@@ -86,7 +86,8 @@ class TestConfig(t_help.FilesystemMockingTestCase):
         cc_mcollective.configure(config=cfg, server_cfg=self.server_cfg)
         self.assertTrue(os.path.exists(self.server_cfg))
         self.assertTrue(os.path.exists(self.server_cfg + ".old"))
-        self.assertEqual(util.load_file(self.server_cfg + ".old"), STOCK_CONFIG)
+        self.assertEqual(util.load_file(self.server_cfg + ".old"),
+                         STOCK_CONFIG)
 
     def test_existing_updated(self):
         cfg = {'loglevel': 'warn'}
@@ -101,9 +102,9 @@ class TestConfig(t_help.FilesystemMockingTestCase):
                'public-cert': "this is my public-certificate",
                'private-cert': "secret private certificate"}
 
-        cc_mcollective.configure(config=cfg,
-            server_cfg=self.server_cfg, pricert_file=self.pricert_file,
-            pubcert_file=self.pubcert_file)
+        cc_mcollective.configure(
+            config=cfg, server_cfg=self.server_cfg,
+            pricert_file=self.pricert_file, pubcert_file=self.pubcert_file)
 
         found = configobj.ConfigObj(self.server_cfg)
 
