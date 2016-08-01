@@ -653,14 +653,8 @@ def write_boot_content(content, content_f, link=None, shebang=False,
             util.logexc(LOG, "failed establishing content link: %s", e)
 
 
-def get_smartos_environ(uname_version=None, product_name=None,
-                        uname_arch=None):
+def get_smartos_environ(uname_version=None, product_name=None):
     uname = os.uname()
-    if uname_arch is None:
-        uname_arch = uname[4]
-
-    if uname_arch.startswith("arm") or uname_arch == "aarch64":
-        return None
 
     # SDC LX-Brand Zones lack dmidecode (no /dev/mem) but
     # report 'BrandZ virtual linux' as the kernel version

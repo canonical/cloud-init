@@ -371,8 +371,30 @@ class TestReadDMIData(helpers.FilesystemMockingTestCase):
         self._create_sysfs_parent_directory()
         expected_dmi_value = 'dmidecode-used'
         self._configure_dmidecode_return('use-dmidecode', expected_dmi_value)
-        self.assertEqual(expected_dmi_value,
-                         util.read_dmi_data('use-dmidecode'))
+        with mock.patch("cloudinit.util.os.uname") as m_uname:
+            m_uname.return_value = ('x-sysname', 'x-nodename',
+                                    'x-release', 'x-version', 'x86_64')
+            self.assertEqual(expected_dmi_value,
+                             util.read_dmi_data('use-dmidecode'))
+
+    def test_dmidecode_not_used_on_arm(self):
+        self.patch_mapping({})
+        self._create_sysfs_parent_directory()
+        dmi_val = 'from-dmidecode'
+        dmi_name = 'use-dmidecode'
+        self._configure_dmidecode_return(dmi_name, dmi_val)
+
+        expected = {'armel': None, 'aarch64': None, 'x86_64': dmi_val}
+        found = {}
+        # we do not run the 'dmi-decode' binary on some arches
+        # verify that anything requested that is not in the sysfs dir
+        # will return None on those arches.
+        with mock.patch("cloudinit.util.os.uname") as m_uname:
+            for arch in expected:
+                m_uname.return_value = ('x-sysname', 'x-nodename',
+                                        'x-release', 'x-version', arch)
+                found[arch] = util.read_dmi_data(dmi_name)
+        self.assertEqual(expected, found)
 
     def test_none_returned_if_neither_source_has_data(self):
         self.patch_mapping({})

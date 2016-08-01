@@ -1,6 +1,7 @@
 # vi: ts=4 expandtab
 #
 #    Author: Neal Shrader <neal@digitalocean.com>
+#    Author: Ben Howard  <bh@digitalocean.com>
 #
 #    This program is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License version 3, as
@@ -14,22 +15,27 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-from cloudinit import ec2_utils
+# DigitalOcean Droplet API:
+# https://developers.digitalocean.com/documentation/metadata/
+
+import json
+
 from cloudinit import log as logging
 from cloudinit import sources
+from cloudinit import url_helper
 from cloudinit import util
-
-import functools
-
 
 LOG = logging.getLogger(__name__)
 
 BUILTIN_DS_CONFIG = {
-    'metadata_url': 'http://169.254.169.254/metadata/v1/',
-    'mirrors_url': 'http://mirrors.digitalocean.com/'
+    'metadata_url': 'http://169.254.169.254/metadata/v1.json',
 }
-MD_RETRIES = 0
-MD_TIMEOUT = 1
+
+# Wait for a up to a minute, retrying the meta-data server
+# every 2 seconds.
+MD_RETRIES = 30
+MD_TIMEOUT = 2
+MD_WAIT_RETRY = 2
 
 
 class DataSourceDigitalOcean(sources.DataSource):
@@ -40,43 +46,61 @@ class DataSourceDigitalOcean(sources.DataSource):
             util.get_cfg_by_path(sys_cfg, ["datasource", "DigitalOcean"], {}),
             BUILTIN_DS_CONFIG])
         self.metadata_address = self.ds_cfg['metadata_url']
+        self.retries = self.ds_cfg.get('retries', MD_RETRIES)
+        self.timeout = self.ds_cfg.get('timeout', MD_TIMEOUT)
+        self.wait_retry = self.ds_cfg.get('wait_retry', MD_WAIT_RETRY)
 
-        if self.ds_cfg.get('retries'):
-            self.retries = self.ds_cfg['retries']
+    def _get_sysinfo(self):
+        # DigitalOcean embeds vendor ID and instance/droplet_id in the
+        # SMBIOS information
+
+        LOG.debug("checking if instance is a DigitalOcean droplet")
+
+        # Detect if we are on DigitalOcean and return the Droplet's ID
+        vendor_name = util.read_dmi_data("system-manufacturer")
+        if vendor_name != "DigitalOcean":
+            return (False, None)
+
+        LOG.info("running on DigitalOcean")
+
+        droplet_id = util.read_dmi_data("system-serial-number")
+        if droplet_id:
+            LOG.debug(("system identified via SMBIOS as DigitalOcean Droplet"
+                       "{}").format(droplet_id))
         else:
-            self.retries = MD_RETRIES
+            LOG.critical(("system identified via SMBIOS as a DigitalOcean "
+                          "Droplet, but did not provide an ID. Please file a "
+                          "support ticket at: "
+                          "https://cloud.digitalocean.com/support/tickets/"
+                          "new"))
 
-        if self.ds_cfg.get('timeout'):
-            self.timeout = self.ds_cfg['timeout']
-        else:
-            self.timeout = MD_TIMEOUT
+        return (True, droplet_id)
 
-    def get_data(self):
-        caller = functools.partial(util.read_file_or_url,
-                                   timeout=self.timeout, retries=self.retries)
+    def get_data(self, apply_filter=False):
+        (is_do, droplet_id) = self._get_sysinfo()
 
-        def mcaller(url):
-            return caller(url).contents
-
-        md = ec2_utils.MetadataMaterializer(mcaller(self.metadata_address),
-                                            base_url=self.metadata_address,
-                                            caller=mcaller)
-
-        self.metadata = md.materialize()
-
-        if self.metadata.get('id'):
-            return True
-        else:
+        # only proceed if we know we are on DigitalOcean
+        if not is_do:
             return False
 
-    def get_userdata_raw(self):
-        return "\n".join(self.metadata['user-data'])
+        LOG.debug("reading metadata from {}".format(self.metadata_address))
+        response = url_helper.readurl(self.metadata_address,
+                                      timeout=self.timeout,
+                                      sec_between=self.wait_retry,
+                                      retries=self.retries)
 
-    def get_vendordata_raw(self):
-        return "\n".join(self.metadata['vendor-data'])
+        contents = util.decode_binary(response.contents)
+        decoded = json.loads(contents)
+
+        self.metadata = decoded
+        self.metadata['instance-id'] = decoded.get('droplet_id', droplet_id)
+        self.metadata['local-hostname'] = decoded.get('hostname', droplet_id)
+        self.vendordata_raw = decoded.get("vendor_data", None)
+        self.userdata_raw = decoded.get("user_data", None)
+        return True
 
     def get_public_ssh_keys(self):
-        public_keys = self.metadata['public-keys']
+        public_keys = self.metadata.get('public_keys', [])
         if isinstance(public_keys, list):
             return public_keys
         else:
@@ -84,20 +108,16 @@ class DataSourceDigitalOcean(sources.DataSource):
 
     @property
     def availability_zone(self):
-        return self.metadata['region']
-
-    def get_instance_id(self):
-        return self.metadata['id']
-
-    def get_hostname(self, fqdn=False, resolve_ip=False):
-        return self.metadata['hostname']
-
-    def get_package_mirror_info(self):
-        return self.ds_cfg['mirrors_url']
+        return self.metadata.get('region', 'default')
 
     @property
     def launch_index(self):
         return None
+
+    def check_instance_id(self, sys_cfg):
+        return sources.instance_id_matches_system_uuid(
+            self.get_instance_id(), 'system-serial-number')
+
 
 # Used to match classes to dependencies
 datasources = [
