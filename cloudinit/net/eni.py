@@ -399,7 +399,7 @@ class Renderer(renderer.Renderer):
         else:
             # ifenslave docs say to auto the slave devices
             lines = []
-            if 'bond-master' in iface:
+            if 'bond-master' in iface or 'bond-slaves' in iface:
                 lines.append("auto {name}".format(**iface))
             lines.append("iface {name} {inet} {mode}".format(**iface))
             lines.extend(_iface_add_attrs(iface, index=0))
