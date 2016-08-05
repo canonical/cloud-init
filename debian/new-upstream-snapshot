@@ -1,0 +1,69 @@
+#!/bin/sh
+
+Usage() {
+   cat <<EOF
+Usage: ${0##*/} trunk-dir [revno [next-upstream-version]]
+
+   pull in new upstream snapshot from trunk-dir
+
+   Leaves file 'new-changes.log'
+
+   Example:
+   $ ${0##*/} ../trunk
+     # prepare bzr dir in . with new snapshot from ../trunk
+   $ dch --edit
+     # read changes in new-changes.log and write changelog
+   $ debcommit
+   $ dch --release
+   $ debcommit --release
+EOF
+}
+fail() { echo "$@" 1>&2; exit 1; }
+
+name="cloud-init"
+[ $# -eq 0 ] && { Usage 1>&2; exit 1; }
+[ "$1" = "-h" -o "$1" = "--help" ] && { Usage; exit 0; }
+trunk=$1
+revno=${2:-tip}
+uver=${3:-0.7.7} # the *next* upstream version
+
+[ -d "$trunk" ] ||
+   fail "trunk dir '$trunk' not a dir"
+if [ "$revno" = "tip" ]; then
+   revno=$(cd "$trunk" && bzr revno) ||
+      fail "failed getting bzr revno from $trunk"
+fi
+pversion=$(dpkg-parsechangelog --show-field Version) ||
+   fail "failed to read previous version with dpkg-parsechangelog"
+prevno=$(echo "$pversion" | sed 's,.*bzr\([0-9]\+\)-.*,\1,') ||
+   fail "fail reading previous bzr revision from previous version '$pversion'"
+version=${uver}~bzr${revno}
+tarball=${name}-${version}.tar.gz
+t=../${name}_${version}.orig.tar.gz
+if [ -f "$t" ]; then
+   echo "using '$t' as tarball" 1>&2
+   tarball="$t"
+else
+   echo "creating $tarball with bzr export" 1>&2
+   bzr export --format=tgz "--revision=${revno}" "$tarball" "${trunk}" ||
+     fail "failed exporting bzr in $trunk to $tarball"
+fi
+bzr merge-upstream "$tarball" "--version=${version}" ||
+   fail "failed merge-upstream of $tarball at version=$version"
+
+oldrev=$(($prevno+1))
+( cd "$trunk" && bzr log -r "${oldrev}..${revno}" ) > new-changes.log ||
+   fail "failed to get changes from ${oldrev}..$revno"
+
+cat <<EOF
+====
+Now see ./new-changes.log for changes between $oldrev and $revno
+
+then:
+   $ dch --edit
+     # read changes in new-changes.log and write changelog
+   $ debcommit
+   $ dch --release
+   $ debcommit --release
+   $ debuild -S
+EOF
