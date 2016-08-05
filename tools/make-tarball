@@ -1,16 +1,53 @@
 #!/bin/sh
 set -e
 
-rev=${1:-HEAD}
-revname=$(git describe $rev)
+TEMP_D=""
+cleanup() {
+    [ -z "$TEMP_D" ] || rm -Rf "${TEMP_D}"
+}
+trap cleanup EXIT
 
-# revname could be 0.7.5 or 0.7.5-NNN-gHASH
+Usage() {
+    cat <<EOF
+Usage: ${0##*/} [revision]
+    create a tarball of revision (default HEAD)
+
+    options:
+      -o | --output FILE   write to file
+EOF
+}
+
+short_opts="ho:v"
+long_opts="help,output:,long,verbose"
+getopt_out=$(getopt --name "${0##*/}" \
+    --options "${short_opts}" --long "${long_opts}" -- "$@") &&
+    eval set -- "${getopt_out}" || { Usage 1>&2; exit 1; }
+
+long_opt=""
+while [ $# -ne 0 ]; do
+    cur=$1; next=$2
+    case "$cur" in
+        -o|--output) output=$next; shift;;
+           --long) long_opt="--long";;
+        --) shift; break;;
+    esac
+    shift;
+done
+
+rev=${1:-HEAD}
+git_describe=$(git describe ${long_opt} $rev)
+
+# git_describe could be 0.7.5 or 0.7.5-NNN-gHASH
 # turn that into 0.7.5 or 0.7.5+NNN.gHASH
-case "$revname" in
-   *-*) revname=$(echo "$revname" | sed -e 's/-/+/' -e 's/-/./')
+case "$git_describe" in
+   *-*) version=$(echo "$git_describe" | sed -e 's/-/+/' -e 's/-/./');;
+   *) version=${git_describe};;
 esac
 
-archive_base="cloud-init-$revname"
+archive_base="cloud-init-$version"
+if [ -z "$output" ]; then
+    output="$archive_base.tar.gz"
+fi
 
 # when building an archiving from HEAD, ensure that there aren't any
 # uncomitted changes in the working directory (because these would not
@@ -25,9 +62,11 @@ if [ "$rev" = HEAD ] && ! git diff-index --quiet HEAD --; then
     fi
 fi
 
-git archive \
-    --format=tar.gz \
-    --prefix="$archive_base/" "$rev" \
-    "--output=$archive_base.tar.gz"
+git archive --format=tar --prefix="$archive_base/" "$rev" |
+    ( cd "$TEMP_D" && tar xpf - )
 
-echo "${archive_base}.tar.gz"
+sed -i "s,@@EXPORT_VERSION@@,$version," "$archive_base/cloudinit/version.py"
+
+( cd "$TEMP_D" && tar cpzf - "$archive_base/" ) > "$output"
+
+echo "$output"

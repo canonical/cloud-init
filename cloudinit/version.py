@@ -16,12 +16,17 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-from distutils import version as vr
-
-
-def version():
-    return vr.StrictVersion("0.7.7")
+__VERSION__ = "0.7.6"
+__EXPORT_VERSION__ = "@@EXPORT_VERSION@@"
 
 
 def version_string():
-    return str(version())
+    if not __EXPORT_VERSION__.startswith("@@"):
+        return __EXPORT_VERSION__
+    return __VERSION__
+
+
+def full_version_string():
+    if __EXPORT_VERSION__.startswith("@@"):
+        raise ValueError("No full version available")
+    return __EXPORT_VERSION__

@@ -2,11 +2,11 @@
 
 import argparse
 import glob
+import json
 import os
 import shutil
 import sys
 import tempfile
-import time
 
 
 def find_root():
@@ -21,11 +21,11 @@ def find_root():
                    " set CLOUD_INIT_TOP_D?"))
 
 
-# Use the util functions from cloudinit
-sys.path.insert(0, find_root())
-
-from cloudinit import templater
-from cloudinit import util
+if "avoid-pep8-E402-import-not-top-of-file":
+    # Use the util functions from cloudinit
+    sys.path.insert(0, find_root())
+    from cloudinit import templater
+    from cloudinit import util
 
 # Map python requirements to package names.  If a match isn't found
 # here, we assume 'python-<pypi_name>'.
@@ -43,15 +43,24 @@ PACKAGE_MAP = {
 RPM_BUILD_SUBDIRS = ['BUILD', 'RPMS', 'SOURCES', 'SPECS', 'SRPMS']
 
 
+def run_helper(helper, args=None, strip=True):
+    if args is None:
+        args = []
+    cmd = [util.abs_join(find_root(), 'tools', helper)] + args
+    (stdout, _stderr) = util.subp(cmd)
+    if strip:
+        stdout = stdout.strip()
+    return stdout
+
+
 def read_dependencies():
     '''Returns the Python depedencies from requirements.txt.  This explicitly
     removes 'argparse' from the list of requirements for python >= 2.7,
     because with 2.7 argparse became part of the standard library.'''
-    cmd = [util.abs_join(find_root(), 'tools', 'read-dependencies')]
-    (stdout, _stderr) = util.subp(cmd)
+    stdout = run_helper('read-dependencies')
     return [p.lower().strip() for p in stdout.splitlines()
-            if p != 'argparse' or (p == 'argparse'
-                                   and sys.version_info[0:2] < (2, 7))]
+            if p != 'argparse' or (p == 'argparse' and
+                                   sys.version_info[0:2] < (2, 7))]
 
 
 def translate_dependencies(deps, distro):
@@ -64,53 +73,22 @@ def translate_dependencies(deps, distro):
 
 
 def read_version():
-    '''Read version information.  We parse the version itself from
-    the changelog, and then ask git for the commit id and distance
-    from the last tag.'''
-    # Figure out the version and revno
-    cmd = [util.abs_join(find_root(), 'tools', 'read-version')]
-    (stdout, _stderr) = util.subp(cmd)
-    version = stdout.strip()
-
-    cmd = ['git', 'describe', '--tags']
-    (stdout, _stderr) = util.subp(cmd)
-    git_version = stdout.strip()
-
-    try:
-        _version, distance, revno = git_version.split('-')
-    except ValueError:
-        distance = None
-        revno = None
-
-    return (version, distance, revno)
+    return json.loads(run_helper('read-version', ['--json']))
 
 
-def generate_spec_contents(args, tmpl_fn, top_dir, arc_fn):
-
-    # This will get us something like ('0.7.6', None, None) for a
-    # tagged commit, and something like ('0.7.6', '1026', 'gd1d5796')
-    # for an untagged commited.
-    version, distance, revno = read_version()
+def generate_spec_contents(args, version_data, tmpl_fn, top_dir, arc_fn):
 
     # Tmpl params
     subs = {}
-    subs['version'] = version
-    subs['revno'] = revno
-    subs['distance'] = distance
-
-    if distance is not None:
-        now = time.strftime('%Y%m%d', time.localtime())
-        release = '.%sgit%s' % (now, revno)
-    else:
-        release = ''
 
     if args.sub_release is not None:
-        subs['subrelease'] = release + "." + str(args.sub_release)
+        subs['subrelease'] = str(args.sub_release)
     else:
-        subs['subrelease'] = release
+        subs['subrelease'] = ""
 
     subs['archive_name'] = arc_fn
     subs['source_name'] = os.path.basename(arc_fn).replace('.tar.gz', '')
+    subs.update(version_data)
 
     # Map to known packages
     python_deps = read_dependencies()
@@ -176,20 +154,19 @@ def main():
                       for dir in RPM_BUILD_SUBDIRS]
         util.ensure_dirs(build_dirs)
 
+        version_data = read_version()
+
         # Archive the code
-        cmd = [util.abs_join(find_root(), 'tools', 'make-tarball')]
-        (stdout, _stderr) = util.subp(cmd)
-        archive_fn = stdout.strip()
-        print "Archived source as %s" % archive_fn
-        real_archive_fn = os.path.join(topdir, 'SOURCES',
-                                       os.path.basename(archive_fn))
-        shutil.move(archive_fn, real_archive_fn)
+        archive_fn = "cloud-init-%s.tar.gz" % version_data['version_long']
+        real_archive_fn = os.path.join(topdir, 'SOURCES', archive_fn)
+        archive_fn = run_helper(
+            'make-tarball', ['--long', '--output=' + real_archive_fn])
         print("Archived the code in %r" % (real_archive_fn))
 
         # Form the spec file to be used
         tmpl_fn = util.abs_join(find_root(), 'packages',
                                 args.distro, 'cloud-init.spec.in')
-        contents = generate_spec_contents(args, tmpl_fn, topdir,
+        contents = generate_spec_contents(args, version_data, tmpl_fn, topdir,
                                           os.path.basename(archive_fn))
         spec_fn = util.abs_join(topdir, 'SPECS', 'cloud-init.spec')
         util.write_file(spec_fn, contents)

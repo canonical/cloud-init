@@ -6,7 +6,7 @@
 # Or: http://www.rpm.org/max-rpm/ch-rpm-inside.html
 
 Name:           cloud-init
-Version:        ${version}
+Version:        ${version_long}
 Release:        1${subrelease}%{?dist}
 Summary:        Cloud instance init scripts
 
