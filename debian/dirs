@@ -1,0 +1,5 @@
+etc/cloud
+etc/init
+usr/bin
+usr/share/doc/cloud
+var/lib/cloud
