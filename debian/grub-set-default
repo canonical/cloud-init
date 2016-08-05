@@ -1,0 +1,38 @@
+#!/bin/sh
+
+diverted=/usr/sbin/grub-set-default.real
+legacy_ec2=/usr/sbin/grub-set-default-legacy-ec2
+normal=/usr/sbin/grub-set-default
+
+warn() { echo "WARNING:" "$@" 1>&2; }
+Usage() {
+   cat <<EOF
+${0} is a wrapper provided by grub-legacy-ec2.
+It ensures that the appropriate 'set-default' is called.
+For specific version or help info invoke one of the following directly:
+  ${diverted}
+ and 
+  ${legacy_ec2} 
+EOF
+}
+
+[ $# -eq 0 ] && { Usage; exit 1; }
+for a in "$@"; do
+   case "$a" in
+      --help|-h|-v|--version) Usage; exit 0;;
+   esac
+done
+
+"${legacy_ec2}" "${@}"
+lret=$?
+[ ${lret} -eq 0 ] || warn "${legacy_ec2} returned ${lret}"
+
+dret=0
+if [ -x "${diverted}" -a -f "/boot/grub/grub.cfg" ]; then
+   "${diverted}" "$@"
+   dret=$?
+fi
+[ ${dret} -eq 0 ] || warn "${diverted} returned ${dret}"
+
+[ $lret -eq 0 -a $dret -eq 0 ]
+exit

@@ -1,0 +1,264 @@
+#!/bin/sh -e
+
+. /usr/share/debconf/confmodule
+
+set -f # disable pathname expansion
+db_capb escape # to support carriage return / multi-line values
+
+update_cfg() {
+   # takes filename, header, new object (in yaml), optionally 'remover'
+   # and merges new into existing object in filename, and then updates file
+   # remover a string that means "delete existing entry"
+   python3 -c '
+import sys, yaml
+
+def update(src, cand):
+    if not (isinstance(src, dict) and isinstance(cand, dict)):
+        return cand
+    for k, v in cand.items():
+        # if the candidate has _ as value, delete source
+        if v == REMOVER:
+            if k in src:
+                del src[k]
+            continue
+        if k not in src:
+            src[k] = v
+        else:
+            src[k] = update(src[k], v)
+    return src
+
+(fname, header, newyaml) = sys.argv[1:4]
+REMOVER = object
+if len(sys.argv) == 5:
+   REMOVER = sys.argv[4]
+newcfg = yaml.load(newyaml)
+
+with open(fname, "r") as fp:
+    cfg = yaml.load(fp)
+if not cfg: cfg = {}
+
+cfg = update(cfg, newcfg)
+
+with open(fname, "w") as fp:
+    fp.write(header + "\n")
+    fp.write(yaml.dump(cfg))' "$@"
+}
+
+handle_preseed_maas() {
+   local cfg_file="/etc/cloud/cloud.cfg.d/90_dpkg_maas.cfg"
+   local md_url="" creds_all="" c_key="" t_key="" t_sec="" c_sec="";
+
+   db_get "cloud-init/maas-metadata-url" && md_url="$RET" || :
+   db_get "cloud-init/maas-metadata-credentials" && creds_all="$RET" || :
+
+   # nothing to do
+   [ -n "$md_url" -o -n "$creds_all" ] || return 0
+
+   # change a url query string format into : delimited
+   if [ -n "$creds_all" -a "${creds_all#*&}" != "${creds_all}" ]; then
+      # the command here ends up looking like:
+      # python3 -c '...' 'oauth_consumer_key=v1&oauth_token_key=v2...' \
+      #   oauth_consumer_key oauth_token_key oauth_token_secret
+      creds_all=$(python3 -c 'from six.moves.urllib.parse import parse_qs;
+import sys;
+keys = parse_qs(sys.argv[1])
+for k in sys.argv[2:]:
+   sys.stdout.write("%s:" % keys.get(k,[""])[0])' "$creds_all" \
+   oauth_consumer_key oauth_token_key oauth_token_secret
+)
+   fi
+
+   # now, if non-empty creds_all is: consumer_key:token_key:token_secret
+   if [ -n "$creds_all" ]; then
+      OIFS="$IFS"; IFS=:; set -- $creds_all; IFS="$OIFS"
+      c_key=$1; t_key=$2; t_sec=$3
+   fi
+
+   if [ "$md_url" = "_" -a "${c_key}:${t_key}:${t_sec}" = "_:_:_" ]; then
+      # if all these values were '_', the delete value, just delete the file.
+      rm -f "$cfg_file"
+   else
+      local header="# written by cloud-init debian package per preseed entries
+# cloud-init/{maas-metadata-url,/maas-metadata-credentials}"
+
+      local pair="" k="" v="" pload="" orig_umask=""
+      for pair in "metadata_url:$md_url" "consumer_key:${c_key}" \
+         "token_key:${t_key}" "token_secret:$t_sec"; do
+         k=${pair%%:*}
+         v=${pair#${k}:}
+         [ -n "$v" ] && pload="${pload} $k: \"$v\","
+      done
+
+      # '_' would indicate "delete", otherwise, existing entries are left
+      orig_umask=$(umask)
+      umask 066
+      : >> "$cfg_file" && chmod 600 "$cfg_file"
+      update_cfg "$cfg_file" "$header" "datasource: { MAAS: { ${pload%,} } }" _
+      umask ${orig_umask}
+   fi
+
+   # now clear the database of the values, as they've been consumed
+   db_unregister "cloud-init/maas-metadata-url" || :
+   db_unregister "cloud-init/maas-metadata-credentials" || :
+}
+
+handle_preseed_local_cloud_config() {
+   local ccfg="" debconf_name="cloud-init/local-cloud-config"
+   local cfg_file="/etc/cloud/cloud.cfg.d/90_dpkg_local_cloud_config.cfg"
+   local header="# written by cloud-init debian package per preseed entry
+# $debconf_name"
+
+   db_get "${debconf_name}" && ccfg="$RET" || :
+
+   if [ "$ccfg" = "_" ]; then
+      rm -f "$cfg_file"
+   elif [ -n "$ccfg" ]; then
+      { echo "$header"; echo "$ccfg"; } > "$cfg_file"
+   fi
+   db_unregister "${debconf_name}" || :
+}
+
+fix_1336855() {
+  ### Begin fix for LP: 1336855
+  # fix issue where cloud-init misidentifies the location of grub and
+  # where grub misidentifies the location of the device
+
+  # if cloud-init's grub module did not run, then it did not break anything.
+  [ -f /var/lib/cloud/instance/sem/config_grub_dpkg ] || return 0
+
+  # This bug only happened on /dev/xvda devices
+  [ -b /dev/xvda ] || return 0
+
+  # we can't fix the system without /proc/cmdline
+  [ -r /proc/cmdline ] || return 0
+
+  # Don't do anything unless we have grub
+  [ -x /usr/sbin/grub-install ] || return 0
+
+  # First, identify the kernel device for the parent.
+  for parm in $(cat /proc/cmdline); do
+       dev=$(echo $parm | awk -F\= '{print$NF}')
+       case $parm in
+           root=UUID*)  [ -d /dev/disk/by-uuid ] &&
+                            root_dev=$(readlink -f /dev/disk/by-uuid/$dev);;
+           root=LABEL*) [ -d /dev/disk/by-label ] &&
+                            root_dev=$(readlink -f /dev/disk/by-label/$dev);;
+           root=/dev*)  [ -d /dev ] &&
+                            root_dev=$(readlink -f $dev);;
+       esac
+       [ -n "$root_dev" ] && break
+  done
+
+  # Don't continue if we don't have a root directive
+  [ -z "$root_dev" ] && return 0
+
+  # Only deal with simple, cloud-based devices
+  case $root_dev in
+       /dev/vda*|/dev/xvda*|/dev/sda*) ;;
+       *) return 0;;
+  esac
+
+  # Make sure that we are not chrooted.
+  [ "$(stat -c %d:%i /)" != "$(stat -c %d:%i /proc/1/root/.)" ] && return 0
+
+  # Check if we are in a container, i.e. LXC
+  if systemd-detect-virt --quiet --container || lxc-is-container 2>/dev/null; then
+      return 0
+  fi
+
+  # Find out where grub thinks the root device is. Only continue if
+  # grub postinst would install/reinstall grub
+  db_get grub-pc/install_devices && grub_cfg_dev=${RET} || return 0
+  db_get grub-pc/install_devices_empty && grub_dev_empty=${RET} || return 0
+
+  # Find out the parent device for the root device.
+  #     example output: sda/sda1
+  block_path=$(udevadm info -q path -n $root_dev | awk '-Fblock/' '{print$NF}')
+
+  # Extract the parent device name. This works where the device is a block device
+  #     example output: /dev/sda
+  parent_dev=$(echo $block_path | awk '-F/' '$1 { if ( $1 ) {print"/dev/"$1}}')
+  [ -b "${parent_dev}" ] || return 0
+
+  # Do nothing if the device that the grub postinst would install is already used
+  [ "$grub_cfg_dev" = "$parent_dev" -o "$grub_cfg_dev" = "$root_dev" ] && return 0
+
+  # If we get here, do the installation
+  echo "Reconfiguring grub install device due to mismatch (LP: #1336855)"
+  echo "   Grub should use $parent_dev but is configured for $grub_cfg_dev"
+  db_set grub-pc/install_devices "$parent_dev"
+  grub-install $parent_dev &&
+     echo "Reinstalled grub" ||
+     echo "WARNING! Unable to fix grub device mismatch. You may be broken."
+
+}
+
+cleanup_lp1552999() {
+    local oldver="$1" last_bad_ver="0.7.7~bzr1178"
+    dpkg --compare-versions "$oldver" le "$last_bad_ver" || return 0
+    local edir="/etc/systemd/system/multi-user.target.wants"
+    rm -f "$edir/cloud-config.service" "$edir/cloud-final.service" \
+        "$edir/cloud-init-local.service" "$edir/cloud-init.service"
+}
+
+disable_network_config_on_upgrade() {
+    local oldver="$1" last_without_net="0.7.7~bzr1182-0ubuntu1"
+    if [ ! -f /var/lib/cloud/instance/obj.pkl ]; then
+        # this is a fresh system not one that has been booted.
+        return 0
+    fi
+    if dpkg --compare-versions "$oldver" le "$last_without_net"; then
+        echo "dpkg upgrade from $oldver" > /var/lib/cloud/data/upgraded-network
+    fi
+}
+
+if [ "$1" = "configure" ]; then
+   # disable ureadahead (LP: #499520)
+   dpkg-divert --package cloud-init --rename --divert \
+      /etc/init/ureadahead.conf.disabled --add /etc/init/ureadahead.conf
+   if db_get cloud-init/datasources; then
+      values="$RET"
+      if [ "${values#*MaaS}" != "${values}" ]; then
+         # if db had old MAAS spelling, fix it.
+         values=$(echo "$values" | sed 's,MaaS,MAAS,g')
+         db_set cloud-init/datasources "$values"
+      fi
+      cat > /etc/cloud/cloud.cfg.d/90_dpkg.cfg <<EOF
+# to update this file, run dpkg-reconfigure cloud-init
+datasource_list: [ $values ]
+EOF
+   fi
+
+   # we want to affect apt_pipelining on install, not wait for
+   # cloud-init to run it on next boot.
+   pipeline_f="/etc/apt/apt.conf.d/90cloud-init-pipelining"
+   if [ -f /var/lib/cloud/instance/obj.pkl ]; then
+      cloud-init single --name apt-pipelining --frequency once >/dev/null 2>&1 ||
+         echo "Warning: failed to setup apt-pipelining" 1>&2
+   elif [ ! -f "$pipeline_f" ]; then
+      # there was no cloud available, so populate it ourselves.
+      cat > "$pipeline_f" <<EOF
+//Written by cloud-init per 'apt_pipelining'
+Acquire::http::Pipeline-Depth "0";
+EOF
+   fi
+
+   # if there are maas settings pre-seeded apply them
+   handle_preseed_maas
+
+   # if there is generic cloud-config preseed, apply them
+   handle_preseed_local_cloud_config
+
+   # fix issue where cloud-init misidentifies the location of grub
+   fix_1336855
+
+   # make upgrades disable network changes by cloud-init
+   disable_network_config_on_upgrade "$2"
+fi
+
+#DEBHELPER#
+
+if [ "$1" = "configure" ]; then
+   oldver="$2"
+   cleanup_lp1552999 "$oldver"
+fi
