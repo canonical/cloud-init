@@ -1,21 +1,20 @@
 CWD=$(shell pwd)
-PYVER ?= 3
+PYVER ?= $(shell for p in python3 python2; do \
+	out=$(which $$p 2>&1) && echo $$p && exit; done; \
+	exit 1)
 noseopts ?= -v
 
 YAML_FILES=$(shell find cloudinit bin tests tools -name "*.yaml" -type f )
 YAML_FILES+=$(shell find doc/examples -name "cloud-config*.txt" -type f )
 
-CHANGELOG_VERSION=$(shell $(CWD)/tools/read-version)
-CODE_VERSION=$(shell python -c "from cloudinit import version; print version.version_string()")
-
 PIP_INSTALL := pip install
 
-ifeq ($(PYVER),3)
+ifeq ($(PYVER),python3)
   pyflakes = pyflakes3
   unittests = unittest3
   yaml = yaml
 else
-ifeq ($(PYVER),2)
+ifeq ($(PYVER),python2)
   pyflakes = pyflakes
   unittests = unittest
 else
@@ -27,6 +26,10 @@ endif
 ifeq ($(distro),)
   distro = redhat
 endif
+
+READ_VERSION=$(shell $(PYVER) $(CWD)/tools/read-version)
+CODE_VERSION=$(shell $(PYVER) -c "from cloudinit import version; print(version.version_string())")
+
 
 all: check
 
@@ -58,8 +61,8 @@ pip-test-requirements:
 test: $(unittests)
 
 check_version:
-	@if [ "$(CHANGELOG_VERSION)" != "$(CODE_VERSION)" ]; then \
-	    echo "Error: ChangeLog version $(CHANGELOG_VERSION)" \
+	@if [ "$(READ_VERSION)" != "$(CODE_VERSION)" ]; then \
+	    echo "Error: read-version version $(READ_VERSION)" \
 	    "not equal to code version $(CODE_VERSION)"; exit 2; \
 	    else true; fi
 

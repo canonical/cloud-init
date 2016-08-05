@@ -2,13 +2,28 @@
 
 import os
 import json
+import subprocess
 import sys
 
 if "avoid-pep8-E402-import-not-top-of-file":
     _tdir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
     sys.path.insert(0, _tdir)
     from cloudinit import version as ci_version
-    from cloudinit import util
+
+
+def tiny_p(cmd, capture=True):
+    # python 2.6 doesn't have check_output
+    stdout = subprocess.PIPE
+    stderr = subprocess.PIPE
+    sp = subprocess.Popen(cmd, stdout=stdout,
+                          stderr=stderr, stdin=None,
+                          universal_newlines=True)
+    (out, err) = sp.communicate()
+    ret = sp.returncode
+    if ret not in [0]:
+        raise RuntimeError("Failed running %s [rc=%s] (%s, %s)" %
+                           (cmd, ret, out, err))
+    return out
 
 
 use_long = '--long' in sys.argv or os.environ.get('CI_RV_LONG')
@@ -31,20 +46,17 @@ if os.path.isdir(os.path.join(_tdir, ".git")):
         flags = ['--tags']
     cmd = ['git', 'describe'] + flags
 
-    version = fix_git_version(util.subp(cmd)[0])
+    version = fix_git_version(tiny_p(cmd))
 
     if not version.startswith(src_version):
         sys.stderr.write("git describe version (%s) differs from "
                          "cloudinit.version (%s)\n" % (version, src_version))
         sys.exit(1)
 
-    version_long = fix_git_version(util.subp(cmd + ["--long"])[0])
+    version_long = fix_git_version(tiny_p(cmd + ["--long"]))
 else:
     version = src_version
-    try:
-        version_long = ci_version.full_version_string()
-    except ValueError:
-        pass
+    version_long = None
 
 # version is X.Y.Z[+xxx.gHASH]
 # version_long is None or X.Y.Z+xxx.gHASH

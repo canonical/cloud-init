@@ -62,11 +62,5 @@ if [ "$rev" = HEAD ] && ! git diff-index --quiet HEAD --; then
     fi
 fi
 
-git archive --format=tar --prefix="$archive_base/" "$rev" |
-    ( cd "$TEMP_D" && tar xpf - )
-
-sed -i "s,@@EXPORT_VERSION@@,$version," "$archive_base/cloudinit/version.py"
-
-( cd "$TEMP_D" && tar cpzf - "$archive_base/" ) > "$output"
-
+git archive --format=tar.gz --prefix="$archive_base/" "$rev" > "$output"
 echo "$output"

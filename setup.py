@@ -116,13 +116,13 @@ def in_virtualenv():
 
 
 def get_version():
-    cmd = ['tools/read-version']
+    cmd = [sys.executable, 'tools/read-version']
     (ver, _e) = tiny_p(cmd)
     return str(ver).strip()
 
 
 def read_requires():
-    cmd = ['tools/read-dependencies']
+    cmd = [sys.executable, 'tools/read-dependencies']
     (deps, _e) = tiny_p(cmd)
     return str(deps).splitlines()
 
