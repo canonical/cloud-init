@@ -7,7 +7,7 @@ export PYBUILD_INSTALL_ARGS=--init-system=$(INIT_SYSTEM)
 
 override_dh_auto_test:
 ifeq (,$(findstring nocheck,$(DEB_BUILD_OPTIONS)))
-	http_proxy= make PYVER=3 check
+	http_proxy= make PYVER=python3 check
 else
 	@echo check disabled by DEB_BUILD_OPTIONS=$(DEB_BUILD_OPTIONS)
 endif
