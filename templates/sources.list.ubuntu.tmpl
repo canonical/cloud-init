@@ -43,61 +43,6 @@ deb-src {{mirror}} {{codename}}-updates multiverse
 deb {{mirror}} {{codename}}-backports main restricted universe multiverse
 deb-src {{mirror}} {{codename}}-backports main restricted universe multiverse
 
-##
-## "entries" are mega things that can get rendered into sources.list format.
-## pocket_aliases allow for 'release' or 'updates' rather than
-##  {{codename}} and {{codename}}-released
-##
-##
-## one thing not done here is that for 'entry' rendering
-## the components cannot vary per pocket.
-##  ie, each pocket (release or updates) will have the same
-##  list of components
-apt:
-  pocket_aliases:
-    release: {{codename}}
-    updates: {{codename}}-updates
-    proposed: {{codename}}-proposed
-    backports: {{codename}}-backports
-    security: {{codename}}-security
-  sources:
-    main:
-      path: "/etc/apt/sources.list"
-      # if entries is present, then we render each of the entries defined.
-      entries: [primary, security]
-      key: yourkey
-    my-repo2.list:
-      # use source as it would before (supporting templates there)
-      # and entries can be in their rendering namespace
-      source: deb $primary.mirror $RELEASE multiverse
-
-  entries:
-    primary:
-      mirrors:
-       - arches: [i386, amd64]
-         mirror: http://archive.ubuntu.com/ubuntu
-         search:
-           - http://%(ec2_region)s.ec2.archive.ubuntu.com/ubuntu
-           - http://%(availability_zone)s.clouds.archive.ubuntu.com/ubuntu
-           - http://%(region)s.clouds.archive.ubuntu.com/ubuntu
-       - arches: [default]
-         mirror: http://ports.ubuntu.com/ubuntu-ports
-         search: []
-      pockets: [release, updates, proposed, backports]
-      components: [main, restricted, universe, multiverse]
-      types: [deb, deb-src]
-
-    security:
-      mirrors:
-       - arches: [default]
-         mirror: http://archive.ubuntu.com/ubuntu
-      pockets: [securityrelease, updates, proposed, backports]
-      components: [main, restricted, universe]
-      types: [deb, deb-src]
-
- primary:
-   mirror
-
 deb {{security}} {{codename}}-security main restricted
 deb-src {{security}} {{codename}}-security main restricted
 deb {{security}} {{codename}}-security universe
