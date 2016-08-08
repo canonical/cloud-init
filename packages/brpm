@@ -90,6 +90,15 @@ def generate_spec_contents(args, version_data, tmpl_fn, top_dir, arc_fn):
     subs['source_name'] = os.path.basename(arc_fn).replace('.tar.gz', '')
     subs.update(version_data)
 
+    # rpm does not like '-' in the Version, so change
+    #   X.Y.Z-N-gHASH to X.Y.Z+N.gHASH
+    if "-" in version_data.get('version'):
+        ver, commits, ghash = version_data['version'].split("-")
+        rpm_upstream_version = "%s+%s.%s" % (ver, commits, ghash)
+    else:
+        rpm_upstream_version = version_data['version']
+    subs['rpm_upstream_version'] = rpm_upstream_version
+
     # Map to known packages
     python_deps = read_dependencies()
     package_deps = translate_dependencies(python_deps, args.distro)

@@ -35,14 +35,7 @@ while [ $# -ne 0 ]; do
 done
 
 rev=${1:-HEAD}
-git_describe=$(git describe ${long_opt} $rev)
-
-# git_describe could be 0.7.5 or 0.7.5-NNN-gHASH
-# turn that into 0.7.5 or 0.7.5+NNN.gHASH
-case "$git_describe" in
-   *-*) version=$(echo "$git_describe" | sed -e 's/-/+/' -e 's/-/./');;
-   *) version=${git_describe};;
-esac
+version=$(git describe ${long_opt} $rev)
 
 archive_base="cloud-init-$version"
 if [ -z "$output" ]; then
