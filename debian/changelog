@@ -1,3 +1,14 @@
+cloud-init (0.7.7~git1029-gb56d7a1-0ubuntu1) UNRELEASED; urgency=medium
+
+  * New Upstream snapshot.
+    - mcollective: add tests, cleanups and bug fix when no config in /etc.
+    - Move upstream revision control to git.  [Lars Kellogg-Stedman]
+    - Adjust unit tests to address newer requests have strong type validation.
+  * debian/control: update Standards-Version to 3.9.8
+  * debian/rules: fix PYVER in environment to sync with upstream changes.
+
+ -- Scott Moser <smoser@ubuntu.com>  Tue, 09 Aug 2016 01:12:33 -0400
+
 cloud-init (0.7.7~bzr1256-0ubuntu1) yakkety; urgency=medium
 
   * New upstream snapshot.
