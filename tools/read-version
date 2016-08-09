@@ -1,26 +1,82 @@
 #!/usr/bin/env python
 
 import os
-import re
+import json
+import subprocess
 import sys
 
-if 'CLOUD_INIT_TOP_D' in os.environ:
-    topd = os.path.realpath(os.environ.get('CLOUD_INIT_TOP_D'))
-else:
-    topd = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+if "avoid-pep8-E402-import-not-top-of-file":
+    _tdir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+    sys.path.insert(0, _tdir)
+    from cloudinit import version as ci_version
 
-for fname in ("setup.py", "ChangeLog"):
-    if not os.path.isfile(os.path.join(topd, fname)):
-        sys.stderr.write("Unable to locate '%s' file that should "
-                         "exist in cloud-init root directory." % fname)
+
+def tiny_p(cmd, capture=True):
+    # python 2.6 doesn't have check_output
+    stdout = subprocess.PIPE
+    stderr = subprocess.PIPE
+    sp = subprocess.Popen(cmd, stdout=stdout,
+                          stderr=stderr, stdin=None,
+                          universal_newlines=True)
+    (out, err) = sp.communicate()
+    ret = sp.returncode
+    if ret not in [0]:
+        raise RuntimeError("Failed running %s [rc=%s] (%s, %s)" %
+                           (cmd, ret, out, err))
+    return out
+
+
+use_long = '--long' in sys.argv or os.environ.get('CI_RV_LONG')
+use_tags = '--tags' in sys.argv or os.environ.get('CI_RV_TAGS')
+output_json = '--json' in sys.argv
+
+src_version = ci_version.version_string()
+version_long = None
+
+if os.path.isdir(os.path.join(_tdir, ".git")):
+    flags = []
+    if use_tags:
+        flags = ['--tags']
+    cmd = ['git', 'describe'] + flags
+
+    version = tiny_p(cmd).strip()
+
+    if not version.startswith(src_version):
+        sys.stderr.write("git describe version (%s) differs from "
+                         "cloudinit.version (%s)\n" % (version, src_version))
         sys.exit(1)
 
-vermatch = re.compile(r"^[0-9]+[.][0-9]+[.][0-9]+:$")
+    version_long = tiny_p(cmd + ["--long"]).strip()
+else:
+    version = src_version
+    version_long = None
 
-with open(os.path.join(topd, "ChangeLog"), "r") as fp:
-    for line in fp:
-        if vermatch.match(line):
-            sys.stdout.write(line.strip()[:-1] + "\n")
-            break
+# version is X.Y.Z[+xxx.gHASH]
+# version_long is None or X.Y.Z+xxx.gHASH
+release = version.partition("+")[0]
+extra = None
+commit = None
+distance = None
+
+if version_long:
+    info = version_long.partition("-")[2]
+    extra = "-" + info
+    distance, commit = info.split("-")
+    # remove the 'g' from gHASH
+    commit = commit[1:]
+
+data = {
+    'release': release,
+    'version': version,
+    'version_long': version_long,
+    'extra': extra,
+    'commit': commit,
+    'distance': distance,
+}
+
+if output_json:
+    sys.stdout.write(json.dumps(data, indent=1) + "\n")
+else:
+    sys.stdout.write(release + "\n")
 
 sys.exit(0)
