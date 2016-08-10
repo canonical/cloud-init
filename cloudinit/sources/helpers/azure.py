@@ -1,3 +1,4 @@
+import json
 import logging
 import os
 import re
@@ -6,6 +7,7 @@ import struct
 import tempfile
 import time
 
+from cloudinit import stages
 from contextlib import contextmanager
 from xml.etree import ElementTree
 
@@ -187,19 +189,32 @@ class WALinuxAgentShim(object):
         '  </Container>',
         '</Health>'])
 
-    def __init__(self):
+    def __init__(self, fallback_lease_file=None):
         LOG.debug('WALinuxAgentShim instantiated...')
-        self.endpoint = self.find_endpoint()
+        self.dhcpoptions = None
+        self._endpoint = None
         self.openssl_manager = None
         self.values = {}
+        self.lease_file = fallback_lease_file
 
     def clean_up(self):
         if self.openssl_manager is not None:
             self.openssl_manager.clean_up()
 
     @staticmethod
-    def get_ip_from_lease_value(lease_value):
-        unescaped_value = lease_value.replace('\\', '')
+    def _get_hooks_dir():
+        _paths = stages.Init()
+        return os.path.join(_paths.paths.get_runpath(), "dhclient.hooks")
+
+    @property
+    def endpoint(self):
+        if self._endpoint is None:
+            self._endpoint = self.find_endpoint(self.lease_file)
+        return self._endpoint
+
+    @staticmethod
+    def get_ip_from_lease_value(fallback_lease_value):
+        unescaped_value = fallback_lease_value.replace('\\', '')
         if len(unescaped_value) > 4:
             hex_string = ''
             for hex_pair in unescaped_value.split(':'):
@@ -213,15 +228,75 @@ class WALinuxAgentShim(object):
         return socket.inet_ntoa(packed_bytes)
 
     @staticmethod
-    def find_endpoint():
-        LOG.debug('Finding Azure endpoint...')
-        content = util.load_file('/var/lib/dhcp/dhclient.eth0.leases')
-        value = None
+    def _get_value_from_leases_file(fallback_lease_file):
+        leases = []
+        content = util.load_file(fallback_lease_file)
+        LOG.debug("content is {}".format(content))
         for line in content.splitlines():
             if 'unknown-245' in line:
-                value = line.strip(' ').split(' ', 2)[-1].strip(';\n"')
+                # Example line from Ubuntu
+                # option unknown-245 a8:3f:81:10;
+                leases.append(line.strip(' ').split(' ', 2)[-1].strip(';\n"'))
+        # Return the "most recent" one in the list
+        if len(leases) < 1:
+            return None
+        else:
+            return leases[-1]
+
+    @staticmethod
+    def _load_dhclient_json():
+        dhcp_options = {}
+        hooks_dir = WALinuxAgentShim._get_hooks_dir()
+        if not os.path.exists(hooks_dir):
+            LOG.debug("%s not found.", hooks_dir)
+            return None
+        hook_files = [os.path.join(hooks_dir, x)
+                      for x in os.listdir(hooks_dir)]
+        for hook_file in hook_files:
+            try:
+                name = os.path.basename(hook_file).replace('.json', '')
+                dhcp_options[name] = json.loads(util.load_file((hook_file)))
+            except ValueError:
+                raise ValueError("%s is not valid JSON data", hook_file)
+        return dhcp_options
+
+    @staticmethod
+    def _get_value_from_dhcpoptions(dhcp_options):
+        if dhcp_options is None:
+            return None
+        # the MS endpoint server is given to us as DHPC option 245
+        _value = None
+        for interface in dhcp_options:
+            _value = dhcp_options[interface].get('unknown_245', None)
+            if _value is not None:
+                LOG.debug("Endpoint server found in dhclient options")
+                break
+        return _value
+
+    @staticmethod
+    def find_endpoint(fallback_lease_file=None):
+        LOG.debug('Finding Azure endpoint...')
+        value = None
+        # Option-245 stored in /run/cloud-init/dhclient.hooks/<ifc>.json
+        # a dhclient exit hook that calls cloud-init-dhclient-hook
+        dhcp_options = WALinuxAgentShim._load_dhclient_json()
+        value = WALinuxAgentShim._get_value_from_dhcpoptions(dhcp_options)
         if value is None:
-            raise ValueError('No endpoint found in DHCP config.')
+            # Fallback and check the leases file if unsuccessful
+            LOG.debug("Unable to find endpoint in dhclient logs. "
+                      " Falling back to check lease files")
+            if fallback_lease_file is None:
+                LOG.warn("No fallback lease file was specified.")
+                value = None
+            else:
+                LOG.debug("Looking for endpoint in lease file %s",
+                          fallback_lease_file)
+                value = WALinuxAgentShim._get_value_from_leases_file(
+                    fallback_lease_file)
+
+        if value is None:
+            raise ValueError('No endpoint found.')
+
         endpoint_ip_address = WALinuxAgentShim.get_ip_from_lease_value(value)
         LOG.debug('Azure endpoint found at %s', endpoint_ip_address)
         return endpoint_ip_address
@@ -271,8 +346,8 @@ class WALinuxAgentShim(object):
         LOG.info('Reported ready to Azure fabric.')
 
 
-def get_metadata_from_fabric():
-    shim = WALinuxAgentShim()
+def get_metadata_from_fabric(fallback_lease_file=None):
+    shim = WALinuxAgentShim(fallback_lease_file=fallback_lease_file)
     try:
         return shim.register_with_azure_and_fetch_data()
     finally:
