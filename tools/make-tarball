@@ -55,5 +55,9 @@ if [ "$rev" = HEAD ] && ! git diff-index --quiet HEAD --; then
     fi
 fi
 
-git archive --format=tar.gz --prefix="$archive_base/" "$rev" > "$output"
+TEMP_D=$(mktemp -d)
+tar=${output##*/}
+tar="$TEMP_D/${tar%.gz}"
+git archive --format=tar --prefix="$archive_base/" "$rev" > "$tar"
+gzip -9 -c "$tar" > "$output"
 echo "$output"
