@@ -26,6 +26,25 @@ def tiny_p(cmd, capture=True):
     return out
 
 
+def which(program):
+    # Return path of program for execution if found in path
+    def is_exe(fpath):
+        return os.path.isfile(fpath) and os.access(fpath, os.X_OK)
+
+    _fpath, _ = os.path.split(program)
+    if _fpath:
+        if is_exe(program):
+            return program
+    else:
+        for path in os.environ.get("PATH", "").split(os.pathsep):
+            path = path.strip('"')
+            exe_file = os.path.join(path, program)
+            if is_exe(exe_file):
+                return exe_file
+
+    return None
+
+
 use_long = '--long' in sys.argv or os.environ.get('CI_RV_LONG')
 use_tags = '--tags' in sys.argv or os.environ.get('CI_RV_TAGS')
 output_json = '--json' in sys.argv
@@ -33,7 +52,7 @@ output_json = '--json' in sys.argv
 src_version = ci_version.version_string()
 version_long = None
 
-if os.path.isdir(os.path.join(_tdir, ".git")):
+if os.path.isdir(os.path.join(_tdir, ".git")) and which("git"):
     flags = []
     if use_tags:
         flags = ['--tags']
