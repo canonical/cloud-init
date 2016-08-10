@@ -16,7 +16,7 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-__VERSION__ = "0.7.6"
+__VERSION__ = "0.7.7"
 
 
 def version_string():
