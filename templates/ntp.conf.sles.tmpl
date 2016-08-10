@@ -1,0 +1,100 @@
+## template:jinja
+
+################################################################################
+## /etc/ntp.conf
+##
+## Sample NTP configuration file.
+## See package 'ntp-doc' for documentation, Mini-HOWTO and FAQ.
+## Copyright (c) 1998 S.u.S.E. GmbH Fuerth, Germany.
+##
+## Author: Michael Andres,  <ma@suse.de>
+##         Michael Skibbe,  <mskibbe@suse.de>
+##
+################################################################################
+
+##
+## Radio and modem clocks by convention have addresses in the 
+## form 127.127.t.u, where t is the clock type and u is a unit 
+## number in the range 0-3. 
+##
+## Most of these clocks require support in the form of a 
+## serial port or special bus peripheral. The particular  
+## device is normally specified by adding a soft link 
+## /dev/device-u to the particular hardware device involved, 
+## where u correspond to the unit number above. 
+## 
+## Generic DCF77 clock on serial port (Conrad DCF77)
+## Address:     127.127.8.u
+## Serial Port: /dev/refclock-u
+##  
+## (create soft link /dev/refclock-0 to the particular ttyS?)
+##
+# server 127.127.8.0 mode 5 prefer
+
+##
+## Undisciplined Local Clock. This is a fake driver intended for backup
+## and when no outside source of synchronized time is available.
+##
+# server 127.127.1.0		# local clock (LCL)
+# fudge  127.127.1.0 stratum 10	# LCL is unsynchronized
+
+##
+## Add external Servers using
+## # rcntpd addserver <yourserver>
+## The servers will only be added to the currently running instance, not
+## to /etc/ntp.conf.
+##
+{% if pools %}# pools
+{% endif %}
+{% for pool in pools -%}
+pool {{pool}} iburst
+{% endfor %}
+{%- if servers %}# servers
+{% endif %}
+{% for server in servers -%}
+server {{server}} iburst
+{% endfor %}
+
+# Access control configuration; see /usr/share/doc/packages/ntp/html/accopt.html for
+# details.  The web page <http://support.ntp.org/bin/view/Support/AccessRestrictions>
+# might also be helpful.
+#
+# Note that "restrict" applies to both servers and clients, so a configuration
+# that might be intended to block requests from certain clients could also end
+# up blocking replies from your own upstream servers.
+
+# By default, exchange time with everybody, but don't allow configuration.
+restrict -4 default notrap nomodify nopeer noquery
+restrict -6 default notrap nomodify nopeer noquery
+
+# Local users may interrogate the ntp server more closely.
+restrict 127.0.0.1
+restrict ::1
+
+# Clients from this (example!) subnet have unlimited access, but only if
+# cryptographically authenticated.
+#restrict 192.168.123.0 mask 255.255.255.0 notrust
+
+##
+## Miscellaneous stuff
+##
+
+driftfile /var/lib/ntp/drift/ntp.drift # path for drift file
+
+logfile   /var/log/ntp		# alternate log file
+# logconfig =syncstatus + sysevents
+# logconfig =all
+
+# statsdir /tmp/		# directory for statistics files
+# filegen peerstats  file peerstats  type day enable
+# filegen loopstats  file loopstats  type day enable
+# filegen clockstats file clockstats type day enable
+
+#
+# Authentication stuff
+#
+keys /etc/ntp.keys		# path for keys file
+trustedkey 1			# define trusted keys
+requestkey 1			# key (7) for accessing server variables
+controlkey 1			# key (6) for accessing server variables
+
