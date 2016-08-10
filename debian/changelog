@@ -1,8 +1,8 @@
-cloud-init (0.7.7-0ubuntu1) UNRELEASED; urgency=medium
+cloud-init (0.7.7-0ubuntu1) yakkety; urgency=medium
 
   * New Upstream release.
 
- -- Scott Moser <smoser@ubuntu.com>  Wed, 10 Aug 2016 01:42:27 -0400
+ -- Scott Moser <smoser@ubuntu.com>  Wed, 10 Aug 2016 01:48:32 -0400
 
 cloud-init (0.7.7~git1029-gb56d7a1-0ubuntu1) yakkety; urgency=medium
 
