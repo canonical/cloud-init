@@ -52,7 +52,7 @@ class DataSourceNoCloud(sources.DataSource):
 
         found = []
         mydata = {'meta-data': {}, 'user-data': "", 'vendor-data': "",
-                  'network-config': {}}
+                  'network-config': None}
 
         try:
             # Parse the kernel command line, getting data passed in
