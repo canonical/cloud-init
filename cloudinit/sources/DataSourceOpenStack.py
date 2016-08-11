@@ -138,7 +138,7 @@ class DataSourceOpenStack(openstack.SourceMixin, sources.DataSource):
         vd = results.get('vendordata')
         self.vendordata_pure = vd
         try:
-            self.vendordata_raw = openstack.convert_vendordata_json(vd)
+            self.vendordata_raw = sources.convert_vendordata(vd)
         except ValueError as e:
             LOG.warn("Invalid content in vendor-data: %s", e)
             self.vendordata_raw = None
