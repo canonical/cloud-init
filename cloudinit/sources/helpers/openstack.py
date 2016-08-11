@@ -571,7 +571,7 @@ def convert_net_json(network_json=None, known_macs=None):
                 subnet['ipv6'] = True
             subnets.append(subnet)
         cfg.update({'subnets': subnets})
-        if link['type'] in ['ethernet', 'vif', 'ovs', 'phy', 'bridge']:
+        if link['type'] in ['ethernet', 'vif', 'ovs', 'phy', 'bridge', 'tap']:
             cfg.update({
                 'type': 'physical',
                 'mac_address': link['ethernet_mac_address']})
