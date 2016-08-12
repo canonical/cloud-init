@@ -36,6 +36,8 @@ import uuid
 
 from cloudinit import serial
 from cloudinit.sources import DataSourceSmartOS
+from cloudinit.sources.DataSourceSmartOS import (
+    convert_smartos_network_data as convert_net)
 
 import six
 
@@ -85,6 +87,229 @@ SDC_NICS = json.loads("""
     }
 ]
 """)
+
+
+SDC_NICS_ALT = json.loads("""
+[
+    {
+        "interface": "net0",
+        "mac": "90:b8:d0:ae:64:51",
+        "vlan_id": 324,
+        "nic_tag": "external",
+        "gateway": "8.12.42.1",
+        "gateways": [
+          "8.12.42.1"
+        ],
+        "netmask": "255.255.255.0",
+        "ip": "8.12.42.51",
+        "ips": [
+          "8.12.42.51/24"
+        ],
+        "network_uuid": "992fc7ce-6aac-4b74-aed6-7b9d2c6c0bfe",
+        "model": "virtio",
+        "mtu": 1500,
+        "primary": true
+    },
+    {
+        "interface": "net1",
+        "mac": "90:b8:d0:bd:4f:9c",
+        "vlan_id": 600,
+        "nic_tag": "internal",
+        "netmask": "255.255.255.0",
+        "ip": "10.210.1.217",
+        "ips": [
+          "10.210.1.217/24"
+        ],
+        "network_uuid": "98657fdf-11f4-4ee2-88a4-ce7fe73e33a6",
+        "model": "virtio",
+        "mtu": 1500
+    }
+]
+""")
+
+SDC_NICS_DHCP = json.loads("""
+[
+    {
+        "interface": "net0",
+        "mac": "90:b8:d0:ae:64:51",
+        "vlan_id": 324,
+        "nic_tag": "external",
+        "gateway": "8.12.42.1",
+        "gateways": [
+          "8.12.42.1"
+        ],
+        "netmask": "255.255.255.0",
+        "ip": "8.12.42.51",
+        "ips": [
+          "8.12.42.51/24"
+        ],
+        "network_uuid": "992fc7ce-6aac-4b74-aed6-7b9d2c6c0bfe",
+        "model": "virtio",
+        "mtu": 1500,
+        "primary": true
+    },
+    {
+        "interface": "net1",
+        "mac": "90:b8:d0:bd:4f:9c",
+        "vlan_id": 600,
+        "nic_tag": "internal",
+        "netmask": "255.255.255.0",
+        "ip": "10.210.1.217",
+        "ips": [
+          "dhcp"
+        ],
+        "network_uuid": "98657fdf-11f4-4ee2-88a4-ce7fe73e33a6",
+        "model": "virtio",
+        "mtu": 1500
+    }
+]
+""")
+
+SDC_NICS_MIP = json.loads("""
+[
+    {
+        "interface": "net0",
+        "mac": "90:b8:d0:ae:64:51",
+        "vlan_id": 324,
+        "nic_tag": "external",
+        "gateway": "8.12.42.1",
+        "gateways": [
+          "8.12.42.1"
+        ],
+        "netmask": "255.255.255.0",
+        "ip": "8.12.42.51",
+        "ips": [
+          "8.12.42.51/24",
+          "8.12.42.52/24"
+        ],
+        "network_uuid": "992fc7ce-6aac-4b74-aed6-7b9d2c6c0bfe",
+        "model": "virtio",
+        "mtu": 1500,
+        "primary": true
+    },
+    {
+        "interface": "net1",
+        "mac": "90:b8:d0:bd:4f:9c",
+        "vlan_id": 600,
+        "nic_tag": "internal",
+        "netmask": "255.255.255.0",
+        "ip": "10.210.1.217",
+        "ips": [
+          "10.210.1.217/24",
+          "10.210.1.151/24"
+        ],
+        "network_uuid": "98657fdf-11f4-4ee2-88a4-ce7fe73e33a6",
+        "model": "virtio",
+        "mtu": 1500
+    }
+]
+""")
+
+SDC_NICS_MIP_IPV6 = json.loads("""
+[
+    {
+        "interface": "net0",
+        "mac": "90:b8:d0:ae:64:51",
+        "vlan_id": 324,
+        "nic_tag": "external",
+        "gateway": "8.12.42.1",
+        "gateways": [
+          "8.12.42.1"
+        ],
+        "netmask": "255.255.255.0",
+        "ip": "8.12.42.51",
+        "ips": [
+          "2001:4800:78ff:1b:be76:4eff:fe06:96b3/64",
+          "8.12.42.51/24"
+        ],
+        "network_uuid": "992fc7ce-6aac-4b74-aed6-7b9d2c6c0bfe",
+        "model": "virtio",
+        "mtu": 1500,
+        "primary": true
+    },
+    {
+        "interface": "net1",
+        "mac": "90:b8:d0:bd:4f:9c",
+        "vlan_id": 600,
+        "nic_tag": "internal",
+        "netmask": "255.255.255.0",
+        "ip": "10.210.1.217",
+        "ips": [
+          "10.210.1.217/24"
+        ],
+        "network_uuid": "98657fdf-11f4-4ee2-88a4-ce7fe73e33a6",
+        "model": "virtio",
+        "mtu": 1500
+    }
+]
+""")
+
+SDC_NICS_IPV4_IPV6 = json.loads("""
+[
+    {
+        "interface": "net0",
+        "mac": "90:b8:d0:ae:64:51",
+        "vlan_id": 324,
+        "nic_tag": "external",
+        "gateway": "8.12.42.1",
+        "gateways": ["8.12.42.1", "2001::1", "2001::2"],
+        "netmask": "255.255.255.0",
+        "ip": "8.12.42.51",
+        "ips": ["2001::10/64", "8.12.42.51/24", "2001::11/64",
+                "8.12.42.52/32"],
+        "network_uuid": "992fc7ce-6aac-4b74-aed6-7b9d2c6c0bfe",
+        "model": "virtio",
+        "mtu": 1500,
+        "primary": true
+    },
+    {
+        "interface": "net1",
+        "mac": "90:b8:d0:bd:4f:9c",
+        "vlan_id": 600,
+        "nic_tag": "internal",
+        "netmask": "255.255.255.0",
+        "ip": "10.210.1.217",
+        "ips": ["10.210.1.217/24"],
+        "gateways": ["10.210.1.210"],
+        "network_uuid": "98657fdf-11f4-4ee2-88a4-ce7fe73e33a6",
+        "model": "virtio",
+        "mtu": 1500
+    }
+]
+""")
+
+SDC_NICS_SINGLE_GATEWAY = json.loads("""
+[
+  {
+    "interface":"net0",
+    "mac":"90:b8:d0:d8:82:b4",
+    "vlan_id":324,
+    "nic_tag":"external",
+    "gateway":"8.12.42.1",
+    "gateways":["8.12.42.1"],
+    "netmask":"255.255.255.0",
+    "ip":"8.12.42.26",
+    "ips":["8.12.42.26/24"],
+    "network_uuid":"992fc7ce-6aac-4b74-aed6-7b9d2c6c0bfe",
+    "model":"virtio",
+    "mtu":1500,
+    "primary":true
+  },
+  {
+    "interface":"net1",
+    "mac":"90:b8:d0:0a:51:31",
+    "vlan_id":600,
+    "nic_tag":"internal",
+    "netmask":"255.255.255.0",
+    "ip":"10.210.1.27",
+    "ips":["10.210.1.27/24"],
+    "network_uuid":"98657fdf-11f4-4ee2-88a4-ce7fe73e33a6",
+    "model":"virtio",
+    "mtu":1500
+  }
+]
+""")
+
 
 MOCK_RETURNS = {
     'hostname': 'test-host',
@@ -524,20 +749,135 @@ class TestJoyentMetadataClient(FilesystemMockingTestCase):
 
 
 class TestNetworkConversion(TestCase):
-
     def test_convert_simple(self):
         expected = {
             'version': 1,
             'config': [
                 {'name': 'net0', 'type': 'physical',
                  'subnets': [{'type': 'static', 'gateway': '8.12.42.1',
-                              'netmask': '255.255.255.0',
                               'address': '8.12.42.102/24'}],
                  'mtu': 1500, 'mac_address': '90:b8:d0:f5:e4:f5'},
                 {'name': 'net1', 'type': 'physical',
-                 'subnets': [{'type': 'static', 'gateway': '192.168.128.1',
-                              'netmask': '255.255.252.0',
+                 'subnets': [{'type': 'static',
                               'address': '192.168.128.93/22'}],
                  'mtu': 8500, 'mac_address': '90:b8:d0:a5:ff:cd'}]}
-        found = DataSourceSmartOS.convert_smartos_network_data(SDC_NICS)
+        found = convert_net(SDC_NICS)
+        self.assertEqual(expected, found)
+
+    def test_convert_simple_alt(self):
+        expected = {
+            'version': 1,
+            'config': [
+                {'name': 'net0', 'type': 'physical',
+                 'subnets': [{'type': 'static', 'gateway': '8.12.42.1',
+                              'address': '8.12.42.51/24'}],
+                 'mtu': 1500, 'mac_address': '90:b8:d0:ae:64:51'},
+                {'name': 'net1', 'type': 'physical',
+                 'subnets': [{'type': 'static',
+                              'address': '10.210.1.217/24'}],
+                 'mtu': 1500, 'mac_address': '90:b8:d0:bd:4f:9c'}]}
+        found = convert_net(SDC_NICS_ALT)
+        self.assertEqual(expected, found)
+
+    def test_convert_simple_dhcp(self):
+        expected = {
+            'version': 1,
+            'config': [
+                {'name': 'net0', 'type': 'physical',
+                 'subnets': [{'type': 'static', 'gateway': '8.12.42.1',
+                              'address': '8.12.42.51/24'}],
+                 'mtu': 1500, 'mac_address': '90:b8:d0:ae:64:51'},
+                {'name': 'net1', 'type': 'physical',
+                 'subnets': [{'type': 'dhcp4'}],
+                 'mtu': 1500, 'mac_address': '90:b8:d0:bd:4f:9c'}]}
+        found = convert_net(SDC_NICS_DHCP)
+        self.assertEqual(expected, found)
+
+    def test_convert_simple_multi_ip(self):
+        expected = {
+            'version': 1,
+            'config': [
+                {'name': 'net0', 'type': 'physical',
+                 'subnets': [{'type': 'static', 'gateway': '8.12.42.1',
+                              'address': '8.12.42.51/24'},
+                             {'type': 'static',
+                              'address': '8.12.42.52/24'}],
+                 'mtu': 1500, 'mac_address': '90:b8:d0:ae:64:51'},
+                {'name': 'net1', 'type': 'physical',
+                 'subnets': [{'type': 'static',
+                              'address': '10.210.1.217/24'},
+                             {'type': 'static',
+                              'address': '10.210.1.151/24'}],
+                 'mtu': 1500, 'mac_address': '90:b8:d0:bd:4f:9c'}]}
+        found = convert_net(SDC_NICS_MIP)
+        self.assertEqual(expected, found)
+
+    def test_convert_with_dns(self):
+        expected = {
+            'version': 1,
+            'config': [
+                {'name': 'net0', 'type': 'physical',
+                 'subnets': [{'type': 'static', 'gateway': '8.12.42.1',
+                              'address': '8.12.42.51/24'}],
+                 'mtu': 1500, 'mac_address': '90:b8:d0:ae:64:51'},
+                {'name': 'net1', 'type': 'physical',
+                 'subnets': [{'type': 'dhcp4'}],
+                 'mtu': 1500, 'mac_address': '90:b8:d0:bd:4f:9c'},
+                {'type': 'nameserver',
+                 'address': ['8.8.8.8', '8.8.8.1'], 'search': ["local"]}]}
+        found = convert_net(
+            network_data=SDC_NICS_DHCP, dns_servers=['8.8.8.8', '8.8.8.1'],
+            dns_domain="local")
+        self.assertEqual(expected, found)
+
+    def test_convert_simple_multi_ipv6(self):
+        expected = {
+            'version': 1,
+            'config': [
+                {'name': 'net0', 'type': 'physical',
+                 'subnets': [{'type': 'static', 'address':
+                              '2001:4800:78ff:1b:be76:4eff:fe06:96b3/64'},
+                             {'type': 'static', 'gateway': '8.12.42.1',
+                              'address': '8.12.42.51/24'}],
+                 'mtu': 1500, 'mac_address': '90:b8:d0:ae:64:51'},
+                {'name': 'net1', 'type': 'physical',
+                 'subnets': [{'type': 'static',
+                              'address': '10.210.1.217/24'}],
+                 'mtu': 1500, 'mac_address': '90:b8:d0:bd:4f:9c'}]}
+        found = convert_net(SDC_NICS_MIP_IPV6)
+        self.assertEqual(expected, found)
+
+    def test_convert_simple_both_ipv4_ipv6(self):
+        expected = {
+            'version': 1,
+            'config': [
+                {'mac_address': '90:b8:d0:ae:64:51', 'mtu': 1500,
+                 'name': 'net0', 'type': 'physical',
+                 'subnets': [{'address': '2001::10/64', 'gateway': '2001::1',
+                              'type': 'static'},
+                             {'address': '8.12.42.51/24',
+                              'gateway': '8.12.42.1',
+                              'type': 'static'},
+                             {'address': '2001::11/64', 'type': 'static'},
+                             {'address': '8.12.42.52/32', 'type': 'static'}]},
+                {'mac_address': '90:b8:d0:bd:4f:9c', 'mtu': 1500,
+                 'name': 'net1', 'type': 'physical',
+                 'subnets': [{'address': '10.210.1.217/24',
+                              'type': 'static'}]}]}
+        found = convert_net(SDC_NICS_IPV4_IPV6)
+        self.assertEqual(expected, found)
+
+    def test_gateways_not_on_all_nics(self):
+        expected = {
+            'version': 1,
+            'config': [
+                {'mac_address': '90:b8:d0:d8:82:b4', 'mtu': 1500,
+                 'name': 'net0', 'type': 'physical',
+                 'subnets': [{'address': '8.12.42.26/24',
+                              'gateway': '8.12.42.1', 'type': 'static'}]},
+                {'mac_address': '90:b8:d0:0a:51:31', 'mtu': 1500,
+                 'name': 'net1', 'type': 'physical',
+                 'subnets': [{'address': '10.210.1.27/24',
+                              'type': 'static'}]}]}
+        found = convert_net(SDC_NICS_SINGLE_GATEWAY)
         self.assertEqual(expected, found)

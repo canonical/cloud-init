@@ -138,6 +138,7 @@ class TestHandler(t_help.TestCase):
     def test_mcollective_install(self, mock_util):
         cc = self._get_cloud('ubuntu')
         cc.distro = t_help.mock.MagicMock()
+        mock_util.load_file.return_value = b""
         mycfg = {'mcollective': {'conf': {'loglevel': 'debug'}}}
         cc_mcollective.handle('cc_mcollective', mycfg, cc, LOG, [])
         self.assertTrue(cc.distro.install_packages.called)

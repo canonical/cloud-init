@@ -1,3 +1,18 @@
+cloud-init (0.7.7-10-gbc2c326-0ubuntu1) yakkety; urgency=medium
+
+  * New upstream snapshot:
+    - DigitalOcean: use the v1.json endpoint
+    - MAAS: add vendor-data support (LP: #1612313)
+    - Upgrade the minimum configobj package to one new enough to work
+    - ConfigDrive: recognize 'tap' as a link type.  (LP: #1610784)
+    - NoCloud: fix bug providing network-interfaces via meta-data.
+      (LP: #1577982)
+    - Add distro tags on config modules that should have it
+    - add ntp config module
+    - SmartOS: more improvements for network configuration
+
+ -- Scott Moser <smoser@ubuntu.com>  Fri, 12 Aug 2016 17:18:01 -0400
+
 cloud-init (0.7.7-0ubuntu1) yakkety; urgency=medium
 
   * New Upstream release.

@@ -2227,9 +2227,16 @@ def read_dmi_data(key):
 
     If all of the above fail to find a value, None will be returned.
     """
+
     syspath_value = _read_dmi_syspath(key)
     if syspath_value is not None:
         return syspath_value
+
+    # running dmidecode can be problematic on some arches (LP: #1243287)
+    uname_arch = os.uname()[4]
+    if uname_arch.startswith("arm") or uname_arch == "aarch64":
+        LOG.debug("dmidata is not supported on %s", uname_arch)
+        return None
 
     dmidecode_path = which('dmidecode')
     if dmidecode_path:

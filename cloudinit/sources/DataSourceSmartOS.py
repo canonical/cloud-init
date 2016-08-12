@@ -60,11 +60,15 @@ SMARTOS_ATTRIB_MAP = {
     'availability_zone': ('sdc:datacenter_name', True),
     'vendor-data': ('sdc:vendor-data', False),
     'operator-script': ('sdc:operator-script', False),
+    'hostname': ('sdc:hostname', True),
+    'dns_domain': ('sdc:dns_domain', True),
 }
 
 SMARTOS_ATTRIB_JSON = {
     # Cloud-init Key : (SmartOS Key known JSON)
     'network-data': 'sdc:nics',
+    'dns_servers': 'sdc:resolvers',
+    'routes': 'sdc:routes',
 }
 
 SMARTOS_ENV_LX_BRAND = "lx-brand"
@@ -311,7 +315,10 @@ class DataSourceSmartOS(sources.DataSource):
         if self._network_config is None:
             if self.network_data is not None:
                 self._network_config = (
-                    convert_smartos_network_data(self.network_data))
+                    convert_smartos_network_data(
+                        network_data=self.network_data,
+                        dns_servers=self.metadata['dns_servers'],
+                        dns_domain=self.metadata['dns_domain']))
         return self._network_config
 
 
@@ -445,7 +452,8 @@ class JoyentMetadataClient(object):
 
 
 class JoyentMetadataSocketClient(JoyentMetadataClient):
-    def __init__(self, socketpath):
+    def __init__(self, socketpath, smartos_type=SMARTOS_ENV_LX_BRAND):
+        super(JoyentMetadataSocketClient, self).__init__(smartos_type)
         self.socketpath = socketpath
 
     def open_transport(self):
@@ -461,7 +469,7 @@ class JoyentMetadataSocketClient(JoyentMetadataClient):
 
 
 class JoyentMetadataSerialClient(JoyentMetadataClient):
-    def __init__(self, device, timeout=10, smartos_type=None):
+    def __init__(self, device, timeout=10, smartos_type=SMARTOS_ENV_KVM):
         super(JoyentMetadataSerialClient, self).__init__(smartos_type)
         self.device = device
         self.timeout = timeout
@@ -583,7 +591,8 @@ def jmc_client_factory(
             device=serial_device, timeout=serial_timeout,
             smartos_type=smartos_type)
     elif smartos_type == SMARTOS_ENV_LX_BRAND:
-        return JoyentMetadataSocketClient(socketpath=metadata_sockfile)
+        return JoyentMetadataSocketClient(socketpath=metadata_sockfile,
+                                          smartos_type=smartos_type)
 
     raise ValueError("Unknown value for smartos_type: %s" % smartos_type)
 
@@ -644,14 +653,8 @@ def write_boot_content(content, content_f, link=None, shebang=False,
             util.logexc(LOG, "failed establishing content link: %s", e)
 
 
-def get_smartos_environ(uname_version=None, product_name=None,
-                        uname_arch=None):
+def get_smartos_environ(uname_version=None, product_name=None):
     uname = os.uname()
-    if uname_arch is None:
-        uname_arch = uname[4]
-
-    if uname_arch.startswith("arm") or uname_arch == "aarch64":
-        return None
 
     # SDC LX-Brand Zones lack dmidecode (no /dev/mem) but
     # report 'BrandZ virtual linux' as the kernel version
@@ -671,8 +674,9 @@ def get_smartos_environ(uname_version=None, product_name=None,
     return None
 
 
-# Covert SMARTOS 'sdc:nics' data to network_config yaml
-def convert_smartos_network_data(network_data=None):
+# Convert SMARTOS 'sdc:nics' data to network_config yaml
+def convert_smartos_network_data(network_data=None,
+                                 dns_servers=None, dns_domain=None):
     """Return a dictionary of network_config by parsing provided
        SMARTOS sdc:nics configuration data
 
@@ -706,14 +710,35 @@ def convert_smartos_network_data(network_data=None):
             'broadcast',
             'dns_nameservers',
             'dns_search',
-            'gateway',
             'metric',
-            'netmask',
             'pointopoint',
             'routes',
             'scope',
             'type',
         ],
+    }
+
+    if dns_servers:
+        if not isinstance(dns_servers, (list, tuple)):
+            dns_servers = [dns_servers]
+    else:
+        dns_servers = []
+
+    if dns_domain:
+        if not isinstance(dns_domain, (list, tuple)):
+            dns_domain = [dns_domain]
+    else:
+        dns_domain = []
+
+    def is_valid_ipv4(addr):
+        return '.' in addr
+
+    def is_valid_ipv6(addr):
+        return ':' in addr
+
+    pgws = {
+        'ipv4': {'match': is_valid_ipv4, 'gw': None},
+        'ipv6': {'match': is_valid_ipv6, 'gw': None},
     }
 
     config = []
@@ -727,17 +752,39 @@ def convert_smartos_network_data(network_data=None):
             cfg.update({'mac_address': nic['mac']})
 
         subnets = []
-        for ip, gw in zip(nic['ips'], nic['gateways']):
-            subnet = dict((k, v) for k, v in nic.items()
-                          if k in valid_keys['subnet'])
-            subnet.update({
-                'type': 'static',
-                'address': ip,
-                'gateway': gw,
-            })
+        for ip in nic.get('ips', []):
+            if ip == "dhcp":
+                subnet = {'type': 'dhcp4'}
+            else:
+                subnet = dict((k, v) for k, v in nic.items()
+                              if k in valid_keys['subnet'])
+                subnet.update({
+                    'type': 'static',
+                    'address': ip,
+                })
+
+                proto = 'ipv4' if is_valid_ipv4(ip) else 'ipv6'
+                # Only use gateways for 'primary' nics
+                if 'primary' in nic and nic.get('primary', False):
+                    # the ips and gateways list may be N to M, here
+                    # we map the ip index into the gateways list,
+                    # and handle the case that we could have more ips
+                    # than gateways.  we only consume the first gateway
+                    if not pgws[proto]['gw']:
+                        gateways = [gw for gw in nic.get('gateways', [])
+                                    if pgws[proto]['match'](gw)]
+                        if len(gateways):
+                            pgws[proto]['gw'] = gateways[0]
+                            subnet.update({'gateway': pgws[proto]['gw']})
+
             subnets.append(subnet)
         cfg.update({'subnets': subnets})
         config.append(cfg)
+
+    if dns_servers:
+        config.append(
+            {'type': 'nameserver', 'address': dns_servers,
+             'search': dns_domain})
 
     return {'version': 1, 'config': config}
 
@@ -761,21 +808,36 @@ if __name__ == "__main__":
         sys.exit(1)
     if len(sys.argv) == 1:
         keys = (list(SMARTOS_ATTRIB_JSON.keys()) +
-                list(SMARTOS_ATTRIB_MAP.keys()))
+                list(SMARTOS_ATTRIB_MAP.keys()) + ['network_config'])
     else:
         keys = sys.argv[1:]
 
-    data = {}
-    for key in keys:
+    def load_key(client, key, data):
+        if key in data:
+            return data[key]
+
         if key in SMARTOS_ATTRIB_JSON:
             keyname = SMARTOS_ATTRIB_JSON[key]
-            data[key] = jmc.get_json(keyname)
+            data[key] = client.get_json(keyname)
+        elif key == "network_config":
+            for depkey in ('network-data', 'dns_servers', 'dns_domain'):
+                load_key(client, depkey, data)
+            data[key] = convert_smartos_network_data(
+                network_data=data['network-data'],
+                dns_servers=data['dns_servers'],
+                dns_domain=data['dns_domain'])
         else:
             if key in SMARTOS_ATTRIB_MAP:
                 keyname, strip = SMARTOS_ATTRIB_MAP[key]
             else:
                 keyname, strip = (key, False)
-            val = jmc.get(keyname, strip=strip)
-            data[key] = jmc.get(keyname, strip=strip)
+            data[key] = client.get(keyname, strip=strip)
 
-    print(json.dumps(data, indent=1))
+        return data[key]
+
+    data = {}
+    for key in keys:
+        load_key(client=jmc, key=key, data=data)
+
+    print(json.dumps(data, indent=1, sort_keys=True,
+                     separators=(',', ': ')))

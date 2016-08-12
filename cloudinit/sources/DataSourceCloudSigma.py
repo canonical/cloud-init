@@ -16,7 +16,6 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 from base64 import b64decode
-import os
 import re
 
 from cloudinit.cs_utils import Cepko
@@ -45,11 +44,6 @@ class DataSourceCloudSigma(sources.DataSource):
         Uses dmi data to detect if this instance of cloud-init is running
         in the CloudSigma's infrastructure.
         """
-        uname_arch = os.uname()[4]
-        if uname_arch.startswith("arm") or uname_arch == "aarch64":
-            # Disabling because dmi data on ARM processors
-            LOG.debug("Disabling CloudSigma datasource on arm (LP: #1243287)")
-            return False
 
         LOG.debug("determining hypervisor product name via dmi data")
         sys_product_name = util.read_dmi_data("system-product-name")

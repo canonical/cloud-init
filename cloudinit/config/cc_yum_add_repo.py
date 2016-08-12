@@ -23,6 +23,8 @@ import six
 
 from cloudinit import util
 
+distros = ['fedora', 'rhel']
+
 
 def _canonicalize_id(repo_id):
     repo_id = repo_id.lower().replace("-", "_")

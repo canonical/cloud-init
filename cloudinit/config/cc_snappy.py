@@ -68,6 +68,8 @@ BUILTIN_CFG = {
     'config': {},
 }
 
+distros = ['ubuntu']
+
 
 def parse_filename(fname):
     fname = os.path.basename(fname)

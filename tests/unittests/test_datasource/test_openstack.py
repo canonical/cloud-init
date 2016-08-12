@@ -27,6 +27,7 @@ from six import StringIO
 
 from cloudinit import helpers
 from cloudinit import settings
+from cloudinit.sources import convert_vendordata
 from cloudinit.sources import DataSourceOpenStack as ds
 from cloudinit.sources.helpers import openstack
 from cloudinit import util
@@ -318,7 +319,7 @@ class TestOpenStackDataSource(test_helpers.HttprettyTestCase):
 
 class TestVendorDataLoading(test_helpers.TestCase):
     def cvj(self, data):
-        return openstack.convert_vendordata_json(data)
+        return convert_vendordata(data)
 
     def test_vd_load_none(self):
         # non-existant vendor-data should return none
