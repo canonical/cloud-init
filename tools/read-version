@@ -71,8 +71,8 @@ else:
     version_long = None
 
 # version is X.Y.Z[+xxx.gHASH]
-# version_long is None or X.Y.Z+xxx.gHASH
-release = version.partition("+")[0]
+# version_long is None or X.Y.Z-xxx-gHASH
+release = version.partition("-")[0]
 extra = None
 commit = None
 distance = None

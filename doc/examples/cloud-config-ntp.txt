@@ -1,0 +1,27 @@
+#cloud-config
+
+# ntp: configure ntp services
+#   servers: List of NTP servers with which to sync
+#   pools: List of NTP pool servers with which to sync (pools are typically
+#          DNS hostnames which resolve to different specific servers to load
+#          balance a set of services)
+#
+# Each server in the list will be added in list-order in the following format:
+#
+# [pool|server] <server entry> iburst
+#
+#
+# If no servers or pools are defined but ntp is enabled, then cloud-init will
+# render the distro default list of pools
+#
+# pools = [
+#    '0.{distro}.pool.ntp.org',
+#    '1.{distro}.pool.ntp.org',
+#    '2.{distro}.pool.ntp.org',
+#    '3.{distro}.pool.ntp.org',
+# ]
+#
+
+ntp:
+  pools: ['0.company.pool.ntp.org', '1.company.pool.ntp.org', 'ntp.myorg.org']
+  servers: ['my.ntp.server.local', 'ntp.ubuntu.com', '192.168.23.2']

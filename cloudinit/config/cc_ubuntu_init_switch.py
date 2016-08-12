@@ -86,6 +86,8 @@ else
 fi
 """
 
+distros = ['ubuntu']
+
 
 def handle(name, cfg, cloud, log, args):
     """Handler method activated by cloud-init."""

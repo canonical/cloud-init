@@ -101,6 +101,41 @@ NETWORK_DATA_2 = {
          "type": "vif", "id": "eth1", "vif_id": "vif-foo2"}]
 }
 
+# This network data ha 'tap' type for a link.
+NETWORK_DATA_3 = {
+    "services": [{"type": "dns", "address": "172.16.36.11"},
+                 {"type": "dns", "address": "172.16.36.12"}],
+    "networks": [
+        {"network_id": "7c41450c-ba44-401a-9ab1-1604bb2da51e",
+         "type": "ipv4", "netmask": "255.255.255.128",
+         "link": "tap77a0dc5b-72", "ip_address": "172.17.48.18",
+         "id": "network0",
+         "routes": [{"netmask": "0.0.0.0", "network": "0.0.0.0",
+                     "gateway": "172.17.48.1"}]},
+        {"network_id": "7c41450c-ba44-401a-9ab1-1604bb2da51e",
+         "type": "ipv6", "netmask": "ffff:ffff:ffff:ffff::",
+         "link": "tap77a0dc5b-72",
+         "ip_address": "fdb8:52d0:9d14:0:f816:3eff:fe9f:70d",
+         "id": "network1",
+         "routes": [{"netmask": "::", "network": "::",
+                     "gateway": "fdb8:52d0:9d14::1"}]},
+        {"network_id": "1f53cb0e-72d3-47c7-94b9-ff4397c5fe54",
+         "type": "ipv4", "netmask": "255.255.255.128",
+         "link": "tap7d6b7bec-93", "ip_address": "172.16.48.13",
+         "id": "network2",
+         "routes": [{"netmask": "0.0.0.0", "network": "0.0.0.0",
+                    "gateway": "172.16.48.1"},
+                    {"netmask": "255.255.0.0", "network": "172.16.0.0",
+                     "gateway": "172.16.48.1"}]}],
+    "links": [
+        {"ethernet_mac_address": "fa:16:3e:dd:50:9a", "mtu": None,
+         "type": "tap", "id": "tap77a0dc5b-72",
+         "vif_id": "77a0dc5b-720e-41b7-bfa7-1b2ff62e0d48"},
+        {"ethernet_mac_address": "fa:16:3e:a8:14:69", "mtu": None,
+         "type": "tap", "id": "tap7d6b7bec-93",
+         "vif_id": "7d6b7bec-93e6-4c03-869a-ddc5014892d5"}
+    ]
+}
 
 KNOWN_MACS = {
     'fa:16:3e:69:b0:58': 'enp0s1',
@@ -554,6 +589,15 @@ class TestConvertNetworkData(TestCase):
                                "network", "interfaces"), 'r') as f:
             eni_rendering = f.read()
             self.assertIn("route add default gw 2.2.2.9", eni_rendering)
+
+    def test_conversion_with_tap(self):
+        ncfg = openstack.convert_net_json(NETWORK_DATA_3,
+                                          known_macs=KNOWN_MACS)
+        physicals = set()
+        for i in ncfg['config']:
+            if i.get('type') == "physical":
+                physicals.add(i['name'])
+        self.assertEqual(physicals, set(('foo1', 'foo2')))
 
 
 def cfg_ds_from_dir(seed_d):

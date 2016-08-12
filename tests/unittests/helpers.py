@@ -256,7 +256,9 @@ def populate_dir(path, files):
     if not os.path.exists(path):
         os.makedirs(path)
     for (name, content) in files.items():
-        with open(os.path.join(path, name), "wb") as fp:
+        p = os.path.join(path, name)
+        util.ensure_dir(os.path.dirname(p))
+        with open(p, "wb") as fp:
             if isinstance(content, six.binary_type):
                 fp.write(content)
             else:

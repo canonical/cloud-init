@@ -15,68 +15,58 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import re
-
-from six.moves.urllib_parse import urlparse
+import json
 
 from cloudinit import helpers
 from cloudinit import settings
 from cloudinit.sources import DataSourceDigitalOcean
 
 from .. import helpers as test_helpers
+from ..helpers import HttprettyTestCase
 
 httpretty = test_helpers.import_httpretty()
 
-# Abbreviated for the test
-DO_INDEX = """id
-           hostname
-           user-data
-           vendor-data
-           public-keys
-           region"""
-
-DO_MULTIPLE_KEYS = """ssh-rsa AAAAB3NzaC1yc2EAAAA... neal@digitalocean.com
-                   ssh-rsa AAAAB3NzaC1yc2EAAAA... neal2@digitalocean.com"""
-DO_SINGLE_KEY = "ssh-rsa AAAAB3NzaC1yc2EAAAA... neal@digitalocean.com"
+DO_MULTIPLE_KEYS = ["ssh-rsa AAAAB3NzaC1yc2EAAAA... test1@do.co",
+                    "ssh-rsa AAAAB3NzaC1yc2EAAAA... test2@do.co"]
+DO_SINGLE_KEY = "ssh-rsa AAAAB3NzaC1yc2EAAAA... test@do.co"
 
 DO_META = {
-    '': DO_INDEX,
-    'user-data': '#!/bin/bash\necho "user-data"',
-    'vendor-data': '#!/bin/bash\necho "vendor-data"',
-    'public-keys': DO_SINGLE_KEY,
+    'user_data': 'user_data_here',
+    'vendor_data': 'vendor_data_here',
+    'public_keys': DO_SINGLE_KEY,
     'region': 'nyc3',
     'id': '2000000',
     'hostname': 'cloudinit-test',
 }
 
-MD_URL_RE = re.compile(r'http://169.254.169.254/metadata/v1/.*')
+MD_URL = 'http://169.254.169.254/metadata/v1.json'
+
+
+def _mock_dmi():
+    return (True, DO_META.get('id'))
 
 
 def _request_callback(method, uri, headers):
-    url_path = urlparse(uri).path
-    if url_path.startswith('/metadata/v1/'):
-        path = url_path.split('/metadata/v1/')[1:][0]
-    else:
-        path = None
-    if path in DO_META:
-        return (200, headers, DO_META.get(path))
-    else:
-        return (404, headers, '')
+    return (200, headers, json.dumps(DO_META))
 
 
-class TestDataSourceDigitalOcean(test_helpers.HttprettyTestCase):
+class TestDataSourceDigitalOcean(HttprettyTestCase):
+    """
+    Test reading the meta-data
+    """
 
     def setUp(self):
         self.ds = DataSourceDigitalOcean.DataSourceDigitalOcean(
             settings.CFG_BUILTIN, None,
             helpers.Paths({}))
+        self.ds._get_sysinfo = _mock_dmi
         super(TestDataSourceDigitalOcean, self).setUp()
 
     @httpretty.activate
     def test_connection(self):
         httpretty.register_uri(
-            httpretty.GET, MD_URL_RE,
-            body=_request_callback)
+            httpretty.GET, MD_URL,
+            body=json.dumps(DO_META))
 
         success = self.ds.get_data()
         self.assertTrue(success)
@@ -84,14 +74,14 @@ class TestDataSourceDigitalOcean(test_helpers.HttprettyTestCase):
     @httpretty.activate
     def test_metadata(self):
         httpretty.register_uri(
-            httpretty.GET, MD_URL_RE,
+            httpretty.GET, MD_URL,
             body=_request_callback)
         self.ds.get_data()
 
-        self.assertEqual(DO_META.get('user-data'),
+        self.assertEqual(DO_META.get('user_data'),
                          self.ds.get_userdata_raw())
 
-        self.assertEqual(DO_META.get('vendor-data'),
+        self.assertEqual(DO_META.get('vendor_data'),
                          self.ds.get_vendordata_raw())
 
         self.assertEqual(DO_META.get('region'),
@@ -103,11 +93,8 @@ class TestDataSourceDigitalOcean(test_helpers.HttprettyTestCase):
         self.assertEqual(DO_META.get('hostname'),
                          self.ds.get_hostname())
 
-        self.assertEqual('http://mirrors.digitalocean.com/',
-                         self.ds.get_package_mirror_info())
-
         # Single key
-        self.assertEqual([DO_META.get('public-keys')],
+        self.assertEqual([DO_META.get('public_keys')],
                          self.ds.get_public_ssh_keys())
 
         self.assertIsInstance(self.ds.get_public_ssh_keys(), list)
@@ -116,12 +103,12 @@ class TestDataSourceDigitalOcean(test_helpers.HttprettyTestCase):
     def test_multiple_ssh_keys(self):
         DO_META['public_keys'] = DO_MULTIPLE_KEYS
         httpretty.register_uri(
-            httpretty.GET, MD_URL_RE,
+            httpretty.GET, MD_URL,
             body=_request_callback)
         self.ds.get_data()
 
         # Multiple keys
-        self.assertEqual(DO_META.get('public-keys').splitlines(),
+        self.assertEqual(DO_META.get('public_keys'),
                          self.ds.get_public_ssh_keys())
 
         self.assertIsInstance(self.ds.get_public_ssh_keys(), list)

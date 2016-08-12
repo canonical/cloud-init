@@ -19,6 +19,8 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+import errno
+
 import six
 from six import BytesIO
 
@@ -38,16 +40,18 @@ LOG = logging.getLogger(__name__)
 
 def configure(config, server_cfg=SERVER_CFG,
               pubcert_file=PUBCERT_FILE, pricert_file=PRICERT_FILE):
-    # Read server.cfg values from the
-    # original file in order to be able to mix the rest up
+    # Read server.cfg (if it exists) values from the
+    # original file in order to be able to mix the rest up.
     try:
-        mcollective_config = ConfigObj(server_cfg, file_error=True)
-        existed = True
-    except IOError:
-        LOG.debug("Did not find file %s", server_cfg)
-        mcollective_config = ConfigObj()
-        existed = False
-
+        old_contents = util.load_file(server_cfg, quiet=False, decode=False)
+        mcollective_config = ConfigObj(BytesIO(old_contents))
+    except IOError as e:
+        if e.errno != errno.ENOENT:
+            raise
+        else:
+            LOG.debug("Did not find file %s (starting with an empty"
+                      " config)", server_cfg)
+            mcollective_config = ConfigObj()
     for (cfg_name, cfg) in config.items():
         if cfg_name == 'public-cert':
             util.write_file(pubcert_file, cfg, mode=0o644)
@@ -74,12 +78,18 @@ def configure(config, server_cfg=SERVER_CFG,
                 # Otherwise just try to convert it to a string
                 mcollective_config[cfg_name] = str(cfg)
 
-    if existed:
-        # We got all our config as wanted we'll rename
-        # the previous server.cfg and create our new one
-        util.rename(server_cfg, "%s.old" % (server_cfg))
+    try:
+        # We got all our config as wanted we'll copy
+        # the previous server.cfg and overwrite the old with our new one
+        util.copy(server_cfg, "%s.old" % (server_cfg))
+    except IOError as e:
+        if e.errno == errno.ENOENT:
+            # Doesn't exist to copy...
+            pass
+        else:
+            raise
 
-    # Now we got the whole file, write to disk...
+    # Now we got the whole (new) file, write to disk...
     contents = BytesIO()
     mcollective_config.write(contents)
     util.write_file(server_cfg, contents.getvalue(), mode=0o644)
