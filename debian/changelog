@@ -1,4 +1,4 @@
-cloud-init (0.7.7-10-gbc2c326-0ubuntu1) UNRELEASED; urgency=medium
+cloud-init (0.7.7-10-gbc2c326-0ubuntu1) yakkety; urgency=medium
 
   * New upstream snapshot:
     - DigitalOcean: use the v1.json endpoint
@@ -11,7 +11,7 @@ cloud-init (0.7.7-10-gbc2c326-0ubuntu1) UNRELEASED; urgency=medium
     - add ntp config module
     - SmartOS: more improvements for network configuration
 
- -- Scott Moser <smoser@ubuntu.com>  Fri, 12 Aug 2016 17:07:26 -0400
+ -- Scott Moser <smoser@ubuntu.com>  Fri, 12 Aug 2016 17:18:01 -0400
 
 cloud-init (0.7.7-0ubuntu1) yakkety; urgency=medium
 
