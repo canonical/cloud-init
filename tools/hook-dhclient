@@ -1,0 +1,9 @@
+#!/bin/sh
+# This script writes DHCP lease information into the cloud-init run directory
+# It is sourced, not executed.  For more information see dhclient-script(8).
+
+case "$reason" in
+   BOUND) cloud-init dhclient-hook up "$interface";;
+   DOWN|RELEASE|REBOOT|STOP|EXPIRE)
+      cloud-init dhclient-hook down "$interface";;
+esac

@@ -23,80 +23,182 @@ import os
 import re
 
 from cloudinit import gpg
+from cloudinit import log as logging
 from cloudinit import templater
 from cloudinit import util
 
-distros = ['ubuntu', 'debian']
-
-PROXY_TPL = "Acquire::HTTP::Proxy \"%s\";\n"
-APT_CONFIG_FN = "/etc/apt/apt.conf.d/94cloud-init-config"
-APT_PROXY_FN = "/etc/apt/apt.conf.d/95cloud-init-proxy"
+LOG = logging.getLogger(__name__)
 
 # this will match 'XXX:YYY' (ie, 'cloud-archive:foo' or 'ppa:bar')
 ADD_APT_REPO_MATCH = r"^[\w-]+:\w"
 
+# place where apt stores cached repository data
+APT_LISTS = "/var/lib/apt/lists"
 
-def handle(name, cfg, cloud, log, _args):
-    if util.is_false(cfg.get('apt_configure_enabled', True)):
-        log.debug("Skipping module named %s, disabled by config.", name)
-        return
+# Files to store proxy information
+APT_CONFIG_FN = "/etc/apt/apt.conf.d/94cloud-init-config"
+APT_PROXY_FN = "/etc/apt/apt.conf.d/90cloud-init-aptproxy"
 
-    release = get_release()
-    mirrors = find_apt_mirror_info(cloud, cfg)
-    if not mirrors or "primary" not in mirrors:
-        log.debug(("Skipping module named %s,"
-                   " no package 'mirror' located"), name)
-        return
+# Default keyserver to use
+DEFAULT_KEYSERVER = "keyserver.ubuntu.com"
 
-    # backwards compatibility
-    mirror = mirrors["primary"]
-    mirrors["mirror"] = mirror
+# Default archive mirrors
+PRIMARY_ARCH_MIRRORS = {"PRIMARY": "http://archive.ubuntu.com/ubuntu/",
+                        "SECURITY": "http://security.ubuntu.com/ubuntu/"}
+PORTS_MIRRORS = {"PRIMARY": "http://ports.ubuntu.com/ubuntu-ports",
+                 "SECURITY": "http://ports.ubuntu.com/ubuntu-ports"}
+PRIMARY_ARCHES = ['amd64', 'i386']
+PORTS_ARCHES = ['s390x', 'arm64', 'armhf', 'powerpc', 'ppc64el']
 
-    log.debug("Mirror info: %s" % mirrors)
 
-    if not util.get_cfg_option_bool(cfg,
-                                    'apt_preserve_sources_list', False):
-        generate_sources_list(cfg, release, mirrors, cloud, log)
-        old_mirrors = cfg.get('apt_old_mirrors',
-                              {"primary": "archive.ubuntu.com/ubuntu",
-                               "security": "security.ubuntu.com/ubuntu"})
-        rename_apt_lists(old_mirrors, mirrors)
+def get_default_mirrors(arch=None, target=None):
+    """returns the default mirrors for the target. These depend on the
+       architecture, for more see:
+       https://wiki.ubuntu.com/UbuntuDevelopment/PackageArchive#Ports"""
+    if arch is None:
+        arch = util.get_architecture(target)
+    if arch in PRIMARY_ARCHES:
+        return PRIMARY_ARCH_MIRRORS.copy()
+    if arch in PORTS_ARCHES:
+        return PORTS_MIRRORS.copy()
+    raise ValueError("No default mirror known for arch %s" % arch)
+
+
+def handle(name, ocfg, cloud, log, _):
+    """process the config for apt_config. This can be called from
+       curthooks if a global apt config was provided or via the "apt"
+       standalone command."""
+    # keeping code close to curtin codebase via entry handler
+    target = None
+    if log is not None:
+        global LOG
+        LOG = log
+    # feed back converted config, but only work on the subset under 'apt'
+    ocfg = convert_to_v3_apt_format(ocfg)
+    cfg = ocfg.get('apt', {})
+
+    if not isinstance(cfg, dict):
+        raise ValueError("Expected dictionary for 'apt' config, found %s",
+                         type(cfg))
+
+    LOG.debug("handling apt (module %s) with apt config '%s'", name, cfg)
+
+    release = util.lsb_release(target=target)['codename']
+    arch = util.get_architecture(target)
+    mirrors = find_apt_mirror_info(cfg, cloud, arch=arch)
+    LOG.debug("Apt Mirror info: %s", mirrors)
+
+    apply_debconf_selections(cfg, target)
+
+    if util.is_false(cfg.get('preserve_sources_list', False)):
+        generate_sources_list(cfg, release, mirrors, cloud)
+        rename_apt_lists(mirrors, target)
 
     try:
         apply_apt_config(cfg, APT_PROXY_FN, APT_CONFIG_FN)
-    except Exception as e:
-        log.warn("failed to proxy or apt config info: %s", e)
+    except (IOError, OSError):
+        LOG.exception("Failed to apply proxy or apt config info:")
 
-    # Process 'apt_sources'
-    if 'apt_sources' in cfg:
+    # Process 'apt_source -> sources {dict}'
+    if 'sources' in cfg:
         params = mirrors
         params['RELEASE'] = release
-        params['MIRROR'] = mirror
+        params['MIRROR'] = mirrors["MIRROR"]
 
+        matcher = None
         matchcfg = cfg.get('add_apt_repo_match', ADD_APT_REPO_MATCH)
         if matchcfg:
             matcher = re.compile(matchcfg).search
+
+        add_apt_sources(cfg['sources'], cloud, target=target,
+                        template_params=params, aa_repo_match=matcher)
+
+
+def debconf_set_selections(selections, target=None):
+    util.subp(['debconf-set-selections'], data=selections, target=target,
+              capture=True)
+
+
+def dpkg_reconfigure(packages, target=None):
+    # For any packages that are already installed, but have preseed data
+    # we populate the debconf database, but the filesystem configuration
+    # would be preferred on a subsequent dpkg-reconfigure.
+    # so, what we have to do is "know" information about certain packages
+    # to unconfigure them.
+    unhandled = []
+    to_config = []
+    for pkg in packages:
+        if pkg in CONFIG_CLEANERS:
+            LOG.debug("unconfiguring %s", pkg)
+            CONFIG_CLEANERS[pkg](target)
+            to_config.append(pkg)
         else:
-            def matcher(x):
-                return False
+            unhandled.append(pkg)
 
-        errors = add_apt_sources(cfg['apt_sources'], params,
-                                 aa_repo_match=matcher)
-        for e in errors:
-            log.warn("Add source error: %s", ':'.join(e))
+    if len(unhandled):
+        LOG.warn("The following packages were installed and preseeded, "
+                 "but cannot be unconfigured: %s", unhandled)
 
-    dconf_sel = util.get_cfg_option_str(cfg, 'debconf_selections', False)
-    if dconf_sel:
-        log.debug("Setting debconf selections per cloud config")
-        try:
-            util.subp(('debconf-set-selections', '-'), dconf_sel)
-        except Exception:
-            util.logexc(log, "Failed to run debconf-set-selections")
+    if len(to_config):
+        util.subp(['dpkg-reconfigure', '--frontend=noninteractive'] +
+                  list(to_config), data=None, target=target, capture=True)
+
+
+def apply_debconf_selections(cfg, target=None):
+    """apply_debconf_selections - push content to debconf"""
+    # debconf_selections:
+    #  set1: |
+    #   cloud-init cloud-init/datasources multiselect MAAS
+    #  set2: pkg pkg/value string bar
+    selsets = cfg.get('debconf_selections')
+    if not selsets:
+        LOG.debug("debconf_selections was not set in config")
+        return
+
+    selections = '\n'.join(
+        [selsets[key] for key in sorted(selsets.keys())])
+    debconf_set_selections(selections.encode() + b"\n", target=target)
+
+    # get a complete list of packages listed in input
+    pkgs_cfgd = set()
+    for key, content in selsets.items():
+        for line in content.splitlines():
+            if line.startswith("#"):
+                continue
+            pkg = re.sub(r"[:\s].*", "", line)
+            pkgs_cfgd.add(pkg)
+
+    pkgs_installed = util.get_installed_packages(target)
+
+    LOG.debug("pkgs_cfgd: %s", pkgs_cfgd)
+    need_reconfig = pkgs_cfgd.intersection(pkgs_installed)
+
+    if len(need_reconfig) == 0:
+        LOG.debug("no need for reconfig")
+        return
+
+    dpkg_reconfigure(need_reconfig, target=target)
+
+
+def clean_cloud_init(target):
+    """clean out any local cloud-init config"""
+    flist = glob.glob(
+        util.target_path(target, "/etc/cloud/cloud.cfg.d/*dpkg*"))
+
+    LOG.debug("cleaning cloud-init config from: %s", flist)
+    for dpkg_cfg in flist:
+        os.unlink(dpkg_cfg)
 
 
 def mirrorurl_to_apt_fileprefix(mirror):
+    """mirrorurl_to_apt_fileprefix
+       Convert a mirror url to the file prefix used by apt on disk to
+       store cache information for that mirror.
+       To do so do:
+       - take off ???://
+       - drop tailing /
+       - convert in string / to _"""
     string = mirror
-    # take off http:// or ftp://
     if string.endswith("/"):
         string = string[0:-1]
     pos = string.find("://")
@@ -106,80 +208,216 @@ def mirrorurl_to_apt_fileprefix(mirror):
     return string
 
 
-def rename_apt_lists(old_mirrors, new_mirrors, lists_d="/var/lib/apt/lists"):
-    for (name, omirror) in old_mirrors.items():
+def rename_apt_lists(new_mirrors, target=None):
+    """rename_apt_lists - rename apt lists to preserve old cache data"""
+    default_mirrors = get_default_mirrors(util.get_architecture(target))
+
+    pre = util.target_path(target, APT_LISTS)
+    for (name, omirror) in default_mirrors.items():
         nmirror = new_mirrors.get(name)
         if not nmirror:
             continue
-        oprefix = os.path.join(lists_d, mirrorurl_to_apt_fileprefix(omirror))
-        nprefix = os.path.join(lists_d, mirrorurl_to_apt_fileprefix(nmirror))
+
+        oprefix = pre + os.path.sep + mirrorurl_to_apt_fileprefix(omirror)
+        nprefix = pre + os.path.sep + mirrorurl_to_apt_fileprefix(nmirror)
         if oprefix == nprefix:
             continue
         olen = len(oprefix)
         for filename in glob.glob("%s_*" % oprefix):
-            util.rename(filename, "%s%s" % (nprefix, filename[olen:]))
+            newname = "%s%s" % (nprefix, filename[olen:])
+            LOG.debug("Renaming apt list %s to %s", filename, newname)
+            try:
+                os.rename(filename, newname)
+            except OSError:
+                # since this is a best effort task, warn with but don't fail
+                LOG.warn("Failed to rename apt list:", exc_info=True)
 
 
-def get_release():
-    (stdout, _stderr) = util.subp(['lsb_release', '-cs'])
-    return stdout.strip()
+def mirror_to_placeholder(tmpl, mirror, placeholder):
+    """mirror_to_placeholder
+       replace the specified mirror in a template with a placeholder string
+       Checks for existance of the expected mirror and warns if not found"""
+    if mirror not in tmpl:
+        LOG.warn("Expected mirror '%s' not found in: %s", mirror, tmpl)
+    return tmpl.replace(mirror, placeholder)
 
 
-def generate_sources_list(cfg, codename, mirrors, cloud, log):
-    params = {'codename': codename}
+def map_known_suites(suite):
+    """there are a few default names which will be auto-extended.
+       This comes at the inability to use those names literally as suites,
+       but on the other hand increases readability of the cfg quite a lot"""
+    mapping = {'updates': '$RELEASE-updates',
+               'backports': '$RELEASE-backports',
+               'security': '$RELEASE-security',
+               'proposed': '$RELEASE-proposed',
+               'release': '$RELEASE'}
+    try:
+        retsuite = mapping[suite]
+    except KeyError:
+        retsuite = suite
+    return retsuite
+
+
+def disable_suites(disabled, src, release):
+    """reads the config for suites to be disabled and removes those
+       from the template"""
+    if not disabled:
+        return src
+
+    retsrc = src
+    for suite in disabled:
+        suite = map_known_suites(suite)
+        releasesuite = templater.render_string(suite, {'RELEASE': release})
+        LOG.debug("Disabling suite %s as %s", suite, releasesuite)
+
+        newsrc = ""
+        for line in retsrc.splitlines(True):
+            if line.startswith("#"):
+                newsrc += line
+                continue
+
+            # sources.list allow options in cols[1] which can have spaces
+            # so the actual suite can be [2] or later. example:
+            # deb [ arch=amd64,armel k=v ] http://example.com/debian
+            cols = line.split()
+            if len(cols) > 1:
+                pcol = 2
+                if cols[1].startswith("["):
+                    for col in cols[1:]:
+                        pcol += 1
+                        if col.endswith("]"):
+                            break
+
+                if cols[pcol] == releasesuite:
+                    line = '# suite disabled by cloud-init: %s' % line
+            newsrc += line
+        retsrc = newsrc
+
+    return retsrc
+
+
+def generate_sources_list(cfg, release, mirrors, cloud):
+    """generate_sources_list
+       create a source.list file based on a custom or default template
+       by replacing mirrors and release in the template"""
+    aptsrc = "/etc/apt/sources.list"
+    params = {'RELEASE': release, 'codename': release}
     for k in mirrors:
         params[k] = mirrors[k]
+        params[k.lower()] = mirrors[k]
 
-    custtmpl = cfg.get('apt_custom_sources_list', None)
-    if custtmpl is not None:
-        templater.render_string_to_file(custtmpl,
-                                        '/etc/apt/sources.list', params)
-        return
-
-    template_fn = cloud.get_template_filename('sources.list.%s' %
-                                              (cloud.distro.name))
-    if not template_fn:
-        template_fn = cloud.get_template_filename('sources.list')
+    tmpl = cfg.get('sources_list', None)
+    if tmpl is None:
+        LOG.info("No custom template provided, fall back to builtin")
+        template_fn = cloud.get_template_filename('sources.list.%s' %
+                                                  (cloud.distro.name))
         if not template_fn:
-            log.warn("No template found, not rendering /etc/apt/sources.list")
+            template_fn = cloud.get_template_filename('sources.list')
+        if not template_fn:
+            LOG.warn("No template found, not rendering /etc/apt/sources.list")
             return
+        tmpl = util.load_file(template_fn)
 
-    templater.render_to_file(template_fn, '/etc/apt/sources.list', params)
+    rendered = templater.render_string(tmpl, params)
+    disabled = disable_suites(cfg.get('disable_suites'), rendered, release)
+    util.write_file(aptsrc, disabled, mode=0o644)
 
 
-def add_apt_key_raw(key):
+def add_apt_key_raw(key, target=None):
     """
     actual adding of a key as defined in key argument
     to the system
     """
+    LOG.debug("Adding key:\n'%s'", key)
     try:
-        util.subp(('apt-key', 'add', '-'), key)
+        util.subp(['apt-key', 'add', '-'], data=key.encode(), target=target)
     except util.ProcessExecutionError:
-        raise ValueError('failed to add apt GPG Key to apt keyring')
+        LOG.exception("failed to add apt GPG Key to apt keyring")
+        raise
 
 
-def add_apt_key(ent):
+def add_apt_key(ent, target=None):
     """
-    add key to the system as defined in ent (if any)
-    supports raw keys or keyid's
-    The latter will as a first step fetch the raw key from a keyserver
+    Add key to the system as defined in ent (if any).
+    Supports raw keys or keyid's
+    The latter will as a first step fetched to get the raw key
     """
     if 'keyid' in ent and 'key' not in ent:
-        keyserver = "keyserver.ubuntu.com"
+        keyserver = DEFAULT_KEYSERVER
         if 'keyserver' in ent:
             keyserver = ent['keyserver']
-        ent['key'] = gpg.get_key_by_id(ent['keyid'], keyserver)
+
+        ent['key'] = gpg.getkeybyid(ent['keyid'], keyserver)
 
     if 'key' in ent:
-        add_apt_key_raw(ent['key'])
+        add_apt_key_raw(ent['key'], target)
 
 
-def convert_to_new_format(srclist):
-    """convert_to_new_format
-       convert the old list based format to the new dict based one
+def update_packages(cloud):
+    cloud.distro.update_package_sources()
+
+
+def add_apt_sources(srcdict, cloud, target=None, template_params=None,
+                    aa_repo_match=None):
     """
+    add entries in /etc/apt/sources.list.d for each abbreviated
+    sources.list entry in 'srcdict'.  When rendering template, also
+    include the values in dictionary searchList
+    """
+    if template_params is None:
+        template_params = {}
+
+    if aa_repo_match is None:
+        raise ValueError('did not get a valid repo matcher')
+
+    if not isinstance(srcdict, dict):
+        raise TypeError('unknown apt format: %s' % (srcdict))
+
+    for filename in srcdict:
+        ent = srcdict[filename]
+        LOG.debug("adding source/key '%s'", ent)
+        if 'filename' not in ent:
+            ent['filename'] = filename
+
+        add_apt_key(ent, target)
+
+        if 'source' not in ent:
+            continue
+        source = ent['source']
+        source = templater.render_string(source, template_params)
+
+        if not ent['filename'].startswith("/"):
+            ent['filename'] = os.path.join("/etc/apt/sources.list.d/",
+                                           ent['filename'])
+        if not ent['filename'].endswith(".list"):
+            ent['filename'] += ".list"
+
+        if aa_repo_match(source):
+            try:
+                util.subp(["add-apt-repository", source], target=target)
+            except util.ProcessExecutionError:
+                LOG.exception("add-apt-repository failed.")
+                raise
+            continue
+
+        sourcefn = util.target_path(target, ent['filename'])
+        try:
+            contents = "%s\n" % (source)
+            util.write_file(sourcefn, contents, omode="a")
+        except IOError as detail:
+            LOG.exception("failed write to file %s: %s", sourcefn, detail)
+            raise
+
+    update_packages(cloud)
+
+    return
+
+
+def convert_v1_to_v2_apt_format(srclist):
+    """convert v1 apt format to v2 (dict in apt_sources)"""
     srcdict = {}
     if isinstance(srclist, list):
+        LOG.debug("apt config: convert V1 to V2 format (source list to dict)")
         for srcent in srclist:
             if 'filename' not in srcent:
                 # file collides for multiple !filename cases for compatibility
@@ -198,82 +436,137 @@ def convert_to_new_format(srclist):
     return srcdict
 
 
-def add_apt_sources(srclist, template_params=None, aa_repo_match=None):
+def convert_key(oldcfg, aptcfg, oldkey, newkey):
+    """convert an old key to the new one if the old one exists
+       returns true if a key was found and converted"""
+    if oldcfg.get(oldkey, None) is not None:
+        aptcfg[newkey] = oldcfg.get(oldkey)
+        del oldcfg[oldkey]
+        return True
+    return False
+
+
+def convert_mirror(oldcfg, aptcfg):
+    """convert old apt_mirror keys into the new more advanced mirror spec"""
+    keymap = [('apt_mirror', 'uri'),
+              ('apt_mirror_search', 'search'),
+              ('apt_mirror_search_dns', 'search_dns')]
+    converted = False
+    newmcfg = {'arches': ['default']}
+    for oldkey, newkey in keymap:
+        if convert_key(oldcfg, newmcfg, oldkey, newkey):
+            converted = True
+
+    # only insert new style config if anything was converted
+    if converted:
+        aptcfg['primary'] = [newmcfg]
+
+
+def convert_v2_to_v3_apt_format(oldcfg):
+    """convert old to new keys and adapt restructured mirror spec"""
+    oldkeys = ['apt_sources', 'apt_mirror', 'apt_mirror_search',
+               'apt_mirror_search_dns', 'apt_proxy', 'apt_http_proxy',
+               'apt_ftp_proxy', 'apt_https_proxy',
+               'apt_preserve_sources_list', 'apt_custom_sources_list',
+               'add_apt_repo_match']
+    needtoconvert = []
+    for oldkey in oldkeys:
+        if oldcfg.get(oldkey, None) is not None:
+            needtoconvert.append(oldkey)
+
+    # no old config, so no new one to be created
+    if not needtoconvert:
+        return oldcfg
+    LOG.debug("apt config: convert V2 to V3 format for keys '%s'",
+              ", ".join(needtoconvert))
+
+    if oldcfg.get('apt', None) is not None:
+        msg = ("Error in apt configuration: "
+               "old and new format of apt features are mutually exclusive "
+               "('apt':'%s' vs '%s' key)" % (oldcfg.get('apt', None),
+                                             ", ".join(needtoconvert)))
+        LOG.error(msg)
+        raise ValueError(msg)
+
+    # create new format from old keys
+    aptcfg = {}
+
+    # renames / moves under the apt key
+    convert_key(oldcfg, aptcfg, 'add_apt_repo_match', 'add_apt_repo_match')
+    convert_key(oldcfg, aptcfg, 'apt_proxy', 'proxy')
+    convert_key(oldcfg, aptcfg, 'apt_http_proxy', 'http_proxy')
+    convert_key(oldcfg, aptcfg, 'apt_https_proxy', 'https_proxy')
+    convert_key(oldcfg, aptcfg, 'apt_ftp_proxy', 'ftp_proxy')
+    convert_key(oldcfg, aptcfg, 'apt_custom_sources_list', 'sources_list')
+    convert_key(oldcfg, aptcfg, 'apt_preserve_sources_list',
+                'preserve_sources_list')
+    # dict format not changed since v2, just renamed and moved
+    convert_key(oldcfg, aptcfg, 'apt_sources', 'sources')
+
+    convert_mirror(oldcfg, aptcfg)
+
+    for oldkey in oldkeys:
+        if oldcfg.get(oldkey, None) is not None:
+            raise ValueError("old apt key '%s' left after conversion" % oldkey)
+
+    # insert new format into config and return full cfg with only v3 content
+    oldcfg['apt'] = aptcfg
+    return oldcfg
+
+
+def convert_to_v3_apt_format(cfg):
+    """convert the old list based format to the new dict based one. After that
+       convert the old dict keys/format to v3 a.k.a 'new apt config'"""
+    # V1 -> V2, the apt_sources entry from list to dict
+    apt_sources = cfg.get('apt_sources', None)
+    if apt_sources is not None:
+        cfg['apt_sources'] = convert_v1_to_v2_apt_format(apt_sources)
+
+    # V2 -> V3, move all former globals under the "apt" key
+    # Restructure into new key names and mirror hierarchy
+    cfg = convert_v2_to_v3_apt_format(cfg)
+
+    return cfg
+
+
+def search_for_mirror(candidates):
     """
-    add entries in /etc/apt/sources.list.d for each abbreviated
-    sources.list entry in 'srclist'.  When rendering template, also
-    include the values in dictionary searchList
+    Search through a list of mirror urls for one that works
+    This needs to return quickly.
     """
-    if template_params is None:
-        template_params = {}
+    if candidates is None:
+        return None
 
-    if aa_repo_match is None:
-        def _aa_repo_match(x):
-            return False
-        aa_repo_match = _aa_repo_match
-
-    errorlist = []
-    srcdict = convert_to_new_format(srclist)
-
-    for filename in srcdict:
-        ent = srcdict[filename]
-        if 'filename' not in ent:
-            ent['filename'] = filename
-
-        # keys can be added without specifying a source
+    LOG.debug("search for mirror in candidates: '%s'", candidates)
+    for cand in candidates:
         try:
-            add_apt_key(ent)
-        except ValueError as detail:
-            errorlist.append([ent, detail])
-
-        if 'source' not in ent:
-            errorlist.append(["", "missing source"])
-            continue
-        source = ent['source']
-        source = templater.render_string(source, template_params)
-
-        if not ent['filename'].startswith(os.path.sep):
-            ent['filename'] = os.path.join("/etc/apt/sources.list.d/",
-                                           ent['filename'])
-
-        if aa_repo_match(source):
-            try:
-                util.subp(["add-apt-repository", source])
-            except util.ProcessExecutionError as e:
-                errorlist.append([source,
-                                  ("add-apt-repository failed. " + str(e))])
-            continue
-
-        try:
-            contents = "%s\n" % (source)
-            util.write_file(ent['filename'], contents, omode="ab")
+            if util.is_resolvable_url(cand):
+                LOG.debug("found working mirror: '%s'", cand)
+                return cand
         except Exception:
-            errorlist.append([source,
-                             "failed write to file %s" % ent['filename']])
-
-    return errorlist
+            pass
+    return None
 
 
-def find_apt_mirror_info(cloud, cfg):
-    """find an apt_mirror given the cloud and cfg provided."""
-
+def search_for_mirror_dns(configured, mirrortype, cfg, cloud):
+    """
+    Try to resolve a list of predefines DNS names to pick mirrors
+    """
     mirror = None
 
-    # this is less preferred way of specifying mirror preferred would be to
-    # use the distro's search or package_mirror.
-    mirror = cfg.get("apt_mirror", None)
-
-    search = cfg.get("apt_mirror_search", None)
-    if not mirror and search:
-        mirror = util.search_for_mirror(search)
-
-    if (not mirror and
-            util.get_cfg_option_bool(cfg, "apt_mirror_search_dns", False)):
+    if configured:
         mydom = ""
         doms = []
 
+        if mirrortype == "primary":
+            mirrordns = "mirror"
+        elif mirrortype == "security":
+            mirrordns = "security-mirror"
+        else:
+            raise ValueError("unknown mirror type")
+
         # if we have a fqdn, then search its domain portion first
-        (_hostname, fqdn) = util.get_hostname_fqdn(cfg, cloud)
+        (_, fqdn) = util.get_hostname_fqdn(cfg, cloud)
         mydom = ".".join(fqdn.split(".")[1:])
         if mydom:
             doms.append(".%s" % mydom)
@@ -282,38 +575,136 @@ def find_apt_mirror_info(cloud, cfg):
 
         mirror_list = []
         distro = cloud.distro.name
-        mirrorfmt = "http://%s-mirror%s/%s" % (distro, "%s", distro)
+        mirrorfmt = "http://%s-%s%s/%s" % (distro, mirrordns, "%s", distro)
         for post in doms:
             mirror_list.append(mirrorfmt % (post))
 
-        mirror = util.search_for_mirror(mirror_list)
+        mirror = search_for_mirror(mirror_list)
 
+    return mirror
+
+
+def update_mirror_info(pmirror, smirror, arch, cloud):
+    """sets security mirror to primary if not defined.
+       returns defaults if no mirrors are defined"""
+    if pmirror is not None:
+        if smirror is None:
+            smirror = pmirror
+        return {'PRIMARY': pmirror,
+                'SECURITY': smirror}
+
+    # None specified at all, get default mirrors from cloud
     mirror_info = cloud.datasource.get_package_mirror_info()
+    if mirror_info:
+        # get_package_mirror_info() returns a dictionary with
+        # arbitrary key/value pairs including 'primary' and 'security' keys.
+        # caller expects dict with PRIMARY and SECURITY.
+        m = mirror_info.copy()
+        m['PRIMARY'] = m['primary']
+        m['SECURITY'] = m['security']
 
-    # this is a bit strange.
-    # if mirror is set, then one of the legacy options above set it
-    # but they do not cover security. so we need to get that from
-    # get_package_mirror_info
-    if mirror:
-        mirror_info.update({'primary': mirror})
+        return m
+
+    # if neither apt nor cloud configured mirrors fall back to
+    return get_default_mirrors(arch)
+
+
+def get_arch_mirrorconfig(cfg, mirrortype, arch):
+    """out of a list of potential mirror configurations select
+       and return the one matching the architecture (or default)"""
+    # select the mirror specification (if-any)
+    mirror_cfg_list = cfg.get(mirrortype, None)
+    if mirror_cfg_list is None:
+        return None
+
+    # select the specification matching the target arch
+    default = None
+    for mirror_cfg_elem in mirror_cfg_list:
+        arches = mirror_cfg_elem.get("arches")
+        if arch in arches:
+            return mirror_cfg_elem
+        if "default" in arches:
+            default = mirror_cfg_elem
+    return default
+
+
+def get_mirror(cfg, mirrortype, arch, cloud):
+    """pass the three potential stages of mirror specification
+       returns None is neither of them found anything otherwise the first
+       hit is returned"""
+    mcfg = get_arch_mirrorconfig(cfg, mirrortype, arch)
+    if mcfg is None:
+        return None
+
+    # directly specified
+    mirror = mcfg.get("uri", None)
+
+    # fallback to search if specified
+    if mirror is None:
+        # list of mirrors to try to resolve
+        mirror = search_for_mirror(mcfg.get("search", None))
+
+    # fallback to search_dns if specified
+    if mirror is None:
+        # list of mirrors to try to resolve
+        mirror = search_for_mirror_dns(mcfg.get("search_dns", None),
+                                       mirrortype, cfg, cloud)
+
+    return mirror
+
+
+def find_apt_mirror_info(cfg, cloud, arch=None):
+    """find_apt_mirror_info
+       find an apt_mirror given the cfg provided.
+       It can check for separate config of primary and security mirrors
+       If only primary is given security is assumed to be equal to primary
+       If the generic apt_mirror is given that is defining for both
+    """
+
+    if arch is None:
+        arch = util.get_architecture()
+        LOG.debug("got arch for mirror selection: %s", arch)
+    pmirror = get_mirror(cfg, "primary", arch, cloud)
+    LOG.debug("got primary mirror: %s", pmirror)
+    smirror = get_mirror(cfg, "security", arch, cloud)
+    LOG.debug("got security mirror: %s", smirror)
+
+    mirror_info = update_mirror_info(pmirror, smirror, arch, cloud)
+
+    # less complex replacements use only MIRROR, derive from primary
+    mirror_info["MIRROR"] = mirror_info["PRIMARY"]
 
     return mirror_info
 
 
 def apply_apt_config(cfg, proxy_fname, config_fname):
+    """apply_apt_config
+       Applies any apt*proxy config from if specified
+    """
     # Set up any apt proxy
-    cfgs = (('apt_proxy', 'Acquire::HTTP::Proxy "%s";'),
-            ('apt_http_proxy', 'Acquire::HTTP::Proxy "%s";'),
-            ('apt_ftp_proxy', 'Acquire::FTP::Proxy "%s";'),
-            ('apt_https_proxy', 'Acquire::HTTPS::Proxy "%s";'))
+    cfgs = (('proxy', 'Acquire::http::Proxy "%s";'),
+            ('http_proxy', 'Acquire::http::Proxy "%s";'),
+            ('ftp_proxy', 'Acquire::ftp::Proxy "%s";'),
+            ('https_proxy', 'Acquire::https::Proxy "%s";'))
 
     proxies = [fmt % cfg.get(name) for (name, fmt) in cfgs if cfg.get(name)]
     if len(proxies):
+        LOG.debug("write apt proxy info to %s", proxy_fname)
         util.write_file(proxy_fname, '\n'.join(proxies) + '\n')
     elif os.path.isfile(proxy_fname):
         util.del_file(proxy_fname)
+        LOG.debug("no apt proxy configured, removed %s", proxy_fname)
 
-    if cfg.get('apt_config', None):
-        util.write_file(config_fname, cfg.get('apt_config'))
+    if cfg.get('conf', None):
+        LOG.debug("write apt config info to %s", config_fname)
+        util.write_file(config_fname, cfg.get('conf'))
     elif os.path.isfile(config_fname):
         util.del_file(config_fname)
+        LOG.debug("no apt config configured, removed %s", config_fname)
+
+
+CONFIG_CLEANERS = {
+    'cloud-init': clean_cloud_init,
+}
+
+# vi: ts=4 expandtab syntax=python

@@ -36,11 +36,11 @@ def export_armour(key):
     return armour
 
 
-def receive_key(key, keyserver):
+def recv_key(key, keyserver):
     """Receive gpg key from the specified keyserver"""
     LOG.debug('Receive gpg key "%s"', key)
     try:
-        util.subp(["gpg", "--keyserver", keyserver, "--recv-keys", key],
+        util.subp(["gpg", "--keyserver", keyserver, "--recv", key],
                   capture=True)
     except util.ProcessExecutionError as error:
         raise ValueError(('Failed to import key "%s" '
@@ -57,12 +57,12 @@ def delete_key(key):
         LOG.warn('Failed delete key "%s": %s', key, error)
 
 
-def get_key_by_id(keyid, keyserver="keyserver.ubuntu.com"):
+def getkeybyid(keyid, keyserver='keyserver.ubuntu.com'):
     """get gpg keyid from keyserver"""
     armour = export_armour(keyid)
     if not armour:
         try:
-            receive_key(keyid, keyserver=keyserver)
+            recv_key(keyid, keyserver=keyserver)
             armour = export_armour(keyid)
         except ValueError:
             LOG.exception('Failed to obtain gpg key %s', keyid)

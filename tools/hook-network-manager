@@ -1,0 +1,9 @@
+#!/bin/sh
+# This script hooks into NetworkManager(8) via its scripts
+# arguments are 'interface-name' and 'action'
+#
+
+case "$1:$2" in
+   *:up) exec cloud-init dhclient-hook up "$1";;
+   *:down) exec cloud-init dhclient-hook down "$1";;
+esac

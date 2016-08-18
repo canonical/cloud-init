@@ -112,7 +112,7 @@ class Distro(object):
         raise NotImplementedError()
 
     def get_primary_arch(self):
-        arch = os.uname[4]
+        arch = os.uname()[4]
         if arch in ("i386", "i486", "i586", "i686"):
             return "i386"
         return arch

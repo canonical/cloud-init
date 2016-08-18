@@ -79,6 +79,15 @@ class TestAptSourceConfigSourceList(t_help.FilesystemMockingTestCase):
         self.new_root = tempfile.mkdtemp()
         self.addCleanup(shutil.rmtree, self.new_root)
 
+        rpatcher = mock.patch("cloudinit.util.lsb_release")
+        get_rel = rpatcher.start()
+        get_rel.return_value = {'codename': "fakerelease"}
+        self.addCleanup(rpatcher.stop)
+        apatcher = mock.patch("cloudinit.util.get_architecture")
+        get_arch = apatcher.start()
+        get_arch.return_value = 'amd64'
+        self.addCleanup(apatcher.stop)
+
     def _get_cloud(self, distro, metadata=None):
         self.patchUtils(self.new_root)
         paths = helpers.Paths({})
@@ -102,25 +111,38 @@ class TestAptSourceConfigSourceList(t_help.FilesystemMockingTestCase):
             cfg = {'apt_mirror': mirror}
         mycloud = self._get_cloud(distro)
 
-        with mock.patch.object(templater, 'render_to_file') as mocktmpl:
-            with mock.patch.object(os.path, 'isfile',
-                                   return_value=True) as mockisfile:
-                with mock.patch.object(util, 'rename'):
-                    cc_apt_configure.handle("notimportant", cfg, mycloud,
-                                            LOG, None)
+        with mock.patch.object(util, 'write_file') as mockwf:
+            with mock.patch.object(util, 'load_file',
+                                   return_value="faketmpl") as mocklf:
+                with mock.patch.object(os.path, 'isfile',
+                                       return_value=True) as mockisfile:
+                    with mock.patch.object(templater, 'render_string',
+                                           return_value="fake") as mockrnd:
+                        with mock.patch.object(util, 'rename'):
+                            cc_apt_configure.handle("test", cfg, mycloud,
+                                                    LOG, None)
 
         mockisfile.assert_any_call(
             ('/etc/cloud/templates/sources.list.%s.tmpl' % distro))
-        mocktmpl.assert_called_once_with(
-            ('/etc/cloud/templates/sources.list.%s.tmpl' % distro),
-            '/etc/apt/sources.list',
-            {'codename': '', 'primary': mirrorcheck, 'mirror': mirrorcheck})
+        mocklf.assert_any_call(
+            ('/etc/cloud/templates/sources.list.%s.tmpl' % distro))
+        mockrnd.assert_called_once_with('faketmpl',
+                                        {'RELEASE': 'fakerelease',
+                                         'PRIMARY': mirrorcheck,
+                                         'MIRROR': mirrorcheck,
+                                         'SECURITY': mirrorcheck,
+                                         'codename': 'fakerelease',
+                                         'primary': mirrorcheck,
+                                         'mirror': mirrorcheck,
+                                         'security': mirrorcheck})
+        mockwf.assert_called_once_with('/etc/apt/sources.list', 'fake',
+                                       mode=0o644)
 
-    def test_apt_source_list_debian(self):
+    def test_apt_v1_source_list_debian(self):
         """Test rendering of a source.list from template for debian"""
         self.apt_source_list('debian', 'http://httpredir.debian.org/debian')
 
-    def test_apt_source_list_ubuntu(self):
+    def test_apt_v1_source_list_ubuntu(self):
         """Test rendering of a source.list from template for ubuntu"""
         self.apt_source_list('ubuntu', 'http://archive.ubuntu.com/ubuntu/')
 
@@ -134,7 +156,7 @@ class TestAptSourceConfigSourceList(t_help.FilesystemMockingTestCase):
             print("Faking SUCCESS for '%s'" % name)
             return True
 
-    def test_apt_srcl_debian_mirrorfail(self):
+    def test_apt_v1_srcl_debian_mirrorfail(self):
         """Test rendering of a source.list from template for debian"""
         with mock.patch.object(util, 'is_resolvable',
                                side_effect=self.myresolve) as mockresolve:
@@ -145,7 +167,7 @@ class TestAptSourceConfigSourceList(t_help.FilesystemMockingTestCase):
         mockresolve.assert_any_call("does.not.exist")
         mockresolve.assert_any_call("httpredir.debian.org")
 
-    def test_apt_srcl_ubuntu_mirrorfail(self):
+    def test_apt_v1_srcl_ubuntu_mirrorfail(self):
         """Test rendering of a source.list from template for ubuntu"""
         with mock.patch.object(util, 'is_resolvable',
                                side_effect=self.myresolve) as mockresolve:
@@ -156,7 +178,7 @@ class TestAptSourceConfigSourceList(t_help.FilesystemMockingTestCase):
         mockresolve.assert_any_call("does.not.exist")
         mockresolve.assert_any_call("archive.ubuntu.com")
 
-    def test_apt_srcl_custom(self):
+    def test_apt_v1_srcl_custom(self):
         """Test rendering from a custom source.list template"""
         cfg = util.load_yaml(YAML_TEXT_CUSTOM_SL)
         mycloud = self._get_cloud('ubuntu')
@@ -164,12 +186,10 @@ class TestAptSourceConfigSourceList(t_help.FilesystemMockingTestCase):
         # the second mock restores the original subp
         with mock.patch.object(util, 'write_file') as mockwrite:
             with mock.patch.object(util, 'subp', self.subp):
-                with mock.patch.object(cc_apt_configure, 'get_release',
-                                       return_value='fakerelease'):
-                    with mock.patch.object(Distro, 'get_primary_arch',
-                                           return_value='amd64'):
-                        cc_apt_configure.handle("notimportant", cfg, mycloud,
-                                                LOG, None)
+                with mock.patch.object(Distro, 'get_primary_arch',
+                                       return_value='amd64'):
+                    cc_apt_configure.handle("notimportant", cfg, mycloud,
+                                            LOG, None)
 
         mockwrite.assert_called_once_with(
             '/etc/apt/sources.list',
