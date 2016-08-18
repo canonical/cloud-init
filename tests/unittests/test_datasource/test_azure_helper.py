@@ -54,13 +54,17 @@ class TestFindEndpoint(TestCase):
         self.load_file = patches.enter_context(
             mock.patch.object(azure_helper.util, 'load_file'))
 
+        self.dhcp_options = patches.enter_context(
+            mock.patch.object(azure_helper.WALinuxAgentShim,
+                              '_load_dhclient_json'))
+
     def test_missing_file(self):
-        self.load_file.side_effect = IOError
-        self.assertRaises(IOError,
+        self.assertRaises(ValueError,
                           azure_helper.WALinuxAgentShim.find_endpoint)
 
     def test_missing_special_azure_line(self):
         self.load_file.return_value = ''
+        self.dhcp_options.return_value = {'eth0': {'key': 'value'}}
         self.assertRaises(ValueError,
                           azure_helper.WALinuxAgentShim.find_endpoint)
 
@@ -72,13 +76,18 @@ class TestFindEndpoint(TestCase):
             ' option unknown-245 {0};'.format(encoded_address),
             '}'])
 
+    def test_from_dhcp_client(self):
+        self.dhcp_options.return_value = {"eth0": {"unknown_245": "5:4:3:2"}}
+        self.assertEqual('5.4.3.2',
+                         azure_helper.WALinuxAgentShim.find_endpoint(None))
+
     def test_latest_lease_used(self):
         encoded_addresses = ['5:4:3:2', '4:3:2:1']
         file_content = '\n'.join([self._build_lease_content(encoded_address)
                                   for encoded_address in encoded_addresses])
         self.load_file.return_value = file_content
         self.assertEqual(encoded_addresses[-1].replace(':', '.'),
-                         azure_helper.WALinuxAgentShim.find_endpoint())
+                         azure_helper.WALinuxAgentShim.find_endpoint("foobar"))
 
 
 class TestExtractIpAddressFromLeaseValue(TestCase):

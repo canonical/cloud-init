@@ -3,9 +3,6 @@
 #apt_upgrade: true
 packages: [ bzr, pastebinit, ubuntu-dev-tools, ccache, bzr-builddeb, vim-nox, git-core, lftp ]
 
-#apt_sources:
-# - source: ppa:smoser/ppa
-
 #disable_root: False
 
 # mounts:

@@ -176,6 +176,8 @@ else:
         (ETC + '/cloud', glob('config/*.cfg')),
         (ETC + '/cloud/cloud.cfg.d', glob('config/cloud.cfg.d/*')),
         (ETC + '/cloud/templates', glob('templates/*')),
+        (ETC + '/NetworkManager/dispatcher.d/', ['tools/hook-network-manager']),
+        (ETC + '/dhcp/dhclient-exit-hooks.d/', ['tools/hook-dhclient']),
         (USR_LIB_EXEC + '/cloud-init', ['tools/uncloud-init',
                                         'tools/write-ssh-key-fingerprints']),
         (USR + '/share/doc/cloud-init', [f for f in glob('doc/*') if is_f(f)]),

@@ -20,18 +20,17 @@ import base64
 import contextlib
 import crypt
 import fnmatch
+from functools import partial
 import os
 import os.path
 import time
-import xml.etree.ElementTree as ET
-
 from xml.dom import minidom
-
-from cloudinit.sources.helpers.azure import get_metadata_from_fabric
+import xml.etree.ElementTree as ET
 
 from cloudinit import log as logging
 from cloudinit.settings import PER_ALWAYS
 from cloudinit import sources
+from cloudinit.sources.helpers.azure import get_metadata_from_fabric
 from cloudinit import util
 
 LOG = logging.getLogger(__name__)
@@ -107,6 +106,8 @@ def temporary_hostname(temp_hostname, cfg, hostname_command='hostname'):
 
 
 class DataSourceAzureNet(sources.DataSource):
+    FALLBACK_LEASE = '/var/lib/dhcp/dhclient.eth0.leases'
+
     def __init__(self, sys_cfg, distro, paths):
         sources.DataSource.__init__(self, sys_cfg, distro, paths)
         self.seed_dir = os.path.join(paths.seed_dir, 'azure')
@@ -115,6 +116,8 @@ class DataSourceAzureNet(sources.DataSource):
         self.ds_cfg = util.mergemanydict([
             util.get_cfg_by_path(sys_cfg, DS_CFG_PATH, {}),
             BUILTIN_DS_CONFIG])
+        self.dhclient_lease_file = self.paths.cfgs.get('dhclient_lease',
+                                                       self.FALLBACK_LEASE)
 
     def __str__(self):
         root = sources.DataSource.__str__(self)
@@ -226,7 +229,9 @@ class DataSourceAzureNet(sources.DataSource):
         write_files(ddir, files, dirmode=0o700)
 
         if self.ds_cfg['agent_command'] == '__builtin__':
-            metadata_func = get_metadata_from_fabric
+            metadata_func = partial(get_metadata_from_fabric,
+                                    fallback_lease_file=self.
+                                    dhclient_lease_file)
         else:
             metadata_func = self.get_metadata_from_agent
         try:

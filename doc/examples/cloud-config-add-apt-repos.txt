@@ -4,18 +4,21 @@
 #
 # Default: auto select based on cloud metadata
 #  in ec2, the default is <region>.archive.ubuntu.com
-# apt_mirror:
-#   use the provided mirror
-# apt_mirror_search:
-#   search the list for the first mirror.
-#   this is currently very limited, only verifying that
-#   the mirror is dns resolvable or an IP address
+# apt:
+#   primary:
+#     - arches [default]
+#       uri:
+#     use the provided mirror
+#       search:
+#     search the list for the first mirror.
+#     this is currently very limited, only verifying that
+#     the mirror is dns resolvable or an IP address
 #
-# if neither apt_mirror nor apt_mirror search is set (the default)
+# if neither mirror is set (the default)
 # then use the mirror provided by the DataSource found.
 # In EC2, that means using <region>.ec2.archive.ubuntu.com
-# 
-# if no mirror is provided by the DataSource, and 'apt_mirror_search_dns' is
+#
+# if no mirror is provided by the DataSource, but 'search_dns' is
 # true, then search for dns names '<distro>-mirror' in each of
 # - fqdn of this host per cloud metadata
 # - localdomain
@@ -27,8 +30,19 @@
 # up and expose them only by creating dns entries.
 #
 # if none of that is found, then the default distro mirror is used
-apt_mirror: http://us.archive.ubuntu.com/ubuntu/
-apt_mirror_search: 
- - http://local-mirror.mydomain
- - http://archive.ubuntu.com
-apt_mirror_search_dns: False
+apt:
+  primary:
+    - arches: [default]
+      uri: http://us.archive.ubuntu.com/ubuntu/
+# or
+apt:
+  primary:
+    - arches: [default]
+      search:
+        - http://local-mirror.mydomain
+        - http://archive.ubuntu.com
+# or
+apt:
+  primary:
+    - arches: [default]
+      search_dns: True
