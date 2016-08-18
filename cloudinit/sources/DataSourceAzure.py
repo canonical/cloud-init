@@ -54,6 +54,7 @@ BUILTIN_DS_CONFIG = {
         'hostname_command': 'hostname',
     },
     'disk_aliases': {'ephemeral0': '/dev/sdb'},
+    'dhclient_lease_file': '/var/lib/dhcp/dhclient.eth0.leases',
 }
 
 BUILTIN_CLOUD_CONFIG = {
@@ -106,8 +107,6 @@ def temporary_hostname(temp_hostname, cfg, hostname_command='hostname'):
 
 
 class DataSourceAzureNet(sources.DataSource):
-    FALLBACK_LEASE = '/var/lib/dhcp/dhclient.eth0.leases'
-
     def __init__(self, sys_cfg, distro, paths):
         sources.DataSource.__init__(self, sys_cfg, distro, paths)
         self.seed_dir = os.path.join(paths.seed_dir, 'azure')
@@ -116,8 +115,7 @@ class DataSourceAzureNet(sources.DataSource):
         self.ds_cfg = util.mergemanydict([
             util.get_cfg_by_path(sys_cfg, DS_CFG_PATH, {}),
             BUILTIN_DS_CONFIG])
-        self.dhclient_lease_file = self.paths.cfgs.get('dhclient_lease',
-                                                       self.FALLBACK_LEASE)
+        self.dhclient_lease_file = self.ds_cfg.get('dhclient_lease_file')
 
     def __str__(self):
         root = sources.DataSource.__str__(self)
@@ -126,6 +124,9 @@ class DataSourceAzureNet(sources.DataSource):
     def get_metadata_from_agent(self):
         temp_hostname = self.metadata.get('local-hostname')
         hostname_command = self.ds_cfg['hostname_bounce']['hostname_command']
+        agent_cmd = self.ds_cfg['agent_command']
+        LOG.debug("Getting metadata via agent.  hostname=%s cmd=%s",
+                  temp_hostname, agent_cmd)
         with temporary_hostname(temp_hostname, self.ds_cfg,
                                 hostname_command=hostname_command) \
                 as previous_hostname:
@@ -141,7 +142,7 @@ class DataSourceAzureNet(sources.DataSource):
                     util.logexc(LOG, "handling set_hostname failed")
 
             try:
-                invoke_agent(self.ds_cfg['agent_command'])
+                invoke_agent(agent_cmd)
             except util.ProcessExecutionError:
                 # claim the datasource even if the command failed
                 util.logexc(LOG, "agent command '%s' failed.",
@@ -234,13 +235,13 @@ class DataSourceAzureNet(sources.DataSource):
                                     dhclient_lease_file)
         else:
             metadata_func = self.get_metadata_from_agent
+
         try:
             fabric_data = metadata_func()
         except Exception as exc:
             LOG.info("Error communicating with Azure fabric; assume we aren't"
                      " on Azure.", exc_info=True)
             return False
-
         self.metadata['instance-id'] = util.read_dmi_data('system-uuid')
         self.metadata.update(fabric_data)
 

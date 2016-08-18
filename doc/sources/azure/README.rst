@@ -30,13 +30,10 @@ datasource:
 If those files are not available, the fallback is to check the leases file
 for the endpoint server (again option 245).
 
-You can define the path to the lease file with the 'dhclient_lease' configuration
-value under system_info: and paths:.  For example:
+You can define the path to the lease file with the 'dhclient_lease_file'
+configuration.  The default value is /var/lib/dhcp/dhclient.eth0.leases.
 
-      dhclient_lease: /var/lib/dhcp/dhclient.eth0.leases
-
-If no configuration value is provided, the dhclient_lease value will fallback to
-/var/lib/dhcp/dhclient.eth0.leases.
+    dhclient_lease_file: /var/lib/dhcp/dhclient.eth0.leases
 
 walinuxagent
 ------------
