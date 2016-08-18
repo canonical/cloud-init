@@ -1,69 +1,114 @@
 #!/bin/sh
 
+TEMP_D=""
+error() { echo "$@" 1>&2; }
+fail() { [ $# -eq 0 ] || error "$@"; exit 1; }
 Usage() {
-   cat <<EOF
-Usage: ${0##*/} trunk-dir [revno [next-upstream-version]]
-
-   pull in new upstream snapshot from trunk-dir
-
-   Leaves file 'new-changes.log'
-
-   Example:
-   $ ${0##*/} ../trunk
-     # prepare bzr dir in . with new snapshot from ../trunk
-   $ dch --edit
-     # read changes in new-changes.log and write changelog
-   $ debcommit
-   $ dch --release
-   $ debcommit --release
+cat <<EOF
+${0##*/} [branch]
+    update current branch with trunk branch.
+    branch defaults to 'master'
 EOF
 }
-fail() { echo "$@" 1>&2; exit 1; }
 
-name="cloud-init"
-[ $# -eq 0 ] && { Usage 1>&2; exit 1; }
-[ "$1" = "-h" -o "$1" = "--help" ] && { Usage; exit 0; }
-trunk=$1
-revno=${2:-tip}
-uver=${3:-0.7.7} # the *next* upstream version
+print_commit() {
+    local subject="$1" author="$2" bugs="$3" aname=""
+    aname=${author% <*}
+    echo "    - $subject [${aname}]${bugs:+ (LP: ${bugs})}"
+}
 
-[ -d "$trunk" ] ||
-   fail "trunk dir '$trunk' not a dir"
-if [ "$revno" = "tip" ]; then
-   revno=$(cd "$trunk" && bzr revno) ||
-      fail "failed getting bzr revno from $trunk"
+git_log_to_dch() {
+    local line="" commit="" lcommit="" bugs=""
+    while :; do
+        read line || break
+        case "$line" in
+            commit\ *)
+                if [ -n "$commit" ]; then
+                    print_commit "$subject" "$author" "$bugs"
+                fi
+                commit=${line#*: }
+                bugs=""
+                author=""
+                subject=""
+                ;;
+            Author:*) author="${line#Author: }";;
+            LP:*) bugs="${bugs:+${bugs}, }${line#*: }";;
+            "") [ -z "$subject" ] && read subject;;
+        esac
+    done
+    if [ -n "$commit" ]; then
+        print_commit "$subject" "$author" "$bugs"
+    fi
+}
+cleanup() {
+    [ ! -d "${TEMP_D}" ] || rm -Rf "${TEMP_D}"
+}
+
+from_ref=${1:-"master"}
+cur_branch=$(git rev-parse --abbrev-ref HEAD) ||
+   fail "failed to get current branch"
+
+case "$cur_branch" in
+    ubuntu/*) :;;
+    *) fail "You are on branch '$cur_branch', expect to be on ubuntu/*";;
+esac
+
+trap cleanup EXIT
+
+prev_pkg_ver=$(dpkg-parsechangelog --show-field Version) ||
+   fail "failed reading package version"
+pkg_name=$(dpkg-parsechangelog --show-field Source) ||
+   fail "failed to read Source from changelog"
+
+# turn 0.7.7-10-gbc2c326-0ubuntu1 into 'bc2c326'
+t=${prev_pkg_ver%-*}
+prev_pkg_hash=${t##*-g}
+
+new_pkg_upstream=$(git describe master)
+new_pkg_debian="0ubuntu1"
+new_upstream_ver=$(git describe "${from_ref}")
+new_pkg_ver="${new_upstream_ver}-${new_pkg_debian}"
+
+prev_upstream_ver=${prev_pkg_ver%-*}
+if [ "${prev_upstream_ver}" = "${new_upstream_ver}" ]; then
+    echo "nothing to commit.  '$from_ref' is at ${new_upstream_ver}."
+    exit 0
 fi
-pversion=$(dpkg-parsechangelog --show-field Version) ||
-   fail "failed to read previous version with dpkg-parsechangelog"
-prevno=$(echo "$pversion" | sed 's,.*bzr\([0-9]\+\)-.*,\1,') ||
-   fail "fail reading previous bzr revision from previous version '$pversion'"
-version=${uver}~bzr${revno}
-tarball=${name}-${version}.tar.gz
-t=../${name}_${version}.orig.tar.gz
-if [ -f "$t" ]; then
-   echo "using '$t' as tarball" 1>&2
-   tarball="$t"
-else
-   echo "creating $tarball with bzr export" 1>&2
-   bzr export --format=tgz "--revision=${revno}" "$tarball" "${trunk}" ||
-     fail "failed exporting bzr in $trunk to $tarball"
-fi
-bzr merge-upstream "$tarball" "--version=${version}" ||
-   fail "failed merge-upstream of $tarball at version=$version"
 
-oldrev=$(($prevno+1))
-( cd "$trunk" && bzr log -r "${oldrev}..${revno}" ) > new-changes.log ||
-   fail "failed to get changes from ${oldrev}..$revno"
+git merge "${from_ref}" -m "merge from $from_ref at $new_upstream_ver"
+TEMP_D=$(mktemp -d) || fail "failed mktemp"
+clog="${TEMP_D}/changelog"
+gitlog="${TEMP_D}/gitlog"
 
-cat <<EOF
-====
-Now see ./new-changes.log for changes between $oldrev and $revno
+git log --first-parent --no-decorate --format=full \
+   "${prev_pkg_hash}..${from_ref}" >  "$gitlog" ||
+   fail "failed git log ${prev_pkg_hash}..${from_ref}"
 
-then:
-   $ dch --edit
-     # read changes in new-changes.log and write changelog
-   $ debcommit
-   $ dch --release
-   $ debcommit --release
-   $ debuild -S
+cat >> "$clog" <<EOF
+$pkg_name ($new_pkg_ver) UNRELEASED; urgency=medium
+
+  * New upstream snapshot.
 EOF
+git_log_to_dch < "$gitlog" >> "$clog" ||
+   fail "failed git_log_to_dch"
+cat >> "$clog" <<EOF
+
+ -- ${DEBFULLNAME} <$DEBEMAIL>  $(date -R)
+
+EOF
+
+cat "$clog" "debian/changelog" > "$TEMP_D/newlog" &&
+   cp "$TEMP_D/newlog" "debian/changelog" ||
+   fail "failed replacing debian/changelog"
+
+dch -e || fail "dch -e exited $?"
+
+git diff
+
+echo -n "Commit this change? (Y/n): "
+read answer || fail "failed to read answer"
+case "$answer" in
+   n|[Nn][oO]) exit 1;;
+esac
+
+git commit -m "update changelog." debian/changelog
