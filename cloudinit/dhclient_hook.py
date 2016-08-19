@@ -3,7 +3,7 @@
 
 import os
 
-from cloudinit.atomic_helper import atomic_write_json
+from cloudinit import atomic_helper
 from cloudinit import log as logging
 from cloudinit import stages
 
@@ -46,5 +46,5 @@ class LogDhclient(object):
         envs = os.environ
         if self.hook_file is None:
             return
-        atomic_write_json(self.hook_file, self.get_vals(envs))
+        atomic_helper.write_json(self.hook_file, self.get_vals(envs))
         LOG.debug("Wrote dhclient options in %s", self.hook_file)
