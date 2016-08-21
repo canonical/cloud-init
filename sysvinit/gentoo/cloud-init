@@ -1,4 +1,4 @@
-#!/sbin/runscript
+#!/sbin/openrc-run
 # add depends for network, dns, fs etc
 depend() {
   after cloud-init-local
