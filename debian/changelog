@@ -1,4 +1,4 @@
-cloud-init (0.7.7-17-g40a2f62-0ubuntu1) UNRELEASED; urgency=medium
+cloud-init (0.7.7-17-g40a2f62-0ubuntu1) yakkety; urgency=medium
 
   * New upstream snapshot.
     - network: fix get_interface_mac for bond slave, read_sys_net for ENOTDIR
@@ -10,7 +10,7 @@ cloud-init (0.7.7-17-g40a2f62-0ubuntu1) UNRELEASED; urgency=medium
     and use --destdir=debian/cloud-init. (LP: #1615745)
   * debian/dirs: remove obsolete / unused file.
 
- -- Scott Moser <smoser@ubuntu.com>  Mon, 22 Aug 2016 17:00:50 -0400
+ -- Scott Moser <smoser@ubuntu.com>  Mon, 22 Aug 2016 17:02:56 -0400
 
 cloud-init (0.7.7-13-g41271bd-0ubuntu1) yakkety; urgency=medium
 
