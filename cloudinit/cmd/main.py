@@ -46,7 +46,7 @@ from cloudinit.reporting import events
 from cloudinit.settings import (PER_INSTANCE, PER_ALWAYS, PER_ONCE,
                                 CLOUD_CONFIG)
 
-from cloudinit.atomic_helper import atomic_write_json
+from cloudinit import atomic_helper
 
 from cloudinit.dhclient_hook import LogDhclient
 
@@ -513,7 +513,7 @@ def status_wrapper(name, args, data_d=None, link_d=None):
     v1['stage'] = mode
     v1[mode]['start'] = time.time()
 
-    atomic_write_json(status_path, status)
+    atomic_helper.write_json(status_path, status)
     util.sym_link(os.path.relpath(status_path, link_d), status_link,
                   force=True)
 
@@ -536,7 +536,7 @@ def status_wrapper(name, args, data_d=None, link_d=None):
     v1[mode]['finished'] = time.time()
     v1['stage'] = None
 
-    atomic_write_json(status_path, status)
+    atomic_helper.write_json(status_path, status)
 
     if mode == "modules-final":
         # write the 'finished' file
@@ -545,9 +545,9 @@ def status_wrapper(name, args, data_d=None, link_d=None):
             if v1[m]['errors']:
                 errors.extend(v1[m].get('errors', []))
 
-        atomic_write_json(result_path,
-                          {'v1': {'datasource': v1['datasource'],
-                                  'errors': errors}})
+        atomic_helper.write_json(
+            result_path, {'v1': {'datasource': v1['datasource'],
+                          'errors': errors}})
         util.sym_link(os.path.relpath(result_path, link_d), result_link,
                       force=True)
 

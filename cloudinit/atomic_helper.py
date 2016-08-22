@@ -5,21 +5,27 @@ import json
 import os
 import tempfile
 
+_DEF_PERMS = 0o644
 
-def atomic_write_file(path, content, mode='w'):
+
+def write_file(filename, content, mode=_DEF_PERMS, omode="wb"):
+    # open filename in mode 'omode', write content, set permissions to 'mode'
     tf = None
     try:
-        tf = tempfile.NamedTemporaryFile(dir=os.path.dirname(path),
-                                         delete=False, mode=mode)
+        tf = tempfile.NamedTemporaryFile(dir=os.path.dirname(filename),
+                                         delete=False, mode=omode)
         tf.write(content)
         tf.close()
-        os.rename(tf.name, path)
+        os.chmod(tf.name, mode)
+        os.rename(tf.name, filename)
     except Exception as e:
         if tf is not None:
             os.unlink(tf.name)
         raise e
 
 
-def atomic_write_json(path, data):
-    return atomic_write_file(path, json.dumps(data, indent=1,
-                                              sort_keys=True) + "\n")
+def write_json(filename, data, mode=_DEF_PERMS):
+    # dump json representation of data to file filename.
+    return write_file(
+        filename, json.dumps(data, indent=1, sort_keys=True) + "\n",
+        omode="w", mode=mode)

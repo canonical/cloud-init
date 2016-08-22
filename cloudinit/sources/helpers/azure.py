@@ -190,7 +190,8 @@ class WALinuxAgentShim(object):
         '</Health>'])
 
     def __init__(self, fallback_lease_file=None):
-        LOG.debug('WALinuxAgentShim instantiated...')
+        LOG.debug('WALinuxAgentShim instantiated, fallback_lease_file=%s',
+                  fallback_lease_file)
         self.dhcpoptions = None
         self._endpoint = None
         self.openssl_manager = None
