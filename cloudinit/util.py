@@ -1639,6 +1639,11 @@ def get_builtin_cfg():
     return obj_copy.deepcopy(CFG_BUILTIN)
 
 
+def is_link(path):
+    LOG.debug("Testing if a link exists for %s", path)
+    return os.path.islink(path)
+
+
 def sym_link(source, link, force=False):
     LOG.debug("Creating symbolic link from %r => %r", link, source)
     if force and os.path.exists(link):

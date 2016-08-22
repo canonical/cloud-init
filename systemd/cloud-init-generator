@@ -6,6 +6,7 @@ DEBUG_LEVEL=1
 LOG_D="/run/cloud-init"
 ENABLE="enabled"
 DISABLE="disabled"
+RUN_ENABLED_FILE="$LOG_D/$ENABLE"
 CLOUD_SYSTEM_TARGET="/lib/systemd/system/cloud-init.target"
 CLOUD_TARGET_NAME="cloud-init.target"
 # lxc sets 'container', but lets make that explicitly a global
@@ -107,6 +108,7 @@ main() {
                     "ln $CLOUD_SYSTEM_TARGET $link_path"
             fi
         fi
+        : > "$RUN_ENABLED_FILE"
     elif [ "$result" = "$DISABLE" ]; then
         if [ -f "$link_path" ]; then
             if rm -f "$link_path"; then
@@ -117,6 +119,9 @@ main() {
             fi
         else
             debug 1 "already disabled: no change needed [no $link_path]"
+        fi
+        if [ -e "$RUN_ENABLED_FILE" ]; then
+            rm -f "$RUN_ENABLED_FILE"
         fi
     else
         debug 0 "unexpected result '$result'"
