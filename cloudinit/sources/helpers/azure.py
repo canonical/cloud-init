@@ -79,12 +79,6 @@ class GoalState(object):
             './Container/RoleInstanceList/RoleInstance/InstanceId')
 
     @property
-    def shared_config_xml(self):
-        url = self._text_from_xpath('./Container/RoleInstanceList/RoleInstance'
-                                    '/Configuration/SharedConfig')
-        return self.http_client.get(url).contents
-
-    @property
     def certificates_xml(self):
         if self._certificates_xml is None:
             url = self._text_from_xpath(
@@ -172,19 +166,6 @@ class OpenSSLManager(object):
         return keys
 
 
-def iid_from_shared_config_content(content):
-    """
-    find INSTANCE_ID in:
-    <?xml version="1.0" encoding="utf-8"?>
-    <SharedConfig version="1.0.0.0" goalStateIncarnation="1">
-    <Deployment name="INSTANCE_ID" guid="{...}" incarnation="0">
-        <Service name="..." guid="{00000000-0000-0000-0000-000000000000}"/>
-    """
-    root = ElementTree.fromstring(content)
-    depnode = root.find('Deployment')
-    return depnode.get('name')
-
-
 class WALinuxAgentShim(object):
 
     REPORT_READY_XML_TEMPLATE = '\n'.join([
@@ -263,8 +244,6 @@ class WALinuxAgentShim(object):
             public_keys = self.openssl_manager.parse_certificates(
                 goal_state.certificates_xml)
         data = {
-            'instance-id': iid_from_shared_config_content(
-                goal_state.shared_config_xml),
             'public-keys': public_keys,
         }
         self._report_ready(goal_state, http_client)
