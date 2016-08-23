@@ -114,6 +114,79 @@ handle_preseed_local_cloud_config() {
    db_unregister "${debconf_name}" || :
 }
 
+fix_1336855() {
+  ### Begin fix for LP: 1336855
+  # fix issue where cloud-init misidentifies the location of grub and
+  # where grub misidentifies the location of the device
+
+  # if cloud-init's grub module did not run, then it did not break anything.
+  [ -f /var/lib/cloud/instance/sem/config-grub-dpkg ] || return 0
+
+  # This bug only happened on /dev/xvda devices
+  [ -b /dev/xvda ] || return 0
+
+  # we can't fix the system without /proc/cmdline
+  [ -r /proc/cmdline ] || return 0
+
+  # We only want to run on systems where grub is installed
+  [ -x /usr/sbin/grub-install ] || return 0
+
+  # First, identify the kernel device for the parent.
+  for parm in $(cat /proc/cmdline); do
+       dev=$(echo $parm | awk -F\= '{print$NF}')
+       case $parm in
+           root=UUID*)  [ -d /dev/disk/by-uuid ] &&
+                            root_dev=$(readlink -f /dev/disk/by-uuid/$dev);;
+           root=LABEL*) [ -d /dev/disk/by-label ] &&
+                            root_dev=$(readlink -f /dev/disk/by-label/$dev);;
+           root=/dev*)  [ -d /dev ] &&
+                            root_dev=$(readlink -f $dev);;
+       esac
+       [ -n "$root_dev" ] && break
+  done
+
+  # Don't continue if we don't have a root directive
+  [ -z "$root_dev" ] && return 0
+
+  # Only deal with simple, cloud-based devices
+  case $root_dev in
+       /dev/vda*|/dev/xvda*|/dev/sda*) ;;
+       *) return 0;;
+  esac
+
+  # Make sure that we are not chrooted.
+  [ "$(stat -c %d:%i /)" != "$(stat -c %d:%i /proc/1/root/.)" ] && return 0
+
+  # Check if we are in a container, i.e. LXC
+  for t in running-in-container lxc-is-container; do
+       command -v $t && $t && return 0
+  done >/dev/null 2>&1
+
+  # Find out where grub thinks the root device is. Only continue if
+  # grub postinst would install/reinstall grub
+  db_get grub-pc/install_devices && grub_cfg_dev=${RET} || return 0
+  db_get grub-pc/install_devices_empty && grub_dev_empty=${RET} || return 0
+
+  # Find out the parent device for the root device.
+  #     example output: sda/sda1
+  block_path=$(udevadm info -q path -n $root_dev | awk '-Fblock/' '{print$NF}')
+
+  # Extract the parent device name. This works where the device is a block device
+  #     example output: /dev/sda
+  parent_dev=$(echo $block_path | awk '-F/' '$1 { if ( $1 ) {print"/dev/"$1}}')
+  [ -b "${parent_dev}" ] || return 0
+
+  # Do nothing if the device that the grub postinst would install is already used
+  [ "$grub_cfg_dev" = "$parent_dev" -o "$grub_cfg_dev" = "$root_dev" ] && return 0
+
+  # If we get here, do the installation
+  echo "Reconfiguring grub install device due to mismatch"
+  echo "   Grub should use $parent_dev but is configured for $grub_cfg_dev"
+  db_set grub-pc/install_devices "$parent_dev"
+  grub-install $parent_dev ||
+     echo "WARNING! Unable to fix grub device mismatch. You may be broken."
+}
+
 if [ "$1" = "configure" ]; then
    # disable ureadahead (LP: #499520)
    dpkg-divert --package cloud-init --rename --divert \
@@ -157,6 +230,10 @@ EOF
 
    # if there is generic cloud-config preseed, apply them
    handle_preseed_local_cloud_config
+
+   # fix issue where cloud-init misidentifies the location of grub
+   fix_1336855
+
 fi
 
 #DEBHELPER#

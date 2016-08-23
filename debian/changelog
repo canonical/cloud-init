@@ -1,3 +1,13 @@
+cloud-init (0.6.3-0ubuntu1.14) precise-proposed; urgency=medium
+
+  * debian/patches/lp-1363260-add-cloudsigma_ds.patch: backport from
+    14.04/14.10 CloudSigma datasource to enable CloudSigma (LP: #1363260).
+  * debian/patches/lp-1336855-grub_xvda.patch: include xvda devices for
+    consideration for grub configuration (LP: #1336855).
+    - added logic to postinst to fix broken grub installations
+
+ -- Ben Howard <ben.howard@ubuntu.com>  Fri, 29 Aug 2014 15:40:23 -0600
+
 cloud-init (0.6.3-0ubuntu1.13) precise-proposed; urgency=medium
 
   * debian/patches/lp-1302229-fix_futils_azure.patch: fixed imports and

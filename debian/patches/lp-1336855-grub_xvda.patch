@@ -1,0 +1,19 @@
+Description: consider xvda devices for grub-pc configuration
+ Cloud-init previously did not consider /dev/xvda and /dev/xvda1 for
+ setting as the grub device. Subsequently, unattended updates with
+ grub may cause the instance to be unusable.
+Author: Ben Howard <ben.howard@ubuntu.com>
+Bug: https://bugs.launchpad.net/bugs/1336855
+Forwarded: yes
+--- a/cloudinit/CloudConfig/cc_grub_dpkg.py
++++ b/cloudinit/CloudConfig/cc_grub_dpkg.py
+@@ -44,7 +44,8 @@
+             idevs_empty = "false"
+         if idevs == None:
+             idevs = "/dev/sda"
+-            for dev in ("/dev/sda", "/dev/vda", "/dev/sda1", "/dev/vda1"):
++            for dev in ("/dev/sda", "/dev/vda", "/dev/xvda",
++                        "/dev/xvda1", "/dev/sda1", "/dev/vda1"):
+                 if os.path.exists(dev):
+                     idevs = dev
+                     break
