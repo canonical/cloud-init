@@ -1,13 +1,3 @@
-cloud-init (0.7.5-0ubuntu1.7) trusty; urgency=medium
-
-  * d/patches/lp-1456684-eu-central-1.patch:
-    - Add central as a direction for EC2 availability zones (LP: #1456684).
-  * d/patches/lp-1464253-handle-new-cloudstack-passwords.patch:
-      - Handle both old and new CloudStack password servers (LP: #1464253).
-  * Add python-serial to Build-Depends (LP: #1381776).
-
- -- Daniel Watkins <daniel.watkins@canonical.com>  Thu, 16 Jul 2015 17:34:01 +0100
-
 cloud-init (0.7.5-0ubuntu1.6) trusty; urgency=medium
 
   * d/patches/lp-1375252-1458052-Azure-hostname_password.patch:

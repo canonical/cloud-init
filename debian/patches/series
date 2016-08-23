@@ -7,5 +7,3 @@ lp-1422919-azure-g5_ephemeral.patch
 lp-1422388-cloudstack-passwords.patch
 lp-1356855-fix-cloudstack-metadata.patch
 lp-1375252-1458052-Azure-hostname_password.patch
-lp-1456684-eu-central-1.patch -p1
-lp-1464253-handle-new-cloudstack-passwords.patch
