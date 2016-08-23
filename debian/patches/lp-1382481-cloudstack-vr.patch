@@ -1,0 +1,83 @@
+Author: Vincent Bernat <vbe@exoscale.ch>
+Origin: upstream
+Bug: https://launchpad.net/bugs/1382481
+Applied-Upstream: yes
+Description:  query virtual CloudStack router instead of default gw
+ This patch is a backport of what is currently upstream.
+--- a/cloudinit/DataSourceCloudStack.py
++++ b/cloudinit/DataSourceCloudStack.py
+@@ -20,6 +20,7 @@
+ 
+ import cloudinit.DataSource as DataSource
+ 
++import os
+ from cloudinit import seeddir as base_seeddir
+ from cloudinit import log
+ import cloudinit.util as util
+@@ -72,8 +73,8 @@
+     def __init__(self, sys_cfg=None):
+         DataSource.DataSource.__init__(self, sys_cfg)
+         # Cloudstack has its metadata/userdata URLs located at
+-        # http://<default-gateway-ip>/latest/
+-        self.vr_addr = self.get_default_gateway()
++        # http://<virtual-router-ip>/latest/
++        self.vr_addr = self.get_vr_address()
+         if not self.vr_addr:
+             raise RuntimeError("No virtual router found!")
+         self.metadata_address = "http://%s/" % (self.vr_addr,)
+@@ -91,6 +92,55 @@
+                     log.debug("found default route, gateway is %s" % gw)
+                     return gw
+ 
++    def get_dhclient_d(self):
++        # find lease files directory
++        supported_dirs = ["/var/lib/dhclient", "/var/lib/dhcp"]
++        for d in supported_dirs:
++            if os.path.exists(d):
++                log.debug("Using %s lease directory", d)
++                return d
++
++    def get_latest_lease(self):
++        # find latest lease file
++        lease_d = self.get_dhclient_d()
++        if not lease_d:
++            return None
++        lease_files = os.listdir(lease_d)
++        latest_mtime = -1
++        latest_file = None
++        for file_name in lease_files:
++            if file_name.endswith(".lease") or file_name.endswith(".leases"):
++                abs_path = os.path.join(lease_d, file_name)
++                mtime = os.path.getmtime(abs_path)
++                if mtime > latest_mtime:
++                    latest_mtime = mtime
++                    latest_file = abs_path
++        return latest_file
++
++    def get_vr_address(self):
++        # Get the address of the virtual router via dhcp leases
++        # see http://bit.ly/T76eKC for documentation on the virtual router.
++        # If no virtual router is detected, fallback on default gateway.
++        lease_file = self.get_latest_lease()
++        if not lease_file:
++            log.debug("No lease file found, using default gateway")
++            return self.get_default_gateway()
++
++        latest_address = None
++        with open(lease_file, "r") as fd:
++            for line in fd:
++                if "dhcp-server-identifier" in line:
++                    words = line.strip(" ;\r\n").split(" ")
++                    if len(words) > 2:
++                        dhcp = words[2]
++                        log.debug("Found DHCP identifier %s", dhcp)
++                        latest_address = dhcp
++        if not latest_address:
++            # No virtual router found, fallback on default gateway
++            log.debug("No DHCP found, using default gateway")
++            return self.get_default_gateway()
++        return latest_address
++
+     def __str__(self):
+         return "DataSourceCloudStack"
+ 

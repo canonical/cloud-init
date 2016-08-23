@@ -1,3 +1,14 @@
+cloud-init (0.6.3-0ubuntu1.22) precise; urgency=medium
+
+  * debian/patches/lp-1458052-redact-azure-password.patch:
+     - redact plain text password in /var/lib/waagent/ovf.xml (LP: #1458052).
+
+  [ Vincent Bernat ]
+  * debian/patches/lp-1382481-cloudstack-vr.patch:
+     - support CloudStack's basic networking (LP: #1382481).
+
+ -- Ben Howard <ben.howard@ubuntu.com>  Thu, 17 Sep 2015 12:57:16 -0600
+
 cloud-init (0.6.3-0ubuntu1.21) precise; urgency=medium
 
   * debian/patches/lp-1492420-config-drive_skip-invalid-file-paths.patch:

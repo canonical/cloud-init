@@ -36,3 +36,5 @@ lp-1470890-include-regions-in-dynamic-mirror-discovery.patch
 lp-1490796-azure-fix-mount_cb-for-symlinks.patch
 lp-1492420-config-drive_skip-invalid-file-paths.patch
 lp-1492468-config-drive_alternative-interface-path.patch
+lp-1458052-redact-azure-password.patch
+lp-1382481-cloudstack-vr.patch
