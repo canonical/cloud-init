@@ -1,3 +1,11 @@
+cloud-init (0.7.7~bzr1155-0ubuntu1) xenial; urgency=medium
+
+  * New upstream snapshot.
+    * cc_mounts: use 'nofail' rather than 'nobootwait' if system uses systemd.
+      (LP: #1514485).
+
+ -- Scott Moser <smoser@ubuntu.com>  Tue, 10 Nov 2015 12:35:31 -0500
+
 cloud-init (0.7.7~bzr1154-0ubuntu1) xenial; urgency=medium
 
   * New upstream snapshot.
