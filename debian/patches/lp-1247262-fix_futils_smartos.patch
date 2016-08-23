@@ -1,0 +1,26 @@
+Author: Ben Howard <ben.howard@ubuntu.com>
+Bug: https://launchpad.net/bugs/1247262
+Applied-Upstream: yes
+Description: SmartOS datasource should use futil.is_true
+Index: cloud-init-0.6.3/cloudinit/DataSourceSmartOS.py
+===================================================================
+--- cloud-init-0.6.3.orig/cloudinit/DataSourceSmartOS.py	2013-11-01 13:45:41.641485219 -0600
++++ cloud-init-0.6.3/cloudinit/DataSourceSmartOS.py	2013-11-01 13:46:01.165485485 -0600
+@@ -137,7 +137,7 @@
+ 
+         b64_all = self.query('base64_all', strip=True, b64=False)
+         if b64_all is not None:
+-            self.b64_all = util.is_true(b64_all)
++            self.b64_all = futil.is_true(b64_all)
+ 
+         for ci_noun, attribute in SMARTOS_ATTRIB_MAP.iteritems():
+             smartos_noun, strip = attribute
+@@ -237,7 +237,7 @@
+         b64 = query_data('b64-%s' % noun, seed_device=seed_device,
+                             seed_timeout=seed_timeout, b64=False,
+                             default=False, strip=True)
+-        b64 = util.is_true(b64)
++        b64 = futil.is_true(b64)
+ 
+     resp = None
+     if b64 or strip:

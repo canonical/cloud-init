@@ -1,3 +1,11 @@
+cloud-init (0.6.3-0ubuntu1.9) precise-proposed; urgency=low
+
+  * debian/patches/lp-1247262-fix_futils_smartos.patch:
+    fixed usage of util.is_true to be futil.is_true for SmartOS
+    datasource. (LP: #1247262)
+
+ -- Ben Howard <ben.howard@ubuntu.com>  Fri, 01 Nov 2013 13:51:31 -0600
+
 cloud-init (0.6.3-0ubuntu1.8) precise-proposed; urgency=low
 
   * debian/patches/lp-1233315-add-smartos-support.patch:
