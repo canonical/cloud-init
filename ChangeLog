@@ -37,6 +37,7 @@
  - add option 'apt_pipelining' to address issue with S3 mirrors 
    (LP: #948461) [Ben Howard]
  - warn on non-multipart, non-handled user-data [Martin Packman]
+ - run resizefs in the background in order to not block boot (LP: #961226)
 0.6.2:
  - fix bug where update was not done unless update was explicitly set.
    It would not be run if 'upgrade' or packages were set to be installed

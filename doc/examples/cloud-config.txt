@@ -351,6 +351,8 @@ rsyslog:
 # this allows you to launch an instance with a larger disk / partition
 # and have the instance automatically grow / to accomoddate it
 # set to 'False' to disable
+# by default, the resizefs is done early in boot, and blocks
+# if resize_rootfs is set to 'noblock', then it will be run in parallel
 resize_rootfs: True
 
 ## hostname and /etc/hosts management
