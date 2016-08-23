@@ -23,6 +23,8 @@
 from cloudinit import distros
 from cloudinit import helpers
 from cloudinit import log as logging
+from cloudinit.net.network_state import parse_net_config_data
+from cloudinit.net import sysconfig
 from cloudinit import util
 
 from cloudinit.distros import net_util
@@ -59,9 +61,15 @@ class Distro(distros.Distro):
         # should only happen say once per instance...)
         self._runner = helpers.Runners(paths)
         self.osfamily = 'redhat'
+        self._net_renderer = sysconfig.Renderer()
 
     def install_packages(self, pkglist):
         self.package_command('install', pkgs=pkglist)
+
+    def _write_network_config(self, netconfig):
+        ns = parse_net_config_data(netconfig)
+        self._net_renderer.render_network_state("/", ns)
+        return []
 
     def _write_network(self, settings):
         # TODO(harlowja) fix this... since this is the ubuntu format

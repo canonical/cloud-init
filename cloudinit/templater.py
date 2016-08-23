@@ -3,10 +3,12 @@
 #    Copyright (C) 2012 Canonical Ltd.
 #    Copyright (C) 2012 Hewlett-Packard Development Company, L.P.
 #    Copyright (C) 2012 Yahoo! Inc.
+#    Copyright (C) 2016 Amazon.com, Inc. or its affiliates.
 #
 #    Author: Scott Moser <scott.moser@canonical.com>
 #    Author: Juerg Haefliger <juerg.haefliger@hp.com>
 #    Author: Joshua Harlow <harlowja@yahoo-inc.com>
+#    Author: Andrew Jorgensen <ajorgens@amazon.com>
 #
 #    This program is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License version 3, as
@@ -102,12 +104,11 @@ def detect_template(text):
         rest = ''
     type_match = TYPE_MATCHER.match(ident)
     if not type_match:
-        if not CHEETAH_AVAILABLE:
-            LOG.warn("Cheetah not available as the default renderer for"
-                     " unknown template, reverting to the basic renderer.")
-            return ('basic', basic_render, text)
-        else:
+        if CHEETAH_AVAILABLE:
+            LOG.debug("Using Cheetah as the renderer for unknown template.")
             return ('cheetah', cheetah_render, text)
+        else:
+            return ('basic', basic_render, text)
     else:
         template_type = type_match.group(1).lower().strip()
         if template_type not in ('jinja', 'cheetah', 'basic'):
@@ -139,6 +140,11 @@ def render_from_file(fn, params):
 
 def render_to_file(fn, outfn, params, mode=0o644):
     contents = render_from_file(fn, params)
+    util.write_file(outfn, contents, mode=mode)
+
+
+def render_string_to_file(content, outfn, params, mode=0o644):
+    contents = render_string(content, params)
     util.write_file(outfn, contents, mode=mode)
 
 

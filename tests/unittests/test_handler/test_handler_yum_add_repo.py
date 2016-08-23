@@ -1,16 +1,13 @@
-from cloudinit import util
-
 from cloudinit.config import cc_yum_add_repo
+from cloudinit import util
 
 from .. import helpers
 
-import shutil
-import tempfile
-import logging
-
-from six import BytesIO
-
 import configobj
+import logging
+import shutil
+from six import BytesIO
+import tempfile
 
 LOG = logging.getLogger(__name__)
 
@@ -68,4 +65,4 @@ class TestConfig(helpers.FilesystemMockingTestCase):
                 'gpgcheck': '1',
             }
         }
-        self.assertEquals(expected, dict(contents))
+        self.assertEqual(expected, dict(contents))

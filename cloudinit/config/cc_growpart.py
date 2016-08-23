@@ -36,12 +36,12 @@ DEFAULT_CONFIG = {
 }
 
 
-def enum(**enums):
-    return type('Enum', (), enums)
+class RESIZE(object):
+    SKIPPED = "SKIPPED"
+    CHANGED = "CHANGED"
+    NOCHANGE = "NOCHANGE"
+    FAILED = "FAILED"
 
-
-RESIZE = enum(SKIPPED="SKIPPED", CHANGED="CHANGED", NOCHANGE="NOCHANGE",
-              FAILED="FAILED")
 
 LOG = logging.getLogger(__name__)
 

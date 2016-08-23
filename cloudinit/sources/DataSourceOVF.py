@@ -30,16 +30,23 @@ import time
 from cloudinit import log as logging
 from cloudinit import sources
 from cloudinit import util
-from .helpers.vmware.imc.config import Config
-from .helpers.vmware.imc.config_file import ConfigFile
-from .helpers.vmware.imc.config_nic import NicConfigurator
-from .helpers.vmware.imc.guestcust_event import GuestCustEventEnum
-from .helpers.vmware.imc.guestcust_state import GuestCustStateEnum
-from .helpers.vmware.imc.guestcust_error import GuestCustErrorEnum
-from .helpers.vmware.imc.guestcust_util import (
-    set_customization_status,
+
+from cloudinit.sources.helpers.vmware.imc.config \
+    import Config
+from cloudinit.sources.helpers.vmware.imc.config_file \
+    import ConfigFile
+from cloudinit.sources.helpers.vmware.imc.config_nic \
+    import NicConfigurator
+from cloudinit.sources.helpers.vmware.imc.guestcust_error \
+    import GuestCustErrorEnum
+from cloudinit.sources.helpers.vmware.imc.guestcust_event \
+    import GuestCustEventEnum
+from cloudinit.sources.helpers.vmware.imc.guestcust_state \
+    import GuestCustStateEnum
+from cloudinit.sources.helpers.vmware.imc.guestcust_util import (
+    enable_nics,
     get_nics_to_enable,
-    enable_nics
+    set_customization_status
 )
 
 LOG = logging.getLogger(__name__)
@@ -262,7 +269,7 @@ def read_ovf_environment(contents):
         elif prop == "user-data":
             try:
                 ud = base64.decodestring(val)
-            except:
+            except Exception:
                 ud = val
     return (md, ud, cfg)
 
@@ -277,7 +284,7 @@ def get_ovf_env(dirname):
             try:
                 contents = util.load_file(full_fn)
                 return (fname, contents)
-            except:
+            except Exception:
                 util.logexc(LOG, "Failed loading ovf file %s", full_fn)
     return (None, False)
 

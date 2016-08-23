@@ -25,8 +25,9 @@ import os
 from cloudinit import distros
 from cloudinit import helpers
 from cloudinit import log as logging
+from cloudinit.net import eni
+from cloudinit.net.network_state import parse_net_config_data
 from cloudinit import util
-from cloudinit import net
 
 from cloudinit.distros.parsers.hostname import HostnameConf
 
@@ -42,6 +43,13 @@ APT_GET_WRAPPER = {
     'enabled': 'auto',
 }
 
+ENI_HEADER = """# This file is generated from information provided by
+# the datasource.  Changes to it will not persist across an instance.
+# To disable cloud-init's network configuration capabilities, write a file
+# /etc/cloud/cloud.cfg.d/99-disable-network-config.cfg with the following:
+# network: {config: disabled}
+"""
+
 
 class Distro(distros.Distro):
     hostname_conf_fn = "/etc/hostname"
@@ -56,6 +64,12 @@ class Distro(distros.Distro):
         # should only happen say once per instance...)
         self._runner = helpers.Runners(paths)
         self.osfamily = 'debian'
+        self._net_renderer = eni.Renderer({
+            'eni_path': self.network_conf_fn,
+            'eni_header': ENI_HEADER,
+            'links_prefix_path': None,
+            'netrules_path': None,
+        })
 
     def apply_locale(self, locale, out_fn=None):
         if not out_fn:
@@ -79,13 +93,9 @@ class Distro(distros.Distro):
         return ['all']
 
     def _write_network_config(self, netconfig):
-        ns = net.parse_net_config_data(netconfig)
-        net.render_network_state(target="/", network_state=ns,
-                                 eni=self.network_conf_fn,
-                                 links_prefix=self.links_prefix,
-                                 netrules=None)
+        ns = parse_net_config_data(netconfig)
+        self._net_renderer.render_network_state("/", ns)
         _maybe_remove_legacy_eth0()
-
         return []
 
     def _bring_up_interfaces(self, device_names):
@@ -221,7 +231,7 @@ def _maybe_remove_legacy_eth0(path="/etc/network/interfaces.d/eth0.cfg"):
             msg = "removed %s with known contents" % path
         else:
             msg = (bmsg + " '%s' exists with user configured content." % path)
-    except:
+    except Exception:
         msg = bmsg + " %s exists, but could not be read." % path
 
     LOG.warn(msg)

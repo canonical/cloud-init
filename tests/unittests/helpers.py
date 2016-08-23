@@ -2,17 +2,15 @@ from __future__ import print_function
 
 import functools
 import os
-import sys
 import shutil
+import sys
 import tempfile
 import unittest
 
+import mock
 import six
+import unittest2
 
-try:
-    from unittest import mock
-except ImportError:
-    import mock
 try:
     from contextlib import ExitStack
 except ImportError:
@@ -20,6 +18,9 @@ except ImportError:
 
 from cloudinit import helpers as ch
 from cloudinit import util
+
+# Used for skipping tests
+SkipTest = unittest2.SkipTest
 
 # Used for detecting different python versions
 PY2 = False
@@ -43,78 +44,6 @@ else:
         PY3 = True
         if _PY_MINOR == 4 and _PY_MICRO < 3:
             FIX_HTTPRETTY = True
-
-if PY26:
-    # For now add these on, taken from python 2.7 + slightly adjusted.  Drop
-    # all this once Python 2.6 is dropped as a minimum requirement.
-    class TestCase(unittest.TestCase):
-        def setUp(self):
-            super(TestCase, self).setUp()
-            self.__all_cleanups = ExitStack()
-
-        def tearDown(self):
-            self.__all_cleanups.close()
-            unittest.TestCase.tearDown(self)
-
-        def addCleanup(self, function, *args, **kws):
-            self.__all_cleanups.callback(function, *args, **kws)
-
-        def assertIs(self, expr1, expr2, msg=None):
-            if expr1 is not expr2:
-                standardMsg = '%r is not %r' % (expr1, expr2)
-                self.fail(self._formatMessage(msg, standardMsg))
-
-        def assertIn(self, member, container, msg=None):
-            if member not in container:
-                standardMsg = '%r not found in %r' % (member, container)
-                self.fail(self._formatMessage(msg, standardMsg))
-
-        def assertNotIn(self, member, container, msg=None):
-            if member in container:
-                standardMsg = '%r unexpectedly found in %r'
-                standardMsg = standardMsg % (member, container)
-                self.fail(self._formatMessage(msg, standardMsg))
-
-        def assertIsNone(self, value, msg=None):
-            if value is not None:
-                standardMsg = '%r is not None'
-                standardMsg = standardMsg % (value)
-                self.fail(self._formatMessage(msg, standardMsg))
-
-        def assertIsInstance(self, obj, cls, msg=None):
-            """Same as self.assertTrue(isinstance(obj, cls)), with a nicer
-            default message."""
-            if not isinstance(obj, cls):
-                standardMsg = '%s is not an instance of %r' % (repr(obj), cls)
-                self.fail(self._formatMessage(msg, standardMsg))
-
-        def assertDictContainsSubset(self, expected, actual, msg=None):
-            missing = []
-            mismatched = []
-            for k, v in expected.items():
-                if k not in actual:
-                    missing.append(k)
-                elif actual[k] != v:
-                    mismatched.append('%r, expected: %r, actual: %r'
-                                      % (k, v, actual[k]))
-
-            if len(missing) == 0 and len(mismatched) == 0:
-                return
-
-            standardMsg = ''
-            if missing:
-                standardMsg = 'Missing: %r' % ','.join(m for m in missing)
-            if mismatched:
-                if standardMsg:
-                    standardMsg += '; '
-                standardMsg += 'Mismatched values: %s' % ','.join(mismatched)
-
-            self.fail(self._formatMessage(msg, standardMsg))
-
-
-else:
-    class TestCase(unittest.TestCase):
-        pass
 
 
 # Makes the old path start
@@ -151,6 +80,10 @@ def retarget_many_wrapper(new_base, am, old_func):
     return wrapper
 
 
+class TestCase(unittest2.TestCase):
+    pass
+
+
 class ResourceUsingTestCase(TestCase):
     def setUp(self):
         super(ResourceUsingTestCase, self).setUp()
@@ -180,13 +113,12 @@ class ResourceUsingTestCase(TestCase):
         with open(where, 'r') as fh:
             return fh.read()
 
-    def getCloudPaths(self):
+    def getCloudPaths(self, ds=None):
         tmpdir = tempfile.mkdtemp()
         self.addCleanup(shutil.rmtree, tmpdir)
-        cp = ch.Paths({
-            'cloud_dir': tmpdir,
-            'templates_dir': self.resourceLocation(),
-        })
+        cp = ch.Paths({'cloud_dir': tmpdir,
+                       'templates_dir': self.resourceLocation()},
+                      ds=ds)
         return cp
 
 

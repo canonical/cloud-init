@@ -33,11 +33,13 @@ class ReportingEvent(object):
     """Encapsulation of event formatting."""
 
     def __init__(self, event_type, name, description,
-                 origin=DEFAULT_EVENT_ORIGIN, timestamp=time.time()):
+                 origin=DEFAULT_EVENT_ORIGIN, timestamp=None):
         self.event_type = event_type
         self.name = name
         self.description = description
         self.origin = origin
+        if timestamp is None:
+            timestamp = time.time()
         self.timestamp = timestamp
 
     def as_string(self):

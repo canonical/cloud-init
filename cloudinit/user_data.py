@@ -178,7 +178,7 @@ class UserDataProcessor(object):
                 payload = util.load_yaml(msg.get_payload(decode=True))
                 if payload:
                     payload_idx = payload.get('launch-index')
-            except:
+            except Exception:
                 pass
         # Header overrides contents, for now (?) or the other way around?
         if header_idx is not None:
@@ -334,19 +334,23 @@ def is_skippable(part):
 
 
 # Coverts a raw string into a mime message
-def convert_string(raw_data, headers=None):
+def convert_string(raw_data, content_type=NOT_MULTIPART_TYPE):
     if not raw_data:
         raw_data = ''
-    if not headers:
-        headers = {}
-    data = util.decode_binary(util.decomp_gzip(raw_data))
-    if "mime-version:" in data[0:4096].lower():
-        msg = util.message_from_string(data)
-        for (key, val) in headers.items():
-            _replace_header(msg, key, val)
-    else:
-        mtype = headers.get(CONTENT_TYPE, NOT_MULTIPART_TYPE)
-        maintype, subtype = mtype.split("/", 1)
-        msg = MIMEBase(maintype, subtype, *headers)
+
+    def create_binmsg(data, content_type):
+        maintype, subtype = content_type.split("/", 1)
+        msg = MIMEBase(maintype, subtype)
         msg.set_payload(data)
+        return msg
+
+    try:
+        data = util.decode_binary(util.decomp_gzip(raw_data))
+        if "mime-version:" in data[0:4096].lower():
+            msg = util.message_from_string(data)
+        else:
+            msg = create_binmsg(data, content_type)
+    except UnicodeDecodeError:
+        msg = create_binmsg(raw_data, content_type)
+
     return msg

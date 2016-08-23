@@ -40,10 +40,10 @@ It can be configured with the following option structure::
     mechanism you've used to switch the init system.
 """
 
-from cloudinit.settings import PER_INSTANCE
-from cloudinit import log as logging
-from cloudinit import util
 from cloudinit.distros import ubuntu
+from cloudinit import log as logging
+from cloudinit.settings import PER_INSTANCE
+from cloudinit import util
 
 import os
 import time

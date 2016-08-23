@@ -57,15 +57,15 @@ def tiny_p(cmd, capture=True):
 
 def pkg_config_read(library, var):
     fallbacks = {
-       'systemd': {
-           'systemdsystemunitdir': '/lib/systemd/system',
-           'systemdsystemgeneratordir': '/lib/systemd/system-generators',
-       }
+        'systemd': {
+            'systemdsystemunitdir': '/lib/systemd/system',
+            'systemdsystemgeneratordir': '/lib/systemd/system-generators',
+        }
     }
     cmd = ['pkg-config', '--variable=%s' % var, library]
     try:
         (path, err) = tiny_p(cmd)
-    except:
+    except Exception:
         return fallbacks[library][var]
     return str(path).strip()
 
@@ -184,7 +184,6 @@ else:
         (USR + '/share/doc/cloud-init/examples/seed',
             [f for f in glob('doc/examples/seed/*') if is_f(f)]),
         (LIB + '/udev/rules.d', [f for f in glob('udev/*.rules')]),
-        (LIB + '/udev', ['udev/cloud-init-wait']),
     ]
     # Use a subclass for install that handles
     # adding on the right init system configuration files
@@ -197,7 +196,6 @@ requirements = read_requires()
 if sys.version_info < (3,):
     requirements.append('cheetah')
 
-
 setuptools.setup(
     name='cloud-init',
     version=get_version(),
@@ -206,10 +204,14 @@ setuptools.setup(
     author_email='scott.moser@canonical.com',
     url='http://launchpad.net/cloud-init/',
     packages=setuptools.find_packages(exclude=['tests']),
-    scripts=['bin/cloud-init',
-             'tools/cloud-init-per'],
+    scripts=['tools/cloud-init-per'],
     license='GPLv3',
     data_files=data_files,
     install_requires=requirements,
     cmdclass=cmdclass,
-    )
+    entry_points={
+        'console_scripts': [
+            'cloud-init = cloudinit.cmd.main:main'
+        ],
+    }
+)

@@ -18,14 +18,14 @@
 from base64 import b64decode
 
 from cloudinit import log as logging
-from cloudinit import util
 from cloudinit import sources
 from cloudinit import url_helper
+from cloudinit import util
 
 LOG = logging.getLogger(__name__)
 
 BUILTIN_DS_CONFIG = {
-    'metadata_url': 'http://metadata.google.internal./computeMetadata/v1/'
+    'metadata_url': 'http://metadata.google.internal/computeMetadata/v1/'
 }
 REQUIRED_FIELDS = ('instance-id', 'availability-zone', 'local-hostname')
 
@@ -71,7 +71,7 @@ class DataSourceGCE(sources.DataSource):
             index = public_key.index(':')
             if index > 0:
                 return public_key[(index + 1):]
-        except:
+        except Exception:
             return public_key
 
     def get_data(self):

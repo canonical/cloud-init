@@ -107,9 +107,6 @@ main() {
                     "ln $CLOUD_SYSTEM_TARGET $link_path"
             fi
         fi
-        # this touches /run/cloud-init/enabled, which is read by 
-        # udev/cloud-init-wait.  If not present, it will exit quickly.
-        touch "$LOG_D/$ENABLE"
     elif [ "$result" = "$DISABLE" ]; then
         if [ -f "$link_path" ]; then
             if rm -f "$link_path"; then

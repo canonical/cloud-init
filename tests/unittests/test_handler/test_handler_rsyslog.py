@@ -31,7 +31,7 @@ class TestLoadConfig(t_help.TestCase):
             'config_dir': "mydir",
             'config_filename': 'myfilename',
             'service_reload_command': 'auto'}
-            )
+        )
 
         self.assertEqual(found, self.basecfg)
 

@@ -24,8 +24,8 @@ import os
 
 from six import BytesIO
 
-from cloudinit.settings import PER_INSTANCE
 from cloudinit import log as logging
+from cloudinit.settings import PER_INSTANCE
 from cloudinit import util
 
 frequency = PER_INSTANCE

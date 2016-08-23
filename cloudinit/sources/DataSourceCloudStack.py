@@ -25,14 +25,15 @@
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import os
-import time
 from socket import inet_ntoa
 from struct import pack
+import time
 
 from cloudinit import ec2_utils as ec2
 from cloudinit import log as logging
+from cloudinit import sources
 from cloudinit import url_helper as uhelp
-from cloudinit import sources, util
+from cloudinit import util
 
 LOG = logging.getLogger(__name__)
 
@@ -206,7 +207,8 @@ def get_latest_lease():
     latest_mtime = -1
     latest_file = None
     for file_name in lease_files:
-        if file_name.endswith(".lease") or file_name.endswith(".leases"):
+        if file_name.startswith("dhclient.") and \
+           (file_name.endswith(".lease") or file_name.endswith(".leases")):
             abs_path = os.path.join(lease_d, file_name)
             mtime = os.path.getmtime(abs_path)
             if mtime > latest_mtime:

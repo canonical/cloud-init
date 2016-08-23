@@ -144,9 +144,7 @@ def _skip_retry_on_codes(status_codes, _request_args, cause):
     """Returns if a request should retry based on a given set of codes that
     case retrying to be stopped/skipped.
     """
-    if cause.code in status_codes:
-        return False
-    return True
+    return cause.code in status_codes
 
 
 def get_instance_userdata(api_version='latest',

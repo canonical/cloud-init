@@ -20,8 +20,8 @@ import re
 from base64 import b64encode, b64decode
 from six.moves.urllib_parse import urlparse
 
-from cloudinit import settings
 from cloudinit import helpers
+from cloudinit import settings
 from cloudinit.sources import DataSourceGCE
 
 from .. import helpers as test_helpers
@@ -52,7 +52,7 @@ GCE_META_ENCODING = {
 
 HEADERS = {'X-Google-Metadata-Request': 'True'}
 MD_URL_RE = re.compile(
-    r'http://metadata.google.internal./computeMetadata/v1/.*')
+    r'http://metadata.google.internal/computeMetadata/v1/.*')
 
 
 def _set_mock_metadata(gce_meta=None):

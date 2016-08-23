@@ -31,6 +31,7 @@ import stat
 
 from cloudinit import importer
 from cloudinit import log as logging
+from cloudinit import net
 from cloudinit import ssh_util
 from cloudinit import type_utils
 from cloudinit import util
@@ -50,8 +51,8 @@ OSFAMILIES = {
 LOG = logging.getLogger(__name__)
 
 
+@six.add_metaclass(abc.ABCMeta)
 class Distro(object):
-    __metaclass__ = abc.ABCMeta
 
     usr_lib_exec = "/usr/lib"
     hosts_fn = "/etc/hosts"
@@ -97,7 +98,7 @@ class Distro(object):
         try:
             res = os.lstat('/run/systemd/system')
             return stat.S_ISDIR(res.st_mode)
-        except:
+        except Exception:
             return False
 
     @abc.abstractmethod
@@ -128,6 +129,8 @@ class Distro(object):
                                         mirror_info=arch_info)
 
     def apply_network(self, settings, bring_up=True):
+        # this applies network where 'settings' is interfaces(5) style
+        # it is obsolete compared to apply_network_config
         # Write it out
         dev_names = self._write_network(settings)
         # Now try to bring them up
@@ -142,6 +145,9 @@ class Distro(object):
         if bring_up:
             return self._bring_up_interfaces(dev_names)
         return False
+
+    def apply_network_config_names(self, netconfig):
+        net.apply_network_config_names(netconfig)
 
     @abc.abstractmethod
     def apply_locale(self, locale, out_fn=None):
@@ -448,7 +454,7 @@ class Distro(object):
             keys = kwargs['ssh_authorized_keys']
             if isinstance(keys, six.string_types):
                 keys = [keys]
-            if isinstance(keys, dict):
+            elif isinstance(keys, dict):
                 keys = list(keys.values())
             if keys is not None:
                 if not isinstance(keys, (tuple, list, set)):

@@ -1,6 +1,6 @@
 from cloudinit.config import cc_lxd
-from cloudinit import (distros, helpers, cloud)
 from cloudinit.sources import DataSourceNoCloud
+from cloudinit import (distros, helpers, cloud)
 from .. import helpers as t_help
 
 import logging
@@ -42,11 +42,11 @@ class TestLxd(t_help.TestCase):
         cc_lxd.handle('cc_lxd', self.lxd_cfg, cc, LOG, [])
         self.assertTrue(mock_util.which.called)
         init_call = mock_util.subp.call_args_list[0][0][0]
-        self.assertEquals(init_call,
-                          ['lxd', 'init', '--auto',
-                           '--network-address=0.0.0.0',
-                           '--storage-backend=zfs',
-                           '--storage-pool=poolname'])
+        self.assertEqual(init_call,
+                         ['lxd', 'init', '--auto',
+                          '--network-address=0.0.0.0',
+                          '--storage-backend=zfs',
+                          '--storage-pool=poolname'])
 
     @mock.patch("cloudinit.config.cc_lxd.util")
     def test_lxd_install(self, mock_util):
@@ -56,7 +56,7 @@ class TestLxd(t_help.TestCase):
         cc_lxd.handle('cc_lxd', self.lxd_cfg, cc, LOG, [])
         self.assertTrue(cc.distro.install_packages.called)
         install_pkg = cc.distro.install_packages.call_args_list[0][0][0]
-        self.assertEquals(sorted(install_pkg), ['lxd', 'zfs'])
+        self.assertEqual(sorted(install_pkg), ['lxd', 'zfs'])
 
     @mock.patch("cloudinit.config.cc_lxd.util")
     def test_no_init_does_nothing(self, mock_util):
@@ -87,7 +87,7 @@ class TestLxd(t_help.TestCase):
                 "ipv6_netmask": "64",
                 "ipv6_nat": "true",
                 "domain": "lxd"}
-        self.assertEquals(
+        self.assertEqual(
             cc_lxd.bridge_to_debconf(data),
             {"lxd/setup-bridge": "true",
              "lxd/bridge-name": "testbr0",
@@ -109,7 +109,7 @@ class TestLxd(t_help.TestCase):
                 "ipv6_address": "fd98:9e0:3744::1",
                 "ipv6_netmask": "64",
                 "ipv6_nat": "true"}
-        self.assertEquals(
+        self.assertEqual(
             cc_lxd.bridge_to_debconf(data),
             {"lxd/setup-bridge": "true",
              "lxd/bridge-ipv6": "true",
@@ -120,7 +120,7 @@ class TestLxd(t_help.TestCase):
     def test_lxd_debconf_existing(self):
         data = {"mode": "existing",
                 "name": "testbr0"}
-        self.assertEquals(
+        self.assertEqual(
             cc_lxd.bridge_to_debconf(data),
             {"lxd/setup-bridge": "false",
              "lxd/use-existing-bridge": "true",
@@ -128,7 +128,7 @@ class TestLxd(t_help.TestCase):
 
     def test_lxd_debconf_none(self):
         data = {"mode": "none"}
-        self.assertEquals(
+        self.assertEqual(
             cc_lxd.bridge_to_debconf(data),
             {"lxd/setup-bridge": "false",
              "lxd/bridge-name": ""})

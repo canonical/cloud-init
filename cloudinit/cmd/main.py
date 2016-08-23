@@ -25,19 +25,12 @@ import argparse
 import json
 import os
 import sys
-import time
 import tempfile
+import time
 import traceback
 
-# This is more just for running from the bin folder so that
-# cloud-init binary can find the cloudinit module
-possible_topdir = os.path.normpath(os.path.join(os.path.abspath(
-        sys.argv[0]), os.pardir, os.pardir))
-if os.path.exists(os.path.join(possible_topdir, "cloudinit", "__init__.py")):
-    sys.path.insert(0, possible_topdir)
-
 from cloudinit import patcher
-patcher.patch()
+patcher.patch()  # noqa
 
 from cloudinit import log as logging
 from cloudinit import netinfo
@@ -46,9 +39,10 @@ from cloudinit import sources
 from cloudinit import stages
 from cloudinit import templater
 from cloudinit import util
+from cloudinit import version
+
 from cloudinit import reporting
 from cloudinit.reporting import events
-from cloudinit import version
 
 from cloudinit.settings import (PER_INSTANCE, PER_ALWAYS, PER_ONCE,
                                 CLOUD_CONFIG)
@@ -188,7 +182,7 @@ def main_init(name, args):
         LOG.debug("Closing stdin")
         util.close_stdin()
         (outfmt, errfmt) = util.fixup_output(init.cfg, name)
-    except:
+    except Exception:
         util.logexc(LOG, "Failed to setup output redirection!")
         print_exc("Failed to setup output redirection!")
     if args.debug:
@@ -211,27 +205,27 @@ def main_init(name, args):
         util.logexc(LOG, "Failed to initialize, likely bad things to come!")
     # Stage 4
     path_helper = init.paths
-    if not args.local:
+    mode = sources.DSMODE_LOCAL if args.local else sources.DSMODE_NETWORK
+
+    if mode == sources.DSMODE_NETWORK:
         existing = "trust"
         sys.stderr.write("%s\n" % (netinfo.debug_info()))
         LOG.debug(("Checking to see if files that we need already"
                    " exist from a previous run that would allow us"
                    " to stop early."))
+        # no-net is written by upstart cloud-init-nonet when network failed
+        # to come up
         stop_files = [
             os.path.join(path_helper.get_cpath("data"), "no-net"),
-            path_helper.get_ipath_cur("obj_pkl"),
         ]
         existing_files = []
         for fn in stop_files:
-            try:
-                c = util.load_file(fn)
-                if len(c):
-                    existing_files.append((fn, len(c)))
-            except Exception:
-                pass
+            if os.path.isfile(fn):
+                existing_files.append(fn)
+
         if existing_files:
-            LOG.debug("Exiting early due to the existence of %s files",
-                      existing_files)
+            LOG.debug("[%s] Exiting. stop file %s existed",
+                      mode, existing_files)
             return (None, [])
         else:
             LOG.debug("Execution continuing, no previous run detected that"
@@ -248,34 +242,50 @@ def main_init(name, args):
     # Stage 5
     try:
         init.fetch(existing=existing)
+        # if in network mode, and the datasource is local
+        # then work was done at that stage.
+        if mode == sources.DSMODE_NETWORK and init.datasource.dsmode != mode:
+            LOG.debug("[%s] Exiting. datasource %s in local mode",
+                      mode, init.datasource)
+            return (None, [])
     except sources.DataSourceNotFoundException:
         # In the case of 'cloud-init init' without '--local' it is a bit
         # more likely that the user would consider it failure if nothing was
         # found. When using upstart it will also mentions job failure
         # in console log if exit code is != 0.
-        if args.local:
+        if mode == sources.DSMODE_LOCAL:
             LOG.debug("No local datasource found")
         else:
             util.logexc(LOG, ("No instance datasource found!"
                               " Likely bad things to come!"))
         if not args.force:
-            init.apply_network_config()
-            if args.local:
+            init.apply_network_config(bring_up=not args.local)
+            LOG.debug("[%s] Exiting without datasource in local mode", mode)
+            if mode == sources.DSMODE_LOCAL:
                 return (None, [])
             else:
                 return (None, ["No instance datasource found."])
-
-    if args.local:
-        if not init.ds_restored:
-            # if local mode and the datasource was not restored from cache
-            # (this is not first boot) then apply networking.
-            init.apply_network_config()
         else:
-            LOG.debug("skipping networking config from restored datasource.")
+            LOG.debug("[%s] barreling on in force mode without datasource",
+                      mode)
 
     # Stage 6
     iid = init.instancify()
-    LOG.debug("%s will now be targeting instance id: %s", name, iid)
+    LOG.debug("[%s] %s will now be targeting instance id: %s. new=%s",
+              mode, name, iid, init.is_new_instance())
+
+    init.apply_network_config(bring_up=bool(mode != sources.DSMODE_LOCAL))
+
+    if mode == sources.DSMODE_LOCAL:
+        if init.datasource.dsmode != mode:
+            LOG.debug("[%s] Exiting. datasource %s not in local mode.",
+                      mode, init.datasource)
+            return (init.datasource, [])
+        else:
+            LOG.debug("[%s] %s is in local mode, will apply init modules now.",
+                      mode, init.datasource)
+
+    # update fully realizes user-data (pulling in #include if necessary)
     init.update()
     # Stage 7
     try:
@@ -309,7 +319,7 @@ def main_init(name, args):
         if outfmt_orig != outfmt or errfmt_orig != errfmt:
             LOG.warn("Stdout, stderr changing to (%s, %s)", outfmt, errfmt)
             (outfmt, errfmt) = util.fixup_output(mods.cfg, name)
-    except:
+    except Exception:
         util.logexc(LOG, "Failed to re-adjust output redirection!")
     logging.setupLogging(mods.cfg)
 
@@ -351,7 +361,7 @@ def main_modules(action_name, args):
         LOG.debug("Closing stdin")
         util.close_stdin()
         util.fixup_output(mods.cfg, name)
-    except:
+    except Exception:
         util.logexc(LOG, "Failed to setup output redirection!")
     if args.debug:
         # Reset so that all the debug handlers are closed out
@@ -414,7 +424,7 @@ def main_single(name, args):
         LOG.debug("Closing stdin")
         util.close_stdin()
         util.fixup_output(mods.cfg, None)
-    except:
+    except Exception:
         util.logexc(LOG, "Failed to setup output redirection!")
     if args.debug:
         # Reset so that all the debug handlers are closed out
@@ -494,7 +504,7 @@ def status_wrapper(name, args, data_d=None, link_d=None):
     else:
         try:
             status = json.loads(util.load_file(status_path))
-        except:
+        except Exception:
             pass
 
     if status is None:
@@ -528,7 +538,7 @@ def status_wrapper(name, args, data_d=None, link_d=None):
         v1[mode]['errors'] = [str(e) for e in errors]
 
     except Exception as e:
-        util.logexc(LOG, "failed of stage %s", mode)
+        util.logexc(LOG, "failed stage %s", mode)
         print_exc("failed run of stage %s" % mode)
         v1[mode]['errors'] = [str(e)]
 
@@ -553,8 +563,12 @@ def status_wrapper(name, args, data_d=None, link_d=None):
     return len(v1[mode]['errors'])
 
 
-def main():
-    parser = argparse.ArgumentParser()
+def main(sysv_args=None):
+    if sysv_args is not None:
+        parser = argparse.ArgumentParser(prog=sysv_args[0])
+        sysv_args = sysv_args[1:]
+    else:
+        parser = argparse.ArgumentParser()
 
     # Top level args
     parser.add_argument('--version', '-v', action='version',
@@ -630,7 +644,12 @@ def main():
                                      ' pass to this module'))
     parser_single.set_defaults(action=('single', main_single))
 
-    args = parser.parse_args()
+    args = parser.parse_args(args=sysv_args)
+
+    try:
+        (name, functor) = args.action
+    except AttributeError:
+        parser.error('too few arguments')
 
     # Setup basic logging to start (until reinitialized)
     # iff in debug mode...
@@ -640,9 +659,6 @@ def main():
     # Setup signal handlers before running
     signal_handler.attach_handlers()
 
-    if not hasattr(args, 'action'):
-        parser.error('too few arguments')
-    (name, functor) = args.action
     if name in ("modules", "init"):
         functor = status_wrapper
 
@@ -667,7 +683,3 @@ def main():
         return util.log_time(
             logfunc=LOG.debug, msg="cloud-init mode '%s'" % name,
             get_uptime=True, func=functor, args=(name, args))
-
-
-if __name__ == '__main__':
-    sys.exit(main())
