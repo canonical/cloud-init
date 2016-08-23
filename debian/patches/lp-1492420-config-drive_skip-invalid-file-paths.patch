@@ -1,0 +1,15 @@
+Description: do not process invalid paths
+Author: Ben Howard <ben.howard@ubuntu.com>
+Bug: https://bugs.launchpad.net/ubuntu/+source/cloud-init/+bug/1492420
+--- cloud-init-0.6.3.orig/cloudinit/DataSourceConfigDrive.py
++++ cloud-init-0.6.3/cloudinit/DataSourceConfigDrive.py
+@@ -380,7 +380,8 @@
+     files = {}
+     try:
+         for item in results['metadata'].get('files', {}):
+-            files[item['path']] = read_content_path(item)
++            if len(item) > 0:
++                files[item['path']] = read_content_path(item)
+ 
+         # the 'network_config' item in metadata is a content pointer
+         # to the network config that should be applied.

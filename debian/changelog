@@ -1,3 +1,15 @@
+cloud-init (0.6.3-0ubuntu1.21) precise; urgency=medium
+
+  * debian/patches/lp-1492420-config-drive_skip-invalid-file-paths.patch:
+     - skip null length paths defined on some Cloud Drive implementations
+       (LP: #1492420).
+  * debian/patches/lp-1492468-config-drive_alternative-interface-path.patch:
+     - use alternative interface definition of "interfaces" when
+       "network-interfaces" is invalid as used on some Cloud Drive
+       implementations (LP: #1492468).
+
+ -- Ben Howard <ben.howard@ubuntu.com>  Tue, 08 Sep 2015 14:45:36 -0600
+
 cloud-init (0.6.3-0ubuntu1.20) precise; urgency=medium
 
   * debian/patches/lp-1490796-azure-fix-mount_cb-for-symlinks.patch:

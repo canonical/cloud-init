@@ -34,3 +34,5 @@ lp-1411582-azure-udev-ephemeral-disks.patch
 lp-1470880-fix-gce-az-determination.patch
 lp-1470890-include-regions-in-dynamic-mirror-discovery.patch
 lp-1490796-azure-fix-mount_cb-for-symlinks.patch
+lp-1492420-config-drive_skip-invalid-file-paths.patch
+lp-1492468-config-drive_alternative-interface-path.patch

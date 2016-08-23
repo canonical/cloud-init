@@ -1,0 +1,22 @@
+Description: support interfaces as alternative to network-interfaces
+Author: Ben Howard <ben.howard@ubuntu.com>
+Bug: https://bugs.launchpad.net/ubuntu/+source/cloud-init/+bug/1492468
+--- cloud-init-0.6.3.orig/cloudinit/DataSourceConfigDrive.py
++++ cloud-init-0.6.3/cloudinit/DataSourceConfigDrive.py
+@@ -198,8 +198,14 @@
+             LOG.debug("Updating network interfaces from config drive (%s)",
+                       dsmode)
+ 
+-            util.write_file("/etc/network/interfaces",
+-                md['network-interfaces'])
++            # Look at network-interfaces first and then use interfaces
++            # to support some Cloud Drive implementations.
++            for iname in ("network-interfaces", "interfaces"):
++                iface_def = md.get(iname, None)
++                if iface_def is not None:
++                    util.write_file("/etc/network/interfaces", iface_def)
++                    break
++
+             try:
+                 (out, err) = util.subp(['ifup', '--all'])
+                 if len(out) or len(err):
