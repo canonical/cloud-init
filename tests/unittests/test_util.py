@@ -385,6 +385,16 @@ class TestReadDMIData(helpers.FilesystemMockingTestCase):
         self.patch_mapping({})
         self.assertEqual(None, util.read_dmi_data('expect-fail'))
 
+    def test_dots_returned_instead_of_foxfox(self):
+        # uninitialized dmi values show as \xff, return those as .
+        my_len = 32
+        dmi_value = b'\xff' * my_len + b'\n'
+        expected = ""
+        dmi_key = 'system-product-name'
+        sysfs_key = 'product_name'
+        self._create_sysfs_file(sysfs_key, dmi_value)
+        self.assertEqual(expected, util.read_dmi_data(dmi_key))
+
 
 class TestMultiLog(helpers.FilesystemMockingTestCase):
 
