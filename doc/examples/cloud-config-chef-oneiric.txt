@@ -5,7 +5,7 @@
 # Make sure that this file is valid yaml before starting instances.
 # It should be passed as user-data when starting the instance.
 #
-# This example assumes the instance is 12.04 (precise)
+# This example assumes the instance is 11.10 (oneiric)
 
 
 # The default is to install from packages. 
@@ -47,7 +47,7 @@ apt_sources:
 
 chef:
 
- # Valid values are 'gems' and 'packages'
+ # 11.10 will fail if install_type is "gems" (LP: #960576)
  install_type: "packages"
 
  # Chef settings
@@ -63,6 +63,10 @@ chef:
 
  # Default validation name is chef-validator
  validation_name: "yourorg-validator"
+
+ # value of validation_cert is not used if validation_key defined,
+ # but variable needs to be defined (LP: #960547)
+ validation_cert: "unused"
  validation_key: |
      -----BEGIN RSA PRIVATE KEY-----
      YOUR-ORGS-VALIDATION-KEY-HERE

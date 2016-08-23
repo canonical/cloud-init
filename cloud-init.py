@@ -76,7 +76,7 @@ def main():
         if os.path.exists(target):
             cmdline_msg = "cmdline: %s existed" % target
         else:
-            cmdline=util.get_cmdline()
+            cmdline = util.get_cmdline()
             try:
                 (key, url, content) = cloudinit.get_cmdline_url(
                     cmdline=cmdline)
