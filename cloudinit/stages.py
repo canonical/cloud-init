@@ -66,6 +66,7 @@ class Init(object):
         self._distro = None
         # Changed only when a fetch occurs
         self.datasource = NULL_DATA_SOURCE
+        self.ds_restored = False
 
         if reporter is None:
             reporter = events.ReportEventStack(
@@ -80,6 +81,7 @@ class Init(object):
         self._distro = None
         if reset_ds:
             self.datasource = NULL_DATA_SOURCE
+            self.ds_restored = False
 
     @property
     def distro(self):
@@ -231,6 +233,8 @@ class Init(object):
                     ds = None
             else:
                 myrep.description = "no cache found"
+
+            self.ds_restored = bool(ds)
             LOG.debug(myrep.description)
 
         if not ds:

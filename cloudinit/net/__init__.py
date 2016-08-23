@@ -350,7 +350,7 @@ def _klibc_to_config_entry(content, mac_addrs=None):
         # if no IPV4ADDR or IPV6ADDR, then go on.
         if pre + "ADDR" not in data:
             continue
-        subnet = {'type': proto}
+        subnet = {'type': proto, 'control': 'manual'}
 
         # these fields go right on the subnet
         for key in ('NETMASK', 'BROADCAST', 'GATEWAY'):
@@ -444,12 +444,13 @@ def iface_add_subnet(iface, subnet):
 def iface_add_attrs(iface):
     content = ""
     ignore_map = [
-        'type',
-        'name',
+        'control',
+        'index',
         'inet',
         'mode',
-        'index',
+        'name',
         'subnets',
+        'type',
     ]
     if iface['type'] not in ['bond', 'bridge', 'vlan']:
         ignore_map.append('mac_address')
@@ -508,6 +509,26 @@ def render_route(route, indent=""):
     return content
 
 
+def iface_start_entry(iface, index):
+    fullname = iface['name']
+    if index != 0:
+        fullname += ":%s" % index
+
+    control = iface['control']
+    if control == "auto":
+        cverb = "auto"
+    elif control in ("hotplug",):
+        cverb = "allow-" + control
+    else:
+        cverb = "# control-" + control
+
+    subst = iface.copy()
+    subst.update({'fullname': fullname, 'cverb': cverb})
+
+    return ("{cverb} {fullname}\n"
+            "iface {fullname} {inet} {mode}\n").format(**subst)
+
+
 def render_interfaces(network_state):
     ''' Given state, emit etc/network/interfaces content '''
 
@@ -528,16 +549,19 @@ def render_interfaces(network_state):
         if len(value):
             content += "    dns-{} {}\n".format(dnskey, " ".join(value))
 
-    content += "\n"
     for iface in sorted(interfaces.values(),
                         key=lambda k: (order[k['type']], k['name'])):
-        content += "auto {name}\n".format(**iface)
 
+        if content[-2:] != "\n\n":
+            content += "\n"
         subnets = iface.get('subnets', {})
         if subnets:
             for index, subnet in zip(range(0, len(subnets)), subnets):
+                if content[-2:] != "\n\n":
+                    content += "\n"
                 iface['index'] = index
                 iface['mode'] = subnet['type']
+                iface['control'] = subnet.get('control', 'auto')
                 if iface['mode'].endswith('6'):
                     iface['inet'] += '6'
                 elif iface['mode'] == 'static' and ":" in subnet['address']:
@@ -545,28 +569,21 @@ def render_interfaces(network_state):
                 if iface['mode'].startswith('dhcp'):
                     iface['mode'] = 'dhcp'
 
-                if index == 0:
-                    content += "iface {name} {inet} {mode}\n".format(**iface)
-                else:
-                    content += "auto {name}:{index}\n".format(**iface)
-                    content += \
-                        "iface {name}:{index} {inet} {mode}\n".format(**iface)
-
+                content += iface_start_entry(iface, index)
                 content += iface_add_subnet(iface, subnet)
                 content += iface_add_attrs(iface)
-                for route in subnet.get('routes', []):
-                    content += render_route(route, indent="    ")
-                content += "\n"
         else:
+            # ifenslave docs say to auto the slave devices
+            if 'bond-master' in iface:
+                content += "auto {name}\n".format(**iface)
             content += "iface {name} {inet} {mode}\n".format(**iface)
             content += iface_add_attrs(iface)
-            content += "\n"
 
     for route in network_state.get('routes'):
         content += render_route(route)
 
     # global replacements until v2 format
-    content = content.replace('mac_address', 'hwaddress ether')
+    content = content.replace('mac_address', 'hwaddress')
     return content
 
 
