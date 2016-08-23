@@ -1,3 +1,10 @@
+cloud-init (0.6.3-0ubuntu1.13) precise-proposed; urgency=medium
+
+  * debian/patches/lp-1302229-fix_futils_azure.patch: fixed imports and
+    util usage for new disk detection and format w/ Azure DS (LP: #1302229).
+
+ -- Ben Howard <ben.howard@ubuntu.com>  Thu, 03 Apr 2014 16:26:50 -0600
+
 cloud-init (0.6.3-0ubuntu1.12) precise-proposed; urgency=low
 
   * debian/patches/lp-1269626-azure_new_instance.patch: fix handling of new

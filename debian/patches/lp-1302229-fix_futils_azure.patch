@@ -1,0 +1,107 @@
+Author: Ben Howard <ben.howard@ubuntu.com>
+Bug: https://launchpad.net/bugs/1302229
+Applied-Upstream: N/A
+Description: fixed imports and util usage for new disk detection and
+ format w/ Azure DS (LP: #1302229).
+--- a/cloudinit/DataSourceAzure.py
++++ b/cloudinit/DataSourceAzure.py
+@@ -284,9 +284,9 @@ def support_new_ephemeral(cfg):
+         # race conditions could allow for a check-then-unmount
+         # to have a false positive. so just unmount and then check.
+         try:
+-            util.subp(['umount', device])
+-        except util.ProcessExecutionError as e:
+-            if device in util.mounts():
++            futil.subp(['umount', device])
++        except futil.ProcessExecutionError as e:
++            if device in futil.mounts():
+                 LOG.warn("Failed to unmount %s, will not reformat.", device)
+                 LOG.debug("Failed umount: %s", e)
+                 return None
+--- a/cloudinit/future_util.py
++++ b/cloudinit/future_util.py
+@@ -3,6 +3,8 @@ import os.path
+ import subprocess
+ import types
+ 
++from StringIO import StringIO
++
+ LOG = logging.getLogger(__name__)
+ 
+ 
+@@ -163,3 +165,75 @@ def del_file(path):
+         if e.errno != errno.ENOENT:
+             raise e
+ 
++
++def pipe_in_out(in_fh, out_fh, chunk_size=1024, chunk_cb=None):
++    bytes_piped = 0
++    while True:
++        data = in_fh.read(chunk_size)
++        if data == '':
++            break
++        else:
++            out_fh.write(data)
++            bytes_piped += len(data)
++            if chunk_cb:
++                chunk_cb(bytes_piped)
++    out_fh.flush()
++    return bytes_piped
++
++
++def load_file(fname, read_cb=None, quiet=False):
++    LOG.debug("Reading from %s (quiet=%s)", fname, quiet)
++    ofh = StringIO()
++    try:
++        with open(fname, 'rb') as ifh:
++            pipe_in_out(ifh, ofh, chunk_cb=read_cb)
++    except IOError as e:
++        if not quiet:
++            raise
++        if e.errno != errno.ENOENT:
++            raise
++    contents = ofh.getvalue()
++    LOG.debug("Read %s bytes from %s", len(contents), fname)
++    return contents
++
++
++def mounts():
++    mounted = {}
++    try:
++        # Go through mounts to see what is already mounted
++        if os.path.exists("/proc/mounts"):
++            mount_locs = load_file("/proc/mounts").splitlines()
++            method = 'proc'
++        else:
++            (mountoutput, _err) = subp("mount")
++            mount_locs = mountoutput.splitlines()
++            method = 'mount'
++        mountre = r'^(/dev/[\S]+) on (/.*) \((.+), .+, (.+)\)$'
++        for mpline in mount_locs:
++            # Linux: /dev/sda1 on /boot type ext4 (rw,relatime,data=ordered)
++            # FreeBSD: /dev/vtbd0p2 on / (ufs, local, journaled soft-updates)
++            try:
++                if method == 'proc':
++                    (dev, mp, fstype, opts, _freq, _passno) = mpline.split()
++                else:
++                    m = re.search(mountre, mpline)
++                    dev = m.group(1)
++                    mp = m.group(2)
++                    fstype = m.group(3)
++                    opts = m.group(4)
++            except:
++                continue
++            # If the name of the mount point contains spaces these
++            # can be escaped as '\040', so undo that..
++            mp = mp.replace("\\040", " ")
++            mounted[dev] = {
++                'fstype': fstype,
++                'mountpoint': mp,
++                'opts': opts,
++            }
++        LOG.debug("Fetched %s mounts from %s", mounted, method)
++    except (IOError, OSError):
++        logexc(LOG, "Failed fetching mount points")
++    return mounted
++
++
