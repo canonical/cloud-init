@@ -516,28 +516,67 @@ def dos2unix(string):
     return(string.replace('\r\n', '\n'))
 
 
-def islxc():
-    # is this host running lxc?
+def is_container():
+    # is this running in a cgroup other than /
+    for helper in ('running-in-container', 'lxc-is-container'):
+        try:
+            # try to run a helper program. if it returns true
+            # then we're inside a container. otherwise, no
+            sp = subprocess.Popen(helper, stdout=subprocess.PIPE,
+                                  stderr=subprocess.PIPE)
+            sp.communicate(None)
+            return(sp.returncode == 0)
+        except OSError as e:
+            if e.errno != errno.ENOENT:
+                raise
+
+    # this code is largely from the logic in
+    # ubuntu's /etc/init/container-detect.conf
     try:
-        with open("/proc/1/cgroup") as f:
-            if f.read() == "/":
-                return True
+        # Detect old-style libvirt
+        # Detect OpenVZ containers
+        pid1env = get_proc_env(1)
+        if "container" in pid1env:
+            return True
+
+        if "LIBVIRT_LXC_UUID" in pid1env:
+            return True
+
     except IOError as e:
         if e.errno != errno.ENOENT:
-            raise
+            pass
+
+    # Detect OpenVZ containers
+    if os.path.isdir("/proc/vz") and not os.path.isdir("/proc/bc"):
+        return True
 
     try:
-        # try to run a program named 'lxc-is-container'. if it returns true,
-        # then we're inside a container. otherwise, no
-        sp = subprocess.Popen(['lxc-is-container'], stdout=subprocess.PIPE,
-                              stderr=subprocess.PIPE)
-        sp.communicate(None)
-        return(sp.returncode == 0)
-    except OSError as e:
+        # Detect Vserver containers
+        with open("/proc/self/status") as fp:
+            lines = fp.read().splitlines()
+            for line in lines:
+                if line.startswith("VxID:"):
+                    (_key, val) = line.strip().split(":", 1)
+                    if val != "0":
+                        return True
+    except IOError as e:
         if e.errno != errno.ENOENT:
-            raise
+            pass
 
     return False
+
+
+def get_proc_env(pid):
+    # return the environment in a dict that a given process id was started with
+    env = {}
+    with open("/proc/%s/environ" % pid) as fp:
+        toks = fp.read().split("\0")
+        for tok in toks:
+            if tok == "":
+                continue
+            (name, val) = tok.split("=", 1)
+            env[name] = val
+    return env
 
 
 def get_hostname_fqdn(cfg, cloud):
