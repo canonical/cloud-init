@@ -1,18 +1,3 @@
-cloud-init (0.7.5-0ubuntu1.8) trusty; urgency=medium
-
-  * debian/patches/lp-1411582-azure-udev-ephemeral-disks.patch:
-      - Use udev rules to discover ephemeral disk locations rather than
-        hard-coded device names (LP: #1411582).
-  * debian/patches/lp-1470880-fix-gce-az-determination.patch:
-      - Correctly parse GCE's availability zones (LP: #1470880).
-  * d/patches/lp-1470890-include-regions-in-dynamic-mirror-discovery.patch:
-      - Make %(region)s a valid substitution in mirror discovery
-        (LP: #1470890).
-  * Remove python-serial from Build-Depends; it was mistakenly added last
-    upload.
-
- -- Daniel Watkins <daniel.watkins@canonical.com>  Fri, 14 Aug 2015 13:54:02 +0100
-
 cloud-init (0.7.5-0ubuntu1.7) trusty; urgency=medium
 
   * d/patches/lp-1456684-eu-central-1.patch:
