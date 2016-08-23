@@ -15,13 +15,13 @@
 #
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
 import cloudinit.util as util
-import subprocess
 import sys
 import random
 import string
 
-def handle(name,cfg,cloud,log,args):
+def handle(_name,cfg,_cloud,log,args):
     if len(args) != 0:
         # if run from command line, and give args, wipe the chpasswd['list']
         password = args[0]
@@ -115,7 +115,7 @@ def handle(name,cfg,cloud,log,args):
     return
 
 def rand_str(strlen=32, select_from=string.letters+string.digits):
-    return("".join([random.choice(select_from) for x in range(0, strlen)]))
+    return("".join([random.choice(select_from) for _x in range(0, strlen)]))
 
 def rand_user_password(pwlen=9):
     selfrom=(string.letters.translate(None,'loLOI') +

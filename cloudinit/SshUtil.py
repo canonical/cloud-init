@@ -46,7 +46,7 @@ class AuthKeyEntry():
                         elif curc == '"':
                             quoted = not quoted
                         i = i + 1
-                except IndexError as e:
+                except IndexError:
                     self.is_comment = True
                     return()
 
@@ -54,7 +54,7 @@ class AuthKeyEntry():
                     self.options = ent[0:i]
                     (self.keytype, self.base64, self.comment) = \
                         ent[i+1:].split(None,3)
-                except ValueError as e:
+                except ValueError:
                     # we did not understand this line
                     self.is_comment = True
 
@@ -84,7 +84,7 @@ def update_authorized_keys(fname, keys):
         fp = open(fname, "r")
         lines = fp.readlines() # lines have carriage return
         fp.close()
-    except IOError as e:
+    except IOError:
         lines = [ ]
 
     ka_stats = { } # keys_added status
@@ -133,7 +133,7 @@ def setup_user_keys(keys, user, key_prefix, log=None):
         akeys = akeys.replace("%h", pwent.pw_dir)
         akeys = akeys.replace("%u", user)
         authorized_keys = akeys
-    except Exception as e:
+    except Exception:
         authorized_keys = '%s/.ssh/authorized_keys' % pwent.pw_dir
         if log:
             util.logexc(log)

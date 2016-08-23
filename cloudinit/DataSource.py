@@ -69,7 +69,7 @@ class DataSource:
         if isinstance(self.metadata['public-keys'], str):
             return([self.metadata['public-keys'],])
             
-        for keyname, klist in self.metadata['public-keys'].items():
+        for _keyname, klist in self.metadata['public-keys'].items():
             # lp:506332 uec metadata service responds with
             # data that makes boto populate a string for 'klist' rather
             # than a list.
@@ -82,7 +82,7 @@ class DataSource:
 
         return(keys)
 
-    def device_name_to_device(self, name):
+    def device_name_to_device(self, _name):
         # translate a 'name' to a device
         # the primary function at this point is on ec2
         # to consult metadata service, that has
@@ -157,7 +157,9 @@ class DataSource:
 #   ie, pkglist=[ "foo", "" ]
 #     will first try to load foo.DataSource<item>
 #     then DataSource<item>
-def list_sources(cfg_list, depends, pkglist=[]):
+def list_sources(cfg_list, depends, pkglist=None):
+    if pkglist is None:
+        pkglist = []
     retlist = []
     for ds_coll in cfg_list:
         for pkg in pkglist:
@@ -197,8 +199,8 @@ def is_ipv4(instr):
         return False
 
     try:
-        r = filter(lambda x: int(x) < 256 and x > 0, toks)
+        toks = [x for x in toks if (int(x) < 256 and int(x) > 0)]
     except:
         return False
 
-    return True
+    return (len(toks) == 4)

@@ -17,6 +17,8 @@
  - support configuration of landscape-client via cloud-config (LP: #857366)
  - part-handlers now get base64 decoded content rather than 2xbase64 encoded
    in the payload parameter. (LP: #874342)
+ - add test case framework [Mike Milner] (LP: #890851)
+ - fix pylint warnings [Juerg Haefliger] (LP: #914739)
 0.6.2:
  - fix bug where update was not done unless update was explicitly set.
    It would not be run if 'upgrade' or packages were set to be installed

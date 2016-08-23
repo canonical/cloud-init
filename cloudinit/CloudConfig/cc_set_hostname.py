@@ -15,18 +15,18 @@
 #
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
-import cloudinit.util as util
-import subprocess
 
-def handle(name,cfg,cloud,log,args):
+import cloudinit.util as util
+
+def handle(_name,cfg,cloud,log,_args):
     if util.get_cfg_option_bool(cfg,"preserve_hostname",False):
         log.debug("preserve_hostname is set. not setting hostname")
         return(True)
 
-    ( hostname, fqdn ) = util.get_hostname_fqdn(cfg, cloud)
+    ( hostname, _fqdn ) = util.get_hostname_fqdn(cfg, cloud)
     try:
         set_hostname(hostname, log)
-    except Exception as e:
+    except Exception:
         util.logexc(log)
         log.warn("failed to set hostname to %s\n", hostname)
 

@@ -15,16 +15,16 @@
 #
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
 import cloudinit
 import logging
 import cloudinit.util as util
-import subprocess
 import traceback
 
 DEF_FILENAME = "20-cloud-config.conf"
 DEF_DIR = "/etc/rsyslog.d"
 
-def handle(name,cfg,cloud,log,args):
+def handle(_name,cfg,_cloud,log,_args):
     # rsyslog:
     #  - "*.* @@192.158.1.1"
     #  - content: "*.*   @@192.0.2.1:10514"
@@ -37,8 +37,6 @@ def handle(name,cfg,cloud,log,args):
 
     def_dir = cfg.get('rsyslog_dir', DEF_DIR)
     def_fname = cfg.get('rsyslog_filename', DEF_FILENAME)
-
-    entries = cfg['rsyslog']
 
     files = [ ]
     elst = [ ]
@@ -80,7 +78,7 @@ def handle(name,cfg,cloud,log,args):
         # it will also return failure on the attempt, so 'restarted'
         # won't get set
         log.debug("restarting rsyslog")
-        p = util.subp(['service', 'rsyslog', 'restart'])
+        util.subp(['service', 'rsyslog', 'restart'])
         restarted = True
 
     except Exception as e:

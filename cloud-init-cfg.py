@@ -23,7 +23,6 @@ import cloudinit.util as util
 import cloudinit.CloudConfig as CC
 import logging
 import os
-import traceback
 
 def Usage(out = sys.stdout):
     out.write("Usage: %s name\n" % sys.argv[0])

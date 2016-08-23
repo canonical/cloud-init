@@ -22,16 +22,16 @@ from cloudinit.CloudConfig import per_always
 
 frequency = per_always
 
-def handle(name,cfg,cloud,log,args):
+def handle(_name,cfg,cloud,log,_args):
     if util.get_cfg_option_bool(cfg,"preserve_hostname",False):
         log.debug("preserve_hostname is set. not updating hostname")
         return
 
-    ( hostname, fqdn ) = util.get_hostname_fqdn(cfg, cloud)
+    ( hostname, _fqdn ) = util.get_hostname_fqdn(cfg, cloud)
     try:
         prev ="%s/%s" % (cloud.get_cpath('data'),"previous-hostname")
         update_hostname(hostname, prev, log)
-    except Exception as e:
+    except Exception:
         log.warn("failed to set hostname\n")
         raise
 

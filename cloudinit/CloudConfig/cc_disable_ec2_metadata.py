@@ -21,7 +21,7 @@ from cloudinit.CloudConfig import per_always
 
 frequency = per_always
 
-def handle(name,cfg,cloud,log,args):
+def handle(_name,cfg,_cloud,_log,_args):
     if util.get_cfg_option_bool(cfg, "disable_ec2_metadata", False):
         fwall="route add -host 169.254.169.254 reject"
         subprocess.call(fwall.split(' '))

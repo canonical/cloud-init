@@ -32,8 +32,9 @@
 ##   Therefore, this must run before that.
 ##
 ##
+
 import cloudinit.util as util
-from cloudinit.CloudConfig import per_once, per_always, per_instance
+from cloudinit.CloudConfig import per_instance
 from cloudinit import get_ipath_cur
 from urlparse import parse_qs
 
@@ -41,7 +42,7 @@ frequency = per_instance
 my_name = "cc_rightscale_userdata"
 my_hookname = 'CLOUD_INIT_REMOTE_HOOK'
 
-def handle(name,cfg,cloud,log,args):
+def handle(_name,_cfg,cloud,log,_args):
     try:
         ud = cloud.get_userdata_raw()
     except:
@@ -49,7 +50,7 @@ def handle(name,cfg,cloud,log,args):
         return
 
     try:
-        mdict = parse_qs(cloud.get_userdata_raw())
+        mdict = parse_qs(ud)
         if not my_hookname in mdict: return
     except:
         log.warn("failed to urlparse.parse_qa(userdata_raw())")
@@ -57,7 +58,6 @@ def handle(name,cfg,cloud,log,args):
 
     scripts_d = get_ipath_cur('scripts')
     i = 0
-    errors = [ ]
     first_e = None
     for url in mdict[my_hookname]:
         fname = "%s/rightscale-%02i" % (scripts_d,i)

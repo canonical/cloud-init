@@ -22,7 +22,7 @@ import os
 import glob
 import cloudinit.CloudConfig as cc
 
-def handle(name,cfg,cloud,log,args):
+def handle(_name,cfg,cloud,log,_args):
     update = util.get_cfg_option_bool(cfg, 'apt_update', False)
     upgrade = util.get_cfg_option_bool(cfg, 'apt_upgrade', False)
 
@@ -102,14 +102,14 @@ def handle(name,cfg,cloud,log,args):
     return(True)
 
 def mirror2lists_fileprefix(mirror):
-    file=mirror
+    string=mirror
     # take of http:// or ftp://
-    if file.endswith("/"): file=file[0:-1]
-    pos=file.find("://")
+    if string.endswith("/"): string=string[0:-1]
+    pos=string.find("://")
     if pos >= 0:
-        file=file[pos+3:]
-    file=file.replace("/","_")
-    return file
+        string=string[pos+3:]
+    string=string.replace("/","_")
+    return string
 
 def rename_apt_lists(omirror,new_mirror,lists_d="/var/lib/apt/lists"):
     
@@ -117,11 +117,11 @@ def rename_apt_lists(omirror,new_mirror,lists_d="/var/lib/apt/lists"):
     nprefix="%s/%s" % (lists_d,mirror2lists_fileprefix(new_mirror))
     if(oprefix==nprefix): return
     olen=len(oprefix)
-    for file in glob.glob("%s_*" % oprefix):
-        os.rename(file,"%s%s" % (nprefix, file[olen:]))
+    for filename in glob.glob("%s_*" % oprefix):
+        os.rename(filename,"%s%s" % (nprefix, filename[olen:]))
 
 def get_release():
-    stdout, stderr = subprocess.Popen(['lsb_release', '-cs'], stdout=subprocess.PIPE).communicate()
+    stdout, _stderr = subprocess.Popen(['lsb_release', '-cs'], stdout=subprocess.PIPE).communicate()
     return(stdout.strip())
 
 def generate_sources_list(codename, mirror):
@@ -131,7 +131,9 @@ def generate_sources_list(codename, mirror):
 # srclist is a list of dictionaries, 
 # each entry must have: 'source'
 # may have: key, ( keyid and keyserver)
-def add_sources(srclist, searchList={ }):
+def add_sources(srclist, searchList=None):
+    if searchList is None:
+        searchList = {}
     elst = []
 
     for ent in srclist:
@@ -202,19 +204,20 @@ def find_apt_mirror(cloud, cfg):
 
         if not mirror and cloud:
             # if we have a fqdn, then search its domain portion first
-            ( hostname, fqdn ) = util.get_hostname_fqdn(cfg, cloud)
+            ( _hostname, fqdn ) = util.get_hostname_fqdn(cfg, cloud)
             mydom = ".".join(fqdn.split(".")[1:])
             if mydom:
                 doms.append(".%s" % mydom)
 
-        doms.extend((".localdomain", "",))
+        if not mirror:
+            doms.extend((".localdomain", "",))
 
-        mirror_list = []
-        mirrorfmt = "http://%s-mirror%s/%s" % (distro, "%s", distro )
-        for post in doms:
-            mirror_list.append(mirrorfmt % post)
+            mirror_list = []
+            mirrorfmt = "http://%s-mirror%s/%s" % (distro, "%s", distro )
+            for post in doms:
+                mirror_list.append(mirrorfmt % post)
 
-        mirror = util.search_for_mirror(mirror_list)
+            mirror = util.search_for_mirror(mirror_list)
 
     if not mirror:
         mirror = defaults[distro]

@@ -20,12 +20,10 @@ import email
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.mime.base import MIMEBase
-from email import encoders
 import yaml
 import cloudinit
 import cloudinit.util as util
 import hashlib
-import os
 import urllib
 
 starts_with_mappings={
@@ -39,15 +37,15 @@ starts_with_mappings={
     '#cloud-config-archive' : 'text/cloud-config-archive',
 }
 
-# if 'str' is compressed return decompressed otherwise return it
-def decomp_str(str):
+# if 'string' is compressed return decompressed otherwise return it
+def decomp_str(string):
     import StringIO
     import gzip
     try:
-        uncomp = gzip.GzipFile(None,"rb",1,StringIO.StringIO(str)).read()
+        uncomp = gzip.GzipFile(None,"rb",1,StringIO.StringIO(string)).read()
         return(uncomp)
     except:
-        return(str)
+        return(string)
 
 def do_include(content, appendmsg):
     import os
@@ -79,7 +77,7 @@ def do_include(content, appendmsg):
                 content = urllib.urlopen(line).read()
                 if includeonce:
                     util.write_file(includeonce_filename, content, mode=0600)
-        except Exception as e:
+        except Exception:
             raise
 
         process_includes(message_from_string(decomp_str(content)), appendmsg)
@@ -190,9 +188,10 @@ def process_includes(msg, appendmsg=None):
 
         _attach_part(appendmsg, part)
 
-def message_from_string(data, headers={}):
+def message_from_string(data, headers=None):
+    if headers is None:
+        headers = {}
     if "mime-version:" in data[0:4096].lower():
-        was_mime = True
         msg = email.message_from_string(data)
         for (key,val) in headers.items():
             if key in msg:
@@ -200,7 +199,6 @@ def message_from_string(data, headers={}):
             else:
                 msg[key] = val
     else:
-        was_mime = False
         mtype = headers.get("Content-Type","text/plain")
         maintype, subtype = mtype.split("/", 1)
         msg = MIMEBase(maintype, subtype, *headers)

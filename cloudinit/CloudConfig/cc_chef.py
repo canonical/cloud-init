@@ -14,19 +14,16 @@
 #
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
 import os
-import pwd
-import socket
 import subprocess
 import json
-import StringIO
-import ConfigParser
 import cloudinit.CloudConfig as cc
 import cloudinit.util as util
 
 ruby_version_default = "1.8"
 
-def handle(name,cfg,cloud,log,args):
+def handle(_name,cfg,cloud,log,_args):
     # If there isn't a chef key in the configuration don't do anything
     if not cfg.has_key('chef'): return
     chef_cfg = cfg['chef']
@@ -44,7 +41,6 @@ def handle(name,cfg,cloud,log,args):
         with open('/etc/chef/validation.pem', 'w') as validation_key_fh:
             validation_key_fh.write(validation_key)
 
-    validation_name = chef_cfg.get('validation_name','chef-validator')
     # create the chef config from template
     util.render_to_file('chef_client.rb', '/etc/chef/client.rb',
             {'server_url': chef_cfg['server_url'], 
@@ -90,9 +86,9 @@ def get_ruby_packages(version):
 def install_chef_from_gems(ruby_version, chef_version = None):
     cc.install_packages(get_ruby_packages(ruby_version))
     if not os.path.exists('/usr/bin/gem'):
-      os.symlink('/usr/bin/gem%s' % ruby_version, '/usr/bin/gem')
+        os.symlink('/usr/bin/gem%s' % ruby_version, '/usr/bin/gem')
     if not os.path.exists('/usr/bin/ruby'):
-      os.symlink('/usr/bin/ruby%s' % ruby_version, '/usr/bin/ruby')
+        os.symlink('/usr/bin/ruby%s' % ruby_version, '/usr/bin/ruby')
     if chef_version:
         subprocess.check_call(['/usr/bin/gem','install','chef',
                                '-v %s' % chef_version, '--no-ri',

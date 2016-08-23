@@ -24,7 +24,7 @@ def netdev_info():
             if toks[i] == "hwaddr":
                 try:
                     devs[curdev]["hwaddr"] = toks[i+1]
-                except IndexError as e:
+                except IndexError:
                     pass
             for field in ("addr", "bcast", "mask"):
                 target = "%s%s" % (field, fieldpost)
@@ -33,7 +33,7 @@ def netdev_info():
                 if toks[i] == "%s:" % field:
                     try:
                         devs[curdev][target] = toks[i+1]
-                    except IndexError as e:
+                    except IndexError:
                         pass
                 elif toks[i].startswith("%s:" % field):
                     devs[curdev][target] = toks[i][len(field)+1:]
@@ -61,23 +61,23 @@ def debug_info(pre="ci-info: "):
     lines = [ ]
     try:
         netdev = netdev_info()
-    except Exception as e:
+    except Exception:
         lines.append("netdev_info failed!")
         netdev = {}
     for (dev, d) in netdev.iteritems():
         lines.append("%s%-6s: %i %-15s %-15s %s" %
             (pre, dev, d["up"], d["addr"],d["mask"], d["hwaddr"]))
     try:
-       routes = route_info()
-    except Exception as e:
-       lines.append("route_info failed")
-       routes = []
+        routes = route_info()
+    except Exception:
+        lines.append("route_info failed")
+        routes = []
     n = 0
     for r in routes:
-       lines.append("%sroute-%d: %-15s %-15s %-15s %-6s %s" %
-          (pre, n, r[0], r[1], r[2], r[7], r[3]))
-       n = n+1
+        lines.append("%sroute-%d: %-15s %-15s %-15s %-6s %s" %
+            (pre, n, r[0], r[1], r[2], r[7], r[3]))
+        n = n+1
     return('\n'.join(lines))
 
 if __name__ == '__main__':
-   print debug_info()
+    print debug_info()

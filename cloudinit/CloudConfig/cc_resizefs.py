@@ -15,17 +15,20 @@
 #
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
 import cloudinit.util as util
 import subprocess
-import traceback
 import os
 import stat
 import tempfile
+from cloudinit.CloudConfig import per_always
 
-def handle(name,cfg,cloud,log,args):
+frequency = per_always
+
+def handle(_name,cfg,_cloud,log,args):
     if len(args) != 0:
         resize_root = False
-        if str(value).lower() in [ 'true', '1', 'on', 'yes']:
+        if str(args[0]).lower() in [ 'true', '1', 'on', 'yes']:
             resize_root = True
     else:
         resize_root = util.get_cfg_option_bool(cfg,"resize_rootfs",True)
@@ -38,9 +41,9 @@ def handle(name,cfg,cloud,log,args):
     os.close(fd)
     
     try:
-       st_dev=os.stat("/").st_dev
-       dev=os.makedev(os.major(st_dev),os.minor(st_dev))
-       os.mknod(devpth, 0400 | stat.S_IFBLK, dev)
+        st_dev=os.stat("/").st_dev
+        dev=os.makedev(os.major(st_dev),os.minor(st_dev))
+        os.mknod(devpth, 0400 | stat.S_IFBLK, dev)
     except:
         if util.islxc():
             log.debug("inside lxc, ignoring mknod failure in resizefs")
@@ -50,7 +53,7 @@ def handle(name,cfg,cloud,log,args):
 
     cmd = [ 'blkid', '-c', '/dev/null', '-sTYPE', '-ovalue', devpth ]
     try:
-        (fstype,err) = util.subp(cmd)
+        (fstype,_err) = util.subp(cmd)
     except subprocess.CalledProcessError as e:
         log.warn("Failed to get filesystem type of maj=%s, min=%s via: %s" %
             (os.major(st_dev), os.minor(st_dev), cmd))
@@ -71,7 +74,7 @@ def handle(name,cfg,cloud,log,args):
         return
 
     try:
-        (out,err) = util.subp(resize_cmd)
+        util.subp(resize_cmd)
     except subprocess.CalledProcessError as e:
         log.warn("Failed to resize filesystem (%s)" % resize_cmd)
         log.warn("output=%s\nerror=%s\n", e.output[0], e.output[1])
