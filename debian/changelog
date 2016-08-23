@@ -1,16 +1,3 @@
-cloud-init (0.7.5-0ubuntu1.11) trusty; urgency=medium
-
-  [ Felipe Reyes ]
-  * d/patches/fix-consumption-of-vendor-data.patch:
-    - Fix consumption of vendor-data in OpenStack to allow namespacing
-      (LP: #1469260).
-
-  [ Scott Moser ]
-  * d/patches/lp-1461242-generate-ed25519-host-keys.patch:
-    - ssh: generate ed25519 host keys if supported (LP: #1461242)
-
- -- Scott Moser <smoser@ubuntu.com>  Fri, 11 Sep 2015 20:22:00 -0400
-
 cloud-init (0.7.5-0ubuntu1.10) trusty; urgency=medium
 
   [ Daniel Watkins ]
