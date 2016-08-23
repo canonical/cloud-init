@@ -1,11 +1,3 @@
-cloud-init (0.7.5-0ubuntu1.20) trusty; urgency=medium
-
-  * GCE:
-    - debian/patches/lp-1581200-gce-metadatafqdn.patch  (LP: #1581200):
-      Remove trailing dot in metadata.google.internal GCE metadata lookup.
-
- -- Phil Roche <phil.roche@canonical.com>  Fri, 24 Jun 2016 11:43:42 +0100
-
 cloud-init (0.7.5-0ubuntu1.19) trusty; urgency=medium
 
   * Bigstep:

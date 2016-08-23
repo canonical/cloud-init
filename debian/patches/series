@@ -22,4 +22,3 @@ lp-1506187-azure_use_unique_vm_id.patch
 lp-1540965-SmartOS-Add-support-for-Joyent-LX-Brand-Zones.patch
 lp-1551419-azure-handle-flipped-uuid-endianness.patch
 lp-1553158-bigstep.patch
-lp-1581200-gce-metadatafqdn.patch
