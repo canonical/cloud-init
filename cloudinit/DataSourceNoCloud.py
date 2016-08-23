@@ -67,6 +67,13 @@ class DataSourceNoCloud(DataSource.DataSource):
             found.append(self.seeddir)
             log.debug("using seeded cache data in %s" % self.seeddir)
 
+        # if the datasource config had a 'seedfrom' entry, then that takes
+        # precedence over a 'seedfrom' that was found in a filesystem
+        # but not over external medi
+        if 'seedfrom' in self.ds_cfg and self.ds_cfg['seedfrom']:
+            found.append("ds_config")
+            md["seedfrom"] = self.ds_cfg['seedfrom']
+
         fslist = util.find_devs_with("TYPE=vfat")
         fslist.extend(util.find_devs_with("TYPE=iso9660"))
 

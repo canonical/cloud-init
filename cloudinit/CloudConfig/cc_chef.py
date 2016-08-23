@@ -40,11 +40,11 @@ def handle(_name, cfg, cloud, log, _args):
     # set the validation key based on the presence of either 'validation_key'
     # or 'validation_cert'. In the case where both exist, 'validation_key'
     # takes precedence
-    if ('validation_key' in chef_cfg or 'validation_cert' in chef_cfg):
-        validation_key = util.get_cfg_option_str(chef_cfg, 'validation_key',
-                                                 chef_cfg['validation_cert'])
-        with open('/etc/chef/validation.pem', 'w') as validation_key_fh:
-            validation_key_fh.write(validation_key)
+    for key in ('validation_key', 'validation_cert'):
+        if key in chef_cfg and chef_cfg[key]:
+            with open('/etc/chef/validation.pem', 'w') as validation_key_fh:
+                validation_key_fh.write(chef_cfg[key])
+            break
 
     # create the chef config from template
     util.render_to_file('chef_client.rb', '/etc/chef/client.rb',

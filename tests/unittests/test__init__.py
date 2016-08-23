@@ -2,8 +2,8 @@ from mocker import MockerTestCase, ANY, ARGS, KWARGS
 import os
 
 from cloudinit import (partwalker_handle_handler, handler_handle_part,
-                       handler_register)
-from cloudinit.util import write_file, logexc
+                       handler_register, get_cmdline_url)
+from cloudinit.util import write_file, logexc, readurl
 
 
 class TestPartwalkerHandleHandler(MockerTestCase):
@@ -193,3 +193,50 @@ class TestHandlerHandlePart(MockerTestCase):
 
         handler_handle_part(mod_mock, self.data, self.ctype, self.filename,
                             self.payload, self.frequency)
+
+
+class TestCmdlineUrl(MockerTestCase):
+    def test_invalid_content(self):
+        url = "http://example.com/foo"
+        key = "mykey"
+        payload = "0"
+        cmdline = "ro %s=%s bar=1" % (key, url)
+
+        mock_readurl = self.mocker.replace(readurl, passthrough=False)
+        mock_readurl(url)
+        self.mocker.result(payload)
+
+        self.mocker.replay()
+
+        self.assertEqual((key, url, None),
+            get_cmdline_url(names=[key], starts="xxxxxx", cmdline=cmdline))
+
+    def test_valid_content(self):
+        url = "http://example.com/foo"
+        key = "mykey"
+        payload = "xcloud-config\nmydata: foo\nbar: wark\n"
+        cmdline = "ro %s=%s bar=1" % (key, url)
+
+        mock_readurl = self.mocker.replace(readurl, passthrough=False)
+        mock_readurl(url)
+        self.mocker.result(payload)
+
+        self.mocker.replay()
+
+        self.assertEqual((key, url, payload),
+            get_cmdline_url(names=[key], starts="xcloud-config",
+                            cmdline=cmdline))
+
+    def test_no_key_found(self):
+        url = "http://example.com/foo"
+        key = "mykey"
+        cmdline = "ro %s=%s bar=1" % (key, url)
+
+        self.mocker.replace(readurl, passthrough=False)
+        self.mocker.replay()
+
+        self.assertEqual((None, None, None),
+            get_cmdline_url(names=["does-not-appear"],
+                starts="#cloud-config", cmdline=cmdline))
+
+# vi: ts=4 expandtab
