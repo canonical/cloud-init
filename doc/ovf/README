@@ -39,7 +39,7 @@ box, follow the steps below.
   Optionally, you could decompress the image, which will make it boot faster
   but will take up more local disk space.
   $ qemu-img convert -O qcow2 "$disk.img" "$disk.qcow2"
-  $ qemu-img create -O qcow2 -b "$disk.qcow2" ubuntu.qcow2
+  $ qemu-img create -f qcow2 -b "$disk.qcow2" ubuntu.qcow2
 
 - Create an ISO file that will provide user-data to the image.
   This will put the contents of 'user-data' into an ovf-env.xml file

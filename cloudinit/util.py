@@ -24,9 +24,18 @@ from Cheetah.Template import Template
 import urllib2
 import urllib
 import logging
+import re
+import socket
+import sys
 import time
 import traceback
-import re
+import urlparse
+
+try:
+    import selinux
+    HAVE_LIBSELINUX = True
+except ImportError:
+    HAVE_LIBSELINUX = False
 
 def read_conf(fname):
     try:
@@ -78,6 +87,7 @@ def get_cfg_option_str(yobj, key, default=None):
 
 def get_cfg_option_list_or_str(yobj, key, default=None):
     if not yobj.has_key(key): return default
+    if yobj[key] is None: return []
     if isinstance(yobj[key],list): return yobj[key]
     return([yobj[key]])
 
@@ -90,7 +100,7 @@ def get_cfg_by_path(yobj,keyp,default=None):
         cur = cur[tok]
     return(cur)
 
-# merge values from src into cand.
+# merge values from cand into source
 # if src has a key, cand will not override
 def mergedict(src,cand):
     if isinstance(src,dict) and isinstance(cand,dict):
@@ -113,6 +123,11 @@ def write_file(file,content,mode=0644,omode="wb"):
             os.chmod(file,mode)
         f.write(content)
         f.close()
+        restorecon_if_possible(file)
+
+def restorecon_if_possible(path, recursive=False):
+    if HAVE_LIBSELINUX and selinux.is_selinux_enabled():
+        selinux.restorecon(path, recursive=recursive)
 
 # get keyid from keyserver
 def getkeybyid(keyid,keyserver):
@@ -486,3 +501,39 @@ def get_fqdn_from_hosts(hostname, filename="/etc/hosts"):
             pass
 
     return fqdn
+
+def is_resolvable(name):
+    """ determine if a url is resolvable, return a boolean """
+    try:
+        socket.getaddrinfo(name, None)
+        return True
+    except socket.gaierror as e:
+        return False
+
+def is_resolvable_url(url):
+    """ determine if this url is resolvable (existing or ip) """
+    return(is_resolvable(urlparse.urlparse(url).hostname))
+
+def search_for_mirror(candidates):
+    """ Search through a list of mirror urls for one that works """
+    for cand in candidates:
+        try:
+            if is_resolvable_url(cand):
+                return cand
+        except Exception as e:
+            raise
+
+    return None
+
+def close_stdin():
+   """
+   reopen stdin as /dev/null so even subprocesses or other os level things get
+   /dev/null as input.
+
+   if _CLOUD_INIT_SAVE_STDIN is set in environment to a non empty or '0' value
+   then input will not be closed (only useful potentially for debugging).
+   """
+   if os.environ.get("_CLOUD_INIT_SAVE_STDIN") in ("", "0", False):
+      return
+   with open(os.devnull) as fp:
+       os.dup2(fp.fileno(), sys.stdin.fileno())

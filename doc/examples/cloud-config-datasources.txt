@@ -2,16 +2,14 @@
 datasource:
   # Ec2 
   Ec2:
-    # timeout: the timeout value for attempt at metadata service
-    timeout : 2
-    # the number of tries that should be attempted at the metadata service
-    # after each try, a sleep of int(try_number/5)+1 is done
-    # default sleep is 30
-    retries : 30
+    # timeout: the timeout value for a request at metadata service
+    timeout : 50
+    # The length in seconds to wait before giving up on the metadata
+    # service.  The actual total wait could be up to 
+    #   len(resolvable_metadata_urls)*timeout
+    max_wait : 120
 
     #metadata_url: a list of URLs to check for metadata services
     metadata_urls:
      - http://169.254.169.254:80
      - http://instance-data:8773
-
-    

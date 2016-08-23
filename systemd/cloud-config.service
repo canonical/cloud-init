@@ -1,0 +1,13 @@
+[Unit]
+Description=Apply the settings specified in cloud-config
+After=network.target syslog.target cloud-config.target
+Requires=cloud-config.target
+Wants=network.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/cloud-init-cfg all config
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

@@ -35,7 +35,9 @@ def handle(name,cfg,cloud,log,args):
         raise
     
     try:
-        subprocess.check_call(['/bin/sh'], stdin=tmpf)
+        env=os.environ.copy()
+        env['INSTANCE_ID']=cloud.get_instance_id()
+        subprocess.check_call(['/bin/sh'], env=env, stdin=tmpf)
         tmpf.close()
     except:
         log.warn("failed to run commands from bootcmd")

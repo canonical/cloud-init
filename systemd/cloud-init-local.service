@@ -1,0 +1,12 @@
+[Unit]
+Description=Initial cloud-init job (pre-networking)
+Wants=local-fs.target
+After=local-fs.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/cloud-init start-local
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

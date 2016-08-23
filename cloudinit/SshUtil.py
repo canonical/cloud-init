@@ -147,6 +147,7 @@ def setup_user_keys(keys, user, key_prefix, log=None):
     util.write_file(authorized_keys, content, 0600)
 
     os.chown(authorized_keys, pwent.pw_uid, pwent.pw_gid)
+    util.restorecon_if_possible(ssh_dir, recursive=True)
 
     os.umask(saved_umask)
 
