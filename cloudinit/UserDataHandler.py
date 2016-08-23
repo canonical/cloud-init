@@ -180,7 +180,7 @@ def process_includes(msg, appendmsg=None):
 
         payload = part.get_payload(decode=True)
 
-        if ctype_orig == "text/plain":
+        if ctype_orig in ("text/plain", "text/x-not-multipart"):
             ctype = type_from_startswith(payload)
 
         if ctype is None:
@@ -213,7 +213,7 @@ def message_from_string(data, headers=None):
             else:
                 msg[key] = val
     else:
-        mtype = headers.get("Content-Type", "text/plain")
+        mtype = headers.get("Content-Type", "text/x-not-multipart")
         maintype, subtype = mtype.split("/", 1)
         msg = MIMEBase(maintype, subtype, *headers)
         msg.set_payload(data)

@@ -14,7 +14,7 @@ datasource:
      - http://169.254.169.254:80
      - http://instance-data:8773
 
-  MaaS:
+  MAAS:
     timeout : 50
     max_wait : 120
 

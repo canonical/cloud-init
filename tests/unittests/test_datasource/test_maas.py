@@ -3,24 +3,24 @@ from shutil import rmtree
 import os
 from StringIO import StringIO
 from copy import copy
-from cloudinit.DataSourceMaaS import (
-    MaasSeedDirNone,
-    MaasSeedDirMalformed,
+from cloudinit.DataSourceMAAS import (
+    MAASSeedDirNone,
+    MAASSeedDirMalformed,
     read_maas_seed_dir,
     read_maas_seed_url,
 )
 from mocker import MockerTestCase
 
 
-class TestMaasDataSource(MockerTestCase):
+class TestMAASDataSource(MockerTestCase):
 
     def setUp(self):
-        super(TestMaasDataSource, self).setUp()
+        super(TestMAASDataSource, self).setUp()
         # Make a temp directoy for tests to use.
         self.tmp = mkdtemp(prefix="unittest_")
 
     def tearDown(self):
-        super(TestMaasDataSource, self).tearDown()
+        super(TestMAASDataSource, self).tearDown()
         # Clean up temp directory
         rmtree(self.tmp)
 
@@ -29,7 +29,8 @@ class TestMaasDataSource(MockerTestCase):
 
         data = {'instance-id': 'i-valid01',
             'local-hostname': 'valid01-hostname',
-            'user-data': 'valid01-userdata'}
+            'user-data': 'valid01-userdata',
+            'public-keys': 'ssh-rsa AAAAB3Nz...aC1yc2E= keyname'}
 
         my_d = os.path.join(self.tmp, "valid")
         populate_dir(my_d, data)
@@ -63,7 +64,7 @@ class TestMaasDataSource(MockerTestCase):
         self.assertFalse(('foo' in metadata))
 
     def test_seed_dir_invalid(self):
-        """Verify that invalid seed_dir raises MaasSeedDirMalformed"""
+        """Verify that invalid seed_dir raises MAASSeedDirMalformed"""
 
         valid = {'instance-id': 'i-instanceid',
             'local-hostname': 'test-hostname', 'user-data': ''}
@@ -75,30 +76,31 @@ class TestMaasDataSource(MockerTestCase):
         invalid_data = copy(valid)
         del invalid_data['local-hostname']
         populate_dir(my_d, invalid_data)
-        self.assertRaises(MaasSeedDirMalformed, read_maas_seed_dir, my_d)
+        self.assertRaises(MAASSeedDirMalformed, read_maas_seed_dir, my_d)
 
         # missing 'instance-id'
         my_d = "%s-02" % my_based
         invalid_data = copy(valid)
         del invalid_data['instance-id']
         populate_dir(my_d, invalid_data)
-        self.assertRaises(MaasSeedDirMalformed, read_maas_seed_dir, my_d)
+        self.assertRaises(MAASSeedDirMalformed, read_maas_seed_dir, my_d)
 
     def test_seed_dir_none(self):
-        """Verify that empty seed_dir raises MaasSeedDirNone"""
+        """Verify that empty seed_dir raises MAASSeedDirNone"""
 
         my_d = os.path.join(self.tmp, "valid_empty")
-        self.assertRaises(MaasSeedDirNone, read_maas_seed_dir, my_d)
+        self.assertRaises(MAASSeedDirNone, read_maas_seed_dir, my_d)
 
     def test_seed_dir_missing(self):
-        """Verify that missing seed_dir raises MaasSeedDirNone"""
-        self.assertRaises(MaasSeedDirNone, read_maas_seed_dir,
+        """Verify that missing seed_dir raises MAASSeedDirNone"""
+        self.assertRaises(MAASSeedDirNone, read_maas_seed_dir,
             os.path.join(self.tmp, "nonexistantdirectory"))
 
     def test_seed_url_valid(self):
         """Verify that valid seed_url is read as such"""
         valid = {'meta-data/instance-id': 'i-instanceid',
             'meta-data/local-hostname': 'test-hostname',
+            'meta-data/public-keys': 'test-hostname',
             'user-data': 'foodata'}
 
         my_seed = "http://example.com/xmeta"
@@ -133,11 +135,11 @@ class TestMaasDataSource(MockerTestCase):
             valid['meta-data/local-hostname'])
 
     def test_seed_url_invalid(self):
-        """Verify that invalid seed_url raises MaasSeedDirMalformed"""
+        """Verify that invalid seed_url raises MAASSeedDirMalformed"""
         pass
 
     def test_seed_url_missing(self):
-        """Verify seed_url with no found entries raises MaasSeedDirNone"""
+        """Verify seed_url with no found entries raises MAASSeedDirNone"""
         pass
 
 

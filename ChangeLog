@@ -8,7 +8,8 @@
  - support setting of Acquire::HTTP::Proxy via 'apt_proxy'
  - DataSourceEc2: more resilliant to slow metadata service
    - config change: 'retries' dropped, 'max_wait' added, timeout increased
- - close stdin in all cloud-init programs that are launched at boot (LP: #903993)
+ - close stdin in all cloud-init programs that are launched at boot 
+   (LP: #903993)
  - revert management of /etc/hosts to 0.6.1 style (LP: #890501, LP: #871966)
  - write full ssh keys to console for easy machine consumption (LP: #893400)
  - put INSTANCE_ID environment variable in bootcmd scripts
@@ -19,17 +20,23 @@
    in the payload parameter. (LP: #874342)
  - add test case framework [Mike Milner] (LP: #890851)
  - fix pylint warnings [Juerg Haefliger] (LP: #914739)
- - add support for adding and deleting CA Certificates [Mike Milner] (LP: #915232)
+ - add support for adding and deleting CA Certificates [Mike Milner] 
+   (LP: #915232)
  - in ci-info lines, use '.' to indicate empty field for easier machine reading
  - support empty lines in "#include" files (LP: #923043)
  - support configuration of salt minions (Jeff Bauer) (LP: #927795)
  - DataSourceOVF: only search for OVF data on ISO9660 filesystems (LP: #898373)
- - DataSourceConfigDrive: support getting data from openstack config drive (LP: #857378)
- - DataSourceNoCloud: support seed from external disk of ISO or vfat (LP: #857378)
+ - DataSourceConfigDrive: support getting data from openstack config drive
+   (LP: #857378)
+ - DataSourceNoCloud: support seed from external disk of ISO or vfat
+   (LP: #857378)
  - DataSourceNoCloud: support inserting /etc/network/interfaces
- - DataSourceMaaS: add data source for Ubuntu Machines as a Service (MaaS) (LP: #942061)
+ - DataSourceMaaS: add data source for Ubuntu Machines as a Service (MaaS)
+   (LP: #942061)
+ - DataSourceCloudStack: add support for CloudStack datasource [Cosmin Luta]
  - add option 'apt_pipelining' to address issue with S3 mirrors 
    (LP: #948461) [Ben Howard]
+ - warn on non-multipart, non-handled user-data [Martin Packman]
 0.6.2:
  - fix bug where update was not done unless update was explicitly set.
    It would not be run if 'upgrade' or packages were set to be installed
@@ -67,18 +74,20 @@
  - support multiple staticly configured network devices, as long as
    all of them come up early (LP: #810044)
  - Changes to handling user data mean that:
-   * boothooks will now run more than once as they were intended (and as bootcmd
-     commands do)
+   * boothooks will now run more than once as they were intended (and as
+     bootcmd commands do)
    * cloud-config and user-scripts will be updated from user data every boot
  - Fix issue where 'isatty' would return true for apt-add-repository.
    apt-add-repository would get stdin which was attached to a terminal
-  (/dev/console) and would thus hang when running during boot.  (LP: 831505)
-   This was done by changing all users of util.subp to have None input unless specified
+   (/dev/console) and would thus hang when running during boot.  (LP: 831505)
+   This was done by changing all users of util.subp to have None input unless
+   specified
  - Add some debug info to the console when cloud-init runs.
-   This is useful if debugging, IP and route information is printed to the console.
+   This is useful if debugging, IP and route information is printed to the 
+   console.
  - change the mechanism for handling .ssh/authorized_keys, to update entries
-   rather than appending.  This ensures that the authorized_keys that are being
-   inserted actually do something (LP: #434076, LP: #833499)
+   rather than appending.  This ensures that the authorized_keys that are
+   being inserted actually do something (LP: #434076, LP: #833499)
  - log warning on failure to set hostname (LP: #832175)
  - upstart/cloud-init-nonet.conf: wait for all network interfaces to be up
    allow for the possibility of /var/run != /run.

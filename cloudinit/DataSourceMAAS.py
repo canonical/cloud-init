@@ -31,9 +31,9 @@ import time
 MD_VERSION = "2012-03-01"
 
 
-class DataSourceMaaS(DataSource.DataSource):
+class DataSourceMAAS(DataSource.DataSource):
     """
-    DataSourceMaaS reads instance information from MaaS.
+    DataSourceMAAS reads instance information from MAAS.
     Given a config metadata_url, and oauth tokens, it expects to find
     files under the root named:
       instance-id
@@ -44,7 +44,7 @@ class DataSourceMaaS(DataSource.DataSource):
     baseurl = None
 
     def __str__(self):
-        return("DataSourceMaaS[%s]" % self.baseurl)
+        return("DataSourceMAAS[%s]" % self.baseurl)
 
     def get_data(self):
         mcfg = self.ds_cfg
@@ -55,9 +55,9 @@ class DataSourceMaaS(DataSource.DataSource):
             self.metadata = metadata
             self.baseurl = self.seeddir
             return True
-        except MaasSeedDirNone:
+        except MAASSeedDirNone:
             pass
-        except MaasSeedDirMalformed as exc:
+        except MAASSeedDirMalformed as exc:
             log.warn("%s was malformed: %s\n" % (self.seeddir, exc))
             raise
 
@@ -139,11 +139,11 @@ def read_maas_seed_dir(seed_d):
       * local-hostname
       * user-data
     """
-    files = ('local-hostname', 'instance-id', 'user-data')
+    files = ('local-hostname', 'instance-id', 'user-data', 'public-keys')
     md = {}
 
     if not os.path.isdir(seed_d):
-        raise MaasSeedDirNone("%s: not a directory")
+        raise MAASSeedDirNone("%s: not a directory")
 
     for fname in files:
         try:
@@ -165,11 +165,14 @@ def read_maas_seed_url(seed_url, header_cb=None, timeout=None,
     be given to urllib2.Request()
 
     Expected format of seed_url is are the following files:
-      * <seed_url>/<version>/instance-id
-      * <seed_url>/<version>/local-hostname
+      * <seed_url>/<version>/meta-data/instance-id
+      * <seed_url>/<version>/meta-data/local-hostname
       * <seed_url>/<version>/user-data
     """
-    files = ('meta-data/local-hostname', 'meta-data/instance-id', 'user-data')
+    files = ('meta-data/local-hostname',
+             'meta-data/instance-id',
+             'meta-data/public-keys',
+             'user-data')
 
     base_url = "%s/%s" % (seed_url, version)
     md = {}
@@ -195,17 +198,17 @@ def check_seed_contents(content, seed):
     """Validate if content is Is the content a dict that is valid as a
        return for a datasource.
        Either return a (userdata, metadata) tuple or
-       Raise MaasSeedDirMalformed or MaasSeedDirNone
+       Raise MAASSeedDirMalformed or MAASSeedDirNone
     """
     md_required = ('instance-id', 'local-hostname')
     found = content.keys()
 
     if len(content) == 0:
-        raise MaasSeedDirNone("%s: no data files found" % seed)
+        raise MAASSeedDirNone("%s: no data files found" % seed)
 
     missing = [k for k in md_required if k not in found]
     if len(missing):
-        raise MaasSeedDirMalformed("%s: missing files %s" % (seed, missing))
+        raise MAASSeedDirMalformed("%s: missing files %s" % (seed, missing))
 
     userdata = content.get('user-data', "")
     md = {}
@@ -233,16 +236,16 @@ def oauth_headers(url, consumer_key, token_key, token_secret, consumer_secret):
     return(req.to_header())
 
 
-class MaasSeedDirNone(Exception):
+class MAASSeedDirNone(Exception):
     pass
 
 
-class MaasSeedDirMalformed(Exception):
+class MAASSeedDirMalformed(Exception):
     pass
 
 
 datasources = [
-  (DataSourceMaaS, (DataSource.DEP_FILESYSTEM, DataSource.DEP_NETWORK)),
+  (DataSourceMAAS, (DataSource.DEP_FILESYSTEM, DataSource.DEP_NETWORK)),
 ]
 
 
@@ -261,7 +264,7 @@ if __name__ == "__main__":
         import argparse
         import pprint
 
-        parser = argparse.ArgumentParser(description='Interact with Maas DS')
+        parser = argparse.ArgumentParser(description='Interact with MAAS DS')
         parser.add_argument("--config", metavar="file",
             help="specify DS config file", default=None)
         parser.add_argument("--ckey", metavar="key",
@@ -292,7 +295,7 @@ if __name__ == "__main__":
             with open(args.config) as fp:
                 cfg = yaml.load(fp)
             if 'datasource' in cfg:
-                cfg = cfg['datasource']['MaaS']
+                cfg = cfg['datasource']['MAAS']
             for key in creds.keys():
                 if key in cfg and creds[key] == None:
                     creds[key] = cfg[key]
