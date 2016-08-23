@@ -16,4 +16,3 @@ lp-1490796-azure-fix-mount_cb-for-symlinks.patch
 lp-1469260-fix-consumption-of-vendor-data.patch
 lp-1461242-generate-ed25519-host-keys.patch
 lp-1493453-nocloudds-vendor_data.patch
-lp-1177432-enable_backports.patch
