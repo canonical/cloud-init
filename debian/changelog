@@ -1,3 +1,9 @@
+cloud-init (0.6.3~bzr539-0ubuntu3) precise; urgency=low
+
+  * make maas config file only readable by root (LP: #954721)
+
+ -- Scott Moser <smoser@ubuntu.com>  Wed, 14 Mar 2012 01:19:32 -0400
+
 cloud-init (0.6.3~bzr539-0ubuntu2) precise; urgency=low
 
   [Cosmin Luta]
