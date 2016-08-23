@@ -89,7 +89,7 @@ for k in sys.argv[2:]:
       orig_umask=$(umask)
       umask 066
       : >> "$cfg_file" && chmod 600 "$cfg_file"
-      update_cfg "$cfg_file" "$header" "datasource: { MaaS: { ${pload%,} } }" _
+      update_cfg "$cfg_file" "$header" "datasource: { MAAS: { ${pload%,} } }" _
       umask ${orig_umask}
    fi
 
@@ -119,9 +119,15 @@ if [ "$1" = "configure" ]; then
    dpkg-divert --package cloud-init --rename --divert \
       /etc/init/ureadahead.conf.disabled --add /etc/init/ureadahead.conf
    if db_get cloud-init/datasources; then
+      values="$RET"
+      if [ "${values#*MaaS}" != "${values}" ]; then
+         # if db had old MAAS spelling, fix it.
+         values=$(echo "$values" | sed 's,MaaS,MAAS,g')
+         db_set cloud-init/datasources "$values"
+      fi
       cat > /etc/cloud/cloud.cfg.d/90_dpkg.cfg <<EOF
 # to update this file, run dpkg-reconfigure cloud-init
-datasource_list: [ $RET ]
+datasource_list: [ $values ]
 EOF
    fi
 
@@ -129,8 +135,8 @@ EOF
    # cloud-init to run it on next boot.
    pipeline_f="/etc/apt/apt.conf.d/90cloud-init-pipelining"
    if [ -f /var/lib/cloud/instance/obj.pkl ]; then
-      cloud-init-cfg apt_pipelining once-per-instance >/dev/null 2>&1 ||
-         echo "Warning: failed to setup apt_pipelining" 1>&2
+      cloud-init-cfg apt-pipelining once-per-instance >/dev/null 2>&1 ||
+         echo "Warning: failed to setup apt-pipelining" 1>&2
    elif [ ! -f "$pipeline_f" ]; then
       # there was no cloud available, so populate it ourselves.
       cat > "$pipeline_f" <<EOF
