@@ -1,3 +1,17 @@
+cloud-init (0.7.7~bzr1256-0ubuntu1~16.04.1) xenial-proposed; urgency=medium
+
+  * New upstream snapshot.
+    - distros/debian.py: fix eni renderer to not render .link files
+    - fixes for execution in python2.6.
+    - ConfigDrive: fix writing of 'injected' files and legacy networking
+      (LP: #1602373)
+    - improvements to /etc/network/interfaces rendering including rendering
+      of 'lo' devices and sorting attributes within a interface section.
+    - fix mcollective module that was completely broken if using python3
+      (LP: #1597699)
+
+ -- Scott Moser <smoser@ubuntu.com>  Fri, 15 Jul 2016 13:27:04 -0400
+
 cloud-init (0.7.7~bzr1246-0ubuntu1~16.04.1) xenial-proposed; urgency=medium
 
   * New upstream snapshot.
