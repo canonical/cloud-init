@@ -646,6 +646,9 @@ def generate_fallback_config():
     connected = []
     possibly_connected = []
     for interface in potential_interfaces:
+        if os.path.exists(sys_dev_path(interface, "bridge")):
+            # skip any bridges
+            continue
         try:
             carrier = int(sys_netdev_info(interface, 'carrier'))
             if carrier:
