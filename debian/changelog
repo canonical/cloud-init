@@ -1,3 +1,16 @@
+cloud-init (0.6.3-0ubuntu1.6) precise-proposed; urgency=low
+
+  * debian/patches/rework-mirror-selection.patch: update patch to 
+    address issue if package_mirrors is missing from cloud.cfg (LP: #1145215)
+  * debian/patches/lp-1202202-azure-datasource.patch: add azure datasource
+    backported from trunk (LP: #1202202)
+  * debian/patches/future_utils.patch: pull back some upstream 'util' functions
+    for use in the azure datasource.
+  * debian/cloud-init.templates: add 'Azure' to the list of choices
+    for cloud-init/datasources.
+
+ -- Scott Moser <smoser@ubuntu.com>  Wed, 14 Aug 2013 14:36:41 -0400
+
 cloud-init (0.6.3-0ubuntu1.5) precise-proposed; urgency=low
 
   * debian/update-grub-legacy-ec2: consider kernels bootable on ec2

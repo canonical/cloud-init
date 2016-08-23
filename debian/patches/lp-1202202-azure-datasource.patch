@@ -1,0 +1,1070 @@
+Author: Scott Moser <smoser@ubuntu.com>
+Bug: https://launchpad.net/bugs/1202202
+Applied-Upstream: yes
+Description: add support for azure
+ In order to use cloud-init on azure, we need an azure datasource.
+ This backports the azure datasource from trunk to 0.6.X
+ .
+ It is primarily just cloudinit/sources/DataSourceAzure.py from trunk, and
+ was done to be fairly stand-alone.  There are a few changes from the trunk
+ in order to deal with 0.6.X, but pretty much it is verbatum.
+ .
+ Differences include:
+  * modification to accomodate older cloud-init.  This is some function
+    name changes and datasource specific copies of functions that are
+    available in util in newer cloudinit.
+  * on azure, images are not created with a default 'ubuntu' user.  The
+    result is that the user could not log in unless we add a user in this
+    datasource.  So a minimal 'adduser' method is provided.
+ . 
+ This is also accompanied by debian/cloud-init.templates change to enable
+ debconf to select the 'Azure' datasource.
+ .
+ Included bug fixes:
+  * use deployment id as instance-id (LP: #1204190, revno: 839)
+  * publish hostname via bouncing interface (LP: #1202758, revno: 847)
+--- /dev/null
++++ b/cloudinit/DataSourceAzure.py
+@@ -0,0 +1,536 @@
++# vi: ts=4 expandtab
++#
++#    Copyright (C) 2013 Canonical Ltd.
++#
++#    Author: Scott Moser <scott.moser@canonical.com>
++#
++#    This program is free software: you can redistribute it and/or modify
++#    it under the terms of the GNU General Public License version 3, as
++#    published by the Free Software Foundation.
++#
++#    This program is distributed in the hope that it will be useful,
++#    but WITHOUT ANY WARRANTY; without even the implied warranty of
++#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++#    GNU General Public License for more details.
++#
++#    You should have received a copy of the GNU General Public License
++#    along with this program.  If not, see <http://www.gnu.org/licenses/>.
++
++import base64
++import logging
++import os
++import os.path
++import pwd
++import subprocess
++import time
++import yaml
++from xml.dom import minidom
++
++from cloudinit import DataSource as sources
++from cloudinit import future_util as futil
++from cloudinit import seeddir as base_seeddir
++from cloudinit import util
++
++LOG = logging.getLogger(__name__)
++
++DS_NAME = 'Azure'
++DEFAULT_METADATA = {"instance-id": "iid-AZURE-NODE"}
++AGENT_START = ['service', 'walinuxagent', 'start']
++BOUNCE_COMMAND = ['sh', '-xc',
++    "i=$interface; x=0; ifdown $i || x=$?; ifup $i || x=$?; exit $x"]
++
++BUILTIN_DS_CONFIG = {
++    'agent_command': AGENT_START,
++    'data_dir': "/var/lib/waagent",
++    'set_hostname': True,
++    'hostname_bounce': {
++        'interface': 'eth0',
++        'policy': True,
++        'command': BOUNCE_COMMAND,
++        'hostname_command': 'hostname',
++    }
++}
++DS_CFG_PATH = ['datasource', DS_NAME]
++USERADD_GROUPS = 'adm,admin,cdrom'
++
++
++class DataSourceAzureNet(sources.DataSource):
++    seed_dir = base_seeddir + '/azure'
++
++    def __init__(self, sys_cfg):
++        sources.DataSource.__init__(self, sys_cfg)
++        self.cfg = {}
++        self.seed = None
++        self.ds_cfg = util.mergedict(
++            util.get_cfg_by_path(sys_cfg, DS_CFG_PATH, {}),
++            BUILTIN_DS_CONFIG)
++
++    def __str__(self):
++        return "%s [seed=%s]" % ('DataSourceAzure', self.seed)
++
++    def get_data(self):
++        # azure removes/ejects the cdrom containing the ovf-env.xml
++        # file on reboot.  So, in order to successfully reboot we
++        # need to look in the datadir and consider that valid
++        ddir = self.ds_cfg['data_dir']
++
++        candidates = [self.seed_dir]
++        candidates.extend(list_possible_azure_ds_devs())
++        if ddir:
++            candidates.append(ddir)
++
++        found = None
++
++        for cdev in candidates:
++            try:
++                if cdev.startswith("/dev/"):
++                    ret = util.mount_callback_umount(cdev, load_azure_ds_dir)
++                else:
++                    ret = load_azure_ds_dir(cdev)
++
++            except NonAzureDataSource:
++                continue
++            except BrokenAzureDataSource as exc:
++                raise exc
++            except util.mountFailedError:
++                LOG.warn("%s was not mountable" % cdev)
++                continue
++
++            (md, self.userdata_raw, cfg, files) = ret
++            self.seed = cdev
++            self.metadata = util.mergedict(md, DEFAULT_METADATA)
++            self.cfg = cfg
++            found = cdev
++
++            LOG.debug("found datasource in %s", cdev)
++            break
++
++        if not found:
++            return False
++
++        if found == ddir:
++            LOG.debug("using files cached in %s", ddir)
++
++        # now update ds_cfg to reflect contents pass in config
++        usercfg = util.get_cfg_by_path(self.cfg, DS_CFG_PATH, {})
++        self.ds_cfg = util.mergedict(usercfg, self.ds_cfg)
++        mycfg = self.ds_cfg
++
++        # walinux agent writes files world readable, but expects
++        # the directory to be protected.
++        write_files(mycfg['data_dir'], files, dirmode=0700)
++
++        # handle the hostname 'publishing'
++        try:
++            handle_set_hostname(mycfg.get('set_hostname'),
++                                self.metadata.get('local-hostname'),
++                                mycfg['hostname_bounce'])
++        except Exception as e:
++            LOG.warn("Failed publishing hostname: %s" % e)
++            util.logexc(LOG)
++
++        # cloud-init 0.6.3 does not support the creation of users
++        # so we have to do it here in the datasource.  If the ovf-env
++        # xml contained a user, then ensure that that user is added
++        # the password will be handled by the set_passwords config module
++        if self.cfg.get('user'):
++            try:
++                adduser(self.cfg['user'])
++            except Exception:
++                util.logexc(LOG)
++                LOG.warn("failed to add user!")
++
++        try:
++            invoke_agent(mycfg['agent_command'])
++        except futil.ProcessExecutionError:
++            # claim the datasource even if the command failed
++            LOG.warn("agent command '%s' failed.", mycfg['agent_command'])
++            util.logexc(LOG)
++
++        shcfgxml = os.path.join(mycfg['data_dir'], "SharedConfig.xml")
++        wait_for = [shcfgxml]
++
++        fp_files = []
++        for pk in self.cfg.get('_pubkeys', []):
++            bname = pk['fingerprint'] + ".crt"
++            fp_files += [os.path.join(mycfg['data_dir'], bname)]
++
++        start = time.time()
++        missing = wait_for_files(wait_for + fp_files)
++        if len(missing):
++            LOG.warn("Did not find files, but going on: %s", missing)
++        else:
++            LOG.debug("waited %.3f seconds for %d files to appear",
++                      time.time() - start, len(wait_for))
++
++        if shcfgxml in missing:
++            LOG.warn("SharedConfig.xml missing, using static instance-id")
++        else:
++            try:
++                self.metadata['instance-id'] = iid_from_shared_config(shcfgxml)
++            except ValueError as e:
++                LOG.warn("failed to get instance id in %s: %s" % (shcfgxml, e))
++
++        pubkeys = pubkeys_from_crt_files(fp_files)
++
++        self.metadata['public-keys'] = pubkeys
++
++        return True
++
++    def get_config_obj(self):
++        return self.cfg
++
++
++def handle_set_hostname(enabled, hostname, cfg):
++    if not futil.is_true(enabled):
++        return
++
++    if not hostname:
++        LOG.warn("set_hostname was true but no local-hostname")
++        return
++
++    apply_hostname_bounce(hostname=hostname, policy=cfg['policy'],
++                          interface=cfg['interface'],
++                          command=cfg['command'],
++                          hostname_command=cfg['hostname_command'])
++
++
++def apply_hostname_bounce(hostname, policy, interface, command,
++                          hostname_command="hostname"):
++    # set the hostname to 'hostname' if it is not already set to that.
++    # then, if policy is not off, bounce the interface using command
++    prev_hostname = futil.subp(hostname_command, capture=True)[0].strip()
++
++    futil.subp([hostname_command, hostname])
++
++    msg = ("phostname=%s hostname=%s policy=%s interface=%s" %
++           (prev_hostname, hostname, policy, interface))
++
++    if futil.is_false(policy):
++        LOG.debug("pubhname: policy false, skipping [%s]", msg)
++        return
++
++    if prev_hostname == hostname and policy != "force":
++        LOG.debug("pubhname: no change, policy != force. skipping. [%s]", msg)
++        return
++
++    env = os.environ.copy()
++    env['interface'] = interface
++    env['hostname'] = hostname
++    env['old_hostname'] = prev_hostname
++
++    if command == "builtin":
++        command = BOUNCE_COMMAND
++
++    LOG.debug("pubhname: publishing hostname [%s]", msg)
++    start = time.time()
++    shell = not isinstance(command, (list, tuple))
++    # capture=False, see comments in bug 1202758 and bug 1206164.
++    (output, err) = futil.subp(command, shell=shell, capture=False, env=env)
++    LOG.debug("publishing hostname took %.3f seconds", time.time() - start)
++
++
++def crtfile_to_pubkey(fname):
++    pipeline = ('openssl x509 -noout -pubkey < "$0" |'
++                'ssh-keygen -i -m PKCS8 -f /dev/stdin')
++    (out, _err) = futil.subp(['sh', '-c', pipeline, fname], capture=True)
++    return out.rstrip()
++
++
++def pubkeys_from_crt_files(flist):
++    pubkeys = []
++    errors = []
++    for fname in flist:
++        try:
++            pubkeys.append(crtfile_to_pubkey(fname))
++        except subprocess.CalledProcessError:
++            errors.extend(fname)
++
++    if errors:
++        LOG.warn("failed to convert the crt files to pubkey: %s" % errors)
++
++    return pubkeys
++
++
++def wait_for_files(flist, maxwait=60, naplen=.5):
++    need = set(flist)
++    waited = 0
++    while waited < maxwait:
++        need -= set([f for f in need if os.path.exists(f)])
++        if len(need) == 0:
++            return []
++        time.sleep(naplen)
++        waited += naplen
++    return need
++
++
++def write_files(datadir, files, dirmode=None):
++    if not datadir:
++        return
++    if not files:
++        files = {}
++    util.ensure_dirs([datadir], dirmode)
++    for (name, content) in files.items():
++        util.write_file(filename=os.path.join(datadir, name),
++                        content=content, mode=0600)
++
++
++def invoke_agent(cmd):
++    # this is a function itself to simplify patching it for test
++    if cmd:
++        LOG.debug("invoking agent: %s" % cmd)
++        util.subp(cmd)
++    else:
++        LOG.debug("not invoking agent")
++
++
++def find_child(node, filter_func):
++    ret = []
++    if not node.hasChildNodes():
++        return ret
++    for child in node.childNodes:
++        if filter_func(child):
++            ret.append(child)
++    return ret
++
++
++def load_azure_ovf_pubkeys(sshnode):
++    # This parses a 'SSH' node formatted like below, and returns
++    # an array of dicts.
++    #  [{'fp': '6BE7A7C3C8A8F4B123CCA5D0C2F1BE4CA7B63ED7',
++    #    'path': 'where/to/go'}]
++    #
++    # <SSH><PublicKeys>
++    #   <PublicKey><Fingerprint>ABC</FingerPrint><Path>/ABC</Path>
++    #   ...
++    # </PublicKeys></SSH>
++    results = find_child(sshnode, lambda n: n.localName == "PublicKeys")
++    if len(results) == 0:
++        return []
++    if len(results) > 1:
++        raise BrokenAzureDataSource("Multiple 'PublicKeys'(%s) in SSH node" %
++                                    len(results))
++
++    pubkeys_node = results[0]
++    pubkeys = find_child(pubkeys_node, lambda n: n.localName == "PublicKey")
++
++    if len(pubkeys) == 0:
++        return []
++
++    found = []
++    text_node = minidom.Document.TEXT_NODE
++
++    for pk_node in pubkeys:
++        if not pk_node.hasChildNodes():
++            continue
++        cur = {'fingerprint': "", 'path': ""}
++        for child in pk_node.childNodes:
++            if (child.nodeType == text_node or not child.localName):
++                continue
++
++            name = child.localName.lower()
++
++            if name not in cur.keys():
++                continue
++
++            if (len(child.childNodes) != 1 or
++                child.childNodes[0].nodeType != text_node):
++                continue
++
++            cur[name] = child.childNodes[0].wholeText.strip()
++        found.append(cur)
++
++    return found
++
++
++def single_node_at_path(node, pathlist):
++    curnode = node
++    for tok in pathlist:
++        results = find_child(curnode, lambda n: n.localName == tok)
++        if len(results) == 0:
++            raise ValueError("missing %s token in %s" % (tok, str(pathlist)))
++        if len(results) > 1:
++            raise ValueError("found %s nodes of type %s looking for %s" %
++                             (len(results), tok, str(pathlist)))
++        curnode = results[0]
++
++    return curnode
++
++
++def read_azure_ovf(contents):
++    try:
++        dom = minidom.parseString(contents)
++    except Exception as e:
++        raise NonAzureDataSource("invalid xml: %s" % e)
++
++    results = find_child(dom.documentElement,
++        lambda n: n.localName == "ProvisioningSection")
++
++    if len(results) == 0:
++        raise NonAzureDataSource("No ProvisioningSection")
++    if len(results) > 1:
++        raise BrokenAzureDataSource("found '%d' ProvisioningSection items" %
++                                    len(results))
++    provSection = results[0]
++
++    lpcs_nodes = find_child(provSection,
++        lambda n: n.localName == "LinuxProvisioningConfigurationSet")
++
++    if len(results) == 0:
++        raise NonAzureDataSource("No LinuxProvisioningConfigurationSet")
++    if len(results) > 1:
++        raise BrokenAzureDataSource("found '%d' %ss" %
++                                    ("LinuxProvisioningConfigurationSet",
++                                     len(results)))
++    lpcs = lpcs_nodes[0]
++
++    if not lpcs.hasChildNodes():
++        raise BrokenAzureDataSource("no child nodes of configuration set")
++
++    md_props = 'seedfrom'
++    md = {'azure_data': {}}
++    cfg = {}
++    ud = ""
++    password = None
++    username = None
++
++    for child in lpcs.childNodes:
++        if child.nodeType == dom.TEXT_NODE or not child.localName:
++            continue
++
++        name = child.localName.lower()
++
++        simple = False
++        value = ""
++        if (len(child.childNodes) == 1 and
++            child.childNodes[0].nodeType == dom.TEXT_NODE):
++            simple = True
++            value = child.childNodes[0].wholeText
++
++        attrs = {k: v for k, v in child.attributes.items()}
++
++        # we accept either UserData or CustomData.  If both are present
++        # then behavior is undefined.
++        if (name == "userdata" or name == "customdata"):
++            if attrs.get('encoding') in (None, "base64"):
++                ud = base64.b64decode(''.join(value.split()))
++            else:
++                ud = value
++        elif name == "username":
++            username = value
++        elif name == "userpassword":
++            password = value
++        elif name == "hostname":
++            md['local-hostname'] = value
++        elif name == "dscfg":
++            if attrs.get('encoding') in (None, "base64"):
++                dscfg = base64.b64decode(''.join(value.split()))
++            else:
++                dscfg = value
++            cfg['datasource'] = {DS_NAME: yaml.safe_load(dscfg)}
++        elif name == "ssh":
++            cfg['_pubkeys'] = load_azure_ovf_pubkeys(child)
++        elif name == "disablesshpasswordauthentication":
++            cfg['ssh_pwauth'] = futil.is_false(value)
++        elif simple:
++            if name in md_props:
++                md[name] = value
++            else:
++                md['azure_data'][name] = value
++
++    if username:
++        cfg['user'] = username
++    if password:
++        cfg['password'] = password
++        cfg['chpasswd'] = {'expire': False}
++
++    if 'ssh_pwauth' not in cfg and password:
++        cfg['ssh_pwauth'] = True
++
++    return (md, ud, cfg)
++
++
++def adduser(user):
++    try:
++        pwd.getpwnam(user)
++        hasuser = True
++    except KeyError:
++        hasuser = False
++
++    if hasuser:
++        LOG.debug("user %s existed. not creating.", user)
++    else:
++        cmd = ['useradd', user,
++               '--create-home',
++               '--shell', '/bin/bash',
++               '--comment', 'azure provisioned user']
++        if USERADD_GROUPS:
++            cmd.extend(('--groups', USERADD_GROUPS,))
++
++        LOG.debug("creating user '%s': %s", user, cmd)
++        try:
++            util.subp(cmd)
++        except subprocess.CalledProcessError as exc:
++            LOG.warn("Failed to create user with (%s). got: %s" % exc.output)
++            raise
++
++
++def list_possible_azure_ds_devs():
++    # return a sorted list of devices that might have a azure datasource
++    devlist = []
++    for fstype in ("iso9660", "udf"):
++        devlist.extend(util.find_devs_with("TYPE=%s" % fstype))
++
++    devlist.sort(reverse=True)
++    return devlist
++
++
++def load_azure_ds_dir(source_dir):
++    ovf_file = os.path.join(source_dir, "ovf-env.xml")
++
++    if not os.path.isfile(ovf_file):
++        raise NonAzureDataSource("No ovf-env file found")
++
++    with open(ovf_file, "r") as fp:
++        contents = fp.read()
++
++    md, ud, cfg = read_azure_ovf(contents)
++    return (md, ud, cfg, {'ovf-env.xml': contents})
++
++
++def iid_from_shared_config(path):
++    with open(path, "rb") as fp:
++        content = fp.read()
++    return iid_from_shared_config_content(content)
++
++
++def iid_from_shared_config_content(content):
++    """
++    find INSTANCE_ID in:
++    <?xml version="1.0" encoding="utf-8"?>
++    <SharedConfig version="1.0.0.0" goalStateIncarnation="1">
++      <Deployment name="INSTANCE_ID" guid="{...}" incarnation="0">
++        <Service name="..." guid="{00000000-0000-0000-0000-000000000000}" />
++    """
++    dom = minidom.parseString(content)
++    depnode = single_node_at_path(dom, ["SharedConfig", "Deployment"])
++    return depnode.attributes.get('name').value
++
++
++class BrokenAzureDataSource(Exception):
++    pass
++
++
++class NonAzureDataSource(Exception):
++    pass
++
++
++# Used to match classes to dependencies
++datasources = [
++  (DataSourceAzureNet, (sources.DEP_FILESYSTEM, sources.DEP_NETWORK)),
++]
++
++
++# Return a list of data sources that match this set of dependencies
++def get_datasource_list(depends):
++    return sources.list_from_depends(depends, datasources)
+--- /dev/null
++++ b/tests/unittests/test_datasource/test_azure.py
+@@ -0,0 +1,340 @@
++from cloudinit import DataSourceAzure
++
++import base64
++from mocker import MockerTestCase
++import os
++import yaml
++
++
++def construct_valid_ovf_env(data=None, pubkeys=None, userdata=None):
++    if data is None:
++        data = {'HostName': 'FOOHOST'}
++    if pubkeys is None:
++        pubkeys = {}
++
++    content = """<?xml version="1.0" encoding="utf-8"?>
++<Environment xmlns="http://schemas.dmtf.org/ovf/environment/1"
++ xmlns:oe="http://schemas.dmtf.org/ovf/environment/1"
++ xmlns:wa="http://schemas.microsoft.com/windowsazure"
++ xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
++
++ <wa:ProvisioningSection><wa:Version>1.0</wa:Version>
++ <LinuxProvisioningConfigurationSet
++  xmlns="http://schemas.microsoft.com/windowsazure"
++  xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
++  <ConfigurationSetType>LinuxProvisioningConfiguration</ConfigurationSetType>
++    """
++    for key, dval in data.items():
++        if isinstance(dval, dict):
++            val = dval.get('text')
++            attrs = ' ' + ' '.join(["%s='%s'" % (k, v) for k, v in dval.items()
++                                    if k != 'text'])
++        else:
++            val = dval
++            attrs = ""
++        content += "<%s%s>%s</%s>\n" % (key, attrs, val, key)
++
++    if userdata:
++        content += "<UserData>%s</UserData>\n" % (base64.b64encode(userdata))
++
++    if pubkeys:
++        content += "<SSH><PublicKeys>\n"
++        for fp, path in pubkeys:
++            content += " <PublicKey>"
++            content += ("<Fingerprint>%s</Fingerprint><Path>%s</Path>" %
++                        (fp, path))
++            content += "</PublicKey>\n"
++        content += "</PublicKeys></SSH>"
++    content += """
++ </LinuxProvisioningConfigurationSet>
++ </wa:ProvisioningSection>
++ <wa:PlatformSettingsSection><wa:Version>1.0</wa:Version>
++ <PlatformSettings xmlns="http://schemas.microsoft.com/windowsazure"
++  xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
++ <KmsServerHostname>kms.core.windows.net</KmsServerHostname>
++ <ProvisionGuestAgent>false</ProvisionGuestAgent>
++ <GuestAgentPackageName i:nil="true" />
++ </PlatformSettings></wa:PlatformSettingsSection>
++</Environment>
++    """
++
++    return content
++
++
++class TestAzureDataSource(MockerTestCase):
++
++    def setUp(self):
++        # makeDir comes from MockerTestCase
++        self.tmp = self.makeDir()
++
++        # use self.tmp/azure or our seed_dir so it is 'seed_dir' is empty
++        self.ds_seed_dir = os.path.join(self.tmp, 'azure')
++
++        self.unapply = []
++        super(TestAzureDataSource, self).setUp()
++
++    def tearDown(self):
++        apply_patches([i for i in reversed(self.unapply)])
++        super(TestAzureDataSource, self).tearDown()
++
++    def apply_patches(self, patches):
++        ret = apply_patches(patches)
++        self.unapply += ret
++
++    def _get_ds(self, data):
++
++        def dsdevs():
++            return data.get('dsdevs', [])
++
++        def _invoke_agent(cmd):
++            data['agent_invoked'] = cmd
++
++        def _write_files(datadir, files, dirmode):
++            data['files'] = {}
++            data['datadir'] = datadir
++            data['datadir_mode'] = dirmode
++            for (fname, content) in files.items():
++                data['files'][fname] = content
++
++        def _wait_for_files(flist, _maxwait=None, _naplen=None):
++            data['waited'] = flist
++            return []
++
++        def _pubkeys_from_crt_files(flist):
++            data['pubkey_files'] = flist
++            return ["pubkey_from: %s" % f for f in flist]
++
++        def _adduser(user):
++            data['adduser'] = user
++            return
++
++        def _iid_from_shared_config(path):
++            data['iid_from_shared_cfg'] = path
++            return 'i-my-azure-id'
++
++        def _apply_hostname_bounce(**kwargs):
++            data['apply_hostname_bounce'] = kwargs
++
++        if data.get('ovfcontent') is not None:
++            populate_dir(self.ds_seed_dir,
++                         {'ovf-env.xml': data['ovfcontent']})
++
++        mod = DataSourceAzure
++
++        if data.get('dsdevs'):
++            self.apply_patches([(mod, 'list_possible_azure_ds_devs', dsdevs)])
++
++        self.apply_patches([(mod, 'invoke_agent', _invoke_agent),
++                            (mod, 'write_files', _write_files),
++                            (mod, 'wait_for_files', _wait_for_files),
++                            (mod, 'pubkeys_from_crt_files',
++                             _pubkeys_from_crt_files),
++                            (mod, 'adduser', _adduser),
++                            (mod, 'iid_from_shared_config',
++                             _iid_from_shared_config),
++                            (mod, 'apply_hostname_bounce',
++                             _apply_hostname_bounce), ])
++
++        dsrc = mod.DataSourceAzureNet(data.get('sys_cfg', {}))
++        # modify the object to point at our desired seed_dir
++        dsrc.seed_dir = self.ds_seed_dir
++
++        return dsrc
++
++    def test_basic_seed_dir(self):
++        odata = {'HostName': "myhost", 'UserName': "myuser"}
++        data = {'ovfcontent': construct_valid_ovf_env(data=odata),
++                'sys_cfg': {}}
++
++        dsrc = self._get_ds(data)
++        ret = dsrc.get_data()
++        self.assertTrue(ret)
++        self.assertEqual(dsrc.userdata_raw, "")
++        self.assertEqual(dsrc.metadata['local-hostname'], odata['HostName'])
++        self.assertTrue('ovf-env.xml' in data['files'])
++        self.assertEqual(0700, data['datadir_mode'])
++        self.assertEqual(data['adduser'], "myuser")
++        self.assertEqual(dsrc.metadata['instance-id'], 'i-my-azure-id')
++
++    def test_user_cfg_set_agent_command_plain(self):
++        # set dscfg in via plaintext
++        cfg = {'agent_command': "my_command"}
++        odata = {'HostName': "myhost", 'UserName': "myuser",
++                'dscfg': {'text': yaml.dump(cfg), 'encoding': 'plain'}}
++        data = {'ovfcontent': construct_valid_ovf_env(data=odata)}
++
++        dsrc = self._get_ds(data)
++        ret = dsrc.get_data()
++        self.assertTrue(ret)
++        self.assertEqual(data['agent_invoked'], cfg['agent_command'])
++
++    def test_user_cfg_set_agent_command(self):
++        # set dscfg in via base64 encoded yaml
++        cfg = {'agent_command': "my_command"}
++        odata = {'HostName': "myhost", 'UserName': "myuser",
++                'dscfg': {'text': base64.b64encode(yaml.dump(cfg)),
++                          'encoding': 'base64'}}
++        data = {'ovfcontent': construct_valid_ovf_env(data=odata)}
++
++        dsrc = self._get_ds(data)
++        ret = dsrc.get_data()
++        self.assertTrue(ret)
++        self.assertEqual(data['agent_invoked'], cfg['agent_command'])
++
++    def test_sys_cfg_set_agent_command(self):
++        sys_cfg = {'datasource': {'Azure': {'agent_command': '_COMMAND'}}}
++        data = {'ovfcontent': construct_valid_ovf_env(data={}),
++                'sys_cfg': sys_cfg}
++
++        dsrc = self._get_ds(data)
++        ret = dsrc.get_data()
++        self.assertTrue(ret)
++        self.assertEqual(data['agent_invoked'], '_COMMAND')
++
++    def test_username_used(self):
++        odata = {'HostName': "myhost", 'UserName': "myuser"}
++        data = {'ovfcontent': construct_valid_ovf_env(data=odata)}
++
++        dsrc = self._get_ds(data)
++        ret = dsrc.get_data()
++        self.assertTrue(ret)
++        self.assertEqual(dsrc.cfg['user'], "myuser")
++        self.assertEqual(data['adduser'], "myuser")
++
++    def test_password_given(self):
++        odata = {'HostName': "myhost", 'UserName': "myuser",
++                 'UserPassword': "mypass"}
++        data = {'ovfcontent': construct_valid_ovf_env(data=odata)}
++
++        dsrc = self._get_ds(data)
++        ret = dsrc.get_data()
++        self.assertTrue(ret)
++        self.assertTrue('user' in dsrc.cfg)
++
++        # default user shoudl be updated for password and username
++        # and should not be locked.
++        self.assertEqual(dsrc.cfg['user'], odata['UserName'])
++        self.assertEqual(dsrc.cfg['password'], odata['UserPassword'])
++
++    def test_userdata_found(self):
++        mydata = "FOOBAR"
++        odata = {'UserData': base64.b64encode(mydata)}
++        data = {'ovfcontent': construct_valid_ovf_env(data=odata)}
++
++        dsrc = self._get_ds(data)
++        ret = dsrc.get_data()
++        self.assertTrue(ret)
++        self.assertEqual(dsrc.userdata_raw, mydata)
++
++    def test_no_datasource_expected(self):
++        #no source should be found if no seed_dir and no devs
++        data = {}
++        dsrc = self._get_ds({})
++        ret = dsrc.get_data()
++        self.assertFalse(ret)
++        self.assertFalse('agent_invoked' in data)
++
++    def test_cfg_has_pubkeys(self):
++        odata = {'HostName': "myhost", 'UserName': "myuser"}
++        mypklist = [{'fingerprint': 'fp1', 'path': 'path1'}]
++        pubkeys = [(x['fingerprint'], x['path']) for x in mypklist]
++        data = {'ovfcontent': construct_valid_ovf_env(data=odata,
++                                                      pubkeys=pubkeys)}
++
++        dsrc = self._get_ds(data)
++        ret = dsrc.get_data()
++        self.assertTrue(ret)
++        for mypk in mypklist:
++            self.assertIn(mypk, dsrc.cfg['_pubkeys'])
++
++    def test_disabled_bounce(self):
++        pass
++
++    def test_apply_bounce_call_1(self):
++        # hostname needs to get through to apply_hostname_bounce
++        mydata = "FOOBAR"
++        odata = {'HostName': 'my-random-hostname'}
++        data = {'ovfcontent': construct_valid_ovf_env(data=odata)}
++
++        self._get_ds(data).get_data()
++        self.assertIn('hostname', data['apply_hostname_bounce'])
++        self.assertEqual(data['apply_hostname_bounce']['hostname'],
++                         odata['HostName'])
++
++    def test_apply_bounce_call_configurable(self):
++        # hostname_bounce should be configurable in datasource cfg
++        cfg = {'hostname_bounce': {'interface': 'eth1', 'policy': 'off',
++                                   'command': 'my-bounce-command',
++                                   'hostname_command': 'my-hostname-command'}}
++        odata = {'HostName': "xhost",
++                'dscfg': {'text': base64.b64encode(yaml.dump(cfg)),
++                          'encoding': 'base64'}}
++        data = {'ovfcontent': construct_valid_ovf_env(data=odata)}
++        self._get_ds(data).get_data()
++
++        for k in cfg['hostname_bounce']:
++            self.assertIn(k, data['apply_hostname_bounce'])
++
++        for k, v in cfg['hostname_bounce'].items():
++            self.assertEqual(data['apply_hostname_bounce'][k], v)
++
++    def test_set_hostname_disabled(self):
++        # config specifying set_hostname off should not bounce
++        cfg = {'set_hostname': False}
++        odata = {'HostName': "xhost",
++                'dscfg': {'text': base64.b64encode(yaml.dump(cfg)),
++                          'encoding': 'base64'}}
++        data = {'ovfcontent': construct_valid_ovf_env(data=odata)}
++        self._get_ds(data).get_data()
++
++        self.assertEqual(data.get('apply_hostname_bounce', "N/A"), "N/A")
++
++
++class TestReadAzureOvf(MockerTestCase):
++    def test_invalid_xml_raises_non_azure_ds(self):
++        invalid_xml = "<foo>" + construct_valid_ovf_env(data={})
++        self.assertRaises(DataSourceAzure.NonAzureDataSource,
++            DataSourceAzure.read_azure_ovf, invalid_xml)
++
++    def test_load_with_pubkeys(self):
++        mypklist = [{'fingerprint': 'fp1', 'path': 'path1'}]
++        pubkeys = [(x['fingerprint'], x['path']) for x in mypklist]
++        content = construct_valid_ovf_env(pubkeys=pubkeys)
++        (_md, _ud, cfg) = DataSourceAzure.read_azure_ovf(content)
++        for mypk in mypklist:
++            self.assertIn(mypk, cfg['_pubkeys'])
++
++
++class TestReadAzureSharedConfig(MockerTestCase):
++    def test_valid_content(self):
++        xml = """<?xml version="1.0" encoding="utf-8"?>
++            <SharedConfig>
++             <Deployment name="MY_INSTANCE_ID">
++              <Service name="myservice"/>
++              <ServiceInstance name="INSTANCE_ID.0" guid="{abcd-uuid}" />
++             </Deployment>
++            <Incarnation number="1"/>
++            </SharedConfig>"""
++        ret = DataSourceAzure.iid_from_shared_config_content(xml)
++        self.assertEqual("MY_INSTANCE_ID", ret)
++
++
++def apply_patches(patches):
++    ret = []
++    for (ref, name, replace) in patches:
++        if replace is None:
++            continue
++        orig = getattr(ref, name)
++        setattr(ref, name, replace)
++        ret.append((ref, name, orig))
++    return ret
++
++def populate_dir(seed_dir, files):
++    for (name, content) in files.iteritems():
++        path = os.path.join(seed_dir, name)
++        dirname = os.path.dirname(path)
++        if not os.path.isdir(dirname):
++            os.makedirs(dirname)
++        with open(path, "w") as fp:
++            fp.write(content)
++            fp.close()
+--- a/cloudinit/__init__.py
++++ b/cloudinit/__init__.py
+@@ -29,7 +29,8 @@ cfg_env_name = "CLOUD_CFG"
+ 
+ cfg_builtin = """
+ log_cfgs: []
+-datasource_list: ["NoCloud", "ConfigDrive", "OVF", "MAAS", "Ec2", "CloudStack"]
++datasource_list: ["NoCloud", "ConfigDrive", "Azure", "OVF", "MAAS", "Ec2",
++                  "CloudStack"]
+ def_log_file: /var/log/cloud-init.log
+ syslog_fix_perms: syslog:adm
+ """
+--- a/doc/examples/cloud-config-datasources.txt
++++ b/doc/examples/cloud-config-datasources.txt
+@@ -31,3 +31,11 @@ datasource:
+     #    <url>/user-data and <url>/meta-data
+     # seedfrom: http://my.example.com/i-abcde
+     seedfrom: None
++
++  Azure:
++    agent_command: [service, walinuxagent, start]
++    set_hostname: True
++    hostname_bounce:
++      interface: eth0
++      policy: on # [can be 'on', 'off' or 'force']
++    }
+--- /dev/null
++++ b/doc/azure/README.rst
+@@ -0,0 +1,134 @@
++================
++Azure Datasource
++================
++
++This datasource finds metadata and user-data from the Azure cloud platform.
++
++Azure Platform
++--------------
++The azure cloud-platform provides initial data to an instance via an attached
++CD formated in UDF.  That CD contains a 'ovf-env.xml' file that provides some
++information.  Additional information is obtained via interaction with the
++"endpoint".  The ip address of the endpoint is advertised to the instance
++inside of dhcp option 245.  On ubuntu, that can be seen in
++/var/lib/dhcp/dhclient.eth0.leases as a colon delimited hex value (example:
++``option unknown-245 64:41:60:82;`` is 100.65.96.130)
++
++walinuxagent
++------------
++In order to operate correctly, cloud-init needs walinuxagent to provide much
++of the interaction with azure.  In addition to "provisioning" code, walinux
++does the following on the agent is a long running daemon that handles the
++following things:
++- generate a x509 certificate and send that to the endpoint
++
++waagent.conf config
++~~~~~~~~~~~~~~~~~~~
++in order to use waagent.conf with cloud-init, the following settings are recommended.  Other values can be changed or set to the defaults.
++
++  ::
++
++   # disabling provisioning turns off all 'Provisioning.*' function
++   Provisioning.Enabled=n
++   # this is currently not handled by cloud-init, so let walinuxagent do it.
++   ResourceDisk.Format=y
++   ResourceDisk.MountPoint=/mnt
++
++
++Userdata
++--------
++Userdata is provided to cloud-init inside the ovf-env.xml file. Cloud-init
++expects that user-data will be provided as base64 encoded value inside the
++text child of a element named ``UserData`` or ``CustomData`` which is a direct
++child of the ``LinuxProvisioningConfigurationSet`` (a sibling to ``UserName``)
++If both ``UserData`` and ``CustomData`` are provided behavior is undefined on
++which will be selected.
++
++In the example below, user-data provided is 'this is my userdata', and the
++datasource config provided is ``{"agent_command": ["start", "walinuxagent"]}``.
++That agent command will take affect as if it were specified in system config.
++
++Example:
++
++.. code::
++
++ <wa:ProvisioningSection>
++  <wa:Version>1.0</wa:Version>
++  <LinuxProvisioningConfigurationSet
++     xmlns="http://schemas.microsoft.com/windowsazure"
++     xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
++   <ConfigurationSetType>LinuxProvisioningConfiguration</ConfigurationSetType>
++   <HostName>myHost</HostName>
++   <UserName>myuser</UserName>
++   <UserPassword/>
++   <CustomData>dGhpcyBpcyBteSB1c2VyZGF0YQ===</CustomData>
++   <dscfg>eyJhZ2VudF9jb21tYW5kIjogWyJzdGFydCIsICJ3YWxpbnV4YWdlbnQiXX0=</dscfg>
++   <DisableSshPasswordAuthentication>true</DisableSshPasswordAuthentication>
++   <SSH>
++    <PublicKeys>
++     <PublicKey>
++      <Fingerprint>6BE7A7C3C8A8F4B123CCA5D0C2F1BE4CA7B63ED7</Fingerprint>
++      <Path>this-value-unused</Path>
++     </PublicKey>
++    </PublicKeys>
++   </SSH>
++   </LinuxProvisioningConfigurationSet>
++ </wa:ProvisioningSection>
++
++Configuration
++-------------
++Configuration for the datasource can be read from the system config's or set
++via the `dscfg` entry in the `LinuxProvisioningConfigurationSet`.  Content in
++dscfg node is expected to be base64 encoded yaml content, and it will be
++merged into the 'datasource: Azure' entry.
++
++The '``hostname_bounce: command``' entry can be either the literal string
++'builtin' or a command to execute.  The command will be invoked after the
++hostname is set, and will have the 'interface' in its environment.  If
++``set_hostname`` is not true, then ``hostname_bounce`` will be ignored.
++
++An example might be:
++  command:  ["sh", "-c", "killall dhclient; dhclient $interface"]
++
++.. code::
++
++  datasource:
++   agent_command
++   Azure:
++    agent_command: [service, walinuxagent, start]
++    set_hostname: True
++    hostname_bounce:
++     # the name of the interface to bounce
++     interface: eth0
++     # policy can be 'on', 'off' or 'force'
++     policy: on
++     # the method 'bounce' command.
++     command: "builtin"
++     hostname_command: "hostname"
++    }
++
++hostname
++--------
++When the user launches an instance, they provide a hostname for that instance.
++The hostname is provided to the instance in the ovf-env.xml file as
++``HostName``.
++
++Whatever value the instance provides in its dhcp request will resolve in the
++domain returned in the 'search' request.
++
++The interesting issue is that a generic image will already have a hostname
++configured.  The ubuntu cloud images have 'ubuntu' as the hostname of the
++system, and the initial dhcp request on eth0 is not guaranteed to occur after
++the datasource code has been run.  So, on first boot, that initial value will
++be sent in the dhcp request and *that* value will resolve.
++
++In order to make the ``HostName`` provided in the ovf-env.xml resolve, a
++dhcp request must be made with the new value.  Walinuxagent (in its current
++version) handles this by polling the state of hostname and bouncing ('``ifdown
++eth0; ifup eth0``' the network interface if it sees that a change has been
++made.
++
++cloud-init handles this by setting the hostname in the DataSource's 'get_data'
++method via '``hostname $HostName``', and then bouncing the interface.  This
++behavior can be configured or disabled in the datasource config.  See
++'Configuration' above.

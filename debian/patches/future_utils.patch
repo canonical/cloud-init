@@ -1,0 +1,132 @@
+Author: Scott Moser <smoser@ubuntu.com>
+Bug: https://launchpad.net/bugs/1202202
+Applied-Upstream: n/a
+Description: pull back util functions from newer versions of cloud-init
+ As new function is developed in cloud-init on trunk, it often adds
+ and then uses newer 'util' methods (found in cloudinit/util.py).
+ .
+ This patch pulls necessary methods back to 0.6.X and puts them into
+ cloudinit/future_util.py to be explicitly used that way.  That way the
+ backported code can make use of them and remain closer to the upstream
+ code.
+--- /dev/null
++++ b/cloudinit/future_util.py
+@@ -0,0 +1,118 @@
++import logging
++import subprocess
++
++LOG = logging.getLogger(__name__)
++
++
++def subp(args, data=None, rcs=None, env=None, capture=True, shell=False,
++         logstring=False):
++    if rcs is None:
++        rcs = [0]
++    try:
++
++        if not logstring:
++            LOG.debug(("Running command %s with allowed return codes %s"
++                       " (shell=%s, capture=%s)"), args, rcs, shell, capture)
++        else:
++            LOG.debug(("Running hidden command to protect sensitive "
++                       "input/output logstring: %s"), logstring)
++
++        if not capture:
++            stdout = None
++            stderr = None
++        else:
++            stdout = subprocess.PIPE
++            stderr = subprocess.PIPE
++        stdin = subprocess.PIPE
++        sp = subprocess.Popen(args, stdout=stdout,
++                        stderr=stderr, stdin=stdin,
++                        env=env, shell=shell)
++        (out, err) = sp.communicate(data)
++    except OSError as e:
++        raise ProcessExecutionError(cmd=args, reason=e)
++    rc = sp.returncode  # pylint: disable=E1101
++    if rc not in rcs:
++        raise ProcessExecutionError(stdout=out, stderr=err,
++                                    exit_code=rc,
++                                    cmd=args)
++    # Just ensure blank instead of none?? (iff capturing)
++    if not out and capture:
++        out = ''
++    if not err and capture:
++        err = ''
++    return (out, err)
++
++
++def is_true(val, addons=None):
++    if isinstance(val, (bool)):
++        return val is True
++    check_set = ['true', '1', 'on', 'yes']
++    if addons:
++        check_set = check_set + addons
++    if str(val).lower().strip() in check_set:
++        return True
++    return False
++
++
++def is_false(val, addons=None):
++    if isinstance(val, (bool)):
++        return val is False
++    check_set = ['off', '0', 'no', 'false']
++    if addons:
++        check_set = check_set + addons
++    if str(val).lower().strip() in check_set:
++        return True
++    return False
++
++
++class ProcessExecutionError(IOError):
++
++    MESSAGE_TMPL = ('%(description)s\n'
++                    'Command: %(cmd)s\n'
++                    'Exit code: %(exit_code)s\n'
++                    'Reason: %(reason)s\n'
++                    'Stdout: %(stdout)r\n'
++                    'Stderr: %(stderr)r')
++
++    def __init__(self, stdout=None, stderr=None,
++                 exit_code=None, cmd=None,
++                 description=None, reason=None):
++        if not cmd:
++            self.cmd = '-'
++        else:
++            self.cmd = cmd
++
++        if not description:
++            self.description = 'Unexpected error while running command.'
++        else:
++            self.description = description
++
++        if not isinstance(exit_code, (long, int)):
++            self.exit_code = '-'
++        else:
++            self.exit_code = exit_code
++
++        if not stderr:
++            self.stderr = ''
++        else:
++            self.stderr = stderr
++
++        if not stdout:
++            self.stdout = ''
++        else:
++            self.stdout = stdout
++
++        if reason:
++            self.reason = reason
++        else:
++            self.reason = '-'
++
++        message = self.MESSAGE_TMPL % {
++            'description': self.description,
++            'cmd': self.cmd,
++            'exit_code': self.exit_code,
++            'stdout': self.stdout,
++            'stderr': self.stderr,
++            'reason': self.reason,
++        }
++        IOError.__init__(self, message)

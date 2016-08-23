@@ -10,3 +10,5 @@ lp-1100491-fix-broken-add-sources.patch
 lp-1077020-fix-ca-certificates-blanklines.patch
 lp-1031065-nonet-not-start-networking.patch
 lp-1037567-add-config-drive-v2-support.conf
+future_utils.patch
+lp-1202202-azure-datasource.patch

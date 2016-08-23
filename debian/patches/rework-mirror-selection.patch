@@ -2,6 +2,7 @@ Author: Scott Moser <smoser@ubuntu.com>
 Bug: https://launchpad.net/bugs/1028501
 Bug: https://launchpad.net/bugs/1037727
 Bug: https://launchpad.net/bugs/1006963
+Bug: https://launchpad.net/bugs/1145215
 Applied-Upstream: revno 630
 Description: rework package mirror selection
  There are several changes here.  They were pulled from revno 630 on trunk.
@@ -39,6 +40,10 @@ Description: rework package mirror selection
         failsafe:
           primary: http://ports.ubuntu.com/ubuntu
           security: http://ports.ubuntu.com/ubuntu
+ .
+ Updates:
+  * address issue if package_mirrors is missing from cloud.cfg
+    (LP: #1145215)
 --- a/templates/sources.list.tmpl
 +++ b/templates/sources.list.tmpl
 @@ -52,9 +52,9 @@ deb-src $mirror $codename-updates univer
@@ -311,7 +316,7 @@ Description: rework package mirror selection
  
  
  def add_sources(srclist, searchList=None):
-@@ -194,48 +213,132 @@ def add_sources(srclist, searchList=None
+@@ -194,48 +213,130 @@ def add_sources(srclist, searchList=None
      return(elst)
  
  
@@ -327,10 +332,8 @@ Description: rework package mirror selection
 +
 +    # this is used if cfg['system_info']['package_mirrors'] is not present
 +    def_mirror_info = {
-+        'ubuntu': {
-+            'primary': "http://archive.ubuntu.com/ubuntu",
-+            'security': "http://security.ubuntu.com/ubuntu"
-+        }
++        'primary': "http://archive.ubuntu.com/ubuntu",
++        'security': "http://security.ubuntu.com/ubuntu"
      }
      mirror = None
  
