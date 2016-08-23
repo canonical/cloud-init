@@ -3,16 +3,18 @@
 CI_NET_READY="/run/cloud-init/network-config-ready"
 LOG="/run/cloud-init/${0##*/}.log"
 LOG_INIT=0
+MAX_WAIT=60
 DEBUG=0
 
 block_until_ready() {
-    local fname="$1"
-    local naplen="$2" max="$3" n=0
-    while ! [ -f "$fname" ]; do
-        n=$(($n+1))
-        [ "$n" -ge "$max" ] && return 1
-        sleep $naplen
-    done
+    local fname="$1" max="$2"
+    [ -f "$fname" ] && return 0
+    # udevadm settle below will exit at the first of 3 conditions
+    #  1.) timeout 2.) file exists 3.) all in-flight udev events are processed
+    # since this is being run from a udev event, the 3 wont happen.
+    # thus, this is essentially a inotify wait or timeout on a file in /run
+    # that is created by cloud-init-local.
+    udevadm settle "--timeout=$max" "--exit-if-exists=$fname"
 }
 
 log() {
@@ -56,7 +58,7 @@ main() {
         return 0
     fi
 
-    block_until_ready "$readyfile" .1 600 ||
+    block_until_ready "$readyfile" "$MAX_WAIT" ||
        { log "failed waiting for ready on $INTERFACE"; return 1; }
 
     log "net config ready"

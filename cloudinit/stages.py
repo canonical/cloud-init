@@ -596,7 +596,13 @@ class Init(object):
             return
 
         LOG.info("Applying network configuration from %s: %s", src, netcfg)
-        return self.distro.apply_network_config(netcfg)
+        try:
+            return self.distro.apply_network_config(netcfg)
+        except NotImplementedError:
+            LOG.warn("distro '%s' does not implement apply_network_config. "
+                     "networking may not be configured properly." %
+                     self.distro)
+            return
 
 
 class Modules(object):
