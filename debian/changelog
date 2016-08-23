@@ -1,3 +1,10 @@
+cloud-init (0.6.3-0ubuntu1.15) precise-proposed; urgency=medium
+
+  * debian/patches/lp-1378441-backport-gce-data-source.patch: backported
+    Google Compute Engine data source. (LP: #1378441)
+
+ -- Daniel Watkins <daniel.watkins@canonical.com>  Thu, 10 Oct 2014 09:24:57 +0100
+
 cloud-init (0.6.3-0ubuntu1.14) precise-proposed; urgency=medium
 
   * debian/patches/lp-1363260-add-cloudsigma_ds.patch: backport from

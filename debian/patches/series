@@ -24,3 +24,4 @@ lp-1292648-azure-format-ephemeral-new.patch
 lp-1302229-fix_futils_azure.patch
 lp-1363260-add-cloudsigma_ds.patch
 lp-1336855-grub_xvda.patch
+lp-1378441-backport-gce-data-source.patch
