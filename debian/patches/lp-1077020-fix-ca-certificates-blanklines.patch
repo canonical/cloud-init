@@ -1,0 +1,163 @@
+Author: Scott Moser <smoser@brickies.net>
+Bug: https://launchpad.net/bugs/1077020
+Applied-Upstream: revno 744
+Description: make sure no blank lines before cloud-init entry in ca-certificates.conf
+ when /etc/ca-certificates.conf is read by update-ca-certificates
+ lines after a blank line get ignored.  Here, ensure that
+ there are no blank lines, and no duplicate entries for cloud-init are
+ added.
+--- a/cloudinit/CloudConfig/cc_ca_certs.py
++++ b/cloudinit/CloudConfig/cc_ca_certs.py
+@@ -16,7 +16,7 @@
+ import os
+ from subprocess import check_call
+ from cloudinit.util import (write_file, get_cfg_option_list_or_str,
+-                            delete_dir_contents, subp)
++                            delete_dir_contents, subp, load_file)
+ 
+ CA_CERT_PATH = "/usr/share/ca-certificates/"
+ CA_CERT_FILENAME = "cloud-init-ca-certs.crt"
+@@ -42,8 +42,14 @@ def add_ca_certs(certs):
+         cert_file_contents = "\n".join(certs)
+         cert_file_fullpath = os.path.join(CA_CERT_PATH, CA_CERT_FILENAME)
+         write_file(cert_file_fullpath, cert_file_contents, mode=0644)
+-        # Append cert filename to CA_CERT_CONFIG file.
+-        write_file(CA_CERT_CONFIG, "\n%s" % CA_CERT_FILENAME, omode="a")
++
++        # We have to strip the content because blank lines in the file
++        # causes subsequent entries to be ignored. (LP: #1077020)
++        orig = load_file(CA_CERT_CONFIG)
++        cur_cont = '\n'.join([l for l in orig.splitlines()
++                              if l != CA_CERT_FILENAME])
++        out = "%s\n%s\n" % (cur_cont.rstrip(), CA_CERT_FILENAME)
++        write_file(CA_CERT_CONFIG, out, omode="wb")
+ 
+ 
+ def remove_default_ca_certs():
+--- a/cloudinit/util.py
++++ b/cloudinit/util.py
+@@ -37,6 +37,7 @@ import time
+ import tempfile
+ import traceback
+ import urlparse
++from StringIO import StringIO
+ 
+ try:
+     import selinux
+@@ -906,3 +907,34 @@ def keyval_str_to_dict(kvstring):
+         ret[key] = val
+ 
+     return(ret)
++
++
++def load_file(fname, read_cb=None, quiet=False):
++    LOG.debug("Reading from %s (quiet=%s)", fname, quiet)
++    ofh = StringIO()
++    try:
++        with open(fname, 'rb') as ifh:
++            pipe_in_out(ifh, ofh, chunk_cb=read_cb)
++    except IOError as e:
++        if not quiet:
++            raise
++        if e.errno != errno.ENOENT:
++            raise
++    contents = ofh.getvalue()
++    LOG.debug("Read %s bytes from %s", len(contents), fname)
++    return contents
++
++
++def pipe_in_out(in_fh, out_fh, chunk_size=1024, chunk_cb=None):
++    bytes_piped = 0
++    while True:
++        data = in_fh.read(chunk_size)
++        if data == '':
++            break
++        else:
++            out_fh.write(data)
++            bytes_piped += len(data)
++            if chunk_cb:
++                chunk_cb(bytes_piped)
++    out_fh.flush()
++    return bytes_piped
+--- a/tests/unittests/test_handler/test_handler_ca_certs.py
++++ b/tests/unittests/test_handler/test_handler_ca_certs.py
+@@ -1,6 +1,6 @@
+ from mocker import MockerTestCase
+ 
+-from cloudinit.util import write_file, delete_dir_contents
++from cloudinit.util import write_file, load_file, delete_dir_contents
+ from cloudinit.CloudConfig.cc_ca_certs import (
+     handle, update_ca_certs, add_ca_certs, remove_default_ca_certs)
+ from logging import getLogger
+@@ -126,15 +126,47 @@ class TestAddCaCerts(MockerTestCase):
+ 
+         add_ca_certs([])
+ 
+-    def test_single_cert(self):
+-        """Test adding a single certificate to the trusted CAs"""
++    def test_single_cert_trailing_cr(self):
++        """Test adding a single certificate to the trusted CAs
++        when existing ca-certificates has trailing newline"""
+         cert = "CERT1\nLINE2\nLINE3"
+ 
++        ca_certs_content = "line1\nline2\ncloud-init-ca-certs.crt\nline3\n"
++        expected = "line1\nline2\nline3\ncloud-init-ca-certs.crt\n"
++
++        mock_write = self.mocker.replace(write_file, passthrough=False)
++        mock_load = self.mocker.replace(load_file, passthrough=False)
++
++        mock_write("/usr/share/ca-certificates/cloud-init-ca-certs.crt",
++                   cert, mode=0644)
++
++        mock_load("/etc/ca-certificates.conf")
++        self.mocker.result(ca_certs_content)
++
++        mock_write("/etc/ca-certificates.conf", expected, omode="wb")
++        self.mocker.replay()
++
++        add_ca_certs([cert])
++
++    def test_single_cert_no_trailing_cr(self):
++        """Test adding a single certificate to the trusted CAs
++        when existing ca-certificates has no trailing newline"""
++        cert = "CERT1\nLINE2\nLINE3"
++
++        ca_certs_content = "line1\nline2\nline3"
++
+         mock_write = self.mocker.replace(write_file, passthrough=False)
++        mock_load = self.mocker.replace(load_file, passthrough=False)
++
+         mock_write("/usr/share/ca-certificates/cloud-init-ca-certs.crt",
+                    cert, mode=0644)
++
++        mock_load("/etc/ca-certificates.conf")
++        self.mocker.result(ca_certs_content)
++
+         mock_write("/etc/ca-certificates.conf",
+-                   "\ncloud-init-ca-certs.crt", omode="a")
++                   "%s\n%s\n" % (ca_certs_content, "cloud-init-ca-certs.crt"),
++                   omode="wb")
+         self.mocker.replay()
+ 
+         add_ca_certs([cert])
+@@ -145,10 +177,18 @@ class TestAddCaCerts(MockerTestCase):
+         expected_cert_file = "\n".join(certs)
+ 
+         mock_write = self.mocker.replace(write_file, passthrough=False)
++        mock_load = self.mocker.replace(load_file, passthrough=False)
++
+         mock_write("/usr/share/ca-certificates/cloud-init-ca-certs.crt",
+                    expected_cert_file, mode=0644)
+-        mock_write("/etc/ca-certificates.conf",
+-                   "\ncloud-init-ca-certs.crt", omode="a")
++
++        ca_certs_content = "line1\nline2\nline3"
++        mock_load("/etc/ca-certificates.conf")
++        self.mocker.result(ca_certs_content)
++
++        out = "%s\n%s\n" % (ca_certs_content, "cloud-init-ca-certs.crt")
++        mock_write("/etc/ca-certificates.conf", out, omode="wb")
++
+         self.mocker.replay()
+ 
+         add_ca_certs(certs)

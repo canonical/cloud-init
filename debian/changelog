@@ -1,3 +1,22 @@
+cloud-init (0.6.3-0ubuntu1.5) precise-proposed; urgency=low
+
+  * debian/update-grub-legacy-ec2: consider kernels bootable on ec2
+    that are named -generic, in addition to -virtual.  This fixes a problem
+    where the kernels installed by linux-lts-quantal were not added to
+    /boot/grub/menu.lst (LP: #1005551)
+  * debian/patches/lp-1077020-fix-ca-certificates-blanklines.patch: fix
+    adding of empty lines in ca-certificates file (LP: #1077020)
+  * debian/patches/lp-1031065-nonet-not-start-networking.patch: do not 'start
+    networking' in cloud-init-nonet upstart job. Doing so can cause networking
+    to be started earlier than it should be.  Instead, add a
+    cloud-init-container job that runs only in a container and emits
+    net-device-added (LP: #1031065).
+  * debian/patches/lp-1037567-add-config-drive-v2-support.conf:
+    backport support for config-drive-v2 which is part of Openstack Nova in
+    Folsom and later. (LP: #1037567) (LP: #1100545)
+
+ -- Scott Moser <smoser@ubuntu.com>  Wed, 16 Jan 2013 19:37:57 -0500
+
 cloud-init (0.6.3-0ubuntu1.4) precise-proposed; urgency=high
 
   * lp-1100491-fix-broken-add-sources.patch: fix use of

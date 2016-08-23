@@ -17,6 +17,7 @@ Package: cloud-init
 Architecture: all
 Depends: cloud-utils,
          ifupdown (>= 0.6.10ubuntu5),
+         mountall (>= 2.36.3),
          procps,
          python,
          python-cheetah,
