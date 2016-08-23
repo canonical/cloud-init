@@ -1,3 +1,11 @@
+cloud-init (0.6.3-0ubuntu1.20) precise; urgency=medium
+
+  * debian/patches/lp-1490796-azure-fix-mount_cb-for-symlinks.patch:
+      - Fix a regression caused by switching to /dev/disk symlinks
+        (LP: #1490796).
+
+ -- Daniel Watkins <daniel.watkins@canonical.com>  Wed, 02 Sep 2015 13:24:28 +0100
+
 cloud-init (0.6.3-0ubuntu1.19) precise; urgency=medium
 
   * debian/patches/lp-1411582-azure-udev-ephemeral-disks.patch:
