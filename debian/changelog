@@ -1,9 +1,3 @@
-cloud-init (0.7.5-0ubuntu1.18) trusty-security; urgency=medium
-
-  * No change rebuild in the -security pocket.
-
- -- Marc Deslauriers <marc.deslauriers@ubuntu.com>  Thu, 24 Mar 2016 15:31:45 -0400
-
 cloud-init (0.7.5-0ubuntu1.17) trusty; urgency=medium
 
   * Microsoft Azure:
