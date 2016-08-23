@@ -1,0 +1,46 @@
+Description: AZURE: add support/preference for SSH public key values
+ Azure has started to support SSH public key values in addition to SSH
+ public key fingerprints. Per MS, this patch prefers fabric provided
+ values instead of fingerprints.
+Author: Ben Howard <ben.howard@ubuntu.com>
+Origin: upstream, http://bazaar.launchpad.net/~cloud-init-dev/cloud-init/trunk/revision/1149
+Bug: https://bugs.launchpad.net/cloud-init/+bug/1506244
+--- a/cloudinit/DataSourceAzure.py
++++ b/cloudinit/DataSourceAzure.py
+@@ -189,9 +189,15 @@
+         wait_for = [shcfgxml]
+ 
+         fp_files = []
++        key_value = None
+         for pk in self.cfg.get('_pubkeys', []):
+-            bname = pk['fingerprint'] + ".crt"
+-            fp_files += [os.path.join(mycfg['data_dir'], bname)]
++            if pk.get('value', None):
++                key_value = pk['value']
++                LOG.debug("ssh authentication: using value from fabric")
++            else:
++                bname = str(pk['fingerprint'] + ".crt")
++                fp_files += [os.path.join(ddir, bname)]
++                LOG.debug("ssh authentication: using fingerprint from fabric")
+ 
+         start = time.time()
+         missing = wait_for_files(wait_for + fp_files)
+@@ -209,7 +215,7 @@
+             except ValueError as e:
+                 LOG.warn("failed to get instance id in %s: %s" % (shcfgxml, e))
+ 
+-        pubkeys = pubkeys_from_crt_files(fp_files)
++        pubkeys = key_value or pubkeys_from_crt_files(fp_files)
+ 
+         self.metadata['public-keys'] = pubkeys
+ 
+@@ -474,7 +480,8 @@
+     for pk_node in pubkeys:
+         if not pk_node.hasChildNodes():
+             continue
+-        cur = {'fingerprint': "", 'path': ""}
++
++        cur = {'fingerprint': "", 'path': "", 'value': ""}
+         for child in pk_node.childNodes:
+             if (child.nodeType == text_node or not child.localName):
+                 continue

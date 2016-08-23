@@ -39,3 +39,4 @@ lp-1492468-config-drive_alternative-interface-path.patch
 lp-1458052-redact-azure-password.patch
 lp-1382481-cloudstack-vr.patch
 lp-1177432-same-archives-as-ubuntu-server.patch
+lp-1506244-azure-ssh-key-values.patch
