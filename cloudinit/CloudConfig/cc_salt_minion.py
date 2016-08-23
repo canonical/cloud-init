@@ -20,7 +20,8 @@ import subprocess
 import cloudinit.CloudConfig as cc
 import yaml
 
-def handle(_name, cfg, cloud, log, _args):
+
+def handle(_name, cfg, _cloud, _log, _args):
     # If there isn't a salt key in the configuration don't do anything
     if 'salt_minion' not in cfg:
         return

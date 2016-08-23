@@ -632,6 +632,7 @@ def close_stdin():
     with open(os.devnull) as fp:
         os.dup2(fp.fileno(), sys.stdin.fileno())
 
+
 def find_devs_with(criteria):
     """
     find devices matching given criteria (via blkid)
@@ -641,15 +642,16 @@ def find_devs_with(criteria):
       UUID=<uuid>
     """
     try:
-        (out,err) = subp(['blkid','-t%s' % criteria,'-odevice'])
-    except subprocess.CalledProcessError as exc:
+        (out, _err) = subp(['blkid', '-t%s' % criteria, '-odevice'])
+    except subprocess.CalledProcessError:
         return([])
-    return(out.splitlines())
+    return(str(out).splitlines())
 
 
 class mountFailedError(Exception):
     pass
-        
+
+
 def mount_callback_umount(device, callback, data=None):
     """
     mount the device, call method 'callback' passing the directory
@@ -657,15 +659,15 @@ def mount_callback_umount(device, callback, data=None):
     returned.  If data != None, also pass data to callback.
     """
 
-    def _cleanup(mountpoint, tmpd):
+    def _cleanup(umount, tmpd):
         if umount:
             try:
                 subp(["umount", '-l', umount])
-            except subprocess.CalledProcessError as exc:
+            except subprocess.CalledProcessError:
                 raise
         if tmpd:
             os.rmdir(tmpd)
-                
+
     # go through mounts to see if it was already mounted
     fp = open("/proc/mounts")
     mounts = fp.readlines()
@@ -684,15 +686,14 @@ def mount_callback_umount(device, callback, data=None):
         mountpoint = "%s/" % mounted[device][2]
     else:
         tmpd = tempfile.mkdtemp()
-        
+
         mountcmd = ["mount", "-o", "ro", device, tmpd]
 
         try:
-            (out, err) = subp(mountcmd)
+            (_out, _err) = subp(mountcmd)
             umount = tmpd
         except subprocess.CalledProcessError as exc:
             _cleanup(umount, tmpd)
-            print exc.output[1]
             raise mountFailedError(exc.output[1])
 
         mountpoint = "%s/" % tmpd

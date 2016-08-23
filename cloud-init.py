@@ -136,7 +136,7 @@ def main():
         cloud.get_data_source()
     except cloudinit.DataSourceNotFoundException as e:
         sys.stderr.write("no instance data found in %s\n" % cmd)
-        sys.exit(1)
+        sys.exit(0)
 
     # set this as the current instance
     cloud.set_cur_instance()
