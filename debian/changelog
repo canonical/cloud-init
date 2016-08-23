@@ -1,3 +1,10 @@
+cloud-init (0.6.3-0ubuntu1.7) precise-proposed; urgency=low
+
+  * debian/patches/lp-1224684-azure-passwordless-sudo.patch:
+    set up passwordless sudo for provisioned user on azure (LP: #1224684).
+
+ -- Scott Moser <smoser@ubuntu.com>  Fri, 13 Sep 2013 11:44:00 -0400
+
 cloud-init (0.6.3-0ubuntu1.6) precise-proposed; urgency=low
 
   * debian/patches/rework-mirror-selection.patch: update patch to 
