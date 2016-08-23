@@ -1,8 +1,8 @@
 Template: cloud-init/datasources
 Type: multiselect
-Default: NoCloud, OVF
-Choices-C: NoCloud, OVF, Ec2
-Choices: NoCloud: Reads info from /var/lib/cloud/seed only, OVF: Reads data from OVF Transports, Ec2: reads data from EC2 Metadata service
+Default: NoCloud, ConfigDrive, OVF
+Choices-C: NoCloud, ConfigDrive, OVF, Ec2
+Choices: NoCloud: Reads info from /var/lib/cloud/seed only, ConfigDrive: Reads data from Openstack Config Drive, OVF: Reads data from OVF Transports, Ec2: reads data from EC2 Metadata service
 Description: Which data sources should be searched?
  Cloud-init supports searching different "Data Sources" for information
  that it uses to configure a cloud instance.

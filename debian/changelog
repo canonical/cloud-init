@@ -1,3 +1,20 @@
+cloud-init (0.6.3~bzr519-0ubuntu1) precise; urgency=low
+
+  * New upstream snapshot.
+    - [Mike Milner] add support for managing CA Certificates (LP: #915232)
+    - in ci-info lines, use '.' to for empty field for easier machine reading
+    - support empty lines in "#include" files (LP: #923043)
+    - [Jef Baeur] support configuration of salt minions Bauer) (LP: #927795)
+    - DataSourceOVF: only search for OVF data on ISO9660 filesystems (LP: #898373)
+    - DataSourceConfigDrive: support getting data from openstack config drive
+      (LP: #857378)
+    - [Juerg Haefliger] formating and pylint cleanups
+  * increase timeouts for initial config check for metadata service
+    to address slow metadata service in openstack
+  * add awareness of ConfigDrive data source
+
+ -- Scott Moser <smoser@ubuntu.com>  Thu, 16 Feb 2012 17:27:05 -0500
+
 cloud-init (0.6.3~bzr502-0ubuntu1) precise; urgency=low
 
   * New upstream snapshot.
