@@ -27,6 +27,9 @@
  - DataSourceConfigDrive: support getting data from openstack config drive (LP: #857378)
  - DataSourceNoCloud: support seed from external disk of ISO or vfat (LP: #857378)
  - DataSourceNoCloud: support inserting /etc/network/interfaces
+ - DataSourceMaaS: add data source for Ubuntu Machines as a Service (MaaS) (LP: #942061)
+ - add option 'apt_pipelining' to address issue with S3 mirrors 
+   (LP: #948461) [Ben Howard]
 0.6.2:
  - fix bug where update was not done unless update was explicitly set.
    It would not be run if 'upgrade' or packages were set to be installed

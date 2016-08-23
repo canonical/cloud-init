@@ -1,6 +1,8 @@
 #!/bin/bash
 
-def_files='cloud*.py cloudinit/*.py cloudinit/CloudConfig/*.py'
+ci_files='cloud*.py cloudinit/*.py cloudinit/CloudConfig/*.py'
+test_files=$(find tests -name "*.py")
+def_files="$ci_files $test_files"
 
 if [ $# -eq 0 ]; then
    files=( )

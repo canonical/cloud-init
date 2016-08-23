@@ -45,6 +45,15 @@ apt_mirror_search:
 # apt_proxy (configure Acquire::HTTP::Proxy)
 apt_proxy: http://my.apt.proxy:3128
 
+# apt_pipelining (configure Acquire::http::Pipeline-Depth)
+# Default: disables HTTP pipelining. Certain web servers, such
+# as S3 do not pipeline properly (LP: #948461).
+# Valid options:
+#   False/default: Disables pipelining for APT
+#   None/Unchanged: Use OS default
+#   Number: Set pipelining to some number (not recommended)
+apt_pipelining: False
+
 # Preserve existing /etc/apt/sources.list
 # Default: overwrite sources_list with mirror.  If this is true
 # then apt_mirror above will have no effect

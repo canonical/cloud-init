@@ -16,7 +16,7 @@
 import os
 from subprocess import check_call
 from cloudinit.util import (write_file, get_cfg_option_list_or_str,
-                            delete_dir_contents)
+                            delete_dir_contents, subp)
 
 CA_CERT_PATH = "/usr/share/ca-certificates/"
 CA_CERT_FILENAME = "cloud-init-ca-certs.crt"
@@ -54,6 +54,8 @@ def remove_default_ca_certs():
     delete_dir_contents(CA_CERT_PATH)
     delete_dir_contents(CA_CERT_SYSTEM_PATH)
     write_file(CA_CERT_CONFIG, "", mode=0644)
+    debconf_sel = "ca-certificates ca-certificates/trust_new_crts select no"
+    subp(('debconf-set-selections', '-'), debconf_sel)
 
 
 def handle(_name, cfg, _cloud, log, _args):
