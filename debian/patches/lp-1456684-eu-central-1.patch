@@ -1,0 +1,21 @@
+Description: Add central as a direction for EC2 AZs
+Author: Scott Moser <smoser@ubuntu.com>
+Origin: upstream, http://bazaar.launchpad.net/~cloud-init-dev/cloud-init/trunk/revision/1108
+Bug: https://bugs.launchpad.net/cloud-init/+bug/1456684
+--- a/cloudinit/CloudConfig/cc_apt_update_upgrade.py
++++ b/cloudinit/CloudConfig/cc_apt_update_upgrade.py
+@@ -313,8 +313,12 @@
+     # search through the 'search' entries, and fallback appropriately
+     # return a dict with only {name: mirror} entries.
+ 
+-    ec2_az_re = ("^[a-z][a-z]-(%s)-[1-9][0-9]*[a-z]$" %
+-        "north|northeast|east|southeast|south|southwest|west|northwest")
++    # ec2 availability zones are named cc-direction-[0-9][a-d] (us-east-1b)
++    # the region is us-east-1. so region = az[0:-1]
++    directions_re = '|'.join([
++        'central', 'east', 'north', 'northeast', 'northwest',
++        'south', 'southeast', 'southwest', 'west'])
++    ec2_az_re = ("^[a-z][a-z]-(%s)-[1-9][0-9]*[a-z]$" % directions_re)
+ 
+     subst = {}
+     if availability_zone:

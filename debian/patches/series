@@ -28,3 +28,5 @@ lp-1378441-backport-gce-data-source.patch
 lp-1383794-gce-short_name.patch
 lp-1404311-gce-data_encoding.patch
 lp-1422388-cloudstack-passwords.patch
+lp-1456684-eu-central-1.patch
+lp-1464253-handle-new-cloudstack-passwords.patch

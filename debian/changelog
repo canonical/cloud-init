@@ -1,3 +1,13 @@
+cloud-init (0.6.3-0ubuntu1.18) precise; urgency=medium
+
+  * d/patches/lp-1456684-eu-central-1.patch:
+      - Add central as a direction for EC2 availability zones (LP: #1456684).
+  * d/patches/lp-1464253-handle-new-cloudstack-passwords.patch:
+      - Handle both old and new CloudStack password servers (LP: #1464253).
+  * Add python-serial to Depends (LP: #1381776).
+
+ -- Daniel Watkins <daniel.watkins@canonical.com>  Thu, 16 Jul 2015 17:14:18 +0100
+
 cloud-init (0.6.3-0ubuntu1.17) precise; urgency=medium
 
   * Backport support for fetching passwords in CloudStack (LP: #1422388).
