@@ -10,7 +10,7 @@
 #
 
 locale_warn() {
-	local bad_names="" bad_lcs="" key="" val="" var="" vars=""
+	local bad_names="" bad_lcs="" key="" val="" var="" vars="" bad_kv=""
 	local w1 w2 w3 w4 remain
 
 	# if shell is zsh, act like sh only for this function (-L).
@@ -37,15 +37,18 @@ locale_warn() {
 			[ "${bad}" = "${var%=*}" ] || continue
 			val=${var#*=}
 			[ "${bad_lcs#* ${val}}" = "${bad_lcs}" ] &&
-        			bad_lcs="${bad_lcs} ${val}"
+				bad_lcs="${bad_lcs} ${val}"
+			bad_kv="${bad_kv} $bad=$val"
 			break
 		done
 	done
 	bad_lcs=${bad_lcs# }
+	bad_kv=${bad_kv# }
 	[ -n "$bad_lcs" ] || return 0
 
 	printf "_____________________________________________________________________\n"
 	printf "WARNING! Your environment specifies an invalid locale.\n"
+	printf " The unknown environment variables are:\n   %s\n" "$bad_kv"
 	printf " This can affect your user experience significantly, including the\n"
 	printf " ability to manage packages. You may install the locales by running:\n\n"
 
@@ -76,7 +79,7 @@ locale_warn() {
 		printf "\n"
 	fi
 	for bad in ${invalid}; do
-        	printf "WARNING: '${bad}' is an invalid locale\n"
+		printf "WARNING: '${bad}' is an invalid locale\n"
 	done
 
 	printf "To see all available language packs, run:\n"

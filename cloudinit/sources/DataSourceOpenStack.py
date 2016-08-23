@@ -45,8 +45,6 @@ class DataSourceOpenStack(openstack.SourceMixin, sources.DataSource):
         self.version = None
         self.files = {}
         self.ec2_metadata = None
-        if not self.ds_cfg:
-            self.ds_cfg = {}
 
     def __str__(self):
         root = sources.DataSource.__str__(self)

@@ -285,7 +285,7 @@ def install_chef(cloud, chef_cfg, log):
         chef_version = util.get_cfg_option_str(chef_cfg, 'version', None)
         ruby_version = util.get_cfg_option_str(chef_cfg, 'ruby_version',
                                                RUBY_VERSION_DEFAULT)
-        install_chef_from_gems(cloud.distro, ruby_version, chef_version)
+        install_chef_from_gems(ruby_version, chef_version, cloud.distro)
         # Retain backwards compat, by preferring True instead of False
         # when not provided/overriden...
         run = util.get_cfg_option_bool(chef_cfg, 'exec', default=True)
