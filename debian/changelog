@@ -1,18 +1,9 @@
-cloud-init (0.7.5-0ubuntu1.10) trusty; urgency=medium
-
-  [ Daniel Watkins ]
-  * d/patches/lp-1490796-azure-fix-mount_cb-for-symlinks.patch:
-      - Fix a regression caused by switching to /dev/disk symlinks
-        (LP: #1490796).
-
- -- Ben Howard <ben.howard@ubuntu.com>  Wed, 02 Sep 2015 10:57:30 -0600
-
 cloud-init (0.7.5-0ubuntu1.9) trusty; urgency=medium
 
   * d/cloud-init.templates: Include SmartOS data source in the default list
     and choices (LP: #1398997).
 
- -- Daniel Watkins <daniel.watkins@canonical.com>  Wed, 02 Sep 2015 16:09:33 +0100
+ -- Daniel Watkins <daniel.watkins@canonical.com>  Mon, 20 Apr 2015 14:21:13 +0100
 
 cloud-init (0.7.5-0ubuntu1.8) trusty; urgency=medium
 
