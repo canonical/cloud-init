@@ -1,3 +1,10 @@
+cloud-init (0.7.7~bzr1246-0ubuntu1~16.04.1) xenial-proposed; urgency=medium
+
+  * New upstream snapshot.
+    - fix restoring from a datasource that did not have dsmode (LP: #1596690)
+
+ -- Scott Moser <smoser@ubuntu.com>  Mon, 27 Jun 2016 16:31:37 -0400
+
 cloud-init (0.7.7~bzr1245-0ubuntu1~16.04.1) xenial-proposed; urgency=medium
 
   * debian/new-upstream-snapshot: minor change supporting revision
