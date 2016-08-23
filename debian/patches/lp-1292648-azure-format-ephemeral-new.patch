@@ -1,0 +1,142 @@
+Author: Ben Howard <ben.howard@ubuntu.com>
+Bug: https://launchpad.net/bugs/978127
+Applied-Upstream: revno 960
+Description: Azure: re-format ephemeral disk if necessary
+  On azure, the ephemeral disk may be destroyed and replaced with a fresh
+  ephemeral disk on any reboot or stop and start cycle.
+
+  This makes the datasource able to detect that by presence of an unformatted
+  and specifically labeled NTFS filesystem with no files on it.
+--- a/cloudinit/DataSourceAzure.py
++++ b/cloudinit/DataSourceAzure.py
+@@ -17,6 +17,7 @@
+ #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ 
+ import base64
++import fnmatch
+ import logging
+ import os
+ import os.path
+@@ -26,6 +27,7 @@
+ import yaml
+ from xml.dom import minidom
+ 
++from cloudinit.CloudConfig import per_always
+ from cloudinit import DataSource as sources
+ from cloudinit import future_util as futil
+ from cloudinit import seeddir as base_seeddir
+@@ -66,7 +68,7 @@
+ 
+ DS_CFG_PATH = ['datasource', DS_NAME]
+ USERADD_GROUPS = 'adm,admin,cdrom'
+-
++DEF_EPHEMERAL_LABEL = 'Temporary Storage'
+ 
+ class DataSourceAzureNet(sources.DataSource):
+     seed_dir = base_seeddir + '/azure'
+@@ -205,6 +207,15 @@
+ 
+         self.metadata['public-keys'] = pubkeys
+ 
++        found_ephemeral = find_ephemeral_disk()
++        if found_ephemeral:
++            self.ds_cfg['disk_aliases']['ephemeral0'] = found_ephemeral
++            LOG.debug("using detected ephemeral0 of %s", found_ephemeral)
++
++        cc_modules_override = support_new_ephemeral(self.sys_cfg)
++        if cc_modules_override:
++            self.cfg['cloud_config_modules'] = cc_modules_override
++
+         return True
+ 
+     def device_name_to_device(self, name):
+@@ -213,6 +224,89 @@
+     def get_config_obj(self):
+         return self.cfg
+ 
++def count_files(mp):
++    return len(fnmatch.filter(os.listdir(mp), '*[!cdrom]*'))
++
++def find_ephemeral_part():
++    """
++    Locate the default ephmeral0.1 device. This will be the first device
++    that has a LABEL of DEF_EPHEMERAL_LABEL and is a NTFS device. If Azure
++    gets more ephemeral devices, this logic will only identify the first
++    such device.
++    """
++    c_label_devs = util.find_devs_with("LABEL=%s" % DEF_EPHEMERAL_LABEL)
++    c_fstype_devs = util.find_devs_with("TYPE=ntfs")
++    for dev in c_label_devs:
++        if dev in c_fstype_devs:
++            return dev
++    return None
++
++
++def find_ephemeral_disk():
++    """
++    Get the ephemeral disk.
++    """
++    part_dev = find_ephemeral_part()
++    if part_dev and str(part_dev[-1]).isdigit():
++        return part_dev[:-1]
++    elif part_dev:
++        return part_dev
++    return None
++
++def support_new_ephemeral(cfg):
++    """
++    Windows Azure makes ephemeral devices ephemeral to boot; a ephemeral device
++    may be presented as a fresh device, or not.
++
++    Since the knowledge of when a disk is supposed to be plowed under is
++    specific to Windows Azure, the logic resides here in the datasource. When a
++    new ephemeral device is detected, cloud-init overrides the default
++    frequency for both disk-setup and mounts for the current boot only.
++    """
++    device = find_ephemeral_part()
++    if not device:
++        LOG.debug("no default fabric formated ephemeral0.1 found")
++        return None
++    LOG.debug("fabric formated ephemeral0.1 device at %s", device)
++
++    file_count = 0
++    try:
++        file_count = util.mount_callback_umount(device, count_files)
++    except:
++        return None
++    LOG.debug("fabric prepared ephmeral0.1 has %s files on it", file_count)
++
++    if file_count >= 1:
++        LOG.debug("fabric prepared ephemeral0.1 will be preserved")
++        return None
++    else:
++        # if device was already mounted, then we need to unmount it
++        # race conditions could allow for a check-then-unmount
++        # to have a false positive. so just unmount and then check.
++        try:
++            util.subp(['umount', device])
++        except util.ProcessExecutionError as e:
++            if device in util.mounts():
++                LOG.warn("Failed to unmount %s, will not reformat.", device)
++                LOG.debug("Failed umount: %s", e)
++                return None
++
++    LOG.debug("cloud-init will format ephemeral0.1 this boot.")
++    LOG.debug("setting disk_setup and mounts modules 'always' for this boot")
++
++    cc_modules = cfg.get('cloud_config_modules')
++    if not cc_modules:
++        return None
++
++    mod_list = []
++    for mod in cc_modules:
++        if mod in ("disk-setup", "mounts"):
++            mod_list.append([mod, per_always])
++            LOG.debug("set module '%s' to 'always' for this boot", mod)
++        else:
++            mod_list.append(mod)
++    return mod_list
++
+ 
+ def handle_set_hostname(enabled, hostname, cfg):
+     if not futil.is_true(enabled):

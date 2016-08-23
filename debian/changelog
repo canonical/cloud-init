@@ -1,3 +1,12 @@
+cloud-init (0.6.3-0ubuntu1.12) precise-proposed; urgency=low
+
+  * debian/patches/lp-1269626-azure_new_instance.patch: fix handling of new
+    instances on Windows Azure. Backport of fix from 14.04 (LP: #1269626).
+  * debian/patches/lp-1292648-azure-format-ephemeral-new.patch: Azure,
+    re-format ephemeral disk if necessary (LP: #1292648).
+
+ -- Ben Howard <ben.howard@ubuntu.com>  Tue, 18 Mar 2014 10:58:12 -0600
+
 cloud-init (0.6.3-0ubuntu1.11) precise-proposed; urgency=low
 
   * support apt-add-archive with 'cloud-archive:' format.  (LP: #1244355)

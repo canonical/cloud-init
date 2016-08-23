@@ -1,0 +1,58 @@
+Author: Ben Howard <ben.howard@ubuntu.com>
+Bug: https://launchpad.net/bugs/12696260
+Applied-Upstream: yes
+Description: Fix bug where new instances are not detected
+--- a/cloudinit/DataSourceAzure.py
++++ b/cloudinit/DataSourceAzure.py
+@@ -38,6 +38,7 @@
+ AGENT_START = ['service', 'walinuxagent', 'start']
+ BOUNCE_COMMAND = ['sh', '-xc',
+     "i=$interface; x=0; ifdown $i || x=$?; ifup $i || x=$?; exit $x"]
++DATA_DIR_CLEAN_LIST = ['SharedConfig.xml']
+ 
+ BUILTIN_DS_CONFIG = {
+     'agent_command': AGENT_START,
+@@ -128,10 +129,26 @@
+         usercfg = util.get_cfg_by_path(self.cfg, DS_CFG_PATH, {})
+         self.ds_cfg = util.mergedict(usercfg, self.ds_cfg)
+         mycfg = self.ds_cfg
++        ddir = mycfg['data_dir']
++
++        if found != ddir:
++            cached_ovfenv = util.load_file(
++                os.path.join(ddir, 'ovf-env.xml'), quiet=True)
++            if cached_ovfenv != files['ovf-env.xml']:
++                # source was not walinux-agent's datadir, so we have to clean
++                # up so 'wait_for_files' doesn't return early due to stale data
++                cleaned = []
++                for f in [os.path.join(ddir, f) for f in DATA_DIR_CLEAN_LIST]:
++                    if os.path.exists(f):
++                        futil.del_file(f)
++                        cleaned.append(f)
++                if cleaned:
++                    LOG.info("removed stale file(s) in '%s': %s",
++                             ddir, str(cleaned))
+ 
+         # walinux agent writes files world readable, but expects
+         # the directory to be protected.
+-        write_files(mycfg['data_dir'], files, dirmode=0700)
++        write_files(ddir, files, dirmode=0700)
+ 
+         # handle the hostname 'publishing'
+         try:
+--- a/cloudinit/future_util.py
++++ b/cloudinit/future_util.py
+@@ -153,3 +153,13 @@
+                         types.FunctionType,
+                         types.LambdaType)):
+         return str(obj.__name__)
++
++
++def del_file(path):
++    LOG.debug("Attempting to remove %s", path)
++    try:
++        os.unlink(path)
++    except OSError as e:
++        if e.errno != errno.ENOENT:
++            raise e
++
