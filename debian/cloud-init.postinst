@@ -201,6 +201,17 @@ cleanup_lp1552999() {
         "$edir/cloud-init-local.service" "$edir/cloud-init.service"
 }
 
+disable_network_config_on_upgrade() {
+    local oldver="$1" last_without_net="0.7.7~bzr1182-0ubuntu1"
+    if ! -f /var/lib/cloud/instance/obj.pkl ; then
+        # this is a fresh system not one that has been booted.
+        return 0
+    fi
+    if dpkg --compare-versions "$oldver" le "$last_without_net"; then
+        echo "dpkg upgrade from $oldver" > /var/lib/cloud/data/upgraded-network
+    fi
+}
+
 if [ "$1" = "configure" ]; then
    # disable ureadahead (LP: #499520)
    dpkg-divert --package cloud-init --rename --divert \
@@ -241,6 +252,8 @@ EOF
    # fix issue where cloud-init misidentifies the location of grub
    fix_1336855
 
+   # make upgrades disable network changes by cloud-init
+   disable_network_config_on_upgrade "$2"
 fi
 
 #DEBHELPER#
