@@ -1,10 +1,3 @@
-cloud-init (0.7.5-0ubuntu1.3) trusty-proposed; urgency=medium
-
-  * d/patches/lp-1336855-grub_xvda.patch: include xvda devices for
-    consideration for grub configuration (LP: #1336855).
-
- -- Ben Howard <ben.howard@ubuntu.com>  Thu, 18 Sep 2014 16:47:23 -0600
-
 cloud-init (0.7.5-0ubuntu1.2) trusty-proposed; urgency=medium
 
   * d/patches/lp-1353008-cloud-init-local-needs-run.conf:
