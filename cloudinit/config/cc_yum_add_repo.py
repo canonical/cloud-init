@@ -92,7 +92,7 @@ def handle(name, cfg, _cloud, log, _args):
         for req_field in ['baseurl']:
             if req_field not in repo_config:
                 log.warn(("Repository %s does not contain a %s"
-                           " configuration 'required' entry"),
+                          " configuration 'required' entry"),
                          repo_id, req_field)
                 missing_required += 1
         if not missing_required:

@@ -139,9 +139,10 @@ class FileSemaphores(object):
         # but the item had run before we did canon_sem_name.
         if cname != name and os.path.exists(self._get_path(name, freq)):
             LOG.warn("%s has run without canonicalized name [%s].\n"
-                "likely the migrator has not yet run. It will run next boot.\n"
-                "run manually with: cloud-init single --name=migrator"
-                % (name, cname))
+                     "likely the migrator has not yet run. "
+                     "It will run next boot.\n"
+                     "run manually with: cloud-init single --name=migrator"
+                     % (name, cname))
             return True
 
         return False
@@ -335,19 +336,19 @@ class Paths(object):
         template_dir = path_cfgs.get('templates_dir', '/etc/cloud/templates/')
         self.template_tpl = os.path.join(template_dir, '%s.tmpl')
         self.lookups = {
-           "handlers": "handlers",
-           "scripts": "scripts",
-           "vendor_scripts": "scripts/vendor",
-           "sem": "sem",
-           "boothooks": "boothooks",
-           "userdata_raw": "user-data.txt",
-           "userdata": "user-data.txt.i",
-           "obj_pkl": "obj.pkl",
-           "cloud_config": "cloud-config.txt",
-           "vendor_cloud_config": "vendor-cloud-config.txt",
-           "data": "data",
-           "vendordata_raw": "vendor-data.txt",
-           "vendordata": "vendor-data.txt.i",
+            "handlers": "handlers",
+            "scripts": "scripts",
+            "vendor_scripts": "scripts/vendor",
+            "sem": "sem",
+            "boothooks": "boothooks",
+            "userdata_raw": "user-data.txt",
+            "userdata": "user-data.txt.i",
+            "obj_pkl": "obj.pkl",
+            "cloud_config": "cloud-config.txt",
+            "vendor_cloud_config": "vendor-cloud-config.txt",
+            "data": "data",
+            "vendordata_raw": "vendor-data.txt",
+            "vendordata": "vendor-data.txt.i",
         }
         # Set when a datasource becomes active
         self.datasource = ds

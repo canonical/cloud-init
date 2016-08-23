@@ -211,8 +211,8 @@ class Distro(object):
 
         # If the system hostname is different than the previous
         # one or the desired one lets update it as well
-        if (not sys_hostname) or (sys_hostname == prev_hostname
-                                  and sys_hostname != hostname):
+        if ((not sys_hostname) or (sys_hostname == prev_hostname and
+           sys_hostname != hostname)):
             update_files.append(sys_fn)
 
         # If something else has changed the hostname after we set it
@@ -221,7 +221,7 @@ class Distro(object):
         if (sys_hostname and prev_hostname and
                 sys_hostname != prev_hostname):
             LOG.info("%s differs from %s, assuming user maintained hostname.",
-                       prev_hostname_fn, sys_fn)
+                     prev_hostname_fn, sys_fn)
             return
 
         # Remove duplicates (incase the previous config filename)
@@ -289,7 +289,7 @@ class Distro(object):
     def _bring_up_interface(self, device_name):
         cmd = ['ifup', device_name]
         LOG.debug("Attempting to run bring up interface %s using command %s",
-                   device_name, cmd)
+                  device_name, cmd)
         try:
             (_out, err) = util.subp(cmd)
             if len(err):
@@ -392,6 +392,10 @@ class Distro(object):
         # Set password if plain-text password provided and non-empty
         if 'plain_text_passwd' in kwargs and kwargs['plain_text_passwd']:
             self.set_passwd(name, kwargs['plain_text_passwd'])
+
+        # Set password if hashed password is provided and non-empty
+        if 'hashed_passwd' in kwargs and kwargs['hashed_passwd']:
+            self.set_passwd(name, kwargs['hashed_passwd'], hashed=True)
 
         # Default locking down the account.  'lock_passwd' defaults to True.
         # lock account unless lock_password is False.
@@ -548,7 +552,7 @@ class Distro(object):
             for member in members:
                 if not util.is_user(member):
                     LOG.warn("Unable to add group member '%s' to group '%s'"
-                            "; user does not exist.", member, name)
+                             "; user does not exist.", member, name)
                     continue
 
                 util.subp(['usermod', '-a', '-G', name, member])
@@ -886,7 +890,7 @@ def fetch(name):
     locs, looked_locs = importer.find_module(name, ['', __name__], ['Distro'])
     if not locs:
         raise ImportError("No distribution found for distro %s (searched %s)"
-                           % (name, looked_locs))
+                          % (name, looked_locs))
     mod = importer.import_module(locs[0])
     cls = getattr(mod, 'Distro')
     return cls
@@ -897,5 +901,9 @@ def set_etc_timezone(tz, tz_file=None, tz_conf="/etc/timezone",
     util.write_file(tz_conf, str(tz).rstrip() + "\n")
     # This ensures that the correct tz will be used for the system
     if tz_local and tz_file:
-        util.copy(tz_file, tz_local)
+        # use a symlink if there exists a symlink or tz_local is not present
+        if os.path.islink(tz_local) or not os.path.exists(tz_local):
+            os.symlink(tz_file, tz_local)
+        else:
+            util.copy(tz_file, tz_local)
     return

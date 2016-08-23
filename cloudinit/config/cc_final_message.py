@@ -28,9 +28,9 @@ frequency = PER_ALWAYS
 
 # Jinja formated default message
 FINAL_MESSAGE_DEF = (
-  "## template: jinja\n"
-  "Cloud-init v. {{version}} finished at {{timestamp}}."
-  " Datasource {{datasource}}.  Up {{uptime}} seconds"
+    "## template: jinja\n"
+    "Cloud-init v. {{version}} finished at {{timestamp}}."
+    " Datasource {{datasource}}.  Up {{uptime}} seconds"
 )
 
 

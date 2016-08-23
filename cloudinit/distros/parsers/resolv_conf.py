@@ -132,7 +132,7 @@ class ResolvConf(object):
             # Some hard limit on 256 chars total
             raise ValueError(("Adding %r would go beyond the "
                               "256 maximum search list character limit")
-                              % (search_domain))
+                             % (search_domain))
         self._remove_option('search')
         self._contents.append(('option', ['search', s_list, '']))
         return flat_sds

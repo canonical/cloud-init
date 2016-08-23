@@ -47,8 +47,8 @@ class DataSourceNone(sources.DataSource):
 
 # Used to match classes to dependencies
 datasources = [
-  (DataSourceNone, (sources.DEP_FILESYSTEM, sources.DEP_NETWORK)),
-  (DataSourceNone, []),
+    (DataSourceNone, (sources.DEP_FILESYSTEM, sources.DEP_NETWORK)),
+    (DataSourceNone, []),
 ]
 
 

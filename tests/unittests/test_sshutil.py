@@ -32,7 +32,8 @@ VALID_CONTENT = {
     ),
 }
 
-TEST_OPTIONS = ("no-port-forwarding,no-agent-forwarding,no-X11-forwarding,"
+TEST_OPTIONS = (
+    "no-port-forwarding,no-agent-forwarding,no-X11-forwarding,"
     'command="echo \'Please login as the user \"ubuntu\" rather than the'
     'user \"root\".\';echo;sleep 10"')
 

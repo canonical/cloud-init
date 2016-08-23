@@ -194,7 +194,7 @@ def main_init(name, args):
     if args.debug:
         # Reset so that all the debug handlers are closed out
         LOG.debug(("Logging being reset, this logger may no"
-                    " longer be active shortly"))
+                   " longer be active shortly"))
         logging.resetLogging()
     logging.setupLogging(init.cfg)
     apply_reporting_cfg(init.cfg)
@@ -276,9 +276,9 @@ def main_init(name, args):
         # This may run user-data handlers and/or perform
         # url downloads and such as needed.
         (ran, _results) = init.cloudify().run('consume_data',
-                                             init.consume_data,
-                                             args=[PER_INSTANCE],
-                                             freq=PER_INSTANCE)
+                                              init.consume_data,
+                                              args=[PER_INSTANCE],
+                                              freq=PER_INSTANCE)
         if not ran:
             # Just consume anything that is set to run per-always
             # if nothing ran in the per-instance code
@@ -349,7 +349,7 @@ def main_modules(action_name, args):
     if args.debug:
         # Reset so that all the debug handlers are closed out
         LOG.debug(("Logging being reset, this logger may no"
-                    " longer be active shortly"))
+                   " longer be active shortly"))
         logging.resetLogging()
     logging.setupLogging(mods.cfg)
     apply_reporting_cfg(init.cfg)
@@ -534,7 +534,8 @@ def status_wrapper(name, args, data_d=None, link_d=None):
                 errors.extend(v1[m].get('errors', []))
 
         atomic_write_json(result_path,
-            {'v1': {'datasource': v1['datasource'], 'errors': errors}})
+                          {'v1': {'datasource': v1['datasource'],
+                                  'errors': errors}})
         util.sym_link(os.path.relpath(result_path, link_d), result_link,
                       force=True)
 
@@ -578,13 +579,13 @@ def main():
 
     # These settings are used for the 'config' and 'final' stages
     parser_mod = subparsers.add_parser('modules',
-                                      help=('activates modules '
-                                            'using a given configuration key'))
+                                       help=('activates modules using '
+                                             'a given configuration key'))
     parser_mod.add_argument("--mode", '-m', action='store',
-                             help=("module configuration name "
-                                    "to use (default: %(default)s)"),
-                             default='config',
-                             choices=('init', 'config', 'final'))
+                            help=("module configuration name "
+                                  "to use (default: %(default)s)"),
+                            default='config',
+                            choices=('init', 'config', 'final'))
     parser_mod.set_defaults(action=('modules', main_modules))
 
     # These settings are used when you want to query information
@@ -600,22 +601,22 @@ def main():
 
     # This subcommand allows you to run a single module
     parser_single = subparsers.add_parser('single',
-                                         help=('run a single module '))
+                                          help=('run a single module '))
     parser_single.set_defaults(action=('single', main_single))
     parser_single.add_argument("--name", '-n', action="store",
-                              help="module name to run",
-                              required=True)
+                               help="module name to run",
+                               required=True)
     parser_single.add_argument("--frequency", action="store",
-                              help=("frequency of the module"),
-                              required=False,
-                              choices=list(FREQ_SHORT_NAMES.keys()))
+                               help=("frequency of the module"),
+                               required=False,
+                               choices=list(FREQ_SHORT_NAMES.keys()))
     parser_single.add_argument("--report", action="store_true",
                                help="enable reporting",
                                required=False)
     parser_single.add_argument("module_args", nargs="*",
-                              metavar='argument',
-                              help=('any additional arguments to'
-                                    ' pass to this module'))
+                               metavar='argument',
+                               help=('any additional arguments to'
+                                     ' pass to this module'))
     parser_single.set_defaults(action=('single', main_single))
 
     args = parser.parse_args()

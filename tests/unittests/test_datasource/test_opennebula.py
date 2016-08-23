@@ -20,7 +20,7 @@ TEST_VARS = {
     'VAR7': 'single\\t',
     'VAR8': 'double\\tword',
     'VAR9': 'multi\\t\nline\n',
-    'VAR10': '\\',  # expect \
+    'VAR10': '\\',  # expect '\'
     'VAR11': '\'',  # expect '
     'VAR12': '$',   # expect $
 }

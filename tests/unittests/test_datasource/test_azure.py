@@ -207,7 +207,7 @@ class TestAzureDataSource(TestCase):
         yaml_cfg = "{agent_command: my_command}\n"
         cfg = yaml.safe_load(yaml_cfg)
         odata = {'HostName': "myhost", 'UserName': "myuser",
-                'dscfg': {'text': yaml_cfg, 'encoding': 'plain'}}
+                 'dscfg': {'text': yaml_cfg, 'encoding': 'plain'}}
         data = {'ovfcontent': construct_valid_ovf_env(data=odata)}
 
         dsrc = self._get_ds(data)
@@ -219,8 +219,8 @@ class TestAzureDataSource(TestCase):
         # set dscfg in via base64 encoded yaml
         cfg = {'agent_command': "my_command"}
         odata = {'HostName': "myhost", 'UserName': "myuser",
-                'dscfg': {'text': b64e(yaml.dump(cfg)),
-                          'encoding': 'base64'}}
+                 'dscfg': {'text': b64e(yaml.dump(cfg)),
+                           'encoding': 'base64'}}
         data = {'ovfcontent': construct_valid_ovf_env(data=odata)}
 
         dsrc = self._get_ds(data)
@@ -267,7 +267,8 @@ class TestAzureDataSource(TestCase):
         # should equal that after the '$'
         pos = defuser['passwd'].rfind("$") + 1
         self.assertEqual(defuser['passwd'],
-            crypt.crypt(odata['UserPassword'], defuser['passwd'][0:pos]))
+                         crypt.crypt(odata['UserPassword'],
+                                     defuser['passwd'][0:pos]))
 
     def test_userdata_plain(self):
         mydata = "FOOBAR"
@@ -364,8 +365,8 @@ class TestAzureDataSource(TestCase):
         # Make sure that user can affect disk aliases
         dscfg = {'disk_aliases': {'ephemeral0': '/dev/sdc'}}
         odata = {'HostName': "myhost", 'UserName': "myuser",
-                'dscfg': {'text': b64e(yaml.dump(dscfg)),
-                          'encoding': 'base64'}}
+                 'dscfg': {'text': b64e(yaml.dump(dscfg)),
+                           'encoding': 'base64'}}
         usercfg = {'disk_setup': {'/dev/sdc': {'something': '...'},
                                   'ephemeral0': False}}
         userdata = '#cloud-config' + yaml.dump(usercfg) + "\n"
@@ -634,7 +635,7 @@ class TestReadAzureOvf(TestCase):
     def test_invalid_xml_raises_non_azure_ds(self):
         invalid_xml = "<foo>" + construct_valid_ovf_env(data={})
         self.assertRaises(DataSourceAzure.BrokenAzureDataSource,
-            DataSourceAzure.read_azure_ovf, invalid_xml)
+                          DataSourceAzure.read_azure_ovf, invalid_xml)
 
     def test_load_with_pubkeys(self):
         mypklist = [{'fingerprint': 'fp1', 'path': 'path1', 'value': ''}]

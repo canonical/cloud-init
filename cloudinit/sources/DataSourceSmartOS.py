@@ -90,8 +90,7 @@ BUILTIN_DS_CONFIG = {
                          'user-data',
                          'user-script',
                          'sdc:datacenter_name',
-                         'sdc:uuid',
-                        ],
+                         'sdc:uuid'],
     'base64_keys': [],
     'base64_all': False,
     'disk_aliases': {'ephemeral0': '/dev/vdb'},
@@ -102,7 +101,7 @@ BUILTIN_CLOUD_CONFIG = {
         'ephemeral0': {'table_type': 'mbr',
                        'layout': False,
                        'overwrite': False}
-         },
+    },
     'fs_setup': [{'label': 'ephemeral0',
                   'filesystem': 'ext3',
                   'device': 'ephemeral0'}],
@@ -450,7 +449,7 @@ class JoyentMetadataClient(object):
 
         response = bytearray()
         response.extend(self.metasource.read(1))
-        while response[-1:] !=  b'\n':
+        while response[-1:] != b'\n':
             response.extend(self.metasource.read(1))
         response = response.rstrip().decode('ascii')
         LOG.debug('Read "%s" from metadata transport.', response)
@@ -513,7 +512,7 @@ def write_boot_content(content, content_f, link=None, shebang=False,
 
         except Exception as e:
             util.logexc(LOG, ("Failed to identify script type for %s" %
-                             content_f, e))
+                              content_f, e))
 
     if link:
         try:
