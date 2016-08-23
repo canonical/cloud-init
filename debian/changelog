@@ -1,17 +1,3 @@
-cloud-init (0.7.5-0ubuntu1.1) trusty-proposed; urgency=medium
-
-  [ Ben Howard ]
-  * debian/patches/lp1316475-1303986-cloudsigma.patch: Backport of
-    CloudSigma Datasource from 14.10
-    - [FFe] Support VendorData for CloudSigma (LP: #1303986).
-    - Only query /dev/ttys1 when CloudSigma is detected (LP: #1316475).
-
-  [ Scott Moser ]
-  * debian/cloud-init.templates: fix choices so dpkg-reconfigure works as
-    expected (LP: #1325746)
-
- -- Scott Moser <smoser@ubuntu.com>  Fri, 20 Jun 2014 13:29:29 -0400
-
 cloud-init (0.7.5-0ubuntu1) trusty; urgency=medium
 
   * New upstream release.
