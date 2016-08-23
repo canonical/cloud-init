@@ -1,3 +1,14 @@
+cloud-init (0.6.3~bzr554-0ubuntu1) precise; urgency=low
+
+  * New upstream snapshot.
+    * Fix bug in Chef support that required 'validation_cert' (LP: #960547)
+    * Provide user-friendly message when a user ssh's in with an invalid
+      locale (LP: #960547)
+    * Support reading a url reference to cloud-config from the kernel
+      command line.
+
+ -- Scott Moser <smoser@ubuntu.com>  Thu, 05 Apr 2012 01:24:42 -0400
+
 cloud-init (0.6.3~bzr551-0ubuntu1) precise; urgency=low
 
   * New upstream snapshot.

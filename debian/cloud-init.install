@@ -1,5 +1,6 @@
 etc/cloud
 etc/init/*.conf
+etc/profile.d/*
 etc/rsyslog.d/*
 usr/bin
 usr/lib/cloud-init
