@@ -1,0 +1,34 @@
+Author: Thomas Hervé <thomas@canonical.com>
+Last-Update: 2012-10-02
+Origin: upstream
+Applied-Upstream: Yes, revno 649 and 645
+Description: fix landscape-client configuration
+ add 'RUN=1' to /etc/default/landscape-client
+ .
+ This modifies /etc/default/landscape-client to have 'RUN=1' if and only
+ if the cloud-config (user-data or local) was non-empty.
+Bug: https://launchpad.net/bugs/1042758
+
+=== modified file 'cloudinit/CloudConfig/cc_landscape.py'
+--- old/cloudinit/CloudConfig/cc_landscape.py	2012-04-11 04:02:19 +0000
++++ new/cloudinit/CloudConfig/cc_landscape.py	2012-10-02 13:57:37 +0000
+@@ -26,6 +26,7 @@
+ frequency = per_instance
+ 
+ lsc_client_cfg_file = "/etc/landscape/client.conf"
++lsc_client_default_file = "/etc/default/landscape-client"
+ 
+ # defaults taken from stock client.conf in landscape-client 11.07.1.1-0ubuntu2
+ lsc_builtincfg = {
+@@ -58,6 +59,10 @@
+     with open(lsc_client_cfg_file, "w") as fp:
+         merged.write(fp)
+ 
++    if ls_cloudcfg:
++        with open(lsc_client_default_file, "w") as fp:
++            fp.write("RUN=1\n")
++
+     log.debug("updated %s" % lsc_client_cfg_file)
+ 
+ 
+

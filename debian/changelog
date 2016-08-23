@@ -1,3 +1,11 @@
+cloud-init (0.6.3-0ubuntu1.1) precise-proposed; urgency=low
+
+  [Thomas Hervé]
+  * if configuration enables landscape, then set RUN=1 in /etc/default/landscape
+    (LP: #1042758)
+
+ -- Scott Moser <smoser@ubuntu.com>  Tue, 02 Oct 2012 10:59:05 -0400
+
 cloud-init (0.6.3-0ubuntu1) precise; urgency=low
 
   * New upstream release.
