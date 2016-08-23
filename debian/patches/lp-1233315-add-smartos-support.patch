@@ -1,0 +1,1486 @@
+Author: Ben Howard <ben.howard.@ubuntu.com>
+Bug: https://launchpad.net/bugs/1233315
+Applied-Upstream: yes
+Description: Add the SmartOS/Joyent Datasource and disk formatting support
+--- /dev/null
++++ b/cloudinit/CloudConfig/cc_disk_setup.py
+@@ -0,0 +1,786 @@
++# vi: ts=4 expandtab
++#
++#    Copyright (C) 2009-2010 Canonical Ltd.
++#    Copyright (C) 2012 Hewlett-Packard Development Company, L.P.
++#
++#    Author: Ben Howard <ben.howard@canonical.com>
++#
++#    This program is free software: you can redistribute it and/or modify
++#    it under the terms of the GNU General Public License version 3, as
++#    published by the Free Software Foundation.
++#
++#    This program is distributed in the hope that it will be useful,
++#    but WITHOUT ANY WARRANTY; without even the implied warranty of
++#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++#    GNU General Public License for more details.
++#
++#    You should have received a copy of the GNU General Public License
++#    along with this program.  If not, see <http://www.gnu.org/licenses/>.
++from cloudinit.CloudConfig import per_instance
++from cloudinit import future_util as futil
++import logging
++import os
++import shlex
++
++frequency = per_instance
++
++# Define the commands to use
++UDEVADM_CMD = futil.which('udevadm')
++SFDISK_CMD = futil.which("sfdisk")
++LSBLK_CMD = futil.which("lsblk")
++BLKID_CMD = futil.which("blkid")
++BLKDEV_CMD = futil.which("blockdev")
++WIPEFS_CMD = futil.which("wipefs")
++
++LOG = logging.getLogger(__name__)
++
++
++def handle(_name, cfg, cloud, log, _args):
++    """
++    See doc/examples/cloud-config_disk-setup.txt for documentation on the
++    format.
++    """
++    disk_setup = cfg.get("disk_setup")
++    if isinstance(disk_setup, dict):
++        update_disk_setup_devices(disk_setup, cloud.device_name_to_device)
++        log.debug("Partitioning disks: %s", str(disk_setup))
++        for disk, definition in disk_setup.items():
++            if not isinstance(definition, dict):
++                log.warn("Invalid disk definition for %s" % disk)
++                continue
++
++            try:
++                log.debug("Creating new partition table/disk")
++                mkpart(disk, definition)
++            except Exception as e:
++                log.warn("Failed partitioning operation\n%s" % e)
++
++    fs_setup = cfg.get("fs_setup")
++    if isinstance(fs_setup, list):
++        log.debug("setting up filesystems: %s", str(fs_setup))
++        update_fs_setup_devices(fs_setup, cloud.device_name_to_device)
++        for definition in fs_setup:
++            if not isinstance(definition, dict):
++                log.warn("Invalid file system definition: %s" % definition)
++                continue
++
++            try:
++                log.debug("Creating new filesystem.")
++                device = definition.get('device')
++                mkfs(definition)
++            except Exception as e:
++                log.warn("Failed during filesystem operation\n%s" % e)
++
++
++def update_disk_setup_devices(disk_setup, tformer):
++    # update 'disk_setup' dictionary anywhere were a device may occur
++    # update it with the response from 'tformer'
++    for origname in disk_setup.keys():
++        transformed = tformer(origname)
++        if transformed is None or transformed == origname:
++            continue
++        if transformed in disk_setup:
++            LOG.info("Replacing %s in disk_setup for translation of %s",
++                     origname, transformed)
++            del disk_setup[transformed]
++
++        disk_setup[transformed] = disk_setup[origname]
++        disk_setup[transformed]['_origname'] = origname
++        del disk_setup[origname]
++        LOG.debug("updated disk_setup device entry '%s' to '%s'",
++                  origname, transformed)
++
++
++def update_fs_setup_devices(disk_setup, tformer):
++    # update 'fs_setup' dictionary anywhere were a device may occur
++    # update it with the response from 'tformer'
++    for definition in disk_setup:
++        if not isinstance(definition, dict):
++            LOG.warn("entry in disk_setup not a dict: %s", definition)
++            continue
++
++        origname = definition.get('device')
++
++        if origname is None:
++            continue
++
++        (dev, part) = futil.expand_dotted_devname(origname)
++
++        tformed = tformer(dev)
++        if tformed is not None:
++            dev = tformed
++            LOG.debug("%s is mapped to disk=%s part=%s",
++                      origname, tformed, part)
++            definition['_origname'] = origname
++            definition['device'] = tformed
++
++        if part and 'partition' in definition:
++            definition['_partition'] = definition['partition']
++        definition['partition'] = part
++
++
++def value_splitter(values, start=None):
++    """
++    Returns the key/value pairs of output sent as string
++    like:  FOO='BAR' HOME='127.0.0.1'
++    """
++    _values = shlex.split(values)
++    if start:
++        _values = _values[start:]
++
++    for key, value in [x.split('=') for x in _values]:
++        yield key, value
++
++
++def enumerate_disk(device, nodeps=False):
++    """
++    Enumerate the elements of a child device.
++
++    Parameters:
++        device: the kernel device name
++        nodeps <BOOL>: don't enumerate children devices
++
++    Return a dict describing the disk:
++        type: the entry type, i.e disk or part
++        fstype: the filesystem type, if it exists
++        label: file system label, if it exists
++        name: the device name, i.e. sda
++    """
++
++    lsblk_cmd = [LSBLK_CMD, '--pairs', '--out', 'NAME,TYPE,FSTYPE,LABEL',
++                 device]
++
++    if nodeps:
++        lsblk_cmd.append('--nodeps')
++
++    info = None
++    try:
++        info, _err = futil.subp(lsblk_cmd)
++    except Exception as e:
++        raise Exception("Failed during disk check for %s\n%s" % (device, e))
++
++    parts = [x for x in (info.strip()).splitlines() if len(x.split()) > 0]
++
++    for part in parts:
++        d = {'name': None,
++             'type': None,
++             'fstype': None,
++             'label': None,
++            }
++
++        for key, value in value_splitter(part):
++            d[key.lower()] = value
++
++        yield d
++
++
++def device_type(device):
++    """
++    Return the device type of the device by calling lsblk.
++    """
++
++    for d in enumerate_disk(device, nodeps=True):
++        if "type" in d:
++            return d["type"].lower()
++    return None
++
++
++def is_device_valid(name, partition=False):
++    """
++    Check if the device is a valid device.
++    """
++    d_type = ""
++    try:
++        d_type = device_type(name)
++    except:
++        LOG.warn("Query against device %s failed" % name)
++        return False
++
++    if partition and d_type == 'part':
++        return True
++    elif not partition and d_type == 'disk':
++        return True
++    return False
++
++
++def check_fs(device):
++    """
++    Check if the device has a filesystem on it
++
++    Output of blkid is generally something like:
++    /dev/sda: LABEL="Backup500G" UUID="..." TYPE="ext4"
++
++    Return values are device, label, type, uuid
++    """
++    out, label, fs_type, uuid = None, None, None, None
++
++    blkid_cmd = [BLKID_CMD, '-c', '/dev/null', device]
++    try:
++        out, _err = futil.subp(blkid_cmd, rcs=[0, 2])
++    except Exception as e:
++        raise Exception("Failed during disk check for %s\n%s" % (device, e))
++
++    if out:
++        if len(out.splitlines()) == 1:
++            for key, value in value_splitter(out, start=1):
++                if key.lower() == 'label':
++                    label = value
++                elif key.lower() == 'type':
++                    fs_type = value
++                elif key.lower() == 'uuid':
++                    uuid = value
++
++    return label, fs_type, uuid
++
++
++def is_filesystem(device):
++    """
++    Returns true if the device has a file system.
++    """
++    _, fs_type, _ = check_fs(device)
++    return fs_type
++
++
++def find_device_node(device, fs_type=None, label=None, valid_targets=None,
++                     label_match=True, replace_fs=None):
++    """
++    Find a device that is either matches the spec, or the first
++
++    The return is value is (<device>, <bool>) where the device is the
++    device to use and the bool is whether the device matches the
++    fs_type and label.
++
++    Note: This works with GPT partition tables!
++    """
++    # label of None is same as no label
++    if label is None:
++        label = ""
++
++    if not valid_targets:
++        valid_targets = ['disk', 'part']
++
++    raw_device_used = False
++    for d in enumerate_disk(device):
++
++        if d['fstype'] == replace_fs and label_match is False:
++            # We found a device where we want to replace the FS
++            return ('/dev/%s' % d['name'], False)
++
++        if (d['fstype'] == fs_type and
++            ((label_match and d['label'] == label) or not label_match)):
++            # If we find a matching device, we return that
++            return ('/dev/%s' % d['name'], True)
++
++        if d['type'] in valid_targets:
++
++            if d['type'] != 'disk' or d['fstype']:
++                raw_device_used = True
++
++            if d['type'] == 'disk':
++                # Skip the raw disk, its the default
++                pass
++
++            elif not d['fstype']:
++                return ('/dev/%s' % d['name'], False)
++
++    if not raw_device_used:
++        return (device, False)
++
++    LOG.warn("Failed to find device during available device search.")
++    return (None, False)
++
++
++def is_disk_used(device):
++    """
++    Check if the device is currently used. Returns true if the device
++    has either a file system or a partition entry
++    is no filesystem found on the disk.
++    """
++
++    # If the child count is higher 1, then there are child nodes
++    # such as partition or device mapper nodes
++    use_count = [x for x in enumerate_disk(device)]
++    if len(use_count.splitlines()) > 1:
++        return True
++
++    # If we see a file system, then its used
++    _, check_fstype, _ = check_fs(device)
++    if check_fstype:
++        return True
++
++    return False
++
++
++def get_hdd_size(device):
++    """
++    Returns the hard disk size.
++    This works with any disk type, including GPT.
++    """
++
++    size_cmd = [SFDISK_CMD, '--show-size', device]
++    size = None
++    try:
++        size, _err = futil.subp(size_cmd)
++    except Exception as e:
++        raise Exception("Failed to get %s size\n%s" % (device, e))
++
++    return int(size.strip())
++
++
++def get_dyn_func(*args):
++    """
++    Call the appropriate function.
++
++    The first value is the template for function name
++    The second value is the template replacement
++    The remain values are passed to the function
++
++    For example: get_dyn_func("foo_%s", 'bar', 1, 2, 3,)
++        would call "foo_bar" with args of 1, 2, 3
++    """
++    if len(args) < 2:
++        raise Exception("Unable to determine dynamic funcation name")
++
++    func_name = (args[0] % args[1])
++    func_args = args[2:]
++
++    try:
++        if func_args:
++            return globals()[func_name](*func_args)
++        else:
++            return globals()[func_name]
++
++    except KeyError:
++        raise Exception("No such function %s to call!" % func_name)
++
++
++def check_partition_mbr_layout(device, layout):
++    """
++    Returns true if the partition layout matches the one on the disk
++
++    Layout should be a list of values. At this time, this only
++    verifies that the number of partitions and their labels is correct.
++    """
++
++    read_parttbl(device)
++    prt_cmd = [SFDISK_CMD, "-l", device]
++    try:
++        out, _err = futil.subp(prt_cmd, data="%s\n" % layout)
++    except Exception as e:
++        raise Exception("Error running partition command on %s\n%s" % (
++                        device, e))
++
++    found_layout = []
++    for line in out.splitlines():
++        _line = line.split()
++        if len(_line) == 0:
++            continue
++
++        if device in _line[0]:
++            # We don't understand extended partitions yet
++            if _line[-1].lower() in ['extended', 'empty']:
++                continue
++
++            # Find the partition types
++            type_label = None
++            for x in sorted(range(1, len(_line)), reverse=True):
++                if _line[x].isdigit() and _line[x] != '/':
++                    type_label = _line[x]
++                    break
++
++            found_layout.append(type_label)
++
++    if isinstance(layout, bool):
++        # if we are using auto partitioning, or "True" be happy
++        # if a single partition exists.
++        if layout and len(found_layout) >= 1:
++            return True
++        return False
++
++    else:
++        if len(found_layout) != len(layout):
++            return False
++        else:
++            # This just makes sure that the number of requested
++            # partitions and the type labels are right
++            for x in range(1, len(layout) + 1):
++                if isinstance(layout[x - 1], tuple):
++                    _, part_type = layout[x]
++                    if int(found_layout[x]) != int(part_type):
++                        return False
++            return True
++
++    return False
++
++
++def check_partition_layout(table_type, device, layout):
++    """
++    See if the partition lay out matches.
++
++    This is future a future proofing function. In order
++    to add support for other disk layout schemes, add a
++    function called check_partition_%s_layout
++    """
++    return get_dyn_func("check_partition_%s_layout", table_type, device,
++                        layout)
++
++
++def get_partition_mbr_layout(size, layout):
++    """
++    Calculate the layout of the partition table. Partition sizes
++    are defined as percentage values or a tuple of percentage and
++    partition type.
++
++    For example:
++        [ 33, [66: 82] ]
++
++    Defines the first partition to be a size of 1/3 the disk,
++    while the remaining 2/3's will be of type Linux Swap.
++    """
++
++    if not isinstance(layout, list) and isinstance(layout, bool):
++        # Create a single partition
++        return "0,"
++
++    if ((len(layout) == 0 and isinstance(layout, list)) or
++        not isinstance(layout, list)):
++        raise Exception("Partition layout is invalid")
++
++    last_part_num = len(layout)
++    if last_part_num > 4:
++        raise Exception("Only simply partitioning is allowed.")
++
++    part_definition = []
++    part_num = 0
++    for part in layout:
++        part_type = 83  # Default to Linux
++        percent = part
++        part_num += 1
++
++        if isinstance(part, list):
++            if len(part) != 2:
++                raise Exception("Partition was incorrectly defined: %s" % part)
++            percent, part_type = part
++
++        part_size = int((float(size) * (float(percent) / 100)) / 1024)
++
++        if part_num == last_part_num:
++            part_definition.append(",,%s" % part_type)
++        else:
++            part_definition.append(",%s,%s" % (part_size, part_type))
++
++    sfdisk_definition = "\n".join(part_definition)
++    if len(part_definition) > 4:
++        raise Exception("Calculated partition definition is too big\n%s" %
++                        sfdisk_definition)
++
++    return sfdisk_definition
++
++
++def purge_disk_ptable(device):
++    # wipe the first and last megabyte of a disk (or file)
++    # gpt stores partition table both at front and at end.
++    null = '\0'  # pylint: disable=W1401
++    start_len = 1024 * 1024
++    end_len = 1024 * 1024
++    with open(device, "rb+") as fp:
++        fp.write(null * (start_len))
++        fp.seek(-end_len, os.SEEK_END)
++        fp.write(null * end_len)
++        fp.flush()
++
++    read_parttbl(device)
++
++
++def purge_disk(device):
++    """
++    Remove parition table entries
++    """
++
++    # wipe any file systems first
++    for d in enumerate_disk(device):
++        if d['type'] not in ["disk", "crypt"]:
++            wipefs_cmd = [WIPEFS_CMD, "--all", "/dev/%s" % d['name']]
++            try:
++                LOG.info("Purging filesystem on /dev/%s" % d['name'])
++                futil.subp(wipefs_cmd)
++            except Exception:
++                raise Exception("Failed FS purge of /dev/%s" % d['name'])
++
++    purge_disk_ptable(device)
++
++
++def get_partition_layout(table_type, size, layout):
++    """
++    Call the appropriate function for creating the table
++    definition. Returns the table definition
++
++    This is a future proofing function. To add support for
++    other layouts, simply add a "get_partition_%s_layout"
++    function.
++    """
++    return get_dyn_func("get_partition_%s_layout", table_type, size, layout)
++
++
++def read_parttbl(device):
++    """
++    Use partprobe instead of 'udevadm'. Partprobe is the only
++    reliable way to probe the partition table.
++    """
++    blkdev_cmd = [BLKDEV_CMD, '--rereadpt', device]
++    udev_cmd = [UDEVADM_CMD, 'settle']
++    try:
++        futil.subp(udev_cmd)
++        futil.subp(blkdev_cmd)
++        futil.subp(udev_cmd)
++    except Exception as e:
++        LOG.warn("Failed reading the partition table %s" % e)
++
++
++def exec_mkpart_mbr(device, layout):
++    """
++    Break out of mbr partition to allow for future partition
++    types, i.e. gpt
++    """
++    # Create the partitions
++    prt_cmd = [SFDISK_CMD, "--Linux", "-uM", device]
++    try:
++        futil.subp(prt_cmd, data="%s\n" % layout)
++    except Exception as e:
++        raise Exception("Failed to partition device %s\n%s" % (device, e))
++
++    read_parttbl(device)
++
++
++def exec_mkpart(table_type, device, layout):
++    """
++    Fetches the function for creating the table type.
++    This allows to dynamically find which function to call.
++
++    Paramaters:
++        table_type: type of partition table to use
++        device: the device to work on
++        layout: layout definition specific to partition table
++    """
++    return get_dyn_func("exec_mkpart_%s", table_type, device, layout)
++
++
++def mkpart(device, definition):
++    """
++    Creates the partition table.
++
++    Parameters:
++        definition: dictionary describing how to create the partition.
++
++            The following are supported values in the dict:
++                overwrite: Should the partition table be created regardless
++                            of any pre-exisiting data?
++                layout: the layout of the partition table
++                table_type: Which partition table to use, defaults to MBR
++                device: the device to work on.
++    """
++
++    LOG.debug("Checking values for %s definition" % device)
++    overwrite = definition.get('overwrite', False)
++    layout = definition.get('layout', False)
++    table_type = definition.get('table_type', 'mbr')
++
++    # Check if the default device is a partition or not
++    LOG.debug("Checking against default devices")
++
++    if (isinstance(layout, bool) and not layout) or not layout:
++        LOG.debug("Device is not to be partitioned, skipping")
++        return  # Device is not to be partitioned
++
++    # This prevents you from overwriting the device
++    LOG.debug("Checking if device %s is a valid device", device)
++    if not is_device_valid(device):
++        raise Exception("Device %s is not a disk device!", device)
++
++    # Remove the partition table entries
++    if isinstance(layout, str) and layout.lower() == "remove":
++        LOG.debug("Instructed to remove partition table entries")
++        purge_disk(device)
++        return
++
++    LOG.debug("Checking if device layout matches")
++    if check_partition_layout(table_type, device, layout):
++        LOG.debug("Device partitioning layout matches")
++        return True
++
++    LOG.debug("Checking if device is safe to partition")
++    if not overwrite and (is_disk_used(device) or is_filesystem(device)):
++        LOG.debug("Skipping partitioning on configured device %s" % device)
++        return
++
++    LOG.debug("Checking for device size")
++    device_size = get_hdd_size(device)
++
++    LOG.debug("Calculating partition layout")
++    part_definition = get_partition_layout(table_type, device_size, layout)
++    LOG.debug("   Layout is: %s" % part_definition)
++
++    LOG.debug("Creating partition table on %s", device)
++    exec_mkpart(table_type, device, part_definition)
++
++    LOG.debug("Partition table created for %s", device)
++
++
++def lookup_force_flag(fs):
++    """
++    A force flag might be -F or -F, this look it up
++    """
++    flags = {'ext': '-F',
++             'btrfs': '-f',
++             'xfs': '-f',
++             'reiserfs': '-f',
++            }
++
++    if 'ext' in fs.lower():
++        fs = 'ext'
++
++    if fs.lower() in flags:
++        return flags[fs]
++
++    LOG.warn("Force flag for %s is unknown." % fs)
++    return ''
++
++
++def mkfs(fs_cfg):
++    """
++    Create a file system on the device.
++
++        label: defines the label to use on the device
++        fs_cfg: defines how the filesystem is to look
++            The following values are required generally:
++                device: which device or cloud defined default_device
++                filesystem: which file system type
++                overwrite: indiscriminately create the file system
++                partition: when device does not define a partition,
++                            setting this to a number will mean
++                            device + partition. When set to 'auto', the
++                            first free device or the first device which
++                            matches both label and type will be used.
++
++                            'any' means the first filesystem that matches
++                            on the device.
++
++            When 'cmd' is provided then no other parameter is required.
++    """
++    label = fs_cfg.get('label')
++    device = fs_cfg.get('device')
++    partition = str(fs_cfg.get('partition', 'any'))
++    fs_type = fs_cfg.get('filesystem')
++    fs_cmd = fs_cfg.get('cmd', [])
++    fs_opts = fs_cfg.get('extra_opts', [])
++    fs_replace = fs_cfg.get('replace_fs', False)
++    overwrite = fs_cfg.get('overwrite', False)
++
++    # This allows you to define the default ephemeral or swap
++    LOG.debug("Checking %s against default devices", device)
++
++    if not partition or partition.isdigit():
++        # Handle manual definition of partition
++        if partition.isdigit():
++            device = "%s%s" % (device, partition)
++            LOG.debug("Manual request of partition %s for %s",
++                      partition, device)
++
++        # Check to see if the fs already exists
++        LOG.debug("Checking device %s", device)
++        check_label, check_fstype, _ = check_fs(device)
++        LOG.debug("Device %s has %s %s", device, check_label, check_fstype)
++
++        if check_label == label and check_fstype == fs_type:
++            LOG.debug("Existing file system found at %s", device)
++
++            if not overwrite:
++                LOG.debug("Device %s has required file system", device)
++                return
++            else:
++                LOG.warn("Destroying filesystem on %s", device)
++
++        else:
++            LOG.debug("Device %s is cleared for formating", device)
++
++    elif partition and str(partition).lower() in ('auto', 'any'):
++        # For auto devices, we match if the filesystem does exist
++        odevice = device
++        LOG.debug("Identifying device to create %s filesytem on", label)
++
++        # any mean pick the first match on the device with matching fs_type
++        label_match = True
++        if partition.lower() == 'any':
++            label_match = False
++
++        device, reuse = find_device_node(device, fs_type=fs_type, label=label,
++                                         label_match=label_match,
++                                         replace_fs=fs_replace)
++        LOG.debug("Automatic device for %s identified as %s", odevice, device)
++
++        if reuse:
++            LOG.debug("Found filesystem match, skipping formating.")
++            return
++
++        if not reuse and fs_replace and device:
++            LOG.debug("Replacing file system on %s as instructed." % device)
++
++        if not device:
++            LOG.debug("No device aviable that matches request. "
++                      "Skipping fs creation for %s", fs_cfg)
++            return
++    elif not partition or str(partition).lower() == 'none':
++        LOG.debug("Using the raw device to place filesystem %s on" % label)
++
++    else:
++        LOG.debug("Error in device identification handling.")
++        return
++
++    LOG.debug("File system %s will be created on %s", label, device)
++
++    # Make sure the device is defined
++    if not device:
++        LOG.warn("Device is not known: %s", device)
++        return
++
++    # Check that we can create the FS
++    if not (fs_type or fs_cmd):
++        raise Exception("No way to create filesystem '%s'. fs_type or fs_cmd "
++                        "must be set.", label)
++
++    # Create the commands
++    if fs_cmd:
++        fs_cmd = fs_cfg['cmd'] % {'label': label,
++                                  'filesystem': fs_type,
++                                  'device': device,
++                                 }
++    else:
++        # Find the mkfs command
++        mkfs_cmd = futil.which("mkfs.%s" % fs_type)
++        if not mkfs_cmd:
++            mkfs_cmd = futil.which("mk%s" % fs_type)
++
++        if not mkfs_cmd:
++            LOG.warn("Cannot create fstype '%s'.  No mkfs.%s command", fs_type,
++                     fs_type)
++            return
++
++        fs_cmd = [mkfs_cmd, device]
++
++        if label:
++            fs_cmd.extend(["-L", label])
++
++    # File systems that support the -F flag
++    if not fs_cmd and (overwrite or device_type(device) == "disk"):
++        fs_cmd.append(lookup_force_flag(fs_type))
++
++    # Add the extends FS options
++    if fs_opts:
++        fs_cmd.extend(fs_opts)
++
++    LOG.debug("Creating file system %s on %s", label, device)
++    LOG.debug("     Using cmd: %s", " ".join(fs_cmd))
++    try:
++        futil.subp(fs_cmd)
++    except Exception as e:
++        raise Exception("Failed to exec of '%s':\n%s" % (fs_cmd, e))
+--- /dev/null
++++ b/cloudinit/DataSourceSmartOS.py
+@@ -0,0 +1,289 @@
++# vi: ts=4 expandtab
++#
++#    Copyright (C) 2013 Canonical Ltd.
++#
++#    Author: Ben Howard <ben.howard@canonical.com>
++#
++#    This program is free software: you can redistribute it and/or modify
++#    it under the terms of the GNU General Public License version 3, as
++#    published by the Free Software Foundation.
++#
++#    This program is distributed in the hope that it will be useful,
++#    but WITHOUT ANY WARRANTY; without even the implied warranty of
++#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++#    GNU General Public License for more details.
++#
++#    You should have received a copy of the GNU General Public License
++#    along with this program.  If not, see <http://www.gnu.org/licenses/>.
++#
++#
++#    Datasource for provisioning on SmartOS. This works on Joyent
++#        and public/private Clouds using SmartOS.
++#
++#    SmartOS hosts use a serial console (/dev/ttyS1) on Linux Guests.
++#        The meta-data is transmitted via key/value pairs made by
++#        requests on the console. For example, to get the hostname, you
++#        would send "GET hostname" on /dev/ttyS1.
++#
++
++
++import base64
++import logging
++from cloudinit import DataSource as sources
++from cloudinit import future_util as futil
++from cloudinit import util
++import os
++import os.path
++import serial
++
++
++LOG = logging.getLogger(__name__)
++
++SMARTOS_ATTRIB_MAP = {
++    #Cloud-init Key : (SmartOS Key, Strip line endings)
++    'local-hostname': ('hostname', True),
++    'public-keys': ('root_authorized_keys', True),
++    'user-script': ('user-script', False),
++    'user-data': ('user-data', False),
++    'iptables_disable': ('iptables_disable', True),
++    'motd_sys_info': ('motd_sys_info', True),
++    'availability_zone': ('region', True),
++}
++
++DS_NAME = 'SmartOS'
++DS_CFG_PATH = ['datasource', DS_NAME]
++# BUILT-IN DATASOURCE CONFIGURATION
++#  The following is the built-in configuration. If the values
++#  are not set via the system configuration, then these default
++#  will be used:
++#    serial_device: which serial device to use for the meta-data
++#    seed_timeout: how long to wait on the device
++#    no_base64_decode: values which are not base64 encoded and
++#            are fetched directly from SmartOS, not meta-data values
++#    base64_keys: meta-data keys that are delivered in base64
++#    base64_all: with the exclusion of no_base64_decode values,
++#            treat all meta-data as base64 encoded
++#    disk_setup: describes how to partition the ephemeral drive
++#    fs_setup: describes how to format the ephemeral drive
++#
++BUILTIN_DS_CONFIG = {
++    'serial_device': '/dev/ttyS1',
++    'seed_timeout': 60,
++    'no_base64_decode': ['root_authorized_keys',
++                         'motd_sys_info',
++                         'iptables_disable'],
++    'base64_keys': [],
++    'base64_all': False,
++    'disk_aliases': {'ephemeral0': '/dev/vdb'},
++}
++
++BUILTIN_CLOUD_CONFIG = {
++    'disk_setup': {
++        'ephemeral0': {'table_type': 'mbr',
++                       'layout': False,
++                       'overwrite': False}
++         },
++    'fs_setup': [{'label': 'ephemeral0',
++                  'filesystem': 'ext3',
++                  'device': 'ephemeral0'}],
++}
++
++
++class DataSourceSmartOS(sources.DataSource):
++    def __init__(self, sys_cfg):
++        sources.DataSource.__init__(self, sys_cfg)
++        self.is_smartdc = None
++
++        self.ds_cfg = util.mergedict(
++            self.ds_cfg,
++            util.get_cfg_by_path(sys_cfg, DS_CFG_PATH, {}))
++        self.ds_cfg = util.mergedict(self.ds_cfg, BUILTIN_DS_CONFIG)
++
++        self.metadata = {}
++        self.cfg = BUILTIN_CLOUD_CONFIG
++
++        self.seed = self.ds_cfg.get("serial_device")
++        self.seed_timeout = self.ds_cfg.get("serial_timeout")
++        self.smartos_no_base64 = self.ds_cfg.get('no_base64_decode')
++        self.b64_keys = self.ds_cfg.get('base64_keys')
++        self.b64_all = self.ds_cfg.get('base64_all')
++
++    def __str__(self):
++        return "%s [seed=%s]" % ('SmartOS', self.seed)
++
++    def get_data(self):
++        md = {}
++        ud = ""
++
++        if not os.path.exists(self.seed):
++            LOG.debug("Host does not appear to be on SmartOS")
++            return False
++
++        dmi_info = dmi_data()
++        if dmi_info is False:
++            LOG.debug("No dmidata utility found")
++            return False
++
++        system_uuid, system_type = dmi_info
++        if 'smartdc' not in system_type.lower():
++            LOG.debug("Host is not on SmartOS. system_type=%s", system_type)
++            return False
++        self.is_smartdc = True
++        md['instance-id'] = system_uuid
++
++        b64_keys = self.query('base64_keys', strip=True, b64=False)
++        if b64_keys is not None:
++            self.b64_keys = [k.strip() for k in str(b64_keys).split(',')]
++
++        b64_all = self.query('base64_all', strip=True, b64=False)
++        if b64_all is not None:
++            self.b64_all = util.is_true(b64_all)
++
++        for ci_noun, attribute in SMARTOS_ATTRIB_MAP.iteritems():
++            smartos_noun, strip = attribute
++            md[ci_noun] = self.query(smartos_noun, strip=strip)
++
++        if not md['local-hostname']:
++            md['local-hostname'] = system_uuid
++        md['local-hostname'] = md['local-hostname'].strip()
++
++        ud = ''
++        if md['user-data']:
++            ud = md['user-data']
++        elif md['user-script']:
++            ud = md['user-script']
++
++        self.metadata = util.mergedict(md, self.metadata)
++        self.userdata_raw = ud
++        return True
++
++    def device_name_to_device(self, name):
++        return self.ds_cfg['disk_aliases'].get(name)
++
++    def get_config_obj(self):
++        return self.cfg
++
++    def get_instance_id(self):
++        return self.metadata['instance-id']
++
++    def query(self, noun, strip=False, default=None, b64=None):
++        if b64 is None:
++            if noun in self.smartos_no_base64:
++                b64 = False
++            elif self.b64_all or noun in self.b64_keys:
++                b64 = True
++
++        return query_data(noun=noun, strip=strip, seed_device=self.seed,
++                          seed_timeout=self.seed_timeout, default=default,
++                          b64=b64)
++
++
++def get_serial(seed_device, seed_timeout):
++    """This is replaced in unit testing, allowing us to replace
++        serial.Serial with a mocked class.
++
++        The timeout value of 60 seconds should never be hit. The value
++        is taken from SmartOS own provisioning tools. Since we are reading
++        each line individually up until the single ".", the transfer is
++        usually very fast (i.e. microseconds) to get the response.
++    """
++    if not seed_device:
++        raise AttributeError("seed_device value is not set")
++
++    ser = serial.Serial(seed_device, timeout=seed_timeout)
++    if not ser.isOpen():
++        raise SystemError("Unable to open %s" % seed_device)
++
++    return ser
++
++
++def query_data(noun, seed_device, seed_timeout, strip=False, default=None,
++               b64=None):
++    """Makes a request to via the serial console via "GET <NOUN>"
++
++        In the response, the first line is the status, while subsequent lines
++        are is the value. A blank line with a "." is used to indicate end of
++        response.
++
++        If the response is expected to be base64 encoded, then set b64encoded
++        to true. Unfortantely, there is no way to know if something is 100%
++        encoded, so this method relies on being told if the data is base64 or
++        not.
++    """
++
++    if not noun:
++        return False
++
++    ser = get_serial(seed_device, seed_timeout)
++    ser.write("GET %s\n" % noun.rstrip())
++    status = str(ser.readline()).rstrip()
++    response = []
++    eom_found = False
++
++    if 'SUCCESS' not in status:
++        ser.close()
++        return default
++
++    while not eom_found:
++        m = ser.readline()
++        if m.rstrip() == ".":
++            eom_found = True
++        else:
++            response.append(m)
++
++    ser.close()
++
++    if b64 is None:
++        b64 = query_data('b64-%s' % noun, seed_device=seed_device,
++                            seed_timeout=seed_timeout, b64=False,
++                            default=False, strip=True)
++        b64 = util.is_true(b64)
++
++    resp = None
++    if b64 or strip:
++        resp = "".join(response).rstrip()
++    else:
++        resp = "".join(response)
++
++    if b64:
++        try:
++            return base64.b64decode(resp)
++        except TypeError:
++            LOG.warn("Failed base64 decoding key '%s'", noun)
++            return resp
++
++    return resp
++
++
++def dmi_data():
++    sys_uuid, sys_type = None, None
++    dmidecode_path = futil.which('dmidecode')
++    if not dmidecode_path:
++        return False
++
++    sys_uuid_cmd = [dmidecode_path, "-s", "system-uuid"]
++    try:
++        LOG.debug("Getting hostname from dmidecode")
++        (sys_uuid, _err) = util.subp(sys_uuid_cmd)
++    except Exception as e:
++        util.logexc(LOG, "Failed to get system UUID", e)
++
++    sys_type_cmd = [dmidecode_path, "-s", "system-product-name"]
++    try:
++        LOG.debug("Determining hypervisor product name via dmidecode")
++        (sys_type, _err) = util.subp(sys_type_cmd)
++    except Exception as e:
++        util.logexc(LOG, "Failed to get system UUID", e)
++
++    return (sys_uuid.lower()).strip(), sys_type.strip()
++
++
++# Used to match classes to dependencies
++datasources = [
++    (DataSourceSmartOS, (sources.DEP_FILESYSTEM, sources.DEP_NETWORK)),
++]
++
++
++# Return a list of data sources that match this set of dependencies
++def get_datasource_list(depends):
++    return sources.list_from_depends(depends, datasources)
+--- /dev/null
++++ b/doc/examples/cloud-config-disk-setup.txt
+@@ -0,0 +1,251 @@
++Cloud-init supports the creation of simple partition tables and file systems
++on devices.
++
++Default disk definitions for AWS
++--------------------------------
++(Not implemented yet, but provided for future documentation)
++
++ disk_setup:
++    ephmeral0:
++        type: 'mbr'
++        layout: True
++        overwrite: False
++
++ fs_setup:
++    - label: None,
++      filesystem: ext3
++      device: ephemeral0
++      partition: auto
++
++Default disk definitions for Windows Azure
++------------------------------------------
++
++device_aliases: {'ephemeral0': '/dev/sdb'}
++disk_setup:
++    ephemeral0:
++         type: mbr
++         layout: True
++         overwrite: False
++
++fs_setup:
++    - label: ephemeral0
++      filesystem: ext4
++      device: ephemeral0.1
++      replace_fs: ntfs
++
++
++Default disk definitions for SmartOS
++------------------------------------
++
++device_aliases: {'ephemeral0': '/dev/sdb'}
++disk_setup:
++    ephemeral0:
++         type: mbr
++         layout: False
++         overwrite: False
++
++fs_setup:
++    - label: ephemeral0
++      filesystem: ext3
++      device: ephemeral0.0
++
++Cavaut for SmartOS: if ephemeral disk is not defined, then the disk will
++    not be automatically added to the mounts.
++
++
++The default definition is used to make sure that the ephemeral storage is
++setup properly.
++
++"disk_setup": disk partitioning
++--------------------------------
++
++The disk_setup directive instructs Cloud-init to partition a disk. The format is:
++
++ disk_setup:
++    ephmeral0:
++        type: 'mbr'
++        layout: 'auto'
++    /dev/xvdh:
++        type: 'mbr'
++        layout:
++            - 33
++            - [33, 82]
++            - 33
++        overwrite: True
++
++The format is a list of dicts of dicts. The first value is the name of the
++device and the subsequent values define how to create and layout the partition.
++
++The general format is:
++    disk_setup:
++        <DEVICE>:
++            type: 'mbr'
++            layout: <LAYOUT|BOOL>
++            overwrite: <BOOL>
++
++Where:
++    <DEVICE>: The name of the device. 'ephemeralX' and 'swap' are special
++                values which are specific to the cloud. For these devices
++                Cloud-init will look up what the real devices is and then
++                use it.
++
++                For other devices, the kernel device name is used. At this
++                time only simply kernel devices are supported, meaning
++                that device mapper and other targets may not work.
++
++                Note: At this time, there is no handling or setup of
++                device mapper targets.
++
++    type=<TYPE>: Currently the following are supported:
++                    'mbr': default and setups a MS-DOS partition table
++
++                Note: At this time only 'mbr' partition tables are allowed.
++                    It is anticipated in the future that we'll have GPT as
++                    option in the future, or even "RAID" to create a mdadm
++                    RAID.
++
++    layout={...}: The device layout. This is a list of values, with the
++                percentage of disk that partition will take.
++                Valid options are:
++                    [<SIZE>, [<SIZE>, <PART_TYPE]]
++
++                Where <SIZE> is the _percentage_ of the disk to use, while
++                <PART_TYPE> is the numerical value of the partition type.
++
++                The following setups two partitions, with the first
++                partition having a swap label, taking 1/3 of the disk space
++                and the remainder being used as the second partition.
++                    /dev/xvdh':
++                        type: 'mbr'
++                        layout:
++                            - [33,82]
++                            - 66
++                        overwrite: True
++
++                When layout is "true" it means single partition the entire
++                device.
++
++                When layout is "false" it means don't partition or ignore
++                existing partitioning.
++
++                If layout is set to "true" and overwrite is set to "false",
++                it will skip partitioning the device without a failure.
++
++    overwrite=<BOOL>: This describes whether to ride with saftey's on and
++                everything holstered.
++
++                'false' is the default, which means that:
++                    1. The device will be checked for a partition table
++                    2. The device will be checked for a file system
++                    3. If either a partition of file system is found, then
++                        the operation will be _skipped_.
++
++                'true' is cowboy mode. There are no checks and things are
++                    done blindly. USE with caution, you can do things you
++                    really, really don't want to do.
++
++
++fs_setup: Setup the file system
++-------------------------------
++
++fs_setup describes the how the file systems are supposed to look.
++
++ fs_setup:
++    - label: ephemeral0
++      filesystem: 'ext3'
++      device: 'ephemeral0'
++      partition: 'auto'
++    - label:  mylabl2
++      filesystem: 'ext4'
++      device: '/dev/xvda1'
++    - special:
++      cmd: mkfs -t %(FILESYSTEM)s -L %(LABEL)s %(DEVICE)s
++      filesystem: 'btrfs'
++      device: '/dev/xvdh'
++
++The general format is:
++    fs_setup:
++        - label: <LABEL>
++          filesystem: <FS_TYPE>
++          device: <DEVICE>
++          partition: <PART_VALUE>
++          overwrite: <OVERWRITE>
++          replace_fs: <FS_TYPE>
++
++Where:
++    <LABEL>: The file system label to be used. If set to None, no label is
++        used.
++
++    <FS_TYPE>: The file system type. It is assumed that the there
++        will be a "mkfs.<FS_TYPE>" that behaves likes "mkfs". On a standard
++        Ubuntu Cloud Image, this means that you have the option of ext{2,3,4},
++        and vfat by default.
++
++    <DEVICE>: The device name. Special names of 'ephemeralX' or 'swap'
++        are allowed and the actual device is acquired from the cloud datasource.
++        When using 'ephemeralX' (i.e. ephemeral0), make sure to leave the
++        label as 'ephemeralX' otherwise there may be issues with the mounting
++        of the ephemeral storage layer.
++
++        If you define the device as 'ephemeralX.Y' then Y will be interpetted
++        as a partition value. However, ephermalX.0 is the _same_ as ephemeralX.
++
++    <PART_VALUE>:
++        Partition definitions are overwriten if you use the '<DEVICE>.Y' notation.
++
++        The valid options are:
++        "auto|any": tell cloud-init not to care whether there is a partition
++            or not. Auto will use the first partition that does not contain a
++            file system already. In the absence of a partition table, it will
++            put it directly on the disk.
++
++            "auto": If a file system that matches the specification in terms of
++            label, type and device, then cloud-init will skip the creation of
++            the file system.
++
++            "any": If a file system that matches the file system type and device,
++            then cloud-init will skip the creation of the file system.
++
++            Devices are selected based on first-detected, starting with partitions
++            and then the raw disk. Consider the following:
++                NAME     FSTYPE LABEL
++                xvdb
++                |-xvdb1  ext4
++                |-xvdb2
++                |-xvdb3  btrfs  test
++                \-xvdb4  ext4   test
++
++            If you ask for 'auto', label of 'test, and file system of 'ext4'
++            then cloud-init will select the 2nd partition, even though there
++            is a partition match at the 4th partition.
++
++            If you ask for 'any' and a label of 'test', then cloud-init will
++            select the 1st partition.
++
++            If you ask for 'auto' and don't define label, then cloud-init will
++            select the 1st partition.
++
++            In general, if you have a specific partition configuration in mind,
++            you should define either the device or the partition number. 'auto'
++            and 'any' are specifically intended for formating ephemeral storage or
++            for simple schemes.
++
++        "none": Put the file system directly on the device.
++
++        <NUM>: where NUM is the actual partition number.
++
++    <OVERWRITE>: Defines whether or not to overwrite any existing
++        filesystem.
++
++        "true": Indiscriminately destroy any pre-existing file system. Use at
++            your own peril.
++
++        "false": If an existing file system exists, skip the creation.
++
++    <REPLACE_FS>: This is a special directive, used for Windows Azure that
++        instructs cloud-init to replace a file system of <FS_TYPE>. NOTE:
++        unless you define a label, this requires the use of the 'any' partition
++        directive.
++
++Behavior Caveat: The default behavior is to _check_ if the file system exists.
++    If a file system matches the specification, then the operation is a no-op.
+--- /dev/null
++++ b/doc/smartos/README.rst
+@@ -0,0 +1,93 @@
++==================
++SmartOS Datasource
++==================
++
++This datasource finds metadata and user-data from the SmartOS virtualization
++platform (i.e. Joyent).
++
++Please see http://smartos.org/ for information about SmartOS.
++
++SmartOS Platform
++----------------
++The SmartOS virtualization platform uses meta-data to the instance via the
++second serial console. On Linux, this is /dev/ttyS1. The data is a provided
++via a simple protocol: something queries for the data, the console responds
++responds with the status and if "SUCCESS" returns until a single ".\n".
++
++New versions of the SmartOS tooling will include support for base64 encoded data.
++
++Userdata
++--------
++
++In SmartOS parlance, user-data is a actually meta-data. This userdata can be
++provided as key-value pairs.
++
++Cloud-init supports reading the traditional meta-data fields supported by the
++SmartOS tools. These are:
++ * root_authorized_keys
++ * hostname
++ * enable_motd_sys_info
++ * iptables_disable
++
++Note: At this time iptables_disable and enable_motd_sys_info are read but
++    are not actioned.
++
++user-script
++-----------
++
++SmartOS traditionally supports sending over a user-script for execution at the
++rc.local level. Cloud-init supports running user-scripts as if they were
++cloud-init user-data. In this sense, anything with a shell interpreter
++directive will run.
++
++user-data and user-script
++-------------------------
++
++In the event that a user defines the meta-data key of "user-data" it will
++always supersede any user-script data. This is for consistency.
++
++base64
++------
++
++The following are exempt from base64 encoding, owing to the fact that they
++are provided by SmartOS:
++ * root_authorized_keys
++ * enable_motd_sys_info
++ * iptables_disable
++
++This list can be changed through system config of variable 'no_base64_decode'.
++
++This means that user-script and user-data as well as other values can be
++base64 encoded. Since Cloud-init can only guess as to whether or not something
++is truly base64 encoded, the following meta-data keys are hints as to whether
++or not to base64 decode something:
++  * base64_all: Except for excluded keys, attempt to base64 decode
++        the values. If the value fails to decode properly, it will be
++        returned in its text
++  * base64_keys: A comma deliminated list of which keys are base64 encoded.
++  * b64-<key>:
++    for any key, if there exists an entry in the metadata for 'b64-<key>'
++    Then 'b64-<key>' is expected to be a plaintext boolean indicating whether
++    or not its value is encoded.
++  * no_base64_decode: This is a configuration setting
++        (i.e. /etc/cloud/cloud.cfg.d) that sets which values should not be
++        base64 decoded.
++
++disk_aliases and ephemeral disk:
++---------------
++By default, SmartOS only supports a single ephemeral disk.  That disk is
++completely empty (un-partitioned with no filesystem).
++
++The SmartOS datasource has built-in cloud-config which instructs the
++'disk_setup' module to partition and format the ephemeral disk.
++
++You can control the disk_setup then in 2 ways:
++ 1. through the datasource config, you can change the 'alias' of
++    ephermeral0 to reference another device. The default is:
++      'disk_aliases': {'ephemeral0': '/dev/vdb'},
++    Which means anywhere disk_setup sees a device named 'ephemeral0'
++    then /dev/vdb will be substituted.
++ 2. you can provide disk_setup or fs_setup data in user-data to overwrite
++    the datasource's built-in values.
++
++See doc/examples/cloud-config-disk-setup.txt for information on disk_setup.
+--- a/cloudinit/future_util.py
++++ b/cloudinit/future_util.py
+@@ -1,4 +1,5 @@
+ import logging
++import os.path
+ import subprocess
+ 
+ LOG = logging.getLogger(__name__)
+@@ -116,3 +117,32 @@ class ProcessExecutionError(IOError):
+             'reason': self.reason,
+         }
+         IOError.__init__(self, message)
++
++
++def which(program):
++    # Return path of program for execution if found in path
++    def is_exe(fpath):
++        return os.path.isfile(fpath) and os.access(fpath, os.X_OK)
++
++    _fpath, _ = os.path.split(program)
++    if _fpath:
++        if is_exe(program):
++            return program
++    else:
++        for path in os.environ["PATH"].split(os.pathsep):
++            path = path.strip('"')
++            exe_file = os.path.join(path, program)
++            if is_exe(exe_file):
++                return exe_file
++
++    return None
++
++
++def expand_dotted_devname(dotted):
++    toks = dotted.rsplit(".", 1)
++    if len(toks) > 1:
++        return toks
++    else:
++        return (dotted, None)
++
++
+--- a/config/cloud.cfg
++++ b/config/cloud.cfg
+@@ -14,6 +14,7 @@ cloud_init_modules:
+  - ssh
+ 
+ cloud_config_modules:
++ - disk-setup
+  - mounts
+  - ssh-import-id
+  - locale

@@ -145,6 +145,13 @@ Acquire::http::Pipeline-Depth "0";
 EOF
    fi
 
+   # we want to _prevent_ disk formating from happening on upgrade,
+   # otherwise on reboot we could lose the disk, so we fake the
+   # semaphore here
+   if [ -f /var/lib/cloud/instance/obj.pkl ]; then
+      echo $(date +%s) > /var/lib/cloud/instance/sem/config-disk-setup
+   fi
+
    # if there are maas settings pre-seeded apply them
    handle_preseed_maas
 

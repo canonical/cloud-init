@@ -1,8 +1,8 @@
 Template: cloud-init/datasources
 Type: multiselect
 Default: NoCloud, ConfigDrive, Azure, OVF, MAAS
-Choices-C: NoCloud, ConfigDrive, Azure, OVF, MAAS, Ec2
-Choices: NoCloud: Reads info from /var/lib/cloud/seed only, ConfigDrive: Reads data from Openstack Config Drive, Azure: read from MS Azure cdrom. Requires walinux-agent, OVF: Reads data from OVF Transports, MAAS: Reads data from Ubuntu MAAS, Ec2: reads data from EC2 Metadata service
+Choices-C: NoCloud, ConfigDrive, Azure, OVF, MAAS, Ec2, SmartOS
+Choices: NoCloud: Reads info from /var/lib/cloud/seed only, ConfigDrive: Reads data from Openstack Config Drive, Azure: read from MS Azure cdrom. Requires walinux-agent, OVF: Reads data from OVF Transports, MAAS: Reads data from Ubuntu MAAS, Ec2: reads data from EC2 Metadata service, SmartOS: reads data from serial console
 Description: Which data sources should be searched?
  Cloud-init supports searching different "Data Sources" for information
  that it uses to configure a cloud instance.

@@ -1,0 +1,49 @@
+Author: Ben Howard <ben.howard.@ubuntu.com>
+Bug: https://launchpad.net/bugs/1231490
+Applied-Upstream: yes
+Description: Add default configuration to Azure Datasource to enable handling
+ ephemeral disk formating support.
+--- a/cloudinit/DataSourceAzure.py
++++ b/cloudinit/DataSourceAzure.py
+@@ -48,8 +48,21 @@ BUILTIN_DS_CONFIG = {
+         'policy': True,
+         'command': BOUNCE_COMMAND,
+         'hostname_command': 'hostname',
+-    }
++    },
++    'disk_aliases': {'ephemeral0': '/dev/sdb'},
+ }
++
++BUILTIN_CLOUD_CONFIG = {
++    'disk_setup': {
++        'ephemeral0': {'table_type': 'mbr',
++                       'layout': True,
++                       'overwrite': False}
++         },
++    'fs_setup': [{'filesystem': 'ext4',
++                  'device': 'ephemeral0.1',
++                  'replace_fs': 'ntfs'}]
++}
++
+ DS_CFG_PATH = ['datasource', DS_NAME]
+ USERADD_GROUPS = 'adm,admin,cdrom'
+
+@@ -99,7 +112,7 @@ class DataSourceAzureNet(sources.DataSou
+             (md, self.userdata_raw, cfg, files) = ret
+             self.seed = cdev
+             self.metadata = util.mergedict(md, DEFAULT_METADATA)
+-            self.cfg = cfg
++            self.cfg = util.mergedict(cfg, BUILTIN_CLOUD_CONFIG)
+             found = cdev
+
+             LOG.debug("found datasource in %s", cdev)
+@@ -177,6 +190,9 @@ class DataSourceAzureNet(sources.DataSou
+
+         return True
+
++    def device_name_to_device(self, name):
++        return self.ds_cfg['disk_aliases'].get(name)
++
+     def get_config_obj(self):
+         return self.cfg
+

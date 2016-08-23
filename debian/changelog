@@ -1,3 +1,15 @@
+cloud-init (0.6.3-0ubuntu1.8) precise-proposed; urgency=low
+
+  * debian/patches/lp-1233315-add-smartos-support.patch:
+    Add SmartOS DataSource, including disk format support (LP: #1233315).
+  * debian/patches/lp-1231490-azure-ephemeral-format.patch:
+    Format Windows Azure ephemeral disks (LP: #1231490)
+  * debian/patches/lp-1233315-1231490-ephmeralX.Y-support.patch:
+    Add support for referencing ephemeral devices as 'ephemeralX.Y
+    (LP: #1231490, LP: #1233315)
+
+ -- Ben Howard <ben.howard@ubuntu.com>  Wed, 16 Oct 2013 08:17:35 -0600
+
 cloud-init (0.6.3-0ubuntu1.7) precise-proposed; urgency=low
 
   * debian/patches/lp-1224684-azure-passwordless-sudo.patch:
