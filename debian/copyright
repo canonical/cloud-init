@@ -1,0 +1,51 @@
+Format-Specification: http://svn.debian.org/wsvn/dep/web/deps/dep5.mdwn?op=file&rev=135
+Name: cloud-init
+Maintainer: Scott Moser <scott.moser@canonical.com>
+Source: https://launchpad.net/cloud-init
+
+This package was debianized by Soren Hansen <soren@ubuntu.com> on
+Thu, 04 Sep 2008 12:49:15 +0200 as ec2-init.  It was later renamed to
+cloud-utils by Scott Moser <scott.moser@canonical.com>
+
+Upstream Author: Scott Moser <smoser@canonical.com>
+    Soren Hansen <soren@canonical.com>
+    Chuck Short <chuck.short@canonical.com>
+
+Copyright: 2010, Canonical Ltd.
+License: GPL-3
+ This program is free software: you can redistribute it and/or modify
+ it under the terms of the GNU General Public License version 3, as
+ published by the Free Software Foundation.
+
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+
+ You should have received a copy of the GNU General Public License
+ along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+ The complete text of the GPL version 3 can be seen in
+ /usr/share/common-licenses/GPL-3.
+
+Files: cloudinit/boto_utils.py
+Copyright: 2006,2007, Mitch Garnaat http://garnaat.org/
+License: MIT
+ Permission is hereby granted, free of charge, to any person obtaining a
+ copy of this software and associated documentation files (the
+ "Software"), to deal in the Software without restriction, including
+ without limitation the rights to use, copy, modify, merge, publish, dis-
+ tribute, sublicense, and/or sell copies of the Software, and to permit
+ persons to whom the Software is furnished to do so, subject to the fol-
+ lowing conditions:
+
+ The above copyright notice and this permission notice shall be included
+ in all copies or substantial portions of the Software.
+
+ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+ OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABIL-
+ ITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT
+ SHALL THE AUTHOR BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+ IN THE SOFTWARE.

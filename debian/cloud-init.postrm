@@ -1,0 +1,17 @@
+#!/bin/sh
+
+set -e
+
+case "$1" in
+   purge)
+      rm -f /etc/cloud/cloud.cfg.d/90_dpkg.cfg
+      rm -f /etc/apt/apt.conf.d/90cloud-init-pipelining
+      ;;
+   remove)
+      dpkg-divert --package cloud-init --remove --rename --divert \
+            /etc/init/ureadahead.conf.disabled /etc/init/ureadahead.conf
+      rm -f /etc/cloud/cloud.cfg.d/90cloud-init-pipelining
+      ;;
+esac
+
+#DEBHELPER#
