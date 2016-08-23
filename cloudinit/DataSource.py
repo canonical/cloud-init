@@ -70,7 +70,7 @@ class DataSource:
             return([])
 
         if isinstance(self.metadata['public-keys'], str):
-            return([self.metadata['public-keys'], ])
+            return(str(self.metadata['public-keys']).splitlines())
 
         if isinstance(self.metadata['public-keys'], list):
             return(self.metadata['public-keys'])
