@@ -1,3 +1,11 @@
+cloud-init (0.7.7~bzr1156-0ubuntu2) xenial; urgency=medium
+
+  * debian/cloud-init.postinst, systemd_detect_virt.patch: Call
+    systemd-detect-virt instead of the Ubuntu specific running-in-container
+    wrapper. (LP: #1539016)
+
+ -- Martin Pitt <martin.pitt@ubuntu.com>  Thu, 28 Jan 2016 14:12:51 +0100
+
 cloud-init (0.7.7~bzr1156-0ubuntu1) xenial; urgency=medium
 
   * New upstream snapshot.
