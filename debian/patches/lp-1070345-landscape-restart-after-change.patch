@@ -7,7 +7,15 @@ Description: restart the landscape-client service if a change was made
  restart the service to make sure the change was picked up.
 --- a/cloudinit/CloudConfig/cc_landscape.py
 +++ b/cloudinit/CloudConfig/cc_landscape.py
-@@ -68,6 +68,7 @@ def handle(_name, cfg, _cloud, log, _arg
+@@ -21,6 +21,7 @@
+ import os
+ import os.path
+ from cloudinit.CloudConfig import per_instance, install_packages
++from cloudinit import util
+ from configobj import ConfigObj
+ 
+ frequency = per_instance
+@@ -68,6 +69,7 @@ def handle(_name, cfg, _cloud, log, _arg
          fp.write("RUN=1\n")
  
      log.debug("updated %s" % lsc_client_cfg_file)

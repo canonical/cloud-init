@@ -1,3 +1,11 @@
+cloud-init (0.6.3-0ubuntu1.3) precise-proposed; urgency=low
+
+  * debian/patches/lp-1070345-landscape-restart-after-change.patch,
+    debian/patches/lp-1066115-landscape-install-fix-perms.patch:
+    fix missing or incorrect imports (LP: #1070345, LP: #1066115).
+
+ -- Scott Moser <smoser@ubuntu.com>  Thu, 13 Dec 2012 12:16:56 -0500
+
 cloud-init (0.6.3-0ubuntu1.2) precise-proposed; urgency=low
 
   * debian/patches/lp-978127-maas-oauth-fix-bad-clock.patch: fix usage of

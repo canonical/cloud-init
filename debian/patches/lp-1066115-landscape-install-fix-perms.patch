@@ -8,6 +8,15 @@ Description:  do nothing if config not given. install landscape-client.
  the proper permissions.
 --- a/cloudinit/CloudConfig/cc_landscape.py
 +++ b/cloudinit/CloudConfig/cc_landscape.py
+@@ -20,7 +20,7 @@
+ 
+ import os
+ import os.path
+-from cloudinit.CloudConfig import per_instance
++from cloudinit.CloudConfig import per_instance, install_packages
+ from configobj import ConfigObj
+ 
+ frequency = per_instance
 @@ -51,6 +51,11 @@ def handle(_name, cfg, _cloud, log, _arg
      if not isinstance(ls_cloudcfg, dict):
          raise(Exception("'landscape' existed in config, but not a dict"))
@@ -15,7 +24,7 @@ Description:  do nothing if config not given. install landscape-client.
 +    if not ls_cloudcfg:
 +        return
 +
-+    util.install_packages(["landscape-client"])
++    install_packages(["landscape-client"])
 +
      merged = mergeTogether([lsc_builtincfg, lsc_client_cfg_file, ls_cloudcfg])
  
