@@ -6,3 +6,4 @@ lp-974509-detect-dns-server-redirection.patch
 lp-1018554-shutdown-message-to-console.patch
 lp-1073077-zsh-workaround-for-locale_warn.patch
 rework-mirror-selection.patch
+lp-1100491-fix-broken-add-sources.patch

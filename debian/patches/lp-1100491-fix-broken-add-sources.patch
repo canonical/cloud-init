@@ -1,0 +1,11 @@
+--- a/cloudinit/CloudConfig/cc_apt_update_upgrade.py
++++ b/cloudinit/CloudConfig/cc_apt_update_upgrade.py
+@@ -72,7 +72,7 @@ def handle(name, cfg, cloud, log, _args)
+         params = mirrors
+         params['RELEASE'] = release
+         params['MIRROR'] = mirror
+-        errors = add_sources(cloud, cfg['apt_sources'], params)
++        errors = add_sources(cfg['apt_sources'], params)
+         for e in errors:
+             log.warn("Source Error: %s\n" % ':'.join(e))
+ 
