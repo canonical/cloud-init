@@ -23,3 +23,15 @@ To cherry pick revisions 391 to tip from from trunk, do something like:
   bzr add $(quilt files) debian/patches/${pfile} debian/patches/series
 
 You can set 'e' (end) to not go to tip.
+
+== New snapshot ==
+To import a new snapshot, do:
+
+ uver="0.6.3" # this is the *next* upstream version
+ trunk="../trunk"
+ revno=$(cd "$trunk" && bzr revno)
+ version=${uver}~bzr${revno}
+ tarball=cloud-init-${version}.tar.gz
+ bzr export --format=tgz --revision=${revno} "$tarball" "${trunk}"
+ bzr merge-upstream "$tarball" --version=${version}
+
