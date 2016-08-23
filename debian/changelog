@@ -1,11 +1,3 @@
-cloud-init (0.7.5-0ubuntu1.2) trusty-proposed; urgency=medium
-
-  * d/patches/lp-1353008-cloud-init-local-needs-run.conf:
-    backport change to cloud-init-local.conf to depend on /run being
-    mounted (LP: #1353008)
-
- -- Scott Moser <smoser@ubuntu.com>  Wed, 17 Sep 2014 09:15:54 -0400
-
 cloud-init (0.7.5-0ubuntu1.1) trusty-proposed; urgency=medium
 
   [ Ben Howard ]
