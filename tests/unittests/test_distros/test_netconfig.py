@@ -109,8 +109,9 @@ class TestNetCfgDistro(TestCase):
             ub_distro.apply_network(BASE_NET_CFG, False)
 
             self.assertEquals(len(write_bufs), 1)
-            self.assertIn('/etc/network/interfaces', write_bufs)
-            write_buf = write_bufs['/etc/network/interfaces']
+            eni_name = '/etc/network/interfaces.d/50-cloud-init.cfg'
+            self.assertIn(eni_name, write_bufs)
+            write_buf = write_bufs[eni_name]
             self.assertEquals(str(write_buf).strip(), BASE_NET_CFG.strip())
             self.assertEquals(write_buf.mode, 0o644)
 
