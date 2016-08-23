@@ -1,0 +1,924 @@
+cloud-init (0.6.2-0ubuntu1) precise; urgency=low
+
+  * New upstream release
+
+ -- Scott Moser <smoser@ubuntu.com>  Thu, 27 Oct 2011 23:05:15 -0400
+
+cloud-init (0.6.1-0ubuntu20) oneiric; urgency=low
+
+  * fix broken path if local-hostname was not in metadata (LP: #857380)
+  * redirect output of 'start networking' in 'cloud-init-nonet' to /dev/null
+  * include GPLv3 in source tree
+
+ -- Scott Moser <smoser@ubuntu.com>  Fri, 23 Sep 2011 09:24:27 -0400
+
+cloud-init (0.6.1-0ubuntu19) oneiric; urgency=low
+
+  * If local-hostname is not in meta-data, attempt to look up hostname in
+    an alias in /etc/hosts. This will avoid setting domain portion of fqdn
+    to 'localdomain' in some cases (LP: #850206).
+
+ -- Scott Moser <smoser@ubuntu.com>  Wed, 14 Sep 2011 15:15:00 -0400
+
+cloud-init (0.6.1-0ubuntu18) oneiric; urgency=low
+
+  * minor documentation improvement.
+
+  [Mike Moulton, Avishai Ish-Shalom]
+  * Chef support fixes. support for environment and initial attr (LP: #845208)
+
+ -- Scott Moser <smoser@ubuntu.com>  Tue, 13 Sep 2011 17:02:48 -0400
+
+cloud-init (0.6.1-0ubuntu17) oneiric; urgency=low
+
+  * fix issues with chef (LP: #845161)
+  * be more forgiving on metadata for public-keys (LP: #845155)
+
+ -- Scott Moser <smoser@ubuntu.com>  Fri, 09 Sep 2011 14:19:03 -0700
+
+cloud-init (0.6.1-0ubuntu16) oneiric; urgency=low
+
+  * catch up with trunk at revision 439
+  * warn on failure to set hostname (LP: #832175)
+  * properly wait for all static interfaces to be up before
+    cloud-init runs (depends on fix in LP:# 838968).
+  * in DataSources NoCloud and OVF, do not set hostname to the
+    static value 'ubuntuhost' if local-hostname is not in metadata
+    (LP: #838280)
+  * improve the way ssh_authorized_keys is updated, so that the
+    values given will be used. (LP: #434076, LP: #833499)
+  * cloud-init-notnet.conf: minor changes to config
+
+ -- Scott Moser <smoser@ubuntu.com>  Thu, 01 Sep 2011 21:14:09 -0400
+
+cloud-init (0.6.1-0ubuntu15) oneiric; urgency=low
+
+  * catch up with trunk at revision 431
+  * add network debug info to console when cloud-init runs (LP: #828186)
+  * fix issue where subprocesses (apt-add-repository) where given
+    the console and would attempt to prompt user and hang boot (LP: #831505)
+  * add awareness of ecdsa to cc_ssh
+
+ -- Scott Moser <smoser@ubuntu.com>  Tue, 23 Aug 2011 00:01:01 -0400
+
+cloud-init (0.6.1-0ubuntu14) oneiric; urgency=low
+
+  * change the handling of user-data (LP: #810044)
+   * boothooks will now run more than once as they were intended
+   * cloud-config and user-scripts will be updated from user data every boot
+  * Add a second type of part-handler that will be called on every boot 
+  * fix bad handling of /etc/hosts if manage_etc_hosts was false
+
+ -- Scott Moser <smoser@ubuntu.com>  Mon, 08 Aug 2011 12:46:56 -0500
+
+cloud-init (0.6.1-0ubuntu13) oneiric; urgency=low
+
+  * do not install 92-uec-upgrade-available as a motd hook.  This file was
+    installed but did not do anything since updates-check was removed.
+  * support multiple staticly configured network devices, as long as
+    all of them come up early (LP: #810044)
+
+  [Marc Cluet]
+  * add support for passing mcollective keys via cloud-config
+  * add support for 'include-once' type.  include-once urls are only
+    retrieved once-per-instance rather than on every boot.
+
+ -- Scott Moser <smoser@ubuntu.com>  Mon, 01 Aug 2011 16:45:40 -0400
+
+cloud-init (0.6.1-0ubuntu12) oneiric; urgency=low
+
+  * do not give trace on failure to resize in lxc container (LP: #800856)
+  * increase the timeout on url gets for "seedfrom" values (LP: #812646)
+  * do not write entries for ephemeral0 on t1.micro (LP: #744019)
+
+  [Adam Gandalman]
+  * improve the updating of /etc/hosts with correct fqdn when possible
+    (LP: #812539)
+   
+  [Avishai Ish-Shalom]
+  * add chef support (cloudinit/CloudConfig/cc_chef.py) (LP: #798844)
+
+ -- Scott Moser <smoser@ubuntu.com>  Thu, 21 Jul 2011 05:51:03 -0400
+
+cloud-init (0.6.1-0ubuntu11) oneiric; urgency=low
+
+  [Marc Cluet]
+  * sanitize hosts file for system's hostname to 127.0.1.1 (LP: #802637)
+
+ -- Scott Moser <smoser@ubuntu.com>  Thu, 30 Jun 2011 14:12:47 -0400
+
+cloud-init (0.6.1-0ubuntu10) oneiric; urgency=low
+
+  * sync with trunk (rev 405)
+  * fix cloud-init in ubuntu lxc containers (LP: #800824)
+
+ -- Scott Moser <smoser@ubuntu.com>  Tue, 28 Jun 2011 06:42:45 -0400
+
+cloud-init (0.6.1-0ubuntu9) oneiric; urgency=low
+
+  * sync with trunk (rev 404)
+  * make metadata urls configurable, to support eucalyptus in
+    STATIC or SYSTEM modes (LP: #761847)
+  * support disabling byobu in cloud-config (LP: #797336)
+  * guarantee that ssh_config runs before sshd starts (LP: #781101)
+  * make prefix for keys added to /root/.ssh/authorized_keys configurable
+    and add 'no-port-forwarding,no-agent-forwarding,no-X11-forwarding'
+    to the default (LP: #798505)
+  * make 'cloud-config ready' command configurable (LP: #785551)
+  * make fstab fields used to 'fill in' shorthand mount entries configurable
+    (LP: #785542)
+  * read sshd_config to properly get path for authorized_keys (LP: #731849)
+
+ -- Scott Moser <smoser@ubuntu.com>  Fri, 17 Jun 2011 12:18:34 -0400
+
+cloud-init (0.6.1-0ubuntu8) natty; urgency=low
+
+  * instead of including /boot/grub, create it in postinst
+    of grub-legacy-ec2.
+
+ -- Scott Moser <smoser@ubuntu.com>  Fri, 15 Apr 2011 13:01:17 -0400
+
+cloud-init (0.6.1-0ubuntu7) natty; urgency=low
+
+  * grub-legacy-ec2: add /boot/grub directory so installation does
+    not depend on it already existing (LP: #759885)
+
+ -- Scott Moser <smoser@ubuntu.com>  Wed, 13 Apr 2011 11:03:04 -0400
+
+cloud-init (0.6.1-0ubuntu6) natty; urgency=low
+
+  * avoid upgrade prompt for grub-pc when devices are named xvdX (LP: #752361)
+  * catchup to trunk cloud-init (rev 395)
+
+ -- Scott Moser <smoser@ubuntu.com>  Wed, 06 Apr 2011 06:46:55 -0400
+
+cloud-init (0.6.1-0ubuntu5) natty; urgency=low
+
+  * fix --purge of grub-legacy-ec2 package (LP: #749444)
+  * catchup to trunk cloud-init (rev 394)
+  * support user-data formated in dos format by converting to unix for
+    user-scripts, boothooks, and upstart jobs (LP: #744965)
+  * removal of some debug code, minor documentation fix
+
+ -- Scott Moser <smoser@ubuntu.com>  Mon, 04 Apr 2011 13:20:27 -0400
+
+cloud-init (0.6.1-0ubuntu4) natty; urgency=low
+
+  * catch up to trunk cloud-init (rev 389).
+  * fix bug in part-handler code, that broke part handlers (LP: #739694)
+  * fix sporadic resizefs failure (LP: #726938)
+
+ -- Scott Moser <smoser@ubuntu.com>  Mon, 21 Mar 2011 22:06:59 -0400
+
+cloud-init (0.6.1-0ubuntu3) natty; urgency=low
+
+  * catch up to trunk cloud-init (rev 385).
+  * attempt to install packages on failed apt-get update (LP: #728167)
+  * enabled timezone and mcollective cloud-config plugins
+
+ -- Scott Moser <smoser@ubuntu.com>  Fri, 04 Mar 2011 21:17:21 -0500
+
+cloud-init (0.6.1-0ubuntu2) natty; urgency=low
+
+  * grub-legacy-ec2: Use dpkg-query --control-path instead of hard-coding a
+    path to debconf templates file, for compatibility with multiarch.
+
+ -- Scott Moser <smoser@ubuntu.com>  Tue, 01 Mar 2011 23:23:55 -0500
+
+cloud-init (0.6.1-0ubuntu1) natty; urgency=low
+
+  * New upstream release.
+  * fix for puppet configuration options (LP: #709946) [Ryan Lane]
+  * fix pickling of DataSource, which broke seeding.
+  * turn resize_rootfs default to True
+  * avoid mounts in DataSourceOVF if 'read' on device fails
+    'mount /dev/sr0' for an empty virtual cdrom device was taking 18 seconds
+  * add 'manual_cache_clean' option to select manual cleaning of
+    the /var/lib/cloud/instance/ link, for a data source that might
+    not be present on every boot
+  * make DataSourceEc2 retries and timeout configurable
+  * add 'bootcmd' like 'runcmd' to cloud-config syntax for running things early
+  * move from '#opt_include' in config file format to conf_d.
+    now local config files should live in /etc/cloud/cloud.cfg.d/
+  * move /etc/cloud/distro.cfg to /etc/cloud/cloud.cfg.d/90_dpkg.cfg
+  * allow /etc/hosts to be written from hosts.tmpl. which allows
+    getting local-hostname into /etc/hosts (LP: #720440)
+  * better handle startup if there is no eth0 (LP: #714807)
+  * update rather than append in puppet config [Marc Cluet]
+  * add cloud-config for mcollective [Marc Cluet]
+
+ -- Scott Moser <smoser@ubuntu.com>  Sat, 19 Feb 2011 01:16:10 -0500
+
+cloud-init (0.6.0-0ubuntu4) natty; urgency=low
+
+  * fix running of user scripts (LP: #711480) (cherry pick 344) 
+  * fix 2 lintian warnings
+
+ -- Scott Moser <smoser@ubuntu.com>  Tue, 01 Feb 2011 16:15:30 -0500
+
+cloud-init (0.6.0-0ubuntu3) natty; urgency=low
+
+  * make a better attempt at deciding if DataSourceEc2 should be used
+    on first install or upgrade
+  * fix behavior if def_log_file is empty in cloud-config (cherry pick 333)
+  * improve comment strings in rsyslog config (cherry pick 334)
+  * do not package cloud-init query (cherry pick 335)
+  * add previous-instance-id and previous-datasource to cloud/data
+    and cloud/instance/datasource files (cherry pick 337)
+  * allow setting of passwords and enabling/disabling ssh password auth
+    via cloud-config (cherry pick 338)
+
+ -- Scott Moser <smoser@ubuntu.com>  Mon, 31 Jan 2011 12:48:39 -0500
+
+cloud-init (0.6.0-0ubuntu2) natty; urgency=low
+
+  * add a debian/README.source file
+  * fix bug in fixing permission on /var/log/cloud-init.log (cherry pick)
+  * remove dependency on update-motd as updates-check was removed
+  * fix failure on cloud-init package purge
+  * add configuration of DataSources via debconf. Default to not searching
+    Ec2. (LP: #635188)
+  * fix naming of pre-processed (now user-data.txt.i) (cherry pick)
+  * upgrade existing content in /var/lib/cloud to 0.6.x format
+
+ -- Scott Moser <smoser@ubuntu.com>  Thu, 27 Jan 2011 16:32:44 -0500
+
+cloud-init (0.6.0-0ubuntu1) natty; urgency=low
+
+  * New upstream release.
+  * fix permissions on cloud-init.log so syslog can write to it (LP: ##704509)
+  * rework of /var/lib/cloud layout
+  * remove updates-check (LP: #653220)
+  * support resizing root partition on first boot (enabled by default)
+  * added cloud-config options for setting hostname, phone_home
+  * indicate "all the way up" with message to console and file creation
+    in /var/lib/cloud/instance/ (LP: #653271)
+  * write ssh keys to console late in boot to ensure they're in console buffer
+  * add support for redirecting output of cloud-init, cloud-config, 
+    cloud-final via the config file, or user data config file
+  * add support for posting data about the instance to a url (phone_home)
+  * add minimal OVF transport (iso) support
+  * make DataSources that are attempted dynamic and configurable from
+    config. config option 'cloud_type' replaced by 'datasource_list'
+  * add 'timezone' option to cloud-config (LP: #645458)
+  * Added an additional archive format, that can be used for multi-part
+    input to cloud-init.  This may be more user friendly then mime-multipart
+    (LP: #641504)
+  * add support for reading Rightscale style user data (LP: #668400)
+  * make the message on 'disable_root' more clear (LP: #672417)
+  * do not require public key if private is given in ssh cloud-config 
+    (LP: #648905)
+
+ -- Scott Moser <smoser@ubuntu.com>  Wed, 26 Jan 2011 17:28:36 -0500
+
+cloud-init (0.5.15-0ubuntu4) natty; urgency=low
+
+  * Rebuild with python 2.7 as the python default.
+
+ -- Matthias Klose <doko@ubuntu.com>  Wed, 08 Dec 2010 15:01:36 +0000
+
+cloud-init (0.5.15-0ubuntu3) maverick; urgency=low
+
+  * do not use ec2 ubuntu archive if instance is VPC (LP: #615545)
+
+ -- Scott Moser <smoser@ubuntu.com>  Thu, 16 Sep 2010 04:28:55 -0400
+
+cloud-init (0.5.15-0ubuntu2) maverick; urgency=low
+
+  * grub-legacy-ec2: boot with console=hvc0 (LP: #606373)
+
+ -- Scott Moser <smoser@ubuntu.com>  Wed, 15 Sep 2010 16:41:48 -0400
+
+cloud-init (0.5.15-0ubuntu1) maverick; urgency=low
+
+  * New upstream release.
+  * fix /etc/fstab cloudconfig entries for t1.micro and
+    change default fstab values for ephemeral0 to nobootwait (LP: #634102)
+  * grub-legacy-ec2: do not write chainload for grub2 to menu.lst
+    (LP: #627451)
+  * seed grub-pc correctly so update-grub runs on ec2 or uec(LP: #623609)
+
+ -- Scott Moser <smoser@ubuntu.com>  Sun, 12 Sep 2010 15:23:39 -0400
+
+cloud-init (0.5.14-0ubuntu5) maverick; urgency=low
+
+  * add missing imports for cc_puppet (LP: #632744)
+  * append to apt_sources files rather than truncating (LP: #627597)
+  * get double commented lines into sources.list (LP: #627439)
+
+ -- Scott Moser <smoser@ubuntu.com>  Wed, 08 Sep 2010 10:31:58 -0400
+
+cloud-init (0.5.14-0ubuntu4) maverick; urgency=low
+
+  * add commented out entries for partner, backports, and multiverse
+    (LP: #620572)
+
+ -- Scott Moser <smoser@ubuntu.com>  Thu, 26 Aug 2010 16:44:48 -0400
+
+cloud-init (0.5.14-0ubuntu3) maverick; urgency=low
+
+  * fix syntax error in cloudinit/util.py (failed installation)
+
+ -- Scott Moser <smoser@ubuntu.com>  Tue, 17 Aug 2010 22:22:06 -0400
+
+cloud-init (0.5.14-0ubuntu2) maverick; urgency=low
+
+  * fix bug preventing 'seedfrom' from working (LP:617400)
+
+ -- Scott Moser <smoser@ubuntu.com>  Tue, 17 Aug 2010 15:49:13 -0400
+
+cloud-init (0.5.14-0ubuntu1) maverick; urgency=low
+
+  * New upstream release.
+   - support for reading metadata and userdata from filesystem
+   - support for boot without metadata at all
+
+ -- Scott Moser <smoser@ubuntu.com>  Thu, 12 Aug 2010 14:45:28 -0400
+
+cloud-init (0.5.13-0ubuntu3) maverick; urgency=low
+
+  * grub-legacy-ec2: fix 'apt-get --reinstall' and dpkg-divert (LP: #611812)
+  * enable -virtual kernels as "xen" kernels (pv_ops now functional)
+  * fix bad syntax in cloud-init-run-module.py
+
+ -- Scott Moser <smoser@ubuntu.com>  Mon, 02 Aug 2010 16:26:48 -0400
+
+cloud-init (0.5.13-0ubuntu2) maverick; urgency=low
+
+  * debian/control: drop ssh-import as a recommends, as this has been
+    subsumed by openssh-server
+
+ -- Dustin Kirkland <kirkland@ubuntu.com>  Sat, 24 Jul 2010 21:02:40 +0200
+
+cloud-init (0.5.13-0ubuntu1) maverick; urgency=low
+
+  * New upstream release.
+  * invoke dpkg with --force-confold (LP: #607642)
+
+ -- Scott Moser <smoser@ubuntu.com>  Wed, 21 Jul 2010 11:58:53 -0400
+
+cloud-init (0.5.12-0ubuntu8) maverick; urgency=low
+
+  * update-grub-legacy-ec2:
+    - add code to stop use of 'uuid' grub syntax
+    - change fallback grub device from (hd0,0) to (hd0)
+    - change timeout in menu.lst to 0
+  * grub-legacy-ec2: add grub-set-default functionality (LP: #605961)
+
+ -- Scott Moser <smoser@ubuntu.com>  Thu, 15 Jul 2010 13:07:01 -0400
+
+cloud-init (0.5.12-0ubuntu7) maverick; urgency=low
+
+  * update-grub-legacy-ec2:                                                     
+    - force setting of indomU so output of build process has
+      a menu.lst with -ec2 kernels listed.
+    - remove 'quite splash' from kernel options
+    - make sure grub_root_device is set to hd0 in image build
+
+ -- Scott Moser <smoser@ubuntu.com>  Tue, 13 Jul 2010 16:33:51 -0400
+
+cloud-init (0.5.12-0ubuntu6) maverick; urgency=low
+
+  * fix installation error
+  * add quilt-setup rule for package development 
+
+ -- Scott Moser <smoser@ubuntu.com>  Tue, 13 Jul 2010 12:04:21 -0400
+
+cloud-init (0.5.12-0ubuntu5) maverick; urgency=low
+
+  * sync with upstream r226.
+  * fix bug where nfs/network mounts could not be specified (LP: #603329)
+  * manage hostname setting better (LP: #596993)
+  * add legacy-grub-ec2 package.
+
+ -- Scott Moser <smoser@ubuntu.com>  Thu, 08 Jul 2010 22:24:59 -0400
+
+cloud-init (0.5.12-0ubuntu4) maverick; urgency=low
+
+  * handle hostname managing better with ebs root. (LP: #596993)
+
+ -- Scott Moser <smoser@ubuntu.com>  Wed, 07 Jul 2010 11:54:10 -0400
+
+cloud-init (0.5.12-0ubuntu3) maverick; urgency=low
+
+  * fix cloud-boothook input type (LP: #600799)
+  * sync with upstream.
+
+ -- Scott Moser <smoser@ubuntu.com>  Thu, 01 Jul 2010 21:19:13 -0400
+
+cloud-init (0.5.12-0ubuntu2) maverick; urgency=low
+
+  * fix cloud config 'apt-update-upgrade' failure due to missing import
+
+ -- Scott Moser <smoser@ubuntu.com>  Mon, 21 Jun 2010 15:08:32 -0400
+
+cloud-init (0.5.12-0ubuntu1) maverick; urgency=low
+
+  * New upstream release.
+  * fix cloud-init-run-module to allow 'always' (LP: #568139)
+  * add support for setting debconf selections 
+  * add cloud-config support for debconf selections (LP: #582667),
+    byobu enablement, and ssh-import-lp-id
+
+ -- Scott Moser <smoser@ubuntu.com>  Fri, 18 Jun 2010 15:48:14 -0400
+
+cloud-init (0.5.11-0ubuntu2) maverick; urgency=low
+
+  * handle renaming sem/markers for config items to avoid
+    running per-instance again after package upgrade
+  * pull 'config-' prefix on sem/ items for cloud-config modules from
+    0.5.12
+
+ -- Scott Moser <smoser@ubuntu.com>  Fri, 18 Jun 2010 12:52:10 -0400
+
+cloud-init (0.5.11-0ubuntu1) maverick; urgency=low
+
+  * New upstream release.
+  * remove ec2-get-info.  It is replaced by cloudutils ec2metadata
+  * use python logging
+  * reduce number of upstart jobs
+  * add "boothook" user data type
+  * Switch to dpkg-source 3.0 (quilt) format
+
+ -- Scott Moser <smoser@ubuntu.com>  Fri, 18 Jun 2010 01:04:58 -0400
+
+cloud-init (0.5.10-0ubuntu1) lucid; urgency=low
+
+  * New upstream release.
+  * ec2-get-info: fix for python traceback
+  * ephemeral mount will show up in /etc/mtab or df on first boot
+    LP: #527825
+
+ -- Scott Moser <smoser@ubuntu.com>  Fri, 26 Mar 2010 00:57:28 -0400
+
+cloud-init (0.5.9-0ubuntu1) lucid; urgency=low
+
+  * New upstream release.
+  * rename apt list files. 'ubuntu-bug' now works without update (LP: #513060)
+  * replace 'cloudconfig' entries in fstab rather than appending (LP: #524562)
+  * fix to fstab writing on ebs-root instances
+
+ -- Scott Moser <smoser@ubuntu.com>  Mon, 08 Mar 2010 13:07:02 -0500
+
+cloud-init (0.5.8-0ubuntu1) lucid; urgency=low
+
+  * New upstream release.
+  * cache data from metadata service, LP: #527364
+  * fix format of cron entry in cron.d/cloudinit-updates
+  * package egg-info file
+
+ -- Scott Moser <smoser@ubuntu.com>  Tue, 02 Mar 2010 15:48:04 -0500
+
+cloud-init (0.5.7-0ubuntu4) lucid; urgency=low
+
+  * fix empty package previous package was emptpy for cloud-init
+    due to adding the ec2-init package
+
+ -- Scott Moser <smoser@ubuntu.com>  Fri, 26 Feb 2010 17:06:05 -0500
+
+cloud-init (0.5.7-0ubuntu3) lucid; urgency=low
+
+  * debian/control:
+    - recommend ssh-import, such that the ssh-import-lp-id
+      utility is available in UEC images for convenient importing of
+      ssh public keys stored in Launchpad, LP: #524101
+    - build a transitional ec2-init package to handle the rename
+      gracefully on upgrades, LP: #527187
+
+ -- Dustin Kirkland <kirkland@ubuntu.com>  Thu, 25 Feb 2010 16:22:10 -0600
+
+cloud-init (0.5.7-0ubuntu2) lucid; urgency=low
+
+  * fix packaging but that put the message-of-the-day hook file
+    into a subdir of etc/update-motd.d, remove old file (LP: #524999)
+
+ -- Scott Moser <smoser@ubuntu.com>  Fri, 19 Feb 2010 21:02:10 -0500
+
+cloud-init (0.5.7-0ubuntu1) lucid; urgency=low
+
+  * New upstream release.
+  * run cloud-init early in boot process (LP: #504883, #524516)
+
+ -- Scott Moser <smoser@ubuntu.com>  Fri, 19 Feb 2010 18:27:45 -0500
+
+cloud-init (0.5.6-0ubuntu1) lucid; urgency=low
+
+  * New upstream release.
+  * supports 'runcmd' in cloud-config
+  * enable the update check code (LP: #524258)
+  * fix retry_url in boto_utils.py when metadata service not around
+    (LP: #523832)
+  * run cloud-config-puppet.conf later (LP: #523625)
+  [ Scott Moser 0.5.5 ]
+  * New upstream release, supports checking for updates
+
+ -- Scott Moser <smoser@ubuntu.com>  Fri, 19 Feb 2010 03:13:22 -0500
+
+cloud-init (0.5.4-0ubuntu1) lucid; urgency=low
+
+  * New upstream release.
+  * fix broken user-data scripts
+  * merge mathiaz work for cloud-config-puppet
+  * fix bug causing apt update to fail
+  * rename EC2Init class to CloudInit
+  * only set hostname once per instance. (LP: #514492)
+
+ -- Scott Moser <smoser@ubuntu.com>  Wed, 17 Feb 2010 09:40:30 -0500
+
+cloud-init (0.5.3-0ubuntu2) lucid; urgency=low
+
+  * divert ureadahead.conf in postinst (LP: #499520)
+  * lintian cleanups
+
+ -- Scott Moser <smoser@ubuntu.com>  Fri, 05 Feb 2010 15:48:21 -0500
+
+cloud-init (0.5.3-0ubuntu1) lucid; urgency=low
+
+  * Rename ec2-init to cloud-init.  New upstream release.
+  * set hostname to ip-u.x.y.z if local-hostname provides a ip addr
+    (LP: #475354)
+
+ -- Scott Moser <smoser@ubuntu.com>  Thu, 04 Feb 2010 03:00:05 -0500
+
+ec2-init (0.5.2-0ubuntu1) lucid; urgency=low
+
+  * new upstream release
+
+ -- Scott Moser <smoser@ubuntu.com>  Fri, 29 Jan 2010 13:30:52 -0500
+
+ec2-init (0.5.1-0ubuntu1) lucid; urgency=low
+
+  * new upstream release
+
+ -- Scott Moser <smoser@ubuntu.com>  Fri, 22 Jan 2010 16:19:30 -0500
+
+ec2-init (0.5.0-0ubuntu4) lucid; urgency=low
+
+  * add an upstart job to get ssh keys regenerated and written
+    to console (LP: #506599, LP: #507070)
+
+ -- Scott Moser <smoser@ubuntu.com>  Thu, 14 Jan 2010 13:10:55 -0500
+
+ec2-init (0.5.0-0ubuntu3) lucid; urgency=low
+
+  * work around difference in uec/ec2 metadata service (LP:506332)
+
+ -- Scott Moser <smoser@ubuntu.com>  Tue, 12 Jan 2010 11:33:11 -0500
+
+ec2-init (0.5.0-0ubuntu2) lucid; urgency=low
+
+  * pull changes from devel branch to get functional on ec2
+
+ -- Scott Moser <smoser@ubuntu.com>  Mon, 11 Jan 2010 12:03:45 -0500
+
+ec2-init (0.5.0-0ubuntu2) lucid; urgency=low
+
+  * new upstream release
+
+ -- Scott Moser <smoser@ubuntu.com>  Thu, 07 Jan 2010 22:00:38 -0500
+
+ec2-init (0.4.999-0ubuntu8) lucid; urgency=low
+
+  * fix mirror selection for us-west-1 (LP: #494185)
+
+ -- Scott Moser <smoser@ubuntu.com>  Fri, 11 Dec 2009 15:12:19 -0500
+
+ec2-init (0.4.999-0ubuntu7) karmic; urgency=low
+
+  * work around differences in eucalyptus ephemeral mounts (LP: #458850)
+  * get 'ec2:' prefix on ssh public key fingerprint (LP: #458576)
+
+ -- Scott Moser <smoser@ubuntu.com>  Mon, 26 Oct 2009 16:18:06 -0400
+
+ec2-init (0.4.999-0ubuntu6) karmic; urgency=low
+
+  * make sources.list components for 'karmic-security' the same as
+    'karmic' and 'karmic-updates' (main, restricted) (LP: #457866)
+
+ -- Scott Moser <smoser@ubuntu.com>  Thu, 22 Oct 2009 08:55:58 -0400
+
+ec2-init (0.4.999-0ubuntu5) karmic; urgency=low
+
+  * write regenerate_ssh_host_keys output directly to /dev/console
+    to ensure that it gets there. (LP: #451881)
+
+ -- Scott Moser <smoser@ubuntu.com>  Wed, 21 Oct 2009 17:23:38 -0400
+
+ec2-init (0.4.999-0ubuntu4) karmic; urgency=low
+
+  * set locale to en_US.UTF-8 if get_location_from_availability_zone 
+    doesn't have a match (LP: #407949)
+
+ -- Scott Moser <smoser@ubuntu.com>  Tue, 20 Oct 2009 09:57:49 -0400
+
+ec2-init (0.4.999-0ubuntu3) karmic; urgency=low
+
+  * split running of user-data out of ec2-init into ec2-init-user-data
+    run this at S99. (LP : #431255)
+
+ -- Scott Moser <smoser@ubuntu.com>  Fri, 25 Sep 2009 14:17:17 -0400
+
+ec2-init (0.4.999-0ubuntu2) karmic; urgency=low
+
+  * remove rightscale-init from package (see LP: #434181, LP: #434693)
+  * fix lintian warning, specify path to GPL-3
+  * replace multiple '| logger' in regenerate_ssh_host_keys single one
+  * add ec2-is-compat-env, and disable init script by default.  it can be
+    enabled by setting 'compat=1' in /etc/ec2-init/is-compat-env
+
+ -- Scott Moser <smoser@ubuntu.com>  Thu, 24 Sep 2009 16:32:42 -0400
+
+ec2-init (0.4.999-0ubuntu1) karmic; urgency=low
+
+  * New upstream release
+
+ -- Soren Hansen <soren@ubuntu.com>  Wed, 26 Aug 2009 01:23:52 +0200
+
+ec2-init (0.4.99-0ubuntu3) karmic; urgency=low
+
+  * Also update /etc/default/locale when setting the locale based on
+    locality.
+
+ -- Soren Hansen <soren@ubuntu.com>  Tue, 11 Aug 2009 21:49:33 +0200
+
+ec2-init (0.4.99-0ubuntu2) karmic; urgency=low
+
+  * Consolidate build-dependencies a bit.
+  * Sync default configuration with code.
+  * Create /var/lib/ec2 in package.
+  * Make ec2-get-info more robust in testing environments.
+  * Handle missing public keys more gracefully.
+  * Set proper ownership of user's authorized_keys.
+
+ -- Soren Hansen <soren@ubuntu.com>  Tue, 11 Aug 2009 09:54:16 +0200
+
+ec2-init (0.4.99-0ubuntu1) karmic; urgency=low
+
+  * Massive rewrite. (LP: #407871, #407919, #308530, #407949, #407950, #407892
+    and probably many others)
+  * First Ubuntu version with the upstream tarball split out.
+  * Switch to arch: all. There is no arch specific code here.
+
+ -- Soren Hansen <soren@ubuntu.com>  Tue, 11 Aug 2009 08:33:33 +0200
+
+ec2-init (0.3.4ubuntu9) karmic; urgency=low
+
+  * Really include the action id in the semaphore filename.
+
+ -- Soren Hansen <soren@ubuntu.com>  Sat, 11 Jul 2009 09:50:31 +0200
+
+ec2-init (0.3.4ubuntu8) karmic; urgency=low
+
+  * Add Vcs-Bzr header to debian/control.
+  * Include the action id in the semaphore filename.
+
+ -- Soren Hansen <soren@ubuntu.com>  Sat, 11 Jul 2009 02:35:43 +0200
+
+ec2-init (0.3.4ubuntu7) karmic; urgency=low
+
+  * Re-add accidentally removed locale template.
+  * Fix indentation in init script.
+
+ -- Soren Hansen <soren@ubuntu.com>  Fri, 10 Jul 2009 23:47:27 +0200
+
+ec2-init (0.3.4ubuntu6) karmic; urgency=low
+
+  * Replace calls to ec2-get-data with calls to ec2-get-info.
+  * Make this package arch: all.
+
+ -- Soren Hansen <soren@ubuntu.com>  Fri, 10 Jul 2009 23:16:35 +0200
+
+ec2-init (0.3.4ubuntu5) karmic; urgency=low
+
+  * debian/init: Move instance reboot detection out of python 
+    scripts and move them to the init script.
+  * debian/ec2-set-defaults.py: 
+    - Point to the right location for locate (LP: #387611)
+    - Default to UTC (LP: #341060)
+  * debian/ec2-set-apt-sources.py: If you cant contact EC2 then use the
+    regular archive (LP: #387027)
+  * debian/ec2-setup-hostname.py: Use the local hostname in /etc/hosts
+    and dont change once rebooted. (LP: #352745)
+
+ -- Chuck Short <zulcss@ubuntu.com>  Wed, 08 Jul 2009 09:48:49 -0400
+
+ec2-init (0.3.4ubuntu4) karmic; urgency=low
+
+  * debian/init: Run update-motd regardless whether its a firstboot or not.
+  * debian/init: Fix comments (LP: #373057)
+  * debian/control: Add update-motd as a depends.
+  * ec2-set-defaults.py: Wait for network to become available. (LP: #308530)
+
+ -- Chuck Short <zulcss@ubuntu.com>  Thu, 28 May 2009 05:04:31 -0400
+
+ec2-init (0.3.4ubuntu3) karmic; urgency=low
+
+  * debian/init: Move init script to run before ssh and regenerate the ssh
+    host kes in the init script rather than /etc/rc.local (LP: #370628)
+  * ec2-set-apt-sources.py: 
+    - Move sources.list to /var/ec2 so it doesnt get removed after user
+    reboots.
+  * ec2-set-defaults.py:
+    - Move locale to /var/ec2/ so it doesnt get remove after user reboots.
+  * ec2-set-hostname.py
+    - Create an /etc/hostname as well.
+
+ -- Chuck Short <zulcss@ubuntu.com>  Thu, 14 May 2009 11:11:49 -0400
+
+ec2-init (0.3.4ubuntu2) karmic; urgency=low
+
+  * Really change the locale when setting up an instance. (LP: #341066) 
+  * Run ec2-run-user-data script last. (LP: #373055)
+  * Minor comment tweaks. (LP: #373057)
+
+ -- Chuck Short <zulcss@ubuntu.com>  Wed, 13 May 2009 13:41:35 -0400
+
+ec2-init (0.3.4ubuntu1) karmic; urgency=low
+
+  * Add more smarts to ec2 instance bring up. (LP: #371936)
+
+ -- Chuck Short <zulcss@ubuntu.com>  Tue, 05 May 2009 08:59:54 -0400
+
+ec2-init (0.3.3ubuntu12) jaunty; urgency=low
+
+  * ec2-run-user-data.py: Fix error. 
+
+ -- Chuck Short <zulcss@ubuntu.com>  Tue, 07 Apr 2009 08:14:07 -0400
+
+ec2-init (0.3.3ubuntu11) jaunty; urgency=low
+
+  * debian/control:
+    - Add python-cheetah and python-apt as a dependency.
+  * debian/ec2-config.cfg:
+    - Remove distro due to the change in ec2-set-apt-sources.py
+  * debian/inistall
+    - Install the templates in the right place.
+  * ec2-set-apt-sources.py:
+    - Use python-apt to update the sources.list.
+
+ -- Chuck Short <zulcss@ubuntu.com>  Wed, 01 Apr 2009 13:58:43 -0400
+
+ec2-init (0.3.3ubuntu10) jaunty; urgency=low
+
+  * ec2-set-hostname.py:
+    - Use template for /etc/hosts creation.
+    - Dont use public_hostname in /etc/hosts. (LP: #352745) 
+
+ -- Chuck Short <zulcss@ubuntu.com>  Wed, 01 Apr 2009 08:48:05 -0400
+
+ec2-init (0.3.3ubuntu9) jaunty; urgency=low
+
+  * ec2-set-apt-sources.py:
+    - Use a template to generate the sources.list and generate it based on the lsb_release. 
+
+ -- Chuck Short <zulcss@ubuntu.com>  Tue, 31 Mar 2009 15:15:55 -0400
+
+ec2-init (0.3.3ubuntu8) jaunty; urgency=low
+
+  * ec2-set-apt-sources.py:
+    - Add the ubuntu-on-ec2 ppa. 
+
+ -- Chuck Short <zulcss@ubuntu.com>  Tue, 31 Mar 2009 09:37:13 -0400
+
+ec2-init (0.3.3ubuntu7) jaunty; urgency=low
+
+  * debian/rules: Fix typo. 
+
+ -- Chuck Short <zulcss@ubuntu.com>  Sun, 22 Mar 2009 17:14:16 -0400
+
+ec2-init (0.3.3ubuntu6) jaunty; urgency=low
+
+  * Set the configuration file to jaunty.
+  * ec2-fetch-credentials: Fix typo.
+  * ec2-set-defaults.py: 
+    - Remove timezone change when booting the instance.
+    - Redirect output to /dev/null.
+  * ec2-set-apt-sources.py:
+    - Run apt-get update after the /etc/apt/sources.list and
+      redirect the output to /dev/null.
+  * rightscale-init: Updated rightscale-init
+
+ -- Chuck Short <zulcss@ubuntu.com>  Thu, 19 Mar 2009 20:52:59 -0400
+
+ec2-init (0.3.3ubuntu5) jaunty; urgency=low
+
+  * debian/ec2-config.cfg:
+    - Add disable root option.
+  * debian/ec2-init.rightscale-init.init:
+    - Add rightscale detection script.
+  * ec2-get-info.py:
+    - Display the information about an AMI instance.
+
+ -- Chuck Short <zulcss@ubuntu.com>  Mon, 16 Mar 2009 08:54:49 -0400
+
+ec2-init (0.3.3ubuntu4) jaunty; urgency=low
+
+  * ec2-fetch-credentials.py:
+    - Allow user to choose which user they wish to configure for.
+    - Allow user to disable root user if they wish to.
+  * ec2-set-defaults.py:
+    - Set default timezone to UTC.
+    - Set locale depending on zone.
+  * debian/init:
+    - Removed nash plugin.
+    - Add ec2-set-defaults.
+
+ -- Chuck Short <zulcss@ubuntu.com>  Wed, 04 Mar 2009 08:33:01 -0500
+
+ec2-init (0.3.3ubuntu3~intrepid4) intrepid; urgency=low
+
+  * set distro to intrepid.
+
+ -- Chuck Short <zulcss@ubuntu.com>  Thu, 26 Feb 2009 10:28:06 -0500
+
+ec2-init (0.3.3ubuntu3) jaunty; urgency=low
+
+  * debian/ec2-init: Log results of ec2-run-user-data to syslog.
+  * ec2-run-user-data.py :Dont leave files around and log the 
+    output to syslog. 
+
+ -- Chuck Short <zulcss@ubuntu.com>  Thu, 26 Feb 2009 10:24:35 -0500
+
+ec2-init (0.3.3ubuntu2) jaunty; urgency=low
+
+  * ec2-set-apt-sources.py:
+    - Use the ec2 mirrors. (LP: #317065, #333897)
+    - Update the /etc/apt/sources.list (LP: #333904)
+  * ec2-fetch-credentials.py:
+    - Better error checking (LP: #325067)
+
+ -- Chuck Short <zulcss@ubuntu.com>  Tue, 24 Feb 2009 14:02:37 -0500
+
+ec2-init (0.3.3ubuntu1) jaunty; urgency=low
+
+  * debian/init: Fix init script. 
+
+ -- Chuck Short <zulcss@ubuntu.com>  Fri, 20 Feb 2009 09:22:54 -0500
+
+ec2-init (0.3.3) jaunty; urgency=low
+
+  * ec2-set-apt-sources.py
+    - Determine the zone that the user is in and generate
+      a /etc/apt/sources.list.d/ based on that.
+  * debian/init:
+    - Check to see if there is an /var/run/ec2 and create
+      it if it doesnt exist.
+    - Start ec2-set-apt-sources at first bootup.
+  * debian/rules:
+    - Install ec2-set-apt-sources.
+  * debian/control:
+    - Add python-configobj as a dependency.
+  * debian/{install,dirs}
+    - Create an /etc/ec2-init to read the configuration file and install it.
+  
+ -- Chuck Short <zulcss@ubuntu.com>  Mon, 09 Feb 2009 10:35:56 -0500
+
+ec2-init (0.3.2) jaunty; urgency=low
+
+  * debian/init:
+    - Remove already ran detection
+    - Log the running of ec2-run-user-data to /var/log/ec2-user-data.log
+  * ec2-set-hostname.py:
+    - set hostname to the Ec2 local-hostname
+    - Update the /etc/hosts to change the ubuntu hostname to the
+      public hostname.
+  * ec2-fetch-credentials:
+    - Copy the ssh keys to the ubuntu user.
+    - Setup authorized keys for root to tell the user to login as the 
+      ubuntu user when they try to connect.
+  * ec2-run-user-data:
+    - Create an .already-ran file to check to see if ec2-run-user-data
+      already ran.
+    - Save the ec2-run-user-data script in /var/ec2.
+
+ -- Chuck Short <zulcss@ubuntu.com>  Wed, 04 Feb 2009 09:32:08 -0500
+
+ec2-init (0.3.1) jaunty; urgency=low
+
+  * debian/dir: Install /var/ec2 to save user-data scripts.
+  * debian/rules: Start ec2-init after ssh.
+  * ec2-run-user-data.py: Save run-user-data script with ami-id.
+
+ -- Chuck Short <zulcss@ubuntu.com>  Mon, 26 Jan 2009 10:40:52 -0500
+
+ec2-init (0.3) jaunty; urgency=low
+
+  * ec2-run-user-data: Fix python error when writing a file to the disk. 
+
+ -- Chuck Short <zulcss@ubuntu.com>  Thu, 15 Jan 2009 11:49:08 -0500
+
+ec2-init (0.2) jaunty; urgency=low
+
+  * debian/init: Run fetch-credentials before anything else.
+    (LP: #308533)
+  * Add ec2-set-hostname.py: Queries ec2 metdada for public-hostname
+    and then sets it (LP: #316201)
+
+ -- Chuck Short <zulcss@ubuntu.com>  Tue, 13 Jan 2009 15:20:21 -0500
+
+ec2-init (0.1) intrepid; urgency=low
+
+  * Initial release (LP: #269434).
+
+ -- Soren Hansen <soren@ubuntu.com>  Fri, 12 Sep 2008 15:30:32 +0200
+

@@ -1,0 +1,6 @@
+# no-debconf-config and debconf-is-not-a-registry lintian errors
+# are present in the ubuntu grub package that these were pulled from.
+# they're due to the use of debconf for merging prompt in
+# update-grub-legacy-ec2
+grub-legacy-ec2 binary: no-debconf-config
+grub-legacy-ec2 binary: debconf-is-not-a-registry

@@ -1,0 +1,42 @@
+#!/bin/sh
+Usage() {
+   cat <<EOF
+Usage: ${0##*/} repo revno name
+  cherry pick revno from trunk branch
+
+  This takes care of getting the patch and pulling it into the local
+  directory.
+
+  End result is modified:
+    debian/patches/\${revno}-\${name}
+    debian/patches/series
+EOF
+}
+
+[ $# -eq 3 ] || { Usage 1>&2; exit 1; }
+[ "$1" = "--help" -o "$1" = "-h" ] && { Usage; exit 0; }
+
+repo=${1}
+revno=${2}
+name=${3}
+
+name=${name%.patch}
+name=${name%.diff}
+
+fname="${revno}-${name}.patch"
+
+( cd "${repo}" && bzr log -r${revno}..${revno} &&
+  bzr diff -p1 -r$((${revno}-1))..${revno} ) |
+  quilt import -P "${fname}" /dev/stdin
+
+[ $? -eq 0 ] || { echo "failed"; exit 1; }
+
+cat <<EOF
+now,
+  quilt push
+  quilt refresh
+  bzr add \$(quilt files ${fname}) debian/patches/series debian/patches/${fname}
+  dch --append "${name} (cherry pick $revno)"
+  dch --edit # improve the entry
+  debcommit \$(quilt files ${fname}) debian/patches/series debian/patches/${fname}
+EOF

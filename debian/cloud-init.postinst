@@ -1,0 +1,17 @@
+#!/bin/sh -e
+
+. /usr/share/debconf/confmodule
+
+if [ "$1" = "configure" ]; then
+   # disable ureadahead (LP: #499520)
+   dpkg-divert --package cloud-init --rename --divert \
+      /etc/init/ureadahead.conf.disabled --add /etc/init/ureadahead.conf
+   if db_get cloud-init/datasources; then
+      cat > /etc/cloud/cloud.cfg.d/90_dpkg.cfg <<EOF
+# to update this file, run dpkg-reconfigure cloud-init
+datasource_list: [ $RET ]
+EOF
+   fi
+fi
+
+#DEBHELPER#

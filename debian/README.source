@@ -1,0 +1,25 @@
+=== General Info ===
+Development packaging branch is at
+   lp:ubuntu/<suite>/cloud-init
+alternatively, if you're on the development release:
+   lp:ubuntu/cloud-init
+
+Patches in debian/patches are also stored applied in bzr.
+However, the .pc directory is not version controlled.
+
+When you've done a fresh checkout of above, you will need to run:
+   debian/rules quilt-setup
+
+To cherry pick revisions 391 to tip from from trunk, do something like:
+  s=391; e=;
+  b=../trunk;
+  [ -n "${e}" ] || e=$(cd ${b} && bzr revno)
+  pfile=catchup-${s}${e:+-${e}}.patch
+  [ "$s" = "$e" ] && pfile=catchup-${s}.patch
+  ( cd ../trunk && bzr log -r$s..$e &&
+      bzr diff -p1 -r$(($s-1))..$e ) > "debian/patches/$pfile"
+  echo "$pfile" >> debian/patches/series
+  quilt push
+  bzr add $(quilt files) debian/patches/${pfile} debian/patches/series
+
+You can set 'e' (end) to not go to tip.

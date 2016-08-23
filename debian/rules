@@ -1,0 +1,44 @@
+#!/usr/bin/make -f
+
+DEB_PYTHON_SYSTEM := pycentral
+export DH_PYCENTRAL=include-links
+
+binary-install/cloud-init::cloud-init-fixups
+
+binary-install/grub-legacy-ec2::grub-legacy-ec2-install
+
+include /usr/share/cdbs/1/rules/debhelper.mk
+include /usr/share/cdbs/1/class/python-distutils.mk
+
+DEB_DH_INSTALL_SOURCEDIR := debian/tmp
+
+cloud-init-fixups:
+	for x in $(DEB_DESTDIR)/usr/bin/*.py; do mv "$$x" "$${x%.py}"; done
+	install -d $(DEB_DESTDIR)/etc/rsyslog.d
+	cp tools/21-cloudinit.conf $(DEB_DESTDIR)/etc/rsyslog.d/21-cloudinit.conf
+
+grub-legacy-ec2-install:
+	install -d $(DEB_DESTDIR)/usr/sbin
+	install -m 0755 debian/update-grub-legacy-ec2 $(DEB_DESTDIR)/usr/sbin
+	# Note: these are installed as 'x-' so as to be
+	# sure to run after 'initramfs-tools' so the ramdisk
+	# will be genrated.
+	for khook in postinst postrm; do \
+		d=$(DEB_DESTDIR)/etc/kernel/$${khook}.d; \
+		install -d "$${d}" && \
+		install -m 0755 "debian/grub-legacy-ec2.kernel-$${khook}" "$${d}/x-grub-legacy-ec2" || exit 1; done
+	install -m 0755 debian/grub-set-default-legacy-ec2 $(DEB_DESTDIR)/usr/sbin
+	install -m 0755 debian/grub-set-default $(DEB_DESTDIR)/usr/sbin
+
+# You only need to run this immediately after checking out the package from
+# revision control.
+# http://bugs.debian.org/cgi-bin/bugreport.cgi?bug=572204
+quilt-setup:
+	@[ ! -d .pc ] || { echo ".pc exists. remove it and re-run to start fresh"; exit 1; }
+	set -e; for patch in $$(quilt series | tac); do \
+		patch -p1 -R --no-backup-if-mismatch <"debian/patches/$$patch"; \
+	done
+	quilt push -a
+
+.PHONY: quilt-setup
+
