@@ -1,3 +1,25 @@
+cloud-init (0.7.7~bzr1176-0ubuntu1) xenial; urgency=medium
+
+  * d/README.source, d/new-upstream-snapshot: simplify the README.source
+    with a script.
+  * d/rules: support DEB_BUILD_OPTIONS=nocheck and remove unused code.
+  * d/rules: make tests with python3
+  * d/control: add pep8 as a build depends
+  * d/cloud-init.preinst, d/cloud-init.postinst adjust upgrade path
+    to adjust systemd jobs that put cloud-init unit jobs directly
+    in multi-user.target.
+  * New upstream snapshot.
+    * Add Image Customization Parser for VMware vSphere Hypervisor Support.
+      Disabled by default. [Sankar Tanguturi]
+    * lxd: add initial support for setting up lxd using 'lxd init'
+    * Handle escaped quotes in WALinuxAgentShim.find_endpoint (LP: #1488891)
+    * timezone: use a symlink when updating /etc/localtime (LP: #1543025)
+    * enable more code testing in 'make check'
+    * Added Bigstep datasource [Daniel Watkins]
+    * Enable password changing via a hashed string [Alex Sirbu]
+
+ -- Scott Moser <smoser@ubuntu.com>  Fri, 04 Mar 2016 15:44:02 -0500
+
 cloud-init (0.7.7~bzr1160-0ubuntu1) xenial; urgency=medium
 
   * New upstream snapshot.

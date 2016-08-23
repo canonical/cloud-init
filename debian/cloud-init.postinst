@@ -193,6 +193,14 @@ fix_1336855() {
 
 }
 
+cleanup_lp1552999() {
+    local oldver="$1" last_bad_ver="0.7.7~bzr1178"
+    dpkg --compare-versions "$oldver" le "$last_bad_ver" || return 0
+    local edir="/etc/systemd/system/multi-user.target.wants"
+    rm -f "$edir/cloud-config.service" "$edir/cloud-final.service" \
+        "$edir/cloud-init-local.service" "$edir/cloud-init.service"
+}
+
 if [ "$1" = "configure" ]; then
    # disable ureadahead (LP: #499520)
    dpkg-divert --package cloud-init --rename --divert \
@@ -236,3 +244,8 @@ EOF
 fi
 
 #DEBHELPER#
+
+if [ "$1" = "configure" ]; then
+   oldver="$2"
+   cleanup_lp1552999 "$oldver"
+fi
