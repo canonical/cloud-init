@@ -40,3 +40,4 @@ lp-1458052-redact-azure-password.patch
 lp-1382481-cloudstack-vr.patch
 lp-1177432-same-archives-as-ubuntu-server.patch
 lp-1506244-azure-ssh-key-values.patch
+lp-1506187-azure_use_unique_vm_id.patch

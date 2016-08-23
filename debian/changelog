@@ -1,3 +1,14 @@
+cloud-init (0.6.3-0ubuntu1.25) precise; urgency=medium
+
+  * Microsoft Azure: Use stable VM instance ID over SharedConfig.xml
+    (LP: #1506187)
+    - d/patches/lp-1506187-azure_use_unique_vm_id.patch: use DMI data for
+      the stable VM instance ID
+    - d/cloud-init.preinst: migrate existing instances to stable VM instance
+      ID on upgrade from prior versions of cloud-init.
+
+ -- Daniel Watkins <daniel.watkins@canonical.com>  Mon, 25 Apr 2016 16:53:07 -0400
+
 cloud-init (0.6.3-0ubuntu1.24) precise; urgency=medium
 
   * d/patches/lp-1506244-azure-ssh-key-values.patch: AZURE: Add support

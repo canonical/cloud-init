@@ -105,6 +105,73 @@ convert_varlib_05x_06x() {
    return 0
 }
 
+azure_apply_new_instance_id_1506187() {
+  # With LP: #1506187, the Azure instance ID detection method was changed
+  # to use the DMI data. In order to prevent existing instances from thinking
+  # they are new instances, the instance ID needs to be updated here.
+
+  if grep DataSourceAzure /var/lib/cloud/instance/datasource > /dev/null 2>&1; then
+
+     product_id_f="/sys/devices/virtual/dmi/id/product_uuid"
+     instance_id_link="/var/lib/cloud/instance"
+
+     if [ ! -e "${product_id_f}" -o ! -e "${instance_id_link}" ]; then
+        return 0
+     fi
+
+     # Get the current instance ID's (new and old)
+     new_instance_id="$(cat ${product_id_f})"
+     old_instance_id="$(basename "$(readlink -f "${instance_id_link}")")"
+
+     if [ "${new_instance_id}" = "${old_instance_id}" ]; then
+        # this may have been applied for a prior version, i.e. upgrading
+        # from 14.04 to 16.04
+        return 0
+
+     elif [ -z "${new_instance_id}" -o -z "${old_instance_id}" ]; then
+        cat <<EOM
+
+WARNING: Failed to migrate old instance ID to new instance ID.
+    Cloud-init may detect this instance as a new instance upon reboot.
+    Please see: https://bugs.launchpad.net/bug/1506187
+
+EOM
+
+     elif [ "${new_instance_id}" != "${old_instance_id}" ]; then
+        cat <<EOM
+
+AZURE: this instance uses an unstable instance ID. Cloud-init will
+    migrate the instance ID from:
+            ${old_instance_id}
+        to:
+            ${new_instance_id}
+    For more information about this change, please see:
+    https://bugs.launchpad.net/bug/1506187
+    https://azure.microsoft.com/en-us/blog/accessing-and-using-azure-vm-unique-id
+
+EOM
+
+        # Write the new instance id
+        echo "${new_instance_id}" > /var/lib/cloud/data/instance-id
+
+        # Remove the symlink for the instance
+        rm /var/lib/cloud/instance
+
+        # Rename the old instance id to the new one
+        mv /var/lib/cloud/instances/${old_instance_id} \
+           /var/lib/cloud/instances/${new_instance_id}
+
+        # Link the old id to the new one, just incase
+        ln -s /var/lib/cloud/instances/${new_instance_id} \
+              /var/lib/cloud/instances/${old_instance_id}
+
+        # Make the active instance the new id
+        ln -s /var/lib/cloud/instances/${new_instance_id} \
+              /var/lib/cloud/instance
+  fi
+fi
+}
+
 case "$1" in
 	install|upgrade)
 		# removing obsolete conffiles from the 'ec2-init' package
@@ -158,6 +225,11 @@ case "$1" in
       # 0.6.0 changed 'user-scripts' to config-scripts-user (LP: #1049146)
       if [ -e /var/lib/cloud/instance/sem/user-scripts ]; then
          ln -sf user-scripts /var/lib/cloud/instance/sem/config-scripts-user
+      fi
+
+      # 0.6.3-0ubuntu1.25 introduced new instance ID source for Azure
+      if dpkg --compare-versions "$2" le "0.6.3-0ubuntu1.25"; then
+         azure_apply_new_instance_id_1506187
       fi
 
       d=/etc/cloud/
