@@ -1,3 +1,9 @@
+cloud-init (0.6.3-0ubuntu1.17) precise; urgency=medium
+
+  * Backport support for fetching passwords in CloudStack (LP: #1422388).
+
+ -- Daniel Watkins <daniel.watkins@canonical.com>  Wed, 11 Mar 2015 10:56:20 -0600
+
 cloud-init (0.6.3-0ubuntu1.16) precise-proposed; urgency=medium
 
    [ Ben Howard ]

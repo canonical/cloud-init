@@ -27,3 +27,4 @@ lp-1336855-grub_xvda.patch
 lp-1378441-backport-gce-data-source.patch
 lp-1383794-gce-short_name.patch
 lp-1404311-gce-data_encoding.patch
+lp-1422388-cloudstack-passwords.patch
