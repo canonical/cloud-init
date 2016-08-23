@@ -1,0 +1,14 @@
+Description: Use the shortname for GCE
+Author: Ben Howard <ben.howard@canonical.com>
+Bug-Ubuntu: https://bugs.launchpad.net/bugs/1383794
+--- a/cloudinit/DataSourceGCE.py
++++ b/cloudinit/DataSourceGCE.py
+@@ -135,7 +135,7 @@
+         return self.metadata['public-keys']
+ 
+     def get_hostname(self, fqdn=False, _resolve_ip=False):
+-        return self.metadata['local-hostname']
++        return self.metadata['local-hostname'].split('.')[0]
+ 
+     @property
+     def userdata_raw(self):

@@ -25,3 +25,5 @@ lp-1302229-fix_futils_azure.patch
 lp-1363260-add-cloudsigma_ds.patch
 lp-1336855-grub_xvda.patch
 lp-1378441-backport-gce-data-source.patch
+lp-1383794-gce-short_name.patch
+lp-1404311-gce-data_encoding.patch

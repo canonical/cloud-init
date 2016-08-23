@@ -1,0 +1,39 @@
+Author: Ben Howard <ben.howard.@ubuntu.com>
+Bug: https://launchpad.net/bugs/1404311
+Applied-Upstream: yes
+Description: Allow for user-defined encoding on user-data to address
+ GCE's mangling of meta-data.
+--- a/cloudinit/DataSourceGCE.py
++++ b/cloudinit/DataSourceGCE.py
+@@ -17,6 +17,7 @@
+ import logging
+ import urllib2
+ 
++from base64 import b64decode
+ from cloudinit import util
+ from cloudinit import DataSource as sources
+ 
+@@ -78,6 +79,8 @@
+             ('local-hostname', 'instance/hostname', True),
+             ('public-keys', 'project/attributes/sshKeys', False),
+             ('user-data', 'instance/attributes/user-data', False),
++            ('user-data-encoding', 'instance/attributes/user-data-encoding',
++             False),
+         ]
+ 
+         # if we cannot resolve the metadata server, then no point in trying
+@@ -121,6 +124,14 @@
+             lines = self.metadata['public-keys'].splitlines()
+             self.metadata['public-keys'] = [self._trim_key(k) for k in lines]
+ 
++        encoding = self.metadata.get('user-data-encoding')
++        if encoding:
++            if encoding == 'base64':
++                self.metadata['user-data'] = b64decode(
++                    self.metadata['user-data'])
++            else:
++                LOG.warn('unknown user-data-encoding: %s, ignoring', encoding)
++
+         return found
+ 
+     @property

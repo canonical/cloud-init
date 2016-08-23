@@ -1,3 +1,15 @@
+cloud-init (0.6.3-0ubuntu1.16) precise-proposed; urgency=medium
+
+   [ Ben Howard ]
+   * debian/patches/lp-1383794-gce-short_name.patch: Use short hostname for GCE
+     (LP: #1383794).
+
+   [ Wayne Witzel III ]
+   * debian/patches/lp-1404311-gce-data_encoding.patch: Enable user-data
+     encoding support for GCE (LP: #1404311).
+
+ -- Ben Howard <ben.howard@ubuntu.com>  Tue, 21 Oct 2014 14:56:23 -0600
+
 cloud-init (0.6.3-0ubuntu1.15) precise-proposed; urgency=medium
 
   * debian/patches/lp-1378441-backport-gce-data-source.patch: backported
