@@ -1,3 +1,16 @@
+cloud-init (0.7.7~bzr1200-0ubuntu1) xenial; urgency=medium
+
+  * New upstream snapshot.
+    - fix adding of users when no group is specified (LP: #1562918)
+    - fix write_files with compressed content (LP: #1565638)
+    - systemd: do not specify After of obsolete syslog.target (LP: #1536964)
+    - chef: fix chef installation from gems (LP: #1553345)
+    - disk_setup: correctly send force to mkfs on block devices (LP: #1548772)
+    - locale: list unsupported environment settings in warning (LP: #1558069)
+    - fix NoCloud and other datasources if no datasource config (LP: #1514407)
+
+ -- Scott Moser <smoser@ubuntu.com>  Wed, 06 Apr 2016 13:07:27 -0400
+
 cloud-init (0.7.7~bzr1192-0ubuntu2) xenial; urgency=medium
 
   [Logan Rosen]
