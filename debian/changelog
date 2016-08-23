@@ -1,3 +1,14 @@
+cloud-init (0.6.3-0ubuntu1.10) precise-proposed; urgency=low
+
+  * debian/patches/lp-1272115-fix_smartos_compliance.patch: Fix compliance for
+    SmartOS data handling (LP: #1272115):
+    - cloud-init user-data is now named spaced as "cloud-init:user-data"
+    - user-data is written to /var/db/mdata-user-data
+    - user-scripts are fetched and executed each boot
+    - datacenter/region is now named spaced as "sdc:datacenter"
+
+ -- Ben Howard <ben.howard@ubuntu.com>  Mon, 27 Jan 2014 13:57:24 -0700
+
 cloud-init (0.6.3-0ubuntu1.9) precise-proposed; urgency=low
 
   * debian/patches/lp-1247262-fix_futils_smartos.patch:

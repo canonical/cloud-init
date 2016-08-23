@@ -17,3 +17,4 @@ lp-1233315-add-smartos-support.patch
 lp-1231490-azure-ephemeral-format.patch
 lp-1233315-1231490-ephmeralX.Y-support.patch
 lp-1247262-fix_futils_smartos.patch
+lp-1272115-fix_smartos_compliance.patch
