@@ -1,3 +1,9 @@
+cloud-init (0.6.3-0ubuntu1.11) precise-proposed; urgency=low
+
+  * support apt-add-archive with 'cloud-archive:' format.  (LP: #1244355)
+
+ -- Jay R. Wren <jrwren@xmtp.net>  Thu, 30 Jan 2014 20:57:09 +0000
+
 cloud-init (0.6.3-0ubuntu1.10) precise-proposed; urgency=low
 
   * debian/patches/lp-1272115-fix_smartos_compliance.patch: Fix compliance for

@@ -1,0 +1,92 @@
+Author: Jay R. Wren <jrwren@xmtp.net>
+Bug: https://launchpad.net/bugs/1244355
+Applied-Upstream: yes
+Description: use 'add-apt-repository' for more things
+ This modifies the logic that decides when 'add-apt-repository' is used.
+ Now, by default any string that matches ADD_APT_REPO_MATCH will be fed to
+ add-apt-repository.  This will allow the string 'cloud-archive:tools' to
+ work.
+ .
+ It also makes the value configurable in cloud-config by configuring the
+ 'add_apt_repo_match' setting.
+=== modified file 'cloudinit/CloudConfig/cc_apt_update_upgrade.py'
+--- a/cloudinit/CloudConfig/cc_apt_update_upgrade.py
++++ b/cloudinit/CloudConfig/cc_apt_update_upgrade.py
+@@ -27,6 +27,8 @@ import cloudinit.CloudConfig as cc
+ import re
+ 
+ 
++ADD_APT_REPO_MATCH = r'^[\w-]+:\w'
++
+ def handle(name, cfg, cloud, log, _args):
+     update = util.get_cfg_option_bool(cfg, 'apt_update', False)
+     upgrade = util.get_cfg_option_bool(cfg, 'apt_upgrade', False)
+@@ -72,7 +74,15 @@ def handle(name, cfg, cloud, log, _args)
+         params = mirrors
+         params['RELEASE'] = release
+         params['MIRROR'] = mirror
+-        errors = add_sources(cfg['apt_sources'], params)
++
++        matchcfg = cfg.get('add_apt_repo_match', ADD_APT_REPO_MATCH)
++        if matchcfg:
++            matcher = re.compile(matchcfg).search
++        else:
++            matcher = lambda f: False
++
++        errors = add_sources(cfg['apt_sources'], params,
++                             aa_repo_match=matcher)
+         for e in errors:
+             log.warn("Source Error: %s\n" % ':'.join(e))
+ 
+@@ -157,7 +167,7 @@ def generate_sources_list(codename, mirr
+     util.render_to_file('sources.list', '/etc/apt/sources.list', params)
+ 
+ 
+-def add_sources(srclist, searchList=None):
++def add_sources(srclist, searchList=None, aa_repo_match=None):
+     """
+     add entries in /etc/apt/sources.list.d for each abbreviated
+     sources.list entry in 'srclist'.  When rendering template, also
+@@ -165,6 +175,10 @@ def add_sources(srclist, searchList=None
+     """
+     if searchList is None:
+         searchList = {}
++
++    if aa_repo_match is None:
++        aa_repo_match = lambda f: False
++
+     elst = []
+ 
+     for ent in srclist:
+@@ -173,14 +187,14 @@ def add_sources(srclist, searchList=None
+             continue
+ 
+         source = ent['source']
+-        if source.startswith("ppa:"):
++        source = util.render_string(source, searchList)
++        if aa_repo_match(source):
+             try:
+                 util.subp(["add-apt-repository", source])
+-            except:
+-                elst.append([source, "add-apt-repository failed"])
++            except util.ProcessExecutionError as e:
++                elst.append([source, "add-apt-repository failed" + str(e)])
+             continue
+ 
+-        source = util.render_string(source, searchList)
+ 
+         if 'filename' not in ent:
+             ent['filename'] = 'cloud_config_sources.list'
+--- a/doc/examples/cloud-config.txt
++++ b/doc/examples/cloud-config.txt
+@@ -64,6 +64,10 @@ apt_pipelining: False
+ # then apt_mirror above will have no effect
+ apt_preserve_sources_list: true
+ 
++# 'source entries in apt-sources that match this python regex
++# expression will be passed to add-apt-repository
++add_apt_repo_match = "^[\w-]+:\w"
++
+ apt_sources:
+  - source: "deb http://ppa.launchpad.net/byobu/ppa/ubuntu karmic main"
+    keyid: F430BBA5 # GPG key ID published on a key server
