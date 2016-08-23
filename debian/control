@@ -5,7 +5,10 @@ Maintainer: Scott Moser <smoser@ubuntu.com>
 Build-Depends: cdbs,
                debhelper (>= 5.0.38),
                po-debconf,
-               python (>= 2.6.6-3~)
+               pyflakes,
+               pylint,
+               python (>= 2.6.6-3~),
+               python-nose
 XS-Python-Version: all
 Standards-Version: 3.9.2
 
