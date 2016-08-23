@@ -1,3 +1,20 @@
+cloud-init (0.7.7~bzr1208-0ubuntu1) xenial; urgency=medium
+
+  * New upstream snapshot.
+    - phone_home: allow usage of fqdn (LP: #1566824) [Ollie Armstrong]
+    - chef: straighten out validation_cert and validation_key (LP: #1568940)
+    - skip bridges when generating fallback networking (LP: #1569974)
+    - rh_subscription: only check subscription if configured (LP: #1536706)
+    - SmartOS, CloudSigma: fix error when dmi data is not availble
+      (LP: #1569469)
+    - DataSourceNoCloud: fix check_instance_id when upgraded (LP: #1568150)
+    - lxd: adds basic support for dpkg based lxd-bridge 
+      configuration. (LP: #1569018)
+    - centos: Ensure that a resolve conf object is written as a string.
+      (LP: #1479988)
+
+ -- Scott Moser <smoser@ubuntu.com>  Wed, 13 Apr 2016 13:19:03 -0400
+
 cloud-init (0.7.7~bzr1200-0ubuntu1) xenial; urgency=medium
 
   * New upstream snapshot.
