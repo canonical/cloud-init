@@ -1,8 +1,10 @@
 # vi: ts=4 expandtab
 #
 #    Copyright (C) 2009-2010 Canonical Ltd.
+#    Copyright (C) 2012 Hewlett-Packard Development Company, L.P.
 #
 #    Author: Scott Moser <scott.moser@canonical.com>
+#    Author: Juerg Haefliger <juerg.haefliger@hp.com>
 #
 #    This program is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License version 3, as
@@ -18,12 +20,13 @@
 
 import cloudinit.util as util
 
-def handle(_name,cfg,cloud,log,_args):
-    if not cfg.has_key("runcmd"):
+
+def handle(_name, cfg, cloud, log, _args):
+    if "runcmd" not in cfg:
         return
-    outfile="%s/runcmd" % cloud.get_ipath('scripts')
+    outfile = "%s/runcmd" % cloud.get_ipath('scripts')
     try:
         content = util.shellify(cfg["runcmd"])
-        util.write_file(outfile,content,0700)
+        util.write_file(outfile, content, 0700)
     except:
         log.warn("failed to open %s for runcmd" % outfile)

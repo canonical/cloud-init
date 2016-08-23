@@ -1,8 +1,10 @@
 # vi: ts=4 expandtab
 #
 #    Copyright (C) 2009-2010 Canonical Ltd.
+#    Copyright (C) 2012 Hewlett-Packard Development Company, L.P.
 #
 #    Author: Scott Moser <scott.moser@canonical.com>
+#    Author: Juerg Hafliger <juerg.haefliger@hp.com>
 #
 #    This program is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License version 3, as
@@ -15,6 +17,7 @@
 #
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
 import email
 
 from email.mime.multipart import MIMEMultipart
@@ -26,26 +29,29 @@ import cloudinit.util as util
 import hashlib
 import urllib
 
-starts_with_mappings={
-    '#include' : 'text/x-include-url',
-    '#include-once' : 'text/x-include-once-url',
-    '#!' : 'text/x-shellscript',
-    '#cloud-config' : 'text/cloud-config',
-    '#upstart-job'  : 'text/upstart-job',
-    '#part-handler' : 'text/part-handler',
-    '#cloud-boothook' : 'text/cloud-boothook',
-    '#cloud-config-archive' : 'text/cloud-config-archive',
+
+starts_with_mappings = {
+    '#include': 'text/x-include-url',
+    '#include-once': 'text/x-include-once-url',
+    '#!': 'text/x-shellscript',
+    '#cloud-config': 'text/cloud-config',
+    '#upstart-job': 'text/upstart-job',
+    '#part-handler': 'text/part-handler',
+    '#cloud-boothook': 'text/cloud-boothook',
+    '#cloud-config-archive': 'text/cloud-config-archive',
 }
+
 
 # if 'string' is compressed return decompressed otherwise return it
 def decomp_str(string):
     import StringIO
     import gzip
     try:
-        uncomp = gzip.GzipFile(None,"rb",1,StringIO.StringIO(string)).read()
+        uncomp = gzip.GzipFile(None, "rb", 1, StringIO.StringIO(string)).read()
         return(uncomp)
     except:
         return(string)
+
 
 def do_include(content, appendmsg):
     import os
@@ -53,7 +59,8 @@ def do_include(content, appendmsg):
     # also support '#include <url here>'
     includeonce = False
     for line in content.splitlines():
-        if line == "#include": continue
+        if line == "#include":
+            continue
         if line == "#include-once":
             includeonce = True
             continue
@@ -62,10 +69,13 @@ def do_include(content, appendmsg):
             includeonce = True
         elif line.startswith("#include"):
             line = line[len("#include"):].lstrip()
-        if line.startswith("#"): continue
+        if line.startswith("#"):
+            continue
+        if line.strip() == "":
+            continue
 
         # urls cannot not have leading or trailing white space
-        msum = hashlib.md5()
+        msum = hashlib.md5()  # pylint: disable=E1101
         msum.update(line.strip())
         includeonce_filename = "%s/urlcache/%s" % (
             cloudinit.get_ipath_cur("data"), msum.hexdigest())
@@ -86,14 +96,14 @@ def do_include(content, appendmsg):
 def explode_cc_archive(archive, appendmsg):
     for ent in yaml.load(archive):
         # ent can be one of:
-        #  dict { 'filename' : 'value' , 'content' : 'value', 'type' : 'value' }
+        #  dict { 'filename' : 'value', 'content' : 'value', 'type' : 'value' }
         #    filename and type not be present
         # or
         #  scalar(payload)
-        
+
         def_type = "text/cloud-config"
-        if isinstance(ent,str):
-            ent = { 'content': ent }
+        if isinstance(ent, str):
+            ent = {'content': ent}
 
         content = ent.get('content', '')
         mtype = ent.get('type', None)
@@ -116,7 +126,7 @@ def explode_cc_archive(archive, appendmsg):
                 continue
             msg.add_header(header, ent['header'])
 
-        _attach_part(appendmsg,msg)
+        _attach_part(appendmsg, msg)
 
 
 def multi_part_count(outermsg, newcount=None):
@@ -133,6 +143,7 @@ def multi_part_count(outermsg, newcount=None):
 
     return(int(outermsg.get('Number-Attachments', 0)))
 
+
 def _attach_part(outermsg, part):
     """
     Attach an part to an outer message. outermsg must be a MIMEMultipart.
@@ -141,17 +152,19 @@ def _attach_part(outermsg, part):
     cur = multi_part_count(outermsg)
     if not part.get_filename(None):
         part.add_header('Content-Disposition', 'attachment',
-            filename = 'part-%03d' % (cur+1))
+            filename='part-%03d' % (cur + 1))
     outermsg.attach(part)
-    multi_part_count(outermsg, cur+1)
-    
+    multi_part_count(outermsg, cur + 1)
+
+
 def type_from_startswith(payload, default=None):
     # slist is sorted longest first
-    slist = sorted(starts_with_mappings.keys(), key=lambda e: 0-len(e))
+    slist = sorted(starts_with_mappings.keys(), key=lambda e: 0 - len(e))
     for sstr in slist:
         if payload.startswith(sstr):
             return(starts_with_mappings[sstr])
     return default
+
 
 def process_includes(msg, appendmsg=None):
     if appendmsg == None:
@@ -188,23 +201,25 @@ def process_includes(msg, appendmsg=None):
 
         _attach_part(appendmsg, part)
 
+
 def message_from_string(data, headers=None):
     if headers is None:
         headers = {}
     if "mime-version:" in data[0:4096].lower():
         msg = email.message_from_string(data)
-        for (key,val) in headers.items():
+        for (key, val) in headers.items():
             if key in msg:
-                msg.replace_header(key,val)
+                msg.replace_header(key, val)
             else:
                 msg[key] = val
     else:
-        mtype = headers.get("Content-Type","text/plain")
+        mtype = headers.get("Content-Type", "text/plain")
         maintype, subtype = mtype.split("/", 1)
         msg = MIMEBase(maintype, subtype, *headers)
         msg.set_payload(data)
 
     return(msg)
+
 
 # this is heavily wasteful, reads through userdata string input
 def preprocess_userdata(data):
@@ -212,8 +227,10 @@ def preprocess_userdata(data):
     process_includes(message_from_string(decomp_str(data)), newmsg)
     return(newmsg.as_string())
 
-# callback is a function that will be called with (data, content_type, filename, payload)
-def walk_userdata(istr, callback, data = None):
+
+# callback is a function that will be called with (data, content_type,
+# filename, payload)
+def walk_userdata(istr, callback, data=None):
     partnum = 0
     for part in message_from_string(istr).walk():
         # multipart/* are just containers
@@ -230,12 +247,16 @@ def walk_userdata(istr, callback, data = None):
 
         callback(data, ctype, filename, part.get_payload(decode=True))
 
-        partnum = partnum+1
+        partnum = partnum + 1
+
 
 if __name__ == "__main__":
-    import sys
-    data = decomp_str(file(sys.argv[1]).read())
-    newmsg = MIMEMultipart()
-    process_includes(message_from_string(data), newmsg)
-    print newmsg
-    print "#found %s parts" % multi_part_count(newmsg)
+    def main():
+        import sys
+        data = decomp_str(file(sys.argv[1]).read())
+        newmsg = MIMEMultipart()
+        process_includes(message_from_string(data), newmsg)
+        print newmsg
+        print "#found %s parts" % multi_part_count(newmsg)
+
+    main()

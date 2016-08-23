@@ -1,8 +1,10 @@
 # vi: ts=4 expandtab
 #
 #    Copyright (C) 2009-2010 Canonical Ltd.
+#    Copyright (C) 2012 Hewlett-Packard Development Company, L.P.
 #
 #    Author: Scott Moser <scott.moser@canonical.com>
+#    Author: Juerg Haefliger <juerg.haefliger@hp.com>
 #
 #    This program is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License version 3, as
@@ -24,22 +26,24 @@ import shutil
 frequency = per_instance
 tz_base = "/usr/share/zoneinfo"
 
-def handle(_name,cfg,_cloud,log,args):
+
+def handle(_name, cfg, _cloud, log, args):
     if len(args) != 0:
         timezone = args[0]
     else:
-        timezone = util.get_cfg_option_str(cfg,"timezone",False)
+        timezone = util.get_cfg_option_str(cfg, "timezone", False)
 
-    if not timezone: return
+    if not timezone:
+        return
 
-    tz_file = "%s/%s" % (tz_base , timezone)
+    tz_file = "%s/%s" % (tz_base, timezone)
 
     if not os.path.isfile(tz_file):
         log.debug("Invalid timezone %s" % tz_file)
         raise Exception("Invalid timezone %s" % tz_file)
 
     try:
-        fp=open("/etc/timezone","wb")
+        fp = open("/etc/timezone", "wb")
         fp.write("%s\n" % timezone)
         fp.close()
     except:
@@ -58,6 +62,6 @@ def handle(_name,cfg,_cloud,log,args):
     except:
         log.debug("failed to copy %s to /etc/localtime" % tz_file)
         raise
-        
+
     log.debug("set timezone to %s" % timezone)
     return

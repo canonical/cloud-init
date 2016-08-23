@@ -1,6 +1,6 @@
 #cloud-config
 #
-# This is an example file to automatically setup and run puppetd
+# This is an example file to automatically setup chef and run a list of recipes
 # when the instance boots for the first time.
 # Make sure that this file is valid yaml before starting instances.
 # It should be passed as user-data when starting the instance.

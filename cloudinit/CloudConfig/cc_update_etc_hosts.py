@@ -1,8 +1,10 @@
 # vi: ts=4 expandtab
 #
 #    Copyright (C) 2011 Canonical Ltd.
+#    Copyright (C) 2012 Hewlett-Packard Development Company, L.P.
 #
 #    Author: Scott Moser <scott.moser@canonical.com>
+#    Author: Juerg Haefliger <juerg.haefliger@hp.com>
 #
 #    This program is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License version 3, as
@@ -15,16 +17,18 @@
 #
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
 import cloudinit.util as util
 from cloudinit.CloudConfig import per_always
 import StringIO
 
 frequency = per_always
 
-def handle(_name,cfg,cloud,log,_args):
-    ( hostname, fqdn ) = util.get_hostname_fqdn(cfg, cloud)
 
-    manage_hosts = util.get_cfg_option_bool(cfg,"manage_etc_hosts", False)
+def handle(_name, cfg, cloud, log, _args):
+    (hostname, fqdn) = util.get_hostname_fqdn(cfg, cloud)
+
+    manage_hosts = util.get_cfg_option_str(cfg, "manage_etc_hosts", False)
     if manage_hosts in ("True", "true", True, "template"):
         # render from template file
         try:
@@ -32,8 +36,8 @@ def handle(_name,cfg,cloud,log,_args):
                 log.info("manage_etc_hosts was set, but no hostname found")
                 return
 
-            util.render_to_file('hosts', '/etc/hosts', \
-                { 'hostname' : hostname, 'fqdn' : fqdn })
+            util.render_to_file('hosts', '/etc/hosts',
+                                {'hostname': hostname, 'fqdn': fqdn})
         except Exception:
             log.warn("failed to update /etc/hosts")
             raise
@@ -76,9 +80,8 @@ def update_etc_hosts(hostname, fqdn, _log):
             new_etchosts.write("%s%s" % (header, hosts_line))
             need_write = True
         if need_write == True:
-            new_etcfile = open ('/etc/hosts','wb')
+            new_etcfile = open('/etc/hosts', 'wb')
             new_etcfile.write(new_etchosts.getvalue())
             new_etcfile.close()
         new_etchosts.close()
     return
-

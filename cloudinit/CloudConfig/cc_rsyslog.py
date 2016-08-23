@@ -1,8 +1,10 @@
 # vi: ts=4 expandtab syntax=python
 #
 #    Copyright (C) 2009-2010 Canonical Ltd.
+#    Copyright (C) 2012 Hewlett-Packard Development Company, L.P.
 #
 #    Author: Scott Moser <scott.moser@canonical.com>
+#    Author: Juerg Haefliger <juerg.haefliger@hp.com>
 #
 #    This program is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License version 3, as
@@ -24,7 +26,8 @@ import traceback
 DEF_FILENAME = "20-cloud-config.conf"
 DEF_DIR = "/etc/rsyslog.d"
 
-def handle(_name,cfg,_cloud,log,_args):
+
+def handle(_name, cfg, _cloud, log, _args):
     # rsyslog:
     #  - "*.* @@192.158.1.1"
     #  - content: "*.*   @@192.0.2.1:10514"
@@ -33,15 +36,16 @@ def handle(_name,cfg,_cloud,log,_args):
     #      *.*   @@syslogd.example.com
 
     # process 'rsyslog'
-    if not 'rsyslog' in cfg: return
+    if not 'rsyslog' in cfg:
+        return
 
     def_dir = cfg.get('rsyslog_dir', DEF_DIR)
     def_fname = cfg.get('rsyslog_filename', DEF_FILENAME)
 
-    files = [ ]
-    elst = [ ]
+    files = []
+    elst = []
     for ent in cfg['rsyslog']:
-        if isinstance(ent,dict):
+        if isinstance(ent, dict):
             if not "content" in ent:
                 elst.append((ent, "no 'content' entry"))
                 continue
@@ -52,7 +56,7 @@ def handle(_name,cfg,_cloud,log,_args):
             filename = def_fname
 
         if not filename.startswith("/"):
-            filename = "%s/%s" % (def_dir,filename)
+            filename = "%s/%s" % (def_dir, filename)
 
         omode = "ab"
         # truncate filename first time you see it
@@ -69,7 +73,7 @@ def handle(_name,cfg,_cloud,log,_args):
     # need to restart syslogd
     restarted = False
     try:
-        # if this config module is running at cloud-init time 
+        # if this config module is running at cloud-init time
         # (before rsyslog is running) we don't actually have to
         # restart syslog.
         #
@@ -83,7 +87,7 @@ def handle(_name,cfg,_cloud,log,_args):
 
     except Exception as e:
         elst.append(("restart", str(e)))
-    
+
     if restarted:
         # this only needs to run if we *actually* restarted
         # syslog above.

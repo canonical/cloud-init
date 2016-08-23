@@ -8,6 +8,7 @@ Build-Depends: cdbs,
                python-nose,
                pyflakes,
                pylint,
+               python-mocker,
 XS-Python-Version: all
 Standards-Version: 3.9.1
 

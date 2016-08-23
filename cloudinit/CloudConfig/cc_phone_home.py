@@ -1,8 +1,10 @@
 # vi: ts=4 expandtab
 #
 #    Copyright (C) 2011 Canonical Ltd.
+#    Copyright (C) 2012 Hewlett-Packard Development Company, L.P.
 #
 #    Author: Scott Moser <scott.moser@canonical.com>
+#    Author: Juerg Haefliger <juerg.haefliger@hp.com>
 #
 #    This program is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License version 3, as
@@ -20,7 +22,9 @@ import cloudinit.util as util
 from time import sleep
 
 frequency = per_instance
-post_list_all = [ 'pub_key_dsa', 'pub_key_rsa', 'pub_key_ecdsa', 'instance_id', 'hostname' ]
+post_list_all = ['pub_key_dsa', 'pub_key_rsa', 'pub_key_ecdsa', 'instance_id',
+                 'hostname']
+
 
 # phone_home:
 #  url: http://my.foo.bar/$INSTANCE/
@@ -30,12 +34,13 @@ post_list_all = [ 'pub_key_dsa', 'pub_key_rsa', 'pub_key_ecdsa', 'instance_id', 
 # phone_home:
 #  url: http://my.foo.bar/$INSTANCE_ID/
 #  post: [ pub_key_dsa, pub_key_rsa, pub_key_ecdsa, instance_id
-#   
-def handle(_name,cfg,cloud,log,args):
+#
+def handle(_name, cfg, cloud, log, args):
     if len(args) != 0:
-        ph_cfg = util.readconf(args[0])
+        ph_cfg = util.read_conf(args[0])
     else:
-        if not 'phone_home' in cfg: return
+        if not 'phone_home' in cfg:
+            return
         ph_cfg = cfg['phone_home']
 
     if 'url' not in ph_cfg:
@@ -44,7 +49,7 @@ def handle(_name,cfg,cloud,log,args):
 
     url = ph_cfg['url']
     post_list = ph_cfg.get('post', 'all')
-    tries = ph_cfg.get('tries',10)
+    tries = ph_cfg.get('tries', 10)
     try:
         tries = int(tries)
     except:
@@ -54,7 +59,7 @@ def handle(_name,cfg,cloud,log,args):
     if post_list == "all":
         post_list = post_list_all
 
-    all_keys = { }
+    all_keys = {}
     all_keys['instance_id'] = cloud.get_instance_id()
     all_keys['hostname'] = cloud.get_hostname()
 
@@ -72,7 +77,7 @@ def handle(_name,cfg,cloud,log,args):
         except:
             log.warn("%s: failed to open in phone_home" % path)
 
-    submit_keys = { }
+    submit_keys = {}
     for k in post_list:
         if k in all_keys:
             submit_keys[k] = all_keys[k]
@@ -80,20 +85,22 @@ def handle(_name,cfg,cloud,log,args):
             submit_keys[k] = "N/A"
             log.warn("requested key %s from 'post' list not available")
 
-    url = util.render_string(url, { 'INSTANCE_ID' : all_keys['instance_id'] })
+    url = util.render_string(url, {'INSTANCE_ID': all_keys['instance_id']})
 
-    last_e = None
-    for i in range(0,tries):
+    null_exc = object()
+    last_e = null_exc
+    for i in range(0, tries):
         try:
             util.readurl(url, submit_keys)
-            log.debug("succeeded submit to %s on try %i" % (url, i+1))
+            log.debug("succeeded submit to %s on try %i" % (url, i + 1))
             return
         except Exception as e:
-            log.debug("failed to post to %s on try %i" % (url, i+1))
+            log.debug("failed to post to %s on try %i" % (url, i + 1))
             last_e = e
         sleep(3)
 
     log.warn("failed to post to %s in %i tries" % (url, tries))
-    if last_e: raise(last_e)
-    
+    if last_e is not null_exc:
+        raise(last_e)
+
     return

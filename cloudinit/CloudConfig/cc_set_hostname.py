@@ -1,8 +1,10 @@
 # vi: ts=4 expandtab
 #
 #    Copyright (C) 2011 Canonical Ltd.
+#    Copyright (C) 2012 Hewlett-Packard Development Company, L.P.
 #
 #    Author: Scott Moser <scott.moser@canonical.com>
+#    Author: Juerg Haefliger <juerg.haefliger@hp.com>
 #
 #    This program is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License version 3, as
@@ -18,12 +20,13 @@
 
 import cloudinit.util as util
 
-def handle(_name,cfg,cloud,log,_args):
-    if util.get_cfg_option_bool(cfg,"preserve_hostname",False):
+
+def handle(_name, cfg, cloud, log, _args):
+    if util.get_cfg_option_bool(cfg, "preserve_hostname", False):
         log.debug("preserve_hostname is set. not setting hostname")
         return(True)
 
-    ( hostname, _fqdn ) = util.get_hostname_fqdn(cfg, cloud)
+    (hostname, _fqdn) = util.get_hostname_fqdn(cfg, cloud)
     try:
         set_hostname(hostname, log)
     except Exception:
@@ -32,7 +35,8 @@ def handle(_name,cfg,cloud,log,_args):
 
     return(True)
 
+
 def set_hostname(hostname, log):
     util.subp(['hostname', hostname])
-    util.write_file("/etc/hostname","%s\n" % hostname, 0644)
+    util.write_file("/etc/hostname", "%s\n" % hostname, 0644)
     log.debug("populated /etc/hostname with %s on first boot", hostname)
