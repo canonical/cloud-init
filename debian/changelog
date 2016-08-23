@@ -1,3 +1,35 @@
+cloud-init (0.7.7~bzr1245-0ubuntu1~16.04.1) xenial-proposed; urgency=medium
+
+  * debian/new-upstream-snapshot: minor change supporting revision
+    passed in as an argument.
+  * debian/control: Build-Depends on python3-unittest2
+  * SRU Upstream to 16.04 (LP: #1595302).
+    - user_data: fix error when user-data is not utf-8 decodable
+    - write_files: if no permissions are provided, use the default without
+      logging a warning.
+    - do not write /etc/systemd/network/50-cloud-init-*.link files
+    - fix several potential errors identified by pylint.
+    - move 'main' into cloudinit/cmd/ for easier testing
+    - Remove trailing dot from GCE metadata URL [Phil Roche]
+    - Refactor cloudinit networking module to improve testing
+    - Change missing Cheetah log warning to debug [Andrew Jorgensen]
+    - network configuration improvements
+      - centrally handle 'dsmode' (DataSource mode) to be 'local' or 'net.
+      - support networking information being read on dreamcompute
+      - support reading and applying networking information on SmartOS
+      - improve reading networking from openstack network_data.json
+      - support for renaming devices in a container.
+      - remove blocking of udev rules
+    - Apt sources configuration improvements
+    - cloud-config specified on kernel command line will now override
+      system settings.
+    - fix timestamp in reporting events.
+    - Paths: fix instance path if datasource's id has a '/'.
+    - Config Drive: fix check_instance_id signature.
+    - cloudstack: Only use DHCPv4 lease files as a datasource
+
+ -- Scott Moser <smoser@ubuntu.com>  Wed, 22 Jun 2016 16:06:49 -0400
+
 cloud-init (0.7.7~bzr1212-0ubuntu1) xenial; urgency=medium
 
   * New upstream snapshot.

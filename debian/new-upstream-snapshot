@@ -25,7 +25,7 @@ name="cloud-init"
 [ "$1" = "-h" -o "$1" = "--help" ] && { Usage; exit 0; }
 trunk=$1
 revno=${2:-tip}
-uver=${2:-0.7.7} # the *next* upstream version
+uver=${3:-0.7.7} # the *next* upstream version
 
 [ -d "$trunk" ] ||
    fail "trunk dir '$trunk' not a dir"
