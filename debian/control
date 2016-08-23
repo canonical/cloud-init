@@ -5,8 +5,7 @@ Maintainer: Scott Moser <smoser@ubuntu.com>
 Build-Depends: cdbs,
                debhelper (>= 5.0.38),
                po-debconf,
-               python,
-               python-central (>= 0.5.6)
+               python (>= 2.6.6-3~)
 XS-Python-Version: all
 Standards-Version: 3.9.2
 

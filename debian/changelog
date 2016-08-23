@@ -1,3 +1,10 @@
+cloud-init (0.6.2-0ubuntu2) precise; urgency=low
+
+  * Build using dh_python2. LP: #904248.
+  * debian/rules: Explicitly set DEB_PYTHON2_MODULE_PACKAGES = cloud-init.
+
+ -- Matthias Klose <doko@ubuntu.com>  Sat, 17 Dec 2011 21:08:23 +0000
+
 cloud-init (0.6.2-0ubuntu1) precise; urgency=low
 
   * New upstream release
