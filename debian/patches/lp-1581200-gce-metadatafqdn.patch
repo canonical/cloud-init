@@ -1,0 +1,48 @@
+From: Phil Roche <phil.roche@canonical.com>
+Date: Fri, 24 June 2016 11:33:07 +0100
+Subject: Removes trailing dot in metadata.google.internal GCE metadata lookup.
+
+Description:
+A bug was reported (lp:1581200) where if there is no DNS server configured
+or it is not running then the metadata lookup on GCE will fail as it contains a
+trailing dot 'metadata.google.internal.'. As there is no DNS configured or
+running it will use the /etc/hosts file but the hosts file does not contain
+an entry with the trailing dot.
+
+One solution is to add an entry to the /etc/hosts file with the trailing dot
+but according to the manpage, /etc/hosts entries must end with an alphanumeric
+character and cannot end with a dot.
+
+The trailing dot was added to avoid MIM by dns search but we should probably
+assume the instance being started has no DNS and as such when querying
+metadata should use a URL that will resolve using /etc/hosts.
+
+Author: Phil Roche <phil.roche@canonical.com>
+Bug-Ubuntu: https://launchpad.net/bugs/1581200
+
+Index: cloud-init-0.7.5/cloudinit/sources/DataSourceGCE.py
+===================================================================
+--- cloud-init-0.7.5.orig/cloudinit/sources/DataSourceGCE.py
++++ cloud-init-0.7.5/cloudinit/sources/DataSourceGCE.py
+@@ -25,7 +25,7 @@ from cloudinit import url_helper
+ LOG = logging.getLogger(__name__)
+ 
+ BUILTIN_DS_CONFIG = {
+-    'metadata_url': 'http://metadata.google.internal./computeMetadata/v1/'
++    'metadata_url': 'http://metadata.google.internal/computeMetadata/v1/'
+ }
+ REQUIRED_FIELDS = ('instance-id', 'availability-zone', 'local-hostname')
+ 
+Index: cloud-init-0.7.5/tests/unittests/test_datasource/test_gce.py
+===================================================================
+--- cloud-init-0.7.5.orig/tests/unittests/test_datasource/test_gce.py
++++ cloud-init-0.7.5/tests/unittests/test_datasource/test_gce.py
+@@ -39,7 +39,7 @@ GCE_META_PARTIAL = {
+ }
+ 
+ HEADERS = {'X-Google-Metadata-Request': 'True'}
+-MD_URL_RE = re.compile(r'http://metadata.google.internal./computeMetadata/v1/.*')
++MD_URL_RE = re.compile(r'http://metadata.google.internal/computeMetadata/v1/.*')
+ 
+ 
+ def _request_callback(method, uri, headers):

@@ -1,0 +1,17 @@
+Description: Handle symlinks as devices in mount_cb
+Author: Daniel Watkins <daniel.watkins@canonical.com>
+Origin: upstream, http://bazaar.launchpad.net/~cloud-init-dev/cloud-init/trunk/revision/1139
+Bug: https://bugs.launchpad.net/cloud-init/+bug/1490796
+--- a/cloudinit/util.py
++++ b/cloudinit/util.py
+@@ -1352,8 +1352,8 @@
+     mounted = mounts()
+     with tempdir() as tmpd:
+         umount = False
+-        if device in mounted:
+-            mountpoint = mounted[device]['mountpoint']
++        if os.path.realpath(device) in mounted:
++            mountpoint = mounted[os.path.realpath(device)]['mountpoint']
+         else:
+             try:
+                 mountcmd = ['mount']

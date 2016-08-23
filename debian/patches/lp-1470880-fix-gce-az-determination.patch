@@ -1,0 +1,28 @@
+Description: Correctly parse GCE's availability zones
+Author: Daniel Watkins <daniel.watkins@canonical.com>
+Origin: upstream, http://bazaar.launchpad.net/~cloud-init-dev/cloud-init/trunk/revision/1121
+Bug: https://bugs.launchpad.net/cloud-init/+bug/1470880
+--- a/cloudinit/sources/DataSourceGCE.py
++++ b/cloudinit/sources/DataSourceGCE.py
+@@ -105,6 +105,10 @@
+             lines = self.metadata['public-keys'].splitlines()
+             self.metadata['public-keys'] = [self._trim_key(k) for k in lines]
+ 
++        if self.metadata['availability-zone']:
++            self.metadata['availability-zone'] = self.metadata[
++                'availability-zone'].split('/')[-1]
++
+         encoding = self.metadata.get('user-data-encoding')
+         if encoding:
+             if encoding == 'base64':
+--- a/tests/unittests/test_datasource/test_gce.py
++++ b/tests/unittests/test_datasource/test_gce.py
+@@ -87,7 +87,7 @@
+         self.assertEqual(GCE_META.get('instance/id'),
+                          self.ds.get_instance_id())
+ 
+-        self.assertEqual(GCE_META.get('instance/zone'),
++        self.assertEqual(GCE_META.get('instance/zone').split('/')[-1],
+                          self.ds.availability_zone)
+ 
+         self.assertEqual(GCE_META.get('instance/attributes/user-data'),

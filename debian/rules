@@ -1,0 +1,31 @@
+#!/usr/bin/make -f
+
+DEB_PYTHON2_MODULE_PACKAGES = cloud-init
+
+binary-install/cloud-init::cloud-init-fixups
+
+binary-install/grub-legacy-ec2::grub-legacy-ec2-install
+
+include /usr/share/cdbs/1/rules/debhelper.mk
+include /usr/share/cdbs/1/class/python-distutils.mk
+
+DEB_PYTHON_INSTALL_ARGS_ALL += --init-system=upstart
+DEB_DH_INSTALL_SOURCEDIR := debian/tmp
+
+cloud-init-fixups:
+	install -d $(DEB_DESTDIR)/etc/rsyslog.d $(DEB_DESTDIR)/etc/profile.d
+	cp tools/21-cloudinit.conf $(DEB_DESTDIR)/etc/rsyslog.d/21-cloudinit.conf
+	cp tools/Z99-cloud-locale-test.sh $(DEB_DESTDIR)/etc/profile.d
+
+grub-legacy-ec2-install:
+	install -d $(DEB_DESTDIR)/usr/sbin
+	install -m 0755 debian/update-grub-legacy-ec2 $(DEB_DESTDIR)/usr/sbin
+	# Note: these are installed as 'x-' so as to be
+	# sure to run after 'initramfs-tools' so the ramdisk
+	# will be genrated.
+	for khook in postinst postrm; do \
+		d=$(DEB_DESTDIR)/etc/kernel/$${khook}.d; \
+		install -d "$${d}" && \
+		install -m 0755 "debian/grub-legacy-ec2.kernel-$${khook}" "$${d}/x-grub-legacy-ec2" || exit 1; done
+	install -m 0755 debian/grub-set-default-legacy-ec2 $(DEB_DESTDIR)/usr/sbin
+	install -m 0755 debian/grub-set-default $(DEB_DESTDIR)/usr/sbin

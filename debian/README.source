@@ -1,0 +1,50 @@
+=== General Info ===
+Development packaging branch is at
+   lp:ubuntu/<suite>/cloud-init
+alternatively, if you're on the development release:
+   lp:ubuntu/cloud-init
+
+Patches in debian/patches are also stored applied in bzr.
+
+To cherry pick revisions 391 to tip from from trunk, do something like:
+  s=391; e=;
+  b=../trunk;
+  [ -n "${e}" ] || e=$(cd ${b} && bzr revno)
+  pfile=catchup-${s}${e:+-${e}}.patch
+  [ "$s" = "$e" ] && pfile=catchup-${s}.patch
+  ( cd ../trunk && bzr log -r$s..$e &&
+      bzr diff -p1 -r$(($s-1))..$e ) > ../$pfile.full
+  mkdir -p debian/patches
+  filterdiff --exclude "*/ChangeLog" < ../$pfile.full > debian/patches/$pfile
+  echo "$pfile" >> debian/patches/series
+  quilt push
+  quilt refresh
+  files="$(quilt files ${pfile}) debian/patches/series debian/patches/${pfile}"
+  files="$files .pc/${pfile} .pc/applied-patches"
+  bzr add $files
+
+  # now add an entry
+  dch --append "${pfile} (sync to $e)"
+  dch --edit # improve the entry
+  debcommit $files
+
+  ../$pfile.full will have the full diff.  See 'ChangeLog' entries there
+  and debian/patches/$pfile for help writing debian/changelog entry
+
+You can set 'e' (end) to not go to tip.
+
+== Cherry pick single patch ==
+There is a utility in debian/patches named 'cherry-pick-revno' that will
+help to cherry pick a single commit from trunk.
+
+== New snapshot ==
+To import a new snapshot, do:
+
+ trunk="../trunk"
+ uver=$(cd "$trunk" && ./tools/read-version) # the *next* upstream version
+ revno=$(cd "$trunk" && bzr revno)
+ version=${uver}~bzr${revno}
+ tarball=cloud-init-${version}.tar.gz
+ bzr export --format=tgz --revision=${revno} "$tarball" "${trunk}"
+ bzr merge-upstream "$tarball" --version=${version}
+

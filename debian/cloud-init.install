@@ -1,0 +1,9 @@
+etc/cloud
+etc/init/*.conf
+etc/profile.d/*
+etc/rsyslog.d/*
+usr/bin
+usr/lib/cloud-init
+usr/lib/python*/*-packages/*egg-info
+usr/lib/python*/*-packages/cloudinit
+usr/share/doc/cloud-init
