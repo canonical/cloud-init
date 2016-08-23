@@ -1,0 +1,165 @@
+Author: Scott Moser <smoser@ubuntu.com>
+Bug: https://launchpad.net/bugs/978127
+Applied-Upstream: revno 666 and 678
+Description:  DataSourceMAAS: adjust oauth request timestamps on 401 or 403
+ In the event of a 401 or 403 (Unauthorized) in oauth, try set a
+ 'oauth_clockskew' variable.  In future headers, use a time created by
+ 'time.time() + self.oauth_clockskew'.  The idea here is that if the local time
+ is bad (or even if the server time is bad) we will essentially use something
+ that should be similar to the remote clock.
+--- a/cloudinit/DataSourceMAAS.py
++++ b/cloudinit/DataSourceMAAS.py
+@@ -20,6 +20,7 @@ import cloudinit.DataSource as DataSourc
+ 
+ from cloudinit import seeddir as base_seeddir
+ from cloudinit import log
++from email.utils import parsedate
+ import cloudinit.util as util
+ import errno
+ import oauth.oauth as oauth
+@@ -29,6 +30,7 @@ import time
+ 
+ 
+ MD_VERSION = "2012-03-01"
++LOG = log
+ 
+ 
+ class DataSourceMAAS(DataSource.DataSource):
+@@ -42,6 +44,7 @@ class DataSourceMAAS(DataSource.DataSour
+     """
+     seeddir = base_seeddir + '/maas'
+     baseurl = None
++    oauth_clockskew = None
+ 
+     def __str__(self):
+         return("DataSourceMAAS[%s]" % self.baseurl)
+@@ -92,9 +95,14 @@ class DataSourceMAAS(DataSource.DataSour
+ 
+         consumer_secret = mcfg.get('consumer_secret', "")
+ 
++        timestamp = None
++        if self.oauth_clockskew:
++            timestamp = int(time.time()) + self.oauth_clockskew
++
+         return(oauth_headers(url=url, consumer_key=mcfg['consumer_key'],
+             token_key=mcfg['token_key'], token_secret=mcfg['token_secret'],
+-            consumer_secret=consumer_secret))
++            consumer_secret=consumer_secret,
++            timestamp=timestamp))
+ 
+     def wait_for_metadata_service(self, url):
+         mcfg = self.ds_cfg
+@@ -119,7 +127,8 @@ class DataSourceMAAS(DataSource.DataSour
+         starttime = time.time()
+         check_url = "%s/%s/meta-data/instance-id" % (url, MD_VERSION)
+         url = util.wait_for_url(urls=[check_url], max_wait=max_wait,
+-            timeout=timeout, status_cb=log.warn,
++            timeout=timeout, status_cb=LOG.warn,
++            exception_cb=self._except_cb,
+             headers_cb=self.md_headers)
+ 
+         if url:
+@@ -130,6 +139,26 @@ class DataSourceMAAS(DataSource.DataSour
+ 
+         return (bool(url))
+ 
++    def _except_cb(self, msg, exception):
++        if not (isinstance(exception, urllib2.HTTPError) and
++                (exception.code == 403 or exception.code == 401)):
++            return
++        if 'date' not in exception.headers:
++            LOG.warn("date field not in %d headers" % exception.code)
++            return
++
++        date = exception.headers['date']
++
++        try:
++            ret_time = time.mktime(parsedate(date))
++        except:
++            LOG.warn("failed to convert datetime '%s'")
++            return
++
++        self.oauth_clockskew = int(ret_time - time.time())
++        LOG.warn("set oauth clockskew to %d" % self.oauth_clockskew)
++        return
++
+ 
+ def read_maas_seed_dir(seed_d):
+     """
+@@ -220,13 +249,20 @@ def check_seed_contents(content, seed):
+     return(userdata, md)
+ 
+ 
+-def oauth_headers(url, consumer_key, token_key, token_secret, consumer_secret):
++def oauth_headers(url, consumer_key, token_key, token_secret, consumer_secret,
++                  timestamp=None):
+     consumer = oauth.OAuthConsumer(consumer_key, consumer_secret)
+     token = oauth.OAuthToken(token_key, token_secret)
++
++    if timestamp is None:
++        ts = int(time.time())
++    else:
++        ts = timestamp
++
+     params = {
+         'oauth_version': "1.0",
+         'oauth_nonce': oauth.generate_nonce(),
+-        'oauth_timestamp': int(time.time()),
++        'oauth_timestamp': ts,
+         'oauth_token': token.key,
+         'oauth_consumer_key': consumer.key,
+     }
+--- a/cloudinit/util.py
++++ b/cloudinit/util.py
+@@ -756,7 +756,7 @@ def mount_callback_umount(device, callba
+ 
+ 
+ def wait_for_url(urls, max_wait=None, timeout=None,
+-                 status_cb=None, headers_cb=None):
++                 status_cb=None, headers_cb=None, exception_cb=None):
+     """
+     urls:      a list of urls to try
+     max_wait:  roughly the maximum time to wait before giving up
+@@ -766,6 +766,8 @@ def wait_for_url(urls, max_wait=None, ti
+     status_cb: call method with string message when a url is not available
+     headers_cb: call method with single argument of url to get headers
+                 for request.
++    exception_cb: call method with 2 arguments 'msg' (per status_cb) and
++                  'exception', the exception that occurred.
+ 
+     the idea of this routine is to wait for the EC2 metdata service to
+     come up.  On both Eucalyptus and EC2 we have seen the case where
+@@ -817,9 +819,15 @@ def wait_for_url(urls, max_wait=None, ti
+ 
+                 req = urllib2.Request(url, data=None, headers=headers)
+                 resp = urllib2.urlopen(req, timeout=timeout)
+-                if resp.read() != "":
++                contents = resp.read()
++                if not contents:
++                    reason = "empty data [%s]" % (resp.code)
++                    e = ValueError(reason)
++                elif not (resp.code >= 200 and resp.code < 400):
++                    reason = "bad status code [%s]" % (resp.code)
++                    e = ValueError(reason)
++                else:
+                     return url
+-                reason = "empty data [%s]" % resp.getcode()
+             except urllib2.HTTPError as e:
+                 reason = "http error [%s]" % e.code
+             except urllib2.URLError as e:
+@@ -829,9 +837,12 @@ def wait_for_url(urls, max_wait=None, ti
+             except Exception as e:
+                 reason = "unexpected error [%s]" % e
+ 
+-            status_cb("'%s' failed [%s/%ss]: %s" %
+-                      (url, int(time.time() - starttime), max_wait,
+-                       reason))
++            status_msg = ("'%s' failed [%s/%ss]: %s" %
++                          (url, int(time.time() - starttime), max_wait,
++                           reason))
++            status_cb(status_msg)
++            if exception_cb:
++                exception_cb(msg=status_msg, exception=e)
+ 
+         if timeup(max_wait, starttime):
+             break

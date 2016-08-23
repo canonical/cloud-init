@@ -1,0 +1,152 @@
+Author: Scott Moser <smoser@ubuntu.com>
+Bug: https://launchpad.net/bugs/974509
+Applied-Upstream: revno 612 and 616
+Description: protect against dns-redirection disable default mirror search
+ revno 612: add protection against dns-redirection to is_resolvable
+ .
+ In an effort to make the EC2 Datasource's search under ec2.archive.ubuntu.com
+ resilient against dns redirection, we add some code to is_resolvable.
+ .
+ One future enhancement for this would be to protect against server side
+ round robin results.  Ie, if 'bogus-entry' returned 10.0.1.1 one time, and then
+ 10.0.1.2 a second time.  We could check if results where within the same 3
+ octets, and assume invalid if they were.
+ .
+ revno 616: do not search for mirror named '<distro>-mirror' in dns by default
+ .
+ As described in the bug, enough non-cloud users experienced issues with
+ cloud-init selecting a mirror due to consumer level network providers using
+ dns server redirection.
+ .
+ We're turning this off by default.
+--- a/cloudinit/util.py
++++ b/cloudinit/util.py
+@@ -28,8 +28,10 @@ from Cheetah.Template import Template
+ import urllib2
+ import urllib
+ import logging
++import random
+ import re
+ import socket
++import string
+ import sys
+ import time
+ import tempfile
+@@ -42,6 +44,8 @@ try:
+ except ImportError:
+     HAVE_LIBSELINUX = False
+ 
++_DNS_REDIRECT_IP = None
++LOG = logging.getLogger("cloudinit")
+ 
+ def read_conf(fname):
+     try:
+@@ -510,12 +514,12 @@ def shellify(cmdlist):
+     return content
+ 
+ 
+-def dos2unix(string):
++def dos2unix(contents):
+     # find first end of line
+-    pos = string.find('\n')
+-    if pos <= 0 or string[pos - 1] != '\r':
+-        return(string)
+-    return(string.replace('\r\n', '\n'))
++    pos = contents.find('\n')
++    if pos <= 0 or contents[pos - 1] != '\r':
++        return(contents)
++    return(contents.replace('\r\n', '\n'))
+ 
+ 
+ def is_container():
+@@ -634,11 +638,49 @@ def get_fqdn_from_hosts(hostname, filena
+ 
+     return fqdn
+ 
++def rand_str(strlen=32, select_from=None):
++    if not select_from:
++        select_from = string.letters + string.digits
++    return "".join([random.choice(select_from) for _x in range(0, strlen)])
+ 
+ def is_resolvable(name):
+-    """ determine if a url is resolvable, return a boolean """
++    """ determine if a url is resolvable, return a boolean
++    This also attempts to be resilent against dns redirection.
++
++    Note, that normal nsswitch resolution is used here.  So in order
++    to avoid any utilization of 'search' entries in /etc/resolv.conf
++    we have to append '.'.
++
++    The top level 'invalid' domain is invalid per RFC.  And example.com
++    should also not exist.  The random entry will be resolved inside
++    the search list.
++    """
++    global _DNS_REDIRECT_IP  # pylint: disable=W0603
++    if _DNS_REDIRECT_IP is None:
++        badips = set()
++        badnames = ("does-not-exist.example.com.", "example.invalid.",
++                    rand_str())
++        badresults = {}
++        for iname in badnames:
++            try:
++                result = socket.getaddrinfo(iname, None, 0, 0,
++                    socket.SOCK_STREAM, socket.AI_CANONNAME)
++                badresults[iname] = []
++                for (_fam, _stype, _proto, cname, sockaddr) in result:
++                    badresults[iname].append("%s: %s" % (cname, sockaddr[0]))
++                    badips.add(sockaddr[0])
++            except socket.gaierror:
++                pass
++        _DNS_REDIRECT_IP = badips
++        if badresults:
++            LOG.debug("detected dns redirection: %s" % badresults)
++
+     try:
+-        socket.getaddrinfo(name, None)
++        result = socket.getaddrinfo(name, None)
++        # check first result's sockaddr field
++        addr = result[0][4][0]
++        if addr in _DNS_REDIRECT_IP:
++            return False
+         return True
+     except socket.gaierror:
+         return False
+--- a/cloudinit/CloudConfig/cc_apt_update_upgrade.py
++++ b/cloudinit/CloudConfig/cc_apt_update_upgrade.py
+@@ -225,7 +225,7 @@ def find_apt_mirror(cloud, cfg):
+             if mydom:
+                 doms.append(".%s" % mydom)
+ 
+-        if not mirror:
++        if not mirror and cfg.get(cfg, "apt_mirror_search_dns", False):
+             doms.extend((".localdomain", "",))
+ 
+             mirror_list = []
+--- a/doc/examples/cloud-config.txt
++++ b/doc/examples/cloud-config.txt
+@@ -28,11 +28,14 @@ apt_upgrade: true
+ # then use the mirror provided by the DataSource found.
+ # In EC2, that means using <region>.ec2.archive.ubuntu.com
+ # 
+-# if no mirror is provided by the DataSource, then search
+-# for dns names '<distro>-mirror' in each of
++# if no mirror is provided by the DataSource, and 'apt_mirror_search_dns' is
++# true, then search for dns names '<distro>-mirror' in each of
+ # - fqdn of this host per cloud metadata
+ # - localdomain
+ # - no domain (which would search domains listed in /etc/resolv.conf)
++# If there is a dns entry for <distro>-mirror, then it is assumed that there
++# is a distro mirror at http://<distro>-mirror.<domain>/<distro>
++#
+ # That gives the cloud provider the opportunity to set mirrors of a distro
+ # up and expose them only by creating dns entries.
+ #
+@@ -42,6 +45,8 @@ apt_mirror_search:
+  - http://local-mirror.mydomain
+  - http://archive.ubuntu.com
+ 
++apt_mirror_search_dns: False
++
+ # apt_proxy (configure Acquire::HTTP::Proxy)
+ apt_proxy: http://my.apt.proxy:3128
+ 

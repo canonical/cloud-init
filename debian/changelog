@@ -1,3 +1,28 @@
+cloud-init (0.6.3-0ubuntu1.2) precise-proposed; urgency=low
+
+  * debian/patches/lp-978127-maas-oauth-fix-bad-clock.patch: fix usage of
+    oauth in maas data source if local system has a bad clock (LP: #978127)
+  * debian/cloud-init.preinst: fix bug where user data scripts re-ran on
+    upgrade from 10.04 versions (LP: #1049146)
+  * debian/patches/lp-974509-detect-dns-server-redirection.patch: detect dns
+    server redirection and disable searching dns for a mirror named
+    'ubuntu-mirror' (LP: #974509)
+  * debian/patches/lp-1018554-shutdown-message-to-console.patch: write a
+    message to the console on system shutdown. (LP: #1018554)
+  * debian/patches/lp-1066115-landscape-install-fix-perms.patch: install
+    landscape package if needed which will ensure proper permissions on config
+    file (LP: #1066115).
+  * debian/patches/lp-1070345-landscape-restart-after-change.patch: restart
+    landscape after modifying config (LP: #1070345)
+  * debian/patches/lp-1073077-zsh-workaround-for-locale_warn.patch: avoid
+    warning when user's shell is zsh (LP: #1073077)
+  * debian/patches/rework-mirror-selection.patch: improve mirror selection by:
+    * allowing region/availability-zone to be part of mirror (LP: #1037727)
+    * making mirror selection arch aware (LP: #1028501)
+    * allow specification of a security mirror (LP: #1006963)
+
+ -- Scott Moser <smoser@ubuntu.com>  Mon, 12 Nov 2012 17:01:54 -0500
+
 cloud-init (0.6.3-0ubuntu1.1) precise-proposed; urgency=low
 
   [Thomas Hervé]

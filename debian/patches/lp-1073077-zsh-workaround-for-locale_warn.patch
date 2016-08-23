@@ -1,0 +1,45 @@
+Author: Scott Moser <smoser@ubuntu.com>
+Bug: https://launchpad.net/bugs/1073077
+Applied-Upstream: revno 702
+Description: avoid warning when user's shell is zsh (LP: #1073077)
+ improve zsh support in tools/Z99-cloud-locale-test.sh
+ .
+ This change does 2 things:
+  * minor clean up some local variable usage and definition
+  * make Z99-cloud-locale-test.sh actually work when shell is zsh
+ .
+ the last is done by detecting if this is zsh, and if so, changing the zsh
+ behavior for this function to emulate sh.  As a result of the '-L' in 
+ 'emulate -L sh', we have no negative affect on the user's shell.
+--- a/tools/Z99-cloud-locale-test.sh
++++ b/tools/Z99-cloud-locale-test.sh
+@@ -10,10 +10,13 @@
+ #
+ 
+ locale_warn() {
+-	local cr="
+-"
+-	local bad_names="" bad_lcs="" key="" value="" var=""
++	local bad_names="" bad_lcs="" key="" val="" var="" vars=""
+ 	local w1 w2 w3 w4 remain
++
++	# if shell is zsh, act like sh only for this function (-L).
++	# The behavior change will not permenently affect user's shell.
++	[ "${ZSH_NAME+zsh}" = "zsh" ] && emulate -L sh
++
+ 	# locale is expected to output either:
+ 	# VARIABLE=
+ 	# VARIABLE="value"
+@@ -32,9 +35,9 @@ locale_warn() {
+ 	for bad in $bad_names; do
+ 		for var in ${vars}; do
+ 			[ "${bad}" = "${var%=*}" ] || continue
+-			value=${var#*=}
+-			[ "${bad_lcs#* ${value}}" = "${bad_lcs}" ] &&
+-        			bad_lcs="${bad_lcs} ${value}"
++			val=${var#*=}
++			[ "${bad_lcs#* ${val}}" = "${bad_lcs}" ] &&
++        			bad_lcs="${bad_lcs} ${val}"
+ 			break
+ 		done
+ 	done

@@ -1,0 +1,34 @@
+Author: Scott Moser <smoser@ubuntu.com>
+Origin: upstream
+Bug: https://launchpad.net/bugs/1066115
+Applied-Upstream: revno 687
+Description:  do nothing if config not given. install landscape-client.
+ Skip all the work when there is no config section.
+ Then enforce the package installation, which will create the config file with
+ the proper permissions.
+--- a/cloudinit/CloudConfig/cc_landscape.py
++++ b/cloudinit/CloudConfig/cc_landscape.py
+@@ -51,6 +51,11 @@ def handle(_name, cfg, _cloud, log, _arg
+     if not isinstance(ls_cloudcfg, dict):
+         raise(Exception("'landscape' existed in config, but not a dict"))
+ 
++    if not ls_cloudcfg:
++        return
++
++    util.install_packages(["landscape-client"])
++
+     merged = mergeTogether([lsc_builtincfg, lsc_client_cfg_file, ls_cloudcfg])
+ 
+     if not os.path.isdir(os.path.dirname(lsc_client_cfg_file)):
+@@ -59,9 +64,8 @@ def handle(_name, cfg, _cloud, log, _arg
+     with open(lsc_client_cfg_file, "w") as fp:
+         merged.write(fp)
+ 
+-    if ls_cloudcfg:
+-        with open(lsc_client_default_file, "w") as fp:
+-            fp.write("RUN=1\n")
++    with open(lsc_client_default_file, "w") as fp:
++        fp.write("RUN=1\n")
+ 
+     log.debug("updated %s" % lsc_client_cfg_file)
+ 

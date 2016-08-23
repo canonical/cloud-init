@@ -1,0 +1,28 @@
+Author: Scott Moser <smoser@ubuntu.com>
+Bug: https://launchpad.net/bugs/1018554
+Applied-Upstream: revno 609 and 613
+Description: add an upstart init job that logs shutdowns and reboots
+ This simply writes a "shutting down" message to the console
+ when the system is shutdown.  Its useful for logs.
+--- /dev/null
++++ b/upstart/cloud-log-shutdown.conf
+@@ -0,0 +1,19 @@
++# log shutdowns and reboots to the console (/dev/console)
++# this is useful for correlating logs
++start on runlevel PREVLEVEL=2
++
++task
++console output
++
++script
++  # runlevel(7) says INIT_HALT will be set to HALT or POWEROFF
++  date=$(date --utc)
++  case "$RUNLEVEL:$INIT_HALT" in
++     6:*)        mode="reboot";;
++     0:HALT)     mode="halt";;
++     0:POWEROFF) mode="poweroff";;
++     0:*)        mode="shutdown-unknown";;
++  esac
++  { read seconds idle < /proc/uptime; } 2>/dev/null || :
++  echo "$date: shutting down for $mode${seconds:+ [up ${seconds%.*}s]}."
++end script

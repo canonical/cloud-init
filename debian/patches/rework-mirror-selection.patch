@@ -1,0 +1,520 @@
+Author: Scott Moser <smoser@ubuntu.com>
+Bug: https://launchpad.net/bugs/1028501
+Bug: https://launchpad.net/bugs/1037727
+Bug: https://launchpad.net/bugs/1006963
+Applied-Upstream: revno 630
+Description: rework package mirror selection
+ There are several changes here.  They were pulled from revno 630 on trunk.
+ In order to cherry-pick, most changes are kept inside of 
+ cloudinit/CloudConfig/cc_apt_update_upgrade.py.  Thus as a result, these
+ changes are Ubuntu specific, while still generally in keeping with upstream.
+  * Default DataSource has get_availability_zone
+  * get_package_mirror_info
+    * get_package_mirror_info returns a dict of name:mirror
+      this is to facilitate use of 'security' and 'primary' archive.
+    * this supports searching based on templates. Any template
+      that references undefined values is skipped. These templates
+      can contain 'availability_zone' (LP: #1037727)
+    * distro's mirrors can be arch specific (LP: #1028501)
+    * 'ec2_region' substitution variable is present only if this
+      appears (by availability-zone naming convention) to be in EC2.
+  * rename_apt_lists supports the "mirror_info" rather than single mirror
+  * generate_sources_list supports mirror_info, and as a result, the
+    ubuntu mirrors reference '$security' rather than security (LP: #1006963)
+  * remove the DataSourceEc2 specific mirror selection, but instead
+    rely on the above filtering, and the fact that 'ec2_region' is only
+    defined if the availability_zone looks like a ec2 az.
+  * package_mirrors is now required in the system_info config, a dict like:
+    package_mirrors:
+      - arches: [i386, amd64]
+        failsafe:
+          primary: http://archive.ubuntu.com/ubuntu
+          security: http://security.ubuntu.com/ubuntu
+        search:
+          primary:
+            - http://%(ec2_region)s.ec2.archive.ubuntu.com/ubuntu/
+            - http://%(availability_zone)s.clouds.archive.ubuntu.com/ubuntu/
+          security: []
+      - arches: [armhf, armel, default]
+        failsafe:
+          primary: http://ports.ubuntu.com/ubuntu
+          security: http://ports.ubuntu.com/ubuntu
+--- a/templates/sources.list.tmpl
++++ b/templates/sources.list.tmpl
+@@ -52,9 +52,9 @@ deb-src $mirror $codename-updates univer
+ # deb http://archive.canonical.com/ubuntu $codename partner
+ # deb-src http://archive.canonical.com/ubuntu $codename partner
+ 
+-deb http://security.ubuntu.com/ubuntu $codename-security main
+-deb-src http://security.ubuntu.com/ubuntu $codename-security main
+-deb http://security.ubuntu.com/ubuntu $codename-security universe
+-deb-src http://security.ubuntu.com/ubuntu $codename-security universe
+-# deb http://security.ubuntu.com/ubuntu $codename-security multiverse
+-# deb-src http://security.ubuntu.com/ubuntu $codename-security multiverse
++deb $security $codename-security main
++deb-src $security $codename-security main
++deb $security $codename-security universe
++deb-src $security $codename-security universe
++# deb $security $codename-security multiverse
++# deb-src $security $codename-security multiverse
+--- a/cloudinit/DataSource.py
++++ b/cloudinit/DataSource.py
+@@ -151,6 +151,9 @@ class DataSource:
+         else:
+             return hostname
+ 
++    def get_availability_zone(self):
++        return(None)
++
+ 
+ # return a list of classes that have the same depends as 'depends'
+ # iterate through cfg_list, loading "DataSourceCollections" modules
+--- a/config/cloud.cfg
++++ b/config/cloud.cfg
+@@ -40,3 +40,19 @@ cloud_final_modules:
+  - keys-to-console
+  - phone-home
+  - final-message
++
++system_info:
++   package_mirrors:
++     - arches: [i386, amd64]
++       failsafe:
++         primary: http://archive.ubuntu.com/ubuntu
++         security: http://security.ubuntu.com/ubuntu
++       search:
++         primary:
++           - http://%(ec2_region)s.ec2.archive.ubuntu.com/ubuntu/
++           - http://%(availability_zone)s.clouds.archive.ubuntu.com/ubuntu/
++         security: []
++     - arches: [armhf, armel, default]
++       failsafe:
++         primary: http://ports.ubuntu.com/ubuntu-ports
++         security: http://ports.ubuntu.com/ubuntu-ports
+--- /dev/null
++++ b/tests/unittests/test_archive_mirrors.py
+@@ -0,0 +1,117 @@
++from mocker import MockerTestCase
++
++from cloudinit.CloudConfig import cc_apt_update_upgrade
++
++unknown_arch_info = {
++    'arches': ['default'],
++    'failsafe': {'primary': 'http://fs-primary-default',
++                 'security': 'http://fs-security-default'}
++}
++
++package_mirrors = [
++    {'arches': ['i386', 'amd64'],
++     'failsafe': {'primary': 'http://fs-primary-intel',
++                  'security': 'http://fs-security-intel'},
++     'search': {
++         'primary': ['http://%(ec2_region)s.ec2/',
++                     'http://%(availability_zone)s.clouds/'],
++         'security': ['http://security-mirror1-intel',
++                      'http://security-mirror2-intel']}},
++    {'arches': ['armhf', 'armel'],
++     'failsafe': {'primary': 'http://fs-primary-arm',
++                  'security': 'http://fs-security-arm'}},
++    unknown_arch_info
++]
++
++gpmi = cc_apt_update_upgrade._get_package_mirror_info  # pylint: disable=W0212
++gapmi = cc_apt_update_upgrade._get_arch_package_mirror_info  # pylint: disable=W0212
++
++
++class TestGenericDistro(MockerTestCase):
++
++    def return_first(self, mlist):
++        if not mlist:
++            return None
++        return mlist[0]
++
++    def return_second(self, mlist):
++        if not mlist:
++            return None
++        return mlist[1]
++
++    def return_none(self, _mlist):
++        return None
++
++    def return_last(self, mlist):
++        if not mlist:
++            return None
++        return(mlist[-1])
++
++    def setUp(self):
++        super(TestGenericDistro, self).setUp()
++        # Make a temp directoy for tests to use.
++        self.tmp = self.makeDir()
++
++    def test_arch_package_mirror_info_unknown(self):
++        """for an unknown arch, we should get back that with arch 'default'."""
++        arch_mirrors = gapmi(package_mirrors, arch="unknown")
++        self.assertEqual(unknown_arch_info, arch_mirrors)
++
++    def test_arch_package_mirror_info_known(self):
++        arch_mirrors = gapmi(package_mirrors, arch="amd64")
++        self.assertEqual(package_mirrors[0], arch_mirrors)
++
++    def test_get_package_mirror_info_az_ec2(self):
++        arch_mirrors = gapmi(package_mirrors, arch="amd64")
++
++        results = gpmi(arch_mirrors, availability_zone="us-east-1a",
++                       mirror_filter=self.return_first)
++        self.assertEqual(results,
++                         {'primary': 'http://us-east-1.ec2/',
++                          'security': 'http://security-mirror1-intel'})
++
++        results = gpmi(arch_mirrors, availability_zone="us-east-1a",
++                       mirror_filter=self.return_second)
++        self.assertEqual(results,
++                         {'primary': 'http://us-east-1a.clouds/',
++                          'security': 'http://security-mirror2-intel'})
++
++        results = gpmi(arch_mirrors, availability_zone="us-east-1a",
++                       mirror_filter=self.return_none)
++        self.assertEqual(results, package_mirrors[0]['failsafe'])
++
++    def test_get_package_mirror_info_az_non_ec2(self):
++        arch_mirrors = gapmi(package_mirrors, arch="amd64")
++
++        results = gpmi(arch_mirrors, availability_zone="nova.cloudvendor",
++                       mirror_filter=self.return_first)
++        self.assertEqual(results,
++                         {'primary': 'http://nova.cloudvendor.clouds/',
++                          'security': 'http://security-mirror1-intel'})
++
++        results = gpmi(arch_mirrors, availability_zone="nova.cloudvendor",
++                       mirror_filter=self.return_last)
++        self.assertEqual(results,
++                         {'primary': 'http://nova.cloudvendor.clouds/',
++                          'security': 'http://security-mirror2-intel'})
++
++    def test_get_package_mirror_info_none(self):
++        arch_mirrors = gapmi(package_mirrors, arch="amd64")
++
++        # because both search entries here replacement based on
++        # availability-zone, the filter will be called with an empty list and
++        # failsafe should be taken.
++        results = gpmi(arch_mirrors, availability_zone=None,
++                       mirror_filter=self.return_first)
++        self.assertEqual(results,
++                         {'primary': 'http://fs-primary-intel',
++                          'security': 'http://security-mirror1-intel'})
++
++        results = gpmi(arch_mirrors, availability_zone=None,
++                       mirror_filter=self.return_last)
++        self.assertEqual(results,
++                         {'primary': 'http://fs-primary-intel',
++                          'security': 'http://security-mirror2-intel'})
++
++
++# vi: ts=4 expandtab
+--- a/cloudinit/CloudConfig/cc_apt_update_upgrade.py
++++ b/cloudinit/CloudConfig/cc_apt_update_upgrade.py
+@@ -24,24 +24,35 @@ import traceback
+ import os
+ import glob
+ import cloudinit.CloudConfig as cc
++import re
+ 
+ 
+-def handle(_name, cfg, cloud, log, _args):
++def handle(name, cfg, cloud, log, _args):
+     update = util.get_cfg_option_bool(cfg, 'apt_update', False)
+     upgrade = util.get_cfg_option_bool(cfg, 'apt_upgrade', False)
+ 
+     release = get_release()
+ 
+-    mirror = find_apt_mirror(cloud, cfg)
++    mirrors = find_apt_mirror_info(cloud, cfg, log)
+ 
+-    log.debug("selected mirror at: %s" % mirror)
++    if not mirrors or "primary" not in mirrors:
++         log.debug(("Skipping module named %s,"
++                    " no package 'mirror' located"), name)
++         return
++
++    # backwards compatibility
++    mirror = mirrors["primary"]
++    mirrors["mirror"] = mirror
++
++    log.debug("mirror info: %s" % mirrors)
+ 
+     if not util.get_cfg_option_bool(cfg, \
+         'apt_preserve_sources_list', False):
+-        generate_sources_list(release, mirror)
+-        old_mir = util.get_cfg_option_str(cfg, 'apt_old_mirror', \
+-            "archive.ubuntu.com/ubuntu")
+-        rename_apt_lists(old_mir, mirror)
++        generate_sources_list(release, mirrors)
++        old_mirrors = cfg.get('apt_old_mirrors',
++                              {"primary": "archive.ubuntu.com/ubuntu",
++                               "security": "security.ubuntu.com/ubuntu"})
++        rename_apt_lists(old_mirrors, mirrors)
+ 
+     # set up proxy
+     proxy = cfg.get("apt_proxy", None)
+@@ -58,8 +69,10 @@ def handle(_name, cfg, cloud, log, _args
+ 
+     # process 'apt_sources'
+     if 'apt_sources' in cfg:
+-        errors = add_sources(cfg['apt_sources'],
+-                             {'MIRROR': mirror, 'RELEASE': release})
++        params = mirrors
++        params['RELEASE'] = release
++        params['MIRROR'] = mirror
++        errors = add_sources(cloud, cfg['apt_sources'], params)
+         for e in errors:
+             log.warn("Source Error: %s\n" % ':'.join(e))
+ 
+@@ -117,14 +130,18 @@ def mirror2lists_fileprefix(mirror):
+     return string
+ 
+ 
+-def rename_apt_lists(omirror, new_mirror, lists_d="/var/lib/apt/lists"):
+-    oprefix = "%s/%s" % (lists_d, mirror2lists_fileprefix(omirror))
+-    nprefix = "%s/%s" % (lists_d, mirror2lists_fileprefix(new_mirror))
+-    if(oprefix == nprefix):
+-        return
+-    olen = len(oprefix)
+-    for filename in glob.glob("%s_*" % oprefix):
+-        os.rename(filename, "%s%s" % (nprefix, filename[olen:]))
++def rename_apt_lists(old_mirrors, new_mirrors, lists_d="/var/lib/apt/lists"):
++    for (name, omirror) in old_mirrors.iteritems():
++        nmirror = new_mirrors.get(name)
++        if not nmirror:
++            continue
++        oprefix = os.path.join(lists_d, mirror2lists_fileprefix(omirror))
++        nprefix = os.path.join(lists_d, mirror2lists_fileprefix(nmirror))
++        if oprefix == nprefix:
++            continue
++        olen = len(oprefix)
++        for filename in glob.glob("%s_*" % oprefix):
++            os.rename(filename, "%s%s" % (nprefix, filename[olen:]))
+ 
+ 
+ def get_release():
+@@ -133,9 +150,11 @@ def get_release():
+     return(str(stdout).strip())
+ 
+ 
+-def generate_sources_list(codename, mirror):
+-    util.render_to_file('sources.list', '/etc/apt/sources.list', \
+-        {'mirror': mirror, 'codename': codename})
++def generate_sources_list(codename, mirrors):
++    params = {'codename': codename}
++    for k in mirrors:
++        params[k] = mirrors[k]
++    util.render_to_file('sources.list', '/etc/apt/sources.list', params)
+ 
+ 
+ def add_sources(srclist, searchList=None):
+@@ -194,48 +213,132 @@ def add_sources(srclist, searchList=None
+     return(elst)
+ 
+ 
+-def find_apt_mirror(cloud, cfg):
++def find_apt_mirror_info(cloud, cfg, log):
+     """ find an apt_mirror given the cloud and cfg provided """
+ 
+     # TODO: distro and defaults should be configurable
+     distro = "ubuntu"
+-    defaults = {
+-        'ubuntu': "http://archive.ubuntu.com/ubuntu",
+-        'debian': "http://archive.debian.org/debian",
++
++    # this is used if cfg['system_info']['package_mirrors'] is not present
++    def_mirror_info = {
++        'ubuntu': {
++            'primary': "http://archive.ubuntu.com/ubuntu",
++            'security': "http://security.ubuntu.com/ubuntu"
++        }
+     }
+     mirror = None
+ 
+-    cfg_mirror = cfg.get("apt_mirror", None)
+-    if cfg_mirror:
+-        mirror = cfg["apt_mirror"]
+-    elif "apt_mirror_search" in cfg:
+-        mirror = util.search_for_mirror(cfg['apt_mirror_search'])
+-    else:
+-        if cloud:
+-            mirror = cloud.get_mirror()
++    # this is less preferred way of specifying mirror preferred would be to
++    # use the distro's search or package_mirror.
++    mirror = cfg.get("apt_mirror", None)
++
++    search = cfg.get("apt_mirror_search", None)
++    if not mirror and search:
++        mirror = util.search_for_mirror(search)
+ 
++    if (not mirror and
++        util.get_cfg_option_bool(cfg, "apt_mirror_search_dns", False)):
+         mydom = ""
+ 
+         doms = []
+ 
+-        if not mirror and cloud:
+-            # if we have a fqdn, then search its domain portion first
+-            (_hostname, fqdn) = util.get_hostname_fqdn(cfg, cloud)
+-            mydom = ".".join(fqdn.split(".")[1:])
+-            if mydom:
+-                doms.append(".%s" % mydom)
+-
+-        if not mirror and cfg.get(cfg, "apt_mirror_search_dns", False):
+-            doms.extend((".localdomain", "",))
+-
+-            mirror_list = []
+-            mirrorfmt = "http://%s-mirror%s/%s" % (distro, "%s", distro)
+-            for post in doms:
+-                mirror_list.append(mirrorfmt % post)
+-
+-            mirror = util.search_for_mirror(mirror_list)
+-
+-    if not mirror:
+-        mirror = defaults[distro]
+-
+-    return mirror
++        # if we have a fqdn, then search its domain portion first
++        (_hostname, fqdn) = util.get_hostname_fqdn(cfg, cloud)
++        mydom = ".".join(fqdn.split(".")[1:])
++        if mydom:
++            doms.append(".%s" % mydom)
++
++        doms.extend((".localdomain", "",))
++
++        mirror_list = []
++        mirrorfmt = "http://%s-mirror%s/%s" % (distro, "%s", distro)
++        for post in doms:
++            mirror_list.append(mirrorfmt % (post))
++
++        mirror = util.search_for_mirror(mirror_list)
++
++    try:
++        pmirrors = cfg['system_info']['package_mirrors']
++        az = cloud.datasource.get_availability_zone()
++        mirror_info = get_package_mirror_info(package_mirrors=pmirrors,
++                                              availability_zone=az)
++    except Exception as e:
++        util.logexc(log)
++        log.warn("Failed to get mirror info, falling back to default" %
++                 def_mirror_info)
++        mirror_info = def_mirror_info
++
++    # this is a bit strange.
++    # if mirror is set, then one of the legacy options above set it
++    # but they do not cover security. so we need to get that from
++    # get_package_mirror_info
++    if mirror:
++        mirror_info.update({'primary': mirror})
++
++    return mirror_info
++
++## put together from trunk's cloudinit/distros/__init__.py and
++##                           cloudinit/sources/__init__.py
++def get_package_mirror_info(package_mirrors,
++                            availability_zone=None, arch=None):
++    if arch == None:
++        arch = get_primary_arch()
++    arch_info = _get_arch_package_mirror_info(package_mirrors, arch)
++
++    info = _get_package_mirror_info(mirror_info=arch_info,
++                                    availability_zone=availability_zone)
++    return info
++
++## taken from trunk's cloudinit/distros/debian.py (Distro)
++def get_primary_arch():
++    (arch, _err) = util.subp(['dpkg', '--print-architecture'])
++    return str(arch).strip()
++
++## taken from trunk's cloudinit/distros/__init__.py ##
++def _get_package_mirror_info(mirror_info, availability_zone=None,
++                             mirror_filter=util.search_for_mirror):
++    # given a arch specific 'mirror_info' entry (from package_mirrors)
++    # search through the 'search' entries, and fallback appropriately
++    # return a dict with only {name: mirror} entries.
++
++    ec2_az_re = ("^[a-z][a-z]-(%s)-[1-9][0-9]*[a-z]$" %
++        "north|northeast|east|southeast|south|southwest|west|northwest")
++
++    subst = {}
++    if availability_zone:
++        subst['availability_zone'] = availability_zone
++
++    if availability_zone and re.match(ec2_az_re, availability_zone):
++        subst['ec2_region'] = "%s" % availability_zone[0:-1]
++
++    results = {}
++    for (name, mirror) in mirror_info.get('failsafe', {}).iteritems():
++        results[name] = mirror
++
++    for (name, searchlist) in mirror_info.get('search', {}).iteritems():
++        mirrors = []
++        for tmpl in searchlist:
++            try:
++                mirrors.append(tmpl % subst)
++            except KeyError:
++                pass
++
++        found = mirror_filter(mirrors)
++        if found:
++            results[name] = found
++
++    #LOG.debug("filtered distro mirror info: %s" % results)
++
++    return results
++
++## taken from trunk's cloudinit/distros/__init__.py
++def _get_arch_package_mirror_info(package_mirrors, arch):
++    # pull out the specific arch from a 'package_mirrors' config option
++    default = None
++    for item in package_mirrors:
++        arches = item.get("arches")
++        if arch in arches:
++            return item
++        if "default" in arches:
++            default = item
++    return default
+--- a/cloudinit/__init__.py
++++ b/cloudinit/__init__.py
+@@ -479,6 +479,9 @@ class CloudInit:
+     def get_cpath(self, name=None):
+         return(get_cpath(name))
+ 
++    def get_mirror_info(self, mirror_info):
++        return(self.datasource.get_mirror_info(mirror_info))
++
+ 
+ def initfs():
+     subds = ['scripts/per-instance', 'scripts/per-once', 'scripts/per-boot',
+--- a/cloudinit/DataSourceEc2.py
++++ b/cloudinit/DataSourceEc2.py
+@@ -66,26 +66,6 @@ class DataSourceEc2(DataSource.DataSourc
+     def get_availability_zone(self):
+         return(self.metadata['placement']['availability-zone'])
+ 
+-    def get_local_mirror(self):
+-        return(self.get_mirror_from_availability_zone())
+-
+-    def get_mirror_from_availability_zone(self, availability_zone=None):
+-        # availability is like 'us-west-1b' or 'eu-west-1a'
+-        if availability_zone == None:
+-            availability_zone = self.get_availability_zone()
+-
+-        fallback = None
+-
+-        if self.is_vpc():
+-            return fallback
+-
+-        try:
+-            host = "%s.ec2.archive.ubuntu.com" % availability_zone[:-1]
+-            socket.getaddrinfo(host, None, 0, socket.SOCK_STREAM)
+-            return 'http://%s/ubuntu/' % host
+-        except:
+-            return fallback
+-
+     def wait_for_metadata_service(self):
+         mcfg = self.ds_cfg
+ 

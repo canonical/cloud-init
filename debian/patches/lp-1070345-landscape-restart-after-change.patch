@@ -1,0 +1,17 @@
+Author: Scott Moser <smoser@ubuntu.com>
+Origin: upstream
+Bug: https://launchpad.net/bugs/1070345
+Applied-Upstream: revno 692
+Description: restart the landscape-client service if a change was made
+ After modifying the landscape-client configuration file, we need to
+ restart the service to make sure the change was picked up.
+--- a/cloudinit/CloudConfig/cc_landscape.py
++++ b/cloudinit/CloudConfig/cc_landscape.py
+@@ -68,6 +68,7 @@ def handle(_name, cfg, _cloud, log, _arg
+         fp.write("RUN=1\n")
+ 
+     log.debug("updated %s" % lsc_client_cfg_file)
++    util.subp(["service", "landscape-client", "restart"])
+ 
+ 
+ def mergeTogether(objs):

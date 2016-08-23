@@ -155,6 +155,11 @@ case "$1" in
          convert_varlib_05x_06x
       fi
 
+      # 0.6.0 changed 'user-scripts' to config-scripts-user (LP: #1049146)
+      if [ -e /var/lib/cloud/instance/sem/user-scripts ]; then
+         ln -sf user-scripts /var/lib/cloud/instance/sem/config-scripts-user
+      fi
+
       d=/etc/cloud/
       if [ -f "$d/distro.cfg" ] && [ ! -f "$d/cloud.cfg.d/90_dpkg.cfg" ]; then
          echo "moving $d/distro.cfg -> $d/cloud.cfg.d/90_dpkg.cfg"
