@@ -1,3 +1,16 @@
+cloud-init (0.6.3-0ubuntu1.19) precise; urgency=medium
+
+  * debian/patches/lp-1411582-azure-udev-ephemeral-disks.patch:
+      - Use udev rules to discover ephemeral disk locations rather than
+        hard-coded device names (LP: #1411582).
+  * debian/patches/lp-1470880-fix-gce-az-determination.patch:
+      - Correctly parse GCE's availability zones (LP: #1470880).
+  * d/patches/lp-1470890-include-regions-in-dynamic-mirror-discovery.patch:
+      - Make %(region)s a valid substitution in mirror discovery
+        (LP: #1470890).
+
+ -- Daniel Watkins <daniel.watkins@canonical.com>  Fri, 14 Aug 2015 14:38:48 +0100
+
 cloud-init (0.6.3-0ubuntu1.18) precise; urgency=medium
 
   * d/patches/lp-1456684-eu-central-1.patch:

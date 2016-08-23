@@ -1,0 +1,119 @@
+Description: Enable %(region)s as a dynamic mirror substitution
+Author: Daniel Watkins <daniel.watkins@canonical.com>
+Origin: upstream, http://bazaar.launchpad.net/~cloud-init-dev/cloud-init/trunk/revision/1126
+Bug: https://bugs.launchpad.net/cloud-init/+bug/1470890
+--- a/cloudinit/CloudConfig/cc_apt_update_upgrade.py
++++ b/cloudinit/CloudConfig/cc_apt_update_upgrade.py
+@@ -271,9 +271,8 @@
+ 
+     try:
+         pmirrors = cfg['system_info']['package_mirrors']
+-        az = cloud.datasource.get_availability_zone()
+         mirror_info = get_package_mirror_info(package_mirrors=pmirrors,
+-                                              availability_zone=az)
++                                              data_source=cloud.datasource)
+     except Exception as e:
+         util.logexc(log)
+         log.warn("Failed to get mirror info, falling back to default" %
+@@ -292,13 +291,13 @@
+ ## put together from trunk's cloudinit/distros/__init__.py and
+ ##                           cloudinit/sources/__init__.py
+ def get_package_mirror_info(package_mirrors,
+-                            availability_zone=None, arch=None):
++                            data_source=None, arch=None):
+     if arch == None:
+         arch = get_primary_arch()
+     arch_info = _get_arch_package_mirror_info(package_mirrors, arch)
+ 
+     info = _get_package_mirror_info(mirror_info=arch_info,
+-                                    availability_zone=availability_zone)
++                                    data_source=data_source)
+     return info
+ 
+ ## taken from trunk's cloudinit/distros/debian.py (Distro)
+@@ -307,7 +306,7 @@
+     return str(arch).strip()
+ 
+ ## taken from trunk's cloudinit/distros/__init__.py ##
+-def _get_package_mirror_info(mirror_info, availability_zone=None,
++def _get_package_mirror_info(mirror_info, data_source=None,
+                              mirror_filter=util.search_for_mirror):
+     # given a arch specific 'mirror_info' entry (from package_mirrors)
+     # search through the 'search' entries, and fallback appropriately
+@@ -321,11 +320,15 @@
+     ec2_az_re = ("^[a-z][a-z]-(%s)-[1-9][0-9]*[a-z]$" % directions_re)
+ 
+     subst = {}
+-    if availability_zone:
+-        subst['availability_zone'] = availability_zone
++    if data_source and data_source.get_availability_zone():
++        subst['availability_zone'] = data_source.get_availability_zone()
+ 
+-    if availability_zone and re.match(ec2_az_re, availability_zone):
+-        subst['ec2_region'] = "%s" % availability_zone[0:-1]
++        if re.match(ec2_az_re, data_source.get_availability_zone()):
++            subst['ec2_region'] = "%s" % (
++                data_source.get_availability_zone()[0:-1],)
++
++    if data_source and data_source.region:
++        subst['region'] = data_source.region
+ 
+     results = {}
+     for (name, mirror) in mirror_info.get('failsafe', {}).iteritems():
+--- a/cloudinit/DataSourceEc2.py
++++ b/cloudinit/DataSourceEc2.py
+@@ -186,6 +186,13 @@
+             return True
+         return False
+ 
++    @property
++    def region(self):
++        az = self.get_availability_zone()
++        if az is not None:
++            return az[:-1]
++        return None
++
+ 
+ datasources = [
+   (DataSourceEc2, (DataSource.DEP_FILESYSTEM, DataSource.DEP_NETWORK)),
+--- a/cloudinit/DataSourceGCE.py
++++ b/cloudinit/DataSourceGCE.py
+@@ -156,10 +156,13 @@
+     def userdata_raw(self):
+         return self.metadata['user-data'] or ''
+ 
+-    @property
+-    def availability_zone(self):
++    def get_availability_zone(self):
+         return self.metadata['availability-zone']
+ 
++    @property
++    def region(self):
++        return self.get_availability_zone().rsplit('-', 1)[0]
++
+ # Used to match classes to dependencies
+ datasources = [
+     (DataSourceGCE, (sources.DEP_FILESYSTEM, sources.DEP_NETWORK)),
+--- a/cloudinit/DataSource.py
++++ b/cloudinit/DataSource.py
+@@ -102,6 +102,10 @@
+     def get_local_mirror(self):
+         return None
+ 
++    @property
++    def region(self):
++        return self.metadata.get('region')
++
+     def get_instance_id(self):
+         if 'instance-id' not in self.metadata:
+             return "iid-datasource"
+--- a/config/cloud.cfg
++++ b/config/cloud.cfg
+@@ -52,6 +52,7 @@
+          primary:
+            - http://%(ec2_region)s.ec2.archive.ubuntu.com/ubuntu/
+            - http://%(availability_zone)s.clouds.archive.ubuntu.com/ubuntu/
++           - http://%(region)s.clouds.archive.ubuntu.com/ubuntu/
+          security: []
+      - arches: [armhf, armel, default]
+        failsafe:

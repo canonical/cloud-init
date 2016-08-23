@@ -30,3 +30,6 @@ lp-1404311-gce-data_encoding.patch
 lp-1422388-cloudstack-passwords.patch
 lp-1456684-eu-central-1.patch
 lp-1464253-handle-new-cloudstack-passwords.patch
+lp-1411582-azure-udev-ephemeral-disks.patch
+lp-1470880-fix-gce-az-determination.patch
+lp-1470890-include-regions-in-dynamic-mirror-discovery.patch
