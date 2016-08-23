@@ -1,3 +1,10 @@
+cloud-init (0.6.3~bzr539-0ubuntu2) precise; urgency=low
+
+  [Cosmin Luta]
+  * add dependency on python-oauth (LP: #953915)
+
+ -- Scott Moser <smoser@ubuntu.com>  Tue, 13 Mar 2012 11:36:11 -0400
+
 cloud-init (0.6.3~bzr539-0ubuntu1) precise; urgency=low
 
   * New upstream snapshot.
