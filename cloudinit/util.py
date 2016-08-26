@@ -113,7 +113,7 @@ def _lsb_release(target=None):
 
     except ProcessExecutionError as err:
         LOG.warn("Unable to get lsb_release --all: %s", err)
-        data = {v: "UNAVAILABLE" for v in fmap.values()}
+        data = dict((v, "UNAVAILABLE") for v in fmap.values())
 
     return data
 

@@ -137,12 +137,71 @@ NETWORK_DATA_3 = {
     ]
 }
 
+NETWORK_DATA_BOND = {
+    "services": [
+        {"type": "dns", "address": "1.1.1.191"},
+        {"type": "dns", "address": "1.1.1.4"},
+    ],
+    "networks": [
+        {"id": "network2-ipv4", "ip_address": "2.2.2.13",
+         "link": "vlan2", "netmask": "255.255.255.248",
+         "network_id": "4daf5ce8-38cf-4240-9f1a-04e86d7c6117",
+         "type": "ipv4",
+         "routes": [{"netmask": "0.0.0.0", "network": "0.0.0.0",
+                    "gateway": "2.2.2.9"}]},
+        {"id": "network3-ipv4", "ip_address": "10.0.1.5",
+         "link": "vlan3", "netmask": "255.255.255.248",
+         "network_id": "a9e2f47c-3c43-4782-94d0-e1eeef1c8c9d",
+         "type": "ipv4",
+         "routes": [{"netmask": "255.255.255.255",
+                    "network": "192.168.1.0", "gateway": "10.0.1.1"}]}
+    ],
+    "links": [
+        {"ethernet_mac_address": "0c:c4:7a:34:6e:3c",
+         "id": "eth0", "mtu": 1500, "type": "phy"},
+        {"ethernet_mac_address": "0c:c4:7a:34:6e:3d",
+         "id": "eth1", "mtu": 1500, "type": "phy"},
+        {"bond_links": ["eth0", "eth1"],
+         "bond_miimon": 100, "bond_mode": "4",
+         "bond_xmit_hash_policy": "layer3+4",
+         "ethernet_mac_address": "0c:c4:7a:34:6e:3c",
+         "id": "bond0", "type": "bond"},
+        {"ethernet_mac_address": "fa:16:3e:b3:72:30",
+         "id": "vlan2", "type": "vlan", "vlan_id": 602,
+         "vlan_link": "bond0", "vlan_mac_address": "fa:16:3e:b3:72:30"},
+        {"ethernet_mac_address": "fa:16:3e:66:ab:a6",
+         "id": "vlan3", "type": "vlan", "vlan_id": 612, "vlan_link": "bond0",
+         "vlan_mac_address": "fa:16:3e:66:ab:a6"}
+    ]
+}
+
+NETWORK_DATA_VLAN = {
+    "services": [{"type": "dns", "address": "1.1.1.191"}],
+    "networks": [
+        {"id": "network1-ipv4", "ip_address": "10.0.1.5",
+         "link": "vlan1", "netmask": "255.255.255.248",
+         "network_id": "a9e2f47c-3c43-4782-94d0-e1eeef1c8c9d",
+         "type": "ipv4",
+         "routes": [{"netmask": "255.255.255.255",
+                    "network": "192.168.1.0", "gateway": "10.0.1.1"}]}
+    ],
+    "links": [
+        {"ethernet_mac_address": "fa:16:3e:69:b0:58",
+         "id": "eth0", "mtu": 1500, "type": "phy"},
+        {"ethernet_mac_address": "fa:16:3e:b3:72:30",
+         "id": "vlan1", "type": "vlan", "vlan_id": 602,
+         "vlan_link": "eth0", "vlan_mac_address": "fa:16:3e:b3:72:30"},
+    ]
+}
+
 KNOWN_MACS = {
     'fa:16:3e:69:b0:58': 'enp0s1',
     'fa:16:3e:d4:57:ad': 'enp0s2',
     'fa:16:3e:dd:50:9a': 'foo1',
     'fa:16:3e:a8:14:69': 'foo2',
     'fa:16:3e:ed:9a:59': 'foo3',
+    '0c:c4:7a:34:6e:3d': 'oeth1',
+    '0c:c4:7a:34:6e:3c': 'oeth0',
 }
 
 CFG_DRIVE_FILES_V2 = {
@@ -598,6 +657,52 @@ class TestConvertNetworkData(TestCase):
             if i.get('type') == "physical":
                 physicals.add(i['name'])
         self.assertEqual(physicals, set(('foo1', 'foo2')))
+
+    def test_bond_conversion(self):
+        # light testing of bond conversion and eni rendering of bond
+        ncfg = openstack.convert_net_json(NETWORK_DATA_BOND,
+                                          known_macs=KNOWN_MACS)
+        eni_renderer = eni.Renderer()
+        eni_renderer.render_network_state(
+            self.tmp, network_state.parse_net_config_data(ncfg))
+        with open(os.path.join(self.tmp, "etc",
+                               "network", "interfaces"), 'r') as f:
+            eni_rendering = f.read()
+
+        # Verify there are expected interfaces in the net config.
+        interfaces = sorted(
+            [i['name'] for i in ncfg['config']
+             if i['type'] in ('vlan', 'bond', 'physical')])
+        self.assertEqual(
+            sorted(["oeth0", "oeth1", "bond0", "bond0.602", "bond0.612"]),
+            interfaces)
+
+        words = eni_rendering.split()
+        # 'eth0' and 'eth1' are the ids. because their mac adresses
+        # map to other names, we should not see them in the ENI
+        self.assertNotIn('eth0', words)
+        self.assertNotIn('eth1', words)
+
+        # oeth0 and oeth1 are the interface names for eni.
+        # bond0 will be generated for the bond. Each should be auto.
+        self.assertIn("auto oeth0", eni_rendering)
+        self.assertIn("auto oeth1", eni_rendering)
+        self.assertIn("auto bond0", eni_rendering)
+
+    def test_vlan(self):
+        # light testing of vlan config conversion and eni rendering
+        ncfg = openstack.convert_net_json(NETWORK_DATA_VLAN,
+                                          known_macs=KNOWN_MACS)
+        eni_renderer = eni.Renderer()
+        eni_renderer.render_network_state(
+            self.tmp, network_state.parse_net_config_data(ncfg))
+        with open(os.path.join(self.tmp, "etc",
+                               "network", "interfaces"), 'r') as f:
+            eni_rendering = f.read()
+
+        self.assertIn("iface enp0s1", eni_rendering)
+        self.assertIn("address 10.0.1.5", eni_rendering)
+        self.assertIn("auto enp0s1.602", eni_rendering)
 
 
 def cfg_ds_from_dir(seed_d):

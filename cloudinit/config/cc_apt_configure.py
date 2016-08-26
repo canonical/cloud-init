@@ -464,13 +464,19 @@ def convert_mirror(oldcfg, aptcfg):
 
 def convert_v2_to_v3_apt_format(oldcfg):
     """convert old to new keys and adapt restructured mirror spec"""
-    oldkeys = ['apt_sources', 'apt_mirror', 'apt_mirror_search',
-               'apt_mirror_search_dns', 'apt_proxy', 'apt_http_proxy',
-               'apt_ftp_proxy', 'apt_https_proxy',
-               'apt_preserve_sources_list', 'apt_custom_sources_list',
-               'add_apt_repo_match']
+    mapoldkeys = {'apt_sources': 'sources',
+                  'apt_mirror': None,
+                  'apt_mirror_search': None,
+                  'apt_mirror_search_dns': None,
+                  'apt_proxy': 'proxy',
+                  'apt_http_proxy': 'http_proxy',
+                  'apt_ftp_proxy': 'https_proxy',
+                  'apt_https_proxy': 'ftp_proxy',
+                  'apt_preserve_sources_list': 'preserve_sources_list',
+                  'apt_custom_sources_list': 'sources_list',
+                  'add_apt_repo_match': 'add_apt_repo_match'}
     needtoconvert = []
-    for oldkey in oldkeys:
+    for oldkey in mapoldkeys:
         if oldcfg.get(oldkey, None) is not None:
             needtoconvert.append(oldkey)
 
@@ -480,32 +486,37 @@ def convert_v2_to_v3_apt_format(oldcfg):
     LOG.debug("apt config: convert V2 to V3 format for keys '%s'",
               ", ".join(needtoconvert))
 
-    if oldcfg.get('apt', None) is not None:
-        msg = ("Error in apt configuration: "
-               "old and new format of apt features are mutually exclusive "
-               "('apt':'%s' vs '%s' key)" % (oldcfg.get('apt', None),
-                                             ", ".join(needtoconvert)))
-        LOG.error(msg)
-        raise ValueError(msg)
+    # if old AND new config are provided, prefer the new one (LP #1616831)
+    newaptcfg = oldcfg.get('apt', None)
+    if newaptcfg is not None:
+        LOG.debug("apt config: V1/2 and V3 format specified, preferring V3")
+        for oldkey in needtoconvert:
+            newkey = mapoldkeys[oldkey]
+            verify = oldcfg[oldkey]  # drop, but keep a ref for verification
+            del oldcfg[oldkey]
+            if newkey is None or newaptcfg.get(newkey, None) is None:
+                # no simple mapping or no collision on this particular key
+                continue
+            if verify != newaptcfg[newkey]:
+                raise ValueError("Old and New apt format defined with unequal "
+                                 "values %s vs %s @ %s" % (verify,
+                                                           newaptcfg[newkey],
+                                                           oldkey))
+        # return conf after clearing conflicting V1/2 keys
+        return oldcfg
 
     # create new format from old keys
     aptcfg = {}
 
-    # renames / moves under the apt key
-    convert_key(oldcfg, aptcfg, 'add_apt_repo_match', 'add_apt_repo_match')
-    convert_key(oldcfg, aptcfg, 'apt_proxy', 'proxy')
-    convert_key(oldcfg, aptcfg, 'apt_http_proxy', 'http_proxy')
-    convert_key(oldcfg, aptcfg, 'apt_https_proxy', 'https_proxy')
-    convert_key(oldcfg, aptcfg, 'apt_ftp_proxy', 'ftp_proxy')
-    convert_key(oldcfg, aptcfg, 'apt_custom_sources_list', 'sources_list')
-    convert_key(oldcfg, aptcfg, 'apt_preserve_sources_list',
-                'preserve_sources_list')
-    # dict format not changed since v2, just renamed and moved
-    convert_key(oldcfg, aptcfg, 'apt_sources', 'sources')
+    # simple renames / moves under the apt key
+    for oldkey in mapoldkeys:
+        if mapoldkeys[oldkey] is not None:
+            convert_key(oldcfg, aptcfg, oldkey, mapoldkeys[oldkey])
 
+    # mirrors changed in a more complex way
     convert_mirror(oldcfg, aptcfg)
 
-    for oldkey in oldkeys:
+    for oldkey in mapoldkeys:
         if oldcfg.get(oldkey, None) is not None:
             raise ValueError("old apt key '%s' left after conversion" % oldkey)
 
