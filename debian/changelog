@@ -1,9 +1,16 @@
-cloud-init (0.7.7-17-g40a2f62-0ubuntu2) UNRELEASED; urgency=medium
+cloud-init (0.7.7-22-g763f403-0ubuntu1) UNRELEASED; urgency=medium
 
+  * New upstream snapshot.
+    - apt-config: allow both old and new format to be present.
+      [Christian Ehrhardt] (LP: #1616831)
+    - python2.6: fix dict comprehension usage in _lsb_release. [Joshua Harlow]
+    - Add a module that can configure spacewalk. [Joshua Harlow]
+    - add install option for openrc [Matthew Thode]
+    - Generate a dummy bond name for OpenStack (LP: #1605749)
   * debian/control, debian/README.source: update to reference git.
   * debian/new-upstream-snapshot: small fixes.
 
- -- Scott Moser <smoser@ubuntu.com>  Fri, 26 Aug 2016 15:20:25 -0400
+ -- Scott Moser <smoser@ubuntu.com>  Fri, 26 Aug 2016 15:21:02 -0400
 
 cloud-init (0.7.7-17-g40a2f62-0ubuntu1) yakkety; urgency=medium
 
