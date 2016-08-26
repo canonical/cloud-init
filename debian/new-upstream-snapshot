@@ -75,7 +75,8 @@ if [ "${prev_upstream_ver}" = "${new_upstream_ver}" ]; then
     exit 0
 fi
 
-git merge "${from_ref}" -m "merge from $from_ref at $new_upstream_ver"
+git merge "${from_ref}" -m "merge from $from_ref at $new_upstream_ver" ||
+    fail "failed: git merge ${from_ref} -m 'merge from $from_ref ..'"
 TEMP_D=$(mktemp -d) || fail "failed mktemp"
 clog="${TEMP_D}/changelog"
 gitlog="${TEMP_D}/gitlog"
@@ -111,4 +112,6 @@ case "$answer" in
    n|[Nn][oO]) exit 1;;
 esac
 
-git commit -m "update changelog." debian/changelog
+msg="update changelog (new upstream snapshot $new_upstream_ver)."
+git commit -m "$msg" debian/changelog ||
+   fail "failed to commit '$msg'"
