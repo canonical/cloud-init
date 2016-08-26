@@ -1,4 +1,4 @@
-cloud-init (0.7.7-22-g763f403-0ubuntu1) UNRELEASED; urgency=medium
+cloud-init (0.7.7-22-g763f403-0ubuntu1) yakkety; urgency=medium
 
   * New upstream snapshot.
     - apt-config: allow both old and new format to be present.
@@ -10,7 +10,7 @@ cloud-init (0.7.7-22-g763f403-0ubuntu1) UNRELEASED; urgency=medium
   * debian/control, debian/README.source: update to reference git.
   * debian/new-upstream-snapshot: small fixes.
 
- -- Scott Moser <smoser@ubuntu.com>  Fri, 26 Aug 2016 15:21:02 -0400
+ -- Scott Moser <smoser@ubuntu.com>  Fri, 26 Aug 2016 15:22:13 -0400
 
 cloud-init (0.7.7-17-g40a2f62-0ubuntu1) yakkety; urgency=medium
 
