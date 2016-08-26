@@ -407,7 +407,7 @@ def read_context_disk_dir(source_dir, asuser=None):
     # http://opennebula.org/documentation:rel3.8:cong#network_configuration
     for k in context:
         if re.match(r'^ETH\d+_IP$', k):
-            (out, _) = util.subp(['/sbin/ip', 'link'])
+            (out, _) = util.subp(['ip', 'link'])
             net = OpenNebulaNetwork(out, context)
             results['network-interfaces'] = net.gen_conf()
             break

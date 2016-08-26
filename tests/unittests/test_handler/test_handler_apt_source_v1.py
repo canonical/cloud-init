@@ -528,6 +528,7 @@ class TestAptSourceConfig(TestCase):
                 'filename': self.aptlistfile2}
         cfg3 = {'source': 'deb $MIRROR $RELEASE universe',
                 'filename': self.aptlistfile3}
+        cfg = {'apt_sources': [cfg1, cfg2, cfg3]}
         checkcfg = {self.aptlistfile: {'filename': self.aptlistfile,
                                        'source': 'deb $MIRROR $RELEASE '
                                                  'multiverse'},
@@ -537,15 +538,89 @@ class TestAptSourceConfig(TestCase):
                                         'source': 'deb $MIRROR $RELEASE '
                                                   'universe'}}
 
-        newcfg = cc_apt_configure.convert_v1_to_v2_apt_format([cfg1, cfg2,
-                                                               cfg3])
-        self.assertEqual(newcfg, checkcfg)
+        newcfg = cc_apt_configure.convert_to_v3_apt_format(cfg)
+        self.assertEqual(newcfg['apt']['sources'], checkcfg)
 
-        newcfg2 = cc_apt_configure.convert_v1_to_v2_apt_format(newcfg)
-        self.assertEqual(newcfg2, checkcfg)
+        # convert again, should stay the same
+        newcfg2 = cc_apt_configure.convert_to_v3_apt_format(newcfg)
+        self.assertEqual(newcfg2['apt']['sources'], checkcfg)
+
+        # should work without raising an exception
+        cc_apt_configure.convert_to_v3_apt_format({})
 
         with self.assertRaises(ValueError):
-            cc_apt_configure.convert_v1_to_v2_apt_format(5)
+            cc_apt_configure.convert_to_v3_apt_format({'apt_sources': 5})
+
+    def test_convert_to_new_format_collision(self):
+        """Test the conversion of old to new format with collisions
+           That matches e.g. the MAAS case specifying old and new config"""
+        cfg_1_and_3 = {'apt': {'proxy': 'http://192.168.122.1:8000/'},
+                       'apt_proxy': 'http://192.168.122.1:8000/'}
+        cfg_3_only = {'apt': {'proxy': 'http://192.168.122.1:8000/'}}
+        cfgconflict = {'apt': {'proxy': 'http://192.168.122.1:8000/'},
+                       'apt_proxy': 'ftp://192.168.122.1:8000/'}
+
+        # collision (equal)
+        newcfg = cc_apt_configure.convert_to_v3_apt_format(cfg_1_and_3)
+        self.assertEqual(newcfg, cfg_3_only)
+        # collision (equal, so ok to remove)
+        newcfg = cc_apt_configure.convert_to_v3_apt_format(cfg_3_only)
+        self.assertEqual(newcfg, cfg_3_only)
+        # collision (unequal)
+        with self.assertRaises(ValueError):
+            cc_apt_configure.convert_to_v3_apt_format(cfgconflict)
+
+    def test_convert_to_new_format_dict_collision(self):
+        cfg1 = {'source': 'deb $MIRROR $RELEASE multiverse',
+                'filename': self.aptlistfile}
+        cfg2 = {'source': 'deb $MIRROR $RELEASE main',
+                'filename': self.aptlistfile2}
+        cfg3 = {'source': 'deb $MIRROR $RELEASE universe',
+                'filename': self.aptlistfile3}
+        fullv3 = {self.aptlistfile: {'filename': self.aptlistfile,
+                                     'source': 'deb $MIRROR $RELEASE '
+                                               'multiverse'},
+                  self.aptlistfile2: {'filename': self.aptlistfile2,
+                                      'source': 'deb $MIRROR $RELEASE main'},
+                  self.aptlistfile3: {'filename': self.aptlistfile3,
+                                      'source': 'deb $MIRROR $RELEASE '
+                                                'universe'}}
+        cfg_3_only = {'apt': {'sources': fullv3}}
+        cfg_1_and_3 = {'apt_sources': [cfg1, cfg2, cfg3]}
+        cfg_1_and_3.update(cfg_3_only)
+
+        # collision (equal, so ok to remove)
+        newcfg = cc_apt_configure.convert_to_v3_apt_format(cfg_1_and_3)
+        self.assertEqual(newcfg, cfg_3_only)
+        # no old spec (same result)
+        newcfg = cc_apt_configure.convert_to_v3_apt_format(cfg_3_only)
+        self.assertEqual(newcfg, cfg_3_only)
+
+        diff = {self.aptlistfile: {'filename': self.aptlistfile,
+                                   'source': 'deb $MIRROR $RELEASE '
+                                             'DIFFERENTVERSE'},
+                self.aptlistfile2: {'filename': self.aptlistfile2,
+                                    'source': 'deb $MIRROR $RELEASE main'},
+                self.aptlistfile3: {'filename': self.aptlistfile3,
+                                    'source': 'deb $MIRROR $RELEASE '
+                                              'universe'}}
+        cfg_3_only = {'apt': {'sources': diff}}
+        cfg_1_and_3_different = {'apt_sources': [cfg1, cfg2, cfg3]}
+        cfg_1_and_3_different.update(cfg_3_only)
+
+        # collision (unequal by dict having a different entry)
+        with self.assertRaises(ValueError):
+            cc_apt_configure.convert_to_v3_apt_format(cfg_1_and_3_different)
+
+        missing = {self.aptlistfile: {'filename': self.aptlistfile,
+                                      'source': 'deb $MIRROR $RELEASE '
+                                                'multiverse'}}
+        cfg_3_only = {'apt': {'sources': missing}}
+        cfg_1_and_3_missing = {'apt_sources': [cfg1, cfg2, cfg3]}
+        cfg_1_and_3_missing.update(cfg_3_only)
+        # collision (unequal by dict missing an entry)
+        with self.assertRaises(ValueError):
+            cc_apt_configure.convert_to_v3_apt_format(cfg_1_and_3_missing)
 
 
 # vi: ts=4 expandtab

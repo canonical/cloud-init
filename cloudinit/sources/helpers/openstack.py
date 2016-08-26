@@ -539,6 +539,10 @@ def convert_net_json(network_json=None, known_macs=None):
     networks = network_json.get('networks', [])
     services = network_json.get('services', [])
 
+    link_updates = []
+    link_id_info = {}
+    bond_name_fmt = "bond%d"
+    bond_number = 0
     config = []
     for link in links:
         subnets = []
@@ -550,6 +554,13 @@ def convert_net_json(network_json=None, known_macs=None):
         # to name guest devices with such ugly names.
         if 'name' in link:
             cfg['name'] = link['name']
+
+        if link.get('ethernet_mac_address'):
+            link_id_info[link['id']] = link.get('ethernet_mac_address')
+
+        curinfo = {'name': cfg.get('name'),
+                   'mac': link.get('ethernet_mac_address'),
+                   'id': link['id'], 'type': link['type']}
 
         for network in [n for n in networks
                         if n['link'] == link['id']]:
@@ -582,30 +593,55 @@ def convert_net_json(network_json=None, known_macs=None):
                     continue
                 elif k.startswith('bond'):
                     params.update({k: v})
-            cfg.update({
-                'bond_interfaces': copy.deepcopy(link['bond_links']),
-                'params': params,
-            })
+
+            # openstack does not provide a name for the bond.
+            # they do provide an 'id', but that is possibly non-sensical.
+            # so we just create our own name.
+            link_name = bond_name_fmt % bond_number
+            bond_number += 1
+
+            # bond_links reference links by their id, but we need to add
+            # to the network config by their nic name.
+            # store that in bond_links_needed, and update these later.
+            link_updates.append(
+                (cfg, 'bond_interfaces', '%s',
+                 copy.deepcopy(link['bond_links']))
+            )
+            cfg.update({'params': params, 'name': link_name})
+
+            curinfo['name'] = link_name
         elif link['type'] in ['vlan']:
+            name = "%s.%s" % (link['vlan_link'], link['vlan_id'])
             cfg.update({
-                'name': "%s.%s" % (link['vlan_link'],
-                                   link['vlan_id']),
-                'vlan_link': link['vlan_link'],
+                'name': name,
                 'vlan_id': link['vlan_id'],
                 'mac_address': link['vlan_mac_address'],
             })
+            link_updates.append((cfg, 'vlan_link', '%s', link['vlan_link']))
+            link_updates.append((cfg, 'name', "%%s.%s" % link['vlan_id'],
+                                 link['vlan_link']))
+            curinfo.update({'mac': link['vlan_mac_address'],
+                            'name': name})
         else:
             raise ValueError(
                 'Unknown network_data link type: %s' % link['type'])
 
         config.append(cfg)
+        link_id_info[curinfo['id']] = curinfo
 
     need_names = [d for d in config
                   if d.get('type') == 'physical' and 'name' not in d]
 
-    if need_names:
+    if need_names or link_updates:
         if known_macs is None:
             known_macs = net.get_interfaces_by_mac()
+
+        # go through and fill out the link_id_info with names
+        for link_id, info in link_id_info.items():
+            if info.get('name'):
+                continue
+            if info.get('mac') in known_macs:
+                info['name'] = known_macs[info['mac']]
 
         for d in need_names:
             mac = d.get('mac_address')
@@ -614,6 +650,12 @@ def convert_net_json(network_json=None, known_macs=None):
             if mac not in known_macs:
                 raise ValueError("Unable to find a system nic for %s" % d)
             d['name'] = known_macs[mac]
+
+        for cfg, key, fmt, target in link_updates:
+            if isinstance(target, (list, tuple)):
+                cfg[key] = [fmt % link_id_info[l]['name'] for l in target]
+            else:
+                cfg[key] = fmt % link_id_info[target]['name']
 
     for service in services:
         cfg = service
