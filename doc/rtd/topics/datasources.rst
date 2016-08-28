@@ -1,11 +1,11 @@
 .. _datasources:
 
-=========
+===========
 Datasources
-=========
-----------
+===========
+----------------------
  What is a datasource?
-----------
+----------------------
 
 Datasources are sources of configuration data for cloud-init that typically come
 from the user (aka userdata) or come from the stack that created the configuration
@@ -70,9 +70,9 @@ The current interface that a datasource object must provide is the following:
     
     def get_package_mirror_info(self)
 
----------------------------
+---
 EC2
----------------------------
+---
 
 The EC2 datasource is the oldest and most widely used datasource that cloud-init
 supports. This datasource interacts with a *magic* ip that is provided to the 
@@ -130,61 +130,61 @@ To see which versions are supported from your cloud provider use the following U
     ...
     latest
         
----------------------------
+------------
 Config Drive
----------------------------
+------------
 
 .. include:: ../../sources/configdrive/README.rst
 
----------------------------
+----------
 OpenNebula
----------------------------
+----------
 
 .. include:: ../../sources/opennebula/README.rst
 
----------------------------
+---------
 Alt cloud
----------------------------
+---------
 
 .. include:: ../../sources/altcloud/README.rst
 
----------------------------
+--------
 No cloud
----------------------------
+--------
 
 .. include:: ../../sources/nocloud/README.rst
 
----------------------------
+----
 MAAS
----------------------------
+----
 
 *TODO*
 
 For now see: http://maas.ubuntu.com/
 
----------------------------
+----------
 CloudStack
----------------------------
+----------
 
 .. include:: ../../sources/cloudstack/README.rst
 
----------------------------
+---
 OVF
----------------------------
+---
 
 *TODO*
 
 For now see: https://bazaar.launchpad.net/~cloud-init-dev/cloud-init/trunk/files/head:/doc/sources/ovf/
 
----------------------------
+---------
 OpenStack
----------------------------
+---------
 
 .. include:: ../../sources/openstack/README.rst
 
----------------------------
+-------------
 Fallback/None
----------------------------
+-------------
 
 This is the fallback datasource when no other datasource can be selected. It is
 the equivalent of a *empty* datasource in that it provides a empty string as userdata

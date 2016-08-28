@@ -18,6 +18,25 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+"""
+Scripts User
+------------
+**Summary:** run user scripts
+
+This module runs all user scripts. User scripts are not specified in the
+``scripts`` directory in the datasource, but rather are present in the
+``scripts`` dir in the instance configuration. Any cloud-config parts with a
+``#!`` will be treated as a script and run. Scripts specified as cloud-config
+parts will be run in the order they are specified in the configuration.
+This module does not accept any config keys.
+
+**Internal name:** ``cc_scripts_user``
+
+**Module frequency:** per instance
+
+**Supported distros:** all
+"""
+
 import os
 
 from cloudinit import util

@@ -18,6 +18,22 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+"""
+Scripts Per Instance
+--------------------
+**Summary:** run per instance scripts
+
+Any scripts in the ``scripts/per-instance`` directory on the datasource will
+be run when a new instance is first booted. Scripts will be run in alphabetical
+order. This module does not accept any config keys.
+
+**Internal name:** ``cc_scripts_per_instance``
+
+**Module frequency:** per instance
+
+**Supported distros:** all
+"""
+
 import os
 
 from cloudinit import util

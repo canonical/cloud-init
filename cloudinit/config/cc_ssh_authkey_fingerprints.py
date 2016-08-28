@@ -16,6 +16,27 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+"""
+SSH Authkey Fingerprints
+------------------------
+**Summary:** log fingerprints of user ssh keys
+
+Write fingerprints of authorized keys for each user to log. This is enabled by
+default, but can be disabled using ``no_ssh_fingerprints``. The hash type for
+the keys can be specified, but defaults to ``md5``.
+
+**Internal name:** `` cc_ssh_authkey_fingerprints``
+
+**Module frequency:** per instance
+
+**Supported distros:** all
+
+**Config keys**::
+
+    no_ssh_fingerprints: <true/false>
+    authkey_hash: <hash type>
+"""
+
 import base64
 import hashlib
 

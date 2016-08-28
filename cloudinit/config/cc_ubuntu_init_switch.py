@@ -17,27 +17,33 @@
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 """
+Ubuntu Init Switch
+------------------
 **Summary:** reboot system into another init.
 
-**Description:** This module provides a way for the user to boot with systemd
-even if the image is set to boot with upstart.  It should be run as one of the
-first ``cloud_init_modules``, and will switch the init system and then issue a
-reboot. The next boot will come up in the target init system and no action will
-be taken.
+This module provides a way for the user to boot with systemd even if the image
+is set to boot with upstart. It should be run as one of the first
+``cloud_init_modules``, and will switch the init system and then issue a
+reboot. The next boot will come up in the target init system and no action
+will be taken. This should be inert on non-ubuntu systems, and also
+exit quickly.
 
-This should be inert on non-ubuntu systems, and also exit quickly.
+.. note::
+    best effort is made, but it's possible this system will break, and probably
+    won't interact well with any other mechanism you've used to switch the init
+    system.
 
-It can be configured with the following option structure::
+**Internal name:** ``cc_ubuntu_init_switch``
+
+**Module frequency:** once per instance
+
+**Supported distros:** ubuntu
+
+**Config keys**::
 
     init_switch:
       target: systemd (can be 'systemd' or 'upstart')
       reboot: true (reboot if a change was made, or false to not reboot)
-
-.. note::
-
-    Best effort is made, but it's possible
-    this system will break, and probably won't interact well with any other
-    mechanism you've used to switch the init system.
 """
 
 from cloudinit.distros import ubuntu

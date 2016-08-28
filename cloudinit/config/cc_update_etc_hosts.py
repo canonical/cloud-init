@@ -18,6 +18,49 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+"""
+Update Etc Hosts
+----------------
+**Summary:** update ``/etc/hosts``
+
+This module will update the contents of ``/etc/hosts`` based on the
+hostname/fqdn specified in config. Management of ``/etc/hosts`` is controlled
+using ``manage_etc_hosts``. If this is set to false, cloud-init will not manage
+``/etc/hosts`` at all. This is the default behavior.
+
+If set to ``true`` or ``template``, cloud-init will generate ``/etc/hosts``
+using the template located in ``/etc/cloud/templates/hosts.tmpl``. In the
+``/etc/cloud/templates/hosts.tmpl`` template, the strings ``$hostname`` and
+``$fqdn`` will be replaced with the hostname and fqdn respectively.
+
+If ``manage_etc_hosts`` is set to ``localhost``, then cloud-init will not
+rewrite ``/etc/hosts`` entirely, but rather will ensure that a entry for the
+fqdn with ip ``127.0.1.1`` is present in ``/etc/hosts`` (i.e.
+``ping <hostname>`` will ping ``127.0.1.1``).
+
+.. note::
+    if ``manage_etc_hosts`` is set ``true`` or ``template``, the contents
+    of ``/etc/hosts`` will be updated every boot. to make any changes to
+    ``/etc/hosts`` persistant they must be made in
+    ``/etc/cloud/templates/hosts.tmpl``
+
+.. note::
+    for instructions on specifying hostname and fqdn, see documentation for
+    ``cc_set_hostname``
+
+**Internal name:** ``cc_update_etc_hosts``
+
+**Module frequency:** per always
+
+**Supported distros:** all
+
+**Config keys**::
+
+    manage_etc_hosts: <true/"template"/false/"localhost">
+    fqdn: <fqdn>
+    hostname: <fqdn/hostname>
+"""
+
 from cloudinit import templater
 from cloudinit import util
 

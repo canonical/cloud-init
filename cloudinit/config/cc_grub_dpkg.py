@@ -18,6 +18,40 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+"""
+Grub Dpkg
+---------
+**Summary:** configure grub debconf installation device
+
+Configure which device is used as the target for grub installation. This module
+should work correctly by default without any user configuration. It can be
+enabled/disabled using the ``enabled`` config key in the ``grub_dpkg`` config
+dict. The global config key ``grub-dpkg`` is an alias for ``grub_dpkg``. If no
+installation device is specified this module will look for the first existing
+device in:
+
+    - ``/dev/sda``
+    - ``/dev/vda``
+    - ``/dev/xvda``
+    - ``/dev/sda1``
+    - ``/dev/vda1``
+    - ``/dev/xvda1``
+
+**Internal name:** ``cc_grub_dpkg``
+
+**Module frequency:** per instance
+
+**Supported distros:** ubuntu, debian
+
+**Config keys**::
+
+    grub_dpkg:
+        enabled: <true/false>
+        grub-pc/install_devices: <devices>
+        grub-pc/install_devices_empty: <devices>
+    grub-dpkg: (alias for grub_dpkg)
+"""
+
 import os
 
 from cloudinit import util

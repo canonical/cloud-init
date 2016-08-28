@@ -1,49 +1,76 @@
 # vi: ts=4 expandtab
 #
+#    This program is free software: you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License version 3, as
+#    published by the Free Software Foundation.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License
+#    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
 """
-snappy modules allows configuration of snappy.
-Example config:
-  #cloud-config
-  snappy:
-    system_snappy: auto
-    ssh_enabled: auto
-    packages: [etcd, pkg2.smoser]
-    config:
-      pkgname:
-        key2: value2
-      pkg2:
-        key1: value1
-    packages_dir: '/writable/user-data/cloud-init/snaps'
+Snappy
+------
+**Summary:** snappy modules allows configuration of snappy.
 
- - ssh_enabled:
-   This controls the system's ssh service.  The default value is 'auto'.
-     True:  enable ssh service
-     False: disable ssh service
-     auto:  enable ssh service if either ssh keys have been provided
-            or user has requested password authentication (ssh_pwauth).
+The below example config config would install ``etcd``, and then install
+``pkg2.smoser`` with a ``<config-file>`` argument where ``config-file`` has
+``config-blob`` inside it. If ``pkgname`` is installed already, then
+``snappy config pkgname <file>``
+will be called where ``file`` has ``pkgname-config-blob`` as its content.
 
- - snap installation and config
-   The above would install 'etcd', and then install 'pkg2.smoser' with a
-   '<config-file>' argument where 'config-file' has 'config-blob' inside it.
-   If 'pkgname' is installed already, then 'snappy config pkgname <file>'
-   will be called where 'file' has 'pkgname-config-blob' as its content.
+Entries in ``config`` can be namespaced or non-namespaced for a package.
+In either case, the config provided to snappy command is non-namespaced.
+The package name is provided as it appears.
 
-   Entries in 'config' can be namespaced or non-namespaced for a package.
-   In either case, the config provided to snappy command is non-namespaced.
-   The package name is provided as it appears.
+If ``packages_dir`` has files in it that end in ``.snap``, then they are
+installed.  Given 3 files:
 
-   If 'packages_dir' has files in it that end in '.snap', then they are
-   installed.  Given 3 files:
-     <packages_dir>/foo.snap
-     <packages_dir>/foo.config
-     <packages_dir>/bar.snap
-   cloud-init will invoke:
-     snappy install <packages_dir>/foo.snap <packages_dir>/foo.config
-     snappy install <packages_dir>/bar.snap
+  - <packages_dir>/foo.snap
+  - <packages_dir>/foo.config
+  - <packages_dir>/bar.snap
 
-   Note, that if provided a 'config' entry for 'ubuntu-core', then
-   cloud-init will invoke: snappy config ubuntu-core <config>
-   Allowing you to configure ubuntu-core in this way.
+cloud-init will invoke:
+
+  - snappy install <packages_dir>/foo.snap <packages_dir>/foo.config
+  - snappy install <packages_dir>/bar.snap
+
+.. note::
+    that if provided a ``config`` entry for ``ubuntu-core``, then
+    cloud-init will invoke: snappy config ubuntu-core <config>
+    Allowing you to configure ubuntu-core in this way.
+
+The ``ssh_enabled`` key controls the system's ssh service. The default value
+is ``auto``. Options are:
+
+  - **True:** enable ssh service
+  - **False:** disable ssh service
+  - **auto:** enable ssh service if either ssh keys have been provided
+    or user has requested password authentication (ssh_pwauth).
+
+**Internal name:** ``cc_snappy``
+
+**Module frequency:** per instance
+
+**Supported distros:** ubuntu
+
+**Config keys**::
+
+    #cloud-config
+    snappy:
+        system_snappy: auto
+        ssh_enabled: auto
+        packages: [etcd, pkg2.smoser]
+        config:
+            pkgname:
+                key2: value2
+            pkg2:
+                key1: value1
+        packages_dir: '/writable/user-data/cloud-init/snaps'
 """
 
 from cloudinit import log as logging

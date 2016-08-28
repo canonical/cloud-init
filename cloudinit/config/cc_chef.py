@@ -19,9 +19,11 @@
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 """
+Chef
+----
 **Summary:** module that configures, starts and installs chef.
 
-**Description:** This module enables chef to be installed (from packages or
+This module enables chef to be installed (from packages or
 from gems, or from omnibus). Before this occurs chef configurations are
 written to disk (validation.pem, client.pem, firstboot.json, client.rb),
 and needed chef folders/directories are created (/etc/chef and /var/log/chef
@@ -33,7 +35,13 @@ chef will have forked into its own process) then a post run function can
 run that can do finishing activities (such as removing the validation pem
 file).
 
-It can be configured with the following option structure::
+**Internal name:** ``cc_chef``
+
+**Module frequency:** per always
+
+**Supported distros:** all
+
+**Config keys**::
 
     chef:
        directories: (defaulting to /etc/chef, /var/log/chef, /var/lib/chef,

@@ -16,6 +16,40 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+"""
+RedHat Subscription
+-------------------
+**Summary:** register red hat enterprise linux based system
+
+Register a RedHat system either by username and password *or* activation and
+org. Following a sucessful registration, you can auto-attach subscriptions, set
+the service level, add subscriptions based on pool id, enable/disable yum
+repositories based on repo id, and alter the rhsm_baseurl and server-hostname
+in ``/etc/rhsm/rhs.conf``. For more details, see the ``Register RedHat
+Subscription`` example config.
+
+**Internal name:** ``cc_rh_subscription``
+
+**Module frequency:** per instance
+
+**Supported distros:** rhel, fedora
+
+**Config keys**::
+
+    rh_subscription:
+        username: <username>
+        password: <password>
+        activation-key: <activation key>
+        org: <org number>
+        auto-attach: <true/false>
+        service-level: <service level>
+        add-pool: <list of pool ids>
+        enable-repo: <list of yum repo ids>
+        disable-repo: <list of yum repo ids>
+        rhsm-baseurl: <url>
+        server-hostname: <hostname>
+"""
+
 from cloudinit import util
 
 distros = ['fedora', 'rhel']

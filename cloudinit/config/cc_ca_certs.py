@@ -14,6 +14,38 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+"""
+CA Certs
+--------
+**Summary:** add ca certificates
+
+This module adds CA certificates to ``/etc/ca-certificates.conf`` and updates
+the ssl cert cache using ``update-ca-certificates``. The default certificates
+can be removed from the system with the configuration option
+``remove-defaults``.
+
+.. note::
+    certificates must be specified using valid yaml. in order to specify a
+    multiline certificate, the yaml multiline list syntax must be used
+
+**Internal name:** ``cc_ca_certs``
+
+**Module frequency:** per instance
+
+**Supporte distros:** ubuntu, debian
+
+**Config keys**::
+
+    ca-certs:
+        remove-defaults: <true/false>
+        trusted:
+            - <single line cert>
+            - |
+              -----BEGIN CERTIFICATE-----
+              YOUR-ORGS-TRUSTED-CA-CERT-HERE
+              -----END CERTIFICATE-----
+"""
+
 import os
 
 from cloudinit import util
