@@ -367,6 +367,9 @@ class Distro(object):
 
         adduser_cmd = ['useradd', name]
         log_adduser_cmd = ['useradd', name]
+        if util.system_is_snappy():
+            adduser_cmd.append('--extrausers')
+            log_adduser_cmd.append('--extrausers')
 
         # Since we are creating users, we want to carefully validate the
         # inputs. If something goes wrong, we can end up with a system
@@ -445,12 +448,42 @@ class Distro(object):
             util.logexc(LOG, "Failed to create user %s", name)
             raise e
 
+    def add_snap_user(self, name, **kwargs):
+        """
+        Add a snappy user to the system using snappy tools
+        """
+
+        snapuser = kwargs.get('snapuser')
+        known = kwargs.get('known', False)
+        adduser_cmd = ["snap", "create-user", "--sudoer", "--json"]
+        if known:
+            adduser_cmd.append("--known")
+        adduser_cmd.append(snapuser)
+
+        # Run the command
+        LOG.debug("Adding snap user %s", name)
+        try:
+            (out, err) = util.subp(adduser_cmd, logstring=adduser_cmd,
+                                   capture=True)
+            LOG.debug("snap create-user returned: %s:%s", out, err)
+            jobj = util.load_json(out)
+            username = jobj.get('username', None)
+        except Exception as e:
+            util.logexc(LOG, "Failed to create snap user %s", name)
+            raise e
+
+        return username
+
     def create_user(self, name, **kwargs):
         """
         Creates users for the system using the GNU passwd tools. This
         will work on an GNU system. This should be overriden on
         distros where useradd is not desirable or not available.
         """
+
+        # Add a snap user, if requested
+        if 'snapuser' in kwargs:
+            return self.add_snap_user(name, **kwargs)
 
         # Add the user
         self.add_user(name, **kwargs)
@@ -602,6 +635,8 @@ class Distro(object):
 
     def create_group(self, name, members=None):
         group_add_cmd = ['groupadd', name]
+        if util.system_is_snappy():
+            group_add_cmd.append('--extrausers')
         if not members:
             members = []
 

@@ -257,24 +257,14 @@ def disable_enable_ssh(enabled):
         util.write_file(not_to_be_run, "cloud-init\n")
 
 
-def system_is_snappy():
-    # channel.ini is configparser loadable.
-    # snappy will move to using /etc/system-image/config.d/*.ini
-    # this is certainly not a perfect test, but good enough for now.
-    content = util.load_file("/etc/system-image/channel.ini", quiet=True)
-    if 'ubuntu-core' in content.lower():
-        return True
-    if os.path.isdir("/etc/system-image/config.d/"):
-        return True
-    return False
-
-
 def set_snappy_command():
     global SNAPPY_CMD
     if util.which("snappy-go"):
         SNAPPY_CMD = "snappy-go"
-    else:
+    elif util.which("snappy"):
         SNAPPY_CMD = "snappy"
+    else:
+        SNAPPY_CMD = "snap"
     LOG.debug("snappy command is '%s'", SNAPPY_CMD)
 
 
@@ -289,7 +279,7 @@ def handle(name, cfg, cloud, log, args):
         LOG.debug("%s: System is not snappy. disabling", name)
         return
 
-    if sys_snappy.lower() == "auto" and not(system_is_snappy()):
+    if sys_snappy.lower() == "auto" and not(util.system_is_snappy()):
         LOG.debug("%s: 'auto' mode, and system not snappy", name)
         return
 

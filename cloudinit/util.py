@@ -2374,3 +2374,15 @@ def get_installed_packages(target=None):
             pkgs_inst.add(re.sub(":.*", "", pkg))
 
     return pkgs_inst
+
+
+def system_is_snappy():
+    # channel.ini is configparser loadable.
+    # snappy will move to using /etc/system-image/config.d/*.ini
+    # this is certainly not a perfect test, but good enough for now.
+    content = load_file("/etc/system-image/channel.ini", quiet=True)
+    if 'ubuntu-core' in content.lower():
+        return True
+    if os.path.isdir("/etc/system-image/config.d/"):
+        return True
+    return False
