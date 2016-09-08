@@ -31,7 +31,7 @@ POST_LIST_ALL = [
     'pub_key_ecdsa',
     'instance_id',
     'hostname',
-    'fdqn'
+    'fqdn'
 ]
 
 
