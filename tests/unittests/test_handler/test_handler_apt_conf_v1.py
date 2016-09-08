@@ -3,6 +3,7 @@ from cloudinit import util
 
 from ..helpers import TestCase
 
+import copy
 import os
 import re
 import shutil
@@ -104,6 +105,27 @@ class TestAptProxyConfig(TestCase):
         cc_apt_configure.apply_apt_config({}, self.pfile, self.cfile)
         self.assertFalse(os.path.isfile(self.pfile))
         self.assertFalse(os.path.isfile(self.cfile))
+
+
+class TestConversion(TestCase):
+    def test_convert_with_apt_mirror_as_empty_string(self):
+        # an empty apt_mirror is the same as no apt_mirror
+        empty_m_found = cc_apt_configure.convert_to_v3_apt_format(
+            {'apt_mirror': ''})
+        default_found = cc_apt_configure.convert_to_v3_apt_format({})
+        self.assertEqual(default_found, empty_m_found)
+
+    def test_convert_with_apt_mirror(self):
+        mirror = 'http://my.mirror/ubuntu'
+        f = cc_apt_configure.convert_to_v3_apt_format({'apt_mirror': mirror})
+        self.assertIn(mirror, {m['uri'] for m in f['apt']['primary']})
+
+    def test_no_old_content(self):
+        mirror = 'http://my.mirror/ubuntu'
+        mydata = {'apt': {'primary': {'arches': ['default'], 'uri': mirror}}}
+        expected = copy.deepcopy(mydata)
+        self.assertEqual(expected,
+                         cc_apt_configure.convert_to_v3_apt_format(mydata))
 
 
 # vi: ts=4 expandtab

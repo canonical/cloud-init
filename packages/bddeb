@@ -67,7 +67,7 @@ def run_helper(helper, args=None, strip=True):
     return stdout
 
 
-def write_debian_folder(root, version_data, pkgmap, pyver="3",
+def write_debian_folder(root, templ_data, pkgmap, pyver="3",
                         append_requires=[]):
     deb_dir = util.abs_join(root, 'debian')
 
@@ -79,7 +79,7 @@ def write_debian_folder(root, version_data, pkgmap, pyver="3",
     templater.render_to_file(util.abs_join(find_root(),
                              'packages', 'debian', 'changelog.in'),
                              util.abs_join(deb_dir, 'changelog'),
-                             params=version_data)
+                             params=templ_data)
 
     # Write out the control file template
     reqs = run_helper('read-dependencies').splitlines()
@@ -147,6 +147,10 @@ def main():
                         default=os.environ.get("INIT_SYSTEM",
                                                "upstart,systemd"))
 
+    parser.add_argument("--release", dest="release",
+                        help=("build with changelog referencing RELEASE"),
+                        default="UNRELEASED")
+
     for ent in DEBUILD_ARGS:
         parser.add_argument(ent, dest="debuild_args", action='append_const',
                             const=ent, default=[],
@@ -184,6 +188,7 @@ def main():
             pkgmap[p] = "python3-" + p
             pyver = "3"
 
+    templ_data = {'debian_release': args.release}
     with util.tempdir() as tdir:
 
         # output like 0.7.6-1022-g36e92d3
@@ -208,7 +213,9 @@ def main():
             append_requires = ['cloud-utils | cloud-guest-utils']
         else:
             append_requires = []
-        write_debian_folder(xdir, ver_data, pkgmap,
+
+        templ_data.update(ver_data)
+        write_debian_folder(xdir, templ_data, pkgmap,
                             pyver=pyver, append_requires=append_requires)
 
         print("Running 'debuild %s' in %r" % (' '.join(args.debuild_args),

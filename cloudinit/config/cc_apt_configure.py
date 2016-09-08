@@ -477,8 +477,11 @@ def convert_v2_to_v3_apt_format(oldcfg):
                   'add_apt_repo_match': 'add_apt_repo_match'}
     needtoconvert = []
     for oldkey in mapoldkeys:
-        if oldcfg.get(oldkey, None) is not None:
-            needtoconvert.append(oldkey)
+        if oldkey in oldcfg:
+            if oldcfg[oldkey] in (None, ""):
+                del oldcfg[oldkey]
+            else:
+                needtoconvert.append(oldkey)
 
     # no old config, so no new one to be created
     if not needtoconvert:
