@@ -1,3 +1,14 @@
+cloud-init (0.7.7-26-g058dd75-0ubuntu1) UNRELEASED; urgency=medium
+
+  * New upstream snapshot.
+    - apt config conversion: treat empty string as not provided. (LP: #1621180)
+    - Fix typo in default keys for phone_home [Roland Sommer] (LP: #1607810)
+    - salt minion: update default pki directory for newer salt minion.
+      (LP: #1609899)
+    - bddeb: add --release flag to specify the release in changelog.
+
+ -- Scott Moser <smoser@ubuntu.com>  Thu, 08 Sep 2016 09:33:49 -0400
+
 cloud-init (0.7.7-22-g763f403-0ubuntu1) yakkety; urgency=medium
 
   * New upstream snapshot.
