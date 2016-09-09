@@ -63,6 +63,7 @@ class TestAptSourceConfig(t_help.FilesystemMockingTestCase):
         self.tmp = tempfile.mkdtemp()
         self.new_root = tempfile.mkdtemp()
         self.addCleanup(shutil.rmtree, self.tmp)
+        self.addCleanup(shutil.rmtree, self.new_root)
         self.aptlistfile = os.path.join(self.tmp, "single-deb.list")
         self.aptlistfile2 = os.path.join(self.tmp, "single-deb2.list")
         self.aptlistfile3 = os.path.join(self.tmp, "single-deb3.list")
