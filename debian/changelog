@@ -1,3 +1,12 @@
+cloud-init (0.7.7-28-g34a26f7-0ubuntu1) yakkety; urgency=medium
+
+  * New upstream snapshot.
+    - systemd: Better support package and upgrade.
+      (LP: #1576692, #1621336)
+    - tests: cleanup tempdirs in apt_source tests
+
+ -- Scott Moser <smoser@ubuntu.com>  Fri, 09 Sep 2016 16:01:13 -0400
+
 cloud-init (0.7.7-26-g058dd75-0ubuntu1) yakkety; urgency=medium
 
   * New upstream snapshot.
