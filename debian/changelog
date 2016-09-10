@@ -1,4 +1,4 @@
-cloud-init (0.7.7~bzr1256-0ubuntu1~16.04.1ubuntu1) UNRELEASED; urgency=medium
+cloud-init (0.7.7-28-g34a26f7-0ubuntu1~16.04.1) UNRELEASED; urgency=medium
 
   * debian/control: fix missing dependency on python3-serial,
     and make SmartOS datasource work.
