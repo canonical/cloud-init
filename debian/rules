@@ -7,10 +7,15 @@ export PYBUILD_INSTALL_ARGS=--init-system=$(INIT_SYSTEM)
 
 override_dh_auto_test:
 ifeq (,$(findstring nocheck,$(DEB_BUILD_OPTIONS)))
-	http_proxy= make PYVER=3 check
+	http_proxy= make PYVER=python3 check
 else
 	@echo check disabled by DEB_BUILD_OPTIONS=$(DEB_BUILD_OPTIONS)
 endif
 
 override_dh_systemd_start:
 	dh_systemd_start --no-restart-on-upgrade --no-start
+
+override_dh_auto_install:
+	dh_auto_install --destdir=debian/cloud-init
+	install -D ./tools/21-cloudinit.conf debian/cloud-init/etc/rsyslog.d/21-cloudinit.conf
+	install -D ./tools/Z99-cloud-locale-test.sh debian/cloud-init/etc/profile.d/Z99-cloud-locale-test.sh
