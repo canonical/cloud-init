@@ -2,6 +2,15 @@ cloud-init (0.7.7~bzr1256-0ubuntu1~16.04.1ubuntu1) UNRELEASED; urgency=medium
 
   * debian/control: fix missing dependency on python3-serial,
     and make SmartOS datasource work.
+  * debian/cloud-init.templates fix capitalisation in template so
+    dpkg-reconfigure works to select OpenStack. (LP: #1575727)
+  * d/README.source, d/control, d/new-upstream-snapshot, d/rules: sync
+    with yakkety for changes due to move to git.
+  * d/rules: change PYVER=python3 to PYVER=3 to adjust to upstream change.
+  * debian/rules, debian/cloud-init.install: remove install file
+    to ensure expected files are collected into cloud-init deb.
+    (LP: #1615745)
+  * debian/dirs: remove obsolete / unused file.
 
  -- Scott Moser <smoser@ubuntu.com>  Fri, 09 Sep 2016 21:31:19 -0400
 
