@@ -1,3 +1,10 @@
+cloud-init (0.7.7-28-g34a26f7-0ubuntu2) yakkety; urgency=medium
+
+  * debian/control: fix missing dependency on python3-serial,
+    and make SmartOS datasource work.
+
+ -- Scott Moser <smoser@ubuntu.com>  Fri, 09 Sep 2016 21:22:13 -0400
+
 cloud-init (0.7.7-28-g34a26f7-0ubuntu1) yakkety; urgency=medium
 
   * New upstream snapshot.
