@@ -1,3 +1,6 @@
+0.7.8:
+ - SmartOS: more improvements for network configuration
+ - add ntp configuration module [Ryan Harper]
 0.7.7:
  - open 0.7.7
  - Digital Ocean: add datasource for Digital Ocean. [Neal Shrader]

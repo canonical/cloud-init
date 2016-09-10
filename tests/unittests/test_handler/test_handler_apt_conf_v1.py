@@ -3,6 +3,7 @@ from cloudinit import util
 
 from ..helpers import TestCase
 
+import copy
 import os
 import re
 import shutil
@@ -27,7 +28,7 @@ class TestAptProxyConfig(TestCase):
             contents, flags=re.IGNORECASE)
 
     def test_apt_proxy_written(self):
-        cfg = {'apt_proxy': 'myproxy'}
+        cfg = {'proxy': 'myproxy'}
         cc_apt_configure.apply_apt_config(cfg, self.pfile, self.cfile)
 
         self.assertTrue(os.path.isfile(self.pfile))
@@ -37,7 +38,7 @@ class TestAptProxyConfig(TestCase):
         self.assertTrue(self._search_apt_config(contents, "http", "myproxy"))
 
     def test_apt_http_proxy_written(self):
-        cfg = {'apt_http_proxy': 'myproxy'}
+        cfg = {'http_proxy': 'myproxy'}
         cc_apt_configure.apply_apt_config(cfg, self.pfile, self.cfile)
 
         self.assertTrue(os.path.isfile(self.pfile))
@@ -47,13 +48,13 @@ class TestAptProxyConfig(TestCase):
         self.assertTrue(self._search_apt_config(contents, "http", "myproxy"))
 
     def test_apt_all_proxy_written(self):
-        cfg = {'apt_http_proxy': 'myproxy_http_proxy',
-               'apt_https_proxy': 'myproxy_https_proxy',
-               'apt_ftp_proxy': 'myproxy_ftp_proxy'}
+        cfg = {'http_proxy': 'myproxy_http_proxy',
+               'https_proxy': 'myproxy_https_proxy',
+               'ftp_proxy': 'myproxy_ftp_proxy'}
 
-        values = {'http': cfg['apt_http_proxy'],
-                  'https': cfg['apt_https_proxy'],
-                  'ftp': cfg['apt_ftp_proxy'],
+        values = {'http': cfg['http_proxy'],
+                  'https': cfg['https_proxy'],
+                  'ftp': cfg['ftp_proxy'],
                   }
 
         cc_apt_configure.apply_apt_config(cfg, self.pfile, self.cfile)
@@ -74,7 +75,7 @@ class TestAptProxyConfig(TestCase):
 
     def test_proxy_replaced(self):
         util.write_file(self.cfile, "content doesnt matter")
-        cc_apt_configure.apply_apt_config({'apt_proxy': "foo"},
+        cc_apt_configure.apply_apt_config({'proxy': "foo"},
                                           self.pfile, self.cfile)
         self.assertTrue(os.path.isfile(self.pfile))
         contents = load_tfile_or_url(self.pfile)
@@ -82,7 +83,7 @@ class TestAptProxyConfig(TestCase):
 
     def test_config_written(self):
         payload = 'this is my apt config'
-        cfg = {'apt_config': payload}
+        cfg = {'conf': payload}
 
         cc_apt_configure.apply_apt_config(cfg, self.pfile, self.cfile)
 
@@ -93,17 +94,38 @@ class TestAptProxyConfig(TestCase):
 
     def test_config_replaced(self):
         util.write_file(self.pfile, "content doesnt matter")
-        cc_apt_configure.apply_apt_config({'apt_config': "foo"},
+        cc_apt_configure.apply_apt_config({'conf': "foo"},
                                           self.pfile, self.cfile)
         self.assertTrue(os.path.isfile(self.cfile))
         self.assertEqual(load_tfile_or_url(self.cfile), "foo")
 
     def test_config_deleted(self):
-        # if no 'apt_config' is provided, delete any previously written file
+        # if no 'conf' is provided, delete any previously written file
         util.write_file(self.pfile, "content doesnt matter")
         cc_apt_configure.apply_apt_config({}, self.pfile, self.cfile)
         self.assertFalse(os.path.isfile(self.pfile))
         self.assertFalse(os.path.isfile(self.cfile))
+
+
+class TestConversion(TestCase):
+    def test_convert_with_apt_mirror_as_empty_string(self):
+        # an empty apt_mirror is the same as no apt_mirror
+        empty_m_found = cc_apt_configure.convert_to_v3_apt_format(
+            {'apt_mirror': ''})
+        default_found = cc_apt_configure.convert_to_v3_apt_format({})
+        self.assertEqual(default_found, empty_m_found)
+
+    def test_convert_with_apt_mirror(self):
+        mirror = 'http://my.mirror/ubuntu'
+        f = cc_apt_configure.convert_to_v3_apt_format({'apt_mirror': mirror})
+        self.assertIn(mirror, {m['uri'] for m in f['apt']['primary']})
+
+    def test_no_old_content(self):
+        mirror = 'http://my.mirror/ubuntu'
+        mydata = {'apt': {'primary': {'arches': ['default'], 'uri': mirror}}}
+        expected = copy.deepcopy(mydata)
+        self.assertEqual(expected,
+                         cc_apt_configure.convert_to_v3_apt_format(mydata))
 
 
 # vi: ts=4 expandtab

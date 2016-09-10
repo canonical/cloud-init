@@ -226,8 +226,5 @@ class TestGenericDistro(helpers.FilesystemMockingTestCase):
         os.symlink('/', '/run/systemd/system')
         self.assertFalse(d.uses_systemd())
 
-# def _get_package_mirror_info(mirror_info, availability_zone=None,
-#                             mirror_filter=util.search_for_mirror):
-
 
 # vi: ts=4 expandtab

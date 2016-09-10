@@ -31,7 +31,7 @@ REQUIRED_FIELDS = ('instance-id', 'availability-zone', 'local-hostname')
 
 
 class GoogleMetadataFetcher(object):
-    headers = {'X-Google-Metadata-Request': True}
+    headers = {'X-Google-Metadata-Request': 'True'}
 
     def __init__(self, metadata_address):
         self.metadata_address = metadata_address

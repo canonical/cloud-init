@@ -61,6 +61,10 @@ from cloudinit import version
 
 from cloudinit.settings import (CFG_BUILTIN)
 
+try:
+    string_types = (basestring,)
+except NameError:
+    string_types = (str,)
 
 _DNS_REDIRECT_IP = None
 LOG = logging.getLogger(__name__)
@@ -81,6 +85,71 @@ CONTAINER_TESTS = (['systemd-detect-virt', '--quiet', '--container'],
                    ['lxc-is-container'])
 
 PROC_CMDLINE = None
+
+_LSB_RELEASE = {}
+
+
+def get_architecture(target=None):
+    out, _ = subp(['dpkg', '--print-architecture'], capture=True,
+                  target=target)
+    return out.strip()
+
+
+def _lsb_release(target=None):
+    fmap = {'Codename': 'codename', 'Description': 'description',
+            'Distributor ID': 'id', 'Release': 'release'}
+
+    data = {}
+    try:
+        out, _ = subp(['lsb_release', '--all'], capture=True, target=target)
+        for line in out.splitlines():
+            fname, _, val = line.partition(":")
+            if fname in fmap:
+                data[fmap[fname]] = val.strip()
+        missing = [k for k in fmap.values() if k not in data]
+        if len(missing):
+            LOG.warn("Missing fields in lsb_release --all output: %s",
+                     ','.join(missing))
+
+    except ProcessExecutionError as err:
+        LOG.warn("Unable to get lsb_release --all: %s", err)
+        data = dict((v, "UNAVAILABLE") for v in fmap.values())
+
+    return data
+
+
+def lsb_release(target=None):
+    if target_path(target) != "/":
+        # do not use or update cache if target is provided
+        return _lsb_release(target)
+
+    global _LSB_RELEASE
+    if not _LSB_RELEASE:
+        data = _lsb_release()
+        _LSB_RELEASE.update(data)
+    return _LSB_RELEASE
+
+
+def target_path(target, path=None):
+    # return 'path' inside target, accepting target as None
+    if target in (None, ""):
+        target = "/"
+    elif not isinstance(target, string_types):
+        raise ValueError("Unexpected input for target: %s" % target)
+    else:
+        target = os.path.abspath(target)
+        # abspath("//") returns "//" specifically for 2 slashes.
+        if target.startswith("//"):
+            target = target[1:]
+
+    if not path:
+        return target
+
+    # os.path.join("/etc", "/foo") returns "/foo". Chomp all leading /.
+    while len(path) and path[0] == "/":
+        path = path[1:]
+
+    return os.path.join(target, path)
 
 
 def decode_binary(blob, encoding='utf-8'):
@@ -1570,6 +1639,11 @@ def get_builtin_cfg():
     return obj_copy.deepcopy(CFG_BUILTIN)
 
 
+def is_link(path):
+    LOG.debug("Testing if a link exists for %s", path)
+    return os.path.islink(path)
+
+
 def sym_link(source, link, force=False):
     LOG.debug("Creating symbolic link from %r => %r", link, source)
     if force and os.path.exists(link):
@@ -1688,10 +1762,20 @@ def delete_dir_contents(dirname):
 
 
 def subp(args, data=None, rcs=None, env=None, capture=True, shell=False,
-         logstring=False):
+         logstring=False, decode="replace", target=None):
+
+    # not supported in cloud-init (yet), for now kept in the call signature
+    # to ease maintaining code shared between cloud-init and curtin
+    if target is not None:
+        raise ValueError("target arg not supported by cloud-init")
+
     if rcs is None:
         rcs = [0]
+
+    devnull_fp = None
     try:
+        if target_path(target) != "/":
+            args = ['chroot', target] + list(args)
 
         if not logstring:
             LOG.debug(("Running command %s with allowed return codes %s"
@@ -1700,33 +1784,52 @@ def subp(args, data=None, rcs=None, env=None, capture=True, shell=False,
             LOG.debug(("Running hidden command to protect sensitive "
                        "input/output logstring: %s"), logstring)
 
-        if not capture:
-            stdout = None
-            stderr = None
-        else:
+        stdin = None
+        stdout = None
+        stderr = None
+        if capture:
             stdout = subprocess.PIPE
             stderr = subprocess.PIPE
-        stdin = subprocess.PIPE
-        kws = dict(stdout=stdout, stderr=stderr, stdin=stdin,
-                   env=env, shell=shell)
-        if six.PY3:
-            # Use this so subprocess output will be (Python 3) str, not bytes.
-            kws['universal_newlines'] = True
-        sp = subprocess.Popen(args, **kws)
+        if data is None:
+            # using devnull assures any reads get null, rather
+            # than possibly waiting on input.
+            devnull_fp = open(os.devnull)
+            stdin = devnull_fp
+        else:
+            stdin = subprocess.PIPE
+            if not isinstance(data, bytes):
+                data = data.encode()
+
+        sp = subprocess.Popen(args, stdout=stdout,
+                              stderr=stderr, stdin=stdin,
+                              env=env, shell=shell)
         (out, err) = sp.communicate(data)
+
+        # Just ensure blank instead of none.
+        if not out and capture:
+            out = b''
+        if not err and capture:
+            err = b''
+        if decode:
+            def ldecode(data, m='utf-8'):
+                if not isinstance(data, bytes):
+                    return data
+                return data.decode(m, errors=decode)
+
+            out = ldecode(out)
+            err = ldecode(err)
     except OSError as e:
         raise ProcessExecutionError(cmd=args, reason=e,
                                     errno=e.errno)
+    finally:
+        if devnull_fp:
+            devnull_fp.close()
+
     rc = sp.returncode
     if rc not in rcs:
         raise ProcessExecutionError(stdout=out, stderr=err,
                                     exit_code=rc,
                                     cmd=args)
-    # Just ensure blank instead of none?? (iff capturing)
-    if not out and capture:
-        out = ''
-    if not err and capture:
-        err = ''
     return (out, err)
 
 
@@ -2227,9 +2330,16 @@ def read_dmi_data(key):
 
     If all of the above fail to find a value, None will be returned.
     """
+
     syspath_value = _read_dmi_syspath(key)
     if syspath_value is not None:
         return syspath_value
+
+    # running dmidecode can be problematic on some arches (LP: #1243287)
+    uname_arch = os.uname()[4]
+    if uname_arch.startswith("arm") or uname_arch == "aarch64":
+        LOG.debug("dmidata is not supported on %s", uname_arch)
+        return None
 
     dmidecode_path = which('dmidecode')
     if dmidecode_path:
@@ -2244,3 +2354,18 @@ def message_from_string(string):
     if sys.version_info[:2] < (2, 7):
         return email.message_from_file(six.StringIO(string))
     return email.message_from_string(string)
+
+
+def get_installed_packages(target=None):
+    (out, _) = subp(['dpkg-query', '--list'], target=target, capture=True)
+
+    pkgs_inst = set()
+    for line in out.splitlines():
+        try:
+            (state, pkg, _) = line.split(None, 2)
+        except ValueError:
+            continue
+        if state.startswith("hi") or state.startswith("ii"):
+            pkgs_inst.add(re.sub(":.*", "", pkg))
+
+    return pkgs_inst

@@ -1,63 +1,41 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 
 import argparse
-import contextlib
 import glob
+import json
 import os
 import shutil
-import subprocess
 import sys
 import tempfile
-import re
-
-from datetime import datetime
 
 
 def find_root():
     # expected path is in <top_dir>/packages/
     top_dir = os.environ.get("CLOUD_INIT_TOP_D", None)
     if top_dir is None:
-       top_dir = os.path.dirname(os.path.dirname(os.path.abspath(sys.argv[0])))
+        top_dir = os.path.dirname(
+            os.path.dirname(os.path.abspath(sys.argv[0])))
     if os.path.isfile(os.path.join(top_dir, 'setup.py')):
         return os.path.abspath(top_dir)
     raise OSError(("Unable to determine where your cloud-init topdir is."
-                       " set CLOUD_INIT_TOP_D?"))
+                   " set CLOUD_INIT_TOP_D?"))
 
 
-# Use the util functions from cloudinit
-sys.path.insert(0, find_root())
+if "avoid-pep8-E402-import-not-top-of-file":
+    # Use the util functions from cloudinit
+    sys.path.insert(0, find_root())
+    from cloudinit import templater
+    from cloudinit import util
 
-from cloudinit import templater
-from cloudinit import util
-
-# Mapping of expected packages to there full name...
-# this is a translation of the 'requires'
-# file pypi package name to a redhat/fedora package name.
-PKG_MP = {
+# Map python requirements to package names.  If a match isn't found
+# here, we assume 'python-<pypi_name>'.
+PACKAGE_MAP = {
     'redhat': {
-        'argparse': 'python-argparse',
-        'cheetah': 'python-cheetah',
-        'jinja2': 'python-jinja2',
-        'configobj': 'python-configobj',
-        'jsonpatch': 'python-jsonpatch',
-        'oauthlib': 'python-oauthlib',
-        'prettytable': 'python-prettytable',
         'pyserial': 'pyserial',
         'pyyaml': 'PyYAML',
-        'requests': 'python-requests',
-        'six': 'python-six',
     },
     'suse': {
-        'argparse': 'python-argparse',
-        'cheetah': 'python-cheetah',
-        'configobj': 'python-configobj',
-        'jsonpatch': 'python-jsonpatch',
-        'oauthlib': 'python-oauthlib',
-        'prettytable': 'python-prettytable',
-        'pyserial': 'python-pyserial',
         'pyyaml': 'python-yaml',
-        'requests': 'python-requests',
-        'six': 'python-six',
     }
 }
 
@@ -65,110 +43,66 @@ PKG_MP = {
 RPM_BUILD_SUBDIRS = ['BUILD', 'RPMS', 'SOURCES', 'SPECS', 'SRPMS']
 
 
-def get_log_header(version):
-    # Try to find the version in the tags output
-    cmd = ['bzr', 'tags']
+def run_helper(helper, args=None, strip=True):
+    if args is None:
+        args = []
+    cmd = [util.abs_join(find_root(), 'tools', helper)] + args
     (stdout, _stderr) = util.subp(cmd)
-    a_rev = None
-    for t in stdout.splitlines():
-        ver, rev = t.split(None)
-        if ver == version:
-            a_rev = rev
-            break
-    if not a_rev:
-        return None
-    
-    # Extract who made that tag as the header
-    cmd = ['bzr', 'log', '-r%s' % (a_rev), '--timezone=utc']
-    (stdout, _stderr) = util.subp(cmd)
-    kvs = {
-        'comment': version,
-    }
-
-    for line in stdout.splitlines():
-        if line.startswith('committer:'):
-            kvs['who'] = line[len('committer:'):].strip()
-        if line.startswith('timestamp:'):
-            ts = line[len('timestamp:'):]
-            ts = ts.strip()
-            # http://bugs.python.org/issue6641
-            ts = ts.replace("+0000", '').strip()
-            ds = datetime.strptime(ts, '%a %Y-%m-%d %H:%M:%S')
-            kvs['ds'] = ds
-
-    return format_change_line(**kvs)
+    if strip:
+        stdout = stdout.strip()
+    return stdout
 
 
-def format_change_line(ds, who, comment=None):
-    # Rpmbuild seems to be pretty strict about the date format
-    d = ds.strftime("%a %b %d %Y")
-    d += " - %s" % (who)
-    if comment:
-        d += " - %s" % (comment)
-    return "* %s" % (d)
+def read_dependencies():
+    '''Returns the Python depedencies from requirements.txt.  This explicitly
+    removes 'argparse' from the list of requirements for python >= 2.7,
+    because with 2.7 argparse became part of the standard library.'''
+    stdout = run_helper('read-dependencies')
+    return [p.lower().strip() for p in stdout.splitlines()
+            if p != 'argparse' or (p == 'argparse' and
+                                   sys.version_info[0:2] < (2, 7))]
 
 
-def generate_spec_contents(args, tmpl_fn, top_dir, arc_fn):
+def translate_dependencies(deps, distro):
+    '''Maps python requirements into package names.  We assume
+    python-<pypi_name> for packages not listed explicitly in
+    PACKAGE_MAP.'''
+    return [PACKAGE_MAP[distro][req]
+            if req in PACKAGE_MAP[distro] else 'python-%s' % req
+            for req in deps]
 
-    # Figure out the version and revno
-    cmd = [util.abs_join(find_root(), 'tools', 'read-version')]
-    (stdout, _stderr) = util.subp(cmd)
-    version = stdout.strip()
-    
-    cmd = ['bzr', 'revno']
-    (stdout, _stderr) = util.subp(cmd)
-    revno = stdout.strip()
+
+def read_version():
+    return json.loads(run_helper('read-version', ['--json']))
+
+
+def generate_spec_contents(args, version_data, tmpl_fn, top_dir, arc_fn):
 
     # Tmpl params
     subs = {}
-    subs['version'] = version
-    subs['revno'] = revno
-    subs['release'] = "bzr%s" % (revno)
-    if args.sub_release is not None:
-        subs['subrelease'] = "." + str(args.sub_release)
-    else:
-        subs['subrelease'] = ''
-    subs['archive_name'] = arc_fn
 
-    cmd = [util.abs_join(find_root(), 'tools', 'read-dependencies')]
-    (stdout, _stderr) = util.subp(cmd)
-    pkgs = [p.lower().strip() for p in stdout.splitlines()]
+    if args.sub_release is not None:
+        subs['subrelease'] = str(args.sub_release)
+    else:
+        subs['subrelease'] = ""
+
+    subs['archive_name'] = arc_fn
+    subs['source_name'] = os.path.basename(arc_fn).replace('.tar.gz', '')
+    subs.update(version_data)
+
+    # rpm does not like '-' in the Version, so change
+    #   X.Y.Z-N-gHASH to X.Y.Z+N.gHASH
+    if "-" in version_data.get('version'):
+        ver, commits, ghash = version_data['version'].split("-")
+        rpm_upstream_version = "%s+%s.%s" % (ver, commits, ghash)
+    else:
+        rpm_upstream_version = version_data['version']
+    subs['rpm_upstream_version'] = rpm_upstream_version
 
     # Map to known packages
-    requires = []
-    for p in pkgs:
-        tgt_pkg = PKG_MP[args.distro].get(p)
-        if not tgt_pkg:
-            raise RuntimeError(("Do not know how to translate pypi dependency"
-                                " %r to a known package") % (p))
-        else:
-            requires.append(tgt_pkg)
-    subs['requires'] = requires
-
-    # Format a nice changelog (as best as we can)
-    changelog = util.load_file(util.abs_join(find_root(), 'ChangeLog'))
-    changelog_lines = []
-    missing_versions = 0
-    for line in changelog.splitlines():
-        if not line.strip():
-            continue
-        if re.match(r"^\s*[\d][.][\d][.][\d]:\s*", line):
-            line = line.strip(":")
-            header = get_log_header(line)
-            if not header:
-                missing_versions += 1
-                if missing_versions == 1:
-                    # Must be using a new 'dev'/'trunk' release
-                    changelog_lines.append(format_change_line(datetime.now(),
-                                                              '??'))
-                else:
-                    sys.stderr.write(("Changelog version line %s does not "
-                                      "have a corresponding tag!\n") % (line))
-            else:
-                changelog_lines.append(header)
-        else:
-            changelog_lines.append(line)
-    subs['changelog'] = "\n".join(changelog_lines)
+    python_deps = read_dependencies()
+    package_deps = translate_dependencies(python_deps, args.distro)
+    subs['requires'] = package_deps
 
     if args.boot == 'sysvinit':
         subs['sysvinit'] = True
@@ -180,21 +114,23 @@ def generate_spec_contents(args, tmpl_fn, top_dir, arc_fn):
     else:
         subs['systemd'] = False
 
-    subs['defines'] = ["_topdir %s" % (top_dir)]
     subs['init_sys'] = args.boot
     subs['patches'] = [os.path.basename(p) for p in args.patches]
     return templater.render_from_file(tmpl_fn, params=subs)
 
 
 def main():
-    
+
     parser = argparse.ArgumentParser()
     parser.add_argument("-d", "--distro", dest="distro",
                         help="select distro (default: %(default)s)",
                         metavar="DISTRO", default='redhat',
                         choices=('redhat', 'suse'))
+    parser.add_argument('--srpm',
+                        help='Produce a source rpm',
+                        action='store_true')
     parser.add_argument("-b", "--boot", dest="boot",
-                        help="select boot type (default: %(default)s)", 
+                        help="select boot type (default: %(default)s)",
                         metavar="TYPE", default='sysvinit',
                         choices=('sysvinit', 'systemd'))
     parser.add_argument("-v", "--verbose", dest="verbose",
@@ -218,57 +154,62 @@ def main():
     if args.verbose:
         capture = False
 
-    # Clean out the root dir and make sure the dirs we want are in place
-    root_dir = os.path.expanduser("~/rpmbuild")
-    if os.path.isdir(root_dir):
-        shutil.rmtree(root_dir)
+    workdir = None
+    try:
+        workdir = tempfile.mkdtemp(prefix='rpmbuild')
+        os.environ['HOME'] = workdir
+        topdir = os.path.join(workdir, 'rpmbuild')
+        build_dirs = [os.path.join(topdir, dir)
+                      for dir in RPM_BUILD_SUBDIRS]
+        util.ensure_dirs(build_dirs)
 
-    arc_dir = util.abs_join(root_dir, 'SOURCES')
-    build_dirs = [root_dir, arc_dir]
-    for dname in RPM_BUILD_SUBDIRS:
-        build_dirs.append(util.abs_join(root_dir, dname))
-    build_dirs.sort()
-    util.ensure_dirs(build_dirs)
+        version_data = read_version()
 
-    # Archive the code
-    cmd = [util.abs_join(find_root(), 'tools', 'make-tarball')]
-    (stdout, _stderr) = util.subp(cmd)
-    archive_fn = stdout.strip()
-    real_archive_fn = os.path.join(arc_dir, os.path.basename(archive_fn))
-    shutil.move(archive_fn, real_archive_fn)
-    print("Archived the code in %r" % (real_archive_fn))
+        # Archive the code
+        archive_fn = "cloud-init-%s.tar.gz" % version_data['version_long']
+        real_archive_fn = os.path.join(topdir, 'SOURCES', archive_fn)
+        archive_fn = run_helper(
+            'make-tarball', ['--long', '--output=' + real_archive_fn])
+        print("Archived the code in %r" % (real_archive_fn))
 
-    # Form the spec file to be used
-    tmpl_fn = util.abs_join(find_root(), 'packages',
-                            args.distro, 'cloud-init.spec.in')
-    contents = generate_spec_contents(args, tmpl_fn, root_dir,
-                                      os.path.basename(archive_fn))
-    spec_fn = util.abs_join(root_dir, 'cloud-init.spec')
-    util.write_file(spec_fn, contents)
-    print("Created spec file at %r" % (spec_fn))
-    print(contents)
-    for p in args.patches:
-        util.copy(p, util.abs_join(arc_dir, os.path.basename(p)))
+        # Form the spec file to be used
+        tmpl_fn = util.abs_join(find_root(), 'packages',
+                                args.distro, 'cloud-init.spec.in')
+        contents = generate_spec_contents(args, version_data, tmpl_fn, topdir,
+                                          os.path.basename(archive_fn))
+        spec_fn = util.abs_join(topdir, 'SPECS', 'cloud-init.spec')
+        util.write_file(spec_fn, contents)
+        print("Created spec file at %r" % (spec_fn))
+        for p in args.patches:
+            util.copy(p, util.abs_join(topdir, 'SOURCES', os.path.basename(p)))
 
-    # Now build it!
-    print("Running 'rpmbuild' in %r" % (root_dir))
-    cmd = ['rpmbuild', '-ba', spec_fn]
-    util.subp(cmd, capture=capture)
+        # Now build it!
+        print("Running 'rpmbuild' in %r" % (topdir))
 
-    # Copy the items built to our local dir
-    globs = [] 
-    globs.extend(glob.glob("%s/*.rpm" %
-                           (util.abs_join(root_dir, 'RPMS', 'noarch'))))
-    globs.extend(glob.glob("%s/*.rpm" %
-                           (util.abs_join(root_dir, 'RPMS', 'x86_64'))))
-    globs.extend(glob.glob("%s/*.rpm" %
-                           (util.abs_join(root_dir, 'RPMS'))))
-    globs.extend(glob.glob("%s/*.rpm" %
-                           (util.abs_join(root_dir, 'SRPMS'))))
-    for rpm_fn in globs:
-        tgt_fn = util.abs_join(os.getcwd(), os.path.basename(rpm_fn))
-        shutil.move(rpm_fn, tgt_fn)
-        print("Wrote out %s package %r" % (args.distro, tgt_fn))
+        if args.srpm:
+            cmd = ['rpmbuild', '-bs', '--nodeps', spec_fn]
+        else:
+            cmd = ['rpmbuild', '-ba', spec_fn]
+
+        util.subp(cmd, capture=capture)
+
+        # Copy the items built to our local dir
+        globs = []
+        globs.extend(glob.glob("%s/*.rpm" %
+                               (util.abs_join(topdir, 'RPMS', 'noarch'))))
+        globs.extend(glob.glob("%s/*.rpm" %
+                               (util.abs_join(topdir, 'RPMS', 'x86_64'))))
+        globs.extend(glob.glob("%s/*.rpm" %
+                               (util.abs_join(topdir, 'RPMS'))))
+        globs.extend(glob.glob("%s/*.rpm" %
+                               (util.abs_join(topdir, 'SRPMS'))))
+        for rpm_fn in globs:
+            tgt_fn = util.abs_join(os.getcwd(), os.path.basename(rpm_fn))
+            shutil.move(rpm_fn, tgt_fn)
+            print("Wrote out %s package %r" % (args.distro, tgt_fn))
+    finally:
+        if workdir is not None:
+            shutil.rmtree(workdir)
 
     return 0
 

@@ -36,7 +36,7 @@ def read_sys_net(devname, path, translate=None, enoent=None, keyerror=None):
     try:
         contents = util.load_file(sys_dev_path(devname, path))
     except (OSError, IOError) as e:
-        if getattr(e, 'errno', None) == errno.ENOENT:
+        if getattr(e, 'errno', None) in (errno.ENOENT, errno.ENOTDIR):
             if enoent is not None:
                 return enoent
         raise
@@ -347,7 +347,12 @@ def _rename_interfaces(renames, strict_present=True, strict_busy=True,
 
 def get_interface_mac(ifname):
     """Returns the string value of an interface's MAC Address"""
-    return read_sys_net(ifname, "address", enoent=False)
+    path = "address"
+    if os.path.isdir(sys_dev_path(ifname, "bonding_slave")):
+        # for a bond slave, get the nic's hwaddress, not the address it
+        # is using because its part of a bond.
+        path = "bonding_slave/perm_hwaddr"
+    return read_sys_net(ifname, path, enoent=False)
 
 
 def get_interfaces_by_mac(devs=None):

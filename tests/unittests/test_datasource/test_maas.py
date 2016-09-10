@@ -2,6 +2,7 @@ from copy import copy
 import os
 import shutil
 import tempfile
+import yaml
 
 from cloudinit.sources import DataSourceMAAS
 from cloudinit import url_helper
@@ -24,41 +25,44 @@ class TestMAASDataSource(TestCase):
     def test_seed_dir_valid(self):
         """Verify a valid seeddir is read as such."""
 
-        data = {'instance-id': 'i-valid01',
-                'local-hostname': 'valid01-hostname',
-                'user-data': b'valid01-userdata',
+        userdata = b'valid01-userdata'
+        data = {'meta-data/instance-id': 'i-valid01',
+                'meta-data/local-hostname': 'valid01-hostname',
+                'user-data': userdata,
                 'public-keys': 'ssh-rsa AAAAB3Nz...aC1yc2E= keyname'}
 
         my_d = os.path.join(self.tmp, "valid")
         populate_dir(my_d, data)
 
-        (userdata, metadata) = DataSourceMAAS.read_maas_seed_dir(my_d)
+        ud, md, vd = DataSourceMAAS.read_maas_seed_dir(my_d)
 
-        self.assertEqual(userdata, data['user-data'])
+        self.assertEqual(userdata, ud)
         for key in ('instance-id', 'local-hostname'):
-            self.assertEqual(data[key], metadata[key])
+            self.assertEqual(data["meta-data/" + key], md[key])
 
         # verify that 'userdata' is not returned as part of the metadata
-        self.assertFalse(('user-data' in metadata))
+        self.assertFalse(('user-data' in md))
+        self.assertEqual(vd, None)
 
     def test_seed_dir_valid_extra(self):
         """Verify extra files do not affect seed_dir validity."""
 
-        data = {'instance-id': 'i-valid-extra',
-                'local-hostname': 'valid-extra-hostname',
-                'user-data': b'valid-extra-userdata', 'foo': 'bar'}
+        userdata = b'valid-extra-userdata'
+        data = {'meta-data/instance-id': 'i-valid-extra',
+                'meta-data/local-hostname': 'valid-extra-hostname',
+                'user-data': userdata, 'foo': 'bar'}
 
         my_d = os.path.join(self.tmp, "valid_extra")
         populate_dir(my_d, data)
 
-        (userdata, metadata) = DataSourceMAAS.read_maas_seed_dir(my_d)
+        ud, md, vd = DataSourceMAAS.read_maas_seed_dir(my_d)
 
-        self.assertEqual(userdata, data['user-data'])
+        self.assertEqual(userdata, ud)
         for key in ('instance-id', 'local-hostname'):
-            self.assertEqual(data[key], metadata[key])
+            self.assertEqual(data['meta-data/' + key], md[key])
 
         # additional files should not just appear as keys in metadata atm
-        self.assertFalse(('foo' in metadata))
+        self.assertFalse(('foo' in md))
 
     def test_seed_dir_invalid(self):
         """Verify that invalid seed_dir raises MAASSeedDirMalformed."""
@@ -97,67 +101,60 @@ class TestMAASDataSource(TestCase):
                           DataSourceMAAS.read_maas_seed_dir,
                           os.path.join(self.tmp, "nonexistantdirectory"))
 
+    def mock_read_maas_seed_url(self, data, seed, version="19991231"):
+        """mock up readurl to appear as a web server at seed has provided data.
+        return what read_maas_seed_url returns."""
+        def my_readurl(*args, **kwargs):
+            if len(args):
+                url = args[0]
+            else:
+                url = kwargs['url']
+            prefix = "%s/%s/" % (seed, version)
+            if not url.startswith(prefix):
+                raise ValueError("unexpected call %s" % url)
+
+            short = url[len(prefix):]
+            if short not in data:
+                raise url_helper.UrlError("not found", code=404, url=url)
+            return url_helper.StringResponse(data[short])
+
+        # Now do the actual call of the code under test.
+        with mock.patch("cloudinit.url_helper.readurl") as mock_readurl:
+            mock_readurl.side_effect = my_readurl
+            return DataSourceMAAS.read_maas_seed_url(seed, version=version)
+
     def test_seed_url_valid(self):
         """Verify that valid seed_url is read as such."""
         valid = {
             'meta-data/instance-id': 'i-instanceid',
             'meta-data/local-hostname': 'test-hostname',
             'meta-data/public-keys': 'test-hostname',
+            'meta-data/vendor-data': b'my-vendordata',
             'user-data': b'foodata',
         }
-        valid_order = [
-            'meta-data/local-hostname',
-            'meta-data/instance-id',
-            'meta-data/public-keys',
-            'user-data',
-        ]
         my_seed = "http://example.com/xmeta"
         my_ver = "1999-99-99"
-        my_headers = {'header1': 'value1', 'header2': 'value2'}
+        ud, md, vd = self.mock_read_maas_seed_url(valid, my_seed, my_ver)
 
-        def my_headers_cb(url):
-            return my_headers
+        self.assertEqual(valid['meta-data/instance-id'], md['instance-id'])
+        self.assertEqual(
+            valid['meta-data/local-hostname'], md['local-hostname'])
+        self.assertEqual(valid['meta-data/public-keys'], md['public-keys'])
+        self.assertEqual(valid['user-data'], ud)
+        # vendor-data is yaml, which decodes a string
+        self.assertEqual(valid['meta-data/vendor-data'].decode(), vd)
 
-        # Each time url_helper.readurl() is called, something different is
-        # returned based on the canned data above.  We need to build up a list
-        # of side effect return values, which the mock will return.  At the
-        # same time, we'll build up a list of expected call arguments for
-        # asserting after the code under test is run.
-        calls = []
+    def test_seed_url_vendor_data_dict(self):
+        expected_vd = {'key1': 'value1'}
+        valid = {
+            'meta-data/instance-id': 'i-instanceid',
+            'meta-data/local-hostname': 'test-hostname',
+            'meta-data/vendor-data': yaml.safe_dump(expected_vd).encode(),
+        }
+        ud, md, vd = self.mock_read_maas_seed_url(
+            valid, "http://example.com/foo")
 
-        def side_effect():
-            for key in valid_order:
-                resp = valid.get(key)
-                url = "%s/%s/%s" % (my_seed, my_ver, key)
-                calls.append(
-                    mock.call(url, headers=None, timeout=mock.ANY,
-                              data=mock.ANY, sec_between=mock.ANY,
-                              ssl_details=mock.ANY, retries=mock.ANY,
-                              headers_cb=my_headers_cb,
-                              exception_cb=mock.ANY))
-                yield url_helper.StringResponse(resp)
-
-        # Now do the actual call of the code under test.
-        with mock.patch.object(url_helper, 'readurl',
-                               side_effect=side_effect()) as mockobj:
-            userdata, metadata = DataSourceMAAS.read_maas_seed_url(
-                my_seed, version=my_ver)
-
-            self.assertEqual(b"foodata", userdata)
-            self.assertEqual(metadata['instance-id'],
-                             valid['meta-data/instance-id'])
-            self.assertEqual(metadata['local-hostname'],
-                             valid['meta-data/local-hostname'])
-
-            mockobj.has_calls(calls)
-
-    def test_seed_url_invalid(self):
-        """Verify that invalid seed_url raises MAASSeedDirMalformed."""
-        pass
-
-    def test_seed_url_missing(self):
-        """Verify seed_url with no found entries raises MAASSeedDirNone."""
-        pass
-
+        self.assertEqual(valid['meta-data/instance-id'], md['instance-id'])
+        self.assertEqual(expected_vd, vd)
 
 # vi: ts=4 expandtab

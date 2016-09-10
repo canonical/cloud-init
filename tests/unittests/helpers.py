@@ -252,11 +252,27 @@ class HttprettyTestCase(TestCase):
         super(HttprettyTestCase, self).tearDown()
 
 
+class TempDirTestCase(TestCase):
+    # provide a tempdir per class, not per test.
+    def setUp(self):
+        super(TempDirTestCase, self).setUp()
+        self.tmp = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, self.tmp)
+
+    def tmp_path(self, path):
+        if path.startswith(os.path.sep):
+            path = "." + path
+
+        return os.path.normpath(os.path.join(self.tmp, path))
+
+
 def populate_dir(path, files):
     if not os.path.exists(path):
         os.makedirs(path)
     for (name, content) in files.items():
-        with open(os.path.join(path, name), "wb") as fp:
+        p = os.path.join(path, name)
+        util.ensure_dir(os.path.dirname(p))
+        with open(p, "wb") as fp:
             if isinstance(content, six.binary_type):
                 fp.write(content)
             else:

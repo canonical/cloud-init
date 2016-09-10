@@ -1,16 +1,12 @@
-## This is a cheetah template
+## template: cheetah
 
 # See: http://www.zarb.org/~jasonc/macros.php
 # Or: http://fedoraproject.org/wiki/Packaging:ScriptletSnippets
 # Or: http://www.rpm.org/max-rpm/ch-rpm-inside.html
 
-#for $d in $defines
-%define ${d}
-#end for
-
 Name:           cloud-init
 Version:        ${version}
-Release:        ${release}${subrelease}%{?dist}
+Release:        1${subrelease}%{?dist}
 Summary:        Cloud instance init scripts
 
 Group:          System/Management
@@ -63,7 +59,7 @@ need special scripts to run during initialization to retrieve and install
 ssh keys and to let the user run various scripts.
 
 %prep
-%setup -q -n %{name}-%{version}~${release}
+%setup -q -n ${source_name}
 
 # Custom patches activation
 #set $size = 0
@@ -157,7 +153,3 @@ mkdir -p %{buildroot}/var/lib/cloud
 %{python_sitelib}/*
 
 /var/lib/cloud
-
-%changelog
-
-${changelog}

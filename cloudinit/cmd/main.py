@@ -25,7 +25,6 @@ import argparse
 import json
 import os
 import sys
-import tempfile
 import time
 import traceback
 
@@ -46,6 +45,10 @@ from cloudinit.reporting import events
 
 from cloudinit.settings import (PER_INSTANCE, PER_ALWAYS, PER_ONCE,
                                 CLOUD_CONFIG)
+
+from cloudinit import atomic_helper
+
+from cloudinit.dhclient_hook import LogDhclient
 
 
 # Pretty little cheetah formatted welcome message template
@@ -452,22 +455,10 @@ def main_single(name, args):
         return 0
 
 
-def atomic_write_file(path, content, mode='w'):
-    tf = None
-    try:
-        tf = tempfile.NamedTemporaryFile(dir=os.path.dirname(path),
-                                         delete=False, mode=mode)
-        tf.write(content)
-        tf.close()
-        os.rename(tf.name, path)
-    except Exception as e:
-        if tf is not None:
-            os.unlink(tf.name)
-        raise e
-
-
-def atomic_write_json(path, data):
-    return atomic_write_file(path, json.dumps(data, indent=1) + "\n")
+def dhclient_hook(name, args):
+    record = LogDhclient(args)
+    record.check_hooks_dir()
+    record.record()
 
 
 def status_wrapper(name, args, data_d=None, link_d=None):
@@ -522,7 +513,7 @@ def status_wrapper(name, args, data_d=None, link_d=None):
     v1['stage'] = mode
     v1[mode]['start'] = time.time()
 
-    atomic_write_json(status_path, status)
+    atomic_helper.write_json(status_path, status)
     util.sym_link(os.path.relpath(status_path, link_d), status_link,
                   force=True)
 
@@ -545,7 +536,7 @@ def status_wrapper(name, args, data_d=None, link_d=None):
     v1[mode]['finished'] = time.time()
     v1['stage'] = None
 
-    atomic_write_json(status_path, status)
+    atomic_helper.write_json(status_path, status)
 
     if mode == "modules-final":
         # write the 'finished' file
@@ -554,9 +545,9 @@ def status_wrapper(name, args, data_d=None, link_d=None):
             if v1[m]['errors']:
                 errors.extend(v1[m].get('errors', []))
 
-        atomic_write_json(result_path,
-                          {'v1': {'datasource': v1['datasource'],
-                                  'errors': errors}})
+        atomic_helper.write_json(
+            result_path, {'v1': {'datasource': v1['datasource'],
+                          'errors': errors}})
         util.sym_link(os.path.relpath(result_path, link_d), result_link,
                       force=True)
 
@@ -627,7 +618,6 @@ def main(sysv_args=None):
     # This subcommand allows you to run a single module
     parser_single = subparsers.add_parser('single',
                                           help=('run a single module '))
-    parser_single.set_defaults(action=('single', main_single))
     parser_single.add_argument("--name", '-n', action="store",
                                help="module name to run",
                                required=True)
@@ -643,6 +633,16 @@ def main(sysv_args=None):
                                help=('any additional arguments to'
                                      ' pass to this module'))
     parser_single.set_defaults(action=('single', main_single))
+
+    parser_dhclient = subparsers.add_parser('dhclient-hook',
+                                            help=('run the dhclient hook'
+                                                  'to record network info'))
+    parser_dhclient.add_argument("net_action",
+                                 help=('action taken on the interface'))
+    parser_dhclient.add_argument("net_interface",
+                                 help=('the network interface being acted'
+                                       ' upon'))
+    parser_dhclient.set_defaults(action=('dhclient_hook', dhclient_hook))
 
     args = parser.parse_args(args=sysv_args)
 
@@ -677,9 +677,18 @@ def main(sysv_args=None):
                         "running single module %s" % args.name)
         report_on = args.report
 
+    elif name == 'dhclient_hook':
+        rname, rdesc = ("dhclient-hook",
+                        "running dhclient-hook module")
+
     args.reporter = events.ReportEventStack(
         rname, rdesc, reporting_enabled=report_on)
+
     with args.reporter:
         return util.log_time(
             logfunc=LOG.debug, msg="cloud-init mode '%s'" % name,
             get_uptime=True, func=functor, args=(name, args))
+
+
+if __name__ == '__main__':
+    main(sys.argv)

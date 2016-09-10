@@ -20,18 +20,17 @@ import base64
 import contextlib
 import crypt
 import fnmatch
+from functools import partial
 import os
 import os.path
 import time
-import xml.etree.ElementTree as ET
-
 from xml.dom import minidom
-
-from cloudinit.sources.helpers.azure import get_metadata_from_fabric
+import xml.etree.ElementTree as ET
 
 from cloudinit import log as logging
 from cloudinit.settings import PER_ALWAYS
 from cloudinit import sources
+from cloudinit.sources.helpers.azure import get_metadata_from_fabric
 from cloudinit import util
 
 LOG = logging.getLogger(__name__)
@@ -55,6 +54,7 @@ BUILTIN_DS_CONFIG = {
         'hostname_command': 'hostname',
     },
     'disk_aliases': {'ephemeral0': '/dev/sdb'},
+    'dhclient_lease_file': '/var/lib/dhcp/dhclient.eth0.leases',
 }
 
 BUILTIN_CLOUD_CONFIG = {
@@ -115,6 +115,7 @@ class DataSourceAzureNet(sources.DataSource):
         self.ds_cfg = util.mergemanydict([
             util.get_cfg_by_path(sys_cfg, DS_CFG_PATH, {}),
             BUILTIN_DS_CONFIG])
+        self.dhclient_lease_file = self.ds_cfg.get('dhclient_lease_file')
 
     def __str__(self):
         root = sources.DataSource.__str__(self)
@@ -123,6 +124,9 @@ class DataSourceAzureNet(sources.DataSource):
     def get_metadata_from_agent(self):
         temp_hostname = self.metadata.get('local-hostname')
         hostname_command = self.ds_cfg['hostname_bounce']['hostname_command']
+        agent_cmd = self.ds_cfg['agent_command']
+        LOG.debug("Getting metadata via agent.  hostname=%s cmd=%s",
+                  temp_hostname, agent_cmd)
         with temporary_hostname(temp_hostname, self.ds_cfg,
                                 hostname_command=hostname_command) \
                 as previous_hostname:
@@ -138,7 +142,7 @@ class DataSourceAzureNet(sources.DataSource):
                     util.logexc(LOG, "handling set_hostname failed")
 
             try:
-                invoke_agent(self.ds_cfg['agent_command'])
+                invoke_agent(agent_cmd)
             except util.ProcessExecutionError:
                 # claim the datasource even if the command failed
                 util.logexc(LOG, "agent command '%s' failed.",
@@ -226,16 +230,18 @@ class DataSourceAzureNet(sources.DataSource):
         write_files(ddir, files, dirmode=0o700)
 
         if self.ds_cfg['agent_command'] == '__builtin__':
-            metadata_func = get_metadata_from_fabric
+            metadata_func = partial(get_metadata_from_fabric,
+                                    fallback_lease_file=self.
+                                    dhclient_lease_file)
         else:
             metadata_func = self.get_metadata_from_agent
+
         try:
             fabric_data = metadata_func()
         except Exception as exc:
             LOG.info("Error communicating with Azure fabric; assume we aren't"
                      " on Azure.", exc_info=True)
             return False
-
         self.metadata['instance-id'] = util.read_dmi_data('system-uuid')
         self.metadata.update(fabric_data)
 

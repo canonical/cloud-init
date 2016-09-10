@@ -74,6 +74,7 @@ INITSYS_FILES = {
     'sysvinit': [f for f in glob('sysvinit/redhat/*') if is_f(f)],
     'sysvinit_freebsd': [f for f in glob('sysvinit/freebsd/*') if is_f(f)],
     'sysvinit_deb': [f for f in glob('sysvinit/debian/*') if is_f(f)],
+    'sysvinit_openrc': [f for f in glob('sysvinit/gentoo/*') if is_f(f)],
     'systemd': [f for f in (glob('systemd/*.service') +
                             glob('systemd/*.target')) if is_f(f)],
     'systemd.generators': [f for f in glob('systemd/*-generator') if is_f(f)],
@@ -83,6 +84,7 @@ INITSYS_ROOTS = {
     'sysvinit': '/etc/rc.d/init.d',
     'sysvinit_freebsd': '/usr/local/etc/rc.d',
     'sysvinit_deb': '/etc/init.d',
+    'sysvinit_openrc': '/etc/init.d',
     'systemd': pkg_config_read('systemd', 'systemdsystemunitdir'),
     'systemd.generators': pkg_config_read('systemd',
                                           'systemdsystemgeneratordir'),
@@ -116,13 +118,13 @@ def in_virtualenv():
 
 
 def get_version():
-    cmd = ['tools/read-version']
+    cmd = [sys.executable, 'tools/read-version']
     (ver, _e) = tiny_p(cmd)
     return str(ver).strip()
 
 
 def read_requires():
-    cmd = ['tools/read-dependencies']
+    cmd = [sys.executable, 'tools/read-dependencies']
     (deps, _e) = tiny_p(cmd)
     return str(deps).splitlines()
 
@@ -176,6 +178,8 @@ else:
         (ETC + '/cloud', glob('config/*.cfg')),
         (ETC + '/cloud/cloud.cfg.d', glob('config/cloud.cfg.d/*')),
         (ETC + '/cloud/templates', glob('templates/*')),
+        (ETC + '/NetworkManager/dispatcher.d/', ['tools/hook-network-manager']),
+        (ETC + '/dhcp/dhclient-exit-hooks.d/', ['tools/hook-dhclient']),
         (USR_LIB_EXEC + '/cloud-init', ['tools/uncloud-init',
                                         'tools/write-ssh-key-fingerprints']),
         (USR + '/share/doc/cloud-init', [f for f in glob('doc/*') if is_f(f)]),

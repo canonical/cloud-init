@@ -4,5 +4,7 @@ graft tools
 prune build
 prune dist
 prune .tox
+prune .git
 prune .bzr
+exclude .gitignore
 exclude .bzrignore

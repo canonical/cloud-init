@@ -9,10 +9,31 @@ Azure Platform
 The azure cloud-platform provides initial data to an instance via an attached
 CD formated in UDF.  That CD contains a 'ovf-env.xml' file that provides some
 information.  Additional information is obtained via interaction with the
-"endpoint".  The ip address of the endpoint is advertised to the instance
-inside of dhcp option 245.  On ubuntu, that can be seen in
-/var/lib/dhcp/dhclient.eth0.leases as a colon delimited hex value (example:
-``option unknown-245 64:41:60:82;`` is 100.65.96.130)
+"endpoint".
+
+To find the endpoint, we now leverage the dhcp client's ability to log its
+known values on exit.  The endpoint server is special DHCP option 245.
+Depending on your networking stack, this can be done
+by calling a script in /etc/dhcp/dhclient-exit-hooks or a file in
+/etc/NetworkManager/dispatcher.d.  Both of these call a sub-command
+'dhclient_hook' of cloud-init itself. This sub-command will write the client
+information in json format to /run/cloud-init/dhclient.hook/<interface>.json.
+
+In order for cloud-init to leverage this method to find the endpoint, the
+cloud.cfg file must contain:
+
+datasource:
+  Azure:
+    set_hostname: False
+    agent_command: __builtin__
+
+If those files are not available, the fallback is to check the leases file
+for the endpoint server (again option 245).
+
+You can define the path to the lease file with the 'dhclient_lease_file'
+configuration.  The default value is /var/lib/dhcp/dhclient.eth0.leases.
+
+    dhclient_lease_file: /var/lib/dhcp/dhclient.eth0.leases
 
 walinuxagent
 ------------

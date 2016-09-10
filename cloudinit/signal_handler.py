@@ -54,7 +54,7 @@ def _pprint_frame(frame, depth, max_depth, contents):
 
 def _handle_exit(signum, frame):
     (msg, rc) = EXIT_FOR[signum]
-    msg = msg % ({'version': vr.version()})
+    msg = msg % ({'version': vr.version_string()})
     contents = StringIO()
     contents.write("%s\n" % (msg))
     _pprint_frame(frame, 1, BACK_FRAME_TRACE_DEPTH, contents)

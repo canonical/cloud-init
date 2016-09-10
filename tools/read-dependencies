@@ -1,8 +1,13 @@
 #!/usr/bin/env python
 
+# You might be tempted to rewrite this as a shell script, but you
+# would be surprised to discover that things like 'egrep' or 'sed' may
+# differ between Linux and *BSD.
+
 import os
 import re
 import sys
+import subprocess
 
 if 'CLOUD_INIT_TOP_D' in os.environ:
     topd = os.path.realpath(os.environ.get('CLOUD_INIT_TOP_D'))
@@ -16,14 +21,21 @@ for fname in ("setup.py", "requirements.txt"):
         sys.exit(1)
 
 if len(sys.argv) > 1:
-   reqfile = sys.argv[1]
+    reqfile = sys.argv[1]
 else:
-   reqfile = "requirements.txt"
-   
+    reqfile = "requirements.txt"
+
 with open(os.path.join(topd, reqfile), "r") as fp:
     for line in fp:
-        if not line.strip() or line.startswith("#"):
+        line = line.strip()
+        if not line or line.startswith("#"):
             continue
-        sys.stdout.write(re.split("[>=.<]*", line)[0].strip() + "\n")
+
+        # remove pip-style markers
+        dep = line.split(';')[0]
+
+        # remove version requirements
+        dep = re.split("[>=.<]*", dep)[0].strip()
+        print(dep)
 
 sys.exit(0)

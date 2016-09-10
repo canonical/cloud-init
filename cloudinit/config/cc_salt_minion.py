@@ -46,7 +46,12 @@ def handle(name, cfg, cloud, log, _args):
 
     # ... copy the key pair if specified
     if 'public_key' in salt_cfg and 'private_key' in salt_cfg:
-        pki_dir = salt_cfg.get('pki_dir', '/etc/salt/pki')
+        if os.path.isdir("/etc/salt/pki/minion"):
+            pki_dir_default = "/etc/salt/pki/minion"
+        else:
+            pki_dir_default = "/etc/salt/pki"
+
+        pki_dir = salt_cfg.get('pki_dir', pki_dir_default)
         with util.umask(0o77):
             util.ensure_dir(pki_dir)
             pub_name = os.path.join(pki_dir, 'minion.pub')

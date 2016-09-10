@@ -16,12 +16,8 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-from distutils import version as vr
-
-
-def version():
-    return vr.StrictVersion("0.7.7")
+__VERSION__ = "0.7.7"
 
 
 def version_string():
-    return str(version())
+    return __VERSION__

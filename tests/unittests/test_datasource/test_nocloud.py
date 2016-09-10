@@ -6,7 +6,7 @@ from ..helpers import TestCase, populate_dir, mock, ExitStack
 import os
 import shutil
 import tempfile
-
+import textwrap
 import yaml
 
 
@@ -128,6 +128,89 @@ class TestNoCloudDataSource(TestCase):
         self.assertEqual(dsrc.userdata_raw, b"ud")
         self.assertFalse(dsrc.vendordata)
         self.assertTrue(ret)
+
+    def test_metadata_network_interfaces(self):
+        gateway = "103.225.10.1"
+        md = {
+            'instance-id': 'i-abcd',
+            'local-hostname': 'hostname1',
+            'network-interfaces': textwrap.dedent("""\
+                auto eth0
+                iface eth0 inet static
+                hwaddr 00:16:3e:70:e1:04
+                address 103.225.10.12
+                netmask 255.255.255.0
+                gateway """ + gateway + """
+                dns-servers 8.8.8.8""")}
+
+        populate_dir(
+            os.path.join(self.paths.seed_dir, "nocloud"),
+            {'user-data': b"ud",
+             'meta-data': yaml.dump(md) + "\n"})
+
+        sys_cfg = {'datasource': {'NoCloud': {'fs_label': None}}}
+
+        ds = DataSourceNoCloud.DataSourceNoCloud
+
+        dsrc = ds(sys_cfg=sys_cfg, distro=None, paths=self.paths)
+        ret = dsrc.get_data()
+        self.assertTrue(ret)
+        # very simple check just for the strings above
+        self.assertIn(gateway, str(dsrc.network_config))
+
+    def test_metadata_network_config(self):
+        # network-config needs to get into network_config
+        netconf = {'version': 1,
+                   'config': [{'type': 'physical', 'name': 'interface0',
+                               'subnets': [{'type': 'dhcp'}]}]}
+        populate_dir(
+            os.path.join(self.paths.seed_dir, "nocloud"),
+            {'user-data': b"ud",
+             'meta-data': "instance-id: IID\n",
+             'network-config': yaml.dump(netconf) + "\n"})
+
+        sys_cfg = {'datasource': {'NoCloud': {'fs_label': None}}}
+
+        ds = DataSourceNoCloud.DataSourceNoCloud
+
+        dsrc = ds(sys_cfg=sys_cfg, distro=None, paths=self.paths)
+        ret = dsrc.get_data()
+        self.assertTrue(ret)
+        self.assertEqual(netconf, dsrc.network_config)
+
+    def test_metadata_network_config_over_interfaces(self):
+        # network-config should override meta-data/network-interfaces
+        gateway = "103.225.10.1"
+        md = {
+            'instance-id': 'i-abcd',
+            'local-hostname': 'hostname1',
+            'network-interfaces': textwrap.dedent("""\
+                auto eth0
+                iface eth0 inet static
+                hwaddr 00:16:3e:70:e1:04
+                address 103.225.10.12
+                netmask 255.255.255.0
+                gateway """ + gateway + """
+                dns-servers 8.8.8.8""")}
+
+        netconf = {'version': 1,
+                   'config': [{'type': 'physical', 'name': 'interface0',
+                               'subnets': [{'type': 'dhcp'}]}]}
+        populate_dir(
+            os.path.join(self.paths.seed_dir, "nocloud"),
+            {'user-data': b"ud",
+             'meta-data': yaml.dump(md) + "\n",
+             'network-config': yaml.dump(netconf) + "\n"})
+
+        sys_cfg = {'datasource': {'NoCloud': {'fs_label': None}}}
+
+        ds = DataSourceNoCloud.DataSourceNoCloud
+
+        dsrc = ds(sys_cfg=sys_cfg, distro=None, paths=self.paths)
+        ret = dsrc.get_data()
+        self.assertTrue(ret)
+        self.assertEqual(netconf, dsrc.network_config)
+        self.assertNotIn(gateway, str(dsrc.network_config))
 
 
 class TestParseCommandLineData(TestCase):
