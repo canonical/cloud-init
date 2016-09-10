@@ -1,3 +1,10 @@
+cloud-init (0.7.7~bzr1256-0ubuntu1~16.04.1ubuntu1) UNRELEASED; urgency=medium
+
+  * debian/control: fix missing dependency on python3-serial,
+    and make SmartOS datasource work.
+
+ -- Scott Moser <smoser@ubuntu.com>  Fri, 09 Sep 2016 21:31:19 -0400
+
 cloud-init (0.7.7~bzr1256-0ubuntu1~16.04.1) xenial-proposed; urgency=medium
 
   * New upstream snapshot.
