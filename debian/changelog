@@ -1,4 +1,4 @@
-cloud-init (0.7.7-28-g34a26f7-0ubuntu1~16.04.1) UNRELEASED; urgency=medium
+cloud-init (0.7.7-31-g65ace7b-0ubuntu1~16.04.1) UNRELEASED; urgency=medium
 
   * debian/control: fix missing dependency on python3-serial,
     and make SmartOS datasource work.
@@ -11,8 +11,55 @@ cloud-init (0.7.7-28-g34a26f7-0ubuntu1~16.04.1) UNRELEASED; urgency=medium
     to ensure expected files are collected into cloud-init deb.
     (LP: #1615745)
   * debian/dirs: remove obsolete / unused file.
+  * upstream move from bzr to git.
+  * New upstream snapshot.
+    - Allow link type of null in network_data.json [Jon Grimm] (LP: #1621968)
+    - DataSourceOVF: fix user-data as base64 with python3 (LP: #1619394)
+    - remove obsolete .bzrignore
+    - systemd: Better support package and upgrade. (LP: #1576692, #1621336)
+    - tests: cleanup tempdirs in apt_source tests
+    - apt config conversion: treat empty string as not provided. (LP: #1621180)
+    - Fix typo in default keys for phone_home [Roland Sommer] (LP: #1607810)
+    - salt minion: update default pki directory for newer salt minion.
+      (LP: #1609899)
+    - bddeb: add --release flag to specify the release in changelog.
+    - apt-config: allow both old and new format to be present.
+      [Christian Ehrhardt] (LP: #1616831)
+    - python2.6: fix dict comprehension usage in _lsb_release. [Joshua Harlow]
+    - Add a module that can configure spacewalk. [Joshua Harlow]
+    - add install option for openrc [Matthew Thode]
+    - Generate a dummy bond name for OpenStack (LP: #1605749)
+    - network: fix get_interface_mac for bond slave, read_sys_net for ENOTDIR
+    - azure dhclient-hook cleanups
+    - Minor cleanups to atomic_helper and add unit tests.
+    - Fix Gentoo net config generation [Matthew Thode]
+    - distros: fix get_primary_arch method use of os.uname [Andrew Jorgensen]
+    - Apt: add new apt configuration format [Christian Ehrhardt]
+    - Get Azure endpoint server from DHCP client [Brent Baude]
+    - DigitalOcean: use the v1.json endpoint [Ben Howard]
+    - MAAS: add vendor-data support (LP: #1612313)
+    - Upgrade to a configobj package new enough to work [Joshua Harlow]
+    - ConfigDrive: recognize 'tap' as a link type. (LP: #1610784)
+    - NoCloud: fix bug providing network-interfaces via meta-data.
+      (LP: 1577982)
+    - Add distro tags on config modules that should have it [Joshua Harlow]
+    - ChangeLog: update changelog for previous commit.
+    - add ntp config module [Ryan Harper]
+    - SmartOS: more improvements for network configuration
+    - tools/read-version: update to address change in version
+    - make-tarball: older versions of git with --format=tar.
+    - read-version: do not attempt git-describe if no git.
+    - Newer requests have strong type validation [Joshua Harlow]
+    - For upstream snapshot versions do not modify git-describe output.
+    - adjust signal_handler for version changes.
+    - revert unintended change to ubuntu sources list
+    - drop modification of version during make-tarball, tools changes.
+    - adjust tools and version information.
+    - Update build tools to work with git [Lars Kellogg-Stedman]
+    - fix pep8 errors in mcollective unit tests
+    - mcollective: add tests, cleanups and bug fix when no config in /etc.
 
- -- Scott Moser <smoser@ubuntu.com>  Fri, 09 Sep 2016 21:31:19 -0400
+ -- Scott Moser <smoser@ubuntu.com>  Mon, 12 Sep 2016 15:59:53 -0400
 
 cloud-init (0.7.7~bzr1256-0ubuntu1~16.04.1) xenial-proposed; urgency=medium
 
