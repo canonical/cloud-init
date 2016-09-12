@@ -237,7 +237,7 @@ def wait_for_imc_cfg_file(dirpath, filename, maxwait=180, naplen=5):
 def read_vmware_imc(config):
     md = {}
     cfg = {}
-    ud = ""
+    ud = None
     if config.host_name:
         if config.domain_name:
             md['local-hostname'] = config.host_name + "." + config.domain_name
@@ -256,7 +256,7 @@ def read_ovf_environment(contents):
     props = get_properties(contents)
     md = {}
     cfg = {}
-    ud = ""
+    ud = None
     cfg_props = ['password']
     md_props = ['seedfrom', 'local-hostname', 'public-keys', 'instance-id']
     for (prop, val) in props.items():
@@ -268,9 +268,9 @@ def read_ovf_environment(contents):
             cfg[prop] = val
         elif prop == "user-data":
             try:
-                ud = base64.decodestring(val)
+                ud = base64.b64decode(val.encode())
             except Exception:
-                ud = val
+                ud = val.encode()
     return (md, ud, cfg)
 
 

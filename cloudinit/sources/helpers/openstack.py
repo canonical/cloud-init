@@ -555,11 +555,12 @@ def convert_net_json(network_json=None, known_macs=None):
         if 'name' in link:
             cfg['name'] = link['name']
 
+        link_mac_addr = None
         if link.get('ethernet_mac_address'):
-            link_id_info[link['id']] = link.get('ethernet_mac_address')
+            link_mac_addr = link.get('ethernet_mac_address').lower()
+            link_id_info[link['id']] = link_mac_addr
 
-        curinfo = {'name': cfg.get('name'),
-                   'mac': link.get('ethernet_mac_address'),
+        curinfo = {'name': cfg.get('name'), 'mac': link_mac_addr,
                    'id': link['id'], 'type': link['type']}
 
         for network in [n for n in networks
@@ -582,10 +583,9 @@ def convert_net_json(network_json=None, known_macs=None):
                 subnet['ipv6'] = True
             subnets.append(subnet)
         cfg.update({'subnets': subnets})
-        if link['type'] in ['ethernet', 'vif', 'ovs', 'phy', 'bridge', 'tap']:
-            cfg.update({
-                'type': 'physical',
-                'mac_address': link['ethernet_mac_address']})
+        if link['type'] in [None, 'ethernet', 'vif', 'ovs', 'phy',
+                            'bridge', 'tap']:
+            cfg.update({'type': 'physical', 'mac_address': link_mac_addr})
         elif link['type'] in ['bond']:
             params = {}
             for k, v in link.items():

@@ -1,4 +1,4 @@
-from copy import copy
+from copy import copy, deepcopy
 import json
 import os
 import shutil
@@ -101,7 +101,7 @@ NETWORK_DATA_2 = {
          "type": "vif", "id": "eth1", "vif_id": "vif-foo2"}]
 }
 
-# This network data ha 'tap' type for a link.
+# This network data ha 'tap' or null type for a link.
 NETWORK_DATA_3 = {
     "services": [{"type": "dns", "address": "172.16.36.11"},
                  {"type": "dns", "address": "172.16.36.12"}],
@@ -132,7 +132,7 @@ NETWORK_DATA_3 = {
          "type": "tap", "id": "tap77a0dc5b-72",
          "vif_id": "77a0dc5b-720e-41b7-bfa7-1b2ff62e0d48"},
         {"ethernet_mac_address": "fa:16:3e:a8:14:69", "mtu": None,
-         "type": "tap", "id": "tap7d6b7bec-93",
+         "type": None, "id": "tap7d6b7bec-93",
          "vif_id": "7d6b7bec-93e6-4c03-869a-ddc5014892d5"}
     ]
 }
@@ -703,6 +703,22 @@ class TestConvertNetworkData(TestCase):
         self.assertIn("iface enp0s1", eni_rendering)
         self.assertIn("address 10.0.1.5", eni_rendering)
         self.assertIn("auto enp0s1.602", eni_rendering)
+
+    def test_mac_addrs_can_be_upper_case(self):
+        # input mac addresses on rackspace may be upper case
+        my_netdata = deepcopy(NETWORK_DATA)
+        for link in my_netdata['links']:
+            link['ethernet_mac_address'] = link['ethernet_mac_address'].upper()
+
+        ncfg = openstack.convert_net_json(my_netdata, known_macs=KNOWN_MACS)
+        config_name2mac = {}
+        for n in ncfg['config']:
+            if n['type'] == 'physical':
+                config_name2mac[n['name']] = n['mac_address']
+
+        expected = {'nic0': 'fa:16:3e:05:30:fe', 'enp0s1': 'fa:16:3e:69:b0:58',
+                    'enp0s2': 'fa:16:3e:d4:57:ad'}
+        self.assertEqual(expected, config_name2mac)
 
 
 def cfg_ds_from_dir(seed_d):
