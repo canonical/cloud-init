@@ -1,4 +1,0 @@
-.tox
-dist
-cloud_init.egg-info
-__pycache__

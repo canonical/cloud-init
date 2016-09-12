@@ -1,3 +1,11 @@
+cloud-init (0.7.7-31-g65ace7b-0ubuntu1) yakkety; urgency=medium
+
+  * New upstream snapshot.
+    - Allow link type of null in network_data.json [Jon Grimm] (LP: #1621968)
+    - DataSourceOVF: fix user-data as base64 with python3 (LP: #1619394)
+
+ -- Scott Moser <smoser@ubuntu.com>  Mon, 12 Sep 2016 14:56:42 -0400
+
 cloud-init (0.7.7-28-g34a26f7-0ubuntu2) yakkety; urgency=medium
 
   * debian/control: fix missing dependency on python3-serial,
