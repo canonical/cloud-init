@@ -1,4 +1,4 @@
-cloud-init (0.7.7-31-g65ace7b-0ubuntu1~16.04.1) UNRELEASED; urgency=medium
+cloud-init (0.7.7-31-g65ace7b-0ubuntu1~16.04.1) xenial-proposed; urgency=medium
 
   * debian/control: fix missing dependency on python3-serial,
     and make SmartOS datasource work.
@@ -59,7 +59,7 @@ cloud-init (0.7.7-31-g65ace7b-0ubuntu1~16.04.1) UNRELEASED; urgency=medium
     - fix pep8 errors in mcollective unit tests
     - mcollective: add tests, cleanups and bug fix when no config in /etc.
 
- -- Scott Moser <smoser@ubuntu.com>  Mon, 12 Sep 2016 15:59:53 -0400
+ -- Scott Moser <smoser@ubuntu.com>  Mon, 12 Sep 2016 16:05:25 -0400
 
 cloud-init (0.7.7~bzr1256-0ubuntu1~16.04.1) xenial-proposed; urgency=medium
 
