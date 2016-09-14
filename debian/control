@@ -41,6 +41,7 @@ Depends: cloud-guest-utils | cloud-utils,
          python3-serial,
          ${misc:Depends},
          ${python3:Depends}
+Breaks: walinuxagent (<< 2.1.3-0ubuntu4.1)
 Recommends: eatmydata, gdisk, software-properties-common
 Provides: ec2-init
 Replaces: ec2-init (<<0.5.3)
