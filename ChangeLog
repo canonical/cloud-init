@@ -1,6 +1,37 @@
 0.7.8:
  - SmartOS: more improvements for network configuration
- - add ntp configuration module [Ryan Harper]
+ - add ntp config module [Ryan Harper]
+ - ChangeLog: update changelog for previous commit.
+ - Add distro tags on config modules that should have it.
+ - NoCloud: fix bug providing network-interfaces via meta-data. (LP: 1577982)
+ - ConfigDrive: recognize 'tap' as a link type. (LP: #1610784)
+ - Upgrade to a configobj package new enough to work
+ - MAAS: add vendor-data support (LP: #1612313)
+ - DigitalOcean: use the v1.json endpoint [Ben Howard]
+ - Get Azure endpoint server from DHCP client [Brent Baude]
+ - Apt: add new apt configuration format [Christian Ehrhardt]
+ - distros: fix get_primary_arch method use of os.uname [Andrew Jorgensen]
+ - Fix Gentoo net config generation [Matthew Thode]
+ - Minor cleanups to atomic_helper and add unit tests.
+ - azure dhclient-hook cleanups
+ - network: fix get_interface_mac for bond slave, read_sys_net for ENOTDIR
+ - Generate a dummy bond name for OpenStack (LP: #1605749)
+ - add install option for openrc [Matthew Thode]
+ - Add a module that can configure spacewalk.
+ - python2.6: fix dict comprehension usage in _lsb_release.
+ - apt-config: allow both old and new format to be present.
+   [Christian Ehrhardt] (LP: #1616831)
+ - bddeb: add --release flag to specify the release in changelog.
+ - salt minion: update default pki directory for newer salt minion.
+   (LP: #1609899)
+ - Fix typo in default keys for phone_home [Roland Sommer] (LP: #1607810)
+ - apt config conversion: treat empty string as not provided.  (LP: #1621180)
+ - tests: cleanup tempdirs in apt_source tests
+ - systemd: Better support package and upgrade. (LP: #1576692, #1621336)
+ - remove obsolete .bzrignore
+ - DataSourceOVF: fix user-data as base64 with python3 (LP: #1619394)
+ - Allow link type of null in network_data.json [Jon Grimm] (LP: #1621968)
+
 0.7.7:
  - open 0.7.7
  - Digital Ocean: add datasource for Digital Ocean. [Neal Shrader]
