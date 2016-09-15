@@ -4,3 +4,4 @@
 #  b.) touch a file /etc/cloud/cloud-init.disabled
 [Unit]
 Description=Cloud-init target
+After=multi-user.target
