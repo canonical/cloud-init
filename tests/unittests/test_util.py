@@ -603,4 +603,12 @@ class TestSubp(helpers.TestCase):
         self.assertEqual("/target/my/path/",
                          util.target_path("/target/", "///my/path/"))
 
+
+class TestEncode(helpers.TestCase):
+    """Test the encoding functions"""
+    def test_decode_binary_plain_text_with_hex(self):
+        blob = 'BOOTABLE_FLAG=\x80init=/bin/systemd'
+        text = util.decode_binary(blob)
+        self.assertEqual(text, blob)
+
 # vi: ts=4 expandtab

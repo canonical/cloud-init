@@ -154,7 +154,7 @@ def target_path(target, path=None):
 
 def decode_binary(blob, encoding='utf-8'):
     # Converts a binary type into a text type using given encoding.
-    if isinstance(blob, six.text_type):
+    if isinstance(blob, six.string_types):
         return blob
     return blob.decode(encoding)
 
