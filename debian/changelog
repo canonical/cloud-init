@@ -1,10 +1,10 @@
-cloud-init (0.7.8-1-g3705bb5-0ubuntu1) UNRELEASED; urgency=medium
+cloud-init (0.7.8-1-g3705bb5-0ubuntu1) yakkety; urgency=medium
 
   * New upstream release 0.7.8.
   * New upstream snapshot.
     - systemd: put cloud-init.target After multi-user.target (LP: #1623868)
 
- -- Scott Moser <smoser@ubuntu.com>  Thu, 15 Sep 2016 09:46:17 -0400
+ -- Scott Moser <smoser@ubuntu.com>  Thu, 15 Sep 2016 09:47:11 -0400
 
 cloud-init (0.7.7-31-g65ace7b-0ubuntu1) yakkety; urgency=medium
 
