@@ -5,6 +5,7 @@ Wants=local-fs.target
 Wants=network-pre.target
 After=local-fs.target
 Before=basic.target
+Before=NetworkManager.service
 Before=network-pre.target
 Before=shutdown.target
 Conflicts=shutdown.target
