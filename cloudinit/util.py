@@ -2337,7 +2337,8 @@ def read_dmi_data(key):
 
     # running dmidecode can be problematic on some arches (LP: #1243287)
     uname_arch = os.uname()[4]
-    if uname_arch.startswith("arm") or uname_arch == "aarch64":
+    if not (uname_arch == "x86_64" or
+            (uname_arch.startswith("i") and uname_arch[2:] == "86")):
         LOG.debug("dmidata is not supported on %s", uname_arch)
         return None
 
