@@ -1762,7 +1762,7 @@ def delete_dir_contents(dirname):
 
 
 def subp(args, data=None, rcs=None, env=None, capture=True, shell=False,
-         logstring=False, decode="replace", target=None):
+         logstring=False, decode="replace", target=None, update_env=None):
 
     # not supported in cloud-init (yet), for now kept in the call signature
     # to ease maintaining code shared between cloud-init and curtin
@@ -1773,6 +1773,13 @@ def subp(args, data=None, rcs=None, env=None, capture=True, shell=False,
         rcs = [0]
 
     devnull_fp = None
+
+    if update_env:
+        if env is None:
+            env = os.environ
+        env = env.copy()
+        env.update(update_env)
+
     try:
         if target_path(target) != "/":
             args = ['chroot', target] + list(args)
