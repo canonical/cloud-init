@@ -53,6 +53,45 @@ DHCP_EXPECTED_1 = {
                  'dns_nameservers': ['192.168.122.1']}],
 }
 
+DHCP6_CONTENT_1 = """
+DEVICE=eno1
+HOSTNAME=
+DNSDOMAIN=
+reason='PREINIT'
+interface='eno1'
+DEVICE=eno1
+HOSTNAME=
+DNSDOMAIN=
+reason='FAIL'
+interface='eno1'
+DEVICE=eno1
+HOSTNAME=
+DNSDOMAIN=
+reason='PREINIT6'
+interface='eno1'
+DEVICE=eno1
+IPV6PROTO=dhcp6
+IPV6ADDR=2001:67c:1562:8010:0:1::
+IPV6NETMASK=64
+IPV6DNS0=2001:67c:1562:8010::2:1
+IPV6DOMAINSEARCH=
+HOSTNAME=
+DNSDOMAIN=
+reason='BOUND6'
+interface='eno1'
+new_ip6_address='2001:67c:1562:8010:0:1::'
+new_ip6_prefixlen='64'
+new_dhcp6_name_servers='2001:67c:1562:8010::2:1'
+"""
+
+DHCP6_EXPECTED_1 = {
+    'name': 'eno1',
+    'type': 'physical',
+    'subnets': [{'control': 'manual',
+                 'dns_nameservers': ['2001:67c:1562:8010::2:1'],
+                 'netmask': '64',
+                 'type': 'dhcp6'}]}
+
 
 STATIC_CONTENT_1 = """
 DEVICE='eth1'
@@ -589,6 +628,10 @@ class TestCmdlineConfigParsing(TestCase):
     def test_cmdline_convert_dhcp(self):
         found = cmdline._klibc_to_config_entry(DHCP_CONTENT_1)
         self.assertEqual(found, ('eth0', DHCP_EXPECTED_1))
+
+    def test_cmdline_convert_dhcp6(self):
+        found = cmdline._klibc_to_config_entry(DHCP6_CONTENT_1)
+        self.assertEqual(found, ('eno1', DHCP6_EXPECTED_1))
 
     def test_cmdline_convert_static(self):
         found = cmdline._klibc_to_config_entry(STATIC_CONTENT_1)
