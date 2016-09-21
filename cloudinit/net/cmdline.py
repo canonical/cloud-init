@@ -66,7 +66,9 @@ def _klibc_to_config_entry(content, mac_addrs=None):
     provided here.  There is no good documentation on this unfortunately.
 
     DEVICE=<name> is expected/required and PROTO should indicate if
-    this is 'static' or 'dhcp'.
+    this is 'static' or 'dhcp' or 'dhcp6' (LP: #1621507).
+    note that IPV6PROTO is also written by newer code to address the
+    possibility of both ipv4 and ipv6 getting addresses.
     """
 
     if mac_addrs is None:
@@ -86,7 +88,7 @@ def _klibc_to_config_entry(content, mac_addrs=None):
         else:
             proto = 'static'
 
-    if proto not in ('static', 'dhcp'):
+    if proto not in ('static', 'dhcp', 'dhcp6'):
         raise ValueError("Unexpected value for PROTO: %s" % proto)
 
     iface = {
@@ -98,12 +100,15 @@ def _klibc_to_config_entry(content, mac_addrs=None):
     if name in mac_addrs:
         iface['mac_address'] = mac_addrs[name]
 
-    # originally believed there might be IPV6* values
-    for v, pre in (('ipv4', 'IPV4'),):
+    # Handle both IPv4 and IPv6 values
+    for v, pre in (('ipv4', 'IPV4'), ('ipv6', 'IPV6')):
         # if no IPV4ADDR or IPV6ADDR, then go on.
         if pre + "ADDR" not in data:
             continue
-        subnet = {'type': proto, 'control': 'manual'}
+
+        # PROTO for ipv4, IPV6PROTO for ipv6
+        cur_proto = data.get(pre + 'PROTO', proto)
+        subnet = {'type': cur_proto, 'control': 'manual'}
 
         # these fields go right on the subnet
         for key in ('NETMASK', 'BROADCAST', 'GATEWAY'):
