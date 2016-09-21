@@ -1,3 +1,11 @@
+cloud-init (0.7.8-4-g970dbd1-0ubuntu1) UNRELEASED; urgency=medium
+
+  * New upstream snapshot.
+    - net: support reading ipv6 dhcp config from initramfs [LaMont Jones]
+      (LP: #1621615)
+
+ -- Scott Moser <smoser@ubuntu.com>  Wed, 21 Sep 2016 11:55:27 -0400
+
 cloud-init (0.7.8-3-g80f5ec4-0ubuntu1) yakkety; urgency=medium
 
   * New upstream snapshot.
