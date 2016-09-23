@@ -223,8 +223,10 @@ class TestKeyValStrings(helpers.TestCase):
 
 class TestGetCmdline(helpers.TestCase):
     def test_cmdline_reads_debug_env(self):
-        os.environ['DEBUG_PROC_CMDLINE'] = 'abcd 123'
-        self.assertEqual(os.environ['DEBUG_PROC_CMDLINE'], util.get_cmdline())
+        with mock.patch.dict("os.environ",
+                             values={'DEBUG_PROC_CMDLINE': 'abcd 123'}):
+            ret = util.get_cmdline()
+        self.assertEqual("abcd 123", ret)
 
 
 class TestLoadYaml(helpers.TestCase):
@@ -516,6 +518,7 @@ class TestSubp(helpers.TestCase):
     utf8_invalid = b'ab\xaadef'
     utf8_valid = b'start \xc3\xa9 end'
     utf8_valid_2 = b'd\xc3\xa9j\xc8\xa7'
+    printenv = ['bash', '-c', 'for n in "$@"; do echo "$n=${!n}"; done', '--']
 
     def printf_cmd(self, *args):
         # bash's printf supports \xaa.  So does /usr/bin/printf
@@ -566,6 +569,29 @@ class TestSubp(helpers.TestCase):
         self.assertEqual(err, data)
         self.assertEqual(out, b'')
 
+    def test_subp_reads_env(self):
+        with mock.patch.dict("os.environ", values={'FOO': 'BAR'}):
+            out, err = util.subp(self.printenv + ['FOO'], capture=True)
+        self.assertEqual('FOO=BAR', out.splitlines()[0])
+
+    def test_subp_env_and_update_env(self):
+        out, err = util.subp(
+            self.printenv + ['FOO', 'HOME', 'K1', 'K2'], capture=True,
+            env={'FOO': 'BAR'},
+            update_env={'HOME': '/myhome', 'K2': 'V2'})
+        self.assertEqual(
+            ['FOO=BAR', 'HOME=/myhome', 'K1=', 'K2=V2'], out.splitlines())
+
+    def test_subp_update_env(self):
+        extra = {'FOO': 'BAR', 'HOME': '/root', 'K1': 'V1'}
+        with mock.patch.dict("os.environ", values=extra):
+            out, err = util.subp(
+                self.printenv + ['FOO', 'HOME', 'K1', 'K2'], capture=True,
+                update_env={'HOME': '/myhome', 'K2': 'V2'})
+
+        self.assertEqual(
+            ['FOO=BAR', 'HOME=/myhome', 'K1=V1', 'K2=V2'], out.splitlines())
+
     def test_returns_none_if_no_capture(self):
         (out, err) = util.subp(self.stdin2out, data=b'', capture=False)
         self.assertEqual(err, None)
@@ -576,5 +602,13 @@ class TestSubp(helpers.TestCase):
                          util.target_path("/target/", "//my/path/"))
         self.assertEqual("/target/my/path/",
                          util.target_path("/target/", "///my/path/"))
+
+
+class TestEncode(helpers.TestCase):
+    """Test the encoding functions"""
+    def test_decode_binary_plain_text_with_hex(self):
+        blob = 'BOOTABLE_FLAG=\x80init=/bin/systemd'
+        text = util.decode_binary(blob)
+        self.assertEqual(text, blob)
 
 # vi: ts=4 expandtab
