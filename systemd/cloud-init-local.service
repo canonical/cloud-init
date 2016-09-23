@@ -4,9 +4,11 @@ DefaultDependencies=no
 Wants=local-fs.target
 Wants=network-pre.target
 After=local-fs.target
-Conflicts=shutdown.target
+Before=basic.target
+Before=NetworkManager.service
 Before=network-pre.target
 Before=shutdown.target
+Conflicts=shutdown.target
 
 [Service]
 Type=oneshot

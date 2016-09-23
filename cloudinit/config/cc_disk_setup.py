@@ -33,6 +33,8 @@ BLKID_CMD = util.which("blkid")
 BLKDEV_CMD = util.which("blockdev")
 WIPEFS_CMD = util.which("wipefs")
 
+LANG_C_ENV = {'LANG': 'C'}
+
 LOG = logging.getLogger(__name__)
 
 
@@ -355,8 +357,11 @@ def get_mbr_hdd_size(device):
 
 
 def get_gpt_hdd_size(device):
-    out, _ = util.subp([SGDISK_CMD, '-p', device])
-    return out.splitlines()[0].split()[2]
+    out, _ = util.subp([SGDISK_CMD, '-p', device], update_env=LANG_C_ENV)
+    for line in out.splitlines():
+        if line.startswith("Disk"):
+            return line.split()[2]
+    raise Exception("Failed to get %s size from sgdisk" % (device))
 
 
 def get_hdd_size(table_type, device):
@@ -408,7 +413,7 @@ def check_partition_mbr_layout(device, layout):
 def check_partition_gpt_layout(device, layout):
     prt_cmd = [SGDISK_CMD, '-p', device]
     try:
-        out, _err = util.subp(prt_cmd)
+        out, _err = util.subp(prt_cmd, update_env=LANG_C_ENV)
     except Exception as e:
         raise Exception("Error running partition command on %s\n%s" % (
                         device, e))
