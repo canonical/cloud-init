@@ -1,3 +1,13 @@
+cloud-init (0.7.8-8-g0439d8a-0ubuntu1) yakkety; urgency=medium
+
+  * New upstream snapshot.
+    - Decode unicode types in decode_binary [Robert Schweikert]
+    - systemd: Ensure that cloud-init-local happens before NetworkManager
+    - Allow ephemeral drive to be unpartitioned [Paul Meyer]
+    - subp: add 'update_env' argument
+
+ -- Scott Moser <smoser@ubuntu.com>  Fri, 23 Sep 2016 16:51:27 -0400
+
 cloud-init (0.7.8-4-g970dbd1-0ubuntu1) yakkety; urgency=medium
 
   * New upstream snapshot.
