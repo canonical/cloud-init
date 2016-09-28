@@ -69,6 +69,9 @@ check_version:
 	    "not equal to code version '$(CODE_VERSION)'"; exit 2; \
 	    else true; fi
 
+config/cloud.cfg:
+	$(PYVER) ./tools/render-cloudcfg config/cloud.cfg.tmpl config/cloud.cfg
+
 clean_pyc:
 	@find . -type f -name "*.pyc" -delete
 

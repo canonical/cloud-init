@@ -592,13 +592,40 @@ def get_cfg_option_int(yobj, key, default=0):
 
 
 def system_info():
-    return {
+    info = {
         'platform': platform.platform(),
         'release': platform.release(),
         'python': platform.python_version(),
         'uname': platform.uname(),
         'dist': platform.linux_distribution(),  # pylint: disable=W1505
     }
+    plat = info['platform'].lower()
+    # Try to get more info about what it actually is, in a format
+    # that we can easily use across linux and variants...
+    if plat.startswith('darwin'):
+        info['variant'] = 'darwin'
+    elif plat.endswith("bsd"):
+        info['variant'] = 'bsd'
+    elif plat.startswith('win'):
+        info['variant'] = 'windows'
+    elif 'linux' in plat:
+        # Try to get a single string out of these...
+        linux_dist, _version, _id = info['dist']
+        linux_dist = linux_dist.lower()
+        if linux_dist in ('ubuntu', 'linuxmint', 'mint'):
+            info['variant'] = 'ubuntu'
+        else:
+            for prefix, variant in [('redhat', 'rhel'),
+                                    ('centos', 'centos'),
+                                    ('fedora', 'fedora'),
+                                    ('debian', 'debian')]:
+                if linux_dist.startswith(prefix):
+                    info['variant'] = variant
+        if 'variant' not in info:
+            info['variant'] = 'linux'
+    if 'variant' not in info:
+        info['variant'] = 'unknown'
+    return info
 
 
 def get_cfg_option_list(yobj, key, default=None):
