@@ -1,3 +1,9 @@
+cloud-init (0.7.8-1-g3705bb5-0ubuntu1~16.04.2) xenial; urgency=medium
+
+  * Support IPv6 config coming from initramfs.  LP: #1621615.
+
+ -- LaMont Jones <lamont@ubuntu.com>  Fri, 23 Sep 2016 20:54:40 -0600
+
 cloud-init (0.7.8-1-g3705bb5-0ubuntu1~16.04.1) xenial-proposed; urgency=medium
 
   * New upstream release 0.7.8.
