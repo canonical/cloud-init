@@ -132,3 +132,54 @@ class TestLxd(t_help.TestCase):
             cc_lxd.bridge_to_debconf(data),
             {"lxd/setup-bridge": "false",
              "lxd/bridge-name": ""})
+
+    def test_lxd_cmd_new_full(self):
+        data = {"mode": "new",
+                "name": "testbr0",
+                "ipv4_address": "10.0.8.1",
+                "ipv4_netmask": "24",
+                "ipv4_dhcp_first": "10.0.8.2",
+                "ipv4_dhcp_last": "10.0.8.254",
+                "ipv4_dhcp_leases": "250",
+                "ipv4_nat": "true",
+                "ipv6_address": "fd98:9e0:3744::1",
+                "ipv6_netmask": "64",
+                "ipv6_nat": "true",
+                "domain": "lxd"}
+        self.assertEqual(
+            cc_lxd.bridge_to_cmd(data),
+            (["lxc", "network", "create", "testbr0",
+              "ipv4.address=10.0.8.1/24", "ipv4.nat=true",
+              "ipv4.dhcp.ranges=10.0.8.2-10.0.8.254",
+              "ipv6.address=fd98:9e0:3744::1/64",
+              "ipv6.nat=true", "dns.domain=lxd",
+              "--force-local"],
+             ["lxc", "network", "attach-profile",
+              "testbr0", "default", "eth0", "--force-local"]))
+
+    def test_lxd_cmd_new_partial(self):
+        data = {"mode": "new",
+                "ipv6_address": "fd98:9e0:3744::1",
+                "ipv6_netmask": "64",
+                "ipv6_nat": "true"}
+        self.assertEqual(
+            cc_lxd.bridge_to_cmd(data),
+            (["lxc", "network", "create", "lxdbr0", "ipv4.address=none",
+              "ipv6.address=fd98:9e0:3744::1/64", "ipv6.nat=true",
+              "--force-local"],
+             ["lxc", "network", "attach-profile",
+              "lxdbr0", "default", "eth0", "--force-local"]))
+
+    def test_lxd_cmd_existing(self):
+        data = {"mode": "existing",
+                "name": "testbr0"}
+        self.assertEqual(
+            cc_lxd.bridge_to_cmd(data),
+            (None, ["lxc", "network", "attach-profile",
+                    "testbr0", "default", "eth0", "--force-local"]))
+
+    def test_lxd_cmd_none(self):
+        data = {"mode": "none"}
+        self.assertEqual(
+            cc_lxd.bridge_to_cmd(data),
+            (None, None))
