@@ -553,7 +553,7 @@ class TestSubp(helpers.TestCase):
     def test_subp_decode_invalid_utf8_replaces(self):
         (out, _err) = util.subp(self.stdin2out, capture=True,
                                 data=self.utf8_invalid)
-        expected = self.utf8_invalid.decode('utf-8', errors='replace')
+        expected = self.utf8_invalid.decode('utf-8', 'replace')
         self.assertEqual(out, expected)
 
     def test_subp_decode_strict_raises(self):

@@ -232,7 +232,7 @@ class WALinuxAgentShim(object):
     def _get_value_from_leases_file(fallback_lease_file):
         leases = []
         content = util.load_file(fallback_lease_file)
-        LOG.debug("content is {}".format(content))
+        LOG.debug("content is %s", content)
         for line in content.splitlines():
             if 'unknown-245' in line:
                 # Example line from Ubuntu

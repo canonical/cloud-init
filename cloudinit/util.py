@@ -199,7 +199,7 @@ def fully_decoded_payload(part):
             encoding = charset.input_codec
         else:
             encoding = 'utf-8'
-        return cte_payload.decode(encoding, errors='surrogateescape')
+        return cte_payload.decode(encoding, 'surrogateescape')
     return cte_payload
 
 
@@ -282,9 +282,6 @@ class ProcessExecutionError(IOError):
             'reason': self.reason,
         }
         IOError.__init__(self, message)
-        # For backward compatibility with Python 2.
-        if not hasattr(self, 'message'):
-            self.message = message
 
 
 class SeLinuxGuard(object):
@@ -1821,7 +1818,7 @@ def subp(args, data=None, rcs=None, env=None, capture=True, shell=False,
             def ldecode(data, m='utf-8'):
                 if not isinstance(data, bytes):
                     return data
-                return data.decode(m, errors=decode)
+                return data.decode(m, decode)
 
             out = ldecode(out)
             err = ldecode(err)
