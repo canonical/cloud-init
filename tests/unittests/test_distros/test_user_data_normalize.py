@@ -1,4 +1,5 @@
 from cloudinit import distros
+from cloudinit.distros import ug_util
 from cloudinit import helpers
 from cloudinit import settings
 
@@ -29,7 +30,7 @@ class TestUGNormalize(TestCase):
         return distro
 
     def _norm(self, cfg, distro):
-        return distros.normalize_users_groups(cfg, distro)
+        return ug_util.normalize_users_groups(cfg, distro)
 
     def test_group_dict(self):
         distro = self._make_distro('ubuntu')
@@ -236,7 +237,7 @@ class TestUGNormalize(TestCase):
         }
         (users, _groups) = self._norm(ug_cfg, distro)
         self.assertIn('bob', users)
-        (name, config) = distros.extract_default(users)
+        (name, config) = ug_util.extract_default(users)
         self.assertEqual(name, 'bob')
         expected_config = {}
         def_config = None
