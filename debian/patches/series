@@ -1,1 +1,2 @@
 ipv6-config
+ntp-move-to-run-after-apt-configuration.patch

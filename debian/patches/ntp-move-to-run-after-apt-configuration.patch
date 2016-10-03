@@ -1,0 +1,30 @@
+From 6d1edc3f5a18b328bdd307426056539d5b9071fd Mon Sep 17 00:00:00 2001
+From: Scott Moser <smoser@brickies.net>
+Date: Wed, 28 Sep 2016 12:07:26 -0400
+Subject: [PATCH] ntp: move to run after apt configuration
+
+since ntp module may try to install packages, it needs to run after
+apt is configured.
+
+LP: #1628337
+---
+ config/cloud.cfg | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+--- a/config/cloud.cfg
++++ b/config/cloud.cfg
+@@ -45,13 +45,13 @@ cloud_config_modules:
+  - emit_upstart
+  - disk_setup
+  - mounts
+- - ntp
+  - ssh-import-id
+  - locale
+  - set-passwords
+  - grub-dpkg
+  - apt-pipelining
+  - apt-configure
++ - ntp
+  - timezone
+  - disable-ec2-metadata
+  - runcmd
