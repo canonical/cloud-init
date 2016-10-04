@@ -18,6 +18,39 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+"""
+Byobu
+-----
+**Summary:** enable/disable byobu system wide and for default user
+
+This module controls whether byobu is enabled or disabled system wide and for
+the default system user. If byobu is to be enabled, this module will ensure it
+is installed. Likewise, if it is to be disabled, it will be removed if
+installed.
+
+Valid configuration options for this module are:
+
+  - ``enable-system``: enable byobu system wide
+  - ``enable-user``: enable byobu for the default user
+  - ``disable-system``: disable byobu system wide
+  - ``disable-user``: disable byobu for the default user
+  - ``enable``: enable byobu both system wide and for default user
+  - ``disable``: disable byobu for all users
+  - ``user``: alias for ``enable-user``
+  - ``system``: alias for ``enable-system``
+
+**Internal name:** ``cc_byobu``
+
+**Module frequency:** per instance
+
+**Supported distros:** ubuntu, debian
+
+**Config keys**::
+
+    byobu_by_default: <user/system>
+"""
+
+
 # Ensure this is aliased to a name not 'distros'
 # since the module attribute 'distros'
 # is a list of distros that are supported, not a sub-module

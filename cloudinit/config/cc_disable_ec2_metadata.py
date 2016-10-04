@@ -18,6 +18,26 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+"""
+Disable EC2 Metadata
+--------------------
+**Summary:** disable aws ec2 metadata
+
+This module can disable the ec2 datasource by rejecting the route to
+``169.254.169.254``, the usual route to the datasource. This module is disabled
+by default.
+
+**Internal name:** ``cc_disable_ec2_metadata``
+
+**Module frequency:** per always
+
+**Supported distros:** all
+
+**Config keys**::
+
+    disable_ec2_metadata: <true/false>
+"""
+
 from cloudinit import util
 
 from cloudinit.settings import PER_ALWAYS

@@ -18,6 +18,21 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+"""
+Emit Upstart
+------------
+**Summary:** emit upstart configuration
+
+Emit upstart configuration for cloud-init modules on upstart based systems. No
+user configuration should be required.
+
+**Internal name:** ``cc_emit_upstart``
+
+**Module frequency:** per always
+
+**Supported distros:** ubuntu, debian
+"""
+
 import os
 
 from cloudinit import log as logging

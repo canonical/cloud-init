@@ -13,15 +13,30 @@
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 """
-**Summary:** helper to setup https://fedorahosted.org/spacewalk/
+Spacewalk
+---------
+**Summary:** install and configure spacewalk
 
-**Description:** This module will enable for configuring the needed
-actions to setup spacewalk on redhat based systems.
+This module installs spacewalk and applies basic configuration. If the
+``spacewalk`` config key is present spacewalk will be installed. The server to
+connect to after installation must be provided in the ``server`` in spacewalk
+configuration. A proxy to connect through and a activation key may optionally
+be specified.
 
-It can be configured with the following option structure::
+For more information about spacewalk see: https://fedorahosted.org/spacewalk/
+
+**Internal name:** ``cc_spacewalk``
+
+**Module frequency:** per instance
+
+**Supported distros:** redhat, fedora
+
+**Config keys**::
 
     spacewalk:
-       server: spacewalk api server (required)
+       server: <url>
+       proxy: <proxy host>
+       activation_key: <key>
 """
 
 from cloudinit import util

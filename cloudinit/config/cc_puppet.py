@@ -18,6 +18,51 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+"""
+Puppet
+------
+**Summary:** install, configure and start puppet
+
+This module handles puppet installation and configuration. If the ``puppet``
+key does not exist in global configuration, no action will be taken. If a
+config entry for ``puppet`` is present, then by default the latest version of
+puppet will be installed. If ``install`` is set to ``false``, puppet will not
+be installed. However, this may result in an error if puppet is not already
+present on the system. The version of puppet to be installed can be specified
+under ``version``, and defaults to ``none``, which selects the latest version
+in the repos. If the ``puppet`` config key exists in the config archive, this
+module will attempt to start puppet even if no installation was performed.
+
+Puppet configuration can be specified under the ``conf`` key. The configuration
+is specified as a dictionary which is converted into ``<key>=<value>`` format
+and appended to ``puppet.conf`` under the ``[puppetd]`` section. The
+``certname`` key supports string substitutions for ``%i`` and ``%f``,
+corresponding to the instance id and fqdn of the machine respectively.
+If ``ca_cert`` is present under ``conf``, it will not be written to
+``puppet.conf``, but instead will be used as the puppermaster certificate.
+It should be specified in pem format as a multi-line string (using the ``|``
+yaml notation).
+
+**Internal name:** ``cc_puppet``
+
+**Module frequency:** per instance
+
+**Supported distros:** all
+
+**Config keys**::
+
+    puppet:
+        install: <true/false>
+        version: <version>
+        conf:
+            server: "puppetmaster.example.org"
+            certname: "%i.%f"
+            ca_cert: |
+                -------BEGIN CERTIFICATE-------
+                <cert data>
+                -------END CERTIFICATE-------
+"""
+
 from six import StringIO
 
 import os

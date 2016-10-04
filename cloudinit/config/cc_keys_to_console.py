@@ -18,6 +18,30 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+"""
+Keys to Console
+---------------
+**Summary:** control which ssh keys may be written to console
+
+For security reasons it may be desirable not to write ssh fingerprints and keys
+to the console. To avoid the fingerprint of types of ssh keys being written to
+console the ``ssh_fp_console_blacklist`` config key can be used. By default all
+types of keys will have their fingerprints written to console. To avoid keys
+of a key type being written to console the ``ssh_key_console_blacklist`` config
+key can be used. By default ``ssh-dss`` keys are not written to console.
+
+**Internal name:** ``cc_keys_to_console``
+
+**Module frequency:** per instance
+
+**Supported distros:** all
+
+**Config keys**::
+
+    ssh_fp_console_blacklist: <list of key types>
+    ssh_key_console_blacklist: <list of key types>
+"""
+
 import os
 
 from cloudinit.settings import PER_INSTANCE

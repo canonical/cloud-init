@@ -16,6 +16,51 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+"""
+Power State Change
+------------------
+**Summary:** change power state
+
+This module handles shutdown/reboot after all config modules have been run. By
+default it will take no action, and the system will keep running unless a
+package installation/upgrade requires a system reboot (e.g. installing a new
+kernel) and ``package_reboot_if_required`` is true. The ``power_state`` config
+key accepts a dict of options. If ``mode`` is any value other than
+``poweroff``, ``halt``, or ``reboot``, then no action will be taken.
+
+The system
+can be shutdown before cloud-init has finished using the ``timeout`` option.
+The ``delay`` key specifies a duration to be added onto any shutdown command
+used. Therefore, if a 5 minute delay and a 120 second shutdown are specified,
+the maximum amount of time between cloud-init starting and the system shutting
+down is 7 minutes, and the minimum amount of time is 5 minutes. The ``delay``
+key must have an argument in a form that the ``shutdown`` utility recognizes.
+The most common format is the form ``+5`` for 5 minutes. See ``man shutdown``
+for more options.
+
+Optionally, a command can be run to determine whether or not
+the system should shut down. The command to be run should be specified in the
+``condition`` key. For command formatting, see the documentation for
+``cc_runcmd``. The specified shutdown behavior will only take place if the
+``condition`` key is omitted or the command specified by the ``condition``
+key returns 0.
+
+**Internal name:** ``cc_power_state_change``
+
+**Module frequency:** per instance
+
+**Supported distros:** all
+
+**Config keys**::
+
+    power_state:
+        delay: <now/'+minutes'>
+        mode: <poweroff/halt/reboot>
+        message: <shutdown message>
+        timeout: <seconds>
+        condition: <true/false/command>
+"""
+
 from cloudinit.settings import PER_INSTANCE
 from cloudinit import util
 

@@ -18,6 +18,31 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+"""
+Final Message
+-------------
+**Summary:** output final message when cloud-init has finished
+
+This module configures the final message that cloud-init writes. The message is
+specified as a jinja template with the following variables set:
+
+    - ``version``: cloud-init version
+    - ``timestamp``: time at cloud-init finish
+    - ``datasource``: cloud-init data source
+    - ``uptime``: system uptime
+
+**Internal name:** ``cc_final_message``
+
+**Module frequency:** per always
+
+**Supported distros:** all
+
+**Config keys**::
+
+    final_message: <message>
+
+"""
+
 from cloudinit import templater
 from cloudinit import util
 from cloudinit import version

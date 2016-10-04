@@ -18,6 +18,20 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+"""
+Foo
+---
+**Summary:** example module
+
+Example to show module structure. Does not do anything.
+
+**Internal name:** ``cc_foo``
+
+**Module frequency:** per instance
+
+**Supported distros:** all
+"""
+
 from cloudinit.settings import PER_INSTANCE
 
 # Modules are expected to have the following attributes.
@@ -35,7 +49,7 @@ from cloudinit.settings import PER_INSTANCE
 #    Typically those are from module configuration where the module
 #    is defined with some extra configuration that will eventually
 #    be translated from yaml into arguments to this module.
-# 2. A optional 'frequency' that defines how often this module should be ran.
+# 2. A optional 'frequency' that defines how often this module should be run.
 #    Typically one of PER_INSTANCE, PER_ALWAYS, PER_ONCE. If not
 #    provided PER_INSTANCE will be assumed.
 #    See settings.py for these constants.

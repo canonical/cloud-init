@@ -18,6 +18,26 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+"""
+Locale
+------
+**Summary:** set system locale
+
+Configure the system locale and apply it system wide. By default use the locale
+specified by the datasource.
+
+**Internal name:** ``cc_locale``
+
+**Module frequency:** per instance
+
+**Supported distros:** all
+
+**Config keys**::
+
+    locale: <locale str>
+    locale_configfile: <path to locale config file>
+"""
+
 from cloudinit import util
 
 

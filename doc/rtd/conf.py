@@ -48,7 +48,7 @@ version = version.version_string()
 release = version
 
 # Set the default Pygments syntax
-highlight_language = 'python'
+highlight_language = 'yaml'
 
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
