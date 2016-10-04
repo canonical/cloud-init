@@ -18,6 +18,54 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+"""
+Mounts
+------
+**Summary:** configure mount points and swap files
+
+This module can add or remove mountpoints from ``/etc/fstab`` as well as
+configure swap. The ``mounts`` config key takes a list of fstab entries to add.
+Each entry is specified as a list of ``[ fs_spec, fs_file, fs_vfstype,
+fs_mntops, fs-freq, fs_passno ]``. For more information on these options,
+consult the manual for ``/etc/fstab``. When specifying the ``fs_spec``, if the
+device name starts with one of ``xvd``, ``sd``, ``hd``, or ``vd``, the leading
+``/dev`` may be omitted.
+
+In order to remove a previously listed mount, an entry can be added to the
+mounts list containing ``fs_spec`` for the device to be removed but no
+mountpoint (i.e. ``[ sda1 ]`` or ``[ sda1, null ]``).
+
+The ``mount_default_fields`` config key allows default options to be specified
+for the values in a ``mounts`` entry that are not specified, aside from the
+``fs_spec`` and the ``fs_file``. If specified, this must be a list containing 7
+values. It defaults to::
+
+    mount_default_fields: [none, none, "auto", "defaults,nobootwait", "0", "2"]
+
+Swap files can be configured by setting the path to the swap file to create
+with ``filename``, the size of the swap file with ``size`` maximum size of
+the swap file if using an ``size: auto`` with ``maxsize``. By default no
+swap file is created.
+
+**Internal name:** ``cc_mounts``
+
+**Module frequency:** per instance
+
+**Supported distros:** all
+
+**Config keys**::
+
+    mounts:
+        - [ /dev/ephemeral0, /mnt, auto, "defaults,noexec" ]
+        - [ sdc, /opt/data ]
+        - [ xvdh, /opt/data, "auto", "defaults,nobootwait", "0", "0" ]
+    mount_default_fields: [None, None, "auto", "nefaults,nobootwait", "0", "2"]
+    swap:
+        filename: <file>
+        size: <"auto"/size in bytes>
+        maxsize: <size in bytes>
+"""
+
 from string import whitespace
 
 import logging

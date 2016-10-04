@@ -15,22 +15,28 @@
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 """
+Debug
+-----
 **Summary:** helper to debug cloud-init *internal* datastructures.
 
-**Description:** This module will enable for outputting various internal
-information that cloud-init sources provide to either a file or to the output
-console/log location that this cloud-init has been configured with when
-running.
-
-It can be configured with the following option structure::
-
-    debug:
-       verbose: (defaulting to true)
-       output: (location to write output, defaulting to console + log)
+This module will enable for outputting various internal information that
+cloud-init sources provide to either a file or to the output console/log
+location that this cloud-init has been configured with when running.
 
 .. note::
-
     Log configurations are not output.
+
+**Internal name:** ``cc_debug``
+
+**Module frequency:** per instance
+
+**Supported distros:** all
+
+**Config keys**::
+
+    debug:
+       verbose: true/false (defaulting to true)
+       output: (location to write output, defaulting to console + log)
 """
 
 import copy

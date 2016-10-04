@@ -1,6 +1,6 @@
-=========
+================
 Directory layout
-=========
+================
 
 Cloudinits's directory structure is somewhat different from a regular application::
 

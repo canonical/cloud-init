@@ -16,6 +16,28 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+"""
+Migrator
+--------
+**Summary:** migrate old versions of cloud-init data to new
+
+This module handles moving old versions of cloud-init data to newer ones.
+Currently, it only handles renaming cloud-init's per-frequency semaphore files
+to canonicalized name and renaming legacy semaphore names to newer ones. This
+module is enabled by default, but can be disabled by specifying ``migrate:
+false`` in config.
+
+**Internal name:** ``cc_migrator``
+
+**Module frequency:** per always
+
+**Supported distros:** all
+
+**Config keys**::
+
+    migrate: <true/false>
+"""
+
 import os
 import shutil
 

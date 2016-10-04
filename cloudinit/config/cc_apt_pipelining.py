@@ -16,6 +16,31 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+"""
+Apt Pipelining
+--------------
+**Summary:** configure apt pipelining
+
+This module configures apt's ``Acquite::http::Pipeline-Depth`` option, whcih
+controls how apt handles HTTP pipelining. It may be useful for pipelining to be
+disabled, because some web servers, such as S3 do not pipeline properly (LP:
+#948461). The ``apt_pipelining`` config key may be set to ``false`` to disable
+pipelining altogether. This is the default behavior. If it is set to ``none``,
+``unchanged``, or ``os``, no change will be made to apt configuration and the
+default setting for the distro will be used. The pipeline depth can also be
+manually specified by setting ``apt_pipelining`` to a number. However, this is
+not recommended.
+
+**Internal name:** ``cc_apt_pipelining``
+
+**Module frequency:** per instance
+
+**Supported distros:** ubuntu, debian
+
+**Config keys**::
+    apt_pipelining: <false/none/unchanged/os/number>
+"""
+
 from cloudinit.settings import PER_INSTANCE
 from cloudinit import util
 

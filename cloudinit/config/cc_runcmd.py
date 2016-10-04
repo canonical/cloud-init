@@ -18,6 +18,38 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+"""
+Runcmd
+------
+**Summary:** run commands
+
+Run arbitrary commands at a rc.local like level with output to the console.
+Each item can be either a list or a string. If the item is a list, it will be
+properly executed as if passed to ``execve()`` (with the first arg as the
+command). If the item is a string, it will be written to a file and interpreted
+using ``sh``.
+
+.. note::
+    all commands must be proper yaml, so you have to quote any characters yaml
+    would eat (':' can be problematic)
+
+**Internal name:** ``cc_runcmd``
+
+**Module frequency:** per instance
+
+**Supported distros:** all
+
+**Config keys**::
+
+    runcmd:
+        - [ ls, -l, / ]
+        - [ sh, -xc, "echo $(date) ': hello world!'" ]
+        - [ sh, -c, echo "=========hello world'=========" ]
+        - ls -l /root
+        - [ wget, "http://example.org", -O, /tmp/index.html ]
+"""
+
+
 import os
 
 from cloudinit import util

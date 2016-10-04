@@ -14,7 +14,7 @@ The format of the Custom Properties entry must be:
 
 For example to pass a simple bash script:
 
-::
+.. sourcecode:: sh
     
     % cat simple_script.bash
     #!/bin/bash
@@ -55,13 +55,13 @@ For example, to pass the same ``simple_script.bash`` to vSphere:
 Create the ISO
 -----------------
 
-::
+.. sourcecode:: sh
     
     % mkdir my-iso
 
 NOTE: The file name on the ISO must be: ``user-data.txt``
 
-::
+.. sourcecode:: sh
     
     % cp simple_scirpt.bash my-iso/user-data.txt
     % genisoimage -o user-data.iso -r my-iso
@@ -69,7 +69,7 @@ NOTE: The file name on the ISO must be: ``user-data.txt``
 Verify the ISO
 -----------------
 
-::
+.. sourcecode:: sh
     
     % sudo mkdir /media/vsphere_iso
     % sudo mount -o loop JoeV_CI_02.iso /media/vsphere_iso

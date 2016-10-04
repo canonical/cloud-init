@@ -16,6 +16,28 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+"""
+Scripts Vendor
+--------------
+**Summary:** run vendor scripts
+
+Any scripts in the ``scripts/vendor`` directory in the datasource will be run
+when a new instance is first booted. Scripts will be run in alphabetical order.
+Vendor scripts can be run with an optional prefix specified in the ``prefix``
+entry under the ``vendor_data`` config key.
+
+**Internal name:** ``cc_scripts_vendor``
+
+**Module frequency:** per instance
+
+**Supporte distros:** all
+
+**Config keys**::
+
+    vendor_data:
+        prefix: <vendor data prefix>
+"""
+
 import os
 
 from cloudinit import util

@@ -18,6 +18,55 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+"""
+Landscape
+---------
+**Summary:** install and configure landscape client
+
+This module installs and configures ``landscape-client``. The landscape client
+will only be installed if the key ``landscape`` is present in config. Landscape
+client configuration is given under the ``client`` key under the main
+``landscape`` config key. The config parameters are not interpreted by
+cloud-init, but rather are converted into a ConfigObj formatted file and
+written out to ``/etc/landscape/client.conf``.
+
+The following default client config is provided, but can be overridden::
+
+    landscape:
+        client:
+            log_level: "info"
+            url: "https://landscape.canonical.com/message-system"
+            ping_url: "http://landscape.canoncial.com/ping"
+            data_path: "/var/lib/landscape/client"
+
+.. note::
+    see landscape documentation for client config keys
+
+.. note::
+    if ``tags`` is defined, its contents should be a string delimited with
+    ``,`` rather than a list
+
+**Internal name:** ``cc_landscape``
+
+**Module frequency:** per instance
+
+**Supported distros:** ubuntu
+
+**Config keys**::
+
+    landscape:
+        client:
+            url: "https://landscape.canonical.com/message-system"
+            ping_url: "http://landscape.canonical.com/ping"
+            data_path: "/var/lib/landscape/client"
+            http_proxy: "http://my.proxy.com/foobar"
+            https_proxy: "https://my.proxy.com/foobar"
+            tags: "server,cloud"
+            computer_title: "footitle"
+            registration_key: "fookey"
+            account_name: "fooaccount"
+"""
+
 import os
 
 from six import StringIO

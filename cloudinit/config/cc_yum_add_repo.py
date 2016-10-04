@@ -16,6 +16,32 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+"""
+Yum Add Repo
+------------
+**Summary:** add yum repository configuration to the system
+
+Add yum repository configuration to ``/etc/yum.repos.d``. Configuration files
+are named based on the dictionary key under the ``yum_repos`` they are
+specified with. If a config file already exists with the same name as a config
+entry, the config entry will be skipped.
+
+**Internal name:** ``cc_yum_add_repo``
+
+**Module frequency:** per always
+
+**Supported distros:** fedora, rhel
+
+**Config keys**::
+
+    yum_repos:
+        <repo-name>:
+            baseurl: <repo url>
+            name: <repo name>
+            enabled: <true/false>
+            # any repository configuration options (see man yum.conf)
+"""
+
 import os
 
 import configobj

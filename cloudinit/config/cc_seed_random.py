@@ -19,6 +19,58 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+"""
+Seed Random
+-----------
+**Summary:** provide random seed data
+
+Since all cloud instances started from the same image will produce very similar
+data when they are first booted, as they are all starting with the same seed
+for the kernel's entropy keyring. To avoid this, random seed data can be
+provided to the instance either as a string or by specifying a command to run
+to generate the data.
+
+Configuration for this module is under the ``random_seed`` config key. The
+``file`` key specifies the path to write the data to, defaulting to
+``/dev/urandom``. Data can be passed in directly with ``data``, and may
+optionally be specified in encoded form, with the encoding specified in
+``encoding``.
+
+.. note::
+    when using a multiline value for ``data`` or specifying binary data, be
+    sure to follow yaml syntax and use the ``|`` and ``!binary`` yaml format
+    specifiers when appropriate
+
+Instead of specifying a data string, a command can be run to generate/collect
+the data to be written. The command should be specified as a list of args in
+the ``command`` key. If a command is specified that cannot be run, no error
+will be reported unless ``command_required`` is set to true.
+
+For example, to use ``pollinate`` to gather data from a
+remote entropy server and write it to ``/dev/urandom``, the following could be
+used::
+
+    random_seed:
+        file: /dev/urandom
+        command: ["pollinate", "--server=http://local.polinate.server"]
+        command_required: true
+
+**Internal name:** ``cc_seed_random``
+
+**Module frequency:** per instance
+
+**Supported distros:** all
+
+**Config keys**::
+
+    random_seed:
+        file: <file>
+        data: <random string>
+        encoding: <raw/base64/b64/gzip/gz>
+        command: [<cmd name>, <arg1>, <arg2>...]
+        command_required: <true/false>
+"""
+
 import base64
 import os
 

@@ -1,18 +1,18 @@
-=========
+=======
 Formats
-=========
+=======
 
 User data that will be acted upon by cloud-init must be in one of the following types.
 
 Gzip Compressed Content
-------------------------
+-----------------------
 
 Content found to be gzip compressed will be uncompressed.
 The uncompressed data will then be used as if it were not compressed. 
 This is typically is useful because user-data is limited to ~16384 [#]_ bytes.
 
 Mime Multi Part Archive
-------------------------
+-----------------------
 
 This list of rules is applied to each part of this multi-part file. 
 Using a mime-multi part file, the user can specify more than one type of data.
@@ -31,7 +31,7 @@ Supported content-types:
 - text/cloud-boothook
 
 Helper script to generate mime messages
-~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: python
 
@@ -59,7 +59,7 @@ Helper script to generate mime messages
 
 
 User-Data Script
-------------------------
+----------------
 
 Typically used by those who just want to execute a shell script.
 

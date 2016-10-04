@@ -18,6 +18,22 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+"""
+Scripts Per Once
+----------------
+**Summary:** run one time scripts
+
+Any scripts in the ``scripts/per-once`` directory on the datasource will be run
+only once. Scripts will be run in alphabetical order. This module does not
+accept any config keys.
+
+**Internal name:** ``cc_scripts_per_once``
+
+**Module frequency:** per once
+
+**Supported distros:** all
+"""
+
 import os
 
 from cloudinit import util

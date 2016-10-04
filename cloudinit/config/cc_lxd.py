@@ -17,32 +17,46 @@
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 """
-This module initializes lxd using 'lxd init'
+LXD
+---
+**Summary:** configure lxd with ``lxd init`` and optionally lxd-bridge
 
-Example config:
-  #cloud-config
-  lxd:
-    init:
-      network_address: <ip addr>
-      network_port: <port>
-      storage_backend: <zfs/dir>
-      storage_create_device: <dev>
-      storage_create_loop: <size>
-      storage_pool: <name>
-      trust_password: <password>
-    bridge:
-      mode: <new, existing or none>
-      name: <name>
-      ipv4_address: <ip addr>
-      ipv4_netmask: <cidr>
-      ipv4_dhcp_first: <ip addr>
-      ipv4_dhcp_last: <ip addr>
-      ipv4_dhcp_leases: <size>
-      ipv4_nat: <bool>
-      ipv6_address: <ip addr>
-      ipv6_netmask: <cidr>
-      ipv6_nat: <bool>
-      domain: <domain>
+This module configures lxd with user specified options using ``lxd init``.
+If lxd is not present on the system but lxd configuration is provided, then
+lxd will be installed. If the selected storage backend is zfs, then zfs will
+be installed if missing. If network bridge configuration is provided, then
+lxd-bridge will be configured accordingly.
+
+**Internal name:** ``cc_lxd``
+
+**Module frequency:** per instance
+
+**Supported distros:** ubuntu
+
+**Config keys**::
+
+    lxd:
+        init:
+            network_address: <ip addr>
+            network_port: <port>
+            storage_backend: <zfs/dir>
+            storage_create_device: <dev>
+            storage_create_loop: <size>
+            storage_pool: <name>
+            trust_password: <password>
+        bridge:
+            mode: <new, existing or none>
+            name: <name>
+            ipv4_address: <ip addr>
+            ipv4_netmask: <cidr>
+            ipv4_dhcp_first: <ip addr>
+            ipv4_dhcp_last: <ip addr>
+            ipv4_dhcp_leases: <size>
+            ipv4_nat: <bool>
+            ipv6_address: <ip addr>
+            ipv6_netmask: <cidr>
+            ipv6_nat: <bool>
+            domain: <domain>
 """
 
 from cloudinit import util

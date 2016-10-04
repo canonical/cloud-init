@@ -18,6 +18,26 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+"""
+Timezone
+--------
+**Summary:** set system timezone
+
+Set the system timezone. If any args are passed to the module then the first
+will be used for the timezone. Otherwise, the module will attempt to retrieve
+the timezone from cloud config.
+
+**Internal name:** ``cc_timezone``
+
+**Module frequency:** per instance
+
+**Supported distros:** all
+
+**Config keys**::
+
+    timezone: <timezone>
+"""
+
 from cloudinit import util
 
 from cloudinit.settings import PER_INSTANCE

@@ -18,6 +18,32 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+"""
+Resizefs
+--------
+**Summary:** resize filesystem
+
+Resize a filesystem to use all avaliable space on partition. This module is
+useful along with ``cc_growpart`` and will ensure that if the root partition
+has been resized the root filesystem will be resized along with it. By default,
+``cc_resizefs`` will resize the root partition and will block the boot process
+while the resize command is running. Optionally, the resize operation can be
+performed in the background while cloud-init continues running modules. This
+can be enabled by setting ``resize_rootfs`` to ``true``. This module can be
+disabled altogether by setting ``resize_rootfs`` to ``false``.
+
+**Internal name:** ``cc_resizefs``
+
+**Module frequency:** per always
+
+**Supported distros:** all
+
+**Config keys**::
+
+    resize_rootfs: <true/false/"noblock">
+    resize_rootfs_tmp: <directory>
+"""
+
 import errno
 import os
 import stat

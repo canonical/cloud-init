@@ -18,6 +18,40 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+"""
+Phone Home
+----------
+**Summary:** post data to url
+
+This module can be used to post data to a remote host after boot is complete.
+If the post url contains the string ``$INSTANCE_ID`` it will be replaced with
+the id of the current instance. Either all data can be posted or a list of
+keys to post. Available keys are:
+
+    - ``pub_key_dsa``
+    - ``pub_key_rsa``
+    - ``pub_key_ecdsa``
+    - ``instance_id``
+    - ``hostname``
+    - ``fdqn``
+
+**Internal name:** ``cc_phone_home``
+
+**Module frequency:** per instance
+
+**Supported distros:** all
+
+**Config keys**::
+
+    phone_home:
+        url: http://example.com/$INSTANCE_ID/
+        post:
+            - pub_key_dsa
+            - instance_id
+            - fqdn
+        tries: 10
+"""
+
 from cloudinit import templater
 from cloudinit import util
 

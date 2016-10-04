@@ -18,6 +18,32 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+"""
+Rightscale Userdata
+-------------------
+**Summary:** support rightscale configuration hooks
+
+This module adds support for RightScale configuration hooks to cloud-init.
+RightScale adds a entry in the format ``CLOUD_INIT_REMOTE_HOOK=http://...`` to
+ec2 user-data. This module checks for this line in the raw userdata and
+retrieves any scripts linked by the RightScale user data and places them in the
+user scripts configuration directory, to be run later by ``cc_scripts_user``.
+
+.. note::
+    the ``CLOUD_INIT_REMOTE_HOOK`` config variable is present in the raw ec2
+    user data only, not in any cloud-config parts
+
+**Internal name:** ``cc_rightscale_userdata``
+
+**Module frequency:** per instance
+
+**Supported distros:** all
+
+**Config keys**::
+
+    CLOUD_INIT_REMOTE_HOOK=<url>
+"""
+
 #
 # The purpose of this script is to allow cloud-init to consume
 # rightscale style userdata.  rightscale user data is key-value pairs

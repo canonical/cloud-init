@@ -18,6 +18,22 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+"""
+Scripts Per Boot
+----------------
+**Summary:** run per boot scripts
+
+Any scripts in the ``scripts/per-boot`` directory on the datasource will be run
+every time the system boots. Scripts will be run in alphabetical order. This
+module does not accept any config keys.
+
+**Internal name:** ``cc_scripts_per_boot``
+
+**Module frequency:** per always
+
+**Supported distros:** all
+"""
+
 import os
 
 from cloudinit import util
