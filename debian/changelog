@@ -1,4 +1,4 @@
-cloud-init (0.7.8-14-g94fd35e-0ubuntu1) UNRELEASED; urgency=medium
+cloud-init (0.7.8-14-g94fd35e-0ubuntu1) yakkety; urgency=medium
 
   * New upstream snapshot.
     - systemd: run cloud-init.service Before dbus.service (LP: #1629797)
@@ -6,7 +6,7 @@ cloud-init (0.7.8-14-g94fd35e-0ubuntu1) UNRELEASED; urgency=medium
       [Ryan Harper]
     - Improve module documentation and doc cleanup.  [Wesley Wiedenmeier]
 
- -- Scott Moser <smoser@ubuntu.com>  Tue, 04 Oct 2016 16:44:29 -0400
+ -- Scott Moser <smoser@ubuntu.com>  Tue, 04 Oct 2016 16:46:05 -0400
 
 cloud-init (0.7.8-11-g02f6c4b-0ubuntu1) yakkety; urgency=medium
 
