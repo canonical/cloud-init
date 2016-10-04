@@ -162,7 +162,7 @@ class TestDataSourceDigitalOcean(TestCase):
         m_read_sysinfo.return_value = (False, None)
         ds = self.get_ds(get_sysinfo=None)
         self.assertEqual(False, ds.get_data())
-        m_read_sysinfo.assert_called()
+        self.assertTrue(m_read_sysinfo.called)
 
     @mock.patch('cloudinit.sources.helpers.digitalocean.read_metadata')
     def test_metadata(self, mock_readmd):
@@ -172,7 +172,7 @@ class TestDataSourceDigitalOcean(TestCase):
         ret = ds.get_data()
         self.assertTrue(ret)
 
-        mock_readmd.assert_called()
+        self.assertTrue(mock_readmd.called)
 
         self.assertEqual(DO_META.get('user_data'), ds.get_userdata_raw())
         self.assertEqual(DO_META.get('vendor_data'), ds.get_vendordata_raw())
@@ -196,7 +196,7 @@ class TestDataSourceDigitalOcean(TestCase):
         ret = ds.get_data()
         self.assertTrue(ret)
 
-        mock_readmd.assert_called()
+        self.assertTrue(mock_readmd.called)
 
         # Multiple keys
         self.assertEqual(metadata['public_keys'], ds.get_public_ssh_keys())
