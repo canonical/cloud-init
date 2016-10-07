@@ -1,4 +1,4 @@
 debian/grub-set-default usr/sbin
 debian/grub-set-default-legacy-ec2 usr/sbin
-debian/kernel etc/kernel/
+debian/kernel etc/
 debian/update-grub-legacy-ec2 usr/sbin
