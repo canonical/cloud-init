@@ -23,6 +23,7 @@ Summary
    topics/dir_layout
    topics/examples
    topics/datasources
+   topics/logging
    topics/modules
    topics/merging
    topics/moreinfo
