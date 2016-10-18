@@ -32,6 +32,7 @@ CFG_BUILTIN = {
         'NoCloud',
         'ConfigDrive',
         'OpenNebula',
+        'DigitalOcean',
         'Azure',
         'AltCloud',
         'OVF',
