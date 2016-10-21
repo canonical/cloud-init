@@ -264,16 +264,22 @@ class HttprettyTestCase(TestCase):
 
 class TempDirTestCase(TestCase):
     # provide a tempdir per class, not per test.
-    def setUp(self):
-        super(TempDirTestCase, self).setUp()
-        self.tmp = tempfile.mkdtemp()
-        self.addCleanup(shutil.rmtree, self.tmp)
+    @classmethod
+    def setUpClass(cls):
+        cls.tmpd = tempfile.mkdtemp(prefix="ci-%s." % cls.__name__)
+        return TestCase.setUpClass()
+
+    @classmethod
+    def tearDownClass(cls):
+        shutil.rmtree(cls.tmpd)
+        return TestCase.tearDownClass()
 
     def tmp_path(self, path):
+        # if absolute path (starts with /), then make ./path
         if path.startswith(os.path.sep):
             path = "." + path
 
-        return os.path.normpath(os.path.join(self.tmp, path))
+        return os.path.normpath(os.path.join(self.tmpd, path))
 
 
 def populate_dir(path, files):
