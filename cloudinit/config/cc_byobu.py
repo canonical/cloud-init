@@ -50,12 +50,7 @@ Valid configuration options for this module are:
     byobu_by_default: <user/system>
 """
 
-
-# Ensure this is aliased to a name not 'distros'
-# since the module attribute 'distros'
-# is a list of distros that are supported, not a sub-module
-from cloudinit import distros as ds
-
+from cloudinit.distros import ug_util
 from cloudinit import util
 
 distros = ['ubuntu', 'debian']
@@ -94,8 +89,8 @@ def handle(name, cfg, cloud, log, args):
 
     shcmd = ""
     if mod_user:
-        (users, _groups) = ds.normalize_users_groups(cfg, cloud.distro)
-        (user, _user_config) = ds.extract_default(users)
+        (users, _groups) = ug_util.normalize_users_groups(cfg, cloud.distro)
+        (user, _user_config) = ug_util.extract_default(users)
         if not user:
             log.warn(("No default byobu user provided, "
                       "can not launch %s for the default user"), bl_inst)

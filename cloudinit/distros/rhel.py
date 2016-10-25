@@ -62,6 +62,7 @@ class Distro(distros.Distro):
         self._runner = helpers.Runners(paths)
         self.osfamily = 'redhat'
         self._net_renderer = sysconfig.Renderer()
+        cfg['ssh_svcname'] = 'sshd'
 
     def install_packages(self, pkglist):
         self.package_command('install', pkgs=pkglist)

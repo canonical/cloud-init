@@ -66,11 +66,7 @@ enabled, disabled, or left to system defaults using ``ssh_pwauth``.
 
 import sys
 
-# Ensure this is aliased to a name not 'distros'
-# since the module attribute 'distros'
-# is a list of distros that are supported, not a sub-module
-from cloudinit import distros as ds
-
+from cloudinit.distros import ug_util
 from cloudinit import ssh_util
 from cloudinit import util
 
@@ -99,8 +95,8 @@ def handle(_name, cfg, cloud, log, args):
         expire = util.get_cfg_option_bool(chfg, 'expire', expire)
 
     if not plist and password:
-        (users, _groups) = ds.normalize_users_groups(cfg, cloud.distro)
-        (user, _user_config) = ds.extract_default(users)
+        (users, _groups) = ug_util.normalize_users_groups(cfg, cloud.distro)
+        (user, _user_config) = ug_util.extract_default(users)
         if user:
             plist = "%s:%s" % (user, password)
         else:
