@@ -1,8 +1,22 @@
-cloud-init (0.7.8-15-g6e45ffb-0ubuntu2) UNRELEASED; urgency=medium
+cloud-init (0.7.8-27-g29348af-0ubuntu1) UNRELEASED; urgency=medium
 
   * debian/cloud-init.templates: enable DigitalOcean by default [Ben Howard]
+  * New upstream snapshot.
+    - disk-config: udev settle after partitioning in gpt format. (LP: #1626243)
+    - unittests: do not read system /etc/cloud/cloud.cfg.d (LP: #1635350)
+    - Add documentation for logging features. [Wesley Wiedenmeier]
+    - Add support for snap create-user on Ubuntu Core images. [Ryan Harper]
+      (LP: #1619393)
+    - Fix sshd restarts for rhel distros. [Jim Gorz] (LP: #1470433)
+    - OpenNebula: replace 'ip' parsing with cloudinit.net usage.
+    - Fix python2.6 things found running in centos 6.
+    - Move user/group functions to new ug_util file [Joshua Harlow]
+    - DigitalOcean: enable usage of data source by default.
+    - update Gentoo initscripts to run in the correct order [Matthew Thode]
+    - MAAS: improve the main of datasource to look at kernel cmdline config.
+    - tests: silence the Cheetah UserWarning about NameMapper C version.
 
- -- Scott Moser <smoser@ubuntu.com>  Tue, 18 Oct 2016 15:01:47 -0400
+ -- Scott Moser <smoser@ubuntu.com>  Tue, 25 Oct 2016 17:06:18 -0400
 
 cloud-init (0.7.8-15-g6e45ffb-0ubuntu1) yakkety; urgency=medium
 
