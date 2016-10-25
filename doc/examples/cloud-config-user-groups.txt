@@ -30,6 +30,7 @@ users:
     gecos: Magic Cloud App Daemon User
     inactive: true
     system: true
+  - snapuser: joe@joeuser.io
 
 # Valid Values:
 #   name: The user's login name
@@ -80,6 +81,13 @@ users:
 #               cloud-init does not parse/check the syntax of the sudo
 #               directive.
 #   system: Create the user as a system user. This means no home directory.
+#   snapuser: Create a Snappy (Ubuntu-Core) user via the snap create-user
+#             command available on Ubuntu systems.  If the user has an account
+#             on the Ubuntu SSO, specifying the email will allow snap to
+#             request a username and any public ssh keys and will import
+#             these into the system with username specifed by SSO account.
+#             If 'username' is not set in SSO, then username will be the
+#             shortname before the email domain.
 #
 
 # Default user creation:

@@ -310,12 +310,12 @@ if __name__ == "__main__":
         creds = {'consumer_key': args.ckey, 'token_key': args.tkey,
                  'token_secret': args.tsec, 'consumer_secret': args.csec}
 
-        maaspkg_cfg = "/etc/cloud/cloud.cfg.d/90_dpkg_maas.cfg"
-        if (args.config is None and args.url is None and
-                os.path.exists(maaspkg_cfg) and
-                os.access(maaspkg_cfg, os.R_OK)):
-            sys.stderr.write("Used config in %s.\n" % maaspkg_cfg)
-            args.config = maaspkg_cfg
+        if args.config is None:
+            for fname in ('91_kernel_cmdline_url', '90_dpkg_maas'):
+                fpath = "/etc/cloud/cloud.cfg.d/" + fname + ".cfg"
+                if os.path.exists(fpath) and os.access(fpath, os.R_OK):
+                    sys.stderr.write("Used config in %s.\n" % fpath)
+                    args.config = fpath
 
         if args.config:
             cfg = util.read_conf(args.config)

@@ -1,8 +1,10 @@
 from cloudinit import distros
+from cloudinit.distros import ug_util
 from cloudinit import helpers
 from cloudinit import settings
 
 from ..helpers import TestCase
+import mock
 
 
 bcfg = {
@@ -29,7 +31,7 @@ class TestUGNormalize(TestCase):
         return distro
 
     def _norm(self, cfg, distro):
-        return distros.normalize_users_groups(cfg, distro)
+        return ug_util.normalize_users_groups(cfg, distro)
 
     def test_group_dict(self):
         distro = self._make_distro('ubuntu')
@@ -236,7 +238,7 @@ class TestUGNormalize(TestCase):
         }
         (users, _groups) = self._norm(ug_cfg, distro)
         self.assertIn('bob', users)
-        (name, config) = distros.extract_default(users)
+        (name, config) = ug_util.extract_default(users)
         self.assertEqual(name, 'bob')
         expected_config = {}
         def_config = None
@@ -295,3 +297,67 @@ class TestUGNormalize(TestCase):
         self.assertIn('bob', users)
         self.assertEqual({'default': False}, users['joe'])
         self.assertEqual({'default': False}, users['bob'])
+
+    @mock.patch('cloudinit.util.subp')
+    def test_create_snap_user(self, mock_subp):
+        mock_subp.side_effect = [('{"username": "joe", "ssh-key-count": 1}\n',
+                                  '')]
+        distro = self._make_distro('ubuntu')
+        ug_cfg = {
+            'users': [
+                {'name': 'joe', 'snapuser': 'joe@joe.com'},
+            ],
+        }
+        (users, _groups) = self._norm(ug_cfg, distro)
+        for (user, config) in users.items():
+            print('user=%s config=%s' % (user, config))
+            username = distro.create_user(user, **config)
+
+        snapcmd = ['snap', 'create-user', '--sudoer', '--json', 'joe@joe.com']
+        mock_subp.assert_called_with(snapcmd, capture=True, logstring=snapcmd)
+        self.assertEqual(username, 'joe')
+
+    @mock.patch('cloudinit.util.subp')
+    def test_create_snap_user_known(self, mock_subp):
+        mock_subp.side_effect = [('{"username": "joe", "ssh-key-count": 1}\n',
+                                  '')]
+        distro = self._make_distro('ubuntu')
+        ug_cfg = {
+            'users': [
+                {'name': 'joe', 'snapuser': 'joe@joe.com', 'known': True},
+            ],
+        }
+        (users, _groups) = self._norm(ug_cfg, distro)
+        for (user, config) in users.items():
+            print('user=%s config=%s' % (user, config))
+            username = distro.create_user(user, **config)
+
+        snapcmd = ['snap', 'create-user', '--sudoer', '--json', '--known',
+                   'joe@joe.com']
+        mock_subp.assert_called_with(snapcmd, capture=True, logstring=snapcmd)
+        self.assertEqual(username, 'joe')
+
+    @mock.patch('cloudinit.util.system_is_snappy')
+    @mock.patch('cloudinit.util.is_group')
+    @mock.patch('cloudinit.util.subp')
+    def test_add_user_on_snappy_system(self, mock_subp, mock_isgrp,
+                                       mock_snappy):
+        mock_isgrp.return_value = False
+        mock_subp.return_value = True
+        mock_snappy.return_value = True
+        distro = self._make_distro('ubuntu')
+        ug_cfg = {
+            'users': [
+                {'name': 'joe', 'groups': 'users', 'create_groups': True},
+            ],
+        }
+        (users, _groups) = self._norm(ug_cfg, distro)
+        for (user, config) in users.items():
+            print('user=%s config=%s' % (user, config))
+            distro.add_user(user, **config)
+
+        groupcmd = ['groupadd', 'users', '--extrausers']
+        addcmd = ['useradd', 'joe', '--extrausers', '--groups', 'users', '-m']
+
+        mock_subp.assert_any_call(groupcmd)
+        mock_subp.assert_any_call(addcmd, logstring=addcmd)

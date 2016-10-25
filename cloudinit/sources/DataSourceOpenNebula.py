@@ -30,6 +30,7 @@ import re
 import string
 
 from cloudinit import log as logging
+from cloudinit import net
 from cloudinit import sources
 from cloudinit import util
 
@@ -120,17 +121,11 @@ class BrokenContextDiskDir(Exception):
 
 
 class OpenNebulaNetwork(object):
-    REG_DEV_MAC = re.compile(
-        r'^\d+: (eth\d+):.*?link\/ether (..:..:..:..:..:..) ?',
-        re.MULTILINE | re.DOTALL)
-
-    def __init__(self, ip, context):
-        self.ip = ip
+    def __init__(self, context, system_nics_by_mac=None):
         self.context = context
-        self.ifaces = self.get_ifaces()
-
-    def get_ifaces(self):
-        return self.REG_DEV_MAC.findall(self.ip)
+        if system_nics_by_mac is None:
+            system_nics_by_mac = get_physical_nics_by_mac()
+        self.ifaces = system_nics_by_mac
 
     def mac2ip(self, mac):
         components = mac.split(':')[2:]
@@ -188,9 +183,7 @@ class OpenNebulaNetwork(object):
         conf.append('iface lo inet loopback')
         conf.append('')
 
-        for i in self.ifaces:
-            dev = i[0]
-            mac = i[1]
+        for mac, dev in self.ifaces.items():
             ip_components = self.mac2ip(mac)
 
             conf.append('auto ' + dev)
@@ -405,14 +398,17 @@ def read_context_disk_dir(source_dir, asuser=None):
     # generate static /etc/network/interfaces
     # only if there are any required context variables
     # http://opennebula.org/documentation:rel3.8:cong#network_configuration
-    for k in context:
-        if re.match(r'^ETH\d+_IP$', k):
-            (out, _) = util.subp(['ip', 'link'])
-            net = OpenNebulaNetwork(out, context)
-            results['network-interfaces'] = net.gen_conf()
-            break
+    ipaddr_keys = [k for k in context if re.match(r'^ETH\d+_IP$', k)]
+    if ipaddr_keys:
+        onet = OpenNebulaNetwork(context)
+        results['network-interfaces'] = onet.gen_conf()
 
     return results
+
+
+def get_physical_nics_by_mac():
+    devs = net.get_interfaces_by_mac()
+    return dict([(m, n) for m, n in devs.items() if net.is_physical(n)])
 
 
 # Legacy: Must be present in case we load an old pkl object

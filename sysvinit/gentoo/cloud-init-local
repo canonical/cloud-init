@@ -2,7 +2,7 @@
 
 depend() {
   after localmount
-  after netmount
+  before net
   before cloud-init
   provide cloud-init-local
 }

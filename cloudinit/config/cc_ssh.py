@@ -109,11 +109,7 @@ import glob
 import os
 import sys
 
-# Ensure this is aliased to a name not 'distros'
-# since the module attribute 'distros'
-# is a list of distros that are supported, not a sub-module
-from cloudinit import distros as ds
-
+from cloudinit.distros import ug_util
 from cloudinit import ssh_util
 from cloudinit import util
 
@@ -197,8 +193,8 @@ def handle(_name, cfg, cloud, log, _args):
                                     "file %s", keytype, keyfile)
 
     try:
-        (users, _groups) = ds.normalize_users_groups(cfg, cloud.distro)
-        (user, _user_config) = ds.extract_default(users)
+        (users, _groups) = ug_util.normalize_users_groups(cfg, cloud.distro)
+        (user, _user_config) = ug_util.extract_default(users)
         disable_root = util.get_cfg_option_bool(cfg, "disable_root", True)
         disable_root_opts = util.get_cfg_option_str(cfg, "disable_root_opts",
                                                     DISABLE_ROOT_OPTS)

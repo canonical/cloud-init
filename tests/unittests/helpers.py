@@ -205,6 +205,14 @@ class FilesystemMockingTestCase(ResourceUsingTestCase):
             self.patched_funcs.enter_context(
                 mock.patch.object(sys, 'stderr', stderr))
 
+    def reRoot(self, root=None):
+        if root is None:
+            root = tempfile.mkdtemp()
+            self.addCleanup(shutil.rmtree, root)
+        self.patchUtils(root)
+        self.patchOS(root)
+        return root
+
 
 def import_httpretty():
     """Import HTTPretty and monkey patch Python 3.4 issue.
