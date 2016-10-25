@@ -1,4 +1,4 @@
-cloud-init (0.7.8-27-g29348af-0ubuntu1) UNRELEASED; urgency=medium
+cloud-init (0.7.8-27-g29348af-0ubuntu1) zesty; urgency=medium
 
   * debian/cloud-init.templates: enable DigitalOcean by default [Ben Howard]
   * New upstream snapshot.
@@ -16,7 +16,7 @@ cloud-init (0.7.8-27-g29348af-0ubuntu1) UNRELEASED; urgency=medium
     - MAAS: improve the main of datasource to look at kernel cmdline config.
     - tests: silence the Cheetah UserWarning about NameMapper C version.
 
- -- Scott Moser <smoser@ubuntu.com>  Tue, 25 Oct 2016 17:06:18 -0400
+ -- Scott Moser <smoser@ubuntu.com>  Tue, 25 Oct 2016 17:06:59 -0400
 
 cloud-init (0.7.8-15-g6e45ffb-0ubuntu1) yakkety; urgency=medium
 
