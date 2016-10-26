@@ -99,7 +99,7 @@ config keys for an entry in ``users`` are as follows:
 # Ensure this is aliased to a name not 'distros'
 # since the module attribute 'distros'
 # is a list of distros that are supported, not a sub-module
-from cloudinit import distros as ds
+from cloudinit.distros import ug_util
 
 from cloudinit.settings import PER_INSTANCE
 
@@ -107,7 +107,7 @@ frequency = PER_INSTANCE
 
 
 def handle(name, cfg, cloud, _log, _args):
-    (users, groups) = ds.normalize_users_groups(cfg, cloud.distro)
+    (users, groups) = ug_util.normalize_users_groups(cfg, cloud.distro)
     for (name, members) in groups.items():
         cloud.distro.create_group(name, members)
     for (user, config) in users.items():
