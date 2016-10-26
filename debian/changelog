@@ -1,10 +1,10 @@
-cloud-init (0.7.8-28-gf7a5756-0ubuntu1) UNRELEASED; urgency=medium
+cloud-init (0.7.8-28-gf7a5756-0ubuntu1) zesty; urgency=medium
 
   * New upstream snapshot.
     - cc_users_groups: fix remaing call to ds.normalize_user_groups
       [Ryan Harper]
 
- -- Scott Moser <smoser@ubuntu.com>  Wed, 26 Oct 2016 09:05:42 -0400
+ -- Scott Moser <smoser@ubuntu.com>  Wed, 26 Oct 2016 09:06:03 -0400
 
 cloud-init (0.7.8-27-g29348af-0ubuntu1) zesty; urgency=medium
 
