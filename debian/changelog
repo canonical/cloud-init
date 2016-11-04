@@ -1,5 +1,6 @@
-cloud-init (0.7.8-34-ga1cdebd-0ubuntu1~16.04.1) UNRELEASED; urgency=medium
+cloud-init (0.7.8-34-ga1cdebd-0ubuntu1~16.04.1) xenial-proposed; urgency=medium
 
+  * debian/cloud-init.templates: enable DigitalOcean by default [Ben Howard]
   * New upstream snapshot.
     - net: support reading ipv6 dhcp config from initramfs [LaMont Jones]
       (LP: #1621615)
@@ -34,7 +35,7 @@ cloud-init (0.7.8-34-ga1cdebd-0ubuntu1~16.04.1) UNRELEASED; urgency=medium
     - Adjust mounts and disk configuration for systemd. (LP: #1611074)
     - dmidecode: run dmidecode only on i?86 or x86_64 arch. [Robert Schweikert]
 
- -- Scott Moser <smoser@ubuntu.com>  Fri, 04 Nov 2016 13:46:10 -0400
+ -- Scott Moser <smoser@ubuntu.com>  Fri, 04 Nov 2016 13:54:33 -0400
 
 cloud-init (0.7.8-1-g3705bb5-0ubuntu1~16.04.3) xenial-proposed; urgency=medium
 
