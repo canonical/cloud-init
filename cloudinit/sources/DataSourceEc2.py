@@ -31,21 +31,19 @@ from cloudinit import util
 
 LOG = logging.getLogger(__name__)
 
-DEF_MD_URL = "http://169.254.169.254"
-
 # Which version we are requesting of the ec2 metadata apis
 DEF_MD_VERSION = '2009-04-04'
 
-# Default metadata urls that will be used if none are provided
-# They will be checked for 'resolveability' and some of the
-# following may be discarded if they do not resolve
-DEF_MD_URLS = [DEF_MD_URL, "http://instance-data.:8773"]
-
 
 class DataSourceEc2(sources.DataSource):
+    # Default metadata urls that will be used if none are provided
+    # They will be checked for 'resolveability' and some of the
+    # following may be discarded if they do not resolve
+    metadata_urls = ["http://169.254.169.254", "http://instance-data.:8773"]
+
     def __init__(self, sys_cfg, distro, paths):
         sources.DataSource.__init__(self, sys_cfg, distro, paths)
-        self.metadata_address = DEF_MD_URL
+        self.metadata_address = None
         self.seed_dir = os.path.join(paths.seed_dir, "ec2")
         self.api_ver = DEF_MD_VERSION
 
@@ -106,7 +104,7 @@ class DataSourceEc2(sources.DataSource):
             return False
 
         # Remove addresses from the list that wont resolve.
-        mdurls = mcfg.get("metadata_urls", DEF_MD_URLS)
+        mdurls = mcfg.get("metadata_urls", self.metadata_urls)
         filtered = [x for x in mdurls if util.is_resolvable_url(x)]
 
         if set(filtered) != set(mdurls):
@@ -117,7 +115,7 @@ class DataSourceEc2(sources.DataSource):
             mdurls = filtered
         else:
             LOG.warn("Empty metadata url list! using default list")
-            mdurls = DEF_MD_URLS
+            mdurls = self.metadata_urls
 
         urls = []
         url2base = {}

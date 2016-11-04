@@ -386,7 +386,7 @@ class TestReadDMIData(helpers.FilesystemMockingTestCase):
         dmi_name = 'use-dmidecode'
         self._configure_dmidecode_return(dmi_name, dmi_val)
 
-        expected = {'armel': None, 'aarch64': None, 'x86_64': dmi_val}
+        expected = {'armel': None, 'aarch64': dmi_val, 'x86_64': dmi_val}
         found = {}
         # we do not run the 'dmi-decode' binary on some arches
         # verify that anything requested that is not in the sysfs dir
