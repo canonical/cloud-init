@@ -1,4 +1,4 @@
-cloud-init (0.7.8-34-ga1cdebd-0ubuntu1) UNRELEASED; urgency=medium
+cloud-init (0.7.8-34-ga1cdebd-0ubuntu1) zesty; urgency=medium
 
   * New upstream snapshot.
     - net/cmdline: Further adjustments to ipv6 support [LaMont Jones]
@@ -9,7 +9,7 @@ cloud-init (0.7.8-34-ga1cdebd-0ubuntu1) UNRELEASED; urgency=medium
     - AliYun: Add new datasource for Ali-Cloud ECS [kaihuan.pkh]
     - Add coverage collection to tox unit tests. [Joshua Powers]
 
- -- Scott Moser <smoser@ubuntu.com>  Fri, 04 Nov 2016 10:38:15 -0400
+ -- Scott Moser <smoser@ubuntu.com>  Fri, 04 Nov 2016 11:03:46 -0400
 
 cloud-init (0.7.8-28-gf7a5756-0ubuntu1) zesty; urgency=medium
 
