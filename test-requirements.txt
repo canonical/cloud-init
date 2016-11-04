@@ -3,6 +3,7 @@ httpretty>=0.7.1
 mock
 nose
 unittest2
+coverage
 
 # Only needed if you want to know the test times
 # nose-timer

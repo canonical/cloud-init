@@ -1,3 +1,16 @@
+cloud-init (0.7.8-34-ga1cdebd-0ubuntu1) zesty; urgency=medium
+
+  * New upstream snapshot.
+    - net/cmdline: Further adjustments to ipv6 support [LaMont Jones]
+     (LP: #1621615)
+    - Add coverage dependency to bddeb to fix package build.
+    - doc: improve HACKING.rst file
+    - dmidecode: Allow dmidecode to be used on aarch64 [Robert Schweikert]
+    - AliYun: Add new datasource for Ali-Cloud ECS [kaihuan.pkh]
+    - Add coverage collection to tox unit tests. [Joshua Powers]
+
+ -- Scott Moser <smoser@ubuntu.com>  Fri, 04 Nov 2016 11:03:46 -0400
+
 cloud-init (0.7.8-28-gf7a5756-0ubuntu1) zesty; urgency=medium
 
   * New upstream snapshot.
