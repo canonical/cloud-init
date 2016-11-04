@@ -1,3 +1,41 @@
+cloud-init (0.7.8-34-ga1cdebd-0ubuntu1~16.04.1) UNRELEASED; urgency=medium
+
+  * New upstream snapshot.
+    - net: support reading ipv6 dhcp config from initramfs [LaMont Jones]
+      (LP: #1621615)
+    - Add coverage dependency to bddeb to fix package build.
+    - doc: improve HACKING.rst file
+    - dmidecode: Allow dmidecode to be used on aarch64 [Robert Schweikert]
+    - AliYun: Add new datasource for Ali-Cloud ECS [kaihuan.pkh]
+    - Add coverage collection to tox unit tests. [Joshua Powers]
+    - disk-config: udev settle after partitioning in gpt format.
+      (LP: #1626243)
+    - unittests: do not read system /etc/cloud/cloud.cfg.d (LP: #1635350)
+    - Add documentation for logging features. [Wesley Wiedenmeier]
+    - Add support for snap create-user on Ubuntu Core images. [Ryan Harper]
+    - Fix sshd restarts for rhel distros. [Jim Gorz]
+    - OpenNebula: replace 'ip' parsing with cloudinit.net usage.
+    - Fix python2.6 things found running in centos 6.
+    - Move user/group functions to new ug_util file [Joshua Harlow]
+    - DigitalOcean: enable usage of data source by default.
+    - update Gentoo initscripts to run in the correct order [Matthew Thode]
+    - MAAS: improve the main of datasource to look at kernel cmdline config.
+    - tests: silence the Cheetah UserWarning about NameMapper C version.
+    - systemd: Run cloud-init.service Before dbus.socket not dbus.target
+      [Daniel Watkins] (LP: #1629797)
+    - Improve module documentation and doc cleanup. [Wesley Wiedenmeier]
+    - lxd: Update network config for LXD 2.3 [Stéphane Graber]
+    - DigitalOcean: use meta-data for network configruation [Ben Howard]
+    - ntp: move to run after apt configuration [Scott Moser] (LP: #1628337)
+    - Decode unicode types in decode_binary [Robert Schweikert]
+    - systemd: Ensure that cloud-init-local happens before NetworkManager
+    - Allow ephemeral drive to be unpartitioned [Paul Meyer]
+    - subp: add 'update_env' argument
+    - Adjust mounts and disk configuration for systemd. (LP: #1611074)
+    - dmidecode: run dmidecode only on i?86 or x86_64 arch. [Robert Schweikert]
+
+ -- Scott Moser <smoser@ubuntu.com>  Fri, 04 Nov 2016 13:46:10 -0400
+
 cloud-init (0.7.8-1-g3705bb5-0ubuntu1~16.04.3) xenial-proposed; urgency=medium
 
   * ntp: move to run after apt configuration (LP: #1628337).
