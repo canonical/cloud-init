@@ -16,6 +16,96 @@
 #
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+"""
+Disk Setup
+----------
+**Summary:** configure partitions and filesystems
+
+This module is able to configure simple partition tables and filesystems.
+
+.. note::
+    for more detail about configuration options for disk setup, see the disk
+    setup example
+
+For convenience, aliases can be specified for disks using the
+``device_aliases`` config key, which takes a dictionary of alias: path
+mappings. There are automatic aliases for ``swap`` and ``ephemeral<X>``, where
+``swap`` will always refer to the active swap partition and ``ephemeral<X>``
+will refer to the block device of the ephemeral image.
+
+Disk partitioning is done using the ``disk_setup`` directive. This config
+directive accepts a dictionary where each key is either a path to a block
+device or an alias specified in ``device_aliases``, and each value is the
+configuration options for the device. The ``table_type`` option specifies the
+partition table type, either ``mbr`` or ``gpt``. The ``layout`` option
+specifies how partitions on the device are to be arranged. If ``layout`` is set
+to ``true``, a single partition using all the space on the device will be
+created. If set to ``false``, no partitions will be created. Partitions can be
+specified by providing a list to ``layout``, where each entry in the list is
+either a size or a list containing a size and the numerical value for a
+partition type. The size for partitions is specified in **percentage** of disk
+space, not in bytes (e.g. a size of 33 would take up 1/3 of the disk space).
+The ``overwrite`` option controls whether this module tries to be safe about
+writing partition talbes or not. If ``overwrite: false`` is set, the device
+will be checked for a partition table and for a file system and if either is
+found, the operation will be skipped. If ``overwrite: true`` is set, no checks
+will be performed.
+
+.. note::
+    Using ``overwrite: true`` is dangerous and can lead to data loss, so double
+    check that the correct device has been specified if using this option.
+
+File system configuration is done using the ``fs_setup`` directive. This config
+directive accepts a list of filesystem configs. The device to create the
+filesystem on may be specified either as a path or as an alias in the format
+``<alias name>.<y>`` where ``<y>`` denotes the partition number on the device.
+The partition can also be specified by setting ``partition`` to the desired
+partition number. The ``partition`` option may also be set to ``auto``, in
+which this module will search for the existance of a filesystem matching the
+``label``, ``type`` and ``device`` of the ``fs_setup`` entry and will skip
+creating the filesystem if one is found. The ``partition`` option may also be
+set to ``any``, in which case any file system that matches ``type`` and
+``device`` will cause this module to skip filesystem creation for the
+``fs_setup`` entry, regardless of ``label`` matching or not. To write a
+filesystem directly to a device, use ``partition: none``. A label can be
+specified for the filesystem using ``label``, and the filesystem type can be
+specified using ``filesystem``.
+
+.. note::
+    If specifying device using the ``<device name>.<partition number>`` format,
+    the value of ``partition`` will be overwritten.
+
+.. note::
+    Using ``overwrite: true`` for filesystems is dangerous and can lead to data
+    loss, so double check the entry in ``fs_setup``.
+
+**Internal name:** ``cc_disk_setup``
+
+**Module frequency:** per instance
+
+**Supported distros:** all
+
+**Config keys**::
+
+    device_aliases:
+        <alias name>: <device path>
+    disk_setup:
+        <alias name/path>:
+            table_type: <'mbr'/'gpt'>
+            layout:
+                - [33,82]
+                - 66
+            overwrite: <true/false>
+    fs_setup:
+        - label: <label>
+          filesystem: <filesystem type>
+          device: <device>
+          partition: <"auto"/"any"/"none"/<partition number>>
+          overwrite: <true/false>
+          replace_fs: <filesystem type>
+"""
+
 from cloudinit.settings import PER_INSTANCE
 from cloudinit import util
 import logging
@@ -33,12 +123,14 @@ BLKID_CMD = util.which("blkid")
 BLKDEV_CMD = util.which("blockdev")
 WIPEFS_CMD = util.which("wipefs")
 
+LANG_C_ENV = {'LANG': 'C'}
+
 LOG = logging.getLogger(__name__)
 
 
 def handle(_name, cfg, cloud, log, _args):
     """
-    See doc/examples/cloud-config_disk-setup.txt for documentation on the
+    See doc/examples/cloud-config-disk-setup.txt for documentation on the
     format.
     """
     disk_setup = cfg.get("disk_setup")
@@ -355,8 +447,11 @@ def get_mbr_hdd_size(device):
 
 
 def get_gpt_hdd_size(device):
-    out, _ = util.subp([SGDISK_CMD, '-p', device])
-    return out.splitlines()[0].split()[2]
+    out, _ = util.subp([SGDISK_CMD, '-p', device], update_env=LANG_C_ENV)
+    for line in out.splitlines():
+        if line.startswith("Disk"):
+            return line.split()[2]
+    raise Exception("Failed to get %s size from sgdisk" % (device))
 
 
 def get_hdd_size(table_type, device):
@@ -408,7 +503,7 @@ def check_partition_mbr_layout(device, layout):
 def check_partition_gpt_layout(device, layout):
     prt_cmd = [SGDISK_CMD, '-p', device]
     try:
-        out, _err = util.subp(prt_cmd)
+        out, _err = util.subp(prt_cmd, update_env=LANG_C_ENV)
     except Exception as e:
         raise Exception("Error running partition command on %s\n%s" % (
                         device, e))
@@ -620,6 +715,8 @@ def exec_mkpart_gpt(device, layout):
     except Exception:
         LOG.warn("Failed to partition device %s" % device)
         raise
+
+    read_parttbl(device)
 
 
 def exec_mkpart(table_type, device, layout):

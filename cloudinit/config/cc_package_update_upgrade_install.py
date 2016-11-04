@@ -16,6 +16,41 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+"""
+Package Update Upgrade Install
+------------------------------
+**Summary:** update, upgrade, and install packages
+
+This module allows packages to be updated, upgraded or installed during boot.
+If any packages are to be installed or an upgrade is to be performed then the
+package cache will be updated first. If a package installation or upgrade
+requires a reboot, then a reboot can be performed if
+``package_reboot_if_required`` is specified. A list of packages to install can
+be provided. Each entry in the list can be either a package name or a list with
+two entries, the first being the package name and the second being the specific
+package version to install.
+
+**Internal name:** ``cc_package_update_upgrade_install``
+
+**Module frequency:** per instance
+
+**Supported distros:** all
+
+**Config keys**::
+
+    packages:
+        - pwgen
+        - pastebinit
+        - [libpython2.7, 2.7.3-0ubuntu3.1]
+    package_update: <true/false>
+    package_upgrade: <true/false>
+    package_reboot_if_required: <true/false>
+
+    apt_update: (alias for package_update)
+    apt_upgrade: (alias for package_upgrade)
+    apt_reboot_if_required: (alias for package_reboot_if_required)
+"""
+
 import os
 import time
 

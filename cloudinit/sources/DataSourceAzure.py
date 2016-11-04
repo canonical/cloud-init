@@ -252,7 +252,7 @@ class DataSourceAzureNet(sources.DataSource):
 
         cc_modules_override = support_new_ephemeral(self.sys_cfg)
         if cc_modules_override:
-            self.cfg['cloud_config_modules'] = cc_modules_override
+            self.cfg['cloud_init_modules'] = cc_modules_override
 
         return True
 
@@ -283,11 +283,14 @@ def find_fabric_formatted_ephemeral_part():
             device_location = potential_location
             break
     if device_location is None:
+        LOG.debug("no azure resource disk partition path found")
         return None
     ntfs_devices = util.find_devs_with("TYPE=ntfs")
     real_device = os.path.realpath(device_location)
     if real_device in ntfs_devices:
         return device_location
+    LOG.debug("'%s' existed (%s) but was not ntfs formated",
+              device_location, real_device)
     return None
 
 
@@ -342,7 +345,7 @@ def support_new_ephemeral(cfg):
     LOG.debug("cloud-init will format ephemeral0.1 this boot.")
     LOG.debug("setting disk_setup and mounts modules 'always' for this boot")
 
-    cc_modules = cfg.get('cloud_config_modules')
+    cc_modules = cfg.get('cloud_init_modules')
     if not cc_modules:
         return None
 

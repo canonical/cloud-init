@@ -18,13 +18,55 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+"""
+Set Passwords
+-------------
+**Summary:** Set user passwords
+
+Set system passwords and enable or disable ssh password authentication.
+The ``chpasswd`` config key accepts a dictionary containing a single one of two
+keys, either ``expire`` or ``list``. If ``expire`` is specified and is set to
+``false``, then the ``password`` global config key is used as the password for
+all user accounts. If the ``expire`` key is specified and is set to ``true``
+then user passwords will be expired, preventing the default system passwords
+from being used.
+
+If the ``list`` key is provided, a list of
+``username:password`` pairs can be specified. The usernames specified
+must already exist on the system, or have been created using the
+``cc_users_groups`` module. A password can be randomly generated using
+``username:RANDOM`` or ``username:R``. Password ssh authentication can be
+enabled, disabled, or left to system defaults using ``ssh_pwauth``.
+
+.. note::
+    if using ``expire: true`` then a ssh authkey should be specified or it may
+    not be possible to login to the system
+
+**Internal name:** ``cc_set_passwords``
+
+**Module frequency:** per instance
+
+**Supported distros:** all
+
+**Config keys**::
+
+    ssh_pwauth: <yes/no/unchanged>
+
+    password: password1
+    chpasswd:
+        expire: <true/false>
+
+    chpasswd:
+        list:
+            - user1:password1
+            - user2:Random
+            - user3:password3
+            - user4:R
+"""
+
 import sys
 
-# Ensure this is aliased to a name not 'distros'
-# since the module attribute 'distros'
-# is a list of distros that are supported, not a sub-module
-from cloudinit import distros as ds
-
+from cloudinit.distros import ug_util
 from cloudinit import ssh_util
 from cloudinit import util
 
@@ -53,8 +95,8 @@ def handle(_name, cfg, cloud, log, args):
         expire = util.get_cfg_option_bool(chfg, 'expire', expire)
 
     if not plist and password:
-        (users, _groups) = ds.normalize_users_groups(cfg, cloud.distro)
-        (user, _user_config) = ds.extract_default(users)
+        (users, _groups) = ug_util.normalize_users_groups(cfg, cloud.distro)
+        (user, _user_config) = ug_util.extract_default(users)
         if user:
             plist = "%s:%s" % (user, password)
         else:

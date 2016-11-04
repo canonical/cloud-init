@@ -1,9 +1,20 @@
 [Unit]
 Description=Initial cloud-init job (metadata service crawler)
-After=cloud-init-local.service networking.service
-Before=network-online.target sshd.service sshd-keygen.service systemd-user-sessions.service
+DefaultDependencies=no
+Wants=cloud-init-local.service
+Wants=local-fs.target
+Wants=sshd-keygen.service
+Wants=sshd.service
+After=cloud-init-local.service
+After=networking.service
 Requires=networking.service
-Wants=local-fs.target cloud-init-local.service sshd.service sshd-keygen.service
+Before=basic.target
+Before=dbus.socket
+Before=network-online.target
+Before=sshd-keygen.service
+Before=sshd.service
+Before=systemd-user-sessions.service
+Conflicts=shutdown.target
 
 [Service]
 Type=oneshot

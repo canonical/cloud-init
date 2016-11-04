@@ -46,7 +46,7 @@ The following criteria are required to as a config drive:
     formatted.
 
 Version 2
-~~~~~~~~~~~
+~~~~~~~~~
 
 The following criteria are required to as a config drive:
 
@@ -70,7 +70,7 @@ The following criteria are required to as a config drive:
       - meta-data.json (not mandatory)
 
 Keys and values
-~~~~~~~~~~~
+~~~~~~~~~~~~~~~
 
 Cloud-init's behavior can be modified by keys found in the meta.js (version 1 only) file in the following ways.
 

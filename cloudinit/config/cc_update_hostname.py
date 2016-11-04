@@ -18,6 +18,31 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+"""
+Update Hostname
+---------------
+**Summary:** update hostname and fqdn
+
+This module will update the system hostname and fqdn. If ``preserve_hostname``
+is set, then the hostname will not be altered.
+
+.. note::
+    for instructions on specifying hostname and fqdn, see documentation for
+    ``cc_set_hostname``
+
+**Internal name:** ``cc_update_hostname``
+
+**Module frequency:** per always
+
+**Supported distros:** all
+
+**Config keys**::
+
+    preserve_hostname: <true/false>
+    fqdn: <fqdn>
+    hostname: <fqdn/hostname>
+"""
+
 import os
 
 from cloudinit.settings import PER_ALWAYS

@@ -14,6 +14,39 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+"""
+Salt Minion
+-----------
+**Summary:** set up and run salt minion
+
+This module installs, configures and starts salt minion. If the ``salt_minion``
+key is present in the config parts, then salt minion will be installed and
+started. Configuration for salt minion can be specified in the ``conf`` key
+under ``salt_minion``. Any conf values present there will be assigned in
+``/etc/salt/minion``. The public and private keys to use for salt minion can be
+specified with ``public_key`` and ``private_key`` respectively.
+
+**Internal name:** ``cc_salt_minion``
+
+**Module frequency:** per instance
+
+**Supported distros:** all
+
+**Config keys**::
+
+    salt_minion:
+        conf:
+            master: salt.example.com
+        public_key: |
+            ------BEGIN PUBLIC KEY-------
+            <key data>
+            ------END PUBLIC KEY-------
+        private_key: |
+            ------BEGIN PRIVATE KEY------
+            <key data>
+            ------END PRIVATE KEY-------
+"""
+
 import os
 
 from cloudinit import util

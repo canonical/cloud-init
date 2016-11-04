@@ -24,7 +24,7 @@
 # Note: command could be ['pollinate',
 #                         '--server=http://local.pollinate.server']
 # which would have pollinate populate /dev/urandom from provided server
-seed_random:
+random_seed:
   file: '/dev/urandom'
   data: 'my random string'
   encoding: 'raw'

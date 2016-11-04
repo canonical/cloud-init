@@ -18,6 +18,34 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+"""
+Bootcmd
+-------
+**Summary:** run commands early in boot process
+
+This module runs arbitrary commands very early in the boot process,
+only slightly after a boothook would run. This is very similar to a
+boothook, but more user friendly. The environment variable ``INSTANCE_ID``
+will be set to the current instance id for all run commands. Commands can be
+specified either as lists or strings. For invocation details, see ``runcmd``.
+
+.. note::
+    bootcmd should only be used for things that could not be done later in the
+    boot process.
+
+**Internal name:** ``cc_bootcmd``
+
+**Module frequency:** per always
+
+**Supported distros:** all
+
+**Config keys**::
+
+    bootcmd:
+        - echo 192.168.1.130 us.archive.ubuntu.com > /etc/hosts
+        - [ cloud-nit-per, once, mymkfs, mkfs, /dev/vdb ]
+"""
+
 import os
 
 from cloudinit.settings import PER_ALWAYS

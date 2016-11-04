@@ -18,15 +18,98 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+"""
+SSH
+---
+**Summary:** configure ssh and ssh keys
+
+This module handles most configuration for ssh and ssh keys. Many images have
+default ssh keys, which can be removed using ``ssh_deletekeys``. Since removing
+default keys is usually the desired behavior this option is enabled by default.
+
+Keys can be added using the ``ssh_keys`` configuration key. The argument to
+this config key should be a dictionary entries for the public and private keys
+of each desired key type. Entries in the ``ssh_keys`` config dict should
+have keys in the format ``<key type>_private`` and ``<key type>_public``, e.g.
+``rsa_private: <key>`` and ``rsa_public: <key>``. See below for supported key
+types. Not all key types have to be specified, ones left unspecified will not
+be used. If this config option is used, then no keys will be generated.
+
+.. note::
+    when specifying private keys in cloud-config, care should be taken to
+    ensure that the communication between the data source and the instance is
+    secure
+
+.. note::
+    to specify multiline private keys, use yaml multiline syntax
+
+If no keys are specified using ``ssh_keys``, then keys will be generated using
+``ssh-keygen``. By default one public/private pair of each supported key type
+will be generated. The key types to generate can be specified using the
+``ssh_genkeytypes`` config flag, which accepts a list of key types to use. For
+each key type for which this module has been instructed to create a keypair, if
+a key of the same type is already present on the system (i.e. if
+``ssh_deletekeys`` was false), no key will be generated.
+
+Supported key types for the ``ssh_keys`` and the ``ssh_genkeytypes`` config
+flags are:
+
+    - rsa
+    - dsa
+    - ecdsa
+    - ed25519
+
+Root login can be enabled/disabled using the ``disable_root`` config key. Root
+login options can be manually specified with ``disable_root_opts``. If
+``disable_root_opts`` is specified and contains the string ``$USER``,
+it will be replaced with the username of the default user. By default,
+root login is disabled, and root login opts are set to::
+
+    no-port-forwarding,no-agent-forwarding,no-X11-forwarding
+
+Authorized keys for the default user/first user defined in ``users`` can be
+specified using `ssh_authorized_keys``. Keys should be specified as a list of
+public keys.
+
+.. note::
+    see the ``cc_set_passwords`` module documentation to enable/disable ssh
+    password authentication
+
+**Internal name:** ``cc_ssh``
+
+**Module frequency:** per instance
+
+**Supported distros:** all
+
+**Config keys**::
+
+    ssh_deletekeys: <true/false>
+    ssh_keys:
+        rsa_private: |
+            -----BEGIN RSA PRIVATE KEY-----
+            MIIBxwIBAAJhAKD0YSHy73nUgysO13XsJmd4fHiFyQ+00R7VVu2iV9Qco
+            ...
+            -----END RSA PRIVATE KEY-----
+        rsa_public: ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAGEAoPRhIfLvedSDKw7Xd ...
+        dsa_private: |
+            -----BEGIN DSA PRIVATE KEY-----
+            MIIBxwIBAAJhAKD0YSHy73nUgysO13XsJmd4fHiFyQ+00R7VVu2iV9Qco
+            ...
+            -----END DSA PRIVATE KEY-----
+        dsa_public: ssh-dsa AAAAB3NzaC1yc2EAAAABIwAAAGEAoPRhIfLvedSDKw7Xd ...
+    ssh_genkeytypes: <key type>
+    disable_root: <true/false>
+    disable_root_opts: <disable root options string>
+    ssh_authorized_keys:
+        - ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAGEA3FSyQwBI6Z+nCSjUU ...
+        - ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEA3I7VUf2l5gSn5uavROsc5HRDpZ ...
+"""
+
 import glob
 import os
 import sys
 
-# Ensure this is aliased to a name not 'distros'
-# since the module attribute 'distros'
-# is a list of distros that are supported, not a sub-module
-from cloudinit import distros as ds
-
+from cloudinit.distros import ug_util
 from cloudinit import ssh_util
 from cloudinit import util
 
@@ -110,8 +193,8 @@ def handle(_name, cfg, cloud, log, _args):
                                     "file %s", keytype, keyfile)
 
     try:
-        (users, _groups) = ds.normalize_users_groups(cfg, cloud.distro)
-        (user, _user_config) = ds.extract_default(users)
+        (users, _groups) = ug_util.normalize_users_groups(cfg, cloud.distro)
+        (user, _user_config) = ug_util.extract_default(users)
         disable_root = util.get_cfg_option_bool(cfg, "disable_root", True)
         disable_root_opts = util.get_cfg_option_str(cfg, "disable_root_opts",
                                                     DISABLE_ROOT_OPTS)

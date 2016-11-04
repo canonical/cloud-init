@@ -154,7 +154,7 @@ def target_path(target, path=None):
 
 def decode_binary(blob, encoding='utf-8'):
     # Converts a binary type into a text type using given encoding.
-    if isinstance(blob, six.text_type):
+    if isinstance(blob, six.string_types):
         return blob
     return blob.decode(encoding)
 
@@ -199,7 +199,7 @@ def fully_decoded_payload(part):
             encoding = charset.input_codec
         else:
             encoding = 'utf-8'
-        return cte_payload.decode(encoding, errors='surrogateescape')
+        return cte_payload.decode(encoding, 'surrogateescape')
     return cte_payload
 
 
@@ -282,9 +282,6 @@ class ProcessExecutionError(IOError):
             'reason': self.reason,
         }
         IOError.__init__(self, message)
-        # For backward compatibility with Python 2.
-        if not hasattr(self, 'message'):
-            self.message = message
 
 
 class SeLinuxGuard(object):
@@ -1762,7 +1759,7 @@ def delete_dir_contents(dirname):
 
 
 def subp(args, data=None, rcs=None, env=None, capture=True, shell=False,
-         logstring=False, decode="replace", target=None):
+         logstring=False, decode="replace", target=None, update_env=None):
 
     # not supported in cloud-init (yet), for now kept in the call signature
     # to ease maintaining code shared between cloud-init and curtin
@@ -1773,6 +1770,13 @@ def subp(args, data=None, rcs=None, env=None, capture=True, shell=False,
         rcs = [0]
 
     devnull_fp = None
+
+    if update_env:
+        if env is None:
+            env = os.environ
+        env = env.copy()
+        env.update(update_env)
+
     try:
         if target_path(target) != "/":
             args = ['chroot', target] + list(args)
@@ -1814,7 +1818,7 @@ def subp(args, data=None, rcs=None, env=None, capture=True, shell=False,
             def ldecode(data, m='utf-8'):
                 if not isinstance(data, bytes):
                     return data
-                return data.decode(m, errors=decode)
+                return data.decode(m, decode)
 
             out = ldecode(out)
             err = ldecode(err)
@@ -2337,7 +2341,9 @@ def read_dmi_data(key):
 
     # running dmidecode can be problematic on some arches (LP: #1243287)
     uname_arch = os.uname()[4]
-    if uname_arch.startswith("arm") or uname_arch == "aarch64":
+    if not (uname_arch == "x86_64" or
+            (uname_arch.startswith("i") and uname_arch[2:] == "86") or
+            uname_arch == 'aarch64'):
         LOG.debug("dmidata is not supported on %s", uname_arch)
         return None
 
@@ -2369,3 +2375,15 @@ def get_installed_packages(target=None):
             pkgs_inst.add(re.sub(":.*", "", pkg))
 
     return pkgs_inst
+
+
+def system_is_snappy():
+    # channel.ini is configparser loadable.
+    # snappy will move to using /etc/system-image/config.d/*.ini
+    # this is certainly not a perfect test, but good enough for now.
+    content = load_file("/etc/system-image/channel.ini", quiet=True)
+    if 'ubuntu-core' in content.lower():
+        return True
+    if os.path.isdir("/etc/system-image/config.d/"):
+        return True
+    return False

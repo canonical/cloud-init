@@ -1,14 +1,22 @@
 from cloudinit.config.cc_snappy import (
     makeop, get_package_ops, render_snap_op)
-from cloudinit import util
+from cloudinit.config.cc_snap_config import (
+    add_assertions, add_snap_user, ASSERTIONS_FILE)
+from cloudinit import (distros, helpers, cloud, util)
+from cloudinit.config.cc_snap_config import handle as snap_handle
+from cloudinit.sources import DataSourceNone
+from ..helpers import FilesystemMockingTestCase, mock
 
 from .. import helpers as t_help
 
+import logging
 import os
 import shutil
 import tempfile
+import textwrap
 import yaml
 
+LOG = logging.getLogger(__name__)
 ALLOWED = (dict, list, int, str)
 
 
@@ -285,6 +293,289 @@ class TestInstallPackages(t_help.TestCase):
         # so this comparison is a bit lossy, but input to snappy config
         # is expected to be yaml loadable, so it should be OK.
         self.assertEqual(yaml.safe_load(mydata), data_found)
+
+
+class TestSnapConfig(FilesystemMockingTestCase):
+
+    SYSTEM_USER_ASSERTION = textwrap.dedent("""
+    type: system-user
+    authority-id: LqvZQdfyfGlYvtep4W6Oj6pFXP9t1Ksp
+    brand-id: LqvZQdfyfGlYvtep4W6Oj6pFXP9t1Ksp
+    email: foo@bar.com
+    password: $6$E5YiAuMIPAwX58jG$miomhVNui/vf7f/3ctB/f0RWSKFxG0YXzrJ9rtJ1ikvzt
+    series:
+      - 16
+    since: 2016-09-10T16:34:00+03:00
+    until: 2017-11-10T16:34:00+03:00
+    username: baz
+    sign-key-sha3-384: RuVvnp4n52GilycjfbbTCI3_L8Y6QlIE75wxMc0KzGV3AUQqVd9GuXoj
+
+    AcLBXAQAAQoABgUCV/UU1wAKCRBKnlMoJQLkZVeLD/9/+hIeVywtzsDA3oxl+P+u9D13y9s6svP
+    Jd6Wnf4FTw6sq1GjBE4ZA7lrwSaRCUJ9Vcsvf2q9OGPY7mOb2TBxaDe0PbUMjrSrqllSSQwhpNI
+    zG+NxkkKuxsUmLzFa+k9m6cyojNbw5LFhQZBQCGlr3JYqC0tIREq/UsZxj+90TUC87lDJwkU8GF
+    s4CR+rejZj4itIcDcVxCSnJH6hv6j2JrJskJmvObqTnoOlcab+JXdamXqbldSP3UIhWoyVjqzkj
+    +to7mXgx+cCUA9+ngNCcfUG+1huGGTWXPCYkZ78HvErcRlIdeo4d3xwtz1cl/w3vYnq9og1XwsP
+    Yfetr3boig2qs1Y+j/LpsfYBYncgWjeDfAB9ZZaqQz/oc8n87tIPZDJHrusTlBfop8CqcM4xsKS
+    d+wnEY8e/F24mdSOYmS1vQCIDiRU3MKb6x138Ud6oHXFlRBbBJqMMctPqWDunWzb5QJ7YR0I39q
+    BrnEqv5NE0G7w6HOJ1LSPG5Hae3P4T2ea+ATgkb03RPr3KnXnzXg4TtBbW1nytdlgoNc/BafE1H
+    f3NThcq9gwX4xWZ2PAWnqVPYdDMyCtzW3Ck+o6sIzx+dh4gDLPHIi/6TPe/pUuMop9CBpWwez7V
+    v1z+1+URx6Xlq3Jq18y5pZ6fY3IDJ6km2nQPMzcm4Q==""")
+
+    ACCOUNT_ASSERTION = textwrap.dedent("""
+    type: account-key
+    authority-id: canonical
+    revision: 2
+    public-key-sha3-384: BWDEoaqyr25nF5SNCvEv2v7QnM9QsfCc0PBMYD_i2NGSQ32EF2d4D0
+    account-id: canonical
+    name: store
+    since: 2016-04-01T00:00:00.0Z
+    body-length: 717
+    sign-key-sha3-384: -CvQKAwRQ5h3Ffn10FILJoEZUXOv6km9FwA80-Rcj-f-6jadQ89VRswH
+
+    AcbBTQRWhcGAARAA0KKYYQWuHOrsFVi4p4l7ZzSvX7kLgJFFeFgOkzdWKBTHEnsMKjl5mefFe9j
+    qe8NlmJdfY7BenP7XeBtwKp700H/t9lLrZbpTNAPHXYxEWFJp5bPqIcJYBZ+29oLVLN1Tc5X482
+    vCiDqL8+pPYqBrK2fNlyPlNNSum9wI70rDDL4r6FVvr+osTnGejibdV8JphWX+lrSQDnRSdM8KJ
+    UM43vTgLGTi9W54oRhsA2OFexRfRksTrnqGoonCjqX5wO3OFSaMDzMsO2MJ/hPfLgDqw53qjzuK
+    Iec9OL3k5basvu2cj5u9tKwVFDsCKK2GbKUsWWpx2KTpOifmhmiAbzkTHbH9KaoMS7p0kJwhTQG
+    o9aJ9VMTWHJc/NCBx7eu451u6d46sBPCXS/OMUh2766fQmoRtO1OwCTxsRKG2kkjbMn54UdFULl
+    VfzvyghMNRKIezsEkmM8wueTqGUGZWa6CEZqZKwhe/PROxOPYzqtDH18XZknbU1n5lNb7vNfem9
+    2ai+3+JyFnW9UhfvpVF7gzAgdyCqNli4C6BIN43uwoS8HkykocZS/+Gv52aUQ/NZ8BKOHLw+7an
+    Q0o8W9ltSLZbEMxFIPSN0stiZlkXAp6DLyvh1Y4wXSynDjUondTpej2fSvSlCz/W5v5V7qA4nIc
+    vUvV7RjVzv17ut0AEQEAAQ==
+
+    AcLDXAQAAQoABgUCV83k9QAKCRDUpVvql9g3IBT8IACKZ7XpiBZ3W4lqbPssY6On81WmxQLtvsM
+    WTp6zZpl/wWOSt2vMNUk9pvcmrNq1jG9CuhDfWFLGXEjcrrmVkN3YuCOajMSPFCGrxsIBLSRt/b
+    nrKykdLAAzMfG8rP1d82bjFFiIieE+urQ0Kcv09Jtdvavq3JT1Tek5mFyyfhHNlQEKOzWqmRWiL
+    3c3VOZUs1ZD8TSlnuq/x+5T0X0YtOyGjSlVxk7UybbyMNd6MZfNaMpIG4x+mxD3KHFtBAC7O6kL
+    eX3i6j5nCY5UABfA3DZEAkWP4zlmdBEOvZ9t293NaDdOpzsUHRkoi0Zez/9BHQ/kwx/uNc2WqrY
+    inCmu16JGNeXqsyinnLl7Ghn2RwhvDMlLxF6RTx8xdx1yk6p3PBTwhZMUvuZGjUtN/AG8BmVJQ1
+    rsGSRkkSywvnhVJRB2sudnrMBmNS2goJbzSbmJnOlBrd2WsV0T9SgNMWZBiov3LvU4o2SmAb6b+
+    rYwh8H5QHcuuYJuxDjFhPswIp6Wes5T6hUicf3SWtObcDS4HSkVS4ImBjjX9YgCuFy7QdnooOWE
+    aPvkRw3XCVeYq0K6w9GRsk1YFErD4XmXXZjDYY650MX9v42Sz5MmphHV8jdIY5ssbadwFSe2rCQ
+    6UX08zy7RsIb19hTndE6ncvSNDChUR9eEnCm73eYaWTWTnq1cxdVP/s52r8uss++OYOkPWqh5nO
+    haRn7INjH/yZX4qXjNXlTjo0PnHH0q08vNKDwLhxS+D9du+70FeacXFyLIbcWllSbJ7DmbumGpF
+    yYbtj3FDDPzachFQdIG3lSt+cSUGeyfSs6wVtc3cIPka/2Urx7RprfmoWSI6+a5NcLdj0u2z8O9
+    HxeIgxDpg/3gT8ZIuFKePMcLDM19Fh/p0ysCsX+84B9chNWtsMSmIaE57V+959MVtsLu7SLb9gi
+    skrju0pQCwsu2wHMLTNd1f3PTHmrr49hxetTus07HSQUApMtAGKzQilF5zqFjbyaTd4xgQbd+PK
+    CjFyzQTDOcUhXpuUGt/IzlqiFfsCsmbj2K4KdSNYMlqIgZ3Azu8KvZLIhsyN7v5vNIZSPfEbjde
+    ClU9r0VRiJmtYBUjcSghD9LWn+yRLwOxhfQVjm0cBwIt5R/yPF/qC76yIVuWUtM5Y2/zJR1J8OF
+    qWchvlImHtvDzS9FQeLyzJAOjvZ2CnWp2gILgUz0WQdOk1Dq8ax7KS9BQ42zxw9EZAEPw3PEFqR
+    IQsRTONp+iVS8YxSmoYZjDlCgRMWUmawez/Fv5b9Fb/XkO5Eq4e+KfrpUujXItaipb+tV8h5v3t
+    oG3Ie3WOHrVjCLXIdYslpL1O4nadqR6Xv58pHj6k""")
+
+    test_assertions = [ACCOUNT_ASSERTION, SYSTEM_USER_ASSERTION]
+
+    def setUp(self):
+        super(TestSnapConfig, self).setUp()
+        self.subp = util.subp
+        self.new_root = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, self.new_root)
+
+    def _get_cloud(self, distro, metadata=None):
+        self.patchUtils(self.new_root)
+        paths = helpers.Paths({})
+        cls = distros.fetch(distro)
+        mydist = cls(distro, {}, paths)
+        myds = DataSourceNone.DataSourceNone({}, mydist, paths)
+        if metadata:
+            myds.metadata.update(metadata)
+        return cloud.Cloud(myds, paths, {}, mydist, None)
+
+    @mock.patch('cloudinit.util.write_file')
+    @mock.patch('cloudinit.util.subp')
+    def test_snap_config_add_assertions(self, msubp, mwrite):
+        add_assertions(self.test_assertions)
+
+        combined = "\n".join(self.test_assertions)
+        mwrite.assert_any_call(ASSERTIONS_FILE, combined.encode('utf-8'))
+        msubp.assert_called_with(['snap', 'ack', ASSERTIONS_FILE],
+                                 capture=True)
+
+    def test_snap_config_add_assertions_empty(self):
+        self.assertRaises(ValueError, add_assertions, [])
+
+    def test_add_assertions_nonlist(self):
+        self.assertRaises(ValueError, add_assertions, {})
+
+    @mock.patch('cloudinit.util.write_file')
+    @mock.patch('cloudinit.util.subp')
+    def test_snap_config_add_assertions_ack_fails(self, msubp, mwrite):
+        msubp.side_effect = [util.ProcessExecutionError("Invalid assertion")]
+        self.assertRaises(util.ProcessExecutionError, add_assertions,
+                          self.test_assertions)
+
+    @mock.patch('cloudinit.config.cc_snap_config.add_assertions')
+    @mock.patch('cloudinit.config.cc_snap_config.util')
+    def test_snap_config_handle_no_config(self, mock_util, mock_add):
+        cfg = {}
+        cc = self._get_cloud('ubuntu')
+        cc.distro = mock.MagicMock()
+        cc.distro.name = 'ubuntu'
+        mock_util.which.return_value = None
+        snap_handle('snap_config', cfg, cc, LOG, None)
+        mock_add.assert_not_called()
+
+    def test_snap_config_add_snap_user_no_config(self):
+        usercfg = add_snap_user(cfg=None)
+        self.assertEqual(usercfg, None)
+
+    def test_snap_config_add_snap_user_not_dict(self):
+        cfg = ['foobar']
+        self.assertRaises(ValueError, add_snap_user, cfg)
+
+    def test_snap_config_add_snap_user_no_email(self):
+        cfg = {'assertions': [], 'known': True}
+        usercfg = add_snap_user(cfg=cfg)
+        self.assertEqual(usercfg, None)
+
+    @mock.patch('cloudinit.config.cc_snap_config.util')
+    def test_snap_config_add_snap_user_email_only(self, mock_util):
+        email = 'janet@planetjanet.org'
+        cfg = {'email': email}
+        mock_util.which.return_value = None
+        mock_util.system_is_snappy.return_value = True
+        mock_util.subp.side_effect = [
+            ("false\n", ""),  # snap managed
+        ]
+
+        usercfg = add_snap_user(cfg=cfg)
+
+        self.assertEqual(usercfg, {'snapuser': email, 'known': False})
+
+    @mock.patch('cloudinit.config.cc_snap_config.util')
+    def test_snap_config_add_snap_user_email_known(self, mock_util):
+        email = 'janet@planetjanet.org'
+        known = True
+        cfg = {'email': email, 'known': known}
+        mock_util.which.return_value = None
+        mock_util.system_is_snappy.return_value = True
+        mock_util.subp.side_effect = [
+            ("false\n", ""),  # snap managed
+            (self.SYSTEM_USER_ASSERTION, ""),  # snap known system-user
+        ]
+
+        usercfg = add_snap_user(cfg=cfg)
+
+        self.assertEqual(usercfg, {'snapuser': email, 'known': known})
+
+    @mock.patch('cloudinit.config.cc_snap_config.add_assertions')
+    @mock.patch('cloudinit.config.cc_snap_config.util')
+    def test_snap_config_handle_system_not_snappy(self, mock_util, mock_add):
+        cfg = {'snappy': {'assertions': self.test_assertions}}
+        cc = self._get_cloud('ubuntu')
+        cc.distro = mock.MagicMock()
+        cc.distro.name = 'ubuntu'
+        mock_util.which.return_value = None
+        mock_util.system_is_snappy.return_value = False
+
+        snap_handle('snap_config', cfg, cc, LOG, None)
+
+        mock_add.assert_not_called()
+
+    @mock.patch('cloudinit.config.cc_snap_config.add_assertions')
+    @mock.patch('cloudinit.config.cc_snap_config.util')
+    def test_snap_config_handle_snapuser(self, mock_util, mock_add):
+        email = 'janet@planetjanet.org'
+        cfg = {
+            'snappy': {
+                'assertions': self.test_assertions,
+                'email': email,
+            }
+        }
+        cc = self._get_cloud('ubuntu')
+        cc.distro = mock.MagicMock()
+        cc.distro.name = 'ubuntu'
+        mock_util.which.return_value = None
+        mock_util.system_is_snappy.return_value = True
+        mock_util.subp.side_effect = [
+            ("false\n", ""),  # snap managed
+        ]
+
+        snap_handle('snap_config', cfg, cc, LOG, None)
+
+        mock_add.assert_called_with(self.test_assertions)
+        usercfg = {'snapuser': email, 'known': False}
+        cc.distro.create_user.assert_called_with(email, **usercfg)
+
+    @mock.patch('cloudinit.config.cc_snap_config.add_assertions')
+    @mock.patch('cloudinit.config.cc_snap_config.util')
+    def test_snap_config_handle_snapuser_known(self, mock_util, mock_add):
+        email = 'janet@planetjanet.org'
+        cfg = {
+            'snappy': {
+                'assertions': self.test_assertions,
+                'email': email,
+                'known': True,
+            }
+        }
+        cc = self._get_cloud('ubuntu')
+        cc.distro = mock.MagicMock()
+        cc.distro.name = 'ubuntu'
+        mock_util.which.return_value = None
+        mock_util.system_is_snappy.return_value = True
+        mock_util.subp.side_effect = [
+            ("false\n", ""),  # snap managed
+            (self.SYSTEM_USER_ASSERTION, ""),  # snap known system-user
+        ]
+
+        snap_handle('snap_config', cfg, cc, LOG, None)
+
+        mock_add.assert_called_with(self.test_assertions)
+        usercfg = {'snapuser': email, 'known': True}
+        cc.distro.create_user.assert_called_with(email, **usercfg)
+
+    @mock.patch('cloudinit.config.cc_snap_config.add_assertions')
+    @mock.patch('cloudinit.config.cc_snap_config.util')
+    def test_snap_config_handle_snapuser_known_managed(self, mock_util,
+                                                       mock_add):
+        email = 'janet@planetjanet.org'
+        cfg = {
+            'snappy': {
+                'assertions': self.test_assertions,
+                'email': email,
+                'known': True,
+            }
+        }
+        cc = self._get_cloud('ubuntu')
+        cc.distro = mock.MagicMock()
+        cc.distro.name = 'ubuntu'
+        mock_util.which.return_value = None
+        mock_util.system_is_snappy.return_value = True
+        mock_util.subp.side_effect = [
+            ("true\n", ""),  # snap managed
+        ]
+
+        snap_handle('snap_config', cfg, cc, LOG, None)
+
+        mock_add.assert_called_with(self.test_assertions)
+        cc.distro.create_user.assert_not_called()
+
+    @mock.patch('cloudinit.config.cc_snap_config.add_assertions')
+    @mock.patch('cloudinit.config.cc_snap_config.util')
+    def test_snap_config_handle_snapuser_known_no_assertion(self, mock_util,
+                                                            mock_add):
+        email = 'janet@planetjanet.org'
+        cfg = {
+            'snappy': {
+                'assertions': [self.ACCOUNT_ASSERTION],
+                'email': email,
+                'known': True,
+            }
+        }
+        cc = self._get_cloud('ubuntu')
+        cc.distro = mock.MagicMock()
+        cc.distro.name = 'ubuntu'
+        mock_util.which.return_value = None
+        mock_util.system_is_snappy.return_value = True
+        mock_util.subp.side_effect = [
+            ("true\n", ""),  # snap managed
+            ("", ""),        # snap known system-user
+        ]
+
+        snap_handle('snap_config', cfg, cc, LOG, None)
+
+        mock_add.assert_called_with([self.ACCOUNT_ASSERTION])
+        cc.distro.create_user.assert_not_called()
 
 
 def makeop_tmpd(tmpd, op, name, config=None, path=None, cfgfile=None):

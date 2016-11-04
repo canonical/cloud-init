@@ -29,6 +29,7 @@ if "avoid-pep8-E402-import-not-top-of-file":
 # file pypi package name to a debian/ubuntu package name.
 STD_NAMED_PACKAGES = [
     'configobj',
+    'coverage',
     'jinja2',
     'jsonpatch',
     'oauthlib',
