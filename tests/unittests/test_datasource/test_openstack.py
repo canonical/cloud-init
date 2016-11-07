@@ -67,8 +67,6 @@ OSTACK_META = {
 CONTENT_0 = b'This is contents of /etc/foo.cfg\n'
 CONTENT_1 = b'# this is /etc/bar/bar.cfg\n'
 OS_FILES = {
-    'openstack/latest/meta_data.json': json.dumps(OSTACK_META),
-    'openstack/latest/user_data': USER_DATA,
     'openstack/content/0000': CONTENT_0,
     'openstack/content/0001': CONTENT_1,
     'openstack/latest/meta_data.json': json.dumps(OSTACK_META),

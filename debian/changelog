@@ -1,3 +1,10 @@
+cloud-init (0.7.8-35-gc24187e-0ubuntu1) zesty; urgency=medium
+
+  * New upstream snapshot.
+    - pyflakes: fix issue with pyflakes 1.3 found in ubuntu zesty-proposed.
+
+ -- Scott Moser <smoser@ubuntu.com>  Mon, 07 Nov 2016 13:31:30 -0500
+
 cloud-init (0.7.8-34-ga1cdebd-0ubuntu1) zesty; urgency=medium
 
   * New upstream snapshot.
