@@ -32,7 +32,7 @@ can be removed from the system with the configuration option
 
 **Module frequency:** per instance
 
-**Supporte distros:** ubuntu, debian
+**Supported distros:** ubuntu, debian
 
 **Config keys**::
 
