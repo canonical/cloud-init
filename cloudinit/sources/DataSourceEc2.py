@@ -153,7 +153,7 @@ class DataSourceEc2(sources.DataSource):
         bdm = self.metadata['block-device-mapping']
         if not isinstance(bdm, dict):
             LOG.debug("block-device-mapping not a dictionary: '%s'", bdm)
-                return None
+            return None
 
         for (entname, device) in bdm.items():
             if entname == name:
