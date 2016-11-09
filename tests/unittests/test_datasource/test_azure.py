@@ -93,7 +93,7 @@ class TestAzureDataSource(TestCase):
         for module, name, new in patches:
             self.patches.enter_context(mock.patch.object(module, name, new))
 
-    def _get_ds(self, data):
+    def _get_ds(self, data, agent_command=None):
 
         def dsdevs():
             return data.get('dsdevs', [])
@@ -137,6 +137,8 @@ class TestAzureDataSource(TestCase):
 
         dsrc = mod.DataSourceAzureNet(
             data.get('sys_cfg', {}), distro=None, paths=self.paths)
+        if agent_command is not None:
+            dsrc.ds_cfg['agent_command'] = agent_command
 
         return dsrc
 
@@ -299,7 +301,7 @@ class TestAzureDataSource(TestCase):
         data = {'ovfcontent': construct_valid_ovf_env(data=odata,
                                                       pubkeys=pubkeys)}
 
-        dsrc = self._get_ds(data)
+        dsrc = self._get_ds(data, agent_command=['not', '__builtin__'])
         ret = dsrc.get_data()
         self.assertTrue(ret)
         for mypk in mypklist:
@@ -314,7 +316,7 @@ class TestAzureDataSource(TestCase):
         data = {'ovfcontent': construct_valid_ovf_env(data=odata,
                                                       pubkeys=pubkeys)}
 
-        dsrc = self._get_ds(data)
+        dsrc = self._get_ds(data, agent_command=['not', '__builtin__'])
         ret = dsrc.get_data()
         self.assertTrue(ret)
 
@@ -330,7 +332,7 @@ class TestAzureDataSource(TestCase):
         data = {'ovfcontent': construct_valid_ovf_env(data=odata,
                                                       pubkeys=pubkeys)}
 
-        dsrc = self._get_ds(data)
+        dsrc = self._get_ds(data, agent_command=['not', '__builtin__'])
         ret = dsrc.get_data()
         self.assertTrue(ret)
 
@@ -487,12 +489,15 @@ class TestAzureBounce(TestCase):
     def tearDown(self):
         self.patches.close()
 
-    def _get_ds(self, ovfcontent=None):
+    def _get_ds(self, ovfcontent=None, agent_command=None):
         if ovfcontent is not None:
             populate_dir(os.path.join(self.paths.seed_dir, "azure"),
                          {'ovf-env.xml': ovfcontent})
-        return DataSourceAzure.DataSourceAzureNet(
+        dsrc = DataSourceAzure.DataSourceAzureNet(
             {}, distro=None, paths=self.paths)
+        if agent_command is not None:
+            dsrc.ds_cfg['agent_command'] = agent_command
+        return dsrc
 
     def get_ovf_env_with_dscfg(self, hostname, cfg):
         odata = {
@@ -537,14 +542,17 @@ class TestAzureBounce(TestCase):
         host_name = 'unchanged-host-name'
         self.get_hostname.return_value = host_name
         cfg = {'hostname_bounce': {'policy': 'force'}}
-        self._get_ds(self.get_ovf_env_with_dscfg(host_name, cfg)).get_data()
+        self._get_ds(self.get_ovf_env_with_dscfg(host_name, cfg),
+                     agent_command=['not', '__builtin__']).get_data()
         self.assertEqual(1, perform_hostname_bounce.call_count)
 
     def test_different_hostnames_sets_hostname(self):
         expected_hostname = 'azure-expected-host-name'
         self.get_hostname.return_value = 'default-host-name'
         self._get_ds(
-            self.get_ovf_env_with_dscfg(expected_hostname, {})).get_data()
+            self.get_ovf_env_with_dscfg(expected_hostname, {}),
+            agent_command=['not', '__builtin__'],
+        ).get_data()
         self.assertEqual(expected_hostname,
                          self.set_hostname.call_args_list[0][0][0])
 
@@ -554,14 +562,18 @@ class TestAzureBounce(TestCase):
         expected_hostname = 'azure-expected-host-name'
         self.get_hostname.return_value = 'default-host-name'
         self._get_ds(
-            self.get_ovf_env_with_dscfg(expected_hostname, {})).get_data()
+            self.get_ovf_env_with_dscfg(expected_hostname, {}),
+            agent_command=['not', '__builtin__'],
+        ).get_data()
         self.assertEqual(1, perform_hostname_bounce.call_count)
 
     def test_different_hostnames_sets_hostname_back(self):
         initial_host_name = 'default-host-name'
         self.get_hostname.return_value = initial_host_name
         self._get_ds(
-            self.get_ovf_env_with_dscfg('some-host-name', {})).get_data()
+            self.get_ovf_env_with_dscfg('some-host-name', {}),
+            agent_command=['not', '__builtin__'],
+        ).get_data()
         self.assertEqual(initial_host_name,
                          self.set_hostname.call_args_list[-1][0][0])
 
@@ -572,7 +584,9 @@ class TestAzureBounce(TestCase):
         initial_host_name = 'default-host-name'
         self.get_hostname.return_value = initial_host_name
         self._get_ds(
-            self.get_ovf_env_with_dscfg('some-host-name', {})).get_data()
+            self.get_ovf_env_with_dscfg('some-host-name', {}),
+            agent_command=['not', '__builtin__'],
+        ).get_data()
         self.assertEqual(initial_host_name,
                          self.set_hostname.call_args_list[-1][0][0])
 
@@ -583,7 +597,7 @@ class TestAzureBounce(TestCase):
         self.get_hostname.return_value = old_hostname
         cfg = {'hostname_bounce': {'interface': interface, 'policy': 'force'}}
         data = self.get_ovf_env_with_dscfg(hostname, cfg)
-        self._get_ds(data).get_data()
+        self._get_ds(data, agent_command=['not', '__builtin__']).get_data()
         self.assertEqual(1, self.subp.call_count)
         bounce_env = self.subp.call_args[1]['env']
         self.assertEqual(interface, bounce_env['interface'])
@@ -595,7 +609,7 @@ class TestAzureBounce(TestCase):
         DataSourceAzure.BUILTIN_DS_CONFIG['hostname_bounce']['command'] = cmd
         cfg = {'hostname_bounce': {'policy': 'force'}}
         data = self.get_ovf_env_with_dscfg('some-hostname', cfg)
-        self._get_ds(data).get_data()
+        self._get_ds(data, agent_command=['not', '__builtin__']).get_data()
         self.assertEqual(1, self.subp.call_count)
         bounce_args = self.subp.call_args[1]['args']
         self.assertEqual(cmd, bounce_args)
