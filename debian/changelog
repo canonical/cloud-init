@@ -6,7 +6,8 @@ cloud-init (0.7.8-34-ga1cdebd-0ubuntu1~16.04.1) xenial-proposed; urgency=medium
       (LP: #1621615)
     - Add coverage dependency to bddeb to fix package build.
     - doc: improve HACKING.rst file
-    - dmidecode: Allow dmidecode to be used on aarch64 [Robert Schweikert]
+    - dmidecode: Allow dmidecode to be used on aarch64, and only attempt
+      usage on x86, x86_64, and aarch64. [Robert Schweikert]
     - AliYun: Add new datasource for Ali-Cloud ECS [kaihuan.pkh]
     - Add coverage collection to tox unit tests. [Joshua Powers]
     - disk-config: udev settle after partitioning in gpt format.
@@ -25,15 +26,13 @@ cloud-init (0.7.8-34-ga1cdebd-0ubuntu1~16.04.1) xenial-proposed; urgency=medium
     - systemd: Run cloud-init.service Before dbus.socket not dbus.target
       [Daniel Watkins] (LP: #1629797)
     - Improve module documentation and doc cleanup. [Wesley Wiedenmeier]
-    - lxd: Update network config for LXD 2.3 [Stéphane Graber]
+    - lxd: Update network config for LXD 2.3 [Stéphane Graber] (LP: #1640556)
     - DigitalOcean: use meta-data for network configruation [Ben Howard]
-    - ntp: move to run after apt configuration [Scott Moser] (LP: #1628337)
     - Decode unicode types in decode_binary [Robert Schweikert]
     - systemd: Ensure that cloud-init-local happens before NetworkManager
     - Allow ephemeral drive to be unpartitioned [Paul Meyer]
     - subp: add 'update_env' argument
     - Adjust mounts and disk configuration for systemd. (LP: #1611074)
-    - dmidecode: run dmidecode only on i?86 or x86_64 arch. [Robert Schweikert]
 
  -- Scott Moser <smoser@ubuntu.com>  Fri, 04 Nov 2016 13:54:33 -0400
 
