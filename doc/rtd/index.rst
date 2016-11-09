@@ -33,6 +33,7 @@ initialization of a cloud instance.
    topics/format.rst
    topics/dir_layout.rst
    topics/examples.rst
+   topics/boot.rst
    topics/datasources.rst
    topics/logging.rst
    topics/modules.rst
