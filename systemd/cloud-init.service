@@ -2,7 +2,6 @@
 Description=Initial cloud-init job (metadata service crawler)
 DefaultDependencies=no
 Wants=cloud-init-local.service
-Wants=local-fs.target
 Wants=sshd-keygen.service
 Wants=sshd.service
 After=cloud-init-local.service
