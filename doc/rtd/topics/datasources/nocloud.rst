@@ -1,12 +1,15 @@
-The data source ``NoCloud`` and ``NoCloudNet`` allow the user to provide user-data
-and meta-data to the instance without running a network service (or even without
-having a network at all).
+NoCloud
+=======
 
-You can provide meta-data and user-data to a local vm boot via files on a `vfat`_
-or `iso9660`_ filesystem. The filesystem volume label must be ``cidata``.
+The data source ``NoCloud`` allows the user to provide user-data and meta-data
+to the instance without running a network service (or even without having a
+network at all).
 
-These user-data and meta-data files are expected to be
-in the following format.
+You can provide meta-data and user-data to a local vm boot via files on a
+`vfat`_ or `iso9660`_ filesystem. The filesystem volume label must be
+``cidata``.
+
+These user-data and meta-data files are expected to be in the following format.
 
 ::
 
@@ -16,8 +19,8 @@ in the following format.
 Basically, user-data is simply user-data and meta-data is a yaml formatted file
 representing what you'd find in the EC2 metadata service.
 
-Given a disk ubuntu 12.04 cloud image in 'disk.img', you can create a sufficient disk
-by following the example below.
+Given a disk ubuntu 12.04 cloud image in 'disk.img', you can create a
+sufficient disk by following the example below.
 
 ::
     
@@ -46,12 +49,12 @@ by following the example below.
        -drive file=boot-disk.img,if=virtio \
        -drive file=seed.iso,if=virtio
 
-**Note:** that the instance-id provided (``iid-local01`` above) is what is used to
-determine if this is "first boot".  So if you are making updates to user-data
-you will also have to change that, or start the disk fresh.
+**Note:** that the instance-id provided (``iid-local01`` above) is what is used
+to determine if this is "first boot".  So if you are making updates to
+user-data you will also have to change that, or start the disk fresh.
 
-Also, you can inject an ``/etc/network/interfaces`` file by providing the content
-for that file in the ``network-interfaces`` field of metadata.  
+Also, you can inject an ``/etc/network/interfaces`` file by providing the
+content for that file in the ``network-interfaces`` field of metadata.  
 
 Example metadata:
 
@@ -69,3 +72,4 @@ Example metadata:
 
 .. _iso9660: https://en.wikipedia.org/wiki/ISO_9660
 .. _vfat: https://en.wikipedia.org/wiki/File_Allocation_Table
+.. vi: textwidth=78

@@ -1,7 +1,10 @@
+Alt Cloud
+=========
+
 The datasource altcloud will be used to pick up user data on `RHEVm`_ and `vSphere`_.
 
 RHEVm
-~~~~~~
+-----
 
 For `RHEVm`_ v3.0 the userdata is injected into the VM using floppy
 injection via the `RHEVm`_ dashboard "Custom Properties". 
@@ -38,7 +41,7 @@ data to it using the Delta Cloud.
 For more information on Delta Cloud see: http://deltacloud.apache.org
 
 vSphere
-~~~~~~~~
+-------
 
 For VMWare's `vSphere`_ the userdata is injected into the VM as an ISO
 via the cdrom. This can be done using the `vSphere`_ dashboard 
@@ -53,7 +56,7 @@ ISO on the data store.
 For example, to pass the same ``simple_script.bash`` to vSphere:
 
 Create the ISO
------------------
+^^^^^^^^^^^^^^
 
 .. sourcecode:: sh
     
@@ -67,7 +70,7 @@ NOTE: The file name on the ISO must be: ``user-data.txt``
     % genisoimage -o user-data.iso -r my-iso
 
 Verify the ISO
------------------
+^^^^^^^^^^^^^^
 
 .. sourcecode:: sh
     
@@ -85,3 +88,4 @@ For more information on Delta Cloud see: http://deltacloud.apache.org
 
 .. _RHEVm: https://www.redhat.com/virtualization/rhev/desktop/rhevm/
 .. _vSphere: https://www.vmware.com/products/datacenter-virtualization/vsphere/overview.html
+.. vi: textwidth=78

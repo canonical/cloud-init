@@ -1,6 +1,6 @@
-================
+****************
 Directory layout
-================
+****************
 
 Cloudinits's directory structure is somewhat different from a regular application::
 
@@ -79,3 +79,4 @@ Cloudinits's directory structure is somewhat different from a regular applicatio
   is only ran `per-once`, `per-instance`, `per-always`. This folder contains 
   sempaphore `files` which are only supposed to run `per-once` (not tied to the instance id).
 
+.. vi: textwidth=78
