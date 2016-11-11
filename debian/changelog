@@ -1,4 +1,4 @@
-cloud-init (0.7.8-45-g584b843-0ubuntu1) UNRELEASED; urgency=medium
+cloud-init (0.7.8-45-g584b843-0ubuntu1) zesty; urgency=medium
 
   * New upstream snapshot.
     - pep8: fix style errors reported by pycodestyle 2.1.0 [Scott Moser]
@@ -13,7 +13,7 @@ cloud-init (0.7.8-45-g584b843-0ubuntu1) UNRELEASED; urgency=medium
     - doc: fixed example to not overwrite /etc/hosts [Chris Glass]
     - Doc: fix spelling / typos in ca_certs and scripts_vendor.
 
- -- Scott Moser <smoser@ubuntu.com>  Thu, 10 Nov 2016 21:03:24 -0500
+ -- Scott Moser <smoser@ubuntu.com>  Thu, 10 Nov 2016 21:04:09 -0500
 
 cloud-init (0.7.8-35-gc24187e-0ubuntu1) zesty; urgency=medium
 
