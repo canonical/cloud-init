@@ -1,3 +1,19 @@
+cloud-init (0.7.8-44-gbf4010a-0ubuntu1) UNRELEASED; urgency=medium
+
+  * New upstream snapshot.
+    - systemd: drop both Wants and After local-fs.target [Scott Moser]
+    - systemd: networking service adjustments. (LP: #1636912)
+    - systemd: replace Before=basic.target, dbus.target with sysinit.target
+      (LP: #1629797)
+    - doc: Add documentation on stages of boot.
+    - doc: make the RST files consistently formated and other improvements.
+    - Ec2: fix syntax and tox in previous commit.
+    - Ec2: protect against non-dictionary in block-device-mapping.
+    - doc: fixed example to not overwrite /etc/hosts [Chris Glass]
+    - Doc: fix spelling / typos in ca_certs and scripts_vendor.
+
+ -- Scott Moser <smoser@ubuntu.com>  Thu, 10 Nov 2016 20:40:33 -0500
+
 cloud-init (0.7.8-35-gc24187e-0ubuntu1) zesty; urgency=medium
 
   * New upstream snapshot.
