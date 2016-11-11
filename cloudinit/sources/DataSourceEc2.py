@@ -202,6 +202,7 @@ class DataSourceEc2(sources.DataSource):
             return az[:-1]
         return None
 
+
 # Used to match classes to dependencies
 datasources = [
     (DataSourceEc2, (sources.DEP_FILESYSTEM, sources.DEP_NETWORK)),

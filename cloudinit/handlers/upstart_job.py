@@ -116,4 +116,5 @@ def _has_suitable_upstart():
     else:
         return True
 
+
 SUITABLE_UPSTART = _has_suitable_upstart()

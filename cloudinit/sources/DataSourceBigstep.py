@@ -46,6 +46,7 @@ def get_url_from_file():
             raise
     return content
 
+
 # Used to match classes to dependencies
 datasources = [
     (DataSourceBigstep, (sources.DEP_FILESYSTEM, sources.DEP_NETWORK)),

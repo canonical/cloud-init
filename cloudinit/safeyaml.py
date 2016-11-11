@@ -23,6 +23,7 @@ class _CustomSafeLoader(yaml.SafeLoader):
     def construct_python_unicode(self, node):
         return self.construct_scalar(node)
 
+
 _CustomSafeLoader.add_constructor(
     u'tag:yaml.org,2002:python/unicode',
     _CustomSafeLoader.construct_python_unicode)

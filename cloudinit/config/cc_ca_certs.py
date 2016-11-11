@@ -82,8 +82,8 @@ def add_ca_certs(certs):
         # We have to strip the content because blank lines in the file
         # causes subsequent entries to be ignored. (LP: #1077020)
         orig = util.load_file(CA_CERT_CONFIG)
-        cur_cont = '\n'.join([l for l in orig.splitlines()
-                              if l != CA_CERT_FILENAME])
+        cur_cont = '\n'.join([line for line in orig.splitlines()
+                              if line != CA_CERT_FILENAME])
         out = "%s\n%s\n" % (cur_cont.rstrip(), CA_CERT_FILENAME)
         util.write_file(CA_CERT_CONFIG, out, omode="wb")
 
