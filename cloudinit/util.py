@@ -2030,8 +2030,8 @@ def parse_mount_info(path, mountinfo_lines, log=LOG):
             continue
 
         # Ignore mounts where the common path is not the same.
-        l = min(len(mount_point_elements), len(path_elements))
-        if mount_point_elements[0:l] != path_elements[0:l]:
+        x = min(len(mount_point_elements), len(path_elements))
+        if mount_point_elements[0:x] != path_elements[0:x]:
             continue
 
         # Ignore mount points higher than an already seen mount
