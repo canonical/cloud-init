@@ -151,6 +151,10 @@ class DataSourceEc2(sources.DataSource):
         # 'root': '/dev/sda1'}
         found = None
         bdm = self.metadata['block-device-mapping']
+        if not isinstance(bdm, dict):
+            LOG.debug("block-device-mapping not a dictionary: '%s'", bdm)
+            return None
+
         for (entname, device) in bdm.items():
             if entname == name:
                 found = device
@@ -197,6 +201,7 @@ class DataSourceEc2(sources.DataSource):
         if az is not None:
             return az[:-1]
         return None
+
 
 # Used to match classes to dependencies
 datasources = [

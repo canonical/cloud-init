@@ -270,6 +270,7 @@ class DataSourceAltCloud(sources.DataSource):
         else:
             return False
 
+
 # Used to match classes to dependencies
 # Source DataSourceAltCloud does not really depend on networking.
 # In the future 'dsmode' like behavior can be added to offer user

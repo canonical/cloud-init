@@ -354,4 +354,5 @@ def handle(_name, cfg, _cloud, log, _args):
         else:
             log.debug("'%s' %s: %s" % (entry, action, msg))
 
+
 RESIZERS = (('growpart', ResizeGrowPart), ('gpart', ResizeGpart))

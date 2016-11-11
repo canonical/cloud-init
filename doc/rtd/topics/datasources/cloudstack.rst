@@ -1,3 +1,6 @@
+CloudStack
+==========
+
 `Apache CloudStack`_ expose user-data, meta-data, user password and account
 sshkey thru the Virtual-Router. For more details on meta-data and user-data,
 refer the `CloudStack Administrator Guide`_. 
@@ -12,7 +15,7 @@ is the Virtual Router IP:
     http://10.1.1.1/latest/meta-data/{metadata type}
 
 Configuration
-~~~~~~~~~~~~~
+-------------
 
 Apache CloudStack datasource can be configured as follows:
 
@@ -27,3 +30,5 @@ Apache CloudStack datasource can be configured as follows:
 
 .. _Apache CloudStack: http://cloudstack.apache.org/
 .. _CloudStack Administrator Guide: http://docs.cloudstack.apache.org/projects/cloudstack-administration/en/latest/virtual_machines.html#user-data-and-meta-data
+
+.. vi: textwidth=78

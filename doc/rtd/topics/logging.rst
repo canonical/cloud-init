@@ -1,15 +1,15 @@
-=======
+*******
 Logging
-=======
+*******
 Cloud-init supports both local and remote logging configurable through python's
 built-in logging configuration and through the cloud-init rsyslog module.
 
 Command Output
---------------
+==============
 Cloud-init can redirect its stdout and stderr based on config given under the
 ``output`` config key. The output of any commands run by cloud-init and any
-user or vendor scripts provided will also be included here. The ``output``
-key accepts a dictionary for configuration. Output files may be specified
+user or vendor scripts provided will also be included here. The ``output`` key
+accepts a dictionary for configuration. Output files may be specified
 individually for each stage (``init``, ``config``, and ``final``), or a single
 key ``all`` may be used to specify output for all stages.
 
@@ -31,9 +31,9 @@ stdout and stderr from all cloud-init stages to
 For a more complex example, the following configuration would output the init
 stage to ``/var/log/cloud-init.out`` and ``/var/log/cloud-init.err``, for
 stdout and stderr respectively, replacing anything that was previously there.
-For the config stage, it would pipe both stdout and stderr through
-``tee -a /var/log/cloud-config.log``. For the final stage it would append the
-output of stdout and stderr to ``/var/log/cloud-final.out`` and
+For the config stage, it would pipe both stdout and stderr through ``tee -a
+/var/log/cloud-config.log``. For the final stage it would append the output of
+stdout and stderr to ``/var/log/cloud-final.out`` and
 ``/var/log/cloud-final.err`` respectively. ::
 
     output:
@@ -48,8 +48,8 @@ output of stdout and stderr to ``/var/log/cloud-final.out`` and
 Python Logging
 --------------
 Cloud-init uses the python logging module, and can accept config for this
-module using the standard python fileConfig format. Cloud-init looks for config
-for the logging module under the ``logcfg`` key.
+module using the standard python fileConfig format. Cloud-init looks for
+config for the logging module under the ``logcfg`` key.
 
 .. note::
     the logging configuration is not yaml, it is python ``fileConfig`` format,
@@ -67,9 +67,9 @@ Python's fileConfig format consists of sections with headings in the format
 logging must contain the sections ``[loggers]``, ``[handlers]``, and
 ``[formatters]``, which name the entities of their respective types that will
 be defined. The section name for each defined logger, handler and formatter
-will start with its type, followed by an underscore (``_``) and the name of the
-entity. For example, if a logger was specified with the name ``log01``, config
-for the logger would be in the section ``[logger_log01]``.
+will start with its type, followed by an underscore (``_``) and the name of
+the entity. For example, if a logger was specified with the name ``log01``,
+config for the logger would be in the section ``[logger_log01]``.
 
 Logger config entries contain basic logging set up. They may specify a list of
 handlers to send logging events to as well as the lowest priority level of
@@ -80,13 +80,13 @@ handlers. A level entry can be any of the following: ``DEBUG``, ``INFO``,
 the ``NOTSET`` option will allow all logging events to be recorded.
 
 Each configured handler must specify a class under the python's ``logging``
-package namespace. A handler may specify a message formatter to use, a priority
-level, and arguments for the handler class. Common handlers are
+package namespace. A handler may specify a message formatter to use, a
+priority level, and arguments for the handler class. Common handlers are
 ``StreamHandler``, which handles stream redirects (i.e. logging to stderr),
 and ``FileHandler`` which outputs to a log file. The logging module also
-supports logging over net sockets, over http, via smtp, and additional
-complex configurations. For full details about the handlers available for
-python logging, please see the documentation for `python logging handlers`_.
+supports logging over net sockets, over http, via smtp, and additional complex
+configurations. For full details about the handlers available for python
+logging, please see the documentation for `python logging handlers`_.
 
 Log messages are formatted using the ``logging.Formatter`` class, which is
 configured using ``formatter`` config entities. A default format of
@@ -173,3 +173,4 @@ For more information on rsyslog configuration, see :ref:`cc_rsyslog`.
 .. _python logging config: https://docs.python.org/3/library/logging.config.html#configuration-file-format
 .. _python logging handlers: https://docs.python.org/3/library/logging.handlers.html
 .. _python logging formatters: https://docs.python.org/3/library/logging.html#formatter-objects
+.. vi: textwidth=78

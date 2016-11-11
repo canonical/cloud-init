@@ -156,6 +156,7 @@ class DataSourceGCE(sources.DataSource):
     def region(self):
         return self.availability_zone.rsplit('-', 1)[0]
 
+
 # Used to match classes to dependencies
 datasources = [
     (DataSourceGCE, (sources.DEP_FILESYSTEM, sources.DEP_NETWORK)),
