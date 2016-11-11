@@ -30,7 +30,7 @@ entry under the ``vendor_data`` config key.
 
 **Module frequency:** per instance
 
-**Supporte distros:** all
+**Supported distros:** all
 
 **Config keys**::
 

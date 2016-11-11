@@ -1,4 +1,8 @@
-The configuration drive datasource supports the `OpenStack`_ configuration drive disk.
+Config Drive
+============
+
+The configuration drive datasource supports the `OpenStack`_ configuration
+drive disk.
 
   See `the config drive extension`_ and `introduction`_ in the public
   documentation for more information.
@@ -6,14 +10,14 @@ The configuration drive datasource supports the `OpenStack`_ configuration drive
 By default, cloud-init does *always* consider this source to be a full-fledged
 datasource.  Instead, the typical behavior is to assume it is really only
 present to provide networking information.  Cloud-init will copy off the
-network information, apply it to the system, and then continue on.  The
-"full" datasource could then be found in the EC2 metadata service. If this is
-not the case then the files contained on the located drive must provide equivalents
-to what the EC2 metadata service would provide (which is typical of the version
-2 support listed below)
+network information, apply it to the system, and then continue on.  The "full"
+datasource could then be found in the EC2 metadata service. If this is not the
+case then the files contained on the located drive must provide equivalents to
+what the EC2 metadata service would provide (which is typical of the version 2
+support listed below)
 
 Version 1
-~~~~~~~~~
+---------
 
 The following criteria are required to as a config drive:
 
@@ -31,8 +35,8 @@ The following criteria are required to as a config drive:
 
     This file is laid down by nova in order to pass static networking
     information to the guest.  Cloud-init will copy it off of the config-drive
-    and into /etc/network/interfaces (or convert it to RH format) as soon as it can,
-    and then attempt to bring up all network interfaces.
+    and into /etc/network/interfaces (or convert it to RH format) as soon as
+    it can, and then attempt to bring up all network interfaces.
 
 ``/root/.ssh/authorized_keys``
 
@@ -46,7 +50,7 @@ The following criteria are required to as a config drive:
     formatted.
 
 Version 2
-~~~~~~~~~
+---------
 
 The following criteria are required to as a config drive:
 
@@ -70,9 +74,10 @@ The following criteria are required to as a config drive:
       - meta-data.json (not mandatory)
 
 Keys and values
-~~~~~~~~~~~~~~~
+---------------
 
-Cloud-init's behavior can be modified by keys found in the meta.js (version 1 only) file in the following ways.
+Cloud-init's behavior can be modified by keys found in the meta.js (version 1
+only) file in the following ways.
 
 ::
 
@@ -121,3 +126,4 @@ what all can be present here.
 .. _iso9660: https://en.wikipedia.org/wiki/ISO_9660
 .. _vfat: https://en.wikipedia.org/wiki/File_Allocation_Table
 .. _the config drive extension: http://docs.openstack.org/user-guide/content/config-drive.html
+.. vi: textwidth=78
