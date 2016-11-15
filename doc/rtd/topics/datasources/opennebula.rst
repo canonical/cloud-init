@@ -1,3 +1,6 @@
+OpenNebula
+==========
+
 The `OpenNebula`_ (ON) datasource supports the contextualization disk.
 
   See `contextualization overview`_, `contextualizing VMs`_ and
@@ -140,3 +143,4 @@ Example VM's context section
 .. _contextualizing VMs: http://opennebula.org/documentation:documentation:cong
 .. _network configuration: http://opennebula.org/documentation:documentation:cong#network_configuration
 .. _iso9660: https://en.wikipedia.org/wiki/ISO_9660
+.. vi: textwidth=78

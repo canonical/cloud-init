@@ -1,18 +1,18 @@
-=======
+*******
 Formats
-=======
+*******
 
 User data that will be acted upon by cloud-init must be in one of the following types.
 
 Gzip Compressed Content
------------------------
+=======================
 
 Content found to be gzip compressed will be uncompressed.
 The uncompressed data will then be used as if it were not compressed. 
 This is typically is useful because user-data is limited to ~16384 [#]_ bytes.
 
 Mime Multi Part Archive
------------------------
+=======================
 
 This list of rules is applied to each part of this multi-part file. 
 Using a mime-multi part file, the user can specify more than one type of data.
@@ -31,7 +31,7 @@ Supported content-types:
 - text/cloud-boothook
 
 Helper script to generate mime messages
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+---------------------------------------
 
 .. code-block:: python
 
@@ -59,14 +59,14 @@ Helper script to generate mime messages
 
 
 User-Data Script
-----------------
+================
 
 Typically used by those who just want to execute a shell script.
 
 Begins with: ``#!`` or ``Content-Type: text/x-shellscript`` when using a MIME archive.
 
 Example
-~~~~~~~
+-------
 
 ::
 
@@ -78,7 +78,7 @@ Example
   $ euca-run-instances --key mykey --user-data-file myscript.sh ami-a07d95c9 
 
 Include File
-------------
+============
 
 This content is a ``include`` file.
 
@@ -89,7 +89,7 @@ Ie, the content read from the URL can be gzipped, mime-multi-part, or plain text
 Begins with: ``#include`` or ``Content-Type: text/x-include-url``  when using a MIME archive.
 
 Cloud Config Data
------------------
+=================
 
 Cloud-config is the simplest way to accomplish some things
 via user-data. Using cloud-config syntax, the user can specify certain things in a human friendly format. 
@@ -109,14 +109,14 @@ See the :ref:`yaml_examples` section for a commented set of examples of supporte
 Begins with: ``#cloud-config`` or ``Content-Type: text/cloud-config`` when using a MIME archive.
 
 Upstart Job
------------
+===========
 
 Content is placed into a file in ``/etc/init``, and will be consumed by upstart as any other upstart job.
 
 Begins with: ``#upstart-job`` or ``Content-Type: text/upstart-job`` when using a MIME archive.
 
 Cloud Boothook
---------------
+==============
 
 This content is ``boothook`` data. It is stored in a file under ``/var/lib/cloud`` and then executed immediately.
 This is the earliest ``hook`` available. Note, that there is no mechanism provided for running only once. The boothook must take care of this itself.
@@ -125,7 +125,7 @@ It is provided with the instance id in the environment variable ``INSTANCE_I``. 
 Begins with: ``#cloud-boothook`` or ``Content-Type: text/cloud-boothook`` when using a MIME archive.
 
 Part Handler
-------------
+============
 
 This is a ``part-handler``. It will be written to a file in ``/var/lib/cloud/data`` based on its filename (which is generated).
 This must be python code that contains a ``list_types`` method and a ``handle_type`` method. 
@@ -147,7 +147,7 @@ The ``begin`` and ``end`` calls are to allow the part handler to do initializati
 Begins with: ``#part-handler`` or ``Content-Type: text/part-handler`` when using a MIME archive.
 
 Example
-~~~~~~~
+-------
 
 .. literalinclude:: ../../examples/part-handler.txt
    :language: python
@@ -157,3 +157,4 @@ Also this `blog`_ post offers another example for more advanced usage.
 
 .. [#] See your cloud provider for applicable user-data size limitations...
 .. _blog: http://foss-boss.blogspot.com/2011/01/advanced-cloud-init-custom-handlers.html
+.. vi: textwidth=78

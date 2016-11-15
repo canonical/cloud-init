@@ -156,6 +156,7 @@ def add_cloud():
         if name.startswith("cloud_"):
             exec("pep8.%s = %s" % (name, name))
 
+
 if __name__ == "__main__":
     # NOVA based 'hacking.py' error codes start with an N
     pep8.ERRORCODE_REGEX = re.compile(r'[EWN]\d{3}')

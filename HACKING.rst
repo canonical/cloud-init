@@ -1,13 +1,13 @@
-=====================
+*********************
 Hacking on cloud-init
-=====================
+*********************
 
 This document describes how to contribute changes to cloud-init.
 It assumes you have a `Launchpad`_ account, and refers to your launchpad user
 as ``LP_USER`` throughout.
 
 Do these things once
---------------------
+====================
 
 * To contribute, you must sign the Canonical `contributor license agreement`_
 
@@ -21,11 +21,12 @@ Do these things once
   There is more information on Launchpad as a git hosting site in
   `Launchpad git documentation`_.
 
-* Create a new remote pointing to your personal Launchpad repository
+* Create a new remote pointing to your personal Launchpad repository.
+  This is equivalent to 'fork' on github.
 
-  This is equivalent to 'fork' on github::
+  .. code:: sh
 
-    git remote add LP_USER git+ssh://LP_USER@git.launchpad.net/~LP_USER/cloud-init
+    git remote add LP_USER ssh://LP_USER@git.launchpad.net/~LP_USER/cloud-init
     git push LP_USER master
 
 .. _repository: https://git.launchpad.net/cloud-init
@@ -34,7 +35,7 @@ Do these things once
 .. _Launchpad git documentation: https://help.launchpad.net/Code/Git
 
 Do these things for each feature or bug
----------------------------------------
+=======================================
 
 * Create a new topic branch for your work::
 

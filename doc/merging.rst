@@ -1,5 +1,5 @@
 Overview
---------
+========
 
 This was implemented because it has been a common feature request that there be
 a way to specify how cloud-config yaml "dictionaries" provided as user-data are
@@ -52,7 +52,7 @@ into a more useful list, thus reducing duplication that would have had to
 occur in the previous method to accomplish the same result.
 
 Customizability
----------------
+===============
 
 Since the above merging algorithm may not always be the desired merging
 algorithm (like how the previous merging algorithm was not always the preferred
@@ -96,41 +96,45 @@ An example of one of these merging classes is the following:
                    merged[k] = v
            return merged
 
-As you can see there is a '_on_dict' method here that will be given a source value
-and a value to merge with. The result will be the merged object. This code itself
-is called by another merging class which 'directs' the merging to happen by
-analyzing the types of the objects to merge and attempting to find a know object
-that will merge that type. I will avoid pasting that here, but it can be found
-in the `mergers/__init__.py` file (see `LookupMerger` and `UnknownMerger`).
+As you can see there is a '_on_dict' method here that will be given a source
+value and a value to merge with. The result will be the merged object. This
+code itself is called by another merging class which 'directs' the merging to
+happen by analyzing the types of the objects to merge and attempting to find a
+know object that will merge that type. I will avoid pasting that here, but it
+can be found in the `mergers/__init__.py` file (see `LookupMerger` and
+`UnknownMerger`).
 
-So following the typical cloud-init way of allowing source code to be downloaded
-and used dynamically, it is possible for users to inject there own merging files
-to handle specific types of merging as they choose (the basic ones included will
-handle lists, dicts, and strings). Note how each merge can have options associated
-with it which affect how the merging is performed, for example a dictionary merger
-can be told to overwrite instead of attempt to merge, or a string merger can be
-told to append strings instead of discarding other strings to merge with.
+So following the typical cloud-init way of allowing source code to be
+downloaded and used dynamically, it is possible for users to inject there own
+merging files to handle specific types of merging as they choose (the basic
+ones included will handle lists, dicts, and strings). Note how each merge can
+have options associated with it which affect how the merging is performed, for
+example a dictionary merger can be told to overwrite instead of attempt to
+merge, or a string merger can be told to append strings instead of discarding
+other strings to merge with.
 
 How to activate
----------------
+===============
 
 There are a few ways to activate the merging algorithms, and to customize them
 for your own usage.
 
 1. The first way involves the usage of MIME messages in cloud-init to specify
-   multipart documents (this is one way in which multiple cloud-config is joined
-   together into a single cloud-config). Two new headers are looked for, both
-   of which can define the way merging is done (the first header to exist wins).
-   These new headers (in lookup order) are 'Merge-Type' and 'X-Merge-Type'. The value
-   should be a string which will satisfy the new merging format defintion (see
-   below for this format).
+   multipart documents (this is one way in which multiple cloud-config is
+   joined together into a single cloud-config). Two new headers are looked
+   for, both of which can define the way merging is done (the first header to
+   exist wins).  These new headers (in lookup order) are 'Merge-Type' and
+   'X-Merge-Type'. The value should be a string which will satisfy the new
+   merging format defintion (see below for this format).
+
 2. The second way is actually specifying the merge-type in the body of the
-   cloud-config dictionary. There are 2 ways to specify this, either as a string
-   or as a dictionary (see format below). The keys that are looked up for this
-   definition are the following (in order), 'merge_how', 'merge_type'.
+   cloud-config dictionary. There are 2 ways to specify this, either as a
+   string or as a dictionary (see format below). The keys that are looked up
+   for this definition are the following (in order), 'merge_how',
+   'merge_type'.
 
 String format
-*************
+-------------
 
 The string format that is expected is the following.
 
@@ -142,14 +146,15 @@ The class name there will be connected to class names used when looking for the
 class that can be used to merge and options provided will be given to the class
 on construction of that class.
 
-For example, the default string that is used when none is provided is the following:
+For example, the default string that is used when none is provided is the
+following:
 
 ::
 
    list()+dict()+str()
 
 Dictionary format
-*****************
+-----------------
 
 In cases where a dictionary can be used to specify the same information as the
 string format (ie option #2 of above) it can be used, for example.
@@ -164,7 +169,7 @@ This would be the equivalent format for default string format but in dictionary
 form instead of string form.
 
 Specifying multiple types and its effect
-----------------------------------------
+========================================
 
 Now you may be asking yourself, if I specify a merge-type header or dictionary
 for every cloud-config that I provide, what exactly happens?
@@ -174,13 +179,13 @@ first one on that stack is the default merging classes, this set of mergers
 will be used when the first cloud-config is merged with the initial empty
 cloud-config dictionary. If the cloud-config that was just merged provided a
 set of merging classes (via the above formats) then those merging classes will
-be pushed onto the stack. Now if there is a second cloud-config to be merged then
-the merging classes from the cloud-config before the first will be used (not the
-default) and so on. This way a cloud-config can decide how it will merge with a
-cloud-config dictionary coming after it.
+be pushed onto the stack. Now if there is a second cloud-config to be merged
+then the merging classes from the cloud-config before the first will be used
+(not the default) and so on. This way a cloud-config can decide how it will
+merge with a cloud-config dictionary coming after it.
 
 Other uses
-----------
+==========
 
 In addition to being used for merging user-data sections, the default merging
 algorithm for merging 'conf.d' yaml files (which form an initial yaml config
@@ -192,3 +197,5 @@ merging, for example).
 Note, however, that merge algorithms are not used *across* types of
 configuration.  As was the case before merging was implemented,
 user-data will overwrite conf.d configuration without merging.
+
+.. vi: textwidth=78
