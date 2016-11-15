@@ -1,4 +1,4 @@
-cloud-init (0.7.8-47-gb6561a1-0ubuntu1~16.04.1) UNRELEASED; urgency=medium
+cloud-init (0.7.8-47-gb6561a1-0ubuntu1~16.04.1) xenial-proposed; urgency=medium
 
   * debian/cloud-init.templates: enable DigitalOcean by default [Ben Howard]
   * New upstream snapshot.
@@ -61,7 +61,7 @@ cloud-init (0.7.8-47-gb6561a1-0ubuntu1~16.04.1) UNRELEASED; urgency=medium
       + tests: silence the Cheetah UserWarning about NameMapper C version.
       + Fix python2.6 things found running in centos 6.
 
- -- Scott Moser <smoser@ubuntu.com>  Tue, 15 Nov 2016 15:27:42 -0500
+ -- Scott Moser <smoser@ubuntu.com>  Tue, 15 Nov 2016 17:29:12 -0500
 
 cloud-init (0.7.8-1-g3705bb5-0ubuntu1~16.04.3) xenial-proposed; urgency=medium
 
