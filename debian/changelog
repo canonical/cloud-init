@@ -1,7 +1,18 @@
-cloud-init (0.7.8-34-ga1cdebd-0ubuntu1~16.04.1) xenial-proposed; urgency=medium
+cloud-init (0.7.8-45-g584b843-0ubuntu1~16.04.1) UNRELEASED; urgency=medium
 
   * debian/cloud-init.templates: enable DigitalOcean by default [Ben Howard]
   * New upstream snapshot.
+    - pep8: fix style errors reported by pycodestyle 2.1.0
+    - systemd: drop both Wants and After local-fs.target
+    - systemd: networking service adjustments. (LP: #1636912)
+    - systemd: replace Before=basic.target, dbus.target with sysinit.target
+      (LP: #1629797)
+    - doc: Add documentation on stages of boot.
+    - doc: make the RST files consistently formated and other improvements.
+    - Ec2: protect against non-dictionary in block-device-mapping.
+    - doc: fixed example to not overwrite /etc/hosts [Chris Glass]
+    - Doc: fix spelling / typos in ca_certs and scripts_vendor.
+    - pyflakes: fix issue with pyflakes 1.3 found in ubuntu zesty-proposed.
     - net: support reading ipv6 dhcp config from initramfs [LaMont Jones]
       (LP: #1621615)
     - Add coverage dependency to bddeb to fix package build.
@@ -34,7 +45,7 @@ cloud-init (0.7.8-34-ga1cdebd-0ubuntu1~16.04.1) xenial-proposed; urgency=medium
     - subp: add 'update_env' argument
     - Adjust mounts and disk configuration for systemd. (LP: #1611074)
 
- -- Scott Moser <smoser@ubuntu.com>  Fri, 04 Nov 2016 13:54:33 -0400
+ -- Scott Moser <smoser@ubuntu.com>  Tue, 15 Nov 2016 12:06:58 -0500
 
 cloud-init (0.7.8-1-g3705bb5-0ubuntu1~16.04.3) xenial-proposed; urgency=medium
 
