@@ -1,21 +1,19 @@
-cloud-init (0.7.8-45-g584b843-0ubuntu1~16.04.1) xenial-proposed; urgency=medium
+cloud-init (0.7.8-47-gb6561a1-0ubuntu1~16.04.1) UNRELEASED; urgency=medium
 
   * debian/cloud-init.templates: enable DigitalOcean by default [Ben Howard]
   * New upstream snapshot.
     - systemd/cloud-init-local.service:
       + replace 'Wants' and 'After' on local-fs.target with more granular
         After=systemd-remount-fs.service and RequiresMountsFor=/var/lib
+        and Before=sysinit.target.
         This is done run sufficiently early enough to update /etc/fstab.
         (LP: #1611074)
-      + add Before=basic.target.
       + add Before=NetworkManager.service so that cloud-init can render
         NetworkManager network config before it would apply them.
     - systemd/cloud-init.service:
       + add Before=sysinit.target and DefaultDependencies=no (LP: #1611074)
-      + add After=systemd-networkd-wait-online.service and
-        drop Requires=networking.service to work with systemd-networkd
-        systems where networking.service is not needed.
-        (LP: #1636912, #1629797)
+      + drop Requires=networking.service to work where networking.service is
+        not needed.
       + add Conflicts=shutdown.target
       + drop unnecessary Wants=local-fs.target
     - net: support reading ipv6 dhcp config from initramfs [LaMont Jones]
