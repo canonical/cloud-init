@@ -8,7 +8,7 @@ Before=network-pre.target
 Before=shutdown.target
 Before=sysinit.target
 Conflicts=shutdown.target
-RequiresMountsFor=/var/lib
+RequiresMountsFor=/var/lib/cloud
 
 [Service]
 Type=oneshot
