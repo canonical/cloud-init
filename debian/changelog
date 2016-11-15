@@ -1,4 +1,4 @@
-cloud-init (0.7.8-48-g9d826b8-0ubuntu1) UNRELEASED; urgency=medium
+cloud-init (0.7.8-48-g9d826b8-0ubuntu1) zesty; urgency=medium
 
   * New upstream snapshot.
     - systemd: cloud-init-local use RequiresMountsFor=/var/lib/cloud
@@ -6,7 +6,7 @@ cloud-init (0.7.8-48-g9d826b8-0ubuntu1) UNRELEASED; urgency=medium
     - systemd: cloud-init remove After=systemd-networkd-wait-online
     - systemd: cloud-init-local change Before basic to sysinit
 
- -- Scott Moser <smoser@ubuntu.com>  Tue, 15 Nov 2016 17:21:07 -0500
+ -- Scott Moser <smoser@ubuntu.com>  Tue, 15 Nov 2016 17:21:34 -0500
 
 cloud-init (0.7.8-45-g584b843-0ubuntu1) zesty; urgency=medium
 
