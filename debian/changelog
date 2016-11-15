@@ -2,48 +2,66 @@ cloud-init (0.7.8-45-g584b843-0ubuntu1~16.04.1) UNRELEASED; urgency=medium
 
   * debian/cloud-init.templates: enable DigitalOcean by default [Ben Howard]
   * New upstream snapshot.
-    - pep8: fix style errors reported by pycodestyle 2.1.0
-    - systemd: drop both Wants and After local-fs.target
-    - systemd: networking service adjustments. (LP: #1636912)
-    - systemd: replace Before=basic.target, dbus.target with sysinit.target
-      (LP: #1629797)
-    - doc: Add documentation on stages of boot.
-    - doc: make the RST files consistently formated and other improvements.
-    - Ec2: protect against non-dictionary in block-device-mapping.
-    - doc: fixed example to not overwrite /etc/hosts [Chris Glass]
-    - Doc: fix spelling / typos in ca_certs and scripts_vendor.
-    - pyflakes: fix issue with pyflakes 1.3 found in ubuntu zesty-proposed.
+    - systemd/cloud-init-local.service:
+      + replace 'Wants' and 'After' on local-fs.target with more granular
+        After=systemd-remount-fs.service and RequiresMountsFor=/var/lib
+        This is done run sufficiently early enough to update /etc/fstab.
+        (LP: #1611074)
+      + add Before=basic.target.
+      + add Before=NetworkManager.service so that cloud-init can render
+        NetworkManager network config before it would apply them.
+    - systemd/cloud-init.service:
+      + add Before=sysinit.target and DefaultDependencies=no (LP: #1611074)
+      + add After=systemd-networkd-wait-online.service and
+        drop Requires=networking.service to work with systemd-networkd
+        systems where networking.service is not needed.
+        (LP: #1636912, #1629797)
+      + add Conflicts=shutdown.target
+      + drop unnecessary Wants=local-fs.target
     - net: support reading ipv6 dhcp config from initramfs [LaMont Jones]
       (LP: #1621615)
-    - Add coverage dependency to bddeb to fix package build.
-    - doc: improve HACKING.rst file
     - dmidecode: Allow dmidecode to be used on aarch64, and only attempt
       usage on x86, x86_64, and aarch64. [Robert Schweikert]
-    - AliYun: Add new datasource for Ali-Cloud ECS [kaihuan.pkh]
-    - Add coverage collection to tox unit tests. [Joshua Powers]
     - disk-config: udev settle after partitioning in gpt format.
       (LP: #1626243)
-    - unittests: do not read system /etc/cloud/cloud.cfg.d (LP: #1635350)
-    - Add documentation for logging features. [Wesley Wiedenmeier]
     - Add support for snap create-user on Ubuntu Core images. [Ryan Harper]
+      (LP: #1619393)
     - Fix sshd restarts for rhel distros. [Jim Gorz]
-    - OpenNebula: replace 'ip' parsing with cloudinit.net usage.
-    - Fix python2.6 things found running in centos 6.
     - Move user/group functions to new ug_util file [Joshua Harlow]
-    - DigitalOcean: enable usage of data source by default.
     - update Gentoo initscripts to run in the correct order [Matthew Thode]
-    - MAAS: improve the main of datasource to look at kernel cmdline config.
-    - tests: silence the Cheetah UserWarning about NameMapper C version.
-    - systemd: Run cloud-init.service Before dbus.socket not dbus.target
-      [Daniel Watkins] (LP: #1629797)
-    - Improve module documentation and doc cleanup. [Wesley Wiedenmeier]
+    - MAAS: improve the debugging tool in datasource to consider
+      config provided on kernel cmdline.
     - lxd: Update network config for LXD 2.3 [Stéphane Graber] (LP: #1640556)
-    - DigitalOcean: use meta-data for network configruation [Ben Howard]
     - Decode unicode types in decode_binary [Robert Schweikert]
-    - systemd: Ensure that cloud-init-local happens before NetworkManager
     - Allow ephemeral drive to be unpartitioned [Paul Meyer]
-    - subp: add 'update_env' argument
+    - subp: add 'update_env' argument which allows for more easily adding
+      environment variables to a subprocess call.
     - Adjust mounts and disk configuration for systemd. (LP: #1611074)
+    - DataSources:
+      + Ec2: protect against non-dictionary in block-device-mapping.
+      + AliYun: Add new datasource for Ali-Cloud ECS, that is
+        available but not enabled by default [kaihuan.pkh]
+      + DigitalOcean: use meta-data for network configuration and
+        enable data source by default. [Ben Howard]
+      + OpenNebula: replace parsing of 'ip' command with similar function
+        available in cloudinit.net.  This fixed unit tests when running
+        in environment with no networking.
+    - doc changes:
+      + Add documentation on stages of boot.
+      + make the RST files consistently formated and other improvements.
+      + fixed example to not overwrite /etc/hosts [Chris Glass]
+      + fix spelling / typos in ca_certs and scripts_vendor.
+      + improve HACKING.rst file
+      + Add documentation for logging features. [Wesley Wiedenmeier]
+      + Improve module documentation and doc cleanup. [Wesley Wiedenmeier]
+    - code style and unit test changes:
+      + pep8: fix style errors reported by pycodestyle 2.1.0
+      + pyflakes: fix issue with pyflakes 1.3 found in ubuntu zesty-proposed.
+      + Add coverage dependency to bddeb to fix package build.
+      + Add coverage collection to tox unit tests. [Joshua Powers]
+      + do not read system /etc/cloud/cloud.cfg.d (LP: #1635350)
+      + tests: silence the Cheetah UserWarning about NameMapper C version.
+      + Fix python2.6 things found running in centos 6.
 
  -- Scott Moser <smoser@ubuntu.com>  Tue, 15 Nov 2016 12:06:58 -0500
 
