@@ -326,6 +326,9 @@ def main_init(name, args):
         util.logexc(LOG, "Failed to re-adjust output redirection!")
     logging.setupLogging(mods.cfg)
 
+    # give the activated datasource a chance to adjust
+    init.activate_datasource()
+
     # Stage 10
     return (init.datasource, run_module_section(mods, name, name))
 
