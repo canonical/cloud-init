@@ -371,6 +371,13 @@ class Init(object):
         self._store_userdata()
         self._store_vendordata()
 
+    def activate_datasource(self):
+        if self.datasource is None:
+            raise RuntimeError("Datasource is None, cannot activate.")
+        self.datasource.activate(cfg=self.cfg,
+                                 is_new_instance=self.is_new_instance())
+        self._write_to_cache()
+
     def _store_userdata(self):
         raw_ud = self.datasource.get_userdata_raw()
         if raw_ud is None:

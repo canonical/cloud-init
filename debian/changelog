@@ -1,3 +1,14 @@
+cloud-init (0.7.8-49-g9e904bb-0ubuntu1) zesty; urgency=medium
+
+  * debian/cloud-init.postinst: update /etc/fstab on Azure to fix
+    future resize operations. (LP: #1611074)
+  * New upstream snapshot.
+    - Add activate_datasource, for datasource specific code paths.
+      Use that on Azure to handle re-formatting of ephemeral disk.
+      (LP: #1611074)
+
+ -- Scott Moser <smoser@ubuntu.com>  Fri, 18 Nov 2016 16:37:34 -0500
+
 cloud-init (0.7.8-48-g9d826b8-0ubuntu1) zesty; urgency=medium
 
   * New upstream snapshot.
