@@ -1,3 +1,13 @@
+cloud-init (0.7.8-49-g9e904bb-0ubuntu1~16.04.1) UNRELEASED; urgency=medium
+
+  * New upstream snapshot.
+    - Add activate_datasource, for datasource specific code paths.
+      (LP: #1611074)
+    - systemd: cloud-init-local use RequiresMountsFor=/var/lib/cloud
+      (LP: #1642062)
+
+ -- Scott Moser <smoser@ubuntu.com>  Fri, 18 Nov 2016 16:50:06 -0500
+
 cloud-init (0.7.8-47-gb6561a1-0ubuntu1~16.04.1) xenial-proposed; urgency=medium
 
   * debian/cloud-init.templates: enable DigitalOcean by default [Ben Howard]
