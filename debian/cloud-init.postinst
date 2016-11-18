@@ -5,6 +5,11 @@
 set -f # disable pathname expansion
 db_capb escape # to support carriage return / multi-line values
 
+debug() {
+   [ "${_CI_UPGRADE_DEBUG:-0}" = "0" ] && return 0
+   echo "$@" 1>&2 || :
+}
+
 update_cfg() {
    # takes filename, header, new object (in yaml), optionally 'remover'
    # and merges new into existing object in filename, and then updates file
@@ -212,6 +217,66 @@ disable_network_config_on_upgrade() {
     fi
 }
 
+fix_azure_upgrade_1611074() {
+    # adjust /etc/fstab on azure so boot after resize does not mount
+    # /mnt as ntfs and stop re-formatting.
+    local fixed_ver="0.7.8-49-1" dspath="/var/lib/cloud/instance/datasource"
+    local oldver="$1" tmpf="" r="" wmsg="" me="cloud-init postinst"
+
+    # if not on azure, or not booted with instance/ skip out.
+    if [ ! -e "$dspath" ]; then
+        debug "no $dspath"
+        return 0
+    fi
+    if ! grep -qi azure "$dspath"; then
+        debug "not on azure per $dspath"
+        return 0
+    fi
+
+    # if there is no /etc/fstab, then nothing to fix.
+    if [ ! -e /etc/fstab ]; then
+        debug "no /etc/fstab"
+        return 0
+    fi
+
+    if dpkg --compare-versions "$oldver" ge "$fixed_ver"; then
+        debug "previous version was fixed"
+        return 0
+    fi
+
+    wmsg="WARN: $me failed."
+    wmsg="$wmsg Subsequent resize may not update ephemeral correctly."
+    tmpf=$(mktemp "${TMPDIR:-/tmp}/cloud-init-upgrade.XXXXXX") || {
+        echo "$wmsg (mktemp failed with $?)" 1>&2
+        return 0;
+    }
+
+    awk '{
+        if ($4 !~ /x-systemd.requires/ && $4 ~ /comment=cloudconfig/) {
+            sub(/comment=cloudconfig/, "x-systemd.requires=cloud-init.service,comment=cloudconfig")
+        }
+        printf("%s\n", $0)}' /etc/fstab > "$tmpf" || {
+            echo "$wmsg (awk reading of /etc/fstab failed with $?)" 1>&2
+            rm -f "$tmpf"
+            return 0;
+        }
+    if cmp /etc/fstab "$tmpf" >/dev/null 2>&1; then
+        debug "no changes needed."
+    else
+        cat "$tmpf" > /etc/fstab || {
+            r=$?
+            echo "$wmsg (cp $tmpf /etc/fstab failed with $r)"
+            echo ==== expected to write the following to /etc/fstab =====
+            cat "$tmpf"
+            echo ========================================================
+            return $r
+        } 1>&2
+        echo "$me fixed /etc/fstab for x-systemd.requires" 1>&2
+    fi
+    rm "$tmpf" || :
+}
+
+
 if [ "$1" = "configure" ]; then
    # disable ureadahead (LP: #499520)
    dpkg-divert --package cloud-init --rename --divert \
@@ -254,6 +319,8 @@ EOF
 
    # make upgrades disable network changes by cloud-init
    disable_network_config_on_upgrade "$2"
+
+   fix_azure_upgrade_1611074 "$2"
 fi
 
 #DEBHELPER#
