@@ -199,6 +199,8 @@ The ``source`` key supports variable replacements for the following strings:
             deb-src $MIRROR $RELEASE main restricted
             deb $PRIMARY $RELEASE universe restricted
             deb $SECURITY $RELEASE-security multiverse
+        debconf_selections:
+            set1: the-package the-package/some-flag boolean true
         conf: |
             APT {
                 Get {
@@ -216,9 +218,9 @@ The ``source`` key supports variable replacements for the following strings:
                 keyserver: "keyserverurl"
                 source: "deb http://<url>/ xenial main"
             source2:
-                source "ppa:<ppa-name>"
+                source: "ppa:<ppa-name>"
             source3:
-                source "deb $MIRROR $RELEASE multiverse"
+                source: "deb $MIRROR $RELEASE multiverse"
                 key: |
                     ------BEGIN PGP PUBLIC KEY BLOCK-------
                     <key data>
