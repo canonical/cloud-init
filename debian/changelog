@@ -1,4 +1,4 @@
-cloud-init (0.7.8-49-g9e904bb-0ubuntu1~16.10.1) UNRELEASED; urgency=medium
+cloud-init (0.7.8-49-g9e904bb-0ubuntu1~16.10.1) yakkety; urgency=medium
 
   * debian/cloud-init.templates: enable DigitalOcean by default [Ben Howard]
   * debian/cloud-init.postinst: update /etc/fstab on Azure to fix
@@ -52,7 +52,7 @@ cloud-init (0.7.8-49-g9e904bb-0ubuntu1~16.10.1) UNRELEASED; urgency=medium
       + tests: silence the Cheetah UserWarning about NameMapper C version.
       + Fix python2.6 things found running in centos 6.
 
- -- Scott Moser <smoser@ubuntu.com>  Tue, 22 Nov 2016 16:46:11 -0500
+ -- Scott Moser <smoser@ubuntu.com>  Tue, 22 Nov 2016 17:04:36 -0500
 
 cloud-init (0.7.8-15-g6e45ffb-0ubuntu1) yakkety; urgency=medium
 
