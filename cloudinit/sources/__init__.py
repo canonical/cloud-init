@@ -261,6 +261,18 @@ class DataSource(object):
     def first_instance_boot(self):
         return
 
+    def activate(self, cfg, is_new_instance):
+        """activate(cfg, is_new_instance)
+
+        This is called before the init_modules will be called.
+        The cfg is fully up to date config, it contains a merged view of
+           system config, datasource config, user config, vendor config.
+        It should be used rather than the sys_cfg passed to __init__.
+
+        is_new_instance is a boolean indicating if this is a new instance.
+        """
+        return
+
 
 def normalize_pubkey_data(pubkey_data):
     keys = []

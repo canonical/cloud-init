@@ -1,6 +1,5 @@
-================
-Azure Datasource
-================
+Azure
+=====
 
 This datasource finds metadata and user-data from the Azure cloud platform.
 
@@ -44,7 +43,7 @@ following things:
 - generate a x509 certificate and send that to the endpoint
 
 waagent.conf config
-~~~~~~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^^^^^^
 in order to use waagent.conf with cloud-init, the following settings are recommended.  Other values can be changed or set to the defaults.
 
   ::
@@ -71,7 +70,7 @@ That agent command will take affect as if it were specified in system config.
 
 Example:
 
-.. code::
+.. sourcecode:: xml
 
  <wa:ProvisioningSection>
   <wa:Version>1.0</wa:Version>
@@ -111,7 +110,7 @@ hostname is set, and will have the 'interface' in its environment.  If
 An example might be:
   command:  ["sh", "-c", "killall dhclient; dhclient $interface"]
 
-.. code::
+.. code:: yaml
 
   datasource:
    agent_command
@@ -126,7 +125,6 @@ An example might be:
      # the method 'bounce' command.
      command: "builtin"
      hostname_command: "hostname"
-    }
 
 hostname
 --------
@@ -153,3 +151,5 @@ cloud-init handles this by setting the hostname in the DataSource's 'get_data'
 method via '``hostname $HostName``', and then bouncing the interface.  This
 behavior can be configured or disabled in the datasource config.  See
 'Configuration' above.
+
+.. vi: textwidth=78

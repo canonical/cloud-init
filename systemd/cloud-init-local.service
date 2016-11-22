@@ -1,14 +1,14 @@
 [Unit]
 Description=Initial cloud-init job (pre-networking)
 DefaultDependencies=no
-Wants=local-fs.target
 Wants=network-pre.target
-After=local-fs.target
-Before=basic.target
+After=systemd-remount-fs.service
 Before=NetworkManager.service
 Before=network-pre.target
 Before=shutdown.target
+Before=sysinit.target
 Conflicts=shutdown.target
+RequiresMountsFor=/var/lib/cloud
 
 [Service]
 Type=oneshot

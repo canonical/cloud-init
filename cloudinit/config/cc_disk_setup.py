@@ -716,6 +716,8 @@ def exec_mkpart_gpt(device, layout):
         LOG.warn("Failed to partition device %s" % device)
         raise
 
+    read_parttbl(device)
+
 
 def exec_mkpart(table_type, device, layout):
     """

@@ -118,7 +118,7 @@ class TestConversion(TestCase):
     def test_convert_with_apt_mirror(self):
         mirror = 'http://my.mirror/ubuntu'
         f = cc_apt_configure.convert_to_v3_apt_format({'apt_mirror': mirror})
-        self.assertIn(mirror, {m['uri'] for m in f['apt']['primary']})
+        self.assertIn(mirror, set(m['uri'] for m in f['apt']['primary']))
 
     def test_no_old_content(self):
         mirror = 'http://my.mirror/ubuntu'

@@ -199,7 +199,7 @@ def fully_decoded_payload(part):
             encoding = charset.input_codec
         else:
             encoding = 'utf-8'
-        return cte_payload.decode(encoding, errors='surrogateescape')
+        return cte_payload.decode(encoding, 'surrogateescape')
     return cte_payload
 
 
@@ -282,9 +282,6 @@ class ProcessExecutionError(IOError):
             'reason': self.reason,
         }
         IOError.__init__(self, message)
-        # For backward compatibility with Python 2.
-        if not hasattr(self, 'message'):
-            self.message = message
 
 
 class SeLinuxGuard(object):
@@ -1821,7 +1818,7 @@ def subp(args, data=None, rcs=None, env=None, capture=True, shell=False,
             def ldecode(data, m='utf-8'):
                 if not isinstance(data, bytes):
                     return data
-                return data.decode(m, errors=decode)
+                return data.decode(m, decode)
 
             out = ldecode(out)
             err = ldecode(err)
@@ -2033,8 +2030,8 @@ def parse_mount_info(path, mountinfo_lines, log=LOG):
             continue
 
         # Ignore mounts where the common path is not the same.
-        l = min(len(mount_point_elements), len(path_elements))
-        if mount_point_elements[0:l] != path_elements[0:l]:
+        x = min(len(mount_point_elements), len(path_elements))
+        if mount_point_elements[0:x] != path_elements[0:x]:
             continue
 
         # Ignore mount points higher than an already seen mount
@@ -2345,7 +2342,8 @@ def read_dmi_data(key):
     # running dmidecode can be problematic on some arches (LP: #1243287)
     uname_arch = os.uname()[4]
     if not (uname_arch == "x86_64" or
-            (uname_arch.startswith("i") and uname_arch[2:] == "86")):
+            (uname_arch.startswith("i") and uname_arch[2:] == "86") or
+            uname_arch == 'aarch64'):
         LOG.debug("dmidata is not supported on %s", uname_arch)
         return None
 
@@ -2377,3 +2375,15 @@ def get_installed_packages(target=None):
             pkgs_inst.add(re.sub(":.*", "", pkg))
 
     return pkgs_inst
+
+
+def system_is_snappy():
+    # channel.ini is configparser loadable.
+    # snappy will move to using /etc/system-image/config.d/*.ini
+    # this is certainly not a perfect test, but good enough for now.
+    content = load_file("/etc/system-image/channel.ini", quiet=True)
+    if 'ubuntu-core' in content.lower():
+        return True
+    if os.path.isdir("/etc/system-image/config.d/"):
+        return True
+    return False

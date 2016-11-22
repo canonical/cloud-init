@@ -76,12 +76,13 @@ def _klibc_to_config_entry(content, mac_addrs=None):
 
     data = _load_shell_content(content)
     try:
-        name = data['DEVICE']
+        name = data['DEVICE'] if 'DEVICE' in data else data['DEVICE6']
     except KeyError:
-        raise ValueError("no 'DEVICE' entry in data")
+        raise ValueError("no 'DEVICE' or 'DEVICE6' entry in data")
 
     # ipconfig on precise does not write PROTO
-    proto = data.get('PROTO')
+    # IPv6 config gives us IPV6PROTO, not PROTO.
+    proto = data.get('PROTO', data.get('IPV6PROTO'))
     if not proto:
         if data.get('filename'):
             proto = 'dhcp'

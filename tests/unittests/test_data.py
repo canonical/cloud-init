@@ -3,8 +3,6 @@
 import gzip
 import logging
 import os
-import shutil
-import tempfile
 
 try:
     from unittest import mock
@@ -98,10 +96,7 @@ class TestConsumeUserData(helpers.FilesystemMockingTestCase):
 
         ci = stages.Init()
         ci.datasource = FakeDataSource(blob)
-        new_root = tempfile.mkdtemp()
-        self.addCleanup(shutil.rmtree, new_root)
-        self.patchUtils(new_root)
-        self.patchOS(new_root)
+        self.reRoot()
         ci.fetch()
         ci.consume_data()
         cc_contents = util.load_file(ci.paths.get_ipath("cloud_config"))
@@ -127,9 +122,7 @@ class TestConsumeUserData(helpers.FilesystemMockingTestCase):
      { "op": "add", "path": "/foo", "value": "quxC" }
 ]
 '''
-        new_root = tempfile.mkdtemp()
-        self.addCleanup(shutil.rmtree, new_root)
-        self._patchIn(new_root)
+        self.reRoot()
         initer = stages.Init()
         initer.datasource = FakeDataSource(user_blob, vendordata=vendor_blob)
         initer.read_cfg()
@@ -167,9 +160,7 @@ class TestConsumeUserData(helpers.FilesystemMockingTestCase):
      { "op": "add", "path": "/foo", "value": "quxC" }
 ]
 '''
-        new_root = tempfile.mkdtemp()
-        self.addCleanup(shutil.rmtree, new_root)
-        self._patchIn(new_root)
+        self.reRoot()
         initer = stages.Init()
         initer.datasource = FakeDataSource(user_blob, vendordata=vendor_blob)
         initer.read_cfg()
@@ -212,12 +203,9 @@ c: d
         message.attach(message_cc)
         message.attach(message_jp)
 
+        self.reRoot()
         ci = stages.Init()
         ci.datasource = FakeDataSource(str(message))
-        new_root = tempfile.mkdtemp()
-        self.addCleanup(shutil.rmtree, new_root)
-        self.patchUtils(new_root)
-        self.patchOS(new_root)
         ci.fetch()
         ci.consume_data()
         cc_contents = util.load_file(ci.paths.get_ipath("cloud_config"))
@@ -245,9 +233,7 @@ name: user
 run:
  - z
 '''
-        new_root = tempfile.mkdtemp()
-        self.addCleanup(shutil.rmtree, new_root)
-        self._patchIn(new_root)
+        self.reRoot()
         initer = stages.Init()
         initer.datasource = FakeDataSource(user_blob, vendordata=vendor_blob)
         initer.read_cfg()
@@ -281,9 +267,7 @@ vendor_data:
   enabled: True
   prefix: /bin/true
 '''
-        new_root = tempfile.mkdtemp()
-        self.addCleanup(shutil.rmtree, new_root)
-        self._patchIn(new_root)
+        new_root = self.reRoot()
         initer = stages.Init()
         initer.datasource = FakeDataSource(user_blob, vendordata=vendor_blob)
         initer.read_cfg()
@@ -342,10 +326,7 @@ p: 1
         paths = c_helpers.Paths({}, ds=FakeDataSource(''))
         cloud_cfg = handlers.cloud_config.CloudConfigPartHandler(paths)
 
-        new_root = tempfile.mkdtemp()
-        self.addCleanup(shutil.rmtree, new_root)
-        self.patchUtils(new_root)
-        self.patchOS(new_root)
+        self.reRoot()
         cloud_cfg.handle_part(None, handlers.CONTENT_START, None, None, None,
                               None)
         for i, m in enumerate(messages):
@@ -365,6 +346,7 @@ p: 1
 
     def test_unhandled_type_warning(self):
         """Raw text without magic is ignored but shows warning."""
+        self.reRoot()
         ci = stages.Init()
         data = "arbitrary text\n"
         ci.datasource = FakeDataSource(data)
@@ -402,10 +384,7 @@ c: 4
         message.attach(gzip_part(base_content2))
         ci = stages.Init()
         ci.datasource = FakeDataSource(str(message))
-        new_root = tempfile.mkdtemp()
-        self.addCleanup(shutil.rmtree, new_root)
-        self.patchUtils(new_root)
-        self.patchOS(new_root)
+        self.reRoot()
         ci.fetch()
         ci.consume_data()
         contents = util.load_file(ci.paths.get_ipath("cloud_config"))
@@ -418,6 +397,7 @@ c: 4
 
     def test_mime_text_plain(self):
         """Mime message of type text/plain is ignored but shows warning."""
+        self.reRoot()
         ci = stages.Init()
         message = MIMEBase("text", "plain")
         message.set_payload("Just text")
@@ -435,6 +415,7 @@ c: 4
 
     def test_shellscript(self):
         """Raw text starting #!/bin/sh is treated as script."""
+        self.reRoot()
         ci = stages.Init()
         script = "#!/bin/sh\necho hello\n"
         ci.datasource = FakeDataSource(script)
@@ -453,6 +434,7 @@ c: 4
 
     def test_mime_text_x_shellscript(self):
         """Mime message of type text/x-shellscript is treated as script."""
+        self.reRoot()
         ci = stages.Init()
         script = "#!/bin/sh\necho hello\n"
         message = MIMEBase("text", "x-shellscript")
@@ -473,6 +455,7 @@ c: 4
 
     def test_mime_text_plain_shell(self):
         """Mime type text/plain starting #!/bin/sh is treated as script."""
+        self.reRoot()
         ci = stages.Init()
         script = "#!/bin/sh\necho hello\n"
         message = MIMEBase("text", "plain")
@@ -493,6 +476,7 @@ c: 4
 
     def test_mime_application_octet_stream(self):
         """Mime type application/octet-stream is ignored but shows warning."""
+        self.reRoot()
         ci = stages.Init()
         message = MIMEBase("application", "octet-stream")
         message.set_payload(b'\xbf\xe6\xb2\xc3\xd3\xba\x13\xa4\xd8\xa1\xcc')
@@ -516,6 +500,7 @@ c: 4
                 {'content': non_decodable}]
         message = b'#cloud-config-archive\n' + util.yaml_dumps(data).encode()
 
+        self.reRoot()
         ci = stages.Init()
         ci.datasource = FakeDataSource(message)
 

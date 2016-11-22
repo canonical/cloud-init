@@ -1,6 +1,6 @@
-=======
+*******
 Modules
-=======
+*******
 .. automodule:: cloudinit.config.cc_apt_configure
 .. automodule:: cloudinit.config.cc_apt_pipelining
 .. automodule:: cloudinit.config.cc_bootcmd
@@ -55,3 +55,4 @@ Modules
 .. automodule:: cloudinit.config.cc_users_groups
 .. automodule:: cloudinit.config.cc_write_files
 .. automodule:: cloudinit.config.cc_yum_add_repo
+.. vi: textwidth=78

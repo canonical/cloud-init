@@ -1,7 +1,10 @@
+OpenStack
+=========
+
 *TODO*
 
 Vendor Data
-~~~~~~~~~~~
+-----------
 
 The OpenStack metadata server can be configured to serve up vendor data
 which is available to all instances for consumption.  OpenStack vendor
@@ -17,8 +20,9 @@ upgrade packages and install ``htop`` on all instances:
 
 .. sourcecode:: json
 
-    {"cloud-init": "#cloud-config\npackage_upgrade: True\npackages:\n - htop"}
+  {"cloud-init": "#cloud-config\npackage_upgrade: True\npackages:\n - htop"}
 
 For more general information about how cloud-init handles vendor data,
-including how it can be disabled by users on instances, see
-https://bazaar.launchpad.net/~cloud-init-dev/cloud-init/trunk/view/head:/doc/vendordata.txt
+including how it can be disabled by users on instances, see `Vendor Data`_.
+
+.. vi: textwidth=78

@@ -349,7 +349,7 @@ class TestAzureDataSource(TestCase):
         cfg = dsrc.get_config_obj()
 
         self.assertEqual(dsrc.device_name_to_device("ephemeral0"),
-                         "/dev/sdb")
+                         DataSourceAzure.RESOURCE_DISK_PATH)
         assert 'disk_setup' in cfg
         assert 'fs_setup' in cfg
         self.assertIsInstance(cfg['disk_setup'], dict)
@@ -461,14 +461,6 @@ class TestAzureBounce(TestCase):
         self.patches.enter_context(
             mock.patch.object(DataSourceAzure, 'list_possible_azure_ds_devs',
                               mock.MagicMock(return_value=[])))
-        self.patches.enter_context(
-            mock.patch.object(DataSourceAzure,
-                              'find_fabric_formatted_ephemeral_disk',
-                              mock.MagicMock(return_value=None)))
-        self.patches.enter_context(
-            mock.patch.object(DataSourceAzure,
-                              'find_fabric_formatted_ephemeral_part',
-                              mock.MagicMock(return_value=None)))
         self.patches.enter_context(
             mock.patch.object(DataSourceAzure, 'get_metadata_from_fabric',
                               mock.MagicMock(return_value={})))

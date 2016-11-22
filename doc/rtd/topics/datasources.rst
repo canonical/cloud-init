@@ -1,20 +1,21 @@
 .. _datasources:
 
-===========
+***********
 Datasources
-===========
-----------------------
- What is a datasource?
-----------------------
+***********
 
-Datasources are sources of configuration data for cloud-init that typically come
-from the user (aka userdata) or come from the stack that created the configuration
-drive (aka metadata). Typical userdata would include files, yaml, and shell scripts
-while typical metadata would include server name, instance id, display name and other
-cloud specific details. Since there are multiple ways to provide this data (each cloud
-solution seems to prefer its own way) internally a datasource abstract class was
-created to allow for a single way to access the different cloud systems methods 
-to provide this data through the typical usage of subclasses.
+What is a datasource?
+=====================
+
+Datasources are sources of configuration data for cloud-init that typically
+come from the user (aka userdata) or come from the stack that created the
+configuration drive (aka metadata). Typical userdata would include files,
+yaml, and shell scripts while typical metadata would include server name,
+instance id, display name and other cloud specific details. Since there are
+multiple ways to provide this data (each cloud solution seems to prefer its
+own way) internally a datasource abstract class was created to allow for a
+single way to access the different cloud systems methods to provide this data
+through the typical usage of subclasses.
 
 The current interface that a datasource object must provide is the following:
 
@@ -70,131 +71,28 @@ The current interface that a datasource object must provide is the following:
     
     def get_package_mirror_info(self)
 
----
-EC2
----
 
-The EC2 datasource is the oldest and most widely used datasource that cloud-init
-supports. This datasource interacts with a *magic* ip that is provided to the 
-instance by the cloud provider. Typically this ip is ``169.254.169.254`` of which
-at this ip a http server is provided to the instance so that the instance can make
-calls to get instance userdata and instance metadata.
+Datasource Documentation
+========================
+The following is a list of the implemented datasources.
+Follow for more information.
 
-Metadata is accessible via the following URL:
+.. toctree::
+   :maxdepth: 2
 
-::
-    
-    GET http://169.254.169.254/2009-04-04/meta-data/
-    ami-id
-    ami-launch-index
-    ami-manifest-path
-    block-device-mapping/
-    hostname
-    instance-id
-    instance-type
-    local-hostname
-    local-ipv4
-    placement/
-    public-hostname
-    public-ipv4
-    public-keys/
-    reservation-id
-    security-groups
+   datasources/altcloud.rst
+   datasources/azure.rst
+   datasources/cloudsigma.rst
+   datasources/cloudstack.rst
+   datasources/configdrive.rst
+   datasources/digitalocean.rst
+   datasources/ec2.rst
+   datasources/maas.rst
+   datasources/nocloud.rst
+   datasources/opennebula.rst
+   datasources/openstack.rst
+   datasources/ovf.rst
+   datasources/smartos.rst
+   datasources/fallback.rst
 
-Userdata is accessible via the following URL:
-
-::
-    
-    GET http://169.254.169.254/2009-04-04/user-data
-    1234,fred,reboot,true | 4512,jimbo, | 173,,,
-
-Note that there are multiple versions of this data provided, cloud-init
-by default uses **2009-04-04** but newer versions can be supported with
-relative ease (newer versions have more data exposed, while maintaining
-backward compatibility with the previous versions). 
-
-To see which versions are supported from your cloud provider use the following URL:
-
-::
-    
-    GET http://169.254.169.254/
-    1.0
-    2007-01-19
-    2007-03-01
-    2007-08-29
-    2007-10-10
-    2007-12-15
-    2008-02-01
-    2008-09-01
-    2009-04-04
-    ...
-    latest
-        
-------------
-Config Drive
-------------
-
-.. include:: ../../sources/configdrive/README.rst
-
-----------
-OpenNebula
-----------
-
-.. include:: ../../sources/opennebula/README.rst
-
----------
-Alt cloud
----------
-
-.. include:: ../../sources/altcloud/README.rst
-
---------
-No cloud
---------
-
-.. include:: ../../sources/nocloud/README.rst
-
-----
-MAAS
-----
-
-*TODO*
-
-For now see: http://maas.ubuntu.com/
-
-----------
-CloudStack
-----------
-
-.. include:: ../../sources/cloudstack/README.rst
-
----
-OVF
----
-
-*TODO*
-
-For now see: https://bazaar.launchpad.net/~cloud-init-dev/cloud-init/trunk/files/head:/doc/sources/ovf/
-
----------
-OpenStack
----------
-
-.. include:: ../../sources/openstack/README.rst
-
--------------
-Fallback/None
--------------
-
-This is the fallback datasource when no other datasource can be selected. It is
-the equivalent of a *empty* datasource in that it provides a empty string as userdata
-and a empty dictionary as metadata. It is useful for testing as well as for when
-you do not have a need to have an actual datasource to meet your instance 
-requirements (ie you just want to run modules that are not concerned with any
-external data). It is typically put at the end of the datasource search list
-so that if all other datasources are not matched, then this one will be so that
-the user is not left with an inaccessible instance.
-
-**Note:** the instance id that this datasource provides is ``iid-datasource-none``.
-
-.. _boto: http://docs.pythonboto.org/en/latest/
+.. vi: textwidth=78

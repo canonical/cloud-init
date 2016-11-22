@@ -1,72 +1,100 @@
-=====================
+*********************
 Hacking on cloud-init
-=====================
+*********************
 
 This document describes how to contribute changes to cloud-init.
+It assumes you have a `Launchpad`_ account, and refers to your launchpad user
+as ``LP_USER`` throughout.
 
 Do these things once
---------------------
+====================
 
-* If you have not already, be sure to sign the CCA:
+* To contribute, you must sign the Canonical `contributor license agreement`_
 
-  - `Canonical Contributor Agreement`_
+  If you have already signed it as an individual, your Launchpad user will be listed in the `contributor-agreement-canonical`_ group.  Unfortunately there is no easy way to check if an organization or company you are doing work for has signed.  If you are unsure or have questions, email `Scott Moser <mailto:scott.moser@canonical.com>`_ or ping smoser in ``#cloud-init`` channel via freenode.
 
-* Clone the `LaunchPad`_ repository:
+* Clone the upstream `repository`_ on Launchpad::
 
-    git clone YOUR_USERNAME@git.launchpad.net:cloud-init
+    git clone https://git.launchpad.net/cloud-init
     cd cloud-init
 
-  If you would prefer a bzr style `git clone lp:cloud-init`, see
-  the `Instructions on LaunchPad`_ for more information.
+  There is more information on Launchpad as a git hosting site in
+  `Launchpad git documentation`_.
 
-* Create a new remote pointing to your personal LaunchPad
-  repository::
+* Create a new remote pointing to your personal Launchpad repository.
+  This is equivalent to 'fork' on github.
 
-    git remote add YOUR_USERNAME YOUR_USERNAME@git.launchpad.net:~YOUR_USERNAME/cloud-init
+  .. code:: sh
 
-.. _Canonical Contributor Agreement: http://www.canonical.com/contributors
+    git remote add LP_USER ssh://LP_USER@git.launchpad.net/~LP_USER/cloud-init
+    git push LP_USER master
+
+.. _repository: https://git.launchpad.net/cloud-init
+.. _contributor license agreement: http://www.canonical.com/contributors
+.. _contributor-agreement-canonical: https://launchpad.net/%7Econtributor-agreement-canonical/+members
+.. _Launchpad git documentation: https://help.launchpad.net/Code/Git
 
 Do these things for each feature or bug
----------------------------------------
+=======================================
 
 * Create a new topic branch for your work::
 
     git checkout -b my-topic-branch
-
-.. _Instructions on launchpad: https://help.launchpad.net/Code/Git
 
 * Make and commit your changes (note, you can make multiple commits,
   fixes, more commits.)::
 
     git commit
 
-* Check pep8 and test, and address any issues::
+* Run unit tests and lint/formatting checks with `tox`_::
 
-    make test pep8
+    tox
 
-* Push your changes to your personal LaunchPad repository::
+* Push your changes to your personal Launchpad repository::
 
-    git push -u YOUR_USERNAME my-topic-branch
+    git push -u LP_USER my-topic-branch
 
 * Use your browser to create a merge request:
 
-  - Open the branch on `LaunchPad`_
+  - Open the branch on Launchpad.
 
-    - It will typically be at
-      ``https://code.launchpad.net/~YOUR_USERNAME/cloud-init/+git/cloud-init/+ref/BRANCHNAME``
-      for example
-      https://code.launchpad.net/~larsks/cloud-init/+git/cloud-init/+ref/feature/move-to-git
+    - You can see a web view of your repository and navigate to the branch at:
 
-  - Click 'Propose for merging`
-  - Select ``cloud-init`` as the target repository
-  - Select ``master`` as the target reference path
+      ``https://code.launchpad.net/~LP_USER/cloud-init/``
 
-Then, someone on cloud-init-dev (currently `Scott Moser`_ and `Joshua
-Harlow`_) will review your changes and follow up in the merge request.
+    - It will typically be at:
 
-Feel free to ping and/or join ``#cloud-init`` on freenode (irc) if you
+      ``https://code.launchpad.net/~LP_USER/cloud-init/+git/cloud-init/+ref/BRANCHNAME``
+
+      for example, here is larsks move-to-git branch: https://code.launchpad.net/~larsks/cloud-init/+git/cloud-init/+ref/feature/move-to-git
+
+  - Click 'Propose for merging'
+  - Select 'lp:cloud-init' as the target repository
+  - Type '``master``' as the Target reference path
+  - Click 'Propose Merge'
+  - On the next page, hit 'Set commit message' and type a git combined git style commit message like::
+
+      Activate the frobnicator.
+
+      The frobnicator was previously inactive and now runs by default.
+      This may save the world some day.  Then, list the bugs you fixed
+      as footers with syntax as shown here.
+
+      The commit message should be one summary line of less than
+      74 characters followed by a blank line, and then one or more
+      paragraphs describing the change and why it was needed.
+
+      This is the message that will be used on the commit when it
+      is sqaushed and merged into trunk.
+
+      LP: #1
+
+Then, someone in the `cloud-init-dev`_ group will review your changes and
+follow up in the merge request.
+
+Feel free to ping and/or join ``#cloud-init`` on freenode irc if you
 have any questions.
 
+.. _tox: https://tox.readthedocs.io/en/latest/
 .. _Launchpad: https://launchpad.net
-.. _Scott Moser: https://launchpad.net/~smoser
-.. _Joshua Harlow: https://launchpad.net/~harlowja
+.. _cloud-init-dev: https://launchpad.net/~cloud-init-dev/+members#active

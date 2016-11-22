@@ -386,7 +386,7 @@ class TestReadDMIData(helpers.FilesystemMockingTestCase):
         dmi_name = 'use-dmidecode'
         self._configure_dmidecode_return(dmi_name, dmi_val)
 
-        expected = {'armel': None, 'aarch64': None, 'x86_64': dmi_val}
+        expected = {'armel': None, 'aarch64': dmi_val, 'x86_64': dmi_val}
         found = {}
         # we do not run the 'dmi-decode' binary on some arches
         # verify that anything requested that is not in the sysfs dir
@@ -553,7 +553,7 @@ class TestSubp(helpers.TestCase):
     def test_subp_decode_invalid_utf8_replaces(self):
         (out, _err) = util.subp(self.stdin2out, capture=True,
                                 data=self.utf8_invalid)
-        expected = self.utf8_invalid.decode('utf-8', errors='replace')
+        expected = self.utf8_invalid.decode('utf-8', 'replace')
         self.assertEqual(out, expected)
 
     def test_subp_decode_strict_raises(self):

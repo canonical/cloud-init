@@ -42,11 +42,7 @@ either ``lp:`` for launchpad or ``gh:`` for github to the username.
         - lp:user
 """
 
-# Ensure this is aliased to a name not 'distros'
-# since the module attribute 'distros'
-# is a list of distros that are supported, not a sub-module
-from cloudinit import distros as ds
-
+from cloudinit.distros import ug_util
 from cloudinit import util
 import pwd
 
@@ -67,7 +63,7 @@ def handle(_name, cfg, cloud, log, args):
         return
 
     # import for cloudinit created users
-    (users, _groups) = ds.normalize_users_groups(cfg, cloud.distro)
+    (users, _groups) = ug_util.normalize_users_groups(cfg, cloud.distro)
     elist = []
     for (user, user_cfg) in users.items():
         import_ids = []

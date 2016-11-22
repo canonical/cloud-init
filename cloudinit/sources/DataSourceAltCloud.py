@@ -195,8 +195,7 @@ class DataSourceAltCloud(sources.DataSource):
             (cmd_out, _err) = util.subp(cmd)
             LOG.debug(('Command: %s\nOutput%s') % (' '.join(cmd), cmd_out))
         except ProcessExecutionError as _err:
-            util.logexc(LOG, 'Failed command: %s\n%s', ' '.join(cmd),
-                        _err.message)
+            util.logexc(LOG, 'Failed command: %s\n%s', ' '.join(cmd), _err)
             return False
         except OSError as _err:
             util.logexc(LOG, 'Failed command: %s\n%s', ' '.join(cmd), _err)
@@ -211,8 +210,7 @@ class DataSourceAltCloud(sources.DataSource):
             (cmd_out, _err) = util.subp(cmd)
             LOG.debug(('Command: %s\nOutput%s') % (' '.join(cmd), cmd_out))
         except ProcessExecutionError as _err:
-            util.logexc(LOG, 'Failed command: %s\n%s', ' '.join(cmd),
-                        _err.message)
+            util.logexc(LOG, 'Failed command: %s\n%s', ' '.join(cmd), _err)
             return False
         except OSError as _err:
             util.logexc(LOG, 'Failed command: %s\n%s', ' '.join(cmd),
@@ -271,6 +269,7 @@ class DataSourceAltCloud(sources.DataSource):
             return True
         else:
             return False
+
 
 # Used to match classes to dependencies
 # Source DataSourceAltCloud does not really depend on networking.

@@ -312,7 +312,8 @@ def handle_swapcfg(swapcfg):
 def handle(_name, cfg, cloud, log, _args):
     # fs_spec, fs_file, fs_vfstype, fs_mntops, fs-freq, fs_passno
     def_mnt_opts = "defaults,nobootwait"
-    if cloud.distro.uses_systemd():
+    uses_systemd = cloud.distro.uses_systemd()
+    if uses_systemd:
         def_mnt_opts = "defaults,nofail,x-systemd.requires=cloud-init.service"
 
     defvals = [None, None, "auto", def_mnt_opts, "0", "2"]
@@ -447,7 +448,12 @@ def handle(_name, cfg, cloud, log, _args):
         except Exception:
             util.logexc(log, "Failed to make '%s' config-mount", d)
 
+    activate_cmd = ["mount", "-a"]
+    if uses_systemd:
+        activate_cmd = ["systemctl", "daemon-reload"]
+    fmt = "Activate mounts: %s:" + ' '.join(activate_cmd)
     try:
-        util.subp(("mount", "-a"))
+        util.subp(activate_cmd)
+        LOG.debug(fmt, "PASS")
     except util.ProcessExecutionError:
-        util.logexc(log, "Activating mounts via 'mount -a' failed")
+        util.logexc(log, fmt, "FAIL")

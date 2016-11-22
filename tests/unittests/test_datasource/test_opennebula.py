@@ -1,7 +1,7 @@
 from cloudinit import helpers
 from cloudinit.sources import DataSourceOpenNebula as ds
 from cloudinit import util
-from ..helpers import TestCase, populate_dir
+from ..helpers import mock, populate_dir, TestCase
 
 import os
 import pwd
@@ -31,12 +31,7 @@ SSH_KEY = 'ssh-rsa AAAAB3NzaC1....sIkJhq8wdX+4I3A4cYbYP ubuntu@server-460-%i'
 HOSTNAME = 'foo.example.com'
 PUBLIC_IP = '10.0.0.3'
 
-CMD_IP_OUT = '''\
-1: lo: <LOOPBACK,UP,LOWER_UP> mtu 16436 qdisc noqueue state UNKNOWN
-    link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00
-2: eth0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc mq state UP qlen 1000
-    link/ether 02:00:0a:12:01:01 brd ff:ff:ff:ff:ff:ff
-'''
+DS_PATH = "cloudinit.sources.DataSourceOpenNebula"
 
 
 class TestOpenNebulaDataSource(TestCase):
@@ -233,18 +228,19 @@ class TestOpenNebulaDataSource(TestCase):
 
 class TestOpenNebulaNetwork(unittest.TestCase):
 
-    def setUp(self):
-        super(TestOpenNebulaNetwork, self).setUp()
+    system_nics = {'02:00:0a:12:01:01': 'eth0'}
 
     def test_lo(self):
-        net = ds.OpenNebulaNetwork('', {})
+        net = ds.OpenNebulaNetwork(context={}, system_nics_by_mac={})
         self.assertEqual(net.gen_conf(), u'''\
 auto lo
 iface lo inet loopback
 ''')
 
-    def test_eth0(self):
-        net = ds.OpenNebulaNetwork(CMD_IP_OUT, {})
+    @mock.patch(DS_PATH + ".get_physical_nics_by_mac")
+    def test_eth0(self, m_get_phys_by_mac):
+        m_get_phys_by_mac.return_value = self.system_nics
+        net = ds.OpenNebulaNetwork({})
         self.assertEqual(net.gen_conf(), u'''\
 auto lo
 iface lo inet loopback
@@ -267,7 +263,8 @@ iface eth0 inet static
             'ETH0_DNS': '1.2.3.6 1.2.3.7'
         }
 
-        net = ds.OpenNebulaNetwork(CMD_IP_OUT, context)
+        net = ds.OpenNebulaNetwork(context,
+                                   system_nics_by_mac=self.system_nics)
         self.assertEqual(net.gen_conf(), u'''\
 auto lo
 iface lo inet loopback
