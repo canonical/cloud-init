@@ -1,5 +1,7 @@
 cloud-init (0.7.8-49-g9e904bb-0ubuntu1~16.10.1) UNRELEASED; urgency=medium
 
+  * debian/cloud-init.postinst: update /etc/fstab on Azure to fix
+    future resize operations. (LP: #1611074)
   * New upstream snapshot.
     - systemd/cloud-init-local.service:
       + replace 'Wants' and 'After' on local-fs.target with more granular
