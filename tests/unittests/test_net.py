@@ -1,3 +1,5 @@
+# This file is part of cloud-init. See LICENSE file for license information.
+
 from cloudinit import net
 from cloudinit.net import cmdline
 from cloudinit.net import eni
@@ -822,3 +824,5 @@ def _gzip_data(data):
         gzfp.write(data)
         gzfp.close()
         return iobuf.getvalue()
+
+# vi: ts=4 expandtab

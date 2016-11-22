@@ -1,19 +1,8 @@
+# Copyright (C) 2014 Vaidas Jablonskis
 #
-#    Copyright (C) 2014 Vaidas Jablonskis
+# Author: Vaidas Jablonskis <jablonskis@gmail.com>
 #
-#    Author: Vaidas Jablonskis <jablonskis@gmail.com>
-#
-#    This program is free software: you can redistribute it and/or modify
-#    it under the terms of the GNU General Public License version 3, as
-#    published by the Free Software Foundation.
-#
-#    This program is distributed in the hope that it will be useful,
-#    but WITHOUT ANY WARRANTY; without even the implied warranty of
-#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#    GNU General Public License for more details.
-#
-#    You should have received a copy of the GNU General Public License
-#    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+# This file is part of cloud-init. See LICENSE file for license information.
 
 import re
 
@@ -164,3 +153,5 @@ class TestDataSourceGCE(test_helpers.HttprettyTestCase):
         _set_mock_metadata()
         self.ds.get_data()
         self.assertEqual('bar', self.ds.availability_zone)
+
+# vi: ts=4 expandtab

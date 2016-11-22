@@ -11,7 +11,7 @@ Release:        1${subrelease}%{?dist}
 Summary:        Cloud instance init scripts
 
 Group:          System Environment/Base
-License:        GPLv3
+License:        Dual-licesed GPLv3 or Apache 2.0
 URL:            http://launchpad.net/cloud-init
 
 Source0:        ${archive_name}

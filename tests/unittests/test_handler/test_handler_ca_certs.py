@@ -1,3 +1,5 @@
+# This file is part of cloud-init. See LICENSE file for license information.
+
 from cloudinit import cloud
 from cloudinit.config import cc_ca_certs
 from cloudinit import helpers
@@ -269,3 +271,5 @@ class TestRemoveDefaultCaCerts(TestCase):
             mock_subp.assert_called_once_with(
                 ('debconf-set-selections', '-'),
                 "ca-certificates ca-certificates/trust_new_crts select no")
+
+# vi: ts=4 expandtab

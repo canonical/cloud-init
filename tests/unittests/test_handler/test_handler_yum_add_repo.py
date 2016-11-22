@@ -1,3 +1,5 @@
+# This file is part of cloud-init. See LICENSE file for license information.
+
 from cloudinit.config import cc_yum_add_repo
 from cloudinit import util
 
@@ -66,3 +68,5 @@ class TestConfig(helpers.FilesystemMockingTestCase):
             }
         }
         self.assertEqual(expected, dict(contents))
+
+# vi: ts=4 expandtab

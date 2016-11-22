@@ -1,3 +1,5 @@
+# This file is part of cloud-init. See LICENSE file for license information.
+
 from __future__ import print_function
 
 import functools
@@ -346,3 +348,5 @@ except AttributeError:
                     print(reason, file=sys.stderr)
             return wrapper
         return decorator
+
+# vi: ts=4 expandtab

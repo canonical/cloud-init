@@ -1,3 +1,5 @@
+# This file is part of cloud-init. See LICENSE file for license information.
+
 from cloudinit.config import cc_set_hostname
 
 from cloudinit import cloud
@@ -70,3 +72,5 @@ class TestHostname(t_help.FilesystemMockingTestCase):
         cc_set_hostname.handle('cc_set_hostname', cfg, cc, LOG, [])
         contents = util.load_file("/etc/HOSTNAME")
         self.assertEqual('blah', contents.strip())
+
+# vi: ts=4 expandtab

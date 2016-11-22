@@ -1,7 +1,7 @@
-# Copyright 2015 Canonical Ltd.
-# This file is part of cloud-init.  See LICENCE file for license information.
+# Copyright (C) 2015 Canonical Ltd.
 #
-# vi: ts=4 expandtab
+# This file is part of cloud-init. See LICENSE file for license information.
+
 import copy
 
 
@@ -35,3 +35,5 @@ class DictRegistry(object):
         This cannot be used to modify the contents of the registry.
         """
         return copy.copy(self._items)
+
+# vi: ts=4 expandtab

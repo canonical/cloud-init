@@ -1,3 +1,5 @@
+# This file is part of cloud-init. See LICENSE file for license information.
+
 from __future__ import print_function
 
 from . import helpers as test_helpers
@@ -61,3 +63,5 @@ class CepkoResultTests(test_helpers.TestCase):
         self.assertEqual('much server', result[0])
         self.assertTrue('very performance' in result)
         self.assertEqual(2, len(result))
+
+# vi: ts=4 expandtab

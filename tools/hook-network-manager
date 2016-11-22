@@ -1,4 +1,6 @@
 #!/bin/sh
+# This file is part of cloud-init. See LICENSE file for license information.
+
 # This script hooks into NetworkManager(8) via its scripts
 # arguments are 'interface-name' and 'action'
 #

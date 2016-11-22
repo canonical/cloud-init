@@ -1,3 +1,5 @@
+# This file is part of cloud-init. See LICENSE file for license information.
+
 import os
 import shutil
 import tempfile
@@ -79,3 +81,5 @@ class TestSimpleRun(helpers.FilesystemMockingTestCase):
         self.assertIn('write-files', which_ran)
         contents = util.load_file('/etc/blah.ini')
         self.assertEqual(contents, 'blah')
+
+# vi: ts=4 expandtab

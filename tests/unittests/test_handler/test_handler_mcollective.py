@@ -1,3 +1,5 @@
+# This file is part of cloud-init. See LICENSE file for license information.
+
 from cloudinit import (cloud, distros, helpers, util)
 from cloudinit.config import cc_mcollective
 from cloudinit.sources import DataSourceNoCloud
@@ -148,3 +150,5 @@ class TestHandler(t_help.TestCase):
         self.assertTrue(mock_util.subp.called)
         self.assertEqual(mock_util.subp.call_args_list[0][0][0],
                          ['service', 'mcollective', 'restart'])
+
+# vi: ts=4 expandtab

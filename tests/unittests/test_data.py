@@ -1,3 +1,5 @@
+# This file is part of cloud-init. See LICENSE file for license information.
+
 """Tests for handling of userdata within cloud init."""
 
 import gzip
@@ -610,3 +612,5 @@ class TestFetchBaseConfig(helpers.TestCase):
             stages.fetch_base_config)
         self.assertEqual(ret, {'key1': 'value1', 'key2': 'other2',
                                'key3': 'other3'})
+
+# vi: ts=4 expandtab

@@ -1,3 +1,5 @@
+# This file is part of cloud-init. See LICENSE file for license information.
+
 from cloudinit.registry import DictRegistry
 
 from .helpers import (mock, TestCase)
@@ -26,3 +28,5 @@ class TestDictRegistry(TestCase):
         registry.register_item(item_key, mock.Mock())
         self.assertRaises(ValueError,
                           registry.register_item, item_key, mock.Mock())
+
+# vi: ts=4 expandtab

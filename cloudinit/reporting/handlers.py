@@ -1,4 +1,4 @@
-# vi: ts=4 expandtab
+# This file is part of cloud-init. See LICENSE file for license information.
 
 import abc
 import json
@@ -89,3 +89,5 @@ available_handlers = DictRegistry()
 available_handlers.register_item('log', LogHandler)
 available_handlers.register_item('print', PrintHandler)
 available_handlers.register_item('webhook', WebHookHandler)
+
+# vi: ts=4 expandtab

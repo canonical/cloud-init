@@ -1,5 +1,4 @@
-#!/usr/bin/python
-# vi: ts=4 expandtab
+# This file is part of cloud-init. See LICENSE file for license information.
 
 import os
 
@@ -48,3 +47,5 @@ class LogDhclient(object):
             return
         atomic_helper.write_json(self.hook_file, self.get_vals(envs))
         LOG.debug("Wrote dhclient options in %s", self.hook_file)
+
+# vi: ts=4 expandtab
