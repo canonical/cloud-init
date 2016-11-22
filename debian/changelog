@@ -1,3 +1,56 @@
+cloud-init (0.7.8-49-g9e904bb-0ubuntu1~16.10.1) UNRELEASED; urgency=medium
+
+  * New upstream snapshot.
+    - systemd/cloud-init-local.service:
+      + replace 'Wants' and 'After' on local-fs.target with more granular
+        After=systemd-remount-fs.service and RequiresMountsFor=/var/lib
+        and Before=sysinit.target.
+        This is done run sufficiently early enough to update /etc/fstab.
+        (LP: #1611074)
+    - systemd/cloud-init.service:
+      + add Before=sysinit.target and DefaultDependencies=no (LP: #1611074)
+      + drop Requires=networking.service to work where networking.service is
+        not needed.
+      + add Conflicts=shutdown.target
+      + drop unnecessary Wants=local-fs.target
+    - net: support reading ipv6 dhcp config from initramfs [LaMont Jones]
+      (LP: #1621615)
+    - dmidecode: Allow dmidecode to be used on aarch64, and only attempt
+      usage on x86, x86_64, and aarch64. [Robert Schweikert]
+    - disk-config: udev settle after partitioning in gpt format.
+      (LP: #1626243)
+    - Add support for snap create-user on Ubuntu Core images. [Ryan Harper]
+      (LP: #1619393)
+    - Fix sshd restarts for rhel distros. [Jim Gorz]
+    - Move user/group functions to new ug_util file [Joshua Harlow]
+    - update Gentoo initscripts to run in the correct order [Matthew Thode]
+    - MAAS: improve the debugging tool in datasource to consider
+      config provided on kernel cmdline.
+    - DataSources:
+      + Ec2: protect against non-dictionary in block-device-mapping.
+      + AliYun: Add new datasource for Ali-Cloud ECS, that is
+        available but not enabled by default [kaihuan.pkh]
+      + OpenNebula: replace parsing of 'ip' command with similar function
+        available in cloudinit.net.  This fixed unit tests when running
+        in environment with no networking.
+    - doc changes:
+      + Add documentation on stages of boot.
+      + make the RST files consistently formated and other improvements.
+      + fixed example to not overwrite /etc/hosts [Chris Glass]
+      + fix spelling / typos in ca_certs and scripts_vendor.
+      + improve HACKING.rst file
+      + Add documentation for logging features. [Wesley Wiedenmeier]
+    - code style and unit test changes:
+      + pep8: fix style errors reported by pycodestyle 2.1.0
+      + pyflakes: fix issue with pyflakes 1.3 found in ubuntu zesty-proposed.
+      + Add coverage dependency to bddeb to fix package build.
+      + Add coverage collection to tox unit tests. [Joshua Powers]
+      + do not read system /etc/cloud/cloud.cfg.d (LP: #1635350)
+      + tests: silence the Cheetah UserWarning about NameMapper C version.
+      + Fix python2.6 things found running in centos 6.
+
+ -- Scott Moser <smoser@ubuntu.com>  Tue, 22 Nov 2016 16:46:11 -0500
+
 cloud-init (0.7.8-15-g6e45ffb-0ubuntu2) UNRELEASED; urgency=medium
 
   * debian/cloud-init.templates: enable DigitalOcean by default [Ben Howard]
