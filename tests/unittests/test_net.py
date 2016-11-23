@@ -662,25 +662,34 @@ class TestCmdlineConfigParsing(TestCase):
 
 
 class TestCmdlineReadKernelConfig(TempDirTestCase):
+    macs = {
+        'eth0': '14:02:ec:42:48:00',
+        'eno1': '14:02:ec:42:48:01',
+    }
+
     def test_ip_cmdline_read_kernel_cmdline_ip(self):
         content = {'net-eth0.conf': DHCP_CONTENT_1}
         populate_dir(self.tmp, content)
         files = [os.path.join(self.tmp, k) for k in content.keys()]
         found = cmdline.read_kernel_cmdline_config(
-            files=files, cmdline='foo ip=dhcp')
+            files=files, cmdline='foo ip=dhcp', mac_addrs=self.macs)
+        exp1 = copy.deepcopy(DHCP_EXPECTED_1)
+        exp1['mac_address'] = self.macs['eth0']
         self.assertEqual(found['version'], 1)
-        self.assertEqual(found['config'], [DHCP_EXPECTED_1])
+        self.assertEqual(found['config'], [exp1])
 
     def test_ip_cmdline_read_kernel_cmdline_ip6(self):
         content = {'net6-eno1.conf': DHCP6_CONTENT_1}
         populate_dir(self.tmp, content)
         files = [os.path.join(self.tmp, k) for k in content.keys()]
         found = cmdline.read_kernel_cmdline_config(
-            files=files, cmdline='foo ip6=dhcp root=/dev/sda')
+            files=files, cmdline='foo ip6=dhcp root=/dev/sda',
+            mac_addrs=self.macs)
         self.assertEqual(
             found,
             {'version': 1, 'config': [
              {'type': 'physical', 'name': 'eno1',
+              'mac_address': self.macs['eno1'],
               'subnets': [
                   {'dns_nameservers': ['2001:67c:1562:8010::2:1'],
                    'control': 'manual', 'type': 'dhcp6', 'netmask': '64'}]}]})
@@ -691,7 +700,7 @@ class TestCmdlineReadKernelConfig(TempDirTestCase):
         populate_dir(self.tmp, content)
         files = [os.path.join(self.tmp, k) for k in content.keys()]
         found = cmdline.read_kernel_cmdline_config(
-            files=files, cmdline='foo root=/dev/sda')
+            files=files, cmdline='foo root=/dev/sda', mac_addrs=self.macs)
         self.assertEqual(found, None)
 
     def test_ip_cmdline_both_ip_ip6(self):
@@ -700,9 +709,10 @@ class TestCmdlineReadKernelConfig(TempDirTestCase):
         populate_dir(self.tmp, content)
         files = [os.path.join(self.tmp, k) for k in sorted(content.keys())]
         found = cmdline.read_kernel_cmdline_config(
-            files=files, cmdline='foo ip=dhcp ip6=dhcp')
+            files=files, cmdline='foo ip=dhcp ip6=dhcp', mac_addrs=self.macs)
 
         eth0 = copy.deepcopy(DHCP_EXPECTED_1)
+        eth0['mac_address'] = self.macs['eth0']
         eth0['subnets'].append(
             {'control': 'manual', 'type': 'dhcp6',
              'netmask': '64', 'dns_nameservers': ['2001:67c:1562:8010::2:1']})
