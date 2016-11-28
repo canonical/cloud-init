@@ -61,6 +61,19 @@ OS_VERSIONS = (
     OS_LIBERTY,
 )
 
+PHYSICAL_TYPES = (
+    None,
+    'bridge',
+    'ethernet',
+    'hw_veb',
+    'hyperv',
+    'ovs',
+    'phy',
+    'tap',
+    'vhostuser',
+    'vif',
+)
+
 
 class NonReadable(IOError):
     pass
@@ -583,8 +596,7 @@ def convert_net_json(network_json=None, known_macs=None):
                 subnet['ipv6'] = True
             subnets.append(subnet)
         cfg.update({'subnets': subnets})
-        if link['type'] in [None, 'ethernet', 'vif', 'ovs', 'phy',
-                            'bridge', 'tap']:
+        if link['type'] in PHYSICAL_TYPES:
             cfg.update({'type': 'physical', 'mac_address': link_mac_addr})
         elif link['type'] in ['bond']:
             params = {}

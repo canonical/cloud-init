@@ -21,7 +21,7 @@ boot goals.  By default, this generator will enable cloud-init.  It will
 not enable cloud-init if either:
 
  * A file exists: ``/etc/cloud/cloud-init.disabled``
- * The kernel command line as fond in /proc/cmdline contains ``cloud-init=disabled``.
+ * The kernel command line as found in /proc/cmdline contains ``cloud-init=disabled``.
    When running in a container, the kernel command line is not honored, but
    cloud-init will read an environment variable named ``KERNEL_CMDLINE`` in
    its place.
@@ -56,7 +56,7 @@ is rendered.  This includes clearing of all previous (stale) configuration
 including persistent device naming with old mac addresses.
 
 This stage must block network bring-up or any stale configuration might
-already have been applied.  That could have negative effects such as DCHP
+already have been applied.  That could have negative effects such as DHCP
 hooks or broadcast of an old hostname.  It would also put the system in
 an odd state to recover from as it may then have to restart network
 devices.

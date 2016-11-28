@@ -235,15 +235,16 @@ class ProcessExecutionError(IOError):
                     'Command: %(cmd)s\n'
                     'Exit code: %(exit_code)s\n'
                     'Reason: %(reason)s\n'
-                    'Stdout: %(stdout)r\n'
-                    'Stderr: %(stderr)r')
+                    'Stdout: %(stdout)s\n'
+                    'Stderr: %(stderr)s')
+    empty_attr = '-'
 
     def __init__(self, stdout=None, stderr=None,
                  exit_code=None, cmd=None,
                  description=None, reason=None,
                  errno=None):
         if not cmd:
-            self.cmd = '-'
+            self.cmd = self.empty_attr
         else:
             self.cmd = cmd
 
@@ -253,35 +254,55 @@ class ProcessExecutionError(IOError):
             self.description = description
 
         if not isinstance(exit_code, six.integer_types):
-            self.exit_code = '-'
+            self.exit_code = self.empty_attr
         else:
             self.exit_code = exit_code
 
         if not stderr:
-            self.stderr = ''
+            self.stderr = self.empty_attr
         else:
-            self.stderr = stderr
+            self.stderr = self._indent_text(stderr)
 
         if not stdout:
-            self.stdout = ''
+            self.stdout = self.empty_attr
         else:
-            self.stdout = stdout
+            self.stdout = self._indent_text(stdout)
 
         if reason:
             self.reason = reason
         else:
-            self.reason = '-'
+            self.reason = self.empty_attr
 
         self.errno = errno
         message = self.MESSAGE_TMPL % {
-            'description': self.description,
-            'cmd': self.cmd,
-            'exit_code': self.exit_code,
-            'stdout': self.stdout,
-            'stderr': self.stderr,
-            'reason': self.reason,
+            'description': self._ensure_string(self.description),
+            'cmd': self._ensure_string(self.cmd),
+            'exit_code': self._ensure_string(self.exit_code),
+            'stdout': self._ensure_string(self.stdout),
+            'stderr': self._ensure_string(self.stderr),
+            'reason': self._ensure_string(self.reason),
         }
         IOError.__init__(self, message)
+
+    def _ensure_string(self, text):
+        """
+        if data is bytes object, decode
+        """
+        return text.decode() if isinstance(text, six.binary_type) else text
+
+    def _indent_text(self, text, indent_level=8):
+        """
+        indent text on all but the first line, allowing for easy to read output
+        """
+        cr = '\n'
+        indent = ' ' * indent_level
+        # if input is bytes, return bytes
+        if isinstance(text, six.binary_type):
+            cr = cr.encode()
+            indent = indent.encode()
+        # remove any newlines at end of text first to prevent unneeded blank
+        # line in output
+        return text.rstrip(cr).replace(cr, cr + indent)
 
 
 class SeLinuxGuard(object):

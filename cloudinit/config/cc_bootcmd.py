@@ -43,7 +43,7 @@ specified either as lists or strings. For invocation details, see ``runcmd``.
 
     bootcmd:
         - echo 192.168.1.130 us.archive.ubuntu.com > /etc/hosts
-        - [ cloud-nit-per, once, mymkfs, mkfs, /dev/vdb ]
+        - [ cloud-init-per, once, mymkfs, mkfs, /dev/vdb ]
 """
 
 import os

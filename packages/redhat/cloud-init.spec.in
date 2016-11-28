@@ -171,10 +171,11 @@ fi
 %{_unitdir}/cloud-*
 #end if
 
+%{_sysconfdir}/NetworkManager/dispatcher.d/hook-network-manager
+%{_sysconfdir}/dhcp/dhclient-exit-hooks.d/hook-dhclient
+
 # Program binaries
 %{_bindir}/cloud-init*
-%{_libexecdir}/%{name}/uncloud-init
-%{_libexecdir}/%{name}/write-ssh-key-fingerprints
 
 # Docs
 %doc LICENSE ChangeLog TODO.rst requirements.txt

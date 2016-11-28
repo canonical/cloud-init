@@ -22,7 +22,7 @@ output to ``tee``, or ``logger``. If only a filename is provided, cloud-init
 will append its output to the file as though ``>>`` was specified.
 
 By default, cloud-init loads its output configuration from
-``/etc/cloud/coud.cfg.d/05_logging.cfg``. The default config directs both
+``/etc/cloud/cloud.cfg.d/05_logging.cfg``. The default config directs both
 stdout and stderr from all cloud-init stages to
 ``/var/log/cloud-init-output.log``. The default config is given as ::
 
