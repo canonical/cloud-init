@@ -1,3 +1,23 @@
+cloud-init (0.7.8-61-g2d2ec70-0ubuntu1) zesty; urgency=medium
+
+  * debian/grub-legacy-ec2.install: install post(inst|rm) files correctly.
+    [Simon Deziel] (LP: #1581416)
+  * New upstream snapshot.
+    - OpenStack: extend physical types to include hyperv, hw_veb, vhost_user. [Scott Moser] (LP: #1642679)
+    - tests: fix assumptions that expected no eth0 in system. [Scott Moser] (LP: #1644043)
+    - net/cmdline: Consider ip= or ip6= on command line not only ip= [Scott Moser] (LP: #1639930)
+    - Just use file logging by default [Joshua Harlow] (LP: #1643990)
+    - Improve formatting for ProcessExecutionError [Wesley Wiedenmeier]
+    - flake8: fix trailing white space [Scott Moser]
+    - Doc: various documentation fixes [Sean Bright]
+    - cloudinit/config/cc_rh_subscription.py: Remove repos before adding [Brent Baude]
+    - packages/redhat: fix rpm spec file. [Scott Moser]
+    - main: set TZ in environment if not already set. [Ryan Harper]
+    - Azure: No longer rely on walinux agent. [Scott Moser] (LP: #1538522)
+    - disk_setup: Use sectors as unit when formatting MBR disks with sfdisk. [Daniel Watkins] (LP: #1460715)
+
+ -- Scott Moser <smoser@ubuntu.com>  Mon, 28 Nov 2016 16:08:09 -0500
+
 cloud-init (0.7.8-49-g9e904bb-0ubuntu1) zesty; urgency=medium
 
   * debian/cloud-init.postinst: update /etc/fstab on Azure to fix

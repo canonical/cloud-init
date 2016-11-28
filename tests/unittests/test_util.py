@@ -611,4 +611,73 @@ class TestEncode(helpers.TestCase):
         text = util.decode_binary(blob)
         self.assertEqual(text, blob)
 
+
+class TestProcessExecutionError(helpers.TestCase):
+
+    template = ('{description}\n'
+                'Command: {cmd}\n'
+                'Exit code: {exit_code}\n'
+                'Reason: {reason}\n'
+                'Stdout: {stdout}\n'
+                'Stderr: {stderr}')
+    empty_attr = '-'
+    empty_description = 'Unexpected error while running command.'
+
+    def test_pexec_error_indent_text(self):
+        error = util.ProcessExecutionError()
+        msg = 'abc\ndef'
+        formatted = 'abc\n{}def'.format(' ' * 4)
+        self.assertEqual(error._indent_text(msg, indent_level=4), formatted)
+        self.assertEqual(error._indent_text(msg.encode(), indent_level=4),
+                         formatted.encode())
+        self.assertIsInstance(
+            error._indent_text(msg.encode()), type(msg.encode()))
+
+    def test_pexec_error_type(self):
+        self.assertIsInstance(util.ProcessExecutionError(), IOError)
+
+    def test_pexec_error_empty_msgs(self):
+        error = util.ProcessExecutionError()
+        self.assertTrue(all(attr == self.empty_attr for attr in
+                            (error.stderr, error.stdout, error.reason)))
+        self.assertEqual(error.description, self.empty_description)
+        self.assertEqual(str(error), self.template.format(
+            description=self.empty_description, exit_code=self.empty_attr,
+            reason=self.empty_attr, stdout=self.empty_attr,
+            stderr=self.empty_attr, cmd=self.empty_attr))
+
+    def test_pexec_error_single_line_msgs(self):
+        stdout_msg = 'out out'
+        stderr_msg = 'error error'
+        cmd = 'test command'
+        exit_code = 3
+        error = util.ProcessExecutionError(
+            stdout=stdout_msg, stderr=stderr_msg, exit_code=3, cmd=cmd)
+        self.assertEqual(str(error), self.template.format(
+            description=self.empty_description, stdout=stdout_msg,
+            stderr=stderr_msg, exit_code=str(exit_code),
+            reason=self.empty_attr, cmd=cmd))
+
+    def test_pexec_error_multi_line_msgs(self):
+        # make sure bytes is converted handled properly when formatting
+        stdout_msg = 'multi\nline\noutput message'.encode()
+        stderr_msg = 'multi\nline\nerror message\n\n\n'
+        error = util.ProcessExecutionError(
+            stdout=stdout_msg, stderr=stderr_msg)
+        self.assertEqual(
+            str(error),
+            '\n'.join((
+                '{description}',
+                'Command: {empty_attr}',
+                'Exit code: {empty_attr}',
+                'Reason: {empty_attr}',
+                'Stdout: multi',
+                '        line',
+                '        output message',
+                'Stderr: multi',
+                '        line',
+                '        error message',
+            )).format(description=self.empty_description,
+                      empty_attr=self.empty_attr))
+
 # vi: ts=4 expandtab

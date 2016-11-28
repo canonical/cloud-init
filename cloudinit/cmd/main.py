@@ -694,4 +694,6 @@ def main(sysv_args=None):
 
 
 if __name__ == '__main__':
+    if 'TZ' not in os.environ:
+        os.environ['TZ'] = ":/etc/localtime"
     main(sys.argv)

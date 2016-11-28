@@ -436,14 +436,13 @@ def get_dyn_func(*args):
 
 
 def get_mbr_hdd_size(device):
-    size_cmd = [SFDISK_CMD, '--show-size', device]
-    size = None
     try:
-        size, _err = util.subp(size_cmd)
+        size_in_bytes, _ = util.subp([BLKDEV_CMD, '--getsize64', device])
+        sector_size, _ = util.subp([BLKDEV_CMD, '--getss', device])
     except Exception as e:
         raise Exception("Failed to get %s size\n%s" % (device, e))
 
-    return int(size.strip())
+    return int(size_in_bytes) / int(sector_size)
 
 
 def get_gpt_hdd_size(device):
@@ -588,7 +587,7 @@ def get_partition_mbr_layout(size, layout):
                 raise Exception("Partition was incorrectly defined: %s" % part)
             percent, part_type = part
 
-        part_size = int((float(size) * (float(percent) / 100)) / 1024)
+        part_size = int(float(size) * (float(percent) / 100))
 
         if part_num == last_part_num:
             part_definition.append(",,%s" % part_type)
@@ -692,7 +691,7 @@ def exec_mkpart_mbr(device, layout):
     types, i.e. gpt
     """
     # Create the partitions
-    prt_cmd = [SFDISK_CMD, "--Linux", "-uM", device]
+    prt_cmd = [SFDISK_CMD, "--Linux", "--unit=S", "--force", device]
     try:
         util.subp(prt_cmd, data="%s\n" % layout)
     except Exception as e:
@@ -909,7 +908,8 @@ def mkfs(fs_cfg):
         LOG.debug("Error in device identification handling.")
         return
 
-    LOG.debug("File system %s will be created on %s", label, device)
+    LOG.debug("File system type '%s' with label '%s' will be created on %s",
+              fs_type, label, device)
 
     # Make sure the device is defined
     if not device:
