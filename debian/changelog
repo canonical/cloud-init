@@ -6,8 +6,10 @@ cloud-init (0.7.8-49-g9e904bb-0ubuntu1~16.04.2) UNRELEASED; urgency=medium
     line not only ip= (LP: #1639930)
   * cherry-pick 8c6878a: tests: fix assumptions that expected no eth0 in
     system. (LP: #1644043)
+  * cherry-pick 2d2ec70: OpenStack: extend physical types to include
+    hyperv, hw_veb, vhost_user. (LP: #1642679)
 
- -- Scott Moser <smoser@ubuntu.com>  Thu, 01 Dec 2016 16:56:25 -0500
+ -- Scott Moser <smoser@ubuntu.com>  Thu, 01 Dec 2016 16:56:31 -0500
 
 cloud-init (0.7.8-49-g9e904bb-0ubuntu1~16.04.1) xenial-proposed; urgency=medium
 
