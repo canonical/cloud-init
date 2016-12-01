@@ -1,2 +1,3 @@
 cpick-18203bf-disk_setup-Use-sectors-as-unit-when-formatting-MBR-disks
 cpick-6e92c5f-net-cmdline-Consider-ip-or-ip6-on-command-line-not-only
+cpick-8c6878a-tests-fix-assumptions-that-expected-no-eth0-in-system
