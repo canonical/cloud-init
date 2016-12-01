@@ -2,8 +2,10 @@ cloud-init (0.7.8-49-g9e904bb-0ubuntu1~16.04.2) UNRELEASED; urgency=medium
 
   * cherry-pick 18203bf: disk_setup: Use sectors as unit when formatting
     MBR disks with sfdisk. (LP: #1460715)
+  * cherry-pick 6e92c5f: net/cmdline: Consider ip= or ip6= on command
+    line not only ip= (LP: #1639930)
 
- -- Scott Moser <smoser@ubuntu.com>  Thu, 01 Dec 2016 16:56:06 -0500
+ -- Scott Moser <smoser@ubuntu.com>  Thu, 01 Dec 2016 16:56:18 -0500
 
 cloud-init (0.7.8-49-g9e904bb-0ubuntu1~16.04.1) xenial-proposed; urgency=medium
 

@@ -1,0 +1,173 @@
+commit 6e92c5f2fccaad24afb89f79f260cb496fb8d67f
+Author: Scott Moser <smoser@brickies.net>
+Date:   Tue Nov 8 20:59:23 2016 -0500
+
+    net/cmdline: Consider ip= or ip6= on command line not only ip=
+    
+    The previous behavior would miss ip6= on the command line and
+    would not pay attention to the written net-* or net6-* files if
+    only ip6= was found.
+    
+    The fix here enables parsing the files if either ip= or ip6= is found,
+    and adds some tests as well.
+    
+    LP: #1639930
+
+--- a/cloudinit/net/cmdline.py
++++ b/cloudinit/net/cmdline.py
+@@ -57,7 +57,7 @@ def _load_shell_content(content, add_emp
+ 
+ 
+ def _klibc_to_config_entry(content, mac_addrs=None):
+-    """Convert a klibc writtent shell content file to a 'config' entry
++    """Convert a klibc written shell content file to a 'config' entry
+     When ip= is seen on the kernel command line in debian initramfs
+     and networking is brought up, ipconfig will populate
+     /run/net-<name>.cfg.
+@@ -140,7 +140,7 @@ def _klibc_to_config_entry(content, mac_
+ 
+ def config_from_klibc_net_cfg(files=None, mac_addrs=None):
+     if files is None:
+-        files = glob.glob('/run/net*.conf')
++        files = glob.glob('/run/net-*.conf') + glob.glob('/run/net6-*.conf')
+ 
+     entries = []
+     names = {}
+@@ -148,12 +148,19 @@ def config_from_klibc_net_cfg(files=None
+         name, entry = _klibc_to_config_entry(util.load_file(cfg_file),
+                                              mac_addrs=mac_addrs)
+         if name in names:
+-            raise ValueError(
+-                "device '%s' defined multiple times: %s and %s" % (
+-                    name, names[name], cfg_file))
++            prev = names[name]['entry']
++            if prev.get('mac_address') != entry.get('mac_address'):
++                raise ValueError(
++                    "device '%s' was defined multiple times (%s)"
++                    " but had differing mac addresses: %s -> %s.",
++                    (name, ' '.join(names[name]['files']),
++                     prev.get('mac_address'), entry.get('mac_address')))
++            prev['subnets'].extend(entry['subnets'])
++            names[name]['files'].append(cfg_file)
++        else:
++            names[name] = {'files': [cfg_file], 'entry': entry}
++            entries.append(entry)
+ 
+-        names[name] = cfg_file
+-        entries.append(entry)
+     return {'config': entries, 'version': 1}
+ 
+ 
+@@ -199,7 +206,7 @@ def read_kernel_cmdline_config(files=Non
+         if data64:
+             return util.load_yaml(_b64dgz(data64))
+ 
+-    if 'ip=' not in cmdline:
++    if 'ip=' not in cmdline and 'ip6=' not in cmdline:
+         return None
+ 
+     if mac_addrs is None:
+--- a/tests/unittests/test_net.py
++++ b/tests/unittests/test_net.py
+@@ -8,6 +8,8 @@ from cloudinit import util
+ 
+ from .helpers import dir2dict
+ from .helpers import mock
++from .helpers import populate_dir
++from .helpers import TempDirTestCase
+ from .helpers import TestCase
+ 
+ import base64
+@@ -54,22 +56,9 @@ DHCP_EXPECTED_1 = {
+ }
+ 
+ DHCP6_CONTENT_1 = """
+-DEVICE=eno1
++DEVICE6=eno1
+ HOSTNAME=
+ DNSDOMAIN=
+-reason='PREINIT'
+-interface='eno1'
+-DEVICE=eno1
+-HOSTNAME=
+-DNSDOMAIN=
+-reason='FAIL'
+-interface='eno1'
+-DEVICE=eno1
+-HOSTNAME=
+-DNSDOMAIN=
+-reason='PREINIT6'
+-interface='eno1'
+-DEVICE=eno1
+ IPV6PROTO=dhcp6
+ IPV6ADDR=2001:67c:1562:8010:0:1::
+ IPV6NETMASK=64
+@@ -77,11 +66,6 @@ IPV6DNS0=2001:67c:1562:8010::2:1
+ IPV6DOMAINSEARCH=
+ HOSTNAME=
+ DNSDOMAIN=
+-reason='BOUND6'
+-interface='eno1'
+-new_ip6_address='2001:67c:1562:8010:0:1::'
+-new_ip6_prefixlen='64'
+-new_dhcp6_name_servers='2001:67c:1562:8010::2:1'
+ """
+ 
+ DHCP6_EXPECTED_1 = {
+@@ -677,6 +661,56 @@ class TestCmdlineConfigParsing(TestCase)
+         self.assertEqual(found, self.simple_cfg)
+ 
+ 
++class TestCmdlineReadKernelConfig(TempDirTestCase):
++    def test_ip_cmdline_read_kernel_cmdline_ip(self):
++        content = {'net-eth0.conf': DHCP_CONTENT_1}
++        populate_dir(self.tmp, content)
++        files = [os.path.join(self.tmp, k) for k in content.keys()]
++        found = cmdline.read_kernel_cmdline_config(
++            files=files, cmdline='foo ip=dhcp')
++        self.assertEqual(found['version'], 1)
++        self.assertEqual(found['config'], [DHCP_EXPECTED_1])
++
++    def test_ip_cmdline_read_kernel_cmdline_ip6(self):
++        content = {'net6-eno1.conf': DHCP6_CONTENT_1}
++        populate_dir(self.tmp, content)
++        files = [os.path.join(self.tmp, k) for k in content.keys()]
++        found = cmdline.read_kernel_cmdline_config(
++            files=files, cmdline='foo ip6=dhcp root=/dev/sda')
++        self.assertEqual(
++            found,
++            {'version': 1, 'config': [
++             {'type': 'physical', 'name': 'eno1',
++              'subnets': [
++                  {'dns_nameservers': ['2001:67c:1562:8010::2:1'],
++                   'control': 'manual', 'type': 'dhcp6', 'netmask': '64'}]}]})
++
++    def test_ip_cmdline_read_kernel_cmdline_none(self):
++        # if there is no ip= or ip6= on cmdline, return value should be None
++        content = {'net6-eno1.conf': DHCP6_CONTENT_1}
++        populate_dir(self.tmp, content)
++        files = [os.path.join(self.tmp, k) for k in content.keys()]
++        found = cmdline.read_kernel_cmdline_config(
++            files=files, cmdline='foo root=/dev/sda')
++        self.assertEqual(found, None)
++
++    def test_ip_cmdline_both_ip_ip6(self):
++        content = {'net-eth0.conf': DHCP_CONTENT_1,
++                   'net6-eth0.conf': DHCP6_CONTENT_1.replace('eno1', 'eth0')}
++        populate_dir(self.tmp, content)
++        files = [os.path.join(self.tmp, k) for k in sorted(content.keys())]
++        found = cmdline.read_kernel_cmdline_config(
++            files=files, cmdline='foo ip=dhcp ip6=dhcp')
++
++        eth0 = copy.deepcopy(DHCP_EXPECTED_1)
++        eth0['subnets'].append(
++            {'control': 'manual', 'type': 'dhcp6',
++             'netmask': '64', 'dns_nameservers': ['2001:67c:1562:8010::2:1']})
++        expected = [eth0]
++        self.assertEqual(found['version'], 1)
++        self.assertEqual(found['config'], expected)
++
++
+ class TestEniRoundTrip(TestCase):
+     def setUp(self):
+         super(TestCase, self).setUp()
