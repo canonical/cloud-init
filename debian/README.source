@@ -21,3 +21,9 @@ Patches in debian/patches are stored un-applied.
 To pull a new upstream snapshot:
 
  ./debian/new-upstream-snapshot ../trunk
+
+== Cherry Pick ==
+To cherry pick an upstream commit:
+ ./debian/cherry-pick <hash>
+
+That will add a patch to debian/patches/ and debian/patches/series.
