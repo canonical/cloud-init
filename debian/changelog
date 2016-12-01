@@ -1,4 +1,4 @@
-cloud-init (0.7.8-49-g9e904bb-0ubuntu1~16.04.2) UNRELEASED; urgency=medium
+cloud-init (0.7.8-49-g9e904bb-0ubuntu1~16.04.2) xenial-proposed; urgency=medium
 
   * cherry-pick 18203bf: disk_setup: Use sectors as unit when formatting
     MBR disks with sfdisk. (LP: #1460715)
@@ -9,7 +9,7 @@ cloud-init (0.7.8-49-g9e904bb-0ubuntu1~16.04.2) UNRELEASED; urgency=medium
   * cherry-pick 2d2ec70: OpenStack: extend physical types to include
     hyperv, hw_veb, vhost_user. (LP: #1642679)
 
- -- Scott Moser <smoser@ubuntu.com>  Thu, 01 Dec 2016 16:56:31 -0500
+ -- Scott Moser <smoser@ubuntu.com>  Thu, 01 Dec 2016 16:57:39 -0500
 
 cloud-init (0.7.8-49-g9e904bb-0ubuntu1~16.04.1) xenial-proposed; urgency=medium
 
