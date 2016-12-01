@@ -1,0 +1,155 @@
+commit 18203bf101dc04c28b53a92cd95c8be88959c428
+Author: Daniel Watkins <daniel.watkins@canonical.com>
+Date:   Tue Nov 22 09:58:55 2016 -0500
+
+    disk_setup: Use sectors as unit when formatting MBR disks with sfdisk.
+    
+    The version of sfdisk in wily (and onwards) only accepts sectors as a
+    valid disk size. As such, this refactors the MBR code path in
+    cc_disk_setup to use sectors.
+    
+     - use --unit=S: while newer versions of sfdisk assume --unit=S, older
+       versions do not so we specifically pass it in.  Versions of sfdisk
+       found in supported OSes such as centos6 wont assume --unit=S.
+     - add --force: this exists back to centos 6 (2.17.2), so it should
+       be fine, and is what we ultimately want.
+       "do what I say, even if it is stupid"
+     - keep --Linux.  Even though this has been deprecated for quite some
+       time, we keep it until versions that want it are unsupported.
+       If necessary at some point we could check for util linux version
+       and if it had --Linux and use it in those cases.
+    
+    Additionally, improve usefulness of some log messages.
+    
+    LP: #1460715
+
+--- a/cloudinit/config/cc_disk_setup.py
++++ b/cloudinit/config/cc_disk_setup.py
+@@ -436,14 +436,13 @@ def get_dyn_func(*args):
+ 
+ 
+ def get_mbr_hdd_size(device):
+-    size_cmd = [SFDISK_CMD, '--show-size', device]
+-    size = None
+     try:
+-        size, _err = util.subp(size_cmd)
++        size_in_bytes, _ = util.subp([BLKDEV_CMD, '--getsize64', device])
++        sector_size, _ = util.subp([BLKDEV_CMD, '--getss', device])
+     except Exception as e:
+         raise Exception("Failed to get %s size\n%s" % (device, e))
+ 
+-    return int(size.strip())
++    return int(size_in_bytes) / int(sector_size)
+ 
+ 
+ def get_gpt_hdd_size(device):
+@@ -588,7 +587,7 @@ def get_partition_mbr_layout(size, layou
+                 raise Exception("Partition was incorrectly defined: %s" % part)
+             percent, part_type = part
+ 
+-        part_size = int((float(size) * (float(percent) / 100)) / 1024)
++        part_size = int(float(size) * (float(percent) / 100))
+ 
+         if part_num == last_part_num:
+             part_definition.append(",,%s" % part_type)
+@@ -692,7 +691,7 @@ def exec_mkpart_mbr(device, layout):
+     types, i.e. gpt
+     """
+     # Create the partitions
+-    prt_cmd = [SFDISK_CMD, "--Linux", "-uM", device]
++    prt_cmd = [SFDISK_CMD, "--Linux", "--unit=S", "--force", device]
+     try:
+         util.subp(prt_cmd, data="%s\n" % layout)
+     except Exception as e:
+@@ -909,7 +908,8 @@ def mkfs(fs_cfg):
+         LOG.debug("Error in device identification handling.")
+         return
+ 
+-    LOG.debug("File system %s will be created on %s", label, device)
++    LOG.debug("File system type '%s' with label '%s' will be created on %s",
++              fs_type, label, device)
+ 
+     # Make sure the device is defined
+     if not device:
+--- a/tests/unittests/test_handler/test_handler_disk_setup.py
++++ b/tests/unittests/test_handler/test_handler_disk_setup.py
+@@ -1,3 +1,5 @@
++import random
++
+ from cloudinit.config import cc_disk_setup
+ from ..helpers import ExitStack, mock, TestCase
+ 
+@@ -28,3 +30,73 @@ class TestIsDiskUsed(TestCase):
+         self.enumerate_disk.return_value = (mock.MagicMock() for _ in range(1))
+         self.check_fs.return_value = (mock.MagicMock(), None, mock.MagicMock())
+         self.assertFalse(cc_disk_setup.is_disk_used(mock.MagicMock()))
++
++
++class TestGetMbrHddSize(TestCase):
++
++    def setUp(self):
++        super(TestGetMbrHddSize, self).setUp()
++        self.patches = ExitStack()
++        self.subp = self.patches.enter_context(
++            mock.patch.object(cc_disk_setup.util, 'subp'))
++
++    def tearDown(self):
++        super(TestGetMbrHddSize, self).tearDown()
++        self.patches.close()
++
++    def _configure_subp_mock(self, hdd_size_in_bytes, sector_size_in_bytes):
++        def _subp(cmd, *args, **kwargs):
++            self.assertEqual(3, len(cmd))
++            if '--getsize64' in cmd:
++                return hdd_size_in_bytes, None
++            elif '--getss' in cmd:
++                return sector_size_in_bytes, None
++            raise Exception('Unexpected blockdev command called')
++
++        self.subp.side_effect = _subp
++
++    def _test_for_sector_size(self, sector_size):
++        size_in_bytes = random.randint(10000, 10000000) * 512
++        size_in_sectors = size_in_bytes / sector_size
++        self._configure_subp_mock(size_in_bytes, sector_size)
++        self.assertEqual(size_in_sectors,
++                         cc_disk_setup.get_mbr_hdd_size('/dev/sda1'))
++
++    def test_size_for_512_byte_sectors(self):
++        self._test_for_sector_size(512)
++
++    def test_size_for_1024_byte_sectors(self):
++        self._test_for_sector_size(1024)
++
++    def test_size_for_2048_byte_sectors(self):
++        self._test_for_sector_size(2048)
++
++    def test_size_for_4096_byte_sectors(self):
++        self._test_for_sector_size(4096)
++
++
++class TestGetPartitionMbrLayout(TestCase):
++
++    def test_single_partition_using_boolean(self):
++        self.assertEqual('0,',
++                         cc_disk_setup.get_partition_mbr_layout(1000, True))
++
++    def test_single_partition_using_list(self):
++        disk_size = random.randint(1000000, 1000000000000)
++        self.assertEqual(
++            ',,83',
++            cc_disk_setup.get_partition_mbr_layout(disk_size, [100]))
++
++    def test_half_and_half(self):
++        disk_size = random.randint(1000000, 1000000000000)
++        expected_partition_size = int(float(disk_size) / 2)
++        self.assertEqual(
++            ',{0},83\n,,83'.format(expected_partition_size),
++            cc_disk_setup.get_partition_mbr_layout(disk_size, [50, 50]))
++
++    def test_thirds_with_different_partition_type(self):
++        disk_size = random.randint(1000000, 1000000000000)
++        expected_partition_size = int(float(disk_size) * 0.33)
++        self.assertEqual(
++            ',{0},83\n,,82'.format(expected_partition_size),
++            cc_disk_setup.get_partition_mbr_layout(disk_size, [33, [66, 82]]))
