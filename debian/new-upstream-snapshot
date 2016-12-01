@@ -1,6 +1,8 @@
 #!/bin/sh
 
 TEMP_D=""
+CR='
+'
 error() { echo "$@" 1>&2; }
 fail() { [ $# -eq 0 ] || error "$@"; exit 1; }
 Usage() {
@@ -53,6 +55,7 @@ case "$cur_branch" in
     *) fail "You are on branch '$cur_branch', expect to be on ubuntu/*";;
 esac
 
+TEMP_D=$(mktemp -d) || fail "failed mktemp"
 trap cleanup EXIT
 
 prev_pkg_ver=$(dpkg-parsechangelog --show-field Version) ||
@@ -75,9 +78,42 @@ if [ "${prev_upstream_ver}" = "${new_upstream_ver}" ]; then
     exit 0
 fi
 
+dpseries="debian/patches/series"
+if [ -e $dpseries ]; then
+   drops=""
+   while read bname extra; do
+      case "$bname" in
+         cpick-*)
+            commit=${bname#cpick-}
+            commit=${commit%%-*}
+            echo "bname=$bname commit=${commit}" 1>&2
+            if git merge-base --is-ancestor "$commit" "$from_ref"; then
+               drops="${drops} debian/patches/$bname"
+            fi
+            ;;
+         *) echo "$bname${extra:+ ${extra}}";;
+      esac
+   done < $dpseries > "${TEMP_D}/series"
+   drops=${drops# }
+   if [ -n "$drops" ]; then
+      cp "${TEMP_D}/series" "$dpseries" ||
+         fail "failed copying to $dpseries"
+      if [ ! -s $dpseries ]; then
+         git rm --force "$dpseries" ||
+            fail "failed removing empty $dpseries: git rm $dpseries"
+      fi
+      msg="drop cherry picks before merge from ${from_ref} at $new_upstream_ver"
+      msg="$msg${CR}${CR}drop the following cherry picks:"
+      for file in $drops; do
+         git rm "$file" || fail "failed to git rm $file"
+         msg="${msg}$CR  $file"
+      done
+      git commit -m "$msg" "$dpseries" $drops
+   fi
+fi
+
 git merge "${from_ref}" -m "merge from $from_ref at $new_upstream_ver" ||
     fail "failed: git merge ${from_ref} -m 'merge from $from_ref ..'"
-TEMP_D=$(mktemp -d) || fail "failed mktemp"
 clog="${TEMP_D}/changelog"
 gitlog="${TEMP_D}/gitlog"
 
