@@ -12,7 +12,6 @@ cloud-init (0.7.8-61-g2d2ec70-0ubuntu1~16.10.1) UNRELEASED; urgency=medium
     - cloudinit/config/cc_rh_subscription.py: Remove repos before adding [Brent Baude]
     - packages/redhat: fix rpm spec file.
     - main: set TZ in environment if not already set. [Ryan Harper]
-    - Azure: No longer rely on walinux agent. (LP: #1538522)
     - disk_setup: Use sectors as unit when formatting MBR disks with sfdisk.
       [Daniel Watkins] (LP: #1460715)
 
