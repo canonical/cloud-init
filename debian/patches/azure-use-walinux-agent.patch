@@ -1,0 +1,17 @@
+Description: Use walinux-agent rather than builtin fabric support
+ Upstream now uses the built-in support for instance initialization on Azure.
+ On a stable release, we want to continue to use the walinux-agent integration.
+ Upstream made this change under bug 1538522.
+Forwarded: not-needed
+Author: Scott Moser <smoser@ubuntu.com>
+--- a/cloudinit/sources/DataSourceAzure.py
++++ b/cloudinit/sources/DataSourceAzure.py
+@@ -34,7 +34,7 @@ BOUNCE_COMMAND = [
+ RESOURCE_DISK_PATH = '/dev/disk/cloud/azure_resource'
+ 
+ BUILTIN_DS_CONFIG = {
+-    'agent_command': AGENT_START_BUILTIN,
++    'agent_command': AGENT_START,
+     'data_dir': "/var/lib/waagent",
+     'set_hostname': True,
+     'hostname_bounce': {
