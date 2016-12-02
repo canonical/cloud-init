@@ -57,8 +57,8 @@ class MetadataLeafDecoder(object):
         return blob
 
 
-# See: http://bit.ly/TyoUQs
-#
+# See: http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/
+#         ec2-instance-metadata.html
 class MetadataMaterializer(object):
     def __init__(self, blob, base_url, caller, leaf_decoder=None):
         self._blob = blob
