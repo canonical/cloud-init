@@ -36,6 +36,7 @@ LOG = logging.getLogger(__name__)
 DS_NAME = 'Azure'
 DEFAULT_METADATA = {"instance-id": "iid-AZURE-NODE"}
 AGENT_START = ['service', 'walinuxagent', 'start']
+AGENT_START_BUILTIN = "__builtin__"
 BOUNCE_COMMAND = [
     'sh', '-xc',
     "i=$interface; x=0; ifdown $i || x=$?; ifup $i || x=$?; exit $x"
@@ -45,7 +46,7 @@ BOUNCE_COMMAND = [
 RESOURCE_DISK_PATH = '/dev/disk/cloud/azure_resource'
 
 BUILTIN_DS_CONFIG = {
-    'agent_command': AGENT_START,
+    'agent_command': AGENT_START_BUILTIN,
     'data_dir': "/var/lib/waagent",
     'set_hostname': True,
     'hostname_bounce': {
@@ -230,7 +231,7 @@ class DataSourceAzureNet(sources.DataSource):
         # the directory to be protected.
         write_files(ddir, files, dirmode=0o700)
 
-        if self.ds_cfg['agent_command'] == '__builtin__':
+        if self.ds_cfg['agent_command'] == AGENT_START_BUILTIN:
             metadata_func = partial(get_metadata_from_fabric,
                                     fallback_lease_file=self.
                                     dhclient_lease_file)

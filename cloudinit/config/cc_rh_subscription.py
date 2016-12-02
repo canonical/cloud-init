@@ -421,10 +421,11 @@ class SubscriptionManager(object):
                                "because it is not enabled".format(fail))
 
         cmd = ['repos']
-        if len(enable_list) > 0:
-            cmd.extend(enable_list)
         if len(disable_list) > 0:
             cmd.extend(disable_list)
+
+        if len(enable_list) > 0:
+            cmd.extend(enable_list)
 
         try:
             self._sub_man_cli(cmd)

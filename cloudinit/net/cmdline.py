@@ -57,7 +57,7 @@ def _load_shell_content(content, add_empty=False, empty_val=None):
 
 
 def _klibc_to_config_entry(content, mac_addrs=None):
-    """Convert a klibc writtent shell content file to a 'config' entry
+    """Convert a klibc written shell content file to a 'config' entry
     When ip= is seen on the kernel command line in debian initramfs
     and networking is brought up, ipconfig will populate
     /run/net-<name>.cfg.
@@ -140,7 +140,7 @@ def _klibc_to_config_entry(content, mac_addrs=None):
 
 def config_from_klibc_net_cfg(files=None, mac_addrs=None):
     if files is None:
-        files = glob.glob('/run/net*.conf')
+        files = glob.glob('/run/net-*.conf') + glob.glob('/run/net6-*.conf')
 
     entries = []
     names = {}
@@ -148,12 +148,19 @@ def config_from_klibc_net_cfg(files=None, mac_addrs=None):
         name, entry = _klibc_to_config_entry(util.load_file(cfg_file),
                                              mac_addrs=mac_addrs)
         if name in names:
-            raise ValueError(
-                "device '%s' defined multiple times: %s and %s" % (
-                    name, names[name], cfg_file))
+            prev = names[name]['entry']
+            if prev.get('mac_address') != entry.get('mac_address'):
+                raise ValueError(
+                    "device '%s' was defined multiple times (%s)"
+                    " but had differing mac addresses: %s -> %s.",
+                    (name, ' '.join(names[name]['files']),
+                     prev.get('mac_address'), entry.get('mac_address')))
+            prev['subnets'].extend(entry['subnets'])
+            names[name]['files'].append(cfg_file)
+        else:
+            names[name] = {'files': [cfg_file], 'entry': entry}
+            entries.append(entry)
 
-        names[name] = cfg_file
-        entries.append(entry)
     return {'config': entries, 'version': 1}
 
 
@@ -199,7 +206,7 @@ def read_kernel_cmdline_config(files=None, mac_addrs=None, cmdline=None):
         if data64:
             return util.load_yaml(_b64dgz(data64))
 
-    if 'ip=' not in cmdline:
+    if 'ip=' not in cmdline and 'ip6=' not in cmdline:
         return None
 
     if mac_addrs is None:
