@@ -1,4 +1,4 @@
-cloud-init (0.7.8-61-g2d2ec70-0ubuntu1~16.10.1) UNRELEASED; urgency=medium
+cloud-init (0.7.8-61-g2d2ec70-0ubuntu1~16.10.1) yakkety; urgency=medium
 
   * New upstream snapshot.
     - OpenStack: extend physical types to include hyperv, hw_veb, vhost_user.
@@ -15,7 +15,7 @@ cloud-init (0.7.8-61-g2d2ec70-0ubuntu1~16.10.1) UNRELEASED; urgency=medium
     - disk_setup: Use sectors as unit when formatting MBR disks with sfdisk.
       [Daniel Watkins] (LP: #1460715)
 
- -- Scott Moser <smoser@ubuntu.com>  Fri, 02 Dec 2016 12:28:27 -0500
+ -- Scott Moser <smoser@ubuntu.com>  Fri, 02 Dec 2016 12:29:48 -0500
 
 cloud-init (0.7.8-49-g9e904bb-0ubuntu1~16.10.1) yakkety; urgency=medium
 
