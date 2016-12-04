@@ -403,7 +403,7 @@ class Distro(object):
                 # that can go right through to the command.
                 kwargs['groups'] = ",".join(groups)
             else:
-                groups = groups.split(",")
+                groups = [group.strip() for group in groups.split(",")]
 
             primary_group = kwargs.get('primary_group')
             if primary_group:
