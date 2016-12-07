@@ -194,6 +194,8 @@ class DataSource(object):
             fqdn = util.get_fqdn_from_hosts(hostname)
             if fqdn and fqdn.find(".") > 0:
                 toks = str(fqdn).split(".")
+            elif hostname and hostname.find(".") > 0:
+                toks = str(hostname).split(".")
             elif hostname:
                 toks = [hostname, defdomain]
             else:
