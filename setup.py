@@ -125,6 +125,7 @@ INITSYS_FILES = {
                 for f in (glob('systemd/*.tmpl') +
                           glob('systemd/*.service') +
                           glob('systemd/*.target')) if is_f(f)],
+    'systemd.fsck-dropin': ['systemd/systemd-fsck@.service.d/cloud-init.conf'],
     'systemd.generators': [f for f in glob('systemd/*-generator') if is_f(f)],
     'upstart': [f for f in glob('upstart/*') if is_f(f)],
 }
@@ -134,6 +135,9 @@ INITSYS_ROOTS = {
     'sysvinit_deb': 'etc/init.d',
     'sysvinit_openrc': 'etc/init.d',
     'systemd': pkg_config_read('systemd', 'systemdsystemunitdir'),
+    'systemd.fsck-dropin': (
+        os.path.sep.join([pkg_config_read('systemd', 'systemdsystemunitdir'),
+                          'systemd-fsck@.service.d'])),
     'systemd.generators': pkg_config_read('systemd',
                                           'systemdsystemgeneratordir'),
     'upstart': 'etc/init/',
