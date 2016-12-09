@@ -42,6 +42,14 @@ values. It defaults to::
 
     mount_default_fields: [none, none, "auto", "defaults,nobootwait", "0", "2"]
 
+On a systemd booted system that default is the mostly equivalent::
+
+    mount_default_fields: [none, none, "auto",
+       "defaults,nofail,x-systemd.requires=cloud-init.service", "0", "2"]
+
+Note that `nobootwait` is an upstart specific boot option that somewhat
+equates to the more standard `nofail`.
+
 Swap files can be configured by setting the path to the swap file to create
 with ``filename``, the size of the swap file with ``size`` maximum size of
 the swap file if using an ``size: auto`` with ``maxsize``. By default no
@@ -58,8 +66,8 @@ swap file is created.
     mounts:
         - [ /dev/ephemeral0, /mnt, auto, "defaults,noexec" ]
         - [ sdc, /opt/data ]
-        - [ xvdh, /opt/data, "auto", "defaults,nobootwait", "0", "0" ]
-    mount_default_fields: [None, None, "auto", "nefaults,nobootwait", "0", "2"]
+        - [ xvdh, /opt/data, "auto", "defaults,nofail", "0", "0" ]
+    mount_default_fields: [None, None, "auto", "defaults,nofail", "0", "2"]
     swap:
         filename: <file>
         size: <"auto"/size in bytes>
