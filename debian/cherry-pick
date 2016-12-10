@@ -50,23 +50,30 @@ print_bugs() {
 }
 
 git_log_to_dch() {
+    # call printer with subject, author and bugs as extracted
+    # from either git format-patch output or git show output.
     local line="" commit="" lcommit="" bugs=""
     local printer="${1:-print_commit}"
     while :; do
         read line || break
         case "$line" in
-            commit\ *)
+            commit\ *|From\ *)
                 if [ -n "$commit" ]; then
                     "$printer" "$subject" "$author" "$bugs"
                 fi
-                commit=${line#*: }
+                commit=${line#* }
+                commit=${commit%% *}
                 bugs=""
                 author=""
                 subject=""
                 ;;
-            Author:*) author="${line#Author: }";;
+            Author:\ *|From:\ *) author="${line#*: }";;
             LP:*) bugs="${bugs:+${bugs}, }${line#*: }";;
             "") [ -z "$subject" ] && read subject;;
+            Subject:\ *)
+                subject="${line#Subject: }"
+                subject="${subject#\[PATCH\] }"
+                ;;
         esac
     done
     if [ -n "$commit" ]; then
@@ -140,8 +147,8 @@ main() {
         fi
     fi
 
-    git show --no-decorate "$chash" > "$fpath" ||
-        { error "failed git show $chash > $fpath"; return 1; }
+    git format-patch --stdout -1 "$chash" > "$fpath" ||
+        { error "failed git format-patch -1 $chash > $fpath"; return 1; }
 
     echo "$fname" >> "$series" ||
         { error "failed to write to $series"; return 1; }
