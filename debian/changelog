@@ -1,4 +1,4 @@
-cloud-init (0.7.8-67-gc9c9197-0ubuntu1) UNRELEASED; urgency=medium
+cloud-init (0.7.8-67-gc9c9197-0ubuntu1) zesty; urgency=medium
 
   * debian/cherry-pick: add utility for cherry picking commits from upstream
     into patches in debian/patches.
@@ -10,7 +10,7 @@ cloud-init (0.7.8-67-gc9c9197-0ubuntu1) UNRELEASED; urgency=medium
     - Replace usage of sys_netdev_info with read_sys_net (LP: #1625766)
     - fix problems found in python2.6 test.
 
- -- Scott Moser <smoser@ubuntu.com>  Sun, 11 Dec 2016 21:20:47 -0500
+ -- Scott Moser <smoser@ubuntu.com>  Sun, 11 Dec 2016 21:22:57 -0500
 
 cloud-init (0.7.8-61-g2d2ec70-0ubuntu1) zesty; urgency=medium
 
