@@ -327,6 +327,8 @@ def handle(_name, cfg, cloud, log, _args):
     if "mounts" in cfg:
         cfgmnt = cfg["mounts"]
 
+    LOG.debug("mounts configuration is %s", cfgmnt)
+
     for i in range(len(cfgmnt)):
         # skip something that wasn't a list
         if not isinstance(cfgmnt[i], list):
@@ -423,24 +425,16 @@ def handle(_name, cfg, cloud, log, _args):
         cc_lines.append('\t'.join(line))
 
     fstab_lines = []
+    removed = []
     for line in util.load_file(FSTAB_PATH).splitlines():
         try:
             toks = WS.split(line)
             if toks[3].find(comment) != -1:
+                removed.append(line)
                 continue
         except Exception:
             pass
         fstab_lines.append(line)
-
-    fstab_lines.extend(cc_lines)
-    contents = "%s\n" % ('\n'.join(fstab_lines))
-    util.write_file(FSTAB_PATH, contents)
-
-    if needswap:
-        try:
-            util.subp(("swapon", "-a"))
-        except Exception:
-            util.logexc(log, "Activating swap via 'swapon -a' failed")
 
     for d in dirs:
         try:
@@ -448,12 +442,34 @@ def handle(_name, cfg, cloud, log, _args):
         except Exception:
             util.logexc(log, "Failed to make '%s' config-mount", d)
 
-    activate_cmd = ["mount", "-a"]
-    if uses_systemd:
-        activate_cmd = ["systemctl", "daemon-reload"]
-    fmt = "Activate mounts: %s:" + ' '.join(activate_cmd)
-    try:
-        util.subp(activate_cmd)
-        LOG.debug(fmt, "PASS")
-    except util.ProcessExecutionError:
-        util.logexc(log, fmt, "FAIL")
+    sadds = [WS.sub(" ", n) for n in cc_lines]
+    sdrops = [WS.sub(" ", n) for n in removed]
+
+    sops = (["- " + drop for drop in sdrops if drop not in sadds] +
+            ["+ " + add for add in sadds if add not in sdrops])
+
+    fstab_lines.extend(cc_lines)
+    contents = "%s\n" % ('\n'.join(fstab_lines))
+    util.write_file(FSTAB_PATH, contents)
+
+    activate_cmds = []
+    if needswap:
+        activate_cmds.append(["swapon", "-a"])
+
+    if len(sops) == 0:
+        log.debug("No changes to /etc/fstab made.")
+    else:
+        log.debug("Changes to fstab: %s", sops)
+        activate_cmds.append(["mount", "-a"])
+        if uses_systemd:
+            activate_cmds.append(["systemctl", "daemon-reload"])
+
+    fmt = "Activating swap and mounts with: %s"
+    for cmd in activate_cmds:
+        fmt = "Activate mounts: %s:" + ' '.join(cmd)
+        try:
+            util.subp(cmd)
+            log.debug(fmt, "PASS")
+        except util.ProcessExecutionError:
+            log.warn(fmt, "FAIL")
+            util.logexc(log, fmt, "FAIL")

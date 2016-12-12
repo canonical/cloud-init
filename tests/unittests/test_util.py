@@ -626,7 +626,7 @@ class TestProcessExecutionError(helpers.TestCase):
     def test_pexec_error_indent_text(self):
         error = util.ProcessExecutionError()
         msg = 'abc\ndef'
-        formatted = 'abc\n{}def'.format(' ' * 4)
+        formatted = 'abc\n{0}def'.format(' ' * 4)
         self.assertEqual(error._indent_text(msg, indent_level=4), formatted)
         self.assertEqual(error._indent_text(msg.encode(), indent_level=4),
                          formatted.encode())

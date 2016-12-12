@@ -445,7 +445,7 @@ pre-down route del -net 10.0.0.0 netmask 255.0.0.0 gw 11.0.0.1 metric 3 || true
 }
 
 
-def _setup_test(tmp_dir, mock_get_devicelist, mock_sys_netdev_info,
+def _setup_test(tmp_dir, mock_get_devicelist, mock_read_sys_net,
                 mock_sys_dev_path):
     mock_get_devicelist.return_value = ['eth1000']
     dev_characteristics = {
@@ -458,10 +458,12 @@ def _setup_test(tmp_dir, mock_get_devicelist, mock_sys_netdev_info,
         }
     }
 
-    def netdev_info(name, field):
-        return dev_characteristics[name][field]
+    def fake_read(devname, path, translate=None,
+                  on_enoent=None, on_keyerror=None,
+                  on_einval=None):
+        return dev_characteristics[devname][path]
 
-    mock_sys_netdev_info.side_effect = netdev_info
+    mock_read_sys_net.side_effect = fake_read
 
     def sys_dev_path(devname, path=""):
         return tmp_dir + devname + "/" + path
@@ -477,15 +479,15 @@ def _setup_test(tmp_dir, mock_get_devicelist, mock_sys_netdev_info,
 class TestSysConfigRendering(TestCase):
 
     @mock.patch("cloudinit.net.sys_dev_path")
-    @mock.patch("cloudinit.net.sys_netdev_info")
+    @mock.patch("cloudinit.net.read_sys_net")
     @mock.patch("cloudinit.net.get_devicelist")
     def test_default_generation(self, mock_get_devicelist,
-                                mock_sys_netdev_info,
+                                mock_read_sys_net,
                                 mock_sys_dev_path):
         tmp_dir = tempfile.mkdtemp()
         self.addCleanup(shutil.rmtree, tmp_dir)
         _setup_test(tmp_dir, mock_get_devicelist,
-                    mock_sys_netdev_info, mock_sys_dev_path)
+                    mock_read_sys_net, mock_sys_dev_path)
 
         network_cfg = net.generate_fallback_config()
         ns = network_state.parse_net_config_data(network_cfg,
@@ -534,15 +536,15 @@ USERCTL=no
 class TestEniNetRendering(TestCase):
 
     @mock.patch("cloudinit.net.sys_dev_path")
-    @mock.patch("cloudinit.net.sys_netdev_info")
+    @mock.patch("cloudinit.net.read_sys_net")
     @mock.patch("cloudinit.net.get_devicelist")
     def test_default_generation(self, mock_get_devicelist,
-                                mock_sys_netdev_info,
+                                mock_read_sys_net,
                                 mock_sys_dev_path):
         tmp_dir = tempfile.mkdtemp()
         self.addCleanup(shutil.rmtree, tmp_dir)
         _setup_test(tmp_dir, mock_get_devicelist,
-                    mock_sys_netdev_info, mock_sys_dev_path)
+                    mock_read_sys_net, mock_sys_dev_path)
 
         network_cfg = net.generate_fallback_config()
         ns = network_state.parse_net_config_data(network_cfg,
