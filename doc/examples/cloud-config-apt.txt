@@ -70,7 +70,7 @@ apt:
   # modifications have been made.
   # Suites are even disabled if no other modification was made,
   # but not if is preserve_sources_list is active.
-  # There is a special alias “$RELEASE” as in the sources that will be replace
+  # There is a special alias "$RELEASE" as in the sources that will be replace
   # by the matching release.
   #
   # To ease configuration and improve readability the following common ubuntu
@@ -84,7 +84,7 @@ apt:
   # There is no harm in specifying a suite to be disabled that is not found in
   # the source.list file (just a no-op then)
   #
-  # Note: Lines don’t get deleted, but disabled by being converted to a comment.
+  # Note: Lines don't get deleted, but disabled by being converted to a comment.
   # The following example disables all usual defaults except $RELEASE-security.
   # On top it disables a custom suite called "mysuite"
   disable_suites: [$RELEASE-updates, backports, $RELEASE, mysuite]

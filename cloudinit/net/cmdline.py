@@ -26,7 +26,7 @@ import sys
 import six
 
 from . import get_devicelist
-from . import sys_netdev_info
+from . import read_sys_net_safe
 
 from cloudinit import util
 
@@ -210,7 +210,10 @@ def read_kernel_cmdline_config(files=None, mac_addrs=None, cmdline=None):
         return None
 
     if mac_addrs is None:
-        mac_addrs = dict((k, sys_netdev_info(k, 'address'))
-                         for k in get_devicelist())
+        mac_addrs = {}
+        for k in get_devicelist():
+            mac_addr = read_sys_net_safe(k, 'address')
+            if mac_addr:
+                mac_addrs[k] = mac_addr
 
     return config_from_klibc_net_cfg(files=files, mac_addrs=mac_addrs)

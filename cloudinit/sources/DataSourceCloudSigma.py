@@ -115,7 +115,7 @@ DataSourceCloudSigmaNet = DataSourceCloudSigma
 # Used to match classes to dependencies. Since this datasource uses the serial
 # port network is not really required, so it's okay to load without it, too.
 datasources = [
-    (DataSourceCloudSigma, (sources.DEP_FILESYSTEM)),
+    (DataSourceCloudSigma, (sources.DEP_FILESYSTEM, )),
 ]
 
 

@@ -305,7 +305,7 @@ def can_dev_be_reformatted(devpath):
         return False, msg
 
     def count_files(mp):
-        ignored = {'dataloss_warning_readme.txt'}
+        ignored = set(['dataloss_warning_readme.txt'])
         return len([f for f in os.listdir(mp) if f.lower() not in ignored])
 
     bmsg = ('partition 1 (%s -> %s) on device %s was ntfs formatted' %
