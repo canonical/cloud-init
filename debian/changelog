@@ -1,5 +1,6 @@
 cloud-init (0.7.8-49-g9e904bb-0ubuntu1~16.04.3) UNRELEASED; urgency=medium
 
+  * debian/cherry-pick: use git format-patch rather than git show
   * cherry-pick a9d41de: CloudSigma: Fix bug where datasource was not
     loaded in local (LP: #1648380)
   * cherry-pick c9c9197: mounts: use mount -a again to accomplish mounts
