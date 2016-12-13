@@ -1,4 +1,4 @@
-cloud-init (0.7.8-49-g9e904bb-0ubuntu1~16.04.3) UNRELEASED; urgency=medium
+cloud-init (0.7.8-49-g9e904bb-0ubuntu1~16.04.3) xenial-proposed; urgency=medium
 
   * debian/cherry-pick: use git format-patch rather than git show
   * cherry-pick a9d41de: CloudSigma: Fix bug where datasource was not
@@ -6,7 +6,7 @@ cloud-init (0.7.8-49-g9e904bb-0ubuntu1~16.04.3) UNRELEASED; urgency=medium
   * cherry-pick c9c9197: mounts: use mount -a again to accomplish mounts
     (LP: #1647708)
 
- -- Scott Moser <smoser@ubuntu.com>  Tue, 13 Dec 2016 09:30:49 -0500
+ -- Scott Moser <smoser@ubuntu.com>  Tue, 13 Dec 2016 16:02:50 -0500
 
 cloud-init (0.7.8-49-g9e904bb-0ubuntu1~16.04.2) xenial-proposed; urgency=medium
 
