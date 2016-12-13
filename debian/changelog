@@ -1,3 +1,10 @@
+cloud-init (0.7.8-49-g9e904bb-0ubuntu1~16.04.3) UNRELEASED; urgency=medium
+
+  * cherry-pick a9d41de: CloudSigma: Fix bug where datasource was not
+    loaded in local (LP: #1648380)
+
+ -- Scott Moser <smoser@ubuntu.com>  Tue, 13 Dec 2016 09:30:37 -0500
+
 cloud-init (0.7.8-49-g9e904bb-0ubuntu1~16.04.2) xenial-proposed; urgency=medium
 
   * cherry-pick 18203bf: disk_setup: Use sectors as unit when formatting
