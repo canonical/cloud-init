@@ -30,16 +30,25 @@ LOG = logging.getLogger(__name__)
 # See: man sshd_config
 DEF_SSHD_CFG = "/etc/ssh/sshd_config"
 
-# taken from openssh source key.c/key_type_from_name
+# taken from openssh source openssh-7.3p1/sshkey.c:
+# static const struct keytype keytypes[] = { ... }
 VALID_KEY_TYPES = (
-    "rsa", "dsa", "ssh-rsa", "ssh-dss", "ecdsa",
-    "ssh-rsa-cert-v00@openssh.com", "ssh-dss-cert-v00@openssh.com",
-    "ssh-rsa-cert-v00@openssh.com", "ssh-dss-cert-v00@openssh.com",
-    "ssh-rsa-cert-v01@openssh.com", "ssh-dss-cert-v01@openssh.com",
+    "dsa",
+    "ecdsa",
     "ecdsa-sha2-nistp256-cert-v01@openssh.com",
     "ecdsa-sha2-nistp384-cert-v01@openssh.com",
-    "ecdsa-sha2-nistp521-cert-v01@openssh.com")
-
+    "ecdsa-sha2-nistp521-cert-v01@openssh.com",
+    "ed25519",
+    "rsa",
+    "rsa-sha2-256",
+    "rsa-sha2-512",
+    "ssh-dss",
+    "ssh-dss-cert-v01@openssh.com",
+    "ssh-ed25519",
+    "ssh-ed25519-cert-v01@openssh.com",
+    "ssh-rsa",
+    "ssh-rsa-cert-v01@openssh.com",
+)
 
 class AuthKeyLine(object):
     def __init__(self, source, keytype=None, base64=None,
