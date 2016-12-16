@@ -32,25 +32,53 @@ def sys_dev_path(devname, path=""):
     return SYS_CLASS_NET + devname + "/" + path
 
 
-def read_sys_net(devname, path, translate=None, enoent=None, keyerror=None):
+def read_sys_net(devname, path, translate=None,
+                 on_enoent=None, on_keyerror=None,
+                 on_einval=None):
+    dev_path = sys_dev_path(devname, path)
     try:
-        contents = util.load_file(sys_dev_path(devname, path))
+        contents = util.load_file(dev_path)
     except (OSError, IOError) as e:
-        if getattr(e, 'errno', None) in (errno.ENOENT, errno.ENOTDIR):
-            if enoent is not None:
-                return enoent
+        e_errno = getattr(e, 'errno', None)
+        if e_errno in (errno.ENOENT, errno.ENOTDIR):
+            if on_enoent is not None:
+                return on_enoent(e)
+        if e_errno in (errno.EINVAL,):
+            if on_einval is not None:
+                return on_einval(e)
         raise
     contents = contents.strip()
     if translate is None:
         return contents
     try:
-        return translate.get(contents)
-    except KeyError:
-        LOG.debug("found unexpected value '%s' in '%s/%s'", contents,
-                  devname, path)
-        if keyerror is not None:
-            return keyerror
-        raise
+        return translate[contents]
+    except KeyError as e:
+        if on_keyerror is not None:
+            return on_keyerror(e)
+        else:
+            LOG.debug("Found unexpected (not translatable) value"
+                      " '%s' in '%s", contents, dev_path)
+            raise
+
+
+def read_sys_net_safe(iface, field, translate=None):
+    def on_excp_false(e):
+        return False
+    return read_sys_net(iface, field,
+                        on_keyerror=on_excp_false,
+                        on_enoent=on_excp_false,
+                        on_einval=on_excp_false,
+                        translate=translate)
+
+
+def read_sys_net_int(iface, field):
+    val = read_sys_net_safe(iface, field)
+    if val is False:
+        return None
+    try:
+        return int(val)
+    except TypeError:
+        return None
 
 
 def is_up(devname):
@@ -58,8 +86,7 @@ def is_up(devname):
     # operstate as up for the purposes of network configuration. See
     # Documentation/networking/operstates.txt in the kernel source.
     translate = {'up': True, 'unknown': True, 'down': False}
-    return read_sys_net(devname, "operstate", enoent=False, keyerror=False,
-                        translate=translate)
+    return read_sys_net_safe(devname, "operstate", translate=translate)
 
 
 def is_wireless(devname):
@@ -70,21 +97,14 @@ def is_connected(devname):
     # is_connected isn't really as simple as that.  2 is
     # 'physically connected'. 3 is 'not connected'. but a wlan interface will
     # always show 3.
-    try:
-        iflink = read_sys_net(devname, "iflink", enoent=False)
-        if iflink == "2":
-            return True
-        if not is_wireless(devname):
-            return False
-        LOG.debug("'%s' is wireless, basing 'connected' on carrier", devname)
-
-        return read_sys_net(devname, "carrier", enoent=False, keyerror=False,
-                            translate={'0': False, '1': True})
-
-    except IOError as e:
-        if e.errno == errno.EINVAL:
-            return False
-        raise
+    iflink = read_sys_net_safe(devname, "iflink")
+    if iflink == "2":
+        return True
+    if not is_wireless(devname):
+        return False
+    LOG.debug("'%s' is wireless, basing 'connected' on carrier", devname)
+    return read_sys_net_safe(devname, "carrier",
+                             translate={'0': False, '1': True})
 
 
 def is_physical(devname):
@@ -109,25 +129,9 @@ def is_disabled_cfg(cfg):
     return cfg.get('config') == "disabled"
 
 
-def sys_netdev_info(name, field):
-    if not os.path.exists(os.path.join(SYS_CLASS_NET, name)):
-        raise OSError("%s: interface does not exist in %s" %
-                      (name, SYS_CLASS_NET))
-    fname = os.path.join(SYS_CLASS_NET, name, field)
-    if not os.path.exists(fname):
-        raise OSError("%s: could not find sysfs entry: %s" % (name, fname))
-    data = util.load_file(fname)
-    if data[-1] == '\n':
-        data = data[:-1]
-    return data
-
-
 def generate_fallback_config():
     """Determine which attached net dev is most likely to have a connection and
        generate network state to run dhcp on that interface"""
-    # by default use eth0 as primary interface
-    nconf = {'config': [], 'version': 1}
-
     # get list of interfaces that could have connections
     invalid_interfaces = set(['lo'])
     potential_interfaces = set(get_devicelist())
@@ -142,30 +146,21 @@ def generate_fallback_config():
         if os.path.exists(sys_dev_path(interface, "bridge")):
             # skip any bridges
             continue
-        try:
-            carrier = int(sys_netdev_info(interface, 'carrier'))
-            if carrier:
-                connected.append(interface)
-                continue
-        except OSError:
-            pass
+        carrier = read_sys_net_int(interface, 'carrier')
+        if carrier:
+            connected.append(interface)
+            continue
         # check if nic is dormant or down, as this may make a nick appear to
         # not have a carrier even though it could acquire one when brought
         # online by dhclient
-        try:
-            dormant = int(sys_netdev_info(interface, 'dormant'))
-            if dormant:
-                possibly_connected.append(interface)
-                continue
-        except OSError:
-            pass
-        try:
-            operstate = sys_netdev_info(interface, 'operstate')
-            if operstate in ['dormant', 'down', 'lowerlayerdown', 'unknown']:
-                possibly_connected.append(interface)
-                continue
-        except OSError:
-            pass
+        dormant = read_sys_net_int(interface, 'dormant')
+        if dormant:
+            possibly_connected.append(interface)
+            continue
+        operstate = read_sys_net_safe(interface, 'operstate')
+        if operstate in ['dormant', 'down', 'lowerlayerdown', 'unknown']:
+            possibly_connected.append(interface)
+            continue
 
     # don't bother with interfaces that might not be connected if there are
     # some that definitely are
@@ -173,23 +168,30 @@ def generate_fallback_config():
         potential_interfaces = connected
     else:
         potential_interfaces = possibly_connected
-    # if there are no interfaces, give up
-    if not potential_interfaces:
-        return
+
     # if eth0 exists use it above anything else, otherwise get the interface
-    # that looks 'first'
-    if DEFAULT_PRIMARY_INTERFACE in potential_interfaces:
-        name = DEFAULT_PRIMARY_INTERFACE
+    # that we can read 'first' (using the sorted defintion of first).
+    names = list(sorted(potential_interfaces))
+    if DEFAULT_PRIMARY_INTERFACE in names:
+        names.remove(DEFAULT_PRIMARY_INTERFACE)
+        names.insert(0, DEFAULT_PRIMARY_INTERFACE)
+    target_name = None
+    target_mac = None
+    for name in names:
+        mac = read_sys_net_safe(name, 'address')
+        if mac:
+            target_name = name
+            target_mac = mac
+            break
+    if target_mac and target_name:
+        nconf = {'config': [], 'version': 1}
+        nconf['config'].append(
+            {'type': 'physical', 'name': target_name,
+             'mac_address': target_mac, 'subnets': [{'type': 'dhcp'}]})
+        return nconf
     else:
-        name = sorted(potential_interfaces)[0]
-
-    mac = sys_netdev_info(name, 'address')
-    target_name = name
-
-    nconf['config'].append(
-        {'type': 'physical', 'name': target_name,
-         'mac_address': mac, 'subnets': [{'type': 'dhcp'}]})
-    return nconf
+        # can't read any interfaces addresses (or there are none); give up
+        return None
 
 
 def apply_network_config_names(netcfg, strict_present=True, strict_busy=True):
@@ -352,7 +354,7 @@ def get_interface_mac(ifname):
         # for a bond slave, get the nic's hwaddress, not the address it
         # is using because its part of a bond.
         path = "bonding_slave/perm_hwaddr"
-    return read_sys_net(ifname, path, enoent=False)
+    return read_sys_net_safe(ifname, path)
 
 
 def get_interfaces_by_mac(devs=None):

@@ -3,6 +3,7 @@
 import copy
 
 from cloudinit.cs_utils import Cepko
+from cloudinit import sources
 from cloudinit.sources import DataSourceCloudSigma
 
 from .. import helpers as test_helpers
@@ -97,3 +98,17 @@ class DataSourceCloudSigmaTest(test_helpers.TestCase):
         self.datasource.get_data()
 
         self.assertIsNone(self.datasource.vendordata_raw)
+
+
+class DsLoads(test_helpers.TestCase):
+    def test_get_datasource_list_returns_in_local(self):
+        deps = (sources.DEP_FILESYSTEM,)
+        ds_list = DataSourceCloudSigma.get_datasource_list(deps)
+        self.assertEqual(ds_list,
+                         [DataSourceCloudSigma.DataSourceCloudSigma])
+
+    def test_list_sources_finds_ds(self):
+        found = sources.list_sources(
+            ['CloudSigma'], (sources.DEP_FILESYSTEM,), ['cloudinit.sources'])
+        self.assertEqual([DataSourceCloudSigma.DataSourceCloudSigma],
+                         found)
