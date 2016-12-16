@@ -9,12 +9,6 @@ cloud-init (0.7.8-67-gc9c9197-0ubuntu1~16.10.1) UNRELEASED; urgency=medium
     - fix decoding of utf-8 chars in yaml test
     - Replace usage of sys_netdev_info with read_sys_net (LP: #1625766)
     - fix problems found in python2.6 test.
-
- -- Scott Moser <smoser@ubuntu.com>  Fri, 16 Dec 2016 12:56:11 -0500
-
-cloud-init (0.7.8-61-g2d2ec70-0ubuntu1~16.10.1) yakkety; urgency=medium
-
-  * New upstream snapshot.
     - OpenStack: extend physical types to include hyperv, hw_veb, vhost_user.
       (LP: #1642679)
     - tests: fix assumptions that expected no eth0 in system. (LP: #1644043)
