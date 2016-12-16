@@ -12,12 +12,14 @@ cloud-init (0.7.8-67-gc9c9197-0ubuntu1~16.10.1) UNRELEASED; urgency=medium
     - OpenStack: extend physical types to include hyperv, hw_veb, vhost_user.
       (LP: #1642679)
     - tests: fix assumptions that expected no eth0 in system. (LP: #1644043)
-    - net/cmdline: Consider ip= or ip6= on command line not only ip= (LP: #1639930)
+    - net/cmdline: Consider ip= or ip6= on command line not only ip=
+      (LP: #1639930)
     - Just use file logging by default [Joshua Harlow] (LP: #1643990)
     - Improve formatting for ProcessExecutionError [Wesley Wiedenmeier]
     - flake8: fix trailing white space
     - Doc: various documentation fixes [Sean Bright]
-    - cloudinit/config/cc_rh_subscription.py: Remove repos before adding [Brent Baude]
+    - cloudinit/config/cc_rh_subscription.py: Remove repos before adding
+      [Brent Baude]
     - packages/redhat: fix rpm spec file.
     - main: set TZ in environment if not already set. [Ryan Harper]
     - disk_setup: Use sectors as unit when formatting MBR disks with sfdisk.
