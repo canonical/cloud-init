@@ -1,5 +1,7 @@
 cloud-init (0.7.8-67-gc9c9197-0ubuntu1~16.10.1) UNRELEASED; urgency=medium
 
+  * debian/cherry-pick: add utility for cherry picking commits from upstream
+    into patches in debian/patches.
   * New upstream snapshot.
     - mounts: use mount -a again to accomplish mounts (LP: #1647708)
     - CloudSigma: Fix bug where datasource was not loaded in local search.
