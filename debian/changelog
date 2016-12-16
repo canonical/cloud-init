@@ -1,3 +1,17 @@
+cloud-init (0.7.8-67-gc9c9197-0ubuntu1~16.10.1) UNRELEASED; urgency=medium
+
+  * New upstream snapshot.
+    - mounts: use mount -a again to accomplish mounts (LP: #1647708)
+    - CloudSigma: Fix bug where datasource was not loaded in local search.
+      (LP: #1648380)
+    - when adding a user, strip whitespace from group list
+      [Lars Kellogg-Stedman] (LP: #1354694)
+    - fix decoding of utf-8 chars in yaml test
+    - Replace usage of sys_netdev_info with read_sys_net (LP: #1625766)
+    - fix problems found in python2.6 test.
+
+ -- Scott Moser <smoser@ubuntu.com>  Fri, 16 Dec 2016 12:56:11 -0500
+
 cloud-init (0.7.8-61-g2d2ec70-0ubuntu1~16.10.1) yakkety; urgency=medium
 
   * New upstream snapshot.
