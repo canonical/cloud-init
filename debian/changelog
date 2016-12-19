@@ -1,4 +1,4 @@
-cloud-init (0.7.8-67-gc9c9197-0ubuntu1~16.10.1) UNRELEASED; urgency=medium
+cloud-init (0.7.8-68-gca3ae67-0ubuntu1~16.10.1) UNRELEASED; urgency=medium
 
   * debian/cherry-pick: add utility for cherry picking commits from upstream
     into patches in debian/patches.
@@ -27,7 +27,7 @@ cloud-init (0.7.8-67-gc9c9197-0ubuntu1~16.10.1) UNRELEASED; urgency=medium
     - disk_setup: Use sectors as unit when formatting MBR disks with sfdisk.
       [Daniel Watkins] (LP: #1460715)
 
- -- Scott Moser <smoser@ubuntu.com>  Fri, 02 Dec 2016 12:29:48 -0500
+ -- Scott Moser <smoser@ubuntu.com>  Mon, 19 Dec 2016 12:30:01 -0500
 
 cloud-init (0.7.8-49-g9e904bb-0ubuntu1~16.10.1) yakkety; urgency=medium
 
