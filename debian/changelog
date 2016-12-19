@@ -1,3 +1,11 @@
+cloud-init (0.7.8-68-gca3ae67-0ubuntu1) UNRELEASED; urgency=medium
+
+  * New upstream snapshot.
+    - user-groups: fix bug when groups was provided as string and had spaces
+      (LP: #1354694)
+
+ -- Scott Moser <smoser@ubuntu.com>  Mon, 19 Dec 2016 12:34:50 -0500
+
 cloud-init (0.7.8-67-gc9c9197-0ubuntu1) zesty; urgency=medium
 
   * debian/cherry-pick: add utility for cherry picking commits from upstream
