@@ -50,6 +50,7 @@ VALID_KEY_TYPES = (
     "ssh-rsa-cert-v01@openssh.com",
 )
 
+
 class AuthKeyLine(object):
     def __init__(self, source, keytype=None, base64=None,
                  comment=None, options=None):
