@@ -993,6 +993,11 @@ def read_conf_with_confd(cfgfile):
     return mergemanydict([confd_cfg, cfg])
 
 
+def read_conf_from_cmdline(cmdline=None):
+    # return a dictionary or config on the cmdline or None
+    return load_yaml(read_cc_from_cmdline(cmdline=cmdline))
+
+
 def read_cc_from_cmdline(cmdline=None):
     # this should support reading cloud-config information from
     # the kernel command line.  It is intended to support content of the

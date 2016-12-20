@@ -300,6 +300,39 @@ def dir2dict(startdir, prefix=None):
     return flist
 
 
+def wrap_and_call(prefix, mocks, func, *args, **kwargs):
+    """
+    call func(args, **kwargs) with mocks applied, then unapplies mocks
+    nicer to read than repeating dectorators on each function
+
+    prefix: prefix for mock names (e.g. 'cloudinit.stages.util') or None
+    mocks: dictionary of names (under 'prefix') to mock and either
+        a return value or a dictionary to pass to the mock.patch call
+    func: function to call with mocks applied
+    *args,**kwargs: arguments for 'func'
+
+    return_value: return from 'func'
+    """
+    delim = '.'
+    if prefix is None:
+        prefix = ''
+    prefix = prefix.rstrip(delim)
+    unwraps = []
+    for fname, kw in mocks.items():
+        if prefix:
+            fname = delim.join((prefix, fname))
+        if not isinstance(kw, dict):
+            kw = {'return_value': kw}
+        p = mock.patch(fname, **kw)
+        p.start()
+        unwraps.append(p)
+    try:
+        return func(*args, **kwargs)
+    finally:
+        for p in unwraps:
+            p.stop()
+
+
 try:
     skipIf = unittest.skipIf
 except AttributeError:
