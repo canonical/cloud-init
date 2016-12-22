@@ -1,0 +1,11 @@
+#
+# From cloud config examples on cloudinit.readthedocs.io
+#
+# 2016-11-17: Disabled as covered by module based tests
+#
+enabled: False
+cloud_config: |
+  #cloud-config
+  package_upgrade: true
+
+# vi: ts=4 expandtab

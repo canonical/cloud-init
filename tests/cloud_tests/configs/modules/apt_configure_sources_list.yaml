@@ -1,0 +1,19 @@
+#
+# Generate a sources.list
+#
+cloud_config: |
+  #cloud-config
+  apt:
+    sources_list: |
+      deb $MIRROR $RELEASE main restricted
+      deb-src $MIRROR $RELEASE main restricted
+      deb $PRIMARY $RELEASE universe restricted
+      deb-src $PRIMARY $RELEASE universe restricted
+      deb $SECURITY $RELEASE-security multiverse
+      deb-src $SECURITY $RELEASE-security multiverse
+collect_scripts:
+  sources.list: |
+    #/bin/bash
+    cat /etc/apt/sources.list
+
+# vi: ts=4 expandtab

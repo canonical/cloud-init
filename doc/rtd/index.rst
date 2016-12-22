@@ -41,6 +41,7 @@ initialization of a cloud instance.
    topics/vendordata.rst
    topics/moreinfo.rst
    topics/hacking.rst
+   topics/tests.rst
 
 .. _Cloud-init: https://launchpad.net/cloud-init
 .. vi: textwidth=78

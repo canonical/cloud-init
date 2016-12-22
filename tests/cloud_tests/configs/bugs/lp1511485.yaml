@@ -1,0 +1,11 @@
+#
+# LP Bug 1511485: final_message is silent on ubuntu-12.04.5 / cloud-init 0.6.3
+#
+# 2016-11-17: Disabled as covered by module based tests
+#
+enabled: False
+cloud_config: |
+  #cloud-config
+  final_message: "Final message from cloud-config"
+
+# vi: ts=4 expandtab

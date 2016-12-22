@@ -1,0 +1,16 @@
+#
+# Set apt proxy
+#
+cloud_config: |
+  #cloud-config
+  apt:
+    proxy: "http://squid.internal:3128"
+    http_proxy: "http://squid.internal:3128"
+    ftp_proxy: "ftp://squid.internal:3128"
+    https_proxy: "https://squid.internal:3128"
+collect_scripts:
+  90cloud-init-aptproxy: |
+    #!/bin/bash
+    cat /etc/apt/apt.conf.d/90cloud-init-aptproxy
+
+# vi: ts=4 expandtab

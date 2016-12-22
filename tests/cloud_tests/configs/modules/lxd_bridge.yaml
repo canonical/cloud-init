@@ -1,0 +1,30 @@
+#
+# LXD configured with directory backend and IPv4 bridge
+#
+cloud_config: |
+  #cloud-config
+  lxd:
+    init:
+      storage_backend: dir
+    bridge:
+      mode: new
+      name: lxdbr0
+      ipv4_address: 10.100.100.1
+      ipv4_netmask: 24
+      ipv4_dhcp_first: 10.100.100.100
+      ipv4_dhcp_last: 10.100.100.200
+      ipv4_nat: true
+      domain: lxd
+collect_scripts:
+  lxc: |
+    #!/bin/bash
+    which lxc
+  lxd: |
+    #!/bin/bash
+    which lxd
+  lxc-bridge: |
+    #!/bin/bash
+    ip addr show lxdbr0
+    cat /etc/default/lxd-bridge 2>/dev/null | grep -v ^#  | sort -u
+
+# vi: ts=4 expandtab
