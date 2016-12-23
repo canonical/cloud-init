@@ -1,13 +1,10 @@
-.. contents:: Table of Contents
-   :depth: 2
-
-============================
+****************
 Test Development
-============================
+****************
 
 
 Overview
---------
+========
 
 The purpose of this page is to describe how to write integration tests for
 cloud-init. As a test writer you need to develop a test configuration and
@@ -24,7 +21,7 @@ The names must match, however the extensions will of course be different,
 yaml vs py.
 
 Configuration
--------------
+=============
 
 The test configuration is a YAML file such as *ntp_server.yaml* below:
 
@@ -65,7 +62,7 @@ There are two keys, 1 required and 1 optional, in the YAML file:
    the verification script to recall the output of the commands ran.
 
 Default Collect Scripts
-~~~~~~~~~~~~~~~~~~~~~~~
+-----------------------
 
 By default the following files will be collected for every test. There is
 no need to specify these items:
@@ -78,7 +75,7 @@ no need to specify these items:
 * ```dpkg-query -W -f='${Version}' cloud-init```
 
 Verification
-------------
+============
 
 The verification script is a Python file with unit tests like the one,
 `ntp_server.py`, below:
@@ -122,7 +119,7 @@ Here is a breakdown of the unit test file:
   ``collect_scripts`` above.
 
 Layout
-------
+======
 
 Integration tests are located under the `tests/cloud_tests` directory.
 Test configurations are placed under `configs` and the test verification
@@ -148,7 +145,6 @@ tests. View the README.md in each to understand in more detail each
 directory.
 
 
-=====================
 Development Checklist
 =====================
 
@@ -172,7 +168,6 @@ Development Checklist
            -t tests/cloud_tests/configs/<dir>/your_test_here.yaml
 
 
-=========
 Execution
 =========
 
@@ -244,7 +239,6 @@ The above command will run the verify scripts on the data discovered in
 `/tmp/collection`.
 
 
-============
 Architecture
 ============
 
