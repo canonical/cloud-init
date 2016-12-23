@@ -1,4 +1,4 @@
-cloud-init (0.7.9-0ubuntu1) UNRELEASED; urgency=medium
+cloud-init (0.7.9-0ubuntu1) zesty; urgency=medium
 
   * New upstream snapshot.
     - release 0.7.9
@@ -15,7 +15,7 @@ cloud-init (0.7.9-0ubuntu1) UNRELEASED; urgency=medium
     - doc: change 'nobootwait' to 'nofail' in docs [Anhad Jai Singh]
     - Replace an expired bit.ly link in code comment.
 
- -- Scott Moser <smoser@ubuntu.com>  Fri, 23 Dec 2016 12:51:35 -0500
+ -- Scott Moser <smoser@ubuntu.com>  Fri, 23 Dec 2016 12:54:50 -0500
 
 cloud-init (0.7.8-68-gca3ae67-0ubuntu1) zesty; urgency=medium
 
