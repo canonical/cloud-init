@@ -25,6 +25,7 @@ def _initialize_logging():
 
     return logger
 
+
 LOG = _initialize_logging()
 
 # vi: ts=4 expandtab
