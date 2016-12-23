@@ -4,7 +4,7 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
-__VERSION__ = "0.7.8"
+__VERSION__ = "0.7.9"
 
 
 def version_string():
