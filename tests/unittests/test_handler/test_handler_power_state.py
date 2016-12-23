@@ -1,3 +1,5 @@
+# This file is part of cloud-init. See LICENSE file for license information.
+
 import sys
 
 from cloudinit.config import cc_power_state_change as psc
@@ -125,3 +127,5 @@ def check_lps_ret(psc_return, mode=None):
     if len(errs):
         lines = ["Errors in result: %s" % str(psc_return)] + errs
         raise Exception('\n'.join(lines))
+
+# vi: ts=4 expandtab

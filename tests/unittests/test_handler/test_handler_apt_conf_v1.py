@@ -1,3 +1,5 @@
+# This file is part of cloud-init. See LICENSE file for license information.
+
 from cloudinit.config import cc_apt_configure
 from cloudinit import util
 

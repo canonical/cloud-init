@@ -1,0 +1,41 @@
+#
+# From cloud config examples on cloudinit.readthedocs.io
+#
+# 2016-11-17: Disabled as covered by module based tests
+#
+enabled: False
+cloud_config: |
+  #cloud-config
+    ca-certs:
+      # If present and set to True, the 'remove-defaults' parameter will remove
+      # all the default trusted CA certificates that are normally shipped with
+      # Ubuntu.
+      # This is mainly for paranoid admins - most users will not need this
+      # functionality.
+      remove-defaults: true
+
+      # If present, the 'trusted' parameter should contain a certificate (or list
+      # of certificates) to add to the system as trusted CA certificates.
+      # Pay close attention to the YAML multiline list syntax.  The example shown
+      # here is for a list of multiline certificates.
+      trusted:
+      - |
+       -----BEGIN CERTIFICATE-----
+       YOUR-ORGS-TRUSTED-CA-CERT-HERE
+       -----END CERTIFICATE-----
+      - |
+       -----BEGIN CERTIFICATE-----
+       YOUR-ORGS-TRUSTED-CA-CERT-HERE
+       -----END CERTIFICATE-----
+collect_scripts:
+  cloudinit_certs: |
+    #!/bin/bash
+    cat /etc/ssl/certs/cloud-init-ca-certs.pem
+  cert_count_ca: |
+    #!/bin/bash
+    wc -l /etc/ssl/certs/ca-certificates.crt
+  cert_count_cloudinit: |
+    #!/bin/bash
+    wc -l /etc/ssl/certs/cloud-init-ca-certs.pem
+
+# vi: ts=4 expandtab

@@ -1,0 +1,8 @@
+#
+# LP Bug 1611074: Reformatting of ephemeral drive fails on resize of Azure VM
+#
+# 2016-11-18: Disabled until test written
+#
+enabled: False
+
+# vi: ts=4 expandtab

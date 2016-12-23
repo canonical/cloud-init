@@ -1,0 +1,13 @@
+#
+# Install snappy
+#
+cloud_config: |
+  #cloud-config
+  snappy:
+    system_snappy: auto
+collect_scripts:
+  snap_version: |
+    #!/bin/bash
+    snap --version
+
+# vi: ts=4 expandtab

@@ -1,3 +1,5 @@
+# This file is part of cloud-init. See LICENSE file for license information.
+
 from cloudinit.config import cc_ntp
 from cloudinit.sources import DataSourceNone
 from cloudinit import templater
@@ -272,3 +274,5 @@ class TestNtp(FilesystemMockingTestCase):
         cc_ntp.handle('cc_ntp', {}, cc, LOG, [])
         self.assertFalse(cc.distro.install_packages.called)
         self.assertFalse(mock_util.subp.called)
+
+# vi: ts=4 expandtab

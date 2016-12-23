@@ -1,4 +1,4 @@
-# coding: utf-8
+# This file is part of cloud-init. See LICENSE file for license information.
 
 import copy
 
@@ -50,7 +50,8 @@ class DataSourceCloudSigmaTest(test_helpers.TestCase):
         self.assertEqual("test_server", self.datasource.get_hostname())
         self.datasource.metadata['name'] = ''
         self.assertEqual("65b2fb23", self.datasource.get_hostname())
-        self.datasource.metadata['name'] = u'тест'
+        utf8_hostname = b'\xd1\x82\xd0\xb5\xd1\x81\xd1\x82'.decode('utf-8')
+        self.datasource.metadata['name'] = utf8_hostname
         self.assertEqual("65b2fb23", self.datasource.get_hostname())
 
     def test_get_public_ssh_keys(self):
@@ -112,3 +113,5 @@ class DsLoads(test_helpers.TestCase):
             ['CloudSigma'], (sources.DEP_FILESYSTEM,), ['cloudinit.sources'])
         self.assertEqual([DataSourceCloudSigma.DataSourceCloudSigma],
                          found)
+
+# vi: ts=4 expandtab

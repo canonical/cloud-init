@@ -1,3 +1,5 @@
+# This file is part of cloud-init. See LICENSE file for license information.
+
 import json
 import os
 import stat
@@ -52,3 +54,5 @@ class TestAtomicHelper(helpers.TempDirTestCase):
     def check_perms(self, path, perms):
         file_stat = os.stat(path)
         self.assertEqual(perms, stat.S_IMODE(file_stat.st_mode))
+
+# vi: ts=4 expandtab

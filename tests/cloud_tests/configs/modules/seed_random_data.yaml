@@ -1,0 +1,15 @@
+#
+# Push in random raw string to set as seed
+#
+cloud_config: |
+  #cloud-config
+  random_seed:
+    data: 'MYUb34023nD:LFDK10913jk;dfnk:Df'
+    encoding: raw
+    file: /root/seed
+collect_scripts:
+  seed_data: |
+    #!/bin/bash
+    cat /root/seed
+
+# vi: ts=4 expandtab

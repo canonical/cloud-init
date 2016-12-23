@@ -1,0 +1,17 @@
+#
+# LXD configured with directory backend
+#
+cloud_config: |
+  #cloud-config
+  lxd:
+    init:
+      storage_backend: dir
+collect_scripts:
+  lxc: |
+    #!/bin/bash
+    which lxc
+  lxd: |
+    #!/bin/bash
+    which lxd
+
+# vi: ts=4 expandtab

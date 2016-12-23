@@ -1,3 +1,5 @@
+# This file is part of cloud-init. See LICENSE file for license information.
+
 import functools
 import httpretty
 import os
@@ -146,3 +148,5 @@ class TestAliYunDatasource(test_helpers.HttprettyTestCase):
                                                       'ssh-key-1']}}
         self.assertEqual(ay.parse_public_keys(public_keys),
                          public_keys['key-pair-0']['openssh-key'])
+
+# vi: ts=4 expandtab

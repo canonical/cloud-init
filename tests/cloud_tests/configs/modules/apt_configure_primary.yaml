@@ -1,0 +1,19 @@
+#
+# Setup a custome primary sources.list
+#
+cloud_config: |
+  #cloud-config
+  apt:
+    primary:
+      - arches:
+          - default
+        uri: "http://www.gtlib.gatech.edu/pub/ubuntu-releases/"
+collect_scripts:
+  ubuntu.sources.list: |
+    #!/bin/bash
+    grep -v '^#' /etc/apt/sources.list | sed '/^\s*$/d' | grep -c archive.ubuntu.com
+  gatech.sources.list: |
+    #!/bin/bash
+    grep -v '^#' /etc/apt/sources.list | sed '/^\s*$/d' | grep -c gtlib.gatech.edu
+
+# vi: ts=4 expandtab

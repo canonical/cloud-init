@@ -1,23 +1,10 @@
-#!/usr/bin/python
-# vi: ts=4 expandtab
+# Copyright (C) 2012 Canonical Ltd.
+# Copyright (C) 2012 Hewlett-Packard Development Company, L.P.
 #
-#    Copyright (C) 2012 Canonical Ltd.
-#    Copyright (C) 2012 Hewlett-Packard Development Company, L.P.
+# Author: Scott Moser <scott.moser@canonical.com>
+# Author: Juerg Hafliger <juerg.haefliger@hp.com>
 #
-#    Author: Scott Moser <scott.moser@canonical.com>
-#    Author: Juerg Hafliger <juerg.haefliger@hp.com>
-#
-#    This program is free software: you can redistribute it and/or modify
-#    it under the terms of the GNU General Public License version 3, as
-#    published by the Free Software Foundation.
-#
-#    This program is distributed in the hope that it will be useful,
-#    but WITHOUT ANY WARRANTY; without even the implied warranty of
-#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#    GNU General Public License for more details.
-#
-#    You should have received a copy of the GNU General Public License
-#    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+# This file is part of cloud-init. See LICENSE file for license information.
 
 import os
 import pwd
@@ -30,15 +17,25 @@ LOG = logging.getLogger(__name__)
 # See: man sshd_config
 DEF_SSHD_CFG = "/etc/ssh/sshd_config"
 
-# taken from openssh source key.c/key_type_from_name
+# taken from openssh source openssh-7.3p1/sshkey.c:
+# static const struct keytype keytypes[] = { ... }
 VALID_KEY_TYPES = (
-    "rsa", "dsa", "ssh-rsa", "ssh-dss", "ecdsa",
-    "ssh-rsa-cert-v00@openssh.com", "ssh-dss-cert-v00@openssh.com",
-    "ssh-rsa-cert-v00@openssh.com", "ssh-dss-cert-v00@openssh.com",
-    "ssh-rsa-cert-v01@openssh.com", "ssh-dss-cert-v01@openssh.com",
+    "dsa",
+    "ecdsa",
     "ecdsa-sha2-nistp256-cert-v01@openssh.com",
     "ecdsa-sha2-nistp384-cert-v01@openssh.com",
-    "ecdsa-sha2-nistp521-cert-v01@openssh.com")
+    "ecdsa-sha2-nistp521-cert-v01@openssh.com",
+    "ed25519",
+    "rsa",
+    "rsa-sha2-256",
+    "rsa-sha2-512",
+    "ssh-dss",
+    "ssh-dss-cert-v01@openssh.com",
+    "ssh-ed25519",
+    "ssh-ed25519-cert-v01@openssh.com",
+    "ssh-rsa",
+    "ssh-rsa-cert-v01@openssh.com",
+)
 
 
 class AuthKeyLine(object):
@@ -312,3 +309,5 @@ def parse_ssh_config_map(fname):
             continue
         ret[line.key] = line.value
     return ret
+
+# vi: ts=4 expandtab

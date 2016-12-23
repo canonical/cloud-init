@@ -39,3 +39,5 @@ with open(os.path.join(topd, reqfile), "r") as fp:
         print(dep)
 
 sys.exit(0)
+
+# vi: ts=4 expandtab

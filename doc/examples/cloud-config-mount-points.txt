@@ -23,19 +23,19 @@
 # - if an entry does not have all 6 fields, they will be filled in
 #   with values from 'mount_default_fields' below.
 #
-# Note, that you should set 'nobootwait' (see man fstab) for volumes that may
-# not be attached at instance boot (or reboot)
+# Note, that you should set 'nofail' (see man fstab) for volumes that may not
+# be attached at instance boot (or reboot).
 #
 mounts:
  - [ ephemeral0, /mnt, auto, "defaults,noexec" ]
  - [ sdc, /opt/data ]
- - [ xvdh, /opt/data, "auto", "defaults,nobootwait", "0", "0" ]
+ - [ xvdh, /opt/data, "auto", "defaults,nofail", "0", "0" ]
  - [ dd, /dev/zero ]
 
 # mount_default_fields
 # These values are used to fill in any entries in 'mounts' that are not
 # complete.  This must be an array, and must have 7 fields.
-mount_default_fields: [ None, None, "auto", "defaults,nobootwait", "0", "2" ]
+mount_default_fields: [ None, None, "auto", "defaults,nofail", "0", "2" ]
 
 
 # swap can also be set up by the 'mounts' module

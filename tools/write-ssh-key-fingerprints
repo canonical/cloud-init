@@ -1,4 +1,5 @@
 #!/bin/sh
+# This file is part of cloud-init. See LICENSE file for license information.
 
 logger_opts="-p user.info -t ec2"
 

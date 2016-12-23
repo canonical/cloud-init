@@ -1,3 +1,5 @@
+# This file is part of cloud-init. See LICENSE file for license information.
+
 from cloudinit.config import cc_lxd
 from cloudinit.sources import DataSourceNoCloud
 from cloudinit import (distros, helpers, cloud)
@@ -183,3 +185,5 @@ class TestLxd(t_help.TestCase):
         self.assertEqual(
             cc_lxd.bridge_to_cmd(data),
             (None, None))
+
+# vi: ts=4 expandtab

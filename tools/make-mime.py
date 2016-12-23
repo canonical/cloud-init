@@ -58,3 +58,5 @@ def main():
 
 if __name__ == '__main__':
     sys.exit(main())
+
+# vi: ts=4 expandtab

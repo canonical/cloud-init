@@ -1,3 +1,5 @@
+# This file is part of cloud-init. See LICENSE file for license information.
+
 from cloudinit import distros
 from ..helpers import (TestCase, mock)
 
@@ -145,3 +147,5 @@ class TestCreateUser(TestCase):
             self._useradd2call([user, '--groups', 'group1,group2', '-m']),
             mock.call(['passwd', '-l', user])]
         self.assertEqual(m_subp.call_args_list, expected)
+
+# vi: ts=4 expandtab

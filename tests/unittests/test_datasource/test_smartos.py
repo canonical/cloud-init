@@ -1,26 +1,15 @@
-# vi: ts=4 expandtab
+# Copyright (C) 2013 Canonical Ltd.
 #
-#    Copyright (C) 2013 Canonical Ltd.
+# Author: Ben Howard <ben.howard@canonical.com>
 #
-#    Author: Ben Howard <ben.howard@canonical.com>
-#
-#    This program is free software: you can redistribute it and/or modify
-#    it under the terms of the GNU General Public License version 3, as
-#    published by the Free Software Foundation.
-#
-#    This program is distributed in the hope that it will be useful,
-#    but WITHOUT ANY WARRANTY; without even the implied warranty of
-#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#    GNU General Public License for more details.
-#
-#    You should have received a copy of the GNU General Public License
-#    along with this program.  If not, see <http://www.gnu.org/licenses/>.
-#
-#
-#   This is a testcase for the SmartOS datasource. It replicates a serial
-#   console and acts like the SmartOS console does in order to validate
-#   return responses.
-#
+# This file is part of cloud-init. See LICENSE file for license information.
+
+'''This is a testcase for the SmartOS datasource.
+
+It replicates a serial console and acts like the SmartOS console does in
+order to validate return responses.
+
+'''
 
 from __future__ import print_function
 
@@ -881,3 +870,5 @@ class TestNetworkConversion(TestCase):
                               'type': 'static'}]}]}
         found = convert_net(SDC_NICS_SINGLE_GATEWAY)
         self.assertEqual(expected, found)
+
+# vi: ts=4 expandtab

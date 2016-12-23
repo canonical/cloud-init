@@ -1,0 +1,26 @@
+#
+# Setup landscape client settings
+#
+# 2016-11-17: Disabled due to this not working
+#
+enabled: false
+cloud_config: |
+  #cloud-conifg
+  landscape:
+    client:
+      log_level: "info"
+      url: "https://landscape.canonical.com/message-system"
+      ping_url: "http://landscape.canonical.com/ping"
+      data_path: "/var/lib/landscape/client"
+      http_proxy: "http://my.proxy.com/foobar"
+      https_proxy: "https://my.proxy.com/foobar"
+      tags: "server,cloud"
+      computer_title: "footitle"
+      registration_key: "fookey"
+      account_name: "fooaccount"
+collect_scripts:
+  client.conf: |
+    #!/bin/bash
+    cat /etc/landscape/client.conf
+
+# vi: ts=4 expandtab

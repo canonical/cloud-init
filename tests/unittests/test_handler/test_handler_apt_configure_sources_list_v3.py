@@ -1,3 +1,5 @@
+# This file is part of cloud-init. See LICENSE file for license information.
+
 """ test_apt_custom_sources_list
 Test templating of custom sources list
 """

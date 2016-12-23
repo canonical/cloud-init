@@ -1,0 +1,20 @@
+#
+# Add a sources.list entry with a key from a keyserver
+#
+cloud_config: |
+  #cloud-config
+  apt:
+    sources:
+      source1:
+        keyid: 0165013E
+        keyserver: keyserver.ubuntu.com
+        source: "deb http://ppa.launchpad.net/cloud-init-dev/test-archive/ubuntu $RELEASE main"
+collect_scripts:
+  sources.list: |
+    #!/bin/bash
+    cat /etc/apt/sources.list.d/source1.list
+  apt_key_list: |
+    #!/bin/bash
+    apt-key finger
+
+# vi: ts=4 expandtab

@@ -1,3 +1,5 @@
+# This file is part of cloud-init. See LICENSE file for license information.
+
 from cloudinit.config import cc_spacewalk
 from cloudinit import util
 
@@ -40,3 +42,5 @@ class TestSpacewalk(helpers.TestCase):
             '--profilename', 'test',
             '--sslCACert', cc_spacewalk.def_ca_cert_path,
         ], capture=False)
+
+# vi: ts=4 expandtab

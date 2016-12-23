@@ -1,3 +1,5 @@
+# This file is part of cloud-init. See LICENSE file for license information.
+
 """Tests of the built-in user data handlers."""
 
 import os
@@ -31,3 +33,5 @@ class TestPaths(test_helpers.ResourceUsingTestCase):
         mypaths = self.getCloudPaths(myds)
 
         self.assertEqual(None, mypaths.get_ipath())
+
+# vi: ts=4 expandtab
