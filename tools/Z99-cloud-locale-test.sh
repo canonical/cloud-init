@@ -1,13 +1,14 @@
 #!/bin/sh
-# vi: ts=4 noexpandtab
+# Copyright (C) 2012, Canonical Group, Ltd.
 #
 # Author: Ben Howard <ben.howard@canonical.com>
 # Author: Scott Moser <scott.moser@ubuntu.com>
 # (c) 2012, Canonical Group, Ltd.
 #
+# This file is part of cloud-init. See LICENSE file for license information.
+ 
 # Purpose: Detect invalid locale settings and inform the user
 #  of how to fix them.
-#
 
 locale_warn() {
 	local bad_names="" bad_lcs="" key="" val="" var="" vars="" bad_kv=""
@@ -96,3 +97,4 @@ locale_warn() {
 	locale 2>&1 | locale_warn
 
 unset locale_warn
+# vi: ts=4 noexpandtab

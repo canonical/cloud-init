@@ -1,0 +1,20 @@
+#
+# NTP config using specific servers
+#
+cloud_config: |
+  #cloud-config
+  ntp:
+    servers:
+        - pool.ntp.org
+collect_scripts:
+  ntp_installed_servers: |
+    #!/bin/bash
+    dpkg -l | grep ntp | wc -l
+  ntp_conf_dist_servers: |
+    #!/bin/bash
+    ls /etc/ntp.conf.dist | wc -l
+  ntp_conf_servers: |
+    #!/bin/bash
+    grep '^server' /etc/ntp.conf
+
+# vi: ts=4 expandtab

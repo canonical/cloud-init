@@ -1,3 +1,5 @@
+# This file is part of cloud-init. See LICENSE file for license information.
+
 from cloudinit import distros
 from cloudinit.distros import ug_util
 from cloudinit import helpers
@@ -361,3 +363,5 @@ class TestUGNormalize(TestCase):
 
         mock_subp.assert_any_call(groupcmd)
         mock_subp.assert_any_call(addcmd, logstring=addcmd)
+
+# vi: ts=4 expandtab

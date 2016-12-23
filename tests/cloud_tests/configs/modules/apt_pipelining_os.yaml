@@ -1,0 +1,13 @@
+#
+# Set apt pipelining value to OS
+#
+cloud_config: |
+  #cloud-config
+  apt:
+    apt_pipelining: os
+collect_scripts:
+  90cloud-init-pipelining: |
+    #!/bin/bash
+    cat /etc/apt/apt.conf.d/90cloud-init-pipelining
+
+# vi: ts=4 expandtab

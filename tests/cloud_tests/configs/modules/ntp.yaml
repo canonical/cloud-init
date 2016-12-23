@@ -1,0 +1,20 @@
+#
+# Emtpy NTP config to setup using defaults
+#
+cloud_config: |
+  #cloud-config
+  ntp:
+    pools: {}
+    servers: {}
+collect_scripts:
+  ntp_installed_empty: |
+    #!/bin/bash
+    dpkg -l | grep ntp | wc -l
+  ntp_conf_dist_empty: |
+    #!/bin/bash
+    ls /etc/ntp.conf.dist | wc -l
+  ntp_conf_empty: |
+    #!/bin/bash
+    grep '^pool' /etc/ntp.conf
+
+# vi: ts=4 expandtab

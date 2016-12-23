@@ -1,3 +1,22 @@
+cloud-init (0.7.9-0ubuntu1) zesty; urgency=medium
+
+  * New upstream snapshot.
+    - release 0.7.9
+    - doc: adjust headers in tests documentation for consistency.
+    - integration test: initial commit of integration test framework
+      [Wesley Wiedenmeier]
+    - LICENSE: Allow dual licensing GPL-3 or Apache 2.0 [Jon Grimm]
+    - Fix config order of precedence, putting kernel command line over system.
+      [Wesley Wiedenmeier] (LP: #1582323)
+    - Update the list of valid ssh keys. [Michael Felt]
+    - network: add ENI unit test for statically rendered routes.
+    - set_hostname: avoid erroneously appending domain to fqdn
+      [Lars Kellogg-Stedman] (LP: #1647910)
+    - doc: change 'nobootwait' to 'nofail' in docs [Anhad Jai Singh]
+    - Replace an expired bit.ly link in code comment.
+
+ -- Scott Moser <smoser@ubuntu.com>  Fri, 23 Dec 2016 12:54:50 -0500
+
 cloud-init (0.7.8-68-gca3ae67-0ubuntu1) zesty; urgency=medium
 
   * New upstream snapshot.

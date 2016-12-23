@@ -1,0 +1,27 @@
+# ============================= Base Test Config ==============================
+base_test_data:
+    script_timeout: 20
+    enabled: True
+    cloud_config: |
+        #cloud-config
+    collect_scripts:
+        cloud-init.log: |
+            #!/bin/bash
+            cat /var/log/cloud-init.log
+        cloud-init-output.log: |
+            #!/bin/bash
+            cat /var/log/cloud-init-output.log
+        instance-id: |
+            #!/bin/bash
+            cat /run/cloud-init/.instance-id
+        result.json: |
+            #!/bin/bash
+            cat /run/cloud-init/result.json
+        status.json: |
+            #!/bin/bash
+            cat /run/cloud-init/status.json
+        cloud-init-version: |
+            #!/bin/bash
+            dpkg-query -W -f='${Version}' cloud-init
+
+# vi: ts=4 expandtab

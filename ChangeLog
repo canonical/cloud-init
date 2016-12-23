@@ -1,3 +1,100 @@
+0.7.9:
+ - doc: adjust headers in tests documentation for consistency.
+ - pep8: fix issue found in zesty build with pycodestyle.
+ - integration test: initial commit of integration test framework
+   [Wesley Wiedenmeier]
+ - LICENSE: Allow dual licensing GPL-3 or Apache 2.0 [Jon Grimm]
+ - Fix config order of precedence, putting kernel command line over system.
+   [Wesley Wiedenmeier] (LP: #1582323)
+ - pep8: whitespace fix
+ - Update the list of valid ssh keys. [Michael Felt]
+ - network: add ENI unit test for statically rendered routes.
+ - set_hostname: avoid erroneously appending domain to fqdn
+   [Lars Kellogg-Stedman] (LP: #1647910)
+ - doc: change 'nobootwait' to 'nofail' in docs [Anhad Jai Singh]
+ - Replace an expired bit.ly link in code comment.
+ - user-groups: fix bug when groups was provided as string and had spaces
+   (LP: #1354694)
+ - mounts: use mount -a again to accomplish mounts (LP: #1647708)
+ - CloudSigma: Fix bug where datasource was not loaded in local search.
+   (LP: #1648380)
+ - when adding a user, strip whitespace from group list [Lars Kellogg-Stedman]
+   (LP: #1354694)
+ - fix decoding of utf-8 chars in yaml test
+ - Replace usage of sys_netdev_info with read_sys_net (LP: #1625766)
+ - fix problems found in python2.6 test.
+ - OpenStack: extend physical types to include hyperv, hw_veb, vhost_user.
+   (LP: #1642679)
+ - tests: fix assumptions that expected no eth0 in system. (LP: #1644043)
+ - net/cmdline: Consider ip= or ip6= on command line not only ip=
+   (LP: #1639930)
+ - Just use file logging by default (LP: #1643990)
+ - Improve formatting for ProcessExecutionError [Wesley Wiedenmeier]
+ - flake8: fix trailing white space
+ - Doc: various documentation fixes [Sean Bright]
+ - cloudinit/config/cc_rh_subscription.py: Remove repos before adding
+   [Brent Baude]
+ - packages/redhat: fix rpm spec file.
+ - main: set TZ in environment if not already set. [Ryan Harper]
+ - Azure: No longer rely on walinux agent. (LP: #1538522)
+ - disk_setup: Use sectors as unit when formatting MBR disks with sfdisk.
+   [Daniel Watkins] (LP: #1460715)
+ - Add activate_datasource, for datasource specific code paths. (LP: #1611074)
+ - systemd: cloud-init-local use RequiresMountsFor=/var/lib/cloud
+   (LP: #1642062)
+ - systemd: cloud-init remove After=systemd-networkd-wait-online
+ - systemd: cloud-init-local change Before basic to sysinit
+ - pep8: fix style errors reported by pycodestyle 2.1.0
+ - systemd: drop both Wants and After local-fs.target
+ - systemd: networking service adjustments. (LP: #1636912)
+ - systemd: replace Before=basic.target, dbus.target with sysinit.target
+   (LP: #1629797)
+ - doc: Add documentation on stages of boot.
+ - doc: make the RST files consistently formated and other improvements.
+ - Ec2: fix syntax and tox in previous commit.
+ - Ec2: protect against non-dictionary in block-device-mapping.
+ - doc: fixed example to not overwrite /etc/hosts [Chris Glass]
+ - Doc: fix spelling / typos in ca_certs and scripts_vendor.
+ - pyflakes: fix issue with pyflakes 1.3 found in ubuntu zesty-proposed.
+ - net/cmdline: Further adjustments to ipv6 support [LaMont Jones]
+   (LP: #1621615)
+ - Add coverage dependency to bddeb to fix package build.
+ - doc: improve HACKING.rst file
+ - dmidecode: Allow dmidecode to be used on aarch64 [Robert Schweikert]
+ - AliYun: Add new datasource for Ali-Cloud ECS [kaihuan.pkh]
+ - Add coverage collection to tox unit tests. [Joshua Powers]
+ - cc_users_groups: fix remaing call to ds.normalize_user_groups [Ryan Harper]
+ - disk-config: udev settle after partitioning in gpt format. (LP: #1626243)
+ - unittests: do not read system /etc/cloud/cloud.cfg.d (LP: #1635350)
+ - Add documentation for logging features. [Wesley Wiedenmeier]
+ - Add support for snap create-user on Ubuntu Core images. [Ryan Harper]
+ - Fix sshd restarts for rhel distros. [Jim Gorz]
+ - OpenNebula: replace 'ip' parsing with cloudinit.net usage.
+ - Fix python2.6 things found running in centos 6.
+ - Move user/group functions to new ug_util file
+ - DigitalOcean: enable usage of data source by default.
+ - update Gentoo initscripts to run in the correct order [Matthew Thode]
+ - MAAS: improve the main of datasource to look at kernel cmdline config.
+ - tests: silence the Cheetah UserWarning about NameMapper C version.
+ - systemd: Run cloud-init.service Before dbus.socket not dbus.target
+   [Daniel Watkins] (LP: #1629797)
+ - systemd: run cloud-init.service Before dbus.service (LP: #1629797)
+ - unittests: fix use of mock 2.0 'assert_called' when running make check
+   [Ryan Harper]
+ - Improve module documentation and doc cleanup. [Wesley Wiedenmeier]
+ - lxd: Update network config for LXD 2.3 [Stéphane Graber]
+ - DigitalOcean: use meta-data for network configruation [Ben Howard]
+ - ntp: move to run after apt configuration (LP: #1628337)
+ - Decode unicode types in decode_binary [Robert Schweikert]
+ - systemd: Ensure that cloud-init-local happens before NetworkManager
+ - Allow ephemeral drive to be unpartitioned [Paul Meyer]
+ - subp: add 'update_env' argument
+ - net: support reading ipv6 dhcp config from initramfs [LaMont Jones]
+   (LP: #1621615, #1621507)
+ - Adjust mounts and disk configuration for systemd. (LP: #1611074)
+ - dmidecode: run dmidecode only on i?86 or x86_64 arch. [Robert Schweikert]
+ - systemd: put cloud-init.target After multi-user.target (LP: #1623868)
+
 0.7.8:
  - SmartOS: more improvements for network configuration
  - add ntp config module [Ryan Harper]

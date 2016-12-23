@@ -1,0 +1,22 @@
+#
+# Update/upgrade via apt and then install a pair of packages
+#
+cloud_config: |
+  #cloud-config
+  packages:
+    - htop
+    - tree
+  package_update: true
+  package_upgrade: true
+collect_scripts:
+  apt_history_cmdline: |
+    #!/bin/bash
+    grep ^Commandline: /var/log/apt/history.log
+  dpkg_htop: |
+    #!/bin/bash
+    dpkg -l | grep htop | wc -l
+  dpkg_tree: |
+    #!/bin/bash
+    dpkg -l | grep tree | wc -l
+
+# vi: ts=4 expandtab

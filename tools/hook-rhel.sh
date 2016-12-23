@@ -1,4 +1,6 @@
 #!/bin/sh
+# This file is part of cloud-init. See LICENSE file for license information.
+
 # Current versions of RHEL and CentOS do not honor the directory
 # /etc/dhcp/dhclient-exit-hooks.d so this file can be placed in
 # /etc/dhcp/dhclient.d instead

@@ -1,0 +1,13 @@
+#
+# Print a final message with various predefined variables
+#
+cloud_config: |
+  #cloud-config
+  final_message: |
+    This is my final message!
+    $version
+    $timestamp
+    $datasource
+    $uptime
+
+# vi: ts=4 expandtab

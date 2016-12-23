@@ -1,7 +1,6 @@
 # Copyright 2015 Canonical Ltd.
-# This file is part of cloud-init.  See LICENCE file for license information.
 #
-# vi: ts=4 expandtab
+# This file is part of cloud-init. See LICENSE file for license information.
 
 from cloudinit import reporting
 from cloudinit.reporting import events
@@ -369,3 +368,5 @@ class TestReportingEventStack(TestCase):
 class TestStatusAccess(TestCase):
     def test_invalid_status_access_raises_value_error(self):
         self.assertRaises(AttributeError, getattr, events.status, "BOGUS")
+
+# vi: ts=4 expandtab

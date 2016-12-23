@@ -1,0 +1,13 @@
+#
+# Disable fingerprint printing
+#
+cloud_config: |
+  #cloud-config
+  ssh_genkeytypes: []
+  no_ssh_fingerprints: true
+collect_scripts:
+  syslog: |
+    #!/bin/bash
+    cat /var/log/syslog
+
+# vi: ts=4 expandtab

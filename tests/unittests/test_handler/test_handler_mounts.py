@@ -1,3 +1,5 @@
+# This file is part of cloud-init. See LICENSE file for license information.
+
 import os.path
 import shutil
 import tempfile
@@ -131,3 +133,5 @@ class TestSanitizeDevname(test_helpers.FilesystemMockingTestCase):
         self.assertIsNone(
             cc_mounts.sanitize_devname(
                 'ephemeral0.1', lambda x: disk_path, mock.Mock()))
+
+# vi: ts=4 expandtab

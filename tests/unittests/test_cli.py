@@ -1,3 +1,5 @@
+# This file is part of cloud-init. See LICENSE file for license information.
+
 import six
 
 from . import helpers as test_helpers
@@ -32,3 +34,6 @@ class TestCLI(test_helpers.FilesystemMockingTestCase):
         self.assertIn('cloud-init: error: too few arguments',
                       self.stderr.getvalue())
         self.assertEqual(2, exit_code)
+
+
+# vi: ts=4 expandtab

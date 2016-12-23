@@ -1,20 +1,12 @@
+# This file is part of cloud-init. See LICENSE file for license information.
+
 #    Copyright (C) 2013 Hewlett-Packard Development Company, L.P.
 #
 #    Author: Juerg Haefliger <juerg.haefliger@hp.com>
 #
 #    Based on test_handler_set_hostname.py
 #
-#    This program is free software: you can redistribute it and/or modify
-#    it under the terms of the GNU General Public License version 3, as
-#    published by the Free Software Foundation.
-#
-#    This program is distributed in the hope that it will be useful,
-#    but WITHOUT ANY WARRANTY; without even the implied warranty of
-#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#    GNU General Public License for more details.
-#
-#    You should have received a copy of the GNU General Public License
-#    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#    This file is part of cloud-init. See LICENSE file for license information.
 
 from cloudinit.config import cc_seed_random
 
@@ -225,3 +217,5 @@ def apply_patches(patches):
         setattr(ref, name, replace)
         ret.append((ref, name, orig))
     return ret
+
+# vi: ts=4 expandtab

@@ -1,3 +1,5 @@
+# This file is part of cloud-init. See LICENSE file for license information.
+
 import json
 import logging
 import os
@@ -190,3 +192,5 @@ class TestChef(t_help.FilesystemMockingTestCase):
         self.assertIn(v_path, content)
         util.load_file(v_path)
         self.assertEqual(expected_cert, util.load_file(v_path))
+
+# vi: ts=4 expandtab

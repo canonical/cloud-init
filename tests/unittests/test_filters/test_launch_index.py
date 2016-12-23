@@ -1,3 +1,5 @@
+# This file is part of cloud-init. See LICENSE file for license information.
+
 import copy
 
 from .. import helpers
@@ -130,3 +132,5 @@ class TestLaunchFilter(helpers.ResourceUsingTestCase):
             '1': 2,
         }
         self.assertCounts(message, expected_counts)
+
+# vi: ts=4 expandtab

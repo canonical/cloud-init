@@ -1,5 +1,5 @@
 #!/bin/sh
-# vi: ts=4 noexpandtab
+# This file is part of cloud-init. See LICENSE file for license information.
 
 # This script is meant to "kvmify" an image.  Its not meant to be
 # terribly robust, or a good idea to ever run in a "real image".
@@ -139,3 +139,4 @@ grep -q vga16fb /etc/modprobe.d/blacklist.conf || {
 #fi
 
 doexec "$@"
+# vi: ts=4 noexpandtab
