@@ -1,3 +1,10 @@
+cloud-init (0.7.5-0ubuntu1.14) trusty; urgency=medium
+
+  * d/patches/lp-1177432-same-archives-as-ubuntu-server.patch: use the
+    same archive pockets as Ubuntu Server (LP: #1177432).
+
+ -- Ben Howard <ben.howard@ubuntu.com>  Thu, 05 Nov 2015 09:50:57 -0700
+
 cloud-init (0.7.5-0ubuntu1.13) trusty; urgency=medium
 
   * d/patches/lp-1177432-enable_backports.patch: Enable backports apt pocket

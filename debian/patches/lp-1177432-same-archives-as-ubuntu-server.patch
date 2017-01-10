@@ -1,0 +1,46 @@
+--- a/templates/sources.list.ubuntu.tmpl
++++ b/templates/sources.list.ubuntu.tmpl
+@@ -9,13 +9,13 @@
+ 
+ # See http://help.ubuntu.com/community/UpgradeNotes for how to upgrade to
+ # newer versions of the distribution.
+-deb $mirror $codename main
+-deb-src $mirror $codename main
++deb $mirror $codename main restricted
++deb-src $mirror $codename main restricted
+ 
+ \## Major bug fix updates produced after the final release of the
+ \## distribution.
+-deb $mirror $codename-updates main
+-deb-src $mirror $codename-updates main
++deb $mirror $codename-updates main restricted
++deb-src $mirror $codename-updates main restricted
+ 
+ \## N.B. software from this repository is ENTIRELY UNSUPPORTED by the Ubuntu
+ \## team. Also, please note that software in universe WILL NOT receive any
+@@ -30,10 +30,10 @@
+ \## your rights to use the software. Also, please note that software in 
+ \## multiverse WILL NOT receive any review or updates from the Ubuntu
+ \## security team.
+-# deb $mirror $codename multiverse
+-# deb-src $mirror $codename multiverse
+-# deb $mirror $codename-updates multiverse
+-# deb-src $mirror $codename-updates multiverse
++deb $mirror $codename multiverse
++deb-src $mirror $codename multiverse
++deb $mirror $codename-updates multiverse
++deb-src $mirror $codename-updates multiverse
+ 
+ \## Uncomment the following two lines to add software from the 'backports'
+ \## repository.
+@@ -42,8 +42,8 @@
+ \## newer versions of some applications which may provide useful features.
+ \## Also, please note that software in backports WILL NOT receive any review
+ \## or updates from the Ubuntu security team.
+-# deb $mirror $codename-backports main restricted universe multiverse
+-# deb-src $mirror $codename-backports main restricted universe multiverse
++deb $mirror $codename-backports main restricted universe multiverse
++deb-src $mirror $codename-backports main restricted universe multiverse
+ 
+ \## Uncomment the following two lines to add software from Canonical's
+ \## 'partner' repository.
