@@ -16,6 +16,7 @@ Build-Depends: cdbs,
                python-nose,
                python-oauth,
                python-prettytable,
+               python-serial,
                python-setuptools,
                python-requests,
                python-yaml
