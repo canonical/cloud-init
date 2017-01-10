@@ -20,3 +20,4 @@ lp-1177432-same-archives-as-ubuntu-server.patch
 lp-1506244-azure-ssh-key-values.patch
 lp-1506187-azure_use_unique_vm_id.patch
 lp-1540965-SmartOS-Add-support-for-Joyent-LX-Brand-Zones.patch
+lp-1551419-azure-handle-flipped-uuid-endianness.patch

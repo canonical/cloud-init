@@ -1,3 +1,12 @@
+cloud-init (0.7.5-0ubuntu1.17) trusty; urgency=medium
+
+  * Microsoft Azure:
+    - d/patches/lp-1551419-azure-handle-flipped-uuid-endianness.patch: Handle
+      cases where the endianness of the DMI UUID used for the instance ID has
+      changed since last boot.(LP: #1551419)
+
+ -- Daniel Watkins <daniel.watkins@canonical.com>  Wed, 02 Mar 2016 14:23:18 +0000
+
 cloud-init (0.7.5-0ubuntu1.16) trusty; urgency=medium
 
   * Joyent Smart DataOS:
