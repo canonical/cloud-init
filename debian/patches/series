@@ -17,3 +17,5 @@ lp-1469260-fix-consumption-of-vendor-data.patch
 lp-1461242-generate-ed25519-host-keys.patch
 lp-1493453-nocloudds-vendor_data.patch
 lp-1177432-same-archives-as-ubuntu-server.patch
+lp-1506244-azure-ssh-key-values.patch
+lp-1506187-azure_use_unique_vm_id.patch

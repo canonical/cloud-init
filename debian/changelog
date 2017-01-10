@@ -1,3 +1,17 @@
+cloud-init (0.7.5-0ubuntu1.15) trusty; urgency=medium
+
+  * Microsoft Azure:
+    - d/patches/lp-1506244-azure-ssh-key-values.patch: AZURE: Add support
+      and preference for fabric provided public SSH public key values over
+      fingerprints (LP: #1506244).
+    - use stable VM instance ID over SharedConfig.xml (LP: #1506187):
+      - d/patches/lp-1506187-azure_use_unique_vm_id.patch: use DMI data for
+        the stable VM instance ID
+      - d/cloud-init.preinst: migrate existing instances to stable VM instance
+        ID on upgrade from prior versions of cloud-init.
+
+ -- Ben Howard <ben.howard@ubuntu.com>  Tue, 17 Nov 2015 10:02:24 -0700
+
 cloud-init (0.7.5-0ubuntu1.14) trusty; urgency=medium
 
   * d/patches/lp-1177432-same-archives-as-ubuntu-server.patch: use the
