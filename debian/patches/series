@@ -1,3 +1,6 @@
 lp1316475-1303986-cloudsigma.patch
 lp-1353008-cloud-init-local-needs-run.conf
 lp-1336855-grub_xvda.patch
+lp-1383794-gce-short_name.patch
+lp-1404311-gce-data_encoding.patch
+lp-1422919-azure-g5_ephemeral.patch
