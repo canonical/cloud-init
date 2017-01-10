@@ -1,3 +1,12 @@
+cloud-init (0.7.5-0ubuntu1.19) trusty; urgency=medium
+
+  * Bigstep:
+    - debian/patches/lp-1553158-bigstep.patch (LP: #1553158):
+        - Add the data source for the Bigstep cloud
+        - Enable password changing via a hashed string
+
+ -- Daniel Watkins <daniel.watkins@canonical.com>  Tue, 31 May 2016 13:42:32 +0100
+
 cloud-init (0.7.5-0ubuntu1.18) trusty-security; urgency=medium
 
   * No change rebuild in the -security pocket.
