@@ -1,3 +1,13 @@
+cloud-init (0.7.5-0ubuntu1.21) trusty; urgency=medium
+
+  * Microsoft Azure:
+    - Install udev rules to create /dev/disk/cloud entries for Azure ephemeral
+      disk.
+    - debian/patches/lp-1603222-fix-ephemeral-disk-fstab.patch:
+      - Use /dev/disk/cloud entries for ephemeral disk (LP: #1603222)
+
+ -- Daniel Watkins <daniel.watkins@canonical.com>  Fri, 25 Nov 2016 10:12:20 +0000
+
 cloud-init (0.7.5-0ubuntu1.20) trusty; urgency=medium
 
   * GCE:

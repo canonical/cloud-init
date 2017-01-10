@@ -1,0 +1,15 @@
+Author: Daniel Watkins <daniel.watkins@canonical.com>
+Bug: https://bugs.launchpad.net/bugs/1603222
+Applied-Upstream: yes
+Description: Use udev-created reference for Azure ephemeral disks
+--- a/cloudinit/sources/DataSourceAzure.py
++++ b/cloudinit/sources/DataSourceAzure.py
+@@ -51,7 +51,7 @@
+         'command': BOUNCE_COMMAND,
+         'hostname_command': 'hostname',
+         },
+-    'disk_aliases': {'ephemeral0': '/dev/sdb'},
++    'disk_aliases': {'ephemeral0': '/dev/disk/cloud/azure_resource'},
+ }
+ 
+ BUILTIN_CLOUD_CONFIG = {

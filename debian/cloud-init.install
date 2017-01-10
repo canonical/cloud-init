@@ -7,3 +7,4 @@ usr/lib/cloud-init
 usr/lib/python*/*-packages/*egg-info
 usr/lib/python*/*-packages/cloudinit
 usr/share/doc/cloud-init
+lib/udev/rules.d
