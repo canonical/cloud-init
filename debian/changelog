@@ -1,3 +1,12 @@
+cloud-init (0.7.5-0ubuntu1.6) trusty; urgency=medium
+
+  * d/patches/lp-1375252-1458052-Azure-hostname_password.patch:
+    Backport of 15.10 Azure Datasource to fix various issues:
+    - Azure Datasource writes user password in plain text (LP: #1458052).
+    - Hostname not preserved across Azure reboots (LP: #1375252).
+
+ -- Ben Howard <ben.howard@ubuntu.com>  Mon, 25 May 2015 09:30:20 -0600
+
 cloud-init (0.7.5-0ubuntu1.5) trusty; urgency=medium
 
   * Backport support for fetching passwords in CloudStack (LP: #1422388).
