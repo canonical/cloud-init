@@ -1,0 +1,20 @@
+Description: Backport CloudStack metadata fix.
+ CloudStack requires a trailing slash for its EC2 "compatible" metadata
+ service.
+Author: Daniel Watkins <daniel.watkins@canonical.com>
+Bug-Ubuntu: https://bugs.launchpad.net/bugs/1356855
+Last-Update: 2015-02-25
+
+--- cloud-init-0.7.5.orig/cloudinit/ec2_utils.py
++++ cloud-init-0.7.5/cloudinit/ec2_utils.py
+@@ -166,7 +166,9 @@ def get_instance_metadata(api_version='l
+                           metadata_address='http://169.254.169.254',
+                           ssl_details=None, timeout=5, retries=5):
+     md_url = url_helper.combine_url(metadata_address, api_version)
+-    md_url = url_helper.combine_url(md_url, 'meta-data')
++    # Note, 'meta-data' explicitly has trailing /.
++    # this is required for CloudStack (LP: #1356855)
++    md_url = url_helper.combine_url(md_url, 'meta-data/')
+     caller = functools.partial(util.read_file_or_url,
+                                ssl_details=ssl_details, timeout=timeout,
+                                retries=retries)
