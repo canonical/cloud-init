@@ -1,3 +1,11 @@
+cloud-init (0.7.5-0ubuntu1.16) trusty; urgency=medium
+
+  * Joyent Smart DataOS:
+    - d/patches/lp-1540965-SmartOS-Add-support-for-Joyent-LX-Brand-Zones.patch:
+      SmartOS: Add support for Joyent LX-Brand Zones (LP: #1540965)
+
+ -- Robert C Jennings <robert.jennings@canonical.com>  Tue, 02 Feb 2016 09:32:02 -0600
+
 cloud-init (0.7.5-0ubuntu1.15) trusty; urgency=medium
 
   * Microsoft Azure:
