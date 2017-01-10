@@ -1,3 +1,10 @@
+cloud-init (0.7.5-0ubuntu1.9) trusty; urgency=medium
+
+  * d/cloud-init.templates: Include SmartOS data source in the default list
+    and choices (LP: #1398997).
+
+ -- Daniel Watkins <daniel.watkins@canonical.com>  Mon, 20 Apr 2015 14:21:13 +0100
+
 cloud-init (0.7.5-0ubuntu1.8) trusty; urgency=medium
 
   * debian/patches/lp-1411582-azure-udev-ephemeral-disks.patch:
