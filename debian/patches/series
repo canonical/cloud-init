@@ -13,3 +13,5 @@ lp-1411582-azure-udev-ephemeral-disks.patch
 lp-1470880-fix-gce-az-determination.patch
 lp-1470890-include-regions-in-dynamic-mirror-discovery.patch
 lp-1490796-azure-fix-mount_cb-for-symlinks.patch
+lp-1469260-fix-consumption-of-vendor-data.patch
+lp-1461242-generate-ed25519-host-keys.patch

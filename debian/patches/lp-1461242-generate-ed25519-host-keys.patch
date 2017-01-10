@@ -1,0 +1,115 @@
+Author: Scott Moser <smoser@ubuntu.com>
+Bug: https://launchpad.net/bugs/1461242
+Applied-Upstream: yes
+Origin: http://bazaar.launchpad.net/~cloud-init-dev/cloud-init/trunk/revision/1125
+Description: ssh: generate ed25519 host keys if supported
+ .
+ now we attempt to generate ed25519 host keys.
+ If ssh-keygen does not support it, a debug log message will be written.
+
+=== modified file 'cloudinit/config/cc_ssh.py'
+--- a/cloudinit/config/cc_ssh.py
++++ b/cloudinit/config/cc_ssh.py
+@@ -20,6 +20,7 @@
+ 
+ import glob
+ import os
++import sys
+ 
+ # Ensure this is aliased to a name not 'distros'
+ # since the module attribute 'distros'
+@@ -33,26 +34,18 @@ DISABLE_ROOT_OPTS = ("no-port-forwarding
+ "no-X11-forwarding,command=\"echo \'Please login as the user \\\"$USER\\\" "
+ "rather than the user \\\"root\\\".\';echo;sleep 10\"")
+ 
+-KEY_2_FILE = {
+-    "rsa_private": ("/etc/ssh/ssh_host_rsa_key", 0600),
+-    "rsa_public": ("/etc/ssh/ssh_host_rsa_key.pub", 0644),
+-    "dsa_private": ("/etc/ssh/ssh_host_dsa_key", 0600),
+-    "dsa_public": ("/etc/ssh/ssh_host_dsa_key.pub", 0644),
+-    "ecdsa_private": ("/etc/ssh/ssh_host_ecdsa_key", 0600),
+-    "ecdsa_public": ("/etc/ssh/ssh_host_ecdsa_key.pub", 0644),
+-}
+-
+-PRIV_2_PUB = {
+-    'rsa_private': 'rsa_public',
+-    'dsa_private': 'dsa_public',
+-    'ecdsa_private': 'ecdsa_public',
+-}
+-
+-KEY_GEN_TPL = 'o=$(ssh-keygen -yf "%s") && echo "$o" root@localhost > "%s"'
++GENERATE_KEY_NAMES = ['rsa', 'dsa', 'ecdsa', 'ed25519']
++KEY_FILE_TPL = '/etc/ssh/ssh_host_%s_key'
+ 
+-GENERATE_KEY_NAMES = ['rsa', 'dsa', 'ecdsa']
++CONFIG_KEY_TO_FILE = {}
++PRIV_TO_PUB = {}
++for k in GENERATE_KEY_NAMES:
++    CONFIG_KEY_TO_FILE.update({"%s_private" % k: (KEY_FILE_TPL % k, 0o600)})
++    CONFIG_KEY_TO_FILE.update(
++        {"%s_public" % k: (KEY_FILE_TPL % k + ".pub", 0o600)})
++    PRIV_TO_PUB["%s_private" % k] = "%s_public" % k
+ 
+-KEY_FILE_TPL = '/etc/ssh/ssh_host_%s_key'
++KEY_GEN_TPL = 'o=$(ssh-keygen -yf "%s") && echo "$o" root@localhost > "%s"'
+ 
+ 
+ def handle(_name, cfg, cloud, log, _args):
+@@ -69,15 +62,15 @@ def handle(_name, cfg, cloud, log, _args
+     if "ssh_keys" in cfg:
+         # if there are keys in cloud-config, use them
+         for (key, val) in cfg["ssh_keys"].iteritems():
+-            if key in KEY_2_FILE:
+-                tgt_fn = KEY_2_FILE[key][0]
+-                tgt_perms = KEY_2_FILE[key][1]
++            if key in CONFIG_KEY_TO_FILE:
++                tgt_fn = CONFIG_KEY_TO_FILE[key][0]
++                tgt_perms = CONFIG_KEY_TO_FILE[key][1]
+                 util.write_file(tgt_fn, val, tgt_perms)
+ 
+-        for (priv, pub) in PRIV_2_PUB.iteritems():
++        for (priv, pub) in PRIV_TO_PUB.items():
+             if pub in cfg['ssh_keys'] or not priv in cfg['ssh_keys']:
+                 continue
+-            pair = (KEY_2_FILE[priv][0], KEY_2_FILE[pub][0])
++            pair = (CONFIG_KEY_TO_FILE[priv][0], CONFIG_KEY_TO_FILE[pub][0])
+             cmd = ['sh', '-xc', KEY_GEN_TPL % pair]
+             try:
+                 # TODO(harlowja): Is this guard needed?
+@@ -92,18 +85,28 @@ def handle(_name, cfg, cloud, log, _args
+         genkeys = util.get_cfg_option_list(cfg,
+                                            'ssh_genkeytypes',
+                                            GENERATE_KEY_NAMES)
++        lang_c = os.environ.copy()
++        lang_c['LANG'] = 'C'
+         for keytype in genkeys:
+             keyfile = KEY_FILE_TPL % (keytype)
++            if os.path.exists(keyfile):
++                continue
+             util.ensure_dir(os.path.dirname(keyfile))
+-            if not os.path.exists(keyfile):
+-                cmd = ['ssh-keygen', '-t', keytype, '-N', '', '-f', keyfile]
++            cmd = ['ssh-keygen', '-t', keytype, '-N', '', '-f', keyfile]
++
++            # TODO(harlowja): Is this guard needed?
++            with util.SeLinuxGuard("/etc/ssh", recursive=True):
+                 try:
+-                    # TODO(harlowja): Is this guard needed?
+-                    with util.SeLinuxGuard("/etc/ssh", recursive=True):
+-                        util.subp(cmd, capture=False)
+-                except:
+-                    util.logexc(log, "Failed generating key type %s to "
+-                                "file %s", keytype, keyfile)
++                    out, err = util.subp(cmd, capture=True, env=lang_c)
++                    sys.stdout.write(out)
++                except util.ProcessExecutionError as e:
++                    err = e.stderr.lower()
++                    if (e.exit_code == 1 and
++                            err.lower().startswith("unknown key")):
++                        log.debug("ssh-keygen: unknown key type '%s'", keytype)
++                    else:
++                        util.logexc(log, "Failed generating key type %s to "
++                                    "file %s", keytype, keyfile)
+ 
+     try:
+         (users, _groups) = ds.normalize_users_groups(cfg, cloud.distro)
