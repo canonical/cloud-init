@@ -73,7 +73,7 @@ clean: clean_pyc
 	rm -rf /var/log/cloud-init.log /var/lib/cloud/
 
 yaml:
-	@$(CWD)/tools/validate-yaml.py $(YAML_FILES)
+	@$(PYVER) $(CWD)/tools/validate-yaml.py $(YAML_FILES)
 
 rpm:
 	./packages/brpm --distro $(distro)
