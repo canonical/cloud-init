@@ -1,3 +1,11 @@
+cloud-init (0.7.8-49-g9e904bb-0ubuntu1~16.04.4) xenial; urgency=medium
+
+  * debian/update-grub-legacy-ec2:
+    - Correctly detect kernels ending in -aws as kernels that can boot on EC2
+      (LP: #1655934)
+
+ -- Daniel Watkins <daniel.watkins@canonical.com>  Thu, 12 Jan 2017 11:56:03 +0000
+
 cloud-init (0.7.8-49-g9e904bb-0ubuntu1~16.04.3) xenial-proposed; urgency=medium
 
   * debian/cherry-pick: use git format-patch rather than git show
