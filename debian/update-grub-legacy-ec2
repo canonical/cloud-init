@@ -1405,6 +1405,7 @@ if ! type is_xen_kernel >/dev/null 2>&1; then
     ver_flavor="${1##*vmlinuz-}"
 
     case "${ver_flavor}" in
+       *-aws) return 0;;
        *-ec2) return 0;;
        *-virtual)
          # 10.04 LTS through 12.04 LTS -virtual is the EC2/Xen kernel

@@ -1,3 +1,11 @@
+cloud-init (0.7.9-0ubuntu2) zesty; urgency=medium
+
+  * debian/update-grub-legacy-ec2:
+    - Correctly detect kernels ending in -aws as kernels that can boot on EC2
+      (LP: #1655934)
+
+ -- Daniel Watkins <daniel.watkins@canonical.com>  Thu, 12 Jan 2017 11:34:23 +0000
+
 cloud-init (0.7.9-0ubuntu1) zesty; urgency=medium
 
   * New upstream snapshot.
