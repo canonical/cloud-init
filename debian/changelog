@@ -1,3 +1,9 @@
+cloud-init (0.7.9-0ubuntu2) UNRELEASED; urgency=medium
+
+  * fix update-grub-legacy-ec2 to check config for CONFIG_XEN=y (LP: #1379080)
+
+ -- Scott Moser <smoser@ubuntu.com>  Thu, 12 Jan 2017 15:39:07 -0500
+
 cloud-init (0.7.9-0ubuntu1) zesty; urgency=medium
 
   * New upstream snapshot.
