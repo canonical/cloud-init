@@ -3,6 +3,8 @@
 from cloudinit import helpers
 from cloudinit.util import b64e, decode_binary, load_file
 from cloudinit.sources import DataSourceAzure
+from cloudinit.util import find_freebsd_part
+from cloudinit.util import get_path_dev_freebsd
 
 from ..helpers import TestCase, populate_dir, mock, ExitStack, PY26, SkipTest
 
@@ -95,6 +97,41 @@ class TestAzureDataSource(TestCase):
         for module, name, new in patches:
             self.patches.enter_context(mock.patch.object(module, name, new))
 
+    def _get_mockds(self):
+        mod = DataSourceAzure
+        sysctl_out = "dev.storvsc.3.%pnpinfo: "\
+                     "classid=ba6163d9-04a1-4d29-b605-72e2ffb1dc7f "\
+                     "deviceid=f8b3781b-1e82-4818-a1c3-63d806ec15bb\n"
+        sysctl_out += "dev.storvsc.2.%pnpinfo: "\
+                      "classid=ba6163d9-04a1-4d29-b605-72e2ffb1dc7f "\
+                      "deviceid=f8b3781a-1e82-4818-a1c3-63d806ec15bb\n"
+        sysctl_out += "dev.storvsc.1.%pnpinfo: "\
+                      "classid=32412632-86cb-44a2-9b5c-50d1417354f5 "\
+                      "deviceid=00000000-0001-8899-0000-000000000000\n"
+        camctl_devbus = """
+scbus0 on ata0 bus 0
+scbus1 on ata1 bus 0
+scbus2 on blkvsc0 bus 0
+scbus3 on blkvsc1 bus 0
+scbus4 on storvsc2 bus 0
+scbus5 on storvsc3 bus 0
+scbus-1 on xpt0 bus 0
+        """
+        camctl_dev = """
+<Msft Virtual CD/ROM 1.0>          at scbus1 target 0 lun 0 (cd0,pass0)
+<Msft Virtual Disk 1.0>            at scbus2 target 0 lun 0 (da0,pass1)
+<Msft Virtual Disk 1.0>            at scbus3 target 1 lun 0 (da1,pass2)
+        """
+        self.apply_patches([
+            (mod, 'get_dev_storvsc_sysctl', mock.MagicMock(
+                return_value=sysctl_out)),
+            (mod, 'get_camcontrol_dev_bus', mock.MagicMock(
+                return_value=camctl_devbus)),
+            (mod, 'get_camcontrol_dev', mock.MagicMock(
+                return_value=camctl_dev))
+        ])
+        return mod
+
     def _get_ds(self, data, agent_command=None):
 
         def dsdevs():
@@ -176,6 +213,34 @@ class TestAzureDataSource(TestCase):
         except AssertionError:
             return
         raise AssertionError("XML is the same")
+
+    def test_get_resource_disk(self):
+        ds = self._get_mockds()
+        dev = ds.get_resource_disk_on_freebsd(1)
+        self.assertEqual("da1", dev)
+
+    @mock.patch('cloudinit.util.subp')
+    def test_find_freebsd_part_on_Azure(self, mock_subp):
+        glabel_out = '''
+gptid/fa52d426-c337-11e6-8911-00155d4c5e47  N/A  da0p1
+                              label/rootfs  N/A  da0p2
+                                label/swap  N/A  da0p3
+'''
+        mock_subp.return_value = (glabel_out, "")
+        res = find_freebsd_part("/dev/label/rootfs")
+        self.assertEqual("da0p2", res)
+
+    def test_get_path_dev_freebsd_on_Azure(self):
+        mnt_list = '''
+/dev/label/rootfs  /                ufs     rw              1 1
+devfs              /dev             devfs   rw,multilabel   0 0
+fdescfs            /dev/fd          fdescfs rw              0 0
+/dev/da1s1         /mnt/resource    ufs     rw              2 2
+'''
+        with mock.patch.object(os.path, 'exists',
+                               return_value=True):
+            res = get_path_dev_freebsd('/etc', mnt_list)
+            self.assertNotEqual(res, None)
 
     def test_basic_seed_dir(self):
         odata = {'HostName': "myhost", 'UserName': "myuser"}

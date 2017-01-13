@@ -1120,14 +1120,14 @@ class TestNetplanPostcommands(CiTestCase):
         render_target = 'netplan.yaml'
         renderer = netplan.Renderer(
             {'netplan_path': render_target, 'postcmds': True})
-        renderer.render_network_state(render_dir, ns)
-
         expected = [
             mock.call(['netplan', 'generate'], capture=True),
             mock.call(['udevadm', 'test-builtin', 'net_setup_link',
                        '/sys/class/net/lo'], capture=True),
         ]
-        mock_subp.assert_has_calls(expected)
+        with mock.patch.object(os.path, 'islink', return_value=True):
+            renderer.render_network_state(render_dir, ns)
+            mock_subp.assert_has_calls(expected)
 
 
 class TestEniNetworkStateToEni(CiTestCase):

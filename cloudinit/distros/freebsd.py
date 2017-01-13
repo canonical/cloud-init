@@ -30,6 +30,7 @@ class Distro(distros.Distro):
     login_conf_fn_bak = '/etc/login.conf.orig'
     resolv_conf_fn = '/etc/resolv.conf'
     ci_sudoers_fn = '/usr/local/etc/sudoers.d/90-cloud-init-users'
+    default_primary_nic = 'hn0'
 
     def __init__(self, name, cfg, paths):
         distros.Distro.__init__(self, name, cfg, paths)
@@ -38,6 +39,8 @@ class Distro(distros.Distro):
         # should only happen say once per instance...)
         self._runner = helpers.Runners(paths)
         self.osfamily = 'freebsd'
+        self.ipv4_pat = re.compile(r"\s+inet\s+\d+[.]\d+[.]\d+[.]\d+")
+        cfg['ssh_svcname'] = 'sshd'
 
     # Updates a key in /etc/rc.conf.
     def updatercconf(self, key, value):
@@ -183,7 +186,6 @@ class Distro(distros.Distro):
             "gecos": '-c',
             "primary_group": '-g',
             "groups": '-G',
-            "passwd": '-h',
             "shell": '-s',
             "inactive": '-E',
         }
@@ -193,18 +195,10 @@ class Distro(distros.Distro):
             "no_log_init": '--no-log-init',
         }
 
-        redact_opts = ['passwd']
-
         for key, val in kwargs.items():
             if (key in adduser_opts and val and
                isinstance(val, six.string_types)):
                 adduser_cmd.extend([adduser_opts[key], val])
-
-                # Redact certain fields from the logs
-                if key in redact_opts:
-                    log_adduser_cmd.extend([adduser_opts[key], 'REDACTED'])
-                else:
-                    log_adduser_cmd.extend([adduser_opts[key], val])
 
             elif key in adduser_flags and val:
                 adduser_cmd.append(adduser_flags[key])
@@ -226,19 +220,21 @@ class Distro(distros.Distro):
         except Exception as e:
             util.logexc(LOG, "Failed to create user %s", name)
             raise e
+        # Set the password if it is provided
+        # For security consideration, only hashed passwd is assumed
+        passwd_val = kwargs.get('passwd', None)
+        if passwd_val is not None:
+            self.set_passwd(name, passwd_val, hashed=True)
 
     def set_passwd(self, user, passwd, hashed=False):
-        cmd = ['pw', 'usermod', user]
-
         if hashed:
-            cmd.append('-H')
+            hash_opt = "-H"
         else:
-            cmd.append('-h')
-
-        cmd.append('0')
+            hash_opt = "-h"
 
         try:
-            util.subp(cmd, passwd, logstring="chpasswd for %s" % user)
+            util.subp(['pw', 'usermod', user, hash_opt, '0'],
+                      data=passwd, logstring="chpasswd for %s" % user)
         except Exception as e:
             util.logexc(LOG, "Failed to set password for %s", user)
             raise e
@@ -270,6 +266,255 @@ class Distro(distros.Distro):
         if 'ssh_authorized_keys' in kwargs:
             keys = set(kwargs['ssh_authorized_keys']) or []
             ssh_util.setup_user_keys(keys, name, options=None)
+
+    @staticmethod
+    def get_ifconfig_list():
+        cmd = ['ifconfig', '-l']
+        (nics, err) = util.subp(cmd, rcs=[0, 1])
+        if len(err):
+            LOG.warning("Error running %s: %s", cmd, err)
+            return None
+        return nics
+
+    @staticmethod
+    def get_ifconfig_ifname_out(ifname):
+        cmd = ['ifconfig', ifname]
+        (if_result, err) = util.subp(cmd, rcs=[0, 1])
+        if len(err):
+            LOG.warning("Error running %s: %s", cmd, err)
+            return None
+        return if_result
+
+    @staticmethod
+    def get_ifconfig_ether():
+        cmd = ['ifconfig', '-l', 'ether']
+        (nics, err) = util.subp(cmd, rcs=[0, 1])
+        if len(err):
+            LOG.warning("Error running %s: %s", cmd, err)
+            return None
+        return nics
+
+    @staticmethod
+    def get_interface_mac(ifname):
+        if_result = Distro.get_ifconfig_ifname_out(ifname)
+        for item in if_result.splitlines():
+            if item.find('ether ') != -1:
+                mac = str(item.split()[1])
+                if mac:
+                    return mac
+
+    @staticmethod
+    def get_devicelist():
+        nics = Distro.get_ifconfig_list()
+        return nics.split()
+
+    @staticmethod
+    def get_ipv6():
+        ipv6 = []
+        nics = Distro.get_devicelist()
+        for nic in nics:
+            if_result = Distro.get_ifconfig_ifname_out(nic)
+            for item in if_result.splitlines():
+                if item.find("inet6 ") != -1 and item.find("scopeid") == -1:
+                    ipv6.append(nic)
+        return ipv6
+
+    def get_ipv4(self):
+        ipv4 = []
+        nics = Distro.get_devicelist()
+        for nic in nics:
+            if_result = Distro.get_ifconfig_ifname_out(nic)
+            for item in if_result.splitlines():
+                print(item)
+                if self.ipv4_pat.match(item):
+                    ipv4.append(nic)
+        return ipv4
+
+    def is_up(self, ifname):
+        if_result = Distro.get_ifconfig_ifname_out(ifname)
+        pat = "^" + ifname
+        for item in if_result.splitlines():
+            if re.match(pat, item):
+                flags = item.split('<')[1].split('>')[0]
+                if flags.find("UP") != -1:
+                    return True
+
+    def _get_current_rename_info(self, check_downable=True):
+        """Collect information necessary for rename_interfaces."""
+        names = Distro.get_devicelist()
+        bymac = {}
+        for n in names:
+            bymac[Distro.get_interface_mac(n)] = {
+                'name': n, 'up': self.is_up(n), 'downable': None}
+
+        if check_downable:
+            nics_with_addresses = set()
+            ipv6 = self.get_ipv6()
+            ipv4 = self.get_ipv4()
+            for bytes_out in (ipv6, ipv4):
+                for i in ipv6:
+                    nics_with_addresses.update(i)
+                for i in ipv4:
+                    nics_with_addresses.update(i)
+
+        for d in bymac.values():
+            d['downable'] = (d['up'] is False or
+                             d['name'] not in nics_with_addresses)
+
+        return bymac
+
+    def _rename_interfaces(self, renames):
+        if not len(renames):
+            LOG.debug("no interfaces to rename")
+            return
+
+        current_info = self._get_current_rename_info()
+
+        cur_bymac = {}
+        for mac, data in current_info.items():
+            cur = data.copy()
+            cur['mac'] = mac
+            cur_bymac[mac] = cur
+
+        def update_byname(bymac):
+            return dict((data['name'], data)
+                        for data in bymac.values())
+
+        def rename(cur, new):
+            util.subp(["ifconfig", cur, "name", new], capture=True)
+
+        def down(name):
+            util.subp(["ifconfig", name, "down"], capture=True)
+
+        def up(name):
+            util.subp(["ifconfig", name, "up"], capture=True)
+
+        ops = []
+        errors = []
+        ups = []
+        cur_byname = update_byname(cur_bymac)
+        tmpname_fmt = "cirename%d"
+        tmpi = -1
+
+        for mac, new_name in renames:
+            cur = cur_bymac.get(mac, {})
+            cur_name = cur.get('name')
+            cur_ops = []
+            if cur_name == new_name:
+                # nothing to do
+                continue
+
+            if not cur_name:
+                errors.append("[nic not present] Cannot rename mac=%s to %s"
+                              ", not available." % (mac, new_name))
+                continue
+
+            if cur['up']:
+                msg = "[busy] Error renaming mac=%s from %s to %s"
+                if not cur['downable']:
+                    errors.append(msg % (mac, cur_name, new_name))
+                    continue
+                cur['up'] = False
+                cur_ops.append(("down", mac, new_name, (cur_name,)))
+                ups.append(("up", mac, new_name, (new_name,)))
+
+            if new_name in cur_byname:
+                target = cur_byname[new_name]
+                if target['up']:
+                    msg = "[busy-target] Error renaming mac=%s from %s to %s."
+                    if not target['downable']:
+                        errors.append(msg % (mac, cur_name, new_name))
+                        continue
+                    else:
+                        cur_ops.append(("down", mac, new_name, (new_name,)))
+
+                tmp_name = None
+                while tmp_name is None or tmp_name in cur_byname:
+                    tmpi += 1
+                    tmp_name = tmpname_fmt % tmpi
+
+                cur_ops.append(("rename", mac, new_name, (new_name, tmp_name)))
+                target['name'] = tmp_name
+                cur_byname = update_byname(cur_bymac)
+                if target['up']:
+                    ups.append(("up", mac, new_name, (tmp_name,)))
+
+            cur_ops.append(("rename", mac, new_name, (cur['name'], new_name)))
+            cur['name'] = new_name
+            cur_byname = update_byname(cur_bymac)
+            ops += cur_ops
+
+        opmap = {'rename': rename, 'down': down, 'up': up}
+        if len(ops) + len(ups) == 0:
+            if len(errors):
+                LOG.debug("unable to do any work for renaming of %s", renames)
+            else:
+                LOG.debug("no work necessary for renaming of %s", renames)
+        else:
+            LOG.debug("achieving renaming of %s with ops %s",
+                      renames, ops + ups)
+
+            for op, mac, new_name, params in ops + ups:
+                try:
+                    opmap.get(op)(*params)
+                except Exception as e:
+                    errors.append(
+                        "[unknown] Error performing %s%s for %s, %s: %s" %
+                        (op, params, mac, new_name, e))
+        if len(errors):
+            raise Exception('\n'.join(errors))
+
+    def apply_network_config_names(self, netcfg):
+        renames = []
+        for ent in netcfg.get('config', {}):
+            if ent.get('type') != 'physical':
+                continue
+            mac = ent.get('mac_address')
+            name = ent.get('name')
+            if not mac:
+                continue
+            renames.append([mac, name])
+        return self._rename_interfaces(renames)
+
+    @classmethod
+    def generate_fallback_config(self):
+        nics = Distro.get_ifconfig_ether()
+        if nics is None:
+            LOG.debug("Fail to get network interfaces")
+            return None
+        potential_interfaces = nics.split()
+        connected = []
+        for nic in potential_interfaces:
+            pat = "^" + nic
+            if_result = Distro.get_ifconfig_ifname_out(nic)
+            for item in if_result.split("\n"):
+                if re.match(pat, item):
+                    flags = item.split('<')[1].split('>')[0]
+                    if flags.find("RUNNING") != -1:
+                        connected.append(nic)
+        if connected:
+            potential_interfaces = connected
+        names = list(sorted(potential_interfaces))
+        default_pri_nic = Distro.default_primary_nic
+        if default_pri_nic in names:
+            names.remove(default_pri_nic)
+            names.insert(0, default_pri_nic)
+        target_name = None
+        target_mac = None
+        for name in names:
+            mac = Distro.get_interface_mac(name)
+            if mac:
+                target_name = name
+                target_mac = mac
+                break
+        if target_mac and target_name:
+            nconf = {'config': [], 'version': 1}
+            nconf['config'].append(
+                {'type': 'physical', 'name': target_name,
+                 'mac_address': target_mac, 'subnets': [{'type': 'dhcp'}]})
+            return nconf
+        else:
+            return None
 
     def _write_network(self, settings):
         entries = net_util.translate_network(settings)

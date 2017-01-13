@@ -596,7 +596,8 @@ class TestSubp(helpers.TestCase):
     def test_subp_capture_stderr(self):
         data = b'hello world'
         (out, err) = util.subp(self.stdin2err, capture=True,
-                               decode=False, data=data)
+                               decode=False, data=data,
+                               update_env={'LC_ALL': 'C'})
         self.assertEqual(err, data)
         self.assertEqual(out, b'')
 

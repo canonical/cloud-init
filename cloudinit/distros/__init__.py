@@ -155,6 +155,9 @@ class Distro(object):
             ns, header=header, render_hwaddress=True)
         return self.apply_network(contents, bring_up=bring_up)
 
+    def generate_fallback_config(self):
+        return net.generate_fallback_config()
+
     def apply_network_config(self, netconfig, bring_up=False):
         # apply network config netconfig
         # This method is preferred to apply_network which only takes
