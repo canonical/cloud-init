@@ -232,7 +232,7 @@ class TestOpenStackDataSource(test_helpers.HttprettyTestCase):
                                        None,
                                        helpers.Paths({}))
         self.assertIsNone(ds_os.version)
-        found = ds_os.get_data(timeout=0.1, retries=0)
+        found = ds_os.get_data()
         self.assertTrue(found)
         self.assertEqual(2, ds_os.version)
         md = dict(ds_os.metadata)
@@ -256,7 +256,7 @@ class TestOpenStackDataSource(test_helpers.HttprettyTestCase):
                                        None,
                                        helpers.Paths({}))
         self.assertIsNone(ds_os.version)
-        found = ds_os.get_data(timeout=0.1, retries=0)
+        found = ds_os.get_data()
         self.assertFalse(found)
         self.assertIsNone(ds_os.version)
 
@@ -275,7 +275,7 @@ class TestOpenStackDataSource(test_helpers.HttprettyTestCase):
             'timeout': 0,
         }
         self.assertIsNone(ds_os.version)
-        found = ds_os.get_data(timeout=0.1, retries=0)
+        found = ds_os.get_data()
         self.assertFalse(found)
         self.assertIsNone(ds_os.version)
 
@@ -298,7 +298,7 @@ class TestOpenStackDataSource(test_helpers.HttprettyTestCase):
             'timeout': 0,
         }
         self.assertIsNone(ds_os.version)
-        found = ds_os.get_data(timeout=0.1, retries=0)
+        found = ds_os.get_data()
         self.assertFalse(found)
         self.assertIsNone(ds_os.version)
 
