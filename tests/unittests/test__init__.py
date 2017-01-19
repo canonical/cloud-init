@@ -12,7 +12,7 @@ from cloudinit import settings
 from cloudinit import url_helper
 from cloudinit import util
 
-from .helpers import TestCase, TempDirTestCase, ExitStack, mock
+from .helpers import TestCase, CiTestCase, ExitStack, mock
 
 
 class FakeModule(handlers.Handler):
@@ -172,7 +172,7 @@ class TestHandlerHandlePart(TestCase):
             self.data, self.ctype, self.filename, self.payload)
 
 
-class TestCmdlineUrl(TempDirTestCase):
+class TestCmdlineUrl(CiTestCase):
     def test_parse_cmdline_url_nokey_raises_keyerror(self):
         self.assertRaises(
             KeyError, main.parse_cmdline_url, 'root=foo bar single')
@@ -189,7 +189,7 @@ class TestCmdlineUrl(TempDirTestCase):
         cmdline = "ro %s=%s bar=1" % (key, url)
         m_read.return_value = url_helper.StringResponse(b"unexpected blob")
 
-        fpath = self.tmp_path("test_valid")
+        fpath = self.tmp_path("ccfile")
         lvl, msg = main.attempt_cmdline_url(
             fpath, network=True, cmdline=cmdline)
         self.assertEqual(logging.WARN, lvl)
@@ -203,7 +203,7 @@ class TestCmdlineUrl(TempDirTestCase):
         cmdline = "ro %s=%s bar=1" % ('cloud-config-url', url)
 
         m_read.return_value = url_helper.StringResponse(payload)
-        fpath = self.tmp_path("test_valid")
+        fpath = self.tmp_path("ccfile")
         lvl, msg = main.attempt_cmdline_url(
             fpath, network=True, cmdline=cmdline)
         self.assertEqual(util.load_file(fpath, decode=False), payload)
@@ -213,7 +213,7 @@ class TestCmdlineUrl(TempDirTestCase):
     @mock.patch('cloudinit.cmd.main.util.read_file_or_url')
     def test_no_key_found(self, m_read):
         cmdline = "ro mykey=http://example.com/foo root=foo"
-        fpath = self.tmp_path("test_no_key_found")
+        fpath = self.tmp_path("ccpath")
         lvl, msg = main.attempt_cmdline_url(
             fpath, network=True, cmdline=cmdline)
 
@@ -225,7 +225,7 @@ class TestCmdlineUrl(TempDirTestCase):
     def test_exception_warns(self, m_read):
         url = "http://example.com/foo"
         cmdline = "ro cloud-config-url=%s root=LABEL=bar" % url
-        fpath = self.tmp_path("test_no_key_found")
+        fpath = self.tmp_path("ccfile")
         m_read.side_effect = url_helper.UrlError(
             cause="Unexpected Error", url="http://example.com/foo")
 

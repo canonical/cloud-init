@@ -2,6 +2,7 @@
 
 from __future__ import print_function
 
+import functools
 import os
 import shutil
 import sys
@@ -80,6 +81,28 @@ def retarget_many_wrapper(new_base, am, old_func):
 
 class TestCase(unittest2.TestCase):
     pass
+
+
+class CiTestCase(TestCase):
+    """This is the preferred test case base class unless user
+       needs other test case classes below."""
+    def tmp_dir(self, dir=None, cleanup=True):
+        # return a full path to a temporary directory that will be cleaned up.
+        if dir is None:
+            tmpd = tempfile.mkdtemp(
+                prefix="ci-%s." % self.__class__.__name__)
+        else:
+            tmpd = tempfile.mkdtemp(dir=dir)
+        self.addCleanup(functools.partial(shutil.rmtree, tmpd))
+        return tmpd
+
+    def tmp_path(self, path, dir=None):
+        # return an absolute path to 'path' under dir.
+        # if dir is None, one will be created with tmp_dir()
+        # the file is not created or modified.
+        if dir is None:
+            dir = self.tmp_dir()
+        return os.path.normpath(os.path.abspath(os.path.join(dir, path)))
 
 
 class ResourceUsingTestCase(TestCase):
@@ -227,29 +250,10 @@ class HttprettyTestCase(TestCase):
         super(HttprettyTestCase, self).tearDown()
 
 
-class TempDirTestCase(TestCase):
-    # provide a tempdir per class, not per test.
-    @classmethod
-    def setUpClass(cls):
-        cls.tmpd = tempfile.mkdtemp(prefix="ci-%s." % cls.__name__)
-        return TestCase.setUpClass()
-
-    @classmethod
-    def tearDownClass(cls):
-        shutil.rmtree(cls.tmpd)
-        return TestCase.tearDownClass()
-
-    def tmp_path(self, path):
-        # if absolute path (starts with /), then make ./path
-        if path.startswith(os.path.sep):
-            path = "." + path
-
-        return os.path.normpath(os.path.join(self.tmpd, path))
-
-
 def populate_dir(path, files):
     if not os.path.exists(path):
         os.makedirs(path)
+    ret = []
     for (name, content) in files.items():
         p = os.path.join(path, name)
         util.ensure_dir(os.path.dirname(p))
@@ -259,6 +263,9 @@ def populate_dir(path, files):
             else:
                 fp.write(content.encode('utf-8'))
             fp.close()
+        ret.append(p)
+
+    return ret
 
 
 def dir2dict(startdir, prefix=None):

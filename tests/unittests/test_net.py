@@ -8,11 +8,10 @@ from cloudinit.net import sysconfig
 from cloudinit.sources.helpers import openstack
 from cloudinit import util
 
+from .helpers import CiTestCase
 from .helpers import dir2dict
 from .helpers import mock
 from .helpers import populate_dir
-from .helpers import TempDirTestCase
-from .helpers import TestCase
 
 import base64
 import copy
@@ -20,8 +19,6 @@ import gzip
 import io
 import json
 import os
-import shutil
-import tempfile
 import textwrap
 import yaml
 
@@ -478,7 +475,7 @@ def _setup_test(tmp_dir, mock_get_devicelist, mock_read_sys_net,
     mock_sys_dev_path.side_effect = sys_dev_path
 
 
-class TestSysConfigRendering(TestCase):
+class TestSysConfigRendering(CiTestCase):
 
     @mock.patch("cloudinit.net.sys_dev_path")
     @mock.patch("cloudinit.net.read_sys_net")
@@ -486,8 +483,7 @@ class TestSysConfigRendering(TestCase):
     def test_default_generation(self, mock_get_devicelist,
                                 mock_read_sys_net,
                                 mock_sys_dev_path):
-        tmp_dir = tempfile.mkdtemp()
-        self.addCleanup(shutil.rmtree, tmp_dir)
+        tmp_dir = self.tmp_dir()
         _setup_test(tmp_dir, mock_get_devicelist,
                     mock_read_sys_net, mock_sys_dev_path)
 
@@ -518,9 +514,7 @@ USERCTL=no
             self.assertEqual(expected_content, content)
 
     def test_openstack_rendering_samples(self):
-        tmp_dir = tempfile.mkdtemp()
-        self.addCleanup(shutil.rmtree, tmp_dir)
-        render_dir = os.path.join(tmp_dir, "render")
+        render_dir = self.tmp_dir()
         for os_sample in OS_SAMPLES:
             ex_input = os_sample['in_data']
             ex_mac_addrs = os_sample['in_macs']
@@ -535,7 +529,7 @@ USERCTL=no
                     self.assertEqual(expected_content, fh.read())
 
 
-class TestEniNetRendering(TestCase):
+class TestEniNetRendering(CiTestCase):
 
     @mock.patch("cloudinit.net.sys_dev_path")
     @mock.patch("cloudinit.net.read_sys_net")
@@ -543,8 +537,7 @@ class TestEniNetRendering(TestCase):
     def test_default_generation(self, mock_get_devicelist,
                                 mock_read_sys_net,
                                 mock_sys_dev_path):
-        tmp_dir = tempfile.mkdtemp()
-        self.addCleanup(shutil.rmtree, tmp_dir)
+        tmp_dir = self.tmp_dir()
         _setup_test(tmp_dir, mock_get_devicelist,
                     mock_read_sys_net, mock_sys_dev_path)
 
@@ -576,7 +569,7 @@ iface eth1000 inet dhcp
         self.assertEqual(expected.lstrip(), contents.lstrip())
 
 
-class TestEniNetworkStateToEni(TestCase):
+class TestEniNetworkStateToEni(CiTestCase):
     mycfg = {
         'config': [{"type": "physical", "name": "eth0",
                     "mac_address": "c0:d6:9f:2c:e8:80",
@@ -607,7 +600,7 @@ class TestEniNetworkStateToEni(TestCase):
         self.assertNotIn("hwaddress", rendered)
 
 
-class TestCmdlineConfigParsing(TestCase):
+class TestCmdlineConfigParsing(CiTestCase):
     simple_cfg = {
         'config': [{"type": "physical", "name": "eth0",
                     "mac_address": "c0:d6:9f:2c:e8:80",
@@ -665,7 +658,7 @@ class TestCmdlineConfigParsing(TestCase):
         self.assertEqual(found, self.simple_cfg)
 
 
-class TestCmdlineReadKernelConfig(TempDirTestCase):
+class TestCmdlineReadKernelConfig(CiTestCase):
     macs = {
         'eth0': '14:02:ec:42:48:00',
         'eno1': '14:02:ec:42:48:01',
@@ -673,8 +666,7 @@ class TestCmdlineReadKernelConfig(TempDirTestCase):
 
     def test_ip_cmdline_read_kernel_cmdline_ip(self):
         content = {'net-eth0.conf': DHCP_CONTENT_1}
-        populate_dir(self.tmp, content)
-        files = [os.path.join(self.tmp, k) for k in content.keys()]
+        files = sorted(populate_dir(self.tmp_dir(), content))
         found = cmdline.read_kernel_cmdline_config(
             files=files, cmdline='foo ip=dhcp', mac_addrs=self.macs)
         exp1 = copy.deepcopy(DHCP_EXPECTED_1)
@@ -684,8 +676,7 @@ class TestCmdlineReadKernelConfig(TempDirTestCase):
 
     def test_ip_cmdline_read_kernel_cmdline_ip6(self):
         content = {'net6-eno1.conf': DHCP6_CONTENT_1}
-        populate_dir(self.tmp, content)
-        files = [os.path.join(self.tmp, k) for k in content.keys()]
+        files = sorted(populate_dir(self.tmp_dir(), content))
         found = cmdline.read_kernel_cmdline_config(
             files=files, cmdline='foo ip6=dhcp root=/dev/sda',
             mac_addrs=self.macs)
@@ -701,8 +692,7 @@ class TestCmdlineReadKernelConfig(TempDirTestCase):
     def test_ip_cmdline_read_kernel_cmdline_none(self):
         # if there is no ip= or ip6= on cmdline, return value should be None
         content = {'net6-eno1.conf': DHCP6_CONTENT_1}
-        populate_dir(self.tmp, content)
-        files = [os.path.join(self.tmp, k) for k in content.keys()]
+        files = sorted(populate_dir(self.tmp_dir(), content))
         found = cmdline.read_kernel_cmdline_config(
             files=files, cmdline='foo root=/dev/sda', mac_addrs=self.macs)
         self.assertEqual(found, None)
@@ -710,8 +700,7 @@ class TestCmdlineReadKernelConfig(TempDirTestCase):
     def test_ip_cmdline_both_ip_ip6(self):
         content = {'net-eth0.conf': DHCP_CONTENT_1,
                    'net6-eth0.conf': DHCP6_CONTENT_1.replace('eno1', 'eth0')}
-        populate_dir(self.tmp, content)
-        files = [os.path.join(self.tmp, k) for k in sorted(content.keys())]
+        files = sorted(populate_dir(self.tmp_dir(), content))
         found = cmdline.read_kernel_cmdline_config(
             files=files, cmdline='foo ip=dhcp ip6=dhcp', mac_addrs=self.macs)
 
@@ -725,14 +714,12 @@ class TestCmdlineReadKernelConfig(TempDirTestCase):
         self.assertEqual(found['config'], expected)
 
 
-class TestEniRoundTrip(TestCase):
-    def setUp(self):
-        super(TestCase, self).setUp()
-        self.tmp_dir = tempfile.mkdtemp()
-        self.addCleanup(shutil.rmtree, self.tmp_dir)
-
+class TestEniRoundTrip(CiTestCase):
     def _render_and_read(self, network_config=None, state=None, eni_path=None,
-                         links_prefix=None, netrules_path=None):
+                         links_prefix=None, netrules_path=None, dir=None):
+        if dir is None:
+            dir = self.tmp_dir()
+
         if network_config:
             ns = network_state.parse_net_config_data(network_config)
         elif state:
@@ -747,8 +734,8 @@ class TestEniRoundTrip(TestCase):
             config={'eni_path': eni_path, 'links_path_prefix': links_prefix,
                     'netrules_path': netrules_path})
 
-        renderer.render_network_state(self.tmp_dir, ns)
-        return dir2dict(self.tmp_dir)
+        renderer.render_network_state(dir, ns)
+        return dir2dict(dir)
 
     def testsimple_convert_and_render(self):
         network_config = eni.convert_eni_data(EXAMPLE_ENI)
