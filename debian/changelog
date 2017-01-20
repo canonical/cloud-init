@@ -3,6 +3,8 @@ cloud-init (0.7.9-0ubuntu1~16.04.1) UNRELEASED; urgency=medium
   * debian/copyright: update License field to include Apache.
   * debian/update-grub-legacy-ec2: fix to include kernels whose config
     has CONFIG_XEN=y (LP: #1379080).
+  * debian/patches/azure-use-walinux-agent.patch: continue relying on
+    walinux agent in stable release.
   * New upstream release.
     - doc: adjust headers in tests documentation for consistency.
     - pep8: fix issue found in zesty build with pycodestyle.
@@ -34,7 +36,6 @@ cloud-init (0.7.9-0ubuntu1~16.04.1) UNRELEASED; urgency=medium
       [Brent Baude]
     - packages/redhat: fix rpm spec file.
     - main: set TZ in environment if not already set. [Ryan Harper]
-    - Azure: No longer rely on walinux agent. (LP: #1538522)
 
  -- Scott Moser <smoser@ubuntu.com>  Fri, 20 Jan 2017 10:06:55 -0500
 
