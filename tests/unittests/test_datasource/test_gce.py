@@ -59,6 +59,8 @@ def _set_mock_metadata(gce_meta=None):
         else:
             return (404, headers, '')
 
+    # reset is needed. https://github.com/gabrielfalcao/HTTPretty/issues/316
+    httpretty.reset()
     httpretty.register_uri(httpretty.GET, MD_URL_RE, body=_request_callback)
 
 
