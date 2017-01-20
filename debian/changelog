@@ -1,5 +1,6 @@
 cloud-init (0.7.9-0ubuntu1~16.04.1) UNRELEASED; urgency=medium
 
+  * debian/copyright: update License field to include Apache.
   * debian/update-grub-legacy-ec2: fix to include kernels whose config
     has CONFIG_XEN=y (LP: #1379080).
   * New upstream release.
