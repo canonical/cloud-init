@@ -1,4 +1,4 @@
-cloud-init (0.7.9-0ubuntu1~16.04.1) UNRELEASED; urgency=medium
+cloud-init (0.7.9-0ubuntu1~16.04.1) xenial-proposed; urgency=medium
 
   * debian/copyright: update License field to include Apache.
   * debian/update-grub-legacy-ec2: fix to include kernels whose config
@@ -37,7 +37,7 @@ cloud-init (0.7.9-0ubuntu1~16.04.1) UNRELEASED; urgency=medium
     - packages/redhat: fix rpm spec file.
     - main: set TZ in environment if not already set. [Ryan Harper]
 
- -- Scott Moser <smoser@ubuntu.com>  Fri, 20 Jan 2017 10:06:55 -0500
+ -- Scott Moser <smoser@ubuntu.com>  Fri, 20 Jan 2017 10:43:12 -0500
 
 cloud-init (0.7.8-49-g9e904bb-0ubuntu1~16.04.4) xenial; urgency=medium
 
