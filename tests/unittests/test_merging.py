@@ -1,3 +1,5 @@
+# This file is part of cloud-init. See LICENSE file for license information.
+
 from . import helpers
 
 from cloudinit.handlers import cloud_config
@@ -255,3 +257,5 @@ class TestSimpleRun(helpers.ResourceUsingTestCase):
         c = _old_mergedict(a, b)
         d = util.mergemanydict([a, b])
         self.assertEqual(c, d)
+
+# vi: ts=4 expandtab

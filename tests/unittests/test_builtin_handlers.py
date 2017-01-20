@@ -1,3 +1,5 @@
+# This file is part of cloud-init. See LICENSE file for license information.
+
 """Tests of the built-in user data handlers."""
 
 import os
@@ -71,3 +73,5 @@ class TestBuiltins(test_helpers.FilesystemMockingTestCase):
 
         mockobj.assert_called_once_with(
             ['initctl', 'reload-configuration'], capture=False)
+
+# vi: ts=4 expandtab

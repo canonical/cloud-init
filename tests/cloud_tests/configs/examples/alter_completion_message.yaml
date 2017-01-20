@@ -1,0 +1,16 @@
+#
+# From cloud config examples on cloudinit.readthedocs.io
+#
+# 2016-11-17: Disabled as covered by module based tests
+#
+enabled: False
+cloud_config: |
+  #cloud-config
+  final_message: |
+    This is my final message!
+    $version
+    $timestamp
+    $datasource
+    $uptime
+
+# vi: ts=4 expandtab

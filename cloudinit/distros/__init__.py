@@ -1,25 +1,13 @@
-# vi: ts=4 expandtab
+# Copyright (C) 2012 Canonical Ltd.
+# Copyright (C) 2012, 2013 Hewlett-Packard Development Company, L.P.
+# Copyright (C) 2012 Yahoo! Inc.
 #
-#    Copyright (C) 2012 Canonical Ltd.
-#    Copyright (C) 2012, 2013 Hewlett-Packard Development Company, L.P.
-#    Copyright (C) 2012 Yahoo! Inc.
+# Author: Scott Moser <scott.moser@canonical.com>
+# Author: Juerg Haefliger <juerg.haefliger@hp.com>
+# Author: Joshua Harlow <harlowja@yahoo-inc.com>
+# Author: Ben Howard <ben.howard@canonical.com>
 #
-#    Author: Scott Moser <scott.moser@canonical.com>
-#    Author: Juerg Haefliger <juerg.haefliger@hp.com>
-#    Author: Joshua Harlow <harlowja@yahoo-inc.com>
-#    Author: Ben Howard <ben.howard@canonical.com>
-#
-#    This program is free software: you can redistribute it and/or modify
-#    it under the terms of the GNU General Public License version 3, as
-#    published by the Free Software Foundation.
-#
-#    This program is distributed in the hope that it will be useful,
-#    but WITHOUT ANY WARRANTY; without even the implied warranty of
-#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#    GNU General Public License for more details.
-#
-#    You should have received a copy of the GNU General Public License
-#    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+# This file is part of cloud-init. See LICENSE file for license information.
 
 import six
 from six import StringIO
@@ -398,12 +386,16 @@ class Distro(object):
         # support kwargs having groups=[list] or groups="g1,g2"
         groups = kwargs.get('groups')
         if groups:
-            if isinstance(groups, (list, tuple)):
-                # kwargs.items loop below wants a comma delimeted string
-                # that can go right through to the command.
-                kwargs['groups'] = ",".join(groups)
-            else:
+            if isinstance(groups, six.string_types):
                 groups = groups.split(",")
+
+            # remove any white spaces in group names, most likely
+            # that came in as a string like: groups: group1, group2
+            groups = [g.strip() for g in groups]
+
+            # kwargs.items loop below wants a comma delimeted string
+            # that can go right through to the command.
+            kwargs['groups'] = ",".join(groups)
 
             primary_group = kwargs.get('primary_group')
             if primary_group:
@@ -413,10 +405,10 @@ class Distro(object):
             for group in groups:
                 if not util.is_group(group):
                     self.create_group(group)
-                    LOG.debug("created group %s for user %s", name, group)
+                    LOG.debug("created group '%s' for user '%s'", group, name)
 
         # Check the values and create the command
-        for key, val in kwargs.items():
+        for key, val in sorted(kwargs.items()):
 
             if key in adduser_opts and val and isinstance(val, str):
                 adduser_cmd.extend([adduser_opts[key], val])
@@ -433,7 +425,7 @@ class Distro(object):
 
         # Don't create the home directory if directed so or if the user is a
         # system user
-        if 'no_create_home' in kwargs or 'system' in kwargs:
+        if kwargs.get('no_create_home') or kwargs.get('system'):
             adduser_cmd.append('-M')
             log_adduser_cmd.append('-M')
         else:
@@ -744,3 +736,5 @@ def set_etc_timezone(tz, tz_file=None, tz_conf="/etc/timezone",
         else:
             util.copy(tz_file, tz_local)
     return
+
+# vi: ts=4 expandtab

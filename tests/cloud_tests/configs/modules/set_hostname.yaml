@@ -1,0 +1,18 @@
+#
+# Set the hostname and update /etc/hosts
+#
+cloud_config: |
+  #cloud-config
+  hostname: myhostname
+collect_scripts:
+  hosts: |
+    #!/bin/bash
+    grep ^127 /etc/hosts
+  hostname: |
+    #!/bin/bash
+    hostname
+  fqdn: |
+    #!/bin/bash
+    hostname --fqdn
+
+# vi: ts=4 expandtab

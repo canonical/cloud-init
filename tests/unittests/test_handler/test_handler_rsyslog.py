@@ -1,3 +1,5 @@
+# This file is part of cloud-init. See LICENSE file for license information.
+
 import os
 import shutil
 import tempfile
@@ -172,3 +174,5 @@ class TestRemotesToSyslog(t_help.TestCase):
         lines = r.splitlines()
         self.assertEqual(1, len(lines))
         self.assertTrue(myline in r.splitlines())
+
+# vi: ts=4 expandtab

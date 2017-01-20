@@ -1,3 +1,5 @@
+# This file is part of cloud-init. See LICENSE file for license information.
+
 import json
 import logging
 import os
@@ -353,3 +355,5 @@ def get_metadata_from_fabric(fallback_lease_file=None):
         return shim.register_with_azure_and_fetch_data()
     finally:
         shim.clean_up()
+
+# vi: ts=4 expandtab

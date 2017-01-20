@@ -1,0 +1,13 @@
+#
+# Disable apt pipelining value
+#
+cloud_config: |
+  #cloud-config
+  apt:
+    apt_pipelining: false
+collect_scripts:
+  90cloud-init-pipelining: |
+    #!/bin/bash
+    cat /etc/apt/apt.conf.d/90cloud-init-pipelining
+
+# vi: ts=4 expandtab

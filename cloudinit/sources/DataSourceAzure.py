@@ -1,20 +1,8 @@
-# vi: ts=4 expandtab
+# Copyright (C) 2013 Canonical Ltd.
 #
-#    Copyright (C) 2013 Canonical Ltd.
+# Author: Scott Moser <scott.moser@canonical.com>
 #
-#    Author: Scott Moser <scott.moser@canonical.com>
-#
-#    This program is free software: you can redistribute it and/or modify
-#    it under the terms of the GNU General Public License version 3, as
-#    published by the Free Software Foundation.
-#
-#    This program is distributed in the hope that it will be useful,
-#    but WITHOUT ANY WARRANTY; without even the implied warranty of
-#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#    GNU General Public License for more details.
-#
-#    You should have received a copy of the GNU General Public License
-#    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+# This file is part of cloud-init. See LICENSE file for license information.
 
 import base64
 import contextlib
@@ -36,6 +24,7 @@ LOG = logging.getLogger(__name__)
 DS_NAME = 'Azure'
 DEFAULT_METADATA = {"instance-id": "iid-AZURE-NODE"}
 AGENT_START = ['service', 'walinuxagent', 'start']
+AGENT_START_BUILTIN = "__builtin__"
 BOUNCE_COMMAND = [
     'sh', '-xc',
     "i=$interface; x=0; ifdown $i || x=$?; ifup $i || x=$?; exit $x"
@@ -45,7 +34,7 @@ BOUNCE_COMMAND = [
 RESOURCE_DISK_PATH = '/dev/disk/cloud/azure_resource'
 
 BUILTIN_DS_CONFIG = {
-    'agent_command': AGENT_START,
+    'agent_command': AGENT_START_BUILTIN,
     'data_dir': "/var/lib/waagent",
     'set_hostname': True,
     'hostname_bounce': {
@@ -230,7 +219,7 @@ class DataSourceAzureNet(sources.DataSource):
         # the directory to be protected.
         write_files(ddir, files, dirmode=0o700)
 
-        if self.ds_cfg['agent_command'] == '__builtin__':
+        if self.ds_cfg['agent_command'] == AGENT_START_BUILTIN:
             metadata_func = partial(get_metadata_from_fabric,
                                     fallback_lease_file=self.
                                     dhclient_lease_file)
@@ -304,7 +293,7 @@ def can_dev_be_reformatted(devpath):
         return False, msg
 
     def count_files(mp):
-        ignored = {'dataloss_warning_readme.txt'}
+        ignored = set(['dataloss_warning_readme.txt'])
         return len([f for f in os.listdir(mp) if f.lower() not in ignored])
 
     bmsg = ('partition 1 (%s -> %s) on device %s was ntfs formatted' %
@@ -667,3 +656,5 @@ datasources = [
 # Return a list of data sources that match this set of dependencies
 def get_datasource_list(depends):
     return sources.list_from_depends(depends, datasources)
+
+# vi: ts=4 expandtab

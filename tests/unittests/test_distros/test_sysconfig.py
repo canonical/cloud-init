@@ -1,3 +1,5 @@
+# This file is part of cloud-init. See LICENSE file for license information.
+
 import re
 
 from cloudinit.distros.parsers.sys_conf import SysConf
@@ -80,3 +82,5 @@ USEMD5=no'''
         contents = str(conf)
         self.assertIn("Z=d", contents)
         self.assertIn("BLAH=b", contents)
+
+# vi: ts=4 expandtab

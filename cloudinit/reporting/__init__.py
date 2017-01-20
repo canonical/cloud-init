@@ -1,6 +1,7 @@
-# Copyright 2015 Canonical Ltd.
-# This file is part of cloud-init.  See LICENCE file for license information.
+# Copyright (C) 2015 Canonical Ltd.
 #
+# This file is part of cloud-init. See LICENSE file for license information.
+
 """
 cloud-init reporting framework
 

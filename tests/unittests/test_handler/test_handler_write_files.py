@@ -1,3 +1,5 @@
+# This file is part of cloud-init. See LICENSE file for license information.
+
 from cloudinit.config.cc_write_files import write_files
 from cloudinit import log as logging
 from cloudinit import util

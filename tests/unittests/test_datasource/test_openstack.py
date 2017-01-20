@@ -1,20 +1,8 @@
-# vi: ts=4 expandtab
+# Copyright (C) 2014 Yahoo! Inc.
 #
-#    Copyright (C) 2014 Yahoo! Inc.
+# Author: Joshua Harlow <harlowja@yahoo-inc.com>
 #
-#    Author: Joshua Harlow <harlowja@yahoo-inc.com>
-#
-#    This program is free software: you can redistribute it and/or modify
-#    it under the terms of the GNU General Public License version 3, as
-#    published by the Free Software Foundation.
-#
-#    This program is distributed in the hope that it will be useful,
-#    but WITHOUT ANY WARRANTY; without even the implied warranty of
-#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#    GNU General Public License for more details.
-#
-#    You should have received a copy of the GNU General Public License
-#    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+# This file is part of cloud-init. See LICENSE file for license information.
 
 import copy
 import json
@@ -344,3 +332,5 @@ class TestVendorDataLoading(test_helpers.TestCase):
     def test_vd_load_dict_ci_list(self):
         data = {'foo': 'bar', 'cloud-init': ['VD_1', 'VD_2']}
         self.assertEqual(self.cvj(data), data['cloud-init'])
+
+# vi: ts=4 expandtab

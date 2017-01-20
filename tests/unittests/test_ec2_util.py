@@ -1,3 +1,5 @@
+# This file is part of cloud-init. See LICENSE file for license information.
+
 from . import helpers
 
 from cloudinit import ec2_utils as eu
@@ -137,3 +139,5 @@ class TestEc2Util(helpers.HttprettyTestCase):
         self.assertEqual(2, len(bdm))
         self.assertEqual(bdm['ami'], 'sdb')
         self.assertEqual(bdm['ephemeral0'], 'sdc')
+
+# vi: ts=4 expandtab

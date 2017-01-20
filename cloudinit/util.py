@@ -1,24 +1,12 @@
-# vi: ts=4 expandtab
+# Copyright (C) 2012 Canonical Ltd.
+# Copyright (C) 2012, 2013 Hewlett-Packard Development Company, L.P.
+# Copyright (C) 2012 Yahoo! Inc.
 #
-#    Copyright (C) 2012 Canonical Ltd.
-#    Copyright (C) 2012, 2013 Hewlett-Packard Development Company, L.P.
-#    Copyright (C) 2012 Yahoo! Inc.
+# Author: Scott Moser <scott.moser@canonical.com>
+# Author: Juerg Haefliger <juerg.haefliger@hp.com>
+# Author: Joshua Harlow <harlowja@yahoo-inc.com>
 #
-#    Author: Scott Moser <scott.moser@canonical.com>
-#    Author: Juerg Haefliger <juerg.haefliger@hp.com>
-#    Author: Joshua Harlow <harlowja@yahoo-inc.com>
-#
-#    This program is free software: you can redistribute it and/or modify
-#    it under the terms of the GNU General Public License version 3, as
-#    published by the Free Software Foundation.
-#
-#    This program is distributed in the hope that it will be useful,
-#    but WITHOUT ANY WARRANTY; without even the implied warranty of
-#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#    GNU General Public License for more details.
-#
-#    You should have received a copy of the GNU General Public License
-#    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+# This file is part of cloud-init. See LICENSE file for license information.
 
 import contextlib
 import copy as obj_copy
@@ -235,15 +223,16 @@ class ProcessExecutionError(IOError):
                     'Command: %(cmd)s\n'
                     'Exit code: %(exit_code)s\n'
                     'Reason: %(reason)s\n'
-                    'Stdout: %(stdout)r\n'
-                    'Stderr: %(stderr)r')
+                    'Stdout: %(stdout)s\n'
+                    'Stderr: %(stderr)s')
+    empty_attr = '-'
 
     def __init__(self, stdout=None, stderr=None,
                  exit_code=None, cmd=None,
                  description=None, reason=None,
                  errno=None):
         if not cmd:
-            self.cmd = '-'
+            self.cmd = self.empty_attr
         else:
             self.cmd = cmd
 
@@ -253,35 +242,55 @@ class ProcessExecutionError(IOError):
             self.description = description
 
         if not isinstance(exit_code, six.integer_types):
-            self.exit_code = '-'
+            self.exit_code = self.empty_attr
         else:
             self.exit_code = exit_code
 
         if not stderr:
-            self.stderr = ''
+            self.stderr = self.empty_attr
         else:
-            self.stderr = stderr
+            self.stderr = self._indent_text(stderr)
 
         if not stdout:
-            self.stdout = ''
+            self.stdout = self.empty_attr
         else:
-            self.stdout = stdout
+            self.stdout = self._indent_text(stdout)
 
         if reason:
             self.reason = reason
         else:
-            self.reason = '-'
+            self.reason = self.empty_attr
 
         self.errno = errno
         message = self.MESSAGE_TMPL % {
-            'description': self.description,
-            'cmd': self.cmd,
-            'exit_code': self.exit_code,
-            'stdout': self.stdout,
-            'stderr': self.stderr,
-            'reason': self.reason,
+            'description': self._ensure_string(self.description),
+            'cmd': self._ensure_string(self.cmd),
+            'exit_code': self._ensure_string(self.exit_code),
+            'stdout': self._ensure_string(self.stdout),
+            'stderr': self._ensure_string(self.stderr),
+            'reason': self._ensure_string(self.reason),
         }
         IOError.__init__(self, message)
+
+    def _ensure_string(self, text):
+        """
+        if data is bytes object, decode
+        """
+        return text.decode() if isinstance(text, six.binary_type) else text
+
+    def _indent_text(self, text, indent_level=8):
+        """
+        indent text on all but the first line, allowing for easy to read output
+        """
+        cr = '\n'
+        indent = ' ' * indent_level
+        # if input is bytes, return bytes
+        if isinstance(text, six.binary_type):
+            cr = cr.encode()
+            indent = indent.encode()
+        # remove any newlines at end of text first to prevent unneeded blank
+        # line in output
+        return text.rstrip(cr).replace(cr, cr + indent)
 
 
 class SeLinuxGuard(object):
@@ -970,6 +979,11 @@ def read_conf_with_confd(cfgfile):
     # Conf.d settings override input configuration
     confd_cfg = read_conf_d(confd)
     return mergemanydict([confd_cfg, cfg])
+
+
+def read_conf_from_cmdline(cmdline=None):
+    # return a dictionary or config on the cmdline or None
+    return load_yaml(read_cc_from_cmdline(cmdline=cmdline))
 
 
 def read_cc_from_cmdline(cmdline=None):
@@ -2387,3 +2401,5 @@ def system_is_snappy():
     if os.path.isdir("/etc/system-image/config.d/"):
         return True
     return False
+
+# vi: ts=4 expandtab

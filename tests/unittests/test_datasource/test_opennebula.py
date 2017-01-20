@@ -1,3 +1,5 @@
+# This file is part of cloud-init. See LICENSE file for license information.
+
 from cloudinit import helpers
 from cloudinit.sources import DataSourceOpenNebula as ds
 from cloudinit import util

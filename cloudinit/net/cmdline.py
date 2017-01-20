@@ -1,20 +1,9 @@
-#   Copyright (C) 2013-2014 Canonical Ltd.
+# Copyright (C) 2013-2014 Canonical Ltd.
 #
-#   Author: Scott Moser <scott.moser@canonical.com>
-#   Author: Blake Rouse <blake.rouse@canonical.com>
+# Author: Scott Moser <scott.moser@canonical.com>
+# Author: Blake Rouse <blake.rouse@canonical.com>
 #
-#   Curtin is free software: you can redistribute it and/or modify it under
-#   the terms of the GNU Affero General Public License as published by the
-#   Free Software Foundation, either version 3 of the License, or (at your
-#   option) any later version.
-#
-#   Curtin is distributed in the hope that it will be useful, but WITHOUT ANY
-#   WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-#   FOR A PARTICULAR PURPOSE.  See the GNU Affero General Public License for
-#   more details.
-#
-#   You should have received a copy of the GNU Affero General Public License
-#   along with Curtin.  If not, see <http://www.gnu.org/licenses/>.
+# This file is part of cloud-init. See LICENSE file for license information.
 
 import base64
 import glob
@@ -26,7 +15,7 @@ import sys
 import six
 
 from . import get_devicelist
-from . import sys_netdev_info
+from . import read_sys_net_safe
 
 from cloudinit import util
 
@@ -57,7 +46,7 @@ def _load_shell_content(content, add_empty=False, empty_val=None):
 
 
 def _klibc_to_config_entry(content, mac_addrs=None):
-    """Convert a klibc writtent shell content file to a 'config' entry
+    """Convert a klibc written shell content file to a 'config' entry
     When ip= is seen on the kernel command line in debian initramfs
     and networking is brought up, ipconfig will populate
     /run/net-<name>.cfg.
@@ -140,7 +129,7 @@ def _klibc_to_config_entry(content, mac_addrs=None):
 
 def config_from_klibc_net_cfg(files=None, mac_addrs=None):
     if files is None:
-        files = glob.glob('/run/net*.conf')
+        files = glob.glob('/run/net-*.conf') + glob.glob('/run/net6-*.conf')
 
     entries = []
     names = {}
@@ -148,12 +137,19 @@ def config_from_klibc_net_cfg(files=None, mac_addrs=None):
         name, entry = _klibc_to_config_entry(util.load_file(cfg_file),
                                              mac_addrs=mac_addrs)
         if name in names:
-            raise ValueError(
-                "device '%s' defined multiple times: %s and %s" % (
-                    name, names[name], cfg_file))
+            prev = names[name]['entry']
+            if prev.get('mac_address') != entry.get('mac_address'):
+                raise ValueError(
+                    "device '%s' was defined multiple times (%s)"
+                    " but had differing mac addresses: %s -> %s.",
+                    (name, ' '.join(names[name]['files']),
+                     prev.get('mac_address'), entry.get('mac_address')))
+            prev['subnets'].extend(entry['subnets'])
+            names[name]['files'].append(cfg_file)
+        else:
+            names[name] = {'files': [cfg_file], 'entry': entry}
+            entries.append(entry)
 
-        names[name] = cfg_file
-        entries.append(entry)
     return {'config': entries, 'version': 1}
 
 
@@ -199,11 +195,16 @@ def read_kernel_cmdline_config(files=None, mac_addrs=None, cmdline=None):
         if data64:
             return util.load_yaml(_b64dgz(data64))
 
-    if 'ip=' not in cmdline:
+    if 'ip=' not in cmdline and 'ip6=' not in cmdline:
         return None
 
     if mac_addrs is None:
-        mac_addrs = dict((k, sys_netdev_info(k, 'address'))
-                         for k in get_devicelist())
+        mac_addrs = {}
+        for k in get_devicelist():
+            mac_addr = read_sys_net_safe(k, 'address')
+            if mac_addr:
+                mac_addrs[k] = mac_addr
 
     return config_from_klibc_net_cfg(files=files, mac_addrs=mac_addrs)
+
+# vi: ts=4 expandtab

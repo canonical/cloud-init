@@ -1,3 +1,5 @@
+# This file is part of cloud-init. See LICENSE file for license information.
+
 import os
 
 from cloudinit.sources.helpers import azure as azure_helper
@@ -419,3 +421,5 @@ class TestGetMetadataFromFabric(TestCase):
         self.assertRaises(SentinelException,
                           azure_helper.get_metadata_from_fabric)
         self.assertEqual(1, shim.return_value.clean_up.call_count)
+
+# vi: ts=4 expandtab

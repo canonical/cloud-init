@@ -1,3 +1,5 @@
+# This file is part of cloud-init. See LICENSE file for license information.
+
 from cloudinit.config.cc_snappy import (
     makeop, get_package_ops, render_snap_op)
 from cloudinit.config.cc_snap_config import (
@@ -595,3 +597,5 @@ def apply_patches(patches):
         setattr(ref, name, replace)
         ret.append((ref, name, orig))
     return ret
+
+# vi: ts=4 expandtab

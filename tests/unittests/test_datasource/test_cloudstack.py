@@ -1,3 +1,5 @@
+# This file is part of cloud-init. See LICENSE file for license information.
+
 from cloudinit import helpers
 from cloudinit.sources.DataSourceCloudStack import DataSourceCloudStack
 
@@ -76,3 +78,5 @@ class TestCloudStackPasswordFetching(TestCase):
 
     def test_password_not_saved_if_bad_request(self):
         self._check_password_not_saved_for('bad_request')
+
+# vi: ts=4 expandtab

@@ -1,3 +1,5 @@
+# This file is part of cloud-init. See LICENSE file for license information.
+
 import unittest
 
 from cloudinit.distros.parsers import hostname
@@ -36,3 +38,5 @@ class TestHostnameHelper(unittest.TestCase):
 bbbbd
 '''
         self.assertEqual(str(hn).strip(), expected_out.strip())
+
+# vi: ts=4 expandtab

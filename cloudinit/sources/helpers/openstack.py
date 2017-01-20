@@ -1,22 +1,10 @@
-# vi: ts=4 expandtab
+# Copyright (C) 2012 Canonical Ltd.
+# Copyright (C) 2012 Yahoo! Inc.
 #
-#    Copyright (C) 2012 Canonical Ltd.
-#    Copyright (C) 2012 Yahoo! Inc.
+# Author: Scott Moser <scott.moser@canonical.com>
+# Author: Joshua Harlow <harlowja@yahoo-inc.com>
 #
-#    Author: Scott Moser <scott.moser@canonical.com>
-#    Author: Joshua Harlow <harlowja@yahoo-inc.com>
-#
-#    This program is free software: you can redistribute it and/or modify
-#    it under the terms of the GNU General Public License version 3, as
-#    published by the Free Software Foundation.
-#
-#    This program is distributed in the hope that it will be useful,
-#    but WITHOUT ANY WARRANTY; without even the implied warranty of
-#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#    GNU General Public License for more details.
-#
-#    You should have received a copy of the GNU General Public License
-#    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+# This file is part of cloud-init. See LICENSE file for license information.
 
 import abc
 import base64
@@ -59,6 +47,19 @@ OS_VERSIONS = (
     OS_GRIZZLY,
     OS_HAVANA,
     OS_LIBERTY,
+)
+
+PHYSICAL_TYPES = (
+    None,
+    'bridge',
+    'ethernet',
+    'hw_veb',
+    'hyperv',
+    'ovs',
+    'phy',
+    'tap',
+    'vhostuser',
+    'vif',
 )
 
 
@@ -583,8 +584,7 @@ def convert_net_json(network_json=None, known_macs=None):
                 subnet['ipv6'] = True
             subnets.append(subnet)
         cfg.update({'subnets': subnets})
-        if link['type'] in [None, 'ethernet', 'vif', 'ovs', 'phy',
-                            'bridge', 'tap']:
+        if link['type'] in PHYSICAL_TYPES:
             cfg.update({'type': 'physical', 'mac_address': link_mac_addr})
         elif link['type'] in ['bond']:
             params = {}
@@ -663,3 +663,5 @@ def convert_net_json(network_json=None, known_macs=None):
         config.append(cfg)
 
     return {'version': 1, 'config': config}
+
+# vi: ts=4 expandtab

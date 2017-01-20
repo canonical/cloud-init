@@ -1,20 +1,8 @@
-# vi: ts=4 expandtab
+# Copyright (C) 2012 Yahoo! Inc.
 #
-#    Copyright (C) 2012 Yahoo! Inc.
+# Author: Joshua Harlow <harlowja@yahoo-inc.com>
 #
-#    Author: Joshua Harlow <harlowja@yahoo-inc.com>
-#
-#    This program is free software: you can redistribute it and/or modify
-#    it under the terms of the GNU General Public License version 3, as
-#    published by the Free Software Foundation.
-#
-#    This program is distributed in the hope that it will be useful,
-#    but WITHOUT ANY WARRANTY; without even the implied warranty of
-#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#    GNU General Public License for more details.
-#
-#    You should have received a copy of the GNU General Public License
-#    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+# This file is part of cloud-init. See LICENSE file for license information.
 
 import functools
 import json
@@ -57,8 +45,8 @@ class MetadataLeafDecoder(object):
         return blob
 
 
-# See: http://bit.ly/TyoUQs
-#
+# See: http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/
+#         ec2-instance-metadata.html
 class MetadataMaterializer(object):
     def __init__(self, blob, base_url, caller, leaf_decoder=None):
         self._blob = blob
@@ -199,3 +187,5 @@ def get_instance_metadata(api_version='latest',
     except Exception:
         util.logexc(LOG, "Failed fetching metadata from url %s", md_url)
         return {}
+
+# vi: ts=4 expandtab

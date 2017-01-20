@@ -1,0 +1,17 @@
+# ============================= Platform Config ===============================
+default_platform_config:
+    # all disabled by default
+    enabled: false
+    # maximum time to retrieve image
+    get_image_timeout: 300
+    # maximum time to create instance (before waiting for cloud-init)
+    create_instance_timeout: 60
+
+platforms:
+    lxd:
+        enabled: true
+        get_image_timeout: 600
+    ec2: {}
+    azure: {}
+
+# vi: ts=4 expandtab

@@ -1,6 +1,4 @@
 #!/usr/bin/env python
-# vim: tabstop=4 shiftwidth=4 softtabstop=4
-
 # Copyright (c) 2012, Cloudscaling
 # All Rights Reserved.
 #
@@ -169,3 +167,5 @@ if __name__ == "__main__":
         if len(_missingImport) > 0:
             print >> sys.stderr, ("%i imports missing in this test environment"
                                   % len(_missingImport))
+
+# vi: ts=4 expandtab

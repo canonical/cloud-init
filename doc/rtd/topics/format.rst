@@ -9,7 +9,7 @@ Gzip Compressed Content
 
 Content found to be gzip compressed will be uncompressed.
 The uncompressed data will then be used as if it were not compressed. 
-This is typically is useful because user-data is limited to ~16384 [#]_ bytes.
+This is typically useful because user-data is limited to ~16384 [#]_ bytes.
 
 Mime Multi Part Archive
 =======================

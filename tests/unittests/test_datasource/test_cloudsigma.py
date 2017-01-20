@@ -1,8 +1,9 @@
-# coding: utf-8
+# This file is part of cloud-init. See LICENSE file for license information.
 
 import copy
 
 from cloudinit.cs_utils import Cepko
+from cloudinit import sources
 from cloudinit.sources import DataSourceCloudSigma
 
 from .. import helpers as test_helpers
@@ -49,7 +50,8 @@ class DataSourceCloudSigmaTest(test_helpers.TestCase):
         self.assertEqual("test_server", self.datasource.get_hostname())
         self.datasource.metadata['name'] = ''
         self.assertEqual("65b2fb23", self.datasource.get_hostname())
-        self.datasource.metadata['name'] = u'тест'
+        utf8_hostname = b'\xd1\x82\xd0\xb5\xd1\x81\xd1\x82'.decode('utf-8')
+        self.datasource.metadata['name'] = utf8_hostname
         self.assertEqual("65b2fb23", self.datasource.get_hostname())
 
     def test_get_public_ssh_keys(self):
@@ -97,3 +99,19 @@ class DataSourceCloudSigmaTest(test_helpers.TestCase):
         self.datasource.get_data()
 
         self.assertIsNone(self.datasource.vendordata_raw)
+
+
+class DsLoads(test_helpers.TestCase):
+    def test_get_datasource_list_returns_in_local(self):
+        deps = (sources.DEP_FILESYSTEM,)
+        ds_list = DataSourceCloudSigma.get_datasource_list(deps)
+        self.assertEqual(ds_list,
+                         [DataSourceCloudSigma.DataSourceCloudSigma])
+
+    def test_list_sources_finds_ds(self):
+        found = sources.list_sources(
+            ['CloudSigma'], (sources.DEP_FILESYSTEM,), ['cloudinit.sources'])
+        self.assertEqual([DataSourceCloudSigma.DataSourceCloudSigma],
+                         found)
+
+# vi: ts=4 expandtab

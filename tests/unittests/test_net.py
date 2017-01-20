@@ -1,3 +1,5 @@
+# This file is part of cloud-init. See LICENSE file for license information.
+
 from cloudinit import net
 from cloudinit.net import cmdline
 from cloudinit.net import eni
@@ -8,6 +10,8 @@ from cloudinit import util
 
 from .helpers import dir2dict
 from .helpers import mock
+from .helpers import populate_dir
+from .helpers import TempDirTestCase
 from .helpers import TestCase
 
 import base64
@@ -54,22 +58,9 @@ DHCP_EXPECTED_1 = {
 }
 
 DHCP6_CONTENT_1 = """
-DEVICE=eno1
+DEVICE6=eno1
 HOSTNAME=
 DNSDOMAIN=
-reason='PREINIT'
-interface='eno1'
-DEVICE=eno1
-HOSTNAME=
-DNSDOMAIN=
-reason='FAIL'
-interface='eno1'
-DEVICE=eno1
-HOSTNAME=
-DNSDOMAIN=
-reason='PREINIT6'
-interface='eno1'
-DEVICE=eno1
 IPV6PROTO=dhcp6
 IPV6ADDR=2001:67c:1562:8010:0:1::
 IPV6NETMASK=64
@@ -77,11 +68,6 @@ IPV6DNS0=2001:67c:1562:8010::2:1
 IPV6DOMAINSEARCH=
 HOSTNAME=
 DNSDOMAIN=
-reason='BOUND6'
-interface='eno1'
-new_ip6_address='2001:67c:1562:8010:0:1::'
-new_ip6_prefixlen='64'
-new_dhcp6_name_servers='2001:67c:1562:8010::2:1'
 """
 
 DHCP6_EXPECTED_1 = {
@@ -461,7 +447,7 @@ pre-down route del -net 10.0.0.0 netmask 255.0.0.0 gw 11.0.0.1 metric 3 || true
 }
 
 
-def _setup_test(tmp_dir, mock_get_devicelist, mock_sys_netdev_info,
+def _setup_test(tmp_dir, mock_get_devicelist, mock_read_sys_net,
                 mock_sys_dev_path):
     mock_get_devicelist.return_value = ['eth1000']
     dev_characteristics = {
@@ -474,10 +460,12 @@ def _setup_test(tmp_dir, mock_get_devicelist, mock_sys_netdev_info,
         }
     }
 
-    def netdev_info(name, field):
-        return dev_characteristics[name][field]
+    def fake_read(devname, path, translate=None,
+                  on_enoent=None, on_keyerror=None,
+                  on_einval=None):
+        return dev_characteristics[devname][path]
 
-    mock_sys_netdev_info.side_effect = netdev_info
+    mock_read_sys_net.side_effect = fake_read
 
     def sys_dev_path(devname, path=""):
         return tmp_dir + devname + "/" + path
@@ -493,15 +481,15 @@ def _setup_test(tmp_dir, mock_get_devicelist, mock_sys_netdev_info,
 class TestSysConfigRendering(TestCase):
 
     @mock.patch("cloudinit.net.sys_dev_path")
-    @mock.patch("cloudinit.net.sys_netdev_info")
+    @mock.patch("cloudinit.net.read_sys_net")
     @mock.patch("cloudinit.net.get_devicelist")
     def test_default_generation(self, mock_get_devicelist,
-                                mock_sys_netdev_info,
+                                mock_read_sys_net,
                                 mock_sys_dev_path):
         tmp_dir = tempfile.mkdtemp()
         self.addCleanup(shutil.rmtree, tmp_dir)
         _setup_test(tmp_dir, mock_get_devicelist,
-                    mock_sys_netdev_info, mock_sys_dev_path)
+                    mock_read_sys_net, mock_sys_dev_path)
 
         network_cfg = net.generate_fallback_config()
         ns = network_state.parse_net_config_data(network_cfg,
@@ -550,15 +538,15 @@ USERCTL=no
 class TestEniNetRendering(TestCase):
 
     @mock.patch("cloudinit.net.sys_dev_path")
-    @mock.patch("cloudinit.net.sys_netdev_info")
+    @mock.patch("cloudinit.net.read_sys_net")
     @mock.patch("cloudinit.net.get_devicelist")
     def test_default_generation(self, mock_get_devicelist,
-                                mock_sys_netdev_info,
+                                mock_read_sys_net,
                                 mock_sys_dev_path):
         tmp_dir = tempfile.mkdtemp()
         self.addCleanup(shutil.rmtree, tmp_dir)
         _setup_test(tmp_dir, mock_get_devicelist,
-                    mock_sys_netdev_info, mock_sys_dev_path)
+                    mock_read_sys_net, mock_sys_dev_path)
 
         network_cfg = net.generate_fallback_config()
         ns = network_state.parse_net_config_data(network_cfg,
@@ -677,6 +665,66 @@ class TestCmdlineConfigParsing(TestCase):
         self.assertEqual(found, self.simple_cfg)
 
 
+class TestCmdlineReadKernelConfig(TempDirTestCase):
+    macs = {
+        'eth0': '14:02:ec:42:48:00',
+        'eno1': '14:02:ec:42:48:01',
+    }
+
+    def test_ip_cmdline_read_kernel_cmdline_ip(self):
+        content = {'net-eth0.conf': DHCP_CONTENT_1}
+        populate_dir(self.tmp, content)
+        files = [os.path.join(self.tmp, k) for k in content.keys()]
+        found = cmdline.read_kernel_cmdline_config(
+            files=files, cmdline='foo ip=dhcp', mac_addrs=self.macs)
+        exp1 = copy.deepcopy(DHCP_EXPECTED_1)
+        exp1['mac_address'] = self.macs['eth0']
+        self.assertEqual(found['version'], 1)
+        self.assertEqual(found['config'], [exp1])
+
+    def test_ip_cmdline_read_kernel_cmdline_ip6(self):
+        content = {'net6-eno1.conf': DHCP6_CONTENT_1}
+        populate_dir(self.tmp, content)
+        files = [os.path.join(self.tmp, k) for k in content.keys()]
+        found = cmdline.read_kernel_cmdline_config(
+            files=files, cmdline='foo ip6=dhcp root=/dev/sda',
+            mac_addrs=self.macs)
+        self.assertEqual(
+            found,
+            {'version': 1, 'config': [
+             {'type': 'physical', 'name': 'eno1',
+              'mac_address': self.macs['eno1'],
+              'subnets': [
+                  {'dns_nameservers': ['2001:67c:1562:8010::2:1'],
+                   'control': 'manual', 'type': 'dhcp6', 'netmask': '64'}]}]})
+
+    def test_ip_cmdline_read_kernel_cmdline_none(self):
+        # if there is no ip= or ip6= on cmdline, return value should be None
+        content = {'net6-eno1.conf': DHCP6_CONTENT_1}
+        populate_dir(self.tmp, content)
+        files = [os.path.join(self.tmp, k) for k in content.keys()]
+        found = cmdline.read_kernel_cmdline_config(
+            files=files, cmdline='foo root=/dev/sda', mac_addrs=self.macs)
+        self.assertEqual(found, None)
+
+    def test_ip_cmdline_both_ip_ip6(self):
+        content = {'net-eth0.conf': DHCP_CONTENT_1,
+                   'net6-eth0.conf': DHCP6_CONTENT_1.replace('eno1', 'eth0')}
+        populate_dir(self.tmp, content)
+        files = [os.path.join(self.tmp, k) for k in sorted(content.keys())]
+        found = cmdline.read_kernel_cmdline_config(
+            files=files, cmdline='foo ip=dhcp ip6=dhcp', mac_addrs=self.macs)
+
+        eth0 = copy.deepcopy(DHCP_EXPECTED_1)
+        eth0['mac_address'] = self.macs['eth0']
+        eth0['subnets'].append(
+            {'control': 'manual', 'type': 'dhcp6',
+             'netmask': '64', 'dns_nameservers': ['2001:67c:1562:8010::2:1']})
+        expected = [eth0]
+        self.assertEqual(found['version'], 1)
+        self.assertEqual(found['config'], expected)
+
+
 class TestEniRoundTrip(TestCase):
     def setUp(self):
         super(TestCase, self).setUp()
@@ -723,6 +771,52 @@ class TestEniRoundTrip(TestCase):
             entry['expected_eni'].splitlines(),
             files['/etc/network/interfaces'].splitlines())
 
+    def test_routes_rendered(self):
+        # as reported in bug 1649652
+        conf = [
+            {'name': 'eth0', 'type': 'physical',
+             'subnets': [{
+                 'address': '172.23.31.42/26',
+                 'dns_nameservers': [], 'gateway': '172.23.31.2',
+                 'type': 'static'}]},
+            {'type': 'route', 'id': 4,
+             'metric': 0, 'destination': '10.0.0.0/12',
+             'gateway': '172.23.31.1'},
+            {'type': 'route', 'id': 5,
+             'metric': 0, 'destination': '192.168.2.0/16',
+             'gateway': '172.23.31.1'},
+            {'type': 'route', 'id': 6,
+             'metric': 1, 'destination': '10.0.200.0/16',
+             'gateway': '172.23.31.1'},
+        ]
+
+        files = self._render_and_read(
+            network_config={'config': conf, 'version': 1})
+        expected = [
+            'auto lo',
+            'iface lo inet loopback',
+            'auto eth0',
+            'iface eth0 inet static',
+            '    address 172.23.31.42/26',
+            '    gateway 172.23.31.2',
+            ('post-up route add -net 10.0.0.0 netmask 255.240.0.0 gw '
+             '172.23.31.1 metric 0 || true'),
+            ('pre-down route del -net 10.0.0.0 netmask 255.240.0.0 gw '
+             '172.23.31.1 metric 0 || true'),
+            ('post-up route add -net 192.168.2.0 netmask 255.255.0.0 gw '
+             '172.23.31.1 metric 0 || true'),
+            ('pre-down route del -net 192.168.2.0 netmask 255.255.0.0 gw '
+             '172.23.31.1 metric 0 || true'),
+            ('post-up route add -net 10.0.200.0 netmask 255.255.0.0 gw '
+             '172.23.31.1 metric 1 || true'),
+            ('pre-down route del -net 10.0.200.0 netmask 255.255.0.0 gw '
+             '172.23.31.1 metric 1 || true'),
+        ]
+        found = files['/etc/network/interfaces'].splitlines()
+
+        self.assertEqual(
+            expected, [line for line in found if line])
+
 
 def _gzip_data(data):
     with io.BytesIO() as iobuf:
@@ -730,3 +824,5 @@ def _gzip_data(data):
         gzfp.write(data)
         gzfp.close()
         return iobuf.getvalue()
+
+# vi: ts=4 expandtab

@@ -12,8 +12,8 @@ if __name__ == "__main__":
     for fn in sys.argv[1:]:
         sys.stdout.write("%s" % (fn))
         try:
-            fh = open(fn, 'r')
-            yaml.safe_load(fh.read())
+            fh = open(fn, 'rb')
+            yaml.safe_load(fh.read().decode('utf-8'))
             fh.close()
             sys.stdout.write(" - ok\n")
         except Exception as e:
@@ -23,3 +23,5 @@ if __name__ == "__main__":
         sys.exit(1)
     else:
         sys.exit(0)
+
+# vi: ts=4 expandtab
