@@ -27,7 +27,8 @@ ifeq ($(distro),)
   distro = redhat
 endif
 
-READ_VERSION=$(shell $(PYVER) $(CWD)/tools/read-version)
+READ_VERSION=$(shell $(PYVER) $(CWD)/tools/read-version || \
+  echo read-version-failed)
 CODE_VERSION=$(shell $(PYVER) -c "from cloudinit import version; print(version.version_string())")
 
 
@@ -62,8 +63,8 @@ test: $(unittests)
 
 check_version:
 	@if [ "$(READ_VERSION)" != "$(CODE_VERSION)" ]; then \
-	    echo "Error: read-version version $(READ_VERSION)" \
-	    "not equal to code version $(CODE_VERSION)"; exit 2; \
+	    echo "Error: read-version version '$(READ_VERSION)'" \
+	    "not equal to code version '$(CODE_VERSION)'"; exit 2; \
 	    else true; fi
 
 clean_pyc:

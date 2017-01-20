@@ -35,7 +35,7 @@ while [ $# -ne 0 ]; do
 done
 
 rev=${1:-HEAD}
-version=$(git describe ${long_opt} $rev)
+version=$(git describe "--match=[0-9]*" ${long_opt} $rev)
 
 archive_base="cloud-init-$version"
 if [ -z "$output" ]; then
