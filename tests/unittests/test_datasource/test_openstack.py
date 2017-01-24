@@ -5,6 +5,7 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import copy
+import httpretty as hp
 import json
 import re
 
@@ -19,8 +20,6 @@ from cloudinit.sources import convert_vendordata
 from cloudinit.sources import DataSourceOpenStack as ds
 from cloudinit.sources.helpers import openstack
 from cloudinit import util
-
-hp = test_helpers.import_httpretty()
 
 BASE_URL = "http://169.254.169.254"
 PUBKEY = u'ssh-rsa AAAAB3NzaC1....sIkJhq8wdX+4I3A4cYbYP ubuntu@server-460\n'

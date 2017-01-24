@@ -2,7 +2,6 @@
 
 from __future__ import print_function
 
-import functools
 import os
 import shutil
 import sys
@@ -29,7 +28,6 @@ PY2 = False
 PY26 = False
 PY27 = False
 PY3 = False
-FIX_HTTPRETTY = False
 
 _PY_VER = sys.version_info
 _PY_MAJOR, _PY_MINOR, _PY_MICRO = _PY_VER[0:3]
@@ -44,8 +42,6 @@ else:
         PY2 = True
     if (_PY_MAJOR, _PY_MINOR) >= (3, 0):
         PY3 = True
-        if _PY_MINOR == 4 and _PY_MICRO < 3:
-            FIX_HTTPRETTY = True
 
 
 # Makes the old path start
@@ -214,37 +210,6 @@ class FilesystemMockingTestCase(ResourceUsingTestCase):
         self.patchUtils(root)
         self.patchOS(root)
         return root
-
-
-def import_httpretty():
-    """Import HTTPretty and monkey patch Python 3.4 issue.
-    See https://github.com/gabrielfalcao/HTTPretty/pull/193 and
-    as well as https://github.com/gabrielfalcao/HTTPretty/issues/221.
-
-    Lifted from
-    https://github.com/inveniosoftware/datacite/blob/master/tests/helpers.py
-    """
-    if not FIX_HTTPRETTY:
-        import httpretty
-    else:
-        import socket
-        old_SocketType = socket.SocketType
-
-        import httpretty
-        from httpretty import core
-
-        def sockettype_patch(f):
-            @functools.wraps(f)
-            def inner(*args, **kwargs):
-                f(*args, **kwargs)
-                socket.SocketType = old_SocketType
-                socket.__dict__['SocketType'] = old_SocketType
-            return inner
-
-        core.httpretty.disable = sockettype_patch(
-            httpretty.httpretty.disable
-        )
-    return httpretty
 
 
 class HttprettyTestCase(TestCase):

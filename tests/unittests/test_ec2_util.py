@@ -1,11 +1,11 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
+import httpretty as hp
+
 from . import helpers
 
 from cloudinit import ec2_utils as eu
 from cloudinit import url_helper as uh
-
-hp = helpers.import_httpretty()
 
 
 class TestEc2Util(helpers.HttprettyTestCase):

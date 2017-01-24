@@ -4,6 +4,7 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
+import httpretty
 import re
 
 from base64 import b64encode, b64decode
@@ -15,7 +16,6 @@ from cloudinit.sources import DataSourceGCE
 
 from .. import helpers as test_helpers
 
-httpretty = test_helpers.import_httpretty()
 
 GCE_META = {
     'instance/id': '123',
