@@ -66,7 +66,7 @@ NOTE: The file name on the ISO must be: ``user-data.txt``
 
 .. sourcecode:: sh
     
-    % cp simple_scirpt.bash my-iso/user-data.txt
+    % cp simple_script.bash my-iso/user-data.txt
     % genisoimage -o user-data.iso -r my-iso
 
 Verify the ISO
@@ -75,7 +75,7 @@ Verify the ISO
 .. sourcecode:: sh
     
     % sudo mkdir /media/vsphere_iso
-    % sudo mount -o loop JoeV_CI_02.iso /media/vsphere_iso
+    % sudo mount -o loop user-data.iso /media/vsphere_iso
     % cat /media/vsphere_iso/user-data.txt
     % sudo umount /media/vsphere_iso
 
