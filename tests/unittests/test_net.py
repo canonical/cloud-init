@@ -219,11 +219,9 @@ NETWORK_CONFIGS = {
 
             auto eth99
             iface eth99 inet dhcp
-                post-up ifup eth99:1
 
-
-            auto eth99:1
-            iface eth99:1 inet static
+            # control-alias eth99
+            iface eth99 inet static
                 address 192.168.21.3/24
                 dns-nameservers 8.8.8.8 8.8.4.4
                 dns-search barley.maas sach.maas
@@ -260,6 +258,27 @@ NETWORK_CONFIGS = {
                   search:
                     - wark.maas
         """),
+    },
+    'v4_and_v6': {
+        'expected_eni': textwrap.dedent("""\
+            auto lo
+            iface lo inet loopback
+
+            auto iface0
+            iface iface0 inet dhcp
+
+            # control-alias iface0
+            iface iface0 inet6 dhcp
+        """).rstrip(' '),
+        'yaml': textwrap.dedent("""\
+            version: 1
+            config:
+              - type: 'physical'
+                name: 'iface0'
+                subnets:
+                - {'type': 'dhcp4'}
+                - {'type': 'dhcp6'}
+        """).rstrip(' '),
     },
     'all': {
         'expected_eni': ("""\
@@ -298,11 +317,9 @@ iface br0 inet static
     address 192.168.14.2/24
     bridge_ports eth3 eth4
     bridge_stp off
-    post-up ifup br0:1
 
-
-auto br0:1
-iface br0:1 inet6 static
+# control-alias br0
+iface br0 inet6 static
     address 2001:1::1/64
 
 auto bond0.200
@@ -319,11 +336,9 @@ iface eth0.101 inet static
     mtu 1500
     vlan-raw-device eth0
     vlan_id 101
-    post-up ifup eth0.101:1
 
-
-auto eth0.101:1
-iface eth0.101:1 inet static
+# control-alias eth0.101
+iface eth0.101 inet static
     address 192.168.2.10/24
 
 post-up route add -net 10.0.0.0 netmask 255.0.0.0 gw 11.0.0.1 metric 3 || true
@@ -753,6 +768,13 @@ class TestEniRoundTrip(CiTestCase):
 
     def testsimple_render_small(self):
         entry = NETWORK_CONFIGS['small']
+        files = self._render_and_read(network_config=yaml.load(entry['yaml']))
+        self.assertEqual(
+            entry['expected_eni'].splitlines(),
+            files['/etc/network/interfaces'].splitlines())
+
+    def testsimple_render_v4_and_v6(self):
+        entry = NETWORK_CONFIGS['v4_and_v6']
         files = self._render_and_read(network_config=yaml.load(entry['yaml']))
         self.assertEqual(
             entry['expected_eni'].splitlines(),

@@ -90,8 +90,6 @@ def _iface_add_attrs(iface, index):
 
 def _iface_start_entry(iface, index, render_hwaddress=False):
     fullname = iface['name']
-    if index != 0:
-        fullname += ":%s" % index
 
     control = iface['control']
     if control == "auto":
@@ -111,6 +109,16 @@ def _iface_start_entry(iface, index, render_hwaddress=False):
         lines.append("    hwaddress {mac_address}".format(**subst))
 
     return lines
+
+
+def _subnet_is_ipv6(subnet):
+    # 'static6' or 'dhcp6'
+    if subnet['type'].endswith('6'):
+        # This is a request for DHCPv6.
+        return True
+    elif subnet['type'] == 'static' and ":" in subnet['address']:
+        return True
+    return False
 
 
 def _parse_deb_config_data(ifaces, contents, src_dir, src_path):
@@ -354,20 +362,22 @@ class Renderer(renderer.Renderer):
         sections = []
         subnets = iface.get('subnets', {})
         if subnets:
-            for index, subnet in zip(range(0, len(subnets)), subnets):
+            for index, subnet in enumerate(subnets):
                 iface['index'] = index
                 iface['mode'] = subnet['type']
                 iface['control'] = subnet.get('control', 'auto')
                 subnet_inet = 'inet'
-                if iface['mode'].endswith('6'):
-                    # This is a request for DHCPv6.
-                    subnet_inet += '6'
-                elif iface['mode'] == 'static' and ":" in subnet['address']:
-                    # This is a static IPv6 address.
+                if _subnet_is_ipv6(subnet):
                     subnet_inet += '6'
                 iface['inet'] = subnet_inet
-                if iface['mode'].startswith('dhcp'):
+                if subnet['type'].startswith('dhcp'):
                     iface['mode'] = 'dhcp'
+
+                # do not emit multiple 'auto $IFACE' lines as older (precise)
+                # ifupdown complains
+                if True in ["auto %s" % (iface['name']) in line
+                            for line in sections]:
+                    iface['control'] = 'alias'
 
                 lines = list(
                     _iface_start_entry(
@@ -377,11 +387,6 @@ class Renderer(renderer.Renderer):
                 )
                 for route in subnet.get('routes', []):
                     lines.extend(self._render_route(route, indent="    "))
-
-                if len(subnets) > 1 and index == 0:
-                    tmpl = "    post-up ifup %s:%s\n"
-                    for i in range(1, len(subnets)):
-                        lines.append(tmpl % (iface['name'], i))
 
                 sections.append(lines)
         else:
