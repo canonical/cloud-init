@@ -34,7 +34,9 @@ CODE_VERSION=$(shell $(PYVER) -c "from cloudinit import version; print(version.v
 
 all: check
 
-check: check_version pep8 $(pyflakes) test $(yaml)
+check: check_version test $(yaml)
+
+style-check: pep8 $(pyflakes)
 
 pep8:
 	@$(CWD)/tools/run-pep8
@@ -84,3 +86,4 @@ deb:
 
 .PHONY: test pyflakes pyflakes3 clean pep8 rpm deb yaml check_version
 .PHONY: pip-test-requirements pip-requirements clean_pyc unittest unittest3
+.PHONY: style-check
