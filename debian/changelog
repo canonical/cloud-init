@@ -1,4 +1,4 @@
-cloud-init (0.7.9-0ubuntu1~16.10.1) UNRELEASED; urgency=medium
+cloud-init (0.7.9-0ubuntu1~16.10.1) yakkety; urgency=medium
 
   * debian/copyright: update License field to include Apache-2.0
   * debian/update-grub-legacy-ec2: fix to include kernels whose config
@@ -21,7 +21,7 @@ cloud-init (0.7.9-0ubuntu1~16.10.1) UNRELEASED; urgency=medium
     - doc: change 'nobootwait' to 'nofail' in docs [Anhad Jai Singh]
     - Replace an expired bit.ly link in code comment. [Joshua Harlow]
 
- -- Scott Moser <smoser@ubuntu.com>  Tue, 31 Jan 2017 21:00:47 -0500
+ -- Scott Moser <smoser@ubuntu.com>  Tue, 31 Jan 2017 21:02:28 -0500
 
 cloud-init (0.7.8-68-gca3ae67-0ubuntu1~16.10.1) yakkety; urgency=medium
 
