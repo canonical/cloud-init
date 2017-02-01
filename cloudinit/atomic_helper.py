@@ -1,5 +1,4 @@
-#!/usr/bin/python
-# vi: ts=4 expandtab
+# This file is part of cloud-init. See LICENSE file for license information.
 
 import json
 import os
@@ -29,3 +28,5 @@ def write_json(filename, data, mode=_DEF_PERMS):
     return write_file(
         filename, json.dumps(data, indent=1, sort_keys=True) + "\n",
         omode="w", mode=mode)
+
+# vi: ts=4 expandtab

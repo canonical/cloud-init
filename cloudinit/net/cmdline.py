@@ -1,20 +1,9 @@
-#   Copyright (C) 2013-2014 Canonical Ltd.
+# Copyright (C) 2013-2014 Canonical Ltd.
 #
-#   Author: Scott Moser <scott.moser@canonical.com>
-#   Author: Blake Rouse <blake.rouse@canonical.com>
+# Author: Scott Moser <scott.moser@canonical.com>
+# Author: Blake Rouse <blake.rouse@canonical.com>
 #
-#   Curtin is free software: you can redistribute it and/or modify it under
-#   the terms of the GNU Affero General Public License as published by the
-#   Free Software Foundation, either version 3 of the License, or (at your
-#   option) any later version.
-#
-#   Curtin is distributed in the hope that it will be useful, but WITHOUT ANY
-#   WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-#   FOR A PARTICULAR PURPOSE.  See the GNU Affero General Public License for
-#   more details.
-#
-#   You should have received a copy of the GNU Affero General Public License
-#   along with Curtin.  If not, see <http://www.gnu.org/licenses/>.
+# This file is part of cloud-init. See LICENSE file for license information.
 
 import base64
 import glob
@@ -217,3 +206,5 @@ def read_kernel_cmdline_config(files=None, mac_addrs=None, cmdline=None):
                 mac_addrs[k] = mac_addr
 
     return config_from_klibc_net_cfg(files=files, mac_addrs=mac_addrs)
+
+# vi: ts=4 expandtab

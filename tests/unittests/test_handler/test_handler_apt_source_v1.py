@@ -1,3 +1,5 @@
+# This file is part of cloud-init. See LICENSE file for license information.
+
 """ test_handler_apt_source_v1
 Testing various config variations of the apt_source config
 This calls all things with v1 format to stress the conversion code on top of

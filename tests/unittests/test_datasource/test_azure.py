@@ -1,3 +1,5 @@
+# This file is part of cloud-init. See LICENSE file for license information.
+
 from cloudinit import helpers
 from cloudinit.util import b64e, decode_binary, load_file
 from cloudinit.sources import DataSourceAzure
@@ -644,3 +646,5 @@ class TestReadAzureOvf(TestCase):
         (_md, _ud, cfg) = DataSourceAzure.read_azure_ovf(content)
         for mypk in mypklist:
             self.assertIn(mypk, cfg['_pubkeys'])
+
+# vi: ts=4 expandtab

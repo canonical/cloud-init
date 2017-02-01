@@ -1,3 +1,5 @@
+# This file is part of cloud-init. See LICENSE file for license information.
+
 import random
 
 from cloudinit.config import cc_disk_setup
@@ -100,3 +102,5 @@ class TestGetPartitionMbrLayout(TestCase):
         self.assertEqual(
             ',{0},83\n,,82'.format(expected_partition_size),
             cc_disk_setup.get_partition_mbr_layout(disk_size, [33, [66, 82]]))
+
+# vi: ts=4 expandtab

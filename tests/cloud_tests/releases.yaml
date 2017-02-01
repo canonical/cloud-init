@@ -1,0 +1,79 @@
+# ============================= Release Config ================================
+default_release_config:
+    # all are disabled by default
+    enabled: false
+    # timeout for booting image and running cloud init
+    timeout: 120
+    # platform_ident values for the image, with data to identify the image
+    # on that platform. see platforms.base for more information
+    platform_ident: {}
+    # a script to run after a boot that is used to modify an image, before
+    # making a snapshot of the image. may be useful for removing data left
+    # behind from cloud-init booting, such as logs, to ensure that data from
+    # snapshot.launch() will not include a cloud-init.log from a boot used to
+    # create the snapshot, if cloud-init has not run
+    boot_clean_script: |
+        #!/bin/bash
+        rm -rf /var/log/cloud-init.log /var/log/cloud-init-output.log \
+            /var/lib/cloud/ /run/cloud-init/ /var/log/syslog
+
+releases:
+    trusty:
+        enabled: true
+        platform_ident:
+            lxd:
+                # if sstreams_server is omitted, default is used, defined in
+                # tests.cloud_tests.platforms.lxd.DEFAULT_SSTREAMS_SERVER as:
+                # sstreams_server: https://us.images.linuxcontainers.org:8443
+                #alias: ubuntu/trusty/default
+                alias: t
+                sstreams_server: https://cloud-images.ubuntu.com/daily
+    xenial:
+        enabled: true
+        platform_ident:
+            lxd:
+                #alias: ubuntu/xenial/default
+                alias: x
+                sstreams_server: https://cloud-images.ubuntu.com/daily
+    yakkety:
+        enabled: true
+        platform_ident:
+            lxd:
+                #alias: ubuntu/yakkety/default
+                alias: y
+                sstreams_server: https://cloud-images.ubuntu.com/daily
+    zesty:
+        enabled: true
+        platform_ident:
+            lxd:
+                #alias: ubuntu/zesty/default
+                alias: z
+                sstreams_server: https://cloud-images.ubuntu.com/daily
+    jessie:
+        platform_ident:
+            lxd:
+                alias: debian/jessie/default
+    sid:
+        platform_ident:
+            lxd:
+                alias: debian/sid/default
+    stretch:
+        platform_ident:
+            lxd:
+                alias: debian/stretch/default
+    wheezy:
+        platform_ident:
+            lxd:
+                alias: debian/wheezy/default
+    centos70:
+        timeout: 180
+        platform_ident:
+            lxd:
+                alias: centos/7/default
+    centos66:
+        timeout: 180
+        platform_ident:
+            lxd:
+                alias: centos/6/default
+
+# vi: ts=4 expandtab

@@ -1,3 +1,5 @@
+# This file is part of cloud-init. See LICENSE file for license information.
+
 import unittest
 
 from cloudinit.distros.parsers import hosts
@@ -39,3 +41,5 @@ class TestHostsHelper(unittest.TestCase):
 
         eh.del_entries('127.0.0.0')
         self.assertEqual(eh.get_entry('127.0.0.0'), [])
+
+# vi: ts=4 expandtab

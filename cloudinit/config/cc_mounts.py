@@ -1,22 +1,10 @@
-# vi: ts=4 expandtab
+# Copyright (C) 2009-2010 Canonical Ltd.
+# Copyright (C) 2012 Hewlett-Packard Development Company, L.P.
 #
-#    Copyright (C) 2009-2010 Canonical Ltd.
-#    Copyright (C) 2012 Hewlett-Packard Development Company, L.P.
+# Author: Scott Moser <scott.moser@canonical.com>
+# Author: Juerg Haefliger <juerg.haefliger@hp.com>
 #
-#    Author: Scott Moser <scott.moser@canonical.com>
-#    Author: Juerg Haefliger <juerg.haefliger@hp.com>
-#
-#    This program is free software: you can redistribute it and/or modify
-#    it under the terms of the GNU General Public License version 3, as
-#    published by the Free Software Foundation.
-#
-#    This program is distributed in the hope that it will be useful,
-#    but WITHOUT ANY WARRANTY; without even the implied warranty of
-#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#    GNU General Public License for more details.
-#
-#    You should have received a copy of the GNU General Public License
-#    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+# This file is part of cloud-init. See LICENSE file for license information.
 
 """
 Mounts
@@ -42,6 +30,14 @@ values. It defaults to::
 
     mount_default_fields: [none, none, "auto", "defaults,nobootwait", "0", "2"]
 
+On a systemd booted system that default is the mostly equivalent::
+
+    mount_default_fields: [none, none, "auto",
+       "defaults,nofail,x-systemd.requires=cloud-init.service", "0", "2"]
+
+Note that `nobootwait` is an upstart specific boot option that somewhat
+equates to the more standard `nofail`.
+
 Swap files can be configured by setting the path to the swap file to create
 with ``filename``, the size of the swap file with ``size`` maximum size of
 the swap file if using an ``size: auto`` with ``maxsize``. By default no
@@ -58,8 +54,8 @@ swap file is created.
     mounts:
         - [ /dev/ephemeral0, /mnt, auto, "defaults,noexec" ]
         - [ sdc, /opt/data ]
-        - [ xvdh, /opt/data, "auto", "defaults,nobootwait", "0", "0" ]
-    mount_default_fields: [None, None, "auto", "nefaults,nobootwait", "0", "2"]
+        - [ xvdh, /opt/data, "auto", "defaults,nofail", "0", "0" ]
+    mount_default_fields: [None, None, "auto", "defaults,nofail", "0", "2"]
     swap:
         filename: <file>
         size: <"auto"/size in bytes>
@@ -473,3 +469,5 @@ def handle(_name, cfg, cloud, log, _args):
         except util.ProcessExecutionError:
             log.warn(fmt, "FAIL")
             util.logexc(log, fmt, "FAIL")
+
+# vi: ts=4 expandtab

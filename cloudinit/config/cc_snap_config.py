@@ -1,20 +1,8 @@
-# vi: ts=4 expandtab
+# Copyright (C) 2016 Canonical Ltd.
 #
-#    Copyright (C) 2016 Canonical Ltd.
+# Author: Ryan Harper <ryan.harper@canonical.com>
 #
-#    Author: Ryan Harper <ryan.harper@canonical.com>
-#
-#    This program is free software: you can redistribute it and/or modify
-#    it under the terms of the GNU General Public License version 3, as
-#    published by the Free Software Foundation.
-#
-#    This program is distributed in the hope that it will be useful,
-#    but WITHOUT ANY WARRANTY; without even the implied warranty of
-#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#    GNU General Public License for more details.
-#
-#    You should have received a copy of the GNU General Public License
-#    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+# This file is part of cloud-init. See LICENSE file for license information.
 
 """
 Snappy
@@ -182,3 +170,5 @@ def handle(name, cfg, cloud, log, args):
     usercfg = add_snap_user(cfg=cfgin)
     if usercfg:
         cloud.distro.create_user(usercfg.get('snapuser'), **usercfg)
+
+# vi: ts=4 expandtab

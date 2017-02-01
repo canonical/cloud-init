@@ -1,0 +1,18 @@
+#
+# Install and enable byobu system wide and default user
+#
+cloud_config: |
+  #cloud-config
+  byobu_by_default: enable
+collect_scripts:
+  byobu_installed: |
+    #!/bin/bash
+    which byobu
+  byobu_profile_enabled: |
+    #!/bin/bash
+    ls /etc/profile.d/Z97-byobu.sh
+  byobu_launch_exists: |
+    #!/bin/bash
+    which /usr/bin/byobu-launch
+
+# vi: ts=4 expandtab

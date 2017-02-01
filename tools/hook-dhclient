@@ -1,6 +1,9 @@
 #!/bin/sh
+# This file is part of cloud-init. See LICENSE file for license information.
+
 # This script writes DHCP lease information into the cloud-init run directory
 # It is sourced, not executed.  For more information see dhclient-script(8).
+
 is_azure() {
     local dmi_path="/sys/class/dmi/id/board_vendor" vendor=""
     if [ -e "$dmi_path" ] && read vendor < "$dmi_path"; then

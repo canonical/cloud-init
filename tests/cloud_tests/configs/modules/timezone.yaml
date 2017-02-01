@@ -1,0 +1,12 @@
+#
+# Set system timezone
+#
+cloud_config: |
+  #cloud-config
+  timezone: US/Aleutian
+collect_scripts:
+  timezone: |
+    #!/bin/bash
+    date +%Z
+
+# vi: ts=4 expandtab

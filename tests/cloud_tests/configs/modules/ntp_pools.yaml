@@ -1,0 +1,23 @@
+#
+# NTP config using specific pools
+#
+cloud_config: |
+  #cloud-config
+  ntp:
+    pools:
+        - 0.pool.ntp.org
+        - 1.pool.ntp.org
+        - 2.pool.ntp.org
+        - 3.pool.ntp.org
+collect_scripts:
+  ntp_installed_pools: |
+    #!/bin/bash
+    dpkg -l | grep ntp | wc -l
+  ntp_conf_dist_pools: |
+    #!/bin/bash
+    ls /etc/ntp.conf.dist | wc -l
+  ntp_conf_pools: |
+    #!/bin/bash
+    grep '^pool' /etc/ntp.conf
+
+# vi: ts=4 expandtab

@@ -1,20 +1,8 @@
-#    Copyright (C) 2013 Hewlett-Packard Development Company, L.P.
+# Copyright (C) 2013 Hewlett-Packard Development Company, L.P.
 #
-#    Author: Juerg Haefliger <juerg.haefliger@hp.com>
+# Author: Juerg Haefliger <juerg.haefliger@hp.com>
 #
-#    Based on test_handler_set_hostname.py
-#
-#    This program is free software: you can redistribute it and/or modify
-#    it under the terms of the GNU General Public License version 3, as
-#    published by the Free Software Foundation.
-#
-#    This program is distributed in the hope that it will be useful,
-#    but WITHOUT ANY WARRANTY; without even the implied warranty of
-#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#    GNU General Public License for more details.
-#
-#    You should have received a copy of the GNU General Public License
-#    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+# This file is part of cloud-init. See LICENSE file for license information.
 
 from cloudinit.config import cc_locale
 
@@ -65,3 +53,5 @@ class TestLocale(t_help.FilesystemMockingTestCase):
         contents = util.load_file('/etc/sysconfig/language', decode=False)
         n_cfg = ConfigObj(BytesIO(contents))
         self.assertEqual({'RC_LANG': cfg['locale']}, dict(n_cfg))
+
+# vi: ts=4 expandtab

@@ -1,3 +1,5 @@
+# This file is part of cloud-init. See LICENSE file for license information.
+
 from cloudinit import settings
 from cloudinit import sources
 from cloudinit import type_utils

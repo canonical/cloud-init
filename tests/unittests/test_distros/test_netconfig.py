@@ -1,3 +1,5 @@
+# This file is part of cloud-init. See LICENSE file for license information.
+
 import os
 from six import StringIO
 
@@ -379,3 +381,5 @@ ifconfig_vtnet0="DHCP"
 '''
             self.assertCfgEquals(expected_buf, str(write_buf))
             self.assertEqual(write_buf.mode, 0o644)
+
+# vi: ts=4 expandtab

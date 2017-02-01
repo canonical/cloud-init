@@ -1,0 +1,55 @@
+#
+# From cloud config examples on cloudinit.readthedocs.io
+#
+# 2016-11-17: Disabled as test suite fails this long running test currently
+#
+enabled: False
+cloud_config: |
+  #cloud-config
+  puppet:
+   # Every key present in the conf object will be added to puppet.conf:
+   # [name]
+   # subkey=value
+   #
+   # For example the configuration below will have the following section
+   # added to puppet.conf:
+   # [puppetd]
+   # server=puppetmaster.example.org
+   # certname=i-0123456.ip-X-Y-Z.cloud.internal
+   #
+   # The puppmaster ca certificate will be available in
+   # /var/lib/puppet/ssl/certs/ca.pem
+   conf:
+     agent:
+       server: "puppetmaster.example.org"
+       # certname supports substitutions at runtime:
+       #   %i: instanceid
+       #       Example: i-0123456
+       #   %f: fqdn of the machine
+       #       Example: ip-X-Y-Z.cloud.internal
+       #
+       # NB: the certname will automatically be lowercased as required by puppet
+       certname: "%i.%f"
+     # ca_cert is a special case. It won't be added to puppet.conf.
+     # It holds the puppetmaster certificate in pem format.
+     # It should be a multi-line string (using the | yaml notation for
+     # multi-line strings).
+     # The puppetmaster certificate is located in
+     # /var/lib/puppet/ssl/ca/ca_crt.pem on the puppetmaster host.
+     #
+     ca_cert: |
+       -----BEGIN CERTIFICATE-----
+       MIICCTCCAXKgAwIBAgIBATANBgkqhkiG9w0BAQUFADANMQswCQYDVQQDDAJjYTAe
+       Fw0xMDAyMTUxNzI5MjFaFw0xNTAyMTQxNzI5MjFaMA0xCzAJBgNVBAMMAmNhMIGf
+       MA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQCu7Q40sm47/E1Pf+r8AYb/V/FWGPgc
+       b014OmNoX7dgCxTDvps/h8Vw555PdAFsW5+QhsGr31IJNI3kSYprFQcYf7A8tNWu
+       1MASW2CfaEiOEi9F1R3R4Qlz4ix+iNoHiUDTjazw/tZwEdxaQXQVLwgTGRwVa+aA
+       qbutJKi93MILLwIDAQABo3kwdzA4BglghkgBhvhCAQ0EKxYpUHVwcGV0IFJ1Ynkv
+       T3BlblNTTCBHZW5lcmF0ZWQgQ2VydGlmaWNhdGUwDwYDVR0TAQH/BAUwAwEB/zAd
+       BgNVHQ4EFgQUu4+jHB+GYE5Vxo+ol1OAhevspjAwCwYDVR0PBAQDAgEGMA0GCSqG
+       SIb3DQEBBQUAA4GBAH/rxlUIjwNb3n7TXJcDJ6MMHUlwjr03BDJXKb34Ulndkpaf
+       +GAlzPXWa7bO908M9I8RnPfvtKnteLbvgTK+h+zX1XCty+S2EQWk29i2AdoqOTxb
+       hppiGMp0tT5Havu4aceCXiy2crVcudj3NFciy8X66SoECemW9UYDCb9T5D0d
+       -----END CERTIFICATE-----
+
+# vi: ts=4 expandtab

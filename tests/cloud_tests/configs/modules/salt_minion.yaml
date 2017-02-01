@@ -1,0 +1,34 @@
+#
+# Create config for a salt minion
+#
+# 2016-11-17: Currently takes >60 seconds results in test failure
+#
+enabled: False
+cloud_config: |
+  #cloud-config
+  salt_minion:
+      conf:
+          master: salt.mydomain.com
+      public_key: |
+          ------BEGIN PUBLIC KEY-------
+          <key data>
+          ------END PUBLIC KEY-------
+      private_key: |
+          ------BEGIN PRIVATE KEY------
+          <key data>
+          ------END PRIVATE KEY-------
+collect_scripts:
+  minion: |
+    #!/bin/bash
+    cat /etc/salt/minion
+  minion_id: |
+    #!/bin/bash
+    cat /etc/salt/minion_id
+  minion.pem: |
+    #!/bin/bash
+    cat /etc/salt/pki/minion/minion.pem
+  minion.pub: |
+    #!/bin/bash
+    cat /etc/salt/pki/minion/minion.pub
+
+# vi: ts=4 expandtab

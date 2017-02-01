@@ -1,6 +1,7 @@
-# Copyright 2015 Canonical Ltd.
-# This file is part of cloud-init.  See LICENCE file for license information.
+# Copyright (C) 2015 Canonical Ltd.
 #
+# This file is part of cloud-init. See LICENSE file for license information.
+
 """
 events for reporting.
 
@@ -245,4 +246,4 @@ def _collect_file_info(files):
                     'encoding': 'base64'})
     return ret
 
-# vi: ts=4 expandtab syntax=python
+# vi: ts=4 expandtab

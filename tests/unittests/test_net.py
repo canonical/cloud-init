@@ -1,3 +1,5 @@
+# This file is part of cloud-init. See LICENSE file for license information.
+
 from cloudinit import net
 from cloudinit.net import cmdline
 from cloudinit.net import eni
@@ -769,6 +771,52 @@ class TestEniRoundTrip(TestCase):
             entry['expected_eni'].splitlines(),
             files['/etc/network/interfaces'].splitlines())
 
+    def test_routes_rendered(self):
+        # as reported in bug 1649652
+        conf = [
+            {'name': 'eth0', 'type': 'physical',
+             'subnets': [{
+                 'address': '172.23.31.42/26',
+                 'dns_nameservers': [], 'gateway': '172.23.31.2',
+                 'type': 'static'}]},
+            {'type': 'route', 'id': 4,
+             'metric': 0, 'destination': '10.0.0.0/12',
+             'gateway': '172.23.31.1'},
+            {'type': 'route', 'id': 5,
+             'metric': 0, 'destination': '192.168.2.0/16',
+             'gateway': '172.23.31.1'},
+            {'type': 'route', 'id': 6,
+             'metric': 1, 'destination': '10.0.200.0/16',
+             'gateway': '172.23.31.1'},
+        ]
+
+        files = self._render_and_read(
+            network_config={'config': conf, 'version': 1})
+        expected = [
+            'auto lo',
+            'iface lo inet loopback',
+            'auto eth0',
+            'iface eth0 inet static',
+            '    address 172.23.31.42/26',
+            '    gateway 172.23.31.2',
+            ('post-up route add -net 10.0.0.0 netmask 255.240.0.0 gw '
+             '172.23.31.1 metric 0 || true'),
+            ('pre-down route del -net 10.0.0.0 netmask 255.240.0.0 gw '
+             '172.23.31.1 metric 0 || true'),
+            ('post-up route add -net 192.168.2.0 netmask 255.255.0.0 gw '
+             '172.23.31.1 metric 0 || true'),
+            ('pre-down route del -net 192.168.2.0 netmask 255.255.0.0 gw '
+             '172.23.31.1 metric 0 || true'),
+            ('post-up route add -net 10.0.200.0 netmask 255.255.0.0 gw '
+             '172.23.31.1 metric 1 || true'),
+            ('pre-down route del -net 10.0.200.0 netmask 255.255.0.0 gw '
+             '172.23.31.1 metric 1 || true'),
+        ]
+        found = files['/etc/network/interfaces'].splitlines()
+
+        self.assertEqual(
+            expected, [line for line in found if line])
+
 
 def _gzip_data(data):
     with io.BytesIO() as iobuf:
@@ -776,3 +824,5 @@ def _gzip_data(data):
         gzfp.write(data)
         gzfp.close()
         return iobuf.getvalue()
+
+# vi: ts=4 expandtab

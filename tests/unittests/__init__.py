@@ -1,3 +1,5 @@
+# This file is part of cloud-init. See LICENSE file for license information.
+
 try:
     # For test cases, avoid the following UserWarning to stderr:
     # You don't have the C version of NameMapper installed ...

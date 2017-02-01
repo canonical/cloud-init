@@ -1,28 +1,16 @@
-# vi: ts=4 expandtab
+# Copyright (C) 2012 Canonical Ltd.
+# Copyright (C) 2012 Yahoo! Inc.
+# Copyright (C) 2012-2013 CERIT Scientific Cloud
+# Copyright (C) 2012-2013 OpenNebula.org
+# Copyright (C) 2014 Consejo Superior de Investigaciones Cientificas
 #
-#    Copyright (C) 2012 Canonical Ltd.
-#    Copyright (C) 2012 Yahoo! Inc.
-#    Copyright (C) 2012-2013 CERIT Scientific Cloud
-#    Copyright (C) 2012-2013 OpenNebula.org
-#    Copyright (C) 2014 Consejo Superior de Investigaciones Cientificas
+# Author: Scott Moser <scott.moser@canonical.com>
+# Author: Joshua Harlow <harlowja@yahoo-inc.com>
+# Author: Vlastimil Holer <xholer@mail.muni.cz>
+# Author: Javier Fontan <jfontan@opennebula.org>
+# Author: Enol Fernandez <enolfc@ifca.unican.es>
 #
-#    Author: Scott Moser <scott.moser@canonical.com>
-#    Author: Joshua Harlow <harlowja@yahoo-inc.com>
-#    Author: Vlastimil Holer <xholer@mail.muni.cz>
-#    Author: Javier Fontan <jfontan@opennebula.org>
-#    Author: Enol Fernandez <enolfc@ifca.unican.es>
-#
-#    This program is free software: you can redistribute it and/or modify
-#    it under the terms of the GNU General Public License version 3, as
-#    published by the Free Software Foundation.
-#
-#    This program is distributed in the hope that it will be useful,
-#    but WITHOUT ANY WARRANTY; without even the implied warranty of
-#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#    GNU General Public License for more details.
-#
-#    You should have received a copy of the GNU General Public License
-#    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+# This file is part of cloud-init. See LICENSE file for license information.
 
 import os
 import pwd
@@ -423,3 +411,5 @@ datasources = [
 # Return a list of data sources that match this set of dependencies
 def get_datasource_list(depends):
     return sources.list_from_depends(depends, datasources)
+
+# vi: ts=4 expandtab
