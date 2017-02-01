@@ -1,12 +1,27 @@
-cloud-init (0.7.8-68-gca3ae67-0ubuntu1~16.10.2) UNRELEASED; urgency=medium
+cloud-init (0.7.9-0ubuntu1~16.10.1) UNRELEASED; urgency=medium
 
   * debian/copyright: update License field to include Apache-2.0
   * debian/update-grub-legacy-ec2: fix to include kernels whose config
     has CONFIG_XEN=y (LP: #1379080).
   * debian/update-grub-legacy-ec2: detect kernels ending in -aws as
     ec2 bootable (LP: #1655934).
+  * New upstream release.
+    - doc: adjust headers in tests documentation for consistency.
+    - pep8: fix issue found in zesty build with pycodestyle.
+    - integration test: initial commit of integration test framework
+      [Wesley Wiedenmeier]
+    - LICENSE: Allow dual licensing GPL-3 or Apache 2.0 [Jon Grimm]
+    - Fix config order of precedence, putting kernel command line over system.
+      [Wesley Wiedenmeier] (LP: #1582323)
+    - pep8: whitespace fix
+    - Update the list of valid ssh keys. [Michael Felt]
+    - network: add ENI unit test for statically rendered routes.
+    - set_hostname: avoid erroneously appending domain to fqdn
+      [Lars Kellogg-Stedman] (LP: #1647910)
+    - doc: change 'nobootwait' to 'nofail' in docs [Anhad Jai Singh]
+    - Replace an expired bit.ly link in code comment. [Joshua Harlow]
 
- -- Scott Moser <smoser@ubuntu.com>  Tue, 31 Jan 2017 20:48:31 -0500
+ -- Scott Moser <smoser@ubuntu.com>  Tue, 31 Jan 2017 21:00:47 -0500
 
 cloud-init (0.7.8-68-gca3ae67-0ubuntu1~16.10.1) yakkety; urgency=medium
 
