@@ -101,7 +101,11 @@ class NicConfigurator(object):
             return lines
 
         # Static Ipv4
-        v4 = nic.staticIpv4
+        addrs = nic.staticIpv4
+        if not addrs:
+            return lines
+
+        v4 = addrs[0]
         if v4.ip:
             lines.append('    address %s' % v4.ip)
         if v4.netmask:
@@ -197,22 +201,6 @@ class NicConfigurator(object):
         util.subp(["pkill", "dhclient"], rcs=[0, 1])
         util.subp(["rm", "-f", "/var/lib/dhcp/*"])
 
-    def if_down_up(self):
-        names = []
-        for nic in self.nics:
-            name = self.mac2Name.get(nic.mac.lower())
-            names.append(name)
-
-        for name in names:
-            logger.info('Bring down interface %s' % name)
-            util.subp(["ifdown", "%s" % name])
-
-        self.clear_dhcp()
-
-        for name in names:
-            logger.info('Bring up interface %s' % name)
-            util.subp(["ifup", "%s" % name])
-
     def configure(self):
         """
         Configure the /etc/network/intefaces
@@ -232,6 +220,6 @@ class NicConfigurator(object):
             for line in lines:
                 fp.write('%s\n' % line)
 
-        self.if_down_up()
+        self.clear_dhcp()
 
 # vi: ts=4 expandtab

@@ -1,11 +1,11 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
+import httpretty as hp
+
 from . import helpers
 
 from cloudinit import ec2_utils as eu
 from cloudinit import url_helper as uh
-
-hp = helpers.import_httpretty()
 
 
 class TestEc2Util(helpers.HttprettyTestCase):
@@ -139,5 +139,50 @@ class TestEc2Util(helpers.HttprettyTestCase):
         self.assertEqual(2, len(bdm))
         self.assertEqual(bdm['ami'], 'sdb')
         self.assertEqual(bdm['ephemeral0'], 'sdc')
+
+    @hp.activate
+    def test_metadata_no_security_credentials(self):
+        base_url = 'http://169.254.169.254/%s/meta-data/' % (self.VERSION)
+        hp.register_uri(hp.GET, base_url, status=200,
+                        body="\n".join(['instance-id',
+                                        'iam/']))
+        hp.register_uri(hp.GET, uh.combine_url(base_url, 'instance-id'),
+                        status=200, body='i-0123451689abcdef0')
+        hp.register_uri(hp.GET,
+                        uh.combine_url(base_url, 'iam/'),
+                        status=200,
+                        body="\n".join(['info/', 'security-credentials/']))
+        hp.register_uri(hp.GET,
+                        uh.combine_url(base_url, 'iam/info/'),
+                        status=200,
+                        body='LastUpdated')
+        hp.register_uri(hp.GET,
+                        uh.combine_url(base_url, 'iam/info/LastUpdated'),
+                        status=200, body='2016-10-27T17:29:39Z')
+        hp.register_uri(hp.GET,
+                        uh.combine_url(base_url, 'iam/security-credentials/'),
+                        status=200,
+                        body='ReadOnly/')
+        hp.register_uri(hp.GET,
+                        uh.combine_url(base_url,
+                                       'iam/security-credentials/ReadOnly/'),
+                        status=200,
+                        body="\n".join(['LastUpdated', 'Expiration']))
+        hp.register_uri(hp.GET,
+                        uh.combine_url(
+                            base_url,
+                            'iam/security-credentials/ReadOnly/LastUpdated'),
+                        status=200, body='2016-10-27T17:28:17Z')
+        hp.register_uri(hp.GET,
+                        uh.combine_url(
+                            base_url,
+                            'iam/security-credentials/ReadOnly/Expiration'),
+                        status=200, body='2016-10-28T00:00:34Z')
+        md = eu.get_instance_metadata(self.VERSION, retries=0, timeout=0.1)
+        self.assertEqual(md['instance-id'], 'i-0123451689abcdef0')
+        iam = md['iam']
+        self.assertEqual(1, len(iam))
+        self.assertEqual(iam['info']['LastUpdated'], '2016-10-27T17:29:39Z')
+        self.assertNotIn('security-credentials', iam)
 
 # vi: ts=4 expandtab

@@ -56,7 +56,7 @@ if os.path.isdir(os.path.join(_tdir, ".git")) and which("git"):
     flags = []
     if use_tags:
         flags = ['--tags']
-    cmd = ['git', 'describe'] + flags
+    cmd = ['git', 'describe', '--match=[0-9]*'] + flags
 
     version = tiny_p(cmd).strip()
 

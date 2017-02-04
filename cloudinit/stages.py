@@ -188,6 +188,12 @@ class Init(object):
     def _write_to_cache(self):
         if self.datasource is NULL_DATA_SOURCE:
             return False
+        if util.get_cfg_option_bool(self.cfg, 'manual_cache_clean', False):
+            # The empty file in instance/ dir indicates manual cleaning,
+            # and can be read by ds-identify.
+            util.write_file(
+                self.paths.get_ipath_cur("manual_clean_marker"),
+                omode="w", content="")
         return _pkl_store(self.datasource, self.paths.get_ipath_cur("obj_pkl"))
 
     def _get_datasources(self):

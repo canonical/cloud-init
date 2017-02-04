@@ -1089,31 +1089,6 @@ def get_fqdn_from_hosts(hostname, filename="/etc/hosts"):
     return fqdn
 
 
-def get_cmdline_url(names=('cloud-config-url', 'url'),
-                    starts=b"#cloud-config", cmdline=None):
-    if cmdline is None:
-        cmdline = get_cmdline()
-
-    data = keyval_str_to_dict(cmdline)
-    url = None
-    key = None
-    for key in names:
-        if key in data:
-            url = data[key]
-            break
-
-    if not url:
-        return (None, None, None)
-
-    resp = read_file_or_url(url)
-    # allow callers to pass starts as text when comparing to bytes contents
-    starts = encode_text(starts)
-    if resp.ok() and resp.contents.startswith(starts):
-        return (key, url, resp.contents)
-
-    return (key, url, None)
-
-
 def is_resolvable(name):
     """determine if a url is resolvable, return a boolean
     This also attempts to be resilent against dns redirection.
@@ -1473,25 +1448,6 @@ def rename(src, dest):
 def ensure_dirs(dirlist, mode=0o755):
     for d in dirlist:
         ensure_dir(d, mode)
-
-
-def read_write_cmdline_url(target_fn):
-    if not os.path.exists(target_fn):
-        try:
-            (key, url, content) = get_cmdline_url()
-        except Exception:
-            logexc(LOG, "Failed fetching command line url")
-            return
-        try:
-            if key and content:
-                write_file(target_fn, content, mode=0o600)
-                LOG.debug(("Wrote to %s with contents of command line"
-                          " url %s (len=%s)"), target_fn, url, len(content))
-            elif key and not content:
-                LOG.debug(("Command line key %s with url"
-                          " %s had no contents"), key, url)
-        except Exception:
-            logexc(LOG, "Failed writing url content to %s", target_fn)
 
 
 def yaml_dumps(obj, explicit_start=True, explicit_end=True):

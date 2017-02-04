@@ -200,7 +200,7 @@ ssh_import_id: [smoser]
 #
 # Default: none
 # 
-debconf_selections: |     # Need to perserve newlines
+debconf_selections: |     # Need to preserve newlines
         # Force debconf priority to critical.
         debconf debconf/priority select critical
 

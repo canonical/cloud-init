@@ -29,7 +29,6 @@ PY2 = False
 PY26 = False
 PY27 = False
 PY3 = False
-FIX_HTTPRETTY = False
 
 _PY_VER = sys.version_info
 _PY_MAJOR, _PY_MINOR, _PY_MICRO = _PY_VER[0:3]
@@ -44,8 +43,6 @@ else:
         PY2 = True
     if (_PY_MAJOR, _PY_MINOR) >= (3, 0):
         PY3 = True
-        if _PY_MINOR == 4 and _PY_MICRO < 3:
-            FIX_HTTPRETTY = True
 
 
 # Makes the old path start
@@ -84,6 +81,28 @@ def retarget_many_wrapper(new_base, am, old_func):
 
 class TestCase(unittest2.TestCase):
     pass
+
+
+class CiTestCase(TestCase):
+    """This is the preferred test case base class unless user
+       needs other test case classes below."""
+    def tmp_dir(self, dir=None, cleanup=True):
+        # return a full path to a temporary directory that will be cleaned up.
+        if dir is None:
+            tmpd = tempfile.mkdtemp(
+                prefix="ci-%s." % self.__class__.__name__)
+        else:
+            tmpd = tempfile.mkdtemp(dir=dir)
+        self.addCleanup(functools.partial(shutil.rmtree, tmpd))
+        return tmpd
+
+    def tmp_path(self, path, dir=None):
+        # return an absolute path to 'path' under dir.
+        # if dir is None, one will be created with tmp_dir()
+        # the file is not created or modified.
+        if dir is None:
+            dir = self.tmp_dir()
+        return os.path.normpath(os.path.abspath(os.path.join(dir, path)))
 
 
 class ResourceUsingTestCase(TestCase):
@@ -216,37 +235,6 @@ class FilesystemMockingTestCase(ResourceUsingTestCase):
         return root
 
 
-def import_httpretty():
-    """Import HTTPretty and monkey patch Python 3.4 issue.
-    See https://github.com/gabrielfalcao/HTTPretty/pull/193 and
-    as well as https://github.com/gabrielfalcao/HTTPretty/issues/221.
-
-    Lifted from
-    https://github.com/inveniosoftware/datacite/blob/master/tests/helpers.py
-    """
-    if not FIX_HTTPRETTY:
-        import httpretty
-    else:
-        import socket
-        old_SocketType = socket.SocketType
-
-        import httpretty
-        from httpretty import core
-
-        def sockettype_patch(f):
-            @functools.wraps(f)
-            def inner(*args, **kwargs):
-                f(*args, **kwargs)
-                socket.SocketType = old_SocketType
-                socket.__dict__['SocketType'] = old_SocketType
-            return inner
-
-        core.httpretty.disable = sockettype_patch(
-            httpretty.httpretty.disable
-        )
-    return httpretty
-
-
 class HttprettyTestCase(TestCase):
     # necessary as http_proxy gets in the way of httpretty
     # https://github.com/gabrielfalcao/HTTPretty/issues/122
@@ -262,23 +250,10 @@ class HttprettyTestCase(TestCase):
         super(HttprettyTestCase, self).tearDown()
 
 
-class TempDirTestCase(TestCase):
-    # provide a tempdir per class, not per test.
-    def setUp(self):
-        super(TempDirTestCase, self).setUp()
-        self.tmp = tempfile.mkdtemp()
-        self.addCleanup(shutil.rmtree, self.tmp)
-
-    def tmp_path(self, path):
-        if path.startswith(os.path.sep):
-            path = "." + path
-
-        return os.path.normpath(os.path.join(self.tmp, path))
-
-
 def populate_dir(path, files):
     if not os.path.exists(path):
         os.makedirs(path)
+    ret = []
     for (name, content) in files.items():
         p = os.path.join(path, name)
         util.ensure_dir(os.path.dirname(p))
@@ -288,6 +263,9 @@ def populate_dir(path, files):
             else:
                 fp.write(content.encode('utf-8'))
             fp.close()
+        ret.append(p)
+
+    return ret
 
 
 def dir2dict(startdir, prefix=None):

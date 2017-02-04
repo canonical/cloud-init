@@ -127,11 +127,11 @@ Begins with: ``#cloud-boothook`` or ``Content-Type: text/cloud-boothook`` when u
 Part Handler
 ============
 
-This is a ``part-handler``. It will be written to a file in ``/var/lib/cloud/data`` based on its filename (which is generated).
-This must be python code that contains a ``list_types`` method and a ``handle_type`` method. 
-Once the section is read the ``list_types`` method will be called. It must return a list of mime-types that this part-handler handles.
+This is a ``part-handler``: It contains custom code for either supporting new mime-types in multi-part user data, or overriding the existing handlers for supported mime-types.  It will be written to a file in ``/var/lib/cloud/data`` based on its filename (which is generated).
+This must be python code that contains a ``list_types`` function and a ``handle_part`` function. 
+Once the section is read the ``list_types`` method will be called. It must return a list of mime-types that this part-handler handles.  Because mime parts are processed in order, a ``part-handler`` part must precede any parts with mime-types it is expected to handle in the same user data.
 
-The ``handle_type`` method must be like:
+The ``handle_part`` function must be defined like:
 
 .. code-block:: python
 
@@ -141,8 +141,9 @@ The ``handle_type`` method must be like:
       # filename = the filename of the part (or a generated filename if none is present in mime data)
       # payload = the parts' content
 
-Cloud-init will then call the ``handle_type`` method once at begin, once per part received, and once at end.
-The ``begin`` and ``end`` calls are to allow the part handler to do initialization or teardown.
+Cloud-init will then call the ``handle_part`` function once before it handles any parts, once per part received, and once after all parts have been handled.
+The ``'__begin__'`` and ``'__end__'`` sentinels allow the part handler to do initialization or teardown before or after
+receiving any parts.
 
 Begins with: ``#part-handler`` or ``Content-Type: text/part-handler`` when using a MIME archive.
 

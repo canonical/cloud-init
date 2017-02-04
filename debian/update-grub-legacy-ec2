@@ -1398,14 +1398,28 @@ fi
 
 
 if ! type is_xen_kernel >/dev/null 2>&1; then
+  check_xen_config_for_kernel() {
+    # input is like /boot/vmlinuz-2.6.35-13-virtual
+    # expected config path is /boot/config-2.6.35-13-virtual
+    local kernel="$1" config="" dir="" bname=""
+    dir=${kernel%/*}
+    [ "$dir" = "$kernel"] && dir="."
+    bname=${kernel##*/}
+    config="$dir/config-${bname#*-}"
+    [ -f "$config" ] || return 1
+    grep -q CONFIG_XEN=y "$config"
+  }
+
   is_xen_kernel() {
     # input is like /boot/vmlinuz-2.6.35-13-virtual
+    # return whether or not this kernel is xen bootable.
+    check_xen_config_for_kernel "$1" && return 0
+
     # get the version string out of it.
     local ver_flavor="";
     ver_flavor="${1##*vmlinuz-}"
 
     case "${ver_flavor}" in
-       *-aws) return 0;;
        *-ec2) return 0;;
        *-virtual)
          # 10.04 LTS through 12.04 LTS -virtual is the EC2/Xen kernel
@@ -1419,6 +1433,9 @@ if ! type is_xen_kernel >/dev/null 2>&1; then
 fi
 
 for kern in /boot/vmlinuz-*; do
+  case "$kern" in
+    *.signed) continue;;
+  esac
   is_xen_kernel "${kern}" &&
     xen_verlist="${xen_verlist} ${kern#/boot/vmlinuz-}"
 done

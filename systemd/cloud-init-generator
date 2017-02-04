@@ -6,6 +6,8 @@ DEBUG_LEVEL=1
 LOG_D="/run/cloud-init"
 ENABLE="enabled"
 DISABLE="disabled"
+FOUND="found"
+NOTFOUND="notfound"
 RUN_ENABLED_FILE="$LOG_D/$ENABLE"
 CLOUD_SYSTEM_TARGET="/lib/systemd/system/cloud-init.target"
 CLOUD_TARGET_NAME="cloud-init.target"
@@ -74,10 +76,30 @@ default() {
     _RET="$ENABLE"
 }
 
+check_for_datasource() {
+    local ds_rc="" dsidentify="/usr/lib/cloud-init/ds-identify"
+    if [ ! -x "$dsidentify" ]; then
+        debug 1 "no ds-identify in $dsidentify. _RET=$FOUND"
+        return 0
+    fi
+    $dsidentify
+    ds_rc=$?
+    debug 1 "ds-identify rc=$ds_rc"
+    if [ "$ds_rc" = "0" ]; then
+        _RET="$FOUND"
+        debug 1 "ds-identify _RET=$_RET"
+        return 0
+    fi
+    _RET="$NOTFOUND"
+    debug 1 "ds-identify _RET=$_RET"
+    return 1
+}
+
 main() {
     local normal_d="$1" early_d="$2" late_d="$3"
     local target_name="multi-user.target" gen_d="$early_d"
     local link_path="$gen_d/${target_name}.wants/${CLOUD_TARGET_NAME}"
+    local ds="$NOTFOUND"
 
     debug 1 "$0 normal=$normal_d early=$early_d late=$late_d"
     debug 2 "$0 $*"
@@ -93,7 +115,20 @@ main() {
             debug 0 "search $search returned $ret"
         fi
     done
-    
+
+    # enable AND ds=found == enable
+    # enable AND ds=notfound == disable
+    # disable || <any> == disabled
+    if [ "$result" = "$ENABLE" ]; then
+        debug 1 "checking for datasource"
+        check_for_datasource
+        ds=$_RET
+        if [ "$ds" = "$NOTFOUND" ]; then
+            debug 1 "cloud-init is enabled but no datasource found, disabling"
+            result="$DISABLE"
+        fi
+    fi
+
     if [ "$result" = "$ENABLE" ]; then
         if [ -e "$link_path" ]; then
                 debug 1 "already enabled: no change needed"
@@ -124,7 +159,7 @@ main() {
             rm -f "$RUN_ENABLED_FILE"
         fi
     else
-        debug 0 "unexpected result '$result'"
+        debug 0 "unexpected result '$result' 'ds=$ds'"
         ret=3
     fi
     return $ret

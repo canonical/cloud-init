@@ -18,10 +18,10 @@ Then:
 """
 
 import functools
-import httplib
 import json
 import logging
 import os
+import socket
 import random
 import string
 import sys
@@ -29,7 +29,13 @@ import yaml
 
 from optparse import OptionParser
 
-from BaseHTTPServer import (HTTPServer, BaseHTTPRequestHandler)
+try:
+    from BaseHTTPServer import HTTPServer, BaseHTTPRequestHandler
+    import httplib as hclient
+except ImportError:
+    from http.server import HTTPServer, BaseHTTPRequestHandler
+    from http import client as hclient
+
 
 log = logging.getLogger('meta-server')
 
@@ -183,6 +189,10 @@ def get_ssh_keys():
     return keys
 
 
+class HTTPServerV6(HTTPServer):
+    address_family = socket.AF_INET6
+
+
 class MetaDataHandler(object):
 
     def __init__(self, opts):
@@ -250,7 +260,7 @@ class MetaDataHandler(object):
                     key_id = int(mybe_key)
                     key_name = key_ids[key_id]
                 except:
-                    raise WebException(httplib.BAD_REQUEST,
+                    raise WebException(hclient.BAD_REQUEST,
                                        "Unknown key id %r" % mybe_key)
                 # Extract the possible sub-params
                 result = traverse(nparams[1:], {
@@ -342,13 +352,13 @@ class Ec2Handler(BaseHTTPRequestHandler):
             return self._get_versions
         date = segments[0].strip().lower()
         if date not in self._get_versions():
-            raise WebException(httplib.BAD_REQUEST,
+            raise WebException(hclient.BAD_REQUEST,
                                "Unknown version format %r" % date)
         if len(segments) < 2:
-            raise WebException(httplib.BAD_REQUEST, "No action provided")
+            raise WebException(hclient.BAD_REQUEST, "No action provided")
         look_name = segments[1].lower()
         if look_name not in func_mapping:
-            raise WebException(httplib.BAD_REQUEST,
+            raise WebException(hclient.BAD_REQUEST,
                                "Unknown requested data %r" % look_name)
         base_func = func_mapping[look_name]
         who = self.address_string()
@@ -371,16 +381,16 @@ class Ec2Handler(BaseHTTPRequestHandler):
             data = func()
             if not data:
                 data = ''
-            self.send_response(httplib.OK)
+            self.send_response(hclient.OK)
             self.send_header("Content-Type", "binary/octet-stream")
             self.send_header("Content-Length", len(data))
             log.info("Sending data (len=%s):\n%s", len(data),
                      format_text(data))
             self.end_headers()
-            self.wfile.write(data)
+            self.wfile.write(data.encode())
         except RuntimeError as e:
             log.exception("Error somewhere in the server.")
-            self.send_error(httplib.INTERNAL_SERVER_ERROR, message=str(e))
+            self.send_error(hclient.INTERNAL_SERVER_ERROR, message=str(e))
         except WebException as e:
             code = e.code
             log.exception(str(e))
@@ -408,7 +418,7 @@ def extract_opts():
                       help=("port from which to serve traffic"
                             " (default: %default)"))
     parser.add_option("-a", "--addr", dest="address", action="store", type=str,
-                      default='0.0.0.0', metavar="ADDRESS",
+                      default='::', metavar="ADDRESS",
                       help=("address from which to serve traffic"
                             " (default: %default)"))
     parser.add_option("-f", '--user-data-file', dest='user_data_file',
@@ -444,7 +454,7 @@ def run_server():
     setup_fetchers(opts)
     log.info("CLI opts: %s", opts)
     server_address = (opts['address'], opts['port'])
-    server = HTTPServer(server_address, Ec2Handler)
+    server = HTTPServerV6(server_address, Ec2Handler)
     sa = server.socket.getsockname()
     log.info("Serving ec2 metadata on %s using port %s ...", sa[0], sa[1])
     server.serve_forever()

@@ -32,6 +32,22 @@ VALID_CONTENT = {
         "YWpMfYdPUnE7u536WqzFmsaqJctz3gBxH9Ex7dFtrxR4qiqEr9Qtlu3xGn7Bw07"
         "/+i1D+ey3ONkZLN+LQ714cgj8fRS4Hj29SCmXp5Kt5/82cD/VN3NtHw=="
     ),
+    'ecdsa-sha2-nistp256': (
+        "AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBMy/WuXq5MF"
+        "r5hVQ9EEKKUTF7vUaOkgxUh6bNsCs9SFMVslIm1zM/WJYwUv52LdEePjtDYiV4A"
+        "l2XthJ9/bs7Pc="
+    ),
+    'ecdsa-sha2-nistp521': (
+        "AAAAE2VjZHNhLXNoYTItbmlzdHA1MjEAAAAIbmlzdHA1MjEAAACFBABOdNTkh9F"
+        "McK4hZRLs5LTXBEXwNr0+Yg9uvJYRFcz2ZlnjYX9tM4Z3QQFjqogU4pU+zpKLqZ"
+        "5VE4Jcnb1T608UywBIdXkSFZT8trGJqBv9nFWGgmTX3KP8kiBbihpuv1cGwglPl"
+        "Hxs50A42iP0JiT7auGtEAGsu/uMql323GTGb4171Q=="
+    ),
+    'ecdsa-sha2-nistp384': (
+        "AAAAE2VjZHNhLXNoYTItbmlzdHAzODQAAAAIbmlzdHAzODQAAABhBAnoqFU9Gnl"
+        "LcsEuCJnobs/c6whzvjCgouaOO61kgXNtIxyF4Wkutg6xaGYgBBt/phb7a2TurI"
+        "bcIBuzJ/mP22UyUAbNnBfStAEBmYbrTf1EfiMCYUAr1XnL0UdYmZ8HFg=="
+    ),
 }
 
 TEST_OPTIONS = (
@@ -44,7 +60,13 @@ class TestAuthKeyLineParser(test_helpers.TestCase):
     def test_simple_parse(self):
         # test key line with common 3 fields (keytype, base64, comment)
         parser = ssh_util.AuthKeyLineParser()
-        for ktype in ['rsa', 'ecdsa', 'dsa']:
+        ecdsa_types = [
+            'ecdsa-sha2-nistp256',
+            'ecdsa-sha2-nistp384',
+            'ecdsa-sha2-nistp521',
+        ]
+
+        for ktype in ['rsa', 'ecdsa', 'dsa'] + ecdsa_types:
             content = VALID_CONTENT[ktype]
             comment = 'user-%s@host' % ktype
             line = ' '.join((ktype, content, comment,))

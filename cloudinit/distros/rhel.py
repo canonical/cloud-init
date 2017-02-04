@@ -190,13 +190,18 @@ class Distro(distros.Distro):
         if pkgs is None:
             pkgs = []
 
-        cmd = ['yum']
-        # If enabled, then yum will be tolerant of errors on the command line
-        # with regard to packages.
-        # For example: if you request to install foo, bar and baz and baz is
-        # installed; yum won't error out complaining that baz is already
-        # installed.
-        cmd.append("-t")
+        if util.which('dnf'):
+            LOG.debug('Using DNF for package management')
+            cmd = ['dnf']
+        else:
+            LOG.debug('Using YUM for package management')
+            # the '-t' argument makes yum tolerant of errors on the command
+            # line with regard to packages.
+            #
+            # For example: if you request to install foo, bar and baz and baz
+            # is installed; yum won't error out complaining that baz is already
+            # installed.
+            cmd = ['yum', '-t']
         # Determines whether or not yum prompts for confirmation
         # of critical actions. We don't want to prompt...
         cmd.append("-y")
