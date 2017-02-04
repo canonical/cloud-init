@@ -312,8 +312,15 @@ def main_init(name, args):
                       " would allow us to stop early.")
     else:
         existing = "check"
-        if util.get_cfg_option_bool(init.cfg, 'manual_cache_clean', False):
+        mcfg = util.get_cfg_option_bool(init.cfg, 'manual_cache_clean', False)
+        if mcfg:
+            LOG.debug("manual cache clean set from config")
             existing = "trust"
+        else:
+            mfile = path_helper.get_ipath_cur("manual_clean_marker")
+            if os.path.exists(mfile):
+                LOG.debug("manual cache clean found from marker: %s", mfile)
+                existing = "trust"
 
         init.purge_cache()
         # Delete the non-net file as well
