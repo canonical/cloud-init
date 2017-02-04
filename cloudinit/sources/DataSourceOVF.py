@@ -48,6 +48,7 @@ class DataSourceOVF(sources.DataSource):
         self.environment = None
         self.cfg = {}
         self.supported_seed_starts = ("/", "file://")
+        self.vmware_customization_supported = True
 
     def __str__(self):
         root = sources.DataSource.__str__(self)
@@ -78,7 +79,10 @@ class DataSourceOVF(sources.DataSource):
             found.append(seed)
         elif system_type and 'vmware' in system_type.lower():
             LOG.debug("VMware Virtualization Platform found")
-            if not util.get_cfg_option_bool(
+            if not self.vmware_customization_supported:
+                LOG.debug("Skipping the check for "
+                          "VMware Customization support")
+            elif not util.get_cfg_option_bool(
                     self.sys_cfg, "disable_vmware_customization", True):
                 deployPkgPluginPath = search_file("/usr/lib/vmware-tools",
                                                   "libdeployPkgPlugin.so")
@@ -90,17 +94,18 @@ class DataSourceOVF(sources.DataSource):
                     # copies the customization specification file to
                     # /var/run/vmware-imc directory. cloud-init code needs
                     # to search for the file in that directory.
+                    max_wait = get_max_wait_from_cfg(self.ds_cfg)
                     vmwareImcConfigFilePath = util.log_time(
                         logfunc=LOG.debug,
                         msg="waiting for configuration file",
                         func=wait_for_imc_cfg_file,
-                        args=("/var/run/vmware-imc", "cust.cfg"))
+                        args=("/var/run/vmware-imc", "cust.cfg", max_wait))
 
                 if vmwareImcConfigFilePath:
-                    LOG.debug("Found VMware DeployPkg Config File at %s" %
+                    LOG.debug("Found VMware Customization Config File at %s",
                               vmwareImcConfigFilePath)
                 else:
-                    LOG.debug("Did not find VMware DeployPkg Config File Path")
+                    LOG.debug("Did not find VMware Customization Config File")
             else:
                 LOG.debug("Customization for VMware platform is disabled.")
 
@@ -206,6 +211,29 @@ class DataSourceOVFNet(DataSourceOVF):
         DataSourceOVF.__init__(self, sys_cfg, distro, paths)
         self.seed_dir = os.path.join(paths.seed_dir, 'ovf-net')
         self.supported_seed_starts = ("http://", "https://", "ftp://")
+        self.vmware_customization_supported = False
+
+
+def get_max_wait_from_cfg(cfg):
+    default_max_wait = 90
+    max_wait_cfg_option = 'vmware_cust_file_max_wait'
+    max_wait = default_max_wait
+
+    if not cfg:
+        return max_wait
+
+    try:
+        max_wait = int(cfg.get(max_wait_cfg_option, default_max_wait))
+    except ValueError:
+        LOG.warn("Failed to get '%s', using %s",
+                 max_wait_cfg_option, default_max_wait)
+
+    if max_wait <= 0:
+        LOG.warn("Invalid value '%s' for '%s', using '%s' instead",
+                 max_wait, max_wait_cfg_option, default_max_wait)
+        max_wait = default_max_wait
+
+    return max_wait
 
 
 def wait_for_imc_cfg_file(dirpath, filename, maxwait=180, naplen=5):
@@ -215,6 +243,7 @@ def wait_for_imc_cfg_file(dirpath, filename, maxwait=180, naplen=5):
         fileFullPath = search_file(dirpath, filename)
         if fileFullPath:
             return fileFullPath
+        LOG.debug("Waiting for VMware Customization Config File")
         time.sleep(naplen)
         waited += naplen
     return None

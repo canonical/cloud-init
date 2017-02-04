@@ -22,8 +22,11 @@ DEF_SSHD_CFG = "/etc/ssh/sshd_config"
 VALID_KEY_TYPES = (
     "dsa",
     "ecdsa",
+    "ecdsa-sha2-nistp256",
     "ecdsa-sha2-nistp256-cert-v01@openssh.com",
+    "ecdsa-sha2-nistp384",
     "ecdsa-sha2-nistp384-cert-v01@openssh.com",
+    "ecdsa-sha2-nistp521",
     "ecdsa-sha2-nistp521-cert-v01@openssh.com",
     "ed25519",
     "rsa",

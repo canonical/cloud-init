@@ -339,6 +339,7 @@ class Paths(object):
             "vendordata_raw": "vendor-data.txt",
             "vendordata": "vendor-data.txt.i",
             "instance_id": ".instance-id",
+            "manual_clean_marker": "manual-clean",
         }
         # Set when a datasource becomes active
         self.datasource = ds

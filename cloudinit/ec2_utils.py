@@ -82,6 +82,9 @@ class MetadataMaterializer(object):
             field_name = get_name(field)
             if not field or not field_name:
                 continue
+            # Don't materialize credentials
+            if field_name == 'security-credentials':
+                continue
             if has_children(field):
                 if field_name not in children:
                     children.append(field_name)
