@@ -1,4 +1,4 @@
-cloud-init (0.7.9-19-ge987092-0ubuntu1) UNRELEASED; urgency=medium
+cloud-init (0.7.9-19-ge987092-0ubuntu1) zesty; urgency=medium
 
   * New upstream snapshot.
     - manual_cache_clean: When manually cleaning touch a file in instance dir.
@@ -27,7 +27,7 @@ cloud-init (0.7.9-19-ge987092-0ubuntu1) UNRELEASED; urgency=medium
     - validate-yaml: use python rather than explicitly python3
     - Get early logging logged, including failures of cmdline url.
 
- -- Scott Moser <smoser@ubuntu.com>  Fri, 03 Feb 2017 21:39:25 -0500
+ -- Scott Moser <smoser@ubuntu.com>  Fri, 03 Feb 2017 21:54:39 -0500
 
 cloud-init (0.7.9-0ubuntu2) zesty; urgency=medium
 
