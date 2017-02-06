@@ -1,8 +1,8 @@
-cloud-init (0.7.9-19-ge987092-0ubuntu2) UNRELEASED; urgency=medium
+cloud-init (0.7.9-19-ge987092-0ubuntu2) zesty; urgency=medium
 
   * debian/update-grub-legacy-ec2: fix shell syntax error. (LP: #1662221)
 
- -- Scott Moser <smoser@brickies.net>  Mon, 06 Feb 2017 10:05:56 -0600
+ -- Scott Moser <smoser@ubuntu.com>  Mon, 06 Feb 2017 11:14:11 -0500
 
 cloud-init (0.7.9-19-ge987092-0ubuntu1) zesty; urgency=medium
 
