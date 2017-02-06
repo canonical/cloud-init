@@ -1403,7 +1403,7 @@ if ! type is_xen_kernel >/dev/null 2>&1; then
     # expected config path is /boot/config-2.6.35-13-virtual
     local kernel="$1" config="" dir="" bname=""
     dir=${kernel%/*}
-    [ "$dir" = "$kernel"] && dir="."
+    [ "$dir" = "$kernel" ] && dir="."
     bname=${kernel##*/}
     config="$dir/config-${bname#*-}"
     [ -f "$config" ] || return 1
