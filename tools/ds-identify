@@ -824,7 +824,9 @@ parse_policy() {
     local def=""
     case "$DI_UNAME_MACHINE" in
         # these have dmi data
-        i?86|x86_64|aarch64) def=${DI_DEFAULT_POLICY};;
+        i?86|x86_64) def=${DI_DEFAULT_POLICY};;
+        # aarch64 has dmi, but not currently used (LP: #1663304)
+        aarch64) def=${DI_DEFAULT_POLICY_NO_DMI};;
         *) def=${DI_DEFAULT_POLICY_NO_DMI};;
     esac
     local policy="$1"
