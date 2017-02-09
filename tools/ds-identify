@@ -62,6 +62,7 @@ PATH_VAR_LIB_CLOUD="${PATH_VAR_LIB_CLOUD:-${PATH_ROOT}/var/lib/cloud}"
 PATH_DI_CONFIG="${PATH_DI_CONFIG:-${PATH_ROOT}/etc/cloud/ds-identify.cfg}"
 PATH_PROC_CMDLINE="${PATH_PROC_CMDLINE:-${PATH_ROOT}/proc/cmdline}"
 PATH_PROC_1_CMDLINE="${PATH_PROC_1_CMDLINE:-${PATH_ROOT}/proc/1/cmdline}"
+PATH_PROC_1_ENVIRON="${PATH_PROC_1_ENVIRON:-${PATH_ROOT}/proc/1/environ}"
 PATH_CLOUD_CONFD="${PATH_CLOUD_CONFD:-${PATH_ROOT}/etc/cloud}"
 PATH_RUN_CI="${PATH_RUN_CI:-${PATH_RUN}/cloud-init}"
 PATH_RUN_CI_CFG=${PATH_RUN_CI_CFG:-${PATH_RUN_CI}/cloud.cfg}
@@ -81,6 +82,7 @@ DI_DMI_PRODUCT_UUID=""
 DI_FS_LABELS=""
 DI_KERNEL_CMDLINE=""
 DI_VIRT=""
+DI_PID_1_PLATFORM=""
 
 DI_UNAME_KERNEL_NAME=""
 DI_UNAME_KERNEL_RELEASE=""
@@ -348,6 +350,21 @@ read_datasource_list() {
     fi
     DI_DSLIST=$dslist
     return 0
+}
+
+read_pid1_platform() {
+    local oifs="$IFS" out="" tok="" key="" val="" platform="${UNAVAILABLE}"
+    cached "${DI_PID_1_PLATFORM}" && return
+    [ -r "${PATH_PROC_1_ENVIRON}" ] || return
+    out=$(tr '\0' '\n' <"${PATH_PROC_1_ENVIRON}")
+    IFS="$CR"; set -- $out; IFS="$oifs"
+    for tok in "$@"; do
+        key=${tok%%=*}
+        [ "$key" != "$tok" ] || continue
+        val=${tok#*=}
+        [ "$key" = "platform" ] && platform="$val" && break
+    done
+    DI_PID_1_PLATFORM="$platform"
 }
 
 dmi_product_name_matches() {
@@ -625,13 +642,9 @@ dscheck_OpenStack() {
     if dmi_product_name_is "OpenStack Nova"; then
         return ${DS_FOUND}
     fi
-    case "${DI_VIRT}" in
-        lxc|lxc-libvirt)
-            # FIXME: This could be container on openstack (nova-lxd)
-            # or nova-libvirt-lxc
-            return ${DS_NOT_FOUND}
-            ;;
-    esac
+    if [ "${DI_PID_1_PLATFORM}" = "OpenStack Nova" ]; then
+        return ${DS_FOUND}
+    fi
 
     return ${DS_NOT_FOUND}
 }
@@ -697,6 +710,7 @@ dscheck_None() {
 
 collect_info() {
     read_virt
+    read_pid1_platform
     read_kernel_cmdline
     read_uname_info
     read_config
@@ -716,7 +730,7 @@ print_info() {
 _print_info() {
     local n="" v="" vars=""
     vars="DMI_PRODUCT_NAME DMI_SYS_VENDOR DMI_PRODUCT_SERIAL"
-    vars="$vars DMI_PRODUCT_UUID"
+    vars="$vars DMI_PRODUCT_UUID PID_1_PLATFORM"
     vars="$vars FS_LABELS KERNEL_CMDLINE VIRT"
     vars="$vars UNAME_KERNEL_NAME UNAME_KERNEL_RELEASE UNAME_KERNEL_VERSION"
     vars="$vars UNAME_MACHINE UNAME_NODENAME UNAME_OPERATING_SYSTEM"
