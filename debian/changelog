@@ -1,4 +1,4 @@
-cloud-init (0.7.9-23-g0df21b6-0ubuntu1) UNRELEASED; urgency=medium
+cloud-init (0.7.9-23-g0df21b6-0ubuntu1) zesty; urgency=medium
 
   * New upstream snapshot.
     - support nova-lxd by reading platform from environment of pid 1.
@@ -10,7 +10,7 @@ cloud-init (0.7.9-23-g0df21b6-0ubuntu1) UNRELEASED; urgency=medium
       [Joshua Powers] (LP: #1652329)
     - code-style: make master pass pycodestyle (2.3.1) cleanly.
 
- -- Scott Moser <smoser@ubuntu.com>  Thu, 09 Feb 2017 13:17:41 -0500
+ -- Scott Moser <smoser@ubuntu.com>  Thu, 09 Feb 2017 13:18:47 -0500
 
 cloud-init (0.7.9-19-ge987092-0ubuntu2) zesty; urgency=medium
 
