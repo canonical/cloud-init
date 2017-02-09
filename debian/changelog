@@ -1,4 +1,4 @@
-cloud-init (0.7.9-21-g7372a10-0ubuntu1) UNRELEASED; urgency=medium
+cloud-init (0.7.9-21-g7372a10-0ubuntu1) zesty; urgency=medium
 
   * New upstream snapshot.
     - support nova-lxd by reading platform from environment of pid 1.
@@ -7,7 +7,7 @@ cloud-init (0.7.9-21-g7372a10-0ubuntu1) UNRELEASED; urgency=medium
       which is to enable cloud-init even when no sources are specifically
       found.
 
- -- Scott Moser <smoser@ubuntu.com>  Thu, 09 Feb 2017 13:14:35 -0500
+ -- Scott Moser <smoser@ubuntu.com>  Thu, 09 Feb 2017 13:15:29 -0500
 
 cloud-init (0.7.9-19-ge987092-0ubuntu2) zesty; urgency=medium
 
