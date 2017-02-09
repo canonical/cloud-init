@@ -1,3 +1,17 @@
+cloud-init (0.7.9-23-g0df21b6-0ubuntu1) zesty; urgency=medium
+
+  * New upstream snapshot.
+    - support nova-lxd by reading platform from environment of pid 1.
+      (LP: #1661797)
+    - ds-identify: change aarch64 to use the default for non-dmi systems.
+      that default is to enable cloud-init even if no datasources are
+      explicitly found.
+    - Remove style checking during build and add latest style checks to tox
+      [Joshua Powers] (LP: #1652329)
+    - code-style: make master pass pycodestyle (2.3.1) cleanly.
+
+ -- Scott Moser <smoser@ubuntu.com>  Thu, 09 Feb 2017 13:18:47 -0500
+
 cloud-init (0.7.9-19-ge987092-0ubuntu2) zesty; urgency=medium
 
   * debian/update-grub-legacy-ec2: fix shell syntax error. (LP: #1662221)
