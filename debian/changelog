@@ -1,10 +1,10 @@
-cloud-init (0.7.9-25-g65529b6-0ubuntu1) UNRELEASED; urgency=medium
+cloud-init (0.7.9-25-g65529b6-0ubuntu1) zesty; urgency=medium
 
   * New upstream snapshot.
     - ds-identify: fix checking for filesystem label (LP: #1663735)
     - ds-identify: read ds=nocloud properly (LP: #1663723)
 
- -- Scott Moser <smoser@ubuntu.com>  Fri, 10 Feb 2017 15:24:22 -0500
+ -- Scott Moser <smoser@ubuntu.com>  Fri, 10 Feb 2017 15:25:17 -0500
 
 cloud-init (0.7.9-23-g0df21b6-0ubuntu1) zesty; urgency=medium
 
