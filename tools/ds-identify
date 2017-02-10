@@ -386,8 +386,8 @@ dmi_sys_vendor_is() {
 }
 
 has_fs_with_label() {
-    local label=",$1,"
-    case "${DI_FS_LABELS}" in
+    local label="$1"
+    case ",${DI_FS_LABELS}," in
         *,$label,*) return 0;;
     esac
     return 1
@@ -514,6 +514,9 @@ dscheck_MAAS() {
 
 dscheck_NoCloud() {
     local fslabel="cidata" d=""
+    case " ${DI_KERNEL_CMDLINE} " in
+        *\ ds=nocloud*) return ${DS_FOUND};;
+    esac
     for d in nocloud nocloud-net; do
         check_seed_dir "$d" meta-data user-data && return ${DS_FOUND}
     done
