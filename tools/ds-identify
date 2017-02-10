@@ -514,6 +514,9 @@ dscheck_MAAS() {
 
 dscheck_NoCloud() {
     local fslabel="cidata" d=""
+    case " ${DI_KERNEL_CMDLINE} " in
+        *\ ds=nocloud*) return ${DS_FOUND};;
+    esac
     for d in nocloud nocloud-net; do
         check_seed_dir "$d" meta-data user-data && return ${DS_FOUND}
     done
