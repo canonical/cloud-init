@@ -386,8 +386,8 @@ dmi_sys_vendor_is() {
 }
 
 has_fs_with_label() {
-    local label=",$1,"
-    case "${DI_FS_LABELS}" in
+    local label="$1"
+    case ",${DI_FS_LABELS}," in
         *,$label,*) return 0;;
     esac
     return 1
