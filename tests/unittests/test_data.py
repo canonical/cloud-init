@@ -564,12 +564,12 @@ class TestConvertString(helpers.TestCase):
 
 
 class TestFetchBaseConfig(helpers.TestCase):
-
-    def test_only_builtin_gets_builtin2(self):
+    def test_only_builtin_gets_builtin(self):
         ret = helpers.wrap_and_call(
-            'cloudinit.stages.util',
-            {'read_conf_with_confd': None,
-             'read_conf_from_cmdline': None},
+            'cloudinit.stages',
+            {'util.read_conf_with_confd': None,
+             'util.read_conf_from_cmdline': None,
+             'read_runtime_config': {'return_value': {}}},
             stages.fetch_base_config)
         self.assertEqual(util.get_builtin_cfg(), ret)
 
@@ -578,9 +578,11 @@ class TestFetchBaseConfig(helpers.TestCase):
         test_key = sorted(builtin)[0]
         test_value = 'test'
         ret = helpers.wrap_and_call(
-            'cloudinit.stages.util',
-            {'read_conf_with_confd': {'return_value': {test_key: test_value}},
-             'read_conf_from_cmdline': None},
+            'cloudinit.stages',
+            {'util.read_conf_with_confd':
+                {'return_value': {test_key: test_value}},
+             'util.read_conf_from_cmdline': None,
+             'read_runtime_config': {'return_value': {}}},
             stages.fetch_base_config)
         self.assertEqual(ret.get(test_key), test_value)
         builtin[test_key] = test_value
@@ -592,25 +594,44 @@ class TestFetchBaseConfig(helpers.TestCase):
         test_value = 'test'
         cmdline = {test_key: test_value}
         ret = helpers.wrap_and_call(
-            'cloudinit.stages.util',
-            {'read_conf_from_cmdline': {'return_value': cmdline},
-             'read_conf_with_confd': None},
+            'cloudinit.stages',
+            {'util.read_conf_from_cmdline': {'return_value': cmdline},
+             'util.read_conf_with_confd': None,
+             'read_runtime_config': None},
             stages.fetch_base_config)
         self.assertEqual(ret.get(test_key), test_value)
         builtin[test_key] = test_value
         self.assertEqual(ret, builtin)
 
-    def test_cmdline_overrides_conf_d_and_defaults(self):
+    def test_cmdline_overrides_confd_runtime_and_defaults(self):
         builtin = {'key1': 'value0', 'key3': 'other2'}
         conf_d = {'key1': 'value1', 'key2': 'other1'}
         cmdline = {'key3': 'other3', 'key2': 'other2'}
+        runtime = {'key3': 'runtime3'}
         ret = helpers.wrap_and_call(
-            'cloudinit.stages.util',
-            {'read_conf_with_confd': {'return_value': conf_d},
-             'get_builtin_cfg': {'return_value': builtin},
-             'read_conf_from_cmdline': {'return_value': cmdline}},
+            'cloudinit.stages',
+            {'util.read_conf_with_confd': {'return_value': conf_d},
+             'util.get_builtin_cfg': {'return_value': builtin},
+             'read_runtime_config': {'return_value': runtime},
+             'util.read_conf_from_cmdline': {'return_value': cmdline}},
             stages.fetch_base_config)
         self.assertEqual(ret, {'key1': 'value1', 'key2': 'other2',
                                'key3': 'other3'})
+
+    def test_order_precedence_is_builtin_system_runtime_cmdline(self):
+        builtin = {'key1': 'builtin0', 'key3': 'builtin3'}
+        conf_d = {'key1': 'confd1', 'key2': 'confd2', 'keyconfd1': 'kconfd1'}
+        runtime = {'key1': 'runtime1', 'key2': 'runtime2'}
+        cmdline = {'key1': 'cmdline1'}
+        ret = helpers.wrap_and_call(
+            'cloudinit.stages',
+            {'util.read_conf_with_confd': {'return_value': conf_d},
+             'util.get_builtin_cfg': {'return_value': builtin},
+             'util.read_conf_from_cmdline': {'return_value': cmdline},
+             'read_runtime_config': {'return_value': runtime},
+             },
+            stages.fetch_base_config)
+        self.assertEqual(ret, {'key1': 'cmdline1', 'key2': 'runtime2',
+                               'key3': 'builtin3', 'keyconfd1': 'kconfd1'})
 
 # vi: ts=4 expandtab
