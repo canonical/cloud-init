@@ -1,3 +1,10 @@
+cloud-init (0.7.9-26-g1cd8cfa-0ubuntu1) UNRELEASED; urgency=medium
+
+  * New upstream snapshot.
+    - apply the runtime configuration written by ds-identify.
+
+ -- Scott Moser <smoser@ubuntu.com>  Tue, 14 Feb 2017 14:45:15 -0500
+
 cloud-init (0.7.9-25-g65529b6-0ubuntu1) zesty; urgency=medium
 
   * New upstream snapshot.
