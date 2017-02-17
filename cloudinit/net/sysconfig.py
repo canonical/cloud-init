@@ -283,10 +283,10 @@ class Renderer(renderer.Renderer):
                 cls._render_subnet(iface_cfg, route_cfg, iface_subnets[0])
             elif len(iface_subnets) > 1:
                 for i, iface_subnet in enumerate(iface_subnets,
-                                                 start=len(iface.children)):
+                                                 start=len(iface_cfg.children)):
                     iface_sub_cfg = iface_cfg.copy()
                     iface_sub_cfg.name = "%s:%s" % (iface_name, i)
-                    iface.children.append(iface_sub_cfg)
+                    iface_cfg.children.append(iface_sub_cfg)
                     cls._render_subnet(iface_sub_cfg, route_cfg, iface_subnet)
 
     @classmethod

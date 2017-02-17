@@ -163,6 +163,91 @@ nameserver 172.19.0.12
             ('etc/udev/rules.d/70-persistent-net.rules',
              "".join(['SUBSYSTEM=="net", ACTION=="add", DRIVERS=="?*", ',
                       'ATTR{address}=="fa:16:3e:ed:9a:59", NAME="eth0"\n']))]
+    },
+    {
+        'in_data': {
+            "services": [{"type": "dns", "address": "172.19.0.12"}],
+            "networks": [{
+                "network_id": "public-ipv4",
+                "type": "ipv4", "netmask": "255.255.252.0",
+                "link": "tap1a81968a-79",
+                "routes": [{
+                    "netmask": "0.0.0.0",
+                    "network": "0.0.0.0",
+                    "gateway": "172.19.3.254",
+                }],
+                "ip_address": "172.19.1.34", "id": "network0"
+            },{
+                "network_id": "private-ipv4",
+                "type": "ipv4", "netmask": "255.255.255.0",
+                "link": "tap1a81968a-79",
+                "routes": [],
+                "ip_address": "10.0.0.10", "id": "network1"
+            }],
+            "links": [
+                {
+                    "ethernet_mac_address": "fa:16:3e:ed:9a:59",
+                    "mtu": None, "type": "bridge", "id":
+                    "tap1a81968a-79",
+                    "vif_id": "1a81968a-797a-400f-8a80-567f997eb93f"
+                },
+            ],
+        },
+        'in_macs': {
+            'fa:16:3e:ed:9a:59': 'eth0',
+        },
+        'out_sysconfig': [
+            ('etc/sysconfig/network-scripts/ifcfg-eth0',
+             """
+# Created by cloud-init on instance boot automatically, do not edit.
+#
+BOOTPROTO=none
+DEVICE=eth0
+HWADDR=fa:16:3e:ed:9a:59
+NM_CONTROLLED=no
+ONBOOT=yes
+TYPE=Ethernet
+USERCTL=no
+""".lstrip()),
+            ('etc/sysconfig/network-scripts/ifcfg-eth0:0',
+             """
+# Created by cloud-init on instance boot automatically, do not edit.
+#
+BOOTPROTO=static
+DEFROUTE=yes
+DEVICE=eth0:0
+GATEWAY=172.19.3.254
+HWADDR=fa:16:3e:ed:9a:59
+IPADDR=172.19.1.34
+NETMASK=255.255.252.0
+NM_CONTROLLED=no
+ONBOOT=yes
+TYPE=Ethernet
+USERCTL=no
+""".lstrip()),
+            ('etc/sysconfig/network-scripts/ifcfg-eth0:1',
+             """
+# Created by cloud-init on instance boot automatically, do not edit.
+#
+BOOTPROTO=static
+DEVICE=eth0:1
+HWADDR=fa:16:3e:ed:9a:59
+IPADDR=10.0.0.10
+NETMASK=255.255.255.0
+NM_CONTROLLED=no
+ONBOOT=yes
+TYPE=Ethernet
+USERCTL=no
+""".lstrip()),
+            ('etc/resolv.conf',
+             """
+; Created by cloud-init on instance boot automatically, do not edit.
+;
+nameserver 172.19.0.12
+""".lstrip()),
+            ('etc/udev/rules.d/70-persistent-net.rules',
+             "".join(['SUBSYSTEM=="net", ACTION=="add", DRIVERS=="?*", ',
+                      'ATTR{address}=="fa:16:3e:ed:9a:59", NAME="eth0"\n']))]
     }
 ]
 
@@ -529,8 +614,8 @@ USERCTL=no
             self.assertEqual(expected_content, content)
 
     def test_openstack_rendering_samples(self):
-        render_dir = self.tmp_dir()
         for os_sample in OS_SAMPLES:
+            render_dir = self.tmp_dir()
             ex_input = os_sample['in_data']
             ex_mac_addrs = os_sample['in_macs']
             network_cfg = openstack.convert_net_json(
