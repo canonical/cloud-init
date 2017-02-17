@@ -28,7 +28,7 @@ class MetadataLeafDecoder(object):
 
     def __call__(self, field, blob):
         if not blob:
-            return blob
+            return ''
         try:
             blob = util.decode_binary(blob)
         except UnicodeDecodeError:
