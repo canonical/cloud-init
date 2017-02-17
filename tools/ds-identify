@@ -63,9 +63,11 @@ PATH_DI_CONFIG="${PATH_DI_CONFIG:-${PATH_ROOT}/etc/cloud/ds-identify.cfg}"
 PATH_PROC_CMDLINE="${PATH_PROC_CMDLINE:-${PATH_ROOT}/proc/cmdline}"
 PATH_PROC_1_CMDLINE="${PATH_PROC_1_CMDLINE:-${PATH_ROOT}/proc/1/cmdline}"
 PATH_PROC_1_ENVIRON="${PATH_PROC_1_ENVIRON:-${PATH_ROOT}/proc/1/environ}"
+PATH_PROC_UPTIME=${PATH_PROC_UPTIME:-${PATH_ROOT}/proc/uptime}
 PATH_CLOUD_CONFD="${PATH_CLOUD_CONFD:-${PATH_ROOT}/etc/cloud}"
 PATH_RUN_CI="${PATH_RUN_CI:-${PATH_RUN}/cloud-init}"
 PATH_RUN_CI_CFG=${PATH_RUN_CI_CFG:-${PATH_RUN_CI}/cloud.cfg}
+PATH_RUN_DI_RESULT=${PATH_RUN_DI_RESULT:-${PATH_RUN_CI}/.ds-identify.result}
 
 DI_LOG="${DI_LOG:-${PATH_RUN_CI}/ds-identify.log}"
 _DI_LOGGED=""
@@ -750,6 +752,8 @@ _print_info() {
 write_result() {
     local runcfg="${PATH_RUN_CI_CFG}" ret="" line=""
     if [ "$DI_REPORT" = "true" ]; then
+        # if report is true, then we write to .report, but touch the other.
+        : > "$runcfg"
         runcfg="$runcfg.report"
     fi
     for line in "$@"; do
@@ -924,12 +928,24 @@ manual_clean_and_existing() {
     [ -f "${PATH_VAR_LIB_CLOUD}/instance/manual-clean" ]
 }
 
-main() {
+read_uptime() {
+    local up idle
+    _RET="${UNAVAILABLE}"
+    [ -f "$PATH_PROC_UPTIME" ] &&
+        read up idle < "$PATH_PROC_UPTIME" && _RET="$up"
+    return
+}
+
+_main() {
     local dscheck="" ret_dis=1 ret_en=0
+
+    read_uptime
+    debug 1 "[up ${_RET}s]" "ds-identify $*"
     collect_info
 
-    if [ ! -e "$PATH_RUN_CI_CFG" ]; then
-        # the first time the generator is run.
+    if [ "$DI_LOG" = "stderr" ]; then
+        _print_info 1>&2
+    else
         _print_info >> "$DI_LOG"
     fi
 
@@ -1020,6 +1036,29 @@ main() {
 
     error "Unexpected result"
     return 3
+}
+
+main() {
+    local ret=""
+    [ -d "$PATH_RUN_CI" ] || mkdir -p "$PATH_RUN_CI"
+    if [ "${1:+$1}" != "--force" ] && [ -f "$PATH_RUN_CI_CFG" ] &&
+        [ -f "$PATH_RUN_DI_RESULT" ]; then
+        if read ret < "$PATH_RUN_DI_RESULT"; then
+            if [ "$ret" = "0" ] || [ "$ret" = "1" ]; then
+                debug 2 "used cached result $ret. pass --force to re-run."
+                return $ret;
+            fi
+            debug 1 "previous run returned unexpected '$ret'. Re-running."
+        else
+            error "failed to read result from $PATH_RUN_DI_RESULT!"
+        fi
+    fi
+    _main "$@"
+    ret=$?
+    echo "$ret" > "$PATH_RUN_DI_RESULT"
+    read_uptime
+    debug 1 "[up ${_RET}s]" "returning $ret"
+    return $ret
 }
 
 noop() {
