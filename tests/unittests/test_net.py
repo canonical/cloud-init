@@ -177,7 +177,7 @@ nameserver 172.19.0.12
                     "gateway": "172.19.3.254",
                 }],
                 "ip_address": "172.19.1.34", "id": "network0"
-            },{
+            }, {
                 "network_id": "private-ipv4",
                 "type": "ipv4", "netmask": "255.255.255.0",
                 "link": "tap1a81968a-79",

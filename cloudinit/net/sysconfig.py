@@ -282,12 +282,12 @@ class Renderer(renderer.Renderer):
             if len(iface_subnets) == 1:
                 cls._render_subnet(iface_cfg, route_cfg, iface_subnets[0])
             elif len(iface_subnets) > 1:
-                for i, iface_subnet in enumerate(iface_subnets,
-                                                 start=len(iface_cfg.children)):
+                for i, isubnet in enumerate(iface_subnets,
+                                            start=len(iface_cfg.children)):
                     iface_sub_cfg = iface_cfg.copy()
                     iface_sub_cfg.name = "%s:%s" % (iface_name, i)
                     iface_cfg.children.append(iface_sub_cfg)
-                    cls._render_subnet(iface_sub_cfg, route_cfg, iface_subnet)
+                    cls._render_subnet(iface_sub_cfg, route_cfg, isubnet)
 
     @classmethod
     def _render_bond_interfaces(cls, network_state, iface_contents):
