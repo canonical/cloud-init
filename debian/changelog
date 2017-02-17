@@ -1,4 +1,4 @@
-cloud-init (0.7.9-30-gf4e8eb0-0ubuntu1) UNRELEASED; urgency=medium
+cloud-init (0.7.9-30-gf4e8eb0-0ubuntu1) zesty; urgency=medium
 
   * New upstream snapshot.
     - ds-identify: only run once per boot unless --force is given.
@@ -6,7 +6,7 @@ cloud-init (0.7.9-30-gf4e8eb0-0ubuntu1) UNRELEASED; urgency=medium
       [Lars Kellogg-Stedman] (LP: #1665441)
     - ec2_utils: fix MetadataLeafDecoder that returned bytes on empty.
 
- -- Scott Moser <smoser@ubuntu.com>  Fri, 17 Feb 2017 17:05:12 -0500
+ -- Scott Moser <smoser@ubuntu.com>  Fri, 17 Feb 2017 17:05:47 -0500
 
 cloud-init (0.7.9-26-g1cd8cfa-0ubuntu1) zesty; urgency=medium
 
