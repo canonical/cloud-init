@@ -45,11 +45,11 @@ enabled, disabled, or left to system defaults using ``ssh_pwauth``.
         expire: <true/false>
 
     chpasswd:
-        list:
-            - user1:password1
-            - user2:Random
-            - user3:password3
-            - user4:R
+        list: |
+            user1:password1
+            user2:Random
+            user3:password3
+            user4:R
 """
 
 import sys
