@@ -50,6 +50,16 @@ enabled, disabled, or left to system defaults using ``ssh_pwauth``.
             user2:Random
             user3:password3
             user4:R
+
+    ##
+    # or as yaml list
+    ##
+    chpasswd:
+        list:
+            - user1:password1
+            - user2:Random
+            - user3:password3
+            - user4:R
 """
 
 import sys
@@ -79,7 +89,15 @@ def handle(_name, cfg, cloud, log, args):
 
     if 'chpasswd' in cfg:
         chfg = cfg['chpasswd']
-        plist = util.get_cfg_option_str(chfg, 'list', plist)
+        if isinstance(chfg['list'], list):
+            log.debug("Handling input for chpasswd as list.")
+            plist = util.get_cfg_option_list(chfg, 'list', plist)
+        else:
+            log.debug("Handling input for chpasswd as multiline string.")
+            plist = util.get_cfg_option_str(chfg, 'list', plist)
+            if plist:
+                plist = plist.spitlines()
+
         expire = util.get_cfg_option_bool(chfg, 'expire', expire)
 
     if not plist and password:
@@ -95,7 +113,7 @@ def handle(_name, cfg, cloud, log, args):
         plist_in = []
         randlist = []
         users = []
-        for line in plist.splitlines():
+        for line in plist:
             u, p = line.split(':', 1)
             if p == "R" or p == "RANDOM":
                 p = rand_user_password()
