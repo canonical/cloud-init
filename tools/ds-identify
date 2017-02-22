@@ -4,12 +4,12 @@
 # or on the kernel command line. It takes primarily 2 inputs:
 # datasource: can specify the datasource that should be used.
 #     kernel command line option: ci.datasource=<dsname>
-#  
+#
 # policy: a string that indicates how ds-identify should operate.
 #     kernel command line option: ci.di.policy=<policy>
 #   default setting is:
 #     search,found=all,maybe=all,notfound=disable
-
+#
 #   report: write config to /run/cloud-init/cloud.cfg.report (instead of
 #           /run/cloud-init/cloud.cfg, which effectively makes this dry-run).
 #   enable: do nothing
@@ -33,6 +33,10 @@
 #         disabled: disable cloud-init
 #         enabled: enable cloud-init
 #
+# ci.datasource.ec2.strict_id: (true|false|warn[,0-9])
+#     if ec2 datasource does not strictly match,
+#        return not_found if true
+#        return maybe if false or warn*.
 #
 
 set -u
@@ -589,6 +593,48 @@ dscheck_Bigstep() {
     return ${DS_NOT_FOUND}
 }
 
+ec2_read_strict_setting() {
+    # the 'strict_id' setting for Ec2 controls behavior when
+    # the platform does not identify itself directly as Ec2.
+    # order of precedence is:
+    #  1. builtin setting here cloud-init/ds-identify builtin
+    #  2. ds-identify config
+    #  3. system config (/etc/cloud/cloud.cfg.d/*Ec2*.cfg)
+    #  4. kernel command line (undocumented)
+    #  5. user-data or vendor-data (not available here)
+    local default="$1" key="ci.datasource.ec2.strict_id" val=""
+
+    # 4. kernel command line
+    case " ${DI_KERNEL_CMDLINE} " in
+        *\ $key=*\ )
+            val=${DI_KERNEL_CMDLINE##*$key=}
+            val=${val%% *};
+            _RET=${val:-$default}
+            return 0
+    esac
+
+    # 3. look for the key 'strict_id' (datasource/Ec2/strict_id)
+    local match="" bp="${PATH_CLOUD_CONFD}/cloud.cfg"
+    match="$bp.d/*[Ee][Cc]2*.cfg"
+    if check_config strict_id "$match"; then
+        debug 2 "${_RET_fname} set strict_id to $_RET"
+        return 0
+    fi
+
+    # 2. ds-identify config (datasource.ec2.strict)
+    local config="${PATH_DI_CONFIG}"
+    if [ -f "$config" ]; then
+        if _read_config "$key" < "$config"; then
+            _RET=${_RET:-$default}
+            return 0
+        fi
+    fi
+
+    # 1. Default
+    _RET=$default
+    return 0
+}
+
 dscheck_Ec2() {
     # http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/identify_ec2_instances.html
     # http://paste.ubuntu.com/23630859/
@@ -611,17 +657,28 @@ dscheck_Ec2() {
             nocase_equal "$uuid" "$serial" && return ${DS_FOUND};;
     esac
 
-    # search through config files to check for platform
-    local f="" match="${PATH_CLOUD_CONFD}/*ec2*.cfg"
-    # look for the key 'platform' (datasource/ec2/look_alike/behavior)
-    if check_config platform "$match"; then
-        if [ "$platform" != "Unknown" ]; then
-            _RET="$name"
-            return "${DS_FOUND}"
-        fi
+    local default="true"
+    if ec2_read_strict_setting "$default"; then
+        strict="$_RET"
+    else
+        debug 1 "ec2_read_strict returned non-zero: $?. using '$default'."
+        strict="$default"
     fi
 
-    return ${DS_NOT_FOUND}
+    local key="datasource/Ec2/strict_id"
+    case "$strict" in
+        true|false|warn|warn,[0-9]*) :;;
+        *)
+            warn "$key was set to invalid '$strict'. using '$default'"
+            strict="$default";;
+    esac
+
+    _RET_excfg="datasource: {Ec2: {strict_id: \"$strict\"}}"
+    if [ "$strict" = "true" ]; then
+        return $DS_NOT_FOUND
+    else
+        return $DS_MAYBE
+    fi
 }
 
 dscheck_GCE() {
@@ -801,8 +858,10 @@ unquote() {
 }
 
 _read_config() {
-    # reads config from stdin, modifies _rc scoped environment vars.
-    # rc_policy and _rc_dsname
+    # reads config from stdin,
+    # if no parameters are set, modifies _rc scoped environment vars.
+    # if keyname is provided, then returns found value of that key.
+    local keyname="${1:-_unset}"
     local line="" hash="#" ckey="" key="" val=""
     while read line; do
         line=${line%%${hash}*}
@@ -813,15 +872,28 @@ _read_config() {
         trim "$key"
         key=${_RET}
 
+        [ "$keyname" != "_unset" ] && [ "$keyname" != "$key" ] &&
+            continue
+
         val="${line#*:}"
         trim "$val"
         unquote "${_RET}"
         val=${_RET}
+
+        if [ "$keyname" = "$key" ]; then
+            _RET="$val"
+            return 0
+        fi
+
         case "$key" in
             datasource) _rc_dsname="$val";;
             policy) _rc_policy="$val";;
         esac
     done
+    if [ "$keyname" = "_unset" ]; then
+        return 1
+    fi
+    return 0
 }
 
 parse_warn() {
