@@ -29,17 +29,11 @@
 #         all: enable all DS_MAYBE
 #         none: ignore any DS_MAYBE
 #
-#      notfound: (default=disable)
-#         disable: disable cloud-init
-#         enable: enable cloud-init
+#      notfound: (default=disabled)
+#         disabled: disable cloud-init
+#         enabled: enable cloud-init
 #
 #
-# zesty:
-#    policy: found=first,maybe=all,none=disable
-# xenial:
-#      policy: found=all,maybe=all,none=enable
-#    and then at a later date
-
 
 set -u
 set -f
