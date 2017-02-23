@@ -635,27 +635,49 @@ ec2_read_strict_setting() {
     return 0
 }
 
-dscheck_Ec2() {
-    # http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/identify_ec2_instances.html
-    # http://paste.ubuntu.com/23630859/
+ec2_identify_platform() {
+    local default="$1"
+    local serial="${DI_DMI_PRODUCT_SERIAL}"
 
-    check_seed_dir "ec2" meta-data user-data && return ${DS_FOUND}
-    is_container && return ${DS_NOT_FOUND}
-
+    # AWS http://docs.aws.amazon.com/AWSEC2/
+    #     latest/UserGuide/identify_ec2_instances.html
     local uuid="" hvuuid="$PATH_ROOT/sys/hypervisor/uuid"
     # if the (basically) xen specific /sys/hypervisor/uuid starts with 'ec2'
     if [ -r "$hvuuid" ] && read uuid < "$hvuuid" &&
         [ "${uuid#ec2}" != "$uuid" ]; then
-        return ${DS_FOUND}
+        _RET="AWS"
+        return 0
     fi
 
     # product uuid and product serial start with case insensitive
-    local uuid="${DI_DMI_PRODUCT_UUID}" serial="${DI_DMI_PRODUCT_SERIAL}"
+    local uuid="${DI_DMI_PRODUCT_UUID}"
     case "$uuid:$serial" in
         [Ee][Cc]2*:[Ee][Cc]2)
             # both start with ec2, now check for case insenstive equal
-            nocase_equal "$uuid" "$serial" && return ${DS_FOUND};;
+            nocase_equal "$uuid" "$serial" &&
+                { _RET="AWS"; return 0; };;
     esac
+
+    _RET="$default"
+    return 0;
+}
+
+dscheck_Ec2() {
+    check_seed_dir "ec2" meta-data user-data && return ${DS_FOUND}
+    is_container && return ${DS_NOT_FOUND}
+
+    local unknown="Unknown" platform=""
+    if ec2_identify_platform "$unknown"; then
+        platform="$_RET"
+    else
+        warn "Failed to identify ec2 platform. Using '$unknown'."
+        platform=$unknown
+    fi
+
+    debug 1 "ec2 platform is '$platform'."
+    if [ "$platform" != "$unknown" ]; then
+        return $DS_FOUND
+    fi
 
     local default="true"
     if ec2_read_strict_setting "$default"; then

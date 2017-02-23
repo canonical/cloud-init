@@ -22,6 +22,10 @@ class DataSourceAliYun(EC2.DataSourceEc2):
     def get_public_ssh_keys(self):
         return parse_public_keys(self.metadata.get('public-keys', {}))
 
+    @property
+    def cloud_platform(self):
+        return EC2.Platforms.ALIYUN
+
 
 def parse_public_keys(public_keys):
     keys = []

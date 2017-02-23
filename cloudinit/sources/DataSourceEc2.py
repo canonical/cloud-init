@@ -9,6 +9,7 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import os
+import textwrap
 import time
 
 from cloudinit import ec2_utils as ec2
@@ -22,12 +23,23 @@ LOG = logging.getLogger(__name__)
 # Which version we are requesting of the ec2 metadata apis
 DEF_MD_VERSION = '2009-04-04'
 
+STRICT_ID_PATH = ("datasource", "Ec2", "strict_id")
+STRICT_ID_DEFAULT = "warn"
+
+
+class Platforms(object):
+    ALIYUN = "AliYun"
+    AWS = "AWS"
+    SEEDED = "Seeded"
+    UNKNOWN = "Unknown"
+
 
 class DataSourceEc2(sources.DataSource):
     # Default metadata urls that will be used if none are provided
     # They will be checked for 'resolveability' and some of the
     # following may be discarded if they do not resolve
     metadata_urls = ["http://169.254.169.254", "http://instance-data.:8773"]
+    _cloud_platform = None
 
     def __init__(self, sys_cfg, distro, paths):
         sources.DataSource.__init__(self, sys_cfg, distro, paths)
@@ -41,7 +53,17 @@ class DataSourceEc2(sources.DataSource):
             self.userdata_raw = seed_ret['user-data']
             self.metadata = seed_ret['meta-data']
             LOG.debug("Using seeded ec2 data from %s", self.seed_dir)
+            self._cloud_platform = Platforms.SEEDED
             return True
+
+        strict_mode, _sleep = read_strict_mode(
+            util.get_cfg_by_path(self.sys_cfg, STRICT_ID_PATH,
+                                 STRICT_ID_DEFAULT), ("warn", None))
+
+        LOG.debug("strict_mode: %s, cloud_platform=%s",
+                  strict_mode, self.cloud_platform)
+        if strict_mode == "true" and self.cloud_platform == Platforms.UNKNOWN:
+            return False
 
         try:
             if not self.wait_for_metadata_service():
@@ -51,8 +73,8 @@ class DataSourceEc2(sources.DataSource):
                 ec2.get_instance_userdata(self.api_ver, self.metadata_address)
             self.metadata = ec2.get_instance_metadata(self.api_ver,
                                                       self.metadata_address)
-            LOG.debug("Crawl of metadata service took %s seconds",
-                      int(time.time() - start_time))
+            LOG.debug("Crawl of metadata service took %.3f seconds",
+                      time.time() - start_time)
             return True
         except Exception:
             util.logexc(LOG, "Failed reading from metadata address %s",
@@ -189,6 +211,158 @@ class DataSourceEc2(sources.DataSource):
         if az is not None:
             return az[:-1]
         return None
+
+    @property
+    def cloud_platform(self):
+        if self._cloud_platform is None:
+            self._cloud_platform = identify_platform()
+        return self._cloud_platform
+
+    def activate(self, cfg, is_new_instance):
+        if not is_new_instance:
+            return
+        if self.cloud_platform == Platforms.UNKNOWN:
+            warn_if_necessary(
+                util.get_cfg_by_path(cfg, STRICT_ID_PATH, STRICT_ID_DEFAULT))
+
+
+def read_strict_mode(cfgval, default):
+    try:
+        return parse_strict_mode(cfgval)
+    except ValueError as e:
+        LOG.warn(e)
+        return default
+
+
+def parse_strict_mode(cfgval):
+    # given a mode like:
+    #    true, false, warn,[sleep]
+    # return tuple with string mode (true|false|warn) and sleep.
+    if cfgval is True:
+        return 'true', None
+    if cfgval is False:
+        return 'false', None
+
+    if not cfgval:
+        return 'warn', 0
+
+    mode, _, sleep = cfgval.partition(",")
+    if mode not in ('true', 'false', 'warn'):
+        raise ValueError(
+            "Invalid mode '%s' in strict_id setting '%s': "
+            "Expected one of 'true', 'false', 'warn'." % (mode, cfgval))
+
+    if sleep:
+        try:
+            sleep = int(sleep)
+        except ValueError:
+            raise ValueError("Invalid sleep '%s' in strict_id setting '%s': "
+                             "not an integer" % (sleep, cfgval))
+    else:
+        sleep = None
+
+    return mode, sleep
+
+
+def warn_if_necessary(cfgval):
+    try:
+        mode, sleep = parse_strict_mode(cfgval)
+    except ValueError as e:
+        LOG.warn(e)
+        return
+
+    if mode == "false":
+        return
+
+    show_warning(sleep)
+
+
+def show_warning(sleep):
+    message = textwrap.dedent("""
+        ****************************************************************
+        # This system is using the EC2 Metadata Service, but does not  #
+        # appear to be running on Amazon EC2 or one of cloud-init's    #
+        # known platforms that provide a EC2 Metadata service. In the  #
+        # future, cloud-init may stop reading metadata from the EC2    #
+        # Metadata Service unless the platform can be identified       #
+        #                                                              #
+        # If you are seeing this message, please file a bug against    #
+        # cloud-init at https://bugs.launchpad.net/cloud-init/+filebug #
+        # Make sure to include the cloud provider your instance is     #
+        # running on.                                                  #
+        #                                                              #
+        # For more information see                                     #
+        #   https://bugs.launchpad.net/cloud-init/+bug/1660385         #
+        #                                                              #
+        # After you have filed a bug, you can disable this warning by  #
+        # launching your instance with the cloud-config below, or      #
+        # putting that content into                                    #
+        #    /etc/cloud/cloud.cfg.d/99-ec2-datasource.cfg              #
+        #                                                              #
+        # #cloud-config                                                #
+        # datasource:                                                  #
+        #  Ec2:                                                        #
+        #   strict_id: false                                           #
+        #                                                              #
+        """)
+    closemsg = ""
+    if sleep:
+        closemsg = "  [sleeping for %d seconds]  " % sleep
+    message += closemsg.center(64, "*")
+    print(message)
+    LOG.warn(message)
+    if sleep:
+        time.sleep(sleep)
+
+
+def identify_aws(data):
+    # data is a dictionary returned by _collect_platform_data.
+    if (data['uuid'].startswith('ec2') and
+            (data['uuid_source'] == 'hypervisor' or
+             data['uuid'] == data['serial'])):
+            return Platforms.AWS
+
+    return None
+
+
+def identify_platform():
+    # identify the platform and return an entry in Platforms.
+    data = _collect_platform_data()
+    checks = (identify_aws, lambda x: Platforms.UNKNOWN)
+    for checker in checks:
+        try:
+            result = checker(data)
+            if result:
+                return result
+        except Exception as e:
+            LOG.warn("calling %s with %s raised exception: %s",
+                     checker, data, e)
+
+
+def _collect_platform_data():
+    # returns a dictionary with all lower case values:
+    #   uuid: system-uuid from dmi or /sys/hypervisor
+    #   uuid_source: 'hypervisor' (/sys/hypervisor/uuid) or 'dmi'
+    #   serial: dmi 'system-serial-number' (/sys/.../product_serial)
+    data = {}
+    try:
+        uuid = util.load_file("/sys/hypervisor/uuid").strip()
+        data['uuid_source'] = 'hypervisor'
+    except Exception:
+        uuid = util.read_dmi_data('system-uuid')
+        data['uuid_source'] = 'dmi'
+
+    if uuid is None:
+        uuid = ''
+    data['uuid'] = uuid.lower()
+
+    serial = util.read_dmi_data('system-serial-number')
+    if serial is None:
+        serial = ''
+
+    data['serial'] = serial.lower()
+
+    return data
 
 
 # Used to match classes to dependencies
