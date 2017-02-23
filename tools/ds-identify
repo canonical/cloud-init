@@ -592,8 +592,11 @@ dscheck_Bigstep() {
 dscheck_Ec2() {
     # http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/identify_ec2_instances.html
     # http://paste.ubuntu.com/23630859/
-    local uuid="" hvuuid="$PATH_ROOT/sys/hypervisor/uuid"
+
+    check_seed_dir "ec2" meta-data user-data && return ${DS_FOUND}
     is_container && return ${DS_NOT_FOUND}
+
+    local uuid="" hvuuid="$PATH_ROOT/sys/hypervisor/uuid"
     # if the (basically) xen specific /sys/hypervisor/uuid starts with 'ec2'
     if [ -r "$hvuuid" ] && read uuid < "$hvuuid" &&
         [ "${uuid#ec2}" != "$uuid" ]; then
