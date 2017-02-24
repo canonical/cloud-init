@@ -30,6 +30,7 @@ STRICT_ID_DEFAULT = "warn"
 class Platforms(object):
     ALIYUN = "AliYun"
     AWS = "AWS"
+    BRIGHTBOX = "Brightbox"
     SEEDED = "Seeded"
     UNKNOWN = "Unknown"
 
@@ -325,10 +326,15 @@ def identify_aws(data):
     return None
 
 
+def identify_brightbox(data):
+    if data['serial'].endswith('brightbox.com'):
+        return Platforms.BRIGHTBOX
+
+
 def identify_platform():
     # identify the platform and return an entry in Platforms.
     data = _collect_platform_data()
-    checks = (identify_aws, lambda x: Platforms.UNKNOWN)
+    checks = (identify_aws, identify_brightbox, lambda x: Platforms.UNKNOWN)
     for checker in checks:
         try:
             result = checker(data)
