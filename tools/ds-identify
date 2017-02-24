@@ -765,12 +765,22 @@ write_result() {
 }
 
 found() {
+    # found(ds1, [ds2 ...], [-- [extra lines]])
     local list="" ds=""
     # always we write the None datasource last.
-    for ds in "$@" None; do
-        list="${list:+${list}, }$ds"
+    while [ $# -ne 0 ]; do
+        if [ "$1" = "--" ]; then
+            shift
+            break
+        fi
+        list="${list:+${list}, }$1"
+        shift
     done
-    write_result "datasource_list: [ $list ]"
+    if [ $# -eq 1 ] && [ -z "$1" ]; then
+        # do not pass an empty line through.
+        shift
+    fi
+    write_result "datasource_list: [ $list ]" "$@"
     return
 }
 
@@ -977,7 +987,8 @@ _main() {
         return
     fi
 
-    local found="" ret="" ds="" maybe=""
+    local found="" ret="" ds="" maybe="" _RET_excfg=""
+    local exfound_cfg="" exmaybe_cfg=""
     for ds in ${DI_DSLIST}; do
         dscheck_fn="dscheck_${ds}"
         debug 2 "Checking for datasource '$ds' via '$dscheck_fn'"
@@ -985,20 +996,23 @@ _main() {
             warn "No check method '$dscheck_fn' for datasource '$ds'"
             continue
         fi
+        _RET_excfg=""
         $dscheck_fn
         ret="$?"
         case "$ret" in
             $DS_FOUND)
                 debug 1 "check for '$ds' returned found";
+                exfound_cfg="${exfound_cfg:+${exfound_cfg}${CR}}${_RET_excfg}"
                 found="${found} $ds";;
             $DS_MAYBE)
-                debug 1 "check for $ds returned maybe";
+                debug 1 "check for '$ds' returned maybe";
+                exmaybe_cfg="${exmaybe_cfg:+${exmaybe_cfg}${CR}}${_RET_excfg}"
                 maybe="${maybe} $ds";;
-            *) debug 2 "check for $ds returned not-found[$ret]";;
+            *) debug 2 "check for '$ds' returned not-found[$ret]";;
         esac
     done
 
-    debug 2 "found=$found maybe=$maybe"
+    debug 2 "found=${found# } maybe=${maybe# }"
     set -- $found
     if [ $# -ne 0 ]; then
         if [ $# -eq 1 ]; then
@@ -1010,14 +1024,14 @@ _main() {
                 set -- "$1"
             fi
         fi
-        found "$@"
+        found "$@" -- "${exfound_cfg}"
         return
     fi
 
     set -- $maybe
     if [ $# -ne 0 -a "${DI_ON_MAYBE}" != "none" ]; then
         debug 1 "$# datasources returned maybe: $*"
-        found "$@"
+        found "$@" -- "${exmaybe_cfg}"
         return
     fi
 
