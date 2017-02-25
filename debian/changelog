@@ -1,4 +1,4 @@
-cloud-init (0.7.9-38-g83606ae-0ubuntu1) UNRELEASED; urgency=medium
+cloud-init (0.7.9-38-g83606ae-0ubuntu1) zesty; urgency=medium
 
   * New upstream snapshot.
     - tools/ds-identify: ovf identify vmware guest customization.
@@ -11,7 +11,7 @@ cloud-init (0.7.9-38-g83606ae-0ubuntu1) UNRELEASED; urgency=medium
     - tools/ds-identify: use quotes in local declarations.
     - tools/ds-identify: fix documentation of policy setting in a comment.
 
- -- Scott Moser <smoser@ubuntu.com>  Fri, 24 Feb 2017 22:52:39 -0500
+ -- Scott Moser <smoser@ubuntu.com>  Fri, 24 Feb 2017 22:53:53 -0500
 
 cloud-init (0.7.9-30-gf4e8eb0-0ubuntu1) zesty; urgency=medium
 
