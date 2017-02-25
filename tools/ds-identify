@@ -601,7 +601,7 @@ dscheck_Ec2() {
     fi
 
     # product uuid and product serial start with case insensitive
-    local uuid=${DI_DMI_PRODUCT_UUID} serial=${DI_DMI_PRODUCT_SERIAL}
+    local uuid="${DI_DMI_PRODUCT_UUID}" serial="${DI_DMI_PRODUCT_SERIAL}"
     case "$uuid:$serial" in
         [Ee][Cc]2*:[Ee][Cc]2)
             # both start with ec2, now check for case insenstive equal
@@ -883,7 +883,7 @@ parse_policy() {
 }
 
 read_config() {
-    local config=${PATH_DI_CONFIG}
+    local config="${PATH_DI_CONFIG}"
     local _rc_dsname="" _rc_policy="" ret=""
     if [ -f "$config" ]; then
         _read_config < "$config"
