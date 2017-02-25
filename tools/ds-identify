@@ -4,12 +4,12 @@
 # or on the kernel command line. It takes primarily 2 inputs:
 # datasource: can specify the datasource that should be used.
 #     kernel command line option: ci.datasource=<dsname>
-#  
+#
 # policy: a string that indicates how ds-identify should operate.
 #     kernel command line option: ci.di.policy=<policy>
 #   default setting is:
 #     search,found=all,maybe=all,notfound=disable
-
+#
 #   report: write config to /run/cloud-init/cloud.cfg.report (instead of
 #           /run/cloud-init/cloud.cfg, which effectively makes this dry-run).
 #   enable: do nothing
@@ -29,17 +29,15 @@
 #         all: enable all DS_MAYBE
 #         none: ignore any DS_MAYBE
 #
-#      notfound: (default=disable)
-#         disable: disable cloud-init
-#         enable: enable cloud-init
+#      notfound: (default=disabled)
+#         disabled: disable cloud-init
+#         enabled: enable cloud-init
 #
+# ci.datasource.ec2.strict_id: (true|false|warn[,0-9])
+#     if ec2 datasource does not strictly match,
+#        return not_found if true
+#        return maybe if false or warn*.
 #
-# zesty:
-#    policy: found=first,maybe=all,none=disable
-# xenial:
-#      policy: found=all,maybe=all,none=enable
-#    and then at a later date
-
 
 set -u
 set -f
@@ -561,9 +559,44 @@ dscheck_OpenNebula() {
     return ${DS_NOT_FOUND}
 }
 
+ovf_vmware_guest_customization() {
+    # vmware guest customization
+
+    # virt provider must be vmware
+    [ "${DI_VIRT}" = "vmware" ] || return 1
+
+    # we have to have the plugin to do vmware customization
+    local found="" pkg="" pre="/usr/lib"
+    for pkg in vmware-tools open-vm-tools; do
+        if [ -f "$pre/$pkg/plugins/vmsvc/libdeployPkgPlugin.so" ]; then
+            found="$pkg"; break;
+        fi
+    done
+    [ -n "$found" ] || return 1
+
+    # disable_vmware_customization defaults to False.
+    # any value then other than false means disabled.
+    local key="disable_vmware_customization"
+    local match="" bp="${PATH_CLOUD_CONFD}/cloud.cfg"
+    match="$bp.d/*[Oo][Vv][Ff]*.cfg"
+    if check_config "$key" "$match"; then
+        debug 2 "${_RET_fname} set $key to $_RET"
+        case "$_RET" in
+            0|false|False) return 0;;
+            *) return;;
+        esac
+    fi
+
+    return 1
+}
+
 dscheck_OVF() {
     local p=""
     check_seed_dir ovf ovf-env.xml && return "${DS_FOUND}"
+
+    if ovf_vmware_guest_customization; then
+        return ${DS_FOUND}
+    fi
 
     has_cdrom || return ${DS_NOT_FOUND}
 
@@ -595,36 +628,119 @@ dscheck_Bigstep() {
     return ${DS_NOT_FOUND}
 }
 
-dscheck_Ec2() {
-    # http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/identify_ec2_instances.html
-    # http://paste.ubuntu.com/23630859/
-    local uuid="" hvuuid="$PATH_ROOT/sys/hypervisor/uuid"
-    is_container && return ${DS_NOT_FOUND}
-    # if the (basically) xen specific /sys/hypervisor/uuid starts with 'ec2'
-    if [ -r "$hvuuid" ] && read uuid < "$hvuuid" &&
-        [ "${uuid#ec2}" != "$uuid" ]; then
-        return ${DS_FOUND}
-    fi
+ec2_read_strict_setting() {
+    # the 'strict_id' setting for Ec2 controls behavior when
+    # the platform does not identify itself directly as Ec2.
+    # order of precedence is:
+    #  1. builtin setting here cloud-init/ds-identify builtin
+    #  2. ds-identify config
+    #  3. system config (/etc/cloud/cloud.cfg.d/*Ec2*.cfg)
+    #  4. kernel command line (undocumented)
+    #  5. user-data or vendor-data (not available here)
+    local default="$1" key="ci.datasource.ec2.strict_id" val=""
 
-    # product uuid and product serial start with case insensitive
-    local uuid=${DI_DMI_PRODUCT_UUID} serial=${DI_DMI_PRODUCT_SERIAL}
-    case "$uuid:$serial" in
-        [Ee][Cc]2*:[Ee][Cc]2)
-            # both start with ec2, now check for case insenstive equal
-            nocase_equal "$uuid" "$serial" && return ${DS_FOUND};;
+    # 4. kernel command line
+    case " ${DI_KERNEL_CMDLINE} " in
+        *\ $key=*\ )
+            val=${DI_KERNEL_CMDLINE##*$key=}
+            val=${val%% *};
+            _RET=${val:-$default}
+            return 0
     esac
 
-    # search through config files to check for platform
-    local f="" match="${PATH_CLOUD_CONFD}/*ec2*.cfg"
-    # look for the key 'platform' (datasource/ec2/look_alike/behavior)
-    if check_config platform "$match"; then
-        if [ "$platform" != "Unknown" ]; then
-            _RET="$name"
-            return "${DS_FOUND}"
+    # 3. look for the key 'strict_id' (datasource/Ec2/strict_id)
+    local match="" bp="${PATH_CLOUD_CONFD}/cloud.cfg"
+    match="$bp.d/*[Ee][Cc]2*.cfg"
+    if check_config strict_id "$match"; then
+        debug 2 "${_RET_fname} set strict_id to $_RET"
+        return 0
+    fi
+
+    # 2. ds-identify config (datasource.ec2.strict)
+    local config="${PATH_DI_CONFIG}"
+    if [ -f "$config" ]; then
+        if _read_config "$key" < "$config"; then
+            _RET=${_RET:-$default}
+            return 0
         fi
     fi
 
-    return ${DS_NOT_FOUND}
+    # 1. Default
+    _RET=$default
+    return 0
+}
+
+ec2_identify_platform() {
+    local default="$1"
+    local serial="${DI_DMI_PRODUCT_SERIAL}"
+
+    # brightbox https://bugs.launchpad.net/cloud-init/+bug/1661693
+    case "$serial" in
+        *brightbox.com) _RET="Brightbox"; return 0;;
+    esac
+
+    # AWS http://docs.aws.amazon.com/AWSEC2/
+    #     latest/UserGuide/identify_ec2_instances.html
+    local uuid="" hvuuid="$PATH_ROOT/sys/hypervisor/uuid"
+    # if the (basically) xen specific /sys/hypervisor/uuid starts with 'ec2'
+    if [ -r "$hvuuid" ] && read uuid < "$hvuuid" &&
+        [ "${uuid#ec2}" != "$uuid" ]; then
+        _RET="AWS"
+        return 0
+    fi
+
+    # product uuid and product serial start with case insensitive
+    local uuid="${DI_DMI_PRODUCT_UUID}"
+    case "$uuid:$serial" in
+        [Ee][Cc]2*:[Ee][Cc]2)
+            # both start with ec2, now check for case insenstive equal
+            nocase_equal "$uuid" "$serial" &&
+                { _RET="AWS"; return 0; };;
+    esac
+
+    _RET="$default"
+    return 0;
+}
+
+dscheck_Ec2() {
+    check_seed_dir "ec2" meta-data user-data && return ${DS_FOUND}
+    is_container && return ${DS_NOT_FOUND}
+
+    local unknown="Unknown" platform=""
+    if ec2_identify_platform "$unknown"; then
+        platform="$_RET"
+    else
+        warn "Failed to identify ec2 platform. Using '$unknown'."
+        platform=$unknown
+    fi
+
+    debug 1 "ec2 platform is '$platform'."
+    if [ "$platform" != "$unknown" ]; then
+        return $DS_FOUND
+    fi
+
+    local default="true"
+    if ec2_read_strict_setting "$default"; then
+        strict="$_RET"
+    else
+        debug 1 "ec2_read_strict returned non-zero: $?. using '$default'."
+        strict="$default"
+    fi
+
+    local key="datasource/Ec2/strict_id"
+    case "$strict" in
+        true|false|warn|warn,[0-9]*) :;;
+        *)
+            warn "$key was set to invalid '$strict'. using '$default'"
+            strict="$default";;
+    esac
+
+    _RET_excfg="datasource: {Ec2: {strict_id: \"$strict\"}}"
+    if [ "$strict" = "true" ]; then
+        return $DS_NOT_FOUND
+    else
+        return $DS_MAYBE
+    fi
 }
 
 dscheck_GCE() {
@@ -768,12 +884,22 @@ write_result() {
 }
 
 found() {
+    # found(ds1, [ds2 ...], [-- [extra lines]])
     local list="" ds=""
     # always we write the None datasource last.
-    for ds in "$@" None; do
-        list="${list:+${list}, }$ds"
+    while [ $# -ne 0 ]; do
+        if [ "$1" = "--" ]; then
+            shift
+            break
+        fi
+        list="${list:+${list}, }$1"
+        shift
     done
-    write_result "datasource_list: [ $list ]"
+    if [ $# -eq 1 ] && [ -z "$1" ]; then
+        # do not pass an empty line through.
+        shift
+    fi
+    write_result "datasource_list: [ $list ]" "$@"
     return
 }
 
@@ -794,8 +920,10 @@ unquote() {
 }
 
 _read_config() {
-    # reads config from stdin, modifies _rc scoped environment vars.
-    # rc_policy and _rc_dsname
+    # reads config from stdin,
+    # if no parameters are set, modifies _rc scoped environment vars.
+    # if keyname is provided, then returns found value of that key.
+    local keyname="${1:-_unset}"
     local line="" hash="#" ckey="" key="" val=""
     while read line; do
         line=${line%%${hash}*}
@@ -806,15 +934,28 @@ _read_config() {
         trim "$key"
         key=${_RET}
 
+        [ "$keyname" != "_unset" ] && [ "$keyname" != "$key" ] &&
+            continue
+
         val="${line#*:}"
         trim "$val"
         unquote "${_RET}"
         val=${_RET}
+
+        if [ "$keyname" = "$key" ]; then
+            _RET="$val"
+            return 0
+        fi
+
         case "$key" in
             datasource) _rc_dsname="$val";;
             policy) _rc_policy="$val";;
         esac
     done
+    if [ "$keyname" = "_unset" ]; then
+        return 1
+    fi
+    return 0
 }
 
 parse_warn() {
@@ -889,7 +1030,7 @@ parse_policy() {
 }
 
 read_config() {
-    local config=${PATH_DI_CONFIG}
+    local config="${PATH_DI_CONFIG}"
     local _rc_dsname="" _rc_policy="" ret=""
     if [ -f "$config" ]; then
         _read_config < "$config"
@@ -980,7 +1121,8 @@ _main() {
         return
     fi
 
-    local found="" ret="" ds="" maybe=""
+    local found="" ret="" ds="" maybe="" _RET_excfg=""
+    local exfound_cfg="" exmaybe_cfg=""
     for ds in ${DI_DSLIST}; do
         dscheck_fn="dscheck_${ds}"
         debug 2 "Checking for datasource '$ds' via '$dscheck_fn'"
@@ -988,20 +1130,23 @@ _main() {
             warn "No check method '$dscheck_fn' for datasource '$ds'"
             continue
         fi
+        _RET_excfg=""
         $dscheck_fn
         ret="$?"
         case "$ret" in
             $DS_FOUND)
                 debug 1 "check for '$ds' returned found";
+                exfound_cfg="${exfound_cfg:+${exfound_cfg}${CR}}${_RET_excfg}"
                 found="${found} $ds";;
             $DS_MAYBE)
-                debug 1 "check for $ds returned maybe";
+                debug 1 "check for '$ds' returned maybe";
+                exmaybe_cfg="${exmaybe_cfg:+${exmaybe_cfg}${CR}}${_RET_excfg}"
                 maybe="${maybe} $ds";;
-            *) debug 2 "check for $ds returned not-found[$ret]";;
+            *) debug 2 "check for '$ds' returned not-found[$ret]";;
         esac
     done
 
-    debug 2 "found=$found maybe=$maybe"
+    debug 2 "found=${found# } maybe=${maybe# }"
     set -- $found
     if [ $# -ne 0 ]; then
         if [ $# -eq 1 ]; then
@@ -1013,14 +1158,14 @@ _main() {
                 set -- "$1"
             fi
         fi
-        found "$@"
+        found "$@" -- "${exfound_cfg}"
         return
     fi
 
     set -- $maybe
     if [ $# -ne 0 -a "${DI_ON_MAYBE}" != "none" ]; then
         debug 1 "$# datasources returned maybe: $*"
-        found "$@"
+        found "$@" -- "${exmaybe_cfg}"
         return
     fi
 

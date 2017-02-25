@@ -1,3 +1,18 @@
+cloud-init (0.7.9-38-g83606ae-0ubuntu1) zesty; urgency=medium
+
+  * New upstream snapshot.
+    - tools/ds-identify: ovf identify vmware guest customization.
+    - Identify Brightbox as an Ec2 datasource user. (LP: #1661693)
+    - DatasourceEc2: add warning message when not on AWS.
+    - ds-identify: add reading of datasource/Ec2/strict_id
+    - tools/ds-identify: add support for 'found' or 'maybe' contributing
+      config.
+    - tools/ds-identify: read the seed directory on Ec2
+    - tools/ds-identify: use quotes in local declarations.
+    - tools/ds-identify: fix documentation of policy setting in a comment.
+
+ -- Scott Moser <smoser@ubuntu.com>  Fri, 24 Feb 2017 22:53:53 -0500
+
 cloud-init (0.7.9-30-gf4e8eb0-0ubuntu1) zesty; urgency=medium
 
   * New upstream snapshot.
