@@ -651,7 +651,7 @@ ec2_read_strict_setting() {
 
     # 3. look for the key 'strict_id' (datasource/Ec2/strict_id)
     local match="" bp="${PATH_CLOUD_CONFD}/cloud.cfg"
-    match="$bp.d/*[Ee][Cc]2*.cfg"
+    match="$bp $bp.d/*[Ee][Cc]2*.cfg"
     if check_config strict_id "$match"; then
         debug 2 "${_RET_fname} set strict_id to $_RET"
         return 0
