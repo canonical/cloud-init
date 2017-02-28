@@ -9,7 +9,6 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import os
-import textwrap
 import time
 
 from cloudinit import ec2_utils as ec2
@@ -17,6 +16,7 @@ from cloudinit import log as logging
 from cloudinit import sources
 from cloudinit import url_helper as uhelp
 from cloudinit import util
+from cloudinit import warnings
 
 LOG = logging.getLogger(__name__)
 
@@ -224,7 +224,8 @@ class DataSourceEc2(sources.DataSource):
             return
         if self.cloud_platform == Platforms.UNKNOWN:
             warn_if_necessary(
-                util.get_cfg_by_path(cfg, STRICT_ID_PATH, STRICT_ID_DEFAULT))
+                util.get_cfg_by_path(cfg, STRICT_ID_PATH, STRICT_ID_DEFAULT),
+                cfg)
 
 
 def read_strict_mode(cfgval, default):
@@ -265,7 +266,7 @@ def parse_strict_mode(cfgval):
     return mode, sleep
 
 
-def warn_if_necessary(cfgval):
+def warn_if_necessary(cfgval, cfg):
     try:
         mode, sleep = parse_strict_mode(cfgval)
     except ValueError as e:
@@ -275,45 +276,7 @@ def warn_if_necessary(cfgval):
     if mode == "false":
         return
 
-    show_warning(sleep)
-
-
-def show_warning(sleep):
-    message = textwrap.dedent("""
-        ****************************************************************
-        # This system is using the EC2 Metadata Service, but does not  #
-        # appear to be running on Amazon EC2 or one of cloud-init's    #
-        # known platforms that provide a EC2 Metadata service. In the  #
-        # future, cloud-init may stop reading metadata from the EC2    #
-        # Metadata Service unless the platform can be identified       #
-        #                                                              #
-        # If you are seeing this message, please file a bug against    #
-        # cloud-init at https://bugs.launchpad.net/cloud-init/+filebug #
-        # Make sure to include the cloud provider your instance is     #
-        # running on.                                                  #
-        #                                                              #
-        # For more information see                                     #
-        #   https://bugs.launchpad.net/cloud-init/+bug/1660385         #
-        #                                                              #
-        # After you have filed a bug, you can disable this warning by  #
-        # launching your instance with the cloud-config below, or      #
-        # putting that content into                                    #
-        #    /etc/cloud/cloud.cfg.d/99-ec2-datasource.cfg              #
-        #                                                              #
-        # #cloud-config                                                #
-        # datasource:                                                  #
-        #  Ec2:                                                        #
-        #   strict_id: false                                           #
-        #                                                              #
-        """)
-    closemsg = ""
-    if sleep:
-        closemsg = "  [sleeping for %d seconds]  " % sleep
-    message += closemsg.center(64, "*")
-    print(message)
-    LOG.warn(message)
-    if sleep:
-        time.sleep(sleep)
+    warnings.show_warning('non_ec2_md', cfg, mode=True, sleep=sleep)
 
 
 def identify_aws(data):
