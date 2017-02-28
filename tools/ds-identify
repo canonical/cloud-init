@@ -574,16 +574,17 @@ ovf_vmware_guest_customization() {
     done
     [ -n "$found" ] || return 1
 
-    # disable_vmware_customization defaults to False.
-    # any value then other than false means disabled.
+    # vmware customization is disabled by default
+    # (disable_vmware_customization=true). If it is set to false, then
+    # user has requested customization.
     local key="disable_vmware_customization"
     local match="" bp="${PATH_CLOUD_CONFD}/cloud.cfg"
-    match="$bp.d/*[Oo][Vv][Ff]*.cfg"
+    match="$bp $bp.d/*[Oo][Vv][Ff]*.cfg"
     if check_config "$key" "$match"; then
         debug 2 "${_RET_fname} set $key to $_RET"
         case "$_RET" in
             0|false|False) return 0;;
-            *) return;;
+            *) return 1;;
         esac
     fi
 
