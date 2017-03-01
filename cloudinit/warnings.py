@@ -35,6 +35,30 @@ putting that content into
 datasource:
  Ec2:
   strict_id: false""",
+    'dsid_missing_source': """
+A new feature in cloud-init identified possible datasources for
+this system as:
+  {dslist}
+However, the datasource used was: {source}
+
+In the future, cloud-init will only attempt to use datasources that
+are identified or specifically configured.
+For more information see
+  https://bugs.launchpad.net/bugs/1669675
+
+If you are seeing this message, please file a bug against
+cloud-init at
+   https://bugs.launchpad.net/cloud-init/+filebug?field.tags=dsid
+Make sure to include the cloud provider your instance is
+running on.
+
+After you have filed a bug, you can disable this warning by launching
+your instance with the cloud-config below, or putting that content
+into /etc/cloud/cloud.cfg.d/99-warnings.cfg
+
+#cloud-config
+warnings:
+  dsid_missing_source: off""",
 }
 
 
