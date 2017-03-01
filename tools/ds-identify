@@ -10,8 +10,9 @@
 #   default setting is:
 #     search,found=all,maybe=all,notfound=disable
 #
-#   report: write config to /run/cloud-init/cloud.cfg.report (instead of
-#           /run/cloud-init/cloud.cfg, which effectively makes this dry-run).
+#   report: write config to /run/cloud-init/cloud.cfg, but
+#           namespaced under 'di_report'.  Thus cloud-init can still see
+#           the result, but has no affect.
 #   enable: do nothing
 #      ds-identify writes no config and just exits success
 #      the caller (cloud-init-generator) then enables cloud-init to run
@@ -867,15 +868,16 @@ _print_info() {
 }
 
 write_result() {
-    local runcfg="${PATH_RUN_CI_CFG}" ret="" line=""
-    if [ "$DI_REPORT" = "true" ]; then
-        # if report is true, then we write to .report, but touch the other.
-        : > "$runcfg"
-        runcfg="$runcfg.report"
-    fi
-    for line in "$@"; do
-        echo "$line"
-    done > "$runcfg"
+    local runcfg="${PATH_RUN_CI_CFG}" ret="" line="" pre=""
+    {
+        if [ "$DI_REPORT" = "true" ]; then
+            echo "di_report:"
+            pre="  "
+        fi
+        for line in "$@"; do
+            echo "${pre}$line";
+        done
+    } > "$runcfg"
     ret=$?
     [ $ret -eq 0 ] || {
         error "failed to write to ${runcfg}"
@@ -956,6 +958,7 @@ _read_config() {
     if [ "$keyname" = "_unset" ]; then
         return 1
     fi
+    _RET=""
     return 0
 }
 
