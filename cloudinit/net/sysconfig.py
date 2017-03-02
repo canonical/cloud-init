@@ -87,7 +87,8 @@ class Route(ConfigMap):
     def __init__(self, route_name, base_sysconf_dir):
         super(Route, self).__init__()
         self.last_idx = 1
-        self.has_set_default = False
+        self.has_set_default_ipv4 = False
+        self.has_set_default_ipv6 = False
         self._route_name = route_name
         self._base_sysconf_dir = base_sysconf_dir
 
@@ -95,7 +96,8 @@ class Route(ConfigMap):
         r = Route(self._route_name, self._base_sysconf_dir)
         r._conf = self._conf.copy()
         r.last_idx = self.last_idx
-        r.has_set_default = self.has_set_default
+        r.has_set_default_ipv4 = self.has_set_default_ipv4
+        r.has_set_default_ipv6 = self.has_set_default_ipv6
         return r
 
     @property
@@ -119,10 +121,10 @@ class NetInterface(ConfigMap):
         super(NetInterface, self).__init__()
         self.children = []
         self.routes = Route(iface_name, base_sysconf_dir)
-        self._kind = kind
+        self.kind = kind
+
         self._iface_name = iface_name
         self._conf['DEVICE'] = iface_name
-        self._conf['TYPE'] = self.iface_types[kind]
         self._base_sysconf_dir = base_sysconf_dir
 
     @property
@@ -140,6 +142,8 @@ class NetInterface(ConfigMap):
 
     @kind.setter
     def kind(self, kind):
+        if kind not in self.iface_types:
+            raise ValueError(kind)
         self._kind = kind
         self._conf['TYPE'] = self.iface_types[kind]
 
@@ -173,7 +177,7 @@ class Renderer(renderer.Renderer):
         ('BOOTPROTO', 'none'),
     ])
 
-    # If these keys exist, then there values will be used to form
+    # If these keys exist, then their values will be used to form
     # a BONDING_OPTS grouping; otherwise no grouping will be set.
     bond_tpl_opts = tuple([
         ('bond_mode', "mode=%s"),
@@ -199,6 +203,7 @@ class Renderer(renderer.Renderer):
     def _render_iface_shared(cls, iface, iface_cfg):
         for k, v in cls.iface_defaults:
             iface_cfg[k] = v
+
         for (old_key, new_key) in [('mac_address', 'HWADDR'), ('mtu', 'MTU')]:
             old_value = iface.get(old_key)
             if old_value is not None:
@@ -227,10 +232,20 @@ class Renderer(renderer.Renderer):
         if 'netmask' in subnet:
             iface_cfg['NETMASK'] = subnet['netmask']
         for route in subnet.get('routes', []):
+            if subnet.get('ipv6'):
+                gw_cfg = 'IPV6_DEFAULTGW'
+            else:
+                gw_cfg = 'GATEWAY'
+
             if _is_default_route(route):
-                if route_cfg.has_set_default:
-                    raise ValueError("Duplicate declaration of default"
-                                     " route found for interface '%s'"
+                if (
+                        (subnet.get('ipv4') and
+                         route_cfg.has_set_default_ipv4) or
+                        (subnet.get('ipv6') and
+                         route_cfg.has_set_default_ipv6)
+                ):
+                    raise ValueError("Duplicate declaration of default "
+                                     "route found for interface '%s'"
                                      % (iface_cfg.name))
                 # NOTE(harlowja): ipv6 and ipv4 default gateways
                 gw_key = 'GATEWAY0'
@@ -242,7 +257,7 @@ class Renderer(renderer.Renderer):
                 # also provided the default route?
                 iface_cfg['DEFROUTE'] = True
                 if 'gateway' in route:
-                    iface_cfg['GATEWAY'] = route['gateway']
+                    iface_cfg[gw_cfg] = route['gateway']
                 route_cfg.has_set_default = True
             else:
                 gw_key = 'GATEWAY%s' % route_cfg.last_idx
