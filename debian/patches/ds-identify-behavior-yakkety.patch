@@ -1,0 +1,30 @@
+Description: Adjust behavior of ds-identify for SRU
+ To make this acceptable as a SRU we have changed ds-identify to
+ enable cloud-init's full search if no datasources are identified
+ by ds-identify.  Also, warn and sleep for 10 seconds if cloud-init
+ finds itself using a Ec2 Datasource on an unknown and non AWS platform.
+Forwarded: not-needed
+Author: Scott Moser <smoser@ubuntu.com>
+Bug-ubuntu: http://bugs.launchpad.net/bugs/1669675
+Bug-ubuntu: http://bugs.launchpad.net/bugs/1660385
+
+--- a/tools/ds-identify
++++ b/tools/ds-identify
+@@ -74,7 +74,7 @@ _DI_LOGGED=""
+ # set DI_MAIN='noop' in environment to source this file with no main called.
+ DI_MAIN=${DI_MAIN:-main}
+ 
+-DI_DEFAULT_POLICY="search,found=all,maybe=all,notfound=${DI_DISABLED}"
++DI_DEFAULT_POLICY="search,found=all,maybe=all,notfound=${DI_ENABLED}"
+ DI_DEFAULT_POLICY_NO_DMI="search,found=all,maybe=all,notfound=${DI_ENABLED}"
+ DI_DMI_PRODUCT_NAME=""
+ DI_DMI_SYS_VENDOR=""
+@@ -109,7 +109,7 @@ DI_ON_FOUND=""
+ DI_ON_MAYBE=""
+ DI_ON_NOTFOUND=""
+ 
+-DI_EC2_STRICT_ID_DEFAULT="true"
++DI_EC2_STRICT_ID_DEFAULT="warn,10"
+ 
+ error() {
+     set -- "ERROR:" "$@";
