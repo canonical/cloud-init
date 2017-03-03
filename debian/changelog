@@ -1,6 +1,8 @@
 cloud-init (0.7.9-47-gc81ea53-0ubuntu1~16.04.1) UNRELEASED; urgency=medium
 
   * debian/rules: install Z99-cloudinit-warnings.sh to /etc/profile.d
+  * debian/patches/ds-identify-behavior-xenial.patch: adjust default
+    behavior of ds-identify for SRU (LP: #1669675, #1660385).
   * New upstream snapshot.
     - Support warning if the used datasource is not in ds-identify's list
       (LP: #1669675).
