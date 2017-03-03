@@ -22,7 +22,7 @@ def file_content_type(text):
     try:
         filename, content_type = text.split(":", 1)
         return (open(filename, 'r'), filename, content_type.strip())
-    except:
+    except ValueError:
         raise argparse.ArgumentError("Invalid value for %r" % (text))
 
 

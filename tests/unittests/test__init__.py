@@ -1,16 +1,18 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
+import logging
 import os
 import shutil
 import tempfile
 
+from cloudinit.cmd import main
 from cloudinit import handlers
 from cloudinit import helpers
 from cloudinit import settings
 from cloudinit import url_helper
 from cloudinit import util
 
-from .helpers import TestCase, ExitStack, mock
+from .helpers import TestCase, CiTestCase, ExitStack, mock
 
 
 class FakeModule(handlers.Handler):
@@ -170,44 +172,68 @@ class TestHandlerHandlePart(TestCase):
             self.data, self.ctype, self.filename, self.payload)
 
 
-class TestCmdlineUrl(TestCase):
-    def test_invalid_content(self):
-        url = "http://example.com/foo"
-        key = "mykey"
-        payload = b"0"
+class TestCmdlineUrl(CiTestCase):
+    def test_parse_cmdline_url_nokey_raises_keyerror(self):
+        self.assertRaises(
+            KeyError, main.parse_cmdline_url, 'root=foo bar single')
+
+    def test_parse_cmdline_url_found(self):
+        cmdline = 'root=foo bar single url=http://example.com arg1 -v'
+        self.assertEqual(
+            ('url', 'http://example.com'), main.parse_cmdline_url(cmdline))
+
+    @mock.patch('cloudinit.cmd.main.util.read_file_or_url')
+    def test_invalid_content(self, m_read):
+        key = "cloud-config-url"
+        url = 'http://example.com/foo'
         cmdline = "ro %s=%s bar=1" % (key, url)
+        m_read.return_value = url_helper.StringResponse(b"unexpected blob")
 
-        with mock.patch('cloudinit.url_helper.readurl',
-                        return_value=url_helper.StringResponse(payload)):
-            self.assertEqual(
-                util.get_cmdline_url(names=[key], starts="xxxxxx",
-                                     cmdline=cmdline),
-                (key, url, None))
+        fpath = self.tmp_path("ccfile")
+        lvl, msg = main.attempt_cmdline_url(
+            fpath, network=True, cmdline=cmdline)
+        self.assertEqual(logging.WARN, lvl)
+        self.assertIn(url, msg)
+        self.assertFalse(os.path.exists(fpath))
 
-    def test_valid_content(self):
+    @mock.patch('cloudinit.cmd.main.util.read_file_or_url')
+    def test_valid_content(self, m_read):
         url = "http://example.com/foo"
-        key = "mykey"
-        payload = b"xcloud-config\nmydata: foo\nbar: wark\n"
-        cmdline = "ro %s=%s bar=1" % (key, url)
+        payload = b"#cloud-config\nmydata: foo\nbar: wark\n"
+        cmdline = "ro %s=%s bar=1" % ('cloud-config-url', url)
 
-        with mock.patch('cloudinit.url_helper.readurl',
-                        return_value=url_helper.StringResponse(payload)):
-            self.assertEqual(
-                util.get_cmdline_url(names=[key], starts=b"xcloud-config",
-                                     cmdline=cmdline),
-                (key, url, payload))
+        m_read.return_value = url_helper.StringResponse(payload)
+        fpath = self.tmp_path("ccfile")
+        lvl, msg = main.attempt_cmdline_url(
+            fpath, network=True, cmdline=cmdline)
+        self.assertEqual(util.load_file(fpath, decode=False), payload)
+        self.assertEqual(logging.INFO, lvl)
+        self.assertIn(url, msg)
 
-    def test_no_key_found(self):
+    @mock.patch('cloudinit.cmd.main.util.read_file_or_url')
+    def test_no_key_found(self, m_read):
+        cmdline = "ro mykey=http://example.com/foo root=foo"
+        fpath = self.tmp_path("ccpath")
+        lvl, msg = main.attempt_cmdline_url(
+            fpath, network=True, cmdline=cmdline)
+
+        m_read.assert_not_called()
+        self.assertFalse(os.path.exists(fpath))
+        self.assertEqual(logging.DEBUG, lvl)
+
+    @mock.patch('cloudinit.cmd.main.util.read_file_or_url')
+    def test_exception_warns(self, m_read):
         url = "http://example.com/foo"
-        key = "mykey"
-        cmdline = "ro %s=%s bar=1" % (key, url)
+        cmdline = "ro cloud-config-url=%s root=LABEL=bar" % url
+        fpath = self.tmp_path("ccfile")
+        m_read.side_effect = url_helper.UrlError(
+            cause="Unexpected Error", url="http://example.com/foo")
 
-        with mock.patch('cloudinit.url_helper.readurl',
-                        return_value=url_helper.StringResponse(b'')):
-            self.assertEqual(
-                util.get_cmdline_url(names=["does-not-appear"],
-                                     starts="#cloud-config", cmdline=cmdline),
-                (None, None, None))
+        lvl, msg = main.attempt_cmdline_url(
+            fpath, network=True, cmdline=cmdline)
+        self.assertEqual(logging.WARN, lvl)
+        self.assertIn(url, msg)
+        self.assertFalse(os.path.exists(fpath))
 
 
 # vi: ts=4 expandtab

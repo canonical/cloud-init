@@ -1,0 +1,1240 @@
+#!/bin/sh
+#
+# ds-identify is configured via /etc/cloud/ds-identify.cfg
+# or on the kernel command line. It takes primarily 2 inputs:
+# datasource: can specify the datasource that should be used.
+#     kernel command line option: ci.datasource=<dsname>
+#
+# policy: a string that indicates how ds-identify should operate.
+#     kernel command line option: ci.di.policy=<policy>
+#   default setting is:
+#     search,found=all,maybe=all,notfound=disable
+#
+#   report: write config to /run/cloud-init/cloud.cfg, but
+#           namespaced under 'di_report'.  Thus cloud-init can still see
+#           the result, but has no affect.
+#   enable: do nothing
+#      ds-identify writes no config and just exits success
+#      the caller (cloud-init-generator) then enables cloud-init to run
+#      just without any aid from ds-identify.
+#   disable: disable cloud-init
+#
+#   [report,]found=value,maybe=value,notfound=value
+#      found: (default=first)
+#         first: use the first found do no further checking
+#         all: enable all DS_FOUND
+#
+#      maybe: (default=all)
+#       if nothing returned 'found', then how to handle maybe.
+#       no network sources are allowed to return 'maybe'.
+#         all: enable all DS_MAYBE
+#         none: ignore any DS_MAYBE
+#
+#      notfound: (default=disabled)
+#         disabled: disable cloud-init
+#         enabled: enable cloud-init
+#
+# ci.datasource.ec2.strict_id: (true|false|warn[,0-9])
+#     if ec2 datasource does not strictly match,
+#        return not_found if true
+#        return maybe if false or warn*.
+#
+
+set -u
+set -f
+UNAVAILABLE="unavailable"
+CR="
+"
+ERROR="error"
+DI_ENABLED="enabled"
+DI_DISABLED="disabled"
+
+DI_DEBUG_LEVEL="${DEBUG_LEVEL:-1}"
+
+PATH_ROOT=${PATH_ROOT:-""}
+PATH_RUN=${PATH_RUN:-"${PATH_ROOT}/run"}
+PATH_SYS_CLASS_DMI_ID=${PATH_SYS_CLASS_DMI_ID:-${PATH_ROOT}/sys/class/dmi/id}
+PATH_SYS_HYPERVISOR=${PATH_SYS_HYPERVISOR:-${PATH_ROOT}/sys/hypervisor}
+PATH_SYS_CLASS_BLOCK=${PATH_SYS_CLASS_BLOCK:-${PATH_ROOT}/sys/class/block}
+PATH_DEV_DISK="${PATH_DEV_DISK:-${PATH_ROOT}/dev/disk}"
+PATH_VAR_LIB_CLOUD="${PATH_VAR_LIB_CLOUD:-${PATH_ROOT}/var/lib/cloud}"
+PATH_DI_CONFIG="${PATH_DI_CONFIG:-${PATH_ROOT}/etc/cloud/ds-identify.cfg}"
+PATH_PROC_CMDLINE="${PATH_PROC_CMDLINE:-${PATH_ROOT}/proc/cmdline}"
+PATH_PROC_1_CMDLINE="${PATH_PROC_1_CMDLINE:-${PATH_ROOT}/proc/1/cmdline}"
+PATH_PROC_1_ENVIRON="${PATH_PROC_1_ENVIRON:-${PATH_ROOT}/proc/1/environ}"
+PATH_PROC_UPTIME=${PATH_PROC_UPTIME:-${PATH_ROOT}/proc/uptime}
+PATH_CLOUD_CONFD="${PATH_CLOUD_CONFD:-${PATH_ROOT}/etc/cloud}"
+PATH_RUN_CI="${PATH_RUN_CI:-${PATH_RUN}/cloud-init}"
+PATH_RUN_CI_CFG=${PATH_RUN_CI_CFG:-${PATH_RUN_CI}/cloud.cfg}
+PATH_RUN_DI_RESULT=${PATH_RUN_DI_RESULT:-${PATH_RUN_CI}/.ds-identify.result}
+
+DI_LOG="${DI_LOG:-${PATH_RUN_CI}/ds-identify.log}"
+_DI_LOGGED=""
+
+# set DI_MAIN='noop' in environment to source this file with no main called.
+DI_MAIN=${DI_MAIN:-main}
+
+DI_DEFAULT_POLICY="search,found=all,maybe=all,notfound=${DI_DISABLED}"
+DI_DEFAULT_POLICY_NO_DMI="search,found=all,maybe=all,notfound=${DI_ENABLED}"
+DI_DMI_PRODUCT_NAME=""
+DI_DMI_SYS_VENDOR=""
+DI_DMI_PRODUCT_SERIAL=""
+DI_DMI_PRODUCT_UUID=""
+DI_FS_LABELS=""
+DI_KERNEL_CMDLINE=""
+DI_VIRT=""
+DI_PID_1_PLATFORM=""
+
+DI_UNAME_KERNEL_NAME=""
+DI_UNAME_KERNEL_RELEASE=""
+DI_UNAME_KERNEL_VERSION=""
+DI_UNAME_MACHINE=""
+DI_UNAME_NODENAME=""
+DI_UNAME_OPERATING_SYSTEM=""
+DI_UNAME_CMD_OUT=""
+
+DS_FOUND=0
+DS_NOT_FOUND=1
+DS_MAYBE=2
+
+DI_DSNAME=""
+# this has to match the builtin list in cloud-init, it is what will
+# be searched if there is no setting found in config.
+DI_DSLIST_DEFAULT="MAAS ConfigDrive NoCloud AltCloud Azure Bigstep \
+CloudSigma CloudStack DigitalOcean Ec2 OpenNebula OpenStack OVF SmartOS"
+DI_DSLIST=""
+DI_MODE=""
+DI_REPORT=""
+DI_ON_FOUND=""
+DI_ON_MAYBE=""
+DI_ON_NOTFOUND=""
+
+DI_EC2_STRICT_ID_DEFAULT="true"
+
+error() {
+    set -- "ERROR:" "$@";
+    debug 0 "$@"
+    stderr "$@"
+}
+warn() {
+    set -- "WARN:" "$@"
+    debug 0 "$@"
+    stderr "$@"
+}
+
+stderr() { echo "$@" 1>&2; }
+
+debug() {
+    local lvl="$1"
+    shift
+    [ "$lvl" -gt "${DI_DEBUG_LEVEL}" ] && return
+
+    if [ "$_DI_LOGGED" != "$DI_LOG" ]; then
+        # first time here, open file descriptor for append
+        case "$DI_LOG" in
+            stderr) :;;
+            ?*/*)
+                if [ ! -d "${DI_LOG%/*}" ]; then
+                    mkdir -p "${DI_LOG%/*}" || {
+                        stderr "ERROR:" "cannot write to $DI_LOG"
+                        DI_LOG="stderr"
+                    }
+                fi
+        esac
+        if [ "$DI_LOG" = "stderr" ]; then
+            exec 3>&2
+        else
+            ( exec 3>>"$DI_LOG" ) && exec 3>>"$DI_LOG" || {
+                stderr "ERROR: failed writing to $DI_LOG. logging to stderr.";
+                exec 3>&2
+                DI_LOG="stderr"
+            }
+        fi
+        _DI_LOGGED="$DI_LOG"
+    fi
+    echo "$@" 1>&3
+}
+
+get_dmi_field() {
+    local path="${PATH_SYS_CLASS_DMI_ID}/$1"
+    if [ ! -f "$path" ] || [ ! -r "$path" ]; then
+        _RET="$UNAVAILABLE"
+        return
+    fi
+    read _RET < "${path}" || _RET="$ERROR"
+}
+
+block_dev_with_label() {
+    local p="${PATH_DEV_DISK}/by-label/$1"
+    [ -b "$p" ] || return 1
+    _RET=$p
+    return 0
+}
+
+read_fs_labels() {
+    cached "${DI_FS_LABELS}" && return 0
+    # do not rely on links in /dev/disk which might not be present yet.
+    # note that older blkid versions do not report DEVNAME in 'export' output.
+    local out="" ret=0 oifs="$IFS" line="" delim=","
+    local labels=""
+    if is_container; then
+        # blkid will in a container, or at least currently in lxd
+        # not provide useful information.
+        DI_FS_LABELS="$UNAVAILABLE:container"
+    else
+        out=$(blkid -c /dev/null -o export) || {
+            ret=$?
+            error "failed running [$ret]: blkid -c /dev/null -o export"
+            return $ret
+        }
+        IFS="$CR"
+        set -- $out
+        IFS="$oifs"
+        for line in "$@"; do
+            case "${line}" in
+                LABEL=*) labels="${labels}${line#LABEL=}${delim}";;
+            esac
+        done
+        DI_FS_LABELS="${labels%${delim}}"
+    fi
+}
+
+cached() {
+    [ -n "$1" ] && _RET="$1" && return || return 1
+}
+
+
+has_cdrom() {
+    [ -e "${PATH_ROOT}/dev/cdrom" ]
+}
+
+read_virt() {
+    cached "$DI_VIRT" && return 0
+    local out="" r="" virt="${UNAVAILABLE}"
+    if [ -d /run/systemd ]; then
+        out=$(systemd-detect-virt 2>&1)
+        r=$?
+        if [ $r -eq 0 ] || { [ $r -ne 0 ] && [ "$out" = "none" ]; }; then
+            virt="$out"
+        fi
+    fi
+    DI_VIRT=$virt
+}
+
+is_container() {
+    case "${DI_VIRT}" in
+        lxc|lxc-libvirt|systemd-nspawn|docker|rkt) return 0;;
+        *) return 1;;
+    esac
+}
+
+read_kernel_cmdline() {
+    cached "${DI_KERNEL_CMDLINE}" && return
+    local cmdline="" fpath="${PATH_PROC_CMDLINE}"
+    if is_container; then
+        local p1path="${PATH_PROC_1_CMDLINE}" x=""
+        cmdline="${UNAVAILABLE}:container"
+        if [ -f "$p1path" ] && x=$(tr '\0' ' ' < "$p1path"); then
+            cmdline=$x
+        fi
+    elif [ -f "$fpath" ]; then
+        read cmdline <"$fpath"
+    else
+        cmdline="${UNAVAILABLE}:no-cmdline"
+    fi
+    DI_KERNEL_CMDLINE="$cmdline"
+}
+
+read_dmi_sys_vendor() {
+    cached "${DI_DMI_SYS_VENDOR}" && return
+    get_dmi_field sys_vendor
+    DI_DMI_SYS_VENDOR="$_RET"
+}
+
+read_dmi_product_name() {
+    cached "${DI_DMI_PRODUCT_NAME}" && return
+    get_dmi_field product_name
+    DI_DMI_PRODUCT_NAME="$_RET"
+}
+
+read_dmi_product_uuid() {
+    cached "${DI_DMI_PRODUCT_UUID}" && return
+    get_dmi_field product_uuid
+    DI_DMI_PRODUCT_UUID="$_RET"
+}
+
+read_dmi_product_serial() {
+    cached "${DI_DMI_PRODUCT_SERIAL}" && return
+    get_dmi_field product_serial
+    DI_DMI_PRODUCT_SERIAL="$_RET"
+}
+
+read_uname_info() {
+    # run uname, and parse output.
+    # uname is tricky to parse as it outputs always in a given order
+    # independent of option order. kernel-version is known to have spaces.
+    # 1   -s kernel-name
+    # 2   -n nodename
+    # 3   -r kernel-release
+    # 4.. -v kernel-version(whitespace)
+    # N-2 -m machine
+    # N-1 -o operating-system
+    cached "${DI_UNAME_CMD_OUT}" && return
+    local out="${1:-}" ret=0 buf=""
+    if [ -z "$out" ]; then
+        out=$(uname -snrvmo) || {
+            ret=$?
+            error "failed reading uname with 'uname -snrvmo'"
+            return $ret
+        }
+    fi
+    set -- $out
+    DI_UNAME_KERNEL_NAME="$1"
+    DI_UNAME_NODENAME="$2"
+    DI_UNAME_KERNEL_RELEASE="$3"
+    shift 3
+    while [ $# -gt 2 ]; do
+        buf="$buf $1"
+        shift
+    done
+    DI_UNAME_KERNEL_VERSION="${buf# }"
+    DI_UNAME_MACHINE="$1"
+    DI_UNAME_OPERATING_SYSTEM="$2"
+    DI_UNAME_CMD_OUT="$out"
+    return 0
+}
+
+parse_yaml_array() {
+    # parse a yaml single line array value ([1,2,3], not key: [1,2,3]).
+    # supported with or without leading and closing brackets
+    #   ['1'] or [1]
+    #   '1', '2'
+    local val="$1" oifs="$IFS" ret="" tok=""
+    val=${val#[}
+    val=${val%]}
+    IFS=","; set -- $val; IFS="$oifs"
+    for tok in "$@"; do
+        trim "$tok"
+        unquote "$_RET"
+        ret="${ret} $_RET"
+    done
+    _RET="${ret# }"
+}
+
+read_datasource_list() {
+    cached "$DI_DSLIST" && return
+    local dslist=""
+    # if DI_DSNAME is set directly, then avoid parsing config.
+    if [ -n "${DI_DSNAME}" ]; then
+        dslist="${DI_DSNAME}"
+    fi
+
+    # LP: #1582323. cc:{'datasource_list': ['name']}
+    # more generically cc:<yaml>[end_cc]
+    local cb="]" ob="["
+    case "$DI_KERNEL_CMDLINE" in
+        *cc:*datasource_list*)
+            t=${DI_KERNEL_CMDLINE##*datasource_list}
+            t=${t%%$cb*}
+            t=${t##*$ob}
+            parse_yaml_array "$t"
+            dslist=${_RET}
+            ;;
+    esac
+    if [ -z "$dslist" ] && check_config datasource_list; then
+        debug 1 "$_RET_fname set datasource_list: $_RET"
+        parse_yaml_array "$_RET"
+        dslist=${_RET}
+    fi
+    if [ -z "$dslist" ]; then
+        dslist=${DI_DSLIST_DEFAULT}
+        debug 1 "no datasource_list found, using default:" $dslist
+    fi
+    DI_DSLIST=$dslist
+    return 0
+}
+
+read_pid1_platform() {
+    local oifs="$IFS" out="" tok="" key="" val="" platform="${UNAVAILABLE}"
+    cached "${DI_PID_1_PLATFORM}" && return
+    [ -r "${PATH_PROC_1_ENVIRON}" ] || return
+    out=$(tr '\0' '\n' <"${PATH_PROC_1_ENVIRON}")
+    IFS="$CR"; set -- $out; IFS="$oifs"
+    for tok in "$@"; do
+        key=${tok%%=*}
+        [ "$key" != "$tok" ] || continue
+        val=${tok#*=}
+        [ "$key" = "platform" ] && platform="$val" && break
+    done
+    DI_PID_1_PLATFORM="$platform"
+}
+
+dmi_product_name_matches() {
+    is_container && return 1
+    case "${DI_DMI_PRODUCT_NAME}" in
+        $1) return 0;;
+    esac
+    return 1
+}
+
+dmi_product_name_is() {
+    is_container && return 1
+    [ "${DI_DMI_PRODUCT_NAME}" = "$1" ]
+}
+
+dmi_sys_vendor_is() {
+    is_container && return 1
+    [ "${DI_DMI_SYS_VENDOR}" = "$1" ]
+}
+
+has_fs_with_label() {
+    local label="$1"
+    case ",${DI_FS_LABELS}," in
+        *,$label,*) return 0;;
+    esac
+    return 1
+}
+
+nocase_equal() {
+    # nocase_equal(a, b)
+    # return 0 if case insenstive comparision a.lower() == b.lower()
+    # different lengths
+    [ "${#1}" = "${#2}" ] || return 1
+    # case sensitive equal
+    [ "$1" = "$2" ] && return 0
+
+    local delim="-delim-"
+    out=$(echo "$1${delim}$2" | tr A-Z a-z)
+    [ "${out#*${delim}}" = "${out%${delim}*}" ]
+}
+
+check_seed_dir() {
+    # check_seed_dir(name, [required])
+    # check the seed dir /var/lib/cloud/seed/<name> for 'required'
+    # required defaults to 'meta-data'
+    local name="$1"
+    local dir="${PATH_VAR_LIB_CLOUD}/seed/$name"
+    [ -d "$dir" ] || return 1
+    shift
+    if [ $# -eq 0 ]; then
+        set -- meta-data
+    fi
+    local f=""
+    for f in "$@"; do
+        [ -f "$dir/$f" ] || return 1
+    done
+    return 0
+}
+
+probe_floppy() {
+    cached "${STATE_FLOPPY_PROBED}" && return "${STATE_FLOPPY_PROBED}"
+    local fpath=/dev/floppy
+
+    [ -b "$fpath" ] ||
+        { STATE_FLOPPY_PROBED=1; return 1; }
+
+    modprobe --use-blacklist floppy >/dev/null 2>&1 ||
+        { STATE_FLOPPY_PROBED=1; return 1; }
+
+    udevadm settle "--exit-if-exists=$fpath" ||
+        { STATE_FLOPPY_PROBED=1; return 1; }
+
+    [ -b "$fpath" ]
+    STATE_FLOPPY_PROBED=$?
+    return "${STATE_FLOPPY_PROBED}"
+}
+
+
+dscheck_CloudStack() {
+    is_container && return ${DS_NOT_FOUND}
+    dmi_product_name_matches "CloudStack*" && return $DS_FOUND
+    return $DS_NOT_FOUND
+}
+
+dscheck_CloudSigma() {
+    # http://paste.ubuntu.com/23624795/
+    dmi_product_name_is "CloudSigma" && return $DS_FOUND
+    return $DS_NOT_FOUND
+}
+
+check_config() {
+    # somewhat hackily read config for 'key' in files matching 'files'
+    # currently does not respect any hierarchy.
+    local key="$1" files="" bp="${PATH_CLOUD_CONFD}/cloud.cfg"
+    if [ $# -eq 1 ]; then
+        files="$bp ${bp}.d/*.cfg"
+    else
+        files="$*"
+    fi
+    shift
+    set +f; set -- $files; set +f;
+    if [ "$1" = "$files" -a ! -f "$1" ]; then
+        return 1
+    fi
+    local fname="" line="" ret="" found=0 found_fn=""
+    for fname in "$@"; do
+        [ -f "$fname" ] || continue
+        while read line; do
+            line=${line%%#*}
+            case "$line" in
+                $key:\ *|$key:)
+                    ret=${line#*:};
+                    ret=${ret# };
+                    found=$((found+1))
+                    found_fn="$fname";;
+            esac
+        done <"$fname"
+    done
+    if [ $found -ne 0 ]; then
+        _RET="$ret"
+        _RET_fname="$found_fn"
+        return 0
+    fi
+    return 1
+}
+
+dscheck_MAAS() {
+    is_container && return "${DS_NOT_FOUND}"
+    # heuristic check for ephemeral boot environment
+    # for maas that do not set 'ci.dsname=' in the ephemeral environment
+    # these have iscsi root and cloud-config-url on the cmdline.
+    local maasiqn="iqn.2004-05.com.ubuntu:maas"
+    case "${DI_KERNEL_CMDLINE}" in
+        *cloud-config-url=*${maasiqn}*|*${maasiqn}*cloud-config-url=*)
+            return ${DS_FOUND}
+            ;;
+    esac
+
+    # check config files written by maas for installed system.
+    local confd="${PATH_CLOUD_CONFD}"
+    local fnmatch="$confd/*maas*.cfg $confd/*kernel_cmdline*.cfg"
+    if check_config "MAAS" "$fnmatch"; then
+        return "${DS_FOUND}"
+    fi
+    return ${DS_NOT_FOUND}
+}
+
+dscheck_NoCloud() {
+    local fslabel="cidata" d=""
+    case " ${DI_KERNEL_CMDLINE} " in
+        *\ ds=nocloud*) return ${DS_FOUND};;
+    esac
+    for d in nocloud nocloud-net; do
+        check_seed_dir "$d" meta-data user-data && return ${DS_FOUND}
+    done
+    if has_fs_with_label "${fslabel}"; then
+        return ${DS_FOUND}
+    fi
+    return ${DS_NOT_FOUND}
+}
+
+check_configdrive_v2() {
+    if has_fs_with_label "config-2"; then
+        return ${DS_FOUND}
+    fi
+    return ${DS_NOT_FOUND}
+}
+
+check_configdrive_v1() {
+    # FIXME: this has to check any file system that is vfat...
+    # for now, just return not found.
+    return ${DS_NOT_FOUND}
+}
+
+dscheck_ConfigDrive() {
+    local ret=""
+    check_configdrive_v2
+    ret=$?
+    [ $DS_FOUND -eq $ret ] && return $ret
+
+    check_configdrive_v1
+}
+
+dscheck_DigitalOcean() {
+    dmi_sys_vendor_is DigitalOcean && return ${DS_FOUND}
+    return ${DS_NOT_FOUND}
+}
+
+dscheck_OpenNebula() {
+    check_seed_dir opennebula && return ${DS_FOUND}
+    has_fs_with_label "CONTEXT" && return ${DS_FOUND}
+    return ${DS_NOT_FOUND}
+}
+
+ovf_vmware_guest_customization() {
+    # vmware guest customization
+
+    # virt provider must be vmware
+    [ "${DI_VIRT}" = "vmware" ] || return 1
+
+    # we have to have the plugin to do vmware customization
+    local found="" pkg="" pre="/usr/lib"
+    for pkg in vmware-tools open-vm-tools; do
+        if [ -f "$pre/$pkg/plugins/vmsvc/libdeployPkgPlugin.so" ]; then
+            found="$pkg"; break;
+        fi
+    done
+    [ -n "$found" ] || return 1
+
+    # vmware customization is disabled by default
+    # (disable_vmware_customization=true). If it is set to false, then
+    # user has requested customization.
+    local key="disable_vmware_customization"
+    local match="" bp="${PATH_CLOUD_CONFD}/cloud.cfg"
+    match="$bp $bp.d/*[Oo][Vv][Ff]*.cfg"
+    if check_config "$key" "$match"; then
+        debug 2 "${_RET_fname} set $key to $_RET"
+        case "$_RET" in
+            0|false|False) return 0;;
+            *) return 1;;
+        esac
+    fi
+
+    return 1
+}
+
+dscheck_OVF() {
+    local p=""
+    check_seed_dir ovf ovf-env.xml && return "${DS_FOUND}"
+
+    if ovf_vmware_guest_customization; then
+        return ${DS_FOUND}
+    fi
+
+    has_cdrom || return ${DS_NOT_FOUND}
+
+    # FIXME: currently just return maybe if there is a cdrom
+    # ovf iso9660 transport does not specify an fs label.
+    # better would be to check if
+    return ${DS_MAYBE}
+}
+
+dscheck_Azure() {
+    # http://paste.ubuntu.com/23630873/
+    # $ grep /sr0 /run/blkid/blkid.tab
+    # <device DEVNO="0x0b00" TIME="1481737655.543841"
+    #  UUID="112D211272645f72" LABEL="rd_rdfe_stable.161212-1209"
+    #  TYPE="udf">/dev/sr0</device>
+    #
+    check_seed_dir azure ovf-env.xml && return ${DS_FOUND}
+
+    [ "${DI_VIRT}" = "microsoft" ] || return ${DS_NOT_FOUND}
+
+    has_fs_with_label "rd_rdfe_*" && return ${DS_FOUND}
+
+    return ${DS_NOT_FOUND}
+}
+
+dscheck_Bigstep() {
+    # bigstep is activated by presense of seed file 'url'
+    check_seed_dir "bigstep" url && return ${DS_FOUND}
+    return ${DS_NOT_FOUND}
+}
+
+ec2_read_strict_setting() {
+    # the 'strict_id' setting for Ec2 controls behavior when
+    # the platform does not identify itself directly as Ec2.
+    # order of precedence is:
+    #  1. builtin setting here cloud-init/ds-identify builtin
+    #  2. ds-identify config
+    #  3. system config (/etc/cloud/cloud.cfg.d/*Ec2*.cfg)
+    #  4. kernel command line (undocumented)
+    #  5. user-data or vendor-data (not available here)
+    local default="$1" key="ci.datasource.ec2.strict_id" val=""
+
+    # 4. kernel command line
+    case " ${DI_KERNEL_CMDLINE} " in
+        *\ $key=*\ )
+            val=${DI_KERNEL_CMDLINE##*$key=}
+            val=${val%% *};
+            _RET=${val:-$default}
+            return 0
+    esac
+
+    # 3. look for the key 'strict_id' (datasource/Ec2/strict_id)
+    local match="" bp="${PATH_CLOUD_CONFD}/cloud.cfg"
+    match="$bp $bp.d/*[Ee][Cc]2*.cfg"
+    if check_config strict_id "$match"; then
+        debug 2 "${_RET_fname} set strict_id to $_RET"
+        return 0
+    fi
+
+    # 2. ds-identify config (datasource.ec2.strict)
+    local config="${PATH_DI_CONFIG}"
+    if [ -f "$config" ]; then
+        if _read_config "$key" < "$config"; then
+            _RET=${_RET:-$default}
+            return 0
+        fi
+    fi
+
+    # 1. Default
+    _RET=$default
+    return 0
+}
+
+ec2_identify_platform() {
+    local default="$1"
+    local serial="${DI_DMI_PRODUCT_SERIAL}"
+
+    # brightbox https://bugs.launchpad.net/cloud-init/+bug/1661693
+    case "$serial" in
+        *brightbox.com) _RET="Brightbox"; return 0;;
+    esac
+
+    # AWS http://docs.aws.amazon.com/AWSEC2/
+    #     latest/UserGuide/identify_ec2_instances.html
+    local uuid="" hvuuid="$PATH_ROOT/sys/hypervisor/uuid"
+    # if the (basically) xen specific /sys/hypervisor/uuid starts with 'ec2'
+    if [ -r "$hvuuid" ] && read uuid < "$hvuuid" &&
+        [ "${uuid#ec2}" != "$uuid" ]; then
+        _RET="AWS"
+        return 0
+    fi
+
+    # product uuid and product serial start with case insensitive
+    local uuid="${DI_DMI_PRODUCT_UUID}"
+    case "$uuid:$serial" in
+        [Ee][Cc]2*:[Ee][Cc]2)
+            # both start with ec2, now check for case insenstive equal
+            nocase_equal "$uuid" "$serial" &&
+                { _RET="AWS"; return 0; };;
+    esac
+
+    _RET="$default"
+    return 0;
+}
+
+dscheck_Ec2() {
+    check_seed_dir "ec2" meta-data user-data && return ${DS_FOUND}
+    is_container && return ${DS_NOT_FOUND}
+
+    local unknown="Unknown" platform=""
+    if ec2_identify_platform "$unknown"; then
+        platform="$_RET"
+    else
+        warn "Failed to identify ec2 platform. Using '$unknown'."
+        platform=$unknown
+    fi
+
+    debug 1 "ec2 platform is '$platform'."
+    if [ "$platform" != "$unknown" ]; then
+        return $DS_FOUND
+    fi
+
+    local default="${DI_EC2_STRICT_ID_DEFAULT}"
+    if ec2_read_strict_setting "$default"; then
+        strict="$_RET"
+    else
+        debug 1 "ec2_read_strict returned non-zero: $?. using '$default'."
+        strict="$default"
+    fi
+
+    local key="datasource/Ec2/strict_id"
+    case "$strict" in
+        true|false|warn|warn,[0-9]*) :;;
+        *)
+            warn "$key was set to invalid '$strict'. using '$default'"
+            strict="$default";;
+    esac
+
+    _RET_excfg="datasource: {Ec2: {strict_id: \"$strict\"}}"
+    if [ "$strict" = "true" ]; then
+        return $DS_NOT_FOUND
+    else
+        return $DS_MAYBE
+    fi
+}
+
+dscheck_GCE() {
+    if dmi_product_name_is "Google Compute Engine"; then
+        return ${DS_FOUND}
+    fi
+    return ${DS_NOT_FOUND}
+}
+
+dscheck_OpenStack() {
+    # the openstack metadata http service
+
+    # if there is a config drive, then do not check metadata
+    # FIXME: if config drive not in the search list, then we should not
+    # do this check.
+    check_configdrive_v2
+    if [ $? -eq ${DS_FOUND} ]; then
+        return ${DS_NOT_FOUND}
+    fi
+    if dmi_product_name_is "OpenStack Nova"; then
+        return ${DS_FOUND}
+    fi
+    if [ "${DI_PID_1_PLATFORM}" = "OpenStack Nova" ]; then
+        return ${DS_FOUND}
+    fi
+
+    return ${DS_NOT_FOUND}
+}
+
+dscheck_AliYun() {
+    # aliyun is not enabled by default (LP: #1638931)
+    # so if we are here, it is because the datasource_list was
+    # set to include it.  Thus, 'maybe'.
+    return $DS_MAYBE
+}
+
+dscheck_AltCloud() {
+    # ctype: either the dmi product name, or contents of
+    #        /etc/sysconfig/cloud-info
+    # if ctype == "vsphere"
+    #    device = device with label 'CDROM'
+    # elif ctype == "rhev"
+    #    device = /dev/floppy
+    # then, filesystem on that device must have
+    #    user-data.txt or deltacloud-user-data.txt
+    local ctype="" dev=""
+    local match_rhev="[Rr][Hh][Ee][Vv]"
+    local match_vsphere="[Vv][Ss][Pp][Hh][Ee][Rr][Ee]"
+    local cinfo="${PATH_ROOT}/etc/sysconfig/cloud-info"
+    if [ -f "$cinfo" ]; then
+        read ctype < "$cinfo"
+    else
+        ctype="${DI_DMI_PRODUCT_NAME}"
+    fi
+    case "$ctype" in
+        ${match_rhev})
+            probe_floppy || return ${DS_NOT_FOUND}
+            dev="/dev/floppy"
+            ;;
+        ${match_vsphere})
+            block_dev_with_label CDROM || return ${DS_NOT_FOUND}
+            dev="$_RET"
+            ;;
+        *) return ${DS_NOT_FOUND};;
+    esac
+
+    # FIXME: need to check $dev for user-data.txt or deltacloud-user-data.txt
+    : "$dev"
+    return $DS_MAYBE
+}
+
+dscheck_SmartOS() {
+    # joyent cloud has two virt types: kvm and container
+    # on kvm, product name on joyent public cloud shows 'SmartDC HVM'
+    # on the container platform, uname's version has: BrandZ virtual linux
+    local smartdc_kver="BrandZ virtual linux"
+    dmi_product_name_matches "SmartDC*" && return $DS_FOUND
+    if [ "${DI_UNAME_KERNEL_VERSION}" = "${smartdc_kver}" ] &&
+       [ "${DI_VIRT}" = "container-other" ]; then
+       return ${DS_FOUND}
+    fi
+    return ${DS_NOT_FOUND}
+}
+
+dscheck_None() {
+    return ${DS_NOT_FOUND}
+}
+
+collect_info() {
+    read_virt
+    read_pid1_platform
+    read_kernel_cmdline
+    read_uname_info
+    read_config
+    read_datasource_list
+    read_dmi_sys_vendor
+    read_dmi_product_name
+    read_dmi_product_serial
+    read_dmi_product_uuid
+    read_fs_labels
+}
+
+print_info() {
+    collect_info
+    _print_info
+}
+
+_print_info() {
+    local n="" v="" vars=""
+    vars="DMI_PRODUCT_NAME DMI_SYS_VENDOR DMI_PRODUCT_SERIAL"
+    vars="$vars DMI_PRODUCT_UUID PID_1_PLATFORM"
+    vars="$vars FS_LABELS KERNEL_CMDLINE VIRT"
+    vars="$vars UNAME_KERNEL_NAME UNAME_KERNEL_RELEASE UNAME_KERNEL_VERSION"
+    vars="$vars UNAME_MACHINE UNAME_NODENAME UNAME_OPERATING_SYSTEM"
+    vars="$vars DSNAME DSLIST"
+    vars="$vars MODE REPORT ON_FOUND ON_MAYBE ON_NOTFOUND"
+    for v in ${vars}; do
+        eval n='${DI_'"$v"'}'
+        echo "$v=$n"
+    done
+    echo "pid=$$ ppid=$PPID"
+    is_container && echo "is_container=true" || echo "is_container=false"
+}
+
+write_result() {
+    local runcfg="${PATH_RUN_CI_CFG}" ret="" line="" pre=""
+    {
+        if [ "$DI_REPORT" = "true" ]; then
+            echo "di_report:"
+            pre="  "
+        fi
+        for line in "$@"; do
+            echo "${pre}$line";
+        done
+    } > "$runcfg"
+    ret=$?
+    [ $ret -eq 0 ] || {
+        error "failed to write to ${runcfg}"
+        return $ret
+    }
+    return 0
+}
+
+record_notfound() {
+    # in report mode, report nothing was found.
+    # if not report mode: only report the negative result.
+    #   reporting an empty list would mean cloud-init would not search
+    #   any datasources.
+    if [ "$DI_REPORT" = "true" ]; then
+        found --
+    else
+        local msg="# reporting not found result. notfound=${DI_ON_NOTFOUND}."
+        local DI_REPORT="true"
+        found -- "$msg"
+    fi
+}
+
+found() {
+    # found(ds1, [ds2 ...], [-- [extra lines]])
+    local list="" ds=""
+    while [ $# -ne 0 ]; do
+        if [ "$1" = "--" ]; then
+            shift
+            break
+        fi
+        list="${list:+${list}, }$1"
+        shift
+    done
+    if [ $# -eq 1 ] && [ -z "$1" ]; then
+        # do not pass an empty line through.
+        shift
+    fi
+    # always write the None datasource last.
+    list="${list:+${list}, }None"
+    write_result "datasource_list: [ $list ]" "$@"
+    return
+}
+
+trim() {
+    set -- $*
+    _RET="$*"
+}
+
+unquote() {
+    # remove quotes from quoted value
+    local quote='"' tick="'"
+    local val="$1"
+    case "$val" in
+        ${quote}*${quote}|${tick}*${tick})
+            val=${val#?}; val=${val%?};;
+    esac
+    _RET="$val"
+}
+
+_read_config() {
+    # reads config from stdin,
+    # if no parameters are set, modifies _rc scoped environment vars.
+    # if keyname is provided, then returns found value of that key.
+    local keyname="${1:-_unset}"
+    local line="" hash="#" ckey="" key="" val=""
+    while read line; do
+        line=${line%%${hash}*}
+        key="${line%%:*}"
+
+        # no : in the line.
+        [ "$key" = "$line" ] && continue
+        trim "$key"
+        key=${_RET}
+
+        [ "$keyname" != "_unset" ] && [ "$keyname" != "$key" ] &&
+            continue
+
+        val="${line#*:}"
+        trim "$val"
+        unquote "${_RET}"
+        val=${_RET}
+
+        if [ "$keyname" = "$key" ]; then
+            _RET="$val"
+            return 0
+        fi
+
+        case "$key" in
+            datasource) _rc_dsname="$val";;
+            policy) _rc_policy="$val";;
+        esac
+    done
+    if [ "$keyname" = "_unset" ]; then
+        return 1
+    fi
+    _RET=""
+    return 0
+}
+
+parse_warn() {
+    echo "WARN: invalid value '$2' for key '$1'. Using $1=$3." 1>&2
+}
+
+parse_def_policy() {
+    local _rc_mode="" _rc_report="" _rc_found="" _rc_maybe="" _rc_notfound=""
+    local ret=""
+    parse_policy "$@"
+    ret=$?
+    _def_mode=$_rc_mode
+    _def_report=$_rc_report
+    _def_found=$_rc_found
+    _def_maybe=$_rc_maybe
+    _def_notfound=$_rc_notfound
+    return $ret
+}
+
+parse_policy() {
+    # parse_policy(policy, default)
+    # parse a policy string.  sets
+    #   _rc_mode (enable|disable,search)
+    #   _rc_report true|false
+    #   _rc_found first|all
+    #   _rc_maybe all|none
+    #   _rc_notfound enable|disable
+    local def=""
+    case "$DI_UNAME_MACHINE" in
+        # these have dmi data
+        i?86|x86_64) def=${DI_DEFAULT_POLICY};;
+        # aarch64 has dmi, but not currently used (LP: #1663304)
+        aarch64) def=${DI_DEFAULT_POLICY_NO_DMI};;
+        *) def=${DI_DEFAULT_POLICY_NO_DMI};;
+    esac
+    local policy="$1"
+    local _def_mode="" _def_report="" _def_found="" _def_maybe=""
+    local _def_notfound=""
+    if [ $# -eq 1 ] || [ "$2" != "-" ]; then
+        def=${2:-${def}}
+        parse_def_policy "$def" -
+    fi
+
+    local mode="" report="" found="" maybe="" notfound=""
+    local oifs="$IFS" tok="" val=""
+    IFS=","; set -- $policy; IFS="$oifs"
+    for tok in "$@"; do
+        val=${tok#*=}
+        case "$tok" in
+            report) report=true;;
+            $DI_ENABLED|$DI_DISABLED|search) mode=$tok;;
+            found=all|found=first) found=$val;;
+            maybe=all|maybe=none) maybe=$val;;
+            notfound=$DI_ENABLED|notfound=$DI_DISABLED) notfound=$val;;
+            found=*)
+               parse_warn found "$val" "${_def_found}"
+               found=${_def_found};;
+            maybe=*)
+               parse_warn maybe "$val" "${_def_maybe}"
+               maybe=${_def_maybe};;
+            notfound=*)
+               parse_warn notfound "$val" "${_def_notfound}"
+               notfound=${_def_notfound};;
+        esac
+    done
+    report=${report:-${_def_report:-false}}
+    _rc_report=${report}
+    _rc_mode=${mode:-${_def_mode}}
+    _rc_found=${found:-${_def_found}}
+    _rc_maybe=${maybe:-${_def_maybe}}
+    _rc_notfound=${notfound:-${_def_notfound}}
+}
+
+read_config() {
+    local config="${PATH_DI_CONFIG}"
+    local _rc_dsname="" _rc_policy="" ret=""
+    if [ -f "$config" ]; then
+        _read_config < "$config"
+        ret=$?
+    elif [ -e "$config" ]; then
+        error "$config exists but is not a file!"
+        ret=1
+    fi
+    local tok="" key="" val=""
+    for tok in ${DI_KERNEL_CMDLINE}; do
+        key=${tok%%=*}
+        val=${tok#*=}
+        case "$key" in
+            ci.ds) _rc_dsname="$val";;
+            ci.datasource) _rc_dsname="$val";;
+            ci.di.policy) _rc_policy="$val";;
+        esac
+    done
+
+    local _rc_mode _rc_report _rc_found _rc_maybe _rc_notfound
+    parse_policy "${_rc_policy}"
+    debug 1 "policy loaded: mode=${_rc_mode} report=${_rc_report}" \
+            "found=${_rc_found} maybe=${_rc_maybe} notfound=${_rc_notfound}"
+    DI_MODE=${_rc_mode}
+    DI_REPORT=${_rc_report}
+    DI_ON_FOUND=${_rc_found}
+    DI_ON_MAYBE=${_rc_maybe}
+    DI_ON_NOTFOUND=${_rc_notfound}
+
+    DI_DSNAME="${_rc_dsname}"
+    return $ret
+}
+
+
+manual_clean_and_existing() {
+    [ -f "${PATH_VAR_LIB_CLOUD}/instance/manual-clean" ]
+}
+
+read_uptime() {
+    local up idle
+    _RET="${UNAVAILABLE}"
+    [ -f "$PATH_PROC_UPTIME" ] &&
+        read up idle < "$PATH_PROC_UPTIME" && _RET="$up"
+    return
+}
+
+_main() {
+    local dscheck="" ret_dis=1 ret_en=0
+
+    read_uptime
+    debug 1 "[up ${_RET}s]" "ds-identify $*"
+    collect_info
+
+    if [ "$DI_LOG" = "stderr" ]; then
+        _print_info 1>&2
+    else
+        _print_info >> "$DI_LOG"
+    fi
+
+    case "$DI_MODE" in
+        $DI_DISABLED)
+            debug 1 "mode=$DI_DISABLED. returning $ret_dis"
+            return $ret_dis
+            ;;
+        $DI_ENABLED)
+            debug 1 "mode=$DI_ENABLED. returning $ret_en"
+            return $ret_en;;
+        search) :;;
+    esac
+
+    if [ -n "${DI_DSNAME}" ]; then
+        debug 1 "datasource '$DI_DSNAME' specified."
+        found "$DI_DSNAME"
+        return
+    fi
+
+    if manual_clean_and_existing; then
+        debug 1 "manual_cache_clean enabled. Not writing datasource_list."
+        write_result "# manual_cache_clean."
+        return
+    fi
+
+    # if there is only a single entry in $DI_DSLIST
+    set -- $DI_DSLIST
+    if [ $# -eq 1 ] || [ $# -eq 2 -a "$2" = "None" ] ; then
+        debug 1 "single entry in datasource_list ($DI_DSLIST) use that."
+        found "$@"
+        return
+    fi
+
+    local found="" ret="" ds="" maybe="" _RET_excfg=""
+    local exfound_cfg="" exmaybe_cfg=""
+    for ds in ${DI_DSLIST}; do
+        dscheck_fn="dscheck_${ds}"
+        debug 2 "Checking for datasource '$ds' via '$dscheck_fn'"
+        if ! type "$dscheck_fn" >/dev/null 2>&1; then
+            warn "No check method '$dscheck_fn' for datasource '$ds'"
+            continue
+        fi
+        _RET_excfg=""
+        $dscheck_fn
+        ret="$?"
+        case "$ret" in
+            $DS_FOUND)
+                debug 1 "check for '$ds' returned found";
+                exfound_cfg="${exfound_cfg:+${exfound_cfg}${CR}}${_RET_excfg}"
+                found="${found} $ds";;
+            $DS_MAYBE)
+                debug 1 "check for '$ds' returned maybe";
+                exmaybe_cfg="${exmaybe_cfg:+${exmaybe_cfg}${CR}}${_RET_excfg}"
+                maybe="${maybe} $ds";;
+            *) debug 2 "check for '$ds' returned not-found[$ret]";;
+        esac
+    done
+
+    debug 2 "found=${found# } maybe=${maybe# }"
+    set -- $found
+    if [ $# -ne 0 ]; then
+        if [ $# -eq 1 ]; then
+            debug 1 "Found single datasource: $1"
+        else
+            # found=all
+            debug 1 "Found $# datasources found=${DI_ON_FOUND}: $*"
+            if [ "${DI_ON_FOUND}" = "first" ]; then
+                set -- "$1"
+            fi
+        fi
+        found "$@" -- "${exfound_cfg}"
+        return
+    fi
+
+    set -- $maybe
+    if [ $# -ne 0 -a "${DI_ON_MAYBE}" != "none" ]; then
+        debug 1 "$# datasources returned maybe: $*"
+        found "$@" -- "${exmaybe_cfg}"
+        return
+    fi
+
+    # record the empty result.
+    record_notfound
+    case "$DI_ON_NOTFOUND" in
+        $DI_DISABLED)
+            debug 1 "No result. notfound=$DI_DISABLED. returning $ret_dis."
+            return $ret_dis
+            ;;
+        $DI_ENABLED)
+            debug 1 "No result. notfound=$DI_ENABLED. returning $ret_en"
+            return $ret_en;;
+    esac
+
+    error "Unexpected result"
+    return 3
+}
+
+main() {
+    local ret=""
+    [ -d "$PATH_RUN_CI" ] || mkdir -p "$PATH_RUN_CI"
+    if [ "${1:+$1}" != "--force" ] && [ -f "$PATH_RUN_CI_CFG" ] &&
+        [ -f "$PATH_RUN_DI_RESULT" ]; then
+        if read ret < "$PATH_RUN_DI_RESULT"; then
+            if [ "$ret" = "0" ] || [ "$ret" = "1" ]; then
+                debug 2 "used cached result $ret. pass --force to re-run."
+                return $ret;
+            fi
+            debug 1 "previous run returned unexpected '$ret'. Re-running."
+        else
+            error "failed to read result from $PATH_RUN_DI_RESULT!"
+        fi
+    fi
+    _main "$@"
+    ret=$?
+    echo "$ret" > "$PATH_RUN_DI_RESULT"
+    read_uptime
+    debug 1 "[up ${_RET}s]" "returning $ret"
+    return $ret
+}
+
+noop() {
+    :
+}
+
+case "${DI_MAIN}" in
+    main|print_info|noop) "${DI_MAIN}" "$@";;
+    *) error "unexpected value for DI_MAIN"; exit 1;;
+esac
+
+# vi: syntax=sh ts=4 expandtab
