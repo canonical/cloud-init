@@ -29,6 +29,7 @@ from cloudinit import templater
 from cloudinit import url_helper
 from cloudinit import util
 from cloudinit import version
+from cloudinit import warnings
 
 from cloudinit import reporting
 from cloudinit.reporting import events
@@ -413,8 +414,46 @@ def main_init(name, args):
     # give the activated datasource a chance to adjust
     init.activate_datasource()
 
+    di_report_warn(datasource=init.datasource, cfg=init.cfg)
+
     # Stage 10
     return (init.datasource, run_module_section(mods, name, name))
+
+
+def di_report_warn(datasource, cfg):
+    if 'di_report' not in cfg:
+        LOG.debug("no di_report found in config.")
+        return
+
+    dicfg = cfg.get('di_report', {})
+    if not isinstance(dicfg, dict):
+        LOG.warn("di_report config not a dictionary: %s", dicfg)
+        return
+
+    dslist = dicfg.get('datasource_list')
+    if dslist is None:
+        LOG.warn("no 'datasource_list' found in di_report.")
+        return
+    elif not isinstance(dslist, list):
+        LOG.warn("di_report/datasource_list not a list: %s", dslist)
+        return
+
+    # ds.__module__ is like cloudinit.sources.DataSourceName
+    # where Name is the thing that shows up in datasource_list.
+    modname = datasource.__module__.rpartition(".")[2]
+    if modname.startswith(sources.DS_PREFIX):
+        modname = modname[len(sources.DS_PREFIX):]
+    else:
+        LOG.warn("Datasource '%s' came from unexpected module '%s'.",
+                 datasource, modname)
+
+    if modname in dslist:
+        LOG.debug("used datasource '%s' from '%s' was in di_report's list: %s",
+                  datasource, modname, dslist)
+        return
+
+    warnings.show_warning('dsid_missing_source', cfg,
+                          source=modname, dslist=str(dslist))
 
 
 def main_modules(action_name, args):
