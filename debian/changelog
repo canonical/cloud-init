@@ -1,3 +1,45 @@
+cloud-init (0.7.9-47-gc81ea53-0ubuntu1~16.10.1) UNRELEASED; urgency=medium
+
+  * New upstream snapshot.
+    - Support warning if the used datasource is not in ds-identify's list
+      (LP: #1669675).
+    - DatasourceEc2: add warning message when not on AWS. (LP: #1660385)
+    - Z99-cloudinit-warnings: Add profile.d script for showing warnings on
+    - Z99-cloud-locale-test.sh: convert tabs to spaces, remove unneccesary
+      execute bit in permissions.
+    - (RedHat) net: correct errors in cloudinit/net/sysconfig.py
+      [Lars Kellogg-Stedman]
+    - ec2_utils: fix MetadataLeafDecoder that returned bytes on empty
+    - Fix eni rendering of multiple IPs per interface [Ryan Harper]
+      (LP: #1657940)
+    - Add 3 ecdsa-sha2-nistp* ssh key types now that they are standardized
+      [Lars Kellogg-Stedman]
+    - EC2: Do not cache security credentials on disk [Andrew Jorgensen]
+      (LP: #1638312)
+    - OpenStack: Use timeout and retries from config in get_data.
+      [Lars Kellogg-Stedman] (LP: #1657130)
+    - Fixed Misc issues related to VMware customization. [Sankar Tanguturi]
+    - (RedHat) Use dnf instead of yum when available [Lars Kellogg-Stedman]
+    - Get early logging logged, including failures of cmdline url.
+    - test / doc / build environment changes
+      - Remove style checking during build and add latest style checks to
+        tox [Joshua Powers]
+      - code-style: make master pass pycodestyle (2.3.1) cleanly, currently
+        [Joshua Powers]
+      - Fix small typo and change iso-filename for consistency
+      - tools/mock-meta: support python2 or python3 and ipv6 in both.
+      - tests: remove executable bit on test_net, so it runs, and fix it.
+      - tests: No longer monkey patch httpretty for python 3.4.2
+      - reset httppretty for each test [Lars Kellogg-Stedman]
+      - build: fix running Make on a branch with tags other than master
+      - doc: Fix typos and clarify some aspects of the part-handler
+        [Erik M. Bray]
+      - doc: add some documentation on OpenStack datasource.
+      - Fix minor docs typo: perserve > preserve [Jeremy Bicha]
+      - validate-yaml: use python rather than explicitly python3
+
+ -- Scott Moser <smoser@ubuntu.com>  Fri, 03 Mar 2017 02:38:34 -0500
+
 cloud-init (0.7.9-0ubuntu1~16.10.1) yakkety; urgency=medium
 
   * debian/copyright: update License field to include Apache-2.0
