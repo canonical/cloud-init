@@ -27,7 +27,7 @@ will be used.
 
 **Config keys**::
 
-    perserve_hostname: <true/false>
+    preserve_hostname: <true/false>
     fqdn: <fqdn>
     hostname: <fqdn/hostname>
 """

@@ -26,8 +26,10 @@ from cloudinit import signal_handler
 from cloudinit import sources
 from cloudinit import stages
 from cloudinit import templater
+from cloudinit import url_helper
 from cloudinit import util
 from cloudinit import version
+from cloudinit import warnings
 
 from cloudinit import reporting
 from cloudinit.reporting import events
@@ -129,23 +131,104 @@ def apply_reporting_cfg(cfg):
         reporting.update_configuration(cfg.get('reporting'))
 
 
+def parse_cmdline_url(cmdline, names=('cloud-config-url', 'url')):
+    data = util.keyval_str_to_dict(cmdline)
+    for key in names:
+        if key in data:
+            return key, data[key]
+    raise KeyError("No keys (%s) found in string '%s'" %
+                   (cmdline, names))
+
+
+def attempt_cmdline_url(path, network=True, cmdline=None):
+    """Write data from url referenced in command line to path.
+
+    path: a file to write content to if downloaded.
+    network: should network access be assumed.
+    cmdline: the cmdline to parse for cloud-config-url.
+
+    This is used in MAAS datasource, in "ephemeral" (read-only root)
+    environment where the instance netboots to iscsi ro root.
+    and the entity that controls the pxe config has to configure
+    the maas datasource.
+
+    An attempt is made on network urls even in local datasource
+    for case of network set up in initramfs.
+
+    Return value is a tuple of a logger function (logging.DEBUG)
+    and a message indicating what happened.
+    """
+
+    if cmdline is None:
+        cmdline = util.get_cmdline()
+
+    try:
+        cmdline_name, url = parse_cmdline_url(cmdline)
+    except KeyError:
+        return (logging.DEBUG, "No kernel command line url found.")
+
+    path_is_local = url.startswith("file://") or url.startswith("/")
+
+    if path_is_local and os.path.exists(path):
+        if network:
+            m = ("file '%s' existed, possibly from local stage download"
+                 " of command line url '%s'. Not re-writing." % (path, url))
+            level = logging.INFO
+            if path_is_local:
+                level = logging.DEBUG
+        else:
+            m = ("file '%s' existed, possibly from previous boot download"
+                 " of command line url '%s'. Not re-writing." % (path, url))
+            level = logging.WARN
+
+        return (level, m)
+
+    kwargs = {'url': url, 'timeout': 10, 'retries': 2}
+    if network or path_is_local:
+        level = logging.WARN
+        kwargs['sec_between'] = 1
+    else:
+        level = logging.DEBUG
+        kwargs['sec_between'] = .1
+
+    data = None
+    header = b'#cloud-config'
+    try:
+        resp = util.read_file_or_url(**kwargs)
+        if resp.ok():
+            data = resp.contents
+            if not resp.contents.startswith(header):
+                if cmdline_name == 'cloud-config-url':
+                    level = logging.WARN
+                else:
+                    level = logging.INFO
+                return (
+                    level,
+                    "contents of '%s' did not start with %s" % (url, header))
+        else:
+            return (level,
+                    "url '%s' returned code %s. Ignoring." % (url, resp.code))
+
+    except url_helper.UrlError as e:
+        return (level, "retrieving url '%s' failed: %s" % (url, e))
+
+    util.write_file(path, data, mode=0o600)
+    return (logging.INFO,
+            "wrote cloud-config data from %s='%s' to %s" %
+            (cmdline_name, url, path))
+
+
 def main_init(name, args):
     deps = [sources.DEP_FILESYSTEM, sources.DEP_NETWORK]
     if args.local:
         deps = [sources.DEP_FILESYSTEM]
 
-    if not args.local:
-        # See doc/kernel-cmdline.txt
-        #
-        # This is used in maas datasource, in "ephemeral" (read-only root)
-        # environment where the instance netboots to iscsi ro root.
-        # and the entity that controls the pxe config has to configure
-        # the maas datasource.
-        #
-        # Could be used elsewhere, only works on network based (not local).
-        root_name = "%s.d" % (CLOUD_CONFIG)
-        target_fn = os.path.join(root_name, "91_kernel_cmdline_url.cfg")
-        util.read_write_cmdline_url(target_fn)
+    early_logs = []
+    early_logs.append(
+        attempt_cmdline_url(
+            path=os.path.join("%s.d" % CLOUD_CONFIG,
+                              "91_kernel_cmdline_url.cfg"),
+            network=not args.local))
 
     # Cloud-init 'init' stage is broken up into the following sub-stages
     # 1. Ensure that the init object fetches its config without errors
@@ -171,12 +254,14 @@ def main_init(name, args):
     outfmt = None
     errfmt = None
     try:
-        LOG.debug("Closing stdin")
+        early_logs.append((logging.DEBUG, "Closing stdin."))
         util.close_stdin()
         (outfmt, errfmt) = util.fixup_output(init.cfg, name)
     except Exception:
-        util.logexc(LOG, "Failed to setup output redirection!")
-        print_exc("Failed to setup output redirection!")
+        msg = "Failed to setup output redirection!"
+        util.logexc(LOG, msg)
+        print_exc(msg)
+        early_logs.append((logging.WARN, msg))
     if args.debug:
         # Reset so that all the debug handlers are closed out
         LOG.debug(("Logging being reset, this logger may no"
@@ -189,6 +274,10 @@ def main_init(name, args):
     # config applied.  We send the welcome message now, as stderr/out have
     # been redirected and log now configured.
     welcome(name, msg=w_msg)
+
+    # re-play early log messages before logging was setup
+    for lvl, msg in early_logs:
+        LOG.log(lvl, msg)
 
     # Stage 3
     try:
@@ -224,8 +313,15 @@ def main_init(name, args):
                       " would allow us to stop early.")
     else:
         existing = "check"
-        if util.get_cfg_option_bool(init.cfg, 'manual_cache_clean', False):
+        mcfg = util.get_cfg_option_bool(init.cfg, 'manual_cache_clean', False)
+        if mcfg:
+            LOG.debug("manual cache clean set from config")
             existing = "trust"
+        else:
+            mfile = path_helper.get_ipath_cur("manual_clean_marker")
+            if os.path.exists(mfile):
+                LOG.debug("manual cache clean found from marker: %s", mfile)
+                existing = "trust"
 
         init.purge_cache()
         # Delete the non-net file as well
@@ -318,8 +414,46 @@ def main_init(name, args):
     # give the activated datasource a chance to adjust
     init.activate_datasource()
 
+    di_report_warn(datasource=init.datasource, cfg=init.cfg)
+
     # Stage 10
     return (init.datasource, run_module_section(mods, name, name))
+
+
+def di_report_warn(datasource, cfg):
+    if 'di_report' not in cfg:
+        LOG.debug("no di_report found in config.")
+        return
+
+    dicfg = cfg.get('di_report', {})
+    if not isinstance(dicfg, dict):
+        LOG.warn("di_report config not a dictionary: %s", dicfg)
+        return
+
+    dslist = dicfg.get('datasource_list')
+    if dslist is None:
+        LOG.warn("no 'datasource_list' found in di_report.")
+        return
+    elif not isinstance(dslist, list):
+        LOG.warn("di_report/datasource_list not a list: %s", dslist)
+        return
+
+    # ds.__module__ is like cloudinit.sources.DataSourceName
+    # where Name is the thing that shows up in datasource_list.
+    modname = datasource.__module__.rpartition(".")[2]
+    if modname.startswith(sources.DS_PREFIX):
+        modname = modname[len(sources.DS_PREFIX):]
+    else:
+        LOG.warn("Datasource '%s' came from unexpected module '%s'.",
+                 datasource, modname)
+
+    if modname in dslist:
+        LOG.debug("used datasource '%s' from '%s' was in di_report's list: %s",
+                  datasource, modname, dslist)
+        return
+
+    warnings.show_warning('dsid_missing_source', cfg,
+                          source=modname, dslist=str(dslist))
 
 
 def main_modules(action_name, args):

@@ -11,7 +11,8 @@ import sys
 import six
 from six.moves import cPickle as pickle
 
-from cloudinit.settings import (PER_INSTANCE, FREQUENCIES, CLOUD_CONFIG)
+from cloudinit.settings import (
+    FREQUENCIES, CLOUD_CONFIG, PER_INSTANCE, RUN_CLOUD_CONFIG)
 
 from cloudinit import handlers
 
@@ -188,6 +189,12 @@ class Init(object):
     def _write_to_cache(self):
         if self.datasource is NULL_DATA_SOURCE:
             return False
+        if util.get_cfg_option_bool(self.cfg, 'manual_cache_clean', False):
+            # The empty file in instance/ dir indicates manual cleaning,
+            # and can be read by ds-identify.
+            util.write_file(
+                self.paths.get_ipath_cur("manual_clean_marker"),
+                omode="w", content="")
         return _pkl_store(self.datasource, self.paths.get_ipath_cur("obj_pkl"))
 
     def _get_datasources(self):
@@ -828,6 +835,10 @@ class Modules(object):
         return self._run_modules(mostly_mods)
 
 
+def read_runtime_config():
+    return util.read_conf(RUN_CLOUD_CONFIG)
+
+
 def fetch_base_config():
     return util.mergemanydict(
         [
@@ -835,6 +846,8 @@ def fetch_base_config():
             util.get_builtin_cfg(),
             # Anything in your conf.d or 'default' cloud.cfg location.
             util.read_conf_with_confd(CLOUD_CONFIG),
+            # runtime config
+            read_runtime_config(),
             # Kernel/cmdline parameters override system config
             util.read_conf_from_cmdline(),
         ], reverse=True)

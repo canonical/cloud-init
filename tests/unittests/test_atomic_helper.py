@@ -6,10 +6,10 @@ import stat
 
 from cloudinit import atomic_helper
 
-from . import helpers
+from .helpers import CiTestCase
 
 
-class TestAtomicHelper(helpers.TempDirTestCase):
+class TestAtomicHelper(CiTestCase):
     def test_basic_usage(self):
         """write_file takes bytes if no omode."""
         path = self.tmp_path("test_basic_usage")

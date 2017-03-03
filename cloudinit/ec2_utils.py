@@ -28,7 +28,7 @@ class MetadataLeafDecoder(object):
 
     def __call__(self, field, blob):
         if not blob:
-            return blob
+            return ''
         try:
             blob = util.decode_binary(blob)
         except UnicodeDecodeError:
@@ -81,6 +81,9 @@ class MetadataMaterializer(object):
             field = field.strip()
             field_name = get_name(field)
             if not field or not field_name:
+                continue
+            # Don't materialize credentials
+            if field_name == 'security-credentials':
                 continue
             if has_children(field):
                 if field_name not in children:
