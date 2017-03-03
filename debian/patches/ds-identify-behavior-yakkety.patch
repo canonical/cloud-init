@@ -24,7 +24,7 @@ Bug-ubuntu: http://bugs.launchpad.net/bugs/1660385
  DI_ON_NOTFOUND=""
  
 -DI_EC2_STRICT_ID_DEFAULT="true"
-+DI_EC2_STRICT_ID_DEFAULT="warn,10"
++DI_EC2_STRICT_ID_DEFAULT="warn"
  
  error() {
      set -- "ERROR:" "$@";
