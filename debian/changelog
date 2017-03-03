@@ -1,3 +1,18 @@
+cloud-init (0.7.9-47-gc81ea53-0ubuntu1) UNRELEASED; urgency=medium
+
+  * New upstream snapshot.
+    - Support warning if the used datasource is not in ds-identify's list
+      (LP: #1669675)
+    - Z99-cloudinit-warnings: Add profile.d script for showing warnings on
+      login.
+    - Z99-cloud-locale-test.sh: convert tabs to spaces, remove unneccesary
+      execute bit in permissions.
+    - tools/ds-identify: look at cloud.cfg when looking for ec2 strict_id.
+    - tools/ds-identify: fix bug that would mistakingly enable vmware guest
+      customization.
+
+ -- Scott Moser <smoser@ubuntu.com>  Fri, 03 Mar 2017 01:47:49 -0500
+
 cloud-init (0.7.9-38-g83606ae-0ubuntu1) zesty; urgency=medium
 
   * New upstream snapshot.
