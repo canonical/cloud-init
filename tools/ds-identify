@@ -886,10 +886,23 @@ write_result() {
     return 0
 }
 
+record_notfound() {
+    # in report mode, report nothing was found.
+    # if not report mode: only report the negative result.
+    #   reporting an empty list would mean cloud-init would not search
+    #   any datasources.
+    if [ "$DI_REPORT" = "true" ]; then
+        found --
+    else
+        local msg="# reporting not found result. notfound=${DI_ON_NOTFOUND}."
+        local DI_REPORT="true"
+        found -- "$msg"
+    fi
+}
+
 found() {
     # found(ds1, [ds2 ...], [-- [extra lines]])
     local list="" ds=""
-    # always we write the None datasource last.
     while [ $# -ne 0 ]; do
         if [ "$1" = "--" ]; then
             shift
@@ -902,6 +915,8 @@ found() {
         # do not pass an empty line through.
         shift
     fi
+    # always write the None datasource last.
+    list="${list:+${list}, }None"
     write_result "datasource_list: [ $list ]" "$@"
     return
 }
@@ -1173,13 +1188,15 @@ _main() {
         return
     fi
 
+    # record the empty result.
+    record_notfound
     case "$DI_ON_NOTFOUND" in
         $DI_DISABLED)
             debug 1 "No result. notfound=$DI_DISABLED. returning $ret_dis."
             return $ret_dis
             ;;
         $DI_ENABLED)
-            debug 1 "notfound=$DI_ENABLED. returning $ret_en"
+            debug 1 "No result. notfound=$DI_ENABLED. returning $ret_en"
             return $ret_en;;
     esac
 
