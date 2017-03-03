@@ -1,4 +1,4 @@
-cloud-init (0.7.9-47-gc81ea53-0ubuntu1) UNRELEASED; urgency=medium
+cloud-init (0.7.9-47-gc81ea53-0ubuntu1) zesty; urgency=medium
 
   * debian/rules: install Z99-cloudinit-warnings.sh to /etc/profile.d
   * New upstream snapshot.
@@ -12,7 +12,7 @@ cloud-init (0.7.9-47-gc81ea53-0ubuntu1) UNRELEASED; urgency=medium
     - tools/ds-identify: fix bug that would mistakingly enable vmware guest
       customization.
 
- -- Scott Moser <smoser@ubuntu.com>  Fri, 03 Mar 2017 01:47:49 -0500
+ -- Scott Moser <smoser@ubuntu.com>  Fri, 03 Mar 2017 01:56:19 -0500
 
 cloud-init (0.7.9-38-g83606ae-0ubuntu1) zesty; urgency=medium
 
