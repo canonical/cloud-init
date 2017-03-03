@@ -109,6 +109,7 @@ DI_ON_FOUND=""
 DI_ON_MAYBE=""
 DI_ON_NOTFOUND=""
 
+DI_EC2_STRICT_ID_DEFAULT="true"
 
 error() {
     set -- "ERROR:" "$@";
@@ -721,7 +722,7 @@ dscheck_Ec2() {
         return $DS_FOUND
     fi
 
-    local default="true"
+    local default="${DI_EC2_STRICT_ID_DEFAULT}"
     if ec2_read_strict_setting "$default"; then
         strict="$_RET"
     else
