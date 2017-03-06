@@ -7,20 +7,27 @@
 #
 # policy: a string that indicates how ds-identify should operate.
 #     kernel command line option: ci.di.policy=<policy>
+#   The format is:
+#        <mode>,found=value,maybe=value,notfound=value
 #   default setting is:
 #     search,found=all,maybe=all,notfound=disable
 #
-#   report: write config to /run/cloud-init/cloud.cfg, but
-#           namespaced under 'di_report'.  Thus cloud-init can still see
-#           the result, but has no affect.
-#   enable: do nothing
-#      ds-identify writes no config and just exits success
-#      the caller (cloud-init-generator) then enables cloud-init to run
-#      just without any aid from ds-identify.
-#   disable: disable cloud-init
+#   Mode:
+#     disabled: disable cloud-init
+#     enabled:  enable cloud-init.
+#               ds-identify writes no config and just exits success.
+#               the caller (cloud-init-generator) then enables cloud-init to
+#               run just without any aid from ds-identify.
+#     search:   determine which source or sources should be used
+#               and write the result (datasource_list) to
+#               /run/cloud-init/cloud.cfg
+#     report:   basically 'dry run' for search.  results are still written
+#               to the file, but are namespaced under the top level key
+#               'di_report' Thus cloud-init is not affected, but can still
+#               see the result.
 #
-#   [report,]found=value,maybe=value,notfound=value
-#      found: (default=first)
+#   found,maybe,notfound:
+#      found: (default=all)
 #         first: use the first found do no further checking
 #         all: enable all DS_FOUND
 #
@@ -104,7 +111,6 @@ DI_DSLIST_DEFAULT="MAAS ConfigDrive NoCloud AltCloud Azure Bigstep \
 CloudSigma CloudStack DigitalOcean Ec2 OpenNebula OpenStack OVF SmartOS"
 DI_DSLIST=""
 DI_MODE=""
-DI_REPORT=""
 DI_ON_FOUND=""
 DI_ON_MAYBE=""
 DI_ON_NOTFOUND=""
@@ -859,7 +865,7 @@ _print_info() {
     vars="$vars UNAME_KERNEL_NAME UNAME_KERNEL_RELEASE UNAME_KERNEL_VERSION"
     vars="$vars UNAME_MACHINE UNAME_NODENAME UNAME_OPERATING_SYSTEM"
     vars="$vars DSNAME DSLIST"
-    vars="$vars MODE REPORT ON_FOUND ON_MAYBE ON_NOTFOUND"
+    vars="$vars MODE ON_FOUND ON_MAYBE ON_NOTFOUND"
     for v in ${vars}; do
         eval n='${DI_'"$v"'}'
         echo "$v=$n"
@@ -871,7 +877,7 @@ _print_info() {
 write_result() {
     local runcfg="${PATH_RUN_CI_CFG}" ret="" line="" pre=""
     {
-        if [ "$DI_REPORT" = "true" ]; then
+        if [ "$DI_MODE" = "report" ]; then
             echo "di_report:"
             pre="  "
         fi
@@ -892,11 +898,11 @@ record_notfound() {
     # if not report mode: only report the negative result.
     #   reporting an empty list would mean cloud-init would not search
     #   any datasources.
-    if [ "$DI_REPORT" = "true" ]; then
+    if [ "$DI_MODE" = "report" ]; then
         found --
-    else
+    elif [ "$DI_MODE" = "search" ]; then
         local msg="# reporting not found result. notfound=${DI_ON_NOTFOUND}."
-        local DI_REPORT="true"
+        local DI_MODE="report"
         found -- "$msg"
     fi
 }
@@ -998,11 +1004,11 @@ parse_def_policy() {
 parse_policy() {
     # parse_policy(policy, default)
     # parse a policy string.  sets
-    #   _rc_mode (enable|disable,search)
+    #   _rc_mode (enabled|disabled|search|report)
     #   _rc_report true|false
     #   _rc_found first|all
     #   _rc_maybe all|none
-    #   _rc_notfound enable|disable
+    #   _rc_notfound enabled|disabled
     local def=""
     case "$DI_UNAME_MACHINE" in
         # these have dmi data
@@ -1025,8 +1031,7 @@ parse_policy() {
     for tok in "$@"; do
         val=${tok#*=}
         case "$tok" in
-            report) report=true;;
-            $DI_ENABLED|$DI_DISABLED|search) mode=$tok;;
+            $DI_ENABLED|$DI_DISABLED|search|report) mode=$tok;;
             found=all|found=first) found=$val;;
             maybe=all|maybe=none) maybe=$val;;
             notfound=$DI_ENABLED|notfound=$DI_DISABLED) notfound=$val;;
@@ -1075,7 +1080,6 @@ read_config() {
     debug 1 "policy loaded: mode=${_rc_mode} report=${_rc_report}" \
             "found=${_rc_found} maybe=${_rc_maybe} notfound=${_rc_notfound}"
     DI_MODE=${_rc_mode}
-    DI_REPORT=${_rc_report}
     DI_ON_FOUND=${_rc_found}
     DI_ON_MAYBE=${_rc_maybe}
     DI_ON_NOTFOUND=${_rc_notfound}
@@ -1118,7 +1122,7 @@ _main() {
         $DI_ENABLED)
             debug 1 "mode=$DI_ENABLED. returning $ret_en"
             return $ret_en;;
-        search) :;;
+        search|report) :;;
     esac
 
     if [ -n "${DI_DSNAME}" ]; then
@@ -1191,18 +1195,26 @@ _main() {
 
     # record the empty result.
     record_notfound
-    case "$DI_ON_NOTFOUND" in
-        $DI_DISABLED)
-            debug 1 "No result. notfound=$DI_DISABLED. returning $ret_dis."
-            return $ret_dis
-            ;;
-        $DI_ENABLED)
-            debug 1 "No result. notfound=$DI_ENABLED. returning $ret_en"
-            return $ret_en;;
-    esac
 
-    error "Unexpected result"
-    return 3
+    local basemsg="No ds found [mode=$DI_MODE, notfound=$DI_ON_NOTFOUND]."
+    local msg="" ret=3
+    case "$DI_MODE:$DI_ON_NOTFOUND" in
+        report:$DI_DISABLED)
+            msg="$basemsg Would disable cloud-init [$ret_dis]"
+            ret=$ret_en;;
+        report:$DI_ENABLED)
+            msg="$basemsg Would enable cloud-init [$ret_en]"
+            ret=$ret_en;;
+        search:$DI_DISABLED)
+            msg="$basemsg Disabled cloud-init [$ret_dis]"
+            ret=$ret_dis;;
+        search:$DI_ENABLED)
+            msg="$basemsg Enabled cloud-init [$ret_en]"
+            ret=$ret_en;;
+        *) error "Unexpected result";;
+    esac
+    debug 1 "$msg"
+    return $ret
 }
 
 main() {
