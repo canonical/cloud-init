@@ -1,4 +1,4 @@
-cloud-init (0.7.9-48-g1c795b9-0ubuntu1~16.04.1) UNRELEASED; urgency=medium
+cloud-init (0.7.9-48-g1c795b9-0ubuntu1~16.04.1) xenial-proposed; urgency=medium
 
   * debian/rules: install Z99-cloudinit-warnings.sh to /etc/profile.d
   * debian/patches/ds-identify-behavior-xenial.patch: adjust default
@@ -41,7 +41,7 @@ cloud-init (0.7.9-48-g1c795b9-0ubuntu1~16.04.1) UNRELEASED; urgency=medium
       - Fix minor docs typo: perserve > preserve [Jeremy Bicha]
       - validate-yaml: use python rather than explicitly python3
 
- -- Scott Moser <smoser@ubuntu.com>  Mon, 06 Mar 2017 16:30:59 -0500
+ -- Scott Moser <smoser@ubuntu.com>  Mon, 06 Mar 2017 16:34:10 -0500
 
 cloud-init (0.7.9-0ubuntu1~16.04.2) xenial-proposed; urgency=medium
 
