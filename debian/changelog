@@ -1,3 +1,10 @@
+cloud-init (0.7.9-48-g1c795b9-0ubuntu1) zesty; urgency=medium
+
+  * New upstream snapshot.
+    - ds-identify: report cleanups for config and exit value. (LP: #1669949)
+
+ -- Scott Moser <smoser@ubuntu.com>  Mon, 06 Mar 2017 14:56:28 -0500
+
 cloud-init (0.7.9-47-gc81ea53-0ubuntu1) zesty; urgency=medium
 
   * debian/rules: install Z99-cloudinit-warnings.sh to /etc/profile.d
