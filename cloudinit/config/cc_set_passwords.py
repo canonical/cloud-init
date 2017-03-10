@@ -105,7 +105,7 @@ def handle(_name, cfg, cloud, log, args):
         (users, _groups) = ug_util.normalize_users_groups(cfg, cloud.distro)
         (user, _user_config) = ug_util.extract_default(users)
         if user:
-            plist = "%s:%s" % (user, password)
+            plist = ["%s:%s" % (user, password)]
         else:
             log.warn("No default or defined user to change password for.")
 
