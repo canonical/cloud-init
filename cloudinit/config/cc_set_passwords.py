@@ -89,14 +89,15 @@ def handle(_name, cfg, cloud, log, args):
 
     if 'chpasswd' in cfg:
         chfg = cfg['chpasswd']
-        if isinstance(chfg['list'], list):
-            log.debug("Handling input for chpasswd as list.")
-            plist = util.get_cfg_option_list(chfg, 'list', plist)
-        else:
-            log.debug("Handling input for chpasswd as multiline string.")
-            plist = util.get_cfg_option_str(chfg, 'list', plist)
-            if plist:
-                plist = plist.spitlines()
+        if 'list' in chfg and chfg['list']:
+            if isinstance(chfg['list'], list):
+                log.debug("Handling input for chpasswd as list.")
+                plist = util.get_cfg_option_list(chfg, 'list', plist)
+            else:
+                log.debug("Handling input for chpasswd as multiline string.")
+                plist = util.get_cfg_option_str(chfg, 'list', plist)
+                if plist:
+                    plist = plist.splitlines()
 
         expire = util.get_cfg_option_bool(chfg, 'expire', expire)
 
