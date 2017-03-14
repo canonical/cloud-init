@@ -4,8 +4,8 @@
 from tests.cloud_tests.testcases import base
 
 
-class TestPasswordList(base.PasswordListTest, base.CloudTestCase):
-    """Test password setting via list in chpasswd/list"""
+class TestPasswordListString(base.PasswordListTest, base.CloudTestCase):
+    """Test password setting via string in chpasswd/list"""
     __test__ = True
 
 # vi: ts=4 expandtab

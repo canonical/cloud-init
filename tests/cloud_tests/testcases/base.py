@@ -2,6 +2,7 @@
 
 from cloudinit import util as c_util
 
+import crypt
 import json
 import unittest
 
@@ -13,6 +14,9 @@ class CloudTestCase(unittest.TestCase):
     data = None
     conf = None
     _cloud_config = None
+
+    def shortDescription(self):
+        return None
 
     @property
     def cloud_config(self):
@@ -77,5 +81,53 @@ class CloudTestCase(unittest.TestCase):
                              .format(status[stage]['errors'], stage))
         result = self.get_status_data(self.get_data_file('result.json'))
         self.assertEqual(len(result['errors']), 0)
+
+
+class PasswordListTest(CloudTestCase):
+    def test_shadow_passwords(self):
+        shadow = self.get_data_file('shadow')
+        users = {}
+        dupes = []
+        for line in shadow.splitlines():
+            user, encpw = line.split(":")[0:2]
+            if user in users:
+                dupes.append(user)
+            users[user] = encpw
+
+        jane_enc = "$5$iW$XsxmWCdpwIW8Yhv.Jn/R3uk6A4UaicfW5Xp7C9p9pg."
+        self.assertEqual([], dupes)
+        self.assertEqual(jane_enc, users['jane'])
+
+        # shadow entry is $N$salt$, so we encrypt with the same format
+        # and salt and expect the result.
+        tom = "mypassword123!"
+        fmtsalt = users['tom'][0:users['tom'].rfind("$") + 1]
+        tom_enc = crypt.crypt(tom, fmtsalt)
+        self.assertEqual(tom_enc, users['tom'])
+
+        harry_enc = ("$6$LF$9Z2p6rWK6TNC1DC6393ec0As.18KRAvKDbfsG"
+                     "JEdWN3sRQRwpdfoh37EQ3yUh69tP4GSrGW5XKHxMLiKowJgm/")
+        dick_enc = "$1$ssisyfpf$YqvuJLfrrW6Cg/l53Pi1n1"
+
+        # these should have been changed to random values.
+        self.assertNotEqual(harry_enc, users['harry'])
+        self.assertTrue(users['harry'].startswith("$"))
+        self.assertNotEqual(dick_enc, users['dick'])
+        self.assertTrue(users['dick'].startswith("$"))
+
+        self.assertNotEqual(users['harry'], users['dick'])
+
+    def test_shadow_expected_users(self):
+        """Test every tom, dick, and harry user in shadow"""
+        out = self.get_data_file('shadow')
+        self.assertIn('tom:', out)
+        self.assertIn('dick:', out)
+        self.assertIn('harry:', out)
+        self.assertIn('jane:', out)
+
+    def test_sshd_config(self):
+        """Test sshd config allows passwords"""
+        out = self.get_data_file('sshd_config')
+        self.assertIn('PasswordAuthentication yes', out)
 
 # vi: ts=4 expandtab

@@ -47,7 +47,7 @@ enabled, disabled, or left to system defaults using ``ssh_pwauth``.
     chpasswd:
         list: |
             user1:password1
-            user2:Random
+            user2:RANDOM
             user3:password3
             user4:R
 
@@ -57,7 +57,7 @@ enabled, disabled, or left to system defaults using ``ssh_pwauth``.
     chpasswd:
         list:
             - user1:password1
-            - user2:Random
+            - user2:RANDOM
             - user3:password3
             - user4:R
 """
