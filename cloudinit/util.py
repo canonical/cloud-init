@@ -2099,21 +2099,36 @@ def get_mount_info(path, log=LOG):
         return parse_mount(path)
 
 
-def which(program):
-    # Return path of program for execution if found in path
-    def is_exe(fpath):
-        return os.path.isfile(fpath) and os.access(fpath, os.X_OK)
+def is_exe(fpath):
+    # return boolean indicating if fpath exists and is executable.
+    return os.path.isfile(fpath) and os.access(fpath, os.X_OK)
 
-    _fpath, _ = os.path.split(program)
-    if _fpath:
-        if is_exe(program):
+
+def which(program, search=None, target=None):
+    target = target_path(target)
+
+    if os.path.sep in program:
+        # if program had a '/' in it, then do not search PATH
+        # 'which' does consider cwd here. (cd / && which bin/ls) = bin/ls
+        # so effectively we set cwd to / (or target)
+        if is_exe(target_path(target, program)):
             return program
-    else:
-        for path in os.environ.get("PATH", "").split(os.pathsep):
-            path = path.strip('"')
-            exe_file = os.path.join(path, program)
-            if is_exe(exe_file):
-                return exe_file
+
+    if search is None:
+        paths = [p.strip('"') for p in
+                 os.environ.get("PATH", "").split(os.pathsep)]
+        if target == "/":
+            search = paths
+        else:
+            search = [p for p in paths if p.startswith("/")]
+
+    # normalize path input
+    search = [os.path.abspath(p) for p in search]
+
+    for path in search:
+        ppath = os.path.sep.join((path, program))
+        if is_exe(target_path(target, ppath)):
+            return ppath
 
     return None
 

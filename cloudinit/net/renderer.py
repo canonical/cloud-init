@@ -7,6 +7,7 @@
 
 import six
 
+from .network_state import parse_net_config_data
 from .udev import generate_udev_rule
 
 
@@ -35,5 +36,9 @@ class Renderer(object):
                 content.write(generate_udev_rule(iface['name'],
                                                  iface['mac_address']))
         return content.getvalue()
+
+    def render_network_config(self, network_config, target=None):
+        return self.render_network_state(
+            network_state=parse_net_config_data(network_config), target=target)
 
 # vi: ts=4 expandtab

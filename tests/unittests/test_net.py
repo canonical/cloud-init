@@ -4,6 +4,7 @@ from cloudinit import net
 from cloudinit.net import cmdline
 from cloudinit.net import eni
 from cloudinit.net import network_state
+from cloudinit.net import renderers
 from cloudinit.net import sysconfig
 from cloudinit.sources.helpers import openstack
 from cloudinit import util
@@ -1048,6 +1049,50 @@ class TestEniRoundTrip(CiTestCase):
 
         self.assertEqual(
             expected, [line for line in found if line])
+
+
+class TestNetRenderers(CiTestCase):
+    @mock.patch("cloudinit.net.renderers.sysconfig.available")
+    @mock.patch("cloudinit.net.renderers.eni.available")
+    def test_eni_and_sysconfig_available(self, m_eni_avail, m_sysc_avail):
+        m_eni_avail.return_value = True
+        m_sysc_avail.return_value = True
+        found = renderers.search(priority=['sysconfig', 'eni'], first=False)
+        names = [f[0] for f in found]
+        self.assertEqual(['sysconfig', 'eni'], names)
+
+    @mock.patch("cloudinit.net.renderers.eni.available")
+    def test_search_returns_empty_on_none(self, m_eni_avail):
+        m_eni_avail.return_value = False
+        found = renderers.search(priority=['eni'], first=False)
+        self.assertEqual([], found)
+
+    @mock.patch("cloudinit.net.renderers.sysconfig.available")
+    @mock.patch("cloudinit.net.renderers.eni.available")
+    def test_first_in_priority(self, m_eni_avail, m_sysc_avail):
+        # available should only be called until one is found.
+        m_eni_avail.return_value = True
+        m_sysc_avail.side_effect = Exception("Should not call me")
+        found = renderers.search(priority=['eni', 'sysconfig'], first=True)
+        self.assertEqual(['eni'], [found[0]])
+
+    @mock.patch("cloudinit.net.renderers.sysconfig.available")
+    @mock.patch("cloudinit.net.renderers.eni.available")
+    def test_select_positive(self, m_eni_avail, m_sysc_avail):
+        m_eni_avail.return_value = True
+        m_sysc_avail.return_value = False
+        found = renderers.select(priority=['sysconfig', 'eni'])
+        self.assertEqual('eni', found[0])
+
+    @mock.patch("cloudinit.net.renderers.sysconfig.available")
+    @mock.patch("cloudinit.net.renderers.eni.available")
+    def test_select_none_found_raises(self, m_eni_avail, m_sysc_avail):
+        # if select finds nothing, should raise exception.
+        m_eni_avail.return_value = False
+        m_sysc_avail.return_value = False
+
+        self.assertRaises(net.RendererNotFoundError, renderers.select,
+                          priority=['sysconfig', 'eni'])
 
 
 def _gzip_data(data):

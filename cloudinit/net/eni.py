@@ -500,4 +500,18 @@ def network_state_to_eni(network_state, header=None, render_hwaddress=False):
         network_state, render_hwaddress=render_hwaddress)
     return header + contents
 
+
+def available(target=None):
+    expected = ['ifquery', 'ifup', 'ifdown']
+    search = ['/sbin', '/usr/sbin']
+    for p in expected:
+        if not util.which(p, search=search, target=target):
+            return False
+    eni = util.target_path(target, 'etc/network/interfaces')
+    if not os.path.is_file(eni):
+        return False
+
+    return True
+
+
 # vi: ts=4 expandtab

@@ -404,4 +404,21 @@ class Renderer(renderer.Renderer):
             netrules_path = util.target_path(target, self.netrules_path)
             util.write_file(netrules_path, netrules_content)
 
+
+def available(target=None):
+    expected = ['ifup', 'ifdown']
+    search = ['/sbin', '/usr/sbin']
+    for p in expected:
+        if not util.which(p, search=search, target=target):
+            return False
+
+    expected_paths = [
+        'etc/sysconfig/network-scripts/network-functions',
+        'etc/sysconfig/network-scripts/ifdown-eth']
+    for p in expected_paths:
+        if not os.path.isfile(util.target_path(target, p)):
+            return False
+    return True
+
+
 # vi: ts=4 expandtab
