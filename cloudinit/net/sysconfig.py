@@ -368,6 +368,8 @@ class Renderer(renderer.Renderer):
         '''Given state, return /etc/sysconfig files + contents'''
         iface_contents = {}
         for iface in network_state.iter_interfaces():
+            if iface['type'] == "loopback":
+                continue
             iface_name = iface['name']
             iface_cfg = NetInterface(iface_name, base_sysconf_dir)
             cls._render_iface_shared(iface, iface_cfg)

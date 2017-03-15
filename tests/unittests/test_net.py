@@ -637,6 +637,14 @@ pre-down route del -net 10.0.0.0 netmask 255.0.0.0 gw 11.0.0.1 metric 3 || true
     }
 }
 
+CONFIG_V1_EXPLICIT_LOOPBACK = {
+    'version': 1,
+    'config': [{'name': 'eth0', 'type': 'physical',
+               'subnets': [{'control': 'auto', 'type': 'dhcp'}]},
+               {'name': 'lo', 'type': 'loopback',
+                'subnets': [{'control': 'auto', 'type': 'loopback'}]},
+               ]}
+
 
 def _setup_test(tmp_dir, mock_get_devicelist, mock_read_sys_net,
                 mock_sys_dev_path):
@@ -722,6 +730,27 @@ USERCTL=no
                 with open(os.path.join(render_dir, fn)) as fh:
                     self.assertEqual(expected_content, fh.read())
 
+    def test_config_with_explicit_loopback(self):
+        ns = network_state.parse_net_config_data(CONFIG_V1_EXPLICIT_LOOPBACK)
+        render_dir = self.tmp_path("render")
+        os.makedirs(render_dir)
+        renderer = sysconfig.Renderer()
+        renderer.render_network_state(render_dir, ns)
+        found = dir2dict(render_dir)
+        nspath = '/etc/sysconfig/network-scripts/'
+        self.assertNotIn(nspath + 'ifcfg-lo', found.keys())
+        expected = """\
+# Created by cloud-init on instance boot automatically, do not edit.
+#
+BOOTPROTO=dhcp
+DEVICE=eth0
+NM_CONTROLLED=no
+ONBOOT=yes
+TYPE=Ethernet
+USERCTL=no
+"""
+        self.assertEqual(expected, found[nspath + 'ifcfg-eth0'])
+
 
 class TestEniNetRendering(CiTestCase):
 
@@ -761,6 +790,21 @@ auto eth1000
 iface eth1000 inet dhcp
 """
         self.assertEqual(expected.lstrip(), contents.lstrip())
+
+    def test_config_with_explicit_loopback(self):
+        tmp_dir = self.tmp_dir()
+        ns = network_state.parse_net_config_data(CONFIG_V1_EXPLICIT_LOOPBACK)
+        renderer = eni.Renderer()
+        renderer.render_network_state(tmp_dir, ns)
+        expected = """\
+auto lo
+iface lo inet loopback
+
+auto eth0
+iface eth0 inet dhcp
+"""
+        self.assertEqual(
+            expected, dir2dict(tmp_dir)['/etc/network/interfaces'])
 
 
 class TestEniNetworkStateToEni(CiTestCase):

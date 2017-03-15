@@ -273,8 +273,11 @@ def _ifaces_to_net_config_data(ifaces):
         # devname is 'eth0' for name='eth0:1'
         devname = name.partition(":")[0]
         if devname not in devs:
-            devs[devname] = {'type': 'physical', 'name': devname,
-                             'subnets': []}
+            if devname == "lo":
+                dtype = "loopback"
+            else:
+                dtype = "physical"
+            devs[devname] = {'type': dtype, 'name': devname, 'subnets': []}
             # this isnt strictly correct, but some might specify
             # hwaddress on a nic for matching / declaring name.
             if 'hwaddress' in data:
@@ -423,10 +426,11 @@ class Renderer(renderer.Renderer):
             bonding
         '''
         order = {
-            'physical': 0,
-            'bond': 1,
-            'bridge': 2,
-            'vlan': 3,
+            'loopback': 0,
+            'physical': 1,
+            'bond': 2,
+            'bridge': 3,
+            'vlan': 4,
         }
 
         sections = []
