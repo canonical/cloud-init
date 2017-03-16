@@ -697,7 +697,7 @@ class TestSysConfigRendering(CiTestCase):
         os.makedirs(render_dir)
 
         renderer = sysconfig.Renderer()
-        renderer.render_network_state(render_dir, ns)
+        renderer.render_network_state(ns, render_dir)
 
         render_file = 'etc/sysconfig/network-scripts/ifcfg-eth1000'
         with open(os.path.join(render_dir, render_file)) as fh:
@@ -725,7 +725,7 @@ USERCTL=no
             ns = network_state.parse_net_config_data(network_cfg,
                                                      skip_broken=False)
             renderer = sysconfig.Renderer()
-            renderer.render_network_state(render_dir, ns)
+            renderer.render_network_state(ns, render_dir)
             for fn, expected_content in os_sample.get('out_sysconfig', []):
                 with open(os.path.join(render_dir, fn)) as fh:
                     self.assertEqual(expected_content, fh.read())
@@ -735,7 +735,7 @@ USERCTL=no
         render_dir = self.tmp_path("render")
         os.makedirs(render_dir)
         renderer = sysconfig.Renderer()
-        renderer.render_network_state(render_dir, ns)
+        renderer.render_network_state(ns, render_dir)
         found = dir2dict(render_dir)
         nspath = '/etc/sysconfig/network-scripts/'
         self.assertNotIn(nspath + 'ifcfg-lo', found.keys())
@@ -775,7 +775,7 @@ class TestEniNetRendering(CiTestCase):
             {'links_path_prefix': None,
              'eni_path': 'interfaces', 'netrules_path': None,
              })
-        renderer.render_network_state(render_dir, ns)
+        renderer.render_network_state(ns, render_dir)
 
         self.assertTrue(os.path.exists(os.path.join(render_dir,
                                                     'interfaces')))
@@ -795,7 +795,7 @@ iface eth1000 inet dhcp
         tmp_dir = self.tmp_dir()
         ns = network_state.parse_net_config_data(CONFIG_V1_EXPLICIT_LOOPBACK)
         renderer = eni.Renderer()
-        renderer.render_network_state(tmp_dir, ns)
+        renderer.render_network_state(ns, tmp_dir)
         expected = """\
 auto lo
 iface lo inet loopback
@@ -972,7 +972,7 @@ class TestEniRoundTrip(CiTestCase):
             config={'eni_path': eni_path, 'links_path_prefix': links_prefix,
                     'netrules_path': netrules_path})
 
-        renderer.render_network_state(dir, ns)
+        renderer.render_network_state(ns, dir)
         return dir2dict(dir)
 
     def testsimple_convert_and_render(self):

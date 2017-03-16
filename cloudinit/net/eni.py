@@ -448,14 +448,14 @@ class Renderer(renderer.Renderer):
 
         return '\n\n'.join(['\n'.join(s) for s in sections]) + "\n"
 
-    def render_network_state(self, target, network_state):
-        fpeni = os.path.join(target, self.eni_path)
+    def render_network_state(self, network_state, target=None):
+        fpeni = util.target_path(target, self.eni_path)
         util.ensure_dir(os.path.dirname(fpeni))
         header = self.eni_header if self.eni_header else ""
         util.write_file(fpeni, header + self._render_interfaces(network_state))
 
         if self.netrules_path:
-            netrules = os.path.join(target, self.netrules_path)
+            netrules = util.target_path(target, self.netrules_path)
             util.ensure_dir(os.path.dirname(netrules))
             util.write_file(netrules,
                             self._render_persistent_net(network_state))
@@ -465,7 +465,7 @@ class Renderer(renderer.Renderer):
                                        links_prefix=self.links_path_prefix)
 
     def _render_systemd_links(self, target, network_state, links_prefix):
-        fp_prefix = os.path.join(target, links_prefix)
+        fp_prefix = util.target_path(target, links_prefix)
         for f in glob.glob(fp_prefix + "*"):
             os.unlink(f)
         for iface in network_state.iter_interfaces():

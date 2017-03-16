@@ -389,19 +389,19 @@ class Renderer(renderer.Renderer):
                 contents[iface_cfg.routes.path] = iface_cfg.routes.to_string()
         return contents
 
-    def render_network_state(self, target, network_state):
-        base_sysconf_dir = os.path.join(target, self.sysconf_dir)
+    def render_network_state(self, network_state, target=None):
+        base_sysconf_dir = util.target_path(target, self.sysconf_dir)
         for path, data in self._render_sysconfig(base_sysconf_dir,
                                                  network_state).items():
             util.write_file(path, data)
         if self.dns_path:
-            dns_path = os.path.join(target, self.dns_path)
+            dns_path = util.target_path(target, self.dns_path)
             resolv_content = self._render_dns(network_state,
                                               existing_dns_path=dns_path)
             util.write_file(dns_path, resolv_content)
         if self.netrules_path:
             netrules_content = self._render_persistent_net(network_state)
-            netrules_path = os.path.join(target, self.netrules_path)
+            netrules_path = util.target_path(target, self.netrules_path)
             util.write_file(netrules_path, netrules_content)
 
 # vi: ts=4 expandtab
