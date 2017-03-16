@@ -538,6 +538,19 @@ check_configdrive_v2() {
     if has_fs_with_label "config-2"; then
         return ${DS_FOUND}
     fi
+    # look in /config-drive <vlc>/seed/config_drive for a directory
+    # openstack/YYYY-MM-DD format with a file meta_data.json
+    local d=""
+    for d in /config-drive "${PATH_VAR_LIB_CLOUD}/seed/config_drive"; do
+        set +f; set -- "$d/openstack/"2???-??-??/meta_data.json; set -f;
+        [ -f "$1" ] && return ${DS_FOUND}
+    done
+    # at least one cloud (softlayer) seeds config drive with only 'latest'.
+    local lpath="openstack/latest/meta_data.json"
+    if [ -e "${PATH_VAR_LIB_CLOUD}/$lpath" ]; then
+        debug 1 "config drive seeded directory had only 'latest'"
+        return ${DS_FOUND}
+    fi
     return ${DS_NOT_FOUND}
 }
 
