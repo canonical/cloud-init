@@ -18,12 +18,13 @@ support listed below)
 
 Version 1
 ---------
+**Note:** Version 1 is legacy and should be considered deprecated.  Version 2
+has been supported in OpenStack since 2012.2 (Folsom).
 
 The following criteria are required to as a config drive:
 
 1. Must be formatted with `vfat`_ filesystem
-2. Must be a un-partitioned block device (/dev/vdb, not /dev/vdb1)
-3. Must contain *one* of the following files
+2. Must contain *one* of the following files
 
 ::
 
@@ -56,8 +57,7 @@ The following criteria are required to as a config drive:
 
 1. Must be formatted with `vfat`_ or `iso9660`_ filesystem
    or have a *filesystem* label of **config-2**
-2. Must be a un-partitioned block device (/dev/vdb, not /dev/vdb1)
-3. The files that will typically be present in the config drive are:
+2. The files that will typically be present in the config drive are:
 
 ::
 
