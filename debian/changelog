@@ -1,4 +1,4 @@
-cloud-init (0.7.9-66-g5beecdf8-0ubuntu1) UNRELEASED; urgency=medium
+cloud-init (0.7.9-66-g5beecdf8-0ubuntu1) zesty; urgency=medium
 
   * New upstream snapshot.
     - net: add renderers for automatically selecting the renderer. 
@@ -24,7 +24,7 @@ cloud-init (0.7.9-66-g5beecdf8-0ubuntu1) UNRELEASED; urgency=medium
     - net: do not raise exception for > 3 nameservers
       [Lars Kellogg-Stedman] (LP: #1670052)
 
- -- Scott Moser <smoser@ubuntu.com>  Fri, 17 Mar 2017 21:36:34 -0400
+ -- Scott Moser <smoser@ubuntu.com>  Fri, 17 Mar 2017 21:41:40 -0400
 
 cloud-init (0.7.9-48-g1c795b9-0ubuntu1) zesty; urgency=medium
 
