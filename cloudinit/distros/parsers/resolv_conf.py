@@ -6,9 +6,11 @@
 
 from six import StringIO
 
+from cloudinit.distros.parsers import chop_comment
+from cloudinit import log as logging
 from cloudinit import util
 
-from cloudinit.distros.parsers import chop_comment
+LOG = logging.getLogger(__name__)
 
 
 # See: man resolv.conf
@@ -79,9 +81,10 @@ class ResolvConf(object):
         if len(new_ns) == len(current_ns):
             return current_ns
         if len(current_ns) >= 3:
-            # Hard restriction on only 3 name servers
-            raise ValueError(("Adding %r would go beyond the "
-                              "'3' maximum name servers") % (ns))
+            LOG.warn("ignoring nameserver %r: adding would "
+                     "exceed the maximum of "
+                     "'3' name servers (see resolv.conf(5))" % (ns))
+            return current_ns[:3]
         self._remove_option('nameserver')
         for n in new_ns:
             self._contents.append(('option', ['nameserver', n, '']))

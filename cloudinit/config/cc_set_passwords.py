@@ -45,9 +45,19 @@ enabled, disabled, or left to system defaults using ``ssh_pwauth``.
         expire: <true/false>
 
     chpasswd:
+        list: |
+            user1:password1
+            user2:RANDOM
+            user3:password3
+            user4:R
+
+    ##
+    # or as yaml list
+    ##
+    chpasswd:
         list:
             - user1:password1
-            - user2:Random
+            - user2:RANDOM
             - user3:password3
             - user4:R
 """
@@ -79,14 +89,23 @@ def handle(_name, cfg, cloud, log, args):
 
     if 'chpasswd' in cfg:
         chfg = cfg['chpasswd']
-        plist = util.get_cfg_option_str(chfg, 'list', plist)
+        if 'list' in chfg and chfg['list']:
+            if isinstance(chfg['list'], list):
+                log.debug("Handling input for chpasswd as list.")
+                plist = util.get_cfg_option_list(chfg, 'list', plist)
+            else:
+                log.debug("Handling input for chpasswd as multiline string.")
+                plist = util.get_cfg_option_str(chfg, 'list', plist)
+                if plist:
+                    plist = plist.splitlines()
+
         expire = util.get_cfg_option_bool(chfg, 'expire', expire)
 
     if not plist and password:
         (users, _groups) = ug_util.normalize_users_groups(cfg, cloud.distro)
         (user, _user_config) = ug_util.extract_default(users)
         if user:
-            plist = "%s:%s" % (user, password)
+            plist = ["%s:%s" % (user, password)]
         else:
             log.warn("No default or defined user to change password for.")
 
@@ -95,7 +114,7 @@ def handle(_name, cfg, cloud, log, args):
         plist_in = []
         randlist = []
         users = []
-        for line in plist.splitlines():
+        for line in plist:
             u, p = line.split(':', 1)
             if p == "R" or p == "RANDOM":
                 p = rand_user_password()

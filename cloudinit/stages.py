@@ -646,9 +646,13 @@ class Init(object):
                  src, bring_up, netcfg)
         try:
             return self.distro.apply_network_config(netcfg, bring_up=bring_up)
+        except net.RendererNotFoundError as e:
+            LOG.error("Unable to render networking. Network config is "
+                      "likely broken: %s", e)
+            return
         except NotImplementedError:
             LOG.warn("distro '%s' does not implement apply_network_config. "
-                     "networking may not be configured properly." %
+                     "networking may not be configured properly.",
                      self.distro)
             return
 

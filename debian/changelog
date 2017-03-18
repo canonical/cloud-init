@@ -1,3 +1,31 @@
+cloud-init (0.7.9-66-g5beecdf8-0ubuntu1) zesty; urgency=medium
+
+  * New upstream snapshot.
+    - net: add renderers for automatically selecting the renderer. 
+    - doc: fix config drive doc with regard to unpartitioned disks.
+      (LP: #1673818)
+    - test: Adding integratiron test for password as list [Joshua Powers]
+    - render_network_state: switch arguments around, do not require target 
+    - support 'loopback' as a device type. 
+    - Integration Testing: improve testcase subclassing [Wesley Wiedenmeier]
+    - gitignore: adding doc/rtd_html [Joshua Powers]
+    - doc: add instructions for running integration tests via tox.
+      [Joshua Powers]
+    - test: avoid differences in 'date' output due to daylight savings. 
+    - Fix chef config module in omnibus install. [Jeremy Melvin] (LP: #1583837)
+    - Add feature flags to cloudinit.version. [Wesley Wiedenmeier]
+    - tox: add a citest environment 
+    - Support chpasswd/list being a list in addition to a string.
+      [Sergio Lystopad] (LP: #1665694)
+    - doc: Fix configuration example for cc_set_passwords module.
+      [Sergio Lystopad] (LP: #1665773)
+    - net: support both ipv4 and ipv6 gateways in sysconfig.
+      [Lars Kellogg-Stedman] (LP: #1669504)
+    - net: do not raise exception for > 3 nameservers
+      [Lars Kellogg-Stedman] (LP: #1670052)
+
+ -- Scott Moser <smoser@ubuntu.com>  Fri, 17 Mar 2017 21:41:40 -0400
+
 cloud-init (0.7.9-48-g1c795b9-0ubuntu1) zesty; urgency=medium
 
   * New upstream snapshot.

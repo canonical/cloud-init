@@ -5,3 +5,4 @@ dist
 __pycache__
 .tox
 .coverage
+doc/rtd_html

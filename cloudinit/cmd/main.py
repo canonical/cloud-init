@@ -680,6 +680,10 @@ def status_wrapper(name, args, data_d=None, link_d=None):
     return len(v1[mode]['errors'])
 
 
+def main_features(name, args):
+    sys.stdout.write('\n'.join(sorted(version.FEATURES)) + '\n')
+
+
 def main(sysv_args=None):
     if sysv_args is not None:
         parser = argparse.ArgumentParser(prog=sysv_args[0])
@@ -770,6 +774,10 @@ def main(sysv_args=None):
                                        ' upon'))
     parser_dhclient.set_defaults(action=('dhclient_hook', dhclient_hook))
 
+    parser_features = subparsers.add_parser('features',
+                                            help=('list defined features'))
+    parser_features.set_defaults(action=('features', main_features))
+
     args = parser.parse_args(args=sysv_args)
 
     try:
@@ -788,6 +796,7 @@ def main(sysv_args=None):
     if name in ("modules", "init"):
         functor = status_wrapper
 
+    rname = None
     report_on = True
     if name == "init":
         if args.local:
@@ -802,10 +811,10 @@ def main(sysv_args=None):
         rname, rdesc = ("single/%s" % args.name,
                         "running single module %s" % args.name)
         report_on = args.report
-
-    elif name == 'dhclient_hook':
-        rname, rdesc = ("dhclient-hook",
-                        "running dhclient-hook module")
+    else:
+        rname = name
+        rdesc = "running 'cloud-init %s'" % name
+        report_on = False
 
     args.reporter = events.ReportEventStack(
         rname, rdesc, reporting_enabled=report_on)
