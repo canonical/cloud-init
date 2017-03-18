@@ -4,6 +4,7 @@ from cloudinit import net
 from cloudinit.net import cmdline
 from cloudinit.net import eni
 from cloudinit.net import network_state
+from cloudinit.net import renderers
 from cloudinit.net import sysconfig
 from cloudinit.sources.helpers import openstack
 from cloudinit import util
@@ -234,6 +235,100 @@ DEVICE=eth0:1
 HWADDR=fa:16:3e:ed:9a:59
 IPADDR=10.0.0.10
 NETMASK=255.255.255.0
+NM_CONTROLLED=no
+ONBOOT=yes
+TYPE=Ethernet
+USERCTL=no
+""".lstrip()),
+            ('etc/resolv.conf',
+             """
+; Created by cloud-init on instance boot automatically, do not edit.
+;
+nameserver 172.19.0.12
+""".lstrip()),
+            ('etc/udev/rules.d/70-persistent-net.rules',
+             "".join(['SUBSYSTEM=="net", ACTION=="add", DRIVERS=="?*", ',
+                      'ATTR{address}=="fa:16:3e:ed:9a:59", NAME="eth0"\n']))]
+    },
+    {
+        'in_data': {
+            "services": [{"type": "dns", "address": "172.19.0.12"}],
+            "networks": [{
+                "network_id": "public-ipv4",
+                "type": "ipv4", "netmask": "255.255.252.0",
+                "link": "tap1a81968a-79",
+                "routes": [{
+                    "netmask": "0.0.0.0",
+                    "network": "0.0.0.0",
+                    "gateway": "172.19.3.254",
+                }],
+                "ip_address": "172.19.1.34", "id": "network0"
+            }, {
+                "network_id": "public-ipv6",
+                "type": "ipv6", "netmask": "",
+                "link": "tap1a81968a-79",
+                "routes": [
+                    {
+                        "gateway": "2001:DB8::1",
+                        "netmask": "::",
+                        "network": "::"
+                    }
+                ],
+                "ip_address": "2001:DB8::10", "id": "network1"
+            }],
+            "links": [
+                {
+                    "ethernet_mac_address": "fa:16:3e:ed:9a:59",
+                    "mtu": None, "type": "bridge", "id":
+                    "tap1a81968a-79",
+                    "vif_id": "1a81968a-797a-400f-8a80-567f997eb93f"
+                },
+            ],
+        },
+        'in_macs': {
+            'fa:16:3e:ed:9a:59': 'eth0',
+        },
+        'out_sysconfig': [
+            ('etc/sysconfig/network-scripts/ifcfg-eth0',
+             """
+# Created by cloud-init on instance boot automatically, do not edit.
+#
+BOOTPROTO=none
+DEVICE=eth0
+HWADDR=fa:16:3e:ed:9a:59
+NM_CONTROLLED=no
+ONBOOT=yes
+TYPE=Ethernet
+USERCTL=no
+""".lstrip()),
+            ('etc/sysconfig/network-scripts/ifcfg-eth0:0',
+             """
+# Created by cloud-init on instance boot automatically, do not edit.
+#
+BOOTPROTO=static
+DEFROUTE=yes
+DEVICE=eth0:0
+GATEWAY=172.19.3.254
+HWADDR=fa:16:3e:ed:9a:59
+IPADDR=172.19.1.34
+NETMASK=255.255.252.0
+NM_CONTROLLED=no
+ONBOOT=yes
+TYPE=Ethernet
+USERCTL=no
+""".lstrip()),
+            ('etc/sysconfig/network-scripts/ifcfg-eth0:1',
+             """
+# Created by cloud-init on instance boot automatically, do not edit.
+#
+BOOTPROTO=static
+DEFROUTE=yes
+DEVICE=eth0:1
+HWADDR=fa:16:3e:ed:9a:59
+IPV6ADDR=2001:DB8::10
+IPV6INIT=yes
+IPV6_DEFAULTGW=2001:DB8::1
+NETMASK=
 NM_CONTROLLED=no
 ONBOOT=yes
 TYPE=Ethernet
@@ -543,6 +638,14 @@ pre-down route del -net 10.0.0.0 netmask 255.0.0.0 gw 11.0.0.1 metric 3 || true
     }
 }
 
+CONFIG_V1_EXPLICIT_LOOPBACK = {
+    'version': 1,
+    'config': [{'name': 'eth0', 'type': 'physical',
+               'subnets': [{'control': 'auto', 'type': 'dhcp'}]},
+               {'name': 'lo', 'type': 'loopback',
+                'subnets': [{'control': 'auto', 'type': 'loopback'}]},
+               ]}
+
 
 def _setup_test(tmp_dir, mock_get_devicelist, mock_read_sys_net,
                 mock_sys_dev_path):
@@ -595,7 +698,7 @@ class TestSysConfigRendering(CiTestCase):
         os.makedirs(render_dir)
 
         renderer = sysconfig.Renderer()
-        renderer.render_network_state(render_dir, ns)
+        renderer.render_network_state(ns, render_dir)
 
         render_file = 'etc/sysconfig/network-scripts/ifcfg-eth1000'
         with open(os.path.join(render_dir, render_file)) as fh:
@@ -623,10 +726,31 @@ USERCTL=no
             ns = network_state.parse_net_config_data(network_cfg,
                                                      skip_broken=False)
             renderer = sysconfig.Renderer()
-            renderer.render_network_state(render_dir, ns)
+            renderer.render_network_state(ns, render_dir)
             for fn, expected_content in os_sample.get('out_sysconfig', []):
                 with open(os.path.join(render_dir, fn)) as fh:
                     self.assertEqual(expected_content, fh.read())
+
+    def test_config_with_explicit_loopback(self):
+        ns = network_state.parse_net_config_data(CONFIG_V1_EXPLICIT_LOOPBACK)
+        render_dir = self.tmp_path("render")
+        os.makedirs(render_dir)
+        renderer = sysconfig.Renderer()
+        renderer.render_network_state(ns, render_dir)
+        found = dir2dict(render_dir)
+        nspath = '/etc/sysconfig/network-scripts/'
+        self.assertNotIn(nspath + 'ifcfg-lo', found.keys())
+        expected = """\
+# Created by cloud-init on instance boot automatically, do not edit.
+#
+BOOTPROTO=dhcp
+DEVICE=eth0
+NM_CONTROLLED=no
+ONBOOT=yes
+TYPE=Ethernet
+USERCTL=no
+"""
+        self.assertEqual(expected, found[nspath + 'ifcfg-eth0'])
 
 
 class TestEniNetRendering(CiTestCase):
@@ -652,7 +776,7 @@ class TestEniNetRendering(CiTestCase):
             {'links_path_prefix': None,
              'eni_path': 'interfaces', 'netrules_path': None,
              })
-        renderer.render_network_state(render_dir, ns)
+        renderer.render_network_state(ns, render_dir)
 
         self.assertTrue(os.path.exists(os.path.join(render_dir,
                                                     'interfaces')))
@@ -667,6 +791,21 @@ auto eth1000
 iface eth1000 inet dhcp
 """
         self.assertEqual(expected.lstrip(), contents.lstrip())
+
+    def test_config_with_explicit_loopback(self):
+        tmp_dir = self.tmp_dir()
+        ns = network_state.parse_net_config_data(CONFIG_V1_EXPLICIT_LOOPBACK)
+        renderer = eni.Renderer()
+        renderer.render_network_state(ns, tmp_dir)
+        expected = """\
+auto lo
+iface lo inet loopback
+
+auto eth0
+iface eth0 inet dhcp
+"""
+        self.assertEqual(
+            expected, dir2dict(tmp_dir)['/etc/network/interfaces'])
 
 
 class TestEniNetworkStateToEni(CiTestCase):
@@ -834,7 +973,7 @@ class TestEniRoundTrip(CiTestCase):
             config={'eni_path': eni_path, 'links_path_prefix': links_prefix,
                     'netrules_path': netrules_path})
 
-        renderer.render_network_state(dir, ns)
+        renderer.render_network_state(ns, dir)
         return dir2dict(dir)
 
     def testsimple_convert_and_render(self):
@@ -910,6 +1049,50 @@ class TestEniRoundTrip(CiTestCase):
 
         self.assertEqual(
             expected, [line for line in found if line])
+
+
+class TestNetRenderers(CiTestCase):
+    @mock.patch("cloudinit.net.renderers.sysconfig.available")
+    @mock.patch("cloudinit.net.renderers.eni.available")
+    def test_eni_and_sysconfig_available(self, m_eni_avail, m_sysc_avail):
+        m_eni_avail.return_value = True
+        m_sysc_avail.return_value = True
+        found = renderers.search(priority=['sysconfig', 'eni'], first=False)
+        names = [f[0] for f in found]
+        self.assertEqual(['sysconfig', 'eni'], names)
+
+    @mock.patch("cloudinit.net.renderers.eni.available")
+    def test_search_returns_empty_on_none(self, m_eni_avail):
+        m_eni_avail.return_value = False
+        found = renderers.search(priority=['eni'], first=False)
+        self.assertEqual([], found)
+
+    @mock.patch("cloudinit.net.renderers.sysconfig.available")
+    @mock.patch("cloudinit.net.renderers.eni.available")
+    def test_first_in_priority(self, m_eni_avail, m_sysc_avail):
+        # available should only be called until one is found.
+        m_eni_avail.return_value = True
+        m_sysc_avail.side_effect = Exception("Should not call me")
+        found = renderers.search(priority=['eni', 'sysconfig'], first=True)
+        self.assertEqual(['eni'], [found[0]])
+
+    @mock.patch("cloudinit.net.renderers.sysconfig.available")
+    @mock.patch("cloudinit.net.renderers.eni.available")
+    def test_select_positive(self, m_eni_avail, m_sysc_avail):
+        m_eni_avail.return_value = True
+        m_sysc_avail.return_value = False
+        found = renderers.select(priority=['sysconfig', 'eni'])
+        self.assertEqual('eni', found[0])
+
+    @mock.patch("cloudinit.net.renderers.sysconfig.available")
+    @mock.patch("cloudinit.net.renderers.eni.available")
+    def test_select_none_found_raises(self, m_eni_avail, m_sysc_avail):
+        # if select finds nothing, should raise exception.
+        m_eni_avail.return_value = False
+        m_sysc_avail.return_value = False
+
+        self.assertRaises(net.RendererNotFoundError, renderers.select,
+                          priority=['sysconfig', 'eni'])
 
 
 def _gzip_data(data):

@@ -364,4 +364,9 @@ def get_interfaces_by_mac(devs=None):
             ret[mac] = name
     return ret
 
+
+class RendererNotFoundError(RuntimeError):
+    pass
+
+
 # vi: ts=4 expandtab

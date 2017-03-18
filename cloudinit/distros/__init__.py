@@ -22,6 +22,7 @@ from cloudinit import log as logging
 from cloudinit import net
 from cloudinit.net import eni
 from cloudinit.net import network_state
+from cloudinit.net import renderers
 from cloudinit import ssh_util
 from cloudinit import type_utils
 from cloudinit import util
@@ -50,6 +51,7 @@ class Distro(object):
     hostname_conf_fn = "/etc/hostname"
     tz_zone_dir = "/usr/share/zoneinfo"
     init_cmd = ['service']  # systemctl, service etc
+    renderer_configs = {}
 
     def __init__(self, name, cfg, paths):
         self._paths = paths
@@ -68,6 +70,17 @@ class Distro(object):
 
     def _write_network_config(self, settings):
         raise NotImplementedError()
+
+    def _supported_write_network_config(self, network_config):
+        priority = util.get_cfg_by_path(
+            self._cfg, ('network', 'renderers'), None)
+
+        name, render_cls = renderers.select(priority=priority)
+        LOG.debug("Selected renderer '%s' from priority list: %s",
+                  name, priority)
+        renderer = render_cls(config=self.renderer_configs.get(name))
+        renderer.render_network_config(network_config=network_config)
+        return []
 
     def _find_tz_file(self, tz):
         tz_file = os.path.join(self.tz_zone_dir, str(tz))

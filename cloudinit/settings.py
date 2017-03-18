@@ -46,6 +46,7 @@ CFG_BUILTIN = {
             'templates_dir': '/etc/cloud/templates/',
         },
         'distro': 'ubuntu',
+        'network': {'renderers': None},
     },
     'vendor_data': {'enabled': True, 'prefix': []},
 }

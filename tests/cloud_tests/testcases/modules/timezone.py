@@ -10,6 +10,6 @@ class TestTimezone(base.CloudTestCase):
     def test_timezone(self):
         """Test date prints correct timezone"""
         out = self.get_data_file('timezone')
-        self.assertIn('HST', out)
+        self.assertEqual('HDT', out.rstrip())
 
 # vi: ts=4 expandtab

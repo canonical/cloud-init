@@ -238,6 +238,20 @@ without the more lengthy collect process. This can be done by running:
 The above command will run the verify scripts on the data discovered in
 `/tmp/collection`.
 
+Run via tox
+-----------
+In order to avoid the need for dependencies and ease the setup and
+configuration users can run the integration tests via tox:
+
+.. code-block:: bash
+
+    $ tox -e citest -- run [integration test arguments]
+    $ tox -e citest -- run -v -n zesty --deb=cloud-init_all.deb
+    $ tox -e citest -- run -t module/user_groups.yaml
+
+Users need to invoke the citest enviornment and then pass any additional
+arguments.
+
 
 Architecture
 ============

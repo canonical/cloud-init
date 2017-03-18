@@ -6,6 +6,11 @@
 
 __VERSION__ = "0.7.9"
 
+FEATURES = [
+    # supports network config version 1
+    'NETWORK_CONFIG_V1',
+]
+
 
 def version_string():
     return __VERSION__

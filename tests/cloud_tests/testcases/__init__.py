@@ -21,7 +21,7 @@ def discover_tests(test_name):
         raise ValueError('no test verifier found at: {}'.format(testmod_name))
 
     return [mod for name, mod in inspect.getmembers(testmod)
-            if inspect.isclass(mod) and base_test in mod.__bases__ and
+            if inspect.isclass(mod) and base_test in inspect.getmro(mod) and
             getattr(mod, '__test__', True)]
 
 

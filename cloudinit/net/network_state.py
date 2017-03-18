@@ -212,6 +212,10 @@ class NetworkStateInterpreter(object):
                     LOG.debug(self.dump_network_state())
 
     @ensure_command_keys(['name'])
+    def handle_loopback(self, command):
+        return self.handle_physical(command)
+
+    @ensure_command_keys(['name'])
     def handle_physical(self, command):
         '''
         command = {
