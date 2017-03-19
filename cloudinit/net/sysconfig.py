@@ -9,6 +9,7 @@ from cloudinit.distros.parsers import resolv_conf
 from cloudinit import util
 
 from . import renderer
+from .network_state import subnet_is_ipv6
 
 
 def _make_header(sep='#'):
@@ -194,7 +195,7 @@ class Renderer(renderer.Renderer):
     def __init__(self, config=None):
         if not config:
             config = {}
-        self.sysconf_dir = config.get('sysconf_dir', 'etc/sysconfig/')
+        self.sysconf_dir = config.get('sysconf_dir', 'etc/sysconfig')
         self.netrules_path = config.get(
             'netrules_path', 'etc/udev/rules.d/70-persistent-net.rules')
         self.dns_path = config.get('dns_path', 'etc/resolv.conf')
@@ -220,7 +221,7 @@ class Renderer(renderer.Renderer):
             iface_cfg['BOOTPROTO'] = 'dhcp'
         elif subnet_type == 'static':
             iface_cfg['BOOTPROTO'] = 'static'
-            if subnet.get('ipv6'):
+            if subnet_is_ipv6(subnet):
                 iface_cfg['IPV6ADDR'] = subnet['address']
                 iface_cfg['IPV6INIT'] = True
             else:
@@ -390,19 +391,28 @@ class Renderer(renderer.Renderer):
         return contents
 
     def render_network_state(self, network_state, target=None):
+        file_mode = 0o644
         base_sysconf_dir = util.target_path(target, self.sysconf_dir)
         for path, data in self._render_sysconfig(base_sysconf_dir,
                                                  network_state).items():
-            util.write_file(path, data)
+            util.write_file(path, data, file_mode)
         if self.dns_path:
             dns_path = util.target_path(target, self.dns_path)
             resolv_content = self._render_dns(network_state,
                                               existing_dns_path=dns_path)
-            util.write_file(dns_path, resolv_content)
+            util.write_file(dns_path, resolv_content, file_mode)
         if self.netrules_path:
             netrules_content = self._render_persistent_net(network_state)
             netrules_path = util.target_path(target, self.netrules_path)
-            util.write_file(netrules_path, netrules_content)
+            util.write_file(netrules_path, netrules_content, file_mode)
+
+        # always write /etc/sysconfig/network configuration
+        sysconfig_path = util.target_path(target, "etc/sysconfig/network")
+        netcfg = [_make_header(), 'NETWORKING=yes']
+        if network_state.use_ipv6:
+            netcfg.append('NETWORKING_IPV6=yes')
+            netcfg.append('IPV6_AUTOCONF=no')
+        util.write_file(sysconfig_path, "\n".join(netcfg) + "\n", file_mode)
 
 
 def available(target=None):

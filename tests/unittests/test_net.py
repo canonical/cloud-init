@@ -3,6 +3,7 @@
 from cloudinit import net
 from cloudinit.net import cmdline
 from cloudinit.net import eni
+from cloudinit.net import netplan
 from cloudinit.net import network_state
 from cloudinit.net import renderers
 from cloudinit.net import sysconfig
@@ -408,6 +409,41 @@ NETWORK_CONFIGS = {
                 post-up route add default gw 65.61.151.37 || true
                 pre-down route del default gw 65.61.151.37 || true
         """).rstrip(' '),
+        'expected_netplan': textwrap.dedent("""
+            network:
+                version: 2
+                ethernets:
+                    eth1:
+                        match:
+                            macaddress: cf:d6:af:48:e8:80
+                        nameservers:
+                            addresses:
+                            - 1.2.3.4
+                            - 5.6.7.8
+                            search:
+                            - wark.maas
+                        set-name: eth1
+                    eth99:
+                        addresses:
+                        - 192.168.21.3/24
+                        dhcp4: true
+                        match:
+                            macaddress: c0:d6:9f:2c:e8:80
+                        nameservers:
+                            addresses:
+                            - 8.8.8.8
+                            - 8.8.4.4
+                            - 1.2.3.4
+                            - 5.6.7.8
+                            search:
+                            - barley.maas
+                            - sach.maas
+                            - wark.maas
+                        routes:
+                        -   to: 0.0.0.0/0.0.0.0
+                            via: 65.61.151.37
+                        set-name: eth99
+        """).rstrip(' '),
         'yaml': textwrap.dedent("""
             version: 1
             config:
@@ -449,6 +485,14 @@ NETWORK_CONFIGS = {
 
             # control-alias iface0
             iface iface0 inet6 dhcp
+        """).rstrip(' '),
+        'expected_netplan': textwrap.dedent("""
+            network:
+                version: 2
+                ethernets:
+                    iface0:
+                        dhcp4: true
+                        dhcp6: true
         """).rstrip(' '),
         'yaml': textwrap.dedent("""\
             version: 1
@@ -524,6 +568,126 @@ iface eth0.101 inet static
 post-up route add -net 10.0.0.0 netmask 255.0.0.0 gw 11.0.0.1 metric 3 || true
 pre-down route del -net 10.0.0.0 netmask 255.0.0.0 gw 11.0.0.1 metric 3 || true
 """),
+        'expected_netplan': textwrap.dedent("""
+            network:
+                version: 2
+                ethernets:
+                    eth0:
+                        match:
+                            macaddress: c0:d6:9f:2c:e8:80
+                        nameservers:
+                            addresses:
+                            - 8.8.8.8
+                            - 4.4.4.4
+                            - 8.8.4.4
+                            search:
+                            - barley.maas
+                            - wark.maas
+                            - foobar.maas
+                        set-name: eth0
+                    eth1:
+                        match:
+                            macaddress: aa:d6:9f:2c:e8:80
+                        nameservers:
+                            addresses:
+                            - 8.8.8.8
+                            - 4.4.4.4
+                            - 8.8.4.4
+                            search:
+                            - barley.maas
+                            - wark.maas
+                            - foobar.maas
+                        set-name: eth1
+                    eth2:
+                        match:
+                            macaddress: c0:bb:9f:2c:e8:80
+                        nameservers:
+                            addresses:
+                            - 8.8.8.8
+                            - 4.4.4.4
+                            - 8.8.4.4
+                            search:
+                            - barley.maas
+                            - wark.maas
+                            - foobar.maas
+                        set-name: eth2
+                    eth3:
+                        match:
+                            macaddress: 66:bb:9f:2c:e8:80
+                        nameservers:
+                            addresses:
+                            - 8.8.8.8
+                            - 4.4.4.4
+                            - 8.8.4.4
+                            search:
+                            - barley.maas
+                            - wark.maas
+                            - foobar.maas
+                        set-name: eth3
+                    eth4:
+                        match:
+                            macaddress: 98:bb:9f:2c:e8:80
+                        nameservers:
+                            addresses:
+                            - 8.8.8.8
+                            - 4.4.4.4
+                            - 8.8.4.4
+                            search:
+                            - barley.maas
+                            - wark.maas
+                            - foobar.maas
+                        set-name: eth4
+                    eth5:
+                        dhcp4: true
+                        match:
+                            macaddress: 98:bb:9f:2c:e8:8a
+                        nameservers:
+                            addresses:
+                            - 8.8.8.8
+                            - 4.4.4.4
+                            - 8.8.4.4
+                            search:
+                            - barley.maas
+                            - wark.maas
+                            - foobar.maas
+                        set-name: eth5
+                bonds:
+                    bond0:
+                        dhcp6: true
+                        interfaces:
+                        - eth1
+                        - eth2
+                        parameters:
+                            mode: active-backup
+                bridges:
+                    br0:
+                        addresses:
+                        - 192.168.14.2/24
+                        - 2001:1::1/64
+                        interfaces:
+                        - eth3
+                        - eth4
+                vlans:
+                    bond0.200:
+                        dhcp4: true
+                        id: 200
+                        link: bond0
+                    eth0.101:
+                        addresses:
+                        - 192.168.0.2/24
+                        - 192.168.2.10/24
+                        gateway4: 192.168.0.1
+                        id: 101
+                        link: eth0
+                        nameservers:
+                            addresses:
+                            - 192.168.0.10
+                            - 10.23.23.134
+                            search:
+                            - barley.maas
+                            - sacchromyces.maas
+                            - brettanomyces.maas
+        """).rstrip(' '),
         'yaml': textwrap.dedent("""
             version: 1
             config:
@@ -808,6 +972,99 @@ iface eth0 inet dhcp
             expected, dir2dict(tmp_dir)['/etc/network/interfaces'])
 
 
+class TestNetplanNetRendering(CiTestCase):
+
+    @mock.patch("cloudinit.net.sys_dev_path")
+    @mock.patch("cloudinit.net.read_sys_net")
+    @mock.patch("cloudinit.net.get_devicelist")
+    def test_default_generation(self, mock_get_devicelist,
+                                mock_read_sys_net,
+                                mock_sys_dev_path):
+        tmp_dir = self.tmp_dir()
+        _setup_test(tmp_dir, mock_get_devicelist,
+                    mock_read_sys_net, mock_sys_dev_path)
+
+        network_cfg = net.generate_fallback_config()
+        ns = network_state.parse_net_config_data(network_cfg,
+                                                 skip_broken=False)
+
+        render_dir = os.path.join(tmp_dir, "render")
+        os.makedirs(render_dir)
+
+        render_target = 'netplan.yaml'
+        renderer = netplan.Renderer(
+            {'netplan_path': render_target, 'postcmds': False})
+        renderer.render_network_state(render_dir, ns)
+
+        self.assertTrue(os.path.exists(os.path.join(render_dir,
+                                                    render_target)))
+        with open(os.path.join(render_dir, render_target)) as fh:
+            contents = fh.read()
+            print(contents)
+
+        expected = """
+network:
+    version: 2
+    ethernets:
+        eth1000:
+            dhcp4: true
+            match:
+                macaddress: 07-1c-c6-75-a4-be
+            set-name: eth1000
+"""
+        self.assertEqual(expected.lstrip(), contents.lstrip())
+
+
+class TestNetplanPostcommands(CiTestCase):
+    mycfg = {
+        'config': [{"type": "physical", "name": "eth0",
+                    "mac_address": "c0:d6:9f:2c:e8:80",
+                    "subnets": [{"type": "dhcp"}]}],
+        'version': 1}
+
+    @mock.patch.object(netplan.Renderer, '_netplan_generate')
+    @mock.patch.object(netplan.Renderer, '_net_setup_link')
+    def test_netplan_render_calls_postcmds(self, mock_netplan_generate,
+                                           mock_net_setup_link):
+        tmp_dir = self.tmp_dir()
+        ns = network_state.parse_net_config_data(self.mycfg,
+                                                 skip_broken=False)
+
+        render_dir = os.path.join(tmp_dir, "render")
+        os.makedirs(render_dir)
+
+        render_target = 'netplan.yaml'
+        renderer = netplan.Renderer(
+            {'netplan_path': render_target, 'postcmds': True})
+        renderer.render_network_state(render_dir, ns)
+
+        mock_netplan_generate.assert_called_with(run=True)
+        mock_net_setup_link.assert_called_with(run=True)
+
+    @mock.patch.object(netplan, "get_devicelist")
+    @mock.patch('cloudinit.util.subp')
+    def test_netplan_postcmds(self, mock_subp, mock_devlist):
+        mock_devlist.side_effect = [['lo']]
+        tmp_dir = self.tmp_dir()
+        ns = network_state.parse_net_config_data(self.mycfg,
+                                                 skip_broken=False)
+
+        render_dir = os.path.join(tmp_dir, "render")
+        os.makedirs(render_dir)
+
+        render_target = 'netplan.yaml'
+        renderer = netplan.Renderer(
+            {'netplan_path': render_target, 'postcmds': True})
+        renderer.render_network_state(render_dir, ns)
+
+        expected = [
+            mock.call(['netplan', 'generate'], capture=True),
+            mock.call(['udevadm', 'test-builtin', 'net_setup_link',
+                       '/sys/class/net/lo'], capture=True),
+        ]
+        mock_subp.assert_has_calls(expected)
+
+
 class TestEniNetworkStateToEni(CiTestCase):
     mycfg = {
         'config': [{"type": "physical", "name": "eth0",
@@ -951,6 +1208,50 @@ class TestCmdlineReadKernelConfig(CiTestCase):
         expected = [eth0]
         self.assertEqual(found['version'], 1)
         self.assertEqual(found['config'], expected)
+
+
+class TestNetplanRoundTrip(CiTestCase):
+    def _render_and_read(self, network_config=None, state=None,
+                         netplan_path=None, dir=None):
+        if dir is None:
+            dir = self.tmp_dir()
+
+        if network_config:
+            ns = network_state.parse_net_config_data(network_config)
+        elif state:
+            ns = state
+        else:
+            raise ValueError("Expected data or state, got neither")
+
+        if netplan_path is None:
+            netplan_path = 'etc/netplan/50-cloud-init.yaml'
+
+        renderer = netplan.Renderer(
+            config={'netplan_path': netplan_path})
+
+        renderer.render_network_state(dir, ns)
+        return dir2dict(dir)
+
+    def testsimple_render_small_netplan(self):
+        entry = NETWORK_CONFIGS['small']
+        files = self._render_and_read(network_config=yaml.load(entry['yaml']))
+        self.assertEqual(
+            entry['expected_netplan'].splitlines(),
+            files['/etc/netplan/50-cloud-init.yaml'].splitlines())
+
+    def testsimple_render_v4_and_v6(self):
+        entry = NETWORK_CONFIGS['v4_and_v6']
+        files = self._render_and_read(network_config=yaml.load(entry['yaml']))
+        self.assertEqual(
+            entry['expected_netplan'].splitlines(),
+            files['/etc/netplan/50-cloud-init.yaml'].splitlines())
+
+    def testsimple_render_all(self):
+        entry = NETWORK_CONFIGS['all']
+        files = self._render_and_read(network_config=yaml.load(entry['yaml']))
+        self.assertEqual(
+            entry['expected_netplan'].splitlines(),
+            files['/etc/netplan/50-cloud-init.yaml'].splitlines())
 
 
 class TestEniRoundTrip(CiTestCase):

@@ -42,11 +42,16 @@ NETWORK_CONF_FN = "/etc/network/interfaces.d/50-cloud-init.cfg"
 class Distro(distros.Distro):
     hostname_conf_fn = "/etc/hostname"
     locale_conf_fn = "/etc/default/locale"
+    network_conf_fn = {
+        "eni": "/etc/network/interfaces.d/50-cloud-init.cfg",
+        "netplan": "/etc/netplan/50-cloud-init.yaml"
+    }
     renderer_configs = {
-        'eni': {
-            'eni_path': NETWORK_CONF_FN,
-            'eni_header': ENI_HEADER,
-        }
+        "eni": {"eni_path": network_conf_fn["eni"],
+                "eni_header": ENI_HEADER},
+        "netplan": {"netplan_path": network_conf_fn["netplan"],
+                    "netplan_header": ENI_HEADER,
+                    "postcmds": True}
     }
 
     def __init__(self, name, cfg, paths):
@@ -75,7 +80,8 @@ class Distro(distros.Distro):
         self.package_command('install', pkgs=pkglist)
 
     def _write_network(self, settings):
-        util.write_file(NETWORK_CONF_FN, settings)
+        # this is a legacy method, it will always write eni
+        util.write_file(self.network_conf_fn["eni"], settings)
         return ['all']
 
     def _write_network_config(self, netconfig):
