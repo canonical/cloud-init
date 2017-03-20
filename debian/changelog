@@ -1,3 +1,11 @@
+cloud-init (0.7.9-68-gef18b8ac-0ubuntu1) UNRELEASED; urgency=medium
+
+  * New upstream snapshot.
+    - cloudinit.net: add network config v2 parsing and rendering [Ryan Harper]
+    - net: Fix incorrect call to isfile [Joshua Powers] (LP: #1674317)
+
+ -- Scott Moser <smoser@ubuntu.com>  Mon, 20 Mar 2017 16:21:36 -0400
+
 cloud-init (0.7.9-66-g5beecdf8-0ubuntu1) zesty; urgency=medium
 
   * New upstream snapshot.
