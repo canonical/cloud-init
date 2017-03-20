@@ -210,7 +210,7 @@ class DataSource(object):
         else:
             hostname = toks[0]
 
-        if fqdn:
+        if fqdn and domain != defdomain:
             return "%s.%s" % (hostname, domain)
         else:
             return hostname
