@@ -17,6 +17,7 @@ from ..helpers import TestCase
 from cloudinit import distros
 from cloudinit.distros.parsers.sys_conf import SysConf
 from cloudinit import helpers
+from cloudinit.net import eni
 from cloudinit import settings
 from cloudinit import util
 
@@ -28,10 +29,10 @@ iface lo inet loopback
 auto eth0
 iface eth0 inet static
     address 192.168.1.5
-    netmask 255.255.255.0
-    network 192.168.0.0
     broadcast 192.168.1.0
     gateway 192.168.1.254
+    netmask 255.255.255.0
+    network 192.168.0.0
 
 auto eth1
 iface eth1 inet dhcp
@@ -67,6 +68,100 @@ iface eth1 inet6 static
     gateway 2607:f0d0:1002:0011::1
 '''
 
+V1_NET_CFG = {'config': [{'name': 'eth0',
+
+                          'subnets': [{'address': '192.168.1.5',
+                                       'broadcast': '192.168.1.0',
+                                       'gateway': '192.168.1.254',
+                                       'netmask': '255.255.255.0',
+                                       'type': 'static'}],
+                          'type': 'physical'},
+                         {'name': 'eth1',
+                          'subnets': [{'control': 'auto', 'type': 'dhcp4'}],
+                          'type': 'physical'}],
+              'version': 1}
+
+V1_NET_CFG_OUTPUT = """
+# This file is generated from information provided by
+# the datasource.  Changes to it will not persist across an instance.
+# To disable cloud-init's network configuration capabilities, write a file
+# /etc/cloud/cloud.cfg.d/99-disable-network-config.cfg with the following:
+# network: {config: disabled}
+auto lo
+iface lo inet loopback
+
+auto eth0
+iface eth0 inet static
+    address 192.168.1.5
+    broadcast 192.168.1.0
+    gateway 192.168.1.254
+    netmask 255.255.255.0
+
+auto eth1
+iface eth1 inet dhcp
+"""
+
+V1_NET_CFG_IPV6 = {'config': [{'name': 'eth0',
+                               'subnets': [{'address':
+                                            '2607:f0d0:1002:0011::2',
+                                            'gateway':
+                                            '2607:f0d0:1002:0011::1',
+                                            'netmask': '64',
+                                            'type': 'static'}],
+                               'type': 'physical'},
+                              {'name': 'eth1',
+                               'subnets': [{'control': 'auto',
+                                            'type': 'dhcp4'}],
+                               'type': 'physical'}],
+                   'version': 1}
+
+
+V1_TO_V2_NET_CFG_OUTPUT = """
+# This file is generated from information provided by
+# the datasource.  Changes to it will not persist across an instance.
+# To disable cloud-init's network configuration capabilities, write a file
+# /etc/cloud/cloud.cfg.d/99-disable-network-config.cfg with the following:
+# network: {config: disabled}
+network:
+    version: 2
+    ethernets:
+        eth0:
+            addresses:
+            - 192.168.1.5/255.255.255.0
+            gateway4: 192.168.1.254
+        eth1:
+            dhcp4: true
+"""
+
+V2_NET_CFG = {
+    'ethernets': {
+        'eth7': {
+            'addresses': ['192.168.1.5/255.255.255.0'],
+            'gateway4': '192.168.1.254'},
+        'eth9': {
+            'dhcp4': True}
+    },
+    'version': 2
+}
+
+
+V2_TO_V2_NET_CFG_OUTPUT = """
+# This file is generated from information provided by
+# the datasource.  Changes to it will not persist across an instance.
+# To disable cloud-init's network configuration capabilities, write a file
+# /etc/cloud/cloud.cfg.d/99-disable-network-config.cfg with the following:
+# network: {config: disabled}
+network:
+    version: 2
+    ethernets:
+        eth7:
+            addresses:
+            - 192.168.1.5/255.255.255.0
+            gateway4: 192.168.1.254
+        eth9:
+            dhcp4: true
+"""
+
 
 class WriteBuffer(object):
     def __init__(self):
@@ -83,12 +178,14 @@ class WriteBuffer(object):
 
 class TestNetCfgDistro(TestCase):
 
-    def _get_distro(self, dname):
+    def _get_distro(self, dname, renderers=None):
         cls = distros.fetch(dname)
         cfg = settings.CFG_BUILTIN
         cfg['system_info']['distro'] = dname
+        if renderers:
+            cfg['system_info']['network'] = {'renderers': renderers}
         paths = helpers.Paths({})
-        return cls(dname, cfg, paths)
+        return cls(dname, cfg.get('system_info'), paths)
 
     def test_simple_write_ub(self):
         ub_distro = self._get_distro('ubuntu')
@@ -114,6 +211,107 @@ class TestNetCfgDistro(TestCase):
             self.assertIn(eni_name, write_bufs)
             write_buf = write_bufs[eni_name]
             self.assertEqual(str(write_buf).strip(), BASE_NET_CFG.strip())
+            self.assertEqual(write_buf.mode, 0o644)
+
+    def test_apply_network_config_eni_ub(self):
+        ub_distro = self._get_distro('ubuntu')
+        with ExitStack() as mocks:
+            write_bufs = {}
+
+            def replace_write(filename, content, mode=0o644, omode="wb"):
+                buf = WriteBuffer()
+                buf.mode = mode
+                buf.omode = omode
+                buf.write(content)
+                write_bufs[filename] = buf
+
+            # eni availability checks
+            mocks.enter_context(
+                mock.patch.object(util, 'which', return_value=True))
+            mocks.enter_context(
+                mock.patch.object(eni, 'available', return_value=True))
+            mocks.enter_context(
+                mock.patch.object(util, 'ensure_dir'))
+            mocks.enter_context(
+                mock.patch.object(util, 'write_file', replace_write))
+            mocks.enter_context(
+                mock.patch.object(os.path, 'isfile', return_value=False))
+
+            ub_distro.apply_network_config(V1_NET_CFG, False)
+
+            self.assertEqual(len(write_bufs), 2)
+            eni_name = '/etc/network/interfaces.d/50-cloud-init.cfg'
+            self.assertIn(eni_name, write_bufs)
+            write_buf = write_bufs[eni_name]
+            self.assertEqual(str(write_buf).strip(), V1_NET_CFG_OUTPUT.strip())
+            self.assertEqual(write_buf.mode, 0o644)
+
+    def test_apply_network_config_v1_to_netplan_ub(self):
+        renderers = ['netplan']
+        ub_distro = self._get_distro('ubuntu', renderers=renderers)
+        with ExitStack() as mocks:
+            write_bufs = {}
+
+            def replace_write(filename, content, mode=0o644, omode="wb"):
+                buf = WriteBuffer()
+                buf.mode = mode
+                buf.omode = omode
+                buf.write(content)
+                write_bufs[filename] = buf
+
+            mocks.enter_context(
+                mock.patch.object(util, 'which', return_value=True))
+            mocks.enter_context(
+                mock.patch.object(util, 'write_file', replace_write))
+            mocks.enter_context(
+                mock.patch.object(util, 'ensure_dir'))
+            mocks.enter_context(
+                mock.patch.object(util, 'subp', return_value=(0, 0)))
+            mocks.enter_context(
+                mock.patch.object(os.path, 'isfile', return_value=False))
+
+            ub_distro.apply_network_config(V1_NET_CFG, False)
+
+            self.assertEqual(len(write_bufs), 1)
+            netplan_name = '/etc/netplan/50-cloud-init.yaml'
+            self.assertIn(netplan_name, write_bufs)
+            write_buf = write_bufs[netplan_name]
+            self.assertEqual(str(write_buf).strip(),
+                             V1_TO_V2_NET_CFG_OUTPUT.strip())
+            self.assertEqual(write_buf.mode, 0o644)
+
+    def test_apply_network_config_v2_passthrough_ub(self):
+        renderers = ['netplan']
+        ub_distro = self._get_distro('ubuntu', renderers=renderers)
+        with ExitStack() as mocks:
+            write_bufs = {}
+
+            def replace_write(filename, content, mode=0o644, omode="wb"):
+                buf = WriteBuffer()
+                buf.mode = mode
+                buf.omode = omode
+                buf.write(content)
+                write_bufs[filename] = buf
+
+            mocks.enter_context(
+                mock.patch.object(util, 'which', return_value=True))
+            mocks.enter_context(
+                mock.patch.object(util, 'write_file', replace_write))
+            mocks.enter_context(
+                mock.patch.object(util, 'ensure_dir'))
+            mocks.enter_context(
+                mock.patch.object(util, 'subp', return_value=(0, 0)))
+            mocks.enter_context(
+                mock.patch.object(os.path, 'isfile', return_value=False))
+
+            ub_distro.apply_network_config(V2_NET_CFG, False)
+
+            self.assertEqual(len(write_bufs), 1)
+            netplan_name = '/etc/netplan/50-cloud-init.yaml'
+            self.assertIn(netplan_name, write_bufs)
+            write_buf = write_bufs[netplan_name]
+            self.assertEqual(str(write_buf).strip(),
+                             V2_TO_V2_NET_CFG_OUTPUT.strip())
             self.assertEqual(write_buf.mode, 0o644)
 
     def assertCfgEquals(self, blob1, blob2):
@@ -195,6 +393,79 @@ NETWORKING=yes
             self.assertCfgEquals(expected_buf, str(write_buf))
             self.assertEqual(write_buf.mode, 0o644)
 
+    def test_apply_network_config_rh(self):
+        renderers = ['sysconfig']
+        rh_distro = self._get_distro('rhel', renderers=renderers)
+
+        write_bufs = {}
+
+        def replace_write(filename, content, mode=0o644, omode="wb"):
+            buf = WriteBuffer()
+            buf.mode = mode
+            buf.omode = omode
+            buf.write(content)
+            write_bufs[filename] = buf
+
+        with ExitStack() as mocks:
+            # sysconfig availability checks
+            mocks.enter_context(
+                mock.patch.object(util, 'which', return_value=True))
+            mocks.enter_context(
+                mock.patch.object(util, 'write_file', replace_write))
+            mocks.enter_context(
+                mock.patch.object(util, 'load_file', return_value=''))
+            mocks.enter_context(
+                mock.patch.object(os.path, 'isfile', return_value=True))
+
+            rh_distro.apply_network_config(V1_NET_CFG, False)
+
+            self.assertEqual(len(write_bufs), 5)
+
+            # eth0
+            self.assertIn('/etc/sysconfig/network-scripts/ifcfg-eth0',
+                          write_bufs)
+            write_buf = write_bufs['/etc/sysconfig/network-scripts/ifcfg-eth0']
+            expected_buf = '''
+# Created by cloud-init on instance boot automatically, do not edit.
+#
+BOOTPROTO=static
+DEVICE=eth0
+IPADDR=192.168.1.5
+NETMASK=255.255.255.0
+NM_CONTROLLED=no
+ONBOOT=yes
+TYPE=Ethernet
+USERCTL=no
+'''
+            self.assertCfgEquals(expected_buf, str(write_buf))
+            self.assertEqual(write_buf.mode, 0o644)
+
+            # eth1
+            self.assertIn('/etc/sysconfig/network-scripts/ifcfg-eth1',
+                          write_bufs)
+            write_buf = write_bufs['/etc/sysconfig/network-scripts/ifcfg-eth1']
+            expected_buf = '''
+# Created by cloud-init on instance boot automatically, do not edit.
+#
+BOOTPROTO=dhcp
+DEVICE=eth1
+NM_CONTROLLED=no
+ONBOOT=yes
+TYPE=Ethernet
+USERCTL=no
+'''
+            self.assertCfgEquals(expected_buf, str(write_buf))
+            self.assertEqual(write_buf.mode, 0o644)
+
+            self.assertIn('/etc/sysconfig/network', write_bufs)
+            write_buf = write_bufs['/etc/sysconfig/network']
+            expected_buf = '''
+# Created by cloud-init v. 0.7
+NETWORKING=yes
+'''
+            self.assertCfgEquals(expected_buf, str(write_buf))
+            self.assertEqual(write_buf.mode, 0o644)
+
     def test_write_ipv6_rhel(self):
         rh_distro = self._get_distro('rhel')
 
@@ -259,6 +530,78 @@ BROADCAST="192.168.1.0"
 IPV6INIT=yes
 IPV6ADDR="2607:f0d0:1002:0011::3"
 IPV6_DEFAULTGW="2607:f0d0:1002:0011::1"
+'''
+            self.assertCfgEquals(expected_buf, str(write_buf))
+            self.assertEqual(write_buf.mode, 0o644)
+
+            self.assertIn('/etc/sysconfig/network', write_bufs)
+            write_buf = write_bufs['/etc/sysconfig/network']
+            expected_buf = '''
+# Created by cloud-init v. 0.7
+NETWORKING=yes
+NETWORKING_IPV6=yes
+IPV6_AUTOCONF=no
+'''
+            self.assertCfgEquals(expected_buf, str(write_buf))
+            self.assertEqual(write_buf.mode, 0o644)
+
+    def test_apply_network_config_ipv6_rh(self):
+        renderers = ['sysconfig']
+        rh_distro = self._get_distro('rhel', renderers=renderers)
+
+        write_bufs = {}
+
+        def replace_write(filename, content, mode=0o644, omode="wb"):
+            buf = WriteBuffer()
+            buf.mode = mode
+            buf.omode = omode
+            buf.write(content)
+            write_bufs[filename] = buf
+
+        with ExitStack() as mocks:
+            mocks.enter_context(
+                mock.patch.object(util, 'which', return_value=True))
+            mocks.enter_context(
+                mock.patch.object(util, 'write_file', replace_write))
+            mocks.enter_context(
+                mock.patch.object(util, 'load_file', return_value=''))
+            mocks.enter_context(
+                mock.patch.object(os.path, 'isfile', return_value=True))
+
+            rh_distro.apply_network_config(V1_NET_CFG_IPV6, False)
+
+            self.assertEqual(len(write_bufs), 5)
+
+            self.assertIn('/etc/sysconfig/network-scripts/ifcfg-eth0',
+                          write_bufs)
+            write_buf = write_bufs['/etc/sysconfig/network-scripts/ifcfg-eth0']
+            expected_buf = '''
+# Created by cloud-init on instance boot automatically, do not edit.
+#
+BOOTPROTO=static
+DEVICE=eth0
+IPV6ADDR=2607:f0d0:1002:0011::2
+IPV6INIT=yes
+NETMASK=64
+NM_CONTROLLED=no
+ONBOOT=yes
+TYPE=Ethernet
+USERCTL=no
+'''
+            self.assertCfgEquals(expected_buf, str(write_buf))
+            self.assertEqual(write_buf.mode, 0o644)
+            self.assertIn('/etc/sysconfig/network-scripts/ifcfg-eth1',
+                          write_bufs)
+            write_buf = write_bufs['/etc/sysconfig/network-scripts/ifcfg-eth1']
+            expected_buf = '''
+# Created by cloud-init on instance boot automatically, do not edit.
+#
+BOOTPROTO=dhcp
+DEVICE=eth1
+NM_CONTROLLED=no
+ONBOOT=yes
+TYPE=Ethernet
+USERCTL=no
 '''
             self.assertCfgEquals(expected_buf, str(write_buf))
             self.assertEqual(write_buf.mode, 0o644)

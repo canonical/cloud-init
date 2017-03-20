@@ -8,6 +8,7 @@ import re
 from . import ParserError
 
 from . import renderer
+from .network_state import subnet_is_ipv6
 
 from cloudinit import util
 
@@ -109,16 +110,6 @@ def _iface_start_entry(iface, index, render_hwaddress=False):
         lines.append("    hwaddress {mac_address}".format(**subst))
 
     return lines
-
-
-def _subnet_is_ipv6(subnet):
-    # 'static6' or 'dhcp6'
-    if subnet['type'].endswith('6'):
-        # This is a request for DHCPv6.
-        return True
-    elif subnet['type'] == 'static' and ":" in subnet['address']:
-        return True
-    return False
 
 
 def _parse_deb_config_data(ifaces, contents, src_dir, src_path):
@@ -370,7 +361,7 @@ class Renderer(renderer.Renderer):
                 iface['mode'] = subnet['type']
                 iface['control'] = subnet.get('control', 'auto')
                 subnet_inet = 'inet'
-                if _subnet_is_ipv6(subnet):
+                if subnet_is_ipv6(subnet):
                     subnet_inet += '6'
                 iface['inet'] = subnet_inet
                 if subnet['type'].startswith('dhcp'):
@@ -486,7 +477,7 @@ class Renderer(renderer.Renderer):
 def network_state_to_eni(network_state, header=None, render_hwaddress=False):
     # render the provided network state, return a string of equivalent eni
     eni_path = 'etc/network/interfaces'
-    renderer = Renderer({
+    renderer = Renderer(config={
         'eni_path': eni_path,
         'eni_header': header,
         'links_path_prefix': None,
@@ -508,7 +499,7 @@ def available(target=None):
         if not util.which(p, search=search, target=target):
             return False
     eni = util.target_path(target, 'etc/network/interfaces')
-    if not os.path.is_file(eni):
+    if not os.path.isfile(eni):
         return False
 
     return True
