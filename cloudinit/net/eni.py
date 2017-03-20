@@ -508,7 +508,7 @@ def available(target=None):
         if not util.which(p, search=search, target=target):
             return False
     eni = util.target_path(target, 'etc/network/interfaces')
-    if not os.path.is_file(eni):
+    if not os.path.isfile(eni):
         return False
 
     return True
