@@ -2373,4 +2373,13 @@ def system_is_snappy():
         return True
     return False
 
+
+def indent(text, prefix):
+    """replacement for indent from textwrap that is not available in 2.7."""
+    lines = []
+    for line in text.splitlines(True):
+        lines.append(prefix + line)
+    return ''.join(lines)
+
+
 # vi: ts=4 expandtab

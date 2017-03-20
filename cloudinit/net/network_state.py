@@ -1,4 +1,4 @@
-# Copyright (C) 2013-2014 Canonical Ltd.
+# Copyright (C) 2017 Canonical Ltd.
 #
 # Author: Ryan Harper <ryan.harper@canonical.com>
 #
@@ -18,6 +18,10 @@ NETWORK_STATE_VERSION = 1
 NETWORK_STATE_REQUIRED_KEYS = {
     1: ['version', 'config', 'network_state'],
 }
+NETWORK_V2_KEY_FILTER = [
+    'addresses', 'dhcp4', 'dhcp6', 'gateway4', 'gateway6', 'interfaces',
+    'match', 'mtu', 'nameservers', 'renderer', 'set-name', 'wakeonlan'
+]
 
 
 def parse_net_config_data(net_config, skip_broken=True):
@@ -26,11 +30,18 @@ def parse_net_config_data(net_config, skip_broken=True):
     :param net_config: curtin network config dict
     """
     state = None
-    if 'version' in net_config and 'config' in net_config:
-        nsi = NetworkStateInterpreter(version=net_config.get('version'),
-                                      config=net_config.get('config'))
+    version = net_config.get('version')
+    config = net_config.get('config')
+    if version == 2:
+        # v2 does not have explicit 'config' key so we
+        # pass the whole net-config as-is
+        config = net_config
+
+    if version and config:
+        nsi = NetworkStateInterpreter(version=version, config=config)
         nsi.parse_config(skip_broken=skip_broken)
-        state = nsi.network_state
+        state = nsi.get_network_state()
+
     return state
 
 
@@ -106,6 +117,7 @@ class NetworkState(object):
     def __init__(self, network_state, version=NETWORK_STATE_VERSION):
         self._network_state = copy.deepcopy(network_state)
         self._version = version
+        self.use_ipv6 = network_state.get('use_ipv6', False)
 
     @property
     def version(self):
@@ -152,7 +164,8 @@ class NetworkStateInterpreter(object):
         'dns': {
             'nameservers': [],
             'search': [],
-        }
+        },
+        'use_ipv6': False,
     }
 
     def __init__(self, version=NETWORK_STATE_VERSION, config=None):
@@ -164,6 +177,14 @@ class NetworkStateInterpreter(object):
     @property
     def network_state(self):
         return NetworkState(self._network_state, version=self._version)
+
+    @property
+    def use_ipv6(self):
+        return self._network_state.get('use_ipv6')
+
+    @use_ipv6.setter
+    def use_ipv6(self, val):
+        self._network_state.update({'use_ipv6': val})
 
     def dump(self):
         state = {
@@ -192,8 +213,22 @@ class NetworkStateInterpreter(object):
     def dump_network_state(self):
         return util.yaml_dumps(self._network_state)
 
+    def as_dict(self):
+        return {'version': self.version, 'config': self.config}
+
+    def get_network_state(self):
+        ns = self.network_state
+        return ns
+
     def parse_config(self, skip_broken=True):
-        # rebuild network state
+        if self._version == 1:
+            self.parse_config_v1(skip_broken=skip_broken)
+            self._parsed = True
+        elif self._version == 2:
+            self.parse_config_v2(skip_broken=skip_broken)
+            self._parsed = True
+
+    def parse_config_v1(self, skip_broken=True):
         for command in self._config:
             command_type = command['type']
             try:
@@ -203,6 +238,26 @@ class NetworkStateInterpreter(object):
                                    " command '%s'" % command_type)
             try:
                 handler(self, command)
+            except InvalidCommand:
+                if not skip_broken:
+                    raise
+                else:
+                    LOG.warn("Skipping invalid command: %s", command,
+                             exc_info=True)
+                    LOG.debug(self.dump_network_state())
+
+    def parse_config_v2(self, skip_broken=True):
+        for command_type, command in self._config.items():
+            if command_type == 'version':
+                continue
+            try:
+                handler = self.command_handlers[command_type]
+            except KeyError:
+                raise RuntimeError("No handler found for"
+                                   " command '%s'" % command_type)
+            try:
+                handler(self, command)
+                self._v2_common(command)
             except InvalidCommand:
                 if not skip_broken:
                     raise
@@ -238,11 +293,16 @@ class NetworkStateInterpreter(object):
         if subnets:
             for subnet in subnets:
                 if subnet['type'] == 'static':
+                    if ':' in subnet['address']:
+                        self.use_ipv6 = True
                     if 'netmask' in subnet and ':' in subnet['address']:
                         subnet['netmask'] = mask2cidr(subnet['netmask'])
                         for route in subnet.get('routes', []):
                             if 'netmask' in route:
                                 route['netmask'] = mask2cidr(route['netmask'])
+                elif subnet['type'].endswith('6'):
+                    self.use_ipv6 = True
+
         iface.update({
             'name': command.get('name'),
             'type': command.get('type'),
@@ -327,7 +387,7 @@ class NetworkStateInterpreter(object):
                 bond_if.update({param: val})
             self._network_state['interfaces'].update({ifname: bond_if})
 
-    @ensure_command_keys(['name', 'bridge_interfaces', 'params'])
+    @ensure_command_keys(['name', 'bridge_interfaces'])
     def handle_bridge(self, command):
         '''
             auto br0
@@ -373,7 +433,7 @@ class NetworkStateInterpreter(object):
         self.handle_physical(command)
         iface = interfaces.get(command.get('name'), {})
         iface['bridge_ports'] = command['bridge_interfaces']
-        for param, val in command.get('params').items():
+        for param, val in command.get('params', {}).items():
             iface.update({param: val})
 
         interfaces.update({iface['name']: iface})
@@ -406,6 +466,240 @@ class NetworkStateInterpreter(object):
             'metric': command.get('metric'),
         }
         routes.append(route)
+
+    # V2 handlers
+    def handle_bonds(self, command):
+        '''
+        v2_command = {
+          bond0: {
+            'interfaces': ['interface0', 'interface1'],
+            'miimon': 100,
+            'mode': '802.3ad',
+            'xmit_hash_policy': 'layer3+4'},
+          bond1: {
+            'bond-slaves': ['interface2', 'interface7'],
+            'mode': 1
+          }
+        }
+
+        v1_command = {
+            'type': 'bond'
+            'name': 'bond0',
+            'bond_interfaces': [interface0, interface1],
+            'params': {
+                'bond-mode': '802.3ad',
+                'bond_miimon: 100,
+                'bond_xmit_hash_policy': 'layer3+4',
+            }
+        }
+
+        '''
+        self._handle_bond_bridge(command, cmd_type='bond')
+
+    def handle_bridges(self, command):
+
+        '''
+        v2_command = {
+          br0: {
+            'interfaces': ['interface0', 'interface1'],
+            'fd': 0,
+            'stp': 'off',
+            'maxwait': 0,
+          }
+        }
+
+        v1_command = {
+            'type': 'bridge'
+            'name': 'br0',
+            'bridge_interfaces': [interface0, interface1],
+            'params': {
+                'bridge_stp': 'off',
+                'bridge_fd: 0,
+                'bridge_maxwait': 0
+            }
+        }
+
+        '''
+        self._handle_bond_bridge(command, cmd_type='bridge')
+
+    def handle_ethernets(self, command):
+        '''
+        ethernets:
+          eno1:
+            match:
+              macaddress: 00:11:22:33:44:55
+            wakeonlan: true
+            dhcp4: true
+            dhcp6: false
+            addresses:
+              - 192.168.14.2/24
+              - 2001:1::1/64
+            gateway4: 192.168.14.1
+            gateway6: 2001:1::2
+            nameservers:
+              search: [foo.local, bar.local]
+              addresses: [8.8.8.8, 8.8.4.4]
+          lom:
+            match:
+              driver: ixgbe
+            set-name: lom1
+            dhcp6: true
+          switchports:
+            match:
+              name: enp2*
+            mtu: 1280
+
+        command = {
+            'type': 'physical',
+            'mac_address': 'c0:d6:9f:2c:e8:80',
+            'name': 'eth0',
+            'subnets': [
+                {'type': 'dhcp4'}
+             ]
+        }
+        '''
+        for eth, cfg in command.items():
+            phy_cmd = {
+                'type': 'physical',
+                'name': cfg.get('set-name', eth),
+            }
+            mac_address = cfg.get('match', {}).get('macaddress', None)
+            if not mac_address:
+                LOG.debug('NetworkState Version2: missing "macaddress" info '
+                          'in config entry: %s: %s', eth, str(cfg))
+
+            for key in ['mtu', 'match', 'wakeonlan']:
+                if key in cfg:
+                    phy_cmd.update({key: cfg.get(key)})
+
+            subnets = self._v2_to_v1_ipcfg(cfg)
+            if len(subnets) > 0:
+                phy_cmd.update({'subnets': subnets})
+
+            LOG.debug('v2(ethernets) -> v1(physical):\n%s', phy_cmd)
+            self.handle_physical(phy_cmd)
+
+    def handle_vlans(self, command):
+        '''
+        v2_vlans = {
+            'eth0.123': {
+                'id': 123,
+                'link': 'eth0',
+                'dhcp4': True,
+            }
+        }
+
+        v1_command = {
+            'type': 'vlan',
+            'name': 'eth0.123',
+            'vlan_link': 'eth0',
+            'vlan_id': 123,
+            'subnets': [{'type': 'dhcp4'}],
+        }
+        '''
+        for vlan, cfg in command.items():
+            vlan_cmd = {
+                'type': 'vlan',
+                'name': vlan,
+                'vlan_id': cfg.get('id'),
+                'vlan_link': cfg.get('link'),
+            }
+            subnets = self._v2_to_v1_ipcfg(cfg)
+            if len(subnets) > 0:
+                vlan_cmd.update({'subnets': subnets})
+            LOG.debug('v2(vlans) -> v1(vlan):\n%s', vlan_cmd)
+            self.handle_vlan(vlan_cmd)
+
+    def handle_wifis(self, command):
+        raise NotImplemented('NetworkState V2: Skipping wifi configuration')
+
+    def _v2_common(self, cfg):
+        LOG.debug('v2_common: handling config:\n%s', cfg)
+        if 'nameservers' in cfg:
+            search = cfg.get('nameservers').get('search', [])
+            dns = cfg.get('nameservers').get('addresses', [])
+            name_cmd = {'type': 'nameserver'}
+            if len(search) > 0:
+                name_cmd.update({'search': search})
+            if len(dns) > 0:
+                name_cmd.update({'addresses': dns})
+            LOG.debug('v2(nameserver) -> v1(nameserver):\n%s', name_cmd)
+            self.handle_nameserver(name_cmd)
+
+    def _handle_bond_bridge(self, command, cmd_type=None):
+        """Common handler for bond and bridge types"""
+        for item_name, item_cfg in command.items():
+            item_params = dict((key, value) for (key, value) in
+                               item_cfg.items() if key not in
+                               NETWORK_V2_KEY_FILTER)
+            v1_cmd = {
+                'type': cmd_type,
+                'name': item_name,
+                cmd_type + '_interfaces': item_cfg.get('interfaces'),
+                'params': item_params,
+            }
+            subnets = self._v2_to_v1_ipcfg(item_cfg)
+            if len(subnets) > 0:
+                v1_cmd.update({'subnets': subnets})
+
+            LOG.debug('v2(%ss) -> v1(%s):\n%s', cmd_type, cmd_type, v1_cmd)
+            self.handle_bridge(v1_cmd)
+
+    def _v2_to_v1_ipcfg(self, cfg):
+        """Common ipconfig extraction from v2 to v1 subnets array."""
+
+        subnets = []
+        if 'dhcp4' in cfg:
+            subnets.append({'type': 'dhcp4'})
+        if 'dhcp6' in cfg:
+            self.use_ipv6 = True
+            subnets.append({'type': 'dhcp6'})
+
+        gateway4 = None
+        gateway6 = None
+        for address in cfg.get('addresses', []):
+            subnet = {
+                'type': 'static',
+                'address': address,
+            }
+
+            routes = []
+            for route in cfg.get('routes', []):
+                route_addr = route.get('to')
+                if "/" in route_addr:
+                    route_addr, route_cidr = route_addr.split("/")
+                route_netmask = cidr2mask(route_cidr)
+                subnet_route = {
+                    'address': route_addr,
+                    'netmask': route_netmask,
+                    'gateway': route.get('via')
+                }
+                routes.append(subnet_route)
+            if len(routes) > 0:
+                subnet.update({'routes': routes})
+
+            if ":" in address:
+                if 'gateway6' in cfg and gateway6 is None:
+                    gateway6 = cfg.get('gateway6')
+                    subnet.update({'gateway': gateway6})
+            else:
+                if 'gateway4' in cfg and gateway4 is None:
+                    gateway4 = cfg.get('gateway4')
+                    subnet.update({'gateway': gateway4})
+
+            subnets.append(subnet)
+        return subnets
+
+
+def subnet_is_ipv6(subnet):
+    """Common helper for checking network_state subnets for ipv6."""
+    # 'static6' or 'dhcp6'
+    if subnet['type'].endswith('6'):
+        # This is a request for DHCPv6.
+        return True
+    elif subnet['type'] == 'static' and ":" in subnet['address']:
+        return True
+    return False
 
 
 def cidr2mask(cidr):
