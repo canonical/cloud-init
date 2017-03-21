@@ -214,7 +214,7 @@ class NetworkStateInterpreter(object):
         return util.yaml_dumps(self._network_state)
 
     def as_dict(self):
-        return {'version': self.version, 'config': self.config}
+        return {'version': self._version, 'config': self._config}
 
     def get_network_state(self):
         ns = self.network_state
@@ -611,7 +611,8 @@ class NetworkStateInterpreter(object):
             self.handle_vlan(vlan_cmd)
 
     def handle_wifis(self, command):
-        raise NotImplemented('NetworkState V2: Skipping wifi configuration')
+        raise NotImplementedError("NetworkState V2: "
+                                  "Skipping wifi configuration")
 
     def _v2_common(self, cfg):
         LOG.debug('v2_common: handling config:\n%s', cfg)
