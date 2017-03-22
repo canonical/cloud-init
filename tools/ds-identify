@@ -473,7 +473,7 @@ check_config() {
         files="$*"
     fi
     shift
-    set +f; set -- $files; set +f;
+    set +f; set -- $files; set -f;
     if [ "$1" = "$files" -a ! -f "$1" ]; then
         return 1
     fi
