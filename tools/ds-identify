@@ -633,7 +633,8 @@ dscheck_Azure() {
 
 dscheck_Bigstep() {
     # bigstep is activated by presense of seed file 'url'
-    check_seed_dir "bigstep" url && return ${DS_FOUND}
+    [ -f "${PATH_VAR_LIB_CLOUD}/data/seed/bigstep/url" ] &&
+        return ${DS_FOUND}
     return ${DS_NOT_FOUND}
 }
 
