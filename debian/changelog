@@ -1,3 +1,21 @@
+cloud-init (0.7.9-77-g4a2b2f87-0ubuntu1) UNRELEASED; urgency=medium
+
+  * New upstream snapshot.
+    - Fix filesystem creation when using "partition: auto" [Jonathan Ballet]
+      (LP: #1634678)
+    - ConfigDrive: support reading config drive data from /config-drive for
+      nova-lxd.  (LP: #1673411)
+    - ds-identify: fix detection of Bigstep datasource. (LP: #1674766)
+    - test: add running of pylint [Joshua Powers]
+    - ds-identify: fix bug where filename expansion was left on.
+    - advertise network config v2 support (NETWORK_CONFIG_V2) in features.
+    - Bigstep: fix bug when executing in python3.
+    - Fix unit test when running in a system deployed with cloud-init.
+    - Bounce network interface for Azure when using the built-in path.
+      [Brent Baude] (LP: #1674685)
+
+ -- Scott Moser <smoser@ubuntu.com>  Fri, 24 Mar 2017 16:49:49 -0400
+
 cloud-init (0.7.9-68-gef18b8ac-0ubuntu1) zesty; urgency=medium
 
   * New upstream snapshot.
