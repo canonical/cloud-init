@@ -1,4 +1,4 @@
-cloud-init (0.7.9-77-g4a2b2f87-0ubuntu1) UNRELEASED; urgency=medium
+cloud-init (0.7.9-77-g4a2b2f87-0ubuntu1) zesty; urgency=medium
 
   * New upstream snapshot.
     - Fix filesystem creation when using "partition: auto" [Jonathan Ballet]
@@ -14,7 +14,7 @@ cloud-init (0.7.9-77-g4a2b2f87-0ubuntu1) UNRELEASED; urgency=medium
     - Bounce network interface for Azure when using the built-in path.
       [Brent Baude] (LP: #1674685)
 
- -- Scott Moser <smoser@ubuntu.com>  Fri, 24 Mar 2017 16:49:49 -0400
+ -- Scott Moser <smoser@ubuntu.com>  Fri, 24 Mar 2017 16:50:56 -0400
 
 cloud-init (0.7.9-68-gef18b8ac-0ubuntu1) zesty; urgency=medium
 
