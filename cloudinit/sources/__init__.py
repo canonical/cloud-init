@@ -50,7 +50,7 @@ class DataSource(object):
         self.distro = distro
         self.paths = paths
         self.userdata = None
-        self.metadata = None
+        self.metadata = {}
         self.userdata_raw = None
         self.vendordata = None
         self.vendordata_raw = None
@@ -210,7 +210,7 @@ class DataSource(object):
         else:
             hostname = toks[0]
 
-        if fqdn:
+        if fqdn and domain != defdomain:
             return "%s.%s" % (hostname, domain)
         else:
             return hostname

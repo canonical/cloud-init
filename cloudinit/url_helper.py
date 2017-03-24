@@ -45,7 +45,7 @@ try:
     from distutils.version import LooseVersion
     import pkg_resources
     _REQ = pkg_resources.get_distribution('requests')
-    _REQ_VER = LooseVersion(_REQ.version)
+    _REQ_VER = LooseVersion(_REQ.version)  # pylint: disable=no-member
     if _REQ_VER >= LooseVersion('0.8.8'):
         SSL_ENABLED = True
     if _REQ_VER >= LooseVersion('0.7.0') and _REQ_VER < LooseVersion('1.0.0'):
