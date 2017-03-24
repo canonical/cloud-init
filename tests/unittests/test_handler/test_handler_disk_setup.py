@@ -103,4 +103,48 @@ class TestGetPartitionMbrLayout(TestCase):
             ',{0},83\n,,82'.format(expected_partition_size),
             cc_disk_setup.get_partition_mbr_layout(disk_size, [33, [66, 82]]))
 
+
+class TestUpdateFsSetupDevices(TestCase):
+    def test_regression_1634678(self):
+        # Cf. https://bugs.launchpad.net/cloud-init/+bug/1634678
+        fs_setup = {
+            'partition': 'auto',
+            'device': '/dev/xvdb1',
+            'overwrite': False,
+            'label': 'test',
+            'filesystem': 'ext4'
+        }
+
+        cc_disk_setup.update_fs_setup_devices([fs_setup],
+                                              lambda device: device)
+
+        self.assertEqual({
+            '_origname': '/dev/xvdb1',
+            'partition': 'auto',
+            'device': '/dev/xvdb1',
+            'overwrite': False,
+            'label': 'test',
+            'filesystem': 'ext4'
+        }, fs_setup)
+
+    def test_dotted_devname(self):
+        fs_setup = {
+            'partition': 'auto',
+            'device': 'ephemeral0.0',
+            'label': 'test2',
+            'filesystem': 'xfs'
+        }
+
+        cc_disk_setup.update_fs_setup_devices([fs_setup],
+                                              lambda device: device)
+
+        self.assertEqual({
+            '_origname': 'ephemeral0.0',
+            '_partition': 'auto',
+            'partition': '0',
+            'device': 'ephemeral0',
+            'label': 'test2',
+            'filesystem': 'xfs'
+        }, fs_setup)
+
 # vi: ts=4 expandtab

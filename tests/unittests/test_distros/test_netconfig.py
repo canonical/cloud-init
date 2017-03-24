@@ -236,6 +236,9 @@ class TestNetCfgDistro(TestCase):
                 mock.patch.object(util, 'write_file', replace_write))
             mocks.enter_context(
                 mock.patch.object(os.path, 'isfile', return_value=False))
+            mocks.enter_context(
+                mock.patch("cloudinit.net.eni.glob.glob",
+                           return_value=[]))
 
             ub_distro.apply_network_config(V1_NET_CFG, False)
 

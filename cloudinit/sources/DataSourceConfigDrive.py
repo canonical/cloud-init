@@ -54,13 +54,16 @@ class DataSourceConfigDrive(openstack.SourceMixin, sources.DataSource):
         found = None
         md = {}
         results = {}
-        if os.path.isdir(self.seed_dir):
+        for sdir in (self.seed_dir, "/config-drive"):
+            if not os.path.isdir(sdir):
+                continue
             try:
-                results = read_config_drive(self.seed_dir)
-                found = self.seed_dir
+                results = read_config_drive(sdir)
+                found = sdir
+                break
             except openstack.NonReadable:
-                util.logexc(LOG, "Failed reading config drive from %s",
-                            self.seed_dir)
+                util.logexc(LOG, "Failed reading config drive from %s", sdir)
+
         if not found:
             for dev in find_candidate_devs():
                 try:
