@@ -6,3 +6,7 @@ __pycache__
 .tox
 .coverage
 doc/rtd_html
+parts
+prime
+stage
+*.snap
