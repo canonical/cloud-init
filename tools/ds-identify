@@ -795,10 +795,15 @@ dscheck_OpenStack() {
     if [ $? -eq ${DS_FOUND} ]; then
         return ${DS_NOT_FOUND}
     fi
-    if dmi_product_name_is "OpenStack Nova"; then
+    local nova="OpenStack Nova" compute="OpenStack Compute"
+    if dmi_product_name_is "$nova"; then
         return ${DS_FOUND}
     fi
-    if [ "${DI_PID_1_PLATFORM}" = "OpenStack Nova" ]; then
+    if dmi_product_name_is "$compute"; then
+        # RDO installed nova (LP: #1675349).
+        return ${DS_FOUND}
+    fi
+    if [ "${DI_PID_1_PLATFORM}" = "$nova" ]; then
         return ${DS_FOUND}
     fi
 
