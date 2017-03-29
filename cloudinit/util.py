@@ -2382,4 +2382,33 @@ def indent(text, prefix):
     return ''.join(lines)
 
 
+def rootdev_from_cmdline(cmdline):
+    found = None
+    for tok in cmdline.split():
+        if tok.startswith("root="):
+            found = tok[5:]
+            break
+    if found is None:
+        return None
+
+    if found.startswith("/dev/"):
+        return found
+    if found.startswith("LABEL="):
+        return "/dev/disk/by-label/" + found[len("LABEL="):]
+    if found.startswith("UUID="):
+        return "/dev/disk/by-uuid/" + found[len("UUID="):]
+    if found.startswith("PARTUUID="):
+        disks_path = "/dev/disk/by-partuuid/" + found[len("PARTUUID="):]
+        if os.path.exists(disks_path):
+            return disks_path
+        results = find_devs_with(found)
+        if results:
+            return results[0]
+        # we know this doesn't exist, but for consistency return the path as
+        # it /would/ exist
+        return disks_path
+
+    return "/dev/" + found
+
+
 # vi: ts=4 expandtab
