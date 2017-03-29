@@ -108,7 +108,7 @@ DI_DSNAME=""
 # this has to match the builtin list in cloud-init, it is what will
 # be searched if there is no setting found in config.
 DI_DSLIST_DEFAULT="MAAS ConfigDrive NoCloud AltCloud Azure Bigstep \
-CloudSigma CloudStack DigitalOcean Ec2 OpenNebula OpenStack OVF SmartOS"
+CloudSigma CloudStack DigitalOcean Ec2 GCE OpenNebula OpenStack OVF SmartOS"
 DI_DSLIST=""
 DI_MODE=""
 DI_ON_FOUND=""
@@ -378,6 +378,14 @@ read_pid1_platform() {
 dmi_product_name_matches() {
     is_container && return 1
     case "${DI_DMI_PRODUCT_NAME}" in
+        $1) return 0;;
+    esac
+    return 1
+}
+
+dmi_product_serial_matches() {
+    is_container && return 1
+    case "${DI_DMI_PRODUCT_SERIAL}" in
         $1) return 0;;
     esac
     return 1
@@ -770,6 +778,10 @@ dscheck_GCE() {
     if dmi_product_name_is "Google Compute Engine"; then
         return ${DS_FOUND}
     fi
+    # product name is not guaranteed (LP: #1674861)
+    if dmi_product_serial_matches "GoogleCloud-*"; then
+        return ${DS_FOUND}
+    fi
     return ${DS_NOT_FOUND}
 }
 
@@ -783,10 +795,15 @@ dscheck_OpenStack() {
     if [ $? -eq ${DS_FOUND} ]; then
         return ${DS_NOT_FOUND}
     fi
-    if dmi_product_name_is "OpenStack Nova"; then
+    local nova="OpenStack Nova" compute="OpenStack Compute"
+    if dmi_product_name_is "$nova"; then
         return ${DS_FOUND}
     fi
-    if [ "${DI_PID_1_PLATFORM}" = "OpenStack Nova" ]; then
+    if dmi_product_name_is "$compute"; then
+        # RDO installed nova (LP: #1675349).
+        return ${DS_FOUND}
+    fi
+    if [ "${DI_PID_1_PLATFORM}" = "$nova" ]; then
         return ${DS_FOUND}
     fi
 

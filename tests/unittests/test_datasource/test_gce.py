@@ -5,6 +5,7 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 import httpretty
+import mock
 import re
 
 from base64 import b64encode, b64decode
@@ -71,6 +72,11 @@ class TestDataSourceGCE(test_helpers.HttprettyTestCase):
         self.ds = DataSourceGCE.DataSourceGCE(
             settings.CFG_BUILTIN, None,
             helpers.Paths({}))
+        self.m_platform_reports_gce = mock.patch(
+            'cloudinit.sources.DataSourceGCE.platform_reports_gce',
+            return_value=True)
+        self.m_platform_reports_gce.start()
+        self.addCleanup(self.m_platform_reports_gce.stop)
         super(TestDataSourceGCE, self).setUp()
 
     def test_connection(self):
@@ -153,7 +159,13 @@ class TestDataSourceGCE(test_helpers.HttprettyTestCase):
 
     def test_only_last_part_of_zone_used_for_availability_zone(self):
         _set_mock_metadata()
-        self.ds.get_data()
+        r = self.ds.get_data()
+        self.assertEqual(True, r)
         self.assertEqual('bar', self.ds.availability_zone)
+
+    def test_get_data_returns_false_if_not_on_gce(self):
+        self.m_platform_reports_gce.return_value = False
+        self.assertEqual(False, self.ds.get_data())
+
 
 # vi: ts=4 expandtab

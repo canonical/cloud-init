@@ -62,6 +62,9 @@ class DataSourceGCE(sources.DataSource):
             return public_key
 
     def get_data(self):
+        if not platform_reports_gce():
+            return False
+
         # url_map: (our-key, path, required, is_text)
         url_map = [
             ('instance-id', ('instance/id',), True, True),
@@ -142,6 +145,21 @@ class DataSourceGCE(sources.DataSource):
     @property
     def region(self):
         return self.availability_zone.rsplit('-', 1)[0]
+
+
+def platform_reports_gce():
+    pname = util.read_dmi_data('system-product-name') or "N/A"
+    if pname == "Google Compute Engine":
+        return True
+
+    # system-product-name is not always guaranteed (LP: #1674861)
+    serial = util.read_dmi_data('system-serial-number') or "N/A"
+    if serial.startswith("GoogleCloud-"):
+        return True
+
+    LOG.debug("Not running on google cloud. product-name=%s serial=%s",
+              pname, serial)
+    return False
 
 
 # Used to match classes to dependencies

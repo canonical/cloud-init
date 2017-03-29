@@ -247,7 +247,16 @@ def devent2dev(devent):
         result = util.get_mount_info(devent)
         if not result:
             raise ValueError("Could not determine device of '%s' % dev_ent")
-        return result[0]
+        dev = result[0]
+
+    container = util.is_container()
+
+    # Ensure the path is a block device.
+    if (dev == "/dev/root" and not os.path.exists(dev) and not container):
+        dev = util.rootdev_from_cmdline(util.get_cmdline())
+        if dev is None:
+            raise ValueError("Unable to find device '/dev/root'")
+    return dev
 
 
 def resize_devices(resizer, devices):

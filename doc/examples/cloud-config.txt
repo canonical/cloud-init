@@ -426,13 +426,20 @@ syslog_fix_perms: syslog:root
 #
 # there is also an option to set multiple users passwords, using 'chpasswd'
 # That looks like the following, with 'expire' set to 'True' by default.
-# to not expire users passwords, set 'expire' to 'False':
+# to not expire users passwords, set 'expire' to 'False'. Also possible
+# to set hashed password, here account 'user3' has a password it set to
+# 'cloud-init', hashed with SHA-256:
 # chpasswd:
 #  list: |
 #    user1:password1
 #    user2:RANDOM
+#    user3:$5$eriogqzq$Dg7PxHsKGzziuEGkZgkLvacjuEFeljJ.rLf.hZqKQLA
 #  expire: True
 # ssh_pwauth: [ True, False, "" or "unchanged" ]
+#
+# Hashed passwords can be generated in multiple ways, example with python3:
+# python3 -c 'import crypt,getpass; print(crypt.crypt(getpass.getpass(), crypt.mksalt(crypt.METHOD_SHA512)))'
+# Newer versions of 'mkpasswd' will also work: mkpasswd -m sha-512 password
 #
 # So, a simple working example to allow login via ssh, and not expire
 # for the default user would look like:
