@@ -70,7 +70,9 @@ PATH_PROC_CMDLINE="${PATH_PROC_CMDLINE:-${PATH_ROOT}/proc/cmdline}"
 PATH_PROC_1_CMDLINE="${PATH_PROC_1_CMDLINE:-${PATH_ROOT}/proc/1/cmdline}"
 PATH_PROC_1_ENVIRON="${PATH_PROC_1_ENVIRON:-${PATH_ROOT}/proc/1/environ}"
 PATH_PROC_UPTIME=${PATH_PROC_UPTIME:-${PATH_ROOT}/proc/uptime}
-PATH_CLOUD_CONFD="${PATH_CLOUD_CONFD:-${PATH_ROOT}/etc/cloud}"
+PATH_ETC_CLOUD="${PATH_ETC_CLOUD:-${PATH_ROOT}/etc/cloud}"
+PATH_ETC_CI_CFG="${PATH_ETC_CI_CFG:-${PATH_ETC_CLOUD}/cloud.cfg}"
+PATH_ETC_CI_CFG_D="${PATH_ETC_CI_CFG_D:-${PATH_ETC_CI_CFG}.d}"
 PATH_RUN_CI="${PATH_RUN_CI:-${PATH_RUN}/cloud-init}"
 PATH_RUN_CI_CFG=${PATH_RUN_CI_CFG:-${PATH_RUN_CI}/cloud.cfg}
 PATH_RUN_DI_RESULT=${PATH_RUN_DI_RESULT:-${PATH_RUN_CI}/.ds-identify.result}
@@ -472,15 +474,18 @@ dscheck_CloudSigma() {
 }
 
 check_config() {
-    # somewhat hackily read config for 'key' in files matching 'files'
-    # currently does not respect any hierarchy.
-    local key="$1" files="" bp="${PATH_CLOUD_CONFD}/cloud.cfg"
-    if [ $# -eq 1 ]; then
-        files="$bp ${bp}.d/*.cfg"
+    # check_config(key [,file_globs])
+    # somewhat hackily read through file_globs for 'key'
+    # file_globs are expanded via path expansion and
+    # default to /etc/cloud/cloud.cfg /etc/cloud/cloud.cfg.d/*.cfg
+    # currently does not respect any hierarchy in searching for key.
+    local key="$1" files=""
+    shift
+    if [ $# -eq 0 ]; then
+        files="${PATH_ETC_CI_CFG} ${PATH_ETC_CI_CFG_D}/*.cfg"
     else
         files="$*"
     fi
-    shift
     set +f; set -- $files; set -f;
     if [ "$1" = "$files" -a ! -f "$1" ]; then
         return 1
@@ -520,9 +525,7 @@ dscheck_MAAS() {
     esac
 
     # check config files written by maas for installed system.
-    local confd="${PATH_CLOUD_CONFD}"
-    local fnmatch="$confd/*maas*.cfg $confd/*kernel_cmdline*.cfg"
-    if check_config "MAAS" "$fnmatch"; then
+    if check_config "MAAS"; then
         return "${DS_FOUND}"
     fi
     return ${DS_NOT_FOUND}
@@ -607,9 +610,7 @@ ovf_vmware_guest_customization() {
     # (disable_vmware_customization=true). If it is set to false, then
     # user has requested customization.
     local key="disable_vmware_customization"
-    local match="" bp="${PATH_CLOUD_CONFD}/cloud.cfg"
-    match="$bp $bp.d/*[Oo][Vv][Ff]*.cfg"
-    if check_config "$key" "$match"; then
+    if check_config "$key"; then
         debug 2 "${_RET_fname} set $key to $_RET"
         case "$_RET" in
             0|false|False) return 0;;
@@ -680,9 +681,9 @@ ec2_read_strict_setting() {
     esac
 
     # 3. look for the key 'strict_id' (datasource/Ec2/strict_id)
-    local match="" bp="${PATH_CLOUD_CONFD}/cloud.cfg"
-    match="$bp $bp.d/*[Ee][Cc]2*.cfg"
-    if check_config strict_id "$match"; then
+    # only in cloud.cfg or cloud.cfg.d/EC2.cfg (case insensitive)
+    local cfg="${PATH_ETC_CI_CFG}" cfg_d="${PATH_ETC_CI_CFG_D}"
+    if check_config strict_id $cfg "$cfg_d/*[Ee][Cc]2*.cfg"; then
         debug 2 "${_RET_fname} set strict_id to $_RET"
         return 0
     fi
@@ -954,7 +955,9 @@ found() {
         shift
     fi
     # always write the None datasource last.
-    list="${list:+${list}, }None"
+    if [ "$list" != "None" ]; then
+        list="${list:+${list}, }None"
+    fi
     write_result "datasource_list: [ $list ]" "$@"
     return
 }

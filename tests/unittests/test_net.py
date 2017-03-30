@@ -974,12 +974,14 @@ iface eth0 inet dhcp
 
 class TestNetplanNetRendering(CiTestCase):
 
+    @mock.patch("cloudinit.net.netplan._clean_default")
     @mock.patch("cloudinit.net.sys_dev_path")
     @mock.patch("cloudinit.net.read_sys_net")
     @mock.patch("cloudinit.net.get_devicelist")
     def test_default_generation(self, mock_get_devicelist,
                                 mock_read_sys_net,
-                                mock_sys_dev_path):
+                                mock_sys_dev_path,
+                                mock_clean_default):
         tmp_dir = self.tmp_dir()
         _setup_test(tmp_dir, mock_get_devicelist,
                     mock_read_sys_net, mock_sys_dev_path)
@@ -1013,6 +1015,69 @@ network:
             set-name: eth1000
 """
         self.assertEqual(expected.lstrip(), contents.lstrip())
+        self.assertEqual(1, mock_clean_default.call_count)
+
+
+class TestNetplanCleanDefault(CiTestCase):
+    snapd_known_path = 'etc/netplan/00-snapd-config.yaml'
+    snapd_known_content = textwrap.dedent("""\
+        # This is the initial network config.
+        # It can be overwritten by cloud-init or console-conf.
+        network:
+            version: 2
+            ethernets:
+                all-en:
+                    match:
+                        name: "en*"
+                    dhcp4: true
+                all-eth:
+                    match:
+                        name: "eth*"
+                    dhcp4: true
+        """)
+    stub_known = {
+        'run/systemd/network/10-netplan-all-en.network': 'foo-en',
+        'run/systemd/network/10-netplan-all-eth.network': 'foo-eth',
+        'run/systemd/generator/netplan.stamp': 'stamp',
+    }
+
+    def test_clean_known_config_cleaned(self):
+        content = {self.snapd_known_path: self.snapd_known_content, }
+        content.update(self.stub_known)
+        tmpd = self.tmp_dir()
+        files = sorted(populate_dir(tmpd, content))
+        netplan._clean_default(target=tmpd)
+        found = [t for t in files if os.path.exists(t)]
+        self.assertEqual([], found)
+
+    def test_clean_unknown_config_not_cleaned(self):
+        content = {self.snapd_known_path: self.snapd_known_content, }
+        content.update(self.stub_known)
+        content[self.snapd_known_path] += "# user put a comment\n"
+        tmpd = self.tmp_dir()
+        files = sorted(populate_dir(tmpd, content))
+        netplan._clean_default(target=tmpd)
+        found = [t for t in files if os.path.exists(t)]
+        self.assertEqual(files, found)
+
+    def test_clean_known_config_cleans_only_expected(self):
+        astamp = "run/systemd/generator/another.stamp"
+        anet = "run/systemd/network/10-netplan-all-lo.network"
+        ayaml = "etc/netplan/01-foo-config.yaml"
+        content = {
+            self.snapd_known_path: self.snapd_known_content,
+            astamp: "stamp",
+            anet: "network",
+            ayaml: "yaml",
+        }
+        content.update(self.stub_known)
+
+        tmpd = self.tmp_dir()
+        files = sorted(populate_dir(tmpd, content))
+        netplan._clean_default(target=tmpd)
+        found = [t for t in files if os.path.exists(t)]
+        expected = [util.target_path(tmpd, f) for f in (astamp, anet, ayaml)]
+        self.assertEqual(sorted(expected), found)
 
 
 class TestNetplanPostcommands(CiTestCase):

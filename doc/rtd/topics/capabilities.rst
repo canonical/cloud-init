@@ -3,9 +3,9 @@ Capabilities
 ************
 
 - Setting a default locale
-- Setting a instance hostname
-- Generating instance ssh private keys
-- Adding ssh keys to a users ``.ssh/authorized_keys`` so they can log in
+- Setting an instance hostname
+- Generating instance SSH private keys
+- Adding SSH keys to a user's ``.ssh/authorized_keys`` so they can log in
 - Setting up ephemeral mount points
 - Configuring network devices
 
