@@ -98,6 +98,9 @@ class PasswordListTest(CloudTestCase):
         self.assertEqual([], dupes)
         self.assertEqual(jane_enc, users['jane'])
 
+        mikey_enc = "$5$xZ$B2YGGEx2AOf4PeW48KC6.QyT1W2B4rZ9Qbltudtha89"
+        self.assertEqual(mikey_enc, users['mikey'])
+
         # shadow entry is $N$salt$, so we encrypt with the same format
         # and salt and expect the result.
         tom = "mypassword123!"
@@ -124,6 +127,7 @@ class PasswordListTest(CloudTestCase):
         self.assertIn('dick:', out)
         self.assertIn('harry:', out)
         self.assertIn('jane:', out)
+        self.assertIn('mikey:', out)
 
     def test_sshd_config(self):
         """Test sshd config allows passwords"""

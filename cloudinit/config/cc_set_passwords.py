@@ -23,7 +23,8 @@ If the ``list`` key is provided, a list of
 ``username:password`` pairs can be specified. The usernames specified
 must already exist on the system, or have been created using the
 ``cc_users_groups`` module. A password can be randomly generated using
-``username:RANDOM`` or ``username:R``. Password ssh authentication can be
+``username:RANDOM`` or ``username:R``. A hashed password can be specified
+using ``username:$6$salt$hash``. Password ssh authentication can be
 enabled, disabled, or left to system defaults using ``ssh_pwauth``.
 
 .. note::
@@ -60,8 +61,10 @@ enabled, disabled, or left to system defaults using ``ssh_pwauth``.
             - user2:RANDOM
             - user3:password3
             - user4:R
+            - user4:$6$rL..$ej...
 """
 
+import re
 import sys
 
 from cloudinit.distros import ug_util
@@ -112,24 +115,43 @@ def handle(_name, cfg, cloud, log, args):
     errors = []
     if plist:
         plist_in = []
+        hashed_plist_in = []
+        hashed_users = []
         randlist = []
         users = []
+        prog = re.compile(r'\$[1,2a,2y,5,6](\$.+){2}')
         for line in plist:
             u, p = line.split(':', 1)
-            if p == "R" or p == "RANDOM":
-                p = rand_user_password()
-                randlist.append("%s:%s" % (u, p))
-            plist_in.append("%s:%s" % (u, p))
-            users.append(u)
+            if prog.match(p) is not None and ":" not in p:
+                hashed_plist_in.append("%s:%s" % (u, p))
+                hashed_users.append(u)
+            else:
+                if p == "R" or p == "RANDOM":
+                    p = rand_user_password()
+                    randlist.append("%s:%s" % (u, p))
+                plist_in.append("%s:%s" % (u, p))
+                users.append(u)
 
         ch_in = '\n'.join(plist_in) + '\n'
-        try:
-            log.debug("Changing password for %s:", users)
-            util.subp(['chpasswd'], ch_in)
-        except Exception as e:
-            errors.append(e)
-            util.logexc(log, "Failed to set passwords with chpasswd for %s",
-                        users)
+        if users:
+            try:
+                log.debug("Changing password for %s:", users)
+                util.subp(['chpasswd'], ch_in)
+            except Exception as e:
+                errors.append(e)
+                util.logexc(
+                    log, "Failed to set passwords with chpasswd for %s", users)
+
+        hashed_ch_in = '\n'.join(hashed_plist_in) + '\n'
+        if hashed_users:
+            try:
+                log.debug("Setting hashed password for %s:", hashed_users)
+                util.subp(['chpasswd', '-e'], hashed_ch_in)
+            except Exception as e:
+                errors.append(e)
+                util.logexc(
+                    log, "Failed to set hashed passwords with chpasswd for %s",
+                    hashed_users)
 
         if len(randlist):
             blurb = ("Set the following 'random' passwords\n",
