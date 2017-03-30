@@ -1,7 +1,13 @@
-cloud-init (0.7.9-82-g0e2030ca-0ubuntu1) zesty; urgency=medium
+cloud-init (0.7.9-87-gd23543eb-0ubuntu1) UNRELEASED; urgency=medium
 
   * debian/cloud-init.templates: add Bigstep to list of sources. (LP: #1676460)
   * New upstream snapshot.
+    - net: in netplan renderer delete known image-builtin content.
+      (LP: #1675576)
+    - doc: correct grammar in capabilities.rst [David Tagatac]
+    - ds-identify: fix detecting of maas datasource. (LP: #1677710)
+    - netplan: remove debugging prints, add debug logging [Ryan Harper]
+    - ds-identify: do not write None twice to datasource_list.
     - support resizing partition and rootfs on system booted without initramfs.
       (LP: #1677376) [Steve Langasek]
     - apt_configure: run only when needed. (LP: #1675185)
