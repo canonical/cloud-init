@@ -3,7 +3,7 @@ cloud-init (0.7.9-82-g0e2030ca-0ubuntu1) zesty; urgency=medium
   * debian/cloud-init.templates: add Bigstep to list of sources. (LP: #1676460)
   * New upstream snapshot.
     - support resizing partition and rootfs on system booted without initramfs.
-      [Steve Langasek]
+      (LP: #1677376) [Steve Langasek]
     - apt_configure: run only when needed. (LP: #1675185)
     - OpenStack: identify OpenStack by product 'OpenStack Compute'.
       (LP: #1675349)
