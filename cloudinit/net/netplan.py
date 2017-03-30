@@ -10,6 +10,21 @@ from cloudinit import log as logging
 from cloudinit import util
 from cloudinit.net import SYS_CLASS_NET, get_devicelist
 
+KNOWN_SNAPD_CONFIG = b"""\
+# This is the initial network config.
+# It can be overwritten by cloud-init or console-conf.
+network:
+    version: 2
+    ethernets:
+        all-en:
+            match:
+                name: "en*"
+            dhcp4: true
+        all-eth:
+            match:
+                name: "eth*"
+            dhcp4: true
+"""
 
 LOG = logging.getLogger(__name__)
 NET_CONFIG_TO_V2 = {
@@ -154,6 +169,28 @@ def _extract_bond_slaves_by_name(interfaces, entry, bond_master):
         entry.update({'interfaces': bond_slave_names})
 
 
+def _clean_default(target=None):
+    # clean out any known default files and derived files in target
+    # LP: #1675576
+    tpath = util.target_path(target, "etc/netplan/00-snapd-config.yaml")
+    if not os.path.isfile(tpath):
+        return
+    content = util.load_file(tpath, decode=False)
+    if content != KNOWN_SNAPD_CONFIG:
+        return
+
+    derived = [util.target_path(target, f) for f in (
+               'run/systemd/network/10-netplan-all-en.network',
+               'run/systemd/network/10-netplan-all-eth.network',
+               'run/systemd/generator/netplan.stamp')]
+    existing = [f for f in derived if os.path.isfile(f)]
+    LOG.debug("removing known config '%s' and derived existing files: %s",
+              tpath, existing)
+
+    for f in [tpath] + existing:
+        os.unlink(f)
+
+
 class Renderer(renderer.Renderer):
     """Renders network information in a /etc/netplan/network.yaml format."""
 
@@ -166,6 +203,7 @@ class Renderer(renderer.Renderer):
                                        'etc/netplan/50-cloud-init.yaml')
         self.netplan_header = config.get('netplan_header', None)
         self._postcmds = config.get('postcmds', False)
+        self.clean_default = config.get('clean_default', True)
 
     def render_network_state(self, target, network_state):
         # check network state for version
@@ -182,6 +220,8 @@ class Renderer(renderer.Renderer):
             header += "\n"
         util.write_file(fpnplan, header + content)
 
+        if self.clean_default:
+            _clean_default(target=target)
         self._netplan_generate(run=self._postcmds)
         self._net_setup_link(run=self._postcmds)
 
