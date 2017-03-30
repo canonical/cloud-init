@@ -1,4 +1,4 @@
-cloud-init (0.7.9-87-gd23543eb-0ubuntu1) UNRELEASED; urgency=medium
+cloud-init (0.7.9-87-gd23543eb-0ubuntu1) zesty; urgency=medium
 
   * debian/cloud-init.templates: add Bigstep to list of sources. (LP: #1676460)
   * New upstream snapshot.
@@ -17,7 +17,7 @@ cloud-init (0.7.9-87-gd23543eb-0ubuntu1) UNRELEASED; urgency=medium
       (LP: #1674861)
     - Add support for setting hashed passwords [Tore S. Lonoy] (LP: #1570325)
 
- -- Scott Moser <smoser@ubuntu.com>  Wed, 29 Mar 2017 16:53:26 -0400
+ -- Scott Moser <smoser@ubuntu.com>  Thu, 30 Mar 2017 16:46:43 -0400
 
 cloud-init (0.7.9-77-g4a2b2f87-0ubuntu1) zesty; urgency=medium
 
