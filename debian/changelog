@@ -1,3 +1,13 @@
+cloud-init (0.7.9-89-gbf7723e8-0ubuntu1) UNRELEASED; urgency=medium
+
+  * New upstream snapshot.
+    - Fix bug that resulted in an attempt to rename bonds or vlans. 
+      (LP: #1669860)
+    - tests: update OpenNebula and Digital Ocean to not rely on host
+      interfaces.
+
+ -- Scott Moser <smoser@ubuntu.com>  Fri, 31 Mar 2017 17:02:08 -0400
+
 cloud-init (0.7.9-87-gd23543eb-0ubuntu1) zesty; urgency=medium
 
   * debian/cloud-init.templates: add Bigstep to list of sources. (LP: #1676460)
