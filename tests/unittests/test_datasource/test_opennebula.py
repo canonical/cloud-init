@@ -195,7 +195,9 @@ class TestOpenNebulaDataSource(TestCase):
             self.assertTrue('userdata' in results)
             self.assertEqual(USER_DATA, results['userdata'])
 
-    def test_hostname(self):
+    @mock.patch(DS_PATH + ".get_physical_nics_by_mac")
+    def test_hostname(self, m_get_phys_by_mac):
+        m_get_phys_by_mac.return_value = {'02:00:0a:12:01:01': 'eth0'}
         for k in ('HOSTNAME', 'PUBLIC_IP', 'IP_PUBLIC', 'ETH0_IP'):
             my_d = os.path.join(self.tmp, k)
             populate_context_dir(my_d, {k: PUBLIC_IP})
@@ -205,11 +207,14 @@ class TestOpenNebulaDataSource(TestCase):
             self.assertTrue('local-hostname' in results['metadata'])
             self.assertEqual(PUBLIC_IP, results['metadata']['local-hostname'])
 
-    def test_network_interfaces(self):
+    @mock.patch(DS_PATH + ".get_physical_nics_by_mac")
+    def test_network_interfaces(self, m_get_phys_by_mac):
+        m_get_phys_by_mac.return_value = {'02:00:0a:12:01:01': 'eth0'}
         populate_context_dir(self.seed_dir, {'ETH0_IP': '1.2.3.4'})
         results = ds.read_context_disk_dir(self.seed_dir)
 
         self.assertTrue('network-interfaces' in results)
+        self.assertTrue('1.2.3.4' in results['network-interfaces'])
 
     def test_find_candidates(self):
         def my_devs_with(criteria):

@@ -194,7 +194,12 @@ class TestDataSourceDigitalOcean(TestCase):
 
 class TestNetworkConvert(TestCase):
 
-    def _get_networking(self):
+    @mock.patch('cloudinit.net.get_interfaces_by_mac')
+    def _get_networking(self, m_get_by_mac):
+        m_get_by_mac.return_value = {
+            '04:01:57:d1:9e:01': 'ens1', '04:01:57:d1:9e:02': 'ens2',
+            'b8:ae:ed:75:5f:9a': 'enp0s25',
+            'ae:cc:08:7c:88:00': 'meta2p1'}
         netcfg = digitalocean.convert_network_configuration(
             DO_META['interfaces'], DO_META['dns']['nameservers'])
         self.assertIn('config', netcfg)
@@ -302,10 +307,15 @@ class TestNetworkConvert(TestCase):
         self.assertEqual(ipv4_def.get('netmask'), subn_def.get('netmask'))
         self.assertNotIn('gateway', subn_def)
 
-    def test_convert_without_private(self):
+    @mock.patch('cloudinit.net.get_interfaces_by_mac')
+    def test_convert_without_private(self, m_get_by_mac):
+        m_get_by_mac.return_value = {
+            'b8:ae:ed:75:5f:9a': 'enp0s25',
+            'ae:cc:08:7c:88:00': 'meta2p1'}
         netcfg = digitalocean.convert_network_configuration(
             DO_META_2['interfaces'], DO_META_2['dns']['nameservers'])
 
+        # print(netcfg)
         byname = {}
         for i in netcfg['config']:
             if 'name' in i:
