@@ -1461,6 +1461,82 @@ class TestNetRenderers(CiTestCase):
                           priority=['sysconfig', 'eni'])
 
 
+class TestGetInterfacesByMac(CiTestCase):
+    _data = {'devices': ['enp0s1', 'enp0s2', 'bond1', 'bridge1',
+                         'bridge1-nic', 'tun0'],
+             'bonds': ['bond1'],
+             'bridges': ['bridge1'],
+             'own_macs': ['enp0s1', 'enp0s2', 'bridge1-nic', 'bridge1'],
+             'macs': {'enp0s1': 'aa:aa:aa:aa:aa:01',
+                      'enp0s2': 'aa:aa:aa:aa:aa:02',
+                      'bond1': 'aa:aa:aa:aa:aa:01',
+                      'bridge1': 'aa:aa:aa:aa:aa:03',
+                      'bridge1-nic': 'aa:aa:aa:aa:aa:03',
+                      'tun0': None}}
+    data = {}
+
+    def _se_get_devicelist(self):
+        return self.data['devices']
+
+    def _se_get_interface_mac(self, name):
+        return self.data['macs'][name]
+
+    def _se_is_bridge(self, name):
+        return name in self.data['bridges']
+
+    def _se_interface_has_own_mac(self, name):
+        return name in self.data['own_macs']
+
+    def _mock_setup(self):
+        self.data = copy.deepcopy(self._data)
+        mocks = ('get_devicelist', 'get_interface_mac', 'is_bridge',
+                 'interface_has_own_mac')
+        self.mocks = {}
+        for n in mocks:
+            m = mock.patch('cloudinit.net.' + n,
+                           side_effect=getattr(self, '_se_' + n))
+            self.addCleanup(m.stop)
+            self.mocks[n] = m.start()
+
+    def test_raise_exception_on_duplicate_macs(self):
+        self._mock_setup()
+        self.data['macs']['bridge1-nic'] = self.data['macs']['enp0s1']
+        self.assertRaises(RuntimeError, net.get_interfaces_by_mac)
+
+    def test_excludes_any_without_mac_address(self):
+        self._mock_setup()
+        ret = net.get_interfaces_by_mac()
+        self.assertIn('tun0', self._se_get_devicelist())
+        self.assertNotIn('tun0', ret.values())
+
+    def test_excludes_stolen_macs(self):
+        self._mock_setup()
+        ret = net.get_interfaces_by_mac()
+        self.mocks['interface_has_own_mac'].assert_has_calls(
+            [mock.call('enp0s1'), mock.call('bond1')], any_order=True)
+        self.assertEqual(
+            {'aa:aa:aa:aa:aa:01': 'enp0s1', 'aa:aa:aa:aa:aa:02': 'enp0s2',
+             'aa:aa:aa:aa:aa:03': 'bridge1-nic'},
+            ret)
+
+    def test_excludes_bridges(self):
+        self._mock_setup()
+        # add a device 'b1', make all return they have their "own mac",
+        # set everything other than 'b1' to be a bridge.
+        # then expect b1 is the only thing left.
+        self.data['macs']['b1'] = 'aa:aa:aa:aa:aa:b1'
+        self.data['devices'].append('b1')
+        self.data['bonds'] = []
+        self.data['own_macs'] = self.data['devices']
+        self.data['bridges'] = [f for f in self.data['devices'] if f != "b1"]
+        ret = net.get_interfaces_by_mac()
+        self.assertEqual({'aa:aa:aa:aa:aa:b1': 'b1'}, ret)
+        self.mocks['is_bridge'].assert_has_calls(
+            [mock.call('bridge1'), mock.call('enp0s1'), mock.call('bond1'),
+             mock.call('b1')],
+            any_order=True)
+
+
 def _gzip_data(data):
     with io.BytesIO() as iobuf:
         gzfp = gzip.GzipFile(mode="wb", fileobj=iobuf)
