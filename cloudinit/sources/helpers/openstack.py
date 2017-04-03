@@ -52,6 +52,7 @@ OS_VERSIONS = (
 PHYSICAL_TYPES = (
     None,
     'bridge',
+    'dvs',
     'ethernet',
     'hw_veb',
     'hyperv',
