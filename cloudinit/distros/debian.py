@@ -143,8 +143,7 @@ class Distro(distros.Distro):
             pkgs = []
 
         e = os.environ.copy()
-        # See: http://tiny.cc/kg91fw
-        # Or: http://tiny.cc/mh91fw
+        # See: http://manpages.ubuntu.com/manpages/xenial/man7/debconf.7.html
         e['DEBIAN_FRONTEND'] = 'noninteractive'
 
         wcfg = self.get_option("apt_get_wrapper", APT_GET_WRAPPER)

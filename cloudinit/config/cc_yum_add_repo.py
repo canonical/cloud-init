@@ -52,7 +52,7 @@ def _format_repo_value(val):
         return str(int(val))
     if isinstance(val, (list, tuple)):
         # Can handle 'lists' in certain cases
-        # See: http://bit.ly/Qqrf1t
+        # See: https://linux.die.net/man/5/yum.conf
         return "\n    ".join([_format_repo_value(v) for v in val])
     if not isinstance(val, six.string_types):
         return str(val)

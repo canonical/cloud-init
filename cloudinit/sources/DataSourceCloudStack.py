@@ -207,8 +207,8 @@ def get_latest_lease():
 
 def get_vr_address():
     # Get the address of the virtual router via dhcp leases
-    # see http://bit.ly/T76eKC for documentation on the virtual router.
     # If no virtual router is detected, fallback on default gateway.
+    # See http://docs.cloudstack.apache.org/projects/cloudstack-administration/en/4.8/virtual_machines/user-data.html # noqa
     lease_file = get_latest_lease()
     if not lease_file:
         LOG.debug("No lease file found, using default gateway")
