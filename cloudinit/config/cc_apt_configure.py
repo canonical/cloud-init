@@ -278,14 +278,28 @@ def handle(name, ocfg, cloud, log, _):
         raise ValueError("Expected dictionary for 'apt' config, found %s",
                          type(cfg))
 
-    LOG.debug("handling apt (module %s) with apt config '%s'", name, cfg)
+    apply_debconf_selections(cfg, target)
+    apply_apt(cfg, cloud, target)
+
+
+def apply_apt(cfg, cloud, target):
+    # cfg is the 'apt' top level dictionary already in 'v3' format.
+    if not cfg:
+        # no config was provided.  If apt configuration does not seem
+        # necessary on this system, then return.
+        if util.system_is_snappy():
+            LOG.debug("Nothing to do: No apt config and running on snappy")
+            return
+        if not (util.which('apt-get') or util.which('apt')):
+            LOG.debug("Nothing to do: No apt config and no apt commands")
+            return
+
+    LOG.debug("handling apt config: %s", cfg)
 
     release = util.lsb_release(target=target)['codename']
     arch = util.get_architecture(target)
     mirrors = find_apt_mirror_info(cfg, cloud, arch=arch)
     LOG.debug("Apt Mirror info: %s", mirrors)
-
-    apply_debconf_selections(cfg, target)
 
     if util.is_false(cfg.get('preserve_sources_list', False)):
         generate_sources_list(cfg, release, mirrors, cloud)

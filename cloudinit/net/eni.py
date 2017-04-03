@@ -8,6 +8,7 @@ import re
 from . import ParserError
 
 from . import renderer
+from .network_state import subnet_is_ipv6
 
 from cloudinit import util
 
@@ -109,16 +110,6 @@ def _iface_start_entry(iface, index, render_hwaddress=False):
         lines.append("    hwaddress {mac_address}".format(**subst))
 
     return lines
-
-
-def _subnet_is_ipv6(subnet):
-    # 'static6' or 'dhcp6'
-    if subnet['type'].endswith('6'):
-        # This is a request for DHCPv6.
-        return True
-    elif subnet['type'] == 'static' and ":" in subnet['address']:
-        return True
-    return False
 
 
 def _parse_deb_config_data(ifaces, contents, src_dir, src_path):
@@ -273,8 +264,11 @@ def _ifaces_to_net_config_data(ifaces):
         # devname is 'eth0' for name='eth0:1'
         devname = name.partition(":")[0]
         if devname not in devs:
-            devs[devname] = {'type': 'physical', 'name': devname,
-                             'subnets': []}
+            if devname == "lo":
+                dtype = "loopback"
+            else:
+                dtype = "physical"
+            devs[devname] = {'type': dtype, 'name': devname, 'subnets': []}
             # this isnt strictly correct, but some might specify
             # hwaddress on a nic for matching / declaring name.
             if 'hwaddress' in data:
@@ -367,7 +361,7 @@ class Renderer(renderer.Renderer):
                 iface['mode'] = subnet['type']
                 iface['control'] = subnet.get('control', 'auto')
                 subnet_inet = 'inet'
-                if _subnet_is_ipv6(subnet):
+                if subnet_is_ipv6(subnet):
                     subnet_inet += '6'
                 iface['inet'] = subnet_inet
                 if subnet['type'].startswith('dhcp'):
@@ -423,10 +417,11 @@ class Renderer(renderer.Renderer):
             bonding
         '''
         order = {
-            'physical': 0,
-            'bond': 1,
-            'bridge': 2,
-            'vlan': 3,
+            'loopback': 0,
+            'physical': 1,
+            'bond': 2,
+            'bridge': 3,
+            'vlan': 4,
         }
 
         sections = []
@@ -444,14 +439,14 @@ class Renderer(renderer.Renderer):
 
         return '\n\n'.join(['\n'.join(s) for s in sections]) + "\n"
 
-    def render_network_state(self, target, network_state):
-        fpeni = os.path.join(target, self.eni_path)
+    def render_network_state(self, network_state, target=None):
+        fpeni = util.target_path(target, self.eni_path)
         util.ensure_dir(os.path.dirname(fpeni))
         header = self.eni_header if self.eni_header else ""
         util.write_file(fpeni, header + self._render_interfaces(network_state))
 
         if self.netrules_path:
-            netrules = os.path.join(target, self.netrules_path)
+            netrules = util.target_path(target, self.netrules_path)
             util.ensure_dir(os.path.dirname(netrules))
             util.write_file(netrules,
                             self._render_persistent_net(network_state))
@@ -461,7 +456,7 @@ class Renderer(renderer.Renderer):
                                        links_prefix=self.links_path_prefix)
 
     def _render_systemd_links(self, target, network_state, links_prefix):
-        fp_prefix = os.path.join(target, links_prefix)
+        fp_prefix = util.target_path(target, links_prefix)
         for f in glob.glob(fp_prefix + "*"):
             os.unlink(f)
         for iface in network_state.iter_interfaces():
@@ -482,7 +477,7 @@ class Renderer(renderer.Renderer):
 def network_state_to_eni(network_state, header=None, render_hwaddress=False):
     # render the provided network state, return a string of equivalent eni
     eni_path = 'etc/network/interfaces'
-    renderer = Renderer({
+    renderer = Renderer(config={
         'eni_path': eni_path,
         'eni_header': header,
         'links_path_prefix': None,
@@ -495,5 +490,19 @@ def network_state_to_eni(network_state, header=None, render_hwaddress=False):
     contents = renderer._render_interfaces(
         network_state, render_hwaddress=render_hwaddress)
     return header + contents
+
+
+def available(target=None):
+    expected = ['ifquery', 'ifup', 'ifdown']
+    search = ['/sbin', '/usr/sbin']
+    for p in expected:
+        if not util.which(p, search=search, target=target):
+            return False
+    eni = util.target_path(target, 'etc/network/interfaces')
+    if not os.path.isfile(eni):
+        return False
+
+    return True
+
 
 # vi: ts=4 expandtab

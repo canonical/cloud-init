@@ -5,8 +5,10 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
+import abc
 import six
 
+from .network_state import parse_net_config_data
 from .udev import generate_udev_rule
 
 
@@ -35,5 +37,13 @@ class Renderer(object):
                 content.write(generate_udev_rule(iface['name'],
                                                  iface['mac_address']))
         return content.getvalue()
+
+    @abc.abstractmethod
+    def render_network_state(self, network_state, target=None):
+        """Render network state."""
+
+    def render_network_config(self, network_config, target=None):
+        return self.render_network_state(
+            network_state=parse_net_config_data(network_config), target=target)
 
 # vi: ts=4 expandtab

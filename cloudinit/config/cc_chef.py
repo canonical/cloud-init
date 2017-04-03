@@ -302,7 +302,7 @@ def install_chef(cloud, chef_cfg, log):
         retries = max(0, util.get_cfg_option_int(chef_cfg,
                                                  "omnibus_url_retries",
                                                  default=OMNIBUS_URL_RETRIES))
-        content = url_helper.readurl(url=url, retries=retries)
+        content = url_helper.readurl(url=url, retries=retries).contents
         with util.tempdir() as tmpd:
             # Use tmpdir over tmpfile to avoid 'text file busy' on execute
             tmpf = "%s/chef-omnibus-install" % tmpd

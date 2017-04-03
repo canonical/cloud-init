@@ -201,8 +201,7 @@ class DataSourceAltCloud(sources.DataSource):
             util.logexc(LOG, 'Failed command: %s\n%s', ' '.join(cmd), _err)
             return False
         except OSError as _err:
-            util.logexc(LOG, 'Failed command: %s\n%s', ' '.join(cmd),
-                        _err.message)
+            util.logexc(LOG, 'Failed command: %s\n%s', ' '.join(cmd), _err)
             return False
 
         try:

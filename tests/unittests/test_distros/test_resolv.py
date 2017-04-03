@@ -46,7 +46,7 @@ class TestResolvHelper(TestCase):
         self.assertNotIn('10.3', rp.nameservers)
         self.assertEqual(len(rp.nameservers), 3)
         rp.add_nameserver('10.2')
-        self.assertRaises(ValueError, rp.add_nameserver, '10.3')
+        rp.add_nameserver('10.3')
         self.assertNotIn('10.3', rp.nameservers)
 
     def test_search_domains(self):
