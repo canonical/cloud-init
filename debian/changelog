@@ -1,4 +1,4 @@
-cloud-init (0.7.9-90-g61eb03fe-0ubuntu1~16.04.1) UNRELEASED; urgency=medium
+cloud-init (0.7.9-90-g61eb03fe-0ubuntu1~16.04.1) xenial-proposed; urgency=medium
 
   * debian/cloud-init.templates: add Bigstep to list of sources. (LP: #1676460)
   * New upstream snapshot.
@@ -58,7 +58,7 @@ cloud-init (0.7.9-90-g61eb03fe-0ubuntu1~16.04.1) UNRELEASED; urgency=medium
     - net: do not raise exception for > 3 nameservers
       [Lars Kellogg-Stedman] (LP: #1670052)
 
- -- Scott Moser <smoser@ubuntu.com>  Mon, 03 Apr 2017 11:52:06 -0400
+ -- Scott Moser <smoser@ubuntu.com>  Mon, 03 Apr 2017 11:52:56 -0400
 
 cloud-init (0.7.9-48-g1c795b9-0ubuntu1~16.04.1) xenial-proposed; urgency=medium
 
