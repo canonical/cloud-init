@@ -1,3 +1,9 @@
+cloud-init (0.7.9-48-g1c795b9-0ubuntu1~16.04.2) UNRELEASED; urgency=medium
+
+  * debian/cloud-init.templates: add Bigstep to list of sources. (LP: #1676460)
+
+ -- Scott Moser <smoser@ubuntu.com>  Mon, 03 Apr 2017 11:50:31 -0400
+
 cloud-init (0.7.9-48-g1c795b9-0ubuntu1~16.04.1) xenial-proposed; urgency=medium
 
   * debian/rules: install Z99-cloudinit-warnings.sh to /etc/profile.d
