@@ -1,8 +1,64 @@
-cloud-init (0.7.9-48-g1c795b9-0ubuntu1~16.04.2) UNRELEASED; urgency=medium
+cloud-init (0.7.9-90-g61eb03fe-0ubuntu1~16.04.1) UNRELEASED; urgency=medium
 
   * debian/cloud-init.templates: add Bigstep to list of sources. (LP: #1676460)
+  * New upstream snapshot.
+    - OpenStack: add 'dvs' to the list of physical link types. (LP: #1674946)
+    - Fix bug that resulted in an attempt to rename bonds or vlans.
+      (LP: #1669860)
+    - tests: update OpenNebula and Digital Ocean to not rely on host
+      interfaces.
+    - net: in netplan renderer delete known image-builtin content.
+      (LP: #1675576)
+    - doc: correct grammar in capabilities.rst [David Tagatac]
+    - ds-identify: fix detecting of maas datasource. (LP: #1677710)
+    - netplan: remove debugging prints, add debug logging [Ryan Harper]
+    - ds-identify: do not write None twice to datasource_list.
+    - support resizing partition and rootfs on system booted without
+      initramfs.  [Steve Langasek] (LP: #1677376)
+    - apt_configure: run only when needed. (LP: #1675185)
+    - OpenStack: identify OpenStack by product 'OpenStack Compute'.
+      (LP: #1675349)
+    - GCE: Search GCE in ds-identify, consider serial number in check.
+      (LP: #1674861)
+    - Add support for setting hashed passwords [Tore S. Lonoy] (LP: #1570325)
+    - Fix filesystem creation when using "partition: auto"
+      [Jonathan Ballet] (LP: #1634678)
+    - ConfigDrive: support reading config drive data from /config-drive.
+      (LP: #1673411)
+    - ds-identify: fix detection of Bigstep datasource. (LP: #1674766)
+    - test: add running of pylint [Joshua Powers]
+    - ds-identify: fix bug where filename expansion was left on.
+    - advertise network config v2 support (NETWORK_CONFIG_V2) in features.
+    - Bigstep: fix bug when executing in python3. [root]
+    - Fix unit test when running in a system deployed with cloud-init.
+    - Bounce network interface for Azure when using the built-in path.
+      [Brent Baude] (LP: #1674685)
+    - cloudinit.net: add network config v2 parsing and rendering [Ryan Harper]
+    - net: Fix incorrect call to isfile [Joshua Powers] (LP: #1674317)
+    - net: add renderers for automatically selecting the renderer.
+    - doc: fix config drive doc with regard to unpartitioned disks.
+      (LP: #1673818)
+    - test: Adding integratiron test for password as list [Joshua Powers]
+    - render_network_state: switch arguments around, do not require target
+    - support 'loopback' as a device type.
+    - Integration Testing: improve testcase subclassing [Wesley Wiedenmeier]
+    - gitignore: adding doc/rtd_html [Joshua Powers]
+    - doc: add instructions for running integration tests via tox.
+      [Joshua Powers]
+    - test: avoid differences in 'date' output due to daylight savings.
+    - Fix chef config module in omnibus install. [Jeremy Melvin] (LP: #1583837)
+    - Add feature flags to cloudinit.version. [Wesley Wiedenmeier]
+    - tox: add a citest environment
+    - Support chpasswd/list being a list in addition to a string.
+      [Sergio Lystopad] (LP: #1665694)
+    - doc: Fix configuration example for cc_set_passwords module.
+      [Sergio Lystopad] (LP: #1665773)
+    - net: support both ipv4 and ipv6 gateways in sysconfig.
+      [Lars Kellogg-Stedman] (LP: #1669504)
+    - net: do not raise exception for > 3 nameservers
+      [Lars Kellogg-Stedman] (LP: #1670052)
 
- -- Scott Moser <smoser@ubuntu.com>  Mon, 03 Apr 2017 11:50:31 -0400
+ -- Scott Moser <smoser@ubuntu.com>  Mon, 03 Apr 2017 11:52:06 -0400
 
 cloud-init (0.7.9-48-g1c795b9-0ubuntu1~16.04.1) xenial-proposed; urgency=medium
 
