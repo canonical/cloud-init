@@ -1,3 +1,11 @@
+cloud-init (0.7.9-90-g61eb03fe-0ubuntu1) UNRELEASED; urgency=medium
+
+  * New upstream snapshot.
+    - OpenStack: add 'dvs' to the list of physical link types. 
+      (LP: #1674946)
+
+ -- Scott Moser <smoser@ubuntu.com>  Mon, 03 Apr 2017 11:10:13 -0400
+
 cloud-init (0.7.9-89-gbf7723e8-0ubuntu1) zesty; urgency=medium
 
   * New upstream snapshot.
