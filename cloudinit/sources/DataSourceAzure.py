@@ -111,50 +111,62 @@ class DataSourceAzureNet(sources.DataSource):
         root = sources.DataSource.__str__(self)
         return "%s [seed=%s]" % (root, self.seed)
 
-    def get_metadata_from_agent(self):
-        temp_hostname = self.metadata.get('local-hostname')
+    def bounce_network_with_azure_hostname(self):
+        # When using cloud-init to provision, we have to set the hostname from
+        # the metadata and "bounce" the network to force DDNS to update via
+        # dhclient
+        azure_hostname = self.metadata.get('local-hostname')
+        LOG.debug("Hostname in metadata is {}".format(azure_hostname))
         hostname_command = self.ds_cfg['hostname_bounce']['hostname_command']
-        agent_cmd = self.ds_cfg['agent_command']
-        LOG.debug("Getting metadata via agent.  hostname=%s cmd=%s",
-                  temp_hostname, agent_cmd)
-        with temporary_hostname(temp_hostname, self.ds_cfg,
+
+        with temporary_hostname(azure_hostname, self.ds_cfg,
                                 hostname_command=hostname_command) \
                 as previous_hostname:
             if (previous_hostname is not None and
-               util.is_true(self.ds_cfg.get('set_hostname'))):
+                    util.is_true(self.ds_cfg.get('set_hostname'))):
                 cfg = self.ds_cfg['hostname_bounce']
+
+                # "Bouncing" the network
                 try:
-                    perform_hostname_bounce(hostname=temp_hostname,
+                    perform_hostname_bounce(hostname=azure_hostname,
                                             cfg=cfg,
                                             prev_hostname=previous_hostname)
                 except Exception as e:
                     LOG.warn("Failed publishing hostname: %s", e)
                     util.logexc(LOG, "handling set_hostname failed")
 
-            try:
-                invoke_agent(agent_cmd)
-            except util.ProcessExecutionError:
-                # claim the datasource even if the command failed
-                util.logexc(LOG, "agent command '%s' failed.",
-                            self.ds_cfg['agent_command'])
+    def get_metadata_from_agent(self):
+        temp_hostname = self.metadata.get('local-hostname')
+        agent_cmd = self.ds_cfg['agent_command']
+        LOG.debug("Getting metadata via agent.  hostname=%s cmd=%s",
+                  temp_hostname, agent_cmd)
 
-            ddir = self.ds_cfg['data_dir']
+        self.bounce_network_with_azure_hostname()
 
-            fp_files = []
-            key_value = None
-            for pk in self.cfg.get('_pubkeys', []):
-                if pk.get('value', None):
-                    key_value = pk['value']
-                    LOG.debug("ssh authentication: using value from fabric")
-                else:
-                    bname = str(pk['fingerprint'] + ".crt")
-                    fp_files += [os.path.join(ddir, bname)]
-                    LOG.debug("ssh authentication: "
-                              "using fingerprint from fabirc")
+        try:
+            invoke_agent(agent_cmd)
+        except util.ProcessExecutionError:
+            # claim the datasource even if the command failed
+            util.logexc(LOG, "agent command '%s' failed.",
+                        self.ds_cfg['agent_command'])
 
-            missing = util.log_time(logfunc=LOG.debug, msg="waiting for files",
-                                    func=wait_for_files,
-                                    args=(fp_files,))
+        ddir = self.ds_cfg['data_dir']
+
+        fp_files = []
+        key_value = None
+        for pk in self.cfg.get('_pubkeys', []):
+            if pk.get('value', None):
+                key_value = pk['value']
+                LOG.debug("ssh authentication: using value from fabric")
+            else:
+                bname = str(pk['fingerprint'] + ".crt")
+                fp_files += [os.path.join(ddir, bname)]
+                LOG.debug("ssh authentication: "
+                          "using fingerprint from fabirc")
+
+        missing = util.log_time(logfunc=LOG.debug, msg="waiting for files",
+                                func=wait_for_files,
+                                args=(fp_files,))
         if len(missing):
             LOG.warn("Did not find files, but going on: %s", missing)
 
@@ -220,6 +232,8 @@ class DataSourceAzureNet(sources.DataSource):
         write_files(ddir, files, dirmode=0o700)
 
         if self.ds_cfg['agent_command'] == AGENT_START_BUILTIN:
+            self.bounce_network_with_azure_hostname()
+
             metadata_func = partial(get_metadata_from_fabric,
                                     fallback_lease_file=self.
                                     dhclient_lease_file)

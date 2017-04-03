@@ -3,7 +3,9 @@
 from cloudinit import net
 from cloudinit.net import cmdline
 from cloudinit.net import eni
+from cloudinit.net import netplan
 from cloudinit.net import network_state
+from cloudinit.net import renderers
 from cloudinit.net import sysconfig
 from cloudinit.sources.helpers import openstack
 from cloudinit import util
@@ -248,6 +250,100 @@ nameserver 172.19.0.12
             ('etc/udev/rules.d/70-persistent-net.rules',
              "".join(['SUBSYSTEM=="net", ACTION=="add", DRIVERS=="?*", ',
                       'ATTR{address}=="fa:16:3e:ed:9a:59", NAME="eth0"\n']))]
+    },
+    {
+        'in_data': {
+            "services": [{"type": "dns", "address": "172.19.0.12"}],
+            "networks": [{
+                "network_id": "public-ipv4",
+                "type": "ipv4", "netmask": "255.255.252.0",
+                "link": "tap1a81968a-79",
+                "routes": [{
+                    "netmask": "0.0.0.0",
+                    "network": "0.0.0.0",
+                    "gateway": "172.19.3.254",
+                }],
+                "ip_address": "172.19.1.34", "id": "network0"
+            }, {
+                "network_id": "public-ipv6",
+                "type": "ipv6", "netmask": "",
+                "link": "tap1a81968a-79",
+                "routes": [
+                    {
+                        "gateway": "2001:DB8::1",
+                        "netmask": "::",
+                        "network": "::"
+                    }
+                ],
+                "ip_address": "2001:DB8::10", "id": "network1"
+            }],
+            "links": [
+                {
+                    "ethernet_mac_address": "fa:16:3e:ed:9a:59",
+                    "mtu": None, "type": "bridge", "id":
+                    "tap1a81968a-79",
+                    "vif_id": "1a81968a-797a-400f-8a80-567f997eb93f"
+                },
+            ],
+        },
+        'in_macs': {
+            'fa:16:3e:ed:9a:59': 'eth0',
+        },
+        'out_sysconfig': [
+            ('etc/sysconfig/network-scripts/ifcfg-eth0',
+             """
+# Created by cloud-init on instance boot automatically, do not edit.
+#
+BOOTPROTO=none
+DEVICE=eth0
+HWADDR=fa:16:3e:ed:9a:59
+NM_CONTROLLED=no
+ONBOOT=yes
+TYPE=Ethernet
+USERCTL=no
+""".lstrip()),
+            ('etc/sysconfig/network-scripts/ifcfg-eth0:0',
+             """
+# Created by cloud-init on instance boot automatically, do not edit.
+#
+BOOTPROTO=static
+DEFROUTE=yes
+DEVICE=eth0:0
+GATEWAY=172.19.3.254
+HWADDR=fa:16:3e:ed:9a:59
+IPADDR=172.19.1.34
+NETMASK=255.255.252.0
+NM_CONTROLLED=no
+ONBOOT=yes
+TYPE=Ethernet
+USERCTL=no
+""".lstrip()),
+            ('etc/sysconfig/network-scripts/ifcfg-eth0:1',
+             """
+# Created by cloud-init on instance boot automatically, do not edit.
+#
+BOOTPROTO=static
+DEFROUTE=yes
+DEVICE=eth0:1
+HWADDR=fa:16:3e:ed:9a:59
+IPV6ADDR=2001:DB8::10
+IPV6INIT=yes
+IPV6_DEFAULTGW=2001:DB8::1
+NETMASK=
+NM_CONTROLLED=no
+ONBOOT=yes
+TYPE=Ethernet
+USERCTL=no
+""".lstrip()),
+            ('etc/resolv.conf',
+             """
+; Created by cloud-init on instance boot automatically, do not edit.
+;
+nameserver 172.19.0.12
+""".lstrip()),
+            ('etc/udev/rules.d/70-persistent-net.rules',
+             "".join(['SUBSYSTEM=="net", ACTION=="add", DRIVERS=="?*", ',
+                      'ATTR{address}=="fa:16:3e:ed:9a:59", NAME="eth0"\n']))]
     }
 ]
 
@@ -313,6 +409,41 @@ NETWORK_CONFIGS = {
                 post-up route add default gw 65.61.151.37 || true
                 pre-down route del default gw 65.61.151.37 || true
         """).rstrip(' '),
+        'expected_netplan': textwrap.dedent("""
+            network:
+                version: 2
+                ethernets:
+                    eth1:
+                        match:
+                            macaddress: cf:d6:af:48:e8:80
+                        nameservers:
+                            addresses:
+                            - 1.2.3.4
+                            - 5.6.7.8
+                            search:
+                            - wark.maas
+                        set-name: eth1
+                    eth99:
+                        addresses:
+                        - 192.168.21.3/24
+                        dhcp4: true
+                        match:
+                            macaddress: c0:d6:9f:2c:e8:80
+                        nameservers:
+                            addresses:
+                            - 8.8.8.8
+                            - 8.8.4.4
+                            - 1.2.3.4
+                            - 5.6.7.8
+                            search:
+                            - barley.maas
+                            - sach.maas
+                            - wark.maas
+                        routes:
+                        -   to: 0.0.0.0/0.0.0.0
+                            via: 65.61.151.37
+                        set-name: eth99
+        """).rstrip(' '),
         'yaml': textwrap.dedent("""
             version: 1
             config:
@@ -354,6 +485,14 @@ NETWORK_CONFIGS = {
 
             # control-alias iface0
             iface iface0 inet6 dhcp
+        """).rstrip(' '),
+        'expected_netplan': textwrap.dedent("""
+            network:
+                version: 2
+                ethernets:
+                    iface0:
+                        dhcp4: true
+                        dhcp6: true
         """).rstrip(' '),
         'yaml': textwrap.dedent("""\
             version: 1
@@ -429,6 +568,126 @@ iface eth0.101 inet static
 post-up route add -net 10.0.0.0 netmask 255.0.0.0 gw 11.0.0.1 metric 3 || true
 pre-down route del -net 10.0.0.0 netmask 255.0.0.0 gw 11.0.0.1 metric 3 || true
 """),
+        'expected_netplan': textwrap.dedent("""
+            network:
+                version: 2
+                ethernets:
+                    eth0:
+                        match:
+                            macaddress: c0:d6:9f:2c:e8:80
+                        nameservers:
+                            addresses:
+                            - 8.8.8.8
+                            - 4.4.4.4
+                            - 8.8.4.4
+                            search:
+                            - barley.maas
+                            - wark.maas
+                            - foobar.maas
+                        set-name: eth0
+                    eth1:
+                        match:
+                            macaddress: aa:d6:9f:2c:e8:80
+                        nameservers:
+                            addresses:
+                            - 8.8.8.8
+                            - 4.4.4.4
+                            - 8.8.4.4
+                            search:
+                            - barley.maas
+                            - wark.maas
+                            - foobar.maas
+                        set-name: eth1
+                    eth2:
+                        match:
+                            macaddress: c0:bb:9f:2c:e8:80
+                        nameservers:
+                            addresses:
+                            - 8.8.8.8
+                            - 4.4.4.4
+                            - 8.8.4.4
+                            search:
+                            - barley.maas
+                            - wark.maas
+                            - foobar.maas
+                        set-name: eth2
+                    eth3:
+                        match:
+                            macaddress: 66:bb:9f:2c:e8:80
+                        nameservers:
+                            addresses:
+                            - 8.8.8.8
+                            - 4.4.4.4
+                            - 8.8.4.4
+                            search:
+                            - barley.maas
+                            - wark.maas
+                            - foobar.maas
+                        set-name: eth3
+                    eth4:
+                        match:
+                            macaddress: 98:bb:9f:2c:e8:80
+                        nameservers:
+                            addresses:
+                            - 8.8.8.8
+                            - 4.4.4.4
+                            - 8.8.4.4
+                            search:
+                            - barley.maas
+                            - wark.maas
+                            - foobar.maas
+                        set-name: eth4
+                    eth5:
+                        dhcp4: true
+                        match:
+                            macaddress: 98:bb:9f:2c:e8:8a
+                        nameservers:
+                            addresses:
+                            - 8.8.8.8
+                            - 4.4.4.4
+                            - 8.8.4.4
+                            search:
+                            - barley.maas
+                            - wark.maas
+                            - foobar.maas
+                        set-name: eth5
+                bonds:
+                    bond0:
+                        dhcp6: true
+                        interfaces:
+                        - eth1
+                        - eth2
+                        parameters:
+                            mode: active-backup
+                bridges:
+                    br0:
+                        addresses:
+                        - 192.168.14.2/24
+                        - 2001:1::1/64
+                        interfaces:
+                        - eth3
+                        - eth4
+                vlans:
+                    bond0.200:
+                        dhcp4: true
+                        id: 200
+                        link: bond0
+                    eth0.101:
+                        addresses:
+                        - 192.168.0.2/24
+                        - 192.168.2.10/24
+                        gateway4: 192.168.0.1
+                        id: 101
+                        link: eth0
+                        nameservers:
+                            addresses:
+                            - 192.168.0.10
+                            - 10.23.23.134
+                            search:
+                            - barley.maas
+                            - sacchromyces.maas
+                            - brettanomyces.maas
+        """).rstrip(' '),
         'yaml': textwrap.dedent("""
             version: 1
             config:
@@ -543,6 +802,14 @@ pre-down route del -net 10.0.0.0 netmask 255.0.0.0 gw 11.0.0.1 metric 3 || true
     }
 }
 
+CONFIG_V1_EXPLICIT_LOOPBACK = {
+    'version': 1,
+    'config': [{'name': 'eth0', 'type': 'physical',
+               'subnets': [{'control': 'auto', 'type': 'dhcp'}]},
+               {'name': 'lo', 'type': 'loopback',
+                'subnets': [{'control': 'auto', 'type': 'loopback'}]},
+               ]}
+
 
 def _setup_test(tmp_dir, mock_get_devicelist, mock_read_sys_net,
                 mock_sys_dev_path):
@@ -595,7 +862,7 @@ class TestSysConfigRendering(CiTestCase):
         os.makedirs(render_dir)
 
         renderer = sysconfig.Renderer()
-        renderer.render_network_state(render_dir, ns)
+        renderer.render_network_state(ns, render_dir)
 
         render_file = 'etc/sysconfig/network-scripts/ifcfg-eth1000'
         with open(os.path.join(render_dir, render_file)) as fh:
@@ -623,10 +890,31 @@ USERCTL=no
             ns = network_state.parse_net_config_data(network_cfg,
                                                      skip_broken=False)
             renderer = sysconfig.Renderer()
-            renderer.render_network_state(render_dir, ns)
+            renderer.render_network_state(ns, render_dir)
             for fn, expected_content in os_sample.get('out_sysconfig', []):
                 with open(os.path.join(render_dir, fn)) as fh:
                     self.assertEqual(expected_content, fh.read())
+
+    def test_config_with_explicit_loopback(self):
+        ns = network_state.parse_net_config_data(CONFIG_V1_EXPLICIT_LOOPBACK)
+        render_dir = self.tmp_path("render")
+        os.makedirs(render_dir)
+        renderer = sysconfig.Renderer()
+        renderer.render_network_state(ns, render_dir)
+        found = dir2dict(render_dir)
+        nspath = '/etc/sysconfig/network-scripts/'
+        self.assertNotIn(nspath + 'ifcfg-lo', found.keys())
+        expected = """\
+# Created by cloud-init on instance boot automatically, do not edit.
+#
+BOOTPROTO=dhcp
+DEVICE=eth0
+NM_CONTROLLED=no
+ONBOOT=yes
+TYPE=Ethernet
+USERCTL=no
+"""
+        self.assertEqual(expected, found[nspath + 'ifcfg-eth0'])
 
 
 class TestEniNetRendering(CiTestCase):
@@ -652,7 +940,7 @@ class TestEniNetRendering(CiTestCase):
             {'links_path_prefix': None,
              'eni_path': 'interfaces', 'netrules_path': None,
              })
-        renderer.render_network_state(render_dir, ns)
+        renderer.render_network_state(ns, render_dir)
 
         self.assertTrue(os.path.exists(os.path.join(render_dir,
                                                     'interfaces')))
@@ -667,6 +955,179 @@ auto eth1000
 iface eth1000 inet dhcp
 """
         self.assertEqual(expected.lstrip(), contents.lstrip())
+
+    def test_config_with_explicit_loopback(self):
+        tmp_dir = self.tmp_dir()
+        ns = network_state.parse_net_config_data(CONFIG_V1_EXPLICIT_LOOPBACK)
+        renderer = eni.Renderer()
+        renderer.render_network_state(ns, tmp_dir)
+        expected = """\
+auto lo
+iface lo inet loopback
+
+auto eth0
+iface eth0 inet dhcp
+"""
+        self.assertEqual(
+            expected, dir2dict(tmp_dir)['/etc/network/interfaces'])
+
+
+class TestNetplanNetRendering(CiTestCase):
+
+    @mock.patch("cloudinit.net.netplan._clean_default")
+    @mock.patch("cloudinit.net.sys_dev_path")
+    @mock.patch("cloudinit.net.read_sys_net")
+    @mock.patch("cloudinit.net.get_devicelist")
+    def test_default_generation(self, mock_get_devicelist,
+                                mock_read_sys_net,
+                                mock_sys_dev_path,
+                                mock_clean_default):
+        tmp_dir = self.tmp_dir()
+        _setup_test(tmp_dir, mock_get_devicelist,
+                    mock_read_sys_net, mock_sys_dev_path)
+
+        network_cfg = net.generate_fallback_config()
+        ns = network_state.parse_net_config_data(network_cfg,
+                                                 skip_broken=False)
+
+        render_dir = os.path.join(tmp_dir, "render")
+        os.makedirs(render_dir)
+
+        render_target = 'netplan.yaml'
+        renderer = netplan.Renderer(
+            {'netplan_path': render_target, 'postcmds': False})
+        renderer.render_network_state(render_dir, ns)
+
+        self.assertTrue(os.path.exists(os.path.join(render_dir,
+                                                    render_target)))
+        with open(os.path.join(render_dir, render_target)) as fh:
+            contents = fh.read()
+            print(contents)
+
+        expected = """
+network:
+    version: 2
+    ethernets:
+        eth1000:
+            dhcp4: true
+            match:
+                macaddress: 07-1c-c6-75-a4-be
+            set-name: eth1000
+"""
+        self.assertEqual(expected.lstrip(), contents.lstrip())
+        self.assertEqual(1, mock_clean_default.call_count)
+
+
+class TestNetplanCleanDefault(CiTestCase):
+    snapd_known_path = 'etc/netplan/00-snapd-config.yaml'
+    snapd_known_content = textwrap.dedent("""\
+        # This is the initial network config.
+        # It can be overwritten by cloud-init or console-conf.
+        network:
+            version: 2
+            ethernets:
+                all-en:
+                    match:
+                        name: "en*"
+                    dhcp4: true
+                all-eth:
+                    match:
+                        name: "eth*"
+                    dhcp4: true
+        """)
+    stub_known = {
+        'run/systemd/network/10-netplan-all-en.network': 'foo-en',
+        'run/systemd/network/10-netplan-all-eth.network': 'foo-eth',
+        'run/systemd/generator/netplan.stamp': 'stamp',
+    }
+
+    def test_clean_known_config_cleaned(self):
+        content = {self.snapd_known_path: self.snapd_known_content, }
+        content.update(self.stub_known)
+        tmpd = self.tmp_dir()
+        files = sorted(populate_dir(tmpd, content))
+        netplan._clean_default(target=tmpd)
+        found = [t for t in files if os.path.exists(t)]
+        self.assertEqual([], found)
+
+    def test_clean_unknown_config_not_cleaned(self):
+        content = {self.snapd_known_path: self.snapd_known_content, }
+        content.update(self.stub_known)
+        content[self.snapd_known_path] += "# user put a comment\n"
+        tmpd = self.tmp_dir()
+        files = sorted(populate_dir(tmpd, content))
+        netplan._clean_default(target=tmpd)
+        found = [t for t in files if os.path.exists(t)]
+        self.assertEqual(files, found)
+
+    def test_clean_known_config_cleans_only_expected(self):
+        astamp = "run/systemd/generator/another.stamp"
+        anet = "run/systemd/network/10-netplan-all-lo.network"
+        ayaml = "etc/netplan/01-foo-config.yaml"
+        content = {
+            self.snapd_known_path: self.snapd_known_content,
+            astamp: "stamp",
+            anet: "network",
+            ayaml: "yaml",
+        }
+        content.update(self.stub_known)
+
+        tmpd = self.tmp_dir()
+        files = sorted(populate_dir(tmpd, content))
+        netplan._clean_default(target=tmpd)
+        found = [t for t in files if os.path.exists(t)]
+        expected = [util.target_path(tmpd, f) for f in (astamp, anet, ayaml)]
+        self.assertEqual(sorted(expected), found)
+
+
+class TestNetplanPostcommands(CiTestCase):
+    mycfg = {
+        'config': [{"type": "physical", "name": "eth0",
+                    "mac_address": "c0:d6:9f:2c:e8:80",
+                    "subnets": [{"type": "dhcp"}]}],
+        'version': 1}
+
+    @mock.patch.object(netplan.Renderer, '_netplan_generate')
+    @mock.patch.object(netplan.Renderer, '_net_setup_link')
+    def test_netplan_render_calls_postcmds(self, mock_netplan_generate,
+                                           mock_net_setup_link):
+        tmp_dir = self.tmp_dir()
+        ns = network_state.parse_net_config_data(self.mycfg,
+                                                 skip_broken=False)
+
+        render_dir = os.path.join(tmp_dir, "render")
+        os.makedirs(render_dir)
+
+        render_target = 'netplan.yaml'
+        renderer = netplan.Renderer(
+            {'netplan_path': render_target, 'postcmds': True})
+        renderer.render_network_state(render_dir, ns)
+
+        mock_netplan_generate.assert_called_with(run=True)
+        mock_net_setup_link.assert_called_with(run=True)
+
+    @mock.patch.object(netplan, "get_devicelist")
+    @mock.patch('cloudinit.util.subp')
+    def test_netplan_postcmds(self, mock_subp, mock_devlist):
+        mock_devlist.side_effect = [['lo']]
+        tmp_dir = self.tmp_dir()
+        ns = network_state.parse_net_config_data(self.mycfg,
+                                                 skip_broken=False)
+
+        render_dir = os.path.join(tmp_dir, "render")
+        os.makedirs(render_dir)
+
+        render_target = 'netplan.yaml'
+        renderer = netplan.Renderer(
+            {'netplan_path': render_target, 'postcmds': True})
+        renderer.render_network_state(render_dir, ns)
+
+        expected = [
+            mock.call(['netplan', 'generate'], capture=True),
+            mock.call(['udevadm', 'test-builtin', 'net_setup_link',
+                       '/sys/class/net/lo'], capture=True),
+        ]
+        mock_subp.assert_has_calls(expected)
 
 
 class TestEniNetworkStateToEni(CiTestCase):
@@ -814,6 +1275,50 @@ class TestCmdlineReadKernelConfig(CiTestCase):
         self.assertEqual(found['config'], expected)
 
 
+class TestNetplanRoundTrip(CiTestCase):
+    def _render_and_read(self, network_config=None, state=None,
+                         netplan_path=None, dir=None):
+        if dir is None:
+            dir = self.tmp_dir()
+
+        if network_config:
+            ns = network_state.parse_net_config_data(network_config)
+        elif state:
+            ns = state
+        else:
+            raise ValueError("Expected data or state, got neither")
+
+        if netplan_path is None:
+            netplan_path = 'etc/netplan/50-cloud-init.yaml'
+
+        renderer = netplan.Renderer(
+            config={'netplan_path': netplan_path})
+
+        renderer.render_network_state(dir, ns)
+        return dir2dict(dir)
+
+    def testsimple_render_small_netplan(self):
+        entry = NETWORK_CONFIGS['small']
+        files = self._render_and_read(network_config=yaml.load(entry['yaml']))
+        self.assertEqual(
+            entry['expected_netplan'].splitlines(),
+            files['/etc/netplan/50-cloud-init.yaml'].splitlines())
+
+    def testsimple_render_v4_and_v6(self):
+        entry = NETWORK_CONFIGS['v4_and_v6']
+        files = self._render_and_read(network_config=yaml.load(entry['yaml']))
+        self.assertEqual(
+            entry['expected_netplan'].splitlines(),
+            files['/etc/netplan/50-cloud-init.yaml'].splitlines())
+
+    def testsimple_render_all(self):
+        entry = NETWORK_CONFIGS['all']
+        files = self._render_and_read(network_config=yaml.load(entry['yaml']))
+        self.assertEqual(
+            entry['expected_netplan'].splitlines(),
+            files['/etc/netplan/50-cloud-init.yaml'].splitlines())
+
+
 class TestEniRoundTrip(CiTestCase):
     def _render_and_read(self, network_config=None, state=None, eni_path=None,
                          links_prefix=None, netrules_path=None, dir=None):
@@ -834,7 +1339,7 @@ class TestEniRoundTrip(CiTestCase):
             config={'eni_path': eni_path, 'links_path_prefix': links_prefix,
                     'netrules_path': netrules_path})
 
-        renderer.render_network_state(dir, ns)
+        renderer.render_network_state(ns, dir)
         return dir2dict(dir)
 
     def testsimple_convert_and_render(self):
@@ -910,6 +1415,126 @@ class TestEniRoundTrip(CiTestCase):
 
         self.assertEqual(
             expected, [line for line in found if line])
+
+
+class TestNetRenderers(CiTestCase):
+    @mock.patch("cloudinit.net.renderers.sysconfig.available")
+    @mock.patch("cloudinit.net.renderers.eni.available")
+    def test_eni_and_sysconfig_available(self, m_eni_avail, m_sysc_avail):
+        m_eni_avail.return_value = True
+        m_sysc_avail.return_value = True
+        found = renderers.search(priority=['sysconfig', 'eni'], first=False)
+        names = [f[0] for f in found]
+        self.assertEqual(['sysconfig', 'eni'], names)
+
+    @mock.patch("cloudinit.net.renderers.eni.available")
+    def test_search_returns_empty_on_none(self, m_eni_avail):
+        m_eni_avail.return_value = False
+        found = renderers.search(priority=['eni'], first=False)
+        self.assertEqual([], found)
+
+    @mock.patch("cloudinit.net.renderers.sysconfig.available")
+    @mock.patch("cloudinit.net.renderers.eni.available")
+    def test_first_in_priority(self, m_eni_avail, m_sysc_avail):
+        # available should only be called until one is found.
+        m_eni_avail.return_value = True
+        m_sysc_avail.side_effect = Exception("Should not call me")
+        found = renderers.search(priority=['eni', 'sysconfig'], first=True)
+        self.assertEqual(['eni'], [found[0]])
+
+    @mock.patch("cloudinit.net.renderers.sysconfig.available")
+    @mock.patch("cloudinit.net.renderers.eni.available")
+    def test_select_positive(self, m_eni_avail, m_sysc_avail):
+        m_eni_avail.return_value = True
+        m_sysc_avail.return_value = False
+        found = renderers.select(priority=['sysconfig', 'eni'])
+        self.assertEqual('eni', found[0])
+
+    @mock.patch("cloudinit.net.renderers.sysconfig.available")
+    @mock.patch("cloudinit.net.renderers.eni.available")
+    def test_select_none_found_raises(self, m_eni_avail, m_sysc_avail):
+        # if select finds nothing, should raise exception.
+        m_eni_avail.return_value = False
+        m_sysc_avail.return_value = False
+
+        self.assertRaises(net.RendererNotFoundError, renderers.select,
+                          priority=['sysconfig', 'eni'])
+
+
+class TestGetInterfacesByMac(CiTestCase):
+    _data = {'devices': ['enp0s1', 'enp0s2', 'bond1', 'bridge1',
+                         'bridge1-nic', 'tun0'],
+             'bonds': ['bond1'],
+             'bridges': ['bridge1'],
+             'own_macs': ['enp0s1', 'enp0s2', 'bridge1-nic', 'bridge1'],
+             'macs': {'enp0s1': 'aa:aa:aa:aa:aa:01',
+                      'enp0s2': 'aa:aa:aa:aa:aa:02',
+                      'bond1': 'aa:aa:aa:aa:aa:01',
+                      'bridge1': 'aa:aa:aa:aa:aa:03',
+                      'bridge1-nic': 'aa:aa:aa:aa:aa:03',
+                      'tun0': None}}
+    data = {}
+
+    def _se_get_devicelist(self):
+        return self.data['devices']
+
+    def _se_get_interface_mac(self, name):
+        return self.data['macs'][name]
+
+    def _se_is_bridge(self, name):
+        return name in self.data['bridges']
+
+    def _se_interface_has_own_mac(self, name):
+        return name in self.data['own_macs']
+
+    def _mock_setup(self):
+        self.data = copy.deepcopy(self._data)
+        mocks = ('get_devicelist', 'get_interface_mac', 'is_bridge',
+                 'interface_has_own_mac')
+        self.mocks = {}
+        for n in mocks:
+            m = mock.patch('cloudinit.net.' + n,
+                           side_effect=getattr(self, '_se_' + n))
+            self.addCleanup(m.stop)
+            self.mocks[n] = m.start()
+
+    def test_raise_exception_on_duplicate_macs(self):
+        self._mock_setup()
+        self.data['macs']['bridge1-nic'] = self.data['macs']['enp0s1']
+        self.assertRaises(RuntimeError, net.get_interfaces_by_mac)
+
+    def test_excludes_any_without_mac_address(self):
+        self._mock_setup()
+        ret = net.get_interfaces_by_mac()
+        self.assertIn('tun0', self._se_get_devicelist())
+        self.assertNotIn('tun0', ret.values())
+
+    def test_excludes_stolen_macs(self):
+        self._mock_setup()
+        ret = net.get_interfaces_by_mac()
+        self.mocks['interface_has_own_mac'].assert_has_calls(
+            [mock.call('enp0s1'), mock.call('bond1')], any_order=True)
+        self.assertEqual(
+            {'aa:aa:aa:aa:aa:01': 'enp0s1', 'aa:aa:aa:aa:aa:02': 'enp0s2',
+             'aa:aa:aa:aa:aa:03': 'bridge1-nic'},
+            ret)
+
+    def test_excludes_bridges(self):
+        self._mock_setup()
+        # add a device 'b1', make all return they have their "own mac",
+        # set everything other than 'b1' to be a bridge.
+        # then expect b1 is the only thing left.
+        self.data['macs']['b1'] = 'aa:aa:aa:aa:aa:b1'
+        self.data['devices'].append('b1')
+        self.data['bonds'] = []
+        self.data['own_macs'] = self.data['devices']
+        self.data['bridges'] = [f for f in self.data['devices'] if f != "b1"]
+        ret = net.get_interfaces_by_mac()
+        self.assertEqual({'aa:aa:aa:aa:aa:b1': 'b1'}, ret)
+        self.mocks['is_bridge'].assert_has_calls(
+            [mock.call('bridge1'), mock.call('enp0s1'), mock.call('bond1'),
+             mock.call('b1')],
+            any_order=True)
 
 
 def _gzip_data(data):

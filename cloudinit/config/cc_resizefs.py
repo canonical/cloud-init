@@ -71,25 +71,6 @@ RESIZE_FS_PREFIXES_CMDS = [
 NOBLOCK = "noblock"
 
 
-def rootdev_from_cmdline(cmdline):
-    found = None
-    for tok in cmdline.split():
-        if tok.startswith("root="):
-            found = tok[5:]
-            break
-    if found is None:
-        return None
-
-    if found.startswith("/dev/"):
-        return found
-    if found.startswith("LABEL="):
-        return "/dev/disk/by-label/" + found[len("LABEL="):]
-    if found.startswith("UUID="):
-        return "/dev/disk/by-uuid/" + found[len("UUID="):]
-
-    return "/dev/" + found
-
-
 def handle(name, cfg, _cloud, log, args):
     if len(args) != 0:
         resize_root = args[0]
@@ -121,7 +102,7 @@ def handle(name, cfg, _cloud, log, args):
     # Ensure the path is a block device.
     if (devpth == "/dev/root" and not os.path.exists(devpth) and
             not container):
-        devpth = rootdev_from_cmdline(util.get_cmdline())
+        devpth = util.rootdev_from_cmdline(util.get_cmdline())
         if devpth is None:
             log.warn("Unable to find device '/dev/root'")
             return

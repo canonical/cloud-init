@@ -286,12 +286,12 @@ def parse_shell_config(content, keylist=None, bash=None, asuser=None,
     output = output[0:-1]  # remove trailing null
 
     # go through output.  First _start_ is for 'preset', second for 'target'.
-    # Add to target only things were changed and not in volitile
+    # Add to ret only things were changed and not in excluded.
     for line in output.split("\x00"):
         try:
             (key, val) = line.split("=", 1)
             if target is preset:
-                target[key] = val
+                preset[key] = val
             elif (key not in excluded and
                   (key in keylist_in or preset.get(key) != val)):
                 ret[key] = val

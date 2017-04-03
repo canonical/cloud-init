@@ -645,7 +645,7 @@ class TestConvertNetworkData(TestCase):
             routes)
         eni_renderer = eni.Renderer()
         eni_renderer.render_network_state(
-            self.tmp, network_state.parse_net_config_data(ncfg))
+            network_state.parse_net_config_data(ncfg), self.tmp)
         with open(os.path.join(self.tmp, "etc",
                                "network", "interfaces"), 'r') as f:
             eni_rendering = f.read()
@@ -665,8 +665,9 @@ class TestConvertNetworkData(TestCase):
         ncfg = openstack.convert_net_json(NETWORK_DATA_BOND,
                                           known_macs=KNOWN_MACS)
         eni_renderer = eni.Renderer()
+
         eni_renderer.render_network_state(
-            self.tmp, network_state.parse_net_config_data(ncfg))
+            network_state.parse_net_config_data(ncfg), self.tmp)
         with open(os.path.join(self.tmp, "etc",
                                "network", "interfaces"), 'r') as f:
             eni_rendering = f.read()
@@ -697,7 +698,7 @@ class TestConvertNetworkData(TestCase):
                                           known_macs=KNOWN_MACS)
         eni_renderer = eni.Renderer()
         eni_renderer.render_network_state(
-            self.tmp, network_state.parse_net_config_data(ncfg))
+            network_state.parse_net_config_data(ncfg), self.tmp)
         with open(os.path.join(self.tmp, "etc",
                                "network", "interfaces"), 'r') as f:
             eni_rendering = f.read()

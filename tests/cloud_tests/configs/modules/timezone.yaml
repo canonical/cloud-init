@@ -7,6 +7,8 @@ cloud_config: |
 collect_scripts:
   timezone: |
     #!/bin/bash
-    date +%Z
+    # date will convert this to system's configured time zone.
+    # use a static date to avoid dealing with daylight savings.
+    date "+%Z" --date="Thu, 03 Nov 2016 00:47:00 -0400"
 
 # vi: ts=4 expandtab

@@ -82,6 +82,10 @@ def is_wireless(devname):
     return os.path.exists(sys_dev_path(devname, "wireless"))
 
 
+def is_bridge(devname):
+    return os.path.exists(sys_dev_path(devname, "bridge"))
+
+
 def is_connected(devname):
     # is_connected isn't really as simple as that.  2 is
     # 'physically connected'. 3 is 'not connected'. but a wlan interface will
@@ -132,7 +136,7 @@ def generate_fallback_config():
     for interface in potential_interfaces:
         if interface.startswith("veth"):
             continue
-        if os.path.exists(sys_dev_path(interface, "bridge")):
+        if is_bridge(interface):
             # skip any bridges
             continue
         carrier = read_sys_net_int(interface, 'carrier')
@@ -187,7 +191,11 @@ def apply_network_config_names(netcfg, strict_present=True, strict_busy=True):
     """read the network config and rename devices accordingly.
     if strict_present is false, then do not raise exception if no devices
     match.  if strict_busy is false, then do not raise exception if the
-    device cannot be renamed because it is currently configured."""
+    device cannot be renamed because it is currently configured.
+
+    renames are only attempted for interfaces of type 'physical'.  It is
+    expected that the network system will create other devices with the
+    correct name in place."""
     renames = []
     for ent in netcfg.get('config', {}):
         if ent.get('type') != 'physical':
@@ -201,13 +209,35 @@ def apply_network_config_names(netcfg, strict_present=True, strict_busy=True):
     return _rename_interfaces(renames)
 
 
+def interface_has_own_mac(ifname, strict=False):
+    """return True if the provided interface has its own address.
+
+    Based on addr_assign_type in /sys.  Return true for any interface
+    that does not have a 'stolen' address. Examples of such devices
+    are bonds or vlans that inherit their mac from another device.
+    Possible values are:
+      0: permanent address    2: stolen from another device
+      1: randomly generated   3: set using dev_set_mac_address"""
+
+    assign_type = read_sys_net_int(ifname, "addr_assign_type")
+    if strict and assign_type is None:
+        raise ValueError("%s had no addr_assign_type.")
+    return assign_type in (0, 1, 3)
+
+
 def _get_current_rename_info(check_downable=True):
-    """Collect information necessary for rename_interfaces."""
-    names = get_devicelist()
+    """Collect information necessary for rename_interfaces.
+
+    returns a dictionary by mac address like:
+       {mac:
+         {'name': name
+          'up': boolean: is_up(name),
+          'downable': None or boolean indicating that the
+                      device has only automatically assigned ip addrs.}}
+    """
     bymac = {}
-    for n in names:
-        bymac[get_interface_mac(n)] = {
-            'name': n, 'up': is_up(n), 'downable': None}
+    for mac, name in get_interfaces_by_mac().items():
+        bymac[mac] = {'name': name, 'up': is_up(name), 'downable': None}
 
     if check_downable:
         nmatch = re.compile(r"[0-9]+:\s+(\w+)[@:]")
@@ -346,22 +376,37 @@ def get_interface_mac(ifname):
     return read_sys_net_safe(ifname, path)
 
 
-def get_interfaces_by_mac(devs=None):
-    """Build a dictionary of tuples {mac: name}"""
-    if devs is None:
-        try:
-            devs = get_devicelist()
-        except OSError as e:
-            if e.errno == errno.ENOENT:
-                devs = []
-            else:
-                raise
+def get_interfaces_by_mac():
+    """Build a dictionary of tuples {mac: name}.
+
+    Bridges and any devices that have a 'stolen' mac are excluded."""
+    try:
+        devs = get_devicelist()
+    except OSError as e:
+        if e.errno == errno.ENOENT:
+            devs = []
+        else:
+            raise
     ret = {}
     for name in devs:
+        if not interface_has_own_mac(name):
+            continue
+        if is_bridge(name):
+            continue
         mac = get_interface_mac(name)
         # some devices may not have a mac (tun0)
-        if mac:
-            ret[mac] = name
+        if not mac:
+            continue
+        if mac in ret:
+            raise RuntimeError(
+                "duplicate mac found! both '%s' and '%s' have mac '%s'" %
+                (name, ret[mac], mac))
+        ret[mac] = name
     return ret
+
+
+class RendererNotFoundError(RuntimeError):
+    pass
+
 
 # vi: ts=4 expandtab
