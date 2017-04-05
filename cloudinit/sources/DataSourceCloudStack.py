@@ -178,9 +178,10 @@ def get_default_gateway():
 
 def get_dhclient_d():
     # find lease files directory
-    supported_dirs = ["/var/lib/dhclient", "/var/lib/dhcp"]
+    supported_dirs = ["/var/lib/dhclient", "/var/lib/dhcp",
+                      "/var/lib/NetworkManager"]
     for d in supported_dirs:
-        if os.path.exists(d):
+        if os.path.exists(d) and len(os.listdir(d)) > 0:
             LOG.debug("Using %s lease directory", d)
             return d
     return None
