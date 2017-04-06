@@ -96,11 +96,11 @@ def _lsb_release(target=None):
                 data[fmap[fname]] = val.strip()
         missing = [k for k in fmap.values() if k not in data]
         if len(missing):
-            LOG.warn("Missing fields in lsb_release --all output: %s",
-                     ','.join(missing))
+            LOG.warning("Missing fields in lsb_release --all output: %s",
+                        ','.join(missing))
 
     except ProcessExecutionError as err:
-        LOG.warn("Unable to get lsb_release --all: %s", err)
+        LOG.warning("Unable to get lsb_release --all: %s", err)
         data = dict((v, "UNAVAILABLE") for v in fmap.values())
 
     return data
@@ -590,7 +590,7 @@ def system_info():
         'release': platform.release(),
         'python': platform.python_version(),
         'uname': platform.uname(),
-        'dist': platform.linux_distribution(),
+        'dist': platform.linux_distribution(),  # pylint: disable=W1505
     }
 
 
@@ -865,7 +865,7 @@ def read_file_or_url(url, timeout=5, retries=10,
         url = "file://%s" % url
     if url.lower().startswith("file://"):
         if data:
-            LOG.warn("Unable to post data to file resource %s", url)
+            LOG.warning("Unable to post data to file resource %s", url)
         file_path = url[len("file://"):]
         try:
             contents = load_file(file_path, decode=False)
@@ -1279,7 +1279,7 @@ def get_cmdline():
             # replace nulls with space and drop trailing null
             cmdline = contents.replace("\x00", " ")[:-1]
         except Exception as e:
-            LOG.warn("failed reading /proc/1/cmdline: %s", e)
+            LOG.warning("failed reading /proc/1/cmdline: %s", e)
             cmdline = ""
     else:
         try:
@@ -1400,7 +1400,7 @@ def logexc(log, msg, *args):
     # or even desirable to have that much junk
     # coming out to a non-debug stream
     if msg:
-        log.warn(msg, *args)
+        log.warning(msg, *args)
     # Debug gets the full trace.  However, nose has a bug whereby its
     # logcapture plugin doesn't properly handle the case where there is no
     # actual exception.  To avoid tracebacks during the test suite then, we'll
@@ -2344,8 +2344,8 @@ def read_dmi_data(key):
     if dmidecode_path:
         return _call_dmidecode(key, dmidecode_path)
 
-    LOG.warn("did not find either path %s or dmidecode command",
-             DMI_SYS_PATH)
+    LOG.warning("did not find either path %s or dmidecode command",
+                DMI_SYS_PATH)
     return None
 
 

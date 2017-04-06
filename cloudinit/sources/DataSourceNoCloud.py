@@ -104,8 +104,8 @@ class DataSourceNoCloud(sources.DataSource):
                                                pp2d_kwargs)
                     except ValueError as e:
                         if dev in label_list:
-                            LOG.warn("device %s with label=%s not a"
-                                     "valid seed.", dev, label)
+                            LOG.warning("device %s with label=%s not a"
+                                        "valid seed.", dev, label)
                         continue
 
                     mydata = _merge_new_seed(mydata, seeded)

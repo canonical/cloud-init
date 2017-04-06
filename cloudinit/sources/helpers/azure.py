@@ -289,7 +289,7 @@ class WALinuxAgentShim(object):
             LOG.debug("Unable to find endpoint in dhclient logs. "
                       " Falling back to check lease files")
             if fallback_lease_file is None:
-                LOG.warn("No fallback lease file was specified.")
+                LOG.warning("No fallback lease file was specified.")
                 value = None
             else:
                 LOG.debug("Looking for endpoint in lease file %s",

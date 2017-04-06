@@ -38,8 +38,8 @@ class MetadataLeafDecoder(object):
                 # Assume it's json, unless it fails parsing...
                 return json.loads(blob)
             except (ValueError, TypeError) as e:
-                LOG.warn("Field %s looked like a json object, but it was"
-                         " not: %s", field, e)
+                LOG.warning("Field %s looked like a json object, but it"
+                            " was not: %s", field, e)
         if blob.find("\n") != -1:
             return blob.splitlines()
         return blob
@@ -125,7 +125,8 @@ class MetadataMaterializer(object):
         joined.update(child_contents)
         for field in leaf_contents.keys():
             if field in joined:
-                LOG.warn("Duplicate key found in results from %s", base_url)
+                LOG.warning("Duplicate key found in results from %s",
+                            base_url)
             else:
                 joined[field] = leaf_contents[field]
         return joined

@@ -45,9 +45,9 @@ def verify_data(base_dir, tests):
         }
 
         for failure in res[test_name]['failures']:
-            LOG.warn('test case: %s failed %s.%s with: %s',
-                     test_name, failure['class'], failure['function'],
-                     failure['error'])
+            LOG.warning('test case: %s failed %s.%s with: %s',
+                        test_name, failure['class'], failure['function'],
+                        failure['error'])
 
     return res
 
@@ -80,7 +80,8 @@ def verify(args):
             if len(fail_list) == 0:
                 LOG.info('test: %s passed all tests', test_name)
             else:
-                LOG.warn('test: %s failed %s tests', test_name, len(fail_list))
+                LOG.warning('test: %s failed %s tests', test_name,
+                            len(fail_list))
             failed += len(fail_list)
 
     # dump results

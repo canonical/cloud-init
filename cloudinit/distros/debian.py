@@ -223,6 +223,6 @@ def _maybe_remove_legacy_eth0(path="/etc/network/interfaces.d/eth0.cfg"):
     except Exception:
         msg = bmsg + " %s exists, but could not be read." % path
 
-    LOG.warn(msg)
+    LOG.warning(msg)
 
 # vi: ts=4 expandtab

@@ -98,7 +98,7 @@ class DataSourceGCE(sources.DataSource):
                 if not running_on_gce:
                     LOG.debug(msg, mkey)
                 else:
-                    LOG.warn(msg, mkey)
+                    LOG.warning(msg, mkey)
                 return False
             self.metadata[mkey] = value
 
@@ -116,7 +116,8 @@ class DataSourceGCE(sources.DataSource):
                 self.metadata['user-data'] = b64decode(
                     self.metadata['user-data'])
             else:
-                LOG.warn('unknown user-data-encoding: %s, ignoring', encoding)
+                LOG.warning('unknown user-data-encoding: %s, ignoring',
+                            encoding)
 
         return running_on_gce
 

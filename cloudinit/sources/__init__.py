@@ -237,8 +237,8 @@ class DataSource(object):
             if candidate in valid:
                 return candidate
             else:
-                LOG.warn("invalid dsmode '%s', using default=%s",
-                         candidate, default)
+                LOG.warning("invalid dsmode '%s', using default=%s",
+                            candidate, default)
                 return default
 
         return default
