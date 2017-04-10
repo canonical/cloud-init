@@ -215,7 +215,8 @@ def handle(_name, cfg, cloud, log, args):
                                                      pw_auth))
 
         lines = [str(l) for l in new_lines]
-        util.write_file(ssh_util.DEF_SSHD_CFG, "\n".join(lines))
+        util.write_file(ssh_util.DEF_SSHD_CFG, "\n".join(lines),
+                        copy_mode=True)
 
         try:
             cmd = cloud.distro.init_cmd  # Default service

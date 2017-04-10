@@ -1688,7 +1688,7 @@ def chmod(path, mode):
             os.chmod(path, real_mode)
 
 
-def write_file(filename, content, mode=0o644, omode="wb"):
+def write_file(filename, content, mode=0o644, omode="wb", copy_mode=False):
     """
     Writes a file with the given content and sets the file mode as specified.
     Resotres the SELinux context if possible.
@@ -1698,6 +1698,14 @@ def write_file(filename, content, mode=0o644, omode="wb"):
     @param mode: The filesystem mode to set on the file.
     @param omode: The open mode used when opening the file (w, wb, a, etc.)
     """
+
+    if copy_mode:
+        try:
+            file_stat = os.stat(filename)
+            mode = stat.S_IMODE(file_stat.st_mode)
+        except OSError:
+            pass
+
     ensure_dir(os.path.dirname(filename))
     if 'b' in omode.lower():
         content = encode_text(content)
