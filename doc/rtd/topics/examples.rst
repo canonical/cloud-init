@@ -93,6 +93,13 @@ Install arbitrary packages
    :language: yaml
    :linenos:
 
+Update apt database on first boot
+=================================
+
+.. literalinclude:: ../../examples/cloud-config-update-apt.txt
+   :language: yaml
+   :linenos:
+
 Run apt or yum upgrade
 ======================
 
@@ -148,6 +155,27 @@ Register RedHat Subscription
 .. literalinclude:: ../../examples/cloud-config-rh_subscription.txt
     :language: yaml
     :linenos:
+
+Configure data sources
+======================
+
+.. literalinclude:: ../../examples/cloud-config-datasources.txt
+   :language: yaml
+   :linenos:
+
+Create partitions and filesystems
+=================================
+
+.. literalinclude:: ../../examples/cloud-config-disk-setup.txt
+   :language: yaml
+   :linenos:
+
+Grow partitions
+===============
+
+.. literalinclude:: ../../examples/cloud-config-growpart.txt
+   :language: yaml
+   :linenos:
 
 .. _chef: http://www.chef.io/chef/
 .. _puppet: http://puppetlabs.com/
