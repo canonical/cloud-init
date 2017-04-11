@@ -121,27 +121,31 @@ def convert_network_configuration(config, dns_servers):
 
         return subpart
 
-    all_nics = []
-    for k in ('public', 'private'):
-        if k in config:
-            all_nics.extend(config[k])
-
-    macs_to_nics = cloudnet.get_interfaces_by_mac()
     nic_configs = []
+    macs_to_nics = cloudnet.get_interfaces_by_mac()
+    LOG.debug("nic mapping: %s", macs_to_nics)
 
-    for nic in all_nics:
+    for n in config:
+        nic = config[n][0]
+        LOG.debug("considering %s", nic)
 
         mac_address = nic.get('mac')
+        if mac_address not in macs_to_nics:
+            raise RuntimeError("Did not find network interface on system "
+                               "with mac '%s'. Cannot apply configuration: %s"
+                               % (mac_address, nic))
+
         sysfs_name = macs_to_nics.get(mac_address)
         nic_type = nic.get('type', 'unknown')
-        # Note: the entry 'public' above contains a list, but
-        # the list will only ever have one nic inside it per digital ocean.
-        # If it ever had more than one nic, then this code would
-        # assign all 'public' the same name.
-        if_name = NIC_MAP.get(nic_type, sysfs_name)
 
-        LOG.debug("mapped %s interface to %s, assigning name of %s",
-                  mac_address, sysfs_name, if_name)
+        if_name = NIC_MAP.get(nic_type, sysfs_name)
+        if if_name != sysfs_name:
+            LOG.debug("Found %s interface '%s' on '%s', assigned name of '%s'",
+                      nic_type, mac_address, sysfs_name, if_name)
+        else:
+            msg = ("Found interface '%s' on '%s', which is not a public "
+                   "or private interface. Using default system naming.")
+            LOG.debug(msg, mac_address, sysfs_name)
 
         ncfg = {'type': 'physical',
                 'mac_address': mac_address,
