@@ -23,11 +23,8 @@ def assign_ipv4_link_local(nic=None):
     """
 
     if not nic:
-        for cdev in sorted(cloudnet.get_devicelist()):
-            if cloudnet.is_physical(cdev):
-                nic = cdev
-                LOG.debug("assigned nic '%s' for link-local discovery", nic)
-                break
+        nic = get_link_local_nic()
+        LOG.debug("selected interface '%s' for reading metadata", nic)
 
     if not nic:
         raise RuntimeError("unable to find interfaces to access the"
@@ -55,6 +52,13 @@ def assign_ipv4_link_local(nic=None):
         raise
 
     return nic
+
+
+def get_link_local_nic():
+    nics = [f for f in cloudnet.get_devicelist() if cloudnet.is_physical(f)]
+    if not nics:
+        return None
+    return min(nics, key=lambda d: cloudnet.read_sys_net_int(d, 'ifindex'))
 
 
 def del_ipv4_link_local(nic=None):
