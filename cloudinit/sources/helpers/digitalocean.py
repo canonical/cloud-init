@@ -107,14 +107,11 @@ def convert_network_configuration(config, dns_servers):
         }
     """
 
-    def _get_subnet_part(pcfg, nameservers=None):
+    def _get_subnet_part(pcfg):
         subpart = {'type': 'static',
                    'control': 'auto',
                    'address': pcfg.get('ip_address'),
                    'gateway': pcfg.get('gateway')}
-
-        if nameservers:
-            subpart['dns_nameservers'] = nameservers
 
         if ":" in pcfg.get('ip_address'):
             subpart['address'] = "{0}/{1}".format(pcfg.get('ip_address'),
@@ -157,19 +154,18 @@ def convert_network_configuration(config, dns_servers):
                 continue
 
             sub_part = _get_subnet_part(raw_subnet)
-            if nic_type == 'public' and 'anchor' not in netdef:
-                # add DNS resolvers to the public interfaces only
-                sub_part = _get_subnet_part(raw_subnet, dns_servers)
-            else:
-                # remove the gateway any non-public interfaces
-                if 'gateway' in sub_part:
-                    del sub_part['gateway']
+            if netdef in ('private', 'anchor_ipv4', 'anchor_ipv6'):
+                del sub_part['gateway']
 
             subnets.append(sub_part)
 
         ncfg['subnets'] = subnets
         nic_configs.append(ncfg)
         LOG.debug("nic '%s' configuration: %s", if_name, ncfg)
+
+    if dns_servers:
+        LOG.debug("added dns servers: %s", dns_servers)
+        nic_configs.append({'type': 'nameserver', 'address': dns_servers})
 
     return {'version': 1, 'config': nic_configs}
 
