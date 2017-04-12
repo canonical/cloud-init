@@ -1,3 +1,10 @@
+cloud-init (0.7.9-90-g61eb03fe-0ubuntu1~16.10.1ubuntu1) UNRELEASED; urgency=medium
+
+  * debian/update-grub-legacy-ec2: fix early exit failure no /etc/fstab
+    file. (LP: #1682160)
+
+ -- Scott Moser <smoser@ubuntu.com>  Wed, 12 Apr 2017 11:30:14 -0400
+
 cloud-init (0.7.9-90-g61eb03fe-0ubuntu1~16.10.1) yakkety; urgency=medium
 
   * debian/cloud-init.templates: add Bigstep to list of sources. (LP: #1676460)
