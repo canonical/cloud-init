@@ -370,7 +370,10 @@ boot_device=$(find_device "/boot")
 device_map=$grub_dir/device.map
 
 # Default kernel options, overidden by the kopt statement in the menufile.
-loop_file=$(awk '$2=="/" && $4~"loop" {print $1}' /etc/fstab)
+loop_file=""
+if [ -f /etc/fstab ]; then
+   loop_file=$(awk '$2=="/" && $4~"loop" {print $1}' /etc/fstab)
+fi
 if [ -n "$loop_file" ]; then
 	dev_mountpoint=$(awk '"'${loop_file}'"~"^"$2 && $2!="/" {print $1";"$2}' /proc/mounts|tail -n 1)
 	host_device="${dev_mountpoint%;*}"
