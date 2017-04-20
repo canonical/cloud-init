@@ -2404,9 +2404,10 @@ def rootdev_from_cmdline(cmdline):
     if found.startswith("LABEL="):
         return "/dev/disk/by-label/" + found[len("LABEL="):]
     if found.startswith("UUID="):
-        return "/dev/disk/by-uuid/" + found[len("UUID="):]
+        return "/dev/disk/by-uuid/" + found[len("UUID="):].lower()
     if found.startswith("PARTUUID="):
-        disks_path = "/dev/disk/by-partuuid/" + found[len("PARTUUID="):]
+        disks_path = ("/dev/disk/by-partuuid/" +
+                      found[len("PARTUUID="):].lower())
         if os.path.exists(disks_path):
             return disks_path
         results = find_devs_with(found)
