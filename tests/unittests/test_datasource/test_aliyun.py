@@ -2,6 +2,7 @@
 
 import functools
 import httpretty
+import mock
 import os
 
 from .. import helpers as test_helpers
@@ -111,14 +112,28 @@ class TestAliYunDatasource(test_helpers.HttprettyTestCase):
         self.assertEqual(self.default_metadata['hostname'],
                          self.ds.get_hostname())
 
+    @mock.patch("cloudinit.sources.DataSourceAliYun._is_aliyun")
     @httpretty.activate
-    def test_with_mock_server(self):
+    def test_with_mock_server(self, m_is_aliyun):
+        m_is_aliyun.return_value = True
         self.regist_default_server()
-        self.ds.get_data()
+        ret = self.ds.get_data()
+        self.assertEqual(True, ret)
+        self.assertEqual(1, m_is_aliyun.call_count)
         self._test_get_data()
         self._test_get_sshkey()
         self._test_get_iid()
         self._test_host_name()
+
+    @mock.patch("cloudinit.sources.DataSourceAliYun._is_aliyun")
+    @httpretty.activate
+    def test_returns_false_when_not_on_aliyun(self, m_is_aliyun):
+        """If is_aliyun returns false, then get_data should return False."""
+        m_is_aliyun.return_value = False
+        self.regist_default_server()
+        ret = self.ds.get_data()
+        self.assertEqual(1, m_is_aliyun.call_count)
+        self.assertEqual(False, ret)
 
     def test_parse_public_keys(self):
         public_keys = {}
@@ -148,5 +163,37 @@ class TestAliYunDatasource(test_helpers.HttprettyTestCase):
                                                       'ssh-key-1']}}
         self.assertEqual(ay.parse_public_keys(public_keys),
                          public_keys['key-pair-0']['openssh-key'])
+
+
+class TestIsAliYun(test_helpers.CiTestCase):
+    ALIYUN_PRODUCT = 'Alibaba Cloud ECS'
+    read_dmi_data_expected = [mock.call('system-product-name')]
+
+    @mock.patch("cloudinit.sources.DataSourceAliYun.util.read_dmi_data")
+    def test_true_on_aliyun_product(self, m_read_dmi_data):
+        """Should return true if the dmi product data has expected value."""
+        m_read_dmi_data.return_value = self.ALIYUN_PRODUCT
+        ret = ay._is_aliyun()
+        self.assertEqual(self.read_dmi_data_expected,
+                         m_read_dmi_data.call_args_list)
+        self.assertEqual(True, ret)
+
+    @mock.patch("cloudinit.sources.DataSourceAliYun.util.read_dmi_data")
+    def test_false_on_empty_string(self, m_read_dmi_data):
+        """Should return false on empty value returned."""
+        m_read_dmi_data.return_value = ""
+        ret = ay._is_aliyun()
+        self.assertEqual(self.read_dmi_data_expected,
+                         m_read_dmi_data.call_args_list)
+        self.assertEqual(False, ret)
+
+    @mock.patch("cloudinit.sources.DataSourceAliYun.util.read_dmi_data")
+    def test_false_on_unknown_string(self, m_read_dmi_data):
+        """Should return false on an unrelated string."""
+        m_read_dmi_data.return_value = "cubs win"
+        ret = ay._is_aliyun()
+        self.assertEqual(self.read_dmi_data_expected,
+                         m_read_dmi_data.call_args_list)
+        self.assertEqual(False, ret)
 
 # vi: ts=4 expandtab

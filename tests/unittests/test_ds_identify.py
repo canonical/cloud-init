@@ -220,6 +220,20 @@ class TestDsIdentify(CiTestCase):
         mydata['files'][cfgpath] = 'datasource_list: ["Ec2", "None"]\n'
         self._check_via_dict(mydata, rc=RC_FOUND, dslist=['Ec2', DS_NONE])
 
+    def test_aliyun_identified(self):
+        """Test that Aliyun cloud is identified by product id."""
+        self._test_ds_found('AliYun')
+
+    def test_aliyun_over_ec2(self):
+        """Even if all other factors identified Ec2, AliYun should be used."""
+        mydata = copy.deepcopy(VALID_CFG['Ec2-xen'])
+        self._test_ds_found('AliYun')
+        prod_name = VALID_CFG['AliYun']['files'][P_PRODUCT_NAME]
+        mydata['files'][P_PRODUCT_NAME] = prod_name
+        policy = "search,found=first,maybe=none,notfound=disabled"
+        self._check_via_dict(mydata, rc=RC_FOUND, dslist=['AliYun', DS_NONE],
+                             policy_dmi=policy)
+
 
 def blkid_out(disks=None):
     """Convert a list of disk dictionaries into blkid content."""
@@ -254,6 +268,10 @@ def _print_run_output(rc, out, err, cfg, files):
 
 
 VALID_CFG = {
+    'AliYun': {
+        'ds': 'AliYun',
+        'files': {P_PRODUCT_NAME: 'Alibaba Cloud ECS\n'},
+    },
     'Ec2-hvm': {
         'ds': 'Ec2',
         'mocks': [{'name': 'detect_virt', 'RET': 'kvm', 'ret': 0}],

@@ -110,7 +110,8 @@ DI_DSNAME=""
 # this has to match the builtin list in cloud-init, it is what will
 # be searched if there is no setting found in config.
 DI_DSLIST_DEFAULT="MAAS ConfigDrive NoCloud AltCloud Azure Bigstep \
-CloudSigma CloudStack DigitalOcean Ec2 GCE OpenNebula OpenStack OVF SmartOS"
+CloudSigma CloudStack DigitalOcean AliYun Ec2 GCE OpenNebula OpenStack \
+OVF SmartOS"
 DI_DSLIST=""
 DI_MODE=""
 DI_ON_FOUND=""
@@ -821,10 +822,11 @@ dscheck_OpenStack() {
 }
 
 dscheck_AliYun() {
-    # aliyun is not enabled by default (LP: #1638931)
-    # so if we are here, it is because the datasource_list was
-    # set to include it.  Thus, 'maybe'.
-    return $DS_MAYBE
+    check_seed_dir "AliYun" meta-data user-data && return ${DS_FOUND}
+    if dmi_product_name_is "Alibaba Cloud ECS"; then
+        return $DS_FOUND
+    fi
+    return $DS_NOT_FOUND
 }
 
 dscheck_AltCloud() {

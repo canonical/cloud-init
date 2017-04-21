@@ -36,6 +36,7 @@ DEFAULT_LOCAL = [
 ]
 
 DEFAULT_NETWORK = [
+    AliYun.DataSourceAliYun,
     AltCloud.DataSourceAltCloud,
     Azure.DataSourceAzureNet,
     Bigstep.DataSourceBigstep,

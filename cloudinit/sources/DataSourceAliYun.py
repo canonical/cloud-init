@@ -4,8 +4,10 @@ import os
 
 from cloudinit import sources
 from cloudinit.sources import DataSourceEc2 as EC2
+from cloudinit import util
 
 DEF_MD_VERSION = "2016-01-01"
+ALIYUN_PRODUCT = "Alibaba Cloud ECS"
 
 
 class DataSourceAliYun(EC2.DataSourceEc2):
@@ -24,7 +26,17 @@ class DataSourceAliYun(EC2.DataSourceEc2):
 
     @property
     def cloud_platform(self):
-        return EC2.Platforms.ALIYUN
+        if self._cloud_platform is None:
+            if _is_aliyun():
+                self._cloud_platform = EC2.Platforms.ALIYUN
+            else:
+                self._cloud_platform = EC2.Platforms.NO_EC2_METADATA
+
+        return self._cloud_platform
+
+
+def _is_aliyun():
+    return util.read_dmi_data('system-product-name') == ALIYUN_PRODUCT
 
 
 def parse_public_keys(public_keys):
