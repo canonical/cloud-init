@@ -137,7 +137,7 @@ OS_SAMPLES = [
              """
 # Created by cloud-init on instance boot automatically, do not edit.
 #
-BOOTPROTO=static
+BOOTPROTO=none
 DEFROUTE=yes
 DEVICE=eth0
 GATEWAY=172.19.3.254
@@ -205,38 +205,14 @@ nameserver 172.19.0.12
 # Created by cloud-init on instance boot automatically, do not edit.
 #
 BOOTPROTO=none
-DEVICE=eth0
-HWADDR=fa:16:3e:ed:9a:59
-NM_CONTROLLED=no
-ONBOOT=yes
-TYPE=Ethernet
-USERCTL=no
-""".lstrip()),
-            ('etc/sysconfig/network-scripts/ifcfg-eth0:0',
-             """
-# Created by cloud-init on instance boot automatically, do not edit.
-#
-BOOTPROTO=static
 DEFROUTE=yes
-DEVICE=eth0:0
+DEVICE=eth0
 GATEWAY=172.19.3.254
 HWADDR=fa:16:3e:ed:9a:59
 IPADDR=172.19.1.34
+IPADDR1=10.0.0.10
 NETMASK=255.255.252.0
-NM_CONTROLLED=no
-ONBOOT=yes
-TYPE=Ethernet
-USERCTL=no
-""".lstrip()),
-            ('etc/sysconfig/network-scripts/ifcfg-eth0:1',
-             """
-# Created by cloud-init on instance boot automatically, do not edit.
-#
-BOOTPROTO=static
-DEVICE=eth0:1
-HWADDR=fa:16:3e:ed:9a:59
-IPADDR=10.0.0.10
-NETMASK=255.255.255.0
+NETMASK1=255.255.255.0
 NM_CONTROLLED=no
 ONBOOT=yes
 TYPE=Ethernet
@@ -266,7 +242,7 @@ nameserver 172.19.0.12
                 }],
                 "ip_address": "172.19.1.34", "id": "network0"
             }, {
-                "network_id": "public-ipv6",
+                "network_id": "public-ipv6-a",
                 "type": "ipv6", "netmask": "",
                 "link": "tap1a81968a-79",
                 "routes": [
@@ -277,6 +253,20 @@ nameserver 172.19.0.12
                     }
                 ],
                 "ip_address": "2001:DB8::10", "id": "network1"
+            }, {
+                "network_id": "public-ipv6-b",
+                "type": "ipv6", "netmask": "64",
+                "link": "tap1a81968a-79",
+                "routes": [
+                ],
+                "ip_address": "2001:DB9::10", "id": "network2"
+            }, {
+                "network_id": "public-ipv6-c",
+                "type": "ipv6", "netmask": "64",
+                "link": "tap1a81968a-79",
+                "routes": [
+                ],
+                "ip_address": "2001:DB10::10", "id": "network3"
             }],
             "links": [
                 {
@@ -296,41 +286,16 @@ nameserver 172.19.0.12
 # Created by cloud-init on instance boot automatically, do not edit.
 #
 BOOTPROTO=none
-DEVICE=eth0
-HWADDR=fa:16:3e:ed:9a:59
-NM_CONTROLLED=no
-ONBOOT=yes
-TYPE=Ethernet
-USERCTL=no
-""".lstrip()),
-            ('etc/sysconfig/network-scripts/ifcfg-eth0:0',
-             """
-# Created by cloud-init on instance boot automatically, do not edit.
-#
-BOOTPROTO=static
 DEFROUTE=yes
-DEVICE=eth0:0
+DEVICE=eth0
 GATEWAY=172.19.3.254
 HWADDR=fa:16:3e:ed:9a:59
 IPADDR=172.19.1.34
-NETMASK=255.255.252.0
-NM_CONTROLLED=no
-ONBOOT=yes
-TYPE=Ethernet
-USERCTL=no
-""".lstrip()),
-            ('etc/sysconfig/network-scripts/ifcfg-eth0:1',
-             """
-# Created by cloud-init on instance boot automatically, do not edit.
-#
-BOOTPROTO=static
-DEFROUTE=yes
-DEVICE=eth0:1
-HWADDR=fa:16:3e:ed:9a:59
 IPV6ADDR=2001:DB8::10
+IPV6ADDR_SECONDARIES="2001:DB9::10/64 2001:DB10::10/64"
 IPV6INIT=yes
 IPV6_DEFAULTGW=2001:DB8::1
-NETMASK=
+NETMASK=255.255.252.0
 NM_CONTROLLED=no
 ONBOOT=yes
 TYPE=Ethernet

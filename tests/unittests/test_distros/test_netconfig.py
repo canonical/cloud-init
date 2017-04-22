@@ -476,7 +476,7 @@ NETWORKING=yes
             expected_buf = '''
 # Created by cloud-init on instance boot automatically, do not edit.
 #
-BOOTPROTO=static
+BOOTPROTO=none
 DEVICE=eth0
 IPADDR=192.168.1.5
 NETMASK=255.255.255.0
@@ -533,7 +533,6 @@ NETWORKING=yes
                 mock.patch.object(util, 'load_file', return_value=''))
             mocks.enter_context(
                 mock.patch.object(os.path, 'isfile', return_value=False))
-
             rh_distro.apply_network(BASE_NET_CFG_IPV6, False)
 
             self.assertEqual(len(write_bufs), 4)
@@ -626,11 +625,10 @@ IPV6_AUTOCONF=no
             expected_buf = '''
 # Created by cloud-init on instance boot automatically, do not edit.
 #
-BOOTPROTO=static
+BOOTPROTO=none
 DEVICE=eth0
-IPV6ADDR=2607:f0d0:1002:0011::2
+IPV6ADDR=2607:f0d0:1002:0011::2/64
 IPV6INIT=yes
-NETMASK=64
 NM_CONTROLLED=no
 ONBOOT=yes
 TYPE=Ethernet
