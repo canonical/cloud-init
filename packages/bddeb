@@ -24,35 +24,17 @@ if "avoid-pep8-E402-import-not-top-of-file":
     from cloudinit import templater
     from cloudinit import util
 
-# Package names that will showup in requires to what we can actually
-# use in our debian 'control' file, this is a translation of the 'requires'
-# file pypi package name to a debian/ubuntu package name.
-STD_NAMED_PACKAGES = [
-    'configobj',
-    'coverage',
-    'jinja2',
-    'jsonpatch',
-    'oauthlib',
-    'prettytable',
-    'requests',
-    'six',
-    'httpretty',
-    'mock',
-    'nose',
-    'setuptools',
-    'flake8',
-    'hacking',
-    'unittest2',
-]
+# Package names that will showup in requires which have unique package names.
+# Format is '<pypi-name>': {'<python_major_version>': <pkg_name_or_none>, ...}.
 NONSTD_NAMED_PACKAGES = {
-    'argparse': ('python-argparse', None),
-    'contextlib2': ('python-contextlib2', None),
-    'cheetah': ('python-cheetah', None),
-    'pyserial': ('python-serial', 'python3-serial'),
-    'pyyaml': ('python-yaml', 'python3-yaml'),
-    'six': ('python-six', 'python3-six'),
-    'pep8': ('pep8', 'python3-pep8'),
-    'pyflakes': ('pyflakes', 'pyflakes'),
+    'argparse': {'2': 'python-argparse', '3': None},
+    'contextlib2': {'2': 'python-contextlib2', '3': None},
+    'cheetah': {'2': 'python-cheetah', '3': None},
+    'pyserial': {'2': 'python-serial', '3': 'python3-serial'},
+    'pyyaml': {'2': 'python-yaml', '3': 'python3-yaml'},
+    'six': {'2': 'python-six', '3': 'python3-six'},
+    'pep8': {'2': 'pep8', '3': 'python3-pep8'},
+    'pyflakes': {'2': 'pyflakes', '3': 'pyflakes'},
 }
 
 DEBUILD_ARGS = ["-S", "-d"]
@@ -68,8 +50,17 @@ def run_helper(helper, args=None, strip=True):
     return stdout
 
 
-def write_debian_folder(root, templ_data, pkgmap, pyver="3",
-                        append_requires=[]):
+def write_debian_folder(root, templ_data, is_python2, cloud_util_deps):
+    """Create a debian package directory with all rendered template files."""
+    print("Creating a debian/ folder in %r" % (root))
+    if is_python2:
+        pyver = "2"
+        python = "python"
+    else:
+        pyver = "3"
+        python = "python3"
+    pkgfmt = "{}-{}"
+
     deb_dir = util.abs_join(root, 'debian')
 
     # Just copy debian/ dir and then update files
@@ -91,21 +82,16 @@ def write_debian_folder(root, templ_data, pkgmap, pyver="3",
     pypi_test_pkgs = [p.lower().strip() for p in test_reqs]
 
     # Map to known packages
-    requires = append_requires
+    requires = ['cloud-utils | cloud-guest-utils'] if cloud_util_deps else []
     test_requires = []
     lists = ((pypi_pkgs, requires), (pypi_test_pkgs, test_requires))
     for pypilist, target in lists:
         for p in pypilist:
-            if p not in pkgmap:
-                raise RuntimeError(("Do not know how to translate pypi "
-                                    "dependency %r to a known package") % (p))
-            elif pkgmap[p]:
-                target.append(pkgmap[p])
-
-    if pyver == "3":
-        python = "python3"
-    else:
-        python = "python"
+            if p in NONSTD_NAMED_PACKAGES:
+                if NONSTD_NAMED_PACKAGES[p][pyver]:
+                    target.append(NONSTD_NAMED_PACKAGES[p][pyver])
+            else:  # Then standard package prefix
+                target.append(pkgfmt.format(python, p))
 
     templater.render_to_file(util.abs_join(find_root(),
                                            'packages', 'debian', 'control.in'),
@@ -124,8 +110,8 @@ def read_version():
     return json.loads(run_helper('read-version', ['--json']))
 
 
-def main():
-
+def get_parser():
+    """Setup and return an argument parser for bdeb tool."""
     parser = argparse.ArgumentParser()
     parser.add_argument("-v", "--verbose", dest="verbose",
                         help=("run verbosely"
@@ -162,7 +148,11 @@ def main():
 
     parser.add_argument("--signuser", default=False, action='store',
                         help="user to sign, see man dpkg-genchanges")
+    return parser
 
+
+def main():
+    parser = get_parser()
     args = parser.parse_args()
 
     if not args.sign:
@@ -176,18 +166,6 @@ def main():
     capture = True
     if args.verbose:
         capture = False
-
-    pkgmap = {}
-    for p in NONSTD_NAMED_PACKAGES:
-        pkgmap[p] = NONSTD_NAMED_PACKAGES[p][int(not args.python2)]
-
-    for p in STD_NAMED_PACKAGES:
-        if args.python2:
-            pkgmap[p] = "python-" + p
-            pyver = "2"
-        else:
-            pkgmap[p] = "python3-" + p
-            pyver = "3"
 
     templ_data = {'debian_release': args.release}
     with util.tempdir() as tdir:
@@ -208,16 +186,10 @@ def main():
         util.subp(cmd, capture=capture)
 
         xdir = util.abs_join(tdir, "cloud-init-%s" % ver_data['version_long'])
-
-        print("Creating a debian/ folder in %r" % (xdir))
-        if args.cloud_utils:
-            append_requires = ['cloud-utils | cloud-guest-utils']
-        else:
-            append_requires = []
-
         templ_data.update(ver_data)
-        write_debian_folder(xdir, templ_data, pkgmap,
-                            pyver=pyver, append_requires=append_requires)
+
+        write_debian_folder(xdir, templ_data, is_python2=args.python2,
+                            cloud_util_deps=args.cloud_utils)
 
         print("Running 'debuild %s' in %r" % (' '.join(args.debuild_args),
                                               xdir))
