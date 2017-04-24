@@ -75,7 +75,7 @@ def main():
         r_cls = sysconfig.Renderer
 
     r = r_cls()
-    r.render_network_state(ns, target=args.directory)
+    r.render_network_state(args.directory, ns)
 
 
 if __name__ == '__main__':
