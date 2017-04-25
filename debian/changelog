@@ -1,4 +1,4 @@
-cloud-init (0.7.9-113-g513e99e0-0ubuntu1) UNRELEASED; urgency=medium
+cloud-init (0.7.9-113-g513e99e0-0ubuntu1) artful; urgency=medium
 
   * New upstream snapshot.
     - nova-lxd: read product_name from environment, not platform.
@@ -37,7 +37,7 @@ cloud-init (0.7.9-113-g513e99e0-0ubuntu1) UNRELEASED; urgency=medium
     - DigitalOcean: bind resolvers to loopback interface. [Ben Howard]
     - tests: fix AltCloud tests to not rely on blkid (LP: #1636531)
 
- -- Scott Moser <smoser@ubuntu.com>  Tue, 25 Apr 2017 16:07:39 -0400
+ -- Scott Moser <smoser@ubuntu.com>  Tue, 25 Apr 2017 16:34:08 -0400
 
 cloud-init (0.7.9-90-g61eb03fe-0ubuntu2) UNRELEASED; urgency=medium
 
