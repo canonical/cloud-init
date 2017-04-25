@@ -112,7 +112,7 @@ DI_DSNAME=""
 # be searched if there is no setting found in config.
 DI_DSLIST_DEFAULT="MAAS ConfigDrive NoCloud AltCloud Azure Bigstep \
 CloudSigma CloudStack DigitalOcean AliYun Ec2 GCE OpenNebula OpenStack \
-OVF SmartOS"
+OVF SmartOS Scaleway"
 DI_DSLIST=""
 DI_MODE=""
 DI_ON_FOUND=""
@@ -893,6 +893,22 @@ dscheck_SmartOS() {
 }
 
 dscheck_None() {
+    return ${DS_NOT_FOUND}
+}
+
+dscheck_Scaleway() {
+    if [ "${DI_DMI_SYS_VENDOR}" = "Scaleway" ]; then
+        return $DS_FOUND
+    fi
+
+    case " ${DI_KERNEL_CMDLINE} " in
+        *\ scaleway\ *) return ${DS_FOUND};;
+    esac
+
+    if [ -f ${PATH_ROOT}/var/run/scaleway ]; then
+        return ${DS_FOUND}
+    fi
+
     return ${DS_NOT_FOUND}
 }
 
