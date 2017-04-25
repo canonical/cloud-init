@@ -86,6 +86,11 @@ def is_bridge(devname):
     return os.path.exists(sys_dev_path(devname, "bridge"))
 
 
+def is_vlan(devname):
+    uevent = str(read_sys_net_safe(devname, "uevent"))
+    return 'DEVTYPE=vlan' in uevent.splitlines()
+
+
 def is_connected(devname):
     # is_connected isn't really as simple as that.  2 is
     # 'physically connected'. 3 is 'not connected'. but a wlan interface will
@@ -392,6 +397,8 @@ def get_interfaces_by_mac():
         if not interface_has_own_mac(name):
             continue
         if is_bridge(name):
+            continue
+        if is_vlan(name):
             continue
         mac = get_interface_mac(name)
         # some devices may not have a mac (tun0)

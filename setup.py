@@ -138,9 +138,7 @@ class InitsysInstallData(install):
             self.init_system = self.init_system.split(",")
 
         if len(self.init_system) == 0:
-            raise DistutilsArgError(
-                ("You must specify one of (%s) when"
-                 " specifying init system(s)!") % (", ".join(INITSYS_TYPES)))
+            self.init_system = ['systemd']
 
         bad = [f for f in self.init_system if f not in INITSYS_TYPES]
         if len(bad) != 0:

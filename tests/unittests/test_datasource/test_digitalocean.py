@@ -197,7 +197,8 @@ class TestNetworkConvert(TestCase):
     @mock.patch('cloudinit.net.get_interfaces_by_mac')
     def _get_networking(self, m_get_by_mac):
         m_get_by_mac.return_value = {
-            '04:01:57:d1:9e:01': 'ens1', '04:01:57:d1:9e:02': 'ens2',
+            '04:01:57:d1:9e:01': 'ens1',
+            '04:01:57:d1:9e:02': 'ens2',
             'b8:ae:ed:75:5f:9a': 'enp0s25',
             'ae:cc:08:7c:88:00': 'meta2p1'}
         netcfg = digitalocean.convert_network_configuration(
@@ -208,18 +209,33 @@ class TestNetworkConvert(TestCase):
     def test_networking_defined(self):
         netcfg = self._get_networking()
         self.assertIsNotNone(netcfg)
+        dns_defined = False
 
-        for nic_def in netcfg.get('config'):
-            print(json.dumps(nic_def, indent=3))
-            n_type = nic_def.get('type')
-            n_subnets = nic_def.get('type')
-            n_name = nic_def.get('name')
-            n_mac = nic_def.get('mac_address')
+        for part in netcfg.get('config'):
+            n_type = part.get('type')
+            print("testing part ", n_type, "\n", json.dumps(part, indent=3))
 
-            self.assertIsNotNone(n_type)
-            self.assertIsNotNone(n_subnets)
-            self.assertIsNotNone(n_name)
-            self.assertIsNotNone(n_mac)
+            if n_type == 'nameserver':
+                n_address = part.get('address')
+                self.assertIsNotNone(n_address)
+                self.assertEqual(len(n_address), 3)
+
+                dns_resolvers = DO_META["dns"]["nameservers"]
+                for x in n_address:
+                    self.assertIn(x, dns_resolvers)
+                dns_defined = True
+
+            else:
+                n_subnets = part.get('type')
+                n_name = part.get('name')
+                n_mac = part.get('mac_address')
+
+                self.assertIsNotNone(n_type)
+                self.assertIsNotNone(n_subnets)
+                self.assertIsNotNone(n_name)
+                self.assertIsNotNone(n_mac)
+
+        self.assertTrue(dns_defined)
 
     def _get_nic_definition(self, int_type, expected_name):
         """helper function to return if_type (i.e. public) and the expected
@@ -260,12 +276,6 @@ class TestNetworkConvert(TestCase):
         self.assertEqual(meta_def.get('mac'), nic_def.get('mac_address'))
         self.assertEqual('physical', nic_def.get('type'))
 
-    def _check_dns_nameservers(self, subn_def):
-        self.assertIn('dns_nameservers', subn_def)
-        expected_nameservers = DO_META['dns']['nameservers']
-        nic_nameservers = subn_def.get('dns_nameservers')
-        self.assertEqual(expected_nameservers, nic_nameservers)
-
     def test_public_interface_ipv6(self):
         """test public ipv6 addressing"""
         (nic_def, meta_def) = self._get_nic_definition('public', 'eth0')
@@ -280,7 +290,6 @@ class TestNetworkConvert(TestCase):
 
         self.assertEqual(cidr_notated_address, subn_def.get('address'))
         self.assertEqual(ipv6_def.get('gateway'), subn_def.get('gateway'))
-        self._check_dns_nameservers(subn_def)
 
     def test_public_interface_ipv4(self):
         """test public ipv4 addressing"""
@@ -293,7 +302,6 @@ class TestNetworkConvert(TestCase):
 
         self.assertEqual(ipv4_def.get('netmask'), subn_def.get('netmask'))
         self.assertEqual(ipv4_def.get('gateway'), subn_def.get('gateway'))
-        self._check_dns_nameservers(subn_def)
 
     def test_public_interface_anchor_ipv4(self):
         """test public ipv4 addressing"""

@@ -43,7 +43,7 @@ def delete_key(key):
         util.subp(["gpg", "--batch", "--yes", "--delete-keys", key],
                   capture=True)
     except util.ProcessExecutionError as error:
-        LOG.warn('Failed delete key "%s": %s', key, error)
+        LOG.warning('Failed delete key "%s": %s', key, error)
 
 
 def getkeybyid(keyid, keyserver='keyserver.ubuntu.com'):

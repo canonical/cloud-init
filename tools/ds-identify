@@ -92,7 +92,7 @@ DI_DMI_PRODUCT_UUID=""
 DI_FS_LABELS=""
 DI_KERNEL_CMDLINE=""
 DI_VIRT=""
-DI_PID_1_PLATFORM=""
+DI_PID_1_PRODUCT_NAME=""
 
 DI_UNAME_KERNEL_NAME=""
 DI_UNAME_KERNEL_RELEASE=""
@@ -362,9 +362,9 @@ read_datasource_list() {
     return 0
 }
 
-read_pid1_platform() {
-    local oifs="$IFS" out="" tok="" key="" val="" platform="${UNAVAILABLE}"
-    cached "${DI_PID_1_PLATFORM}" && return
+read_pid1_product_name() {
+    local oifs="$IFS" out="" tok="" key="" val="" product_name="${UNAVAILABLE}"
+    cached "${DI_PID_1_PRODUCT_NAME}" && return
     [ -r "${PATH_PROC_1_ENVIRON}" ] || return
     out=$(tr '\0' '\n' <"${PATH_PROC_1_ENVIRON}")
     IFS="$CR"; set -- $out; IFS="$oifs"
@@ -372,9 +372,9 @@ read_pid1_platform() {
         key=${tok%%=*}
         [ "$key" != "$tok" ] || continue
         val=${tok#*=}
-        [ "$key" = "platform" ] && platform="$val" && break
+        [ "$key" = "product_name" ] && product_name="$val" && break
     done
-    DI_PID_1_PLATFORM="$platform"
+    DI_PID_1_PRODUCT_NAME="$product_name"
 }
 
 dmi_product_name_matches() {
@@ -552,13 +552,14 @@ check_configdrive_v2() {
     # look in /config-drive <vlc>/seed/config_drive for a directory
     # openstack/YYYY-MM-DD format with a file meta_data.json
     local d=""
-    for d in /config-drive "${PATH_VAR_LIB_CLOUD}/seed/config_drive"; do
+    local vlc_config_drive_path="${PATH_VAR_LIB_CLOUD}/seed/config_drive"
+    for d in /config-drive $vlc_config_drive_path; do
         set +f; set -- "$d/openstack/"2???-??-??/meta_data.json; set -f;
         [ -f "$1" ] && return ${DS_FOUND}
     done
     # at least one cloud (softlayer) seeds config drive with only 'latest'.
     local lpath="openstack/latest/meta_data.json"
-    if [ -e "${PATH_VAR_LIB_CLOUD}/$lpath" ]; then
+    if [ -e "$vlc_config_drive_path/$lpath" ]; then
         debug 1 "config drive seeded directory had only 'latest'"
         return ${DS_FOUND}
     fi
@@ -804,7 +805,7 @@ dscheck_OpenStack() {
         # RDO installed nova (LP: #1675349).
         return ${DS_FOUND}
     fi
-    if [ "${DI_PID_1_PLATFORM}" = "$nova" ]; then
+    if [ "${DI_PID_1_PRODUCT_NAME}" = "$nova" ]; then
         return ${DS_FOUND}
     fi
 
@@ -872,7 +873,7 @@ dscheck_None() {
 
 collect_info() {
     read_virt
-    read_pid1_platform
+    read_pid1_product_name
     read_kernel_cmdline
     read_uname_info
     read_config
@@ -892,7 +893,7 @@ print_info() {
 _print_info() {
     local n="" v="" vars=""
     vars="DMI_PRODUCT_NAME DMI_SYS_VENDOR DMI_PRODUCT_SERIAL"
-    vars="$vars DMI_PRODUCT_UUID PID_1_PLATFORM"
+    vars="$vars DMI_PRODUCT_UUID PID_1_PRODUCT_NAME"
     vars="$vars FS_LABELS KERNEL_CMDLINE VIRT"
     vars="$vars UNAME_KERNEL_NAME UNAME_KERNEL_RELEASE UNAME_KERNEL_VERSION"
     vars="$vars UNAME_MACHINE UNAME_NODENAME UNAME_OPERATING_SYSTEM"

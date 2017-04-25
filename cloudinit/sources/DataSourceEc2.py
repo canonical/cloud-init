@@ -125,7 +125,7 @@ class DataSourceEc2(sources.DataSource):
         if len(filtered):
             mdurls = filtered
         else:
-            LOG.warn("Empty metadata url list! using default list")
+            LOG.warning("Empty metadata url list! using default list")
             mdurls = self.metadata_urls
 
         urls = []
@@ -232,7 +232,7 @@ def read_strict_mode(cfgval, default):
     try:
         return parse_strict_mode(cfgval)
     except ValueError as e:
-        LOG.warn(e)
+        LOG.warning(e)
         return default
 
 
@@ -270,7 +270,7 @@ def warn_if_necessary(cfgval, cfg):
     try:
         mode, sleep = parse_strict_mode(cfgval)
     except ValueError as e:
-        LOG.warn(e)
+        LOG.warning(e)
         return
 
     if mode == "false":
@@ -304,8 +304,8 @@ def identify_platform():
             if result:
                 return result
         except Exception as e:
-            LOG.warn("calling %s with %s raised exception: %s",
-                     checker, data, e)
+            LOG.warning("calling %s with %s raised exception: %s",
+                        checker, data, e)
 
 
 def _collect_platform_data():

@@ -83,7 +83,8 @@ class Distro(distros.Distro):
         try:
             (_out, err) = util.subp(cmd)
             if len(err):
-                LOG.warn("Running %s resulted in stderr output: %s", cmd, err)
+                LOG.warning("Running %s resulted in stderr output: %s",
+                            cmd, err)
         except util.ProcessExecutionError:
             util.logexc(LOG, "Running interface command %s failed", cmd)
 
@@ -94,7 +95,8 @@ class Distro(distros.Distro):
         try:
             (_out, err) = util.subp(cmd)
             if len(err):
-                LOG.warn("Running %s resulted in stderr output: %s", cmd, err)
+                LOG.warning("Running %s resulted in stderr output: %s",
+                            cmd, err)
             return True
         except util.ProcessExecutionError:
             util.logexc(LOG, "Running interface command %s failed", cmd)

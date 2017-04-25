@@ -21,7 +21,7 @@ from cloudinit import sources
 from cloudinit import url_helper
 from cloudinit import util
 
-# For reference: http://tinyurl.com/laora4c
+# See https://docs.openstack.org/user-guide/cli-config-drive.html
 
 LOG = logging.getLogger(__name__)
 

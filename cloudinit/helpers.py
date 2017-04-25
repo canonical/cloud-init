@@ -126,11 +126,11 @@ class FileSemaphores(object):
         # this case could happen if the migrator module hadn't run yet
         # but the item had run before we did canon_sem_name.
         if cname != name and os.path.exists(self._get_path(name, freq)):
-            LOG.warn("%s has run without canonicalized name [%s].\n"
-                     "likely the migrator has not yet run. "
-                     "It will run next boot.\n"
-                     "run manually with: cloud-init single --name=migrator"
-                     % (name, cname))
+            LOG.warning("%s has run without canonicalized name [%s].\n"
+                        "likely the migrator has not yet run. "
+                        "It will run next boot.\n"
+                        "run manually with: cloud-init single --name=migrator",
+                        name, cname)
             return True
 
         return False
@@ -375,8 +375,8 @@ class Paths(object):
     def get_ipath(self, name=None):
         ipath = self._get_ipath(name)
         if not ipath:
-            LOG.warn(("No per instance data available, "
-                      "is there an datasource/iid set?"))
+            LOG.warning(("No per instance data available, "
+                         "is there an datasource/iid set?"))
             return None
         else:
             return ipath

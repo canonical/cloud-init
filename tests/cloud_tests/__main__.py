@@ -38,7 +38,7 @@ def run(args):
     finally:
         # TODO: make this configurable via environ or cmdline
         if failed:
-            LOG.warn('some tests failed, leaving data in %s', args.data_dir)
+            LOG.warning('some tests failed, leaving data in %s', args.data_dir)
         else:
             shutil.rmtree(args.data_dir)
     return failed
