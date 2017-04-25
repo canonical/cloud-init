@@ -116,7 +116,7 @@ class DataSourceAzureNet(sources.DataSource):
         # the metadata and "bounce" the network to force DDNS to update via
         # dhclient
         azure_hostname = self.metadata.get('local-hostname')
-        LOG.debug("Hostname in metadata is {}".format(azure_hostname))
+        LOG.debug("Hostname in metadata is %s", azure_hostname)
         hostname_command = self.ds_cfg['hostname_bounce']['hostname_command']
 
         with temporary_hostname(azure_hostname, self.ds_cfg,
@@ -132,7 +132,7 @@ class DataSourceAzureNet(sources.DataSource):
                                             cfg=cfg,
                                             prev_hostname=previous_hostname)
                 except Exception as e:
-                    LOG.warn("Failed publishing hostname: %s", e)
+                    LOG.warning("Failed publishing hostname: %s", e)
                     util.logexc(LOG, "handling set_hostname failed")
 
     def get_metadata_from_agent(self):
@@ -168,7 +168,7 @@ class DataSourceAzureNet(sources.DataSource):
                                 func=wait_for_files,
                                 args=(fp_files,))
         if len(missing):
-            LOG.warn("Did not find files, but going on: %s", missing)
+            LOG.warning("Did not find files, but going on: %s", missing)
 
         metadata = {}
         metadata['public-keys'] = key_value or pubkeys_from_crt_files(fp_files)
@@ -199,7 +199,7 @@ class DataSourceAzureNet(sources.DataSource):
             except BrokenAzureDataSource as exc:
                 raise exc
             except util.MountFailedError:
-                LOG.warn("%s was not mountable", cdev)
+                LOG.warning("%s was not mountable", cdev)
                 continue
 
             (md, self.userdata_raw, cfg, files) = ret
@@ -331,8 +331,8 @@ def address_ephemeral_resize(devpath=RESOURCE_DISK_PATH, maxwait=120,
                              log_pre="Azure ephemeral disk: ")
 
     if missing:
-        LOG.warn("ephemeral device '%s' did not appear after %d seconds.",
-                 devpath, maxwait)
+        LOG.warning("ephemeral device '%s' did not appear after %d seconds.",
+                    devpath, maxwait)
         return
 
     result = False
@@ -342,7 +342,7 @@ def address_ephemeral_resize(devpath=RESOURCE_DISK_PATH, maxwait=120,
     else:
         result, msg = can_dev_be_reformatted(devpath)
 
-    LOG.debug("reformattable=%s: %s" % (result, msg))
+    LOG.debug("reformattable=%s: %s", result, msg)
     if not result:
         return
 
@@ -355,7 +355,7 @@ def address_ephemeral_resize(devpath=RESOURCE_DISK_PATH, maxwait=120,
                 LOG.debug(bmsg + " removed.")
             except Exception as e:
                 # python3 throws FileNotFoundError, python2 throws OSError
-                LOG.warn(bmsg + ": remove failed! (%s)" % e)
+                LOG.warning(bmsg + ": remove failed! (%s)", e)
         else:
             LOG.debug(bmsg + " did not exist.")
     return
@@ -405,7 +405,7 @@ def pubkeys_from_crt_files(flist):
             errors.append(fname)
 
     if errors:
-        LOG.warn("failed to convert the crt files to pubkey: %s", errors)
+        LOG.warning("failed to convert the crt files to pubkey: %s", errors)
 
     return pubkeys
 
@@ -427,8 +427,8 @@ def wait_for_files(flist, maxwait=60, naplen=.5, log_pre=""):
         time.sleep(naplen)
         waited += naplen
 
-    LOG.warn("%sStill missing files after %s seconds: %s",
-             log_pre, maxwait, need)
+    LOG.warning("%sStill missing files after %s seconds: %s",
+                log_pre, maxwait, need)
     return need
 
 

@@ -43,7 +43,7 @@ class DataSourceCloudSigma(sources.DataSource):
             LOG.debug("detected hypervisor as %s", sys_product_name)
             return 'cloudsigma' in sys_product_name.lower()
 
-        LOG.warn("failed to query dmi data for system product name")
+        LOG.warning("failed to query dmi data for system product name")
         return False
 
     def get_data(self):

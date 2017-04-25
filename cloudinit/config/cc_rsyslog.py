@@ -252,7 +252,8 @@ def apply_rsyslog_changes(configs, def_fname, cfg_dir):
     for cur_pos, ent in enumerate(configs):
         if isinstance(ent, dict):
             if "content" not in ent:
-                LOG.warn("No 'content' entry in config entry %s", cur_pos + 1)
+                LOG.warning("No 'content' entry in config entry %s",
+                            cur_pos + 1)
                 continue
             content = ent['content']
             filename = ent.get("filename", def_fname)
@@ -262,7 +263,7 @@ def apply_rsyslog_changes(configs, def_fname, cfg_dir):
 
         filename = filename.strip()
         if not filename:
-            LOG.warn("Entry %s has an empty filename", cur_pos + 1)
+            LOG.warning("Entry %s has an empty filename", cur_pos + 1)
             continue
 
         filename = os.path.join(cfg_dir, filename)
@@ -389,7 +390,7 @@ def remotes_to_rsyslog_cfg(remotes, header=None, footer=None):
         try:
             lines.append(str(parse_remotes_line(line, name=name)))
         except ValueError as e:
-            LOG.warn("failed loading remote %s: %s [%s]", name, line, e)
+            LOG.warning("failed loading remote %s: %s [%s]", name, line, e)
     if footer is not None:
         lines.append(footer)
     return '\n'.join(lines) + "\n"

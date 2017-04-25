@@ -109,8 +109,9 @@ class UserDataProcessor(object):
                     ctype_orig = None
                     was_compressed = True
                 except util.DecompressionError as e:
-                    LOG.warn("Failed decompressing payload from %s of length"
-                             " %s due to: %s", ctype_orig, len(payload), e)
+                    LOG.warning("Failed decompressing payload from %s of"
+                                " length %s due to: %s",
+                                ctype_orig, len(payload), e)
                     continue
 
             # Attempt to figure out the payloads content-type
@@ -228,9 +229,9 @@ class UserDataProcessor(object):
                 if resp.ok():
                     content = resp.contents
                 else:
-                    LOG.warn(("Fetching from %s resulted in"
-                              " a invalid http code of %s"),
-                             include_url, resp.code)
+                    LOG.warning(("Fetching from %s resulted in"
+                                 " a invalid http code of %s"),
+                                include_url, resp.code)
 
             if content is not None:
                 new_msg = convert_string(content)

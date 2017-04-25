@@ -103,14 +103,14 @@ def detect_template(text):
             raise ValueError("Unknown template rendering type '%s' requested"
                              % template_type)
         if template_type == 'jinja' and not JINJA_AVAILABLE:
-            LOG.warn("Jinja not available as the selected renderer for"
-                     " desired template, reverting to the basic renderer.")
+            LOG.warning("Jinja not available as the selected renderer for"
+                        " desired template, reverting to the basic renderer.")
             return ('basic', basic_render, rest)
         elif template_type == 'jinja' and JINJA_AVAILABLE:
             return ('jinja', jinja_render, rest)
         if template_type == 'cheetah' and not CHEETAH_AVAILABLE:
-            LOG.warn("Cheetah not available as the selected renderer for"
-                     " desired template, reverting to the basic renderer.")
+            LOG.warning("Cheetah not available as the selected renderer for"
+                        " desired template, reverting to the basic renderer.")
             return ('basic', basic_render, rest)
         elif template_type == 'cheetah' and CHEETAH_AVAILABLE:
             return ('cheetah', cheetah_render, rest)

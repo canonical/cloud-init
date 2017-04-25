@@ -32,7 +32,10 @@ entry, the config entry will be skipped.
 
 import os
 
-import configobj
+try:
+    from configparser import ConfigParser
+except ImportError:
+    from ConfigParser import ConfigParser
 import six
 
 from cloudinit import util
@@ -52,8 +55,8 @@ def _format_repo_value(val):
         return str(int(val))
     if isinstance(val, (list, tuple)):
         # Can handle 'lists' in certain cases
-        # See: http://bit.ly/Qqrf1t
-        return "\n    ".join([_format_repo_value(v) for v in val])
+        # See: https://linux.die.net/man/5/yum.conf
+        return "\n".join([_format_repo_value(v) for v in val])
     if not isinstance(val, six.string_types):
         return str(val)
     return val
@@ -62,16 +65,19 @@ def _format_repo_value(val):
 # TODO(harlowja): move to distro?
 # See man yum.conf
 def _format_repository_config(repo_id, repo_config):
-    to_be = configobj.ConfigObj()
-    to_be[repo_id] = {}
+    to_be = ConfigParser()
+    to_be.add_section(repo_id)
     # Do basic translation of the items -> values
     for (k, v) in repo_config.items():
         # For now assume that people using this know
         # the format of yum and don't verify keys/values further
-        to_be[repo_id][k] = _format_repo_value(v)
-    lines = to_be.write()
-    lines.insert(0, "# Created by cloud-init on %s" % (util.time_rfc2822()))
-    return "\n".join(lines)
+        to_be.set(repo_id, k, _format_repo_value(v))
+    to_be_stream = six.StringIO()
+    to_be.write(to_be_stream)
+    to_be_stream.seek(0)
+    lines = to_be_stream.readlines()
+    lines.insert(0, "# Created by cloud-init on %s\n" % (util.time_rfc2822()))
+    return "".join(lines)
 
 
 def handle(name, cfg, _cloud, log, _args):

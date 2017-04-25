@@ -178,9 +178,10 @@ def get_default_gateway():
 
 def get_dhclient_d():
     # find lease files directory
-    supported_dirs = ["/var/lib/dhclient", "/var/lib/dhcp"]
+    supported_dirs = ["/var/lib/dhclient", "/var/lib/dhcp",
+                      "/var/lib/NetworkManager"]
     for d in supported_dirs:
-        if os.path.exists(d):
+        if os.path.exists(d) and len(os.listdir(d)) > 0:
             LOG.debug("Using %s lease directory", d)
             return d
     return None
@@ -207,8 +208,8 @@ def get_latest_lease():
 
 def get_vr_address():
     # Get the address of the virtual router via dhcp leases
-    # see http://bit.ly/T76eKC for documentation on the virtual router.
     # If no virtual router is detected, fallback on default gateway.
+    # See http://docs.cloudstack.apache.org/projects/cloudstack-administration/en/4.8/virtual_machines/user-data.html # noqa
     lease_file = get_latest_lease()
     if not lease_file:
         LOG.debug("No lease file found, using default gateway")

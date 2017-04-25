@@ -163,8 +163,8 @@ class Init(object):
                 except OSError as e:
                     error = e
 
-            LOG.warn("Failed changing perms on '%s'. tried: %s. %s",
-                     log_file, ','.join(perms), error)
+            LOG.warning("Failed changing perms on '%s'. tried: %s. %s",
+                        log_file, ','.join(perms), error)
 
     def read_cfg(self, extra_fns=None):
         # None check so that we don't keep on re-loading if empty
@@ -447,9 +447,9 @@ class Init(object):
                     mod_locs, looked_locs = importer.find_module(
                         mod_name, [''], ['list_types', 'handle_part'])
                     if not mod_locs:
-                        LOG.warn("Could not find a valid user-data handler"
-                                 " named %s in file %s (searched %s)",
-                                 mod_name, fname, looked_locs)
+                        LOG.warning("Could not find a valid user-data handler"
+                                    " named %s in file %s (searched %s)",
+                                    mod_name, fname, looked_locs)
                         continue
                     mod = importer.import_module(mod_locs[0])
                     mod = handlers.fixup_handler(mod)
@@ -568,7 +568,8 @@ class Init(object):
 
         if not isinstance(vdcfg, dict):
             vdcfg = {'enabled': False}
-            LOG.warn("invalid 'vendor_data' setting. resetting to: %s", vdcfg)
+            LOG.warning("invalid 'vendor_data' setting. resetting to: %s",
+                        vdcfg)
 
         enabled = vdcfg.get('enabled')
         no_handlers = vdcfg.get('disabled_handlers', None)
@@ -632,10 +633,10 @@ class Init(object):
             return
 
         try:
-            LOG.debug("applying net config names for %s" % netcfg)
+            LOG.debug("applying net config names for %s", netcfg)
             self.distro.apply_network_config_names(netcfg)
         except Exception as e:
-            LOG.warn("Failed to rename devices: %s", e)
+            LOG.warning("Failed to rename devices: %s", e)
 
         if (self.datasource is not NULL_DATA_SOURCE and
                 not self.is_new_instance()):
@@ -651,9 +652,9 @@ class Init(object):
                       "likely broken: %s", e)
             return
         except NotImplementedError:
-            LOG.warn("distro '%s' does not implement apply_network_config. "
-                     "networking may not be configured properly.",
-                     self.distro)
+            LOG.warning("distro '%s' does not implement apply_network_config. "
+                        "networking may not be configured properly.",
+                        self.distro)
             return
 
 
@@ -737,15 +738,15 @@ class Modules(object):
             if not mod_name:
                 continue
             if freq and freq not in FREQUENCIES:
-                LOG.warn(("Config specified module %s"
-                          " has an unknown frequency %s"), raw_name, freq)
+                LOG.warning(("Config specified module %s"
+                             " has an unknown frequency %s"), raw_name, freq)
                 # Reset it so when ran it will get set to a known value
                 freq = None
             mod_locs, looked_locs = importer.find_module(
                 mod_name, ['', type_utils.obj_name(config)], ['handle'])
             if not mod_locs:
-                LOG.warn("Could not find module named %s (searched %s)",
-                         mod_name, looked_locs)
+                LOG.warning("Could not find module named %s (searched %s)",
+                            mod_name, looked_locs)
                 continue
             mod = config.fixup_module(importer.import_module(mod_locs[0]))
             mostly_mods.append([mod, raw_name, freq, run_args])
@@ -877,7 +878,7 @@ def _pkl_load(fname):
         pickle_contents = util.load_file(fname, decode=False)
     except Exception as e:
         if os.path.isfile(fname):
-            LOG.warn("failed loading pickle in %s: %s" % (fname, e))
+            LOG.warning("failed loading pickle in %s: %s", fname, e)
         pass
 
     # This is allowed so just return nothing successfully loaded...

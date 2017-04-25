@@ -73,7 +73,7 @@ class DataSourceOpenStack(openstack.SourceMixin, sources.DataSource):
         if len(filtered):
             urls = filtered
         else:
-            LOG.warn("Empty metadata url list! using default list")
+            LOG.warning("Empty metadata url list! using default list")
             urls = [DEF_MD_URL]
 
         md_urls = []
@@ -137,7 +137,7 @@ class DataSourceOpenStack(openstack.SourceMixin, sources.DataSource):
         try:
             self.vendordata_raw = sources.convert_vendordata(vd)
         except ValueError as e:
-            LOG.warn("Invalid content in vendor-data: %s", e)
+            LOG.warning("Invalid content in vendor-data: %s", e)
             self.vendordata_raw = None
 
         return True
