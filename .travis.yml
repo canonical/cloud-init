@@ -1,4 +1,6 @@
 sudo: false
+git:
+    depth: 200
 language: python
 env:
     - TOXENV=py27
