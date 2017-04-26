@@ -58,7 +58,13 @@ if os.path.isdir(os.path.join(_tdir, ".git")) and which("git"):
         flags = ['--tags']
     cmd = ['git', 'describe', '--match=[0-9]*'] + flags
 
-    version = tiny_p(cmd).strip()
+    try:
+        version = tiny_p(cmd).strip()
+    except RuntimeError:
+        sys.stderr.write(
+            "Could not 'git describe' this repo using {}".format(
+                tiny_p(['git', 'version'])))
+        raise
 
     if not version.startswith(src_version):
         sys.stderr.write("git describe version (%s) differs from "
