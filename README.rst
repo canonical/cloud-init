@@ -10,4 +10,4 @@ Cloud-init unofficial project fork
 .. image:: https://travis-ci.org/blackboxsw/cloud-init.svg?branch=master
    :target: https://travis-ci.org/blackboxsw/cloud-init
 
-Placeholder for more official documentation
+Placeholder for more official documentation and some more docs
