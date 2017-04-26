@@ -1,4 +1,6 @@
-# Cloud-init unofficial project fork
+==================================
+Cloud-init unofficial project fork
+==================================
 
 .. image:: https://readthedocs.org/projects/cloudinit/badge/?version=latest
    :target: http://cloudinit.readthedocs.io/en/latest/?badge=latest
@@ -9,14 +11,16 @@
 
 Cloud-init is a set of python scripts and utilities to make your cloud images be all they can be!
 
-## Summary
+Summary
+-------
 Cloud-init is the defacto multi-distribution package that handles early initialization of a cloud instance.
 
-## Capabilities
-
+Capabilities
+------------
 Cloud-init ‘s behavior can be configured via user-data which is given to the instance at launch time.
 
-## Availabilty
+Availabilty
+-----------
 It is currently installed in the Ubuntu Cloud Images and also in the official Ubuntu images available on EC2, Azure, GCE and many other clouds.
 
 Versions for other systems can be (or have been) created for the following distributions:
@@ -30,7 +34,8 @@ Versions for other systems can be (or have been) created for the following distr
 
 So ask your distribution provider where you can obtain an image with it built-in if one is not already available :smile:
 
-## Project details
+Project details
+---------------
 * `Bugs`_ - issue tracking
 * `Source`_
 * `Testing`_ - Testing code
@@ -41,3 +46,4 @@ So ask your distribution provider where you can obtain an image with it built-in
 .. _Source: https://github.com/cloud-init/cloud-init
 .. _Blueprints: https://blueprints.launchpad.net/cloud-init
 .. _Testing: https://cloudinit.readthedocs.io/en/latest/topics/tests.html
+
