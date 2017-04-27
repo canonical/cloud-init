@@ -1,4 +1,4 @@
-cloud-init (0.7.9-113-g513e99e0-0ubuntu1~17.04.1) UNRELEASED; urgency=medium
+cloud-init (0.7.9-113-g513e99e0-0ubuntu1~17.04.1) zesty; urgency=medium
 
   * debian/update-grub-legacy-ec2: fix early exit failure no /etc/fstab
     file. (LP: #1682160)
@@ -37,7 +37,7 @@ cloud-init (0.7.9-113-g513e99e0-0ubuntu1~17.04.1) UNRELEASED; urgency=medium
       [Ben Howard] (LP: #1676908)
     - tests: fix AltCloud tests to not rely on blkid (LP: #1636531)
 
- -- Scott Moser <smoser@ubuntu.com>  Thu, 27 Apr 2017 14:37:36 -0400
+ -- Scott Moser <smoser@ubuntu.com>  Thu, 27 Apr 2017 15:09:31 -0400
 
 cloud-init (0.7.9-90-g61eb03fe-0ubuntu1) zesty; urgency=medium
 
