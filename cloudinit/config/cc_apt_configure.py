@@ -282,16 +282,21 @@ def handle(name, ocfg, cloud, log, _):
     apply_apt(cfg, cloud, target)
 
 
+def _should_configure_on_empty_apt():
+    # if no config was provided, should apt configuration be done?
+    if util.system_is_snappy():
+        return False, "system is snappy."
+    if not (util.which('apt-get') or util.which('apt')):
+        return False, "no apt commands."
+    return True, "Apt is available."
+
+
 def apply_apt(cfg, cloud, target):
     # cfg is the 'apt' top level dictionary already in 'v3' format.
     if not cfg:
-        # no config was provided.  If apt configuration does not seem
-        # necessary on this system, then return.
-        if util.system_is_snappy():
-            LOG.debug("Nothing to do: No apt config and running on snappy")
-            return
-        if not (util.which('apt-get') or util.which('apt')):
-            LOG.debug("Nothing to do: No apt config and no apt commands")
+        should_config, msg = _should_configure_on_empty_apt()
+        if not should_config:
+            LOG.debug("Nothing to do: No apt config and %s", msg)
             return
 
     LOG.debug("handling apt config: %s", cfg)
