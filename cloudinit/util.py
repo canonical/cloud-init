@@ -330,7 +330,11 @@ class SeLinuxGuard(object):
 
         LOG.debug("Restoring selinux mode for %s (recursive=%s)",
                   path, self.recursive)
-        self.selinux.restorecon(path, recursive=self.recursive)
+        try:
+            self.selinux.restorecon(path, recursive=self.recursive)
+        except OSError as e:
+            LOG.warning('restorecon failed on %s,%s maybe badness? %s',
+                        path, self.recursive, e)
 
 
 class MountFailedError(Exception):
