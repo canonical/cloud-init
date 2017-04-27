@@ -216,8 +216,9 @@ def suggested_swapsize(memsize=None, maxsize=None, fsys=None):
         else:
             pinfo[k] = v
 
-    LOG.debug("suggest %(size)s swap for %(mem)s memory with '%(avail)s'"
-              " disk given max=%(max_in)s [max=%(max)s]'" % pinfo)
+    LOG.debug("suggest %s swap for %s memory with '%s'"
+              " disk given max=%s [max=%s]'", pinfo['size'], pinfo['mem'],
+              pinfo['avail'], pinfo['max_in'], pinfo['max'])
     return size
 
 
@@ -266,7 +267,7 @@ def handle_swapcfg(swapcfg):
        return None or (filename, size)
     """
     if not isinstance(swapcfg, dict):
-        LOG.warn("input for swap config was not a dict.")
+        LOG.warning("input for swap config was not a dict.")
         return None
 
     fname = swapcfg.get('filename', '/swap.img')
@@ -289,7 +290,8 @@ def handle_swapcfg(swapcfg):
                     return fname
             LOG.debug("swap file %s existed, but not in /proc/swaps", fname)
         except Exception:
-            LOG.warn("swap file %s existed. Error reading /proc/swaps", fname)
+            LOG.warning("swap file %s existed. Error reading /proc/swaps",
+                        fname)
             return fname
 
     try:
@@ -300,7 +302,7 @@ def handle_swapcfg(swapcfg):
         return setup_swapfile(fname=fname, size=size, maxsize=maxsize)
 
     except Exception as e:
-        LOG.warn("failed to setup swap: %s", e)
+        LOG.warning("failed to setup swap: %s", e)
 
     return None
 

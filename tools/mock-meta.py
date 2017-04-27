@@ -293,9 +293,9 @@ class MetaDataHandler(object):
                 else:
                     return "%s" % (PLACEMENT_CAPABILITIES.get(pentry, ''))
         else:
-            log.warn(("Did not implement action %s, "
-                      "returning empty response: %r"),
-                     action, NOT_IMPL_RESPONSE)
+            log.warning(("Did not implement action %s, "
+                         "returning empty response: %r"),
+                        action, NOT_IMPL_RESPONSE)
             return NOT_IMPL_RESPONSE
 
 

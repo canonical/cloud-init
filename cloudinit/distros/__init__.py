@@ -143,9 +143,9 @@ class Distro(object):
 
     def _apply_network_from_network_config(self, netconfig, bring_up=True):
         distro = self.__class__
-        LOG.warn("apply_network_config is not currently implemented "
-                 "for distribution '%s'.  Attempting to use apply_network",
-                 distro)
+        LOG.warning("apply_network_config is not currently implemented "
+                    "for distribution '%s'.  Attempting to use apply_network",
+                    distro)
         header = '\n'.join([
             "# Converted from network_config for distro %s" % distro,
             "# Implmentation of _write_network_config is needed."
@@ -335,7 +335,8 @@ class Distro(object):
         try:
             (_out, err) = util.subp(cmd)
             if len(err):
-                LOG.warn("Running %s resulted in stderr output: %s", cmd, err)
+                LOG.warning("Running %s resulted in stderr output: %s",
+                            cmd, err)
             return True
         except util.ProcessExecutionError:
             util.logexc(LOG, "Running interface command %s failed", cmd)
@@ -358,7 +359,7 @@ class Distro(object):
         Add a user to the system using standard GNU tools
         """
         if util.is_user(name):
-            LOG.info("User %s already exists, skipping." % name)
+            LOG.info("User %s already exists, skipping.", name)
             return
 
         if 'create_groups' in kwargs:
@@ -520,9 +521,9 @@ class Distro(object):
                 keys = list(keys.values())
             if keys is not None:
                 if not isinstance(keys, (tuple, list, set)):
-                    LOG.warn("Invalid type '%s' detected for"
-                             " 'ssh_authorized_keys', expected list,"
-                             " string, dict, or set.", type(keys))
+                    LOG.warning("Invalid type '%s' detected for"
+                                " 'ssh_authorized_keys', expected list,"
+                                " string, dict, or set.", type(keys))
                 else:
                     keys = set(keys) or []
                     ssh_util.setup_user_keys(keys, name, options=None)
@@ -595,7 +596,7 @@ class Distro(object):
                              "#includedir %s" % (path), '']
                     sudoers_contents = "\n".join(lines)
                     util.append_file(sudo_base, sudoers_contents)
-                LOG.debug("Added '#includedir %s' to %s" % (path, sudo_base))
+                LOG.debug("Added '#includedir %s' to %s", path, sudo_base)
             except IOError as e:
                 util.logexc(LOG, "Failed to write %s", sudo_base)
                 raise e
@@ -647,11 +648,11 @@ class Distro(object):
 
         # Check if group exists, and then add it doesn't
         if util.is_group(name):
-            LOG.warn("Skipping creation of existing group '%s'" % name)
+            LOG.warning("Skipping creation of existing group '%s'", name)
         else:
             try:
                 util.subp(group_add_cmd)
-                LOG.info("Created new group %s" % name)
+                LOG.info("Created new group %s", name)
             except Exception:
                 util.logexc(LOG, "Failed to create group %s", name)
 
@@ -659,12 +660,12 @@ class Distro(object):
         if len(members) > 0:
             for member in members:
                 if not util.is_user(member):
-                    LOG.warn("Unable to add group member '%s' to group '%s'"
-                             "; user does not exist.", member, name)
+                    LOG.warning("Unable to add group member '%s' to group '%s'"
+                                "; user does not exist.", member, name)
                     continue
 
                 util.subp(['usermod', '-a', '-G', name, member])
-                LOG.info("Added user '%s' to group '%s'" % (member, name))
+                LOG.info("Added user '%s' to group '%s'", member, name)
 
 
 def _get_package_mirror_info(mirror_info, data_source=None,
@@ -708,7 +709,7 @@ def _get_package_mirror_info(mirror_info, data_source=None,
         if found:
             results[name] = found
 
-    LOG.debug("filtered distro mirror info: %s" % results)
+    LOG.debug("filtered distro mirror info: %s", results)
 
     return results
 

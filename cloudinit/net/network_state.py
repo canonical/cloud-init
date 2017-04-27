@@ -242,8 +242,8 @@ class NetworkStateInterpreter(object):
                 if not skip_broken:
                     raise
                 else:
-                    LOG.warn("Skipping invalid command: %s", command,
-                             exc_info=True)
+                    LOG.warning("Skipping invalid command: %s", command,
+                                exc_info=True)
                     LOG.debug(self.dump_network_state())
 
     def parse_config_v2(self, skip_broken=True):
@@ -262,8 +262,8 @@ class NetworkStateInterpreter(object):
                 if not skip_broken:
                     raise
                 else:
-                    LOG.warn("Skipping invalid command: %s", command,
-                             exc_info=True)
+                    LOG.warning("Skipping invalid command: %s", command,
+                                exc_info=True)
                     LOG.debug(self.dump_network_state())
 
     @ensure_command_keys(['name'])

@@ -246,7 +246,7 @@ def fixup_handler(mod, def_freq=PER_INSTANCE):
     else:
         freq = mod.frequency
         if freq and freq not in FREQUENCIES:
-            LOG.warn("Handler %s has an unknown frequency %s", mod, freq)
+            LOG.warning("Handler %s has an unknown frequency %s", mod, freq)
     return mod
 
 

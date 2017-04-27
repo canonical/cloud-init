@@ -81,9 +81,9 @@ class ResolvConf(object):
         if len(new_ns) == len(current_ns):
             return current_ns
         if len(current_ns) >= 3:
-            LOG.warn("ignoring nameserver %r: adding would "
-                     "exceed the maximum of "
-                     "'3' name servers (see resolv.conf(5))" % (ns))
+            LOG.warning("ignoring nameserver %r: adding would "
+                        "exceed the maximum of "
+                        "'3' name servers (see resolv.conf(5))", ns)
             return current_ns[:3]
         self._remove_option('nameserver')
         for n in new_ns:

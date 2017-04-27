@@ -37,7 +37,7 @@ def fixup_module(mod, def_freq=PER_INSTANCE):
     else:
         freq = mod.frequency
         if freq and freq not in FREQUENCIES:
-            LOG.warn("Module %s has an unknown frequency %s", mod, freq)
+            LOG.warning("Module %s has an unknown frequency %s", mod, freq)
     if not hasattr(mod, 'distros'):
         setattr(mod, 'distros', [])
     if not hasattr(mod, 'osfamilies'):

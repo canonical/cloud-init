@@ -23,11 +23,8 @@ def assign_ipv4_link_local(nic=None):
     """
 
     if not nic:
-        for cdev in sorted(cloudnet.get_devicelist()):
-            if cloudnet.is_physical(cdev):
-                nic = cdev
-                LOG.debug("assigned nic '%s' for link-local discovery", nic)
-                break
+        nic = get_link_local_nic()
+        LOG.debug("selected interface '%s' for reading metadata", nic)
 
     if not nic:
         raise RuntimeError("unable to find interfaces to access the"
@@ -55,6 +52,13 @@ def assign_ipv4_link_local(nic=None):
         raise
 
     return nic
+
+
+def get_link_local_nic():
+    nics = [f for f in cloudnet.get_devicelist() if cloudnet.is_physical(f)]
+    if not nics:
+        return None
+    return min(nics, key=lambda d: cloudnet.read_sys_net_int(d, 'ifindex'))
 
 
 def del_ipv4_link_local(nic=None):
@@ -107,14 +111,11 @@ def convert_network_configuration(config, dns_servers):
         }
     """
 
-    def _get_subnet_part(pcfg, nameservers=None):
+    def _get_subnet_part(pcfg):
         subpart = {'type': 'static',
                    'control': 'auto',
                    'address': pcfg.get('ip_address'),
                    'gateway': pcfg.get('gateway')}
-
-        if nameservers:
-            subpart['dns_nameservers'] = nameservers
 
         if ":" in pcfg.get('ip_address'):
             subpart['address'] = "{0}/{1}".format(pcfg.get('ip_address'),
@@ -124,27 +125,31 @@ def convert_network_configuration(config, dns_servers):
 
         return subpart
 
-    all_nics = []
-    for k in ('public', 'private'):
-        if k in config:
-            all_nics.extend(config[k])
-
-    macs_to_nics = cloudnet.get_interfaces_by_mac()
     nic_configs = []
+    macs_to_nics = cloudnet.get_interfaces_by_mac()
+    LOG.debug("nic mapping: %s", macs_to_nics)
 
-    for nic in all_nics:
+    for n in config:
+        nic = config[n][0]
+        LOG.debug("considering %s", nic)
 
         mac_address = nic.get('mac')
+        if mac_address not in macs_to_nics:
+            raise RuntimeError("Did not find network interface on system "
+                               "with mac '%s'. Cannot apply configuration: %s"
+                               % (mac_address, nic))
+
         sysfs_name = macs_to_nics.get(mac_address)
         nic_type = nic.get('type', 'unknown')
-        # Note: the entry 'public' above contains a list, but
-        # the list will only ever have one nic inside it per digital ocean.
-        # If it ever had more than one nic, then this code would
-        # assign all 'public' the same name.
-        if_name = NIC_MAP.get(nic_type, sysfs_name)
 
-        LOG.debug("mapped %s interface to %s, assigning name of %s",
-                  mac_address, sysfs_name, if_name)
+        if_name = NIC_MAP.get(nic_type, sysfs_name)
+        if if_name != sysfs_name:
+            LOG.debug("Found %s interface '%s' on '%s', assigned name of '%s'",
+                      nic_type, mac_address, sysfs_name, if_name)
+        else:
+            msg = ("Found interface '%s' on '%s', which is not a public "
+                   "or private interface. Using default system naming.")
+            LOG.debug(msg, mac_address, sysfs_name)
 
         ncfg = {'type': 'physical',
                 'mac_address': mac_address,
@@ -157,19 +162,18 @@ def convert_network_configuration(config, dns_servers):
                 continue
 
             sub_part = _get_subnet_part(raw_subnet)
-            if nic_type == 'public' and 'anchor' not in netdef:
-                # add DNS resolvers to the public interfaces only
-                sub_part = _get_subnet_part(raw_subnet, dns_servers)
-            else:
-                # remove the gateway any non-public interfaces
-                if 'gateway' in sub_part:
-                    del sub_part['gateway']
+            if netdef in ('private', 'anchor_ipv4', 'anchor_ipv6'):
+                del sub_part['gateway']
 
             subnets.append(sub_part)
 
         ncfg['subnets'] = subnets
         nic_configs.append(ncfg)
         LOG.debug("nic '%s' configuration: %s", if_name, ncfg)
+
+    if dns_servers:
+        LOG.debug("added dns servers: %s", dns_servers)
+        nic_configs.append({'type': 'nameserver', 'address': dns_servers})
 
     return {'version': 1, 'config': nic_configs}
 

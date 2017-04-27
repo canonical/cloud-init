@@ -10,8 +10,8 @@ from cloudinit.distros.parsers import chop_comment
 
 
 # See: man hosts
-# or http://unixhelp.ed.ac.uk/CGI/man-cgi?hosts
-# or http://tinyurl.com/6lmox3
+# or https://linux.die.net/man/5/hosts
+# or https://www.freebsd.org/doc/en_US.ISO8859-1/books/handbook/configtuning-configfiles.html # noqa
 class HostsConf(object):
     def __init__(self, text):
         self._text = text

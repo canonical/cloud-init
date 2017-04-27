@@ -43,9 +43,9 @@ class ConfigFile(ConfigSource, dict):
 
         # "sensitive" settings shall not be logged
         if canLog:
-            logger.debug("ADDED KEY-VAL :: '%s' = '%s'" % (key, val))
+            logger.debug("ADDED KEY-VAL :: '%s' = '%s'", key, val)
         else:
-            logger.debug("ADDED KEY-VAL :: '%s' = '*****************'" % key)
+            logger.debug("ADDED KEY-VAL :: '%s' = '*****************'", key)
 
         self[key] = val
 
@@ -60,7 +60,7 @@ class ConfigFile(ConfigSource, dict):
         Keyword arguments:
         filename - The full path to the config file.
         """
-        logger.info('Parsing the config file %s.' % filename)
+        logger.info('Parsing the config file %s.', filename)
 
         config = configparser.ConfigParser()
         config.optionxform = str
@@ -69,7 +69,7 @@ class ConfigFile(ConfigSource, dict):
         self.clear()
 
         for category in config.sections():
-            logger.debug("FOUND CATEGORY = '%s'" % category)
+            logger.debug("FOUND CATEGORY = '%s'", category)
 
             for (key, value) in config.items(category):
                 self._insertKey(category + '|' + key, value)
