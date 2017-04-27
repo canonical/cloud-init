@@ -28,7 +28,7 @@ def _make_sysconfig_bool(val):
 
 
 class Distro(distros.Distro):
-    # See: http://tiny.cc/6r99fw
+    # See: https://access.redhat.com/documentation/en-US/Red_Hat_Enterprise_Linux/7/html/Networking_Guide/sec-Network_Configuration_Using_sysconfig_Files.html # noqa
     clock_conf_fn = "/etc/sysconfig/clock"
     locale_conf_fn = '/etc/sysconfig/i18n'
     systemd_locale_conf_fn = '/etc/locale.conf'
@@ -130,8 +130,8 @@ class Distro(distros.Distro):
             rhel_util.update_sysconfig_file(out_fn, host_cfg)
 
     def _select_hostname(self, hostname, fqdn):
-        # See: http://bit.ly/TwitgL
         # Should be fqdn if we can use it
+        # See: https://www.centos.org/docs/5/html/Deployment_Guide-en-US/ch-sysconfig.html#s2-sysconfig-network # noqa
         if fqdn:
             return fqdn
         return hostname

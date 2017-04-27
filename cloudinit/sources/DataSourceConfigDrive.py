@@ -127,7 +127,7 @@ class DataSourceConfigDrive(openstack.SourceMixin, sources.DataSource):
         try:
             self.vendordata_raw = sources.convert_vendordata(vd)
         except ValueError as e:
-            LOG.warn("Invalid content in vendor-data: %s", e)
+            LOG.warning("Invalid content in vendor-data: %s", e)
             self.vendordata_raw = None
 
         # network_config is an /etc/network/interfaces formated file and is
@@ -190,7 +190,7 @@ def on_first_boot(data, distro=None, network=True):
     if network:
         net_conf = data.get("network_config", '')
         if net_conf and distro:
-            LOG.warn("Updating network interfaces from config drive")
+            LOG.warning("Updating network interfaces from config drive")
             distro.apply_network(net_conf)
     write_injected_files(data.get('files'))
 

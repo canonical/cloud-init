@@ -143,8 +143,7 @@ class Distro(distros.Distro):
             pkgs = []
 
         e = os.environ.copy()
-        # See: http://tiny.cc/kg91fw
-        # Or: http://tiny.cc/mh91fw
+        # See: http://manpages.ubuntu.com/manpages/xenial/man7/debconf.7.html
         e['DEBIAN_FRONTEND'] = 'noninteractive'
 
         wcfg = self.get_option("apt_get_wrapper", APT_GET_WRAPPER)
@@ -224,6 +223,6 @@ def _maybe_remove_legacy_eth0(path="/etc/network/interfaces.d/eth0.cfg"):
     except Exception:
         msg = bmsg + " %s exists, but could not be read." % path
 
-    LOG.warn(msg)
+    LOG.warning(msg)
 
 # vi: ts=4 expandtab

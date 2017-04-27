@@ -1463,13 +1463,16 @@ class TestNetRenderers(CiTestCase):
 
 class TestGetInterfacesByMac(CiTestCase):
     _data = {'devices': ['enp0s1', 'enp0s2', 'bond1', 'bridge1',
-                         'bridge1-nic', 'tun0'],
+                         'bridge1-nic', 'tun0', 'bond1.101'],
              'bonds': ['bond1'],
              'bridges': ['bridge1'],
-             'own_macs': ['enp0s1', 'enp0s2', 'bridge1-nic', 'bridge1'],
+             'vlans': ['bond1.101'],
+             'own_macs': ['enp0s1', 'enp0s2', 'bridge1-nic', 'bridge1',
+                          'bond1.101'],
              'macs': {'enp0s1': 'aa:aa:aa:aa:aa:01',
                       'enp0s2': 'aa:aa:aa:aa:aa:02',
                       'bond1': 'aa:aa:aa:aa:aa:01',
+                      'bond1.101': 'aa:aa:aa:aa:aa:01',
                       'bridge1': 'aa:aa:aa:aa:aa:03',
                       'bridge1-nic': 'aa:aa:aa:aa:aa:03',
                       'tun0': None}}
@@ -1484,13 +1487,16 @@ class TestGetInterfacesByMac(CiTestCase):
     def _se_is_bridge(self, name):
         return name in self.data['bridges']
 
+    def _se_is_vlan(self, name):
+        return name in self.data['vlans']
+
     def _se_interface_has_own_mac(self, name):
         return name in self.data['own_macs']
 
     def _mock_setup(self):
         self.data = copy.deepcopy(self._data)
         mocks = ('get_devicelist', 'get_interface_mac', 'is_bridge',
-                 'interface_has_own_mac')
+                 'interface_has_own_mac', 'is_vlan')
         self.mocks = {}
         for n in mocks:
             m = mock.patch('cloudinit.net.' + n,
@@ -1532,6 +1538,24 @@ class TestGetInterfacesByMac(CiTestCase):
         ret = net.get_interfaces_by_mac()
         self.assertEqual({'aa:aa:aa:aa:aa:b1': 'b1'}, ret)
         self.mocks['is_bridge'].assert_has_calls(
+            [mock.call('bridge1'), mock.call('enp0s1'), mock.call('bond1'),
+             mock.call('b1')],
+            any_order=True)
+
+    def test_excludes_vlans(self):
+        self._mock_setup()
+        # add a device 'b1', make all return they have their "own mac",
+        # set everything other than 'b1' to be a vlan.
+        # then expect b1 is the only thing left.
+        self.data['macs']['b1'] = 'aa:aa:aa:aa:aa:b1'
+        self.data['devices'].append('b1')
+        self.data['bonds'] = []
+        self.data['bridges'] = []
+        self.data['own_macs'] = self.data['devices']
+        self.data['vlans'] = [f for f in self.data['devices'] if f != "b1"]
+        ret = net.get_interfaces_by_mac()
+        self.assertEqual({'aa:aa:aa:aa:aa:b1': 'b1'}, ret)
+        self.mocks['is_vlan'].assert_has_calls(
             [mock.call('bridge1'), mock.call('enp0s1'), mock.call('bond1'),
              mock.call('b1')],
             any_order=True)

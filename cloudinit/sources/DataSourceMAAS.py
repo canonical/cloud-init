@@ -71,7 +71,7 @@ class DataSourceMAAS(sources.DataSource):
         except MAASSeedDirNone:
             pass
         except MAASSeedDirMalformed as exc:
-            LOG.warn("%s was malformed: %s" % (self.seed_dir, exc))
+            LOG.warning("%s was malformed: %s", self.seed_dir, exc)
             raise
 
         # If there is no metadata_url, then we're not configured
@@ -107,7 +107,7 @@ class DataSourceMAAS(sources.DataSource):
             try:
                 self.vendordata_raw = sources.convert_vendordata(vd)
             except ValueError as e:
-                LOG.warn("Invalid content in vendor-data: %s", e)
+                LOG.warning("Invalid content in vendor-data: %s", e)
                 self.vendordata_raw = None
 
     def wait_for_metadata_service(self, url):
@@ -126,7 +126,7 @@ class DataSourceMAAS(sources.DataSource):
             if timeout in mcfg:
                 timeout = int(mcfg.get("timeout", timeout))
         except Exception:
-            LOG.warn("Failed to get timeout, using %s" % timeout)
+            LOG.warning("Failed to get timeout, using %s", timeout)
 
         starttime = time.time()
         if url.endswith("/"):
@@ -190,8 +190,8 @@ def read_maas_seed_url(seed_url, read_file_or_url=None, timeout=None,
                 else:
                     md[path] = util.decode_binary(resp.contents)
             else:
-                LOG.warn(("Fetching from %s resulted in"
-                          " an invalid http code %s"), url, resp.code)
+                LOG.warning(("Fetching from %s resulted in"
+                             " an invalid http code %s"), url, resp.code)
         except url_helper.UrlError as e:
             if e.code == 404 and not optional:
                 raise MAASSeedDirMalformed(

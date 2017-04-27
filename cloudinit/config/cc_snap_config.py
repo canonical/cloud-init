@@ -5,8 +5,8 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 """
-Snappy
-------
+Snap Config
+-----------
 **Summary:** snap_config modules allows configuration of snapd.
 
 This module uses the same ``snappy`` namespace for configuration but

@@ -347,8 +347,8 @@ def dpkg_reconfigure(packages, target=None):
             unhandled.append(pkg)
 
     if len(unhandled):
-        LOG.warn("The following packages were installed and preseeded, "
-                 "but cannot be unconfigured: %s", unhandled)
+        LOG.warning("The following packages were installed and preseeded, "
+                    "but cannot be unconfigured: %s", unhandled)
 
     if len(to_config):
         util.subp(['dpkg-reconfigure', '--frontend=noninteractive'] +
@@ -441,7 +441,7 @@ def rename_apt_lists(new_mirrors, target=None):
                 os.rename(filename, newname)
             except OSError:
                 # since this is a best effort task, warn with but don't fail
-                LOG.warn("Failed to rename apt list:", exc_info=True)
+                LOG.warning("Failed to rename apt list:", exc_info=True)
 
 
 def mirror_to_placeholder(tmpl, mirror, placeholder):
@@ -449,7 +449,7 @@ def mirror_to_placeholder(tmpl, mirror, placeholder):
        replace the specified mirror in a template with a placeholder string
        Checks for existance of the expected mirror and warns if not found"""
     if mirror not in tmpl:
-        LOG.warn("Expected mirror '%s' not found in: %s", mirror, tmpl)
+        LOG.warning("Expected mirror '%s' not found in: %s", mirror, tmpl)
     return tmpl.replace(mirror, placeholder)
 
 
@@ -525,7 +525,8 @@ def generate_sources_list(cfg, release, mirrors, cloud):
         if not template_fn:
             template_fn = cloud.get_template_filename('sources.list')
         if not template_fn:
-            LOG.warn("No template found, not rendering /etc/apt/sources.list")
+            LOG.warning("No template found, "
+                        "not rendering /etc/apt/sources.list")
             return
         tmpl = util.load_file(template_fn)
 

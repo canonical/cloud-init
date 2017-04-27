@@ -10,6 +10,7 @@
 This test file exercises the code in sources DataSourceAltCloud.py
 '''
 
+import mock
 import os
 import shutil
 import tempfile
@@ -18,10 +19,7 @@ from cloudinit import helpers
 from cloudinit import util
 from unittest import TestCase
 
-# Get the cloudinit.sources.DataSourceAltCloud import items needed.
-import cloudinit.sources.DataSourceAltCloud
-from cloudinit.sources.DataSourceAltCloud import DataSourceAltCloud
-from cloudinit.sources.DataSourceAltCloud import read_user_data_callback
+import cloudinit.sources.DataSourceAltCloud as dsac
 
 OS_UNAME_ORIG = getattr(os, 'uname')
 
@@ -32,17 +30,17 @@ def _write_cloud_info_file(value):
     with a cloud backend identifier ImageFactory when building
     an image with ImageFactory.
     '''
-    cifile = open(cloudinit.sources.DataSourceAltCloud.CLOUD_INFO_FILE, 'w')
+    cifile = open(dsac.CLOUD_INFO_FILE, 'w')
     cifile.write(value)
     cifile.close()
-    os.chmod(cloudinit.sources.DataSourceAltCloud.CLOUD_INFO_FILE, 0o664)
+    os.chmod(dsac.CLOUD_INFO_FILE, 0o664)
 
 
 def _remove_cloud_info_file():
     '''
     Remove the test CLOUD_INFO_FILE
     '''
-    os.remove(cloudinit.sources.DataSourceAltCloud.CLOUD_INFO_FILE)
+    os.remove(dsac.CLOUD_INFO_FILE)
 
 
 def _write_user_data_files(mount_dir, value):
@@ -122,7 +120,7 @@ class TestGetCloudType(TestCase):
         Forcing read_dmi_data return to match a RHEVm system: RHEV Hypervisor
         '''
         util.read_dmi_data = _dmi_data('RHEV')
-        dsrc = DataSourceAltCloud({}, None, self.paths)
+        dsrc = dsac.DataSourceAltCloud({}, None, self.paths)
         self.assertEqual('RHEV', dsrc.get_cloud_type())
 
     def test_vsphere(self):
@@ -131,7 +129,7 @@ class TestGetCloudType(TestCase):
         Forcing read_dmi_data return to match a vSphere system: RHEV Hypervisor
         '''
         util.read_dmi_data = _dmi_data('VMware Virtual Platform')
-        dsrc = DataSourceAltCloud({}, None, self.paths)
+        dsrc = dsac.DataSourceAltCloud({}, None, self.paths)
         self.assertEqual('VSPHERE', dsrc.get_cloud_type())
 
     def test_unknown(self):
@@ -140,7 +138,7 @@ class TestGetCloudType(TestCase):
         Forcing read_dmi_data return to match an unrecognized return.
         '''
         util.read_dmi_data = _dmi_data('Unrecognized Platform')
-        dsrc = DataSourceAltCloud({}, None, self.paths)
+        dsrc = dsac.DataSourceAltCloud({}, None, self.paths)
         self.assertEqual('UNKNOWN', dsrc.get_cloud_type())
 
 
@@ -154,8 +152,7 @@ class TestGetDataCloudInfoFile(TestCase):
         self.paths = helpers.Paths({'cloud_dir': '/tmp'})
         self.cloud_info_file = tempfile.mkstemp()[1]
         self.dmi_data = util.read_dmi_data
-        cloudinit.sources.DataSourceAltCloud.CLOUD_INFO_FILE = \
-            self.cloud_info_file
+        dsac.CLOUD_INFO_FILE = self.cloud_info_file
 
     def tearDown(self):
         # Reset
@@ -167,14 +164,13 @@ class TestGetDataCloudInfoFile(TestCase):
             pass
 
         util.read_dmi_data = self.dmi_data
-        cloudinit.sources.DataSourceAltCloud.CLOUD_INFO_FILE = \
-            '/etc/sysconfig/cloud-info'
+        dsac.CLOUD_INFO_FILE = '/etc/sysconfig/cloud-info'
 
     def test_rhev(self):
         '''Success Test module get_data() forcing RHEV.'''
 
         _write_cloud_info_file('RHEV')
-        dsrc = DataSourceAltCloud({}, None, self.paths)
+        dsrc = dsac.DataSourceAltCloud({}, None, self.paths)
         dsrc.user_data_rhevm = lambda: True
         self.assertEqual(True, dsrc.get_data())
 
@@ -182,7 +178,7 @@ class TestGetDataCloudInfoFile(TestCase):
         '''Success Test module get_data() forcing VSPHERE.'''
 
         _write_cloud_info_file('VSPHERE')
-        dsrc = DataSourceAltCloud({}, None, self.paths)
+        dsrc = dsac.DataSourceAltCloud({}, None, self.paths)
         dsrc.user_data_vsphere = lambda: True
         self.assertEqual(True, dsrc.get_data())
 
@@ -190,7 +186,7 @@ class TestGetDataCloudInfoFile(TestCase):
         '''Failure Test module get_data() forcing RHEV.'''
 
         _write_cloud_info_file('RHEV')
-        dsrc = DataSourceAltCloud({}, None, self.paths)
+        dsrc = dsac.DataSourceAltCloud({}, None, self.paths)
         dsrc.user_data_rhevm = lambda: False
         self.assertEqual(False, dsrc.get_data())
 
@@ -198,7 +194,7 @@ class TestGetDataCloudInfoFile(TestCase):
         '''Failure Test module get_data() forcing VSPHERE.'''
 
         _write_cloud_info_file('VSPHERE')
-        dsrc = DataSourceAltCloud({}, None, self.paths)
+        dsrc = dsac.DataSourceAltCloud({}, None, self.paths)
         dsrc.user_data_vsphere = lambda: False
         self.assertEqual(False, dsrc.get_data())
 
@@ -206,7 +202,7 @@ class TestGetDataCloudInfoFile(TestCase):
         '''Failure Test module get_data() forcing unrecognized.'''
 
         _write_cloud_info_file('unrecognized')
-        dsrc = DataSourceAltCloud({}, None, self.paths)
+        dsrc = dsac.DataSourceAltCloud({}, None, self.paths)
         self.assertEqual(False, dsrc.get_data())
 
 
@@ -219,7 +215,7 @@ class TestGetDataNoCloudInfoFile(TestCase):
         '''Set up.'''
         self.paths = helpers.Paths({'cloud_dir': '/tmp'})
         self.dmi_data = util.read_dmi_data
-        cloudinit.sources.DataSourceAltCloud.CLOUD_INFO_FILE = \
+        dsac.CLOUD_INFO_FILE = \
             'no such file'
         # We have a different code path for arm to deal with LP1243287
         # We have to switch arch to x86_64 to avoid test failure
@@ -227,7 +223,7 @@ class TestGetDataNoCloudInfoFile(TestCase):
 
     def tearDown(self):
         # Reset
-        cloudinit.sources.DataSourceAltCloud.CLOUD_INFO_FILE = \
+        dsac.CLOUD_INFO_FILE = \
             '/etc/sysconfig/cloud-info'
         util.read_dmi_data = self.dmi_data
         # Return back to original arch
@@ -237,7 +233,7 @@ class TestGetDataNoCloudInfoFile(TestCase):
         '''Test No cloud info file module get_data() forcing RHEV.'''
 
         util.read_dmi_data = _dmi_data('RHEV Hypervisor')
-        dsrc = DataSourceAltCloud({}, None, self.paths)
+        dsrc = dsac.DataSourceAltCloud({}, None, self.paths)
         dsrc.user_data_rhevm = lambda: True
         self.assertEqual(True, dsrc.get_data())
 
@@ -245,7 +241,7 @@ class TestGetDataNoCloudInfoFile(TestCase):
         '''Test No cloud info file module get_data() forcing VSPHERE.'''
 
         util.read_dmi_data = _dmi_data('VMware Virtual Platform')
-        dsrc = DataSourceAltCloud({}, None, self.paths)
+        dsrc = dsac.DataSourceAltCloud({}, None, self.paths)
         dsrc.user_data_vsphere = lambda: True
         self.assertEqual(True, dsrc.get_data())
 
@@ -253,7 +249,7 @@ class TestGetDataNoCloudInfoFile(TestCase):
         '''Test No cloud info file module get_data() forcing unrecognized.'''
 
         util.read_dmi_data = _dmi_data('Unrecognized Platform')
-        dsrc = DataSourceAltCloud({}, None, self.paths)
+        dsrc = dsac.DataSourceAltCloud({}, None, self.paths)
         self.assertEqual(False, dsrc.get_data())
 
 
@@ -261,11 +257,14 @@ class TestUserDataRhevm(TestCase):
     '''
     Test to exercise method: DataSourceAltCloud.user_data_rhevm()
     '''
+    cmd_pass = ['true']
+    cmd_fail = ['false']
+    cmd_not_found = ['bogus bad command']
+
     def setUp(self):
         '''Set up.'''
         self.paths = helpers.Paths({'cloud_dir': '/tmp'})
         self.mount_dir = tempfile.mkdtemp()
-
         _write_user_data_files(self.mount_dir, 'test user data')
 
     def tearDown(self):
@@ -279,61 +278,44 @@ class TestUserDataRhevm(TestCase):
         except OSError:
             pass
 
-        cloudinit.sources.DataSourceAltCloud.CLOUD_INFO_FILE = \
-            '/etc/sysconfig/cloud-info'
-        cloudinit.sources.DataSourceAltCloud.CMD_PROBE_FLOPPY = \
-            ['/sbin/modprobe', 'floppy']
-        cloudinit.sources.DataSourceAltCloud.CMD_UDEVADM_SETTLE = \
-            ['/sbin/udevadm', 'settle', '--quiet', '--timeout=5']
+        dsac.CLOUD_INFO_FILE = '/etc/sysconfig/cloud-info'
+        dsac.CMD_PROBE_FLOPPY = ['/sbin/modprobe', 'floppy']
+        dsac.CMD_UDEVADM_SETTLE = ['/sbin/udevadm', 'settle',
+                                   '--quiet', '--timeout=5']
 
     def test_mount_cb_fails(self):
         '''Test user_data_rhevm() where mount_cb fails.'''
 
-        cloudinit.sources.DataSourceAltCloud.CMD_PROBE_FLOPPY = \
-            ['echo', 'modprobe floppy']
-
-        dsrc = DataSourceAltCloud({}, None, self.paths)
-
+        dsac.CMD_PROBE_FLOPPY = self.cmd_pass
+        dsrc = dsac.DataSourceAltCloud({}, None, self.paths)
         self.assertEqual(False, dsrc.user_data_rhevm())
 
     def test_modprobe_fails(self):
         '''Test user_data_rhevm() where modprobe fails.'''
 
-        cloudinit.sources.DataSourceAltCloud.CMD_PROBE_FLOPPY = \
-            ['ls', 'modprobe floppy']
-
-        dsrc = DataSourceAltCloud({}, None, self.paths)
-
+        dsac.CMD_PROBE_FLOPPY = self.cmd_fail
+        dsrc = dsac.DataSourceAltCloud({}, None, self.paths)
         self.assertEqual(False, dsrc.user_data_rhevm())
 
     def test_no_modprobe_cmd(self):
         '''Test user_data_rhevm() with no modprobe command.'''
 
-        cloudinit.sources.DataSourceAltCloud.CMD_PROBE_FLOPPY = \
-            ['bad command', 'modprobe floppy']
-
-        dsrc = DataSourceAltCloud({}, None, self.paths)
-
+        dsac.CMD_PROBE_FLOPPY = self.cmd_not_found
+        dsrc = dsac.DataSourceAltCloud({}, None, self.paths)
         self.assertEqual(False, dsrc.user_data_rhevm())
 
     def test_udevadm_fails(self):
         '''Test user_data_rhevm() where udevadm fails.'''
 
-        cloudinit.sources.DataSourceAltCloud.CMD_UDEVADM_SETTLE = \
-            ['ls', 'udevadm floppy']
-
-        dsrc = DataSourceAltCloud({}, None, self.paths)
-
+        dsac.CMD_UDEVADM_SETTLE = self.cmd_fail
+        dsrc = dsac.DataSourceAltCloud({}, None, self.paths)
         self.assertEqual(False, dsrc.user_data_rhevm())
 
     def test_no_udevadm_cmd(self):
         '''Test user_data_rhevm() with no udevadm command.'''
 
-        cloudinit.sources.DataSourceAltCloud.CMD_UDEVADM_SETTLE = \
-            ['bad command', 'udevadm floppy']
-
-        dsrc = DataSourceAltCloud({}, None, self.paths)
-
+        dsac.CMD_UDEVADM_SETTLE = self.cmd_not_found
+        dsrc = dsac.DataSourceAltCloud({}, None, self.paths)
         self.assertEqual(False, dsrc.user_data_rhevm())
 
 
@@ -359,17 +341,30 @@ class TestUserDataVsphere(TestCase):
         except OSError:
             pass
 
-        cloudinit.sources.DataSourceAltCloud.CLOUD_INFO_FILE = \
+        dsac.CLOUD_INFO_FILE = \
             '/etc/sysconfig/cloud-info'
 
-    def test_user_data_vsphere(self):
+    @mock.patch("cloudinit.sources.DataSourceAltCloud.util.find_devs_with")
+    @mock.patch("cloudinit.sources.DataSourceAltCloud.util.mount_cb")
+    def test_user_data_vsphere_no_cdrom(self, m_mount_cb, m_find_devs_with):
         '''Test user_data_vsphere() where mount_cb fails.'''
 
-        cloudinit.sources.DataSourceAltCloud.MEDIA_DIR = self.mount_dir
-
-        dsrc = DataSourceAltCloud({}, None, self.paths)
-
+        m_mount_cb.return_value = []
+        dsrc = dsac.DataSourceAltCloud({}, None, self.paths)
         self.assertEqual(False, dsrc.user_data_vsphere())
+        self.assertEqual(0, m_mount_cb.call_count)
+
+    @mock.patch("cloudinit.sources.DataSourceAltCloud.util.find_devs_with")
+    @mock.patch("cloudinit.sources.DataSourceAltCloud.util.mount_cb")
+    def test_user_data_vsphere_mcb_fail(self, m_mount_cb, m_find_devs_with):
+        '''Test user_data_vsphere() where mount_cb fails.'''
+
+        m_find_devs_with.return_value = ["/dev/mock/cdrom"]
+        m_mount_cb.side_effect = util.MountFailedError("Unable To mount")
+        dsrc = dsac.DataSourceAltCloud({}, None, self.paths)
+        self.assertEqual(False, dsrc.user_data_vsphere())
+        self.assertEqual(1, m_find_devs_with.call_count)
+        self.assertEqual(1, m_mount_cb.call_count)
 
 
 class TestReadUserDataCallback(TestCase):
@@ -398,7 +393,7 @@ class TestReadUserDataCallback(TestCase):
         '''Test read_user_data_callback() with both files.'''
 
         self.assertEqual('test user data',
-                         read_user_data_callback(self.mount_dir))
+                         dsac.read_user_data_callback(self.mount_dir))
 
     def test_callback_dc(self):
         '''Test read_user_data_callback() with only DC file.'''
@@ -408,7 +403,7 @@ class TestReadUserDataCallback(TestCase):
                                 non_dc_file=True)
 
         self.assertEqual('test user data',
-                         read_user_data_callback(self.mount_dir))
+                         dsac.read_user_data_callback(self.mount_dir))
 
     def test_callback_non_dc(self):
         '''Test read_user_data_callback() with only non-DC file.'''
@@ -418,13 +413,13 @@ class TestReadUserDataCallback(TestCase):
                                 non_dc_file=False)
 
         self.assertEqual('test user data',
-                         read_user_data_callback(self.mount_dir))
+                         dsac.read_user_data_callback(self.mount_dir))
 
     def test_callback_none(self):
         '''Test read_user_data_callback() no files are found.'''
 
         _remove_user_data_files(self.mount_dir)
-        self.assertEqual(None, read_user_data_callback(self.mount_dir))
+        self.assertEqual(None, dsac.read_user_data_callback(self.mount_dir))
 
 
 def force_arch(arch=None):

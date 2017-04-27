@@ -225,12 +225,12 @@ def get_max_wait_from_cfg(cfg):
     try:
         max_wait = int(cfg.get(max_wait_cfg_option, default_max_wait))
     except ValueError:
-        LOG.warn("Failed to get '%s', using %s",
-                 max_wait_cfg_option, default_max_wait)
+        LOG.warning("Failed to get '%s', using %s",
+                    max_wait_cfg_option, default_max_wait)
 
     if max_wait <= 0:
-        LOG.warn("Invalid value '%s' for '%s', using '%s' instead",
-                 max_wait, max_wait_cfg_option, default_max_wait)
+        LOG.warning("Invalid value '%s' for '%s', using '%s' instead",
+                    max_wait, max_wait_cfg_option, default_max_wait)
         max_wait = default_max_wait
 
     return max_wait
@@ -355,7 +355,7 @@ def transport_iso9660(require_iso=True):
         try:
             (fname, contents) = util.mount_cb(fullp, get_ovf_env, mtype=mtype)
         except util.MountFailedError:
-            LOG.debug("%s not mountable as iso9660" % fullp)
+            LOG.debug("%s not mountable as iso9660", fullp)
             continue
 
         if contents is not False:

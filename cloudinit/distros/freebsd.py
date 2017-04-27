@@ -148,7 +148,7 @@ class Distro(distros.Distro):
     def create_group(self, name, members):
         group_add_cmd = ['pw', '-n', name]
         if util.is_group(name):
-            LOG.warn("Skipping creation of existing group '%s'", name)
+            LOG.warning("Skipping creation of existing group '%s'", name)
         else:
             try:
                 util.subp(group_add_cmd)
@@ -160,8 +160,8 @@ class Distro(distros.Distro):
         if len(members) > 0:
             for member in members:
                 if not util.is_user(member):
-                    LOG.warn("Unable to add group member '%s' to group '%s'"
-                             "; user does not exist.", member, name)
+                    LOG.warning("Unable to add group member '%s' to group '%s'"
+                                "; user does not exist.", member, name)
                     continue
                 try:
                     util.subp(['pw', 'usermod', '-n', name, '-G', member])
@@ -369,7 +369,7 @@ class Distro(distros.Distro):
         # OS. This is just fine.
         (_out, err) = util.subp(cmd, rcs=[0, 1])
         if len(err):
-            LOG.warn("Error running %s: %s", cmd, err)
+            LOG.warning("Error running %s: %s", cmd, err)
 
     def install_packages(self, pkglist):
         self.update_package_sources()

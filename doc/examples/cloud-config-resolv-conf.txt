@@ -5,9 +5,9 @@
 #
 # Ensure that your yaml is valid and pass this as user-data when starting
 # the instance. Also be sure that your cloud.cfg file includes this
-# configuration module in the appropirate section.
+# configuration module in the appropriate section.
 #
-manage-resolv-conf: true
+manage_resolv_conf: true
 
 resolv_conf:
   nameservers: ['8.8.4.4', '8.8.8.8']
