@@ -94,7 +94,7 @@ def normalize_create_args(args):
     if os.path.exists(config.name_to_path(args.name)):
         msg = 'test: {} already exists'.format(args.name)
         if args.force:
-            LOG.warn('%s but ignoring due to --force', msg)
+            LOG.warning('%s but ignoring due to --force', msg)
         else:
             LOG.error(msg)
             return None

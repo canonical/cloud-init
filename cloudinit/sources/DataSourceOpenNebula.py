@@ -64,7 +64,7 @@ class DataSourceOpenNebula(sources.DataSource):
             except BrokenContextDiskDir as exc:
                 raise exc
             except util.MountFailedError:
-                LOG.warn("%s was not mountable" % cdev)
+                LOG.warning("%s was not mountable", cdev)
 
             if results:
                 seed = cdev
@@ -381,7 +381,7 @@ def read_context_disk_dir(source_dir, asuser=None):
             try:
                 results['userdata'] = util.b64d(results['userdata'])
             except TypeError:
-                LOG.warn("Failed base64 decoding of userdata")
+                LOG.warning("Failed base64 decoding of userdata")
 
     # generate static /etc/network/interfaces
     # only if there are any required context variables

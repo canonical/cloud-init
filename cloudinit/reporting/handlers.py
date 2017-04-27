@@ -37,7 +37,7 @@ class LogHandler(ReportingHandler):
             try:
                 level = getattr(logging, level.upper())
             except Exception:
-                LOG.warn("invalid level '%s', using WARN", input_level)
+                LOG.warning("invalid level '%s', using WARN", input_level)
                 level = logging.WARN
         self.level = level
 
@@ -82,7 +82,7 @@ class WebHookHandler(ReportingHandler):
                 timeout=self.timeout,
                 retries=self.retries, ssl_details=self.ssl_details)
         except Exception:
-            LOG.warn("failed posting event: %s" % event.as_string())
+            LOG.warning("failed posting event: %s", event.as_string())
 
 
 available_handlers = DictRegistry()

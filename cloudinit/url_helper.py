@@ -155,8 +155,8 @@ def _get_ssl_args(url, ssl_details):
     scheme = urlparse(url).scheme
     if scheme == 'https' and ssl_details:
         if not SSL_ENABLED:
-            LOG.warn("SSL is not supported in requests v%s, "
-                     "cert. verification can not occur!", _REQ_VER)
+            LOG.warning("SSL is not supported in requests v%s, "
+                        "cert. verification can not occur!", _REQ_VER)
         else:
             if 'ca_certs' in ssl_details and ssl_details['ca_certs']:
                 ssl_args['verify'] = ssl_details['ca_certs']
@@ -415,14 +415,15 @@ class OauthUrlHelper(object):
             return
 
         if 'date' not in exception.headers:
-            LOG.warn("Missing header 'date' in %s response", exception.code)
+            LOG.warning("Missing header 'date' in %s response",
+                        exception.code)
             return
 
         date = exception.headers['date']
         try:
             remote_time = time.mktime(parsedate(date))
         except Exception as e:
-            LOG.warn("Failed to convert datetime '%s': %s", date, e)
+            LOG.warning("Failed to convert datetime '%s': %s", date, e)
             return
 
         skew = int(remote_time - time.time())
@@ -430,7 +431,7 @@ class OauthUrlHelper(object):
         old_skew = self.skew_data.get(host, 0)
         if abs(old_skew - skew) > self.skew_change_limit:
             self.update_skew_file(host, skew)
-            LOG.warn("Setting oauth clockskew for %s to %d", host, skew)
+            LOG.warning("Setting oauth clockskew for %s to %d", host, skew)
         self.skew_data[host] = skew
 
         return

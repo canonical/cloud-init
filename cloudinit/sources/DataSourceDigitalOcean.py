@@ -51,7 +51,7 @@ class DataSourceDigitalOcean(sources.DataSource):
         if not is_do:
             return False
 
-        LOG.info("Running on digital ocean. droplet_id=%s" % droplet_id)
+        LOG.info("Running on digital ocean. droplet_id=%s", droplet_id)
 
         ipv4LL_nic = None
         if self.use_ip4LL:

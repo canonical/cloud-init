@@ -56,7 +56,8 @@ class Cloud(object):
     def get_template_filename(self, name):
         fn = self.paths.template_tpl % (name)
         if not os.path.isfile(fn):
-            LOG.warn("No template found at %s for template named %s", fn, name)
+            LOG.warning("No template found at %s for template named %s",
+                        fn, name)
             return None
         return fn
 

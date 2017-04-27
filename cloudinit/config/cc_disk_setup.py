@@ -181,7 +181,7 @@ def update_fs_setup_devices(disk_setup, tformer):
     # update it with the response from 'tformer'
     for definition in disk_setup:
         if not isinstance(definition, dict):
-            LOG.warn("entry in disk_setup not a dict: %s", definition)
+            LOG.warning("entry in disk_setup not a dict: %s", definition)
             continue
 
         origname = definition.get('device')
@@ -279,7 +279,7 @@ def is_device_valid(name, partition=False):
     try:
         d_type = device_type(name)
     except Exception:
-        LOG.warn("Query against device %s failed" % name)
+        LOG.warning("Query against device %s failed", name)
         return False
 
     if partition and d_type == 'part':
@@ -372,7 +372,7 @@ def find_device_node(device, fs_type=None, label=None, valid_targets=None,
     if not raw_device_used:
         return (device, False)
 
-    LOG.warn("Failed to find device during available device search.")
+    LOG.warning("Failed to find device during available device search.")
     return (None, False)
 
 
@@ -638,7 +638,7 @@ def purge_disk(device):
         if d['type'] not in ["disk", "crypt"]:
             wipefs_cmd = [WIPEFS_CMD, "--all", "/dev/%s" % d['name']]
             try:
-                LOG.info("Purging filesystem on /dev/%s" % d['name'])
+                LOG.info("Purging filesystem on /dev/%s", d['name'])
                 util.subp(wipefs_cmd)
             except Exception:
                 raise Exception("Failed FS purge of /dev/%s" % d['name'])
@@ -700,7 +700,7 @@ def exec_mkpart_gpt(device, layout):
                     [SGDISK_CMD,
                      '-t', '{}:{}'.format(index, partition_type), device])
     except Exception:
-        LOG.warn("Failed to partition device %s" % device)
+        LOG.warning("Failed to partition device %s", device)
         raise
 
     read_parttbl(device)
@@ -736,7 +736,7 @@ def mkpart(device, definition):
     # ensure that we get a real device rather than a symbolic link
     device = os.path.realpath(device)
 
-    LOG.debug("Checking values for %s definition" % device)
+    LOG.debug("Checking values for %s definition", device)
     overwrite = definition.get('overwrite', False)
     layout = definition.get('layout', False)
     table_type = definition.get('table_type', 'mbr')
@@ -766,7 +766,7 @@ def mkpart(device, definition):
 
     LOG.debug("Checking if device is safe to partition")
     if not overwrite and (is_disk_used(device) or is_filesystem(device)):
-        LOG.debug("Skipping partitioning on configured device %s" % device)
+        LOG.debug("Skipping partitioning on configured device %s", device)
         return
 
     LOG.debug("Checking for device size")
@@ -774,7 +774,7 @@ def mkpart(device, definition):
 
     LOG.debug("Calculating partition layout")
     part_definition = get_partition_layout(table_type, device_size, layout)
-    LOG.debug("   Layout is: %s" % part_definition)
+    LOG.debug("   Layout is: %s", part_definition)
 
     LOG.debug("Creating partition table on %s", device)
     exec_mkpart(table_type, device, part_definition)
@@ -799,7 +799,7 @@ def lookup_force_flag(fs):
     if fs.lower() in flags:
         return flags[fs]
 
-    LOG.warn("Force flag for %s is unknown." % fs)
+    LOG.warning("Force flag for %s is unknown.", fs)
     return ''
 
 
@@ -858,7 +858,7 @@ def mkfs(fs_cfg):
                 LOG.debug("Device %s has required file system", device)
                 return
             else:
-                LOG.warn("Destroying filesystem on %s", device)
+                LOG.warning("Destroying filesystem on %s", device)
 
         else:
             LOG.debug("Device %s is cleared for formating", device)
@@ -883,14 +883,14 @@ def mkfs(fs_cfg):
             return
 
         if not reuse and fs_replace and device:
-            LOG.debug("Replacing file system on %s as instructed." % device)
+            LOG.debug("Replacing file system on %s as instructed.", device)
 
         if not device:
             LOG.debug("No device aviable that matches request. "
                       "Skipping fs creation for %s", fs_cfg)
             return
     elif not partition or str(partition).lower() == 'none':
-        LOG.debug("Using the raw device to place filesystem %s on" % label)
+        LOG.debug("Using the raw device to place filesystem %s on", label)
 
     else:
         LOG.debug("Error in device identification handling.")
@@ -901,7 +901,7 @@ def mkfs(fs_cfg):
 
     # Make sure the device is defined
     if not device:
-        LOG.warn("Device is not known: %s", device)
+        LOG.warning("Device is not known: %s", device)
         return
 
     # Check that we can create the FS
@@ -923,8 +923,8 @@ def mkfs(fs_cfg):
             mkfs_cmd = util.which("mk%s" % fs_type)
 
         if not mkfs_cmd:
-            LOG.warn("Cannot create fstype '%s'.  No mkfs.%s command", fs_type,
-                     fs_type)
+            LOG.warning("Cannot create fstype '%s'.  No mkfs.%s command",
+                        fs_type, fs_type)
             return
 
         fs_cmd = [mkfs_cmd, device]

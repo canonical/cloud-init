@@ -64,7 +64,7 @@ def stop_update_start(service, config_file, content, systemd=False):
         try:
             return util.subp(cmd, capture=True)
         except util.ProcessExecutionError as e:
-            LOG.warn("failed: %s (%s): %s", service, cmd, e)
+            LOG.warning("failed: %s (%s): %s", service, cmd, e)
             return False
 
     stop_failed = not run(cmds['stop'], msg='stop %s' % service)
@@ -74,7 +74,7 @@ def stop_update_start(service, config_file, content, systemd=False):
 
     ret = run(cmds['start'], msg='start %s' % service)
     if ret and stop_failed:
-        LOG.warn("success: %s started", service)
+        LOG.warning("success: %s started", service)
 
     if 'enable' in cmds:
         ret = run(cmds['enable'], msg='enable %s' % service)

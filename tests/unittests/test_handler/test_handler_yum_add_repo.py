@@ -5,10 +5,13 @@ from cloudinit import util
 
 from .. import helpers
 
-import configobj
+try:
+    from configparser import ConfigParser
+except ImportError:
+    from ConfigParser import ConfigParser
 import logging
 import shutil
-from six import BytesIO
+from six import StringIO
 import tempfile
 
 LOG = logging.getLogger(__name__)
@@ -54,9 +57,9 @@ class TestConfig(helpers.FilesystemMockingTestCase):
         }
         self.patchUtils(self.tmp)
         cc_yum_add_repo.handle('yum_add_repo', cfg, None, LOG, [])
-        contents = util.load_file("/etc/yum.repos.d/epel_testing.repo",
-                                  decode=False)
-        contents = configobj.ConfigObj(BytesIO(contents))
+        contents = util.load_file("/etc/yum.repos.d/epel_testing.repo")
+        parser = ConfigParser()
+        parser.readfp(StringIO(contents))
         expected = {
             'epel_testing': {
                 'name': 'Extra Packages for Enterprise Linux 5 - Testing',
@@ -67,6 +70,47 @@ class TestConfig(helpers.FilesystemMockingTestCase):
                 'gpgcheck': '1',
             }
         }
-        self.assertEqual(expected, dict(contents))
+        for section in expected:
+            self.assertTrue(parser.has_section(section),
+                            "Contains section {}".format(section))
+            for k, v in expected[section].items():
+                self.assertEqual(parser.get(section, k), v)
+
+    def test_write_config_array(self):
+        cfg = {
+            'yum_repos': {
+                'puppetlabs-products': {
+                    'name': 'Puppet Labs Products El 6 - $basearch',
+                    'baseurl':
+                        'http://yum.puppetlabs.com/el/6/products/$basearch',
+                    'gpgkey': [
+                        'file:///etc/pki/rpm-gpg/RPM-GPG-KEY-puppetlabs',
+                        'file:///etc/pki/rpm-gpg/RPM-GPG-KEY-puppet',
+                    ],
+                    'enabled': True,
+                    'gpgcheck': True,
+                }
+            }
+        }
+        self.patchUtils(self.tmp)
+        cc_yum_add_repo.handle('yum_add_repo', cfg, None, LOG, [])
+        contents = util.load_file("/etc/yum.repos.d/puppetlabs_products.repo")
+        parser = ConfigParser()
+        parser.readfp(StringIO(contents))
+        expected = {
+            'puppetlabs_products': {
+                'name': 'Puppet Labs Products El 6 - $basearch',
+                'baseurl': 'http://yum.puppetlabs.com/el/6/products/$basearch',
+                'gpgkey': 'file:///etc/pki/rpm-gpg/RPM-GPG-KEY-puppetlabs\n'
+                          'file:///etc/pki/rpm-gpg/RPM-GPG-KEY-puppet',
+                'enabled': '1',
+                'gpgcheck': '1',
+            }
+        }
+        for section in expected:
+            self.assertTrue(parser.has_section(section),
+                            "Contains section {}".format(section))
+            for k, v in expected[section].items():
+                self.assertEqual(parser.get(section, k), v)
 
 # vi: ts=4 expandtab

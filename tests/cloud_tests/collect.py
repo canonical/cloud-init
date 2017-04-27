@@ -45,7 +45,7 @@ def collect_test_data(args, snapshot, os_name, test_name):
 
     # if test is not enabled, skip and return 0 failures
     if not test_config.get('enabled', False):
-        LOG.warn('test config %s is not enabled, skipping', test_name)
+        LOG.warning('test config %s is not enabled, skipping', test_name)
         return ({}, 0)
 
     # create test instance

@@ -405,7 +405,8 @@ def main_init(name, args):
         errfmt_orig = errfmt
         (outfmt, errfmt) = util.get_output_cfg(mods.cfg, name)
         if outfmt_orig != outfmt or errfmt_orig != errfmt:
-            LOG.warn("Stdout, stderr changing to (%s, %s)", outfmt, errfmt)
+            LOG.warning("Stdout, stderr changing to (%s, %s)",
+                        outfmt, errfmt)
             (outfmt, errfmt) = util.fixup_output(mods.cfg, name)
     except Exception:
         util.logexc(LOG, "Failed to re-adjust output redirection!")
@@ -427,15 +428,15 @@ def di_report_warn(datasource, cfg):
 
     dicfg = cfg.get('di_report', {})
     if not isinstance(dicfg, dict):
-        LOG.warn("di_report config not a dictionary: %s", dicfg)
+        LOG.warning("di_report config not a dictionary: %s", dicfg)
         return
 
     dslist = dicfg.get('datasource_list')
     if dslist is None:
-        LOG.warn("no 'datasource_list' found in di_report.")
+        LOG.warning("no 'datasource_list' found in di_report.")
         return
     elif not isinstance(dslist, list):
-        LOG.warn("di_report/datasource_list not a list: %s", dslist)
+        LOG.warning("di_report/datasource_list not a list: %s", dslist)
         return
 
     # ds.__module__ is like cloudinit.sources.DataSourceName
@@ -444,8 +445,8 @@ def di_report_warn(datasource, cfg):
     if modname.startswith(sources.DS_PREFIX):
         modname = modname[len(sources.DS_PREFIX):]
     else:
-        LOG.warn("Datasource '%s' came from unexpected module '%s'.",
-                 datasource, modname)
+        LOG.warning("Datasource '%s' came from unexpected module '%s'.",
+                    datasource, modname)
 
     if modname in dslist:
         LOG.debug("used datasource '%s' from '%s' was in di_report's list: %s",
@@ -571,10 +572,10 @@ def main_single(name, args):
                                             mod_args,
                                             mod_freq)
     if failures:
-        LOG.warn("Ran %s but it failed!", mod_name)
+        LOG.warning("Ran %s but it failed!", mod_name)
         return 1
     elif not which_ran:
-        LOG.warn("Did not run %s, does it exist?", mod_name)
+        LOG.warning("Did not run %s, does it exist?", mod_name)
         return 1
     else:
         # Guess it worked

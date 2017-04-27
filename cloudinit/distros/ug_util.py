@@ -214,8 +214,8 @@ def normalize_users_groups(cfg, distro):
                 'name': old_user,
             }
         if not isinstance(old_user, dict):
-            LOG.warn(("Format for 'user' key must be a string or "
-                      "dictionary and not %s"), type_utils.obj_name(old_user))
+            LOG.warning(("Format for 'user' key must be a string or dictionary"
+                         " and not %s"), type_utils.obj_name(old_user))
             old_user = {}
 
     # If no old user format, then assume the distro
@@ -227,9 +227,9 @@ def normalize_users_groups(cfg, distro):
     try:
         distro_user_config = distro.get_default_user()
     except NotImplementedError:
-        LOG.warn(("Distro has not implemented default user "
-                  "access. No distribution provided default user"
-                  " will be normalized."))
+        LOG.warning(("Distro has not implemented default user "
+                     "access. No distribution provided default user"
+                     " will be normalized."))
 
     # Merge the old user (which may just be an empty dict when not
     # present with the distro provided default user configuration so
@@ -239,9 +239,9 @@ def normalize_users_groups(cfg, distro):
 
     base_users = cfg.get('users', [])
     if not isinstance(base_users, (list, dict) + six.string_types):
-        LOG.warn(("Format for 'users' key must be a comma separated string"
-                  " or a dictionary or a list and not %s"),
-                 type_utils.obj_name(base_users))
+        LOG.warning(("Format for 'users' key must be a comma separated string"
+                     " or a dictionary or a list and not %s"),
+                    type_utils.obj_name(base_users))
         base_users = []
 
     if old_user:
