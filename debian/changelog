@@ -1,9 +1,43 @@
-cloud-init (0.7.9-90-g61eb03fe-0ubuntu2) UNRELEASED; urgency=medium
+cloud-init (0.7.9-113-g513e99e0-0ubuntu1~17.04.1) UNRELEASED; urgency=medium
 
   * debian/update-grub-legacy-ec2: fix early exit failure no /etc/fstab
     file. (LP: #1682160)
+  * New upstream snapshot.
+    - nova-lxd: read product_name from environment, not platform.
+      (LP: #1685810)
+    - Fix yum repo config where keys contain array values [Dylan Perry]
+    - template: Update debian backports template [Joshua Powers]
+    - rsyslog: replace ~ with stop [Joshua Powers] (LP: #1367899)
+    - Doc: add additional RTD examples [Joshua Powers]
+    - Fix growpart for some cases when booted with root=PARTUUID.
+      (LP: #1684869)
+    - pylint: update output style to parseable [Joshua Powers]
+    - pylint: fix all logging warnings [Joshua Powers]
+    - CloudStack: Add NetworkManager to list of supported DHCP lease dirs.
+      [Syed Mushtaq Ahmed]
+    - net: kernel lies about vlans not stealing mac addresses, when they do
+      [Dimitri John Ledkov] (LP: #1682871)
+    - ds-identify: Check correct path for "latest" config drive
+      [Daniel Watkins] (LP: #1673637)
+    - doc: Fix example for resolv.conf configuration.  [Jon Grimm]
+    - Fix examples that reference upstream chef repository.  [Jon Grimm]
+    - doc: correct grammar and improve clarity in merging documentation.
+      [David Tagatac]
+    - doc: Add missing doc link to snap-config module. [Ryan Harper]
+    - snap: allows for creating cloud-init snap [Joshua Powers]
+    - DigitalOcean: assign IPv4ll address to lowest indexed interface.
+      [Ben Howard] (LP: #1676908)
+    - DigitalOcean: configure all NICs presented in meta-data.
+      [Ben Howard] (LP: #1676908)
+    - Remove (and/or fix) URL shortener references [Jon Grimm]
+    - HACKING.rst: more info on filling out contributors agreement.
+    - util: teach write_file about copy_mode option
+      [Lars Kellogg-Stedman] (LP: #1644064)
+    - DigitalOcean: bind resolvers to loopback interface.
+      [Ben Howard] (LP: #1676908)
+    - tests: fix AltCloud tests to not rely on blkid (LP: #1636531)
 
- -- Scott Moser <smoser@ubuntu.com>  Wed, 12 Apr 2017 11:16:33 -0400
+ -- Scott Moser <smoser@ubuntu.com>  Thu, 27 Apr 2017 14:37:36 -0400
 
 cloud-init (0.7.9-90-g61eb03fe-0ubuntu1) zesty; urgency=medium
 
