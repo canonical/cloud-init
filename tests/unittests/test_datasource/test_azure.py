@@ -1,12 +1,13 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 from cloudinit import helpers
-from cloudinit.util import b64e, decode_binary, load_file
-from cloudinit.sources import DataSourceAzure
+from cloudinit.util import b64e, decode_binary, load_file, write_file
+from cloudinit.sources import DataSourceAzure as dsaz
 from cloudinit.util import find_freebsd_part
 from cloudinit.util import get_path_dev_freebsd
 
-from ..helpers import TestCase, populate_dir, mock, ExitStack, PY26, SkipTest
+from ..helpers import (CiTestCase, TestCase, populate_dir, mock,
+                       ExitStack, PY26, SkipTest)
 
 import crypt
 import os
@@ -98,7 +99,6 @@ class TestAzureDataSource(TestCase):
             self.patches.enter_context(mock.patch.object(module, name, new))
 
     def _get_mockds(self):
-        mod = DataSourceAzure
         sysctl_out = "dev.storvsc.3.%pnpinfo: "\
                      "classid=ba6163d9-04a1-4d29-b605-72e2ffb1dc7f "\
                      "deviceid=f8b3781b-1e82-4818-a1c3-63d806ec15bb\n"
@@ -123,14 +123,14 @@ scbus-1 on xpt0 bus 0
 <Msft Virtual Disk 1.0>            at scbus3 target 1 lun 0 (da1,pass2)
         """
         self.apply_patches([
-            (mod, 'get_dev_storvsc_sysctl', mock.MagicMock(
+            (dsaz, 'get_dev_storvsc_sysctl', mock.MagicMock(
                 return_value=sysctl_out)),
-            (mod, 'get_camcontrol_dev_bus', mock.MagicMock(
+            (dsaz, 'get_camcontrol_dev_bus', mock.MagicMock(
                 return_value=camctl_devbus)),
-            (mod, 'get_camcontrol_dev', mock.MagicMock(
+            (dsaz, 'get_camcontrol_dev', mock.MagicMock(
                 return_value=camctl_dev))
         ])
-        return mod
+        return dsaz
 
     def _get_ds(self, data, agent_command=None):
 
@@ -152,8 +152,7 @@ scbus-1 on xpt0 bus 0
             populate_dir(os.path.join(self.paths.seed_dir, "azure"),
                          {'ovf-env.xml': data['ovfcontent']})
 
-        mod = DataSourceAzure
-        mod.BUILTIN_DS_CONFIG['data_dir'] = self.waagent_d
+        dsaz.BUILTIN_DS_CONFIG['data_dir'] = self.waagent_d
 
         self.get_metadata_from_fabric = mock.MagicMock(return_value={
             'public-keys': [],
@@ -162,19 +161,19 @@ scbus-1 on xpt0 bus 0
         self.instance_id = 'test-instance-id'
 
         self.apply_patches([
-            (mod, 'list_possible_azure_ds_devs', dsdevs),
-            (mod, 'invoke_agent', _invoke_agent),
-            (mod, 'wait_for_files', _wait_for_files),
-            (mod, 'pubkeys_from_crt_files', _pubkeys_from_crt_files),
-            (mod, 'perform_hostname_bounce', mock.MagicMock()),
-            (mod, 'get_hostname', mock.MagicMock()),
-            (mod, 'set_hostname', mock.MagicMock()),
-            (mod, 'get_metadata_from_fabric', self.get_metadata_from_fabric),
-            (mod.util, 'read_dmi_data', mock.MagicMock(
+            (dsaz, 'list_possible_azure_ds_devs', dsdevs),
+            (dsaz, 'invoke_agent', _invoke_agent),
+            (dsaz, 'wait_for_files', _wait_for_files),
+            (dsaz, 'pubkeys_from_crt_files', _pubkeys_from_crt_files),
+            (dsaz, 'perform_hostname_bounce', mock.MagicMock()),
+            (dsaz, 'get_hostname', mock.MagicMock()),
+            (dsaz, 'set_hostname', mock.MagicMock()),
+            (dsaz, 'get_metadata_from_fabric', self.get_metadata_from_fabric),
+            (dsaz.util, 'read_dmi_data', mock.MagicMock(
                 return_value=self.instance_id)),
         ])
 
-        dsrc = mod.DataSourceAzureNet(
+        dsrc = dsaz.DataSourceAzureNet(
             data.get('sys_cfg', {}), distro=None, paths=self.paths)
         if agent_command is not None:
             dsrc.ds_cfg['agent_command'] = agent_command
@@ -418,7 +417,7 @@ fdescfs            /dev/fd          fdescfs rw              0 0
         cfg = dsrc.get_config_obj()
 
         self.assertEqual(dsrc.device_name_to_device("ephemeral0"),
-                         DataSourceAzure.RESOURCE_DISK_PATH)
+                         dsaz.RESOURCE_DISK_PATH)
         assert 'disk_setup' in cfg
         assert 'fs_setup' in cfg
         self.assertIsInstance(cfg['disk_setup'], dict)
@@ -468,14 +467,13 @@ fdescfs            /dev/fd          fdescfs rw              0 0
 
         # Make sure that the redacted password on disk is not used by CI
         self.assertNotEqual(dsrc.cfg.get('password'),
-                            DataSourceAzure.DEF_PASSWD_REDACTION)
+                            dsaz.DEF_PASSWD_REDACTION)
 
         # Make sure that the password was really encrypted
         et = ET.fromstring(on_disk_ovf)
         for elem in et.iter():
             if 'UserPassword' in elem.tag:
-                self.assertEqual(DataSourceAzure.DEF_PASSWD_REDACTION,
-                                 elem.text)
+                self.assertEqual(dsaz.DEF_PASSWD_REDACTION, elem.text)
 
     def test_ovf_env_arrives_in_waagent_dir(self):
         xml = construct_valid_ovf_env(data={}, userdata="FOODATA")
@@ -524,17 +522,17 @@ class TestAzureBounce(TestCase):
 
     def mock_out_azure_moving_parts(self):
         self.patches.enter_context(
-            mock.patch.object(DataSourceAzure, 'invoke_agent'))
+            mock.patch.object(dsaz, 'invoke_agent'))
         self.patches.enter_context(
-            mock.patch.object(DataSourceAzure, 'wait_for_files'))
+            mock.patch.object(dsaz, 'wait_for_files'))
         self.patches.enter_context(
-            mock.patch.object(DataSourceAzure, 'list_possible_azure_ds_devs',
+            mock.patch.object(dsaz, 'list_possible_azure_ds_devs',
                               mock.MagicMock(return_value=[])))
         self.patches.enter_context(
-            mock.patch.object(DataSourceAzure, 'get_metadata_from_fabric',
+            mock.patch.object(dsaz, 'get_metadata_from_fabric',
                               mock.MagicMock(return_value={})))
         self.patches.enter_context(
-            mock.patch.object(DataSourceAzure.util, 'read_dmi_data',
+            mock.patch.object(dsaz.util, 'read_dmi_data',
                               mock.MagicMock(return_value='test-instance-id')))
 
     def setUp(self):
@@ -543,13 +541,13 @@ class TestAzureBounce(TestCase):
         self.waagent_d = os.path.join(self.tmp, 'var', 'lib', 'waagent')
         self.paths = helpers.Paths({'cloud_dir': self.tmp})
         self.addCleanup(shutil.rmtree, self.tmp)
-        DataSourceAzure.BUILTIN_DS_CONFIG['data_dir'] = self.waagent_d
+        dsaz.BUILTIN_DS_CONFIG['data_dir'] = self.waagent_d
         self.patches = ExitStack()
         self.mock_out_azure_moving_parts()
         self.get_hostname = self.patches.enter_context(
-            mock.patch.object(DataSourceAzure, 'get_hostname'))
+            mock.patch.object(dsaz, 'get_hostname'))
         self.set_hostname = self.patches.enter_context(
-            mock.patch.object(DataSourceAzure, 'set_hostname'))
+            mock.patch.object(dsaz, 'set_hostname'))
         self.subp = self.patches.enter_context(
             mock.patch('cloudinit.sources.DataSourceAzure.util.subp'))
 
@@ -560,7 +558,7 @@ class TestAzureBounce(TestCase):
         if ovfcontent is not None:
             populate_dir(os.path.join(self.paths.seed_dir, "azure"),
                          {'ovf-env.xml': ovfcontent})
-        dsrc = DataSourceAzure.DataSourceAzureNet(
+        dsrc = dsaz.DataSourceAzureNet(
             {}, distro=None, paths=self.paths)
         if agent_command is not None:
             dsrc.ds_cfg['agent_command'] = agent_command
@@ -673,7 +671,7 @@ class TestAzureBounce(TestCase):
 
     def test_default_bounce_command_used_by_default(self):
         cmd = 'default-bounce-command'
-        DataSourceAzure.BUILTIN_DS_CONFIG['hostname_bounce']['command'] = cmd
+        dsaz.BUILTIN_DS_CONFIG['hostname_bounce']['command'] = cmd
         cfg = {'hostname_bounce': {'policy': 'force'}}
         data = self.get_ovf_env_with_dscfg('some-hostname', cfg)
         self._get_ds(data, agent_command=['not', '__builtin__']).get_data()
@@ -701,15 +699,208 @@ class TestAzureBounce(TestCase):
 class TestReadAzureOvf(TestCase):
     def test_invalid_xml_raises_non_azure_ds(self):
         invalid_xml = "<foo>" + construct_valid_ovf_env(data={})
-        self.assertRaises(DataSourceAzure.BrokenAzureDataSource,
-                          DataSourceAzure.read_azure_ovf, invalid_xml)
+        self.assertRaises(dsaz.BrokenAzureDataSource,
+                          dsaz.read_azure_ovf, invalid_xml)
 
     def test_load_with_pubkeys(self):
         mypklist = [{'fingerprint': 'fp1', 'path': 'path1', 'value': ''}]
         pubkeys = [(x['fingerprint'], x['path'], x['value']) for x in mypklist]
         content = construct_valid_ovf_env(pubkeys=pubkeys)
-        (_md, _ud, cfg) = DataSourceAzure.read_azure_ovf(content)
+        (_md, _ud, cfg) = dsaz.read_azure_ovf(content)
         for mypk in mypklist:
             self.assertIn(mypk, cfg['_pubkeys'])
+
+
+class TestCanDevBeReformatted(CiTestCase):
+    warning_file = 'dataloss_warning_readme.txt'
+
+    def _domock(self, mockpath, sattr=None):
+        patcher = mock.patch(mockpath)
+        setattr(self, sattr, patcher.start())
+        self.addCleanup(patcher.stop)
+
+    def setUp(self):
+        super(TestCanDevBeReformatted, self).setUp()
+
+    def patchup(self, devs):
+        bypath = {}
+        for path, data in devs.items():
+            bypath[path] = data
+            if 'realpath' in data:
+                bypath[data['realpath']] = data
+            for ppath, pdata in data.get('partitions', {}).items():
+                bypath[ppath] = pdata
+                if 'realpath' in data:
+                    bypath[pdata['realpath']] = pdata
+
+        def realpath(d):
+            return bypath[d].get('realpath', d)
+
+        def partitions_on_device(devpath):
+            parts = bypath.get(devpath, {}).get('partitions', {})
+            ret = []
+            for path, data in parts.items():
+                ret.append((data.get('num'), realpath(path)))
+            # return sorted by partition number
+            return sorted(ret, key=lambda d: d[0])
+
+        def mount_cb(device, callback):
+            p = self.tmp_dir()
+            for f in bypath.get(device).get('files', []):
+                write_file(os.path.join(p, f), content=f)
+            return callback(p)
+
+        def has_ntfs_fs(device):
+            return bypath.get(device, {}).get('fs') == 'ntfs'
+
+        p = 'cloudinit.sources.DataSourceAzure'
+        self._domock(p + "._partitions_on_device", 'm_partitions_on_device')
+        self._domock(p + "._has_ntfs_filesystem", 'm_has_ntfs_filesystem')
+        self._domock(p + ".util.mount_cb", 'm_mount_cb')
+        self._domock(p + ".os.path.realpath", 'm_realpath')
+        self._domock(p + ".os.path.exists", 'm_exists')
+
+        self.m_exists.side_effect = lambda p: p in bypath
+        self.m_realpath.side_effect = realpath
+        self.m_has_ntfs_filesystem.side_effect = has_ntfs_fs
+        self.m_mount_cb.side_effect = mount_cb
+        self.m_partitions_on_device.side_effect = partitions_on_device
+
+    def test_three_partitions_is_false(self):
+        """A disk with 3 partitions can not be formatted."""
+        self.patchup({
+            '/dev/sda': {
+                'partitions': {
+                    '/dev/sda1': {'num': 1},
+                    '/dev/sda2': {'num': 2},
+                    '/dev/sda3': {'num': 3},
+                }}})
+        value, msg = dsaz.can_dev_be_reformatted("/dev/sda")
+        self.assertFalse(False, value)
+        self.assertIn("3 or more", msg.lower())
+
+    def test_no_partitions_is_false(self):
+        """A disk with no partitions can not be formatted."""
+        self.patchup({'/dev/sda': {}})
+        value, msg = dsaz.can_dev_be_reformatted("/dev/sda")
+        self.assertEqual(False, value)
+        self.assertIn("not partitioned", msg.lower())
+
+    def test_two_partitions_not_ntfs_false(self):
+        """2 partitions and 2nd not ntfs can not be formatted."""
+        self.patchup({
+            '/dev/sda': {
+                'partitions': {
+                    '/dev/sda1': {'num': 1},
+                    '/dev/sda2': {'num': 2, 'fs': 'ext4', 'files': []},
+                }}})
+        value, msg = dsaz.can_dev_be_reformatted("/dev/sda")
+        self.assertFalse(False, value)
+        self.assertIn("not ntfs", msg.lower())
+
+    def test_two_partitions_ntfs_populated_false(self):
+        """2 partitions and populated ntfs fs on 2nd can not be formatted."""
+        self.patchup({
+            '/dev/sda': {
+                'partitions': {
+                    '/dev/sda1': {'num': 1},
+                    '/dev/sda2': {'num': 2, 'fs': 'ntfs',
+                                  'files': ['secret.txt']},
+                }}})
+        value, msg = dsaz.can_dev_be_reformatted("/dev/sda")
+        self.assertFalse(False, value)
+        self.assertIn("files on it", msg.lower())
+
+    def test_two_partitions_ntfs_empty_is_true(self):
+        """2 partitions and empty ntfs fs on 2nd can be formatted."""
+        self.patchup({
+            '/dev/sda': {
+                'partitions': {
+                    '/dev/sda1': {'num': 1},
+                    '/dev/sda2': {'num': 2, 'fs': 'ntfs', 'files': []},
+                }}})
+        value, msg = dsaz.can_dev_be_reformatted("/dev/sda")
+        self.assertEqual(True, value)
+        self.assertIn("safe for", msg.lower())
+
+    def test_one_partition_not_ntfs_false(self):
+        """1 partition witih fs other than ntfs can not be formatted."""
+        self.patchup({
+            '/dev/sda': {
+                'partitions': {
+                    '/dev/sda1': {'num': 1, 'fs': 'zfs'},
+                }}})
+        value, msg = dsaz.can_dev_be_reformatted("/dev/sda")
+        self.assertEqual(False, value)
+        self.assertIn("not ntfs", msg.lower())
+
+    def test_one_partition_ntfs_populated_false(self):
+        """1 mountable ntfs partition with many files can not be formatted."""
+        self.patchup({
+            '/dev/sda': {
+                'partitions': {
+                    '/dev/sda1': {'num': 1, 'fs': 'ntfs',
+                                  'files': ['file1.txt', 'file2.exe']},
+                }}})
+        value, msg = dsaz.can_dev_be_reformatted("/dev/sda")
+        self.assertEqual(False, value)
+        self.assertIn("files on it", msg.lower())
+
+    def test_one_partition_ntfs_empty_is_true(self):
+        """1 mountable ntfs partition and no files can be formatted."""
+        self.patchup({
+            '/dev/sda': {
+                'partitions': {
+                    '/dev/sda1': {'num': 1, 'fs': 'ntfs', 'files': []}
+                }}})
+        value, msg = dsaz.can_dev_be_reformatted("/dev/sda")
+        self.assertEqual(True, value)
+        self.assertIn("safe for", msg.lower())
+
+    def test_one_partition_ntfs_empty_with_dataloss_file_is_true(self):
+        """1 mountable ntfs partition and only warn file can be formatted."""
+        self.patchup({
+            '/dev/sda': {
+                'partitions': {
+                    '/dev/sda1': {'num': 1, 'fs': 'ntfs',
+                                  'files': ['dataloss_warning_readme.txt']}
+                }}})
+        value, msg = dsaz.can_dev_be_reformatted("/dev/sda")
+        self.assertEqual(True, value)
+        self.assertIn("safe for", msg.lower())
+
+    def test_one_partition_through_realpath_is_true(self):
+        """A symlink to a device with 1 ntfs partition can be formatted."""
+        epath = '/dev/disk/cloud/azure_resource'
+        self.patchup({
+            epath: {
+                'realpath': '/dev/sdb',
+                'partitions': {
+                    epath + '-part1': {
+                        'num': 1, 'fs': 'ntfs', 'files': [self.warning_file],
+                        'realpath': '/dev/sdb1'}
+                }}})
+        value, msg = dsaz.can_dev_be_reformatted(epath)
+        self.assertEqual(True, value)
+        self.assertIn("safe for", msg.lower())
+
+    def test_three_partition_through_realpath_is_false(self):
+        """A symlink to a device with 3 partitions can not be formatted."""
+        epath = '/dev/disk/cloud/azure_resource'
+        self.patchup({
+            epath: {
+                'realpath': '/dev/sdb',
+                'partitions': {
+                    epath + '-part1': {
+                        'num': 1, 'fs': 'ntfs', 'files': [self.warning_file],
+                        'realpath': '/dev/sdb1'},
+                    epath + '-part2': {'num': 2, 'fs': 'ext3',
+                                       'realpath': '/dev/sdb2'},
+                    epath + '-part3': {'num': 3, 'fs': 'ext',
+                                       'realpath': '/dev/sdb3'}
+                }}})
+        value, msg = dsaz.can_dev_be_reformatted(epath)
+        self.assertEqual(False, value)
+        self.assertIn("3 or more", msg.lower())
 
 # vi: ts=4 expandtab

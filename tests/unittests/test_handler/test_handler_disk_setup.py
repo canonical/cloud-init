@@ -151,6 +151,22 @@ class TestUpdateFsSetupDevices(TestCase):
             'filesystem': 'xfs'
         }, fs_setup)
 
+    def test_dotted_devname_populates_partition(self):
+        fs_setup = {
+            'device': 'ephemeral0.1',
+            'label': 'test2',
+            'filesystem': 'xfs'
+        }
+        cc_disk_setup.update_fs_setup_devices([fs_setup],
+                                              lambda device: device)
+        self.assertEqual({
+            '_origname': 'ephemeral0.1',
+            'device': 'ephemeral0',
+            'partition': '1',
+            'label': 'test2',
+            'filesystem': 'xfs'
+        }, fs_setup)
+
 
 @mock.patch('cloudinit.config.cc_disk_setup.find_device_node',
             return_value=('/dev/xdb1', False))

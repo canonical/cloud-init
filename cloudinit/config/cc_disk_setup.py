@@ -68,6 +68,9 @@ specified using ``filesystem``.
     Using ``overwrite: true`` for filesystems is dangerous and can lead to data
     loss, so double check the entry in ``fs_setup``.
 
+.. note::
+    ``replace_fs`` is ignored unless ``partition`` is ``auto`` or ``any``.
+
 **Internal name:** ``cc_disk_setup``
 
 **Module frequency:** per instance
@@ -127,7 +130,7 @@ def handle(_name, cfg, cloud, log, _args):
         log.debug("Partitioning disks: %s", str(disk_setup))
         for disk, definition in disk_setup.items():
             if not isinstance(definition, dict):
-                log.warn("Invalid disk definition for %s" % disk)
+                log.warning("Invalid disk definition for %s" % disk)
                 continue
 
             try:
@@ -144,7 +147,7 @@ def handle(_name, cfg, cloud, log, _args):
         update_fs_setup_devices(fs_setup, cloud.device_name_to_device)
         for definition in fs_setup:
             if not isinstance(definition, dict):
-                log.warn("Invalid file system definition: %s" % definition)
+                log.warning("Invalid file system definition: %s" % definition)
                 continue
 
             try:
@@ -199,8 +202,13 @@ def update_fs_setup_devices(disk_setup, tformer):
             definition['_origname'] = origname
             definition['device'] = tformed
 
-        if part and 'partition' in definition:
-            definition['_partition'] = definition['partition']
+        if part:
+            # In origname with <dev>.N, N overrides 'partition' key.
+            if 'partition' in definition:
+                LOG.warning("Partition '%s' from dotted device name '%s' "
+                            "overrides 'partition' key in %s", part, origname,
+                            definition)
+                definition['_partition'] = definition['partition']
             definition['partition'] = part
 
 
@@ -849,7 +857,8 @@ def mkfs(fs_cfg):
         # Check to see if the fs already exists
         LOG.debug("Checking device %s", device)
         check_label, check_fstype, _ = check_fs(device)
-        LOG.debug("Device %s has %s %s", device, check_label, check_fstype)
+        LOG.debug("Device '%s' has check_label='%s' check_fstype=%s",
+                  device, check_label, check_fstype)
 
         if check_label == label and check_fstype == fs_type:
             LOG.debug("Existing file system found at %s", device)

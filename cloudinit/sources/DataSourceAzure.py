@@ -196,8 +196,7 @@ BUILTIN_CLOUD_CONFIG = {
                        'overwrite': True},
     },
     'fs_setup': [{'filesystem': DEFAULT_FS,
-                  'device': 'ephemeral0.1',
-                  'replace_fs': 'ntfs'}],
+                  'device': 'ephemeral0.1'}],
 }
 
 DS_CFG_PATH = ['datasource', DS_NAME]
@@ -413,56 +412,71 @@ class DataSourceAzureNet(sources.DataSource):
         return
 
 
+def _partitions_on_device(devpath, maxnum=16):
+    # return a list of tuples (ptnum, path) for each part on devpath
+    for suff in ("-part", "p", ""):
+        found = []
+        for pnum in range(1, maxnum):
+            ppath = devpath + suff + str(pnum)
+            if os.path.exists(ppath):
+                found.append((pnum, os.path.realpath(ppath)))
+        if found:
+            return found
+    return []
+
+
+def _has_ntfs_filesystem(devpath):
+    ntfs_devices = util.find_devs_with("TYPE=ntfs", no_cache=True)
+    LOG.debug('ntfs_devices found = %s', ntfs_devices)
+    return os.path.realpath(devpath) in ntfs_devices
+
+
 def can_dev_be_reformatted(devpath):
-    # determine if the ephemeral block device path devpath
-    # is newly formatted after a resize.
+    """Determine if block device devpath is newly formatted ephemeral.
+
+    A newly formatted disk will:
+      a.) have a partition table (dos or gpt)
+      b.) have 1 partition that is ntfs formatted, or
+          have 2 partitions with the second partition ntfs formatted.
+          (larger instances with >2TB ephemeral disk have gpt, and will
+           have a microsoft reserved partition as part 1.  LP: #1686514)
+      c.) the ntfs partition will have no files other than possibly
+          'dataloss_warning_readme.txt'"""
     if not os.path.exists(devpath):
         return False, 'device %s does not exist' % devpath
 
-    realpath = os.path.realpath(devpath)
-    LOG.debug('Resolving realpath of %s -> %s', devpath, realpath)
-
-    # it is possible that the block device might exist, but the kernel
-    # have not yet read the partition table and sent events.  we udevadm settle
-    # to hope to resolve that.  Better here would probably be to test and see,
-    # and then settle if we didn't find anything and try again.
-    if util.which("udevadm"):
-        util.subp(["udevadm", "settle"])
+    LOG.debug('Resolving realpath of %s -> %s', devpath,
+              os.path.realpath(devpath))
 
     # devpath of /dev/sd[a-z] or /dev/disk/cloud/azure_resource
     # where partitions are "<devpath>1" or "<devpath>-part1" or "<devpath>p1"
-    part1path = None
-    for suff in ("-part", "p", ""):
-        cand = devpath + suff + "1"
-        if os.path.exists(cand):
-            if os.path.exists(devpath + suff + "2"):
-                msg = ('device %s had more than 1 partition: %s, %s' %
-                       devpath, cand, devpath + suff + "2")
-                return False, msg
-            part1path = cand
-            break
-
-    if part1path is None:
+    partitions = _partitions_on_device(devpath)
+    if len(partitions) == 0:
         return False, 'device %s was not partitioned' % devpath
+    elif len(partitions) > 2:
+        msg = ('device %s had 3 or more partitions: %s' %
+               (devpath, ' '.join([p[1] for p in partitions])))
+        return False, msg
+    elif len(partitions) == 2:
+        cand_part, cand_path = partitions[1]
+    else:
+        cand_part, cand_path = partitions[0]
 
-    real_part1path = os.path.realpath(part1path)
-    ntfs_devices = util.find_devs_with("TYPE=ntfs", no_cache=True)
-    LOG.debug('ntfs_devices found = %s', ntfs_devices)
-    if real_part1path not in ntfs_devices:
-        msg = ('partition 1 (%s -> %s) on device %s was not ntfs formatted' %
-               (part1path, real_part1path, devpath))
+    if not _has_ntfs_filesystem(cand_path):
+        msg = ('partition %s (%s) on device %s was not ntfs formatted' %
+               (cand_part, cand_path, devpath))
         return False, msg
 
     def count_files(mp):
         ignored = set(['dataloss_warning_readme.txt'])
         return len([f for f in os.listdir(mp) if f.lower() not in ignored])
 
-    bmsg = ('partition 1 (%s -> %s) on device %s was ntfs formatted' %
-            (part1path, real_part1path, devpath))
+    bmsg = ('partition %s (%s) on device %s was ntfs formatted' %
+            (cand_part, cand_path, devpath))
     try:
-        file_count = util.mount_cb(part1path, count_files)
+        file_count = util.mount_cb(cand_path, count_files)
     except util.MountFailedError as e:
-        return False, bmsg + ' but mount of %s failed: %s' % (part1path, e)
+        return False, bmsg + ' but mount of %s failed: %s' % (cand_part, e)
 
     if file_count != 0:
         return False, bmsg + ' but had %d files on it.' % file_count
