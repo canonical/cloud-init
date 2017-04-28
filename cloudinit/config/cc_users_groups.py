@@ -25,28 +25,39 @@ entry of the ``users`` list. Each entry in the ``users`` list, other than a
 config keys for an entry in ``users`` are as follows:
 
     - ``name``: The user's login name
-    - ``homedir``: Optional. Home dir for user. Default is ``/home/<username>``
-    - ``primary-group``: Optional. Primary group for user. Default to new group
-      named after user.
+    - ``expiredate``: Optional. Date on which the user's login will be
+      disabled. Default: none
+    - ``gecos``: Optional. Comment about the user, usually a comma-separated
+      string of real name and contact information. Default: none
     - ``groups``: Optional. Additional groups to add the user to. Default: none
-    - ``selinux-user``: Optional. SELinux user for user's login. Default to
-      default SELinux user.
-    - ``lock_passwd``: Optional. Disable password login. Default: true
+    - ``homedir``: Optional. Home dir for user. Default is ``/home/<username>``
     - ``inactive``: Optional. Mark user inactive. Default: false
-    - ``passwd``: Hash of user password
+    - ``lock_passwd``: Optional. Disable password login. Default: true
     - ``no-create-home``: Optional. Do not create home directory. Default:
       false
-    - ``no-user-group``: Optional. Do not create group named after user.
-      Default: false
     - ``no-log-init``: Optional. Do not initialize lastlog and faillog for
       user. Default: false
-    - ``ssh-import-id``: Optional. SSH id to import for user. Default: none
-    - ``ssh-autorized-keys``: Optional. List of ssh keys to add to user's
+    - ``no-user-group``: Optional. Do not create group named after user.
+      Default: false
+    - ``passwd``: Hash of user password
+    - ``primary-group``: Optional. Primary group for user. Default to new group
+      named after user.
+    - ``selinux-user``: Optional. SELinux user for user's login. Default to
+      default SELinux user.
+    - ``shell``: Optional. The user's login shell. The default is to set no
+      shell, which results in a system-specific default being used.
+    - ``snapuser``: Optional. Specify an email address to create the user as
+      a Snappy user through ``snap create-user``. If an Ubuntu SSO account is
+      associated with the address, username and SSH keys will be requested from
+      there. Default: none
+    - ``ssh-authorized-keys``: Optional. List of ssh keys to add to user's
       authkeys file. Default: none
+    - ``ssh-import-id``: Optional. SSH id to import for user. Default: none
     - ``sudo``: Optional. Sudo rule to use, or list of sudo rules to use.
       Default: none.
     - ``system``: Optional. Create user as system user with no home directory.
       Default: false
+    - ``uid``: Optional. The user's ID. Default: The next available value.
 
 .. note::
     Specifying a hash of a user's password with ``passwd`` is a security risk
@@ -65,23 +76,33 @@ config keys for an entry in ``users`` are as follows:
 **Config keys**::
 
     groups:
-        - ubuntu: [foo, bar]
-        - cloud-users
+        - <group>: [<user>, <user>]
+        - <group>
 
     users:
         - default
         - name: <username>
-          gecos: <real name>
-          primary-group: <primary group>
-          groups: <additional groups>
-          selinux-user: <selinux username>
           expiredate: <date>
-          ssh-import-id: <none/id>
-          lock_passwd: <true/false>
-          passwd: <password>
-          sudo: <sudo config>
+          gecos: <comment>
+          groups: <additional groups>
+          homedir: <home directory>
           inactive: <true/false>
+          lock_passwd: <true/false>
+          no-create-home: <true/false>
+          no-log-init: <true/false>
+          no-user-group: <true/false>
+          passwd: <password>
+          primary-group: <primary group>
+          selinux-user: <selinux username>
+          shell: <shell path>
+          snapuser: <email>
+          ssh-authorized-keys:
+              - <key>
+              - <key>
+          ssh-import-id: <id>
+          sudo: <sudo config>
           system: <true/false>
+          uid: <user id>
 """
 
 # Ensure this is aliased to a name not 'distros'
