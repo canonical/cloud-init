@@ -65,12 +65,12 @@ take a list of configs, allowing mirrors to be specified on a per-architecture
 basis. Each config is a dictionary which must have an entry for ``arches``,
 specifying which architectures that config entry is for. The keyword
 ``default`` applies to any architecture not explicitly listed. The mirror url
-can be specified with the ``url`` key, or a list of mirrors to check can be
+can be specified with the ``uri`` key, or a list of mirrors to check can be
 provided in order, with the first mirror that can be resolved being selected.
 This allows the same configuration to be used in different environment, with
-different hosts used for a local apt mirror. If no mirror is provided by uri or
-search, ``search_dns`` may be used to search for dns names in the format
-``<distro>-mirror`` in each of the following:
+different hosts used for a local apt mirror. If no mirror is provided by
+``uri`` or ``search``, ``search_dns`` may be used to search for dns names in
+the format ``<distro>-mirror`` in each of the following:
 
     - fqdn of this host per cloud metadata
     - localdomain
