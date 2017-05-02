@@ -910,12 +910,23 @@ def mkfs(fs_cfg):
                         "must be set.", label)
 
     # Create the commands
+    shell = False
     if fs_cmd:
         fs_cmd = fs_cfg['cmd'] % {
             'label': label,
             'filesystem': fs_type,
             'device': device,
         }
+        shell = True
+
+        if overwrite:
+            LOG.warning(
+                "fs_setup:overwrite ignored because cmd was specified: %s",
+                fs_cmd)
+        if fs_opts:
+            LOG.warning(
+                "fs_setup:extra_opts ignored because cmd was specified: %s",
+                fs_cmd)
     else:
         # Find the mkfs command
         mkfs_cmd = util.which("mkfs.%s" % fs_type)
@@ -936,14 +947,14 @@ def mkfs(fs_cfg):
         if overwrite or device_type(device) == "disk":
             fs_cmd.append(lookup_force_flag(fs_type))
 
-    # Add the extends FS options
-    if fs_opts:
-        fs_cmd.extend(fs_opts)
+        # Add the extends FS options
+        if fs_opts:
+            fs_cmd.extend(fs_opts)
 
     LOG.debug("Creating file system %s on %s", label, device)
-    LOG.debug("     Using cmd: %s", " ".join(fs_cmd))
+    LOG.debug("     Using cmd: %s", str(fs_cmd))
     try:
-        util.subp(fs_cmd)
+        util.subp(fs_cmd, shell=shell)
     except Exception as e:
         raise Exception("Failed to exec of '%s':\n%s" % (fs_cmd, e))
 
