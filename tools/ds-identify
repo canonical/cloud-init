@@ -555,6 +555,9 @@ dscheck_NoCloud() {
     case " ${DI_KERNEL_CMDLINE} " in
         *\ ds=nocloud*) return ${DS_FOUND};;
     esac
+    case " ${DI_DMI_PRODUCT_SERIAL} " in
+        *\ ds=nocloud*) return ${DS_FOUND};;
+    esac
     for d in nocloud nocloud-net; do
         check_seed_dir "$d" meta-data user-data && return ${DS_FOUND}
     done
