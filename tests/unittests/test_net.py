@@ -880,6 +880,82 @@ USERCTL=no
 """.lstrip()
             self.assertEqual(expected_content, content)
 
+    def test_multiple_ipv4_default_gateways(self):
+        """ValueError is raised when duplicate ipv4 gateways exist."""
+        net_json = {
+            "services": [{"type": "dns", "address": "172.19.0.12"}],
+            "networks": [{
+                "network_id": "dacd568d-5be6-4786-91fe-750c374b78b4",
+                "type": "ipv4", "netmask": "255.255.252.0",
+                "link": "tap1a81968a-79",
+                "routes": [{
+                    "netmask": "0.0.0.0",
+                    "network": "0.0.0.0",
+                    "gateway": "172.19.3.254",
+                }, {
+                    "netmask": "0.0.0.0",  # A second default gateway
+                    "network": "0.0.0.0",
+                    "gateway": "172.20.3.254",
+                }],
+                "ip_address": "172.19.1.34", "id": "network0"
+            }],
+            "links": [
+                {
+                    "ethernet_mac_address": "fa:16:3e:ed:9a:59",
+                    "mtu": None, "type": "bridge", "id":
+                    "tap1a81968a-79",
+                    "vif_id": "1a81968a-797a-400f-8a80-567f997eb93f"
+                },
+            ],
+        }
+        macs = {'fa:16:3e:ed:9a:59': 'eth0'}
+        render_dir = self.tmp_dir()
+        network_cfg = openstack.convert_net_json(net_json, known_macs=macs)
+        ns = network_state.parse_net_config_data(network_cfg,
+                                                 skip_broken=False)
+        renderer = sysconfig.Renderer()
+        with self.assertRaises(ValueError):
+            renderer.render_network_state(ns, render_dir)
+        self.assertEqual([], os.listdir(render_dir))
+
+    def test_multiple_ipv6_default_gateways(self):
+        """ValueError is raised when duplicate ipv6 gateways exist."""
+        net_json = {
+            "services": [{"type": "dns", "address": "172.19.0.12"}],
+            "networks": [{
+                "network_id": "public-ipv6",
+                "type": "ipv6", "netmask": "",
+                "link": "tap1a81968a-79",
+                "routes": [{
+                    "gateway": "2001:DB8::1",
+                    "netmask": "::",
+                    "network": "::"
+                }, {
+                    "gateway": "2001:DB9::1",
+                    "netmask": "::",
+                    "network": "::"
+                }],
+                "ip_address": "2001:DB8::10", "id": "network1"
+            }],
+            "links": [
+                {
+                    "ethernet_mac_address": "fa:16:3e:ed:9a:59",
+                    "mtu": None, "type": "bridge", "id":
+                    "tap1a81968a-79",
+                    "vif_id": "1a81968a-797a-400f-8a80-567f997eb93f"
+                },
+            ],
+        }
+        macs = {'fa:16:3e:ed:9a:59': 'eth0'}
+        render_dir = self.tmp_dir()
+        network_cfg = openstack.convert_net_json(net_json, known_macs=macs)
+        ns = network_state.parse_net_config_data(network_cfg,
+                                                 skip_broken=False)
+        renderer = sysconfig.Renderer()
+        with self.assertRaises(ValueError):
+            renderer.render_network_state(ns, render_dir)
+        self.assertEqual([], os.listdir(render_dir))
+
     def test_openstack_rendering_samples(self):
         for os_sample in OS_SAMPLES:
             render_dir = self.tmp_dir()

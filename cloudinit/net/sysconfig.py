@@ -232,12 +232,8 @@ class Renderer(renderer.Renderer):
                                                       iface_cfg.name))
         if 'netmask' in subnet:
             iface_cfg['NETMASK'] = subnet['netmask']
+        is_ipv6 = subnet.get('ipv6')
         for route in subnet.get('routes', []):
-            if subnet.get('ipv6'):
-                gw_cfg = 'IPV6_DEFAULTGW'
-            else:
-                gw_cfg = 'GATEWAY'
-
             if _is_default_route(route):
                 if (
                         (subnet.get('ipv4') and
@@ -258,8 +254,12 @@ class Renderer(renderer.Renderer):
                 # also provided the default route?
                 iface_cfg['DEFROUTE'] = True
                 if 'gateway' in route:
-                    iface_cfg[gw_cfg] = route['gateway']
-                route_cfg.has_set_default = True
+                    if is_ipv6:
+                        iface_cfg['IPV6_DEFAULTGW'] = route['gateway']
+                        route_cfg.has_set_default_ipv6 = True
+                    else:
+                        iface_cfg['GATEWAY'] = route['gateway']
+                        route_cfg.has_set_default_ipv4 = True
             else:
                 gw_key = 'GATEWAY%s' % route_cfg.last_idx
                 nm_key = 'NETMASK%s' % route_cfg.last_idx
