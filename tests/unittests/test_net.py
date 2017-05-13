@@ -1073,7 +1073,7 @@ class TestNetplanNetRendering(CiTestCase):
         render_target = 'netplan.yaml'
         renderer = netplan.Renderer(
             {'netplan_path': render_target, 'postcmds': False})
-        renderer.render_network_state(render_dir, ns)
+        renderer.render_network_state(ns, render_dir)
 
         self.assertTrue(os.path.exists(os.path.join(render_dir,
                                                     render_target)))
@@ -1178,7 +1178,7 @@ class TestNetplanPostcommands(CiTestCase):
         render_target = 'netplan.yaml'
         renderer = netplan.Renderer(
             {'netplan_path': render_target, 'postcmds': True})
-        renderer.render_network_state(render_dir, ns)
+        renderer.render_network_state(ns, render_dir)
 
         mock_netplan_generate.assert_called_with(run=True)
         mock_net_setup_link.assert_called_with(run=True)
@@ -1203,7 +1203,7 @@ class TestNetplanPostcommands(CiTestCase):
                        '/sys/class/net/lo'], capture=True),
         ]
         with mock.patch.object(os.path, 'islink', return_value=True):
-            renderer.render_network_state(render_dir, ns)
+            renderer.render_network_state(ns, render_dir)
             mock_subp.assert_has_calls(expected)
 
 
@@ -1354,9 +1354,9 @@ class TestCmdlineReadKernelConfig(CiTestCase):
 
 class TestNetplanRoundTrip(CiTestCase):
     def _render_and_read(self, network_config=None, state=None,
-                         netplan_path=None, dir=None):
-        if dir is None:
-            dir = self.tmp_dir()
+                         netplan_path=None, target=None):
+        if target is None:
+            target = self.tmp_dir()
 
         if network_config:
             ns = network_state.parse_net_config_data(network_config)
@@ -1371,8 +1371,8 @@ class TestNetplanRoundTrip(CiTestCase):
         renderer = netplan.Renderer(
             config={'netplan_path': netplan_path})
 
-        renderer.render_network_state(dir, ns)
-        return dir2dict(dir)
+        renderer.render_network_state(ns, target)
+        return dir2dict(target)
 
     def testsimple_render_small_netplan(self):
         entry = NETWORK_CONFIGS['small']
