@@ -558,6 +558,7 @@ iface eth0.101 inet static
     dns-nameservers 192.168.0.10 10.23.23.134
     dns-search barley.maas sacchromyces.maas brettanomyces.maas
     gateway 192.168.0.1
+    hwaddress aa:bb:cc:dd:ee:11
     mtu 1500
     vlan-raw-device eth0
     vlan_id 101
@@ -680,6 +681,7 @@ pre-down route del -net 10.0.0.0 netmask 255.0.0.0 gw 11.0.0.1 metric 3 || true
                         gateway4: 192.168.0.1
                         id: 101
                         link: eth0
+                        macaddress: aa:bb:cc:dd:ee:11
                         nameservers:
                             addresses:
                             - 192.168.0.10
@@ -723,6 +725,7 @@ pre-down route del -net 10.0.0.0 netmask 255.0.0.0 gw 11.0.0.1 metric 3 || true
                   name: eth0.101
                   vlan_link: eth0
                   vlan_id: 101
+                  mac_address: aa:bb:cc:dd:ee:11
                   mtu: 1500
                   subnets:
                     - type: static

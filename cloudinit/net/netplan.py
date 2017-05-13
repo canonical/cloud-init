@@ -345,7 +345,9 @@ class Renderer(renderer.Renderer):
                     'id': ifcfg.get('vlan_id'),
                     'link': ifcfg.get('vlan-raw-device')
                 }
-
+                macaddr = ifcfg.get('mac_address', None)
+                if macaddr is not None:
+                    vlan['macaddress'] = macaddr.lower()
                 _extract_addresses(ifcfg, vlan)
                 vlans.update({ifname: vlan})
 
