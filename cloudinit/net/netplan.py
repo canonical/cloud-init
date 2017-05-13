@@ -41,7 +41,7 @@ NET_CONFIG_TO_V2 = {
              'bond-num-grat-arp': 'gratuitious-arp',
              'bond-primary-reselect': 'primary-reselect-policy',
              'bond-updelay': 'up-delay',
-             'bond-xmit_hash_policy': 'transmit_hash_policy'},
+             'bond-xmit-hash-policy': 'transmit-hash-policy'},
     'bridge': {'bridge_ageing': 'ageing-time',
                'bridge_bridgeprio': 'priority',
                'bridge_fd': 'forward-delay',
@@ -294,7 +294,7 @@ class Renderer(renderer.Renderer):
                 for match in ['bond_', 'bond-']:
                     bond_params = _get_params_dict_by_match(ifcfg, match)
                     for (param, value) in bond_params.items():
-                        newname = v2_bond_map.get(param)
+                        newname = v2_bond_map.get(param.replace('_', '-'))
                         if newname is None:
                             continue
                         bond_config.update({newname: value})

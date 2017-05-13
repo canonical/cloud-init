@@ -483,11 +483,15 @@ auto eth1
 iface eth1 inet manual
     bond-master bond0
     bond-mode active-backup
+    bond-xmit-hash-policy layer3+4
+    bond_miimon 100
 
 auto eth2
 iface eth2 inet manual
     bond-master bond0
     bond-mode active-backup
+    bond-xmit-hash-policy layer3+4
+    bond_miimon 100
 
 iface eth3 inet manual
 
@@ -500,6 +504,8 @@ auto bond0
 iface bond0 inet6 dhcp
     bond-mode active-backup
     bond-slaves none
+    bond-xmit-hash-policy layer3+4
+    bond_miimon 100
     hwaddress aa:bb:cc:dd:ee:ff
 
 auto br0
@@ -625,7 +631,9 @@ pre-down route del -net 10.0.0.0 netmask 255.0.0.0 gw 11.0.0.1 metric 3 || true
                         - eth1
                         - eth2
                         parameters:
+                            mii-monitor-interval: 100
                             mode: active-backup
+                            transmit-hash-policy: layer3+4
                 bridges:
                     br0:
                         addresses:
@@ -716,6 +724,8 @@ pre-down route del -net 10.0.0.0 netmask 255.0.0.0 gw 11.0.0.1 metric 3 || true
                     - eth2
                   params:
                     bond-mode: active-backup
+                    bond_miimon: 100
+                    bond-xmit-hash-policy: "layer3+4"
                   subnets:
                     - type: dhcp6
                 # A Bond VLAN.
