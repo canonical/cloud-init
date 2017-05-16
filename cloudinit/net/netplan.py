@@ -4,7 +4,7 @@ import copy
 import os
 
 from . import renderer
-from .network_state import subnet_is_ipv6
+from .network_state import mask2cidr, subnet_is_ipv6
 
 from cloudinit import log as logging
 from cloudinit import util
@@ -118,9 +118,10 @@ def _extract_addresses(config, entry):
                 sn_type += '4'
             entry.update({sn_type: True})
         elif sn_type in ['static']:
-            addr = "%s" % subnet.get('address')
-            if 'netmask' in subnet:
-                addr += "/%s" % subnet.get('netmask')
+            addr = '%s' % subnet.get('address')
+            netmask = subnet.get('netmask')
+            if netmask and '/' not in addr:
+                addr += '/%s' % mask2cidr(netmask)
             if 'gateway' in subnet and subnet.get('gateway'):
                 gateway = subnet.get('gateway')
                 if ":" in gateway:
@@ -137,8 +138,9 @@ def _extract_addresses(config, entry):
                     mtukey += '6'
                 entry.update({mtukey: subnet.get('mtu')})
             for route in subnet.get('routes', []):
-                to_net = "%s/%s" % (route.get('network'),
-                                    route.get('netmask'))
+                network = route.get('network')
+                netmask = route.get('netmask')
+                to_net = '%s/%s' % (network, mask2cidr(netmask))
                 route = {
                     'via': route.get('gateway'),
                     'to': to_net,

@@ -406,7 +406,7 @@ NETWORK_CONFIGS = {
                             - sach.maas
                             - wark.maas
                         routes:
-                        -   to: 0.0.0.0/0.0.0.0
+                        -   to: 0.0.0.0/0
                             via: 65.61.151.37
                         set-name: eth99
         """).rstrip(' '),

@@ -127,7 +127,7 @@ network:
     ethernets:
         eth0:
             addresses:
-            - 192.168.1.5/255.255.255.0
+            - 192.168.1.5/24
             gateway4: 192.168.1.254
         eth1:
             dhcp4: true
