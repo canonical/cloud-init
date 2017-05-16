@@ -24,6 +24,7 @@ import platform
 import pwd
 import random
 import re
+import shlex
 import shutil
 import socket
 import stat
@@ -75,6 +76,7 @@ CONTAINER_TESTS = (['systemd-detect-virt', '--quiet', '--container'],
 PROC_CMDLINE = None
 
 _LSB_RELEASE = {}
+PY26 = sys.version_info[0:2] == (2, 6)
 
 
 def get_architecture(target=None):
@@ -2424,6 +2426,18 @@ def system_is_snappy():
     # channel.ini is configparser loadable.
     # snappy will move to using /etc/system-image/config.d/*.ini
     # this is certainly not a perfect test, but good enough for now.
+    orpath = "/etc/os-release"
+    try:
+        orinfo = load_shell_content(load_file(orpath, quiet=True))
+        if orinfo.get('ID', '').lower() == "ubuntu-core":
+            return True
+    except ValueError as e:
+        LOG.warning("Unexpected error loading '%s': %s", orpath, e)
+
+    cmdline = get_cmdline()
+    if 'snap_core=' in cmdline:
+        return True
+
     content = load_file("/etc/system-image/channel.ini", quiet=True)
     if 'ubuntu-core' in content.lower():
         return True
@@ -2468,6 +2482,29 @@ def rootdev_from_cmdline(cmdline):
         return disks_path
 
     return "/dev/" + found
+
+
+def load_shell_content(content, add_empty=False, empty_val=None):
+    """Given shell like syntax (key=value\nkey2=value2\n) in content
+       return the data in dictionary form.  If 'add_empty' is True
+       then add entries in to the returned dictionary for 'VAR='
+       variables.  Set their value to empty_val."""
+
+    def _shlex_split(blob):
+        if PY26 and isinstance(blob, six.text_type):
+            # Older versions don't support unicode input
+            blob = blob.encode("utf8")
+        return shlex.split(blob)
+
+    data = {}
+    for line in _shlex_split(content):
+        key, value = line.split("=", 1)
+        if not value:
+            value = empty_val
+        if add_empty or value:
+            data[key] = value
+
+    return data
 
 
 # vi: ts=4 expandtab

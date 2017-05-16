@@ -712,4 +712,73 @@ class TestProcessExecutionError(helpers.TestCase):
             )).format(description=self.empty_description,
                       empty_attr=self.empty_attr))
 
+
+class TestSystemIsSnappy(helpers.FilesystemMockingTestCase):
+    def test_id_in_os_release_quoted(self):
+        """os-release containing ID="ubuntu-core" is snappy."""
+        orcontent = '\n'.join(['ID="ubuntu-core"', ''])
+        root_d = self.tmp_dir()
+        helpers.populate_dir(root_d, {'etc/os-release': orcontent})
+        self.reRoot(root_d)
+        self.assertTrue(util.system_is_snappy())
+
+    def test_id_in_os_release(self):
+        """os-release containing ID=ubuntu-core is snappy."""
+        orcontent = '\n'.join(['ID=ubuntu-core', ''])
+        root_d = self.tmp_dir()
+        helpers.populate_dir(root_d, {'etc/os-release': orcontent})
+        self.reRoot(root_d)
+        self.assertTrue(util.system_is_snappy())
+
+    @mock.patch('cloudinit.util.get_cmdline')
+    def test_bad_content_in_os_release_no_effect(self, m_cmdline):
+        """malformed os-release should not raise exception."""
+        m_cmdline.return_value = 'root=/dev/sda'
+        orcontent = '\n'.join(['IDubuntu-core', ''])
+        root_d = self.tmp_dir()
+        helpers.populate_dir(root_d, {'etc/os-release': orcontent})
+        self.reRoot()
+        self.assertFalse(util.system_is_snappy())
+
+    @mock.patch('cloudinit.util.get_cmdline')
+    def test_snap_core_in_cmdline_is_snappy(self, m_cmdline):
+        """The string snap_core= in kernel cmdline indicates snappy."""
+        cmdline = (
+            "BOOT_IMAGE=(loop)/kernel.img root=LABEL=writable "
+            "snap_core=core_x1.snap snap_kernel=pc-kernel_x1.snap ro "
+            "net.ifnames=0 init=/lib/systemd/systemd console=tty1 "
+            "console=ttyS0 panic=-1")
+        m_cmdline.return_value = cmdline
+        self.assertTrue(util.system_is_snappy())
+        self.assertTrue(m_cmdline.call_count > 0)
+
+    @mock.patch('cloudinit.util.get_cmdline')
+    def test_nothing_found_is_not_snappy(self, m_cmdline):
+        """If no positive identification, then not snappy."""
+        m_cmdline.return_value = 'root=/dev/sda'
+        self.reRoot()
+        self.assertFalse(util.system_is_snappy())
+        self.assertTrue(m_cmdline.call_count > 0)
+
+    @mock.patch('cloudinit.util.get_cmdline')
+    def test_channel_ini_with_snappy_is_snappy(self, m_cmdline):
+        """A Channel.ini file with 'ubuntu-core' indicates snappy."""
+        m_cmdline.return_value = 'root=/dev/sda'
+        root_d = self.tmp_dir()
+        content = '\n'.join(["[Foo]", "source = 'ubuntu-core'", ""])
+        helpers.populate_dir(
+            root_d, {'etc/system-image/channel.ini': content})
+        self.reRoot(root_d)
+        self.assertTrue(util.system_is_snappy())
+
+    @mock.patch('cloudinit.util.get_cmdline')
+    def test_system_image_config_dir_is_snappy(self, m_cmdline):
+        """Existence of /etc/system-image/config.d indicates snappy."""
+        m_cmdline.return_value = 'root=/dev/sda'
+        root_d = self.tmp_dir()
+        helpers.populate_dir(
+            root_d, {'etc/system-image/config.d/my.file': "_unused"})
+        self.reRoot(root_d)
+        self.assertTrue(util.system_is_snappy())
+
 # vi: ts=4 expandtab

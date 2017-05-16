@@ -106,7 +106,7 @@ class CiTestCase(TestCase):
         return os.path.normpath(os.path.abspath(os.path.join(dir, path)))
 
 
-class ResourceUsingTestCase(TestCase):
+class ResourceUsingTestCase(CiTestCase):
     def setUp(self):
         super(ResourceUsingTestCase, self).setUp()
         self.resource_path = None
@@ -229,8 +229,7 @@ class FilesystemMockingTestCase(ResourceUsingTestCase):
 
     def reRoot(self, root=None):
         if root is None:
-            root = tempfile.mkdtemp()
-            self.addCleanup(shutil.rmtree, root)
+            root = self.tmp_dir()
         self.patchUtils(root)
         self.patchOS(root)
         return root
@@ -256,7 +255,7 @@ def populate_dir(path, files):
         os.makedirs(path)
     ret = []
     for (name, content) in files.items():
-        p = os.path.join(path, name)
+        p = os.path.sep.join([path, name])
         util.ensure_dir(os.path.dirname(p))
         with open(p, "wb") as fp:
             if isinstance(content, six.binary_type):
