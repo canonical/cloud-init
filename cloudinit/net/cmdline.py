@@ -100,6 +100,11 @@ def _klibc_to_config_entry(content, mac_addrs=None):
         cur_proto = data.get(pre + 'PROTO', proto)
         subnet = {'type': cur_proto, 'control': 'manual'}
 
+        # only populate address for static types. While the rendered config
+        # may have an address for dhcp, that is not really expected.
+        if cur_proto == 'static':
+            subnet['address'] = data[pre + 'ADDR']
+
         # these fields go right on the subnet
         for key in ('NETMASK', 'BROADCAST', 'GATEWAY'):
             if pre + key in data:

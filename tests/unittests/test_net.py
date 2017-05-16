@@ -100,7 +100,8 @@ STATIC_EXPECTED_1 = {
                  'gateway': '10.0.0.1',
                  'dns_search': ['foo.com'], 'type': 'static',
                  'netmask': '255.255.255.0',
-                 'dns_nameservers': ['10.0.1.1']}],
+                 'dns_nameservers': ['10.0.1.1'],
+                 'address': '10.0.0.2'}],
 }
 
 # Examples (and expected outputs for various renderers).
