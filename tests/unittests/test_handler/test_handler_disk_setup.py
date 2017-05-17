@@ -202,9 +202,11 @@ class TestMkfsCommandHandling(TestCase):
         subp.assert_called_once_with(
             'mkfs -t ext4 -L with_cmd /dev/xdb1', shell=True)
 
-    def test_overwrite_and_extra_opts_without_cmd(self, subp, *args):
+    @mock.patch('cloudinit.config.cc_disk_setup.util.which')
+    def test_overwrite_and_extra_opts_without_cmd(self, m_which, subp, *args):
         """mkfs observes extra_opts and overwrite settings when cmd is not
         present."""
+        m_which.side_effect = lambda p: {'mkfs.ext4': '/sbin/mkfs.ext4'}[p]
         cc_disk_setup.mkfs({
             'filesystem': 'ext4',
             'device': '/dev/xdb1',
