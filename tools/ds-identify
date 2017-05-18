@@ -963,10 +963,11 @@ found() {
         # do not pass an empty line through.
         shift
     fi
-    # always write the None datasource last.
-    if [ "$list" != "None" ]; then
-        list="${list:+${list}, }None"
-    fi
+    # if None is not already in the list, then add it last.
+    case " $list " in
+        *\ None,\ *|*\ None\ ) :;;
+        *) list=${list:+${list}, None};;
+    esac
     write_result "datasource_list: [ $list ]" "$@"
     return
 }

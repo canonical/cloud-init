@@ -210,6 +210,13 @@ class TestDsIdentify(CiTestCase):
         mydata['files'][cfgpath] = 'datasource_list: ["NoCloud"]\n'
         self._check_via_dict(mydata, rc=RC_FOUND, dslist=['NoCloud', DS_NONE])
 
+    def test_configured_list_with_none(self):
+        """If user set a datasource_list, that should be used."""
+        mydata = copy.deepcopy(VALID_CFG['GCE'])
+        cfgpath = 'etc/cloud/cloud.cfg.d/myds.cfg'
+        mydata['files'][cfgpath] = 'datasource_list: ["Ec2", "None"]\n'
+        self._check_via_dict(mydata, rc=RC_FOUND, dslist=['Ec2', DS_NONE])
+
 
 def blkid_out(disks=None):
     """Convert a list of disk dictionaries into blkid content."""
