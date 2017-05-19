@@ -431,7 +431,7 @@ def get_dyn_func(*args):
         raise Exception("No such function %s to call!" % func_name)
 
 
-def get_mbr_hdd_size(device):
+def get_hdd_size(device):
     try:
         size_in_bytes, _ = util.subp([BLKDEV_CMD, '--getsize64', device])
         sector_size, _ = util.subp([BLKDEV_CMD, '--getss', device])
@@ -439,22 +439,6 @@ def get_mbr_hdd_size(device):
         raise Exception("Failed to get %s size\n%s" % (device, e))
 
     return int(size_in_bytes) / int(sector_size)
-
-
-def get_gpt_hdd_size(device):
-    out, _ = util.subp([SGDISK_CMD, '-p', device], update_env=LANG_C_ENV)
-    for line in out.splitlines():
-        if line.startswith("Disk"):
-            return line.split()[2]
-    raise Exception("Failed to get %s size from sgdisk" % (device))
-
-
-def get_hdd_size(table_type, device):
-    """
-    Returns the hard disk size.
-    This works with any disk type, including GPT.
-    """
-    return get_dyn_func("get_%s_hdd_size", table_type, device)
 
 
 def check_partition_mbr_layout(device, layout):
@@ -504,12 +488,35 @@ def check_partition_gpt_layout(device, layout):
                         device, e))
 
     out_lines = iter(out.splitlines())
-    # Skip header
+    # Skip header.  Output looks like:
+    # ***************************************************************
+    # Found invalid GPT and valid MBR; converting MBR to GPT format
+    # in memory.
+    # ***************************************************************
+    #
+    # Disk /dev/vdb: 83886080 sectors, 40.0 GiB
+    # Logical sector size: 512 bytes
+    # Disk identifier (GUID): 8A7F11AD-3953-491B-8051-077E01C8E9A7
+    # Partition table holds up to 128 entries
+    # First usable sector is 34, last usable sector is 83886046
+    # Partitions will be aligned on 2048-sector boundaries
+    # Total free space is 83476413 sectors (39.8 GiB)
+    #
+    # Number Start (sector) End (sector) Size       Code  Name
+    # 1      2048           206847       100.0 MiB  0700  Microsoft basic data
     for line in out_lines:
         if line.strip().startswith('Number'):
             break
 
-    return [line.strip().split()[-1] for line in out_lines]
+    codes = [line.strip().split()[5] for line in out_lines]
+    cleaned = []
+
+    # user would expect a code '83' to be Linux, but sgdisk outputs 8300.
+    for code in codes:
+        if len(code) == 4 and code.endswith("00"):
+            code = code[0:2]
+        cleaned.append(code)
+    return cleaned
 
 
 def check_partition_layout(table_type, device, layout):
@@ -523,6 +530,8 @@ def check_partition_layout(table_type, device, layout):
     found_layout = get_dyn_func(
         "check_partition_%s_layout", table_type, device, layout)
 
+    LOG.debug("called check_partition_%s_layout(%s, %s), returned: %s",
+              table_type, device, layout, found_layout)
     if isinstance(layout, bool):
         # if we are using auto partitioning, or "True" be happy
         # if a single partition exists.
@@ -530,18 +539,17 @@ def check_partition_layout(table_type, device, layout):
             return True
         return False
 
-    else:
-        if len(found_layout) != len(layout):
-            return False
-        else:
-            # This just makes sure that the number of requested
-            # partitions and the type labels are right
-            for x in range(1, len(layout) + 1):
-                if isinstance(layout[x - 1], tuple):
-                    _, part_type = layout[x]
-                    if int(found_layout[x]) != int(part_type):
-                        return False
-            return True
+    elif len(found_layout) == len(layout):
+        # This just makes sure that the number of requested
+        # partitions and the type labels are right
+        layout_types = [str(x[1]) if isinstance(x, (tuple, list)) else None
+                        for x in layout]
+        LOG.debug("Layout types=%s. Found types=%s",
+                  layout_types, found_layout)
+        for itype, ftype in zip(layout_types, found_layout):
+            if itype is not None and str(ftype) != str(itype):
+                return False
+        return True
 
     return False
 
@@ -704,9 +712,11 @@ def exec_mkpart_gpt(device, layout):
             util.subp([SGDISK_CMD,
                        '-n', '{}:{}:{}'.format(index, start, end), device])
             if partition_type is not None:
+                # convert to a 4 char (or more) string right padded with 0
+                # 82 -> 8200.  'Linux' -> 'Linux'
+                pinput = str(partition_type).ljust(4, "0")
                 util.subp(
-                    [SGDISK_CMD,
-                     '-t', '{}:{}'.format(index, partition_type), device])
+                    [SGDISK_CMD, '-t', '{}:{}'.format(index, pinput), device])
     except Exception:
         LOG.warning("Failed to partition device %s", device)
         raise
@@ -777,8 +787,8 @@ def mkpart(device, definition):
         LOG.debug("Skipping partitioning on configured device %s", device)
         return
 
-    LOG.debug("Checking for device size")
-    device_size = get_hdd_size(table_type, device)
+    LOG.debug("Checking for device size of %s", device)
+    device_size = get_hdd_size(device)
 
     LOG.debug("Calculating partition layout")
     part_definition = get_partition_layout(table_type, device_size, layout)

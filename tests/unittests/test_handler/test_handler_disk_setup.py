@@ -66,7 +66,7 @@ class TestGetMbrHddSize(TestCase):
         size_in_sectors = size_in_bytes / sector_size
         self._configure_subp_mock(size_in_bytes, sector_size)
         self.assertEqual(size_in_sectors,
-                         cc_disk_setup.get_mbr_hdd_size('/dev/sda1'))
+                         cc_disk_setup.get_hdd_size('/dev/sda1'))
 
     def test_size_for_512_byte_sectors(self):
         self._test_for_sector_size(512)
