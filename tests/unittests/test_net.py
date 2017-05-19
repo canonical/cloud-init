@@ -1542,24 +1542,24 @@ class TestNetRenderers(CiTestCase):
 
 
 class TestGetInterfacesByMac(CiTestCase):
-    _data = {'devices': ['enp0s1', 'enp0s2', 'bond1', 'bridge1',
-                         'bridge1-nic', 'tun0', 'bond1.101'],
-             'bonds': ['bond1'],
+    _data = {'bonds': ['bond1'],
              'bridges': ['bridge1'],
              'vlans': ['bond1.101'],
              'own_macs': ['enp0s1', 'enp0s2', 'bridge1-nic', 'bridge1',
-                          'bond1.101'],
+                          'bond1.101', 'lo'],
              'macs': {'enp0s1': 'aa:aa:aa:aa:aa:01',
                       'enp0s2': 'aa:aa:aa:aa:aa:02',
                       'bond1': 'aa:aa:aa:aa:aa:01',
                       'bond1.101': 'aa:aa:aa:aa:aa:01',
                       'bridge1': 'aa:aa:aa:aa:aa:03',
                       'bridge1-nic': 'aa:aa:aa:aa:aa:03',
+                      'lo': '00:00:00:00:00:00',
+                      'greptap0': '00:00:00:00:00:00',
                       'tun0': None}}
     data = {}
 
     def _se_get_devicelist(self):
-        return self.data['devices']
+        return list(self.data['devices'])
 
     def _se_get_interface_mac(self, name):
         return self.data['macs'][name]
@@ -1575,6 +1575,7 @@ class TestGetInterfacesByMac(CiTestCase):
 
     def _mock_setup(self):
         self.data = copy.deepcopy(self._data)
+        self.data['devices'] = set(list(self.data['macs'].keys()))
         mocks = ('get_devicelist', 'get_interface_mac', 'is_bridge',
                  'interface_has_own_mac', 'is_vlan')
         self.mocks = {}
@@ -1602,7 +1603,7 @@ class TestGetInterfacesByMac(CiTestCase):
             [mock.call('enp0s1'), mock.call('bond1')], any_order=True)
         self.assertEqual(
             {'aa:aa:aa:aa:aa:01': 'enp0s1', 'aa:aa:aa:aa:aa:02': 'enp0s2',
-             'aa:aa:aa:aa:aa:03': 'bridge1-nic'},
+             'aa:aa:aa:aa:aa:03': 'bridge1-nic', '00:00:00:00:00:00': 'lo'},
             ret)
 
     def test_excludes_bridges(self):
@@ -1611,7 +1612,7 @@ class TestGetInterfacesByMac(CiTestCase):
         # set everything other than 'b1' to be a bridge.
         # then expect b1 is the only thing left.
         self.data['macs']['b1'] = 'aa:aa:aa:aa:aa:b1'
-        self.data['devices'].append('b1')
+        self.data['devices'].add('b1')
         self.data['bonds'] = []
         self.data['own_macs'] = self.data['devices']
         self.data['bridges'] = [f for f in self.data['devices'] if f != "b1"]
@@ -1628,7 +1629,7 @@ class TestGetInterfacesByMac(CiTestCase):
         # set everything other than 'b1' to be a vlan.
         # then expect b1 is the only thing left.
         self.data['macs']['b1'] = 'aa:aa:aa:aa:aa:b1'
-        self.data['devices'].append('b1')
+        self.data['devices'].add('b1')
         self.data['bonds'] = []
         self.data['bridges'] = []
         self.data['own_macs'] = self.data['devices']
@@ -1639,6 +1640,16 @@ class TestGetInterfacesByMac(CiTestCase):
             [mock.call('bridge1'), mock.call('enp0s1'), mock.call('bond1'),
              mock.call('b1')],
             any_order=True)
+
+    def test_duplicates_of_empty_mac_are_ok(self):
+        """Duplicate macs of 00:00:00:00:00:00 should be skipped."""
+        self._mock_setup()
+        empty_mac = "00:00:00:00:00:00"
+        addnics = ('greptap1', 'lo', 'greptap2')
+        self.data['macs'].update(dict((k, empty_mac) for k in addnics))
+        self.data['devices'].update(set(addnics))
+        ret = net.get_interfaces_by_mac()
+        self.assertEqual('lo', ret[empty_mac])
 
 
 def _gzip_data(data):
