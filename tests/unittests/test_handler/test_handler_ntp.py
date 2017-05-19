@@ -249,6 +249,8 @@ class TestNtp(FilesystemMockingTestCase):
             }
         }
         mycloud = self._get_cloud('ubuntu')
+        mycloud.distro = mock.MagicMock()
+        mycloud.distro.uses_systemd.return_value = True
         side_effect = [NTP_TEMPLATE.lstrip()]
 
         with mock.patch.object(util, 'which', return_value=None):
@@ -259,13 +261,70 @@ class TestNtp(FilesystemMockingTestCase):
                         with mock.patch.object(os.path, 'isfile',
                                                return_value=True):
                             with mock.patch.object(util, 'rename'):
-                                cc_ntp.handle("notimportant", cfg,
-                                              mycloud, LOG, None)
+                                with mock.patch.object(util, 'subp') as msubp:
+                                    cc_ntp.handle("notimportant", cfg,
+                                                  mycloud, LOG, None)
 
         mockwrite.assert_called_once_with(
             '/etc/ntp.conf',
             NTP_EXPECTED_UBUNTU,
             mode=420)
+        msubp.assert_any_call(['systemctl', 'reload-or-restart', 'ntp'],
+                              capture=True)
+
+    @mock.patch("cloudinit.config.cc_ntp.install_ntp")
+    @mock.patch("cloudinit.config.cc_ntp.write_ntp_config_template")
+    @mock.patch("cloudinit.config.cc_ntp.rename_ntp_conf")
+    def test_write_config_before_install(self, mock_ntp_rename,
+                                         mock_ntp_write_config,
+                                         mock_install_ntp):
+        pools = ['0.mycompany.pool.ntp.org']
+        servers = ['192.168.23.3']
+        cfg = {
+            'ntp': {
+                'pools': pools,
+                'servers': servers,
+            }
+        }
+        cc = self._get_cloud('ubuntu')
+        cc.distro = mock.MagicMock()
+        mock_parent = mock.MagicMock()
+        mock_parent.attach_mock(mock_ntp_rename, 'mock_ntp_rename')
+        mock_parent.attach_mock(mock_ntp_write_config, 'mock_ntp_write_config')
+        mock_parent.attach_mock(mock_install_ntp, 'mock_install_ntp')
+
+        cc_ntp.handle('cc_ntp', cfg, cc, LOG, None)
+
+        """Check call order"""
+        mock_parent.assert_has_calls([
+            mock.call.mock_ntp_rename(),
+            mock.call.mock_ntp_write_config(cfg.get('ntp'), cc),
+            mock.call.mock_install_ntp(cc.distro.install_packages,
+                                       packages=['ntp'], check_exe="ntpd")])
+
+    @mock.patch("cloudinit.config.cc_ntp.reload_ntp")
+    @mock.patch("cloudinit.config.cc_ntp.install_ntp")
+    @mock.patch("cloudinit.config.cc_ntp.write_ntp_config_template")
+    @mock.patch("cloudinit.config.cc_ntp.rename_ntp_conf")
+    def test_reload_ntp_fail_raises_exception(self, mock_rename,
+                                              mock_write_conf,
+                                              mock_install,
+                                              mock_reload):
+        pools = ['0.mycompany.pool.ntp.org']
+        servers = ['192.168.23.3']
+        cfg = {
+            'ntp': {
+                'pools': pools,
+                'servers': servers,
+            }
+        }
+        cc = self._get_cloud('ubuntu')
+        cc.distro = mock.MagicMock()
+
+        mock_reload.side_effect = [util.ProcessExecutionError]
+        self.assertRaises(util.ProcessExecutionError,
+                          cc_ntp.handle, 'cc_ntp',
+                          cfg, cc, LOG, None)
 
     @mock.patch("cloudinit.config.cc_ntp.util")
     def test_no_ntpcfg_does_nothing(self, mock_util):
@@ -274,5 +333,20 @@ class TestNtp(FilesystemMockingTestCase):
         cc_ntp.handle('cc_ntp', {}, cc, LOG, [])
         self.assertFalse(cc.distro.install_packages.called)
         self.assertFalse(mock_util.subp.called)
+
+    @mock.patch("cloudinit.config.cc_ntp.util")
+    def test_reload_ntp_systemd(self, mock_util):
+        cc_ntp.reload_ntp(systemd=True)
+        self.assertTrue(mock_util.subp.called)
+        mock_util.subp.assert_called_with(
+            ['systemctl', 'reload-or-restart', 'ntp'], capture=True)
+
+    @mock.patch("cloudinit.config.cc_ntp.util")
+    def test_reload_ntp_service(self, mock_util):
+        cc_ntp.reload_ntp(systemd=False)
+        self.assertTrue(mock_util.subp.called)
+        mock_util.subp.assert_called_with(
+            ['service', 'ntp', 'restart'], capture=True)
+
 
 # vi: ts=4 expandtab

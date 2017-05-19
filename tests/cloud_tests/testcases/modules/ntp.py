@@ -13,9 +13,9 @@ class TestNtp(base.CloudTestCase):
         self.assertEqual(1, int(out))
 
     def test_ntp_dist_entries(self):
-        """Test dist config file has one entry"""
+        """Test dist config file is empty"""
         out = self.get_data_file('ntp_conf_dist_empty')
-        self.assertEqual(1, int(out))
+        self.assertEqual(0, int(out))
 
     def test_ntp_entires(self):
         """Test config entries"""
