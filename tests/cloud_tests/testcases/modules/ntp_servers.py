@@ -17,8 +17,8 @@ class TestNtpServers(base.CloudTestCase):
         out = self.get_data_file('ntp_conf_dist_servers')
         self.assertEqual(0, int(out))
 
-    def test_ntp_entires(self):
-        """Test config pools entries"""
+    def test_ntp_entries(self):
+        """Test config server entries"""
         out = self.get_data_file('ntp_conf_servers')
         servers = self.cloud_config.get('ntp').get('servers')
         for server in servers:
