@@ -19,7 +19,7 @@ class TestNtpServers(base.CloudTestCase):
 
     def test_ntp_entires(self):
         """Test config pools entries"""
-        out = self.get_data_file('ntp_conf_pools')
+        out = self.get_data_file('ntp_conf_servers')
         servers = self.cloud_config.get('ntp').get('servers')
         for server in servers:
             self.assertIn('server %s iburst' % server, out)
