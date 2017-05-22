@@ -478,10 +478,11 @@ def decomp_gzip(data, quiet=True, decode=True):
     try:
         buf = six.BytesIO(encode_text(data))
         with contextlib.closing(gzip.GzipFile(None, "rb", 1, buf)) as gh:
+            # E1101 is https://github.com/PyCQA/pylint/issues/1444
             if decode:
-                return decode_binary(gh.read())
+                return decode_binary(gh.read())  # pylint: disable=E1101
             else:
-                return gh.read()
+                return gh.read()  # pylint: disable=E1101
     except Exception as e:
         if quiet:
             return data
