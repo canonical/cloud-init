@@ -393,6 +393,7 @@ def get_interfaces_by_mac():
         else:
             raise
     ret = {}
+    empty_mac = '00:00:00:00:00:00'
     for name in devs:
         if not interface_has_own_mac(name):
             continue
@@ -403,6 +404,8 @@ def get_interfaces_by_mac():
         mac = get_interface_mac(name)
         # some devices may not have a mac (tun0)
         if not mac:
+            continue
+        if mac == empty_mac and name != 'lo':
             continue
         if mac in ret:
             raise RuntimeError(

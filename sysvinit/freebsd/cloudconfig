@@ -7,23 +7,13 @@
 . /etc/rc.subr
 
 PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
-export CLOUD_CFG=/usr/local/etc/cloud/cloud.cfg
 
 name="cloudconfig"
 command="/usr/local/bin/cloud-init"
 start_cmd="cloudconfig_start"
 stop_cmd=":"
 rcvar="cloudinit_enable"
-start_precmd="cloudinit_override"
 start_cmd="cloudconfig_start"
-
-cloudinit_override()
-{
-	# If there exist sysconfig/defaults variable override files use it...
-	if [ -f /etc/defaults/cloud-init ]; then
-		. /etc/defaults/cloud-init
-	fi
-}
 
 cloudconfig_start()
 {

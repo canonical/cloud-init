@@ -68,6 +68,6 @@ class TestReadOvfEnv(test_helpers.TestCase):
         md, ud, cfg = dsovf.read_ovf_environment(env)
         self.assertEqual({"instance-id": "inst-001"}, md)
         self.assertEqual({'password': "passw0rd"}, cfg)
-        self.assertEqual(None, ud)
+        self.assertIsNone(ud)
 
 # vi: ts=4 expandtab

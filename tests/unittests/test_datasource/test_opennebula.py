@@ -126,14 +126,14 @@ class TestOpenNebulaDataSource(TestCase):
         populate_dir(self.seed_dir, {'context.sh': ''})
         results = ds.read_context_disk_dir(self.seed_dir)
 
-        self.assertEqual(results['userdata'], None)
+        self.assertIsNone(results['userdata'])
         self.assertEqual(results['metadata'], {})
 
     def test_seed_dir_empty2_context(self):
         populate_context_dir(self.seed_dir, {})
         results = ds.read_context_disk_dir(self.seed_dir)
 
-        self.assertEqual(results['userdata'], None)
+        self.assertIsNone(results['userdata'])
         self.assertEqual(results['metadata'], {})
 
     def test_seed_dir_broken_context(self):

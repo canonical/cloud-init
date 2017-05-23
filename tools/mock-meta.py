@@ -21,8 +21,8 @@ import functools
 import json
 import logging
 import os
-import socket
 import random
+import socket
 import string
 import sys
 import yaml

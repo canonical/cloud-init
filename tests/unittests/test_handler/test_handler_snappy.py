@@ -419,7 +419,7 @@ class TestSnapConfig(FilesystemMockingTestCase):
 
     def test_snap_config_add_snap_user_no_config(self):
         usercfg = add_snap_user(cfg=None)
-        self.assertEqual(usercfg, None)
+        self.assertIsNone(usercfg)
 
     def test_snap_config_add_snap_user_not_dict(self):
         cfg = ['foobar']
@@ -428,7 +428,7 @@ class TestSnapConfig(FilesystemMockingTestCase):
     def test_snap_config_add_snap_user_no_email(self):
         cfg = {'assertions': [], 'known': True}
         usercfg = add_snap_user(cfg=cfg)
-        self.assertEqual(usercfg, None)
+        self.assertIsNone(usercfg)
 
     @mock.patch('cloudinit.config.cc_snap_config.util')
     def test_snap_config_add_snap_user_email_only(self, mock_util):

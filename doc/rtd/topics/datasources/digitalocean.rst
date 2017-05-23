@@ -1,3 +1,5 @@
+.. _datasource_digital_ocean:
+
 Digital Ocean
 =============
 

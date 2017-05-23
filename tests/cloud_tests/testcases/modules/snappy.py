@@ -9,10 +9,7 @@ class TestSnappy(base.CloudTestCase):
 
     def test_snappy_version(self):
         """Test snappy version output"""
-        out = self.get_data_file('snap_version')
-        self.assertIn('snap ', out)
-        self.assertIn('snapd ', out)
-        self.assertIn('series ', out)
-        self.assertIn('ubuntu ', out)
+        out = self.get_data_file('snapd')
+        self.assertIn('Status: install ok installed', out)
 
 # vi: ts=4 expandtab

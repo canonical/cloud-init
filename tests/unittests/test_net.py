@@ -100,7 +100,8 @@ STATIC_EXPECTED_1 = {
                  'gateway': '10.0.0.1',
                  'dns_search': ['foo.com'], 'type': 'static',
                  'netmask': '255.255.255.0',
-                 'dns_nameservers': ['10.0.1.1']}],
+                 'dns_nameservers': ['10.0.1.1'],
+                 'address': '10.0.0.2'}],
 }
 
 # Examples (and expected outputs for various renderers).
@@ -136,7 +137,7 @@ OS_SAMPLES = [
              """
 # Created by cloud-init on instance boot automatically, do not edit.
 #
-BOOTPROTO=static
+BOOTPROTO=none
 DEFROUTE=yes
 DEVICE=eth0
 GATEWAY=172.19.3.254
@@ -204,38 +205,14 @@ nameserver 172.19.0.12
 # Created by cloud-init on instance boot automatically, do not edit.
 #
 BOOTPROTO=none
-DEVICE=eth0
-HWADDR=fa:16:3e:ed:9a:59
-NM_CONTROLLED=no
-ONBOOT=yes
-TYPE=Ethernet
-USERCTL=no
-""".lstrip()),
-            ('etc/sysconfig/network-scripts/ifcfg-eth0:0',
-             """
-# Created by cloud-init on instance boot automatically, do not edit.
-#
-BOOTPROTO=static
 DEFROUTE=yes
-DEVICE=eth0:0
+DEVICE=eth0
 GATEWAY=172.19.3.254
 HWADDR=fa:16:3e:ed:9a:59
 IPADDR=172.19.1.34
+IPADDR1=10.0.0.10
 NETMASK=255.255.252.0
-NM_CONTROLLED=no
-ONBOOT=yes
-TYPE=Ethernet
-USERCTL=no
-""".lstrip()),
-            ('etc/sysconfig/network-scripts/ifcfg-eth0:1',
-             """
-# Created by cloud-init on instance boot automatically, do not edit.
-#
-BOOTPROTO=static
-DEVICE=eth0:1
-HWADDR=fa:16:3e:ed:9a:59
-IPADDR=10.0.0.10
-NETMASK=255.255.255.0
+NETMASK1=255.255.255.0
 NM_CONTROLLED=no
 ONBOOT=yes
 TYPE=Ethernet
@@ -265,7 +242,7 @@ nameserver 172.19.0.12
                 }],
                 "ip_address": "172.19.1.34", "id": "network0"
             }, {
-                "network_id": "public-ipv6",
+                "network_id": "public-ipv6-a",
                 "type": "ipv6", "netmask": "",
                 "link": "tap1a81968a-79",
                 "routes": [
@@ -276,6 +253,20 @@ nameserver 172.19.0.12
                     }
                 ],
                 "ip_address": "2001:DB8::10", "id": "network1"
+            }, {
+                "network_id": "public-ipv6-b",
+                "type": "ipv6", "netmask": "64",
+                "link": "tap1a81968a-79",
+                "routes": [
+                ],
+                "ip_address": "2001:DB9::10", "id": "network2"
+            }, {
+                "network_id": "public-ipv6-c",
+                "type": "ipv6", "netmask": "64",
+                "link": "tap1a81968a-79",
+                "routes": [
+                ],
+                "ip_address": "2001:DB10::10", "id": "network3"
             }],
             "links": [
                 {
@@ -295,41 +286,16 @@ nameserver 172.19.0.12
 # Created by cloud-init on instance boot automatically, do not edit.
 #
 BOOTPROTO=none
-DEVICE=eth0
-HWADDR=fa:16:3e:ed:9a:59
-NM_CONTROLLED=no
-ONBOOT=yes
-TYPE=Ethernet
-USERCTL=no
-""".lstrip()),
-            ('etc/sysconfig/network-scripts/ifcfg-eth0:0',
-             """
-# Created by cloud-init on instance boot automatically, do not edit.
-#
-BOOTPROTO=static
 DEFROUTE=yes
-DEVICE=eth0:0
+DEVICE=eth0
 GATEWAY=172.19.3.254
 HWADDR=fa:16:3e:ed:9a:59
 IPADDR=172.19.1.34
-NETMASK=255.255.252.0
-NM_CONTROLLED=no
-ONBOOT=yes
-TYPE=Ethernet
-USERCTL=no
-""".lstrip()),
-            ('etc/sysconfig/network-scripts/ifcfg-eth0:1',
-             """
-# Created by cloud-init on instance boot automatically, do not edit.
-#
-BOOTPROTO=static
-DEFROUTE=yes
-DEVICE=eth0:1
-HWADDR=fa:16:3e:ed:9a:59
 IPV6ADDR=2001:DB8::10
+IPV6ADDR_SECONDARIES="2001:DB9::10/64 2001:DB10::10/64"
 IPV6INIT=yes
 IPV6_DEFAULTGW=2001:DB8::1
-NETMASK=
+NETMASK=255.255.252.0
 NM_CONTROLLED=no
 ONBOOT=yes
 TYPE=Ethernet
@@ -557,6 +523,7 @@ iface eth0.101 inet static
     dns-nameservers 192.168.0.10 10.23.23.134
     dns-search barley.maas sacchromyces.maas brettanomyces.maas
     gateway 192.168.0.1
+    hwaddress aa:bb:cc:dd:ee:11
     mtu 1500
     vlan-raw-device eth0
     vlan_id 101
@@ -679,6 +646,7 @@ pre-down route del -net 10.0.0.0 netmask 255.0.0.0 gw 11.0.0.1 metric 3 || true
                         gateway4: 192.168.0.1
                         id: 101
                         link: eth0
+                        macaddress: aa:bb:cc:dd:ee:11
                         nameservers:
                             addresses:
                             - 192.168.0.10
@@ -722,6 +690,7 @@ pre-down route del -net 10.0.0.0 netmask 255.0.0.0 gw 11.0.0.1 metric 3 || true
                   name: eth0.101
                   vlan_link: eth0
                   vlan_id: 101
+                  mac_address: aa:bb:cc:dd:ee:11
                   mtu: 1500
                   subnets:
                     - type: static
@@ -880,6 +849,82 @@ USERCTL=no
 """.lstrip()
             self.assertEqual(expected_content, content)
 
+    def test_multiple_ipv4_default_gateways(self):
+        """ValueError is raised when duplicate ipv4 gateways exist."""
+        net_json = {
+            "services": [{"type": "dns", "address": "172.19.0.12"}],
+            "networks": [{
+                "network_id": "dacd568d-5be6-4786-91fe-750c374b78b4",
+                "type": "ipv4", "netmask": "255.255.252.0",
+                "link": "tap1a81968a-79",
+                "routes": [{
+                    "netmask": "0.0.0.0",
+                    "network": "0.0.0.0",
+                    "gateway": "172.19.3.254",
+                }, {
+                    "netmask": "0.0.0.0",  # A second default gateway
+                    "network": "0.0.0.0",
+                    "gateway": "172.20.3.254",
+                }],
+                "ip_address": "172.19.1.34", "id": "network0"
+            }],
+            "links": [
+                {
+                    "ethernet_mac_address": "fa:16:3e:ed:9a:59",
+                    "mtu": None, "type": "bridge", "id":
+                    "tap1a81968a-79",
+                    "vif_id": "1a81968a-797a-400f-8a80-567f997eb93f"
+                },
+            ],
+        }
+        macs = {'fa:16:3e:ed:9a:59': 'eth0'}
+        render_dir = self.tmp_dir()
+        network_cfg = openstack.convert_net_json(net_json, known_macs=macs)
+        ns = network_state.parse_net_config_data(network_cfg,
+                                                 skip_broken=False)
+        renderer = sysconfig.Renderer()
+        with self.assertRaises(ValueError):
+            renderer.render_network_state(ns, render_dir)
+        self.assertEqual([], os.listdir(render_dir))
+
+    def test_multiple_ipv6_default_gateways(self):
+        """ValueError is raised when duplicate ipv6 gateways exist."""
+        net_json = {
+            "services": [{"type": "dns", "address": "172.19.0.12"}],
+            "networks": [{
+                "network_id": "public-ipv6",
+                "type": "ipv6", "netmask": "",
+                "link": "tap1a81968a-79",
+                "routes": [{
+                    "gateway": "2001:DB8::1",
+                    "netmask": "::",
+                    "network": "::"
+                }, {
+                    "gateway": "2001:DB9::1",
+                    "netmask": "::",
+                    "network": "::"
+                }],
+                "ip_address": "2001:DB8::10", "id": "network1"
+            }],
+            "links": [
+                {
+                    "ethernet_mac_address": "fa:16:3e:ed:9a:59",
+                    "mtu": None, "type": "bridge", "id":
+                    "tap1a81968a-79",
+                    "vif_id": "1a81968a-797a-400f-8a80-567f997eb93f"
+                },
+            ],
+        }
+        macs = {'fa:16:3e:ed:9a:59': 'eth0'}
+        render_dir = self.tmp_dir()
+        network_cfg = openstack.convert_net_json(net_json, known_macs=macs)
+        ns = network_state.parse_net_config_data(network_cfg,
+                                                 skip_broken=False)
+        renderer = sysconfig.Renderer()
+        with self.assertRaises(ValueError):
+            renderer.render_network_state(ns, render_dir)
+        self.assertEqual([], os.listdir(render_dir))
+
     def test_openstack_rendering_samples(self):
         for os_sample in OS_SAMPLES:
             render_dir = self.tmp_dir()
@@ -996,7 +1041,7 @@ class TestNetplanNetRendering(CiTestCase):
         render_target = 'netplan.yaml'
         renderer = netplan.Renderer(
             {'netplan_path': render_target, 'postcmds': False})
-        renderer.render_network_state(render_dir, ns)
+        renderer.render_network_state(ns, render_dir)
 
         self.assertTrue(os.path.exists(os.path.join(render_dir,
                                                     render_target)))
@@ -1101,7 +1146,7 @@ class TestNetplanPostcommands(CiTestCase):
         render_target = 'netplan.yaml'
         renderer = netplan.Renderer(
             {'netplan_path': render_target, 'postcmds': True})
-        renderer.render_network_state(render_dir, ns)
+        renderer.render_network_state(ns, render_dir)
 
         mock_netplan_generate.assert_called_with(run=True)
         mock_net_setup_link.assert_called_with(run=True)
@@ -1120,14 +1165,14 @@ class TestNetplanPostcommands(CiTestCase):
         render_target = 'netplan.yaml'
         renderer = netplan.Renderer(
             {'netplan_path': render_target, 'postcmds': True})
-        renderer.render_network_state(render_dir, ns)
-
         expected = [
             mock.call(['netplan', 'generate'], capture=True),
             mock.call(['udevadm', 'test-builtin', 'net_setup_link',
                        '/sys/class/net/lo'], capture=True),
         ]
-        mock_subp.assert_has_calls(expected)
+        with mock.patch.object(os.path, 'islink', return_value=True):
+            renderer.render_network_state(ns, render_dir)
+            mock_subp.assert_has_calls(expected)
 
 
 class TestEniNetworkStateToEni(CiTestCase):
@@ -1256,7 +1301,7 @@ class TestCmdlineReadKernelConfig(CiTestCase):
         files = sorted(populate_dir(self.tmp_dir(), content))
         found = cmdline.read_kernel_cmdline_config(
             files=files, cmdline='foo root=/dev/sda', mac_addrs=self.macs)
-        self.assertEqual(found, None)
+        self.assertIsNone(found)
 
     def test_ip_cmdline_both_ip_ip6(self):
         content = {'net-eth0.conf': DHCP_CONTENT_1,
@@ -1277,9 +1322,9 @@ class TestCmdlineReadKernelConfig(CiTestCase):
 
 class TestNetplanRoundTrip(CiTestCase):
     def _render_and_read(self, network_config=None, state=None,
-                         netplan_path=None, dir=None):
-        if dir is None:
-            dir = self.tmp_dir()
+                         netplan_path=None, target=None):
+        if target is None:
+            target = self.tmp_dir()
 
         if network_config:
             ns = network_state.parse_net_config_data(network_config)
@@ -1294,8 +1339,8 @@ class TestNetplanRoundTrip(CiTestCase):
         renderer = netplan.Renderer(
             config={'netplan_path': netplan_path})
 
-        renderer.render_network_state(dir, ns)
-        return dir2dict(dir)
+        renderer.render_network_state(ns, target)
+        return dir2dict(target)
 
     def testsimple_render_small_netplan(self):
         entry = NETWORK_CONFIGS['small']
@@ -1462,24 +1507,24 @@ class TestNetRenderers(CiTestCase):
 
 
 class TestGetInterfacesByMac(CiTestCase):
-    _data = {'devices': ['enp0s1', 'enp0s2', 'bond1', 'bridge1',
-                         'bridge1-nic', 'tun0', 'bond1.101'],
-             'bonds': ['bond1'],
+    _data = {'bonds': ['bond1'],
              'bridges': ['bridge1'],
              'vlans': ['bond1.101'],
              'own_macs': ['enp0s1', 'enp0s2', 'bridge1-nic', 'bridge1',
-                          'bond1.101'],
+                          'bond1.101', 'lo'],
              'macs': {'enp0s1': 'aa:aa:aa:aa:aa:01',
                       'enp0s2': 'aa:aa:aa:aa:aa:02',
                       'bond1': 'aa:aa:aa:aa:aa:01',
                       'bond1.101': 'aa:aa:aa:aa:aa:01',
                       'bridge1': 'aa:aa:aa:aa:aa:03',
                       'bridge1-nic': 'aa:aa:aa:aa:aa:03',
+                      'lo': '00:00:00:00:00:00',
+                      'greptap0': '00:00:00:00:00:00',
                       'tun0': None}}
     data = {}
 
     def _se_get_devicelist(self):
-        return self.data['devices']
+        return list(self.data['devices'])
 
     def _se_get_interface_mac(self, name):
         return self.data['macs'][name]
@@ -1495,6 +1540,7 @@ class TestGetInterfacesByMac(CiTestCase):
 
     def _mock_setup(self):
         self.data = copy.deepcopy(self._data)
+        self.data['devices'] = set(list(self.data['macs'].keys()))
         mocks = ('get_devicelist', 'get_interface_mac', 'is_bridge',
                  'interface_has_own_mac', 'is_vlan')
         self.mocks = {}
@@ -1522,7 +1568,7 @@ class TestGetInterfacesByMac(CiTestCase):
             [mock.call('enp0s1'), mock.call('bond1')], any_order=True)
         self.assertEqual(
             {'aa:aa:aa:aa:aa:01': 'enp0s1', 'aa:aa:aa:aa:aa:02': 'enp0s2',
-             'aa:aa:aa:aa:aa:03': 'bridge1-nic'},
+             'aa:aa:aa:aa:aa:03': 'bridge1-nic', '00:00:00:00:00:00': 'lo'},
             ret)
 
     def test_excludes_bridges(self):
@@ -1531,7 +1577,7 @@ class TestGetInterfacesByMac(CiTestCase):
         # set everything other than 'b1' to be a bridge.
         # then expect b1 is the only thing left.
         self.data['macs']['b1'] = 'aa:aa:aa:aa:aa:b1'
-        self.data['devices'].append('b1')
+        self.data['devices'].add('b1')
         self.data['bonds'] = []
         self.data['own_macs'] = self.data['devices']
         self.data['bridges'] = [f for f in self.data['devices'] if f != "b1"]
@@ -1548,7 +1594,7 @@ class TestGetInterfacesByMac(CiTestCase):
         # set everything other than 'b1' to be a vlan.
         # then expect b1 is the only thing left.
         self.data['macs']['b1'] = 'aa:aa:aa:aa:aa:b1'
-        self.data['devices'].append('b1')
+        self.data['devices'].add('b1')
         self.data['bonds'] = []
         self.data['bridges'] = []
         self.data['own_macs'] = self.data['devices']
@@ -1559,6 +1605,16 @@ class TestGetInterfacesByMac(CiTestCase):
             [mock.call('bridge1'), mock.call('enp0s1'), mock.call('bond1'),
              mock.call('b1')],
             any_order=True)
+
+    def test_duplicates_of_empty_mac_are_ok(self):
+        """Duplicate macs of 00:00:00:00:00:00 should be skipped."""
+        self._mock_setup()
+        empty_mac = "00:00:00:00:00:00"
+        addnics = ('greptap1', 'lo', 'greptap2')
+        self.data['macs'].update(dict((k, empty_mac) for k in addnics))
+        self.data['devices'].update(set(addnics))
+        ret = net.get_interfaces_by_mac()
+        self.assertEqual('lo', ret[empty_mac])
 
 
 def _gzip_data(data):

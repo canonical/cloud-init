@@ -59,6 +59,9 @@ class ConfigMap(object):
     def __setitem__(self, key, value):
         self._conf[key] = value
 
+    def __getitem__(self, key):
+        return self._conf[key]
+
     def drop(self, key):
         self._conf.pop(key, None)
 
@@ -83,7 +86,8 @@ class ConfigMap(object):
 class Route(ConfigMap):
     """Represents a route configuration."""
 
-    route_fn_tpl = '%(base)s/network-scripts/route-%(name)s'
+    route_fn_tpl_ipv4 = '%(base)s/network-scripts/route-%(name)s'
+    route_fn_tpl_ipv6 = '%(base)s/network-scripts/route6-%(name)s'
 
     def __init__(self, route_name, base_sysconf_dir):
         super(Route, self).__init__()
@@ -102,9 +106,58 @@ class Route(ConfigMap):
         return r
 
     @property
-    def path(self):
-        return self.route_fn_tpl % ({'base': self._base_sysconf_dir,
-                                     'name': self._route_name})
+    def path_ipv4(self):
+        return self.route_fn_tpl_ipv4 % ({'base': self._base_sysconf_dir,
+                                          'name': self._route_name})
+
+    @property
+    def path_ipv6(self):
+        return self.route_fn_tpl_ipv6 % ({'base': self._base_sysconf_dir,
+                                          'name': self._route_name})
+
+    def is_ipv6_route(self, address):
+        return ':' in address
+
+    def to_string(self, proto="ipv4"):
+        # only accept ipv4 and ipv6
+        if proto not in ['ipv4', 'ipv6']:
+            raise ValueError("Unknown protocol '%s'" % (str(proto)))
+        buf = six.StringIO()
+        buf.write(_make_header())
+        if self._conf:
+            buf.write("\n")
+        # need to reindex IPv4 addresses
+        # (because Route can contain a mix of IPv4 and IPv6)
+        reindex = -1
+        for key in sorted(self._conf.keys()):
+            if 'ADDRESS' in key:
+                index = key.replace('ADDRESS', '')
+                address_value = str(self._conf[key])
+                # only accept combinations:
+                # if proto ipv6 only display ipv6 routes
+                # if proto ipv4 only display ipv4 routes
+                # do not add ipv6 routes if proto is ipv4
+                # do not add ipv4 routes if proto is ipv6
+                # (this array will contain a mix of ipv4 and ipv6)
+                if proto == "ipv4" and not self.is_ipv6_route(address_value):
+                    netmask_value = str(self._conf['NETMASK' + index])
+                    gateway_value = str(self._conf['GATEWAY' + index])
+                    # increase IPv4 index
+                    reindex = reindex + 1
+                    buf.write("%s=%s\n" % ('ADDRESS' + str(reindex),
+                                           _quote_value(address_value)))
+                    buf.write("%s=%s\n" % ('GATEWAY' + str(reindex),
+                                           _quote_value(gateway_value)))
+                    buf.write("%s=%s\n" % ('NETMASK' + str(reindex),
+                                           _quote_value(netmask_value)))
+                elif proto == "ipv6" and self.is_ipv6_route(address_value):
+                    netmask_value = str(self._conf['NETMASK' + index])
+                    gateway_value = str(self._conf['GATEWAY' + index])
+                    buf.write("%s/%s via %s\n" % (address_value,
+                                                  netmask_value,
+                                                  gateway_value))
+
+        return buf.getvalue()
 
 
 class NetInterface(ConfigMap):
@@ -211,65 +264,119 @@ class Renderer(renderer.Renderer):
                 iface_cfg[new_key] = old_value
 
     @classmethod
-    def _render_subnet(cls, iface_cfg, route_cfg, subnet):
-        subnet_type = subnet.get('type')
-        if subnet_type == 'dhcp6':
-            iface_cfg['DHCPV6C'] = True
-            iface_cfg['IPV6INIT'] = True
-            iface_cfg['BOOTPROTO'] = 'dhcp'
-        elif subnet_type in ['dhcp4', 'dhcp']:
-            iface_cfg['BOOTPROTO'] = 'dhcp'
-        elif subnet_type == 'static':
-            iface_cfg['BOOTPROTO'] = 'static'
-            if subnet_is_ipv6(subnet):
-                iface_cfg['IPV6ADDR'] = subnet['address']
-                iface_cfg['IPV6INIT'] = True
-            else:
-                iface_cfg['IPADDR'] = subnet['address']
-        else:
-            raise ValueError("Unknown subnet type '%s' found"
-                             " for interface '%s'" % (subnet_type,
-                                                      iface_cfg.name))
-        if 'netmask' in subnet:
-            iface_cfg['NETMASK'] = subnet['netmask']
-        for route in subnet.get('routes', []):
-            if subnet.get('ipv6'):
-                gw_cfg = 'IPV6_DEFAULTGW'
-            else:
-                gw_cfg = 'GATEWAY'
+    def _render_subnets(cls, iface_cfg, subnets):
+        # setting base values
+        iface_cfg['BOOTPROTO'] = 'none'
 
-            if _is_default_route(route):
-                if (
-                        (subnet.get('ipv4') and
-                         route_cfg.has_set_default_ipv4) or
-                        (subnet.get('ipv6') and
-                         route_cfg.has_set_default_ipv6)
-                ):
-                    raise ValueError("Duplicate declaration of default "
-                                     "route found for interface '%s'"
-                                     % (iface_cfg.name))
-                # NOTE(harlowja): ipv6 and ipv4 default gateways
-                gw_key = 'GATEWAY0'
-                nm_key = 'NETMASK0'
-                addr_key = 'ADDRESS0'
-                # The owning interface provides the default route.
-                #
-                # TODO(harlowja): add validation that no other iface has
-                # also provided the default route?
-                iface_cfg['DEFROUTE'] = True
-                if 'gateway' in route:
-                    iface_cfg[gw_cfg] = route['gateway']
-                route_cfg.has_set_default = True
+        # modifying base values according to subnets
+        for i, subnet in enumerate(subnets, start=len(iface_cfg.children)):
+            subnet_type = subnet.get('type')
+            if subnet_type == 'dhcp6':
+                iface_cfg['IPV6INIT'] = True
+                iface_cfg['DHCPV6C'] = True
+                iface_cfg['BOOTPROTO'] = 'dhcp'
+            elif subnet_type in ['dhcp4', 'dhcp']:
+                iface_cfg['BOOTPROTO'] = 'dhcp'
+            elif subnet_type == 'static':
+                # grep BOOTPROTO sysconfig.txt -A2 | head -3
+                # BOOTPROTO=none|bootp|dhcp
+                # 'bootp' or 'dhcp' cause a DHCP client
+                # to run on the device. Any other
+                # value causes any static configuration
+                # in the file to be applied.
+                # ==> the following should not be set to 'static'
+                # but should remain 'none'
+                # if iface_cfg['BOOTPROTO'] == 'none':
+                #    iface_cfg['BOOTPROTO'] = 'static'
+                if subnet_is_ipv6(subnet):
+                    iface_cfg['IPV6INIT'] = True
             else:
-                gw_key = 'GATEWAY%s' % route_cfg.last_idx
-                nm_key = 'NETMASK%s' % route_cfg.last_idx
-                addr_key = 'ADDRESS%s' % route_cfg.last_idx
-                route_cfg.last_idx += 1
-            for (old_key, new_key) in [('gateway', gw_key),
-                                       ('netmask', nm_key),
-                                       ('network', addr_key)]:
-                if old_key in route:
-                    route_cfg[new_key] = route[old_key]
+                raise ValueError("Unknown subnet type '%s' found"
+                                 " for interface '%s'" % (subnet_type,
+                                                          iface_cfg.name))
+
+        # set IPv4 and IPv6 static addresses
+        ipv4_index = -1
+        ipv6_index = -1
+        for i, subnet in enumerate(subnets, start=len(iface_cfg.children)):
+            subnet_type = subnet.get('type')
+            if subnet_type == 'dhcp6':
+                continue
+            elif subnet_type in ['dhcp4', 'dhcp']:
+                continue
+            elif subnet_type == 'static':
+                if subnet_is_ipv6(subnet):
+                    ipv6_index = ipv6_index + 1
+                    if 'netmask' in subnet and str(subnet['netmask']) != "":
+                        ipv6_cidr = (subnet['address'] +
+                                     '/' +
+                                     str(subnet['netmask']))
+                    else:
+                        ipv6_cidr = subnet['address']
+                    if ipv6_index == 0:
+                        iface_cfg['IPV6ADDR'] = ipv6_cidr
+                    elif ipv6_index == 1:
+                        iface_cfg['IPV6ADDR_SECONDARIES'] = ipv6_cidr
+                    else:
+                        iface_cfg['IPV6ADDR_SECONDARIES'] = (
+                            iface_cfg['IPV6ADDR_SECONDARIES'] +
+                            " " + ipv6_cidr)
+                else:
+                    ipv4_index = ipv4_index + 1
+                    if ipv4_index == 0:
+                        iface_cfg['IPADDR'] = subnet['address']
+                        if 'netmask' in subnet:
+                            iface_cfg['NETMASK'] = subnet['netmask']
+                    else:
+                        iface_cfg['IPADDR' + str(ipv4_index)] = \
+                            subnet['address']
+                        if 'netmask' in subnet:
+                            iface_cfg['NETMASK' + str(ipv4_index)] = \
+                                subnet['netmask']
+
+    @classmethod
+    def _render_subnet_routes(cls, iface_cfg, route_cfg, subnets):
+        for i, subnet in enumerate(subnets, start=len(iface_cfg.children)):
+            for route in subnet.get('routes', []):
+                is_ipv6 = subnet.get('ipv6')
+
+                if _is_default_route(route):
+                    if (
+                            (subnet.get('ipv4') and
+                             route_cfg.has_set_default_ipv4) or
+                            (subnet.get('ipv6') and
+                             route_cfg.has_set_default_ipv6)
+                    ):
+                        raise ValueError("Duplicate declaration of default "
+                                         "route found for interface '%s'"
+                                         % (iface_cfg.name))
+                    # NOTE(harlowja): ipv6 and ipv4 default gateways
+                    gw_key = 'GATEWAY0'
+                    nm_key = 'NETMASK0'
+                    addr_key = 'ADDRESS0'
+                    # The owning interface provides the default route.
+                    #
+                    # TODO(harlowja): add validation that no other iface has
+                    # also provided the default route?
+                    iface_cfg['DEFROUTE'] = True
+                    if 'gateway' in route:
+                        if is_ipv6:
+                            iface_cfg['IPV6_DEFAULTGW'] = route['gateway']
+                            route_cfg.has_set_default_ipv6 = True
+                        else:
+                            iface_cfg['GATEWAY'] = route['gateway']
+                            route_cfg.has_set_default_ipv4 = True
+
+                else:
+                    gw_key = 'GATEWAY%s' % route_cfg.last_idx
+                    nm_key = 'NETMASK%s' % route_cfg.last_idx
+                    addr_key = 'ADDRESS%s' % route_cfg.last_idx
+                    route_cfg.last_idx += 1
+                for (old_key, new_key) in [('gateway', gw_key),
+                                           ('netmask', nm_key),
+                                           ('network', addr_key)]:
+                    if old_key in route:
+                        route_cfg[new_key] = route[old_key]
 
     @classmethod
     def _render_bonding_opts(cls, iface_cfg, iface):
@@ -295,15 +402,9 @@ class Renderer(renderer.Renderer):
             iface_subnets = iface.get("subnets", [])
             iface_cfg = iface_contents[iface_name]
             route_cfg = iface_cfg.routes
-            if len(iface_subnets) == 1:
-                cls._render_subnet(iface_cfg, route_cfg, iface_subnets[0])
-            elif len(iface_subnets) > 1:
-                for i, isubnet in enumerate(iface_subnets,
-                                            start=len(iface_cfg.children)):
-                    iface_sub_cfg = iface_cfg.copy()
-                    iface_sub_cfg.name = "%s:%s" % (iface_name, i)
-                    iface_cfg.children.append(iface_sub_cfg)
-                    cls._render_subnet(iface_sub_cfg, route_cfg, isubnet)
+
+            cls._render_subnets(iface_cfg, iface_subnets)
+            cls._render_subnet_routes(iface_cfg, route_cfg, iface_subnets)
 
     @classmethod
     def _render_bond_interfaces(cls, network_state, iface_contents):
@@ -387,7 +488,10 @@ class Renderer(renderer.Renderer):
                     if iface_cfg:
                         contents[iface_cfg.path] = iface_cfg.to_string()
             if iface_cfg.routes:
-                contents[iface_cfg.routes.path] = iface_cfg.routes.to_string()
+                contents[iface_cfg.routes.path_ipv4] = \
+                    iface_cfg.routes.to_string("ipv4")
+                contents[iface_cfg.routes.path_ipv6] = \
+                    iface_cfg.routes.to_string("ipv6")
         return contents
 
     def render_network_state(self, network_state, target=None):

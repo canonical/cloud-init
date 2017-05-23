@@ -216,9 +216,8 @@ has_cdrom() {
     [ -e "${PATH_ROOT}/dev/cdrom" ]
 }
 
-read_virt() {
-    cached "$DI_VIRT" && return 0
-    local out="" r="" virt="${UNAVAILABLE}"
+detect_virt() {
+    local virt="${UNAVAILABLE}" r="" out=""
     if [ -d /run/systemd ]; then
         out=$(systemd-detect-virt 2>&1)
         r=$?
@@ -226,7 +225,13 @@ read_virt() {
             virt="$out"
         fi
     fi
-    DI_VIRT=$virt
+    _RET="$virt"
+}
+
+read_virt() {
+    cached "$DI_VIRT" && return 0
+    detect_virt
+    DI_VIRT=${_RET}
 }
 
 is_container() {
@@ -318,8 +323,11 @@ parse_yaml_array() {
     #   ['1'] or [1]
     #   '1', '2'
     local val="$1" oifs="$IFS" ret="" tok=""
-    val=${val#[}
-    val=${val%]}
+    # i386/14.04 (dash=0.5.7-4ubuntu1): the following outputs "[foo"
+    #   sh -c 'n="$1"; echo ${n#[}' -- "[foo"
+    # the fix was to quote the open bracket (val=${val#"["}) (LP: #1689648)
+    val=${val#"["}
+    val=${val%"]"}
     IFS=","; set -- $val; IFS="$oifs"
     for tok in "$@"; do
         trim "$tok"
@@ -714,7 +722,7 @@ ec2_identify_platform() {
 
     # AWS http://docs.aws.amazon.com/AWSEC2/
     #     latest/UserGuide/identify_ec2_instances.html
-    local uuid="" hvuuid="$PATH_ROOT/sys/hypervisor/uuid"
+    local uuid="" hvuuid="${PATH_SYS_HYPERVISOR}/uuid"
     # if the (basically) xen specific /sys/hypervisor/uuid starts with 'ec2'
     if [ -r "$hvuuid" ] && read uuid < "$hvuuid" &&
         [ "${uuid#ec2}" != "$uuid" ]; then
@@ -725,7 +733,7 @@ ec2_identify_platform() {
     # product uuid and product serial start with case insensitive
     local uuid="${DI_DMI_PRODUCT_UUID}"
     case "$uuid:$serial" in
-        [Ee][Cc]2*:[Ee][Cc]2)
+        [Ee][Cc]2*:[Ee][Cc]2*)
             # both start with ec2, now check for case insenstive equal
             nocase_equal "$uuid" "$serial" &&
                 { _RET="AWS"; return 0; };;

@@ -242,7 +242,7 @@ class TestOpenStackDataSource(test_helpers.HttprettyTestCase):
         self.assertEqual(USER_DATA, ds_os.userdata_raw)
         self.assertEqual(2, len(ds_os.files))
         self.assertEqual(VENDOR_DATA, ds_os.vendordata_pure)
-        self.assertEqual(ds_os.vendordata_raw, None)
+        self.assertIsNone(ds_os.vendordata_raw)
 
     @hp.activate
     def test_bad_datasource_meta(self):
@@ -318,7 +318,7 @@ class TestVendorDataLoading(test_helpers.TestCase):
         self.assertEqual(self.cvj(data), data)
 
     def test_vd_load_dict_no_ci(self):
-        self.assertEqual(self.cvj({'foo': 'bar'}), None)
+        self.assertIsNone(self.cvj({'foo': 'bar'}))
 
     def test_vd_load_dict_ci_dict(self):
         self.assertRaises(ValueError, self.cvj,

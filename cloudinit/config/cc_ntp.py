@@ -74,10 +74,19 @@ def handle(name, cfg, cloud, log, _args):
                   "not present or disabled by cfg", name)
         return True
 
+    rename_ntp_conf()
+    # ensure when ntp is installed it has a configuration file
+    # to use instead of starting up with packaged defaults
+    write_ntp_config_template(ntp_cfg, cloud)
     install_ntp(cloud.distro.install_packages, packages=['ntp'],
                 check_exe="ntpd")
-    rename_ntp_conf()
-    write_ntp_config_template(ntp_cfg, cloud)
+
+    # if ntp was already installed, it may not have started
+    try:
+        reload_ntp(systemd=cloud.distro.uses_systemd())
+    except util.ProcessExecutionError as e:
+        LOG.exception("Failed to reload/start ntp service: %s", e)
+        raise
 
 
 def install_ntp(install_func, packages=None, check_exe="ntpd"):
@@ -90,6 +99,7 @@ def install_ntp(install_func, packages=None, check_exe="ntpd"):
 
 
 def rename_ntp_conf(config=NTP_CONF):
+    """Rename any existing ntp.conf file and render from template"""
     if os.path.exists(config):
         util.rename(config, config + ".dist")
 
@@ -124,5 +134,15 @@ def write_ntp_config_template(cfg, cloud):
                                 "not rendering %s"), NTP_CONF)
 
     templater.render_to_file(template_fn, NTP_CONF, params)
+
+
+def reload_ntp(systemd=False):
+    service = 'ntp'
+    if systemd:
+        cmd = ['systemctl', 'reload-or-restart', service]
+    else:
+        cmd = ['service', service, 'restart']
+    util.subp(cmd, capture=True)
+
 
 # vi: ts=4 expandtab

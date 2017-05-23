@@ -15,6 +15,16 @@ class TestCloudStackPasswordFetching(TestCase):
         mod_name = 'cloudinit.sources.DataSourceCloudStack'
         self.patches.enter_context(mock.patch('{0}.ec2'.format(mod_name)))
         self.patches.enter_context(mock.patch('{0}.uhelp'.format(mod_name)))
+        default_gw = "192.201.20.0"
+        get_latest_lease = mock.MagicMock(return_value=None)
+        self.patches.enter_context(mock.patch(
+            'cloudinit.sources.DataSourceCloudStack.get_latest_lease',
+            get_latest_lease))
+
+        get_default_gw = mock.MagicMock(return_value=default_gw)
+        self.patches.enter_context(mock.patch(
+            'cloudinit.sources.DataSourceCloudStack.get_default_gateway',
+            get_default_gw))
 
     def _set_password_server_response(self, response_string):
         subp = mock.MagicMock(return_value=(response_string, ''))

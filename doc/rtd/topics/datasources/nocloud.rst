@@ -1,3 +1,5 @@
+.. _datasource_nocloud:
+
 NoCloud
 =======
 
@@ -69,6 +71,43 @@ Example metadata:
       broadcast 192.168.1.255
       gateway 192.168.1.254
     hostname: myhost
+
+
+Network configuration can also be provided to cloud-init in either
+:ref:`network_config_v1` or :ref:`network_config_v2` by providing that
+yaml formatted data in a file named ``network-config``.  If found,
+this file will override a ``network-interfaces`` file.
+
+See an example below.  Note specifically that this file does not
+have a top level ``network`` key as it it is already assumed to
+be network configuration based on the filename.
+
+.. code:: yaml
+
+  version: 1
+  config:
+     - type: physical
+       name: interface0
+       mac_address: "52:54:00:12:34:00"
+       subnets:
+          - type: static
+            address: 192.168.1.10
+            netmask: 255.255.255.0
+            gateway: 192.168.1.254
+
+
+.. code:: yaml
+
+  version: 2
+  ethernets:
+    interface0:
+       match:
+           mac_address: "52:54:00:12:34:00"
+       set-name: interface0
+       addresses:
+       - 192.168.1.10/255.255.255.0
+       gateway4: 192.168.1.254
+
 
 .. _iso9660: https://en.wikipedia.org/wiki/ISO_9660
 .. _vfat: https://en.wikipedia.org/wiki/File_Allocation_Table
