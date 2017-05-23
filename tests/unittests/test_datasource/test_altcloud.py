@@ -419,7 +419,7 @@ class TestReadUserDataCallback(TestCase):
         '''Test read_user_data_callback() no files are found.'''
 
         _remove_user_data_files(self.mount_dir)
-        self.assertEqual(None, dsac.read_user_data_callback(self.mount_dir))
+        self.assertIsNone(dsac.read_user_data_callback(self.mount_dir))
 
 
 def force_arch(arch=None):

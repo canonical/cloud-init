@@ -44,7 +44,7 @@ class TestMAASDataSource(TestCase):
 
         # verify that 'userdata' is not returned as part of the metadata
         self.assertFalse(('user-data' in md))
-        self.assertEqual(vd, None)
+        self.assertIsNone(vd)
 
     def test_seed_dir_valid_extra(self):
         """Verify extra files do not affect seed_dir validity."""

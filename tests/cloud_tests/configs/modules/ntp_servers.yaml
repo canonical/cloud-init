@@ -5,16 +5,20 @@ cloud_config: |
   #cloud-config
   ntp:
     servers:
-        - pool.ntp.org
+        - 172.16.15.14
+        - 172.16.17.18
 collect_scripts:
   ntp_installed_servers: |
-    #!/bin/bash
-    dpkg -l | grep ntp | wc -l
+    #!/bin/sh
+    dpkg -l | grep -c ntp
   ntp_conf_dist_servers: |
-    #!/bin/bash
-    ls /etc/ntp.conf.dist | wc -l
+    #!/bin/sh
+    cat /etc/ntp.conf.dist | wc -l
   ntp_conf_servers: |
-    #!/bin/bash
+    #!/bin/sh
     grep '^server' /etc/ntp.conf
+  ntpq_servers: |
+    #!/bin/sh
+    ntpq -p -w
 
 # vi: ts=4 expandtab

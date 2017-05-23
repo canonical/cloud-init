@@ -162,7 +162,7 @@ def convert_network_configuration(config, dns_servers):
                 continue
 
             sub_part = _get_subnet_part(raw_subnet)
-            if netdef in ('private', 'anchor_ipv4', 'anchor_ipv6'):
+            if nic_type != "public" or "anchor" in netdef:
                 del sub_part['gateway']
 
             subnets.append(sub_part)

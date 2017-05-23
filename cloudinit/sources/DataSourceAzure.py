@@ -10,6 +10,7 @@ import crypt
 from functools import partial
 import os
 import os.path
+import re
 import time
 from xml.dom import minidom
 import xml.etree.ElementTree as ET
@@ -32,19 +33,161 @@ BOUNCE_COMMAND = [
 # azure systems will always have a resource disk, and 66-azure-ephemeral.rules
 # ensures that it gets linked to this path.
 RESOURCE_DISK_PATH = '/dev/disk/cloud/azure_resource'
+DEFAULT_PRIMARY_NIC = 'eth0'
+LEASE_FILE = '/var/lib/dhcp/dhclient.eth0.leases'
+DEFAULT_FS = 'ext4'
+
+
+def find_storvscid_from_sysctl_pnpinfo(sysctl_out, deviceid):
+    # extract the 'X' from dev.storvsc.X. if deviceid matches
+    """
+    dev.storvsc.1.%pnpinfo:
+        classid=32412632-86cb-44a2-9b5c-50d1417354f5
+        deviceid=00000000-0001-8899-0000-000000000000
+    """
+    for line in sysctl_out.splitlines():
+        if re.search(r"pnpinfo", line):
+            fields = line.split()
+            if len(fields) >= 3:
+                columns = fields[2].split('=')
+                if (len(columns) >= 2 and
+                        columns[0] == "deviceid" and
+                        columns[1].startswith(deviceid)):
+                    comps = fields[0].split('.')
+                    return comps[2]
+    return None
+
+
+def find_busdev_from_disk(camcontrol_out, disk_drv):
+    # find the scbusX from 'camcontrol devlist -b' output
+    # if disk_drv matches the specified disk driver, i.e. blkvsc1
+    """
+    scbus0 on ata0 bus 0
+    scbus1 on ata1 bus 0
+    scbus2 on blkvsc0 bus 0
+    scbus3 on blkvsc1 bus 0
+    scbus4 on storvsc2 bus 0
+    scbus5 on storvsc3 bus 0
+    scbus-1 on xpt0 bus 0
+    """
+    for line in camcontrol_out.splitlines():
+        if re.search(disk_drv, line):
+            items = line.split()
+            return items[0]
+    return None
+
+
+def find_dev_from_busdev(camcontrol_out, busdev):
+    # find the daX from 'camcontrol devlist' output
+    # if busdev matches the specified value, i.e. 'scbus2'
+    """
+    <Msft Virtual CD/ROM 1.0>          at scbus1 target 0 lun 0 (cd0,pass0)
+    <Msft Virtual Disk 1.0>            at scbus2 target 0 lun 0 (da0,pass1)
+    <Msft Virtual Disk 1.0>            at scbus3 target 1 lun 0 (da1,pass2)
+    """
+    for line in camcontrol_out.splitlines():
+        if re.search(busdev, line):
+            items = line.split('(')
+            if len(items) == 2:
+                dev_pass = items[1].split(',')
+                return dev_pass[0]
+    return None
+
+
+def get_dev_storvsc_sysctl():
+    try:
+        sysctl_out, err = util.subp(['sysctl', 'dev.storvsc'])
+    except util.ProcessExecutionError:
+        LOG.debug("Fail to execute sysctl dev.storvsc")
+        return None
+    return sysctl_out
+
+
+def get_camcontrol_dev_bus():
+    try:
+        camcontrol_b_out, err = util.subp(['camcontrol', 'devlist', '-b'])
+    except util.ProcessExecutionError:
+        LOG.debug("Fail to execute camcontrol devlist -b")
+        return None
+    return camcontrol_b_out
+
+
+def get_camcontrol_dev():
+    try:
+        camcontrol_out, err = util.subp(['camcontrol', 'devlist'])
+    except util.ProcessExecutionError:
+        LOG.debug("Fail to execute camcontrol devlist")
+        return None
+    return camcontrol_out
+
+
+def get_resource_disk_on_freebsd(port_id):
+    g0 = "00000000"
+    if port_id > 1:
+        g0 = "00000001"
+        port_id = port_id - 2
+    g1 = "000" + str(port_id)
+    g0g1 = "{0}-{1}".format(g0, g1)
+    """
+    search 'X' from
+       'dev.storvsc.X.%pnpinfo:
+           classid=32412632-86cb-44a2-9b5c-50d1417354f5
+           deviceid=00000000-0001-8899-0000-000000000000'
+    """
+    sysctl_out = get_dev_storvsc_sysctl()
+
+    storvscid = find_storvscid_from_sysctl_pnpinfo(sysctl_out, g0g1)
+    if not storvscid:
+        LOG.debug("Fail to find storvsc id from sysctl")
+        return None
+
+    camcontrol_b_out = get_camcontrol_dev_bus()
+    camcontrol_out = get_camcontrol_dev()
+    # try to find /dev/XX from 'blkvsc' device
+    blkvsc = "blkvsc{0}".format(storvscid)
+    scbusx = find_busdev_from_disk(camcontrol_b_out, blkvsc)
+    if scbusx:
+        devname = find_dev_from_busdev(camcontrol_out, scbusx)
+        if devname is None:
+            LOG.debug("Fail to find /dev/daX")
+            return None
+        return devname
+    # try to find /dev/XX from 'storvsc' device
+    storvsc = "storvsc{0}".format(storvscid)
+    scbusx = find_busdev_from_disk(camcontrol_b_out, storvsc)
+    if scbusx:
+        devname = find_dev_from_busdev(camcontrol_out, scbusx)
+        if devname is None:
+            LOG.debug("Fail to find /dev/daX")
+            return None
+        return devname
+    return None
+
+
+# update the FreeBSD specific information
+if util.is_FreeBSD():
+    DEFAULT_PRIMARY_NIC = 'hn0'
+    LEASE_FILE = '/var/db/dhclient.leases.hn0'
+    DEFAULT_FS = 'freebsd-ufs'
+    res_disk = get_resource_disk_on_freebsd(1)
+    if res_disk is not None:
+        LOG.debug("resource disk is not None")
+        RESOURCE_DISK_PATH = "/dev/" + res_disk
+    else:
+        LOG.debug("resource disk is None")
 
 BUILTIN_DS_CONFIG = {
     'agent_command': AGENT_START_BUILTIN,
     'data_dir': "/var/lib/waagent",
     'set_hostname': True,
     'hostname_bounce': {
-        'interface': 'eth0',
+        'interface': DEFAULT_PRIMARY_NIC,
         'policy': True,
         'command': BOUNCE_COMMAND,
         'hostname_command': 'hostname',
     },
     'disk_aliases': {'ephemeral0': RESOURCE_DISK_PATH},
-    'dhclient_lease_file': '/var/lib/dhcp/dhclient.eth0.leases',
+    'dhclient_lease_file': LEASE_FILE,
 }
 
 BUILTIN_CLOUD_CONFIG = {
@@ -53,9 +196,8 @@ BUILTIN_CLOUD_CONFIG = {
                        'layout': [100],
                        'overwrite': True},
     },
-    'fs_setup': [{'filesystem': 'ext4',
-                  'device': 'ephemeral0.1',
-                  'replace_fs': 'ntfs'}],
+    'fs_setup': [{'filesystem': DEFAULT_FS,
+                  'device': 'ephemeral0.1'}],
 }
 
 DS_CFG_PATH = ['datasource', DS_NAME]
@@ -190,7 +332,11 @@ class DataSourceAzureNet(sources.DataSource):
         for cdev in candidates:
             try:
                 if cdev.startswith("/dev/"):
-                    ret = util.mount_cb(cdev, load_azure_ds_dir)
+                    if util.is_FreeBSD():
+                        ret = util.mount_cb(cdev, load_azure_ds_dir,
+                                            mtype="udf", sync=False)
+                    else:
+                        ret = util.mount_cb(cdev, load_azure_ds_dir)
                 else:
                     ret = load_azure_ds_dir(cdev)
 
@@ -218,11 +364,12 @@ class DataSourceAzureNet(sources.DataSource):
             LOG.debug("using files cached in %s", ddir)
 
         # azure / hyper-v provides random data here
-        seed = util.load_file("/sys/firmware/acpi/tables/OEM0",
-                              quiet=True, decode=False)
-        if seed:
-            self.metadata['random_seed'] = seed
-
+        if not util.is_FreeBSD():
+            seed = util.load_file("/sys/firmware/acpi/tables/OEM0",
+                                  quiet=True, decode=False)
+            if seed:
+                self.metadata['random_seed'] = seed
+        # TODO. find the seed on FreeBSD platform
         # now update ds_cfg to reflect contents pass in config
         user_ds_cfg = util.get_cfg_by_path(self.cfg, DS_CFG_PATH, {})
         self.ds_cfg = util.mergemanydict([user_ds_cfg, self.ds_cfg])
@@ -266,56 +413,71 @@ class DataSourceAzureNet(sources.DataSource):
         return
 
 
+def _partitions_on_device(devpath, maxnum=16):
+    # return a list of tuples (ptnum, path) for each part on devpath
+    for suff in ("-part", "p", ""):
+        found = []
+        for pnum in range(1, maxnum):
+            ppath = devpath + suff + str(pnum)
+            if os.path.exists(ppath):
+                found.append((pnum, os.path.realpath(ppath)))
+        if found:
+            return found
+    return []
+
+
+def _has_ntfs_filesystem(devpath):
+    ntfs_devices = util.find_devs_with("TYPE=ntfs", no_cache=True)
+    LOG.debug('ntfs_devices found = %s', ntfs_devices)
+    return os.path.realpath(devpath) in ntfs_devices
+
+
 def can_dev_be_reformatted(devpath):
-    # determine if the ephemeral block device path devpath
-    # is newly formatted after a resize.
+    """Determine if block device devpath is newly formatted ephemeral.
+
+    A newly formatted disk will:
+      a.) have a partition table (dos or gpt)
+      b.) have 1 partition that is ntfs formatted, or
+          have 2 partitions with the second partition ntfs formatted.
+          (larger instances with >2TB ephemeral disk have gpt, and will
+           have a microsoft reserved partition as part 1.  LP: #1686514)
+      c.) the ntfs partition will have no files other than possibly
+          'dataloss_warning_readme.txt'"""
     if not os.path.exists(devpath):
         return False, 'device %s does not exist' % devpath
 
-    realpath = os.path.realpath(devpath)
-    LOG.debug('Resolving realpath of %s -> %s', devpath, realpath)
-
-    # it is possible that the block device might exist, but the kernel
-    # have not yet read the partition table and sent events.  we udevadm settle
-    # to hope to resolve that.  Better here would probably be to test and see,
-    # and then settle if we didn't find anything and try again.
-    if util.which("udevadm"):
-        util.subp(["udevadm", "settle"])
+    LOG.debug('Resolving realpath of %s -> %s', devpath,
+              os.path.realpath(devpath))
 
     # devpath of /dev/sd[a-z] or /dev/disk/cloud/azure_resource
     # where partitions are "<devpath>1" or "<devpath>-part1" or "<devpath>p1"
-    part1path = None
-    for suff in ("-part", "p", ""):
-        cand = devpath + suff + "1"
-        if os.path.exists(cand):
-            if os.path.exists(devpath + suff + "2"):
-                msg = ('device %s had more than 1 partition: %s, %s' %
-                       devpath, cand, devpath + suff + "2")
-                return False, msg
-            part1path = cand
-            break
-
-    if part1path is None:
+    partitions = _partitions_on_device(devpath)
+    if len(partitions) == 0:
         return False, 'device %s was not partitioned' % devpath
+    elif len(partitions) > 2:
+        msg = ('device %s had 3 or more partitions: %s' %
+               (devpath, ' '.join([p[1] for p in partitions])))
+        return False, msg
+    elif len(partitions) == 2:
+        cand_part, cand_path = partitions[1]
+    else:
+        cand_part, cand_path = partitions[0]
 
-    real_part1path = os.path.realpath(part1path)
-    ntfs_devices = util.find_devs_with("TYPE=ntfs", no_cache=True)
-    LOG.debug('ntfs_devices found = %s', ntfs_devices)
-    if real_part1path not in ntfs_devices:
-        msg = ('partition 1 (%s -> %s) on device %s was not ntfs formatted' %
-               (part1path, real_part1path, devpath))
+    if not _has_ntfs_filesystem(cand_path):
+        msg = ('partition %s (%s) on device %s was not ntfs formatted' %
+               (cand_part, cand_path, devpath))
         return False, msg
 
     def count_files(mp):
         ignored = set(['dataloss_warning_readme.txt'])
         return len([f for f in os.listdir(mp) if f.lower() not in ignored])
 
-    bmsg = ('partition 1 (%s -> %s) on device %s was ntfs formatted' %
-            (part1path, real_part1path, devpath))
+    bmsg = ('partition %s (%s) on device %s was ntfs formatted' %
+            (cand_part, cand_path, devpath))
     try:
-        file_count = util.mount_cb(part1path, count_files)
+        file_count = util.mount_cb(cand_path, count_files)
     except util.MountFailedError as e:
-        return False, bmsg + ' but mount of %s failed: %s' % (part1path, e)
+        return False, bmsg + ' but mount of %s failed: %s' % (cand_part, e)
 
     if file_count != 0:
         return False, bmsg + ' but had %d files on it.' % file_count
@@ -633,8 +795,19 @@ def encrypt_pass(password, salt_id="$6$"):
 def list_possible_azure_ds_devs():
     # return a sorted list of devices that might have a azure datasource
     devlist = []
-    for fstype in ("iso9660", "udf"):
-        devlist.extend(util.find_devs_with("TYPE=%s" % fstype))
+    if util.is_FreeBSD():
+        cdrom_dev = "/dev/cd0"
+        try:
+            util.subp(["mount", "-o", "ro", "-t", "udf", cdrom_dev,
+                       "/mnt/cdrom/secure"])
+        except util.ProcessExecutionError:
+            LOG.debug("Fail to mount cd")
+            return devlist
+        util.subp(["umount", "/mnt/cdrom/secure"])
+        devlist.append(cdrom_dev)
+    else:
+        for fstype in ("iso9660", "udf"):
+            devlist.extend(util.find_devs_with("TYPE=%s" % fstype))
 
     devlist.sort(reverse=True)
     return devlist
