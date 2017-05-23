@@ -1,4 +1,4 @@
-cloud-init (0.7.9-144-g2825a917-0ubuntu1) UNRELEASED; urgency=medium
+cloud-init (0.7.9-144-g2825a917-0ubuntu1) artful; urgency=medium
 
   * New upstream snapshot.
     - flake8: move the pinned version of flake8 up to 3.3.0
@@ -52,7 +52,7 @@ cloud-init (0.7.9-144-g2825a917-0ubuntu1) UNRELEASED; urgency=medium
       [Felix Dreissig]
     - tests: Enable artful [Joshua Powers]
 
- -- Scott Moser <smoser@ubuntu.com>  Tue, 23 May 2017 17:02:06 -0400
+ -- Scott Moser <smoser@ubuntu.com>  Tue, 23 May 2017 17:04:40 -0400
 
 cloud-init (0.7.9-113-g513e99e0-0ubuntu1) artful; urgency=medium
 
