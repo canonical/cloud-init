@@ -44,7 +44,7 @@ class TestGetCfgOptionListOrStr(helpers.TestCase):
         """None is returned if key is not found and no default given."""
         config = {}
         result = util.get_cfg_option_list(config, "key")
-        self.assertEqual(None, result)
+        self.assertIsNone(result)
 
     def test_not_found_with_default(self):
         """Default is returned if key is not found."""
@@ -432,13 +432,13 @@ class TestReadDMIData(helpers.FilesystemMockingTestCase):
     def test_none_returned_if_neither_source_has_data(self):
         self.patch_mapping({})
         self._configure_dmidecode_return('key', 'value')
-        self.assertEqual(None, util.read_dmi_data('expect-fail'))
+        self.assertIsNone(util.read_dmi_data('expect-fail'))
 
     def test_none_returned_if_dmidecode_not_in_path(self):
         self.patched_funcs.enter_context(
             mock.patch.object(util, 'which', lambda _: False))
         self.patch_mapping({})
-        self.assertEqual(None, util.read_dmi_data('expect-fail'))
+        self.assertIsNone(util.read_dmi_data('expect-fail'))
 
     def test_dots_returned_instead_of_foxfox(self):
         # uninitialized dmi values show as \xff, return those as .
@@ -626,8 +626,8 @@ class TestSubp(helpers.TestCase):
 
     def test_returns_none_if_no_capture(self):
         (out, err) = util.subp(self.stdin2out, data=b'', capture=False)
-        self.assertEqual(err, None)
-        self.assertEqual(out, None)
+        self.assertIsNone(err)
+        self.assertIsNone(out)
 
     def test_bunch_of_slashes_in_path(self):
         self.assertEqual("/target/my/path/",

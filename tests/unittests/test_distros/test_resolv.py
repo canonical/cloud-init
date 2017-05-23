@@ -30,7 +30,7 @@ class TestResolvHelper(TestCase):
 
     def test_local_domain(self):
         rp = resolv_conf.ResolvConf(BASE_RESOLVE)
-        self.assertEqual(None, rp.local_domain)
+        self.assertIsNone(rp.local_domain)
 
         rp.local_domain = "bob"
         self.assertEqual('bob', rp.local_domain)

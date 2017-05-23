@@ -163,6 +163,7 @@ def get_resource_disk_on_freebsd(port_id):
         return devname
     return None
 
+
 # update the FreeBSD specific information
 if util.is_FreeBSD():
     DEFAULT_PRIMARY_NIC = 'hn0'

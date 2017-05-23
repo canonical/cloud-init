@@ -1301,7 +1301,7 @@ class TestCmdlineReadKernelConfig(CiTestCase):
         files = sorted(populate_dir(self.tmp_dir(), content))
         found = cmdline.read_kernel_cmdline_config(
             files=files, cmdline='foo root=/dev/sda', mac_addrs=self.macs)
-        self.assertEqual(found, None)
+        self.assertIsNone(found)
 
     def test_ip_cmdline_both_ip_ip6(self):
         content = {'net-eth0.conf': DHCP_CONTENT_1,

@@ -239,7 +239,7 @@ fdescfs            /dev/fd          fdescfs rw              0 0
         with mock.patch.object(os.path, 'exists',
                                return_value=True):
             res = get_path_dev_freebsd('/etc', mnt_list)
-            self.assertNotEqual(res, None)
+            self.assertIsNotNone(res)
 
     def test_basic_seed_dir(self):
         odata = {'HostName': "myhost", 'UserName': "myuser"}
