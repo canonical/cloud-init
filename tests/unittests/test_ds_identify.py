@@ -211,7 +211,10 @@ class TestDsIdentify(CiTestCase):
         self._check_via_dict(mydata, rc=RC_FOUND, dslist=['NoCloud', DS_NONE])
 
     def test_configured_list_with_none(self):
-        """If user set a datasource_list, that should be used."""
+        """When datasource_list already contains None, None is not added.
+
+        The explicitly configured datasource_list has 'None' in it.  That
+        should not have None automatically added."""
         mydata = copy.deepcopy(VALID_CFG['GCE'])
         cfgpath = 'etc/cloud/cloud.cfg.d/myds.cfg'
         mydata['files'][cfgpath] = 'datasource_list: ["Ec2", "None"]\n'
