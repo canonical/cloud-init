@@ -1,6 +1,7 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 from cloudinit import net
+from cloudinit.net import _natural_sort_key
 from cloudinit.net import cmdline
 from cloudinit.net import eni
 from cloudinit.net import netplan
@@ -1657,6 +1658,19 @@ class TestGetInterfacesByMac(CiTestCase):
         self.data['devices'].update(set(addnics))
         ret = net.get_interfaces_by_mac()
         self.assertEqual('lo', ret[empty_mac])
+
+
+class TestInterfacesSorting(CiTestCase):
+
+    def test_natural_order(self):
+        data = ['ens5', 'ens6', 'ens3', 'ens20', 'ens13', 'ens2']
+        self.assertEqual(
+            sorted(data, key=_natural_sort_key),
+            ['ens2', 'ens3', 'ens5', 'ens6', 'ens13', 'ens20'])
+        data2 = ['enp2s0', 'enp2s3', 'enp0s3', 'enp0s13', 'enp0s8', 'enp1s2']
+        self.assertEqual(
+            sorted(data2, key=_natural_sort_key),
+            ['enp0s3', 'enp0s8', 'enp0s13', 'enp1s2', 'enp2s0', 'enp2s3'])
 
 
 def _gzip_data(data):

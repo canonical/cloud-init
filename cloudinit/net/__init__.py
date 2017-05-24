@@ -17,6 +17,17 @@ SYS_CLASS_NET = "/sys/class/net/"
 DEFAULT_PRIMARY_INTERFACE = 'eth0'
 
 
+def _natural_sort_key(s, _nsre=re.compile('([0-9]+)')):
+    """Sorting for Humans: natural sort order. Can be use as the key to sort
+    functions.
+    This will sort ['eth0', 'ens3', 'ens10', 'ens12', 'ens8', 'ens0'] as
+    ['ens0', 'ens3', 'ens8', 'ens10', 'ens12', 'eth0'] instead of the simple
+    python way which will produce ['ens0', 'ens10', 'ens12', 'ens3', 'ens8',
+    'eth0']."""
+    return [int(text) if text.isdigit() else text.lower()
+            for text in re.split(_nsre, s)]
+
+
 def sys_dev_path(devname, path=""):
     return SYS_CLASS_NET + devname + "/" + path
 
@@ -169,7 +180,7 @@ def generate_fallback_config():
 
     # if eth0 exists use it above anything else, otherwise get the interface
     # that we can read 'first' (using the sorted defintion of first).
-    names = list(sorted(potential_interfaces))
+    names = list(sorted(potential_interfaces, key=_natural_sort_key))
     if DEFAULT_PRIMARY_INTERFACE in names:
         names.remove(DEFAULT_PRIMARY_INTERFACE)
         names.insert(0, DEFAULT_PRIMARY_INTERFACE)
