@@ -334,17 +334,15 @@ iface lo inet loopback
 
 auto eth0
 iface eth0 inet static
-    address 1.2.3.12
+    address 1.2.3.12/29
     broadcast 1.2.3.15
     dns-nameservers 69.9.160.191 69.9.191.4
     gateway 1.2.3.9
-    netmask 255.255.255.248
 
 auto eth1
 iface eth1 inet static
-    address 10.248.2.4
+    address 10.248.2.4/29
     broadcast 10.248.2.7
-    netmask 255.255.255.248
 """.lstrip()
 
 NETWORK_CONFIGS = {

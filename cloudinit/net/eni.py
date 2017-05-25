@@ -46,6 +46,10 @@ def _iface_add_subnet(iface, subnet):
         'dns_nameservers',
     ]
     for key, value in subnet.items():
+        if key == 'netmask':
+            continue
+        if key == 'address':
+            value = "%s/%s" % (subnet['address'], subnet['prefix'])
         if value and key in valid_map:
             if type(value) == list:
                 value = " ".join(value)

@@ -9,7 +9,7 @@ from cloudinit.distros.parsers import resolv_conf
 from cloudinit import util
 
 from . import renderer
-from .network_state import subnet_is_ipv6
+from .network_state import subnet_is_ipv6, net_prefix_to_ipv4_mask
 
 
 def _make_header(sep='#'):
@@ -26,11 +26,8 @@ def _make_header(sep='#'):
 
 
 def _is_default_route(route):
-    if route['network'] == '::' and route['netmask'] == 0:
-        return True
-    if route['network'] == '0.0.0.0' and route['netmask'] == '0.0.0.0':
-        return True
-    return False
+    default_nets = ('::', '0.0.0.0')
+    return route['prefix'] == 0 and route['network'] in default_nets
 
 
 def _quote_value(value):
@@ -323,16 +320,10 @@ class Renderer(renderer.Renderer):
                             " " + ipv6_cidr)
                 else:
                     ipv4_index = ipv4_index + 1
-                    if ipv4_index == 0:
-                        iface_cfg['IPADDR'] = subnet['address']
-                        if 'netmask' in subnet:
-                            iface_cfg['NETMASK'] = subnet['netmask']
-                    else:
-                        iface_cfg['IPADDR' + str(ipv4_index)] = \
-                            subnet['address']
-                        if 'netmask' in subnet:
-                            iface_cfg['NETMASK' + str(ipv4_index)] = \
-                                subnet['netmask']
+                    suff = "" if ipv4_index == 0 else str(ipv4_index)
+                    iface_cfg['IPADDR' + suff] = subnet['address']
+                    iface_cfg['NETMASK' + suff] = \
+                        net_prefix_to_ipv4_mask(subnet['prefix'])
 
     @classmethod
     def _render_subnet_routes(cls, iface_cfg, route_cfg, subnets):
