@@ -168,6 +168,8 @@ class TestUpdateFsSetupDevices(TestCase):
         }, fs_setup)
 
 
+@mock.patch('cloudinit.config.cc_disk_setup.assert_and_settle_device',
+            return_value=None)
 @mock.patch('cloudinit.config.cc_disk_setup.find_device_node',
             return_value=('/dev/xdb1', False))
 @mock.patch('cloudinit.config.cc_disk_setup.device_type', return_value=None)
