@@ -212,4 +212,113 @@ class TestNtp(FilesystemMockingTestCase):
             'Skipping module named cc_ntp, not present or disabled by cfg\n',
             self.logs.getvalue())
 
+    def test_ntp_handler_schema_validation_allows_empty_ntp_config(self):
+        """Ntp schema validation allows for an empty ntp: configuration."""
+        invalid_config = {'ntp': {}}
+        distro = 'ubuntu'
+        cc = self._get_cloud(distro)
+        ntp_conf = os.path.join(self.new_root, 'ntp.conf')
+        with open('{0}.tmpl'.format(ntp_conf), 'wb') as stream:
+            stream.write(NTP_TEMPLATE)
+        with mock.patch('cloudinit.config.cc_ntp.NTP_CONF', ntp_conf):
+            cc_ntp.handle('cc_ntp', invalid_config, cc, None, [])
+        self.assertNotIn('Invalid config:', self.logs.getvalue())
+        with open(ntp_conf) as stream:
+            content = stream.read()
+        default_pools = [
+            "{0}.{1}.pool.ntp.org".format(x, distro)
+            for x in range(0, cc_ntp.NR_POOL_SERVERS)]
+        self.assertEqual(
+            "servers []\npools {0}\n".format(default_pools),
+            content)
+
+    def test_ntp_handler_schema_validation_warns_non_string_item_type(self):
+        """Ntp schema validation warns of non-strings in pools or servers.
+
+        Schema validation is not strict, so ntp config is still be rendered.
+        """
+        invalid_config = {'ntp': {'pools': [123], 'servers': ['valid', None]}}
+        cc = self._get_cloud('ubuntu')
+        ntp_conf = os.path.join(self.new_root, 'ntp.conf')
+        with open('{0}.tmpl'.format(ntp_conf), 'wb') as stream:
+            stream.write(NTP_TEMPLATE)
+        with mock.patch('cloudinit.config.cc_ntp.NTP_CONF', ntp_conf):
+            cc_ntp.handle('cc_ntp', invalid_config, cc, None, [])
+        self.assertIn(
+            "Invalid config:\nntp.pools.0: 123 is not of type 'string'\n"
+            "ntp.servers.1: None is not of type 'string'",
+            self.logs.getvalue())
+        with open(ntp_conf) as stream:
+            content = stream.read()
+        self.assertEqual("servers ['valid', None]\npools [123]\n", content)
+
+    def test_ntp_handler_schema_validation_warns_of_non_array_type(self):
+        """Ntp schema validation warns of non-array pools or servers types.
+
+        Schema validation is not strict, so ntp config is still be rendered.
+        """
+        invalid_config = {'ntp': {'pools': 123, 'servers': 'non-array'}}
+        cc = self._get_cloud('ubuntu')
+        ntp_conf = os.path.join(self.new_root, 'ntp.conf')
+        with open('{0}.tmpl'.format(ntp_conf), 'wb') as stream:
+            stream.write(NTP_TEMPLATE)
+        with mock.patch('cloudinit.config.cc_ntp.NTP_CONF', ntp_conf):
+            cc_ntp.handle('cc_ntp', invalid_config, cc, None, [])
+        self.assertIn(
+            "Invalid config:\nntp.pools: 123 is not of type 'array'\n"
+            "ntp.servers: 'non-array' is not of type 'array'",
+            self.logs.getvalue())
+        with open(ntp_conf) as stream:
+            content = stream.read()
+        self.assertEqual("servers non-array\npools 123\n", content)
+
+    def test_ntp_handler_schema_validation_warns_invalid_key_present(self):
+        """Ntp schema validation warns of invalid keys present in ntp config.
+
+        Schema validation is not strict, so ntp config is still be rendered.
+        """
+        invalid_config = {
+            'ntp': {'invalidkey': 1, 'pools': ['0.mycompany.pool.ntp.org']}}
+        cc = self._get_cloud('ubuntu')
+        ntp_conf = os.path.join(self.new_root, 'ntp.conf')
+        with open('{0}.tmpl'.format(ntp_conf), 'wb') as stream:
+            stream.write(NTP_TEMPLATE)
+        with mock.patch('cloudinit.config.cc_ntp.NTP_CONF', ntp_conf):
+            cc_ntp.handle('cc_ntp', invalid_config, cc, None, [])
+        self.assertIn(
+            "Invalid config:\nntp: Additional properties are not allowed "
+            "('invalidkey' was unexpected)",
+            self.logs.getvalue())
+        with open(ntp_conf) as stream:
+            content = stream.read()
+        self.assertEqual(
+            "servers []\npools ['0.mycompany.pool.ntp.org']\n",
+            content)
+
+    def test_ntp_handler_schema_validation_warns_of_duplicates(self):
+        """Ntp schema validation warns of duplicates in servers or pools.
+
+        Schema validation is not strict, so ntp config is still be rendered.
+        """
+        invalid_config = {
+            'ntp': {'pools': ['0.mypool.org', '0.mypool.org'],
+                    'servers': ['10.0.0.1', '10.0.0.1']}}
+        cc = self._get_cloud('ubuntu')
+        ntp_conf = os.path.join(self.new_root, 'ntp.conf')
+        with open('{0}.tmpl'.format(ntp_conf), 'wb') as stream:
+            stream.write(NTP_TEMPLATE)
+        with mock.patch('cloudinit.config.cc_ntp.NTP_CONF', ntp_conf):
+            cc_ntp.handle('cc_ntp', invalid_config, cc, None, [])
+        self.assertIn(
+            "Invalid config:\nntp.pools: ['0.mypool.org', '0.mypool.org'] has "
+            "non-unique elements\nntp.servers: ['10.0.0.1', '10.0.0.1'] has "
+            "non-unique elements",
+            self.logs.getvalue())
+        with open(ntp_conf) as stream:
+            content = stream.read()
+        self.assertEqual(
+            "servers ['10.0.0.1', '10.0.0.1']\n"
+            "pools ['0.mypool.org', '0.mypool.org']\n",
+            content)
+
 # vi: ts=4 expandtab
