@@ -304,8 +304,6 @@ class Renderer(renderer.Renderer):
             config = {}
         self.eni_path = config.get('eni_path', 'etc/network/interfaces')
         self.eni_header = config.get('eni_header', None)
-        self.links_path_prefix = config.get(
-            'links_path_prefix', 'etc/systemd/network/50-cloud-init-')
         self.netrules_path = config.get(
             'netrules_path', 'etc/udev/rules.d/70-persistent-net.rules')
 
@@ -451,28 +449,6 @@ class Renderer(renderer.Renderer):
             util.write_file(netrules,
                             self._render_persistent_net(network_state))
 
-        if self.links_path_prefix:
-            self._render_systemd_links(target, network_state,
-                                       links_prefix=self.links_path_prefix)
-
-    def _render_systemd_links(self, target, network_state, links_prefix):
-        fp_prefix = util.target_path(target, links_prefix)
-        for f in glob.glob(fp_prefix + "*"):
-            os.unlink(f)
-        for iface in network_state.iter_interfaces():
-            if (iface['type'] == 'physical' and 'name' in iface and
-                    iface.get('mac_address')):
-                fname = fp_prefix + iface['name'] + ".link"
-                content = "\n".join([
-                    "[Match]",
-                    "MACAddress=" + iface['mac_address'],
-                    "",
-                    "[Link]",
-                    "Name=" + iface['name'],
-                    ""
-                ])
-                util.write_file(fname, content)
-
 
 def network_state_to_eni(network_state, header=None, render_hwaddress=False):
     # render the provided network state, return a string of equivalent eni
@@ -480,7 +456,6 @@ def network_state_to_eni(network_state, header=None, render_hwaddress=False):
     renderer = Renderer(config={
         'eni_path': eni_path,
         'eni_header': header,
-        'links_path_prefix': None,
         'netrules_path': None,
     })
     if not header:

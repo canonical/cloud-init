@@ -992,9 +992,7 @@ class TestEniNetRendering(CiTestCase):
         os.makedirs(render_dir)
 
         renderer = eni.Renderer(
-            {'links_path_prefix': None,
-             'eni_path': 'interfaces', 'netrules_path': None,
-             })
+            {'eni_path': 'interfaces', 'netrules_path': None})
         renderer.render_network_state(ns, render_dir)
 
         self.assertTrue(os.path.exists(os.path.join(render_dir,
@@ -1376,7 +1374,7 @@ class TestNetplanRoundTrip(CiTestCase):
 
 class TestEniRoundTrip(CiTestCase):
     def _render_and_read(self, network_config=None, state=None, eni_path=None,
-                         links_prefix=None, netrules_path=None, dir=None):
+                         netrules_path=None, dir=None):
         if dir is None:
             dir = self.tmp_dir()
 
@@ -1391,8 +1389,7 @@ class TestEniRoundTrip(CiTestCase):
             eni_path = 'etc/network/interfaces'
 
         renderer = eni.Renderer(
-            config={'eni_path': eni_path, 'links_path_prefix': links_prefix,
-                    'netrules_path': netrules_path})
+            config={'eni_path': eni_path, 'netrules_path': netrules_path})
 
         renderer.render_network_state(ns, dir)
         return dir2dict(dir)
