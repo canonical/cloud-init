@@ -59,7 +59,7 @@ class TestNtp(FilesystemMockingTestCase):
         with mock.patch("cloudinit.config.cc_ntp.NTP_CONF", ntpconf):
             cc_ntp.rename_ntp_conf()
         self.assertFalse(os.path.exists(ntpconf))
-        self.assertTrue(os.path.exists("{}.dist".format(ntpconf)))
+        self.assertTrue(os.path.exists("{0}.dist".format(ntpconf)))
 
     def test_ntp_rename_ntp_conf_skip_missing(self):
         """When NTP_CONF doesn't exist rename_ntp doesn't create a file."""
@@ -67,7 +67,7 @@ class TestNtp(FilesystemMockingTestCase):
         self.assertFalse(os.path.exists(ntpconf))
         with mock.patch("cloudinit.config.cc_ntp.NTP_CONF", ntpconf):
             cc_ntp.rename_ntp_conf()
-        self.assertFalse(os.path.exists("{}.dist".format(ntpconf)))
+        self.assertFalse(os.path.exists("{0}.dist".format(ntpconf)))
         self.assertFalse(os.path.exists(ntpconf))
 
     def test_write_ntp_config_template_from_ntp_conf_tmpl_with_servers(self):
@@ -84,7 +84,7 @@ class TestNtp(FilesystemMockingTestCase):
         mycloud = self._get_cloud(distro)
         ntp_conf = self.tmp_path("ntp.conf", self.new_root)  # Doesn't exist
         # Create ntp.conf.tmpl
-        with open('{}.tmpl'.format(ntp_conf), 'wb') as stream:
+        with open('{0}.tmpl'.format(ntp_conf), 'wb') as stream:
             stream.write(NTP_TEMPLATE)
         with mock.patch('cloudinit.config.cc_ntp.NTP_CONF', ntp_conf):
             cc_ntp.write_ntp_config_template(cfg, mycloud)
@@ -107,10 +107,10 @@ class TestNtp(FilesystemMockingTestCase):
         mycloud = self._get_cloud(distro)
         ntp_conf = self.tmp_path('ntp.conf', self.new_root)  # Doesn't exist
         # Create ntp.conf.tmpl which isn't read
-        with open('{}.tmpl'.format(ntp_conf), 'wb') as stream:
+        with open('{0}.tmpl'.format(ntp_conf), 'wb') as stream:
             stream.write(b'NOT READ: ntp.conf.<distro>.tmpl is primary')
         # Create ntp.conf.tmpl.<distro>
-        with open('{}.{}.tmpl'.format(ntp_conf, distro), 'wb') as stream:
+        with open('{0}.{1}.tmpl'.format(ntp_conf, distro), 'wb') as stream:
             stream.write(NTP_TEMPLATE)
         with mock.patch('cloudinit.config.cc_ntp.NTP_CONF', ntp_conf):
             cc_ntp.write_ntp_config_template(cfg, mycloud)
@@ -129,19 +129,19 @@ class TestNtp(FilesystemMockingTestCase):
         mycloud = self._get_cloud(distro)
         ntp_conf = self.tmp_path('ntp.conf', self.new_root)  # Doesn't exist
         # Create ntp.conf.tmpl
-        with open('{}.tmpl'.format(ntp_conf), 'wb') as stream:
+        with open('{0}.tmpl'.format(ntp_conf), 'wb') as stream:
             stream.write(NTP_TEMPLATE)
         with mock.patch('cloudinit.config.cc_ntp.NTP_CONF', ntp_conf):
             cc_ntp.write_ntp_config_template({}, mycloud)
         content = util.read_file_or_url('file://' + ntp_conf).contents
         default_pools = [
-            "{}.{}.pool.ntp.org".format(x, distro)
+            "{0}.{1}.pool.ntp.org".format(x, distro)
             for x in range(0, cc_ntp.NR_POOL_SERVERS)]
         self.assertEqual(
-            "servers []\npools {}\n".format(default_pools),
+            "servers []\npools {0}\n".format(default_pools),
             content.decode())
         self.assertIn(
-            "Adding distro default ntp pool servers: {}".format(
+            "Adding distro default ntp pool servers: {0}".format(
                 ",".join(default_pools)),
             self.logs.getvalue())
 
@@ -158,7 +158,7 @@ class TestNtp(FilesystemMockingTestCase):
         mycloud = self._get_cloud('ubuntu')
         ntp_conf = self.tmp_path('ntp.conf', self.new_root)  # Doesn't exist
         # Create ntp.conf.tmpl
-        with open('{}.tmpl'.format(ntp_conf), 'wb') as stream:
+        with open('{0}.tmpl'.format(ntp_conf), 'wb') as stream:
             stream.write(NTP_TEMPLATE)
         with mock.patch('cloudinit.config.cc_ntp.NTP_CONF', ntp_conf):
             with mock.patch.object(util, 'which', return_value=None):
@@ -166,7 +166,7 @@ class TestNtp(FilesystemMockingTestCase):
 
         content = util.read_file_or_url('file://' + ntp_conf).contents
         self.assertEqual(
-            'servers {}\npools {}\n'.format(servers, pools),
+            'servers {0}\npools {1}\n'.format(servers, pools),
             content.decode())
 
     def test_ntp_handler_real_distro_templates(self):
@@ -184,7 +184,7 @@ class TestNtp(FilesystemMockingTestCase):
             mycloud = self._get_cloud(distro)
             root_dir = dirname(dirname(os.path.realpath(util.__file__)))
             tmpl_file = os.path.join(
-                '{}/templates/ntp.conf.{}.tmpl'.format(root_dir, distro))
+                '{0}/templates/ntp.conf.{1}.tmpl'.format(root_dir, distro))
             # Create a copy in our tmp_dir
             shutil.copy(
                 tmpl_file,
@@ -195,15 +195,15 @@ class TestNtp(FilesystemMockingTestCase):
 
             content = util.read_file_or_url('file://' + ntp_conf).contents
             expected_servers = '\n'.join([
-                'server {} iburst'.format(server) for server in servers])
+                'server {0} iburst'.format(server) for server in servers])
             self.assertIn(
                 expected_servers, content.decode(),
-                'failed to render ntp.conf for distro:{}'.format(distro))
+                'failed to render ntp.conf for distro:{0}'.format(distro))
             expected_pools = '\n'.join([
-                'pool {} iburst'.format(pool) for pool in pools])
+                'pool {0} iburst'.format(pool) for pool in pools])
             self.assertIn(
                 expected_pools, content.decode(),
-                'failed to render ntp.conf for distro:{}'.format(distro))
+                'failed to render ntp.conf for distro:{0}'.format(distro))
 
     def test_no_ntpcfg_does_nothing(self):
         """When no ntp section is defined handler logs a warning and noops."""
