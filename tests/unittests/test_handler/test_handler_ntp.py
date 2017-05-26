@@ -2,351 +2,214 @@
 
 from cloudinit.config import cc_ntp
 from cloudinit.sources import DataSourceNone
-from cloudinit import templater
 from cloudinit import (distros, helpers, cloud, util)
 from ..helpers import FilesystemMockingTestCase, mock
 
-import logging
+
 import os
+from os.path import dirname
 import shutil
-import tempfile
 
-LOG = logging.getLogger(__name__)
-
-NTP_TEMPLATE = """
+NTP_TEMPLATE = b"""\
 ## template: jinja
-
-{% if pools %}# pools
-{% endif %}
-{% for pool in pools -%}
-pool {{pool}} iburst
-{% endfor %}
-{%- if servers %}# servers
-{% endif %}
-{% for server in servers -%}
-server {{server}} iburst
-{% endfor %}
-
-"""
-
-
-NTP_EXPECTED_UBUNTU = """
-# pools
-pool 0.mycompany.pool.ntp.org iburst
-# servers
-server 192.168.23.3 iburst
-
+servers {{servers}}
+pools {{pools}}
 """
 
 
 class TestNtp(FilesystemMockingTestCase):
 
+    with_logs = True
+
     def setUp(self):
         super(TestNtp, self).setUp()
         self.subp = util.subp
-        self.new_root = tempfile.mkdtemp()
-        self.addCleanup(shutil.rmtree, self.new_root)
+        self.new_root = self.tmp_dir()
 
-    def _get_cloud(self, distro, metadata=None):
+    def _get_cloud(self, distro):
         self.patchUtils(self.new_root)
-        paths = helpers.Paths({})
+        paths = helpers.Paths({'templates_dir': self.new_root})
         cls = distros.fetch(distro)
         mydist = cls(distro, {}, paths)
         myds = DataSourceNone.DataSourceNone({}, mydist, paths)
-        if metadata:
-            myds.metadata.update(metadata)
         return cloud.Cloud(myds, paths, {}, mydist, None)
 
     @mock.patch("cloudinit.config.cc_ntp.util")
     def test_ntp_install(self, mock_util):
-        cc = self._get_cloud('ubuntu')
-        cc.distro = mock.MagicMock()
-        cc.distro.name = 'ubuntu'
-        mock_util.which.return_value = None
+        """ntp_install installs via install_func when check_exe is absent."""
+        mock_util.which.return_value = None  # check_exe not found.
         install_func = mock.MagicMock()
-
         cc_ntp.install_ntp(install_func, packages=['ntpx'], check_exe='ntpdx')
 
-        self.assertTrue(install_func.called)
         mock_util.which.assert_called_with('ntpdx')
-        install_pkg = install_func.call_args_list[0][0][0]
-        self.assertEqual(sorted(install_pkg), ['ntpx'])
+        install_func.assert_called_once_with(['ntpx'])
 
     @mock.patch("cloudinit.config.cc_ntp.util")
     def test_ntp_install_not_needed(self, mock_util):
-        cc = self._get_cloud('ubuntu')
-        cc.distro = mock.MagicMock()
-        cc.distro.name = 'ubuntu'
-        mock_util.which.return_value = ["/usr/sbin/ntpd"]
-        cc_ntp.install_ntp(cc)
-        self.assertFalse(cc.distro.install_packages.called)
+        """ntp_install doesn't attempt install when check_exe is found."""
+        mock_util.which.return_value = ["/usr/sbin/ntpd"]  # check_exe found.
+        install_func = mock.MagicMock()
+        cc_ntp.install_ntp(install_func, packages=['ntp'], check_exe='ntpd')
+        install_func.assert_not_called()
 
     def test_ntp_rename_ntp_conf(self):
-        with mock.patch.object(os.path, 'exists',
-                               return_value=True) as mockpath:
-            with mock.patch.object(util, 'rename') as mockrename:
-                cc_ntp.rename_ntp_conf()
-
-        mockpath.assert_called_with('/etc/ntp.conf')
-        mockrename.assert_called_with('/etc/ntp.conf', '/etc/ntp.conf.dist')
+        """When NTP_CONF exists, rename_ntp moves it."""
+        ntpconf = self.tmp_path("ntp.conf", self.new_root)
+        os.mknod(ntpconf)
+        with mock.patch("cloudinit.config.cc_ntp.NTP_CONF", ntpconf):
+            cc_ntp.rename_ntp_conf()
+        self.assertFalse(os.path.exists(ntpconf))
+        self.assertTrue(os.path.exists("{0}.dist".format(ntpconf)))
 
     def test_ntp_rename_ntp_conf_skip_missing(self):
-        with mock.patch.object(os.path, 'exists',
-                               return_value=False) as mockpath:
-            with mock.patch.object(util, 'rename') as mockrename:
-                cc_ntp.rename_ntp_conf()
+        """When NTP_CONF doesn't exist rename_ntp doesn't create a file."""
+        ntpconf = self.tmp_path("ntp.conf", self.new_root)
+        self.assertFalse(os.path.exists(ntpconf))
+        with mock.patch("cloudinit.config.cc_ntp.NTP_CONF", ntpconf):
+            cc_ntp.rename_ntp_conf()
+        self.assertFalse(os.path.exists("{0}.dist".format(ntpconf)))
+        self.assertFalse(os.path.exists(ntpconf))
 
-        mockpath.assert_called_with('/etc/ntp.conf')
-        mockrename.assert_not_called()
+    def test_write_ntp_config_template_from_ntp_conf_tmpl_with_servers(self):
+        """write_ntp_config_template reads content from ntp.conf.tmpl.
 
-    def ntp_conf_render(self, distro):
-        """ntp_conf_render
-        Test rendering of a ntp.conf from template for a given distro
+        It reads ntp.conf.tmpl if present and renders the value from servers
+        key. When no pools key is defined, template is rendered using an empty
+        list for pools.
         """
-
-        cfg = {'ntp': {}}
-        mycloud = self._get_cloud(distro)
-        distro_names = cc_ntp.generate_server_names(distro)
-
-        with mock.patch.object(templater, 'render_to_file') as mocktmpl:
-            with mock.patch.object(os.path, 'isfile', return_value=True):
-                with mock.patch.object(util, 'rename'):
-                    cc_ntp.write_ntp_config_template(cfg, mycloud)
-
-        mocktmpl.assert_called_once_with(
-            ('/etc/cloud/templates/ntp.conf.%s.tmpl' % distro),
-            '/etc/ntp.conf',
-            {'servers': [], 'pools': distro_names})
-
-    def test_ntp_conf_render_rhel(self):
-        """Test templater.render_to_file() for rhel"""
-        self.ntp_conf_render('rhel')
-
-    def test_ntp_conf_render_debian(self):
-        """Test templater.render_to_file() for debian"""
-        self.ntp_conf_render('debian')
-
-    def test_ntp_conf_render_fedora(self):
-        """Test templater.render_to_file() for fedora"""
-        self.ntp_conf_render('fedora')
-
-    def test_ntp_conf_render_sles(self):
-        """Test templater.render_to_file() for sles"""
-        self.ntp_conf_render('sles')
-
-    def test_ntp_conf_render_ubuntu(self):
-        """Test templater.render_to_file() for ubuntu"""
-        self.ntp_conf_render('ubuntu')
-
-    def test_ntp_conf_servers_no_pools(self):
         distro = 'ubuntu'
-        pools = []
-        servers = ['192.168.2.1']
         cfg = {
-            'ntp': {
-                'pools': pools,
-                'servers': servers,
-            }
+            'servers': ['192.168.2.1', '192.168.2.2']
         }
         mycloud = self._get_cloud(distro)
+        ntp_conf = self.tmp_path("ntp.conf", self.new_root)  # Doesn't exist
+        # Create ntp.conf.tmpl
+        with open('{0}.tmpl'.format(ntp_conf), 'wb') as stream:
+            stream.write(NTP_TEMPLATE)
+        with mock.patch('cloudinit.config.cc_ntp.NTP_CONF', ntp_conf):
+            cc_ntp.write_ntp_config_template(cfg, mycloud)
+        content = util.read_file_or_url('file://' + ntp_conf).contents
+        self.assertEqual(
+            "servers ['192.168.2.1', '192.168.2.2']\npools []\n",
+            content.decode())
 
-        with mock.patch.object(templater, 'render_to_file') as mocktmpl:
-            with mock.patch.object(os.path, 'isfile', return_value=True):
-                with mock.patch.object(util, 'rename'):
-                    cc_ntp.write_ntp_config_template(cfg.get('ntp'), mycloud)
+    def test_write_ntp_config_template_uses_ntp_conf_distro_no_servers(self):
+        """write_ntp_config_template reads content from ntp.conf.distro.tmpl.
 
-        mocktmpl.assert_called_once_with(
-            ('/etc/cloud/templates/ntp.conf.%s.tmpl' % distro),
-            '/etc/ntp.conf',
-            {'servers': servers, 'pools': pools})
-
-    def test_ntp_conf_custom_pools_no_server(self):
+        It reads ntp.conf.<distro>.tmpl before attempting ntp.conf.tmpl. It
+        renders the value from the keys servers and pools. When no
+        servers value is present, template is rendered using an empty list.
+        """
         distro = 'ubuntu'
-        pools = ['0.mycompany.pool.ntp.org']
-        servers = []
         cfg = {
-            'ntp': {
-                'pools': pools,
-                'servers': servers,
-            }
+            'pools': ['10.0.0.1', '10.0.0.2']
         }
         mycloud = self._get_cloud(distro)
+        ntp_conf = self.tmp_path('ntp.conf', self.new_root)  # Doesn't exist
+        # Create ntp.conf.tmpl which isn't read
+        with open('{0}.tmpl'.format(ntp_conf), 'wb') as stream:
+            stream.write(b'NOT READ: ntp.conf.<distro>.tmpl is primary')
+        # Create ntp.conf.tmpl.<distro>
+        with open('{0}.{1}.tmpl'.format(ntp_conf, distro), 'wb') as stream:
+            stream.write(NTP_TEMPLATE)
+        with mock.patch('cloudinit.config.cc_ntp.NTP_CONF', ntp_conf):
+            cc_ntp.write_ntp_config_template(cfg, mycloud)
+        content = util.read_file_or_url('file://' + ntp_conf).contents
+        self.assertEqual(
+            "servers []\npools ['10.0.0.1', '10.0.0.2']\n",
+            content.decode())
 
-        with mock.patch.object(templater, 'render_to_file') as mocktmpl:
-            with mock.patch.object(os.path, 'isfile', return_value=True):
-                with mock.patch.object(util, 'rename'):
-                    cc_ntp.write_ntp_config_template(cfg.get('ntp'), mycloud)
+    def test_write_ntp_config_template_defaults_pools_when_empty_lists(self):
+        """write_ntp_config_template defaults pools servers upon empty config.
 
-        mocktmpl.assert_called_once_with(
-            ('/etc/cloud/templates/ntp.conf.%s.tmpl' % distro),
-            '/etc/ntp.conf',
-            {'servers': servers, 'pools': pools})
-
-    def test_ntp_conf_custom_pools_and_server(self):
+        When both pools and servers are empty, default NR_POOL_SERVERS get
+        configured.
+        """
         distro = 'ubuntu'
-        pools = ['0.mycompany.pool.ntp.org']
-        servers = ['192.168.23.3']
-        cfg = {
-            'ntp': {
-                'pools': pools,
-                'servers': servers,
-            }
-        }
         mycloud = self._get_cloud(distro)
+        ntp_conf = self.tmp_path('ntp.conf', self.new_root)  # Doesn't exist
+        # Create ntp.conf.tmpl
+        with open('{0}.tmpl'.format(ntp_conf), 'wb') as stream:
+            stream.write(NTP_TEMPLATE)
+        with mock.patch('cloudinit.config.cc_ntp.NTP_CONF', ntp_conf):
+            cc_ntp.write_ntp_config_template({}, mycloud)
+        content = util.read_file_or_url('file://' + ntp_conf).contents
+        default_pools = [
+            "{0}.{1}.pool.ntp.org".format(x, distro)
+            for x in range(0, cc_ntp.NR_POOL_SERVERS)]
+        self.assertEqual(
+            "servers []\npools {0}\n".format(default_pools),
+            content.decode())
+        self.assertIn(
+            "Adding distro default ntp pool servers: {0}".format(
+                ",".join(default_pools)),
+            self.logs.getvalue())
 
-        with mock.patch.object(templater, 'render_to_file') as mocktmpl:
-            with mock.patch.object(os.path, 'isfile', return_value=True):
-                with mock.patch.object(util, 'rename'):
-                    cc_ntp.write_ntp_config_template(cfg.get('ntp'), mycloud)
-
-        mocktmpl.assert_called_once_with(
-            ('/etc/cloud/templates/ntp.conf.%s.tmpl' % distro),
-            '/etc/ntp.conf',
-            {'servers': servers, 'pools': pools})
-
-    def test_ntp_conf_contents_match(self):
-        """Test rendered contents of /etc/ntp.conf for ubuntu"""
-        pools = ['0.mycompany.pool.ntp.org']
-        servers = ['192.168.23.3']
+    def test_ntp_handler_mocked_template(self):
+        """Test ntp handler renders ubuntu ntp.conf template."""
+        pools = ['0.mycompany.pool.ntp.org', '3.mycompany.pool.ntp.org']
+        servers = ['192.168.23.3', '192.168.23.4']
         cfg = {
             'ntp': {
                 'pools': pools,
-                'servers': servers,
+                'servers': servers
             }
         }
         mycloud = self._get_cloud('ubuntu')
-        side_effect = [NTP_TEMPLATE.lstrip()]
+        ntp_conf = self.tmp_path('ntp.conf', self.new_root)  # Doesn't exist
+        # Create ntp.conf.tmpl
+        with open('{0}.tmpl'.format(ntp_conf), 'wb') as stream:
+            stream.write(NTP_TEMPLATE)
+        with mock.patch('cloudinit.config.cc_ntp.NTP_CONF', ntp_conf):
+            with mock.patch.object(util, 'which', return_value=None):
+                cc_ntp.handle('notimportant', cfg, mycloud, None, None)
 
-        # work backwards from util.write_file and mock out call path
-        # write_ntp_config_template()
-        #   cloud.get_template_filename()
-        #     os.path.isfile()
-        #   templater.render_to_file()
-        #     templater.render_from_file()
-        #         util.load_file()
-        #     util.write_file()
-        #
-        with mock.patch.object(util, 'write_file') as mockwrite:
-            with mock.patch.object(util, 'load_file', side_effect=side_effect):
-                with mock.patch.object(os.path, 'isfile', return_value=True):
-                    with mock.patch.object(util, 'rename'):
-                        cc_ntp.write_ntp_config_template(cfg.get('ntp'),
-                                                         mycloud)
+        content = util.read_file_or_url('file://' + ntp_conf).contents
+        self.assertEqual(
+            'servers {0}\npools {1}\n'.format(servers, pools),
+            content.decode())
 
-        mockwrite.assert_called_once_with(
-            '/etc/ntp.conf',
-            NTP_EXPECTED_UBUNTU,
-            mode=420)
-
-    def test_ntp_handler(self):
-        """Test ntp handler renders ubuntu ntp.conf template"""
-        pools = ['0.mycompany.pool.ntp.org']
-        servers = ['192.168.23.3']
+    def test_ntp_handler_real_distro_templates(self):
+        """Test ntp handler renders the shipped distro ntp.conf templates."""
+        pools = ['0.mycompany.pool.ntp.org', '3.mycompany.pool.ntp.org']
+        servers = ['192.168.23.3', '192.168.23.4']
         cfg = {
             'ntp': {
                 'pools': pools,
-                'servers': servers,
+                'servers': servers
             }
         }
-        mycloud = self._get_cloud('ubuntu')
-        mycloud.distro = mock.MagicMock()
-        mycloud.distro.uses_systemd.return_value = True
-        side_effect = [NTP_TEMPLATE.lstrip()]
+        ntp_conf = self.tmp_path('ntp.conf', self.new_root)  # Doesn't exist
+        for distro in ('debian', 'ubuntu', 'fedora', 'rhel', 'sles'):
+            mycloud = self._get_cloud(distro)
+            root_dir = dirname(dirname(os.path.realpath(util.__file__)))
+            tmpl_file = os.path.join(
+                '{0}/templates/ntp.conf.{1}.tmpl'.format(root_dir, distro))
+            # Create a copy in our tmp_dir
+            shutil.copy(
+                tmpl_file,
+                os.path.join(self.new_root, 'ntp.conf.%s.tmpl' % distro))
+            with mock.patch('cloudinit.config.cc_ntp.NTP_CONF', ntp_conf):
+                with mock.patch.object(util, 'which', return_value=[True]):
+                    cc_ntp.handle('notimportant', cfg, mycloud, None, None)
 
-        with mock.patch.object(util, 'which', return_value=None):
-            with mock.patch.object(os.path, 'exists'):
-                with mock.patch.object(util, 'write_file') as mockwrite:
-                    with mock.patch.object(util, 'load_file',
-                                           side_effect=side_effect):
-                        with mock.patch.object(os.path, 'isfile',
-                                               return_value=True):
-                            with mock.patch.object(util, 'rename'):
-                                with mock.patch.object(util, 'subp') as msubp:
-                                    cc_ntp.handle("notimportant", cfg,
-                                                  mycloud, LOG, None)
+            content = util.read_file_or_url('file://' + ntp_conf).contents
+            expected_servers = '\n'.join([
+                'server {0} iburst'.format(server) for server in servers])
+            self.assertIn(
+                expected_servers, content.decode(),
+                'failed to render ntp.conf for distro:{0}'.format(distro))
+            expected_pools = '\n'.join([
+                'pool {0} iburst'.format(pool) for pool in pools])
+            self.assertIn(
+                expected_pools, content.decode(),
+                'failed to render ntp.conf for distro:{0}'.format(distro))
 
-        mockwrite.assert_called_once_with(
-            '/etc/ntp.conf',
-            NTP_EXPECTED_UBUNTU,
-            mode=420)
-        msubp.assert_any_call(['systemctl', 'reload-or-restart', 'ntp'],
-                              capture=True)
-
-    @mock.patch("cloudinit.config.cc_ntp.install_ntp")
-    @mock.patch("cloudinit.config.cc_ntp.write_ntp_config_template")
-    @mock.patch("cloudinit.config.cc_ntp.rename_ntp_conf")
-    def test_write_config_before_install(self, mock_ntp_rename,
-                                         mock_ntp_write_config,
-                                         mock_install_ntp):
-        pools = ['0.mycompany.pool.ntp.org']
-        servers = ['192.168.23.3']
-        cfg = {
-            'ntp': {
-                'pools': pools,
-                'servers': servers,
-            }
-        }
-        cc = self._get_cloud('ubuntu')
-        cc.distro = mock.MagicMock()
-        mock_parent = mock.MagicMock()
-        mock_parent.attach_mock(mock_ntp_rename, 'mock_ntp_rename')
-        mock_parent.attach_mock(mock_ntp_write_config, 'mock_ntp_write_config')
-        mock_parent.attach_mock(mock_install_ntp, 'mock_install_ntp')
-
-        cc_ntp.handle('cc_ntp', cfg, cc, LOG, None)
-
-        """Check call order"""
-        mock_parent.assert_has_calls([
-            mock.call.mock_ntp_rename(),
-            mock.call.mock_ntp_write_config(cfg.get('ntp'), cc),
-            mock.call.mock_install_ntp(cc.distro.install_packages,
-                                       packages=['ntp'], check_exe="ntpd")])
-
-    @mock.patch("cloudinit.config.cc_ntp.reload_ntp")
-    @mock.patch("cloudinit.config.cc_ntp.install_ntp")
-    @mock.patch("cloudinit.config.cc_ntp.write_ntp_config_template")
-    @mock.patch("cloudinit.config.cc_ntp.rename_ntp_conf")
-    def test_reload_ntp_fail_raises_exception(self, mock_rename,
-                                              mock_write_conf,
-                                              mock_install,
-                                              mock_reload):
-        pools = ['0.mycompany.pool.ntp.org']
-        servers = ['192.168.23.3']
-        cfg = {
-            'ntp': {
-                'pools': pools,
-                'servers': servers,
-            }
-        }
-        cc = self._get_cloud('ubuntu')
-        cc.distro = mock.MagicMock()
-
-        mock_reload.side_effect = [util.ProcessExecutionError]
-        self.assertRaises(util.ProcessExecutionError,
-                          cc_ntp.handle, 'cc_ntp',
-                          cfg, cc, LOG, None)
-
-    @mock.patch("cloudinit.config.cc_ntp.util")
-    def test_no_ntpcfg_does_nothing(self, mock_util):
-        cc = self._get_cloud('ubuntu')
-        cc.distro = mock.MagicMock()
-        cc_ntp.handle('cc_ntp', {}, cc, LOG, [])
-        self.assertFalse(cc.distro.install_packages.called)
-        self.assertFalse(mock_util.subp.called)
-
-    @mock.patch("cloudinit.config.cc_ntp.util")
-    def test_reload_ntp_systemd(self, mock_util):
-        cc_ntp.reload_ntp(systemd=True)
-        self.assertTrue(mock_util.subp.called)
-        mock_util.subp.assert_called_with(
-            ['systemctl', 'reload-or-restart', 'ntp'], capture=True)
-
-    @mock.patch("cloudinit.config.cc_ntp.util")
-    def test_reload_ntp_service(self, mock_util):
-        cc_ntp.reload_ntp(systemd=False)
-        self.assertTrue(mock_util.subp.called)
-        mock_util.subp.assert_called_with(
-            ['service', 'ntp', 'restart'], capture=True)
-
+    def test_no_ntpcfg_does_nothing(self):
+        """When no ntp section is defined handler logs a warning and noops."""
+        cc_ntp.handle('cc_ntp', {}, None, None, [])
+        self.assertEqual(
+            'Skipping module named cc_ntp, not present or disabled by cfg\n',
+            self.logs.getvalue())
 
 # vi: ts=4 expandtab

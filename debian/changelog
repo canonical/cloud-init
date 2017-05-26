@@ -1,3 +1,22 @@
+cloud-init (0.7.9-153-g16a7302f-0ubuntu1) artful; urgency=medium
+
+  * New upstream snapshot.
+    - net: fix reading and rendering addresses in cidr format.
+      [Dimitri John Ledkov] (LP: #1689346, #1684349)
+    - disk_setup: udev settle before attempting partitioning or fs creation.
+      [Scott Moser] (LP: #1692093)
+    - GCE: Update the attribute used to find instance SSH keys.
+      [Daniel Watkins] (LP: #1693582)
+    - nplan: For bonds, allow dashed or underscore names of keys.
+      [Dimitri John Ledkov] (LP: #1690480)
+    - python2.6: fix unit tests usage of assertNone and format.
+    - test: update docstring on test_configured_list_with_none
+    - fix tools/ds-identify to not write None twice.
+    - tox/build: do not package depend on style requirements.
+    - cc_ntp: Restructure cc_ntp unit tests. [Chad Smith] (LP: #1692794)
+
+ -- Scott Moser <smoser@ubuntu.com>  Fri, 26 May 2017 15:11:48 -0400
+
 cloud-init (0.7.9-144-g2825a917-0ubuntu1) artful; urgency=medium
 
   * New upstream snapshot.
