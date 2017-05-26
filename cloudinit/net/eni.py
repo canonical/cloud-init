@@ -75,12 +75,25 @@ def _iface_add_attrs(iface, index):
         'subnets',
         'type',
     ]
+
+    # The following parameters require repetitive entries of the key for
+    # each of the values
+    multiline_keys = [
+        'bridge_pathcost',
+        'bridge_portprio',
+        'bridge_waitport',
+    ]
+
     renames = {'mac_address': 'hwaddress'}
     if iface['type'] not in ['bond', 'bridge', 'vlan']:
         ignore_map.append('mac_address')
 
     for key, value in iface.items():
         if not value or key in ignore_map:
+            continue
+        if key in multiline_keys:
+            for v in value:
+                content.append("    {0} {1}".format(renames.get(key, key), v))
             continue
         if type(value) == list:
             value = " ".join(value)

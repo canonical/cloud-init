@@ -511,8 +511,20 @@ iface bond0 inet6 dhcp
 auto br0
 iface br0 inet static
     address 192.168.14.2/24
+    bridge_ageing 250
+    bridge_bridgeprio 22
+    bridge_fd 1
+    bridge_gcint 2
+    bridge_hello 1
+    bridge_maxage 10
+    bridge_pathcost eth3 50
+    bridge_pathcost eth4 75
+    bridge_portprio eth3 28
+    bridge_portprio eth4 14
     bridge_ports eth3 eth4
     bridge_stp off
+    bridge_waitport 1 eth3
+    bridge_waitport 2 eth4
 
 # control-alias br0
 iface br0 inet6 static
@@ -642,6 +654,15 @@ pre-down route del -net 10.0.0.0 netmask 255.0.0.0 gw 11.0.0.1 metric 3 || true
                         interfaces:
                         - eth3
                         - eth4
+                        parameters:
+                            ageing-time: 250
+                            forward-delay: 1
+                            hello-time: 1
+                            max-age: 10
+                            path-cost:
+                                eth3: 50
+                                eth4: 75
+                            priority: 22
                 vlans:
                     bond0.200:
                         dhcp4: true
@@ -752,9 +773,23 @@ pre-down route del -net 10.0.0.0 netmask 255.0.0.0 gw 11.0.0.1 metric 3 || true
                       forwarding: 1
                       # basically anything in /proc/sys/net/ipv6/conf/.../
                   params:
-                      bridge_stp: 'off'
-                      bridge_fd: 0
+                      bridge_ageing: 250
+                      bridge_bridgeprio: 22
+                      bridge_fd: 1
+                      bridge_gcint: 2
+                      bridge_hello: 1
+                      bridge_maxage: 10
                       bridge_maxwait: 0
+                      bridge_pathcost:
+                        - eth3 50
+                        - eth4 75
+                      bridge_portprio:
+                        - eth3 28
+                        - eth4 14
+                      bridge_stp: 'off'
+                      bridge_waitport:
+                        - 1 eth3
+                        - 2 eth4
                   subnets:
                       - type: static
                         address: 192.168.14.2/24
