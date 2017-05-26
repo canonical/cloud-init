@@ -1,4 +1,4 @@
-cloud-init (0.7.9-153-g16a7302f-0ubuntu1~16.10.1) UNRELEASED; urgency=medium
+cloud-init (0.7.9-153-g16a7302f-0ubuntu1~16.10.1) yakkety-proposed; urgency=medium
 
   * New upstream snapshot.
     - net: fix reading and rendering addresses in cidr format.
@@ -61,7 +61,7 @@ cloud-init (0.7.9-153-g16a7302f-0ubuntu1~16.10.1) UNRELEASED; urgency=medium
       [Felix Dreissig]
     - tests: Enable artful in integration tests [Joshua Powers]
 
- -- Scott Moser <smoser@ubuntu.com>  Fri, 26 May 2017 16:02:24 -0400
+ -- Scott Moser <smoser@ubuntu.com>  Fri, 26 May 2017 16:08:21 -0400
 
 cloud-init (0.7.9-113-g513e99e0-0ubuntu1~16.10.1) yakkety; urgency=medium
 
