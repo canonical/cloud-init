@@ -1,4 +1,4 @@
-cloud-init (0.7.9-153-g16a7302f-0ubuntu1) UNRELEASED; urgency=medium
+cloud-init (0.7.9-153-g16a7302f-0ubuntu1) artful; urgency=medium
 
   * New upstream snapshot.
     - net: fix reading and rendering addresses in cidr format.
@@ -15,7 +15,7 @@ cloud-init (0.7.9-153-g16a7302f-0ubuntu1) UNRELEASED; urgency=medium
     - tox/build: do not package depend on style requirements.
     - cc_ntp: Restructure cc_ntp unit tests. [Chad Smith] (LP: #1692794)
 
- -- Scott Moser <smoser@ubuntu.com>  Fri, 26 May 2017 15:10:54 -0400
+ -- Scott Moser <smoser@ubuntu.com>  Fri, 26 May 2017 15:11:48 -0400
 
 cloud-init (0.7.9-144-g2825a917-0ubuntu1) artful; urgency=medium
 
