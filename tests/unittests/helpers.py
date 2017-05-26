@@ -4,6 +4,7 @@ from __future__ import print_function
 
 import functools
 import json
+import logging
 import os
 import shutil
 import sys
@@ -18,6 +19,10 @@ try:
     from contextlib import ExitStack
 except ImportError:
     from contextlib2 import ExitStack
+try:
+    from cStringIO import StringIO
+except ImportError:
+    from io import StringIO
 
 from cloudinit import helpers as ch
 from cloudinit import util
@@ -87,6 +92,27 @@ class TestCase(unittest2.TestCase):
 class CiTestCase(TestCase):
     """This is the preferred test case base class unless user
        needs other test case classes below."""
+
+    # Subclass overrides for specific test behavior
+    # Whether or not a unit test needs logfile setup
+    with_logs = False
+
+    def setUp(self):
+        super(CiTestCase, self).setUp()
+        if self.with_logs:
+            # Create a log handler so unit tests can search expected logs.
+            logger = logging.getLogger()
+            self.logs = StringIO()
+            handler = logging.StreamHandler(self.logs)
+            self.old_handlers = logger.handlers
+            logger.handlers = [handler]
+
+    def tearDown(self):
+        if self.with_logs:
+            # Remove the handler we setup
+            logging.getLogger().handlers = self.old_handlers
+        super(CiTestCase, self).tearDown()
+
     def tmp_dir(self, dir=None, cleanup=True):
         # return a full path to a temporary directory that will be cleaned up.
         if dir is None:

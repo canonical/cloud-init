@@ -4,7 +4,7 @@ import copy
 import os
 
 from . import renderer
-from .network_state import subnet_is_ipv6
+from .network_state import mask2cidr, subnet_is_ipv6
 
 from cloudinit import log as logging
 from cloudinit import util
@@ -41,7 +41,7 @@ NET_CONFIG_TO_V2 = {
              'bond-num-grat-arp': 'gratuitious-arp',
              'bond-primary-reselect': 'primary-reselect-policy',
              'bond-updelay': 'up-delay',
-             'bond-xmit_hash_policy': 'transmit_hash_policy'},
+             'bond-xmit-hash-policy': 'transmit-hash-policy'},
     'bridge': {'bridge_ageing': 'ageing-time',
                'bridge_bridgeprio': 'priority',
                'bridge_fd': 'forward-delay',
@@ -118,9 +118,10 @@ def _extract_addresses(config, entry):
                 sn_type += '4'
             entry.update({sn_type: True})
         elif sn_type in ['static']:
-            addr = "%s" % subnet.get('address')
-            if 'netmask' in subnet:
-                addr += "/%s" % subnet.get('netmask')
+            addr = '%s' % subnet.get('address')
+            netmask = subnet.get('netmask')
+            if netmask and '/' not in addr:
+                addr += '/%s' % mask2cidr(netmask)
             if 'gateway' in subnet and subnet.get('gateway'):
                 gateway = subnet.get('gateway')
                 if ":" in gateway:
@@ -137,8 +138,9 @@ def _extract_addresses(config, entry):
                     mtukey += '6'
                 entry.update({mtukey: subnet.get('mtu')})
             for route in subnet.get('routes', []):
-                to_net = "%s/%s" % (route.get('network'),
-                                    route.get('netmask'))
+                network = route.get('network')
+                netmask = route.get('netmask')
+                to_net = '%s/%s' % (network, mask2cidr(netmask))
                 route = {
                     'via': route.get('gateway'),
                     'to': to_net,
@@ -294,7 +296,7 @@ class Renderer(renderer.Renderer):
                 for match in ['bond_', 'bond-']:
                     bond_params = _get_params_dict_by_match(ifcfg, match)
                     for (param, value) in bond_params.items():
-                        newname = v2_bond_map.get(param)
+                        newname = v2_bond_map.get(param.replace('_', '-'))
                         if newname is None:
                             continue
                         bond_config.update({newname: value})

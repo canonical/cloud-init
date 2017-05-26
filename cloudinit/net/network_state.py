@@ -734,9 +734,9 @@ def ipv6mask2cidr(mask):
 
 
 def mask2cidr(mask):
-    if ':' in mask:
+    if ':' in str(mask):
         return ipv6mask2cidr(mask)
-    elif '.' in mask:
+    elif '.' in str(mask):
         return ipv4mask2cidr(mask)
     else:
         return mask

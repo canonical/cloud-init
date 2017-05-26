@@ -680,13 +680,13 @@ def read_parttbl(device):
     reliable way to probe the partition table.
     """
     blkdev_cmd = [BLKDEV_CMD, '--rereadpt', device]
-    udev_cmd = [UDEVADM_CMD, 'settle']
+    udevadm_settle()
     try:
-        util.subp(udev_cmd)
         util.subp(blkdev_cmd)
-        util.subp(udev_cmd)
     except Exception as e:
         util.logexc(LOG, "Failed reading the partition table %s" % e)
+
+    udevadm_settle()
 
 
 def exec_mkpart_mbr(device, layout):
@@ -737,6 +737,24 @@ def exec_mkpart(table_type, device, layout):
     return get_dyn_func("exec_mkpart_%s", table_type, device, layout)
 
 
+def udevadm_settle():
+    util.subp(['udevadm', 'settle'])
+
+
+def assert_and_settle_device(device):
+    """Assert that device exists and settle so it is fully recognized."""
+    if not os.path.exists(device):
+        udevadm_settle()
+        if not os.path.exists(device):
+            raise RuntimeError("Device %s did not exist and was not created "
+                               "with a udevamd settle." % device)
+
+    # Whether or not the device existed above, it is possible that udev
+    # events that would populate udev database (for reading by lsdname) have
+    # not yet finished. So settle again.
+    udevadm_settle()
+
+
 def mkpart(device, definition):
     """
     Creates the partition table.
@@ -752,6 +770,7 @@ def mkpart(device, definition):
                 device: the device to work on.
     """
     # ensure that we get a real device rather than a symbolic link
+    assert_and_settle_device(device)
     device = os.path.realpath(device)
 
     LOG.debug("Checking values for %s definition", device)
@@ -852,6 +871,7 @@ def mkfs(fs_cfg):
     overwrite = fs_cfg.get('overwrite', False)
 
     # ensure that we get a real device rather than a symbolic link
+    assert_and_settle_device(device)
     device = os.path.realpath(device)
 
     # This allows you to define the default ephemeral or swap
