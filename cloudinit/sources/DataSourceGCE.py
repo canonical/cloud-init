@@ -71,7 +71,7 @@ class DataSourceGCE(sources.DataSource):
             ('availability-zone', ('instance/zone',), True, True),
             ('local-hostname', ('instance/hostname',), True, True),
             ('public-keys', ('project/attributes/sshKeys',
-                             'instance/attributes/sshKeys'), False, True),
+                             'instance/attributes/ssh-keys'), False, True),
             ('user-data', ('instance/attributes/user-data',), False, False),
             ('user-data-encoding', ('instance/attributes/user-data-encoding',),
              False, True),

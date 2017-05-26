@@ -6,8 +6,8 @@ cloud_config: |
   snappy:
     system_snappy: auto
 collect_scripts:
-  snap_version: |
+  snapd: |
     #!/bin/bash
-    snap --version
+    dpkg -s snapd
 
 # vi: ts=4 expandtab

@@ -24,6 +24,7 @@ import platform
 import pwd
 import random
 import re
+import shlex
 import shutil
 import socket
 import stat
@@ -75,6 +76,7 @@ CONTAINER_TESTS = (['systemd-detect-virt', '--quiet', '--container'],
 PROC_CMDLINE = None
 
 _LSB_RELEASE = {}
+PY26 = sys.version_info[0:2] == (2, 6)
 
 
 def get_architecture(target=None):
@@ -476,10 +478,11 @@ def decomp_gzip(data, quiet=True, decode=True):
     try:
         buf = six.BytesIO(encode_text(data))
         with contextlib.closing(gzip.GzipFile(None, "rb", 1, buf)) as gh:
+            # E1101 is https://github.com/PyCQA/pylint/issues/1444
             if decode:
-                return decode_binary(gh.read())
+                return decode_binary(gh.read())  # pylint: disable=E1101
             else:
-                return gh.read()
+                return gh.read()  # pylint: disable=E1101
     except Exception as e:
         if quiet:
             return data
@@ -563,6 +566,10 @@ def is_ipv4(instr):
         return False
 
     return len(toks) == 4
+
+
+def is_FreeBSD():
+    return system_info()['platform'].startswith('FreeBSD')
 
 
 def get_cfg_option_bool(yobj, key, default=False):
@@ -2055,11 +2062,56 @@ def parse_mtab(path):
     return None
 
 
+def find_freebsd_part(label_part):
+    if label_part.startswith("/dev/label/"):
+        target_label = label_part[5:]
+        (label_part, err) = subp(['glabel', 'status', '-s'])
+        for labels in label_part.split("\n"):
+            items = labels.split()
+            if len(items) > 0 and items[0].startswith(target_label):
+                label_part = items[2]
+                break
+        label_part = str(label_part)
+    return label_part
+
+
+def get_path_dev_freebsd(path, mnt_list):
+    path_found = None
+    for line in mnt_list.split("\n"):
+        items = line.split()
+        if (len(items) > 2 and os.path.exists(items[1] + path)):
+            path_found = line
+            break
+    return path_found
+
+
+def get_mount_info_freebsd(path, log=LOG):
+    (result, err) = subp(['mount', '-p', path], rcs=[0, 1])
+    if len(err):
+        # find a path if the input is not a mounting point
+        (mnt_list, err) = subp(['mount', '-p'])
+        path_found = get_path_dev_freebsd(path, mnt_list)
+        if (path_found is None):
+            return None
+        result = path_found
+    ret = result.split()
+    label_part = find_freebsd_part(ret[0])
+    return "/dev/" + label_part, ret[2], ret[1]
+
+
 def parse_mount(path):
     (mountoutput, _err) = subp("mount")
     mount_locs = mountoutput.splitlines()
     for line in mount_locs:
         m = re.search(r'^(/dev/[\S]+) on (/.*) \((.+), .+, (.+)\)$', line)
+        if not m:
+            continue
+        # check whether the dev refers to a label on FreeBSD
+        # for example, if dev is '/dev/label/rootfs', we should
+        # continue finding the real device like '/dev/da0'.
+        devm = re.search('^(/dev/.+)p([0-9])$', m.group(1))
+        if (not devm and is_FreeBSD()):
+            return get_mount_info_freebsd(path)
         devpth = m.group(1)
         mount_point = m.group(2)
         fs_type = m.group(3)
@@ -2336,7 +2388,8 @@ def read_dmi_data(key):
     uname_arch = os.uname()[4]
     if not (uname_arch == "x86_64" or
             (uname_arch.startswith("i") and uname_arch[2:] == "86") or
-            uname_arch == 'aarch64'):
+            uname_arch == 'aarch64' or
+            uname_arch == 'amd64'):
         LOG.debug("dmidata is not supported on %s", uname_arch)
         return None
 
@@ -2374,6 +2427,18 @@ def system_is_snappy():
     # channel.ini is configparser loadable.
     # snappy will move to using /etc/system-image/config.d/*.ini
     # this is certainly not a perfect test, but good enough for now.
+    orpath = "/etc/os-release"
+    try:
+        orinfo = load_shell_content(load_file(orpath, quiet=True))
+        if orinfo.get('ID', '').lower() == "ubuntu-core":
+            return True
+    except ValueError as e:
+        LOG.warning("Unexpected error loading '%s': %s", orpath, e)
+
+    cmdline = get_cmdline()
+    if 'snap_core=' in cmdline:
+        return True
+
     content = load_file("/etc/system-image/channel.ini", quiet=True)
     if 'ubuntu-core' in content.lower():
         return True
@@ -2418,6 +2483,29 @@ def rootdev_from_cmdline(cmdline):
         return disks_path
 
     return "/dev/" + found
+
+
+def load_shell_content(content, add_empty=False, empty_val=None):
+    """Given shell like syntax (key=value\nkey2=value2\n) in content
+       return the data in dictionary form.  If 'add_empty' is True
+       then add entries in to the returned dictionary for 'VAR='
+       variables.  Set their value to empty_val."""
+
+    def _shlex_split(blob):
+        if PY26 and isinstance(blob, six.text_type):
+            # Older versions don't support unicode input
+            blob = blob.encode("utf8")
+        return shlex.split(blob)
+
+    data = {}
+    for line in _shlex_split(content):
+        key, value = line.split("=", 1)
+        if not value:
+            value = empty_val
+        if add_empty or value:
+            data[key] = value
+
+    return data
 
 
 # vi: ts=4 expandtab

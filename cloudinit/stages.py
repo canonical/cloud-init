@@ -624,7 +624,7 @@ class Init(object):
                 return (None, loc)
             if ncfg:
                 return (ncfg, loc)
-        return (net.generate_fallback_config(), "fallback")
+        return (self.distro.generate_fallback_config(), "fallback")
 
     def apply_network_config(self, bring_up):
         netcfg, src = self._find_networking_config()

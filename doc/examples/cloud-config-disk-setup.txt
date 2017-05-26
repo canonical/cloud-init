@@ -155,11 +155,11 @@ fs_setup:
      filesystem: 'ext3'
      device: 'ephemeral0'
      partition: 'auto'
-   - label:  mylabl2
+   - label: mylabl2
      filesystem: 'ext4'
      device: '/dev/xvda1'
-   - special:
-     cmd: mkfs -t %(FILESYSTEM)s -L %(LABEL)s %(DEVICE)s
+   - cmd: mkfs -t %(filesystem)s -L %(label)s %(device)s
+     label: mylabl3
      filesystem: 'btrfs'
      device: '/dev/xvdh'
 

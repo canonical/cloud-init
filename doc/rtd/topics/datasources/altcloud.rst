@@ -1,3 +1,5 @@
+.. _datasource_alt_cloud:
+
 Alt Cloud
 =========
 

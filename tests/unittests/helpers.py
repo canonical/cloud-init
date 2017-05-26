@@ -3,6 +3,8 @@
 from __future__ import print_function
 
 import functools
+import json
+import logging
 import os
 import shutil
 import sys
@@ -17,6 +19,10 @@ try:
     from contextlib import ExitStack
 except ImportError:
     from contextlib2 import ExitStack
+try:
+    from cStringIO import StringIO
+except ImportError:
+    from io import StringIO
 
 from cloudinit import helpers as ch
 from cloudinit import util
@@ -86,6 +92,27 @@ class TestCase(unittest2.TestCase):
 class CiTestCase(TestCase):
     """This is the preferred test case base class unless user
        needs other test case classes below."""
+
+    # Subclass overrides for specific test behavior
+    # Whether or not a unit test needs logfile setup
+    with_logs = False
+
+    def setUp(self):
+        super(CiTestCase, self).setUp()
+        if self.with_logs:
+            # Create a log handler so unit tests can search expected logs.
+            logger = logging.getLogger()
+            self.logs = StringIO()
+            handler = logging.StreamHandler(self.logs)
+            self.old_handlers = logger.handlers
+            logger.handlers = [handler]
+
+    def tearDown(self):
+        if self.with_logs:
+            # Remove the handler we setup
+            logging.getLogger().handlers = self.old_handlers
+        super(CiTestCase, self).tearDown()
+
     def tmp_dir(self, dir=None, cleanup=True):
         # return a full path to a temporary directory that will be cleaned up.
         if dir is None:
@@ -105,7 +132,7 @@ class CiTestCase(TestCase):
         return os.path.normpath(os.path.abspath(os.path.join(dir, path)))
 
 
-class ResourceUsingTestCase(TestCase):
+class ResourceUsingTestCase(CiTestCase):
     def setUp(self):
         super(ResourceUsingTestCase, self).setUp()
         self.resource_path = None
@@ -228,8 +255,7 @@ class FilesystemMockingTestCase(ResourceUsingTestCase):
 
     def reRoot(self, root=None):
         if root is None:
-            root = tempfile.mkdtemp()
-            self.addCleanup(shutil.rmtree, root)
+            root = self.tmp_dir()
         self.patchUtils(root)
         self.patchOS(root)
         return root
@@ -255,7 +281,7 @@ def populate_dir(path, files):
         os.makedirs(path)
     ret = []
     for (name, content) in files.items():
-        p = os.path.join(path, name)
+        p = os.path.sep.join([path, name])
         util.ensure_dir(os.path.dirname(p))
         with open(p, "wb") as fp:
             if isinstance(content, six.binary_type):
@@ -278,6 +304,12 @@ def dir2dict(startdir, prefix=None):
             key = fpath[len(prefix):]
             flist[key] = util.load_file(fpath)
     return flist
+
+
+def json_dumps(data):
+    # print data in nicely formatted json.
+    return json.dumps(data, indent=1, sort_keys=True,
+                      separators=(',', ': '))
 
 
 def wrap_and_call(prefix, mocks, func, *args, **kwargs):

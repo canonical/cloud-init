@@ -3,7 +3,6 @@
 import os
 
 from cloudinit.sources.helpers import azure as azure_helper
-
 from ..helpers import ExitStack, mock, TestCase
 
 
@@ -72,10 +71,11 @@ class TestFindEndpoint(TestCase):
 
     @staticmethod
     def _build_lease_content(encoded_address):
+        endpoint = azure_helper._get_dhcp_endpoint_option_name()
         return '\n'.join([
             'lease {',
             ' interface "eth0";',
-            ' option unknown-245 {0};'.format(encoded_address),
+            ' option {0} {1};'.format(endpoint, encoded_address),
             '}'])
 
     def test_from_dhcp_client(self):

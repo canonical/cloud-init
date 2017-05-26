@@ -1,3 +1,5 @@
+.. _datasource_cloudstack:
+
 CloudStack
 ==========
 

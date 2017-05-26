@@ -165,7 +165,8 @@ if __name__ == "__main__":
         pep8._main()
     finally:
         if len(_missingImport) > 0:
-            print >> sys.stderr, ("%i imports missing in this test environment"
-                                  % len(_missingImport))
+            sys.stderr.write(
+                "%i imports missing in this test environment\n" %
+                len(_missingImport))
 
 # vi: ts=4 expandtab

@@ -1,6 +1,8 @@
 # Copyright (C) 2014 Neal Shrader
 #
 # Author: Neal Shrader <neal@digitalocean.com>
+# Author: Ben Howard <bh@digitalocean.com>
+# Author: Scott Moser <smoser@ubuntu.com>
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
@@ -261,6 +263,29 @@ class TestNetworkConvert(TestCase):
             if ip_addr in address:
                 print(json.dumps(subn, indent=3))
                 return subn
+
+    def test_correct_gateways_defined(self):
+        """test to make sure the eth0 ipv4 and ipv6 gateways are defined"""
+        netcfg = self._get_networking()
+        gateways = []
+        for nic_def in netcfg.get('config'):
+            if nic_def.get('type') != 'physical':
+                continue
+            for subn in nic_def.get('subnets'):
+                if 'gateway' in subn:
+                    gateways.append(subn.get('gateway'))
+
+        # we should have two gateways, one ipv4 and ipv6
+        self.assertEqual(len(gateways), 2)
+
+        # make that the ipv6 gateway is there
+        (nic_def, meta_def) = self._get_nic_definition('public', 'eth0')
+        ipv4_def = meta_def.get('ipv4')
+        self.assertIn(ipv4_def.get('gateway'), gateways)
+
+        # make sure the the ipv6 gateway is there
+        ipv6_def = meta_def.get('ipv6')
+        self.assertIn(ipv6_def.get('gateway'), gateways)
 
     def test_public_interface_defined(self):
         """test that the public interface is defined as eth0"""
