@@ -1,4 +1,4 @@
-cloud-init (0.7.9-153-g16a7302f-0ubuntu1~16.04.1) UNRELEASED; urgency=medium
+cloud-init (0.7.9-153-g16a7302f-0ubuntu1~16.04.1) xenial-proposed; urgency=medium
 
   * New upstream snapshot.
     - net: fix reading and rendering addresses in cidr format.
@@ -61,7 +61,7 @@ cloud-init (0.7.9-153-g16a7302f-0ubuntu1~16.04.1) UNRELEASED; urgency=medium
       [Felix Dreissig]
     - tests: Enable artful in integration tests [Joshua Powers]
 
- -- Scott Moser <smoser@ubuntu.com>  Fri, 26 May 2017 15:53:48 -0400
+ -- Scott Moser <smoser@ubuntu.com>  Fri, 26 May 2017 15:58:48 -0400
 
 cloud-init (0.7.9-113-g513e99e0-0ubuntu1~16.04.1) xenial-proposed; urgency=medium
 
