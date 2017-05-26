@@ -140,7 +140,7 @@ class TestDataSourceGCE(test_helpers.HttprettyTestCase):
     def test_instance_level_ssh_keys_are_used(self):
         key_content = 'ssh-rsa JustAUser root@server'
         meta = GCE_META.copy()
-        meta['instance/attributes/sshKeys'] = 'user:{0}'.format(key_content)
+        meta['instance/attributes/ssh-keys'] = 'user:{0}'.format(key_content)
 
         _set_mock_metadata(meta)
         self.ds.get_data()
@@ -150,7 +150,7 @@ class TestDataSourceGCE(test_helpers.HttprettyTestCase):
     def test_instance_level_keys_replace_project_level_keys(self):
         key_content = 'ssh-rsa JustAUser root@server'
         meta = GCE_META.copy()
-        meta['instance/attributes/sshKeys'] = 'user:{0}'.format(key_content)
+        meta['instance/attributes/ssh-keys'] = 'user:{0}'.format(key_content)
 
         _set_mock_metadata(meta)
         self.ds.get_data()

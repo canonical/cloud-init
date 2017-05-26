@@ -89,7 +89,6 @@ LIB = "/lib"
 if os.uname()[0] == 'FreeBSD':
     USR = "/usr/local"
     USR_LIB_EXEC = "/usr/local/lib"
-    ETC = "/usr/local/etc"
 elif os.path.isfile('/etc/redhat-release'):
     USR_LIB_EXEC = "/usr/libexec"
 
@@ -164,8 +163,6 @@ else:
         (ETC + '/cloud', glob('config/*.cfg')),
         (ETC + '/cloud/cloud.cfg.d', glob('config/cloud.cfg.d/*')),
         (ETC + '/cloud/templates', glob('templates/*')),
-        (ETC + '/NetworkManager/dispatcher.d/', ['tools/hook-network-manager']),
-        (ETC + '/dhcp/dhclient-exit-hooks.d/', ['tools/hook-dhclient']),
         (USR_LIB_EXEC + '/cloud-init', ['tools/ds-identify',
                                         'tools/uncloud-init',
                                         'tools/write-ssh-key-fingerprints']),
@@ -174,8 +171,14 @@ else:
             [f for f in glob('doc/examples/*') if is_f(f)]),
         (USR + '/share/doc/cloud-init/examples/seed',
             [f for f in glob('doc/examples/seed/*') if is_f(f)]),
-        (LIB + '/udev/rules.d', [f for f in glob('udev/*.rules')]),
     ]
+    if os.uname()[0] != 'FreeBSD':
+        data_files.extend([
+            (ETC + '/NetworkManager/dispatcher.d/',
+             ['tools/hook-network-manager']),
+            (ETC + '/dhcp/dhclient-exit-hooks.d/', ['tools/hook-dhclient']),
+            (LIB + '/udev/rules.d', [f for f in glob('udev/*.rules')])
+        ])
     # Use a subclass for install that handles
     # adding on the right init system configuration files
     cmdclass = {

@@ -33,7 +33,10 @@ disabled altogether by setting ``resize_rootfs`` to ``false``.
 """
 
 import errno
+import getopt
 import os
+import re
+import shlex
 import stat
 
 from cloudinit.settings import PER_ALWAYS
@@ -58,6 +61,62 @@ def _resize_ufs(mount_point, devpth):
     return ('growfs', devpth)
 
 
+def _get_dumpfs_output(mount_point):
+    dumpfs_res, err = util.subp(['dumpfs', '-m', mount_point])
+    return dumpfs_res
+
+
+def _get_gpart_output(part):
+    gpart_res, err = util.subp(['gpart', 'show', part])
+    return gpart_res
+
+
+def _can_skip_resize_ufs(mount_point, devpth):
+    # extract the current fs sector size
+    """
+    # dumpfs -m /
+    # newfs command for / (/dev/label/rootfs)
+      newfs -O 2 -U -a 4 -b 32768 -d 32768 -e 4096 -f 4096 -g 16384
+            -h 64 -i 8192 -j -k 6408 -m 8 -o time -s 58719232 /dev/label/rootf
+    """
+    cur_fs_sz = None
+    frag_sz = None
+    dumpfs_res = _get_dumpfs_output(mount_point)
+    for line in dumpfs_res.splitlines():
+        if not line.startswith('#'):
+            newfs_cmd = shlex.split(line)
+            opt_value = 'O:Ua:s:b:d:e:f:g:h:i:jk:m:o:'
+            optlist, args = getopt.getopt(newfs_cmd[1:], opt_value)
+            for o, a in optlist:
+                if o == "-s":
+                    cur_fs_sz = int(a)
+                if o == "-f":
+                    frag_sz = int(a)
+    # check the current partition size
+    """
+    # gpart show /dev/da0
+=>      40  62914480  da0  GPT  (30G)
+        40      1024    1  freebsd-boot  (512K)
+      1064  58719232    2  freebsd-ufs  (28G)
+  58720296   3145728    3  freebsd-swap  (1.5G)
+  61866024   1048496       - free -  (512M)
+    """
+    expect_sz = None
+    m = re.search('^(/dev/.+)p([0-9])$', devpth)
+    gpart_res = _get_gpart_output(m.group(1))
+    for line in gpart_res.splitlines():
+        if re.search(r"freebsd-ufs", line):
+            fields = line.split()
+            expect_sz = int(fields[1])
+    # Normalize the gpart sector size,
+    # because the size is not exactly the same as fs size.
+    normal_expect_sz = (expect_sz - expect_sz % (frag_sz / 512))
+    if normal_expect_sz == cur_fs_sz:
+        return True
+    else:
+        return False
+
+
 # Do not use a dictionary as these commands should be able to be used
 # for multiple filesystem types if possible, e.g. one command for
 # ext2, ext3 and ext4.
@@ -68,7 +127,38 @@ RESIZE_FS_PREFIXES_CMDS = [
     ('ufs', _resize_ufs),
 ]
 
+RESIZE_FS_PRECHECK_CMDS = {
+    'ufs': _can_skip_resize_ufs
+}
+
 NOBLOCK = "noblock"
+
+
+def rootdev_from_cmdline(cmdline):
+    found = None
+    for tok in cmdline.split():
+        if tok.startswith("root="):
+            found = tok[5:]
+            break
+    if found is None:
+        return None
+
+    if found.startswith("/dev/"):
+        return found
+    if found.startswith("LABEL="):
+        return "/dev/disk/by-label/" + found[len("LABEL="):]
+    if found.startswith("UUID="):
+        return "/dev/disk/by-uuid/" + found[len("UUID="):]
+
+    return "/dev/" + found
+
+
+def can_skip_resize(fs_type, resize_what, devpth):
+    fstype_lc = fs_type.lower()
+    for i, func in RESIZE_FS_PRECHECK_CMDS.items():
+        if fstype_lc.startswith(i):
+            return func(resize_what, devpth)
+    return False
 
 
 def handle(name, cfg, _cloud, log, args):
@@ -139,6 +229,11 @@ def handle(name, cfg, _cloud, log, args):
         return
 
     resizer = None
+    if can_skip_resize(fs_type, resize_what, devpth):
+        log.debug("Skip resize filesystem type %s for %s",
+                  fs_type, resize_what)
+        return
+
     fstype_lc = fs_type.lower()
     for (pfix, root_cmd) in RESIZE_FS_PREFIXES_CMDS:
         if fstype_lc.startswith(pfix):

@@ -9,8 +9,8 @@ import yaml
 from cloudinit.sources.helpers import openstack
 
 from cloudinit.net import eni
-from cloudinit.net import network_state
 from cloudinit.net import netplan
+from cloudinit.net import network_state
 from cloudinit.net import sysconfig
 
 

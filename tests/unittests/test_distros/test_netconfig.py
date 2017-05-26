@@ -127,7 +127,7 @@ network:
     ethernets:
         eth0:
             addresses:
-            - 192.168.1.5/255.255.255.0
+            - 192.168.1.5/24
             gateway4: 192.168.1.254
         eth1:
             dhcp4: true
@@ -177,6 +177,20 @@ class WriteBuffer(object):
 
 
 class TestNetCfgDistro(TestCase):
+
+    frbsd_ifout = """\
+hn0: flags=8843<UP,BROADCAST,RUNNING,SIMPLEX,MULTICAST> metric 0 mtu 1500
+        options=51b<RXCSUM,TXCSUM,VLAN_MTU,VLAN_HWTAGGING,TSO4,LRO>
+        ether 00:15:5d:4c:73:00
+        inet6 fe80::215:5dff:fe4c:7300%hn0 prefixlen 64 scopeid 0x2
+        inet 10.156.76.127 netmask 0xfffffc00 broadcast 10.156.79.255
+        nd6 options=23<PERFORMNUD,ACCEPT_RTADV,AUTO_LINKLOCAL>
+        media: Ethernet autoselect (10Gbase-T <full-duplex>)
+        status: active
+"""
+
+    def setUp(self):
+        super(TestNetCfgDistro, self).setUp()
 
     def _get_distro(self, dname, renderers=None):
         cls = distros.fetch(dname)
@@ -251,6 +265,7 @@ class TestNetCfgDistro(TestCase):
 
     def test_apply_network_config_v1_to_netplan_ub(self):
         renderers = ['netplan']
+        devlist = ['eth0', 'lo']
         ub_distro = self._get_distro('ubuntu', renderers=renderers)
         with ExitStack() as mocks:
             write_bufs = {}
@@ -272,6 +287,9 @@ class TestNetCfgDistro(TestCase):
                 mock.patch.object(util, 'subp', return_value=(0, 0)))
             mocks.enter_context(
                 mock.patch.object(os.path, 'isfile', return_value=False))
+            mocks.enter_context(
+                mock.patch("cloudinit.net.netplan.get_devicelist",
+                           return_value=devlist))
 
             ub_distro.apply_network_config(V1_NET_CFG, False)
 
@@ -285,6 +303,7 @@ class TestNetCfgDistro(TestCase):
 
     def test_apply_network_config_v2_passthrough_ub(self):
         renderers = ['netplan']
+        devlist = ['eth0', 'lo']
         ub_distro = self._get_distro('ubuntu', renderers=renderers)
         with ExitStack() as mocks:
             write_bufs = {}
@@ -306,7 +325,10 @@ class TestNetCfgDistro(TestCase):
                 mock.patch.object(util, 'subp', return_value=(0, 0)))
             mocks.enter_context(
                 mock.patch.object(os.path, 'isfile', return_value=False))
-
+            # FreeBSD does not have '/sys/class/net' file,
+            # so we need mock here.
+            mocks.enter_context(
+                mock.patch.object(os, 'listdir', return_value=devlist))
             ub_distro.apply_network_config(V2_NET_CFG, False)
 
             self.assertEqual(len(write_bufs), 1)
@@ -327,6 +349,29 @@ class TestNetCfgDistro(TestCase):
             self.assertIn(k, b1)
         for (k, v) in b1.items():
             self.assertEqual(v, b2[k])
+
+    @mock.patch('cloudinit.distros.freebsd.Distro.get_ifconfig_list')
+    @mock.patch('cloudinit.distros.freebsd.Distro.get_ifconfig_ifname_out')
+    def test_get_ip_nic_freebsd(self, ifname_out, iflist):
+        frbsd_distro = self._get_distro('freebsd')
+        iflist.return_value = "lo0 hn0"
+        ifname_out.return_value = self.frbsd_ifout
+        res = frbsd_distro.get_ipv4()
+        self.assertEqual(res, ['lo0', 'hn0'])
+        res = frbsd_distro.get_ipv6()
+        self.assertEqual(res, [])
+
+    @mock.patch('cloudinit.distros.freebsd.Distro.get_ifconfig_ether')
+    @mock.patch('cloudinit.distros.freebsd.Distro.get_ifconfig_ifname_out')
+    @mock.patch('cloudinit.distros.freebsd.Distro.get_interface_mac')
+    def test_generate_fallback_config_freebsd(self, mac, ifname_out, if_ether):
+        frbsd_distro = self._get_distro('freebsd')
+
+        if_ether.return_value = 'hn0'
+        ifname_out.return_value = self.frbsd_ifout
+        mac.return_value = '00:15:5d:4c:73:00'
+        res = frbsd_distro.generate_fallback_config()
+        self.assertIsNotNone(res)
 
     def test_simple_write_rh(self):
         rh_distro = self._get_distro('rhel')
@@ -431,7 +476,7 @@ NETWORKING=yes
             expected_buf = '''
 # Created by cloud-init on instance boot automatically, do not edit.
 #
-BOOTPROTO=static
+BOOTPROTO=none
 DEVICE=eth0
 IPADDR=192.168.1.5
 NETMASK=255.255.255.0
@@ -488,7 +533,6 @@ NETWORKING=yes
                 mock.patch.object(util, 'load_file', return_value=''))
             mocks.enter_context(
                 mock.patch.object(os.path, 'isfile', return_value=False))
-
             rh_distro.apply_network(BASE_NET_CFG_IPV6, False)
 
             self.assertEqual(len(write_bufs), 4)
@@ -581,11 +625,10 @@ IPV6_AUTOCONF=no
             expected_buf = '''
 # Created by cloud-init on instance boot automatically, do not edit.
 #
-BOOTPROTO=static
+BOOTPROTO=none
 DEVICE=eth0
-IPV6ADDR=2607:f0d0:1002:0011::2
+IPV6ADDR=2607:f0d0:1002:0011::2/64
 IPV6INIT=yes
-NETMASK=64
 NM_CONTROLLED=no
 ONBOOT=yes
 TYPE=Ethernet

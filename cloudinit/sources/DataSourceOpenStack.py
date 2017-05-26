@@ -60,7 +60,7 @@ class DataSourceOpenStack(openstack.SourceMixin, sources.DataSource):
         try:
             retries = int(self.ds_cfg.get("retries", retries))
         except Exception:
-            util.logexc(LOG, "Failed to get max wait. using %s", retries)
+            util.logexc(LOG, "Failed to get retries. using %s", retries)
 
         return (max_wait, timeout, retries)
 

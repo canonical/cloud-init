@@ -11,9 +11,3 @@ coverage
 # Only really needed on older versions of python
 contextlib2
 setuptools
-
-# Used for syle checking
-pep8==1.7.0
-pyflakes==1.1.0
-flake8==2.5.4
-hacking==0.10.2

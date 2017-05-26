@@ -53,14 +53,12 @@ distros = ['centos', 'debian', 'fedora', 'opensuse', 'ubuntu']
 
 
 def handle(name, cfg, cloud, log, _args):
-    """
-    Enable and configure ntp
+    """Enable and configure ntp."""
 
-    ntp:
-       pools: ['0.{{distro}}.pool.ntp.org', '1.{{distro}}.pool.ntp.org']
-       servers: ['192.168.2.1']
-
-    """
+    if 'ntp' not in cfg:
+        LOG.debug(
+            "Skipping module named %s, not present or disabled by cfg", name)
+        return
 
     ntp_cfg = cfg.get('ntp', {})
 
@@ -69,15 +67,18 @@ def handle(name, cfg, cloud, log, _args):
                             " but not a dictionary type,"
                             " is a %s %instead"), type_utils.obj_name(ntp_cfg))
 
-    if 'ntp' not in cfg:
-        LOG.debug("Skipping module named %s,"
-                  "not present or disabled by cfg", name)
-        return True
-
+    rename_ntp_conf()
+    # ensure when ntp is installed it has a configuration file
+    # to use instead of starting up with packaged defaults
+    write_ntp_config_template(ntp_cfg, cloud)
     install_ntp(cloud.distro.install_packages, packages=['ntp'],
                 check_exe="ntpd")
-    rename_ntp_conf()
-    write_ntp_config_template(ntp_cfg, cloud)
+    # if ntp was already installed, it may not have started
+    try:
+        reload_ntp(systemd=cloud.distro.uses_systemd())
+    except util.ProcessExecutionError as e:
+        LOG.exception("Failed to reload/start ntp service: %s", e)
+        raise
 
 
 def install_ntp(install_func, packages=None, check_exe="ntpd"):
@@ -89,7 +90,10 @@ def install_ntp(install_func, packages=None, check_exe="ntpd"):
     install_func(packages)
 
 
-def rename_ntp_conf(config=NTP_CONF):
+def rename_ntp_conf(config=None):
+    """Rename any existing ntp.conf file and render from template"""
+    if config is None:  # For testing
+        config = NTP_CONF
     if os.path.exists(config):
         util.rename(config, config + ".dist")
 
@@ -107,8 +111,9 @@ def write_ntp_config_template(cfg, cloud):
     pools = cfg.get('pools', [])
 
     if len(servers) == 0 and len(pools) == 0:
-        LOG.debug('Adding distro default ntp pool servers')
         pools = generate_server_names(cloud.distro.name)
+        LOG.debug(
+            'Adding distro default ntp pool servers: %s', ','.join(pools))
 
     params = {
         'servers': servers,
@@ -124,5 +129,15 @@ def write_ntp_config_template(cfg, cloud):
                                 "not rendering %s"), NTP_CONF)
 
     templater.render_to_file(template_fn, NTP_CONF, params)
+
+
+def reload_ntp(systemd=False):
+    service = 'ntp'
+    if systemd:
+        cmd = ['systemctl', 'reload-or-restart', service]
+    else:
+        cmd = ['service', service, 'restart']
+    util.subp(cmd, capture=True)
+
 
 # vi: ts=4 expandtab
