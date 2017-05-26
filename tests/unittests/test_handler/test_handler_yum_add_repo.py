@@ -72,7 +72,7 @@ class TestConfig(helpers.FilesystemMockingTestCase):
         }
         for section in expected:
             self.assertTrue(parser.has_section(section),
-                            "Contains section {}".format(section))
+                            "Contains section {0}".format(section))
             for k, v in expected[section].items():
                 self.assertEqual(parser.get(section, k), v)
 
@@ -109,7 +109,7 @@ class TestConfig(helpers.FilesystemMockingTestCase):
         }
         for section in expected:
             self.assertTrue(parser.has_section(section),
-                            "Contains section {}".format(section))
+                            "Contains section {0}".format(section))
             for k, v in expected[section].items():
                 self.assertEqual(parser.get(section, k), v)
 

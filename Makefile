@@ -82,6 +82,10 @@ rpm:
 	./packages/brpm --distro $(distro)
 
 deb:
+	@which debuild || \
+		{ echo "Missing devscripts dependency. Install with:"; \
+		  echo sudo apt-get install devscripts; exit 1; }
+
 	./packages/bddeb
 
 .PHONY: test pyflakes pyflakes3 clean pep8 rpm deb yaml check_version

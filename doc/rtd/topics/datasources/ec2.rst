@@ -1,3 +1,5 @@
+.. _datasource_ec2:
+
 Amazon EC2
 ==========
 

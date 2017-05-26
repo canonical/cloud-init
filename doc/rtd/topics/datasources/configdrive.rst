@@ -1,3 +1,5 @@
+.. _datasource_config_drive:
+
 Config Drive
 ============
 

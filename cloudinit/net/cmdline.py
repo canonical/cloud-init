@@ -9,40 +9,11 @@ import base64
 import glob
 import gzip
 import io
-import shlex
-import sys
-
-import six
 
 from . import get_devicelist
 from . import read_sys_net_safe
 
 from cloudinit import util
-
-PY26 = sys.version_info[0:2] == (2, 6)
-
-
-def _shlex_split(blob):
-    if PY26 and isinstance(blob, six.text_type):
-        # Older versions don't support unicode input
-        blob = blob.encode("utf8")
-    return shlex.split(blob)
-
-
-def _load_shell_content(content, add_empty=False, empty_val=None):
-    """Given shell like syntax (key=value\nkey2=value2\n) in content
-       return the data in dictionary form.  If 'add_empty' is True
-       then add entries in to the returned dictionary for 'VAR='
-       variables.  Set their value to empty_val."""
-    data = {}
-    for line in _shlex_split(content):
-        key, value = line.split("=", 1)
-        if not value:
-            value = empty_val
-        if add_empty or value:
-            data[key] = value
-
-    return data
 
 
 def _klibc_to_config_entry(content, mac_addrs=None):
@@ -63,7 +34,7 @@ def _klibc_to_config_entry(content, mac_addrs=None):
     if mac_addrs is None:
         mac_addrs = {}
 
-    data = _load_shell_content(content)
+    data = util.load_shell_content(content)
     try:
         name = data['DEVICE'] if 'DEVICE' in data else data['DEVICE6']
     except KeyError:
@@ -99,6 +70,11 @@ def _klibc_to_config_entry(content, mac_addrs=None):
         # PROTO for ipv4, IPV6PROTO for ipv6
         cur_proto = data.get(pre + 'PROTO', proto)
         subnet = {'type': cur_proto, 'control': 'manual'}
+
+        # only populate address for static types. While the rendered config
+        # may have an address for dhcp, that is not really expected.
+        if cur_proto == 'static':
+            subnet['address'] = data[pre + 'ADDR']
 
         # these fields go right on the subnet
         for key in ('NETMASK', 'BROADCAST', 'GATEWAY'):

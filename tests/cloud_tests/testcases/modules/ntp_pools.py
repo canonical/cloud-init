@@ -13,16 +13,22 @@ class TestNtpPools(base.CloudTestCase):
         self.assertEqual(1, int(out))
 
     def test_ntp_dist_entries(self):
-        """Test dist config file has one entry"""
+        """Test dist config file is empty"""
         out = self.get_data_file('ntp_conf_dist_pools')
-        self.assertEqual(1, int(out))
+        self.assertEqual(0, int(out))
 
     def test_ntp_entires(self):
         """Test config entries"""
         out = self.get_data_file('ntp_conf_pools')
-        self.assertIn('pool 0.pool.ntp.org iburst', out)
-        self.assertIn('pool 1.pool.ntp.org iburst', out)
-        self.assertIn('pool 2.pool.ntp.org iburst', out)
-        self.assertIn('pool 3.pool.ntp.org iburst', out)
+        pools = self.cloud_config.get('ntp').get('pools')
+        for pool in pools:
+            self.assertIn('pool %s iburst' % pool, out)
+
+    def test_ntpq_servers(self):
+        """Test ntpq output has configured servers"""
+        out = self.get_data_file('ntpq_servers')
+        pools = self.cloud_config.get('ntp').get('pools')
+        for pool in pools:
+            self.assertIn(pool, out)
 
 # vi: ts=4 expandtab

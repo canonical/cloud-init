@@ -6,10 +6,6 @@ Maintainer: Scott Moser <smoser@ubuntu.com>
 Build-Depends: debhelper (>= 9),
                dh-python,
                dh-systemd,
-               iproute2,
-               pep8,
-               pyflakes,
-               python3-pyflakes | pyflakes (<< 1.1.0-2),
                ${python},
                ${test_requires},
                ${requires}

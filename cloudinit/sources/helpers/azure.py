@@ -29,6 +29,14 @@ def cd(newdir):
         os.chdir(prevdir)
 
 
+def _get_dhcp_endpoint_option_name():
+    if util.is_FreeBSD():
+        azure_endpoint = "option-245"
+    else:
+        azure_endpoint = "unknown-245"
+    return azure_endpoint
+
+
 class AzureEndpointHttpClient(object):
 
     headers = {
@@ -235,8 +243,9 @@ class WALinuxAgentShim(object):
         leases = []
         content = util.load_file(fallback_lease_file)
         LOG.debug("content is %s", content)
+        option_name = _get_dhcp_endpoint_option_name()
         for line in content.splitlines():
-            if 'unknown-245' in line:
+            if option_name in line:
                 # Example line from Ubuntu
                 # option unknown-245 a8:3f:81:10;
                 leases.append(line.strip(' ').split(' ', 2)[-1].strip(';\n"'))
