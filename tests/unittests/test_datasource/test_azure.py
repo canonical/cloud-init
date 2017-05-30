@@ -76,7 +76,9 @@ def construct_valid_ovf_env(data=None, pubkeys=None, userdata=None):
     return content
 
 
-class TestAzureDataSource(TestCase):
+class TestAzureDataSource(CiTestCase):
+
+    with_logs = True
 
     def setUp(self):
         super(TestAzureDataSource, self).setUp()
@@ -160,6 +162,12 @@ scbus-1 on xpt0 bus 0
 
         self.instance_id = 'test-instance-id'
 
+        def _dmi_mocks(key):
+            if key == 'system-uuid':
+                return self.instance_id
+            elif key == 'chassis-asset-tag':
+                return '7783-7084-3265-9085-8269-3286-77'
+
         self.apply_patches([
             (dsaz, 'list_possible_azure_ds_devs', dsdevs),
             (dsaz, 'invoke_agent', _invoke_agent),
@@ -170,7 +178,7 @@ scbus-1 on xpt0 bus 0
             (dsaz, 'set_hostname', mock.MagicMock()),
             (dsaz, 'get_metadata_from_fabric', self.get_metadata_from_fabric),
             (dsaz.util, 'read_dmi_data', mock.MagicMock(
-                return_value=self.instance_id)),
+                side_effect=_dmi_mocks)),
         ])
 
         dsrc = dsaz.DataSourceAzureNet(
@@ -240,6 +248,23 @@ fdescfs            /dev/fd          fdescfs rw              0 0
                                return_value=True):
             res = get_path_dev_freebsd('/etc', mnt_list)
             self.assertIsNotNone(res)
+
+    @mock.patch('cloudinit.sources.DataSourceAzure.util.read_dmi_data')
+    def test_non_azure_dmi_chassis_asset_tag(self, m_read_dmi_data):
+        """Report non-azure when DMI's chassis asset tag doesn't match.
+
+        Return False when the asset tag doesn't match Azure's static
+        AZURE_CHASSIS_ASSET_TAG.
+        """
+        # Return a non-matching asset tag value
+        nonazure_tag = dsaz.AZURE_CHASSIS_ASSET_TAG + 'X'
+        m_read_dmi_data.return_value = nonazure_tag
+        dsrc = dsaz.DataSourceAzureNet(
+            {}, distro=None, paths=self.paths)
+        self.assertFalse(dsrc.get_data())
+        self.assertEqual(
+            "Non-Azure DMI asset tag '{0}' discovered.\n".format(nonazure_tag),
+            self.logs.getvalue())
 
     def test_basic_seed_dir(self):
         odata = {'HostName': "myhost", 'UserName': "myuser"}
@@ -531,9 +556,17 @@ class TestAzureBounce(TestCase):
         self.patches.enter_context(
             mock.patch.object(dsaz, 'get_metadata_from_fabric',
                               mock.MagicMock(return_value={})))
+
+        def _dmi_mocks(key):
+            if key == 'system-uuid':
+                return 'test-instance-id'
+            elif key == 'chassis-asset-tag':
+                return '7783-7084-3265-9085-8269-3286-77'
+            raise RuntimeError('should not get here')
+
         self.patches.enter_context(
             mock.patch.object(dsaz.util, 'read_dmi_data',
-                              mock.MagicMock(return_value='test-instance-id')))
+                              mock.MagicMock(side_effect=_dmi_mocks)))
 
     def setUp(self):
         super(TestAzureBounce, self).setUp()
@@ -694,6 +727,33 @@ class TestAzureBounce(TestCase):
         self._get_ds(data).get_data()
 
         self.assertEqual(0, self.set_hostname.call_count)
+
+
+class TestLoadAzureDsDir(CiTestCase):
+    """Tests for load_azure_ds_dir."""
+
+    def setUp(self):
+        self.source_dir = self.tmp_dir()
+        super(TestLoadAzureDsDir, self).setUp()
+
+    def test_missing_ovf_env_xml_raises_non_azure_datasource_error(self):
+        """load_azure_ds_dir raises an error When ovf-env.xml doesn't exit."""
+        with self.assertRaises(dsaz.NonAzureDataSource) as context_manager:
+            dsaz.load_azure_ds_dir(self.source_dir)
+        self.assertEqual(
+            'No ovf-env file found',
+            str(context_manager.exception))
+
+    def test_wb_invalid_ovf_env_xml_calls_read_azure_ovf(self):
+        """load_azure_ds_dir calls read_azure_ovf to parse the xml."""
+        ovf_path = os.path.join(self.source_dir, 'ovf-env.xml')
+        with open(ovf_path, 'wb') as stream:
+            stream.write(b'invalid xml')
+        with self.assertRaises(dsaz.BrokenAzureDataSource) as context_manager:
+            dsaz.load_azure_ds_dir(self.source_dir)
+        self.assertEqual(
+            'Invalid ovf-env.xml: syntax error: line 1, column 0',
+            str(context_manager.exception))
 
 
 class TestReadAzureOvf(TestCase):

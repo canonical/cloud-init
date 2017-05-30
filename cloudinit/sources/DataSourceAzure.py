@@ -36,6 +36,8 @@ RESOURCE_DISK_PATH = '/dev/disk/cloud/azure_resource'
 DEFAULT_PRIMARY_NIC = 'eth0'
 LEASE_FILE = '/var/lib/dhcp/dhclient.eth0.leases'
 DEFAULT_FS = 'ext4'
+# DMI chassis-asset-tag is set static for all azure instances
+AZURE_CHASSIS_ASSET_TAG = '7783-7084-3265-9085-8269-3286-77'
 
 
 def find_storvscid_from_sysctl_pnpinfo(sysctl_out, deviceid):
@@ -320,6 +322,11 @@ class DataSourceAzureNet(sources.DataSource):
         # azure removes/ejects the cdrom containing the ovf-env.xml
         # file on reboot.  So, in order to successfully reboot we
         # need to look in the datadir and consider that valid
+        asset_tag = util.read_dmi_data('chassis-asset-tag')
+        if asset_tag != AZURE_CHASSIS_ASSET_TAG:
+            LOG.debug("Non-Azure DMI asset tag '%s' discovered.", asset_tag)
+            return False
+        asset_tag = util.read_dmi_data('chassis-asset-tag')
         ddir = self.ds_cfg['data_dir']
 
         candidates = [self.seed_dir]
@@ -694,7 +701,7 @@ def read_azure_ovf(contents):
     try:
         dom = minidom.parseString(contents)
     except Exception as e:
-        raise BrokenAzureDataSource("invalid xml: %s" % e)
+        raise BrokenAzureDataSource("Invalid ovf-env.xml: %s" % e)
 
     results = find_child(dom.documentElement,
                          lambda n: n.localName == "ProvisioningSection")

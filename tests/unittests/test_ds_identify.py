@@ -39,9 +39,11 @@ RC_FOUND = 0
 RC_NOT_FOUND = 1
 DS_NONE = 'None'
 
+P_CHASSIS_ASSET_TAG = "sys/class/dmi/id/chassis_asset_tag"
 P_PRODUCT_NAME = "sys/class/dmi/id/product_name"
 P_PRODUCT_SERIAL = "sys/class/dmi/id/product_serial"
 P_PRODUCT_UUID = "sys/class/dmi/id/product_uuid"
+P_SEED_DIR = "var/lib/cloud/seed"
 P_DSID_CFG = "etc/cloud/ds-identify.cfg"
 
 MOCK_VIRT_IS_KVM = {'name': 'detect_virt', 'RET': 'kvm', 'ret': 0}
@@ -160,6 +162,30 @@ class TestDsIdentify(CiTestCase):
                 _print_run_output(rc, out, err, cfg, files)
         return rc, out, err, cfg, files
 
+    def test_wb_print_variables(self):
+        """_print_info reports an array of discovered variables to stderr."""
+        data = VALID_CFG['Azure-dmi-detection']
+        _, _, err, _, _ = self._call_via_dict(data)
+        expected_vars = [
+            'DMI_PRODUCT_NAME', 'DMI_SYS_VENDOR', 'DMI_PRODUCT_SERIAL',
+            'DMI_PRODUCT_UUID', 'PID_1_PRODUCT_NAME', 'DMI_CHASSIS_ASSET_TAG',
+            'FS_LABELS', 'KERNEL_CMDLINE', 'VIRT', 'UNAME_KERNEL_NAME',
+            'UNAME_KERNEL_RELEASE', 'UNAME_KERNEL_VERSION', 'UNAME_MACHINE',
+            'UNAME_NODENAME', 'UNAME_OPERATING_SYSTEM', 'DSNAME', 'DSLIST',
+            'MODE', 'ON_FOUND', 'ON_MAYBE', 'ON_NOTFOUND']
+        for var in expected_vars:
+            self.assertIn('{0}='.format(var), err)
+
+    def test_azure_dmi_detection_from_chassis_asset_tag(self):
+        """Azure datasource is detected from DMI chassis-asset-tag"""
+        self._test_ds_found('Azure-dmi-detection')
+
+    def test_azure_seed_file_detection(self):
+        """Azure datasource is detected due to presence of a seed file.
+
+        The seed file tested  is /var/lib/cloud/seed/azure/ovf-env.xml."""
+        self._test_ds_found('Azure-seed-detection')
+
     def test_aws_ec2_hvm(self):
         """EC2: hvm instances use dmi serial and uuid starting with 'ec2'."""
         self._test_ds_found('Ec2-hvm')
@@ -271,6 +297,19 @@ VALID_CFG = {
     'AliYun': {
         'ds': 'AliYun',
         'files': {P_PRODUCT_NAME: 'Alibaba Cloud ECS\n'},
+    },
+    'Azure-dmi-detection': {
+        'ds': 'Azure',
+        'files': {
+            P_CHASSIS_ASSET_TAG: '7783-7084-3265-9085-8269-3286-77\n',
+        }
+    },
+    'Azure-seed-detection': {
+        'ds': 'Azure',
+        'files': {
+            P_CHASSIS_ASSET_TAG: 'No-match\n',
+            os.path.join(P_SEED_DIR, 'azure', 'ovf-env.xml'): 'present\n',
+        }
     },
     'Ec2-hvm': {
         'ds': 'Ec2',
