@@ -1,0 +1,49 @@
+#!/bin/sh
+# This file is part of cloud-init. See LICENSE file for license information.
+set -fux
+export LANG=C
+
+packages="
+    file
+    git
+    pyserial
+    python-argparse
+    python-cheetah
+    python-configobj
+    python-devel
+    python-jinja2
+    python-jsonpatch
+    python-oauthlib
+    python-pip
+    python-prettytable
+    python-requests
+    python-six
+    PyYAML
+    rpm-build
+"
+
+pips="
+    contextlib2
+    httpretty
+    mock
+    nose
+    pep8
+    unittest2
+"
+
+error() { echo "$@" 1>&2; }
+fail() { [ $# -eq 0 ] || error "$@"; exit 1; }
+info() { echo "$@"; }
+
+pips=$(for p in $pips; do echo "$p"; done | sort -u)
+packages=$(for p in $packages; do echo "$p"; done | sort -u)
+
+if ! rpm -q epel-release >/dev/null; then
+    yum install --assumeyes epel-release ||
+        fail "failed: yum install epel-release"
+fi
+yum install --assumeyes $packages ||
+        fail "failed: yum install" "$packages"
+
+pip install --upgrade $pips ||
+    fail "failed: pip install $pips"

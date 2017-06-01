@@ -1,0 +1,218 @@
+#!/bin/bash
+# This file is part of cloud-init. See LICENSE file for license information.
+
+set -u
+
+VERBOSITY=0
+TEMP_D=""
+KEEP=false
+CONTAINER=""
+
+error() { echo "$@" 1>&2; }
+fail() { [ $# -eq 0 ] || error "$@"; exit 1; }
+errorrc() { local r=$?; error "$@" "ret=$r"; return $r; }
+
+Usage() {
+    cat <<EOF
+Usage: ${0##*/} [ options ] CentOS version
+
+    This utility can makes it easier to run tests, build rpm and source rpm
+        generation inside a LXC of the specified version of CentOS.
+
+    options:
+      -a | --artifact keep .rpm artifacts
+      -k | --keep     keep container after tests
+      -r | --rpm      build .rpm
+      -s | --srpm     build .src.rpm
+      -u | --unittest run unit tests
+EOF
+}
+
+bad_Usage() { Usage 1>&2; [ $# -eq 0 ] || error "$@"; return 1; }
+cleanup() {
+    if [ -n "$CONTAINER" -a "$KEEP" = "false" ]; then
+        delete_container "$CONTAINER"
+    fi
+    [ -z "${TEMP_D}" -o ! -d "${TEMP_D}" ] || rm -Rf "${TEMP_D}"
+}
+
+debug() {
+    local level=${1}; shift;
+    [ "${level}" -gt "${VERBOSITY}" ] && return
+    error "${@}"
+}
+
+
+inside_as() {
+    # inside_as(container_name, user, cmd[, args])
+    # executes cmd with args inside container as user in users home dir.
+    local name="$1" user="$2"
+    shift 2
+    local stuffed="" b64=""
+    stuffed=$(getopt --shell sh --options "" -- -- "$@")
+    stuffed=${stuffed# -- }
+    b64=$(printf "%s\n" "$stuffed" | base64 --wrap=0)
+    inside "$name" su "$user" -c \
+        'cd; eval set -- "$(echo '$b64' | base64 --decode)" && exec "$@"'
+}
+
+inside() {
+    local name="$1"
+    shift
+    lxc exec "$name" -- "$@"
+}
+
+inject_cloud_init(){
+    local name="$1"
+    tarball_name='cloud-init.tar.gz'
+    top_d=$(git rev-parse --show-toplevel) ||
+        fail "failed to get top level"
+    cd "$top_d" ||
+        fail "failed to cd to git top dir"
+    tar_folder=${PWD##*/}
+    cd ..
+    tar -czf "$TEMP_D/$tarball_name" "$tar_folder" ||
+        fail "failed: creating tarball_name"
+    cd "$tar_folder" ||
+        fail "failed: changing directory"
+
+    user='centos'
+    tarball="/home/$user/$tarball_name"
+    inside "$name" useradd "$user"
+    lxc file push "$TEMP_D/$tarball_name" "$name/home/$user"/
+    inside "$name" chown "$user:$user" "$tarball"
+    inside_as "$name" "$user" tar -C "/home/$user" -xzf "$tarball" ||
+        fail "failed: extracting tarball"
+}
+
+start_container() {
+    local src="$1" name="$2"
+    debug 1 "starting container $name from '$src'"
+    lxc launch "$src" "$name" || {
+        errorrc "Failed to start container '$name' from '$src'";
+        return
+    }
+    CONTAINER=$name
+
+    local out="" ret=""
+    debug 1 "waiting for networking"
+    out=$(inside "$name" sh -c '
+        i=0
+        while [ $i -lt 60 ]; do
+            getent hosts mirrorlist.centos.org && exit 0
+            sleep 2
+        done' 2>&1)
+    ret=$?
+    if [ $ret -ne 0 ]; then
+        error "Waiting for network in container '$name' failed. [$ret]"
+        error "$out"
+        return $ret
+    fi
+
+    if [ ! -z "${http_proxy-}" ]; then
+        debug 1 "configuring proxy ${http_proxy}"
+        inside "$name" sh -c "echo proxy=$http_proxy >> /etc/yum.conf"
+    fi
+}
+
+delete_container() {
+    debug 1 "removing container $1 [--keep to keep]"
+    lxc delete --force "$1"
+}
+
+main() {
+    local short_opts="ahkrsuv:"
+    local long_opts="artifact,help,keep,rpm,srpm,unittest,verbose:"
+    local getopt_out=""
+    getopt_out=$(getopt --name "${0##*/}" \
+        --options "${short_opts}" --long "${long_opts}" -- "$@") &&
+        eval set -- "${getopt_out}" ||
+        { bad_Usage; return; }
+
+    local cur="" next=""
+    local artifact="" keep="" rpm="" srpm="" unittest="" version=""
+
+    while [ $# -ne 0 ]; do
+        cur="${1:-}"; next="${2:-}";
+        case "$cur" in
+            -a|--artifact) artifact=1;;
+            -h|--help) Usage ; exit 0;;
+            -k|--keep) KEEP=true;;
+            -r|--rpm) rpm=1;;
+            -s|--srpm) srpm=1;;
+            -u|--unittest) unittest=1;;
+            -v|--verbose) VERBOSITY=$((${VERBOSITY}+1));;
+            --) shift; break;;
+        esac
+        shift;
+    done
+
+    [ $# -eq 1 ] || { bad_Usage "ERROR: Must provide version!"; return; }
+    version="$1"
+
+    TEMP_D=$(mktemp -d "${TMPDIR:-/tmp}/${0##*/}.XXXXXX") ||
+        fail "failed to make tempdir"
+    trap cleanup EXIT
+
+    # program starts here
+    local uuid="" name=""
+    uuid=$(uuidgen -t) || { error "no uuidgen"; return 1; }
+    name="cloud-init-centos-${uuid%%-*}"
+
+    start_container "images:centos/$version" "$name"
+    # CentOS 6 does not come with tar
+    if [ "$version" = "6" ]; then
+        inside "$name" yum install --assumeyes tar || {
+            errorrc "FAIL: yum install tar failed";
+        }
+    fi
+
+    debug 1 "inserting cloud-init"
+    inject_cloud_init "$name" || {
+        errorrc "FAIL: injecting cloud-init into $name failed."
+        return
+    }
+
+    # install dependencies
+    debug 1 "installing dependencies"
+    inside "$name" /bin/sh <tools/setup-centos ||
+        fail "failed: setting up container $name"
+
+    local errors=0 do_cd="cd $tar_folder"
+    inside_as "$name" "$user" sh -ec "$do_cd; git checkout .; git status" ||
+            { errorrc "git checkout failed."; errors=$(($errors+1)); }
+
+    if [ -n "$unittest" ]; then
+        debug 1 "running unit tests."
+        inside_as "$name" "$user" sh -ec "$do_cd; nosetests tests/unittests" ||
+            { errorrc "nosetests failed."; errors=$(($errors+1)); }
+    fi
+
+    if [ -n "$srpm" ]; then
+        debug 1 "building srpm."
+        inside_as "$name" "$user" sh -ec "$do_cd; ./packages/brpm --srpm" ||
+            { errorrc "brpm --srpm."; errors=$(($errors+1)); }
+    fi
+
+    if [ -n "$rpm" ]; then
+        debug 1 "building rpm."
+        inside_as "$name" "$user" sh -ec "$do_cd; ./packages/brpm" ||
+            { errorrc "brpm failed."; errors=$(($errors+1)); }
+    fi
+
+    if [ -n "$artifact" ]; then
+        cmd="ls /home/$user/$tar_folder/*.rpm"
+        for built_rpm in $(lxc exec "$name" -- sh -c "$cmd"); do
+            lxc file pull "$name/$built_rpm" .
+        done
+    fi
+
+    if [ "$errors" != "0" ]; then
+        error "there were $errors errors."
+        return 1
+    fi
+    return 0
+}
+
+main "$@"
+# vi: ts=4 expandtab
