@@ -326,7 +326,6 @@ class DataSourceAzureNet(sources.DataSource):
         if asset_tag != AZURE_CHASSIS_ASSET_TAG:
             LOG.debug("Non-Azure DMI asset tag '%s' discovered.", asset_tag)
             return False
-        asset_tag = util.read_dmi_data('chassis-asset-tag')
         ddir = self.ds_cfg['data_dir']
 
         candidates = [self.seed_dir]
