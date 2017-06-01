@@ -246,8 +246,8 @@ Valid keys are:
           - jumbo0
         params:
           bridge_ageing: 250
-		  bridge_bridgeprio: 22
-		  bridge_fd: 1
+          bridge_bridgeprio: 22
+          bridge_fd: 1
           bridge_hello: 1
           bridge_maxage: 10
           bridge_maxwait: 0

@@ -158,7 +158,7 @@ Development Checklist
     * Named 'your_test_here.py'
     * Valid unit tests validating output collected
     * Passes pylint & pep8 checks
-    * Placed in the appropriate sub-folder in the testcsaes directory
+    * Placed in the appropriate sub-folder in the testcases directory
 * Tested by running the test: 
 
    .. code-block:: bash
@@ -222,7 +222,7 @@ collect can be ran by running:
     $ python3 -m tests.cloud_tests collect -n xenial -d /tmp/collection \
         --deb cloud-init_0.7.8~my_patch_all.deb 
 
-The above command will run the collection tests on xenial with the
+The above command will run the collection tests on Xenial with the
 provided deb and place all results into `/tmp/collection`.
 
 Verify
@@ -249,7 +249,7 @@ configuration users can run the integration tests via tox:
     $ tox -e citest -- run -v -n zesty --deb=cloud-init_all.deb
     $ tox -e citest -- run -t module/user_groups.yaml
 
-Users need to invoke the citest enviornment and then pass any additional
+Users need to invoke the citest environment and then pass any additional
 arguments.
 
 
