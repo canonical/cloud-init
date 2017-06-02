@@ -10,16 +10,16 @@ Bug-ubuntu: http://bugs.launchpad.net/bugs/1660385
 
 --- a/tools/ds-identify
 +++ b/tools/ds-identify
-@@ -74,7 +74,7 @@ _DI_LOGGED=""
+@@ -83,7 +83,7 @@ _DI_LOGGED=""
  # set DI_MAIN='noop' in environment to source this file with no main called.
  DI_MAIN=${DI_MAIN:-main}
  
 -DI_DEFAULT_POLICY="search,found=all,maybe=all,notfound=${DI_DISABLED}"
 +DI_DEFAULT_POLICY="search,found=all,maybe=all,notfound=${DI_ENABLED}"
  DI_DEFAULT_POLICY_NO_DMI="search,found=all,maybe=all,notfound=${DI_ENABLED}"
+ DI_DMI_CHASSIS_ASSET_TAG=""
  DI_DMI_PRODUCT_NAME=""
- DI_DMI_SYS_VENDOR=""
-@@ -109,7 +109,7 @@ DI_ON_FOUND=""
+@@ -119,7 +119,7 @@ DI_ON_FOUND=""
  DI_ON_MAYBE=""
  DI_ON_NOTFOUND=""
  
