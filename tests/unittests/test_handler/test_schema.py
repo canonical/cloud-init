@@ -6,11 +6,17 @@ from cloudinit.config.schema import (
     main)
 from cloudinit.util import write_file
 
-from ..helpers import CiTestCase, mock
+from ..helpers import CiTestCase, mock, skipIf
 
 from copy import copy
 from six import StringIO
 from textwrap import dedent
+
+try:
+    import jsonschema  # NOQA
+    _missing_jsonschema_dep = False
+except ImportError:
+    _missing_jsonschema_dep = True
 
 
 class SchemaValidationErrorTest(CiTestCase):
@@ -35,6 +41,7 @@ class ValidateCloudConfigSchemaTest(CiTestCase):
 
     with_logs = True
 
+    @skipIf(_missing_jsonschema_dep, "No python-jsonschema dependency")
     def test_validateconfig_schema_non_strict_emits_warnings(self):
         """When strict is False validate_cloudconfig_schema emits warnings."""
         schema = {'properties': {'p1': {'type': 'string'}}}
@@ -43,6 +50,7 @@ class ValidateCloudConfigSchemaTest(CiTestCase):
             "Invalid config:\np1: -1 is not of type 'string'\n",
             self.logs.getvalue())
 
+    @skipIf(_missing_jsonschema_dep, "No python-jsonschema dependency")
     def test_validateconfig_schema_emits_warning_on_missing_jsonschema(self):
         """Warning from validate_cloudconfig_schema when missing jsonschema."""
         schema = {'properties': {'p1': {'type': 'string'}}}
@@ -52,6 +60,7 @@ class ValidateCloudConfigSchemaTest(CiTestCase):
             'Ignoring schema validation. python-jsonschema is not present',
             self.logs.getvalue())
 
+    @skipIf(_missing_jsonschema_dep, "No python-jsonschema dependency")
     def test_validateconfig_schema_strict_raises_errors(self):
         """When strict is True validate_cloudconfig_schema raises errors."""
         schema = {'properties': {'p1': {'type': 'string'}}}
@@ -61,8 +70,9 @@ class ValidateCloudConfigSchemaTest(CiTestCase):
             "Cloud config schema errors: p1: -1 is not of type 'string'",
             str(context_mgr.exception))
 
+    @skipIf(_missing_jsonschema_dep, "No python-jsonschema dependency")
     def test_validateconfig_schema_honors_formats(self):
-        """When strict is True validate_cloudconfig_schema raises errors."""
+        """With strict True, validate_cloudconfig_schema errors on format."""
         schema = {
             'properties': {'p1': {'type': 'string', 'format': 'hostname'}}}
         with self.assertRaises(SchemaValidationError) as context_mgr:
@@ -111,6 +121,7 @@ class ValidateCloudConfigFileTest(CiTestCase):
                 self.config_file),
             str(context_mgr.exception))
 
+    @skipIf(_missing_jsonschema_dep, "No python-jsonschema dependency")
     def test_validateconfig_file_sctricty_validates_schema(self):
         """validate_cloudconfig_file raises errors on invalid schema."""
         schema = {
@@ -183,7 +194,7 @@ class GetSchemaDocTest(CiTestCase):
             invalid_schema.pop(key)
             with self.assertRaises(KeyError) as context_mgr:
                 get_schema_doc(invalid_schema)
-            self.assertEqual("'{0}'".format(key), str(context_mgr.exception))
+            self.assertIn(key, str(context_mgr.exception))
 
 
 class MainTest(CiTestCase):

@@ -3,7 +3,7 @@
 from cloudinit.config import cc_ntp
 from cloudinit.sources import DataSourceNone
 from cloudinit import (distros, helpers, cloud, util)
-from ..helpers import FilesystemMockingTestCase, mock
+from ..helpers import FilesystemMockingTestCase, mock, skipIf
 
 
 import os
@@ -15,6 +15,12 @@ NTP_TEMPLATE = b"""\
 servers {{servers}}
 pools {{pools}}
 """
+
+try:
+    import jsonschema  # NOQA
+    _missing_jsonschema_dep = False
+except ImportError:
+    _missing_jsonschema_dep = True
 
 
 class TestNtp(FilesystemMockingTestCase):
@@ -232,6 +238,7 @@ class TestNtp(FilesystemMockingTestCase):
             "servers []\npools {0}\n".format(default_pools),
             content)
 
+    @skipIf(_missing_jsonschema_dep, "No python-jsonschema dependency")
     def test_ntp_handler_schema_validation_warns_non_string_item_type(self):
         """Ntp schema validation warns of non-strings in pools or servers.
 
@@ -252,6 +259,7 @@ class TestNtp(FilesystemMockingTestCase):
             content = stream.read()
         self.assertEqual("servers ['valid', None]\npools [123]\n", content)
 
+    @skipIf(_missing_jsonschema_dep, "No python-jsonschema dependency")
     def test_ntp_handler_schema_validation_warns_of_non_array_type(self):
         """Ntp schema validation warns of non-array pools or servers types.
 
@@ -272,6 +280,7 @@ class TestNtp(FilesystemMockingTestCase):
             content = stream.read()
         self.assertEqual("servers non-array\npools 123\n", content)
 
+    @skipIf(_missing_jsonschema_dep, "No python-jsonschema dependency")
     def test_ntp_handler_schema_validation_warns_invalid_key_present(self):
         """Ntp schema validation warns of invalid keys present in ntp config.
 
@@ -295,6 +304,7 @@ class TestNtp(FilesystemMockingTestCase):
             "servers []\npools ['0.mycompany.pool.ntp.org']\n",
             content)
 
+    @skipIf(_missing_jsonschema_dep, "No python-jsonschema dependency")
     def test_ntp_handler_schema_validation_warns_of_duplicates(self):
         """Ntp schema validation warns of duplicates in servers or pools.
 
