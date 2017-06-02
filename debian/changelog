@@ -1,3 +1,9 @@
+cloud-init (0.7.9-153-g16a7302f-0ubuntu1~16.04.2) UNRELEASED; urgency=medium
+
+  * debian/patches/ds-identify-behavior-xenial.patch: refresh patch.
+
+ -- Scott Moser <smoser@ubuntu.com>  Fri, 02 Jun 2017 16:19:26 -0400
+
 cloud-init (0.7.9-153-g16a7302f-0ubuntu1~16.04.1) xenial-proposed; urgency=medium
 
   * New upstream snapshot.
