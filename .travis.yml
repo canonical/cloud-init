@@ -1,0 +1,13 @@
+sudo: false
+git:
+    depth: 200
+language: python
+env:
+    - TOXENV=py27
+    - TOXENV=py3
+    - TOXENV=flake8
+    - TOXENV=tip-pycodestyle
+    - TOXENV=tip-pyflakes
+install: pip install tox
+script:
+    - tox
