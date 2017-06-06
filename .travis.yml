@@ -1,0 +1,10 @@
+sudo: false
+git:
+    depth: 200
+language: python
+env:
+    - TOXENV=py27
+    - TOXENV=py3
+install: pip install tox
+script:
+    - tox
