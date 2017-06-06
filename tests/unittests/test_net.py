@@ -150,14 +150,6 @@ ONBOOT=yes
 TYPE=Ethernet
 USERCTL=no
 """.lstrip()),
-            ('etc/sysconfig/network-scripts/route-eth0',
-             """
-# Created by cloud-init on instance boot automatically, do not edit.
-#
-ADDRESS0=0.0.0.0
-GATEWAY0=172.19.3.254
-NETMASK0=0.0.0.0
-""".lstrip()),
             ('etc/resolv.conf',
              """
 ; Created by cloud-init on instance boot automatically, do not edit.

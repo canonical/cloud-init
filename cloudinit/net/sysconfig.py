@@ -372,11 +372,13 @@ class Renderer(renderer.Renderer):
                     nm_key = 'NETMASK%s' % route_cfg.last_idx
                     addr_key = 'ADDRESS%s' % route_cfg.last_idx
                     route_cfg.last_idx += 1
-                for (old_key, new_key) in [('gateway', gw_key),
-                                           ('netmask', nm_key),
-                                           ('network', addr_key)]:
-                    if old_key in route:
-                        route_cfg[new_key] = route[old_key]
+                    # add default routes only to ifcfg files, not
+                    # to route-* or route6-*
+                    for (old_key, new_key) in [('gateway', gw_key),
+                                               ('netmask', nm_key),
+                                               ('network', addr_key)]:
+                        if old_key in route:
+                            route_cfg[new_key] = route[old_key]
 
     @classmethod
     def _render_bonding_opts(cls, iface_cfg, iface):
