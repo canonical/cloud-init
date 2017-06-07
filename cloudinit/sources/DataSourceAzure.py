@@ -799,18 +799,17 @@ def encrypt_pass(password, salt_id="$6$"):
 
 
 def list_possible_azure_ds_devs():
-    # return a sorted list of devices that might have a azure datasource
     devlist = []
     if util.is_FreeBSD():
+        # add '/dev/cd0' to devlist if it is configured
+        # here wants to test whether '/dev/cd0' is available
         cdrom_dev = "/dev/cd0"
         try:
-            util.subp(["mount", "-o", "ro", "-t", "udf", cdrom_dev,
-                       "/mnt/cdrom/secure"])
-        except util.ProcessExecutionError:
-            LOG.debug("Fail to mount cd")
-            return devlist
-        util.subp(["umount", "/mnt/cdrom/secure"])
-        devlist.append(cdrom_dev)
+            with open(cdrom_dev) as fp:
+                fp.read(1024)
+                devlist.append(cdrom_dev)
+        except IOError:
+            LOG.debug("cdrom (%s) is not configured", cdrom_dev)
     else:
         for fstype in ("iso9660", "udf"):
             devlist.extend(util.find_devs_with("TYPE=%s" % fstype))

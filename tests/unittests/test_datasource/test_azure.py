@@ -7,7 +7,8 @@ from cloudinit.util import find_freebsd_part
 from cloudinit.util import get_path_dev_freebsd
 
 from ..helpers import (CiTestCase, TestCase, populate_dir, mock,
-                       ExitStack, PY26, SkipTest)
+                       ExitStack, PY26, PY3, SkipTest)
+from mock import patch, mock_open
 
 import crypt
 import os
@@ -542,6 +543,15 @@ fdescfs            /dev/fd          fdescfs rw              0 0
         ds.ds_cfg['agent_command'] = '__builtin__'
         ds.get_data()
         self.assertEqual(self.instance_id, ds.metadata['instance-id'])
+
+    def test_list_possible_azure_ds_devs(self):
+        devlist = []
+        with patch('platform.platform',
+                   mock.MagicMock(return_value="FreeBSD")):
+            name = 'builtins.open' if PY3 else '__builtin__.open'
+            with patch(name, mock_open(read_data="data")):
+                devlist.extend(dsaz.list_possible_azure_ds_devs())
+                self.assertEqual(devlist, ['/dev/cd0'])
 
 
 class TestAzureBounce(TestCase):
