@@ -1,6 +1,12 @@
 ## template: cheetah
 %{!?python_sitelib: %global python_sitelib %(%{__python} -c "from distutils.sysconfig import get_python_lib; print get_python_lib()")}
 
+%if %{undefined systemd_requires}
+%define init_system sysvinit
+%else
+%define init_system systemd
+%endif
+
 # See: http://www.zarb.org/~jasonc/macros.php
 # Or: http://fedoraproject.org/wiki/Packaging:ScriptletSnippets
 # Or: http://www.rpm.org/max-rpm/ch-rpm-inside.html
@@ -20,9 +26,20 @@ BuildRoot:      %{_tmppath}
 
 BuildRequires:  python-devel
 BuildRequires:  python-setuptools
-BuildRequires:  python-cheetah
+%if "%{?el6}" == "1"
+BuildRequires:  python-argparse
+%endif
+# These are runtime dependencies, but declared as BuildRequires so that
+# - tests can be run here.
+# - parts of cloud-init such (setup.py) use these dependencies.
+#for $r in $requires
+BuildRequires:  ${r}
+#end for
 
 # System util packages needed
+%ifarch %{?ix86} x86_64 ia64
+Requires:       dmidecode
+%endif
 Requires:       shadow-utils
 Requires:       rsyslog
 Requires:       iproute
@@ -31,6 +48,12 @@ Requires:       net-tools
 Requires:       procps
 Requires:       shadow-utils
 Requires:       sudo >= 1.7.2p2-3
+
+Requires:  python-setuptools
+# python2.6 needs argparse
+%if "%{?el6}" == "1"
+Requires:  python-argparse
+%endif
 
 # Install pypi 'dynamic' requirements
 #for $r in $requires
@@ -44,19 +67,15 @@ Patch${size}: $p
 #set $size += 1
 #end for
 
-#if $sysvinit
+%if "%{init_system}" == "systemd"
+BuildRequires:  systemd-units
+%{systemd_requires}
+%else
 Requires(post):       chkconfig
 Requires(postun):     initscripts
 Requires(preun):      chkconfig
 Requires(preun):      initscripts
-#end if
-
-#if $systemd
-BuildRequires:  systemd-units
-Requires(post):   systemd-units
-Requires(postun): systemd-units
-Requires(preun):  systemd-units
-#end if
+%endif
 
 %description
 Cloud-init is a set of init scripts for cloud instances.  Cloud instances
@@ -80,7 +99,7 @@ ssh keys and to let the user run various scripts.
 
 %{__python} setup.py install -O1 \
             --skip-build --root \$RPM_BUILD_ROOT \
-            --init-system=${init_sys}
+            --init-system=%{init_system}
 
 # Note that /etc/rsyslog.d didn't exist by default until F15.
 # el6 request: https://bugzilla.redhat.com/show_bug.cgi?id=740420
@@ -95,17 +114,17 @@ rm -rf \$RPM_BUILD_ROOT%{python_sitelib}/tests
 mkdir -p \$RPM_BUILD_ROOT/%{_sharedstatedir}/cloud
 mkdir -p \$RPM_BUILD_ROOT/%{_libexecdir}/%{name}
 
-#if $systemd
+%if "%{init_system}" == "systemd"
 mkdir -p         \$RPM_BUILD_ROOT/%{_unitdir}
 cp -p systemd/*  \$RPM_BUILD_ROOT/%{_unitdir}
-#end if
+%endif
 
 %clean
 rm -rf \$RPM_BUILD_ROOT
 
 %post
 
-#if $systemd
+%if "%{init_system}" == "systemd"
 if [ \$1 -eq 1 ]
 then
     /bin/systemctl enable cloud-config.service     >/dev/null 2>&1 || :
@@ -113,18 +132,24 @@ then
     /bin/systemctl enable cloud-init.service       >/dev/null 2>&1 || :
     /bin/systemctl enable cloud-init-local.service >/dev/null 2>&1 || :
 fi
-#end if
-
-#if $sysvinit
+%else
 /sbin/chkconfig --add %{_initrddir}/cloud-init-local
 /sbin/chkconfig --add %{_initrddir}/cloud-init
 /sbin/chkconfig --add %{_initrddir}/cloud-config
 /sbin/chkconfig --add %{_initrddir}/cloud-final
-#end if
+%endif
 
 %preun
 
-#if $sysvinit
+%if "%{init_system}" == "systemd"
+if [ \$1 -eq 0 ]
+then
+    /bin/systemctl --no-reload disable cloud-config.service >/dev/null 2>&1 || :
+    /bin/systemctl --no-reload disable cloud-final.service  >/dev/null 2>&1 || :
+    /bin/systemctl --no-reload disable cloud-init.service   >/dev/null 2>&1 || :
+    /bin/systemctl --no-reload disable cloud-init-local.service >/dev/null 2>&1 || :
+fi
+%else
 if [ \$1 -eq 0 ]
 then
     /sbin/service cloud-init stop >/dev/null 2>&1 || :
@@ -136,40 +161,27 @@ then
     /sbin/service cloud-final stop >/dev/null 2>&1 || :
     /sbin/chkconfig --del cloud-final || :
 fi
-#end if
-
-#if $systemd
-if [ \$1 -eq 0 ]
-then
-    /bin/systemctl --no-reload disable cloud-config.service >/dev/null 2>&1 || :
-    /bin/systemctl --no-reload disable cloud-final.service  >/dev/null 2>&1 || :
-    /bin/systemctl --no-reload disable cloud-init.service   >/dev/null 2>&1 || :
-    /bin/systemctl --no-reload disable cloud-init-local.service >/dev/null 2>&1 || :
-fi
-#end if
+%endif
 
 %postun
 
-#if $systemd
+%if "%{init_system}" == "systemd"
 /bin/systemctl daemon-reload >/dev/null 2>&1 || :
-#end if
+%endif
 
 %files
 
 /lib/udev/rules.d/66-azure-ephemeral.rules
 
-#if $sysvinit
+%if "%{init_system}" == "systemd"
+/usr/lib/systemd/system-generators/cloud-init-generator
+%{_unitdir}/cloud-*
+%else
 %attr(0755, root, root) %{_initddir}/cloud-config
 %attr(0755, root, root) %{_initddir}/cloud-final
 %attr(0755, root, root) %{_initddir}/cloud-init-local
 %attr(0755, root, root) %{_initddir}/cloud-init
-#end if
-
-#if $systemd
-/usr/lib/systemd/system-generators/cloud-init-generator
-%{_unitdir}/cloud-*
-%{_unitdir}/cloud-*
-#end if
+%endif
 
 %{_sysconfdir}/NetworkManager/dispatcher.d/hook-network-manager
 %{_sysconfdir}/dhcp/dhclient-exit-hooks.d/hook-dhclient

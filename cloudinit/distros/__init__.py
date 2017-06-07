@@ -32,7 +32,7 @@ from cloudinit.distros.parsers import hosts
 
 OSFAMILIES = {
     'debian': ['debian', 'ubuntu'],
-    'redhat': ['fedora', 'rhel'],
+    'redhat': ['centos', 'fedora', 'rhel'],
     'gentoo': ['gentoo'],
     'freebsd': ['freebsd'],
     'suse': ['sles'],
