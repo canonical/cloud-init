@@ -17,7 +17,8 @@ pools {{pools}}
 """
 
 try:
-    import jsonschema  # NOQA
+    import jsonschema
+    assert jsonschema  # avoid pyflakes error F401: import unused
     _missing_jsonschema_dep = False
 except ImportError:
     _missing_jsonschema_dep = True
