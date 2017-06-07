@@ -1,3 +1,11 @@
+cloud-init (0.7.5-0ubuntu1.22) UNRELEASED; urgency=medium
+
+  * debian/update-grub-legacy-ec2:
+    - Correctly detect kernels ending in -aws as kernels that can boot on EC2
+      (LP: #1655934)
+
+ -- Scott Moser <smoser@ubuntu.com>  Wed, 07 Jun 2017 16:15:14 -0400
+
 cloud-init (0.7.5-0ubuntu1.21) trusty; urgency=medium
 
   * Microsoft Azure:
