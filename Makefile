@@ -53,6 +53,14 @@ unittest: clean_pyc
 unittest3: clean_pyc
 	nosetests3 $(noseopts) tests/unittests
 
+ci-deps-ubuntu:
+	@$(PYVER) $(CWD)/tools/read-dependencies --distro ubuntu --install --python-version 3
+	@$(PYVER) $(CWD)/tools/read-dependencies --distro ubuntu --requirements-file test-requirements.txt --install --python-version 3
+
+ci-deps-centos:
+	@$(PYVER) $(CWD)/tools/read-dependencies --distro centos --install
+	@$(PYVER) $(CWD)/tools/read-dependencies --distro centos --requirements-file test-requirements.txt --install
+
 pip-requirements:
 	@echo "Installing cloud-init dependencies..."
 	$(PIP_INSTALL) -r "$@.txt" -q

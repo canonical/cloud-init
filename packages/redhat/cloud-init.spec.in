@@ -1,4 +1,4 @@
-## template: cheetah
+## template: jinja
 %{!?python_sitelib: %global python_sitelib %(%{__python} -c "from distutils.sysconfig import get_python_lib; print get_python_lib()")}
 
 %define use_systemd (0%{?fedora} && 0%{?fedora} >= 18) || (0%{?rhel} && 0%{?rhel} >= 7)
@@ -14,20 +14,18 @@
 # Or: http://www.rpm.org/max-rpm/ch-rpm-inside.html
 
 Name:           cloud-init
-Version:        ${rpm_upstream_version}
-Release:        1${subrelease}%{?dist}
+Version:        {{rpm_upstream_version}}
+Release:        1{{subrelease}}%{?dist}
 Summary:        Cloud instance init scripts
 
 Group:          System Environment/Base
 License:        Dual-licesed GPLv3 or Apache 2.0
 URL:            http://launchpad.net/cloud-init
 
-Source0:        ${archive_name}
+Source0:        {{archive_name}}
 BuildArch:      noarch
 BuildRoot:      %{_tmppath}
 
-BuildRequires:  python-devel
-BuildRequires:  python-setuptools
 %if "%{?el6}" == "1"
 BuildRequires:  python-argparse
 %endif
@@ -46,40 +44,30 @@ Requires(preun):    chkconfig
 # These are runtime dependencies, but declared as BuildRequires so that
 # - tests can be run here.
 # - parts of cloud-init such (setup.py) use these dependencies.
-#for $r in $requires
-BuildRequires:  ${r}
-#end for
+{% for r in requires %}
+BuildRequires:  {{r}}
+{% endfor %}
 
 # System util packages needed
 %ifarch %{?ix86} x86_64 ia64
 Requires:       dmidecode
 %endif
-Requires:       shadow-utils
-Requires:       rsyslog
-Requires:       iproute
-Requires:       e2fsprogs
-Requires:       net-tools
-Requires:       procps
-Requires:       shadow-utils
-Requires:       sudo >= 1.7.2p2-3
 
-Requires:  python-setuptools
 # python2.6 needs argparse
 %if "%{?el6}" == "1"
 Requires:  python-argparse
 %endif
 
-# Install pypi 'dynamic' requirements
-#for $r in $requires
-Requires:       ${r}
-#end for
+
+# Install 'dynamic' runtime reqs from *requirements.txt and pkg-deps.json
+{% for r in requires %}
+Requires:       {{r}}
+{% endfor %}
 
 # Custom patches
-#set $size = 0
-#for $p in $patches
-Patch${size}: $p
-#set $size += 1
-#end for
+{% for p in patches %}
+Patch{{loop.index0}}: {{p}}
+{% endfor %}
 
 %if "%{init_system}" == "systemd"
 Requires(post):       systemd
@@ -98,14 +86,12 @@ need special scripts to run during initialization to retrieve and install
 ssh keys and to let the user run various scripts.
 
 %prep
-%setup -q -n ${source_name}
+%setup -q -n {{source_name}}
 
 # Custom patches activation
-#set $size = 0
-#for $p in $patches
-%patch${size} -p1
-#set $size += 1
-#end for
+{% for p in patches %}
+%patch{{loop.index0}} -p1
+{% endfor %}
 
 %build
 %{__python} setup.py build
@@ -113,34 +99,34 @@ ssh keys and to let the user run various scripts.
 %install
 
 %{__python} setup.py install -O1 \
-            --skip-build --root \$RPM_BUILD_ROOT \
+            --skip-build --root $RPM_BUILD_ROOT \
             --init-system=%{init_system}
 
 # Note that /etc/rsyslog.d didn't exist by default until F15.
 # el6 request: https://bugzilla.redhat.com/show_bug.cgi?id=740420
-mkdir -p \$RPM_BUILD_ROOT/%{_sysconfdir}/rsyslog.d
+mkdir -p $RPM_BUILD_ROOT/%{_sysconfdir}/rsyslog.d
 cp -p tools/21-cloudinit.conf \
-      \$RPM_BUILD_ROOT/%{_sysconfdir}/rsyslog.d/21-cloudinit.conf
+      $RPM_BUILD_ROOT/%{_sysconfdir}/rsyslog.d/21-cloudinit.conf
 
 # Remove the tests
-rm -rf \$RPM_BUILD_ROOT%{python_sitelib}/tests
+rm -rf $RPM_BUILD_ROOT%{python_sitelib}/tests
 
 # Required dirs...
-mkdir -p \$RPM_BUILD_ROOT/%{_sharedstatedir}/cloud
-mkdir -p \$RPM_BUILD_ROOT/%{_libexecdir}/%{name}
+mkdir -p $RPM_BUILD_ROOT/%{_sharedstatedir}/cloud
+mkdir -p $RPM_BUILD_ROOT/%{_libexecdir}/%{name}
 
 %if "%{init_system}" == "systemd"
-mkdir -p         \$RPM_BUILD_ROOT/%{_unitdir}
-cp -p systemd/*  \$RPM_BUILD_ROOT/%{_unitdir}
+mkdir -p         $RPM_BUILD_ROOT/%{_unitdir}
+cp -p systemd/*  $RPM_BUILD_ROOT/%{_unitdir}
 %endif
 
 %clean
-rm -rf \$RPM_BUILD_ROOT
+rm -rf $RPM_BUILD_ROOT
 
 %post
 
 %if "%{init_system}" == "systemd"
-if [ \$1 -eq 1 ]
+if [ $1 -eq 1 ]
 then
     /bin/systemctl enable cloud-config.service     >/dev/null 2>&1 || :
     /bin/systemctl enable cloud-final.service      >/dev/null 2>&1 || :
@@ -157,7 +143,7 @@ fi
 %preun
 
 %if "%{init_system}" == "systemd"
-if [ \$1 -eq 0 ]
+if [ $1 -eq 0 ]
 then
     /bin/systemctl --no-reload disable cloud-config.service >/dev/null 2>&1 || :
     /bin/systemctl --no-reload disable cloud-final.service  >/dev/null 2>&1 || :
@@ -165,7 +151,7 @@ then
     /bin/systemctl --no-reload disable cloud-init-local.service >/dev/null 2>&1 || :
 fi
 %else
-if [ \$1 -eq 0 ]
+if [ $1 -eq 0 ]
 then
     /sbin/service cloud-init stop >/dev/null 2>&1 || :
     /sbin/chkconfig --del cloud-init || :
