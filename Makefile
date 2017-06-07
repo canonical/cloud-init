@@ -79,15 +79,25 @@ yaml:
 	@$(PYVER) $(CWD)/tools/validate-yaml.py $(YAML_FILES)
 
 rpm:
-	./packages/brpm --distro $(distro)
+	$(PYVER) ./packages/brpm --distro=$(distro)
+
+srpm:
+	$(PYVER) ./packages/brpm --srpm --distro=$(distro)
 
 deb:
 	@which debuild || \
 		{ echo "Missing devscripts dependency. Install with:"; \
 		  echo sudo apt-get install devscripts; exit 1; }
 
-	./packages/bddeb
+	$(PYVER) ./packages/bddeb
 
-.PHONY: test pyflakes pyflakes3 clean pep8 rpm deb yaml check_version
-.PHONY: pip-test-requirements pip-requirements clean_pyc unittest unittest3
-.PHONY: style-check
+deb-src:
+	@which debuild || \
+		{ echo "Missing devscripts dependency. Install with:"; \
+		  echo sudo apt-get install devscripts; exit 1; }
+	$(PYVER) ./packages/bddeb -S -d
+
+
+.PHONY: test pyflakes pyflakes3 clean pep8 rpm srpm deb deb-src yaml
+.PHONY: check_version pip-test-requirements pip-requirements clean_pyc
+.PHONY: unittest unittest3 style-check
