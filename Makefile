@@ -1,7 +1,7 @@
 CWD=$(shell pwd)
 PYVER ?= $(shell for p in python3 python2; do \
-	out=$(which $$p 2>&1) && echo $$p && exit; done; \
-	exit 1)
+	out=$$(command -v $$p 2>&1) && echo $$p && exit; done; exit 1)
+
 noseopts ?= -v
 
 YAML_FILES=$(shell find cloudinit bin tests tools -name "*.yaml" -type f )
