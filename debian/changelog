@@ -1,11 +1,11 @@
-cloud-init (0.7.5-0ubuntu1.22) UNRELEASED; urgency=medium
+cloud-init (0.7.5-0ubuntu1.22) trusty; urgency=medium
 
   * debian/update-grub-legacy-ec2:
     - Correctly detect kernels ending in -aws as kernels that can boot on EC2
       (LP: #1655934)
     - Consider kernels with CONFIG_XEN=y bootable on aws. (LP: #1379080)
 
- -- Scott Moser <smoser@ubuntu.com>  Wed, 07 Jun 2017 16:18:55 -0400
+ -- Scott Moser <smoser@ubuntu.com>  Thu, 08 Jun 2017 19:25:41 -0400
 
 cloud-init (0.7.5-0ubuntu1.21) trusty; urgency=medium
 
