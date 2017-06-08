@@ -5,6 +5,7 @@ import re
 
 import six
 
+from cloudinit.distros.parsers import networkmanager_conf
 from cloudinit.distros.parsers import resolv_conf
 from cloudinit import util
 
@@ -249,6 +250,9 @@ class Renderer(renderer.Renderer):
         self.netrules_path = config.get(
             'netrules_path', 'etc/udev/rules.d/70-persistent-net.rules')
         self.dns_path = config.get('dns_path', 'etc/resolv.conf')
+        nm_conf_path = 'etc/NetworkManager/conf.d/99-cloud-init.conf'
+        self.networkmanager_conf_path = config.get('networkmanager_conf_path',
+                                                   nm_conf_path)
 
     @classmethod
     def _render_iface_shared(cls, iface, iface_cfg):
@@ -438,6 +442,21 @@ class Renderer(renderer.Renderer):
             content.add_search_domain(searchdomain)
         return "\n".join([_make_header(';'), str(content)])
 
+    @staticmethod
+    def _render_networkmanager_conf(network_state):
+        content = networkmanager_conf.NetworkManagerConf("")
+
+        # If DNS server information is provided, configure
+        # NetworkManager to not manage dns, so that /etc/resolv.conf
+        # does not get clobbered.
+        if network_state.dns_nameservers:
+            content.set_section_keypair('main', 'dns', 'none')
+
+        if len(content) == 0:
+            return None
+        out = "".join([_make_header(), "\n", "\n".join(content.write()), "\n"])
+        return out
+
     @classmethod
     def _render_bridge_interfaces(cls, network_state, iface_contents):
         bridge_filter = renderer.filter_by_type('bridge')
@@ -498,6 +517,12 @@ class Renderer(renderer.Renderer):
             resolv_content = self._render_dns(network_state,
                                               existing_dns_path=dns_path)
             util.write_file(dns_path, resolv_content, file_mode)
+        if self.networkmanager_conf_path:
+            nm_conf_path = util.target_path(target,
+                                            self.networkmanager_conf_path)
+            nm_conf_content = self._render_networkmanager_conf(network_state)
+            if nm_conf_content:
+                util.write_file(nm_conf_path, nm_conf_content, file_mode)
         if self.netrules_path:
             netrules_content = self._render_persistent_net(network_state)
             netrules_path = util.target_path(target, self.netrules_path)

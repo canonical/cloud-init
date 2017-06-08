@@ -156,6 +156,13 @@ USERCTL=no
 ;
 nameserver 172.19.0.12
 """.lstrip()),
+            ('etc/NetworkManager/conf.d/99-cloud-init.conf',
+             """
+# Created by cloud-init on instance boot automatically, do not edit.
+#
+[main]
+dns = none
+""".lstrip()),
             ('etc/udev/rules.d/70-persistent-net.rules',
              "".join(['SUBSYSTEM=="net", ACTION=="add", DRIVERS=="?*", ',
                       'ATTR{address}=="fa:16:3e:ed:9a:59", NAME="eth0"\n']))]
@@ -216,6 +223,13 @@ USERCTL=no
 ; Created by cloud-init on instance boot automatically, do not edit.
 ;
 nameserver 172.19.0.12
+""".lstrip()),
+            ('etc/NetworkManager/conf.d/99-cloud-init.conf',
+             """
+# Created by cloud-init on instance boot automatically, do not edit.
+#
+[main]
+dns = none
 """.lstrip()),
             ('etc/udev/rules.d/70-persistent-net.rules',
              "".join(['SUBSYSTEM=="net", ACTION=="add", DRIVERS=="?*", ',
@@ -299,6 +313,13 @@ USERCTL=no
 ; Created by cloud-init on instance boot automatically, do not edit.
 ;
 nameserver 172.19.0.12
+""".lstrip()),
+            ('etc/NetworkManager/conf.d/99-cloud-init.conf',
+             """
+# Created by cloud-init on instance boot automatically, do not edit.
+#
+[main]
+dns = none
 """.lstrip()),
             ('etc/udev/rules.d/70-persistent-net.rules',
              "".join(['SUBSYSTEM=="net", ACTION=="add", DRIVERS=="?*", ',
