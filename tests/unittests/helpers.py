@@ -376,4 +376,16 @@ except AttributeError:
             return wrapper
         return decorator
 
+
+# older versions of mock do not have the useful 'assert_not_called'
+if not hasattr(mock.Mock, 'assert_not_called'):
+    def __mock_assert_not_called(mmock):
+        if mmock.call_count != 0:
+            msg = ("[citest] Expected '%s' to not have been called. "
+                   "Called %s times." %
+                   (mmock._mock_name or 'mock', mmock.call_count))
+            raise AssertionError(msg)
+    mock.Mock.assert_not_called = __mock_assert_not_called
+
+
 # vi: ts=4 expandtab
