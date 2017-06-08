@@ -1,6 +1,9 @@
 #
 # Setup a custome primary sources.list
 #
+required_features:
+  - apt
+  - apt_src_cont
 cloud_config: |
   #cloud-config
   apt:
@@ -15,5 +18,9 @@ collect_scripts:
   gatech.sources.list: |
     #!/bin/bash
     grep -v '^#' /etc/apt/sources.list | sed '/^\s*$/d' | grep -c gtlib.gatech.edu
+
+  sources.list: |
+      #!/bin/bash
+      cat /etc/apt/sources.list
 
 # vi: ts=4 expandtab

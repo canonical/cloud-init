@@ -1,6 +1,14 @@
 #
 # Emtpy NTP config to setup using defaults
 #
+# NOTE: this should not require apt feature, use 'which' rather than 'dpkg -l'
+# NOTE: this should not require no_ntpdate feature, use 'which' to check for
+#       installation rather than 'dpkg -l', as 'grep ntp' matches 'ntpdate'
+# NOTE: the verifier should check for any ntp server not 'ubuntu.pool.ntp.org'
+required_features:
+  - apt
+  - no_ntpdate
+  - ubuntu_ntp
 cloud_config: |
   #cloud-config
   ntp:
@@ -16,5 +24,8 @@ collect_scripts:
   ntp_conf_empty: |
     #!/bin/bash
     grep '^pool' /etc/ntp.conf
+  ntp_installed_list: |
+    #!/bin/bash
+    dpkg -l | grep ntp
 
 # vi: ts=4 expandtab

@@ -1,6 +1,8 @@
 #
 # Install snappy
 #
+required_features:
+  - snap
 cloud_config: |
   #cloud-config
   snappy:

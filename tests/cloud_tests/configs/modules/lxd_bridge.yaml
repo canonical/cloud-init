@@ -1,6 +1,8 @@
 #
 # LXD configured with directory backend and IPv4 bridge
 #
+required_features:
+  - lxd
 cloud_config: |
   #cloud-config
   lxd:

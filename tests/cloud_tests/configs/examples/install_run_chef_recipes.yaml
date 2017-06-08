@@ -56,7 +56,7 @@ cloud_config: |
    force_install: false
 
    # Chef settings
-   server_url: "https://chef.yourorg.com"
+   server_url: "https://chef.yourorg.com:4000"
 
    # Node Name
    # Defaults to the instance-id if not present
@@ -75,7 +75,7 @@ cloud_config: |
        YOUR-ORGS-VALIDATION-KEY-HERE
        -----END RSA PRIVATE KEY-----
 
-   # A run list for a first boot json, this is an example (not required)
+   # A run list for a first boot json
    run_list:
     - "recipe[apache2]"
     - "role[db]"
@@ -88,7 +88,7 @@ cloud_config: |
         keepalive: "off"
 
    # if install_type is 'omnibus', change the url to download
-   omnibus_url: "https://www.chef.io/chef/install.sh"
+   omnibus_url: "https://www.opscode.com/chef/install.sh"
 
 
   # Capture all subprocess output into a logfile

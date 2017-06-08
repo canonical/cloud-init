@@ -1,6 +1,9 @@
 #
 # Import a user's ssh key via gh or lp
 #
+required_features:
+  - ubuntu_user
+  - sudo
 cloud_config: |
   #cloud-config
   ssh_import_id:

@@ -1,5 +1,7 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
+"""Main init."""
+
 import importlib
 import inspect
 import unittest
@@ -9,12 +11,12 @@ from tests.cloud_tests.testcases.base import CloudTestCase as base_test
 
 
 def discover_tests(test_name):
-    """
-    discover tests in test file for 'testname'
-    return_value: list of test classes
+    """Discover tests in test file for 'testname'.
+
+    @return_value: list of test classes
     """
     testmod_name = 'tests.cloud_tests.testcases.{}'.format(
-        config.name_sanatize(test_name))
+        config.name_sanitize(test_name))
     try:
         testmod = importlib.import_module(testmod_name)
     except NameError:
@@ -26,9 +28,9 @@ def discover_tests(test_name):
 
 
 def get_suite(test_name, data, conf):
-    """
-    get test suite with all tests for 'testname'
-    return_value: a test suite
+    """Get test suite with all tests for 'testname'.
+
+    @return_value: a test suite
     """
     suite = unittest.TestSuite()
     for test_class in discover_tests(test_name):

@@ -1,11 +1,11 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
-"""cloud-init Integration Test Verify Script"""
+"""cloud-init Integration Test Verify Script."""
 from tests.cloud_tests.testcases import base
 
 
 class TestNtpPools(base.CloudTestCase):
-    """Test ntp module"""
+    """Test ntp module."""
 
     def test_ntp_installed(self):
         """Test ntp installed"""

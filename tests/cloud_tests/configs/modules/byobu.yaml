@@ -1,6 +1,8 @@
 #
 # Install and enable byobu system wide and default user
 #
+required_features:
+  - byobu
 cloud_config: |
   #cloud-config
   byobu_by_default: enable

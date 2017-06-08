@@ -4,6 +4,8 @@
 # 2016-11-17: Disabled as covered by module based tests
 #
 enabled: False
+required_features:
+  - apt
 cloud_config: |
   #cloud-config
   apt:

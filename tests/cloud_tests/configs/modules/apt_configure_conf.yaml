@@ -1,6 +1,8 @@
 #
 # Provide a configuration for APT
 #
+required_features:
+  - apt
 cloud_config: |
   #cloud-config
   apt:
