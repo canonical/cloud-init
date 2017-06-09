@@ -10,7 +10,8 @@ from cloudinit.distros.parsers import resolv_conf
 from cloudinit import util
 
 from . import renderer
-from .network_state import subnet_is_ipv6, net_prefix_to_ipv4_mask
+from .network_state import (
+    is_ipv6_addr, net_prefix_to_ipv4_mask, subnet_is_ipv6)
 
 
 def _make_header(sep='#'):
@@ -308,20 +309,13 @@ class Renderer(renderer.Renderer):
             elif subnet_type == 'static':
                 if subnet_is_ipv6(subnet):
                     ipv6_index = ipv6_index + 1
-                    if 'netmask' in subnet and str(subnet['netmask']) != "":
-                        ipv6_cidr = (subnet['address'] +
-                                     '/' +
-                                     str(subnet['netmask']))
-                    else:
-                        ipv6_cidr = subnet['address']
+                    ipv6_cidr = "%s/%s" % (subnet['address'], subnet['prefix'])
                     if ipv6_index == 0:
                         iface_cfg['IPV6ADDR'] = ipv6_cidr
                     elif ipv6_index == 1:
                         iface_cfg['IPV6ADDR_SECONDARIES'] = ipv6_cidr
                     else:
-                        iface_cfg['IPV6ADDR_SECONDARIES'] = (
-                            iface_cfg['IPV6ADDR_SECONDARIES'] +
-                            " " + ipv6_cidr)
+                        iface_cfg['IPV6ADDR_SECONDARIES'] += " " + ipv6_cidr
                 else:
                     ipv4_index = ipv4_index + 1
                     suff = "" if ipv4_index == 0 else str(ipv4_index)
@@ -330,7 +324,11 @@ class Renderer(renderer.Renderer):
                         net_prefix_to_ipv4_mask(subnet['prefix'])
 
                 if 'gateway' in subnet:
-                    iface_cfg['GATEWAY'] = subnet['gateway']
+                    iface_cfg['DEFROUTE'] = True
+                    if is_ipv6_addr(subnet['gateway']):
+                        iface_cfg['IPV6_DEFAULTGW'] = subnet['gateway']
+                    else:
+                        iface_cfg['GATEWAY'] = subnet['gateway']
 
     @classmethod
     def _render_subnet_routes(cls, iface_cfg, route_cfg, subnets):
