@@ -1,10 +1,12 @@
 ## template: cheetah
 %{!?python_sitelib: %global python_sitelib %(%{__python} -c "from distutils.sysconfig import get_python_lib; print get_python_lib()")}
 
-%if %{undefined systemd_requires}
-%define init_system sysvinit
-%else
+%define use_systemd (0%{?fedora} && 0%{?fedora} >= 18) || (0%{?rhel} && 0%{?rhel} >= 7)
+
+%if %{use_systemd}
 %define init_system systemd
+%else
+%define init_system sysvinit
 %endif
 
 # See: http://www.zarb.org/~jasonc/macros.php
@@ -29,6 +31,18 @@ BuildRequires:  python-setuptools
 %if "%{?el6}" == "1"
 BuildRequires:  python-argparse
 %endif
+%if %{use_systemd}
+Requires:           systemd
+BuildRequires:      systemd
+Requires:           systemd-units
+BuildRequires:      systemd-units
+%else
+Requires:           initscripts >= 8.36
+Requires(postun):   initscripts
+Requires(post):     chkconfig
+Requires(preun):    chkconfig
+%endif
+
 # These are runtime dependencies, but declared as BuildRequires so that
 # - tests can be run here.
 # - parts of cloud-init such (setup.py) use these dependencies.
@@ -68,8 +82,9 @@ Patch${size}: $p
 #end for
 
 %if "%{init_system}" == "systemd"
-BuildRequires:  systemd-units
-%{systemd_requires}
+Requires(post):       systemd
+Requires(preun):      systemd
+Requires(postun):     systemd
 %else
 Requires(post):       chkconfig
 Requires(postun):     initscripts
