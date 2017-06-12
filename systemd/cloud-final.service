@@ -2,6 +2,7 @@
 Description=Execute cloud user/final scripts
 After=network-online.target cloud-config.service rc-local.service multi-user.target
 Wants=network-online.target cloud-config.service
+Before=apt-daily.service
 
 [Service]
 Type=oneshot
