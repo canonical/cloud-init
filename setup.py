@@ -87,8 +87,8 @@ def read_requires():
     return str(deps).splitlines()
 
 
-def render_cloud_cfg():
-    """render cloud.cfg into a tmpdir under same dir as setup.py
+def render_tmpl(template):
+    """render template into a tmpdir under same dir as setup.py
 
     This is rendered to a temporary directory under the top level
     directory with the name 'cloud.cfg'.  The reason for not just rendering
@@ -99,16 +99,21 @@ def render_cloud_cfg():
     # older versions of tox use bdist (xenial), and then install from there.
     # newer versions just use install.
     if not (sys.argv[1] == 'install' or sys.argv[1].startswith('bdist*')):
-        return 'config/cloud.cfg.tmpl'
+        return template
+
+    tmpl_ext = ".tmpl"
+    # we may get passed a non-template file, just pass it back
+    if not template.endswith(tmpl_ext):
+        return template
+
     topdir = os.path.dirname(sys.argv[0])
     tmpd = tempfile.mkdtemp(dir=topdir)
     atexit.register(shutil.rmtree, tmpd)
-    fpath = os.path.join(tmpd, 'cloud.cfg')
-    tiny_p([sys.executable, './tools/render-cloudcfg',
-            'config/cloud.cfg.tmpl', fpath])
-    # relpath is relative to setup.py
-    relpath = os.path.join(os.path.basename(tmpd), 'cloud.cfg')
-    return relpath
+    bname = os.path.basename(template).rstrip(tmpl_ext)
+    fpath = os.path.join(tmpd, bname)
+    tiny_p([sys.executable, './tools/render-cloudcfg', template, fpath])
+    # return path relative to setup.py
+    return os.path.join(os.path.basename(tmpd), bname)
 
 
 INITSYS_FILES = {
@@ -116,8 +121,10 @@ INITSYS_FILES = {
     'sysvinit_freebsd': [f for f in glob('sysvinit/freebsd/*') if is_f(f)],
     'sysvinit_deb': [f for f in glob('sysvinit/debian/*') if is_f(f)],
     'sysvinit_openrc': [f for f in glob('sysvinit/gentoo/*') if is_f(f)],
-    'systemd': [f for f in (glob('systemd/*.service') +
-                            glob('systemd/*.target')) if is_f(f)],
+    'systemd': [render_tmpl(f)
+                for f in (glob('systemd/*.tmpl') +
+                          glob('systemd/*.service') +
+                          glob('systemd/*.target')) if is_f(f)],
     'systemd.generators': [f for f in glob('systemd/*-generator') if is_f(f)],
     'upstart': [f for f in glob('upstart/*') if is_f(f)],
 }
@@ -195,7 +202,7 @@ if not in_virtualenv():
         INITSYS_ROOTS[k] = "/" + INITSYS_ROOTS[k]
 
 data_files = [
-    (ETC + '/cloud', [render_cloud_cfg()]),
+    (ETC + '/cloud', [render_tmpl("config/cloud.cfg.tmpl")]),
     (ETC + '/cloud/cloud.cfg.d', glob('config/cloud.cfg.d/*')),
     (ETC + '/cloud/templates', glob('templates/*')),
     (USR_LIB_EXEC + '/cloud-init', ['tools/ds-identify',

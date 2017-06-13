@@ -115,11 +115,6 @@ rm -rf $RPM_BUILD_ROOT%{python_sitelib}/tests
 mkdir -p $RPM_BUILD_ROOT/%{_sharedstatedir}/cloud
 mkdir -p $RPM_BUILD_ROOT/%{_libexecdir}/%{name}
 
-%if "%{init_system}" == "systemd"
-mkdir -p         $RPM_BUILD_ROOT/%{_unitdir}
-cp -p systemd/*  $RPM_BUILD_ROOT/%{_unitdir}
-%endif
-
 %clean
 rm -rf $RPM_BUILD_ROOT
 
