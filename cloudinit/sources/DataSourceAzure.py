@@ -177,6 +177,11 @@ if util.is_FreeBSD():
         RESOURCE_DISK_PATH = "/dev/" + res_disk
     else:
         LOG.debug("resource disk is None")
+    BOUNCE_COMMAND = [
+        'sh', '-xc',
+        ("i=$interface; x=0; ifconfig down $i || x=$?; "
+         "ifconfig up $i || x=$?; exit $x")
+    ]
 
 BUILTIN_DS_CONFIG = {
     'agent_command': AGENT_START_BUILTIN,
