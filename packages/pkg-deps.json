@@ -62,7 +62,7 @@
          "procps",
          "rsyslog",
          "shadow-utils",
-         "sudo >= 1.7.2p2-3"
+         "sudo"
       ]
    },
    "suse" : {

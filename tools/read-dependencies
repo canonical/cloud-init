@@ -18,6 +18,7 @@ import re
 import subprocess
 import sys
 
+DEFAULT_REQUIREMENTS = 'requirements.txt'
 
 # Map the appropriate package dir needed for each distro choice
 DISTRO_PKG_TYPE_MAP = {
@@ -51,8 +52,9 @@ def get_parser():
     """Return an argument parser for this command."""
     parser = ArgumentParser(description=__doc__)
     parser.add_argument(
-        '-r', '--requirements-file', type=str, dest='req_file',
-        default='requirements.txt', help='The pip-style requirements file')
+        '-r', '--requirements-file', type=str, dest='req_files',
+        action='append', default=None,
+        help='pip-style requirements file [default=%s]' % DEFAULT_REQUIREMENTS)
     parser.add_argument(
         '-d', '--distro', type=str, choices=DISTRO_PKG_TYPE_MAP.keys(),
         help='The name of the distro to generate package deps for.')
@@ -144,12 +146,24 @@ def main(distro):
         topd = os.path.realpath(os.environ.get('CLOUD_INIT_TOP_D'))
     else:
         topd = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
-    req_path = os.path.join(topd, args.req_file)
-    if not os.path.isfile(req_path):
-        sys.stderr.write("Unable to locate '%s' file that should "
-                         "exist in cloud-init root directory." % req_path)
-        return 1
-    pip_pkg_names = parse_pip_requirements(req_path)
+
+    if args.req_files is None:
+        args.req_files = [os.path.join(topd, DEFAULT_REQUIREMENTS)]
+        if not os.path.isfile(args.req_files[0]):
+            sys.stderr.write("Unable to locate '%s' file that should "
+                             "exist in cloud-init root directory." %
+                             args.req_files[0])
+            sys.exit(1)
+
+    bad_files = [r for r in args.req_files if not os.path.isfile(r)]
+    if bad_files:
+        sys.stderr.write(
+            "Unable to find requirements files: %s\n" % ','.join(bad_files))
+        sys.exit(1)
+
+    pip_pkg_names = set()
+    for req_path in args.req_files:
+        pip_pkg_names.update(set(parse_pip_requirements(req_path)))
     deps_from_json = get_package_deps_from_json(topd, args.distro)
     renames = deps_from_json.get('renames', {})
     translated_pip_names = translate_pip_to_system_pkg(
@@ -174,7 +188,7 @@ def pkg_install(pkg_list, distro, dry_run=False):
     """Install a list of packages using the DISTRO_INSTALL_PKG_CMD."""
     print('Installing deps: {0}{1}'.format(
           '(dryrun)' if dry_run else '', ' '.join(pkg_list)))
-    pkg_list.extend(EXTRA_SYSTEM_BASE_PKGS)
+    pkg_list = list(pkg_list) + EXTRA_SYSTEM_BASE_PKGS
     install_cmd = []
     if dry_run:
        install_cmd.append('echo')
