@@ -407,30 +407,52 @@ class Renderer(renderer.Renderer):
     @classmethod
     def _render_bond_interfaces(cls, network_state, iface_contents):
         bond_filter = renderer.filter_by_type('bond')
+        slave_filter = renderer.filter_by_attr('bond-master')
         for iface in network_state.iter_interfaces(bond_filter):
             iface_name = iface['name']
             iface_cfg = iface_contents[iface_name]
             cls._render_bonding_opts(iface_cfg, iface)
-            iface_master_name = iface['bond-master']
-            iface_cfg['MASTER'] = iface_master_name
-            iface_cfg['SLAVE'] = True
+
             # Ensure that the master interface (and any of its children)
             # are actually marked as being bond types...
-            master_cfg = iface_contents[iface_master_name]
-            master_cfgs = [master_cfg]
-            master_cfgs.extend(master_cfg.children)
+            master_cfgs = [iface_cfg]
+            master_cfgs.extend(iface_cfg.children)
             for master_cfg in master_cfgs:
                 master_cfg['BONDING_MASTER'] = True
                 master_cfg.kind = 'bond'
 
-    @staticmethod
-    def _render_vlan_interfaces(network_state, iface_contents):
+            iface_subnets = iface.get("subnets", [])
+            route_cfg = iface_cfg.routes
+            cls._render_subnets(iface_cfg, iface_subnets)
+            cls._render_subnet_routes(iface_cfg, route_cfg, iface_subnets)
+
+            # iter_interfaces on network-state is not sorted to produce
+            # consistent numbers we need to sort.
+            bond_slaves = sorted(
+                [slave_iface['name'] for slave_iface in
+                 network_state.iter_interfaces(slave_filter)
+                 if slave_iface['bond-master'] == iface_name])
+            for index, bond_slave in enumerate(bond_slaves):
+                slavestr = 'BONDING_SLAVE%s' % index
+                iface_cfg[slavestr] = bond_slave
+
+                slave_cfg = iface_contents[bond_slave]
+                slave_cfg['MASTER'] = iface_name
+                slave_cfg['SLAVE'] = True
+
+    @classmethod
+    def _render_vlan_interfaces(cls, network_state, iface_contents):
         vlan_filter = renderer.filter_by_type('vlan')
         for iface in network_state.iter_interfaces(vlan_filter):
             iface_name = iface['name']
             iface_cfg = iface_contents[iface_name]
             iface_cfg['VLAN'] = True
             iface_cfg['PHYSDEV'] = iface_name[:iface_name.rfind('.')]
+
+            iface_subnets = iface.get("subnets", [])
+            route_cfg = iface_cfg.routes
+            cls._render_subnets(iface_cfg, iface_subnets)
+            cls._render_subnet_routes(iface_cfg, route_cfg, iface_subnets)
 
     @staticmethod
     def _render_dns(network_state, existing_dns_path=None):
@@ -477,6 +499,11 @@ class Renderer(renderer.Renderer):
                 bridged_cfgs.extend(bridged_cfg.children)
                 for bridge_cfg in bridged_cfgs:
                     bridge_cfg['BRIDGE'] = iface_name
+
+            iface_subnets = iface.get("subnets", [])
+            route_cfg = iface_cfg.routes
+            cls._render_subnets(iface_cfg, iface_subnets)
+            cls._render_subnet_routes(iface_cfg, route_cfg, iface_subnets)
 
     @classmethod
     def _render_sysconfig(cls, base_sysconf_dir, network_state):

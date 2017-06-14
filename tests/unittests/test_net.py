@@ -825,7 +825,211 @@ pre-down route del -net 10.0.0.0 netmask 255.0.0.0 gw 11.0.0.1 metric 3 || true
                   gateway: 11.0.0.1
                   metric: 3
         """).lstrip(),
-    }
+    },
+    'bond': {
+        'yaml': textwrap.dedent("""
+            version: 1
+            config:
+              - type: physical
+                name: bond0s0
+                mac_address: "aa:bb:cc:dd:e8:00"
+              - type: physical
+                name: bond0s1
+                mac_address: "aa:bb:cc:dd:e8:01"
+              - type: bond
+                name: bond0
+                mac_address: "aa:bb:cc:dd:e8:ff"
+                bond_interfaces:
+                  - bond0s0
+                  - bond0s1
+                params:
+                  bond-mode: active-backup
+                  bond_miimon: 100
+                  bond-xmit-hash-policy: "layer3+4"
+                subnets:
+                  - type: static
+                    address: 192.168.0.2/24
+                    gateway: 192.168.0.1
+                    routes:
+                     - gateway: 192.168.0.3
+                       netmask: 255.255.255.0
+                       network: 10.1.3.0
+                  - type: static
+                    address: 192.168.1.2/24
+                  - type: static
+                    address: 2001:1::1/92
+            """),
+        'expected_sysconfig': {
+            'ifcfg-bond0': textwrap.dedent("""\
+        BONDING_MASTER=yes
+        BONDING_OPTS="mode=active-backup xmit_hash_policy=layer3+4 miimon=100"
+        BONDING_SLAVE0=bond0s0
+        BONDING_SLAVE1=bond0s1
+        BOOTPROTO=none
+        DEFROUTE=yes
+        DEVICE=bond0
+        GATEWAY=192.168.0.1
+        HWADDR=aa:bb:cc:dd:e8:ff
+        IPADDR=192.168.0.2
+        IPADDR1=192.168.1.2
+        IPV6ADDR=2001:1::1/92
+        IPV6INIT=yes
+        NETMASK=255.255.255.0
+        NETMASK1=255.255.255.0
+        NM_CONTROLLED=no
+        ONBOOT=yes
+        TYPE=Bond
+        USERCTL=no
+        """),
+            'ifcfg-bond0s0': textwrap.dedent("""\
+        BOOTPROTO=none
+        DEVICE=bond0s0
+        HWADDR=aa:bb:cc:dd:e8:00
+        MASTER=bond0
+        NM_CONTROLLED=no
+        ONBOOT=yes
+        SLAVE=yes
+        TYPE=Ethernet
+        USERCTL=no
+        """),
+            'route6-bond0': textwrap.dedent("""\
+            """),
+            'route-bond0': textwrap.dedent("""\
+        ADDRESS0=10.1.3.0
+        GATEWAY0=192.168.0.3
+        NETMASK0=255.255.255.0
+        """),
+            'ifcfg-bond0s1': textwrap.dedent("""\
+        BOOTPROTO=none
+        DEVICE=bond0s1
+        HWADDR=aa:bb:cc:dd:e8:01
+        MASTER=bond0
+        NM_CONTROLLED=no
+        ONBOOT=yes
+        SLAVE=yes
+        TYPE=Ethernet
+        USERCTL=no
+        """),
+        },
+    },
+    'vlan': {
+        'yaml': textwrap.dedent("""
+            version: 1
+            config:
+              - type: physical
+                name: en0
+                mac_address: "aa:bb:cc:dd:e8:00"
+              - type: vlan
+                name: en0.99
+                vlan_link: en0
+                vlan_id: 99
+                subnets:
+                  - type: static
+                    address: '192.168.2.2/24'
+                  - type: static
+                    address: '192.168.1.2/24'
+                    gateway: 192.168.1.1
+                  - type: static
+                    address: 2001:1::bbbb/96
+                    routes:
+                     - gateway: 2001:1::1
+                       netmask: '::'
+                       network: '::'
+            """),
+        'expected_sysconfig': {
+            'ifcfg-en0': textwrap.dedent("""\
+                BOOTPROTO=none
+                DEVICE=en0
+                HWADDR=aa:bb:cc:dd:e8:00
+                NM_CONTROLLED=no
+                ONBOOT=yes
+                TYPE=Ethernet
+                USERCTL=no"""),
+            'ifcfg-en0.99': textwrap.dedent("""\
+                BOOTPROTO=none
+                DEFROUTE=yes
+                DEVICE=en0.99
+                GATEWAY=2001:1::1
+                IPADDR=192.168.2.2
+                IPADDR1=192.168.1.2
+                IPV6ADDR=2001:1::bbbb/96
+                IPV6INIT=yes
+                NETMASK=255.255.255.0
+                NETMASK1=255.255.255.0
+                NM_CONTROLLED=no
+                ONBOOT=yes
+                PHYSDEV=en0
+                TYPE=Ethernet
+                USERCTL=no
+                VLAN=yes"""),
+        },
+    },
+    'bridge': {
+        'yaml': textwrap.dedent("""
+            version: 1
+            config:
+              - type: physical
+                name: eth0
+                mac_address: "52:54:00:12:34:00"
+                subnets:
+                  - type: static
+                    address: 2001:1::100/96
+              - type: physical
+                name: eth1
+                mac_address: "52:54:00:12:34:01"
+                subnets:
+                  - type: static
+                    address: 2001:1::101/96
+              - type: bridge
+                name: br0
+                bridge_interfaces:
+                  - eth0
+                  - eth1
+                params:
+                  bridge_stp: 'off'
+                  bridge_bridgeprio: 22
+                subnets:
+                  - type: static
+                    address: 192.168.2.2/24"""),
+        'expected_sysconfig': {
+            'ifcfg-br0': textwrap.dedent("""\
+                BOOTPROTO=none
+                DEVICE=br0
+                IPADDR=192.168.2.2
+                NETMASK=255.255.255.0
+                NM_CONTROLLED=no
+                ONBOOT=yes
+                PRIO=22
+                STP=off
+                TYPE=Bridge
+                USERCTL=no
+                """),
+            'ifcfg-eth0': textwrap.dedent("""\
+                BOOTPROTO=none
+                BRIDGE=br0
+                DEVICE=eth0
+                HWADDR=52:54:00:12:34:00
+                IPV6ADDR=2001:1::100/96
+                IPV6INIT=yes
+                NM_CONTROLLED=no
+                ONBOOT=yes
+                TYPE=Ethernet
+                USERCTL=no
+                """),
+            'ifcfg-eth1': textwrap.dedent("""\
+                BOOTPROTO=none
+                BRIDGE=br0
+                DEVICE=eth1
+                HWADDR=52:54:00:12:34:01
+                IPV6ADDR=2001:1::101/96
+                IPV6INIT=yes
+                NM_CONTROLLED=no
+                ONBOOT=yes
+                TYPE=Ethernet
+                USERCTL=no
+                """),
+        },
+    },
 }
 
 
@@ -1021,6 +1225,48 @@ iface eth1 inet dhcp
 
 class TestSysConfigRendering(CiTestCase):
 
+    scripts_dir = '/etc/sysconfig/network-scripts'
+    header = ('# Created by cloud-init on instance boot automatically, '
+              'do not edit.\n#\n')
+
+    def _render_and_read(self, network_config=None, state=None, dir=None):
+        if dir is None:
+            dir = self.tmp_dir()
+
+        if network_config:
+            ns = network_state.parse_net_config_data(network_config)
+        elif state:
+            ns = state
+        else:
+            raise ValueError("Expected data or state, got neither")
+
+        renderer = sysconfig.Renderer()
+        renderer.render_network_state(ns, dir)
+        return dir2dict(dir)
+
+    def _compare_files_to_expected(self, expected, found):
+        orig_maxdiff = self.maxDiff
+        expected_d = dict(
+            (os.path.join(self.scripts_dir, k), util.load_shell_content(v))
+            for k, v in expected.items())
+
+        # only compare the files in scripts_dir
+        scripts_found = dict(
+            (k, util.load_shell_content(v)) for k, v in found.items()
+            if k.startswith(self.scripts_dir))
+        try:
+            self.maxDiff = None
+            self.assertEqual(expected_d, scripts_found)
+        finally:
+            self.maxDiff = orig_maxdiff
+
+    def _assert_headers(self, found):
+        missing = [f for f in found
+                   if (f.startswith(self.scripts_dir) and
+                       not found[f].startswith(self.header))]
+        if missing:
+            raise AssertionError("Missing headers in: %s" % missing)
+
     @mock.patch("cloudinit.net.sys_dev_path")
     @mock.patch("cloudinit.net.read_sys_net")
     @mock.patch("cloudinit.net.get_devicelist")
@@ -1194,6 +1440,24 @@ TYPE=Ethernet
 USERCTL=no
 """
         self.assertEqual(expected, found[nspath + 'ifcfg-eth0'])
+
+    def test_bond_config(self):
+        entry = NETWORK_CONFIGS['bond']
+        found = self._render_and_read(network_config=yaml.load(entry['yaml']))
+        self._compare_files_to_expected(entry['expected_sysconfig'], found)
+        self._assert_headers(found)
+
+    def test_vlan_config(self):
+        entry = NETWORK_CONFIGS['vlan']
+        found = self._render_and_read(network_config=yaml.load(entry['yaml']))
+        self._compare_files_to_expected(entry['expected_sysconfig'], found)
+        self._assert_headers(found)
+
+    def test_bridge_config(self):
+        entry = NETWORK_CONFIGS['bridge']
+        found = self._render_and_read(network_config=yaml.load(entry['yaml']))
+        self._compare_files_to_expected(entry['expected_sysconfig'], found)
+        self._assert_headers(found)
 
 
 class TestEniNetRendering(CiTestCase):
