@@ -72,7 +72,9 @@ def write_debian_folder(root, templ_data, is_python2, cloud_util_deps):
     requires = ['cloud-utils | cloud-guest-utils'] if cloud_util_deps else []
     # We consolidate all deps as Build-Depends as our package build runs all
     # tests so we need all runtime dependencies anyway.
-    requires.extend(reqs + test_reqs + [python])
+    # NOTE: python package was moved to the front after debuild -S would fail with
+    # 'Please add apropriate interpreter' errors (as in debian bug 861132)
+    requires.extend([python] + reqs + test_reqs)
     templater.render_to_file(util.abs_join(find_root(),
                                            'packages', 'debian', 'control.in'),
                              util.abs_join(deb_dir, 'control'),

@@ -221,10 +221,7 @@ main() {
     }
 
     inside_as_cd "$name" root "$cdir" \
-        ./tools/read-dependencies \
-            --requirements-file=requirements.txt \
-            --requirements-file=test-requirements.txt \
-            --distro=centos --install || {
+        ./tools/read-dependencies --distro=centos --test-distro || {
         errorrc "FAIL: failed to install dependencies with read-dependencies"
         return
     }

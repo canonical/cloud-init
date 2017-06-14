@@ -40,8 +40,13 @@ DISTRO_INSTALL_PKG_CMD = {
 }
 
 
-# List of base system packages required to start using make
-EXTRA_SYSTEM_BASE_PKGS = ['make', 'sudo', 'tar']
+# List of base system packages required to enable ci automation
+CI_SYSTEM_BASE_PKGS = {
+    'common': ['make', 'sudo', 'tar'],
+    'redhat': ['python-tox'],
+    'centos': ['python-tox'],
+    'ubuntu': ['devscripts', 'python3-dev', 'libssl-dev', 'tox', 'sbuild'],
+    'debian': ['devscripts', 'python3-dev', 'libssl-dev', 'tox', 'sbuild']}
 
 
 # JSON definition of distro-specific package dependencies
@@ -70,10 +75,16 @@ def get_parser():
         dest='install',
         help='When specified, install the required system packages.')
     parser.add_argument(
-        '-v', '--python-version', type=str, dest='python_version', default="2",
+        '-t', '--test-distro', action='store_true', default=False,
+        dest='test_distro',
+        help='Additionally install continuous integration system packages '
+             'required for build and test automation.')
+    parser.add_argument(
+        '-v', '--python-version', type=str, dest='python_version', default=None,
         choices=["2", "3"],
-        help='The version of python we want to generate system package '
-             'dependencies for.')
+        help='Override the version of python we want to generate system '
+             'package dependencies for. Defaults to the version of python '
+             'this script is called with')
     return parser
 
 
@@ -114,13 +125,17 @@ def parse_pip_requirements(requirements_path):
     return dep_names
 
 
-def translate_pip_to_system_pkg(pip_requires, renames, python_ver="2"):
+def translate_pip_to_system_pkg(pip_requires, renames, python_ver):
     """Translate pip package names to distro-specific package names.
 
     @param pip_requires: List of versionless pip package names to translate.
     @param renames: Dict containg special case renames from pip name to system
         package name for the distro.
+    @param python_ver: Optional python version string "2" or "3". When None,
+     use the python version that is calling this script via sys.version_info.
     """
+    if python_ver is None:
+        python_ver = str(sys.version_info[0])
     if python_ver == "2":
         prefix = "python-"
     else:
@@ -147,6 +162,16 @@ def main(distro):
     else:
         topd = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 
+    if args.test_distro:
+        # Give us all the system deps we need for continuous integration
+        if args.req_files:
+            sys.stderr.write(
+                "Parameter --test-distro overrides --requirements-file. Use "
+                "one or the other.\n")
+            sys.exit(1)
+        args.req_files = [os.path.join(topd, DEFAULT_REQUIREMENTS),
+                          os.path.join(topd, 'test-' + DEFAULT_REQUIREMENTS)]
+        args.install = True
     if args.req_files is None:
         args.req_files = [os.path.join(topd, DEFAULT_REQUIREMENTS)]
         if not os.path.isfile(args.req_files[0]):
@@ -179,16 +204,19 @@ def main(distro):
         else:
             all_deps = pip_pkg_names
     if args.install:
-        pkg_install(all_deps, args.distro, args.dry_run)
+        pkg_install(all_deps, args.distro, args.test_distro, args.dry_run)
     else:
         print('\n'.join(all_deps))
 
 
-def pkg_install(pkg_list, distro, dry_run=False):
+def pkg_install(pkg_list, distro, test_distro=False, dry_run=False):
     """Install a list of packages using the DISTRO_INSTALL_PKG_CMD."""
+    if test_distro:
+        pkg_list = list(pkg_list) + CI_SYSTEM_BASE_PKGS['common']
+        distro_base_pkgs = CI_SYSTEM_BASE_PKGS.get(distro, [])
+        pkg_list += distro_base_pkgs
     print('Installing deps: {0}{1}'.format(
           '(dryrun)' if dry_run else '', ' '.join(pkg_list)))
-    pkg_list = list(pkg_list) + EXTRA_SYSTEM_BASE_PKGS
     install_cmd = []
     if dry_run:
        install_cmd.append('echo')
