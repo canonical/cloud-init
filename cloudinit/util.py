@@ -573,7 +573,7 @@ def is_ipv4(instr):
 
 
 def is_FreeBSD():
-    return system_info()['platform'].startswith('FreeBSD')
+    return system_info()['variant'] == "freebsd"
 
 
 def get_cfg_option_bool(yobj, key, default=False):
@@ -598,37 +598,29 @@ def get_cfg_option_int(yobj, key, default=0):
 def system_info():
     info = {
         'platform': platform.platform(),
+        'system': platform.system(),
         'release': platform.release(),
         'python': platform.python_version(),
         'uname': platform.uname(),
-        'dist': platform.linux_distribution(),  # pylint: disable=W1505
+        'dist': platform.dist(),  # pylint: disable=W1505
     }
-    plat = info['platform'].lower()
-    # Try to get more info about what it actually is, in a format
-    # that we can easily use across linux and variants...
-    if plat.startswith('darwin'):
-        info['variant'] = 'darwin'
-    elif plat.endswith("bsd"):
-        info['variant'] = 'bsd'
-    elif plat.startswith('win'):
-        info['variant'] = 'windows'
-    elif 'linux' in plat:
-        # Try to get a single string out of these...
-        linux_dist, _version, _id = info['dist']
-        linux_dist = linux_dist.lower()
-        if linux_dist in ('ubuntu', 'linuxmint', 'mint'):
-            info['variant'] = 'ubuntu'
+    system = info['system'].lower()
+    var = 'unknown'
+    if system == "linux":
+        linux_dist = info['dist'][0].lower()
+        if linux_dist in ('centos', 'fedora', 'debian'):
+            var = linux_dist
+        elif linux_dist in ('ubuntu', 'linuxmint', 'mint'):
+            var = 'ubuntu'
+        elif linux_dist == 'redhat':
+            var = 'rhel'
         else:
-            for prefix, variant in [('redhat', 'rhel'),
-                                    ('centos', 'centos'),
-                                    ('fedora', 'fedora'),
-                                    ('debian', 'debian')]:
-                if linux_dist.startswith(prefix):
-                    info['variant'] = variant
-        if 'variant' not in info:
-            info['variant'] = 'linux'
-    if 'variant' not in info:
-        info['variant'] = 'unknown'
+            var = 'linux'
+    elif system in ('windows', 'darwin', "freebsd"):
+        var = system
+
+    info['variant'] = var
+
     return info
 
 

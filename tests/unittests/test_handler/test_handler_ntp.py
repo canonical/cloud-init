@@ -62,7 +62,7 @@ class TestNtp(FilesystemMockingTestCase):
     def test_ntp_rename_ntp_conf(self):
         """When NTP_CONF exists, rename_ntp moves it."""
         ntpconf = self.tmp_path("ntp.conf", self.new_root)
-        os.mknod(ntpconf)
+        util.write_file(ntpconf, "")
         with mock.patch("cloudinit.config.cc_ntp.NTP_CONF", ntpconf):
             cc_ntp.rename_ntp_conf()
         self.assertFalse(os.path.exists(ntpconf))

@@ -2,7 +2,7 @@
 # The top level settings are used as module
 # and system configuration.
 
-{% if variant in ["bsd"] %}
+{% if variant in ["freebsd"] %}
 syslog_fix_perms: root:wheel
 {% endif %}
 # A set of users which may be applied and/or used by various modules
@@ -13,7 +13,7 @@ users:
 
 # If this is set, 'root' will not be able to ssh in and they
 # will get a message to login instead as the default $user
-{% if variant in ["bsd"] %}
+{% if variant in ["freebsd"] %}
 disable_root: false
 {% else %}
 disable_root: true
@@ -30,7 +30,7 @@ ssh_pwauth:   0
 # This will cause the set+update hostname module to not operate (if true)
 preserve_hostname: false
 
-{% if variant in ["bsd"] %}
+{% if variant in ["freebsd"] %}
 # This should not be required, but leave it in place until the real cause of
 # not beeing able to find -any- datasources is resolved.
 datasource_list: ['ConfigDrive', 'Azure', 'OpenStack', 'Ec2']
@@ -53,13 +53,13 @@ cloud_init_modules:
  - write-files
  - growpart
  - resizefs
-{% if variant not in ["bsd"] %}
+{% if variant not in ["freebsd"] %}
  - disk_setup
  - mounts
 {% endif %}
  - set_hostname
  - update_hostname
-{% if variant not in ["bsd"] %}
+{% if variant not in ["freebsd"] %}
  - update_etc_hosts
  - ca-certs
  - rsyslog
@@ -87,7 +87,7 @@ cloud_config_modules:
  - apt-pipelining
  - apt-configure
 {% endif %}
-{% if variant not in ["bsd"] %}
+{% if variant not in ["freebsd"] %}
  - ntp
 {% endif %}
  - timezone
@@ -108,7 +108,7 @@ cloud_final_modules:
  - landscape
  - lxd
 {% endif %}
-{% if variant not in ["bsd"] %}
+{% if variant not in ["freebsd"] %}
  - puppet
  - chef
  - salt-minion
@@ -130,10 +130,8 @@ cloud_final_modules:
 # (not accessible to handlers/transforms)
 system_info:
    # This will affect which distro class gets used
-{% if variant in ["centos", "debian", "fedora", "rhel", "ubuntu"] %}
+{% if variant in ["centos", "debian", "fedora", "rhel", "ubuntu", "freebsd"] %}
    distro: {{ variant }}
-{% elif variant in ["bsd"] %}
-   distro: freebsd
 {% else %}
    # Unknown/fallback distro.
    distro: ubuntu
@@ -182,7 +180,7 @@ system_info:
       cloud_dir: /var/lib/cloud/
       templates_dir: /etc/cloud/templates/
    ssh_svcname: sshd
-{% elif variant in ["bsd"] %}
+{% elif variant in ["freebsd"] %}
    # Default user name + that default users groups (if added/used)
    default_user:
      name: freebsd

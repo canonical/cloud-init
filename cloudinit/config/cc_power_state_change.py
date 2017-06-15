@@ -71,7 +71,7 @@ def givecmdline(pid):
         # Example output from procstat -c 1
         #   PID COMM             ARGS
         #     1 init             /bin/init --
-        if util.system_info()["platform"].startswith('FreeBSD'):
+        if util.is_FreeBSD():
             (output, _err) = util.subp(['procstat', '-c', str(pid)])
             line = output.splitlines()[1]
             m = re.search('\d+ (\w|\.|-)+\s+(/\w.+)', line)

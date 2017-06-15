@@ -101,7 +101,7 @@ def get_dev_storvsc_sysctl():
         sysctl_out, err = util.subp(['sysctl', 'dev.storvsc'])
     except util.ProcessExecutionError:
         LOG.debug("Fail to execute sysctl dev.storvsc")
-        return None
+        sysctl_out = ""
     return sysctl_out
 
 
