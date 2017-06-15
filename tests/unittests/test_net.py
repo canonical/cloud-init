@@ -1031,6 +1031,39 @@ pre-down route del -net 10.0.0.0 netmask 255.0.0.0 gw 11.0.0.1 metric 3 || true
                 """),
         },
     },
+    'manual': {
+        'yaml': textwrap.dedent("""
+            version: 1
+            config:
+              - type: physical
+                name: eth0
+                mac_address: "52:54:00:12:34:00"
+                subnets:
+                  - type: static
+                    address: 192.168.1.2/24
+                    control: manual"""),
+        'expected_eni': textwrap.dedent("""\
+            auto lo
+            iface lo inet loopback
+
+            # control-manual eth0
+            iface eth0 inet static
+                address 192.168.1.2/24
+            """),
+        'expected_sysconfig': {
+            'ifcfg-eth0': textwrap.dedent("""\
+                BOOTPROTO=none
+                DEVICE=eth0
+                HWADDR=52:54:00:12:34:00
+                IPADDR=192.168.1.2
+                NETMASK=255.255.255.0
+                NM_CONTROLLED=no
+                ONBOOT=no
+                TYPE=Ethernet
+                USERCTL=no
+                """),
+        },
+    },
 }
 
 
@@ -1456,6 +1489,12 @@ USERCTL=no
 
     def test_bridge_config(self):
         entry = NETWORK_CONFIGS['bridge']
+        found = self._render_and_read(network_config=yaml.load(entry['yaml']))
+        self._compare_files_to_expected(entry['expected_sysconfig'], found)
+        self._assert_headers(found)
+
+    def test_manual_config(self):
+        entry = NETWORK_CONFIGS['manual']
         found = self._render_and_read(network_config=yaml.load(entry['yaml']))
         self._compare_files_to_expected(entry['expected_sysconfig'], found)
         self._assert_headers(found)
@@ -1906,6 +1945,13 @@ class TestEniRoundTrip(CiTestCase):
 
     def testsimple_render_v4_and_v6(self):
         entry = NETWORK_CONFIGS['v4_and_v6']
+        files = self._render_and_read(network_config=yaml.load(entry['yaml']))
+        self.assertEqual(
+            entry['expected_eni'].splitlines(),
+            files['/etc/network/interfaces'].splitlines())
+
+    def testsimple_render_manual(self):
+        entry = NETWORK_CONFIGS['manual']
         files = self._render_and_read(network_config=yaml.load(entry['yaml']))
         self.assertEqual(
             entry['expected_eni'].splitlines(),

@@ -298,6 +298,9 @@ class Renderer(renderer.Renderer):
                                  " for interface '%s'" % (subnet_type,
                                                           iface_cfg.name))
 
+            if subnet.get('control') == 'manual':
+                iface_cfg['ONBOOT'] = False
+
         # set IPv4 and IPv6 static addresses
         ipv4_index = -1
         ipv6_index = -1
