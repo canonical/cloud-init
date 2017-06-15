@@ -7,8 +7,7 @@ from cloudinit.util import find_freebsd_part
 from cloudinit.util import get_path_dev_freebsd
 
 from ..helpers import (CiTestCase, TestCase, populate_dir, mock,
-                       ExitStack, PY26, PY3, SkipTest)
-from mock import patch, mock_open
+                       ExitStack, PY26, SkipTest)
 
 import crypt
 import os
@@ -544,14 +543,16 @@ fdescfs            /dev/fd          fdescfs rw              0 0
         ds.get_data()
         self.assertEqual(self.instance_id, ds.metadata['instance-id'])
 
-    def test_list_possible_azure_ds_devs(self):
-        devlist = []
-        with patch('platform.platform',
-                   mock.MagicMock(return_value="FreeBSD")):
-            name = 'builtins.open' if PY3 else '__builtin__.open'
-            with patch(name, mock_open(read_data="data")):
-                devlist.extend(dsaz.list_possible_azure_ds_devs())
-                self.assertEqual(devlist, ['/dev/cd0'])
+    @mock.patch("cloudinit.sources.DataSourceAzure.util.is_FreeBSD")
+    @mock.patch("cloudinit.sources.DataSourceAzure._check_freebsd_cdrom")
+    def test_list_possible_azure_ds_devs(self, m_check_fbsd_cdrom,
+                                         m_is_FreeBSD):
+        """On FreeBSD, possible devs should show /dev/cd0."""
+        m_is_FreeBSD.return_value = True
+        m_check_fbsd_cdrom.return_value = True
+        self.assertEqual(dsaz.list_possible_azure_ds_devs(), ['/dev/cd0'])
+        self.assertEqual(
+            [mock.call("/dev/cd0")], m_check_fbsd_cdrom.call_args_list)
 
 
 class TestAzureBounce(TestCase):
