@@ -949,11 +949,12 @@ pre-down route del -net 10.0.0.0 netmask 255.0.0.0 gw 11.0.0.1 metric 3 || true
                 BOOTPROTO=none
                 DEFROUTE=yes
                 DEVICE=en0.99
-                GATEWAY=2001:1::1
+                GATEWAY=192.168.1.1
                 IPADDR=192.168.2.2
                 IPADDR1=192.168.1.2
                 IPV6ADDR=2001:1::bbbb/96
                 IPV6INIT=yes
+                IPV6_DEFAULTGW=2001:1::1
                 NETMASK=255.255.255.0
                 NETMASK1=255.255.255.0
                 NM_CONTROLLED=no
