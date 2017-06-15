@@ -273,6 +273,7 @@ class Renderer(renderer.Renderer):
 
         # modifying base values according to subnets
         for i, subnet in enumerate(subnets, start=len(iface_cfg.children)):
+            mtu_key = 'MTU'
             subnet_type = subnet.get('type')
             if subnet_type == 'dhcp6':
                 iface_cfg['IPV6INIT'] = True
@@ -292,7 +293,11 @@ class Renderer(renderer.Renderer):
                 # if iface_cfg['BOOTPROTO'] == 'none':
                 #    iface_cfg['BOOTPROTO'] = 'static'
                 if subnet_is_ipv6(subnet):
+                    mtu_key = 'IPV6_MTU'
                     iface_cfg['IPV6INIT'] = True
+
+                if 'mtu' in subnet:
+                    iface_cfg[mtu_key] = subnet['mtu']
             else:
                 raise ValueError("Unknown subnet type '%s' found"
                                  " for interface '%s'" % (subnet_type,

@@ -482,6 +482,62 @@ NETWORK_CONFIGS = {
                 - {'type': 'dhcp6'}
         """).rstrip(' '),
     },
+    'v4_and_v6_static': {
+        'expected_eni': textwrap.dedent("""\
+            auto lo
+            iface lo inet loopback
+
+            auto iface0
+            iface iface0 inet static
+                address 192.168.14.2/24
+                mtu 9000
+
+            # control-alias iface0
+            iface iface0 inet6 static
+                address 2001:1::1/64
+                mtu 1500
+        """).rstrip(' '),
+        'expected_netplan': textwrap.dedent("""
+            network:
+                version: 2
+                ethernets:
+                    iface0:
+                        addresses:
+                        - 192.168.14.2/24
+                        - 2001:1::1/64
+                        mtu: 9000
+                        mtu6: 1500
+        """).rstrip(' '),
+        'yaml': textwrap.dedent("""\
+            version: 1
+            config:
+              - type: 'physical'
+                name: 'iface0'
+                subnets:
+                  - type: static
+                    address: 192.168.14.2/24
+                    mtu: 9000
+                  - type: static
+                    address: 2001:1::1/64
+                    mtu: 1500
+        """).rstrip(' '),
+        'expected_sysconfig': {
+            'ifcfg-iface0': textwrap.dedent("""\
+                BOOTPROTO=none
+                DEVICE=iface0
+                IPADDR=192.168.14.2
+                IPV6ADDR=2001:1::1/64
+                IPV6INIT=yes
+                NETMASK=255.255.255.0
+                NM_CONTROLLED=no
+                ONBOOT=yes
+                TYPE=Ethernet
+                USERCTL=no
+                MTU=9000
+                IPV6_MTU=1500
+                """),
+        },
+    },
     'all': {
         'expected_eni': ("""\
 auto lo
@@ -1499,6 +1555,12 @@ USERCTL=no
         self._compare_files_to_expected(entry['expected_sysconfig'], found)
         self._assert_headers(found)
 
+    def test_v4_and_v6_static_config(self):
+        entry = NETWORK_CONFIGS['v4_and_v6_static']
+        found = self._render_and_read(network_config=yaml.load(entry['yaml']))
+        self._compare_files_to_expected(entry['expected_sysconfig'], found)
+        self._assert_headers(found)
+
 
 class TestEniNetRendering(CiTestCase):
 
@@ -1892,6 +1954,13 @@ class TestNetplanRoundTrip(CiTestCase):
             entry['expected_netplan'].splitlines(),
             files['/etc/netplan/50-cloud-init.yaml'].splitlines())
 
+    def testsimple_render_v4_and_v6_static(self):
+        entry = NETWORK_CONFIGS['v4_and_v6_static']
+        files = self._render_and_read(network_config=yaml.load(entry['yaml']))
+        self.assertEqual(
+            entry['expected_netplan'].splitlines(),
+            files['/etc/netplan/50-cloud-init.yaml'].splitlines())
+
     def testsimple_render_all(self):
         entry = NETWORK_CONFIGS['all']
         files = self._render_and_read(network_config=yaml.load(entry['yaml']))
@@ -1945,6 +2014,13 @@ class TestEniRoundTrip(CiTestCase):
 
     def testsimple_render_v4_and_v6(self):
         entry = NETWORK_CONFIGS['v4_and_v6']
+        files = self._render_and_read(network_config=yaml.load(entry['yaml']))
+        self.assertEqual(
+            entry['expected_eni'].splitlines(),
+            files['/etc/network/interfaces'].splitlines())
+
+    def testsimple_render_v4_and_v6_static(self):
+        entry = NETWORK_CONFIGS['v4_and_v6_static']
         files = self._render_and_read(network_config=yaml.load(entry['yaml']))
         self.assertEqual(
             entry['expected_eni'].splitlines(),
