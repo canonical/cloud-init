@@ -97,6 +97,10 @@ def is_bridge(devname):
     return os.path.exists(sys_dev_path(devname, "bridge"))
 
 
+def is_bond(devname):
+    return os.path.exists(sys_dev_path(devname, "bonding"))
+
+
 def is_vlan(devname):
     uevent = str(read_sys_net_safe(devname, "uevent"))
     return 'DEVTYPE=vlan' in uevent.splitlines()
@@ -124,6 +128,26 @@ def is_present(devname):
     return os.path.exists(sys_dev_path(devname))
 
 
+def device_driver(devname):
+    """Return the device driver for net device named 'devname'."""
+    driver = None
+    driver_path = sys_dev_path(devname, "device/driver")
+    # driver is a symlink to the driver *dir*
+    if os.path.islink(driver_path):
+        driver = os.path.basename(os.readlink(driver_path))
+
+    return driver
+
+
+def device_devid(devname):
+    """Return the device id string for net device named 'devname'."""
+    dev_id = read_sys_net_safe(devname, "device/device")
+    if dev_id is False:
+        return None
+
+    return dev_id
+
+
 def get_devicelist():
     return os.listdir(SYS_CLASS_NET)
 
@@ -138,12 +162,21 @@ def is_disabled_cfg(cfg):
     return cfg.get('config') == "disabled"
 
 
-def generate_fallback_config():
+def generate_fallback_config(blacklist_drivers=None, config_driver=None):
     """Determine which attached net dev is most likely to have a connection and
        generate network state to run dhcp on that interface"""
+
+    if not config_driver:
+        config_driver = False
+
+    if not blacklist_drivers:
+        blacklist_drivers = []
+
     # get list of interfaces that could have connections
     invalid_interfaces = set(['lo'])
-    potential_interfaces = set(get_devicelist())
+    potential_interfaces = set([device for device in get_devicelist()
+                                if device_driver(device) not in
+                                blacklist_drivers])
     potential_interfaces = potential_interfaces.difference(invalid_interfaces)
     # sort into interfaces with carrier, interfaces which could have carrier,
     # and ignore interfaces that are definitely disconnected
@@ -154,6 +187,9 @@ def generate_fallback_config():
             continue
         if is_bridge(interface):
             # skip any bridges
+            continue
+        if is_bond(interface):
+            # skip any bonds
             continue
         carrier = read_sys_net_int(interface, 'carrier')
         if carrier:
@@ -194,9 +230,18 @@ def generate_fallback_config():
             break
     if target_mac and target_name:
         nconf = {'config': [], 'version': 1}
-        nconf['config'].append(
-            {'type': 'physical', 'name': target_name,
-             'mac_address': target_mac, 'subnets': [{'type': 'dhcp'}]})
+        cfg = {'type': 'physical', 'name': target_name,
+               'mac_address': target_mac, 'subnets': [{'type': 'dhcp'}]}
+        # inject the device driver name, dev_id into config if enabled and
+        # device has a valid device driver value
+        if config_driver:
+            driver = device_driver(target_name)
+            if driver:
+                cfg['params'] = {
+                    'driver': driver,
+                    'device_id': device_devid(target_name),
+                }
+        nconf['config'].append(cfg)
         return nconf
     else:
         # can't read any interfaces addresses (or there are none); give up
@@ -217,10 +262,16 @@ def apply_network_config_names(netcfg, strict_present=True, strict_busy=True):
         if ent.get('type') != 'physical':
             continue
         mac = ent.get('mac_address')
-        name = ent.get('name')
         if not mac:
             continue
-        renames.append([mac, name])
+        name = ent.get('name')
+        driver = ent.get('params', {}).get('driver')
+        device_id = ent.get('params', {}).get('device_id')
+        if not driver:
+            driver = device_driver(name)
+        if not device_id:
+            device_id = device_devid(name)
+        renames.append([mac, name, driver, device_id])
 
     return _rename_interfaces(renames)
 
@@ -245,15 +296,27 @@ def _get_current_rename_info(check_downable=True):
     """Collect information necessary for rename_interfaces.
 
     returns a dictionary by mac address like:
-       {mac:
-         {'name': name
-          'up': boolean: is_up(name),
+       {name:
+         {
           'downable': None or boolean indicating that the
-                      device has only automatically assigned ip addrs.}}
+                      device has only automatically assigned ip addrs.
+          'device_id': Device id value (if it has one)
+          'driver': Device driver (if it has one)
+          'mac': mac address
+          'name': name
+          'up': boolean: is_up(name)
+         }}
     """
-    bymac = {}
-    for mac, name in get_interfaces_by_mac().items():
-        bymac[mac] = {'name': name, 'up': is_up(name), 'downable': None}
+    cur_info = {}
+    for (name, mac, driver, device_id) in get_interfaces():
+        cur_info[name] = {
+            'downable': None,
+            'device_id': device_id,
+            'driver': driver,
+            'mac': mac,
+            'name': name,
+            'up': is_up(name),
+        }
 
     if check_downable:
         nmatch = re.compile(r"[0-9]+:\s+(\w+)[@:]")
@@ -265,11 +328,11 @@ def _get_current_rename_info(check_downable=True):
         for bytes_out in (ipv6, ipv4):
             nics_with_addresses.update(nmatch.findall(bytes_out))
 
-        for d in bymac.values():
+        for d in cur_info.values():
             d['downable'] = (d['up'] is False or
                              d['name'] not in nics_with_addresses)
 
-    return bymac
+    return cur_info
 
 
 def _rename_interfaces(renames, strict_present=True, strict_busy=True,
@@ -282,15 +345,15 @@ def _rename_interfaces(renames, strict_present=True, strict_busy=True,
     if current_info is None:
         current_info = _get_current_rename_info()
 
-    cur_bymac = {}
-    for mac, data in current_info.items():
+    cur_info = {}
+    for name, data in current_info.items():
         cur = data.copy()
-        cur['mac'] = mac
-        cur_bymac[mac] = cur
+        cur['name'] = name
+        cur_info[name] = cur
 
     def update_byname(bymac):
         return dict((data['name'], data)
-                    for data in bymac.values())
+                    for data in cur_info.values())
 
     def rename(cur, new):
         util.subp(["ip", "link", "set", cur, "name", new], capture=True)
@@ -304,14 +367,48 @@ def _rename_interfaces(renames, strict_present=True, strict_busy=True,
     ops = []
     errors = []
     ups = []
-    cur_byname = update_byname(cur_bymac)
+    cur_byname = update_byname(cur_info)
     tmpname_fmt = "cirename%d"
     tmpi = -1
 
-    for mac, new_name in renames:
-        cur = cur_bymac.get(mac, {})
-        cur_name = cur.get('name')
+    def entry_match(data, mac, driver, device_id):
+        """match if set and in data"""
+        if mac and driver and device_id:
+            return (data['mac'] == mac and
+                    data['driver'] == driver and
+                    data['device_id'] == device_id)
+        elif mac and driver:
+            return (data['mac'] == mac and
+                    data['driver'] == driver)
+        elif mac:
+            return (data['mac'] == mac)
+
+        return False
+
+    def find_entry(mac, driver, device_id):
+        match = [data for data in cur_info.values()
+                 if entry_match(data, mac, driver, device_id)]
+        if len(match):
+            if len(match) > 1:
+                msg = ('Failed to match a single device. Matched devices "%s"'
+                       ' with search values "(mac:%s driver:%s device_id:%s)"'
+                       % (match, mac, driver, device_id))
+                raise ValueError(msg)
+            return match[0]
+
+        return None
+
+    for mac, new_name, driver, device_id in renames:
         cur_ops = []
+        cur = find_entry(mac, driver, device_id)
+        if not cur:
+            if strict_present:
+                errors.append(
+                    "[nic not present] Cannot rename mac=%s to %s"
+                    ", not available." % (mac, new_name))
+            continue
+
+        cur_name = cur.get('name')
         if cur_name == new_name:
             # nothing to do
             continue
@@ -351,13 +448,13 @@ def _rename_interfaces(renames, strict_present=True, strict_busy=True,
 
             cur_ops.append(("rename", mac, new_name, (new_name, tmp_name)))
             target['name'] = tmp_name
-            cur_byname = update_byname(cur_bymac)
+            cur_byname = update_byname(cur_info)
             if target['up']:
                 ups.append(("up", mac, new_name, (tmp_name,)))
 
         cur_ops.append(("rename", mac, new_name, (cur['name'], new_name)))
         cur['name'] = new_name
-        cur_byname = update_byname(cur_bymac)
+        cur_byname = update_byname(cur_info)
         ops += cur_ops
 
     opmap = {'rename': rename, 'down': down, 'up': up}
@@ -423,6 +520,36 @@ def get_interfaces_by_mac():
                 "duplicate mac found! both '%s' and '%s' have mac '%s'" %
                 (name, ret[mac], mac))
         ret[mac] = name
+    return ret
+
+
+def get_interfaces():
+    """Return list of interface tuples (name, mac, driver, device_id)
+
+    Bridges and any devices that have a 'stolen' mac are excluded."""
+    try:
+        devs = get_devicelist()
+    except OSError as e:
+        if e.errno == errno.ENOENT:
+            devs = []
+        else:
+            raise
+    ret = []
+    empty_mac = '00:00:00:00:00:00'
+    for name in devs:
+        if not interface_has_own_mac(name):
+            continue
+        if is_bridge(name):
+            continue
+        if is_vlan(name):
+            continue
+        mac = get_interface_mac(name)
+        # some devices may not have a mac (tun0)
+        if not mac:
+            continue
+        if mac == empty_mac and name != 'lo':
+            continue
+        ret.append((name, mac, device_driver(name), device_devid(name)))
     return ret
 
 

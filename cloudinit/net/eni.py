@@ -72,6 +72,8 @@ def _iface_add_attrs(iface, index):
     content = []
     ignore_map = [
         'control',
+        'device_id',
+        'driver',
         'index',
         'inet',
         'mode',

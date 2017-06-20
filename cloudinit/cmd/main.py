@@ -372,6 +372,9 @@ def main_init(name, args):
             LOG.debug("[%s] %s is in local mode, will apply init modules now.",
                       mode, init.datasource)
 
+    # Give the datasource a chance to use network resources.
+    # This is used on Azure to communicate with the fabric over network.
+    init.setup_datasource()
     # update fully realizes user-data (pulling in #include if necessary)
     init.update()
     # Stage 7
