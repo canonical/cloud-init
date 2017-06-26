@@ -1,12 +1,7 @@
 #
 # NTP config using specific servers
 #
-# NOTE: this should not require apt feature, use 'which' rather than 'dpkg -l'
-# NOTE: this should not require no_ntpdate feature, use 'which' to check for 
-#       installation rather than 'dpkg -l', as 'grep ntp' matches 'ntpdate'
 required_features:
-  - apt
-  - no_ntpdate
   - lsb_release
 cloud_config: |
   #cloud-config
@@ -17,7 +12,8 @@ cloud_config: |
 collect_scripts:
   ntp_installed_servers: |
     #!/bin/sh
-    dpkg -l | grep -c ntp
+    ntpd --version > /dev/null 2>&1
+    echo $?
   ntp_conf_dist_servers: |
     #!/bin/sh
     cat /etc/ntp.conf.dist | wc -l

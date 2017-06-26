@@ -1,15 +1,10 @@
 #
 # NTP config using specific pools
 #
-# NOTE: this should not require apt feature, use 'which' rather than 'dpkg -l'
-# NOTE: this should not require no_ntpdate feature, use 'which' to check for 
-#       installation rather than 'dpkg -l', as 'grep ntp' matches 'ntpdate'
 # NOTE: lsb_release listed here because with recent cloud-init deb with
 #       (LP: 1628337) resolved, cloud-init will attempt to configure archives.
 #       this fails without lsb_release as UNAVAILABLE is used for $RELEASE
 required_features:
-  - apt
-  - no_ntpdate
   - lsb_release
 cloud_config: |
   #cloud-config
@@ -21,7 +16,8 @@ cloud_config: |
 collect_scripts:
   ntp_installed_pools: |
     #!/bin/bash
-    dpkg -l | grep ntp | wc -l
+    ntpd --version > /dev/null 2>&1
+    echo $?
   ntp_conf_dist_pools: |
     #!/bin/bash
     ls /etc/ntp.conf.dist | wc -l

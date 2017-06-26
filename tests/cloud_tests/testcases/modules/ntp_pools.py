@@ -10,7 +10,7 @@ class TestNtpPools(base.CloudTestCase):
     def test_ntp_installed(self):
         """Test ntp installed"""
         out = self.get_data_file('ntp_installed_pools')
-        self.assertEqual(1, int(out))
+        self.assertEqual(0, int(out))
 
     def test_ntp_dist_entries(self):
         """Test dist config file is empty"""
