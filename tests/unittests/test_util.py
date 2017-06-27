@@ -20,6 +20,9 @@ except ImportError:
     import mock
 
 
+BASH = util.which('bash')
+
+
 class FakeSelinux(object):
 
     def __init__(self, match_what):
@@ -544,17 +547,17 @@ class TestReadSeeded(helpers.TestCase):
 
 class TestSubp(helpers.TestCase):
 
-    stdin2err = ['bash', '-c', 'cat >&2']
+    stdin2err = [BASH, '-c', 'cat >&2']
     stdin2out = ['cat']
     utf8_invalid = b'ab\xaadef'
     utf8_valid = b'start \xc3\xa9 end'
     utf8_valid_2 = b'd\xc3\xa9j\xc8\xa7'
-    printenv = ['bash', '-c', 'for n in "$@"; do echo "$n=${!n}"; done', '--']
+    printenv = [BASH, '-c', 'for n in "$@"; do echo "$n=${!n}"; done', '--']
 
     def printf_cmd(self, *args):
         # bash's printf supports \xaa.  So does /usr/bin/printf
         # but by using bash, we remove dependency on another program.
-        return(['bash', '-c', 'printf "$@"', 'printf'] + list(args))
+        return([BASH, '-c', 'printf "$@"', 'printf'] + list(args))
 
     def test_subp_handles_utf8(self):
         # The given bytes contain utf-8 accented characters as seen in e.g.

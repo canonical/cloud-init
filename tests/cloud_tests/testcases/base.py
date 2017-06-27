@@ -1,61 +1,55 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
-from cloudinit import util as c_util
+"""Base test case module."""
 
 import crypt
 import json
 import unittest
 
+from cloudinit import util as c_util
+
 
 class CloudTestCase(unittest.TestCase):
-    """
-    base test class for verifiers
-    """
+    """Base test class for verifiers."""
+
     data = None
     conf = None
     _cloud_config = None
 
     def shortDescription(self):
+        """Prevent nose from using docstrings."""
         return None
 
     @property
     def cloud_config(self):
-        """
-        get the cloud-config used by the test
-        """
+        """Get the cloud-config used by the test."""
         if not self._cloud_config:
             self._cloud_config = c_util.load_yaml(self.conf)
         return self._cloud_config
 
     def get_config_entry(self, name):
-        """
-        get a config entry from cloud-config ensuring that it is present
-        """
+        """Get a config entry from cloud-config ensuring that it is present."""
         if name not in self.cloud_config:
             raise AssertionError('Key "{}" not in cloud config'.format(name))
         return self.cloud_config[name]
 
     def get_data_file(self, name):
-        """
-        get data file failing test if it is not present
-        """
+        """Get data file failing test if it is not present."""
         if name not in self.data:
             raise AssertionError('File "{}" missing from collect data'
                                  .format(name))
         return self.data[name]
 
     def get_instance_id(self):
-        """
-        get recorded instance id
-        """
+        """Get recorded instance id."""
         return self.get_data_file('instance-id').strip()
 
     def get_status_data(self, data, version=None):
-        """
-        parse result.json and status.json like data files
-        data: data to load
-        version: cloud-init output version, defaults to 'v1'
-        return_value: dict of data or None if missing
+        """Parse result.json and status.json like data files.
+
+        @param data: data to load
+        @param version: cloud-init output version, defaults to 'v1'
+        @return_value: dict of data or None if missing
         """
         if not version:
             version = 'v1'
@@ -63,16 +57,12 @@ class CloudTestCase(unittest.TestCase):
         return data.get(version)
 
     def get_datasource(self):
-        """
-        get datasource name
-        """
+        """Get datasource name."""
         data = self.get_status_data(self.get_data_file('result.json'))
         return data.get('datasource')
 
     def test_no_stages_errors(self):
-        """
-        ensure that there were no errors in any stage
-        """
+        """Ensure that there were no errors in any stage."""
         status = self.get_status_data(self.get_data_file('status.json'))
         for stage in ('init', 'init-local', 'modules-config', 'modules-final'):
             self.assertIn(stage, status)
@@ -84,7 +74,10 @@ class CloudTestCase(unittest.TestCase):
 
 
 class PasswordListTest(CloudTestCase):
+    """Base password test case class."""
+
     def test_shadow_passwords(self):
+        """Test shadow passwords."""
         shadow = self.get_data_file('shadow')
         users = {}
         dupes = []
@@ -121,7 +114,7 @@ class PasswordListTest(CloudTestCase):
         self.assertNotEqual(users['harry'], users['dick'])
 
     def test_shadow_expected_users(self):
-        """Test every tom, dick, and harry user in shadow"""
+        """Test every tom, dick, and harry user in shadow."""
         out = self.get_data_file('shadow')
         self.assertIn('tom:', out)
         self.assertIn('dick:', out)
@@ -130,7 +123,7 @@ class PasswordListTest(CloudTestCase):
         self.assertIn('mikey:', out)
 
     def test_sshd_config(self):
-        """Test sshd config allows passwords"""
+        """Test sshd config allows passwords."""
         out = self.get_data_file('sshd_config')
         self.assertIn('PasswordAuthentication yes', out)
 

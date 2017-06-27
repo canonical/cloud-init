@@ -10,7 +10,55 @@ default_platform_config:
 platforms:
     lxd:
         enabled: true
-        get_image_timeout: 600
+        # overrides for image templates
+        template_overrides:
+            /var/lib/cloud/seed/nocloud-net/meta-data:
+                when:
+                    - create
+                    - copy
+                template: cloud-init-meta.tpl
+            /var/lib/cloud/seed/nocloud-net/network-config:
+                when:
+                    - create
+                    - copy
+                template: cloud-init-network.tpl
+            /var/lib/cloud/seed/nocloud-net/user-data:
+                when:
+                    - create
+                    - copy
+                template: cloud-init-user.tpl
+                properties:
+                    default: |
+                        #cloud-config
+                        {}
+            /var/lib/cloud/seed/nocloud-net/vendor-data:
+                when:
+                    - create
+                    - copy
+                template: cloud-init-vendor.tpl
+                properties:
+                    default: |
+                        #cloud-config
+                        {}
+        # overrides image template files
+        template_files:
+            cloud-init-meta.tpl: |
+                #cloud-config
+                instance-id: {{ container.name }}
+                local-hostname: {{ container.name }}
+                {{ config_get("user.meta-data", "") }}
+            cloud-init-network.tpl: |
+                {% if config_get("user.network-config", "") == "" %}version: 1
+                config:
+                    - type: physical
+                      name: eth0
+                      subnets:
+                          - type: {% if config_get("user.network_mode", "") == "link-local" %}manual{% else %}dhcp{% endif %}
+                            control: auto{% else %}{{ config_get("user.network-config", "") }}{% endif %}
+            cloud-init-user.tpl: |
+                {{ config_get("user.user-data", properties.default) }}
+            cloud-init-vendor.tpl: |
+                {{ config_get("user.vendor-data", properties.default) }}
     ec2: {}
     azure: {}
 

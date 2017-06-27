@@ -14,9 +14,12 @@ you need to add the following to config:
 #
 # The following lines are desirable for IPv4 capable hosts
 127.0.0.1 localhost
+127.0.0.1 {{fqdn}} {{hostname}}
+
 
 # The following lines are desirable for IPv6 capable hosts
 ::1 localhost ipv6-localhost ipv6-loopback
+::1 {{fqdn}} {{hostname}}
 fe00::0 ipv6-localnet
 
 ff00::0 ipv6-mcastprefix

@@ -20,7 +20,7 @@ LOG = logging.getLogger()
 
 def netdev_info(empty=""):
     fields = ("hwaddr", "addr", "bcast", "mask")
-    (ifcfg_out, _err) = util.subp(["ifconfig", "-a"])
+    (ifcfg_out, _err) = util.subp(["ifconfig", "-a"], rcs=[0, 1])
     devs = {}
     for line in str(ifcfg_out).splitlines():
         if len(line) == 0:
@@ -85,7 +85,7 @@ def netdev_info(empty=""):
 
 
 def route_info():
-    (route_out, _err) = util.subp(["netstat", "-rn"])
+    (route_out, _err) = util.subp(["netstat", "-rn"], rcs=[0, 1])
 
     routes = {}
     routes['ipv4'] = []
@@ -125,7 +125,8 @@ def route_info():
         routes['ipv4'].append(entry)
 
     try:
-        (route_out6, _err6) = util.subp(["netstat", "-A", "inet6", "-n"])
+        (route_out6, _err6) = util.subp(["netstat", "-A", "inet6", "-n"],
+                                        rcs=[0, 1])
     except util.ProcessExecutionError:
         pass
     else:

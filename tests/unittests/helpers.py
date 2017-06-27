@@ -19,10 +19,6 @@ try:
     from contextlib import ExitStack
 except ImportError:
     from contextlib2 import ExitStack
-try:
-    from cStringIO import StringIO
-except ImportError:
-    from io import StringIO
 
 from cloudinit import helpers as ch
 from cloudinit import util
@@ -101,11 +97,13 @@ class CiTestCase(TestCase):
         super(CiTestCase, self).setUp()
         if self.with_logs:
             # Create a log handler so unit tests can search expected logs.
-            logger = logging.getLogger()
-            self.logs = StringIO()
+            self.logger = logging.getLogger()
+            self.logs = six.StringIO()
+            formatter = logging.Formatter('%(levelname)s: %(message)s')
             handler = logging.StreamHandler(self.logs)
-            self.old_handlers = logger.handlers
-            logger.handlers = [handler]
+            handler.setFormatter(formatter)
+            self.old_handlers = self.logger.handlers
+            self.logger.handlers = [handler]
 
     def tearDown(self):
         if self.with_logs:

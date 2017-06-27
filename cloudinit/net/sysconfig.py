@@ -5,11 +5,12 @@ import re
 
 import six
 
+from cloudinit.distros.parsers import networkmanager_conf
 from cloudinit.distros.parsers import resolv_conf
 from cloudinit import util
 
 from . import renderer
-from .network_state import subnet_is_ipv6
+from .network_state import subnet_is_ipv6, net_prefix_to_ipv4_mask
 
 
 def _make_header(sep='#'):
@@ -26,11 +27,8 @@ def _make_header(sep='#'):
 
 
 def _is_default_route(route):
-    if route['network'] == '::' and route['netmask'] == 0:
-        return True
-    if route['network'] == '0.0.0.0' and route['netmask'] == '0.0.0.0':
-        return True
-    return False
+    default_nets = ('::', '0.0.0.0')
+    return route['prefix'] == 0 and route['network'] in default_nets
 
 
 def _quote_value(value):
@@ -252,6 +250,9 @@ class Renderer(renderer.Renderer):
         self.netrules_path = config.get(
             'netrules_path', 'etc/udev/rules.d/70-persistent-net.rules')
         self.dns_path = config.get('dns_path', 'etc/resolv.conf')
+        nm_conf_path = 'etc/NetworkManager/conf.d/99-cloud-init.conf'
+        self.networkmanager_conf_path = config.get('networkmanager_conf_path',
+                                                   nm_conf_path)
 
     @classmethod
     def _render_iface_shared(cls, iface, iface_cfg):
@@ -323,16 +324,10 @@ class Renderer(renderer.Renderer):
                             " " + ipv6_cidr)
                 else:
                     ipv4_index = ipv4_index + 1
-                    if ipv4_index == 0:
-                        iface_cfg['IPADDR'] = subnet['address']
-                        if 'netmask' in subnet:
-                            iface_cfg['NETMASK'] = subnet['netmask']
-                    else:
-                        iface_cfg['IPADDR' + str(ipv4_index)] = \
-                            subnet['address']
-                        if 'netmask' in subnet:
-                            iface_cfg['NETMASK' + str(ipv4_index)] = \
-                                subnet['netmask']
+                    suff = "" if ipv4_index == 0 else str(ipv4_index)
+                    iface_cfg['IPADDR' + suff] = subnet['address']
+                    iface_cfg['NETMASK' + suff] = \
+                        net_prefix_to_ipv4_mask(subnet['prefix'])
 
     @classmethod
     def _render_subnet_routes(cls, iface_cfg, route_cfg, subnets):
@@ -372,11 +367,13 @@ class Renderer(renderer.Renderer):
                     nm_key = 'NETMASK%s' % route_cfg.last_idx
                     addr_key = 'ADDRESS%s' % route_cfg.last_idx
                     route_cfg.last_idx += 1
-                for (old_key, new_key) in [('gateway', gw_key),
-                                           ('netmask', nm_key),
-                                           ('network', addr_key)]:
-                    if old_key in route:
-                        route_cfg[new_key] = route[old_key]
+                    # add default routes only to ifcfg files, not
+                    # to route-* or route6-*
+                    for (old_key, new_key) in [('gateway', gw_key),
+                                               ('netmask', nm_key),
+                                               ('network', addr_key)]:
+                        if old_key in route:
+                            route_cfg[new_key] = route[old_key]
 
     @classmethod
     def _render_bonding_opts(cls, iface_cfg, iface):
@@ -445,6 +442,21 @@ class Renderer(renderer.Renderer):
             content.add_search_domain(searchdomain)
         return "\n".join([_make_header(';'), str(content)])
 
+    @staticmethod
+    def _render_networkmanager_conf(network_state):
+        content = networkmanager_conf.NetworkManagerConf("")
+
+        # If DNS server information is provided, configure
+        # NetworkManager to not manage dns, so that /etc/resolv.conf
+        # does not get clobbered.
+        if network_state.dns_nameservers:
+            content.set_section_keypair('main', 'dns', 'none')
+
+        if len(content) == 0:
+            return None
+        out = "".join([_make_header(), "\n", "\n".join(content.write()), "\n"])
+        return out
+
     @classmethod
     def _render_bridge_interfaces(cls, network_state, iface_contents):
         bridge_filter = renderer.filter_by_type('bridge')
@@ -505,6 +517,12 @@ class Renderer(renderer.Renderer):
             resolv_content = self._render_dns(network_state,
                                               existing_dns_path=dns_path)
             util.write_file(dns_path, resolv_content, file_mode)
+        if self.networkmanager_conf_path:
+            nm_conf_path = util.target_path(target,
+                                            self.networkmanager_conf_path)
+            nm_conf_content = self._render_networkmanager_conf(network_state)
+            if nm_conf_content:
+                util.write_file(nm_conf_path, nm_conf_content, file_mode)
         if self.netrules_path:
             netrules_content = self._render_persistent_net(network_state)
             netrules_path = util.target_path(target, self.netrules_path)

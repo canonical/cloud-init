@@ -1,24 +1,24 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
-"""cloud-init Integration Test Verify Script"""
+"""cloud-init Integration Test Verify Script."""
 from tests.cloud_tests.testcases import base
 
 
 class TestByobu(base.CloudTestCase):
-    """Test Byobu module"""
+    """Test Byobu module."""
 
     def test_byobu_installed(self):
-        """Test byobu installed"""
+        """Test byobu installed."""
         out = self.get_data_file('byobu_installed')
         self.assertIn('/usr/bin/byobu', out)
 
     def test_byobu_profile_enabled(self):
-        """Test byobu profile.d file exists"""
+        """Test byobu profile.d file exists."""
         out = self.get_data_file('byobu_profile_enabled')
         self.assertIn('/etc/profile.d/Z97-byobu.sh', out)
 
     def test_byobu_launch_exists(self):
-        """Test byobu-launch exists"""
+        """Test byobu-launch exists."""
         out = self.get_data_file('byobu_launch_exists')
         self.assertIn('/usr/bin/byobu-launch', out)
 

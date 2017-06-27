@@ -8,7 +8,7 @@ This datasource finds metadata and user-data from the Azure cloud platform.
 Azure Platform
 --------------
 The azure cloud-platform provides initial data to an instance via an attached
-CD formated in UDF.  That CD contains a 'ovf-env.xml' file that provides some
+CD formatted in UDF.  That CD contains a 'ovf-env.xml' file that provides some
 information.  Additional information is obtained via interaction with the
 "endpoint".
 

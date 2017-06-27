@@ -7,7 +7,7 @@ Overview
 
 This was implemented because it has been a common feature request that there be
 a way to specify how cloud-config yaml "dictionaries" provided as user-data are
-merged together when there are multiple yamls to merge together (say when
+merged together when there are multiple yaml files to merge together (say when
 performing an #include).
 
 Since previously the merging algorithm was very simple and would only overwrite
@@ -128,7 +128,7 @@ for your own usage.
    for, both of which can define the way merging is done (the first header to
    exist wins).  These new headers (in lookup order) are 'Merge-Type' and
    'X-Merge-Type'. The value should be a string which will satisfy the new
-   merging format defintion (see below for this format).
+   merging format definition (see below for this format).
 
 2. The second way is actually specifying the merge-type in the body of the
    cloud-config dictionary. There are 2 ways to specify this, either as a

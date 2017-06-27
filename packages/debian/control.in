@@ -3,20 +3,13 @@ Source: cloud-init
 Section: admin
 Priority: optional
 Maintainer: Scott Moser <smoser@ubuntu.com>
-Build-Depends: debhelper (>= 9),
-               dh-python,
-               dh-systemd,
-               ${python},
-               ${test_requires},
-               ${requires}
+Build-Depends: ${build_depends}
 XS-Python-Version: all
 Standards-Version: 3.9.6
 
 Package: cloud-init
 Architecture: all
-Depends: procps,
-         ${python},
-         ${misc:Depends},
+Depends: ${misc:Depends},
          ${${python}:Depends}
 Recommends: eatmydata, sudo, software-properties-common, gdisk
 XB-Python-Version: ${python:Versions}

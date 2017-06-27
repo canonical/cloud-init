@@ -92,10 +92,9 @@ iface lo inet loopback
 
 auto eth0
 iface eth0 inet static
-    address 192.168.1.5
+    address 192.168.1.5/24
     broadcast 192.168.1.0
     gateway 192.168.1.254
-    netmask 255.255.255.0
 
 auto eth1
 iface eth1 inet dhcp
@@ -156,7 +155,7 @@ network:
     ethernets:
         eth7:
             addresses:
-            - 192.168.1.5/255.255.255.0
+            - 192.168.1.5/24
             gateway4: 192.168.1.254
         eth9:
             dhcp4: true

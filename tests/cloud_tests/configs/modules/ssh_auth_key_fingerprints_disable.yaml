@@ -1,6 +1,8 @@
 #
 # Disable fingerprint printing
 #
+required_features:
+  - syslog
 cloud_config: |
   #cloud-config
   ssh_genkeytypes: []

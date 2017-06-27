@@ -3,10 +3,12 @@
 # Copyright (C) 2012 Canonical Ltd.
 # Copyright (C) 2012 Hewlett-Packard Development Company, L.P.
 # Copyright (C) 2012 Yahoo! Inc.
+# Copyright (C) 2017 Amazon.com, Inc. or its affiliates
 #
 # Author: Scott Moser <scott.moser@canonical.com>
 # Author: Juerg Haefliger <juerg.haefliger@hp.com>
 # Author: Joshua Harlow <harlowja@yahoo-inc.com>
+# Author: Andrew Jorgensen <ajorgens@amazon.com>
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
@@ -25,7 +27,6 @@ from cloudinit import netinfo
 from cloudinit import signal_handler
 from cloudinit import sources
 from cloudinit import stages
-from cloudinit import templater
 from cloudinit import url_helper
 from cloudinit import util
 from cloudinit import version
@@ -42,9 +43,9 @@ from cloudinit import atomic_helper
 from cloudinit.dhclient_hook import LogDhclient
 
 
-# Pretty little cheetah formatted welcome message template
-WELCOME_MSG_TPL = ("Cloud-init v. ${version} running '${action}' at "
-                   "${timestamp}. Up ${uptime} seconds.")
+# Welcome message template
+WELCOME_MSG_TPL = ("Cloud-init v. {version} running '{action}' at "
+                   "{timestamp}. Up {uptime} seconds.")
 
 # Module section template
 MOD_SECTION_TPL = "cloud_%s_modules"
@@ -88,13 +89,11 @@ def welcome(action, msg=None):
 
 
 def welcome_format(action):
-    tpl_params = {
-        'version': version.version_string(),
-        'uptime': util.uptime(),
-        'timestamp': util.time_rfc2822(),
-        'action': action,
-    }
-    return templater.render_string(WELCOME_MSG_TPL, tpl_params)
+    return WELCOME_MSG_TPL.format(
+        version=version.version_string(),
+        uptime=util.uptime(),
+        timestamp=util.time_rfc2822(),
+        action=action)
 
 
 def extract_fns(args):
@@ -373,6 +372,9 @@ def main_init(name, args):
             LOG.debug("[%s] %s is in local mode, will apply init modules now.",
                       mode, init.datasource)
 
+    # Give the datasource a chance to use network resources.
+    # This is used on Azure to communicate with the fabric over network.
+    init.setup_datasource()
     # update fully realizes user-data (pulling in #include if necessary)
     init.update()
     # Stage 7

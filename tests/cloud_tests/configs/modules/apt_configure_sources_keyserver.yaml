@@ -1,6 +1,9 @@
 #
 # Add a sources.list entry with a key from a keyserver
 #
+required_features:
+  - apt
+  - lsb_release
 cloud_config: |
   #cloud-config
   apt:
