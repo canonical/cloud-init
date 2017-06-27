@@ -20,7 +20,7 @@ through the typical usage of subclasses.
 The current interface that a datasource object must provide is the following:
 
 .. sourcecode:: python
-    
+
     # returns a mime multipart message that contains
     # all the various fully-expanded components that
     # were found from processing the raw userdata string
@@ -28,47 +28,47 @@ The current interface that a datasource object must provide is the following:
     #   this instance id will be returned (or messages with
     #   no instance id)
     def get_userdata(self, apply_filter=False)
-    
+
     # returns the raw userdata string (or none)
     def get_userdata_raw(self)
-    
+
     # returns a integer (or none) which can be used to identify
     # this instance in a group of instances which are typically
-    # created from a single command, thus allowing programatic
+    # created from a single command, thus allowing programmatic
     # filtering on this launch index (or other selective actions)
     @property
     def launch_index(self)
-    
-    # the data sources' config_obj is a cloud-config formated
+
+    # the data sources' config_obj is a cloud-config formatted
     # object that came to it from ways other than cloud-config
     # because cloud-config content would be handled elsewhere
     def get_config_obj(self)
-    
+
     #returns a list of public ssh keys
     def get_public_ssh_keys(self)
-    
+
     # translates a device 'short' name into the actual physical device
     # fully qualified name (or none if said physical device is not attached
     # or does not exist)
     def device_name_to_device(self, name)
-    
+
     # gets the locale string this instance should be applying 
     # which typically used to adjust the instances locale settings files
     def get_locale(self)
-    
+
     @property
     def availability_zone(self)
-    
+
     # gets the instance id that was assigned to this instance by the 
     # cloud provider or when said instance id does not exist in the backing
     # metadata this will return 'iid-datasource'
     def get_instance_id(self)
-    
+
     # gets the fully qualified domain name that this host should  be using
     # when configuring network or hostname releated settings, typically
     # assigned either by the cloud provider or the user creating the vm
     def get_hostname(self, fqdn=False)
-    
+
     def get_package_mirror_info(self)
 
 

@@ -31,7 +31,7 @@ A ``network:`` entry in /etc/cloud/cloud.cfg.d/* configuration files.
 
 ``ip=`` or ``network-config=<YAML config string>``
 
-User-data cannot change an instance's network configuration.  In the absense
+User-data cannot change an instance's network configuration.  In the absence
 of network configuration in any of the above sources , `Cloud-init`_ will
 write out a network configuration that will issue a DHCP request on a "first"
 network interface.
@@ -220,7 +220,7 @@ CLI Interface :
     --output-kind {eni,netplan,sysconfig}, -ok {eni,netplan,sysconfig}
 
 
-Example output convertion V2 to sysconfig:
+Example output converting V2 to sysconfig:
 
 .. code-block:: bash
 

@@ -1,5 +1,7 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
+"""Stage a run."""
+
 import sys
 import time
 import traceback
@@ -8,38 +10,29 @@ from tests.cloud_tests import LOG
 
 
 class PlatformComponent(object):
-    """
-    context manager to safely handle platform components, ensuring that
-    .destroy() is called
-    """
+    """Context manager to safely handle platform components."""
 
     def __init__(self, get_func):
-        """
-        store get_<platform component> function as partial taking no args
-        """
+        """Store get_<platform component> function as partial with no args."""
         self.get_func = get_func
 
     def __enter__(self):
-        """
-        create instance of platform component
-        """
+        """Create instance of platform component."""
         self.instance = self.get_func()
         return self.instance
 
     def __exit__(self, etype, value, trace):
-        """
-        destroy instance
-        """
+        """Destroy instance."""
         if self.instance is not None:
             self.instance.destroy()
 
 
 def run_single(name, call):
-    """
-    run a single function, keeping track of results and failures and time
-    name: name of part
-    call: call to make
-    return_value: a tuple of result and fail count
+    """Run a single function, keeping track of results and time.
+
+    @param name: name of part
+    @param call: call to make
+    @return_value: a tuple of result and fail count
     """
     res = {
         'name': name,
@@ -67,17 +60,18 @@ def run_single(name, call):
 
 
 def run_stage(parent_name, calls, continue_after_error=True):
-    """
-    run a stage of collection, keeping track of results and failures
-    parent_name: name of stage calls are under
-    calls: list of function call taking no params. must return a tuple
-           of results and failures. may raise exceptions
-    continue_after_error: whether or not to proceed to the next call after
-                          catching an exception or recording a failure
-    return_value: a tuple of results and failures, with result containing
-                  results from the function call under 'stages', and a list
-                  of errors (if any on this level), and elapsed time
-                  running stage, and the name
+    """Run a stage of collection, keeping track of results and failures.
+
+    @param parent_name: name of stage calls are under
+    @param calls: list of function call taking no params. must return a tuple
+                  of results and failures. may raise exceptions
+    @param continue_after_error: whether or not to proceed to the next call
+                                 after catching an exception or recording a
+                                 failure
+    @return_value: a tuple of results and failures, with result containing
+                   results from the function call under 'stages', and a list
+                   of errors (if any on this level), and elapsed time
+                   running stage, and the name
     """
     res = {
         'name': parent_name,

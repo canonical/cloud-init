@@ -85,6 +85,7 @@ DI_MAIN=${DI_MAIN:-main}
 
 DI_DEFAULT_POLICY="search,found=all,maybe=all,notfound=${DI_DISABLED}"
 DI_DEFAULT_POLICY_NO_DMI="search,found=all,maybe=all,notfound=${DI_ENABLED}"
+DI_DMI_CHASSIS_ASSET_TAG=""
 DI_DMI_PRODUCT_NAME=""
 DI_DMI_SYS_VENDOR=""
 DI_DMI_PRODUCT_SERIAL=""
@@ -110,7 +111,8 @@ DI_DSNAME=""
 # this has to match the builtin list in cloud-init, it is what will
 # be searched if there is no setting found in config.
 DI_DSLIST_DEFAULT="MAAS ConfigDrive NoCloud AltCloud Azure Bigstep \
-CloudSigma CloudStack DigitalOcean Ec2 GCE OpenNebula OpenStack OVF SmartOS"
+CloudSigma CloudStack DigitalOcean AliYun Ec2 GCE OpenNebula OpenStack \
+OVF SmartOS"
 DI_DSLIST=""
 DI_MODE=""
 DI_ON_FOUND=""
@@ -258,6 +260,12 @@ read_kernel_cmdline() {
     DI_KERNEL_CMDLINE="$cmdline"
 }
 
+read_dmi_chassis_asset_tag() {
+    cached "${DI_DMI_CHASSIS_ASSET_TAG}" && return
+    get_dmi_field chassis_asset_tag
+    DI_DMI_CHASSIS_ASSET_TAG="$_RET"
+}
+
 read_dmi_sys_vendor() {
     cached "${DI_DMI_SYS_VENDOR}" && return
     get_dmi_field sys_vendor
@@ -385,6 +393,14 @@ read_pid1_product_name() {
     DI_PID_1_PRODUCT_NAME="$product_name"
 }
 
+dmi_chassis_asset_tag_matches() {
+    is_container && return 1
+    case "${DI_DMI_CHASSIS_ASSET_TAG}" in
+        $1) return 0;;
+    esac
+    return 1
+}
+
 dmi_product_name_matches() {
     is_container && return 1
     case "${DI_DMI_PRODUCT_NAME}" in
@@ -399,11 +415,6 @@ dmi_product_serial_matches() {
         $1) return 0;;
     esac
     return 1
-}
-
-dmi_product_name_is() {
-    is_container && return 1
-    [ "${DI_DMI_PRODUCT_NAME}" = "$1" ]
 }
 
 dmi_sys_vendor_is() {
@@ -477,7 +488,7 @@ dscheck_CloudStack() {
 
 dscheck_CloudSigma() {
     # http://paste.ubuntu.com/23624795/
-    dmi_product_name_is "CloudSigma" && return $DS_FOUND
+    dmi_product_name_matches "CloudSigma" && return $DS_FOUND
     return $DS_NOT_FOUND
 }
 
@@ -542,6 +553,9 @@ dscheck_MAAS() {
 dscheck_NoCloud() {
     local fslabel="cidata" d=""
     case " ${DI_KERNEL_CMDLINE} " in
+        *\ ds=nocloud*) return ${DS_FOUND};;
+    esac
+    case " ${DI_DMI_PRODUCT_SERIAL} " in
         *\ ds=nocloud*) return ${DS_FOUND};;
     esac
     for d in nocloud nocloud-net; do
@@ -653,6 +667,8 @@ dscheck_Azure() {
     #  UUID="112D211272645f72" LABEL="rd_rdfe_stable.161212-1209"
     #  TYPE="udf">/dev/sr0</device>
     #
+    local azure_chassis="7783-7084-3265-9085-8269-3286-77"
+    dmi_chassis_asset_tag_matches "${azure_chassis}" && return $DS_FOUND
     check_seed_dir azure ovf-env.xml && return ${DS_FOUND}
 
     [ "${DI_VIRT}" = "microsoft" ] || return ${DS_NOT_FOUND}
@@ -785,7 +801,7 @@ dscheck_Ec2() {
 }
 
 dscheck_GCE() {
-    if dmi_product_name_is "Google Compute Engine"; then
+    if dmi_product_name_matches "Google Compute Engine"; then
         return ${DS_FOUND}
     fi
     # product name is not guaranteed (LP: #1674861)
@@ -806,10 +822,10 @@ dscheck_OpenStack() {
         return ${DS_NOT_FOUND}
     fi
     local nova="OpenStack Nova" compute="OpenStack Compute"
-    if dmi_product_name_is "$nova"; then
+    if dmi_product_name_matches "$nova"; then
         return ${DS_FOUND}
     fi
-    if dmi_product_name_is "$compute"; then
+    if dmi_product_name_matches "$compute"; then
         # RDO installed nova (LP: #1675349).
         return ${DS_FOUND}
     fi
@@ -821,10 +837,11 @@ dscheck_OpenStack() {
 }
 
 dscheck_AliYun() {
-    # aliyun is not enabled by default (LP: #1638931)
-    # so if we are here, it is because the datasource_list was
-    # set to include it.  Thus, 'maybe'.
-    return $DS_MAYBE
+    check_seed_dir "AliYun" meta-data user-data && return ${DS_FOUND}
+    if dmi_product_name_matches "Alibaba Cloud ECS"; then
+        return $DS_FOUND
+    fi
+    return $DS_NOT_FOUND
 }
 
 dscheck_AltCloud() {
@@ -887,6 +904,7 @@ collect_info() {
     read_config
     read_datasource_list
     read_dmi_sys_vendor
+    read_dmi_chassis_asset_tag
     read_dmi_product_name
     read_dmi_product_serial
     read_dmi_product_uuid
@@ -901,7 +919,7 @@ print_info() {
 _print_info() {
     local n="" v="" vars=""
     vars="DMI_PRODUCT_NAME DMI_SYS_VENDOR DMI_PRODUCT_SERIAL"
-    vars="$vars DMI_PRODUCT_UUID PID_1_PRODUCT_NAME"
+    vars="$vars DMI_PRODUCT_UUID PID_1_PRODUCT_NAME DMI_CHASSIS_ASSET_TAG"
     vars="$vars FS_LABELS KERNEL_CMDLINE VIRT"
     vars="$vars UNAME_KERNEL_NAME UNAME_KERNEL_RELEASE UNAME_KERNEL_VERSION"
     vars="$vars UNAME_MACHINE UNAME_NODENAME UNAME_OPERATING_SYSTEM"

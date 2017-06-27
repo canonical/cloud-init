@@ -1,6 +1,8 @@
 #
 # Set apt proxy
 #
+required_features:
+  - apt
 cloud_config: |
   #cloud-config
   apt:

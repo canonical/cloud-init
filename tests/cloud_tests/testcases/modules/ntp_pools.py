@@ -1,16 +1,16 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
-"""cloud-init Integration Test Verify Script"""
+"""cloud-init Integration Test Verify Script."""
 from tests.cloud_tests.testcases import base
 
 
 class TestNtpPools(base.CloudTestCase):
-    """Test ntp module"""
+    """Test ntp module."""
 
     def test_ntp_installed(self):
         """Test ntp installed"""
         out = self.get_data_file('ntp_installed_pools')
-        self.assertEqual(1, int(out))
+        self.assertEqual(0, int(out))
 
     def test_ntp_dist_entries(self):
         """Test dist config file is empty"""

@@ -251,10 +251,23 @@ class DataSource(object):
     def first_instance_boot(self):
         return
 
+    def setup(self, is_new_instance):
+        """setup(is_new_instance)
+
+        This is called before user-data and vendor-data have been processed.
+
+        Unless the datasource has set mode to 'local', then networking
+        per 'fallback' or per 'network_config' will have been written and
+        brought up the OS at this point.
+        """
+        return
+
     def activate(self, cfg, is_new_instance):
         """activate(cfg, is_new_instance)
 
-        This is called before the init_modules will be called.
+        This is called before the init_modules will be called but after
+        the user-data and vendor-data have been fully processed.
+
         The cfg is fully up to date config, it contains a merged view of
            system config, datasource config, user config, vendor config.
         It should be used rather than the sys_cfg passed to __init__.

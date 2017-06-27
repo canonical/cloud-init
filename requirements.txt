@@ -27,14 +27,14 @@ configobj>=5.0.2
 # All new style configurations are in the yaml format
 pyyaml
 
-# The new main entrypoint uses argparse instead of optparse
-argparse
-
 # Requests handles ssl correctly!
 requests
 
 # For patching pieces of cloud-config together
 jsonpatch
+
+# For validating cloud-config sections per schema definitions
+jsonschema 
 
 # For Python 2/3 compatibility
 six

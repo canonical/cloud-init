@@ -1,6 +1,8 @@
 #
 # Hide printing of ssh key and fingerprints for specific keys
 #
+required_features:
+  - syslog
 cloud_config: |
   #cloud-config
   ssh_fp_console_blacklist: [ssh-dss, ssh-dsa, ecdsa-sha2-nistp256]

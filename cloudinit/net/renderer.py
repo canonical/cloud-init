@@ -34,8 +34,10 @@ class Renderer(object):
         for iface in network_state.iter_interfaces(filter_by_physical):
             # for physical interfaces write out a persist net udev rule
             if 'name' in iface and iface.get('mac_address'):
+                driver = iface.get('driver', None)
                 content.write(generate_udev_rule(iface['name'],
-                                                 iface['mac_address']))
+                                                 iface['mac_address'],
+                                                 driver=driver))
         return content.getvalue()
 
     @abc.abstractmethod

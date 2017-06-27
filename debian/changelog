@@ -1,3 +1,77 @@
+cloud-init (0.7.9-197-gebc9ecbc-0ubuntu1) artful; urgency=medium
+
+  * debian/control: add build dependency python3-jsonschema (LP: #1695318)
+  * New upstream snapshot.
+    - Azure: Add network-config, Refactor net layer to handle duplicate macs.
+      [Ryan Harper]
+    - Tests: Simplify the check on ssh-import-id [Joshua Powers]
+    - tests: update ntp tests after sntp added [Joshua Powers]
+    - FreeBSD: Make freebsd a variant, fix unittests and
+      tools/build-on-freebsd.
+    - FreeBSD: fix test failure
+    - FreeBSD: replace ifdown/ifup with "ifconfig down" and "ifconfig up".
+      [Hongjiang Zhang] (LP: #1697815)
+    - FreeBSD: fix cdrom mounting failure if /mnt/cdrom/secure did not exist.
+      [Hongjiang Zhang] (LP: #1696295)
+    - main: Don't use templater to format the welcome message
+      [Andrew Jorgensen]
+    - docs: Automatically generate module docs form schema if present.
+      [Chad Smith]
+    - debian: fix path comment in /etc/hosts template.
+      [Jens Sandmann] (LP: #1606406)
+    - suse: add hostname and fully qualified domain to template.
+      [Jens Sandmann]
+    - write_file(s): Print permissions as octal, not decimal [Andrew Jorgensen]
+    - ci deps: Add --test-distro to read-dependencies to install all deps
+      [Chad Smith]
+    - tools/run-centos: cleanups and move to using read-dependencies
+    - pkg build ci: Add make ci-deps-<distro> target to install pkgs
+      [Chad Smith]
+    - systemd: make cloud-final.service run before apt daily services.
+      (LP: #1693361)
+    - selinux: Allow restorecon to be non-fatal. [Ryan Harper] (LP: #1686751)
+    - net: Allow netinfo subprocesses to return 0 or 1.
+      [Ryan Harper] (LP: #1686751)
+    - net: Allow for NetworkManager configuration [Ryan McCabe] (LP: #1693251)
+    - Use distro release version to determine if we use systemd in redhat spec
+      [Ryan Harper]
+    - net: normalize data in network_state object
+    - Integration Testing: tox env, pyxld 2.2.3, and revamp framework
+      [Wesley Wiedenmeier]
+    - Chef: Update omnibus url to chef.io, minor doc changes. [JJ Asghar]
+    - tools: add centos scripts to build and test [Joshua Powers]
+    - Drop cheetah python module as it is not needed by trunk [Ryan Harper]
+    - rhel/centos spec cleanups.
+    - cloud.cfg: move to a template.  setup.py changes along the way.
+    - Makefile: add deb-src and srpm targets. use PYVER more places.
+    - makefile: fix python 2/3 detection in the Makefile [Chad Smith]
+    - snap: Removing snapcraft plug line [Joshua Powers] (LP: #1695333)
+    - RHEL/CentOS: Fix default routes for IPv4/IPv6 configuration.
+      [Andreas Karis] (LP: #1696176)
+    - test: Fix pyflakes complaint of unused import.
+      [Joshua Powers] (LP: #1695918)
+    - NoCloud: support seed of nocloud from smbios information
+      [Vladimir Pouzanov] (LP: #1691772)
+    - net: when selecting a network device, use natural sort order
+      [Marc-Aurèle Brothier]
+    - fix typos and remove whitespace in various docs [Stephan Telling]
+    - systemd: Fix typo in comment in cloud-init.target. [Chen-Han Hsiao]
+    - Tests: Skip jsonschema related unit tests when dependency is absent.
+      [Chad Smith] (LP: #1695318)
+    - azure: remove accidental duplicate line in merge.
+    - azure: identify platform by well known value in chassis asset tag.
+      [Chad Smith] (LP: #1693939)
+    - tools/net-convert.py: support old cloudinit versions by using kwargs.
+    - ntp: Add schema definition and passive schema validation.
+      [Chad Smith] (LP: #1692916)
+    - Fix eni rendering for bridge params that require repeated key for values.
+      [Ryan Harper]
+    - net: remove systemd link file writing from eni renderer [Ryan Harper]
+    - AliYun: Enable platform identification and enable by default.
+      [Junjie Wang] (LP: #1638931)
+
+ -- Scott Moser <smoser@ubuntu.com>  Tue, 27 Jun 2017 17:18:24 -0400
+
 cloud-init (0.7.9-153-g16a7302f-0ubuntu1) artful; urgency=medium
 
   * New upstream snapshot.

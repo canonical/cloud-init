@@ -4,6 +4,8 @@
 # 2016-11-17: Disabled due to this not working
 #
 enabled: false
+required_features:
+  - landscape
 cloud_config: |
   #cloud-conifg
   landscape:

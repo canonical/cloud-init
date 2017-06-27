@@ -32,7 +32,12 @@ class Platforms(object):
     AWS = "AWS"
     BRIGHTBOX = "Brightbox"
     SEEDED = "Seeded"
+    # UNKNOWN indicates no positive id.  If strict_id is 'warn' or 'false',
+    # then an attempt at the Ec2 Metadata service will be made.
     UNKNOWN = "Unknown"
+    # NO_EC2_METADATA indicates this platform does not have a Ec2 metadata
+    # service available. No attempt at the Ec2 Metadata service will be made.
+    NO_EC2_METADATA = "No-EC2-Metadata"
 
 
 class DataSourceEc2(sources.DataSource):
@@ -64,6 +69,8 @@ class DataSourceEc2(sources.DataSource):
         LOG.debug("strict_mode: %s, cloud_platform=%s",
                   strict_mode, self.cloud_platform)
         if strict_mode == "true" and self.cloud_platform == Platforms.UNKNOWN:
+            return False
+        elif self.cloud_platform == Platforms.NO_EC2_METADATA:
             return False
 
         try:

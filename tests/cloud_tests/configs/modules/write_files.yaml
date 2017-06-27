@@ -1,6 +1,10 @@
 #
 # Write various file types
 #
+# NOTE: on trusty 'file' has an output formatting error for binary files and
+#       has 2 spaces in 'LSB  executable', which causes a failure here
+required_features:
+  - no_file_fmt_e
 cloud_config: |
   #cloud-config
   write_files:

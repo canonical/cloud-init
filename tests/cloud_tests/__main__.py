@@ -1,19 +1,17 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
+"""Main entry point."""
+
 import argparse
 import logging
-import shutil
 import sys
-import tempfile
 
-from tests.cloud_tests import (args, collect, manage, verify)
+from tests.cloud_tests import args, bddeb, collect, manage, run_funcs, verify
 from tests.cloud_tests import LOG
 
 
 def configure_log(args):
-    """
-    configure logging
-    """
+    """Configure logging."""
     level = logging.INFO
     if args.verbose:
         level = logging.DEBUG
@@ -22,41 +20,15 @@ def configure_log(args):
     LOG.setLevel(level)
 
 
-def run(args):
-    """
-    run full test suite
-    """
-    failed = 0
-    args.data_dir = tempfile.mkdtemp(prefix='cloud_test_data_')
-    LOG.debug('using tmpdir %s', args.data_dir)
-    try:
-        failed += collect.collect(args)
-        failed += verify.verify(args)
-    except Exception:
-        failed += 1
-        raise
-    finally:
-        # TODO: make this configurable via environ or cmdline
-        if failed:
-            LOG.warning('some tests failed, leaving data in %s', args.data_dir)
-        else:
-            shutil.rmtree(args.data_dir)
-    return failed
-
-
 def main():
-    """
-    entry point for cloud test suite
-    """
+    """Entry point for cloud test suite."""
     # configure parser
     parser = argparse.ArgumentParser(prog='cloud_tests')
     subparsers = parser.add_subparsers(dest="subcmd")
     subparsers.required = True
 
     def add_subparser(name, description, arg_sets):
-        """
-        add arguments to subparser
-        """
+        """Add arguments to subparser."""
         subparser = subparsers.add_parser(name, help=description)
         for (_args, _kwargs) in (a for arg_set in arg_sets for a in arg_set):
             subparser.add_argument(*_args, **_kwargs)
@@ -80,9 +52,12 @@ def main():
     # run handler
     LOG.debug('running with args: %s\n', parsed)
     return {
+        'bddeb': bddeb.bddeb,
         'collect': collect.collect,
         'create': manage.create,
-        'run': run,
+        'run': run_funcs.run,
+        'tree_collect': run_funcs.tree_collect,
+        'tree_run': run_funcs.tree_run,
         'verify': verify.verify,
     }[parsed.subcmd](parsed)
 

@@ -1,6 +1,8 @@
 #
 # NTP config using specific servers
 #
+required_features:
+  - lsb_release
 cloud_config: |
   #cloud-config
   ntp:
@@ -10,7 +12,8 @@ cloud_config: |
 collect_scripts:
   ntp_installed_servers: |
     #!/bin/sh
-    dpkg -l | grep -c ntp
+    ntpd --version > /dev/null 2>&1
+    echo $?
   ntp_conf_dist_servers: |
     #!/bin/sh
     cat /etc/ntp.conf.dist | wc -l

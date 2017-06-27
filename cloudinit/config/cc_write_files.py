@@ -53,6 +53,7 @@ import six
 from cloudinit.settings import PER_INSTANCE
 from cloudinit import util
 
+
 frequency = PER_INSTANCE
 
 DEFAULT_OWNER = "root:root"
@@ -119,7 +120,14 @@ def decode_perms(perm, default, log):
             # Force to string and try octal conversion
             return int(str(perm), 8)
     except (TypeError, ValueError):
-        log.warn("Undecodable permissions %s, assuming %s", perm, default)
+        reps = []
+        for r in (perm, default):
+            try:
+                reps.append("%o" % r)
+            except TypeError:
+                reps.append("%r" % r)
+        log.warning(
+            "Undecodable permissions {0}, returning default {1}".format(*reps))
         return default
 
 

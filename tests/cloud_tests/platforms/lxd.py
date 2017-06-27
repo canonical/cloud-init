@@ -1,5 +1,7 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
+"""Base LXD platform."""
+
 from pylxd import (Client, exceptions)
 
 from tests.cloud_tests.images import lxd as lxd_image
@@ -11,48 +13,49 @@ DEFAULT_SSTREAMS_SERVER = "https://images.linuxcontainers.org:8443"
 
 
 class LXDPlatform(base.Platform):
-    """
-    Lxd test platform
-    """
+    """LXD test platform."""
+
     platform_name = 'lxd'
 
     def __init__(self, config):
-        """
-        Set up platform
-        """
+        """Set up platform."""
         super(LXDPlatform, self).__init__(config)
         # TODO: allow configuration of remote lxd host via env variables
         # set up lxd connection
         self.client = Client()
 
     def get_image(self, img_conf):
-        """
-        Get image
-        img_conf: dict containing config for image. platform_ident must have:
-            alias: alias to use for simplestreams server
-            sstreams_server: simplestreams server to use, or None for default
-        return_value: cloud_tests.images instance
-        """
-        lxd_conf = self._extract_img_platform_config(img_conf)
-        image = self.client.images.create_from_simplestreams(
-            lxd_conf.get('sstreams_server', DEFAULT_SSTREAMS_SERVER),
-            lxd_conf['alias'])
-        return lxd_image.LXDImage(
-            image.properties['description'], img_conf, self, image)
+        """Get image using specified image configuration.
 
-    def launch_container(self, image=None, container=None, ephemeral=False,
-                         config=None, block=True,
-                         image_desc=None, use_desc=None):
+        @param img_conf: configuration for image
+        @return_value: cloud_tests.images instance
         """
-        launch a container
-        image: image fingerprint to launch from
-        container: container to copy
-        ephemeral: delete image after first shutdown
-        config: config options for instance as dict
-        block: wait until container created
-        image_desc: description of image being launched
-        use_desc: description of container's use
-        return_value: cloud_tests.instances instance
+        pylxd_image = self.client.images.create_from_simplestreams(
+            img_conf.get('sstreams_server', DEFAULT_SSTREAMS_SERVER),
+            img_conf['alias'])
+        image = lxd_image.LXDImage(self, img_conf, pylxd_image)
+        if img_conf.get('override_templates', False):
+            image.update_templates(self.config.get('template_overrides', {}),
+                                   self.config.get('template_files', {}))
+        return image
+
+    def launch_container(self, properties, config, features,
+                         image=None, container=None, ephemeral=False,
+                         container_config=None, block=True, image_desc=None,
+                         use_desc=None):
+        """Launch a container.
+
+        @param properties: image properties
+        @param config: image configuration
+        @param features: image features
+        @param image: image fingerprint to launch from
+        @param container: container to copy
+        @param ephemeral: delete image after first shutdown
+        @param container_config: config options for instance as dict
+        @param block: wait until container created
+        @param image_desc: description of image being launched
+        @param use_desc: description of container's use
+        @return_value: cloud_tests.instances instance
         """
         if not (image or container):
             raise ValueError("either image or container must be specified")
@@ -61,16 +64,18 @@ class LXDPlatform(base.Platform):
                                            use_desc=use_desc,
                                            used_list=self.list_containers()),
             'ephemeral': bool(ephemeral),
-            'config': config if isinstance(config, dict) else {},
+            'config': (container_config
+                       if isinstance(container_config, dict) else {}),
             'source': ({'type': 'image', 'fingerprint': image} if image else
                        {'type': 'copy', 'source': container})
         }, wait=block)
-        return lxd_instance.LXDInstance(container.name, self, container)
+        return lxd_instance.LXDInstance(self, container.name, properties,
+                                        config, features, container)
 
     def container_exists(self, container_name):
-        """
-        check if container with name 'container_name' exists
-        return_value: True if exists else False
+        """Check if container with name 'container_name' exists.
+
+        @return_value: True if exists else False
         """
         res = True
         try:
@@ -82,16 +87,22 @@ class LXDPlatform(base.Platform):
         return res
 
     def list_containers(self):
-        """
-        list names of all containers
-        return_value: list of names
+        """List names of all containers.
+
+        @return_value: list of names
         """
         return [container.name for container in self.client.containers.all()]
 
+    def query_image_by_alias(self, alias):
+        """Get image by alias in local image store.
+
+        @param alias: alias of image
+        @return_value: pylxd image (not cloud_tests.images instance)
+        """
+        return self.client.images.get_by_alias(alias)
+
     def destroy(self):
-        """
-        Clean up platform data
-        """
+        """Clean up platform data."""
         super(LXDPlatform, self).destroy()
 
 # vi: ts=4 expandtab

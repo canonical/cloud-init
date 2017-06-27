@@ -26,6 +26,7 @@ from cloudinit.sources import DataSourceNone as DSNone
 from .. import helpers as test_helpers
 
 DEFAULT_LOCAL = [
+    Azure.DataSourceAzure,
     CloudSigma.DataSourceCloudSigma,
     ConfigDrive.DataSourceConfigDrive,
     DigitalOcean.DataSourceDigitalOcean,
@@ -36,8 +37,8 @@ DEFAULT_LOCAL = [
 ]
 
 DEFAULT_NETWORK = [
+    AliYun.DataSourceAliYun,
     AltCloud.DataSourceAltCloud,
-    Azure.DataSourceAzureNet,
     Bigstep.DataSourceBigstep,
     CloudStack.DataSourceCloudStack,
     DSNone.DataSourceNone,

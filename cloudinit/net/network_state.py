@@ -289,19 +289,15 @@ class NetworkStateInterpreter(object):
             iface.update({param: val})
 
         # convert subnet ipv6 netmask to cidr as needed
-        subnets = command.get('subnets')
-        if subnets:
+        subnets = _normalize_subnets(command.get('subnets'))
+
+        # automatically set 'use_ipv6' if any addresses are ipv6
+        if not self.use_ipv6:
             for subnet in subnets:
-                if subnet['type'] == 'static':
-                    if ':' in subnet['address']:
-                        self.use_ipv6 = True
-                    if 'netmask' in subnet and ':' in subnet['address']:
-                        subnet['netmask'] = mask2cidr(subnet['netmask'])
-                        for route in subnet.get('routes', []):
-                            if 'netmask' in route:
-                                route['netmask'] = mask2cidr(route['netmask'])
-                elif subnet['type'].endswith('6'):
+                if (subnet.get('type').endswith('6') or
+                        is_ipv6_addr(subnet.get('address'))):
                     self.use_ipv6 = True
+                    break
 
         iface.update({
             'name': command.get('name'),
@@ -456,16 +452,7 @@ class NetworkStateInterpreter(object):
 
     @ensure_command_keys(['destination'])
     def handle_route(self, command):
-        routes = self._network_state.get('routes', [])
-        network, cidr = command['destination'].split("/")
-        netmask = cidr2mask(int(cidr))
-        route = {
-            'network': network,
-            'netmask': netmask,
-            'gateway': command.get('gateway'),
-            'metric': command.get('metric'),
-        }
-        routes.append(route)
+        self._network_state['routes'].append(_normalize_route(command))
 
     # V2 handlers
     def handle_bonds(self, command):
@@ -666,18 +653,9 @@ class NetworkStateInterpreter(object):
 
             routes = []
             for route in cfg.get('routes', []):
-                route_addr = route.get('to')
-                if "/" in route_addr:
-                    route_addr, route_cidr = route_addr.split("/")
-                route_netmask = cidr2mask(route_cidr)
-                subnet_route = {
-                    'address': route_addr,
-                    'netmask': route_netmask,
-                    'gateway': route.get('via')
-                }
-                routes.append(subnet_route)
-            if len(routes) > 0:
-                subnet.update({'routes': routes})
+                routes.append(_normalize_route(
+                    {'address': route.get('to'), 'gateway': route.get('via')}))
+            subnet['routes'] = routes
 
             if ":" in address:
                 if 'gateway6' in cfg and gateway6 is None:
@@ -692,53 +670,219 @@ class NetworkStateInterpreter(object):
         return subnets
 
 
+def _normalize_subnet(subnet):
+    # Prune all keys with None values.
+    subnet = copy.deepcopy(subnet)
+    normal_subnet = dict((k, v) for k, v in subnet.items() if v)
+
+    if subnet.get('type') in ('static', 'static6'):
+        normal_subnet.update(
+            _normalize_net_keys(normal_subnet, address_keys=('address',)))
+    normal_subnet['routes'] = [_normalize_route(r)
+                               for r in subnet.get('routes', [])]
+    return normal_subnet
+
+
+def _normalize_net_keys(network, address_keys=()):
+    """Normalize dictionary network keys returning prefix and address keys.
+
+    @param network: A dict of network-related definition containing prefix,
+        netmask and address_keys.
+    @param address_keys: A tuple of keys to search for representing the address
+        or cidr. The first address_key discovered will be used for
+        normalization.
+
+    @returns: A dict containing normalized prefix and matching addr_key.
+    """
+    net = dict((k, v) for k, v in network.items() if v)
+    addr_key = None
+    for key in address_keys:
+        if net.get(key):
+            addr_key = key
+            break
+    if not addr_key:
+        message = (
+            'No config network address keys [%s] found in %s' %
+            (','.join(address_keys), network))
+        LOG.error(message)
+        raise ValueError(message)
+
+    addr = net.get(addr_key)
+    ipv6 = is_ipv6_addr(addr)
+    netmask = net.get('netmask')
+    if "/" in addr:
+        addr_part, _, maybe_prefix = addr.partition("/")
+        net[addr_key] = addr_part
+        try:
+            prefix = int(maybe_prefix)
+        except ValueError:
+            # this supports input of <address>/255.255.255.0
+            prefix = mask_to_net_prefix(maybe_prefix)
+    elif netmask:
+        prefix = mask_to_net_prefix(netmask)
+    elif 'prefix' in net:
+        prefix = int(prefix)
+    else:
+        prefix = 64 if ipv6 else 24
+
+    if 'prefix' in net and str(net['prefix']) != str(prefix):
+        LOG.warning("Overwriting existing 'prefix' with '%s' in "
+                    "network info: %s", prefix, net)
+    net['prefix'] = prefix
+
+    if ipv6:
+        # TODO: we could/maybe should add this back with the very uncommon
+        # 'netmask' for ipv6.  We need a 'net_prefix_to_ipv6_mask' for that.
+        if 'netmask' in net:
+            del net['netmask']
+    else:
+        net['netmask'] = net_prefix_to_ipv4_mask(net['prefix'])
+
+    return net
+
+
+def _normalize_route(route):
+    """normalize a route.
+    return a dictionary with only:
+       'type': 'route' (only present if it was present in input)
+       'network': the network portion of the route as a string.
+       'prefix': the network prefix for address as an integer.
+       'metric': integer metric (only if present in input).
+       'netmask': netmask (string) equivalent to prefix iff network is ipv4.
+       """
+    # Prune None-value keys.  Specifically allow 0 (a valid metric).
+    normal_route = dict((k, v) for k, v in route.items()
+                        if v not in ("", None))
+    if 'destination' in normal_route:
+        normal_route['network'] = normal_route['destination']
+        del normal_route['destination']
+
+    normal_route.update(
+        _normalize_net_keys(
+            normal_route, address_keys=('network', 'destination')))
+
+    metric = normal_route.get('metric')
+    if metric:
+        try:
+            normal_route['metric'] = int(metric)
+        except ValueError:
+            raise TypeError(
+                'Route config metric {} is not an integer'.format(metric))
+    return normal_route
+
+
+def _normalize_subnets(subnets):
+    if not subnets:
+        subnets = []
+    return [_normalize_subnet(s) for s in subnets]
+
+
+def is_ipv6_addr(address):
+    if not address:
+        return False
+    return ":" in str(address)
+
+
 def subnet_is_ipv6(subnet):
     """Common helper for checking network_state subnets for ipv6."""
     # 'static6' or 'dhcp6'
     if subnet['type'].endswith('6'):
         # This is a request for DHCPv6.
         return True
-    elif subnet['type'] == 'static' and ":" in subnet['address']:
+    elif subnet['type'] == 'static' and is_ipv6_addr(subnet.get('address')):
         return True
     return False
 
 
-def cidr2mask(cidr):
+def net_prefix_to_ipv4_mask(prefix):
+    """Convert a network prefix to an ipv4 netmask.
+
+    This is the inverse of ipv4_mask_to_net_prefix.
+        24 -> "255.255.255.0"
+    Also supports input as a string."""
+
     mask = [0, 0, 0, 0]
-    for i in list(range(0, cidr)):
+    for i in list(range(0, int(prefix))):
         idx = int(i / 8)
         mask[idx] = mask[idx] + (1 << (7 - i % 8))
     return ".".join([str(x) for x in mask])
 
 
-def ipv4mask2cidr(mask):
+def ipv4_mask_to_net_prefix(mask):
+    """Convert an ipv4 netmask into a network prefix length.
+
+    If the input is already an integer or a string representation of
+    an integer, then int(mask) will be returned.
+       "255.255.255.0" => 24
+       str(24)         => 24
+       "24"            => 24
+    """
+    if isinstance(mask, int):
+        return mask
+    if isinstance(mask, six.string_types):
+        try:
+            return int(mask)
+        except ValueError:
+            pass
+    else:
+        raise TypeError("mask '%s' is not a string or int")
+
     if '.' not in mask:
+        raise ValueError("netmask '%s' does not contain a '.'" % mask)
+
+    toks = mask.split(".")
+    if len(toks) != 4:
+        raise ValueError("netmask '%s' had only %d parts" % (mask, len(toks)))
+
+    return sum([bin(int(x)).count('1') for x in toks])
+
+
+def ipv6_mask_to_net_prefix(mask):
+    """Convert an ipv6 netmask (very uncommon) or prefix (64) to prefix.
+
+    If 'mask' is an integer or string representation of one then
+    int(mask) will be returned.
+    """
+
+    if isinstance(mask, int):
         return mask
-    return sum([bin(int(x)).count('1') for x in mask.split('.')])
+    if isinstance(mask, six.string_types):
+        try:
+            return int(mask)
+        except ValueError:
+            pass
+    else:
+        raise TypeError("mask '%s' is not a string or int")
 
-
-def ipv6mask2cidr(mask):
     if ':' not in mask:
-        return mask
+        raise ValueError("mask '%s' does not have a ':'")
 
     bitCount = [0, 0x8000, 0xc000, 0xe000, 0xf000, 0xf800, 0xfc00, 0xfe00,
                 0xff00, 0xff80, 0xffc0, 0xffe0, 0xfff0, 0xfff8, 0xfffc,
                 0xfffe, 0xffff]
-    cidr = 0
+    prefix = 0
     for word in mask.split(':'):
         if not word or int(word, 16) == 0:
             break
-        cidr += bitCount.index(int(word, 16))
+        prefix += bitCount.index(int(word, 16))
 
-    return cidr
+    return prefix
 
 
-def mask2cidr(mask):
-    if ':' in str(mask):
-        return ipv6mask2cidr(mask)
-    elif '.' in str(mask):
-        return ipv4mask2cidr(mask)
+def mask_to_net_prefix(mask):
+    """Return the network prefix for the netmask provided.
+
+    Supports ipv4 or ipv6 netmasks."""
+    try:
+        # if 'mask' is a prefix that is an integer.
+        # then just return it.
+        return int(mask)
+    except ValueError:
+        pass
+    if is_ipv6_addr(mask):
+        return ipv6_mask_to_net_prefix(mask)
     else:
-        return mask
+        return ipv4_mask_to_net_prefix(mask)
+
 
 # vi: ts=4 expandtab

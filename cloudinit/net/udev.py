@@ -23,7 +23,7 @@ def compose_udev_setting(key, value):
     return '%s="%s"' % (key, value)
 
 
-def generate_udev_rule(interface, mac):
+def generate_udev_rule(interface, mac, driver=None):
     """Return a udev rule to set the name of network interface with `mac`.
 
     The rule ends up as a single line looking something like:
@@ -31,10 +31,13 @@ def generate_udev_rule(interface, mac):
     SUBSYSTEM=="net", ACTION=="add", DRIVERS=="?*",
     ATTR{address}="ff:ee:dd:cc:bb:aa", NAME="eth0"
     """
+    if not driver:
+        driver = '?*'
+
     rule = ', '.join([
         compose_udev_equality('SUBSYSTEM', 'net'),
         compose_udev_equality('ACTION', 'add'),
-        compose_udev_equality('DRIVERS', '?*'),
+        compose_udev_equality('DRIVERS', driver),
         compose_udev_attr_equality('address', mac),
         compose_udev_setting('NAME', interface),
     ])
