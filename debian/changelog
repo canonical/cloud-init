@@ -1,4 +1,4 @@
-cloud-init (0.7.9-197-gebc9ecbc-0ubuntu1) UNRELEASED; urgency=medium
+cloud-init (0.7.9-197-gebc9ecbc-0ubuntu1) artful; urgency=medium
 
   * debian/control: add build dependency python3-jsonschema (LP: #1695318)
   * New upstream snapshot.
@@ -70,7 +70,7 @@ cloud-init (0.7.9-197-gebc9ecbc-0ubuntu1) UNRELEASED; urgency=medium
     - AliYun: Enable platform identification and enable by default.
       [Junjie Wang] (LP: #1638931)
 
- -- Scott Moser <smoser@ubuntu.com>  Tue, 27 Jun 2017 17:14:09 -0400
+ -- Scott Moser <smoser@ubuntu.com>  Tue, 27 Jun 2017 17:18:24 -0400
 
 cloud-init (0.7.9-153-g16a7302f-0ubuntu1) artful; urgency=medium
 
