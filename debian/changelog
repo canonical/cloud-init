@@ -1,12 +1,14 @@
-cloud-init (0.7.9-153-g16a7302f-0ubuntu1~16.04.2ubuntu2) UNRELEASED; urgency=medium
+cloud-init (0.7.9-153-g16a7302f-0ubuntu1~16.04.2ubuntu3) UNRELEASED; urgency=medium
 
   * debian/patches/ds-identify-behavior-xenial.patch: refresh patch.
   * cherry-pick 5fb49bac: azure: identify platform by well known value
     in chassis asset (LP: #1693939)
   * cherry-pick 003c6678: net: remove systemd link file writing from eni
     renderer
+  * cherry-pick 1cd4323b: azure: remove accidental duplicate line in
+    merge.
 
- -- Scott Moser <smoser@ubuntu.com>  Wed, 28 Jun 2017 12:57:55 -0400
+ -- Scott Moser <smoser@ubuntu.com>  Wed, 28 Jun 2017 12:58:12 -0400
 
 cloud-init (0.7.9-153-g16a7302f-0ubuntu1~16.04.1) xenial-proposed; urgency=medium
 
