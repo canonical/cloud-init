@@ -597,6 +597,8 @@ iface br0 inet static
 # control-alias br0
 iface br0 inet6 static
     address 2001:1::1/64
+    post-up route add -A inet6 default gw 2001:4800:78ff:1b::1 || true
+    pre-down route del -A inet6 default gw 2001:4800:78ff:1b::1 || true
 
 auto bond0.200
 iface bond0.200 inet dhcp
@@ -731,6 +733,9 @@ pre-down route del -net 10.0.0.0 netmask 255.0.0.0 gw 11.0.0.1 metric 3 || true
                                 eth3: 50
                                 eth4: 75
                             priority: 22
+                        routes:
+                        -   to: ::/0
+                            via: 2001:4800:78ff:1b::1
                 vlans:
                     bond0.200:
                         dhcp4: true
@@ -863,6 +868,10 @@ pre-down route del -net 10.0.0.0 netmask 255.0.0.0 gw 11.0.0.1 metric 3 || true
                         address: 192.168.14.2/24
                       - type: static
                         address: 2001:1::1/64 # default to /64
+                        routes:
+                          - gateway: 2001:4800:78ff:1b::1
+                            netmask: '::'
+                            network: '::'
                 # A global nameserver.
                 - type: nameserver
                   address: 8.8.8.8
