@@ -170,7 +170,7 @@ main() {
     }
 
     local commit_files=""
-    commit_files=( debian/changelog "$series" "$fpath" )
+    commit_files=( "$series" "$fpath" )
     git diff HEAD "${commit_files[@]}"
 
     echo -n "Commit this change? (Y/n): "
@@ -186,6 +186,9 @@ main() {
 
     git commit -m "$msg" "${commit_files[@]}" ||
         fail "failed to commit '$msg'"
+
+    git commit -m "update changelog" debian/changelog ||
+        fail "failed to commit update to debian changelog."
 
     return 0
 }
