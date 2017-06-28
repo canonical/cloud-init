@@ -1,4 +1,4 @@
-cloud-init (0.7.9-153-g16a7302f-0ubuntu1~16.10.2) UNRELEASED; urgency=medium
+cloud-init (0.7.9-153-g16a7302f-0ubuntu1~16.10.2) yakkety-proposed; urgency=medium
 
   * debian/patches/ds-identify-behavior-yakkety.patch: refresh patch.
   * cherry-pick 5fb49bac: azure: identify platform by well known value
@@ -12,7 +12,7 @@ cloud-init (0.7.9-153-g16a7302f-0ubuntu1~16.10.2) UNRELEASED; urgency=medium
   * cherry-pick 11121fe4: systemd: make cloud-final.service run before
     apt daily (LP: #1693361)
 
- -- Scott Moser <smoser@ubuntu.com>  Wed, 28 Jun 2017 14:11:19 -0400
+ -- Scott Moser <smoser@ubuntu.com>  Wed, 28 Jun 2017 17:19:14 -0400
 
 cloud-init (0.7.9-153-g16a7302f-0ubuntu1~16.10.1) yakkety-proposed; urgency=medium
 
