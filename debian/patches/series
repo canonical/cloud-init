@@ -1,2 +1,3 @@
 azure-use-walinux-agent.patch
+cpick-5fb49bac-azure-identify-platform-by-well-known-value-in-chassis
 ds-identify-behavior-xenial.patch
