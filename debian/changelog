@@ -9,8 +9,10 @@ cloud-init (0.7.9-153-g16a7302f-0ubuntu1~16.10.2) UNRELEASED; urgency=medium
     merge.
   * cherry-pick ebc9ecbc: Azure: Add network-config, Refactor net layer
     to handle
+  * cherry-pick 11121fe4: systemd: make cloud-final.service run before
+    apt daily (LP: #1693361)
 
- -- Scott Moser <smoser@ubuntu.com>  Wed, 28 Jun 2017 14:10:56 -0400
+ -- Scott Moser <smoser@ubuntu.com>  Wed, 28 Jun 2017 14:11:19 -0400
 
 cloud-init (0.7.9-153-g16a7302f-0ubuntu1~16.10.1) yakkety-proposed; urgency=medium
 
