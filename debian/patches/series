@@ -2,3 +2,4 @@ azure-use-walinux-agent.patch
 cpick-5fb49bac-azure-identify-platform-by-well-known-value-in-chassis
 ds-identify-behavior-xenial.patch
 cpick-003c6678-net-remove-systemd-link-file-writing-from-eni-renderer
+cpick-1cd4323b-azure-remove-accidental-duplicate-line-in-merge
