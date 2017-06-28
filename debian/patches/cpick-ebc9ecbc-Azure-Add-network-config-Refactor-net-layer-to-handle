@@ -1,0 +1,1474 @@
+From ebc9ecbc8a76bdf511a456fb72339a7eb4c20568 Mon Sep 17 00:00:00 2001
+From: Ryan Harper <ryan.harper@canonical.com>
+Date: Tue, 20 Jun 2017 17:06:43 -0500
+Subject: [PATCH] Azure: Add network-config, Refactor net layer to handle
+ duplicate macs.
+
+On systems with network devices with duplicate mac addresses, cloud-init
+will fail to rename the devices according to the specified network
+configuration. Refactor net layer to search by device driver and device
+id if available. Azure systems may have duplicate mac addresses by
+design.
+
+Update Azure datasource to run at init-local time and let Azure datasource
+generate a fallback networking config to handle advanced networking
+configurations.
+
+Lastly, add a 'setup' method to the datasources that is called before
+userdata/vendordata is processed but after networking is up. That is
+used here on Azure to interact with the 'fabric'.
+---
+ cloudinit/cmd/main.py                          |   3 +
+ cloudinit/net/__init__.py                      | 181 ++++++++--
+ cloudinit/net/eni.py                           |   2 +
+ cloudinit/net/renderer.py                      |   4 +-
+ cloudinit/net/udev.py                          |   7 +-
+ cloudinit/sources/DataSourceAzure.py           | 114 +++++-
+ cloudinit/sources/__init__.py                  |  15 +-
+ cloudinit/stages.py                            |   5 +
+ tests/unittests/test_datasource/test_azure.py  | 174 +++++++--
+ tests/unittests/test_datasource/test_common.py |   2 +-
+ tests/unittests/test_net.py                    | 478 ++++++++++++++++++++++++-
+ 11 files changed, 887 insertions(+), 98 deletions(-)
+
+--- a/cloudinit/cmd/main.py
++++ b/cloudinit/cmd/main.py
+@@ -373,6 +373,9 @@ def main_init(name, args):
+             LOG.debug("[%s] %s is in local mode, will apply init modules now.",
+                       mode, init.datasource)
+ 
++    # Give the datasource a chance to use network resources.
++    # This is used on Azure to communicate with the fabric over network.
++    init.setup_datasource()
+     # update fully realizes user-data (pulling in #include if necessary)
+     init.update()
+     # Stage 7
+--- a/cloudinit/net/__init__.py
++++ b/cloudinit/net/__init__.py
+@@ -86,6 +86,10 @@ def is_bridge(devname):
+     return os.path.exists(sys_dev_path(devname, "bridge"))
+ 
+ 
++def is_bond(devname):
++    return os.path.exists(sys_dev_path(devname, "bonding"))
++
++
+ def is_vlan(devname):
+     uevent = str(read_sys_net_safe(devname, "uevent"))
+     return 'DEVTYPE=vlan' in uevent.splitlines()
+@@ -113,6 +117,26 @@ def is_present(devname):
+     return os.path.exists(sys_dev_path(devname))
+ 
+ 
++def device_driver(devname):
++    """Return the device driver for net device named 'devname'."""
++    driver = None
++    driver_path = sys_dev_path(devname, "device/driver")
++    # driver is a symlink to the driver *dir*
++    if os.path.islink(driver_path):
++        driver = os.path.basename(os.readlink(driver_path))
++
++    return driver
++
++
++def device_devid(devname):
++    """Return the device id string for net device named 'devname'."""
++    dev_id = read_sys_net_safe(devname, "device/device")
++    if dev_id is False:
++        return None
++
++    return dev_id
++
++
+ def get_devicelist():
+     return os.listdir(SYS_CLASS_NET)
+ 
+@@ -127,12 +151,21 @@ def is_disabled_cfg(cfg):
+     return cfg.get('config') == "disabled"
+ 
+ 
+-def generate_fallback_config():
++def generate_fallback_config(blacklist_drivers=None, config_driver=None):
+     """Determine which attached net dev is most likely to have a connection and
+        generate network state to run dhcp on that interface"""
++
++    if not config_driver:
++        config_driver = False
++
++    if not blacklist_drivers:
++        blacklist_drivers = []
++
+     # get list of interfaces that could have connections
+     invalid_interfaces = set(['lo'])
+-    potential_interfaces = set(get_devicelist())
++    potential_interfaces = set([device for device in get_devicelist()
++                                if device_driver(device) not in
++                                blacklist_drivers])
+     potential_interfaces = potential_interfaces.difference(invalid_interfaces)
+     # sort into interfaces with carrier, interfaces which could have carrier,
+     # and ignore interfaces that are definitely disconnected
+@@ -144,6 +177,9 @@ def generate_fallback_config():
+         if is_bridge(interface):
+             # skip any bridges
+             continue
++        if is_bond(interface):
++            # skip any bonds
++            continue
+         carrier = read_sys_net_int(interface, 'carrier')
+         if carrier:
+             connected.append(interface)
+@@ -183,9 +219,18 @@ def generate_fallback_config():
+             break
+     if target_mac and target_name:
+         nconf = {'config': [], 'version': 1}
+-        nconf['config'].append(
+-            {'type': 'physical', 'name': target_name,
+-             'mac_address': target_mac, 'subnets': [{'type': 'dhcp'}]})
++        cfg = {'type': 'physical', 'name': target_name,
++               'mac_address': target_mac, 'subnets': [{'type': 'dhcp'}]}
++        # inject the device driver name, dev_id into config if enabled and
++        # device has a valid device driver value
++        if config_driver:
++            driver = device_driver(target_name)
++            if driver:
++                cfg['params'] = {
++                    'driver': driver,
++                    'device_id': device_devid(target_name),
++                }
++        nconf['config'].append(cfg)
+         return nconf
+     else:
+         # can't read any interfaces addresses (or there are none); give up
+@@ -206,10 +251,16 @@ def apply_network_config_names(netcfg, s
+         if ent.get('type') != 'physical':
+             continue
+         mac = ent.get('mac_address')
+-        name = ent.get('name')
+         if not mac:
+             continue
+-        renames.append([mac, name])
++        name = ent.get('name')
++        driver = ent.get('params', {}).get('driver')
++        device_id = ent.get('params', {}).get('device_id')
++        if not driver:
++            driver = device_driver(name)
++        if not device_id:
++            device_id = device_devid(name)
++        renames.append([mac, name, driver, device_id])
+ 
+     return _rename_interfaces(renames)
+ 
+@@ -234,15 +285,27 @@ def _get_current_rename_info(check_downa
+     """Collect information necessary for rename_interfaces.
+ 
+     returns a dictionary by mac address like:
+-       {mac:
+-         {'name': name
+-          'up': boolean: is_up(name),
++       {name:
++         {
+           'downable': None or boolean indicating that the
+-                      device has only automatically assigned ip addrs.}}
++                      device has only automatically assigned ip addrs.
++          'device_id': Device id value (if it has one)
++          'driver': Device driver (if it has one)
++          'mac': mac address
++          'name': name
++          'up': boolean: is_up(name)
++         }}
+     """
+-    bymac = {}
+-    for mac, name in get_interfaces_by_mac().items():
+-        bymac[mac] = {'name': name, 'up': is_up(name), 'downable': None}
++    cur_info = {}
++    for (name, mac, driver, device_id) in get_interfaces():
++        cur_info[name] = {
++            'downable': None,
++            'device_id': device_id,
++            'driver': driver,
++            'mac': mac,
++            'name': name,
++            'up': is_up(name),
++        }
+ 
+     if check_downable:
+         nmatch = re.compile(r"[0-9]+:\s+(\w+)[@:]")
+@@ -254,11 +317,11 @@ def _get_current_rename_info(check_downa
+         for bytes_out in (ipv6, ipv4):
+             nics_with_addresses.update(nmatch.findall(bytes_out))
+ 
+-        for d in bymac.values():
++        for d in cur_info.values():
+             d['downable'] = (d['up'] is False or
+                              d['name'] not in nics_with_addresses)
+ 
+-    return bymac
++    return cur_info
+ 
+ 
+ def _rename_interfaces(renames, strict_present=True, strict_busy=True,
+@@ -271,15 +334,15 @@ def _rename_interfaces(renames, strict_p
+     if current_info is None:
+         current_info = _get_current_rename_info()
+ 
+-    cur_bymac = {}
+-    for mac, data in current_info.items():
++    cur_info = {}
++    for name, data in current_info.items():
+         cur = data.copy()
+-        cur['mac'] = mac
+-        cur_bymac[mac] = cur
++        cur['name'] = name
++        cur_info[name] = cur
+ 
+     def update_byname(bymac):
+         return dict((data['name'], data)
+-                    for data in bymac.values())
++                    for data in cur_info.values())
+ 
+     def rename(cur, new):
+         util.subp(["ip", "link", "set", cur, "name", new], capture=True)
+@@ -293,14 +356,48 @@ def _rename_interfaces(renames, strict_p
+     ops = []
+     errors = []
+     ups = []
+-    cur_byname = update_byname(cur_bymac)
++    cur_byname = update_byname(cur_info)
+     tmpname_fmt = "cirename%d"
+     tmpi = -1
+ 
+-    for mac, new_name in renames:
+-        cur = cur_bymac.get(mac, {})
+-        cur_name = cur.get('name')
++    def entry_match(data, mac, driver, device_id):
++        """match if set and in data"""
++        if mac and driver and device_id:
++            return (data['mac'] == mac and
++                    data['driver'] == driver and
++                    data['device_id'] == device_id)
++        elif mac and driver:
++            return (data['mac'] == mac and
++                    data['driver'] == driver)
++        elif mac:
++            return (data['mac'] == mac)
++
++        return False
++
++    def find_entry(mac, driver, device_id):
++        match = [data for data in cur_info.values()
++                 if entry_match(data, mac, driver, device_id)]
++        if len(match):
++            if len(match) > 1:
++                msg = ('Failed to match a single device. Matched devices "%s"'
++                       ' with search values "(mac:%s driver:%s device_id:%s)"'
++                       % (match, mac, driver, device_id))
++                raise ValueError(msg)
++            return match[0]
++
++        return None
++
++    for mac, new_name, driver, device_id in renames:
+         cur_ops = []
++        cur = find_entry(mac, driver, device_id)
++        if not cur:
++            if strict_present:
++                errors.append(
++                    "[nic not present] Cannot rename mac=%s to %s"
++                    ", not available." % (mac, new_name))
++            continue
++
++        cur_name = cur.get('name')
+         if cur_name == new_name:
+             # nothing to do
+             continue
+@@ -340,13 +437,13 @@ def _rename_interfaces(renames, strict_p
+ 
+             cur_ops.append(("rename", mac, new_name, (new_name, tmp_name)))
+             target['name'] = tmp_name
+-            cur_byname = update_byname(cur_bymac)
++            cur_byname = update_byname(cur_info)
+             if target['up']:
+                 ups.append(("up", mac, new_name, (tmp_name,)))
+ 
+         cur_ops.append(("rename", mac, new_name, (cur['name'], new_name)))
+         cur['name'] = new_name
+-        cur_byname = update_byname(cur_bymac)
++        cur_byname = update_byname(cur_info)
+         ops += cur_ops
+ 
+     opmap = {'rename': rename, 'down': down, 'up': up}
+@@ -415,6 +512,36 @@ def get_interfaces_by_mac():
+     return ret
+ 
+ 
++def get_interfaces():
++    """Return list of interface tuples (name, mac, driver, device_id)
++
++    Bridges and any devices that have a 'stolen' mac are excluded."""
++    try:
++        devs = get_devicelist()
++    except OSError as e:
++        if e.errno == errno.ENOENT:
++            devs = []
++        else:
++            raise
++    ret = []
++    empty_mac = '00:00:00:00:00:00'
++    for name in devs:
++        if not interface_has_own_mac(name):
++            continue
++        if is_bridge(name):
++            continue
++        if is_vlan(name):
++            continue
++        mac = get_interface_mac(name)
++        # some devices may not have a mac (tun0)
++        if not mac:
++            continue
++        if mac == empty_mac and name != 'lo':
++            continue
++        ret.append((name, mac, device_driver(name), device_devid(name)))
++    return ret
++
++
+ class RendererNotFoundError(RuntimeError):
+     pass
+ 
+--- a/cloudinit/net/eni.py
++++ b/cloudinit/net/eni.py
+@@ -68,6 +68,8 @@ def _iface_add_attrs(iface, index):
+     content = []
+     ignore_map = [
+         'control',
++        'device_id',
++        'driver',
+         'index',
+         'inet',
+         'mode',
+--- a/cloudinit/net/renderer.py
++++ b/cloudinit/net/renderer.py
+@@ -34,8 +34,10 @@ class Renderer(object):
+         for iface in network_state.iter_interfaces(filter_by_physical):
+             # for physical interfaces write out a persist net udev rule
+             if 'name' in iface and iface.get('mac_address'):
++                driver = iface.get('driver', None)
+                 content.write(generate_udev_rule(iface['name'],
+-                                                 iface['mac_address']))
++                                                 iface['mac_address'],
++                                                 driver=driver))
+         return content.getvalue()
+ 
+     @abc.abstractmethod
+--- a/cloudinit/net/udev.py
++++ b/cloudinit/net/udev.py
+@@ -23,7 +23,7 @@ def compose_udev_setting(key, value):
+     return '%s="%s"' % (key, value)
+ 
+ 
+-def generate_udev_rule(interface, mac):
++def generate_udev_rule(interface, mac, driver=None):
+     """Return a udev rule to set the name of network interface with `mac`.
+ 
+     The rule ends up as a single line looking something like:
+@@ -31,10 +31,13 @@ def generate_udev_rule(interface, mac):
+     SUBSYSTEM=="net", ACTION=="add", DRIVERS=="?*",
+     ATTR{address}="ff:ee:dd:cc:bb:aa", NAME="eth0"
+     """
++    if not driver:
++        driver = '?*'
++
+     rule = ', '.join([
+         compose_udev_equality('SUBSYSTEM', 'net'),
+         compose_udev_equality('ACTION', 'add'),
+-        compose_udev_equality('DRIVERS', '?*'),
++        compose_udev_equality('DRIVERS', driver),
+         compose_udev_attr_equality('address', mac),
+         compose_udev_setting('NAME', interface),
+     ])
+--- a/cloudinit/sources/DataSourceAzure.py
++++ b/cloudinit/sources/DataSourceAzure.py
+@@ -16,6 +16,7 @@ from xml.dom import minidom
+ import xml.etree.ElementTree as ET
+ 
+ from cloudinit import log as logging
++from cloudinit import net
+ from cloudinit import sources
+ from cloudinit.sources.helpers.azure import get_metadata_from_fabric
+ from cloudinit import util
+@@ -240,7 +241,9 @@ def temporary_hostname(temp_hostname, cf
+         set_hostname(previous_hostname, hostname_command)
+ 
+ 
+-class DataSourceAzureNet(sources.DataSource):
++class DataSourceAzure(sources.DataSource):
++    _negotiated = False
++
+     def __init__(self, sys_cfg, distro, paths):
+         sources.DataSource.__init__(self, sys_cfg, distro, paths)
+         self.seed_dir = os.path.join(paths.seed_dir, 'azure')
+@@ -250,6 +253,7 @@ class DataSourceAzureNet(sources.DataSou
+             util.get_cfg_by_path(sys_cfg, DS_CFG_PATH, {}),
+             BUILTIN_DS_CONFIG])
+         self.dhclient_lease_file = self.ds_cfg.get('dhclient_lease_file')
++        self._network_config = None
+ 
+     def __str__(self):
+         root = sources.DataSource.__str__(self)
+@@ -326,6 +330,7 @@ class DataSourceAzureNet(sources.DataSou
+         if asset_tag != AZURE_CHASSIS_ASSET_TAG:
+             LOG.debug("Non-Azure DMI asset tag '%s' discovered.", asset_tag)
+             return False
++
+         ddir = self.ds_cfg['data_dir']
+ 
+         candidates = [self.seed_dir]
+@@ -370,13 +375,14 @@ class DataSourceAzureNet(sources.DataSou
+             LOG.debug("using files cached in %s", ddir)
+ 
+         # azure / hyper-v provides random data here
++        # TODO. find the seed on FreeBSD platform
++        # now update ds_cfg to reflect contents pass in config
+         if not util.is_FreeBSD():
+             seed = util.load_file("/sys/firmware/acpi/tables/OEM0",
+                                   quiet=True, decode=False)
+             if seed:
+                 self.metadata['random_seed'] = seed
+-        # TODO. find the seed on FreeBSD platform
+-        # now update ds_cfg to reflect contents pass in config
++
+         user_ds_cfg = util.get_cfg_by_path(self.cfg, DS_CFG_PATH, {})
+         self.ds_cfg = util.mergemanydict([user_ds_cfg, self.ds_cfg])
+ 
+@@ -384,6 +390,40 @@ class DataSourceAzureNet(sources.DataSou
+         # the directory to be protected.
+         write_files(ddir, files, dirmode=0o700)
+ 
++        self.metadata['instance-id'] = util.read_dmi_data('system-uuid')
++
++        return True
++
++    def device_name_to_device(self, name):
++        return self.ds_cfg['disk_aliases'].get(name)
++
++    def get_config_obj(self):
++        return self.cfg
++
++    def check_instance_id(self, sys_cfg):
++        # quickly (local check only) if self.instance_id is still valid
++        return sources.instance_id_matches_system_uuid(self.get_instance_id())
++
++    def setup(self, is_new_instance):
++        if self._negotiated is False:
++            LOG.debug("negotiating for %s (new_instance=%s)",
++                      self.get_instance_id(), is_new_instance)
++            fabric_data = self._negotiate()
++            LOG.debug("negotiating returned %s", fabric_data)
++            if fabric_data:
++                self.metadata.update(fabric_data)
++            self._negotiated = True
++        else:
++            LOG.debug("negotiating already done for %s",
++                      self.get_instance_id())
++
++    def _negotiate(self):
++        """Negotiate with fabric and return data from it.
++
++           On success, returns a dictionary including 'public_keys'.
++           On failure, returns False.
++        """
++
+         if self.ds_cfg['agent_command'] == AGENT_START_BUILTIN:
+             self.bounce_network_with_azure_hostname()
+ 
+@@ -393,31 +433,64 @@ class DataSourceAzureNet(sources.DataSou
+         else:
+             metadata_func = self.get_metadata_from_agent
+ 
++        LOG.debug("negotiating with fabric via agent command %s",
++                  self.ds_cfg['agent_command'])
+         try:
+             fabric_data = metadata_func()
+         except Exception as exc:
+-            LOG.info("Error communicating with Azure fabric; assume we aren't"
+-                     " on Azure.", exc_info=True)
++            LOG.warning(
++                "Error communicating with Azure fabric; You may experience."
++                "connectivity issues.", exc_info=True)
+             return False
+-        self.metadata['instance-id'] = util.read_dmi_data('system-uuid')
+-        self.metadata.update(fabric_data)
+-
+-        return True
+-
+-    def device_name_to_device(self, name):
+-        return self.ds_cfg['disk_aliases'].get(name)
+ 
+-    def get_config_obj(self):
+-        return self.cfg
+-
+-    def check_instance_id(self, sys_cfg):
+-        # quickly (local check only) if self.instance_id is still valid
+-        return sources.instance_id_matches_system_uuid(self.get_instance_id())
++        return fabric_data
+ 
+     def activate(self, cfg, is_new_instance):
+         address_ephemeral_resize(is_new_instance=is_new_instance)
+         return
+ 
++    @property
++    def network_config(self):
++        """Generate a network config like net.generate_fallback_network() with
++           the following execptions.
++
++           1. Probe the drivers of the net-devices present and inject them in
++              the network configuration under params: driver: <driver> value
++           2. If the driver value is 'mlx4_core', the control mode should be
++              set to manual.  The device will be later used to build a bond,
++              for now we want to ensure the device gets named but does not
++              break any network configuration
++        """
++        blacklist = ['mlx4_core']
++        if not self._network_config:
++            LOG.debug('Azure: generating fallback configuration')
++            # generate a network config, blacklist picking any mlx4_core devs
++            netconfig = net.generate_fallback_config(
++                blacklist_drivers=blacklist, config_driver=True)
++
++            # if we have any blacklisted devices, update the network_config to
++            # include the device, mac, and driver values, but with no ip
++            # config; this ensures udev rules are generated but won't affect
++            # ip configuration
++            bl_found = 0
++            for bl_dev in [dev for dev in net.get_devicelist()
++                           if net.device_driver(dev) in blacklist]:
++                bl_found += 1
++                cfg = {
++                    'type': 'physical',
++                    'name': 'vf%d' % bl_found,
++                    'mac_address': net.get_interface_mac(bl_dev),
++                    'params': {
++                        'driver': net.device_driver(bl_dev),
++                        'device_id': net.device_devid(bl_dev),
++                    },
++                }
++                netconfig['config'].append(cfg)
++
++            self._network_config = netconfig
++
++        return self._network_config
++
+ 
+ def _partitions_on_device(devpath, maxnum=16):
+     # return a list of tuples (ptnum, path) for each part on devpath
+@@ -840,9 +913,12 @@ class NonAzureDataSource(Exception):
+     pass
+ 
+ 
++# Legacy: Must be present in case we load an old pkl object
++DataSourceAzureNet = DataSourceAzure
++
+ # Used to match classes to dependencies
+ datasources = [
+-    (DataSourceAzureNet, (sources.DEP_FILESYSTEM, sources.DEP_NETWORK)),
++    (DataSourceAzure, (sources.DEP_FILESYSTEM, )),
+ ]
+ 
+ 
+--- a/cloudinit/sources/__init__.py
++++ b/cloudinit/sources/__init__.py
+@@ -251,10 +251,23 @@ class DataSource(object):
+     def first_instance_boot(self):
+         return
+ 
++    def setup(self, is_new_instance):
++        """setup(is_new_instance)
++
++        This is called before user-data and vendor-data have been processed.
++
++        Unless the datasource has set mode to 'local', then networking
++        per 'fallback' or per 'network_config' will have been written and
++        brought up the OS at this point.
++        """
++        return
++
+     def activate(self, cfg, is_new_instance):
+         """activate(cfg, is_new_instance)
+ 
+-        This is called before the init_modules will be called.
++        This is called before the init_modules will be called but after
++        the user-data and vendor-data have been fully processed.
++
+         The cfg is fully up to date config, it contains a merged view of
+            system config, datasource config, user config, vendor config.
+         It should be used rather than the sys_cfg passed to __init__.
+--- a/cloudinit/stages.py
++++ b/cloudinit/stages.py
+@@ -362,6 +362,11 @@ class Init(object):
+         self._store_userdata()
+         self._store_vendordata()
+ 
++    def setup_datasource(self):
++        if self.datasource is None:
++            raise RuntimeError("Datasource is None, cannot setup.")
++        self.datasource.setup(is_new_instance=self.is_new_instance())
++
+     def activate_datasource(self):
+         if self.datasource is None:
+             raise RuntimeError("Datasource is None, cannot activate.")
+--- a/tests/unittests/test_datasource/test_azure.py
++++ b/tests/unittests/test_datasource/test_azure.py
+@@ -181,13 +181,19 @@ scbus-1 on xpt0 bus 0
+                 side_effect=_dmi_mocks)),
+         ])
+ 
+-        dsrc = dsaz.DataSourceAzureNet(
++        dsrc = dsaz.DataSourceAzure(
+             data.get('sys_cfg', {}), distro=None, paths=self.paths)
+         if agent_command is not None:
+             dsrc.ds_cfg['agent_command'] = agent_command
+ 
+         return dsrc
+ 
++    def _get_and_setup(self, dsrc):
++        ret = dsrc.get_data()
++        if ret:
++            dsrc.setup(True)
++        return ret
++
+     def xml_equals(self, oxml, nxml):
+         """Compare two sets of XML to make sure they are equal"""
+ 
+@@ -259,7 +265,7 @@ fdescfs            /dev/fd          fdes
+         # Return a non-matching asset tag value
+         nonazure_tag = dsaz.AZURE_CHASSIS_ASSET_TAG + 'X'
+         m_read_dmi_data.return_value = nonazure_tag
+-        dsrc = dsaz.DataSourceAzureNet(
++        dsrc = dsaz.DataSourceAzure(
+             {}, distro=None, paths=self.paths)
+         self.assertFalse(dsrc.get_data())
+         self.assertEqual(
+@@ -298,7 +304,7 @@ fdescfs            /dev/fd          fdes
+         data = {'ovfcontent': construct_valid_ovf_env(data=odata)}
+ 
+         dsrc = self._get_ds(data)
+-        ret = dsrc.get_data()
++        ret = self._get_and_setup(dsrc)
+         self.assertTrue(ret)
+         self.assertEqual(data['agent_invoked'], cfg['agent_command'])
+ 
+@@ -311,7 +317,7 @@ fdescfs            /dev/fd          fdes
+         data = {'ovfcontent': construct_valid_ovf_env(data=odata)}
+ 
+         dsrc = self._get_ds(data)
+-        ret = dsrc.get_data()
++        ret = self._get_and_setup(dsrc)
+         self.assertTrue(ret)
+         self.assertEqual(data['agent_invoked'], cfg['agent_command'])
+ 
+@@ -321,7 +327,7 @@ fdescfs            /dev/fd          fdes
+                 'sys_cfg': sys_cfg}
+ 
+         dsrc = self._get_ds(data)
+-        ret = dsrc.get_data()
++        ret = self._get_and_setup(dsrc)
+         self.assertTrue(ret)
+         self.assertEqual(data['agent_invoked'], '_COMMAND')
+ 
+@@ -393,7 +399,7 @@ fdescfs            /dev/fd          fdes
+                                                       pubkeys=pubkeys)}
+ 
+         dsrc = self._get_ds(data, agent_command=['not', '__builtin__'])
+-        ret = dsrc.get_data()
++        ret = self._get_and_setup(dsrc)
+         self.assertTrue(ret)
+         for mypk in mypklist:
+             self.assertIn(mypk, dsrc.cfg['_pubkeys'])
+@@ -408,7 +414,7 @@ fdescfs            /dev/fd          fdes
+                                                       pubkeys=pubkeys)}
+ 
+         dsrc = self._get_ds(data, agent_command=['not', '__builtin__'])
+-        ret = dsrc.get_data()
++        ret = self._get_and_setup(dsrc)
+         self.assertTrue(ret)
+ 
+         for mypk in mypklist:
+@@ -424,7 +430,7 @@ fdescfs            /dev/fd          fdes
+                                                       pubkeys=pubkeys)}
+ 
+         dsrc = self._get_ds(data, agent_command=['not', '__builtin__'])
+-        ret = dsrc.get_data()
++        ret = self._get_and_setup(dsrc)
+         self.assertTrue(ret)
+ 
+         for mypk in mypklist:
+@@ -518,18 +524,20 @@ fdescfs            /dev/fd          fdes
+         dsrc.get_data()
+ 
+     def test_exception_fetching_fabric_data_doesnt_propagate(self):
+-        ds = self._get_ds({'ovfcontent': construct_valid_ovf_env()})
+-        ds.ds_cfg['agent_command'] = '__builtin__'
++        """Errors communicating with fabric should warn, but return True."""
++        dsrc = self._get_ds({'ovfcontent': construct_valid_ovf_env()})
++        dsrc.ds_cfg['agent_command'] = '__builtin__'
+         self.get_metadata_from_fabric.side_effect = Exception
+-        self.assertFalse(ds.get_data())
++        ret = self._get_and_setup(dsrc)
++        self.assertTrue(ret)
+ 
+     def test_fabric_data_included_in_metadata(self):
+-        ds = self._get_ds({'ovfcontent': construct_valid_ovf_env()})
+-        ds.ds_cfg['agent_command'] = '__builtin__'
++        dsrc = self._get_ds({'ovfcontent': construct_valid_ovf_env()})
++        dsrc.ds_cfg['agent_command'] = '__builtin__'
+         self.get_metadata_from_fabric.return_value = {'test': 'value'}
+-        ret = ds.get_data()
++        ret = self._get_and_setup(dsrc)
+         self.assertTrue(ret)
+-        self.assertEqual('value', ds.metadata['test'])
++        self.assertEqual('value', dsrc.metadata['test'])
+ 
+     def test_instance_id_from_dmidecode_used(self):
+         ds = self._get_ds({'ovfcontent': construct_valid_ovf_env()})
+@@ -542,6 +550,84 @@ fdescfs            /dev/fd          fdes
+         ds.get_data()
+         self.assertEqual(self.instance_id, ds.metadata['instance-id'])
+ 
++    @mock.patch('cloudinit.net.get_interface_mac')
++    @mock.patch('cloudinit.net.get_devicelist')
++    @mock.patch('cloudinit.net.device_driver')
++    @mock.patch('cloudinit.net.generate_fallback_config')
++    def test_network_config(self, mock_fallback, mock_dd,
++                            mock_devlist, mock_get_mac):
++        odata = {'HostName': "myhost", 'UserName': "myuser"}
++        data = {'ovfcontent': construct_valid_ovf_env(data=odata),
++                'sys_cfg': {}}
++
++        fallback_config = {
++            'version': 1,
++            'config': [{
++                'type': 'physical', 'name': 'eth0',
++                'mac_address': '00:11:22:33:44:55',
++                'params': {'driver': 'hv_netsvc'},
++                'subnets': [{'type': 'dhcp'}],
++            }]
++        }
++        mock_fallback.return_value = fallback_config
++
++        mock_devlist.return_value = ['eth0']
++        mock_dd.return_value = ['hv_netsvc']
++        mock_get_mac.return_value = '00:11:22:33:44:55'
++
++        dsrc = self._get_ds(data)
++        ret = dsrc.get_data()
++        self.assertTrue(ret)
++
++        netconfig = dsrc.network_config
++        self.assertEqual(netconfig, fallback_config)
++        mock_fallback.assert_called_with(blacklist_drivers=['mlx4_core'],
++                                         config_driver=True)
++
++    @mock.patch('cloudinit.net.get_interface_mac')
++    @mock.patch('cloudinit.net.get_devicelist')
++    @mock.patch('cloudinit.net.device_driver')
++    @mock.patch('cloudinit.net.generate_fallback_config')
++    def test_network_config_blacklist(self, mock_fallback, mock_dd,
++                                      mock_devlist, mock_get_mac):
++        odata = {'HostName': "myhost", 'UserName': "myuser"}
++        data = {'ovfcontent': construct_valid_ovf_env(data=odata),
++                'sys_cfg': {}}
++
++        fallback_config = {
++            'version': 1,
++            'config': [{
++                'type': 'physical', 'name': 'eth0',
++                'mac_address': '00:11:22:33:44:55',
++                'params': {'driver': 'hv_netsvc'},
++                'subnets': [{'type': 'dhcp'}],
++            }]
++        }
++        blacklist_config = {
++            'type': 'physical',
++            'name': 'eth1',
++            'mac_address': '00:11:22:33:44:55',
++            'params': {'driver': 'mlx4_core'}
++        }
++        mock_fallback.return_value = fallback_config
++
++        mock_devlist.return_value = ['eth0', 'eth1']
++        mock_dd.side_effect = [
++            'hv_netsvc',  # list composition, skipped
++            'mlx4_core',  # list composition, match
++            'mlx4_core',  # config get driver name
++        ]
++        mock_get_mac.return_value = '00:11:22:33:44:55'
++
++        dsrc = self._get_ds(data)
++        ret = dsrc.get_data()
++        self.assertTrue(ret)
++
++        netconfig = dsrc.network_config
++        expected_config = fallback_config
++        expected_config['config'].append(blacklist_config)
++        self.assertEqual(netconfig, expected_config)
++
+ 
+ class TestAzureBounce(TestCase):
+ 
+@@ -591,12 +677,18 @@ class TestAzureBounce(TestCase):
+         if ovfcontent is not None:
+             populate_dir(os.path.join(self.paths.seed_dir, "azure"),
+                          {'ovf-env.xml': ovfcontent})
+-        dsrc = dsaz.DataSourceAzureNet(
++        dsrc = dsaz.DataSourceAzure(
+             {}, distro=None, paths=self.paths)
+         if agent_command is not None:
+             dsrc.ds_cfg['agent_command'] = agent_command
+         return dsrc
+ 
++    def _get_and_setup(self, dsrc):
++        ret = dsrc.get_data()
++        if ret:
++            dsrc.setup(True)
++        return ret
++
+     def get_ovf_env_with_dscfg(self, hostname, cfg):
+         odata = {
+             'HostName': hostname,
+@@ -640,17 +732,20 @@ class TestAzureBounce(TestCase):
+         host_name = 'unchanged-host-name'
+         self.get_hostname.return_value = host_name
+         cfg = {'hostname_bounce': {'policy': 'force'}}
+-        self._get_ds(self.get_ovf_env_with_dscfg(host_name, cfg),
+-                     agent_command=['not', '__builtin__']).get_data()
++        dsrc = self._get_ds(self.get_ovf_env_with_dscfg(host_name, cfg),
++                            agent_command=['not', '__builtin__'])
++        ret = self._get_and_setup(dsrc)
++        self.assertTrue(ret)
+         self.assertEqual(1, perform_hostname_bounce.call_count)
+ 
+     def test_different_hostnames_sets_hostname(self):
+         expected_hostname = 'azure-expected-host-name'
+         self.get_hostname.return_value = 'default-host-name'
+-        self._get_ds(
++        dsrc = self._get_ds(
+             self.get_ovf_env_with_dscfg(expected_hostname, {}),
+-            agent_command=['not', '__builtin__'],
+-        ).get_data()
++            agent_command=['not', '__builtin__'])
++        ret = self._get_and_setup(dsrc)
++        self.assertTrue(ret)
+         self.assertEqual(expected_hostname,
+                          self.set_hostname.call_args_list[0][0][0])
+ 
+@@ -659,19 +754,21 @@ class TestAzureBounce(TestCase):
+             self, perform_hostname_bounce):
+         expected_hostname = 'azure-expected-host-name'
+         self.get_hostname.return_value = 'default-host-name'
+-        self._get_ds(
++        dsrc = self._get_ds(
+             self.get_ovf_env_with_dscfg(expected_hostname, {}),
+-            agent_command=['not', '__builtin__'],
+-        ).get_data()
++            agent_command=['not', '__builtin__'])
++        ret = self._get_and_setup(dsrc)
++        self.assertTrue(ret)
+         self.assertEqual(1, perform_hostname_bounce.call_count)
+ 
+     def test_different_hostnames_sets_hostname_back(self):
+         initial_host_name = 'default-host-name'
+         self.get_hostname.return_value = initial_host_name
+-        self._get_ds(
++        dsrc = self._get_ds(
+             self.get_ovf_env_with_dscfg('some-host-name', {}),
+-            agent_command=['not', '__builtin__'],
+-        ).get_data()
++            agent_command=['not', '__builtin__'])
++        ret = self._get_and_setup(dsrc)
++        self.assertTrue(ret)
+         self.assertEqual(initial_host_name,
+                          self.set_hostname.call_args_list[-1][0][0])
+ 
+@@ -681,10 +778,11 @@ class TestAzureBounce(TestCase):
+         perform_hostname_bounce.side_effect = Exception
+         initial_host_name = 'default-host-name'
+         self.get_hostname.return_value = initial_host_name
+-        self._get_ds(
++        dsrc = self._get_ds(
+             self.get_ovf_env_with_dscfg('some-host-name', {}),
+-            agent_command=['not', '__builtin__'],
+-        ).get_data()
++            agent_command=['not', '__builtin__'])
++        ret = self._get_and_setup(dsrc)
++        self.assertTrue(ret)
+         self.assertEqual(initial_host_name,
+                          self.set_hostname.call_args_list[-1][0][0])
+ 
+@@ -695,7 +793,9 @@ class TestAzureBounce(TestCase):
+         self.get_hostname.return_value = old_hostname
+         cfg = {'hostname_bounce': {'interface': interface, 'policy': 'force'}}
+         data = self.get_ovf_env_with_dscfg(hostname, cfg)
+-        self._get_ds(data, agent_command=['not', '__builtin__']).get_data()
++        dsrc = self._get_ds(data, agent_command=['not', '__builtin__'])
++        ret = self._get_and_setup(dsrc)
++        self.assertTrue(ret)
+         self.assertEqual(1, self.subp.call_count)
+         bounce_env = self.subp.call_args[1]['env']
+         self.assertEqual(interface, bounce_env['interface'])
+@@ -707,7 +807,9 @@ class TestAzureBounce(TestCase):
+         dsaz.BUILTIN_DS_CONFIG['hostname_bounce']['command'] = cmd
+         cfg = {'hostname_bounce': {'policy': 'force'}}
+         data = self.get_ovf_env_with_dscfg('some-hostname', cfg)
+-        self._get_ds(data, agent_command=['not', '__builtin__']).get_data()
++        dsrc = self._get_ds(data, agent_command=['not', '__builtin__'])
++        ret = self._get_and_setup(dsrc)
++        self.assertTrue(ret)
+         self.assertEqual(1, self.subp.call_count)
+         bounce_args = self.subp.call_args[1]['args']
+         self.assertEqual(cmd, bounce_args)
+@@ -963,4 +1065,12 @@ class TestCanDevBeReformatted(CiTestCase
+         self.assertEqual(False, value)
+         self.assertIn("3 or more", msg.lower())
+ 
++
++class TestAzureNetExists(CiTestCase):
++    def test_azure_net_must_exist_for_legacy_objpkl(self):
++        """DataSourceAzureNet must exist for old obj.pkl files
++           that reference it."""
++        self.assertTrue(hasattr(dsaz, "DataSourceAzureNet"))
++
++
+ # vi: ts=4 expandtab
+--- a/tests/unittests/test_datasource/test_common.py
++++ b/tests/unittests/test_datasource/test_common.py
+@@ -26,6 +26,7 @@ from cloudinit.sources import DataSource
+ from .. import helpers as test_helpers
+ 
+ DEFAULT_LOCAL = [
++    Azure.DataSourceAzure,
+     CloudSigma.DataSourceCloudSigma,
+     ConfigDrive.DataSourceConfigDrive,
+     DigitalOcean.DataSourceDigitalOcean,
+@@ -37,7 +38,6 @@ DEFAULT_LOCAL = [
+ 
+ DEFAULT_NETWORK = [
+     AltCloud.DataSourceAltCloud,
+-    Azure.DataSourceAzureNet,
+     Bigstep.DataSourceBigstep,
+     CloudStack.DataSourceCloudStack,
+     DSNone.DataSourceNone,
+--- a/tests/unittests/test_net.py
++++ b/tests/unittests/test_net.py
+@@ -789,38 +789,176 @@ CONFIG_V1_EXPLICIT_LOOPBACK = {
+                 'subnets': [{'control': 'auto', 'type': 'loopback'}]},
+                ]}
+ 
++DEFAULT_DEV_ATTRS = {
++    'eth1000': {
++        "bridge": False,
++        "carrier": False,
++        "dormant": False,
++        "operstate": "down",
++        "address": "07-1C-C6-75-A4-BE",
++        "device/driver": None,
++        "device/device": None,
++    }
++}
++
+ 
+ def _setup_test(tmp_dir, mock_get_devicelist, mock_read_sys_net,
+-                mock_sys_dev_path):
+-    mock_get_devicelist.return_value = ['eth1000']
+-    dev_characteristics = {
+-        'eth1000': {
+-            "bridge": False,
+-            "carrier": False,
+-            "dormant": False,
+-            "operstate": "down",
+-            "address": "07-1C-C6-75-A4-BE",
+-        }
+-    }
++                mock_sys_dev_path, dev_attrs=None):
++    if not dev_attrs:
++        dev_attrs = DEFAULT_DEV_ATTRS
++
++    mock_get_devicelist.return_value = dev_attrs.keys()
+ 
+     def fake_read(devname, path, translate=None,
+                   on_enoent=None, on_keyerror=None,
+                   on_einval=None):
+-        return dev_characteristics[devname][path]
++        return dev_attrs[devname][path]
+ 
+     mock_read_sys_net.side_effect = fake_read
+ 
+     def sys_dev_path(devname, path=""):
+-        return tmp_dir + devname + "/" + path
++        return tmp_dir + "/" + devname + "/" + path
+ 
+-    for dev in dev_characteristics:
++    for dev in dev_attrs:
+         os.makedirs(os.path.join(tmp_dir, dev))
+         with open(os.path.join(tmp_dir, dev, 'operstate'), 'w') as fh:
+-            fh.write("down")
++            fh.write(dev_attrs[dev]['operstate'])
++        os.makedirs(os.path.join(tmp_dir, dev, "device"))
++        for key in ['device/driver']:
++            if key in dev_attrs[dev] and dev_attrs[dev][key]:
++                target = dev_attrs[dev][key]
++                link = os.path.join(tmp_dir, dev, key)
++                print('symlink %s -> %s' % (link, target))
++                os.symlink(target, link)
+ 
+     mock_sys_dev_path.side_effect = sys_dev_path
+ 
+ 
++class TestGenerateFallbackConfig(CiTestCase):
++
++    @mock.patch("cloudinit.net.sys_dev_path")
++    @mock.patch("cloudinit.net.read_sys_net")
++    @mock.patch("cloudinit.net.get_devicelist")
++    def test_device_driver(self, mock_get_devicelist, mock_read_sys_net,
++                           mock_sys_dev_path):
++        devices = {
++            'eth0': {
++                'bridge': False, 'carrier': False, 'dormant': False,
++                'operstate': 'down', 'address': '00:11:22:33:44:55',
++                'device/driver': 'hv_netsvc', 'device/device': '0x3'},
++            'eth1': {
++                'bridge': False, 'carrier': False, 'dormant': False,
++                'operstate': 'down', 'address': '00:11:22:33:44:55',
++                'device/driver': 'mlx4_core', 'device/device': '0x7'},
++        }
++
++        tmp_dir = self.tmp_dir()
++        _setup_test(tmp_dir, mock_get_devicelist,
++                    mock_read_sys_net, mock_sys_dev_path,
++                    dev_attrs=devices)
++
++        network_cfg = net.generate_fallback_config(config_driver=True)
++        ns = network_state.parse_net_config_data(network_cfg,
++                                                 skip_broken=False)
++
++        render_dir = os.path.join(tmp_dir, "render")
++        os.makedirs(render_dir)
++
++        # don't set rulepath so eni writes them
++        renderer = eni.Renderer(
++            {'eni_path': 'interfaces', 'netrules_path': 'netrules'})
++        renderer.render_network_state(ns, render_dir)
++
++        self.assertTrue(os.path.exists(os.path.join(render_dir,
++                                                    'interfaces')))
++        with open(os.path.join(render_dir, 'interfaces')) as fh:
++            contents = fh.read()
++        print(contents)
++        expected = """
++auto lo
++iface lo inet loopback
++
++auto eth0
++iface eth0 inet dhcp
++"""
++        self.assertEqual(expected.lstrip(), contents.lstrip())
++
++        self.assertTrue(os.path.exists(os.path.join(render_dir, 'netrules')))
++        with open(os.path.join(render_dir, 'netrules')) as fh:
++            contents = fh.read()
++        print(contents)
++        expected_rule = [
++            'SUBSYSTEM=="net"',
++            'ACTION=="add"',
++            'DRIVERS=="hv_netsvc"',
++            'ATTR{address}=="00:11:22:33:44:55"',
++            'NAME="eth0"',
++        ]
++        self.assertEqual(", ".join(expected_rule) + '\n', contents.lstrip())
++
++    @mock.patch("cloudinit.net.sys_dev_path")
++    @mock.patch("cloudinit.net.read_sys_net")
++    @mock.patch("cloudinit.net.get_devicelist")
++    def test_device_driver_blacklist(self, mock_get_devicelist,
++                                     mock_read_sys_net, mock_sys_dev_path):
++        devices = {
++            'eth1': {
++                'bridge': False, 'carrier': False, 'dormant': False,
++                'operstate': 'down', 'address': '00:11:22:33:44:55',
++                'device/driver': 'hv_netsvc', 'device/device': '0x3'},
++            'eth0': {
++                'bridge': False, 'carrier': False, 'dormant': False,
++                'operstate': 'down', 'address': '00:11:22:33:44:55',
++                'device/driver': 'mlx4_core', 'device/device': '0x7'},
++        }
++
++        tmp_dir = self.tmp_dir()
++        _setup_test(tmp_dir, mock_get_devicelist,
++                    mock_read_sys_net, mock_sys_dev_path,
++                    dev_attrs=devices)
++
++        blacklist = ['mlx4_core']
++        network_cfg = net.generate_fallback_config(blacklist_drivers=blacklist,
++                                                   config_driver=True)
++        ns = network_state.parse_net_config_data(network_cfg,
++                                                 skip_broken=False)
++
++        render_dir = os.path.join(tmp_dir, "render")
++        os.makedirs(render_dir)
++
++        # don't set rulepath so eni writes them
++        renderer = eni.Renderer(
++            {'eni_path': 'interfaces', 'netrules_path': 'netrules'})
++        renderer.render_network_state(ns, render_dir)
++
++        self.assertTrue(os.path.exists(os.path.join(render_dir,
++                                                    'interfaces')))
++        with open(os.path.join(render_dir, 'interfaces')) as fh:
++            contents = fh.read()
++        print(contents)
++        expected = """
++auto lo
++iface lo inet loopback
++
++auto eth1
++iface eth1 inet dhcp
++"""
++        self.assertEqual(expected.lstrip(), contents.lstrip())
++
++        self.assertTrue(os.path.exists(os.path.join(render_dir, 'netrules')))
++        with open(os.path.join(render_dir, 'netrules')) as fh:
++            contents = fh.read()
++        print(contents)
++        expected_rule = [
++            'SUBSYSTEM=="net"',
++            'ACTION=="add"',
++            'DRIVERS=="hv_netsvc"',
++            'ATTR{address}=="00:11:22:33:44:55"',
++            'NAME="eth1"',
++        ]
++        self.assertEqual(", ".join(expected_rule) + '\n', contents.lstrip())
++
++
+ class TestSysConfigRendering(CiTestCase):
+ 
+     @mock.patch("cloudinit.net.sys_dev_path")
+@@ -1513,6 +1651,118 @@ class TestNetRenderers(CiTestCase):
+                           priority=['sysconfig', 'eni'])
+ 
+ 
++class TestGetInterfaces(CiTestCase):
++    _data = {'bonds': ['bond1'],
++             'bridges': ['bridge1'],
++             'vlans': ['bond1.101'],
++             'own_macs': ['enp0s1', 'enp0s2', 'bridge1-nic', 'bridge1',
++                          'bond1.101', 'lo', 'eth1'],
++             'macs': {'enp0s1': 'aa:aa:aa:aa:aa:01',
++                      'enp0s2': 'aa:aa:aa:aa:aa:02',
++                      'bond1': 'aa:aa:aa:aa:aa:01',
++                      'bond1.101': 'aa:aa:aa:aa:aa:01',
++                      'bridge1': 'aa:aa:aa:aa:aa:03',
++                      'bridge1-nic': 'aa:aa:aa:aa:aa:03',
++                      'lo': '00:00:00:00:00:00',
++                      'greptap0': '00:00:00:00:00:00',
++                      'eth1': 'aa:aa:aa:aa:aa:01',
++                      'tun0': None},
++             'drivers': {'enp0s1': 'virtio_net',
++                         'enp0s2': 'e1000',
++                         'bond1': None,
++                         'bond1.101': None,
++                         'bridge1': None,
++                         'bridge1-nic': None,
++                         'lo': None,
++                         'greptap0': None,
++                         'eth1': 'mlx4_core',
++                         'tun0': None}}
++    data = {}
++
++    def _se_get_devicelist(self):
++        return list(self.data['devices'])
++
++    def _se_device_driver(self, name):
++        return self.data['drivers'][name]
++
++    def _se_device_devid(self, name):
++        return '0x%s' % sorted(list(self.data['drivers'].keys())).index(name)
++
++    def _se_get_interface_mac(self, name):
++        return self.data['macs'][name]
++
++    def _se_is_bridge(self, name):
++        return name in self.data['bridges']
++
++    def _se_is_vlan(self, name):
++        return name in self.data['vlans']
++
++    def _se_interface_has_own_mac(self, name):
++        return name in self.data['own_macs']
++
++    def _mock_setup(self):
++        self.data = copy.deepcopy(self._data)
++        self.data['devices'] = set(list(self.data['macs'].keys()))
++        mocks = ('get_devicelist', 'get_interface_mac', 'is_bridge',
++                 'interface_has_own_mac', 'is_vlan', 'device_driver',
++                 'device_devid')
++        self.mocks = {}
++        for n in mocks:
++            m = mock.patch('cloudinit.net.' + n,
++                           side_effect=getattr(self, '_se_' + n))
++            self.addCleanup(m.stop)
++            self.mocks[n] = m.start()
++
++    def test_gi_includes_duplicate_macs(self):
++        self._mock_setup()
++        ret = net.get_interfaces()
++
++        self.assertIn('enp0s1', self._se_get_devicelist())
++        self.assertIn('eth1', self._se_get_devicelist())
++        found = [ent for ent in ret if 'aa:aa:aa:aa:aa:01' in ent]
++        self.assertEqual(len(found), 2)
++
++    def test_gi_excludes_any_without_mac_address(self):
++        self._mock_setup()
++        ret = net.get_interfaces()
++
++        self.assertIn('tun0', self._se_get_devicelist())
++        found = [ent for ent in ret if 'tun0' in ent]
++        self.assertEqual(len(found), 0)
++
++    def test_gi_excludes_stolen_macs(self):
++        self._mock_setup()
++        ret = net.get_interfaces()
++        self.mocks['interface_has_own_mac'].assert_has_calls(
++            [mock.call('enp0s1'), mock.call('bond1')], any_order=True)
++        expected = [
++            ('enp0s2', 'aa:aa:aa:aa:aa:02', 'e1000', '0x5'),
++            ('enp0s1', 'aa:aa:aa:aa:aa:01', 'virtio_net', '0x4'),
++            ('eth1', 'aa:aa:aa:aa:aa:01', 'mlx4_core', '0x6'),
++            ('lo', '00:00:00:00:00:00', None, '0x8'),
++            ('bridge1-nic', 'aa:aa:aa:aa:aa:03', None, '0x3'),
++        ]
++        self.assertEqual(sorted(expected), sorted(ret))
++
++    def test_gi_excludes_bridges(self):
++        self._mock_setup()
++        # add a device 'b1', make all return they have their "own mac",
++        # set everything other than 'b1' to be a bridge.
++        # then expect b1 is the only thing left.
++        self.data['macs']['b1'] = 'aa:aa:aa:aa:aa:b1'
++        self.data['drivers']['b1'] = None
++        self.data['devices'].add('b1')
++        self.data['bonds'] = []
++        self.data['own_macs'] = self.data['devices']
++        self.data['bridges'] = [f for f in self.data['devices'] if f != "b1"]
++        ret = net.get_interfaces()
++        self.assertEqual([('b1', 'aa:aa:aa:aa:aa:b1', None, '0x0')], ret)
++        self.mocks['is_bridge'].assert_has_calls(
++            [mock.call('bridge1'), mock.call('enp0s1'), mock.call('bond1'),
++             mock.call('b1')],
++            any_order=True)
++
++
+ class TestGetInterfacesByMac(CiTestCase):
+     _data = {'bonds': ['bond1'],
+              'bridges': ['bridge1'],
+@@ -1631,4 +1881,202 @@ def _gzip_data(data):
+         gzfp.close()
+         return iobuf.getvalue()
+ 
++
++class TestRenameInterfaces(CiTestCase):
++
++    @mock.patch('cloudinit.util.subp')
++    def test_rename_all(self, mock_subp):
++        renames = [
++            ('00:11:22:33:44:55', 'interface0', 'virtio_net', '0x3'),
++            ('00:11:22:33:44:aa', 'interface2', 'virtio_net', '0x5'),
++        ]
++        current_info = {
++            'ens3': {
++                'downable': True,
++                'device_id': '0x3',
++                'driver': 'virtio_net',
++                'mac': '00:11:22:33:44:55',
++                'name': 'ens3',
++                'up': False},
++            'ens5': {
++                'downable': True,
++                'device_id': '0x5',
++                'driver': 'virtio_net',
++                'mac': '00:11:22:33:44:aa',
++                'name': 'ens5',
++                'up': False},
++        }
++        net._rename_interfaces(renames, current_info=current_info)
++        print(mock_subp.call_args_list)
++        mock_subp.assert_has_calls([
++            mock.call(['ip', 'link', 'set', 'ens3', 'name', 'interface0'],
++                      capture=True),
++            mock.call(['ip', 'link', 'set', 'ens5', 'name', 'interface2'],
++                      capture=True),
++        ])
++
++    @mock.patch('cloudinit.util.subp')
++    def test_rename_no_driver_no_device_id(self, mock_subp):
++        renames = [
++            ('00:11:22:33:44:55', 'interface0', None, None),
++            ('00:11:22:33:44:aa', 'interface1', None, None),
++        ]
++        current_info = {
++            'eth0': {
++                'downable': True,
++                'device_id': None,
++                'driver': None,
++                'mac': '00:11:22:33:44:55',
++                'name': 'eth0',
++                'up': False},
++            'eth1': {
++                'downable': True,
++                'device_id': None,
++                'driver': None,
++                'mac': '00:11:22:33:44:aa',
++                'name': 'eth1',
++                'up': False},
++        }
++        net._rename_interfaces(renames, current_info=current_info)
++        print(mock_subp.call_args_list)
++        mock_subp.assert_has_calls([
++            mock.call(['ip', 'link', 'set', 'eth0', 'name', 'interface0'],
++                      capture=True),
++            mock.call(['ip', 'link', 'set', 'eth1', 'name', 'interface1'],
++                      capture=True),
++        ])
++
++    @mock.patch('cloudinit.util.subp')
++    def test_rename_all_bounce(self, mock_subp):
++        renames = [
++            ('00:11:22:33:44:55', 'interface0', 'virtio_net', '0x3'),
++            ('00:11:22:33:44:aa', 'interface2', 'virtio_net', '0x5'),
++        ]
++        current_info = {
++            'ens3': {
++                'downable': True,
++                'device_id': '0x3',
++                'driver': 'virtio_net',
++                'mac': '00:11:22:33:44:55',
++                'name': 'ens3',
++                'up': True},
++            'ens5': {
++                'downable': True,
++                'device_id': '0x5',
++                'driver': 'virtio_net',
++                'mac': '00:11:22:33:44:aa',
++                'name': 'ens5',
++                'up': True},
++        }
++        net._rename_interfaces(renames, current_info=current_info)
++        print(mock_subp.call_args_list)
++        mock_subp.assert_has_calls([
++            mock.call(['ip', 'link', 'set', 'ens3', 'down'], capture=True),
++            mock.call(['ip', 'link', 'set', 'ens3', 'name', 'interface0'],
++                      capture=True),
++            mock.call(['ip', 'link', 'set', 'ens5', 'down'], capture=True),
++            mock.call(['ip', 'link', 'set', 'ens5', 'name', 'interface2'],
++                      capture=True),
++            mock.call(['ip', 'link', 'set', 'interface0', 'up'], capture=True),
++            mock.call(['ip', 'link', 'set', 'interface2', 'up'], capture=True)
++        ])
++
++    @mock.patch('cloudinit.util.subp')
++    def test_rename_duplicate_macs(self, mock_subp):
++        renames = [
++            ('00:11:22:33:44:55', 'eth0', 'hv_netsvc', '0x3'),
++            ('00:11:22:33:44:55', 'vf1', 'mlx4_core', '0x5'),
++        ]
++        current_info = {
++            'eth0': {
++                'downable': True,
++                'device_id': '0x3',
++                'driver': 'hv_netsvc',
++                'mac': '00:11:22:33:44:55',
++                'name': 'eth0',
++                'up': False},
++            'eth1': {
++                'downable': True,
++                'device_id': '0x5',
++                'driver': 'mlx4_core',
++                'mac': '00:11:22:33:44:55',
++                'name': 'eth1',
++                'up': False},
++        }
++        net._rename_interfaces(renames, current_info=current_info)
++        print(mock_subp.call_args_list)
++        mock_subp.assert_has_calls([
++            mock.call(['ip', 'link', 'set', 'eth1', 'name', 'vf1'],
++                      capture=True),
++        ])
++
++    @mock.patch('cloudinit.util.subp')
++    def test_rename_duplicate_macs_driver_no_devid(self, mock_subp):
++        renames = [
++            ('00:11:22:33:44:55', 'eth0', 'hv_netsvc', None),
++            ('00:11:22:33:44:55', 'vf1', 'mlx4_core', None),
++        ]
++        current_info = {
++            'eth0': {
++                'downable': True,
++                'device_id': '0x3',
++                'driver': 'hv_netsvc',
++                'mac': '00:11:22:33:44:55',
++                'name': 'eth0',
++                'up': False},
++            'eth1': {
++                'downable': True,
++                'device_id': '0x5',
++                'driver': 'mlx4_core',
++                'mac': '00:11:22:33:44:55',
++                'name': 'eth1',
++                'up': False},
++        }
++        net._rename_interfaces(renames, current_info=current_info)
++        print(mock_subp.call_args_list)
++        mock_subp.assert_has_calls([
++            mock.call(['ip', 'link', 'set', 'eth1', 'name', 'vf1'],
++                      capture=True),
++        ])
++
++    @mock.patch('cloudinit.util.subp')
++    def test_rename_multi_mac_dups(self, mock_subp):
++        renames = [
++            ('00:11:22:33:44:55', 'eth0', 'hv_netsvc', '0x3'),
++            ('00:11:22:33:44:55', 'vf1', 'mlx4_core', '0x5'),
++            ('00:11:22:33:44:55', 'vf2', 'mlx4_core', '0x7'),
++        ]
++        current_info = {
++            'eth0': {
++                'downable': True,
++                'device_id': '0x3',
++                'driver': 'hv_netsvc',
++                'mac': '00:11:22:33:44:55',
++                'name': 'eth0',
++                'up': False},
++            'eth1': {
++                'downable': True,
++                'device_id': '0x5',
++                'driver': 'mlx4_core',
++                'mac': '00:11:22:33:44:55',
++                'name': 'eth1',
++                'up': False},
++            'eth2': {
++                'downable': True,
++                'device_id': '0x7',
++                'driver': 'mlx4_core',
++                'mac': '00:11:22:33:44:55',
++                'name': 'eth2',
++                'up': False},
++        }
++        net._rename_interfaces(renames, current_info=current_info)
++        print(mock_subp.call_args_list)
++        mock_subp.assert_has_calls([
++            mock.call(['ip', 'link', 'set', 'eth1', 'name', 'vf1'],
++                      capture=True),
++            mock.call(['ip', 'link', 'set', 'eth2', 'name', 'vf2'],
++                      capture=True),
++        ])
++
++
+ # vi: ts=4 expandtab
