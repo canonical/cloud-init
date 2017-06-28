@@ -1,4 +1,4 @@
-cloud-init (0.7.9-153-g16a7302f-0ubuntu1~16.04.2ubuntu4) UNRELEASED; urgency=medium
+cloud-init (0.7.9-153-g16a7302f-0ubuntu1~16.04.2) UNRELEASED; urgency=medium
 
   * debian/patches/ds-identify-behavior-xenial.patch: refresh patch.
   * cherry-pick 5fb49bac: azure: identify platform by well known value
@@ -9,8 +9,10 @@ cloud-init (0.7.9-153-g16a7302f-0ubuntu1~16.04.2ubuntu4) UNRELEASED; urgency=med
     merge.
   * cherry-pick ebc9ecbc: Azure: Add network-config, Refactor net layer
     to handle
+  * cherry-pick 11121fe4: systemd: make cloud-final.service run before
+    apt daily (LP: #1693361)
 
- -- Scott Moser <smoser@ubuntu.com>  Wed, 28 Jun 2017 12:58:21 -0400
+ -- Scott Moser <smoser@ubuntu.com>  Wed, 28 Jun 2017 13:54:39 -0400
 
 cloud-init (0.7.9-153-g16a7302f-0ubuntu1~16.04.1) xenial-proposed; urgency=medium
 
