@@ -2,8 +2,10 @@ cloud-init (0.7.9-153-g16a7302f-0ubuntu1~17.04.2) UNRELEASED; urgency=medium
 
   * cherry-pick 5fb49bac: azure: identify platform by well known value
     in chassis asset (LP: #1693939)
+  * cherry-pick 003c6678: net: remove systemd link file writing from eni
+    renderer
 
- -- Scott Moser <smoser@ubuntu.com>  Wed, 28 Jun 2017 15:42:16 -0400
+ -- Scott Moser <smoser@ubuntu.com>  Wed, 28 Jun 2017 15:42:44 -0400
 
 cloud-init (0.7.9-153-g16a7302f-0ubuntu1~17.04.1) zesty-proposed; urgency=medium
 
