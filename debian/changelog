@@ -7,7 +7,7 @@ cloud-init (0.7.9-153-g16a7302f-0ubuntu1~17.04.2) zesty-proposed; urgency=medium
   * cherry-pick 1cd4323b: azure: remove accidental duplicate line in
     merge.
   * cherry-pick ebc9ecbc: Azure: Add network-config, Refactor net layer
-    to handle
+    to handle duplicate macs. (LP: #1690430)
   * cherry-pick 11121fe4: systemd: make cloud-final.service run before
     apt daily (LP: #1693361)
 
