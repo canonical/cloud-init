@@ -365,6 +365,9 @@ class TestReadDMIData(helpers.FilesystemMockingTestCase):
         self.addCleanup(shutil.rmtree, self.new_root)
         self.patchOS(self.new_root)
         self.patchUtils(self.new_root)
+        p = mock.patch("cloudinit.util.is_container", return_value=False)
+        self.addCleanup(p.stop)
+        self._m_is_container = p.start()
 
     def _create_sysfs_parent_directory(self):
         util.ensure_dir(os.path.join('sys', 'class', 'dmi', 'id'))
@@ -452,6 +455,26 @@ class TestReadDMIData(helpers.FilesystemMockingTestCase):
         sysfs_key = 'product_name'
         self._create_sysfs_file(sysfs_key, dmi_value)
         self.assertEqual(expected, util.read_dmi_data(dmi_key))
+
+    def test_container_returns_none(self):
+        """In a container read_dmi_data should always return None."""
+
+        # first verify we get the value if not in container
+        self._m_is_container.return_value = False
+        key, val = ("system-product-name", "my_product")
+        self._create_sysfs_file('product_name', val)
+        self.assertEqual(val, util.read_dmi_data(key))
+
+        # then verify in container returns None
+        self._m_is_container.return_value = True
+        self.assertIsNone(util.read_dmi_data(key))
+
+    def test_container_returns_none_on_unknown(self):
+        """In a container even bogus keys return None."""
+        self._m_is_container.return_value = True
+        self._create_sysfs_file('product_name', "should-be-ignored")
+        self.assertIsNone(util.read_dmi_data("bogus"))
+        self.assertIsNone(util.read_dmi_data("system-product-name"))
 
 
 class TestMultiLog(helpers.FilesystemMockingTestCase):

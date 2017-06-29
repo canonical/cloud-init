@@ -2397,6 +2397,10 @@ def read_dmi_data(key):
     """
     Wrapper for reading DMI data.
 
+    If running in a container return None.  This is because DMI data is
+    assumed to be not useful in a container as it does not represent the
+    container but rather the host.
+
     This will do the following (returning the first that produces a
     result):
         1) Use a mapping to translate `key` from dmidecode naming to
@@ -2406,6 +2410,9 @@ def read_dmi_data(key):
 
     If all of the above fail to find a value, None will be returned.
     """
+
+    if is_container():
+        return None
 
     syspath_value = _read_dmi_syspath(key)
     if syspath_value is not None:
