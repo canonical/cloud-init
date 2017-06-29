@@ -1,0 +1,21 @@
+Description: Remove the optional dependency on jsonschema for stable release.
+ To make this acceptable as a SRU we keep the same dependencies as are
+ in the stable release.
+ .
+ The '${python3:Depends}' in debian/control would automatically add the
+ dependency if it is seen in requirements.txt.
+Forwarded: not-needed
+Author: Scott Moser <smoser@ubuntu.com>
+
+--- a/requirements.txt
++++ b/requirements.txt
+@@ -34,7 +34,8 @@ requests
+ jsonpatch
+ 
+ # For validating cloud-config sections per schema definitions
+-jsonschema
++## Do not add dependencies to a stable release (SRU).
++#jsonschema
+ 
+ # For Python 2/3 compatibility
+ six
