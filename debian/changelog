@@ -1,3 +1,11 @@
+cloud-init (0.7.9-199-g4d9f24f5-0ubuntu1) UNRELEASED; urgency=medium
+
+  * New upstream snapshot.
+    - read_dmi_data: always return None when inside a container. (LP: #1701325)
+    - requirements.txt: remove trailing white space.
+
+ -- Scott Moser <smoser@ubuntu.com>  Thu, 29 Jun 2017 18:00:54 -0400
+
 cloud-init (0.7.9-197-gebc9ecbc-0ubuntu1) artful; urgency=medium
 
   * debian/control: add build dependency python3-jsonschema (LP: #1695318)
