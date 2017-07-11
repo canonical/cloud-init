@@ -4,6 +4,7 @@
 
 import argparse
 import logging
+import os
 import sys
 
 from tests.cloud_tests import args, bddeb, collect, manage, run_funcs, verify
@@ -50,7 +51,7 @@ def main():
             return -1
 
     # run handler
-    LOG.debug('running with args: %s\n', parsed)
+    LOG.debug('running with args: %s', parsed)
     return {
         'bddeb': bddeb.bddeb,
         'collect': collect.collect,
@@ -63,6 +64,8 @@ def main():
 
 
 if __name__ == "__main__":
+    if os.geteuid() == 0:
+        sys.exit('Do not run as root')
     sys.exit(main())
 
 # vi: ts=4 expandtab

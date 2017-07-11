@@ -90,7 +90,7 @@ class Instance(object):
             return self.execute(
                 ['/bin/bash', script_path], rcs=rcs, description=description)
         finally:
-            self.execute(['rm', script_path], rcs=rcs)
+            self.execute(['rm', '-f', script_path], rcs=rcs)
 
     def tmpfile(self):
         """Get a tmp file in the target.

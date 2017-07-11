@@ -59,6 +59,10 @@ platforms:
                 {{ config_get("user.user-data", properties.default) }}
             cloud-init-vendor.tpl: |
                 {{ config_get("user.vendor-data", properties.default) }}
+    nocloud-kvm:
+        enabled: true
+        private_key: id_rsa
+        public_key: id_rsa.pub
     ec2: {}
     azure: {}
 
