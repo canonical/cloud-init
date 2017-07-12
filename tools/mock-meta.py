@@ -262,8 +262,8 @@ class MetaDataHandler(object):
                 except ValueError:
                     raise WebException(hclient.BAD_REQUEST,
                                        "%s: not an integer" % mybe_key)
-                except KeyError:
-                    raise WebException(hclient.BAD_REQUEST,
+                except IndexError:
+                    raise WebException(hclient.NOT_FOUND,
                                        "Unknown key id %r" % mybe_key)
                 # Extract the possible sub-params
                 result = traverse(nparams[1:], {
