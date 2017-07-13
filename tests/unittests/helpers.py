@@ -82,7 +82,26 @@ def retarget_many_wrapper(new_base, am, old_func):
 
 
 class TestCase(unittest2.TestCase):
-    pass
+    def reset_global_state(self):
+        """Reset any global state to its original settings.
+
+        cloudinit caches some values in cloudinit.util.  Unit tests that
+        involved those cached paths were then subject to failure if the order
+        of invocation changed (LP: #1703697).
+
+        This function resets any of these global state variables to their
+        initial state.
+
+        In the future this should really be done with some registry that
+        can then be cleaned in a more obvious way.
+        """
+        util.PROC_CMDLINE = None
+        util._DNS_REDIRECT_IP = None
+        util._LSB_RELEASE = {}
+
+    def setUp(self):
+        super(unittest2.TestCase, self).setUp()
+        self.reset_global_state()
 
 
 class CiTestCase(TestCase):

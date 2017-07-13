@@ -16,24 +16,6 @@ class TestSimpleRun(helpers.FilesystemMockingTestCase):
         self.patchOS(root)
         self.patchUtils(root)
 
-    def _pp_root(self, root, repatch=True):
-        for (dirpath, dirnames, filenames) in os.walk(root):
-            print(dirpath)
-            for f in filenames:
-                joined = os.path.join(dirpath, f)
-                if os.path.islink(joined):
-                    print("f %s - (symlink)" % (f))
-                else:
-                    print("f %s" % (f))
-            for d in dirnames:
-                joined = os.path.join(dirpath, d)
-                if os.path.islink(joined):
-                    print("d %s - (symlink)" % (d))
-                else:
-                    print("d %s" % (d))
-        if repatch:
-            self._patchIn(root)
-
     def test_none_ds(self):
         new_root = tempfile.mkdtemp()
         self.addCleanup(shutil.rmtree, new_root)
