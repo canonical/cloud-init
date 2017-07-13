@@ -163,8 +163,9 @@ class TestDataSourceGCE(test_helpers.HttprettyTestCase):
         self.assertEqual(True, r)
         self.assertEqual('bar', self.ds.availability_zone)
 
-    def test_get_data_returns_false_if_not_on_gce(self):
-        self.m_platform_reports_gce.return_value = False
+    @mock.patch('cloudinit.sources.DataSourceGCE.platform_reports_gce')
+    def test_get_data_returns_false_if_not_on_gce(self, m_platform_gce):
+        m_platform_gce.return_value = False
         self.assertEqual(False, self.ds.get_data())
 
 
