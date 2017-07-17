@@ -316,10 +316,16 @@ def identify_platform():
 
 
 def _collect_platform_data():
-    # returns a dictionary with all lower case values:
-    #   uuid: system-uuid from dmi or /sys/hypervisor
-    #   uuid_source: 'hypervisor' (/sys/hypervisor/uuid) or 'dmi'
-    #   serial: dmi 'system-serial-number' (/sys/.../product_serial)
+    """Returns a dictionary of platform info from dmi or /sys/hypervisor.
+
+    Keys in the dictionary are as follows:
+       uuid: system-uuid from dmi or /sys/hypervisor
+       uuid_source: 'hypervisor' (/sys/hypervisor/uuid) or 'dmi'
+       serial: dmi 'system-serial-number' (/sys/.../product_serial)
+
+    On Ec2 instances experimentation is that product_serial is upper case,
+    and product_uuid is lower case.  This returns lower case values for both.
+    """
     data = {}
     try:
         uuid = util.load_file("/sys/hypervisor/uuid").strip()
