@@ -807,4 +807,20 @@ class TestSystemIsSnappy(helpers.FilesystemMockingTestCase):
         self.reRoot(root_d)
         self.assertTrue(util.system_is_snappy())
 
+
+class TestLoadShellContent(helpers.TestCase):
+    def test_comments_handled_correctly(self):
+        """Shell comments should be allowed in the content."""
+        self.assertEqual(
+            {'key1': 'val1', 'key2': 'val2', 'key3': 'val3 #tricky'},
+            util.load_shell_content('\n'.join([
+                "#top of file comment",
+                "key1=val1 #this is a comment",
+                "# second comment",
+                'key2="val2" # inlin comment'
+                '#badkey=wark',
+                'key3="val3 #tricky"',
+                ''])))
+
+
 # vi: ts=4 expandtab
