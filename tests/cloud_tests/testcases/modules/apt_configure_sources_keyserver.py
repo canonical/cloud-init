@@ -11,8 +11,8 @@ class TestAptconfigureSourcesKeyserver(base.CloudTestCase):
         """Test specific key added."""
         out = self.get_data_file('apt_key_list')
         self.assertIn(
-            '1BC3 0F71 5A3B 8612 47A8  1A5E 55FE 7C8C 0165 013E', out)
-        self.assertIn('Launchpad PPA for curtin developers', out)
+            '1FF0 D853 5EF7 E719 E5C8  1B9C 083D 06FB E4D3 04DF', out)
+        self.assertIn('Launchpad PPA for cloud init development team', out)
 
     def test_source_list(self):
         """Test source.list updated."""
