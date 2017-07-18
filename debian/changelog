@@ -1,3 +1,25 @@
+cloud-init (0.7.9-210-ge80517ae-0ubuntu1) artful; urgency=medium
+
+  * New upstream snapshot.
+    - Scaleway: add datasource with user and vendor data for Scaleway.
+      [Julien Castets]
+    - Support comments in content read by load_shell_content.
+    - FreeBSD: cloudinit local fail to run during boot [Hongjiang Zhang]
+    - doc: fix disk setup example table_type options [Sandor Zeestraten]
+      (LP: #1703789)
+    - tools: Fix exception handling. [Joonas Kylmälä] (LP: #1701527)
+    - tests: fix usage of mock in GCE test.
+    - test_gce: Fix invalid mock of platform_reports_gce to return False
+      [Chad Smith]
+    - test: fix incorrect keyid for apt repository. [Joshua Powers]
+      (LP: #1702717)
+    - tests: Update version of pylxd [Joshua Powers]
+    - write_files: Remove log from helper function signatures.
+      [Andrew Jorgensen]
+    - doc: document the cmdline options to NoCloud [Brian Candler]
+
+ -- Scott Moser <smoser@ubuntu.com>  Tue, 18 Jul 2017 14:03:33 -0400
+
 cloud-init (0.7.9-199-g4d9f24f5-0ubuntu1) artful; urgency=medium
 
   * New upstream snapshot.

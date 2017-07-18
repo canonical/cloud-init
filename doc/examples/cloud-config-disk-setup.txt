@@ -98,11 +98,11 @@ disk_setup:
 #
 #    table_type=<TYPE>: Currently the following are supported:
 #                    'mbr': default and setups a MS-DOS partition table
+#                    'gpt': setups a GPT partition table
 #
-#                Note: At this time only 'mbr' partition tables are allowed.
-#                    It is anticipated in the future that we'll have GPT as
-#                    option in the future, or even "RAID" to create a mdadm
-#                    RAID.
+#                Note: At this time only 'mbr' and 'gpt' partition tables
+#                    are allowed. It is anticipated in the future that
+#                    we'll also have "RAID" to create a mdadm RAID.
 #
 #    layout={...}: The device layout. This is a list of values, with the
 #                percentage of disk that partition will take.

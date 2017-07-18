@@ -9,7 +9,7 @@ cloud_config: |
   apt:
     sources:
       source1:
-        keyid: 0165013E
+        keyid: 1FF0D8535EF7E719E5C81B9C083D06FBE4D304DF
         keyserver: keyserver.ubuntu.com
         source: "deb http://ppa.launchpad.net/cloud-init-dev/test-archive/ubuntu $RELEASE main"
 collect_scripts:

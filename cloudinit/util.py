@@ -2529,7 +2529,7 @@ def load_shell_content(content, add_empty=False, empty_val=None):
         if PY26 and isinstance(blob, six.text_type):
             # Older versions don't support unicode input
             blob = blob.encode("utf8")
-        return shlex.split(blob)
+        return shlex.split(blob, comments=True)
 
     data = {}
     for line in _shlex_split(content):

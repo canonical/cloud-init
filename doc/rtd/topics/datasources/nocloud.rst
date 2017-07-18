@@ -24,6 +24,16 @@ or
 
   ds=nocloud-net[;key=val;key=val]
 
+The permitted keys are:
+
+- ``h`` or ``local-hostname``
+- ``i`` or ``instance-id``
+- ``s`` or ``seedfrom``
+
+With ``ds=nocloud``, the ``seedfrom`` value must start with ``/`` or
+``file://``.  With ``ds=nocloud-net``, the ``seedfrom`` value must start
+with ``http://``, ``https://`` or ``ftp://``
+
 e.g. you can pass this option to QEMU:
 
 ::
