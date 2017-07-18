@@ -1,4 +1,4 @@
-cloud-init (0.7.9-210-ge80517ae-0ubuntu1) UNRELEASED; urgency=medium
+cloud-init (0.7.9-210-ge80517ae-0ubuntu1) artful; urgency=medium
 
   * New upstream snapshot.
     - Scaleway: add datasource with user and vendor data for Scaleway.
@@ -18,7 +18,7 @@ cloud-init (0.7.9-210-ge80517ae-0ubuntu1) UNRELEASED; urgency=medium
       [Andrew Jorgensen]
     - doc: document the cmdline options to NoCloud [Brian Candler]
 
- -- Scott Moser <smoser@ubuntu.com>  Tue, 18 Jul 2017 14:01:46 -0400
+ -- Scott Moser <smoser@ubuntu.com>  Tue, 18 Jul 2017 14:03:33 -0400
 
 cloud-init (0.7.9-199-g4d9f24f5-0ubuntu1) artful; urgency=medium
 
