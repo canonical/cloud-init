@@ -2176,5 +2176,32 @@ class TestRenameInterfaces(CiTestCase):
                       capture=True),
         ])
 
+    @mock.patch('cloudinit.util.subp')
+    def test_rename_macs_case_insensitive(self, mock_subp):
+        """_rename_interfaces must support upper or lower case macs."""
+        renames = [
+            ('aa:aa:aa:aa:aa:aa', 'en0', None, None),
+            ('BB:BB:BB:BB:BB:BB', 'en1', None, None),
+            ('cc:cc:cc:cc:cc:cc', 'en2', None, None),
+            ('DD:DD:DD:DD:DD:DD', 'en3', None, None),
+        ]
+        current_info = {
+            'eth0': {'downable': True, 'mac': 'AA:AA:AA:AA:AA:AA',
+                     'name': 'eth0', 'up': False},
+            'eth1': {'downable': True, 'mac': 'bb:bb:bb:bb:bb:bb',
+                     'name': 'eth1', 'up': False},
+            'eth2': {'downable': True, 'mac': 'cc:cc:cc:cc:cc:cc',
+                     'name': 'eth2', 'up': False},
+            'eth3': {'downable': True, 'mac': 'DD:DD:DD:DD:DD:DD',
+                     'name': 'eth3', 'up': False},
+        }
+        net._rename_interfaces(renames, current_info=current_info)
+
+        expected = [
+            mock.call(['ip', 'link', 'set', 'eth%d' % i, 'name', 'en%d' % i],
+                      capture=True)
+            for i in range(len(renames))]
+        mock_subp.assert_has_calls(expected)
+
 
 # vi: ts=4 expandtab
