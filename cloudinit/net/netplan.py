@@ -209,7 +209,8 @@ class Renderer(renderer.Renderer):
         # check network state for version
         # if v2, then extract network_state.config
         # else render_v2_from_state
-        fpnplan = os.path.join(target, self.netplan_path)
+        fpnplan = os.path.join(util.target_path(target), self.netplan_path)
+
         util.ensure_dir(os.path.dirname(fpnplan))
         header = self.netplan_header if self.netplan_header else ""
 
