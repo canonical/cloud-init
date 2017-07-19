@@ -1,3 +1,12 @@
+cloud-init (0.7.9-212-g865e941f-0ubuntu1) artful; urgency=medium
+
+  * New upstream snapshot.
+    - tests: fixes for issues uncovered when moving to python 3.6.
+    - sysconfig: include GATEWAY value if set in subnet 
+      [Ryan Harper] (LP: #1686856)
+
+ -- Scott Moser <smoser@ubuntu.com>  Wed, 19 Jul 2017 07:54:57 -0400
+
 cloud-init (0.7.9-210-ge80517ae-0ubuntu1) artful; urgency=medium
 
   * New upstream snapshot.

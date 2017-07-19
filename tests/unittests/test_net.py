@@ -828,6 +828,7 @@ pre-down route del -net 10.0.0.0 netmask 255.0.0.0 gw 11.0.0.1 metric 3 || true
     }
 }
 
+
 CONFIG_V1_EXPLICIT_LOOPBACK = {
     'version': 1,
     'config': [{'name': 'eth0', 'type': 'physical',
@@ -835,6 +836,18 @@ CONFIG_V1_EXPLICIT_LOOPBACK = {
                {'name': 'lo', 'type': 'loopback',
                 'subnets': [{'control': 'auto', 'type': 'loopback'}]},
                ]}
+
+
+CONFIG_V1_SIMPLE_SUBNET = {
+    'version': 1,
+    'config': [{'mac_address': '52:54:00:12:34:00',
+                'name': 'interface0',
+                'subnets': [{'address': '10.0.2.15',
+                             'gateway': '10.0.2.2',
+                             'netmask': '255.255.255.0',
+                             'type': 'static'}],
+                'type': 'physical'}]}
+
 
 DEFAULT_DEV_ATTRS = {
     'eth1000': {
@@ -1134,6 +1147,31 @@ USERCTL=no
             for fn, expected_content in os_sample.get('out_sysconfig', []):
                 with open(os.path.join(render_dir, fn)) as fh:
                     self.assertEqual(expected_content, fh.read())
+
+    def test_network_config_v1_samples(self):
+        ns = network_state.parse_net_config_data(CONFIG_V1_SIMPLE_SUBNET)
+        render_dir = self.tmp_path("render")
+        os.makedirs(render_dir)
+        renderer = sysconfig.Renderer()
+        renderer.render_network_state(ns, render_dir)
+        found = dir2dict(render_dir)
+        nspath = '/etc/sysconfig/network-scripts/'
+        self.assertNotIn(nspath + 'ifcfg-lo', found.keys())
+        expected = """\
+# Created by cloud-init on instance boot automatically, do not edit.
+#
+BOOTPROTO=none
+DEVICE=interface0
+GATEWAY=10.0.2.2
+HWADDR=52:54:00:12:34:00
+IPADDR=10.0.2.15
+NETMASK=255.255.255.0
+NM_CONTROLLED=no
+ONBOOT=yes
+TYPE=Ethernet
+USERCTL=no
+"""
+        self.assertEqual(expected, found[nspath + 'ifcfg-interface0'])
 
     def test_config_with_explicit_loopback(self):
         ns = network_state.parse_net_config_data(CONFIG_V1_EXPLICIT_LOOPBACK)

@@ -38,6 +38,8 @@ class MyBaseDistro(distros.Distro):
         raise NotImplementedError()
 
 
+@mock.patch("cloudinit.distros.util.system_is_snappy", return_value=False)
+@mock.patch("cloudinit.distros.util.subp")
 class TestCreateUser(TestCase):
     def setUp(self):
         super(TestCase, self).setUp()
@@ -53,8 +55,7 @@ class TestCreateUser(TestCase):
                 logcmd[i + 1] = 'REDACTED'
         return mock.call(args, logstring=logcmd)
 
-    @mock.patch("cloudinit.distros.util.subp")
-    def test_basic(self, m_subp):
+    def test_basic(self, m_subp, m_is_snappy):
         user = 'foouser'
         self.dist.create_user(user)
         self.assertEqual(
@@ -62,8 +63,7 @@ class TestCreateUser(TestCase):
             [self._useradd2call([user, '-m']),
              mock.call(['passwd', '-l', user])])
 
-    @mock.patch("cloudinit.distros.util.subp")
-    def test_no_home(self, m_subp):
+    def test_no_home(self, m_subp, m_is_snappy):
         user = 'foouser'
         self.dist.create_user(user, no_create_home=True)
         self.assertEqual(
@@ -71,8 +71,7 @@ class TestCreateUser(TestCase):
             [self._useradd2call([user, '-M']),
              mock.call(['passwd', '-l', user])])
 
-    @mock.patch("cloudinit.distros.util.subp")
-    def test_system_user(self, m_subp):
+    def test_system_user(self, m_subp, m_is_snappy):
         # system user should have no home and get --system
         user = 'foouser'
         self.dist.create_user(user, system=True)
@@ -81,8 +80,7 @@ class TestCreateUser(TestCase):
             [self._useradd2call([user, '--system', '-M']),
              mock.call(['passwd', '-l', user])])
 
-    @mock.patch("cloudinit.distros.util.subp")
-    def test_explicit_no_home_false(self, m_subp):
+    def test_explicit_no_home_false(self, m_subp, m_is_snappy):
         user = 'foouser'
         self.dist.create_user(user, no_create_home=False)
         self.assertEqual(
@@ -90,16 +88,14 @@ class TestCreateUser(TestCase):
             [self._useradd2call([user, '-m']),
              mock.call(['passwd', '-l', user])])
 
-    @mock.patch("cloudinit.distros.util.subp")
-    def test_unlocked(self, m_subp):
+    def test_unlocked(self, m_subp, m_is_snappy):
         user = 'foouser'
         self.dist.create_user(user, lock_passwd=False)
         self.assertEqual(
             m_subp.call_args_list,
             [self._useradd2call([user, '-m'])])
 
-    @mock.patch("cloudinit.distros.util.subp")
-    def test_set_password(self, m_subp):
+    def test_set_password(self, m_subp, m_is_snappy):
         user = 'foouser'
         password = 'passfoo'
         self.dist.create_user(user, passwd=password)
@@ -109,8 +105,7 @@ class TestCreateUser(TestCase):
              mock.call(['passwd', '-l', user])])
 
     @mock.patch("cloudinit.distros.util.is_group")
-    @mock.patch("cloudinit.distros.util.subp")
-    def test_group_added(self, m_subp, m_is_group):
+    def test_group_added(self, m_is_group, m_subp, m_is_snappy):
         m_is_group.return_value = False
         user = 'foouser'
         self.dist.create_user(user, groups=['group1'])
@@ -121,8 +116,7 @@ class TestCreateUser(TestCase):
         self.assertEqual(m_subp.call_args_list, expected)
 
     @mock.patch("cloudinit.distros.util.is_group")
-    @mock.patch("cloudinit.distros.util.subp")
-    def test_only_new_group_added(self, m_subp, m_is_group):
+    def test_only_new_group_added(self, m_is_group, m_subp, m_is_snappy):
         ex_groups = ['existing_group']
         groups = ['group1', ex_groups[0]]
         m_is_group.side_effect = lambda m: m in ex_groups
@@ -135,8 +129,8 @@ class TestCreateUser(TestCase):
         self.assertEqual(m_subp.call_args_list, expected)
 
     @mock.patch("cloudinit.distros.util.is_group")
-    @mock.patch("cloudinit.distros.util.subp")
-    def test_create_groups_with_whitespace_string(self, m_subp, m_is_group):
+    def test_create_groups_with_whitespace_string(
+            self, m_is_group, m_subp, m_is_snappy):
         # groups supported as a comma delimeted string even with white space
         m_is_group.return_value = False
         user = 'foouser'
