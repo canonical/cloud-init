@@ -422,6 +422,28 @@ NETWORK_CONFIGS = {
                             via: 65.61.151.37
                         set-name: eth99
         """).rstrip(' '),
+        'expected_sysconfig': {
+            'ifcfg-eth1': textwrap.dedent("""\
+                BOOTPROTO=none
+                DEVICE=eth1
+                HWADDR=cf:d6:af:48:e8:80
+                NM_CONTROLLED=no
+                ONBOOT=yes
+                TYPE=Ethernet
+                USERCTL=no"""),
+            'ifcfg-eth99': textwrap.dedent("""\
+                BOOTPROTO=dhcp
+                DEFROUTE=yes
+                DEVICE=eth99
+                GATEWAY=65.61.151.37
+                HWADDR=c0:d6:9f:2c:e8:80
+                IPADDR=192.168.21.3
+                NETMASK=255.255.255.0
+                NM_CONTROLLED=no
+                ONBOOT=yes
+                TYPE=Ethernet
+                USERCTL=no"""),
+        },
         'yaml': textwrap.dedent("""
             version: 1
             config:
@@ -758,6 +780,119 @@ pre-down route del -net 10.0.0.0 netmask 255.0.0.0 gw 11.0.0.1 metric 3 || true
                             - sacchromyces.maas
                             - brettanomyces.maas
         """).rstrip(' '),
+        'expected_sysconfig': {
+            'ifcfg-bond0': textwrap.dedent("""\
+                BONDING_MASTER=yes
+                BONDING_OPTS="mode=active-backup """
+                                           """xmit_hash_policy=layer3+4 """
+                                           """miimon=100"
+                BONDING_SLAVE0=eth1
+                BONDING_SLAVE1=eth2
+                BOOTPROTO=dhcp
+                DEVICE=bond0
+                DHCPV6C=yes
+                IPV6INIT=yes
+                MACADDR=aa:bb:cc:dd:ee:ff
+                NM_CONTROLLED=no
+                ONBOOT=yes
+                TYPE=Bond
+                USERCTL=no"""),
+            'ifcfg-bond0.200': textwrap.dedent("""\
+                BOOTPROTO=dhcp
+                DEVICE=bond0.200
+                NM_CONTROLLED=no
+                ONBOOT=yes
+                PHYSDEV=bond0
+                TYPE=Ethernet
+                USERCTL=no
+                VLAN=yes"""),
+            'ifcfg-br0': textwrap.dedent("""\
+                AGEING=250
+                BOOTPROTO=none
+                DEFROUTE=yes
+                DEVICE=br0
+                IPADDR=192.168.14.2
+                IPV6ADDR=2001:1::1/64
+                IPV6INIT=yes
+                IPV6_DEFAULTGW=2001:4800:78ff:1b::1
+                NETMASK=255.255.255.0
+                NM_CONTROLLED=no
+                ONBOOT=yes
+                PRIO=22
+                STP=off
+                TYPE=Bridge
+                USERCTL=no"""),
+            'ifcfg-eth0': textwrap.dedent("""\
+                BOOTPROTO=none
+                DEVICE=eth0
+                HWADDR=c0:d6:9f:2c:e8:80
+                NM_CONTROLLED=no
+                ONBOOT=yes
+                TYPE=Ethernet
+                USERCTL=no"""),
+            'ifcfg-eth0.101': textwrap.dedent("""\
+                BOOTPROTO=none
+                DEFROUTE=yes
+                DEVICE=eth0.101
+                GATEWAY=192.168.0.1
+                IPADDR=192.168.0.2
+                IPADDR1=192.168.2.10
+                MTU=1500
+                NETMASK=255.255.255.0
+                NETMASK1=255.255.255.0
+                NM_CONTROLLED=no
+                ONBOOT=yes
+                PHYSDEV=eth0
+                TYPE=Ethernet
+                USERCTL=no
+                VLAN=yes"""),
+            'ifcfg-eth1': textwrap.dedent("""\
+                BOOTPROTO=none
+                DEVICE=eth1
+                HWADDR=aa:d6:9f:2c:e8:80
+                MASTER=bond0
+                NM_CONTROLLED=no
+                ONBOOT=yes
+                SLAVE=yes
+                TYPE=Ethernet
+                USERCTL=no"""),
+            'ifcfg-eth2': textwrap.dedent("""\
+                BOOTPROTO=none
+                DEVICE=eth2
+                HWADDR=c0:bb:9f:2c:e8:80
+                MASTER=bond0
+                NM_CONTROLLED=no
+                ONBOOT=yes
+                SLAVE=yes
+                TYPE=Ethernet
+                USERCTL=no"""),
+            'ifcfg-eth3': textwrap.dedent("""\
+                BOOTPROTO=none
+                BRIDGE=br0
+                DEVICE=eth3
+                HWADDR=66:bb:9f:2c:e8:80
+                NM_CONTROLLED=no
+                ONBOOT=yes
+                TYPE=Ethernet
+                USERCTL=no"""),
+            'ifcfg-eth4': textwrap.dedent("""\
+                BOOTPROTO=none
+                BRIDGE=br0
+                DEVICE=eth4
+                HWADDR=98:bb:9f:2c:e8:80
+                NM_CONTROLLED=no
+                ONBOOT=yes
+                TYPE=Ethernet
+                USERCTL=no"""),
+            'ifcfg-eth5': textwrap.dedent("""\
+                BOOTPROTO=dhcp
+                DEVICE=eth5
+                HWADDR=98:bb:9f:2c:e8:8a
+                NM_CONTROLLED=no
+                ONBOOT=no
+                TYPE=Ethernet
+                USERCTL=no""")
+        },
         'yaml': textwrap.dedent("""
             version: 1
             config:
@@ -934,7 +1069,7 @@ pre-down route del -net 10.0.0.0 netmask 255.0.0.0 gw 11.0.0.1 metric 3 || true
         DEFROUTE=yes
         DEVICE=bond0
         GATEWAY=192.168.0.1
-        HWADDR=aa:bb:cc:dd:e8:ff
+        MACADDR=aa:bb:cc:dd:e8:ff
         IPADDR=192.168.0.2
         IPADDR1=192.168.1.2
         IPV6ADDR=2001:1::1/92
@@ -1560,6 +1695,18 @@ USERCTL=no
 
     def test_manual_config(self):
         entry = NETWORK_CONFIGS['manual']
+        found = self._render_and_read(network_config=yaml.load(entry['yaml']))
+        self._compare_files_to_expected(entry['expected_sysconfig'], found)
+        self._assert_headers(found)
+
+    def test_all_config(self):
+        entry = NETWORK_CONFIGS['all']
+        found = self._render_and_read(network_config=yaml.load(entry['yaml']))
+        self._compare_files_to_expected(entry['expected_sysconfig'], found)
+        self._assert_headers(found)
+
+    def test_small_config(self):
+        entry = NETWORK_CONFIGS['small']
         found = self._render_and_read(network_config=yaml.load(entry['yaml']))
         self._compare_files_to_expected(entry['expected_sysconfig'], found)
         self._assert_headers(found)

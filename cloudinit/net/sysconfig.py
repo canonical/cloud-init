@@ -264,6 +264,9 @@ class Renderer(renderer.Renderer):
         for (old_key, new_key) in [('mac_address', 'HWADDR'), ('mtu', 'MTU')]:
             old_value = iface.get(old_key)
             if old_value is not None:
+                # only set HWADDR on physical interfaces
+                if old_key == 'mac_address' and iface['type'] != 'physical':
+                    continue
                 iface_cfg[new_key] = old_value
 
     @classmethod
@@ -430,6 +433,9 @@ class Renderer(renderer.Renderer):
                 master_cfg['BONDING_MASTER'] = True
                 master_cfg.kind = 'bond'
 
+            if iface.get('mac_address'):
+                iface_cfg['MACADDR'] = iface.get('mac_address')
+
             iface_subnets = iface.get("subnets", [])
             route_cfg = iface_cfg.routes
             cls._render_subnets(iface_cfg, iface_subnets)
@@ -441,6 +447,7 @@ class Renderer(renderer.Renderer):
                 [slave_iface['name'] for slave_iface in
                  network_state.iter_interfaces(slave_filter)
                  if slave_iface['bond-master'] == iface_name])
+
             for index, bond_slave in enumerate(bond_slaves):
                 slavestr = 'BONDING_SLAVE%s' % index
                 iface_cfg[slavestr] = bond_slave
@@ -499,6 +506,10 @@ class Renderer(renderer.Renderer):
             for old_key, new_key in cls.bridge_opts_keys:
                 if old_key in iface:
                     iface_cfg[new_key] = iface[old_key]
+
+            if iface.get('mac_address'):
+                iface_cfg['MACADDR'] = iface.get('mac_address')
+
             # Is this the right key to get all the connected interfaces?
             for bridged_iface_name in iface.get('bridge_ports', []):
                 # Ensure all bridged interfaces are correctly tagged
