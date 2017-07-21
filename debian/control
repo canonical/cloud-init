@@ -38,7 +38,7 @@ Depends: cloud-guest-utils | cloud-utils,
          nplan | ifupdown,
          procps,
          python3,
-         python3-requests (>= 0.8.2),
+         python3-requests,
          python3-serial,
          ${misc:Depends},
          ${python3:Depends}
@@ -49,9 +49,9 @@ Description: Init scripts for cloud instances
  to retrieve and install ssh keys and to let the user run various scripts.
 
 Package: grub-legacy-ec2
-Depends: debconf (>= 1.5.19) | cdebconf,
+Depends: debconf | cdebconf,
          ucf,
-         util-linux (>= 2.15-1),
+         util-linux,
          ${misc:Depends}
 Conflicts: grub
 Suggests: grub-legacy-doc
