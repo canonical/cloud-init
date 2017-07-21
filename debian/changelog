@@ -1,6 +1,7 @@
 cloud-init (0.7.9-221-g7e41b2a7-0ubuntu2) UNRELEASED; urgency=medium
 
   * debian/cloud-init.templates: enable Scaleway cloud.
+  * debian/cloud-init.templates: enable Aliyun cloud.
 
  -- Scott Moser <smoser@ubuntu.com>  Fri, 21 Jul 2017 09:16:52 -0400
 
