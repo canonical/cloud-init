@@ -35,7 +35,7 @@ Standards-Version: 3.9.8
 Package: cloud-init
 Architecture: all
 Depends: cloud-guest-utils | cloud-utils,
-         ifupdown (>= 0.6.10ubuntu5),
+         nplan | ifupdown,
          procps,
          python3,
          python3-requests (>= 0.8.2),
