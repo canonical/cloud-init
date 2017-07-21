@@ -2,6 +2,7 @@ cloud-init (0.7.9-221-g7e41b2a7-0ubuntu3) UNRELEASED; urgency=medium
 
   * debian/control: replace Depends on ifupdown with 'nplan | ifupdown'.
     (LP: #1705639)
+  * debian/control: drop versioned dependencies on old packages.
 
  -- Scott Moser <smoser@ubuntu.com>  Fri, 21 Jul 2017 12:25:54 -0400
 
