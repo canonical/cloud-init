@@ -20,6 +20,10 @@ def filter_by_name(match_name):
     return lambda iface: match_name == iface['name']
 
 
+def filter_by_attr(match_name):
+    return lambda iface: (match_name in iface and iface[match_name])
+
+
 filter_by_physical = filter_by_type('physical')
 
 

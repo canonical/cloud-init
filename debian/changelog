@@ -1,3 +1,23 @@
+cloud-init (0.7.9-221-g7e41b2a7-0ubuntu1) artful; urgency=medium
+
+  * New upstream snapshot.
+    - sysconfig: use MACADDR on bonds/bridges to configure mac_address
+      [Ryan Harper] (LP: #1701417)
+    - net: eni route rendering missed ipv6 default route config
+      [Ryan Harper] (LP: #1701097)
+    - sysconfig: enable mtu set per subnet, including ipv6 mtu
+      [Ryan Harper] (LP: #1702513)
+    - sysconfig: handle manual type subnets [Ryan Harper] (LP: #1687725)
+    - sysconfig: fix ipv6 gateway routes [Ryan Harper] (LP: #1694801)
+    - sysconfig: fix rendering of bond, bridge and vlan types.
+      [Ryan Harper] (LP: #1695092)
+    - Templatize systemd unit files for cross distro deltas. [Ryan Harper]
+    - sysconfig: ipv6 and default gateway fixes. [Ryan Harper] (LP: #1704872)
+    - net: fix renaming of nics to support mac addresses written in upper case.
+      (LP: #1705147)
+
+ -- Scott Moser <smoser@ubuntu.com>  Thu, 20 Jul 2017 21:37:12 -0400
+
 cloud-init (0.7.9-212-g865e941f-0ubuntu1) artful; urgency=medium
 
   * New upstream snapshot.

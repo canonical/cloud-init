@@ -10,7 +10,8 @@ from cloudinit.distros.parsers import resolv_conf
 from cloudinit import util
 
 from . import renderer
-from .network_state import subnet_is_ipv6, net_prefix_to_ipv4_mask
+from .network_state import (
+    is_ipv6_addr, net_prefix_to_ipv4_mask, subnet_is_ipv6)
 
 
 def _make_header(sep='#'):
@@ -151,9 +152,10 @@ class Route(ConfigMap):
                 elif proto == "ipv6" and self.is_ipv6_route(address_value):
                     netmask_value = str(self._conf['NETMASK' + index])
                     gateway_value = str(self._conf['GATEWAY' + index])
-                    buf.write("%s/%s via %s\n" % (address_value,
-                                                  netmask_value,
-                                                  gateway_value))
+                    buf.write("%s/%s via %s dev %s\n" % (address_value,
+                                                         netmask_value,
+                                                         gateway_value,
+                                                         self._route_name))
 
         return buf.getvalue()
 
@@ -262,6 +264,9 @@ class Renderer(renderer.Renderer):
         for (old_key, new_key) in [('mac_address', 'HWADDR'), ('mtu', 'MTU')]:
             old_value = iface.get(old_key)
             if old_value is not None:
+                # only set HWADDR on physical interfaces
+                if old_key == 'mac_address' and iface['type'] != 'physical':
+                    continue
                 iface_cfg[new_key] = old_value
 
     @classmethod
@@ -271,6 +276,7 @@ class Renderer(renderer.Renderer):
 
         # modifying base values according to subnets
         for i, subnet in enumerate(subnets, start=len(iface_cfg.children)):
+            mtu_key = 'MTU'
             subnet_type = subnet.get('type')
             if subnet_type == 'dhcp6':
                 iface_cfg['IPV6INIT'] = True
@@ -290,11 +296,18 @@ class Renderer(renderer.Renderer):
                 # if iface_cfg['BOOTPROTO'] == 'none':
                 #    iface_cfg['BOOTPROTO'] = 'static'
                 if subnet_is_ipv6(subnet):
+                    mtu_key = 'IPV6_MTU'
                     iface_cfg['IPV6INIT'] = True
+
+                if 'mtu' in subnet:
+                    iface_cfg[mtu_key] = subnet['mtu']
             else:
                 raise ValueError("Unknown subnet type '%s' found"
                                  " for interface '%s'" % (subnet_type,
                                                           iface_cfg.name))
+
+            if subnet.get('control') == 'manual':
+                iface_cfg['ONBOOT'] = False
 
         # set IPv4 and IPv6 static addresses
         ipv4_index = -1
@@ -308,20 +321,13 @@ class Renderer(renderer.Renderer):
             elif subnet_type == 'static':
                 if subnet_is_ipv6(subnet):
                     ipv6_index = ipv6_index + 1
-                    if 'netmask' in subnet and str(subnet['netmask']) != "":
-                        ipv6_cidr = (subnet['address'] +
-                                     '/' +
-                                     str(subnet['netmask']))
-                    else:
-                        ipv6_cidr = subnet['address']
+                    ipv6_cidr = "%s/%s" % (subnet['address'], subnet['prefix'])
                     if ipv6_index == 0:
                         iface_cfg['IPV6ADDR'] = ipv6_cidr
                     elif ipv6_index == 1:
                         iface_cfg['IPV6ADDR_SECONDARIES'] = ipv6_cidr
                     else:
-                        iface_cfg['IPV6ADDR_SECONDARIES'] = (
-                            iface_cfg['IPV6ADDR_SECONDARIES'] +
-                            " " + ipv6_cidr)
+                        iface_cfg['IPV6ADDR_SECONDARIES'] += " " + ipv6_cidr
                 else:
                     ipv4_index = ipv4_index + 1
                     suff = "" if ipv4_index == 0 else str(ipv4_index)
@@ -330,13 +336,17 @@ class Renderer(renderer.Renderer):
                         net_prefix_to_ipv4_mask(subnet['prefix'])
 
                 if 'gateway' in subnet:
-                    iface_cfg['GATEWAY'] = subnet['gateway']
+                    iface_cfg['DEFROUTE'] = True
+                    if is_ipv6_addr(subnet['gateway']):
+                        iface_cfg['IPV6_DEFAULTGW'] = subnet['gateway']
+                    else:
+                        iface_cfg['GATEWAY'] = subnet['gateway']
 
     @classmethod
     def _render_subnet_routes(cls, iface_cfg, route_cfg, subnets):
         for i, subnet in enumerate(subnets, start=len(iface_cfg.children)):
             for route in subnet.get('routes', []):
-                is_ipv6 = subnet.get('ipv6')
+                is_ipv6 = subnet.get('ipv6') or is_ipv6_addr(route['gateway'])
 
                 if _is_default_route(route):
                     if (
@@ -358,7 +368,7 @@ class Renderer(renderer.Renderer):
                     # also provided the default route?
                     iface_cfg['DEFROUTE'] = True
                     if 'gateway' in route:
-                        if is_ipv6:
+                        if is_ipv6 or is_ipv6_addr(route['gateway']):
                             iface_cfg['IPV6_DEFAULTGW'] = route['gateway']
                             route_cfg.has_set_default_ipv6 = True
                         else:
@@ -409,30 +419,56 @@ class Renderer(renderer.Renderer):
     @classmethod
     def _render_bond_interfaces(cls, network_state, iface_contents):
         bond_filter = renderer.filter_by_type('bond')
+        slave_filter = renderer.filter_by_attr('bond-master')
         for iface in network_state.iter_interfaces(bond_filter):
             iface_name = iface['name']
             iface_cfg = iface_contents[iface_name]
             cls._render_bonding_opts(iface_cfg, iface)
-            iface_master_name = iface['bond-master']
-            iface_cfg['MASTER'] = iface_master_name
-            iface_cfg['SLAVE'] = True
+
             # Ensure that the master interface (and any of its children)
             # are actually marked as being bond types...
-            master_cfg = iface_contents[iface_master_name]
-            master_cfgs = [master_cfg]
-            master_cfgs.extend(master_cfg.children)
+            master_cfgs = [iface_cfg]
+            master_cfgs.extend(iface_cfg.children)
             for master_cfg in master_cfgs:
                 master_cfg['BONDING_MASTER'] = True
                 master_cfg.kind = 'bond'
 
-    @staticmethod
-    def _render_vlan_interfaces(network_state, iface_contents):
+            if iface.get('mac_address'):
+                iface_cfg['MACADDR'] = iface.get('mac_address')
+
+            iface_subnets = iface.get("subnets", [])
+            route_cfg = iface_cfg.routes
+            cls._render_subnets(iface_cfg, iface_subnets)
+            cls._render_subnet_routes(iface_cfg, route_cfg, iface_subnets)
+
+            # iter_interfaces on network-state is not sorted to produce
+            # consistent numbers we need to sort.
+            bond_slaves = sorted(
+                [slave_iface['name'] for slave_iface in
+                 network_state.iter_interfaces(slave_filter)
+                 if slave_iface['bond-master'] == iface_name])
+
+            for index, bond_slave in enumerate(bond_slaves):
+                slavestr = 'BONDING_SLAVE%s' % index
+                iface_cfg[slavestr] = bond_slave
+
+                slave_cfg = iface_contents[bond_slave]
+                slave_cfg['MASTER'] = iface_name
+                slave_cfg['SLAVE'] = True
+
+    @classmethod
+    def _render_vlan_interfaces(cls, network_state, iface_contents):
         vlan_filter = renderer.filter_by_type('vlan')
         for iface in network_state.iter_interfaces(vlan_filter):
             iface_name = iface['name']
             iface_cfg = iface_contents[iface_name]
             iface_cfg['VLAN'] = True
             iface_cfg['PHYSDEV'] = iface_name[:iface_name.rfind('.')]
+
+            iface_subnets = iface.get("subnets", [])
+            route_cfg = iface_cfg.routes
+            cls._render_subnets(iface_cfg, iface_subnets)
+            cls._render_subnet_routes(iface_cfg, route_cfg, iface_subnets)
 
     @staticmethod
     def _render_dns(network_state, existing_dns_path=None):
@@ -470,6 +506,10 @@ class Renderer(renderer.Renderer):
             for old_key, new_key in cls.bridge_opts_keys:
                 if old_key in iface:
                     iface_cfg[new_key] = iface[old_key]
+
+            if iface.get('mac_address'):
+                iface_cfg['MACADDR'] = iface.get('mac_address')
+
             # Is this the right key to get all the connected interfaces?
             for bridged_iface_name in iface.get('bridge_ports', []):
                 # Ensure all bridged interfaces are correctly tagged
@@ -479,6 +519,11 @@ class Renderer(renderer.Renderer):
                 bridged_cfgs.extend(bridged_cfg.children)
                 for bridge_cfg in bridged_cfgs:
                     bridge_cfg['BRIDGE'] = iface_name
+
+            iface_subnets = iface.get("subnets", [])
+            route_cfg = iface_cfg.routes
+            cls._render_subnets(iface_cfg, iface_subnets)
+            cls._render_subnet_routes(iface_cfg, route_cfg, iface_subnets)
 
     @classmethod
     def _render_sysconfig(cls, base_sysconf_dir, network_state):
