@@ -1,4 +1,4 @@
-cloud-init (0.7.9-221-g7e41b2a7-0ubuntu1) UNRELEASED; urgency=medium
+cloud-init (0.7.9-221-g7e41b2a7-0ubuntu1) artful; urgency=medium
 
   * New upstream snapshot.
     - sysconfig: use MACADDR on bonds/bridges to configure mac_address
@@ -16,7 +16,7 @@ cloud-init (0.7.9-221-g7e41b2a7-0ubuntu1) UNRELEASED; urgency=medium
     - net: fix renaming of nics to support mac addresses written in upper case.
       (LP: #1705147)
 
- -- Scott Moser <smoser@ubuntu.com>  Thu, 20 Jul 2017 21:36:19 -0400
+ -- Scott Moser <smoser@ubuntu.com>  Thu, 20 Jul 2017 21:37:12 -0400
 
 cloud-init (0.7.9-212-g865e941f-0ubuntu1) artful; urgency=medium
 
