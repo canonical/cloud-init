@@ -1,3 +1,10 @@
+cloud-init (0.7.9-221-g7e41b2a7-0ubuntu2) artful; urgency=medium
+
+  * debian/cloud-init.templates: enable Scaleway cloud.
+  * debian/cloud-init.templates: enable Aliyun cloud.
+
+ -- Scott Moser <smoser@ubuntu.com>  Fri, 21 Jul 2017 09:33:39 -0400
+
 cloud-init (0.7.9-221-g7e41b2a7-0ubuntu1) artful; urgency=medium
 
   * New upstream snapshot.
