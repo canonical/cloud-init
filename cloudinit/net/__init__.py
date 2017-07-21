@@ -302,7 +302,7 @@ def _get_current_rename_info(check_downable=True):
                       device has only automatically assigned ip addrs.
           'device_id': Device id value (if it has one)
           'driver': Device driver (if it has one)
-          'mac': mac address
+          'mac': mac address (in lower case)
           'name': name
           'up': boolean: is_up(name)
          }}
@@ -313,7 +313,7 @@ def _get_current_rename_info(check_downable=True):
             'downable': None,
             'device_id': device_id,
             'driver': driver,
-            'mac': mac,
+            'mac': mac.lower(),
             'name': name,
             'up': is_up(name),
         }
@@ -348,6 +348,8 @@ def _rename_interfaces(renames, strict_present=True, strict_busy=True,
     cur_info = {}
     for name, data in current_info.items():
         cur = data.copy()
+        if cur.get('mac'):
+            cur['mac'] = cur['mac'].lower()
         cur['name'] = name
         cur_info[name] = cur
 
@@ -399,6 +401,8 @@ def _rename_interfaces(renames, strict_present=True, strict_busy=True,
         return None
 
     for mac, new_name, driver, device_id in renames:
+        if mac:
+            mac = mac.lower()
         cur_ops = []
         cur = find_entry(mac, driver, device_id)
         if not cur:

@@ -355,7 +355,7 @@ class Renderer(renderer.Renderer):
             default_gw = " default gw %s" % route['gateway']
             content.append(up + default_gw + or_true)
             content.append(down + default_gw + or_true)
-        elif route['network'] == '::' and route['netmask'] == 0:
+        elif route['network'] == '::' and route['prefix'] == 0:
             # ipv6!
             default_gw = " -A inet6 default gw %s" % route['gateway']
             content.append(up + default_gw + or_true)
