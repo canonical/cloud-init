@@ -3,14 +3,17 @@
 """cloud-init Integration Test Verify Script."""
 from tests.cloud_tests.testcases import base
 
+from cloudinit import util
+
 
 class TestLocale(base.CloudTestCase):
     """Test locale is set properly."""
 
     def test_locale(self):
         """Test locale is set properly."""
-        out = self.get_data_file('locale_default')
-        self.assertIn('LANG="en_GB.UTF-8"', out)
+        data = util.load_shell_content(self.get_data_file('locale_default'))
+        self.assertIn("LANG", data)
+        self.assertEqual('en_GB.UTF-8', data['LANG'])
 
     def test_locale_a(self):
         """Test locale -a has both options."""
