@@ -10,6 +10,7 @@ import logging
 import os
 import re
 
+from cloudinit.net.network_state import mask_to_net_prefix
 from cloudinit import util
 
 LOG = logging.getLogger(__name__)
@@ -28,8 +29,13 @@ def _natural_sort_key(s, _nsre=re.compile('([0-9]+)')):
             for text in re.split(_nsre, s)]
 
 
+def get_sys_class_path():
+    """Simple function to return the global SYS_CLASS_NET."""
+    return SYS_CLASS_NET
+
+
 def sys_dev_path(devname, path=""):
-    return SYS_CLASS_NET + devname + "/" + path
+    return get_sys_class_path() + devname + "/" + path
 
 
 def read_sys_net(devname, path, translate=None,
@@ -77,7 +83,7 @@ def read_sys_net_int(iface, field):
         return None
     try:
         return int(val)
-    except TypeError:
+    except ValueError:
         return None
 
 
@@ -149,7 +155,14 @@ def device_devid(devname):
 
 
 def get_devicelist():
-    return os.listdir(SYS_CLASS_NET)
+    try:
+        devs = os.listdir(get_sys_class_path())
+    except OSError as e:
+        if e.errno == errno.ENOENT:
+            devs = []
+        else:
+            raise
+    return devs
 
 
 class ParserError(Exception):
@@ -497,14 +510,8 @@ def get_interfaces_by_mac():
     """Build a dictionary of tuples {mac: name}.
 
     Bridges and any devices that have a 'stolen' mac are excluded."""
-    try:
-        devs = get_devicelist()
-    except OSError as e:
-        if e.errno == errno.ENOENT:
-            devs = []
-        else:
-            raise
     ret = {}
+    devs = get_devicelist()
     empty_mac = '00:00:00:00:00:00'
     for name in devs:
         if not interface_has_own_mac(name):
@@ -531,14 +538,8 @@ def get_interfaces():
     """Return list of interface tuples (name, mac, driver, device_id)
 
     Bridges and any devices that have a 'stolen' mac are excluded."""
-    try:
-        devs = get_devicelist()
-    except OSError as e:
-        if e.errno == errno.ENOENT:
-            devs = []
-        else:
-            raise
     ret = []
+    devs = get_devicelist()
     empty_mac = '00:00:00:00:00:00'
     for name in devs:
         if not interface_has_own_mac(name):
@@ -555,6 +556,102 @@ def get_interfaces():
             continue
         ret.append((name, mac, device_driver(name), device_devid(name)))
     return ret
+
+
+class EphemeralIPv4Network(object):
+    """Context manager which sets up temporary static network configuration.
+
+    No operations are performed if the provided interface is already connected.
+    If unconnected, bring up the interface with valid ip, prefix and broadcast.
+    If router is provided setup a default route for that interface. Upon
+    context exit, clean up the interface leaving no configuration behind.
+    """
+
+    def __init__(self, interface, ip, prefix_or_mask, broadcast, router=None):
+        """Setup context manager and validate call signature.
+
+        @param interface: Name of the network interface to bring up.
+        @param ip: IP address to assign to the interface.
+        @param prefix_or_mask: Either netmask of the format X.X.X.X or an int
+            prefix.
+        @param broadcast: Broadcast address for the IPv4 network.
+        @param router: Optionally the default gateway IP.
+        """
+        if not all([interface, ip, prefix_or_mask, broadcast]):
+            raise ValueError(
+                'Cannot init network on {0} with {1}/{2} and bcast {3}'.format(
+                    interface, ip, prefix_or_mask, broadcast))
+        try:
+            self.prefix = mask_to_net_prefix(prefix_or_mask)
+        except ValueError as e:
+            raise ValueError(
+                'Cannot setup network: {0}'.format(e))
+        self.interface = interface
+        self.ip = ip
+        self.broadcast = broadcast
+        self.router = router
+        self.cleanup_cmds = []  # List of commands to run to cleanup state.
+
+    def __enter__(self):
+        """Perform ephemeral network setup if interface is not connected."""
+        self._bringup_device()
+        if self.router:
+            self._bringup_router()
+
+    def __exit__(self, excp_type, excp_value, excp_traceback):
+        for cmd in self.cleanup_cmds:
+            util.subp(cmd, capture=True)
+
+    def _delete_address(self, address, prefix):
+        """Perform the ip command to remove the specified address."""
+        util.subp(
+            ['ip', '-family', 'inet', 'addr', 'del',
+             '%s/%s' % (address, prefix), 'dev', self.interface],
+            capture=True)
+
+    def _bringup_device(self):
+        """Perform the ip comands to fully setup the device."""
+        cidr = '{0}/{1}'.format(self.ip, self.prefix)
+        LOG.debug(
+            'Attempting setup of ephemeral network on %s with %s brd %s',
+            self.interface, cidr, self.broadcast)
+        try:
+            util.subp(
+                ['ip', '-family', 'inet', 'addr', 'add', cidr, 'broadcast',
+                 self.broadcast, 'dev', self.interface],
+                capture=True, update_env={'LANG': 'C'})
+        except util.ProcessExecutionError as e:
+            if "File exists" not in e.stderr:
+                raise
+            LOG.debug(
+                'Skip ephemeral network setup, %s already has address %s',
+                self.interface, self.ip)
+        else:
+            # Address creation success, bring up device and queue cleanup
+            util.subp(
+                ['ip', '-family', 'inet', 'link', 'set', 'dev', self.interface,
+                 'up'], capture=True)
+            self.cleanup_cmds.append(
+                ['ip', '-family', 'inet', 'link', 'set', 'dev', self.interface,
+                 'down'])
+            self.cleanup_cmds.append(
+                ['ip', '-family', 'inet', 'addr', 'del', cidr, 'dev',
+                 self.interface])
+
+    def _bringup_router(self):
+        """Perform the ip commands to fully setup the router if needed."""
+        # Check if a default route exists and exit if it does
+        out, _ = util.subp(['ip', 'route', 'show', '0.0.0.0/0'], capture=True)
+        if 'default' in out:
+            LOG.debug(
+                'Skip ephemeral route setup. %s already has default route: %s',
+                self.interface, out.strip())
+            return
+        util.subp(
+            ['ip', '-4', 'route', 'add', 'default', 'via', self.router,
+             'dev', self.interface], capture=True)
+        self.cleanup_cmds.insert(
+            0, ['ip', '-4', 'route', 'del', 'default', 'dev', self.interface])
 
 
 class RendererNotFoundError(RuntimeError):
