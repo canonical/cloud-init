@@ -1,5 +1,6 @@
 cloud-init (0.7.9-233-ge586fe35-0ubuntu1~16.04.1) UNRELEASED; urgency=medium
 
+  * debian/cloud-init.templates: enable Scaleway cloud.
   * drop the following cherry picks, expected in the next upstream refresh:
     + debian/patches/cpick-5fb49bac-azure-identify-platform...
     + debian/patches/cpick-003c6678-net-remove-systemd-link...
