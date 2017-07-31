@@ -112,7 +112,7 @@ cloud-init (0.7.9-233-ge586fe35-0ubuntu1~16.04.1) UNRELEASED; urgency=medium
     - ntp: Add schema definition and passive schema validation.
       [Chad Smith] (LP: #1692916)
     - Fix eni rendering for bridge params that require repeated key for
-      values. [Ryan Harper]
+      values. [Ryan Harper] (LP: #1706752)
     - AliYun: Enable platform identification and enable by default.
       [Junjie Wang] (LP: #1638931)
 
