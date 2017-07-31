@@ -29,11 +29,13 @@ CFG_BUILTIN = {
         'MAAS',
         'GCE',
         'OpenStack',
+        'AliYun',
         'Ec2',
         'CloudSigma',
         'CloudStack',
         'SmartOS',
         'Bigstep',
+        'Scaleway',
         # At the end to act as a 'catch' when none of the above work...
         'None',
     ],

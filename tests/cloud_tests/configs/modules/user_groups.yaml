@@ -1,6 +1,8 @@
 #
 # Create groups and users with various options
 #
+required_features:
+  - ubuntu_user
 cloud_config: |
   #cloud-config
   # Add groups to the system

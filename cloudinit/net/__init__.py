@@ -10,6 +10,7 @@ import logging
 import os
 import re
 
+from cloudinit.net.network_state import mask_to_net_prefix
 from cloudinit import util
 
 LOG = logging.getLogger(__name__)
@@ -17,8 +18,24 @@ SYS_CLASS_NET = "/sys/class/net/"
 DEFAULT_PRIMARY_INTERFACE = 'eth0'
 
 
+def _natural_sort_key(s, _nsre=re.compile('([0-9]+)')):
+    """Sorting for Humans: natural sort order. Can be use as the key to sort
+    functions.
+    This will sort ['eth0', 'ens3', 'ens10', 'ens12', 'ens8', 'ens0'] as
+    ['ens0', 'ens3', 'ens8', 'ens10', 'ens12', 'eth0'] instead of the simple
+    python way which will produce ['ens0', 'ens10', 'ens12', 'ens3', 'ens8',
+    'eth0']."""
+    return [int(text) if text.isdigit() else text.lower()
+            for text in re.split(_nsre, s)]
+
+
+def get_sys_class_path():
+    """Simple function to return the global SYS_CLASS_NET."""
+    return SYS_CLASS_NET
+
+
 def sys_dev_path(devname, path=""):
-    return SYS_CLASS_NET + devname + "/" + path
+    return get_sys_class_path() + devname + "/" + path
 
 
 def read_sys_net(devname, path, translate=None,
@@ -66,7 +83,7 @@ def read_sys_net_int(iface, field):
         return None
     try:
         return int(val)
-    except TypeError:
+    except ValueError:
         return None
 
 
@@ -84,6 +101,10 @@ def is_wireless(devname):
 
 def is_bridge(devname):
     return os.path.exists(sys_dev_path(devname, "bridge"))
+
+
+def is_bond(devname):
+    return os.path.exists(sys_dev_path(devname, "bonding"))
 
 
 def is_vlan(devname):
@@ -113,8 +134,35 @@ def is_present(devname):
     return os.path.exists(sys_dev_path(devname))
 
 
+def device_driver(devname):
+    """Return the device driver for net device named 'devname'."""
+    driver = None
+    driver_path = sys_dev_path(devname, "device/driver")
+    # driver is a symlink to the driver *dir*
+    if os.path.islink(driver_path):
+        driver = os.path.basename(os.readlink(driver_path))
+
+    return driver
+
+
+def device_devid(devname):
+    """Return the device id string for net device named 'devname'."""
+    dev_id = read_sys_net_safe(devname, "device/device")
+    if dev_id is False:
+        return None
+
+    return dev_id
+
+
 def get_devicelist():
-    return os.listdir(SYS_CLASS_NET)
+    try:
+        devs = os.listdir(get_sys_class_path())
+    except OSError as e:
+        if e.errno == errno.ENOENT:
+            devs = []
+        else:
+            raise
+    return devs
 
 
 class ParserError(Exception):
@@ -127,12 +175,21 @@ def is_disabled_cfg(cfg):
     return cfg.get('config') == "disabled"
 
 
-def generate_fallback_config():
+def generate_fallback_config(blacklist_drivers=None, config_driver=None):
     """Determine which attached net dev is most likely to have a connection and
        generate network state to run dhcp on that interface"""
+
+    if not config_driver:
+        config_driver = False
+
+    if not blacklist_drivers:
+        blacklist_drivers = []
+
     # get list of interfaces that could have connections
     invalid_interfaces = set(['lo'])
-    potential_interfaces = set(get_devicelist())
+    potential_interfaces = set([device for device in get_devicelist()
+                                if device_driver(device) not in
+                                blacklist_drivers])
     potential_interfaces = potential_interfaces.difference(invalid_interfaces)
     # sort into interfaces with carrier, interfaces which could have carrier,
     # and ignore interfaces that are definitely disconnected
@@ -143,6 +200,9 @@ def generate_fallback_config():
             continue
         if is_bridge(interface):
             # skip any bridges
+            continue
+        if is_bond(interface):
+            # skip any bonds
             continue
         carrier = read_sys_net_int(interface, 'carrier')
         if carrier:
@@ -169,7 +229,7 @@ def generate_fallback_config():
 
     # if eth0 exists use it above anything else, otherwise get the interface
     # that we can read 'first' (using the sorted defintion of first).
-    names = list(sorted(potential_interfaces))
+    names = list(sorted(potential_interfaces, key=_natural_sort_key))
     if DEFAULT_PRIMARY_INTERFACE in names:
         names.remove(DEFAULT_PRIMARY_INTERFACE)
         names.insert(0, DEFAULT_PRIMARY_INTERFACE)
@@ -183,9 +243,18 @@ def generate_fallback_config():
             break
     if target_mac and target_name:
         nconf = {'config': [], 'version': 1}
-        nconf['config'].append(
-            {'type': 'physical', 'name': target_name,
-             'mac_address': target_mac, 'subnets': [{'type': 'dhcp'}]})
+        cfg = {'type': 'physical', 'name': target_name,
+               'mac_address': target_mac, 'subnets': [{'type': 'dhcp'}]}
+        # inject the device driver name, dev_id into config if enabled and
+        # device has a valid device driver value
+        if config_driver:
+            driver = device_driver(target_name)
+            if driver:
+                cfg['params'] = {
+                    'driver': driver,
+                    'device_id': device_devid(target_name),
+                }
+        nconf['config'].append(cfg)
         return nconf
     else:
         # can't read any interfaces addresses (or there are none); give up
@@ -206,10 +275,16 @@ def apply_network_config_names(netcfg, strict_present=True, strict_busy=True):
         if ent.get('type') != 'physical':
             continue
         mac = ent.get('mac_address')
-        name = ent.get('name')
         if not mac:
             continue
-        renames.append([mac, name])
+        name = ent.get('name')
+        driver = ent.get('params', {}).get('driver')
+        device_id = ent.get('params', {}).get('device_id')
+        if not driver:
+            driver = device_driver(name)
+        if not device_id:
+            device_id = device_devid(name)
+        renames.append([mac, name, driver, device_id])
 
     return _rename_interfaces(renames)
 
@@ -234,15 +309,27 @@ def _get_current_rename_info(check_downable=True):
     """Collect information necessary for rename_interfaces.
 
     returns a dictionary by mac address like:
-       {mac:
-         {'name': name
-          'up': boolean: is_up(name),
+       {name:
+         {
           'downable': None or boolean indicating that the
-                      device has only automatically assigned ip addrs.}}
+                      device has only automatically assigned ip addrs.
+          'device_id': Device id value (if it has one)
+          'driver': Device driver (if it has one)
+          'mac': mac address (in lower case)
+          'name': name
+          'up': boolean: is_up(name)
+         }}
     """
-    bymac = {}
-    for mac, name in get_interfaces_by_mac().items():
-        bymac[mac] = {'name': name, 'up': is_up(name), 'downable': None}
+    cur_info = {}
+    for (name, mac, driver, device_id) in get_interfaces():
+        cur_info[name] = {
+            'downable': None,
+            'device_id': device_id,
+            'driver': driver,
+            'mac': mac.lower(),
+            'name': name,
+            'up': is_up(name),
+        }
 
     if check_downable:
         nmatch = re.compile(r"[0-9]+:\s+(\w+)[@:]")
@@ -254,11 +341,11 @@ def _get_current_rename_info(check_downable=True):
         for bytes_out in (ipv6, ipv4):
             nics_with_addresses.update(nmatch.findall(bytes_out))
 
-        for d in bymac.values():
+        for d in cur_info.values():
             d['downable'] = (d['up'] is False or
                              d['name'] not in nics_with_addresses)
 
-    return bymac
+    return cur_info
 
 
 def _rename_interfaces(renames, strict_present=True, strict_busy=True,
@@ -271,15 +358,17 @@ def _rename_interfaces(renames, strict_present=True, strict_busy=True,
     if current_info is None:
         current_info = _get_current_rename_info()
 
-    cur_bymac = {}
-    for mac, data in current_info.items():
+    cur_info = {}
+    for name, data in current_info.items():
         cur = data.copy()
-        cur['mac'] = mac
-        cur_bymac[mac] = cur
+        if cur.get('mac'):
+            cur['mac'] = cur['mac'].lower()
+        cur['name'] = name
+        cur_info[name] = cur
 
     def update_byname(bymac):
         return dict((data['name'], data)
-                    for data in bymac.values())
+                    for data in cur_info.values())
 
     def rename(cur, new):
         util.subp(["ip", "link", "set", cur, "name", new], capture=True)
@@ -293,14 +382,50 @@ def _rename_interfaces(renames, strict_present=True, strict_busy=True,
     ops = []
     errors = []
     ups = []
-    cur_byname = update_byname(cur_bymac)
+    cur_byname = update_byname(cur_info)
     tmpname_fmt = "cirename%d"
     tmpi = -1
 
-    for mac, new_name in renames:
-        cur = cur_bymac.get(mac, {})
-        cur_name = cur.get('name')
+    def entry_match(data, mac, driver, device_id):
+        """match if set and in data"""
+        if mac and driver and device_id:
+            return (data['mac'] == mac and
+                    data['driver'] == driver and
+                    data['device_id'] == device_id)
+        elif mac and driver:
+            return (data['mac'] == mac and
+                    data['driver'] == driver)
+        elif mac:
+            return (data['mac'] == mac)
+
+        return False
+
+    def find_entry(mac, driver, device_id):
+        match = [data for data in cur_info.values()
+                 if entry_match(data, mac, driver, device_id)]
+        if len(match):
+            if len(match) > 1:
+                msg = ('Failed to match a single device. Matched devices "%s"'
+                       ' with search values "(mac:%s driver:%s device_id:%s)"'
+                       % (match, mac, driver, device_id))
+                raise ValueError(msg)
+            return match[0]
+
+        return None
+
+    for mac, new_name, driver, device_id in renames:
+        if mac:
+            mac = mac.lower()
         cur_ops = []
+        cur = find_entry(mac, driver, device_id)
+        if not cur:
+            if strict_present:
+                errors.append(
+                    "[nic not present] Cannot rename mac=%s to %s"
+                    ", not available." % (mac, new_name))
+            continue
+
+        cur_name = cur.get('name')
         if cur_name == new_name:
             # nothing to do
             continue
@@ -340,13 +465,13 @@ def _rename_interfaces(renames, strict_present=True, strict_busy=True,
 
             cur_ops.append(("rename", mac, new_name, (new_name, tmp_name)))
             target['name'] = tmp_name
-            cur_byname = update_byname(cur_bymac)
+            cur_byname = update_byname(cur_info)
             if target['up']:
                 ups.append(("up", mac, new_name, (tmp_name,)))
 
         cur_ops.append(("rename", mac, new_name, (cur['name'], new_name)))
         cur['name'] = new_name
-        cur_byname = update_byname(cur_bymac)
+        cur_byname = update_byname(cur_info)
         ops += cur_ops
 
     opmap = {'rename': rename, 'down': down, 'up': up}
@@ -385,14 +510,8 @@ def get_interfaces_by_mac():
     """Build a dictionary of tuples {mac: name}.
 
     Bridges and any devices that have a 'stolen' mac are excluded."""
-    try:
-        devs = get_devicelist()
-    except OSError as e:
-        if e.errno == errno.ENOENT:
-            devs = []
-        else:
-            raise
     ret = {}
+    devs = get_devicelist()
     empty_mac = '00:00:00:00:00:00'
     for name in devs:
         if not interface_has_own_mac(name):
@@ -413,6 +532,126 @@ def get_interfaces_by_mac():
                 (name, ret[mac], mac))
         ret[mac] = name
     return ret
+
+
+def get_interfaces():
+    """Return list of interface tuples (name, mac, driver, device_id)
+
+    Bridges and any devices that have a 'stolen' mac are excluded."""
+    ret = []
+    devs = get_devicelist()
+    empty_mac = '00:00:00:00:00:00'
+    for name in devs:
+        if not interface_has_own_mac(name):
+            continue
+        if is_bridge(name):
+            continue
+        if is_vlan(name):
+            continue
+        mac = get_interface_mac(name)
+        # some devices may not have a mac (tun0)
+        if not mac:
+            continue
+        if mac == empty_mac and name != 'lo':
+            continue
+        ret.append((name, mac, device_driver(name), device_devid(name)))
+    return ret
+
+
+class EphemeralIPv4Network(object):
+    """Context manager which sets up temporary static network configuration.
+
+    No operations are performed if the provided interface is already connected.
+    If unconnected, bring up the interface with valid ip, prefix and broadcast.
+    If router is provided setup a default route for that interface. Upon
+    context exit, clean up the interface leaving no configuration behind.
+    """
+
+    def __init__(self, interface, ip, prefix_or_mask, broadcast, router=None):
+        """Setup context manager and validate call signature.
+
+        @param interface: Name of the network interface to bring up.
+        @param ip: IP address to assign to the interface.
+        @param prefix_or_mask: Either netmask of the format X.X.X.X or an int
+            prefix.
+        @param broadcast: Broadcast address for the IPv4 network.
+        @param router: Optionally the default gateway IP.
+        """
+        if not all([interface, ip, prefix_or_mask, broadcast]):
+            raise ValueError(
+                'Cannot init network on {0} with {1}/{2} and bcast {3}'.format(
+                    interface, ip, prefix_or_mask, broadcast))
+        try:
+            self.prefix = mask_to_net_prefix(prefix_or_mask)
+        except ValueError as e:
+            raise ValueError(
+                'Cannot setup network: {0}'.format(e))
+        self.interface = interface
+        self.ip = ip
+        self.broadcast = broadcast
+        self.router = router
+        self.cleanup_cmds = []  # List of commands to run to cleanup state.
+
+    def __enter__(self):
+        """Perform ephemeral network setup if interface is not connected."""
+        self._bringup_device()
+        if self.router:
+            self._bringup_router()
+
+    def __exit__(self, excp_type, excp_value, excp_traceback):
+        for cmd in self.cleanup_cmds:
+            util.subp(cmd, capture=True)
+
+    def _delete_address(self, address, prefix):
+        """Perform the ip command to remove the specified address."""
+        util.subp(
+            ['ip', '-family', 'inet', 'addr', 'del',
+             '%s/%s' % (address, prefix), 'dev', self.interface],
+            capture=True)
+
+    def _bringup_device(self):
+        """Perform the ip comands to fully setup the device."""
+        cidr = '{0}/{1}'.format(self.ip, self.prefix)
+        LOG.debug(
+            'Attempting setup of ephemeral network on %s with %s brd %s',
+            self.interface, cidr, self.broadcast)
+        try:
+            util.subp(
+                ['ip', '-family', 'inet', 'addr', 'add', cidr, 'broadcast',
+                 self.broadcast, 'dev', self.interface],
+                capture=True, update_env={'LANG': 'C'})
+        except util.ProcessExecutionError as e:
+            if "File exists" not in e.stderr:
+                raise
+            LOG.debug(
+                'Skip ephemeral network setup, %s already has address %s',
+                self.interface, self.ip)
+        else:
+            # Address creation success, bring up device and queue cleanup
+            util.subp(
+                ['ip', '-family', 'inet', 'link', 'set', 'dev', self.interface,
+                 'up'], capture=True)
+            self.cleanup_cmds.append(
+                ['ip', '-family', 'inet', 'link', 'set', 'dev', self.interface,
+                 'down'])
+            self.cleanup_cmds.append(
+                ['ip', '-family', 'inet', 'addr', 'del', cidr, 'dev',
+                 self.interface])
+
+    def _bringup_router(self):
+        """Perform the ip commands to fully setup the router if needed."""
+        # Check if a default route exists and exit if it does
+        out, _ = util.subp(['ip', 'route', 'show', '0.0.0.0/0'], capture=True)
+        if 'default' in out:
+            LOG.debug(
+                'Skip ephemeral route setup. %s already has default route: %s',
+                self.interface, out.strip())
+            return
+        util.subp(
+            ['ip', '-4', 'route', 'add', 'default', 'via', self.router,
+             'dev', self.interface], capture=True)
+        self.cleanup_cmds.insert(
+            0, ['ip', '-4', 'route', 'del', 'default', 'dev', self.interface])
 
 
 class RendererNotFoundError(RuntimeError):

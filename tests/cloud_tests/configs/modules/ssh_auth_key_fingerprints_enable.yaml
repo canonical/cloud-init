@@ -1,6 +1,11 @@
 #
 # Print auth keys with different hash than md5
 #
+# NOTE: testcase checks for '256 SHA256:.*(ECDSA)' on output line on trusty
+#       this fails as line in output reads '256:.*(ECDSA)'
+required_features:
+  - syslog
+  - ssh_key_fmt
 cloud_config: |
   #cloud-config
   ssh_genkeytypes:

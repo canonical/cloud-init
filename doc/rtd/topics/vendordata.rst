@@ -22,7 +22,7 @@ caveats:
 
 Users providing cloud-config data can use the '#cloud-config-jsonp' method to
 more finely control their modifications to the vendor supplied cloud-config.
-For example, if both vendor and user have provided 'runcnmd' then the default
+For example, if both vendor and user have provided 'runcmd' then the default
 merge handler will cause the user's runcmd to override the one provided by the
 vendor.  To append to 'runcmd', the user could better provide multipart input
 with a cloud-config-jsonp part like:
@@ -31,7 +31,7 @@ with a cloud-config-jsonp part like:
 
  #cloud-config-jsonp
  [{ "op": "add", "path": "/runcmd", "value": ["my", "command", "here"]}]
- 
+
 Further, we strongly advise vendors to not 'be evil'. By evil, we
 mean any action that could compromise a system. Since users trust
 you, please take care to make sure that any vendordata is safe,

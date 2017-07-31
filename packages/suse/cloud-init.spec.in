@@ -1,19 +1,19 @@
-## template: cheetah
+## template: jinja
 
 # See: http://www.zarb.org/~jasonc/macros.php
 # Or: http://fedoraproject.org/wiki/Packaging:ScriptletSnippets
 # Or: http://www.rpm.org/max-rpm/ch-rpm-inside.html
 
 Name:           cloud-init
-Version:        ${version}
-Release:        1${subrelease}%{?dist}
+Version:        {{version}}
+Release:        1{{subrelease}}%{?dist}
 Summary:        Cloud instance init scripts
 
 Group:          System/Management
 License:        Dual licensed GPLv3 or Apache 2.0
 URL:            http://launchpad.net/cloud-init
 
-Source0:        ${archive_name}
+Source0:        {{archive_name}}
 BuildRoot:      %{_tmppath}/%{name}-%{version}-build
 
 %if 0%{?suse_version} && 0%{?suse_version} <= 1110
@@ -22,11 +22,9 @@ BuildRoot:      %{_tmppath}/%{name}-%{version}-build
 BuildArch:      noarch
 %endif
 
-BuildRequires:        fdupes
-BuildRequires:        filesystem
-BuildRequires:        python-devel
-BuildRequires:        python-setuptools
-BuildRequires:        python-cheetah
+{% for r in buildrequires %}
+BuildRequires:        {{r}}
+{% endfor %}
 
 %if 0%{?suse_version} && 0%{?suse_version} <= 1210
   %define initsys sysvinit
@@ -34,24 +32,15 @@ BuildRequires:        python-cheetah
   %define initsys systemd
 %endif
 
-# System util packages needed
-Requires:       iproute2
-Requires:       e2fsprogs
-Requires:       net-tools
-Requires:       procps
-Requires:       sudo
-
 # Install pypi 'dynamic' requirements
-#for $r in $requires
-Requires:       ${r}
-#end for
+{% for r in requires %}
+Requires:       {{r}}
+{% endfor %}
 
 # Custom patches
-#set $size = 0
-#for $p in $patches
-Patch${size}: $p
-#set $size += 1
-#end for
+{% for p in patches %}
+Patch{{loop.index0}: {{p}}
+{% endfor %}
 
 %description
 Cloud-init is a set of init scripts for cloud instances.  Cloud instances
@@ -59,14 +48,13 @@ need special scripts to run during initialization to retrieve and install
 ssh keys and to let the user run various scripts.
 
 %prep
-%setup -q -n ${source_name}
+%setup -q -n {{source_name}}
 
 # Custom patches activation
-#set $size = 0
-#for $p in $patches
-%patch${size} -p1
-#set $size += 1
-#end for
+{% for p in patches %}
+%patch{{loop.index0}} -p1
+end for
+{% endfor %}
 
 %build
 %{__python} setup.py build
@@ -95,7 +83,7 @@ rm -r %{buildroot}/%{python_sitelib}/tests
    mkdir -p %{buildroot}/%{_sbindir}
    pushd %{buildroot}/%{_initddir}
    for file in * ; do
-      ln -s %{_initddir}/\${file} %{buildroot}/%{_sbindir}/rc\${file}
+      ln -s %{_initddir}/${file} %{buildroot}/%{_sbindir}/rc${file}
    done
    popd
 %endif
@@ -104,7 +92,7 @@ rm -r %{buildroot}/%{python_sitelib}/tests
 mkdir -p %{buildroot}/%{_defaultdocdir}
 mv %{buildroot}/usr/share/doc/cloud-init %{buildroot}/%{_defaultdocdir}
 for doc in TODO LICENSE ChangeLog requirements.txt; do
-   cp \${doc} %{buildroot}/%{_defaultdocdir}/cloud-init
+   cp ${doc} %{buildroot}/%{_defaultdocdir}/cloud-init
 done
 
 # Remove duplicate files

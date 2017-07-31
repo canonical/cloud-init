@@ -1,6 +1,8 @@
 #
 # Set the hostname and update /etc/hosts
 #
+required_features:
+  - hostname
 cloud_config: |
   #cloud-config
   hostname: myhostname

@@ -3,7 +3,7 @@
 import random
 
 from cloudinit.config import cc_disk_setup
-from ..helpers import ExitStack, mock, TestCase
+from ..helpers import CiTestCase, ExitStack, mock, TestCase
 
 
 class TestIsDiskUsed(TestCase):
@@ -174,32 +174,32 @@ class TestUpdateFsSetupDevices(TestCase):
             return_value=('/dev/xdb1', False))
 @mock.patch('cloudinit.config.cc_disk_setup.device_type', return_value=None)
 @mock.patch('cloudinit.config.cc_disk_setup.util.subp', return_value=('', ''))
-class TestMkfsCommandHandling(TestCase):
+class TestMkfsCommandHandling(CiTestCase):
+
+    with_logs = True
 
     def test_with_cmd(self, subp, *args):
         """mkfs honors cmd and logs warnings when extra_opts or overwrite are
         provided."""
-        with self.assertLogs(
-                'cloudinit.config.cc_disk_setup') as logs:
-            cc_disk_setup.mkfs({
-                'cmd': 'mkfs -t %(filesystem)s -L %(label)s %(device)s',
-                'filesystem': 'ext4',
-                'device': '/dev/xdb1',
-                'label': 'with_cmd',
-                'extra_opts': ['should', 'generate', 'warning'],
-                'overwrite': 'should generate warning too'
-            })
+        cc_disk_setup.mkfs({
+            'cmd': 'mkfs -t %(filesystem)s -L %(label)s %(device)s',
+            'filesystem': 'ext4',
+            'device': '/dev/xdb1',
+            'label': 'with_cmd',
+            'extra_opts': ['should', 'generate', 'warning'],
+            'overwrite': 'should generate warning too'
+        })
 
         self.assertIn(
-            'WARNING:cloudinit.config.cc_disk_setup:fs_setup:extra_opts ' +
+            'extra_opts ' +
             'ignored because cmd was specified: mkfs -t ext4 -L with_cmd ' +
             '/dev/xdb1',
-            logs.output)
+            self.logs.getvalue())
         self.assertIn(
-            'WARNING:cloudinit.config.cc_disk_setup:fs_setup:overwrite ' +
+            'overwrite ' +
             'ignored because cmd was specified: mkfs -t ext4 -L with_cmd ' +
             '/dev/xdb1',
-            logs.output)
+            self.logs.getvalue())
 
         subp.assert_called_once_with(
             'mkfs -t ext4 -L with_cmd /dev/xdb1', shell=True)

@@ -43,6 +43,18 @@ class DataSourceNoCloud(sources.DataSource):
                   'network-config': None}
 
         try:
+            # Parse the system serial label from dmi. If not empty, try parsing
+            # like the commandline
+            md = {}
+            serial = util.read_dmi_data('system-serial-number')
+            if serial and load_cmdline_data(md, serial):
+                found.append("dmi")
+                mydata = _merge_new_seed(mydata, {'meta-data': md})
+        except Exception:
+            util.logexc(LOG, "Unable to parse dmi data")
+            return False
+
+        try:
             # Parse the kernel command line, getting data passed in
             md = {}
             if load_cmdline_data(md):

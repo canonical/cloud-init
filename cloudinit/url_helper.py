@@ -172,7 +172,8 @@ def _get_ssl_args(url, ssl_details):
 
 def readurl(url, data=None, timeout=None, retries=0, sec_between=1,
             headers=None, headers_cb=None, ssl_details=None,
-            check_status=True, allow_redirects=True, exception_cb=None):
+            check_status=True, allow_redirects=True, exception_cb=None,
+            session=None):
     url = _cleanurl(url)
     req_args = {
         'url': url,
@@ -231,7 +232,12 @@ def readurl(url, data=None, timeout=None, retries=0, sec_between=1,
             LOG.debug("[%s/%s] open '%s' with %s configuration", i,
                       manual_tries, url, filtered_req_args)
 
-            r = requests.request(**req_args)
+            if session is None:
+                session = requests.Session()
+
+            with session as sess:
+                r = sess.request(**req_args)
+
             if check_status:
                 r.raise_for_status()
             LOG.debug("Read from %s (%s, %sb) after %s attempts", url,

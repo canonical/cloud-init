@@ -1,6 +1,9 @@
 #
 # Disables everything in sources.list
 #
+required_features:
+  - apt
+  - lsb_release
 cloud_config: |
   #cloud-config
   apt:

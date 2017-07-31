@@ -16,6 +16,7 @@ from xml.dom import minidom
 import xml.etree.ElementTree as ET
 
 from cloudinit import log as logging
+from cloudinit import net
 from cloudinit import sources
 from cloudinit.sources.helpers.azure import get_metadata_from_fabric
 from cloudinit import util
@@ -36,6 +37,8 @@ RESOURCE_DISK_PATH = '/dev/disk/cloud/azure_resource'
 DEFAULT_PRIMARY_NIC = 'eth0'
 LEASE_FILE = '/var/lib/dhcp/dhclient.eth0.leases'
 DEFAULT_FS = 'ext4'
+# DMI chassis-asset-tag is set static for all azure instances
+AZURE_CHASSIS_ASSET_TAG = '7783-7084-3265-9085-8269-3286-77'
 
 
 def find_storvscid_from_sysctl_pnpinfo(sysctl_out, deviceid):
@@ -99,7 +102,7 @@ def get_dev_storvsc_sysctl():
         sysctl_out, err = util.subp(['sysctl', 'dev.storvsc'])
     except util.ProcessExecutionError:
         LOG.debug("Fail to execute sysctl dev.storvsc")
-        return None
+        sysctl_out = ""
     return sysctl_out
 
 
@@ -175,6 +178,11 @@ if util.is_FreeBSD():
         RESOURCE_DISK_PATH = "/dev/" + res_disk
     else:
         LOG.debug("resource disk is None")
+    BOUNCE_COMMAND = [
+        'sh', '-xc',
+        ("i=$interface; x=0; ifconfig down $i || x=$?; "
+         "ifconfig up $i || x=$?; exit $x")
+    ]
 
 BUILTIN_DS_CONFIG = {
     'agent_command': AGENT_START_BUILTIN,
@@ -238,7 +246,9 @@ def temporary_hostname(temp_hostname, cfg, hostname_command='hostname'):
         set_hostname(previous_hostname, hostname_command)
 
 
-class DataSourceAzureNet(sources.DataSource):
+class DataSourceAzure(sources.DataSource):
+    _negotiated = False
+
     def __init__(self, sys_cfg, distro, paths):
         sources.DataSource.__init__(self, sys_cfg, distro, paths)
         self.seed_dir = os.path.join(paths.seed_dir, 'azure')
@@ -248,6 +258,7 @@ class DataSourceAzureNet(sources.DataSource):
             util.get_cfg_by_path(sys_cfg, DS_CFG_PATH, {}),
             BUILTIN_DS_CONFIG])
         self.dhclient_lease_file = self.ds_cfg.get('dhclient_lease_file')
+        self._network_config = None
 
     def __str__(self):
         root = sources.DataSource.__str__(self)
@@ -320,6 +331,11 @@ class DataSourceAzureNet(sources.DataSource):
         # azure removes/ejects the cdrom containing the ovf-env.xml
         # file on reboot.  So, in order to successfully reboot we
         # need to look in the datadir and consider that valid
+        asset_tag = util.read_dmi_data('chassis-asset-tag')
+        if asset_tag != AZURE_CHASSIS_ASSET_TAG:
+            LOG.debug("Non-Azure DMI asset tag '%s' discovered.", asset_tag)
+            return False
+
         ddir = self.ds_cfg['data_dir']
 
         candidates = [self.seed_dir]
@@ -364,13 +380,14 @@ class DataSourceAzureNet(sources.DataSource):
             LOG.debug("using files cached in %s", ddir)
 
         # azure / hyper-v provides random data here
+        # TODO. find the seed on FreeBSD platform
+        # now update ds_cfg to reflect contents pass in config
         if not util.is_FreeBSD():
             seed = util.load_file("/sys/firmware/acpi/tables/OEM0",
                                   quiet=True, decode=False)
             if seed:
                 self.metadata['random_seed'] = seed
-        # TODO. find the seed on FreeBSD platform
-        # now update ds_cfg to reflect contents pass in config
+
         user_ds_cfg = util.get_cfg_by_path(self.cfg, DS_CFG_PATH, {})
         self.ds_cfg = util.mergemanydict([user_ds_cfg, self.ds_cfg])
 
@@ -378,23 +395,7 @@ class DataSourceAzureNet(sources.DataSource):
         # the directory to be protected.
         write_files(ddir, files, dirmode=0o700)
 
-        if self.ds_cfg['agent_command'] == AGENT_START_BUILTIN:
-            self.bounce_network_with_azure_hostname()
-
-            metadata_func = partial(get_metadata_from_fabric,
-                                    fallback_lease_file=self.
-                                    dhclient_lease_file)
-        else:
-            metadata_func = self.get_metadata_from_agent
-
-        try:
-            fabric_data = metadata_func()
-        except Exception as exc:
-            LOG.info("Error communicating with Azure fabric; assume we aren't"
-                     " on Azure.", exc_info=True)
-            return False
         self.metadata['instance-id'] = util.read_dmi_data('system-uuid')
-        self.metadata.update(fabric_data)
 
         return True
 
@@ -408,9 +409,92 @@ class DataSourceAzureNet(sources.DataSource):
         # quickly (local check only) if self.instance_id is still valid
         return sources.instance_id_matches_system_uuid(self.get_instance_id())
 
+    def setup(self, is_new_instance):
+        if self._negotiated is False:
+            LOG.debug("negotiating for %s (new_instance=%s)",
+                      self.get_instance_id(), is_new_instance)
+            fabric_data = self._negotiate()
+            LOG.debug("negotiating returned %s", fabric_data)
+            if fabric_data:
+                self.metadata.update(fabric_data)
+            self._negotiated = True
+        else:
+            LOG.debug("negotiating already done for %s",
+                      self.get_instance_id())
+
+    def _negotiate(self):
+        """Negotiate with fabric and return data from it.
+
+           On success, returns a dictionary including 'public_keys'.
+           On failure, returns False.
+        """
+
+        if self.ds_cfg['agent_command'] == AGENT_START_BUILTIN:
+            self.bounce_network_with_azure_hostname()
+
+            metadata_func = partial(get_metadata_from_fabric,
+                                    fallback_lease_file=self.
+                                    dhclient_lease_file)
+        else:
+            metadata_func = self.get_metadata_from_agent
+
+        LOG.debug("negotiating with fabric via agent command %s",
+                  self.ds_cfg['agent_command'])
+        try:
+            fabric_data = metadata_func()
+        except Exception as exc:
+            LOG.warning(
+                "Error communicating with Azure fabric; You may experience."
+                "connectivity issues.", exc_info=True)
+            return False
+
+        return fabric_data
+
     def activate(self, cfg, is_new_instance):
         address_ephemeral_resize(is_new_instance=is_new_instance)
         return
+
+    @property
+    def network_config(self):
+        """Generate a network config like net.generate_fallback_network() with
+           the following execptions.
+
+           1. Probe the drivers of the net-devices present and inject them in
+              the network configuration under params: driver: <driver> value
+           2. If the driver value is 'mlx4_core', the control mode should be
+              set to manual.  The device will be later used to build a bond,
+              for now we want to ensure the device gets named but does not
+              break any network configuration
+        """
+        blacklist = ['mlx4_core']
+        if not self._network_config:
+            LOG.debug('Azure: generating fallback configuration')
+            # generate a network config, blacklist picking any mlx4_core devs
+            netconfig = net.generate_fallback_config(
+                blacklist_drivers=blacklist, config_driver=True)
+
+            # if we have any blacklisted devices, update the network_config to
+            # include the device, mac, and driver values, but with no ip
+            # config; this ensures udev rules are generated but won't affect
+            # ip configuration
+            bl_found = 0
+            for bl_dev in [dev for dev in net.get_devicelist()
+                           if net.device_driver(dev) in blacklist]:
+                bl_found += 1
+                cfg = {
+                    'type': 'physical',
+                    'name': 'vf%d' % bl_found,
+                    'mac_address': net.get_interface_mac(bl_dev),
+                    'params': {
+                        'driver': net.device_driver(bl_dev),
+                        'device_id': net.device_devid(bl_dev),
+                    },
+                }
+                netconfig['config'].append(cfg)
+
+            self._network_config = netconfig
+
+        return self._network_config
 
 
 def _partitions_on_device(devpath, maxnum=16):
@@ -694,7 +778,7 @@ def read_azure_ovf(contents):
     try:
         dom = minidom.parseString(contents)
     except Exception as e:
-        raise BrokenAzureDataSource("invalid xml: %s" % e)
+        raise BrokenAzureDataSource("Invalid ovf-env.xml: %s" % e)
 
     results = find_child(dom.documentElement,
                          lambda n: n.localName == "ProvisioningSection")
@@ -792,19 +876,23 @@ def encrypt_pass(password, salt_id="$6$"):
     return crypt.crypt(password, salt_id + util.rand_str(strlen=16))
 
 
+def _check_freebsd_cdrom(cdrom_dev):
+    """Return boolean indicating path to cdrom device has content."""
+    try:
+        with open(cdrom_dev) as fp:
+            fp.read(1024)
+            return True
+    except IOError:
+        LOG.debug("cdrom (%s) is not configured", cdrom_dev)
+    return False
+
+
 def list_possible_azure_ds_devs():
-    # return a sorted list of devices that might have a azure datasource
     devlist = []
     if util.is_FreeBSD():
         cdrom_dev = "/dev/cd0"
-        try:
-            util.subp(["mount", "-o", "ro", "-t", "udf", cdrom_dev,
-                       "/mnt/cdrom/secure"])
-        except util.ProcessExecutionError:
-            LOG.debug("Fail to mount cd")
-            return devlist
-        util.subp(["umount", "/mnt/cdrom/secure"])
-        devlist.append(cdrom_dev)
+        if _check_freebsd_cdrom(cdrom_dev):
+            return [cdrom_dev]
     else:
         for fstype in ("iso9660", "udf"):
             devlist.extend(util.find_devs_with("TYPE=%s" % fstype))
@@ -834,9 +922,12 @@ class NonAzureDataSource(Exception):
     pass
 
 
+# Legacy: Must be present in case we load an old pkl object
+DataSourceAzureNet = DataSourceAzure
+
 # Used to match classes to dependencies
 datasources = [
-    (DataSourceAzureNet, (sources.DEP_FILESYSTEM, sources.DEP_NETWORK)),
+    (DataSourceAzure, (sources.DEP_FILESYSTEM, )),
 ]
 
 

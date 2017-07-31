@@ -1,6 +1,8 @@
 #
 # SSH keys generated using cloud-init
 #
+required_features:
+  - ubuntu_user
 cloud_config: |
   #cloud-config
   ssh_genkeytypes:

@@ -41,9 +41,9 @@ Cloudinits's directory structure is somewhat different from a regular applicatio
 
 ``data/``
 
-  Contains information releated to instance ids, datasources and hostnames of the previous
+  Contains information related to instance ids, datasources and hostnames of the previous
   and current instance if they are different. These can be examined as needed to
-  determine any information releated to a previous boot (if applicable).
+  determine any information related to a previous boot (if applicable).
 
 ``handlers/``
 
@@ -59,9 +59,9 @@ Cloudinits's directory structure is somewhat different from a regular applicatio
 
 ``instances/``
 
-  All instances that were created using this image end up with instance identifer
+  All instances that were created using this image end up with instance identifier
   subdirectories (and corresponding data for each instance). The currently active
-  instance will be symlinked the the ``instance`` symlink file defined previously.
+  instance will be symlinked the ``instance`` symlink file defined previously.
 
 ``scripts/``
 
@@ -74,9 +74,9 @@ Cloudinits's directory structure is somewhat different from a regular applicatio
 
 ``sem/``
 
-  Cloud-init has a concept of a module sempahore, which basically consists
+  Cloud-init has a concept of a module semaphore, which basically consists
   of the module name and its frequency. These files are used to ensure a module
-  is only ran `per-once`, `per-instance`, `per-always`. This folder contains 
-  sempaphore `files` which are only supposed to run `per-once` (not tied to the instance id).
+  is only ran `per-once`, `per-instance`, `per-always`. This folder contains
+  semaphore `files` which are only supposed to run `per-once` (not tied to the instance id).
 
 .. vi: textwidth=78

@@ -92,10 +92,9 @@ iface lo inet loopback
 
 auto eth0
 iface eth0 inet static
-    address 192.168.1.5
+    address 192.168.1.5/24
     broadcast 192.168.1.0
     gateway 192.168.1.254
-    netmask 255.255.255.0
 
 auto eth1
 iface eth1 inet dhcp
@@ -156,7 +155,7 @@ network:
     ethernets:
         eth7:
             addresses:
-            - 192.168.1.5/255.255.255.0
+            - 192.168.1.5/24
             gateway4: 192.168.1.254
         eth9:
             dhcp4: true
@@ -477,7 +476,9 @@ NETWORKING=yes
 # Created by cloud-init on instance boot automatically, do not edit.
 #
 BOOTPROTO=none
+DEFROUTE=yes
 DEVICE=eth0
+GATEWAY=192.168.1.254
 IPADDR=192.168.1.5
 NETMASK=255.255.255.0
 NM_CONTROLLED=no
@@ -626,9 +627,11 @@ IPV6_AUTOCONF=no
 # Created by cloud-init on instance boot automatically, do not edit.
 #
 BOOTPROTO=none
+DEFROUTE=yes
 DEVICE=eth0
 IPV6ADDR=2607:f0d0:1002:0011::2/64
 IPV6INIT=yes
+IPV6_DEFAULTGW=2607:f0d0:1002:0011::1
 NM_CONTROLLED=no
 ONBOOT=yes
 TYPE=Ethernet

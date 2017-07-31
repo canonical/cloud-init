@@ -1,18 +1,19 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
-from tests.cloud_tests import (config, LOG, util, testcases)
+"""Verify test results."""
 
 import os
 import unittest
 
+from tests.cloud_tests import (config, LOG, util, testcases)
+
 
 def verify_data(base_dir, tests):
-    """
-    verify test data is correct,
-    base_dir: base directory for data
-    test_config: dict of all test config, from util.load_test_config()
-    tests: list of test names
-    return_value: {<test_name>: {passed: True/False, failures: []}}
+    """Verify test data is correct.
+
+    @param base_dir: base directory for data
+    @param tests: list of test names
+    @return_value: {<test_name>: {passed: True/False, failures: []}}
     """
     runner = unittest.TextTestRunner(verbosity=util.current_verbosity())
     res = {}
@@ -53,9 +54,10 @@ def verify_data(base_dir, tests):
 
 
 def verify(args):
-    """
-    verify test data
-    return_value: 0 for success, or number of failed tests
+    """Verify test data.
+
+    @param args: directory of test data
+    @return_value: 0 for success, or number of failed tests
     """
     failed = 0
     res = {}

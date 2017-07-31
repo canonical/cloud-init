@@ -37,11 +37,11 @@ ENI_HEADER = """# This file is generated from information provided by
 """
 
 NETWORK_CONF_FN = "/etc/network/interfaces.d/50-cloud-init.cfg"
+LOCALE_CONF_FN = "/etc/default/locale"
 
 
 class Distro(distros.Distro):
     hostname_conf_fn = "/etc/hostname"
-    locale_conf_fn = "/etc/default/locale"
     network_conf_fn = {
         "eni": "/etc/network/interfaces.d/50-cloud-init.cfg",
         "netplan": "/etc/netplan/50-cloud-init.yaml"
@@ -64,16 +64,8 @@ class Distro(distros.Distro):
 
     def apply_locale(self, locale, out_fn=None):
         if not out_fn:
-            out_fn = self.locale_conf_fn
-        util.subp(['locale-gen', locale], capture=False)
-        util.subp(['update-locale', locale], capture=False)
-        # "" provides trailing newline during join
-        lines = [
-            util.make_header(),
-            'LANG="%s"' % (locale),
-            "",
-        ]
-        util.write_file(out_fn, "\n".join(lines))
+            out_fn = LOCALE_CONF_FN
+        apply_locale(locale, out_fn)
 
     def install_packages(self, pkglist):
         self.update_package_sources()
@@ -224,5 +216,39 @@ def _maybe_remove_legacy_eth0(path="/etc/network/interfaces.d/eth0.cfg"):
         msg = bmsg + " %s exists, but could not be read." % path
 
     LOG.warning(msg)
+
+
+def apply_locale(locale, sys_path=LOCALE_CONF_FN, keyname='LANG'):
+    """Apply the locale.
+
+    Run locale-gen for the provided locale and set the default
+    system variable `keyname` appropriately in the provided `sys_path`.
+
+    If sys_path indicates that `keyname` is already set to `locale`
+    then no changes will be made and locale-gen not called.
+    This allows images built with a locale already generated to not re-run
+    locale-gen which can be very heavy.
+    """
+    if not locale:
+        raise ValueError('Failed to provide locale value.')
+
+    if not sys_path:
+        raise ValueError('Invalid path: %s' % sys_path)
+
+    if os.path.exists(sys_path):
+        locale_content = util.load_file(sys_path)
+        # if LANG isn't present, regen
+        sys_defaults = util.load_shell_content(locale_content)
+        sys_val = sys_defaults.get(keyname, "")
+        if sys_val.lower() == locale.lower():
+            LOG.debug(
+                "System has '%s=%s' requested '%s', skipping regeneration.",
+                keyname, sys_val, locale)
+            return
+
+    util.subp(['locale-gen', locale], capture=False)
+    util.subp(
+        ['update-locale', '--locale-file=' + sys_path,
+         '%s=%s' % (keyname, locale)], capture=False)
 
 # vi: ts=4 expandtab

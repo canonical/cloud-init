@@ -20,6 +20,9 @@ except ImportError:
     import mock
 
 
+BASH = util.which('bash')
+
+
 class FakeSelinux(object):
 
     def __init__(self, match_what):
@@ -362,6 +365,9 @@ class TestReadDMIData(helpers.FilesystemMockingTestCase):
         self.addCleanup(shutil.rmtree, self.new_root)
         self.patchOS(self.new_root)
         self.patchUtils(self.new_root)
+        p = mock.patch("cloudinit.util.is_container", return_value=False)
+        self.addCleanup(p.stop)
+        self._m_is_container = p.start()
 
     def _create_sysfs_parent_directory(self):
         util.ensure_dir(os.path.join('sys', 'class', 'dmi', 'id'))
@@ -449,6 +455,26 @@ class TestReadDMIData(helpers.FilesystemMockingTestCase):
         sysfs_key = 'product_name'
         self._create_sysfs_file(sysfs_key, dmi_value)
         self.assertEqual(expected, util.read_dmi_data(dmi_key))
+
+    def test_container_returns_none(self):
+        """In a container read_dmi_data should always return None."""
+
+        # first verify we get the value if not in container
+        self._m_is_container.return_value = False
+        key, val = ("system-product-name", "my_product")
+        self._create_sysfs_file('product_name', val)
+        self.assertEqual(val, util.read_dmi_data(key))
+
+        # then verify in container returns None
+        self._m_is_container.return_value = True
+        self.assertIsNone(util.read_dmi_data(key))
+
+    def test_container_returns_none_on_unknown(self):
+        """In a container even bogus keys return None."""
+        self._m_is_container.return_value = True
+        self._create_sysfs_file('product_name', "should-be-ignored")
+        self.assertIsNone(util.read_dmi_data("bogus"))
+        self.assertIsNone(util.read_dmi_data("system-product-name"))
 
 
 class TestMultiLog(helpers.FilesystemMockingTestCase):
@@ -544,17 +570,17 @@ class TestReadSeeded(helpers.TestCase):
 
 class TestSubp(helpers.TestCase):
 
-    stdin2err = ['bash', '-c', 'cat >&2']
+    stdin2err = [BASH, '-c', 'cat >&2']
     stdin2out = ['cat']
     utf8_invalid = b'ab\xaadef'
     utf8_valid = b'start \xc3\xa9 end'
     utf8_valid_2 = b'd\xc3\xa9j\xc8\xa7'
-    printenv = ['bash', '-c', 'for n in "$@"; do echo "$n=${!n}"; done', '--']
+    printenv = [BASH, '-c', 'for n in "$@"; do echo "$n=${!n}"; done', '--']
 
     def printf_cmd(self, *args):
         # bash's printf supports \xaa.  So does /usr/bin/printf
         # but by using bash, we remove dependency on another program.
-        return(['bash', '-c', 'printf "$@"', 'printf'] + list(args))
+        return([BASH, '-c', 'printf "$@"', 'printf'] + list(args))
 
     def test_subp_handles_utf8(self):
         # The given bytes contain utf-8 accented characters as seen in e.g.
@@ -780,5 +806,21 @@ class TestSystemIsSnappy(helpers.FilesystemMockingTestCase):
             root_d, {'etc/system-image/config.d/my.file': "_unused"})
         self.reRoot(root_d)
         self.assertTrue(util.system_is_snappy())
+
+
+class TestLoadShellContent(helpers.TestCase):
+    def test_comments_handled_correctly(self):
+        """Shell comments should be allowed in the content."""
+        self.assertEqual(
+            {'key1': 'val1', 'key2': 'val2', 'key3': 'val3 #tricky'},
+            util.load_shell_content('\n'.join([
+                "#top of file comment",
+                "key1=val1 #this is a comment",
+                "# second comment",
+                'key2="val2" # inlin comment'
+                '#badkey=wark',
+                'key3="val3 #tricky"',
+                ''])))
+
 
 # vi: ts=4 expandtab
