@@ -1,4 +1,4 @@
-cloud-init (0.7.9-233-ge586fe35-0ubuntu1~16.04.1) UNRELEASED; urgency=medium
+cloud-init (0.7.9-233-ge586fe35-0ubuntu1~16.04.1) xenial-proposed; urgency=medium
 
   * debian/cloud-init.templates: enable Scaleway cloud.
   * debian/cloud-init.templates: enable Aliyun cloud.
@@ -116,7 +116,7 @@ cloud-init (0.7.9-233-ge586fe35-0ubuntu1~16.04.1) UNRELEASED; urgency=medium
     - AliYun: Enable platform identification and enable by default.
       [Junjie Wang] (LP: #1638931)
 
- -- Scott Moser <smoser@ubuntu.com>  Mon, 31 Jul 2017 14:46:00 -0400
+ -- Scott Moser <smoser@ubuntu.com>  Mon, 31 Jul 2017 16:36:16 -0400
 
 cloud-init (0.7.9-153-g16a7302f-0ubuntu1~16.04.2) xenial-proposed; urgency=medium
 
