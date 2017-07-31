@@ -1,4 +1,4 @@
-cloud-init (0.7.9-231-g80bf98b9-0ubuntu1) UNRELEASED; urgency=medium
+cloud-init (0.7.9-231-g80bf98b9-0ubuntu1) artful; urgency=medium
 
   * New upstream snapshot.
     - tests: remove 'yakkety' from releases as it is EOL.
@@ -11,7 +11,7 @@ cloud-init (0.7.9-231-g80bf98b9-0ubuntu1) UNRELEASED; urgency=medium
     - Drop rand_str() usage in DNS redirection detection
       [Bob Aman] (LP: #1088611)
 
- -- Scott Moser <smoser@ubuntu.com>  Mon, 31 Jul 2017 09:45:57 -0400
+ -- Scott Moser <smoser@ubuntu.com>  Mon, 31 Jul 2017 09:47:34 -0400
 
 cloud-init (0.7.9-221-g7e41b2a7-0ubuntu3) artful; urgency=medium
 
