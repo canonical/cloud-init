@@ -1,4 +1,4 @@
-cloud-init (0.7.9-153-g16a7302f-0ubuntu1~17.04.3) UNRELEASED; urgency=medium
+cloud-init (0.7.9-233-ge586fe35-0ubuntu1~17.04.1) UNRELEASED; urgency=medium
 
   * drop the following cherry picks, expected in the next upstream refresh:
     + debian/patches/cpick-5fb49bac-azure-identify-platform...
@@ -8,8 +8,127 @@ cloud-init (0.7.9-153-g16a7302f-0ubuntu1~17.04.3) UNRELEASED; urgency=medium
     + debian/patches/cpick-11121fe4-systemd-make-cloud-final...
   * debian/patches/stable-release-no-jsonschema-dep.patch:
     add patch to remove optional dependency on jsonschema.
+  * New upstream snapshot.
+    - cloudinit.net: add initialize_network_device function and tests
+      [Chad Smith]
+    - makefile: fix ci-deps-ubuntu target [Chad Smith]
+    - tests: adjust locale integration test to parse default locale.
+    - tests: remove 'yakkety' from releases as it is EOL.
+    - centos: do not package systemd-fsck drop-in.
+    - systemd: make systemd-fsck run after cloud-init.service (LP: #1691489)
+    - tests: Add initial tests for EC2 and improve a docstring.
+    - locale: Do not re-run locale-gen if provided locale is system default.
+    - archlinux: fix set hostname usage of write_file.
+      [Joshua Powers] (LP: #1705306)
+    - sysconfig: support subnet type of 'manual'.
+    - tools/run-centos: make running with no argument show help.
+    - Drop rand_str() usage in DNS redirection detection
+      [Bob Aman] (LP: #1088611)
+    - sysconfig: use MACADDR on bonds/bridges to configure mac_address
+      [Ryan Harper] (LP: #1701417)
+    - net: eni route rendering missed ipv6 default route config
+      [Ryan Harper] (LP: #1701097)
+    - sysconfig: enable mtu set per subnet, including ipv6 mtu
+      [Ryan Harper] (LP: #1702513)
+    - sysconfig: handle manual type subnets [Ryan Harper] (LP: #1687725)
+    - sysconfig: fix ipv6 gateway routes [Ryan Harper] (LP: #1694801)
+    - sysconfig: fix rendering of bond, bridge and vlan types.
+      [Ryan Harper] (LP: #1695092)
+    - Templatize systemd unit files for cross distro deltas. [Ryan Harper]
+    - sysconfig: ipv6 and default gateway fixes. [Ryan Harper] (LP: #1704872)
+    - net: fix renaming of nics to support mac addresses written in upper
+      case. (LP: #1705147)
+    - tests: fixes for issues uncovered when moving to python 3.6.
+      (LP: #1703697)
+    - sysconfig: include GATEWAY value if set in subnet
+      [Ryan Harper] (LP: #1686856)
+    - Scaleway: add datasource with user and vendor data for Scaleway.
+      [Julien Castets]
+    - Support comments in content read by load_shell_content.
+    - cloudinitlocal fail to run during boot [Hongjiang Zhang]
+    - doc: fix disk setup example table_type options
+      [Sandor Zeestraten] (LP: #1703789)
+    - tools: Fix exception handling. [Joonas Kylmälä] (LP: #1701527)
+    - tests: fix usage of mock in GCE test.
+    - test_gce: Fix invalid mock of platform_reports_gce to return False
+      [Chad Smith]
+    - test: fix incorrect keyid for apt repository.
+      [Joshua Powers] (LP: #1702717)
+    - tests: Update version of pylxd [Joshua Powers]
+    - write_files: Remove log from helper function signatures.
+      [Andrew Jorgensen]
+    - doc: document the cmdline options to NoCloud [Brian Candler]
+    - read_dmi_data: always return None when inside a container. (LP: #1701325)
+    - requirements.txt: remove trailing white space.
+    - Azure: Add network-config, Refactor net layer to handle duplicate macs.
+      [Ryan Harper]
+    - Tests: Simplify the check on ssh-import-id [Joshua Powers]
+    - tests: update ntp tests after sntp added [Joshua Powers]
+    - FreeBSD: Make freebsd a variant, fix unittests and
+      tools/build-on-freebsd.
+    - FreeBSD: fix test failure
+    - FreeBSD: replace ifdown/ifup with "ifconfig down" and "ifconfig up".
+      [Hongjiang Zhang] (LP: #1697815)
+    - FreeBSD: fix cdrom mounting failure if /mnt/cdrom/secure did not exist.
+      [Hongjiang Zhang] (LP: #1696295)
+    - main: Don't use templater to format the welcome message
+      [Andrew Jorgensen]
+    - docs: Automatically generate module docs form schema if present.
+      [Chad Smith]
+    - debian: fix path comment in /etc/hosts template.
+      [Jens Sandmann] (LP: #1606406)
+    - suse: add hostname and fully qualified domain to template.
+      [Jens Sandmann]
+    - write_file(s): Print permissions as octal, not decimal [Andrew Jorgensen]
+    - ci deps: Add --test-distro to read-dependencies to install all deps
+      [Chad Smith]
+    - tools/run-centos: cleanups and move to using read-dependencies
+    - pkg build ci: Add make ci-deps-<distro> target to install pkgs
+      [Chad Smith]
+    - systemd: make cloud-final.service run before apt daily services.
+      (LP: #1693361)
+    - selinux: Allow restorecon to be non-fatal. [Ryan Harper] (LP: #1686751)
+    - net: Allow netinfo subprocesses to return 0 or 1.
+      [Ryan Harper] (LP: #1686751)
+    - net: Allow for NetworkManager configuration [Ryan McCabe] (LP: #1693251)
+    - Use distro release version to determine if we use systemd in redhat spec
+      [Ryan Harper]
+    - net: normalize data in network_state object
+    - Integration Testing: tox env, pyxld 2.2.3, and revamp framework
+      [Wesley Wiedenmeier]
+    - Chef: Update omnibus url to chef.io, minor doc changes. [JJ Asghar]
+    - tools: add centos scripts to build and test [Joshua Powers]
+    - Drop cheetah python module as it is not needed by trunk [Ryan Harper]
+    - rhel/centos spec cleanups.
+    - cloud.cfg: move to a template.  setup.py changes along the way.
+    - Makefile: add deb-src and srpm targets. use PYVER more places.
+    - makefile: fix python 2/3 detection in the Makefile [Chad Smith]
+    - snap: Removing snapcraft plug line [Joshua Powers] (LP: #1695333)
+    - RHEL/CentOS: Fix default routes for IPv4/IPv6 configuration.
+      [Andreas Karis] (LP: #1696176)
+    - test: Fix pyflakes complaint of unused import.
+      [Joshua Powers] (LP: #1695918)
+    - NoCloud: support seed of nocloud from smbios information
+      [Vladimir Pouzanov] (LP: #1691772)
+    - net: when selecting a network device, use natural sort order
+      [Marc-Aurèle Brothier]
+    - fix typos and remove whitespace in various docs [Stephan Telling]
+    - systemd: Fix typo in comment in cloud-init.target. [Chen-Han Hsiao]
+    - Tests: Skip jsonschema related unit tests when dependency is absent.
+      [Chad Smith] (LP: #1695318)
+    - azure: remove accidental duplicate line in merge.
+    - azure: identify platform by well known value in chassis asset tag.
+      [Chad Smith] (LP: #1693939)
+    - tools/net-convert.py: support old cloudinit versions by using kwargs.
+    - ntp: Add schema definition and passive schema validation.
+      [Chad Smith] (LP: #1692916)
+    - Fix eni rendering for bridge params that require repeated key for
+      values. [Ryan Harper]
+    - net: remove systemd link file writing from eni renderer [Ryan Harper]
+    - AliYun: Enable platform identification and enable by default.
+      [Junjie Wang] (LP: #1638931)
 
- -- Scott Moser <smoser@ubuntu.com>  Thu, 29 Jun 2017 17:26:28 -0400
+ -- Scott Moser <smoser@ubuntu.com>  Mon, 31 Jul 2017 14:47:49 -0400
 
 cloud-init (0.7.9-153-g16a7302f-0ubuntu1~17.04.2) zesty-proposed; urgency=medium
 
