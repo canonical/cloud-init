@@ -20,7 +20,7 @@ print_commit() {
     [ "${aname}" = "Scott Moser" ] && aname=""
     abugs="${aname:+ [${aname}]}${bugs:+ (LP: ${bugs})}"
     if [ $((${#subject}+${#abugs})) -le $(($ll-${#indent})) ]; then
-        echo "${indent}${subject}"
+        echo "${indent}${subject}${abugs}"
     elif [ ${#subject} -ge $(($ll-${#indent})) ]; then
         echo "${subject}${abugs}" |
             fmt --width=$(($ll-${#indent})) |
