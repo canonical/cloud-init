@@ -262,7 +262,7 @@ main() {
     return 0
 }
 
-if [ "$1" = "prep" ]; then
+if [ "${1:-}" = "prep" ]; then
     shift
     prep "$@"
 else

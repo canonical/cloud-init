@@ -1128,14 +1128,14 @@ def is_resolvable(name):
     we have to append '.'.
 
     The top level 'invalid' domain is invalid per RFC.  And example.com
-    should also not exist.  The random entry will be resolved inside
-    the search list.
+    should also not exist.  The '__cloud_init_expected_not_found__' entry will
+    be resolved inside the search list.
     """
     global _DNS_REDIRECT_IP
     if _DNS_REDIRECT_IP is None:
         badips = set()
         badnames = ("does-not-exist.example.com.", "example.invalid.",
-                    rand_str())
+                    "__cloud_init_expected_not_found__")
         badresults = {}
         for iname in badnames:
             try:

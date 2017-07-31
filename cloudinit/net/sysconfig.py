@@ -61,6 +61,9 @@ class ConfigMap(object):
     def __getitem__(self, key):
         return self._conf[key]
 
+    def __contains__(self, key):
+        return key in self._conf
+
     def drop(self, key):
         self._conf.pop(key, None)
 
@@ -298,14 +301,16 @@ class Renderer(renderer.Renderer):
                 if subnet_is_ipv6(subnet):
                     mtu_key = 'IPV6_MTU'
                     iface_cfg['IPV6INIT'] = True
-
                 if 'mtu' in subnet:
                     iface_cfg[mtu_key] = subnet['mtu']
+            elif subnet_type == 'manual':
+                # If the subnet has an MTU setting, then ONBOOT=True
+                # to apply the setting
+                iface_cfg['ONBOOT'] = mtu_key in iface_cfg
             else:
                 raise ValueError("Unknown subnet type '%s' found"
                                  " for interface '%s'" % (subnet_type,
                                                           iface_cfg.name))
-
             if subnet.get('control') == 'manual':
                 iface_cfg['ONBOOT'] = False
 
