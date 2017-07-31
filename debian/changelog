@@ -2,7 +2,7 @@ cloud-init (0.7.9-233-ge586fe35-0ubuntu1~16.04.1) UNRELEASED; urgency=medium
 
   * debian/cloud-init.templates: enable Scaleway cloud.
   * debian/cloud-init.templates: enable Aliyun cloud.
-  * drop the following cherry picks, expected in the next upstream refresh:
+  * drop the following cherry picks, now incorporated in snapshot.
     + debian/patches/cpick-5fb49bac-azure-identify-platform...
     + debian/patches/cpick-003c6678-net-remove-systemd-link...
     + debian/patches/cpick-1cd4323b-azure-remove-accidental...
@@ -20,65 +20,58 @@ cloud-init (0.7.9-233-ge586fe35-0ubuntu1~16.04.1) UNRELEASED; urgency=medium
     - systemd: make systemd-fsck run after cloud-init.service (LP: #1691489)
     - tests: Add initial tests for EC2 and improve a docstring.
     - locale: Do not re-run locale-gen if provided locale is system default.
-    - archlinux: fix set hostname usage of write_file.
-      [Joshua Powers] (LP: #1705306)
+    - archlinux: fix set hostname usage of write_file. [Joshua Powers]
     - sysconfig: support subnet type of 'manual'.
     - tools/run-centos: make running with no argument show help.
     - Drop rand_str() usage in DNS redirection detection
       [Bob Aman] (LP: #1088611)
     - sysconfig: use MACADDR on bonds/bridges to configure mac_address
-      [Ryan Harper] (LP: #1701417)
+      [Ryan Harper]
     - net: eni route rendering missed ipv6 default route config
       [Ryan Harper] (LP: #1701097)
     - sysconfig: enable mtu set per subnet, including ipv6 mtu
-      [Ryan Harper] (LP: #1702513)
-    - sysconfig: handle manual type subnets [Ryan Harper] (LP: #1687725)
-    - sysconfig: fix ipv6 gateway routes [Ryan Harper] (LP: #1694801)
+      [Ryan Harper]
+    - sysconfig: handle manual type subnets [Ryan Harper]
+    - sysconfig: fix ipv6 gateway routes [Ryan Harper]
     - sysconfig: fix rendering of bond, bridge and vlan types.
-      [Ryan Harper] (LP: #1695092)
+      [Ryan Harper]
     - Templatize systemd unit files for cross distro deltas. [Ryan Harper]
-    - sysconfig: ipv6 and default gateway fixes. [Ryan Harper] (LP: #1704872)
+    - sysconfig: ipv6 and default gateway fixes. [Ryan Harper]
     - net: fix renaming of nics to support mac addresses written in upper
       case. (LP: #1705147)
     - tests: fixes for issues uncovered when moving to python 3.6.
-      (LP: #1703697)
     - sysconfig: include GATEWAY value if set in subnet
-      [Ryan Harper] (LP: #1686856)
+      [Ryan Harper]
     - Scaleway: add datasource with user and vendor data for Scaleway.
       [Julien Castets]
     - Support comments in content read by load_shell_content.
     - cloudinitlocal fail to run during boot [Hongjiang Zhang]
-    - doc: fix disk setup example table_type options
-      [Sandor Zeestraten] (LP: #1703789)
-    - tools: Fix exception handling. [Joonas Kylmälä] (LP: #1701527)
+    - doc: fix disk setup example table_type options [Sandor Zeestraten]
+    - tools: Fix exception handling. [Joonas Kylmälä]
     - tests: fix usage of mock in GCE test.
     - test_gce: Fix invalid mock of platform_reports_gce to return False
       [Chad Smith]
-    - test: fix incorrect keyid for apt repository.
-      [Joshua Powers] (LP: #1702717)
+    - test: fix incorrect keyid for apt repository.  [Joshua Powers]
     - tests: Update version of pylxd [Joshua Powers]
     - write_files: Remove log from helper function signatures.
       [Andrew Jorgensen]
     - doc: document the cmdline options to NoCloud [Brian Candler]
     - read_dmi_data: always return None when inside a container. (LP: #1701325)
     - requirements.txt: remove trailing white space.
-    - Azure: Add network-config, Refactor net layer to handle duplicate macs.
-      [Ryan Harper]
     - Tests: Simplify the check on ssh-import-id [Joshua Powers]
     - tests: update ntp tests after sntp added [Joshua Powers]
     - FreeBSD: Make freebsd a variant, fix unittests and
       tools/build-on-freebsd.
     - FreeBSD: fix test failure
     - FreeBSD: replace ifdown/ifup with "ifconfig down" and "ifconfig up".
-      [Hongjiang Zhang] (LP: #1697815)
+      [Hongjiang Zhang]
     - FreeBSD: fix cdrom mounting failure if /mnt/cdrom/secure did not exist.
-      [Hongjiang Zhang] (LP: #1696295)
+      [Hongjiang Zhang]
     - main: Don't use templater to format the welcome message
       [Andrew Jorgensen]
     - docs: Automatically generate module docs form schema if present.
       [Chad Smith]
-    - debian: fix path comment in /etc/hosts template.
-      [Jens Sandmann] (LP: #1606406)
+    - debian: fix path comment in /etc/hosts template. [Jens Sandmann]
     - suse: add hostname and fully qualified domain to template.
       [Jens Sandmann]
     - write_file(s): Print permissions as octal, not decimal [Andrew Jorgensen]
@@ -87,12 +80,10 @@ cloud-init (0.7.9-233-ge586fe35-0ubuntu1~16.04.1) UNRELEASED; urgency=medium
     - tools/run-centos: cleanups and move to using read-dependencies
     - pkg build ci: Add make ci-deps-<distro> target to install pkgs
       [Chad Smith]
-    - systemd: make cloud-final.service run before apt daily services.
-      (LP: #1693361)
-    - selinux: Allow restorecon to be non-fatal. [Ryan Harper] (LP: #1686751)
-    - net: Allow netinfo subprocesses to return 0 or 1.
-      [Ryan Harper] (LP: #1686751)
-    - net: Allow for NetworkManager configuration [Ryan McCabe] (LP: #1693251)
+    - selinux: Allow restorecon to be non-fatal. [Ryan Harper]
+    - net: Allow netinfo subprocesses to return 0 or 1 due to selinux.
+      [Ryan Harper]
+    - net: Allow for NetworkManager configuration [Ryan McCabe]
     - Use distro release version to determine if we use systemd in redhat spec
       [Ryan Harper]
     - net: normalize data in network_state object
@@ -105,11 +96,10 @@ cloud-init (0.7.9-233-ge586fe35-0ubuntu1~16.04.1) UNRELEASED; urgency=medium
     - cloud.cfg: move to a template.  setup.py changes along the way.
     - Makefile: add deb-src and srpm targets. use PYVER more places.
     - makefile: fix python 2/3 detection in the Makefile [Chad Smith]
-    - snap: Removing snapcraft plug line [Joshua Powers] (LP: #1695333)
+    - snap: Removing snapcraft plug line [Joshua Powers]
     - RHEL/CentOS: Fix default routes for IPv4/IPv6 configuration.
-      [Andreas Karis] (LP: #1696176)
-    - test: Fix pyflakes complaint of unused import.
-      [Joshua Powers] (LP: #1695918)
+      [Andreas Karis]
+    - test: Fix pyflakes complaint of unused import. [Joshua Powers]
     - NoCloud: support seed of nocloud from smbios information
       [Vladimir Pouzanov] (LP: #1691772)
     - net: when selecting a network device, use natural sort order
@@ -117,16 +107,12 @@ cloud-init (0.7.9-233-ge586fe35-0ubuntu1~16.04.1) UNRELEASED; urgency=medium
     - fix typos and remove whitespace in various docs [Stephan Telling]
     - systemd: Fix typo in comment in cloud-init.target. [Chen-Han Hsiao]
     - Tests: Skip jsonschema related unit tests when dependency is absent.
-      [Chad Smith] (LP: #1695318)
-    - azure: remove accidental duplicate line in merge.
-    - azure: identify platform by well known value in chassis asset tag.
-      [Chad Smith] (LP: #1693939)
+      [Chad Smith]
     - tools/net-convert.py: support old cloudinit versions by using kwargs.
     - ntp: Add schema definition and passive schema validation.
       [Chad Smith] (LP: #1692916)
     - Fix eni rendering for bridge params that require repeated key for
       values. [Ryan Harper]
-    - net: remove systemd link file writing from eni renderer [Ryan Harper]
     - AliYun: Enable platform identification and enable by default.
       [Junjie Wang] (LP: #1638931)
 
