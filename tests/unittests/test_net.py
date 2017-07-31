@@ -1683,6 +1683,9 @@ USERCTL=no
             ns = network_state.parse_net_config_data(network_cfg,
                                                      skip_broken=False)
             renderer = sysconfig.Renderer()
+            # render a multiple times to simulate reboots
+            renderer.render_network_state(ns, render_dir)
+            renderer.render_network_state(ns, render_dir)
             renderer.render_network_state(ns, render_dir)
             for fn, expected_content in os_sample.get('out_sysconfig', []):
                 with open(os.path.join(render_dir, fn)) as fh:
