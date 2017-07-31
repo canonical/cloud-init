@@ -1,3 +1,18 @@
+cloud-init (0.7.9-231-g80bf98b9-0ubuntu1) artful; urgency=medium
+
+  * New upstream snapshot.
+    - tests: remove 'yakkety' from releases as it is EOL.
+    - systemd: make systemd-fsck run after cloud-init.service (LP: #1691489)
+    - tests: Add initial tests for EC2 and improve a docstring.
+    - locale: Do not re-run locale-gen if provided locale is system default.
+    - archlinux: fix set hostname usage of write_file.
+      [Joshua Powers] (LP: #1705306)
+    - sysconfig: support subnet type of 'manual'.
+    - Drop rand_str() usage in DNS redirection detection
+      [Bob Aman] (LP: #1088611)
+
+ -- Scott Moser <smoser@ubuntu.com>  Mon, 31 Jul 2017 09:47:34 -0400
+
 cloud-init (0.7.9-221-g7e41b2a7-0ubuntu3) artful; urgency=medium
 
   * debian/control: replace Depends on ifupdown with 'nplan | ifupdown'.

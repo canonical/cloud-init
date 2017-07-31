@@ -1241,7 +1241,20 @@ pre-down route del -net 10.0.0.0 netmask 255.0.0.0 gw 11.0.0.1 metric 3 || true
                 subnets:
                   - type: static
                     address: 192.168.1.2/24
-                    control: manual"""),
+                    control: manual
+              - type: physical
+                name: eth1
+                mtu: 1480
+                mac_address: "52:54:00:12:34:aa"
+                subnets:
+                  - type: manual
+              - type: physical
+                name: eth2
+                mac_address: "52:54:00:12:34:ff"
+                subnets:
+                  - type: manual
+                    control: manual
+                  """),
         'expected_eni': textwrap.dedent("""\
             auto lo
             iface lo inet loopback
@@ -1249,6 +1262,34 @@ pre-down route del -net 10.0.0.0 netmask 255.0.0.0 gw 11.0.0.1 metric 3 || true
             # control-manual eth0
             iface eth0 inet static
                 address 192.168.1.2/24
+
+            auto eth1
+            iface eth1 inet manual
+                mtu 1480
+
+            # control-manual eth2
+            iface eth2 inet manual
+            """),
+        'expected_netplan': textwrap.dedent("""\
+
+            network:
+                version: 2
+                ethernets:
+                    eth0:
+                        addresses:
+                        - 192.168.1.2/24
+                        match:
+                            macaddress: '52:54:00:12:34:00'
+                        set-name: eth0
+                    eth1:
+                        match:
+                            macaddress: 52:54:00:12:34:aa
+                        mtu: 1480
+                        set-name: eth1
+                    eth2:
+                        match:
+                            macaddress: 52:54:00:12:34:ff
+                        set-name: eth2
             """),
         'expected_sysconfig': {
             'ifcfg-eth0': textwrap.dedent("""\
@@ -1257,6 +1298,25 @@ pre-down route del -net 10.0.0.0 netmask 255.0.0.0 gw 11.0.0.1 metric 3 || true
                 HWADDR=52:54:00:12:34:00
                 IPADDR=192.168.1.2
                 NETMASK=255.255.255.0
+                NM_CONTROLLED=no
+                ONBOOT=no
+                TYPE=Ethernet
+                USERCTL=no
+                """),
+            'ifcfg-eth1': textwrap.dedent("""\
+                BOOTPROTO=none
+                DEVICE=eth1
+                HWADDR=52:54:00:12:34:aa
+                MTU=1480
+                NM_CONTROLLED=no
+                ONBOOT=yes
+                TYPE=Ethernet
+                USERCTL=no
+                """),
+            'ifcfg-eth2': textwrap.dedent("""\
+                BOOTPROTO=none
+                DEVICE=eth2
+                HWADDR=52:54:00:12:34:ff
                 NM_CONTROLLED=no
                 ONBOOT=no
                 TYPE=Ethernet
@@ -2124,6 +2184,13 @@ class TestNetplanRoundTrip(CiTestCase):
             entry['expected_netplan'].splitlines(),
             files['/etc/netplan/50-cloud-init.yaml'].splitlines())
 
+    def testsimple_render_manual(self):
+        entry = NETWORK_CONFIGS['manual']
+        files = self._render_and_read(network_config=yaml.load(entry['yaml']))
+        self.assertEqual(
+            entry['expected_netplan'].splitlines(),
+            files['/etc/netplan/50-cloud-init.yaml'].splitlines())
+
 
 class TestEniRoundTrip(CiTestCase):
     def _render_and_read(self, network_config=None, state=None, eni_path=None,
@@ -2183,6 +2250,13 @@ class TestEniRoundTrip(CiTestCase):
             files['/etc/network/interfaces'].splitlines())
 
     def testsimple_render_manual(self):
+        """Test rendering of 'manual' for 'type' and 'control'.
+
+        'type: manual' in a subnet is odd, but it is the way that was used
+        to declare that a network device should get a mtu set on it even
+        if there were no addresses to configure.  Also strange is the fact
+        that in order to apply that MTU the ifupdown device must be set
+        to 'auto', or the MTU would not be set."""
         entry = NETWORK_CONFIGS['manual']
         files = self._render_and_read(network_config=yaml.load(entry['yaml']))
         self.assertEqual(
