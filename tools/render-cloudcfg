@@ -1,0 +1,43 @@
+#!/usr/bin/env python3
+
+import argparse
+import os
+import sys
+
+if "avoid-pep8-E402-import-not-top-of-file":
+    _tdir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+    sys.path.insert(0, _tdir)
+    from cloudinit import templater
+    from cloudinit import util
+    from cloudinit.atomic_helper import write_file
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    variants = ["bsd", "centos", "fedora", "rhel", "ubuntu", "unknown"]
+    platform = util.system_info()
+    parser.add_argument(
+        "--variant", default=platform['variant'], action="store",
+        help="define the variant.", choices=variants)
+    parser.add_argument(
+        "template", nargs="?", action="store",
+        default='./config/cloud.cfg.tmpl',
+        help="Path to the cloud.cfg template")
+    parser.add_argument(
+        "output", nargs="?", action="store", default="-",
+        help="Output file.  Use '-' to write to stdout")
+
+    args = parser.parse_args()
+
+    with open(args.template, 'r') as fh:
+        contents = fh.read()
+    tpl_params = {'variant': args.variant}
+    contents = (templater.render_string(contents, tpl_params)).rstrip() + "\n"
+    util.load_yaml(contents)
+    if args.output == "-":
+        sys.stdout.write(contents)
+    else:
+        write_file(args.output, contents, omode="w")
+
+if __name__ == '__main__':
+    main()

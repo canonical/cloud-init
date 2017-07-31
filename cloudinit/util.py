@@ -330,7 +330,11 @@ class SeLinuxGuard(object):
 
         LOG.debug("Restoring selinux mode for %s (recursive=%s)",
                   path, self.recursive)
-        self.selinux.restorecon(path, recursive=self.recursive)
+        try:
+            self.selinux.restorecon(path, recursive=self.recursive)
+        except OSError as e:
+            LOG.warning('restorecon failed on %s,%s maybe badness? %s',
+                        path, self.recursive, e)
 
 
 class MountFailedError(Exception):
@@ -569,7 +573,7 @@ def is_ipv4(instr):
 
 
 def is_FreeBSD():
-    return system_info()['platform'].startswith('FreeBSD')
+    return system_info()['variant'] == "freebsd"
 
 
 def get_cfg_option_bool(yobj, key, default=False):
@@ -592,13 +596,32 @@ def get_cfg_option_int(yobj, key, default=0):
 
 
 def system_info():
-    return {
+    info = {
         'platform': platform.platform(),
+        'system': platform.system(),
         'release': platform.release(),
         'python': platform.python_version(),
         'uname': platform.uname(),
-        'dist': platform.linux_distribution(),  # pylint: disable=W1505
+        'dist': platform.dist(),  # pylint: disable=W1505
     }
+    system = info['system'].lower()
+    var = 'unknown'
+    if system == "linux":
+        linux_dist = info['dist'][0].lower()
+        if linux_dist in ('centos', 'fedora', 'debian'):
+            var = linux_dist
+        elif linux_dist in ('ubuntu', 'linuxmint', 'mint'):
+            var = 'ubuntu'
+        elif linux_dist == 'redhat':
+            var = 'rhel'
+        else:
+            var = 'linux'
+    elif system in ('windows', 'darwin', "freebsd"):
+        var = system
+
+    info['variant'] = var
+
+    return info
 
 
 def get_cfg_option_list(yobj, key, default=None):
@@ -1105,14 +1128,14 @@ def is_resolvable(name):
     we have to append '.'.
 
     The top level 'invalid' domain is invalid per RFC.  And example.com
-    should also not exist.  The random entry will be resolved inside
-    the search list.
+    should also not exist.  The '__cloud_init_expected_not_found__' entry will
+    be resolved inside the search list.
     """
     global _DNS_REDIRECT_IP
     if _DNS_REDIRECT_IP is None:
         badips = set()
         badnames = ("does-not-exist.example.com.", "example.invalid.",
-                    rand_str())
+                    "__cloud_init_expected_not_found__")
         badresults = {}
         for iname in badnames:
             try:
@@ -1720,8 +1743,12 @@ def write_file(filename, content, mode=0o644, omode="wb", copy_mode=False):
     else:
         content = decode_binary(content)
         write_type = 'characters'
+    try:
+        mode_r = "%o" % mode
+    except TypeError:
+        mode_r = "%r" % mode
     LOG.debug("Writing to %s - %s: [%s] %s %s",
-              filename, omode, mode, len(content), write_type)
+              filename, omode, mode_r, len(content), write_type)
     with SeLinuxGuard(path=filename):
         with open(filename, omode) as fh:
             fh.write(content)
@@ -2370,6 +2397,10 @@ def read_dmi_data(key):
     """
     Wrapper for reading DMI data.
 
+    If running in a container return None.  This is because DMI data is
+    assumed to be not useful in a container as it does not represent the
+    container but rather the host.
+
     This will do the following (returning the first that produces a
     result):
         1) Use a mapping to translate `key` from dmidecode naming to
@@ -2379,6 +2410,9 @@ def read_dmi_data(key):
 
     If all of the above fail to find a value, None will be returned.
     """
+
+    if is_container():
+        return None
 
     syspath_value = _read_dmi_syspath(key)
     if syspath_value is not None:
@@ -2495,7 +2529,7 @@ def load_shell_content(content, add_empty=False, empty_val=None):
         if PY26 and isinstance(blob, six.text_type):
             # Older versions don't support unicode input
             blob = blob.encode("utf8")
-        return shlex.split(blob)
+        return shlex.split(blob, comments=True)
 
     data = {}
     for line in _shlex_split(content):

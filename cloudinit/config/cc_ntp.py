@@ -36,6 +36,7 @@ servers or pools are provided, 4 pools will be used in the format
             - 192.168.23.2
 """
 
+from cloudinit.config.schema import validate_cloudconfig_schema
 from cloudinit import log as logging
 from cloudinit.settings import PER_INSTANCE
 from cloudinit import templater
@@ -43,6 +44,7 @@ from cloudinit import type_utils
 from cloudinit import util
 
 import os
+from textwrap import dedent
 
 LOG = logging.getLogger(__name__)
 
@@ -52,21 +54,84 @@ NR_POOL_SERVERS = 4
 distros = ['centos', 'debian', 'fedora', 'opensuse', 'ubuntu']
 
 
+# The schema definition for each cloud-config module is a strict contract for
+# describing supported configuration parameters for each cloud-config section.
+# It allows cloud-config to validate and alert users to invalid or ignored
+# configuration options before actually attempting to deploy with said
+# configuration.
+
+schema = {
+    'id': 'cc_ntp',
+    'name': 'NTP',
+    'title': 'enable and configure ntp',
+    'description': dedent("""\
+        Handle ntp configuration. If ntp is not installed on the system and
+        ntp configuration is specified, ntp will be installed. If there is a
+        default ntp config file in the image or one is present in the
+        distro's ntp package, it will be copied to ``/etc/ntp.conf.dist``
+        before any changes are made. A list of ntp pools and ntp servers can
+        be provided under the ``ntp`` config key. If no ntp ``servers`` or
+        ``pools`` are provided, 4 pools will be used in the format
+        ``{0-3}.{distro}.pool.ntp.org``."""),
+    'distros': distros,
+    'examples': [
+        {'ntp': {'pools': ['0.company.pool.ntp.org', '1.company.pool.ntp.org',
+                           'ntp.myorg.org'],
+                 'servers': ['my.ntp.server.local', 'ntp.ubuntu.com',
+                             '192.168.23.2']}}],
+    'frequency': PER_INSTANCE,
+    'type': 'object',
+    'properties': {
+        'ntp': {
+            'type': ['object', 'null'],
+            'properties': {
+                'pools': {
+                    'type': 'array',
+                    'items': {
+                        'type': 'string',
+                        'format': 'hostname'
+                    },
+                    'uniqueItems': True,
+                    'description': dedent("""\
+                        List of ntp pools. If both pools and servers are
+                         empty, 4 default pool servers will be provided of
+                         the format ``{0-3}.{distro}.pool.ntp.org``.""")
+                },
+                'servers': {
+                    'type': 'array',
+                    'items': {
+                        'type': 'string',
+                        'format': 'hostname'
+                    },
+                    'uniqueItems': True,
+                    'description': dedent("""\
+                        List of ntp servers. If both pools and servers are
+                         empty, 4 default pool servers will be provided with
+                         the format ``{0-3}.{distro}.pool.ntp.org``.""")
+                }
+            },
+            'required': [],
+            'additionalProperties': False
+        }
+    }
+}
+
+
 def handle(name, cfg, cloud, log, _args):
     """Enable and configure ntp."""
-
     if 'ntp' not in cfg:
         LOG.debug(
             "Skipping module named %s, not present or disabled by cfg", name)
         return
-
     ntp_cfg = cfg.get('ntp', {})
 
+    # TODO drop this when validate_cloudconfig_schema is strict=True
     if not isinstance(ntp_cfg, (dict)):
         raise RuntimeError(("'ntp' key existed in config,"
                             " but not a dictionary type,"
                             " is a %s %instead"), type_utils.obj_name(ntp_cfg))
 
+    validate_cloudconfig_schema(cfg, schema)
     rename_ntp_conf()
     # ensure when ntp is installed it has a configuration file
     # to use instead of starting up with packaged defaults

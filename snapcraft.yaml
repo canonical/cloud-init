@@ -2,7 +2,7 @@ name: cloud-init
 version: master
 summary: Init scripts for cloud instances
 description: |
-  Cloud instances need special scripts to run during initialisation to
+  Cloud instances need special scripts to run during initialization to
   retrieve and install ssh keys and to let the user run various scripts.
 
 grade: stable
@@ -12,7 +12,6 @@ apps:
   cloud-init:
     # LP: #1669306
     command: usr/bin/python3 $SNAP/bin/cloud-init
-    plugs: [network]
 
 parts:
   cloud-init:

@@ -1,10 +1,10 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
-from cloudinit.config.cc_write_files import write_files
+from cloudinit.config.cc_write_files import write_files, decode_perms
 from cloudinit import log as logging
 from cloudinit import util
 
-from ..helpers import FilesystemMockingTestCase
+from ..helpers import CiTestCase, FilesystemMockingTestCase
 
 import base64
 import gzip
@@ -49,13 +49,13 @@ class TestWriteFiles(FilesystemMockingTestCase):
         expected = "hello world\n"
         filename = "/tmp/my.file"
         write_files(
-            "test_simple", [{"content": expected, "path": filename}], LOG)
+            "test_simple", [{"content": expected, "path": filename}])
         self.assertEqual(util.load_file(filename), expected)
 
     def test_yaml_binary(self):
         self.patchUtils(self.tmp)
         data = util.load_yaml(YAML_TEXT)
-        write_files("testname", data['write_files'], LOG)
+        write_files("testname", data['write_files'])
         for path, content in YAML_CONTENT_EXPECTED.items():
             self.assertEqual(util.load_file(path), content)
 
@@ -87,7 +87,7 @@ class TestWriteFiles(FilesystemMockingTestCase):
                     files.append(cur)
                     expected.append((cur['path'], data))
 
-        write_files("test_decoding", files, LOG)
+        write_files("test_decoding", files)
 
         for path, content in expected:
             self.assertEqual(util.load_file(path, decode=False), content)
@@ -96,6 +96,33 @@ class TestWriteFiles(FilesystemMockingTestCase):
         flen_expected = (
             len(gz_aliases + gz_b64_aliases + b64_aliases) * len(datum))
         self.assertEqual(len(expected), flen_expected)
+
+
+class TestDecodePerms(CiTestCase):
+
+    with_logs = True
+
+    def test_none_returns_default(self):
+        """If None is passed as perms, then default should be returned."""
+        default = object()
+        found = decode_perms(None, default)
+        self.assertEqual(default, found)
+
+    def test_integer(self):
+        """A valid integer should return itself."""
+        found = decode_perms(0o755, None)
+        self.assertEqual(0o755, found)
+
+    def test_valid_octal_string(self):
+        """A string should be read as octal."""
+        found = decode_perms("644", None)
+        self.assertEqual(0o644, found)
+
+    def test_invalid_octal_string_returns_default_and_warns(self):
+        """A string with invalid octal should warn and return default."""
+        found = decode_perms("999", None)
+        self.assertIsNone(found)
+        self.assertIn("WARNING: Undecodable", self.logs.getvalue())
 
 
 def _gzip_bytes(data):

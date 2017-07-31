@@ -27,17 +27,6 @@ if "avoid-pep8-E402-import-not-top-of-file":
     from cloudinit import templater
     from cloudinit import util
 
-# Map python requirements to package names.  If a match isn't found
-# here, we assume 'python-<pypi_name>'.
-PACKAGE_MAP = {
-    'redhat': {
-        'pyserial': 'pyserial',
-        'pyyaml': 'PyYAML',
-    },
-    'suse': {
-        'pyyaml': 'python-yaml',
-    }
-}
 
 # Subdirectories of the ~/rpmbuild dir
 RPM_BUILD_SUBDIRS = ['BUILD', 'RPMS', 'SOURCES', 'SPECS', 'SRPMS']
@@ -53,23 +42,18 @@ def run_helper(helper, args=None, strip=True):
     return stdout
 
 
-def read_dependencies():
-    '''Returns the Python depedencies from requirements.txt.  This explicitly
-    removes 'argparse' from the list of requirements for python >= 2.7,
-    because with 2.7 argparse became part of the standard library.'''
-    stdout = run_helper('read-dependencies')
-    return [p.lower().strip() for p in stdout.splitlines()
-            if p != 'argparse' or (p == 'argparse' and
-                                   sys.version_info[0:2] < (2, 7))]
+def read_dependencies(requirements_file='requirements.txt'):
+    """Returns the Python package depedencies from requirements.txt files.
 
-
-def translate_dependencies(deps, distro):
-    '''Maps python requirements into package names.  We assume
-    python-<pypi_name> for packages not listed explicitly in
-    PACKAGE_MAP.'''
-    return [PACKAGE_MAP[distro][req]
-            if req in PACKAGE_MAP[distro] else 'python-%s' % req
-            for req in deps]
+    @returns a tuple of (requirements, test_requirements)
+    """
+    pkg_deps = run_helper(
+        'read-dependencies', args=['--distro', 'redhat']).splitlines()
+    test_deps = run_helper(
+        'read-dependencies', args=[
+            '--requirements-file', 'test-requirements.txt',
+            '--system-pkg-names']).splitlines()
+    return (pkg_deps, test_deps)
 
 
 def read_version():
@@ -99,10 +83,9 @@ def generate_spec_contents(args, version_data, tmpl_fn, top_dir, arc_fn):
         rpm_upstream_version = version_data['version']
     subs['rpm_upstream_version'] = rpm_upstream_version
 
-    # Map to known packages
-    python_deps = read_dependencies()
-    package_deps = translate_dependencies(python_deps, args.distro)
-    subs['requires'] = package_deps
+    deps, test_deps = read_dependencies()
+    subs['buildrequires'] = deps + test_deps
+    subs['requires'] = deps
 
     if args.boot == 'sysvinit':
         subs['sysvinit'] = True

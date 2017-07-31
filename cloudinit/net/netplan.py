@@ -4,7 +4,7 @@ import copy
 import os
 
 from . import renderer
-from .network_state import mask2cidr, subnet_is_ipv6
+from .network_state import subnet_is_ipv6
 
 from cloudinit import log as logging
 from cloudinit import util
@@ -118,10 +118,9 @@ def _extract_addresses(config, entry):
                 sn_type += '4'
             entry.update({sn_type: True})
         elif sn_type in ['static']:
-            addr = '%s' % subnet.get('address')
-            netmask = subnet.get('netmask')
-            if netmask and '/' not in addr:
-                addr += '/%s' % mask2cidr(netmask)
+            addr = "%s" % subnet.get('address')
+            if 'prefix' in subnet:
+                addr += "/%d" % subnet.get('prefix')
             if 'gateway' in subnet and subnet.get('gateway'):
                 gateway = subnet.get('gateway')
                 if ":" in gateway:
@@ -138,9 +137,8 @@ def _extract_addresses(config, entry):
                     mtukey += '6'
                 entry.update({mtukey: subnet.get('mtu')})
             for route in subnet.get('routes', []):
-                network = route.get('network')
-                netmask = route.get('netmask')
-                to_net = '%s/%s' % (network, mask2cidr(netmask))
+                to_net = "%s/%s" % (route.get('network'),
+                                    route.get('prefix'))
                 route = {
                     'via': route.get('gateway'),
                     'to': to_net,
@@ -211,7 +209,8 @@ class Renderer(renderer.Renderer):
         # check network state for version
         # if v2, then extract network_state.config
         # else render_v2_from_state
-        fpnplan = os.path.join(target, self.netplan_path)
+        fpnplan = os.path.join(util.target_path(target), self.netplan_path)
+
         util.ensure_dir(os.path.dirname(fpnplan))
         header = self.netplan_header if self.netplan_header else ""
 

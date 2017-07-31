@@ -32,7 +32,12 @@ class Platforms(object):
     AWS = "AWS"
     BRIGHTBOX = "Brightbox"
     SEEDED = "Seeded"
+    # UNKNOWN indicates no positive id.  If strict_id is 'warn' or 'false',
+    # then an attempt at the Ec2 Metadata service will be made.
     UNKNOWN = "Unknown"
+    # NO_EC2_METADATA indicates this platform does not have a Ec2 metadata
+    # service available. No attempt at the Ec2 Metadata service will be made.
+    NO_EC2_METADATA = "No-EC2-Metadata"
 
 
 class DataSourceEc2(sources.DataSource):
@@ -64,6 +69,8 @@ class DataSourceEc2(sources.DataSource):
         LOG.debug("strict_mode: %s, cloud_platform=%s",
                   strict_mode, self.cloud_platform)
         if strict_mode == "true" and self.cloud_platform == Platforms.UNKNOWN:
+            return False
+        elif self.cloud_platform == Platforms.NO_EC2_METADATA:
             return False
 
         try:
@@ -309,10 +316,16 @@ def identify_platform():
 
 
 def _collect_platform_data():
-    # returns a dictionary with all lower case values:
-    #   uuid: system-uuid from dmi or /sys/hypervisor
-    #   uuid_source: 'hypervisor' (/sys/hypervisor/uuid) or 'dmi'
-    #   serial: dmi 'system-serial-number' (/sys/.../product_serial)
+    """Returns a dictionary of platform info from dmi or /sys/hypervisor.
+
+    Keys in the dictionary are as follows:
+       uuid: system-uuid from dmi or /sys/hypervisor
+       uuid_source: 'hypervisor' (/sys/hypervisor/uuid) or 'dmi'
+       serial: dmi 'system-serial-number' (/sys/.../product_serial)
+
+    On Ec2 instances experimentation is that product_serial is upper case,
+    and product_uuid is lower case.  This returns lower case values for both.
+    """
     data = {}
     try:
         uuid = util.load_file("/sys/hypervisor/uuid").strip()

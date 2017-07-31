@@ -50,14 +50,18 @@ import base64
 import os
 import six
 
+from cloudinit import log as logging
 from cloudinit.settings import PER_INSTANCE
 from cloudinit import util
+
 
 frequency = PER_INSTANCE
 
 DEFAULT_OWNER = "root:root"
 DEFAULT_PERMS = 0o644
 UNKNOWN_ENC = 'text/plain'
+
+LOG = logging.getLogger(__name__)
 
 
 def handle(name, cfg, _cloud, log, _args):
@@ -66,10 +70,10 @@ def handle(name, cfg, _cloud, log, _args):
         log.debug(("Skipping module named %s,"
                    " no/empty 'write_files' key in configuration"), name)
         return
-    write_files(name, files, log)
+    write_files(name, files)
 
 
-def canonicalize_extraction(encoding_type, log):
+def canonicalize_extraction(encoding_type):
     if not encoding_type:
         encoding_type = ''
     encoding_type = encoding_type.lower().strip()
@@ -84,31 +88,31 @@ def canonicalize_extraction(encoding_type, log):
     if encoding_type in ['b64', 'base64']:
         return ['application/base64']
     if encoding_type:
-        log.warn("Unknown encoding type %s, assuming %s",
-                 encoding_type, UNKNOWN_ENC)
+        LOG.warning("Unknown encoding type %s, assuming %s",
+                    encoding_type, UNKNOWN_ENC)
     return [UNKNOWN_ENC]
 
 
-def write_files(name, files, log):
+def write_files(name, files):
     if not files:
         return
 
     for (i, f_info) in enumerate(files):
         path = f_info.get('path')
         if not path:
-            log.warn("No path provided to write for entry %s in module %s",
-                     i + 1, name)
+            LOG.warning("No path provided to write for entry %s in module %s",
+                        i + 1, name)
             continue
         path = os.path.abspath(path)
-        extractions = canonicalize_extraction(f_info.get('encoding'), log)
+        extractions = canonicalize_extraction(f_info.get('encoding'))
         contents = extract_contents(f_info.get('content', ''), extractions)
         (u, g) = util.extract_usergroup(f_info.get('owner', DEFAULT_OWNER))
-        perms = decode_perms(f_info.get('permissions'), DEFAULT_PERMS, log)
+        perms = decode_perms(f_info.get('permissions'), DEFAULT_PERMS)
         util.write_file(path, contents, mode=perms)
         util.chownbyname(path, u, g)
 
 
-def decode_perms(perm, default, log):
+def decode_perms(perm, default):
     if perm is None:
         return default
     try:
@@ -119,7 +123,14 @@ def decode_perms(perm, default, log):
             # Force to string and try octal conversion
             return int(str(perm), 8)
     except (TypeError, ValueError):
-        log.warn("Undecodable permissions %s, assuming %s", perm, default)
+        reps = []
+        for r in (perm, default):
+            try:
+                reps.append("%o" % r)
+            except TypeError:
+                reps.append("%r" % r)
+        LOG.warning(
+            "Undecodable permissions %s, returning default %s", *reps)
         return default
 
 

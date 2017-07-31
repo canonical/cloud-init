@@ -2,6 +2,9 @@
 # SSH keys provided via cloud config
 #
 enabled: False
+required_features:
+  - ubuntu_user
+  - sudo
 cloud_config: |
   #cloud-config
   disable_root: false

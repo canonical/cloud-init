@@ -362,6 +362,11 @@ class Init(object):
         self._store_userdata()
         self._store_vendordata()
 
+    def setup_datasource(self):
+        if self.datasource is None:
+            raise RuntimeError("Datasource is None, cannot setup.")
+        self.datasource.setup(is_new_instance=self.is_new_instance())
+
     def activate_datasource(self):
         if self.datasource is None:
             raise RuntimeError("Datasource is None, cannot activate.")

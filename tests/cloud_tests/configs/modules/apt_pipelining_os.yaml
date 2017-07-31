@@ -1,6 +1,8 @@
 #
 # Set apt pipelining value to OS
 #
+required_features:
+  - apt
 cloud_config: |
   #cloud-config
   apt:

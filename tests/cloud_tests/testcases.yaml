@@ -2,6 +2,7 @@
 base_test_data:
     script_timeout: 20
     enabled: True
+    required_features: []
     cloud_config: |
         #cloud-config
     collect_scripts:

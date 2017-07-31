@@ -1,6 +1,9 @@
 #
 # Add security to sources.list
 #
+required_features:
+  - apt
+  - ubuntu_repos
 cloud_config: |
   #cloud-config
   apt:

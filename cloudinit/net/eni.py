@@ -46,6 +46,10 @@ def _iface_add_subnet(iface, subnet):
         'dns_nameservers',
     ]
     for key, value in subnet.items():
+        if key == 'netmask':
+            continue
+        if key == 'address':
+            value = "%s/%s" % (subnet['address'], subnet['prefix'])
         if value and key in valid_map:
             if type(value) == list:
                 value = " ".join(value)
@@ -68,6 +72,8 @@ def _iface_add_attrs(iface, index):
     content = []
     ignore_map = [
         'control',
+        'device_id',
+        'driver',
         'index',
         'inet',
         'mode',
@@ -75,12 +81,25 @@ def _iface_add_attrs(iface, index):
         'subnets',
         'type',
     ]
+
+    # The following parameters require repetitive entries of the key for
+    # each of the values
+    multiline_keys = [
+        'bridge_pathcost',
+        'bridge_portprio',
+        'bridge_waitport',
+    ]
+
     renames = {'mac_address': 'hwaddress'}
     if iface['type'] not in ['bond', 'bridge', 'vlan']:
         ignore_map.append('mac_address')
 
     for key, value in iface.items():
         if not value or key in ignore_map:
+            continue
+        if key in multiline_keys:
+            for v in value:
+                content.append("    {0} {1}".format(renames.get(key, key), v))
             continue
         if type(value) == list:
             value = " ".join(value)
@@ -304,8 +323,6 @@ class Renderer(renderer.Renderer):
             config = {}
         self.eni_path = config.get('eni_path', 'etc/network/interfaces')
         self.eni_header = config.get('eni_header', None)
-        self.links_path_prefix = config.get(
-            'links_path_prefix', 'etc/systemd/network/50-cloud-init-')
         self.netrules_path = config.get(
             'netrules_path', 'etc/udev/rules.d/70-persistent-net.rules')
 
@@ -338,7 +355,7 @@ class Renderer(renderer.Renderer):
             default_gw = " default gw %s" % route['gateway']
             content.append(up + default_gw + or_true)
             content.append(down + default_gw + or_true)
-        elif route['network'] == '::' and route['netmask'] == 0:
+        elif route['network'] == '::' and route['prefix'] == 0:
             # ipv6!
             default_gw = " -A inet6 default gw %s" % route['gateway']
             content.append(up + default_gw + or_true)
@@ -451,28 +468,6 @@ class Renderer(renderer.Renderer):
             util.write_file(netrules,
                             self._render_persistent_net(network_state))
 
-        if self.links_path_prefix:
-            self._render_systemd_links(target, network_state,
-                                       links_prefix=self.links_path_prefix)
-
-    def _render_systemd_links(self, target, network_state, links_prefix):
-        fp_prefix = util.target_path(target, links_prefix)
-        for f in glob.glob(fp_prefix + "*"):
-            os.unlink(f)
-        for iface in network_state.iter_interfaces():
-            if (iface['type'] == 'physical' and 'name' in iface and
-                    iface.get('mac_address')):
-                fname = fp_prefix + iface['name'] + ".link"
-                content = "\n".join([
-                    "[Match]",
-                    "MACAddress=" + iface['mac_address'],
-                    "",
-                    "[Link]",
-                    "Name=" + iface['name'],
-                    ""
-                ])
-                util.write_file(fname, content)
-
 
 def network_state_to_eni(network_state, header=None, render_hwaddress=False):
     # render the provided network state, return a string of equivalent eni
@@ -480,7 +475,6 @@ def network_state_to_eni(network_state, header=None, render_hwaddress=False):
     renderer = Renderer(config={
         'eni_path': eni_path,
         'eni_header': header,
-        'links_path_prefix': None,
         'netrules_path': None,
     })
     if not header:

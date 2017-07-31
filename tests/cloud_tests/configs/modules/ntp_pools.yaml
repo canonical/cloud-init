@@ -1,6 +1,11 @@
 #
 # NTP config using specific pools
 #
+# NOTE: lsb_release listed here because with recent cloud-init deb with
+#       (LP: 1628337) resolved, cloud-init will attempt to configure archives.
+#       this fails without lsb_release as UNAVAILABLE is used for $RELEASE
+required_features:
+  - lsb_release
 cloud_config: |
   #cloud-config
   ntp:
@@ -11,7 +16,8 @@ cloud_config: |
 collect_scripts:
   ntp_installed_pools: |
     #!/bin/bash
-    dpkg -l | grep ntp | wc -l
+    ntpd --version > /dev/null 2>&1
+    echo $?
   ntp_conf_dist_pools: |
     #!/bin/bash
     ls /etc/ntp.conf.dist | wc -l

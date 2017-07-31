@@ -1,14 +1,14 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
-"""cloud-init Integration Test Verify Script"""
+"""cloud-init Integration Test Verify Script."""
 from tests.cloud_tests.testcases import base
 
 
 class TestAptconfigureSourcesList(base.CloudTestCase):
-    """Test apt-configure module"""
+    """Test apt-configure module."""
 
     def test_sources_list(self):
-        """Test sources.list includes sources"""
+        """Test sources.list includes sources."""
         out = self.get_data_file('sources.list')
         self.assertRegex(out, r'deb http:\/\/archive.ubuntu.com\/ubuntu '
                          '[a-z].* main restricted')

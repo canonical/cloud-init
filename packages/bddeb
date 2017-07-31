@@ -24,19 +24,6 @@ if "avoid-pep8-E402-import-not-top-of-file":
     from cloudinit import templater
     from cloudinit import util
 
-# Package names that will showup in requires which have unique package names.
-# Format is '<pypi-name>': {'<python_major_version>': <pkg_name_or_none>, ...}.
-NONSTD_NAMED_PACKAGES = {
-    'argparse': {'2': 'python-argparse', '3': None},
-    'contextlib2': {'2': 'python-contextlib2', '3': None},
-    'cheetah': {'2': 'python-cheetah', '3': None},
-    'pyserial': {'2': 'python-serial', '3': 'python3-serial'},
-    'pyyaml': {'2': 'python-yaml', '3': 'python3-yaml'},
-    'six': {'2': 'python-six', '3': 'python3-six'},
-    'pep8': {'2': 'pep8', '3': 'python3-pep8'},
-    'pyflakes': {'2': 'pyflakes', '3': 'pyflakes'},
-}
-
 DEBUILD_ARGS = ["-S", "-d"]
 
 
@@ -59,7 +46,6 @@ def write_debian_folder(root, templ_data, is_python2, cloud_util_deps):
     else:
         pyver = "3"
         python = "python3"
-    pkgfmt = "{}-{}"
 
     deb_dir = util.abs_join(root, 'debian')
 
@@ -74,30 +60,25 @@ def write_debian_folder(root, templ_data, is_python2, cloud_util_deps):
                              params=templ_data)
 
     # Write out the control file template
-    reqs = run_helper('read-dependencies').splitlines()
+    reqs_output = run_helper(
+        'read-dependencies',
+        args=['--distro', 'debian', '--python-version', pyver])
+    reqs = reqs_output.splitlines()
     test_reqs = run_helper(
-        'read-dependencies', ['test-requirements.txt']).splitlines()
+        'read-dependencies',
+        ['--requirements-file', 'test-requirements.txt',
+         '--system-pkg-names', '--python-version', pyver]).splitlines()
 
-    pypi_pkgs = [p.lower().strip() for p in reqs]
-    pypi_test_pkgs = [p.lower().strip() for p in test_reqs]
-
-    # Map to known packages
     requires = ['cloud-utils | cloud-guest-utils'] if cloud_util_deps else []
-    test_requires = []
-    lists = ((pypi_pkgs, requires), (pypi_test_pkgs, test_requires))
-    for pypilist, target in lists:
-        for p in pypilist:
-            if p in NONSTD_NAMED_PACKAGES:
-                if NONSTD_NAMED_PACKAGES[p][pyver]:
-                    target.append(NONSTD_NAMED_PACKAGES[p][pyver])
-            else:  # Then standard package prefix
-                target.append(pkgfmt.format(python, p))
-
+    # We consolidate all deps as Build-Depends as our package build runs all
+    # tests so we need all runtime dependencies anyway.
+    # NOTE: python package was moved to the front after debuild -S would fail with
+    # 'Please add apropriate interpreter' errors (as in debian bug 861132)
+    requires.extend([python] + reqs + test_reqs)
     templater.render_to_file(util.abs_join(find_root(),
                                            'packages', 'debian', 'control.in'),
                              util.abs_join(deb_dir, 'control'),
-                             params={'requires': ','.join(requires),
-                                     'test_requires': ','.join(test_requires),
+                             params={'build_depends': ','.join(requires),
                                      'python': python})
 
     templater.render_to_file(util.abs_join(find_root(),

@@ -1,6 +1,12 @@
 #
 # Add a PPA to source.list
 #
+# NOTE: on older ubuntu releases the sources file added is named
+#       'curtin-dev-test-archive-trusty', without 'ubuntu' in the middle
+required_features:
+  - apt
+  - ppa
+  - ppa_file_name
 cloud_config: |
   #cloud-config
   apt:
@@ -16,5 +22,8 @@ collect_scripts:
   apt-key: |
     #!/bin/bash
     apt-key finger
+  sources_full: |
+    #!/bin/bash
+    cat /etc/apt/sources.list
 
 # vi: ts=4 expandtab

@@ -19,10 +19,6 @@ try:
     from contextlib import ExitStack
 except ImportError:
     from contextlib2 import ExitStack
-try:
-    from cStringIO import StringIO
-except ImportError:
-    from io import StringIO
 
 from cloudinit import helpers as ch
 from cloudinit import util
@@ -86,7 +82,26 @@ def retarget_many_wrapper(new_base, am, old_func):
 
 
 class TestCase(unittest2.TestCase):
-    pass
+    def reset_global_state(self):
+        """Reset any global state to its original settings.
+
+        cloudinit caches some values in cloudinit.util.  Unit tests that
+        involved those cached paths were then subject to failure if the order
+        of invocation changed (LP: #1703697).
+
+        This function resets any of these global state variables to their
+        initial state.
+
+        In the future this should really be done with some registry that
+        can then be cleaned in a more obvious way.
+        """
+        util.PROC_CMDLINE = None
+        util._DNS_REDIRECT_IP = None
+        util._LSB_RELEASE = {}
+
+    def setUp(self):
+        super(unittest2.TestCase, self).setUp()
+        self.reset_global_state()
 
 
 class CiTestCase(TestCase):
@@ -101,11 +116,13 @@ class CiTestCase(TestCase):
         super(CiTestCase, self).setUp()
         if self.with_logs:
             # Create a log handler so unit tests can search expected logs.
-            logger = logging.getLogger()
-            self.logs = StringIO()
+            self.logger = logging.getLogger()
+            self.logs = six.StringIO()
+            formatter = logging.Formatter('%(levelname)s: %(message)s')
             handler = logging.StreamHandler(self.logs)
-            self.old_handlers = logger.handlers
-            logger.handlers = [handler]
+            handler.setFormatter(formatter)
+            self.old_handlers = self.logger.handlers
+            self.logger.handlers = [handler]
 
     def tearDown(self):
         if self.with_logs:
@@ -358,5 +375,17 @@ except AttributeError:
                     print(reason, file=sys.stderr)
             return wrapper
         return decorator
+
+
+# older versions of mock do not have the useful 'assert_not_called'
+if not hasattr(mock.Mock, 'assert_not_called'):
+    def __mock_assert_not_called(mmock):
+        if mmock.call_count != 0:
+            msg = ("[citest] Expected '%s' to not have been called. "
+                   "Called %s times." %
+                   (mmock._mock_name or 'mock', mmock.call_count))
+            raise AssertionError(msg)
+    mock.Mock.assert_not_called = __mock_assert_not_called
+
 
 # vi: ts=4 expandtab
