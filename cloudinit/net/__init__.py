@@ -511,21 +511,7 @@ def get_interfaces_by_mac():
 
     Bridges and any devices that have a 'stolen' mac are excluded."""
     ret = {}
-    devs = get_devicelist()
-    empty_mac = '00:00:00:00:00:00'
-    for name in devs:
-        if not interface_has_own_mac(name):
-            continue
-        if is_bridge(name):
-            continue
-        if is_vlan(name):
-            continue
-        mac = get_interface_mac(name)
-        # some devices may not have a mac (tun0)
-        if not mac:
-            continue
-        if mac == empty_mac and name != 'lo':
-            continue
+    for name, mac, _driver, _devid in get_interfaces():
         if mac in ret:
             raise RuntimeError(
                 "duplicate mac found! both '%s' and '%s' have mac '%s'" %
