@@ -1059,6 +1059,100 @@ pre-down route del -net 10.0.0.0 netmask 255.0.0.0 gw 11.0.0.1 metric 3 || true
                   - type: static
                     address: 2001:1::1/92
             """),
+        'expected_netplan': textwrap.dedent("""
+         network:
+             version: 2
+             ethernets:
+                 bond0s0:
+                     match:
+                         macaddress: aa:bb:cc:dd:e8:00
+                     set-name: bond0s0
+                 bond0s1:
+                     match:
+                         macaddress: aa:bb:cc:dd:e8:01
+                     set-name: bond0s1
+             bonds:
+                 bond0:
+                     addresses:
+                     - 192.168.0.2/24
+                     - 192.168.1.2/24
+                     - 2001:1::1/92
+                     gateway4: 192.168.0.1
+                     interfaces:
+                     - bond0s0
+                     - bond0s1
+                     parameters:
+                         mii-monitor-interval: 100
+                         mode: active-backup
+                         transmit-hash-policy: layer3+4
+                     routes:
+                     -   to: 10.1.3.0/24
+                         via: 192.168.0.3
+        """),
+        'yaml-v2': textwrap.dedent("""
+            version: 2
+            ethernets:
+              eth0:
+                match:
+                    driver: "virtio_net"
+                    macaddress: "aa:bb:cc:dd:e8:00"
+              vf0:
+                set-name: vf0
+                match:
+                    driver: "e1000"
+                    macaddress: "aa:bb:cc:dd:e8:01"
+            bonds:
+              bond0:
+                addresses:
+                - 192.168.0.2/24
+                - 192.168.1.2/24
+                - 2001:1::1/92
+                gateway4: 192.168.0.1
+                interfaces:
+                - eth0
+                - vf0
+                parameters:
+                    mii-monitor-interval: 100
+                    mode: active-backup
+                    primary: vf0
+                    transmit-hash-policy: "layer3+4"
+                routes:
+                -   to: 10.1.3.0/24
+                    via: 192.168.0.3
+            """),
+        'expected_netplan-v2': textwrap.dedent("""
+         network:
+             bonds:
+                 bond0:
+                     addresses:
+                     - 192.168.0.2/24
+                     - 192.168.1.2/24
+                     - 2001:1::1/92
+                     gateway4: 192.168.0.1
+                     interfaces:
+                     - eth0
+                     - vf0
+                     parameters:
+                         mii-monitor-interval: 100
+                         mode: active-backup
+                         primary: vf0
+                         transmit-hash-policy: layer3+4
+                     routes:
+                     -   to: 10.1.3.0/24
+                         via: 192.168.0.3
+             ethernets:
+                 eth0:
+                     match:
+                         driver: virtio_net
+                         macaddress: aa:bb:cc:dd:e8:00
+                 vf0:
+                     match:
+                         driver: e1000
+                         macaddress: aa:bb:cc:dd:e8:01
+                     set-name: vf0
+             version: 2
+        """),
+
         'expected_sysconfig': {
             'ifcfg-bond0': textwrap.dedent("""\
         BONDING_MASTER=yes
@@ -2158,6 +2252,27 @@ class TestNetplanRoundTrip(CiTestCase):
 
         renderer.render_network_state(ns, target)
         return dir2dict(target)
+
+    def testsimple_render_bond_netplan(self):
+        entry = NETWORK_CONFIGS['bond']
+        files = self._render_and_read(network_config=yaml.load(entry['yaml']))
+        print(entry['expected_netplan'])
+        print('-- expected ^ | v rendered --')
+        print(files['/etc/netplan/50-cloud-init.yaml'])
+        self.assertEqual(
+            entry['expected_netplan'].splitlines(),
+            files['/etc/netplan/50-cloud-init.yaml'].splitlines())
+
+    def testsimple_render_bond_v2_input_netplan(self):
+        entry = NETWORK_CONFIGS['bond']
+        files = self._render_and_read(
+            network_config=yaml.load(entry['yaml-v2']))
+        print(entry['expected_netplan-v2'])
+        print('-- expected ^ | v rendered --')
+        print(files['/etc/netplan/50-cloud-init.yaml'])
+        self.assertEqual(
+            entry['expected_netplan-v2'].splitlines(),
+            files['/etc/netplan/50-cloud-init.yaml'].splitlines())
 
     def testsimple_render_small_netplan(self):
         entry = NETWORK_CONFIGS['small']
