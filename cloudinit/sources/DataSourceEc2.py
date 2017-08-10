@@ -13,6 +13,8 @@ import time
 
 from cloudinit import ec2_utils as ec2
 from cloudinit import log as logging
+from cloudinit import net
+from cloudinit.net import dhcp
 from cloudinit import sources
 from cloudinit import url_helper as uhelp
 from cloudinit import util
@@ -20,8 +22,7 @@ from cloudinit import warnings
 
 LOG = logging.getLogger(__name__)
 
-# Which version we are requesting of the ec2 metadata apis
-DEF_MD_VERSION = '2009-04-04'
+SKIP_METADATA_URL_CODES = frozenset([uhelp.NOT_FOUND])
 
 STRICT_ID_PATH = ("datasource", "Ec2", "strict_id")
 STRICT_ID_DEFAULT = "warn"
@@ -41,17 +42,28 @@ class Platforms(object):
 
 
 class DataSourceEc2(sources.DataSource):
+
     # Default metadata urls that will be used if none are provided
     # They will be checked for 'resolveability' and some of the
     # following may be discarded if they do not resolve
     metadata_urls = ["http://169.254.169.254", "http://instance-data.:8773"]
+
+    # The minimum supported metadata_version from the ec2 metadata apis
+    min_metadata_version = '2009-04-04'
+
+    # Priority ordered list of additional metadata versions which will be tried
+    # for extended metadata content. IPv6 support comes in 2016-09-02
+    extended_metadata_versions = ['2016-09-02']
+
     _cloud_platform = None
+
+    # Whether we want to get network configuration from the metadata service.
+    get_network_metadata = False
 
     def __init__(self, sys_cfg, distro, paths):
         sources.DataSource.__init__(self, sys_cfg, distro, paths)
         self.metadata_address = None
         self.seed_dir = os.path.join(paths.seed_dir, "ec2")
-        self.api_ver = DEF_MD_VERSION
 
     def get_data(self):
         seed_ret = {}
@@ -73,27 +85,59 @@ class DataSourceEc2(sources.DataSource):
         elif self.cloud_platform == Platforms.NO_EC2_METADATA:
             return False
 
-        try:
-            if not self.wait_for_metadata_service():
+        if self.get_network_metadata:  # Setup networking in init-local stage.
+            if util.is_FreeBSD():
+                LOG.debug("FreeBSD doesn't support running dhclient with -sf")
                 return False
-            start_time = time.time()
-            self.userdata_raw = \
-                ec2.get_instance_userdata(self.api_ver, self.metadata_address)
-            self.metadata = ec2.get_instance_metadata(self.api_ver,
-                                                      self.metadata_address)
-            LOG.debug("Crawl of metadata service took %.3f seconds",
-                      time.time() - start_time)
-            return True
-        except Exception:
-            util.logexc(LOG, "Failed reading from metadata address %s",
-                        self.metadata_address)
-            return False
+            dhcp_leases = dhcp.maybe_perform_dhcp_discovery()
+            if not dhcp_leases:
+                # DataSourceEc2Local failed in init-local stage. DataSourceEc2
+                # will still run in init-network stage.
+                return False
+            dhcp_opts = dhcp_leases[-1]
+            net_params = {'interface': dhcp_opts.get('interface'),
+                          'ip': dhcp_opts.get('fixed-address'),
+                          'prefix_or_mask': dhcp_opts.get('subnet-mask'),
+                          'broadcast': dhcp_opts.get('broadcast-address'),
+                          'router': dhcp_opts.get('routers')}
+            with net.EphemeralIPv4Network(**net_params):
+                return util.log_time(
+                    logfunc=LOG.debug, msg='Crawl of metadata service',
+                    func=self._crawl_metadata)
+        else:
+            return self._crawl_metadata()
 
     @property
     def launch_index(self):
         if not self.metadata:
             return None
         return self.metadata.get('ami-launch-index')
+
+    def get_metadata_api_version(self):
+        """Get the best supported api version from the metadata service.
+
+        Loop through all extended support metadata versions in order and
+        return the most-fully featured metadata api version discovered.
+
+        If extended_metadata_versions aren't present, return the datasource's
+        min_metadata_version.
+        """
+        # Assumes metadata service is already up
+        for api_ver in self.extended_metadata_versions:
+            url = '{0}/{1}/meta-data/instance-id'.format(
+                self.metadata_address, api_ver)
+            try:
+                resp = uhelp.readurl(url=url)
+            except uhelp.UrlError as e:
+                LOG.debug('url %s raised exception %s', url, e)
+            else:
+                if resp.code == 200:
+                    LOG.debug('Found preferred metadata version %s', api_ver)
+                    return api_ver
+                elif resp.code == 404:
+                    msg = 'Metadata api version %s not present. Headers: %s'
+                    LOG.debug(msg, api_ver, resp.headers)
+        return self.min_metadata_version
 
     def get_instance_id(self):
         return self.metadata['instance-id']
@@ -138,21 +182,22 @@ class DataSourceEc2(sources.DataSource):
         urls = []
         url2base = {}
         for url in mdurls:
-            cur = "%s/%s/meta-data/instance-id" % (url, self.api_ver)
+            cur = '{0}/{1}/meta-data/instance-id'.format(
+                url, self.min_metadata_version)
             urls.append(cur)
             url2base[cur] = url
 
         start_time = time.time()
-        url = uhelp.wait_for_url(urls=urls, max_wait=max_wait,
-                                 timeout=timeout, status_cb=LOG.warn)
+        url = uhelp.wait_for_url(
+            urls=urls, max_wait=max_wait, timeout=timeout, status_cb=LOG.warn)
 
         if url:
-            LOG.debug("Using metadata source: '%s'", url2base[url])
+            self.metadata_address = url2base[url]
+            LOG.debug("Using metadata source: '%s'", self.metadata_address)
         else:
             LOG.critical("Giving up on md from %s after %s seconds",
                          urls, int(time.time() - start_time))
 
-        self.metadata_address = url2base.get(url)
         return bool(url)
 
     def device_name_to_device(self, name):
@@ -233,6 +278,37 @@ class DataSourceEc2(sources.DataSource):
             warn_if_necessary(
                 util.get_cfg_by_path(cfg, STRICT_ID_PATH, STRICT_ID_DEFAULT),
                 cfg)
+
+    def _crawl_metadata(self):
+        """Crawl metadata service when available.
+
+        @returns: True on success, False otherwise.
+        """
+        if not self.wait_for_metadata_service():
+            return False
+        api_version = self.get_metadata_api_version()
+        try:
+            self.userdata_raw = ec2.get_instance_userdata(
+                api_version, self.metadata_address)
+            self.metadata = ec2.get_instance_metadata(
+                api_version, self.metadata_address)
+        except Exception:
+            util.logexc(
+                LOG, "Failed reading from metadata address %s",
+                self.metadata_address)
+            return False
+        return True
+
+
+class DataSourceEc2Local(DataSourceEc2):
+    """Datasource run at init-local which sets up network to query metadata.
+
+    In init-local, no network is available. This subclass sets up minimal
+    networking with dhclient on a viable nic so that it can talk to the
+    metadata service. If the metadata service provides network configuration
+    then render the network configuration for that instance based on metadata.
+    """
+    get_network_metadata = True  # Get metadata network config if present
 
 
 def read_strict_mode(cfgval, default):
@@ -349,6 +425,7 @@ def _collect_platform_data():
 
 # Used to match classes to dependencies
 datasources = [
+    (DataSourceEc2Local, (sources.DEP_FILESYSTEM,)),  # Run at init-local
     (DataSourceEc2, (sources.DEP_FILESYSTEM, sources.DEP_NETWORK)),
 ]
 

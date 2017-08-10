@@ -414,7 +414,7 @@ class TestEphemeralIPV4Network(CiTestCase):
             self.assertIn('Cannot init network on', str(error))
             self.assertEqual(0, m_subp.call_count)
 
-    def test_ephemeral_ipv4_network_errors_invalid_mask(self, m_subp):
+    def test_ephemeral_ipv4_network_errors_invalid_mask_prefix(self, m_subp):
         """Raise an error when prefix_or_mask is not a netmask or prefix."""
         params = {
             'interface': 'eth0', 'ip': '192.168.2.2',
