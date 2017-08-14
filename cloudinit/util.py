@@ -12,7 +12,6 @@ import contextlib
 import copy as obj_copy
 import ctypes
 import email
-import errno
 import glob
 import grp
 import gzip
@@ -33,6 +32,8 @@ import subprocess
 import sys
 import tempfile
 import time
+
+from errno import ENOENT, ENOEXEC
 
 from base64 import b64decode, b64encode
 from six.moves.urllib import parse as urlparse
@@ -239,7 +240,10 @@ class ProcessExecutionError(IOError):
             self.cmd = cmd
 
         if not description:
-            self.description = 'Unexpected error while running command.'
+            if not exit_code and errno == ENOEXEC:
+                self.description = 'Exec format error. Missing #! in script?'
+            else:
+                self.description = 'Unexpected error while running command.'
         else:
             self.description = description
 
@@ -433,7 +437,7 @@ def read_conf(fname):
     try:
         return load_yaml(load_file(fname), default={})
     except IOError as e:
-        if e.errno == errno.ENOENT:
+        if e.errno == ENOENT:
             return {}
         else:
             raise
@@ -901,7 +905,7 @@ def read_file_or_url(url, timeout=5, retries=10,
             contents = load_file(file_path, decode=False)
         except IOError as e:
             code = e.errno
-            if e.errno == errno.ENOENT:
+            if e.errno == ENOENT:
                 code = url_helper.NOT_FOUND
             raise url_helper.UrlError(cause=e, code=code, headers=None,
                                       url=url)
@@ -1247,7 +1251,7 @@ def find_devs_with(criteria=None, oformat='device',
     try:
         (out, _err) = subp(cmd, rcs=[0, 2])
     except ProcessExecutionError as e:
-        if e.errno == errno.ENOENT:
+        if e.errno == ENOENT:
             # blkid not found...
             out = ""
         else:
@@ -1285,7 +1289,7 @@ def load_file(fname, read_cb=None, quiet=False, decode=True):
     except IOError as e:
         if not quiet:
             raise
-        if e.errno != errno.ENOENT:
+        if e.errno != ENOENT:
             raise
     contents = ofh.getvalue()
     LOG.debug("Read %s bytes from %s", len(contents), fname)
@@ -1653,7 +1657,7 @@ def del_file(path):
     try:
         os.unlink(path)
     except OSError as e:
-        if e.errno != errno.ENOENT:
+        if e.errno != ENOENT:
             raise e
 
 
@@ -2281,7 +2285,7 @@ def pathprefix2dict(base, required=None, optional=None, delim=os.path.sep):
         try:
             ret[f] = load_file(base + delim + f, quiet=False, decode=False)
         except IOError as e:
-            if e.errno != errno.ENOENT:
+            if e.errno != ENOENT:
                 raise
             if f in required:
                 missing.append(f)
