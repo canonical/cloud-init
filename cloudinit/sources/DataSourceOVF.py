@@ -25,6 +25,8 @@ from cloudinit.sources.helpers.vmware.imc.config_file \
     import ConfigFile
 from cloudinit.sources.helpers.vmware.imc.config_nic \
     import NicConfigurator
+from cloudinit.sources.helpers.vmware.imc.config_passwd \
+    import PasswordConfigurator
 from cloudinit.sources.helpers.vmware.imc.guestcust_error \
     import GuestCustErrorEnum
 from cloudinit.sources.helpers.vmware.imc.guestcust_event \
@@ -117,6 +119,8 @@ class DataSourceOVF(sources.DataSource):
                 (md, ud, cfg) = read_vmware_imc(conf)
                 dirpath = os.path.dirname(vmwareImcConfigFilePath)
                 nics = get_nics_to_enable(dirpath)
+                markerid = conf.marker_id
+                markerexists = check_marker_exists(markerid)
             except Exception as e:
                 LOG.debug("Error parsing the customization Config File")
                 LOG.exception(e)
@@ -127,7 +131,6 @@ class DataSourceOVF(sources.DataSource):
                 return False
             finally:
                 util.del_dir(os.path.dirname(vmwareImcConfigFilePath))
-
             try:
                 LOG.debug("Applying the Network customization")
                 nicConfigurator = NicConfigurator(conf.nics)
@@ -140,6 +143,35 @@ class DataSourceOVF(sources.DataSource):
                     GuestCustEventEnum.GUESTCUST_EVENT_NETWORK_SETUP_FAILED)
                 enable_nics(nics)
                 return False
+            if markerid and not markerexists:
+                LOG.debug("Applying password customization")
+                pwdConfigurator = PasswordConfigurator()
+                adminpwd = conf.admin_password
+                try:
+                    resetpwd = conf.reset_password
+                    if adminpwd or resetpwd:
+                        pwdConfigurator.configure(adminpwd, resetpwd,
+                                                  self.distro)
+                    else:
+                        LOG.debug("Changing password is not needed")
+                except Exception as e:
+                    LOG.debug("Error applying Password Configuration: %s", e)
+                    set_customization_status(
+                        GuestCustStateEnum.GUESTCUST_STATE_RUNNING,
+                        GuestCustEventEnum.GUESTCUST_EVENT_CUSTOMIZE_FAILED)
+                    enable_nics(nics)
+                    return False
+            if markerid:
+                LOG.debug("Handle marker creation")
+                try:
+                    setup_marker_files(markerid)
+                except Exception as e:
+                    LOG.debug("Error creating marker files: %s", e)
+                    set_customization_status(
+                        GuestCustStateEnum.GUESTCUST_STATE_RUNNING,
+                        GuestCustEventEnum.GUESTCUST_EVENT_CUSTOMIZE_FAILED)
+                    enable_nics(nics)
+                    return False
 
             vmwarePlatformFound = True
             set_customization_status(
@@ -444,5 +476,34 @@ datasources = (
 # Return a list of data sources that match this set of dependencies
 def get_datasource_list(depends):
     return sources.list_from_depends(depends, datasources)
+
+
+# To check if marker file exists
+def check_marker_exists(markerid):
+    """
+    Check the existence of a marker file.
+    Presence of marker file determines whether a certain code path is to be
+    executed. It is needed for partial guest customization in VMware.
+    """
+    if not markerid:
+        return False
+    markerfile = "/.markerfile-" + markerid
+    if os.path.exists(markerfile):
+        return True
+    return False
+
+
+# Create a marker file
+def setup_marker_files(markerid):
+    """
+    Create a new marker file.
+    Marker files are unique to a full customization workflow in VMware
+    environment.
+    """
+    if not markerid:
+        return
+    markerfile = "/.markerfile-" + markerid
+    util.del_file("/.markerfile-*.txt")
+    open(markerfile, 'w').close()
 
 # vi: ts=4 expandtab
