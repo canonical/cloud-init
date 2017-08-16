@@ -188,6 +188,9 @@ class Distro(object):
     def _get_localhost_ip(self):
         return "127.0.0.1"
 
+    def get_locale(self):
+        raise NotImplementedError()
+
     @abc.abstractmethod
     def _read_hostname(self, filename, default=None):
         raise NotImplementedError()
