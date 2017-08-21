@@ -46,15 +46,15 @@ pyflakes:
 
 pyflakes3:
 	@$(CWD)/tools/run-pyflakes3
-	
+
 unittest: clean_pyc
-	nosetests $(noseopts) tests/unittests
+	nosetests $(noseopts) tests/unittests cloudinit
 
 unittest3: clean_pyc
 	nosetests3 $(noseopts) tests/unittests
 
 ci-deps-ubuntu:
-	@$(PYVER) $(CWD)/tools/read-dependencies --distro-ubuntu --test-distro
+	@$(PYVER) $(CWD)/tools/read-dependencies --distro ubuntu --test-distro
 
 ci-deps-centos:
 	@$(PYVER) $(CWD)/tools/read-dependencies --distro centos --test-distro

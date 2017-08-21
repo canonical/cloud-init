@@ -484,7 +484,11 @@ class Renderer(renderer.Renderer):
             content.add_nameserver(nameserver)
         for searchdomain in network_state.dns_searchdomains:
             content.add_search_domain(searchdomain)
-        return "\n".join([_make_header(';'), str(content)])
+        header = _make_header(';')
+        content_str = str(content)
+        if not content_str.startswith(header):
+            content_str = header + '\n' + content_str
+        return content_str
 
     @staticmethod
     def _render_networkmanager_conf(network_state):

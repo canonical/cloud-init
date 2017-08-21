@@ -7,8 +7,8 @@
 
 import logging
 import sys
-import unittest
 
+from .helpers import CiTestCase
 from cloudinit.sources.helpers.vmware.imc.boot_proto import BootProtoEnum
 from cloudinit.sources.helpers.vmware.imc.config import Config
 from cloudinit.sources.helpers.vmware.imc.config_file import ConfigFile
@@ -17,7 +17,7 @@ logging.basicConfig(level=logging.DEBUG, stream=sys.stdout)
 logger = logging.getLogger(__name__)
 
 
-class TestVmwareConfigFile(unittest.TestCase):
+class TestVmwareConfigFile(CiTestCase):
 
     def test_utility_methods(self):
         cf = ConfigFile("tests/data/vmware/cust-dhcp-2nic.cfg")
@@ -89,5 +89,33 @@ class TestVmwareConfigFile(unittest.TestCase):
         self.assertEqual('NIC1', nics[0].name, "nic0")
         self.assertEqual('00:50:56:a6:8c:08', nics[0].mac, "mac0")
         self.assertEqual(BootProtoEnum.DHCP, nics[0].bootProto, "bootproto0")
+
+    def test_config_password(self):
+        cf = ConfigFile("tests/data/vmware/cust-dhcp-2nic.cfg")
+
+        cf._insertKey("PASSWORD|-PASS", "test-password")
+        cf._insertKey("PASSWORD|RESET", "no")
+
+        conf = Config(cf)
+        self.assertEqual('test-password', conf.admin_password, "password")
+        self.assertFalse(conf.reset_password, "do not reset password")
+
+    def test_config_reset_passwd(self):
+        cf = ConfigFile("tests/data/vmware/cust-dhcp-2nic.cfg")
+
+        cf._insertKey("PASSWORD|-PASS", "test-password")
+        cf._insertKey("PASSWORD|RESET", "random")
+
+        conf = Config(cf)
+        with self.assertRaises(ValueError):
+            conf.reset_password()
+
+        cf.clear()
+        cf._insertKey("PASSWORD|RESET", "yes")
+        self.assertEqual(1, len(cf), "insert size")
+
+        conf = Config(cf)
+        self.assertTrue(conf.reset_password, "reset password")
+
 
 # vi: ts=4 expandtab

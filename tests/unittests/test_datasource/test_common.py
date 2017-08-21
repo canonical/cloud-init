@@ -35,6 +35,7 @@ DEFAULT_LOCAL = [
     OpenNebula.DataSourceOpenNebula,
     OVF.DataSourceOVF,
     SmartOS.DataSourceSmartOS,
+    Ec2.DataSourceEc2Local,
 ]
 
 DEFAULT_NETWORK = [
