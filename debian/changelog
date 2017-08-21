@@ -1,4 +1,4 @@
-cloud-init (0.7.9-243-ge74d775-0ubuntu1) UNRELEASED; urgency=medium
+cloud-init (0.7.9-243-ge74d775-0ubuntu1) artful; urgency=medium
 
   * New upstream snapshot.
     - tools: Add tooling for basic cloud-init performance analysis.
@@ -24,7 +24,7 @@ cloud-init (0.7.9-243-ge74d775-0ubuntu1) UNRELEASED; urgency=medium
       [Chad Smith]
     - makefile: fix ci-deps-ubuntu target [Chad Smith]
 
- -- Ryan Harper <ryan.harper@canonical.com>  Mon, 21 Aug 2017 15:09:11 -0500
+ -- Ryan Harper <ryan.harper@canonical.com>  Mon, 21 Aug 2017 15:09:36 -0500
 
 cloud-init (0.7.9-231-g80bf98b9-0ubuntu1) artful; urgency=medium
 
