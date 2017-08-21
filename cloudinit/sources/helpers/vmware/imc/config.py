@@ -5,6 +5,7 @@
 #
 # This file is part of cloud-init. See LICENSE file for license information.
 
+
 from .nic import Nic
 
 
@@ -14,13 +15,16 @@ class Config(object):
     Specification file.
     """
 
+    CUSTOM_SCRIPT = 'CUSTOM-SCRIPT|SCRIPT-NAME'
     DNS = 'DNS|NAMESERVER|'
-    SUFFIX = 'DNS|SUFFIX|'
+    DOMAINNAME = 'NETWORK|DOMAINNAME'
+    HOSTNAME = 'NETWORK|HOSTNAME'
+    MARKERID = 'MISC|MARKER-ID'
     PASS = 'PASSWORD|-PASS'
+    RESETPASS = 'PASSWORD|RESET'
+    SUFFIX = 'DNS|SUFFIX|'
     TIMEZONE = 'DATETIME|TIMEZONE'
     UTC = 'DATETIME|UTC'
-    HOSTNAME = 'NETWORK|HOSTNAME'
-    DOMAINNAME = 'NETWORK|DOMAINNAME'
 
     def __init__(self, configFile):
         self._configFile = configFile
@@ -81,5 +85,19 @@ class Config(object):
             res.append(Nic(nic, self._configFile))
 
         return res
+
+    @property
+    def reset_password(self):
+        """Retreives if the root password needs to be reset."""
+        resetPass = self._configFile.get(Config.RESETPASS, 'no')
+        resetPass = resetPass.lower()
+        if resetPass not in ('yes', 'no'):
+            raise ValueError('ResetPassword value should be yes/no')
+        return resetPass == 'yes'
+
+    @property
+    def marker_id(self):
+        """Returns marker id."""
+        return self._configFile.get(Config.MARKERID, None)
 
 # vi: ts=4 expandtab

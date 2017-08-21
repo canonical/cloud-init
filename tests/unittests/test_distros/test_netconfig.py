@@ -135,7 +135,7 @@ network:
 V2_NET_CFG = {
     'ethernets': {
         'eth7': {
-            'addresses': ['192.168.1.5/255.255.255.0'],
+            'addresses': ['192.168.1.5/24'],
             'gateway4': '192.168.1.254'},
         'eth9': {
             'dhcp4': True}
@@ -151,7 +151,6 @@ V2_TO_V2_NET_CFG_OUTPUT = """
 # /etc/cloud/cloud.cfg.d/99-disable-network-config.cfg with the following:
 # network: {config: disabled}
 network:
-    version: 2
     ethernets:
         eth7:
             addresses:
@@ -159,6 +158,7 @@ network:
             gateway4: 192.168.1.254
         eth9:
             dhcp4: true
+    version: 2
 """
 
 

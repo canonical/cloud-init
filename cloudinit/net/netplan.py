@@ -4,7 +4,7 @@ import copy
 import os
 
 from . import renderer
-from .network_state import subnet_is_ipv6
+from .network_state import subnet_is_ipv6, NET_CONFIG_TO_V2
 
 from cloudinit import log as logging
 from cloudinit import util
@@ -27,31 +27,6 @@ network:
 """
 
 LOG = logging.getLogger(__name__)
-NET_CONFIG_TO_V2 = {
-    'bond': {'bond-ad-select': 'ad-select',
-             'bond-arp-interval': 'arp-interval',
-             'bond-arp-ip-target': 'arp-ip-target',
-             'bond-arp-validate': 'arp-validate',
-             'bond-downdelay': 'down-delay',
-             'bond-fail-over-mac': 'fail-over-mac-policy',
-             'bond-lacp-rate': 'lacp-rate',
-             'bond-miimon': 'mii-monitor-interval',
-             'bond-min-links': 'min-links',
-             'bond-mode': 'mode',
-             'bond-num-grat-arp': 'gratuitious-arp',
-             'bond-primary-reselect': 'primary-reselect-policy',
-             'bond-updelay': 'up-delay',
-             'bond-xmit-hash-policy': 'transmit-hash-policy'},
-    'bridge': {'bridge_ageing': 'ageing-time',
-               'bridge_bridgeprio': 'priority',
-               'bridge_fd': 'forward-delay',
-               'bridge_gcint': None,
-               'bridge_hello': 'hello-time',
-               'bridge_maxage': 'max-age',
-               'bridge_maxwait': None,
-               'bridge_pathcost': 'path-cost',
-               'bridge_portprio': None,
-               'bridge_waitport': None}}
 
 
 def _get_params_dict_by_match(config, match):
@@ -247,6 +222,14 @@ class Renderer(renderer.Renderer):
             util.subp(cmd, capture=True)
 
     def _render_content(self, network_state):
+
+        # if content already in netplan format, pass it back
+        if network_state.version == 2:
+            LOG.debug('V2 to V2 passthrough')
+            return util.yaml_dumps({'network': network_state.config},
+                                   explicit_start=False,
+                                   explicit_end=False)
+
         ethernets = {}
         wifis = {}
         bridges = {}

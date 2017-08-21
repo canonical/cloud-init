@@ -50,13 +50,6 @@ WELCOME_MSG_TPL = ("Cloud-init v. {version} running '{action}' at "
 # Module section template
 MOD_SECTION_TPL = "cloud_%s_modules"
 
-# Things u can query on
-QUERY_DATA_TYPES = [
-    'data',
-    'data_raw',
-    'instance_id',
-]
-
 # Frequency shortname to full name
 # (so users don't have to remember the full name...)
 FREQ_SHORT_NAMES = {
@@ -510,11 +503,6 @@ def main_modules(action_name, args):
     return run_module_section(mods, name, name)
 
 
-def main_query(name, _args):
-    raise NotImplementedError(("Action '%s' is not"
-                               " currently implemented") % (name))
-
-
 def main_single(name, args):
     # Cloud-init single stage is broken up into the following sub-stages
     # 1. Ensure that the init object fetches its config without errors
@@ -713,9 +701,11 @@ def main(sysv_args=None):
                         default=False)
 
     parser.set_defaults(reporter=None)
-    subparsers = parser.add_subparsers()
+    subparsers = parser.add_subparsers(title='Subcommands', dest='subcommand')
+    subparsers.required = True
 
     # Each action and its sub-options (if any)
+
     parser_init = subparsers.add_parser('init',
                                         help=('initializes cloud-init and'
                                               ' performs initial modules'))
@@ -736,17 +726,6 @@ def main(sysv_args=None):
                             default='config',
                             choices=('init', 'config', 'final'))
     parser_mod.set_defaults(action=('modules', main_modules))
-
-    # These settings are used when you want to query information
-    # stored in the cloud-init data objects/directories/files
-    parser_query = subparsers.add_parser('query',
-                                         help=('query information stored '
-                                               'in cloud-init'))
-    parser_query.add_argument("--name", '-n', action="store",
-                              help="item name to query on",
-                              required=True,
-                              choices=QUERY_DATA_TYPES)
-    parser_query.set_defaults(action=('query', main_query))
 
     # This subcommand allows you to run a single module
     parser_single = subparsers.add_parser('single',
@@ -781,15 +760,22 @@ def main(sysv_args=None):
                                             help=('list defined features'))
     parser_features.set_defaults(action=('features', main_features))
 
+    parser_analyze = subparsers.add_parser(
+        'analyze', help='Devel tool: Analyze cloud-init logs and data')
+    if sysv_args and sysv_args[0] == 'analyze':
+        # Only load this parser if analyze is specified to avoid file load cost
+        # FIXME put this under 'devel' subcommand (coming in next branch)
+        from cloudinit.analyze.__main__ import get_parser as analyze_parser
+        # Construct analyze subcommand parser
+        analyze_parser(parser_analyze)
+
     args = parser.parse_args(args=sysv_args)
 
-    try:
-        (name, functor) = args.action
-    except AttributeError:
-        parser.error('too few arguments')
+    # Subparsers.required = True and each subparser sets action=(name, functor)
+    (name, functor) = args.action
 
     # Setup basic logging to start (until reinitialized)
-    # iff in debug mode...
+    # iff in debug mode.
     if args.debug:
         logging.setupBasicLogging()
 

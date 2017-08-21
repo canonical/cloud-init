@@ -1,3 +1,31 @@
+cloud-init (0.7.9-243-ge74d775-0ubuntu1) artful; urgency=medium
+
+  * New upstream snapshot.
+    - tools: Add tooling for basic cloud-init performance analysis.
+      [Chad Smith] (LP: #1709761)
+    - network: add v2 passthrough and fix parsing v2 config with bonds/bridge
+      params [Ryan Harper] (LP: #1709180)
+    - doc: update capabilities with features available, link doc reference,
+      cli example [Ryan Harper]
+    - vcloud directory: Guest Customization support for passwords
+      [Maitreyee Saikia]
+    - ec2: Allow Ec2 to run in init-local using dhclient in a sandbox.
+      [Chad Smith] (LP: #1709772)
+    - cc_ntp: fallback on timesyncd configuration if ntp is not installable
+      [Ryan Harper] (LP: #1686485)
+    - net: Reduce duplicate code. Have get_interfaces_by_mac use
+      get_interfaces.
+    - tests: Fix build tree integration tests [Joshua Powers]
+    - sysconfig: Dont repeat header when rendering resolv.conf
+      [Ryan Harper] (LP: #1701420)
+    - archlinux: Fix bug with empty dns, do not render 'lo' devices.
+      (LP: #1663045, #1706593)
+    - cloudinit.net: add initialize_network_device function and tests
+      [Chad Smith]
+    - makefile: fix ci-deps-ubuntu target [Chad Smith]
+
+ -- Ryan Harper <ryan.harper@canonical.com>  Mon, 21 Aug 2017 15:09:36 -0500
+
 cloud-init (0.7.9-231-g80bf98b9-0ubuntu1) artful; urgency=medium
 
   * New upstream snapshot.

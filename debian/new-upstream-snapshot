@@ -14,9 +14,27 @@ EOF
 }
 
 print_commit() {
-    local subject="$1" author="$2" bugs="$3" aname=""
+    local subject="$1" author="$2" bugs="$3" aname="" buf="" abugs=""
+    local indent="    - " indent2="      " ll=79
     aname=${author% <*}
-    echo "    - $subject [${aname}]${bugs:+ (LP: ${bugs})}"
+    [ "${aname}" = "Scott Moser" ] && aname=""
+    abugs="${aname:+ [${aname}]}${bugs:+ (LP: ${bugs})}"
+    if [ $((${#subject}+${#abugs})) -le $(($ll-${#indent})) ]; then
+        echo "${indent}${subject}${abugs}"
+    elif [ ${#subject} -ge $(($ll-${#indent})) ]; then
+        echo "${subject}${abugs}" |
+            fmt --width=$(($ll-${#indent})) |
+            sed -e "1s/^/${indent}/; 1n;" \
+                -e 's/^[ ]*//' \
+                -e '/^[ ]*$/d' -e "s/^/$indent2/" -e 's/[ ]\+$//'
+
+    else
+        ( echo "${subject}"; echo "${abugs}" ) |
+            fmt --width=$(($ll-${#indent})) |
+            sed -e "1s/^/${indent}/; 1n;" \
+                -e 's/^[ ]*//' \
+                -e '/^[ ]*$/d' -e "s/^/$indent2/" -e 's/[ ]\+$//'
+    fi
 }
 
 git_log_to_dch() {

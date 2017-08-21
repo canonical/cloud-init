@@ -278,7 +278,7 @@ class FilesystemMockingTestCase(ResourceUsingTestCase):
         return root
 
 
-class HttprettyTestCase(TestCase):
+class HttprettyTestCase(CiTestCase):
     # necessary as http_proxy gets in the way of httpretty
     # https://github.com/gabrielfalcao/HTTPretty/issues/122
     def setUp(self):
