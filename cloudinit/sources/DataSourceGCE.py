@@ -11,9 +11,8 @@ from cloudinit import util
 
 LOG = logging.getLogger(__name__)
 
-BUILTIN_DS_CONFIG = {
-    'metadata_url': 'http://metadata.google.internal/computeMetadata/v1/'
-}
+MD_V1_URL = 'http://metadata.google.internal/computeMetadata/v1/'
+BUILTIN_DS_CONFIG = {'metadata_url': MD_V1_URL}
 REQUIRED_FIELDS = ('instance-id', 'availability-zone', 'local-hostname')
 
 
@@ -51,75 +50,20 @@ class DataSourceGCE(sources.DataSource):
             BUILTIN_DS_CONFIG])
         self.metadata_address = self.ds_cfg['metadata_url']
 
-    # GCE takes sshKeys attribute in the format of '<user>:<public_key>'
-    # so we have to trim each key to remove the username part
-    def _trim_key(self, public_key):
-        try:
-            index = public_key.index(':')
-            if index > 0:
-                return public_key[(index + 1):]
-        except Exception:
-            return public_key
-
     def get_data(self):
-        if not platform_reports_gce():
-            return False
+        ret = util.log_time(
+            LOG.debug, 'Crawl of GCE metadata service',
+            read_md, kwargs={'address': self.metadata_address})
 
-        # url_map: (our-key, path, required, is_text)
-        url_map = [
-            ('instance-id', ('instance/id',), True, True),
-            ('availability-zone', ('instance/zone',), True, True),
-            ('local-hostname', ('instance/hostname',), True, True),
-            ('public-keys', ('project/attributes/sshKeys',
-                             'instance/attributes/ssh-keys'), False, True),
-            ('user-data', ('instance/attributes/user-data',), False, False),
-            ('user-data-encoding', ('instance/attributes/user-data-encoding',),
-             False, True),
-        ]
-
-        # if we cannot resolve the metadata server, then no point in trying
-        if not util.is_resolvable_url(self.metadata_address):
-            LOG.debug("%s is not resolvable", self.metadata_address)
-            return False
-
-        metadata_fetcher = GoogleMetadataFetcher(self.metadata_address)
-        # iterate over url_map keys to get metadata items
-        running_on_gce = False
-        for (mkey, paths, required, is_text) in url_map:
-            value = None
-            for path in paths:
-                new_value = metadata_fetcher.get_value(path, is_text)
-                if new_value is not None:
-                    value = new_value
-            if value:
-                running_on_gce = True
-            if required and value is None:
-                msg = "required key %s returned nothing. not GCE"
-                if not running_on_gce:
-                    LOG.debug(msg, mkey)
-                else:
-                    LOG.warning(msg, mkey)
-                return False
-            self.metadata[mkey] = value
-
-        if self.metadata['public-keys']:
-            lines = self.metadata['public-keys'].splitlines()
-            self.metadata['public-keys'] = [self._trim_key(k) for k in lines]
-
-        if self.metadata['availability-zone']:
-            self.metadata['availability-zone'] = self.metadata[
-                'availability-zone'].split('/')[-1]
-
-        encoding = self.metadata.get('user-data-encoding')
-        if encoding:
-            if encoding == 'base64':
-                self.metadata['user-data'] = b64decode(
-                    self.metadata['user-data'])
+        if not ret['success']:
+            if ret['platform_reports_gce']:
+                LOG.warning(ret['reason'])
             else:
-                LOG.warning('unknown user-data-encoding: %s, ignoring',
-                            encoding)
-
-        return running_on_gce
+                LOG.debug(ret['reason'])
+            return False
+        self.metadata = ret['meta-data']
+        self.userdata = ret['user-data']
+        return True
 
     @property
     def launch_index(self):
@@ -137,7 +81,7 @@ class DataSourceGCE(sources.DataSource):
         return self.metadata['local-hostname'].split('.')[0]
 
     def get_userdata_raw(self):
-        return self.metadata['user-data']
+        return self.userdata
 
     @property
     def availability_zone(self):
@@ -146,6 +90,87 @@ class DataSourceGCE(sources.DataSource):
     @property
     def region(self):
         return self.availability_zone.rsplit('-', 1)[0]
+
+
+def _trim_key(public_key):
+    # GCE takes sshKeys attribute in the format of '<user>:<public_key>'
+    # so we have to trim each key to remove the username part
+    try:
+        index = public_key.index(':')
+        if index > 0:
+            return public_key[(index + 1):]
+    except Exception:
+        return public_key
+
+
+def read_md(address=None, platform_check=True):
+
+    if address is None:
+        address = MD_V1_URL
+
+    ret = {'meta-data': None, 'user-data': None,
+           'success': False, 'reason': None}
+    ret['platform_reports_gce'] = platform_reports_gce()
+
+    if platform_check and not ret['platform_reports_gce']:
+        ret['reason'] = "Not running on GCE."
+        return ret
+
+    # if we cannot resolve the metadata server, then no point in trying
+    if not util.is_resolvable_url(address):
+        LOG.debug("%s is not resolvable", address)
+        ret['reason'] = 'address "%s" is not resolvable' % address
+        return ret
+
+    # url_map: (our-key, path, required, is_text)
+    url_map = [
+        ('instance-id', ('instance/id',), True, True),
+        ('availability-zone', ('instance/zone',), True, True),
+        ('local-hostname', ('instance/hostname',), True, True),
+        ('public-keys', ('project/attributes/sshKeys',
+                         'instance/attributes/ssh-keys'), False, True),
+        ('user-data', ('instance/attributes/user-data',), False, False),
+        ('user-data-encoding', ('instance/attributes/user-data-encoding',),
+         False, True),
+    ]
+
+    metadata_fetcher = GoogleMetadataFetcher(address)
+    md = {}
+    # iterate over url_map keys to get metadata items
+    for (mkey, paths, required, is_text) in url_map:
+        value = None
+        for path in paths:
+            new_value = metadata_fetcher.get_value(path, is_text)
+            if new_value is not None:
+                value = new_value
+        if required and value is None:
+            msg = "required key %s returned nothing. not GCE"
+            ret['reason'] = msg % mkey
+            return ret
+        md[mkey] = value
+
+    if md['public-keys']:
+        lines = md['public-keys'].splitlines()
+        md['public-keys'] = [_trim_key(k) for k in lines]
+
+    if md['availability-zone']:
+        md['availability-zone'] = md['availability-zone'].split('/')[-1]
+
+    encoding = md.get('user-data-encoding')
+    if encoding:
+        if encoding == 'base64':
+            md['user-data'] = b64decode(md['user-data'])
+        else:
+            LOG.warning('unknown user-data-encoding: %s, ignoring', encoding)
+
+    if 'user-data' in md:
+        ret['user-data'] = md['user-data']
+        del md['user-data']
+
+    ret['meta-data'] = md
+    ret['success'] = True
+
+    return ret
 
 
 def platform_reports_gce():
@@ -172,5 +197,22 @@ datasources = [
 # Return a list of data sources that match this set of dependencies
 def get_datasource_list(depends):
     return sources.list_from_depends(depends, datasources)
+
+
+if __name__ == "__main__":
+    import argparse
+    import json
+
+    parser = argparse.ArgumentParser(description='Query GCE Metadata Service')
+    parser.add_argument("--endpoint", metavar="URL",
+                        help="The url of the metadata service.",
+                        default=MD_V1_URL)
+    parser.add_argument("--no-platform-check", dest="platform_check",
+                        help="Ignore smbios platform check",
+                        action='store_false', default=True)
+    args = parser.parse_args()
+    print(json.dumps(
+        read_md(address=args.endpoint, platform_check=args.platform_check),
+        indent=1, sort_keys=True, separators=(',', ': ')))
 
 # vi: ts=4 expandtab
