@@ -276,11 +276,14 @@ fix_azure_upgrade_1611074() {
     rm "$tmpf" || :
 }
 
+cleanup_ureadahead() {
+    local oldver="$1" last_bad_ver="0.7.9-243-ge74d775-0ubuntu2~"
+    dpkg --compare-versions "$oldver" le "$last_bad_ver" || return 0
+    dpkg-divert --package cloud-init --remove --rename --divert \
+        /etc/init/ureadahead.conf.disabled /etc/init/ureadahead.conf
+}
 
 if [ "$1" = "configure" ]; then
-   # disable ureadahead (LP: #499520)
-   dpkg-divert --package cloud-init --rename --divert \
-      /etc/init/ureadahead.conf.disabled --add /etc/init/ureadahead.conf
    if db_get cloud-init/datasources; then
       values="$RET"
       if [ "${values#*MaaS}" != "${values}" ]; then
@@ -321,6 +324,8 @@ EOF
    disable_network_config_on_upgrade "$2"
 
    fix_azure_upgrade_1611074 "$2"
+
+   cleanup_ureadahead "$2"
 fi
 
 #DEBHELPER#
