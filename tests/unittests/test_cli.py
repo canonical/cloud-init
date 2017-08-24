@@ -70,6 +70,21 @@ class TestCLI(test_helpers.FilesystemMockingTestCase):
         self.assertEqual('modules', parseargs.action[0])
         self.assertEqual('main_modules', parseargs.action[1].__name__)
 
+    def test_conditional_subcommands_from_entry_point_sys_argv(self):
+        """Subcommands from entry-point are properly parsed from sys.argv."""
+        expected_errors = [
+            'usage: cloud-init analyze', 'usage: cloud-init devel']
+        conditional_subcommands = ['analyze', 'devel']
+        # The cloud-init entrypoint calls main without passing sys_argv
+        for subcommand in conditional_subcommands:
+            with mock.patch('sys.argv', ['cloud-init', subcommand]):
+                try:
+                    cli.main()
+                except SystemExit as e:
+                    self.assertEqual(2, e.code)  # exit 2 on proper usage docs
+        for error_message in expected_errors:
+            self.assertIn(error_message, self.stderr.getvalue())
+
     def test_analyze_subcommand_parser(self):
         """The subcommand cloud-init analyze calls the correct subparser."""
         self._call_main(['cloud-init', 'analyze'])

@@ -676,11 +676,10 @@ def main_features(name, args):
 
 
 def main(sysv_args=None):
-    if sysv_args is not None:
-        parser = argparse.ArgumentParser(prog=sysv_args[0])
-        sysv_args = sysv_args[1:]
-    else:
-        parser = argparse.ArgumentParser()
+    if not sysv_args:
+        sysv_args = sys.argv
+    parser = argparse.ArgumentParser(prog=sysv_args[0])
+    sysv_args = sysv_args[1:]
 
     # Top level args
     parser.add_argument('--version', '-v', action='version',
