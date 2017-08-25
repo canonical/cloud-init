@@ -35,7 +35,7 @@ OSFAMILIES = {
     'redhat': ['centos', 'fedora', 'rhel'],
     'gentoo': ['gentoo'],
     'freebsd': ['freebsd'],
-    'suse': ['sles'],
+    'suse': ['opensuse', 'sles'],
     'arch': ['arch'],
 }
 

@@ -49,9 +49,15 @@ class TestLocale(t_help.FilesystemMockingTestCase):
         }
         cc = self._get_cloud('sles')
         cc_locale.handle('cc_locale', cfg, cc, LOG, [])
-
-        contents = util.load_file('/etc/sysconfig/language', decode=False)
+        if cc.distro.uses_systemd:
+            locale_conf = cc.distro.systemd_locale_conf_fn
+        else:
+            locale_conf = cc.distro.locale_conf_fn
+        contents = util.load_file(locale_conf, decode=False)
         n_cfg = ConfigObj(BytesIO(contents))
-        self.assertEqual({'RC_LANG': cfg['locale']}, dict(n_cfg))
+        if cc.distro.uses_systemd():
+            self.assertEqual({'LANG': cfg['locale']}, dict(n_cfg))
+        else:
+            self.assertEqual({'RC_LANG': cfg['locale']}, dict(n_cfg))
 
 # vi: ts=4 expandtab

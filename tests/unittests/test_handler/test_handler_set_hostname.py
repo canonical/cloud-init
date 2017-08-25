@@ -70,7 +70,8 @@ class TestHostname(t_help.FilesystemMockingTestCase):
         cc = cloud.Cloud(ds, paths, {}, distro, None)
         self.patchUtils(self.tmp)
         cc_set_hostname.handle('cc_set_hostname', cfg, cc, LOG, [])
-        contents = util.load_file("/etc/HOSTNAME")
-        self.assertEqual('blah', contents.strip())
+        if not distro.uses_systemd():
+            contents = util.load_file(distro.hostname_conf_fn)
+            self.assertEqual('blah', contents.strip())
 
 # vi: ts=4 expandtab
