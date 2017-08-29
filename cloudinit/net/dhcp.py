@@ -9,6 +9,7 @@ import os
 import re
 
 from cloudinit.net import find_fallback_nic, get_devicelist
+from cloudinit import temp_utils
 from cloudinit import util
 
 LOG = logging.getLogger(__name__)
@@ -47,7 +48,7 @@ def maybe_perform_dhcp_discovery(nic=None):
     if not dhclient_path:
         LOG.debug('Skip dhclient configuration: No dhclient command found.')
         return {}
-    with util.tempdir(prefix='cloud-init-dhcp-') as tmpdir:
+    with temp_utils.tempdir(prefix='cloud-init-dhcp-') as tmpdir:
         return dhcp_discovery(dhclient_path, nic, tmpdir)
 
 

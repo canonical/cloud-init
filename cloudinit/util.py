@@ -30,7 +30,6 @@ import stat
 import string
 import subprocess
 import sys
-import tempfile
 import time
 
 from errno import ENOENT, ENOEXEC
@@ -45,6 +44,7 @@ from cloudinit import importer
 from cloudinit import log as logging
 from cloudinit import mergers
 from cloudinit import safeyaml
+from cloudinit import temp_utils
 from cloudinit import type_utils
 from cloudinit import url_helper
 from cloudinit import version
@@ -347,26 +347,6 @@ class MountFailedError(Exception):
 
 class DecompressionError(Exception):
     pass
-
-
-def ExtendedTemporaryFile(**kwargs):
-    fh = tempfile.NamedTemporaryFile(**kwargs)
-    # Replace its unlink with a quiet version
-    # that does not raise errors when the
-    # file to unlink has been unlinked elsewhere..
-    LOG.debug("Created temporary file %s", fh.name)
-    fh.unlink = del_file
-
-    # Add a new method that will unlink
-    # right 'now' but still lets the exit
-    # method attempt to remove it (which will
-    # not throw due to our del file being quiet
-    # about files that are not there)
-    def unlink_now():
-        fh.unlink(fh.name)
-
-    setattr(fh, 'unlink_now', unlink_now)
-    return fh
 
 
 def fork_cb(child_cb, *args, **kwargs):
@@ -788,18 +768,6 @@ def umask(n_msk):
         yield old
     finally:
         os.umask(old)
-
-
-@contextlib.contextmanager
-def tempdir(**kwargs):
-    # This seems like it was only added in python 3.2
-    # Make it since its useful...
-    # See: http://bugs.python.org/file12970/tempdir.patch
-    tdir = tempfile.mkdtemp(**kwargs)
-    try:
-        yield tdir
-    finally:
-        del_dir(tdir)
 
 
 def center(text, fill, max_len):
@@ -1587,7 +1555,7 @@ def mount_cb(device, callback, data=None, rw=False, mtype=None, sync=True):
         mtypes = ['']
 
     mounted = mounts()
-    with tempdir() as tmpd:
+    with temp_utils.tempdir() as tmpd:
         umount = False
         if os.path.realpath(device) in mounted:
             mountpoint = mounted[os.path.realpath(device)]['mountpoint']

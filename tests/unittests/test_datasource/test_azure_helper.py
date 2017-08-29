@@ -275,7 +275,7 @@ class TestOpenSSLManager(TestCase):
                 mock.patch('builtins.open'))
 
     @mock.patch.object(azure_helper, 'cd', mock.MagicMock())
-    @mock.patch.object(azure_helper.tempfile, 'mkdtemp')
+    @mock.patch.object(azure_helper.temp_utils, 'mkdtemp')
     def test_openssl_manager_creates_a_tmpdir(self, mkdtemp):
         manager = azure_helper.OpenSSLManager()
         self.assertEqual(mkdtemp.return_value, manager.tmpdir)
@@ -292,7 +292,7 @@ class TestOpenSSLManager(TestCase):
         manager.clean_up()
 
     @mock.patch.object(azure_helper, 'cd', mock.MagicMock())
-    @mock.patch.object(azure_helper.tempfile, 'mkdtemp', mock.MagicMock())
+    @mock.patch.object(azure_helper.temp_utils, 'mkdtemp', mock.MagicMock())
     @mock.patch.object(azure_helper.util, 'del_dir')
     def test_clean_up(self, del_dir):
         manager = azure_helper.OpenSSLManager()
