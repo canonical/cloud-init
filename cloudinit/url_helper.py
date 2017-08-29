@@ -17,11 +17,6 @@ import time
 from email.utils import parsedate
 from functools import partial
 
-try:
-    import oauthlib.oauth1 as oauth1
-except ImportError:
-    oauth1 = None
-
 from requests import exceptions
 
 from six.moves.urllib.parse import (
@@ -492,8 +487,9 @@ class OauthUrlHelper(object):
 
 def oauth_headers(url, consumer_key, token_key, token_secret, consumer_secret,
                   timestamp=None):
-
-    if oauth1 is None:
+    try:
+        import oauthlib.oauth1 as oauth1
+    except ImportError:
         raise NotImplementedError('oauth support is not available')
 
     if timestamp:
