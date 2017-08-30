@@ -1,3 +1,9 @@
+cloud-init (0.7.9-243-ge74d775-0ubuntu2) UNRELEASED; urgency=medium
+
+  * Disable upstart support, as upstart is no longer shipped in artful.
+
+ -- Dimitri John Ledkov <xnox@ubuntu.com>  Thu, 24 Aug 2017 00:29:30 +0100
+
 cloud-init (0.7.9-243-ge74d775-0ubuntu1) artful; urgency=medium
 
   * New upstream snapshot.
