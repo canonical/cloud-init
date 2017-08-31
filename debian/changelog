@@ -1,3 +1,37 @@
+cloud-init (0.7.9-259-g7e76c57b-0ubuntu1) artful; urgency=medium
+
+  * Disable upstart support, as upstart is no longer shipped in artful.
+    [Dimitri Ledkov]
+  * New upstream snapshot.
+    - distro: allow distro to specify a default locale [Ryan Harper]
+    - tests: fix two recently added tests for sles distro.
+    - url_helper: dynamically import oauthlib import from inside oauth_headers
+      [Chad Smith]
+    - tox: make xenial environment run with python3.6
+    - suse: Add support for openSUSE and return SLES to a working state.
+      [Robert Schweikert]
+    - GCE: Add a main to the GCE Datasource.
+    - ec2: Add IPv6 dhcp support to Ec2DataSource. [Chad Smith] (LP: #1639030)
+    - url_helper: fail gracefully if oauthlib is not available
+      [Lars Kellogg-Stedman] (LP: #1713760)
+    - cloud-init analyze: fix issues running under python 2. [Andrew Jorgensen]
+    - Configure logging module to always use UTC time.
+      [Ryan Harper] (LP: #1713158)
+    - Log a helpful message if a user script does not include shebang.
+      [Andrew Jorgensen]
+    - cli: Fix command line parsing of coniditionally loaded subcommands.
+      [Chad Smith] (LP: #1712676)
+    - doc: Explain error behavior in user data include file format.
+      [Jason Butz]
+    - cc_landscape & cc_puppet: Fix six.StringIO use in writing configs
+      [Chad Smith] (LP: #1699282, #1710932)
+    - schema cli: Add schema subcommand to cloud-init cli and cc_runcmd schema
+      [Chad Smith]
+    - Debian: Remove non-free repositories from apt sources template.
+      [Joonas Kylmälä] (LP: #1700091)
+
+ -- Scott Moser <smoser@ubuntu.com>  Wed, 30 Aug 2017 21:18:05 -0400
+
 cloud-init (0.7.9-243-ge74d775-0ubuntu1) artful; urgency=medium
 
   * New upstream snapshot.

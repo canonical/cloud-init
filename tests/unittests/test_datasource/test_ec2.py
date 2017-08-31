@@ -1,5 +1,6 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
+import copy
 import httpretty
 import mock
 
@@ -195,6 +196,34 @@ class TestEc2(test_helpers.HttprettyTestCase):
         return ds
 
     @httpretty.activate
+    def test_network_config_property_returns_version_1_network_data(self):
+        """network_config property returns network version 1 for metadata."""
+        ds = self._setup_ds(
+            platform_data=self.valid_platform_data,
+            sys_cfg={'datasource': {'Ec2': {'strict_id': True}}},
+            md=DEFAULT_METADATA)
+        ds.get_data()
+        mac1 = '06:17:04:d7:26:09'  # Defined in DEFAULT_METADATA
+        expected = {'version': 1, 'config': [
+            {'mac_address': '06:17:04:d7:26:09', 'name': 'eth9',
+             'subnets': [{'type': 'dhcp4'}, {'type': 'dhcp6'}],
+             'type': 'physical'}]}
+        patch_path = (
+            'cloudinit.sources.DataSourceEc2.net.get_interfaces_by_mac')
+        with mock.patch(patch_path) as m_get_interfaces_by_mac:
+            m_get_interfaces_by_mac.return_value = {mac1: 'eth9'}
+            self.assertEqual(expected, ds.network_config)
+
+    def test_network_config_property_is_cached_in_datasource(self):
+        """network_config property is cached in DataSourceEc2."""
+        ds = self._setup_ds(
+            platform_data=self.valid_platform_data,
+            sys_cfg={'datasource': {'Ec2': {'strict_id': True}}},
+            md=DEFAULT_METADATA)
+        ds._network_config = {'cached': 'data'}
+        self.assertEqual({'cached': 'data'}, ds.network_config)
+
+    @httpretty.activate
     @mock.patch('cloudinit.net.dhcp.maybe_perform_dhcp_discovery')
     def test_valid_platform_with_strict_true(self, m_dhcp):
         """Valid platform data should return true with strict_id true."""
@@ -286,5 +315,73 @@ class TestEc2(test_helpers.HttprettyTestCase):
             prefix_or_mask='255.255.255.0', router='192.168.2.1')
         self.assertIn('Crawl of metadata service took', self.logs.getvalue())
 
+
+class TestConvertEc2MetadataNetworkConfig(test_helpers.CiTestCase):
+
+    def setUp(self):
+        super(TestConvertEc2MetadataNetworkConfig, self).setUp()
+        self.mac1 = '06:17:04:d7:26:09'
+        self.network_metadata = {
+            'network': {'interfaces': {'macs': {
+                self.mac1: {'public-ipv4s': '172.31.2.16'}}}}}
+
+    def test_convert_ec2_metadata_network_config_skips_absent_macs(self):
+        """Any mac absent from metadata is skipped by network config."""
+        macs_to_nics = {self.mac1: 'eth9', 'DE:AD:BE:EF:FF:FF': 'vitualnic2'}
+
+        # DE:AD:BE:EF:FF:FF represented by OS but not in metadata
+        expected = {'version': 1, 'config': [
+            {'mac_address': self.mac1, 'type': 'physical',
+             'name': 'eth9', 'subnets': [{'type': 'dhcp4'}]}]}
+        self.assertEqual(
+            expected,
+            ec2.convert_ec2_metadata_network_config(
+                self.network_metadata, macs_to_nics))
+
+    def test_convert_ec2_metadata_network_config_handles_only_dhcp6(self):
+        """Config dhcp6 when ipv6s is in metadata for a mac."""
+        macs_to_nics = {self.mac1: 'eth9'}
+        network_metadata_ipv6 = copy.deepcopy(self.network_metadata)
+        nic1_metadata = (
+            network_metadata_ipv6['network']['interfaces']['macs'][self.mac1])
+        nic1_metadata['ipv6s'] = '2620:0:1009:fd00:e442:c88d:c04d:dc85/64'
+        nic1_metadata.pop('public-ipv4s')
+        expected = {'version': 1, 'config': [
+            {'mac_address': self.mac1, 'type': 'physical',
+             'name': 'eth9', 'subnets': [{'type': 'dhcp6'}]}]}
+        self.assertEqual(
+            expected,
+            ec2.convert_ec2_metadata_network_config(
+                network_metadata_ipv6, macs_to_nics))
+
+    def test_convert_ec2_metadata_network_config_handles_dhcp4_and_dhcp6(self):
+        """Config both dhcp4 and dhcp6 when both vpc-ipv6 and ipv4 exists."""
+        macs_to_nics = {self.mac1: 'eth9'}
+        network_metadata_both = copy.deepcopy(self.network_metadata)
+        nic1_metadata = (
+            network_metadata_both['network']['interfaces']['macs'][self.mac1])
+        nic1_metadata['ipv6s'] = '2620:0:1009:fd00:e442:c88d:c04d:dc85/64'
+        expected = {'version': 1, 'config': [
+            {'mac_address': self.mac1, 'type': 'physical',
+             'name': 'eth9',
+             'subnets': [{'type': 'dhcp4'}, {'type': 'dhcp6'}]}]}
+        self.assertEqual(
+            expected,
+            ec2.convert_ec2_metadata_network_config(
+                network_metadata_both, macs_to_nics))
+
+    def test_convert_ec2_metadata_gets_macs_from_get_interfaces_by_mac(self):
+        """Convert Ec2 Metadata calls get_interfaces_by_mac by default."""
+        expected = {'version': 1, 'config': [
+            {'mac_address': self.mac1, 'type': 'physical',
+             'name': 'eth9',
+             'subnets': [{'type': 'dhcp4'}]}]}
+        patch_path = (
+            'cloudinit.sources.DataSourceEc2.net.get_interfaces_by_mac')
+        with mock.patch(patch_path) as m_get_interfaces_by_mac:
+            m_get_interfaces_by_mac.return_value = {self.mac1: 'eth9'}
+            self.assertEqual(
+                expected,
+                ec2.convert_ec2_metadata_network_config(self.network_metadata))
 
 # vi: ts=4 expandtab

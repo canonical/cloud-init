@@ -1,3 +1,0 @@
-# this explicitly diverts ureadahead.conf in ureadahead package
-# see LP: #499520 for more discussion
-cloud-init binary: diversion-for-unknown-file

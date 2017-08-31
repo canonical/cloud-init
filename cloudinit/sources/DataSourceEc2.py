@@ -57,6 +57,8 @@ class DataSourceEc2(sources.DataSource):
 
     _cloud_platform = None
 
+    _network_config = None  # Used for caching calculated network config v1
+
     # Whether we want to get network configuration from the metadata service.
     get_network_metadata = False
 
@@ -279,6 +281,15 @@ class DataSourceEc2(sources.DataSource):
                 util.get_cfg_by_path(cfg, STRICT_ID_PATH, STRICT_ID_DEFAULT),
                 cfg)
 
+    @property
+    def network_config(self):
+        """Return a network config dict for rendering ENI or netplan files."""
+        if self._network_config is None:
+            if self.metadata is not None:
+                self._network_config = convert_ec2_metadata_network_config(
+                    self.metadata)
+        return self._network_config
+
     def _crawl_metadata(self):
         """Crawl metadata service when available.
 
@@ -421,6 +432,33 @@ def _collect_platform_data():
     data['serial'] = serial.lower()
 
     return data
+
+
+def convert_ec2_metadata_network_config(metadata=None, macs_to_nics=None):
+    """Convert ec2 metadata to network config version 1 data dict.
+
+    @param: metadata: Dictionary of metadata crawled from EC2 metadata url.
+    @param: macs_to_name: Optional dict mac addresses and the nic name. If
+       not provided, get_interfaces_by_mac is called to get it from the OS.
+
+    @return A dict of network config version 1 based on the metadata and macs.
+    """
+    netcfg = {'version': 1, 'config': []}
+    if not macs_to_nics:
+        macs_to_nics = net.get_interfaces_by_mac()
+    macs_metadata = metadata['network']['interfaces']['macs']
+    for mac, nic_name in macs_to_nics.items():
+        nic_metadata = macs_metadata.get(mac)
+        if not nic_metadata:
+            continue  # Not a physical nic represented in metadata
+        nic_cfg = {'type': 'physical', 'name': nic_name, 'subnets': []}
+        nic_cfg['mac_address'] = mac
+        if nic_metadata.get('public-ipv4s'):
+            nic_cfg['subnets'].append({'type': 'dhcp4'})
+        if nic_metadata.get('ipv6s'):
+            nic_cfg['subnets'].append({'type': 'dhcp6'})
+        netcfg['config'].append(nic_cfg)
+    return netcfg
 
 
 # Used to match classes to dependencies

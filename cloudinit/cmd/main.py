@@ -676,11 +676,10 @@ def main_features(name, args):
 
 
 def main(sysv_args=None):
-    if sysv_args is not None:
-        parser = argparse.ArgumentParser(prog=sysv_args[0])
-        sysv_args = sysv_args[1:]
-    else:
-        parser = argparse.ArgumentParser()
+    if not sysv_args:
+        sysv_args = sys.argv
+    parser = argparse.ArgumentParser(prog=sysv_args[0])
+    sysv_args = sysv_args[1:]
 
     # Top level args
     parser.add_argument('--version', '-v', action='version',
@@ -705,7 +704,6 @@ def main(sysv_args=None):
     subparsers.required = True
 
     # Each action and its sub-options (if any)
-
     parser_init = subparsers.add_parser('init',
                                         help=('initializes cloud-init and'
                                               ' performs initial modules'))
@@ -762,12 +760,20 @@ def main(sysv_args=None):
 
     parser_analyze = subparsers.add_parser(
         'analyze', help='Devel tool: Analyze cloud-init logs and data')
-    if sysv_args and sysv_args[0] == 'analyze':
-        # Only load this parser if analyze is specified to avoid file load cost
-        # FIXME put this under 'devel' subcommand (coming in next branch)
-        from cloudinit.analyze.__main__ import get_parser as analyze_parser
-        # Construct analyze subcommand parser
-        analyze_parser(parser_analyze)
+
+    parser_devel = subparsers.add_parser(
+        'devel', help='Run development tools')
+
+    if sysv_args:
+        # Only load subparsers if subcommand is specified to avoid load cost
+        if sysv_args[0] == 'analyze':
+            from cloudinit.analyze.__main__ import get_parser as analyze_parser
+            # Construct analyze subcommand parser
+            analyze_parser(parser_analyze)
+        if sysv_args[0] == 'devel':
+            from cloudinit.cmd.devel.parser import get_parser as devel_parser
+            # Construct devel subcommand parser
+            devel_parser(parser_devel)
 
     args = parser.parse_args(args=sysv_args)
 

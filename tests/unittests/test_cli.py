@@ -46,7 +46,7 @@ class TestCLI(test_helpers.FilesystemMockingTestCase):
         self._call_main()
         error = self.stderr.getvalue()
         expected_subcommands = ['analyze', 'init', 'modules', 'single',
-                                'dhclient-hook', 'features']
+                                'dhclient-hook', 'features', 'devel']
         for subcommand in expected_subcommands:
             self.assertIn(subcommand, error)
 
@@ -70,6 +70,21 @@ class TestCLI(test_helpers.FilesystemMockingTestCase):
         self.assertEqual('modules', parseargs.action[0])
         self.assertEqual('main_modules', parseargs.action[1].__name__)
 
+    def test_conditional_subcommands_from_entry_point_sys_argv(self):
+        """Subcommands from entry-point are properly parsed from sys.argv."""
+        expected_errors = [
+            'usage: cloud-init analyze', 'usage: cloud-init devel']
+        conditional_subcommands = ['analyze', 'devel']
+        # The cloud-init entrypoint calls main without passing sys_argv
+        for subcommand in conditional_subcommands:
+            with mock.patch('sys.argv', ['cloud-init', subcommand]):
+                try:
+                    cli.main()
+                except SystemExit as e:
+                    self.assertEqual(2, e.code)  # exit 2 on proper usage docs
+        for error_message in expected_errors:
+            self.assertIn(error_message, self.stderr.getvalue())
+
     def test_analyze_subcommand_parser(self):
         """The subcommand cloud-init analyze calls the correct subparser."""
         self._call_main(['cloud-init', 'analyze'])
@@ -78,6 +93,25 @@ class TestCLI(test_helpers.FilesystemMockingTestCase):
         error = self.stderr.getvalue()
         for subcommand in expected_subcommands:
             self.assertIn(subcommand, error)
+
+    def test_devel_subcommand_parser(self):
+        """The subcommand cloud-init devel calls the correct subparser."""
+        self._call_main(['cloud-init', 'devel'])
+        # These subcommands only valid for cloud-init schema script
+        expected_subcommands = ['schema']
+        error = self.stderr.getvalue()
+        for subcommand in expected_subcommands:
+            self.assertIn(subcommand, error)
+
+    @mock.patch('cloudinit.config.schema.handle_schema_args')
+    def test_wb_devel_schema_subcommand_parser(self, m_schema):
+        """The subcommand cloud-init schema calls the correct subparser."""
+        exit_code = self._call_main(['cloud-init', 'devel', 'schema'])
+        self.assertEqual(1, exit_code)
+        # Known whitebox output from schema subcommand
+        self.assertEqual(
+            'Expected either --config-file argument or --doc\n',
+            self.stderr.getvalue())
 
     @mock.patch('cloudinit.cmd.main.main_single')
     def test_single_subcommand(self, m_main_single):

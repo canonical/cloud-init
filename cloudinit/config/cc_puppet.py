@@ -15,21 +15,23 @@ This module handles puppet installation and configuration. If the ``puppet``
 key does not exist in global configuration, no action will be taken. If a
 config entry for ``puppet`` is present, then by default the latest version of
 puppet will be installed. If ``install`` is set to ``false``, puppet will not
-be installed. However, this may result in an error if puppet is not already
+be installed. However, this will result in an error if puppet is not already
 present on the system. The version of puppet to be installed can be specified
 under ``version``, and defaults to ``none``, which selects the latest version
 in the repos. If the ``puppet`` config key exists in the config archive, this
 module will attempt to start puppet even if no installation was performed.
 
-Puppet configuration can be specified under the ``conf`` key. The configuration
-is specified as a dictionary which is converted into ``<key>=<value>`` format
-and appended to ``puppet.conf`` under the ``[puppetd]`` section. The
+Puppet configuration can be specified under the ``conf`` key. The
+configuration is specified as a dictionary containing high-level ``<section>``
+keys and lists of ``<key>=<value>`` pairs within each section. Each section
+name and ``<key>=<value>`` pair is written directly to ``puppet.conf``. As
+such,  section names should be one of: ``main``, ``master``, ``agent`` or
+``user`` and keys should be valid puppet configuration options. The
 ``certname`` key supports string substitutions for ``%i`` and ``%f``,
 corresponding to the instance id and fqdn of the machine respectively.
-If ``ca_cert`` is present under ``conf``, it will not be written to
-``puppet.conf``, but instead will be used as the puppermaster certificate.
-It should be specified in pem format as a multi-line string (using the ``|``
-yaml notation).
+If ``ca_cert`` is present, it will not be written to ``puppet.conf``, but
+instead will be used as the puppermaster certificate. It should be specified
+in pem format as a multi-line string (using the ``|`` yaml notation).
 
 **Internal name:** ``cc_puppet``
 
@@ -43,12 +45,13 @@ yaml notation).
         install: <true/false>
         version: <version>
         conf:
-            server: "puppetmaster.example.org"
-            certname: "%i.%f"
-            ca_cert: |
-                -------BEGIN CERTIFICATE-------
-                <cert data>
-                -------END CERTIFICATE-------
+            agent:
+                server: "puppetmaster.example.org"
+                certname: "%i.%f"
+                ca_cert: |
+                    -------BEGIN CERTIFICATE-------
+                    <cert data>
+                    -------END CERTIFICATE-------
 """
 
 from six import StringIO
@@ -127,7 +130,7 @@ def handle(name, cfg, cloud, log, _args):
                 util.write_file(PUPPET_SSL_CERT_PATH, cfg)
                 util.chownbyname(PUPPET_SSL_CERT_PATH, 'puppet', 'root')
             else:
-                # Iterate throug the config items, we'll use ConfigParser.set
+                # Iterate through the config items, we'll use ConfigParser.set
                 # to overwrite or create new items as needed
                 for (o, v) in cfg.items():
                     if o == 'certname':

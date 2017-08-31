@@ -201,7 +201,7 @@ def load_events(infile, rawdata=None):
     j = None
     try:
         j = json.loads(data)
-    except json.JSONDecodeError:
+    except ValueError:
         pass
 
     return j, data

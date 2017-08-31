@@ -1,67 +1,85 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
-from ..helpers import (CiTestCase, mock)
-
-from cloudinit.distros.debian import apply_locale
+from cloudinit import distros
 from cloudinit import util
+from ..helpers import (FilesystemMockingTestCase, mock)
 
 
 @mock.patch("cloudinit.distros.debian.util.subp")
-class TestDebianApplyLocale(CiTestCase):
+class TestDebianApplyLocale(FilesystemMockingTestCase):
+
+    def setUp(self):
+        super(TestDebianApplyLocale, self).setUp()
+        self.new_root = self.tmp_dir()
+        self.patchOS(self.new_root)
+        self.patchUtils(self.new_root)
+        self.spath = self.tmp_path('etc/default/locale', self.new_root)
+        cls = distros.fetch("debian")
+        self.distro = cls("debian", {}, None)
+
     def test_no_rerun(self, m_subp):
         """If system has defined locale, no re-run is expected."""
-        spath = self.tmp_path("default-locale")
         m_subp.return_value = (None, None)
         locale = 'en_US.UTF-8'
-        util.write_file(spath, 'LANG=%s\n' % locale, omode="w")
-        apply_locale(locale, sys_path=spath)
+        util.write_file(self.spath, 'LANG=%s\n' % locale, omode="w")
+        self.distro.apply_locale(locale, out_fn=self.spath)
         m_subp.assert_not_called()
+
+    def test_no_regen_on_c_utf8(self, m_subp):
+        """If locale is set to C.UTF8, do not attempt to call locale-gen"""
+        m_subp.return_value = (None, None)
+        locale = 'C.UTF-8'
+        util.write_file(self.spath, 'LANG=%s\n' % 'en_US.UTF-8', omode="w")
+        self.distro.apply_locale(locale, out_fn=self.spath)
+        self.assertEqual(
+            [['update-locale', '--locale-file=' + self.spath,
+              'LANG=%s' % locale]],
+            [p[0][0] for p in m_subp.call_args_list])
 
     def test_rerun_if_different(self, m_subp):
         """If system has different locale, locale-gen should be called."""
-        spath = self.tmp_path("default-locale")
         m_subp.return_value = (None, None)
         locale = 'en_US.UTF-8'
-        util.write_file(spath, 'LANG=fr_FR.UTF-8', omode="w")
-        apply_locale(locale, sys_path=spath)
+        util.write_file(self.spath, 'LANG=fr_FR.UTF-8', omode="w")
+        self.distro.apply_locale(locale, out_fn=self.spath)
         self.assertEqual(
             [['locale-gen', locale],
-             ['update-locale', '--locale-file=' + spath, 'LANG=%s' % locale]],
+             ['update-locale', '--locale-file=' + self.spath,
+              'LANG=%s' % locale]],
             [p[0][0] for p in m_subp.call_args_list])
 
     def test_rerun_if_no_file(self, m_subp):
         """If system has no locale file, locale-gen should be called."""
-        spath = self.tmp_path("default-locale")
         m_subp.return_value = (None, None)
         locale = 'en_US.UTF-8'
-        apply_locale(locale, sys_path=spath)
+        self.distro.apply_locale(locale, out_fn=self.spath)
         self.assertEqual(
             [['locale-gen', locale],
-             ['update-locale', '--locale-file=' + spath, 'LANG=%s' % locale]],
+             ['update-locale', '--locale-file=' + self.spath,
+              'LANG=%s' % locale]],
             [p[0][0] for p in m_subp.call_args_list])
 
     def test_rerun_on_unset_system_locale(self, m_subp):
         """If system has unset locale, locale-gen should be called."""
         m_subp.return_value = (None, None)
-        spath = self.tmp_path("default-locale")
         locale = 'en_US.UTF-8'
-        util.write_file(spath, 'LANG=', omode="w")
-        apply_locale(locale, sys_path=spath)
+        util.write_file(self.spath, 'LANG=', omode="w")
+        self.distro.apply_locale(locale, out_fn=self.spath)
         self.assertEqual(
             [['locale-gen', locale],
-             ['update-locale', '--locale-file=' + spath, 'LANG=%s' % locale]],
+             ['update-locale', '--locale-file=' + self.spath,
+              'LANG=%s' % locale]],
             [p[0][0] for p in m_subp.call_args_list])
 
     def test_rerun_on_mismatched_keys(self, m_subp):
         """If key is LC_ALL and system has only LANG, rerun is expected."""
         m_subp.return_value = (None, None)
-        spath = self.tmp_path("default-locale")
         locale = 'en_US.UTF-8'
-        util.write_file(spath, 'LANG=', omode="w")
-        apply_locale(locale, sys_path=spath, keyname='LC_ALL')
+        util.write_file(self.spath, 'LANG=', omode="w")
+        self.distro.apply_locale(locale, out_fn=self.spath, keyname='LC_ALL')
         self.assertEqual(
             [['locale-gen', locale],
-             ['update-locale', '--locale-file=' + spath,
+             ['update-locale', '--locale-file=' + self.spath,
               'LC_ALL=%s' % locale]],
             [p[0][0] for p in m_subp.call_args_list])
 
@@ -69,14 +87,14 @@ class TestDebianApplyLocale(CiTestCase):
         """locale as None or "" is invalid and should raise ValueError."""
 
         with self.assertRaises(ValueError) as ctext_m:
-            apply_locale(None)
+            self.distro.apply_locale(None)
             m_subp.assert_not_called()
 
         self.assertEqual(
             'Failed to provide locale value.', str(ctext_m.exception))
 
         with self.assertRaises(ValueError) as ctext_m:
-            apply_locale("")
+            self.distro.apply_locale("")
             m_subp.assert_not_called()
         self.assertEqual(
             'Failed to provide locale value.', str(ctext_m.exception))

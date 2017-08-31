@@ -130,7 +130,7 @@ def configure_io(args):
     else:
         try:
             infh = open(args.infile, 'r')
-        except (FileNotFoundError, PermissionError):
+        except OSError:
             sys.stderr.write('Cannot open file %s\n' % args.infile)
             sys.exit(1)
 
@@ -139,7 +139,7 @@ def configure_io(args):
     else:
         try:
             outfh = open(args.outfile, 'w')
-        except PermissionError:
+        except OSError:
             sys.stderr.write('Cannot open file %s\n' % args.outfile)
             sys.exit(1)
 

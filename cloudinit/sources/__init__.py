@@ -44,6 +44,7 @@ class DataSourceNotFoundException(Exception):
 class DataSource(object):
 
     dsmode = DSMODE_NETWORK
+    default_locale = 'en_US.UTF-8'
 
     def __init__(self, sys_cfg, distro, paths, ud_proc=None):
         self.sys_cfg = sys_cfg
@@ -150,7 +151,13 @@ class DataSource(object):
         return None
 
     def get_locale(self):
-        return 'en_US.UTF-8'
+        """Default locale is en_US.UTF-8, but allow distros to override"""
+        locale = self.default_locale
+        try:
+            locale = self.distro.get_locale()
+        except NotImplementedError:
+            pass
+        return locale
 
     @property
     def availability_zone(self):
