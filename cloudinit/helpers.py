@@ -13,7 +13,7 @@ from time import time
 import contextlib
 import os
 
-import six
+from six import StringIO
 from six.moves.configparser import (
     NoSectionError, NoOptionError, RawConfigParser)
 
@@ -441,12 +441,12 @@ class DefaultingConfigParser(RawConfigParser):
 
     def stringify(self, header=None):
         contents = ''
-        with six.StringIO() as outputstream:
-            self.write(outputstream)
-            outputstream.flush()
-            contents = outputstream.getvalue()
-            if header:
-                contents = "\n".join([header, contents])
+        outputstream = StringIO()
+        self.write(outputstream)
+        outputstream.flush()
+        contents = outputstream.getvalue()
+        if header:
+            contents = '\n'.join([header, contents, ''])
         return contents
 
 # vi: ts=4 expandtab

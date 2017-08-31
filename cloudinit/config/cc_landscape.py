@@ -57,7 +57,7 @@ The following default client config is provided, but can be overridden::
 
 import os
 
-from six import StringIO
+from six import BytesIO
 
 from configobj import ConfigObj
 
@@ -109,7 +109,7 @@ def handle(_name, cfg, cloud, log, _args):
         ls_cloudcfg,
     ]
     merged = merge_together(merge_data)
-    contents = StringIO()
+    contents = BytesIO()
     merged.write(contents)
 
     util.ensure_dir(os.path.dirname(LSC_CLIENT_CFG_FILE))

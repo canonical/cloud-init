@@ -1,9 +1,9 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 from cloudinit.config.schema import (
-    CLOUD_CONFIG_HEADER, SchemaValidationError, get_schema_doc,
-    validate_cloudconfig_file, validate_cloudconfig_schema,
-    main)
+    CLOUD_CONFIG_HEADER, SchemaValidationError, annotated_cloudconfig_file,
+    get_schema_doc, get_schema, validate_cloudconfig_file,
+    validate_cloudconfig_schema, main)
 from cloudinit.util import write_file
 
 from ..helpers import CiTestCase, mock, skipIf
@@ -11,6 +11,7 @@ from ..helpers import CiTestCase, mock, skipIf
 from copy import copy
 from six import StringIO
 from textwrap import dedent
+from yaml import safe_load
 
 try:
     import jsonschema
@@ -18,6 +19,29 @@ try:
     _missing_jsonschema_dep = False
 except ImportError:
     _missing_jsonschema_dep = True
+
+
+class GetSchemaTest(CiTestCase):
+
+    def test_get_schema_coalesces_known_schema(self):
+        """Every cloudconfig module with schema is listed in allOf keyword."""
+        schema = get_schema()
+        self.assertItemsEqual(
+            ['cc_ntp', 'cc_runcmd'],
+            [subschema['id'] for subschema in schema['allOf']])
+        self.assertEqual('cloud-config-schema', schema['id'])
+        self.assertEqual(
+            'http://json-schema.org/draft-04/schema#',
+            schema['$schema'])
+        # FULL_SCHEMA is updated by the get_schema call
+        from cloudinit.config.schema import FULL_SCHEMA
+        self.assertItemsEqual(['id', '$schema', 'allOf'], FULL_SCHEMA.keys())
+
+    def test_get_schema_returns_global_when_set(self):
+        """When FULL_SCHEMA global is already set, get_schema returns it."""
+        m_schema_path = 'cloudinit.config.schema.FULL_SCHEMA'
+        with mock.patch(m_schema_path, {'here': 'iam'}):
+            self.assertEqual({'here': 'iam'}, get_schema())
 
 
 class SchemaValidationErrorTest(CiTestCase):
@@ -151,11 +175,11 @@ class GetSchemaDocTest(CiTestCase):
         full_schema.update(
             {'properties': {
                 'prop1': {'type': 'array', 'description': 'prop-description',
-                          'items': {'type': 'int'}}}})
+                          'items': {'type': 'integer'}}}})
         self.assertEqual(
             dedent("""
                 name
-                ---
+                ----
                 **Summary:** title
 
                 description
@@ -167,25 +191,69 @@ class GetSchemaDocTest(CiTestCase):
                 **Supported distros:** debian, rhel
 
                 **Config schema**:
-                    **prop1:** (array of int) prop-description\n\n"""),
+                    **prop1:** (array of integer) prop-description\n\n"""),
+            get_schema_doc(full_schema))
+
+    def test_get_schema_doc_handles_multiple_types(self):
+        """get_schema_doc delimits multiple property types with a '/'."""
+        full_schema = copy(self.required_schema)
+        full_schema.update(
+            {'properties': {
+                'prop1': {'type': ['string', 'integer'],
+                          'description': 'prop-description'}}})
+        self.assertIn(
+            '**prop1:** (string/integer) prop-description',
+            get_schema_doc(full_schema))
+
+    def test_get_schema_doc_handles_nested_oneof_property_types(self):
+        """get_schema_doc describes array items oneOf declarations in type."""
+        full_schema = copy(self.required_schema)
+        full_schema.update(
+            {'properties': {
+                'prop1': {'type': 'array',
+                          'items': {
+                              'oneOf': [{'type': 'string'},
+                                        {'type': 'integer'}]},
+                          'description': 'prop-description'}}})
+        self.assertIn(
+            '**prop1:** (array of (string)/(integer)) prop-description',
             get_schema_doc(full_schema))
 
     def test_get_schema_doc_returns_restructured_text_with_examples(self):
         """get_schema_doc returns indented examples when present in schema."""
         full_schema = copy(self.required_schema)
         full_schema.update(
-            {'examples': {'ex1': [1, 2, 3]},
+            {'examples': [{'ex1': [1, 2, 3]}],
              'properties': {
                 'prop1': {'type': 'array', 'description': 'prop-description',
-                          'items': {'type': 'int'}}}})
+                          'items': {'type': 'integer'}}}})
         self.assertIn(
             dedent("""
                 **Config schema**:
-                    **prop1:** (array of int) prop-description
+                    **prop1:** (array of integer) prop-description
 
                 **Examples**::
 
                     ex1"""),
+            get_schema_doc(full_schema))
+
+    def test_get_schema_doc_handles_unstructured_examples(self):
+        """get_schema_doc properly indented examples which as just strings."""
+        full_schema = copy(self.required_schema)
+        full_schema.update(
+            {'examples': ['My example:\n    [don\'t, expand, "this"]'],
+             'properties': {
+                'prop1': {'type': 'array', 'description': 'prop-description',
+                          'items': {'type': 'integer'}}}})
+        self.assertIn(
+            dedent("""
+                **Config schema**:
+                    **prop1:** (array of integer) prop-description
+
+                **Examples**::
+
+                    My example:
+                        [don't, expand, "this"]"""),
             get_schema_doc(full_schema))
 
     def test_get_schema_doc_raises_key_errors(self):
@@ -198,13 +266,78 @@ class GetSchemaDocTest(CiTestCase):
             self.assertIn(key, str(context_mgr.exception))
 
 
+class AnnotatedCloudconfigFileTest(CiTestCase):
+    maxDiff = None
+
+    def test_annotated_cloudconfig_file_no_schema_errors(self):
+        """With no schema_errors, print the original content."""
+        content = b'ntp:\n  pools: [ntp1.pools.com]\n'
+        self.assertEqual(
+            content,
+            annotated_cloudconfig_file({}, content, schema_errors=[]))
+
+    def test_annotated_cloudconfig_file_schema_annotates_and_adds_footer(self):
+        """With schema_errors, error lines are annotated and a footer added."""
+        content = dedent("""\
+            #cloud-config
+            # comment
+            ntp:
+              pools: [-99, 75]
+            """).encode()
+        expected = dedent("""\
+            #cloud-config
+            # comment
+            ntp:		# E1
+              pools: [-99, 75]		# E2,E3
+
+            # Errors: -------------
+            # E1: Some type error
+            # E2: -99 is not a string
+            # E3: 75 is not a string
+
+            """)
+        parsed_config = safe_load(content[13:])
+        schema_errors = [
+            ('ntp', 'Some type error'), ('ntp.pools.0', '-99 is not a string'),
+            ('ntp.pools.1', '75 is not a string')]
+        self.assertEqual(
+            expected,
+            annotated_cloudconfig_file(parsed_config, content, schema_errors))
+
+    def test_annotated_cloudconfig_file_annotates_separate_line_items(self):
+        """Errors are annotated for lists with items on separate lines."""
+        content = dedent("""\
+            #cloud-config
+            # comment
+            ntp:
+              pools:
+                - -99
+                - 75
+            """).encode()
+        expected = dedent("""\
+            ntp:
+              pools:
+                - -99		# E1
+                - 75		# E2
+            """)
+        parsed_config = safe_load(content[13:])
+        schema_errors = [
+            ('ntp.pools.0', '-99 is not a string'),
+            ('ntp.pools.1', '75 is not a string')]
+        self.assertIn(
+            expected,
+            annotated_cloudconfig_file(parsed_config, content, schema_errors))
+
+
 class MainTest(CiTestCase):
 
     def test_main_missing_args(self):
         """Main exits non-zero and reports an error on missing parameters."""
         with mock.patch('sys.argv', ['mycmd']):
             with mock.patch('sys.stderr', new_callable=StringIO) as m_stderr:
-                self.assertEqual(1, main(), 'Expected non-zero exit code')
+                with self.assertRaises(SystemExit) as context_manager:
+                    main()
+        self.assertEqual('1', str(context_manager.exception))
         self.assertEqual(
             'Expected either --config-file argument or --doc\n',
             m_stderr.getvalue())
@@ -216,13 +349,13 @@ class MainTest(CiTestCase):
             with mock.patch('sys.stdout', new_callable=StringIO) as m_stdout:
                 self.assertEqual(0, main(), 'Expected 0 exit code')
         self.assertIn('\nNTP\n---\n', m_stdout.getvalue())
+        self.assertIn('\nRuncmd\n------\n', m_stdout.getvalue())
 
     def test_main_validates_config_file(self):
         """When --config-file parameter is provided, main validates schema."""
         myyaml = self.tmp_path('my.yaml')
         myargs = ['mycmd', '--config-file', myyaml]
-        with open(myyaml, 'wb') as stream:
-            stream.write(b'#cloud-config\nntp:')   # shortest ntp schema
+        write_file(myyaml, b'#cloud-config\nntp:')  # shortest ntp schema
         with mock.patch('sys.argv', myargs):
             with mock.patch('sys.stdout', new_callable=StringIO) as m_stdout:
                 self.assertEqual(0, main(), 'Expected 0 exit code')

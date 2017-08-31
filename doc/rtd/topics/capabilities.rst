@@ -51,15 +51,6 @@ described in this document.
   usage: cloud-init [-h] [--version] [--file FILES] [--debug] [--force]
                     {init,modules,query,single,dhclient-hook,features} ...
 
-  positional arguments:
-    {init,modules,query,single,dhclient-hook,features}
-      init                initializes cloud-init and performs initial modules
-      modules             activates modules using a given configuration key
-      query               query information stored in cloud-init
-      single              run a single module
-      dhclient-hook       run the dhclient hookto record network info
-      features            list defined features
-
   optional arguments:
     -h, --help            show this help message and exit
     --version, -v         show program's version number and exit
@@ -69,6 +60,15 @@ described in this document.
     --force               force running even if no datasource is found (use at
                           your own risk)
 
+  Subcommands:
+    {init,modules,single,dhclient-hook,features,analyze,devel}
+      init                initializes cloud-init and performs initial modules
+      modules             activates modules using a given configuration key
+      single              run a single module
+      dhclient-hook       run the dhclient hookto record network info
+      features            list defined features
+      analyze             Devel tool: Analyze cloud-init logs and data
+      devel               Run development tools
 
   % cloud-init features
   NETWORK_CONFIG_V1

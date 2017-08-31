@@ -10,15 +10,15 @@
 
 # See http://www.debian.org/releases/stable/i386/release-notes/ch-upgrading.html
 # for how to upgrade to newer versions of the distribution.
-deb {{mirror}} {{codename}} main contrib non-free
-deb-src {{mirror}} {{codename}} main contrib non-free
+deb {{mirror}} {{codename}} main
+deb-src {{mirror}} {{codename}} main
 
 ## Major bug fix updates produced after the final release of the
 ## distribution.
-deb {{security}} {{codename}}/updates main contrib non-free
-deb-src {{security}} {{codename}}/updates main contrib non-free
-deb {{mirror}} {{codename}}-updates main contrib non-free
-deb-src {{mirror}} {{codename}}-updates main contrib non-free
+deb {{security}} {{codename}}/updates main
+deb-src {{security}} {{codename}}/updates main
+deb {{mirror}} {{codename}}-updates main
+deb-src {{mirror}} {{codename}}-updates main
 
 ## Uncomment the following two lines to add software from the 'backports'
 ## repository.
@@ -26,5 +26,5 @@ deb-src {{mirror}} {{codename}}-updates main contrib non-free
 ## N.B. software from this repository may not have been tested as
 ## extensively as that contained in the main release, although it includes
 ## newer versions of some applications which may provide useful features.
-deb {{mirror}} {{codename}}-backports main contrib non-free
-deb-src {{mirror}} {{codename}}-backports main contrib non-free
+deb {{mirror}} {{codename}}-backports main
+deb-src {{mirror}} {{codename}}-backports main
