@@ -1,4 +1,4 @@
-cloud-init (0.7.9-259-g7e76c57b-0ubuntu1) UNRELEASED; urgency=medium
+cloud-init (0.7.9-259-g7e76c57b-0ubuntu1) artful; urgency=medium
 
   * Disable upstart support, as upstart is no longer shipped in artful.
     [Dimitri Ledkov]
@@ -30,7 +30,7 @@ cloud-init (0.7.9-259-g7e76c57b-0ubuntu1) UNRELEASED; urgency=medium
     - Debian: Remove non-free repositories from apt sources template.
       [Joonas Kylmälä] (LP: #1700091)
 
- -- Scott Moser <smoser@ubuntu.com>  Wed, 30 Aug 2017 21:15:42 -0400
+ -- Scott Moser <smoser@ubuntu.com>  Wed, 30 Aug 2017 21:18:05 -0400
 
 cloud-init (0.7.9-243-ge74d775-0ubuntu1) artful; urgency=medium
 
