@@ -112,8 +112,7 @@ def get_parser():
     parser.add_argument("--init-system", dest="init_system",
                         help=("build deb with INIT_SYSTEM=xxx"
                               " (default: %(default)s"),
-                        default=os.environ.get("INIT_SYSTEM",
-                                               "upstart,systemd"))
+                        default=os.environ.get("INIT_SYSTEM", "systemd"))
 
     parser.add_argument("--release", dest="release",
                         help=("build with changelog referencing RELEASE"),
