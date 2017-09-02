@@ -27,7 +27,7 @@ class GetSchemaTest(CiTestCase):
         """Every cloudconfig module with schema is listed in allOf keyword."""
         schema = get_schema()
         self.assertItemsEqual(
-            ['cc_ntp', 'cc_runcmd'],
+            ['cc_bootcmd', 'cc_ntp', 'cc_resizefs', 'cc_runcmd'],
             [subschema['id'] for subschema in schema['allOf']])
         self.assertEqual('cloud-config-schema', schema['id'])
         self.assertEqual(
@@ -205,6 +205,17 @@ class GetSchemaDocTest(CiTestCase):
             '**prop1:** (string/integer) prop-description',
             get_schema_doc(full_schema))
 
+    def test_get_schema_doc_handles_enum_types(self):
+        """get_schema_doc converts enum types to yaml and delimits with '/'."""
+        full_schema = copy(self.required_schema)
+        full_schema.update(
+            {'properties': {
+                'prop1': {'enum': [True, False, 'stuff'],
+                          'description': 'prop-description'}}})
+        self.assertIn(
+            '**prop1:** (true/false/stuff) prop-description',
+            get_schema_doc(full_schema))
+
     def test_get_schema_doc_handles_nested_oneof_property_types(self):
         """get_schema_doc describes array items oneOf declarations in type."""
         full_schema = copy(self.required_schema)
@@ -219,11 +230,11 @@ class GetSchemaDocTest(CiTestCase):
             '**prop1:** (array of (string)/(integer)) prop-description',
             get_schema_doc(full_schema))
 
-    def test_get_schema_doc_returns_restructured_text_with_examples(self):
-        """get_schema_doc returns indented examples when present in schema."""
+    def test_get_schema_doc_handles_string_examples(self):
+        """get_schema_doc properly indented examples as a list of strings."""
         full_schema = copy(self.required_schema)
         full_schema.update(
-            {'examples': [{'ex1': [1, 2, 3]}],
+            {'examples': ['ex1:\n    [don\'t, expand, "this"]', 'ex2: true'],
              'properties': {
                 'prop1': {'type': 'array', 'description': 'prop-description',
                           'items': {'type': 'integer'}}}})
@@ -234,26 +245,11 @@ class GetSchemaDocTest(CiTestCase):
 
                 **Examples**::
 
-                    ex1"""),
-            get_schema_doc(full_schema))
-
-    def test_get_schema_doc_handles_unstructured_examples(self):
-        """get_schema_doc properly indented examples which as just strings."""
-        full_schema = copy(self.required_schema)
-        full_schema.update(
-            {'examples': ['My example:\n    [don\'t, expand, "this"]'],
-             'properties': {
-                'prop1': {'type': 'array', 'description': 'prop-description',
-                          'items': {'type': 'integer'}}}})
-        self.assertIn(
-            dedent("""
-                **Config schema**:
-                    **prop1:** (array of integer) prop-description
-
-                **Examples**::
-
-                    My example:
-                        [don't, expand, "this"]"""),
+                    ex1:
+                        [don't, expand, "this"]
+                    # --- Example2 ---
+                    ex2: true
+            """),
             get_schema_doc(full_schema))
 
     def test_get_schema_doc_raises_key_errors(self):

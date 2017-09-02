@@ -8,7 +8,8 @@
 
 """Runcmd: run arbitrary commands at rc.local with output to the console"""
 
-from cloudinit.config.schema import validate_cloudconfig_schema
+from cloudinit.config.schema import (
+    get_schema_doc, validate_cloudconfig_schema)
 from cloudinit.settings import PER_INSTANCE
 from cloudinit import util
 
@@ -66,6 +67,8 @@ schema = {
         }
     }
 }
+
+__doc__ = get_schema_doc(schema)  # Supplement python help()
 
 
 def handle(name, cfg, cloud, log, _args):
