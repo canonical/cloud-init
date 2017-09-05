@@ -2,8 +2,8 @@
 
 from mock import patch
 
-from . import helpers as test_helpers
 from cloudinit import ssh_util
+from cloudinit.tests import helpers as test_helpers
 
 
 VALID_CONTENT = {
@@ -57,6 +57,7 @@ TEST_OPTIONS = (
 
 
 class TestAuthKeyLineParser(test_helpers.TestCase):
+
     def test_simple_parse(self):
         # test key line with common 3 fields (keytype, base64, comment)
         parser = ssh_util.AuthKeyLineParser()

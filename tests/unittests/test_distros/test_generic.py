@@ -3,7 +3,7 @@
 from cloudinit import distros
 from cloudinit import util
 
-from .. import helpers
+from cloudinit.tests import helpers
 
 import os
 import shutil

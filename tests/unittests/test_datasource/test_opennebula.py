@@ -3,7 +3,7 @@
 from cloudinit import helpers
 from cloudinit.sources import DataSourceOpenNebula as ds
 from cloudinit import util
-from ..helpers import mock, populate_dir, TestCase
+from cloudinit.tests.helpers import mock, populate_dir, TestCase
 
 import os
 import pwd

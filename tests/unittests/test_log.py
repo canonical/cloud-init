@@ -2,9 +2,9 @@
 
 """Tests for cloudinit.log """
 
-from .helpers import CiTestCase
 from cloudinit.analyze.dump import CLOUD_INIT_ASCTIME_FMT
 from cloudinit import log as ci_logging
+from cloudinit.tests.helpers import CiTestCase
 import datetime
 import logging
 import six

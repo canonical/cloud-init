@@ -7,7 +7,7 @@ import logging
 from cloudinit.config import cc_rh_subscription
 from cloudinit import util
 
-from .helpers import TestCase, mock
+from cloudinit.tests.helpers import TestCase, mock
 
 
 class GoodTests(TestCase):

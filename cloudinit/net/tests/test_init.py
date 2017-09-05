@@ -7,7 +7,7 @@ import os
 
 import cloudinit.net as net
 from cloudinit.util import ensure_file, write_file, ProcessExecutionError
-from tests.unittests.helpers import CiTestCase
+from cloudinit.tests.helpers import CiTestCase
 
 
 class TestSysDevPath(CiTestCase):

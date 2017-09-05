@@ -12,7 +12,7 @@ try:
 except ImportError:
     from contextlib2 import ExitStack
 
-from ..helpers import TestCase
+from cloudinit.tests.helpers import TestCase
 
 from cloudinit import distros
 from cloudinit.distros.parsers.sys_conf import SysConf

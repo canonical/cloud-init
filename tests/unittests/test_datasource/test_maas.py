@@ -8,7 +8,7 @@ import yaml
 
 from cloudinit.sources import DataSourceMAAS
 from cloudinit import url_helper
-from ..helpers import TestCase, populate_dir
+from cloudinit.tests.helpers import TestCase, populate_dir
 
 try:
     from unittest import mock

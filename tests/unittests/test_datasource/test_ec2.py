@@ -4,9 +4,9 @@ import copy
 import httpretty
 import mock
 
-from .. import helpers as test_helpers
 from cloudinit import helpers
 from cloudinit.sources import DataSourceEc2 as ec2
+from cloudinit.tests import helpers as test_helpers
 
 
 # collected from api version 2016-09-02/ with

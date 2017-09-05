@@ -3,7 +3,7 @@
 from cloudinit.distros.arch import _render_network
 from cloudinit import util
 
-from ..helpers import (CiTestCase, dir2dict)
+from cloudinit.tests.helpers import (CiTestCase, dir2dict)
 
 from . import _get_distro
 

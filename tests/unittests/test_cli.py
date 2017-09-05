@@ -2,7 +2,7 @@
 
 import six
 
-from . import helpers as test_helpers
+from cloudinit.tests import helpers as test_helpers
 
 from cloudinit.cmd import main as cli
 

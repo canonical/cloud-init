@@ -3,7 +3,7 @@
 import os
 
 from cloudinit.sources.helpers import azure as azure_helper
-from ..helpers import ExitStack, mock, TestCase
+from cloudinit.tests.helpers import ExitStack, mock, TestCase
 
 
 GOAL_STATE_TEMPLATE = """\

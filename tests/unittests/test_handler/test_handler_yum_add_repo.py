@@ -3,7 +3,7 @@
 from cloudinit.config import cc_yum_add_repo
 from cloudinit import util
 
-from .. import helpers
+from cloudinit.tests import helpers
 
 try:
     from configparser import ConfigParser

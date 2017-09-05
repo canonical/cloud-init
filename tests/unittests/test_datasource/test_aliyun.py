@@ -5,9 +5,9 @@ import httpretty
 import mock
 import os
 
-from .. import helpers as test_helpers
 from cloudinit import helpers
 from cloudinit.sources import DataSourceAliYun as ay
+from cloudinit.tests import helpers as test_helpers
 
 DEFAULT_METADATA = {
     'instance-id': 'aliyun-test-vm-00',

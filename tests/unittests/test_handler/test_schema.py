@@ -6,7 +6,7 @@ from cloudinit.config.schema import (
     validate_cloudconfig_schema, main)
 from cloudinit.util import write_file
 
-from ..helpers import CiTestCase, mock, skipIf
+from cloudinit.tests.helpers import CiTestCase, mock, skipIf
 
 from copy import copy
 from six import StringIO

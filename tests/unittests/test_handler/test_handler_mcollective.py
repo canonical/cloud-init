@@ -4,7 +4,7 @@ from cloudinit import (cloud, distros, helpers, util)
 from cloudinit.config import cc_mcollective
 from cloudinit.sources import DataSourceNoCloud
 
-from .. import helpers as t_help
+from cloudinit.tests import helpers as t_help
 
 import configobj
 import logging

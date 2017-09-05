@@ -3,7 +3,7 @@
 from cloudinit.config import cc_runcmd
 from cloudinit.sources import DataSourceNone
 from cloudinit import (distros, helpers, cloud, util)
-from ..helpers import FilesystemMockingTestCase, skipIf
+from cloudinit.tests.helpers import FilesystemMockingTestCase, skipIf
 
 import logging
 import os

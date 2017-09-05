@@ -9,7 +9,7 @@ import httpretty as hp
 import json
 import re
 
-from .. import helpers as test_helpers
+from cloudinit.tests import helpers as test_helpers
 
 from six.moves.urllib.parse import urlparse
 from six import StringIO

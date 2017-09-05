@@ -15,7 +15,7 @@ from cloudinit import helpers
 from cloudinit import settings
 from cloudinit.sources import DataSourceGCE
 
-from .. import helpers as test_helpers
+from cloudinit.tests import helpers as test_helpers
 
 
 GCE_META = {

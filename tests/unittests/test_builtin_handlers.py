@@ -11,7 +11,7 @@ try:
 except ImportError:
     import mock
 
-from . import helpers as test_helpers
+from cloudinit.tests import helpers as test_helpers
 
 from cloudinit import handlers
 from cloudinit import helpers

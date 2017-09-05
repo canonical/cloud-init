@@ -1,6 +1,6 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
-from ..helpers import CiTestCase
+from cloudinit.tests.helpers import CiTestCase
 
 from . import _get_distro
 

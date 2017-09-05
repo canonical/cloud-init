@@ -2,7 +2,7 @@
 
 import copy
 
-from .. import helpers
+from cloudinit.tests import helpers
 
 from six.moves import filterfalse
 
