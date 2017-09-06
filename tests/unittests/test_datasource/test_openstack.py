@@ -57,6 +57,8 @@ OS_FILES = {
     'openstack/content/0000': CONTENT_0,
     'openstack/content/0001': CONTENT_1,
     'openstack/latest/meta_data.json': json.dumps(OSTACK_META),
+    'openstack/latest/network_data.json': json.dumps(
+        {'links': [], 'networks': [], 'services': []}),
     'openstack/latest/user_data': USER_DATA,
     'openstack/latest/vendor_data.json': json.dumps(VENDOR_DATA),
 }
@@ -68,6 +70,7 @@ EC2_VERSIONS = [
 ]
 
 
+# TODO _register_uris should leverage test_ec2.register_mock_metaserver.
 def _register_uris(version, ec2_files, ec2_meta, os_files):
     """Registers a set of url patterns into httpretty that will mimic the
     same data returned by the openstack metadata service (and ec2 service)."""
