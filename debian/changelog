@@ -1,4 +1,4 @@
-cloud-init (0.7.9-267-g922c3c5c-0ubuntu1) UNRELEASED; urgency=medium
+cloud-init (0.7.9-267-g922c3c5c-0ubuntu1) artful; urgency=medium
 
   * New upstream snapshot.
     - Ec2: only attempt to operate at local mode on known platforms.
@@ -15,7 +15,7 @@ cloud-init (0.7.9-267-g922c3c5c-0ubuntu1) UNRELEASED; urgency=medium
     - tests: Stop leaking calls through unmocked metadata addresses
       [Chad Smith] (LP: #1714117)
 
- -- Scott Moser <smoser@ubuntu.com>  Thu, 07 Sep 2017 16:54:39 -0400
+ -- Scott Moser <smoser@ubuntu.com>  Thu, 07 Sep 2017 16:59:04 -0400
 
 cloud-init (0.7.9-259-g7e76c57b-0ubuntu1) artful; urgency=medium
 
