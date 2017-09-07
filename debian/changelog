@@ -1,3 +1,22 @@
+cloud-init (0.7.9-267-g922c3c5c-0ubuntu1) UNRELEASED; urgency=medium
+
+  * New upstream snapshot.
+    - Ec2: only attempt to operate at local mode on known platforms.
+      (LP: #1715128)
+    - Use /run/cloud-init for tempfile operations. (LP: #1707222)
+    - ds-identify: Make OpenStack return maybe on arch other than intel.
+      (LP: #1715241)
+    - tests: mock missed openstack metadata uri network_data.json
+      [Chad Smith] (LP: #1714376)
+    - relocate tests/unittests/helpers.py to cloudinit/tests
+      [Lars Kellogg-Stedman]
+    - tox: add nose timer output [Joshua Powers]
+    - upstart: do not package upstart jobs, drop ubuntu-init-switch module.
+    - tests: Stop leaking calls through unmocked metadata addresses
+      [Chad Smith] (LP: #1714117)
+
+ -- Scott Moser <smoser@ubuntu.com>  Thu, 07 Sep 2017 16:54:39 -0400
+
 cloud-init (0.7.9-259-g7e76c57b-0ubuntu1) artful; urgency=medium
 
   * Disable upstart support, as upstart is no longer shipped in artful.
