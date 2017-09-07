@@ -12,7 +12,7 @@ import six
 import yaml
 
 from cloudinit import importer, util
-from . import helpers
+from cloudinit.tests import helpers
 
 try:
     from unittest import mock

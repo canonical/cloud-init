@@ -1,7 +1,7 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 from cloudinit import distros
-from ..helpers import (TestCase, mock)
+from cloudinit.tests.helpers import (TestCase, mock)
 
 
 class MyBaseDistro(distros.Distro):

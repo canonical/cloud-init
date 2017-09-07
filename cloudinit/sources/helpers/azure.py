@@ -6,10 +6,10 @@ import os
 import re
 import socket
 import struct
-import tempfile
 import time
 
 from cloudinit import stages
+from cloudinit import temp_utils
 from contextlib import contextmanager
 from xml.etree import ElementTree
 
@@ -111,7 +111,7 @@ class OpenSSLManager(object):
     }
 
     def __init__(self):
-        self.tmpdir = tempfile.mkdtemp()
+        self.tmpdir = temp_utils.mkdtemp()
         self.certificate = None
         self.generate_certificate()
 

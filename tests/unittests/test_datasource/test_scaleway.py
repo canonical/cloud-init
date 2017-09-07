@@ -9,7 +9,7 @@ from cloudinit import helpers
 from cloudinit import settings
 from cloudinit.sources import DataSourceScaleway
 
-from ..helpers import mock, HttprettyTestCase, TestCase
+from cloudinit.tests.helpers import mock, HttprettyTestCase, TestCase
 
 
 class DataResponses(object):

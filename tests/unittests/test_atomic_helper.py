@@ -6,7 +6,7 @@ import stat
 
 from cloudinit import atomic_helper
 
-from .helpers import CiTestCase
+from cloudinit.tests.helpers import CiTestCase
 
 
 class TestAtomicHelper(CiTestCase):

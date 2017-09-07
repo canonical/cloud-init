@@ -82,6 +82,7 @@ def retarget_many_wrapper(new_base, am, old_func):
 
 
 class TestCase(unittest2.TestCase):
+
     def reset_global_state(self):
         """Reset any global state to its original settings.
 
@@ -100,7 +101,7 @@ class TestCase(unittest2.TestCase):
         util._LSB_RELEASE = {}
 
     def setUp(self):
-        super(unittest2.TestCase, self).setUp()
+        super(TestCase, self).setUp()
         self.reset_global_state()
 
 
@@ -150,6 +151,7 @@ class CiTestCase(TestCase):
 
 
 class ResourceUsingTestCase(CiTestCase):
+
     def setUp(self):
         super(ResourceUsingTestCase, self).setUp()
         self.resource_path = None
@@ -188,6 +190,7 @@ class ResourceUsingTestCase(CiTestCase):
 
 
 class FilesystemMockingTestCase(ResourceUsingTestCase):
+
     def setUp(self):
         super(FilesystemMockingTestCase, self).setUp()
         self.patched_funcs = ExitStack()
@@ -281,6 +284,7 @@ class FilesystemMockingTestCase(ResourceUsingTestCase):
 class HttprettyTestCase(CiTestCase):
     # necessary as http_proxy gets in the way of httpretty
     # https://github.com/gabrielfalcao/HTTPretty/issues/122
+
     def setUp(self):
         self.restore_proxy = os.environ.get('http_proxy')
         if self.restore_proxy is not None:

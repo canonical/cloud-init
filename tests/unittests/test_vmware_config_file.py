@@ -8,10 +8,10 @@
 import logging
 import sys
 
-from .helpers import CiTestCase
 from cloudinit.sources.helpers.vmware.imc.boot_proto import BootProtoEnum
 from cloudinit.sources.helpers.vmware.imc.config import Config
 from cloudinit.sources.helpers.vmware.imc.config_file import ConfigFile
+from cloudinit.tests.helpers import CiTestCase
 
 logging.basicConfig(level=logging.DEBUG, stream=sys.stdout)
 logger = logging.getLogger(__name__)

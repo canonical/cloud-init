@@ -12,7 +12,7 @@ from cloudinit import settings
 from cloudinit import url_helper
 from cloudinit import util
 
-from .helpers import TestCase, CiTestCase, ExitStack, mock
+from cloudinit.tests.helpers import TestCase, CiTestCase, ExitStack, mock
 
 
 class FakeModule(handlers.Handler):

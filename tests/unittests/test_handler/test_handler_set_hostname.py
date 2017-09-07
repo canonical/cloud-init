@@ -7,7 +7,7 @@ from cloudinit import distros
 from cloudinit import helpers
 from cloudinit import util
 
-from .. import helpers as t_help
+from cloudinit.tests import helpers as t_help
 
 from configobj import ConfigObj
 import logging

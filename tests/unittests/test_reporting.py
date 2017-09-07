@@ -8,7 +8,7 @@ from cloudinit.reporting import handlers
 
 import mock
 
-from .helpers import TestCase
+from cloudinit.tests.helpers import TestCase
 
 
 def _fake_registry():

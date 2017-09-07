@@ -6,7 +6,7 @@
 
 import base64
 
-from .. import helpers as test_helpers
+from cloudinit.tests import helpers as test_helpers
 
 from cloudinit.sources import DataSourceOVF as dsovf
 

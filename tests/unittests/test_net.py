@@ -9,12 +9,13 @@ from cloudinit.net import network_state
 from cloudinit.net import renderers
 from cloudinit.net import sysconfig
 from cloudinit.sources.helpers import openstack
+from cloudinit import temp_utils
 from cloudinit import util
 
-from .helpers import CiTestCase
-from .helpers import dir2dict
-from .helpers import mock
-from .helpers import populate_dir
+from cloudinit.tests.helpers import CiTestCase
+from cloudinit.tests.helpers import dir2dict
+from cloudinit.tests.helpers import mock
+from cloudinit.tests.helpers import populate_dir
 
 import base64
 import copy
@@ -2150,7 +2151,7 @@ class TestCmdlineConfigParsing(CiTestCase):
         static['mac_address'] = macs['eth1']
 
         expected = {'version': 1, 'config': [dhcp, static]}
-        with util.tempdir() as tmpd:
+        with temp_utils.tempdir() as tmpd:
             for fname, content in pairs:
                 fp = os.path.join(tmpd, fname)
                 files.append(fp)

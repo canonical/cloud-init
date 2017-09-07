@@ -4,7 +4,7 @@ import os
 import shutil
 import tempfile
 
-from .. import helpers
+from cloudinit.tests import helpers
 
 from cloudinit.settings import PER_INSTANCE
 from cloudinit import stages

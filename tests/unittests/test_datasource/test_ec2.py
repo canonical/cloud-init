@@ -4,9 +4,9 @@ import copy
 import httpretty
 import mock
 
-from .. import helpers as test_helpers
 from cloudinit import helpers
 from cloudinit.sources import DataSourceEc2 as ec2
+from cloudinit.tests import helpers as test_helpers
 
 
 # collected from api version 2016-09-02/ with
@@ -116,6 +116,9 @@ def register_mock_metaserver(base_url, data):
     In the index, references to lists or dictionaries have a trailing /.
     """
     def register_helper(register, base_url, body):
+        if not isinstance(base_url, str):
+            register(base_url, body)
+            return
         base_url = base_url.rstrip("/")
         if isinstance(body, str):
             register(base_url, body)
@@ -138,7 +141,7 @@ def register_mock_metaserver(base_url, data):
             register(base_url, '\n'.join(vals) + '\n')
             register(base_url + '/', '\n'.join(vals) + '\n')
         elif body is None:
-            register(base_url, 'not found', status_code=404)
+            register(base_url, 'not found', status=404)
 
     def myreg(*argc, **kwargs):
         # print("register_url(%s, %s)" % (argc, kwargs))
@@ -161,38 +164,47 @@ class TestEc2(test_helpers.HttprettyTestCase):
         self.datasource = ec2.DataSourceEc2
         self.metadata_addr = self.datasource.metadata_urls[0]
 
-    @property
-    def metadata_url(self):
-        return '/'.join([
-            self.metadata_addr,
-            self.datasource.min_metadata_version, 'meta-data', ''])
-
-    @property
-    def userdata_url(self):
-        return '/'.join([
-            self.metadata_addr,
-            self.datasource.min_metadata_version, 'user-data'])
+    def data_url(self, version):
+        """Return a metadata url based on the version provided."""
+        return '/'.join([self.metadata_addr, version, 'meta-data', ''])
 
     def _patch_add_cleanup(self, mpath, *args, **kwargs):
         p = mock.patch(mpath, *args, **kwargs)
         p.start()
         self.addCleanup(p.stop)
 
-    def _setup_ds(self, sys_cfg, platform_data, md, ud=None):
+    def _setup_ds(self, sys_cfg, platform_data, md, md_version=None):
+        self.uris = []
         distro = {}
         paths = helpers.Paths({})
         if sys_cfg is None:
             sys_cfg = {}
         ds = self.datasource(sys_cfg=sys_cfg, distro=distro, paths=paths)
+        if not md_version:
+            md_version = ds.min_metadata_version
         if platform_data is not None:
             self._patch_add_cleanup(
                 "cloudinit.sources.DataSourceEc2._collect_platform_data",
                 return_value=platform_data)
 
         if md:
-            register_mock_metaserver(self.metadata_url, md)
-            register_mock_metaserver(self.userdata_url, ud)
-
+            httpretty.HTTPretty.allow_net_connect = False
+            all_versions = (
+                [ds.min_metadata_version] + ds.extended_metadata_versions)
+            for version in all_versions:
+                metadata_url = self.data_url(version)
+                if version == md_version:
+                    # Register all metadata for desired version
+                    register_mock_metaserver(metadata_url, md)
+                else:
+                    instance_id_url = metadata_url + 'instance-id'
+                    if version == ds.min_metadata_version:
+                        # Add min_metadata_version service availability check
+                        register_mock_metaserver(
+                            instance_id_url, DEFAULT_METADATA['instance-id'])
+                    else:
+                        # Register 404s for all unrequested extended versions
+                        register_mock_metaserver(instance_id_url, None)
         return ds
 
     @httpretty.activate
@@ -267,6 +279,27 @@ class TestEc2(test_helpers.HttprettyTestCase):
         ret = ds.get_data()
         self.assertTrue(ret)
 
+    def test_ec2_local_returns_false_on_non_aws(self):
+        """DataSourceEc2Local returns False when platform is not AWS."""
+        self.datasource = ec2.DataSourceEc2Local
+        ds = self._setup_ds(
+            platform_data=self.valid_platform_data,
+            sys_cfg={'datasource': {'Ec2': {'strict_id': False}}},
+            md=DEFAULT_METADATA)
+        platform_attrs = [
+            attr for attr in ec2.Platforms.__dict__.keys()
+            if not attr.startswith('__')]
+        for attr_name in platform_attrs:
+            platform_name = getattr(ec2.Platforms, attr_name)
+            if platform_name != 'AWS':
+                ds._cloud_platform = platform_name
+                ret = ds.get_data()
+                self.assertFalse(ret)
+                message = (
+                    "Local Ec2 mode only supported on ('AWS',),"
+                    ' not {0}'.format(platform_name))
+                self.assertIn(message, self.logs.getvalue())
+
     @httpretty.activate
     @mock.patch('cloudinit.sources.DataSourceEc2.util.is_FreeBSD')
     def test_ec2_local_returns_false_on_bsd(self, m_is_freebsd):
@@ -297,6 +330,7 @@ class TestEc2(test_helpers.HttprettyTestCase):
         Then the metadata services is crawled for more network config info.
         When the platform data is valid, return True.
         """
+
         m_is_bsd.return_value = False
         m_dhcp.return_value = [{
             'interface': 'eth9', 'fixed-address': '192.168.2.9',
@@ -307,6 +341,7 @@ class TestEc2(test_helpers.HttprettyTestCase):
             platform_data=self.valid_platform_data,
             sys_cfg={'datasource': {'Ec2': {'strict_id': False}}},
             md=DEFAULT_METADATA)
+
         ret = ds.get_data()
         self.assertTrue(ret)
         m_dhcp.assert_called_once_with()
@@ -322,8 +357,8 @@ class TestConvertEc2MetadataNetworkConfig(test_helpers.CiTestCase):
         super(TestConvertEc2MetadataNetworkConfig, self).setUp()
         self.mac1 = '06:17:04:d7:26:09'
         self.network_metadata = {
-            'network': {'interfaces': {'macs': {
-                self.mac1: {'public-ipv4s': '172.31.2.16'}}}}}
+            'interfaces': {'macs': {
+                self.mac1: {'public-ipv4s': '172.31.2.16'}}}}
 
     def test_convert_ec2_metadata_network_config_skips_absent_macs(self):
         """Any mac absent from metadata is skipped by network config."""
@@ -343,7 +378,7 @@ class TestConvertEc2MetadataNetworkConfig(test_helpers.CiTestCase):
         macs_to_nics = {self.mac1: 'eth9'}
         network_metadata_ipv6 = copy.deepcopy(self.network_metadata)
         nic1_metadata = (
-            network_metadata_ipv6['network']['interfaces']['macs'][self.mac1])
+            network_metadata_ipv6['interfaces']['macs'][self.mac1])
         nic1_metadata['ipv6s'] = '2620:0:1009:fd00:e442:c88d:c04d:dc85/64'
         nic1_metadata.pop('public-ipv4s')
         expected = {'version': 1, 'config': [
@@ -359,7 +394,7 @@ class TestConvertEc2MetadataNetworkConfig(test_helpers.CiTestCase):
         macs_to_nics = {self.mac1: 'eth9'}
         network_metadata_both = copy.deepcopy(self.network_metadata)
         nic1_metadata = (
-            network_metadata_both['network']['interfaces']['macs'][self.mac1])
+            network_metadata_both['interfaces']['macs'][self.mac1])
         nic1_metadata['ipv6s'] = '2620:0:1009:fd00:e442:c88d:c04d:dc85/64'
         expected = {'version': 1, 'config': [
             {'mac_address': self.mac1, 'type': 'physical',

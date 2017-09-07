@@ -1,6 +1,6 @@
 ## template:basic
 #!/usr/bin/make -f
-INIT_SYSTEM ?= upstart,systemd
+INIT_SYSTEM ?= systemd
 export PYBUILD_INSTALL_ARGS=--init-system=$(INIT_SYSTEM)
 PYVER ?= python${pyver}
 

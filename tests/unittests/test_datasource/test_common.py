@@ -24,7 +24,7 @@ from cloudinit.sources import (
 )
 from cloudinit.sources import DataSourceNone as DSNone
 
-from .. import helpers as test_helpers
+from cloudinit.tests import helpers as test_helpers
 
 DEFAULT_LOCAL = [
     Azure.DataSourceAzure,

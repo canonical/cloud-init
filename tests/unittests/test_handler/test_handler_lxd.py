@@ -3,7 +3,7 @@
 from cloudinit.config import cc_lxd
 from cloudinit.sources import DataSourceNoCloud
 from cloudinit import (distros, helpers, cloud)
-from .. import helpers as t_help
+from cloudinit.tests import helpers as t_help
 
 import logging
 
