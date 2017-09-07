@@ -71,6 +71,7 @@ import itertools
 import json
 import os
 
+from cloudinit import temp_utils
 from cloudinit import templater
 from cloudinit import url_helper
 from cloudinit import util
@@ -303,7 +304,7 @@ def install_chef(cloud, chef_cfg, log):
                                                  "omnibus_url_retries",
                                                  default=OMNIBUS_URL_RETRIES))
         content = url_helper.readurl(url=url, retries=retries).contents
-        with util.tempdir() as tmpd:
+        with temp_utils.tempdir() as tmpd:
             # Use tmpdir over tmpfile to avoid 'text file busy' on execute
             tmpf = "%s/chef-omnibus-install" % tmpd
             util.write_file(tmpf, content, mode=0o700)

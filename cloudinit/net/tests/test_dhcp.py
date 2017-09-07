@@ -8,7 +8,7 @@ from cloudinit.net.dhcp import (
     InvalidDHCPLeaseFileError, maybe_perform_dhcp_discovery,
     parse_dhcp_lease_file, dhcp_discovery)
 from cloudinit.util import ensure_file, write_file
-from tests.unittests.helpers import CiTestCase
+from cloudinit.tests.helpers import CiTestCase
 
 
 class TestParseDHCPLeasesFile(CiTestCase):

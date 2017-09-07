@@ -11,7 +11,7 @@ from cloudinit import util
 
 from cloudinit.sources import DataSourceNone
 
-from ..helpers import (FilesystemMockingTestCase, mock)
+from cloudinit.tests.helpers import (FilesystemMockingTestCase, mock)
 
 import logging
 import shutil

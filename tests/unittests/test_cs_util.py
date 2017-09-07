@@ -2,7 +2,7 @@
 
 from __future__ import print_function
 
-from . import helpers as test_helpers
+from cloudinit.tests import helpers as test_helpers
 
 from cloudinit.cs_utils import Cepko
 

@@ -3,7 +3,7 @@
 from cloudinit import helpers
 from cloudinit.sources.DataSourceCloudStack import DataSourceCloudStack
 
-from ..helpers import TestCase, mock, ExitStack
+from cloudinit.tests.helpers import TestCase, mock, ExitStack
 
 
 class TestCloudStackPasswordFetching(TestCase):

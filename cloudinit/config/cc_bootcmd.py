@@ -37,6 +37,7 @@ specified either as lists or strings. For invocation details, see ``runcmd``.
 import os
 
 from cloudinit.settings import PER_ALWAYS
+from cloudinit import temp_utils
 from cloudinit import util
 
 frequency = PER_ALWAYS
@@ -49,7 +50,7 @@ def handle(name, cfg, cloud, log, _args):
                    " no 'bootcmd' key in configuration"), name)
         return
 
-    with util.ExtendedTemporaryFile(suffix=".sh") as tmpf:
+    with temp_utils.ExtendedTemporaryFile(suffix=".sh") as tmpf:
         try:
             content = util.shellify(cfg["bootcmd"])
             tmpf.write(util.encode_text(content))

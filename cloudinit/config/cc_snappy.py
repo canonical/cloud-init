@@ -63,11 +63,11 @@ is ``auto``. Options are:
 
 from cloudinit import log as logging
 from cloudinit.settings import PER_INSTANCE
+from cloudinit import temp_utils
 from cloudinit import util
 
 import glob
 import os
-import tempfile
 
 LOG = logging.getLogger(__name__)
 
@@ -183,7 +183,7 @@ def render_snap_op(op, name, path=None, cfgfile=None, config=None):
             #      config
             # Note, however, we do not touch config files on disk.
             nested_cfg = {'config': {shortname: config}}
-            (fd, cfg_tmpf) = tempfile.mkstemp()
+            (fd, cfg_tmpf) = temp_utils.mkstemp()
             os.write(fd, util.yaml_dumps(nested_cfg).encode())
             os.close(fd)
             cfgfile = cfg_tmpf

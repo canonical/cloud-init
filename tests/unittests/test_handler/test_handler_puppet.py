@@ -3,7 +3,7 @@
 from cloudinit.config import cc_puppet
 from cloudinit.sources import DataSourceNone
 from cloudinit import (distros, helpers, cloud, util)
-from ..helpers import CiTestCase, mock
+from cloudinit.tests.helpers import CiTestCase, mock
 
 import logging
 

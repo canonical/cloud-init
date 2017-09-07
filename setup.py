@@ -191,6 +191,8 @@ class InitsysInstallData(install):
             datakeys = [k for k in INITSYS_ROOTS
                         if k.partition(".")[0] == system]
             for k in datakeys:
+                if not INITSYS_FILES[k]:
+                    continue
                 self.distribution.data_files.append(
                     (INITSYS_ROOTS[k], INITSYS_FILES[k]))
         # Force that command to reinitalize (with new file list)

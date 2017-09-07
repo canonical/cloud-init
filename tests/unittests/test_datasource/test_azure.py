@@ -6,8 +6,8 @@ from cloudinit.sources import DataSourceAzure as dsaz
 from cloudinit.util import find_freebsd_part
 from cloudinit.util import get_path_dev_freebsd
 
-from ..helpers import (CiTestCase, TestCase, populate_dir, mock,
-                       ExitStack, PY26, SkipTest)
+from cloudinit.tests.helpers import (CiTestCase, TestCase, populate_dir, mock,
+                                     ExitStack, PY26, SkipTest)
 
 import crypt
 import os
@@ -871,6 +871,7 @@ class TestLoadAzureDsDir(CiTestCase):
 
 
 class TestReadAzureOvf(TestCase):
+
     def test_invalid_xml_raises_non_azure_ds(self):
         invalid_xml = "<foo>" + construct_valid_ovf_env(data={})
         self.assertRaises(dsaz.BrokenAzureDataSource,
@@ -1079,6 +1080,7 @@ class TestCanDevBeReformatted(CiTestCase):
 
 
 class TestAzureNetExists(CiTestCase):
+
     def test_azure_net_must_exist_for_legacy_objpkl(self):
         """DataSourceAzureNet must exist for old obj.pkl files
            that reference it."""

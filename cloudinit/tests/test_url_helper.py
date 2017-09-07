@@ -1,7 +1,7 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 from cloudinit.url_helper import oauth_headers
-from tests.unittests.helpers import CiTestCase, mock, skipIf
+from cloudinit.tests.helpers import CiTestCase, mock, skipIf
 
 
 try:

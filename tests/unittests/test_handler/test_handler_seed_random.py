@@ -22,7 +22,7 @@ from cloudinit import util
 
 from cloudinit.sources import DataSourceNone
 
-from .. import helpers as t_help
+from cloudinit.tests import helpers as t_help
 
 import logging
 

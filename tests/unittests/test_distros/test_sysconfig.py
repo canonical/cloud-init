@@ -4,7 +4,7 @@ import re
 
 from cloudinit.distros.parsers.sys_conf import SysConf
 
-from ..helpers import TestCase
+from cloudinit.tests.helpers import TestCase
 
 
 # Lots of good examples @

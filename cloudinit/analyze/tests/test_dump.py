@@ -6,7 +6,7 @@ from textwrap import dedent
 from cloudinit.analyze.dump import (
     dump_events, parse_ci_logline, parse_timestamp)
 from cloudinit.util import subp, write_file
-from tests.unittests.helpers import CiTestCase
+from cloudinit.tests.helpers import CiTestCase
 
 
 class TestParseTimestamp(CiTestCase):

@@ -45,9 +45,6 @@ datasource_list: ['ConfigDrive', 'Azure', 'OpenStack', 'Ec2']
 # The modules that run in the 'init' stage
 cloud_init_modules:
  - migrator
-{% if variant in ["ubuntu", "unknown", "debian"] %}
- - ubuntu-init-switch
-{% endif %}
  - seed_random
  - bootcmd
  - write-files

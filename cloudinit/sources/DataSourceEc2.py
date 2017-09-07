@@ -27,6 +27,8 @@ SKIP_METADATA_URL_CODES = frozenset([uhelp.NOT_FOUND])
 STRICT_ID_PATH = ("datasource", "Ec2", "strict_id")
 STRICT_ID_DEFAULT = "warn"
 
+_unset = "_unset"
+
 
 class Platforms(object):
     ALIYUN = "AliYun"
@@ -57,7 +59,7 @@ class DataSourceEc2(sources.DataSource):
 
     _cloud_platform = None
 
-    _network_config = None  # Used for caching calculated network config v1
+    _network_config = _unset  # Used for caching calculated network config v1
 
     # Whether we want to get network configuration from the metadata service.
     get_network_metadata = False
@@ -284,10 +286,24 @@ class DataSourceEc2(sources.DataSource):
     @property
     def network_config(self):
         """Return a network config dict for rendering ENI or netplan files."""
-        if self._network_config is None:
-            if self.metadata is not None:
-                self._network_config = convert_ec2_metadata_network_config(
-                    self.metadata)
+        if self._network_config != _unset:
+            return self._network_config
+
+        if self.metadata is None:
+            # this would happen if get_data hadn't been called. leave as _unset
+            LOG.warning(
+                "Unexpected call to network_config when metadata is None.")
+            return None
+
+        result = None
+        net_md = self.metadata.get('network')
+        if isinstance(net_md, dict):
+            result = convert_ec2_metadata_network_config(net_md)
+        else:
+            LOG.warning("unexpected metadata 'network' key not valid: %s",
+                        net_md)
+        self._network_config = result
+
         return self._network_config
 
     def _crawl_metadata(self):
@@ -320,6 +336,14 @@ class DataSourceEc2Local(DataSourceEc2):
     then render the network configuration for that instance based on metadata.
     """
     get_network_metadata = True  # Get metadata network config if present
+
+    def get_data(self):
+        supported_platforms = (Platforms.AWS,)
+        if self.cloud_platform not in supported_platforms:
+            LOG.debug("Local Ec2 mode only supported on %s, not %s",
+                      supported_platforms, self.cloud_platform)
+            return False
+        return super(DataSourceEc2Local, self).get_data()
 
 
 def read_strict_mode(cfgval, default):
@@ -434,10 +458,13 @@ def _collect_platform_data():
     return data
 
 
-def convert_ec2_metadata_network_config(metadata=None, macs_to_nics=None):
+def convert_ec2_metadata_network_config(network_md, macs_to_nics=None):
     """Convert ec2 metadata to network config version 1 data dict.
 
-    @param: metadata: Dictionary of metadata crawled from EC2 metadata url.
+    @param: network_md: 'network' portion of EC2 metadata.
+       generally formed as {"interfaces": {"macs": {}} where
+       'macs' is a dictionary with mac address as key and contents like:
+       {"device-number": "0", "interface-id": "...", "local-ipv4s": ...}
     @param: macs_to_name: Optional dict mac addresses and the nic name. If
        not provided, get_interfaces_by_mac is called to get it from the OS.
 
@@ -446,7 +473,7 @@ def convert_ec2_metadata_network_config(metadata=None, macs_to_nics=None):
     netcfg = {'version': 1, 'config': []}
     if not macs_to_nics:
         macs_to_nics = net.get_interfaces_by_mac()
-    macs_metadata = metadata['network']['interfaces']['macs']
+    macs_metadata = network_md['interfaces']['macs']
     for mac, nic_name in macs_to_nics.items():
         nic_metadata = macs_metadata.get(mac)
         if not nic_metadata:

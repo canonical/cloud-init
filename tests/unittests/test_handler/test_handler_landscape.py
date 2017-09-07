@@ -1,9 +1,10 @@
 # This file is part of cloud-init. See LICENSE file for license information.
 
 from cloudinit.config import cc_landscape
-from cloudinit.sources import DataSourceNone
 from cloudinit import (distros, helpers, cloud, util)
-from ..helpers import FilesystemMockingTestCase, mock, wrap_and_call
+from cloudinit.sources import DataSourceNone
+from cloudinit.tests.helpers import (FilesystemMockingTestCase, mock,
+                                     wrap_and_call)
 
 from configobj import ConfigObj
 import logging

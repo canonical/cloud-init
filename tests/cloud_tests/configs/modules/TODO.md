@@ -89,8 +89,6 @@ Not applicable to write a test for this as it specifies when something should be
 ## ssh authkey fingerprints
 The authkey_hash key does not appear to work. In fact the default claims to be md5, however syslog only shows sha256
 
-## ubuntu init switch
-
 ## update etc hosts
 2016-11-17: Issues with changing /etc/hosts and lxc backend.
 

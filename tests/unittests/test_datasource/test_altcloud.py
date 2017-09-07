@@ -18,7 +18,7 @@ import tempfile
 from cloudinit import helpers
 from cloudinit import util
 
-from ..helpers import TestCase
+from cloudinit.tests.helpers import TestCase
 
 import cloudinit.sources.DataSourceAltCloud as dsac
 
