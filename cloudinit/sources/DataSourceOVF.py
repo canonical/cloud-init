@@ -51,6 +51,10 @@ class DataSourceOVF(sources.DataSource):
         self.cfg = {}
         self.supported_seed_starts = ("/", "file://")
         self.vmware_customization_supported = True
+        self._network_config = None
+        self._vmware_nics_to_enable = None
+        self._vmware_cust_conf = None
+        self._vmware_cust_found = False
 
     def __str__(self):
         root = sources.DataSource.__str__(self)
@@ -60,8 +64,8 @@ class DataSourceOVF(sources.DataSource):
         found = []
         md = {}
         ud = ""
-        vmwarePlatformFound = False
-        vmwareImcConfigFilePath = ''
+        vmwareImcConfigFilePath = None
+        nicspath = None
 
         defaults = {
             "instance-id": "iid-dsovf",
@@ -101,25 +105,26 @@ class DataSourceOVF(sources.DataSource):
                         logfunc=LOG.debug,
                         msg="waiting for configuration file",
                         func=wait_for_imc_cfg_file,
-                        args=("/var/run/vmware-imc", "cust.cfg", max_wait))
+                        args=("cust.cfg", max_wait))
 
                 if vmwareImcConfigFilePath:
                     LOG.debug("Found VMware Customization Config File at %s",
                               vmwareImcConfigFilePath)
+                    nicspath = wait_for_imc_cfg_file(
+                        filename="nics.txt", maxwait=10, naplen=5)
                 else:
                     LOG.debug("Did not find VMware Customization Config File")
             else:
                 LOG.debug("Customization for VMware platform is disabled.")
 
         if vmwareImcConfigFilePath:
-            nics = ""
+            self._vmware_nics_to_enable = ""
             try:
                 cf = ConfigFile(vmwareImcConfigFilePath)
-                conf = Config(cf)
-                (md, ud, cfg) = read_vmware_imc(conf)
-                dirpath = os.path.dirname(vmwareImcConfigFilePath)
-                nics = get_nics_to_enable(dirpath)
-                markerid = conf.marker_id
+                self._vmware_cust_conf = Config(cf)
+                (md, ud, cfg) = read_vmware_imc(self._vmware_cust_conf)
+                self._vmware_nics_to_enable = get_nics_to_enable(nicspath)
+                markerid = self._vmware_cust_conf.marker_id
                 markerexists = check_marker_exists(markerid)
             except Exception as e:
                 LOG.debug("Error parsing the customization Config File")
@@ -127,28 +132,29 @@ class DataSourceOVF(sources.DataSource):
                 set_customization_status(
                     GuestCustStateEnum.GUESTCUST_STATE_RUNNING,
                     GuestCustEventEnum.GUESTCUST_EVENT_CUSTOMIZE_FAILED)
-                enable_nics(nics)
-                return False
+                raise e
             finally:
                 util.del_dir(os.path.dirname(vmwareImcConfigFilePath))
             try:
-                LOG.debug("Applying the Network customization")
-                nicConfigurator = NicConfigurator(conf.nics)
-                nicConfigurator.configure()
+                LOG.debug("Preparing the Network configuration")
+                self._network_config = get_network_config_from_conf(
+                    self._vmware_cust_conf,
+                    True,
+                    True,
+                    self.distro.osfamily)
             except Exception as e:
-                LOG.debug("Error applying the Network Configuration")
                 LOG.exception(e)
                 set_customization_status(
                     GuestCustStateEnum.GUESTCUST_STATE_RUNNING,
                     GuestCustEventEnum.GUESTCUST_EVENT_NETWORK_SETUP_FAILED)
-                enable_nics(nics)
-                return False
+                raise e
+
             if markerid and not markerexists:
                 LOG.debug("Applying password customization")
                 pwdConfigurator = PasswordConfigurator()
-                adminpwd = conf.admin_password
+                adminpwd = self._vmware_cust_conf.admin_password
                 try:
-                    resetpwd = conf.reset_password
+                    resetpwd = self._vmware_cust_conf.reset_password
                     if adminpwd or resetpwd:
                         pwdConfigurator.configure(adminpwd, resetpwd,
                                                   self.distro)
@@ -159,7 +165,6 @@ class DataSourceOVF(sources.DataSource):
                     set_customization_status(
                         GuestCustStateEnum.GUESTCUST_STATE_RUNNING,
                         GuestCustEventEnum.GUESTCUST_EVENT_CUSTOMIZE_FAILED)
-                    enable_nics(nics)
                     return False
             if markerid:
                 LOG.debug("Handle marker creation")
@@ -170,14 +175,18 @@ class DataSourceOVF(sources.DataSource):
                     set_customization_status(
                         GuestCustStateEnum.GUESTCUST_STATE_RUNNING,
                         GuestCustEventEnum.GUESTCUST_EVENT_CUSTOMIZE_FAILED)
-                    enable_nics(nics)
                     return False
 
-            vmwarePlatformFound = True
+            self._vmware_cust_found = True
+            found.append('vmware-tools')
+
+            # TODO: Need to set the status to DONE only when the
+            # customization is done successfully.
             set_customization_status(
                 GuestCustStateEnum.GUESTCUST_STATE_DONE,
                 GuestCustErrorEnum.GUESTCUST_ERROR_SUCCESS)
-            enable_nics(nics)
+            enable_nics(self._vmware_nics_to_enable)
+
         else:
             np = {'iso': transport_iso9660,
                   'vmware-guestd': transport_vmware_guestd, }
@@ -192,7 +201,7 @@ class DataSourceOVF(sources.DataSource):
                 found.append(name)
 
         # There was no OVF transports found
-        if len(found) == 0 and not vmwarePlatformFound:
+        if len(found) == 0:
             return False
 
         if 'seedfrom' in md and md['seedfrom']:
@@ -237,6 +246,10 @@ class DataSourceOVF(sources.DataSource):
     def get_config_obj(self):
         return self.cfg
 
+    @property
+    def network_config(self):
+        return self._network_config
+
 
 class DataSourceOVFNet(DataSourceOVF):
     def __init__(self, sys_cfg, distro, paths):
@@ -268,17 +281,38 @@ def get_max_wait_from_cfg(cfg):
     return max_wait
 
 
-def wait_for_imc_cfg_file(dirpath, filename, maxwait=180, naplen=5):
+def wait_for_imc_cfg_file(filename, maxwait=180, naplen=5,
+                          dirpath="/var/run/vmware-imc"):
     waited = 0
 
     while waited < maxwait:
-        fileFullPath = search_file(dirpath, filename)
-        if fileFullPath:
+        fileFullPath = os.path.join(dirpath, filename)
+        if os.path.isfile(fileFullPath):
             return fileFullPath
         LOG.debug("Waiting for VMware Customization Config File")
         time.sleep(naplen)
         waited += naplen
     return None
+
+
+def get_network_config_from_conf(config, use_system_devices=True,
+                                 configure=False, osfamily=None):
+    nicConfigurator = NicConfigurator(config.nics, use_system_devices)
+    nics_cfg_list = nicConfigurator.generate(configure, osfamily)
+
+    return get_network_config(nics_cfg_list,
+                              config.name_servers,
+                              config.dns_suffixes)
+
+
+def get_network_config(nics=None, nameservers=None, search=None):
+    config_list = nics
+
+    if nameservers or search:
+        config_list.append({'type': 'nameserver', 'address': nameservers,
+                            'search': search})
+
+    return {'version': 1, 'config': config_list}
 
 
 # This will return a dict with some content
@@ -296,6 +330,9 @@ def read_vmware_imc(config):
     if config.timezone:
         cfg['timezone'] = config.timezone
 
+    # Generate a unique instance-id so that re-customization will
+    # happen in cloud-init
+    md['instance-id'] = "iid-vmware-" + util.rand_str(strlen=8)
     return (md, ud, cfg)
 
 
