@@ -182,10 +182,10 @@ class DataSourceOVF(sources.DataSource):
 
             # TODO: Need to set the status to DONE only when the
             # customization is done successfully.
+            enable_nics(self._vmware_nics_to_enable)
             set_customization_status(
                 GuestCustStateEnum.GUESTCUST_STATE_DONE,
                 GuestCustErrorEnum.GUESTCUST_ERROR_SUCCESS)
-            enable_nics(self._vmware_nics_to_enable)
 
         else:
             np = {'iso': transport_iso9660,
