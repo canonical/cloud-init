@@ -49,8 +49,8 @@ def install_deb(args, image):
     LOG.debug(msg)
     remote_path = os.path.join('/tmp', os.path.basename(args.deb))
     image.push_file(args.deb, remote_path)
-    cmd = 'dpkg -i {} || apt-get install --yes -f'.format(remote_path)
-    image.execute(['/bin/sh', '-c', cmd], description=msg)
+    cmd = 'dpkg -i {}; apt-get install --yes -f'.format(remote_path)
+    image.execute(cmd, description=msg)
 
     # check installed deb version matches package
     fmt = ['-W', "--showformat='${Version}'"]
@@ -113,7 +113,7 @@ def upgrade(args, image):
 
     msg = 'upgrading cloud-init'
     LOG.debug(msg)
-    image.execute(['/bin/sh', '-c', cmd], description=msg)
+    image.execute(cmd, description=msg)
 
 
 def upgrade_full(args, image):
@@ -134,7 +134,7 @@ def upgrade_full(args, image):
 
     msg = 'full system upgrade'
     LOG.debug(msg)
-    image.execute(['/bin/sh', '-c', cmd], description=msg)
+    image.execute(cmd, description=msg)
 
 
 def run_script(args, image):
@@ -165,7 +165,7 @@ def enable_ppa(args, image):
     msg = 'enable ppa: "{}" in target'.format(ppa)
     LOG.debug(msg)
     cmd = 'add-apt-repository --yes {} && apt-get update'.format(ppa)
-    image.execute(['/bin/sh', '-c', cmd], description=msg)
+    image.execute(cmd, description=msg)
 
 
 def enable_repo(args, image):
@@ -188,7 +188,7 @@ def enable_repo(args, image):
 
     msg = 'enable repo: "{}" in target'.format(args.repo)
     LOG.debug(msg)
-    image.execute(['/bin/sh', '-c', cmd], description=msg)
+    image.execute(cmd, description=msg)
 
 
 def setup_image(args, image):
