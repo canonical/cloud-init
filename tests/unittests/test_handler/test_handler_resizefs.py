@@ -166,6 +166,18 @@ class TestIsDevicePathWritableBlock(CiTestCase):
 
     with_logs = True
 
+    def test_is_device_path_writable_block_false_on_overlayroot(self):
+        """When devpath is overlayroot (on MAAS), is_dev_writable is False."""
+        info = 'does not matter'
+        is_writable = wrap_and_call(
+            'cloudinit.config.cc_resizefs.util',
+            {'is_container': {'return_value': False}},
+            is_device_path_writable_block, 'overlayroot', info, LOG)
+        self.assertFalse(is_writable)
+        self.assertIn(
+            "Not attempting to resize devpath 'overlayroot'",
+            self.logs.getvalue())
+
     def test_is_device_path_writable_block_warns_missing_cmdline_root(self):
         """When root does not exist isn't in the cmdline, log warning."""
         info = 'does not matter'
@@ -178,24 +190,24 @@ class TestIsDevicePathWritableBlock(CiTestCase):
         exists_mock_path = 'cloudinit.config.cc_resizefs.os.path.exists'
         with mock.patch(exists_mock_path) as m_exists:
             m_exists.return_value = False
-            is_valid = wrap_and_call(
+            is_writable = wrap_and_call(
                 'cloudinit.config.cc_resizefs.util',
                 {'is_container': {'return_value': False},
                  'get_mount_info': {'side_effect': fake_mount_info},
                  'get_cmdline': {'return_value': 'BOOT_IMAGE=/vmlinuz.efi'}},
                 is_device_path_writable_block, '/dev/root', info, LOG)
-        self.assertFalse(is_valid)
+        self.assertFalse(is_writable)
         logs = self.logs.getvalue()
         self.assertIn("WARNING: Unable to find device '/dev/root'", logs)
 
     def test_is_device_path_writable_block_does_not_exist(self):
         """When devpath does not exist, a warning is logged."""
         info = 'dev=/I/dont/exist mnt_point=/ path=/dev/none'
-        is_valid = wrap_and_call(
+        is_writable = wrap_and_call(
             'cloudinit.config.cc_resizefs.util',
             {'is_container': {'return_value': False}},
             is_device_path_writable_block, '/I/dont/exist', info, LOG)
-        self.assertFalse(is_valid)
+        self.assertFalse(is_writable)
         self.assertIn(
             "WARNING: Device '/I/dont/exist' did not exist."
             ' cannot resize: %s' % info,
@@ -204,11 +216,11 @@ class TestIsDevicePathWritableBlock(CiTestCase):
     def test_is_device_path_writable_block_does_not_exist_in_container(self):
         """When devpath does not exist in a container, log a debug message."""
         info = 'dev=/I/dont/exist mnt_point=/ path=/dev/none'
-        is_valid = wrap_and_call(
+        is_writable = wrap_and_call(
             'cloudinit.config.cc_resizefs.util',
             {'is_container': {'return_value': True}},
             is_device_path_writable_block, '/I/dont/exist', info, LOG)
-        self.assertFalse(is_valid)
+        self.assertFalse(is_writable)
         self.assertIn(
             "DEBUG: Device '/I/dont/exist' did not exist in container."
             ' cannot resize: %s' % info,
@@ -226,57 +238,17 @@ class TestIsDevicePathWritableBlock(CiTestCase):
         self.assertEqual(
             'Something unexpected', str(context_manager.exception))
 
-    def test_is_device_path_writable_block_readonly(self):
-        """When root device is readonly, emit a warning and return False."""
-        fake_devpath = self.tmp_path('dev/readonly')
-        util.write_file(fake_devpath, '', mode=0o400)  # read-only
-        info = 'dev=/dev/root mnt_point=/ path={0}'.format(fake_devpath)
-
-        exists_mock_path = 'cloudinit.config.cc_resizefs.os.path.exists'
-        with mock.patch(exists_mock_path) as m_exists:
-            m_exists.return_value = False
-            is_valid = wrap_and_call(
-                'cloudinit.config.cc_resizefs.util',
-                {'is_container': {'return_value': False},
-                 'rootdev_from_cmdline': {'return_value': fake_devpath}},
-                is_device_path_writable_block, '/dev/root', info, LOG)
-        self.assertFalse(is_valid)
-        logs = self.logs.getvalue()
-        self.assertIn(
-            "Converted /dev/root to '{0}' per kernel cmdline".format(
-                fake_devpath),
-            logs)
-        self.assertIn(
-            "WARNING: '{0}' not writable. cannot resize".format(fake_devpath),
-            logs)
-
-    def test_is_device_path_writable_block_readonly_in_container(self):
-        """When root device is readonly, emit debug log and return False."""
-        fake_devpath = self.tmp_path('dev/readonly')
-        util.write_file(fake_devpath, '', mode=0o400)  # read-only
-        info = 'dev=/dev/root mnt_point=/ path={0}'.format(fake_devpath)
-
-        is_valid = wrap_and_call(
-            'cloudinit.config.cc_resizefs.util',
-            {'is_container': {'return_value': True}},
-            is_device_path_writable_block, fake_devpath, info, LOG)
-        self.assertFalse(is_valid)
-        self.assertIn(
-            "DEBUG: '{0}' not writable in container. cannot resize".format(
-                fake_devpath),
-            self.logs.getvalue())
-
     def test_is_device_path_writable_block_non_block(self):
         """When device is not a block device, emit warning return False."""
         fake_devpath = self.tmp_path('dev/readwrite')
         util.write_file(fake_devpath, '', mode=0o600)  # read-write
         info = 'dev=/dev/root mnt_point=/ path={0}'.format(fake_devpath)
 
-        is_valid = wrap_and_call(
+        is_writable = wrap_and_call(
             'cloudinit.config.cc_resizefs.util',
             {'is_container': {'return_value': False}},
             is_device_path_writable_block, fake_devpath, info, LOG)
-        self.assertFalse(is_valid)
+        self.assertFalse(is_writable)
         self.assertIn(
             "WARNING: device '{0}' not a block device. cannot resize".format(
                 fake_devpath),
@@ -288,11 +260,11 @@ class TestIsDevicePathWritableBlock(CiTestCase):
         util.write_file(fake_devpath, '', mode=0o600)  # read-write
         info = 'dev=/dev/root mnt_point=/ path={0}'.format(fake_devpath)
 
-        is_valid = wrap_and_call(
+        is_writable = wrap_and_call(
             'cloudinit.config.cc_resizefs.util',
             {'is_container': {'return_value': True}},
             is_device_path_writable_block, fake_devpath, info, LOG)
-        self.assertFalse(is_valid)
+        self.assertFalse(is_writable)
         self.assertIn(
             "DEBUG: device '{0}' not a block device in container."
             ' cannot resize'.format(fake_devpath),

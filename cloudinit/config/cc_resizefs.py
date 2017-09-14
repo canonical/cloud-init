@@ -192,6 +192,10 @@ def is_device_path_writable_block(devpath, info, log):
             return False
         log.debug("Converted /dev/root to '%s' per kernel cmdline", devpath)
 
+    if devpath == 'overlayroot':
+        log.debug("Not attempting to resize devpath '%s': %s", devpath, info)
+        return False
+
     try:
         statret = os.stat(devpath)
     except OSError as exc:
@@ -204,14 +208,6 @@ def is_device_path_writable_block(devpath, info, log):
         else:
             raise exc
         return False
-
-    if not os.access(devpath, os.W_OK):
-        if container:
-            log.debug("'%s' not writable in container. cannot resize: %s",
-                      devpath, info)
-        else:
-            log.warn("'%s' not writable. cannot resize: %s", devpath, info)
-        return
 
     if not stat.S_ISBLK(statret.st_mode) and not stat.S_ISCHR(statret.st_mode):
         if container:
