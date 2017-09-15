@@ -187,22 +187,36 @@ def get_dhclient_d():
     return None
 
 
-def get_latest_lease():
+def get_latest_lease(lease_d=None):
     # find latest lease file
-    lease_d = get_dhclient_d()
+    if lease_d is None:
+        lease_d = get_dhclient_d()
     if not lease_d:
         return None
     lease_files = os.listdir(lease_d)
     latest_mtime = -1
     latest_file = None
-    for file_name in lease_files:
-        if file_name.startswith("dhclient.") and \
-           (file_name.endswith(".lease") or file_name.endswith(".leases")):
-            abs_path = os.path.join(lease_d, file_name)
-            mtime = os.path.getmtime(abs_path)
-            if mtime > latest_mtime:
-                latest_mtime = mtime
-                latest_file = abs_path
+
+    # lease files are named inconsistently across distros.
+    # We assume that 'dhclient6' indicates ipv6 and ignore it.
+    # ubuntu:
+    #   dhclient.<iface>.leases, dhclient.leases, dhclient6.leases
+    # centos6:
+    #   dhclient-<iface>.leases, dhclient6.leases
+    # centos7: ('--' is not a typo)
+    #   dhclient--<iface>.lease, dhclient6.leases
+    for fname in lease_files:
+        if fname.startswith("dhclient6"):
+            # avoid files that start with dhclient6 assuming dhcpv6.
+            continue
+        if not (fname.endswith(".lease") or fname.endswith(".leases")):
+            continue
+
+        abs_path = os.path.join(lease_d, fname)
+        mtime = os.path.getmtime(abs_path)
+        if mtime > latest_mtime:
+            latest_mtime = mtime
+            latest_file = abs_path
     return latest_file
 
 
